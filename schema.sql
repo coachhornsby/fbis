@@ -26,18 +26,66 @@ CREATE TABLE IF NOT EXISTS predictions (
   game_id TEXT NOT NULL,
   sport TEXT NOT NULL,
   date TEXT NOT NULL,
+  matchup TEXT,
+  checkpoint TEXT,
   model_version TEXT,
   as_of TEXT NOT NULL,
   proj_home REAL,
   proj_away REAL,
   proj_total REAL,
   proj_margin REAL,
+  pal_home REAL,
+  pal_away REAL,
   p_home_final REAL,
   p_away_final REAL,
   p_market REAL,
   p_espn REAL,
   p_score REAL,
   p_form REAL,
+  p_pal REAL,
+  weights_json TEXT,
+  layers_json TEXT,
+  pal_json TEXT,
+  pal_as_of TEXT,
+  lineups_official INTEGER,
+  data_quality INTEGER,
+  pin_home_ml REAL,
+  pin_away_ml REAL,
+  pin_vig REAL,
+  engine TEXT,
+  actual_home REAL,
+  actual_away REAL,
+  graded_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS prediction_snapshots (
+  id TEXT PRIMARY KEY,
+  game_id TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  date TEXT NOT NULL,
+  matchup TEXT,
+  checkpoint TEXT NOT NULL,
+  model_version TEXT,
+  frozen_at TEXT NOT NULL,
+  proj_home REAL,
+  proj_away REAL,
+  proj_total REAL,
+  proj_margin REAL,
+  pal_home REAL,
+  pal_away REAL,
+  pal_f5_home REAL,
+  pal_f5_away REAL,
+  pal_p_home REAL,
+  pal_as_of TEXT,
+  pal_request_id TEXT,
+  pal_json TEXT,
+  lineups_official INTEGER,
+  p_home_final REAL,
+  p_market REAL,
+  p_espn REAL,
+  p_score REAL,
+  p_form REAL,
+  p_pal REAL,
   weights_json TEXT,
   layers_json TEXT,
   data_quality INTEGER,
@@ -72,49 +120,26 @@ CREATE TABLE IF NOT EXISTS odds_snapshots (
   captured_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS bet_candidates (
-  id TEXT PRIMARY KEY,
-  game_id TEXT,
-  sport TEXT,
-  market TEXT,
-  side TEXT,
-  qualified INTEGER,
-  ev REAL,
-  edge REAL,
-  pin_price REAL,
-  decision TEXT,
-  rejection_reason TEXT,
-  created_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS bets (
-  id TEXT PRIMARY KEY,
-  game_id TEXT,
-  sport TEXT,
-  market TEXT,
-  side TEXT,
-  execution_book TEXT,
-  execution_price REAL,
-  execution_line REAL,
-  pin_price REAL,
-  entry_no_vig REAL,
-  stake REAL,
-  placed_at TEXT,
-  result TEXT,
-  profit REAL,
-  clv REAL
-);
-
 CREATE TABLE IF NOT EXISTS daily_metrics (
   date TEXT NOT NULL,
   sport TEXT NOT NULL,
-  model_version TEXT,
+  model_version TEXT NOT NULL DEFAULT '',
+  checkpoint TEXT NOT NULL DEFAULT 'LATEST',
   n INTEGER,
   brier REAL,
   log_loss REAL,
   mae_total REAL,
-  PRIMARY KEY (date, sport, model_version)
+  mae_margin REAL,
+  winner_hit REAL,
+  PRIMARY KEY (date, sport, model_version, checkpoint)
+);
+
+CREATE TABLE IF NOT EXISTS store_meta (
+  k TEXT PRIMARY KEY,
+  v TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_predictions_sport_date ON predictions (sport, date);
+CREATE INDEX IF NOT EXISTS idx_snap_sport_date ON prediction_snapshots (sport, date);
+CREATE INDEX IF NOT EXISTS idx_snap_game ON prediction_snapshots (game_id, date);
 CREATE INDEX IF NOT EXISTS idx_odds_game_time ON odds_snapshots (game_id, captured_at);

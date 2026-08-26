@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { buildSlate, resolveSlateDate } from "./functions/lib/slateEngine.js";
-import { freezeSlate, buildTrackReport, harvestAll } from "./functions/lib/projLedger.js";
+import { freezeSlate, buildTrackReport, harvestAll, collectBoards } from "./functions/lib/projLedger.js";
 
 function loadDotEnv() {
   try {
@@ -27,7 +27,7 @@ function slateMiddleware() {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url || "";
-        if (!url.startsWith("/api/slate") && !url.startsWith("/api/ticker") && !url.startsWith("/api/track") && !url.startsWith("/api/harvest")) {
+        if (!url.startsWith("/api/slate") && !url.startsWith("/api/ticker") && !url.startsWith("/api/track") && !url.startsWith("/api/harvest") && !url.startsWith("/api/collect")) {
           next();
           return;
         }
@@ -35,6 +35,19 @@ function slateMiddleware() {
           const parsed = new URL(url, "http://localhost");
           const sport = parsed.searchParams.get("sport") || "mlb";
           const date = parsed.searchParams.get("date") || "";
+          if (url.startsWith("/api/collect")) {
+            const odds = parsed.searchParams.get("odds") === "full" ? "full" : "cache";
+            const payload = await collectBoards(
+              {
+                PARLAY_API_KEY: process.env.PARLAY_API_KEY,
+                BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
+              },
+              { odds }
+            );
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(payload));
+            return;
+          }
           if (url.startsWith("/api/harvest")) {
             const days = parsed.searchParams.get("days") || "3";
             const payload = await harvestAll(days, {
@@ -46,10 +59,16 @@ function slateMiddleware() {
             return;
           }
           if (url.startsWith("/api/track")) {
-            const days = parsed.searchParams.get("days") || "8";
+            const days = parsed.searchParams.get("days") || "season";
             const payload = await buildTrackReport(sport, days, {
               PARLAY_API_KEY: process.env.PARLAY_API_KEY,
               BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
+            }, {
+              checkpoint: parsed.searchParams.get("checkpoint") || "LATEST",
+              version: parsed.searchParams.get("version") || "all",
+              model: parsed.searchParams.get("model") || "ensemble",
+              type: parsed.searchParams.get("type") || "perGame",
+              year: parsed.searchParams.get("year") || "",
             });
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify(payload));

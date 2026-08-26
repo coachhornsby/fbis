@@ -10,7 +10,7 @@ const EMPTY = {
   weights: { ...DEFAULT_WEIGHTS },
   bets: [],
   weightLog: [],
-  layerScores: { market: 0, espn: 0, score: 0, form: 0 },
+  layerScores: { market: 0, espn: 0, score: 0, pal: 0, form: 0 },
 };
 
 export function loadState() {

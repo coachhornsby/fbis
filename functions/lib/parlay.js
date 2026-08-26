@@ -395,7 +395,7 @@ function mergeByTeams(primary, extra) {
   return out;
 }
 
-export async function fetchParlayOdds(sportId, apiKey, cfCache) {
+export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   const sportKey = PARLAY_SPORT[sportId];
   if (!sportKey || !apiKey) {
     return { events: [], meta: { enabled: false, remaining: null, cached: false } };
@@ -403,6 +403,9 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache) {
   const cacheKey = `${CACHE_VER}:odds:${sportKey}`;
   const cached = await readCache(cacheKey, cfCache, TTL_MS);
   if (cached) return { ...cached, meta: { ...cached.meta, cached: true } };
+  if (opts.cacheOnly) {
+    return { events: [], meta: { enabled: true, remaining: null, cached: false, skipped: true } };
+  }
 
   const baseball = BASEBALL.has(sportId);
   const pin = await fetchJson(

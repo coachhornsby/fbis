@@ -1,4 +1,4 @@
-import { harvestAll } from "../lib/projLedger.js";
+import { harvestAll, collectBoards } from "./lib/projLedger.js";
 
 export async function onSchedule(event) {
   const env = {
@@ -7,5 +7,6 @@ export async function onSchedule(event) {
     caches: caches.default,
     DB: event.env?.DB,
   };
+  await collectBoards(env, { odds: "cache" });
   await harvestAll(3, env);
 }

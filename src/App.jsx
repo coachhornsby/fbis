@@ -17,6 +17,16 @@ export default function App() {
   const [track, setTrack] = useState(null);
   const [trackError, setTrackError] = useState("");
   const [trackLoading, setTrackLoading] = useState(false);
+  const [trackFilters, setTrackFilters] = useState({
+    sport: "mlb",
+    days: "season",
+    year: "2026",
+    model: "ensemble",
+    checkpoint: "LATEST",
+    version: "all",
+    type: "perGame",
+  });
+  const [sysTab, setSysTab] = useState("overall");
 
   const refresh = useCallback(async (signal) => {
     setLoading(true);
@@ -52,7 +62,17 @@ export default function App() {
     setTrackLoading(true);
     setTrackError("");
     try {
-      const res = await fetch(`/api/track?sport=all&days=8&_t=${Date.now()}`, { signal });
+      const q = new URLSearchParams({
+        sport: trackFilters.sport,
+        days: trackFilters.days,
+        checkpoint: trackFilters.checkpoint,
+        version: trackFilters.version,
+        model: trackFilters.model,
+        type: trackFilters.type,
+        _t: String(Date.now()),
+      });
+      if (trackFilters.year) q.set("year", trackFilters.year);
+      const res = await fetch(`/api/track?${q}`, { signal });
       const data = await res.json();
       if (signal?.aborted) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
@@ -66,7 +86,7 @@ export default function App() {
     } finally {
       if (!signal?.aborted) setTrackLoading(false);
     }
-  }, []);
+  }, [trackFilters]);
 
   useEffect(() => {
     if (tab !== "board") return undefined;
@@ -166,7 +186,7 @@ export default function App() {
             onClick={() => (tab === "sys" ? refreshTrack() : refresh())}
             disabled={tab === "sys" ? trackLoading : loading}
           >
-            {tab === "sys" ? (trackLoading ? "↻ …" : "↻ Harvest") : loading ? "↻ …" : "↻ Refresh"}
+            {tab === "sys" ? (trackLoading ? "↻ …" : "↻ Reload") : loading ? "↻ …" : "↻ Refresh"}
           </button>
         </div>
         <span className={`overall-badge badge-${health}`}>{error ? "FEED DOWN" : "LIVE"}</span>
@@ -175,7 +195,19 @@ export default function App() {
       <Ticker items={tab === "board" ? slate?.ticker || [] : []} logged={loggedOpen} />
 
       {tab === "sys" ? (
-        <TrackView report={track} error={trackError} loading={trackLoading} onRefresh={refreshTrack} />
+        <TrackView
+          report={track}
+          error={trackError}
+          loading={trackLoading}
+          filters={{ ...trackFilters, tab: sysTab }}
+          onFilters={(patch) => {
+            if (patch.tab) setSysTab(patch.tab);
+            const rest = { ...patch };
+            delete rest.tab;
+            if (Object.keys(rest).length) setTrackFilters((prev) => ({ ...prev, ...rest }));
+          }}
+          onRefresh={refreshTrack}
+        />
       ) : (
       <div className="main-content">
         {error && <div className="panel"><div className="error">{error}</div></div>}
@@ -187,7 +219,7 @@ export default function App() {
             <Stat label="Open tickets" value={stats.open} />
             <Stat label="Record" value={stats.settled ? `${stats.wins}-${stats.losses}` : "—"} />
             <Stat label="Units" value={`${stats.units >= 0 ? "+" : ""}${stats.units.toFixed(2)}`} />
-            <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.1"} />
+            <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.2"} />
             <Stat label="Pin / Heritage" value={bookLabel(slate)} />
             <Stat label="Pal" value={palLabel(slate)} />
             <Stat label="Parlay" value={parlayLabel(slate)} />

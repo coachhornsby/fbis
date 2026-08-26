@@ -37,20 +37,22 @@ Baseball run line is always **1.5** (full game) / **0.5** (F5). Alternate lines 
 
 ## How scores are projected
 
-- **MLB** — Savant expected pitcher quality × team runs/game × 1.04 home, clamped 2.3–7.2. Pal simulated runs replace Savant when the Pal key is live. Independent of the run line. Moneyline probability uses that **score layer**, not W-L record.
+- **MLB** — Two independent models. Proprietary: Savant RPG × starter ERA-eq × 1.04 home, clamped 2.3–7.2. Ballpark Pal: simulated runs and Pal win probability as a separate layer. Pal never overwrites Savant and is never a sportsbook price. Win-prob blends Pinnacle no-vig, ESPN, Savant score, Pal, and W-L form.
 - **NBA / NFL / CFB / CBB** — Pinnacle total/spread split into implied team scores until an independent sim is wired. Win-prob blends no-vig Pinnacle, ESPN, score (line-implied margin), and W-L form.
 
 Hover a Proj cell for the recipe. SYS explains every board.
 
 ## Tracking (SYS)
 
-Pregame projections freeze on first sight (`pHomeFinal`, every layer, weights, model version, Pinnacle snapshot) and are never overwritten. `/api/track` harvests finals from MLB Stats / ESPN (no Parlay credits). SYS reports MAE, RMSE, bias, winner-hit, Brier, log loss, and calibration buckets. Logged tickets stay a separate dataset from every-game forecast error.
+The website is not the collector. GitHub Actions call `/api/collect` through the day (full Parlay odds at ~8am and 11am CT; cache-only later) so every scheduled game gets pregame checkpoints even if nobody opens the board. `/api/harvest` (~06:20 CT) attaches finals and writes them to D1.
+
+SYS reads D1 (cache is a 21-day fallback). Projection Accuracy reports actual vs projected totals, % bias, home/away bias, MAE, median abs, RMSE, within-X distribution, Pal vs proprietary vs ensemble vs Pinnacle, team/park/starter/month slices, and both score-winner and ensemble-probability winner hit. Calibration includes home p below 50%. Logged tickets stay a separate dataset from every-game forecast error.
 
 **CLV** is entry no-vig vs close (last pregame) no-vig for the side you bet — not model fair vs market.
 
-Nightly harvest: GitHub Action `20 11 * * *` UTC (~06:20 CT) hits `/api/harvest` (scoreboard only). Pages does not support `[triggers]` cron.
+Checkpoints: EARLY · MORNING · LINEUP_CONFIRMED · PREGAME · CLOSE.
 
-Model version: **FBIS-v1.1**
+Model version: **FBIS-v1.2**
 
 ## Data
 
@@ -58,7 +60,7 @@ Model version: **FBIS-v1.1**
 - ParlayAPI — Pinnacle game lines (3 credits, `eu` region), cached 15 minutes. Kalshi sentiment is a 1-credit pull; empty Kalshi/F5 responses cache for 6 hours.
 - Ballpark Pal — optional; set `BALLPARK_PAL_API_KEY` when you have it (15k requests/month)
 
-Ticket journal still lives in the browser. Frozen projections live in Function cache (~21 days) and, when bound, Cloudflare D1 (`schema.sql`).
+Ticket journal still lives in the browser. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql`) is the authoritative research ledger when bound.
 
 ## Tests
 

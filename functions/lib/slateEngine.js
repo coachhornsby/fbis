@@ -217,20 +217,26 @@ export function projectGame(sport, game) {
   const projHome = game.projHomeScore;
   const projAway = game.projAwayScore;
   const projMargin = projHome != null && projAway != null ? projHome - projAway : null;
-  const palForm = game.bpp?.matchupForm;
-  const recHome = recordWinPct(game.home?.record);
-  const recAway = recordWinPct(game.away?.record);
-  const recordForm =
-    recHome != null && recAway != null && recHome + recAway > 0
-      ? (recHome + 0.03) / (recHome + recAway + 0.03)
-      : null;
+  const palMargin =
+    game.bpp?.homeRuns != null && game.bpp?.awayRuns != null ? game.bpp.homeRuns - game.bpp.awayRuns : null;
+  const palHome =
+    game.bpp?.pHome != null
+      ? game.bpp.pHome
+      : palMargin != null
+        ? logistic(palMargin, cfg.k)
+        : null;
   const scoreHome = projMargin != null ? logistic(projMargin, cfg.k) : null;
-  const formHome = palForm != null ? palForm : recordForm != null ? recordForm : game.modelHint?.formHome ?? null;
+  const homePct = recordWinPct(game.home?.record);
+  const awayPct = recordWinPct(game.away?.record);
+  const recordForm =
+    homePct != null && awayPct != null && homePct + awayPct > 0 ? homePct / (homePct + awayPct) : null;
+  const formHome = recordForm != null ? recordForm : game.modelHint?.formHome ?? null;
 
   const layers = {
     market: vigFree.home,
     espn: espnHome,
     score: scoreHome,
+    pal: palHome,
     form: formHome,
   };
   const model = {
@@ -238,6 +244,7 @@ export function projectGame(sport, game) {
     marketAway: vigFree.away,
     espnAway,
     scoreAway: scoreHome != null ? 1 - scoreHome : null,
+    palAwayProb: palHome != null ? 1 - palHome : null,
     formAway: formHome != null ? 1 - formHome : null,
     impliedHome: vigFree.home,
     impliedAway: vigFree.away,
@@ -246,6 +253,8 @@ export function projectGame(sport, game) {
     projAway,
     projTotal: projHome != null && projAway != null ? projHome + projAway : null,
     projMargin,
+    palHome: game.bpp?.homeRuns ?? null,
+    palAway: game.bpp?.awayRuns ?? null,
   };
   model.recipe = projectionRecipe(sport, game, model);
   return model;
@@ -259,33 +268,24 @@ export function projectionRecipe(sport, game, model) {
   const fmt = (n) => (n == null || Number.isNaN(Number(n)) ? "—" : Number(n).toFixed(1));
   const fmt2 = (n) => (n == null || Number.isNaN(Number(n)) ? "—" : Number(n).toFixed(2));
 
-  if (sport === "mlb" && game.bpp?.homeRuns != null && game.bpp?.awayRuns != null) {
-    engine = "Ballpark Pal";
-    steps.push(
-      `Pal simulated team runs ${game.away.abbr} ${fmt(game.bpp.awayRuns)} @ ${game.home.abbr} ${fmt(game.bpp.homeRuns)}.`
-    );
-    if (game.bpp.f5?.total != null) {
-      steps.push(`Pal F5 runs ${fmt(game.bpp.f5.awayRuns)}–${fmt(game.bpp.f5.homeRuns)} (tot ${fmt(game.bpp.f5.total)}).`);
-    }
-    if (game.bpp.matchup?.vsAwaySp || game.bpp.matchup?.vsHomeSp) {
-      const vsA = game.bpp.matchup.vsAwaySp;
-      const vsH = game.bpp.matchup.vsHomeSp;
-      if (vsA) steps.push(`Lineup vs ${vsA.pitcher}: RC vs typical ${vsA.rcVs ?? "—"}.`);
-      if (vsH) steps.push(`Lineup vs ${vsH.pitcher}: RC vs typical ${vsH.rcVs ?? "—"}.`);
-    }
-    steps.push("Pal is matchup/sim data, not a sportsbook price.");
-  } else if (sport === "mlb") {
+  if (sport === "mlb") {
     const sv = game.savant || {};
-    engine = sv.source === "Savant" ? "Baseball Savant" : sv.source ? "MLB Stats" : "MLB form";
+    const hasPal = game.bpp?.homeRuns != null && game.bpp?.awayRuns != null;
+    engine = hasPal ? "Savant + Ballpark Pal" : sv.source === "Savant" ? "Baseball Savant" : sv.source ? "MLB Stats" : "MLB form";
     const homePitcher = game.homeSp?.last || game.homeSp?.name || "TBD SP";
     const awayPitcher = game.awaySp?.last || game.awaySp?.name || "TBD SP";
     steps.push(
-      `${game.away?.abbr || "Away"} ${fmt2(sv.awayRpg)} RPG vs ${homePitcher} (${fmt2(sv.homeSpEra)} ERA-eq) → ${fmt(projAway)}.`
+      `FBIS proprietary (Savant): ${game.away?.abbr || "Away"} ${fmt2(sv.awayRpg)} RPG vs ${homePitcher} → ${fmt(projAway)}; ${game.home?.abbr || "Home"} ${fmt2(sv.homeRpg)} RPG vs ${awayPitcher} × 1.04 → ${fmt(projHome)}.`
     );
-    steps.push(
-      `${game.home?.abbr || "Home"} ${fmt2(sv.homeRpg)} RPG vs ${awayPitcher} (${fmt2(sv.awaySpEra)} ERA-eq) × 1.04 home → ${fmt(projHome)}.`
-    );
-    steps.push("Formula: league RPG × offense vs league × starter ERA-eq vs league. Clamp 2.3–7.2. Independent of the ±1.5 run line.");
+    if (hasPal) {
+      steps.push(
+        `Ballpark Pal independent: ${game.away.abbr} ${fmt(game.bpp.awayRuns)} @ ${game.home.abbr} ${fmt(game.bpp.homeRuns)}.`
+      );
+      if (game.bpp.f5?.total != null) {
+        steps.push(`Pal F5 ${fmt(game.bpp.f5.awayRuns)}–${fmt(game.bpp.f5.homeRuns)} (tot ${fmt(game.bpp.f5.total)}).`);
+      }
+    }
+    steps.push("Pal is an independent model, never a sportsbook price. Savant is not overwritten by Pal.");
   } else if (projHome != null && projAway != null && game.odds?.total != null && game.odds?.spread != null) {
     const pin = game.odds.pinPresent !== false;
     engine = pin ? "Pinnacle line-implied" : "Board line-implied";
@@ -304,10 +304,10 @@ export function projectionRecipe(sport, game, model) {
   }
 
   const layers = model?.layers || {};
-  const parts = ["market", "espn", "score", "form"].filter((k) => layers[k] != null);
+  const parts = ["market", "espn", "score", "pal", "form"].filter((k) => layers[k] != null);
   if (parts.length) {
     steps.push(
-      `Win-prob layers (${parts.join(" / ")}): market ${fmt2(layers.market)} · ESPN ${fmt2(layers.espn)} · score ${fmt2(layers.score)} · form ${fmt2(layers.form)}.`
+      `Win-prob layers (${parts.join(" / ")}): market ${fmt2(layers.market)} · ESPN ${fmt2(layers.espn)} · score ${fmt2(layers.score)} · Pal ${fmt2(layers.pal)} · form ${fmt2(layers.form)}.`
     );
   }
   return { engine, steps };
@@ -319,6 +319,7 @@ export function blendWinProb(layers, weights = DEFAULT_WEIGHTS) {
   if (layers.market != null) parts.push([layers.market, w.market]);
   if (layers.espn != null) parts.push([layers.espn, w.espn]);
   if (layers.score != null) parts.push([layers.score, w.score]);
+  if (layers.pal != null) parts.push([layers.pal, w.pal]);
   if (layers.form != null) parts.push([layers.form, w.form]);
   if (!parts.length) return null;
   const wsum = parts.reduce((s, [, wt]) => s + wt, 0);
@@ -496,8 +497,8 @@ function pushF5Recs(sport, game, recs, cfg, pin) {
   if (!BASEBALL.has(sport)) return;
   const f5Odds = game.odds?.f5;
   if (!f5Odds) return;
-  const formHome = game.bpp?.matchupForm;
-  const formAway = formHome != null ? 1 - formHome : null;
+  const formHome = game.bpp?.f5?.homeWin ?? game.bpp?.matchupForm;
+  const formAway = game.bpp?.f5?.awayWin ?? (formHome != null ? 1 - formHome : null);
 
   if (formHome != null && (f5Odds.homeMl != null || f5Odds.awayMl != null)) {
     const homePriced = priceSelection({ pWin: formHome, twoWay: pin?.f5ml, side: "A", pinPrice: f5Odds.homeMl });
@@ -762,6 +763,11 @@ export function dataQuality(sport, game) {
   if (sport === "mlb") {
     if (!game.homeSp?.name) flags.push("missing_home_sp");
     if (!game.awaySp?.name) flags.push("missing_away_sp");
+    if (!game.bpp) flags.push("missing_pal");
+    else if (!game.bpp.lineupsOfficial) flags.push("lineups_unofficial");
+    if (game.model?.layers?.pal != null && game.model?.layers?.score != null) {
+      if (Math.abs(game.model.layers.pal - game.model.layers.score) >= 0.08) flags.push("model_disagreement");
+    }
   }
   if (!game.odds?.heritageListed) flags.push("heritage_unlisted");
   const score = Math.max(0, 100 - flags.length * 12);
@@ -797,7 +803,7 @@ export async function buildSlate(sport, date, env = {}) {
     }
   }
 
-  const parlay = await fetchParlayOdds(id, env.PARLAY_API_KEY, env.caches);
+  const parlay = await fetchParlayOdds(id, env.PARLAY_API_KEY, env.caches, { cacheOnly: Boolean(env.parlayCacheOnly) });
   games = mergeParlay(games, parlay.events, id);
 
   let pal = { games: [], meta: { enabled: false } };
@@ -810,14 +816,10 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   games = games.map((game) => {
-    const model = projectGame(id, game);
-    return {
-      ...game,
-      model,
-      pin: pinMarkets(game),
-      quality: dataQuality(id, game),
-      modelVersion: MODEL_VERSION,
-    };
+    const pin = pinMarkets(game);
+    const model = projectGame(id, { ...game, pin });
+    const next = { ...game, model, pin, modelVersion: MODEL_VERSION };
+    return { ...next, quality: dataQuality(id, next) };
   });
 
   const live = games.filter((g) => g.status.live).length;

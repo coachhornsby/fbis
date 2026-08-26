@@ -4,13 +4,22 @@ import { readCache, writeCache } from "./cache.js";
 
 const BASE = "https://www.ballparkpal.com/api/v1";
 const TTL_MS = 15 * 60 * 1000;
-const CACHE_VER = "bpp-v2";
+const CACHE_VER = "bpp-v3";
 
-function unwrap(json) {
-  if (json == null) return null;
-  if (Array.isArray(json)) return json;
-  if (json.data != null) return json.data;
-  return json;
+/** Pal wraps lists as `{ meta, data: { items } }`. Returning `data` itself dropped every game. */
+export function unwrapPalResponse(json) {
+  const meta = json?.meta || null;
+  if (json == null) return { data: null, meta };
+  if (Array.isArray(json)) return { data: json, meta };
+  if (Array.isArray(json.data?.items)) return { data: json.data.items, meta };
+  if (json.data != null) return { data: json.data, meta };
+  if (Array.isArray(json.items)) return { data: json.items, meta };
+  return { data: json, meta };
+}
+
+function attachMeta(data, meta) {
+  if (data && typeof data === "object") data._meta = meta;
+  return data;
 }
 
 function num(v) {
@@ -46,7 +55,8 @@ async function bppGet(path, apiKey) {
     const msg = json?.error?.message || json?.error?.code || text.slice(0, 180);
     throw new Error(`Ballpark Pal ${res.status}: ${msg}`);
   }
-  return unwrap(json);
+  const { data, meta } = unwrapPalResponse(json);
+  return attachMeta(data, meta);
 }
 
 function indexTeams(teams) {
@@ -89,6 +99,32 @@ function summarizeMatchups(rows) {
     kVs: a.n ? Math.round(a.kVs / a.n) : null,
     rcVs: a.n ? Math.round(a.rcVs / a.n) : null,
   }));
+}
+
+function compactPalMarkets(items, homeId, awayId) {
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length) return null;
+  const mkt = (row) => String(row?.marketId || row?.market || row?.mkt || "");
+  const teamOf = (row) => Number(row?.teamId ?? row?.team_id);
+  const sideOf = (row) => String(row?.side || "").toLowerCase();
+  const lineOf = (row) => Number(row?.line);
+  const pOf = (row) => num(row?.probability ?? row?.p);
+  const hasTeam = (row) => {
+    const tid = row?.teamId ?? row?.team_id;
+    return tid != null && tid !== "" && Number(tid) > 0;
+  };
+  const mlHome = list.find((r) => mkt(r).includes("mkt_1") && teamOf(r) === Number(homeId) && sideOf(r) === "over" && lineOf(r) === 0.5);
+  const mlAway = list.find((r) => mkt(r).includes("mkt_1") && teamOf(r) === Number(awayId) && sideOf(r) === "over" && lineOf(r) === 0.5);
+  const totals = {};
+  for (const line of [7.5, 8, 8.5, 9, 9.5, 10, 10.5]) {
+    const over = list.find((r) => mkt(r).includes("mkt_2") && !hasTeam(r) && sideOf(r) === "over" && lineOf(r) === line);
+    const under = list.find((r) => mkt(r).includes("mkt_2") && !hasTeam(r) && sideOf(r) === "under" && lineOf(r) === line);
+    if (over || under) totals[String(line)] = { over: pOf(over), under: pOf(under) };
+  }
+  const pHome = pOf(mlHome);
+  const pAway = pOf(mlAway);
+  if (pHome == null && pAway == null && !Object.keys(totals).length) return null;
+  return { pHome, pAway, totals };
 }
 
 function pickSide(list, sp, teamAbv) {
@@ -146,6 +182,9 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
   const awayF5Runs = num(awayT?.runsFirstFive);
   const homeRuns = num(homeT?.runs);
   const awayRuns = num(awayT?.runs);
+  const markets = averages?.markets || compactPalMarkets(averages?.probabilities, homeId, awayId);
+  const asOf = averages?._meta?.asOf || averages?.asOf || null;
+  const requestId = averages?._meta?.requestId || averages?.requestId || null;
 
   return {
     bppId: bppGame.gameId,
@@ -154,13 +193,20 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
     homeAbv,
     awayAbv,
     lineupsOfficial: Boolean(averages?.lineupsOfficial),
+    asOf,
+    requestId,
     homeRuns,
     awayRuns,
+    pHome: markets?.pHome ?? null,
+    pAway: markets?.pAway ?? null,
+    totals: markets?.totals || null,
     matchupForm: form,
     f5: {
       homeRuns: homeF5Runs,
       awayRuns: awayF5Runs,
       total: homeF5Runs != null && awayF5Runs != null ? homeF5Runs + awayF5Runs : null,
+      homeWin: num(homeT?.winFirstFiveProbability),
+      awayWin: num(awayT?.winFirstFiveProbability),
     },
     homeSp: homePacked,
     awaySp: awayPacked,
@@ -197,10 +243,11 @@ export async function fetchBallparkPal(date, apiKey, cfCache) {
       bppGet(`/matchups?date=${date}&starters=true&parkAdjusted=true`, apiKey).catch(() => []),
       bppGet("/teams", apiKey).catch(() => []),
     ]);
-    const games = Array.isArray(gamesRaw) ? gamesRaw : gamesRaw?.games || [];
-    const parks = Array.isArray(parkRaw) ? parkRaw : [];
-    const matchups = Array.isArray(matchRaw) ? matchRaw : [];
-    const teams = Array.isArray(teamsRaw) ? teamsRaw : [];
+    const games = Array.isArray(gamesRaw) ? gamesRaw : gamesRaw?.games || gamesRaw?.items || [];
+    const parks = Array.isArray(parkRaw) ? parkRaw : parkRaw?.parkFactors || [];
+    const matchups = Array.isArray(matchRaw) ? matchRaw : matchRaw?.matchups || [];
+    const teams = Array.isArray(teamsRaw) ? teamsRaw : teamsRaw?.teams || [];
+    const slateAsOf = gamesRaw?._meta?.asOf || null;
     const teamsById = indexTeams(teams);
     const parkByGame = new Map(parks.map((p) => [Number(p.gameId), p]));
     const muByGame = new Map();
@@ -217,13 +264,18 @@ export async function fetchBallparkPal(date, apiKey, cfCache) {
       const slice = games.slice(i, i + chunk);
       const avgs = await Promise.all(
         slice.map((g) =>
-          bppGet(`/projections/averages?gameId=${g.gameId}`, apiKey)
-            .then((data) => ({ ok: true, data }))
-            .catch((err) => ({ ok: false, error: String(err.message || err) }))
+          Promise.all([
+            bppGet(`/projections/averages?gameId=${g.gameId}`, apiKey)
+              .then((data) => ({ ok: true, data }))
+              .catch((err) => ({ ok: false, error: String(err.message || err) })),
+            bppGet(`/projections/probabilities?gameId=${g.gameId}`, apiKey)
+              .then((data) => data)
+              .catch(() => null),
+          ]).then(([avg, probs]) => ({ avg, probs }))
         )
       );
       slice.forEach((g, idx) => {
-        const avg = avgs[idx];
+        const { avg, probs } = avgs[idx];
         const data = avg.ok ? avg.data || {} : {};
         if (!avg.ok) errors.push(avg.error);
         packed.push(
@@ -233,6 +285,10 @@ export async function fetchBallparkPal(date, apiKey, cfCache) {
               teams: data.teams || [],
               pitchers: data.pitchers || [],
               lineupsOfficial: data.lineupsOfficial,
+              asOf: data._meta?.asOf || data.asOf,
+              requestId: data._meta?.requestId || data.requestId,
+              _meta: data._meta,
+              probabilities: Array.isArray(probs) ? probs : probs?.items || [],
             },
             parkByGame.get(Number(g.gameId)),
             muByGame.get(Number(g.gameId)) || [],
@@ -249,6 +305,8 @@ export async function fetchBallparkPal(date, apiKey, cfCache) {
         cached: false,
         games: packed.length,
         matchups: matchups.length,
+        asOf: slateAsOf,
+        requestId: gamesRaw?._meta?.requestId || null,
         errors: errors.slice(0, 3),
       },
     };
@@ -285,19 +343,11 @@ export function mergeBallparkPal(games, bpp) {
     if (!hit) return g;
     const homeSp = g.homeSp?.name ? g.homeSp : hit.homeSp;
     const awaySp = g.awaySp?.name ? g.awaySp : hit.awaySp;
-    let projHome = g.projHomeScore;
-    let projAway = g.projAwayScore;
-    if (hit.homeRuns != null && hit.awayRuns != null) {
-      projHome = hit.homeRuns;
-      projAway = hit.awayRuns;
-    }
     return {
       ...g,
       bpp: hit,
       homeSp,
       awaySp,
-      projHomeScore: projHome,
-      projAwayScore: projAway,
       park: hit.park,
     };
   });

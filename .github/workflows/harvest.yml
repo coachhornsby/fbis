@@ -1,20 +1,67 @@
-name: Nightly harvest
+name: FBIS research pipeline
 
 on:
   schedule:
+    - cron: "0 13,16,18,20,22,0,2 * * *"
     - cron: "20 11 * * *"
   workflow_dispatch:
+    inputs:
+      job:
+        description: Which job to run
+        type: choice
+        options:
+          - all
+          - collect-full
+          - collect-cache
+          - harvest
+        default: all
 
 jobs:
-  harvest:
+  pipeline:
     runs-on: ubuntu-latest
     steps:
-      - name: Grade finals (scoreboard only, no Parlay)
+      - name: Collect projections and/or grade finals
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          JOB_INPUT: ${{ github.event.inputs.job }}
         run: |
-          URL="https://fbis-myz.pages.dev/api/harvest?days=3"
+          BASE="https://fbis-myz.pages.dev"
+          AUTH=""
           if [ -n "$HARVEST_SECRET" ]; then
-            URL="${URL}&secret=${HARVEST_SECRET}"
+            AUTH="&secret=${HARVEST_SECRET}"
           fi
-          curl -fsS "$URL" | head -c 400
+          HOUR=$(date -u +%H)
+          MIN=$(date -u +%M)
+          JOB="$JOB_INPUT"
+          if [ -z "$JOB" ]; then
+            if [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then
+              JOB="harvest"
+            elif [ "$HOUR" = "13" ] || [ "$HOUR" = "16" ]; then
+              JOB="collect-full"
+            else
+              JOB="collect-cache"
+            fi
+          fi
+          echo "job=$JOB utc=${HOUR}:${MIN}"
+          run_collect() {
+            ODDS="$1"
+            curl -fsS "${BASE}/api/collect?odds=${ODDS}${AUTH}" | head -c 800
+            echo
+          }
+          run_harvest() {
+            curl -fsS "${BASE}/api/harvest?days=3${AUTH}" | head -c 800
+            echo
+          }
+          case "$JOB" in
+            collect-full) run_collect full ;;
+            collect-cache) run_collect cache ;;
+            harvest) run_harvest ;;
+            all)
+              run_collect full
+              run_harvest
+              ;;
+            *)
+              echo "unknown job $JOB"
+              exit 1
+              ;;
+          esac
