@@ -1,0 +1,20 @@
+name: Nightly harvest
+
+on:
+  schedule:
+    - cron: "20 11 * * *"
+  workflow_dispatch:
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Grade finals (scoreboard only, no Parlay)
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          URL="https://fbis-myz.pages.dev/api/harvest?days=3"
+          if [ -n "$HARVEST_SECRET" ]; then
+            URL="${URL}&secret=${HARVEST_SECRET}"
+          fi
+          curl -fsS "$URL" | head -c 400

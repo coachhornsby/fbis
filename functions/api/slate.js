@@ -1,18 +1,23 @@
-import { buildSlate } from "../lib/slateEngine.js";
+import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { freezeSlate, harvestSport } from "../lib/projLedger.js";
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const sport = url.searchParams.get("sport") || "mlb";
-  const date = url.searchParams.get("date") || "";
+  const rawDate = url.searchParams.get("date") || "";
+  const resolved = resolveSlateDate(rawDate);
+  if (rawDate && !resolved.ok) {
+    return json({ error: resolved.error, games: [], ticker: [], counts: {} }, 400, 10);
+  }
   const env = {
     PARLAY_API_KEY: context.env.PARLAY_API_KEY,
     BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
     caches: caches.default,
+    DB: context.env.DB,
   };
   try {
-    const payload = await buildSlate(sport, date, env);
-    context.waitUntil(freezeSlate(payload, env.caches).catch(() => {}));
+    const payload = await buildSlate(sport, resolved.date, env);
+    context.waitUntil(freezeSlate(payload, env).catch(() => {}));
     context.waitUntil(harvestSport(payload.sport, 2, env).catch(() => {}));
     return json(payload, 200, 30);
   } catch (err) {

@@ -1,3 +1,6 @@
+import { blendWinProb } from "../../functions/lib/slateEngine.js";
+import { DEFAULT_WEIGHTS } from "../../functions/lib/weights.js";
+
 const KEY = "fbis-proj-ledger-v1";
 
 function load() {
@@ -44,7 +47,14 @@ export function captureSlate(slate) {
       engine: g.model?.recipe?.engine || "unknown",
       steps: g.model?.recipe?.steps || [],
       impliedHome: g.model?.impliedHome ?? null,
-      pHome: g.model?.layers?.form ?? g.model?.impliedHome ?? null,
+      pHome: g.model?.pHomeFinal ?? blendWinProb(g.model?.layers || {}, DEFAULT_WEIGHTS),
+      pHomeFinal: g.model?.pHomeFinal ?? blendWinProb(g.model?.layers || {}, DEFAULT_WEIGHTS),
+      pMarket: g.model?.layers?.market ?? null,
+      pEspn: g.model?.layers?.espn ?? null,
+      pScore: g.model?.layers?.score ?? null,
+      pForm: g.model?.layers?.form ?? null,
+      layers: { ...(g.model?.layers || {}) },
+      weights: { ...DEFAULT_WEIGHTS },
       pinVig: g.pin?.ml?.vig ?? null,
       frozenAt: new Date().toISOString(),
       actualAway: null,

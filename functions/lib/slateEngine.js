@@ -5,6 +5,7 @@ import { fetchBallparkPal, mergeBallparkPal } from "./ballparkpal.js";
 import { fetchParlayOdds, mergeParlay } from "./parlay.js";
 import { fetchSavantSlate } from "./savant.js";
 import { MODEL_VERSION, pinMarkets, priceSelection, tagFromEv } from "./pricing.js";
+import { DEFAULT_WEIGHTS } from "./weights.js";
 
 export const SPORTS = {
   cbb: {
@@ -93,6 +94,22 @@ export function shiftDateCT(isoDate, deltaDays) {
 
 export function lastNDatesCT(n, from = todayCT()) {
   return Array.from({ length: n }, (_, i) => shiftDateCT(from, -i));
+}
+
+/** Parlay-backed slate dates stay near today so cache-key variation cannot drain credits. */
+export function resolveSlateDate(raw, { maxPast = 2, maxFuture = 1 } = {}) {
+  const today = todayCT();
+  const value = String(raw || "").trim();
+  if (!value) return { date: today, ok: true };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return { date: today, ok: false, error: "date must be YYYY-MM-DD" };
+  }
+  const min = shiftDateCT(today, -maxPast);
+  const max = shiftDateCT(today, maxFuture);
+  if (value < min || value > max) {
+    return { date: today, ok: false, error: `date must be between ${min} and ${max}` };
+  }
+  return { date: value, ok: true };
 }
 
 export function recordWinPct(rec) {
@@ -207,28 +224,24 @@ export function projectGame(sport, game) {
     recHome != null && recAway != null && recHome + recAway > 0
       ? (recHome + 0.03) / (recHome + recAway + 0.03)
       : null;
-  const formHome =
-    palForm != null
-      ? palForm
-      : projMargin != null && BASEBALL.has(sport)
-        ? logistic(projMargin, cfg.k)
-        : recordForm != null
-          ? recordForm
-          : projMargin != null
-            ? logistic(projMargin, cfg.k)
-            : vigFree.home;
+  const scoreHome = projMargin != null ? logistic(projMargin, cfg.k) : null;
+  const formHome = palForm != null ? palForm : recordForm != null ? recordForm : game.modelHint?.formHome ?? null;
 
+  const layers = {
+    market: vigFree.home,
+    espn: espnHome,
+    score: scoreHome,
+    form: formHome,
+  };
   const model = {
-    layers: {
-      market: vigFree.home,
-      espn: espnHome,
-      form: formHome,
-    },
+    layers,
     marketAway: vigFree.away,
     espnAway,
+    scoreAway: scoreHome != null ? 1 - scoreHome : null,
     formAway: formHome != null ? 1 - formHome : null,
     impliedHome: vigFree.home,
     impliedAway: vigFree.away,
+    pHomeFinal: blendWinProb(layers),
     projHome,
     projAway,
     projTotal: projHome != null && projAway != null ? projHome + projAway : null,
@@ -291,24 +304,26 @@ export function projectionRecipe(sport, game, model) {
   }
 
   const layers = model?.layers || {};
-  const parts = ["market", "espn", "form"].filter((k) => layers[k] != null);
+  const parts = ["market", "espn", "score", "form"].filter((k) => layers[k] != null);
   if (parts.length) {
     steps.push(
-      `Win-prob layers (${parts.join(" / ")}): market ${fmt2(layers.market)} · ESPN ${fmt2(layers.espn)} · form ${fmt2(layers.form)}.`
+      `Win-prob layers (${parts.join(" / ")}): market ${fmt2(layers.market)} · ESPN ${fmt2(layers.espn)} · score ${fmt2(layers.score)} · form ${fmt2(layers.form)}.`
     );
   }
   return { engine, steps };
 }
 
-export function blendWinProb(layers, weights) {
+export function blendWinProb(layers, weights = DEFAULT_WEIGHTS) {
+  const w = { ...DEFAULT_WEIGHTS, ...(weights || {}) };
   const parts = [];
-  if (layers.market != null) parts.push([layers.market, weights.market]);
-  if (layers.espn != null) parts.push([layers.espn, weights.espn]);
-  if (layers.form != null) parts.push([layers.form, weights.form]);
+  if (layers.market != null) parts.push([layers.market, w.market]);
+  if (layers.espn != null) parts.push([layers.espn, w.espn]);
+  if (layers.score != null) parts.push([layers.score, w.score]);
+  if (layers.form != null) parts.push([layers.form, w.form]);
   if (!parts.length) return null;
-  const wsum = parts.reduce((s, [, w]) => s + w, 0);
+  const wsum = parts.reduce((s, [, wt]) => s + wt, 0);
   if (wsum <= 0) return parts[0][0];
-  return parts.reduce((s, [p, w]) => s + p * (w / wsum), 0);
+  return parts.reduce((s, [p, wt]) => s + p * (wt / wsum), 0);
 }
 
 function shrinkToMarket(pModel, pMarket, wMarket = 0.65) {
@@ -317,18 +332,52 @@ function shrinkToMarket(pModel, pMarket, wMarket = 0.65) {
   return pModel * (1 - wMarket) + pMarket * wMarket;
 }
 
-export function recommend(sport, game, model, weights) {
+/** EV must exist and clear the sport floor. Missing price is not a pass. */
+export function isQualifiedTicket(cfg, priced) {
+  if (!priced?.marketComplete) return false;
+  if (priced.pinPrice == null || priced.ev == null) return false;
+  if (priced.fair != null && cfg.maxProb != null && (priced.fair > cfg.maxProb || priced.fair < 1 - cfg.maxProb)) {
+    return false;
+  }
+  return priced.ev >= cfg.minEv;
+}
+
+function withinProbCap(cfg, priced) {
+  if (priced?.fair == null || cfg.maxProb == null) return true;
+  return priced.fair <= cfg.maxProb && priced.fair >= 1 - cfg.maxProb;
+}
+
+function stampTicket(game, rec, priced, { qualified, lean }) {
+  const heritageListed = Boolean(game.odds?.heritageListed);
+  return {
+    ...rec,
+    ...priced,
+    qualified,
+    lean,
+    tag: qualified ? tagFromEv(priced.ev, priced.probEdge) : "LEAN",
+    book: EXECUTION_BOOK,
+    executionBook: EXECUTION_BOOK,
+    executionPrice: rec.executionPrice ?? null,
+    benchmarkBook: "Pinnacle",
+    priceSource: heritageListed && rec.executionPrice != null ? "Heritage" : "Pinnacle (shop Heritage)",
+    modelVersion: MODEL_VERSION,
+  };
+}
+
+function sortTickets(recs) {
+  return recs.sort((a, b) => (b.ev ?? -99) - (a.ev ?? -99) || (b.edge ?? 0) - (a.edge ?? 0));
+}
+
+export function recommendBundle(sport, game, model, weights) {
   const cfg = SPORTS[sport];
   const homeP = blendWinProb(model.layers, weights);
-  if (homeP == null) return null;
+  if (homeP == null) return { qualified: null, lean: null };
   const awayP = 1 - homeP;
   const recs = [];
   const pin = game.pin || pinMarkets(game);
 
-  const mlHome = priceSelection({ pWin: homeP, twoWay: pin.ml, side: "A" });
-  const mlAway = priceSelection({ pWin: awayP, twoWay: pin.ml, side: "B" });
-  pushMl(recs, cfg, game, "HOME", game.home.name, mlHome, game.odds.homeMl);
-  pushMl(recs, cfg, game, "AWAY", game.away.name, mlAway, game.odds.awayMl);
+  pushMl(recs, cfg, game, "HOME", game.home.name, priceSelection({ pWin: homeP, twoWay: pin.ml, side: "A" }));
+  pushMl(recs, cfg, game, "AWAY", game.away.name, priceSelection({ pWin: awayP, twoWay: pin.ml, side: "B" }));
 
   if (homeSpreadValid(game) && model.projMargin != null) {
     const homeSpread = game.odds.spread;
@@ -345,18 +394,15 @@ export function recommend(sport, game, model, weights) {
         side: side === "HOME" ? "A" : "B",
         pinPrice: side === "HOME" ? game.odds.pinSpreadHomePrice : game.odds.pinSpreadAwayPrice,
       });
-      if (passesEv(cfg, priced)) {
-        recs.push({
-          market: "SPREAD",
-          side,
-          pick: `${side === "HOME" ? game.home.name : game.away.name} ${fmtSpread(side === "HOME" ? homeSpread : -homeSpread)}`,
-          line: side === "HOME" ? homeSpread : -homeSpread,
-          ...priced,
-          edge: priced.probEdge ?? spreadEdge,
-          tag: tagFromEv(priced.ev, priced.probEdge ?? spreadEdge),
-          book: EXECUTION_BOOK,
-        });
-      }
+      const base = {
+        market: "SPREAD",
+        side,
+        pick: `${side === "HOME" ? game.home.name : game.away.name} ${fmtSpread(side === "HOME" ? homeSpread : -homeSpread)}`,
+        line: side === "HOME" ? homeSpread : -homeSpread,
+        executionPrice: heritageSpreadPrice(game, side),
+        edge: priced.probEdge ?? spreadEdge,
+      };
+      pushPriced(recs, cfg, game, base, priced, true);
     }
   }
 
@@ -373,53 +419,77 @@ export function recommend(sport, game, model, weights) {
         side: over ? "A" : "B",
         pinPrice: over ? game.odds.pinOverPrice : game.odds.pinUnderPrice,
       });
-      if (passesEv(cfg, priced)) {
-        recs.push({
-          market: "TOTAL",
-          side: over ? "OVER" : "UNDER",
-          pick: `${over ? "Over" : "Under"} ${game.odds.total}`,
-          line: game.odds.total,
-          ...priced,
-          edge: priced.probEdge ?? Math.abs(diff),
-          tag: tagFromEv(priced.ev, priced.probEdge ?? Math.abs(diff)),
-          book: EXECUTION_BOOK,
-        });
-      }
+      const base = {
+        market: "TOTAL",
+        side: over ? "OVER" : "UNDER",
+        pick: `${over ? "Over" : "Under"} ${game.odds.total}`,
+        line: game.odds.total,
+        executionPrice: heritageTotalPrice(game, over),
+        edge: priced.probEdge ?? Math.abs(diff),
+      };
+      pushPriced(recs, cfg, game, base, priced, true);
     }
   }
 
   pushF5Recs(sport, game, recs, cfg, pin);
 
-  recs.sort((a, b) => (b.ev ?? -99) - (a.ev ?? -99) || b.edge - a.edge);
-  return recs[0] || null;
+  const qualified = sortTickets(recs.filter((r) => r.qualified));
+  const leans = sortTickets(recs.filter((r) => r.lean && !r.qualified));
+  return { qualified: qualified[0] || null, lean: leans[0] || null };
 }
 
-function passesEv(cfg, priced) {
-  if (priced.fair != null && cfg.maxProb != null && (priced.fair > cfg.maxProb || priced.fair < 1 - cfg.maxProb)) {
-    return false;
+export function recommend(sport, game, model, weights) {
+  return recommendBundle(sport, game, model, weights).qualified;
+}
+
+function pushPriced(recs, cfg, game, base, priced, extraOk) {
+  if (!extraOk || !withinProbCap(cfg, priced)) return;
+  const qualified = isQualifiedTicket(cfg, priced);
+  if (qualified) {
+    recs.push(stampTicket(game, base, priced, { qualified: true, lean: false }));
+    return;
   }
-  if (priced.ev == null) return true;
-  return priced.ev >= cfg.minEv;
+  if (priced.ev != null && priced.ev < 0) return;
+  recs.push(stampTicket(game, base, priced, { qualified: false, lean: true }));
 }
 
-function pushMl(recs, cfg, game, side, pick, priced, shopPrice) {
+function pushMl(recs, cfg, game, side, pick, priced) {
   const hasPin = priced.implied != null;
   const edge = hasPin ? priced.probEdge : (priced.fair - 0.5) * 100;
   if (hasPin) {
     if (priced.probEdge == null || priced.probEdge / 100 < cfg.minMlEdge) return;
-    if (!passesEv(cfg, priced)) return;
-  } else if (priced.fair < 0.5 + cfg.minMlEdge) return;
-  recs.push({
-    market: "ML",
-    side,
-    pick,
-    line: shopPrice ?? priced.pinPrice,
-    ...priced,
-    implied: priced.implied ?? 0.5,
-    edge: edge ?? 0,
-    tag: tagFromEv(priced.ev, edge),
-    book: EXECUTION_BOOK,
-  });
+  } else if (priced.fair == null || priced.fair < 0.5 + cfg.minMlEdge) return;
+  pushPriced(
+    recs,
+    cfg,
+    game,
+    {
+      market: "ML",
+      side,
+      pick,
+      line: priced.pinPrice,
+      executionPrice: heritageMlPrice(game, side),
+      implied: priced.implied ?? null,
+      edge: edge ?? 0,
+    },
+    priced,
+    true
+  );
+}
+
+function heritageMlPrice(game, side) {
+  if (!game.odds?.heritageListed) return null;
+  return side === "HOME" ? game.odds.heritageHomeMl ?? null : game.odds.heritageAwayMl ?? null;
+}
+
+function heritageSpreadPrice(game, side) {
+  if (!game.odds?.heritageListed) return null;
+  return side === "HOME" ? game.odds.heritageSpreadHomePrice ?? null : game.odds.heritageSpreadAwayPrice ?? null;
+}
+
+function heritageTotalPrice(game, over) {
+  if (!game.odds?.heritageListed) return null;
+  return over ? game.odds.heritageOverPrice ?? null : game.odds.heritageUnderPrice ?? null;
 }
 
 function pushF5Recs(sport, game, recs, cfg, pin) {
@@ -432,29 +502,25 @@ function pushF5Recs(sport, game, recs, cfg, pin) {
   if (formHome != null && (f5Odds.homeMl != null || f5Odds.awayMl != null)) {
     const homePriced = priceSelection({ pWin: formHome, twoWay: pin?.f5ml, side: "A", pinPrice: f5Odds.homeMl });
     const awayPriced = priceSelection({ pWin: formAway, twoWay: pin?.f5ml, side: "B", pinPrice: f5Odds.awayMl });
-    if (homePriced.implied != null && homePriced.probEdge != null && homePriced.probEdge / 100 >= cfg.minMlEdge && passesEv(cfg, homePriced)) {
-      recs.push({
-        market: "F5 ML",
-        side: "HOME",
-        pick: `${game.home.name} F5`,
-        line: f5Odds.homeMl,
-        ...homePriced,
-        edge: homePriced.probEdge,
-        tag: tagFromEv(homePriced.ev, homePriced.probEdge),
-        book: EXECUTION_BOOK,
-      });
+    if (homePriced.probEdge != null && homePriced.probEdge / 100 >= cfg.minMlEdge) {
+      pushPriced(
+        recs,
+        cfg,
+        game,
+        { market: "F5 ML", side: "HOME", pick: `${game.home.name} F5`, line: f5Odds.homeMl, executionPrice: null, edge: homePriced.probEdge },
+        homePriced,
+        true
+      );
     }
-    if (formAway != null && awayPriced.implied != null && awayPriced.probEdge != null && awayPriced.probEdge / 100 >= cfg.minMlEdge && passesEv(cfg, awayPriced)) {
-      recs.push({
-        market: "F5 ML",
-        side: "AWAY",
-        pick: `${game.away.name} F5`,
-        line: f5Odds.awayMl,
-        ...awayPriced,
-        edge: awayPriced.probEdge,
-        tag: tagFromEv(awayPriced.ev, awayPriced.probEdge),
-        book: EXECUTION_BOOK,
-      });
+    if (formAway != null && awayPriced.probEdge != null && awayPriced.probEdge / 100 >= cfg.minMlEdge) {
+      pushPriced(
+        recs,
+        cfg,
+        game,
+        { market: "F5 ML", side: "AWAY", pick: `${game.away.name} F5`, line: f5Odds.awayMl, executionPrice: null, edge: awayPriced.probEdge },
+        awayPriced,
+        true
+      );
     }
   }
 
@@ -463,17 +529,28 @@ function pushF5Recs(sport, game, recs, cfg, pin) {
     const line = f5Odds.total;
     const diff = palTotal - line;
     if (Math.abs(diff) >= cfg.minSpreadEdge) {
-      recs.push({
-        market: "F5 TOTAL",
-        side: diff > 0 ? "OVER" : "UNDER",
-        pick: `${diff > 0 ? "Over" : "Under"} ${line} F5`,
-        line,
-        fair: logistic(Math.abs(diff), cfg.totalK),
-        implied: 0.5,
-        edge: Math.abs(diff),
-        tag: Math.abs(diff) >= cfg.minSpreadEdge * 2 ? "STRONG" : "LEAN",
-        book: EXECUTION_BOOK,
+      const over = diff > 0;
+      const priced = priceSelection({
+        pWin: logistic(Math.abs(diff), cfg.totalK),
+        twoWay: pin?.f5total,
+        side: over ? "A" : "B",
+        pinPrice: over ? f5Odds.overPrice : f5Odds.underPrice,
       });
+      const base = {
+        market: "F5 TOTAL",
+        side: over ? "OVER" : "UNDER",
+        pick: `${over ? "Over" : "Under"} ${line} F5`,
+        line,
+        executionPrice: null,
+        edge: priced.probEdge ?? Math.abs(diff),
+      };
+      if (isQualifiedTicket(cfg, priced)) {
+        recs.push(stampTicket(game, base, priced, { qualified: true, lean: false }));
+      } else {
+        recs.push(
+          stampTicket(game, base, priced, { qualified: false, lean: true })
+        );
+      }
     }
   }
 }
@@ -646,14 +723,7 @@ async function fetchMlbStats(date) {
   const res = await fetch(url, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`MLB Stats ${res.status}`);
   const json = await res.json();
-  const games = (json.dates || []).flatMap((d) => d.games || []).map(mapMlbStatsGame);
-  return games.map((game) => {
-    const model = projectGame("mlb", game);
-    if (game.modelHint?.formHome != null) {
-      model.layers.form = game.modelHint.formHome;
-    }
-    return { ...game, model };
-  });
+  return (json.dates || []).flatMap((d) => d.games || []).map(mapMlbStatsGame);
 }
 
 export function slimFinal(game) {
@@ -682,6 +752,20 @@ export async function fetchResults(sport, date) {
   }
   const json = await fetchEspnScoreboard(id, day);
   return (json.events || []).map((ev) => slimFinal(mapEvent(id, ev)));
+}
+
+export function dataQuality(sport, game) {
+  const flags = [];
+  if (game.odds?.pinPresent === false || (game.pin?.ml && !game.pin.ml.complete)) flags.push("incomplete_pin_ml");
+  if (game.odds?.spread != null && game.pin?.spread && !game.pin.spread.complete) flags.push("incomplete_pin_spread");
+  if (game.odds?.total != null && game.pin?.total && !game.pin.total.complete) flags.push("incomplete_pin_total");
+  if (sport === "mlb") {
+    if (!game.homeSp?.name) flags.push("missing_home_sp");
+    if (!game.awaySp?.name) flags.push("missing_away_sp");
+  }
+  if (!game.odds?.heritageListed) flags.push("heritage_unlisted");
+  const score = Math.max(0, 100 - flags.length * 12);
+  return { score, flags };
 }
 
 export async function buildSlate(sport, date, env = {}) {
@@ -727,11 +811,13 @@ export async function buildSlate(sport, date, env = {}) {
 
   games = games.map((game) => {
     const model = projectGame(id, game);
-    if (game.bpp?.matchupForm == null && game.modelHint?.formHome != null) {
-      model.layers.form = game.modelHint.formHome;
-      model.recipe = projectionRecipe(id, game, model);
-    }
-    return { ...game, model, pin: pinMarkets(game) };
+    return {
+      ...game,
+      model,
+      pin: pinMarkets(game),
+      quality: dataQuality(id, game),
+      modelVersion: MODEL_VERSION,
+    };
   });
 
   const live = games.filter((g) => g.status.live).length;

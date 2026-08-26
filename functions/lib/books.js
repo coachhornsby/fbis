@@ -60,21 +60,52 @@ export function validAmerican(price) {
   return Number.isFinite(n) && n !== 0 && Math.abs(n) <= 50000;
 }
 
+/** Display coerce only. Never rewrite a quote's price onto a different point. */
 export function runLine(sport, point, { f5 = false } = {}) {
   if (point == null || !Number.isFinite(Number(point))) return null;
   const n = Number(point);
-  const sign = n === 0 ? 1 : Math.sign(n);
-  if (BASEBALL.has(sport)) return sign * (f5 ? 0.5 : 1.5);
-  return n;
+  if (!BASEBALL.has(sport)) return n;
+  const want = f5 ? 0.5 : 1.5;
+  if (Math.abs(n) === want) return n;
+  return null;
+}
+
+export function pairSpreadSides(homeRows, awayRows) {
+  for (const h of homeRows || []) {
+    if (h.point == null || !validAmerican(h.price)) continue;
+    const want = -Number(h.point);
+    const a = (awayRows || []).find((r) => Number(r.point) === want && validAmerican(r.price));
+    if (a) return { home: h, away: a, point: Number(h.point) };
+  }
+  return null;
+}
+
+export function pairTotalSides(overRows, underRows) {
+  for (const o of overRows || []) {
+    if (o.point == null || !validAmerican(o.price)) continue;
+    const u = (underRows || []).find((r) => Number(r.point) === Number(o.point) && validAmerican(r.price));
+    if (u) return { over: o, under: u, point: Number(o.point) };
+  }
+  return null;
+}
+
+/** Exact baseball run line only. No fallback onto an alternate. */
+export function pickExactRunLinePair(homeRows, awayRows, sport, { f5 = false } = {}) {
+  const paired = pairSpreadSides(homeRows, awayRows);
+  if (!paired) return null;
+  if (!BASEBALL.has(sport)) return paired;
+  const want = f5 ? 0.5 : 1.5;
+  if (Math.abs(paired.point) !== want) {
+    const hWant = (homeRows || []).filter((r) => Math.abs(Number(r.point)) === want);
+    const aWant = (awayRows || []).filter((r) => Math.abs(Number(r.point)) === want);
+    return pairSpreadSides(hWant, aWant);
+  }
+  return paired;
 }
 
 export function pickRunLineRow(rows, sport, { f5 = false } = {}) {
   if (!rows?.length) return null;
   if (!BASEBALL.has(sport)) return rows[0];
   const want = f5 ? 0.5 : 1.5;
-  const hit =
-    rows.find((r) => Math.abs(Number(r.point)) === want) ||
-    rows.find((r) => Math.abs(Number(r.point)) === (f5 ? 1 : 1)) ||
-    rows[0];
-  return hit ? { ...hit, point: runLine(sport, hit.point, { f5 }) } : null;
+  return rows.find((r) => Math.abs(Number(r.point)) === want) || null;
 }

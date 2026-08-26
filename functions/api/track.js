@@ -9,6 +9,7 @@ export async function onRequestGet(context) {
       PARLAY_API_KEY: context.env.PARLAY_API_KEY,
       BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
       caches: caches.default,
+      DB: context.env.DB,
     });
     return new Response(JSON.stringify(payload), {
       headers: {

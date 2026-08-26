@@ -1,9 +1,12 @@
 /**
- * Market Engine — vig, fair price, EV.
+ * Market Engine — vig, fair price, EV, CLV.
  * Multiplicative de-vig. Never compare FBIS p to raw implied.
+ * Incomplete two-way markets are not priced.
  */
 
-export const MODEL_VERSION = "FBIS-v1.0";
+import { MODEL_VERSION } from "./weights.js";
+
+export { MODEL_VERSION };
 
 export function americanToImplied(american) {
   const n = Number(american);
@@ -19,7 +22,14 @@ export function impliedToAmerican(p) {
   return Math.round((100 * (1 - n)) / n);
 }
 
-/** Multiplicative hold. vig is the extra probability (0.041 = 4.1% juice). */
+export function americanProfit(odds, stake = 1) {
+  const n = Number(odds);
+  if (!Number.isFinite(n) || n === 0) return null;
+  if (n > 0) return (n / 100) * stake;
+  return (100 / Math.abs(n)) * stake;
+}
+
+/** Multiplicative hold. Incomplete pairs are not a market. */
 export function twoWayMarket(priceA, priceB) {
   const rawA = americanToImplied(priceA);
   const rawB = americanToImplied(priceB);
@@ -30,8 +40,9 @@ export function twoWayMarket(priceA, priceB) {
       rawA,
       rawB,
       vig: null,
-      noVigA: rawA,
-      noVigB: rawB,
+      noVigA: null,
+      noVigB: null,
+      complete: false,
     };
   }
   const s = rawA + rawB;
@@ -43,6 +54,7 @@ export function twoWayMarket(priceA, priceB) {
     vig: s - 1,
     noVigA: rawA / s,
     noVigB: rawB / s,
+    complete: true,
   };
 }
 
@@ -56,21 +68,35 @@ export function expectedRoi(pWin, american) {
   return p * profit - (1 - p);
 }
 
+/**
+ * Probability CLV in percentage points for the side you bet.
+ * closeNoVig − entryNoVig. Positive = the market moved toward your side after you bet.
+ */
+export function probabilityClv(entryNoVigSide, closeNoVigSide) {
+  if (entryNoVigSide == null || closeNoVigSide == null) return null;
+  const a = Number(entryNoVigSide);
+  const b = Number(closeNoVigSide);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return (b - a) * 100;
+}
+
 export function priceSelection({ pWin, pinPrice, twoWay, side = "A" }) {
-  const noVig = side === "B" ? twoWay?.noVigB : twoWay?.noVigA;
+  const complete = twoWay?.complete === true;
+  const noVig = complete ? (side === "B" ? twoWay.noVigB : twoWay.noVigA) : null;
   const price = pinPrice ?? (side === "B" ? twoWay?.priceB : twoWay?.priceA);
-  const ev = expectedRoi(pWin, price);
+  const ev = complete ? expectedRoi(pWin, price) : null;
   const probEdge = pWin != null && noVig != null ? pWin - noVig : null;
   return {
     fair: pWin ?? null,
     fairAmerican: impliedToAmerican(pWin),
     pinPrice: price ?? null,
-    pinVig: twoWay?.vig ?? null,
-    implied: noVig ?? null,
+    pinVig: complete ? twoWay.vig : null,
+    implied: noVig,
     probEdge: probEdge != null ? probEdge * 100 : null,
     ev,
     evPct: ev != null ? ev * 100 : null,
     sharp: "Pinnacle",
+    marketComplete: complete,
   };
 }
 
@@ -81,17 +107,25 @@ export function pinMarkets(game) {
     spread: twoWayMarket(o.pinSpreadHomePrice, o.pinSpreadAwayPrice),
     total: twoWayMarket(o.pinOverPrice, o.pinUnderPrice),
     f5ml: twoWayMarket(o.f5?.homeMl, o.f5?.awayMl),
+    f5total: twoWayMarket(o.f5?.overPrice, o.f5?.underPrice),
   };
 }
 
-export function tagFromEv(ev, probEdgePct) {
-  if (ev != null) {
-    if (ev >= 0.08) return "CONVICTION";
-    if (ev >= 0.05) return "STRONG";
-    if (ev >= 0.03) return "STANDARD";
-    return "LEAN";
-  }
-  if (probEdgePct >= 6) return "CONVICTION";
-  if (probEdgePct >= 4) return "STRONG";
-  return "STANDARD";
+export function tagFromEv(ev) {
+  if (ev == null) return "LEAN";
+  if (ev >= 0.08) return "CONVICTION";
+  if (ev >= 0.05) return "STRONG";
+  if (ev >= 0.03) return "STANDARD";
+  return "LEAN";
+}
+
+export function brierScore(p, y) {
+  if (p == null || y == null) return null;
+  return (Number(p) - Number(y)) ** 2;
+}
+
+export function logLoss(p, y) {
+  if (p == null || y == null) return null;
+  const pp = Math.min(1 - 1e-9, Math.max(1e-9, Number(p)));
+  return y ? -Math.log(pp) : -Math.log(1 - pp);
 }

@@ -5,21 +5,24 @@
 
 import { readCache, writeCache } from "./cache.js";
 import { namesMatch } from "./parlay.js";
-import { BOARD_SPORTS, SPORTS, lastNDatesCT, todayCT, fetchResults } from "./slateEngine.js";
+import { BOARD_SPORTS, SPORTS, lastNDatesCT, todayCT, fetchResults, blendWinProb } from "./slateEngine.js";
+import { DEFAULT_WEIGHTS, MODEL_VERSION } from "./weights.js";
+import { brierScore, logLoss } from "./pricing.js";
+import { persistGame, persistOddsSnapshot, persistPrediction } from "./store.js";
 
 const TTL_MS = 21 * 24 * 60 * 60 * 1000;
 const HARVEST_TTL_MS = 10 * 60 * 1000;
-const CACHE_VER = "proj-v1";
+const CACHE_VER = "proj-v2";
 const KEEP_DAYS = 21;
 
 export const RECIPE_GUIDE = {
   mlb: {
     engine: "Baseball Savant (Pal overlay when keyed)",
-    body: "Team runs/game × opposing starter ERA-equivalent, with a 1.04 home bump, clamped 2.3–7.2. Not derived from the ±1.5 run line. Pal simulated runs replace Savant when the Pal key is live.",
+    body: "Team runs/game × opposing starter ERA-equivalent, with a 1.04 home bump, clamped 2.3–7.2. Not derived from the ±1.5 run line. Pal simulated runs replace Savant when the Pal key is live. Moneyline probability uses the score layer from that projection, not W-L record.",
   },
   nba: {
     engine: "Pinnacle line-implied",
-    body: "Home = total/2 − home spread/2. Away = total/2 + home spread/2. That is the market’s implied score until an independent NBA sim is wired. Win-prob still blends Pinnacle no-vig, ESPN win%, and W-L form.",
+    body: "Home = total/2 − home spread/2. Away = total/2 + home spread/2. That is the market’s implied score until an independent NBA sim is wired. Win-prob blends Pinnacle no-vig, ESPN, score (line-implied margin), and W-L form.",
   },
   nfl: {
     engine: "Pinnacle line-implied",
@@ -67,12 +70,34 @@ async function saveLedger(sport, ledger, cfCache) {
   return payload;
 }
 
-function freezeFromGame(date, game) {
+function snapshotOdds(game) {
+  const pin = game.pin || {};
+  return {
+    at: new Date().toISOString(),
+    pinHomeMl: game.odds?.pinHomeMl ?? game.fairHomeMl ?? null,
+    pinAwayMl: game.odds?.pinAwayMl ?? game.fairAwayMl ?? null,
+    pinSpreadHomePrice: game.odds?.pinSpreadHomePrice ?? null,
+    pinSpreadAwayPrice: game.odds?.pinSpreadAwayPrice ?? null,
+    pinOverPrice: game.odds?.pinOverPrice ?? null,
+    pinUnderPrice: game.odds?.pinUnderPrice ?? null,
+    noVigHome: pin.ml?.noVigA ?? null,
+    noVigAway: pin.ml?.noVigB ?? null,
+    noVigSpreadHome: pin.spread?.noVigA ?? null,
+    noVigSpreadAway: pin.spread?.noVigB ?? null,
+    noVigOver: pin.total?.noVigA ?? null,
+    noVigUnder: pin.total?.noVigB ?? null,
+  };
+}
+
+export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
   const model = game.model || {};
   const recipe = model.recipe || {};
   const projHome = model.projHome ?? game.projHomeScore;
   const projAway = model.projAway ?? game.projAwayScore;
   if (projHome == null || projAway == null) return null;
+  const w = { ...DEFAULT_WEIGHTS, ...(weights || {}) };
+  const pHomeFinal = model.pHomeFinal ?? blendWinProb(model.layers || {}, w);
+  const snap = snapshotOdds(game);
   return {
     id: String(game.id),
     sport: game.sport,
@@ -90,11 +115,26 @@ function freezeFromGame(date, game) {
     engine: recipe.engine || "unknown",
     steps: recipe.steps || [],
     impliedHome: model.impliedHome ?? null,
-    pHome: model.layers?.form ?? model.impliedHome ?? null,
-    pinHomeMl: game.odds?.pinHomeMl ?? game.fairHomeMl ?? null,
-    pinAwayMl: game.odds?.pinAwayMl ?? game.fairAwayMl ?? null,
+    pHome: pHomeFinal,
+    pHomeFinal,
+    pAwayFinal: pHomeFinal != null ? 1 - pHomeFinal : null,
+    pMarket: model.layers?.market ?? null,
+    pEspn: model.layers?.espn ?? null,
+    pScore: model.layers?.score ?? null,
+    pForm: model.layers?.form ?? null,
+    layers: { ...(model.layers || {}) },
+    weights: w,
+    pinHomeMl: snap.pinHomeMl,
+    pinAwayMl: snap.pinAwayMl,
     pinVig: game.pin?.ml?.vig ?? null,
-    modelVersion: game.modelVersion || "FBIS-v1.0",
+    entryNoVigHome: snap.noVigHome,
+    closeNoVigHome: null,
+    closePinHomeMl: null,
+    closePinAwayMl: null,
+    snapshots: [snap],
+    dataQuality: game.quality?.score ?? null,
+    qualityFlags: game.quality?.flags || [],
+    modelVersion: game.modelVersion || MODEL_VERSION,
     frozenAt: new Date().toISOString(),
     actualAway: null,
     actualHome: null,
@@ -113,18 +153,45 @@ function applyFinal(row, final) {
   const as = Number(final.away?.score);
   if (!Number.isFinite(hs) || !Number.isFinite(as)) return row;
   if (!final.status?.completed) return row;
+  const lastSnap = (row.snapshots || []).at(-1) || null;
   const next = {
     ...row,
     actualHome: hs,
     actualAway: as,
     actualTotal: hs + as,
     gradedAt: row.gradedAt || new Date().toISOString(),
+    closePinHomeMl: row.closePinHomeMl ?? lastSnap?.pinHomeMl ?? null,
+    closePinAwayMl: row.closePinAwayMl ?? lastSnap?.pinAwayMl ?? null,
+    closeNoVigHome: row.closeNoVigHome ?? lastSnap?.noVigHome ?? null,
   };
   if (final.f5Score?.complete) {
     next.f5ActualHome = final.f5Score.home;
     next.f5ActualAway = final.f5Score.away;
   }
   return next;
+}
+
+function appendSnapshot(row, game) {
+  const snap = snapshotOdds(game);
+  if (snap.pinHomeMl == null && snap.pinAwayMl == null) return row;
+  const last = (row.snapshots || []).at(-1);
+  if (
+    last &&
+    last.pinHomeMl === snap.pinHomeMl &&
+    last.pinAwayMl === snap.pinAwayMl &&
+    last.pinOverPrice === snap.pinOverPrice &&
+    last.pinSpreadHomePrice === snap.pinSpreadHomePrice
+  ) {
+    return row;
+  }
+  const snapshots = [...(row.snapshots || []), snap];
+  return {
+    ...row,
+    snapshots,
+    closePinHomeMl: snap.pinHomeMl,
+    closePinAwayMl: snap.pinAwayMl,
+    closeNoVigHome: snap.noVigHome,
+  };
 }
 
 function matchFinal(row, finals) {
@@ -154,6 +221,9 @@ export function accuracyOf(rows) {
       winnerHit: null,
       brierModel: null,
       brierMarket: null,
+      logLossModel: null,
+      logLossMarket: null,
+      calibration: [],
     };
   }
   const abs = (a, b) => Math.abs(a - b);
@@ -164,13 +234,17 @@ export function accuracyOf(rows) {
     return projHomeWin === actualHomeWin;
   }).length;
   const decided = graded.filter((r) => r.actualHome !== r.actualAway && r.projHome !== r.projAway).length;
-  const brier = (key) => {
-    const xs = graded.filter((r) => r[key] != null && r.actualHome !== r.actualAway);
+  const decidedRows = graded.filter((r) => r.actualHome !== r.actualAway);
+  const pKey = (r) => r.pHomeFinal ?? r.pHome;
+  const brier = (getP) => {
+    const xs = decidedRows.filter((r) => getP(r) != null);
     if (!xs.length) return null;
-    return mean(xs.map((r) => {
-      const y = r.actualHome > r.actualAway ? 1 : 0;
-      return (r[key] - y) ** 2;
-    }));
+    return mean(xs.map((r) => brierScore(getP(r), r.actualHome > r.actualAway ? 1 : 0)));
+  };
+  const ll = (getP) => {
+    const xs = decidedRows.filter((r) => getP(r) != null);
+    if (!xs.length) return null;
+    return mean(xs.map((r) => logLoss(getP(r), r.actualHome > r.actualAway ? 1 : 0)));
   };
   return {
     n,
@@ -181,9 +255,42 @@ export function accuracyOf(rows) {
     rmseTotal: Math.sqrt(mean(graded.map((r) => (r.projTotal - r.actualTotal) ** 2))),
     biasTotal: mean(graded.map((r) => r.projTotal - r.actualTotal)),
     winnerHit: decided ? winnerHits / decided : null,
-    brierModel: brier("pHome"),
-    brierMarket: brier("impliedHome"),
+    brierModel: brier(pKey),
+    brierMarket: brier((r) => r.impliedHome ?? r.pMarket),
+    logLossModel: ll(pKey),
+    logLossMarket: ll((r) => r.impliedHome ?? r.pMarket),
+    calibration: calibrationOf(decidedRows, pKey),
   };
+}
+
+const CAL_BUCKETS = [
+  [0.5, 0.52],
+  [0.52, 0.54],
+  [0.54, 0.56],
+  [0.56, 0.58],
+  [0.58, 0.6],
+  [0.6, 0.65],
+  [0.65, 0.7],
+  [0.7, 1.01],
+];
+
+export function calibrationOf(rows, getP) {
+  return CAL_BUCKETS.map(([lo, hi]) => {
+    const xs = rows.filter((r) => {
+      const p = getP(r);
+      return p != null && p >= lo && p < hi;
+    });
+    const n = xs.length;
+    const predicted = n ? mean(xs.map((r) => getP(r))) : null;
+    const actual = n ? mean(xs.map((r) => (r.actualHome > r.actualAway ? 1 : 0))) : null;
+    return {
+      bucket: hi >= 1 ? `${Math.round(lo * 100)}+` : `${Math.round(lo * 100)}–${Math.round(hi * 100)}`,
+      n,
+      predicted,
+      actual,
+      error: predicted != null && actual != null ? predicted - actual : null,
+    };
+  });
 }
 
 export function decorateRow(row) {
@@ -200,8 +307,9 @@ export function decorateRow(row) {
   };
 }
 
-export async function freezeSlate(slate, cfCache) {
+export async function freezeSlate(slate, env = {}) {
   if (!slate?.sport || !slate.games) return;
+  const cfCache = env.caches;
   const ledger = await loadLedger(slate.sport, cfCache);
   let changed = false;
   for (const game of slate.games) {
@@ -212,14 +320,75 @@ export async function freezeSlate(slate, cfCache) {
       if (frozen) {
         ledger.games[k] = frozen;
         changed = true;
+        persistFrozen(env, frozen, game, slate.date);
+      }
+    }
+    if (existing && !existing.gradedAt && !game.status?.completed) {
+      const next = appendSnapshot(existing, game);
+      if (next !== existing) {
+        ledger.games[k] = next;
+        changed = true;
+        persistSnap(env, next, slate.date);
       }
     }
     if (existing && game.status?.completed && existing.actualHome == null) {
-      ledger.games[k] = applyFinal(existing, game);
+      ledger.games[k] = applyFinal(appendSnapshot(existing, game), game);
       changed = true;
+      persistFrozen(env, ledger.games[k], game, slate.date);
     }
   }
   if (changed) await saveLedger(slate.sport, ledger, cfCache);
+}
+
+function persistFrozen(env, row, game, date) {
+  persistGame(env, game, date);
+  persistPrediction(env, {
+    id: `${row.date}:${row.id}`,
+    gameId: row.id,
+    sport: row.sport,
+    date: row.date,
+    modelVersion: row.modelVersion,
+    asOf: row.frozenAt,
+    projHome: row.projHome,
+    projAway: row.projAway,
+    projTotal: row.projTotal,
+    projMargin: row.projMargin,
+    pHomeFinal: row.pHomeFinal,
+    pAwayFinal: row.pAwayFinal,
+    pMarket: row.pMarket,
+    pEspn: row.pEspn,
+    pScore: row.pScore,
+    pForm: row.pForm,
+    weightsJson: JSON.stringify(row.weights || {}),
+    layersJson: JSON.stringify(row.layers || {}),
+    dataQuality: row.dataQuality,
+    pinHomeMl: row.pinHomeMl,
+    pinAwayMl: row.pinAwayMl,
+    pinVig: row.pinVig,
+    engine: row.engine,
+    actualHome: row.actualHome,
+    actualAway: row.actualAway,
+    gradedAt: row.gradedAt,
+  });
+  persistSnap(env, row, date);
+}
+
+function persistSnap(env, row, date) {
+  const snap = (row.snapshots || []).at(-1);
+  if (!snap) return;
+  persistOddsSnapshot(env, {
+    gameId: row.id,
+    sport: row.sport,
+    date,
+    book: "Pinnacle",
+    market: "ml",
+    side: "HOME",
+    line: null,
+    price: snap.pinHomeMl,
+    implied: null,
+    noVig: snap.noVigHome,
+    capturedAt: snap.at,
+  });
 }
 
 export async function harvestSport(sport, days, env = {}) {

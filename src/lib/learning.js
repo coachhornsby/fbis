@@ -1,17 +1,16 @@
+import { DEFAULT_WEIGHTS as CHAMPION_WEIGHTS } from "../../functions/lib/weights.js";
+import { americanProfit, probabilityClv } from "../../functions/lib/pricing.js";
+
 const KEY = "fbis-learning-v1";
 
-export const DEFAULT_WEIGHTS = {
-  market: 0.4,
-  espn: 0.35,
-  form: 0.25,
-};
+export const DEFAULT_WEIGHTS = { ...CHAMPION_WEIGHTS };
 
 const EMPTY = {
-  version: 1,
+  version: 2,
   weights: { ...DEFAULT_WEIGHTS },
   bets: [],
   weightLog: [],
-  layerScores: { market: 0, espn: 0, form: 0 },
+  layerScores: { market: 0, espn: 0, score: 0, form: 0 },
 };
 
 export function loadState() {
@@ -19,10 +18,11 @@ export function loadState() {
     const raw = localStorage.getItem(KEY);
     if (!raw) return structuredClone(EMPTY);
     const parsed = JSON.parse(raw);
+    const legacy = parsed.weights && parsed.weights.score == null;
     return {
       ...structuredClone(EMPTY),
       ...parsed,
-      weights: { ...DEFAULT_WEIGHTS, ...(parsed.weights || {}) },
+      weights: legacy ? { ...DEFAULT_WEIGHTS } : { ...DEFAULT_WEIGHTS, ...(parsed.weights || {}) },
       bets: Array.isArray(parsed.bets) ? parsed.bets : [],
       weightLog: Array.isArray(parsed.weightLog) ? parsed.weightLog : [],
       layerScores: { ...EMPTY.layerScores, ...(parsed.layerScores || {}) },
@@ -53,6 +53,13 @@ export function logBet(state, bet) {
         result: "OPEN",
         profit: 0,
         clv: null,
+        executionBook: bet.executionBook || "Heritage",
+        benchmarkBook: bet.benchmarkBook || "Pinnacle",
+        executionPrice: bet.executionPrice ?? null,
+        pinPrice: bet.pinPrice ?? null,
+        entryNoVig: bet.entryNoVig ?? bet.implied ?? null,
+        entryAmerican: bet.entryAmerican ?? bet.pinPrice ?? null,
+        stake: bet.stake ?? 1,
       },
       ...state.bets,
     ],
@@ -61,11 +68,12 @@ export function logBet(state, bet) {
   return next;
 }
 
-function americanProfit(odds, stake = 1) {
-  const n = Number(odds);
-  if (!Number.isFinite(n) || n === 0) return stake;
-  if (n > 0) return (n / 100) * stake;
-  return (100 / Math.abs(n)) * stake;
+function ticketOdds(bet) {
+  if (bet.executionPrice != null) return bet.executionPrice;
+  if (bet.pinPrice != null) return bet.pinPrice;
+  if (bet.entryAmerican != null) return bet.entryAmerican;
+  if (bet.market === "ML" || bet.market === "F5 ML") return bet.line;
+  return null;
 }
 
 function gradeSide(bet, game) {
@@ -73,11 +81,14 @@ function gradeSide(bet, game) {
   const hs = Number(game.home.score);
   const as = Number(game.away.score);
   if (!Number.isFinite(hs) || !Number.isFinite(as)) return null;
+  const odds = ticketOdds(bet);
+  const payout = americanProfit(odds, bet.stake ?? 1);
+  if (payout == null) return null;
   if (bet.market === "ML") {
     const homeWin = hs > as;
     const won = bet.side === "HOME" ? homeWin : !homeWin;
     if (hs === as) return { result: "PUSH", profit: 0 };
-    return { result: won ? "WON" : "LOST", profit: won ? americanProfit(bet.line) : -1 };
+    return { result: won ? "WON" : "LOST", profit: won ? payout : -1 };
   }
   if (bet.market === "SPREAD") {
     const margin = hs - as;
@@ -85,7 +96,7 @@ function gradeSide(bet, game) {
     const covered = bet.side === "HOME" ? margin + line > 0 : -margin + line > 0;
     const push = bet.side === "HOME" ? margin + line === 0 : -margin + line === 0;
     if (push) return { result: "PUSH", profit: 0 };
-    return { result: covered ? "WON" : "LOST", profit: covered ? 0.91 : -1 };
+    return { result: covered ? "WON" : "LOST", profit: covered ? payout : -1 };
   }
   if (bet.market === "TOTAL") {
     const total = hs + as;
@@ -94,7 +105,7 @@ function gradeSide(bet, game) {
     const push = total === line;
     if (push) return { result: "PUSH", profit: 0 };
     const won = bet.side === "OVER" ? over : !over;
-    return { result: won ? "WON" : "LOST", profit: won ? 0.91 : -1 };
+    return { result: won ? "WON" : "LOST", profit: won ? payout : -1 };
   }
   if (bet.market === "F5 ML") {
     const f5 = game.f5Score;
@@ -102,7 +113,7 @@ function gradeSide(bet, game) {
     if (f5.home === f5.away) return { result: "PUSH", profit: 0 };
     const homeLead = f5.home > f5.away;
     const won = bet.side === "HOME" ? homeLead : !homeLead;
-    return { result: won ? "WON" : "LOST", profit: won ? americanProfit(bet.line) : -1 };
+    return { result: won ? "WON" : "LOST", profit: won ? payout : -1 };
   }
   if (bet.market === "F5 TOTAL") {
     const f5 = game.f5Score;
@@ -113,13 +124,34 @@ function gradeSide(bet, game) {
     const push = total === line;
     if (push) return { result: "PUSH", profit: 0 };
     const won = bet.side === "OVER" ? over : !over;
-    return { result: won ? "WON" : "LOST", profit: won ? 0.91 : -1 };
+    return { result: won ? "WON" : "LOST", profit: won ? payout : -1 };
+  }
+  return null;
+}
+
+function closeNoVig(bet, game) {
+  const pin = game?.pin;
+  if (bet.market === "ML") {
+    if (bet.side === "HOME") return pin?.ml?.noVigA ?? game?.model?.impliedHome ?? null;
+    return pin?.ml?.noVigB ?? (game?.model?.impliedHome != null ? 1 - game.model.impliedHome : null);
+  }
+  if (bet.market === "SPREAD") {
+    return bet.side === "HOME" ? pin?.spread?.noVigA ?? null : pin?.spread?.noVigB ?? null;
+  }
+  if (bet.market === "TOTAL") {
+    return bet.side === "OVER" ? pin?.total?.noVigA ?? null : pin?.total?.noVigB ?? null;
+  }
+  if (bet.market === "F5 ML") {
+    return bet.side === "HOME" ? pin?.f5ml?.noVigA ?? null : pin?.f5ml?.noVigB ?? null;
+  }
+  if (bet.market === "F5 TOTAL") {
+    return bet.side === "OVER" ? pin?.f5total?.noVigA ?? null : pin?.f5total?.noVigB ?? null;
   }
   return null;
 }
 
 function closestLayer(bet, game) {
-  const layers = game?.model?.layers || {};
+  const layers = bet.layers || game?.model?.layers || {};
   const actualHome = Number(game.home.score) > Number(game.away.score) ? 1 : 0;
   let best = null;
   let bestErr = Infinity;
@@ -146,18 +178,13 @@ export function gradeOpenBets(state, games) {
     changed = true;
     const winner = closestLayer(bet, game);
     if (winner) layerScores[winner] = (layerScores[winner] || 0) + 1;
-    const closeHome = game?.model?.impliedHome;
-    const clv =
-      bet.market === "ML" && closeHome != null
-        ? (bet.side === "HOME" ? bet.fair - closeHome : bet.fair - (1 - closeHome)) * 100
-        : null;
-    return { ...bet, ...graded, gradedAt: new Date().toISOString(), clv, winnerLayer: winner };
+    const close = closeNoVig(bet, game);
+    const clv = close != null ? probabilityClv(bet.entryNoVig ?? bet.implied, close) : bet.clv;
+    return { ...bet, ...graded, gradedAt: new Date().toISOString(), clv, closeNoVig: close, winnerLayer: winner };
   });
 
   if (!changed) return state;
 
-  // Champion weights do not auto-shift from last night's W/L.
-  // Diagnostics (layer hits, CLV) still accumulate for the SYS tab.
   const next = { ...state, bets, layerScores };
   saveState(next);
   return next;

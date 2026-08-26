@@ -1,13 +1,17 @@
-import { recommend } from "../../functions/lib/slateEngine.js";
+import { recommendBundle } from "../../functions/lib/slateEngine.js";
 
 export function withRecommendations(slate, weights) {
   if (!slate?.games) return slate;
   return {
     ...slate,
-    games: slate.games.map((game) => ({
-      ...game,
-      rec: recommend(slate.sport, game, game.model, weights),
-    })),
+    games: slate.games.map((game) => {
+      const bundle = recommendBundle(slate.sport, game, game.model, weights);
+      return {
+        ...game,
+        rec: bundle.qualified,
+        lean: bundle.lean,
+      };
+    }),
   };
 }
 

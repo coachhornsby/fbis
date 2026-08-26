@@ -12,7 +12,20 @@ npx wrangler pages secret put BALLPARK_PAL_API_KEY --project-name fbis
 npm run deploy
 ```
 
-Parlay odds are cached 15 minutes so the 1,000 free credits last. Pinnacle is pulled from the `eu` region. Kalshi is a separate 1-credit sentiment pull and is never used as a betting book.
+Parlay odds are cached 15 minutes so the 1,000 free credits last. Pinnacle is pulled from the `eu` region. Kalshi is a separate 1-credit sentiment pull and is never used as a betting book. `/api/slate?date=` only accepts today ± a couple of days.
+
+## D1 (optional research store)
+
+```bash
+npx wrangler d1 create fbis
+npx wrangler d1 execute fbis --file=schema.sql --remote
+```
+
+Then bind `DB` in the Pages project. Until that binding exists, freeze/harvest still use the Cache API.
+
+## Nightly harvest
+
+Pages cannot use `wrangler.toml` `[triggers]`. GitHub Action `.github/workflows/harvest.yml` calls `/api/harvest` at 06:20 CT. Optional: set `HARVEST_SECRET` as a Pages secret and a GitHub Actions secret of the same name.
 
 ## Git connect
 

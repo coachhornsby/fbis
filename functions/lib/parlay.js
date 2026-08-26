@@ -19,10 +19,13 @@ import {
   isPricingBook,
   isSentimentBook,
   isSharpBook,
-  pickRunLineRow,
-  runLine,
+  pickExactRunLinePair,
+  pairTotalSides,
   validAmerican,
 } from "./books.js";
+import { matchEvent, namesMatch } from "./match.js";
+
+export { namesMatch };
 
 export const PARLAY_SPORT = {
   mlb: "baseball_mlb",
@@ -34,27 +37,7 @@ export const PARLAY_SPORT = {
 
 const TTL_MS = 15 * 60 * 1000;
 const EMPTY_F5_TTL_MS = 6 * 60 * 60 * 1000;
-const CACHE_VER = "v4";
-
-function normName(s) {
-  return String(s || "")
-    .toLowerCase()
-    .replace(/[.]/g, "")
-    .replace(/\b(st)\b/g, "saint")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-export function namesMatch(a, b) {
-  const na = normName(a);
-  const nb = normName(b);
-  if (!na || !nb) return false;
-  if (na === nb) return true;
-  if (na.includes(nb) || nb.includes(na)) return true;
-  const la = na.split(" ").pop();
-  const lb = nb.split(" ").pop();
-  return la === lb && la.length > 3;
-}
+const CACHE_VER = "v5";
 
 function outcomes(bookmakers, marketKey, pred) {
   const rows = [];
@@ -119,42 +102,53 @@ function packFg(books, sportId, home, away) {
   const herHome = sideMl(heritageH2h, home);
   const herAway = sideMl(heritageH2h, away);
 
-  const pinSpread = pickRunLineRow(
+  const pinSpreadPair = pickExactRunLinePair(
     pinSpreads.filter((r) => namesMatch(r.name, home) && r.point != null),
-    sportId
-  );
-  const herSpread = pickRunLineRow(
-    heritageSpreads.filter((r) => namesMatch(r.name, home) && r.point != null),
-    sportId
-  );
-  const pinOver = pinTotals.find((r) => /over/i.test(r.name) && r.point != null);
-  const pinUnder = pinTotals.find((r) => /under/i.test(r.name) && r.point != null);
-  const herOver = heritageTotals.find((r) => /over/i.test(r.name) && r.point != null);
-  const pinAwaySpread = pickRunLineRow(
     pinSpreads.filter((r) => namesMatch(r.name, away) && r.point != null),
     sportId
   );
+  const herSpreadPair = pickExactRunLinePair(
+    heritageSpreads.filter((r) => namesMatch(r.name, home) && r.point != null),
+    heritageSpreads.filter((r) => namesMatch(r.name, away) && r.point != null),
+    sportId
+  );
+  const pinTotalPair = pairTotalSides(
+    pinTotals.filter((r) => /over/i.test(r.name) && r.point != null),
+    pinTotals.filter((r) => /under/i.test(r.name) && r.point != null)
+  );
+  const herTotalPair = pairTotalSides(
+    heritageTotals.filter((r) => /over/i.test(r.name) && r.point != null),
+    heritageTotals.filter((r) => /under/i.test(r.name) && r.point != null)
+  );
 
-  const spread = pinSpread ? runLine(sportId, pinSpread.point) : herSpread ? runLine(sportId, herSpread.point) : null;
-  const total = pinOver?.point ?? herOver?.point ?? null;
+  const spreadPair = pinSpreadPair || herSpreadPair;
+  const totalPair = pinTotalPair || herTotalPair;
+  const spread = spreadPair?.point ?? null;
+  const total = totalPair?.point ?? null;
   const nick = String(home).split(" ").pop();
-  const hasPin = Boolean(pinHome || pinSpread || pinOver);
+  const hasPin = Boolean(pinHome && pinAway) || Boolean(pinSpreadPair) || Boolean(pinTotalPair);
 
   return {
     homeMl: herHome?.price ?? pinHome?.price ?? null,
     awayMl: herAway?.price ?? pinAway?.price ?? null,
-    fairHomeMl: pinHome?.price ?? null,
-    fairAwayMl: pinAway?.price ?? null,
-    pinHomeMl: pinHome?.price ?? null,
-    pinAwayMl: pinAway?.price ?? null,
-    pinSpreadHomePrice: pinSpread?.price ?? null,
-    pinSpreadAwayPrice: pinAwaySpread?.price ?? null,
-    pinOverPrice: pinOver?.price ?? null,
-    pinUnderPrice: pinUnder?.price ?? null,
+    fairHomeMl: pinHome && pinAway ? pinHome.price : null,
+    fairAwayMl: pinHome && pinAway ? pinAway.price : null,
+    pinHomeMl: pinHome && pinAway ? pinHome.price : null,
+    pinAwayMl: pinHome && pinAway ? pinAway.price : null,
+    pinSpreadHomePrice: pinSpreadPair?.home.price ?? null,
+    pinSpreadAwayPrice: pinSpreadPair?.away.price ?? null,
+    pinOverPrice: pinTotalPair?.over.price ?? null,
+    pinUnderPrice: pinTotalPair?.under.price ?? null,
+    heritageHomeMl: herHome?.price ?? null,
+    heritageAwayMl: herAway?.price ?? null,
+    heritageSpreadHomePrice: herSpreadPair?.home.price ?? null,
+    heritageSpreadAwayPrice: herSpreadPair?.away.price ?? null,
+    heritageOverPrice: herTotalPair?.over.price ?? null,
+    heritageUnderPrice: herTotalPair?.under.price ?? null,
     spread,
-    spreadPrice: herSpread?.price ?? pinSpread?.price ?? null,
+    spreadPrice: (pinSpreadPair || herSpreadPair)?.home.price ?? null,
     total,
-    totalPrice: herOver?.price ?? pinOver?.price ?? null,
+    totalPrice: (pinTotalPair || herTotalPair)?.over.price ?? null,
     details: spread != null
       ? `${nick} ${spread > 0 ? "+" : ""}${spread}`
       : pinHome
@@ -162,7 +156,7 @@ function packFg(books, sportId, home, away) {
         : "",
     book: EXECUTION_BOOK,
     sharp: hasPin ? SHARP_BOOK : "",
-    heritageListed: Boolean(herHome || herSpread || herOver),
+    heritageListed: Boolean(herHome || herAway || herSpreadPair || herTotalPair),
     pinPresent: hasPin,
   };
 }
@@ -181,19 +175,25 @@ function packF5(books, sportId, home, away) {
 
   const homeMl = sideMl(useH2h, home);
   const awayMl = sideMl(useH2h, away);
-  const homeSpread = pickRunLineRow(
+  const spreadPair = pickExactRunLinePair(
     useSpreads.filter((r) => namesMatch(r.name, home) && r.point != null),
+    useSpreads.filter((r) => namesMatch(r.name, away) && r.point != null),
     sportId,
     { f5: true }
   );
-  const over = useTotals.find((r) => /over/i.test(r.name) && r.point != null);
-  if (!homeMl && !homeSpread && !over) return null;
+  const totalPair = pairTotalSides(
+    useTotals.filter((r) => /over/i.test(r.name) && r.point != null),
+    useTotals.filter((r) => /under/i.test(r.name) && r.point != null)
+  );
+  if (!homeMl && !awayMl && !spreadPair && !totalPair) return null;
   return {
-    homeMl: homeMl?.price ?? null,
-    awayMl: awayMl?.price ?? null,
-    spread: homeSpread ? runLine(sportId, homeSpread.point, { f5: true }) : null,
-    total: over?.point ?? null,
-    book: homeMl?.book || homeSpread?.book || over?.book || SHARP_BOOK,
+    homeMl: homeMl && awayMl ? homeMl.price : null,
+    awayMl: homeMl && awayMl ? awayMl.price : null,
+    spread: spreadPair?.point ?? null,
+    total: totalPair?.point ?? null,
+    overPrice: totalPair?.over.price ?? null,
+    underPrice: totalPair?.under.price ?? null,
+    book: homeMl?.book || spreadPair?.home.book || totalPair?.over.book || SHARP_BOOK,
     sharp: pinH2h.length || pinSpreads.length || pinTotals.length ? SHARP_BOOK : "",
   };
 }
@@ -218,14 +218,7 @@ export function summarizeParlayEvent(event, sportId) {
 }
 
 export function matchParlay(game, events) {
-  return (
-    (events || []).find(
-      (e) => namesMatch(e.homeTeam, game.home.name) && namesMatch(e.awayTeam, game.away.name)
-    ) ||
-    (events || []).find(
-      (e) => namesMatch(e.homeTeam, game.home.name) || namesMatch(e.awayTeam, game.away.name)
-    )
-  );
+  return matchEvent(game, events);
 }
 
 function applyOdds(game, p) {
@@ -252,6 +245,12 @@ function applyOdds(game, p) {
     pinSpreadAwayPrice: p.pinSpreadAwayPrice ?? null,
     pinOverPrice: p.pinOverPrice ?? null,
     pinUnderPrice: p.pinUnderPrice ?? null,
+    heritageHomeMl: p.heritageHomeMl ?? null,
+    heritageAwayMl: p.heritageAwayMl ?? null,
+    heritageSpreadHomePrice: p.heritageSpreadHomePrice ?? null,
+    heritageSpreadAwayPrice: p.heritageSpreadAwayPrice ?? null,
+    heritageOverPrice: p.heritageOverPrice ?? null,
+    heritageUnderPrice: p.heritageUnderPrice ?? null,
     spreadPrice: p.spreadPrice ?? null,
     totalPrice: p.totalPrice ?? null,
   };
@@ -311,12 +310,19 @@ export function mergeParlay(games, parlayEvents, sport) {
         sentiment: p.sentiment || null,
         f5: p.f5 || null,
         pinPresent: p.pinPresent,
+        heritageListed: p.heritageListed,
         pinHomeMl: p.pinHomeMl ?? p.fairHomeMl ?? null,
         pinAwayMl: p.pinAwayMl ?? p.fairAwayMl ?? null,
         pinSpreadHomePrice: p.pinSpreadHomePrice ?? null,
         pinSpreadAwayPrice: p.pinSpreadAwayPrice ?? null,
         pinOverPrice: p.pinOverPrice ?? null,
         pinUnderPrice: p.pinUnderPrice ?? null,
+        heritageHomeMl: p.heritageHomeMl ?? null,
+        heritageAwayMl: p.heritageAwayMl ?? null,
+        heritageSpreadHomePrice: p.heritageSpreadHomePrice ?? null,
+        heritageSpreadAwayPrice: p.heritageSpreadAwayPrice ?? null,
+        heritageOverPrice: p.heritageOverPrice ?? null,
+        heritageUnderPrice: p.heritageUnderPrice ?? null,
         spreadPrice: p.spreadPrice ?? null,
         totalPrice: p.totalPrice ?? null,
       },

@@ -90,28 +90,43 @@ export default function App() {
     () => (slate?.games || []).filter((g) => g.rec && !g.status.completed),
     [slate]
   );
+  const leanGames = useMemo(
+    () => (slate?.games || []).filter((g) => g.lean && !g.rec && !g.status.completed),
+    [slate]
+  );
   const stats = useMemo(() => summarize(learn, sport), [learn, sport]);
   const health =
     error ? "RED" : stats.units > 0 ? "GREEN" : stats.settled >= 8 && stats.winPct < 0.45 ? "YELLOW" : "GREEN";
 
-  function onLog(game) {
-    if (!game.rec) return;
+  function onLog(game, ticket = game.rec) {
+    if (!ticket?.qualified) return;
     const next = logBet(learn, {
       sport,
       gameId: game.id,
-      market: game.rec.market,
-      side: game.rec.side,
-      pick: game.rec.pick,
-      line: game.rec.line,
-      fair: game.rec.fair,
-      implied: game.rec.implied,
-      edge: game.rec.edge,
-      ev: game.rec.ev,
-      pinVig: game.rec.pinVig,
-      pinPrice: game.rec.pinPrice,
-      fairAmerican: game.rec.fairAmerican,
-      tag: game.rec.tag,
+      market: ticket.market,
+      side: ticket.side,
+      pick: ticket.pick,
+      line: ticket.line,
+      fair: ticket.fair,
+      implied: ticket.implied,
+      edge: ticket.edge,
+      ev: ticket.ev,
+      pinVig: ticket.pinVig,
+      pinPrice: ticket.pinPrice,
+      fairAmerican: ticket.fairAmerican,
+      tag: ticket.tag,
       matchup: `${game.away.abbr} @ ${game.home.abbr}`,
+      executionBook: ticket.executionBook || "Heritage",
+      executionPrice: ticket.executionPrice ?? null,
+      benchmarkBook: ticket.benchmarkBook || "Pinnacle",
+      entryNoVig: ticket.implied,
+      entryAmerican: ticket.pinPrice,
+      qualified: true,
+      modelVersion: ticket.modelVersion || slate?.modelVersion,
+      pHomeFinal: game.model?.pHomeFinal,
+      layers: { ...(game.model?.layers || {}) },
+      weights: { ...learn.weights },
+      priceSource: ticket.priceSource,
     });
     setLearn(next);
   }
@@ -172,7 +187,7 @@ export default function App() {
             <Stat label="Open tickets" value={stats.open} />
             <Stat label="Record" value={stats.settled ? `${stats.wins}-${stats.losses}` : "—"} />
             <Stat label="Units" value={`${stats.units >= 0 ? "+" : ""}${stats.units.toFixed(2)}`} />
-            <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.0"} />
+            <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.1"} />
             <Stat label="Pin / Heritage" value={bookLabel(slate)} />
             <Stat label="Pal" value={palLabel(slate)} />
             <Stat label="Parlay" value={parlayLabel(slate)} />
@@ -191,8 +206,12 @@ export default function App() {
           <RecTable games={recGames} onLog={onLog} logged={loggedOpen} />
         </Panel>
 
+        <Panel title="Model leans">
+          <LeanTable games={leanGames} />
+        </Panel>
+
         <div className="compact-bottom">
-          <Panel title="Learning Engine">
+          <Panel title="Model Diagnostics">
             <LearningPanel learn={learn} />
           </Panel>
           <div className="compact-stacked">
@@ -205,7 +224,7 @@ export default function App() {
           </div>
           <div className="compact-stacked">
             <Panel title="CLV Tracker">
-              <p>Positive CLV means the ticket beat the close — the long-run tell, independent of last night’s score.</p>
+              <p>Positive CLV means entry no-vig beat the Pinnacle close for the side you bet. Model fair vs market is not CLV.</p>
               <div className="status-grid" style={{ marginTop: 10 }}>
                 <Stat label="Avg CLV" value={stats.clv ? `${stats.clv >= 0 ? "+" : ""}${stats.clv.toFixed(2)}` : "—"} />
                 <Stat label="Layer leader" value={topLayer(learn)} />
@@ -220,15 +239,15 @@ export default function App() {
         <Panel title="FBIS System Glossary">
           <div className="glossary-grid">
             <G title="Loop" body="Forecast independently, price the no-vig Pinnacle market, compare, require +EV, log the ticket, freeze the projection, grade the final, diagnose error. Champion weights do not auto-rewrite from last night’s W/L." />
-            <G title="Heritage" body="Your book. Every recommended ticket is a Heritage play. Parlay does not list Heritage today, so the number on the board is the Pinnacle line to shop there — never a Kalshi price." />
+            <G title="Heritage" body="Your book. Every recommended ticket is a Heritage play. Parlay does not list Heritage today, so the Pinnacle number is the benchmark to shop — it is not recorded as a Heritage execution price unless Heritage is actually in the feed." />
             <G title="Pinnacle vig" body="Hold on the two-way Pinnacle market (multiplicative de-vig). FBIS never compares its probability to raw implied. Fair American is 1/p. EV is expectancy at the Pinnacle price." />
             <G title="Kalshi" body="Public sentiment only. Implied probability on the game, not a price you bet. Polymarket and Robinhood sit in the same bucket." />
             <G title="Ballpark Pal" body="Matchup data only: batter vs starting pitcher, park factors, simulated team/F5 runs. Pal is not a sportsbook and is never used as a betting price." />
-            <G title="Savant" body="MLB projected scores come from Baseball Savant expected pitcher quality plus team runs/game. The 1.5 run line is the bet number, not the projection." />
+            <G title="Score layer" body="MLB moneyline uses the Savant/Pal projected margin as its own probability layer (not W-L form). Form stays Pal matchup or record. The frozen Brier number is the blended FBIS probability, not form." />
             <G title="F5" body="First five innings is the starter-matchup market. Pal matchup/F5 run sims inform the lean. Book F5 prices are used only when a real line is posted. Baseball run line is 1.5 full game / 0.5 F5." />
             <G title="ParlayAPI" body="Odds cached 15 minutes so the 1,000 free credits last. Pinnacle game lines (eu) cost 3 credits. Kalshi is a separate 1-credit sentiment pull; empty Kalshi/F5 responses are cached 6 hours so missing markets do not drain the month." />
-            <G title="Gates" body="A projection is not a bet. Tickets need sport-aware probability edge and +3% EV at the Pinnacle number. SYS tracks every frozen projection, not just logged tickets." />
-            <G title="CLV" body="Difference between our fair probability and the Pinnacle close. Positive CLV is the metric that survives variance." />
+            <G title="Gates" body="A projection is not a bet. Qualified tickets need a complete two-way Pinnacle market, an actual price, sport-aware probability edge, and +3% EV. Missing EV fails the gate. Model leans are shown separately until they can be priced." />
+            <G title="CLV" body="Closing-line value is entry no-vig Pinnacle probability vs closing (last pregame) no-vig Pinnacle probability for the side you bet. Positive means the market moved toward your side. Model fair vs market is a separate disagreement number, not CLV." />
           </div>
         </Panel>
       </div>
@@ -244,7 +263,7 @@ function Panel({ title, stamp, extra, children }) {
         <h2>{title}</h2>
         {extra || (stamp ? <span className="last-updated">{stamp} CT</span> : null)}
       </div>
-      <div className="panel-body" style={title.includes("Slate") || title.includes("Bets") || title.includes("Qualified") ? { padding: 0 } : undefined}>
+      <div className="panel-body" style={title.includes("Slate") || title.includes("Bets") || title.includes("Qualified") || title.includes("leans") ? { padding: 0 } : undefined}>
         {children}
       </div>
     </section>
@@ -348,7 +367,7 @@ function SlateTable({ games, onLog, logged }) {
             <td>
               {g.rec ? <span className={edgeClass(g.rec.edge)}>{g.rec.edge >= 0 ? "+" : ""}{fmtNum(g.rec.edge, 2)}</span> : <span className="edge-neutral">—</span>}
             </td>
-            <td>{g.rec ? g.rec.pick : <span className="muted">No edge</span>}</td>
+            <td>{g.rec ? g.rec.pick : g.lean ? <span className="muted">{g.lean.pick} · lean</span> : <span className="muted">No edge</span>}</td>
             <td>
               <button className="log-btn" disabled={!g.rec || logged.has(g.id) || g.status.completed} onClick={() => onLog(g)}>
                 {logged.has(g.id) ? "LOGGED" : "LOG"}
@@ -404,13 +423,49 @@ function RecTable({ games, onLog, logged }) {
                   : "—"}
               </span>
             </td>
-            <td>{g.rec.book || "Heritage"}</td>
+            <td>
+              <div>{g.rec.book || "Heritage"}</div>
+              <div className="muted">{g.rec.priceSource || "shop Heritage"}</div>
+            </td>
             <td><span className={edgeClass(g.rec.edge)}>+{fmtNum(g.rec.edge, 2)}</span></td>
             <td>
-              <button className="log-btn" disabled={logged.has(g.id)} onClick={() => onLog(g)}>
+              <button className="log-btn" disabled={logged.has(g.id)} onClick={() => onLog(g, g.rec)}>
                 {logged.has(g.id) ? "LOGGED" : "LOG"}
               </button>
             </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function LeanTable({ games }) {
+  if (!games.length) return <div className="empty">No unpriced or sub-threshold model leans on this slate.</div>;
+  return (
+    <table className="fbis-table">
+      <thead>
+        <tr>
+          <th>Lean</th>
+          <th>Pick</th>
+          <th>Market</th>
+          <th>Why not +EV</th>
+          <th>Fair</th>
+        </tr>
+      </thead>
+      <tbody>
+        {games.map((g) => (
+          <tr key={g.id}>
+            <td><span className="tier-badge tier-LEAN">LEAN</span></td>
+            <td>
+              <div className="muted" style={{ fontSize: 10 }}>{g.away.abbr} @ {g.home.abbr}</div>
+              <b>{g.lean.pick}</b>
+            </td>
+            <td>{g.lean.market}</td>
+            <td className="muted">
+              {g.lean.ev == null ? "No complete Pinnacle pair / no EV" : `EV ${fmtNum((g.lean.evPct ?? g.lean.ev * 100), 1)}% below +3% gate`}
+            </td>
+            <td>{fmtPct(g.lean.fair)}</td>
           </tr>
         ))}
       </tbody>
@@ -429,7 +484,8 @@ function BetsTable({ bets }) {
           <th>Result</th>
           <th>P/L</th>
           <th>EV</th>
-          <th>Pin vig</th>
+          <th>Pin</th>
+          <th>Heritage</th>
           <th>CLV</th>
         </tr>
       </thead>
@@ -441,7 +497,8 @@ function BetsTable({ bets }) {
             <td className={b.result === "WON" ? "text-green" : b.result === "LOST" ? "text-red" : "muted"}>{b.result}</td>
             <td className={b.profit > 0 ? "text-green" : b.profit < 0 ? "text-red" : ""}>{b.profit ? `${b.profit > 0 ? "+" : ""}${b.profit.toFixed(2)}u` : "—"}</td>
             <td>{b.ev != null ? `${b.ev >= 0 ? "+" : ""}${(b.ev * 100).toFixed(1)}%` : "—"}</td>
-            <td>{fmtVig(b.pinVig)}</td>
+            <td>{b.pinPrice != null ? fmtAmerican(b.pinPrice) : fmtVig(b.pinVig)}</td>
+            <td className="muted">{b.executionPrice != null ? fmtAmerican(b.executionPrice) : "shop"}</td>
             <td>{b.clv == null ? "—" : `${b.clv > 0 ? "+" : ""}${b.clv.toFixed(2)}`}</td>
           </tr>
         ))}
@@ -454,6 +511,7 @@ function LearningPanel({ learn }) {
   const rows = [
     ["Market", learn.weights.market],
     ["ESPN", learn.weights.espn],
+    ["Score", learn.weights.score],
     ["Form", learn.weights.form],
   ];
   return (
@@ -461,13 +519,14 @@ function LearningPanel({ learn }) {
       {rows.map(([label, w]) => (
         <div className="weight-row" key={label}>
           <span style={{ width: 64 }}>{label}</span>
-          <div className="weight-bar"><div className="weight-fill" style={{ width: `${w * 100}%` }} /></div>
-          <b>{(w * 100).toFixed(1)}%</b>
+          <div className="weight-bar"><div className="weight-fill" style={{ width: `${(w || 0) * 100}%` }} /></div>
+          <b>{((w || 0) * 100).toFixed(1)}%</b>
         </div>
       ))}
       <p className="muted" style={{ marginTop: 8 }}>
-        Layer hits — market {learn.layerScores.market || 0} · espn {learn.layerScores.espn || 0} · form {learn.layerScores.form || 0}.
-        Champion blend is stable. SYS grades forecast error; last night’s W/L does not rewrite these weights.
+        Layer nearest-to-outcome counts are diagnostic, not calibration:
+        market {learn.layerScores.market || 0} · espn {learn.layerScores.espn || 0} · score {learn.layerScores.score || 0} · form {learn.layerScores.form || 0}.
+        Champion blend does not auto-shift. SYS grades Brier / log loss on the frozen FBIS probability.
       </p>
     </>
   );

@@ -31,6 +31,7 @@ export default function TrackView({ report, error, loading, onRefresh }) {
             <Stat label="Winner hit" value={fmtPct(acc.winnerHit)} />
             <Stat label="Brier model" value={fmtNum(acc.brierModel, 3)} />
             <Stat label="Brier market" value={fmtNum(acc.brierMarket, 3)} />
+            <Stat label="Log loss" value={fmtNum(acc.logLossModel, 3)} />
             <Stat label="RMSE total" value={fmtNum(acc.rmseTotal)} />
             <Stat label="Open freezes" value={open.length} />
           </div>
@@ -56,6 +57,38 @@ export default function TrackView({ report, error, loading, onRefresh }) {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header"><h2>Calibration (home win %)</h2></div>
+        <div className="panel-body" style={{ padding: 0 }}>
+          {!(acc.calibration || []).some((b) => b.n) ? (
+            <div className="empty">Buckets fill after graded games freeze the final FBIS probability.</div>
+          ) : (
+            <table className="fbis-table">
+              <thead>
+                <tr>
+                  <th>Bucket</th>
+                  <th>N</th>
+                  <th>Predicted</th>
+                  <th>Actual</th>
+                  <th>Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(acc.calibration || []).map((b) => (
+                  <tr key={b.bucket}>
+                    <td>{b.bucket}</td>
+                    <td>{b.n}</td>
+                    <td>{fmtPct(b.predicted)}</td>
+                    <td>{fmtPct(b.actual)}</td>
+                    <td className={errClass((b.error || 0) * 10)}>{fmtSigned(b.error != null ? b.error * 100 : null, 1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
 
