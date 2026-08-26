@@ -1,7 +1,9 @@
+name = "fbis"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"
+
 # Bind after `wrangler d1 create fbis` — database_id comes from that command.
 # [[d1_databases]]
 # binding = "DB"
 # database_name = "fbis"
 # database_id = "REPLACE_ME"
-
-
