@@ -1,0 +1,241 @@
+/**
+ * TODAY board: every scheduled game on the operator CT date, all supported sports.
+ * Ordinary loads are cache-only for Parlay (and Pal). ESPN/MLB Stats remain free.
+ */
+
+import { BOARD_SPORTS, SPORTS, todayCT, shiftDateCT, buildSlate, recommendBundle } from "./slateEngine.js";
+import { classifyBoardStatus, kickoffCt, noPlayReason, isPreStartStatus, isLiveStatus } from "./gameStatus.js";
+import { DEFAULT_WEIGHTS } from "./weights.js";
+
+function withRecs(slate, weights = DEFAULT_WEIGHTS) {
+  return {
+    ...slate,
+    games: (slate?.games || []).map((game) => {
+      const bundle = recommendBundle(slate.sport, game, game.model, weights);
+      return { ...game, rec: bundle.qualified, lean: bundle.lean };
+    }),
+  };
+}
+
+export { todayCT, shiftDateCT };
+
+export function resolveTodayDate(raw, now = new Date()) {
+  const today = todayCTFrom(now);
+  const value = String(raw || "").trim();
+  if (!value) return { date: today, ok: true, today };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return { date: today, ok: false, error: "date must be YYYY-MM-DD", today };
+  }
+  return { date: value, ok: true, today };
+}
+
+export function todayCTFrom(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now instanceof Date ? now : new Date(now));
+}
+
+export function utcMidnightVsCt(utcIso) {
+  const utcDate = String(utcIso).slice(0, 10);
+  const ctDate = todayCTFrom(new Date(utcIso));
+  return { utcDate, ctDate, differs: utcDate !== ctDate };
+}
+
+export function toBoardGame(game, sport, now = Date.now()) {
+  const status = classifyBoardStatus(game, now);
+  const pinSpread =
+    game.odds?.pinSpread ??
+    (game.odds?.pinSpreadHomePrice != null ? game.odds.spread : null);
+  const pinTotal =
+    game.odds?.pinTotal ?? (game.odds?.pinOverPrice != null ? game.odds.total : null);
+  const rec = game.rec || null;
+  const lean = game.lean || null;
+  return {
+    id: String(game.id),
+    sport,
+    sportLabel: SPORTS[sport]?.label || sport.toUpperCase(),
+    start: game.start || null,
+    startCt: kickoffCt(game.start),
+    status,
+    statusDetail: game.status?.detail || status,
+    away: {
+      name: game.away?.name,
+      abbr: game.away?.abbr,
+      logo: game.away?.logo,
+      score: game.away?.score ?? null,
+    },
+    home: {
+      name: game.home?.name,
+      abbr: game.home?.abbr,
+      logo: game.home?.logo,
+      score: game.home?.score ?? null,
+    },
+    venue: game.venue || "",
+    neutral: Boolean(game.neutralSite),
+    score:
+      game.home?.score != null && game.away?.score != null
+        ? { away: game.away.score, home: game.home.score }
+        : null,
+    projHome: game.model?.projHome ?? game.projHomeScore ?? null,
+    projAway: game.model?.projAway ?? game.projAwayScore ?? null,
+    projTotal: game.model?.projTotal ?? null,
+    projMargin: game.model?.projMargin ?? null,
+    pHome: game.model?.pHomeFinal ?? null,
+    pinMlHome: game.odds?.pinHomeMl ?? null,
+    pinMlAway: game.odds?.pinAwayMl ?? null,
+    pinSpread,
+    pinSpreadHomePrice: game.odds?.pinSpreadHomePrice ?? null,
+    pinSpreadAwayPrice: game.odds?.pinSpreadAwayPrice ?? null,
+    pinTotal,
+    pinOverPrice: game.odds?.pinOverPrice ?? null,
+    pinUnderPrice: game.odds?.pinUnderPrice ?? null,
+    quality: game.quality || null,
+    modelVersion: game.modelVersion || null,
+    checkpoint: game.checkpoint || null,
+    rec: rec
+      ? {
+          pick: rec.pick,
+          market: rec.market,
+          tag: rec.tag,
+          ev: rec.ev,
+          qualified: true,
+        }
+      : null,
+    lean: !rec && lean
+      ? {
+          pick: lean.pick,
+          market: lean.market,
+          reason: noPlayReason({ ...game, lean, rec: null }),
+        }
+      : null,
+    noPlayReason: rec ? null : noPlayReason(game),
+    marketUnavailable: !(game.odds?.pinHomeMl != null && game.odds?.pinAwayMl != null) && pinTotal == null && pinSpread == null,
+    projectionUnavailable: game.model?.projHome == null && game.model?.projAway == null,
+    palMatched: Boolean(game.bpp),
+    live: status === "live" || status === "halftime",
+    final: status === "final",
+  };
+}
+
+export function sortByStart(games) {
+  return [...(games || [])].sort((a, b) => {
+    const as = Date.parse(a.start || "") || 0;
+    const bs = Date.parse(b.start || "") || 0;
+    if (as !== bs) return as - bs;
+    return String(a.away?.abbr || "").localeCompare(String(b.away?.abbr || ""));
+  });
+}
+
+export function groupBySport(games) {
+  const groups = [];
+  const by = new Map();
+  for (const id of BOARD_SPORTS) by.set(id, []);
+  for (const g of games || []) {
+    if (!by.has(g.sport)) by.set(g.sport, []);
+    by.get(g.sport).push(g);
+  }
+  for (const id of BOARD_SPORTS) {
+    const list = sortByStart(by.get(id) || []);
+    groups.push({
+      sport: id,
+      label: SPORTS[id]?.label || id.toUpperCase(),
+      n: list.length,
+      games: list,
+    });
+  }
+  return groups;
+}
+
+export function filterTodayGames(games, { sport = "all", bucket = "all" } = {}) {
+  let xs = games || [];
+  if (sport && sport !== "all") xs = xs.filter((g) => g.sport === sport);
+  if (bucket === "scheduled" || bucket === "pregame") xs = xs.filter((g) => isPreStartStatus(g.status));
+  else if (bucket === "live") xs = xs.filter((g) => isLiveStatus(g.status));
+  else if (bucket === "final") xs = xs.filter((g) => g.status === "final");
+  else if (bucket === "qualified") xs = xs.filter((g) => g.rec);
+  else if (bucket === "leans") xs = xs.filter((g) => g.lean && !g.rec);
+  return xs;
+}
+
+export function emptyTodayState({ date, feeds = {} } = {}) {
+  const failed = Object.entries(feeds).filter(([, f]) => f?.error);
+  if (failed.length && Object.values(feeds).every((f) => f?.error || !f?.games)) {
+    return { kind: "feed-failure", message: "Scoreboard feed failed for every sport." };
+  }
+  return { kind: "no-games", message: `No games scheduled for ${date} CT.` };
+}
+
+export async function buildTodayBoard(date, env = {}, { buildSlateFn, now = Date.now() } = {}) {
+  const builder = buildSlateFn || buildSlate;
+  const sports = [];
+  const games = [];
+  const feeds = {};
+  let parlayNetwork = 0;
+  for (const sport of BOARD_SPORTS) {
+    try {
+      const slate = await builder(sport, date, {
+        ...env,
+        parlayCacheOnly: true,
+        palCacheOnly: true,
+      });
+      if (slate?.parlay?.cached === false && slate?.parlay?.skipped !== true && !slate?.parlay?.error) {
+        parlayNetwork += 1;
+      }
+      const recSlate = withRecs(slate, DEFAULT_WEIGHTS);
+      const rows = (recSlate.games || []).map((g) => toBoardGame({ ...g, sport }, sport, now));
+      feeds[sport] = {
+        ok: true,
+        n: rows.length,
+        error: null,
+        pal: slate.pal || null,
+        parlay: slate.parlay || null,
+        cachedParlay: Boolean(slate.parlay?.cached || slate.parlay?.skipped),
+      };
+      sports.push({
+        sport,
+        label: SPORTS[sport].label,
+        n: rows.length,
+        games: sortByStart(rows),
+      });
+      games.push(...rows);
+    } catch (err) {
+      feeds[sport] = { ok: false, n: 0, error: String(err?.message || err) };
+      sports.push({
+        sport,
+        label: SPORTS[sport].label,
+        n: 0,
+        games: [],
+        error: String(err?.message || err),
+      });
+    }
+  }
+  const all = sortByStart(games);
+  const empty = all.length ? null : emptyTodayState({ date, feeds });
+  return {
+    date,
+    timezone: "America/Chicago",
+    generatedAt: new Date().toISOString(),
+    sports,
+    games: all,
+    groups: groupBySport(all),
+    counts: {
+      games: all.length,
+      bySport: Object.fromEntries(sports.map((s) => [s.sport, s.n])),
+      scheduled: all.filter((g) => isPreStartStatus(g.status)).length,
+      live: all.filter((g) => isLiveStatus(g.status)).length,
+      final: all.filter((g) => g.status === "final").length,
+      qualified: all.filter((g) => g.rec).length,
+      leans: all.filter((g) => g.lean && !g.rec).length,
+      postponed: all.filter((g) => g.status === "postponed").length,
+    },
+    feeds,
+    empty,
+    parlay: {
+      cacheOnly: true,
+      extraFullOddsRequests: parlayNetwork,
+    },
+  };
+}

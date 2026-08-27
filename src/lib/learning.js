@@ -157,7 +157,7 @@ export function summarize(state, sport) {
   const losses = settled.filter((b) => b.result === "LOST").length;
   const units = bets.reduce((s, b) => s + (b.profit || 0), 0);
   const clvBets = bets.filter((b) => b.clv != null);
-  const clv = clvBets.length ? clvBets.reduce((s, b) => s + b.clv, 0) / clvBets.length : 0;
+  const clv = clvBets.length ? clvBets.reduce((s, b) => s + b.clv, 0) / clvBets.length : null;
   const curve = [];
   let running = 0;
   [...bets].reverse().forEach((b) => {
@@ -169,7 +169,7 @@ export function summarize(state, sport) {
     open: bets.filter((b) => b.result === "OPEN").length,
     wins,
     losses,
-    winPct: settled.length ? wins / settled.length : 0,
+    winPct: settled.length ? wins / settled.length : null,
     units,
     clv,
     settled: settled.length,

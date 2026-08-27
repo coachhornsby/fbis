@@ -374,6 +374,87 @@ header h1 {
 
 .pl-svg { width: 100%; height: 120px; display: block; }
 
+.today-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.today-controls input[type="date"] {
+  background: var(--navy);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+}
+.status-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.status-scheduled, .status-pregame { color: var(--blue-light); border-color: var(--blue); }
+.status-live, .status-halftime { color: var(--yellow); border-color: var(--yellow); }
+.status-final { color: var(--green); border-color: var(--green); }
+.status-unmatched, .status-ambiguous, .status-conflict { color: var(--yellow); border-color: var(--yellow); }
+.status-matched, .status-new { color: var(--green); border-color: var(--green); }
+.warn-row { background: rgba(227, 179, 65, 0.08) !important; }
+.warn-text { color: var(--yellow); font-size: 10px; margin-top: 4px; }
+.mybet-mark { margin-bottom: 6px; }
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 10, 18, 0.72);
+  z-index: 200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow: auto;
+}
+.modal-card {
+  width: min(1100px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+}
+.slip-paste {
+  width: 100%;
+  margin-top: 10px;
+  background: var(--navy);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  min-height: 160px;
+}
+.preview-scroll { overflow: auto; max-height: 420px; margin-top: 12px; }
+.confirm-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-top: 12px;
+}
+.confirm-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.confirm-row input[type="password"], .preview-scroll input, .preview-scroll select {
+  background: var(--navy);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+}
+
 @media (max-width: 1100px) {
   .compact-bottom { grid-template-columns: 1fr; }
   header.app-header { flex-wrap: wrap; height: auto; }

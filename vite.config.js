@@ -3,6 +3,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { buildSlate, resolveSlateDate } from "./functions/lib/slateEngine.js";
 import { freezeSlate, buildTrackReport, harvestAll, collectBoards } from "./functions/lib/projLedger.js";
+import { buildTodayBoard, resolveTodayDate } from "./functions/lib/todayBoard.js";
+import { handleBetsGet, handleBetsPost } from "./functions/api/bets.js";
 
 function loadDotEnv() {
   try {
@@ -27,7 +29,7 @@ function slateMiddleware() {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url || "";
-        if (!url.startsWith("/api/slate") && !url.startsWith("/api/ticker") && !url.startsWith("/api/track") && !url.startsWith("/api/harvest") && !url.startsWith("/api/collect")) {
+        if (!url.startsWith("/api/slate") && !url.startsWith("/api/ticker") && !url.startsWith("/api/track") && !url.startsWith("/api/harvest") && !url.startsWith("/api/collect") && !url.startsWith("/api/today") && !url.startsWith("/api/bets")) {
           next();
           return;
         }
@@ -35,6 +37,53 @@ function slateMiddleware() {
           const parsed = new URL(url, "http://localhost");
           const sport = parsed.searchParams.get("sport") || "mlb";
           const date = parsed.searchParams.get("date") || "";
+          if (url.startsWith("/api/bets")) {
+            const env = {
+              PARLAY_API_KEY: process.env.PARLAY_API_KEY,
+              BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
+              HARVEST_SECRET: process.env.HARVEST_SECRET,
+              STRATEGY_IMPORT_SECRET: process.env.STRATEGY_IMPORT_SECRET,
+            };
+            const fakeReq = {
+              url: parsed.href,
+              headers: {
+                get(name) {
+                  const key = Object.keys(req.headers || {}).find((k) => k.toLowerCase() === String(name).toLowerCase());
+                  const v = key ? req.headers[key] : null;
+                  return Array.isArray(v) ? v[0] : v;
+                },
+              },
+            };
+            if (req.method === "OPTIONS") {
+              res.statusCode = 204;
+              res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+              res.setHeader("Access-Control-Allow-Headers", "content-type,x-strategy-secret,x-harvest-secret");
+              res.end();
+              return;
+            }
+            if (req.method === "POST") {
+              const body = await readJsonBody(req);
+              const result = await handleBetsPost(env, fakeReq, body);
+              res.statusCode = result.status;
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify(result.body));
+              return;
+            }
+            const payload = await handleBetsGet(env, parsed);
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(payload));
+            return;
+          }
+          if (url.startsWith("/api/today")) {
+            const resolved = resolveTodayDate(parsed.searchParams.get("date") || "");
+            const payload = await buildTodayBoard(resolved.date, {
+              PARLAY_API_KEY: process.env.PARLAY_API_KEY,
+              BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
+            });
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(payload));
+            return;
+          }
           if (url.startsWith("/api/collect")) {
             const odds = parsed.searchParams.get("odds") === "full" ? "full" : "cache";
             const payload = await collectBoards(
@@ -101,6 +150,23 @@ function slateMiddleware() {
       });
     },
   };
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      const raw = Buffer.concat(chunks).toString("utf8");
+      if (!raw) return resolve({});
+      try {
+        resolve(JSON.parse(raw));
+      } catch (err) {
+        reject(err);
+      }
+    });
+    req.on("error", reject);
+  });
 }
 
 export default defineConfig({

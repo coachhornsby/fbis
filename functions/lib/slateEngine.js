@@ -716,8 +716,12 @@ function mapMlbStatsGame(g) {
   const at = away.team || {};
   const st = g.status || {};
   const abstract = st.abstractGameState || "";
+  const detailed = String(st.detailedState || "");
   const live = abstract === "Live";
-  const completed = abstract === "Final";
+  const completed = abstract === "Final" && !/postpone|cancel|suspend/i.test(detailed);
+  const postponed = /postpone/i.test(detailed);
+  const canceled = /cancel/i.test(detailed);
+  const suspended = /suspend/i.test(detailed);
   const homeScore = num(home.score ?? g.linescore?.teams?.home?.runs);
   const awayScore = num(away.score ?? g.linescore?.teams?.away?.runs);
   const homePct = Number(home.leagueRecord?.pct);
@@ -736,6 +740,9 @@ function mapMlbStatsGame(g) {
       detail: st.detailedState || abstract || "",
       completed,
       live,
+      postponed,
+      canceled,
+      suspended,
     },
     home: {
       name: ht.name || "Home",
@@ -819,6 +826,8 @@ export function dataQuality(sport, game) {
     if (game.model?.layers?.pal != null && game.model?.layers?.score != null) {
       if (Math.abs(game.model.layers.pal - game.model.layers.score) >= 0.08) flags.push("model_disagreement");
     }
+    if (game.odds?.pinTotal == null && game.odds?.pinOverPrice == null) flags.push("missing_pin_total");
+    if (game.odds?.pinSpread == null && game.odds?.pinSpreadHomePrice == null) flags.push("missing_pin_spread");
   }
   if (sport === "cfb" && Array.isArray(game.cfb?.flags)) {
     for (const f of game.cfb.flags) flags.push(f);
@@ -866,7 +875,7 @@ export async function buildSlate(sport, date, env = {}) {
   if (id === "mlb") {
     savant = await fetchSavantSlate(games, env.caches);
     games = savant.games || games;
-    pal = await fetchBallparkPal(day, env.BALLPARK_PAL_API_KEY, env.caches);
+    pal = await fetchBallparkPal(day, env.BALLPARK_PAL_API_KEY, env.caches, { cacheOnly: Boolean(env.palCacheOnly) });
     games = mergeBallparkPal(games, pal);
   }
   if (id === "cfb") {

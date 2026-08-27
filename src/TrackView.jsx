@@ -1,5 +1,5 @@
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
-import { CHECKPOINTS } from "../functions/lib/checkpoints.js";
+import { CHECKPOINT_OPTIONS } from "../functions/lib/checkpoints.js";
 import { fmtNum, fmtPct, fmtSigned } from "./lib/format.js";
 import { useEffect, useState } from "react";
 
@@ -122,8 +122,8 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
             <Filter label="Checkpoint">
               <select value={filters.checkpoint} onChange={(e) => onFilters({ checkpoint: e.target.value })}>
                 <option value="LATEST">Latest</option>
-                {CHECKPOINTS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                {CHECKPOINT_OPTIONS.filter((c) => c !== "LATEST").map((c) => (
+                  <option key={c} value={c}>{c === "INFORMATION_CONFIRMED" ? "INFORMATION_CONFIRMED → LINEUP_CONFIRMED" : c}</option>
                 ))}
               </select>
             </Filter>
@@ -161,6 +161,11 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
             {hl.n
               ? `Projected runs have been ${fmtPctSigned(hl.pctDiff)} vs actual (${hl.n} games). Median abs ${fmtNum(hl.medianAbs)} · MAE ${fmtNum(hl.mae)} · RMSE ${fmtNum(hl.rmse)}.`
               : "No graded projections in this window yet. Collection runs on a schedule — you do not need to open the board."}
+          </p>
+          <p className="muted">
+            Projection Accuracy is frozen D1 snapshots vs finals — not ticket W/L.
+            {report?.pal?.unavailable ? " Pal: N=0 — unavailable." : ""}
+            {report?.coverage ? ` Pin totals ${report.coverage.pinTotal ?? 0} / projected ${report.coverage.projected ?? 0}.` : ""}
           </p>
 
           <div className="status-grid" style={{ marginBottom: 14 }}>
@@ -227,6 +232,83 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
               {loading ? "Loading…" : "Reload SYS"}
             </button>
           </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Strategy Performance</h2>
+          <span className="last-updated">qualified / executed tickets</span>
+        </div>
+        <div className="panel-body">
+          <p className="headline-line">
+            {report?.strategyPerformance?.message ||
+              (report?.strategyPerformance?.settled
+                ? `Settled ${report.strategyPerformance.record} on ${report.strategyPerformance.settled} tickets.`
+                : "No settled strategy tickets yet.")}
+          </p>
+          <div className="status-grid">
+            <Stat label="Tickets" value={report?.strategyPerformance?.tickets ?? 0} />
+            <Stat label="Open" value={report?.strategyPerformance?.open ?? 0} />
+            <Stat label="Settled" value={report?.strategyPerformance?.settled ?? 0} />
+            <Stat label="Record" value={report?.strategyPerformance?.record || "—"} />
+            <Stat label="Hit rate" value={fmtPct(report?.strategyPerformance?.hitRate)} />
+            <Stat label="Units" value={fmtSigned(report?.strategyPerformance?.units)} />
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>CLV Tracker</h2>
+          <span className="last-updated">{report?.clv?.n ?? 0} valid Pin entry+close</span>
+        </div>
+        <div className="panel-body">
+          <p className="headline-line">
+            {report?.clv?.unavailable
+              ? report.clv.message || "No tickets have both a valid Pinnacle entry and close yet."
+              : `Avg CLV ${fmtSigned(report?.clv?.avg, 3)} · positive share ${fmtPct(report?.clv?.positiveShare)}.`}
+          </p>
+          <p className="muted">CLV is close no-vig − entry no-vig, same side. Independent of W/L. Heritage Current Line is not Pin close.</p>
+          <div className="status-grid">
+            <Stat label="Valid CLV N" value={report?.clv?.validClv ?? 0} />
+            <Stat label="Missing entry" value={report?.clv?.missingEntry ?? 0} />
+            <Stat label="Missing close" value={report?.clv?.missingClose ?? 0} />
+            <Stat label="Line mismatch" value={report?.clv?.lineMismatch ?? 0} />
+            <Stat label="Coverage" value={fmtPct(report?.clv?.coveragePct)} />
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Model Diagnostics · layers</h2>
+          <span className="last-updated">{report?.layers?.leader ? `leader ${report.layers.leader}` : "N=0"}</span>
+        </div>
+        <div className="panel-body">
+          <p className="muted">{report?.layers?.note || "Layer leader is lowest Brier on frozen forecasts. Closest-to-binary counts are not used."}</p>
+          <table className="fbis-table">
+            <thead>
+              <tr>
+                <th>Layer</th>
+                <th>N</th>
+                <th>Brier</th>
+                <th>Log loss</th>
+                <th>Winner</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(report?.layers?.layers || []).map((row) => (
+                <tr key={row.layer} className={row.layer === report?.layers?.leader ? "won-row" : ""}>
+                  <td>{row.layer}</td>
+                  <td>{row.unavailable ? "N=0 — unavailable" : row.n}</td>
+                  <td>{fmtNum(row.brier, 3)}</td>
+                  <td>{fmtNum(row.logLoss, 3)}</td>
+                  <td>{fmtPct(row.winnerHit)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -490,7 +572,7 @@ function ModelsTable({ models }) {
         {models.map((m) => (
           <tr key={m.key} className={m.key === "ensemble" ? "won-row" : ""}>
             <td>{m.label}</td>
-            <td>{m.n || 0}</td>
+            <td>{m.unavailable ? "N=0 — unavailable" : (m.n || 0)}</td>
             <td>{fmtNum(m.maeTotal)}</td>
             <td>{fmtNum(m.maeTeam)}</td>
             <td>{fmtNum(m.maeMargin)}</td>

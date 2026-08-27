@@ -31,6 +31,10 @@ import {
   hasDb,
   enqueueHarvestRetry,
   resolveHarvestRetry,
+  queryOddsSnapshots,
+  gradeSnapshotsForGame,
+  queryExecutedBets,
+  updateExecutedBet,
 } from "./store.js";
 import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
 import { buildAccuracyPack } from "./accuracyReport.js";
@@ -38,7 +42,11 @@ import { overDiagnostics } from "./overDiagnostics.js";
 import { buildDailyReport } from "./dailyReport.js";
 import { median, rmse, withinBands } from "./metrics.js";
 import { cfbSeasonYear } from "./cfbModel.js";
-import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult } from "./strategy.js";
+import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult, strategyStats } from "./strategy.js";
+import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
+import { settleExecutedBet } from "./executedBets.js";
+import { sourceCoverage, palHealth } from "./sourceCoverage.js";
+import { layerDiagnostics } from "./layerDiagnostics.js";
 import {
   classifyJobStatus,
   emptyWriteCounts,
@@ -200,7 +208,12 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     closePinAwayMl: null,
     snapshots: [snap],
     dataQuality: game.quality?.score ?? null,
-    qualityFlags: game.quality?.flags || [],
+    qualityFlags: [...new Set([
+      ...(game.quality?.flags || []),
+      ...(palHome == null && palAway == null ? ["missing_pal"] : []),
+      ...(game.odds?.pinTotal == null && game.odds?.pinOverPrice == null ? ["missing_pin_total"] : []),
+      ...(game.odds?.pinSpread == null && game.odds?.pinSpreadHomePrice == null ? ["missing_pin_spread"] : []),
+    ])],
     modelVersion: game.modelVersion || MODEL_VERSION,
     frozenAt: new Date().toISOString(),
     actualAway: null,
@@ -226,8 +239,8 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     palMatchup: game.bpp?.matchup || null,
     palTotals: game.bpp?.totals || null,
     season: seasonOf(date, game.sport),
-    pinSpread: game.odds?.spread ?? null,
-    pinTotal: game.odds?.total ?? null,
+    pinSpread: game.odds?.pinSpread ?? null,
+    pinTotal: game.odds?.pinTotal ?? null,
     noVigHome: snap.noVigHome,
     noVigAway: snap.noVigAway,
     noVigOver: snap.noVigOver,
@@ -294,7 +307,7 @@ function applyFinal(row, final) {
   const as = Number(final.away?.score);
   if (!Number.isFinite(hs) || !Number.isFinite(as)) return row;
   if (!final.status?.completed) return row;
-  const lastSnap = (row.snapshots || []).at(-1) || null;
+  const lastSnap = (row.snapshots || []).filter((s) => !s.rejectedPostStart && !isPostStart(s.at, row.start)).at(-1) || null;
   const next = {
     ...row,
     actualHome: hs,
@@ -328,7 +341,8 @@ function applyFinal(row, final) {
 
 function appendSnapshot(row, game) {
   const snap = snapshotOdds(game);
-  if (snap.pinHomeMl == null && snap.pinAwayMl == null) return row;
+  if (snap.pinHomeMl == null && snap.pinAwayMl == null && snap.pinOverPrice == null) return row;
+  const rejected = isPostStart(snap.at, game.start || row.start);
   const last = (row.snapshots || []).at(-1);
   if (
     last &&
@@ -339,14 +353,17 @@ function appendSnapshot(row, game) {
   ) {
     return row;
   }
-  const snapshots = [...(row.snapshots || []), snap];
-  return {
-    ...row,
-    snapshots,
-    closePinHomeMl: snap.pinHomeMl,
-    closePinAwayMl: snap.pinAwayMl,
-    closeNoVigHome: snap.noVigHome,
-  };
+  const snapshots = [...(row.snapshots || []), { ...snap, rejectedPostStart: rejected }];
+  const next = { ...row, snapshots };
+  if (!rejected) {
+    next.closePinHomeMl = snap.pinHomeMl;
+    next.closePinAwayMl = snap.pinAwayMl;
+    next.closeNoVigHome = snap.noVigHome;
+    next.closeNoVigOver = snap.noVigOver;
+    next.closePinTotal = game.odds?.pinTotal ?? row.closePinTotal ?? null;
+    next.closePinSpread = game.odds?.pinSpread ?? row.closePinSpread ?? null;
+  }
+  return next;
 }
 
 function matchFinal(row, finals) {
@@ -613,6 +630,7 @@ export async function freezeSlate(slate, env = {}) {
     const liveOrFinal = Boolean(game.status?.live || game.status?.completed);
 
     if (!existing && !liveOrFinal) {
+      writes.push(persistGame(env, game, slate.date));
       const frozen = freezeFromGame(slate.date, game);
       if (frozen) {
         const first = { ...frozen, checkpoint: "FIRST_AVAILABLE" };
@@ -667,7 +685,7 @@ export async function freezeSlate(slate, env = {}) {
       }
       if (next !== existing) {
         ledger.games[k] = next;
-        writes.push(persistSnap(env, next, slate.date));
+        writes.push(persistSnap(env, next, slate.date, game));
       }
     }
 
@@ -705,7 +723,7 @@ async function persistMatchingRec(env, slate, game, frozen) {
         checkpoint: frozen?.checkpoint,
         dataQuality: game.quality?.score ?? frozen?.dataQuality,
         pinVig: rec.pinVig ?? game.pin?.ml?.vig,
-        executionPrice: rec.pinPrice ?? rec.executionPrice,
+        executionPrice: rec.executionPrice ?? null,
         benchmarkPrice: rec.pinPrice,
         entryNoVig: rec.implied ?? rec.entryNoVig,
         qualifiedAt: frozen?.frozenAt || new Date().toISOString(),
@@ -727,6 +745,31 @@ async function gradeStrategyAgainstFinals(env, finals) {
     const g = byId.get(String(t.gameId));
     const graded = gradeStrategyResult(t, g);
     if (graded) jobs.push(gradeStrategyTicket(env, t.id, graded));
+  }
+  await Promise.all(jobs);
+}
+
+async function gradeExecutedBets(env, finals) {
+  const listed = await queryExecutedBets(env, { includeRaw: false });
+  const byId = new Map((finals || []).map((g) => [String(g.id), g]));
+  const jobs = [];
+  for (const t of listed.rows || []) {
+    if (t.result && t.result !== "OPEN") continue;
+    if (!t.gameId) continue;
+    const g = byId.get(String(t.gameId));
+    if (!g) continue;
+    const settled = settleExecutedBet(t, {
+      ...g,
+      status: g.status || { completed: g.home?.score != null },
+      home: g.home,
+      away: g.away,
+      actualHome: g.home?.score ?? g.actualHome,
+      actualAway: g.away?.score ?? g.actualAway,
+      f5Score: g.f5Score,
+    });
+    if (settled.result && settled.result !== "OPEN") {
+      jobs.push(updateExecutedBet(env, t.id, settled, "settlement"));
+    }
   }
   await Promise.all(jobs);
 }
@@ -817,7 +860,7 @@ async function persistFrozen(env, row, game, date) {
       gradedAt: row.gradedAt,
     })
   );
-  results.push(await persistSnap(env, row, date));
+  results.push(await persistSnap(env, row, date, game));
   const failed = results.filter((r) => r && r.ok === false);
   return {
     ok: failed.length === 0,
@@ -891,22 +934,45 @@ async function persistCheckpoint(env, row, game, date) {
   return { ...res, kind: "snapshot" };
 }
 
-async function persistSnap(env, row, date) {
-  const snap = (row.snapshots || []).at(-1);
-  if (!snap) return { ok: true, skipped: true, reason: "no-odds" };
-  return persistOddsSnapshot(env, {
-    gameId: row.id,
-    sport: row.sport,
-    date,
-    book: "Pinnacle",
-    market: "ml",
-    side: "HOME",
-    line: null,
-    price: snap.pinHomeMl,
-    implied: null,
-    noVig: snap.noVigHome,
-    capturedAt: snap.at,
-  });
+async function persistSnap(env, row, date, game = null) {
+  const packed = game
+    ? packPinOddsRows({ ...game, date, sport: row.sport, start: row.start || game.start }, { capturedAt: new Date().toISOString(), checkpoint: row.checkpoint })
+    : { rows: [] };
+  let rows = packed.rows;
+  if (!rows.length) {
+    const snap = (row.snapshots || []).at(-1);
+    if (!snap) return { ok: true, skipped: true, reason: "no-odds" };
+    rows = [
+      {
+        gameId: row.id,
+        sport: row.sport,
+        date,
+        book: "Pinnacle",
+        market: "ml",
+        period: "fg",
+        side: "HOME",
+        line: null,
+        price: snap.pinHomeMl,
+        implied: null,
+        noVig: snap.noVigHome,
+        capturedAt: snap.at,
+        gameStart: row.start,
+        rejectedPostStart: snap.rejectedPostStart ? 1 : 0,
+        paired: snap.pinHomeMl != null && snap.pinAwayMl != null ? 1 : 0,
+      },
+    ];
+  }
+  const results = [];
+  for (const r of rows) results.push(await persistOddsSnapshot(env, r));
+  const failed = results.filter((r) => r && r.ok === false);
+  return {
+    ok: failed.length === 0,
+    reason: failed[0]?.reason || null,
+    inserted: results.filter((r) => r?.ok).length,
+    already: 0,
+    failed: failed.length,
+    kind: "odds",
+  };
 }
 
 async function persistGradedLedger(env, ledger) {
@@ -1012,6 +1078,12 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
           }
           if (next.actualHome != null) {
             finalsGraded += 1;
+            writes.push(gradeSnapshotsForGame(env, {
+              gameId: next.id,
+              actualHome: next.actualHome,
+              actualAway: next.actualAway,
+              gradedAt: next.gradedAt,
+            }));
             writes.push(
               applyFinalToForm(env, {
                 sport,
@@ -1052,6 +1124,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   const dailyRes = await persistDailyReport(env, daily);
   if (dailyRes && dailyRes.ok === false) tallyPersist(counts, dailyRes);
   await gradeStrategyAgainstFinals(env, finals);
+  await gradeExecutedBets(env, finals);
   const rows = Object.values(saved.games)
     .filter((r) => r.sport === sport || !r.sport)
     .sort((a, b) => String(b.date).localeCompare(a.date) || String(a.matchup).localeCompare(b.matchup))
@@ -1366,6 +1439,20 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         if (frozen.failReasons?.length) sportFailReasons.push(...frozen.failReasons);
         n += slate.games?.length || 0;
         pal = slate.pal?.games ?? slate.pal?.meta?.games ?? pal;
+        if (sport === "mlb") {
+          const palMeta = slate.pal?.meta || {};
+          if (palMeta.error) await setMeta(env, "last_pal_error", palMeta.error);
+          else if (palMeta.enabled === false) await setMeta(env, "last_pal_error", palMeta.reason || "no-api-key");
+          else {
+            await setMeta(env, "last_pal_error", "");
+            await setMeta(env, "last_pal_success_at", palMeta.asOf || new Date().toISOString());
+            await setMeta(env, "last_pal_request_id", palMeta.requestId || "");
+          }
+          const matched = (slate.games || []).filter((g) => g.bpp).length;
+          const unmatched = (slate.games || []).length - matched;
+          await setMeta(env, "last_pal_matched", String(matched));
+          await setMeta(env, "last_pal_unmatched", String(unmatched));
+        }
         days.push({ date: day, n: slate.games?.length || 0 });
       }
       writes = mergeWriteCounts(writes, sportWrites);
@@ -1521,6 +1608,68 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
   const pack = buildAccuracyPack(displayRows, { model, perGame, sport: sport === "all" ? null : sport });
   const tickets = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
   const over = overDiagnostics(displayRows, { tickets });
+  const health = await dbPayload(env);
+  const distinctProjected = new Set(
+    snapshotRows.filter((r) => r.projHome != null && r.projAway != null).map((r) => `${r.date}:${r.id}`)
+  ).size;
+  const distinctGraded = new Set(
+    snapshotRows.filter((r) => r.actualHome != null && r.actualAway != null).map((r) => `${r.date}:${r.id}`)
+  ).size;
+  const displayProjected = displayRows.filter((r) => r.projHome != null).length;
+  const displayGraded = displayRows.filter((r) => r.actualHome != null).length;
+  const mlbRows = displayRows.filter((r) => r.sport === "mlb");
+  const mlbAcc = accuracyOf(mlbRows);
+  const coverage = sourceCoverage(displayRows);
+  const palMeta = {
+    lastSuccess: health.lastCollectSuccess,
+    error: null,
+    asOf: displayRows.find((r) => r.palAsOf)?.palAsOf || null,
+    requestId: displayRows.find((r) => r.palRequestId)?.palRequestId || null,
+    enabled: true,
+  };
+  const oddsQ = await queryOddsSnapshots(env, { sport: sport === "all" ? null : sport, since });
+  const byGame = {};
+  for (const r of oddsQ.rows || []) {
+    if (!byGame[r.gameId]) byGame[r.gameId] = [];
+    byGame[r.gameId].push(r);
+  }
+  const prospective = (tickets || []).filter((t) => t.role === "prospective" || t.role !== "seed");
+  const clv = clvTracker(prospective, byGame);
+  const close = closeCoverage(prospective, byGame);
+  const layers = layerDiagnostics(displayRows);
+  const strat = strategyStats(prospective);
+  const settledN = prospective.filter((t) => t.result === "WON" || t.result === "LOST").length;
+  const strategyPerformance = {
+    tickets: prospective.length,
+    open: prospective.filter((t) => !t.result || t.result === "OPEN").length,
+    settled: settledN,
+    record: settledN ? `${strat.wins}-${strat.losses}` : null,
+    hitRate: settledN ? strat.hitRate : null,
+    units: settledN && strat.units != null ? strat.units : null,
+    roi: settledN && strat.roi != null ? strat.roi : null,
+    avgEv: strat.avgEv ?? null,
+    avgClv: clv.unavailable ? null : clv.avg,
+    message: settledN ? null : "No settled strategy tickets yet.",
+  };
+  const pal = palHealth(mlbRows.length ? mlbRows : displayRows.filter((r) => r.sport === "mlb"), palMeta);
+  const accSummary = {
+    label: "Projection Accuracy",
+    source: "D1 immutable snapshots",
+    sport: sport === "all" ? "all" : sport,
+    checkpoint,
+    modelVersion: version === "all" ? (displayRows[0]?.modelVersion || MODEL_VERSION) : version,
+    dateRange: { since, until: until || todayCT() },
+    distinctProjected,
+    distinctGraded,
+    ungraded: Math.max(0, distinctProjected - distinctGraded),
+    checkpointRows: snapshotRows.length,
+    gradingCoverage: distinctProjected ? distinctGraded / distinctProjected : null,
+    n: acc.n,
+    maeTotal: acc.maeTotal,
+    biasTotal: acc.biasTotal,
+    winnerHit: acc.winnerHitProb ?? acc.winnerHit,
+    brier: acc.brierModel,
+  };
   const reports = await queryDailyReports(env, { sport, since });
   const byCheckpoint = {};
   for (const cp of CHECKPOINTS) {
@@ -1537,7 +1686,6 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
     };
   });
   const counts = await countToday(env, todayCT());
-  const health = await dbPayload(env);
   return {
     sport: sport || "all",
     sportName: !sport || sport === "all" ? "All boards" : SPORTS[sport]?.name || sport,
@@ -1552,8 +1700,23 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
     recipeGuide: RECIPE_GUIDE,
     sports,
     accuracy: acc,
+    accuracySummary: accSummary,
     pack,
     over,
+    coverage,
+    clv,
+    closeCoverage: close,
+    layers,
+    strategyPerformance,
+    pal,
+    mlbAccuracy: mlbAcc,
+    distinct: {
+      projected: distinctProjected,
+      graded: distinctGraded,
+      displayProjected,
+      displayGraded,
+      checkpointRows: snapshotRows.length,
+    },
     dailyReports: reports,
     byCheckpoint,
     versions,

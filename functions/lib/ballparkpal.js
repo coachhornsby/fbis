@@ -32,8 +32,32 @@ function lastName(name) {
   return parts[parts.length - 1] || "";
 }
 
-function sameAbv(a, b) {
-  return String(a || "").toLowerCase() === String(b || "").toLowerCase() && Boolean(a);
+const MLB_ABBR_ALIAS = {
+  WSH: "WAS",
+  WAS: "WSH",
+  WSN: "WSH",
+  CWS: "CHW",
+  CHW: "CWS",
+  ATH: "OAK",
+  OAK: "ATH",
+  AZ: "ARI",
+  ARI: "AZ",
+  TB: "TBR",
+  TBR: "TB",
+  SF: "SFG",
+  SFG: "SF",
+  SD: "SDP",
+  SDP: "SD",
+  KC: "KCR",
+  KCR: "KC",
+};
+
+export function sameAbv(a, b) {
+  const x = String(a || "").toUpperCase();
+  const y = String(b || "").toUpperCase();
+  if (!x || !y) return false;
+  if (x === y) return true;
+  return MLB_ABBR_ALIAS[x] === y || MLB_ABBR_ALIAS[y] === x;
 }
 
 async function bppGet(path, apiKey) {
@@ -249,13 +273,16 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
   };
 }
 
-export async function fetchBallparkPal(date, apiKey, cfCache) {
+export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
   if (!apiKey) {
-    return { games: [], meta: { enabled: false } };
+    return { games: [], meta: { enabled: false, reason: "no-api-key" } };
   }
   const cacheKey = `${CACHE_VER}:${date}`;
   const cached = await readCache(cacheKey, cfCache, TTL_MS);
   if (cached) return { ...cached, meta: { ...cached.meta, cached: true } };
+  if (opts.cacheOnly) {
+    return { games: [], meta: { enabled: true, cached: false, skipped: true, reason: "cache-only" } };
+  }
 
   try {
     const [gamesRaw, parkRaw, matchRaw, teamsRaw] = await Promise.all([
@@ -345,16 +372,20 @@ export function matchBpp(game, bppGames) {
   const hid = Number(game.home?.mlbId);
   const aid = Number(game.away?.mlbId);
   if (hid && aid) {
-    const hit = (bppGames || []).find((b) => b.homeId === hid && b.awayId === aid);
+    const hit = (bppGames || []).find((b) => Number(b.homeId) === hid && Number(b.awayId) === aid);
     if (hit) return hit;
   }
-  const hn = String(game.home?.abbr || "").toLowerCase();
-  const an = String(game.away?.abbr || "").toLowerCase();
-  return (bppGames || []).find(
-    (b) =>
-      String(b.homeAbv || "").toLowerCase() === hn &&
-      String(b.awayAbv || "").toLowerCase() === an
+  const byAbbr = (bppGames || []).find(
+    (b) => sameAbv(b.homeAbv, game.home?.abbr) && sameAbv(b.awayAbv, game.away?.abbr)
   );
+  if (byAbbr) return byAbbr;
+  const start = Date.parse(game.start || "");
+  if (!Number.isFinite(start)) return null;
+  return (bppGames || []).find((b) => {
+    const t = Date.parse(b.start || b.gameTime || "");
+    if (!Number.isFinite(t)) return false;
+    return Math.abs(t - start) <= 3 * 60 * 60 * 1000 && (sameAbv(b.homeAbv, game.home?.abbr) || sameAbv(b.awayAbv, game.away?.abbr));
+  }) || null;
 }
 
 export function mergeBallparkPal(games, bpp) {

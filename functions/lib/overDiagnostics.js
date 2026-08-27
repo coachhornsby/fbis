@@ -204,6 +204,9 @@ export function overDiagnostics(rows, { minEdge = 0.35, tickets = [] } = {}) {
 
   return {
     n: withMkt.length,
+    nGames: joined.length,
+    nProjected: joined.filter((r) => modelTotal(r, "proprietary") != null).length,
+    nGraded: graded.length,
     nWithPinTotal: withMkt.length,
     nMissingPinTotal: missingMkt.length,
     graded: graded.length,

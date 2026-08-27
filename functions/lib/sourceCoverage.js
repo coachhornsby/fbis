@@ -1,0 +1,59 @@
+/**
+ * SYS source-coverage counts. Distinct games, never padded with zero for missing sources.
+ */
+
+function distinct(rows, keyFn) {
+  const map = new Map();
+  for (const r of rows || []) {
+    const k = keyFn(r);
+    if (!k) continue;
+    if (!map.has(k)) map.set(k, r);
+  }
+  return [...map.values()];
+}
+
+function gameKey(r) {
+  return `${r.sport || ""}:${r.date}:${r.id || r.gameId || r.game_id}`;
+}
+
+export function sourceCoverage(rows, { scheduled = null } = {}) {
+  const games = distinct(rows, gameKey);
+  const n = scheduled != null ? scheduled : games.length;
+  const having = (pred) => games.filter(pred);
+  const palMatched = having((r) => r.palHome != null || r.palAway != null || r.palAsOf);
+  const projected = having((r) => r.projHome != null && r.projAway != null);
+  const pinMl = having((r) => r.pinHomeMl != null && r.pinAwayMl != null);
+  const pinSpread = having((r) => r.pinSpread != null);
+  const pinTotal = having((r) => r.pinTotal != null);
+  const graded = having((r) => r.actualHome != null && r.actualAway != null);
+  return {
+    scheduled: n,
+    games: games.length,
+    projected: projected.length,
+    pinMl: pinMl.length,
+    pinSpread: pinSpread.length,
+    pinTotal: pinTotal.length,
+    palMatched: palMatched.length,
+    palUnmatched: Math.max(0, games.length - palMatched.length),
+    finalsGraded: graded.length,
+    missingPinTotal: projected.length - pinTotal.filter((r) => r.projHome != null).length,
+    missingPinSpread: projected.length - pinSpread.filter((r) => r.projHome != null).length,
+  };
+}
+
+export function palHealth(rows, meta = {}) {
+  const games = distinct(rows, gameKey);
+  const matched = games.filter((r) => r.palHome != null || r.palAway != null);
+  const n = games.length;
+  return {
+    matchedN: matched.length,
+    unmatchedN: Math.max(0, n - matched.length),
+    lastSuccess: meta.lastSuccess || meta.asOf || null,
+    error: meta.error || null,
+    enabled: meta.enabled !== false,
+    requestId: meta.requestId || null,
+    asOf: meta.asOf || null,
+    unavailable: matched.length === 0,
+    message: matched.length === 0 ? "N=0 — unavailable" : null,
+  };
+}

@@ -5,6 +5,7 @@
  */
 
 import { identityFieldsConflict, immutableFieldsConflict } from "./strategy.js";
+import { immutableConflict, packExecutedBetRow } from "./executedBets.js";
 
 const health = {
   bound: false,
@@ -388,25 +389,134 @@ export async function gradeSnapshot(env, row) {
 export async function persistOddsSnapshot(env, snap) {
   markBound(env);
   if (!hasDb(env) || !snap?.gameId) return { ok: false, reason: "unbound" };
+  const capturedAt = snap.capturedAt || new Date().toISOString();
+  const bindsBase = [
+    snap.gameId,
+    snap.sport,
+    n(snap.date),
+    n(snap.book),
+    n(snap.market),
+    n(snap.side),
+    n(snap.line),
+    n(snap.price),
+    n(snap.implied),
+    n(snap.noVig),
+    capturedAt,
+  ];
   try {
     await env.DB.prepare(
       `INSERT INTO odds_snapshots (
-        game_id, sport, date, book, market, side, line, price, implied, no_vig, captured_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        game_id, sport, date, book, market, side, line, price, implied, no_vig, captured_at,
+        period, event_id, game_start, checkpoint, rejected_post_start, paired
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
-        snap.gameId,
-        snap.sport,
-        n(snap.date),
-        n(snap.book),
-        n(snap.market),
-        n(snap.side),
-        n(snap.line),
-        n(snap.price),
-        n(snap.implied),
-        n(snap.noVig),
-        snap.capturedAt
+        ...bindsBase,
+        n(snap.period),
+        n(snap.eventId),
+        n(snap.gameStart),
+        n(snap.checkpoint),
+        snap.rejectedPostStart ? 1 : 0,
+        snap.paired ? 1 : 0
       )
+      .run();
+    markWrite();
+    return { ok: true };
+  } catch (err) {
+    const msg = String(err?.message || err);
+    if (/no such column|period|event_id|game_start/i.test(msg)) {
+      try {
+        await env.DB.prepare(
+          `INSERT INTO odds_snapshots (
+            game_id, sport, date, book, market, side, line, price, implied, no_vig, captured_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+          .bind(...bindsBase)
+          .run();
+        markWrite();
+        return { ok: true, legacy: true };
+      } catch (err2) {
+        markErr(err2);
+        return { ok: false, reason: String(err2?.message || err2) };
+      }
+    }
+    markErr(err);
+    return { ok: false, reason: msg };
+  }
+}
+
+export async function queryOddsSnapshots(env, { gameId, sport, since } = {}) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
+  try {
+    let sql = "SELECT * FROM odds_snapshots WHERE 1=1";
+    const binds = [];
+    if (gameId) {
+      sql += " AND game_id = ?";
+      binds.push(String(gameId));
+    }
+    if (sport && sport !== "all") {
+      sql += " AND sport = ?";
+      binds.push(sport);
+    }
+    if (since) {
+      sql += " AND date >= ?";
+      binds.push(since);
+    }
+    sql += " ORDER BY captured_at ASC";
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    markRead();
+    return {
+      ok: true,
+      rows: (res.results || []).map((r) => ({
+        gameId: r.game_id,
+        sport: r.sport,
+        date: r.date,
+        book: r.book,
+        market: r.market,
+        side: r.side,
+        line: r.line,
+        price: r.price,
+        implied: r.implied,
+        noVig: r.no_vig,
+        capturedAt: r.captured_at,
+        period: r.period || "fg",
+        eventId: r.event_id || null,
+        gameStart: r.game_start || null,
+        checkpoint: r.checkpoint || null,
+        rejectedPostStart: Boolean(r.rejected_post_start),
+        paired: Boolean(r.paired),
+      })),
+    };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), rows: [] };
+  }
+}
+
+export async function gradeSnapshotsForGame(env, { gameId, actualHome, actualAway, gradedAt }) {
+  markBound(env);
+  if (!hasDb(env) || !gameId) return { ok: false, reason: "unbound" };
+  if (actualHome == null) return { ok: false, reason: "no-final" };
+  const at = gradedAt || new Date().toISOString();
+  try {
+    await env.DB.prepare(
+      `UPDATE prediction_snapshots
+       SET actual_home = COALESCE(actual_home, ?),
+           actual_away = COALESCE(actual_away, ?),
+           graded_at = COALESCE(graded_at, ?)
+       WHERE game_id = ? AND actual_home IS NULL`
+    )
+      .bind(n(actualHome), n(actualAway), n(at), String(gameId))
+      .run();
+    await env.DB.prepare(
+      `UPDATE predictions
+       SET actual_home = COALESCE(actual_home, ?),
+           actual_away = COALESCE(actual_away, ?),
+           graded_at = COALESCE(graded_at, ?)
+       WHERE game_id = ? AND actual_home IS NULL`
+    )
+      .bind(n(actualHome), n(actualAway), n(at), String(gameId))
       .run();
     markWrite();
     return { ok: true };
@@ -441,6 +551,47 @@ export async function persistGame(env, game, date) {
   } catch (err) {
     markErr(err);
     return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function queryGames(env, { sport, date, since } = {}) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
+  try {
+    let sql = "SELECT * FROM games WHERE 1=1";
+    const binds = [];
+    if (date) {
+      sql += " AND date = ?";
+      binds.push(date);
+    } else if (since) {
+      sql += " AND date >= ?";
+      binds.push(since);
+    }
+    if (sport && sport !== "all") {
+      sql += " AND sport = ?";
+      binds.push(sport);
+    }
+    sql += " ORDER BY start ASC";
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    markRead();
+    return {
+      ok: true,
+      rows: (res.results || []).map((r) => ({
+        id: r.id,
+        sport: r.sport,
+        date: r.date,
+        start: r.start,
+        home: { name: r.home_name, abbr: r.home_abbr },
+        away: { name: r.away_name, abbr: r.away_abbr },
+        homeName: r.home_name,
+        awayName: r.away_name,
+        homeAbbr: r.home_abbr,
+        awayAbbr: r.away_abbr,
+      })),
+    };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), rows: [] };
   }
 }
 
@@ -492,6 +643,7 @@ export function mapSnapshotRow(r) {
   const parsed = parseMatchup(r.matchup);
   return {
     id: r.game_id,
+    gameId: r.game_id,
     sport: r.sport,
     date: r.date,
     matchup: r.matchup,
@@ -1444,5 +1596,259 @@ export async function loadHfaRatings(env, method, asOfSeason) {
     return map;
   } catch {
     return map;
+  }
+}
+
+function mapExecutedBet(r) {
+  if (!r) return null;
+  return {
+    id: r.id,
+    externalTicketId: r.external_ticket_id,
+    executionBook: r.execution_book,
+    executedAt: r.executed_at,
+    timezone: r.timezone,
+    sport: r.sport,
+    date: r.date,
+    gameId: r.game_id,
+    sourceEventId: r.source_event_id,
+    sourceUrl: r.source_url,
+    matchupText: r.matchup_text,
+    awayTeam: r.away_team,
+    homeTeam: r.home_team,
+    market: r.market,
+    period: r.period,
+    selectedSide: r.selected_side,
+    selectedTeam: r.selected_team,
+    executionLine: r.execution_line,
+    executionPrice: r.execution_price,
+    riskAmount: r.risk_amount,
+    toWinAmount: r.to_win_amount,
+    potentialPayout: r.potential_payout,
+    currency: r.currency,
+    importedAt: r.imported_at,
+    importSource: r.import_source,
+    rawTextHash: r.raw_text_hash,
+    matchStatus: r.match_status,
+    matchConfidence: r.match_confidence,
+    matchedPredictionId: r.matched_prediction_id,
+    matchedStrategyTicketId: r.matched_strategy_ticket_id,
+    recommendationStatus: r.recommendation_status,
+    modelVersionAtEntry: r.model_version_at_entry,
+    checkpointAtEntry: r.checkpoint_at_entry,
+    result: r.result,
+    settledReturn: r.settled_return,
+    profit: r.profit,
+    gradedAt: r.graded_at,
+    voidReason: r.void_reason,
+    heritageCurrentLine: r.heritage_current_line,
+    heritageCurrentPrice: r.heritage_current_price,
+    heritageCurrentAt: r.heritage_current_at,
+    pinEntryLine: r.pin_entry_line,
+    pinEntryPrice: r.pin_entry_price,
+    pinEntryNoVig: r.pin_entry_no_vig,
+    pinCloseLine: r.pin_close_line,
+    pinClosePrice: r.pin_close_price,
+    pinCloseNoVig: r.pin_close_no_vig,
+    clv: r.clv,
+    clvStatus: r.clv_status,
+    clvMethodVersion: r.clv_method_version,
+    attributionLabel: r.attribution_label,
+  };
+}
+
+export async function persistExecutedBet(env, row) {
+  markBound(env);
+  const packed = packExecutedBetRow(row || {});
+  if (!hasDb(env) || !packed?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  try {
+    const existing = await env.DB.prepare(
+      "SELECT * FROM executed_bets WHERE execution_book = ? AND external_ticket_id = ?"
+    )
+      .bind(packed.executionBook || "Heritage", packed.externalTicketId)
+      .first();
+    if (existing) {
+      const mapped = mapExecutedBet(existing);
+      if (immutableConflict(mapped, packed)) {
+        await recordWriteConflict(env, "executed_bets", packed.id, "immutable-execution-mismatch");
+        return { ok: false, conflict: true, already: true, reason: "duplicate-conflict", existing: mapped };
+      }
+      markWrite();
+      return { ok: true, already: true, existing: mapped };
+    }
+    await env.DB.prepare(
+      `INSERT INTO executed_bets (
+        id, external_ticket_id, execution_book, executed_at, timezone, sport, date, game_id,
+        source_event_id, source_url, matchup_text, away_team, home_team, market, period,
+        selected_side, selected_team, execution_line, execution_price, risk_amount, to_win_amount,
+        potential_payout, currency, imported_at, import_source, raw_text_hash, raw_text,
+        match_status, match_confidence, matched_prediction_id, matched_strategy_ticket_id,
+        recommendation_status, model_version_at_entry, checkpoint_at_entry, result, settled_return,
+        profit, graded_at, void_reason, heritage_current_line, heritage_current_price, heritage_current_at,
+        pin_entry_line, pin_entry_price, pin_entry_no_vig, pin_close_line, pin_close_price, pin_close_no_vig,
+        clv, clv_status, clv_method_version, attribution_label
+      ) VALUES (${Array(52).fill("?").join(",")})`
+    )
+      .bind(
+        packed.id,
+        packed.externalTicketId,
+        packed.executionBook || "Heritage",
+        n(packed.executedAt),
+        n(packed.timezone),
+        n(packed.sport),
+        n(packed.date),
+        n(packed.gameId),
+        n(packed.sourceEventId),
+        n(packed.sourceUrl),
+        n(packed.matchupText),
+        n(packed.awayTeam),
+        n(packed.homeTeam),
+        n(packed.market),
+        n(packed.period),
+        n(packed.selectedSide),
+        n(packed.selectedTeam),
+        n(packed.executionLine),
+        n(packed.executionPrice),
+        n(packed.riskAmount),
+        n(packed.toWinAmount),
+        n(packed.potentialPayout),
+        n(packed.currency || "USD"),
+        packed.importedAt || new Date().toISOString(),
+        n(packed.importSource || "heritage-slip"),
+        n(packed.rawTextHash),
+        n(packed.rawText || null),
+        n(packed.matchStatus),
+        n(packed.matchConfidence),
+        n(packed.matchedPredictionId),
+        n(packed.matchedStrategyTicketId),
+        n(packed.recommendationStatus),
+        n(packed.modelVersionAtEntry),
+        n(packed.checkpointAtEntry),
+        n(packed.result || "OPEN"),
+        n(packed.settledReturn),
+        n(packed.profit),
+        n(packed.gradedAt),
+        n(packed.voidReason),
+        n(packed.heritageCurrentLine),
+        n(packed.heritageCurrentPrice),
+        n(packed.heritageCurrentAt),
+        n(packed.pinEntryLine),
+        n(packed.pinEntryPrice),
+        n(packed.pinEntryNoVig),
+        n(packed.pinCloseLine),
+        n(packed.pinClosePrice),
+        n(packed.pinCloseNoVig),
+        n(packed.clv),
+        n(packed.clvStatus),
+        n(packed.clvMethodVersion),
+        n(packed.attributionLabel)
+      )
+      .run();
+    markWrite();
+    await appendExecutedBetAudit(env, {
+      betId: packed.id,
+      action: "import",
+      detail: packed.matchStatus || "imported",
+    });
+    return { ok: true, inserted: true };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function queryExecutedBets(env, { date, sport, includeRaw = false } = {}) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
+  try {
+    let sql = includeRaw ? "SELECT * FROM executed_bets WHERE 1=1" : "SELECT * FROM executed_bets WHERE 1=1";
+    const binds = [];
+    if (date) {
+      sql += " AND date = ?";
+      binds.push(date);
+    }
+    if (sport && sport !== "all") {
+      sql += " AND sport = ?";
+      binds.push(sport);
+    }
+    sql += " ORDER BY executed_at DESC";
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    markRead();
+    return {
+      ok: true,
+      rows: (res.results || []).map((r) => {
+        const mapped = mapExecutedBet(r);
+        if (!includeRaw) mapped.rawText = undefined;
+        else mapped.rawText = r.raw_text;
+        return mapped;
+      }),
+    };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), rows: [] };
+  }
+}
+
+export async function updateExecutedBet(env, id, patch, action = "correction") {
+  markBound(env);
+  if (!hasDb(env) || !id) return { ok: false, reason: "unbound" };
+  try {
+    const existing = await env.DB.prepare("SELECT * FROM executed_bets WHERE id = ?").bind(id).first();
+    if (!existing) return { ok: false, reason: "not-found" };
+    const mapped = { ...mapExecutedBet(existing), ...patch };
+    await env.DB.prepare(
+      `UPDATE executed_bets SET
+        game_id = ?, selected_side = ?, match_status = ?, match_confidence = ?,
+        result = ?, profit = ?, settled_return = ?, graded_at = ?, void_reason = ?,
+        matched_prediction_id = ?, matched_strategy_ticket_id = ?, recommendation_status = ?,
+        attribution_label = ?, clv = ?, clv_status = ?,
+        pin_entry_line = ?, pin_entry_price = ?, pin_entry_no_vig = ?,
+        pin_close_line = ?, pin_close_price = ?, pin_close_no_vig = ?
+       WHERE id = ?`
+    )
+      .bind(
+        n(mapped.gameId),
+        n(mapped.selectedSide),
+        n(mapped.matchStatus),
+        n(mapped.matchConfidence),
+        n(mapped.result),
+        n(mapped.profit),
+        n(mapped.settledReturn),
+        n(mapped.gradedAt),
+        n(mapped.voidReason),
+        n(mapped.matchedPredictionId),
+        n(mapped.matchedStrategyTicketId),
+        n(mapped.recommendationStatus),
+        n(mapped.attributionLabel),
+        n(mapped.clv),
+        n(mapped.clvStatus),
+        n(mapped.pinEntryLine),
+        n(mapped.pinEntryPrice),
+        n(mapped.pinEntryNoVig),
+        n(mapped.pinCloseLine),
+        n(mapped.pinClosePrice),
+        n(mapped.pinCloseNoVig),
+        id
+      )
+      .run();
+    markWrite();
+    await appendExecutedBetAudit(env, { betId: id, action, detail: JSON.stringify(patch).slice(0, 500) });
+    return { ok: true };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function appendExecutedBetAudit(env, { betId, action, detail }) {
+  if (!hasDb(env) || !betId) return { ok: false };
+  try {
+    await env.DB.prepare(
+      "INSERT INTO executed_bet_audit (bet_id, action, detail, created_at) VALUES (?, ?, ?, ?)"
+    )
+      .bind(betId, n(action), n(detail), new Date().toISOString())
+      .run();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
   }
 }

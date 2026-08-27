@@ -3,6 +3,8 @@
  */
 
 export const CHECKPOINTS = ["FIRST_AVAILABLE", "EARLY", "MORNING", "LINEUP_CONFIRMED", "PREGAME", "CLOSE"];
+export const CHECKPOINT_ALIASES = { INFORMATION_CONFIRMED: "LINEUP_CONFIRMED" };
+export const CHECKPOINT_OPTIONS = ["FIRST_AVAILABLE", "EARLY", "MORNING", "LINEUP_CONFIRMED", "INFORMATION_CONFIRMED", "PREGAME", "CLOSE", "LATEST"];
 
 const RANK = {
   FIRST_AVAILABLE: 0,
@@ -57,8 +59,9 @@ function round4(v) {
 
 export function rowsForCheckpoint(rows, checkpoint) {
   if (!checkpoint || checkpoint === "LATEST") return rows || [];
-  if (checkpoint !== "FIRST_AVAILABLE") {
-    return (rows || []).filter((r) => r.checkpoint === checkpoint);
+  const want = CHECKPOINT_ALIASES[checkpoint] || checkpoint;
+  if (want !== "FIRST_AVAILABLE") {
+    return (rows || []).filter((r) => r.checkpoint === want || (checkpoint === "INFORMATION_CONFIRMED" && r.checkpoint === "LINEUP_CONFIRMED"));
   }
   const explicit = (rows || []).filter((r) => r.checkpoint === "FIRST_AVAILABLE");
   if (explicit.length) return explicit;

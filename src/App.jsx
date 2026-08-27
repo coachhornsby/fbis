@@ -4,16 +4,49 @@ import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, ki
 import { gradeOpenBets, loadState, logBet, summarize } from "./lib/learning.js";
 import { captureSlate } from "./lib/ledger.js";
 import TrackView from "./TrackView.jsx";
+import TodayView from "./TodayView.jsx";
+import HeritageImport from "./HeritageImport.jsx";
+import MyBetsView from "./MyBetsView.jsx";
+import { todayCT } from "../functions/lib/slateEngine.js";
+
+function readUrlState() {
+  if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb" };
+  const u = new URL(window.location.href);
+  return {
+    tab: u.searchParams.get("tab") || "today",
+    date: u.searchParams.get("date") || todayCT(),
+    sport: u.searchParams.get("sport") || "mlb",
+  };
+}
+
+function writeUrlState({ tab, date, sport }) {
+  if (typeof window === "undefined") return;
+  const u = new URL(window.location.href);
+  u.searchParams.set("tab", tab);
+  if (sport) u.searchParams.set("sport", sport);
+  if (tab === "today" && date) u.searchParams.set("date", date);
+  else u.searchParams.delete("date");
+  window.history.replaceState({}, "", u);
+}
 
 export default function App() {
-  const [sport, setSport] = useState("mlb");
+  const initial = readUrlState();
+  const [sport, setSport] = useState(initial.sport);
   const [slate, setSlate] = useState(null);
   const [error, setError] = useState("");
   const [updated, setUpdated] = useState("");
   const [learn, setLearn] = useState(() => loadState());
   const [loading, setLoading] = useState(false);
 
-  const [tab, setTab] = useState("board");
+  const [tab, setTab] = useState(initial.tab);
+  const [todayDate, setTodayDate] = useState(initial.date);
+  const [todayBoard, setTodayBoard] = useState(null);
+  const [todayError, setTodayError] = useState("");
+  const [todayLoading, setTodayLoading] = useState(false);
+  const [todaySport, setTodaySport] = useState("all");
+  const [todayBucket, setTodayBucket] = useState("all");
+  const [importOpen, setImportOpen] = useState(false);
+  const [betsPack, setBetsPack] = useState({ bets: [], summary: null });
   const [track, setTrack] = useState(null);
   const [trackError, setTrackError] = useState("");
   const [trackLoading, setTrackLoading] = useState(false);
@@ -89,6 +122,38 @@ export default function App() {
     }
   }, [trackFilters]);
 
+  const refreshToday = useCallback(async (signal) => {
+    setTodayLoading(true);
+    setTodayError("");
+    try {
+      const res = await fetch(`/api/today?date=${todayDate}&_t=${Date.now()}`, { signal });
+      const data = await res.json();
+      if (signal?.aborted) return;
+      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      setTodayBoard(data);
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      setTodayError(String(err.message || err));
+    } finally {
+      if (!signal?.aborted) setTodayLoading(false);
+    }
+  }, [todayDate]);
+
+  const refreshBets = useCallback(async (signal) => {
+    try {
+      const res = await fetch(`/api/bets?_t=${Date.now()}`, { signal });
+      const data = await res.json();
+      if (signal?.aborted) return;
+      setBetsPack({ bets: data.bets || [], summary: data.summary });
+    } catch {
+      /* keep last */
+    }
+  }, []);
+
+  useEffect(() => {
+    writeUrlState({ tab, date: todayDate, sport });
+  }, [tab, todayDate, sport]);
+
   useEffect(() => {
     if (tab !== "board") return undefined;
     const ac = new AbortController();
@@ -99,6 +164,24 @@ export default function App() {
       clearInterval(id);
     };
   }, [refresh, tab]);
+
+  useEffect(() => {
+    if (tab !== "today") return undefined;
+    const ac = new AbortController();
+    refreshToday(ac.signal);
+    const id = setInterval(() => refreshToday(ac.signal), 60_000);
+    return () => {
+      ac.abort();
+      clearInterval(id);
+    };
+  }, [refreshToday, tab]);
+
+  useEffect(() => {
+    if (tab !== "bets" && tab !== "today") return undefined;
+    const ac = new AbortController();
+    refreshBets(ac.signal);
+    return () => ac.abort();
+  }, [tab, refreshBets]);
 
   useEffect(() => {
     if (tab !== "sys") return undefined;
@@ -162,9 +245,15 @@ export default function App() {
         <h1>FBIS</h1>
         <div className="header-divider" />
         <span className="subtitle">
-          Fastwater Betting Intelligence System — {tab === "sys" ? "System" : SPORTS[sport].name}
+          Fastwater Betting Intelligence System — {tab === "sys" ? "System" : tab === "today" ? "TODAY" : tab === "bets" ? "My Bets" : SPORTS[sport].name}
         </span>
         <nav className="nav-tabs">
+          <button
+            className={tab === "today" ? "active" : ""}
+            onClick={() => setTab("today")}
+          >
+            TODAY
+          </button>
           {BOARD_SPORTS.map((id) => (
             <button
               key={id}
@@ -177,6 +266,9 @@ export default function App() {
               {SPORTS[id].label}
             </button>
           ))}
+          <button className={tab === "bets" ? "active" : ""} onClick={() => setTab("bets")}>
+            BETS
+          </button>
           <button className={tab === "sys" ? "active" : ""} onClick={() => setTab("sys")}>
             SYS
           </button>
@@ -184,10 +276,10 @@ export default function App() {
         <div className="header-actions">
           <button
             className="header-btn header-btn-refresh"
-            onClick={() => (tab === "sys" ? refreshTrack() : refresh())}
-            disabled={tab === "sys" ? trackLoading : loading}
+            onClick={() => (tab === "sys" ? refreshTrack() : tab === "today" ? refreshToday() : tab === "bets" ? refreshBets() : refresh())}
+            disabled={tab === "sys" ? trackLoading : tab === "today" ? todayLoading : loading}
           >
-            {tab === "sys" ? (trackLoading ? "↻ …" : "↻ Reload") : loading ? "↻ …" : "↻ Refresh"}
+            {tab === "sys" ? (trackLoading ? "↻ …" : "↻ Reload") : loading || todayLoading ? "↻ …" : "↻ Refresh"}
           </button>
         </div>
         <span className={`overall-badge badge-${health}`}>{error ? "FEED DOWN" : "LIVE"}</span>
@@ -208,6 +300,26 @@ export default function App() {
             if (Object.keys(rest).length) setTrackFilters((prev) => ({ ...prev, ...rest }));
           }}
           onRefresh={refreshTrack}
+        />
+      ) : tab === "today" ? (
+        <TodayView
+          board={todayBoard}
+          error={todayError}
+          loading={todayLoading}
+          date={todayDate}
+          onDate={setTodayDate}
+          sportFilter={todaySport}
+          onSportFilter={setTodaySport}
+          bucket={todayBucket}
+          onBucket={setTodayBucket}
+          onImport={() => setImportOpen(true)}
+        />
+      ) : tab === "bets" ? (
+        <MyBetsView
+          bets={betsPack.bets}
+          summary={betsPack.summary}
+          onImport={() => setImportOpen(true)}
+          onRefresh={refreshBets}
         />
       ) : (
       <div className="main-content">
@@ -231,7 +343,10 @@ export default function App() {
           <SlateTable games={slate?.games || []} onLog={onLog} logged={loggedOpen} />
         </Panel>
 
-        <Panel title="My Bets" extra={<span className="last-updated">{stats.settled} graded · {fmtPct(stats.winPct)} wins</span>}>
+        <Panel title="My Bets" extra={<span className="last-updated">{(betsPack.summary?.bets ?? stats.settled) || 0} Heritage · {stats.settled} logged recs</span>}>
+          <div className="today-controls" style={{ marginBottom: 10 }}>
+            <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>IMPORT HERITAGE BET SLIP</button>
+          </div>
           <BetsTable bets={learn.bets.filter((b) => b.sport === sport)} />
         </Panel>
 
@@ -252,15 +367,18 @@ export default function App() {
               <PlCurve curve={stats.curve} />
             </Panel>
             <Panel title="Model Accuracy">
-              <p>Win rate <b className={stats.winPct >= 0.52 ? "text-green" : "text-blue"}>{fmtPct(stats.winPct)}</b> on {stats.settled} settled tickets. Closing-line value avg <b className={stats.clv >= 0 ? "text-green" : "text-red"}>{stats.clv >= 0 ? "+" : ""}{stats.clv.toFixed(2)}</b>.</p>
+              <p>
+                Projection accuracy lives on SYS. Logged-rec win rate{" "}
+                <b className={stats.winPct >= 0.52 ? "text-green" : "text-blue"}>{stats.winPct == null ? "—" : fmtPct(stats.winPct)}</b>
+                {stats.settled ? ` on ${stats.settled} settled tickets.` : " — no settled strategy tickets yet."}
+              </p>
             </Panel>
           </div>
           <div className="compact-stacked">
             <Panel title="CLV Tracker">
-              <p>Positive CLV means entry no-vig beat the Pinnacle close for the side you bet. Model fair vs market is not CLV.</p>
+              <p>Positive CLV means Pinnacle close no-vig beat entry no-vig for the side you bet. Heritage Current Line is not Pin CLV. Model fair vs market is not CLV.</p>
               <div className="status-grid" style={{ marginTop: 10 }}>
-                <Stat label="Avg CLV" value={stats.clv ? `${stats.clv >= 0 ? "+" : ""}${stats.clv.toFixed(2)}` : "—"} />
-                <Stat label="Layer leader" value={topLayer(learn)} />
+                <Stat label="Avg CLV" value={stats.clv == null ? "—" : `${stats.clv >= 0 ? "+" : ""}${stats.clv.toFixed(2)}`} />
               </div>
             </Panel>
             <Panel title="Alerts">
@@ -285,6 +403,14 @@ export default function App() {
         </Panel>
       </div>
       )}
+      <HeritageImport
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => {
+          refreshBets();
+          if (tab === "today") refreshToday();
+        }}
+      />
     </>
   );
 }
