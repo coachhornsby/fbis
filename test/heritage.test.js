@@ -350,6 +350,14 @@ describe("Heritage confirm write auth and feedback", () => {
     assert.ok(!src.includes("value={HARVEST_SECRET_PLACEHOLDER}"));
   });
 
+  it("SYS notes that Cursor can import Heritage slips on request without removing confirm-secret", () => {
+    const sys = readFileSync(new URL("../src/TrackView.jsx", import.meta.url), "utf8");
+    const modal = readFileSync(new URL("../src/HeritageImport.jsx", import.meta.url), "utf8");
+    assert.match(sys, /Cursor can import slips on request/);
+    assert.match(modal, /HARVEST_SECRET/);
+    assert.match(modal, /2 · Confirm D1 write/);
+  });
+
   it("empty secret is a 4xx UI path and never a silent no-op", () => {
     const req = buildConfirmRequest({
       secret: "",
