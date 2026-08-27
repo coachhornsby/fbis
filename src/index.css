@@ -461,6 +461,8 @@ header h1 {
   gap: 12px;
   align-items: flex-end;
   margin-top: 12px;
+  position: relative;
+  z-index: 2;
 }
 .confirm-row label {
   display: flex;
@@ -480,6 +482,35 @@ header h1 {
 .confirm-feedback { margin-top: 8px; font-size: 12px; }
 .confirm-feedback .error { padding: 8px 0; }
 .confirm-feedback-ok { color: var(--green); margin: 8px 0 0; }
+.confirm-status {
+  flex: 1 1 240px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.confirm-status-error {
+  background: var(--red-bg);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+.confirm-status-ok {
+  background: var(--green-bg);
+  border: 1px solid var(--green);
+  color: var(--green);
+}
+.confirm-status-writing {
+  background: rgba(96, 196, 248, 0.08);
+  border: 1px solid var(--blue);
+  color: var(--blue);
+}
+.confirm-status-ready {
+  background: rgba(96, 196, 248, 0.08);
+  border: 1px solid var(--border);
+  color: var(--blue-light);
+}
 
 @media (max-width: 1100px) {
   .compact-bottom { grid-template-columns: 1fr; }

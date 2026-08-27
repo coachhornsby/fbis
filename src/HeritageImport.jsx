@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fmtAmerican } from "./lib/format.js";
 import { TeamIdentity } from "./components/TeamLogo.jsx";
 import {
   OPERATOR_SECRET_HINT,
-  confirmWriteGuard,
+  buildConfirmRequest,
+  confirmStatusLine,
   importResponseFeedback,
   readResponseJson,
 } from "./lib/heritageImport.js";
@@ -19,6 +20,21 @@ export default function HeritageImport({ open, onClose, onImported }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [wroteMessage, setWroteMessage] = useState("");
+  const feedbackRef = useRef(null);
+
+  const tickets = preview?.tickets || [];
+  const status = confirmStatusLine({
+    busy,
+    error,
+    wroteMessage,
+    secret,
+    ticketCount: tickets.length,
+  });
+
+  useEffect(() => {
+    if (!open || status.kind === "ready") return;
+    feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [open, status.kind, status.text]);
 
   if (!open) return null;
 
@@ -44,25 +60,21 @@ export default function HeritageImport({ open, onClose, onImported }) {
   }
 
   async function confirmImport() {
-    const tickets = preview?.tickets || [];
-    const guard = confirmWriteGuard({ secret, ticketCount: tickets.length });
-    if (!guard.ok) {
-      setError(guard.error);
+    const req = buildConfirmRequest({ secret, text, tickets, edits });
+    if (!req.ok) {
+      setError(req.error);
       setWroteMessage("");
+      queueMicrotask(() => feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
       return;
     }
     setBusy(true);
     setError("");
     setWroteMessage("");
     try {
-      const payload = tickets.map((t, i) => ({ ...t, ...edits[i] }));
       const res = await fetch("/api/bets", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-strategy-secret": secret,
-        },
-        body: JSON.stringify({ action: "import", tickets: payload }),
+        headers: req.headers,
+        body: JSON.stringify(req.body),
       });
       const data = await readResponseJson(res);
       const feedback = importResponseFeedback(res.status, data);
@@ -79,8 +91,6 @@ export default function HeritageImport({ open, onClose, onImported }) {
   function patch(i, field, value) {
     setEdits((prev) => prev.map((row, idx) => (idx === i ? { ...row, [field]: coerce(field, value) } : row)));
   }
-
-  const tickets = preview?.tickets || [];
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Import Heritage bet slip">
@@ -184,7 +194,13 @@ export default function HeritageImport({ open, onClose, onImported }) {
                   </tbody>
                 </table>
               </div>
-              <div className="confirm-row">
+              <form
+                className="confirm-row"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  confirmImport();
+                }}
+              >
                 <label htmlFor="operator-secret">
                   Operator secret
                   <input
@@ -192,24 +208,31 @@ export default function HeritageImport({ open, onClose, onImported }) {
                     type="password"
                     autoComplete="off"
                     value={secret}
-                    onChange={(e) => setSecret(e.target.value)}
+                    onChange={(e) => {
+                      setSecret(e.target.value);
+                      if (error) setError("");
+                    }}
                     placeholder="not stored in the app bundle"
                   />
                 </label>
                 <button
-                  type="button"
+                  type="submit"
                   className="header-btn header-btn-refresh"
-                  onClick={confirmImport}
                   disabled={busy}
                 >
                   {busy ? "Writing…" : "2 · Confirm D1 write"}
                 </button>
-              </div>
+                <div
+                  ref={feedbackRef}
+                  id="confirm-write-status"
+                  className={`confirm-status confirm-status-${status.kind}`}
+                  role={status.kind === "error" ? "alert" : "status"}
+                  aria-live="assertive"
+                >
+                  {status.text}
+                </div>
+              </form>
               <p id="operator-secret-hint" className="muted" style={{ marginTop: 6 }}>{OPERATOR_SECRET_HINT}</p>
-              <div className="confirm-feedback" aria-live="polite">
-                {error ? <div className="error" role="alert">{error}</div> : null}
-                {wroteMessage ? <p className="confirm-feedback-ok">{wroteMessage}</p> : null}
-              </div>
             </>
           )}
         </div>

@@ -170,7 +170,12 @@ export async function handleBetsPost(env, request, body) {
     return { status: 401, body: unauthorizedBody() };
   }
   if (action === "import") {
-    const tickets = Array.isArray(body.tickets) ? body.tickets : [];
+    let tickets = Array.isArray(body.tickets) ? body.tickets : [];
+    const slip = String(body.text || body.slip || "");
+    if (!tickets.length && slip.trim()) {
+      const preview = await parseBetsPreview(env, slip, body.yearHint);
+      tickets = preview.tickets || [];
+    }
     if (!tickets.length) return { status: 400, body: { ok: false, error: "no tickets to import", wrote: false } };
     const result = await importBets(env, tickets);
     return { status: result.status, body: result.body };
@@ -221,16 +226,17 @@ export async function onRequestPost(context) {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: "invalid json" }, 400);
+    return json({ ok: false, error: "invalid json" }, 400, { "access-control-allow-origin": "*" });
   }
   const result = await handleBetsPost({ DB: context.env.DB, STRATEGY_IMPORT_SECRET: context.env.STRATEGY_IMPORT_SECRET, HARVEST_SECRET: context.env.HARVEST_SECRET }, context.request, body);
-  return json(result.body, result.status);
+  return json(result.body, result.status, { "access-control-allow-origin": "*" });
 }
 
 export async function onRequestOptions() {
   return new Response(null, {
     status: 204,
     headers: {
+      "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET,POST,OPTIONS",
       "access-control-allow-headers": "content-type,x-strategy-secret,x-harvest-secret",
     },

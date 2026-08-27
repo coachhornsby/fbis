@@ -26,7 +26,10 @@ import {
 import { selectClose, selectPinAtOrBefore, packPinOddsRows, isPostStart, CLV_UNAVAILABLE, clvTracker } from "../functions/lib/closeCapture.js";
 import { parseBetsPreview, handleBetsPost } from "../functions/api/bets.js";
 import {
+  NO_TICKETS_TO_WRITE,
   OPERATOR_SECRET_REQUIRED,
+  buildConfirmRequest,
+  confirmStatusLine,
   confirmWriteGuard,
   importResponseFeedback,
 } from "../src/lib/heritageImport.js";
@@ -278,8 +281,52 @@ describe("Heritage confirm write auth and feedback", () => {
     assert.equal(blank.error, OPERATOR_SECRET_REQUIRED);
     const none = confirmWriteGuard({ secret: "ok", ticketCount: 0 });
     assert.equal(none.ok, false);
-    assert.match(none.error, /parse first/i);
+    assert.equal(none.error, NO_TICKETS_TO_WRITE);
     assert.equal(confirmWriteGuard({ secret: "ok", ticketCount: 5 }).ok, true);
+    assert.equal(confirmWriteGuard({ secret: "ok", ticketCount: 0, hasText: true }).ok, true);
+  });
+
+  it("empty secret is a 4xx UI path and never a silent no-op", () => {
+    const req = buildConfirmRequest({
+      secret: "",
+      text: HERITAGE_FIXTURE_PASTE,
+      tickets: parsed.tickets,
+    });
+    assert.equal(req.ok, false);
+    assert.equal(req.error, OPERATOR_SECRET_REQUIRED);
+    assert.equal(req.body, undefined);
+    const line = confirmStatusLine({ busy: false, error: req.error, wroteMessage: "", secret: "", ticketCount: 4 });
+    assert.equal(line.kind, "error");
+    assert.equal(line.text, OPERATOR_SECRET_REQUIRED);
+    const missing = confirmStatusLine({ busy: false, error: "", wroteMessage: "", secret: "", ticketCount: 4 });
+    assert.equal(missing.kind, "error");
+    assert.equal(missing.text, OPERATOR_SECRET_REQUIRED);
+  });
+
+  it("confirm payload includes parsed tickets and the pasted textarea", () => {
+    const req = buildConfirmRequest({
+      secret: "s3cret",
+      text: HERITAGE_FIXTURE_PASTE,
+      tickets: parsed.tickets,
+      edits: [{ selectedTeam: "Los Angeles Dodgers" }],
+    });
+    assert.equal(req.ok, true);
+    const json = JSON.stringify(req.body);
+    assert.equal(req.body.action, "import");
+    assert.match(req.body.text, /G10904318/);
+    assert.match(req.body.text, /Los Angeles Dodgers/);
+    assert.ok(Array.isArray(req.body.tickets));
+    assert.equal(req.body.tickets.length, 5);
+    const ids = req.body.tickets.map((t) => t.externalTicketId);
+    assert.ok(ids.includes("G10904318"));
+    assert.ok(ids.includes("G10904312"));
+    assert.ok(ids.includes("G10904306"));
+    assert.ok(ids.includes("G10904299"));
+    assert.match(json, /G10904318/);
+    assert.equal(req.body.tickets[0].selectedTeam, "Los Angeles Dodgers");
+    assert.equal(req.headers["x-strategy-secret"], "s3cret");
+    assert.equal(req.headers["x-harvest-secret"], "s3cret");
+    assert.doesNotMatch(json, /s3cret/);
   });
 
   it("maps 401 and D1 unbound to visible messages", () => {
@@ -289,9 +336,18 @@ describe("Heritage confirm write auth and feedback", () => {
     const unbound = importResponseFeedback(503, { ok: false, error: "D1 unbound" });
     assert.equal(unbound.ok, false);
     assert.match(unbound.error, /D1 unbound/i);
-    const wrote = importResponseFeedback(200, { accepted: [{ id: "a" }, { id: "b" }], skipped: [], conflicts: [] });
+    const wrote = importResponseFeedback(200, {
+      accepted: [
+        { id: "a", externalTicketId: "G10904318" },
+        { id: "b", externalTicketId: "G10904312" },
+      ],
+      skipped: [],
+      conflicts: [],
+    });
     assert.equal(wrote.ok, true);
     assert.match(wrote.message, /Wrote 2 tickets/);
+    assert.match(wrote.message, /G10904318/);
+    assert.match(wrote.message, /G10904312/);
   });
 
   it("rejects import with empty secret (401, no write)", async () => {
@@ -327,7 +383,7 @@ describe("Heritage confirm write auth and feedback", () => {
     const result = await handleBetsPost(
       env,
       fakeReq({ "x-strategy-secret": "s3cret" }),
-      { action: "import", tickets: parsed.tickets }
+      { action: "import", text: HERITAGE_FIXTURE_PASTE, tickets: parsed.tickets }
     );
     assert.equal(result.status, 200);
     assert.equal(result.body.wrote, true);
@@ -341,6 +397,21 @@ describe("Heritage confirm write auth and feedback", () => {
       assert.equal(row.attribution_label, OPERATOR_ONLY);
       assert.notEqual(row.recommendation_status, "seed");
     }
+  });
+
+  it("re-parses pasted textarea when import tickets are omitted", async () => {
+    const db = executedBetsDb();
+    const env = { HARVEST_SECRET: "s3cret", DB: db.DB };
+    const result = await handleBetsPost(
+      env,
+      fakeReq({ "x-strategy-secret": "s3cret" }),
+      { action: "import", text: HERITAGE_FIXTURE_PASTE, yearHint: 2026 }
+    );
+    assert.equal(result.status, 200);
+    assert.equal(result.body.wrote, true);
+    const ids = result.body.accepted.map((a) => a.externalTicketId).sort();
+    assert.ok(ids.includes("G10904318"));
+    assert.equal(db.bets.size, 5);
   });
 
   it("returns D1 unbound when DB is missing even with a secret", async () => {
