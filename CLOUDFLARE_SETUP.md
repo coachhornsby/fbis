@@ -16,14 +16,13 @@ Parlay odds are cached 15 minutes so the 1,000 free credits last. Pinnacle is pu
 
 ## D1 (authoritative research store)
 
-Cache is not a substitute for history. Create and apply:
+Cache is not a substitute for history. Database `fbis` is bound as `DB` in `wrangler.toml` (`database_id` `b50c724c-903b-4241-8ce1-48d931e7a44c`). Apply schema after create or schema changes:
 
 ```bash
-npx wrangler d1 create fbis
 npx wrangler d1 execute fbis --file=schema.sql --remote
 ```
 
-Bind `DB` on the Pages project (`fbis`). Put the `database_id` in `wrangler.toml` under `[[d1_databases]]` with `binding = "DB"`. Until that binding exists, freeze/harvest still use the Cache API (~21 days) and SYS shows **RESEARCH DB UNBOUND**.
+`npm run deploy` publishes the Pages function with that binding. Until D1 is bound, freeze/harvest still use the Cache API (~21 days) and SYS shows **RESEARCH DB UNBOUND**.
 
 ## Scheduled collection
 
@@ -33,7 +32,7 @@ Pages cannot use `wrangler.toml` `[triggers]`. GitHub Action `.github/workflows/
 - Full Parlay odds only at 8am and 11am CT; later collects are `parlayCacheOnly`
 - Harvest finals: `20 11 * * *` UTC (~06:20 CT), scoreboard only, no Parlay
 
-Optional: set `HARVEST_SECRET` as a Pages secret and a GitHub Actions secret of the same name. `/api/collect` and `/api/harvest` both require it when set.
+`HARVEST_SECRET` is a Pages secret and a GitHub Actions secret of the same name. `/api/collect` and `/api/harvest` both require it when set. After changing a Pages secret, redeploy so the Worker sees it.
 
 ## Git connect
 
