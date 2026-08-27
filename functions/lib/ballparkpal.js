@@ -53,6 +53,34 @@ export function palErrorFromBody(json, httpStatus) {
   return null;
 }
 
+export class PalHttpError extends Error {
+  constructor(httpStatus, message, code) {
+    super(message);
+    this.name = "PalHttpError";
+    this.httpStatus = Number(httpStatus) || null;
+    this.code = code || null;
+  }
+}
+
+/** Actual Pal HTTP status for SYS `last_pal_http_status` — 200 and 401, never a fake 200 on auth failure. */
+export function palHttpStatusFromError(err) {
+  const n = Number(err?.httpStatus);
+  if (Number.isFinite(n) && n > 0) return n;
+  const msg = String(err?.message || err || "");
+  const tagged = msg.match(/Ballpark Pal (\d{3})/);
+  if (tagged) return Number(tagged[1]);
+  const bare = msg.match(/\b(401|403|404|429|5\d\d)\b/);
+  return bare ? Number(bare[1]) : null;
+}
+
+export function palHttpStatusToStore(palMeta) {
+  const n = Number(palMeta?.httpStatus);
+  if (Number.isFinite(n) && n > 0) return String(Math.trunc(n));
+  if (palMeta?.error || palMeta?.reason === "upstream-error") return "";
+  if (palMeta?.enabled === false) return "";
+  return "200";
+}
+
 function attachMeta(data, meta) {
   if (data && typeof data === "object") data._meta = meta;
   return data;
@@ -114,13 +142,13 @@ async function bppGet(path, apiKey) {
   }
   const palErr = palErrorFromBody(json, res.status);
   if (palErr) {
-    throw new Error(`Ballpark Pal ${palErr.httpStatus}: ${palErr.message}`);
+    throw new PalHttpError(palErr.httpStatus, `Ballpark Pal ${palErr.httpStatus}: ${palErr.message}`, palErr.code);
   }
   if (!res.ok) {
-    throw new Error(`Ballpark Pal ${res.status}: ${text.slice(0, 180)}`);
+    throw new PalHttpError(res.status, `Ballpark Pal ${res.status}: ${text.slice(0, 180)}`);
   }
   const { data, meta } = unwrapPalResponse(json);
-  return attachMeta(data, meta);
+  return attachMeta(data, { ...(meta || {}), httpStatus: res.status });
 }
 
 function indexTeams(teams) {
@@ -337,7 +365,7 @@ function emptyPalMeta(extra = {}) {
     matchups: 0,
     asOf: null,
     requestId: null,
-    httpStatus: extra.httpStatus || null,
+    httpStatus: extra.httpStatus != null ? extra.httpStatus : null,
     stage: extra.stage || null,
     reason: extra.reason || null,
     error: extra.error || null,
@@ -381,10 +409,14 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
   try {
     const batches = [];
     const errors = [];
+    let httpStatus = null;
     for (const day of dates) {
       try {
-        batches.push(await fetchPalDate(day, apiKey));
+        const batch = await fetchPalDate(day, apiKey);
+        batches.push(batch);
+        httpStatus = httpStatus || batch.gamesRaw?._meta?.httpStatus || 200;
       } catch (err) {
+        httpStatus = httpStatus || palHttpStatusFromError(err);
         errors.push(`${day}: ${err.message || err}`);
       }
     }
@@ -398,6 +430,7 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
           stage: "http",
           dates,
           errors: errors.slice(0, 3),
+          httpStatus,
         }),
       };
     }
@@ -488,7 +521,7 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
         asOf: slateAsOf,
         requestId: slateRequestId,
         dates,
-        httpStatus: 200,
+        httpStatus: httpStatus || 200,
         reason: packed.length ? null : "no-records-returned",
         errors: [...errors, ...avgErrors].filter(Boolean).slice(0, 3),
       },
@@ -504,6 +537,7 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
         reason: "upstream-error",
         stage: "http",
         dates,
+        httpStatus: palHttpStatusFromError(err),
       }),
     };
   }

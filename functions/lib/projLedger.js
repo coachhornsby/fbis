@@ -47,7 +47,7 @@ import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult,
 import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
 import { settleExecutedBet } from "./executedBets.js";
 import { sourceCoverage, palHealth } from "./sourceCoverage.js";
-import { palUnavailableReason } from "./ballparkpal.js";
+import { palUnavailableReason, palHttpStatusToStore } from "./ballparkpal.js";
 import { layerDiagnostics } from "./layerDiagnostics.js";
 import {
   classifyJobStatus,
@@ -1517,9 +1517,11 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
           const persisted = (slate.games || []).filter((g) => g.bpp?.homeRuns != null || g.bpp?.awayRuns != null).length;
           if (palMeta.error || palMeta.reason === "upstream-error") {
             await setMeta(env, "last_pal_error", palMeta.error || palMeta.reason);
-            await setMeta(env, "last_pal_http_status", String(palMeta.httpStatus || ""));
+            await setMeta(env, "last_pal_http_status", palHttpStatusToStore(palMeta));
           } else if (palMeta.enabled === false) {
             await setMeta(env, "last_pal_error", palMeta.reason || "no-api-key");
+            const noKeyStatus = palHttpStatusToStore(palMeta);
+            if (noKeyStatus) await setMeta(env, "last_pal_http_status", noKeyStatus);
           } else {
             if (palMeta.reason === "no-records-returned" || palMeta.recordsReturned === 0) {
               await setMeta(env, "last_pal_error", palMeta.reason || "no-records-returned");
@@ -1529,7 +1531,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
             }
             await setMeta(env, "last_pal_request_id", palMeta.requestId || "");
             await setMeta(env, "last_pal_as_of", palMeta.asOf || "");
-            await setMeta(env, "last_pal_http_status", String(palMeta.httpStatus || 200));
+            await setMeta(env, "last_pal_http_status", palHttpStatusToStore(palMeta));
           }
           const matched = palMatch.matched ?? (slate.games || []).filter((g) => g.bpp).length;
           const unmatched = palMatch.unmatched ?? Math.max(0, (slate.games || []).length - matched);

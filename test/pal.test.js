@@ -6,6 +6,9 @@ import { dirname, join } from "node:path";
 import {
   unwrapPalResponse,
   palErrorFromBody,
+  palHttpStatusFromError,
+  palHttpStatusToStore,
+  PalHttpError,
   matchPalSlate,
   matchBpp,
   mergeBallparkPal,
@@ -70,6 +73,15 @@ describe("Pal wrapper", () => {
     assert.equal(err.code, "date_out_of_range");
     const { data } = unwrapPalResponse(fixture.error);
     assert.equal(Array.isArray(data), false);
+  });
+
+  it("stores actual Pal HTTP status including 200 and 401", () => {
+    assert.equal(palHttpStatusToStore({ httpStatus: 200, recordsReturned: 7 }), "200");
+    assert.equal(palHttpStatusToStore({ httpStatus: 401, reason: "upstream-error", error: "Ballpark Pal 401: unauthorized" }), "401");
+    assert.equal(palHttpStatusToStore({ reason: "upstream-error", error: "Pal request failed" }), "");
+    assert.notEqual(palHttpStatusToStore({ httpStatus: 401, reason: "upstream-error" }), "200");
+    assert.equal(palHttpStatusFromError(new PalHttpError(401, "Ballpark Pal 401: unauthorized", "unauthorized")), 401);
+    assert.equal(palHttpStatusFromError(new Error("Ballpark Pal 401: unauthorized")), 401);
   });
 });
 
