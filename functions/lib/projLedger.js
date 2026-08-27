@@ -253,6 +253,7 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     palTeamTotals: game.bpp?.teamTotals || [],
     palProps: game.bpp?.props || [],
     palUnknownMarkets: game.bpp?.unknownMarkets || [],
+    sportsbookProps: game.odds?.playerProps || [],
     season: seasonOf(date, game.sport),
     pinSpread: game.odds?.pinSpread ?? null,
     pinTotal: game.odds?.pinTotal ?? null,
@@ -302,16 +303,16 @@ function marketRowId(parts) {
 }
 
 export function palMarketRowsFromGame(date, game, frozen = freezeFromGame(date, game)) {
-  if (!frozen || game?.sport !== "mlb" || !game?.bpp) return [];
+  if (!frozen || game?.sport !== "mlb" || (!game?.bpp && !game?.odds?.playerProps?.length)) return [];
   const base = {
     gameId: String(game.id), date, checkpoint: frozen.checkpoint, source: "ballpark-pal",
-    sourceAsOf: game.bpp.asOf || frozen.palAsOf, sourceRequestId: game.bpp.requestId || frozen.palRequestId,
-    modelVersion: frozen.modelVersion, lineupsOfficial: game.bpp.lineupsOfficial,
+    sourceAsOf: game.bpp?.asOf || frozen.palAsOf, sourceRequestId: game.bpp?.requestId || frozen.palRequestId,
+    modelVersion: frozen.modelVersion, lineupsOfficial: game.bpp?.lineupsOfficial,
     frozenAt: frozen.frozenAt,
   };
   const rows = [];
   const f5Book = game.odds?.f5 || null;
-  const f5 = game.bpp.f5 || null;
+  const f5 = game.bpp?.f5 || null;
   if (f5) {
     const mlPriced = f5Book?.homeMl != null && f5Book?.awayMl != null;
     rows.push({ ...base, id: marketRowId([date, game.id, frozen.checkpoint, "F5_ML"]), period: "F5", marketType: "F5_ML", subjectType: "game",
@@ -329,7 +330,7 @@ export function palMarketRowsFromGame(date, game, frozen = freezeFromGame(date, 
       priced: spreadPriced, qualificationState: spreadPriced ? "PRICED_CANDIDATE" : "MODEL_LEAN",
       qualificationReason: spreadPriced ? null : "missing complete two-way F5 spread price" });
   }
-  for (const p of game.bpp.props || []) {
+  for (const p of game.bpp?.props || []) {
     rows.push({ ...base,
       id: marketRowId([date, game.id, frozen.checkpoint, "PROP", p.marketId, p.playerId, p.line]),
       period: "FULL_GAME", marketType: `PLAYER_PROP:${p.marketId || "UNKNOWN"}`, subjectType: "player",
@@ -339,7 +340,7 @@ export function palMarketRowsFromGame(date, game, frozen = freezeFromGame(date, 
       qualificationReason: "Pal projection only; exact sportsbook line and two-way price unavailable",
     });
   }
-  for (const t of game.bpp.teamTotals || []) {
+  for (const t of game.bpp?.teamTotals || []) {
     rows.push({ ...base,
       id: marketRowId([date, game.id, frozen.checkpoint, "TEAM_TOTAL", t.teamId, t.line]),
       period: "FULL_GAME", marketType: "TEAM_TOTAL", subjectType: "team", subjectId: t.teamId,
@@ -347,6 +348,16 @@ export function palMarketRowsFromGame(date, game, frozen = freezeFromGame(date, 
       sourceMarketKey: t.marketId, sourceMarketName: t.displayName, priced: false,
       qualificationState: "MODEL_LEAN",
       qualificationReason: "Pal projection only; exact sportsbook line and two-way price unavailable",
+    });
+  }
+  for (const p of game.odds?.playerProps || []) {
+    rows.push({ ...base,
+      id: marketRowId([date, game.id, frozen.checkpoint, "BOOK_PROP", p.marketKey, p.playerName, p.bookmakerKey, p.line]),
+      period: "FULL_GAME", marketType: `SPORTSBOOK_PROP:${p.marketKey || "UNKNOWN"}`, subjectType: "player",
+      subjectName: p.playerName, line: p.line, source: "parlay-api", sourceMarketKey: p.marketKey,
+      sourceMarketName: p.marketLabel, sourceAsOf: p.snapshotAt, book: p.bookmaker,
+      bookLine: p.line, bookOverPrice: p.overPrice, bookUnderPrice: p.underPrice, priced: true,
+      qualificationState: "PRICED_MARKET", qualificationReason: "Sportsbook contract captured; no Pal player identity match yet",
     });
   }
   return rows;

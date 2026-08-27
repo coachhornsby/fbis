@@ -523,3 +523,25 @@ header h1 {
   #ticker-bar { top: auto; position: relative; }
   .subtitle { flex-basis: 100%; }
 }
+.game-expand {
+  margin-top: 7px;
+  border: 1px solid #2b78a7;
+  border-radius: 4px;
+  background: #09223a;
+  color: #75cfff;
+  padding: 4px 7px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+}
+
+.game-detail-row > td { background: #07192b; padding: 14px !important; }
+.game-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(230px, 1fr)); gap: 12px; }
+.game-detail-grid section { border: 1px solid #214667; border-radius: 6px; background: #0a2035; padding: 12px; min-width: 0; }
+.game-detail-grid h3 { color: #61c7ff; font-size: 11px; letter-spacing: .06em; margin: 0 0 8px; }
+.game-detail-grid .detail-props { grid-column: 1 / -1; }
+.detail-props details { border-top: 1px solid #214667; padding: 7px 0; }
+.detail-props summary { cursor: pointer; color: #8cd7ff; }
+.mini-prop-table { width: 100%; border-collapse: collapse; margin-top: 7px; }
+.mini-prop-table th, .mini-prop-table td { border-bottom: 1px solid #183b59; padding: 5px 7px; text-align: left; }
+@media (max-width: 1050px) { .game-detail-grid { grid-template-columns: 1fr; } .game-detail-grid .detail-props { grid-column: auto; } }

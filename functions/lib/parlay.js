@@ -39,7 +39,11 @@ export const PARLAY_SPORT = {
 
 const TTL_MS = 15 * 60 * 1000;
 const EMPTY_F5_TTL_MS = 6 * 60 * 60 * 1000;
-const CACHE_VER = "v5";
+const CACHE_VER = "v6";
+const MLB_PROP_MARKETS = [
+  "player_total_bases", "player_hits", "player_home_runs", "player_rbis", "player_runs",
+  "player_stolen_bases", "player_strikeouts", "player_pitcher_outs", "player_hits_allowed", "player_earned_runs",
+];
 
 function outcomes(bookmakers, marketKey, pred) {
   const rows = [];
@@ -214,6 +218,7 @@ export function summarizeParlayEvent(event, sportId) {
     ...fg,
     f5,
     sentiment: sentimentFromKalshi(kalshiH2h, home, away),
+    playerProps: event.playerProps || [],
     books: books.filter((b) => isPricingBook(b.key)).length,
   };
 }
@@ -238,6 +243,7 @@ function applyOdds(game, p) {
     books: p.books,
     sentiment: p.sentiment || null,
     f5: p.f5 || game.odds?.f5 || null,
+    playerProps: p.playerProps || game.odds?.playerProps || [],
     heritageListed: p.heritageListed,
     pinPresent: p.pinPresent,
     pinHomeMl: p.pinHomeMl ?? p.fairHomeMl ?? null,
@@ -316,6 +322,7 @@ export function mergeParlay(games, parlayEvents, sport) {
         books: p.books,
         sentiment: p.sentiment || null,
         f5: p.f5 || null,
+        playerProps: p.playerProps || [],
         pinPresent: p.pinPresent,
         heritageListed: p.heritageListed,
     pinHomeMl: p.pinHomeMl ?? p.fairHomeMl ?? null,
@@ -395,6 +402,30 @@ async function fetchJson(sportKey, params, apiKey) {
   return { events: parseEvents(raw), credits };
 }
 
+async function fetchPropsJson(sportKey, params, apiKey) {
+  const url = new URL(`https://parlay-api.com/v1/sports/${sportKey}/props`);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await parlayFetch(url, apiKey);
+  const credits = creditMeta(res);
+  if (!res.ok) return { rows: [], error: `Parlay ${res.status}: ${(await res.text()).slice(0, 180)}`, credits };
+  const raw = await res.json();
+  const rows = Array.isArray(raw) ? raw : raw?.data || raw?.props || [];
+  return { rows: Array.isArray(rows) ? rows : [], credits };
+}
+
+export function attachFlatProps(events, rows) {
+  return (events || []).map((event) => ({
+    ...event,
+    playerProps: (rows || []).filter((r) => String(r.event_id || r.eventId) === String(event.id)).map((r) => ({
+      eventId: r.event_id || r.eventId, playerName: r.player_name || r.playerName,
+      marketKey: r.market_key || r.marketKey, marketLabel: r.market_label || r.marketLabel,
+      line: r.line == null ? null : Number(r.line), overPrice: r.over_price == null ? null : Number(r.over_price),
+      underPrice: r.under_price == null ? null : Number(r.under_price), bookmaker: r.source_title || r.bookmaker || r.source,
+      bookmakerKey: r.source || r.bookmaker_key || r.bookmakerKey, snapshotAt: r.snapshot_time || r.snapshotAt,
+    })),
+  }));
+}
+
 function mergeByTeams(primary, extra) {
   const out = primary.map((ev) => ({ ...ev, bookmakers: [...(ev.bookmakers || [])] }));
   for (const add of extra) {
@@ -452,6 +483,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   let remaining = pin.credits.remaining;
   let used = pin.credits.used;
   let f5Games = 0;
+  let propRows = 0;
   let sentimentGames = 0;
 
   const kalshiKey = `${CACHE_VER}:kalshi:${sportKey}`;
@@ -474,11 +506,34 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
 
   if (baseball) {
     const f5Key = `${CACHE_VER}:f5:${sportKey}`;
-    const f5Payload = await readCache(f5Key, cfCache, EMPTY_F5_TTL_MS);
+    let f5Payload = await readCache(f5Key, cfCache, EMPTY_F5_TTL_MS);
+    if (!f5Payload) {
+      const fetched = await fetchJson(sportKey, {
+        regions: "us,eu", markets: "h2h_1st_5_innings,spreads_1st_5_innings,totals_1st_5_innings",
+        bookmakers: "pinnacle,fanduel,draftkings,betmgm,caesars,bovada",
+      }, apiKey);
+      remaining = fetched.credits.remaining ?? remaining;
+      used = fetched.credits.used ?? used;
+      f5Payload = { events: fetched.error ? [] : fetched.events, empty: !fetched.events?.length, error: fetched.error || null };
+      await writeCache(f5Key, f5Payload, cfCache, f5Payload.empty ? EMPTY_F5_TTL_MS : TTL_MS);
+    }
     if (f5Payload?.events?.length) {
       combined = mergeByTeams(combined, f5Payload.events);
       f5Games = f5Payload.events.length;
     }
+    const propsKey = `${CACHE_VER}:props:${sportKey}`;
+    let propsPayload = await readCache(propsKey, cfCache, EMPTY_F5_TTL_MS);
+    if (!propsPayload) {
+      const fetched = await fetchPropsJson(sportKey, {
+        markets: MLB_PROP_MARKETS.join(","), bookmakers: "pinnacle,fanduel,draftkings,betmgm,caesars,bovada",
+      }, apiKey);
+      remaining = fetched.credits.remaining ?? remaining;
+      used = fetched.credits.used ?? used;
+      propsPayload = { rows: fetched.error ? [] : fetched.rows, empty: !fetched.rows?.length, error: fetched.error || null };
+      await writeCache(propsKey, propsPayload, cfCache, propsPayload.empty ? EMPTY_F5_TTL_MS : TTL_MS);
+    }
+    combined = attachFlatProps(combined, propsPayload.rows || []);
+    propRows = propsPayload.rows?.length || 0;
   }
 
   const events = combined.map((ev) => summarizeParlayEvent(ev, sportId));
@@ -494,6 +549,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       pinGames: pin.events.length,
       sentimentGames,
       f5Games,
+      propRows,
       asOf: pin.credits.asOf,
       sharp: SHARP_BOOK,
       execution: EXECUTION_BOOK,

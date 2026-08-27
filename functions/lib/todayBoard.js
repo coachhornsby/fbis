@@ -140,6 +140,13 @@ export function toBoardGame(game, sport, now = Date.now()) {
     palF5HomeWin: game.bpp?.f5?.homeWin ?? null,
     palF5AwayWin: game.bpp?.f5?.awayWin ?? null,
     f5Book: game.odds?.f5 || null,
+    sportsbookProps: [...(game.odds?.playerProps || [])]
+      .filter((p) => p?.overPrice != null && p?.underPrice != null && p?.line != null)
+      .slice(0, 120),
+    sentiment: game.sentiment || game.odds?.sentiment || null,
+    weather: game.weather || game.cfb?.weather || null,
+    park: game.bpp?.park || null,
+    palPark: game.bpp?.park || null,
     palTeamTotals: game.bpp?.teamTotals || [],
     palProps: [...(game.bpp?.props || [])]
       .filter((p) => p?.over != null || p?.under != null)

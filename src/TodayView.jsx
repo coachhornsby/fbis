@@ -145,6 +145,13 @@ function Stat({ label, value }) {
 
 function TodayTable({ games }) {
   const mlb = games.some((g) => g.sport === "mlb");
+  const [open, setOpen] = useState(() => new Set());
+  const toggle = (key) => setOpen((before) => {
+    const next = new Set(before);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  const columns = 8 + (mlb ? 2 : 0);
   return (
     <table className="fbis-table today-table">
       <thead>
@@ -162,8 +169,10 @@ function TodayTable({ games }) {
         </tr>
       </thead>
       <tbody>
-        {games.map((g) => (
-          <tr key={`${g.sport}:${g.id}`}>
+        {games.map((g) => {
+          const key = `${g.sport}:${g.id}`;
+          return <Fragment key={key}>
+          <tr>
             <td>
               <div className="team-block">
                 <TeamIdentity team={g.away} score={g.score?.away} />
@@ -171,6 +180,9 @@ function TodayTable({ games }) {
                 <div className="muted" style={{ fontSize: 10 }}>
                   {g.venue || "—"}{g.neutral ? " · NEUTRAL" : ""}
                 </div>
+                <button className="game-expand" onClick={() => toggle(key)} aria-expanded={open.has(key)}>
+                  {open.has(key) ? "Hide game details" : "View game details"}
+                </button>
               </div>
             </td>
             <td>
@@ -235,9 +247,60 @@ function TodayTable({ games }) {
               )}
             </td>
           </tr>
-        ))}
+          {open.has(key) ? <tr className="game-detail-row"><td colSpan={columns}><GameDetails g={g} /></td></tr> : null}
+          </Fragment>;
+        })}
       </tbody>
     </table>
+  );
+}
+
+function GameDetails({ g }) {
+  const props = g.sportsbookProps || [];
+  const grouped = Object.entries(props.reduce((out, p) => {
+    const key = p.marketLabel || p.marketKey || "Player prop";
+    (out[key] ||= []).push(p);
+    return out;
+  }, {}));
+  return (
+    <div className="game-detail-grid">
+      <section>
+        <h3>GAME MODEL</h3>
+        <div>FBIS: {fmtNum(g.projAway)}–{fmtNum(g.projHome)} · total {fmtNum(g.projTotal)}</div>
+        <div>Ballpark Pal: {g.palAway == null ? "—" : `${fmtNum(g.palAway)}–${fmtNum(g.palHome)}`}</div>
+        <div>Pinnacle ML: {fmtAmerican(g.pinMlAway)} / {fmtAmerican(g.pinMlHome)}</div>
+        <div>Kalshi sentiment: {g.sentiment?.home == null ? "—" : `${fmtPct(g.sentiment.home)} home`}</div>
+      </section>
+      <section>
+        <h3>F5</h3>
+        <TodayF5Cell g={g} />
+        <div className="muted">Pal is the projection. Listed book prices are the executable market comparison.</div>
+      </section>
+      <section>
+        <h3>WEATHER / PARK</h3>
+        {g.weather ? <>
+          <div>{g.weather.description || "Conditions available"}</div>
+          <div>{g.weather.temperature == null ? "" : `${g.weather.temperature}°F`} {g.weather.windSpeed == null ? "" : `· wind ${g.weather.windSpeed} mph`}</div>
+        </> : <div className="muted">Weather unavailable for this feed.</div>}
+        <div>{g.palPark?.name || g.palPark?.parkName || g.venue || "Venue unavailable"}</div>
+      </section>
+      <section className="detail-props">
+        <h3>SPORTSBOOK PLAYER PROPS · {props.length}</h3>
+        {!props.length ? <div className="muted">No complete two-way player-prop prices in the current Parlay cache.</div> : grouped.map(([label, rows]) => (
+          <details key={label}><summary>{label} · {rows.length}</summary>
+            <table className="mini-prop-table"><thead><tr><th>Player</th><th>Line</th><th>Over</th><th>Under</th><th>Book</th></tr></thead>
+              <tbody>{rows.map((p, i) => <tr key={`${p.playerName}:${p.marketKey}:${p.bookmakerKey}:${p.line}:${i}`}><td>{p.playerName}</td><td>{p.line}</td><td>{fmtAmerican(p.overPrice)}</td><td>{fmtAmerican(p.underPrice)}</td><td>{p.bookmaker}</td></tr>)}</tbody>
+            </table>
+          </details>
+        ))}
+        {(g.palProps || []).length ? <div className="muted">Pal projection watchlist: {g.palProps.length} displayed. Prop EV remains unavailable until player identity and exact contract match.</div> : null}
+      </section>
+      <section>
+        <h3>MY BET / TRACKING</h3>
+        {(g.myBets || []).length ? g.myBets.map((b) => <div key={b.id}>{b.selectedTeam || b.selectedSide} {fmtAmerican(b.executionPrice)} · ${Number(b.riskAmount || 0).toFixed(2)} · {b.result || "OPEN"}</div>) : <div className="muted">No imported Heritage bet.</div>}
+        <div className="muted">Checkpoint: {g.checkpoint || "—"} · Model: {g.modelVersion || "—"}</div>
+      </section>
+    </div>
   );
 }
 
@@ -330,3 +393,4 @@ function pinMlLabel(g) {
 function pinSpreadLabel(g) {
   return g.marketLabels?.spreadHome?.label || (g.pinSpread != null ? `RL ${g.pinSpread > 0 ? "+" : ""}${g.pinSpread}` : "RL —");
 }
+import { Fragment, useState } from "react";

@@ -5,7 +5,7 @@ import { classifyCheckpoint, pickCanonical, materiallyChanged } from "../functio
 import { accuracyOf, freezeFromGame, collectBoards, harvestAll } from "../functions/lib/projLedger.js";
 import { actionAcceptsJob } from "../functions/lib/jobs.js";
 import { seriesStats, buildAccuracyPack } from "../functions/lib/accuracyReport.js";
-import { fetchParlayOdds } from "../functions/lib/parlay.js";
+import { attachFlatProps, fetchParlayOdds } from "../functions/lib/parlay.js";
 import { resetCacheMem } from "../functions/lib/cache.js";
 import { todayCT } from "../functions/lib/slateEngine.js";
 
@@ -135,6 +135,17 @@ describe("accuracy", () => {
 });
 
 describe("Parlay collect budget", () => {
+  it("attaches complete flattened sportsbook player props without treating them as model probabilities", () => {
+    const [event] = attachFlatProps([{ id: "e1", home_team: "Yankees", away_team: "Astros" }], [{
+      event_id: "e1", player_name: "Aaron Judge", market_key: "player_total_bases", market_label: "Total Bases",
+      line: 1.5, over_price: -105, under_price: -115, source: "fanduel", source_title: "FanDuel", snapshot_time: "2026-08-27T15:00:00Z",
+    }]);
+    assert.equal(event.playerProps.length, 1);
+    assert.equal(event.playerProps[0].playerName, "Aaron Judge");
+    assert.equal(event.playerProps[0].overPrice, -105);
+    assert.equal(event.playerProps[0].underPrice, -115);
+    assert.equal(event.playerProps[0].probability, undefined);
+  });
   it("skips the network on cache-only collects", async () => {
     const r = await fetchParlayOdds("mlb", "fake-key", null, { cacheOnly: true });
     assert.equal(r.meta.skipped, true);
