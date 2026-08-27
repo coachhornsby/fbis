@@ -64,14 +64,19 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
           <div className={`db-banner ${db.ok ? "db-ok" : "db-bad"}`}>
             {db.ok ? "RESEARCH DB: CONNECTED" : `RESEARCH DB ${db.reason === "unbound" ? "UNBOUND" : "ERROR"}`}
             <span className="muted" style={{ marginLeft: 10 }}>
-              source {report?.source || db.source || "—"} · stored today {db.predictions ?? 0} · graded today {db.graded ?? 0} · awaiting {db.awaiting ?? 0}
-              {db.lastCollect ? ` · collect ${new Date(db.lastCollect).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
-              {db.lastHarvest ? ` · harvest ${new Date(db.lastHarvest).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
+              health source {db.healthSource || db.source || report?.source || "—"} · stored today {db.predictions ?? 0} · graded today {db.graded ?? 0} · awaiting {db.awaiting ?? 0}
+              {db.lastCollectSuccess || db.lastCollect ? ` · collect ${new Date(db.lastCollectSuccess || db.lastCollect).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
+              {db.lastHarvestSuccess || db.lastHarvest ? ` · harvest ${new Date(db.lastHarvestSuccess || db.lastHarvest).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
               {db.failedWrites ? ` · failed writes ${db.failedWrites}` : ""}
               {db.failedHarvests ? ` · failed harvests ${db.failedHarvests}` : ""}
               {db.lastError ? ` · ${db.lastError}` : ""}
             </span>
           </div>
+          {(db.scheduleWarnings || []).length > 0 && (
+            <p className="error" style={{ marginTop: 8, marginBottom: 0 }}>
+              {(db.scheduleWarnings || []).join(" ")}
+            </p>
+          )}
           <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
             Scheduled collection writes pregame checkpoints even if this page is closed. SYS reads D1; cache is only a fallback. Bias near zero is not accuracy — MAE, median abs, and RMSE sit beside every total.
           </p>
@@ -586,6 +591,16 @@ function RollingTable({ rows }) {
   );
 }
 
+function fmtMetric(block, signed) {
+  if (block == null) return "—";
+  if (typeof block === "object" && "n" in block) {
+    if (!block.n) return `N=0`;
+    const v = signed ? fmtSigned(block.value) : fmtPct(block.value);
+    return `${v} (N=${block.n})`;
+  }
+  return signed ? fmtSigned(block) : fmtPct(block);
+}
+
 function Stat({ label, value }) {
   return (
     <div className="status-cell">
@@ -612,18 +627,32 @@ function errClass(n) {
 
 function OverBlock({ over }) {
   if (!over) return null;
+  const palBias = over.bias?.pal;
+  const fbisBias = over.bias?.proprietary?.value ?? over.bias?.proprietary;
   return (
     <div>
       <p className="muted" style={{ marginBottom: 8 }}>
         Candidates are model-vs-market disagreements, not bets. Qualified still requires +EV. Totals are not lowered from this table.
       </p>
       <div className="status-grid" style={{ marginBottom: 10 }}>
+        <Stat label="Pin total N" value={over.nWithPinTotal ?? over.n ?? 0} />
+        <Stat label="Missing pin total" value={over.nMissingPinTotal ?? 0} />
         <Stat label="OVER candidates" value={over.candidates?.over ?? 0} />
         <Stat label="UNDER candidates" value={over.candidates?.under ?? 0} />
         <Stat label="Qualified OVER" value={over.qualified?.over ?? 0} />
         <Stat label="Qualified UNDER" value={over.qualified?.under ?? 0} />
-        <Stat label="FBIS total bias" value={fmtSigned(over.bias?.proprietary)} />
-        <Stat label="Pal total bias" value={fmtSigned(over.bias?.pal)} />
+        <Stat label="Settled N" value={over.settled?.n ?? 0} />
+        <Stat label="OVER EV" value={fmtMetric(over.avgEv?.over)} />
+        <Stat label="UNDER EV" value={fmtMetric(over.avgEv?.under)} />
+        <Stat label="OVER ROI" value={fmtMetric(over.roi?.over, true)} />
+        <Stat label="UNDER ROI" value={fmtMetric(over.roi?.under, true)} />
+        <Stat label="OVER CLV" value={fmtMetric(over.clv?.over, true)} />
+        <Stat label="UNDER CLV" value={fmtMetric(over.clv?.under, true)} />
+        <Stat label="FBIS total bias" value={fmtSigned(fbisBias)} />
+        <Stat
+          label="Pal total bias"
+          value={palBias?.unavailable || palBias?.n === 0 ? "N=0 unavailable" : fmtSigned(palBias?.value ?? palBias)}
+        />
       </div>
       <table className="fbis-table">
         <thead>
@@ -672,7 +701,7 @@ function StrategyPanel() {
     <section className="panel">
       <div className="panel-header">
         <h2>Strategy · FBIS-HC-v1</h2>
-        <span className="last-updated">{pack?.strategy?.reportedRecord || "7-0"} seed · N=7</span>
+        <span className="last-updated">expected N={pack?.expectedSeedN || 7} · recovered {pack?.actualRecoveredN ?? rec.recoveredN ?? 0} · {rec.state || rec.confidence || "operator-declared"}</span>
       </div>
       <div className="panel-body">
         <p className="headline-line">
@@ -680,7 +709,10 @@ function StrategyPanel() {
           The 7-0 does not rewrite blend weights. N=7 is not evidence the filter works.
         </p>
         <p className="muted" style={{ marginBottom: 10 }}>
-          Reconstruction: {rec.confidence || "user-provided"}
+          Reconstruction: {rec.state || rec.confidence || "operator-declared"}
+          {` · expected seed N=${pack?.expectedSeedN ?? 7}`}
+          {` · recovered N=${pack?.actualRecoveredN ?? rec.recoveredN ?? 0}`}
+          {` · graded record ${pack?.gradedRecord || rec.gradedRecord || seed.stats?.gradedRecord || "—"}`}
           {rec.note ? ` — ${rec.note}` : ""}
         </p>
         <p className="muted" style={{ marginBottom: 10 }}>
@@ -688,8 +720,10 @@ function StrategyPanel() {
             "The 2026-08-26 seed sample was MLB-heavy overs (5/7 totals at 8.5–9.5, 1 ML, 1 +1.5 RL). That is an observation, not a gate."}
         </p>
         <div className="status-grid" style={{ marginBottom: 12 }}>
-          <Stat label="Seed N" value={7} />
-          <Stat label="Seed record" value={seed.stats?.settled ? `${seed.stats.wins}-${seed.stats.losses}` : rec.n ? String(rec.n) : "—"} />
+          <Stat label="Expected N" value={pack?.expectedSeedN ?? 7} />
+          <Stat label="Recovered N" value={pack?.actualRecoveredN ?? rec.recoveredN ?? 0} />
+          <Stat label="State" value={rec.state || rec.confidence || "operator-declared"} />
+          <Stat label="Graded record" value={pack?.gradedRecord || rec.gradedRecord || (seed.stats?.settled ? `${seed.stats.wins}-${seed.stats.losses}` : "—")} />
           <Stat label="Prospective N" value={pro.stats?.n ?? 0} />
           <Stat label="Prospective hit" value={fmtPct(pro.stats?.hitRate)} />
           <Stat label="Prospective ROI" value={fmtSigned(pro.stats?.roi)} />
@@ -700,7 +734,7 @@ function StrategyPanel() {
         <h3 className="subhead">Seed traits (shared characteristics)</h3>
         <TraitLine traits={seed.traits} />
         <h3 className="subhead">Seed tickets</h3>
-        <TicketTable rows={seed.tickets || []} empty="N=7 operator-corrected 2026-08-26 CONVICTION seed. Positions are user-provided." />
+        <TicketTable rows={seed.tickets || []} empty="Operator-declared 2026-08-26 CONVICTION names. Journal EV/prices unrecovered until imported." />
         <h3 className="subhead">Prospective matches</h3>
         <TicketTable rows={(pro.tickets || []).slice(0, 40)} empty="No prospective CONVICTION tickets stored yet. Collection tags matches automatically." />
       </div>

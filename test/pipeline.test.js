@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { unwrapPalResponse } from "../functions/lib/ballparkpal.js";
 import { classifyCheckpoint, pickCanonical, materiallyChanged } from "../functions/lib/checkpoints.js";
-import { accuracyOf, freezeFromGame } from "../functions/lib/projLedger.js";
+import { accuracyOf, freezeFromGame, collectBoards, harvestAll } from "../functions/lib/projLedger.js";
 import { seriesStats, buildAccuracyPack } from "../functions/lib/accuracyReport.js";
 import { fetchParlayOdds } from "../functions/lib/parlay.js";
 
@@ -138,3 +138,192 @@ describe("Parlay collect budget", () => {
     assert.equal(r.events.length, 0);
   });
 });
+
+describe("collect and harvest fail honestly", () => {
+  function emptySlate(sport, date, extra = {}) {
+    return {
+      sport,
+      date,
+      games: extra.games || [],
+      parlay: extra.parlay || { enabled: true },
+      pal: { meta: { enabled: false } },
+    };
+  }
+
+  it("does not stamp success when ESPN/scoreboard collection throws", async () => {
+    const out = await collectBoards(
+      {},
+      {
+        odds: "cache",
+        buildSlateFn: async () => {
+          throw new Error("ESPN 502");
+        },
+      }
+    );
+    assert.equal(out.status, "failed");
+    assert.equal(out.ok, false);
+    assert.equal(out.successful_at, null);
+    assert.ok(out.errors.some((e) => /ESPN/.test(e)));
+  });
+
+  it("fails a full collect when Parlay errors", async () => {
+    const out = await collectBoards(
+      { DB: pipelineDb().DB },
+      {
+        odds: "full",
+        buildSlateFn: async (sport, date) => emptySlate(sport, date, { parlay: { error: "credits" } }),
+      }
+    );
+    assert.notEqual(out.status, "success");
+    assert.equal(out.ok, false);
+    assert.ok(out.errors.some((e) => /Parlay/.test(e)));
+  });
+
+  it("fails when D1 is unbound", async () => {
+    const out = await collectBoards(
+      {},
+      { odds: "cache", buildSlateFn: async (sport, date) => emptySlate(sport, date) }
+    );
+    assert.equal(out.status, "failed");
+    assert.equal(out.d1.bound, false);
+    assert.equal(out.successful_at, null);
+  });
+
+  it("fails required writes when D1 rejects snapshots", async () => {
+    const env = pipelineDb({ rejectWrites: true });
+    const out = await collectBoards(env, {
+      odds: "cache",
+      buildSlateFn: async (sport, date) =>
+        emptySlate(sport, date, {
+          games: [
+            {
+              id: "1",
+              sport,
+              start: new Date(Date.now() + 3600000).toISOString(),
+              status: { live: false, completed: false },
+              home: { abbr: "HOM", name: "Home" },
+              away: { abbr: "AWY", name: "Away" },
+              model: { projHome: 4, projAway: 4, pHomeFinal: 0.5, layers: {} },
+            },
+          ],
+        }),
+    });
+    assert.notEqual(out.status, "success");
+    assert.ok(out.snapshots_failed > 0 || out.errors.length);
+  });
+
+  it("marks one-sport failure as partial", async () => {
+    const out = await collectBoards(
+      { DB: pipelineDb().DB },
+      {
+        odds: "cache",
+        buildSlateFn: async (sport, date) => {
+          if (sport === "mlb") throw new Error("mlb down");
+          return emptySlate(sport, date);
+        },
+      }
+    );
+    assert.equal(out.status, "partial");
+    assert.equal(out.sports.filter((s) => !s.ok).length, 1);
+    assert.equal(out.successful_at, null);
+  });
+
+  it("marks all-sport failure as failed", async () => {
+    const out = await collectBoards(
+      { DB: pipelineDb().DB },
+      {
+        odds: "cache",
+        buildSlateFn: async () => {
+          throw new Error("all down");
+        },
+      }
+    );
+    assert.equal(out.status, "failed");
+  });
+
+  it("idempotent rerun reports already-present snapshots", async () => {
+    const env = pipelineDb();
+    const slateFn = async (sport, date) =>
+      emptySlate(sport, date, {
+        games: [
+          {
+            id: "9",
+            sport,
+            start: new Date(Date.now() + 7200000).toISOString(),
+            status: { live: false, completed: false },
+            home: { abbr: "HOM", name: "Home" },
+            away: { abbr: "AWY", name: "Away" },
+            model: { projHome: 4.1, projAway: 3.9, pHomeFinal: 0.52, layers: {} },
+          },
+        ],
+      });
+    const first = await collectBoards(env, { odds: "cache", buildSlateFn: slateFn });
+    const second = await collectBoards(env, { odds: "cache", buildSlateFn: slateFn });
+    assert.equal(first.status, "success");
+    assert.equal(second.status, "success");
+    assert.ok(second.snapshots_already_present >= 1 || second.snapshots_inserted === 0);
+  });
+
+  it("harvest scoreboard failure is not success", async () => {
+    const out = await harvestAll(1, { DB: pipelineDb().DB }, {
+      fetchResultsFn: async () => {
+        throw new Error("scoreboard down");
+      },
+    });
+    assert.notEqual(out.status, "success");
+    assert.equal(out.ok, false);
+    assert.equal(out.successful_at, null);
+  });
+});
+
+function pipelineDb({ rejectWrites = false } = {}) {
+  const snaps = new Map();
+  const meta = new Map();
+  const jobs = [];
+  return {
+    DB: {
+      prepare(sql) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                if (rejectWrites && sql.includes("INSERT")) {
+                  throw new Error("D1 write rejected");
+                }
+                if (sql.includes("INSERT OR IGNORE") && sql.includes("prediction_snapshots")) {
+                  const id = args[0];
+                  if (!snaps.has(id)) {
+                    snaps.set(id, { id });
+                    return { meta: { changes: 1 } };
+                  }
+                  return { meta: { changes: 0 } };
+                }
+                if (sql.includes("store_meta")) {
+                  meta.set(args[0], args[1]);
+                  return { meta: { changes: 1 } };
+                }
+                if (sql.includes("job_runs")) {
+                  jobs.push({ id: args[0], status: args[5] });
+                  return { meta: { changes: 1 } };
+                }
+                return { meta: { changes: 1 } };
+              },
+              async first() {
+                if (sql.includes("SELECT 1")) return { ok: 1 };
+                if (sql.includes("job_runs")) return jobs.at(-1) || null;
+                if (sql.includes("COUNT")) return { n: snaps.size };
+                return null;
+              },
+              async all() {
+                if (sql.includes("store_meta")) {
+                  return { results: [...meta.entries()].map(([k, v]) => ({ k, v })) };
+                }
+                return { results: [] };
+              },
+            };
+          },
+        };
+      },
+    },
+  };
+}

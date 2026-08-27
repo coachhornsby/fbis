@@ -28,6 +28,7 @@ import {
   persistStrategyTicket,
   queryStrategyTickets,
   gradeStrategyTicket,
+  hasDb,
 } from "./store.js";
 import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
 import { buildAccuracyPack } from "./accuracyReport.js";
@@ -36,6 +37,18 @@ import { buildDailyReport } from "./dailyReport.js";
 import { median, rmse, withinBands } from "./metrics.js";
 import { cfbSeasonYear } from "./cfbModel.js";
 import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult } from "./strategy.js";
+import {
+  classifyJobStatus,
+  emptyWriteCounts,
+  jobPayload,
+  mergeWriteCounts,
+  recordJob,
+  stampAttempt,
+  stampSuccess,
+  durableHealth,
+  staleScheduleWarning,
+  JOB_SUCCESS,
+} from "./jobs.js";
 
 const TTL_MS = 21 * 24 * 60 * 60 * 1000;
 const HARVEST_TTL_MS = 10 * 60 * 1000;
@@ -218,6 +231,8 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     pOver: model.pOver ?? null,
     pSpreadHome: model.pSpreadHome ?? null,
     marketAt: snap.at,
+    marketProjHome: model.marketProjHome ?? game.marketProjHome ?? null,
+    marketProjAway: model.marketProjAway ?? game.marketProjAway ?? null,
     week: game.week ?? null,
     conference: game.conference || game.home?.conference || null,
     uncertainty: game.cfb
@@ -226,6 +241,15 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
           sigmaTotal: game.cfb.sigmaTotal,
           maturity: game.cfb.maturity,
           flags: game.cfb.flags,
+          hfa: game.cfb.hfa,
+          homeRank: game.cfb.homeEst?.rank ?? null,
+          awayRank: game.cfb.awayEst?.rank ?? null,
+          homeFormN: game.cfb.homeEst?.n ?? null,
+          awayFormN: game.cfb.awayEst?.n ?? null,
+          homeW: game.cfb.homeEst?.w ?? null,
+          awayW: game.cfb.awayEst?.w ?? null,
+          homePriorOff: game.cfb.homeEst?.priorOff ?? null,
+          awayPriorOff: game.cfb.awayEst?.priorOff ?? null,
         }
       : null,
     gameStatus: gameOutcome(game),
@@ -547,8 +571,31 @@ export function decorateRow(row) {
   };
 }
 
+function tallyPersist(counts, res) {
+  const next = counts || emptyWriteCounts();
+  if (res?.skipped) return next;
+  next.writesAttempted += 1;
+  if (!res || res.ok === false) {
+    next.writesFailed += 1;
+    if (res?.kind === "snapshot" || res?.inserted != null) {
+      next.snapshotsAttempted += 1;
+      next.snapshotsFailed += 1;
+    }
+    return next;
+  }
+  next.writesSucceeded += 1;
+  if (res.kind === "snapshot" || res.inserted != null || res.already != null) {
+    next.snapshotsAttempted += 1;
+    next.snapshotsInserted += res.inserted || 0;
+    next.snapshotsAlready += res.already || 0;
+    next.snapshotsFailed += res.failed || 0;
+  }
+  return next;
+}
+
 export async function freezeSlate(slate, env = {}) {
-  if (!slate?.sport || !slate.games) return;
+  const counts = emptyWriteCounts();
+  if (!slate?.sport || !slate.games) return { ok: true, counts, games: 0 };
   const cfCache = env.caches;
   const ledger = await loadLedger(slate.sport, cfCache);
   let changed = false;
@@ -627,15 +674,17 @@ export async function freezeSlate(slate, env = {}) {
       }
     }
   }
-  await Promise.all(writes);
+  const results = await Promise.all(writes);
+  for (const res of results) tallyPersist(counts, res);
   if (changed) await saveLedger(slate.sport, ledger, cfCache);
+  return { ok: counts.writesFailed === 0, counts, games: slate.games.length };
 }
 
 async function persistMatchingRec(env, slate, game, frozen) {
   await persistStrategy(env, STRATEGY_HC_V1);
   const bundle = recommendBundle(slate.sport, game, game.model);
   const rec = bundle?.qualified;
-  if (!rec || !ticketMatchesStrategy(rec)) return { ok: false, reason: "no-match" };
+  if (!rec || !ticketMatchesStrategy(rec)) return { ok: true, skipped: true, reason: "no-match" };
   return persistStrategyTicket(
     env,
     packTicket(
@@ -648,6 +697,12 @@ async function persistMatchingRec(env, slate, game, frozen) {
         checkpoint: frozen?.checkpoint,
         dataQuality: game.quality?.score ?? frozen?.dataQuality,
         pinVig: rec.pinVig ?? game.pin?.ml?.vig,
+        executionPrice: rec.pinPrice ?? rec.executionPrice,
+        benchmarkPrice: rec.pinPrice,
+        entryNoVig: rec.implied ?? rec.entryNoVig,
+        qualifiedAt: frozen?.frozenAt || new Date().toISOString(),
+        qualified: true,
+        tag: rec.tag,
       },
       { role: "prospective", date: slate.date }
     )
@@ -696,6 +751,9 @@ function palJson(row) {
     start: row.start || null,
     pinTotal: row.pinTotal ?? null,
     pinSpread: row.pinSpread ?? null,
+    marketProjHome: row.marketProjHome ?? null,
+    marketProjAway: row.marketProjAway ?? null,
+    uncertainty: row.uncertainty || null,
   });
 }
 
@@ -710,50 +768,62 @@ function stubGame(row) {
 }
 
 async function persistFrozen(env, row, game, date) {
-  await persistGame(env, game || stubGame(row), date);
-  await persistPrediction(env, {
-    id: `${row.date}:${row.id}`,
-    gameId: row.id,
-    sport: row.sport,
-    date: row.date,
-    matchup: row.matchup,
-    checkpoint: row.checkpoint,
-    modelVersion: row.modelVersion,
-    asOf: row.frozenAt,
-    projHome: row.projHome,
-    projAway: row.projAway,
-    projTotal: row.projTotal,
-    projMargin: row.projMargin,
-    palHome: row.palHome,
-    palAway: row.palAway,
-    pHomeFinal: row.pHomeFinal,
-    pAwayFinal: row.pAwayFinal,
-    pMarket: row.pMarket,
-    pEspn: row.pEspn,
-    pScore: row.pScore,
-    pForm: row.pForm,
-    pPal: row.pPal,
-    weightsJson: JSON.stringify(row.weights || {}),
-    layersJson: JSON.stringify(row.layers || {}),
-    palJson: palJson(row),
-    palAsOf: row.palAsOf,
-    lineupsOfficial: row.lineupsOfficial,
-    dataQuality: row.dataQuality,
-    pinHomeMl: row.pinHomeMl,
-    pinAwayMl: row.pinAwayMl,
-    pinVig: row.pinVig,
-    engine: row.engine,
-    actualHome: row.actualHome,
-    actualAway: row.actualAway,
-    gradedAt: row.gradedAt,
-  });
-  await persistSnap(env, row, date);
+  const results = [];
+  results.push(await persistGame(env, game || stubGame(row), date));
+  results.push(
+    await persistPrediction(env, {
+      id: `${row.date}:${row.id}`,
+      gameId: row.id,
+      sport: row.sport,
+      date: row.date,
+      matchup: row.matchup,
+      checkpoint: row.checkpoint,
+      modelVersion: row.modelVersion,
+      asOf: row.frozenAt,
+      projHome: row.projHome,
+      projAway: row.projAway,
+      projTotal: row.projTotal,
+      projMargin: row.projMargin,
+      palHome: row.palHome,
+      palAway: row.palAway,
+      pHomeFinal: row.pHomeFinal,
+      pAwayFinal: row.pAwayFinal,
+      pMarket: row.pMarket,
+      pEspn: row.pEspn,
+      pScore: row.pScore,
+      pForm: row.pForm,
+      pPal: row.pPal,
+      weightsJson: JSON.stringify(row.weights || {}),
+      layersJson: JSON.stringify(row.layers || {}),
+      palJson: palJson(row),
+      palAsOf: row.palAsOf,
+      lineupsOfficial: row.lineupsOfficial,
+      dataQuality: row.dataQuality,
+      pinHomeMl: row.pinHomeMl,
+      pinAwayMl: row.pinAwayMl,
+      pinVig: row.pinVig,
+      engine: row.engine,
+      actualHome: row.actualHome,
+      actualAway: row.actualAway,
+      gradedAt: row.gradedAt,
+    })
+  );
+  results.push(await persistSnap(env, row, date));
+  const failed = results.filter((r) => r && r.ok === false);
+  return {
+    ok: failed.length === 0,
+    reason: failed[0]?.reason || null,
+    inserted: 0,
+    already: 0,
+    failed: failed.length,
+    kind: "write",
+  };
 }
 
 async function persistCheckpoint(env, row, game, date) {
-  if (!row?.checkpoint) return { ok: false, reason: "no-checkpoint" };
+  if (!row?.checkpoint) return { ok: false, reason: "no-checkpoint", kind: "snapshot", inserted: 0, already: 0, failed: 1 };
   await persistGame(env, game || stubGame(row), date || row.date);
-  return persistSnapshot(env, {
+  const res = await persistSnapshot(env, {
     id: snapshotKey(row.date || date, row.id, row.checkpoint),
     gameId: row.id,
     sport: row.sport,
@@ -808,11 +878,12 @@ async function persistCheckpoint(env, row, game, date) {
     conference: row.conference,
     pAwayFinal: row.pAwayFinal,
   });
+  return { ...res, kind: "snapshot" };
 }
 
 async function persistSnap(env, row, date) {
   const snap = (row.snapshots || []).at(-1);
-  if (!snap) return { ok: false, reason: "no-odds" };
+  if (!snap) return { ok: true, skipped: true, reason: "no-odds" };
   return persistOddsSnapshot(env, {
     gameId: row.id,
     sport: row.sport,
@@ -842,7 +913,10 @@ async function persistGradedLedger(env, ledger) {
       jobs.push(persistCheckpoint(env, row, stubGame(row), row.date));
     }
   }
-  await Promise.all(jobs);
+  const results = await Promise.all(jobs);
+  const counts = emptyWriteCounts();
+  for (const res of results) tallyPersist(counts, res);
+  return counts;
 }
 
 async function writeDailyMetrics(env, rows) {
@@ -880,7 +954,8 @@ async function writeDailyMetrics(env, rows) {
   await Promise.all(jobs);
 }
 
-export async function harvestSport(sport, days, env = {}) {
+export async function harvestSport(sport, days, env = {}, opts = {}) {
+  const fetchFn = opts.fetchResultsFn || fetchResults;
   const cfCache = env.caches;
   const n = Math.max(1, Math.min(Number(days) || 8, KEEP_DAYS));
   const harvestKey = `${CACHE_VER}:harvest:${sport}:${n}`;
@@ -888,17 +963,30 @@ export async function harvestSport(sport, days, env = {}) {
   const ledger = await loadLedger(sport, cfCache);
   const dates = lastNDatesCT(n);
   const finals = [];
+  const errors = [];
+  let dateFailures = 0;
+  let counts = emptyWriteCounts();
+  let finalsGraded = 0;
+  let finalsFailed = 0;
 
   if (cached?.finals && cached.ledgerSavedAt === ledger.savedAt) {
-    await persistGradedLedger(env, ledger);
+    const persisted = await persistGradedLedger(env, ledger);
+    counts = mergeWriteCounts(counts, persisted);
     await writeDailyMetrics(env, flattenLedgerRows(ledger));
-    return { ...cached, db: await dbPayload(env) };
+    return {
+      ...cached,
+      ok: counts.writesFailed === 0,
+      jobCounts: counts,
+      dates,
+      errors,
+      db: await dbPayload(env),
+    };
   }
 
   const writes = [];
   for (const date of dates) {
     try {
-      const results = await fetchResults(sport, date);
+      const results = await fetchFn(sport, date);
       for (const g of results) finals.push({ ...g, date });
       for (const g of results) {
         const k = rowKey(date, g.id);
@@ -913,6 +1001,7 @@ export async function harvestSport(sport, days, env = {}) {
             writes.push(persistCheckpoint(env, { ...next, ...cp, id: next.id, date: next.date }, g, date));
           }
           if (next.actualHome != null) {
+            finalsGraded += 1;
             writes.push(
               applyFinalToForm(env, {
                 sport,
@@ -925,39 +1014,50 @@ export async function harvestSport(sport, days, env = {}) {
                 awayScore: next.actualAway,
               })
             );
+          } else {
+            finalsFailed += 1;
           }
         }
       }
     } catch (err) {
+      dateFailures += 1;
+      errors.push(`${sport}@${date}: ${String(err?.message || err)}`);
       await setMeta(env, "last_harvest_error", String(err?.message || err));
+      await setMeta(env, "last_harvest_error_at", new Date().toISOString());
     }
   }
-  await Promise.all(writes);
+  const writeResults = await Promise.all(writes);
+  for (const res of writeResults) tallyPersist(counts, res);
 
   const saved = await saveLedger(sport, ledger, cfCache);
-  await persistGradedLedger(env, saved);
+  const persisted = await persistGradedLedger(env, saved);
+  counts = mergeWriteCounts(counts, persisted);
   await writeDailyMetrics(env, flattenLedgerRows(saved));
   const daily = buildDailyReport(sport, flattenLedgerRows(saved), {
     date: todayCT(),
     title: sport === "cfb" ? "CFB research window" : `${sport} harvest`,
     accuracy: accuracyOf(flattenLedgerRows(saved).filter((r) => r.actualHome != null)),
   });
-  await persistDailyReport(env, daily);
-  await setMeta(env, "last_harvest_at", new Date().toISOString());
+  const dailyRes = await persistDailyReport(env, daily);
+  if (dailyRes && dailyRes.ok === false) tallyPersist(counts, dailyRes);
   await gradeStrategyAgainstFinals(env, finals);
   const rows = Object.values(saved.games)
     .filter((r) => r.sport === sport || !r.sport)
     .sort((a, b) => String(b.date).localeCompare(a.date) || String(a.matchup).localeCompare(b.matchup))
     .map(decorateRow);
+  const sportFailed = dateFailures === dates.length || (dateFailures > 0 && finals.length === 0);
   const report = {
     sport,
     sportName: SPORTS[sport]?.name || sport,
+    ok: !sportFailed && counts.writesFailed === 0,
     generatedAt: new Date().toISOString(),
     harvestedAt: new Date().toISOString(),
     days: n,
+    dates,
     recipe: RECIPE_GUIDE[sport] || null,
     accuracy: accuracyOf(rows),
     games: rows,
+    gamesDiscovered: rows.length,
     finals: finals.filter((g) => g.status?.completed).map((g) => ({
       id: g.id,
       sport,
@@ -967,11 +1067,16 @@ export async function harvestSport(sport, days, env = {}) {
       status: g.status,
       f5Score: g.f5Score,
     })),
+    finalsDiscovered: finals.filter((g) => g.status?.completed).length,
+    finalsGraded,
+    finalsFailed,
+    jobCounts: counts,
+    errors,
     daily,
     ledgerSavedAt: saved.savedAt,
     db: await dbPayload(env),
   };
-  await writeCache(harvestKey, report, cfCache, HARVEST_TTL_MS);
+  if (report.ok) await writeCache(harvestKey, report, cfCache, HARVEST_TTL_MS);
   return report;
 }
 
@@ -991,22 +1096,50 @@ function flattenLedgerRows(ledger) {
 async function dbPayload(env) {
   const ping = await pingDb(env);
   const counts = await countToday(env, todayCT());
-  return { ...ping, ...counts, ...researchHealth() };
+  const durable = await durableHealth(env);
+  const warnings = staleScheduleWarning(durable);
+  return {
+    ...ping,
+    ...counts,
+    source: durable.source,
+    healthSource: durable.source,
+    lastCollect: durable.lastCollectSuccessAt || counts.lastCollect,
+    lastHarvest: durable.lastHarvestSuccessAt || counts.lastHarvest,
+    lastCollectAttempt: durable.lastCollectAttemptAt,
+    lastHarvestAttempt: durable.lastHarvestAttemptAt,
+    lastCollectSuccess: durable.lastCollectSuccessAt,
+    lastHarvestSuccess: durable.lastHarvestSuccessAt,
+    lastD1WriteSuccess: durable.lastD1WriteSuccessAt,
+    failedWrites: durable.failedWrites,
+    failedHarvests: durable.failedHarvests,
+    lastFailedCollect: durable.lastFailedCollectAt,
+    lastFailedHarvest: durable.lastFailedHarvestAt,
+    lastJob: durable.lastJob,
+    scheduleWarnings: warnings,
+    processLocal: researchHealth(),
+  };
 }
 
-export async function harvestAll(days, env = {}) {
+export async function harvestAll(days, env = {}, opts = {}) {
+  const attemptedAt = new Date().toISOString();
+  await stampAttempt(env, "harvest", attemptedAt);
+  const unbound = !hasDb(env);
   const reports = await Promise.all(
     BOARD_SPORTS.map(async (sport) => {
       try {
-        return await harvestSport(sport, days, env);
+        return await harvestSport(sport, days, env, opts);
       } catch (err) {
         return {
           sport,
           sportName: SPORTS[sport]?.name || sport,
+          ok: false,
           error: String(err?.message || err),
           accuracy: accuracyOf([]),
           games: [],
           finals: [],
+          errors: [String(err?.message || err)],
+          jobCounts: emptyWriteCounts(),
+          dates: lastNDatesCT(Math.max(1, Number(days) || 8)),
           recipe: RECIPE_GUIDE[sport],
         };
       }
@@ -1014,64 +1147,181 @@ export async function harvestAll(days, env = {}) {
   );
   const games = reports.flatMap((r) => r.games || []);
   const finals = reports.flatMap((r) => r.finals || []);
-  return {
-    sport: "all",
-    sportName: "All boards",
-    generatedAt: new Date().toISOString(),
-    harvestedAt: new Date().toISOString(),
-    days: Number(days) || 8,
-    recipeGuide: RECIPE_GUIDE,
+  const errors = reports.flatMap((r) => r.errors || (r.error ? [r.error] : []));
+  let writes = emptyWriteCounts();
+  for (const r of reports) writes = mergeWriteCounts(writes, r.jobCounts || emptyWriteCounts());
+  const okSports = reports.filter((r) => r.ok !== false && !r.error).length;
+  const failedSports = reports.length - okSports;
+  const status = classifyJobStatus({
+    okSports,
+    failedSports,
+    writesFailed: writes.writesFailed,
+    unbound,
+    requiredFailed: unbound || failedSports === reports.length,
+  });
+  const successfulAt = status === JOB_SUCCESS ? new Date().toISOString() : null;
+  if (status === JOB_SUCCESS) await stampSuccess(env, "harvest", successfulAt);
+  const payload = jobPayload({
+    ok: status === JOB_SUCCESS,
+    job: "harvest",
+    status,
+    attemptedAt,
+    successfulAt,
     sports: reports.map((r) => ({
       sport: r.sport,
       sportName: r.sportName,
+      ok: r.ok !== false && !r.error,
       accuracy: r.accuracy,
-      error: r.error || null,
+      error: r.error || (r.errors || [])[0] || null,
+      games: r.gamesDiscovered ?? (r.games || []).length,
       recipe: r.recipe,
     })),
+    dates: [...new Set(reports.flatMap((r) => r.dates || []))],
+    gamesDiscovered: games.length,
+    writes,
+    finals: {
+      discovered: reports.reduce((s, r) => s + (r.finalsDiscovered ?? (r.finals || []).length), 0),
+      graded: reports.reduce((s, r) => s + (r.finalsGraded || 0), 0),
+      failed: reports.reduce((s, r) => s + (r.finalsFailed || 0), 0),
+    },
+    d1: await dbPayload(env),
+    errors,
+    env,
+  });
+  await recordJob(env, {
+    jobType: "harvest",
+    triggerType: opts.trigger || "http",
+    startedAt: attemptedAt,
+    completedAt: new Date().toISOString(),
+    successfulAt,
+    status,
+    dates: payload.dates,
+    gamesDiscovered: payload.games_discovered,
+    writesAttempted: writes.writesAttempted,
+    writesSucceeded: writes.writesSucceeded,
+    writesFailed: writes.writesFailed,
+    finalsDiscovered: payload.finals_discovered,
+    finalsGraded: payload.finals_graded,
+    errors,
+  });
+  return {
+    ...payload,
+    sport: "all",
+    sportName: "All boards",
+    generatedAt: payload.attempted_at,
+    harvestedAt: successfulAt,
+    days: Number(days) || 8,
+    recipeGuide: RECIPE_GUIDE,
     accuracy: accuracyOf(games),
     games,
     finals,
     daily: reports.map((r) => r.daily).filter(Boolean),
-    db: await dbPayload(env),
+    db: payload.d1,
   };
 }
 
-export async function collectBoards(env = {}, { odds = "cache" } = {}) {
+export async function collectBoards(env = {}, { odds = "cache", trigger = "http", buildSlateFn } = {}) {
+  const attemptedAt = new Date().toISOString();
+  await stampAttempt(env, "collect", attemptedAt);
   const date = todayCT();
+  const builder = buildSlateFn || buildSlate;
   const sports = [];
+  const errors = [];
+  let writes = emptyWriteCounts();
+  let gamesDiscovered = 0;
+  const dates = [];
+  const unbound = !hasDb(env);
+
   for (const sport of BOARD_SPORTS) {
-    const dates = [date, shiftDateCT(date, 1)];
+    const dayList = [date, shiftDateCT(date, 1)];
     if (sport === "cfb" || sport === "nfl") {
-      dates.unshift(shiftDateCT(date, -1));
-      dates.push(shiftDateCT(date, 2));
+      dayList.unshift(shiftDateCT(date, -1));
+      dayList.push(shiftDateCT(date, 2));
     }
-    const unique = [...new Set(dates)];
+    const unique = [...new Set(dayList)];
     try {
       let n = 0;
       let pal = null;
       const days = [];
+      let sportWrites = emptyWriteCounts();
       for (const day of unique) {
-        const slate = await buildSlate(sport, day, {
+        dates.push(day);
+        const slate = await builder(sport, day, {
           ...env,
           parlayCacheOnly: odds !== "full",
         });
-        await freezeSlate(slate, env);
+        if (odds === "full" && slate?.parlay?.error) {
+          throw new Error(`Parlay full collect failed: ${slate.parlay.error}`);
+        }
+        const frozen = await freezeSlate(slate, env);
+        sportWrites = mergeWriteCounts(sportWrites, frozen.counts || emptyWriteCounts());
         n += slate.games?.length || 0;
         pal = slate.pal?.games ?? slate.pal?.meta?.games ?? pal;
         days.push({ date: day, n: slate.games?.length || 0 });
       }
-      sports.push({ sport, ok: true, n, date, dates: days, pal });
+      writes = mergeWriteCounts(writes, sportWrites);
+      gamesDiscovered += n;
+      sports.push({
+        sport,
+        ok: sportWrites.writesFailed === 0,
+        n,
+        date,
+        dates: days,
+        pal,
+        writes: sportWrites,
+      });
+      if (sportWrites.writesFailed) {
+        errors.push(`${sport}: ${sportWrites.writesFailed} D1 writes failed`);
+      }
     } catch (err) {
-      sports.push({ sport, ok: false, error: String(err?.message || err) });
+      const msg = String(err?.message || err);
+      errors.push(`${sport}: ${msg}`);
+      sports.push({ sport, ok: false, error: msg });
     }
   }
-  await setMeta(env, "last_collect_at", new Date().toISOString());
-  return {
-    date,
-    odds,
+
+  const okSports = sports.filter((s) => s.ok).length;
+  const failedSports = sports.length - okSports;
+  const status = classifyJobStatus({
+    okSports,
+    failedSports,
+    writesFailed: writes.writesFailed,
+    unbound,
+    requiredFailed: unbound || failedSports === sports.length,
+  });
+  const successfulAt = status === JOB_SUCCESS ? new Date().toISOString() : null;
+  if (status === JOB_SUCCESS) await stampSuccess(env, "collect", successfulAt);
+  else if (failedSports === sports.length) await setMeta(env, "last_collect_error_at", attemptedAt);
+
+  const payload = jobPayload({
+    ok: status === JOB_SUCCESS,
+    job: odds === "full" ? "collect-full" : "collect-cache",
+    status,
+    attemptedAt,
+    successfulAt,
     sports,
-    db: await dbPayload(env),
-  };
+    dates: [...new Set(dates)],
+    gamesDiscovered,
+    writes,
+    finals: { discovered: 0, graded: 0, failed: 0 },
+    d1: await dbPayload(env),
+    errors,
+    env,
+  });
+  await recordJob(env, {
+    jobType: payload.job,
+    triggerType: trigger,
+    startedAt: attemptedAt,
+    completedAt: new Date().toISOString(),
+    status,
+    dates: payload.dates,
+    gamesDiscovered,
+    writesAttempted: writes.writesAttempted,
+    writesSucceeded: writes.writesSucceeded,
+    writesFailed: writes.writesFailed,
+    errors,
+  });
+  return { ...payload, date, odds, db: payload.d1 };
 }
 
 async function loadCacheRows(sport, since, env) {
@@ -1151,7 +1401,8 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
   }
   const acc = accuracyOf(displayRows);
   const pack = buildAccuracyPack(displayRows, { model, perGame, sport: sport === "all" ? null : sport });
-  const over = overDiagnostics(displayRows);
+  const tickets = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
+  const over = overDiagnostics(displayRows, { tickets });
   const reports = await queryDailyReports(env, { sport, since });
   const byCheckpoint = {};
   for (const cp of CHECKPOINTS) {
@@ -1168,6 +1419,7 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
     };
   });
   const counts = await countToday(env, todayCT());
+  const health = await dbPayload(env);
   return {
     sport: sport || "all",
     sportName: !sport || sport === "all" ? "All boards" : SPORTS[sport]?.name || sport,
@@ -1196,6 +1448,12 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
       away: { name: r.awayName, abbr: r.awayAbbr, score: r.actualAway },
       status: { completed: true },
     })),
-    db: { ...db, ...counts, source, lastError: db.lastError || researchHealth().lastError },
+    db: {
+      ...health,
+      ...counts,
+      source: health.healthSource || source,
+      healthSource: health.healthSource || "d1",
+      lastError: health.lastError || db.lastError || researchHealth().lastError,
+    },
   };
 }

@@ -5,7 +5,7 @@
   "seedRevision": 1,
   "seedDate": "2026-08-26",
   "reportedRecord": "7-0",
-  "reconstructionConfidence": "user-provided",
+  "reconstructionConfidence": "operator-declared",
   "seedObservation": "The 2026-08-26 seed sample was MLB-heavy overs (5/7 totals at 8.5–9.5, 1 ML, 1 +1.5 RL). That is an observation, not a gate. Prospective tracking remains qualified CONVICTION / EV ≥ 8%.",
   "notes": "Conjunction: qualified ticket AND EV ≥ 8% (CONVICTION). Not a lean. Complete two-way Pinnacle market. Champion weights stay frozen. N=7 is a sample, not proof the filter works.",
   "rules": {
@@ -44,8 +44,8 @@
     "overShare": 0.7142857142857143,
     "avgEv": null,
     "avgEdge": null,
-    "avgPinVig": 0,
-    "avgDataQuality": 0
+    "avgPinVig": null,
+    "avgDataQuality": null
   },
   "stats": {
     "n": 7,
@@ -54,13 +54,13 @@
     "wins": 7,
     "losses": 0,
     "hitRate": 1,
-    "roi": 0,
-    "avgClv": 0,
+    "roi": null,
+    "avgClv": null,
     "avgEv": null,
     "realized": 1,
     "evVsRealized": null,
-    "drawdown": 0,
-    "units": 0
+    "drawdown": null,
+    "units": null
   },
   "positions": [
     {
@@ -91,7 +91,7 @@
       "gradedAt": "2026-08-27T05:00:00.000Z",
       "traits": {
         "namedPosition": "Tampa Bay ML",
-        "reconstruction": "user-provided",
+        "reconstruction": "operator-declared",
         "actualHome": 0,
         "actualAway": 3,
         "homeAway": "AWAY",
@@ -130,7 +130,7 @@
       "gradedAt": "2026-08-27T05:00:00.000Z",
       "traits": {
         "namedPosition": "Col/Wash over 9.5",
-        "reconstruction": "user-provided",
+        "reconstruction": "operator-declared",
         "actualHome": 1,
         "actualAway": 13,
         "homeAway": null,
@@ -169,7 +169,7 @@
       "gradedAt": "2026-08-27T05:00:00.000Z",
       "traits": {
         "namedPosition": "Hou/NYY over 9",
-        "reconstruction": "user-provided",
+        "reconstruction": "operator-declared",
         "actualHome": 9,
         "actualAway": 3,
         "homeAway": null,
@@ -208,7 +208,7 @@
       "gradedAt": "2026-08-27T05:00:00.000Z",
       "traits": {
         "namedPosition": "MIL/NYM over 8.5",
-        "reconstruction": "user-provided",
+        "reconstruction": "operator-declared",
         "actualHome": 1,
         "actualAway": 8,
         "homeAway": null,
@@ -247,7 +247,7 @@
       "gradedAt": "2026-08-27T05:00:00.000Z",
       "traits": {
         "namedPosition": "LAD/ATL over 8.5",
-        "reconstruction": "user-provided",
+        "reconstruction": "operator-declared",
         "actualHome": 6,
         "actualAway": 5,
         "homeAway": null,
@@ -286,7 +286,7 @@
       "gradedAt": "2026-08-27T05:00:00.000Z",
       "traits": {
         "namedPosition": "BAL/STL over 8.5",
-        "reconstruction": "user-provided",
+        "reconstruction": "operator-declared",
         "actualHome": 7,
         "actualAway": 8,
         "homeAway": null,
@@ -325,7 +325,7 @@
       "gradedAt": "2026-08-27T05:00:00.000Z",
       "traits": {
         "namedPosition": "OAK +1.5",
-        "reconstruction": "user-provided",
+        "reconstruction": "operator-declared",
         "actualHome": 7,
         "actualAway": 4,
         "homeAway": "HOME",

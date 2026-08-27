@@ -22,7 +22,14 @@ Cache is not a substitute for history. Database `fbis` is bound as `DB` in `wran
 npx wrangler d1 execute fbis --file=schema.sql --remote
 ```
 
-`npx wrangler d1 execute fbis --file=schema.sql --remote` is idempotent (`CREATE TABLE IF NOT EXISTS`). New tables include `team_form`, `team_form_games`, `daily_reports`, `strategies`, and `strategy_tickets`.
+`npx wrangler d1 execute fbis --file=schema.sql --remote` only creates missing tables. Column changes live in versioned `migrations/*.sql` and `schema_migrations`. After schema changes:
+
+```bash
+npx wrangler d1 execute fbis --file=migrations/0001_job_runs.sql --remote
+npx wrangler d1 execute fbis --file=migrations/0002_strategy_ticket_prices.sql --remote
+```
+
+New tables include `team_form`, `team_form_games`, `daily_reports`, `strategies`, `strategy_tickets`, `job_runs`, and `schema_migrations`. SYS health is read from D1 `job_runs` / `store_meta`, not isolate memory.
 
 `npm run deploy` publishes the Pages function with that binding. Until D1 is bound, freeze/harvest still use the Cache API (~21 days) and SYS shows **RESEARCH DB UNBOUND**.
 
@@ -30,11 +37,16 @@ npx wrangler d1 execute fbis --file=schema.sql --remote
 
 Pages cannot use `wrangler.toml` `[triggers]`. GitHub Action `.github/workflows/harvest.yml`:
 
-- Collect (CDT): 8am, 11am, 1pm, 3pm, 5pm, 7pm, 9pm CT — `0 13,16,18,20,22,0,2 * * *` UTC
-- Full Parlay odds only at 8am and 11am CT; later collects are `parlayCacheOnly`
-- Harvest finals: `20 11 * * *` UTC (~06:20 CT), scoreboard only, no Parlay
+UTC crons are fixed; Chicago wall time shifts with DST.
 
-`HARVEST_SECRET` is a Pages secret and a GitHub Actions secret of the same name. `/api/collect` and `/api/harvest` both require it when set. After changing a Pages secret, redeploy so the Worker sees it.
+| UTC cron | CDT (UTC-5) | CST (UTC-6) |
+|---|---|---|
+| `0 13,16,18,20,22,0,2 * * *` | 8am, 11am, 1pm, 3pm, 5pm, 7pm, 9pm | 7am, 10am, noon, 2pm, 4pm, 6pm, 8pm |
+| `20 11 * * *` harvest | ~06:20 CDT | ~05:20 CST |
+
+The intended operator windows are the CDT column. Full Parlay odds only at the 8am and 11am CDT slots (`collect-full`); later collects are cache-only. Harvest is scoreboard only (no Parlay).
+
+`HARVEST_SECRET` is a Pages secret and a GitHub Actions secret of the same name. The workflow sends it as the `x-harvest-secret` header, not a query string, and fails unless the JSON `status` is `success`. After changing a Pages secret, redeploy so the Worker sees it. A green `workflow_dispatch` does not prove the `schedule` trigger has fired.
 
 ## Git connect
 

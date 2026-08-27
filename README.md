@@ -57,7 +57,7 @@ Model version: **FBIS-v1.3**
 
 **CFB (v1.3)** — Independent score model: ESPN AP rank prior + harvested current-season points for/against, blended with `w = n/(n+6)`. HFA 2.5 (0 on neutral). Win/spread/total probabilities use an explicit Normal sigma (wider early). No EPA, transfer, QB, or coaching feed is wired. Pinnacle remains the market layer. A projected winner is not a bet.
 
-**Strategy FBIS-HC-v1** — Qualified tickets with EV ≥ 8% (CONVICTION). The 2026-08-26 seed is the operator-corrected 7 CONVICTION tickets (`data/cohorts/fbis-hc-v1.json`, D1 `strategy_tickets` role=seed). Reported record 7-0. Reconstruction confidence is user-provided. The seed sample was MLB-heavy overs — that is an observation, not a gate. Champion weights, logistic k, and qualification gates stay frozen. Prospective matches still use the CONVICTION / EV ≥ 8% conjunction and are graded separately from forecast MAE/Brier.
+**Strategy FBIS-HC-v1** — Qualified tickets with EV ≥ 8% (CONVICTION). The 2026-08-26 seed is the operator-corrected 7 CONVICTION tickets (`data/cohorts/fbis-hc-v1.json`, D1 `strategy_tickets` role=seed). Reported record 7-0. Reconstruction is operator-declared until journal EV/timestamps are imported (recovered N is separate from the graded 7-0 record). The seed sample was MLB-heavy overs — that is an observation, not a gate. Champion weights, logistic k, and qualification gates stay frozen. Prospective matches still use the CONVICTION / EV ≥ 8% conjunction and are graded separately from forecast MAE/Brier.
 
 ## Data
 
@@ -65,7 +65,7 @@ Model version: **FBIS-v1.3**
 - ParlayAPI — Pinnacle game lines (3 credits, `eu` region), cached 15 minutes. Kalshi sentiment is a 1-credit pull; empty Kalshi/F5 responses cache for 6 hours.
 - Ballpark Pal — optional; set `BALLPARK_PAL_API_KEY` when you have it (15k requests/month)
 
-The operator ticket journal still lives in the browser (`fbis-learning-v1`). Opening SYS POSTs matching CONVICTION tickets to D1 as immutable `strategy_tickets` (`INSERT OR IGNORE`, stable ids). The FBIS-HC-v1 seed is the seven named 2026-08-26 positions, not whatever else the journal happens to hold. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql`) is the authoritative research ledger.
+The operator ticket journal still lives in the browser (`fbis-learning-v1`). POST `/api/strategy` is secret-protected (`x-harvest-secret` or `STRATEGY_IMPORT_SECRET`) and does not accept arbitrary CORS. The FBIS-HC-v1 seed names are the seven operator-declared 2026-08-26 positions; they are not a recovered journal. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql` plus `migrations/`) is the authoritative research ledger.
 
 ## Tests
 

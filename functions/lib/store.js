@@ -1,7 +1,10 @@
 /**
  * Durable research store. D1 is authoritative when bound.
  * Failures are recorded and returned — never silently ignored for callers.
+ * Module-memory `health` is request-local diagnostics only. SYS reads D1.
  */
+
+import { immutableFieldsConflict } from "./strategy.js";
 
 const health = {
   bound: false,
@@ -153,9 +156,9 @@ function layersWithSnap(row) {
 
 export async function persistSnapshot(env, row) {
   markBound(env);
-  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound", inserted: 0, already: 0, failed: 1 };
   try {
-    await env.DB.prepare(
+    const res = await env.DB.prepare(
       `INSERT OR IGNORE INTO prediction_snapshots (
         id, game_id, sport, date, matchup, checkpoint, model_version, frozen_at,
         proj_home, proj_away, proj_total, proj_margin, pal_home, pal_away,
@@ -205,14 +208,18 @@ export async function persistSnapshot(env, row) {
         n(row.gradedAt)
       )
       .run();
+    const changes = Number(res?.meta?.changes) || 0;
     markWrite();
     if (row.actualHome != null || row.gameStatus) {
-      await gradeSnapshot(env, row);
+      const graded = await gradeSnapshot(env, row);
+      if (!graded.ok && graded.reason !== "no-final") {
+        return { ok: false, reason: graded.reason, inserted: changes, already: changes ? 0 : 1, failed: 1 };
+      }
     }
-    return { ok: true };
+    return { ok: true, inserted: changes > 0 ? 1 : 0, already: changes > 0 ? 0 : 1, failed: 0 };
   } catch (err) {
     markErr(err);
-    return { ok: false, reason: String(err?.message || err) };
+    return { ok: false, reason: String(err?.message || err), inserted: 0, already: 0, failed: 1 };
   }
 }
 
@@ -382,6 +389,8 @@ export function mapSnapshotRow(r) {
     pinVig: r.pin_vig,
     pinSpread: snap.pinSpread ?? null,
     pinTotal: snap.pinTotal ?? extra.pinTotal ?? null,
+    marketProjHome: extra.marketProjHome ?? snap.marketProjHome ?? null,
+    marketProjAway: extra.marketProjAway ?? snap.marketProjAway ?? null,
     noVigHome: snap.noVigHome ?? null,
     noVigAway: snap.noVigAway ?? null,
     noVigOver: snap.noVigOver ?? null,
@@ -722,14 +731,26 @@ export async function persistStrategy(env, strategy) {
 
 export async function persistStrategyTicket(env, row) {
   markBound(env);
-  if (!hasDb(env) || !row?.id) return { ok: false, reason: "unbound" };
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
   try {
-    await env.DB.prepare(
+    const existing = await env.DB.prepare("SELECT * FROM strategy_tickets WHERE id = ?").bind(row.id).first();
+    if (existing) {
+      const mapped = mapStrategyTicket(existing);
+      if (immutableFieldsConflict(mapped, row)) {
+        return { ok: false, conflict: true, reason: "duplicate-conflict" };
+      }
+      await fillNullStrategyFields(env, row);
+      markWrite();
+      return { ok: true, already: true };
+    }
+    const res = await env.DB.prepare(
       `INSERT OR IGNORE INTO strategy_tickets (
         id, strategy_id, role, sport, date, game_id, matchup, market, side, pick, line,
         ev, edge, tag, pin_vig, pin_price, model_version, checkpoint, data_quality,
-        result, profit, clv, traits_json, created_at, graded_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        result, profit, clv, traits_json, created_at, graded_at,
+        qualified_at, execution_line, execution_price, benchmark_line, benchmark_price,
+        entry_no_vig, closing_line, closing_price, closing_no_vig, stake, missing_execution_price
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         row.id,
@@ -747,7 +768,7 @@ export async function persistStrategyTicket(env, row) {
         n(row.edge),
         n(row.tag),
         n(row.pinVig),
-        n(row.pinPrice),
+        n(row.pinPrice ?? row.executionPrice ?? row.benchmarkPrice),
         n(row.modelVersion),
         n(row.checkpoint),
         n(row.dataQuality),
@@ -756,27 +777,110 @@ export async function persistStrategyTicket(env, row) {
         n(row.clv),
         n(row.traitsJson),
         new Date().toISOString(),
-        n(row.gradedAt)
+        n(row.gradedAt),
+        n(row.qualifiedAt),
+        n(row.executionLine),
+        n(row.executionPrice),
+        n(row.benchmarkLine),
+        n(row.benchmarkPrice),
+        n(row.entryNoVig),
+        n(row.closingLine),
+        n(row.closingPrice),
+        n(row.closingNoVig),
+        n(row.stake),
+        row.missingExecutionPrice ? 1 : 0
       )
       .run();
     markWrite();
-    return { ok: true };
+    return { ok: true, inserted: (Number(res?.meta?.changes) || 0) > 0 };
   } catch (err) {
     markErr(err);
     return { ok: false, reason: String(err?.message || err) };
   }
 }
 
-export async function gradeStrategyTicket(env, id, { result, profit, clv, gradedAt } = {}) {
+async function fillNullStrategyFields(env, row) {
+  try {
+    await env.DB.prepare(
+      `UPDATE strategy_tickets SET
+         ev = COALESCE(ev, ?),
+         edge = COALESCE(edge, ?),
+         tag = COALESCE(tag, ?),
+         pin_vig = COALESCE(pin_vig, ?),
+         pin_price = COALESCE(pin_price, ?),
+         model_version = COALESCE(model_version, ?),
+         checkpoint = COALESCE(checkpoint, ?),
+         data_quality = COALESCE(data_quality, ?),
+         traits_json = COALESCE(traits_json, ?),
+         qualified_at = COALESCE(qualified_at, ?),
+         execution_line = COALESCE(execution_line, ?),
+         execution_price = COALESCE(execution_price, ?),
+         benchmark_line = COALESCE(benchmark_line, ?),
+         benchmark_price = COALESCE(benchmark_price, ?),
+         entry_no_vig = COALESCE(entry_no_vig, ?),
+         closing_line = COALESCE(closing_line, ?),
+         closing_price = COALESCE(closing_price, ?),
+         closing_no_vig = COALESCE(closing_no_vig, ?),
+         stake = COALESCE(stake, ?),
+         missing_execution_price = COALESCE(missing_execution_price, ?)
+       WHERE id = ?`
+    )
+      .bind(
+        n(row.ev),
+        n(row.edge),
+        n(row.tag),
+        n(row.pinVig),
+        n(row.pinPrice ?? row.executionPrice),
+        n(row.modelVersion),
+        n(row.checkpoint),
+        n(row.dataQuality),
+        n(row.traitsJson),
+        n(row.qualifiedAt),
+        n(row.executionLine),
+        n(row.executionPrice),
+        n(row.benchmarkLine),
+        n(row.benchmarkPrice),
+        n(row.entryNoVig),
+        n(row.closingLine),
+        n(row.closingPrice),
+        n(row.closingNoVig),
+        n(row.stake),
+        row.missingExecutionPrice ? 1 : 0,
+        row.id
+      )
+      .run();
+  } catch {
+    /* columns may be missing until migration; identity insert still stands */
+  }
+}
+
+export async function gradeStrategyTicket(env, id, { result, profit, clv, gradedAt, missingExecutionPrice } = {}) {
   markBound(env);
   if (!hasDb(env) || !id) return { ok: false, reason: "unbound" };
   try {
+    const existing = await env.DB.prepare("SELECT result, profit, clv FROM strategy_tickets WHERE id = ?").bind(id).first();
+    if (existing && existing.result && existing.result !== "OPEN") {
+      const sameResult = existing.result === result;
+      const sameProfit = String(existing.profit ?? "") === String(profit ?? "");
+      const sameClv = String(existing.clv ?? "") === String(clv ?? "");
+      if (!sameResult || !sameProfit || !sameClv) {
+        return { ok: false, reason: "settled-immutable" };
+      }
+      return { ok: true, already: true };
+    }
     await env.DB.prepare(
       `UPDATE strategy_tickets
-       SET result = ?, profit = ?, clv = ?, graded_at = ?
+       SET result = ?, profit = ?, clv = ?, graded_at = ?, missing_execution_price = COALESCE(?, missing_execution_price)
        WHERE id = ? AND (result IS NULL OR result = 'OPEN')`
     )
-      .bind(n(result), n(profit), n(clv), n(gradedAt || new Date().toISOString()), id)
+      .bind(
+        n(result),
+        n(profit),
+        n(clv),
+        n(gradedAt || new Date().toISOString()),
+        missingExecutionPrice == null ? null : missingExecutionPrice ? 1 : 0,
+        id
+      )
       .run();
     markWrite();
     return { ok: true };
@@ -843,5 +947,159 @@ function mapStrategyTicket(r) {
     traits,
     createdAt: r.created_at,
     gradedAt: r.graded_at,
+    qualifiedAt: r.qualified_at || null,
+    executionLine: r.execution_line ?? r.line ?? null,
+    executionPrice: r.execution_price ?? null,
+    benchmarkLine: r.benchmark_line ?? r.line ?? null,
+    benchmarkPrice: r.benchmark_price ?? r.pin_price ?? null,
+    entryNoVig: r.entry_no_vig ?? null,
+    closingLine: r.closing_line ?? null,
+    closingPrice: r.closing_price ?? null,
+    closingNoVig: r.closing_no_vig ?? null,
+    stake: r.stake ?? 1,
+    missingExecutionPrice: r.missing_execution_price === 1 || r.execution_price == null,
   };
+}
+
+export async function persistJobRun(env, row) {
+  markBound(env);
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  try {
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO job_runs (
+        id, job_type, trigger_type, started_at, completed_at, status, sport, dates_json,
+        games_discovered, writes_attempted, writes_succeeded, writes_failed,
+        finals_discovered, finals_graded, error_summary, deployment_commit, model_version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        row.jobType,
+        n(row.triggerType),
+        n(row.startedAt),
+        n(row.completedAt),
+        n(row.status),
+        n(row.sport),
+        n(row.datesJson),
+        n(row.gamesDiscovered),
+        n(row.writesAttempted),
+        n(row.writesSucceeded),
+        n(row.writesFailed),
+        n(row.finalsDiscovered),
+        n(row.finalsGraded),
+        n(row.errorSummary),
+        n(row.deploymentCommit),
+        n(row.modelVersion)
+      )
+      .run();
+    markWrite();
+    if (row.status === "success") {
+      await setMeta(env, "last_d1_write_success_at", row.completedAt || new Date().toISOString());
+    }
+    return { ok: true };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+async function latestJob(env, jobPrefix, status) {
+  try {
+    const sql = status
+      ? "SELECT * FROM job_runs WHERE job_type LIKE ? AND status = ? ORDER BY completed_at DESC LIMIT 1"
+      : "SELECT * FROM job_runs WHERE job_type LIKE ? AND status != 'success' ORDER BY completed_at DESC LIMIT 1";
+    const stmt = status
+      ? env.DB.prepare(sql).bind(`${jobPrefix}%`, status)
+      : env.DB.prepare(sql).bind(`${jobPrefix}%`);
+    return (await stmt.first()) || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function queryJobHealth(env, { since } = {}) {
+  const meta = await readMeta(env);
+  const unbound = {
+    source: hasDb(env) ? "d1" : "unbound",
+    lastCollectSuccessAt: meta.last_collect_success_at || meta.last_collect_at || null,
+    lastCollectAttemptAt: meta.last_collect_attempt_at || null,
+    lastHarvestSuccessAt: meta.last_harvest_success_at || meta.last_harvest_at || null,
+    lastHarvestAttemptAt: meta.last_harvest_attempt_at || null,
+    lastD1WriteSuccessAt: meta.last_d1_write_success_at || meta.last_write_at || null,
+    lastFailedCollectAt: meta.last_collect_error_at || null,
+    lastFailedHarvestAt: meta.last_harvest_error_at || null,
+    failedWrites: 0,
+    failedHarvests: 0,
+    lastJob: null,
+  };
+  if (!hasDb(env)) return unbound;
+  try {
+    const collectOk = await latestJob(env, "collect", "success");
+    const harvestOk = await latestJob(env, "harvest", "success");
+    const collectFail = await latestJob(env, "collect", null);
+    const harvestFail = await latestJob(env, "harvest", null);
+    const period = since || "1970-01-01";
+    const failWrites = await env.DB.prepare(
+      "SELECT COALESCE(SUM(writes_failed), 0) AS n FROM job_runs WHERE started_at >= ?"
+    )
+      .bind(period)
+      .first();
+    const failHarvests = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM job_runs WHERE job_type LIKE 'harvest%' AND status != 'success' AND started_at >= ?"
+    )
+      .bind(period)
+      .first();
+    const lastJob = await env.DB.prepare("SELECT * FROM job_runs ORDER BY started_at DESC LIMIT 1").first();
+    markRead();
+    return {
+      source: "d1",
+      lastCollectSuccessAt: collectOk?.completed_at || unbound.lastCollectSuccessAt,
+      lastCollectAttemptAt: meta.last_collect_attempt_at || collectOk?.started_at || null,
+      lastHarvestSuccessAt: harvestOk?.completed_at || unbound.lastHarvestSuccessAt,
+      lastHarvestAttemptAt: meta.last_harvest_attempt_at || harvestOk?.started_at || null,
+      lastD1WriteSuccessAt: meta.last_d1_write_success_at || collectOk?.completed_at || harvestOk?.completed_at || null,
+      lastFailedCollectAt: collectFail && collectFail.status !== "success" ? collectFail.completed_at : unbound.lastFailedCollectAt,
+      lastFailedHarvestAt: harvestFail && harvestFail.status !== "success" ? harvestFail.completed_at : unbound.lastFailedHarvestAt,
+      failedWrites: Number(failWrites?.n) || 0,
+      failedHarvests: Number(failHarvests?.n) || 0,
+      lastJob: lastJob
+        ? {
+            id: lastJob.id,
+            jobType: lastJob.job_type,
+            status: lastJob.status,
+            startedAt: lastJob.started_at,
+            completedAt: lastJob.completed_at,
+            deploymentCommit: lastJob.deployment_commit,
+            modelVersion: lastJob.model_version,
+          }
+        : null,
+    };
+  } catch (err) {
+    markErr(err);
+    return { ...unbound, source: "d1-error", lastError: String(err?.message || err) };
+  }
+}
+
+export async function recordMigration(env, id) {
+  if (!hasDb(env) || !id) return { ok: false, reason: "unbound" };
+  try {
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO schema_migrations (id, applied_at) VALUES (?, ?)"
+    )
+      .bind(id, new Date().toISOString())
+      .run();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function listAppliedMigrations(env) {
+  if (!hasDb(env)) return [];
+  try {
+    const res = await env.DB.prepare("SELECT id, applied_at FROM schema_migrations ORDER BY id").all();
+    return res.results || [];
+  } catch {
+    return [];
+  }
 }

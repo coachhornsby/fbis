@@ -1,5 +1,6 @@
 import { DEFAULT_WEIGHTS as CHAMPION_WEIGHTS } from "../../functions/lib/weights.js";
-import { americanProfit, probabilityClv } from "../../functions/lib/pricing.js";
+import { probabilityClv } from "../../functions/lib/pricing.js";
+import { americanPriceOrNull, gradeStrategyResult } from "../../functions/lib/strategy.js";
 
 const KEY = "fbis-learning-v1";
 
@@ -69,64 +70,23 @@ export function logBet(state, bet) {
 }
 
 function ticketOdds(bet) {
-  if (bet.executionPrice != null) return bet.executionPrice;
-  if (bet.pinPrice != null) return bet.pinPrice;
-  if (bet.entryAmerican != null) return bet.entryAmerican;
-  if (bet.market === "ML" || bet.market === "F5 ML") return bet.line;
+  if (bet.executionPrice != null) return americanPriceOrNull(bet.executionPrice);
+  if (bet.pinPrice != null) return americanPriceOrNull(bet.pinPrice);
+  if (bet.entryAmerican != null) return americanPriceOrNull(bet.entryAmerican);
+  if (bet.market === "ML" || bet.market === "F5 ML") return americanPriceOrNull(bet.line);
   return null;
 }
 
 function gradeSide(bet, game) {
-  if (!game?.status?.completed) return null;
-  const hs = Number(game.home.score);
-  const as = Number(game.away.score);
-  if (!Number.isFinite(hs) || !Number.isFinite(as)) return null;
-  const odds = ticketOdds(bet);
-  const payout = americanProfit(odds, bet.stake ?? 1);
-  if (payout == null) return null;
-  if (bet.market === "ML") {
-    const homeWin = hs > as;
-    const won = bet.side === "HOME" ? homeWin : !homeWin;
-    if (hs === as) return { result: "PUSH", profit: 0 };
-    return { result: won ? "WON" : "LOST", profit: won ? payout : -1 };
-  }
-  if (bet.market === "SPREAD") {
-    const margin = hs - as;
-    const line = Number(bet.line);
-    const covered = bet.side === "HOME" ? margin + line > 0 : -margin + line > 0;
-    const push = bet.side === "HOME" ? margin + line === 0 : -margin + line === 0;
-    if (push) return { result: "PUSH", profit: 0 };
-    return { result: covered ? "WON" : "LOST", profit: covered ? payout : -1 };
-  }
-  if (bet.market === "TOTAL") {
-    const total = hs + as;
-    const line = Number(bet.line);
-    const over = total > line;
-    const push = total === line;
-    if (push) return { result: "PUSH", profit: 0 };
-    const won = bet.side === "OVER" ? over : !over;
-    return { result: won ? "WON" : "LOST", profit: won ? payout : -1 };
-  }
-  if (bet.market === "F5 ML") {
-    const f5 = game.f5Score;
-    if (!f5?.complete) return null;
-    if (f5.home === f5.away) return { result: "PUSH", profit: 0 };
-    const homeLead = f5.home > f5.away;
-    const won = bet.side === "HOME" ? homeLead : !homeLead;
-    return { result: won ? "WON" : "LOST", profit: won ? payout : -1 };
-  }
-  if (bet.market === "F5 TOTAL") {
-    const f5 = game.f5Score;
-    if (!f5?.complete) return null;
-    const total = f5.home + f5.away;
-    const line = Number(bet.line);
-    const over = total > line;
-    const push = total === line;
-    if (push) return { result: "PUSH", profit: 0 };
-    const won = bet.side === "OVER" ? over : !over;
-    return { result: won ? "WON" : "LOST", profit: won ? payout : -1 };
-  }
-  return null;
+  return gradeStrategyResult(
+    {
+      ...bet,
+      executionPrice: ticketOdds(bet),
+      executionLine: bet.line,
+      stake: bet.stake ?? 1,
+    },
+    game
+  );
 }
 
 function closeNoVig(bet, game) {

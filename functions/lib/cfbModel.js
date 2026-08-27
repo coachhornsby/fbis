@@ -47,7 +47,7 @@ export const CFB_CONSTANTS = {
   notes: {
     hfa: "Documented 2.5-point FBS home-field prior. Neutral site → 0.",
     priorGames: "Current-season weight = n / (n + 6). Week 0 is almost all prior.",
-    sigma: "Margin SD 15.5 and total SD 13.5 are published FBS-scale heuristics, not fitted on FBIS bets.",
+    sigma: "Margin SD 15.5 and total SD 13.5 are published FBS-scale heuristics, not fitted or trained on FBIS bets.",
     missing: "No EPA/QB/coach/transfer feed is wired. Those inputs are absent, not zero-filled fakes.",
   },
 };
@@ -194,6 +194,7 @@ export function estimateTeam(team, { rankings, form, rankFallback } = {}) {
   const currentDef = row?.pointsAgainst != null && row.games ? row.pointsAgainst / row.games : null;
   const off = blendSeason(prior.off, currentOff, n);
   const def = blendSeason(prior.def, currentDef, n);
+  const noTeamForm = currentOff == null;
   return {
     key,
     rank,
@@ -210,12 +211,14 @@ export function estimateTeam(team, { rankings, form, rankFallback } = {}) {
     flags: [
       rank == null ? "unranked" : null,
       n < 3 ? "early_season" : null,
-      currentOff == null ? "no_current_ppg" : null,
+      noTeamForm ? "no_current_ppg" : null,
     ].filter(Boolean),
   };
 }
 
 export function projectCfbGame(game, ctx = {}) {
+  const rankingsUnavailable = Boolean(ctx.rankingsUnavailable || ctx.rankings?.error);
+  const formUnavailable = !ctx.form || ctx.form.size === 0;
   const home = estimateTeam(game.home, ctx);
   const away = estimateTeam(game.away, ctx);
   const hfa = game.neutralSite ? 0 : CFB_CONSTANTS.hfaPoints;
@@ -227,15 +230,24 @@ export function projectCfbGame(game, ctx = {}) {
     hfa,
   });
   const sig = cfbSigma({ gamesHome: home.n, gamesAway: away.n });
+  const bothUnranked = home.rank == null && away.rank == null;
+  const noTeamForm = home.currentOff == null && away.currentOff == null;
+  const leagueAverageOnly = bothUnranked && noTeamForm;
   const completeness =
     1 -
-    [home.rank == null, away.rank == null, home.currentOff == null, away.currentOff == null].filter(Boolean).length *
+    [home.rank == null, away.rank == null, home.currentOff == null, away.currentOff == null, rankingsUnavailable, formUnavailable].filter(
+      Boolean
+    ).length *
       0.15;
   const flags = [
     ...home.flags.map((f) => `home_${f}`),
     ...away.flags.map((f) => `away_${f}`),
     game.neutralSite ? "neutral_site" : null,
     home.n < 3 || away.n < 3 ? "early_season" : null,
+    rankingsUnavailable ? "rankings_unavailable" : null,
+    bothUnranked ? "both_unranked" : null,
+    noTeamForm || formUnavailable ? "no_team_form" : null,
+    leagueAverageOnly ? "league_average_only" : null,
   ].filter(Boolean);
   return {
     ...scores,
@@ -245,7 +257,7 @@ export function projectCfbGame(game, ctx = {}) {
     sigmaMargin: sig.margin,
     sigmaTotal: sig.total,
     maturity: sig.maturity,
-    dataQuality: Math.round(Math.max(0.25, Math.min(1, completeness)) * 100),
+    dataQuality: Math.round(Math.max(leagueAverageOnly || rankingsUnavailable ? 0.1 : 0.25, Math.min(1, completeness)) * 100),
     flags,
     constants: {
       priorGames: CFB_CONSTANTS.priorGames,
@@ -288,6 +300,7 @@ export async function applyCfbModel(games, env = {}) {
   }
   const season = cfbSeasonYear();
   const form = await loadTeamForm(env, "cfb", season);
+  const rankingsUnavailable = Boolean(rankings.error) || !rankings.byTeam?.size;
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "cfb") return game;
     const marketHome =
@@ -298,7 +311,7 @@ export async function applyCfbModel(games, env = {}) {
       game.odds?.total != null && game.odds?.spread != null
         ? game.odds.total / 2 + game.odds.spread / 2
         : null;
-    const proj = projectCfbGame(game, { rankings, form });
+    const proj = projectCfbGame(game, { rankings, form, rankingsUnavailable });
     return {
       ...game,
       marketProjHome: marketHome,

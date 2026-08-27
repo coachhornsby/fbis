@@ -14,18 +14,26 @@ import {
   gradeStrategyResult,
   canonicalSeedTickets,
   strategyReconstruction,
+  validateImportedTicket,
+  assignTicketRole,
+  hasJournalGradeFields,
+  americanPriceOrNull,
+  immutableFieldsConflict,
+  ticketId,
 } from "../functions/lib/strategy.js";
 import { DEFAULT_WEIGHTS } from "../functions/lib/weights.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { persistSnapshot, gradeSnapshot } from "../functions/lib/store.js";
+import { onRequestPost, importStrategyTickets } from "../functions/api/strategy.js";
+import { projectCfbGame } from "../functions/lib/cfbModel.js";
 import { classifyCheckpoint, pickCanonical, rowsForCheckpoint } from "../functions/lib/checkpoints.js";
 import { projectMatchup } from "../functions/lib/savant.js";
 import { expectedRoi, twoWayMarket, brierScore, logLoss, americanToImplied } from "../functions/lib/pricing.js";
 import { gameOutcome, freezeFromGame, accuracyOf } from "../functions/lib/projLedger.js";
 import { seriesStats } from "../functions/lib/accuracyReport.js";
-import { overDiagnostics } from "../functions/lib/overDiagnostics.js";
+import { overDiagnostics, bucketOf } from "../functions/lib/overDiagnostics.js";
 import { SPORTS } from "../functions/lib/slateEngine.js";
 
 describe("research metrics", () => {
@@ -101,7 +109,7 @@ describe("high-conviction strategy", () => {
     assert.match(STRATEGY_HC_V1.notes, /N=7/);
     assert.doesNotMatch(STRATEGY_HC_V1.notes, /8-0|N=8/);
     assert.equal(STRATEGY_HC_V1.reportedRecord, "7-0");
-    assert.equal(STRATEGY_HC_V1.reconstructionConfidence, "user-provided");
+    assert.equal(STRATEGY_HC_V1.reconstructionConfidence, "operator-declared");
     assert.equal(STRATEGY_HC_V1.id, "FBIS-HC-v1");
     assert.equal(STRATEGY_HC_V1.version, 1);
     assert.deepEqual(DEFAULT_WEIGHTS, { market: 0.22, espn: 0.08, score: 0.32, pal: 0.3, form: 0.08 });
@@ -136,8 +144,12 @@ describe("high-conviction strategy", () => {
     assert.ok(STRATEGY_HC_V1.seedObservation.includes("observation"));
     assert.ok(!STRATEGY_HC_V1.rules.sport);
     const rec = strategyReconstruction();
-    assert.equal(rec.confidence, "user-provided");
-    assert.equal(rec.n, 7);
+    assert.equal(rec.state, "operator-declared");
+    assert.equal(rec.confidence, "operator-declared");
+    assert.equal(rec.expectedN, 7);
+    assert.equal(rec.recoveredN, 0);
+    assert.equal(rec.gradedRecord, "7-0");
+    assert.equal(rec.filterClaim, false);
     const presented = canonicalSeedTickets([]);
     assert.equal(presented.length, 7);
     assert.ok(presented.every((t) => t.result === "WON"));
@@ -146,7 +158,7 @@ describe("high-conviction strategy", () => {
     const json = JSON.parse(readFileSync(join(root, "../data/cohorts/fbis-hc-v1.json"), "utf8"));
     assert.equal(json.positions.length, 7);
     assert.equal(json.reportedRecord, "7-0");
-    assert.equal(json.reconstructionConfidence, "user-provided");
+    assert.equal(json.reconstructionConfidence, "operator-declared");
     assert.deepEqual(
       json.positions.map((p) => p.pick),
       names
@@ -184,6 +196,51 @@ describe("high-conviction strategy", () => {
     const packed = packTicket({ ...base, line: 8.5, pinPrice: -110, date: "2026-08-26" }, { role: "seed", date: "2026-08-26" });
     const g = gradeStrategyResult(packed, { home: { score: 6 }, away: { score: 5 }, status: { completed: true } });
     assert.equal(g.result, "WON");
+    assert.ok(Math.abs(g.profit - 100 / 110) < 1e-9);
+  });
+
+  it("never treats a spread/total point as an American price", () => {
+    const packed = packTicket({ ...base, line: 8.5, date: "2026-08-26" }, { role: "seed", date: "2026-08-26" });
+    assert.equal(packed.pinPrice, null);
+    assert.equal(packed.executionPrice, null);
+    assert.equal(packed.missingExecutionPrice, true);
+    const g = gradeStrategyResult(packed, { home: { score: 6 }, away: { score: 5 }, status: { completed: true } });
+    assert.equal(g.result, "WON");
+    assert.equal(g.profit, null);
+    assert.equal(g.missingExecutionPrice, true);
+  });
+
+  it("grades pushes and F5 markets from F5 scores only", () => {
+    const totalPush = gradeStrategyResult(
+      packTicket({ ...base, line: 9, pinPrice: -105, date: "2026-08-26" }, { role: "prospective", date: "2026-08-26" }),
+      { home: { score: 4 }, away: { score: 5 }, status: { completed: true } }
+    );
+    assert.equal(totalPush.result, "PUSH");
+    assert.equal(totalPush.profit, 0);
+    const fgWouldWin = { home: { score: 10 }, away: { score: 0 }, status: { completed: true }, f5Score: { complete: true, home: 1, away: 1 } };
+    const f5ml = gradeStrategyResult(
+      packTicket({ ...base, market: "ML", side: "HOME", line: null, pinPrice: -110, gameId: "f5" }, { role: "prospective", date: "2026-08-26" }),
+      fgWouldWin
+    );
+    assert.equal(f5ml.result, "WON");
+    const f5 = gradeStrategyResult(
+      {
+        ...packTicket(
+          { ...base, market: "F5 TOTAL", side: "OVER", line: 3.5, pinPrice: -120, gameId: "f5t" },
+          { role: "prospective", date: "2026-08-26" }
+        ),
+        market: "F5 TOTAL",
+        executionLine: 3.5,
+        executionPrice: -120,
+      },
+      fgWouldWin
+    );
+    assert.equal(f5.result, "LOST");
+    const f5mlPush = gradeStrategyResult(
+      { market: "F5 ML", side: "HOME", executionPrice: -110, stake: 1 },
+      { f5Score: { complete: true, home: 2, away: 2 }, home: { score: 9 }, away: { score: 1 }, status: { completed: true } }
+    );
+    assert.equal(f5mlPush.result, "PUSH");
   });
 });
 
@@ -259,6 +316,36 @@ describe("MLB over investigation regressions", () => {
       { projHome: 4, projAway: 4, actualHome: 5, actualAway: 5, pinTotal: 9.5 },
     ]);
     assert.ok(d.buckets.every((b) => typeof b.n === "number"));
+  });
+
+  it("puts exact disagreement boundaries in the labeled buckets", () => {
+    assert.equal(bucketOf(-2).key, "n2-n1");
+    assert.equal(bucketOf(-1).key, "n1-0");
+    assert.equal(bucketOf(0).key, "0-1");
+    assert.equal(bucketOf(1).key, "1-2");
+    assert.equal(bucketOf(2).key, "1-2");
+    assert.equal(bucketOf(2.1).key, "gt2");
+    assert.equal(bucketOf(-2.1).key, "lt-2");
+  });
+
+  it("joins strategy totals into qualified EV ROI and CLV", () => {
+    const rows = [
+      { id: "g1", date: "2026-08-26", sport: "mlb", projHome: 5, projAway: 5, actualHome: 6, actualAway: 5, pinTotal: 8.5, pOver: 0.6 },
+      { id: "g2", date: "2026-08-26", sport: "mlb", projHome: 4, projAway: 4, actualHome: 3, actualAway: 3, pinTotal: 9.5 },
+    ];
+    const tickets = [
+      { id: "t1", sport: "mlb", date: "2026-08-26", gameId: "g1", market: "TOTAL", side: "OVER", ev: 0.09, profit: 0.91, clv: 1.2 },
+    ];
+    const d = overDiagnostics(rows, { tickets });
+    assert.equal(d.qualified.over, 1);
+    assert.equal(d.avgEv.over.n, 1);
+    assert.equal(d.avgEv.over.value, 0.09);
+    assert.equal(d.roi.over.n, 1);
+    assert.equal(d.clv.over.n, 1);
+    assert.equal(d.pal.n, 0);
+    assert.equal(d.pal.unavailable, true);
+    assert.equal(d.bias.pal.unavailable, true);
+    assert.equal(d.bias.pal.value, null);
   });
 });
 
@@ -358,3 +445,232 @@ function mockDb(rows) {
     },
   };
 }
+
+describe("strategy ingest", () => {
+  function journalTicket(extra = {}) {
+    return {
+      strategyId: "FBIS-HC-v1",
+      sport: "mlb",
+      gameId: extra.gameId || "824234",
+      market: extra.market || "ML",
+      side: extra.side || "AWAY",
+      line: extra.line ?? null,
+      qualifiedAt: extra.qualifiedAt || "2026-08-26T18:00:00-05:00",
+      modelVersion: "FBIS-v1.3",
+      ev: 0.09,
+      tag: "CONVICTION",
+      role: extra.role || "prospective",
+      qualified: true,
+      lean: false,
+      marketComplete: true,
+      pick: extra.pick || "Tampa Bay ML",
+      ...extra,
+    };
+  }
+
+  it("rejects unauthenticated POST", async () => {
+    const res = await onRequestPost({
+      request: new Request("https://fbis-myz.pages.dev/api/strategy", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bets: [journalTicket()] }),
+      }),
+      env: { HARVEST_SECRET: "s3cret", DB: ticketDb().DB },
+    });
+    assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.ok, false);
+    assert.doesNotMatch(JSON.stringify(body), /s3cret/);
+  });
+
+  it("rejects an invalid seed ticket", () => {
+    const bad = validateImportedTicket({ strategyId: "FBIS-HC-v1", sport: "mlb" });
+    assert.equal(bad.ok, false);
+    assert.ok(bad.errors.includes("game_id"));
+  });
+
+  it("lets the server determine role", () => {
+    const seed = validateImportedTicket(journalTicket({ role: "prospective" }));
+    assert.equal(seed.ok, true);
+    assert.equal(seed.role, "seed");
+    assert.notEqual(seed.role, seed.clientRole);
+    const later = validateImportedTicket(
+      journalTicket({ qualifiedAt: "2026-08-27T18:00:00-05:00", role: "seed", gameId: "999" })
+    );
+    assert.equal(later.role, "prospective");
+  });
+
+  it("keeps N=1 through 6 partial and N=7 recovered", () => {
+    const one = [
+      {
+        id: "mlb:2026-08-26:824234:ML:AWAY",
+        ...journalTicket(),
+        qualifiedAt: "2026-08-26T18:00:00-05:00",
+        modelVersion: "FBIS-v1.3",
+        ev: 0.09,
+        role: "seed",
+      },
+    ];
+    const rec1 = strategyReconstruction(one);
+    assert.equal(rec1.state, "partial");
+    assert.equal(rec1.recoveredN, 1);
+    const seven = STRATEGY_HC_V1_SEED_TICKETS.map((t) => ({
+      ...t,
+      ev: 0.09,
+      qualifiedAt: "2026-08-26T18:00:00-05:00",
+      modelVersion: "FBIS-v1.3",
+      tag: "CONVICTION",
+    }));
+    assert.ok(seven.every(hasJournalGradeFields));
+    const rec7 = strategyReconstruction(seven);
+    assert.equal(rec7.state, "recovered");
+    assert.equal(rec7.recoveredN, 7);
+  });
+
+  it("marks N>7 as conflict", () => {
+    const extra = [
+      ...STRATEGY_HC_V1_SEED_TICKETS,
+      { id: "mlb:2026-08-26:1:ML:HOME", sport: "mlb", gameId: "1", market: "ML", side: "HOME", role: "seed" },
+    ];
+    assert.equal(strategyReconstruction(extra).state, "conflict");
+  });
+
+  it("is idempotent for identical tickets and rejects conflicting duplicates", async () => {
+    const env = ticketDb();
+    const t = journalTicket({ executionPrice: -110 });
+    const a = await importStrategyTickets(env, [t]);
+    const b = await importStrategyTickets(env, [t]);
+    assert.equal(a.ok, true);
+    assert.equal(b.ok, true);
+    const packed = packTicket(validateImportedTicket(t).ticket, { role: "seed" });
+    const conflict = immutableFieldsConflict(packed, { ...packed, ev: 0.99 });
+    assert.equal(conflict, true);
+    const c = await importStrategyTickets(env, [{ ...t, ev: 0.99 }]);
+    assert.equal(c.ok, false);
+    assert.equal(c.status, 409);
+  });
+
+  it("does not rewrite a settled result", async () => {
+    const env = ticketDb();
+    const t = journalTicket({ result: "WON", profit: 0.91, executionPrice: -110 });
+    await importStrategyTickets(env, [t]);
+    const again = await importStrategyTickets(env, [{ ...t, result: "LOST", profit: -1 }]);
+    assert.equal(again.ok, false);
+    assert.ok((again.body.conflicts || []).some((x) => x.reason === "settled-immutable"));
+  });
+
+  it("does not update champion weights because of 7-0", () => {
+    assert.deepEqual(DEFAULT_WEIGHTS, { market: 0.22, espn: 0.08, score: 0.32, pal: 0.3, form: 0.08 });
+    assert.equal(americanPriceOrNull(8.5), null);
+    assert.equal(americanPriceOrNull(-110), -110);
+  });
+});
+
+describe("CFB v1.3 flags", () => {
+  it("flags rankings unavailable, both unranked, no team form, league-average-only", () => {
+    const proj = projectCfbGame(
+      { home: { name: "A", abbr: "AAA" }, away: { name: "B", abbr: "BBB" } },
+      { rankings: { byTeam: new Map(), error: "down" }, form: new Map(), rankingsUnavailable: true }
+    );
+    assert.ok(proj.flags.includes("rankings_unavailable"));
+    assert.ok(proj.flags.includes("both_unranked"));
+    assert.ok(proj.flags.includes("no_team_form"));
+    assert.ok(proj.flags.includes("league_average_only"));
+    assert.ok(proj.dataQuality < 50);
+  });
+});
+
+function ticketDb() {
+  const tickets = new Map();
+  return {
+    DB: {
+      prepare(sql) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                if (sql.includes("INSERT") && sql.includes("strategy_tickets")) {
+                  const id = args[0];
+                  if (!tickets.has(id)) {
+                    tickets.set(id, rowFromBind(args));
+                    return { meta: { changes: 1 } };
+                  }
+                  return { meta: { changes: 0 } };
+                }
+                if (sql.includes("UPDATE strategy_tickets") && sql.includes("SET result")) {
+                  const id = args[args.length - 1];
+                  const row = tickets.get(id);
+                  if (row && (!row.result || row.result === "OPEN")) {
+                    row.result = args[0];
+                    row.profit = args[1];
+                    row.clv = args[2];
+                    row.graded_at = args[3];
+                    return { meta: { changes: 1 } };
+                  }
+                  return { meta: { changes: 0 } };
+                }
+                return { meta: { changes: 1 } };
+              },
+              async first() {
+                if (sql.includes("strategy_tickets") && sql.includes("WHERE id")) {
+                  return tickets.get(args[0]) || null;
+                }
+                return { ok: 1 };
+              },
+              async all() {
+                const all = [...tickets.values()];
+                if (sql.includes("role = ?")) {
+                  const role = args.find((a) => a === "seed" || a === "prospective") || args[1];
+                  return { results: all.filter((r) => r.role === role) };
+                }
+                return { results: all };
+              },
+            };
+          },
+        };
+      },
+    },
+  };
+}
+
+function rowFromBind(args) {
+  return {
+    id: args[0],
+    strategy_id: args[1],
+    role: args[2],
+    sport: args[3],
+    date: args[4],
+    game_id: args[5],
+    matchup: args[6],
+    market: args[7],
+    side: args[8],
+    pick: args[9],
+    line: args[10],
+    ev: args[11],
+    edge: args[12],
+    tag: args[13],
+    pin_vig: args[14],
+    pin_price: args[15],
+    model_version: args[16],
+    checkpoint: args[17],
+    data_quality: args[18],
+    result: args[19],
+    profit: args[20],
+    clv: args[21],
+    traits_json: args[22],
+    created_at: args[23],
+    graded_at: args[24],
+    qualified_at: args[25],
+    execution_line: args[26],
+    execution_price: args[27],
+    benchmark_line: args[28],
+    benchmark_price: args[29],
+    entry_no_vig: args[30],
+    closing_line: args[31],
+    closing_price: args[32],
+    closing_no_vig: args[33],
+    stake: args[34],
+    missing_execution_price: args[35],
+  };
+}
+

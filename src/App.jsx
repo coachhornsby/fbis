@@ -47,7 +47,6 @@ export default function App() {
       }
       const nextLearn = gradeOpenBets(loadState(), [...(data.games || []), ...finals]);
       setLearn(nextLearn);
-      syncStrategyJournal(nextLearn.bets);
       const withRecs = withRecommendations(data, nextLearn.weights);
       captureSlate(withRecs);
       setSlate(withRecs);
@@ -82,7 +81,6 @@ export default function App() {
       setTrack(data);
       const nextLearn = data.finals?.length ? gradeOpenBets(loadState(), data.finals) : loadState();
       if (data.finals?.length) setLearn(nextLearn);
-      syncStrategyJournal(nextLearn.bets);
     } catch (err) {
       if (err?.name === "AbortError") return;
       setTrackError(String(err.message || err));
@@ -662,15 +660,6 @@ function parlayLabel(slate) {
   if (p.error) return "err";
   if (p.remaining == null) return p.cached ? "cached" : "live";
   return `${p.remaining}${p.cached ? " · cache" : ""}`;
-}
-
-function syncStrategyJournal(bets) {
-  if (!bets?.length) return;
-  fetch("/api/strategy", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ bets }),
-  }).catch(() => {});
 }
 
 function G({ title, body }) {
