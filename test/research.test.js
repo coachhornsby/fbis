@@ -277,6 +277,21 @@ describe("snapshot immutability", () => {
     assert.equal(same.conflict, false);
   });
 
+  it("grades harvest actuals even when cache projections drifted", async () => {
+    const rows = new Map();
+    const env = mockDb(rows);
+    await persistSnapshot(env, snapRow({ projHome: 4.4 }));
+    const graded = await persistSnapshot(
+      env,
+      snapRow({ projHome: 9.9, actualHome: 5, actualAway: 3, gradedAt: "now" })
+    );
+    assert.equal(graded.ok, true);
+    assert.equal(graded.conflict, true);
+    assert.equal(graded.failed, 0);
+    assert.equal(rows.get("2026-08-26:1:CLOSE").proj_home, 4.4);
+    assert.equal(rows.get("2026-08-26:1:CLOSE").actual_home, 5);
+  });
+
   it("grades actuals without rewriting the projection", async () => {
     const rows = new Map();
     const env = mockDb(rows);

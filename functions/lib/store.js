@@ -223,6 +223,9 @@ export async function persistSnapshot(env, row) {
     }
     if (conflict) {
       await recordWriteConflict(env, "prediction_snapshots", row.id, "immutable-projection-mismatch");
+      if (row.actualHome != null || row.gameStatus) {
+        return { ok: true, reason: "immutable-conflict", inserted: 0, already: 1, failed: 0, conflict: true };
+      }
       return { ok: false, reason: "immutable-conflict", inserted: 0, already: 0, failed: 1, conflict: true };
     }
     return { ok: true, inserted: changes > 0 ? 1 : 0, already: changes > 0 ? 0 : 1, failed: 0, conflict: false };
@@ -327,7 +330,16 @@ async function persistSnapshotLegacy(env, row) {
     const conflict = changes ? false : await snapshotProjectionConflicts(env, row);
     if (row.actualHome != null || row.gameStatus) await gradeSnapshot(env, row);
     if (conflict) {
-      return { ok: false, reason: "immutable-conflict", inserted: 0, already: 0, failed: 1, conflict: true };
+      await recordWriteConflict(env, "prediction_snapshots", row.id, "immutable-projection-mismatch");
+      const grading = row.actualHome != null || row.gameStatus;
+      return {
+        ok: Boolean(grading),
+        reason: "immutable-conflict",
+        inserted: 0,
+        already: 1,
+        failed: grading ? 0 : 1,
+        conflict: true,
+      };
     }
     return { ok: true, inserted: changes > 0 ? 1 : 0, already: changes > 0 ? 0 : 1, failed: 0, conflict: false };
   } catch (err) {
