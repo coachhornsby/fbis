@@ -141,7 +141,10 @@ export function toBoardGame(game, sport, now = Date.now()) {
     palF5AwayWin: game.bpp?.f5?.awayWin ?? null,
     f5Book: game.odds?.f5 || null,
     palTeamTotals: game.bpp?.teamTotals || [],
-    palProps: game.bpp?.props || [],
+    palProps: [...(game.bpp?.props || [])]
+      .filter((p) => p?.over != null || p?.under != null)
+      .sort((a, b) => Math.abs(Number(b.over ?? 0.5) - 0.5) - Math.abs(Number(a.over ?? 0.5) - 0.5))
+      .slice(0, 40),
     palAsOf: game.bpp?.asOf ?? null,
     palRequestId: game.bpp?.requestId ?? null,
     palUnavailableReason: game.palUnavailableReason

@@ -269,7 +269,7 @@ function TodayPropsCell({ g }) {
       <div className="muted">UNPRICED · NO BET</div>
       {props.slice(0, 8).map((p) => (
         <div key={p.marketId} title={p.displayName}>
-          {p.playerName || p.subjectType} · {p.displayName} {p.line ?? "—"} · O {p.over == null ? "—" : fmtPct(p.over)}
+          {p.playerName || (p.playerId != null ? `Player #${p.playerId}` : p.subjectType)} · {p.displayName} {p.line ?? "—"} · O {p.over == null ? "—" : fmtPct(p.over)}
         </div>
       ))}
     </details>
