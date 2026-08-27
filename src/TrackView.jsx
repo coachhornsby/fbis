@@ -672,19 +672,23 @@ function StrategyPanel() {
     <section className="panel">
       <div className="panel-header">
         <h2>Strategy · FBIS-HC-v1</h2>
-        <span className="last-updated">{pack?.strategy?.reportedRecord || "8-0"} seed · N always shown</span>
+        <span className="last-updated">{pack?.strategy?.reportedRecord || "7-0"} seed · N=7</span>
       </div>
       <div className="panel-body">
         <p className="headline-line">
           High-conviction means a <b>qualified</b> ticket with EV ≥ 8% (tag CONVICTION). Leans are excluded.
-          The 8-0 does not rewrite blend weights. N=8 is not evidence the filter works.
+          The 7-0 does not rewrite blend weights. N=7 is not evidence the filter works.
         </p>
         <p className="muted" style={{ marginBottom: 10 }}>
-          Reconstruction: {rec.confidence || "unrecovered"}
+          Reconstruction: {rec.confidence || "user-provided"}
           {rec.note ? ` — ${rec.note}` : ""}
         </p>
+        <p className="muted" style={{ marginBottom: 10 }}>
+          {pack?.strategy?.seedObservation ||
+            "The 2026-08-26 seed sample was MLB-heavy overs (5/7 totals at 8.5–9.5, 1 ML, 1 +1.5 RL). That is an observation, not a gate."}
+        </p>
         <div className="status-grid" style={{ marginBottom: 12 }}>
-          <Stat label="Seed N" value={seed.stats?.n ?? seed.tickets?.length ?? 0} />
+          <Stat label="Seed N" value={7} />
           <Stat label="Seed record" value={seed.stats?.settled ? `${seed.stats.wins}-${seed.stats.losses}` : rec.n ? String(rec.n) : "—"} />
           <Stat label="Prospective N" value={pro.stats?.n ?? 0} />
           <Stat label="Prospective hit" value={fmtPct(pro.stats?.hitRate)} />
@@ -696,7 +700,7 @@ function StrategyPanel() {
         <h3 className="subhead">Seed traits (shared characteristics)</h3>
         <TraitLine traits={seed.traits} />
         <h3 className="subhead">Seed tickets</h3>
-        <TicketTable rows={seed.tickets || []} empty="Exact eight games were not in D1. Open SYS on the machine that logged 2026-08-26 to freeze them. Games are not invented." />
+        <TicketTable rows={seed.tickets || []} empty="N=7 operator-corrected 2026-08-26 CONVICTION seed. Positions are user-provided." />
         <h3 className="subhead">Prospective matches</h3>
         <TicketTable rows={(pro.tickets || []).slice(0, 40)} empty="No prospective CONVICTION tickets stored yet. Collection tags matches automatically." />
       </div>

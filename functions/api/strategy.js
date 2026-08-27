@@ -1,4 +1,17 @@
-import { STRATEGY_HC_V1, packTicket, ticketMatchesStrategy, inSeedWindow, characterizeTickets, strategyStats } from "../lib/strategy.js";
+import {
+  STRATEGY_HC_V1,
+  STRATEGY_HC_V1_SEED_TICKETS,
+  packTicket,
+  ticketMatchesStrategy,
+  inSeedWindow,
+  characterizeTickets,
+  strategyStats,
+  ticketId,
+  dateCT,
+  isCanonicalSeedId,
+  canonicalSeedTickets,
+  strategyReconstruction,
+} from "../lib/strategy.js";
 import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket } from "../lib/store.js";
 
 function json(data, status = 200) {
@@ -12,20 +25,30 @@ function json(data, status = 200) {
   });
 }
 
+async function freezeCanonicalSeed(env) {
+  await persistStrategy(env, STRATEGY_HC_V1);
+  for (const t of STRATEGY_HC_V1_SEED_TICKETS) {
+    await persistStrategyTicket(env, t);
+    if (t.result && t.result !== "OPEN") {
+      await gradeStrategyTicket(env, t.id, {
+        result: t.result,
+        profit: t.profit,
+        clv: t.clv,
+        gradedAt: t.gradedAt,
+      });
+    }
+  }
+}
+
 export async function onRequestGet(context) {
   const env = { DB: context.env.DB };
-  await persistStrategy(env, STRATEGY_HC_V1);
-  const seed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
+  await freezeCanonicalSeed(env);
+  const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
+  const seed = canonicalSeedTickets(dbSeed);
   const prospective = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
   return json({
     strategy: STRATEGY_HC_V1,
-    reconstruction: {
-      confidence: seed.length ? "journal" : "unrecovered",
-      n: seed.length,
-      note: seed.length
-        ? "Seeded from the operator journal (localStorage) for 2026-08-26 CT. Immutable."
-        : "Exact eight tickets were not in D1 or the repo. They lived in the browser journal. Open SYS once on the machine that logged them to freeze the cohort. Games are not invented.",
-    },
+    reconstruction: strategyReconstruction(),
     seed: { tickets: seed, traits: characterizeTickets(seed), stats: strategyStats(seed) },
     prospective: { tickets: prospective, traits: characterizeTickets(prospective), stats: strategyStats(prospective) },
   });
@@ -33,7 +56,7 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   const env = { DB: context.env.DB };
-  await persistStrategy(env, STRATEGY_HC_V1);
+  await freezeCanonicalSeed(env);
   let body = {};
   try {
     body = await context.request.json();
@@ -45,9 +68,11 @@ export async function onRequestPost(context) {
   const prospective = [];
   for (const bet of bets) {
     if (!ticketMatchesStrategy(bet)) continue;
+    const day = bet.date || dateCT(bet.loggedAt || bet.gradedAt);
+    const id = ticketId(bet, day);
     const packed = packTicket(bet, {
-      role: inSeedWindow(bet.loggedAt || bet.gradedAt) ? "seed" : "prospective",
-      date: bet.date,
+      role: inSeedWindow(bet.loggedAt || bet.gradedAt || bet.date) && isCanonicalSeedId(id) ? "seed" : "prospective",
+      date: day,
     });
     const res = await persistStrategyTicket(env, packed);
     if (packed.role === "seed") seeded.push({ id: packed.id, ok: res.ok });

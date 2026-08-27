@@ -695,8 +695,13 @@ export async function persistStrategy(env, strategy) {
   if (!hasDb(env) || !strategy?.id) return { ok: false, reason: "unbound" };
   try {
     await env.DB.prepare(
-      `INSERT OR IGNORE INTO strategies (id, name, version, rules_json, notes, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO strategies (id, name, version, rules_json, notes, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         version = excluded.version,
+         rules_json = excluded.rules_json,
+         notes = excluded.notes`
     )
       .bind(
         strategy.id,

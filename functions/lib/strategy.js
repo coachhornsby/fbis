@@ -1,23 +1,27 @@
 /**
  * Bet-selection strategies are NOT forecasting models.
- * An 8-0 night must not rewrite blend weights, logistic k, or qualification gates.
+ * A 7-0 night must not rewrite blend weights, logistic k, or qualification gates.
  *
  * FBIS-HC-v1 is the conjunction that actually defines "high-conviction" on this board:
  * a qualified +EV ticket with EV >= 8% (tag CONVICTION). Leans are excluded.
  *
- * The original 8-0 cohort lived in the browser journal (localStorage fbis-learning-v1)
- * on 2026-08-26 CT. Those rows were never in D1. Exact games are recovered from that
- * journal when present; they are never invented.
+ * The 2026-08-26 seed is the operator-corrected list of 7 CONVICTION picks (not 8).
+ * Positions are user-provided. EV/prices are left null when unknown. The seed sample
+ * was MLB-heavy overs — that is an observation, not a qualification gate.
  */
 
 import { tagFromEv, americanProfit } from "./pricing.js";
+
+export const STRATEGY_HC_V1_SEED_GRADED_AT = "2026-08-27T05:00:00.000Z";
 
 export const STRATEGY_HC_V1 = {
   id: "FBIS-HC-v1",
   name: "High-conviction qualified",
   version: 1,
+  seedRevision: 1,
   seedDate: "2026-08-26",
-  reportedRecord: "8-0",
+  reportedRecord: "7-0",
+  reconstructionConfidence: "user-provided",
   rules: {
     qualified: true,
     lean: false,
@@ -25,9 +29,85 @@ export const STRATEGY_HC_V1 = {
     tag: "CONVICTION",
     marketComplete: true,
   },
+  seedObservation:
+    "The 2026-08-26 seed sample was MLB-heavy overs (5/7 totals at 8.5–9.5, 1 ML, 1 +1.5 RL). That is an observation, not a gate. Prospective tracking remains qualified CONVICTION / EV ≥ 8%.",
   notes:
-    "Conjunction: qualified ticket AND EV ≥ 8% (CONVICTION). Not a lean. Complete two-way Pinnacle market. Champion weights stay frozen. N=8 is a sample, not proof the filter works.",
+    "Conjunction: qualified ticket AND EV ≥ 8% (CONVICTION). Not a lean. Complete two-way Pinnacle market. Champion weights stay frozen. N=7 is a sample, not proof the filter works.",
 };
+
+/** Operator-named 2026-08-26 CONVICTION positions. Matchups from MLB Stats finals. */
+export const STRATEGY_HC_V1_SEED_SPEC = [
+  {
+    pick: "Tampa Bay ML",
+    gameId: "824234",
+    matchup: "TB @ DET",
+    market: "ML",
+    side: "AWAY",
+    line: null,
+    actualHome: 0,
+    actualAway: 3,
+  },
+  {
+    pick: "Col/Wash over 9.5",
+    gameId: "822692",
+    matchup: "COL @ WSH",
+    market: "TOTAL",
+    side: "OVER",
+    line: 9.5,
+    actualHome: 1,
+    actualAway: 13,
+  },
+  {
+    pick: "Hou/NYY over 9",
+    gameId: "823506",
+    matchup: "HOU @ NYY",
+    market: "TOTAL",
+    side: "OVER",
+    line: 9,
+    actualHome: 9,
+    actualAway: 3,
+  },
+  {
+    pick: "MIL/NYM over 8.5",
+    gameId: "823584",
+    matchup: "MIL @ NYM",
+    market: "TOTAL",
+    side: "OVER",
+    line: 8.5,
+    actualHome: 1,
+    actualAway: 8,
+  },
+  {
+    pick: "LAD/ATL over 8.5",
+    gameId: "824878",
+    matchup: "LAD @ ATL",
+    market: "TOTAL",
+    side: "OVER",
+    line: 8.5,
+    actualHome: 6,
+    actualAway: 5,
+  },
+  {
+    pick: "BAL/STL over 8.5",
+    gameId: "823015",
+    matchup: "BAL @ STL",
+    market: "TOTAL",
+    side: "OVER",
+    line: 8.5,
+    actualHome: 7,
+    actualAway: 8,
+  },
+  {
+    pick: "OAK +1.5",
+    gameId: "824963",
+    matchup: "MIN @ ATH",
+    market: "SPREAD",
+    side: "HOME",
+    line: 1.5,
+    actualHome: 7,
+    actualAway: 4,
+  },
+];
 
 export function dateCT(iso) {
   if (!iso) return null;
@@ -203,4 +283,149 @@ export function gradeStrategyResult(ticket, game) {
     return { result: won ? "WON" : "LOST", profit: payout == null ? null : won ? payout : -1, gradedAt: now };
   }
   return null;
+}
+
+export function buildHcV1SeedTicket(spec) {
+  const packed = {
+    ...packTicket(
+      {
+        sport: "mlb",
+        date: STRATEGY_HC_V1.seedDate,
+        gameId: spec.gameId,
+        matchup: spec.matchup,
+        market: spec.market,
+        side: spec.side,
+        pick: spec.pick,
+        line: spec.line,
+        tag: "CONVICTION",
+        qualified: true,
+        lean: false,
+        marketComplete: true,
+        ev: null,
+        edge: null,
+        pinVig: null,
+        pinPrice: null,
+        modelVersion: null,
+        checkpoint: null,
+        dataQuality: null,
+        fair: null,
+        implied: null,
+      },
+      { role: "seed", date: STRATEGY_HC_V1.seedDate }
+    ),
+    ev: null,
+    edge: null,
+    pinVig: null,
+    pinPrice: null,
+    modelVersion: null,
+    checkpoint: null,
+    dataQuality: null,
+    fair: null,
+    implied: null,
+  };
+  const completed = spec.actualHome != null && spec.actualAway != null;
+  const graded = completed
+    ? gradeStrategyResult(packed, {
+        home: { score: spec.actualHome },
+        away: { score: spec.actualAway },
+        status: { completed: true },
+      })
+    : null;
+  const traits = {
+    namedPosition: spec.pick,
+    reconstruction: "user-provided",
+    actualHome: spec.actualHome ?? null,
+    actualAway: spec.actualAway ?? null,
+    homeAway: packed.side === "HOME" || packed.side === "AWAY" ? packed.side : null,
+    overUnder: packed.side === "OVER" || packed.side === "UNDER" ? packed.side : null,
+    favorite: null,
+  };
+  return {
+    ...packed,
+    ev: null,
+    edge: null,
+    pinVig: null,
+    pinPrice: null,
+    modelVersion: null,
+    checkpoint: null,
+    dataQuality: null,
+    fair: null,
+    implied: null,
+    result: graded?.result || "OPEN",
+    profit: graded?.profit ?? null,
+    clv: null,
+    gradedAt: graded ? STRATEGY_HC_V1_SEED_GRADED_AT : null,
+    traitsJson: JSON.stringify(traits),
+  };
+}
+
+export const STRATEGY_HC_V1_SEED_TICKETS = STRATEGY_HC_V1_SEED_SPEC.map(buildHcV1SeedTicket);
+
+export const STRATEGY_HC_V1_SEED_IDS = new Set(STRATEGY_HC_V1_SEED_TICKETS.map((t) => t.id));
+
+export function isCanonicalSeedId(id) {
+  return STRATEGY_HC_V1_SEED_IDS.has(String(id || ""));
+}
+
+export function presentStrategyTicket(t) {
+  if (!t) return t;
+  let traits = t.traits;
+  if (!traits && t.traitsJson) {
+    try {
+      traits = JSON.parse(t.traitsJson);
+    } catch {
+      traits = {};
+    }
+  }
+  return {
+    id: t.id,
+    strategyId: t.strategyId || t.strategy_id || STRATEGY_HC_V1.id,
+    role: t.role || "seed",
+    sport: t.sport || null,
+    date: t.date,
+    gameId: t.gameId || t.game_id || null,
+    matchup: t.matchup || null,
+    market: t.market || null,
+    side: t.side || null,
+    pick: t.pick || null,
+    line: t.line ?? null,
+    ev: t.ev ?? null,
+    edge: t.edge ?? null,
+    tag: t.tag || "CONVICTION",
+    pinVig: t.pinVig ?? t.pin_vig ?? null,
+    pinPrice: t.pinPrice ?? t.pin_price ?? null,
+    modelVersion: t.modelVersion || t.model_version || null,
+    checkpoint: t.checkpoint || null,
+    dataQuality: t.dataQuality ?? t.data_quality ?? null,
+    result: t.result || "OPEN",
+    profit: t.profit ?? null,
+    clv: t.clv ?? null,
+    fair: t.fair ?? null,
+    implied: t.implied ?? null,
+    traits: traits || {},
+    createdAt: t.createdAt || t.created_at || null,
+    gradedAt: t.gradedAt || t.graded_at || null,
+  };
+}
+
+export function canonicalSeedTickets(dbRows = []) {
+  const byId = new Map((dbRows || []).map((r) => [r.id, r]));
+  return STRATEGY_HC_V1_SEED_TICKETS.map((seed) => {
+    const row = byId.get(seed.id);
+    const presented = presentStrategyTicket(seed);
+    if (!row) return presented;
+    const merged = presentStrategyTicket({ ...seed, ...row, pick: seed.pick, matchup: row.matchup || seed.matchup });
+    if (!merged.result || merged.result === "OPEN") {
+      return { ...merged, result: presented.result, profit: presented.profit ?? merged.profit, gradedAt: presented.gradedAt || merged.gradedAt };
+    }
+    return merged;
+  });
+}
+
+export function strategyReconstruction() {
+  return {
+    confidence: "user-provided",
+    n: STRATEGY_HC_V1_SEED_TICKETS.length,
+    note: "Operator-corrected 2026-08-26 CONVICTION cohort (N=7). Immutable seed. MLB-heavy overs in the sample is an observation, not a gate.",
+  };
 }

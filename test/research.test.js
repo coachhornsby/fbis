@@ -2,7 +2,23 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mae, rmse, bias, median, withinShare, withinBands } from "../functions/lib/metrics.js";
 import { projectCfbMatchup, blendSeason, earlySeasonWeight, powerFromRank, cfbSigma } from "../functions/lib/cfbModel.js";
-import { ticketMatchesStrategy, STRATEGY_HC_V1, characterizeTickets, strategyStats, packTicket, inSeedWindow, gradeStrategyResult } from "../functions/lib/strategy.js";
+import {
+  ticketMatchesStrategy,
+  STRATEGY_HC_V1,
+  STRATEGY_HC_V1_SEED_SPEC,
+  STRATEGY_HC_V1_SEED_TICKETS,
+  characterizeTickets,
+  strategyStats,
+  packTicket,
+  inSeedWindow,
+  gradeStrategyResult,
+  canonicalSeedTickets,
+  strategyReconstruction,
+} from "../functions/lib/strategy.js";
+import { DEFAULT_WEIGHTS } from "../functions/lib/weights.js";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { persistSnapshot, gradeSnapshot } from "../functions/lib/store.js";
 import { classifyCheckpoint, pickCanonical, rowsForCheckpoint } from "../functions/lib/checkpoints.js";
 import { projectMatchup } from "../functions/lib/savant.js";
@@ -80,9 +96,63 @@ describe("high-conviction strategy", () => {
     assert.equal(ticketMatchesStrategy({ ...base, ev: 0.03, tag: "LEAN" }), false);
   });
 
-  it("does not treat an 8-0 sample as a model update", () => {
+  it("does not treat a 7-0 sample as a model update", () => {
     assert.equal(STRATEGY_HC_V1.rules.minEv, 0.08);
-    assert.match(STRATEGY_HC_V1.notes, /N=8/);
+    assert.match(STRATEGY_HC_V1.notes, /N=7/);
+    assert.doesNotMatch(STRATEGY_HC_V1.notes, /8-0|N=8/);
+    assert.equal(STRATEGY_HC_V1.reportedRecord, "7-0");
+    assert.equal(STRATEGY_HC_V1.reconstructionConfidence, "user-provided");
+    assert.equal(STRATEGY_HC_V1.id, "FBIS-HC-v1");
+    assert.equal(STRATEGY_HC_V1.version, 1);
+    assert.deepEqual(DEFAULT_WEIGHTS, { market: 0.22, espn: 0.08, score: 0.32, pal: 0.3, form: 0.08 });
+    assert.equal(SPORTS.mlb.k, 2.0);
+    assert.equal(SPORTS.mlb.totalK, 3.6);
+    assert.equal(SPORTS.mlb.minEv, 0.03);
+  });
+
+  it("persists the operator-corrected 7 CONVICTION names", () => {
+    const names = [
+      "Tampa Bay ML",
+      "Col/Wash over 9.5",
+      "Hou/NYY over 9",
+      "MIL/NYM over 8.5",
+      "LAD/ATL over 8.5",
+      "BAL/STL over 8.5",
+      "OAK +1.5",
+    ];
+    assert.equal(STRATEGY_HC_V1_SEED_TICKETS.length, 7);
+    assert.equal(STRATEGY_HC_V1_SEED_SPEC.length, 7);
+    assert.deepEqual(
+      STRATEGY_HC_V1_SEED_TICKETS.map((t) => t.pick),
+      names
+    );
+    const traits = characterizeTickets(STRATEGY_HC_V1_SEED_TICKETS);
+    assert.equal(traits.n, 7);
+    assert.equal(traits.sports.mlb, 7);
+    assert.equal(traits.markets.TOTAL, 5);
+    assert.equal(traits.markets.ML, 1);
+    assert.equal(traits.markets.SPREAD, 1);
+    assert.equal(traits.overShare, 5 / 7);
+    assert.ok(STRATEGY_HC_V1.seedObservation.includes("observation"));
+    assert.ok(!STRATEGY_HC_V1.rules.sport);
+    const rec = strategyReconstruction();
+    assert.equal(rec.confidence, "user-provided");
+    assert.equal(rec.n, 7);
+    const presented = canonicalSeedTickets([]);
+    assert.equal(presented.length, 7);
+    assert.ok(presented.every((t) => t.result === "WON"));
+    assert.ok(STRATEGY_HC_V1_SEED_TICKETS.every((t) => t.ev == null && t.pinPrice == null && t.profit == null));
+    const root = dirname(fileURLToPath(import.meta.url));
+    const json = JSON.parse(readFileSync(join(root, "../data/cohorts/fbis-hc-v1.json"), "utf8"));
+    assert.equal(json.positions.length, 7);
+    assert.equal(json.reportedRecord, "7-0");
+    assert.equal(json.reconstructionConfidence, "user-provided");
+    assert.deepEqual(
+      json.positions.map((p) => p.pick),
+      names
+    );
+    assert.equal(json.positions[0].ev, null);
+    assert.doesNotMatch(JSON.stringify(json), /8-0/);
   });
 
   it("windows 2026-08-26 CT", () => {
