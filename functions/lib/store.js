@@ -4,7 +4,7 @@
  * Module-memory `health` is request-local diagnostics only. SYS reads D1.
  */
 
-import { immutableFieldsConflict } from "./strategy.js";
+import { identityFieldsConflict, immutableFieldsConflict } from "./strategy.js";
 
 const health = {
   bound: false,
@@ -729,14 +729,16 @@ export async function persistStrategy(env, strategy) {
   }
 }
 
-export async function persistStrategyTicket(env, row) {
+export async function persistStrategyTicket(env, row, opts = {}) {
   markBound(env);
   if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  const strict = opts.strictConflict !== false;
   try {
     const existing = await env.DB.prepare("SELECT * FROM strategy_tickets WHERE id = ?").bind(row.id).first();
     if (existing) {
       const mapped = mapStrategyTicket(existing);
-      if (immutableFieldsConflict(mapped, row)) {
+      const clash = strict ? immutableFieldsConflict(mapped, row) : identityFieldsConflict(mapped, row);
+      if (clash) {
         return { ok: false, conflict: true, reason: "duplicate-conflict" };
       }
       await fillNullStrategyFields(env, row);

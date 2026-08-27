@@ -678,7 +678,8 @@ export async function freezeSlate(slate, env = {}) {
   const results = await Promise.all(writes);
   for (const res of results) tallyPersist(counts, res);
   if (changed) await saveLedger(slate.sport, ledger, cfCache);
-  return { ok: counts.writesFailed === 0, counts, games: slate.games.length };
+  const failReasons = [...new Set(results.filter((r) => r && r.ok === false).map((r) => r.reason).filter(Boolean))];
+  return { ok: counts.writesFailed === 0, counts, games: slate.games.length, failReasons };
 }
 
 async function persistMatchingRec(env, slate, game, frozen) {
@@ -706,7 +707,8 @@ async function persistMatchingRec(env, slate, game, frozen) {
         tag: rec.tag,
       },
       { role: "prospective", date: slate.date }
-    )
+    ),
+    { strictConflict: false }
   );
 }
 
@@ -1308,6 +1310,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
       let pal = null;
       const days = [];
       let sportWrites = emptyWriteCounts();
+      const sportFailReasons = [];
       for (const day of unique) {
         dates.push(day);
         const slate = await builder(sport, day, {
@@ -1319,6 +1322,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         }
         const frozen = await freezeSlate(slate, env);
         sportWrites = mergeWriteCounts(sportWrites, frozen.counts || emptyWriteCounts());
+        if (frozen.failReasons?.length) sportFailReasons.push(...frozen.failReasons);
         n += slate.games?.length || 0;
         pal = slate.pal?.games ?? slate.pal?.meta?.games ?? pal;
         days.push({ date: day, n: slate.games?.length || 0 });
@@ -1335,7 +1339,10 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         writes: sportWrites,
       });
       if (sportWrites.writesFailed) {
-        errors.push(`${sport}: ${sportWrites.writesFailed} D1 writes failed`);
+        const reasons = [...new Set(sportFailReasons.filter(Boolean))];
+        errors.push(
+          `${sport}: ${sportWrites.writesFailed} D1 writes failed${reasons.length ? ` (${reasons.join("; ")})` : ""}`
+        );
       }
     } catch (err) {
       const msg = String(err?.message || err);

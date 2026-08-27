@@ -711,19 +711,8 @@ export function validateImportedTicket(raw) {
   return { ok: true, ticket: { ...normalized, ...assigned }, clientRole: roleField, role: assigned.role };
 }
 
-const IMMUTABLE_KEYS = [
-  "strategyId",
-  "sport",
-  "gameId",
-  "market",
-  "side",
-  "line",
-  "qualifiedAt",
-  "modelVersion",
-  "ev",
-  "tag",
-  "role",
-];
+const IDENTITY_KEYS = ["strategyId", "sport", "gameId", "market", "side", "line", "role"];
+const IMMUTABLE_KEYS = [...IDENTITY_KEYS, "qualifiedAt", "modelVersion", "ev", "tag"];
 
 function normField(v) {
   if (v == null || v === "") return null;
@@ -733,9 +722,9 @@ function normField(v) {
   return String(v);
 }
 
-export function immutableFieldsConflict(existing, incoming) {
+export function fieldsConflict(existing, incoming, keys = IMMUTABLE_KEYS) {
   if (!existing) return false;
-  for (const k of IMMUTABLE_KEYS) {
+  for (const k of keys) {
     const a = normField(existing[k] ?? existing[k.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`)]);
     const b = normField(incoming[k]);
     if (a == null || b == null) continue;
@@ -744,4 +733,12 @@ export function immutableFieldsConflict(existing, incoming) {
   return false;
 }
 
-export { IMMUTABLE_KEYS };
+export function immutableFieldsConflict(existing, incoming) {
+  return fieldsConflict(existing, incoming, IMMUTABLE_KEYS);
+}
+
+export function identityFieldsConflict(existing, incoming) {
+  return fieldsConflict(existing, incoming, IDENTITY_KEYS);
+}
+
+export { IMMUTABLE_KEYS, IDENTITY_KEYS };

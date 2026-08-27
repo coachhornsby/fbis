@@ -25,7 +25,7 @@ import { DEFAULT_WEIGHTS } from "../functions/lib/weights.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { persistSnapshot, gradeSnapshot } from "../functions/lib/store.js";
+import { persistSnapshot, gradeSnapshot, persistStrategyTicket } from "../functions/lib/store.js";
 import { onRequestPost, importStrategyTickets } from "../functions/api/strategy.js";
 import { projectCfbGame } from "../functions/lib/cfbModel.js";
 import { classifyCheckpoint, pickCanonical, rowsForCheckpoint } from "../functions/lib/checkpoints.js";
@@ -548,6 +548,13 @@ describe("strategy ingest", () => {
     const c = await importStrategyTickets(env, [{ ...t, ev: 0.99 }]);
     assert.equal(c.ok, false);
     assert.equal(c.status, 409);
+    const first = await persistStrategyTicket(env, packed);
+    const rerun = await persistStrategyTicket(env, { ...packed, ev: 0.99, qualifiedAt: "2026-08-27T12:00:00Z" }, {
+      strictConflict: false,
+    });
+    assert.equal(first.ok, true);
+    assert.equal(rerun.ok, true);
+    assert.equal(rerun.already, true);
   });
 
   it("does not rewrite a settled result", async () => {
