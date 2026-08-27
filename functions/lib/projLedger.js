@@ -84,12 +84,12 @@ export const RECIPE_GUIDE = {
     body: "PINNACLE IMPLIED SCORE is total/2 ± spread/2. That is market context, not an independent FBIS projection. Circular market-derived scores cannot qualify. Identity/logos use the canonical NFL registry.",
   },
   cfb: {
-    engine: "CFB prior-v1 + season evidence",
-    body: "Independent score model. Team-specific prior is ESPN FPI (all FBS) blended with opponent-adjusted 2025 SRS. Current-season evidence is harvested points for/against, w = n/(n+6). HFA 2.5 (0 on confirmed neutral). League-average-only games are diagnostic, never qualified, never LOG, never strategy. Champion HFA challengers remain shadow.",
+    engine: "CFB prior-v2-cfbd + season evidence",
+    body: "Independent score model. Authorized team-specific prior is CollegeFootballData SP+/FPI/SRS/Elo covering all FBS (cfb-prior-v2-cfbd). Fallback is ESPN FPI blended with opponent-adjusted 2025 SRS. Current-season evidence is harvested points for/against, w = n/(n+6). HFA 2.5 (0 on confirmed neutral). FCS and newly promoted FBS are provisional. League-average-only games are diagnostic, never qualified, never LOG, never strategy. Champion HFA challengers remain shadow. Pal is never a book.",
   },
   cbb: {
     engine: "Pinnacle line-implied",
-    body: "Pinnacle total/spread split into team scores. ESPN win% is a real layer on this board.",
+    body: "Pinnacle total/spread split into team scores. ESPN win% is a real layer on this board. CollegeBasketballData ratings are research-only when the shared CFBD key works; no independent CBB sim is wired.",
   },
 };
 

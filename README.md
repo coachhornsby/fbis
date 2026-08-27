@@ -38,8 +38,8 @@ Baseball run line is always **1.5** (full game) / **0.5** (F5). Alternate lines 
 ## How scores are projected
 
 - **MLB** — Two independent models. Proprietary: Savant RPG × starter ERA-eq × 1.04 home, clamped 2.3–7.2. Ballpark Pal: simulated runs and Pal win probability as a separate layer. Pal never overwrites Savant and is never a sportsbook price. Win-prob blends Pinnacle no-vig, ESPN, Savant score, Pal, and W-L form.
-- **CFB** — Independent FBIS-v1.3 prior + season form (ESPN AP rank, records, harvested points for/against). HFA 2.5 (0 on neutral). Pinnacle remains the market layer only.
-- **NBA / NFL / CBB** — Pinnacle total/spread split into implied team scores until an independent sim is wired. Win-prob blends no-vig Pinnacle, ESPN, score (line-implied margin), and W-L form.
+- **CFB** — Independent score model. Authorized prior is CollegeFootballData SP+/FPI/SRS/Elo for all FBS (`cfb-prior-v2-cfbd`) when `CFBD_API_KEY` is bound. Fallback is ESPN FPI + opponent-adjusted 2025 SRS. HFA 2.5 (0 on confirmed neutral). Pinnacle remains the market layer only. League-average-only games cannot qualify.
+- **NBA / NFL / CBB** — Pinnacle total/spread split into implied team scores until an independent sim is wired. CBB CFBD ratings are research-only when the shared key works; no CBB sim is invented. Win-prob blends no-vig Pinnacle, ESPN, score (line-implied margin), and W-L form.
 
 Hover a Proj cell for the recipe. SYS explains every board.
 
@@ -55,7 +55,7 @@ Checkpoints: FIRST_AVAILABLE · EARLY · MORNING · LINEUP_CONFIRMED · PREGAME 
 
 Model version: **FBIS-v1.3**
 
-**CFB (v1.3)** — Independent score model: ESPN AP rank prior + harvested current-season points for/against, blended with `w = n/(n+6)`. HFA 2.5 (0 on neutral). Win/spread/total probabilities use an explicit Normal sigma (wider early). No EPA, transfer, QB, or coaching feed is wired. Pinnacle remains the market layer. A projected winner is not a bet.
+**CFB (v1.3 / prior-v2-cfbd)** — Independent score model. Team-specific prior is CollegeFootballData SP+/FPI/SRS/Elo covering all FBS, not AP25. Fallback is ESPN FPI + harvested 2025 SRS. Current-season points for/against blend with `w = n/(n+6)`. HFA 2.5 (0 on confirmed neutral). FCS and newly promoted FBS are provisional. League-average-only cannot qualify, show LOG, or create a strategy ticket. Champion HFA weights stay frozen. Pal is never a book. No EPA/QB/coach feed is invented.
 
 **Strategy FBIS-HC-v1** — Qualified tickets with EV ≥ 8% (CONVICTION). The 2026-08-26 seed is the operator-corrected 7 CONVICTION tickets (`data/cohorts/fbis-hc-v1.json`, D1 `strategy_tickets` role=seed). Reported record 7-0. Reconstruction is operator-declared until journal EV/timestamps are imported (recovered N is separate from the graded 7-0 record). The seed sample was MLB-heavy overs — that is an observation, not a gate. Champion weights, logistic k, and qualification gates stay frozen. Prospective matches still use the CONVICTION / EV ≥ 8% conjunction and are graded separately from forecast MAE/Brier.
 
@@ -66,6 +66,7 @@ Model version: **FBIS-v1.3**
 - MLB Stats API — schedule, scores, probable pitchers, F5 linescore (free)
 - ParlayAPI — Pinnacle game lines (3 credits, `eu` region), cached 15 minutes. Kalshi sentiment is a 1-credit pull; empty Kalshi/F5 responses cache for 6 hours.
 - Ballpark Pal — optional; set `BALLPARK_PAL_API_KEY` when you have it (15k requests/month)
+- CollegeFootballData — CFB ratings (SP+/FPI/SRS/Elo). Set `CFBD_API_KEY` as a Pages secret (never commit the value). The same key is probed for CollegeBasketballData research-only ratings.
 
 The operator ticket journal still lives in the browser (`fbis-learning-v1`). POST `/api/strategy` is secret-protected (`x-harvest-secret` or `STRATEGY_IMPORT_SECRET`) and does not accept arbitrary CORS. The FBIS-HC-v1 seed names are the seven operator-declared 2026-08-26 positions; they are not a recovered journal. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql` plus `migrations/`) is the authoritative research ledger.
 
@@ -89,6 +90,7 @@ Opens on port **5175**. Copy `.env.example` to `.env`.
 ```bash
 npx wrangler pages secret put PARLAY_API_KEY --project-name fbis
 npx wrangler pages secret put BALLPARK_PAL_API_KEY --project-name fbis
+npx wrangler pages secret put CFBD_API_KEY --project-name fbis
 npm run deploy
 ```
 

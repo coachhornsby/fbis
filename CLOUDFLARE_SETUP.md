@@ -9,6 +9,7 @@ Same path as CougarsDefense. Free tier. No DigitalOcean.
 ```bash
 npx wrangler pages secret put PARLAY_API_KEY --project-name fbis
 npx wrangler pages secret put BALLPARK_PAL_API_KEY --project-name fbis
+npx wrangler pages secret put CFBD_API_KEY --project-name fbis
 npm run deploy
 ```
 

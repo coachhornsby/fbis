@@ -6,6 +6,15 @@ import { freezeSlate, buildTrackReport, harvestAll, collectBoards } from "./func
 import { buildTodayBoard, resolveTodayDate } from "./functions/lib/todayBoard.js";
 import { handleBetsGet, handleBetsPost } from "./functions/api/bets.js";
 
+function localEnv(extra = {}) {
+  return {
+    PARLAY_API_KEY: process.env.PARLAY_API_KEY,
+    BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
+    CFBD_API_KEY: process.env.CFBD_API_KEY,
+    ...extra,
+  };
+}
+
 function loadDotEnv() {
   try {
     const text = readFileSync(new URL("./.env", import.meta.url), "utf8");
@@ -38,12 +47,10 @@ function slateMiddleware() {
           const sport = parsed.searchParams.get("sport") || "mlb";
           const date = parsed.searchParams.get("date") || "";
           if (url.startsWith("/api/bets")) {
-            const env = {
-              PARLAY_API_KEY: process.env.PARLAY_API_KEY,
-              BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
+            const env = localEnv({
               HARVEST_SECRET: process.env.HARVEST_SECRET,
               STRATEGY_IMPORT_SECRET: process.env.STRATEGY_IMPORT_SECRET,
-            };
+            });
             const fakeReq = {
               url: parsed.href,
               headers: {
@@ -76,43 +83,28 @@ function slateMiddleware() {
           }
           if (url.startsWith("/api/today")) {
             const resolved = resolveTodayDate(parsed.searchParams.get("date") || "");
-            const payload = await buildTodayBoard(resolved.date, {
-              PARLAY_API_KEY: process.env.PARLAY_API_KEY,
-              BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
-            });
+            const payload = await buildTodayBoard(resolved.date, localEnv());
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify(payload));
             return;
           }
           if (url.startsWith("/api/collect")) {
             const odds = parsed.searchParams.get("odds") === "full" ? "full" : "cache";
-            const payload = await collectBoards(
-              {
-                PARLAY_API_KEY: process.env.PARLAY_API_KEY,
-                BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
-              },
-              { odds }
-            );
+            const payload = await collectBoards(localEnv(), { odds });
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify(payload));
             return;
           }
           if (url.startsWith("/api/harvest")) {
             const days = parsed.searchParams.get("days") || "3";
-            const payload = await harvestAll(days, {
-              PARLAY_API_KEY: process.env.PARLAY_API_KEY,
-              BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
-            });
+            const payload = await harvestAll(days, localEnv());
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify(payload));
             return;
           }
           if (url.startsWith("/api/track")) {
             const days = parsed.searchParams.get("days") || "season";
-            const payload = await buildTrackReport(sport, days, {
-              PARLAY_API_KEY: process.env.PARLAY_API_KEY,
-              BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
-            }, {
+            const payload = await buildTrackReport(sport, days, localEnv(), {
               checkpoint: parsed.searchParams.get("checkpoint") || "LATEST",
               version: parsed.searchParams.get("version") || "all",
               model: parsed.searchParams.get("model") || "ensemble",
@@ -130,10 +122,7 @@ function slateMiddleware() {
             res.end(JSON.stringify({ error: resolved.error, games: [], ticker: [], counts: {} }));
             return;
           }
-          const payload = await buildSlate(sport, resolved.date, {
-            PARLAY_API_KEY: process.env.PARLAY_API_KEY,
-            BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
-          });
+          const payload = await buildSlate(sport, resolved.date, localEnv());
           await freezeSlate(payload, {}).catch(() => {});
           if (url.startsWith("/api/ticker")) {
             res.setHeader("Content-Type", "application/json");

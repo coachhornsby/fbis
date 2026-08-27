@@ -2,13 +2,14 @@
  * Independent CFB score model (FBIS-v1.3).
  *
  * Runtime sources that actually run:
+ *   CollegeFootballData — SP+/FPI/SRS/Elo (all FBS) when CFBD_API_KEY is set; talent/returning frozen as metadata
  *   ESPN scoreboard — records, AP/curated rank, scores, neutralSite, conference, week
- *   ESPN rankings  — AP (and other polls in the same payload) as the weekly/preseason prior
+ *   ESPN rankings  — AP (and other polls in the same payload) as a weekly label, not the team prior
  *   FBIS team_form — current-season points for/against from harvested finals (as-of, no leakage)
+ *   Fallback prior — ESPN FPI + opponent-adjusted 2025 SRS (cfb-prior-v1) if CFBD is missing or 401/404
  *
  * Not present in this repo and NOT invented:
- *   EPA, success rate, explosiveness, returning production, transfer portal,
- *   QB/coach/coordinator changes, injuries, weather, travel, rest.
+ *   EPA play-by-play, transfer portal, QB/coach/coordinator changes, injuries, weather, travel, rest.
  *
  * Early-season blend (documented, versioned):
  *   w_current = n / (n + PRIOR_GAMES) with PRIOR_GAMES = 6
@@ -27,6 +28,7 @@ import { loadTeamForm, loadHfaRatings } from "./store.js";
 import { pCoverHome, pGreater } from "./metrics.js";
 import { buildShadowHfa, championHfaForGame } from "./hfa.js";
 import { CFB_PRIOR_VERSION, freezePrior, hasTeamSpecificPrior, priorForTeam } from "./cfbPrior.js";
+import { cfbdPublicMeta, loadCfbPrior } from "./cfbd.js";
 import { cfbSlateDiagnostics } from "./cfbDiagnostics.js";
 
 function todayCT() {
@@ -63,7 +65,7 @@ export const CFB_CONSTANTS = {
     priorGames: "Current-season weight = n / (n + 6). Week 0 is almost all prior.",
     sigma: "Margin SD 15.5 and total SD 13.5 are published FBS-scale heuristics, not fitted or trained on FBIS bets.",
     missing: "No EPA/QB/coach/transfer feed is wired. Those inputs are absent, not zero-filled fakes.",
-    prior: "cfb-prior-v1: ESPN FPI (all FBS) blended with opponent-adjusted 2025 SRS. FCS without FPI is provisional.",
+    prior: "cfb-prior-v2-cfbd: CollegeFootballData SP+/FPI/SRS/Elo for all FBS when the key is present. Fallback is ESPN FPI + opponent-adjusted 2025 SRS. FCS and newly promoted FBS are provisional. Talent/returning production are frozen as metadata, not converted into fake points.",
   },
 };
 
@@ -198,24 +200,24 @@ function priorUnit(power) {
   };
 }
 
-function priorFromCatalog(team) {
-  const row = priorForTeam(team);
+function priorFromCatalog(team, catalog) {
+  const row = priorForTeam(team, catalog);
   if (!hasTeamSpecificPrior(row)) return { ...priorUnit(0), catalog: row || null, teamSpecific: false };
   return {
     off: Number(row.off),
     def: Number(row.def),
-    power: row.fpi ?? row.srs ?? 0,
+    power: row.sp ?? row.fpi ?? row.srs ?? row.power ?? 0,
     teamSpecific: true,
     catalog: row,
   };
 }
 
-export function estimateTeam(team, { rankings, form, rankFallback } = {}) {
+export function estimateTeam(team, { rankings, form, rankFallback, catalog, priorMeta } = {}) {
   const ranked = lookupRank(rankings || { byTeam: new Map() }, team);
   const rank = ranked?.rank ?? (team?.rank && team.rank < 99 ? team.rank : rankFallback ?? null);
-  const catalog = priorFromCatalog(team);
-  const power = catalog.teamSpecific ? catalog.power : powerFromRank(rank);
-  const prior = catalog.teamSpecific ? catalog : priorUnit(power);
+  const priorCat = priorFromCatalog(team, catalog);
+  const power = priorCat.teamSpecific ? priorCat.power : powerFromRank(rank);
+  const prior = priorCat.teamSpecific ? priorCat : priorUnit(power);
   const key = teamKey(team);
   const row = form?.get(key) || form?.get(`abbr:${String(team?.abbr || "").toUpperCase()}`) || null;
   const n = row?.games ?? gamesFromRecord(team?.record);
@@ -224,7 +226,7 @@ export function estimateTeam(team, { rankings, form, rankFallback } = {}) {
   const off = blendSeason(prior.off, currentOff, n);
   const def = blendSeason(prior.def, currentDef, n);
   const noTeamForm = currentOff == null;
-  const priorMissing = !catalog.teamSpecific;
+  const priorMissing = !priorCat.teamSpecific;
   return {
     key,
     rank,
@@ -238,15 +240,18 @@ export function estimateTeam(team, { rankings, form, rankFallback } = {}) {
     off: off.value,
     def: def.value,
     w: off.w,
-    teamSpecificPrior: catalog.teamSpecific,
-    priorFrozen: freezePrior(catalog.catalog),
-    provisional: Boolean(catalog.catalog?.provisional),
+    teamSpecificPrior: priorCat.teamSpecific,
+    priorFrozen: freezePrior(priorCat.catalog, priorMeta),
+    provisional: Boolean(priorCat.catalog?.provisional),
+    classification: priorCat.catalog?.classification || null,
     flags: [
       rank == null ? "unranked" : null,
       n < 3 ? "early_season" : null,
       noTeamForm ? "no_current_ppg" : null,
       noTeamForm ? "form_missing" : null,
       priorMissing ? "team_prior_missing" : null,
+      priorCat.catalog?.classification === "FCS" ? "fcs" : null,
+      priorCat.catalog?.newlyPromoted ? "newly_promoted" : null,
     ].filter(Boolean),
   };
 }
@@ -275,6 +280,7 @@ export function projectCfbGame(game, ctx = {}) {
   const formUnavailable = !ctx.form || ctx.form.size === 0;
   const home = estimateTeam(game.home, ctx);
   const away = estimateTeam(game.away, ctx);
+  const priorVersion = ctx.priorMeta?.version || home.priorFrozen?.version || away.priorFrozen?.version || CFB_PRIOR_VERSION;
   const venue = championHfaForGame(game);
   const hfa = venue.hfa;
   const scores = projectCfbMatchup({
@@ -332,12 +338,12 @@ export function projectCfbGame(game, ctx = {}) {
     dataQuality: Math.round(Math.max(qualityFloor, Math.min(1, completeness)) * 100),
     flags,
     venue,
-    priorVersion: CFB_PRIOR_VERSION,
+    priorVersion,
     constants: {
       priorGames: CFB_CONSTANTS.priorGames,
       hfaPoints: hfa,
-      model: "cfb-prior-v1",
-      priorVersion: CFB_PRIOR_VERSION,
+      model: priorVersion,
+      priorVersion,
     },
   };
 }
@@ -375,6 +381,7 @@ export async function applyCfbModel(games, env = {}) {
   }
   const season = cfbSeasonYear();
   const form = await loadTeamForm(env, "cfb", season);
+  const priorBundle = await loadCfbPrior(env);
   const rankingsUnavailable = Boolean(rankings.error) || !rankings.byTeam?.size;
   let scoreByTeam = {};
   let marketByTeam = {};
@@ -401,7 +408,13 @@ export async function applyCfbModel(games, env = {}) {
       game.odds?.total != null && game.odds?.spread != null
         ? game.odds.total / 2 + game.odds.spread / 2
         : null;
-    const proj = projectCfbGame(game, { rankings, form, rankingsUnavailable });
+    const proj = projectCfbGame(game, {
+      rankings,
+      form,
+      rankingsUnavailable,
+      catalog: priorBundle.catalog,
+      priorMeta: priorBundle.meta,
+    });
     const shadowHfa = buildShadowHfa(game, {
       scoreFit,
       marketFit,
@@ -430,7 +443,8 @@ export async function applyCfbModel(games, env = {}) {
       formTeams: form.size,
       error: rankings.error || null,
       constants: CFB_CONSTANTS,
-      priorVersion: CFB_PRIOR_VERSION,
+      priorVersion: priorBundle.version || CFB_PRIOR_VERSION,
+      cfbd: cfbdPublicMeta(priorBundle.meta),
       diagnostics,
     },
   };

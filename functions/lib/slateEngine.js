@@ -7,6 +7,7 @@ import { fetchSavantSlate } from "./savant.js";
 import { MODEL_VERSION, pinMarkets, priceSelection, tagFromEv } from "./pricing.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { applyCfbModel, cfbSpreadProb, cfbTotalProb, cfbWinProb, CFB_BLOCKED_MESSAGE } from "./cfbModel.js";
+import { loadCbbdRatings } from "./cfbd.js";
 import { enrichGameTeams } from "./teams.js";
 import { attachMarketLabels, TEAM_MATCH_UNRESOLVED } from "./marketLabels.js";
 
@@ -938,6 +939,7 @@ export async function buildSlate(sport, date, env = {}) {
   let pal = { games: [], meta: { enabled: false } };
   let savant = { meta: { enabled: false } };
   let cfb = { meta: { enabled: false } };
+  let cbbd = { meta: { configured: false } };
   if (id === "mlb") {
     savant = await fetchSavantSlate(games, env.caches);
     games = savant.games || games;
@@ -947,6 +949,9 @@ export async function buildSlate(sport, date, env = {}) {
   if (id === "cfb") {
     cfb = await applyCfbModel(games, env);
     games = cfb.games || games;
+  }
+  if (id === "cbb") {
+    cbbd = await loadCbbdRatings(env);
   }
 
   games = games.map((game) => {
@@ -970,6 +975,7 @@ export async function buildSlate(sport, date, env = {}) {
     pal: palSlateView(pal),
     savant: savant.meta || { enabled: false },
     cfb: cfb.meta || { enabled: false },
+    cbbd: id === "cbb" ? cbbd.meta || { configured: false } : undefined,
     modelVersion: MODEL_VERSION,
     games,
     ticker: games.map((g) => ({
