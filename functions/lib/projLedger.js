@@ -36,6 +36,7 @@ import {
   gradeSnapshotsForGame,
   queryExecutedBets,
   updateExecutedBet,
+  persistMlbMarketProjections,
 } from "./store.js";
 import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
 import { buildAccuracyPack } from "./accuracyReport.js";
@@ -249,6 +250,9 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     palPark: game.bpp?.park || null,
     palMatchup: game.bpp?.matchup || null,
     palTotals: game.bpp?.totals || null,
+    palTeamTotals: game.bpp?.teamTotals || [],
+    palProps: game.bpp?.props || [],
+    palUnknownMarkets: game.bpp?.unknownMarkets || [],
     season: seasonOf(date, game.sport),
     pinSpread: game.odds?.pinSpread ?? null,
     pinTotal: game.odds?.pinTotal ?? null,
@@ -291,6 +295,61 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     espnIdHome: game.home?.espnId || null,
     espnIdAway: game.away?.espnId || null,
   };
+}
+
+function marketRowId(parts) {
+  return parts.map((v) => String(v ?? "").replace(/[^a-z0-9_.+-]+/gi, "-")).join(":");
+}
+
+export function palMarketRowsFromGame(date, game, frozen = freezeFromGame(date, game)) {
+  if (!frozen || game?.sport !== "mlb" || !game?.bpp) return [];
+  const base = {
+    gameId: String(game.id), date, checkpoint: frozen.checkpoint, source: "ballpark-pal",
+    sourceAsOf: game.bpp.asOf || frozen.palAsOf, sourceRequestId: game.bpp.requestId || frozen.palRequestId,
+    modelVersion: frozen.modelVersion, lineupsOfficial: game.bpp.lineupsOfficial,
+    frozenAt: frozen.frozenAt,
+  };
+  const rows = [];
+  const f5Book = game.odds?.f5 || null;
+  const f5 = game.bpp.f5 || null;
+  if (f5) {
+    const mlPriced = f5Book?.homeMl != null && f5Book?.awayMl != null;
+    rows.push({ ...base, id: marketRowId([date, game.id, frozen.checkpoint, "F5_ML"]), period: "F5", marketType: "F5_ML", subjectType: "game",
+      projectedHome: f5.homeRuns, projectedAway: f5.awayRuns, pHome: f5.homeWin, pAway: f5.awayWin,
+      book: f5Book?.book || null, priced: mlPriced, qualificationState: mlPriced ? "PRICED_CANDIDATE" : "MODEL_LEAN",
+      qualificationReason: mlPriced ? null : "missing complete two-way F5 ML price" });
+    const totalPriced = f5Book?.total != null && f5Book?.overPrice != null && f5Book?.underPrice != null;
+    rows.push({ ...base, id: marketRowId([date, game.id, frozen.checkpoint, "F5_TOTAL", f5Book?.total]), period: "F5", marketType: "F5_TOTAL", subjectType: "game",
+      average: f5.total, book: f5Book?.book || null, bookLine: f5Book?.total ?? null, bookOverPrice: f5Book?.overPrice ?? null,
+      bookUnderPrice: f5Book?.underPrice ?? null, priced: totalPriced, qualificationState: totalPriced ? "PRICED_CANDIDATE" : "MODEL_LEAN",
+      qualificationReason: totalPriced ? null : "missing complete two-way F5 total price" });
+    const spreadPriced = f5Book?.spread != null && f5Book?.spreadHomePrice != null && f5Book?.spreadAwayPrice != null;
+    if (f5Book?.spread != null || spreadPriced) rows.push({ ...base, id: marketRowId([date, game.id, frozen.checkpoint, "F5_SPREAD", f5Book?.spread]), period: "F5", marketType: "F5_SPREAD", subjectType: "game",
+      book: f5Book?.book || null, bookLine: f5Book?.spread ?? null, bookOverPrice: f5Book?.spreadHomePrice ?? null, bookUnderPrice: f5Book?.spreadAwayPrice ?? null,
+      priced: spreadPriced, qualificationState: spreadPriced ? "PRICED_CANDIDATE" : "MODEL_LEAN",
+      qualificationReason: spreadPriced ? null : "missing complete two-way F5 spread price" });
+  }
+  for (const p of game.bpp.props || []) {
+    rows.push({ ...base,
+      id: marketRowId([date, game.id, frozen.checkpoint, "PROP", p.marketId, p.playerId, p.line]),
+      period: "FULL_GAME", marketType: `PLAYER_PROP:${p.marketId || "UNKNOWN"}`, subjectType: "player",
+      subjectId: p.playerId, subjectName: p.playerName, teamId: p.teamId, line: p.line,
+      pOver: p.over, pUnder: p.under, average: p.average, sourceMarketKey: p.marketId,
+      sourceMarketName: p.displayName, priced: false, qualificationState: "PROP_WATCH",
+      qualificationReason: "Pal projection only; exact sportsbook line and two-way price unavailable",
+    });
+  }
+  for (const t of game.bpp.teamTotals || []) {
+    rows.push({ ...base,
+      id: marketRowId([date, game.id, frozen.checkpoint, "TEAM_TOTAL", t.teamId, t.line]),
+      period: "FULL_GAME", marketType: "TEAM_TOTAL", subjectType: "team", subjectId: t.teamId,
+      teamId: t.teamId, line: t.line, pOver: t.over, pUnder: t.under, average: t.average,
+      sourceMarketKey: t.marketId, sourceMarketName: t.displayName, priced: false,
+      qualificationState: "MODEL_LEAN",
+      qualificationReason: "Pal projection only; exact sportsbook line and two-way price unavailable",
+    });
+  }
+  return rows;
 }
 
 function seasonOf(date, sport) {
@@ -662,6 +721,9 @@ export async function freezeSlate(slate, env = {}) {
         }
         writes.push(persistMatchingRec(env, slate, game, frozen));
         writes.push(persistGameChallengers(env, game, slate.sport));
+        if (slate.sport === "mlb") {
+          writes.push(persistMlbMarketProjections(env, palMarketRowsFromGame(slate.date, game, frozen)));
+        }
       }
       continue;
     }
@@ -682,6 +744,9 @@ export async function freezeSlate(slate, env = {}) {
           next = { ...next, checkpoints: cps, checkpoint: packed.checkpoint };
           writes.push(persistMatchingRec(env, slate, game, packed));
           writes.push(persistGameChallengers(env, game, slate.sport));
+          if (slate.sport === "mlb") {
+            writes.push(persistMlbMarketProjections(env, palMarketRowsFromGame(slate.date, game, packed)));
+          }
           changed = true;
         }
         const canon = pickCanonical(Object.values(cps).map((c) => ({ ...c, id: next.id, date: next.date })))[0];
@@ -805,6 +870,9 @@ function palJson(row) {
     f5AwayWin: row.f5AwayWin,
     pHome: row.pPal ?? row.palPHomeStored,
     totals: row.palTotals || null,
+    teamTotals: row.palTeamTotals || null,
+    props: row.palProps || null,
+    unknownMarkets: row.palUnknownMarkets || null,
     runLine: row.palRunLine || null,
     park: row.palPark || row.park || "",
     parkName: row.park || "",
@@ -1271,6 +1339,10 @@ async function dbPayload(env) {
       asOf: meta.last_pal_as_of || null,
       requestId: meta.last_pal_request_id || null,
       reason: meta.last_pal_reason || null,
+      lastAttemptAt: meta.last_pal_attempt_at || null,
+      lastAttemptHttpStatus: meta.last_pal_attempt_http_status || null,
+      lastAttemptError: meta.last_pal_attempt_error || null,
+      availableFromCache: Boolean(meta.last_pal_success_at && meta.last_pal_attempt_http_status === "429"),
     },
     processLocal: researchHealth(),
   };
@@ -1515,6 +1587,9 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
           const palMeta = slate.pal?.meta || slate.pal || {};
           const palMatch = slate.pal?.match || {};
           const persisted = (slate.games || []).filter((g) => g.bpp?.homeRuns != null || g.bpp?.awayRuns != null).length;
+          await setMeta(env, "last_pal_attempt_at", new Date().toISOString());
+          await setMeta(env, "last_pal_attempt_http_status", palHttpStatusToStore(palMeta));
+          await setMeta(env, "last_pal_attempt_error", palMeta.error || palMeta.reason || "");
           if (palMeta.error || palMeta.reason === "upstream-error") {
             await setMeta(env, "last_pal_error", palMeta.error || palMeta.reason);
             await setMeta(env, "last_pal_http_status", palHttpStatusToStore(palMeta));
@@ -1538,14 +1613,17 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
           const ambiguous = palMatch.ambiguous ?? 0;
           const returned = palMeta.recordsReturned ?? palMatch.palRecords ?? 0;
           const usable = palMeta.usable ?? palMatch.palUsable ?? 0;
-          await setMeta(env, "last_pal_matched", String(matched));
-          await setMeta(env, "last_pal_unmatched", String(unmatched));
-          await setMeta(env, "last_pal_ambiguous", String(ambiguous));
-          await setMeta(env, "last_pal_records_returned", String(returned));
-          await setMeta(env, "last_pal_usable", String(usable));
-          await setMeta(env, "last_pal_persisted", String(persisted));
-          await setMeta(env, "last_pal_mlb_games", String((slate.games || []).length));
-          await setMeta(env, "last_pal_reason", palUnavailableReason(palMeta) || palMeta.reason || "");
+          const successfulCurrent = !palMeta.error && palMeta.reason !== "upstream-error" && Number(returned) > 0;
+          if (successfulCurrent) {
+            await setMeta(env, "last_pal_matched", String(matched));
+            await setMeta(env, "last_pal_unmatched", String(unmatched));
+            await setMeta(env, "last_pal_ambiguous", String(ambiguous));
+            await setMeta(env, "last_pal_records_returned", String(returned));
+            await setMeta(env, "last_pal_usable", String(usable));
+            await setMeta(env, "last_pal_persisted", String(persisted));
+            await setMeta(env, "last_pal_mlb_games", String((slate.games || []).length));
+            await setMeta(env, "last_pal_reason", "");
+          }
           pal = {
             ...(typeof pal === "object" && pal ? pal : {}),
             ...palMeta,

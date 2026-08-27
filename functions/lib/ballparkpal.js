@@ -8,6 +8,10 @@ const TTL_MS = 4 * 60 * 60 * 1000;
 const CACHE_VER = "bpp-v4";
 const DH_WINDOW_MS = 6 * 60 * 60 * 1000;
 const DH_AMBIGUOUS_MS = 45 * 60 * 1000;
+const REQUEST_GAP_MS = 1100;
+const MAX_429_RETRIES = 2;
+let nextRequestAt = 0;
+const inFlight = new Map();
 
 function dateInZone(now, tz) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -125,14 +129,34 @@ export function palInstant(row) {
   return null;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function throttledFetch(url, options) {
+  const wait = Math.max(0, nextRequestAt - Date.now());
+  if (wait) await sleep(wait);
+  nextRequestAt = Date.now() + REQUEST_GAP_MS;
+  return fetch(url, options);
+}
+
 async function bppGet(path, apiKey) {
   const url = path.startsWith("http") ? path : `${BASE}${path}`;
-  const res = await fetch(url, {
-    headers: {
-      "X-API-Key": apiKey,
-      Accept: "application/json",
-    },
-  });
+  const requestKey = `${url}:${String(apiKey || "").slice(-8)}`;
+  if (inFlight.has(requestKey)) return inFlight.get(requestKey);
+  const job = (async () => {
+    let res;
+    for (let attempt = 0; attempt <= MAX_429_RETRIES; attempt += 1) {
+      res = await throttledFetch(url, {
+        headers: {
+          "X-API-Key": apiKey,
+          Accept: "application/json",
+        },
+      });
+      if (res.status !== 429 || attempt === MAX_429_RETRIES) break;
+      const retryAfter = Number(res.headers?.get?.("retry-after"));
+      await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1500 * (attempt + 1));
+    }
   const text = await res.text();
   let json = null;
   try {
@@ -149,6 +173,13 @@ async function bppGet(path, apiKey) {
   }
   const { data, meta } = unwrapPalResponse(json);
   return attachMeta(data, { ...(meta || {}), httpStatus: res.status });
+  })();
+  inFlight.set(requestKey, job);
+  try {
+    return await job;
+  } finally {
+    inFlight.delete(requestKey);
+  }
 }
 
 function indexTeams(teams) {
@@ -193,7 +224,7 @@ function summarizeMatchups(rows) {
   }));
 }
 
-function compactPalMarkets(items, homeId, awayId) {
+export function compactPalMarkets(items, homeId, awayId) {
   const list = Array.isArray(items) ? items : [];
   if (!list.length) return null;
   const mkt = (row) => String(row?.marketId || row?.marketKey || row?.market || row?.mkt || "");
@@ -205,13 +236,14 @@ function compactPalMarkets(items, homeId, awayId) {
     const tid = row?.teamId ?? row?.team_id ?? (row?.subject?.type === "team" ? row?.subject?.id : null);
     return tid != null && tid !== "" && Number(tid) > 0;
   };
-  const mlHome = list.find((r) => mkt(r).includes("mkt_1") && teamOf(r) === Number(homeId) && sideOf(r) === "over" && lineOf(r) === 0.5);
-  const mlAway = list.find((r) => mkt(r).includes("mkt_1") && teamOf(r) === Number(awayId) && sideOf(r) === "over" && lineOf(r) === 0.5);
+  const isMarket = (row, id) => mkt(row) === id || mkt(row).startsWith(`${id}:`);
+  const mlHome = list.find((r) => isMarket(r, "mkt_1") && teamOf(r) === Number(homeId) && sideOf(r) === "over" && lineOf(r) === 0.5);
+  const mlAway = list.find((r) => isMarket(r, "mkt_1") && teamOf(r) === Number(awayId) && sideOf(r) === "over" && lineOf(r) === 0.5);
   const totals = {};
   for (const r of list) {
     const market = mkt(r);
     if (hasTeam(r)) continue;
-    if (!market.includes("mkt_2") && !/total/i.test(market)) continue;
+    if (!isMarket(r, "mkt_2")) continue;
     const line = lineOf(r);
     if (!Number.isFinite(line)) continue;
     const key = String(line);
@@ -219,24 +251,61 @@ function compactPalMarkets(items, homeId, awayId) {
     if (sideOf(r) === "over") totals[key].over = pOf(r);
     if (sideOf(r) === "under") totals[key].under = pOf(r);
   }
-  const runLines = [];
+  const teamTotals = {};
+  const propMap = new Map();
+  const unknown = [];
   for (const r of list) {
-    if (!hasTeam(r)) continue;
+    const market = mkt(r);
     const line = lineOf(r);
-    if (!Number.isFinite(line)) continue;
-    if (mkt(r).includes("mkt_1") && line === 0.5) continue;
-    runLines.push({
-      teamId: teamOf(r),
-      line,
-      side: sideOf(r),
-      p: pOf(r),
-      marketId: mkt(r),
-    });
+    const subject = r?.subject || null;
+    if (market === "mkt_5" && hasTeam(r) && Number.isFinite(line)) {
+      const key = `${teamOf(r)}:${line}`;
+      if (!teamTotals[key]) teamTotals[key] = { teamId: teamOf(r), line, over: null, under: null, average: num(r?.average), marketId: market, displayName: r?.displayName || "Team Total Runs" };
+      if (sideOf(r) === "over") teamTotals[key].over = pOf(r);
+      if (sideOf(r) === "under") teamTotals[key].under = pOf(r);
+      continue;
+    }
+    if (subject?.id != null || subject?.type === "player") {
+      const playerId = subject?.id ?? r?.playerId ?? null;
+      const key = `${market}:${playerId}:${Number.isFinite(line) ? line : ""}`;
+      if (!propMap.has(key)) {
+        propMap.set(key, {
+          marketId: market || null,
+          displayName: r?.displayName || null,
+          playerId,
+          playerName: subject?.name ?? r?.playerName ?? null,
+          subjectType: subject?.type || "player",
+          teamId: teamOf(r) || null,
+          line: Number.isFinite(line) ? line : null,
+          over: null,
+          under: null,
+          average: num(r?.average),
+        });
+      }
+      const packed = propMap.get(key);
+      if (sideOf(r) === "over") packed.over = pOf(r);
+      if (sideOf(r) === "under") packed.under = pOf(r);
+      continue;
+    }
+    if (market && market !== "mkt_1" && market !== "mkt_2" && market !== "mkt_5") {
+      unknown.push({ marketId: market, displayName: r?.displayName || null, teamId: hasTeam(r) ? teamOf(r) : null, line: Number.isFinite(line) ? line : null, side: sideOf(r) || null });
+    }
   }
   const pHome = pOf(mlHome);
   const pAway = pOf(mlAway);
-  if (pHome == null && pAway == null && !Object.keys(totals).length && !runLines.length) return null;
-  return { pHome, pAway, totals, runLine: runLines.length ? runLines : null };
+  const props = [...propMap.values()];
+  if (pHome == null && pAway == null && !Object.keys(totals).length && !Object.keys(teamTotals).length && !props.length) return null;
+  return {
+    pHome,
+    pAway,
+    totals,
+    teamTotals: Object.values(teamTotals),
+    props,
+    unknown,
+    // Pal currently exposes no explicitly identified game run-line market.
+    // Never infer one from team totals or player props.
+    runLine: null,
+  };
 }
 
 function pickSide(list, sp, teamAbv) {
@@ -326,6 +395,9 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
     pAway: markets?.pAway ?? null,
     totals: markets?.totals || null,
     runLine: markets?.runLine || null,
+    teamTotals: markets?.teamTotals || [],
+    props: markets?.props || [],
+    unknownMarkets: markets?.unknown || [],
     matchupForm: form,
     usable: Boolean(homeAbv && awayAbv),
     f5: {

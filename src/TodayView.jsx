@@ -144,6 +144,7 @@ function Stat({ label, value }) {
 }
 
 function TodayTable({ games }) {
+  const mlb = games.some((g) => g.sport === "mlb");
   return (
     <table className="fbis-table today-table">
       <thead>
@@ -152,6 +153,8 @@ function TodayTable({ games }) {
           <th>CT</th>
           <th>Status</th>
           <th>Proj</th>
+          {mlb ? <th>F5</th> : null}
+          {mlb ? <th>Props</th> : null}
           <th>Pin</th>
           <th>Quality</th>
           <th>Play</th>
@@ -181,6 +184,8 @@ function TodayTable({ games }) {
             <td>
               <ProjCell g={g} />
             </td>
+            {mlb ? <td><TodayF5Cell g={g} /></td> : null}
+            {mlb ? <td><TodayPropsCell g={g} /></td> : null}
             <td>
               {g.marketUnresolved || g.marketUnavailable ? (
                 <span className="muted">{g.marketUnresolved ? "TEAM MATCH UNRESOLVED" : "market unavailable"}</span>
@@ -233,6 +238,41 @@ function TodayTable({ games }) {
         ))}
       </tbody>
     </table>
+  );
+}
+
+function TodayF5Cell({ g }) {
+  if (g.sport !== "mlb") return <span className="muted">—</span>;
+  const b = g.f5Book;
+  const pricedMl = b?.homeMl != null && b?.awayMl != null;
+  const pricedTotal = b?.total != null && b?.overPrice != null && b?.underPrice != null;
+  const pricedSpread = b?.spread != null && b?.spreadHomePrice != null && b?.spreadAwayPrice != null;
+  if (g.palF5Home == null && !b) return <span className="muted">F5 unavailable</span>;
+  return (
+    <div className="f5-cell">
+      {g.palF5Away != null ? <div>Pal {fmtNum(g.palF5Away)}–{fmtNum(g.palF5Home)}{g.palF5HomeWin != null ? ` · pH ${fmtPct(g.palF5HomeWin)}` : ""}</div> : null}
+      {pricedMl ? <div className="muted">ML {fmtAmerican(b.awayMl)} / {fmtAmerican(b.homeMl)}</div> : null}
+      {pricedSpread ? <div className="muted">RL {b.spread > 0 ? "+" : ""}{b.spread} · {fmtAmerican(b.spreadAwayPrice)} / {fmtAmerican(b.spreadHomePrice)}</div> : null}
+      {pricedTotal ? <div className="muted">Tot {b.total} · O {fmtAmerican(b.overPrice)} / U {fmtAmerican(b.underPrice)}</div> : null}
+      {!pricedMl && !pricedSpread && !pricedTotal ? <div className="muted">UNPRICED F5 LEAN · NO BET</div> : null}
+    </div>
+  );
+}
+
+function TodayPropsCell({ g }) {
+  if (g.sport !== "mlb") return <span className="muted">—</span>;
+  const props = g.palProps || [];
+  if (!props.length) return <span className="muted">No Pal props</span>;
+  return (
+    <details className="prop-watch">
+      <summary>{props.length} PROP WATCH</summary>
+      <div className="muted">UNPRICED · NO BET</div>
+      {props.slice(0, 8).map((p) => (
+        <div key={p.marketId} title={p.displayName}>
+          {p.playerName || p.subjectType} · {p.displayName} {p.line ?? "—"} · O {p.over == null ? "—" : fmtPct(p.over)}
+        </div>
+      ))}
+    </details>
   );
 }
 

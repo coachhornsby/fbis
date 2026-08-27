@@ -137,6 +137,11 @@ export function toBoardGame(game, sport, now = Date.now()) {
     palPHome: game.bpp?.pHome ?? game.model?.layers?.pal ?? null,
     palF5Home: game.bpp?.f5?.homeRuns ?? null,
     palF5Away: game.bpp?.f5?.awayRuns ?? null,
+    palF5HomeWin: game.bpp?.f5?.homeWin ?? null,
+    palF5AwayWin: game.bpp?.f5?.awayWin ?? null,
+    f5Book: game.odds?.f5 || null,
+    palTeamTotals: game.bpp?.teamTotals || [],
+    palProps: game.bpp?.props || [],
     palAsOf: game.bpp?.asOf ?? null,
     palRequestId: game.bpp?.requestId ?? null,
     palUnavailableReason: game.palUnavailableReason

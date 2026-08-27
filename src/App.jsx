@@ -793,8 +793,11 @@ function F5Cell({ game }) {
   const tot = book?.total ?? pal?.total;
   return (
     <div className="f5-cell">
-      <div>{home != null ? `${fmtPct(home)} home` : "—"}</div>
-      <div className="muted">{tot != null ? `Tot ${fmtNum(tot)}` : book?.homeMl ? fmtAmerican(book.homeMl) : "Pal model"}</div>
+      <div>{pal?.awayRuns != null ? `Pal ${fmtNum(pal.awayRuns)}–${fmtNum(pal.homeRuns)}` : home != null ? `${fmtPct(home)} home` : "—"}</div>
+      <div className="muted">{book?.awayMl != null && book?.homeMl != null ? `ML ${fmtAmerican(book.awayMl)} / ${fmtAmerican(book.homeMl)}` : "ML unpriced"}</div>
+      <div className="muted">{book?.spread != null && book?.spreadHomePrice != null && book?.spreadAwayPrice != null ? `RL ${book.spread > 0 ? "+" : ""}${book.spread} · ${fmtAmerican(book.spreadAwayPrice)} / ${fmtAmerican(book.spreadHomePrice)}` : "RL unpriced"}</div>
+      <div className="muted">{book?.total != null && book?.overPrice != null && book?.underPrice != null ? `Tot ${fmtNum(book.total)} · O ${fmtAmerican(book.overPrice)} / U ${fmtAmerican(book.underPrice)}` : tot != null ? `Pal Tot ${fmtNum(tot)}` : "Tot unpriced"}</div>
+      {(game.bpp?.props || []).length ? <details className="prop-watch"><summary>{game.bpp.props.length} PROP WATCH</summary><span className="muted">unpriced · no bet</span></details> : null}
     </div>
   );
 }

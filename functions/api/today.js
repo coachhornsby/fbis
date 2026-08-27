@@ -51,6 +51,10 @@ export async function onRequestGet(context) {
         asOf: meta.last_pal_as_of || null,
         httpStatus: meta.last_pal_http_status || null,
         reason: meta.last_pal_reason || board.feeds.mlb?.palReason || null,
+        lastAttemptAt: meta.last_pal_attempt_at || null,
+        lastAttemptHttpStatus: meta.last_pal_attempt_http_status || null,
+        lastAttemptError: meta.last_pal_attempt_error || null,
+        availableFromCache: Boolean(meta.last_pal_success_at && meta.last_pal_attempt_http_status === "429"),
       },
       todayCt: todayCT(),
     };

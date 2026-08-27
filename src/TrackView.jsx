@@ -110,7 +110,9 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                 <Stat label="D1 writes" value={db.palPipeline.persisted ?? "—"} />
                 <Stat label="asOf" value={fmtTs(db.palPipeline.asOf)} />
                 <Stat label="requestId" value={db.palPipeline.requestId || "—"} />
+                <Stat label="Last attempt HTTP" value={db.palPipeline.lastAttemptHttpStatus || "—"} />
               </div>
+              {db.palPipeline.availableFromCache && <p className="muted" style={{ marginTop: 8 }}>Available from the last successful cache; latest refresh was rate-limited.</p>}
               {db.palPipeline.reason && <p className="muted" style={{ marginTop: 8 }}>Pal reason: {db.palPipeline.reason}</p>}
             </>
           )}

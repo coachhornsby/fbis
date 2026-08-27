@@ -27,6 +27,63 @@ export function researchHealth() {
   return { ...health };
 }
 
+export async function persistMlbMarketProjections(env, rows = []) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound", inserted: 0, already: 0, failed: rows.length || 1 };
+  let inserted = 0;
+  let already = 0;
+  let failed = 0;
+  const reasons = [];
+  for (const row of rows || []) {
+    if (!row?.id || !row?.gameId || !row?.marketType) continue;
+    try {
+      const res = await env.DB.prepare(
+        `INSERT OR IGNORE INTO mlb_market_projections (
+          id, game_id, date, checkpoint, period, market_type, subject_type,
+          subject_id, subject_name, team_id, opponent_id, line, p_over, p_under, average,
+          projected_home, projected_away, p_home, p_away, source, source_market_key,
+          source_market_name, source_as_of, source_request_id, model_version,
+          lineups_official, frozen_at, book, book_line, book_over_price, book_under_price,
+          priced, qualification_state, qualification_reason
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        row.id, row.gameId, row.date, row.checkpoint, row.period, row.marketType, row.subjectType || "game",
+        n(row.subjectId), n(row.subjectName), n(row.teamId), n(row.opponentId), n(row.line), n(row.pOver), n(row.pUnder), n(row.average),
+        n(row.projectedHome), n(row.projectedAway), n(row.pHome), n(row.pAway), row.source || "ballpark-pal", n(row.sourceMarketKey),
+        n(row.sourceMarketName), n(row.sourceAsOf), n(row.sourceRequestId), n(row.modelVersion),
+        row.lineupsOfficial == null ? null : row.lineupsOfficial ? 1 : 0, row.frozenAt, n(row.book), n(row.bookLine),
+        n(row.bookOverPrice), n(row.bookUnderPrice), row.priced ? 1 : 0,
+        row.qualificationState || "PROP_WATCH", n(row.qualificationReason)
+      ).run();
+      const changes = Number(res?.meta?.changes) || 0;
+      if (changes) inserted += 1;
+      else already += 1;
+      markWrite();
+    } catch (err) {
+      failed += 1;
+      const reason = String(err?.message || err);
+      reasons.push(reason);
+      markErr(err);
+    }
+  }
+  return { ok: failed === 0, inserted, already, failed, reason: [...new Set(reasons)].join("; ") || null };
+}
+
+export async function queryMlbMarketProjections(env, { date, gameId, limit = 500 } = {}) {
+  if (!hasDb(env)) return [];
+  const where = [];
+  const binds = [];
+  if (date) { where.push("date = ?"); binds.push(date); }
+  if (gameId) { where.push("game_id = ?"); binds.push(String(gameId)); }
+  const sql = `SELECT * FROM mlb_market_projections${where.length ? ` WHERE ${where.join(" AND ")}` : ""} ORDER BY frozen_at DESC LIMIT ?`;
+  try {
+    const res = await env.DB.prepare(sql).bind(...binds, Math.max(1, Math.min(2000, Number(limit) || 500))).all();
+    return res?.results || [];
+  } catch {
+    return [];
+  }
+}
+
 function markBound(env) {
   health.bound = hasDb(env);
 }

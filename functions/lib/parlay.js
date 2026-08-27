@@ -189,6 +189,8 @@ function packF5(books, sportId, home, away) {
     homeMl: homeMl && awayMl ? homeMl.price : null,
     awayMl: homeMl && awayMl ? awayMl.price : null,
     spread: spreadPair?.point ?? null,
+    spreadHomePrice: spreadPair?.home.price ?? null,
+    spreadAwayPrice: spreadPair?.away.price ?? null,
     total: totalPair?.point ?? null,
     overPrice: totalPair?.over.price ?? null,
     underPrice: totalPair?.under.price ?? null,

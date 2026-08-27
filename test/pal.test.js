@@ -15,9 +15,10 @@ import {
   palQueryDates,
   palInstant,
   palSlateView,
+  compactPalMarkets,
 } from "../functions/lib/ballparkpal.js";
 import { sameMlbTeam, canonAbbr, resolveMlbCanon } from "../functions/lib/mlbCanonical.js";
-import { freezeFromGame, shouldFetchPalNetwork, shouldRecordPalHealth } from "../functions/lib/projLedger.js";
+import { freezeFromGame, palMarketRowsFromGame, shouldFetchPalNetwork, shouldRecordPalHealth } from "../functions/lib/projLedger.js";
 import { palHealth, sourceCoverage } from "../functions/lib/sourceCoverage.js";
 import { projectGame } from "../functions/lib/slateEngine.js";
 import { projectMatchup } from "../functions/lib/savant.js";
@@ -82,6 +83,37 @@ describe("Pal wrapper", () => {
     assert.notEqual(palHttpStatusToStore({ httpStatus: 401, reason: "upstream-error" }), "200");
     assert.equal(palHttpStatusFromError(new PalHttpError(401, "Ballpark Pal 401: unauthorized", "unauthorized")), 401);
     assert.equal(palHttpStatusFromError(new Error("Ballpark Pal 401: unauthorized")), 401);
+  });
+});
+
+describe("Pal market classification", () => {
+  const rows = [
+    { marketId: "mkt_1", teamId: 147, line: 0.5, side: "over", probability: 0.58 },
+    { marketId: "mkt_1", teamId: 117, line: 0.5, side: "over", probability: 0.42 },
+    { marketId: "mkt_5", teamId: 147, line: 4.5, side: "over", probability: 0.54, displayName: "Team Total Runs" },
+    { marketId: "mkt_5", teamId: 147, line: 4.5, side: "under", probability: 0.46, displayName: "Team Total Runs" },
+    { marketId: "mkt_10", teamId: 147, line: 1.5, side: "over", probability: 0.61, displayName: "Hits", subject: { type: "player", id: 99, name: "Test Batter" } },
+    { marketId: "mkt_10", teamId: 147, line: 1.5, side: "under", probability: 0.39, displayName: "Hits", subject: { type: "player", id: 99, name: "Test Batter" } },
+  ];
+
+  it("does not misclassify team totals or mkt_10 props as run lines or moneylines", () => {
+    const packed = compactPalMarkets(rows, 147, 117);
+    assert.equal(packed.runLine, null);
+    assert.equal(packed.pHome, 0.58);
+    assert.equal(packed.teamTotals.length, 1);
+    assert.equal(packed.props.length, 1);
+    assert.equal(packed.props[0].playerName, "Test Batter");
+    assert.equal(packed.props[0].over, 0.61);
+    assert.equal(packed.props[0].under, 0.39);
+  });
+
+  it("persists F5 as priced only with complete two-way book quotes and keeps Pal props watch-only", () => {
+    const game = mlbGame({ rest: { bpp: { f5: { homeRuns: 2.4, awayRuns: 2.0, total: 4.4, homeWin: 0.57, awayWin: 0.43 }, props: compactPalMarkets(rows, 147, 117).props, asOf: "2026-08-27T15:00:00Z", requestId: "req" }, odds: { f5: { homeMl: -115, awayMl: 105, total: 4.5, overPrice: -110, underPrice: -110, book: "pinnacle" } } } });
+    const out = palMarketRowsFromGame("2026-08-27", game, { checkpoint: "FIRST_AVAILABLE", modelVersion: "test", frozenAt: "2026-08-27T15:00:00Z" });
+    assert.equal(out.find((r) => r.marketType === "F5_ML").qualificationState, "PRICED_CANDIDATE");
+    assert.equal(out.find((r) => r.marketType === "F5_TOTAL").qualificationState, "PRICED_CANDIDATE");
+    assert.equal(out.find((r) => r.marketType.startsWith("PLAYER_PROP")).qualificationState, "PROP_WATCH");
+    assert.equal(out.find((r) => r.marketType.startsWith("PLAYER_PROP")).priced, false);
   });
 });
 
