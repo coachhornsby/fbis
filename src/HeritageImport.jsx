@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { fmtAmerican } from "./lib/format.js";
 import { TeamIdentity } from "./components/TeamLogo.jsx";
 import {
+  HARVEST_SECRET_PLACEHOLDER,
   OPERATOR_SECRET_HINT,
   buildConfirmRequest,
   confirmStatusLine,
@@ -16,7 +17,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
   const [text, setText] = useState("");
   const [preview, setPreview] = useState(null);
   const [edits, setEdits] = useState([]);
-  const [secret, setSecret] = useState("");
+  const [secret, setSecret] = useState(""); // never the placeholder string
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [wroteMessage, setWroteMessage] = useState("");
@@ -201,10 +202,10 @@ export default function HeritageImport({ open, onClose, onImported }) {
                   confirmImport();
                 }}
               >
-                <label htmlFor="operator-secret">
-                  Operator secret
+                <label htmlFor="harvest-secret">
+                  HARVEST_SECRET
                   <input
-                    id="operator-secret"
+                    id="harvest-secret"
                     type="password"
                     autoComplete="off"
                     value={secret}
@@ -212,7 +213,8 @@ export default function HeritageImport({ open, onClose, onImported }) {
                       setSecret(e.target.value);
                       if (error) setError("");
                     }}
-                    placeholder="not stored in the app bundle"
+                    placeholder={HARVEST_SECRET_PLACEHOLDER}
+                    aria-describedby="operator-secret-hint"
                   />
                 </label>
                 <button

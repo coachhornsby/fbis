@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   HERITAGE_FIXTURE_PASTE,
   parseHeritageSlip,
@@ -26,12 +27,17 @@ import {
 import { selectClose, selectPinAtOrBefore, packPinOddsRows, isPostStart, CLV_UNAVAILABLE, clvTracker } from "../functions/lib/closeCapture.js";
 import { parseBetsPreview, handleBetsPost } from "../functions/api/bets.js";
 import {
+  HARVEST_SECRET_PLACEHOLDER,
   NO_TICKETS_TO_WRITE,
+  OPERATOR_SECRET_HINT,
   OPERATOR_SECRET_REQUIRED,
+  PLACEHOLDER_AS_SECRET,
   buildConfirmRequest,
   confirmStatusLine,
   confirmWriteGuard,
   importResponseFeedback,
+  isHintSecret,
+  normalizePastedSecret,
 } from "../src/lib/heritageImport.js";
 
 describe("Heritage five-ticket fixtures", () => {
@@ -284,6 +290,64 @@ describe("Heritage confirm write auth and feedback", () => {
     assert.equal(none.error, NO_TICKETS_TO_WRITE);
     assert.equal(confirmWriteGuard({ secret: "ok", ticketCount: 5 }).ok, true);
     assert.equal(confirmWriteGuard({ secret: "ok", ticketCount: 0, hasText: true }).ok, true);
+  });
+
+  it("treats the placeholder string as empty and refuses it as the secret", () => {
+    assert.equal(HARVEST_SECRET_PLACEHOLDER, "not stored in the app bundle");
+    assert.equal(isHintSecret(""), false);
+    assert.equal(isHintSecret("s3cret"), false);
+    assert.equal(isHintSecret(HARVEST_SECRET_PLACEHOLDER), true);
+    assert.equal(isHintSecret(`  ${HARVEST_SECRET_PLACEHOLDER}  `), true);
+    assert.equal(isHintSecret("Not stored in the app bundle."), true);
+    assert.equal(isHintSecret(OPERATOR_SECRET_HINT), true);
+    assert.equal(normalizePastedSecret(HARVEST_SECRET_PLACEHOLDER), "");
+    assert.equal(normalizePastedSecret("  s3cret  "), "s3cret");
+
+    const pasted = confirmWriteGuard({ secret: HARVEST_SECRET_PLACEHOLDER, ticketCount: 4 });
+    assert.equal(pasted.ok, false);
+    assert.equal(pasted.error, PLACEHOLDER_AS_SECRET);
+    assert.match(pasted.error, /That text is a hint, not the secret/);
+    assert.match(pasted.error, /Paste HARVEST_SECRET from Cloudflare Pages/);
+
+    const req = buildConfirmRequest({
+      secret: HARVEST_SECRET_PLACEHOLDER,
+      text: HERITAGE_FIXTURE_PASTE,
+      tickets: parsed.tickets,
+    });
+    assert.equal(req.ok, false);
+    assert.equal(req.error, PLACEHOLDER_AS_SECRET);
+    assert.equal(req.body, undefined);
+    assert.equal(req.headers, undefined);
+
+    const line = confirmStatusLine({
+      busy: false,
+      error: "",
+      wroteMessage: "",
+      secret: HARVEST_SECRET_PLACEHOLDER,
+      ticketCount: 4,
+    });
+    assert.equal(line.kind, "error");
+    assert.equal(line.text, PLACEHOLDER_AS_SECRET);
+
+    const afterClick = confirmStatusLine({
+      busy: false,
+      error: PLACEHOLDER_AS_SECRET,
+      wroteMessage: "",
+      secret: HARVEST_SECRET_PLACEHOLDER,
+      ticketCount: 4,
+    });
+    assert.equal(afterClick.kind, "error");
+    assert.equal(afterClick.text, PLACEHOLDER_AS_SECRET);
+  });
+
+  it("HeritageImport secret field is empty value + placeholder, labeled HARVEST_SECRET", () => {
+    const src = readFileSync(new URL("../src/HeritageImport.jsx", import.meta.url), "utf8");
+    assert.ok(src.includes('const [secret, setSecret] = useState(""); // never the placeholder string'));
+    assert.ok(src.includes("placeholder={HARVEST_SECRET_PLACEHOLDER}"));
+    assert.ok(src.includes("HARVEST_SECRET"));
+    assert.ok(!src.includes("useState(HARVEST_SECRET_PLACEHOLDER)"));
+    assert.ok(!src.includes('useState("not stored in the app bundle")'));
+    assert.ok(!src.includes("value={HARVEST_SECRET_PLACEHOLDER}"));
   });
 
   it("empty secret is a 4xx UI path and never a silent no-op", () => {
