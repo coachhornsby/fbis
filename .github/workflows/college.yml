@@ -1,0 +1,94 @@
+name: FBIS college research
+
+# Separate from the main collect/harvest pipeline so CFBD quota and Worker
+# subrequest limits stay isolated. Backfill and train are manual.
+# model-promote never runs just because training finished.
+
+on:
+  schedule:
+    - cron: "30 12 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: College job
+        type: choice
+        options:
+          - cfb-current-refresh
+          - cbb-current-refresh
+          - cfb-postgame-harvest
+          - cbb-postgame-harvest
+          - cfb-reference-backfill
+          - cbb-reference-backfill
+          - model-train-validate
+          - model-promote
+          - college-health
+        default: college-health
+      operatorApproved:
+        description: Required true for model-promote (still must meet criteria)
+        type: boolean
+        default: false
+
+concurrency:
+  group: fbis-college-research
+  cancel-in-progress: false
+
+jobs:
+  college:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ (github.event.inputs.job || '') == 'model-train-validate' || github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'model-train-validate' }}
+      - name: Offline train/validate (Actions CPU, not Workers)
+        if: ${{ github.event.inputs.job == 'model-train-validate' }}
+        run: node scripts/college-train.mjs
+      - name: Dispatch college Worker job
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          EVENT_NAME: ${{ github.event_name }}
+          JOB_INPUT: ${{ github.event.inputs.job }}
+          OPERATOR: ${{ github.event.inputs.operatorApproved }}
+        run: |
+          set -euo pipefail
+          BASE="https://fbis-myz.pages.dev"
+          TRIGGER="http"
+          if [ "${EVENT_NAME}" = "schedule" ]; then
+            TRIGGER="schedule"
+          elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            TRIGGER="workflow_dispatch"
+          fi
+          JOB="${JOB_INPUT:-}"
+          if [ -z "$JOB" ]; then
+            JOB="cfb-current-refresh"
+          fi
+          echo "job=$JOB event=${EVENT_NAME} trigger=${TRIGGER}"
+          call() {
+            local job="$1"
+            local extra="${2:-}"
+            echo "college job=${job}"
+            tmp="$(mktemp)"
+            http=$(curl -sS --max-time 90 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              -o "$tmp" -w "%{http_code}" \
+              "${BASE}/api/college?job=${job}&trigger=${TRIGGER}${extra}")
+            jq -c '{http: $http, ok: .ok, job: .job, status: .status, errors: (.errors // []), d1: (.d1.bound // false)}' --arg http "$http" "$tmp"
+            ok=$(jq -r '(.ok == true) and (.status == "success")' "$tmp")
+            if [ "$http" != "200" ] || [ "$ok" != "true" ]; then
+              echo "college job unsuccessful job=${job} http=${http}"
+              exit 1
+            fi
+          }
+          if [ "$JOB" = "model-promote" ]; then
+            call model-promote "&operatorApproved=${OPERATOR:-false}"
+          elif [ "$JOB" = "model-train-validate" ]; then
+            call model-train-validate
+          elif [ "$EVENT_NAME" = "schedule" ]; then
+            call cfb-current-refresh
+            call cbb-current-refresh
+            call cfb-postgame-harvest
+            call cbb-postgame-harvest
+            call college-health
+          else
+            call "$JOB"
+          fi

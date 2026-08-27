@@ -39,7 +39,7 @@ Baseball run line is always **1.5** (full game) / **0.5** (F5). Alternate lines 
 
 - **MLB** — Two independent models. Proprietary: Savant RPG × starter ERA-eq × 1.04 home, clamped 2.3–7.2. Ballpark Pal: simulated runs and Pal win probability as a separate layer. Pal never overwrites Savant and is never a sportsbook price. Win-prob blends Pinnacle no-vig, ESPN, Savant score, Pal, and W-L form.
 - **CFB** — Independent score model. Authorized prior is CollegeFootballData SP+/FPI/SRS/Elo for all FBS (`cfb-prior-v2-cfbd`) when `CFBD_API_KEY` is bound. Fallback is ESPN FPI + opponent-adjusted 2025 SRS. HFA 2.5 (0 on confirmed neutral). Pinnacle remains the market layer only. League-average-only games cannot qualify.
-- **NBA / NFL / CBB** — Pinnacle total/spread split into implied team scores until an independent sim is wired. CBB CFBD ratings are research-only when the shared key works; no CBB sim is invented. Win-prob blends no-vig Pinnacle, ESPN, score (line-implied margin), and W-L form.
+- **NBA / NFL / CBB** — Pinnacle total/spread split into implied team scores until an independent sim is wired. CBB shadow challengers (CBB-CBBD-RATINGS-v1 and related) use CollegeBasketballData AdjOE×opp AdjDE / national × possessions and cannot qualify. KenPom is not required. Win-prob blends no-vig Pinnacle, ESPN, score (line-implied margin), and W-L form.
 
 Hover a Proj cell for the recipe. SYS explains every board.
 
@@ -66,7 +66,7 @@ Model version: **FBIS-v1.3**
 - MLB Stats API — schedule, scores, probable pitchers, F5 linescore (free)
 - ParlayAPI — Pinnacle game lines (3 credits, `eu` region), cached 15 minutes. Kalshi sentiment is a 1-credit pull; empty Kalshi/F5 responses cache for 6 hours.
 - Ballpark Pal — optional; set `BALLPARK_PAL_API_KEY` when you have it (15k requests/month)
-- CollegeFootballData — CFB ratings (SP+/FPI/SRS/Elo). Set `CFBD_API_KEY` as a Pages secret (never commit the value). The same key is probed for CollegeBasketballData research-only ratings.
+- CollegeFootballData — CFB ratings (SP+/FPI/SRS/Elo) and college research jobs. Set `CFBD_API_KEY` as a Pages secret (never commit the value). Optional alias `CBBD_API_KEY` for the same bearer. See `docs/college-research.md`.
 
 The operator ticket journal still lives in the browser (`fbis-learning-v1`). POST `/api/strategy` is secret-protected (`x-harvest-secret` or `STRATEGY_IMPORT_SECRET`) and does not accept arbitrary CORS. Heritage bet-slip import (TODAY / My Bets → Confirm D1 write) is the same: paste the Pages secret **HARVEST_SECRET** (same value as collect) into Operator secret at confirm time. It is never stored in the app bundle. Parse/preview does not write. Imported slips are executed bets, not the 7–0 FBIS-HC-v1 seed. The FBIS-HC-v1 seed names are the seven operator-declared 2026-08-26 positions; they are not a recovered journal. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql` plus `migrations/`) is the authoritative research ledger.
 

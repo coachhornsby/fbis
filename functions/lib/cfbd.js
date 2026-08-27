@@ -7,6 +7,7 @@ import { readCache, writeCache } from "./cache.js";
 import { resolveTeamExact } from "./teams.js";
 import { CFB_PRIOR_VERSION, CFB_PRIOR_VERSION_CFBD, priorForTeam } from "./cfbPrior.js";
 import PRIOR from "../../data/cfb/prior-v1.js";
+import { collegeApiKey, cfbdConfigured as secretsConfigured } from "./collegeSecrets.js";
 
 export const CFBD_BASE = "https://api.collegefootballdata.com";
 export const CBBD_BASE = "https://api.collegebasketballdata.com";
@@ -26,7 +27,7 @@ function round2(n) {
 }
 
 export function cfbdConfigured(env = {}) {
-  return Boolean(String(env.CFBD_API_KEY || "").trim());
+  return secretsConfigured(env);
 }
 
 /** CFBD returns a bare array, `{ data: [] }`, or `{ data: { items } }`. */
@@ -73,14 +74,15 @@ function queryString(query = {}) {
 }
 
 async function cfbdRequest(base, path, env, { query, fetchFn = fetch } = {}) {
-  if (!cfbdConfigured(env)) {
+  const source = base === CBBD_BASE ? "cbbd" : "cfbd";
+  if (!collegeApiKey(env, source)) {
     return { ok: false, status: 0, reason: "no-api-key", data: null, n: 0 };
   }
   const url = `${base}${path}${queryString(query)}`;
   try {
     const res = await fetchFn(url, {
       headers: {
-        Authorization: `Bearer ${String(env.CFBD_API_KEY).trim()}`,
+        Authorization: `Bearer ${collegeApiKey(env, source)}`,
         Accept: "application/json",
       },
     });

@@ -129,6 +129,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     marketUnavailable: !(game.odds?.pinHomeMl != null && game.odds?.pinAwayMl != null) && pinTotal == null && pinSpread == null,
     projectionUnavailable: (game.model?.projHome == null && game.model?.projAway == null) || game.projectionKind === "UNAVAILABLE",
     qualificationBlocked: Boolean(game.qualificationBlocked || (game.cfb && !game.cfb.bettingAllowed) || (game.sport === "nfl" && game.projectionKind !== "FBIS")),
+    challengers: game.challengers || null,
+    championModel: game.championModel || null,
     palMatched: Boolean(game.bpp),
     palHome: game.bpp?.homeRuns ?? game.model?.palHome ?? null,
     palAway: game.bpp?.awayRuns ?? game.model?.palAway ?? null,

@@ -2,6 +2,7 @@ import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { fmtAmerican, fmtNum, fmtPct } from "./lib/format.js";
 import { kickoffCt } from "../functions/lib/gameStatus.js";
 import { TeamIdentity } from "./components/TeamLogo.jsx";
+import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 
 const FILTERS = [
   ["all", "All games"],
@@ -272,6 +273,9 @@ function ProjCell({ g }) {
         <div className="muted">Pal {g.palUnavailableReason || "unavailable"}</div>
       ) : null}
       {g.projectionState && <div className="proj-state muted">{g.projectionState}</div>}
+      {(g.sport === "cfb" || g.sport === "cbb") && (
+        <ChallengerSelect game={g} championHome={g.projHome} championAway={g.projAway} />
+      )}
     </>
   );
 }

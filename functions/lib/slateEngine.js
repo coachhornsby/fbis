@@ -10,6 +10,8 @@ import { applyCfbModel, cfbSpreadProb, cfbTotalProb, cfbWinProb, CFB_BLOCKED_MES
 import { loadCbbdRatings } from "./cfbd.js";
 import { enrichGameTeams } from "./teams.js";
 import { attachMarketLabels, TEAM_MATCH_UNRESOLVED } from "./marketLabels.js";
+import { attachCfbChallengers, attachCbbChallengers } from "./collegeApply.js";
+import { SHADOW_BLOCK_REASONS } from "./collegeModels.js";
 
 export const SPORTS = {
   cbb: {
@@ -428,6 +430,14 @@ export function recommendBundle(sport, game, model, weights) {
       lean: null,
       blocked: true,
       blockReason: game.cfb.blockReason || CFB_BLOCKED_MESSAGE,
+    };
+  }
+  if (game.selectedChallenger && game.selectedChallenger.role === "shadow") {
+    return {
+      qualified: null,
+      lean: null,
+      blocked: true,
+      blockReason: SHADOW_BLOCK_REASONS.shadow,
     };
   }
   if (sport === "nfl" && game.projectionKind !== "FBIS") {
@@ -949,9 +959,13 @@ export async function buildSlate(sport, date, env = {}) {
   if (id === "cfb") {
     cfb = await applyCfbModel(games, env);
     games = cfb.games || games;
+    games = await attachCfbChallengers(games, env);
   }
   if (id === "cbb") {
     cbbd = await loadCbbdRatings(env);
+    const attached = await attachCbbChallengers(games, env);
+    games = attached.games;
+    cbbd = { ...cbbd, catalog: { matched: attached.catalog?.matched, unmatched: attached.catalog?.unmatched, n: attached.catalog?.n, error: attached.catalog?.error } };
   }
 
   games = games.map((game) => {

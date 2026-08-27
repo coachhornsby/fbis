@@ -18,6 +18,7 @@ export async function onRequestGet(context) {
         PARLAY_API_KEY: context.env.PARLAY_API_KEY,
         BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
         CFBD_API_KEY: context.env.CFBD_API_KEY,
+        CBBD_API_KEY: context.env.CBBD_API_KEY,
         caches: caches.default,
         DB: context.env.DB,
       },

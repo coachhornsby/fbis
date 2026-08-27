@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff } from "./lib/format.js";
 import TeamLogo, { TeamIdentity } from "./components/TeamLogo.jsx";
+import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 import { gradeOpenBets, loadState, logBet, summarize } from "./lib/learning.js";
 import { captureSlate } from "./lib/ledger.js";
 import TrackView from "./TrackView.jsx";
@@ -751,6 +752,9 @@ function SlateProj({ game }) {
       <div>{fmtNum(game.model.projAway)} – {fmtNum(game.model.projHome)}</div>
       <div className="muted">{game.model?.recipe?.engine || (game.bpp?.homeRuns != null ? "Pal" : game.savant?.source || "")}</div>
       {game.cfb?.projectionState && <div className="proj-state muted">{game.cfb.projectionState}</div>}
+      {(game.sport === "cfb" || game.sport === "cbb") && (
+        <ChallengerSelect game={game} championHome={game.model?.projHome} championAway={game.model?.projAway} />
+      )}
     </>
   );
 }

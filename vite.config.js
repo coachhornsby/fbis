@@ -11,6 +11,7 @@ function localEnv(extra = {}) {
     PARLAY_API_KEY: process.env.PARLAY_API_KEY,
     BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
     CFBD_API_KEY: process.env.CFBD_API_KEY,
+    CBBD_API_KEY: process.env.CBBD_API_KEY,
     ...extra,
   };
 }
@@ -38,7 +39,7 @@ function slateMiddleware() {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url || "";
-        if (!url.startsWith("/api/slate") && !url.startsWith("/api/ticker") && !url.startsWith("/api/track") && !url.startsWith("/api/harvest") && !url.startsWith("/api/collect") && !url.startsWith("/api/today") && !url.startsWith("/api/bets")) {
+        if (!url.startsWith("/api/slate") && !url.startsWith("/api/ticker") && !url.startsWith("/api/track") && !url.startsWith("/api/harvest") && !url.startsWith("/api/collect") && !url.startsWith("/api/today") && !url.startsWith("/api/bets") && !url.startsWith("/api/college")) {
           next();
           return;
         }
@@ -84,6 +85,20 @@ function slateMiddleware() {
           if (url.startsWith("/api/today")) {
             const resolved = resolveTodayDate(parsed.searchParams.get("date") || "");
             const payload = await buildTodayBoard(resolved.date, localEnv());
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(payload));
+            return;
+          }
+          if (url.startsWith("/api/college")) {
+            const { runCollegeJob, COLLEGE_JOBS } = await import("./functions/lib/collegeJobs.js");
+            const job = parsed.searchParams.get("job") || "college-health";
+            if (!COLLEGE_JOBS.includes(job)) {
+              res.statusCode = 400;
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify({ ok: false, error: "unknown-job" }));
+              return;
+            }
+            const payload = await runCollegeJob(job, localEnv());
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify(payload));
             return;

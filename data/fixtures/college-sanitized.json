@@ -1,0 +1,38 @@
+{
+  "source": "cfbd",
+  "note": "Sanitized fixture. No credentials. Truncated field set only.",
+  "ratingsSp": [
+    {
+      "year": 2025,
+      "team": "Ohio State",
+      "conference": "Big Ten",
+      "rating": 28.1,
+      "offense": { "rating": 42.2 },
+      "defense": { "rating": 14.8, "ranking": 2 }
+    },
+    {
+      "year": 2025,
+      "team": "Akron",
+      "conference": "MAC",
+      "rating": -18.4,
+      "offense": { "rating": 18.1 },
+      "defense": { "rating": 36.6, "ranking": 120 }
+    }
+  ],
+  "cbbdAdjusted": [
+    {
+      "year": 2025,
+      "team": "Duke",
+      "offensiveRating": 121.4,
+      "defensiveRating": 91.2,
+      "tempo": 67.8
+    },
+    {
+      "year": 2025,
+      "team": "Wagner",
+      "offensiveRating": 98.1,
+      "defensiveRating": 108.4,
+      "tempo": 64.2
+    }
+  ]
+}

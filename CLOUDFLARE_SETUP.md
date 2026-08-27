@@ -10,6 +10,8 @@ Same path as CougarsDefense. Free tier. No DigitalOcean.
 npx wrangler pages secret put PARLAY_API_KEY --project-name fbis
 npx wrangler pages secret put BALLPARK_PAL_API_KEY --project-name fbis
 npx wrangler pages secret put CFBD_API_KEY --project-name fbis
+# Optional alias if basketball uses a separate Pages secret name for the same bearer:
+# npx wrangler pages secret put CBBD_API_KEY --project-name fbis
 npm run deploy
 ```
 
@@ -28,10 +30,17 @@ npx wrangler d1 execute fbis --file=schema.sql --remote
 ```bash
 npx wrangler d1 execute fbis --file=migrations/0001_job_runs.sql --remote
 npx wrangler d1 execute fbis --file=migrations/0002_strategy_ticket_prices.sql --remote
-npx wrangler d1 execute fbis --file=migrations/0005_hfa_and_integrity.sql --remote
+npx wrangler d1 execute fbis --file=migrations/0008_projection_state.sql --remote
+npx wrangler d1 execute fbis --file=migrations/0009_college_research.sql --remote
 ```
 
-New tables include `team_form`, `team_form_games`, `daily_reports`, `strategies`, `strategy_tickets`, `job_runs`, and `schema_migrations`. SYS health is read from D1 `job_runs` / `store_meta`, not isolate memory.
+Optional R2 archive (raw CFBD/CBBD JSON, PBP). Not required for operational college models:
+
+```bash
+# Create bucket fbis-archive in the dashboard, then uncomment [[r2_buckets]] in wrangler.toml
+```
+
+New tables include `team_form`, `team_form_games`, `daily_reports`, `strategies`, `strategy_tickets`, `job_runs`, `schema_migrations`, and college research tables (`source_observations`, `model_predictions`, `api_usage`, …). SYS health is read from D1 `job_runs` / `store_meta`, not isolate memory.
 
 `npm run deploy` publishes the Pages function with that binding. Until D1 is bound, freeze/harvest still use the Cache API (~21 days) and SYS shows **RESEARCH DB UNBOUND**.
 

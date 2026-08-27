@@ -28,6 +28,7 @@ export async function onRequestGet(context) {
         caches: caches.default,
         DB: context.env.DB,
         CFBD_API_KEY: context.env.CFBD_API_KEY,
+        CBBD_API_KEY: context.env.CBBD_API_KEY,
         CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
       },
       { trigger, sport }

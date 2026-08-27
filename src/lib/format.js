@@ -31,6 +31,11 @@ export function fmtPct(n) {
   return `${(Number(n) * 100).toFixed(1)}%`;
 }
 
+export function fmtMetric(n, value, format = fmtPct) {
+  if (n == null || Number(n) === 0) return "N=0 — unavailable";
+  return format(value);
+}
+
 export function fmtVig(n) {
   if (n == null || Number.isNaN(Number(n))) return "—";
   return `${(Number(n) * 100).toFixed(1)}%`;

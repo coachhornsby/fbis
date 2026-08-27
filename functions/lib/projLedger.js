@@ -64,6 +64,10 @@ import {
   JOB_SUCCESS,
   JOB_FAILED,
 } from "./jobs.js";
+import { persistGameChallengers, gradeGameChallengers } from "./collegeJobs.js";
+import { queryQuota } from "./collegeStore.js";
+import { storageBudget } from "./storageBudget.js";
+import { collegeKeyHealth } from "./collegeSecrets.js";
 
 const TTL_MS = 21 * 24 * 60 * 60 * 1000;
 const HARVEST_TTL_MS = 10 * 60 * 1000;
@@ -85,11 +89,11 @@ export const RECIPE_GUIDE = {
   },
   cfb: {
     engine: "CFB prior-v2-cfbd + season evidence",
-    body: "Independent score model. Authorized team-specific prior is CollegeFootballData SP+/FPI/SRS/Elo covering all FBS (cfb-prior-v2-cfbd). Fallback is ESPN FPI blended with opponent-adjusted 2025 SRS. Current-season evidence is harvested points for/against, w = n/(n+6). HFA 2.5 (0 on confirmed neutral). FCS and newly promoted FBS are provisional. League-average-only games are diagnostic, never qualified, never LOG, never strategy. Champion HFA challengers remain shadow. Pal is never a book.",
+    body: "Champion: CollegeFootballData SP+/FPI/SRS/Elo covering all FBS (cfb-prior-v2-cfbd) blended with harvested points for/against, w = n/(n+6). HFA 2.5 (0 on confirmed neutral). Shadow challengers (CFB-LEAGUE-BASELINE, CFB-CFBD-RATINGS-v1, CFB-CFBD-REG-v1, ensemble, Pinnacle-implied, HFA) cannot QUALIFY, LOG, or write strategy tickets. League-average-only remains diagnostic. Pal is never a book.",
   },
   cbb: {
-    engine: "Pinnacle line-implied",
-    body: "Pinnacle total/spread split into team scores. ESPN win% is a real layer on this board. CollegeBasketballData ratings are research-only when the shared CFBD key works; no independent CBB sim is wired.",
+    engine: "Pinnacle line-implied champion; CBBD ratings are shadow",
+    body: "Champion remains Pinnacle total/spread split until a CBB challenger is promoted. CBB-CBBD-RATINGS-v1 and related models are versioned shadow challengers (correct AdjOE×opp AdjDE / national × possessions). They cannot QUALIFY, LOG, or write strategy tickets. KenPom is not required. Torvik is optional cached-only.",
   },
 };
 
@@ -657,6 +661,7 @@ export async function freezeSlate(slate, env = {}) {
           writes.push(persistCheckpoint(env, frozen, game, slate.date));
         }
         writes.push(persistMatchingRec(env, slate, game, frozen));
+        writes.push(persistGameChallengers(env, game, slate.sport));
       }
       continue;
     }
@@ -676,6 +681,7 @@ export async function freezeSlate(slate, env = {}) {
           writes.push(persistCheckpoint(env, cps[packed.checkpoint], game, slate.date));
           next = { ...next, checkpoints: cps, checkpoint: packed.checkpoint };
           writes.push(persistMatchingRec(env, slate, game, packed));
+          writes.push(persistGameChallengers(env, game, slate.sport));
           changed = true;
         }
         const canon = pickCanonical(Object.values(cps).map((c) => ({ ...c, id: next.id, date: next.date })))[0];
@@ -709,6 +715,7 @@ export async function freezeSlate(slate, env = {}) {
       for (const cp of Object.values(graded.checkpoints || {})) {
         writes.push(persistCheckpoint(env, { ...graded, ...cp, id: graded.id, date: graded.date }, game, slate.date));
       }
+      writes.push(gradeGameChallengers(env, game, slate.sport));
     }
   }
   const results = await Promise.all(writes);
@@ -1767,6 +1774,9 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
     brier: acc.brierModel,
   };
   const reports = await queryDailyReports(env, { sport, since });
+  const quota = await queryQuota(env);
+  const storage = await storageBudget(env);
+  const keyHealth = collegeKeyHealth(env);
   const byCheckpoint = {};
   for (const cp of CHECKPOINTS) {
     byCheckpoint[cp] = accuracyOf(rowsForCheckpoint(snapshotRows, cp));
@@ -1831,6 +1841,12 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
       source: health.healthSource || source,
       healthSource: health.healthSource || "d1",
       lastError: health.lastError || db.lastError || researchHealth().lastError,
+      college: {
+        keys: keyHealth,
+        quota,
+        storage,
+        note: "Shadow CFB/CBB models cannot QUALIFY, LOG, or write strategy tickets. N=0 metrics are unavailable, not 0.0%.",
+      },
     },
   };
 }

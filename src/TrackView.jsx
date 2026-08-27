@@ -1,6 +1,6 @@
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { CHECKPOINT_OPTIONS } from "../functions/lib/checkpoints.js";
-import { fmtNum, fmtPct, fmtSigned } from "./lib/format.js";
+import { fmtNum, fmtPct, fmtSigned, fmtMetric as fmtMetricN0 } from "./lib/format.js";
 import { useEffect, useState } from "react";
 
 const PERIODS = [
@@ -114,6 +114,23 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
               {db.palPipeline.reason && <p className="muted" style={{ marginTop: 8 }}>Pal reason: {db.palPipeline.reason}</p>}
             </>
           )}
+          {db.college && (
+            <>
+              <h3 className="subhead">College research (shadow)</h3>
+              <div className="status-grid">
+                <Stat label="CFBD key" value={db.college.keys?.cfbdConfigured ? "configured" : "missing"} />
+                <Stat label="CBBD key" value={db.college.keys?.cbbdConfigured ? "configured" : "missing"} />
+                <Stat label="Shared alias" value={db.college.keys?.sharedAlias ? "yes" : "no"} />
+                <Stat label="Quota used" value={db.college.quota?.used ?? "—"} />
+                <Stat label="Quota %" value={db.college.quota?.used != null ? `${Math.round((db.college.quota.pct || 0) * 100)}%` : "N=0 — unavailable"} />
+                <Stat label="Quota level" value={db.college.quota?.level || "—"} />
+                <Stat label="D1 bytes" value={db.college.storage?.d1Bytes ?? "unknown"} />
+                <Stat label="D1 level" value={db.college.storage?.d1Level || "—"} />
+                <Stat label="R2" value={db.college.storage?.r2?.bound ? "bound" : "unbound"} />
+              </div>
+              <p className="muted" style={{ marginTop: 8 }}>{db.college.note}</p>
+            </>
+          )}
           <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
             Scheduled collection writes pregame checkpoints even if this page is closed. SYS reads D1; cache is only a fallback. Bias near zero is not accuracy — MAE, median abs, and RMSE sit beside every total.
           </p>
@@ -212,19 +229,19 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
 
           <div className="status-grid" style={{ marginBottom: 14 }}>
             <Stat label="Games graded" value={hl.n || 0} />
-            <Stat label={perGame ? "Actual / game" : "Actual runs"} value={fmtNum(hl.actualRuns)} />
-            <Stat label={perGame ? "Projected / game" : "Projected runs"} value={fmtNum(hl.projectedRuns)} />
-            <Stat label="Difference" value={fmtSigned(hl.diff)} />
-            <Stat label="% Difference" value={fmtPctSigned(hl.pctDiff)} />
-            <Stat label="Home bias" value={fmtPctSigned(hl.homeBias)} />
-            <Stat label="Away bias" value={fmtPctSigned(hl.awayBias)} />
-            <Stat label="Median error" value={fmtSigned(hl.median)} />
-            <Stat label="Median abs" value={fmtNum(hl.medianAbs)} />
-            <Stat label="MAE" value={fmtNum(hl.mae)} />
-              <Stat label="RMSE" value={fmtNum(hl.rmse)} />
-              <Stat label="Score winner" value={fmtPct(acc.winnerHitScore ?? acc.winnerHit)} />
-              <Stat label="Ensemble winner" value={fmtPct(acc.winnerHitProb)} />
-              <Stat label="Brier vs Pin" value={fmtSigned(acc.brierImprovement, 3)} />
+            <Stat label={perGame ? "Actual / game" : "Actual runs"} value={fmtMetricN0(hl.n, hl.actualRuns, fmtNum)} />
+            <Stat label={perGame ? "Projected / game" : "Projected runs"} value={fmtMetricN0(hl.n, hl.projectedRuns, fmtNum)} />
+            <Stat label="Difference" value={fmtMetricN0(hl.n, hl.diff, fmtSigned)} />
+            <Stat label="% Difference" value={fmtMetricN0(hl.n, hl.pctDiff, fmtPctSigned)} />
+            <Stat label="Home bias" value={fmtMetricN0(hl.n, hl.homeBias, fmtPctSigned)} />
+            <Stat label="Away bias" value={fmtMetricN0(hl.n, hl.awayBias, fmtPctSigned)} />
+            <Stat label="Median error" value={fmtMetricN0(hl.n, hl.median, fmtSigned)} />
+            <Stat label="Median abs" value={fmtMetricN0(hl.n, hl.medianAbs, fmtNum)} />
+            <Stat label="MAE" value={fmtMetricN0(hl.n, hl.mae, fmtNum)} />
+            <Stat label="RMSE" value={fmtMetricN0(hl.n, hl.rmse, fmtNum)} />
+            <Stat label="Score winner" value={fmtMetricN0(acc.n, acc.winnerHitScore ?? acc.winnerHit, fmtPct)} />
+            <Stat label="Ensemble winner" value={fmtMetricN0(acc.n, acc.winnerHitProb, fmtPct)} />
+            <Stat label="Brier vs Pin" value={fmtMetricN0(acc.n, acc.brierImprovement, (v) => fmtSigned(v, 3))} />
           </div>
 
           {tab === "overall" && (
@@ -718,7 +735,7 @@ function RollingTable({ rows }) {
 function fmtMetric(block, signed) {
   if (block == null) return "—";
   if (typeof block === "object" && "n" in block) {
-    if (!block.n) return `N=0`;
+    if (!block.n) return `N=0 — unavailable`;
     const v = signed ? fmtSigned(block.value) : fmtPct(block.value);
     return `${v} (N=${block.n})`;
   }
