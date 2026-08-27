@@ -1281,6 +1281,20 @@ export function collectDatesForSport(sport, today, dayOffset) {
   return [...new Set(dayList)];
 }
 
+/** Pal network and SYS health belong on the operator CT day, not tomorrow's quota/401 clobber. */
+export function shouldFetchPalNetwork(sport, day, operatorDay, { healthMode = false, dayOffset = null } = {}) {
+  if (healthMode) return false;
+  if (sport !== "mlb") return false;
+  if (dayOffset != null && dayOffset !== "" && Number.isFinite(Number(dayOffset))) return true;
+  return day === operatorDay;
+}
+
+export function shouldRecordPalHealth(day, operatorDay, { healthMode = false, dayOffset = null } = {}) {
+  if (healthMode) return false;
+  if (dayOffset != null && dayOffset !== "" && Number.isFinite(Number(dayOffset))) return true;
+  return day === operatorDay;
+}
+
 export function sportsForJob(sport) {
   if (!sport || sport === "all") return [...BOARD_SPORTS];
   const id = String(sport).toLowerCase();
@@ -1477,7 +1491,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         const slate = await builder(sport, day, {
           ...env,
           parlayCacheOnly: odds !== "full" || healthMode,
-          palCacheOnly: healthMode,
+          palCacheOnly: !shouldFetchPalNetwork(sport, day, date, { healthMode, dayOffset }),
         });
         if (!healthMode && odds === "full" && slate?.parlay?.error) {
           throw new Error(`Parlay full collect failed: ${slate.parlay.error}`);
@@ -1490,7 +1504,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         if (frozen.failReasons?.length) sportFailReasons.push(...frozen.failReasons);
         n += slate.games?.length || 0;
         pal = slate.pal?.match || slate.pal?.meta || slate.pal || pal;
-        if (sport === "mlb" && !healthMode) {
+        if (sport === "mlb" && shouldRecordPalHealth(day, date, { healthMode, dayOffset })) {
           const palMeta = slate.pal?.meta || slate.pal || {};
           const palMatch = slate.pal?.match || {};
           const persisted = (slate.games || []).filter((g) => g.bpp?.homeRuns != null || g.bpp?.awayRuns != null).length;

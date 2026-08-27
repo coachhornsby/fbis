@@ -14,7 +14,7 @@ import {
   palSlateView,
 } from "../functions/lib/ballparkpal.js";
 import { sameMlbTeam, canonAbbr, resolveMlbCanon } from "../functions/lib/mlbCanonical.js";
-import { freezeFromGame } from "../functions/lib/projLedger.js";
+import { freezeFromGame, shouldFetchPalNetwork, shouldRecordPalHealth } from "../functions/lib/projLedger.js";
 import { palHealth, sourceCoverage } from "../functions/lib/sourceCoverage.js";
 import { projectGame } from "../functions/lib/slateEngine.js";
 import { projectMatchup } from "../functions/lib/savant.js";
@@ -268,6 +268,16 @@ describe("Pal persist and source roles", () => {
     const metaOnly = palSlateView({ enabled: true, unmatched: 21, recordsReturned: 0, reason: "no-records-returned" });
     assert.equal(metaOnly.unmatched, 21);
     assert.deepEqual(Array.isArray(metaOnly.unmatched) ? metaOnly.unmatched.slice(0, 8) : metaOnly.unmatchedSample, []);
+  });
+
+  it("does not let tomorrow Pal 401 clobber CT today health", () => {
+    assert.equal(shouldFetchPalNetwork("mlb", "2026-08-27", "2026-08-27", {}), true);
+    assert.equal(shouldFetchPalNetwork("mlb", "2026-08-28", "2026-08-27", {}), false);
+    assert.equal(shouldRecordPalHealth("2026-08-27", "2026-08-27", {}), true);
+    assert.equal(shouldRecordPalHealth("2026-08-28", "2026-08-27", {}), false);
+    assert.equal(shouldFetchPalNetwork("mlb", "2026-08-28", "2026-08-27", { dayOffset: 1 }), true);
+    assert.equal(shouldRecordPalHealth("2026-08-28", "2026-08-27", { dayOffset: 1 }), true);
+    assert.equal(shouldFetchPalNetwork("mlb", "2026-08-27", "2026-08-27", { healthMode: true }), false);
   });
 });
 
