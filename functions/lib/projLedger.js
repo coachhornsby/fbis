@@ -1058,7 +1058,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     .map(decorateRow);
   const windowDates = new Set(dates);
   const needsGrade = Object.values(saved.games || {}).some(
-    (r) => r.actualHome == null && windowDates.has(r.date)
+    (r) => windowDates.has(r.date) && awaitingFinal(r)
   );
   const sportFailed =
     counts.writesFailed > 0 ||
@@ -1100,6 +1100,14 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   };
   if (report.ok) await writeCache(harvestKey, report, cfCache, HARVEST_TTL_MS);
   return report;
+}
+
+/** A frozen row needs a final only after kickoff. Upcoming games must not fail harvest on a 403. */
+export function awaitingFinal(row, now = Date.now()) {
+  if (!row || row.actualHome != null) return false;
+  const startMs = Date.parse(row.start || "");
+  if (Number.isFinite(startMs) && startMs > now) return false;
+  return true;
 }
 
 function flattenLedgerRows(ledger) {

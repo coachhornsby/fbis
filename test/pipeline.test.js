@@ -350,6 +350,40 @@ describe("collect and harvest fail honestly", () => {
     assert.equal(out.successful_at, null);
   });
 
+  it("harvest scoreboard 403 succeeds when remaining games have not kicked off", async () => {
+    resetCacheMem();
+    const env = pipelineDb();
+    const today = todayCT();
+    env.caches = {
+      async match() {
+        return new Response(
+          JSON.stringify({
+            games: {
+              [`${today}:1`]: {
+                id: "1",
+                sport: "cfb",
+                date: today,
+                actualHome: null,
+                start: new Date(Date.now() + 36 * 3600 * 1000).toISOString(),
+                matchup: "AWY @ HOM",
+              },
+            },
+          }),
+          { headers: { "content-type": "application/json" } }
+        );
+      },
+      async put() {},
+    };
+    const out = await harvestAll(1, env, {
+      sport: "cfb",
+      fetchResultsFn: async () => {
+        throw new Error("ESPN CFB 403");
+      },
+    });
+    assert.equal(out.status, "success");
+    assert.equal(out.ok, true);
+  });
+
   it("harvest with no open games succeeds when a scoreboard 403s", async () => {
     resetCacheMem();
     const out = await harvestAll(1, { DB: pipelineDb().DB }, {
