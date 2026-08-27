@@ -168,6 +168,12 @@ describe("Heritage matching, attribution, CLV, settlement", () => {
     });
     assert.equal(early.conviction, true);
     assert.equal(early.recommended, true);
+    const noSide = attributeRecommendation({ ...ticket, selectedSide: null }, {
+      snapshots: [{ gameId: "g1", frozenAt: "2026-08-27T14:00:00Z", projHome: 4, checkpoint: "MORNING" }],
+      strategyTickets: [{ id: "s1", gameId: "g1", market: "ML", side: "HOME", tag: "CONVICTION", qualified: true, qualifiedAt: "2026-08-27T14:01:00Z" }],
+    });
+    assert.equal(noSide.recommended, false);
+    assert.equal(noSide.label, OPERATOR_ONLY);
   });
 
   it("never uses post-kickoff Pin as close or Heritage current as Pin close", () => {

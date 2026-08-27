@@ -92,8 +92,9 @@ export function attributeRecommendation(ticket, { snapshots = [], strategyTicket
     if (String(t.gameId || t.game_id) !== gameId) return false;
     const at = Date.parse(t.qualifiedAt || t.qualified_at || t.createdAt || "");
     if (Number.isFinite(executedAt) && Number.isFinite(at) && at > executedAt) return false;
-    if (market && String(t.market || "").toUpperCase() !== String(market).toUpperCase()) return false;
-    if (side && String(t.side || "").toUpperCase() !== String(side).toUpperCase()) return false;
+    if (!market || !side) return false;
+    if (String(t.market || "").toUpperCase() !== String(market).toUpperCase()) return false;
+    if (String(t.side || "").toUpperCase() !== String(side).toUpperCase()) return false;
     return true;
   });
   const rec = priorTickets.sort((a, b) => String(a.qualifiedAt || "").localeCompare(String(b.qualifiedAt || ""))).at(-1) || null;
