@@ -48,6 +48,7 @@ import {
   durableHealth,
   staleScheduleWarning,
   JOB_SUCCESS,
+  JOB_FAILED,
 } from "./jobs.js";
 
 const TTL_MS = 21 * 24 * 60 * 60 * 1000;
@@ -1120,31 +1121,65 @@ async function dbPayload(env) {
   };
 }
 
+export function sportsForJob(sport) {
+  if (!sport || sport === "all") return [...BOARD_SPORTS];
+  const id = String(sport).toLowerCase();
+  if (!BOARD_SPORTS.includes(id)) return null;
+  return [id];
+}
+
 export async function harvestAll(days, env = {}, opts = {}) {
   const attemptedAt = new Date().toISOString();
   await stampAttempt(env, "harvest", attemptedAt);
   const unbound = !hasDb(env);
-  const reports = await Promise.all(
-    BOARD_SPORTS.map(async (sport) => {
-      try {
-        return await harvestSport(sport, days, env, opts);
-      } catch (err) {
-        return {
-          sport,
-          sportName: SPORTS[sport]?.name || sport,
-          ok: false,
-          error: String(err?.message || err),
-          accuracy: accuracyOf([]),
-          games: [],
-          finals: [],
-          errors: [String(err?.message || err)],
-          jobCounts: emptyWriteCounts(),
-          dates: lastNDatesCT(Math.max(1, Number(days) || 8)),
-          recipe: RECIPE_GUIDE[sport],
-        };
-      }
-    })
-  );
+  const sportList = sportsForJob(opts.sport);
+  if (!sportList) {
+    const payload = jobPayload({
+      ok: false,
+      job: "harvest",
+      status: JOB_FAILED,
+      attemptedAt,
+      successfulAt: null,
+      sports: [],
+      dates: [],
+      gamesDiscovered: 0,
+      writes: emptyWriteCounts(),
+      finals: { discovered: 0, graded: 0, failed: 0 },
+      d1: await dbPayload(env),
+      errors: [`unknown sport ${opts.sport}`],
+      env,
+    });
+    await recordJob(env, {
+      jobType: "harvest",
+      triggerType: opts.trigger || "http",
+      startedAt: attemptedAt,
+      completedAt: new Date().toISOString(),
+      status: JOB_FAILED,
+      sport: String(opts.sport || "all"),
+      errors: payload.errors,
+    });
+    return payload;
+  }
+  const reports = [];
+  for (const sport of sportList) {
+    try {
+      reports.push(await harvestSport(sport, days, env, opts));
+    } catch (err) {
+      reports.push({
+        sport,
+        sportName: SPORTS[sport]?.name || sport,
+        ok: false,
+        error: String(err?.message || err),
+        accuracy: accuracyOf([]),
+        games: [],
+        finals: [],
+        errors: [String(err?.message || err)],
+        jobCounts: emptyWriteCounts(),
+        dates: lastNDatesCT(Math.max(1, Number(days) || 8)),
+        recipe: RECIPE_GUIDE[sport],
+      });
+    }
+  }
   const games = reports.flatMap((r) => r.games || []);
   const finals = reports.flatMap((r) => r.finals || []);
   const errors = reports.flatMap((r) => r.errors || (r.error ? [r.error] : []));
@@ -1195,6 +1230,7 @@ export async function harvestAll(days, env = {}, opts = {}) {
     completedAt: new Date().toISOString(),
     successfulAt,
     status,
+    sport: sportList.length === 1 ? sportList[0] : "all",
     dates: payload.dates,
     gamesDiscovered: payload.games_discovered,
     writesAttempted: writes.writesAttempted,
@@ -1206,8 +1242,8 @@ export async function harvestAll(days, env = {}, opts = {}) {
   });
   return {
     ...payload,
-    sport: "all",
-    sportName: "All boards",
+    sport: sportList.length === 1 ? sportList[0] : "all",
+    sportName: sportList.length === 1 ? SPORTS[sportList[0]]?.name || sportList[0] : "All boards",
     generatedAt: payload.attempted_at,
     harvestedAt: successfulAt,
     days: Number(days) || 8,
@@ -1220,7 +1256,7 @@ export async function harvestAll(days, env = {}, opts = {}) {
   };
 }
 
-export async function collectBoards(env = {}, { odds = "cache", trigger = "http", buildSlateFn } = {}) {
+export async function collectBoards(env = {}, { odds = "cache", trigger = "http", buildSlateFn, sport } = {}) {
   const attemptedAt = new Date().toISOString();
   await stampAttempt(env, "collect", attemptedAt);
   const date = todayCT();
@@ -1231,8 +1267,36 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
   let gamesDiscovered = 0;
   const dates = [];
   const unbound = !hasDb(env);
+  const sportList = sportsForJob(sport);
+  if (!sportList) {
+    const payload = jobPayload({
+      ok: false,
+      job: odds === "full" ? "collect-full" : "collect-cache",
+      status: JOB_FAILED,
+      attemptedAt,
+      successfulAt: null,
+      sports: [],
+      dates: [],
+      gamesDiscovered: 0,
+      writes: emptyWriteCounts(),
+      finals: { discovered: 0, graded: 0, failed: 0 },
+      d1: await dbPayload(env),
+      errors: [`unknown sport ${sport}`],
+      env,
+    });
+    await recordJob(env, {
+      jobType: payload.job,
+      triggerType: trigger,
+      startedAt: attemptedAt,
+      completedAt: new Date().toISOString(),
+      status: JOB_FAILED,
+      sport: String(sport),
+      errors: payload.errors,
+    });
+    return { ...payload, date, odds, db: payload.d1 };
+  }
 
-  for (const sport of BOARD_SPORTS) {
+  for (const sport of sportList) {
     const dayList = [date, shiftDateCT(date, 1)];
     if (sport === "cfb" || sport === "nfl") {
       dayList.unshift(shiftDateCT(date, -1));
@@ -1314,6 +1378,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
     startedAt: attemptedAt,
     completedAt: new Date().toISOString(),
     status,
+    sport: sportList.length === 1 ? sportList[0] : "all",
     dates: payload.dates,
     gamesDiscovered,
     writesAttempted: writes.writesAttempted,

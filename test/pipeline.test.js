@@ -241,6 +241,37 @@ describe("collect and harvest fail honestly", () => {
     assert.equal(out.status, "failed");
   });
 
+  it("can collect and harvest one sport without touching the others", async () => {
+    const seen = [];
+    const out = await collectBoards(
+      { DB: pipelineDb().DB },
+      {
+        odds: "cache",
+        sport: "mlb",
+        buildSlateFn: async (sport, date) => {
+          seen.push(sport);
+          return emptySlate(sport, date);
+        },
+      }
+    );
+    assert.deepEqual([...new Set(seen)], ["mlb"]);
+    assert.equal(out.status, "success");
+    assert.equal(out.sports.length, 1);
+    assert.equal(out.sports[0].sport, "mlb");
+
+    const harvested = [];
+    const harvest = await harvestAll(1, { DB: pipelineDb().DB }, {
+      sport: "mlb",
+      fetchResultsFn: async (sport) => {
+        harvested.push(sport);
+        return [];
+      },
+    });
+    assert.deepEqual([...new Set(harvested)], ["mlb"]);
+    assert.equal(harvest.sport, "mlb");
+    assert.equal(harvest.status, "success");
+  });
+
   it("idempotent rerun reports already-present snapshots", async () => {
     const env = pipelineDb();
     const slateFn = async (sport, date) =>

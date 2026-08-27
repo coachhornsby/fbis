@@ -29,7 +29,7 @@ concurrency:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Collect projections and/or grade finals
         env:
@@ -109,12 +109,23 @@ jobs:
             fi
           }
 
+          # One Worker invocation cannot cover every board (subrequest cap).
+          # Split by sport so a CFB slate cannot starve MLB/NBA/NFL writes.
+          SPORTS="mlb nba nfl cfb cbb"
           run_collect() {
             local odds="$1"
-            call_api "/api/collect?odds=${odds}"
+            local sport
+            for sport in $SPORTS; do
+              echo "collect sport=${sport} odds=${odds}"
+              call_api "/api/collect?odds=${odds}&sport=${sport}"
+            done
           }
           run_harvest() {
-            call_api "/api/harvest?days=3"
+            local sport
+            for sport in $SPORTS; do
+              echo "harvest sport=${sport}"
+              call_api "/api/harvest?days=3&sport=${sport}"
+            done
           }
 
           case "$JOB" in

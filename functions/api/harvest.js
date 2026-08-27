@@ -13,12 +13,13 @@ export async function onRequestGet(context) {
   }
   const url = new URL(context.request.url);
   const days = url.searchParams.get("days") || "3";
+  const sport = url.searchParams.get("sport") || "all";
   try {
     const payload = await harvestAll(days, {
       caches: caches.default,
       DB: context.env.DB,
       CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
-    }, { trigger: "http" });
+    }, { trigger: "http", sport });
     return new Response(JSON.stringify(payload), {
       status: httpStatusForJob(payload.status),
       headers: {

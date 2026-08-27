@@ -45,7 +45,7 @@ Hover a Proj cell for the recipe. SYS explains every board.
 
 ## Tracking (SYS)
 
-The website is not the collector. GitHub Actions call `/api/collect` through the day (full Parlay odds at ~8am and 11am CT; cache-only later) so every scheduled game gets pregame checkpoints even if nobody opens the board. `/api/harvest` (~06:20 CT) attaches finals and writes them to D1.
+The website is not the collector. GitHub Actions call `/api/collect` through the day (full Parlay odds at ~8am and 11am CT; cache-only later) so every scheduled game gets pregame checkpoints even if nobody opens the board. `/api/harvest` (~06:20 CT) attaches finals and writes them to D1. Each Action job loops MLB/NBA/NFL/CFB/CBB as separate Worker invocations (`?sport=`) so a large CFB slate cannot exhaust the Cloudflare subrequest budget and starve other boards. A 207/partial or 500/failed collect does not stamp `last_collect_success_at`. UTC crons are fixed; Chicago offset is CDT (UTC-5, ~Mar–Nov) or CST (UTC-6, ~Nov–Mar). Scheduled verification requires an actual GitHub `schedule` run, not only `workflow_dispatch`.
 
 SYS reads D1 (cache is a 21-day fallback). Projection Accuracy reports actual vs projected totals, % bias, home/away bias, MAE, median abs, RMSE, within-X distribution, Pal vs proprietary vs ensemble vs Pinnacle, team/park/starter/month slices, and both score-winner and ensemble-probability winner hit. Calibration includes home p below 50%. Logged tickets stay a separate dataset from every-game forecast error.
 
