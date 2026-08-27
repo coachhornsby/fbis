@@ -17,8 +17,16 @@ export async function onRequestGet(context) {
   };
   try {
     const payload = await buildSlate(sport, resolved.date, env);
-    context.waitUntil(freezeSlate(payload, env).catch(() => {}));
-    context.waitUntil(harvestSport(payload.sport, 2, env).catch(() => {}));
+    context.waitUntil(
+      freezeSlate(payload, env).catch((err) => {
+        console.error("freezeSlate", err?.message || err);
+      })
+    );
+    context.waitUntil(
+      harvestSport(payload.sport, 2, env).catch((err) => {
+        console.error("harvestSport", err?.message || err);
+      })
+    );
     return json(payload, 200, 30);
   } catch (err) {
     return json({ error: String(err?.message || err), games: [], ticker: [], counts: {} }, 502, 10);

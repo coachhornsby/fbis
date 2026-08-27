@@ -1,11 +1,14 @@
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { CHECKPOINTS } from "../functions/lib/checkpoints.js";
 import { fmtNum, fmtPct, fmtSigned } from "./lib/format.js";
+import { useEffect, useState } from "react";
 
 const PERIODS = [
   ["7", "Last 7"],
   ["14", "Last 14"],
   ["30", "Last 30"],
+  ["50", "Last 50 games"],
+  ["100", "Last 100 games"],
   ["season", "Season"],
   ["lifetime", "Lifetime"],
 ];
@@ -26,6 +29,10 @@ const TABS = [
   ["homeAway", "Home/Away"],
   ["version", "Model Version"],
   ["checkpoint", "Checkpoint"],
+  ["week", "Week"],
+  ["conference", "Conference"],
+  ["favDog", "Fav / Dog"],
+  ["spreadRange", "Spread range"],
 ];
 
 export default function TrackView({ report, error, loading, filters, onFilters, onRefresh }) {
@@ -57,7 +64,11 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
           <div className={`db-banner ${db.ok ? "db-ok" : "db-bad"}`}>
             {db.ok ? "RESEARCH DB: CONNECTED" : `RESEARCH DB ${db.reason === "unbound" ? "UNBOUND" : "ERROR"}`}
             <span className="muted" style={{ marginLeft: 10 }}>
-              source {report?.source || db.source || "—"} · stored today {db.predictions ?? 0} · graded today {db.graded ?? 0}
+              source {report?.source || db.source || "—"} · stored today {db.predictions ?? 0} · graded today {db.graded ?? 0} · awaiting {db.awaiting ?? 0}
+              {db.lastCollect ? ` · collect ${new Date(db.lastCollect).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
+              {db.lastHarvest ? ` · harvest ${new Date(db.lastHarvest).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
+              {db.failedWrites ? ` · failed writes ${db.failedWrites}` : ""}
+              {db.failedHarvests ? ` · failed harvests ${db.failedHarvests}` : ""}
               {db.lastError ? ` · ${db.lastError}` : ""}
             </span>
           </div>
@@ -119,6 +130,14 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                 ))}
               </select>
             </Filter>
+            <Filter label="Team">
+              <input
+                value={filters.team || ""}
+                placeholder="abbr"
+                onChange={(e) => onFilters({ team: e.target.value })}
+                style={{ background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "5px 8px", fontSize: 12, width: 80 }}
+              />
+            </Filter>
             <Filter label="Type">
               <div className="chip-row">
                 <button className={perGame ? "chip active" : "chip"} onClick={() => onFilters({ type: "perGame" })}>Per Game</button>
@@ -150,9 +169,10 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
             <Stat label="Median error" value={fmtSigned(hl.median)} />
             <Stat label="Median abs" value={fmtNum(hl.medianAbs)} />
             <Stat label="MAE" value={fmtNum(hl.mae)} />
-            <Stat label="RMSE" value={fmtNum(hl.rmse)} />
-            <Stat label="Score winner" value={fmtPct(acc.winnerHitScore ?? acc.winnerHit)} />
-            <Stat label="Ensemble winner" value={fmtPct(acc.winnerHitProb)} />
+              <Stat label="RMSE" value={fmtNum(hl.rmse)} />
+              <Stat label="Score winner" value={fmtPct(acc.winnerHitScore ?? acc.winnerHit)} />
+              <Stat label="Ensemble winner" value={fmtPct(acc.winnerHitProb)} />
+              <Stat label="Brier vs Pin" value={fmtSigned(acc.brierImprovement, 3)} />
           </div>
 
           {tab === "overall" && (
@@ -162,6 +182,18 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
               <DistBlock dist={dist} />
               <h3 className="subhead">Model comparison</h3>
               <ModelsTable models={models} />
+              {(report?.over) && (
+                <>
+                  <h3 className="subhead">Over / under disagreement</h3>
+                  <OverBlock over={report.over} />
+                </>
+              )}
+              {(report?.dailyReports || []).length > 0 && (
+                <>
+                  <h3 className="subhead">Latest research note</h3>
+                  <pre className="daily-note">{report.dailyReports[0].body}</pre>
+                </>
+              )}
               <h3 className="subhead">Projection bias</h3>
               <SliceTable rows={br.biasSlices || []} />
               {(br.rolling || []).length > 4 && (
@@ -180,6 +212,10 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
           {tab === "homeAway" && <BreakTable rows={br.homeAway || []} />}
           {tab === "version" && <BreakTable rows={br.version || []} extra />}
           {tab === "checkpoint" && <BreakTable rows={br.checkpoint || []} extra />}
+          {tab === "week" && <BreakTable rows={br.week || []} extra />}
+          {tab === "conference" && <BreakTable rows={br.conference || []} extra />}
+          {tab === "favDog" && <BreakTable rows={br.favDog || []} extra />}
+          {tab === "spreadRange" && <BreakTable rows={br.spreadRange || []} extra />}
 
           <div style={{ marginTop: 12 }}>
             <button className="header-btn header-btn-refresh" onClick={onRefresh} disabled={loading}>
@@ -188,6 +224,8 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
           </div>
         </div>
       </section>
+
+      <StrategyPanel />
 
       <section className="panel">
         <div className="panel-header"><h2>How projections are made</h2></div>
@@ -397,37 +435,31 @@ function MetricTable({ rows }) {
 }
 
 function DistBlock({ dist }) {
-  const t = dist.total || {};
-  const team = dist.team || {};
-  const m = dist.margin || {};
+  const blocks = [
+    ["Total", dist.total],
+    ["Team score", dist.team],
+    ["Margin", dist.margin],
+  ];
   return (
     <div className="dist-grid">
-      <div>
-        <b>Total</b>
-        <ul>
-          <li>Within 0.5 · {fmtPct(t.within05)}</li>
-          <li>Within 1 · {fmtPct(t.within1)}</li>
-          <li>Within 2 · {fmtPct(t.within2)}</li>
-          <li>Within 3 · {fmtPct(t.within3)}</li>
-          <li>Within 4 · {fmtPct(t.within4)}</li>
-        </ul>
-      </div>
-      <div>
-        <b>Team score</b>
-        <ul>
-          <li>Within 0.5 · {fmtPct(team.within05)}</li>
-          <li>Within 1 · {fmtPct(team.within1)}</li>
-          <li>Within 2 · {fmtPct(team.within2)}</li>
-        </ul>
-      </div>
-      <div>
-        <b>Margin</b>
-        <ul>
-          <li>Within 1 · {fmtPct(m.within1)}</li>
-          <li>Within 2 · {fmtPct(m.within2)}</li>
-          <li>Within 3 · {fmtPct(m.within3)}</li>
-        </ul>
-      </div>
+      {blocks.map(([label, block]) => (
+        <div key={label}>
+          <b>{label}{dist.sport && dist.sport !== "mlb" ? ` · ${String(dist.sport).toUpperCase()}` : ""}</b>
+          <ul>
+            {(block?.bands || []).length
+              ? block.bands.map((b) => (
+                  <li key={b.threshold}>{b.label} · {fmtPct(b.share)}</li>
+                ))
+              : (
+                <>
+                  <li>Within 0.5 · {fmtPct(block?.within05)}</li>
+                  <li>Within 1 · {fmtPct(block?.within1)}</li>
+                  <li>Within 2 · {fmtPct(block?.within2)}</li>
+                </>
+              )}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
@@ -445,6 +477,7 @@ function ModelsTable({ models }) {
           <th>RMSE</th>
           <th>Bias</th>
           <th>Brier</th>
+          <th>Log loss</th>
           <th>Winner</th>
         </tr>
       </thead>
@@ -459,6 +492,7 @@ function ModelsTable({ models }) {
             <td>{fmtNum(m.rmse)}</td>
             <td>{fmtSigned(m.bias)}</td>
             <td>{fmtNum(m.brier, 3)}</td>
+            <td>{fmtNum(m.logLoss, 3)}</td>
             <td>{fmtPct(m.winnerHit)}</td>
           </tr>
         ))}
@@ -574,4 +608,143 @@ function errClass(n) {
   if (a < 0.6) return "text-green";
   if (a > 2) return "text-red";
   return "";
+}
+
+function OverBlock({ over }) {
+  if (!over) return null;
+  return (
+    <div>
+      <p className="muted" style={{ marginBottom: 8 }}>
+        Candidates are model-vs-market disagreements, not bets. Qualified still requires +EV. Totals are not lowered from this table.
+      </p>
+      <div className="status-grid" style={{ marginBottom: 10 }}>
+        <Stat label="OVER candidates" value={over.candidates?.over ?? 0} />
+        <Stat label="UNDER candidates" value={over.candidates?.under ?? 0} />
+        <Stat label="Qualified OVER" value={over.qualified?.over ?? 0} />
+        <Stat label="Qualified UNDER" value={over.qualified?.under ?? 0} />
+        <Stat label="FBIS total bias" value={fmtSigned(over.bias?.proprietary)} />
+        <Stat label="Pal total bias" value={fmtSigned(over.bias?.pal)} />
+      </div>
+      <table className="fbis-table">
+        <thead>
+          <tr>
+            <th>Disagreement</th>
+            <th>N</th>
+            <th>Actual avg</th>
+            <th>Projected avg</th>
+            <th>MAE</th>
+            <th>Bias</th>
+            <th>Over rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(over.buckets || []).map((b) => (
+            <tr key={b.key}>
+              <td>{b.label}</td>
+              <td>{b.n}</td>
+              <td>{fmtNum(b.actualAvg)}</td>
+              <td>{fmtNum(b.projectedAvg)}</td>
+              <td>{fmtNum(b.mae)}</td>
+              <td>{fmtSigned(b.bias)}</td>
+              <td>{fmtPct(b.overRate)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function StrategyPanel() {
+  const [pack, setPack] = useState(null);
+  useEffect(() => {
+    const ac = new AbortController();
+    fetch(`/api/strategy?_t=${Date.now()}`, { signal: ac.signal })
+      .then((r) => r.json())
+      .then((d) => setPack(d))
+      .catch(() => {});
+    return () => ac.abort();
+  }, []);
+  const seed = pack?.seed || { tickets: [], stats: {}, traits: {} };
+  const pro = pack?.prospective || { tickets: [], stats: {}, traits: {} };
+  const rec = pack?.reconstruction || {};
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <h2>Strategy · FBIS-HC-v1</h2>
+        <span className="last-updated">{pack?.strategy?.reportedRecord || "8-0"} seed · N always shown</span>
+      </div>
+      <div className="panel-body">
+        <p className="headline-line">
+          High-conviction means a <b>qualified</b> ticket with EV ≥ 8% (tag CONVICTION). Leans are excluded.
+          The 8-0 does not rewrite blend weights. N=8 is not evidence the filter works.
+        </p>
+        <p className="muted" style={{ marginBottom: 10 }}>
+          Reconstruction: {rec.confidence || "unrecovered"}
+          {rec.note ? ` — ${rec.note}` : ""}
+        </p>
+        <div className="status-grid" style={{ marginBottom: 12 }}>
+          <Stat label="Seed N" value={seed.stats?.n ?? seed.tickets?.length ?? 0} />
+          <Stat label="Seed record" value={seed.stats?.settled ? `${seed.stats.wins}-${seed.stats.losses}` : rec.n ? String(rec.n) : "—"} />
+          <Stat label="Prospective N" value={pro.stats?.n ?? 0} />
+          <Stat label="Prospective hit" value={fmtPct(pro.stats?.hitRate)} />
+          <Stat label="Prospective ROI" value={fmtSigned(pro.stats?.roi)} />
+          <Stat label="Avg CLV" value={fmtSigned(pro.stats?.avgClv)} />
+          <Stat label="Drawdown" value={fmtSigned(pro.stats?.drawdown)} />
+          <Stat label="Open" value={pro.stats?.open ?? 0} />
+        </div>
+        <h3 className="subhead">Seed traits (shared characteristics)</h3>
+        <TraitLine traits={seed.traits} />
+        <h3 className="subhead">Seed tickets</h3>
+        <TicketTable rows={seed.tickets || []} empty="Exact eight games were not in D1. Open SYS on the machine that logged 2026-08-26 to freeze them. Games are not invented." />
+        <h3 className="subhead">Prospective matches</h3>
+        <TicketTable rows={(pro.tickets || []).slice(0, 40)} empty="No prospective CONVICTION tickets stored yet. Collection tags matches automatically." />
+      </div>
+    </section>
+  );
+}
+
+function TraitLine({ traits }) {
+  if (!traits?.n) return <p className="muted">No seed tickets recovered yet. Strategy definition still applies prospectively.</p>;
+  const fmtMap = (obj) =>
+    Object.entries(obj || {})
+      .map(([k, v]) => `${k} ${v}`)
+      .join(" · ") || "—";
+  return (
+    <p className="muted">
+      N={traits.n} · sports {fmtMap(traits.sports)} · markets {fmtMap(traits.markets)} · sides {fmtMap(traits.sides)} · avg EV {fmtPct(traits.avgEv)} · home {fmtPct(traits.homeShare)} · over {fmtPct(traits.overShare)}
+    </p>
+  );
+}
+
+function TicketTable({ rows, empty }) {
+  if (!rows.length) return <div className="empty">{empty}</div>;
+  return (
+    <table className="fbis-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Game</th>
+          <th>Market</th>
+          <th>Pick</th>
+          <th>EV</th>
+          <th>Tag</th>
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((t) => (
+          <tr key={t.id} className={t.result === "WON" ? "won-row" : t.result === "LOST" ? "lost-row" : ""}>
+            <td className="muted">{t.date}</td>
+            <td>{t.matchup || t.gameId}</td>
+            <td>{t.market} {t.side}</td>
+            <td>{t.pick}</td>
+            <td>{fmtPct(t.ev)}</td>
+            <td>{t.tag}</td>
+            <td>{t.result || "OPEN"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }

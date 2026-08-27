@@ -1,0 +1,9 @@
+{
+  "id": "FBIS-HC-v1",
+  "name": "High-conviction qualified",
+  "seedDate": "2026-08-26",
+  "reportedRecord": "8-0",
+  "reconstructionConfidence": "unrecovered",
+  "positions": [],
+  "notes": "Exact eight tickets were not in git, D1, or the repo. They lived in browser localStorage key fbis-learning-v1. SYS will freeze them immutably if that journal is still on the operator machine. Positions are never invented. Strategy filter is qualified + EV>=8% (CONVICTION). Do not retune model weights from this sample."
+}

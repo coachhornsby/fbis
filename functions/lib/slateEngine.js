@@ -6,6 +6,7 @@ import { fetchParlayOdds, mergeParlay } from "./parlay.js";
 import { fetchSavantSlate } from "./savant.js";
 import { MODEL_VERSION, pinMarkets, priceSelection, tagFromEv } from "./pricing.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
+import { applyCfbModel, cfbSpreadProb, cfbTotalProb, cfbWinProb } from "./cfbModel.js";
 
 export const SPORTS = {
   cbb: {
@@ -225,7 +226,12 @@ export function projectGame(sport, game) {
       : palMargin != null
         ? logistic(palMargin, cfg.k)
         : null;
-  const scoreHome = projMargin != null ? logistic(projMargin, cfg.k) : null;
+  const scoreHome =
+    sport === "cfb" && game.cfb?.sigmaMargin != null && projMargin != null
+      ? cfbWinProb(projMargin, game.cfb.sigmaMargin)
+      : projMargin != null
+        ? logistic(projMargin, cfg.k)
+        : null;
   const homePct = recordWinPct(game.home?.record);
   const awayPct = recordWinPct(game.away?.record);
   const recordForm =
@@ -255,6 +261,17 @@ export function projectGame(sport, game) {
     projMargin,
     palHome: game.bpp?.homeRuns ?? null,
     palAway: game.bpp?.awayRuns ?? null,
+    marketProjHome: game.marketProjHome ?? null,
+    marketProjAway: game.marketProjAway ?? null,
+    pOver:
+      sport === "cfb" && game.cfb?.sigmaTotal != null && game.odds?.total != null && projHome != null && projAway != null
+        ? cfbTotalProb(projHome + projAway, game.odds.total, game.cfb.sigmaTotal, true)
+        : null,
+    pSpreadHome:
+      sport === "cfb" && game.cfb?.sigmaMargin != null && game.odds?.spread != null && projMargin != null
+        ? cfbSpreadProb(projMargin, game.odds.spread, game.cfb.sigmaMargin)
+        : null,
+    heuristicTotalProb: true,
   };
   model.recipe = projectionRecipe(sport, game, model);
   return model;
@@ -286,6 +303,22 @@ export function projectionRecipe(sport, game, model) {
       }
     }
     steps.push("Pal is an independent model, never a sportsbook price. Savant is not overwritten by Pal.");
+  } else if (sport === "cfb" && game.cfb) {
+    const c = game.cfb;
+    engine = "CFB prior + season evidence";
+    steps.push(
+      `Preseason prior from ESPN ${c.homeEst?.poll || "rank"} (home rank ${c.homeEst?.rank ?? "unranked"}, away ${c.awayEst?.rank ?? "unranked"}).`
+    );
+    steps.push(
+      `Current-season weight n/(n+${c.constants?.priorGames ?? 6}): home ${c.homeEst?.n || 0} games w=${Number(c.homeEst?.w || 0).toFixed(2)}, away ${c.awayEst?.n || 0} games w=${Number(c.awayEst?.w || 0).toFixed(2)}.`
+    );
+    steps.push(
+      `HFA ${c.hfa} pts${game.neutralSite ? " (neutral)" : ""}. Scores ${fmt(projAway)}–${fmt(projHome)} (tot ${fmt(c.total)}, mgn ${fmt(c.margin)}).`
+    );
+    steps.push(
+      `Win/spread/total probabilities use Normal(σ_margin=${c.sigmaMargin}, σ_total=${c.sigmaTotal}) — labeled heuristic, not a fitted probability model.`
+    );
+    steps.push("No EPA, transfer, QB, or coaching feed is wired. Those inputs are absent.");
   } else if (projHome != null && projAway != null && game.odds?.total != null && game.odds?.spread != null) {
     const pin = game.odds.pinPresent !== false;
     engine = pin ? "Pinnacle line-implied" : "Board line-implied";
@@ -386,7 +419,11 @@ export function recommendBundle(sport, game, model, weights) {
     const spreadEdge = Math.abs(coverHome);
     if (spreadEdge >= cfg.minSpreadEdge) {
       const side = coverHome > 0 ? "HOME" : "AWAY";
-      const pCoverRaw = logistic(side === "HOME" ? coverHome : -coverHome, cfg.k);
+      let pCoverRaw = logistic(side === "HOME" ? coverHome : -coverHome, cfg.k);
+      if (sport === "cfb" && game.cfb?.sigmaMargin != null) {
+        const pHomeCover = cfbSpreadProb(model.projMargin, homeSpread, game.cfb.sigmaMargin);
+        pCoverRaw = side === "HOME" ? pHomeCover : pHomeCover != null ? 1 - pHomeCover : null;
+      }
       const pMarket = side === "HOME" ? pin.spread?.noVigA : pin.spread?.noVigB;
       const pCover = shrinkToMarket(pCoverRaw, pMarket);
       const priced = priceSelection({
@@ -411,7 +448,10 @@ export function recommendBundle(sport, game, model, weights) {
     const diff = model.projTotal - game.odds.total;
     if (Math.abs(diff) >= cfg.minSpreadEdge) {
       const over = diff > 0;
-      const pRaw = logistic(Math.abs(diff), cfg.totalK);
+      const pRaw =
+        sport === "cfb" && game.cfb?.sigmaTotal != null
+          ? cfbTotalProb(model.projTotal, game.odds.total, game.cfb.sigmaTotal, over)
+          : logistic(Math.abs(diff), cfg.totalK);
       const pMarket = over ? pin.total?.noVigA : pin.total?.noVigB;
       const p = shrinkToMarket(pRaw, pMarket);
       const priced = priceSelection({
@@ -531,8 +571,10 @@ function pushF5Recs(sport, game, recs, cfg, pin) {
     const diff = palTotal - line;
     if (Math.abs(diff) >= cfg.minSpreadEdge) {
       const over = diff > 0;
+      const pF5Raw = logistic(Math.abs(diff), cfg.totalK);
+      const pF5Mkt = over ? pin?.f5total?.noVigA : pin?.f5total?.noVigB;
       const priced = priceSelection({
-        pWin: logistic(Math.abs(diff), cfg.totalK),
+        pWin: shrinkToMarket(pF5Raw, pF5Mkt),
         twoWay: pin?.f5total,
         side: over ? "A" : "B",
         pinPrice: over ? f5Odds.overPrice : f5Odds.underPrice,
@@ -579,9 +621,15 @@ export function mapEvent(sport, event) {
   const awayC = competitor(comp, "away");
   const home = teamPayload(homeC);
   const away = teamPayload(awayC);
+  home.espnId = homeC?.team?.id || homeC?.id || null;
+  away.espnId = awayC?.team?.id || awayC?.id || null;
+  home.conference = homeC?.team?.conferenceId || null;
+  away.conference = awayC?.team?.conferenceId || null;
   const odds = parseOdds(comp, sport);
   const status = statusInfo(comp);
   const espnHomeWinPct = espnWinPct(event, homeC);
+  const notes = (event.notes || []).map((n) => n.headline).filter(Boolean);
+  const neutralSite = Boolean(comp.neutralSite) || notes.some((n) => /neutral/i.test(n));
 
   let projHome = null;
   let projAway = null;
@@ -610,7 +658,10 @@ export function mapEvent(sport, event) {
     projAwayScore: projAway,
     venue: comp.venue?.fullName || "",
     broadcast: (comp.broadcasts || []).map((b) => b.names?.[0] || b.market).filter(Boolean).join(", "),
-    notes: (event.notes || []).map((n) => n.headline).filter(Boolean),
+    notes,
+    week: num(event.week?.number) ?? num(event.season?.week) ?? null,
+    neutralSite,
+    conference: home.conference || away.conference || null,
   };
 }
 
@@ -769,6 +820,9 @@ export function dataQuality(sport, game) {
       if (Math.abs(game.model.layers.pal - game.model.layers.score) >= 0.08) flags.push("model_disagreement");
     }
   }
+  if (sport === "cfb" && Array.isArray(game.cfb?.flags)) {
+    for (const f of game.cfb.flags) flags.push(f);
+  }
   if (!game.odds?.heritageListed) flags.push("heritage_unlisted");
   const score = Math.max(0, 100 - flags.length * 12);
   return { score, flags };
@@ -808,11 +862,16 @@ export async function buildSlate(sport, date, env = {}) {
 
   let pal = { games: [], meta: { enabled: false } };
   let savant = { meta: { enabled: false } };
+  let cfb = { meta: { enabled: false } };
   if (id === "mlb") {
     savant = await fetchSavantSlate(games, env.caches);
     games = savant.games || games;
     pal = await fetchBallparkPal(day, env.BALLPARK_PAL_API_KEY, env.caches);
     games = mergeBallparkPal(games, pal);
+  }
+  if (id === "cfb") {
+    cfb = await applyCfbModel(games, env);
+    games = cfb.games || games;
   }
 
   games = games.map((game) => {
@@ -835,6 +894,7 @@ export async function buildSlate(sport, date, env = {}) {
     parlay: parlay.meta || { enabled: false },
     pal: pal.meta || { enabled: false },
     savant: savant.meta || { enabled: false },
+    cfb: cfb.meta || { enabled: false },
     modelVersion: MODEL_VERSION,
     games,
     ticker: games.map((g) => ({

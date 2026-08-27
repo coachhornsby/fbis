@@ -6,4 +6,4 @@ export const DEFAULT_WEIGHTS = {
   form: 0.08,
 };
 
-export const MODEL_VERSION = "FBIS-v1.2";
+export const MODEL_VERSION = "FBIS-v1.3";

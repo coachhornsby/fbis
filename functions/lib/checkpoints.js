@@ -2,9 +2,10 @@
  * Pregame projection checkpoints. First-sight freeze is not enough.
  */
 
-export const CHECKPOINTS = ["EARLY", "MORNING", "LINEUP_CONFIRMED", "PREGAME", "CLOSE"];
+export const CHECKPOINTS = ["FIRST_AVAILABLE", "EARLY", "MORNING", "LINEUP_CONFIRMED", "PREGAME", "CLOSE"];
 
 const RANK = {
+  FIRST_AVAILABLE: 0,
   EARLY: 1,
   MORNING: 2,
   LINEUP_CONFIRMED: 3,
@@ -52,6 +53,24 @@ export function materiallyChanged(prev, next) {
 function round4(v) {
   if (v == null || !Number.isFinite(Number(v))) return null;
   return Math.round(Number(v) * 10000) / 10000;
+}
+
+export function rowsForCheckpoint(rows, checkpoint) {
+  if (!checkpoint || checkpoint === "LATEST") return rows || [];
+  if (checkpoint !== "FIRST_AVAILABLE") {
+    return (rows || []).filter((r) => r.checkpoint === checkpoint);
+  }
+  const explicit = (rows || []).filter((r) => r.checkpoint === "FIRST_AVAILABLE");
+  if (explicit.length) return explicit;
+  const byGame = new Map();
+  for (const row of rows || []) {
+    const k = `${row.date}:${row.id}`;
+    const prev = byGame.get(k);
+    if (!prev || checkpointRank(row.checkpoint) < checkpointRank(prev.checkpoint)) {
+      byGame.set(k, row);
+    }
+  }
+  return [...byGame.values()];
 }
 
 export function pickCanonical(rows) {

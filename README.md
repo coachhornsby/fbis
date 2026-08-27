@@ -38,7 +38,8 @@ Baseball run line is always **1.5** (full game) / **0.5** (F5). Alternate lines 
 ## How scores are projected
 
 - **MLB** — Two independent models. Proprietary: Savant RPG × starter ERA-eq × 1.04 home, clamped 2.3–7.2. Ballpark Pal: simulated runs and Pal win probability as a separate layer. Pal never overwrites Savant and is never a sportsbook price. Win-prob blends Pinnacle no-vig, ESPN, Savant score, Pal, and W-L form.
-- **NBA / NFL / CFB / CBB** — Pinnacle total/spread split into implied team scores until an independent sim is wired. Win-prob blends no-vig Pinnacle, ESPN, score (line-implied margin), and W-L form.
+- **CFB** — Independent FBIS-v1.3 prior + season form (ESPN AP rank, records, harvested points for/against). HFA 2.5 (0 on neutral). Pinnacle remains the market layer only.
+- **NBA / NFL / CBB** — Pinnacle total/spread split into implied team scores until an independent sim is wired. Win-prob blends no-vig Pinnacle, ESPN, score (line-implied margin), and W-L form.
 
 Hover a Proj cell for the recipe. SYS explains every board.
 
@@ -48,11 +49,15 @@ The website is not the collector. GitHub Actions call `/api/collect` through the
 
 SYS reads D1 (cache is a 21-day fallback). Projection Accuracy reports actual vs projected totals, % bias, home/away bias, MAE, median abs, RMSE, within-X distribution, Pal vs proprietary vs ensemble vs Pinnacle, team/park/starter/month slices, and both score-winner and ensemble-probability winner hit. Calibration includes home p below 50%. Logged tickets stay a separate dataset from every-game forecast error.
 
+Checkpoints: FIRST_AVAILABLE · EARLY · MORNING · LINEUP_CONFIRMED · PREGAME · CLOSE. FIRST_AVAILABLE is the first freeze; older EARLY rows still count as the first-available alias.
+
 **CLV** is entry no-vig vs close (last pregame) no-vig for the side you bet — not model fair vs market.
 
-Checkpoints: EARLY · MORNING · LINEUP_CONFIRMED · PREGAME · CLOSE.
+Model version: **FBIS-v1.3**
 
-Model version: **FBIS-v1.2**
+**CFB (v1.3)** — Independent score model: ESPN AP rank prior + harvested current-season points for/against, blended with `w = n/(n+6)`. HFA 2.5 (0 on neutral). Win/spread/total probabilities use an explicit Normal sigma (wider early). No EPA, transfer, QB, or coaching feed is wired. Pinnacle remains the market layer. A projected winner is not a bet.
+
+**Strategy FBIS-HC-v1** — Qualified tickets with EV ≥ 8% (CONVICTION). The 2026-08-26 8-0 cohort is an immutable seed when recovered from the operator journal; it does not rewrite champion weights. Prospective matches are tagged and graded separately from forecast MAE/Brier.
 
 ## Data
 
@@ -60,7 +65,7 @@ Model version: **FBIS-v1.2**
 - ParlayAPI — Pinnacle game lines (3 credits, `eu` region), cached 15 minutes. Kalshi sentiment is a 1-credit pull; empty Kalshi/F5 responses cache for 6 hours.
 - Ballpark Pal — optional; set `BALLPARK_PAL_API_KEY` when you have it (15k requests/month)
 
-Ticket journal still lives in the browser. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql`) is the authoritative research ledger when bound.
+The operator ticket journal still lives in the browser (`fbis-learning-v1`). Opening SYS POSTs matching CONVICTION tickets to D1 as immutable `strategy_tickets`. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql`) is the authoritative research ledger.
 
 ## Tests
 

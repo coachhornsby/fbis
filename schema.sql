@@ -139,6 +139,70 @@ CREATE TABLE IF NOT EXISTS store_meta (
   v TEXT
 );
 
+CREATE TABLE IF NOT EXISTS team_form (
+  sport TEXT NOT NULL,
+  season INTEGER NOT NULL,
+  team_key TEXT NOT NULL,
+  games INTEGER,
+  points_for REAL,
+  points_against REAL,
+  updated_at TEXT,
+  PRIMARY KEY (sport, season, team_key)
+);
+
+CREATE TABLE IF NOT EXISTS team_form_games (
+  sport TEXT NOT NULL,
+  game_id TEXT NOT NULL,
+  date TEXT,
+  PRIMARY KEY (sport, game_id)
+);
+
+CREATE TABLE IF NOT EXISTS daily_reports (
+  date TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  body TEXT NOT NULL,
+  metrics_json TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (date, sport)
+);
+
+CREATE TABLE IF NOT EXISTS strategies (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  version INTEGER,
+  rules_json TEXT,
+  notes TEXT,
+  created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS strategy_tickets (
+  id TEXT PRIMARY KEY,
+  strategy_id TEXT NOT NULL,
+  role TEXT NOT NULL,
+  sport TEXT,
+  date TEXT,
+  game_id TEXT,
+  matchup TEXT,
+  market TEXT,
+  side TEXT,
+  pick TEXT,
+  line REAL,
+  ev REAL,
+  edge REAL,
+  tag TEXT,
+  pin_vig REAL,
+  pin_price REAL,
+  model_version TEXT,
+  checkpoint TEXT,
+  data_quality INTEGER,
+  result TEXT,
+  profit REAL,
+  clv REAL,
+  traits_json TEXT,
+  created_at TEXT,
+  graded_at TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_predictions_sport_date ON predictions (sport, date);
 CREATE INDEX IF NOT EXISTS idx_snap_sport_date ON prediction_snapshots (sport, date);
 CREATE INDEX IF NOT EXISTS idx_snap_game ON prediction_snapshots (game_id, date);

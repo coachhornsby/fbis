@@ -22,7 +22,7 @@ export function loadState() {
     return {
       ...structuredClone(EMPTY),
       ...parsed,
-      weights: legacy ? { ...DEFAULT_WEIGHTS } : { ...DEFAULT_WEIGHTS, ...(parsed.weights || {}) },
+      weights: { ...DEFAULT_WEIGHTS },
       bets: Array.isArray(parsed.bets) ? parsed.bets : [],
       weightLog: Array.isArray(parsed.weightLog) ? parsed.weightLog : [],
       layerScores: { ...EMPTY.layerScores, ...(parsed.layerScores || {}) },

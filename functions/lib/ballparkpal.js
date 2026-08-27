@@ -116,15 +116,35 @@ function compactPalMarkets(items, homeId, awayId) {
   const mlHome = list.find((r) => mkt(r).includes("mkt_1") && teamOf(r) === Number(homeId) && sideOf(r) === "over" && lineOf(r) === 0.5);
   const mlAway = list.find((r) => mkt(r).includes("mkt_1") && teamOf(r) === Number(awayId) && sideOf(r) === "over" && lineOf(r) === 0.5);
   const totals = {};
-  for (const line of [7.5, 8, 8.5, 9, 9.5, 10, 10.5]) {
-    const over = list.find((r) => mkt(r).includes("mkt_2") && !hasTeam(r) && sideOf(r) === "over" && lineOf(r) === line);
-    const under = list.find((r) => mkt(r).includes("mkt_2") && !hasTeam(r) && sideOf(r) === "under" && lineOf(r) === line);
-    if (over || under) totals[String(line)] = { over: pOf(over), under: pOf(under) };
+  for (const r of list) {
+    const market = mkt(r);
+    if (hasTeam(r)) continue;
+    if (!market.includes("mkt_2") && !/total/i.test(market)) continue;
+    const line = lineOf(r);
+    if (!Number.isFinite(line)) continue;
+    const key = String(line);
+    if (!totals[key]) totals[key] = { over: null, under: null };
+    if (sideOf(r) === "over") totals[key].over = pOf(r);
+    if (sideOf(r) === "under") totals[key].under = pOf(r);
+  }
+  const runLines = [];
+  for (const r of list) {
+    if (!hasTeam(r)) continue;
+    const line = lineOf(r);
+    if (!Number.isFinite(line)) continue;
+    if (mkt(r).includes("mkt_1") && line === 0.5) continue;
+    runLines.push({
+      teamId: teamOf(r),
+      line,
+      side: sideOf(r),
+      p: pOf(r),
+      marketId: mkt(r),
+    });
   }
   const pHome = pOf(mlHome);
   const pAway = pOf(mlAway);
-  if (pHome == null && pAway == null && !Object.keys(totals).length) return null;
-  return { pHome, pAway, totals };
+  if (pHome == null && pAway == null && !Object.keys(totals).length && !runLines.length) return null;
+  return { pHome, pAway, totals, runLine: runLines.length ? runLines : null };
 }
 
 function pickSide(list, sp, teamAbv) {
@@ -200,6 +220,7 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
     pHome: markets?.pHome ?? null,
     pAway: markets?.pAway ?? null,
     totals: markets?.totals || null,
+    runLine: markets?.runLine || null,
     matchupForm: form,
     f5: {
       homeRuns: homeF5Runs,

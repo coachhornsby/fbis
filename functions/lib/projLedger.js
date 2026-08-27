@@ -5,7 +5,7 @@
 
 import { readCache, writeCache } from "./cache.js";
 import { namesMatch } from "./parlay.js";
-import { BOARD_SPORTS, SPORTS, lastNDatesCT, todayCT, fetchResults, blendWinProb, buildSlate } from "./slateEngine.js";
+import { BOARD_SPORTS, SPORTS, lastNDatesCT, todayCT, shiftDateCT, fetchResults, blendWinProb, buildSlate, recommendBundle } from "./slateEngine.js";
 import { DEFAULT_WEIGHTS, MODEL_VERSION } from "./weights.js";
 import { brierScore, logLoss } from "./pricing.js";
 import {
@@ -14,15 +14,28 @@ import {
   persistPrediction,
   persistSnapshot,
   persistDailyMetrics,
+  persistDailyReport,
   pingDb,
   querySnapshots,
   queryPredictions,
   queryVersions,
+  queryDailyReports,
   countToday,
   researchHealth,
+  setMeta,
+  applyFinalToForm,
+  persistStrategy,
+  persistStrategyTicket,
+  queryStrategyTickets,
+  gradeStrategyTicket,
 } from "./store.js";
-import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS } from "./checkpoints.js";
+import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
 import { buildAccuracyPack } from "./accuracyReport.js";
+import { overDiagnostics } from "./overDiagnostics.js";
+import { buildDailyReport } from "./dailyReport.js";
+import { median, rmse, withinBands } from "./metrics.js";
+import { cfbSeasonYear } from "./cfbModel.js";
+import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult } from "./strategy.js";
 
 const TTL_MS = 21 * 24 * 60 * 60 * 1000;
 const HARVEST_TTL_MS = 10 * 60 * 1000;
@@ -43,8 +56,8 @@ export const RECIPE_GUIDE = {
     body: "Same split as NBA: Pinnacle total and spread implied into team scores. Recs blend no-vig market, ESPN, and record form.",
   },
   cfb: {
-    engine: "Pinnacle line-implied",
-    body: "Pinnacle total/spread split into team scores. Wider gates than the NFL because the market is noisier.",
+    engine: "CFB prior + season evidence",
+    body: "Independent score model (FBIS-v1.3). Preseason prior from ESPN AP rank; current-season evidence is harvested points for/against. Blend w = n/(n+6) so Week 0 does not overwrite the prior. HFA 2.5 (0 on neutral). Win/spread/total use Normal sigma (wider early). No EPA/QB/coach/transfer feed is wired. Pinnacle remains the market layer for no-vig/EV — a projected winner is not a bet.",
   },
   cbb: {
     engine: "Pinnacle line-implied",
@@ -182,7 +195,6 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     f5Home: game.bpp?.f5?.homeRuns ?? null,
     palAsOf: game.bpp?.asOf ?? null,
     palRequestId: game.bpp?.requestId ?? null,
-    palTotals: game.bpp?.totals || null,
     palPHomeStored: game.bpp?.pHome ?? null,
     lineupsOfficial: Boolean(game.bpp?.lineupsOfficial),
     park: game.venue || game.park?.name || "",
@@ -192,10 +204,62 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     f5AwayWin: game.bpp?.f5?.awayWin ?? null,
     f5ActualAway: null,
     f5ActualHome: null,
+    palRunLine: game.bpp?.runLine ?? null,
+    palPark: game.bpp?.park || null,
+    palMatchup: game.bpp?.matchup || null,
+    palTotals: game.bpp?.totals || null,
+    season: seasonOf(date, game.sport),
+    pinSpread: game.odds?.spread ?? null,
+    pinTotal: game.odds?.total ?? null,
+    noVigHome: snap.noVigHome,
+    noVigAway: snap.noVigAway,
+    noVigOver: snap.noVigOver,
+    noVigUnder: snap.noVigUnder,
+    pOver: model.pOver ?? null,
+    pSpreadHome: model.pSpreadHome ?? null,
+    marketAt: snap.at,
+    week: game.week ?? null,
+    conference: game.conference || game.home?.conference || null,
+    uncertainty: game.cfb
+      ? {
+          sigmaMargin: game.cfb.sigmaMargin,
+          sigmaTotal: game.cfb.sigmaTotal,
+          maturity: game.cfb.maturity,
+          flags: game.cfb.flags,
+        }
+      : null,
+    gameStatus: gameOutcome(game),
+    espnIdHome: game.home?.espnId || null,
+    espnIdAway: game.away?.espnId || null,
   };
 }
 
+function seasonOf(date, sport) {
+  const y = Number(String(date).slice(0, 4));
+  const m = Number(String(date).slice(5, 7));
+  if (sport === "cfb" || sport === "nfl") return m >= 8 ? String(y) : String(y - 1);
+  if (sport === "nba" || sport === "cbb") return m >= 10 ? String(y) : String(y - 1);
+  return String(y);
+}
+
+export function gameOutcome(final) {
+  const d = String(final?.status?.detail || "").toLowerCase();
+  if (/postpone/.test(d)) return "POSTPONED";
+  if (/cancel/.test(d)) return "CANCELLED";
+  if (/suspend/.test(d)) return "SUSPENDED";
+  if (final?.status?.completed) return "FINAL";
+  return "OPEN";
+}
+
 function applyFinal(row, final) {
+  const outcome = gameOutcome(final);
+  if (outcome === "POSTPONED" || outcome === "CANCELLED" || outcome === "SUSPENDED") {
+    const checkpoints = {};
+    for (const [k, cp] of Object.entries(row.checkpoints || {})) {
+      checkpoints[k] = { ...cp, gameStatus: outcome };
+    }
+    return { ...row, gameStatus: outcome, checkpoints };
+  }
   const hs = Number(final.home?.score);
   const as = Number(final.away?.score);
   if (!Number.isFinite(hs) || !Number.isFinite(as)) return row;
@@ -207,6 +271,7 @@ function applyFinal(row, final) {
     actualAway: as,
     actualTotal: hs + as,
     gradedAt: row.gradedAt || new Date().toISOString(),
+    gameStatus: "FINAL",
     closePinHomeMl: row.closePinHomeMl ?? lastSnap?.pinHomeMl ?? null,
     closePinAwayMl: row.closePinAwayMl ?? lastSnap?.pinAwayMl ?? null,
     closeNoVigHome: row.closeNoVigHome ?? lastSnap?.noVigHome ?? null,
@@ -304,7 +369,7 @@ export function accuracyOf(rows) {
     models: {},
   };
   if (!n) return empty;
-  const abs = (a, b) => Math.abs(a - b);
+  const sport = graded[0]?.sport || "mlb";
   const withProj = graded.filter((r) => r.projHome != null && r.projAway != null);
   const decidedScore = withProj.filter((r) => r.actualHome !== r.actualAway && r.projHome !== r.projAway);
   const winnerHits = decidedScore.filter((r) => (r.projHome > r.projAway) === (r.actualHome > r.actualAway)).length;
@@ -328,36 +393,47 @@ export function accuracyOf(rows) {
   const share = (xs, thr) => (xs.length ? xs.filter((e) => Math.abs(e) <= thr).length / xs.length : null);
   const probDecided = decidedRows.filter((r) => pKey(r) != null);
   const probHits = probDecided.filter((r) => (pKey(r) > 0.5) === (r.actualHome > r.actualAway)).length;
+  const totBands = withinBands(totErrs, sport, "total");
+  const teamBands = withinBands(teamErrs, sport, "team");
+  const mgnBands = withinBands(mgnErrs, sport, "margin");
+  const brierModel = brier(pKey);
+  const brierMkt = brier((r) => r.impliedHome ?? r.pMarket);
   return {
     n,
+    sport,
     maeHome: mean(homeErrs.map(Math.abs)),
     maeAway: mean(awayErrs.map(Math.abs)),
     maeTeam: mean(teamErrs.map(Math.abs)),
     maeTotal: mean(totErrs.map(Math.abs)),
     maeMargin: mean(mgnErrs.map(Math.abs)),
-    rmseTotal: totErrs.length ? Math.sqrt(mean(totErrs.map((e) => e ** 2))) : null,
+    rmseTotal: totErrs.length ? rmse(totErrs) : null,
+    rmseMargin: mgnErrs.length ? rmse(mgnErrs) : null,
     biasTotal: mean(totErrs),
+    medianError: median(totErrs),
+    medianAbs: median(totErrs.map(Math.abs)),
     winnerHit: decidedScore.length ? winnerHits / decidedScore.length : null,
     winnerHitScore: decidedScore.length ? winnerHits / decidedScore.length : null,
     winnerHitProb: probDecided.length ? probHits / probDecided.length : null,
-    brierModel: brier(pKey),
-    brierMarket: brier((r) => r.impliedHome ?? r.pMarket),
+    brierModel,
+    brierMarket: brierMkt,
     brierPal: brier((r) => r.pPal),
     brierScore: brier((r) => r.pScore),
+    brierImprovement: brierModel != null && brierMkt != null ? brierMkt - brierModel : null,
     logLossModel: ll(pKey),
     logLossMarket: ll((r) => r.impliedHome ?? r.pMarket),
     logLossPal: ll((r) => r.pPal),
-    withinTeam05: share(teamErrs, 0.5),
-    withinTeam1: share(teamErrs, 1),
-    withinTeam2: share(teamErrs, 2),
-    withinTotal05: share(totErrs, 0.5),
-    withinTotal1: share(totErrs, 1),
-    withinTotal2: share(totErrs, 2),
-    withinTotal3: share(totErrs, 3),
-    withinTotal4: share(totErrs, 4),
-    withinMargin1: share(mgnErrs, 1),
-    withinMargin2: share(mgnErrs, 2),
-    withinMargin3: share(mgnErrs, 3),
+    withinTeam05: teamBands.within05 ?? share(teamErrs, 0.5),
+    withinTeam1: teamBands.within1 ?? share(teamErrs, 1),
+    withinTeam2: teamBands.within2 ?? share(teamErrs, 2),
+    withinTotal05: totBands.within05 ?? share(totErrs, 0.5),
+    withinTotal1: totBands.within1 ?? share(totErrs, 1),
+    withinTotal2: totBands.within2 ?? share(totErrs, 2),
+    withinTotal3: totBands.within3 ?? share(totErrs, 3),
+    withinTotal4: totBands.within4 ?? share(totErrs, 4),
+    withinMargin1: mgnBands.within1 ?? share(mgnErrs, 1),
+    withinMargin2: mgnBands.within2 ?? share(mgnErrs, 2),
+    withinMargin3: mgnBands.within3 ?? share(mgnErrs, 3),
+    within: { total: totBands, team: teamBands, margin: mgnBands },
     calibration: calibrationFav(decidedRows, pKey),
     calibrationHome: calibrationHome(decidedRows, pKey),
     models: {
@@ -485,11 +561,18 @@ export async function freezeSlate(slate, env = {}) {
     if (!existing && !liveOrFinal) {
       const frozen = freezeFromGame(slate.date, game);
       if (frozen) {
-        frozen.checkpoints = { [frozen.checkpoint]: { ...frozen } };
+        const first = { ...frozen, checkpoint: "FIRST_AVAILABLE" };
+        const cps = { FIRST_AVAILABLE: first };
+        if (frozen.checkpoint !== "FIRST_AVAILABLE") cps[frozen.checkpoint] = { ...frozen };
+        frozen.checkpoints = cps;
         ledger.games[k] = frozen;
         changed = true;
         writes.push(persistFrozen(env, frozen, game, slate.date));
-        writes.push(persistCheckpoint(env, frozen, game, slate.date));
+        writes.push(persistCheckpoint(env, first, game, slate.date));
+        if (frozen.checkpoint !== "FIRST_AVAILABLE") {
+          writes.push(persistCheckpoint(env, frozen, game, slate.date));
+        }
+        writes.push(persistMatchingRec(env, slate, game, frozen));
       }
       continue;
     }
@@ -499,11 +582,16 @@ export async function freezeSlate(slate, env = {}) {
       const packed = freezeFromGame(slate.date, game);
       if (packed) {
         const cps = { ...(next.checkpoints || {}) };
-        const prevCp = cps[packed.checkpoint];
-        if (!prevCp || materiallyChanged(prevCp, packed)) {
-          cps[packed.checkpoint] = { ...packed, actualHome: next.actualHome, actualAway: next.actualAway };
-          next = { ...next, checkpoints: cps, checkpoint: packed.checkpoint };
+        if (!cps.FIRST_AVAILABLE) {
+          cps.FIRST_AVAILABLE = { ...packed, checkpoint: "FIRST_AVAILABLE" };
+          writes.push(persistCheckpoint(env, cps.FIRST_AVAILABLE, game, slate.date));
+          changed = true;
+        }
+        if (!cps[packed.checkpoint]) {
+          cps[packed.checkpoint] = { ...packed };
           writes.push(persistCheckpoint(env, cps[packed.checkpoint], game, slate.date));
+          next = { ...next, checkpoints: cps, checkpoint: packed.checkpoint };
+          writes.push(persistMatchingRec(env, slate, game, packed));
           changed = true;
         }
         const canon = pickCanonical(Object.values(cps).map((c) => ({ ...c, id: next.id, date: next.date })))[0];
@@ -543,6 +631,42 @@ export async function freezeSlate(slate, env = {}) {
   if (changed) await saveLedger(slate.sport, ledger, cfCache);
 }
 
+async function persistMatchingRec(env, slate, game, frozen) {
+  await persistStrategy(env, STRATEGY_HC_V1);
+  const bundle = recommendBundle(slate.sport, game, game.model);
+  const rec = bundle?.qualified;
+  if (!rec || !ticketMatchesStrategy(rec)) return { ok: false, reason: "no-match" };
+  return persistStrategyTicket(
+    env,
+    packTicket(
+      {
+        ...rec,
+        sport: slate.sport,
+        gameId: game.id,
+        matchup: frozen?.matchup || `${game.away?.abbr} @ ${game.home?.abbr}`,
+        modelVersion: game.modelVersion || frozen?.modelVersion,
+        checkpoint: frozen?.checkpoint,
+        dataQuality: game.quality?.score ?? frozen?.dataQuality,
+        pinVig: rec.pinVig ?? game.pin?.ml?.vig,
+      },
+      { role: "prospective", date: slate.date }
+    )
+  );
+}
+
+async function gradeStrategyAgainstFinals(env, finals) {
+  const tickets = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
+  const byId = new Map((finals || []).map((g) => [String(g.id), g]));
+  const jobs = [];
+  for (const t of tickets) {
+    if (t.result && t.result !== "OPEN") continue;
+    const g = byId.get(String(t.gameId));
+    const graded = gradeStrategyResult(t, g);
+    if (graded) jobs.push(gradeStrategyTicket(env, t.id, graded));
+  }
+  await Promise.all(jobs);
+}
+
 function palJson(row) {
   return JSON.stringify({
     home: row.palHome,
@@ -553,14 +677,25 @@ function palJson(row) {
     f5AwayWin: row.f5AwayWin,
     pHome: row.pPal ?? row.palPHomeStored,
     totals: row.palTotals || null,
+    runLine: row.palRunLine || null,
+    park: row.palPark || row.park || "",
+    parkName: row.park || "",
+    matchup: row.palMatchup || null,
     asOf: row.palAsOf,
     requestId: row.palRequestId,
     lineupsOfficial: row.lineupsOfficial,
-    park: row.park || "",
     homeSp: row.homeSp || null,
     awaySp: row.awaySp || null,
     homeAbbr: row.homeAbbr || null,
     awayAbbr: row.awayAbbr || null,
+    homeName: row.homeName || null,
+    awayName: row.awayName || null,
+    week: row.week ?? null,
+    conference: row.conference || null,
+    season: row.season || null,
+    start: row.start || null,
+    pinTotal: row.pinTotal ?? null,
+    pinSpread: row.pinSpread ?? null,
   });
 }
 
@@ -656,6 +791,22 @@ async function persistCheckpoint(env, row, game, date) {
     actualHome: row.actualHome,
     actualAway: row.actualAway,
     gradedAt: row.gradedAt,
+    season: row.season,
+    start: row.start,
+    pinSpread: row.pinSpread,
+    pinTotal: row.pinTotal,
+    noVigHome: row.noVigHome ?? row.entryNoVigHome,
+    noVigAway: row.noVigAway,
+    noVigOver: row.noVigOver,
+    noVigUnder: row.noVigUnder,
+    pOver: row.pOver,
+    pSpreadHome: row.pSpreadHome,
+    uncertainty: row.uncertainty,
+    marketAt: row.marketAt,
+    gameStatus: row.gameStatus,
+    week: row.week,
+    conference: row.conference,
+    pAwayFinal: row.pAwayFinal,
   });
 }
 
@@ -754,17 +905,31 @@ export async function harvestSport(sport, days, env = {}) {
         const existing =
           ledger.games[k] ||
           Object.values(ledger.games).find((row) => row.date === date && matchFinal(row, [g]));
-        if (existing && g.status?.completed && existing.actualHome == null) {
+        if (existing && existing.actualHome == null) {
           const next = applyFinal(existing, g);
           ledger.games[existing.date + ":" + existing.id] = next;
           writes.push(persistFrozen(env, next, g, date));
           for (const cp of Object.values(next.checkpoints || { [next.checkpoint || "CLOSE"]: next })) {
             writes.push(persistCheckpoint(env, { ...next, ...cp, id: next.id, date: next.date }, g, date));
           }
+          if (next.actualHome != null) {
+            writes.push(
+              applyFinalToForm(env, {
+                sport,
+                season: Number(cfbSeasonYear(date)),
+                gameId: next.id,
+                date,
+                home: { name: next.homeName, abbr: next.homeAbbr, espnId: next.espnIdHome },
+                away: { name: next.awayName, abbr: next.awayAbbr, espnId: next.espnIdAway },
+                homeScore: next.actualHome,
+                awayScore: next.actualAway,
+              })
+            );
+          }
         }
       }
-    } catch {
-      /* one date failing should not kill the harvest */
+    } catch (err) {
+      await setMeta(env, "last_harvest_error", String(err?.message || err));
     }
   }
   await Promise.all(writes);
@@ -772,6 +937,14 @@ export async function harvestSport(sport, days, env = {}) {
   const saved = await saveLedger(sport, ledger, cfCache);
   await persistGradedLedger(env, saved);
   await writeDailyMetrics(env, flattenLedgerRows(saved));
+  const daily = buildDailyReport(sport, flattenLedgerRows(saved), {
+    date: todayCT(),
+    title: sport === "cfb" ? "CFB research window" : `${sport} harvest`,
+    accuracy: accuracyOf(flattenLedgerRows(saved).filter((r) => r.actualHome != null)),
+  });
+  await persistDailyReport(env, daily);
+  await setMeta(env, "last_harvest_at", new Date().toISOString());
+  await gradeStrategyAgainstFinals(env, finals);
   const rows = Object.values(saved.games)
     .filter((r) => r.sport === sport || !r.sport)
     .sort((a, b) => String(b.date).localeCompare(a.date) || String(a.matchup).localeCompare(b.matchup))
@@ -794,6 +967,7 @@ export async function harvestSport(sport, days, env = {}) {
       status: g.status,
       f5Score: g.f5Score,
     })),
+    daily,
     ledgerSavedAt: saved.savedAt,
     db: await dbPayload(env),
   };
@@ -857,6 +1031,7 @@ export async function harvestAll(days, env = {}) {
     accuracy: accuracyOf(games),
     games,
     finals,
+    daily: reports.map((r) => r.daily).filter(Boolean),
     db: await dbPayload(env),
   };
 }
@@ -865,23 +1040,32 @@ export async function collectBoards(env = {}, { odds = "cache" } = {}) {
   const date = todayCT();
   const sports = [];
   for (const sport of BOARD_SPORTS) {
+    const dates = [date, shiftDateCT(date, 1)];
+    if (sport === "cfb" || sport === "nfl") {
+      dates.unshift(shiftDateCT(date, -1));
+      dates.push(shiftDateCT(date, 2));
+    }
+    const unique = [...new Set(dates)];
     try {
-      const slate = await buildSlate(sport, date, {
-        ...env,
-        parlayCacheOnly: odds !== "full",
-      });
-      await freezeSlate(slate, env);
-      sports.push({
-        sport,
-        ok: true,
-        n: slate.games?.length || 0,
-        date: slate.date,
-        pal: slate.pal?.games ?? slate.pal?.meta?.games ?? null,
-      });
+      let n = 0;
+      let pal = null;
+      const days = [];
+      for (const day of unique) {
+        const slate = await buildSlate(sport, day, {
+          ...env,
+          parlayCacheOnly: odds !== "full",
+        });
+        await freezeSlate(slate, env);
+        n += slate.games?.length || 0;
+        pal = slate.pal?.games ?? slate.pal?.meta?.games ?? pal;
+        days.push({ date: day, n: slate.games?.length || 0 });
+      }
+      sports.push({ sport, ok: true, n, date, dates: days, pal });
     } catch (err) {
       sports.push({ sport, ok: false, error: String(err?.message || err) });
     }
   }
+  await setMeta(env, "last_collect_at", new Date().toISOString());
   return {
     date,
     odds,
@@ -908,8 +1092,15 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
   const model = opts.model || "ensemble";
   const perGame = opts.type !== "totals";
   const year = opts.year || null;
-  const since = year ? `${year}-03-01` : windowStart(days, sport === "all" ? "mlb" : sport);
-  const until = year ? `${year}-11-15` : null;
+  const lastN = days === "50" || days === "100" ? Number(days) : null;
+  const since = year
+    ? sport === "cfb" || sport === "nfl"
+      ? `${year}-08-01`
+      : `${year}-03-01`
+    : lastN
+      ? lastNDatesCT(180).at(-1)
+      : windowStart(days, sport === "all" ? "mlb" : sport);
+  const until = year ? `${year}-12-20` : null;
 
   const db = await pingDb(env);
   let source = "d1";
@@ -939,15 +1130,32 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
   }
   if (until) rows = rows.filter((r) => r.date <= until);
   if (version && version !== "all") rows = rows.filter((r) => r.modelVersion === version);
-  if (checkpoint && checkpoint !== "LATEST") rows = rows.filter((r) => r.checkpoint === checkpoint);
+  if (checkpoint && checkpoint !== "LATEST") rows = rowsForCheckpoint(rows, checkpoint);
+  if (opts.team) {
+    const t = String(opts.team).toLowerCase();
+    rows = rows.filter(
+      (r) =>
+        String(r.homeAbbr || "").toLowerCase() === t ||
+        String(r.awayAbbr || "").toLowerCase() === t ||
+        String(r.matchup || "").toLowerCase().includes(t)
+    );
+  }
 
   const snapshotRows = rows;
-  const displayRows = checkpoint === "LATEST" ? pickCanonical(rows) : rows;
+  let displayRows = checkpoint === "LATEST" ? pickCanonical(rows) : rows;
+  if (lastN) {
+    displayRows = [...displayRows]
+      .filter((r) => r.actualHome != null)
+      .sort((a, b) => String(b.date).localeCompare(a.date) || String(b.frozenAt || "").localeCompare(a.frozenAt || ""))
+      .slice(0, lastN);
+  }
   const acc = accuracyOf(displayRows);
-  const pack = buildAccuracyPack(displayRows, { model, perGame });
+  const pack = buildAccuracyPack(displayRows, { model, perGame, sport: sport === "all" ? null : sport });
+  const over = overDiagnostics(displayRows);
+  const reports = await queryDailyReports(env, { sport, since });
   const byCheckpoint = {};
   for (const cp of CHECKPOINTS) {
-    byCheckpoint[cp] = accuracyOf(snapshotRows.filter((r) => r.checkpoint === cp));
+    byCheckpoint[cp] = accuracyOf(rowsForCheckpoint(snapshotRows, cp));
   }
   const versions = [...new Set([...(await queryVersions(env)), ...displayRows.map((r) => r.modelVersion).filter(Boolean)])];
   const sports = (!sport || sport === "all" ? BOARD_SPORTS : [sport]).map((id) => {
@@ -975,6 +1183,8 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
     sports,
     accuracy: acc,
     pack,
+    over,
+    dailyReports: reports,
     byCheckpoint,
     versions,
     games: displayRows.sort((a, b) => String(b.date).localeCompare(a.date) || String(a.matchup).localeCompare(b.matchup)).map(decorateRow),

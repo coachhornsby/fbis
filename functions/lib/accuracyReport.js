@@ -3,7 +3,8 @@
  */
 
 import { CHECKPOINTS } from "./checkpoints.js";
-import { brierScore } from "./pricing.js";
+import { brierScore, logLoss } from "./pricing.js";
+import { withinBands } from "./metrics.js";
 
 function mean(xs) {
   return xs.length ? xs.reduce((s, n) => s + n, 0) / xs.length : null;
@@ -170,16 +171,21 @@ export function projectionTable(rows, model = "ensemble", perGame = true) {
   };
 }
 
-export function errorDistribution(rows, model = "ensemble") {
+export function errorDistribution(rows, model = "ensemble", sport = null) {
   const get = MODEL_GETTERS[model] || MODEL_GETTERS.ensemble;
   const graded = gradedRows(rows);
+  const id = sport || graded[0]?.sport || "mlb";
   const tot = pairsFor(graded, get.home, get.away, "total").map((p) => p.proj - p.actual);
   const team = pairsFor(graded, get.home, get.away, "team").map((p) => p.proj - p.actual);
   const mgn = pairsFor(graded, get.home, get.away, "margin").map((p) => p.proj - p.actual);
+  const total = withinBands(tot, id, "total");
+  const teamB = withinBands(team, id, "team");
+  const margin = withinBands(mgn, id, "margin");
   return {
-    total: { n: tot.length, within05: share(tot, 0.5), within1: share(tot, 1), within2: share(tot, 2), within3: share(tot, 3), within4: share(tot, 4) },
-    team: { n: team.length, within05: share(team, 0.5), within1: share(team, 1), within2: share(team, 2) },
-    margin: { n: mgn.length, within1: share(mgn, 1), within2: share(mgn, 2), within3: share(mgn, 3) },
+    sport: id,
+    total: { n: tot.length, within05: total.within05 ?? null, within1: total.within1 ?? null, within2: total.within2 ?? null, within3: total.within3 ?? null, within4: total.within4 ?? null, bands: total.bands },
+    team: { n: team.length, within05: teamB.within05 ?? null, within1: teamB.within1 ?? null, within2: teamB.within2 ?? null, bands: teamB.bands },
+    margin: { n: mgn.length, within1: margin.within1 ?? null, within2: margin.within2 ?? null, within3: margin.within3 ?? null, bands: margin.bands },
   };
 }
 
@@ -194,6 +200,9 @@ export function modelComparison(rows) {
     const brier = pRows.length
       ? mean(pRows.map((r) => brierScore(get.pHome(r), r.actualHome > r.actualAway ? 1 : 0)))
       : null;
+    const ll = pRows.length
+      ? mean(pRows.map((r) => logLoss(get.pHome(r), r.actualHome > r.actualAway ? 1 : 0)))
+      : null;
     const winner = pRows.length
       ? pRows.filter((r) => (get.pHome(r) > 0.5) === (r.actualHome > r.actualAway)).length / pRows.length
       : null;
@@ -207,6 +216,7 @@ export function modelComparison(rows) {
       rmse: tot.rmse,
       bias: tot.bias,
       brier,
+      logLoss: ll,
       winnerHit: winner,
     };
   };
@@ -374,6 +384,32 @@ export function breakdowns(rows, model = "ensemble") {
     rolling.push({ date: sorted[i].date, n: slice.length, mae: tot.mae, brier });
   }
 
+  const byWeek = groupTable(graded, model, (r) => (r.week != null ? [{ key: `W${r.week}` }] : []));
+  const byConference = groupTable(graded, model, (r) => (r.conference ? [{ key: String(r.conference) }] : []));
+  const byFavDog = [
+    { key: "favorite", label: "Favorites", ...seriesStats(pairsFor(fav, get.home, get.away, "total"), true) },
+    { key: "underdog", label: "Underdogs", ...seriesStats(pairsFor(dog, get.home, get.away, "total"), true) },
+  ];
+  const spreadRange = groupTable(graded, model, (r) => {
+    const sp = r.pinSpread ?? r.spread;
+    if (sp == null) return [];
+    const a = Math.abs(Number(sp));
+    const key = a < 3.5 ? "spread < 3.5" : a < 10.5 ? "spread 3.5–10.5" : "spread > 10.5";
+    return [{ key }];
+  });
+  const totalRange = groupTable(graded, model, (r) => {
+    const t = r.pinTotal ?? r.projTotal;
+    if (t == null) return [];
+    const key = t < 45 ? "total < 45" : t < 55 ? "total 45–55" : "total > 55";
+    return [{ key }];
+  });
+  const byUncertainty = groupTable(graded, model, (r) => {
+    const u = r.uncertainty?.maturity ?? r.dataQuality;
+    if (u == null) return [];
+    const key = Number(u) < 0.35 || Number(u) < 40 ? "high uncertainty" : Number(u) < 0.7 || Number(u) < 70 ? "medium uncertainty" : "low uncertainty";
+    return [{ key }];
+  });
+
   return {
     team: teamRpg,
     park: byPark,
@@ -385,13 +421,19 @@ export function breakdowns(rows, model = "ensemble") {
     checkpoint: byCheckpoint,
     biasSlices,
     rolling,
+    week: byWeek,
+    conference: byConference,
+    favDog: byFavDog,
+    spreadRange,
+    totalRange,
+    uncertainty: byUncertainty,
   };
 }
 
-export function buildAccuracyPack(rows, { model = "ensemble", perGame = true } = {}) {
+export function buildAccuracyPack(rows, { model = "ensemble", perGame = true, sport = null } = {}) {
   return {
     table: projectionTable(rows, model, perGame),
-    distribution: errorDistribution(rows, model),
+    distribution: errorDistribution(rows, model, sport),
     models: modelComparison(rows),
     breakdowns: breakdowns(rows, model),
   };

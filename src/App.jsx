@@ -25,6 +25,7 @@ export default function App() {
     checkpoint: "LATEST",
     version: "all",
     type: "perGame",
+    team: "",
   });
   const [sysTab, setSysTab] = useState("overall");
 
@@ -46,6 +47,7 @@ export default function App() {
       }
       const nextLearn = gradeOpenBets(loadState(), [...(data.games || []), ...finals]);
       setLearn(nextLearn);
+      syncStrategyJournal(nextLearn.bets);
       const withRecs = withRecommendations(data, nextLearn.weights);
       captureSlate(withRecs);
       setSlate(withRecs);
@@ -72,14 +74,15 @@ export default function App() {
         _t: String(Date.now()),
       });
       if (trackFilters.year) q.set("year", trackFilters.year);
+      if (trackFilters.team) q.set("team", trackFilters.team);
       const res = await fetch(`/api/track?${q}`, { signal });
       const data = await res.json();
       if (signal?.aborted) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       setTrack(data);
-      if (data.finals?.length) {
-        setLearn(gradeOpenBets(loadState(), data.finals));
-      }
+      const nextLearn = data.finals?.length ? gradeOpenBets(loadState(), data.finals) : loadState();
+      if (data.finals?.length) setLearn(nextLearn);
+      syncStrategyJournal(nextLearn.bets);
     } catch (err) {
       if (err?.name === "AbortError") return;
       setTrackError(String(err.message || err));
@@ -219,7 +222,7 @@ export default function App() {
             <Stat label="Open tickets" value={stats.open} />
             <Stat label="Record" value={stats.settled ? `${stats.wins}-${stats.losses}` : "—"} />
             <Stat label="Units" value={`${stats.units >= 0 ? "+" : ""}${stats.units.toFixed(2)}`} />
-            <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.2"} />
+            <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.3"} />
             <Stat label="Pin / Heritage" value={bookLabel(slate)} />
             <Stat label="Pal" value={palLabel(slate)} />
             <Stat label="Parlay" value={parlayLabel(slate)} />
@@ -659,6 +662,15 @@ function parlayLabel(slate) {
   if (p.error) return "err";
   if (p.remaining == null) return p.cached ? "cached" : "live";
   return `${p.remaining}${p.cached ? " · cache" : ""}`;
+}
+
+function syncStrategyJournal(bets) {
+  if (!bets?.length) return;
+  fetch("/api/strategy", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ bets }),
+  }).catch(() => {});
 }
 
 function G({ title, body }) {

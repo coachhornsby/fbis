@@ -9,6 +9,7 @@ export async function onRequestGet(context) {
   const model = url.searchParams.get("model") || "ensemble";
   const type = url.searchParams.get("type") || "perGame";
   const year = url.searchParams.get("year") || "";
+  const team = url.searchParams.get("team") || "";
   try {
     const payload = await buildTrackReport(
       sport,
@@ -19,7 +20,7 @@ export async function onRequestGet(context) {
         caches: caches.default,
         DB: context.env.DB,
       },
-      { checkpoint, version, model, type, year }
+      { checkpoint, version, model, type, year, team }
     );
     return new Response(JSON.stringify(payload), {
       headers: {

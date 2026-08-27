@@ -22,6 +22,8 @@ Cache is not a substitute for history. Database `fbis` is bound as `DB` in `wran
 npx wrangler d1 execute fbis --file=schema.sql --remote
 ```
 
+`npx wrangler d1 execute fbis --file=schema.sql --remote` is idempotent (`CREATE TABLE IF NOT EXISTS`). New tables include `team_form`, `team_form_games`, `daily_reports`, `strategies`, and `strategy_tickets`.
+
 `npm run deploy` publishes the Pages function with that binding. Until D1 is bound, freeze/harvest still use the Cache API (~21 days) and SYS shows **RESEARCH DB UNBOUND**.
 
 ## Scheduled collection
