@@ -27,6 +27,7 @@ npx wrangler d1 execute fbis --file=schema.sql --remote
 ```bash
 npx wrangler d1 execute fbis --file=migrations/0001_job_runs.sql --remote
 npx wrangler d1 execute fbis --file=migrations/0002_strategy_ticket_prices.sql --remote
+npx wrangler d1 execute fbis --file=migrations/0005_hfa_and_integrity.sql --remote
 ```
 
 New tables include `team_form`, `team_form_games`, `daily_reports`, `strategies`, `strategy_tickets`, `job_runs`, and `schema_migrations`. SYS health is read from D1 `job_runs` / `store_meta`, not isolate memory.

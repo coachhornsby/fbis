@@ -51,6 +51,10 @@ function reconstructionPayload(seed) {
     actualRecoveredN: rec.recoveredN,
     reconstructionState: rec.state,
     gradedRecord: rec.gradedRecord,
+    recoveredRecord: rec.recoveredRecord,
+    settledTicketCount: rec.settledTicketCount,
+    reportedRecord: rec.reportedRecord,
+    provenance: rec.provenance,
   };
 }
 
@@ -68,6 +72,10 @@ export async function onRequestGet(context) {
     actualRecoveredN: rec.recoveredN,
     reconstructionState: rec.state,
     gradedRecord: rec.gradedRecord,
+    recoveredRecord: rec.recoveredRecord,
+    settledTicketCount: rec.settledTicketCount,
+    reportedRecord: rec.reportedRecord,
+    provenance: rec.provenance,
     namedPositions: STRATEGY_HC_V1_SEED_TICKETS.map((t) => t.pick),
     seed: { tickets: seed, traits: characterizeTickets(seed), stats: strategyStats(seed) },
     prospective: { tickets: prospective, traits: characterizeTickets(prospective), stats: strategyStats(prospective) },

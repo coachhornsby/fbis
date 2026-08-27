@@ -14,8 +14,17 @@ import { tagFromEv, americanProfit, probabilityClv } from "./pricing.js";
 
 export const STRATEGY_HC_V1_SEED_GRADED_AT = "2026-08-27T05:00:00.000Z";
 export const EXPECTED_SEED_N = 7;
+export const CLV_VERSION = "side-novig-v1";
+export const EXECUTION_BOOK = "Heritage";
+export const BENCHMARK_BOOK = "Pinnacle";
 export const LINE_MARKETS = new Set(["SPREAD", "TOTAL", "F5 SPREAD", "F5 TOTAL"]);
 export const STRATEGY_MARKETS = new Set(["ML", "SPREAD", "TOTAL", "F5 ML", "F5 SPREAD", "F5 TOTAL"]);
+export const PROVENANCE = {
+  VERIFIED: "verified",
+  JOURNAL: "journal",
+  INVALID: "invalid",
+  CONFLICTING: "conflicting",
+};
 
 export const STRATEGY_HC_V1 = {
   id: "FBIS-HC-v1",
@@ -264,7 +273,7 @@ export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id 
   const benchmarkPrice = americanPriceOrNull(
     ticket.benchmarkPrice ?? ticket.benchmark_price ?? ticket.pinPrice ?? ticket.pin_price
   );
-  const pinPrice = executionPrice ?? benchmarkPrice;
+  const pinPrice = benchmarkPrice;
   const entryNoVig = finiteOrNull(ticket.entryNoVig ?? ticket.entry_no_vig ?? ticket.implied);
   const closingNoVig = finiteOrNull(ticket.closingNoVig ?? ticket.closing_no_vig ?? ticket.closeNoVig);
   const rawPoint = requiresLine(market)
@@ -272,6 +281,7 @@ export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id 
     : null;
   const pointLine = rawPoint != null && Math.abs(rawPoint) < 100 ? rawPoint : null;
   const missingExecutionPrice = executionPrice == null;
+  const provenance = ticket.provenance || PROVENANCE.JOURNAL;
   return {
     id: ticket.id || ticketId(ticket, day),
     strategyId,
@@ -288,9 +298,11 @@ export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id 
     edge: ticket.edge ?? ticket.probEdge ?? null,
     tag: ticket.tag || tagFromEv(ev),
     pinVig: ticket.pinVig ?? ticket.pin_vig ?? null,
-    pinPrice,
+    pinPrice: benchmarkPrice,
+    executionBook: ticket.executionBook || ticket.execution_book || (executionPrice != null ? EXECUTION_BOOK : null),
     executionLine: pointLine,
     executionPrice,
+    benchmarkBook: ticket.benchmarkBook || ticket.benchmark_book || BENCHMARK_BOOK,
     benchmarkLine: pointLine,
     benchmarkPrice,
     entryNoVig,
@@ -299,6 +311,8 @@ export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id 
     closingNoVig,
     stake: finiteOrNull(ticket.stake) ?? 1,
     missingExecutionPrice,
+    clvVersion: ticket.clvVersion || ticket.clv_version || CLV_VERSION,
+    provenance,
     qualifiedAt: ticket.qualifiedAt || ticket.loggedAt || ticket.qualificationTimestamp || null,
     modelVersion: ticket.modelVersion || ticket.model_version || null,
     checkpoint: ticket.checkpoint || null,
@@ -315,6 +329,11 @@ export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id 
         overUnder: ticket.side === "OVER" || ticket.side === "UNDER" ? ticket.side : null,
         favorite: ticket.fair != null ? ticket.fair >= 0.5 : null,
         missingExecutionPrice,
+        provenance,
+        executionBook: executionPrice != null ? EXECUTION_BOOK : null,
+        benchmarkBook: BENCHMARK_BOOK,
+        clvVersion: CLV_VERSION,
+        clvSign: "closeNoVig - entryNoVig; positive means the closing market moved toward the bet side",
       }),
   };
 }
@@ -378,13 +397,15 @@ function closeNoVigFromGame(ticket, game) {
 
 export function gradeStrategyResult(ticket, game) {
   if (!game) return null;
+  const outcome = String(game.status?.detail || game.gameStatus || "").toLowerCase();
+  if (/postpone|cancel|suspend/.test(outcome)) return null;
   if (!game.status?.completed && game.status?.completed !== undefined && !isF5Market(ticket.market)) {
     if (fgScores(game) == null) return null;
   }
   const scores = isF5Market(ticket.market) ? f5Scores(game) : fgScores(game);
   if (!scores) return null;
   const { hs, as } = scores;
-  const price = americanPriceOrNull(ticket.executionPrice ?? ticket.execution_price ?? ticket.pinPrice);
+  const price = americanPriceOrNull(ticket.executionPrice ?? ticket.execution_price);
   const stake = finiteOrNull(ticket.stake) ?? 1;
   const payout = price != null ? americanProfit(price, stake) : null;
   const missingExecutionPrice = price == null;
@@ -473,6 +494,7 @@ export function buildHcV1SeedTicket(spec) {
     overUnder: packed.side === "OVER" || packed.side === "UNDER" ? packed.side : null,
     favorite: null,
     missingExecutionPrice: true,
+    provenance: null,
   };
   return {
     ...packed,
@@ -491,6 +513,7 @@ export function buildHcV1SeedTicket(spec) {
     profit: null,
     clv: null,
     missingExecutionPrice: true,
+    provenance: null,
     gradedAt: graded ? STRATEGY_HC_V1_SEED_GRADED_AT : null,
     traitsJson: JSON.stringify(traits),
   };
@@ -514,7 +537,9 @@ export function presentStrategyTicket(t) {
       traits = {};
     }
   }
-  const executionPrice = americanPriceOrNull(t.executionPrice ?? t.execution_price ?? t.pinPrice ?? t.pin_price);
+  traits = traits || {};
+  const executionPrice = americanPriceOrNull(t.executionPrice ?? t.execution_price);
+  const benchmarkPrice = americanPriceOrNull(t.benchmarkPrice ?? t.benchmark_price ?? t.pinPrice ?? t.pin_price);
   return {
     id: t.id,
     strategyId: t.strategyId || t.strategy_id || STRATEGY_HC_V1.id,
@@ -531,17 +556,21 @@ export function presentStrategyTicket(t) {
     edge: t.edge ?? null,
     tag: t.tag || "CONVICTION",
     pinVig: t.pinVig ?? t.pin_vig ?? null,
-    pinPrice: executionPrice,
+    pinPrice: benchmarkPrice,
     executionLine: t.executionLine ?? t.execution_line ?? t.line ?? null,
     executionPrice,
     benchmarkLine: t.benchmarkLine ?? t.benchmark_line ?? t.line ?? null,
-    benchmarkPrice: americanPriceOrNull(t.benchmarkPrice ?? t.benchmark_price ?? t.pinPrice ?? t.pin_price),
+    benchmarkPrice,
     entryNoVig: t.entryNoVig ?? t.entry_no_vig ?? t.implied ?? null,
     closingLine: t.closingLine ?? t.closing_line ?? null,
     closingPrice: americanPriceOrNull(t.closingPrice ?? t.closing_price),
     closingNoVig: t.closingNoVig ?? t.closing_no_vig ?? null,
     stake: t.stake ?? 1,
     missingExecutionPrice: executionPrice == null,
+    provenance: t.provenance || traits.provenance || (hasJournalGradeFields(t) ? PROVENANCE.JOURNAL : PROVENANCE.INVALID),
+    executionBook: t.executionBook || t.execution_book || null,
+    benchmarkBook: t.benchmarkBook || t.benchmark_book || BENCHMARK_BOOK,
+    clvVersion: t.clvVersion || t.clv_version || CLV_VERSION,
     qualifiedAt: t.qualifiedAt || t.qualified_at || t.loggedAt || null,
     modelVersion: t.modelVersion || t.model_version || null,
     checkpoint: t.checkpoint || null,
@@ -619,7 +648,7 @@ export function strategyReconstruction(seedTickets = []) {
 
   let state = "unrecovered";
   let note =
-    "Operator-declared 2026-08-26 CONVICTION names exist in-repo. Journal EV, prices, and qualification timestamps are unrecovered until exact journal tickets are imported.";
+    "Operator-declared 2026-08-26 CONVICTION names exist in-repo. Journal EV, prices, and qualification timestamps are unrecovered until exact journal tickets are imported. Recovered N is not the reported 7-0.";
 
   if (seedN > EXPECTED_SEED_N || extras.length > 0 || invalidResultPattern(distinct)) {
     state = "conflict";
@@ -636,25 +665,51 @@ export function strategyReconstruction(seedTickets = []) {
     state = "partial";
     note = `Journal-recovered N=${recoveredN} of ${EXPECTED_SEED_N}. Identity of the seven named positions is operator-declared.`;
   } else if (named.length === EXPECTED_SEED_N) {
-    state = "operator-declared";
+    state = "unrecovered";
     note =
       "Identity is operator-declared (seven named 2026-08-26 CONVICTION picks). Journal fields unrecovered. Do not treat this as a reconstructed journal import.";
   }
 
+  const recoveredStats = strategyStats(journal);
   return {
     state,
-    confidence: state,
+    identity: "operator-declared",
+    confidence: "operator-declared",
     expectedN: EXPECTED_SEED_N,
     namedN: named.length,
     seedN,
     recoveredN,
+    settledTicketCount: recoveredStats.settled,
+    recoveredRecord: recoveredStats.gradedRecord,
     gradedRecord: gradedFromNamed.gradedRecord,
     gradedWins: gradedFromNamed.wins,
     gradedLosses: gradedFromNamed.losses,
     reportedRecord: STRATEGY_HC_V1.reportedRecord,
+    provenance: {
+      journal: journal.length,
+      verified: journal.filter((t) => t.provenance === PROVENANCE.VERIFIED).length,
+      invalid: distinct.filter((t) => classifyProvenance(t) === PROVENANCE.INVALID && isCanonicalSeedId(t.id)).length,
+      conflicting: extras.length,
+    },
     note,
     filterClaim: false,
   };
+}
+
+export function snapshotReconciles(ticket, snapshot) {
+  if (!ticket || !snapshot) return false;
+  if (String(snapshot.gameId || snapshot.id || "") !== String(ticket.gameId || ticket.game_id || "")) return false;
+  if (snapshot.sport && ticket.sport && String(snapshot.sport) !== String(ticket.sport)) return false;
+  if (snapshot.modelVersion && ticket.modelVersion && String(snapshot.modelVersion) !== String(ticket.modelVersion)) return false;
+  return true;
+}
+
+export function classifyProvenance(ticket, { existing, snapshot } = {}) {
+  if (!ticket) return PROVENANCE.INVALID;
+  if (existing && immutableFieldsConflict(existing, ticket)) return PROVENANCE.CONFLICTING;
+  if (!hasJournalGradeFields(ticket)) return PROVENANCE.INVALID;
+  if (snapshot && snapshotReconciles(ticket, snapshot)) return PROVENANCE.VERIFIED;
+  return PROVENANCE.JOURNAL;
 }
 
 export function assignTicketRole(ticket) {
@@ -690,6 +745,9 @@ export function validateImportedTicket(raw) {
   if (ev == null) errors.push("ev");
   if (!tag) errors.push("tag");
   if (roleField == null || roleField === "") errors.push("role");
+  const bench = americanPriceOrNull(raw.benchmarkPrice ?? raw.benchmark_price ?? raw.pinPrice ?? raw.pin_price);
+  const exec = americanPriceOrNull(raw.executionPrice ?? raw.execution_price);
+  if (bench == null && exec == null) errors.push("benchmark_price");
   if (errors.length) return { ok: false, errors };
 
   const normalized = {
@@ -711,7 +769,8 @@ export function validateImportedTicket(raw) {
     return { ok: false, errors: ["strategy_rules"] };
   }
   const assigned = assignTicketRole(normalized);
-  return { ok: true, ticket: { ...normalized, ...assigned }, clientRole: roleField, role: assigned.role };
+  const provenance = classifyProvenance({ ...normalized, ...assigned });
+  return { ok: true, ticket: { ...normalized, ...assigned, provenance, benchmarkPrice: bench, executionPrice: exec, clvVersion: CLV_VERSION, benchmarkBook: BENCHMARK_BOOK, executionBook: exec != null ? EXECUTION_BOOK : null }, clientRole: roleField, role: assigned.role };
 }
 
 const IDENTITY_KEYS = ["strategyId", "sport", "gameId", "market", "side", "line", "role"];

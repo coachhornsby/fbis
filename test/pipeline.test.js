@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { unwrapPalResponse } from "../functions/lib/ballparkpal.js";
 import { classifyCheckpoint, pickCanonical, materiallyChanged } from "../functions/lib/checkpoints.js";
 import { accuracyOf, freezeFromGame, collectBoards, harvestAll } from "../functions/lib/projLedger.js";
+import { actionAcceptsJob } from "../functions/lib/jobs.js";
 import { seriesStats, buildAccuracyPack } from "../functions/lib/accuracyReport.js";
 import { fetchParlayOdds } from "../functions/lib/parlay.js";
 import { resetCacheMem } from "../functions/lib/cache.js";
@@ -359,6 +360,13 @@ describe("collect and harvest fail honestly", () => {
     });
     assert.equal(out.status, "success");
     assert.equal(out.ok, true);
+  });
+
+  it("workflow rejects a partial response", () => {
+    assert.equal(actionAcceptsJob(207, { ok: false, status: "partial" }), false);
+    assert.equal(actionAcceptsJob(200, { ok: true, status: "partial" }), false);
+    assert.equal(actionAcceptsJob(500, { ok: false, status: "failed" }), false);
+    assert.equal(actionAcceptsJob(200, { ok: true, status: "success" }), true);
   });
 });
 

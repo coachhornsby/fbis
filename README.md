@@ -59,6 +59,8 @@ Model version: **FBIS-v1.3**
 
 **Strategy FBIS-HC-v1** — Qualified tickets with EV ≥ 8% (CONVICTION). The 2026-08-26 seed is the operator-corrected 7 CONVICTION tickets (`data/cohorts/fbis-hc-v1.json`, D1 `strategy_tickets` role=seed). Reported record 7-0. Reconstruction is operator-declared until journal EV/timestamps are imported (recovered N is separate from the graded 7-0 record). The seed sample was MLB-heavy overs — that is an observation, not a gate. Champion weights, logistic k, and qualification gates stay frozen. Prospective matches still use the CONVICTION / EV ≥ 8% conjunction and are graded separately from forecast MAE/Brier.
 
+**CFB HFA** — Production champion remains 2.5 points at a true home venue and 0 at a confirmed neutral site. Team-specific score-based and market-residual HFA live as **shadow challengers** only. Blue Chip Analytics 2026 raw/smooth values are stored as dated third-party research and are never production recommendations. FBIS does not reproduce Blue Chip smoothing and does not invent Action Network ratings. Missing historical closes keep the market-residual challenger unavailable.
+
 ## Data
 
 - MLB Stats API — schedule, scores, probable pitchers, F5 linescore (free)

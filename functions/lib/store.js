@@ -156,7 +156,121 @@ function layersWithSnap(row) {
 
 export async function persistSnapshot(env, row) {
   markBound(env);
-  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound", inserted: 0, already: 0, failed: 1 };
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound", inserted: 0, already: 0, failed: 1, conflict: false };
+  try {
+    const res = await env.DB.prepare(
+      `INSERT OR IGNORE INTO prediction_snapshots (
+        id, game_id, sport, date, matchup, checkpoint, model_version, frozen_at,
+        proj_home, proj_away, proj_total, proj_margin, pal_home, pal_away,
+        pal_f5_home, pal_f5_away, pal_p_home, pal_as_of, pal_request_id, pal_json, lineups_official,
+        p_home_final, p_market, p_espn, p_score, p_form, p_pal,
+        weights_json, layers_json, data_quality,
+        pin_home_ml, pin_away_ml, pin_vig, engine, actual_home, actual_away, graded_at, deployment_commit
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        row.gameId,
+        row.sport,
+        row.date,
+        n(row.matchup),
+        row.checkpoint,
+        n(row.modelVersion),
+        row.frozenAt,
+        n(row.projHome),
+        n(row.projAway),
+        n(row.projTotal),
+        n(row.projMargin),
+        n(row.palHome),
+        n(row.palAway),
+        n(row.palF5Home),
+        n(row.palF5Away),
+        n(row.palPHome),
+        n(row.palAsOf),
+        n(row.palRequestId),
+        n(row.palJson),
+        row.lineupsOfficial == null ? null : row.lineupsOfficial ? 1 : 0,
+        n(row.pHomeFinal),
+        n(row.pMarket),
+        n(row.pEspn),
+        n(row.pScore),
+        n(row.pForm),
+        n(row.pPal),
+        n(row.weightsJson),
+        layersWithSnap(row),
+        n(row.dataQuality),
+        n(row.pinHomeMl),
+        n(row.pinAwayMl),
+        n(row.pinVig),
+        n(row.engine),
+        n(row.actualHome),
+        n(row.actualAway),
+        n(row.gradedAt),
+        n(row.deploymentCommit)
+      )
+      .run();
+    const changes = Number(res?.meta?.changes) || 0;
+    markWrite();
+    let conflict = false;
+    if (!changes) {
+      conflict = await snapshotProjectionConflicts(env, row);
+    }
+    if (row.actualHome != null || row.gameStatus) {
+      const graded = await gradeSnapshot(env, row);
+      if (!graded.ok && graded.reason !== "no-final") {
+        return { ok: false, reason: graded.reason, inserted: changes, already: changes ? 0 : 1, failed: 1, conflict };
+      }
+    }
+    if (conflict) {
+      await recordWriteConflict(env, "prediction_snapshots", row.id, "immutable-projection-mismatch");
+      return { ok: false, reason: "immutable-conflict", inserted: 0, already: 0, failed: 1, conflict: true };
+    }
+    return { ok: true, inserted: changes > 0 ? 1 : 0, already: changes > 0 ? 0 : 1, failed: 0, conflict: false };
+  } catch (err) {
+    if (String(err?.message || err).includes("deployment_commit")) {
+      return persistSnapshotLegacy(env, row);
+    }
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), inserted: 0, already: 0, failed: 1, conflict: false };
+  }
+}
+
+function snapNum(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(n * 10000) / 10000 : null;
+}
+
+async function snapshotProjectionConflicts(env, row) {
+  try {
+    const existing = await env.DB.prepare(
+      "SELECT proj_home, proj_away, p_home_final, pal_home, pal_away, model_version, checkpoint FROM prediction_snapshots WHERE id = ?"
+    )
+      .bind(row.id)
+      .first();
+    if (!existing) return false;
+    const pairs = [
+      [existing.proj_home, row.projHome],
+      [existing.proj_away, row.projAway],
+      [existing.p_home_final, row.pHomeFinal],
+      [existing.pal_home, row.palHome],
+      [existing.pal_away, row.palAway],
+    ];
+    for (const [a, b] of pairs) {
+      const x = snapNum(a);
+      const y = snapNum(b);
+      if (x == null || y == null) continue;
+      if (x !== y) return true;
+    }
+    if (existing.model_version && row.modelVersion && String(existing.model_version) !== String(row.modelVersion)) return true;
+    if (existing.checkpoint && row.checkpoint && String(existing.checkpoint) !== String(row.checkpoint)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function persistSnapshotLegacy(env, row) {
   try {
     const res = await env.DB.prepare(
       `INSERT OR IGNORE INTO prediction_snapshots (
@@ -210,16 +324,29 @@ export async function persistSnapshot(env, row) {
       .run();
     const changes = Number(res?.meta?.changes) || 0;
     markWrite();
-    if (row.actualHome != null || row.gameStatus) {
-      const graded = await gradeSnapshot(env, row);
-      if (!graded.ok && graded.reason !== "no-final") {
-        return { ok: false, reason: graded.reason, inserted: changes, already: changes ? 0 : 1, failed: 1 };
-      }
+    const conflict = changes ? false : await snapshotProjectionConflicts(env, row);
+    if (row.actualHome != null || row.gameStatus) await gradeSnapshot(env, row);
+    if (conflict) {
+      return { ok: false, reason: "immutable-conflict", inserted: 0, already: 0, failed: 1, conflict: true };
     }
-    return { ok: true, inserted: changes > 0 ? 1 : 0, already: changes > 0 ? 0 : 1, failed: 0 };
+    return { ok: true, inserted: changes > 0 ? 1 : 0, already: changes > 0 ? 0 : 1, failed: 0, conflict: false };
   } catch (err) {
     markErr(err);
-    return { ok: false, reason: String(err?.message || err), inserted: 0, already: 0, failed: 1 };
+    return { ok: false, reason: String(err?.message || err), inserted: 0, already: 0, failed: 1, conflict: false };
+  }
+}
+
+export async function recordWriteConflict(env, entity, entityId, reason, detail) {
+  if (!hasDb(env)) return { ok: false };
+  try {
+    await env.DB.prepare(
+      "INSERT INTO write_conflicts (entity, entity_id, reason, detail, created_at) VALUES (?, ?, ?, ?, ?)"
+    )
+      .bind(entity, n(entityId), n(reason), n(detail), new Date().toISOString())
+      .run();
+    return { ok: true };
+  } catch {
+    return { ok: false };
   }
 }
 
@@ -751,8 +878,9 @@ export async function persistStrategyTicket(env, row, opts = {}) {
         ev, edge, tag, pin_vig, pin_price, model_version, checkpoint, data_quality,
         result, profit, clv, traits_json, created_at, graded_at,
         qualified_at, execution_line, execution_price, benchmark_line, benchmark_price,
-        entry_no_vig, closing_line, closing_price, closing_no_vig, stake, missing_execution_price
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        entry_no_vig, closing_line, closing_price, closing_no_vig, stake, missing_execution_price,
+        provenance, execution_book, benchmark_book, clv_version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         row.id,
@@ -790,7 +918,11 @@ export async function persistStrategyTicket(env, row, opts = {}) {
         n(row.closingPrice),
         n(row.closingNoVig),
         n(row.stake),
-        row.missingExecutionPrice ? 1 : 0
+        row.missingExecutionPrice ? 1 : 0,
+        n(row.provenance),
+        n(row.executionBook),
+        n(row.benchmarkBook),
+        n(row.clvVersion)
       )
       .run();
     markWrite();
@@ -824,7 +956,11 @@ async function fillNullStrategyFields(env, row) {
          closing_price = COALESCE(closing_price, ?),
          closing_no_vig = COALESCE(closing_no_vig, ?),
          stake = COALESCE(stake, ?),
-         missing_execution_price = COALESCE(missing_execution_price, ?)
+         missing_execution_price = COALESCE(missing_execution_price, ?),
+         provenance = COALESCE(provenance, ?),
+         execution_book = COALESCE(execution_book, ?),
+         benchmark_book = COALESCE(benchmark_book, ?),
+         clv_version = COALESCE(clv_version, ?)
        WHERE id = ?`
     )
       .bind(
@@ -848,6 +984,10 @@ async function fillNullStrategyFields(env, row) {
         n(row.closingNoVig),
         n(row.stake),
         row.missingExecutionPrice ? 1 : 0,
+        n(row.provenance),
+        n(row.executionBook),
+        n(row.benchmarkBook),
+        n(row.clvVersion),
         row.id
       )
       .run();
@@ -960,39 +1100,49 @@ function mapStrategyTicket(r) {
     closingNoVig: r.closing_no_vig ?? null,
     stake: r.stake ?? 1,
     missingExecutionPrice: r.missing_execution_price === 1 || r.execution_price == null,
+    provenance: r.provenance || traits.provenance || null,
+    executionBook: r.execution_book || null,
+    benchmarkBook: r.benchmark_book || "Pinnacle",
+    clvVersion: r.clv_version || null,
   };
 }
 
 export async function persistJobRun(env, row) {
   markBound(env);
   if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  const binds = [
+    row.id,
+    row.jobType,
+    n(row.triggerType),
+    n(row.startedAt),
+    n(row.completedAt),
+    n(row.status),
+    n(row.sport),
+    n(row.datesJson),
+    n(row.gamesDiscovered),
+    n(row.writesAttempted),
+    n(row.writesSucceeded),
+    n(row.writesFailed),
+    n(row.finalsDiscovered),
+    n(row.finalsGraded),
+    n(row.errorSummary),
+    n(row.deploymentCommit),
+    n(row.modelVersion),
+    n(row.projectionsGenerated),
+    n(row.writesAlready),
+    n(row.immutableConflicts),
+    n(row.finalsAwaitingRetry),
+  ];
   try {
     await env.DB.prepare(
       `INSERT OR REPLACE INTO job_runs (
         id, job_type, trigger_type, started_at, completed_at, status, sport, dates_json,
         games_discovered, writes_attempted, writes_succeeded, writes_failed,
-        finals_discovered, finals_graded, error_summary, deployment_commit, model_version
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        finals_discovered, finals_graded, error_summary, deployment_commit, model_version,
+        projections_generated, writes_already, immutable_conflicts, finals_awaiting_retry
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(
-        row.id,
-        row.jobType,
-        n(row.triggerType),
-        n(row.startedAt),
-        n(row.completedAt),
-        n(row.status),
-        n(row.sport),
-        n(row.datesJson),
-        n(row.gamesDiscovered),
-        n(row.writesAttempted),
-        n(row.writesSucceeded),
-        n(row.writesFailed),
-        n(row.finalsDiscovered),
-        n(row.finalsGraded),
-        n(row.errorSummary),
-        n(row.deploymentCommit),
-        n(row.modelVersion)
-      )
+      .bind(...binds)
       .run();
     markWrite();
     if (row.status === "success") {
@@ -1000,8 +1150,22 @@ export async function persistJobRun(env, row) {
     }
     return { ok: true };
   } catch (err) {
-    markErr(err);
-    return { ok: false, reason: String(err?.message || err) };
+    try {
+      await env.DB.prepare(
+        `INSERT OR REPLACE INTO job_runs (
+          id, job_type, trigger_type, started_at, completed_at, status, sport, dates_json,
+          games_discovered, writes_attempted, writes_succeeded, writes_failed,
+          finals_discovered, finals_graded, error_summary, deployment_commit, model_version
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+        .bind(...binds.slice(0, 17))
+        .run();
+      markWrite();
+      return { ok: true, truncated: true };
+    } catch (err2) {
+      markErr(err2);
+      return { ok: false, reason: String(err2?.message || err2) };
+    }
   }
 }
 
@@ -1052,6 +1216,18 @@ export async function queryJobHealth(env, { since } = {}) {
       .bind(period)
       .first();
     const lastJob = await env.DB.prepare("SELECT * FROM job_runs ORDER BY started_at DESC LIMIT 1").first();
+    let conflictN = { n: 0 };
+    let retryN = { n: 0 };
+    try {
+      conflictN = (await env.DB.prepare("SELECT COUNT(*) AS n FROM write_conflicts WHERE created_at >= ?").bind(period).first()) || { n: 0 };
+    } catch {
+      conflictN = { n: 0 };
+    }
+    try {
+      retryN = (await env.DB.prepare("SELECT COUNT(*) AS n FROM harvest_retry_queue WHERE status = 'open'").first()) || { n: 0 };
+    } catch {
+      retryN = { n: 0 };
+    }
     markRead();
     return {
       source: "d1",
@@ -1075,6 +1251,8 @@ export async function queryJobHealth(env, { since } = {}) {
             modelVersion: lastJob.model_version,
           }
         : null,
+      immutableConflicts: Number(conflictN?.n) || 0,
+      retryOpen: Number(retryN?.n) || 0,
     };
   } catch (err) {
     markErr(err);
@@ -1103,5 +1281,156 @@ export async function listAppliedMigrations(env) {
     return res.results || [];
   } catch {
     return [];
+  }
+}
+
+export async function enqueueHarvestRetry(env, { sport, date, gameId, reason }) {
+  markBound(env);
+  if (!hasDb(env) || !sport || !date) return { ok: false, reason: "unbound" };
+  const id = `${sport}:${date}:${gameId || "*"}`;
+  try {
+    await env.DB.prepare(
+      `INSERT INTO harvest_retry_queue (id, sport, date, game_id, reason, attempts, last_attempt_at, created_at, status)
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'open')
+       ON CONFLICT(id) DO UPDATE SET
+         attempts = attempts + 1,
+         last_attempt_at = excluded.last_attempt_at,
+         reason = excluded.reason,
+         status = 'open'`
+    )
+      .bind(id, sport, date, n(gameId), n(reason), new Date().toISOString(), new Date().toISOString())
+      .run();
+    markWrite();
+    return { ok: true, id };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function resolveHarvestRetry(env, { sport, date, gameId }) {
+  if (!hasDb(env) || !sport || !date) return { ok: false };
+  const id = `${sport}:${date}:${gameId || "*"}`;
+  try {
+    await env.DB.prepare("UPDATE harvest_retry_queue SET status = 'resolved' WHERE id = ? OR (sport = ? AND date = ? AND status = 'open' AND game_id IS NULL)")
+      .bind(id, sport, date)
+      .run();
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+}
+
+export async function openHarvestRetries(env, sport) {
+  if (!hasDb(env)) return [];
+  try {
+    let sql = "SELECT * FROM harvest_retry_queue WHERE status = 'open'";
+    const binds = [];
+    if (sport && sport !== "all") {
+      sql += " AND sport = ?";
+      binds.push(sport);
+    }
+    const res = binds.length ? await env.DB.prepare(sql).bind(...binds).all() : await env.DB.prepare(sql).all();
+    return res.results || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function persistHfaExternal(env, row) {
+  if (!hasDb(env) || !row?.teamKey) return { ok: false };
+  try {
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO cfb_hfa_external (
+        source, rating_year, team_key, team_name, conference, raw_hfa, smooth_hfa,
+        supplied_date, methodology, limitations, benchmark_only
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
+    )
+      .bind(
+        row.source,
+        row.ratingYear,
+        row.teamKey,
+        n(row.teamName),
+        n(row.conference),
+        n(row.rawHfa),
+        n(row.smoothHfa),
+        n(row.suppliedDate),
+        n(row.methodology),
+        n(row.limitations)
+      )
+      .run();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function persistHfaRating(env, row) {
+  if (!hasDb(env) || !row?.teamKey) return { ok: false };
+  try {
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO cfb_hfa_ratings (
+        method, as_of_season, team_key, national_baseline, raw_hfa, shrunken_hfa, uncertainty,
+        games_used, home_n, road_n, seasons_used, n_eff, reliability, recency, method_version,
+        available, flags_json, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.method,
+        n(row.asOfSeason),
+        row.teamKey,
+        n(row.nationalBaseline),
+        n(row.rawHfa),
+        n(row.shrunkenHfa),
+        n(row.uncertainty),
+        n(row.gamesUsed),
+        n(row.homeN),
+        n(row.roadN),
+        n(row.seasonsUsed),
+        n(row.nEff),
+        n(row.reliability),
+        n(row.recency),
+        n(row.methodVersion),
+        row.available ? 1 : 0,
+        n(row.flagsJson),
+        new Date().toISOString()
+      )
+      .run();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function loadHfaRatings(env, method, asOfSeason) {
+  const map = {};
+  if (!hasDb(env)) return map;
+  try {
+    const res = await env.DB.prepare(
+      "SELECT * FROM cfb_hfa_ratings WHERE method = ? AND as_of_season = ?"
+    )
+      .bind(method, Number(asOfSeason))
+      .all();
+    for (const r of res.results || []) {
+      map[r.team_key] = {
+        available: r.available === 1,
+        raw: r.raw_hfa,
+        shrunken: r.shrunken_hfa,
+        uncertainty: r.uncertainty,
+        sampleSize: r.games_used,
+        homeN: r.home_n,
+        roadN: r.road_n,
+        seasons: r.seasons_used,
+        nEff: r.n_eff,
+        reliability: r.reliability,
+        eligible: r.available === 1,
+        flags: r.flags_json ? JSON.parse(r.flags_json) : [],
+        methodVersion: r.method_version,
+        closingSource: null,
+      };
+    }
+    return map;
+  } catch {
+    return map;
   }
 }

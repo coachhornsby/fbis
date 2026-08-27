@@ -23,8 +23,9 @@
  */
 
 import { readCache, writeCache } from "./cache.js";
-import { loadTeamForm } from "./store.js";
+import { loadTeamForm, loadHfaRatings } from "./store.js";
 import { pCoverHome, pGreater } from "./metrics.js";
+import { buildShadowHfa, championHfaForGame } from "./hfa.js";
 
 function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -221,7 +222,8 @@ export function projectCfbGame(game, ctx = {}) {
   const formUnavailable = !ctx.form || ctx.form.size === 0;
   const home = estimateTeam(game.home, ctx);
   const away = estimateTeam(game.away, ctx);
-  const hfa = game.neutralSite ? 0 : CFB_CONSTANTS.hfaPoints;
+  const venue = championHfaForGame(game);
+  const hfa = venue.hfa;
   const scores = projectCfbMatchup({
     homeOff: home.off,
     homeDef: home.def,
@@ -233,12 +235,13 @@ export function projectCfbGame(game, ctx = {}) {
   const bothUnranked = home.rank == null && away.rank == null;
   const noTeamForm = home.currentOff == null && away.currentOff == null;
   const leagueAverageOnly = bothUnranked && noTeamForm;
+  const marketUnavailable = game.odds?.total == null && game.odds?.spread == null && game.pinSpread == null && game.pinTotal == null;
   const completeness =
     1 -
-    [home.rank == null, away.rank == null, home.currentOff == null, away.currentOff == null, rankingsUnavailable, formUnavailable].filter(
+    [home.rank == null, away.rank == null, home.currentOff == null, away.currentOff == null, rankingsUnavailable, formUnavailable, venue.uncertain, marketUnavailable].filter(
       Boolean
     ).length *
-      0.15;
+      0.12;
   const flags = [
     ...home.flags.map((f) => `home_${f}`),
     ...away.flags.map((f) => `away_${f}`),
@@ -248,6 +251,9 @@ export function projectCfbGame(game, ctx = {}) {
     bothUnranked ? "both_unranked" : null,
     noTeamForm || formUnavailable ? "no_team_form" : null,
     leagueAverageOnly ? "league_average_only" : null,
+    venue.uncertain ? "venue_uncertain" : null,
+    marketUnavailable ? "market_unavailable" : null,
+    ...venue.flags,
   ].filter(Boolean);
   return {
     ...scores,
@@ -259,6 +265,7 @@ export function projectCfbGame(game, ctx = {}) {
     maturity: sig.maturity,
     dataQuality: Math.round(Math.max(leagueAverageOnly || rankingsUnavailable ? 0.1 : 0.25, Math.min(1, completeness)) * 100),
     flags,
+    venue,
     constants: {
       priorGames: CFB_CONSTANTS.priorGames,
       hfaPoints: hfa,
@@ -301,6 +308,21 @@ export async function applyCfbModel(games, env = {}) {
   const season = cfbSeasonYear();
   const form = await loadTeamForm(env, "cfb", season);
   const rankingsUnavailable = Boolean(rankings.error) || !rankings.byTeam?.size;
+  let scoreByTeam = {};
+  let marketByTeam = {};
+  try {
+    scoreByTeam = await loadHfaRatings(env, "score-based", season - 1);
+    marketByTeam = await loadHfaRatings(env, "market-residual", season - 1);
+  } catch {
+    scoreByTeam = {};
+    marketByTeam = {};
+  }
+  const scoreFit = Object.keys(scoreByTeam).length
+    ? { available: true, byTeam: scoreByTeam }
+    : { available: false, reason: "insufficient-data", byTeam: {} };
+  const marketFit = Object.keys(marketByTeam).length
+    ? { available: true, byTeam: marketByTeam }
+    : { available: false, reason: "no-timestamped-closes", byTeam: {}, note: "No timestamped historical closing lines are stored." };
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "cfb") return game;
     const marketHome =
@@ -312,13 +334,19 @@ export async function applyCfbModel(games, env = {}) {
         ? game.odds.total / 2 + game.odds.spread / 2
         : null;
     const proj = projectCfbGame(game, { rankings, form, rankingsUnavailable });
+    const shadowHfa = buildShadowHfa(game, {
+      scoreFit,
+      marketFit,
+      homeEst: proj.homeEst,
+      awayEst: proj.awayEst,
+    });
     return {
       ...game,
       marketProjHome: marketHome,
       marketProjAway: marketAway,
       projHomeScore: proj.home,
       projAwayScore: proj.away,
-      cfb: proj,
+      cfb: { ...proj, shadowHfa },
     };
   });
   return {

@@ -29,6 +29,8 @@ import {
   queryStrategyTickets,
   gradeStrategyTicket,
   hasDb,
+  enqueueHarvestRetry,
+  resolveHarvestRetry,
 } from "./store.js";
 import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
 import { buildAccuracyPack } from "./accuracyReport.js";
@@ -47,6 +49,7 @@ import {
   stampSuccess,
   durableHealth,
   staleScheduleWarning,
+  deploymentCommit,
   JOB_SUCCESS,
   JOB_FAILED,
 } from "./jobs.js";
@@ -251,6 +254,8 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
           awayW: game.cfb.awayEst?.w ?? null,
           homePriorOff: game.cfb.homeEst?.priorOff ?? null,
           awayPriorOff: game.cfb.awayEst?.priorOff ?? null,
+          shadowHfa: game.cfb.shadowHfa || null,
+          venue: game.cfb.venue || null,
         }
       : null,
     gameStatus: gameOutcome(game),
@@ -576,6 +581,7 @@ function tallyPersist(counts, res) {
   const next = counts || emptyWriteCounts();
   if (res?.skipped) return next;
   next.writesAttempted += 1;
+  if (res?.conflict) next.immutableConflicts = (next.immutableConflicts || 0) + 1;
   if (!res || res.ok === false) {
     next.writesFailed += 1;
     if (res?.kind === "snapshot" || res?.inserted != null) {
@@ -864,6 +870,7 @@ async function persistCheckpoint(env, row, game, date) {
     actualHome: row.actualHome,
     actualAway: row.actualAway,
     gradedAt: row.gradedAt,
+    deploymentCommit: deploymentCommit(env),
     season: row.season,
     start: row.start,
     pinSpread: row.pinSpread,
@@ -1025,6 +1032,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     } catch (err) {
       dateFailures += 1;
       errors.push(`${sport}@${date}: ${String(err?.message || err)}`);
+      await enqueueHarvestRetry(env, { sport, date, reason: String(err?.message || err) });
       await setMeta(env, "last_harvest_error", String(err?.message || err));
       await setMeta(env, "last_harvest_error_at", new Date().toISOString());
     }
@@ -1055,6 +1063,11 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   const sportFailed =
     counts.writesFailed > 0 ||
     (needsGrade && (dateFailures === dates.length || (dateFailures > 0 && finals.length === 0)));
+  if (!sportFailed) {
+    for (const date of dates) await resolveHarvestRetry(env, { sport, date });
+  } else {
+    await enqueueHarvestRetry(env, { sport, date: dates[0], reason: errors[0] || "harvest-partial" });
+  }
   const report = {
     sport,
     sportName: SPORTS[sport]?.name || sport,
@@ -1238,10 +1251,13 @@ export async function harvestAll(days, env = {}, opts = {}) {
       discovered: reports.reduce((s, r) => s + (r.finalsDiscovered ?? (r.finals || []).length), 0),
       graded: reports.reduce((s, r) => s + (r.finalsGraded || 0), 0),
       failed: reports.reduce((s, r) => s + (r.finalsFailed || 0), 0),
+      awaitingRetry: writes.writesFailed || 0,
     },
     d1: await dbPayload(env),
     errors,
     env,
+    triggerType: opts.trigger || "http",
+    cacheStatus: "accelerator-not-ledger",
   });
   await recordJob(env, {
     jobType: "harvest",
@@ -1256,8 +1272,12 @@ export async function harvestAll(days, env = {}, opts = {}) {
     writesAttempted: writes.writesAttempted,
     writesSucceeded: writes.writesSucceeded,
     writesFailed: writes.writesFailed,
+    projectionsGenerated: payload.games_discovered,
+    writesAlready: writes.snapshotsAlready,
+    immutableConflicts: writes.immutableConflicts,
     finalsDiscovered: payload.finals_discovered,
     finalsGraded: payload.finals_graded,
+    finalsAwaitingRetry: payload.finals_awaiting_retry,
     errors,
   });
   return {
@@ -1381,6 +1401,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
     ok: status === JOB_SUCCESS,
     job: odds === "full" ? "collect-full" : "collect-cache",
     status,
+    triggerType: trigger,
     attemptedAt,
     successfulAt,
     sports,
@@ -1389,8 +1410,9 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
     writes,
     finals: { discovered: 0, graded: 0, failed: 0 },
     d1: await dbPayload(env),
-    errors,
+    errors: odds === "cache" ? [...errors, ...(errors.some((e) => /pinnacle|parlay/i.test(e)) ? [] : [])] : errors,
     env,
+    cacheStatus: odds === "full" ? "full-parlay" : "cache-only-odds",
   });
   await recordJob(env, {
     jobType: payload.job,
@@ -1404,6 +1426,9 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
     writesAttempted: writes.writesAttempted,
     writesSucceeded: writes.writesSucceeded,
     writesFailed: writes.writesFailed,
+    projectionsGenerated: gamesDiscovered,
+    writesAlready: writes.snapshotsAlready,
+    immutableConflicts: writes.immutableConflicts,
     errors,
   });
   return { ...payload, date, odds, db: payload.d1 };

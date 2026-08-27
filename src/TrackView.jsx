@@ -712,7 +712,9 @@ function StrategyPanel() {
           Reconstruction: {rec.state || rec.confidence || "operator-declared"}
           {` · expected seed N=${pack?.expectedSeedN ?? 7}`}
           {` · recovered N=${pack?.actualRecoveredN ?? rec.recoveredN ?? 0}`}
-          {` · graded record ${pack?.gradedRecord || rec.gradedRecord || seed.stats?.gradedRecord || "—"}`}
+          {` · recovered record ${pack?.recoveredRecord || rec.recoveredRecord || "—"}`}
+          {` · settled (recovered) ${pack?.settledTicketCount ?? rec.settledTicketCount ?? 0}`}
+          {` · operator-graded ${pack?.gradedRecord || rec.gradedRecord || seed.stats?.gradedRecord || "—"}`}
           {rec.note ? ` — ${rec.note}` : ""}
         </p>
         <p className="muted" style={{ marginBottom: 10 }}>
@@ -722,8 +724,9 @@ function StrategyPanel() {
         <div className="status-grid" style={{ marginBottom: 12 }}>
           <Stat label="Expected N" value={pack?.expectedSeedN ?? 7} />
           <Stat label="Recovered N" value={pack?.actualRecoveredN ?? rec.recoveredN ?? 0} />
-          <Stat label="State" value={rec.state || rec.confidence || "operator-declared"} />
-          <Stat label="Graded record" value={pack?.gradedRecord || rec.gradedRecord || (seed.stats?.settled ? `${seed.stats.wins}-${seed.stats.losses}` : "—")} />
+          <Stat label="State" value={rec.state || rec.confidence || "unrecovered"} />
+          <Stat label="Recovered record" value={pack?.recoveredRecord || rec.recoveredRecord || "—"} />
+          <Stat label="Graded (named)" value={pack?.gradedRecord || rec.gradedRecord || (seed.stats?.settled ? `${seed.stats.wins}-${seed.stats.losses}` : "—")} />
           <Stat label="Prospective N" value={pro.stats?.n ?? 0} />
           <Stat label="Prospective hit" value={fmtPct(pro.stats?.hitRate)} />
           <Stat label="Prospective ROI" value={fmtSigned(pro.stats?.roi)} />

@@ -4,7 +4,7 @@
  * Forecast rows stay separate from strategy tickets; this report joins them on purpose.
  */
 
-import { mean, mae, rmse, bias, withinShare } from "./metrics.js";
+import { mean, mae, rmse, bias, withinShare, median } from "./metrics.js";
 import { brierScore, logLoss } from "./pricing.js";
 
 const BUCKETS = [
@@ -98,6 +98,7 @@ function joinTickets(rows, tickets) {
       profit: t.profit,
       clv: t.clv,
       ticketId: t.id,
+      executionPrice: t.executionPrice ?? t.execution_price ?? null,
     };
   });
 }
@@ -209,6 +210,16 @@ export function overDiagnostics(rows, { minEdge = 0.35, tickets = [] } = {}) {
     candidates: { over: overs.length, under: unders.length },
     qualified: { over: qOver.length, under: qUnder.length, n: qualified.length },
     settled: { n: qSettled.length, over: settledOver.length, under: settledUnder.length },
+    results: {
+      wins: qSettled.filter((r) => r.profit != null && Number(r.profit) > 0).length,
+      losses: qSettled.filter((r) => r.profit != null && Number(r.profit) < 0).length,
+      pushes: qSettled.filter((r) => r.profit === 0 || resultSide(r) === "PUSH").length,
+      n: qSettled.length,
+    },
+    executed: {
+      over: qOver.filter((r) => r.executionPrice != null || r.profit != null).length,
+      under: qUnder.filter((r) => r.executionPrice != null || r.profit != null).length,
+    },
     avgEdge: {
       over: metricMean(overs, (r) => edge(r, "proprietary")),
       under: metricMean(unders, (r) => edge(r, "proprietary")),
@@ -235,7 +246,7 @@ export function overDiagnostics(rows, { minEdge = 0.35, tickets = [] } = {}) {
       pal: { value: palUnavailable ? null : palErrs.length ? bias(palErrs) : null, n: palErrs.length, unavailable: palUnavailable },
       ensemble: withN(ensErrs.length ? bias(ensErrs) : null, ensErrs.length),
     },
-    mae: withN(fbisErrs.length ? mae(fbisErrs) : null, fbisErrs.length),
+    medianAbs: withN(fbisErrs.length ? median(fbisErrs.map(Math.abs)) : null, fbisErrs.length),
     rmse: withN(fbisErrs.length ? rmse(fbisErrs) : null, fbisErrs.length),
     brier: withN(pRows.length ? mean(pRows.map((r) => brierScore(r.pOver, resultSide(r) === "OVER" ? 1 : 0))) : null, pRows.length),
     logLoss: withN(pRows.length ? mean(pRows.map((r) => logLoss(r.pOver, resultSide(r) === "OVER" ? 1 : 0))) : null, pRows.length),

@@ -30,7 +30,7 @@ import { onRequestPost, importStrategyTickets } from "../functions/api/strategy.
 import { projectCfbGame } from "../functions/lib/cfbModel.js";
 import { classifyCheckpoint, pickCanonical, rowsForCheckpoint } from "../functions/lib/checkpoints.js";
 import { projectMatchup } from "../functions/lib/savant.js";
-import { expectedRoi, twoWayMarket, brierScore, logLoss, americanToImplied } from "../functions/lib/pricing.js";
+import { expectedRoi, twoWayMarket, brierScore, logLoss, americanToImplied, probabilityClv } from "../functions/lib/pricing.js";
 import { gameOutcome, freezeFromGame, accuracyOf } from "../functions/lib/projLedger.js";
 import { seriesStats } from "../functions/lib/accuracyReport.js";
 import { overDiagnostics, bucketOf } from "../functions/lib/overDiagnostics.js";
@@ -144,10 +144,13 @@ describe("high-conviction strategy", () => {
     assert.ok(STRATEGY_HC_V1.seedObservation.includes("observation"));
     assert.ok(!STRATEGY_HC_V1.rules.sport);
     const rec = strategyReconstruction();
-    assert.equal(rec.state, "operator-declared");
+    assert.equal(rec.state, "unrecovered");
+    assert.equal(rec.identity, "operator-declared");
     assert.equal(rec.confidence, "operator-declared");
     assert.equal(rec.expectedN, 7);
     assert.equal(rec.recoveredN, 0);
+    assert.equal(rec.recoveredRecord, null);
+    assert.equal(rec.settledTicketCount, 0);
     assert.equal(rec.gradedRecord, "7-0");
     assert.equal(rec.filterClaim, false);
     const presented = canonicalSeedTickets([]);
@@ -192,11 +195,19 @@ describe("high-conviction strategy", () => {
     assert.equal(st.hitRate, 1);
   });
 
-  it("grades a total against a final", () => {
-    const packed = packTicket({ ...base, line: 8.5, pinPrice: -110, date: "2026-08-26" }, { role: "seed", date: "2026-08-26" });
+  it("grades a total against a final using Heritage execution price", () => {
+    const packed = packTicket({ ...base, line: 8.5, executionPrice: -110, date: "2026-08-26" }, { role: "seed", date: "2026-08-26" });
     const g = gradeStrategyResult(packed, { home: { score: 6 }, away: { score: 5 }, status: { completed: true } });
     assert.equal(g.result, "WON");
     assert.ok(Math.abs(g.profit - 100 / 110) < 1e-9);
+  });
+
+  it("does not treat Pinnacle as a Heritage fill for profit", () => {
+    const packed = packTicket({ ...base, line: 8.5, pinPrice: -110, date: "2026-08-26" }, { role: "seed", date: "2026-08-26" });
+    const g = gradeStrategyResult(packed, { home: { score: 6 }, away: { score: 5 }, status: { completed: true } });
+    assert.equal(g.result, "WON");
+    assert.equal(g.profit, null);
+    assert.equal(g.missingExecutionPrice, true);
   });
 
   it("never treats a spread/total point as an American price", () => {
@@ -212,7 +223,7 @@ describe("high-conviction strategy", () => {
 
   it("grades pushes and F5 markets from F5 scores only", () => {
     const totalPush = gradeStrategyResult(
-      packTicket({ ...base, line: 9, pinPrice: -105, date: "2026-08-26" }, { role: "prospective", date: "2026-08-26" }),
+      packTicket({ ...base, line: 9, executionPrice: -105, date: "2026-08-26" }, { role: "prospective", date: "2026-08-26" }),
       { home: { score: 4 }, away: { score: 5 }, status: { completed: true } }
     );
     assert.equal(totalPush.result, "PUSH");
@@ -241,18 +252,29 @@ describe("high-conviction strategy", () => {
       { f5Score: { complete: true, home: 2, away: 2 }, home: { score: 9 }, away: { score: 1 }, status: { completed: true } }
     );
     assert.equal(f5mlPush.result, "PUSH");
+    const postponed = gradeStrategyResult(
+      packTicket({ ...base, line: 8.5, executionPrice: -110, date: "2026-08-26" }, { role: "prospective", date: "2026-08-26" }),
+      { home: { score: 0 }, away: { score: 0 }, status: { completed: false, detail: "Postponed" } }
+    );
+    assert.equal(postponed, null);
   });
 });
 
 describe("snapshot immutability", () => {
-  it("INSERT OR IGNORE keeps the first projection", async () => {
+  it("INSERT OR IGNORE keeps the first projection and flags a conflicting rewrite", async () => {
     const rows = new Map();
     const env = mockDb(rows);
     const first = snapRow({ projHome: 4.4, frozenAt: "a" });
     const second = snapRow({ projHome: 9.9, frozenAt: "b" });
-    await persistSnapshot(env, first);
-    await persistSnapshot(env, second);
+    const a = await persistSnapshot(env, first);
+    const b = await persistSnapshot(env, second);
     assert.equal(rows.get(first.id).proj_home, 4.4);
+    assert.equal(a.ok, true);
+    assert.equal(b.conflict, true);
+    assert.equal(b.ok, false);
+    const same = await persistSnapshot(env, first);
+    assert.equal(same.already, 1);
+    assert.equal(same.conflict, false);
   });
 
   it("grades actuals without rewriting the projection", async () => {
@@ -371,6 +393,8 @@ describe("pricing still holds", () => {
     assert.ok(brierScore(0.7, 1) < 0.1);
     assert.ok(logLoss(0.7, 1) > 0);
     assert.ok(americanToImplied(-110) > 0.5);
+    assert.ok(Math.abs(probabilityClv(0.48, 0.52) - 4) < 1e-9);
+    assert.equal(probabilityClv(null, 0.5), null);
   });
 
   it("seriesStats does not treat zero bias as zero error", () => {
@@ -433,6 +457,10 @@ function mockDb(rows) {
                 return { meta: { changes: 1 } };
               },
               async first() {
+                if (sql.includes("prediction_snapshots") && sql.includes("WHERE id")) {
+                  const row = rows.get(args[0]);
+                  return row || null;
+                }
                 return { ok: 1 };
               },
               async all() {
@@ -460,6 +488,7 @@ describe("strategy ingest", () => {
       ev: 0.09,
       tag: "CONVICTION",
       role: extra.role || "prospective",
+      pinPrice: extra.pinPrice ?? -110,
       qualified: true,
       lean: false,
       marketComplete: true,

@@ -27,6 +27,8 @@ export function emptyWriteCounts() {
     writesAttempted: 0,
     writesSucceeded: 0,
     writesFailed: 0,
+    immutableConflicts: 0,
+    projectionsGenerated: 0,
   };
 }
 
@@ -53,6 +55,7 @@ export function jobPayload({
   ok,
   job,
   status,
+  triggerType,
   attemptedAt,
   successfulAt,
   sports,
@@ -63,30 +66,42 @@ export function jobPayload({
   d1,
   errors,
   env,
+  cacheStatus,
 }) {
   const w = writes || emptyWriteCounts();
-  const f = finals || { discovered: 0, graded: 0, failed: 0 };
+  const f = finals || { discovered: 0, graded: 0, failed: 0, awaitingRetry: 0 };
   return {
     ok: Boolean(ok),
     job,
     status,
+    trigger_type: triggerType || "http",
     attempted_at: attemptedAt,
     successful_at: successfulAt,
     sports: sports || [],
     dates: dates || [],
     games_discovered: gamesDiscovered ?? 0,
+    projections_generated: w.projectionsGenerated || gamesDiscovered || 0,
     snapshots_attempted: w.snapshotsAttempted,
     snapshots_inserted: w.snapshotsInserted,
     snapshots_already_present: w.snapshotsAlready,
+    immutable_conflicts: w.immutableConflicts || 0,
     snapshots_failed: w.snapshotsFailed,
+    failed_writes: w.writesFailed,
     finals_discovered: f.discovered,
     finals_graded: f.graded,
     finals_failed: f.failed,
+    finals_awaiting_retry: f.awaitingRetry ?? 0,
+    cache_status: cacheStatus || null,
     d1: d1 || { bound: false },
     errors: errors || [],
     deployment_commit: deploymentCommit(env),
     model_version: MODEL_VERSION,
   };
+}
+
+/** GitHub Action accepts only HTTP 200 with status=success. Partial is rejected. */
+export function actionAcceptsJob(httpCode, body) {
+  return Number(httpCode) === 200 && body?.ok === true && body?.status === "success";
 }
 
 export async function recordJob(env, row) {
@@ -105,8 +120,12 @@ export async function recordJob(env, row) {
     writesAttempted: row.writesAttempted ?? 0,
     writesSucceeded: row.writesSucceeded ?? 0,
     writesFailed: row.writesFailed ?? 0,
+    projectionsGenerated: row.projectionsGenerated ?? 0,
+    writesAlready: row.writesAlready ?? 0,
+    immutableConflicts: row.immutableConflicts ?? 0,
     finalsDiscovered: row.finalsDiscovered ?? 0,
     finalsGraded: row.finalsGraded ?? 0,
+    finalsAwaitingRetry: row.finalsAwaitingRetry ?? 0,
     errorSummary: (row.errors || []).slice(0, 8).join(" | ") || null,
     deploymentCommit: deploymentCommit(env),
     modelVersion: MODEL_VERSION,

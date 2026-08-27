@@ -95,7 +95,8 @@ CREATE TABLE IF NOT EXISTS prediction_snapshots (
   engine TEXT,
   actual_home REAL,
   actual_away REAL,
-  graded_at TEXT
+  graded_at TEXT,
+  deployment_commit TEXT
 );
 
 CREATE TABLE IF NOT EXISTS prediction_layers (
@@ -211,7 +212,11 @@ CREATE TABLE IF NOT EXISTS strategy_tickets (
   closing_price REAL,
   closing_no_vig REAL,
   stake REAL,
-  missing_execution_price INTEGER
+  missing_execution_price INTEGER,
+  provenance TEXT,
+  execution_book TEXT,
+  benchmark_book TEXT,
+  clv_version TEXT
 );
 
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -236,7 +241,11 @@ CREATE TABLE IF NOT EXISTS job_runs (
   finals_graded INTEGER,
   error_summary TEXT,
   deployment_commit TEXT,
-  model_version TEXT
+  model_version TEXT,
+  projections_generated INTEGER,
+  writes_already INTEGER,
+  immutable_conflicts INTEGER,
+  finals_awaiting_retry INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_predictions_sport_date ON predictions (sport, date);
@@ -245,3 +254,85 @@ CREATE INDEX IF NOT EXISTS idx_snap_game ON prediction_snapshots (game_id, date)
 CREATE INDEX IF NOT EXISTS idx_odds_game_time ON odds_snapshots (game_id, captured_at);
 CREATE INDEX IF NOT EXISTS idx_job_runs_type_time ON job_runs (job_type, started_at);
 CREATE INDEX IF NOT EXISTS idx_strategy_tickets_role ON strategy_tickets (strategy_id, role, date);
+
+CREATE TABLE IF NOT EXISTS harvest_retry_queue (
+  id TEXT PRIMARY KEY,
+  sport TEXT NOT NULL,
+  date TEXT NOT NULL,
+  game_id TEXT,
+  reason TEXT,
+  attempts INTEGER DEFAULT 0,
+  last_attempt_at TEXT,
+  created_at TEXT NOT NULL,
+  status TEXT DEFAULT 'open'
+);
+
+CREATE TABLE IF NOT EXISTS write_conflicts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entity TEXT NOT NULL,
+  entity_id TEXT,
+  reason TEXT,
+  detail TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS cfb_hfa_external (
+  source TEXT NOT NULL,
+  rating_year INTEGER NOT NULL,
+  team_key TEXT NOT NULL,
+  team_name TEXT,
+  conference TEXT,
+  raw_hfa REAL,
+  smooth_hfa REAL,
+  supplied_date TEXT,
+  methodology TEXT,
+  limitations TEXT,
+  benchmark_only INTEGER DEFAULT 1,
+  PRIMARY KEY (source, rating_year, team_key)
+);
+
+CREATE TABLE IF NOT EXISTS cfb_hfa_games (
+  game_id TEXT PRIMARY KEY,
+  season INTEGER,
+  week INTEGER,
+  kickoff TEXT,
+  home_team_key TEXT,
+  away_team_key TEXT,
+  home_score REAL,
+  away_score REAL,
+  venue TEXT,
+  neutral INTEGER,
+  postseason INTEGER,
+  conference_game INTEGER,
+  overtime INTEGER,
+  fbs_vs_fbs INTEGER,
+  closing_spread REAL,
+  closing_source TEXT,
+  closing_at TEXT,
+  source TEXT,
+  source_ts TEXT
+);
+
+CREATE TABLE IF NOT EXISTS cfb_hfa_ratings (
+  method TEXT NOT NULL,
+  as_of_season INTEGER NOT NULL,
+  team_key TEXT NOT NULL,
+  national_baseline REAL,
+  raw_hfa REAL,
+  shrunken_hfa REAL,
+  uncertainty REAL,
+  games_used INTEGER,
+  home_n INTEGER,
+  road_n INTEGER,
+  seasons_used INTEGER,
+  n_eff REAL,
+  reliability REAL,
+  recency TEXT,
+  method_version TEXT,
+  available INTEGER,
+  flags_json TEXT,
+  updated_at TEXT,
+  PRIMARY KEY (method, as_of_season, team_key)
+);
+
+CREATE VIEW IF NOT EXISTS pipeline_runs AS SELECT * FROM job_runs;

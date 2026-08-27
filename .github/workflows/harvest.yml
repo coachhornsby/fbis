@@ -95,12 +95,20 @@ jobs:
               snapshots_inserted: .snapshots_inserted,
               snapshots_already_present: .snapshots_already_present,
               snapshots_failed: .snapshots_failed,
+              immutable_conflicts: (.immutable_conflicts // 0),
+              failed_writes: (.failed_writes // .snapshots_failed // 0),
               finals_graded: .finals_graded,
               d1_bound: (.d1.bound // null),
               errors: (.errors // []),
               deployment_commit: .deployment_commit,
               model_version: .model_version
             }' "$tmp"
+            local summary
+            summary="$(jq -r --arg http "$http" '"job=\(.job // "?") status=\(.status // "?") http=\($http) games=\(.games_discovered // 0) inserted=\(.snapshots_inserted // 0) already=\(.snapshots_already_present // 0) conflicts=\(.immutable_conflicts // 0) failed=\(.snapshots_failed // 0) graded=\(.finals_graded // 0) d1=\(.d1.bound // false) commit=\(.deployment_commit // "")"' "$tmp")"
+            echo "$summary"
+            if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+              echo "- $summary" >> "$GITHUB_STEP_SUMMARY"
+            fi
             local ok_flag
             ok_flag="$(jq -r '(.ok == true) and (.status == "success")' "$tmp")"
             if [ "$http" != "200" ] || [ "$ok_flag" != "true" ]; then
