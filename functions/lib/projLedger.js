@@ -1048,7 +1048,13 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     .filter((r) => r.sport === sport || !r.sport)
     .sort((a, b) => String(b.date).localeCompare(a.date) || String(a.matchup).localeCompare(b.matchup))
     .map(decorateRow);
-  const sportFailed = dateFailures === dates.length || (dateFailures > 0 && finals.length === 0);
+  const windowDates = new Set(dates);
+  const needsGrade = Object.values(saved.games || {}).some(
+    (r) => r.actualHome == null && windowDates.has(r.date)
+  );
+  const sportFailed =
+    counts.writesFailed > 0 ||
+    (needsGrade && (dateFailures === dates.length || (dateFailures > 0 && finals.length === 0)));
   const report = {
     sport,
     sportName: SPORTS[sport]?.name || sport,

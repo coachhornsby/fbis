@@ -5,6 +5,8 @@ import { classifyCheckpoint, pickCanonical, materiallyChanged } from "../functio
 import { accuracyOf, freezeFromGame, collectBoards, harvestAll } from "../functions/lib/projLedger.js";
 import { seriesStats, buildAccuracyPack } from "../functions/lib/accuracyReport.js";
 import { fetchParlayOdds } from "../functions/lib/parlay.js";
+import { resetCacheMem } from "../functions/lib/cache.js";
+import { todayCT } from "../functions/lib/slateEngine.js";
 
 describe("Pal unwrap", () => {
   it("reads data.items so games are not dropped", () => {
@@ -313,8 +315,31 @@ describe("collect and harvest fail honestly", () => {
     assert.ok(second.snapshots_already_present >= 1 || second.snapshots_inserted === 0);
   });
 
-  it("harvest scoreboard failure is not success", async () => {
-    const out = await harvestAll(1, { DB: pipelineDb().DB }, {
+  it("harvest scoreboard failure is not success when games still need grading", async () => {
+    resetCacheMem();
+    const env = pipelineDb();
+    const today = todayCT();
+    env.caches = {
+      async match() {
+        return new Response(
+          JSON.stringify({
+            games: {
+              [`${today}:1`]: {
+                id: "1",
+                sport: "mlb",
+                date: today,
+                actualHome: null,
+                matchup: "AWY @ HOM",
+              },
+            },
+          }),
+          { headers: { "content-type": "application/json" } }
+        );
+      },
+      async put() {},
+    };
+    const out = await harvestAll(1, env, {
+      sport: "mlb",
       fetchResultsFn: async () => {
         throw new Error("scoreboard down");
       },
@@ -322,6 +347,18 @@ describe("collect and harvest fail honestly", () => {
     assert.notEqual(out.status, "success");
     assert.equal(out.ok, false);
     assert.equal(out.successful_at, null);
+  });
+
+  it("harvest with no open games succeeds when a scoreboard 403s", async () => {
+    resetCacheMem();
+    const out = await harvestAll(1, { DB: pipelineDb().DB }, {
+      sport: "nba",
+      fetchResultsFn: async () => {
+        throw new Error("ESPN NBA 403");
+      },
+    });
+    assert.equal(out.status, "success");
+    assert.equal(out.ok, true);
   });
 });
 

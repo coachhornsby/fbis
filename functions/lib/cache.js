@@ -20,6 +20,10 @@ export async function readCache(key, cfCache, ttlMs) {
   return null;
 }
 
+export function resetCacheMem() {
+  mem.clear();
+}
+
 export async function writeCache(key, data, cfCache, ttlMs) {
   mem.set(key, { at: Date.now(), data });
   if (cfCache) {
