@@ -508,7 +508,7 @@ function pushMl(recs, cfg, game, side, pick, priced) {
       market: "ML",
       side,
       pick,
-      line: priced.pinPrice,
+      line: null,
       executionPrice: heritageMlPrice(game, side),
       implied: priced.implied ?? null,
       edge: edge ?? 0,
@@ -548,7 +548,7 @@ function pushF5Recs(sport, game, recs, cfg, pin) {
         recs,
         cfg,
         game,
-        { market: "F5 ML", side: "HOME", pick: `${game.home.name} F5`, line: f5Odds.homeMl, executionPrice: null, edge: homePriced.probEdge },
+        { market: "F5 ML", side: "HOME", pick: `${game.home.name} F5`, line: null, executionPrice: null, edge: homePriced.probEdge },
         homePriced,
         true
       );
@@ -558,7 +558,7 @@ function pushF5Recs(sport, game, recs, cfg, pin) {
         recs,
         cfg,
         game,
-        { market: "F5 ML", side: "AWAY", pick: `${game.away.name} F5`, line: f5Odds.awayMl, executionPrice: null, edge: awayPriced.probEdge },
+        { market: "F5 ML", side: "AWAY", pick: `${game.away.name} F5`, line: null, executionPrice: null, edge: awayPriced.probEdge },
         awayPriced,
         true
       );

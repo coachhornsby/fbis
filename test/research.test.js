@@ -570,6 +570,14 @@ describe("strategy ingest", () => {
     assert.deepEqual(DEFAULT_WEIGHTS, { market: 0.22, espn: 0.08, score: 0.32, pal: 0.3, form: 0.08 });
     assert.equal(americanPriceOrNull(8.5), null);
     assert.equal(americanPriceOrNull(-110), -110);
+    const ml = packTicket(
+      { ...journalTicket({ market: "ML", side: "AWAY", line: 126, pinPrice: 126, gameId: "mlprice" }), date: "2026-08-27" },
+      { role: "prospective", date: "2026-08-27" }
+    );
+    assert.equal(ml.line, null);
+    assert.equal(ml.executionPrice, null);
+    assert.equal(ml.benchmarkPrice, 126);
+    assert.equal(ml.missingExecutionPrice, true);
   });
 });
 

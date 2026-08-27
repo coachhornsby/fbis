@@ -259,6 +259,7 @@ export function strategyStats(tickets) {
 export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id } = {}) {
   const ev = ticketEv(ticket);
   const day = date || ticket.date || dateCT(ticket.qualifiedAt || ticket.loggedAt);
+  const market = ticket.market || null;
   const executionPrice = americanPriceOrNull(ticket.executionPrice ?? ticket.execution_price);
   const benchmarkPrice = americanPriceOrNull(
     ticket.benchmarkPrice ?? ticket.benchmark_price ?? ticket.pinPrice ?? ticket.pin_price
@@ -266,8 +267,10 @@ export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id 
   const pinPrice = executionPrice ?? benchmarkPrice;
   const entryNoVig = finiteOrNull(ticket.entryNoVig ?? ticket.entry_no_vig ?? ticket.implied);
   const closingNoVig = finiteOrNull(ticket.closingNoVig ?? ticket.closing_no_vig ?? ticket.closeNoVig);
-  const executionLine = ticket.executionLine ?? ticket.execution_line ?? ticket.line ?? null;
-  const benchmarkLine = ticket.benchmarkLine ?? ticket.benchmark_line ?? ticket.line ?? null;
+  const rawPoint = requiresLine(market)
+    ? finiteOrNull(ticket.executionLine ?? ticket.execution_line ?? ticket.line)
+    : null;
+  const pointLine = rawPoint != null && Math.abs(rawPoint) < 100 ? rawPoint : null;
   const missingExecutionPrice = executionPrice == null;
   return {
     id: ticket.id || ticketId(ticket, day),
@@ -277,18 +280,18 @@ export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id 
     date: day,
     gameId: String(ticket.gameId || ticket.game_id || ticket.id || ""),
     matchup: ticket.matchup || null,
-    market: ticket.market || null,
+    market,
     side: ticket.side || null,
     pick: ticket.pick || null,
-    line: ticket.line ?? executionLine ?? null,
+    line: pointLine,
     ev,
     edge: ticket.edge ?? ticket.probEdge ?? null,
     tag: ticket.tag || tagFromEv(ev),
     pinVig: ticket.pinVig ?? ticket.pin_vig ?? null,
     pinPrice,
-    executionLine,
+    executionLine: pointLine,
     executionPrice,
-    benchmarkLine,
+    benchmarkLine: pointLine,
     benchmarkPrice,
     entryNoVig,
     closingLine: ticket.closingLine ?? ticket.closing_line ?? null,
