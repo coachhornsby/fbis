@@ -5,7 +5,7 @@ import { canonAbbr, resolveMlbCanon, sameMlbTeam } from "./mlbCanonical.js";
 
 const BASE = "https://www.ballparkpal.com/api/v1";
 const TTL_MS = 4 * 60 * 60 * 1000;
-const CACHE_VER = "bpp-v4";
+const CACHE_VER = "bpp-v5";
 const DH_WINDOW_MS = 6 * 60 * 60 * 1000;
 const DH_AMBIGUOUS_MS = 45 * 60 * 1000;
 const REQUEST_GAP_MS = 1100;
