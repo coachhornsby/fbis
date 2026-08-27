@@ -126,6 +126,26 @@ export function resolveTeam(sport, query = {}) {
   return uniqueHit(candidates);
 }
 
+/** Map-only lookup. Never scans every roster row — CFBD catalog build must stay Worker-cheap. */
+export function resolveTeamExact(sport, query = {}) {
+  const idx = INDEX.get(sport);
+  if (!idx) return null;
+  if (query.canonicalId && idx.byId.has(query.canonicalId)) return idx.byId.get(query.canonicalId);
+  if (query.espnId && idx.byEspn.has(String(query.espnId))) return idx.byEspn.get(String(query.espnId));
+  const abbr = String(query.abbr || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (abbr && abbr !== "—" && abbr.length >= 2) {
+    const byAb = uniqueHit(idx.byAbbr.get(abbr));
+    if (byAb) return byAb;
+  }
+  for (const name of [query.name, query.displayName, query.school, query.fullName]) {
+    for (const key of nameLookupKeys(name)) {
+      const exact = uniqueHit(idx.byName.get(key));
+      if (exact) return exact;
+    }
+  }
+  return null;
+}
+
 export function enrichTeam(sport, raw = {}) {
   const hit = resolveTeam(sport, raw);
   if (!hit) {

@@ -4,7 +4,7 @@
  */
 
 import { readCache, writeCache } from "./cache.js";
-import { listTeams, resolveTeam } from "./teams.js";
+import { resolveTeamExact } from "./teams.js";
 import { CFB_PRIOR_VERSION, CFB_PRIOR_VERSION_CFBD, priorForTeam } from "./cfbPrior.js";
 import PRIOR from "../../data/cfb/prior-v1.js";
 
@@ -142,9 +142,9 @@ function resolveCfbdTeam(row) {
   const name = row?.team || row?.school || "";
   const abbr = row?.abbreviation || row?.abbr || "";
   return (
-    resolveTeam("cfb", { name }) ||
-    resolveTeam("cfb", { school: name }) ||
-    (abbr ? resolveTeam("cfb", { abbr }) : null)
+    resolveTeamExact("cfb", { name }) ||
+    resolveTeamExact("cfb", { school: name }) ||
+    (abbr ? resolveTeamExact("cfb", { abbr }) : null)
   );
 }
 
@@ -200,12 +200,8 @@ export function buildCfbdCatalog({
   const prev = new Set((prevFbs || []).map((n) => String(n).trim().toLowerCase()));
   const defenseIsPa = spDefenseIsPointsAllowed(sp);
   const names = new Set();
-  for (const map of [spBy, fpiBy, srsBy, eloBy, teamsByName]) {
+  for (const map of [spBy, fpiBy, srsBy, eloBy]) {
     for (const k of map.keys()) names.add(k);
-  }
-  for (const row of listTeams("cfb")) {
-    if (row.school) names.add(String(row.school).trim().toLowerCase());
-    if (row.displayName) names.add(String(row.displayName).trim().toLowerCase());
   }
 
   const byEspnId = {};
@@ -218,12 +214,12 @@ export function buildCfbdCatalog({
   for (const key of names) {
     const spRow = spBy.get(key);
     const fpiRow = fpiBy.get(key);
-    const srsRow = srsRowOr(srsBy, key);
+    const srsRow = srsBy.get(key);
     const eloRow = eloBy.get(key);
     const teamRow = teamsByName.get(key);
     const raw = spRow || fpiRow || srsRow || eloRow || teamRow;
-    if (!raw && !resolveTeam("cfb", { name: key })) continue;
-    const hit = resolveCfbdTeam(raw || { team: key, school: key });
+    if (!raw) continue;
+    const hit = resolveCfbdTeam(raw);
     const name = raw?.team || raw?.school || hit?.school || key;
     const spRating = num(spRow?.rating);
     const spOff = num(spRow?.offense?.rating);
@@ -303,10 +299,6 @@ export function buildCfbdCatalog({
   };
 }
 
-function srsRowOr(srsBy, key) {
-  return srsBy.get(key) || null;
-}
-
 export function mergePriorCatalog(cfbdCatalog, fallback = PRIOR) {
   const byEspnId = {};
   for (const [id, row] of Object.entries(fallback.byEspnId || {})) {
@@ -368,37 +360,50 @@ function cbbSeasonYear(date = new Date()) {
   return m >= 10 ? y : y - 1;
 }
 
-async function fetchRatingsBundle(env, year, fetchFn) {
-  const endpoints = [
-    ["sp", "/ratings/sp", { year }],
-    ["fpi", "/ratings/fpi", { year }],
-    ["srs", "/ratings/srs", { year }],
-    ["srsExpanded", "/ratings/srs/expanded", { year }],
-    ["elo", "/ratings/elo", { year }],
-    ["talent", "/talent", { year }],
-    ["returning", "/player/returning", { year }],
-    ["teams", "/teams", { year }],
-  ];
-  const results = {};
-  const report = [];
-  const settled = await Promise.all(
-    endpoints.map(async ([key, path, query]) => {
-      const res = await cfbdRequest(CFBD_BASE, path, env, { query, fetchFn });
-      return { key, path, res };
-    })
-  );
-  let httpStatus = 200;
-  for (const { key, path, res } of settled) {
-    results[key] = res;
-    report.push({ path, status: res.status, n: res.n || 0, ok: res.ok });
-    if (!res.ok && res.status > httpStatus) httpStatus = res.status;
-    if (!res.ok && httpStatus === 200 && res.status) httpStatus = res.status;
-  }
-  return { results, report, httpStatus };
+async function fetchRatingsYear(env, year, fetchFn) {
+  const [sp, fpi] = await Promise.all([
+    cfbdRequest(CFBD_BASE, "/ratings/sp", env, { query: { year }, fetchFn }),
+    cfbdRequest(CFBD_BASE, "/ratings/fpi", env, { query: { year }, fetchFn }),
+  ]);
+  return {
+    sp,
+    fpi,
+    report: [
+      { path: "/ratings/sp", status: sp.status, n: sp.n || 0, ok: sp.ok },
+      { path: "/ratings/fpi", status: fpi.status, n: fpi.n || 0, ok: fpi.ok },
+    ],
+  };
 }
 
-function ratingsCount(results) {
-  return (results.sp?.n || 0) + (results.fpi?.n || 0) + (results.srs?.n || 0) + (results.srsExpanded?.n || 0) + (results.elo?.n || 0);
+async function fetchFbsTeams(env, year, fetchFn) {
+  let res = await cfbdRequest(CFBD_BASE, "/teams/fbs", env, { query: { year }, fetchFn });
+  if (res.ok && res.n) return { ...res, path: "/teams/fbs" };
+  res = await cfbdRequest(CFBD_BASE, "/teams", env, { query: { year, classification: "fbs" }, fetchFn });
+  return { ...res, path: "/teams" };
+}
+
+function slimSp(rows) {
+  return (rows || []).map((r) => ({
+    year: r.year,
+    team: r.team,
+    conference: r.conference,
+    rating: r.rating,
+    offense: r.offense ? { rating: r.offense.rating } : null,
+    defense: r.defense ? { rating: r.defense.rating, ranking: r.defense.ranking } : null,
+  }));
+}
+
+function slimNamed(rows, fields) {
+  return (rows || []).map((r) => {
+    const out = { team: r.team || r.school, school: r.school || r.team, conference: r.conference };
+    for (const f of fields) out[f] = r[f];
+    return out;
+  });
+}
+
+function fallbackPrior(cacheKey, env, meta) {
+  const payload = { version: CFB_PRIOR_VERSION, catalog: PRIOR, meta };
+  return writeCache(cacheKey, payload, env.caches, ERR_TTL_MS).then(() => payload);
 }
 
 export async function loadCfbPrior(env = {}, { fetchFn = fetch, now = Date.now() } = {}) {
@@ -419,58 +424,66 @@ export async function loadCfbPrior(env = {}, { fetchFn = fetch, now = Date.now()
   }
 
   let year = season;
-  let bundle = await fetchRatingsBundle(env, year, fetchFn);
-  if (ratingsCount(bundle.results) === 0 && !bundle.report.some((e) => e.status === 401)) {
+  let core = await fetchRatingsYear(env, year, fetchFn);
+  if ((core.sp.n || 0) + (core.fpi.n || 0) === 0 && core.sp.status !== 401 && core.fpi.status !== 401) {
     year = season - 1;
-    bundle = await fetchRatingsBundle(env, year, fetchFn);
+    core = await fetchRatingsYear(env, year, fetchFn);
   }
 
-  const unauthorized = bundle.report.some((e) => e.status === 401);
-  const allFailed = bundle.report.every((e) => !e.ok);
-  if (unauthorized || allFailed || ratingsCount(bundle.results) === 0) {
-    const status = unauthorized ? 401 : bundle.httpStatus || 0;
-    const meta = emptyFallbackMeta({
-      configured: true,
-      fallback: true,
-      httpStatus: status,
-      endpoints: bundle.report,
-      year,
-      asOf,
-      error: unauthorized ? "CFBD 401" : bundle.report.find((e) => !e.ok)?.status ? `CFBD ${status}` : "cfbd-empty",
-    });
-    await writeCache(cacheKey, { version: CFB_PRIOR_VERSION, catalog: PRIOR, meta }, env.caches, ERR_TTL_MS);
-    return { version: CFB_PRIOR_VERSION, catalog: PRIOR, meta };
+  const report = [...core.report];
+  const unauthorized = report.some((e) => e.status === 401);
+  if (unauthorized || (core.sp.n || 0) + (core.fpi.n || 0) === 0) {
+    const status = unauthorized ? 401 : core.sp.status || core.fpi.status || 0;
+    return fallbackPrior(
+      cacheKey,
+      env,
+      emptyFallbackMeta({
+        configured: true,
+        fallback: true,
+        httpStatus: status,
+        endpoints: report,
+        year,
+        asOf,
+        error: unauthorized ? "CFBD 401" : "cfbd-empty",
+      })
+    );
   }
 
-  const prevNames = (bundle.results.teams?.data || [])
-    .filter((t) => String(t.classification || "").toLowerCase() === "fbs")
-    .map((t) => t.school || t.team);
-  let prevFbs = [];
-  if (year === season) {
-    const prevTeams = await cfbdRequest(CFBD_BASE, "/teams", env, { query: { year: year - 1 }, fetchFn });
-    bundle.report.push({ path: "/teams", status: prevTeams.status, n: prevTeams.n || 0, ok: prevTeams.ok, note: "prev-year" });
-    prevFbs = (prevTeams.data || [])
-      .filter((t) => String(t.classification || "").toLowerCase() === "fbs")
-      .map((t) => t.school || t.team);
-  } else {
-    prevFbs = prevNames;
-  }
+  const extras = await Promise.all([
+    cfbdRequest(CFBD_BASE, "/ratings/srs/expanded", env, { query: { year }, fetchFn }),
+    cfbdRequest(CFBD_BASE, "/talent", env, { query: { year }, fetchFn }),
+    cfbdRequest(CFBD_BASE, "/player/returning", env, { query: { year }, fetchFn }),
+  ]);
+  const [srsExpanded, talent, returning] = extras;
+  report.push(
+    { path: "/ratings/srs/expanded", status: srsExpanded.status, n: srsExpanded.n || 0, ok: srsExpanded.ok },
+    { path: "/talent", status: talent.status, n: talent.n || 0, ok: talent.ok },
+    { path: "/player/returning", status: returning.status, n: returning.n || 0, ok: returning.ok }
+  );
 
-  const srs = [...(bundle.results.srs?.data || []), ...(bundle.results.srsExpanded?.data || [])];
+  const prevTeams = await fetchFbsTeams(env, year === season ? year - 1 : year, fetchFn);
+  report.push({ path: prevTeams.path || "/teams/fbs", status: prevTeams.status, n: prevTeams.n || 0, ok: prevTeams.ok, note: "prev-fbs" });
+
   const built = buildCfbdCatalog({
-    sp: bundle.results.sp?.data || [],
-    fpi: bundle.results.fpi?.data || [],
-    srs,
-    elo: bundle.results.elo?.data || [],
-    talent: bundle.results.talent?.data || [],
-    returning: bundle.results.returning?.data || [],
-    teams: bundle.results.teams?.data || [],
-    prevFbs,
+    sp: slimSp(core.sp.data || []),
+    fpi: slimNamed(core.fpi.data || [], ["fpi"]),
+    srs: slimNamed(srsExpanded.data || [], ["rating", "classification"]),
+    elo: [],
+    talent: slimNamed(talent.data || [], ["talent"]),
+    returning: slimNamed(returning.data || [], ["percentPPA", "usage"]),
+    teams: [],
+    prevFbs: (prevTeams.data || []).map((t) => t.school || t.team),
     year,
     asOf,
   });
   const catalog = mergePriorCatalog(built, PRIOR);
-  const used = ["sp", "fpi", "srs", "srsExpanded", "elo", "talent", "returning"].filter((k) => (bundle.results[k]?.n || 0) > 0);
+  const used = [
+    core.sp.n ? "sp" : null,
+    core.fpi.n ? "fpi" : null,
+    srsExpanded.n ? "srs" : null,
+    talent.n ? "talent" : null,
+    returning.n ? "returning" : null,
+  ].filter(Boolean);
   const meta = cfbdPublicMeta({
     configured: true,
     records: built.nTeams,
@@ -480,7 +493,7 @@ export async function loadCfbPrior(env = {}, { fetchFn = fetch, now = Date.now()
     source: `cfbd:${used.join("+")}`,
     fallback: built.nTeams <= 25,
     httpStatus: 200,
-    endpoints: bundle.report,
+    endpoints: report,
     unmatched: built.unmatched,
     fbs: built.fbs,
     fcs: built.fcs,
