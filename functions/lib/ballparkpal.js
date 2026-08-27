@@ -5,12 +5,13 @@ import { canonAbbr, resolveMlbCanon, sameMlbTeam } from "./mlbCanonical.js";
 
 const BASE = "https://www.ballparkpal.com/api/v1";
 const TTL_MS = 4 * 60 * 60 * 1000;
-const CACHE_VER = "bpp-v5";
+const CACHE_VER = "bpp-v6";
 const DH_WINDOW_MS = 6 * 60 * 60 * 1000;
 const DH_AMBIGUOUS_MS = 45 * 60 * 1000;
 const REQUEST_GAP_MS = 1100;
 const MAX_429_RETRIES = 2;
 let nextRequestAt = 0;
+let fetchQueue = Promise.resolve();
 const inFlight = new Map();
 
 function dateInZone(now, tz) {
@@ -134,10 +135,14 @@ function sleep(ms) {
 }
 
 async function throttledFetch(url, options) {
-  const wait = Math.max(0, nextRequestAt - Date.now());
-  if (wait) await sleep(wait);
-  nextRequestAt = Date.now() + REQUEST_GAP_MS;
-  return fetch(url, options);
+  const turn = fetchQueue.then(async () => {
+    const wait = Math.max(0, nextRequestAt - Date.now());
+    if (wait) await sleep(wait);
+    nextRequestAt = Date.now() + REQUEST_GAP_MS;
+    return fetch(url, options);
+  });
+  fetchQueue = turn.then(() => undefined, () => undefined);
+  return turn;
 }
 
 async function bppGet(path, apiKey) {
