@@ -1489,13 +1489,11 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         sportWrites = mergeWriteCounts(sportWrites, frozen.counts || emptyWriteCounts());
         if (frozen.failReasons?.length) sportFailReasons.push(...frozen.failReasons);
         n += slate.games?.length || 0;
-        pal = slate.pal?.match || slate.pal?.meta || pal;
-        if (sport === "mlb") {
-          const palMeta = slate.pal?.meta || {};
+        pal = slate.pal?.match || slate.pal?.meta || slate.pal || pal;
+        if (sport === "mlb" && !healthMode) {
+          const palMeta = slate.pal?.meta || slate.pal || {};
           const palMatch = slate.pal?.match || {};
-          const persisted = healthMode
-            ? 0
-            : (slate.games || []).filter((g) => g.bpp?.homeRuns != null || g.bpp?.awayRuns != null).length;
+          const persisted = (slate.games || []).filter((g) => g.bpp?.homeRuns != null || g.bpp?.awayRuns != null).length;
           if (palMeta.error || palMeta.reason === "upstream-error") {
             await setMeta(env, "last_pal_error", palMeta.error || palMeta.reason);
             await setMeta(env, "last_pal_http_status", String(palMeta.httpStatus || ""));
@@ -1530,7 +1528,11 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
             ...palMeta,
             ...palMatch,
             persisted,
-            unmatchedSample: (slate.pal?.unmatched || []).slice(0, 8),
+            unmatchedSample: Array.isArray(slate.pal?.unmatchedSample)
+              ? slate.pal.unmatchedSample.slice(0, 8)
+              : Array.isArray(slate.pal?.unmatched)
+                ? slate.pal.unmatched.slice(0, 8)
+                : [],
           };
         }
         days.push({ date: day, n: slate.games?.length || 0 });

@@ -214,7 +214,7 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, now = Date
         parlayNetwork += 1;
       }
       const recSlate = withRecs(slate, DEFAULT_WEIGHTS);
-      const palReason = sport === "mlb" ? palUnavailableReason(slate.pal?.meta || {}, null) : null;
+      const palReason = sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null;
       const rows = (recSlate.games || []).map((g) =>
         toBoardGame({ ...g, sport, palUnavailableReason: g.bpp ? g.palUnavailableReason : palReason }, sport, now)
       );
@@ -223,7 +223,7 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, now = Date
         n: rows.length,
         error: null,
         pal: slate.pal || null,
-        palReason: sport === "mlb" ? palUnavailableReason(slate.pal?.meta || {}, null) : null,
+        palReason: sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null,
         parlay: slate.parlay || null,
         cachedParlay: Boolean(slate.parlay?.cached || slate.parlay?.skipped),
       };

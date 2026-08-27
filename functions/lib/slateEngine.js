@@ -1,7 +1,7 @@
 /** Shared slate builder — used by Pages Functions and local Vite middleware. */
 
 import { BASEBALL, EXECUTION_BOOK, runLine } from "./books.js";
-import { fetchBallparkPal, mergeBallparkPal } from "./ballparkpal.js";
+import { fetchBallparkPal, mergeBallparkPal, palSlateView } from "./ballparkpal.js";
 import { fetchParlayOdds, mergeParlay } from "./parlay.js";
 import { fetchSavantSlate } from "./savant.js";
 import { MODEL_VERSION, pinMarkets, priceSelection, tagFromEv } from "./pricing.js";
@@ -967,7 +967,7 @@ export async function buildSlate(sport, date, env = {}) {
     generatedAt: new Date().toISOString(),
     counts: { games: games.length, live, final, upcoming },
     parlay: parlay.meta || { enabled: false },
-    pal: pal.meta || { enabled: false },
+    pal: palSlateView(pal),
     savant: savant.meta || { enabled: false },
     cfb: cfb.meta || { enabled: false },
     modelVersion: MODEL_VERSION,

@@ -642,6 +642,28 @@ export function matchBpp(game, bppGames) {
   return report.matched[0]?.pal || null;
 }
 
+/** Slate/TODAY/SYS view. Pal `meta.unmatched` is a count; sample arrays live on unmatchedSample. */
+export function palSlateView(pal) {
+  const meta = pal?.meta && typeof pal.meta === "object" ? pal.meta : pal || { enabled: false };
+  const unmatchedSample = Array.isArray(pal?.unmatched)
+    ? pal.unmatched.slice(0, 8)
+    : Array.isArray(pal?.unmatchedSample)
+      ? pal.unmatchedSample.slice(0, 8)
+      : [];
+  const ambiguousSample = Array.isArray(pal?.ambiguous)
+    ? pal.ambiguous.slice(0, 8)
+    : Array.isArray(pal?.ambiguousSample)
+      ? pal.ambiguousSample.slice(0, 8)
+      : [];
+  return {
+    ...meta,
+    meta,
+    match: pal?.match || null,
+    unmatchedSample,
+    ambiguousSample,
+  };
+}
+
 export function mergeBallparkPal(games, bpp) {
   const list = bpp?.games || [];
   const report = matchPalSlate(games, list);

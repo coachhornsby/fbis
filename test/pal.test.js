@@ -11,6 +11,7 @@ import {
   mergeBallparkPal,
   palQueryDates,
   palInstant,
+  palSlateView,
 } from "../functions/lib/ballparkpal.js";
 import { sameMlbTeam, canonAbbr, resolveMlbCanon } from "../functions/lib/mlbCanonical.js";
 import { freezeFromGame } from "../functions/lib/projLedger.js";
@@ -236,6 +237,37 @@ describe("Pal persist and source roles", () => {
     const games = mergeBallparkPal([mlbGame()], { games: [palRow()], meta: {} });
     assert.equal(games[0].bpp.homeRuns, 4.41);
     assert.equal(games[0].bpp.pHome, 0.58);
+  });
+
+  it("does not treat Pal unmatched count as an array", () => {
+    const bpp = { games: [palRow()], meta: { enabled: true, recordsReturned: 1, reason: null } };
+    mergeBallparkPal(
+      [
+        mlbGame(),
+        mlbGame({
+          id: "822694",
+          homeName: "Washington Nationals",
+          homeAbbr: "WSH",
+          homeId: 120,
+          awayName: "Colorado Rockies",
+          awayAbbr: "COL",
+          awayId: 115,
+        }),
+      ],
+      bpp
+    );
+    const view = palSlateView(bpp);
+    assert.equal(view.match.matched, 1);
+    assert.equal(view.match.unmatched, 1);
+    assert.equal(typeof view.unmatched, "number");
+    assert.equal(view.unmatched, 1);
+    assert.ok(Array.isArray(view.unmatchedSample));
+    const sample = Array.isArray(view.unmatchedSample) ? view.unmatchedSample.slice(0, 8) : [];
+    assert.equal(sample.length, 1);
+    assert.equal(sample[0].gameId, "822694");
+    const metaOnly = palSlateView({ enabled: true, unmatched: 21, recordsReturned: 0, reason: "no-records-returned" });
+    assert.equal(metaOnly.unmatched, 21);
+    assert.deepEqual(Array.isArray(metaOnly.unmatched) ? metaOnly.unmatched.slice(0, 8) : metaOnly.unmatchedSample, []);
   });
 });
 
