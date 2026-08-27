@@ -1,10 +1,34 @@
 /** Ballpark Pal — matchup data only. Never a sportsbook. Never a price. */
 
 import { readCache, writeCache } from "./cache.js";
+import { canonAbbr, resolveMlbCanon, sameMlbTeam } from "./mlbCanonical.js";
 
 const BASE = "https://www.ballparkpal.com/api/v1";
-const TTL_MS = 15 * 60 * 1000;
-const CACHE_VER = "bpp-v3";
+const TTL_MS = 4 * 60 * 60 * 1000;
+const CACHE_VER = "bpp-v4";
+const DH_WINDOW_MS = 6 * 60 * 60 * 1000;
+const DH_AMBIGUOUS_MS = 45 * 60 * 1000;
+
+function dateInZone(now, tz) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now instanceof Date ? now : new Date(now));
+}
+
+export function palDateET(now = new Date()) {
+  return dateInZone(now, "America/New_York");
+}
+
+export function palQueryDates(slateDate, now = new Date()) {
+  const ctToday = dateInZone(now, "America/Chicago");
+  const etToday = palDateET(now);
+  const dates = [slateDate].filter(Boolean);
+  if (slateDate === ctToday && etToday !== ctToday) dates.push(etToday);
+  return [...new Set(dates)];
+}
 
 /** Pal wraps lists as `{ meta, data: { items } }`. Returning `data` itself dropped every game. */
 export function unwrapPalResponse(json) {
@@ -17,9 +41,31 @@ export function unwrapPalResponse(json) {
   return { data: json, meta };
 }
 
+export function palErrorFromBody(json, httpStatus) {
+  if (httpStatus && Number(httpStatus) >= 400) {
+    const msg = json?.error?.message || json?.error?.code || json?.error || `HTTP ${httpStatus}`;
+    return { code: json?.error?.code || String(httpStatus), message: String(msg), httpStatus: Number(httpStatus) };
+  }
+  if (json?.error) {
+    const msg = json.error.message || json.error.code || json.error;
+    return { code: json.error.code || "pal-error", message: String(msg), httpStatus: httpStatus || 200 };
+  }
+  return null;
+}
+
 function attachMeta(data, meta) {
   if (data && typeof data === "object") data._meta = meta;
   return data;
+}
+
+function asList(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.items)) return raw.items;
+  if (Array.isArray(raw?.games)) return raw.games;
+  if (Array.isArray(raw?.parkFactors)) return raw.parkFactors;
+  if (Array.isArray(raw?.matchups)) return raw.matchups;
+  if (Array.isArray(raw?.teams)) return raw.teams;
+  return [];
 }
 
 function num(v) {
@@ -32,32 +78,23 @@ function lastName(name) {
   return parts[parts.length - 1] || "";
 }
 
-const MLB_ABBR_ALIAS = {
-  WSH: "WAS",
-  WAS: "WSH",
-  WSN: "WSH",
-  CWS: "CHW",
-  CHW: "CWS",
-  ATH: "OAK",
-  OAK: "ATH",
-  AZ: "ARI",
-  ARI: "AZ",
-  TB: "TBR",
-  TBR: "TB",
-  SF: "SFG",
-  SFG: "SF",
-  SD: "SDP",
-  SDP: "SD",
-  KC: "KCR",
-  KCR: "KC",
-};
-
 export function sameAbv(a, b) {
-  const x = String(a || "").toUpperCase();
-  const y = String(b || "").toUpperCase();
-  if (!x || !y) return false;
-  if (x === y) return true;
-  return MLB_ABBR_ALIAS[x] === y || MLB_ABBR_ALIAS[y] === x;
+  return sameMlbTeam(a, b);
+}
+
+export function palInstant(row) {
+  if (!row) return null;
+  const utc = row.gameTimeUTC || row.start || row.gameTimeIso;
+  if (utc) {
+    const t = Date.parse(utc);
+    if (Number.isFinite(t)) return t;
+  }
+  const full = row.gameTimeFull;
+  if (full && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(String(full))) {
+    const t = Date.parse(`${String(full).replace(" ", "T")}-04:00`);
+    if (Number.isFinite(t)) return t;
+  }
+  return null;
 }
 
 async function bppGet(path, apiKey) {
@@ -75,9 +112,12 @@ async function bppGet(path, apiKey) {
   } catch {
     json = null;
   }
+  const palErr = palErrorFromBody(json, res.status);
+  if (palErr) {
+    throw new Error(`Ballpark Pal ${palErr.httpStatus}: ${palErr.message}`);
+  }
   if (!res.ok) {
-    const msg = json?.error?.message || json?.error?.code || text.slice(0, 180);
-    throw new Error(`Ballpark Pal ${res.status}: ${msg}`);
+    throw new Error(`Ballpark Pal ${res.status}: ${text.slice(0, 180)}`);
   }
   const { data, meta } = unwrapPalResponse(json);
   return attachMeta(data, meta);
@@ -128,13 +168,13 @@ function summarizeMatchups(rows) {
 function compactPalMarkets(items, homeId, awayId) {
   const list = Array.isArray(items) ? items : [];
   if (!list.length) return null;
-  const mkt = (row) => String(row?.marketId || row?.market || row?.mkt || "");
-  const teamOf = (row) => Number(row?.teamId ?? row?.team_id);
+  const mkt = (row) => String(row?.marketId || row?.marketKey || row?.market || row?.mkt || "");
+  const teamOf = (row) => Number(row?.teamId ?? row?.team_id ?? row?.subject?.id);
   const sideOf = (row) => String(row?.side || "").toLowerCase();
   const lineOf = (row) => Number(row?.line);
   const pOf = (row) => num(row?.probability ?? row?.p);
   const hasTeam = (row) => {
-    const tid = row?.teamId ?? row?.team_id;
+    const tid = row?.teamId ?? row?.team_id ?? (row?.subject?.type === "team" ? row?.subject?.id : null);
     return tid != null && tid !== "" && Number(tid) > 0;
   };
   const mlHome = list.find((r) => mkt(r).includes("mkt_1") && teamOf(r) === Number(homeId) && sideOf(r) === "over" && lineOf(r) === 0.5);
@@ -181,7 +221,7 @@ function pickSide(list, sp, teamAbv) {
     const hit = list.find((p) => lastName(p.pitcherName) === lastName(sp.name));
     if (hit) return hit;
   }
-  return list.find((p) => sameAbv(p.pitcherTeam, teamAbv)) || null;
+  return list.find((p) => sameMlbTeam({ abbr: p.pitcherTeam }, { abbr: teamAbv })) || null;
 }
 
 function matchupForm(homeMu, awayMu) {
@@ -191,8 +231,8 @@ function matchupForm(homeMu, awayMu) {
 }
 
 function packGame(bppGame, averages, park, matchupRows, teamsById) {
-  const homeId = Number(bppGame.teamHomeId);
-  const awayId = Number(bppGame.teamAwayId);
+  const homeId = Number(bppGame.teamHomeId ?? bppGame.homeId);
+  const awayId = Number(bppGame.teamAwayId ?? bppGame.awayId);
   const homeTeam = teamsById.get(homeId);
   const awayTeam = teamsById.get(awayId);
   const teamRows = averages?.teams || [];
@@ -201,8 +241,14 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
   const pitchers = (averages?.pitchers || []).filter((p) => p.isStarter);
   const homeSp = pitchers.find((p) => Number(p.teamId) === homeId) || null;
   const awaySp = pitchers.find((p) => Number(p.teamId) === awayId) || null;
-  const homeAbv = homeTeam?.abv || homeT?.team || "";
-  const awayAbv = awayTeam?.abv || awayT?.team || "";
+  const homeAbv =
+    canonAbbr(homeTeam?.abv || park?.teamHome || homeT?.team) ||
+    resolveMlbCanon({ mlbId: homeId, abbr: homeTeam?.abv, name: homeTeam?.nickname }) ||
+    "";
+  const awayAbv =
+    canonAbbr(awayTeam?.abv || park?.teamAway || awayT?.team) ||
+    resolveMlbCanon({ mlbId: awayId, abbr: awayTeam?.abv, name: awayTeam?.nickname }) ||
+    "";
 
   const packedSp = (sp) =>
     sp
@@ -227,16 +273,23 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
   const homeRuns = num(homeT?.runs);
   const awayRuns = num(awayT?.runs);
   const markets = averages?.markets || compactPalMarkets(averages?.probabilities, homeId, awayId);
-  const asOf = averages?._meta?.asOf || averages?.asOf || null;
-  const requestId = averages?._meta?.requestId || averages?.requestId || null;
+  const asOf = averages?._meta?.asOf || averages?.asOf || bppGame.asOf || null;
+  const requestId = averages?._meta?.requestId || averages?.requestId || bppGame.requestId || null;
+  const startMs = palInstant(bppGame);
+  const start = startMs != null ? new Date(startMs).toISOString() : bppGame.gameTimeUTC || null;
 
   return {
     bppId: bppGame.gameId,
+    gamePk: bppGame.gameId,
     homeId,
     awayId,
     homeAbv,
     awayAbv,
-    lineupsOfficial: Boolean(averages?.lineupsOfficial),
+    homeCanon: resolveMlbCanon({ mlbId: homeId, abbr: homeAbv, name: homeTeam?.nickname || homeTeam?.city }),
+    awayCanon: resolveMlbCanon({ mlbId: awayId, abbr: awayAbv, name: awayTeam?.nickname || awayTeam?.city }),
+    start,
+    gameDate: bppGame.gameDate || null,
+    lineupsOfficial: Boolean(averages?.lineupsOfficial ?? bppGame.lineupsOfficial),
     asOf,
     requestId,
     homeRuns,
@@ -246,6 +299,7 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
     totals: markets?.totals || null,
     runLine: markets?.runLine || null,
     matchupForm: form,
+    usable: Boolean(homeAbv && awayAbv),
     f5: {
       homeRuns: homeF5Runs,
       awayRuns: awayF5Runs,
@@ -273,29 +327,102 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
   };
 }
 
+function emptyPalMeta(extra = {}) {
+  return {
+    enabled: true,
+    cached: false,
+    recordsReturned: 0,
+    usable: 0,
+    games: 0,
+    matchups: 0,
+    asOf: null,
+    requestId: null,
+    httpStatus: extra.httpStatus || null,
+    stage: extra.stage || null,
+    reason: extra.reason || null,
+    error: extra.error || null,
+    dates: extra.dates || [],
+    ...extra,
+  };
+}
+
+async function fetchPalDate(date, apiKey) {
+  const [gamesRaw, parkRaw, matchRaw, teamsRaw] = await Promise.all([
+    bppGet(`/games?date=${date}`, apiKey),
+    bppGet(`/parkfactors?date=${date}`, apiKey).catch(() => []),
+    bppGet(`/matchups?date=${date}&starters=true&parkAdjusted=true`, apiKey).catch(() => []),
+    bppGet("/teams", apiKey).catch(() => []),
+  ]);
+  return { gamesRaw, parkRaw, matchRaw, teamsRaw };
+}
+
 export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
   if (!apiKey) {
-    return { games: [], meta: { enabled: false, reason: "no-api-key" } };
+    return { games: [], meta: emptyPalMeta({ enabled: false, reason: "no-api-key", stage: "credential" }) };
   }
-  const cacheKey = `${CACHE_VER}:${date}`;
+  const dates = palQueryDates(date);
+  const cacheKey = `${CACHE_VER}:${dates.join(",")}`;
   const cached = await readCache(cacheKey, cfCache, TTL_MS);
-  if (cached) return { ...cached, meta: { ...cached.meta, cached: true } };
+  if (cached) return { ...cached, meta: { ...cached.meta, cached: true, cacheAgeMs: Date.now() - (cached.meta?.cachedAtMs || Date.now()) } };
   if (opts.cacheOnly) {
-    return { games: [], meta: { enabled: true, cached: false, skipped: true, reason: "cache-only" } };
+    return {
+      games: [],
+      meta: emptyPalMeta({
+        enabled: true,
+        cached: false,
+        skipped: true,
+        reason: "cache-only",
+        stage: "request",
+        dates,
+      }),
+    };
   }
 
   try {
-    const [gamesRaw, parkRaw, matchRaw, teamsRaw] = await Promise.all([
-      bppGet(`/games?date=${date}`, apiKey),
-      bppGet(`/parkfactors?date=${date}`, apiKey).catch(() => []),
-      bppGet(`/matchups?date=${date}&starters=true&parkAdjusted=true`, apiKey).catch(() => []),
-      bppGet("/teams", apiKey).catch(() => []),
-    ]);
-    const games = Array.isArray(gamesRaw) ? gamesRaw : gamesRaw?.games || gamesRaw?.items || [];
-    const parks = Array.isArray(parkRaw) ? parkRaw : parkRaw?.parkFactors || [];
-    const matchups = Array.isArray(matchRaw) ? matchRaw : matchRaw?.matchups || [];
-    const teams = Array.isArray(teamsRaw) ? teamsRaw : teamsRaw?.teams || [];
-    const slateAsOf = gamesRaw?._meta?.asOf || null;
+    const batches = [];
+    const errors = [];
+    for (const day of dates) {
+      try {
+        batches.push(await fetchPalDate(day, apiKey));
+      } catch (err) {
+        errors.push(`${day}: ${err.message || err}`);
+      }
+    }
+    if (!batches.length) {
+      return {
+        games: [],
+        meta: emptyPalMeta({
+          enabled: true,
+          error: errors[0] || "Pal request failed",
+          reason: "upstream-error",
+          stage: "http",
+          dates,
+          errors: errors.slice(0, 3),
+        }),
+      };
+    }
+
+    const gamesById = new Map();
+    const parks = [];
+    const matchups = [];
+    let teams = [];
+    let slateAsOf = null;
+    let slateRequestId = null;
+    for (const batch of batches) {
+      const games = asList(batch.gamesRaw);
+      slateAsOf = slateAsOf || batch.gamesRaw?._meta?.asOf || null;
+      slateRequestId = slateRequestId || batch.gamesRaw?._meta?.requestId || null;
+      for (const g of games) {
+        if (g?.gameId == null) continue;
+        gamesById.set(Number(g.gameId), g);
+      }
+      parks.push(...asList(batch.parkRaw));
+      matchups.push(...asList(batch.matchRaw));
+      const t = asList(batch.teamsRaw);
+      if (t.length) teams = t;
+    }
+
+    const gameList = [...gamesById.values()];
     const teamsById = indexTeams(teams);
     const parkByGame = new Map(parks.map((p) => [Number(p.gameId), p]));
     const muByGame = new Map();
@@ -306,10 +433,10 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
     }
 
     const packed = [];
-    const errors = [];
+    const avgErrors = [];
     const chunk = 5;
-    for (let i = 0; i < games.length; i += chunk) {
-      const slice = games.slice(i, i + chunk);
+    for (let i = 0; i < gameList.length; i += chunk) {
+      const slice = gameList.slice(i, i + chunk);
       const avgs = await Promise.all(
         slice.map((g) =>
           Promise.all([
@@ -325,18 +452,18 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
       slice.forEach((g, idx) => {
         const { avg, probs } = avgs[idx];
         const data = avg.ok ? avg.data || {} : {};
-        if (!avg.ok) errors.push(avg.error);
+        if (!avg.ok) avgErrors.push(avg.error);
         packed.push(
           packGame(
-            g,
+            { ...g, asOf: slateAsOf, requestId: slateRequestId },
             {
-              teams: data.teams || [],
-              pitchers: data.pitchers || [],
-              lineupsOfficial: data.lineupsOfficial,
-              asOf: data._meta?.asOf || data.asOf,
-              requestId: data._meta?.requestId || data.requestId,
+              teams: asList(data.teams) || data.teams || [],
+              pitchers: asList(data.pitchers) || data.pitchers || [],
+              lineupsOfficial: data.lineupsOfficial ?? data._meta?.lineupsOfficial,
+              asOf: data._meta?.asOf || data.asOf || slateAsOf,
+              requestId: data._meta?.requestId || data.requestId || slateRequestId,
               _meta: data._meta,
-              probabilities: Array.isArray(probs) ? probs : probs?.items || [],
+              probabilities: asList(probs),
             },
             parkByGame.get(Number(g.gameId)),
             muByGame.get(Number(g.gameId)) || [],
@@ -346,16 +473,24 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
       });
     }
 
+    const usable = packed.filter((g) => g.homeCanon && g.awayCanon);
     const payload = {
       games: packed,
       meta: {
         enabled: true,
         cached: false,
+        cachedAtMs: Date.now(),
+        stage: "records",
+        recordsReturned: packed.length,
+        usable: usable.length,
         games: packed.length,
         matchups: matchups.length,
         asOf: slateAsOf,
-        requestId: gamesRaw?._meta?.requestId || null,
-        errors: errors.slice(0, 3),
+        requestId: slateRequestId,
+        dates,
+        httpStatus: 200,
+        reason: packed.length ? null : "no-records-returned",
+        errors: [...errors, ...avgErrors].filter(Boolean).slice(0, 3),
       },
     };
     await writeCache(cacheKey, payload, cfCache, TTL_MS);
@@ -363,35 +498,175 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
   } catch (err) {
     return {
       games: [],
-      meta: { enabled: true, error: String(err.message || err), cached: false },
+      meta: emptyPalMeta({
+        enabled: true,
+        error: String(err.message || err),
+        reason: "upstream-error",
+        stage: "http",
+        dates,
+      }),
     };
   }
 }
 
-export function matchBpp(game, bppGames) {
-  const hid = Number(game.home?.mlbId);
-  const aid = Number(game.away?.mlbId);
-  if (hid && aid) {
-    const hit = (bppGames || []).find((b) => Number(b.homeId) === hid && Number(b.awayId) === aid);
-    if (hit) return hit;
-  }
-  const byAbbr = (bppGames || []).find(
-    (b) => sameAbv(b.homeAbv, game.home?.abbr) && sameAbv(b.awayAbv, game.away?.abbr)
-  );
-  if (byAbbr) return byAbbr;
+function teamPairKey(homeCanon, awayCanon) {
+  return `${awayCanon}@${homeCanon}`;
+}
+
+function fbisCanon(game) {
+  return {
+    home: resolveMlbCanon(game.home || {}),
+    away: resolveMlbCanon(game.away || {}),
+  };
+}
+
+function nearestCandidate(game, bppGames) {
   const start = Date.parse(game.start || "");
-  if (!Number.isFinite(start)) return null;
-  return (bppGames || []).find((b) => {
-    const t = Date.parse(b.start || b.gameTime || "");
-    if (!Number.isFinite(t)) return false;
-    return Math.abs(t - start) <= 3 * 60 * 60 * 1000 && (sameAbv(b.homeAbv, game.home?.abbr) || sameAbv(b.awayAbv, game.away?.abbr));
-  }) || null;
+  let best = null;
+  let bestDt = Infinity;
+  for (const b of bppGames || []) {
+    const t = palInstant(b);
+    const dt = Number.isFinite(start) && t != null ? Math.abs(t - start) : Infinity;
+    if (dt < bestDt) {
+      bestDt = dt;
+      best = b;
+    }
+  }
+  return { pal: best, dtMs: Number.isFinite(bestDt) ? bestDt : null };
+}
+
+/**
+ * Both teams required. GamePk is preferred. Pitchers optional.
+ * Doubleheaders use start instants — never an unrestricted window.
+ */
+export function matchPalSlate(games, bppGames) {
+  const pal = bppGames || [];
+  const used = new Set();
+  const matched = [];
+  const unmatched = [];
+  const ambiguous = [];
+
+  for (const g of games || []) {
+    const { home, away } = fbisCanon(g);
+    const pk = Number(g.id);
+    const start = Date.parse(g.start || "");
+    const byPk = Number.isFinite(pk)
+      ? pal.filter((b) => Number(b.bppId ?? b.gamePk ?? b.gameId) === pk)
+      : [];
+    let chosen = null;
+    let reason = null;
+
+    if (byPk.length === 1) {
+      chosen = byPk[0];
+    } else if (byPk.length > 1) {
+      reason = "ambiguous";
+      ambiguous.push({ gameId: g.id, reason, palIds: byPk.map((b) => b.bppId) });
+    } else if (!home || !away) {
+      reason = "team-mismatch";
+    } else {
+      const both = pal.filter((b) => b.homeCanon === home && b.awayCanon === away && !used.has(b.bppId));
+      if (!both.length) {
+        const flipped = pal.filter((b) => b.homeCanon === away && b.awayCanon === home && !used.has(b.bppId));
+        if (flipped.length) reason = "home-away-orientation";
+        else reason = "team-mismatch";
+      } else if (both.length === 1 && !Number.isFinite(start)) {
+        chosen = both[0];
+      } else {
+        const timed = both
+          .map((b) => ({ b, t: palInstant(b) }))
+          .filter((x) => x.t != null && Number.isFinite(start))
+          .map((x) => ({ ...x, dt: Math.abs(x.t - start) }))
+          .filter((x) => x.dt <= DH_WINDOW_MS)
+          .sort((a, b) => a.dt - b.dt);
+        if (!timed.length && both.length === 1) {
+          chosen = both[0];
+        } else if (!timed.length) {
+          reason = both.length > 1 ? "ambiguous" : "date-mismatch";
+          if (both.length > 1) ambiguous.push({ gameId: g.id, reason: "doubleheader-no-time", palIds: both.map((b) => b.bppId) });
+        } else if (timed.length > 1 && Math.abs(timed[0].dt - timed[1].dt) < DH_AMBIGUOUS_MS && timed[0].dt > 20 * 60 * 1000) {
+          reason = "ambiguous";
+          ambiguous.push({ gameId: g.id, reason: "doubleheader", palIds: timed.map((x) => x.b.bppId) });
+        } else {
+          chosen = timed[0].b;
+        }
+      }
+    }
+
+    if (chosen && used.has(chosen.bppId) && Number(chosen.bppId) !== pk) {
+      reason = "ambiguous";
+      chosen = null;
+      ambiguous.push({ gameId: g.id, reason: "pal-row-already-used", palIds: [chosen?.bppId] });
+    }
+
+    if (chosen) {
+      used.add(chosen.bppId);
+      matched.push({ game: g, pal: chosen });
+    } else {
+      const near = nearestCandidate(g, pal);
+      unmatched.push({
+        gameId: g.id,
+        palAway: near.pal?.awayAbv || null,
+        palHome: near.pal?.homeAbv || null,
+        fbisAway: g.away?.abbr || null,
+        fbisHome: g.home?.abbr || null,
+        palAwayCanon: near.pal?.awayCanon || null,
+        palHomeCanon: near.pal?.homeCanon || null,
+        fbisAwayCanon: away,
+        fbisHomeCanon: home,
+        teamMatch: home && away && near.pal ? near.pal.homeCanon === home && near.pal.awayCanon === away : false,
+        dateDiff: near.pal?.gameDate && g.start ? `${near.pal.gameDate} vs ${String(g.start).slice(0, 10)}` : null,
+        timeDiffMs: near.dtMs,
+        reason: reason || "team-mismatch",
+      });
+    }
+  }
+
+  return {
+    matched,
+    unmatched,
+    ambiguous,
+    summary: {
+      mlbGames: (games || []).length,
+      palRecords: pal.length,
+      palUsable: pal.filter((b) => b.homeCanon && b.awayCanon).length,
+      matched: matched.length,
+      unmatched: unmatched.length,
+      ambiguous: ambiguous.length,
+    },
+  };
+}
+
+export function matchBpp(game, bppGames) {
+  const report = matchPalSlate([game], bppGames);
+  if (report.ambiguous.length) return null;
+  return report.matched[0]?.pal || null;
 }
 
 export function mergeBallparkPal(games, bpp) {
   const list = bpp?.games || [];
+  const report = matchPalSlate(games, list);
+  const byGame = new Map(report.matched.map((m) => [String(m.game.id), m.pal]));
+  if (bpp && typeof bpp === "object") {
+    bpp.match = report.summary;
+    bpp.unmatched = report.unmatched.slice(0, 24);
+    bpp.ambiguous = report.ambiguous.slice(0, 12);
+    if (bpp.meta) {
+      bpp.meta.matched = report.summary.matched;
+      bpp.meta.unmatched = report.summary.unmatched;
+      bpp.meta.ambiguous = report.summary.ambiguous;
+      bpp.meta.mlbGames = report.summary.mlbGames;
+      bpp.meta.recordsReturned = report.summary.palRecords;
+      bpp.meta.usable = report.summary.palUsable;
+      if (!report.summary.matched && bpp.meta.reason == null) {
+        if (bpp.meta.skipped) bpp.meta.reason = "cache-only";
+        else if (bpp.meta.error) bpp.meta.reason = "upstream-error";
+        else if (!report.summary.palRecords) bpp.meta.reason = bpp.meta.reason || "no-records-returned";
+        else bpp.meta.reason = "team-mismatch";
+      }
+    }
+  }
   return games.map((g) => {
-    const hit = matchBpp(g, list);
+    const hit = byGame.get(String(g.id));
     if (!hit) return g;
     const homeSp = g.homeSp?.name ? g.homeSp : hit.homeSp;
     const awaySp = g.awaySp?.name ? g.awaySp : hit.awaySp;
@@ -400,7 +675,20 @@ export function mergeBallparkPal(games, bpp) {
       bpp: hit,
       homeSp,
       awaySp,
-      park: hit.park,
+      palUnavailableReason: null,
     };
   });
+}
+
+export function palUnavailableReason(meta = {}, game = null) {
+  if (game?.bpp?.homeRuns != null && game?.bpp?.awayRuns != null) return null;
+  if (game?.bpp && (game.bpp.homeRuns == null || game.bpp.awayRuns == null)) return "projection-fields-missing";
+  if (meta.enabled === false || meta.reason === "no-api-key") return "credential-missing";
+  if (meta.error || meta.reason === "upstream-error") return "upstream-error";
+  if (meta.reason === "cache-only" || meta.skipped) return "cache-only";
+  if (meta.reason === "no-records-returned" || (meta.recordsReturned === 0 && !meta.skipped)) return "no-records-returned";
+  if (meta.reason === "date-mismatch") return "date-mismatch";
+  if (meta.reason === "ambiguous" || (meta.ambiguous || 0) > 0 && !(meta.matched || 0)) return "ambiguous-match";
+  if (meta.reason === "team-mismatch" || (meta.unmatched || 0) > 0) return "team-mismatch";
+  return meta.reason || "unavailable";
 }

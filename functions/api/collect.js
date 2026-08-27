@@ -1,6 +1,7 @@
 import { collectBoards } from "../lib/projLedger.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
-import { httpStatusForJob } from "../lib/jobs.js";
+import { httpStatusForJob, parseJobTrigger, parseJobMode } from "../lib/jobs.js";
+import { setMeta } from "../lib/store.js";
 
 /** Pregame collection. Builds every board and freezes checkpoints. Does not require the browser. */
 export async function onRequestGet(context) {
@@ -16,7 +17,14 @@ export async function onRequestGet(context) {
   const sport = url.searchParams.get("sport") || "all";
   const dayOffsetRaw = url.searchParams.get("dayOffset");
   const dayOffset = dayOffsetRaw == null || dayOffsetRaw === "" ? null : Number(dayOffsetRaw);
+  const trigger = parseJobTrigger(context.request);
+  const mode = parseJobMode(context.request);
+  const runUrl = url.searchParams.get("runUrl") || "";
   try {
+    if (trigger === "schedule") {
+      await setMeta(context.env, "last_scheduled_event_type", "schedule");
+      if (runUrl) await setMeta(context.env, "last_scheduled_run_url", runUrl);
+    }
     const payload = await collectBoards(
       {
         PARLAY_API_KEY: context.env.PARLAY_API_KEY,
@@ -25,7 +33,7 @@ export async function onRequestGet(context) {
         DB: context.env.DB,
         CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
       },
-      { odds, trigger: "http", sport, dayOffset }
+      { odds: mode === "health" ? "cache" : odds, trigger, sport, dayOffset, mode }
     );
     return new Response(JSON.stringify(payload), {
       status: httpStatusForJob(payload.status),

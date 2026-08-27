@@ -137,11 +137,13 @@ export function toBoardGame(game, sport, now = Date.now()) {
     palF5Away: game.bpp?.f5?.awayRuns ?? null,
     palAsOf: game.bpp?.asOf ?? null,
     palRequestId: game.bpp?.requestId ?? null,
-    palUnavailableReason: game.bpp
-      ? game.bpp.homeRuns == null || game.bpp.awayRuns == null
-        ? "projection-fields-missing"
-        : null
-      : palUnavailableReason({ reason: "team-mismatch" }, game),
+    palUnavailableReason: game.palUnavailableReason
+      ? game.palUnavailableReason
+      : game.bpp
+        ? game.bpp.homeRuns == null || game.bpp.awayRuns == null
+          ? "projection-fields-missing"
+          : null
+        : palUnavailableReason({ reason: "team-mismatch" }, game),
     live: status === "live" || status === "halftime",
     final: status === "final",
   };
@@ -212,7 +214,10 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, now = Date
         parlayNetwork += 1;
       }
       const recSlate = withRecs(slate, DEFAULT_WEIGHTS);
-      const rows = (recSlate.games || []).map((g) => toBoardGame({ ...g, sport }, sport, now));
+      const palReason = sport === "mlb" ? palUnavailableReason(slate.pal?.meta || {}, null) : null;
+      const rows = (recSlate.games || []).map((g) =>
+        toBoardGame({ ...g, sport, palUnavailableReason: g.bpp ? g.palUnavailableReason : palReason }, sport, now)
+      );
       feeds[sport] = {
         ok: true,
         n: rows.length,

@@ -10,6 +10,8 @@ on:
   schedule:
     - cron: "0 0,2,13,16,18,20,22 * * *"
     - cron: "20 11 * * *"
+    # DIAGNOSTIC_SCHEDULE — temporary cache-only health. Remove after first event=schedule proof.
+    - cron: "7,37 * * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -35,14 +37,25 @@ jobs:
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           JOB_INPUT: ${{ github.event.inputs.job }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           BASE="https://fbis-myz.pages.dev"
           HOUR=$(date -u +%H)
           MIN=$(date -u +%M)
           JOB="${JOB_INPUT:-}"
+          TRIGGER="http"
+          if [ "${EVENT_NAME}" = "schedule" ]; then
+            TRIGGER="schedule"
+          elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            TRIGGER="workflow_dispatch"
+          fi
+          RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
           if [ -z "$JOB" ]; then
-            if [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then
+            if [ "${EVENT_NAME}" = "schedule" ] && { [ "$MIN" = "07" ] || [ "$MIN" = "37" ]; }; then
+              JOB="health"
+            elif [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then
               JOB="harvest"
             elif [ "$HOUR" = "13" ] || [ "$HOUR" = "16" ]; then
               JOB="collect-full"
@@ -50,7 +63,7 @@ jobs:
               JOB="collect-cache"
             fi
           fi
-          echo "job=$JOB utc=${HOUR}:${MIN}"
+          echo "job=$JOB utc=${HOUR}:${MIN} event=${EVENT_NAME} trigger=${TRIGGER}"
 
           call_api() {
             local path="$1"
@@ -64,7 +77,7 @@ jobs:
                 -H "x-harvest-secret: ${HARVEST_SECRET}" \
                 -H "accept: application/json" \
                 -o "$tmp" -w "%{http_code}" \
-                "${BASE}${path}" > "${tmp}.code"
+                "${BASE}${path}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}" > "${tmp}.code"
               local curl_ec=$?
               set -e
               if [ "$curl_ec" -eq 0 ]; then
@@ -91,6 +104,7 @@ jobs:
               ok: .ok,
               job: .job,
               status: .status,
+              trigger_type: .trigger_type,
               games_discovered: .games_discovered,
               snapshots_inserted: .snapshots_inserted,
               snapshots_already_present: .snapshots_already_present,
@@ -153,6 +167,10 @@ jobs:
             collect-full) run_collect full ;;
             collect-cache) run_collect cache ;;
             harvest) run_harvest ;;
+            health)
+              echo "diagnostic health cache-only (no Pal/Parlay network, no snapshot writes)"
+              call_api "/api/collect?odds=cache&sport=mlb&dayOffset=0&mode=health"
+              ;;
             all)
               run_collect full
               run_harvest

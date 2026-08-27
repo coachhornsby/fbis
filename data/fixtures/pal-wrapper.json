@@ -1,0 +1,63 @@
+{
+  "meta": {
+    "asOf": "2026-08-27T15:00:00+00:00",
+    "requestId": "fixture-pal-request-id"
+  },
+  "data": {
+    "items": [
+      {
+        "gameId": 823503,
+        "gameDate": "2026-08-27",
+        "gameTime": "19:05",
+        "gameTimeFull": "2026-08-27 19:05",
+        "gameTimeUTC": "2026-08-27T23:05:00Z",
+        "teamAwayId": 117,
+        "teamHomeId": 147,
+        "venueId": 3313,
+        "lineupsOfficial": false
+      }
+    ]
+  },
+  "teams": {
+    "meta": {
+      "asOf": "2026-08-27T15:00:00+00:00",
+      "requestId": "fixture-pal-teams-id"
+    },
+    "data": {
+      "items": [
+        { "teamId": 117, "abv": "HOU", "city": "Houston", "nickname": "Astros" },
+        { "teamId": 147, "abv": "NYY", "city": "New York", "nickname": "Yankees" },
+        { "teamId": 121, "abv": "NYM", "city": "New York", "nickname": "Mets" },
+        { "teamId": 119, "abv": "LAD", "city": "Los Angeles", "nickname": "Dodgers" },
+        { "teamId": 108, "abv": "LAA", "city": "Los Angeles", "nickname": "Angels" },
+        { "teamId": 112, "abv": "CHC", "city": "Chicago", "nickname": "Cubs" },
+        { "teamId": 145, "abv": "CWS", "city": "Chicago", "nickname": "White Sox" },
+        { "teamId": 133, "abv": "ATH", "city": "Athletics", "nickname": "Athletics" },
+        { "teamId": 120, "abv": "WSH", "city": "Washington", "nickname": "Nationals" },
+        { "teamId": 109, "abv": "AZ", "city": "Arizona", "nickname": "Diamondbacks" }
+      ]
+    }
+  },
+  "averages": {
+    "meta": {
+      "asOf": "2026-08-27T15:00:00+00:00",
+      "requestId": "fixture-pal-avg-id",
+      "lineupsOfficial": false
+    },
+    "data": {
+      "gameId": 823503,
+      "batters": [],
+      "pitchers": [],
+      "teams": [
+        { "teamId": 147, "team": "NYY", "runs": 4.41, "runsFirstFive": 2.12, "winFirstFiveProbability": 0.48 },
+        { "teamId": 117, "team": "HOU", "runs": 3.62, "runsFirstFive": 1.88, "winFirstFiveProbability": 0.41 }
+      ]
+    }
+  },
+  "error": {
+    "error": {
+      "code": "date_out_of_range",
+      "message": "Dates before today (US Eastern) are not available."
+    }
+  }
+}

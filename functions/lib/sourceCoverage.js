@@ -35,6 +35,8 @@ export function sourceCoverage(rows, { scheduled = null } = {}) {
     pinTotal: pinTotal.length,
     palMatched: palMatched.length,
     palUnmatched: Math.max(0, games.length - palMatched.length),
+    palProjected: palMatched.length,
+    palGraded: palMatched.filter((r) => r.actualHome != null && r.actualAway != null).length,
     finalsGraded: graded.length,
     missingPinTotal: projected.length - pinTotal.filter((r) => r.projHome != null).length,
     missingPinSpread: projected.length - pinSpread.filter((r) => r.projHome != null).length,
@@ -43,17 +45,25 @@ export function sourceCoverage(rows, { scheduled = null } = {}) {
 
 export function palHealth(rows, meta = {}) {
   const games = distinct(rows, gameKey);
-  const matched = games.filter((r) => r.palHome != null || r.palAway != null);
+  const projected = games.filter((r) => r.palHome != null && r.palAway != null);
+  const graded = projected.filter((r) => r.actualHome != null && r.actualAway != null);
   const n = games.length;
   return {
-    matchedN: matched.length,
-    unmatchedN: Math.max(0, n - matched.length),
+    matchedN: projected.length,
+    unmatchedN: Math.max(0, n - projected.length),
+    projectedN: projected.length,
+    gradedN: graded.length,
     lastSuccess: meta.lastSuccess || meta.asOf || null,
     error: meta.error || null,
     enabled: meta.enabled !== false,
     requestId: meta.requestId || null,
     asOf: meta.asOf || null,
-    unavailable: matched.length === 0,
-    message: matched.length === 0 ? "N=0 — unavailable" : null,
+    unavailable: projected.length === 0,
+    message:
+      projected.length === 0
+        ? "N=0 — unavailable"
+        : graded.length === 0
+          ? `Pal projection N=${projected.length}; Pal graded N=0; accuracy unavailable`
+          : null,
   };
 }

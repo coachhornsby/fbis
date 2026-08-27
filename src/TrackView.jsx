@@ -77,6 +77,43 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
               {(db.scheduleWarnings || []).join(" ")}
             </p>
           )}
+          {db.scheduled && (
+            <div className="status-grid" style={{ marginTop: 10 }}>
+              <Stat label="Scheduled collect" value={fmtTs(db.lastScheduledCollectSuccess || db.scheduled?.collect?.lastObservedAt)} />
+              <Stat label="Scheduled harvest" value={fmtTs(db.lastScheduledHarvestSuccess || db.scheduled?.harvest?.lastObservedAt)} />
+              <Stat label="Next expected" value={fmtTs(db.scheduled?.nextCollect)} />
+              <Stat label="Collect state" value={db.scheduled?.collect?.state || "unknown"} />
+              <Stat label="Harvest state" value={db.scheduled?.harvest?.state || "unknown"} />
+              <Stat label="Last event" value={db.scheduled?.lastEventType || "none"} />
+              <Stat label="Manual collect" value={fmtTs(db.lastManualCollectSuccess)} />
+              <Stat label="Manual harvest" value={fmtTs(db.lastManualHarvestSuccess)} />
+            </div>
+          )}
+          {db.scheduled?.lastRunUrl && (
+            <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
+              Last scheduled run: {db.scheduled.lastRunUrl}
+            </p>
+          )}
+          {db.palPipeline && (
+            <>
+              <h3 className="subhead">Ballpark Pal</h3>
+              <div className="status-grid">
+                <Stat label="Configured" value="yes" />
+                <Stat label="Last success" value={fmtTs(db.palPipeline.lastSuccess)} />
+                <Stat label="Last failure" value={db.palPipeline.lastFailure || "—"} />
+                <Stat label="HTTP" value={db.palPipeline.httpStatus || "—"} />
+                <Stat label="Records" value={db.palPipeline.recordsReturned ?? "—"} />
+                <Stat label="Usable" value={db.palPipeline.usable ?? "—"} />
+                <Stat label="Matched" value={db.palPipeline.matched ?? "—"} />
+                <Stat label="Unmatched" value={db.palPipeline.unmatched ?? "—"} />
+                <Stat label="Ambiguous" value={db.palPipeline.ambiguous ?? "—"} />
+                <Stat label="D1 writes" value={db.palPipeline.persisted ?? "—"} />
+                <Stat label="asOf" value={fmtTs(db.palPipeline.asOf)} />
+                <Stat label="requestId" value={db.palPipeline.requestId || "—"} />
+              </div>
+              {db.palPipeline.reason && <p className="muted" style={{ marginTop: 8 }}>Pal reason: {db.palPipeline.reason}</p>}
+            </>
+          )}
           <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
             Scheduled collection writes pregame checkpoints even if this page is closed. SYS reads D1; cache is only a fallback. Bias near zero is not accuracy — MAE, median abs, and RMSE sit beside every total.
           </p>
@@ -164,7 +201,12 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
           </p>
           <p className="muted">
             Projection Accuracy is frozen D1 snapshots vs finals — not ticket W/L.
-            {report?.pal?.unavailable ? " Pal: N=0 — unavailable." : ""}
+            {report?.pal?.unavailable
+              ? " Pal: N=0 — unavailable."
+              : report?.pal
+                ? ` Pal projected N=${report.pal.projectedN ?? report.pal.matchedN ?? 0}; Pal graded N=${report.pal.gradedN ?? 0}.`
+                : ""}
+            {report?.pal?.message ? ` ${report.pal.message}` : ""}
             {report?.coverage ? ` Pin totals ${report.coverage.pinTotal ?? 0} / projected ${report.coverage.projected ?? 0}.` : ""}
           </p>
 
@@ -690,6 +732,13 @@ function Stat({ label, value }) {
       <b>{value}</b>
     </div>
   );
+}
+
+function fmtTs(iso) {
+  if (!iso) return "—";
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return String(iso);
+  return new Date(t).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function fmtPctSigned(n) {

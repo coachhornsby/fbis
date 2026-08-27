@@ -4,6 +4,12 @@
 
 import { MODEL_VERSION } from "./weights.js";
 import { hasDb, persistJobRun, queryJobHealth, setMeta } from "./store.js";
+import {
+  lastExpectedCollectUtc,
+  lastExpectedHarvestUtc,
+  nextCronUtc,
+  scheduledPipelineState,
+} from "./pipelineSchedule.js";
 
 export const JOB_SUCCESS = "success";
 export const JOB_PARTIAL = "partial";
@@ -104,6 +110,28 @@ export function actionAcceptsJob(httpCode, body) {
   return Number(httpCode) === 200 && body?.ok === true && body?.status === "success";
 }
 
+export function parseJobTrigger(request) {
+  try {
+    const url = new URL(request.url);
+    const raw = (url.searchParams.get("trigger") || request.headers.get("x-fbis-trigger") || "http").toLowerCase();
+    if (raw === "schedule") return "schedule";
+    if (raw === "workflow_dispatch" || raw === "manual") return "workflow_dispatch";
+    return "http";
+  } catch {
+    return "http";
+  }
+}
+
+export function parseJobMode(request) {
+  try {
+    const url = new URL(request.url);
+    const mode = url.searchParams.get("mode") || "";
+    return mode === "health" ? "health" : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function recordJob(env, row) {
   const started = row.startedAt || row.attemptedAt;
   const completed = row.completedAt || (row.status === JOB_SUCCESS ? row.successfulAt : new Date().toISOString());
@@ -134,19 +162,35 @@ export async function recordJob(env, row) {
   return { ...payload, persistOk: persist.ok, persistReason: persist.reason || null };
 }
 
-export async function stampAttempt(env, kind, iso) {
-  if (kind === "collect") await setMeta(env, "last_collect_attempt_at", iso);
-  if (kind === "harvest") await setMeta(env, "last_harvest_attempt_at", iso);
+function isScheduledTrigger(triggerType) {
+  return triggerType === "schedule";
 }
 
-export async function stampSuccess(env, kind, iso) {
+export async function stampAttempt(env, kind, iso, triggerType) {
+  if (kind === "collect") {
+    await setMeta(env, "last_collect_attempt_at", iso);
+    if (isScheduledTrigger(triggerType)) await setMeta(env, "last_scheduled_collect_attempt_at", iso);
+    else await setMeta(env, "last_manual_collect_attempt_at", iso);
+  }
+  if (kind === "harvest") {
+    await setMeta(env, "last_harvest_attempt_at", iso);
+    if (isScheduledTrigger(triggerType)) await setMeta(env, "last_scheduled_harvest_attempt_at", iso);
+    else await setMeta(env, "last_manual_harvest_attempt_at", iso);
+  }
+}
+
+export async function stampSuccess(env, kind, iso, triggerType) {
   if (kind === "collect") {
     await setMeta(env, "last_collect_success_at", iso);
     await setMeta(env, "last_collect_at", iso);
+    if (isScheduledTrigger(triggerType)) await setMeta(env, "last_scheduled_collect_success_at", iso);
+    else await setMeta(env, "last_manual_collect_success_at", iso);
   }
   if (kind === "harvest") {
     await setMeta(env, "last_harvest_success_at", iso);
     await setMeta(env, "last_harvest_at", iso);
+    if (isScheduledTrigger(triggerType)) await setMeta(env, "last_scheduled_harvest_success_at", iso);
+    else await setMeta(env, "last_manual_harvest_success_at", iso);
   }
   await setMeta(env, "last_d1_write_success_at", iso);
 }
@@ -161,31 +205,46 @@ export async function durableHealth(env) {
   };
 }
 
-/** Last expected collect is stale if no success inside ~4h during the daytime CT window, or >14h overnight. */
-export function staleScheduleWarning(health, now = new Date()) {
-  const collectAt = health?.lastCollectSuccessAt || health?.last_collect_success_at;
-  const harvestAt = health?.lastHarvestSuccessAt || health?.last_harvest_success_at;
-  const warnings = [];
-  const hours = (iso) => {
-    if (!iso) return Infinity;
-    const t = new Date(iso).getTime();
-    if (!Number.isFinite(t)) return Infinity;
-    return (now.getTime() - t) / 3600000;
+/** Scheduled-pipeline health. Manual success must not imply cron is healthy. */
+export function scheduledHealth(health, now = new Date()) {
+  const collectAt = health?.lastScheduledCollectSuccessAt || health?.last_scheduled_collect_success_at || null;
+  const harvestAt = health?.lastScheduledHarvestSuccessAt || health?.last_scheduled_harvest_success_at || null;
+  const collect = scheduledPipelineState({
+    lastScheduledSuccessAt: collectAt,
+    lastExpectedAt: lastExpectedCollectUtc(now),
+    now,
+    neverObserved: !collectAt,
+    disabled: Boolean(health?.scheduleDisabled),
+  });
+  const harvest = scheduledPipelineState({
+    lastScheduledSuccessAt: harvestAt,
+    lastExpectedAt: lastExpectedHarvestUtc(now),
+    now,
+    neverObserved: !harvestAt,
+    disabled: Boolean(health?.scheduleDisabled),
+  });
+  return {
+    collect,
+    harvest,
+    nextCollect: nextCronUtc(now),
+    lastEventType: health?.lastScheduledEventType || health?.last_scheduled_event_type || null,
+    lastRunUrl: health?.lastScheduledRunUrl || health?.last_scheduled_run_url || null,
   };
-  const collectAge = hours(collectAt);
-  const harvestAge = hours(harvestAt);
-  if (!collectAt || collectAge > 14) {
-    warnings.push("Last successful scheduled collect is missing or stale.");
-  } else if (collectAge > 4) {
-    const hourCT = Number(
-      new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hour: "numeric", hourCycle: "h23" }).format(now)
-    );
-    if (hourCT >= 8 && hourCT <= 22) {
-      warnings.push("Last successful collect is older than 4 hours during the CT collection window.");
-    }
-  }
-  if (!harvestAt || harvestAge > 30) {
-    warnings.push("Last successful scheduled harvest is missing or stale.");
-  }
+}
+
+export function staleScheduleWarning(health, now = new Date()) {
+  const sched = scheduledHealth(health, now);
+  const warnings = [];
+  const label = (job, row) => {
+    if (row.state === "never observed") return `SCHEDULED PIPELINE ${job}: never observed (manual runs do not count).`;
+    if (row.state === "missed") return `SCHEDULED PIPELINE ${job}: missed last expected ${row.lastExpectedAt}.`;
+    if (row.state === "delayed") return `SCHEDULED PIPELINE ${job}: delayed (grace window).`;
+    if (row.state === "disabled") return `SCHEDULED PIPELINE ${job}: disabled.`;
+    return null;
+  };
+  const c = label("collect", sched.collect);
+  const h = label("harvest", sched.harvest);
+  if (c) warnings.push(c);
+  if (h) warnings.push(h);
   return warnings;
 }

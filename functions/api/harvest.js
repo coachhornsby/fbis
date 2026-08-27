@@ -1,6 +1,7 @@
 import { harvestAll } from "../lib/projLedger.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
-import { httpStatusForJob } from "../lib/jobs.js";
+import { httpStatusForJob, parseJobTrigger } from "../lib/jobs.js";
+import { setMeta } from "../lib/store.js";
 
 /** Scoreboard-only harvest. Never calls Parlay. */
 export async function onRequestGet(context) {
@@ -14,12 +15,22 @@ export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const days = url.searchParams.get("days") || "3";
   const sport = url.searchParams.get("sport") || "all";
+  const trigger = parseJobTrigger(context.request);
+  const runUrl = url.searchParams.get("runUrl") || "";
   try {
-    const payload = await harvestAll(days, {
-      caches: caches.default,
-      DB: context.env.DB,
-      CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
-    }, { trigger: "http", sport });
+    if (trigger === "schedule") {
+      await setMeta(context.env, "last_scheduled_event_type", "schedule");
+      if (runUrl) await setMeta(context.env, "last_scheduled_run_url", runUrl);
+    }
+    const payload = await harvestAll(
+      days,
+      {
+        caches: caches.default,
+        DB: context.env.DB,
+        CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
+      },
+      { trigger, sport }
+    );
     return new Response(JSON.stringify(payload), {
       status: httpStatusForJob(payload.status),
       headers: {

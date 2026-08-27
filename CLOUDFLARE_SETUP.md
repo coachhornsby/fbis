@@ -47,7 +47,7 @@ UTC crons are fixed; Chicago wall time shifts with DST.
 
 The intended operator windows are the CDT column. Full Parlay odds only at the 8am and 11am CDT slots (`collect-full`); later collects are cache-only. Harvest is scoreboard only (no Parlay).
 
-`HARVEST_SECRET` is a Pages secret and a GitHub Actions secret of the same name. The workflow sends it as the `x-harvest-secret` header, not a query string, and fails unless the JSON `status` is `success`. After changing a Pages secret, redeploy so the Worker sees it. A green `workflow_dispatch` does not prove the `schedule` trigger has fired.
+`HARVEST_SECRET` is a Pages secret and a GitHub Actions secret of the same name. The workflow sends it as the `x-harvest-secret` header, not a query string, and fails unless the JSON `status` is `success`. After changing a Pages secret, redeploy so the Worker sees it. A green `workflow_dispatch` does not prove the `schedule` trigger has fired. Collect/harvest persist `trigger_type=schedule` only when GitHub sends `?trigger=schedule`. SYS scheduled-pipeline health ignores manual timestamps.
 
 ## Git connect
 

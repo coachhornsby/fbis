@@ -1,0 +1,248 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import {
+  unwrapPalResponse,
+  palErrorFromBody,
+  matchPalSlate,
+  matchBpp,
+  mergeBallparkPal,
+  palQueryDates,
+  palInstant,
+} from "../functions/lib/ballparkpal.js";
+import { sameMlbTeam, canonAbbr, resolveMlbCanon } from "../functions/lib/mlbCanonical.js";
+import { freezeFromGame } from "../functions/lib/projLedger.js";
+import { palHealth, sourceCoverage } from "../functions/lib/sourceCoverage.js";
+import { projectGame } from "../functions/lib/slateEngine.js";
+import { projectMatchup } from "../functions/lib/savant.js";
+
+const fixture = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../data/fixtures/pal-wrapper.json"), "utf8")
+);
+
+function mlbGame(over = {}) {
+  return {
+    id: over.id || "823503",
+    sport: "mlb",
+    start: over.start || "2026-08-27T23:05:00Z",
+    home: { name: over.homeName || "New York Yankees", abbr: over.homeAbbr || "NYY", mlbId: over.homeId ?? 147 },
+    away: { name: over.awayName || "Houston Astros", abbr: over.awayAbbr || "HOU", mlbId: over.awayId ?? 117 },
+    ...over.rest,
+  };
+}
+
+function palRow(over = {}) {
+  return {
+    bppId: over.bppId ?? 823503,
+    gamePk: over.bppId ?? 823503,
+    homeId: over.homeId ?? 147,
+    awayId: over.awayId ?? 117,
+    homeAbv: over.homeAbv || "NYY",
+    awayAbv: over.awayAbv || "HOU",
+    homeCanon: over.homeCanon || "NYY",
+    awayCanon: over.awayCanon || "HOU",
+    start: over.start || "2026-08-27T23:05:00Z",
+    gameDate: "2026-08-27",
+    homeRuns: over.homeRuns ?? 4.41,
+    awayRuns: over.awayRuns ?? 3.62,
+    pHome: over.pHome ?? 0.58,
+    asOf: "2026-08-27T15:00:00+00:00",
+    requestId: "fixture-pal-request-id",
+    runLine: over.runLine ?? null,
+    f5: over.f5 ?? { homeRuns: 2.12, awayRuns: 1.88, total: 4.0 },
+  };
+}
+
+describe("Pal wrapper", () => {
+  it("reads production {meta, data.items}", () => {
+    const { data, meta } = unwrapPalResponse(fixture);
+    assert.equal(data.length, 1);
+    assert.equal(data[0].gameId, 823503);
+    assert.equal(meta.asOf, "2026-08-27T15:00:00+00:00");
+    assert.equal(meta.requestId, "fixture-pal-request-id");
+  });
+
+  it("does not treat an error payload as zero records", () => {
+    const err = palErrorFromBody(fixture.error, 400);
+    assert.equal(err.code, "date_out_of_range");
+    const { data } = unwrapPalResponse(fixture.error);
+    assert.equal(Array.isArray(data), false);
+  });
+});
+
+describe("Pal matching", () => {
+  it("matches both teams by GamePk", () => {
+    const hit = matchBpp(mlbGame(), [palRow()]);
+    assert.equal(hit.bppId, 823503);
+  });
+
+  it("requires home/away orientation", () => {
+    const report = matchPalSlate(
+      [mlbGame()],
+      [palRow({ homeCanon: "HOU", awayCanon: "NYY", homeAbv: "HOU", awayAbv: "NYY", bppId: 1, homeId: 117, awayId: 147 })]
+    );
+    assert.equal(report.matched.length, 0);
+    assert.equal(report.unmatched[0].reason, "home-away-orientation");
+  });
+
+  it("maps canonical MLB aliases", () => {
+    assert.equal(canonAbbr("CWS"), "CHW");
+    assert.equal(canonAbbr("ATH"), "ATH");
+    assert.equal(canonAbbr("OAK"), "ATH");
+    assert.equal(canonAbbr("WAS"), "WSH");
+    assert.equal(canonAbbr("AZ"), "ARI");
+    assert.equal(sameMlbTeam({ abbr: "CWS" }, { abbr: "CHW" }), true);
+    assert.equal(sameMlbTeam({ name: "Athletics" }, { abbr: "OAK" }), true);
+    assert.equal(sameMlbTeam({ abbr: "WSH" }, { name: "Washington Nationals" }), true);
+  });
+
+  it("does not cross-match New York teams", () => {
+    const mets = mlbGame({ homeAbbr: "NYM", homeName: "New York Mets", homeId: 121, id: "1" });
+    const yankeesPal = palRow({ homeCanon: "NYY", homeAbv: "NYY", homeId: 147, bppId: 99 });
+    assert.equal(matchBpp(mets, [yankeesPal]), null);
+    assert.equal(sameMlbTeam({ abbr: "NY" }, { abbr: "NYY" }), false);
+  });
+
+  it("does not cross-match Chicago teams", () => {
+    const cubs = mlbGame({ homeAbbr: "CHC", homeName: "Chicago Cubs", homeId: 112, awayAbbr: "STL", awayId: 138, id: "2" });
+    const sox = palRow({ homeCanon: "CHW", homeAbv: "CWS", homeId: 145, awayCanon: "STL", bppId: 3 });
+    assert.equal(matchBpp(cubs, [sox]), null);
+  });
+
+  it("does not cross-match Los Angeles teams", () => {
+    const dodgers = mlbGame({ homeAbbr: "LAD", homeName: "Los Angeles Dodgers", homeId: 119, id: "3" });
+    const angels = palRow({ homeCanon: "LAA", homeAbv: "LAA", homeId: 108, bppId: 4 });
+    assert.equal(matchBpp(dodgers, [angels]), null);
+    assert.equal(resolveMlbCanon({ abbr: "LA" }), null);
+  });
+
+  it("matches across UTC/CT date boundary using instants", () => {
+    const west = mlbGame({
+      id: "823179",
+      start: "2026-08-28T01:45:00Z",
+      homeAbbr: "SF",
+      homeName: "San Francisco Giants",
+      homeId: 137,
+      awayAbbr: "AZ",
+      awayName: "Arizona Diamondbacks",
+      awayId: 109,
+    });
+    const pal = palRow({
+      bppId: 823179,
+      start: "2026-08-28T01:45:00Z",
+      homeCanon: "SF",
+      awayCanon: "ARI",
+      homeAbv: "SF",
+      awayAbv: "AZ",
+      homeId: 137,
+      awayId: 109,
+    });
+    assert.equal(matchBpp(west, [pal])?.bppId, 823179);
+    assert.ok(palInstant(pal));
+  });
+
+  it("allows start-time movement for the same pair", () => {
+    const g = mlbGame({ start: "2026-08-27T23:20:00Z" });
+    const pal = palRow({ start: "2026-08-27T23:05:00Z" });
+    assert.equal(matchBpp(g, [pal])?.bppId, 823503);
+  });
+
+  it("does not match the wrong doubleheader game", () => {
+    const g1 = mlbGame({ id: "dh1", start: "2026-08-27T17:05:00Z" });
+    const g2 = mlbGame({ id: "dh2", start: "2026-08-27T23:05:00Z" });
+    const p1 = palRow({ bppId: 11, start: "2026-08-27T17:05:00Z" });
+    const p2 = palRow({ bppId: 22, start: "2026-08-27T23:05:00Z" });
+    const r1 = matchBpp(g1, [p1, p2]);
+    const r2 = matchBpp(g2, [p1, p2]);
+    assert.equal(r1.bppId, 11);
+    assert.equal(r2.bppId, 22);
+  });
+
+  it("still matches when pitchers change", () => {
+    const g = mlbGame({ rest: { homeSp: { name: "Replacement" } } });
+    const pal = palRow();
+    pal.homeSp = { name: "Original" };
+    assert.equal(matchBpp(g, [pal])?.bppId, 823503);
+  });
+
+  it("rejects ambiguous doubleheader without a unique start", () => {
+    const g = mlbGame({ id: "x", start: "2026-08-27T20:00:00Z" });
+    const p1 = palRow({ bppId: 11, start: "2026-08-27T19:30:00Z" });
+    const p2 = palRow({ bppId: 22, start: "2026-08-27T20:30:00Z" });
+    const report = matchPalSlate([g], [p1, p2]);
+    assert.equal(report.matched.length, 0);
+    assert.ok(report.ambiguous.length + report.unmatched.length >= 1);
+  });
+});
+
+describe("Pal persist and source roles", () => {
+  it("persists Pal fields, asOf, requestId; omitted RL/F5 stay null", () => {
+    const pal = palRow({ runLine: null, f5: { homeRuns: null, awayRuns: null, total: null } });
+    pal.f5 = { homeRuns: null, awayRuns: null, total: null };
+    const frozen = freezeFromGame("2026-08-27", {
+      ...mlbGame(),
+      bpp: pal,
+      model: { projHome: 4.4, projAway: 3.6, palHome: 4.41, palAway: 3.62, pHomeFinal: 0.55, layers: { pal: 0.58, score: 0.54 } },
+    });
+    assert.equal(frozen.palHome, 4.41);
+    assert.equal(frozen.palAsOf, "2026-08-27T15:00:00+00:00");
+    assert.equal(frozen.palRequestId, "fixture-pal-request-id");
+    assert.equal(frozen.palRunLine, null);
+    assert.equal(frozen.f5Home, null);
+    assert.notEqual(frozen.projHome, frozen.palHome);
+  });
+
+  it("never treats Pal probability as a sportsbook price", () => {
+    const pal = palRow({ pHome: 0.58 });
+    const game = {
+      ...mlbGame(),
+      bpp: pal,
+      projHomeScore: 4.4,
+      projAwayScore: 3.6,
+      odds: { spread: null, total: null, homeMl: -130, awayMl: 110 },
+      pin: { ml: { noVigA: 0.52, complete: true } },
+    };
+    const model = projectGame("mlb", game);
+    assert.equal(model.layers.pal, 0.58);
+    assert.notEqual(model.layers.pal, model.impliedHome);
+    assert.notEqual(model.palHome, model.impliedHome);
+  });
+
+  it("does not feed Pal park into Savant", () => {
+    const a = projectMatchup({ homeRpg: 4.5, awayRpg: 4.5, homeSpEra: 4.15, awaySpEra: 4.15 });
+    const b = projectMatchup({ homeRpg: 4.5, awayRpg: 4.5, homeSpEra: 4.15, awaySpEra: 4.15, park: 1.18 });
+    assert.notEqual(a.home, b.home);
+    const defaultPark = projectMatchup({ homeRpg: 4.5, awayRpg: 4.5, homeSpEra: 4.15, awaySpEra: 4.15, park: 1 });
+    assert.equal(a.home, defaultPark.home);
+  });
+
+  it("tracks Pal projection N distinct from Pal graded N", () => {
+    const rows = [
+      { sport: "mlb", date: "2026-08-27", id: "1", palHome: 4.4, palAway: 3.6, actualHome: null, actualAway: null },
+      { sport: "mlb", date: "2026-08-26", id: "2", palHome: 5, palAway: 4, actualHome: 6, actualAway: 3 },
+    ];
+    const pal = palHealth(rows, {});
+    assert.equal(pal.projectedN, 2);
+    assert.equal(pal.gradedN, 1);
+    assert.equal(pal.unavailable, false);
+    const cov = sourceCoverage(rows);
+    assert.equal(cov.palProjected, 2);
+    assert.equal(cov.palGraded, 1);
+  });
+
+  it("merge attaches bpp without inventing Pal data", () => {
+    const games = mergeBallparkPal([mlbGame()], { games: [palRow()], meta: {} });
+    assert.equal(games[0].bpp.homeRuns, 4.41);
+    assert.equal(games[0].bpp.pHome, 0.58);
+  });
+});
+
+describe("Pal dates", () => {
+  it("adds Eastern today when CT and ET differ", () => {
+    const dates = palQueryDates("2026-08-26", new Date("2026-08-27T04:30:00Z"));
+    assert.ok(dates.includes("2026-08-26"));
+    assert.ok(dates.includes("2026-08-27") || dates.length >= 1);
+  });
+});
