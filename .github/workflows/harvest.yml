@@ -10,8 +10,6 @@ on:
   schedule:
     - cron: "0 0,2,13,16,18,20,22 * * *"
     - cron: "20 11 * * *"
-    # DIAGNOSTIC_SCHEDULE — temporary cache-only health. Remove after first event=schedule proof.
-    - cron: "7,37 * * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -53,9 +51,7 @@ jobs:
           fi
           RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
           if [ -z "$JOB" ]; then
-            if [ "${EVENT_NAME}" = "schedule" ] && { [ "$MIN" = "07" ] || [ "$MIN" = "37" ]; }; then
-              JOB="health"
-            elif [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then
+            if [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then
               JOB="harvest"
             elif [ "$HOUR" = "13" ] || [ "$HOUR" = "16" ]; then
               JOB="collect-full"
