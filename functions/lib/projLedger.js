@@ -1123,6 +1123,18 @@ async function dbPayload(env) {
   };
 }
 
+export function collectDatesForSport(sport, today, dayOffset) {
+  if (dayOffset != null && dayOffset !== "" && Number.isFinite(Number(dayOffset))) {
+    return [shiftDateCT(today, Number(dayOffset))];
+  }
+  const dayList = [today, shiftDateCT(today, 1)];
+  if (sport === "cfb" || sport === "nfl") {
+    dayList.unshift(shiftDateCT(today, -1));
+    dayList.push(shiftDateCT(today, 2));
+  }
+  return [...new Set(dayList)];
+}
+
 export function sportsForJob(sport) {
   if (!sport || sport === "all") return [...BOARD_SPORTS];
   const id = String(sport).toLowerCase();
@@ -1258,7 +1270,7 @@ export async function harvestAll(days, env = {}, opts = {}) {
   };
 }
 
-export async function collectBoards(env = {}, { odds = "cache", trigger = "http", buildSlateFn, sport } = {}) {
+export async function collectBoards(env = {}, { odds = "cache", trigger = "http", buildSlateFn, sport, dayOffset } = {}) {
   const attemptedAt = new Date().toISOString();
   await stampAttempt(env, "collect", attemptedAt);
   const date = todayCT();
@@ -1299,12 +1311,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
   }
 
   for (const sport of sportList) {
-    const dayList = [date, shiftDateCT(date, 1)];
-    if (sport === "cfb" || sport === "nfl") {
-      dayList.unshift(shiftDateCT(date, -1));
-      dayList.push(shiftDateCT(date, 2));
-    }
-    const unique = [...new Set(dayList)];
+    const unique = collectDatesForSport(sport, date, dayOffset);
     try {
       let n = 0;
       let pal = null;

@@ -14,6 +14,8 @@ export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const odds = url.searchParams.get("odds") === "full" ? "full" : "cache";
   const sport = url.searchParams.get("sport") || "all";
+  const dayOffsetRaw = url.searchParams.get("dayOffset");
+  const dayOffset = dayOffsetRaw == null || dayOffsetRaw === "" ? null : Number(dayOffsetRaw);
   try {
     const payload = await collectBoards(
       {
@@ -23,7 +25,7 @@ export async function onRequestGet(context) {
         DB: context.env.DB,
         CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
       },
-      { odds, trigger: "http", sport }
+      { odds, trigger: "http", sport, dayOffset }
     );
     return new Response(JSON.stringify(payload), {
       status: httpStatusForJob(payload.status),

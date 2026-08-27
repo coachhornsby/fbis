@@ -272,6 +272,24 @@ describe("collect and harvest fail honestly", () => {
     assert.equal(harvest.status, "success");
   });
 
+  it("can collect one football date without the four-day window", async () => {
+    const days = [];
+    const out = await collectBoards(
+      { DB: pipelineDb().DB },
+      {
+        odds: "cache",
+        sport: "cfb",
+        dayOffset: 0,
+        buildSlateFn: async (sport, date) => {
+          days.push(date);
+          return emptySlate(sport, date);
+        },
+      }
+    );
+    assert.equal(days.length, 1);
+    assert.equal(out.status, "success");
+  });
+
   it("idempotent rerun reports already-present snapshots", async () => {
     const env = pipelineDb();
     const slateFn = async (sport, date) =>
