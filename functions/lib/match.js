@@ -17,12 +17,24 @@ const MASCOT = new Set([
 export function normName(s) {
   return String(s || "")
     .toLowerCase()
+    .replace(/[''`´ʻʼ]/g, "")
     .replace(/[.]/g, "")
     .replace(/&/g, " and ")
+    .replace(/\((oh|ohio)\)/g, " ohio ")
     .replace(/\b(st)\b/g, "saint")
     .replace(/[^a-z0-9 ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Extra lookup keys so Miami Ohio ↔ Miami OH without collapsing Miami (FL). */
+export function nameLookupKeys(s) {
+  const n = normName(s);
+  if (!n) return [];
+  const keys = new Set([n]);
+  keys.add(n.replace(/\boh\b/g, "ohio"));
+  keys.add(n.replace(/\bohio\b/g, "oh"));
+  return [...keys];
 }
 
 function tokens(s) {

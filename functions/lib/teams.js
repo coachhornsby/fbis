@@ -9,9 +9,17 @@ import mlb from "../../data/teams/mlb.js";
 import nba from "../../data/teams/nba.js";
 import cfb from "../../data/teams/cfb.js";
 import cbb from "../../data/teams/cbb.js";
-import { abbrMatch, namesMatch, normName } from "./match.js";
+import { namesMatch, nameLookupKeys } from "./match.js";
 
 export const TEAMS_BY_SPORT = { nfl, mlb, nba, cfb, cbb };
+
+/** Verified source aliases not present on the ESPN short-name row. */
+const EXTRA_ALIASES = {
+  cfb: {
+    62: ["Hawaii", "Hawaii Rainbow Warriors"],
+    193: ["Miami Ohio", "Miami (OH)", "Miami-Ohio", "Miami of Ohio"],
+  },
+};
 
 const INDEX = new Map();
 
@@ -53,13 +61,14 @@ function indexSport(sport, rows) {
       ...(row.sources?.parlay?.names || []),
       ...(row.sources?.heritage?.names || []),
       ...(row.sources?.kalshi?.names || []),
+      ...(EXTRA_ALIASES[sport]?.[String(row.espnId)] || []),
     ];
     for (const name of names) {
-      const key = normName(name);
-      if (!key) continue;
-      const list = byName.get(key) || [];
-      if (!list.includes(row)) list.push(row);
-      byName.set(key, list);
+      for (const key of nameLookupKeys(name)) {
+        const list = byName.get(key) || [];
+        if (!list.includes(row)) list.push(row);
+        byName.set(key, list);
+      }
     }
   }
   INDEX.set(sport, { byId, byEspn, byAbbr, byName, rows });
@@ -106,10 +115,10 @@ export function resolveTeam(sport, query = {}) {
   }
   const candidates = [];
   for (const name of [query.name, query.displayName, query.school, query.fullName]) {
-    const key = normName(name);
-    if (!key) continue;
-    const exact = uniqueHit(idx.byName.get(key));
-    if (exact) return exact;
+    for (const key of nameLookupKeys(name)) {
+      const exact = uniqueHit(idx.byName.get(key));
+      if (exact) return exact;
+    }
     for (const row of idx.rows || []) {
       if (namesMatch(name, row.displayName) || namesMatch(name, row.school)) candidates.push(row);
     }

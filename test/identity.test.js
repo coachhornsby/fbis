@@ -135,6 +135,21 @@ describe("TEAM IDENTITY", () => {
     assert.equal(resolveTeam("cfb", { name: "Tech" }), null);
     assert.equal(resolveTeam("cfb", { name: "Forest" }), null);
   });
+
+  it("resolves Hawaii and Miami Ohio without collapsing Miami (FL)", () => {
+    const haw = resolveTeam("cfb", { name: "Hawaii" });
+    const hawOkina = resolveTeam("cfb", { name: "Hawai'i" });
+    assert.ok(haw);
+    assert.equal(haw.id, hawOkina.id);
+    assert.equal(haw.abbr, "HAW");
+    const moh = resolveTeam("cfb", { name: "Miami Ohio" });
+    const mia = resolveTeam("cfb", { name: "Miami" });
+    assert.ok(moh);
+    assert.ok(mia);
+    assert.notEqual(moh.id, mia.id);
+    assert.equal(moh.espnId, "193");
+    assert.equal(mia.espnId, "2390");
+  });
 });
 
 describe("LOGOS", () => {
