@@ -732,6 +732,9 @@ export async function freezeSlate(slate, env = {}) {
       let next = appendSnapshot(existing, game);
       const packed = freezeFromGame(slate.date, game);
       if (packed) {
+        if (slate.sport === "mlb") {
+          writes.push(persistMlbMarketProjections(env, palMarketRowsFromGame(slate.date, game, packed)));
+        }
         const cps = { ...(next.checkpoints || {}) };
         if (!cps.FIRST_AVAILABLE) {
           cps.FIRST_AVAILABLE = { ...packed, checkpoint: "FIRST_AVAILABLE" };
@@ -744,9 +747,6 @@ export async function freezeSlate(slate, env = {}) {
           next = { ...next, checkpoints: cps, checkpoint: packed.checkpoint };
           writes.push(persistMatchingRec(env, slate, game, packed));
           writes.push(persistGameChallengers(env, game, slate.sport));
-          if (slate.sport === "mlb") {
-            writes.push(persistMlbMarketProjections(env, palMarketRowsFromGame(slate.date, game, packed)));
-          }
           changed = true;
         }
         const canon = pickCanonical(Object.values(cps).map((c) => ({ ...c, id: next.id, date: next.date })))[0];

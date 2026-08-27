@@ -265,7 +265,7 @@ export function compactPalMarkets(items, homeId, awayId) {
       if (sideOf(r) === "under") teamTotals[key].under = pOf(r);
       continue;
     }
-    if (subject?.id != null || subject?.type === "player") {
+    if (subject?.type === "player" || r?.playerId != null) {
       const playerId = subject?.id ?? r?.playerId ?? null;
       const key = `${market}:${playerId}:${Number.isFinite(line) ? line : ""}`;
       if (!propMap.has(key)) {

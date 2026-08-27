@@ -90,6 +90,7 @@ describe("Pal market classification", () => {
   const rows = [
     { marketId: "mkt_1", teamId: 147, line: 0.5, side: "over", probability: 0.58 },
     { marketId: "mkt_1", teamId: 117, line: 0.5, side: "over", probability: 0.42 },
+    { marketId: "mkt_2", line: 8.5, side: "over", probability: 0.53, subject: { type: "team", id: 147, name: "Yankees" } },
     { marketId: "mkt_5", teamId: 147, line: 4.5, side: "over", probability: 0.54, displayName: "Team Total Runs" },
     { marketId: "mkt_5", teamId: 147, line: 4.5, side: "under", probability: 0.46, displayName: "Team Total Runs" },
     { marketId: "mkt_10", teamId: 147, line: 1.5, side: "over", probability: 0.61, displayName: "Hits", subject: { type: "player", id: 99, name: "Test Batter" } },
