@@ -51,6 +51,13 @@ export function kickoffCt(iso) {
 export function noPlayReason(game) {
   if (game?.rec?.qualified) return null;
   const flags = game?.quality?.flags || [];
+  if (game?.cfb && game.cfb.bettingAllowed === false) {
+    return game.cfb.blockReason || "Projection unavailable for betting — team-specific inputs missing.";
+  }
+  if (game?.projectionKind === "PINNACLE_IMPLIED" && game?.sport === "nfl") {
+    return "FBIS projection unavailable";
+  }
+  if (game?.marketUnresolved) return "TEAM MATCH UNRESOLVED";
   if (game?.lean) {
     if (game.lean.ev == null) return "No complete Pinnacle pair / no EV";
     return `EV below +3% gate`;

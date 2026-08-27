@@ -8,6 +8,7 @@ import { EXECUTION_BOOK } from "./books.js";
 import { probabilityClv } from "./pricing.js";
 import { selectPinAtOrBefore, selectClose, marketKey, periodOf } from "./closeCapture.js";
 import { expectedProfit, executedBetId, fbisSideOf, HERITAGE_CLV_METHOD, hashText } from "./heritageSlip.js";
+import { identityFromName } from "./teams.js";
 
 export const OPERATOR_ONLY = "OPERATOR BET · NOT ATTRIBUTED TO FBIS";
 
@@ -353,6 +354,8 @@ export function packExecutedBetRow(ticket) {
     matchupText: ticket.matchupText,
     awayTeam: ticket.awayTeam,
     homeTeam: ticket.homeTeam,
+    awayIdentity: ticket.awayIdentity || identityFromName(ticket.awayTeam),
+    homeIdentity: ticket.homeIdentity || identityFromName(ticket.homeTeam),
     market: ticket.market,
     period: ticket.period,
     selectedSide: ticket.selectedSide,

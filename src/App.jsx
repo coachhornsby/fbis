@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff } from "./lib/format.js";
+import TeamLogo, { TeamIdentity } from "./components/TeamLogo.jsx";
 import { gradeOpenBets, loadState, logBet, summarize } from "./lib/learning.js";
 import { captureSlate } from "./lib/ledger.js";
 import TrackView from "./TrackView.jsx";
@@ -446,13 +447,13 @@ function Ticker({ items, logged }) {
         {loop.length ? loop.map((g, i) => (
           <div className={`ticker-item${logged.has(g.id) ? " has-bet" : ""}`} key={`${g.id}-${i}`}>
             {g.live && <span className="live-dot">●</span>}
-            {g.awayLogo && <img className="ticker-logo" src={g.awayLogo} alt="" />}
+            {g.awayLogo && <TeamLogo team={{ logo: g.awayLogo, name: g.awayName || g.away, abbr: g.away }} />}
             {g.away}
             <span className="score-accent">{g.awayScore ?? ""}</span>
             <span className="muted">@</span>
             <span className="score-accent">{g.homeScore ?? ""}</span>
             {g.home}
-            {g.homeLogo && <img className="ticker-logo" src={g.homeLogo} alt="" />}
+            {g.homeLogo && <TeamLogo team={{ logo: g.homeLogo, name: g.homeName || g.home, abbr: g.home }} />}
             <span className="muted" style={{ marginLeft: 8, fontSize: 11 }}>[{g.status}]</span>
           </div>
         )) : <span className="ticker-empty">NO LIVE GAMES</span>}
@@ -464,9 +465,7 @@ function Ticker({ items, logged }) {
 function Team({ t, align }) {
   return (
     <div className="team-line" style={{ justifyContent: align === "right" ? "flex-end" : "flex-start" }}>
-      {t.logo && <img className="team-logo" src={t.logo} alt="" />}
-      {t.rank ? <span className="muted">#{t.rank}</span> : null}
-      <span>{t.name}</span>
+      <TeamIdentity team={t} />
     </div>
   );
 }
@@ -511,11 +510,10 @@ function SlateTable({ games, onLog, logged }) {
               </td>
             ) : null}
             <td className="text-blue" title={(g.model?.recipe?.steps || []).join("\n")}>
-              <div>{fmtNum(g.model.projAway)} – {fmtNum(g.model.projHome)}</div>
-              <div className="muted">{g.model?.recipe?.engine || (g.bpp?.homeRuns != null ? "Pal" : g.savant?.source || "")}</div>
+              <SlateProj game={g} />
             </td>
             <td>
-              <div>{g.odds.details || fmtAmerican(g.odds.homeMl)}</div>
+              <div>{g.marketLabels?.spreadHome?.label || g.odds.details || fmtAmerican(g.odds.homeMl)}</div>
               <div className="muted">{pinLine(g)}</div>
             </td>
             <td>
@@ -524,11 +522,13 @@ function SlateTable({ games, onLog, logged }) {
             {mlb ? <td><F5Cell game={g} /></td> : null}
             <td><PublicCell game={g} /></td>
             <td>
-              {g.rec ? <span className={edgeClass(g.rec.edge)}>{g.rec.edge >= 0 ? "+" : ""}{fmtNum(g.rec.edge, 2)}</span> : <span className="edge-neutral">—</span>}
+              {g.cfb && !g.cfb.bettingAllowed ? (
+                <span className="muted">—</span>
+              ) : g.rec ? <span className={edgeClass(g.rec.edge)}>{g.rec.edge >= 0 ? "+" : ""}{fmtNum(g.rec.edge, 2)}</span> : <span className="edge-neutral">—</span>}
             </td>
-            <td>{g.rec ? g.rec.pick : g.lean ? <span className="muted">{g.lean.pick} · lean</span> : <span className="muted">No edge</span>}</td>
+            <td>{g.cfb && !g.cfb.bettingAllowed ? <span className="muted">{g.cfb.blockReason || "Blocked"}</span> : g.rec ? g.rec.pick : g.lean ? <span className="muted">{g.lean.pick} · lean</span> : <span className="muted">No edge</span>}</td>
             <td>
-              <button className="log-btn" disabled={!g.rec || logged.has(g.id) || g.status.completed} onClick={() => onLog(g)}>
+              <button className="log-btn" disabled={!g.rec || Boolean(g.cfb && !g.cfb.bettingAllowed) || logged.has(g.id) || g.status.completed} onClick={() => onLog(g)}>
                 {logged.has(g.id) ? "LOGGED" : "LOG"}
               </button>
             </td>
@@ -725,6 +725,34 @@ function pinLine(g) {
   const away = g.odds?.pinAwayMl ?? g.fairAwayMl;
   if (home == null && away == null) return g.odds?.pinPresent === false ? "Pin missing" : "Pin → Her";
   return `${fmtAmerican(away)} / ${fmtAmerican(home)}`;
+}
+
+function SlateProj({ game }) {
+  if (game.sport === "nfl" || game.projectionKind === "PINNACLE_IMPLIED") {
+    const a = game.marketProjAway ?? game.model?.marketProjAway;
+    const h = game.marketProjHome ?? game.model?.marketProjHome;
+    return (
+      <>
+        <div className="muted">FBIS projection unavailable</div>
+        {a != null && <div className="proj-implied">PINNACLE IMPLIED {fmtNum(a)} – {fmtNum(h)}</div>}
+      </>
+    );
+  }
+  if (game.cfb?.projectionState === "LEAGUE_AVERAGE_ONLY") {
+    return (
+      <>
+        <div className="proj-blocked">PROJECTION BLOCKED</div>
+        <div className="muted">Team-specific inputs missing</div>
+      </>
+    );
+  }
+  return (
+    <>
+      <div>{fmtNum(game.model.projAway)} – {fmtNum(game.model.projHome)}</div>
+      <div className="muted">{game.model?.recipe?.engine || (game.bpp?.homeRuns != null ? "Pal" : game.savant?.source || "")}</div>
+      {game.cfb?.projectionState && <div className="proj-state muted">{game.cfb.projectionState}</div>}
+    </>
+  );
 }
 
 function PinVigCell({ game, rec }) {

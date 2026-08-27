@@ -24,6 +24,8 @@ import {
   validAmerican,
 } from "./books.js";
 import { matchEvent, namesMatch } from "./match.js";
+import { enrichGameTeams } from "./teams.js";
+import { attachMarketLabels } from "./marketLabels.js";
 
 export { namesMatch };
 
@@ -125,7 +127,6 @@ function packFg(books, sportId, home, away) {
   const totalPair = pinTotalPair || herTotalPair;
   const spread = spreadPair?.point ?? null;
   const total = totalPair?.point ?? null;
-  const nick = String(home).split(" ").pop();
   const hasPin = Boolean(pinHome && pinAway) || Boolean(pinSpreadPair) || Boolean(pinTotalPair);
 
   return {
@@ -151,11 +152,7 @@ function packFg(books, sportId, home, away) {
     spreadPrice: (pinSpreadPair || herSpreadPair)?.home.price ?? null,
     total,
     totalPrice: (pinTotalPair || herTotalPair)?.over.price ?? null,
-    details: spread != null
-      ? `${nick} ${spread > 0 ? "+" : ""}${spread}`
-      : pinHome
-        ? `${SHARP_BOOK} ML`
-        : "",
+    details: "",
     book: EXECUTION_BOOK,
     sharp: hasPin ? SHARP_BOOK : "",
     heritageListed: Boolean(herHome || herAway || herSpreadPair || herTotalPair),
@@ -260,26 +257,30 @@ function applyOdds(game, p) {
   };
   let projHome = game.projHomeScore;
   let projAway = game.projAwayScore;
-  if (!BASEBALL.has(game.sport) && odds.total != null && odds.spread != null && game.bpp == null && !game.savant) {
-    projHome = odds.total / 2 - odds.spread / 2;
-    projAway = odds.total / 2 + odds.spread / 2;
+  let marketProjHome = game.marketProjHome;
+  let marketProjAway = game.marketProjAway;
+  if (odds.total != null && odds.spread != null) {
+    marketProjHome = odds.total / 2 - odds.spread / 2;
+    marketProjAway = odds.total / 2 + odds.spread / 2;
+  }
+  if (!BASEBALL.has(game.sport) && game.sport !== "nfl" && game.sport !== "cfb" && odds.total != null && odds.spread != null && game.bpp == null && !game.savant) {
+    projHome = marketProjHome;
+    projAway = marketProjAway;
   }
   return {
     ...game,
     odds,
     projHomeScore: projHome,
     projAwayScore: projAway,
+    marketProjHome,
+    marketProjAway,
+    parlayHomeName: p.homeTeam,
+    parlayAwayName: p.awayTeam,
     parlayId: p.parlayId,
     fairHomeMl: p.fairHomeMl,
     fairAwayMl: p.fairAwayMl,
     sentiment: p.sentiment || null,
   };
-}
-
-function initials(name) {
-  const parts = String(name || "").split(" ").filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 3).toUpperCase();
-  return parts.map((p) => p[0]).join("").slice(0, 3).toUpperCase();
 }
 
 export function mergeParlay(games, parlayEvents, sport) {
@@ -293,13 +294,13 @@ export function mergeParlay(games, parlayEvents, sport) {
   });
 
   for (const p of leftover) {
-    merged.push({
+    const stub = {
       id: p.parlayId,
       sport,
       start: p.commence,
       status: { state: "pre", detail: "Scheduled", completed: false, live: false },
-      home: { name: p.homeTeam, abbr: initials(p.homeTeam), logo: "", score: null, rank: null, record: "", mlbId: null },
-      away: { name: p.awayTeam, abbr: initials(p.awayTeam), logo: "", score: null, rank: null, record: "", mlbId: null },
+      home: { name: p.homeTeam, abbr: "—", logo: "", score: null, rank: null, record: "", mlbId: null },
+      away: { name: p.awayTeam, abbr: "—", logo: "", score: null, rank: null, record: "", mlbId: null },
       odds: {
         spread: p.spread,
         total: p.total,
@@ -335,14 +336,20 @@ export function mergeParlay(games, parlayEvents, sport) {
       espnHomeWinPct: null,
       projHomeScore: null,
       projAwayScore: null,
+      marketProjHome: p.total != null && p.spread != null ? p.total / 2 - p.spread / 2 : null,
+      marketProjAway: p.total != null && p.spread != null ? p.total / 2 + p.spread / 2 : null,
+      projectionKind: sport === "nfl" ? "PINNACLE_IMPLIED" : sport === "cfb" ? "UNAVAILABLE" : "PINNACLE_IMPLIED",
       venue: "",
       broadcast: "",
       notes: [],
       parlayId: p.parlayId,
+      parlayHomeName: p.homeTeam,
+      parlayAwayName: p.awayTeam,
       fairHomeMl: p.fairHomeMl,
       fairAwayMl: p.fairAwayMl,
       sentiment: p.sentiment || null,
-    });
+    };
+    merged.push(attachMarketLabels(enrichGameTeams(sport, stub)));
   }
   return merged;
 }

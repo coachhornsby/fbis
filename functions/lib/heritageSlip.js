@@ -6,6 +6,7 @@
 import { americanProfit, americanToImplied } from "./pricing.js";
 import { EXECUTION_BOOK } from "./books.js";
 import { todayCT } from "./slateEngine.js";
+import { identityFromName } from "./teams.js";
 
 export const HERITAGE_CLV_METHOD = "pin-novig-v1";
 export const RISK_TOLERANCE = 0.02;
@@ -297,6 +298,8 @@ export function parseHeritageTicket(block, { yearHint } = {}) {
     matchupText: `${listedA} vs ${listedB}`.trim(),
     awayTeam: listedA || null,
     homeTeam: listedB || null,
+    awayIdentity: identityFromName(listedA),
+    homeIdentity: identityFromName(listedB),
     awayPitcher: parens[0] || pitcherA,
     homePitcher: parens[1] || null,
     marketOriginal: market.original,

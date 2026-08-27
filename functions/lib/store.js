@@ -78,6 +78,69 @@ export async function persistPrediction(env, row) {
         proj_home, proj_away, proj_total, proj_margin, pal_home, pal_away,
         p_home_final, p_away_final, p_market, p_espn, p_score, p_form, p_pal,
         weights_json, layers_json, pal_json, pal_as_of, lineups_official, data_quality,
+        pin_home_ml, pin_away_ml, pin_vig, engine, actual_home, actual_away, graded_at,
+        projection_state, projection_kind
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        row.gameId,
+        row.sport,
+        row.date,
+        n(row.matchup),
+        n(row.checkpoint),
+        n(row.modelVersion),
+        row.asOf,
+        n(row.projHome),
+        n(row.projAway),
+        n(row.projTotal),
+        n(row.projMargin),
+        n(row.palHome),
+        n(row.palAway),
+        n(row.pHomeFinal),
+        n(row.pAwayFinal),
+        n(row.pMarket),
+        n(row.pEspn),
+        n(row.pScore),
+        n(row.pForm),
+        n(row.pPal),
+        n(row.weightsJson),
+        n(row.layersJson),
+        n(row.palJson),
+        n(row.palAsOf),
+        row.lineupsOfficial == null ? null : row.lineupsOfficial ? 1 : 0,
+        n(row.dataQuality),
+        n(row.pinHomeMl),
+        n(row.pinAwayMl),
+        n(row.pinVig),
+        n(row.engine),
+        n(row.actualHome),
+        n(row.actualAway),
+        n(row.gradedAt),
+        n(row.projectionState),
+        n(row.projectionKind)
+      )
+      .run();
+    markWrite();
+    return { ok: true };
+  } catch (err) {
+    const msg = String(err?.message || err);
+    if (msg.includes("projection_state") || msg.includes("projection_kind")) {
+      return persistPredictionLegacy(env, row);
+    }
+    markErr(err);
+    return { ok: false, reason: msg };
+  }
+}
+
+async function persistPredictionLegacy(env, row) {
+  try {
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO predictions (
+        id, game_id, sport, date, matchup, checkpoint, model_version, as_of,
+        proj_home, proj_away, proj_total, proj_margin, pal_home, pal_away,
+        p_home_final, p_away_final, p_market, p_espn, p_score, p_form, p_pal,
+        weights_json, layers_json, pal_json, pal_as_of, lineups_official, data_quality,
         pin_home_ml, pin_away_ml, pin_vig, engine, actual_home, actual_away, graded_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
@@ -126,6 +189,12 @@ export async function persistPrediction(env, row) {
   }
 }
 
+function flagsJson(row) {
+  const flags = row.projectionFlags ?? row.qualityFlags ?? row.uncertainty?.flags ?? null;
+  if (flags == null) return null;
+  return typeof flags === "string" ? flags : JSON.stringify(flags);
+}
+
 function layersWithSnap(row) {
   let layers = {};
   try {
@@ -151,6 +220,11 @@ function layersWithSnap(row) {
     week: row.week ?? null,
     conference: row.conference ?? null,
     pAwayFinal: row.pAwayFinal ?? null,
+    projectionState: row.projectionState ?? row.uncertainty?.projectionState ?? null,
+    projectionKind: row.projectionKind ?? null,
+    bettingAllowed: row.bettingAllowed ?? row.uncertainty?.bettingAllowed ?? null,
+    priorVersion: row.priorVersion ?? row.uncertainty?.priorVersion ?? null,
+    projectionFlags: flagsJson(row),
   };
   return JSON.stringify(layers);
 }
@@ -166,8 +240,9 @@ export async function persistSnapshot(env, row) {
         pal_f5_home, pal_f5_away, pal_p_home, pal_as_of, pal_request_id, pal_json, lineups_official,
         p_home_final, p_market, p_espn, p_score, p_form, p_pal,
         weights_json, layers_json, data_quality,
-        pin_home_ml, pin_away_ml, pin_vig, engine, actual_home, actual_away, graded_at, deployment_commit
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        pin_home_ml, pin_away_ml, pin_vig, engine, actual_home, actual_away, graded_at, deployment_commit,
+        projection_state, projection_kind, projection_flags
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         row.id,
@@ -207,7 +282,10 @@ export async function persistSnapshot(env, row) {
         n(row.actualHome),
         n(row.actualAway),
         n(row.gradedAt),
-        n(row.deploymentCommit)
+        n(row.deploymentCommit),
+        n(row.projectionState),
+        n(row.projectionKind),
+        flagsJson(row)
       )
       .run();
     const changes = Number(res?.meta?.changes) || 0;
@@ -231,11 +309,15 @@ export async function persistSnapshot(env, row) {
     }
     return { ok: true, inserted: changes > 0 ? 1 : 0, already: changes > 0 ? 0 : 1, failed: 0, conflict: false };
   } catch (err) {
-    if (String(err?.message || err).includes("deployment_commit")) {
+    const msg = String(err?.message || err);
+    if (msg.includes("projection_state") || msg.includes("projection_kind") || msg.includes("projection_flags")) {
+      return persistSnapshotLegacy(env, row);
+    }
+    if (msg.includes("deployment_commit")) {
       return persistSnapshotLegacy(env, row);
     }
     markErr(err);
-    return { ok: false, reason: String(err?.message || err), inserted: 0, already: 0, failed: 1, conflict: false };
+    return { ok: false, reason: msg, inserted: 0, already: 0, failed: 1, conflict: false };
   }
 }
 
@@ -709,6 +791,11 @@ export function mapSnapshotRow(r) {
     homeName: extra.homeName || null,
     awayName: extra.awayName || null,
     layers,
+    projectionState: r.projection_state ?? snap.projectionState ?? snap.uncertainty?.projectionState ?? null,
+    projectionKind: r.projection_kind ?? snap.projectionKind ?? null,
+    projectionFlags: r.projection_flags ?? snap.projectionFlags ?? snap.uncertainty?.flags ?? null,
+    bettingAllowed: snap.bettingAllowed ?? snap.uncertainty?.bettingAllowed ?? null,
+    priorVersion: snap.priorVersion ?? snap.uncertainty?.priorVersion ?? null,
   };
 }
 
@@ -1393,12 +1480,35 @@ export async function queryJobHealth(env, { since } = {}) {
       retryN = { n: 0 };
     }
     markRead();
+    let lastScheduledCollect = null;
+    let lastScheduledHarvest = null;
+    try {
+      lastScheduledCollect = await env.DB.prepare(
+        "SELECT * FROM job_runs WHERE job_type LIKE 'collect%' AND trigger_type = 'schedule' AND status = 'success' ORDER BY completed_at DESC LIMIT 1"
+      ).first();
+      lastScheduledHarvest = await env.DB.prepare(
+        "SELECT * FROM job_runs WHERE job_type LIKE 'harvest%' AND trigger_type = 'schedule' AND status = 'success' ORDER BY completed_at DESC LIMIT 1"
+      ).first();
+    } catch {
+      lastScheduledCollect = null;
+      lastScheduledHarvest = null;
+    }
     return {
       source: "d1",
       lastCollectSuccessAt: collectOk?.completed_at || unbound.lastCollectSuccessAt,
       lastCollectAttemptAt: meta.last_collect_attempt_at || collectOk?.started_at || null,
       lastHarvestSuccessAt: harvestOk?.completed_at || unbound.lastHarvestSuccessAt,
       lastHarvestAttemptAt: meta.last_harvest_attempt_at || harvestOk?.started_at || null,
+      lastManualCollectSuccessAt: meta.last_manual_collect_success_at || null,
+      lastManualHarvestSuccessAt: meta.last_manual_harvest_success_at || null,
+      lastScheduledCollectSuccessAt:
+        lastScheduledCollect?.completed_at || meta.last_scheduled_collect_success_at || null,
+      lastScheduledHarvestSuccessAt:
+        lastScheduledHarvest?.completed_at || meta.last_scheduled_harvest_success_at || null,
+      lastScheduledCollectAttemptAt: meta.last_scheduled_collect_attempt_at || null,
+      lastScheduledHarvestAttemptAt: meta.last_scheduled_harvest_attempt_at || null,
+      lastScheduledEventType: meta.last_scheduled_event_type || (lastScheduledCollect ? "schedule" : null),
+      lastScheduledRunUrl: meta.last_scheduled_run_url || null,
       lastD1WriteSuccessAt: meta.last_d1_write_success_at || collectOk?.completed_at || harvestOk?.completed_at || null,
       lastFailedCollectAt: collectFail && collectFail.status !== "success" ? collectFail.completed_at : unbound.lastFailedCollectAt,
       lastFailedHarvestAt: harvestFail && harvestFail.status !== "success" ? harvestFail.completed_at : unbound.lastFailedHarvestAt,
@@ -1408,6 +1518,7 @@ export async function queryJobHealth(env, { since } = {}) {
         ? {
             id: lastJob.id,
             jobType: lastJob.job_type,
+            triggerType: lastJob.trigger_type,
             status: lastJob.status,
             startedAt: lastJob.started_at,
             completedAt: lastJob.completed_at,

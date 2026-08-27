@@ -1,6 +1,7 @@
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { fmtAmerican, fmtNum, fmtPct } from "./lib/format.js";
 import { kickoffCt } from "../functions/lib/gameStatus.js";
+import { TeamIdentity } from "./components/TeamLogo.jsx";
 
 const FILTERS = [
   ["all", "All games"],
@@ -78,7 +79,12 @@ export default function TodayView({
             <p className="error" style={{ marginTop: 8 }}>{health.openFailures.join(" · ")}</p>
           )}
           <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
-            Cache-only odds on this page. Missing Pinnacle is context, not a bet. Pal {health.pal?.matched ?? 0} matched / {health.pal?.unmatched ?? 0} unmatched
+            Cache-only odds on this page. Missing Pinnacle is context, not a bet. Pal last collect: {health.pal?.matched ?? 0} matched / {health.pal?.unmatched ?? 0} unmatched
+            {health.pal?.mlbGames != null ? ` of ${health.pal.mlbGames} MLB games` : ""}
+            {health.pal?.recordsReturned != null ? ` · Pal records ${health.pal.recordsReturned}` : ""}
+            {health.pal?.usable != null ? ` · usable ${health.pal.usable}` : ""}
+            {health.pal?.ambiguous ? ` · ambiguous ${health.pal.ambiguous}` : ""}
+            {health.pal?.reason ? ` · ${health.pal.reason}` : ""}
             {health.pal?.error ? ` · ${health.pal.error}` : ""}.
           </p>
         </div>
@@ -156,16 +162,8 @@ function TodayTable({ games }) {
           <tr key={`${g.sport}:${g.id}`}>
             <td>
               <div className="team-block">
-                <div className="team-line">
-                  {g.away?.logo && <img className="team-logo" src={g.away.logo} alt="" />}
-                  <span>{g.away?.abbr || g.away?.name}</span>
-                  {g.score ? <span className="score-accent">{g.score.away}</span> : null}
-                </div>
-                <div className="team-line">
-                  {g.home?.logo && <img className="team-logo" src={g.home.logo} alt="" />}
-                  <span>{g.home?.abbr || g.home?.name}</span>
-                  {g.score ? <span className="score-accent">{g.score.home}</span> : null}
-                </div>
+                <TeamIdentity team={g.away} score={g.score?.away} />
+                <TeamIdentity team={g.home} score={g.score?.home} />
                 <div className="muted" style={{ fontSize: 10 }}>
                   {g.venue || "—"}{g.neutral ? " · NEUTRAL" : ""}
                 </div>
@@ -180,26 +178,16 @@ function TodayTable({ games }) {
               <div className="muted">{g.statusDetail}</div>
             </td>
             <td>
-              {g.projectionUnavailable ? (
-                <span className="muted">projection unavailable</span>
-              ) : (
-                <>
-                  <div className="text-blue">{fmtNum(g.projAway)} – {fmtNum(g.projHome)}</div>
-                  <div className="muted">tot {fmtNum(g.projTotal)} · mgn {fmtNum(g.projMargin)} · pH {fmtPct(g.pHome)}</div>
-                </>
-              )}
+              <ProjCell g={g} />
             </td>
             <td>
-              {g.marketUnavailable ? (
-                <span className="muted">market unavailable</span>
+              {g.marketUnresolved || g.marketUnavailable ? (
+                <span className="muted">{g.marketUnresolved ? "TEAM MATCH UNRESOLVED" : "market unavailable"}</span>
               ) : (
                 <>
-                  <div>{fmtAmerican(g.pinMlAway)} / {fmtAmerican(g.pinMlHome)}</div>
-                  <div className="muted">
-                    {g.pinSpread != null ? `RL ${g.pinSpread > 0 ? "+" : ""}${g.pinSpread}` : "RL —"}
-                    {" · "}
-                    {g.pinTotal != null ? `tot ${g.pinTotal}` : "tot —"}
-                  </div>
+                  <div>{pinMlLabel(g)}</div>
+                  <div className="muted">{pinSpreadLabel(g)}</div>
+                  <div className="muted">{g.marketLabels?.totalOver?.label || (g.pinTotal != null ? `tot ${g.pinTotal}` : "tot —")}</div>
                 </>
               )}
             </td>
@@ -208,7 +196,9 @@ function TodayTable({ games }) {
               <div className="muted">{(g.quality?.flags || []).slice(0, 2).join(" · ") || "—"}</div>
             </td>
             <td>
-              {g.rec ? (
+              {g.qualificationBlocked || (g.sport === "cfb" && g.bettingAllowed === false) ? (
+                <span className="muted">{g.blockReason || g.noPlayReason || "Blocked"}</span>
+              ) : g.rec ? (
                 <>
                   <span className={`tier-badge tier-${g.rec.tag}`}>{g.rec.tag}</span>
                   <div>{g.rec.pick} · {g.rec.market}</div>
@@ -243,4 +233,56 @@ function TodayTable({ games }) {
       </tbody>
     </table>
   );
+}
+
+function ProjCell({ g }) {
+  if (g.sport === "cfb" && g.projectionState === "LEAGUE_AVERAGE_ONLY") {
+    return (
+      <>
+        <div className="proj-blocked">PROJECTION BLOCKED</div>
+        <div className="muted">Team-specific inputs missing</div>
+        {g.projAway != null && <div className="muted">diag {fmtNum(g.projAway)} – {fmtNum(g.projHome)}</div>}
+        <div className="proj-state muted">LEAGUE_AVERAGE_ONLY</div>
+      </>
+    );
+  }
+  if (g.sport === "nfl") {
+    const implied = g.marketProjAway != null ? `${fmtNum(g.marketProjAway)} – ${fmtNum(g.marketProjHome)}` : null;
+    return (
+      <>
+        <div className="muted">FBIS projection unavailable</div>
+        {implied && <div className="proj-implied">Pinnacle implied score: {implied}</div>}
+      </>
+    );
+  }
+  if (g.projectionUnavailable || (g.projHome == null && g.projAway == null)) {
+    return <span className="muted">projection unavailable</span>;
+  }
+  return (
+    <>
+      <div className="text-blue">{fmtNum(g.projAway)} – {fmtNum(g.projHome)}</div>
+      <div className="muted">tot {fmtNum(g.projTotal)} · mgn {fmtNum(g.projMargin)}</div>
+      {g.palAway != null && g.palHome != null ? (
+        <div className="muted">
+          Pal {fmtNum(g.palAway)}–{fmtNum(g.palHome)}
+          {g.palPHome != null ? ` · pH ${fmtPct(g.palPHome)}` : ""}
+          {g.palF5Away != null ? ` · F5 ${fmtNum(g.palF5Away)}–${fmtNum(g.palF5Home)}` : ""}
+        </div>
+      ) : g.sport === "mlb" ? (
+        <div className="muted">Pal {g.palUnavailableReason || "unavailable"}</div>
+      ) : null}
+      {g.projectionState && <div className="proj-state muted">{g.projectionState}</div>}
+    </>
+  );
+}
+
+function pinMlLabel(g) {
+  const away = g.marketLabels?.mlAway?.label;
+  const home = g.marketLabels?.mlHome?.label;
+  if (away && home) return `${away} / ${home}`;
+  return `${fmtAmerican(g.pinMlAway)} / ${fmtAmerican(g.pinMlHome)}`;
+}
+
+function pinSpreadLabel(g) {
+  return g.marketLabels?.spreadHome?.label || (g.pinSpread != null ? `RL ${g.pinSpread > 0 ? "+" : ""}${g.pinSpread}` : "RL —");
 }

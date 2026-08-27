@@ -6,6 +6,7 @@
 import { BOARD_SPORTS, SPORTS, todayCT, shiftDateCT, buildSlate, recommendBundle } from "./slateEngine.js";
 import { classifyBoardStatus, kickoffCt, noPlayReason, isPreStartStatus, isLiveStatus } from "./gameStatus.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
+import { palUnavailableReason } from "./ballparkpal.js";
 
 function withRecs(slate, weights = DEFAULT_WEIGHTS) {
   return {
@@ -63,14 +64,20 @@ export function toBoardGame(game, sport, now = Date.now()) {
     statusDetail: game.status?.detail || status,
     away: {
       name: game.away?.name,
+      school: game.away?.school,
+      fullName: game.away?.fullName,
       abbr: game.away?.abbr,
       logo: game.away?.logo,
+      canonicalId: game.away?.canonicalId,
       score: game.away?.score ?? null,
     },
     home: {
       name: game.home?.name,
+      school: game.home?.school,
+      fullName: game.home?.fullName,
       abbr: game.home?.abbr,
       logo: game.home?.logo,
+      canonicalId: game.home?.canonicalId,
       score: game.home?.score ?? null,
     },
     venue: game.venue || "",
@@ -83,6 +90,13 @@ export function toBoardGame(game, sport, now = Date.now()) {
     projAway: game.model?.projAway ?? game.projAwayScore ?? null,
     projTotal: game.model?.projTotal ?? null,
     projMargin: game.model?.projMargin ?? null,
+    marketProjHome: game.model?.marketProjHome ?? game.marketProjHome ?? null,
+    marketProjAway: game.model?.marketProjAway ?? game.marketProjAway ?? null,
+    projectionKind: game.model?.projectionKind || game.projectionKind || null,
+    projectionState: game.cfb?.projectionState || game.projectionState || null,
+    bettingAllowed: game.cfb ? game.cfb.bettingAllowed : game.sport === "nfl" ? false : null,
+    blockReason: game.cfb?.blockReason || null,
+    marketLabels: game.marketLabels || null,
     pHome: game.model?.pHomeFinal ?? null,
     pinMlHome: game.odds?.pinHomeMl ?? null,
     pinMlAway: game.odds?.pinAwayMl ?? null,
@@ -113,8 +127,21 @@ export function toBoardGame(game, sport, now = Date.now()) {
       : null,
     noPlayReason: rec ? null : noPlayReason(game),
     marketUnavailable: !(game.odds?.pinHomeMl != null && game.odds?.pinAwayMl != null) && pinTotal == null && pinSpread == null,
-    projectionUnavailable: game.model?.projHome == null && game.model?.projAway == null,
+    projectionUnavailable: (game.model?.projHome == null && game.model?.projAway == null) || game.projectionKind === "UNAVAILABLE",
+    qualificationBlocked: Boolean(game.qualificationBlocked || (game.cfb && !game.cfb.bettingAllowed) || (game.sport === "nfl" && game.projectionKind !== "FBIS")),
     palMatched: Boolean(game.bpp),
+    palHome: game.bpp?.homeRuns ?? game.model?.palHome ?? null,
+    palAway: game.bpp?.awayRuns ?? game.model?.palAway ?? null,
+    palPHome: game.bpp?.pHome ?? game.model?.layers?.pal ?? null,
+    palF5Home: game.bpp?.f5?.homeRuns ?? null,
+    palF5Away: game.bpp?.f5?.awayRuns ?? null,
+    palAsOf: game.bpp?.asOf ?? null,
+    palRequestId: game.bpp?.requestId ?? null,
+    palUnavailableReason: game.bpp
+      ? game.bpp.homeRuns == null || game.bpp.awayRuns == null
+        ? "projection-fields-missing"
+        : null
+      : palUnavailableReason({ reason: "team-mismatch" }, game),
     live: status === "live" || status === "halftime",
     final: status === "final",
   };
@@ -191,6 +218,7 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, now = Date
         n: rows.length,
         error: null,
         pal: slate.pal || null,
+        palReason: sport === "mlb" ? palUnavailableReason(slate.pal?.meta || {}, null) : null,
         parlay: slate.parlay || null,
         cachedParlay: Boolean(slate.parlay?.cached || slate.parlay?.skipped),
       };
@@ -230,6 +258,16 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, now = Date
       qualified: all.filter((g) => g.rec).length,
       leans: all.filter((g) => g.lean && !g.rec).length,
       postponed: all.filter((g) => g.status === "postponed").length,
+      cfbDiagnostics: (all.filter((g) => g.sport === "cfb").length
+        ? {
+            states: Object.fromEntries(
+              ["COMPLETE", "PARTIAL", "PRIOR_ONLY", "LEAGUE_AVERAGE_ONLY", "UNAVAILABLE"].map((s) => [
+                s,
+                all.filter((g) => g.sport === "cfb" && g.projectionState === s).length,
+              ])
+            ),
+          }
+        : null),
     },
     feeds,
     empty,

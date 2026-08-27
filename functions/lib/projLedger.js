@@ -23,6 +23,7 @@ import {
   countToday,
   researchHealth,
   setMeta,
+  readMeta,
   applyFinalToForm,
   persistStrategy,
   persistStrategyTicket,
@@ -46,6 +47,7 @@ import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult,
 import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
 import { settleExecutedBet } from "./executedBets.js";
 import { sourceCoverage, palHealth } from "./sourceCoverage.js";
+import { palUnavailableReason } from "./ballparkpal.js";
 import { layerDiagnostics } from "./layerDiagnostics.js";
 import {
   classifyJobStatus,
@@ -57,6 +59,7 @@ import {
   stampSuccess,
   durableHealth,
   staleScheduleWarning,
+  scheduledHealth,
   deploymentCommit,
   JOB_SUCCESS,
   JOB_FAILED,
@@ -77,12 +80,12 @@ export const RECIPE_GUIDE = {
     body: "Home = total/2 − home spread/2. Away = total/2 + home spread/2. That is the market’s implied score until an independent NBA sim is wired. Win-prob blends Pinnacle no-vig, ESPN, score (line-implied margin), and W-L form.",
   },
   nfl: {
-    engine: "Pinnacle line-implied",
-    body: "Same split as NBA: Pinnacle total and spread implied into team scores. Recs blend no-vig market, ESPN, and record form.",
+    engine: "Pinnacle implied score (no independent FBIS NFL model)",
+    body: "PINNACLE IMPLIED SCORE is total/2 ± spread/2. That is market context, not an independent FBIS projection. Circular market-derived scores cannot qualify. Identity/logos use the canonical NFL registry.",
   },
   cfb: {
-    engine: "CFB prior + season evidence",
-    body: "Independent score model (FBIS-v1.3). Preseason prior from ESPN AP rank; current-season evidence is harvested points for/against. Blend w = n/(n+6) so Week 0 does not overwrite the prior. HFA 2.5 (0 on neutral). Win/spread/total use Normal sigma (wider early). No EPA/QB/coach/transfer feed is wired. Pinnacle remains the market layer for no-vig/EV — a projected winner is not a bet.",
+    engine: "CFB prior-v1 + season evidence",
+    body: "Independent score model. Team-specific prior is ESPN FPI (all FBS) blended with opponent-adjusted 2025 SRS. Current-season evidence is harvested points for/against, w = n/(n+6). HFA 2.5 (0 on confirmed neutral). League-average-only games are diagnostic, never qualified, never LOG, never strategy. Champion HFA challengers remain shadow.",
   },
   cbb: {
     engine: "Pinnacle line-implied",
@@ -171,7 +174,7 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     id: String(game.id),
     sport: game.sport,
     date,
-    matchup: `${game.away?.abbr || "A"} @ ${game.home?.abbr || "H"}`,
+    matchup: `${game.away?.school || game.away?.abbr || "A"} @ ${game.home?.school || game.home?.abbr || "H"}`,
     awayAbbr: game.away?.abbr,
     homeAbbr: game.home?.abbr,
     awayName: game.away?.name,
@@ -187,6 +190,10 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     palTotal: palHome != null && palAway != null ? palHome + palAway : null,
     palMargin: palHome != null && palAway != null ? palHome - palAway : null,
     engine: recipe.engine || "unknown",
+    projectionState: game.cfb?.projectionState || game.projectionState || null,
+    projectionKind: game.projectionKind || game.model?.projectionKind || null,
+    bettingAllowed: game.cfb?.bettingAllowed ?? null,
+    priorVersion: game.cfb?.priorVersion || null,
     steps: recipe.steps || [],
     impliedHome: model.impliedHome ?? null,
     pHome: pHomeFinal,
@@ -267,6 +274,11 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
           awayW: game.cfb.awayEst?.w ?? null,
           homePriorOff: game.cfb.homeEst?.priorOff ?? null,
           awayPriorOff: game.cfb.awayEst?.priorOff ?? null,
+          homePriorFrozen: game.cfb.homeEst?.priorFrozen || null,
+          awayPriorFrozen: game.cfb.awayEst?.priorFrozen || null,
+          projectionState: game.cfb.projectionState,
+          bettingAllowed: game.cfb.bettingAllowed,
+          priorVersion: game.cfb.priorVersion,
           shadowHfa: game.cfb.shadowHfa || null,
           venue: game.cfb.venue || null,
         }
@@ -711,6 +723,8 @@ async function persistMatchingRec(env, slate, game, frozen) {
   const bundle = recommendBundle(slate.sport, game, game.model);
   const rec = bundle?.qualified;
   if (!rec || !ticketMatchesStrategy(rec)) return { ok: true, skipped: true, reason: "no-match" };
+  if (game.cfb && !game.cfb.bettingAllowed) return { ok: true, skipped: true, reason: "cfb-blocked" };
+  if (slate.sport === "nfl" && game.projectionKind !== "FBIS") return { ok: true, skipped: true, reason: "nfl-no-independent-model" };
   return persistStrategyTicket(
     env,
     packTicket(
@@ -858,6 +872,8 @@ async function persistFrozen(env, row, game, date) {
       actualHome: row.actualHome,
       actualAway: row.actualAway,
       gradedAt: row.gradedAt,
+      projectionState: row.projectionState,
+      projectionKind: row.projectionKind,
     })
   );
   results.push(await persistSnap(env, row, date, game));
@@ -930,6 +946,12 @@ async function persistCheckpoint(env, row, game, date) {
     week: row.week,
     conference: row.conference,
     pAwayFinal: row.pAwayFinal,
+    projectionState: row.projectionState,
+    projectionKind: row.projectionKind,
+    bettingAllowed: row.bettingAllowed,
+    priorVersion: row.priorVersion,
+    qualityFlags: row.qualityFlags,
+    projectionFlags: row.qualityFlags || row.uncertainty?.flags || null,
   });
   return { ...res, kind: "snapshot" };
 }
@@ -1201,6 +1223,7 @@ async function dbPayload(env) {
   const counts = await countToday(env, todayCT());
   const durable = await durableHealth(env);
   const warnings = staleScheduleWarning(durable);
+  const meta = await readMeta(env);
   return {
     ...ping,
     ...counts,
@@ -1218,7 +1241,30 @@ async function dbPayload(env) {
     lastFailedCollect: durable.lastFailedCollectAt,
     lastFailedHarvest: durable.lastFailedHarvestAt,
     lastJob: durable.lastJob,
+    lastManualCollectSuccess: durable.lastManualCollectSuccessAt,
+    lastManualHarvestSuccess: durable.lastManualHarvestSuccessAt,
+    lastScheduledCollectSuccess: durable.lastScheduledCollectSuccessAt,
+    lastScheduledHarvestSuccess: durable.lastScheduledHarvestSuccessAt,
+    lastScheduledCollectAttempt: durable.lastScheduledCollectAttemptAt,
+    lastScheduledHarvestAttempt: durable.lastScheduledHarvestAttemptAt,
+    scheduled: scheduledHealth(durable),
     scheduleWarnings: warnings,
+    palPipeline: {
+      configured: true,
+      lastSuccess: meta.last_pal_success_at || null,
+      lastFailure: meta.last_pal_error || null,
+      httpStatus: meta.last_pal_http_status || null,
+      recordsReturned: meta.last_pal_records_returned != null ? Number(meta.last_pal_records_returned) : null,
+      usable: meta.last_pal_usable != null ? Number(meta.last_pal_usable) : null,
+      matched: meta.last_pal_matched != null ? Number(meta.last_pal_matched) : null,
+      unmatched: meta.last_pal_unmatched != null ? Number(meta.last_pal_unmatched) : null,
+      ambiguous: meta.last_pal_ambiguous != null ? Number(meta.last_pal_ambiguous) : null,
+      persisted: meta.last_pal_persisted != null ? Number(meta.last_pal_persisted) : null,
+      mlbGames: meta.last_pal_mlb_games != null ? Number(meta.last_pal_mlb_games) : null,
+      asOf: meta.last_pal_as_of || null,
+      requestId: meta.last_pal_request_id || null,
+      reason: meta.last_pal_reason || null,
+    },
     processLocal: researchHealth(),
   };
 }
@@ -1244,7 +1290,7 @@ export function sportsForJob(sport) {
 
 export async function harvestAll(days, env = {}, opts = {}) {
   const attemptedAt = new Date().toISOString();
-  await stampAttempt(env, "harvest", attemptedAt);
+  await stampAttempt(env, "harvest", attemptedAt, opts.trigger || "http");
   const unbound = !hasDb(env);
   const sportList = sportsForJob(opts.sport);
   if (!sportList) {
@@ -1309,7 +1355,7 @@ export async function harvestAll(days, env = {}, opts = {}) {
     requiredFailed: unbound || failedSports === reports.length,
   });
   const successfulAt = status === JOB_SUCCESS ? new Date().toISOString() : null;
-  if (status === JOB_SUCCESS) await stampSuccess(env, "harvest", successfulAt);
+  if (status === JOB_SUCCESS) await stampSuccess(env, "harvest", successfulAt, opts.trigger || "http");
   const payload = jobPayload({
     ok: status === JOB_SUCCESS,
     job: "harvest",
@@ -1377,9 +1423,10 @@ export async function harvestAll(days, env = {}, opts = {}) {
   };
 }
 
-export async function collectBoards(env = {}, { odds = "cache", trigger = "http", buildSlateFn, sport, dayOffset } = {}) {
+export async function collectBoards(env = {}, { odds = "cache", trigger = "http", buildSlateFn, sport, dayOffset, mode } = {}) {
+  const healthMode = mode === "health";
   const attemptedAt = new Date().toISOString();
-  await stampAttempt(env, "collect", attemptedAt);
+  await stampAttempt(env, "collect", attemptedAt, trigger);
   const date = todayCT();
   const builder = buildSlateFn || buildSlate;
   const sports = [];
@@ -1429,29 +1476,62 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         dates.push(day);
         const slate = await builder(sport, day, {
           ...env,
-          parlayCacheOnly: odds !== "full",
+          parlayCacheOnly: odds !== "full" || healthMode,
+          palCacheOnly: healthMode,
         });
-        if (odds === "full" && slate?.parlay?.error) {
+        if (!healthMode && odds === "full" && slate?.parlay?.error) {
           throw new Error(`Parlay full collect failed: ${slate.parlay.error}`);
         }
-        const frozen = await freezeSlate(slate, env);
+        let frozen = { counts: emptyWriteCounts(), failReasons: [] };
+        if (!healthMode) {
+          frozen = await freezeSlate(slate, env);
+        }
         sportWrites = mergeWriteCounts(sportWrites, frozen.counts || emptyWriteCounts());
         if (frozen.failReasons?.length) sportFailReasons.push(...frozen.failReasons);
         n += slate.games?.length || 0;
-        pal = slate.pal?.games ?? slate.pal?.meta?.games ?? pal;
+        pal = slate.pal?.match || slate.pal?.meta || pal;
         if (sport === "mlb") {
           const palMeta = slate.pal?.meta || {};
-          if (palMeta.error) await setMeta(env, "last_pal_error", palMeta.error);
-          else if (palMeta.enabled === false) await setMeta(env, "last_pal_error", palMeta.reason || "no-api-key");
-          else {
-            await setMeta(env, "last_pal_error", "");
-            await setMeta(env, "last_pal_success_at", palMeta.asOf || new Date().toISOString());
+          const palMatch = slate.pal?.match || {};
+          const persisted = healthMode
+            ? 0
+            : (slate.games || []).filter((g) => g.bpp?.homeRuns != null || g.bpp?.awayRuns != null).length;
+          if (palMeta.error || palMeta.reason === "upstream-error") {
+            await setMeta(env, "last_pal_error", palMeta.error || palMeta.reason);
+            await setMeta(env, "last_pal_http_status", String(palMeta.httpStatus || ""));
+          } else if (palMeta.enabled === false) {
+            await setMeta(env, "last_pal_error", palMeta.reason || "no-api-key");
+          } else {
+            if (palMeta.reason === "no-records-returned" || palMeta.recordsReturned === 0) {
+              await setMeta(env, "last_pal_error", palMeta.reason || "no-records-returned");
+            } else {
+              await setMeta(env, "last_pal_error", "");
+              await setMeta(env, "last_pal_success_at", palMeta.asOf || new Date().toISOString());
+            }
             await setMeta(env, "last_pal_request_id", palMeta.requestId || "");
+            await setMeta(env, "last_pal_as_of", palMeta.asOf || "");
+            await setMeta(env, "last_pal_http_status", String(palMeta.httpStatus || 200));
           }
-          const matched = (slate.games || []).filter((g) => g.bpp).length;
-          const unmatched = (slate.games || []).length - matched;
+          const matched = palMatch.matched ?? (slate.games || []).filter((g) => g.bpp).length;
+          const unmatched = palMatch.unmatched ?? Math.max(0, (slate.games || []).length - matched);
+          const ambiguous = palMatch.ambiguous ?? 0;
+          const returned = palMeta.recordsReturned ?? palMatch.palRecords ?? 0;
+          const usable = palMeta.usable ?? palMatch.palUsable ?? 0;
           await setMeta(env, "last_pal_matched", String(matched));
           await setMeta(env, "last_pal_unmatched", String(unmatched));
+          await setMeta(env, "last_pal_ambiguous", String(ambiguous));
+          await setMeta(env, "last_pal_records_returned", String(returned));
+          await setMeta(env, "last_pal_usable", String(usable));
+          await setMeta(env, "last_pal_persisted", String(persisted));
+          await setMeta(env, "last_pal_mlb_games", String((slate.games || []).length));
+          await setMeta(env, "last_pal_reason", palUnavailableReason(palMeta) || palMeta.reason || "");
+          pal = {
+            ...(typeof pal === "object" && pal ? pal : {}),
+            ...palMeta,
+            ...palMatch,
+            persisted,
+            unmatchedSample: (slate.pal?.unmatched || []).slice(0, 8),
+          };
         }
         days.push({ date: day, n: slate.games?.length || 0 });
       }
@@ -1489,12 +1569,12 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
     requiredFailed: unbound || failedSports === sports.length,
   });
   const successfulAt = status === JOB_SUCCESS ? new Date().toISOString() : null;
-  if (status === JOB_SUCCESS) await stampSuccess(env, "collect", successfulAt);
+  if (status === JOB_SUCCESS) await stampSuccess(env, "collect", successfulAt, trigger);
   else if (failedSports === sports.length) await setMeta(env, "last_collect_error_at", attemptedAt);
 
   const payload = jobPayload({
     ok: status === JOB_SUCCESS,
-    job: odds === "full" ? "collect-full" : "collect-cache",
+    job: healthMode ? "health" : odds === "full" ? "collect-full" : "collect-cache",
     status,
     triggerType: trigger,
     attemptedAt,
@@ -1507,7 +1587,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
     d1: await dbPayload(env),
     errors: odds === "cache" ? [...errors, ...(errors.some((e) => /pinnacle|parlay/i.test(e)) ? [] : [])] : errors,
     env,
-    cacheStatus: odds === "full" ? "full-parlay" : "cache-only-odds",
+    cacheStatus: healthMode ? "health-cache-only" : odds === "full" ? "full-parlay" : "cache-only-odds",
   });
   await recordJob(env, {
     jobType: payload.job,

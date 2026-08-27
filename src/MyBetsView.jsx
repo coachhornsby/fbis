@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fmtAmerican, fmtPct, fmtSigned } from "./lib/format.js";
+import { TeamIdentity } from "./components/TeamLogo.jsx";
 
 const RESULT_FILTERS = ["all", "OPEN", "WON", "LOST", "PUSH", "VOID"];
 const ATTR_FILTERS = ["all", "OPERATOR_ONLY", "QUALIFIED", "CONVICTION", "LEAN", "RECOMMENDED", "NO_FREEZE", "UNMATCHED"];
@@ -107,7 +108,13 @@ export default function MyBetsView({ onImport, bets: external, summary: external
                       <div>{b.externalTicketId}</div>
                       <div className="muted">{b.date}</div>
                     </td>
-                    <td>{b.matchupText}</td>
+                    <td>
+                      <div className="team-block">
+                        <TeamIdentity team={b.awayIdentity || { name: b.awayTeam }} />
+                        <TeamIdentity team={b.homeIdentity || { name: b.homeTeam }} />
+                      </div>
+                      <div className="muted">{b.matchupText}</div>
+                    </td>
                     <td>{b.market} · {b.period}</td>
                     <td>{b.selectedTeam || b.selectedSide || "—"}{b.executionLine != null ? ` ${b.executionLine}` : ""}</td>
                     <td>{fmtAmerican(b.executionPrice)}</td>

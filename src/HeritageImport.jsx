@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { fmtAmerican } from "./lib/format.js";
+import { TeamIdentity } from "./components/TeamLogo.jsx";
 
 const FIXTURE_HINT =
   "Paste one or more Heritage tickets. Preview first — nothing is written until you confirm.";
@@ -125,7 +126,11 @@ export default function HeritageImport({ open, onClose, onImported }) {
                             <div className="muted">{t.date} {t.executedAt ? new Date(t.executedAt).toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour: "numeric", minute: "2-digit" }) : ""}</div>
                           </td>
                           <td>
-                            <div>{t.matchupText}</div>
+                            <div className="team-block">
+                              <TeamIdentity team={t.awayIdentity || { name: t.awayTeam }} />
+                              <TeamIdentity team={t.homeIdentity || { name: t.homeTeam }} />
+                            </div>
+                            <div className="muted">{t.matchupText}</div>
                             {t.matchCandidates?.length > 1 && (
                               <select value={e.gameId || ""} onChange={(ev) => patch(i, "gameId", ev.target.value)}>
                                 <option value="">Select game</option>

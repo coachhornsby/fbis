@@ -26,6 +26,8 @@ import { readCache, writeCache } from "./cache.js";
 import { loadTeamForm, loadHfaRatings } from "./store.js";
 import { pCoverHome, pGreater } from "./metrics.js";
 import { buildShadowHfa, championHfaForGame } from "./hfa.js";
+import { CFB_PRIOR_VERSION, freezePrior, hasTeamSpecificPrior, priorForTeam } from "./cfbPrior.js";
+import { cfbSlateDiagnostics } from "./cfbDiagnostics.js";
 
 function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -36,6 +38,16 @@ function todayCT() {
   }).format(new Date());
 }
 
+export const PROJECTION_STATES = {
+  COMPLETE: "COMPLETE",
+  PARTIAL: "PARTIAL",
+  PRIOR_ONLY: "PRIOR_ONLY",
+  LEAGUE_AVERAGE_ONLY: "LEAGUE_AVERAGE_ONLY",
+  UNAVAILABLE: "UNAVAILABLE",
+};
+
+export const CFB_BLOCKED_MESSAGE = "Projection unavailable for betting — team-specific inputs missing.";
+
 export const CFB_CONSTANTS = {
   priorGames: 6,
   hfaPoints: 2.5,
@@ -45,11 +57,13 @@ export const CFB_CONSTANTS = {
   totalSigmaBase: 13.5,
   earlySigmaBoost: 0.35,
   rankScale: 0.85,
+  priorVersion: CFB_PRIOR_VERSION,
   notes: {
     hfa: "Documented 2.5-point FBS home-field prior. Neutral site → 0.",
     priorGames: "Current-season weight = n / (n + 6). Week 0 is almost all prior.",
     sigma: "Margin SD 15.5 and total SD 13.5 are published FBS-scale heuristics, not fitted or trained on FBIS bets.",
     missing: "No EPA/QB/coach/transfer feed is wired. Those inputs are absent, not zero-filled fakes.",
+    prior: "cfb-prior-v1: ESPN FPI (all FBS) blended with opponent-adjusted 2025 SRS. FCS without FPI is provisional.",
   },
 };
 
@@ -180,14 +194,28 @@ function priorUnit(power) {
     off: CFB_CONSTANTS.leaguePpg + power * 0.45,
     def: CFB_CONSTANTS.leaguePpg - power * 0.45,
     power,
+    teamSpecific: false,
+  };
+}
+
+function priorFromCatalog(team) {
+  const row = priorForTeam(team);
+  if (!hasTeamSpecificPrior(row)) return { ...priorUnit(0), catalog: row || null, teamSpecific: false };
+  return {
+    off: Number(row.off),
+    def: Number(row.def),
+    power: row.fpi ?? row.srs ?? 0,
+    teamSpecific: true,
+    catalog: row,
   };
 }
 
 export function estimateTeam(team, { rankings, form, rankFallback } = {}) {
   const ranked = lookupRank(rankings || { byTeam: new Map() }, team);
   const rank = ranked?.rank ?? (team?.rank && team.rank < 99 ? team.rank : rankFallback ?? null);
-  const power = powerFromRank(rank);
-  const prior = priorUnit(power);
+  const catalog = priorFromCatalog(team);
+  const power = catalog.teamSpecific ? catalog.power : powerFromRank(rank);
+  const prior = catalog.teamSpecific ? catalog : priorUnit(power);
   const key = teamKey(team);
   const row = form?.get(key) || form?.get(`abbr:${String(team?.abbr || "").toUpperCase()}`) || null;
   const n = row?.games ?? gamesFromRecord(team?.record);
@@ -196,6 +224,7 @@ export function estimateTeam(team, { rankings, form, rankFallback } = {}) {
   const off = blendSeason(prior.off, currentOff, n);
   const def = blendSeason(prior.def, currentDef, n);
   const noTeamForm = currentOff == null;
+  const priorMissing = !catalog.teamSpecific;
   return {
     key,
     rank,
@@ -209,12 +238,36 @@ export function estimateTeam(team, { rankings, form, rankFallback } = {}) {
     off: off.value,
     def: def.value,
     w: off.w,
+    teamSpecificPrior: catalog.teamSpecific,
+    priorFrozen: freezePrior(catalog.catalog),
+    provisional: Boolean(catalog.catalog?.provisional),
     flags: [
       rank == null ? "unranked" : null,
       n < 3 ? "early_season" : null,
       noTeamForm ? "no_current_ppg" : null,
+      noTeamForm ? "form_missing" : null,
+      priorMissing ? "team_prior_missing" : null,
     ].filter(Boolean),
   };
+}
+
+export function classifyCfbState(home, away) {
+  const homePrior = Boolean(home?.teamSpecificPrior);
+  const awayPrior = Boolean(away?.teamSpecificPrior);
+  const homeForm = home?.currentOff != null;
+  const awayForm = away?.currentOff != null;
+  if (!homePrior && !awayPrior) return PROJECTION_STATES.LEAGUE_AVERAGE_ONLY;
+  if (!homePrior || !awayPrior) return PROJECTION_STATES.PARTIAL;
+  if (!homeForm && !awayForm) return PROJECTION_STATES.PRIOR_ONLY;
+  if (homeForm && awayForm) return PROJECTION_STATES.COMPLETE;
+  return PROJECTION_STATES.PARTIAL;
+}
+
+export function cfbBettingAllowed(state, home, away) {
+  if (state !== PROJECTION_STATES.COMPLETE && state !== PROJECTION_STATES.PRIOR_ONLY) return false;
+  if (!home?.teamSpecificPrior || !away?.teamSpecificPrior) return false;
+  if (home.provisional || away.provisional) return false;
+  return true;
 }
 
 export function projectCfbGame(game, ctx = {}) {
@@ -234,14 +287,16 @@ export function projectCfbGame(game, ctx = {}) {
   const sig = cfbSigma({ gamesHome: home.n, gamesAway: away.n });
   const bothUnranked = home.rank == null && away.rank == null;
   const noTeamForm = home.currentOff == null && away.currentOff == null;
-  const leagueAverageOnly = bothUnranked && noTeamForm;
+  const projectionState = classifyCfbState(home, away);
+  const leagueAverageOnly = projectionState === PROJECTION_STATES.LEAGUE_AVERAGE_ONLY;
+  const bettingAllowed = cfbBettingAllowed(projectionState, home, away);
   const marketUnavailable = game.odds?.total == null && game.odds?.spread == null && game.pinSpread == null && game.pinTotal == null;
   const completeness =
     1 -
-    [home.rank == null, away.rank == null, home.currentOff == null, away.currentOff == null, rankingsUnavailable, formUnavailable, venue.uncertain, marketUnavailable].filter(
+    [home.rank == null, away.rank == null, home.currentOff == null, away.currentOff == null, !home.teamSpecificPrior, !away.teamSpecificPrior, rankingsUnavailable, formUnavailable, venue.uncertain, marketUnavailable].filter(
       Boolean
     ).length *
-      0.12;
+      0.1;
   const flags = [
     ...home.flags.map((f) => `home_${f}`),
     ...away.flags.map((f) => `away_${f}`),
@@ -249,12 +304,20 @@ export function projectCfbGame(game, ctx = {}) {
     home.n < 3 || away.n < 3 ? "early_season" : null,
     rankingsUnavailable ? "rankings_unavailable" : null,
     bothUnranked ? "both_unranked" : null,
+    home.rank == null ? "home_unranked" : null,
+    away.rank == null ? "away_unranked" : null,
+    home.currentOff == null ? "home_form_missing" : null,
+    away.currentOff == null ? "away_form_missing" : null,
+    !home.teamSpecificPrior ? "home_team_prior_missing" : null,
+    !away.teamSpecificPrior ? "away_team_prior_missing" : null,
     noTeamForm || formUnavailable ? "no_team_form" : null,
     leagueAverageOnly ? "league_average_only" : null,
     venue.uncertain ? "venue_uncertain" : null,
     marketUnavailable ? "market_unavailable" : null,
+    bettingAllowed ? null : "qualification_blocked",
     ...venue.flags,
   ].filter(Boolean);
+  const qualityFloor = leagueAverageOnly || rankingsUnavailable ? 0.08 : bettingAllowed ? 0.35 : 0.2;
   return {
     ...scores,
     hfa,
@@ -263,13 +326,18 @@ export function projectCfbGame(game, ctx = {}) {
     sigmaMargin: sig.margin,
     sigmaTotal: sig.total,
     maturity: sig.maturity,
-    dataQuality: Math.round(Math.max(leagueAverageOnly || rankingsUnavailable ? 0.1 : 0.25, Math.min(1, completeness)) * 100),
+    projectionState,
+    bettingAllowed,
+    blockReason: bettingAllowed ? null : CFB_BLOCKED_MESSAGE,
+    dataQuality: Math.round(Math.max(qualityFloor, Math.min(1, completeness)) * 100),
     flags,
     venue,
+    priorVersion: CFB_PRIOR_VERSION,
     constants: {
       priorGames: CFB_CONSTANTS.priorGames,
       hfaPoints: hfa,
       model: "cfb-prior-v1",
+      priorVersion: CFB_PRIOR_VERSION,
     },
   };
 }
@@ -346,9 +414,13 @@ export async function applyCfbModel(games, env = {}) {
       marketProjAway: marketAway,
       projHomeScore: proj.home,
       projAwayScore: proj.away,
+      projectionState: proj.projectionState,
+      projectionKind: "FBIS",
+      qualificationBlocked: !proj.bettingAllowed,
       cfb: { ...proj, shadowHfa },
     };
   });
+  const diagnostics = cfbSlateDiagnostics(next);
   return {
     games: next,
     meta: {
@@ -358,6 +430,8 @@ export async function applyCfbModel(games, env = {}) {
       formTeams: form.size,
       error: rankings.error || null,
       constants: CFB_CONSTANTS,
+      priorVersion: CFB_PRIOR_VERSION,
+      diagnostics,
     },
   };
 }

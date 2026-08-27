@@ -3,7 +3,8 @@
  * Never match on mascot last-word alone. Never match one team only.
  */
 
-const STOP = new Set(["the", "of", "at", "and", "st", "saint", "university", "univ"]);
+const STOP = new Set(["the", "of", "at", "and", "st", "saint", "university", "univ", "college"]);
+const WEAK = new Set(["state", "tech", "forest", "university", "univ", "college", "st"]);
 const MASCOT = new Set([
   "tigers", "bulldogs", "eagles", "wildcats", "panthers", "bears", "lions", "knights",
   "hawks", "wolves", "cougars", "mustangs", "gators", "seminoles", "spartans", "trojans",
@@ -29,7 +30,11 @@ function tokens(s) {
 }
 
 function distinctive(s) {
-  return tokens(s).filter((t) => t.length > 2 && !MASCOT.has(t));
+  return tokens(s).filter((t) => t.length >= 2 && !MASCOT.has(t));
+}
+
+function strong(tokensList) {
+  return tokensList.filter((t) => !WEAK.has(t) && t.length >= 2);
 }
 
 /** True only when both names refer to the same club. Fail closed. */
@@ -41,14 +46,19 @@ export function namesMatch(a, b) {
   const da = distinctive(a);
   const db = distinctive(b);
   if (!da.length || !db.length) return false;
+  const sta = strong(da);
+  const stb = strong(db);
+  if (!sta.length || !stb.length) return false;
+  const strongInter = sta.filter((t) => stb.includes(t));
+  if (!strongInter.length) return false;
   if (da.join(" ") === db.join(" ")) return true;
-  if (da.every((t) => db.includes(t)) || db.every((t) => da.includes(t))) return true;
+  if (sta.every((t) => stb.includes(t)) || stb.every((t) => sta.includes(t))) return true;
   const sa = new Set(da);
   const sb = new Set(db);
   let inter = 0;
   for (const t of sa) if (sb.has(t)) inter += 1;
   const jaccard = inter / new Set([...sa, ...sb]).size;
-  return jaccard >= 0.8 && inter >= 1;
+  return jaccard >= 0.8 && inter >= 1 && strongInter.length >= 1;
 }
 
 export function abbrMatch(a, b) {

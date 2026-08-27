@@ -218,9 +218,26 @@ header h1 {
 .fbis-table tbody tr.lost-row { background: rgba(248, 81, 73, 0.05) !important; }
 
 .matchup { display: flex; align-items: center; gap: 8px; }
-.team-logo { width: 22px; height: 22px; object-fit: contain; }
+.team-logo { width: 22px; height: 22px; object-fit: contain; flex: 0 0 auto; background: transparent; }
+.team-logo-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: #12314a;
+  border: 1px solid var(--border);
+  color: var(--blue-light);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  flex: 0 0 auto;
+}
 .team-block { display: flex; flex-direction: column; gap: 4px; }
 .team-line { display: flex; align-items: center; gap: 6px; }
+.team-name { font-weight: 650; }
+.team-abbr { font-size: 10px; }
+.proj-blocked { color: var(--yellow); font-weight: 700; font-size: 11px; }
+.proj-implied { color: #c9a227; font-weight: 650; }
+.proj-state { font-size: 10px; letter-spacing: 0.4px; text-transform: uppercase; }
 .muted { color: var(--muted); }
 .text-blue { color: var(--blue); font-weight: 700; }
 .text-green { color: var(--green); font-weight: 700; }
