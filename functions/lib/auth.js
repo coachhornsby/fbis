@@ -43,5 +43,5 @@ export function authorizeStrategyPost(request, env) {
 }
 
 export function unauthorizedBody() {
-  return { ok: false, error: "unauthorized" };
+  return { ok: false, error: "unauthorized", wrote: false };
 }

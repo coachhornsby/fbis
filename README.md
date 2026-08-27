@@ -68,7 +68,7 @@ Model version: **FBIS-v1.3**
 - Ballpark Pal — optional; set `BALLPARK_PAL_API_KEY` when you have it (15k requests/month)
 - CollegeFootballData — CFB ratings (SP+/FPI/SRS/Elo). Set `CFBD_API_KEY` as a Pages secret (never commit the value). The same key is probed for CollegeBasketballData research-only ratings.
 
-The operator ticket journal still lives in the browser (`fbis-learning-v1`). POST `/api/strategy` is secret-protected (`x-harvest-secret` or `STRATEGY_IMPORT_SECRET`) and does not accept arbitrary CORS. The FBIS-HC-v1 seed names are the seven operator-declared 2026-08-26 positions; they are not a recovered journal. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql` plus `migrations/`) is the authoritative research ledger.
+The operator ticket journal still lives in the browser (`fbis-learning-v1`). POST `/api/strategy` is secret-protected (`x-harvest-secret` or `STRATEGY_IMPORT_SECRET`) and does not accept arbitrary CORS. Heritage bet-slip import (TODAY / My Bets → Confirm D1 write) is the same: paste the Pages secret **HARVEST_SECRET** (same value as collect) into Operator secret at confirm time. It is never stored in the app bundle. Parse/preview does not write. Imported slips are executed bets, not the 7–0 FBIS-HC-v1 seed. The FBIS-HC-v1 seed names are the seven operator-declared 2026-08-26 positions; they are not a recovered journal. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql` plus `migrations/`) is the authoritative research ledger.
 
 ## Tests
 

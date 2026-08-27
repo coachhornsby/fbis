@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { fmtAmerican } from "./lib/format.js";
 import { TeamIdentity } from "./components/TeamLogo.jsx";
+import {
+  OPERATOR_SECRET_HINT,
+  confirmWriteGuard,
+  importResponseFeedback,
+  readResponseJson,
+} from "./lib/heritageImport.js";
 
 const FIXTURE_HINT =
   "Paste one or more Heritage tickets. Preview first — nothing is written until you confirm.";
@@ -12,21 +18,21 @@ export default function HeritageImport({ open, onClose, onImported }) {
   const [secret, setSecret] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [wrote, setWrote] = useState(null);
+  const [wroteMessage, setWroteMessage] = useState("");
 
   if (!open) return null;
 
   async function parseSlip() {
     setBusy(true);
     setError("");
-    setWrote(null);
+    setWroteMessage("");
     try {
       const res = await fetch("/api/bets", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "parse", text }),
       });
-      const data = await res.json();
+      const data = await readResponseJson(res);
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       setPreview(data);
       setEdits((data.tickets || []).map(ticketEdit));
@@ -38,23 +44,30 @@ export default function HeritageImport({ open, onClose, onImported }) {
   }
 
   async function confirmImport() {
-    if (!preview?.tickets?.length) return;
+    const tickets = preview?.tickets || [];
+    const guard = confirmWriteGuard({ secret, ticketCount: tickets.length });
+    if (!guard.ok) {
+      setError(guard.error);
+      setWroteMessage("");
+      return;
+    }
     setBusy(true);
     setError("");
+    setWroteMessage("");
     try {
-      const tickets = (preview.tickets || []).map((t, i) => ({ ...t, ...edits[i] }));
+      const payload = tickets.map((t, i) => ({ ...t, ...edits[i] }));
       const res = await fetch("/api/bets", {
         method: "POST",
         headers: {
           "content-type": "application/json",
           "x-strategy-secret": secret,
         },
-        body: JSON.stringify({ action: "import", tickets }),
+        body: JSON.stringify({ action: "import", tickets: payload }),
       });
-      const data = await res.json();
-      if (res.status === 401) throw new Error("unauthorized — operator secret required");
-      if (!res.ok && !data.accepted?.length) throw new Error(data.error || `HTTP ${res.status}`);
-      setWrote(data);
+      const data = await readResponseJson(res);
+      const feedback = importResponseFeedback(res.status, data);
+      if (!feedback.ok) throw new Error(feedback.error);
+      setWroteMessage(feedback.message);
       onImported?.(data);
     } catch (err) {
       setError(String(err.message || err));
@@ -74,7 +87,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
       <div className="modal-card">
         <div className="panel-header">
           <h2>IMPORT HERITAGE BET SLIP</h2>
-          <button className="header-btn" onClick={onClose}>Close</button>
+          <button type="button" className="header-btn" onClick={onClose}>Close</button>
         </div>
         <div className="panel-body">
           <p className="muted">{FIXTURE_HINT} Actual Heritage wagers are not qualified tickets, CONVICTION, FBIS-HC-v1, or the 7–0 seed unless a frozen pre-execution recommendation matches.</p>
@@ -86,12 +99,12 @@ export default function HeritageImport({ open, onClose, onImported }) {
             rows={10}
           />
           <div className="today-controls" style={{ marginTop: 10 }}>
-            <button className="header-btn header-btn-refresh" onClick={parseSlip} disabled={busy || !text.trim()}>
+            <button type="button" className="header-btn header-btn-refresh" onClick={parseSlip} disabled={busy || !text.trim()}>
               {busy && !preview ? "Parsing…" : "1 · Parse & preview"}
             </button>
             <span className="muted">Does not write to D1</span>
           </div>
-          {error && <div className="error" style={{ marginTop: 8 }}>{error}</div>}
+          {error && !preview && <div className="error" style={{ marginTop: 8 }} role="alert">{error}</div>}
           {preview && (
             <>
               <div className="status-grid" style={{ marginTop: 12 }}>
@@ -172,9 +185,10 @@ export default function HeritageImport({ open, onClose, onImported }) {
                 </table>
               </div>
               <div className="confirm-row">
-                <label>
+                <label htmlFor="operator-secret">
                   Operator secret
                   <input
+                    id="operator-secret"
                     type="password"
                     autoComplete="off"
                     value={secret}
@@ -183,18 +197,19 @@ export default function HeritageImport({ open, onClose, onImported }) {
                   />
                 </label>
                 <button
+                  type="button"
                   className="header-btn header-btn-refresh"
                   onClick={confirmImport}
-                  disabled={busy || !secret || !tickets.length}
+                  disabled={busy}
                 >
                   {busy ? "Writing…" : "2 · Confirm D1 write"}
                 </button>
               </div>
-              {wrote && (
-                <p className="muted" style={{ marginTop: 8 }}>
-                  Accepted {wrote.accepted?.length || 0} · skipped {wrote.skipped?.length || 0} · conflicts {wrote.conflicts?.length || 0}
-                </p>
-              )}
+              <p id="operator-secret-hint" className="muted" style={{ marginTop: 6 }}>{OPERATOR_SECRET_HINT}</p>
+              <div className="confirm-feedback" aria-live="polite">
+                {error ? <div className="error" role="alert">{error}</div> : null}
+                {wroteMessage ? <p className="confirm-feedback-ok">{wroteMessage}</p> : null}
+              </div>
             </>
           )}
         </div>

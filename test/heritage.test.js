@@ -24,7 +24,12 @@ import {
   OPERATOR_ONLY,
 } from "../functions/lib/executedBets.js";
 import { selectClose, selectPinAtOrBefore, packPinOddsRows, isPostStart, CLV_UNAVAILABLE, clvTracker } from "../functions/lib/closeCapture.js";
-import { parseBetsPreview } from "../functions/api/bets.js";
+import { parseBetsPreview, handleBetsPost } from "../functions/api/bets.js";
+import {
+  OPERATOR_SECRET_REQUIRED,
+  confirmWriteGuard,
+  importResponseFeedback,
+} from "../src/lib/heritageImport.js";
 
 describe("Heritage five-ticket fixtures", () => {
   const parsed = parseHeritageSlip(HERITAGE_FIXTURE_PASTE, { yearHint: 2026 });
@@ -260,3 +265,196 @@ describe("Heritage matching, attribution, CLV, settlement", () => {
     assert.equal(selectPinAtOrBefore([], { at: "2026-08-27T15:00:00Z", start: "2026-08-27T18:00:00Z", market: "ML", side: "HOME" }), null);
   });
 });
+
+describe("Heritage confirm write auth and feedback", () => {
+  const parsed = parseHeritageSlip(HERITAGE_FIXTURE_PASTE, { yearHint: 2026 });
+
+  it("shows Operator secret required when confirm is clicked with an empty secret", () => {
+    const empty = confirmWriteGuard({ secret: "", ticketCount: 5 });
+    assert.equal(empty.ok, false);
+    assert.equal(empty.error, OPERATOR_SECRET_REQUIRED);
+    const blank = confirmWriteGuard({ secret: "   ", ticketCount: 5 });
+    assert.equal(blank.ok, false);
+    assert.equal(blank.error, OPERATOR_SECRET_REQUIRED);
+    const none = confirmWriteGuard({ secret: "ok", ticketCount: 0 });
+    assert.equal(none.ok, false);
+    assert.match(none.error, /parse first/i);
+    assert.equal(confirmWriteGuard({ secret: "ok", ticketCount: 5 }).ok, true);
+  });
+
+  it("maps 401 and D1 unbound to visible messages", () => {
+    const unauth = importResponseFeedback(401, { ok: false, error: "unauthorized", wrote: false });
+    assert.equal(unauth.ok, false);
+    assert.match(unauth.error, /401 unauthorized/i);
+    const unbound = importResponseFeedback(503, { ok: false, error: "D1 unbound" });
+    assert.equal(unbound.ok, false);
+    assert.match(unbound.error, /D1 unbound/i);
+    const wrote = importResponseFeedback(200, { accepted: [{ id: "a" }, { id: "b" }], skipped: [], conflicts: [] });
+    assert.equal(wrote.ok, true);
+    assert.match(wrote.message, /Wrote 2 tickets/);
+  });
+
+  it("rejects import with empty secret (401, no write)", async () => {
+    const env = { HARVEST_SECRET: "s3cret", DB: executedBetsDb().DB };
+    const missing = await handleBetsPost(env, fakeReq({}), { action: "import", tickets: parsed.tickets });
+    assert.equal(missing.status, 401);
+    assert.equal(missing.body.error, "unauthorized");
+    assert.equal(missing.body.wrote, false);
+    assert.doesNotMatch(JSON.stringify(missing.body), /s3cret/);
+
+    const empty = await handleBetsPost(env, fakeReq({ "x-strategy-secret": "" }), { action: "import", tickets: parsed.tickets });
+    assert.equal(empty.status, 401);
+    assert.equal(empty.body.wrote, false);
+  });
+
+  it("rejects import with the wrong secret as 401", async () => {
+    const env = { HARVEST_SECRET: "s3cret", DB: executedBetsDb().DB };
+    const result = await handleBetsPost(env, fakeReq({ "x-strategy-secret": "nope" }), { action: "import", tickets: parsed.tickets });
+    assert.equal(result.status, 401);
+    assert.equal(result.body.error, "unauthorized");
+    assert.equal(result.body.wrote, false);
+    assert.doesNotMatch(JSON.stringify(result.body), /s3cret/);
+  });
+
+  it("writes five unique ticket IDs when the operator secret matches", async () => {
+    const db = executedBetsDb();
+    const env = { HARVEST_SECRET: "s3cret", DB: db.DB };
+    const parse = await handleBetsPost(env, fakeReq({}), { action: "parse", text: HERITAGE_FIXTURE_PASTE, yearHint: 2026 });
+    assert.equal(parse.status, 200);
+    assert.equal(parse.body.wrote, false);
+    assert.equal(db.bets.size, 0);
+
+    const result = await handleBetsPost(
+      env,
+      fakeReq({ "x-strategy-secret": "s3cret" }),
+      { action: "import", tickets: parsed.tickets }
+    );
+    assert.equal(result.status, 200);
+    assert.equal(result.body.wrote, true);
+    assert.equal(result.body.accepted.length, 5);
+    const ids = result.body.accepted.map((a) => a.externalTicketId);
+    assert.deepEqual(ids.sort(), ["G10902289", "G10904299", "G10904306", "G10904312", "G10904318"]);
+    assert.equal(new Set(ids).size, 5);
+    assert.equal(db.bets.size, 5);
+    for (const row of db.bets.values()) {
+      assert.equal(row.recommendation_status, "OPERATOR_ONLY");
+      assert.equal(row.attribution_label, OPERATOR_ONLY);
+      assert.notEqual(row.recommendation_status, "seed");
+    }
+  });
+
+  it("returns D1 unbound when DB is missing even with a secret", async () => {
+    const result = await handleBetsPost(
+      { HARVEST_SECRET: "s3cret" },
+      fakeReq({ "x-strategy-secret": "s3cret" }),
+      { action: "import", tickets: parsed.tickets }
+    );
+    assert.equal(result.status, 503);
+    assert.match(result.body.error, /D1 unbound/i);
+  });
+});
+
+function fakeReq(headers = {}) {
+  return {
+    url: "https://fbis-myz.pages.dev/api/bets",
+    headers: {
+      get(name) {
+        const key = Object.keys(headers).find((k) => k.toLowerCase() === String(name).toLowerCase());
+        return key ? headers[key] : null;
+      },
+    },
+  };
+}
+
+function executedBetsDb() {
+  const bets = new Map();
+  return {
+    bets,
+    DB: {
+      prepare(sql) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                if (sql.includes("INSERT INTO executed_bets")) {
+                  const row = executedRowFromInsert(args);
+                  bets.set(`${row.execution_book}|${row.external_ticket_id}`, row);
+                }
+                return { meta: { changes: 1 } };
+              },
+              async first() {
+                if (sql.includes("FROM executed_bets WHERE execution_book")) {
+                  return bets.get(`${args[0]}|${args[1]}`) || null;
+                }
+                return null;
+              },
+              async all() {
+                if (sql.includes("FROM executed_bets")) {
+                  return { results: [...bets.values()] };
+                }
+                return { results: [] };
+              },
+            };
+          },
+        };
+      },
+    },
+  };
+}
+
+function executedRowFromInsert(args) {
+  return {
+    id: args[0],
+    external_ticket_id: args[1],
+    execution_book: args[2],
+    executed_at: args[3],
+    timezone: args[4],
+    sport: args[5],
+    date: args[6],
+    game_id: args[7],
+    source_event_id: args[8],
+    source_url: args[9],
+    matchup_text: args[10],
+    away_team: args[11],
+    home_team: args[12],
+    market: args[13],
+    period: args[14],
+    selected_side: args[15],
+    selected_team: args[16],
+    execution_line: args[17],
+    execution_price: args[18],
+    risk_amount: args[19],
+    to_win_amount: args[20],
+    potential_payout: args[21],
+    currency: args[22],
+    imported_at: args[23],
+    import_source: args[24],
+    raw_text_hash: args[25],
+    raw_text: args[26],
+    match_status: args[27],
+    match_confidence: args[28],
+    matched_prediction_id: args[29],
+    matched_strategy_ticket_id: args[30],
+    recommendation_status: args[31],
+    model_version_at_entry: args[32],
+    checkpoint_at_entry: args[33],
+    result: args[34],
+    settled_return: args[35],
+    profit: args[36],
+    graded_at: args[37],
+    void_reason: args[38],
+    heritage_current_line: args[39],
+    heritage_current_price: args[40],
+    heritage_current_at: args[41],
+    pin_entry_line: args[42],
+    pin_entry_price: args[43],
+    pin_entry_no_vig: args[44],
+    pin_close_line: args[45],
+    pin_close_price: args[46],
+    pin_close_no_vig: args[47],
+    clv: args[48],
+    clv_status: args[49],
+    clv_method_version: args[50],
+    attribution_label: args[51],
+  };
+}
