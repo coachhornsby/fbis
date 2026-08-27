@@ -8,7 +8,7 @@ name: FBIS research pipeline
 
 on:
   schedule:
-    - cron: "0 13,16,18,20,22,0,2 * * *"
+    - cron: "0 0,2,13,16,18,20,22 * * *"
     - cron: "20 11 * * *"
   workflow_dispatch:
     inputs:
@@ -78,37 +78,35 @@ jobs:
               sleep $((attempt * 5))
               attempt=$((attempt + 1))
             done
-            python3 - "$tmp" "${tmp}.code" <<'PY'
-import json, sys
-path, code_path = sys.argv[1], sys.argv[2]
-http = open(code_path).read().strip()
-raw = open(path, encoding="utf-8").read()
-try:
-    data = json.loads(raw)
-except json.JSONDecodeError:
-    print("non-json response http="+http)
-    print(raw[:400])
-    sys.exit(1)
-ok = data.get("ok") is True and data.get("status") == "success"
-summary = {
-    "http": http,
-    "ok": data.get("ok"),
-    "job": data.get("job"),
-    "status": data.get("status"),
-    "games_discovered": data.get("games_discovered"),
-    "snapshots_inserted": data.get("snapshots_inserted"),
-    "snapshots_already_present": data.get("snapshots_already_present"),
-    "snapshots_failed": data.get("snapshots_failed"),
-    "finals_graded": data.get("finals_graded"),
-    "d1_bound": (data.get("d1") or {}).get("bound"),
-    "errors": data.get("errors") or [],
-    "deployment_commit": data.get("deployment_commit"),
-    "model_version": data.get("model_version"),
-}
-print(json.dumps(summary, indent=2))
-if http not in ("200",) or not ok:
-    sys.exit(1)
-PY
+            local http
+            http="$(tr -d '\r\n' < "${tmp}.code")"
+            if ! jq -e . "$tmp" >/dev/null 2>&1; then
+              echo "non-json response http=${http}"
+              head -c 400 "$tmp" || true
+              echo
+              exit 1
+            fi
+            jq --arg http "$http" '{
+              http: $http,
+              ok: .ok,
+              job: .job,
+              status: .status,
+              games_discovered: .games_discovered,
+              snapshots_inserted: .snapshots_inserted,
+              snapshots_already_present: .snapshots_already_present,
+              snapshots_failed: .snapshots_failed,
+              finals_graded: .finals_graded,
+              d1_bound: (.d1.bound // null),
+              errors: (.errors // []),
+              deployment_commit: .deployment_commit,
+              model_version: .model_version
+            }' "$tmp"
+            local ok_flag
+            ok_flag="$(jq -r '(.ok == true) and (.status == "success")' "$tmp")"
+            if [ "$http" != "200" ] || [ "$ok_flag" != "true" ]; then
+              echo "job unsuccessful http=${http} ok_flag=${ok_flag}"
+              exit 1
+            fi
           }
 
           run_collect() {
