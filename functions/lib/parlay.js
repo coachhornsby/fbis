@@ -554,14 +554,14 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   if (!sportKey || !apiKey) {
     return { events: [], meta: { enabled: false, remaining: null, cached: false } };
   }
-  const cacheKey = `${CACHE_VER}:odds:${sportKey}`;
+  const baseball = BASEBALL.has(sportId);
+  const cacheKey = `${CACHE_VER}:odds${baseball ? "-props-v3" : ""}:${sportKey}`;
   const cached = await readCache(cacheKey, cfCache, TTL_MS);
   if (cached) return { ...cached, meta: { ...cached.meta, cached: true } };
   if (opts.cacheOnly) {
     return { events: [], meta: { enabled: true, remaining: null, cached: false, skipped: true } };
   }
 
-  const baseball = BASEBALL.has(sportId);
   const pin = await fetchJson(
     sportKey,
     {
