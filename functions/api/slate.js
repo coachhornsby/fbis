@@ -1,4 +1,4 @@
-import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
+import { buildSlate, resolveSlateDate, findNextCfbdGameDate } from "../lib/slateEngine.js";
 import { freezeSlate, harvestSport } from "../lib/projLedger.js";
 import { compactMlbSlatePayload } from "../lib/propConviction.js";
 
@@ -18,7 +18,14 @@ export async function onRequestGet(context) {
     DB: context.env.DB,
   };
   try {
-    const payload = await buildSlate(sport, resolved.date, env);
+    let payload = await buildSlate(sport, resolved.date, env);
+    if (!rawDate && sport === "cfb" && payload.games?.length === 0 && env.CFBD_API_KEY) {
+      const nextDate = await findNextCfbdGameDate(resolved.date, env.CFBD_API_KEY, 14);
+      if (nextDate && nextDate !== resolved.date) {
+        payload = await buildSlate(sport, nextDate, env);
+        payload.requestedDate = resolved.date;
+      }
+    }
     context.waitUntil(
       freezeSlate(payload, env).catch((err) => {
         console.error("freezeSlate", err?.message || err);
