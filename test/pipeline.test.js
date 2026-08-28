@@ -178,6 +178,67 @@ describe("Parlay collect budget", () => {
     assert.equal(r.events.length, 0);
     assert.equal(r.meta.propFeedStatus, "skipped");
   });
+
+  it("reuses stale MLB props when live prop feed errors", async () => {
+    resetCacheMem();
+    const realFetch = globalThis.fetch;
+    const realNow = Date.now;
+    let nowMs = Date.parse("2026-08-28T16:00:00Z");
+    Date.now = () => nowMs;
+    let round = 1;
+    globalThis.fetch = async (url) => {
+      const s = String(url);
+      if (s.includes("/v1/sports/baseball_mlb/odds")) {
+        if (round === 1) {
+          return new Response(JSON.stringify([{
+            id: "evt-1",
+            home_team: "Chicago Cubs",
+            away_team: "Pittsburgh Pirates",
+            commence_time: "2026-08-28T23:00:00Z",
+            bookmakers: [],
+          }]), { status: 200 });
+        }
+        return new Response('{"detail":{"error":"OUT_OF_USAGE_CREDITS"}}', { status: 403 });
+      }
+      if (s.includes("/v1/sports/baseball_mlb/props")) {
+        if (round === 1) {
+          return new Response(JSON.stringify([{
+            event_id: "evt-1",
+            home_team: "Chicago Cubs",
+            away_team: "Pittsburgh Pirates",
+            player_name: "Dansby Swanson",
+            market_key: "player_hits",
+            line: 0.5,
+            over_price: -115,
+            under_price: -105,
+            source: "fanduel",
+          }]), { status: 200 });
+        }
+        return new Response('{"detail":{"error":"OUT_OF_USAGE_CREDITS"}}', { status: 403 });
+      }
+      if (s.includes("bookmakers=kalshi")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (s.includes("/live/period_markets")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      return new Response(JSON.stringify([]), { status: 200 });
+    };
+    try {
+      const seeded = await fetchParlayOdds("mlb", "fake-key", null);
+      assert.equal(seeded.meta.propFeedStatus, "available");
+      nowMs += 7 * 60 * 60 * 1000;
+      round = 2;
+      const stale = await fetchParlayOdds("mlb", "fake-key", null);
+      assert.equal(stale.meta.propFeedStatus, "stale");
+      assert.ok(stale.events.length > 0);
+      assert.ok((stale.events[0].playerProps || []).length > 0);
+    } finally {
+      globalThis.fetch = realFetch;
+      Date.now = realNow;
+      resetCacheMem();
+    }
+  });
 });
 
 describe("collect and harvest fail honestly", () => {
