@@ -266,7 +266,7 @@ describe("ESPN scoreboard fallback", () => {
       if (s.startsWith("https://api.collegefootballdata.com/games")) {
         return new Response(JSON.stringify([{
           id: 9001,
-          startDate: "2026-09-03T23:30:00Z",
+          startDate: "2026-09-04T01:30:00Z",
           completed: false,
           homeTeam: "Ohio State",
           awayTeam: "Texas",

@@ -993,6 +993,18 @@ function inferAbbr(name = "") {
   return (picked.join("") || parts[0].slice(0, 3)).toUpperCase();
 }
 
+function ymdCtForIso(value) {
+  const ts = Date.parse(value);
+  if (!Number.isFinite(ts)) return "";
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return fmt.format(new Date(ts));
+}
+
 async function fetchCfbdGamesForDate(day, apiKey) {
   if (!apiKey) return [];
   const year = Number(String(day).slice(0, 4));
@@ -1011,7 +1023,10 @@ async function fetchCfbdGamesForDate(day, apiKey) {
   const rows = await res.json();
   const list = Array.isArray(rows) ? rows : [];
   return list
-    .filter((g) => String(g.startDate || g.start_date || "").slice(0, 10) === day)
+    .filter((g) => {
+      const start = g.startDate || g.start_date;
+      return ymdCtForIso(start) === day || String(start || "").slice(0, 10) === day;
+    })
     .map((g) =>
       attachMarketLabels(
         enrichGameTeams("cfb", {
