@@ -592,6 +592,8 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   let used = pin.credits.used;
   let f5Games = 0;
   let propRows = 0;
+  let propFeedStatus = "not-applicable";
+  let propFeedError = null;
   let sentimentGames = 0;
 
   const kalshiKey = `${CACHE_VER}:kalshi:${sportKey}`;
@@ -637,6 +639,8 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     }
     combined = attachFlatProps(combined, propsPayload.rows || []);
     propRows = propsPayload.rows?.length || 0;
+    propFeedStatus = propRows ? "available" : propsPayload?.error ? "error" : "empty";
+    propFeedError = propsPayload?.error || null;
   }
 
   const events = combined.map((ev) => summarizeParlayEvent(ev, sportId));
@@ -653,8 +657,8 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       sentimentGames,
       f5Games,
       propRows,
-      propFeedStatus: propRows ? "available" : propsPayload?.error ? "error" : "empty",
-      propFeedError: propsPayload?.error || null,
+      propFeedStatus,
+      propFeedError,
       asOf: pin.credits.asOf,
       sharp: SHARP_BOOK,
       execution: EXECUTION_BOOK,
