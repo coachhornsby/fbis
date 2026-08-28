@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { BOARD_STATUSES, classifyBoardStatus } from "../functions/lib/gameStatus.js";
 import { resolveTodayDate, utcMidnightVsCt, groupBySport, sortByStart, emptyTodayState, buildTodayBoard } from "../functions/lib/todayBoard.js";
+import { projectionRecipe } from "../functions/lib/slateEngine.js";
 import { rowsForCheckpoint, CHECKPOINT_ALIASES } from "../functions/lib/checkpoints.js";
 import { palHealth } from "../functions/lib/sourceCoverage.js";
 import { freezeFromGame } from "../functions/lib/projLedger.js";
@@ -183,5 +184,37 @@ describe("pipeline freeze and close", () => {
     assert.equal(packed.rejectedPostStart, true);
     const close = selectClose(packed.rows, { start, market: "ML", period: "fg", side: "HOME" });
     assert.equal(close.close, null);
+  });
+});
+
+describe("CFB projection recipe", () => {
+  it("reports feature stack and no longer says inputs are unwired", () => {
+    const recipe = projectionRecipe(
+      "cfb",
+      {
+        home: { abbr: "OSU" },
+        away: { abbr: "MICH" },
+        neutralSite: false,
+        cfb: {
+          projectionState: "COMPLETE",
+          priorVersion: "cfb-prior-v2-cfbd",
+          bettingAllowed: true,
+          homeEst: { rank: 1, teamSpecificPrior: true, n: 2, w: 0.25, featureVector: { used: ["epa", "qb"], qb: { starterKnown: true, starterName: "A QB", starterTransfer: true } } },
+          awayEst: { rank: 8, teamSpecificPrior: true, n: 2, w: 0.25, featureVector: { used: ["transfer"], qb: { starterKnown: true, starterName: "B QB", starterTransfer: false } } },
+          hfa: 2.5,
+          total: 51.4,
+          margin: 4.1,
+          sigmaMargin: 20.1,
+          sigmaTotal: 17.3,
+          features: { summary: { homeUsed: ["epa", "qb"], awayUsed: ["transfer"] } },
+          flags: [],
+        },
+      },
+      { projHome: 27.8, projAway: 23.7 }
+    );
+    const joined = recipe.steps.join(" ");
+    assert.match(joined, /Feature stack \(CFBD\+ESPN\)/);
+    assert.match(joined, /QB continuity/);
+    assert.doesNotMatch(joined, /No EPA, transfer, QB, or coaching feed is wired/);
   });
 });

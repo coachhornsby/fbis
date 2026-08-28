@@ -2,14 +2,16 @@
  * Independent CFB score model (FBIS-v1.3).
  *
  * Runtime sources that actually run:
- *   CollegeFootballData — SP+/FPI/SRS/Elo (all FBS) when CFBD_API_KEY is set; talent/returning frozen as metadata
+ *   CollegeFootballData — SP+/FPI/SRS/Elo (all FBS) when CFBD_API_KEY is set
+ *   CollegeFootballData — team EPA proxies, transfer portal deltas, coaching continuity, returning production
  *   ESPN scoreboard — records, AP/curated rank, scores, neutralSite, conference, week
+ *   ESPN roster — QB room continuity/starter class signals
  *   ESPN rankings  — AP (and other polls in the same payload) as a weekly label, not the team prior
  *   FBIS team_form — current-season points for/against from harvested finals (as-of, no leakage)
  *   Fallback prior — ESPN FPI + opponent-adjusted 2025 SRS (cfb-prior-v1) if CFBD is missing or 401/404
  *
  * Not present in this repo and NOT invented:
- *   EPA play-by-play, transfer portal, QB/coach/coordinator changes, injuries, weather, travel, rest.
+ *   Injuries, weather, travel, rest.
  *
  * Early-season blend (documented, versioned):
  *   w_current = n / (n + PRIOR_GAMES) with PRIOR_GAMES = 6
@@ -28,7 +30,7 @@ import { loadTeamForm, loadHfaRatings } from "./store.js";
 import { pCoverHome, pGreater } from "./metrics.js";
 import { buildShadowHfa, championHfaForGame } from "./hfa.js";
 import { CFB_PRIOR_VERSION, freezePrior, hasTeamSpecificPrior, priorForTeam } from "./cfbPrior.js";
-import { cfbdPublicMeta, loadCfbPrior } from "./cfbd.js";
+import { buildCfbFeatureCatalog, cfbdPublicMeta, loadCfbFeatureFeeds, loadCfbPrior } from "./cfbd.js";
 import { cfbSlateDiagnostics } from "./cfbDiagnostics.js";
 
 function todayCT() {
@@ -59,17 +61,24 @@ export const CFB_CONSTANTS = {
   totalSigmaBase: 13.5,
   earlySigmaBoost: 0.35,
   rankScale: 0.85,
+  epaScale: 2.4,
+  transferScale: 1.1,
+  qbScale: 0.9,
+  coachingScale: 0.7,
+  returningScale: 0.8,
+  talentScale: 0.6,
   priorVersion: CFB_PRIOR_VERSION,
   notes: {
     hfa: "Documented 2.5-point FBS home-field prior. Neutral site → 0.",
     priorGames: "Current-season weight = n / (n + 6). Week 0 is almost all prior.",
     sigma: "Margin SD 15.5 and total SD 13.5 are published FBS-scale heuristics, not fitted or trained on FBIS bets.",
-    missing: "No EPA/QB/coach/transfer feed is wired. Those inputs are absent, not zero-filled fakes.",
-    prior: "cfb-prior-v2-cfbd: CollegeFootballData SP+/FPI/SRS/Elo for all FBS when the key is present. Fallback is ESPN FPI + opponent-adjusted 2025 SRS. FCS and newly promoted FBS are provisional. Talent/returning production are frozen as metadata, not converted into fake points.",
+    missing: "EPA/transfer/QB/coaching signals are fail-soft. Missing feeds stay absent and are flagged; no zero-filled fake precision.",
+    prior: "cfb-prior-v2-cfbd: CollegeFootballData SP+/FPI/SRS/Elo for all FBS when the key is present. Fallback is ESPN FPI + opponent-adjusted 2025 SRS. FCS and newly promoted FBS are provisional.",
   },
 };
 
 const RANK_TTL_MS = 6 * 60 * 60 * 1000;
+const QB_TTL_MS = 6 * 60 * 60 * 1000;
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
 
@@ -121,6 +130,36 @@ export function projectCfbMatchup({
 
 function round1(n) {
   return Math.round(Number(n) * 10) / 10;
+}
+
+function round2(n) {
+  return Math.round(Number(n) * 100) / 100;
+}
+
+function clamp(n, lo, hi) {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function strictNum(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toSignedUnit(v, lo, hi) {
+  const n = strictNum(v);
+  if (n == null) return null;
+  const span = hi - lo;
+  if (span <= 0) return null;
+  return clamp(((n - lo) / span) * 2 - 1, -1, 1);
+}
+
+function toUnit(v, lo, hi) {
+  const n = strictNum(v);
+  if (n == null) return null;
+  const span = hi - lo;
+  if (span <= 0) return null;
+  return clamp((n - lo) / span, 0, 1);
 }
 
 export function cfbSigma({ gamesHome = 0, gamesAway = 0 } = {}) {
@@ -212,7 +251,93 @@ function priorFromCatalog(team, catalog) {
   };
 }
 
-export function estimateTeam(team, { rankings, form, rankFallback, catalog, priorMeta } = {}) {
+function lookupFeatureRow(team, featureCatalog = {}) {
+  if (!team) return null;
+  const id = team.espnId != null ? String(team.espnId) : "";
+  if (id && featureCatalog.byEspnId?.[id]) return featureCatalog.byEspnId[id];
+  const schoolKey = String(team.school || team.fullName || team.name || "").trim().toLowerCase();
+  if (schoolKey && featureCatalog.bySchool?.[schoolKey]) return featureCatalog.bySchool[schoolKey];
+  return null;
+}
+
+export function buildCfbFeatureVector(team, { priorCatalogRow = null, featureCatalog = {}, qbSignals = {} } = {}) {
+  const row = lookupFeatureRow(team, featureCatalog) || {};
+  const qb = team?.espnId != null ? qbSignals[String(team.espnId)] : null;
+  const epaRaw = strictNum(row.epaNet ?? (row.epaOff != null && row.epaDef != null ? row.epaOff - row.epaDef : null));
+  const epaNorm = toSignedUnit(epaRaw, -0.5, 0.5);
+  const transferNorm = toSignedUnit(row.transferNet, -15, 15);
+  const qbTransferNorm = toSignedUnit(row.qbTransferNet, -2, 2);
+  const transferStarNorm = toSignedUnit(row.transferStarDelta, -12, 12);
+  const returningPct = strictNum(row.returningPct ?? priorCatalogRow?.returningPct);
+  const returningNorm = toSignedUnit(returningPct, 35, 75);
+  const talent = strictNum(priorCatalogRow?.talent);
+  const talentNorm = toSignedUnit(talent, 780, 980);
+  const coachTenureNorm = toUnit(row.coachTenure, 0, 8);
+  const coachingNorm = row.newCoach ? -0.75 : coachTenureNorm == null ? null : clamp((coachTenureNorm - 0.25) * 1.2, -1, 1);
+  const qbExperienceNorm = toUnit(qb?.starterClass, 1, 5);
+  const qbContinuityNorm = qb?.starterKnown ? clamp(((qbExperienceNorm ?? 0.5) - 0.4) * 1.6, -1, 1) : null;
+  const qbComposite = qbTransferNorm != null && qbContinuityNorm != null ? clamp(qbTransferNorm * 0.6 + qbContinuityNorm * 0.4, -1, 1) : qbTransferNorm ?? qbContinuityNorm ?? null;
+  const transferComposite =
+    transferNorm != null && transferStarNorm != null ? clamp(transferNorm * 0.6 + transferStarNorm * 0.4, -1, 1) : transferNorm ?? transferStarNorm ?? null;
+  const components = {
+    epa: epaNorm,
+    transfer: transferComposite,
+    qb: qbComposite,
+    coaching: coachingNorm,
+    returning: returningNorm,
+    talent: talentNorm,
+  };
+  const offAdj = round2(
+    (components.epa ?? 0) * CFB_CONSTANTS.epaScale +
+      (components.transfer ?? 0) * CFB_CONSTANTS.transferScale +
+      (components.qb ?? 0) * CFB_CONSTANTS.qbScale +
+      (components.returning ?? 0) * CFB_CONSTANTS.returningScale +
+      (components.talent ?? 0) * CFB_CONSTANTS.talentScale
+  );
+  const defAdj = round2(
+    -(components.epa ?? 0) * (CFB_CONSTANTS.epaScale * 0.8) +
+      (components.returning ?? 0) * (CFB_CONSTANTS.returningScale * 0.5) +
+      (components.talent ?? 0) * (CFB_CONSTANTS.talentScale * 0.6) +
+      (components.coaching ?? 0) * CFB_CONSTANTS.coachingScale
+  );
+  const used = Object.entries(components)
+    .filter(([, v]) => v != null)
+    .map(([k]) => k);
+  const missing = Object.entries(components)
+    .filter(([, v]) => v == null)
+    .map(([k]) => `${k}_missing`);
+  return {
+    components,
+    raw: {
+      epaNet: epaRaw,
+      transferNet: strictNum(row.transferNet),
+      qbTransferNet: strictNum(row.qbTransferNet),
+      transferStarDelta: strictNum(row.transferStarDelta),
+      returningPct,
+      talent,
+      coachTenure: strictNum(row.coachTenure),
+      newCoach: Boolean(row.newCoach),
+      qbStarterKnown: Boolean(qb?.starterKnown),
+      qbStarterClass: qb?.starterClass ?? null,
+      qbStarterTransfer: Boolean(qb?.starterTransfer),
+    },
+    qb: qb || null,
+    source: {
+      epa: row.epaNet != null || row.epaOff != null || row.epaDef != null ? "cfbd" : null,
+      transfer: row.transferNet != null || row.transferStarDelta != null ? "cfbd" : null,
+      coaching: row.coachTenure != null || row.newCoach ? "cfbd" : null,
+      qb: qb?.starterKnown ? "espn" : row.qbTransferNet != null ? "cfbd-transfer" : null,
+      returning: returningPct != null ? row.returningPct != null ? "cfbd" : "prior" : null,
+      talent: talent != null ? "cfbd-prior" : null,
+    },
+    offAdj,
+    defAdj,
+    used,
+    missing,
+  };
+}
+
+export function estimateTeam(team, { rankings, form, rankFallback, catalog, priorMeta, featureCatalog, qbSignals } = {}) {
   const ranked = lookupRank(rankings || { byTeam: new Map() }, team);
   const rank = ranked?.rank ?? (team?.rank && team.rank < 99 ? team.rank : rankFallback ?? null);
   const priorCat = priorFromCatalog(team, catalog);
@@ -225,6 +350,13 @@ export function estimateTeam(team, { rankings, form, rankFallback, catalog, prio
   const currentDef = row?.pointsAgainst != null && row.games ? row.pointsAgainst / row.games : null;
   const off = blendSeason(prior.off, currentOff, n);
   const def = blendSeason(prior.def, currentDef, n);
+  const features = buildCfbFeatureVector(team, {
+    priorCatalogRow: priorCat.catalog,
+    featureCatalog,
+    qbSignals,
+  });
+  const adjustedOff = round2(clamp(off.value + features.offAdj, 8, 55));
+  const adjustedDef = round2(clamp(def.value - features.defAdj, 8, 55));
   const noTeamForm = currentOff == null;
   const priorMissing = !priorCat.teamSpecific;
   return {
@@ -237,8 +369,11 @@ export function estimateTeam(team, { rankings, form, rankFallback, catalog, prio
     priorDef: prior.def,
     currentOff,
     currentDef,
-    off: off.value,
-    def: def.value,
+    off: adjustedOff,
+    def: adjustedDef,
+    offBase: off.value,
+    defBase: def.value,
+    featureVector: features,
     w: off.w,
     teamSpecificPrior: priorCat.teamSpecific,
     priorFrozen: freezePrior(priorCat.catalog, priorMeta),
@@ -250,6 +385,7 @@ export function estimateTeam(team, { rankings, form, rankFallback, catalog, prio
       noTeamForm ? "no_current_ppg" : null,
       noTeamForm ? "form_missing" : null,
       priorMissing ? "team_prior_missing" : null,
+      ...features.missing,
       priorCat.catalog?.classification === "FCS" ? "fcs" : null,
       priorCat.catalog?.newlyPromoted ? "newly_promoted" : null,
     ].filter(Boolean),
@@ -296,13 +432,28 @@ export function projectCfbGame(game, ctx = {}) {
   const projectionState = classifyCfbState(home, away);
   const leagueAverageOnly = projectionState === PROJECTION_STATES.LEAGUE_AVERAGE_ONLY;
   const bettingAllowed = cfbBettingAllowed(projectionState, home, away);
+  const homeFeatureCount = home.featureVector?.used?.length || 0;
+  const awayFeatureCount = away.featureVector?.used?.length || 0;
+  const featureSparse = homeFeatureCount < 2 || awayFeatureCount < 2;
   const marketUnavailable = game.odds?.total == null && game.odds?.spread == null && game.pinSpread == null && game.pinTotal == null;
   const completeness =
     1 -
-    [home.rank == null, away.rank == null, home.currentOff == null, away.currentOff == null, !home.teamSpecificPrior, !away.teamSpecificPrior, rankingsUnavailable, formUnavailable, venue.uncertain, marketUnavailable].filter(
+    [
+      home.rank == null,
+      away.rank == null,
+      home.currentOff == null,
+      away.currentOff == null,
+      !home.teamSpecificPrior,
+      !away.teamSpecificPrior,
+      rankingsUnavailable,
+      formUnavailable,
+      featureSparse,
+      venue.uncertain,
+      marketUnavailable,
+    ].filter(
       Boolean
     ).length *
-      0.1;
+      0.09;
   const flags = [
     ...home.flags.map((f) => `home_${f}`),
     ...away.flags.map((f) => `away_${f}`),
@@ -317,6 +468,9 @@ export function projectCfbGame(game, ctx = {}) {
     !home.teamSpecificPrior ? "home_team_prior_missing" : null,
     !away.teamSpecificPrior ? "away_team_prior_missing" : null,
     noTeamForm || formUnavailable ? "no_team_form" : null,
+    featureSparse ? "feature_sparse" : null,
+    homeFeatureCount ? null : "home_feature_missing",
+    awayFeatureCount ? null : "away_feature_missing",
     leagueAverageOnly ? "league_average_only" : null,
     venue.uncertain ? "venue_uncertain" : null,
     marketUnavailable ? "market_unavailable" : null,
@@ -339,11 +493,27 @@ export function projectCfbGame(game, ctx = {}) {
     flags,
     venue,
     priorVersion,
+    features: {
+      home: home.featureVector,
+      away: away.featureVector,
+      summary: {
+        homeUsed: home.featureVector?.used || [],
+        awayUsed: away.featureVector?.used || [],
+      },
+    },
     constants: {
       priorGames: CFB_CONSTANTS.priorGames,
       hfaPoints: hfa,
       model: priorVersion,
       priorVersion,
+      scales: {
+        epa: CFB_CONSTANTS.epaScale,
+        transfer: CFB_CONSTANTS.transferScale,
+        qb: CFB_CONSTANTS.qbScale,
+        coaching: CFB_CONSTANTS.coachingScale,
+        returning: CFB_CONSTANTS.returningScale,
+        talent: CFB_CONSTANTS.talentScale,
+      },
     },
   };
 }
@@ -372,6 +542,100 @@ export async function loadCfbRankings(cfCache) {
   return parsed;
 }
 
+function flattenEspnAthletes(payload) {
+  const groups = payload?.athletes || payload?.team?.athletes || [];
+  const flat = [];
+  for (const g of groups) {
+    if (Array.isArray(g?.items)) flat.push(...g.items);
+    else if (Array.isArray(g?.athletes)) flat.push(...g.athletes);
+    else if (g && typeof g === "object" && (g.position || g.displayName)) flat.push(g);
+  }
+  return flat;
+}
+
+function experienceYear(raw) {
+  const y = num(raw?.experience?.year ?? raw?.experience?.value ?? raw?.experienceYear ?? raw?.classRank);
+  if (y != null) return y;
+  const text = String(raw?.experience?.displayValue || raw?.experience?.name || raw?.class || "").toLowerCase();
+  if (/fresh|fr\b/.test(text)) return 1;
+  if (/soph|so\b/.test(text)) return 2;
+  if (/jun|jr\b/.test(text)) return 3;
+  if (/sen|sr\b|grad/.test(text)) return 4;
+  return null;
+}
+
+function parseQbSignals(payload) {
+  const athletes = flattenEspnAthletes(payload);
+  const qbs = athletes
+    .filter((a) => {
+      const pos = String(a?.position?.abbreviation || a?.position?.name || "").toUpperCase();
+      return pos === "QB" || /QUARTERBACK/.test(pos);
+    })
+    .map((a) => ({
+      name: a?.displayName || a?.fullName || a?.shortName || null,
+      classYear: experienceYear(a),
+      starter: Boolean(a?.starter) || /starter|qb1/.test(String(a?.status?.type?.detail || "").toLowerCase()),
+      transfer:
+        Boolean(a?.transfer) ||
+        Boolean(a?.previousSchool) ||
+        /transfer/.test(
+          `${a?.status?.type?.detail || ""} ${a?.status?.displayValue || ""} ${a?.displayName || ""}`.toLowerCase()
+        ),
+    }));
+  if (!qbs.length) return { starterKnown: false, starterClass: null, starterTransfer: false, qbDepth: 0, qbNames: [] };
+  qbs.sort((a, b) => {
+    const s = Number(b.starter) - Number(a.starter);
+    if (s) return s;
+    return Number(b.classYear || 0) - Number(a.classYear || 0);
+  });
+  const starter = qbs[0];
+  return {
+    starterKnown: Boolean(starter?.name),
+    starterName: starter?.name || null,
+    starterClass: starter?.classYear ?? null,
+    starterTransfer: Boolean(starter?.transfer),
+    qbDepth: qbs.length,
+    qbNames: qbs.map((q) => q.name).filter(Boolean).slice(0, 4),
+  };
+}
+
+async function loadQbSignalForTeam(teamId, season, cfCache) {
+  const cacheKey = `cfb-qb-signal-v1:${season}:${teamId}`;
+  const cached = await readCache(cacheKey, cfCache, QB_TTL_MS);
+  if (cached) return cached;
+  try {
+    const roster = await fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/${teamId}/roster`);
+    const parsed = parseQbSignals(roster);
+    await writeCache(cacheKey, parsed, cfCache, QB_TTL_MS);
+    return parsed;
+  } catch (err) {
+    const fallback = {
+      starterKnown: false,
+      starterClass: null,
+      starterTransfer: false,
+      qbDepth: 0,
+      error: String(err?.message || err),
+    };
+    await writeCache(cacheKey, fallback, cfCache, 20 * 60 * 1000);
+    return fallback;
+  }
+}
+
+async function loadQbSignals(games, season, cfCache) {
+  const ids = new Set();
+  for (const g of games || []) {
+    if (g?.home?.espnId) ids.add(String(g.home.espnId));
+    if (g?.away?.espnId) ids.add(String(g.away.espnId));
+  }
+  const out = {};
+  await Promise.all(
+    [...ids].map(async (id) => {
+      out[id] = await loadQbSignalForTeam(id, season, cfCache);
+    })
+  );
+  return out;
+}
+
 export async function applyCfbModel(games, env = {}) {
   let rankings = { byTeam: new Map(), poll: null };
   try {
@@ -382,6 +646,8 @@ export async function applyCfbModel(games, env = {}) {
   const season = cfbSeasonYear();
   const form = await loadTeamForm(env, "cfb", season);
   const priorBundle = await loadCfbPrior(env);
+  const featureBundle = await loadCfbFeatureFeeds(env);
+  const qbSignals = await loadQbSignals(games || [], season, env.caches);
   const rankingsUnavailable = Boolean(rankings.error) || !rankings.byTeam?.size;
   let scoreByTeam = {};
   let marketByTeam = {};
@@ -414,6 +680,8 @@ export async function applyCfbModel(games, env = {}) {
       rankingsUnavailable,
       catalog: priorBundle.catalog,
       priorMeta: priorBundle.meta,
+      featureCatalog: featureBundle.catalog,
+      qbSignals,
     });
     const shadowHfa = buildShadowHfa(game, {
       scoreFit,
@@ -445,6 +713,7 @@ export async function applyCfbModel(games, env = {}) {
       constants: CFB_CONSTANTS,
       priorVersion: priorBundle.version || CFB_PRIOR_VERSION,
       cfbd: cfbdPublicMeta(priorBundle.meta),
+      cfbFeatures: cfbdPublicMeta(featureBundle.meta),
       diagnostics,
     },
   };

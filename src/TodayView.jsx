@@ -332,6 +332,13 @@ function CfbGameDetails({ g }) {
         <h3>TEAM INPUTS</h3>
         <div>{g.away.name}: prior O/D {fmtNum(c.away?.priorOff)}/{fmtNum(c.away?.priorDef)} · current games {c.away?.games ?? 0}</div>
         <div>{g.home.name}: prior O/D {fmtNum(c.home?.priorOff)}/{fmtNum(c.home?.priorDef)} · current games {c.home?.games ?? 0}</div>
+        <div>{g.away.name}: adjusted O/D {fmtNum(c.away?.off)}/{fmtNum(c.away?.def)} · features {((c.away?.usedFeatures || []).join(", ") || "none")}</div>
+        <div>{g.home.name}: adjusted O/D {fmtNum(c.home?.off)}/{fmtNum(c.home?.def)} · features {((c.home?.usedFeatures || []).join(", ") || "none")}</div>
+        {(c.away?.qb?.starterKnown || c.home?.qb?.starterKnown) ? (
+          <div className="muted">
+            QB starters: {g.away.abbr} {c.away?.qb?.starterName || "unknown"}{c.away?.qb?.starterTransfer ? " (transfer)" : ""} · {g.home.abbr} {c.home?.qb?.starterName || "unknown"}{c.home?.qb?.starterTransfer ? " (transfer)" : ""}
+          </div>
+        ) : null}
         <div className="muted">Prior: {c.priorVersion || "—"}</div>
       </section>
       <section className="detail-props">

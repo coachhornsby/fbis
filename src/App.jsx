@@ -906,8 +906,34 @@ function slateDetailGame(g) {
     cfbDetail: g.cfb ? {
       hfa: g.cfb.hfa, sigmaMargin: g.cfb.sigmaMargin, sigmaTotal: g.cfb.sigmaTotal, maturity: g.cfb.maturity,
       dataQuality: g.cfb.dataQuality, flags: g.cfb.flags || [], priorVersion: g.cfb.priorVersion,
-      home: g.cfb.homeEst ? { rank: g.cfb.homeEst.rank, priorOff: g.cfb.homeEst.priorOff, priorDef: g.cfb.homeEst.priorDef, games: g.cfb.homeEst.n, currentOff: g.cfb.homeEst.currentOff, currentDef: g.cfb.homeEst.currentDef } : null,
-      away: g.cfb.awayEst ? { rank: g.cfb.awayEst.rank, priorOff: g.cfb.awayEst.priorOff, priorDef: g.cfb.awayEst.priorDef, games: g.cfb.awayEst.n, currentOff: g.cfb.awayEst.currentOff, currentDef: g.cfb.awayEst.currentDef } : null,
+      home: g.cfb.homeEst
+        ? {
+            rank: g.cfb.homeEst.rank,
+            priorOff: g.cfb.homeEst.priorOff,
+            priorDef: g.cfb.homeEst.priorDef,
+            games: g.cfb.homeEst.n,
+            currentOff: g.cfb.homeEst.currentOff,
+            currentDef: g.cfb.homeEst.currentDef,
+            off: g.cfb.homeEst.off,
+            def: g.cfb.homeEst.def,
+            usedFeatures: g.cfb.homeEst.featureVector?.used || [],
+            qb: g.cfb.homeEst.featureVector?.qb || null,
+          }
+        : null,
+      away: g.cfb.awayEst
+        ? {
+            rank: g.cfb.awayEst.rank,
+            priorOff: g.cfb.awayEst.priorOff,
+            priorDef: g.cfb.awayEst.priorDef,
+            games: g.cfb.awayEst.n,
+            currentOff: g.cfb.awayEst.currentOff,
+            currentDef: g.cfb.awayEst.currentDef,
+            off: g.cfb.awayEst.off,
+            def: g.cfb.awayEst.def,
+            usedFeatures: g.cfb.awayEst.featureVector?.used || [],
+            qb: g.cfb.awayEst.featureVector?.qb || null,
+          }
+        : null,
     } : null,
     myBets: g.myBets || [],
   };

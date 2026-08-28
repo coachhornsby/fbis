@@ -17,6 +17,8 @@ npm run deploy
 
 Parlay odds are cached 15 minutes so the 1,000 free credits last. Pinnacle is pulled from the `eu` region. Kalshi is a separate 1-credit sentiment pull and is never used as a betting book. `/api/slate?date=` only accepts today ± a couple of days.
 
+CFB live projection features use the same `CFBD_API_KEY` (no additional secret names required): SP+/FPI/SRS/Elo prior, EPA team efficiency proxy, transfer portal deltas, coaching continuity, and returning production. ESPN roster endpoints provide QB continuity signals and require no credential.
+
 ## D1 (authoritative research store)
 
 Cache is not a substitute for history. Database `fbis` is bound as `DB` in `wrangler.toml` (`database_id` `b50c724c-903b-4241-8ce1-48d931e7a44c`). Apply schema after create or schema changes:

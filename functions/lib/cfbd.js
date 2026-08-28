@@ -16,6 +16,7 @@ export const CFBD_ELO_CENTER = 1500;
 export const CFBD_ELO_PER_POINT = 25;
 const PRIOR_TTL_MS = 6 * 60 * 60 * 1000;
 const ERR_TTL_MS = 15 * 60 * 1000;
+const FEATURE_TTL_MS = 2 * 60 * 60 * 1000;
 
 function num(v) {
   const n = Number(v);
@@ -348,6 +349,247 @@ function cfbSeasonYear(date = new Date()) {
   const y = Number(iso.slice(0, 4));
   const m = Number(iso.slice(5, 7));
   return m >= 8 ? y : y - 1;
+}
+
+function rowTeamHint(row = {}) {
+  return (
+    row.team ||
+    row.school ||
+    row.program ||
+    row.destination ||
+    row.destinationTeam ||
+    row.toTeam ||
+    row.newSchool ||
+    row.college ||
+    row.teamName ||
+    null
+  );
+}
+
+function resolveFeatureTeam(row = {}) {
+  const hint = rowTeamHint(row);
+  const abbr = row.abbreviation || row.abbr || row.teamAbbreviation || null;
+  return (
+    resolveTeamExact("cfb", { name: hint }) ||
+    resolveTeamExact("cfb", { school: hint }) ||
+    (abbr ? resolveTeamExact("cfb", { abbr }) : null)
+  );
+}
+
+function ensureFeatureRow(buckets, row = {}) {
+  const key = row.espnId ? `id:${row.espnId}` : row.school ? `school:${String(row.school).trim().toLowerCase()}` : null;
+  if (!key) return null;
+  if (!buckets[key]) buckets[key] = { ...row };
+  return buckets[key];
+}
+
+function parseEpaFromRow(row = {}) {
+  const off = num(
+    row.offense?.overall ??
+      row.offense?.total ??
+      row.offense?.ppa ??
+      row.offensive?.overall ??
+      row.offensivePpa ??
+      row.offensiveEPA ??
+      row.offenseEpa
+  );
+  const def = num(
+    row.defense?.overall ??
+      row.defense?.total ??
+      row.defense?.ppa ??
+      row.defensive?.overall ??
+      row.defensivePpa ??
+      row.defensiveEPA ??
+      row.defenseEpa
+  );
+  const net = num(row.net ?? row.overall ?? (off != null && def != null ? off - def : null));
+  return { off, def, net };
+}
+
+function trimFeatureOutput(buckets = {}) {
+  const byEspnId = {};
+  const bySchool = {};
+  for (const row of Object.values(buckets)) {
+    if (row.espnId) byEspnId[String(row.espnId)] = row;
+    if (row.school) bySchool[String(row.school).trim().toLowerCase()] = row;
+  }
+  return { byEspnId, bySchool };
+}
+
+async function firstSuccessfulCfbdRequest(env, attempts, fetchFn) {
+  const report = [];
+  for (const [path, query] of attempts) {
+    const res = await cfbdRequest(CFBD_BASE, path, env, { query, fetchFn });
+    report.push({ path, status: res.status, n: res.n || 0, ok: res.ok });
+    if (res.ok && Array.isArray(res.data) && res.data.length) {
+      return { rows: res.data, report, chosenPath: path };
+    }
+    if (res.status === 401) break;
+  }
+  return { rows: [], report, chosenPath: null };
+}
+
+export function buildCfbFeatureCatalog({ epa = [], returning = [], transfers = [], coaches = [], year = null, asOf = null } = {}) {
+  const buckets = {};
+  for (const row of epa || []) {
+    const hit = resolveFeatureTeam(row);
+    if (!hit) continue;
+    const parsed = parseEpaFromRow(row);
+    if (parsed.off == null && parsed.def == null && parsed.net == null) continue;
+    const out = ensureFeatureRow(buckets, {
+      espnId: hit.espnId ? String(hit.espnId) : null,
+      school: hit.school || rowTeamHint(row),
+      epaOff: parsed.off,
+      epaDef: parsed.def,
+      epaNet: parsed.net,
+      epaSource: "cfbd",
+      asOf,
+      year,
+    });
+    if (!out) continue;
+    if (parsed.off != null) out.epaOff = parsed.off;
+    if (parsed.def != null) out.epaDef = parsed.def;
+    if (parsed.net != null) out.epaNet = parsed.net;
+  }
+  for (const row of returning || []) {
+    const hit = resolveFeatureTeam(row);
+    if (!hit) continue;
+    const pct = num(row.percentPPA ?? row.usage ?? row.returningProduction ?? row.returningPct);
+    if (pct == null) continue;
+    const out = ensureFeatureRow(buckets, {
+      espnId: hit.espnId ? String(hit.espnId) : null,
+      school: hit.school || rowTeamHint(row),
+      returningPct: pct,
+      asOf,
+      year,
+    });
+    if (!out) continue;
+    out.returningPct = pct;
+  }
+  for (const row of transfers || []) {
+    const hit = resolveFeatureTeam(row);
+    if (!hit) continue;
+    const out = ensureFeatureRow(buckets, {
+      espnId: hit.espnId ? String(hit.espnId) : null,
+      school: hit.school || rowTeamHint(row),
+      transferIn: 0,
+      transferOut: 0,
+      qbTransferIn: 0,
+      qbTransferOut: 0,
+      transferStarsIn: 0,
+      transferStarsOut: 0,
+      asOf,
+      year,
+    });
+    if (!out) continue;
+    const direction = String(row.direction || row.type || row.movement || "").toLowerCase();
+    const incoming =
+      /\b(in|incoming|arrive|arriving|destination|commit|committed)\b/.test(direction) ||
+      Boolean(row.destination || row.destinationTeam || row.newSchool || row.toTeam);
+    const pos = String(row.position || row.pos || row.positionGroup || "").toUpperCase();
+    const isQb = pos === "QB" || /QUARTERBACK/.test(pos);
+    const stars = num(row.stars ?? row.rating ?? row.transferRating ?? row.impactRating);
+    if (incoming) {
+      out.transferIn = (out.transferIn || 0) + 1;
+      if (isQb) out.qbTransferIn = (out.qbTransferIn || 0) + 1;
+      if (stars != null) out.transferStarsIn = (out.transferStarsIn || 0) + stars;
+    } else {
+      out.transferOut = (out.transferOut || 0) + 1;
+      if (isQb) out.qbTransferOut = (out.qbTransferOut || 0) + 1;
+      if (stars != null) out.transferStarsOut = (out.transferStarsOut || 0) + stars;
+    }
+  }
+  for (const row of coaches || []) {
+    const hit = resolveFeatureTeam(row);
+    if (!hit) continue;
+    const out = ensureFeatureRow(buckets, {
+      espnId: hit.espnId ? String(hit.espnId) : null,
+      school: hit.school || rowTeamHint(row),
+      asOf,
+      year,
+    });
+    if (!out) continue;
+    const firstYear = num(row.firstYear ?? row.startYear ?? row.hireYear ?? row.season);
+    const tenure = num(row.years ?? row.yearsAtSchool ?? row.tenure);
+    const coachName = row.firstName && row.lastName ? `${row.firstName} ${row.lastName}` : row.coach || row.name || null;
+    out.coachName = coachName || out.coachName || null;
+    out.coachFirstYear = firstYear ?? out.coachFirstYear ?? null;
+    out.coachTenure = tenure ?? (firstYear != null && year != null ? Math.max(0, Number(year) - Number(firstYear)) : out.coachTenure ?? null);
+    if (firstYear != null && year != null) out.newCoach = Number(firstYear) >= Number(year);
+    else if (typeof out.newCoach !== "boolean") out.newCoach = false;
+  }
+  const finalRows = Object.values(buckets).map((row) => {
+    const transferIn = Number(row.transferIn || 0);
+    const transferOut = Number(row.transferOut || 0);
+    const qbIn = Number(row.qbTransferIn || 0);
+    const qbOut = Number(row.qbTransferOut || 0);
+    const starsIn = Number(row.transferStarsIn || 0);
+    const starsOut = Number(row.transferStarsOut || 0);
+    return {
+      ...row,
+      transferNet: transferIn - transferOut,
+      qbTransferNet: qbIn - qbOut,
+      transferStarDelta: starsIn - starsOut,
+    };
+  });
+  return trimFeatureOutput(Object.fromEntries(finalRows.map((r) => [r.espnId ? `id:${r.espnId}` : `school:${String(r.school).toLowerCase()}`, r])));
+}
+
+export async function loadCfbFeatureFeeds(env = {}, { fetchFn = fetch, now = Date.now() } = {}) {
+  const asOf = new Date(now).toISOString();
+  const season = cfbSeasonYear(new Date(now));
+  const emptyCatalog = { byEspnId: {}, bySchool: {} };
+  if (!cfbdConfigured(env)) {
+    return {
+      season,
+      asOf,
+      catalog: emptyCatalog,
+      meta: cfbdPublicMeta({
+        configured: false,
+        records: 0,
+        fallback: true,
+        year: season,
+        asOf,
+        source: "cfbd-features",
+        error: "no-api-key",
+      }),
+    };
+  }
+  const cacheKey = `cfb-feature-feeds-v1-${season}`;
+  const cached = await readCache(cacheKey, env.caches, FEATURE_TTL_MS);
+  if (cached?.catalog?.byEspnId && cached?.meta) return cached;
+
+  const [epa, transfer, coaches, returning] = await Promise.all([
+    firstSuccessfulCfbdRequest(env, [["/ppa/teams", { year: season }], ["/ppa/teams/season", { year: season }]], fetchFn),
+    firstSuccessfulCfbdRequest(env, [["/player/portal", { year: season }], ["/player/transfer", { year: season }]], fetchFn),
+    firstSuccessfulCfbdRequest(env, [["/coaches", { year: season }], ["/coaches/teams", { year: season }]], fetchFn),
+    firstSuccessfulCfbdRequest(env, [["/player/returning", { year: season }]], fetchFn),
+  ]);
+
+  const report = [...epa.report, ...transfer.report, ...coaches.report, ...returning.report];
+  const catalog = buildCfbFeatureCatalog({
+    epa: epa.rows,
+    transfers: transfer.rows,
+    coaches: coaches.rows,
+    returning: returning.rows,
+    year: season,
+    asOf,
+  });
+  const records = Object.keys(catalog.byEspnId || {}).length;
+  const meta = cfbdPublicMeta({
+    configured: true,
+    records,
+    year: season,
+    asOf,
+    source: "cfbd-features",
+    fallback: records < 20,
+    httpStatus: 200,
+    endpoints: report,
+    error: records ? null : "cfbd-features-empty",
+  });
+  const payload = { season, asOf, catalog, meta };
+  await writeCache(cacheKey, payload, env.caches, records ? FEATURE_TTL_MS : ERR_TTL_MS);
+  return payload;
 }
 
 function cbbSeasonYear(date = new Date()) {

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { resolveTeam, enrichTeam, logoForCanonicalId, verifiedNflAbbr, verifiedCfbSchool, identityFromName, displayTeamIdentity, teamDisplayName } from "../functions/lib/teams.js";
 import { namesMatch } from "../functions/lib/match.js";
 import { attachMarketLabels, TEAM_MATCH_UNRESOLVED, isAmbiguousLastWord, canPriceMarket } from "../functions/lib/marketLabels.js";
-import { projectCfbGame, classifyCfbState, cfbBettingAllowed, PROJECTION_STATES, CFB_BLOCKED_MESSAGE } from "../functions/lib/cfbModel.js";
+import { projectCfbGame, buildCfbFeatureVector, classifyCfbState, cfbBettingAllowed, PROJECTION_STATES, CFB_BLOCKED_MESSAGE } from "../functions/lib/cfbModel.js";
 import { recommendBundle } from "../functions/lib/slateEngine.js";
 import { duplicateProjectionDiagnostic, cfbSlateDiagnostics, cfbOosMetrics } from "../functions/lib/cfbDiagnostics.js";
 import { hasTeamSpecificPrior, priorForTeam, CFB_PRIOR_VERSION } from "../functions/lib/cfbPrior.js";
@@ -283,6 +283,40 @@ describe("CFB SAFETY", () => {
     assert.equal(partial.projectionState, PROJECTION_STATES.PARTIAL);
     assert.equal(cfbBettingAllowed(PROJECTION_STATES.PARTIAL, partial.homeEst, partial.awayEst), false);
     assert.equal(classifyCfbState(complete.homeEst, complete.awayEst), PROJECTION_STATES.COMPLETE);
+  });
+
+  it("applies feature vector adjustments for EPA/transfer/QB/coaching", () => {
+    const featureCatalog = {
+      byEspnId: {
+        "194": { espnId: "194", school: "Ohio State", epaNet: 0.35, transferNet: 6, qbTransferNet: 1, transferStarDelta: 8, coachTenure: 6, newCoach: false, returningPct: 63 },
+        "130": { espnId: "130", school: "Michigan", epaNet: 0.12, transferNet: -2, qbTransferNet: -1, transferStarDelta: -3, coachTenure: 0, newCoach: true, returningPct: 49 },
+      },
+      bySchool: {},
+    };
+    const qbSignals = {
+      "194": { starterKnown: true, starterName: "Elite Transfer", starterTransfer: true, starterClass: 4, qbDepth: 4 },
+      "130": { starterKnown: true, starterName: "Freshman QB", starterTransfer: false, starterClass: 1, qbDepth: 3 },
+    };
+    const game = {
+      home: { name: "Ohio State", espnId: "194", rank: 1 },
+      away: { name: "Michigan", espnId: "130", rank: 8 },
+    };
+    const proj = projectCfbGame(game, { rankings: { byTeam: new Map() }, form: new Map(), featureCatalog, qbSignals });
+    assert.ok(proj.homeEst.featureVector.used.includes("epa"));
+    assert.ok(proj.homeEst.featureVector.used.includes("qb"));
+    assert.ok(proj.homeEst.off > proj.homeEst.offBase);
+    assert.ok(proj.awayEst.off < proj.awayEst.offBase);
+    assert.equal(proj.features.summary.homeUsed.includes("transfer"), true);
+    assert.equal(proj.flags.includes("feature_sparse"), false);
+  });
+
+  it("buildCfbFeatureVector fails soft when features are missing", () => {
+    const fv = buildCfbFeatureVector({ name: "Unknown", espnId: "999999" }, { featureCatalog: { byEspnId: {}, bySchool: {} }, qbSignals: {} });
+    assert.equal(Array.isArray(fv.missing), true);
+    assert.ok(fv.missing.includes("epa_missing"));
+    assert.equal(fv.used.length, 0);
+    assert.equal(typeof fv.offAdj, "number");
+    assert.equal(typeof fv.defAdj, "number");
   });
 
   it("duplicate-projection warning when an implausible share of the slate is identical", () => {

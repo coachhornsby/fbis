@@ -328,7 +328,21 @@ export function projectionRecipe(sport, game, model) {
     steps.push(
       `Win/spread/total probabilities use Normal(σ_margin=${c.sigmaMargin}, σ_total=${c.sigmaTotal}) — labeled heuristic, not a fitted probability model.`
     );
-    steps.push("No EPA, transfer, QB, or coaching feed is wired. Those inputs are absent.");
+    const homeFeatures = c.features?.summary?.homeUsed || c.homeEst?.featureVector?.used || [];
+    const awayFeatures = c.features?.summary?.awayUsed || c.awayEst?.featureVector?.used || [];
+    const homeQb = c.homeEst?.featureVector?.qb;
+    const awayQb = c.awayEst?.featureVector?.qb;
+    steps.push(
+      `Feature stack (CFBD+ESPN): home [${homeFeatures.join(", ") || "none"}] · away [${awayFeatures.join(", ") || "none"}].`
+    );
+    if (homeQb?.starterKnown || awayQb?.starterKnown) {
+      steps.push(
+        `QB continuity: ${game.home?.abbr || "HOME"} ${homeQb?.starterName || "unknown"}${homeQb?.starterTransfer ? " (transfer)" : ""}; ${game.away?.abbr || "AWAY"} ${awayQb?.starterName || "unknown"}${awayQb?.starterTransfer ? " (transfer)" : ""}.`
+      );
+    }
+    if (c.flags?.includes("feature_sparse")) {
+      steps.push("Some EPA/transfer/QB/coaching inputs were unavailable at runtime; absent features are omitted, not zero-filled.");
+    }
   } else if (sport === "nfl") {
     engine = "Pinnacle implied score";
     const mh = game.marketProjHome;

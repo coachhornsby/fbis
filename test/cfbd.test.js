@@ -5,7 +5,9 @@ import {
   cfbdConfigured,
   cfbdPublicMeta,
   buildCfbdCatalog,
+  buildCfbFeatureCatalog,
   mergePriorCatalog,
+  loadCfbFeatureFeeds,
   loadCfbPrior,
   eloToPower,
   CFBD_ELO_CENTER,
@@ -248,5 +250,59 @@ describe("CFBD public meta", () => {
     assert.equal(dump.includes(FAKE_KEY), false);
     assert.equal(dump.includes("Bearer"), false);
     assert.equal(dump.includes("CFBD_API_KEY"), false);
+  });
+});
+
+describe("CFBD CFB feature feeds", () => {
+  it("builds EPA/transfer/QB/coaching feature rows by team", () => {
+    const catalog = buildCfbFeatureCatalog({
+      year: 2026,
+      asOf: "2026-08-28T00:00:00.000Z",
+      epa: [
+        { team: "Ohio State", offense: { overall: 0.31 }, defense: { overall: -0.12 } },
+        { team: "Michigan", offense: { overall: 0.18 }, defense: { overall: -0.08 } },
+      ],
+      returning: [{ team: "Ohio State", percentPPA: 63 }],
+      transfers: [
+        { team: "Ohio State", direction: "incoming", position: "QB", stars: 4 },
+        { team: "Ohio State", direction: "incoming", position: "WR", stars: 3 },
+        { team: "Michigan", direction: "outgoing", position: "QB", stars: 4 },
+      ],
+      coaches: [
+        { team: "Ohio State", firstName: "Ryan", lastName: "Day", firstYear: 2019 },
+        { team: "Michigan", firstName: "New", lastName: "Coach", firstYear: 2026 },
+      ],
+    });
+    const osu = catalog.byEspnId["194"];
+    const um = catalog.byEspnId["130"];
+    assert.ok(osu);
+    assert.ok(um);
+    assert.equal(osu.epaNet, 0.43);
+    assert.equal(osu.qbTransferNet, 1);
+    assert.equal(osu.transferStarDelta, 7);
+    assert.equal(osu.returningPct, 63);
+    assert.equal(um.newCoach, true);
+    assert.equal(um.qbTransferNet, -1);
+  });
+
+  it("loads feature feeds fail-soft without leaking secrets", async () => {
+    resetCacheMem();
+    const fetchFn = jsonFetch({
+      "/ppa/teams": [
+        { team: "Ohio State", offense: { overall: 0.28 }, defense: { overall: -0.09 } },
+        { team: "Michigan", offense: { overall: 0.17 }, defense: { overall: -0.04 } },
+      ],
+      "/player/portal": [{ team: "Ohio State", direction: "incoming", position: "QB", stars: 5 }],
+      "/coaches": [{ team: "Ohio State", firstYear: 2019, firstName: "Ryan", lastName: "Day" }],
+      "/player/returning": [{ team: "Ohio State", percentPPA: 61 }],
+    });
+    const loaded = await loadCfbFeatureFeeds({ CFBD_API_KEY: FAKE_KEY }, { fetchFn, now: Date.parse("2026-08-28T12:00:00.000Z") });
+    assert.equal(loaded.meta.configured, true);
+    assert.ok(loaded.meta.endpoints.length >= 4);
+    assert.ok(loaded.catalog.byEspnId["194"]);
+    assert.equal(loaded.catalog.byEspnId["194"].qbTransferNet, 1);
+    const dump = JSON.stringify(loaded);
+    assert.equal(dump.includes(FAKE_KEY), false);
+    assert.equal(dump.includes("Bearer"), false);
   });
 });
