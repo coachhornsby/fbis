@@ -39,7 +39,7 @@ export const PARLAY_SPORT = {
 
 const TTL_MS = 15 * 60 * 1000;
 const EMPTY_F5_TTL_MS = 6 * 60 * 60 * 1000;
-const CACHE_VER = "v6";
+const CACHE_VER = "v7";
 const MLB_PROP_MARKETS = [
   "player_total_bases", "player_hits", "player_home_runs", "player_rbis", "player_runs",
   "player_stolen_bases", "player_strikeouts", "player_pitcher_outs", "player_hits_allowed", "player_earned_runs",
@@ -208,7 +208,7 @@ export function summarizeParlayEvent(event, sportId) {
   const home = event.home_team;
   const away = event.away_team;
   const fg = packFg(books, sportId, home, away);
-  const f5 = packF5(books, sportId, home, away);
+  const f5 = event.periodF5 || packF5(books, sportId, home, away);
   const kalshiH2h = outcomes(books, "h2h", (k) => k === "kalshi");
   return {
     parlayId: event.id,
@@ -409,21 +409,120 @@ async function fetchPropsJson(sportKey, params, apiKey) {
   const credits = creditMeta(res);
   if (!res.ok) return { rows: [], error: `Parlay ${res.status}: ${(await res.text()).slice(0, 180)}`, credits };
   const raw = await res.json();
-  const rows = Array.isArray(raw) ? raw : raw?.data || raw?.props || [];
+  const rows = Array.isArray(raw) ? raw : raw?.results || raw?.data?.items || raw?.data || raw?.props || [];
   return { rows: Array.isArray(rows) ? rows : [], credits };
 }
 
 export function attachFlatProps(events, rows) {
   return (events || []).map((event) => ({
     ...event,
-    playerProps: (rows || []).filter((r) => String(r.event_id || r.eventId) === String(event.id)).map((r) => ({
-      eventId: r.event_id || r.eventId, playerName: r.player_name || r.playerName,
-      marketKey: r.market_key || r.marketKey, marketLabel: r.market_label || r.marketLabel,
+    playerProps: (rows || []).filter((r) => {
+      const eventId = r.event_id || r.eventId || r.canonical_event_id;
+      if (eventId != null && String(eventId) === String(event.id)) return true;
+      const home = r.home_team || r.homeTeam;
+      const away = r.away_team || r.awayTeam;
+      return home && away && namesMatch(home, event.home_team) && namesMatch(away, event.away_team);
+    }).map((r) => ({
+      eventId: r.event_id || r.eventId || r.canonical_event_id, playerName: r.player_name || r.playerName || r.player,
+      marketKey: r.market_key || r.marketKey || r.market, marketLabel: r.market_label || r.marketLabel || r.market,
       line: r.line == null ? null : Number(r.line), overPrice: r.over_price == null ? null : Number(r.over_price),
-      underPrice: r.under_price == null ? null : Number(r.under_price), bookmaker: r.source_title || r.bookmaker || r.source,
-      bookmakerKey: r.source || r.bookmaker_key || r.bookmakerKey, snapshotAt: r.snapshot_time || r.snapshotAt,
+      underPrice: r.under_price == null ? null : Number(r.under_price), bookmaker: r.source_title || r.bookmaker_title || r.bookmaker || r.source,
+      bookmakerKey: r.source || r.bookmaker_key || r.bookmakerKey || r.bookmaker, snapshotAt: r.snapshot_time || r.snapshotAt || r.last_update,
     })),
   }));
+}
+
+async function fetchPeriodMarkets(sportKey, period, apiKey) {
+  const url = new URL(`https://parlay-api.com/v1/sports/${sportKey}/live/period_markets`);
+  url.searchParams.set("period", period);
+  const res = await parlayFetch(url, apiKey);
+  const credits = creditMeta(res);
+  if (!res.ok) return { rows: [], error: `Parlay ${res.status}: ${(await res.text()).slice(0, 180)}`, credits };
+  const raw = await res.json();
+  const rows = Array.isArray(raw) ? raw : raw?.results || raw?.data?.items || raw?.data || [];
+  return { rows: Array.isArray(rows) ? rows : [], credits };
+}
+
+function periodSource(row) {
+  return String(row.source || row.bookmaker_key || row.bookmaker || "").toLowerCase();
+}
+
+function periodPrice(row) {
+  const value = Number(row.price);
+  return validAmerican(value) ? value : null;
+}
+
+function periodLine(row) {
+  const value = Number(row.line ?? row.point);
+  return Number.isFinite(value) ? value : null;
+}
+
+function sourceRank(source) {
+  const order = ["pinnacle", "fanduel", "draftkings", "betmgm", "caesars", "bovada"];
+  const i = order.indexOf(source);
+  return i < 0 ? order.length : i;
+}
+
+function packPeriodRows(rows) {
+  const byGame = new Map();
+  for (const row of rows || []) {
+    const home = row.home_team || row.homeTeam;
+    const away = row.away_team || row.awayTeam;
+    if (!home || !away || String(row.period_key || row.period || "").toUpperCase() !== "F5") continue;
+    const key = `${String(away).toLowerCase()}|${String(home).toLowerCase()}`;
+    if (!byGame.has(key)) byGame.set(key, { home, away, rows: [] });
+    byGame.get(key).rows.push(row);
+  }
+  const packed = [];
+  for (const game of byGame.values()) {
+    const sources = [...new Set(game.rows.map(periodSource).filter(Boolean))].sort((a, b) => sourceRank(a) - sourceRank(b));
+    let f5 = null;
+    for (const source of sources) {
+      const sourceRows = game.rows.filter((r) => periodSource(r) === source && periodPrice(r) != null);
+      const market = (name) => sourceRows.filter((r) => String(r.market || r.market_key || "").toLowerCase() === name);
+      const h2h = market("h2h");
+      const homeMl = h2h.find((r) => String(r.side || "").toLowerCase() === "home");
+      const awayMl = h2h.find((r) => String(r.side || "").toLowerCase() === "away");
+      const spreads = market("spread");
+      const homeSpreads = spreads.filter((r) => String(r.side || "").toLowerCase() === "home" && periodLine(r) != null);
+      let spreadPair = null;
+      for (const homeRow of homeSpreads) {
+        const awayRow = spreads.find((r) => String(r.side || "").toLowerCase() === "away" && periodLine(r) === -periodLine(homeRow));
+        if (awayRow) { spreadPair = { home: homeRow, away: awayRow }; break; }
+      }
+      const totals = market("total");
+      let totalPair = null;
+      for (const over of totals.filter((r) => String(r.side || "").toLowerCase() === "over" && periodLine(r) != null)) {
+        const under = totals.find((r) => String(r.side || "").toLowerCase() === "under" && periodLine(r) === periodLine(over));
+        if (under) { totalPair = { over, under }; break; }
+      }
+      if (homeMl && awayMl || spreadPair || totalPair) {
+        f5 = {
+          homeMl: homeMl && awayMl ? periodPrice(homeMl) : null,
+          awayMl: homeMl && awayMl ? periodPrice(awayMl) : null,
+          spread: spreadPair ? periodLine(spreadPair.home) : null,
+          spreadHomePrice: spreadPair ? periodPrice(spreadPair.home) : null,
+          spreadAwayPrice: spreadPair ? periodPrice(spreadPair.away) : null,
+          total: totalPair ? periodLine(totalPair.over) : null,
+          overPrice: totalPair ? periodPrice(totalPair.over) : null,
+          underPrice: totalPair ? periodPrice(totalPair.under) : null,
+          book: source,
+          sharp: isSharpBook(source) ? SHARP_BOOK : "",
+        };
+        break;
+      }
+    }
+    if (f5) packed.push({ homeTeam: game.home, awayTeam: game.away, f5 });
+  }
+  return packed;
+}
+
+export function attachPeriodF5(events, rows) {
+  const packed = packPeriodRows(rows);
+  return (events || []).map((event) => {
+    const hit = packed.find((p) => namesMatch(p.homeTeam, event.home_team) && namesMatch(p.awayTeam, event.away_team));
+    return hit ? { ...event, periodF5: hit.f5 } : event;
+  });
 }
 
 function mergeByTeams(primary, extra) {
@@ -508,19 +607,14 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     const f5Key = `${CACHE_VER}:f5:${sportKey}`;
     let f5Payload = await readCache(f5Key, cfCache, EMPTY_F5_TTL_MS);
     if (!f5Payload) {
-      const fetched = await fetchJson(sportKey, {
-        regions: "us,eu", markets: "h2h_1st_5_innings,spreads_1st_5_innings,totals_1st_5_innings",
-        bookmakers: "pinnacle,fanduel,draftkings,betmgm,caesars,bovada",
-      }, apiKey);
+      const fetched = await fetchPeriodMarkets(sportKey, "F5", apiKey);
       remaining = fetched.credits.remaining ?? remaining;
       used = fetched.credits.used ?? used;
-      f5Payload = { events: fetched.error ? [] : fetched.events, empty: !fetched.events?.length, error: fetched.error || null };
+      f5Payload = { rows: fetched.error ? [] : fetched.rows, empty: !fetched.rows?.length, error: fetched.error || null };
       await writeCache(f5Key, f5Payload, cfCache, f5Payload.empty ? EMPTY_F5_TTL_MS : TTL_MS);
     }
-    if (f5Payload?.events?.length) {
-      combined = mergeByTeams(combined, f5Payload.events);
-      f5Games = f5Payload.events.length;
-    }
+    combined = attachPeriodF5(combined, f5Payload.rows || []);
+    f5Games = combined.filter((event) => event.periodF5).length;
     const propsKey = `${CACHE_VER}:props:${sportKey}`;
     let propsPayload = await readCache(propsKey, cfCache, EMPTY_F5_TTL_MS);
     if (!propsPayload) {

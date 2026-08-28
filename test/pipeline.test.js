@@ -5,7 +5,7 @@ import { classifyCheckpoint, pickCanonical, materiallyChanged } from "../functio
 import { accuracyOf, freezeFromGame, collectBoards, harvestAll } from "../functions/lib/projLedger.js";
 import { actionAcceptsJob } from "../functions/lib/jobs.js";
 import { seriesStats, buildAccuracyPack } from "../functions/lib/accuracyReport.js";
-import { attachFlatProps, fetchParlayOdds } from "../functions/lib/parlay.js";
+import { attachFlatProps, attachPeriodF5, fetchParlayOdds, summarizeParlayEvent } from "../functions/lib/parlay.js";
 import { resetCacheMem } from "../functions/lib/cache.js";
 import { todayCT } from "../functions/lib/slateEngine.js";
 
@@ -145,6 +145,32 @@ describe("Parlay collect budget", () => {
     assert.equal(event.playerProps[0].overPrice, -105);
     assert.equal(event.playerProps[0].underPrice, -115);
     assert.equal(event.playerProps[0].probability, undefined);
+  });
+  it("accepts the documented flattened prop field names", () => {
+    const [event] = attachFlatProps([{ id: "canonical-1", home_team: "Chicago Cubs", away_team: "Cincinnati Reds" }], [{
+      canonical_event_id: "canonical-1", player: "Pete Crow-Armstrong", market: "player_total_bases",
+      line: 1.5, over_price: 105, under_price: -125, bookmaker: "fanduel", bookmaker_title: "FanDuel",
+      last_update: "2026-08-28T15:00:00Z",
+    }]);
+    assert.equal(event.playerProps.length, 1);
+    assert.equal(event.playerProps[0].playerName, "Pete Crow-Armstrong");
+    assert.equal(event.playerProps[0].marketKey, "player_total_bases");
+    assert.equal(event.playerProps[0].bookmaker, "FanDuel");
+  });
+  it("packs documented F5 period-market rows into a priced sportsbook market", () => {
+    const [event] = attachPeriodF5([{ id: "e1", home_team: "Chicago Cubs", away_team: "Cincinnati Reds", bookmakers: [] }], [
+      { home_team: "Chicago Cubs", away_team: "Cincinnati Reds", period_key: "F5", source: "pinnacle", market: "h2h", side: "home", price: -115 },
+      { home_team: "Chicago Cubs", away_team: "Cincinnati Reds", period_key: "F5", source: "pinnacle", market: "h2h", side: "away", price: 105 },
+      { home_team: "Chicago Cubs", away_team: "Cincinnati Reds", period_key: "F5", source: "pinnacle", market: "spread", side: "home", line: -0.5, price: 120 },
+      { home_team: "Chicago Cubs", away_team: "Cincinnati Reds", period_key: "F5", source: "pinnacle", market: "spread", side: "away", line: 0.5, price: -140 },
+      { home_team: "Chicago Cubs", away_team: "Cincinnati Reds", period_key: "F5", source: "pinnacle", market: "total", side: "over", line: 4.5, price: -105 },
+      { home_team: "Chicago Cubs", away_team: "Cincinnati Reds", period_key: "F5", source: "pinnacle", market: "total", side: "under", line: 4.5, price: -115 },
+    ]);
+    const packed = summarizeParlayEvent(event, "mlb").f5;
+    assert.equal(packed.homeMl, -115);
+    assert.equal(packed.spread, -0.5);
+    assert.equal(packed.total, 4.5);
+    assert.equal(packed.book, "pinnacle");
   });
   it("skips the network on cache-only collects", async () => {
     const r = await fetchParlayOdds("mlb", "fake-key", null, { cacheOnly: true });
