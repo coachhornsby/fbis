@@ -4,6 +4,7 @@ import { BOARD_STATUSES, classifyBoardStatus } from "../functions/lib/gameStatus
 import { resolveTodayDate, utcMidnightVsCt, groupBySport, sortByStart, emptyTodayState, buildTodayBoard } from "../functions/lib/todayBoard.js";
 import { projectionRecipe } from "../functions/lib/slateEngine.js";
 import { resolveSlateDate } from "../functions/lib/slateEngine.js";
+import { fetchEspnScoreboard } from "../functions/lib/slateEngine.js";
 import { rowsForCheckpoint, CHECKPOINT_ALIASES } from "../functions/lib/checkpoints.js";
 import { palHealth } from "../functions/lib/sourceCoverage.js";
 import { freezeFromGame } from "../functions/lib/projLedger.js";
@@ -224,5 +225,33 @@ describe("CFB projection recipe", () => {
     assert.match(joined, /Feature stack \(CFBD\+ESPN\)/);
     assert.match(joined, /QB continuity/);
     assert.doesNotMatch(joined, /No EPA, transfer, QB, or coaching feed is wired/);
+  });
+});
+
+describe("ESPN scoreboard fallback", () => {
+  it("falls back to CDN CFB scoreboard when site API is blocked", async () => {
+    const realFetch = globalThis.fetch;
+    const calls = [];
+    globalThis.fetch = async (url) => {
+      calls.push(String(url));
+      if (String(url).includes("site.api.espn.com")) {
+        return new Response("denied", { status: 403 });
+      }
+      if (String(url).includes("cdn.espn.com/core/college-football/scoreboard")) {
+        return new Response(JSON.stringify({
+          content: { sbData: { events: [{ id: "401", competitions: [{ competitors: [{ homeAway: "home", team: { displayName: "Home", abbreviation: "HOM" } }, { homeAway: "away", team: { displayName: "Away", abbreviation: "AWY" } }] }] }] } },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response("unexpected", { status: 500 });
+    };
+    try {
+      const payload = await fetchEspnScoreboard("cfb", "2026-09-03");
+      assert.equal(Array.isArray(payload.events), true);
+      assert.equal(payload.events.length, 1);
+      assert.ok(calls.some((u) => u.includes("site.api.espn.com")));
+      assert.ok(calls.some((u) => u.includes("cdn.espn.com/core/college-football/scoreboard")));
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });

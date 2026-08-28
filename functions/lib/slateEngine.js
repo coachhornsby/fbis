@@ -764,18 +764,35 @@ export async function fetchEspnScoreboard(sport, date) {
   const cfg = SPORTS[sport] || SPORTS.cbb;
   const stamp = dateStamp(date);
   const url = `https://site.api.espn.com/apis/site/v2/sports/${cfg.espn}/scoreboard?dates=${stamp}&limit=300`;
-  const res = await fetch(url, {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        Accept: "application/json,text/plain,*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        Referer: "https://www.espn.com/",
+        Origin: "https://www.espn.com",
+      },
+    });
+    if (res.ok) return res.json();
+    if (sport !== "cfb") throw new Error(`ESPN ${cfg.label} ${res.status}`);
+  } catch (err) {
+    if (sport !== "cfb") throw err;
+  }
+  // CFB-specific fallback: site.api is intermittently geo/edge-blocked; cdn endpoint stays public.
+  const fallback = `https://cdn.espn.com/core/college-football/scoreboard?xhr=1&dates=${stamp}&limit=300`;
+  const fb = await fetch(fallback, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
       Accept: "application/json,text/plain,*/*",
-      "Accept-Language": "en-US,en;q=0.9",
       Referer: "https://www.espn.com/",
-      Origin: "https://www.espn.com",
     },
   });
-  if (!res.ok) throw new Error(`ESPN ${cfg.label} ${res.status}`);
-  return res.json();
+  if (!fb.ok) throw new Error(`ESPN ${cfg.label} ${fb.status}`);
+  const json = await fb.json();
+  return { ...(json || {}), events: json?.events || json?.content?.sbData?.events || [] };
 }
 
 

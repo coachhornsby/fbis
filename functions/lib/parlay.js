@@ -39,6 +39,7 @@ export const PARLAY_SPORT = {
 
 const TTL_MS = 15 * 60 * 1000;
 const EMPTY_F5_TTL_MS = 6 * 60 * 60 * 1000;
+const STALE_PROPS_TTL_MS = 36 * 60 * 60 * 1000;
 const CACHE_VER = "v7";
 const MLB_PROP_MARKETS = [
   "player_total_bases", "player_hits", "player_home_runs", "player_rbis", "player_runs",
@@ -549,6 +550,22 @@ function mergeByTeams(primary, extra) {
   return out;
 }
 
+function propsRowsToStubEvents(rows = []) {
+  const grouped = new Map();
+  for (const row of rows || []) {
+    const home = row.home_team || row.homeTeam;
+    const away = row.away_team || row.awayTeam;
+    if (!home || !away) continue;
+    const eventId = row.event_id || row.eventId || row.canonical_event_id || `${away} @ ${home}`;
+    const commence = row.commence_time || row.commenceTime || row.start_time || row.startTime || null;
+    const key = `${String(home).toLowerCase()}::${String(away).toLowerCase()}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, { id: eventId, home_team: home, away_team: away, commence_time: commence, bookmakers: [], playerProps: [] });
+    }
+  }
+  return Array.from(grouped.values());
+}
+
 export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   const sportKey = PARLAY_SPORT[sportId];
   if (!sportKey || !apiKey) {
@@ -582,7 +599,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     },
     apiKey
   );
-  if (pin.error && !pin.events.length) {
+  if (pin.error && !pin.events.length && !baseball) {
     return {
       events: [],
       meta: {
@@ -638,6 +655,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     combined = attachPeriodF5(combined, f5Payload.rows || []);
     f5Games = combined.filter((event) => event.periodF5).length;
     const propsKey = `${CACHE_VER}:props-v3:${sportKey}`;
+    const stalePropsKey = `${CACHE_VER}:props-v3-stale:${sportKey}`;
     let propsPayload = await readCache(propsKey, cfCache, EMPTY_F5_TTL_MS);
     if (!propsPayload) {
       const fetched = await fetchPropsJson(sportKey, {
@@ -648,9 +666,25 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       propsPayload = { rows: fetched.error ? [] : fetched.rows, empty: !fetched.rows?.length, error: fetched.error || null };
       await writeCache(propsKey, propsPayload, cfCache, propsPayload.empty ? EMPTY_F5_TTL_MS : TTL_MS);
     }
+    if (propsPayload.rows?.length) {
+      await writeCache(stalePropsKey, { rows: propsPayload.rows }, cfCache, STALE_PROPS_TTL_MS);
+    } else if (propsPayload.error) {
+      const stale = await readCache(stalePropsKey, cfCache, STALE_PROPS_TTL_MS);
+      if (stale?.rows?.length) {
+        propsPayload = {
+          rows: stale.rows,
+          empty: false,
+          error: propsPayload.error,
+          stale: true,
+        };
+      }
+    }
+    if (!combined.length && propsPayload.rows?.length) {
+      combined = propsRowsToStubEvents(propsPayload.rows);
+    }
     combined = attachFlatProps(combined, propsPayload.rows || []);
     propRows = propsPayload.rows?.length || 0;
-    propFeedStatus = propRows ? "available" : propsPayload?.error ? "error" : "empty";
+    propFeedStatus = propRows ? (propsPayload.stale ? "stale" : "available") : propsPayload?.error ? "error" : "empty";
     propFeedError = propsPayload?.error || null;
   }
 
