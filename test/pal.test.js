@@ -37,6 +37,9 @@ describe("MLB conviction player props", () => {
     assert.equal(buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: false, now }).length, 0);
     assert.equal(buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: false, confirmedPitcherIds: [1], now }).length, 1);
     assert.equal(buildPropConvictions({ palProps, sportsbookProps: [{ ...sportsbookProps[0], line: 7.5 }], lineupsOfficial: true, now }).length, 0);
+    assert.equal(buildPropConvictions({ palProps, sportsbookProps: [{ ...sportsbookProps[0], marketLabel: "1st Inn. Strikeouts" }], lineupsOfficial: true, now }).length, 0);
+    assert.equal(buildPropConvictions({ palProps, sportsbookProps: [{ ...sportsbookProps[0], bookmaker: "Underdog Fantasy" }], lineupsOfficial: true, now }).length, 0);
+    assert.equal(buildPropConvictions({ palProps, sportsbookProps: [sportsbookProps[0], { ...sportsbookProps[0], bookmaker: "BetMGM", overPrice: -105 }], lineupsOfficial: true, now }).length, 1);
   });
 
   it("normalizes supported markets and names without crossing players", () => {

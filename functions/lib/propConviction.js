@@ -3,6 +3,7 @@
 const MIN_PROBABILITY = 0.62;
 const MIN_EV = 0.10;
 const MAX_PRICE_AGE_MS = 90 * 60 * 1000;
+const SPORTSBOOKS = ["pinnacle", "fanduel", "draftkings", "betmgm", "caesars", "bet365", "betrivers", "bovada"];
 
 function clean(value) {
   return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -51,10 +52,21 @@ function freshEnough(snapshotAt, now) {
   return Number.isFinite(ts) && now - ts >= 0 && now - ts <= MAX_PRICE_AGE_MS;
 }
 
+function conventionalSportsbook(value) {
+  const x = clean(value).replace(/\s+/g, "");
+  return SPORTSBOOKS.some((book) => x.includes(book));
+}
+
+function fullGameContract(book) {
+  const label = clean(`${book.marketKey || ""} ${book.marketLabel || ""}`);
+  return !/(1st|first) inn|first inning|nrfi|yrfi/.test(label);
+}
+
 export function buildPropConvictions({ palProps = [], sportsbookProps = [], lineupsOfficial = false, confirmedPitcherIds = [], now = Date.now() } = {}) {
   const starterIds = new Set((confirmedPitcherIds || []).map(Number).filter(Number.isFinite));
   const out = [];
   for (const book of sportsbookProps) {
+    if (!conventionalSportsbook(book.bookmaker || book.bookmakerKey) || !fullGameContract(book)) continue;
     const market = canonicalPropMarket(book.marketKey || book.marketLabel);
     if (!market || book.line == null || book.overPrice == null || book.underPrice == null || !freshEnough(book.snapshotAt, now)) continue;
     const matches = palProps.filter((pal) => canonicalPropMarket(pal.displayName || pal.marketId) === market && samePlayer(pal.playerName, book.playerName) && Number(pal.line) === Number(book.line));
@@ -72,5 +84,10 @@ export function buildPropConvictions({ palProps = [], sportsbookProps = [], line
         reason: `Exact player, statistic and line matched; ${confirmedStarter ? "confirmed starter" : "confirmed lineup"}; p=${(probability * 100).toFixed(1)}%; EV=${(ev * 100).toFixed(1)}%` });
     }
   }
-  return out.sort((a, b) => b.ev - a.ev);
+  const best = new Map();
+  for (const row of out) {
+    const key = [clean(row.playerName), row.market, row.side, row.line].join(":");
+    if (!best.has(key) || row.ev > best.get(key).ev) best.set(key, row);
+  }
+  return [...best.values()].sort((a, b) => b.ev - a.ev);
 }
