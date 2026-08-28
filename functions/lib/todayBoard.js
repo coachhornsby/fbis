@@ -122,7 +122,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
       ? {
           pick: lean.pick,
           market: lean.market,
-          reason: noPlayReason({ ...game, lean, rec: null }),
+          reason: lean.reason || noPlayReason({ ...game, lean, rec: null }),
         }
       : null,
     noPlayReason: rec ? null : noPlayReason(game),
