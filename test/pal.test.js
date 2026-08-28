@@ -22,6 +22,29 @@ import { freezeFromGame, palMarketRowsFromGame, shouldFetchPalNetwork, shouldRec
 import { palHealth, sourceCoverage } from "../functions/lib/sourceCoverage.js";
 import { projectGame } from "../functions/lib/slateEngine.js";
 import { projectMatchup } from "../functions/lib/savant.js";
+import { buildPropConvictions, canonicalPropMarket, propEv, samePlayer } from "../functions/lib/propConviction.js";
+
+describe("MLB conviction player props", () => {
+  it("requires an exact fresh contract and confirmed lineup", () => {
+    const now = Date.parse("2026-08-28T18:00:00Z");
+    const palProps = [{ playerName: "Chris Sale", displayName: "Pitcher Strikeouts", line: 6.5, over: 0.66, under: 0.34, average: 7.3 }];
+    const sportsbookProps = [{ playerName: "Chris Sale", marketKey: "player_pitcher_strikeouts", marketLabel: "Pitcher Strikeouts", line: 6.5, overPrice: -110, underPrice: -110, bookmaker: "Pinnacle", snapshotAt: "2026-08-28T17:30:00Z" }];
+    const rows = buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: true, now });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].side, "OVER");
+    assert.equal(rows[0].projection, 7.3);
+    assert.equal(rows[0].tag, "CONVICTION");
+    assert.equal(buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: false, now }).length, 0);
+    assert.equal(buildPropConvictions({ palProps, sportsbookProps: [{ ...sportsbookProps[0], line: 7.5 }], lineupsOfficial: true, now }).length, 0);
+  });
+
+  it("normalizes supported markets and names without crossing players", () => {
+    assert.equal(canonicalPropMarket("Batter Home Runs"), "batter_home_runs");
+    assert.equal(samePlayer("Christopher Sale", "Chris Sale"), true);
+    assert.equal(samePlayer("Chris Sale", "Chris Bassitt"), false);
+    assert.ok(propEv(0.66, -110) > 0.1);
+  });
+});
 
 const fixture = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../data/fixtures/pal-wrapper.json"), "utf8")

@@ -7,6 +7,7 @@ import { BOARD_SPORTS, SPORTS, todayCT, shiftDateCT, buildSlate, recommendBundle
 import { classifyBoardStatus, kickoffCt, noPlayReason, isPreStartStatus, isLiveStatus } from "./gameStatus.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { palUnavailableReason } from "./ballparkpal.js";
+import { buildPropConvictions } from "./propConviction.js";
 
 function withRecs(slate, weights = DEFAULT_WEIGHTS) {
   return {
@@ -54,6 +55,16 @@ export function toBoardGame(game, sport, now = Date.now()) {
     game.odds?.pinTotal ?? (game.odds?.pinOverPrice != null ? game.odds.total : null);
   const rec = game.rec || null;
   const lean = game.lean || null;
+  const sportsbookProps = [...(game.odds?.playerProps || [])]
+    .filter((p) => p?.overPrice != null && p?.underPrice != null && p?.line != null)
+    .slice(0, 120);
+  const palProps = [...(game.bpp?.props || [])]
+    .filter((p) => p?.over != null || p?.under != null)
+    .sort((a, b) => Math.abs(Number(b.over ?? 0.5) - 0.5) - Math.abs(Number(a.over ?? 0.5) - 0.5))
+    .slice(0, 120);
+  const propConvictions = sport === "mlb" ? buildPropConvictions({
+    palProps, sportsbookProps, lineupsOfficial: Boolean(game.bpp?.lineupsOfficial), now,
+  }) : [];
   return {
     id: String(game.id),
     sport,
@@ -94,6 +105,13 @@ export function toBoardGame(game, sport, now = Date.now()) {
     marketProjAway: game.model?.marketProjAway ?? game.marketProjAway ?? null,
     projectionKind: game.model?.projectionKind || game.projectionKind || null,
     projectionState: game.cfb?.projectionState || game.projectionState || null,
+    projectionRecipe: game.model?.recipe || null,
+    cfbDetail: game.cfb ? {
+      hfa: game.cfb.hfa, sigmaMargin: game.cfb.sigmaMargin, sigmaTotal: game.cfb.sigmaTotal,
+      maturity: game.cfb.maturity, dataQuality: game.cfb.dataQuality, flags: game.cfb.flags || [], priorVersion: game.cfb.priorVersion,
+      home: game.cfb.homeEst ? { rank: game.cfb.homeEst.rank, priorOff: game.cfb.homeEst.priorOff, priorDef: game.cfb.homeEst.priorDef, games: game.cfb.homeEst.n, currentOff: game.cfb.homeEst.currentOff, currentDef: game.cfb.homeEst.currentDef } : null,
+      away: game.cfb.awayEst ? { rank: game.cfb.awayEst.rank, priorOff: game.cfb.awayEst.priorOff, priorDef: game.cfb.awayEst.priorDef, games: game.cfb.awayEst.n, currentOff: game.cfb.awayEst.currentOff, currentDef: game.cfb.awayEst.currentDef } : null,
+    } : null,
     bettingAllowed: game.cfb ? game.cfb.bettingAllowed : game.sport === "nfl" ? false : null,
     blockReason: game.cfb?.blockReason || null,
     marketLabels: game.marketLabels || null,
@@ -140,18 +158,15 @@ export function toBoardGame(game, sport, now = Date.now()) {
     palF5HomeWin: game.bpp?.f5?.homeWin ?? null,
     palF5AwayWin: game.bpp?.f5?.awayWin ?? null,
     f5Book: game.odds?.f5 || null,
-    sportsbookProps: [...(game.odds?.playerProps || [])]
-      .filter((p) => p?.overPrice != null && p?.underPrice != null && p?.line != null)
-      .slice(0, 120),
+    sportsbookProps,
+    propConvictions,
+    lineupsOfficial: Boolean(game.bpp?.lineupsOfficial),
     sentiment: game.sentiment || game.odds?.sentiment || null,
     weather: game.weather || game.cfb?.weather || null,
     park: game.bpp?.park || null,
     palPark: game.bpp?.park || null,
     palTeamTotals: game.bpp?.teamTotals || [],
-    palProps: [...(game.bpp?.props || [])]
-      .filter((p) => p?.over != null || p?.under != null)
-      .sort((a, b) => Math.abs(Number(b.over ?? 0.5) - 0.5) - Math.abs(Number(a.over ?? 0.5) - 0.5))
-      .slice(0, 40),
+    palProps: palProps.slice(0, 40),
     palAsOf: game.bpp?.asOf ?? null,
     palRequestId: game.bpp?.requestId ?? null,
     palUnavailableReason: game.palUnavailableReason

@@ -10,6 +10,7 @@ import TodayView, { GameDetails } from "./TodayView.jsx";
 import HeritageImport from "./HeritageImport.jsx";
 import MyBetsView from "./MyBetsView.jsx";
 import { todayCT } from "../functions/lib/slateEngine.js";
+import { buildPropConvictions } from "../functions/lib/propConviction.js";
 
 function readUrlState() {
   if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb" };
@@ -508,7 +509,7 @@ function SlateTable({ games, onLog, logged }) {
               <div className="team-block">
                 <Team t={g.away} />
                 <Team t={g.home} />
-                {mlb ? <button className="game-expand" onClick={() => toggle(g.id)} aria-expanded={open.has(g.id)}>
+                {(mlb || g.sport === "cfb") ? <button className="game-expand" onClick={() => toggle(g.id)} aria-expanded={open.has(g.id)}>
                   {open.has(g.id) ? "Hide game details" : "View game details"}
                 </button> : null}
               </div>
@@ -547,7 +548,7 @@ function SlateTable({ games, onLog, logged }) {
               </button>
             </td>
           </tr>
-          {mlb && open.has(g.id) ? <tr className="game-detail-row"><td colSpan={columns}><GameDetails g={slateDetailGame(g)} /></td></tr> : null}
+          {open.has(g.id) ? <tr className="game-detail-row"><td colSpan={columns}><GameDetails g={slateDetailGame(g)} /></td></tr> : null}
           </Fragment>
         ))}
       </tbody>
@@ -812,7 +813,6 @@ function F5Cell({ game }) {
       <div className="muted">{book?.awayMl != null && book?.homeMl != null ? `ML ${fmtAmerican(book.awayMl)} / ${fmtAmerican(book.homeMl)}` : "ML unpriced"}</div>
       <div className="muted">{book?.spread != null && book?.spreadHomePrice != null && book?.spreadAwayPrice != null ? `RL ${book.spread > 0 ? "+" : ""}${book.spread} · ${fmtAmerican(book.spreadAwayPrice)} / ${fmtAmerican(book.spreadHomePrice)}` : "RL unpriced"}</div>
       <div className="muted">{book?.total != null && book?.overPrice != null && book?.underPrice != null ? `Tot ${fmtNum(book.total)} · O ${fmtAmerican(book.overPrice)} / U ${fmtAmerican(book.underPrice)}` : tot != null ? `Pal Tot ${fmtNum(tot)}` : "Tot unpriced"}</div>
-      {(game.bpp?.props || []).length ? <details className="prop-watch"><summary>{game.bpp.props.length} PROP WATCH</summary><span className="muted">unpriced · no bet</span></details> : null}
     </div>
   );
 }
@@ -851,6 +851,8 @@ function summarizeExecutedRows(rows) {
 }
 
 function slateDetailGame(g) {
+  const sportsbookProps = (g.odds?.playerProps || []).filter((p) => p?.line != null && p?.overPrice != null && p?.underPrice != null).slice(0, 120);
+  const palProps = (g.bpp?.props || []).slice(0, 120);
   return {
     ...g,
     projAway: g.projAwayScore,
@@ -864,14 +866,28 @@ function slateDetailGame(g) {
     pinMlAway: g.odds?.pinAwayMl ?? g.odds?.awayMl ?? null,
     pinMlHome: g.odds?.pinHomeMl ?? g.odds?.homeMl ?? null,
     f5Book: g.odds?.f5 || null,
-    sportsbookProps: (g.odds?.playerProps || []).filter((p) => p?.line != null && p?.overPrice != null && p?.underPrice != null).slice(0, 120),
-    palProps: (g.bpp?.props || []).slice(0, 40),
+    sportsbookProps,
+    palProps: palProps.slice(0, 40),
+    propConvictions: buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: Boolean(g.bpp?.lineupsOfficial) }),
+    lineupsOfficial: Boolean(g.bpp?.lineupsOfficial),
     palPark: g.bpp?.park || null,
     weather: g.weather || null,
     venue: g.venue || "",
     sentiment: g.sentiment || g.odds?.sentiment || null,
     modelVersion: g.modelVersion,
     checkpoint: g.checkpoint || null,
+    sport: g.sport,
+    projectionState: g.cfb?.projectionState || g.projectionState || null,
+    projectionRecipe: g.model?.recipe || null,
+    pinSpread: g.odds?.pinSpread ?? g.odds?.spread ?? null,
+    pinTotal: g.odds?.pinTotal ?? g.odds?.total ?? null,
+    neutral: Boolean(g.neutralSite),
+    cfbDetail: g.cfb ? {
+      hfa: g.cfb.hfa, sigmaMargin: g.cfb.sigmaMargin, sigmaTotal: g.cfb.sigmaTotal, maturity: g.cfb.maturity,
+      dataQuality: g.cfb.dataQuality, flags: g.cfb.flags || [], priorVersion: g.cfb.priorVersion,
+      home: g.cfb.homeEst ? { rank: g.cfb.homeEst.rank, priorOff: g.cfb.homeEst.priorOff, priorDef: g.cfb.homeEst.priorDef, games: g.cfb.homeEst.n, currentOff: g.cfb.homeEst.currentOff, currentDef: g.cfb.homeEst.currentDef } : null,
+      away: g.cfb.awayEst ? { rank: g.cfb.awayEst.rank, priorOff: g.cfb.awayEst.priorOff, priorDef: g.cfb.awayEst.priorDef, games: g.cfb.awayEst.n, currentOff: g.cfb.awayEst.currentOff, currentDef: g.cfb.awayEst.currentDef } : null,
+    } : null,
     myBets: g.myBets || [],
   };
 }

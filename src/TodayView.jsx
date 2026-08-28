@@ -258,12 +258,8 @@ function TodayTable({ games }) {
 }
 
 export function GameDetails({ g }) {
-  const props = g.sportsbookProps || [];
-  const grouped = Object.entries(props.reduce((out, p) => {
-    const key = p.marketLabel || p.marketKey || "Player prop";
-    (out[key] ||= []).push(p);
-    return out;
-  }, {}));
+  if (g.sport === "cfb") return <CfbGameDetails g={g} />;
+  const props = g.propConvictions || [];
   return (
     <div className="game-detail-grid">
       <section>
@@ -287,20 +283,54 @@ export function GameDetails({ g }) {
         <div>{g.palPark?.name || g.palPark?.parkName || g.venue || "Venue unavailable"}</div>
       </section>
       <section className="detail-props">
-        <h3>SPORTSBOOK PLAYER PROPS · {props.length}</h3>
-        {!props.length ? <div className="muted">No complete two-way player-prop prices in the current Parlay cache.</div> : grouped.map(([label, rows]) => (
-          <details key={label}><summary>{label} · {rows.length}</summary>
-            <table className="mini-prop-table"><thead><tr><th>Player</th><th>Line</th><th>Over</th><th>Under</th><th>Book</th></tr></thead>
-              <tbody>{rows.map((p, i) => <tr key={`${p.playerName}:${p.marketKey}:${p.bookmakerKey}:${p.line}:${i}`}><td>{p.playerName}</td><td>{p.line}</td><td>{fmtAmerican(p.overPrice)}</td><td>{fmtAmerican(p.underPrice)}</td><td>{p.bookmaker}</td></tr>)}</tbody>
-            </table>
-          </details>
-        ))}
-        {(g.palProps || []).length ? <div className="muted">Pal projection watchlist: {g.palProps.length} displayed. Prop EV remains unavailable until player identity and exact contract match.</div> : null}
+        <h3>CONVICTION PLAYER PROPS · {props.length}</h3>
+        {!props.length ? <div className="muted">No conviction player props currently qualify.</div> : (
+          <table className="mini-prop-table"><thead><tr><th>Player</th><th>Prop</th><th>FBIS proj</th><th>Probability</th><th>EV</th><th>Book</th></tr></thead>
+            <tbody>{props.map((p, i) => <tr key={`${p.playerName}:${p.market}:${p.line}:${i}`}><td>{p.playerName}</td><td><span className="tier-badge tier-CONVICTION">CONVICTION</span> {p.side} {p.line} {fmtAmerican(p.price)}</td><td>{p.projection == null ? "—" : fmtNum(p.projection)}</td><td>{fmtPct(p.probability)}</td><td>{fmtPct(p.ev)}</td><td>{p.book || "—"}</td></tr>)}</tbody>
+          </table>
+        )}
       </section>
       <section>
         <h3>MY BET / TRACKING</h3>
         {(g.myBets || []).length ? g.myBets.map((b) => <div key={b.id}>{b.selectedTeam || b.selectedSide} {fmtAmerican(b.executionPrice)} · ${Number(b.riskAmount || 0).toFixed(2)} · {b.result || "OPEN"}</div>) : <div className="muted">No imported Heritage bet.</div>}
         <div className="muted">Checkpoint: {g.checkpoint || "—"} · Model: {g.modelVersion || "—"}</div>
+      </section>
+    </div>
+  );
+}
+
+function CfbGameDetails({ g }) {
+  const c = g.cfbDetail || {};
+  const steps = g.projectionRecipe?.steps || [];
+  return (
+    <div className="game-detail-grid">
+      <section>
+        <h3>CFB PROJECTION</h3>
+        <div>FBIS: {fmtNum(g.projAway)}–{fmtNum(g.projHome)} · total {fmtNum(g.projTotal)} · margin {fmtNum(g.projMargin)}</div>
+        <div>State: {g.projectionState || "—"} · quality {c.dataQuality ?? g.quality?.score ?? "—"}</div>
+        <div>Projected winner: {g.projHome >= g.projAway ? g.home.fullName || g.home.name : g.away.fullName || g.away.name}</div>
+      </section>
+      <section>
+        <h3>MARKET</h3>
+        <div>ML: {fmtAmerican(g.pinMlAway)} / {fmtAmerican(g.pinMlHome)}</div>
+        <div>Home spread: {g.pinSpread == null ? "—" : g.pinSpread} · total {g.pinTotal ?? "—"}</div>
+        <div className="muted">Pinnacle is the benchmark; it is not an independent projection input.</div>
+      </section>
+      <section>
+        <h3>UNCERTAINTY / VENUE</h3>
+        <div>HFA: {c.hfa ?? "—"} · margin σ {c.sigmaMargin ?? "—"} · total σ {c.sigmaTotal ?? "—"}</div>
+        <div>{g.neutral ? "Confirmed neutral site" : g.venue || "Venue unavailable"}</div>
+        <div className="muted">{(c.flags || []).slice(0, 8).join(" · ") || "No flags"}</div>
+      </section>
+      <section>
+        <h3>TEAM INPUTS</h3>
+        <div>{g.away.name}: prior O/D {fmtNum(c.away?.priorOff)}/{fmtNum(c.away?.priorDef)} · current games {c.away?.games ?? 0}</div>
+        <div>{g.home.name}: prior O/D {fmtNum(c.home?.priorOff)}/{fmtNum(c.home?.priorDef)} · current games {c.home?.games ?? 0}</div>
+        <div className="muted">Prior: {c.priorVersion || "—"}</div>
+      </section>
+      <section className="detail-props">
+        <h3>HOW THIS PROJECTION WAS BUILT</h3>
+        {steps.length ? steps.map((s, i) => <div key={i} className="muted">{i + 1}. {s}</div>) : <div className="muted">Projection recipe unavailable.</div>}
       </section>
     </div>
   );
@@ -326,15 +356,14 @@ function TodayF5Cell({ g }) {
 
 function TodayPropsCell({ g }) {
   if (g.sport !== "mlb") return <span className="muted">—</span>;
-  const props = g.palProps || [];
-  if (!props.length) return <span className="muted">No Pal props</span>;
+  const props = g.propConvictions || [];
+  if (!props.length) return <span className="muted">No conviction props</span>;
   return (
     <details className="prop-watch">
-      <summary>{props.length} PROP WATCH</summary>
-      <div className="muted">UNPRICED · NO BET</div>
-      {props.slice(0, 8).map((p) => (
-        <div key={p.marketId} title={p.displayName}>
-          {p.playerName || (p.playerId != null ? `Player #${p.playerId}` : p.subjectType)} · {p.displayName} {p.line ?? "—"} · O {p.over == null ? "—" : fmtPct(p.over)}
+      <summary>{props.length} CONVICTION {props.length === 1 ? "PROP" : "PROPS"}</summary>
+      {props.map((p, i) => (
+        <div key={`${p.playerName}:${p.market}:${i}`} title={p.reason}>
+          {p.playerName} · {p.side} {p.line} {fmtAmerican(p.price)} · proj {p.projection == null ? "—" : fmtNum(p.projection)} · EV {fmtPct(p.ev)}
         </div>
       ))}
     </details>

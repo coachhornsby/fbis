@@ -5,7 +5,7 @@ import { canonAbbr, resolveMlbCanon, sameMlbTeam } from "./mlbCanonical.js";
 
 const BASE = "https://www.ballparkpal.com/api/v1";
 const TTL_MS = 4 * 60 * 60 * 1000;
-const CACHE_VER = "bpp-v6";
+const CACHE_VER = "bpp-v7";
 const DH_WINDOW_MS = 6 * 60 * 60 * 1000;
 const DH_AMBIGUOUS_MS = 45 * 60 * 1000;
 const REQUEST_GAP_MS = 1100;
@@ -98,7 +98,21 @@ function asList(raw) {
   if (Array.isArray(raw?.parkFactors)) return raw.parkFactors;
   if (Array.isArray(raw?.matchups)) return raw.matchups;
   if (Array.isArray(raw?.teams)) return raw.teams;
+  if (Array.isArray(raw?.players)) return raw.players;
   return [];
+}
+
+function playerName(row) {
+  const first = row?.firstName || row?.first_name || "";
+  const last = row?.lastName || row?.last_name || "";
+  return `${first} ${last}`.trim() || row?.displayName || row?.name || null;
+}
+
+function indexPlayers(players) {
+  return new Map((players || []).filter((p) => p?.playerId != null).map((p) => [Number(p.playerId), {
+    playerName: playerName(p),
+    position: p.position || p.primaryPosition || null,
+  }]));
 }
 
 function num(v) {
@@ -533,6 +547,8 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
     }
 
     const gameList = [...gamesById.values()];
+    const playersRaw = await bppGet("/players", apiKey).catch(() => []);
+    const playersById = indexPlayers(asList(playersRaw));
     const teamsById = indexTeams(teams);
     const parkByGame = new Map(parks.map((p) => [Number(p.gameId), p]));
     const muByGame = new Map();
@@ -563,8 +579,7 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
         const { avg, probs } = avgs[idx];
         const data = avg.ok ? avg.data || {} : {};
         if (!avg.ok) avgErrors.push(avg.error);
-        packed.push(
-          packGame(
+        const packedGame = packGame(
             { ...g, asOf: slateAsOf, requestId: slateRequestId },
             {
               teams: asList(data.teams) || data.teams || [],
@@ -578,8 +593,12 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
             parkByGame.get(Number(g.gameId)),
             muByGame.get(Number(g.gameId)) || [],
             teamsById
-          )
-        );
+          );
+        packedGame.props = (packedGame.props || []).map((prop) => {
+          const player = playersById.get(Number(prop.playerId));
+          return player ? { ...prop, playerName: prop.playerName || player.playerName, position: player.position } : prop;
+        });
+        packed.push(packedGame);
       });
     }
 
