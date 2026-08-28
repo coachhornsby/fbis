@@ -42,7 +42,7 @@ const EMPTY_F5_TTL_MS = 6 * 60 * 60 * 1000;
 const CACHE_VER = "v7";
 const MLB_PROP_MARKETS = [
   "player_total_bases", "player_hits", "player_home_runs", "player_rbis", "player_runs",
-  "player_stolen_bases", "player_strikeouts", "player_pitcher_outs", "player_hits_allowed", "player_earned_runs",
+  "player_strikeouts", "player_pitcher_outs", "player_hits_allowed", "player_earned_runs",
 ];
 
 function outcomes(bookmakers, marketKey, pred) {
@@ -626,11 +626,11 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     }
     combined = attachPeriodF5(combined, f5Payload.rows || []);
     f5Games = combined.filter((event) => event.periodF5).length;
-    const propsKey = `${CACHE_VER}:props-v2:${sportKey}`;
+    const propsKey = `${CACHE_VER}:props-v3:${sportKey}`;
     let propsPayload = await readCache(propsKey, cfCache, EMPTY_F5_TTL_MS);
     if (!propsPayload) {
       const fetched = await fetchPropsJson(sportKey, {
-        markets: MLB_PROP_MARKETS.join(","), maxAgeSec: "5400", limit: "10000",
+        markets: MLB_PROP_MARKETS.join(","), maxAgeSec: "3600", limit: "10000",
       }, apiKey);
       remaining = fetched.credits.remaining ?? remaining;
       used = fetched.credits.used ?? used;
