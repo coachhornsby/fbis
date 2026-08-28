@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { BOARD_STATUSES, classifyBoardStatus } from "../functions/lib/gameStatus.js";
 import { resolveTodayDate, utcMidnightVsCt, groupBySport, sortByStart, emptyTodayState, buildTodayBoard } from "../functions/lib/todayBoard.js";
 import { projectionRecipe } from "../functions/lib/slateEngine.js";
+import { resolveSlateDate } from "../functions/lib/slateEngine.js";
 import { rowsForCheckpoint, CHECKPOINT_ALIASES } from "../functions/lib/checkpoints.js";
 import { palHealth } from "../functions/lib/sourceCoverage.js";
 import { freezeFromGame } from "../functions/lib/projLedger.js";
@@ -50,6 +51,13 @@ describe("TODAY date and grouping", () => {
   it("empty board copy does not hide behind missing Pal/Pin", () => {
     const empty = emptyTodayState({ date: "2026-08-27", feeds: {} });
     assert.match(empty.message, /No games scheduled/);
+  });
+
+  it("supports configurable date windows for sparse sports", () => {
+    const okWide = resolveSlateDate("2026-09-10", { maxPast: 7, maxFuture: 14 });
+    assert.equal(okWide.ok, true);
+    const blockedDefault = resolveSlateDate("2026-09-10", { maxPast: 2, maxFuture: 1 });
+    assert.equal(blockedDefault.ok, false);
   });
 });
 

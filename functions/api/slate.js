@@ -6,7 +6,7 @@ export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const sport = url.searchParams.get("sport") || "mlb";
   const rawDate = url.searchParams.get("date") || "";
-  const resolved = resolveSlateDate(rawDate);
+  const resolved = resolveSlateDate(rawDate, slateDateWindowForSport(sport));
   if (rawDate && !resolved.ok) {
     return json({ error: resolved.error, games: [], ticker: [], counts: {} }, 400, 10);
   }
@@ -33,6 +33,14 @@ export async function onRequestGet(context) {
   } catch (err) {
     return json({ error: String(err?.message || err), games: [], ticker: [], counts: {} }, 502, 10);
   }
+}
+
+function slateDateWindowForSport(sport) {
+  if (sport === "cfb" || sport === "cbb") {
+    // College schedules are sparse; allow operators to view upcoming boards.
+    return { maxPast: 7, maxFuture: 14 };
+  }
+  return { maxPast: 2, maxFuture: 1 };
 }
 
 function json(data, status, maxAge) {
