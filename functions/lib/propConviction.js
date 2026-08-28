@@ -51,8 +51,8 @@ function freshEnough(snapshotAt, now) {
   return Number.isFinite(ts) && now - ts >= 0 && now - ts <= MAX_PRICE_AGE_MS;
 }
 
-export function buildPropConvictions({ palProps = [], sportsbookProps = [], lineupsOfficial = false, now = Date.now() } = {}) {
-  if (!lineupsOfficial) return [];
+export function buildPropConvictions({ palProps = [], sportsbookProps = [], lineupsOfficial = false, confirmedPitcherIds = [], now = Date.now() } = {}) {
+  const starterIds = new Set((confirmedPitcherIds || []).map(Number).filter(Number.isFinite));
   const out = [];
   for (const book of sportsbookProps) {
     const market = canonicalPropMarket(book.marketKey || book.marketLabel);
@@ -60,6 +60,8 @@ export function buildPropConvictions({ palProps = [], sportsbookProps = [], line
     const matches = palProps.filter((pal) => canonicalPropMarket(pal.displayName || pal.marketId) === market && samePlayer(pal.playerName, book.playerName) && Number(pal.line) === Number(book.line));
     if (matches.length !== 1) continue;
     const pal = matches[0];
+    const confirmedStarter = market.startsWith("pitcher_") && starterIds.has(Number(pal.playerId));
+    if (!lineupsOfficial && !confirmedStarter) continue;
     for (const side of ["over", "under"]) {
       const probability = Number(pal[side]);
       const price = Number(side === "over" ? book.overPrice : book.underPrice);
@@ -67,7 +69,7 @@ export function buildPropConvictions({ palProps = [], sportsbookProps = [], line
       if (!Number.isFinite(probability) || probability < MIN_PROBABILITY || ev == null || ev < MIN_EV) continue;
       out.push({ playerName: book.playerName, market, marketLabel: book.marketLabel || pal.displayName, side: side.toUpperCase(), line: Number(book.line), price,
         projection: pal.average, probability, ev, book: book.bookmaker, snapshotAt: book.snapshotAt, tag: "CONVICTION",
-        reason: `Exact player, statistic and line matched; confirmed lineup; p=${(probability * 100).toFixed(1)}%; EV=${(ev * 100).toFixed(1)}%` });
+        reason: `Exact player, statistic and line matched; ${confirmedStarter ? "confirmed starter" : "confirmed lineup"}; p=${(probability * 100).toFixed(1)}%; EV=${(ev * 100).toFixed(1)}%` });
     }
   }
   return out.sort((a, b) => b.ev - a.ev);

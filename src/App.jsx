@@ -864,8 +864,8 @@ function summarizeExecutedRows(rows) {
 }
 
 function slateDetailGame(g) {
-  const sportsbookProps = (g.odds?.playerProps || []).filter((p) => p?.line != null && p?.overPrice != null && p?.underPrice != null).slice(0, 120);
-  const palProps = (g.bpp?.props || []).slice(0, 120);
+  const sportsbookProps = (g.odds?.playerProps || []).filter((p) => p?.line != null && p?.overPrice != null && p?.underPrice != null);
+  const palProps = (g.bpp?.props || []);
   return {
     ...g,
     projAway: g.projAwayScore,
@@ -881,7 +881,7 @@ function slateDetailGame(g) {
     f5Book: g.odds?.f5 || null,
     sportsbookProps,
     palProps: palProps.slice(0, 40),
-    propConvictions: buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: Boolean(g.bpp?.lineupsOfficial) }),
+    propConvictions: buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: Boolean(g.bpp?.lineupsOfficial), confirmedPitcherIds: [g.bpp?.homeSp?.id, g.bpp?.awaySp?.id] }),
     lineupsOfficial: Boolean(g.bpp?.lineupsOfficial),
     palPark: g.bpp?.park || null,
     weather: g.weather || null,

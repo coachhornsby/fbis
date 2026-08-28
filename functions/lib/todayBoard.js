@@ -56,14 +56,13 @@ export function toBoardGame(game, sport, now = Date.now()) {
   const rec = game.rec || null;
   const lean = game.lean || null;
   const sportsbookProps = [...(game.odds?.playerProps || [])]
-    .filter((p) => p?.overPrice != null && p?.underPrice != null && p?.line != null)
-    .slice(0, 120);
+    .filter((p) => p?.overPrice != null && p?.underPrice != null && p?.line != null);
   const palProps = [...(game.bpp?.props || [])]
     .filter((p) => p?.over != null || p?.under != null)
-    .sort((a, b) => Math.abs(Number(b.over ?? 0.5) - 0.5) - Math.abs(Number(a.over ?? 0.5) - 0.5))
-    .slice(0, 120);
+    .sort((a, b) => Math.abs(Number(b.over ?? 0.5) - 0.5) - Math.abs(Number(a.over ?? 0.5) - 0.5));
   const propConvictions = sport === "mlb" ? buildPropConvictions({
-    palProps, sportsbookProps, lineupsOfficial: Boolean(game.bpp?.lineupsOfficial), now,
+    palProps, sportsbookProps, lineupsOfficial: Boolean(game.bpp?.lineupsOfficial),
+    confirmedPitcherIds: [game.bpp?.homeSp?.id, game.bpp?.awaySp?.id], now,
   }) : [];
   return {
     id: String(game.id),
@@ -158,7 +157,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     palF5HomeWin: game.bpp?.f5?.homeWin ?? null,
     palF5AwayWin: game.bpp?.f5?.awayWin ?? null,
     f5Book: game.odds?.f5 || null,
-    sportsbookProps,
+    sportsbookProps: [],
+    sportsbookPropCount: sportsbookProps.length,
     propConvictions,
     lineupsOfficial: Boolean(game.bpp?.lineupsOfficial),
     sentiment: game.sentiment || game.odds?.sentiment || null,
@@ -166,7 +166,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     park: game.bpp?.park || null,
     palPark: game.bpp?.park || null,
     palTeamTotals: game.bpp?.teamTotals || [],
-    palProps: palProps.slice(0, 40),
+    palProps: [],
+    palPropCount: palProps.length,
     palAsOf: game.bpp?.asOf ?? null,
     palRequestId: game.bpp?.requestId ?? null,
     palUnavailableReason: game.palUnavailableReason

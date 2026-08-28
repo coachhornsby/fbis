@@ -27,7 +27,7 @@ import { buildPropConvictions, canonicalPropMarket, propEv, samePlayer } from ".
 describe("MLB conviction player props", () => {
   it("requires an exact fresh contract and confirmed lineup", () => {
     const now = Date.parse("2026-08-28T18:00:00Z");
-    const palProps = [{ playerName: "Chris Sale", displayName: "Pitcher Strikeouts", line: 6.5, over: 0.66, under: 0.34, average: 7.3 }];
+    const palProps = [{ playerId: 1, playerName: "Chris Sale", displayName: "Pitcher Strikeouts", line: 6.5, over: 0.66, under: 0.34, average: 7.3 }];
     const sportsbookProps = [{ playerName: "Chris Sale", marketKey: "player_pitcher_strikeouts", marketLabel: "Pitcher Strikeouts", line: 6.5, overPrice: -110, underPrice: -110, bookmaker: "Pinnacle", snapshotAt: "2026-08-28T17:30:00Z" }];
     const rows = buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: true, now });
     assert.equal(rows.length, 1);
@@ -35,6 +35,7 @@ describe("MLB conviction player props", () => {
     assert.equal(rows[0].projection, 7.3);
     assert.equal(rows[0].tag, "CONVICTION");
     assert.equal(buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: false, now }).length, 0);
+    assert.equal(buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: false, confirmedPitcherIds: [1], now }).length, 1);
     assert.equal(buildPropConvictions({ palProps, sportsbookProps: [{ ...sportsbookProps[0], line: 7.5 }], lineupsOfficial: true, now }).length, 0);
   });
 
