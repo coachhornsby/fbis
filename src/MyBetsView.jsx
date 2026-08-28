@@ -56,6 +56,7 @@ export default function MyBetsView({ onImport, bets: external, summary: external
             <Stat label="Open" value={summary.open ?? 0} />
             <Stat label="Settled" value={summary.settled ?? 0} />
             <Stat label="Record" value={summary.record || "—"} />
+            <Stat label="Push / Void" value={`${summary.pushes ?? 0} / ${summary.voids ?? 0}`} />
             <Stat label="Risk" value={summary.risk == null ? "—" : `$${Number(summary.risk).toFixed(2)}`} />
             <Stat label="Profit" value={summary.profit == null ? "—" : fmtSigned(summary.profit, 2)} />
             <Stat label="ROI" value={summary.roi == null ? "—" : fmtPct(summary.roi)} />

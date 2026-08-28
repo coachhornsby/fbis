@@ -255,7 +255,7 @@ function TodayTable({ games }) {
   );
 }
 
-function GameDetails({ g }) {
+export function GameDetails({ g }) {
   const props = g.sportsbookProps || [];
   const grouped = Object.entries(props.reduce((out, p) => {
     const key = p.marketLabel || p.marketKey || "Player prop";

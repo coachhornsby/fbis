@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff } from "./lib/format.js";
 import TeamLogo, { TeamIdentity } from "./components/TeamLogo.jsx";
@@ -6,7 +6,7 @@ import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 import { gradeOpenBets, loadState, logBet, summarize } from "./lib/learning.js";
 import { captureSlate } from "./lib/ledger.js";
 import TrackView from "./TrackView.jsx";
-import TodayView from "./TodayView.jsx";
+import TodayView, { GameDetails } from "./TodayView.jsx";
 import HeritageImport from "./HeritageImport.jsx";
 import MyBetsView from "./MyBetsView.jsx";
 import { todayCT } from "../functions/lib/slateEngine.js";
@@ -472,8 +472,15 @@ function Team({ t, align }) {
 }
 
 function SlateTable({ games, onLog, logged }) {
+  const [open, setOpen] = useState(() => new Set());
+  const toggle = (id) => setOpen((before) => {
+    const next = new Set(before);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   if (!games.length) return <div className="empty">No games on the board for this date.</div>;
   const mlb = games.some((g) => g.sport === "mlb" || g.homeSp || g.bpp);
+  const columns = 9 + (mlb ? 2 : 0);
   return (
     <table className="fbis-table">
       <thead>
@@ -493,11 +500,15 @@ function SlateTable({ games, onLog, logged }) {
       </thead>
       <tbody>
         {games.map((g) => (
-          <tr key={g.id}>
+          <Fragment key={g.id}>
+          <tr>
             <td>
               <div className="team-block">
                 <Team t={g.away} />
                 <Team t={g.home} />
+                {mlb ? <button className="game-expand" onClick={() => toggle(g.id)} aria-expanded={open.has(g.id)}>
+                  {open.has(g.id) ? "Hide game details" : "View game details"}
+                </button> : null}
               </div>
             </td>
             <td>
@@ -534,6 +545,8 @@ function SlateTable({ games, onLog, logged }) {
               </button>
             </td>
           </tr>
+          {mlb && open.has(g.id) ? <tr className="game-detail-row"><td colSpan={columns}><GameDetails g={slateDetailGame(g)} /></td></tr> : null}
+          </Fragment>
         ))}
       </tbody>
     </table>
@@ -800,6 +813,32 @@ function F5Cell({ game }) {
       {(game.bpp?.props || []).length ? <details className="prop-watch"><summary>{game.bpp.props.length} PROP WATCH</summary><span className="muted">unpriced · no bet</span></details> : null}
     </div>
   );
+}
+
+function slateDetailGame(g) {
+  return {
+    ...g,
+    projAway: g.projAwayScore,
+    projHome: g.projHomeScore,
+    projTotal: g.projTotal ?? (g.projAwayScore != null && g.projHomeScore != null ? g.projAwayScore + g.projHomeScore : null),
+    palAway: g.bpp?.awayRuns ?? null,
+    palHome: g.bpp?.homeRuns ?? null,
+    palF5Away: g.bpp?.f5?.awayRuns ?? null,
+    palF5Home: g.bpp?.f5?.homeRuns ?? null,
+    palF5HomeWin: g.bpp?.f5?.homeWin ?? null,
+    pinMlAway: g.odds?.pinAwayMl ?? g.odds?.awayMl ?? null,
+    pinMlHome: g.odds?.pinHomeMl ?? g.odds?.homeMl ?? null,
+    f5Book: g.odds?.f5 || null,
+    sportsbookProps: (g.odds?.playerProps || []).filter((p) => p?.line != null && p?.overPrice != null && p?.underPrice != null).slice(0, 120),
+    palProps: (g.bpp?.props || []).slice(0, 40),
+    palPark: g.bpp?.park || null,
+    weather: g.weather || null,
+    venue: g.venue || "",
+    sentiment: g.sentiment || g.odds?.sentiment || null,
+    modelVersion: g.modelVersion,
+    checkpoint: g.checkpoint || null,
+    myBets: g.myBets || [],
+  };
 }
 
 function PublicCell({ game }) {

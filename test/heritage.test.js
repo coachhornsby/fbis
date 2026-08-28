@@ -227,6 +227,30 @@ describe("Heritage matching, attribution, CLV, settlement", () => {
     assert.equal(expectedProfit("VOID", 2, 2), 0);
   });
 
+  it("never grades a scheduled 0-0 placeholder as a push", () => {
+    const open = settleExecutedBet(
+      { market: "ML", selectedSide: "HOME", riskAmount: 2, toWinAmount: 2, potentialPayout: 4, period: "FULL_GAME" },
+      { status: { completed: false, detail: "Scheduled" }, home: { score: 0 }, away: { score: 0 }, actualHome: 0, actualAway: 0 }
+    );
+    assert.equal(open.result, "OPEN");
+    assert.equal(open.gradedAt, null);
+  });
+
+  it("counts pushes and voids as settled while keeping the decided record accurate", () => {
+    const summary = summarizeExecutedBets([
+      { result: "WON", riskAmount: 2, profit: 2.14 },
+      { result: "LOST", riskAmount: 2, profit: -2 },
+      { result: "PUSH", riskAmount: 2, profit: 0 },
+      { result: "VOID", riskAmount: 2, profit: 0 },
+      { result: "OPEN", riskAmount: 5, profit: null },
+    ]);
+    assert.equal(summary.settled, 4);
+    assert.equal(summary.record, "1-1");
+    assert.equal(summary.pushes, 1);
+    assert.equal(summary.voids, 1);
+    assert.equal(summary.risk, 8);
+  });
+
   it("conflicts when the same ticket ID has different immutable fields", () => {
     assert.equal(
       immutableConflict(

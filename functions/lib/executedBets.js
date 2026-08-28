@@ -214,7 +214,13 @@ export function settleExecutedBet(ticket, game) {
   const f5 = String(ticket.period || ticket.market || "").includes("F5");
   const hs = f5 ? Number(game.f5Score?.home ?? game.f5ActualHome) : Number(game.home?.score ?? game.actualHome);
   const as = f5 ? Number(game.f5Score?.away ?? game.f5ActualAway) : Number(game.away?.score ?? game.actualAway);
-  const complete = f5 ? Boolean(game.f5Score?.complete || (game.f5ActualHome != null && game.f5ActualAway != null)) : Boolean(game.status?.completed || (game.actualHome != null && game.actualAway != null));
+  const statusKnown = Boolean(game.status && (Object.prototype.hasOwnProperty.call(game.status, "completed") || detail));
+  const finalStatus = game.status?.completed === true || /\bfinal\b/.test(detail);
+  const complete = f5
+    ? Boolean(game.f5Score?.complete || (finalStatus && game.f5ActualHome != null && game.f5ActualAway != null))
+    : statusKnown
+      ? finalStatus
+      : Boolean(game.actualHome != null && game.actualAway != null);
   if (!complete || !Number.isFinite(hs) || !Number.isFinite(as)) {
     return { result: "OPEN", profit: null, settledReturn: null, gradedAt: null };
   }
@@ -267,26 +273,30 @@ export function immutableConflict(existing, next) {
 
 export function summarizeExecutedBets(rows) {
   const xs = rows || [];
-  const settled = xs.filter((t) => t.result === "WON" || t.result === "LOST");
-  const wins = settled.filter((t) => t.result === "WON").length;
-  const losses = settled.filter((t) => t.result === "LOST").length;
-  const risk = xs.reduce((s, t) => s + (Number(t.riskAmount ?? t.risk_amount) || 0), 0);
-  const profits = settled.map((t) => t.profit).filter((v) => v != null && Number.isFinite(Number(v)));
+  const terminal = xs.filter((t) => ["WON", "LOST", "PUSH", "VOID"].includes(t.result));
+  const decided = terminal.filter((t) => t.result === "WON" || t.result === "LOST");
+  const wins = decided.filter((t) => t.result === "WON").length;
+  const losses = decided.filter((t) => t.result === "LOST").length;
+  const risk = terminal.reduce((s, t) => s + (Number(t.riskAmount ?? t.risk_amount) || 0), 0);
+  const profits = terminal.map((t) => t.profit).filter((v) => v != null && Number.isFinite(Number(v)));
   const profit = profits.length ? profits.reduce((s, v) => s + Number(v), 0) : null;
   const clvs = xs.map((t) => t.clv).filter((v) => v != null && Number.isFinite(Number(v)));
   const n = xs.length;
   return {
     bets: n,
     open: xs.filter((t) => !t.result || t.result === "OPEN").length,
-    settled: settled.length,
-    record: settled.length ? `${wins}-${losses}` : null,
+    settled: terminal.length,
+    decided: decided.length,
+    pushes: terminal.filter((t) => t.result === "PUSH").length,
+    voids: terminal.filter((t) => t.result === "VOID").length,
+    record: decided.length ? `${wins}-${losses}` : null,
     risk: n ? Math.round(risk * 100) / 100 : null,
     profit: profits.length ? Math.round(profit * 100) / 100 : null,
     roi: profits.length && risk ? profit / risk : null,
     validClvN: clvs.length,
     avgClv: clvs.length ? clvs.reduce((s, v) => s + Number(v), 0) / clvs.length : null,
     positiveClvShare: clvs.length ? clvs.filter((v) => v > 0).length / clvs.length : null,
-    message: settled.length ? null : n ? "No settled Heritage bets yet." : "No imported Heritage bets yet.",
+    message: terminal.length ? null : n ? "No settled Heritage bets yet." : "No imported Heritage bets yet.",
   };
 }
 

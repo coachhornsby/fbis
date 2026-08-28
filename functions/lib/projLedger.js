@@ -851,10 +851,11 @@ async function gradeExecutedBets(env, finals) {
   const byId = new Map((finals || []).map((g) => [String(g.id), g]));
   const jobs = [];
   for (const t of listed.rows || []) {
-    if (t.result && t.result !== "OPEN") continue;
     if (!t.gameId) continue;
     const g = byId.get(String(t.gameId));
     if (!g) continue;
+    const detail = String(g.status?.detail || "").toLowerCase();
+    if (g.status?.completed !== true && !/\bfinal\b|cancel|void|postpone|suspend/.test(detail)) continue;
     const settled = settleExecutedBet(t, {
       ...g,
       status: g.status || { completed: g.home?.score != null },
@@ -865,7 +866,8 @@ async function gradeExecutedBets(env, finals) {
       f5Score: g.f5Score,
     });
     if (settled.result && settled.result !== "OPEN") {
-      jobs.push(updateExecutedBet(env, t.id, settled, "settlement"));
+      const changed = settled.result !== t.result || Number(settled.profit) !== Number(t.profit);
+      if (changed) jobs.push(updateExecutedBet(env, t.id, settled, t.result && t.result !== "OPEN" ? "settlement-correction" : "settlement"));
     }
   }
   await Promise.all(jobs);
