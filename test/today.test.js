@@ -5,6 +5,7 @@ import { resolveTodayDate, utcMidnightVsCt, groupBySport, sortByStart, emptyToda
 import { projectionRecipe } from "../functions/lib/slateEngine.js";
 import { resolveSlateDate } from "../functions/lib/slateEngine.js";
 import { fetchEspnScoreboard } from "../functions/lib/slateEngine.js";
+import { buildSlate } from "../functions/lib/slateEngine.js";
 import { rowsForCheckpoint, CHECKPOINT_ALIASES } from "../functions/lib/checkpoints.js";
 import { palHealth } from "../functions/lib/sourceCoverage.js";
 import { freezeFromGame } from "../functions/lib/projLedger.js";
@@ -250,6 +251,38 @@ describe("ESPN scoreboard fallback", () => {
       assert.equal(payload.events.length, 1);
       assert.ok(calls.some((u) => u.includes("site.api.espn.com")));
       assert.ok(calls.some((u) => u.includes("cdn.espn.com/core/college-football/scoreboard")));
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("falls back to CFBD games when ESPN endpoints fail for CFB", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      const s = String(url);
+      if (s.includes("api.espn.com") || s.includes("cdn.espn.com") || s.includes("sports.core.api.espn.com")) {
+        return new Response("denied", { status: 403 });
+      }
+      if (s.startsWith("https://api.collegefootballdata.com/games")) {
+        return new Response(JSON.stringify([{
+          id: 9001,
+          startDate: "2026-09-03T23:30:00Z",
+          completed: false,
+          homeTeam: "Ohio State",
+          awayTeam: "Texas",
+          week: 1,
+          neutralSite: false,
+          venue: "Ohio Stadium",
+        }]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response("not found", { status: 404 });
+    };
+    try {
+      const slate = await buildSlate("cfb", "2026-09-03", { CFBD_API_KEY: "x" });
+      assert.equal(Array.isArray(slate.games), true);
+      assert.equal(slate.games.length, 1);
+      assert.equal(slate.games[0].home.name, "Ohio State");
+      assert.equal(slate.games[0].away.name, "Texas");
     } finally {
       globalThis.fetch = realFetch;
     }

@@ -982,6 +982,85 @@ async function fetchMlbStats(date) {
   return (json.dates || []).flatMap((d) => d.games || []).map(mapMlbStatsGame);
 }
 
+function inferAbbr(name = "") {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "—";
+  if (parts.length === 1) return parts[0].slice(0, 3).toUpperCase();
+  const picked = [parts[0], parts[parts.length - 1]]
+    .map((p) => p.replace(/[^A-Za-z]/g, ""))
+    .filter(Boolean)
+    .map((p) => p[0]);
+  return (picked.join("") || parts[0].slice(0, 3)).toUpperCase();
+}
+
+async function fetchCfbdGamesForDate(day, apiKey) {
+  if (!apiKey) return [];
+  const year = Number(String(day).slice(0, 4));
+  if (!Number.isFinite(year) || year < 1869) return [];
+  const url = new URL("https://api.collegefootballdata.com/games");
+  url.searchParams.set("year", String(year));
+  url.searchParams.set("seasonType", "both");
+  url.searchParams.set("classification", "fbs");
+  const res = await fetch(String(url), {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(`CFBD games ${res.status}`);
+  const rows = await res.json();
+  const list = Array.isArray(rows) ? rows : [];
+  return list
+    .filter((g) => String(g.startDate || g.start_date || "").slice(0, 10) === day)
+    .map((g) =>
+      attachMarketLabels(
+        enrichGameTeams("cfb", {
+          id: String(g.id),
+          sport: "cfb",
+          start: g.startDate || g.start_date || null,
+          status: {
+            state: g.completed ? "post" : "pre",
+            detail: g.completed ? "Final" : "Scheduled",
+            completed: Boolean(g.completed),
+            live: false,
+            postponed: false,
+            canceled: false,
+            suspended: false,
+          },
+          home: {
+            name: g.homeTeam || "Home",
+            abbr: inferAbbr(g.homeTeam || ""),
+            logo: "",
+            score: num(g.homePoints),
+            rank: null,
+            record: "",
+          },
+          away: {
+            name: g.awayTeam || "Away",
+            abbr: inferAbbr(g.awayTeam || ""),
+            logo: "",
+            score: num(g.awayPoints),
+            rank: null,
+            record: "",
+          },
+          odds: { spread: null, total: null, homeMl: null, awayMl: null, details: "", book: EXECUTION_BOOK },
+          espnHomeWinPct: null,
+          projHomeScore: null,
+          projAwayScore: null,
+          marketProjHome: null,
+          marketProjAway: null,
+          projectionKind: "UNAVAILABLE",
+          venue: g.venue || "",
+          broadcast: "",
+          notes: [],
+          week: num(g.week),
+          neutralSite: Boolean(g.neutralSite),
+          conference: null,
+        })
+      )
+    );
+}
+
 export function slimFinal(game) {
   return {
     id: String(game.id),
@@ -1062,8 +1141,11 @@ export async function buildSlate(sport, date, env = {}) {
       });
     } catch (err) {
       if (!games.length) {
+        if (id === "cfb" && env.CFBD_API_KEY) {
+          games = await fetchCfbdGamesForDate(day, env.CFBD_API_KEY);
+        }
         // Parlay can still fill the board.
-        if (!env.PARLAY_API_KEY) throw err;
+        if (!games.length && !env.PARLAY_API_KEY) throw err;
       }
     }
   }
