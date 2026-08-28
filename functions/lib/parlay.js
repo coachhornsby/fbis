@@ -413,6 +413,15 @@ async function fetchPropsJson(sportKey, params, apiKey) {
   return { rows: Array.isArray(rows) ? rows : [], credits };
 }
 
+function propTimestamp(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  if (Number.isFinite(n) && n > 1e12) return new Date(n).toISOString();
+  if (Number.isFinite(n) && n > 1e9) return new Date(n * 1000).toISOString();
+  const ts = Date.parse(value);
+  return Number.isFinite(ts) ? new Date(ts).toISOString() : null;
+}
+
 export function attachFlatProps(events, rows) {
   return (events || []).map((event) => ({
     ...event,
@@ -427,7 +436,7 @@ export function attachFlatProps(events, rows) {
       marketKey: r.market_key || r.marketKey || r.market, marketLabel: r.market_label || r.marketLabel || r.market,
       line: r.line == null ? null : Number(r.line), overPrice: r.over_price == null ? null : Number(r.over_price),
       underPrice: r.under_price == null ? null : Number(r.under_price), bookmaker: r.source_title || r.bookmaker_title || r.bookmaker || r.source,
-      bookmakerKey: r.source || r.bookmaker_key || r.bookmakerKey || r.bookmaker, snapshotAt: r.snapshot_time || r.snapshotAt || r.last_update,
+      bookmakerKey: r.source || r.bookmaker_key || r.bookmakerKey || r.bookmaker, snapshotAt: propTimestamp(r.snapshot_time || r.snapshotAt || r.last_update),
     })),
   }));
 }
@@ -615,11 +624,11 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     }
     combined = attachPeriodF5(combined, f5Payload.rows || []);
     f5Games = combined.filter((event) => event.periodF5).length;
-    const propsKey = `${CACHE_VER}:props:${sportKey}`;
+    const propsKey = `${CACHE_VER}:props-v2:${sportKey}`;
     let propsPayload = await readCache(propsKey, cfCache, EMPTY_F5_TTL_MS);
     if (!propsPayload) {
       const fetched = await fetchPropsJson(sportKey, {
-        markets: MLB_PROP_MARKETS.join(","), bookmakers: "pinnacle,fanduel,draftkings,betmgm,caesars,bovada",
+        markets: MLB_PROP_MARKETS.join(","), maxAgeSec: "5400", limit: "10000",
       }, apiKey);
       remaining = fetched.credits.remaining ?? remaining;
       used = fetched.credits.used ?? used;
@@ -644,6 +653,8 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       sentimentGames,
       f5Games,
       propRows,
+      propFeedStatus: propRows ? "available" : propsPayload?.error ? "error" : "empty",
+      propFeedError: propsPayload?.error || null,
       asOf: pin.credits.asOf,
       sharp: SHARP_BOOK,
       execution: EXECUTION_BOOK,

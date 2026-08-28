@@ -11,7 +11,7 @@ function clean(value) {
 
 export function canonicalPropMarket(value) {
   const x = clean(value);
-  if (/pitcher.*strikeout|strikeouts.*pitcher/.test(x)) return "pitcher_strikeouts";
+  if (/pitcher.*strikeout|strikeouts.*pitcher|player.*strikeout/.test(x)) return "pitcher_strikeouts";
   if (/pitcher.*out|recorded outs/.test(x)) return "pitcher_outs";
   if (/home run/.test(x)) return "batter_home_runs";
   if (/stolen base/.test(x)) return "batter_stolen_bases";

@@ -98,21 +98,26 @@ function asList(raw) {
   if (Array.isArray(raw?.parkFactors)) return raw.parkFactors;
   if (Array.isArray(raw?.matchups)) return raw.matchups;
   if (Array.isArray(raw?.teams)) return raw.teams;
-  if (Array.isArray(raw?.players)) return raw.players;
   return [];
 }
 
-function playerName(row) {
-  const first = row?.firstName || row?.first_name || "";
-  const last = row?.lastName || row?.last_name || "";
-  return `${first} ${last}`.trim() || row?.displayName || row?.name || null;
-}
-
-function indexPlayers(players) {
-  return new Map((players || []).filter((p) => p?.playerId != null).map((p) => [Number(p.playerId), {
-    playerName: playerName(p),
-    position: p.position || p.primaryPosition || null,
-  }]));
+async function fetchMlbPlayerNames(ids) {
+  const unique = [...new Set((ids || []).map(Number).filter(Number.isFinite))];
+  const chunks = [];
+  for (let i = 0; i < unique.length; i += 150) chunks.push(unique.slice(i, i + 150));
+  const batches = await Promise.all(chunks.map(async (part) => {
+    const url = new URL("https://statsapi.mlb.com/api/v1/people");
+    url.searchParams.set("personIds", part.join(","));
+    url.searchParams.set("fields", "people,id,fullName,primaryPosition,abbreviation");
+    try {
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) return [];
+      return (await res.json())?.people || [];
+    } catch {
+      return [];
+    }
+  }));
+  return new Map(batches.flat().map((p) => [Number(p.id), { playerName: p.fullName || null, position: p.primaryPosition?.abbreviation || null }]));
 }
 
 function num(v) {
@@ -547,8 +552,6 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
     }
 
     const gameList = [...gamesById.values()];
-    const playersRaw = await bppGet("/players", apiKey).catch(() => []);
-    const playersById = indexPlayers(asList(playersRaw));
     const teamsById = indexTeams(teams);
     const parkByGame = new Map(parks.map((p) => [Number(p.gameId), p]));
     const muByGame = new Map();
@@ -594,14 +597,17 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
             muByGame.get(Number(g.gameId)) || [],
             teamsById
           );
-        packedGame.props = (packedGame.props || []).map((prop) => {
-          const player = playersById.get(Number(prop.playerId));
-          return player ? { ...prop, playerName: prop.playerName || player.playerName, position: player.position } : prop;
-        });
         packed.push(packedGame);
       });
     }
 
+    const playersById = await fetchMlbPlayerNames(packed.flatMap((g) => (g.props || []).map((p) => p.playerId)));
+    for (const game of packed) {
+      game.props = (game.props || []).map((prop) => {
+        const player = playersById.get(Number(prop.playerId));
+        return player ? { ...prop, playerName: prop.playerName || player.playerName, position: player.position } : prop;
+      });
+    }
     const usable = packed.filter((g) => g.homeCanon && g.awayCanon);
     const payload = {
       games: packed,

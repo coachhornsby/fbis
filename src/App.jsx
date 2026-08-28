@@ -32,6 +32,19 @@ function writeUrlState({ tab, date, sport }) {
   window.history.replaceState({}, "", u);
 }
 
+async function responseJson(res, label) {
+  const type = String(res.headers?.get?.("content-type") || "");
+  const text = await res.text();
+  if (!type.includes("application/json")) {
+    throw new Error(`${label} feed unavailable (HTTP ${res.status}). Please retry in a moment.`);
+  }
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(`${label} returned an invalid response (HTTP ${res.status}).`);
+  }
+}
+
 export default function App() {
   const initial = readUrlState();
   const [sport, setSport] = useState(initial.sport);
@@ -73,12 +86,12 @@ export default function App() {
         fetch(`/api/slate?sport=${sport}&_t=${Date.now()}`, { signal }),
         fetch(`/api/track?sport=${sport}&days=2&_t=${Date.now()}`, { signal }).catch(() => null),
       ]);
-      const data = await res.json();
+      const data = await responseJson(res, sport.toUpperCase());
       if (signal?.aborted) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       let finals = [];
       if (trackRes?.ok) {
-        const t = await trackRes.json();
+        const t = await responseJson(trackRes, "Tracking");
         finals = t.finals || [];
       }
       const nextLearn = gradeOpenBets(loadState(), [...(data.games || []), ...finals]);
@@ -111,7 +124,7 @@ export default function App() {
       if (trackFilters.year) q.set("year", trackFilters.year);
       if (trackFilters.team) q.set("team", trackFilters.team);
       const res = await fetch(`/api/track?${q}`, { signal });
-      const data = await res.json();
+      const data = await responseJson(res, "Tracking");
       if (signal?.aborted) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       setTrack(data);
@@ -130,7 +143,7 @@ export default function App() {
     setTodayError("");
     try {
       const res = await fetch(`/api/today?date=${todayDate}&_t=${Date.now()}`, { signal });
-      const data = await res.json();
+      const data = await responseJson(res, "Today");
       if (signal?.aborted) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       setTodayBoard(data);
@@ -145,7 +158,7 @@ export default function App() {
   const refreshBets = useCallback(async (signal) => {
     try {
       const res = await fetch(`/api/bets?_t=${Date.now()}`, { signal });
-      const data = await res.json();
+      const data = await responseJson(res, "Bets");
       if (signal?.aborted) return;
       setBetsPack({ bets: data.bets || [], summary: data.summary });
     } catch {
