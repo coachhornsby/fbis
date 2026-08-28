@@ -220,12 +220,14 @@ function TodayTable({ games }) {
                 <>
                   <span className={`tier-badge tier-${g.rec.tag}`}>{g.rec.tag}</span>
                   <div>{g.rec.pick} · {g.rec.market}</div>
+                  {g.sport === "cfb" && g.projHome != null && g.projAway != null ? <div className="muted">Projected winner: {g.projHome >= g.projAway ? g.home.fullName || g.home.name : g.away.fullName || g.away.name}</div> : null}
                 </>
               ) : g.lean ? (
                 <>
                   <span className="tier-badge tier-LEAN">LEAN</span>
                   <div>{g.lean.pick}</div>
                   <div className="muted">{g.lean.reason || g.noPlayReason}</div>
+                  {g.sport === "cfb" && g.projHome != null && g.projAway != null ? <div className="muted">Projected winner: {g.projHome >= g.projAway ? g.home.fullName || g.home.name : g.away.fullName || g.away.name}</div> : null}
                 </>
               ) : (
                 <span className="muted">{g.noPlayReason || "No play"}</span>

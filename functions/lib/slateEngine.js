@@ -527,6 +527,17 @@ export function recommendBundle(sport, game, model, weights) {
 
   pushF5Recs(sport, game, recs, cfg, pin);
 
+  if (sport === "cfb" && game.cfb?.projectionState === "PRIOR_ONLY") {
+    const priorOnly = sortTickets(recs.map((r) => ({
+      ...r,
+      qualified: false,
+      lean: true,
+      tag: "LEAN",
+      reason: "PRIOR_ONLY CFB projection — value signal only; not eligible for a qualified or CONVICTION ticket",
+    })));
+    return { qualified: null, lean: priorOnly[0] || null };
+  }
+
   const qualified = sortTickets(recs.filter((r) => r.qualified));
   const leans = sortTickets(recs.filter((r) => r.lean && !r.qualified));
   return { qualified: qualified[0] || null, lean: leans[0] || null };

@@ -148,6 +148,28 @@ describe("CFB formulas", () => {
   });
 });
 
+describe("CFB PRIOR_ONLY recommendation gate", () => {
+  it("keeps an underdog value signal as a lean instead of CONVICTION", () => {
+    const game = {
+      sport: "cfb",
+      home: { name: "Michigan State", school: "Michigan State" },
+      away: { name: "Toledo", school: "Toledo" },
+      cfb: { bettingAllowed: true, projectionState: "PRIOR_ONLY", sigmaMargin: 36.2, sigmaTotal: 31.6 },
+      odds: { spread: -10, total: 49.5, pinPresent: true, pinHomeMl: -434, pinAwayMl: 323, heritageListed: false },
+      pin: {
+        ml: { priceA: -434, priceB: 323, noVigA: 0.7746664304, noVigB: 0.2253335696, complete: true },
+        spread: { complete: false }, total: { complete: false },
+      },
+    };
+    const model = { layers: { market: 0.7746664304, score: 0.588526727 }, projMargin: 8.1, projTotal: 48.7 };
+    const bundle = recommendBundle("cfb", game, model, DEFAULT_WEIGHTS);
+    assert.equal(bundle.qualified, null);
+    assert.equal(bundle.lean?.pick, "Toledo");
+    assert.equal(bundle.lean?.tag, "LEAN");
+    assert.match(bundle.lean?.reason || "", /PRIOR_ONLY/);
+  });
+});
+
 describe("CBB formulas", () => {
   const game = { home: { canonicalId: "cbb-150" }, away: { canonicalId: "cbb-87" }, neutralSite: false };
   const ratings = { homeAdjOe: 118, homeAdjDe: 92, homeTempo: 70, awayAdjOe: 104, awayAdjDe: 110, awayTempo: 66 };

@@ -53,7 +53,7 @@ export default function App() {
   const [trackError, setTrackError] = useState("");
   const [trackLoading, setTrackLoading] = useState(false);
   const [trackFilters, setTrackFilters] = useState({
-    sport: "mlb",
+    sport: "all",
     days: "season",
     year: "2026",
     model: "ensemble",
@@ -179,7 +179,7 @@ export default function App() {
   }, [refreshToday, tab]);
 
   useEffect(() => {
-    if (tab !== "bets" && tab !== "today") return undefined;
+    if (tab !== "bets" && tab !== "today" && tab !== "board") return undefined;
     const ac = new AbortController();
     refreshBets(ac.signal);
     return () => ac.abort();
@@ -201,6 +201,8 @@ export default function App() {
     [slate]
   );
   const stats = useMemo(() => summarize(learn, sport), [learn, sport]);
+  const executedSportBets = useMemo(() => (betsPack.bets || []).filter((b) => b.sport === sport), [betsPack.bets, sport]);
+  const executedStats = useMemo(() => summarizeExecutedRows(executedSportBets), [executedSportBets]);
   const health =
     error ? "RED" : stats.units > 0 ? "GREEN" : stats.settled >= 8 && stats.winPct < 0.45 ? "YELLOW" : "GREEN";
 
@@ -331,9 +333,9 @@ export default function App() {
           <div className="status-grid">
             <Stat label="Slate" value={slate?.counts?.games ?? "—"} />
             <Stat label="Live" value={slate?.counts?.live ?? "—"} />
-            <Stat label="Open tickets" value={stats.open} />
-            <Stat label="Record" value={stats.settled ? `${stats.wins}-${stats.losses}` : "—"} />
-            <Stat label="Units" value={`${stats.units >= 0 ? "+" : ""}${stats.units.toFixed(2)}`} />
+            <Stat label="Open bets" value={executedStats.open} />
+            <Stat label="Record" value={executedStats.record || "—"} />
+            <Stat label="P/L" value={executedStats.profit == null ? "—" : `${executedStats.profit >= 0 ? "+" : ""}$${executedStats.profit.toFixed(2)}`} />
             <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.3"} />
             <Stat label="Pin / Heritage" value={bookLabel(slate)} />
             <Stat label="Pal" value={palLabel(slate)} />
@@ -345,11 +347,11 @@ export default function App() {
           <SlateTable games={slate?.games || []} onLog={onLog} logged={loggedOpen} />
         </Panel>
 
-        <Panel title="My Bets" extra={<span className="last-updated">{(betsPack.summary?.bets ?? stats.settled) || 0} Heritage · {stats.settled} logged recs</span>}>
+        <Panel title="My Heritage Bets" extra={<span className="last-updated">{executedSportBets.length} imported · D1 history</span>}>
           <div className="today-controls" style={{ marginBottom: 10 }}>
             <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>IMPORT HERITAGE BET SLIP</button>
           </div>
-          <BetsTable bets={learn.bets.filter((b) => b.sport === sport)} />
+          <ExecutedBetsTable bets={executedSportBets} />
         </Panel>
 
         <Panel title="Qualified +EV" stamp={updated}>
@@ -813,6 +815,39 @@ function F5Cell({ game }) {
       {(game.bpp?.props || []).length ? <details className="prop-watch"><summary>{game.bpp.props.length} PROP WATCH</summary><span className="muted">unpriced · no bet</span></details> : null}
     </div>
   );
+}
+
+function ExecutedBetsTable({ bets }) {
+  if (!bets.length) return <div className="empty">No imported Heritage bets for this sport.</div>;
+  return (
+    <table className="fbis-table">
+      <thead><tr><th>Ticket</th><th>Matchup</th><th>Pick</th><th>Result</th><th>P/L</th><th>Price</th><th>CLV</th></tr></thead>
+      <tbody>{bets.map((b) => (
+        <tr key={b.id} className={b.result === "WON" ? "won-row" : b.result === "LOST" ? "lost-row" : ""}>
+          <td>{b.externalTicketId}<div className="muted">{b.date}</div></td>
+          <td>{b.awayTeam} @ {b.homeTeam}</td>
+          <td>{b.selectedTeam || b.selectedSide}{b.executionLine != null ? ` ${b.executionLine}` : ""} <span className="muted">{b.market}</span></td>
+          <td className={b.result === "WON" ? "text-green" : b.result === "LOST" ? "text-red" : "muted"}>{b.result || "OPEN"}</td>
+          <td className={Number(b.profit) > 0 ? "text-green" : Number(b.profit) < 0 ? "text-red" : ""}>{b.profit == null ? "—" : `${Number(b.profit) >= 0 ? "+" : ""}$${Number(b.profit).toFixed(2)}`}</td>
+          <td>{fmtAmerican(b.executionPrice)}</td>
+          <td>{b.clv == null ? "—" : `${Number(b.clv) >= 0 ? "+" : ""}${Number(b.clv).toFixed(3)}`}</td>
+        </tr>
+      ))}</tbody>
+    </table>
+  );
+}
+
+function summarizeExecutedRows(rows) {
+  const terminal = (rows || []).filter((b) => ["WON", "LOST", "PUSH", "VOID"].includes(b.result));
+  const wins = terminal.filter((b) => b.result === "WON").length;
+  const losses = terminal.filter((b) => b.result === "LOST").length;
+  const profits = terminal.map((b) => Number(b.profit)).filter(Number.isFinite);
+  return {
+    open: (rows || []).filter((b) => !b.result || b.result === "OPEN").length,
+    settled: terminal.length,
+    record: wins + losses ? `${wins}-${losses}` : null,
+    profit: profits.length ? profits.reduce((sum, n) => sum + n, 0) : null,
+  };
 }
 
 function slateDetailGame(g) {

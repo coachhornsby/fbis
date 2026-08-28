@@ -56,6 +56,24 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
       {error && <div className="panel"><div className="error">{error}</div></div>}
 
       <section className="panel">
+        <div className="panel-header"><h2>Sport systems</h2><span className="last-updated">independent tracking by board</span></div>
+        <div className="panel-body">
+          <div className="chip-row" style={{ marginBottom: 12 }}>
+            <button className={filters.sport === "all" ? "chip active" : "chip"} onClick={() => onFilters({ sport: "all" })}>ALL</button>
+            {BOARD_SPORTS.map((id) => <button key={id} className={filters.sport === id ? "chip active" : "chip"} onClick={() => onFilters({ sport: id })}>{SPORTS[id].label}</button>)}
+          </div>
+          <div className="glossary-grid">
+            {(report?.sports || []).map((s) => <article className="g-card" key={s.sport}>
+              <h3>{SPORTS[s.sport]?.label || s.sport}</h3>
+              <p>{s.recipe?.engine || "No engine configured"}</p>
+              <div className="muted">Graded N={s.accuracy?.n ?? 0} · Total MAE {fmtNum(s.accuracy?.maeTotal)} · Margin MAE {fmtNum(s.accuracy?.maeMargin)}</div>
+              <div className="muted">Winner {fmtPct(s.accuracy?.winnerHitProb ?? s.accuracy?.winnerHit)} · Brier {fmtNum(s.accuracy?.brierModel, 3)}</div>
+            </article>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
         <div className="panel-header">
           <h2>Research DB</h2>
           <span className="last-updated">{loading ? "Loading…" : db.lastWrite ? `${new Date(db.lastWrite).toLocaleTimeString("en-US", { timeZone: "America/Chicago" })} CT` : ""}</span>
