@@ -790,9 +790,93 @@ export async function fetchEspnScoreboard(sport, date) {
       Referer: "https://www.espn.com/",
     },
   });
-  if (!fb.ok) throw new Error(`ESPN ${cfg.label} ${fb.status}`);
-  const json = await fb.json();
-  return { ...(json || {}), events: json?.events || json?.content?.sbData?.events || [] };
+  if (fb.ok) {
+    const json = await fb.json();
+    return { ...(json || {}), events: json?.events || json?.content?.sbData?.events || [] };
+  }
+  const core = await fetchCfbCoreScoreboard(stamp);
+  if (core.events?.length) return core;
+  throw new Error(`ESPN ${cfg.label} ${fb.status}`);
+}
+
+async function fetchJsonRef(url) {
+  if (!url) return null;
+  const httpsUrl = String(url).replace(/^http:\/\//i, "https://");
+  const res = await fetch(httpsUrl, { headers: { Accept: "application/json" } });
+  if (!res.ok) return null;
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+function coreStatusToType(statusRow) {
+  const name = String(statusRow?.name || "").toLowerCase();
+  if (name.includes("final")) return { state: "post", completed: true, detail: statusRow?.description || "Final" };
+  if (name.includes("in")) return { state: "in", completed: false, detail: statusRow?.description || "In Progress" };
+  if (name.includes("halftime")) return { state: "in", completed: false, detail: statusRow?.description || "Halftime" };
+  if (name.includes("postpon")) return { state: "post", completed: false, detail: statusRow?.description || "Postponed" };
+  return { state: "pre", completed: false, detail: statusRow?.description || "Scheduled" };
+}
+
+async function fetchCfbCoreScoreboard(stamp) {
+  const listUrl = `https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/events?dates=${stamp}&limit=300`;
+  const listRes = await fetch(listUrl, { headers: { Accept: "application/json" } });
+  if (!listRes.ok) return { events: [] };
+  const list = await listRes.json();
+  const refs = Array.isArray(list?.items) ? list.items.map((x) => x?.$ref).filter(Boolean) : [];
+  const teamCache = new Map();
+  const events = [];
+  for (const ref of refs) {
+    const ev = await fetchJsonRef(ref);
+    const compRef = ev?.competitions?.[0]?.$ref;
+    const comp = await fetchJsonRef(compRef);
+    if (!ev || !comp) continue;
+    const status = await fetchJsonRef(comp?.status?.$ref);
+    const compRows = [];
+    for (const cref of comp?.competitors || []) {
+      const crow = await fetchJsonRef(cref?.$ref);
+      if (!crow) continue;
+      const teamRef = crow?.team?.$ref;
+      if (!teamRef) continue;
+      let team = teamCache.get(teamRef);
+      if (!team) {
+        team = await fetchJsonRef(teamRef);
+        if (team) teamCache.set(teamRef, team);
+      }
+      if (!team) continue;
+      compRows.push({
+        homeAway: crow.homeAway,
+        score: crow.score,
+        team: {
+          id: team.id,
+          displayName: team.displayName,
+          abbreviation: team.abbreviation,
+          logo: Array.isArray(team.logos) ? team.logos[0]?.href || "" : "",
+          conferenceId: null,
+        },
+      });
+    }
+    if (compRows.length < 2) continue;
+    const st = coreStatusToType(status?.type || {});
+    events.push({
+      id: ev.id,
+      date: ev.date,
+      week: { number: num(ev?.week?.number) ?? null },
+      season: { week: num(ev?.week?.number) ?? null },
+      notes: [],
+      competitions: [{
+        neutralSite: Boolean(comp.neutralSite),
+        competitors: compRows,
+        status: { type: st },
+        odds: [],
+        venue: { fullName: "" },
+        broadcasts: [],
+      }],
+    });
+  }
+  return { events };
 }
 
 
