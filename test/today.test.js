@@ -6,6 +6,7 @@ import { projectionRecipe } from "../functions/lib/slateEngine.js";
 import { resolveSlateDate } from "../functions/lib/slateEngine.js";
 import { fetchEspnScoreboard } from "../functions/lib/slateEngine.js";
 import { buildSlate } from "../functions/lib/slateEngine.js";
+import { findNextCfbdGameDate } from "../functions/lib/slateEngine.js";
 import { rowsForCheckpoint, CHECKPOINT_ALIASES } from "../functions/lib/checkpoints.js";
 import { palHealth } from "../functions/lib/sourceCoverage.js";
 import { freezeFromGame } from "../functions/lib/projLedger.js";
@@ -283,6 +284,25 @@ describe("ESPN scoreboard fallback", () => {
       assert.equal(slate.games.length, 1);
       assert.equal(slate.games[0].home.name, "Ohio State");
       assert.equal(slate.games[0].away.name, "Texas");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("finds the next CFB game date from CFBD season schedule", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      if (String(url).startsWith("https://api.collegefootballdata.com/games")) {
+        return new Response(JSON.stringify([
+          { startDate: "2026-08-29T00:30:00Z" },
+          { startDate: "2026-09-02T23:00:00Z" },
+        ]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response("denied", { status: 403 });
+    };
+    try {
+      const next = await findNextCfbdGameDate("2026-08-28", "x", 14);
+      assert.equal(next, "2026-08-28");
     } finally {
       globalThis.fetch = realFetch;
     }
