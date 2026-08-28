@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { fmtAmerican } from "./lib/format.js";
-import { TeamIdentity } from "./components/TeamLogo.jsx";
+import { fmtAmerican, formatMarketPeriod, formatClv } from "./lib/format.js";
+import { TicketMatchup } from "./components/TeamLogo.jsx";
 import {
-  HARVEST_SECRET_PLACEHOLDER,
-  OPERATOR_SECRET_HINT,
+  PASTE_CHANGED,
   buildConfirmRequest,
   confirmStatusLine,
   importResponseFeedback,
+  isTotalMarket,
+  previewIsStale,
   readResponseJson,
 } from "./lib/heritageImport.js";
 
@@ -17,23 +18,23 @@ export default function HeritageImport({ open, onClose, onImported }) {
   const [text, setText] = useState("");
   const [preview, setPreview] = useState(null);
   const [edits, setEdits] = useState([]);
-  const [secret, setSecret] = useState(""); // never the placeholder string
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [wroteMessage, setWroteMessage] = useState("");
   const feedbackRef = useRef(null);
 
   const tickets = preview?.tickets || [];
+  const stale = Boolean(preview) && previewIsStale(preview.sourceText, text);
   const status = confirmStatusLine({
     busy,
     error,
     wroteMessage,
-    secret,
     ticketCount: tickets.length,
+    stale,
   });
 
   useEffect(() => {
-    if (!open || status.kind === "ready") return;
+    if (!open || (status.kind !== "error" && status.kind !== "ok")) return;
     feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [open, status.kind, status.text]);
 
@@ -51,7 +52,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
       });
       const data = await readResponseJson(res);
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-      setPreview(data);
+      setPreview({ ...data, sourceText: text });
       setEdits((data.tickets || []).map(ticketEdit));
     } catch (err) {
       setError(String(err.message || err));
@@ -61,7 +62,13 @@ export default function HeritageImport({ open, onClose, onImported }) {
   }
 
   async function confirmImport() {
-    const req = buildConfirmRequest({ secret, text, tickets, edits });
+    if (stale) {
+      setError(PASTE_CHANGED);
+      setWroteMessage("");
+      queueMicrotask(() => feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      return;
+    }
+    const req = buildConfirmRequest({ text, tickets, edits });
     if (!req.ok) {
       setError(req.error);
       setWroteMessage("");
@@ -105,7 +112,11 @@ export default function HeritageImport({ open, onClose, onImported }) {
           <textarea
             className="slip-paste"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (error) setError("");
+              if (wroteMessage) setWroteMessage("");
+            }}
             placeholder="G10904318 | Aug 27 10:06&#10;Los Angeles Dodgers … vs Atlanta Braves …"
             rows={10}
           />
@@ -118,7 +129,12 @@ export default function HeritageImport({ open, onClose, onImported }) {
           {error && !preview && <div className="error" style={{ marginTop: 8 }} role="alert">{error}</div>}
           {preview && (
             <>
-              <div className="status-grid" style={{ marginTop: 12 }}>
+              {stale && (
+                <div className="error" style={{ marginTop: 10 }} role="alert">
+                  {PASTE_CHANGED}. This table is from the previous parse.
+                </div>
+              )}
+              <div className="status-grid" style={{ marginTop: 12, opacity: stale ? 0.45 : 1 }}>
                 <Stat label="Tickets" value={preview.n ?? tickets.length} />
                 <Stat label="Risk" value={money(preview.totalRisk)} />
                 <Stat label="To win" value={money(preview.totalToWin)} />
@@ -126,7 +142,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
                 <Stat label="RL" value={preview.spread ?? 0} />
                 <Stat label="Totals" value={preview.total ?? 0} />
               </div>
-              <div className="preview-scroll">
+              <div className="preview-scroll" style={{ opacity: stale ? 0.45 : 1 }}>
                 <table className="fbis-table">
                   <thead>
                     <tr>
@@ -143,6 +159,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
                     {tickets.map((t, i) => {
                       const e = edits[i] || ticketEdit(t);
                       const warn = (t.warnings || []).join(" · ");
+                      const clvText = formatClv(t.clvPack?.clv, t.clvPack?.clvStatus);
                       return (
                         <tr key={t.externalTicketId || i} className={rowClass(t)}>
                           <td>
@@ -150,11 +167,13 @@ export default function HeritageImport({ open, onClose, onImported }) {
                             <div className="muted">{t.date} {t.executedAt ? new Date(t.executedAt).toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour: "numeric", minute: "2-digit" }) : ""}</div>
                           </td>
                           <td>
-                            <div className="team-block">
-                              <TeamIdentity team={t.awayIdentity || { name: t.awayTeam }} />
-                              <TeamIdentity team={t.homeIdentity || { name: t.homeTeam }} />
-                            </div>
-                            <div className="muted">{t.matchupText}</div>
+                            <TicketMatchup
+                              awayIdentity={t.awayIdentity}
+                              homeIdentity={t.homeIdentity}
+                              awayTeam={t.awayTeam}
+                              homeTeam={t.homeTeam}
+                              matchupText={t.matchupText}
+                            />
                             {t.matchCandidates?.length > 1 && (
                               <select value={e.gameId || ""} onChange={(ev) => patch(i, "gameId", ev.target.value)}>
                                 <option value="">Select game</option>
@@ -164,9 +183,23 @@ export default function HeritageImport({ open, onClose, onImported }) {
                               </select>
                             )}
                           </td>
-                          <td>{t.market || "unsupported"} · {t.period}</td>
+                          <td className="nowrap">{formatMarketPeriod(t.market || "unsupported", t.period)}</td>
                           <td>
-                            <input value={e.selectedTeam || ""} onChange={(ev) => patch(i, "selectedTeam", ev.target.value)} />
+                            {isTotalMarket(t.market) ? (
+                              <input
+                                value={e.selectedSide || ""}
+                                placeholder="OVER or UNDER"
+                                aria-label="Over or Under"
+                                onChange={(ev) => patch(i, "selectedSide", ev.target.value.toUpperCase())}
+                              />
+                            ) : (
+                              <input
+                                value={e.selectedTeam || ""}
+                                placeholder="team"
+                                aria-label="Selected team"
+                                onChange={(ev) => patch(i, "selectedTeam", ev.target.value)}
+                              />
+                            )}
                             <div className="muted">
                               line {t.market === "ML" || t.market === "F5 ML" ? "—" : e.executionLine ?? "—"} · {fmtAmerican(e.executionPrice)}
                             </div>
@@ -182,9 +215,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
                           </td>
                           <td>
                             <div>{t.attribution?.label || "OPERATOR BET · NOT ATTRIBUTED TO FBIS"}</div>
-                            <div className="muted">
-                              {t.clvPack?.clv != null ? `CLV ${Number(t.clvPack.clv).toFixed(3)}` : "CLV unavailable"}
-                            </div>
+                            <div className="muted">{clvText === "—" ? "CLV unavailable" : `CLV ${clvText}`}</div>
                             {t.heritageCurrentPrice != null && (
                               <div className="muted">Her current {fmtAmerican(t.heritageCurrentPrice)} (not Pin CLV)</div>
                             )}
@@ -195,32 +226,12 @@ export default function HeritageImport({ open, onClose, onImported }) {
                   </tbody>
                 </table>
               </div>
-              <form
-                className="confirm-row"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  confirmImport();
-                }}
-              >
-                <label htmlFor="harvest-secret">
-                  HARVEST_SECRET
-                  <input
-                    id="harvest-secret"
-                    type="password"
-                    autoComplete="off"
-                    value={secret}
-                    onChange={(e) => {
-                      setSecret(e.target.value);
-                      if (error) setError("");
-                    }}
-                    placeholder={HARVEST_SECRET_PLACEHOLDER}
-                    aria-describedby="operator-secret-hint"
-                  />
-                </label>
+              <div className="confirm-row">
                 <button
-                  type="submit"
+                  type="button"
                   className="header-btn header-btn-refresh"
-                  disabled={busy}
+                  disabled={busy || stale}
+                  onClick={confirmImport}
                 >
                   {busy ? "Writing…" : "2 · Confirm D1 write"}
                 </button>
@@ -233,8 +244,8 @@ export default function HeritageImport({ open, onClose, onImported }) {
                 >
                   {status.text}
                 </div>
-              </form>
-              <p id="operator-secret-hint" className="muted" style={{ marginTop: 6 }}>{OPERATOR_SECRET_HINT}</p>
+              </div>
+              <p className="muted" style={{ marginTop: 6 }}>Confirm writes these tickets to D1 from this site.</p>
             </>
           )}
         </div>

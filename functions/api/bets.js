@@ -1,11 +1,12 @@
 /**
  * Heritage bet-slip parse / import.
- * Parse is preview-only (no D1 write). Import/correct require operator secret header.
- * GET never returns raw_text. No session cookies — secret is server-mediated via
- * x-strategy-secret / x-harvest-secret. Secret is never bundled into the browser app.
+ * Parse is preview-only (no D1 write). Import/correct from the operator board are
+ * same-origin. Scripts may still send x-harvest-secret. GET never returns raw_text.
+ * HARVEST_SECRET is never bundled into the browser app.
  */
 
 import { parseHeritageSlip } from "../lib/heritageSlip.js";
+import { todayCT } from "../lib/slateEngine.js";
 import {
   decoratePreview,
   packExecutedBetRow,
@@ -22,7 +23,7 @@ import {
   queryOddsSnapshots,
   hasDb,
 } from "../lib/store.js";
-import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
+import { authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -46,35 +47,36 @@ export async function handleBetsGet(env, url) {
     bets: rows,
     summary: summarizeExecutedBets(rows),
     auth: {
-      write: "header x-strategy-secret or x-harvest-secret",
+      write: "same-origin board, or header x-strategy-secret / x-harvest-secret",
       session: false,
-      limitation: "No browser session. Writes are server-mediated with the operator secret header. Parse/preview does not require a secret and does not write.",
+      limitation: "Confirm from the FBIS site does not paste HARVEST_SECRET. Collect and strategy POST still require the Pages secret. Parse/preview does not write.",
     },
   };
 }
 
+function heritageDateWindow(tickets) {
+  const dates = [...new Set((tickets || []).map((t) => t.date).filter(Boolean))].sort();
+  const today = todayCT();
+  const since = dates[0] || today;
+  const until = dates.at(-1) || since;
+  return { since, until };
+}
+
 async function loadMatchContext(env, tickets) {
-  const dates = [...new Set(tickets.map((t) => t.date).filter(Boolean))];
-  const since = dates.length ? dates.sort()[0] : null;
+  const { since, until } = heritageDateWindow(tickets);
   const gamesQ = await queryGames(env, { since });
-  const extra = [];
-  for (const d of dates) {
-    if (since && d === since) continue;
-    const q = await queryGames(env, { date: d });
-    extra.push(...(q.rows || []));
-  }
-  const games = [...(gamesQ.rows || []), ...extra];
   const seen = new Set();
   const unique = [];
-  for (const g of games) {
+  for (const g of gamesQ.rows || []) {
+    if (g.date && g.date > until) continue;
     const k = `${g.sport}:${g.id}`;
     if (seen.has(k)) continue;
     seen.add(k);
     unique.push(g);
   }
   const existing = await queryExecutedBets(env, { includeRaw: false });
-  const snapshots = await querySnapshots(env, { since: since || undefined });
-  const odds = await queryOddsSnapshots(env, { since: since || undefined });
+  const snapshots = await querySnapshots(env, { since, until, lite: true });
+  const odds = await queryOddsSnapshots(env, { since, until });
   const strategyTickets = await queryStrategyTickets(env, {});
   return {
     games: unique,
@@ -165,7 +167,7 @@ export async function handleBetsPost(env, request, body) {
     const preview = await parseBetsPreview(env, text, body.yearHint);
     return { status: 200, body: preview };
   }
-  const auth = authorizeStrategyPost(request, env);
+  const auth = authorizeExecutedBetWrite(request, env);
   if (!auth.ok) {
     return { status: 401, body: unauthorizedBody() };
   }
@@ -216,20 +218,32 @@ export async function handleBetsPost(env, request, body) {
 }
 
 export async function onRequestGet(context) {
-  const url = new URL(context.request.url);
-  const payload = await handleBetsGet({ DB: context.env.DB }, url);
-  return json(payload, 200, { "access-control-allow-origin": "*" });
+  try {
+    const url = new URL(context.request.url);
+    const payload = await handleBetsGet({ DB: context.env.DB }, url);
+    return json(payload, 200, { "access-control-allow-origin": "*" });
+  } catch (err) {
+    return json({ ok: false, error: String(err?.message || err) }, 500, { "access-control-allow-origin": "*" });
+  }
 }
 
 export async function onRequestPost(context) {
-  let body = {};
   try {
-    body = await context.request.json();
-  } catch {
-    return json({ ok: false, error: "invalid json" }, 400, { "access-control-allow-origin": "*" });
+    let body = {};
+    try {
+      body = await context.request.json();
+    } catch {
+      return json({ ok: false, error: "invalid json" }, 400, { "access-control-allow-origin": "*" });
+    }
+    const result = await handleBetsPost(
+      { DB: context.env.DB, STRATEGY_IMPORT_SECRET: context.env.STRATEGY_IMPORT_SECRET, HARVEST_SECRET: context.env.HARVEST_SECRET },
+      context.request,
+      body
+    );
+    return json(result.body, result.status, { "access-control-allow-origin": "*" });
+  } catch (err) {
+    return json({ ok: false, error: String(err?.message || err), wrote: false }, 500, { "access-control-allow-origin": "*" });
   }
-  const result = await handleBetsPost({ DB: context.env.DB, STRATEGY_IMPORT_SECRET: context.env.STRATEGY_IMPORT_SECRET, HARVEST_SECRET: context.env.HARVEST_SECRET }, context.request, body);
-  return json(result.body, result.status, { "access-control-allow-origin": "*" });
 }
 
 export async function onRequestOptions() {

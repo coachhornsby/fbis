@@ -7,7 +7,7 @@ import { BOARD_SPORTS, SPORTS, todayCT, shiftDateCT, buildSlate, recommendBundle
 import { classifyBoardStatus, kickoffCt, noPlayReason, isPreStartStatus, isLiveStatus } from "./gameStatus.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { palUnavailableReason } from "./ballparkpal.js";
-import { buildPropConvictions } from "./propConviction.js";
+import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
 
 function withRecs(slate, weights = DEFAULT_WEIGHTS) {
   return {
@@ -296,6 +296,7 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, now = Date
       qualified: all.filter((g) => g.rec).length,
       leans: all.filter((g) => g.lean && !g.rec).length,
       postponed: all.filter((g) => g.status === "postponed").length,
+      mlbPropWatch: summarizeMlbPropWatch(all, feeds.mlb?.parlay || {}),
       cfbDiagnostics: (all.filter((g) => g.sport === "cfb").length
         ? {
             states: Object.fromEntries(

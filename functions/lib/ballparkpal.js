@@ -5,7 +5,7 @@ import { canonAbbr, resolveMlbCanon, sameMlbTeam } from "./mlbCanonical.js";
 
 const BASE = "https://www.ballparkpal.com/api/v1";
 const TTL_MS = 4 * 60 * 60 * 1000;
-const CACHE_VER = "bpp-v7";
+const CACHE_VER = "bpp-v8";
 const DH_WINDOW_MS = 6 * 60 * 60 * 1000;
 const DH_AMBIGUOUS_MS = 45 * 60 * 1000;
 const REQUEST_GAP_MS = 1100;
@@ -101,23 +101,44 @@ function asList(raw) {
   return [];
 }
 
-async function fetchMlbPlayerNames(ids) {
+/** Fill missing Pal prop names from confirmed starters only. */
+export function fillPalPropNamesFromKnownPlayers(game) {
+  const known = new Map();
+  if (game?.homeSp?.id != null && game.homeSp.name) known.set(Number(game.homeSp.id), game.homeSp.name);
+  if (game?.awaySp?.id != null && game.awaySp.name) known.set(Number(game.awaySp.id), game.awaySp.name);
+  return {
+    ...game,
+    props: (game?.props || []).map((prop) => {
+      if (prop?.playerName) return prop;
+      const name = known.get(Number(prop?.playerId));
+      return name ? { ...prop, playerName: name } : prop;
+    }),
+  };
+}
+
+/** Names for Pal player IDs that Pal omitted. Only unnamed IDs — not a full roster crawl. */
+async function fetchMissingMlbPlayerNames(ids) {
   const unique = [...new Set((ids || []).map(Number).filter(Number.isFinite))];
+  if (!unique.length) return new Map();
   const chunks = [];
   for (let i = 0; i < unique.length; i += 150) chunks.push(unique.slice(i, i + 150));
-  const batches = await Promise.all(chunks.map(async (part) => {
-    const url = new URL("https://statsapi.mlb.com/api/v1/people");
-    url.searchParams.set("personIds", part.join(","));
-    url.searchParams.set("fields", "people,id,fullName,primaryPosition,abbreviation");
-    try {
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!res.ok) return [];
-      return (await res.json())?.people || [];
-    } catch {
-      return [];
-    }
-  }));
-  return new Map(batches.flat().map((p) => [Number(p.id), { playerName: p.fullName || null, position: p.primaryPosition?.abbreviation || null }]));
+  const batches = await Promise.all(
+    chunks.map(async (part) => {
+      const url = new URL("https://statsapi.mlb.com/api/v1/people");
+      url.searchParams.set("personIds", part.join(","));
+      url.searchParams.set("fields", "people,id,fullName,primaryPosition,abbreviation");
+      try {
+        const res = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!res.ok) return [];
+        return (await res.json())?.people || [];
+      } catch {
+        return [];
+      }
+    })
+  );
+  return new Map(
+    batches.flat().map((p) => [Number(p.id), { playerName: p.fullName || null, position: p.primaryPosition?.abbreviation || null }])
+  );
 }
 
 function num(v) {
@@ -601,12 +622,20 @@ export async function fetchBallparkPal(date, apiKey, cfCache, opts = {}) {
       });
     }
 
-    const playersById = await fetchMlbPlayerNames(packed.flatMap((g) => (g.props || []).map((p) => p.playerId)));
-    for (const game of packed) {
-      game.props = (game.props || []).map((prop) => {
-        const player = playersById.get(Number(prop.playerId));
-        return player ? { ...prop, playerName: prop.playerName || player.playerName, position: player.position } : prop;
-      });
+    for (let i = 0; i < packed.length; i += 1) packed[i] = fillPalPropNamesFromKnownPlayers(packed[i]);
+    const missingIds = packed.flatMap((g) => (g.props || []).filter((p) => !p.playerName && p.playerId != null).map((p) => p.playerId));
+    if (missingIds.length) {
+      const playersById = await fetchMissingMlbPlayerNames(missingIds);
+      for (let i = 0; i < packed.length; i += 1) {
+        packed[i] = {
+          ...packed[i],
+          props: (packed[i].props || []).map((prop) => {
+            if (prop.playerName) return prop;
+            const player = playersById.get(Number(prop.playerId));
+            return player?.playerName ? { ...prop, playerName: player.playerName, position: player.position || null } : prop;
+          }),
+        };
+      }
     }
     const usable = packed.filter((g) => g.homeCanon && g.awayCanon);
     const payload = {

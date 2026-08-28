@@ -47,6 +47,18 @@ export function fmtSigned(n, d = 1) {
   return `${v >= 0 ? "+" : ""}${v.toFixed(d)}`;
 }
 
+export function formatMarketPeriod(market, period) {
+  const m = market || "—";
+  if (!period) return m;
+  const p = String(period) === "FULL_GAME" ? "FG" : String(period);
+  return `${m} · ${p}`;
+}
+
+export function formatClv(clv, status) {
+  if (status === "unavailable" || clv == null || Number.isNaN(Number(clv))) return "—";
+  return fmtSigned(clv, 3);
+}
+
 export function edgeClass(n) {
   if (n == null) return "edge-neutral";
   if (n > 4) return "edge-pos-hh";

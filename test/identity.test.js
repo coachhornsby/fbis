@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { resolveTeam, enrichTeam, logoForCanonicalId, verifiedNflAbbr, verifiedCfbSchool, identityFromName } from "../functions/lib/teams.js";
+import { resolveTeam, enrichTeam, logoForCanonicalId, verifiedNflAbbr, verifiedCfbSchool, identityFromName, displayTeamIdentity, teamDisplayName } from "../functions/lib/teams.js";
 import { namesMatch } from "../functions/lib/match.js";
 import { attachMarketLabels, TEAM_MATCH_UNRESOLVED, isAmbiguousLastWord, canPriceMarket } from "../functions/lib/marketLabels.js";
 import { projectCfbGame, classifyCfbState, cfbBettingAllowed, PROJECTION_STATES, CFB_BLOCKED_MESSAGE } from "../functions/lib/cfbModel.js";
@@ -371,5 +371,16 @@ describe("identityFromName", () => {
   it("resolves Heritage MLB and NFL paste names", () => {
     assert.equal(identityFromName("Los Angeles Dodgers").abbr, "LAD");
     assert.equal(identityFromName("Pittsburgh Steelers").abbr, "PIT");
+    assert.match(identityFromName("Los Angeles Dodgers").logo, /espncdn\.com\/i\/teamlogos\/mlb\//);
+    assert.match(identityFromName("Detroit Tigers").logo, /espncdn\.com\/i\/teamlogos\/mlb\//);
+    assert.match(displayTeamIdentity(null, "Philadelphia Phillies").logo, /espncdn\.com\/i\/teamlogos\/mlb\//);
+    assert.equal(displayTeamIdentity({ name: "x" }, "New York Yankees").abbr, "NYY");
+  });
+
+  it("prefers MLB display name over city-only school", () => {
+    const dodgers = identityFromName("Los Angeles Dodgers");
+    assert.equal(dodgers.name, "Los Angeles Dodgers");
+    assert.equal(teamDisplayName(dodgers), "Los Angeles Dodgers");
+    assert.notEqual(teamDisplayName(dodgers), dodgers.school);
   });
 });

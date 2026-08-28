@@ -176,6 +176,7 @@ describe("Parlay collect budget", () => {
     const r = await fetchParlayOdds("mlb", "fake-key", null, { cacheOnly: true });
     assert.equal(r.meta.skipped, true);
     assert.equal(r.events.length, 0);
+    assert.equal(r.meta.propFeedStatus, "skipped");
   });
 });
 

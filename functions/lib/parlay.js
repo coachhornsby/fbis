@@ -559,7 +559,18 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   const cached = await readCache(cacheKey, cfCache, TTL_MS);
   if (cached) return { ...cached, meta: { ...cached.meta, cached: true } };
   if (opts.cacheOnly) {
-    return { events: [], meta: { enabled: true, remaining: null, cached: false, skipped: true } };
+    return {
+      events: [],
+      meta: {
+        enabled: true,
+        remaining: null,
+        cached: false,
+        skipped: true,
+        propFeedStatus: baseball ? "skipped" : "not-applicable",
+        propFeedError: null,
+        propRows: 0,
+      },
+    };
   }
 
   const pin = await fetchJson(

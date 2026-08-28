@@ -1,5 +1,6 @@
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { freezeSlate, harvestSport } from "../lib/projLedger.js";
+import { compactMlbSlatePayload } from "../lib/propConviction.js";
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
@@ -28,7 +29,7 @@ export async function onRequestGet(context) {
         console.error("harvestSport", err?.message || err);
       })
     );
-    return json(payload, 200, 30);
+    return json(compactMlbSlatePayload(payload), 200, 30);
   } catch (err) {
     return json({ error: String(err?.message || err), games: [], ticker: [], counts: {} }, 502, 10);
   }

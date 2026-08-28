@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { displayTeamIdentity, teamDisplayName } from "../../functions/lib/teams.js";
 
 export default function TeamLogo({ team, size = 22 }) {
   const [failed, setFailed] = useState(false);
-  const name = team?.fullName || team?.school || team?.name || "Team";
+  const name = teamDisplayName(team) === "—" ? "Team" : teamDisplayName(team);
   const abbr = team?.abbr && team.abbr !== "—" ? team.abbr : "";
   if (!team?.logo || failed) {
     return (
@@ -30,7 +31,7 @@ export default function TeamLogo({ team, size = 22 }) {
 }
 
 export function TeamIdentity({ team, score }) {
-  const name = team?.school || team?.fullName || team?.name || "—";
+  const name = teamDisplayName(team);
   const abbr = team?.abbr && team.abbr !== "—" ? team.abbr : "";
   return (
     <div className="team-line">
@@ -38,6 +39,19 @@ export function TeamIdentity({ team, score }) {
       <span className="team-name">{name}</span>
       {abbr ? <span className="muted team-abbr">{abbr}</span> : null}
       {score != null ? <span className="score-accent">{score}</span> : null}
+    </div>
+  );
+}
+
+export function TicketMatchup({ awayIdentity, homeIdentity, awayTeam, homeTeam, matchupText }) {
+  const away = displayTeamIdentity(awayIdentity, awayTeam);
+  const home = displayTeamIdentity(homeIdentity, homeTeam);
+  const named = teamDisplayName(away) !== "—" && teamDisplayName(home) !== "—";
+  return (
+    <div className="team-block">
+      <TeamIdentity team={away} />
+      <TeamIdentity team={home} />
+      {!named && matchupText ? <div className="muted">{matchupText}</div> : null}
     </div>
   );
 }

@@ -59,7 +59,7 @@ The intended operator windows are the CDT column. Full Parlay odds only at the 8
 
 `HARVEST_SECRET` is a Pages secret and a GitHub Actions secret of the same name. The workflow sends it as the `x-harvest-secret` header, not a query string, and fails unless the JSON `status` is `success`. After changing a Pages secret, redeploy so the Worker sees it. A green `workflow_dispatch` does not prove the `schedule` trigger has fired. Collect/harvest persist `trigger_type=schedule` only when GitHub sends `?trigger=schedule`. SYS scheduled-pipeline health ignores manual timestamps.
 
-Heritage slip Confirm D1 write uses that same Pages secret: paste **HARVEST_SECRET** into the HARVEST_SECRET field in the import modal (`x-strategy-secret`). `STRATEGY_IMPORT_SECRET` is an optional override; if unset, `HARVEST_SECRET` is the write key. Never put the value in the client bundle.
+Heritage slip Confirm D1 write from the operator board is same-origin and does not paste **HARVEST_SECRET**. Scripts may still send `x-strategy-secret`. `STRATEGY_IMPORT_SECRET` remains the optional override for `/api/strategy`. Never put the harvest value in the client bundle.
 
 ## Git connect
 

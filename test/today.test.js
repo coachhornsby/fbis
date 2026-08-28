@@ -8,6 +8,8 @@ import { freezeFromGame } from "../functions/lib/projLedger.js";
 import { isPostStart, selectClose, packPinOddsRows } from "../functions/lib/closeCapture.js";
 import { attachMyBetsToBoard } from "../functions/lib/executedBets.js";
 import { summarize } from "../src/lib/learning.js";
+import { todayFeedNote } from "../functions/lib/propConviction.js";
+import { formatMarketPeriod, formatClv } from "../src/lib/format.js";
 
 describe("TODAY date and grouping", () => {
   it("resolves blank date to CT today and rejects junk", () => {
@@ -61,6 +63,59 @@ describe("TODAY cache-only and MY BET markers", () => {
     });
     assert.ok(seen.length >= 5);
     assert.ok(seen.every((s) => s.cache === true && s.pal === true));
+  });
+
+  it("reports skipped MLB prop feed instead of an evaluated zero", async () => {
+    const board = await buildTodayBoard("2026-08-28", {}, {
+      buildSlateFn: async (sport) => ({
+        sport,
+        date: "2026-08-28",
+        games: sport === "mlb" ? [{
+          id: "1",
+          sport: "mlb",
+          start: "2026-08-28T23:00:00Z",
+          home: { name: "Cubs", abbr: "CHC" },
+          away: { name: "Pirates", abbr: "PIT" },
+          status: { detail: "Scheduled" },
+          odds: {},
+          model: { projHome: 4.1, projAway: 3.8, layers: { score: 0.55 } },
+        }] : [],
+        parlay: { cached: false, skipped: true, propFeedStatus: "skipped", propRows: 0 },
+      }),
+    });
+    assert.equal(board.counts.mlbPropWatch.status, "skipped");
+    assert.equal(board.counts.mlbPropWatch.convictions, 0);
+    assert.equal(board.counts.mlbPropWatch.sportsbookContracts, 0);
+  });
+
+  it("omits empty MLB props fragment from TODAY copy", () => {
+    const bare = todayFeedNote({}, null);
+    assert.match(bare, /Cache-only odds/);
+    assert.doesNotMatch(bare, /MLB props/);
+    assert.doesNotMatch(bare, /Pal last collect/);
+    const palOnly = todayFeedNote({ pal: { matched: 0, unmatched: 0, mlbGames: 15 } }, null);
+    assert.match(palOnly, /Pal last collect: 0 matched \/ 0 unmatched of 15 MLB games\./);
+    assert.doesNotMatch(palOnly, /MLB props/);
+    const skipped = todayFeedNote({ pal: { matched: 2, unmatched: 1 } }, { status: "skipped", skipped: true, convictions: 0, sportsbookContracts: 0 });
+    assert.match(skipped, /Sportsbook prop feed is not on this view yet/);
+    assert.doesNotMatch(skipped, /MLB props: \./);
+    const hot = todayFeedNote({}, { convictions: 2, sportsbookContracts: 40, palProps: 12 });
+    assert.match(hot, /MLB props: 2 conviction props/);
+    const jsonErr = todayFeedNote({}, {
+      status: "error",
+      convictions: 0,
+      error: 'Parlay 403: {"detail":{"error":"CREDIT_LIMIT_REACHED","upgrade_url":"https://parlay.io"}}',
+    });
+    assert.match(jsonErr, /Parlay credits exhausted this period/);
+    assert.doesNotMatch(jsonErr, /upgrade_url/);
+  });
+
+  it("formats Heritage market period and unavailable CLV", () => {
+    assert.equal(formatMarketPeriod("ML", "FULL_GAME"), "ML · FG");
+    assert.equal(formatMarketPeriod("TOTAL", "F5"), "TOTAL · F5");
+    assert.equal(formatClv(null, "unavailable"), "—");
+    assert.equal(formatClv(0, "unavailable"), "—");
+    assert.equal(formatClv(0.012, "ok"), "+0.012");
   });
 
   it("attaches MY BET markers without promoting them to recs", () => {

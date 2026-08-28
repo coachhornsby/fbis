@@ -232,3 +232,17 @@ export function identityFromName(name) {
   }
   return { name, abbr: "—", logo: "", canonicalId: null, sport: null };
 }
+
+/** Board/Bets rows store names; hydrate ESPN logos at render time. */
+export function displayTeamIdentity(identity, name) {
+  if (identity?.logo) return identity;
+  const resolved = identityFromName(name);
+  if (resolved?.logo) return resolved;
+  return identity || { name: name || null, abbr: "—", logo: "" };
+}
+
+/** Prefer the already-resolved display name; school is city-only for MLB. */
+export function teamDisplayName(team) {
+  if (!team) return "—";
+  return team.name || team.fullName || team.school || "—";
+}

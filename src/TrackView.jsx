@@ -155,7 +155,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
             Scheduled collection writes pregame checkpoints even if this page is closed. SYS reads D1; cache is only a fallback. Bias near zero is not accuracy — MAE, median abs, and RMSE sit beside every total.
           </p>
           <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
-            Heritage D1 import still confirms with HARVEST_SECRET in the modal for self-serve writes. Cursor can import slips on request so you do not have to paste that Cloudflare write password.
+            Heritage Confirm writes from this site without pasting HARVEST_SECRET. Collect and strategy POST still use the Pages secret.
           </p>
         </div>
       </section>

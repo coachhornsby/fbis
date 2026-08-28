@@ -26,18 +26,20 @@ import {
 } from "../functions/lib/executedBets.js";
 import { selectClose, selectPinAtOrBefore, packPinOddsRows, isPostStart, CLV_UNAVAILABLE, clvTracker } from "../functions/lib/closeCapture.js";
 import { parseBetsPreview, handleBetsPost } from "../functions/api/bets.js";
+import { authorizeExecutedBetWrite, isSameOriginOperatorRequest } from "../functions/lib/auth.js";
+import { querySnapshots } from "../functions/lib/store.js";
 import {
-  HARVEST_SECRET_PLACEHOLDER,
+  CLOUDFLARE_HTML_503,
   NO_TICKETS_TO_WRITE,
-  OPERATOR_SECRET_HINT,
-  OPERATOR_SECRET_REQUIRED,
-  PLACEHOLDER_AS_SECRET,
+  PASTE_CHANGED,
   buildConfirmRequest,
   confirmStatusLine,
   confirmWriteGuard,
+  explainNonJsonHttp,
   importResponseFeedback,
-  isHintSecret,
-  normalizePastedSecret,
+  isTotalMarket,
+  previewIsStale,
+  readResponseJson,
 } from "../src/lib/heritageImport.js";
 
 describe("Heritage five-ticket fixtures", () => {
@@ -136,6 +138,52 @@ To win: $1.82
     assert.ok(parsed.tickets[0].sourceEventId === "198257191" || parsed.tickets[0].rawText.includes("198257191"));
     assert.ok(decodeEntities("St.&nbsp;Louis").includes("St."));
     assert.ok(stripMarkdownLinks("[x](https://a/event/1)").includes("https://a/event/1"));
+  });
+
+  it("parses Heritage totals Over/Under, not a blank team box", () => {
+    const over = parseHeritageTicket(`G10923027 | Aug 28 8:20
+Colorado Rockies vs Atlanta Braves
+Game / Total / Over 9
+Risk: $2.00 @ +100
+To win: $2.01
+Current Line: Over 9 +100`, { yearHint: 2026 });
+    assert.equal(over.market, "TOTAL");
+    assert.equal(over.selectedSide, "OVER");
+    assert.equal(over.selectedTeam, null);
+    assert.equal(over.executionLine, 9);
+    assert.equal(over.executionPrice, 100);
+    assert.ok(!(over.warnings || []).includes("missing over/under"));
+
+    const fromCurrent = parseHeritageTicket(`G10923027 | Aug 28 8:20
+Colorado Rockies vs Atlanta Braves
+Game / Total
+Risk: $2.00 @ +100
+To win: $2.01
+Current Line: Under 9 +100`, { yearHint: 2026 });
+    assert.equal(fromCurrent.selectedSide, "UNDER");
+    assert.equal(fromCurrent.executionLine, 9);
+
+    const nineOver = parseHeritageTicket(`G10923027 | Aug 28 8:20
+Colorado Rockies vs Atlanta Braves
+Game / Total / 9
+Risk: $2.00 @ +100
+To win: $2.01
+Current Line: 9 Over +100`, { yearHint: 2026 });
+    assert.equal(nineOver.selectedSide, "OVER");
+    assert.equal(nineOver.executionLine, 9);
+  });
+
+  it("parses a Tigers fragment without a G-id as one ticket", () => {
+    const text = `Game / Game Winner / Detroit Tigers (D. Anderson -R)
+Risk: $50.00 @ +191
+To win: $95.39
+Current Line: Detroit Tigers +191`;
+    const parsed = parseHeritageSlip(text, { yearHint: 2026 });
+    assert.equal(parsed.n, 1);
+    assert.equal(parsed.tickets[0].selectedTeam, "Detroit Tigers");
+    assert.equal(parsed.tickets[0].executionPrice, 191);
+    assert.equal(parsed.tickets[0].riskAmount, 50);
+    assert.ok((parsed.tickets[0].warnings || []).includes("missing ticket ID"));
   });
 
   it("flags duplicate ticket IDs in one paste", () => {
@@ -302,106 +350,51 @@ describe("Heritage matching, attribution, CLV, settlement", () => {
 describe("Heritage confirm write auth and feedback", () => {
   const parsed = parseHeritageSlip(HERITAGE_FIXTURE_PASTE, { yearHint: 2026 });
 
-  it("shows Operator secret required when confirm is clicked with an empty secret", () => {
-    const empty = confirmWriteGuard({ secret: "", ticketCount: 5 });
-    assert.equal(empty.ok, false);
-    assert.equal(empty.error, OPERATOR_SECRET_REQUIRED);
-    const blank = confirmWriteGuard({ secret: "   ", ticketCount: 5 });
-    assert.equal(blank.ok, false);
-    assert.equal(blank.error, OPERATOR_SECRET_REQUIRED);
-    const none = confirmWriteGuard({ secret: "ok", ticketCount: 0 });
+  it("lets confirm proceed without a pasted HARVEST_SECRET", () => {
+    const none = confirmWriteGuard({ ticketCount: 0 });
     assert.equal(none.ok, false);
     assert.equal(none.error, NO_TICKETS_TO_WRITE);
-    assert.equal(confirmWriteGuard({ secret: "ok", ticketCount: 5 }).ok, true);
-    assert.equal(confirmWriteGuard({ secret: "ok", ticketCount: 0, hasText: true }).ok, true);
+    assert.equal(confirmWriteGuard({ ticketCount: 5 }).ok, true);
+    assert.equal(confirmWriteGuard({ ticketCount: 0, hasText: true }).ok, true);
+    const req = buildConfirmRequest({ text: HERITAGE_FIXTURE_PASTE, tickets: parsed.tickets });
+    assert.equal(req.ok, true);
+    assert.equal(req.headers["content-type"], "application/json");
+    assert.equal(req.headers["x-harvest-secret"], undefined);
+    const ready = confirmStatusLine({ busy: false, error: "", wroteMessage: "", ticketCount: 4 });
+    assert.equal(ready.kind, "ready");
+    assert.match(ready.text, /Ready to write 4 tickets/);
+    const stale = confirmStatusLine({ busy: false, error: "", wroteMessage: "", ticketCount: 4, stale: true });
+    assert.equal(stale.kind, "error");
+    assert.equal(stale.text, PASTE_CHANGED);
+    assert.equal(previewIsStale("old paste", "Game / Game Winner / Detroit Tigers"), true);
+    assert.equal(previewIsStale("same", "same"), false);
+    assert.equal(isTotalMarket("TOTAL"), true);
+    assert.equal(isTotalMarket("F5 TOTAL"), true);
+    assert.equal(isTotalMarket("ML"), false);
   });
 
-  it("treats the placeholder string as empty and refuses it as the secret", () => {
-    assert.equal(HARVEST_SECRET_PLACEHOLDER, "not stored in the app bundle");
-    assert.equal(isHintSecret(""), false);
-    assert.equal(isHintSecret("s3cret"), false);
-    assert.equal(isHintSecret(HARVEST_SECRET_PLACEHOLDER), true);
-    assert.equal(isHintSecret(`  ${HARVEST_SECRET_PLACEHOLDER}  `), true);
-    assert.equal(isHintSecret("Not stored in the app bundle."), true);
-    assert.equal(isHintSecret(OPERATOR_SECRET_HINT), true);
-    assert.equal(normalizePastedSecret(HARVEST_SECRET_PLACEHOLDER), "");
-    assert.equal(normalizePastedSecret("  s3cret  "), "s3cret");
-
-    const pasted = confirmWriteGuard({ secret: HARVEST_SECRET_PLACEHOLDER, ticketCount: 4 });
-    assert.equal(pasted.ok, false);
-    assert.equal(pasted.error, PLACEHOLDER_AS_SECRET);
-    assert.match(pasted.error, /That text is a hint, not the secret/);
-    assert.match(pasted.error, /Paste HARVEST_SECRET from Cloudflare Pages/);
-
-    const req = buildConfirmRequest({
-      secret: HARVEST_SECRET_PLACEHOLDER,
-      text: HERITAGE_FIXTURE_PASTE,
-      tickets: parsed.tickets,
-    });
-    assert.equal(req.ok, false);
-    assert.equal(req.error, PLACEHOLDER_AS_SECRET);
-    assert.equal(req.body, undefined);
-    assert.equal(req.headers, undefined);
-
-    const line = confirmStatusLine({
-      busy: false,
-      error: "",
-      wroteMessage: "",
-      secret: HARVEST_SECRET_PLACEHOLDER,
-      ticketCount: 4,
-    });
-    assert.equal(line.kind, "error");
-    assert.equal(line.text, PLACEHOLDER_AS_SECRET);
-
-    const afterClick = confirmStatusLine({
-      busy: false,
-      error: PLACEHOLDER_AS_SECRET,
-      wroteMessage: "",
-      secret: HARVEST_SECRET_PLACEHOLDER,
-      ticketCount: 4,
-    });
-    assert.equal(afterClick.kind, "error");
-    assert.equal(afterClick.text, PLACEHOLDER_AS_SECRET);
-  });
-
-  it("HeritageImport secret field is empty value + placeholder, labeled HARVEST_SECRET", () => {
+  it("HeritageImport has no HARVEST_SECRET paste field", () => {
     const src = readFileSync(new URL("../src/HeritageImport.jsx", import.meta.url), "utf8");
-    assert.ok(src.includes('const [secret, setSecret] = useState(""); // never the placeholder string'));
-    assert.ok(src.includes("placeholder={HARVEST_SECRET_PLACEHOLDER}"));
-    assert.ok(src.includes("HARVEST_SECRET"));
-    assert.ok(!src.includes("useState(HARVEST_SECRET_PLACEHOLDER)"));
-    assert.ok(!src.includes('useState("not stored in the app bundle")'));
-    assert.ok(!src.includes("value={HARVEST_SECRET_PLACEHOLDER}"));
+    assert.ok(!src.includes("harvest-secret"));
+    assert.ok(!src.includes("setSecret"));
+    assert.ok(!src.includes("HARVEST_SECRET_PLACEHOLDER"));
+    assert.ok(src.includes("isTotalMarket"));
+    assert.ok(src.includes('placeholder="OVER or UNDER"'));
+    assert.ok(src.includes("preview.sourceText"));
+    assert.ok(src.includes("PASTE_CHANGED"));
+    assert.ok(src.includes("2 · Confirm D1 write"));
   });
 
-  it("SYS notes that Cursor can import Heritage slips on request without removing confirm-secret", () => {
+  it("SYS notes board confirm does not paste HARVEST_SECRET", () => {
     const sys = readFileSync(new URL("../src/TrackView.jsx", import.meta.url), "utf8");
     const modal = readFileSync(new URL("../src/HeritageImport.jsx", import.meta.url), "utf8");
-    assert.match(sys, /Cursor can import slips on request/);
-    assert.match(modal, /HARVEST_SECRET/);
+    assert.match(sys, /without pasting HARVEST_SECRET/);
     assert.match(modal, /2 · Confirm D1 write/);
-  });
-
-  it("empty secret is a 4xx UI path and never a silent no-op", () => {
-    const req = buildConfirmRequest({
-      secret: "",
-      text: HERITAGE_FIXTURE_PASTE,
-      tickets: parsed.tickets,
-    });
-    assert.equal(req.ok, false);
-    assert.equal(req.error, OPERATOR_SECRET_REQUIRED);
-    assert.equal(req.body, undefined);
-    const line = confirmStatusLine({ busy: false, error: req.error, wroteMessage: "", secret: "", ticketCount: 4 });
-    assert.equal(line.kind, "error");
-    assert.equal(line.text, OPERATOR_SECRET_REQUIRED);
-    const missing = confirmStatusLine({ busy: false, error: "", wroteMessage: "", secret: "", ticketCount: 4 });
-    assert.equal(missing.kind, "error");
-    assert.equal(missing.text, OPERATOR_SECRET_REQUIRED);
+    assert.doesNotMatch(modal, /id="harvest-secret"/);
   });
 
   it("confirm payload includes parsed tickets and the pasted textarea", () => {
     const req = buildConfirmRequest({
-      secret: "s3cret",
       text: HERITAGE_FIXTURE_PASTE,
       tickets: parsed.tickets,
       edits: [{ selectedTeam: "Los Angeles Dodgers" }],
@@ -420,9 +413,39 @@ describe("Heritage confirm write auth and feedback", () => {
     assert.ok(ids.includes("G10904299"));
     assert.match(json, /G10904318/);
     assert.equal(req.body.tickets[0].selectedTeam, "Los Angeles Dodgers");
-    assert.equal(req.headers["x-strategy-secret"], "s3cret");
-    assert.equal(req.headers["x-harvest-secret"], "s3cret");
-    assert.doesNotMatch(json, /s3cret/);
+    assert.equal(req.body.tickets[0].attribution, undefined);
+    assert.doesNotMatch(json, /pal_json/);
+    assert.doesNotMatch(json, /palTotals/);
+  });
+
+  it("does not dump Cloudflare HTML 503 into the operator banner", async () => {
+    const html = `<!DOCTYPE html> <!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->`;
+    assert.equal(explainNonJsonHttp(503, html), CLOUDFLARE_HTML_503);
+    await assert.rejects(
+      () => readResponseJson({ status: 503, text: async () => html }),
+      (err) => {
+        assert.equal(err.message, CLOUDFLARE_HTML_503);
+        assert.doesNotMatch(err.message, /DOCTYPE/);
+        return true;
+      }
+    );
+  });
+
+  it("heritage snapshot match query does not select pal_json", async () => {
+    let sql = "";
+    const env = {
+      DB: {
+        prepare(s) {
+          sql = s;
+          return { bind: () => ({ all: async () => ({ results: [] }) }) };
+        },
+      },
+    };
+    await querySnapshots(env, { since: "2026-08-28", until: "2026-08-28", lite: true });
+    assert.match(sql, /prediction_snapshots/);
+    assert.doesNotMatch(sql, /\*/);
+    assert.doesNotMatch(sql, /pal_json/);
+    assert.doesNotMatch(sql, /layers_json/);
   });
 
   it("maps 401 and D1 unbound to visible messages", () => {
@@ -446,7 +469,7 @@ describe("Heritage confirm write auth and feedback", () => {
     assert.match(wrote.message, /G10904312/);
   });
 
-  it("rejects import with empty secret (401, no write)", async () => {
+  it("rejects off-site import without the harvest header (401, no write)", async () => {
     const env = { HARVEST_SECRET: "s3cret", DB: executedBetsDb().DB };
     const missing = await handleBetsPost(env, fakeReq({}), { action: "import", tickets: parsed.tickets });
     assert.equal(missing.status, 401);
@@ -459,13 +482,32 @@ describe("Heritage confirm write auth and feedback", () => {
     assert.equal(empty.body.wrote, false);
   });
 
-  it("rejects import with the wrong secret as 401", async () => {
+  it("rejects import with the wrong secret as 401 when not same-origin", async () => {
     const env = { HARVEST_SECRET: "s3cret", DB: executedBetsDb().DB };
     const result = await handleBetsPost(env, fakeReq({ "x-strategy-secret": "nope" }), { action: "import", tickets: parsed.tickets });
     assert.equal(result.status, 401);
     assert.equal(result.body.error, "unauthorized");
     assert.equal(result.body.wrote, false);
     assert.doesNotMatch(JSON.stringify(result.body), /s3cret/);
+  });
+
+  it("allows same-origin board import without a harvest header", async () => {
+    assert.equal(isSameOriginOperatorRequest(fakeReq({})), false);
+    assert.equal(isSameOriginOperatorRequest(fakeReq({ origin: "https://fbis-myz.pages.dev" })), true);
+    assert.equal(isSameOriginOperatorRequest(fakeReq({ origin: "https://evil.example" })), false);
+    assert.equal(isSameOriginOperatorRequest(fakeReq({ "sec-fetch-site": "same-origin" })), true);
+    const env = { HARVEST_SECRET: "s3cret", DB: executedBetsDb().DB };
+    const auth = authorizeExecutedBetWrite(fakeReq({ origin: "https://fbis-myz.pages.dev" }), env);
+    assert.equal(auth.ok, true);
+    const db = executedBetsDb();
+    const result = await handleBetsPost(
+      { HARVEST_SECRET: "s3cret", DB: db.DB },
+      fakeReq({ origin: "https://fbis-myz.pages.dev" }),
+      { action: "import", text: HERITAGE_FIXTURE_PASTE, tickets: parsed.tickets }
+    );
+    assert.equal(result.status, 200);
+    assert.equal(result.body.wrote, true);
+    assert.equal(result.body.accepted.length, 5);
   });
 
   it("writes five unique ticket IDs when the operator secret matches", async () => {

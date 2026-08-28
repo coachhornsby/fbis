@@ -196,25 +196,34 @@ function parsePitcher(paren) {
 
 export function parseCurrentLine(text, market) {
   const s = String(text || "").replace(/^current line:\s*/i, "").trim();
-  if (!s) return { team: null, line: null, price: null, raw: "" };
+  if (!s) return { team: null, sideWord: null, line: null, price: null, raw: "" };
   const priceM = s.match(/([+-]\d{3,5})\s*$/);
   const price = priceM ? americanPrice(priceM[1]) : null;
   let rest = priceM ? s.slice(0, priceM.index).trim() : s;
-  rest = rest.replace(/\s*\(\s*([+-]\d{3,5})\s*\)\s*$/, (_, p) => {
-    return "";
-  }).trim();
+  rest = rest.replace(/\s*\(\s*([+-]\d{3,5})\s*\)\s*$/, () => "").trim();
   const lineM = rest.match(/([+-]?\d+(?:\.\d+)?)\s*(?:at)?\s*$/i);
   let line = null;
   if (market === "SPREAD" || market === "TOTAL") {
     if (lineM && Math.abs(Number(lineM[1])) < 100) {
       line = pointLine(lineM[1]);
       rest = rest.slice(0, lineM.index).trim();
+    } else {
+      const mid = rest.match(/\b([+-]?\d+(?:\.\d+)?)\b/);
+      if (mid && Math.abs(Number(mid[1])) < 100) {
+        line = pointLine(mid[1]);
+        rest = `${rest.slice(0, mid.index)} ${rest.slice(mid.index + mid[0].length)}`.replace(/\s+/g, " ").trim();
+      }
     }
   }
-  const ou = rest.match(/\b(over|under)\b/i);
+  const ou = rest.match(/\b(over|under)\b/i) || rest.match(/\b([OU])(?=\s*\d)/i);
+  let sideWord = null;
+  if (ou) {
+    const tok = ou[1].toUpperCase();
+    sideWord = tok === "O" ? "OVER" : tok === "U" ? "UNDER" : tok;
+  }
   return {
-    team: stripPitcher(rest) || null,
-    sideWord: ou ? ou[1].toUpperCase() : null,
+    team: stripPitcher(rest.replace(/\b(over|under)\b/ig, "").trim()) || null,
+    sideWord,
     line,
     price: price || americanPrice((s.match(/([+-]\d{3,5})/) || [])[1]),
     raw: s,
@@ -227,16 +236,28 @@ export function parseSelection(sel, market) {
   let line = null;
   let side = null;
   let team = cleaned;
-  const ou = cleaned.match(/^(over|under)\s+([+-]?\d+(?:\.\d+)?)/i);
+  const ou = cleaned.match(/^(over|under)\b(?:\s+([+-]?\d+(?:\.\d+)?))?/i);
+  const ouShort = market === "TOTAL" ? cleaned.match(/^([ou])\s*([+-]?\d+(?:\.\d+)?)$/i) : null;
   if (ou) {
     side = ou[1].toUpperCase();
-    line = pointLine(ou[2]);
+    if (ou[2]) line = pointLine(ou[2]);
+    team = null;
+  } else if (ouShort) {
+    side = ouShort[1].toUpperCase() === "O" ? "OVER" : "UNDER";
+    line = pointLine(ouShort[2]);
+    team = null;
+  } else if (market === "TOTAL" && /^[+-]?\d+(?:\.\d+)?$/.test(cleaned)) {
+    line = pointLine(cleaned);
     team = null;
   } else {
     const lm = cleaned.match(/^(.*?)(?:\s+([+-]?\d+(?:\.\d+)?))$/);
     if (lm && market !== "ML" && Math.abs(Number(lm[2])) < 100) {
       team = lm[1].trim();
       line = pointLine(lm[2]);
+    }
+    if (market === "TOTAL" && team && /^(over|under)$/i.test(team)) {
+      side = team.toUpperCase();
+      team = null;
     }
   }
   return { selectedTeam: team || null, selectedSide: side, executionLine: market === "ML" ? null : line, pickRaw: raw };
@@ -278,6 +299,18 @@ export function parseHeritageTicket(block, { yearHint } = {}) {
   const sel = parseSelection(selectionRaw || current.team, market.market);
   if (market.market === "ML") sel.executionLine = null;
   if (market.market === "SPREAD" && sel.executionLine == null && current.line != null) sel.executionLine = current.line;
+  if (market.market === "TOTAL") {
+    if (!sel.selectedSide && current.sideWord) sel.selectedSide = current.sideWord;
+    if (sel.executionLine == null && current.line != null) sel.executionLine = current.line;
+    if (sel.selectedTeam && /^(over|under)$/i.test(sel.selectedTeam)) {
+      sel.selectedSide = sel.selectedTeam.toUpperCase();
+      sel.selectedTeam = null;
+    }
+    if (sel.selectedTeam && /^(total|totals|run line|game winner)$/i.test(sel.selectedTeam)) {
+      sel.selectedTeam = null;
+    }
+    if (!sel.selectedSide) warnings.push("missing over/under");
+  }
 
   if (market.unsupported) warnings.push("unsupported market");
   if (execPrice == null) warnings.push("missing prices");
@@ -324,10 +357,12 @@ export function parseHeritageTicket(block, { yearHint } = {}) {
 
 export function splitHeritageTickets(text) {
   const cleaned = stripMarkdownLinks(decodeEntities(text)).replace(/\r/g, "");
-  const parts = cleaned.split(/(?=^\s*G\d{6,}\b)/im).map((p) => p.trim()).filter(Boolean);
-  if (parts.length) return parts;
-  const alt = cleaned.split(/\n{2,}/).map((p) => p.trim()).filter((p) => /G\d{6,}/i.test(p));
-  return alt;
+  const numbered = cleaned.split(/(?=^\s*G\d{6,}\b)/im).map((p) => p.trim()).filter(Boolean);
+  if (numbered.length && numbered.some((p) => extractTicketId(p))) return numbered;
+  const byBlank = cleaned.split(/\n{2,}/).map((p) => p.trim()).filter((p) => /risk\s*:/i.test(p) || extractTicketId(p));
+  if (byBlank.length) return byBlank;
+  if (/risk\s*:/i.test(cleaned) && /game\s*\//i.test(cleaned)) return [cleaned.trim()].filter(Boolean);
+  return [];
 }
 
 export function parseHeritageSlip(text, opts = {}) {

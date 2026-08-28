@@ -16,13 +16,14 @@ import {
   palInstant,
   palSlateView,
   compactPalMarkets,
+  fillPalPropNamesFromKnownPlayers,
 } from "../functions/lib/ballparkpal.js";
 import { sameMlbTeam, canonAbbr, resolveMlbCanon } from "../functions/lib/mlbCanonical.js";
 import { freezeFromGame, palMarketRowsFromGame, shouldFetchPalNetwork, shouldRecordPalHealth } from "../functions/lib/projLedger.js";
 import { palHealth, sourceCoverage } from "../functions/lib/sourceCoverage.js";
 import { projectGame } from "../functions/lib/slateEngine.js";
 import { projectMatchup } from "../functions/lib/savant.js";
-import { buildPropConvictions, canonicalPropMarket, propEv, samePlayer } from "../functions/lib/propConviction.js";
+import { buildPropConvictions, canonicalPropMarket, propEv, samePlayer, propWatchEmptyCopy, summarizeMlbPropWatch, compactMlbSlatePayload } from "../functions/lib/propConviction.js";
 
 describe("MLB conviction player props", () => {
   it("requires an exact fresh contract and confirmed lineup", () => {
@@ -39,11 +40,83 @@ describe("MLB conviction player props", () => {
     assert.equal(buildPropConvictions({ palProps, sportsbookProps: [{ ...sportsbookProps[0], line: 7.5 }], lineupsOfficial: true, now }).length, 0);
     assert.equal(buildPropConvictions({ palProps, sportsbookProps: [{ ...sportsbookProps[0], marketLabel: "1st Inn. Strikeouts" }], lineupsOfficial: true, now }).length, 0);
     assert.equal(buildPropConvictions({ palProps, sportsbookProps: [{ ...sportsbookProps[0], bookmaker: "Underdog Fantasy" }], lineupsOfficial: true, now }).length, 0);
+    assert.equal(buildPropConvictions({ palProps, sportsbookProps: [{ ...sportsbookProps[0], bookmaker: "Pick6 (DraftKings)" }], lineupsOfficial: true, now }).length, 0);
     assert.equal(buildPropConvictions({ palProps, sportsbookProps: [sportsbookProps[0], { ...sportsbookProps[0], bookmaker: "BetMGM", overPrice: -105 }], lineupsOfficial: true, now }).length, 1);
+    assert.equal(buildPropConvictions({ palProps: [{ ...palProps[0], playerName: null }], sportsbookProps, lineupsOfficial: true, now }).length, 0);
+  });
+
+  it("allows batter props when lineups are unofficial", () => {
+    const now = Date.parse("2026-08-28T18:00:00Z");
+    const palProps = [{ playerId: 99, playerName: "Aaron Judge", displayName: "Batter Home Runs", line: 0.5, over: 0.30, under: 0.70, average: 0.38 }];
+    const sportsbookProps = [{ playerName: "Aaron Judge", marketKey: "player_home_runs", marketLabel: "Home Runs", line: 0.5, overPrice: 130, underPrice: -160, bookmaker: "FanDuel", snapshotAt: "2026-08-28T17:30:00Z" }];
+    const under = buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: false, now });
+    assert.equal(under.length, 1);
+    assert.equal(under[0].side, "UNDER");
+    assert.match(under[0].reason, /unofficial lineup/);
+    const combo = buildPropConvictions({
+      palProps: [{ playerId: 99, playerName: "Aaron Judge", displayName: "Batter Runs", line: 1.5, over: 0.2, under: 0.8, average: 0.9 }],
+      sportsbookProps: [{ playerName: "Aaron Judge", marketKey: "player_hits_runs_rbis", marketLabel: "Hits Runs Rbis", line: 1.5, overPrice: -110, underPrice: -110, bookmaker: "DraftKings", snapshotAt: "2026-08-28T17:30:00Z" }],
+      lineupsOfficial: false,
+      now,
+    });
+    assert.equal(combo.length, 0);
+  });
+
+  it("does not treat a missing prop feed as an evaluated empty board", () => {
+    assert.match(propWatchEmptyCopy({ status: "skipped", skipped: true, sportsbookContracts: 0, convictions: 0 }), /cache-only/i);
+    assert.match(propWatchEmptyCopy({ status: "empty", sportsbookContracts: 0, convictions: 0 }), /no sportsbook prop contracts/i);
+    assert.match(propWatchEmptyCopy({ status: "error", error: "Parlay 422", sportsbookContracts: 0, convictions: 0 }), /prop feed error/i);
+    assert.match(propWatchEmptyCopy({ status: "available", sportsbookContracts: 84, convictions: 0 }), /currently qualify/i);
+    assert.equal(summarizeMlbPropWatch([{ sport: "mlb", propConvictions: [{}, {}], sportsbookPropCount: 10, palPropCount: 4 }], { propFeedStatus: "available" }).convictions, 2);
+  });
+
+  it("fills missing Pal prop names from confirmed starters only", () => {
+    const filled = fillPalPropNamesFromKnownPlayers({
+      homeSp: { id: 1, name: "Chris Sale" },
+      awaySp: { id: 2, name: "Logan Webb" },
+      props: [
+        { playerId: 1, playerName: null, displayName: "Pitcher Strikeouts" },
+        { playerId: 99, playerName: null, displayName: "Batter Home Runs" },
+        { playerId: 2, playerName: "Logan Webb", displayName: "Pitcher Strikeouts" },
+      ],
+    });
+    assert.equal(filled.props[0].playerName, "Chris Sale");
+    assert.equal(filled.props[1].playerName, null);
+    assert.equal(filled.props[2].playerName, "Logan Webb");
+  });
+
+  it("compacts MLB slate payloads down to qualified convictions", () => {
+    const now = Date.parse("2026-08-28T18:00:00Z");
+    const compact = compactMlbSlatePayload({
+      sport: "mlb",
+      games: [{
+        bpp: {
+          props: [{ playerId: 1, playerName: "Chris Sale", displayName: "Pitcher Strikeouts", line: 6.5, over: 0.66, under: 0.34, average: 7.3 }],
+          homeSp: { id: 1, name: "Chris Sale" },
+          lineupsOfficial: false,
+        },
+        odds: {
+          playerProps: [{ playerName: "Chris Sale", marketKey: "player_strikeouts", marketLabel: "Strikeouts", line: 6.5, overPrice: -110, underPrice: -110, bookmaker: "Pinnacle", snapshotAt: "2026-08-28T17:30:00Z" }],
+        },
+      }],
+    }, now);
+    assert.equal(compact.games[0].propConvictions.length, 1);
+    assert.equal(compact.games[0].odds.playerProps.length, 0);
+    assert.equal(compact.games[0].bpp.props.length, 0);
+    assert.equal(compact.games[0].sportsbookPropCount, 1);
   });
 
   it("normalizes supported markets and names without crossing players", () => {
     assert.equal(canonicalPropMarket("Batter Home Runs"), "batter_home_runs");
+    assert.equal(canonicalPropMarket("Hits"), "batter_hits");
+    assert.equal(canonicalPropMarket("player_hits"), "batter_hits");
+    assert.equal(canonicalPropMarket("player_rbis"), "batter_rbis");
+    assert.equal(canonicalPropMarket("player_total_bases"), "batter_total_bases");
+    assert.equal(canonicalPropMarket("Hits Allowed"), null);
+    assert.equal(canonicalPropMarket("Hits Runs Rbis"), null);
+    assert.equal(canonicalPropMarket("player_strikeouts_(batter)_milestones"), null);
+    assert.equal(canonicalPropMarket("player_strikeouts"), "pitcher_strikeouts");
+    assert.equal(canonicalPropMarket("Pitcher Strikeouts"), "pitcher_strikeouts");
     assert.equal(samePlayer("Christopher Sale", "Chris Sale"), true);
     assert.equal(samePlayer("Chris Sale", "Chris Bassitt"), false);
     assert.ok(propEv(0.66, -110) > 0.1);

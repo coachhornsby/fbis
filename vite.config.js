@@ -52,8 +52,9 @@ function slateMiddleware() {
               HARVEST_SECRET: process.env.HARVEST_SECRET,
               STRATEGY_IMPORT_SECRET: process.env.STRATEGY_IMPORT_SECRET,
             });
+            const host = req.headers.host || "localhost";
             const fakeReq = {
-              url: parsed.href,
+              url: `http://${host}${parsed.pathname}${parsed.search}`,
               headers: {
                 get(name) {
                   const key = Object.keys(req.headers || {}).find((k) => k.toLowerCase() === String(name).toLowerCase());

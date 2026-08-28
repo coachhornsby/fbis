@@ -1,5 +1,6 @@
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { fmtAmerican, fmtNum, fmtPct } from "./lib/format.js";
+import { propWatchEmptyCopy, todayFeedNote } from "../functions/lib/propConviction.js";
 import { kickoffCt } from "../functions/lib/gameStatus.js";
 import { TeamIdentity } from "./components/TeamLogo.jsx";
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
@@ -80,13 +81,7 @@ export default function TodayView({
             <p className="error" style={{ marginTop: 8 }}>{health.openFailures.join(" · ")}</p>
           )}
           <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
-            Cache-only odds on this page. Missing Pinnacle is context, not a bet. Pal last collect: {health.pal?.matched ?? 0} matched / {health.pal?.unmatched ?? 0} unmatched
-            {health.pal?.mlbGames != null ? ` of ${health.pal.mlbGames} MLB games` : ""}
-            {health.pal?.recordsReturned != null ? ` · Pal records ${health.pal.recordsReturned}` : ""}
-            {health.pal?.usable != null ? ` · usable ${health.pal.usable}` : ""}
-            {health.pal?.ambiguous ? ` · ambiguous ${health.pal.ambiguous}` : ""}
-            {health.pal?.reason ? ` · ${health.pal.reason}` : ""}
-            {health.pal?.error ? ` · ${health.pal.error}` : ""}.
+            {todayFeedNote(health, counts.mlbPropWatch)}
           </p>
         </div>
       </section>
@@ -103,7 +98,10 @@ export default function TodayView({
           <div className="panel-body" style={{ padding: 0 }}>
             {group.error && <div className="empty">Feed failure: {group.error}</div>}
             {!group.error && !group.games.length && <div className="empty">No games in this filter for {group.label}.</div>}
-            {group.games.length > 0 && <TodayTable games={group.games} />}
+            {group.sport === "mlb" && counts.mlbPropWatch && !counts.mlbPropWatch.convictions ? (
+              <div className="muted" style={{ padding: "10px 14px 0" }}>{propWatchEmptyCopy(counts.mlbPropWatch)}</div>
+            ) : null}
+            {group.games.length > 0 && <TodayTable games={group.games} propWatch={counts.mlbPropWatch} />}
           </div>
         </section>
       ))}
@@ -143,7 +141,7 @@ function Stat({ label, value }) {
   );
 }
 
-function TodayTable({ games }) {
+function TodayTable({ games, propWatch }) {
   const mlb = games.some((g) => g.sport === "mlb");
   const [open, setOpen] = useState(() => new Set());
   const toggle = (key) => setOpen((before) => {
@@ -197,7 +195,7 @@ function TodayTable({ games }) {
               <ProjCell g={g} />
             </td>
             {mlb ? <td><TodayF5Cell g={g} /></td> : null}
-            {mlb ? <td><TodayPropsCell g={g} /></td> : null}
+            {mlb ? <td><TodayPropsCell g={g} propWatch={propWatch} /></td> : null}
             <td>
               {g.marketUnresolved || g.marketUnavailable ? (
                 <span className="muted">{g.marketUnresolved ? "TEAM MATCH UNRESOLVED" : "market unavailable"}</span>
@@ -284,7 +282,15 @@ export function GameDetails({ g }) {
       </section>
       <section className="detail-props">
         <h3>CONVICTION PLAYER PROPS · {props.length}</h3>
-        {!props.length ? <div className="muted">No conviction player props currently qualify.</div> : (
+        {!props.length ? (
+          <div className="muted">
+            {propWatchEmptyCopy({
+              status: (g.sportsbookPropCount || (g.sportsbookProps || []).length) ? "available" : "empty",
+              sportsbookContracts: g.sportsbookPropCount || (g.sportsbookProps || []).length || 0,
+              convictions: 0,
+            })}
+          </div>
+        ) : (
           <table className="mini-prop-table"><thead><tr><th>Player</th><th>Prop</th><th>FBIS proj</th><th>Probability</th><th>EV</th><th>Book</th></tr></thead>
             <tbody>{props.map((p, i) => <tr key={`${p.playerName}:${p.market}:${p.line}:${i}`}><td>{p.playerName}</td><td><span className="tier-badge tier-CONVICTION">CONVICTION</span> {p.side} {p.line} {fmtAmerican(p.price)}</td><td>{p.projection == null ? "—" : fmtNum(p.projection)}</td><td>{fmtPct(p.probability)}</td><td>{fmtPct(p.ev)}</td><td>{p.book || "—"}</td></tr>)}</tbody>
           </table>
@@ -354,10 +360,15 @@ function TodayF5Cell({ g }) {
   );
 }
 
-function TodayPropsCell({ g }) {
+function TodayPropsCell({ g, propWatch }) {
   if (g.sport !== "mlb") return <span className="muted">—</span>;
   const props = g.propConvictions || [];
-  if (!props.length) return <span className="muted">No conviction props</span>;
+  if (!props.length) {
+    if (propWatch && (propWatch.skipped || propWatch.status === "error" || propWatch.status === "empty" || !propWatch.sportsbookContracts)) {
+      return <span className="muted">—</span>;
+    }
+    return <span className="muted">None qualify</span>;
+  }
   return (
     <details className="prop-watch">
       <summary>{props.length} CONVICTION {props.length === 1 ? "PROP" : "PROPS"}</summary>

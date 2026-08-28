@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
-import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff } from "./lib/format.js";
-import TeamLogo, { TeamIdentity } from "./components/TeamLogo.jsx";
+import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff, formatMarketPeriod, formatClv } from "./lib/format.js";
+import TeamLogo, { TeamIdentity, TicketMatchup } from "./components/TeamLogo.jsx";
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 import { gradeOpenBets, loadState, logBet, summarize } from "./lib/learning.js";
 import { captureSlate } from "./lib/ledger.js";
@@ -838,12 +838,20 @@ function ExecutedBetsTable({ bets }) {
       <tbody>{bets.map((b) => (
         <tr key={b.id} className={b.result === "WON" ? "won-row" : b.result === "LOST" ? "lost-row" : ""}>
           <td>{b.externalTicketId}<div className="muted">{b.date}</div></td>
-          <td>{b.awayTeam} @ {b.homeTeam}</td>
-          <td>{b.selectedTeam || b.selectedSide}{b.executionLine != null ? ` ${b.executionLine}` : ""} <span className="muted">{b.market}</span></td>
+          <td>
+            <TicketMatchup
+              awayIdentity={b.awayIdentity}
+              homeIdentity={b.homeIdentity}
+              awayTeam={b.awayTeam}
+              homeTeam={b.homeTeam}
+              matchupText={b.matchupText}
+            />
+          </td>
+          <td>{b.selectedTeam || b.selectedSide}{b.executionLine != null ? ` ${b.executionLine}` : ""} <span className="muted">{formatMarketPeriod(b.market, b.period)}</span></td>
           <td className={b.result === "WON" ? "text-green" : b.result === "LOST" ? "text-red" : "muted"}>{b.result || "OPEN"}</td>
           <td className={Number(b.profit) > 0 ? "text-green" : Number(b.profit) < 0 ? "text-red" : ""}>{b.profit == null ? "—" : `${Number(b.profit) >= 0 ? "+" : ""}$${Number(b.profit).toFixed(2)}`}</td>
           <td>{fmtAmerican(b.executionPrice)}</td>
-          <td>{b.clv == null ? "—" : `${Number(b.clv) >= 0 ? "+" : ""}${Number(b.clv).toFixed(3)}`}</td>
+          <td>{formatClv(b.clv, b.clvStatus)}</td>
         </tr>
       ))}</tbody>
     </table>
@@ -881,7 +889,7 @@ function slateDetailGame(g) {
     f5Book: g.odds?.f5 || null,
     sportsbookProps,
     palProps: palProps.slice(0, 40),
-    propConvictions: buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: Boolean(g.bpp?.lineupsOfficial), confirmedPitcherIds: [g.bpp?.homeSp?.id, g.bpp?.awaySp?.id] }),
+    propConvictions: g.propConvictions || buildPropConvictions({ palProps, sportsbookProps, lineupsOfficial: Boolean(g.bpp?.lineupsOfficial), confirmedPitcherIds: [g.bpp?.homeSp?.id, g.bpp?.awaySp?.id] }),
     lineupsOfficial: Boolean(g.bpp?.lineupsOfficial),
     palPark: g.bpp?.park || null,
     weather: g.weather || null,

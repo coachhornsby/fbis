@@ -6,6 +6,7 @@
 
 import { identityFieldsConflict, immutableFieldsConflict } from "./strategy.js";
 import { immutableConflict, packExecutedBetRow } from "./executedBets.js";
+import { identityFromName } from "./teams.js";
 
 const health = {
   bound: false,
@@ -603,7 +604,7 @@ export async function persistOddsSnapshot(env, snap) {
   }
 }
 
-export async function queryOddsSnapshots(env, { gameId, sport, since } = {}) {
+export async function queryOddsSnapshots(env, { gameId, sport, since, until } = {}) {
   markBound(env);
   if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
   try {
@@ -620,6 +621,10 @@ export async function queryOddsSnapshots(env, { gameId, sport, since } = {}) {
     if (since) {
       sql += " AND date >= ?";
       binds.push(since);
+    }
+    if (until) {
+      sql += " AND date <= ?";
+      binds.push(until);
     }
     sql += " ORDER BY captured_at ASC";
     const res = await env.DB.prepare(sql).bind(...binds).all();
@@ -881,11 +886,31 @@ function parseMatchup(matchup) {
   return { away: m[1], home: m[2] };
 }
 
-export async function querySnapshots(env, { sport, since, until, version, checkpoint } = {}) {
+const HERITAGE_SNAPSHOT_COLS =
+  "game_id, sport, date, checkpoint, model_version, frozen_at, proj_home, proj_away, p_home_final";
+
+function mapHeritageSnapshotRow(r) {
+  if (!r) return null;
+  return {
+    id: r.game_id,
+    gameId: r.game_id,
+    sport: r.sport,
+    date: r.date,
+    checkpoint: r.checkpoint,
+    modelVersion: r.model_version,
+    frozenAt: r.frozen_at,
+    projHome: r.proj_home,
+    projAway: r.proj_away,
+    pHomeFinal: r.p_home_final,
+  };
+}
+
+export async function querySnapshots(env, { sport, since, until, version, checkpoint, lite = false } = {}) {
   markBound(env);
   if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
   try {
-    let sql = "SELECT * FROM prediction_snapshots WHERE date >= ?";
+    const cols = lite ? HERITAGE_SNAPSHOT_COLS : "*";
+    let sql = `SELECT ${cols} FROM prediction_snapshots WHERE date >= ?`;
     const binds = [since || "2000-01-01"];
     if (until) {
       sql += " AND date <= ?";
@@ -906,7 +931,8 @@ export async function querySnapshots(env, { sport, since, until, version, checkp
     sql += " ORDER BY date DESC";
     const res = await env.DB.prepare(sql).bind(...binds).all();
     markRead();
-    return { ok: true, rows: (res.results || []).map(mapSnapshotRow) };
+    const map = lite ? mapHeritageSnapshotRow : mapSnapshotRow;
+    return { ok: true, rows: (res.results || []).map(map) };
   } catch (err) {
     markErr(err);
     return { ok: false, reason: String(err?.message || err), rows: [] };
@@ -1802,6 +1828,8 @@ function mapExecutedBet(r) {
     matchupText: r.matchup_text,
     awayTeam: r.away_team,
     homeTeam: r.home_team,
+    awayIdentity: identityFromName(r.away_team),
+    homeIdentity: identityFromName(r.home_team),
     market: r.market,
     period: r.period,
     selectedSide: r.selected_side,

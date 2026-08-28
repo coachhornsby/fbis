@@ -1,9 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
-import { fmtAmerican, fmtPct, fmtSigned } from "./lib/format.js";
-import { TeamIdentity } from "./components/TeamLogo.jsx";
+import { fmtAmerican, fmtPct, fmtSigned, formatMarketPeriod, formatClv } from "./lib/format.js";
+import { TicketMatchup } from "./components/TeamLogo.jsx";
 
-const RESULT_FILTERS = ["all", "OPEN", "WON", "LOST", "PUSH", "VOID"];
-const ATTR_FILTERS = ["all", "OPERATOR_ONLY", "QUALIFIED", "CONVICTION", "LEAN", "RECOMMENDED", "NO_FREEZE", "UNMATCHED"];
+const RESULT_FILTERS = [
+  ["all", "All results"],
+  ["OPEN", "OPEN"],
+  ["WON", "WON"],
+  ["LOST", "LOST"],
+  ["PUSH", "PUSH"],
+  ["VOID", "VOID"],
+];
+const ATTR_FILTERS = [
+  ["all", "All attribution"],
+  ["OPERATOR_ONLY", "OPERATOR ONLY"],
+  ["QUALIFIED", "QUALIFIED"],
+  ["CONVICTION", "CONVICTION"],
+  ["LEAN", "LEAN"],
+  ["RECOMMENDED", "RECOMMENDED"],
+  ["NO_FREEZE", "NO FREEZE"],
+  ["UNMATCHED", "UNMATCHED"],
+];
 
 export default function MyBetsView({ onImport, bets: external, summary: externalSummary, loading, error, onRefresh }) {
   const [pack, setPack] = useState({ bets: external || [], summary: externalSummary || null });
@@ -71,13 +87,13 @@ export default function MyBetsView({ onImport, bets: external, summary: external
             ))}
           </div>
           <div className="filter-row">
-            {RESULT_FILTERS.map((id) => (
-              <button key={id} className={result === id ? "chip active" : "chip"} onClick={() => setResult(id)}>{id}</button>
+            {RESULT_FILTERS.map(([id, label]) => (
+              <button key={id} className={result === id ? "chip active" : "chip"} onClick={() => setResult(id)}>{label}</button>
             ))}
           </div>
           <div className="filter-row">
-            {ATTR_FILTERS.map((id) => (
-              <button key={id} className={attr === id ? "chip active" : "chip"} onClick={() => setAttr(id)}>{id.replaceAll("_", " ")}</button>
+            {ATTR_FILTERS.map(([id, label]) => (
+              <button key={id} className={attr === id ? "chip active" : "chip"} onClick={() => setAttr(id)}>{label}</button>
             ))}
           </div>
         </div>
@@ -87,6 +103,7 @@ export default function MyBetsView({ onImport, bets: external, summary: external
           {!shown.length ? (
             <div className="empty">No imported Heritage bets in this filter.</div>
           ) : (
+            <div className="table-scroll">
             <table className="fbis-table">
               <thead>
                 <tr>
@@ -110,13 +127,15 @@ export default function MyBetsView({ onImport, bets: external, summary: external
                       <div className="muted">{b.date}</div>
                     </td>
                     <td>
-                      <div className="team-block">
-                        <TeamIdentity team={b.awayIdentity || { name: b.awayTeam }} />
-                        <TeamIdentity team={b.homeIdentity || { name: b.homeTeam }} />
-                      </div>
-                      <div className="muted">{b.matchupText}</div>
+                      <TicketMatchup
+                        awayIdentity={b.awayIdentity}
+                        homeIdentity={b.homeIdentity}
+                        awayTeam={b.awayTeam}
+                        homeTeam={b.homeTeam}
+                        matchupText={b.matchupText}
+                      />
                     </td>
-                    <td>{b.market} · {b.period}</td>
+                    <td className="nowrap">{formatMarketPeriod(b.market, b.period)}</td>
                     <td>{b.selectedTeam || b.selectedSide || "—"}{b.executionLine != null ? ` ${b.executionLine}` : ""}</td>
                     <td>{fmtAmerican(b.executionPrice)}</td>
                     <td>${Number(b.riskAmount || 0).toFixed(2)}</td>
@@ -127,13 +146,14 @@ export default function MyBetsView({ onImport, bets: external, summary: external
                       <div className="muted">{b.matchStatus}</div>
                     </td>
                     <td>
-                      {b.clv == null ? "—" : fmtSigned(b.clv, 3)}
-                      <div className="muted">{b.clvStatus}</div>
+                      {formatClv(b.clv, b.clvStatus)}
+                      {b.clvStatus && b.clvStatus !== "unavailable" ? <div className="muted">{b.clvStatus}</div> : null}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </section>
