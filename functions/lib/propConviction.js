@@ -129,7 +129,7 @@ export function summarizeMlbPropWatch(games = [], parlayMeta = {}) {
 export function shortenFeedError(err) {
   const s = String(err || "").replace(/\s+/g, " ").trim();
   if (!s) return "";
-  if (/CREDIT_LIMIT_REACHED/i.test(s)) return "Parlay credits exhausted this period";
+  if (/CREDIT_LIMIT_REACHED|OUT_OF_USAGE_CREDITS|MONTHLY CREDIT LIMIT/i.test(s)) return "Parlay credits exhausted this period";
   const http = s.match(/^(Parlay \d{3})/i);
   if (http) return http[1];
   return s.length > 90 ? `${s.slice(0, 87)}…` : s;

@@ -622,6 +622,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   );
   let source = "parlay";
   let parlayError = pin.error || null;
+  let backupError = null;
   if (pin.error && !pin.events.length && isParlayCreditError(pin.error) && opts.backupApiKey) {
     const backup = await fetchTheOddsJson(
       sportKey,
@@ -635,7 +636,12 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     if (!backup.error && backup.events?.length) {
       pin = { ...pin, events: backup.events, credits: backup.credits };
       source = "theodds-backup";
+    } else if (backup.error) {
+      backupError = backup.error;
     }
+  }
+  if (pin.error && !pin.events.length && isParlayCreditError(pin.error) && source !== "theodds-backup") {
+    source = opts.backupApiKey ? "parlay-credit-exhausted-backup-failed" : "parlay-credit-exhausted";
   }
   if (pin.error && !pin.events.length && !baseball) {
     return {
@@ -741,6 +747,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       cached: false,
       source,
       parlayError,
+      backupError,
       sportKey,
       games: events.length,
       pinGames: pin.events.length,

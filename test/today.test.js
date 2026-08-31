@@ -86,12 +86,10 @@ describe("TODAY cache-only and MY BET markers", () => {
         return { sport, date, games: [], parlay: { cached: true, skipped: true } };
       },
     });
+    assert.equal(seen.length, 1);
     const mlb = seen.find((s) => s.sport === "mlb");
-    const nfl = seen.find((s) => s.sport === "nfl");
     assert.equal(mlb.cache, false);
     assert.equal(mlb.pal, false);
-    assert.equal(nfl.cache, true);
-    assert.equal(nfl.pal, true);
   });
 
   it("reports skipped MLB prop feed instead of an evaluated zero", async () => {
@@ -193,6 +191,42 @@ describe("TODAY cache-only and MY BET markers", () => {
     const game = board.games.find((g) => g.id === "evt-1");
     assert.equal(game.pinMlHome, -132);
     assert.equal(game.pinMlAway, 118);
+    assert.equal(game.pinSpread, -1.5);
+    assert.equal(game.pinTotal, 8.5);
+    assert.equal(game.marketUnavailable, false);
+  });
+
+  it("hydrates missing odds from odds_snapshots rows", async () => {
+    const board = await buildTodayBoard("2026-08-28", { DB: {} }, {
+      buildSlateFn: async (sport) => ({
+        sport,
+        date: "2026-08-28",
+        games: sport === "mlb" ? [{
+          id: "evt-2",
+          sport: "mlb",
+          start: "2026-08-28T23:00:00Z",
+          home: { name: "Cubs", abbr: "CHC" },
+          away: { name: "Pirates", abbr: "PIT" },
+          status: { detail: "Scheduled" },
+          odds: {},
+          model: { projHome: 4.1, projAway: 3.8, layers: { score: 0.55 } },
+        }] : [],
+        parlay: { cached: false, skipped: true, propFeedStatus: "skipped", propRows: 0 },
+      }),
+      querySnapshotsFn: async () => ({ ok: true, rows: [] }),
+      queryOddsSnapshotsFn: async () => ({
+        ok: true,
+        rows: [
+          { gameId: "evt-2", period: "fg", market: "ML", side: "HOME", price: -121, capturedAt: "2026-08-28T22:20:00Z" },
+          { gameId: "evt-2", period: "fg", market: "ML", side: "AWAY", price: 109, capturedAt: "2026-08-28T22:20:00Z" },
+          { gameId: "evt-2", period: "fg", market: "SPREAD", side: "HOME", line: -1.5, price: -110, capturedAt: "2026-08-28T22:20:00Z" },
+          { gameId: "evt-2", period: "fg", market: "TOTAL", side: "OVER", line: 8.5, price: -108, capturedAt: "2026-08-28T22:20:00Z" },
+        ],
+      }),
+    });
+    const game = board.games.find((g) => g.id === "evt-2");
+    assert.equal(game.pinMlHome, -121);
+    assert.equal(game.pinMlAway, 109);
     assert.equal(game.pinSpread, -1.5);
     assert.equal(game.pinTotal, 8.5);
     assert.equal(game.marketUnavailable, false);

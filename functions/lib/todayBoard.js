@@ -8,7 +8,7 @@ import { classifyBoardStatus, kickoffCt, noPlayReason, isPreStartStatus, isLiveS
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { palUnavailableReason } from "./ballparkpal.js";
 import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
-import { querySnapshots } from "./store.js";
+import { querySnapshots, queryOddsSnapshots } from "./store.js";
 
 function withRecs(slate, weights = DEFAULT_WEIGHTS) {
   return {
@@ -260,14 +260,67 @@ function hydrateOddsFromSnapshot(game, snapshot) {
   return { ...game, odds };
 }
 
-export async function buildTodayBoard(date, env = {}, { buildSlateFn, querySnapshotsFn, now = Date.now(), focusSport = "all" } = {}) {
+function buildMarketOddsByGame(rows = []) {
+  const by = new Map();
+  for (const row of rows || []) {
+    if (!row || row.period !== "fg" || row.rejectedPostStart) continue;
+    const id = String(row.gameId || "");
+    if (!id) continue;
+    if (!by.has(id)) by.set(id, { at: 0 });
+    const pack = by.get(id);
+    const at = Date.parse(row.capturedAt || "") || 0;
+    if (at >= (pack.at || 0)) pack.at = at;
+    const mkt = String(row.market || "").toUpperCase();
+    const side = String(row.side || "").toUpperCase();
+    if (mkt === "ML") {
+      if (side === "HOME") pack.pinHomeMl = row.price;
+      if (side === "AWAY") pack.pinAwayMl = row.price;
+    } else if (mkt === "SPREAD") {
+      if (side === "HOME") {
+        pack.pinSpread = row.line;
+        pack.pinSpreadHomePrice = row.price;
+      }
+      if (side === "AWAY") pack.pinSpreadAwayPrice = row.price;
+    } else if (mkt === "TOTAL") {
+      if (side === "OVER") {
+        pack.pinTotal = row.line;
+        pack.pinOverPrice = row.price;
+      }
+      if (side === "UNDER") pack.pinUnderPrice = row.price;
+    }
+  }
+  return by;
+}
+
+function hydrateOddsFromMarketRows(game, pack) {
+  if (!pack) return game;
+  const odds = { ...(game.odds || {}) };
+  if (odds.pinHomeMl == null && pack.pinHomeMl != null) odds.pinHomeMl = pack.pinHomeMl;
+  if (odds.pinAwayMl == null && pack.pinAwayMl != null) odds.pinAwayMl = pack.pinAwayMl;
+  if (odds.pinSpread == null && pack.pinSpread != null) odds.pinSpread = pack.pinSpread;
+  if (odds.pinSpreadHomePrice == null && pack.pinSpreadHomePrice != null) odds.pinSpreadHomePrice = pack.pinSpreadHomePrice;
+  if (odds.pinSpreadAwayPrice == null && pack.pinSpreadAwayPrice != null) odds.pinSpreadAwayPrice = pack.pinSpreadAwayPrice;
+  if (odds.pinTotal == null && pack.pinTotal != null) odds.pinTotal = pack.pinTotal;
+  if (odds.pinOverPrice == null && pack.pinOverPrice != null) odds.pinOverPrice = pack.pinOverPrice;
+  if (odds.pinUnderPrice == null && pack.pinUnderPrice != null) odds.pinUnderPrice = pack.pinUnderPrice;
+  return { ...game, odds };
+}
+
+export async function buildTodayBoard(
+  date,
+  env = {},
+  { buildSlateFn, querySnapshotsFn, queryOddsSnapshotsFn, now = Date.now(), focusSport = "all" } = {}
+) {
   const builder = buildSlateFn || buildSlate;
   const querySnaps = querySnapshotsFn || querySnapshots;
+  const queryOdds = queryOddsSnapshotsFn || queryOddsSnapshots;
+  const sportsToLoad =
+    focusSport && focusSport !== "all" && BOARD_SPORTS.includes(focusSport) ? [focusSport] : BOARD_SPORTS;
   const sports = [];
   const games = [];
   const feeds = {};
   let parlayNetwork = 0;
-  for (const sport of BOARD_SPORTS) {
+  for (const sport of sportsToLoad) {
     try {
       const liveFocus = focusSport && focusSport !== "all" && focusSport === sport;
       const slate = await builder(sport, date, {
@@ -276,10 +329,15 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, querySnaps
         palCacheOnly: !liveFocus,
       });
       let bySnapshot = new Map();
+      let byMarketOdds = new Map();
       if (env.DB) {
         const snapQ = await querySnaps(env, { sport, since: date, until: date, checkpoint: "LATEST" });
         if (snapQ?.ok && Array.isArray(snapQ.rows) && snapQ.rows.length) {
           bySnapshot = buildSnapshotOddsByGame(snapQ.rows);
+        }
+        const oddsQ = await queryOdds(env, { sport, since: date, until: date });
+        if (oddsQ?.ok && Array.isArray(oddsQ.rows) && oddsQ.rows.length) {
+          byMarketOdds = buildMarketOddsByGame(oddsQ.rows);
         }
       }
       if (slate?.parlay?.cached === false && slate?.parlay?.skipped !== true && !slate?.parlay?.error) {
@@ -287,7 +345,9 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, querySnaps
       }
       const recSlate = withRecs({
         ...slate,
-        games: (slate.games || []).map((g) => hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id)))),
+        games: (slate.games || []).map((g) =>
+          hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id)))
+        ),
       }, DEFAULT_WEIGHTS);
       const palReason = sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null;
       const rows = (recSlate.games || []).map((g) =>
@@ -329,7 +389,7 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, querySnaps
     generatedAt: new Date().toISOString(),
     sports,
     games: all,
-    groups: groupBySport(all),
+    groups: groupBySport(all).filter((g) => sportsToLoad.includes(g.sport)),
     counts: {
       games: all.length,
       bySport: Object.fromEntries(sports.map((s) => [s.sport, s.n])),
