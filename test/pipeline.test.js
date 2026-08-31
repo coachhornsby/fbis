@@ -239,6 +239,50 @@ describe("Parlay collect budget", () => {
       resetCacheMem();
     }
   });
+
+  it("falls back to TheOdds game lines when Parlay credits are exhausted", async () => {
+    resetCacheMem();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      const s = String(url);
+      if (s.includes("/v1/sports/baseball_mlb/odds")) {
+        return new Response('{"detail":{"error":"OUT_OF_USAGE_CREDITS"}}', { status: 403 });
+      }
+      if (s.includes("api.the-odds-api.com/v4/sports/baseball_mlb/odds")) {
+        return new Response(JSON.stringify([{
+          id: "evt-99",
+          home_team: "Chicago Cubs",
+          away_team: "Pittsburgh Pirates",
+          commence_time: "2026-08-28T23:00:00Z",
+          bookmakers: [
+            {
+              key: "pinnacle",
+              title: "Pinnacle",
+              markets: [
+                { key: "h2h", outcomes: [{ name: "Chicago Cubs", price: -130 }, { name: "Pittsburgh Pirates", price: 115 }] },
+                { key: "spreads", outcomes: [{ name: "Chicago Cubs", price: -110, point: -1.5 }, { name: "Pittsburgh Pirates", price: -110, point: 1.5 }] },
+                { key: "totals", outcomes: [{ name: "Over", price: -108, point: 8.5 }, { name: "Under", price: -112, point: 8.5 }] },
+              ],
+            },
+          ],
+        }]), { status: 200 });
+      }
+      if (s.includes("bookmakers=kalshi")) return new Response(JSON.stringify([]), { status: 200 });
+      if (s.includes("/live/period_markets")) return new Response(JSON.stringify([]), { status: 200 });
+      if (s.includes("/v1/sports/baseball_mlb/props")) return new Response('{"detail":{"error":"OUT_OF_USAGE_CREDITS"}}', { status: 403 });
+      return new Response(JSON.stringify([]), { status: 200 });
+    };
+    try {
+      const out = await fetchParlayOdds("mlb", "parlay-key", null, { backupApiKey: "the-odds-key" });
+      assert.equal(out.meta.source, "theodds-backup");
+      assert.ok(out.events.length >= 1);
+      assert.equal(out.events[0].homeMl, -130);
+      assert.equal(out.events[0].total, 8.5);
+    } finally {
+      globalThis.fetch = realFetch;
+      resetCacheMem();
+    }
+  });
 });
 
 describe("collect and harvest fail honestly", () => {

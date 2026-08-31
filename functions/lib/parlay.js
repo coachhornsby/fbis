@@ -403,6 +403,27 @@ async function fetchJson(sportKey, params, apiKey) {
   return { events: parseEvents(raw), credits };
 }
 
+function isParlayCreditError(err = "") {
+  const s = String(err || "").toUpperCase();
+  return s.includes("OUT_OF_USAGE_CREDITS") || s.includes("CREDIT_LIMIT_REACHED") || s.includes("MONTHLY CREDIT LIMIT");
+}
+
+async function fetchTheOddsJson(sportKey, params, apiKey) {
+  if (!apiKey) return { events: [], error: "theodds-no-api-key", credits: { remaining: null, used: null, asOf: null } };
+  const url = new URL(`https://api.the-odds-api.com/v4/sports/${sportKey}/odds`);
+  for (const [k, v] of Object.entries(params || {})) url.searchParams.set(k, v);
+  url.searchParams.set("apiKey", apiKey);
+  url.searchParams.set("oddsFormat", "american");
+  const res = await fetch(String(url), { headers: { Accept: "application/json" } });
+  const credits = creditMeta(res);
+  if (!res.ok) {
+    const text = await res.text();
+    return { events: [], error: `TheOdds ${res.status}: ${text.slice(0, 180)}`, credits };
+  }
+  const raw = await res.json();
+  return { events: parseEvents(raw), credits };
+}
+
 async function fetchPropsJson(sportKey, params, apiKey) {
   const url = new URL(`https://parlay-api.com/v1/sports/${sportKey}/props`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -568,7 +589,7 @@ function propsRowsToStubEvents(rows = []) {
 
 export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   const sportKey = PARLAY_SPORT[sportId];
-  if (!sportKey || !apiKey) {
+  if (!sportKey || (!apiKey && !opts.backupApiKey)) {
     return { events: [], meta: { enabled: false, remaining: null, cached: false } };
   }
   const baseball = BASEBALL.has(sportId);
@@ -590,7 +611,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     };
   }
 
-  const pin = await fetchJson(
+  let pin = await fetchJson(
     sportKey,
     {
       regions: "eu",
@@ -599,6 +620,23 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     },
     apiKey
   );
+  let source = "parlay";
+  let parlayError = pin.error || null;
+  if (pin.error && !pin.events.length && isParlayCreditError(pin.error) && opts.backupApiKey) {
+    const backup = await fetchTheOddsJson(
+      sportKey,
+      {
+        regions: "eu",
+        markets: "h2h,spreads,totals",
+        bookmakers: "pinnacle",
+      },
+      opts.backupApiKey
+    );
+    if (!backup.error && backup.events?.length) {
+      pin = { ...pin, events: backup.events, credits: backup.credits };
+      source = "theodds-backup";
+    }
+  }
   if (pin.error && !pin.events.length && !baseball) {
     return {
       events: [],
@@ -611,6 +649,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         sportKey,
         sharp: SHARP_BOOK,
         execution: EXECUTION_BOOK,
+        source,
       },
     };
   }
@@ -624,9 +663,10 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   let propFeedError = null;
   let sentimentGames = 0;
 
+  const parlayCreditLimited = isParlayCreditError(parlayError);
   const kalshiKey = `${CACHE_VER}:kalshi:${sportKey}`;
   let kalshiPayload = await readCache(kalshiKey, cfCache, EMPTY_F5_TTL_MS);
-  if (!kalshiPayload) {
+  if (!kalshiPayload && apiKey && !parlayCreditLimited) {
     const kalshi = await fetchJson(
       sportKey,
       { regions: "us", markets: "h2h", bookmakers: "kalshi" },
@@ -637,6 +677,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     kalshiPayload = { events: kalshi.error ? [] : kalshi.events, empty: !kalshi.events?.length };
     await writeCache(kalshiKey, kalshiPayload, cfCache, kalshiPayload.empty ? EMPTY_F5_TTL_MS : TTL_MS);
   }
+  kalshiPayload = kalshiPayload || { events: [], empty: true };
   if (kalshiPayload.events?.length) {
     combined = mergeByTeams(combined, kalshiPayload.events);
     sentimentGames = kalshiPayload.events.length;
@@ -645,19 +686,20 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   if (baseball) {
     const f5Key = `${CACHE_VER}:f5:${sportKey}`;
     let f5Payload = await readCache(f5Key, cfCache, EMPTY_F5_TTL_MS);
-    if (!f5Payload) {
+    if (!f5Payload && apiKey && !parlayCreditLimited) {
       const fetched = await fetchPeriodMarkets(sportKey, "F5", apiKey);
       remaining = fetched.credits.remaining ?? remaining;
       used = fetched.credits.used ?? used;
       f5Payload = { rows: fetched.error ? [] : fetched.rows, empty: !fetched.rows?.length, error: fetched.error || null };
       await writeCache(f5Key, f5Payload, cfCache, f5Payload.empty ? EMPTY_F5_TTL_MS : TTL_MS);
     }
+    f5Payload = f5Payload || { rows: [], empty: true, error: parlayCreditLimited ? parlayError : null };
     combined = attachPeriodF5(combined, f5Payload.rows || []);
     f5Games = combined.filter((event) => event.periodF5).length;
     const propsKey = `${CACHE_VER}:props-v3:${sportKey}`;
     const stalePropsKey = `${CACHE_VER}:props-v3-stale:${sportKey}`;
     let propsPayload = await readCache(propsKey, cfCache, EMPTY_F5_TTL_MS);
-    if (!propsPayload) {
+    if (!propsPayload && apiKey && !parlayCreditLimited) {
       const fetched = await fetchPropsJson(sportKey, {
         markets: MLB_PROP_MARKETS.join(","), maxAgeSec: "3600", limit: "10000",
       }, apiKey);
@@ -666,6 +708,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       propsPayload = { rows: fetched.error ? [] : fetched.rows, empty: !fetched.rows?.length, error: fetched.error || null };
       await writeCache(propsKey, propsPayload, cfCache, propsPayload.empty ? EMPTY_F5_TTL_MS : TTL_MS);
     }
+    propsPayload = propsPayload || { rows: [], empty: true, error: parlayCreditLimited ? parlayError : null };
     if (propsPayload.rows?.length) {
       await writeCache(stalePropsKey, { rows: propsPayload.rows }, cfCache, STALE_PROPS_TTL_MS);
     } else if (propsPayload.error) {
@@ -696,6 +739,8 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       remaining,
       used,
       cached: false,
+      source,
+      parlayError,
       sportKey,
       games: events.length,
       pinGames: pin.events.length,
