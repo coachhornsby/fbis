@@ -155,7 +155,9 @@ jobs:
             local sport
             for sport in $SPORTS; do
               echo "harvest sport=${sport}"
-              call_api "/api/harvest?days=3&sport=${sport}"
+              # Keep a full week in scope so Friday wagers are still settled by the
+              # Sunday/Monday harvester. The endpoint is idempotent.
+              call_api "/api/harvest?days=7&sport=${sport}"
             done
           }
 

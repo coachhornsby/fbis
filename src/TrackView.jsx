@@ -54,6 +54,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
   return (
     <div className="main-content">
       {error && <div className="panel"><div className="error">{error}</div></div>}
+      {report?.overviewNote && <div className="panel"><div className="muted">{report.overviewNote}</div></div>}
 
       <section className="panel">
         <div className="panel-header"><h2>Sport systems</h2><span className="last-updated">independent tracking by board</span></div>

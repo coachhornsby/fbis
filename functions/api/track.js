@@ -3,7 +3,11 @@ import { buildTrackReport } from "../lib/projLedger.js";
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const sport = url.searchParams.get("sport") || "all";
-  const days = url.searchParams.get("days") || "season";
+  const requestedDays = url.searchParams.get("days") || "season";
+  // A season-wide cross-sport report can exceed the Pages worker CPU ceiling.
+  // Keep the overview useful and let each sport tab retain full season/lifetime views.
+  const overviewLimited = sport === "all" && (requestedDays === "season" || requestedDays === "lifetime");
+  const days = overviewLimited ? "30" : requestedDays;
   const checkpoint = url.searchParams.get("checkpoint") || "LATEST";
   const version = url.searchParams.get("version") || "all";
   const model = url.searchParams.get("model") || "ensemble";
@@ -24,7 +28,12 @@ export async function onRequestGet(context) {
       },
       { checkpoint, version, model, type, year, team }
     );
-    return new Response(JSON.stringify(payload), {
+    return new Response(JSON.stringify({
+      ...payload,
+      requestedDays,
+      overviewLimited,
+      overviewNote: overviewLimited ? "All-sports overview is limited to the last 30 days. Select a sport for season or lifetime detail." : null,
+    }), {
       headers: {
         "content-type": "application/json; charset=utf-8",
         "cache-control": "public, max-age=60",

@@ -45,6 +45,40 @@ async function responseJson(res, label) {
   }
 }
 
+function datePlusDays(date, offset) {
+  const [y, m, d] = String(date).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + offset)).toISOString().slice(0, 10);
+}
+
+async function fetchCfbWeek(signal) {
+  const slates = [];
+  for (let i = 0; i < 7; i += 1) {
+    const res = await fetch(`/api/slate?sport=cfb&date=${datePlusDays(todayCT(), i)}&_t=${Date.now()}`, { signal });
+    const body = await responseJson(res, "CFB");
+    if (!res.ok || body.error) throw new Error(body.error || `HTTP ${res.status}`);
+    slates.push(body);
+  }
+  return slates;
+}
+
+function combineCfbWeek(slates) {
+  const games = slates.flatMap((s) => s.games || []).sort((a, b) => String(a.start).localeCompare(String(b.start)));
+  return {
+    ...(slates[0] || { sport: "cfb", sportName: "College Football" }),
+    date: slates.length ? `${slates[0].date} through ${slates.at(-1).date}` : todayCT(),
+    weekBoard: true,
+    generatedAt: new Date().toISOString(),
+    games,
+    ticker: slates.flatMap((s) => s.ticker || []),
+    counts: {
+      games: games.length,
+      live: games.filter((g) => g.status?.live).length,
+      final: games.filter((g) => g.status?.completed).length,
+      upcoming: games.filter((g) => !g.status?.live && !g.status?.completed).length,
+    },
+  };
+}
+
 export default function App() {
   const initial = readUrlState();
   const [sport, setSport] = useState(initial.sport);
@@ -82,13 +116,13 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      const [res, trackRes] = await Promise.all([
-        fetch(`/api/slate?sport=${sport}&_t=${Date.now()}`, { signal }),
+      const [slateResult, trackRes] = await Promise.all([
+        sport === "cfb" ? fetchCfbWeek(signal) : fetch(`/api/slate?sport=${sport}&_t=${Date.now()}`, { signal }),
         fetch(`/api/track?sport=${sport}&days=2&_t=${Date.now()}`, { signal }).catch(() => null),
       ]);
-      const data = await responseJson(res, sport.toUpperCase());
+      const data = sport === "cfb" ? combineCfbWeek(slateResult) : await responseJson(slateResult, sport.toUpperCase());
       if (signal?.aborted) return;
-      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      if (sport !== "cfb" && (!slateResult.ok || data.error)) throw new Error(data.error || `HTTP ${slateResult.status}`);
       let finals = [];
       if (trackRes?.ok) {
         const t = await responseJson(trackRes, "Tracking");
