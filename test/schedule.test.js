@@ -9,8 +9,19 @@ import {
   lastExpectedCollectUtc,
 } from "../functions/lib/pipelineSchedule.js";
 import { actionAcceptsJob, staleScheduleWarning, scheduledHealth } from "../functions/lib/jobs.js";
+import fs from "node:fs";
 
 describe("GitHub scheduling", () => {
+  it("isolates sports, retries recoverable failures, and verifies the deployed SHA", () => {
+    const workflow = fs.readFileSync(new URL("../.github/workflows/harvest.yml", import.meta.url), "utf8");
+    assert.match(workflow, /fail-fast:\s*false/);
+    assert.match(workflow, /sport:\s*\[mlb, nba, nfl, cfb, cbb\]/);
+    assert.match(workflow, /EXPECTED_SHA/);
+    assert.match(workflow, /\/api\/health/);
+    assert.match(workflow, /for attempt in 1 2 3 4/);
+    assert.match(workflow, /Consolidated pipeline result/);
+  });
+
   it("distinguishes schedule from workflow_dispatch", () => {
     assert.equal(triggerFromEvent("schedule"), "schedule");
     assert.equal(triggerFromEvent("workflow_dispatch"), "workflow_dispatch");

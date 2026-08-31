@@ -1,11 +1,5 @@
 name: FBIS research pipeline
 
-# UTC crons are fixed. Chicago offset changes with DST:
-# CDT (UTC-5, ~Mar–Nov): 13:00 UTC = 8:00 AM CDT; 11:20 UTC = 6:20 AM CDT
-# CST (UTC-6, ~Nov–Mar): 13:00 UTC = 7:00 AM CST; 11:20 UTC = 5:20 AM CST
-# Intended operator windows are CDT morning collect / ~06:20 harvest.
-# Scheduled verification requires an actual GitHub `schedule` run, not only workflow_dispatch.
-
 on:
   schedule:
     - cron: "0 0,2,13,16,18,20,22 * * *"
@@ -15,166 +9,127 @@ on:
       job:
         description: Which job to run
         type: choice
-        options:
-          - all
-          - collect-full
-          - collect-cache
-          - harvest
+        options: [all, collect-full, collect-cache, harvest]
         default: all
 
 concurrency:
-  group: fbis-research-pipeline
+  group: fbis-research-pipeline-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
   pipeline:
+    name: ${{ matrix.sport }} / pipeline
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        sport: [mlb, nba, nfl, cfb, cbb]
     steps:
-      - name: Collect projections and/or grade finals
+      - name: Verify deployment and run sport pipeline
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           JOB_INPUT: ${{ github.event.inputs.job }}
           EVENT_NAME: ${{ github.event_name }}
+          EXPECTED_SHA: ${{ github.sha }}
+          SPORT: ${{ matrix.sport }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          set -euo pipefail
+          set -u
           BASE="https://fbis-myz.pages.dev"
           HOUR=$(date -u +%H)
           MIN=$(date -u +%M)
           JOB="${JOB_INPUT:-}"
           TRIGGER="http"
-          if [ "${EVENT_NAME}" = "schedule" ]; then
-            TRIGGER="schedule"
-          elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
-            TRIGGER="workflow_dispatch"
-          fi
-          RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
+          [ "$EVENT_NAME" = "schedule" ] && TRIGGER="schedule"
+          [ "$EVENT_NAME" = "workflow_dispatch" ] && TRIGGER="workflow_dispatch"
           if [ -z "$JOB" ]; then
-            if [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then
-              JOB="harvest"
-            elif [ "$HOUR" = "13" ] || [ "$HOUR" = "16" ]; then
-              JOB="collect-full"
-            else
-              JOB="collect-cache"
-            fi
+            if [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then JOB="harvest"
+            elif [ "$HOUR" = "13" ] || [ "$HOUR" = "16" ]; then JOB="collect-full"
+            else JOB="collect-cache"; fi
           fi
-          echo "job=$JOB utc=${HOUR}:${MIN} event=${EVENT_NAME} trigger=${TRIGGER}"
+          RUN_URL_ENC=$(python3 -c "import os,urllib.parse; print(urllib.parse.quote(os.environ['RUN_URL'], safe=''))")
+          echo "### ${SPORT} / ${JOB}" >> "$GITHUB_STEP_SUMMARY"
+
+          deployed=""
+          for attempt in 1 2 3 4 5 6; do
+            health=$(curl -fsS --max-time 20 "${BASE}/api/health" 2>/dev/null || true)
+            deployed=$(printf '%s' "$health" | jq -r '.deployment_commit // empty' 2>/dev/null || true)
+            if [ "$deployed" = "$EXPECTED_SHA" ]; then break; fi
+            echo "deployment wait ${attempt}/6 expected=${EXPECTED_SHA} actual=${deployed:-unavailable}"
+            [ "$attempt" -lt 6 ] && sleep $((attempt * 5))
+          done
+          if [ "$deployed" != "$EXPECTED_SHA" ]; then
+            echo "- deployment mismatch: expected ${EXPECTED_SHA}, got ${deployed:-unavailable}" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
           call_api() {
-            local path="$1"
-            local tmp
-            tmp="$(mktemp)"
-            local attempt=1
-            local max=3
-            while [ "$attempt" -le "$max" ]; do
-              set +e
-              curl -sS --max-time 90 --retry 0 \
-                -H "x-harvest-secret: ${HARVEST_SECRET}" \
-                -H "accept: application/json" \
+            path="$1"
+            label="$2"
+            for attempt in 1 2 3 4; do
+              tmp=$(mktemp)
+              http=$(curl -sS --max-time 100 \
+                -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
                 -o "$tmp" -w "%{http_code}" \
-                "${BASE}${path}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}" > "${tmp}.code"
-              local curl_ec=$?
-              set -e
-              if [ "$curl_ec" -eq 0 ]; then
-                break
+                "${BASE}${path}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}" 2>/dev/null || true)
+              valid=false
+              jq -e . "$tmp" >/dev/null 2>&1 && valid=true
+              accepted=false
+              [ "$valid" = true ] && [ "$http" = 200 ] && \
+                [ "$(jq -r '(.ok == true) and (.status == "success")' "$tmp")" = true ] && accepted=true
+              if [ "$accepted" = true ]; then
+                summary=$(jq -r '"games=\(.games_discovered // 0), inserted=\(.snapshots_inserted // 0), already=\(.snapshots_already_present // 0), failed=\(.failed_writes // 0), graded=\(.finals_graded // 0), commit=\(.deployment_commit // "?")"' "$tmp")
+                echo "- ${label}: success (${summary})" >> "$GITHUB_STEP_SUMMARY"
+                return 0
               fi
-              echo "transient curl error attempt ${attempt}/${max}"
-              if [ "$attempt" -eq "$max" ]; then
-                echo "request failed after retries"
-                exit 1
-              fi
-              sleep $((attempt * 5))
-              attempt=$((attempt + 1))
+              status=$(jq -r '.status // "invalid-response"' "$tmp" 2>/dev/null || echo invalid-response)
+              errors=$(jq -c '.errors // []' "$tmp" 2>/dev/null || echo '[]')
+              echo "${label} attempt=${attempt}/4 http=${http} status=${status} errors=${errors}"
+              if [[ "$http" =~ ^4 ]] && [ "$http" != 429 ]; then break; fi
+              [ "$attempt" -lt 4 ] && sleep $((attempt * attempt * 4))
             done
-            local http
-            http="$(tr -d '\r\n' < "${tmp}.code")"
-            if ! jq -e . "$tmp" >/dev/null 2>&1; then
-              echo "non-json response http=${http}"
-              head -c 400 "$tmp" || true
-              echo
-              exit 1
-            fi
-            jq --arg http "$http" '{
-              http: $http,
-              ok: .ok,
-              job: .job,
-              status: .status,
-              trigger_type: .trigger_type,
-              games_discovered: .games_discovered,
-              snapshots_inserted: .snapshots_inserted,
-              snapshots_already_present: .snapshots_already_present,
-              snapshots_failed: .snapshots_failed,
-              immutable_conflicts: (.immutable_conflicts // 0),
-              failed_writes: (.failed_writes // .snapshots_failed // 0),
-              finals_graded: .finals_graded,
-              d1_bound: (.d1.bound // null),
-              errors: (.errors // []),
-              deployment_commit: .deployment_commit,
-              model_version: .model_version
-            }' "$tmp"
-            local summary
-            summary="$(jq -r --arg http "$http" '"job=\(.job // "?") status=\(.status // "?") http=\($http) games=\(.games_discovered // 0) inserted=\(.snapshots_inserted // 0) already=\(.snapshots_already_present // 0) conflicts=\(.immutable_conflicts // 0) failed=\(.snapshots_failed // 0) graded=\(.finals_graded // 0) d1=\(.d1.bound // false) commit=\(.deployment_commit // "")"' "$tmp")"
-            echo "$summary"
-            if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-              echo "- $summary" >> "$GITHUB_STEP_SUMMARY"
-            fi
-            local ok_flag
-            ok_flag="$(jq -r '(.ok == true) and (.status == "success")' "$tmp")"
-            if [ "$http" != "200" ] || [ "$ok_flag" != "true" ]; then
-              echo "job unsuccessful http=${http} ok_flag=${ok_flag}"
-              exit 1
-            fi
+            echo "- ${label}: failed after retries (http=${http}, status=${status})" >> "$GITHUB_STEP_SUMMARY"
+            return 1
           }
 
-          # One Worker invocation cannot cover every board (subrequest cap).
-          # Split by sport, and football by date, so a CFB Saturday cannot exhaust D1 writes.
-          SPORTS="mlb nba nfl cfb cbb"
           collect_sport() {
-            local odds="$1"
-            local sport="$2"
-            if [ "$sport" = "cfb" ] || [ "$sport" = "nfl" ]; then
-              local off
-              for off in -1 0 1 2; do
-                echo "collect sport=${sport} dayOffset=${off} odds=${odds}"
-                call_api "/api/collect?odds=${odds}&sport=${sport}&dayOffset=${off}"
+            odds="$1"
+            if [ "$SPORT" = cfb ] || [ "$SPORT" = nfl ]; then
+              failures=0
+              for offset in -1 0 1 2; do
+                call_api "/api/collect?odds=${odds}&sport=${SPORT}&dayOffset=${offset}" "collect day ${offset}" || failures=$((failures + 1))
               done
+              [ "$failures" -eq 0 ]
             else
-              echo "collect sport=${sport} odds=${odds}"
-              call_api "/api/collect?odds=${odds}&sport=${sport}"
+              call_api "/api/collect?odds=${odds}&sport=${SPORT}" "collect"
             fi
           }
-          run_collect() {
-            local odds="$1"
-            local sport
-            for sport in $SPORTS; do
-              collect_sport "$odds" "$sport"
-            done
-          }
-          run_harvest() {
-            local sport
-            for sport in $SPORTS; do
-              echo "harvest sport=${sport}"
-              # Keep a full week in scope so Friday wagers are still settled by the
-              # Sunday/Monday harvester. The endpoint is idempotent.
-              call_api "/api/harvest?days=7&sport=${sport}"
-            done
-          }
+          run_harvest() { call_api "/api/harvest?days=7&sport=${SPORT}" "harvest"; }
 
+          failures=0
           case "$JOB" in
-            collect-full) run_collect full ;;
-            collect-cache) run_collect cache ;;
-            harvest) run_harvest ;;
-            health)
-              echo "diagnostic health cache-only (no Pal/Parlay network, no snapshot writes)"
-              call_api "/api/collect?odds=cache&sport=mlb&dayOffset=0&mode=health"
-              ;;
+            collect-full) collect_sport full || failures=$((failures + 1)) ;;
+            collect-cache) collect_sport cache || failures=$((failures + 1)) ;;
+            harvest) run_harvest || failures=$((failures + 1)) ;;
             all)
-              run_collect full
-              run_harvest
+              collect_sport full || failures=$((failures + 1))
+              run_harvest || failures=$((failures + 1))
               ;;
-            *)
-              echo "unknown job $JOB"
-              exit 1
-              ;;
+            *) echo "unknown job ${JOB}"; exit 1 ;;
           esac
+          [ "$failures" -eq 0 ]
+
+  summary:
+    name: Consolidated pipeline result
+    if: always()
+    needs: [pipeline]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report recovery result
+        env:
+          PIPELINE_RESULT: ${{ needs.pipeline.result }}
+        run: |
+          echo "## FBIS pipeline" >> "$GITHUB_STEP_SUMMARY"
+          echo "Five sports ran independently with retries. Aggregate result: **${PIPELINE_RESULT}**." >> "$GITHUB_STEP_SUMMARY"
+          [ "$PIPELINE_RESULT" = success ]

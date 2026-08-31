@@ -1,5 +1,4 @@
 import { buildSlate, resolveSlateDate, findNextCfbdGameDate } from "../lib/slateEngine.js";
-import { freezeSlate, harvestSport } from "../lib/projLedger.js";
 import { compactMlbSlatePayload } from "../lib/propConviction.js";
 
 export async function onRequestGet(context) {
@@ -26,16 +25,6 @@ export async function onRequestGet(context) {
         payload.requestedDate = resolved.date;
       }
     }
-    context.waitUntil(
-      freezeSlate(payload, env).catch((err) => {
-        console.error("freezeSlate", err?.message || err);
-      })
-    );
-    context.waitUntil(
-      harvestSport(payload.sport, 2, env).catch((err) => {
-        console.error("harvestSport", err?.message || err);
-      })
-    );
     return json(compactMlbSlatePayload(payload), 200, 30);
   } catch (err) {
     return json({ error: String(err?.message || err), games: [], ticker: [], counts: {} }, 502, 10);

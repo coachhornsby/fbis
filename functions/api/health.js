@@ -1,0 +1,43 @@
+import { deploymentCommit, durableHealth, scheduledHealth } from "../lib/jobs.js";
+import { pingDb } from "../lib/store.js";
+
+export async function buildHealth(env, now = new Date()) {
+  const db = await pingDb(env);
+  const durable = db.ok ? await durableHealth(env) : { bound: false, source: "unavailable" };
+  return {
+    ok: Boolean(db.ok),
+    service: "fbis",
+    checked_at: now.toISOString(),
+    deployment_commit: deploymentCommit(env),
+    d1: { bound: Boolean(db.bound), ok: Boolean(db.ok), reason: db.reason || null },
+    schedule: scheduledHealth(durable, now),
+    latest: {
+      collect: durable.latestCollect || null,
+      harvest: durable.latestHarvest || null,
+    },
+  };
+}
+
+export async function onRequestGet(context) {
+  try {
+    const body = await buildHealth({
+      DB: context.env.DB,
+      CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
+      CF_PAGES_COMMIT: context.env.CF_PAGES_COMMIT,
+    });
+    return json(body, body.ok ? 200 : 503);
+  } catch (err) {
+    return json({ ok: false, service: "fbis", error: String(err?.message || err) }, 503);
+  }
+}
+
+function json(body, status) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "access-control-allow-origin": "*",
+    },
+  });
+}
