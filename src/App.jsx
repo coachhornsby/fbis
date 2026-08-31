@@ -53,11 +53,16 @@ function datePlusDays(date, offset) {
 async function fetchCfbWeek(signal) {
   const slates = [];
   for (let i = 0; i < 7; i += 1) {
-    const res = await fetch(`/api/slate?sport=cfb&date=${datePlusDays(todayCT(), i)}&_t=${Date.now()}`, { signal });
-    const body = await responseJson(res, "CFB");
-    if (!res.ok || body.error) throw new Error(body.error || `HTTP ${res.status}`);
-    slates.push(body);
+    try {
+      const res = await fetch(`/api/slate?sport=cfb&date=${datePlusDays(todayCT(), i)}&_t=${Date.now()}`, { signal });
+      const body = await responseJson(res, "CFB");
+      if (res.ok && !body.error) slates.push(body);
+    } catch (err) {
+      if (err?.name === "AbortError") throw err;
+      // A blocked empty weekday must not hide the rest of the football week.
+    }
   }
+  if (!slates.length) throw new Error("CFB schedule feed unavailable for the upcoming week.");
   return slates;
 }
 

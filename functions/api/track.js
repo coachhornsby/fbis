@@ -7,7 +7,7 @@ export async function onRequestGet(context) {
   // A season-wide cross-sport report can exceed the Pages worker CPU ceiling.
   // Keep the overview useful and let each sport tab retain full season/lifetime views.
   const overviewLimited = sport === "all" && (requestedDays === "season" || requestedDays === "lifetime");
-  const days = overviewLimited ? "30" : requestedDays;
+  const days = overviewLimited ? "7" : requestedDays;
   const checkpoint = url.searchParams.get("checkpoint") || "LATEST";
   const version = url.searchParams.get("version") || "all";
   const model = url.searchParams.get("model") || "ensemble";
@@ -32,7 +32,7 @@ export async function onRequestGet(context) {
       ...payload,
       requestedDays,
       overviewLimited,
-      overviewNote: overviewLimited ? "All-sports overview is limited to the last 30 days. Select a sport for season or lifetime detail." : null,
+      overviewNote: overviewLimited ? "All-sports overview is limited to the last 7 days to stay within Cloudflare's worker limit. Select a sport for season or lifetime detail." : null,
     }), {
       headers: {
         "content-type": "application/json; charset=utf-8",
