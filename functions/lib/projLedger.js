@@ -15,6 +15,7 @@ import {
   persistSnapshot,
   persistDailyMetrics,
   persistDailyReport,
+  queryDailyMetrics,
   pingDb,
   querySnapshots,
   queryPredictions,
@@ -1752,6 +1753,36 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
       ? lastNDatesCT(180).at(-1)
       : windowStart(days, sport === "all" ? "mlb" : sport);
   const until = year ? `${year}-12-20` : null;
+  const aggregateEligible =
+    (days === "season" || days === "lifetime") &&
+    checkpoint === "LATEST" &&
+    !opts.team &&
+    !lastN &&
+    (opts.type === "totals" || sport === "all") &&
+    (version === "all" || !version);
+
+  if (aggregateEligible) {
+    const aggQ = await queryDailyMetrics(env, {
+      sport,
+      since,
+      until,
+      checkpoint: "LATEST",
+      modelVersion: version || "all",
+    });
+    if (aggQ.ok && (aggQ.rows || []).length) {
+      return buildAggregateTrackReport({
+        sport,
+        days,
+        since,
+        until,
+        version,
+        checkpoint,
+        model,
+        rows: aggQ.rows,
+        env,
+      });
+    }
+  }
 
   const db = await pingDb(env);
   let source = "d1";
@@ -1940,6 +1971,168 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
         storage,
         note: "Shadow CFB/CBB models cannot QUALIFY, LOG, or write strategy tickets. N=0 metrics are unavailable, not 0.0%.",
       },
+    },
+  };
+}
+
+function weighted(rows, key) {
+  let n = 0;
+  let w = 0;
+  for (const r of rows || []) {
+    const v = Number(r?.[key]);
+    const rn = Number(r?.n) || 0;
+    if (!Number.isFinite(v) || rn <= 0) continue;
+    n += rn;
+    w += v * rn;
+  }
+  return n > 0 ? w / n : null;
+}
+
+function aggregateFromDaily(rows = []) {
+  const n = rows.reduce((s, r) => s + (Number(r?.n) || 0), 0);
+  return {
+    n,
+    maeTotal: weighted(rows, "maeTotal"),
+    maeMargin: weighted(rows, "maeMargin"),
+    brierModel: weighted(rows, "brier"),
+    logLossModel: weighted(rows, "logLoss"),
+    winnerHitProb: weighted(rows, "winnerHit"),
+    winnerHit: weighted(rows, "winnerHit"),
+    winnerHitScore: weighted(rows, "winnerHit"),
+    biasTotal: null,
+  };
+}
+
+async function buildAggregateTrackReport({
+  sport,
+  days,
+  since,
+  until,
+  version,
+  checkpoint,
+  model,
+  rows,
+  env,
+}) {
+  const acc = aggregateFromDaily(rows);
+  const bySport = {};
+  for (const r of rows || []) {
+    if (!bySport[r.sport]) bySport[r.sport] = [];
+    bySport[r.sport].push(r);
+  }
+  const sports = (!sport || sport === "all" ? BOARD_SPORTS : [sport]).map((id) => ({
+    sport: id,
+    sportName: SPORTS[id]?.name || id,
+    accuracy: aggregateFromDaily(bySport[id] || []),
+    recipe: RECIPE_GUIDE[id],
+  }));
+  const health = await dbPayload(env);
+  const counts = await countToday(env, todayCT());
+  const reports = await queryDailyReports(env, { sport, since });
+  const versions = [...new Set((rows || []).map((r) => r.modelVersion).filter(Boolean))];
+  const tableRows = [
+    { key: "mae_total", label: "Total MAE", n: acc.n, value: acc.maeTotal },
+    { key: "mae_margin", label: "Margin MAE", n: acc.n, value: acc.maeMargin },
+    { key: "winner_hit", label: "Winner hit", n: acc.n, value: acc.winnerHit },
+    { key: "brier", label: "Brier", n: acc.n, value: acc.brierModel },
+    { key: "log_loss", label: "Log loss", n: acc.n, value: acc.logLossModel },
+  ];
+  return {
+    sport: sport || "all",
+    sportName: !sport || sport === "all" ? "All boards" : SPORTS[sport]?.name || sport,
+    generatedAt: new Date().toISOString(),
+    harvestedAt: new Date().toISOString(),
+    days,
+    checkpoint,
+    version,
+    model,
+    type: "totals",
+    source: "d1-daily-metrics",
+    aggregateOnly: true,
+    recipeGuide: RECIPE_GUIDE,
+    sports,
+    accuracy: acc,
+    accuracySummary: {
+      label: "Projection Accuracy",
+      source: "D1 daily_metrics aggregate",
+      sport: sport || "all",
+      checkpoint,
+      modelVersion: version === "all" ? (versions[0] || MODEL_VERSION) : version,
+      dateRange: { since, until: until || todayCT() },
+      distinctProjected: null,
+      distinctGraded: acc.n,
+      ungraded: null,
+      checkpointRows: rows.length,
+      gradingCoverage: null,
+      n: acc.n,
+      maeTotal: acc.maeTotal,
+      biasTotal: null,
+      winnerHit: acc.winnerHit,
+      brier: acc.brierModel,
+    },
+    pack: {
+      table: {
+        headline: {
+          n: acc.n,
+          mae: acc.maeTotal,
+          rmse: null,
+          medianAbs: null,
+          pctDiff: null,
+          diff: null,
+        },
+        rows: tableRows,
+      },
+      distribution: {},
+      models: [],
+      breakdowns: {
+        day: (rows || []).slice(0, 45).map((r) => ({
+          key: `${r.date}:${r.sport}`,
+          label: `${r.date} ${String(r.sport || "").toUpperCase()}`,
+          n: r.n,
+          mae: r.maeTotal,
+          brier: r.brier,
+          winner: r.winnerHit,
+        })),
+      },
+    },
+    over: null,
+    coverage: sourceCoverage([]),
+    clv: { unavailable: true, n: 0, avg: null, byMarket: [], bySport: [] },
+    closeCoverage: { n: 0, missing: 0, share: null, byMarket: [] },
+    layers: {},
+    strategyPerformance: {
+      tickets: 0,
+      open: 0,
+      settled: 0,
+      record: null,
+      hitRate: null,
+      units: null,
+      roi: null,
+      avgEv: null,
+      avgClv: null,
+      message: "Aggregate SYS mode omits ticket-level slices.",
+    },
+    pal: palHealth([], { enabled: true, asOf: null }),
+    mlbAccuracy: aggregateFromDaily(bySport.mlb || []),
+    distinct: {
+      projected: null,
+      graded: acc.n,
+      displayProjected: null,
+      displayGraded: acc.n,
+      checkpointRows: rows.length,
+    },
+    dailyReports: reports,
+    byCheckpoint: { LATEST: acc },
+    versions,
+    games: [],
+    finals: [],
+    db: {
+      ...health,
+      ...counts,
+      source: "d1",
+      healthSource: health.healthSource || "d1",
+      aggregateMode: true,
+      aggregateRows: rows.length,
     },
   };
 }

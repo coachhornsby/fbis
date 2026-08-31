@@ -437,3 +437,84 @@ export async function queryEndpointUsage(env, { month = utcMonthKey() } = {}) {
     return [];
   }
 }
+
+export async function upsertQbTransferHistory(env, row) {
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: "no-id" };
+  try {
+    await env.DB.prepare(
+      `INSERT INTO qb_transfer_history (
+        id, player_id, player_name, season, source_school, source_team_id, destination_school, destination_team_id,
+        position, transfer_date, games_started, pass_attempts, usage, passing_ppa, passing_wepa, success_rate,
+        explosive_rate, sack_rate, turnover_rate, ypa, as_of, source, source_obs_id, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        source_school = COALESCE(excluded.source_school, qb_transfer_history.source_school),
+        destination_school = COALESCE(excluded.destination_school, qb_transfer_history.destination_school),
+        games_started = COALESCE(excluded.games_started, qb_transfer_history.games_started),
+        pass_attempts = COALESCE(excluded.pass_attempts, qb_transfer_history.pass_attempts),
+        usage = COALESCE(excluded.usage, qb_transfer_history.usage),
+        passing_ppa = COALESCE(excluded.passing_ppa, qb_transfer_history.passing_ppa),
+        passing_wepa = COALESCE(excluded.passing_wepa, qb_transfer_history.passing_wepa),
+        success_rate = COALESCE(excluded.success_rate, qb_transfer_history.success_rate),
+        explosive_rate = COALESCE(excluded.explosive_rate, qb_transfer_history.explosive_rate),
+        sack_rate = COALESCE(excluded.sack_rate, qb_transfer_history.sack_rate),
+        turnover_rate = COALESCE(excluded.turnover_rate, qb_transfer_history.turnover_rate),
+        ypa = COALESCE(excluded.ypa, qb_transfer_history.ypa),
+        as_of = excluded.as_of,
+        source_obs_id = COALESCE(excluded.source_obs_id, qb_transfer_history.source_obs_id),
+        updated_at = excluded.updated_at`
+    )
+      .bind(
+        row.id,
+        n(row.playerId),
+        n(row.playerName),
+        n(row.season),
+        n(row.sourceSchool),
+        n(row.sourceTeamId),
+        n(row.destinationSchool),
+        n(row.destinationTeamId),
+        n(row.position),
+        n(row.transferDate),
+        n(row.gamesStarted),
+        n(row.passAttempts),
+        n(row.usage),
+        n(row.passingPpa),
+        n(row.passingWepa),
+        n(row.successRate),
+        n(row.explosiveRate),
+        n(row.sackRate),
+        n(row.turnoverRate),
+        n(row.ypa),
+        row.asOf || new Date().toISOString(),
+        row.source || "cfbd",
+        n(row.sourceObsId),
+        new Date().toISOString()
+      )
+      .run();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function queryQbTransferHistory(env, { season = null, destinationSchool = null, limit = 500 } = {}) {
+  if (!hasDb(env)) return [];
+  try {
+    let sql = "SELECT * FROM qb_transfer_history WHERE 1=1";
+    const binds = [];
+    if (season != null) {
+      sql += " AND season = ?";
+      binds.push(Number(season));
+    }
+    if (destinationSchool) {
+      sql += " AND lower(destination_school) = ?";
+      binds.push(String(destinationSchool).toLowerCase());
+    }
+    sql += " ORDER BY season DESC, updated_at DESC LIMIT ?";
+    binds.push(Math.max(1, Math.min(5000, Number(limit) || 500)));
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    return res.results || [];
+  } catch {
+    return [];
+  }
+}

@@ -276,7 +276,29 @@ export function buildCfbFeatureVector(team, { priorCatalogRow = null, featureCat
   const coachingNorm = row.newCoach ? -0.75 : coachTenureNorm == null ? null : clamp((coachTenureNorm - 0.25) * 1.2, -1, 1);
   const qbExperienceNorm = toUnit(qb?.starterClass, 1, 5);
   const qbContinuityNorm = qb?.starterKnown ? clamp(((qbExperienceNorm ?? 0.5) - 0.4) * 1.6, -1, 1) : null;
-  const qbComposite = qbTransferNorm != null && qbContinuityNorm != null ? clamp(qbTransferNorm * 0.6 + qbContinuityNorm * 0.4, -1, 1) : qbTransferNorm ?? qbContinuityNorm ?? null;
+  const qbPriorPpaNorm = toSignedUnit(row.qbPriorPpa, -0.25, 0.45);
+  const qbPriorYpaNorm = toSignedUnit(row.qbPriorYpa, 4.5, 10.5);
+  const qbPriorSuccessNorm = toSignedUnit(row.qbPriorSuccessRate, 0.28, 0.58);
+  const qbPriorRiskNorm = toSignedUnit(
+    row.qbPriorSackRate != null && row.qbPriorTurnoverRate != null
+      ? -(Number(row.qbPriorSackRate) + Number(row.qbPriorTurnoverRate))
+      : null,
+    -0.22,
+    -0.03
+  );
+  const qbPriorComposite =
+    qbPriorPpaNorm != null || qbPriorYpaNorm != null || qbPriorSuccessNorm != null || qbPriorRiskNorm != null
+      ? clamp(
+          ((qbPriorPpaNorm ?? 0) * 0.4 + (qbPriorYpaNorm ?? 0) * 0.25 + (qbPriorSuccessNorm ?? 0) * 0.2 + (qbPriorRiskNorm ?? 0) * 0.15) /
+            ((qbPriorPpaNorm != null ? 0.4 : 0) + (qbPriorYpaNorm != null ? 0.25 : 0) + (qbPriorSuccessNorm != null ? 0.2 : 0) + (qbPriorRiskNorm != null ? 0.15 : 0)),
+          -1,
+          1
+        )
+      : null;
+  const qbComposite =
+    qbTransferNorm != null && qbContinuityNorm != null && qbPriorComposite != null
+      ? clamp(qbTransferNorm * 0.4 + qbContinuityNorm * 0.3 + qbPriorComposite * 0.3, -1, 1)
+      : qbPriorComposite ?? (qbTransferNorm != null && qbContinuityNorm != null ? clamp(qbTransferNorm * 0.6 + qbContinuityNorm * 0.4, -1, 1) : qbTransferNorm ?? qbContinuityNorm ?? null);
   const transferComposite =
     transferNorm != null && transferStarNorm != null ? clamp(transferNorm * 0.6 + transferStarNorm * 0.4, -1, 1) : transferNorm ?? transferStarNorm ?? null;
   const components = {
@@ -313,6 +335,16 @@ export function buildCfbFeatureVector(team, { priorCatalogRow = null, featureCat
       transferNet: strictNum(row.transferNet),
       qbTransferNet: strictNum(row.qbTransferNet),
       transferStarDelta: strictNum(row.transferStarDelta),
+      qbPriorCount: strictNum(row.qbPriorCount),
+      qbPriorPpa: strictNum(row.qbPriorPpa),
+      qbPriorWepa: strictNum(row.qbPriorWepa),
+      qbPriorSuccessRate: strictNum(row.qbPriorSuccessRate),
+      qbPriorExplosiveRate: strictNum(row.qbPriorExplosiveRate),
+      qbPriorSackRate: strictNum(row.qbPriorSackRate),
+      qbPriorTurnoverRate: strictNum(row.qbPriorTurnoverRate),
+      qbPriorYpa: strictNum(row.qbPriorYpa),
+      qbPriorPassAttempts: strictNum(row.qbPriorPassAttempts),
+      qbPriorGamesStarted: strictNum(row.qbPriorGamesStarted),
       returningPct,
       talent,
       coachTenure: strictNum(row.coachTenure),
@@ -326,7 +358,12 @@ export function buildCfbFeatureVector(team, { priorCatalogRow = null, featureCat
       epa: row.epaNet != null || row.epaOff != null || row.epaDef != null ? "cfbd" : null,
       transfer: row.transferNet != null || row.transferStarDelta != null ? "cfbd" : null,
       coaching: row.coachTenure != null || row.newCoach ? "cfbd" : null,
-      qb: qb?.starterKnown ? "espn" : row.qbTransferNet != null ? "cfbd-transfer" : null,
+      qb:
+        qb?.starterKnown || row.qbPriorPpa != null || row.qbPriorYpa != null
+          ? "espn+cfbd-transfer-history"
+          : row.qbTransferNet != null
+            ? "cfbd-transfer"
+            : null,
       returning: returningPct != null ? row.returningPct != null ? "cfbd" : "prior" : null,
       talent: talent != null ? "cfbd-prior" : null,
     },

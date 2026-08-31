@@ -264,9 +264,12 @@ describe("CFBD CFB feature feeds", () => {
       ],
       returning: [{ team: "Ohio State", percentPPA: 63 }],
       transfers: [
-        { team: "Ohio State", direction: "incoming", position: "QB", stars: 4 },
+        { team: "Ohio State", direction: "incoming", position: "QB", stars: 4, playerId: "10", player: "Transfer Star" },
         { team: "Ohio State", direction: "incoming", position: "WR", stars: 3 },
         { team: "Michigan", direction: "outgoing", position: "QB", stars: 4 },
+      ],
+      qbHistory: [
+        { playerId: "10", playerName: "Transfer Star", passingPpa: 0.29, successRate: 0.47, yardsPerAttempt: 8.4, gamesStarted: 12, passAttempts: 382 },
       ],
       coaches: [
         { team: "Ohio State", firstName: "Ryan", lastName: "Day", firstYear: 2019 },
@@ -281,6 +284,9 @@ describe("CFBD CFB feature feeds", () => {
     assert.equal(osu.qbTransferNet, 1);
     assert.equal(osu.transferStarDelta, 7);
     assert.equal(osu.returningPct, 63);
+    assert.equal(osu.qbPriorPpa, 0.29);
+    assert.equal(osu.qbPriorYpa, 8.4);
+    assert.equal(osu.qbPriorGamesStarted, 12);
     assert.equal(um.newCoach, true);
     assert.equal(um.qbTransferNet, -1);
   });
@@ -295,6 +301,7 @@ describe("CFBD CFB feature feeds", () => {
       "/player/portal": [{ team: "Ohio State", direction: "incoming", position: "QB", stars: 5 }],
       "/coaches": [{ team: "Ohio State", firstYear: 2019, firstName: "Ryan", lastName: "Day" }],
       "/player/returning": [{ team: "Ohio State", percentPPA: 61 }],
+      "/player/season/statistics": [{ playerId: "p1", player: "QB One", passingPpa: 0.25, yardsPerAttempt: 7.9 }],
     });
     const loaded = await loadCfbFeatureFeeds({ CFBD_API_KEY: FAKE_KEY }, { fetchFn, now: Date.parse("2026-08-28T12:00:00.000Z") });
     assert.equal(loaded.meta.configured, true);

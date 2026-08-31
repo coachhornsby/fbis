@@ -788,6 +788,59 @@ export async function persistDailyMetrics(env, row) {
   }
 }
 
+export async function queryDailyMetrics(
+  env,
+  { sport = "all", since = null, until = null, checkpoint = "LATEST", modelVersion = "all" } = {}
+) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
+  try {
+    let sql = "SELECT * FROM daily_metrics WHERE 1=1";
+    const binds = [];
+    if (since) {
+      sql += " AND date >= ?";
+      binds.push(since);
+    }
+    if (until) {
+      sql += " AND date <= ?";
+      binds.push(until);
+    }
+    if (sport && sport !== "all") {
+      sql += " AND sport = ?";
+      binds.push(sport);
+    }
+    if (checkpoint && checkpoint !== "all") {
+      sql += " AND checkpoint = ?";
+      binds.push(checkpoint);
+    }
+    if (modelVersion && modelVersion !== "all") {
+      sql += " AND model_version = ?";
+      binds.push(modelVersion);
+    }
+    sql += " ORDER BY date DESC, sport ASC";
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    markRead();
+    return {
+      ok: true,
+      rows: (res.results || []).map((r) => ({
+        date: r.date,
+        sport: r.sport,
+        modelVersion: r.model_version || "",
+        checkpoint: r.checkpoint || "LATEST",
+        n: Number(r.n) || 0,
+        brier: r.brier == null ? null : Number(r.brier),
+        logLoss: r.log_loss == null ? null : Number(r.log_loss),
+        maeTotal: r.mae_total == null ? null : Number(r.mae_total),
+        maeMargin: r.mae_margin == null ? null : Number(r.mae_margin),
+        winnerHit: r.winner_hit == null ? null : Number(r.winner_hit),
+      })),
+    };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), rows: [] };
+  }
+}
+
 export function mapSnapshotRow(r) {
   if (!r) return null;
   let extra = {};

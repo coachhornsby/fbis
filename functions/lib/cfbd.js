@@ -406,6 +406,39 @@ function parseEpaFromRow(row = {}) {
   return { off, def, net };
 }
 
+function normalizeName(v = "") {
+  return String(v)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function indexQbSeasonPerformance(rows = []) {
+  const byId = new Map();
+  const byName = new Map();
+  for (const row of rows || []) {
+    const id = row.playerId || row.player_id || row.athleteId || row.id || null;
+    const name = row.player || row.playerName || row.athlete || row.name || "";
+    const parsed = {
+      gamesStarted: num(row.gamesStarted ?? row.starts ?? row.games),
+      passAttempts: num(row.passAttempts ?? row.attempts),
+      passingPpa: num(row.passingPpa ?? row.ppa ?? row.epaPerPlay),
+      passingWepa: num(row.passingWepa ?? row.wepa),
+      successRate: num(row.successRate ?? row.success),
+      explosiveRate: num(row.explosiveRate ?? row.explosive),
+      sackRate: num(row.sackRate ?? row.sacksPerDropback),
+      turnoverRate: num(row.turnoverRate ?? row.turnoversPerPlay ?? row.intRate),
+      ypa: num(row.yardsPerAttempt ?? row.ypa),
+      usage: num(row.usage ?? row.usagePct ?? row.percent),
+    };
+    if (id != null) byId.set(String(id), parsed);
+    const key = normalizeName(name);
+    if (key) byName.set(key, parsed);
+  }
+  return { byId, byName };
+}
+
 function trimFeatureOutput(buckets = {}) {
   const byEspnId = {};
   const bySchool = {};
@@ -429,8 +462,17 @@ async function firstSuccessfulCfbdRequest(env, attempts, fetchFn) {
   return { rows: [], report, chosenPath: null };
 }
 
-export function buildCfbFeatureCatalog({ epa = [], returning = [], transfers = [], coaches = [], year = null, asOf = null } = {}) {
+export function buildCfbFeatureCatalog({
+  epa = [],
+  returning = [],
+  transfers = [],
+  coaches = [],
+  qbHistory = [],
+  year = null,
+  asOf = null,
+} = {}) {
   const buckets = {};
+  const qbPerf = indexQbSeasonPerformance(qbHistory);
   for (const row of epa || []) {
     const hit = resolveFeatureTeam(row);
     if (!hit) continue;
@@ -493,6 +535,44 @@ export function buildCfbFeatureCatalog({ epa = [], returning = [], transfers = [
       out.transferIn = (out.transferIn || 0) + 1;
       if (isQb) out.qbTransferIn = (out.qbTransferIn || 0) + 1;
       if (stars != null) out.transferStarsIn = (out.transferStarsIn || 0) + stars;
+      if (isQb) {
+        const pid = row.playerId || row.athleteId || row.id || null;
+        const pname = row.player || row.playerName || row.athlete || row.name || "";
+        const perf =
+          (pid != null ? qbPerf.byId.get(String(pid)) : null) || qbPerf.byName.get(normalizeName(pname)) || null;
+        if (perf) {
+          if (perf.gamesStarted != null) out.qbPriorGamesStarted = (out.qbPriorGamesStarted || 0) + perf.gamesStarted;
+          if (perf.passAttempts != null) out.qbPriorPassAttempts = (out.qbPriorPassAttempts || 0) + perf.passAttempts;
+          if (perf.passingPpa != null) {
+            out.qbPriorPpa = ((out.qbPriorPpa || 0) * (out.qbPriorCount || 0) + perf.passingPpa) / ((out.qbPriorCount || 0) + 1);
+          }
+          if (perf.passingWepa != null) {
+            out.qbPriorWepa = ((out.qbPriorWepa || 0) * (out.qbPriorCount || 0) + perf.passingWepa) / ((out.qbPriorCount || 0) + 1);
+          }
+          if (perf.successRate != null) {
+            out.qbPriorSuccessRate =
+              ((out.qbPriorSuccessRate || 0) * (out.qbPriorCount || 0) + perf.successRate) / ((out.qbPriorCount || 0) + 1);
+          }
+          if (perf.explosiveRate != null) {
+            out.qbPriorExplosiveRate =
+              ((out.qbPriorExplosiveRate || 0) * (out.qbPriorCount || 0) + perf.explosiveRate) / ((out.qbPriorCount || 0) + 1);
+          }
+          if (perf.sackRate != null) {
+            out.qbPriorSackRate = ((out.qbPriorSackRate || 0) * (out.qbPriorCount || 0) + perf.sackRate) / ((out.qbPriorCount || 0) + 1);
+          }
+          if (perf.turnoverRate != null) {
+            out.qbPriorTurnoverRate =
+              ((out.qbPriorTurnoverRate || 0) * (out.qbPriorCount || 0) + perf.turnoverRate) / ((out.qbPriorCount || 0) + 1);
+          }
+          if (perf.ypa != null) {
+            out.qbPriorYpa = ((out.qbPriorYpa || 0) * (out.qbPriorCount || 0) + perf.ypa) / ((out.qbPriorCount || 0) + 1);
+          }
+          if (perf.usage != null) {
+            out.qbPriorUsage = ((out.qbPriorUsage || 0) * (out.qbPriorCount || 0) + perf.usage) / ((out.qbPriorCount || 0) + 1);
+          }
+          out.qbPriorCount = (out.qbPriorCount || 0) + 1;
+        }
+      }
     } else {
       out.transferOut = (out.transferOut || 0) + 1;
       if (isQb) out.qbTransferOut = (out.qbTransferOut || 0) + 1;
@@ -559,19 +639,29 @@ export async function loadCfbFeatureFeeds(env = {}, { fetchFn = fetch, now = Dat
   const cached = await readCache(cacheKey, env.caches, FEATURE_TTL_MS);
   if (cached?.catalog?.byEspnId && cached?.meta) return cached;
 
-  const [epa, transfer, coaches, returning] = await Promise.all([
+  const [epa, transfer, coaches, returning, qbHistory] = await Promise.all([
     firstSuccessfulCfbdRequest(env, [["/ppa/teams", { year: season }], ["/ppa/teams/season", { year: season }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/player/portal", { year: season }], ["/player/transfer", { year: season }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/coaches", { year: season }], ["/coaches/teams", { year: season }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/player/returning", { year: season }]], fetchFn),
+    firstSuccessfulCfbdRequest(
+      env,
+      [
+        ["/player/season/statistics", { year: season - 1, category: "passing" }],
+        ["/stats/player/season", { year: season - 1, category: "passing" }],
+        ["/player/usage", { year: season - 1 }],
+      ],
+      fetchFn
+    ),
   ]);
 
-  const report = [...epa.report, ...transfer.report, ...coaches.report, ...returning.report];
+  const report = [...epa.report, ...transfer.report, ...coaches.report, ...returning.report, ...qbHistory.report];
   const catalog = buildCfbFeatureCatalog({
     epa: epa.rows,
     transfers: transfer.rows,
     coaches: coaches.rows,
     returning: returning.rows,
+    qbHistory: qbHistory.rows,
     year: season,
     asOf,
   });

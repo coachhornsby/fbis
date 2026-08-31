@@ -5,7 +5,7 @@
 
 import { collegeKeyHealth } from "./collegeSecrets.js";
 import { cfbdGet, cbbdGet, cfbSeasonYear, cbbSeasonYear, summarizeSchema, collegePublicResult } from "./collegeApi.js";
-import { queryQuota, insertSourceObservation, insertTeamFeatureSnapshot, insertGameFeatureSnapshot, insertModelPrediction, gradeModelPrediction, upsertModelRegistry, insertModelArtifact, insertValidationRun, insertPromotionDecision, upsertTeamSeasonIdentity, queryModelPredictions, queryEndpointUsage } from "./collegeStore.js";
+import { queryQuota, insertSourceObservation, insertTeamFeatureSnapshot, insertGameFeatureSnapshot, insertModelPrediction, gradeModelPrediction, upsertModelRegistry, insertModelArtifact, insertValidationRun, insertPromotionDecision, upsertTeamSeasonIdentity, queryModelPredictions, queryEndpointUsage, upsertQbTransferHistory } from "./collegeStore.js";
 import { COLLEGE_MODELS, evaluatePromotion, PROMOTION_CRITERIA } from "./collegeModels.js";
 import { projectCfbChallengers } from "./cfbRatings.js";
 import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatings.js";
@@ -37,6 +37,7 @@ export const COLLEGE_JOBS = [
   "cfb-reference-backfill",
   "cfb-current-refresh",
   "cfb-postgame-harvest",
+  "cfb-qb-transfer-refresh",
   "cbb-reference-backfill",
   "cbb-current-refresh",
   "cbb-postgame-harvest",
@@ -59,6 +60,12 @@ const CFB_BACKFILL_EXTRA = [
   ["/player/returning", (y) => ({ year: y })],
   ["/recruiting/teams", (y) => ({ year: y })],
   ["/games", (y) => ({ year: y, seasonType: "regular" })],
+];
+
+const CFB_QB_STATS_ENDPOINTS = [
+  ["/player/season/statistics", (y) => ({ year: y, category: "passing" })],
+  ["/stats/player/season", (y) => ({ year: y, category: "passing" })],
+  ["/player/usage", (y) => ({ year: y })],
 ];
 
 const CBB_REFRESH_ENDPOINTS = [
@@ -271,17 +278,35 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     }
 
     if (job === "model-train-validate") {
-      errors.push("training-runs-in-github-actions-not-workers");
-      const metrics = opts.metrics || { n: 0, maeTotal: null, note: "offline" };
-      await insertValidationRun(env, {
-        id: `${id}:val`,
-        modelId: opts.modelId || "CFB-CFBD-REG-v1",
-        method: "rolling-origin",
-        trainUntil: CFB_REG.trainingCutoff,
-        n: metrics.n,
-        metrics,
-        leakageOk: true,
-      });
+      const modelIds =
+        opts.modelId && opts.modelId !== "all"
+          ? [opts.modelId]
+          : ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1"];
+      const validation = [];
+      for (const modelId of modelIds) {
+        const rows = await queryModelPredictions(env, { sport: "cfb", modelId, limit: 5000 });
+        const graded = rows.filter((r) => r.actual_home != null && r.actual_away != null);
+        const metrics = evaluateValidationRows(graded);
+        const folds = rollingOriginFolds(graded, 4);
+        const foldMetrics = folds.map((fold) => ({
+          trainN: fold.train.length,
+          validateN: fold.validate.length,
+          metrics: evaluateValidationRows(fold.validate),
+        }));
+        await insertValidationRun(env, {
+          id: `${id}:val:${modelId}`,
+          modelId,
+          method: "rolling-origin-blocked",
+          trainUntil: folds.at(-1)?.train.at(-1)?.frozen_at || null,
+          validateFrom: folds.at(-1)?.validate[0]?.frozen_at || null,
+          validateUntil: folds.at(-1)?.validate.at(-1)?.frozen_at || null,
+          n: metrics.n,
+          metrics: { ...metrics, folds: foldMetrics, ablation: modelIds.length > 1 },
+          leakageOk: true,
+        });
+        validation.push({ modelId, metrics, folds: foldMetrics });
+        writes.writesSucceeded += 1;
+      }
       const payload = jobPayload({
         ok: true,
         job,
@@ -290,10 +315,25 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         successfulAt: new Date().toISOString(),
         env,
         writes,
-        errors,
-        d1: { bound: hasDb(env), note: "Worker refused to train; recorded validation stub. Run scripts/college-train.mjs in Actions." },
+        d1: {
+          bound: hasDb(env),
+          validation,
+          note: "Validation uses frozen shadow predictions only; champion remains unchanged until explicit promotion decision.",
+        },
       });
-      await recordJob(env, { id, jobType: job, triggerType: opts.trigger || "http", startedAt: started, completedAt: payload.successful_at, status: payload.status, sport: "college", writesAttempted: 1, writesSucceeded: 1, writesFailed: 0, env });
+      await recordJob(env, {
+        id,
+        jobType: job,
+        triggerType: opts.trigger || "http",
+        startedAt: started,
+        completedAt: payload.successful_at,
+        status: payload.status,
+        sport: "college",
+        writesAttempted: writes.writesSucceeded,
+        writesSucceeded: writes.writesSucceeded,
+        writesFailed: writes.writesFailed,
+        env,
+      });
       return payload;
     }
 
@@ -343,6 +383,52 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         const catalog = indexCfbRatings(fetched.bundles);
         gamesDiscovered += catalog.n;
         writes.writesSucceeded += await persistTeamFeatures(env, "cfb", y, catalog, id);
+      }
+    }
+
+    if (job === "cfb-qb-transfer-refresh") {
+      const seasons = opts.years || [yearCfb - 1, yearCfb];
+      for (const y of seasons) {
+        const portal = await cfbdGet("/player/portal", env, { query: { year: y } });
+        report.push(collegePublicResult(portal));
+        await persistObservation(env, {
+          source: "cfbd",
+          sport: "cfb",
+          endpoint: "/player/portal",
+          season: y,
+          partition: "season",
+          data: portal.ok ? portal.data : [],
+          jobRunId: id,
+          status: portal.ok ? "ok" : "failed",
+        });
+        let qbStats = { ok: false, data: [], reason: "qb-stats-endpoint-unavailable", status: 0, path: null };
+        for (const [path, qf] of CFB_QB_STATS_ENDPOINTS) {
+          const hit = await cfbdGet(path, env, { query: qf(y) });
+          report.push(collegePublicResult(hit));
+          await persistObservation(env, {
+            source: "cfbd",
+            sport: "cfb",
+            endpoint: path,
+            season: y,
+            partition: "season",
+            data: hit.ok ? hit.data : [],
+            jobRunId: id,
+            status: hit.ok ? "ok" : "failed",
+          });
+          if (hit.ok && Array.isArray(hit.data) && hit.data.length) {
+            qbStats = hit;
+            break;
+          }
+        }
+        const inserted = await persistQbTransferSeason(env, {
+          season: y,
+          portalRows: portal.ok ? portal.data : [],
+          qbStatRows: qbStats.ok ? qbStats.data : [],
+          asOf: new Date().toISOString(),
+        });
+        writes.writesSucceeded += inserted.okRows;
+        writes.writesFailed += inserted.failedRows;
+        gamesDiscovered += inserted.okRows;
       }
     }
 
@@ -469,8 +555,100 @@ export function gradeScores(pred, actualHome, actualAway) {
 
 export { lookupCbbdRating, indexCbbdAdjusted };
 
+function normalizeName(v = "") {
+  return String(v)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function num(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function indexQbStats(rows = []) {
+  const byId = new Map();
+  const byName = new Map();
+  for (const row of rows || []) {
+    const id = row.playerId || row.player_id || row.athleteId || row.id || null;
+    const name = row.player || row.playerName || row.name || row.athlete || "";
+    const rec = {
+      playerId: id ? String(id) : null,
+      playerName: name || null,
+      gamesStarted: num(row.gamesStarted ?? row.starts ?? row.games),
+      passAttempts: num(row.passAttempts ?? row.attempts),
+      usage: num(row.usage ?? row.usagePct ?? row.percent),
+      passingPpa: num(row.passingPpa ?? row.ppa ?? row.epaPerPlay),
+      passingWepa: num(row.passingWepa ?? row.wepa),
+      successRate: num(row.successRate ?? row.success),
+      explosiveRate: num(row.explosiveRate ?? row.explosive),
+      sackRate: num(row.sackRate ?? row.sacksPerDropback),
+      turnoverRate: num(row.turnoverRate ?? row.turnoversPerPlay ?? row.intRate),
+      ypa: num(row.yardsPerAttempt ?? row.ypa),
+      sourceSchool: row.team || row.school || row.schoolName || null,
+      season: num(row.year ?? row.season),
+    };
+    if (rec.playerId) byId.set(rec.playerId, rec);
+    const key = normalizeName(name);
+    if (key) byName.set(key, rec);
+  }
+  return { byId, byName };
+}
+
+async function persistQbTransferSeason(env, { season, portalRows = [], qbStatRows = [], asOf }) {
+  const idx = indexQbStats(qbStatRows);
+  let okRows = 0;
+  let failedRows = 0;
+  for (const row of portalRows || []) {
+    const pos = String(row.position || row.pos || row.positionGroup || "").toUpperCase();
+    if (pos !== "QB" && !/QUARTERBACK/.test(pos)) continue;
+    const direction = String(row.direction || row.type || row.movement || "").toLowerCase();
+    const incoming =
+      /\b(in|incoming|arrive|arriving|destination|commit|committed)\b/.test(direction) ||
+      Boolean(row.destination || row.destinationTeam || row.newSchool || row.toTeam);
+    if (!incoming) continue;
+    const playerId = row.playerId || row.athleteId || row.id || null;
+    const playerName = row.player || row.playerName || row.athlete || row.name || "";
+    const stat =
+      (playerId ? idx.byId.get(String(playerId)) : null) || idx.byName.get(normalizeName(playerName)) || null;
+    const sourceSchool = row.origin || row.originSchool || row.previousSchool || row.fromTeam || stat?.sourceSchool || null;
+    const destinationSchool = row.destination || row.destinationTeam || row.newSchool || row.toTeam || row.team || null;
+    const rec = {
+      id: `cfb:qb-transfer:${season}:${playerId || normalizeName(playerName)}:${normalizeName(destinationSchool || "")}`,
+      playerId: playerId ? String(playerId) : null,
+      playerName: playerName || stat?.playerName || null,
+      season,
+      sourceSchool,
+      sourceTeamId: row.originTeamId || row.fromTeamId || null,
+      destinationSchool,
+      destinationTeamId: row.destinationTeamId || row.toTeamId || null,
+      position: "QB",
+      transferDate: row.transferDate || row.date || null,
+      gamesStarted: stat?.gamesStarted ?? null,
+      passAttempts: stat?.passAttempts ?? null,
+      usage: stat?.usage ?? null,
+      passingPpa: stat?.passingPpa ?? null,
+      passingWepa: stat?.passingWepa ?? null,
+      successRate: stat?.successRate ?? null,
+      explosiveRate: stat?.explosiveRate ?? null,
+      sackRate: stat?.sackRate ?? null,
+      turnoverRate: stat?.turnoverRate ?? null,
+      ypa: stat?.ypa ?? null,
+      asOf,
+      source: "cfbd",
+      sourceObsId: null,
+    };
+    const out = await upsertQbTransferHistory(env, rec);
+    if (out.ok) okRows += 1;
+    else failedRows += 1;
+  }
+  return { okRows, failedRows };
+}
+
 const FREEZE_MODELS = {
-  cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1"],
+  cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1"],
   cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1"],
 };
 
@@ -502,4 +680,62 @@ export async function gradeGameChallengers(env, game, sport) {
     await gradeModelPrediction(env, { id: pred.id, actualHome: hs, actualAway: as, grade: gradeScores(pred, hs, as) });
   }
   return { ok: true, graded: rows.length, kind: "challenger-grade" };
+}
+
+function evaluateValidationRows(rows = []) {
+  const n = rows.length;
+  if (!n) {
+    return {
+      n: 0,
+      maeTotal: null,
+      maeMargin: null,
+      winnerHit: null,
+      brierHomeWin: null,
+      logLossHomeWin: null,
+    };
+  }
+  let sumAbsTotal = 0;
+  let sumAbsMargin = 0;
+  let winnerHitN = 0;
+  let brier = 0;
+  let logLoss = 0;
+  for (const r of rows) {
+    const ph = Number(r.proj_home);
+    const pa = Number(r.proj_away);
+    const ah = Number(r.actual_home);
+    const aa = Number(r.actual_away);
+    if (![ph, pa, ah, aa].every(Number.isFinite)) continue;
+    sumAbsTotal += Math.abs((ph + pa) - (ah + aa));
+    sumAbsMargin += Math.abs((ph - pa) - (ah - aa));
+    const predHome = ph > pa;
+    const actualHome = ah > aa;
+    if (predHome === actualHome) winnerHitN += 1;
+    const p = Math.max(0.001, Math.min(0.999, Number(r.p_home_win) || (predHome ? 0.55 : 0.45)));
+    const y = actualHome ? 1 : 0;
+    brier += (p - y) ** 2;
+    logLoss += -(y * Math.log(p) + (1 - y) * Math.log(1 - p));
+  }
+  return {
+    n,
+    maeTotal: sumAbsTotal / n,
+    maeMargin: sumAbsMargin / n,
+    winnerHit: winnerHitN / n,
+    brierHomeWin: brier / n,
+    logLossHomeWin: logLoss / n,
+  };
+}
+
+function rollingOriginFolds(rows = [], k = 4) {
+  const ordered = [...rows].sort((a, b) => String(a.frozen_at || "").localeCompare(String(b.frozen_at || "")));
+  if (ordered.length < k * 2) return [];
+  const foldSize = Math.max(1, Math.floor(ordered.length / (k + 1)));
+  const out = [];
+  for (let i = 1; i <= k; i++) {
+    const split = foldSize * i;
+    const train = ordered.slice(0, split);
+    const validate = ordered.slice(split, split + foldSize);
+    if (!train.length || !validate.length) continue;
+    out.push({ train, validate });
+  }
+  return out;
 }

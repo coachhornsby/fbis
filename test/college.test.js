@@ -271,6 +271,7 @@ describe("jobs, R2, storage", () => {
   it("lists required jobs and refuses unknown", async () => {
     assert.ok(COLLEGE_JOBS.includes("model-promote"));
     assert.ok(COLLEGE_JOBS.includes("cfb-current-refresh"));
+    assert.ok(COLLEGE_JOBS.includes("cfb-qb-transfer-refresh"));
     const env = collegeDb(new Map());
     const unknown = await runCollegeJob("nope", env);
     assert.equal(unknown.status, "failed");
@@ -281,7 +282,8 @@ describe("jobs, R2, storage", () => {
     const promo = await runCollegeJob("model-promote", env, { operatorApproved: false, n: 10 });
     assert.equal(promo.d1.promotion.promote, false);
     const train = await runCollegeJob("model-train-validate", env);
-    assert.ok((train.errors || []).some((e) => String(e).includes("github-actions")));
+    assert.equal(train.status, "success");
+    assert.ok(Array.isArray(train.d1?.validation));
   });
 
   it("documents R2 without blocking", () => {

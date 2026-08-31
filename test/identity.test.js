@@ -288,7 +288,20 @@ describe("CFB SAFETY", () => {
   it("applies feature vector adjustments for EPA/transfer/QB/coaching", () => {
     const featureCatalog = {
       byEspnId: {
-        "194": { espnId: "194", school: "Ohio State", epaNet: 0.35, transferNet: 6, qbTransferNet: 1, transferStarDelta: 8, coachTenure: 6, newCoach: false, returningPct: 63 },
+        "194": {
+          espnId: "194",
+          school: "Ohio State",
+          epaNet: 0.35,
+          transferNet: 6,
+          qbTransferNet: 1,
+          transferStarDelta: 8,
+          qbPriorPpa: 0.31,
+          qbPriorSuccessRate: 0.49,
+          qbPriorYpa: 8.6,
+          coachTenure: 6,
+          newCoach: false,
+          returningPct: 63,
+        },
         "130": { espnId: "130", school: "Michigan", epaNet: 0.12, transferNet: -2, qbTransferNet: -1, transferStarDelta: -3, coachTenure: 0, newCoach: true, returningPct: 49 },
       },
       bySchool: {},
@@ -304,6 +317,8 @@ describe("CFB SAFETY", () => {
     const proj = projectCfbGame(game, { rankings: { byTeam: new Map() }, form: new Map(), featureCatalog, qbSignals });
     assert.ok(proj.homeEst.featureVector.used.includes("epa"));
     assert.ok(proj.homeEst.featureVector.used.includes("qb"));
+    assert.equal(proj.homeEst.featureVector.raw.qbPriorPpa, 0.31);
+    assert.match(String(proj.homeEst.featureVector.source.qb), /transfer-history/);
     assert.ok(proj.homeEst.off > proj.homeEst.offBase);
     assert.ok(proj.awayEst.off < proj.awayEst.offBase);
     assert.equal(proj.features.summary.homeUsed.includes("transfer"), true);
