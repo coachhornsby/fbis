@@ -70,6 +70,16 @@ export async function attachCfbChallengers(games, env = {}) {
       home: { off: homeRow?.off, def: homeRow?.def, talent: homeRow?.talent, returningPct: homeRow?.returningPct },
       away: { off: awayRow?.off, def: awayRow?.def, talent: awayRow?.talent, returningPct: awayRow?.returningPct },
     });
+    const enriched = game.cfb?.challengers?.enrichedV1;
+    if (enriched) {
+      challengers["CFB-CFBD-ENRICHED-v1"] = {
+        ...enriched,
+        modelId: "CFB-CFBD-ENRICHED-v1",
+        ok: true,
+        role: "shadow",
+        canQualify: false,
+      };
+    }
     return { ...game, challengers, championModel: "FBIS-v1.3" };
   });
 }

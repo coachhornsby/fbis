@@ -285,7 +285,7 @@ describe("CFB SAFETY", () => {
     assert.equal(classifyCfbState(complete.homeEst, complete.awayEst), PROJECTION_STATES.COMPLETE);
   });
 
-  it("applies feature vector adjustments for EPA/transfer/QB/coaching", () => {
+  it("evaluates EPA/transfer/QB/coaching as a shadow challenger", () => {
     const featureCatalog = {
       byEspnId: {
         "194": { espnId: "194", school: "Ohio State", epaNet: 0.35, transferNet: 6, qbTransferNet: 1, transferStarDelta: 8, coachTenure: 6, newCoach: false, returningPct: 63 },
@@ -304,8 +304,12 @@ describe("CFB SAFETY", () => {
     const proj = projectCfbGame(game, { rankings: { byTeam: new Map() }, form: new Map(), featureCatalog, qbSignals });
     assert.ok(proj.homeEst.featureVector.used.includes("epa"));
     assert.ok(proj.homeEst.featureVector.used.includes("qb"));
-    assert.ok(proj.homeEst.off > proj.homeEst.offBase);
-    assert.ok(proj.awayEst.off < proj.awayEst.offBase);
+    assert.equal(proj.homeEst.off, proj.homeEst.offBase);
+    assert.equal(proj.awayEst.off, proj.awayEst.offBase);
+    assert.ok(proj.homeEst.challengerOff > proj.homeEst.offBase);
+    assert.ok(proj.awayEst.challengerOff < proj.awayEst.offBase);
+    assert.equal(proj.challengers.enrichedV1.shadow, true);
+    assert.equal(proj.challengers.enrichedV1.canQualify, false);
     assert.equal(proj.features.summary.homeUsed.includes("transfer"), true);
     assert.equal(proj.flags.includes("feature_sparse"), false);
   });

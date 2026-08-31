@@ -369,10 +369,14 @@ export function estimateTeam(team, { rankings, form, rankFallback, catalog, prio
     priorDef: prior.def,
     currentOff,
     currentDef,
-    off: adjustedOff,
-    def: adjustedDef,
+    // Production champion remains the validated prior + harvested form recipe.
+    // Enriched CFBD inputs are evaluated in shadow until walk-forward promotion.
+    off: off.value,
+    def: def.value,
     offBase: off.value,
     defBase: def.value,
+    challengerOff: adjustedOff,
+    challengerDef: adjustedDef,
     featureVector: features,
     w: off.w,
     teamSpecificPrior: priorCat.teamSpecific,
@@ -424,6 +428,13 @@ export function projectCfbGame(game, ctx = {}) {
     homeDef: home.def,
     awayOff: away.off,
     awayDef: away.def,
+    hfa,
+  });
+  const enrichedShadow = projectCfbMatchup({
+    homeOff: home.challengerOff,
+    homeDef: home.challengerDef,
+    awayOff: away.challengerOff,
+    awayDef: away.challengerDef,
     hfa,
   });
   const sig = cfbSigma({ gamesHome: home.n, gamesAway: away.n });
@@ -493,6 +504,15 @@ export function projectCfbGame(game, ctx = {}) {
     flags,
     venue,
     priorVersion,
+    challengers: {
+      enrichedV1: {
+        ...enrichedShadow,
+        modelVersion: "cfb-enriched-v1-shadow",
+        shadow: true,
+        canQualify: false,
+        inputs: ["epa", "transfer", "qb", "coaching", "returning", "talent"],
+      },
+    },
     features: {
       home: home.featureVector,
       away: away.featureVector,

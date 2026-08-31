@@ -47,6 +47,17 @@ export const COLLEGE_MODELS = {
     marketInformed: false,
     independent: true,
   },
+  "CFB-CFBD-ENRICHED-v1": {
+    id: "CFB-CFBD-ENRICHED-v1",
+    sport: "cfb",
+    name: "CFBD prior and form plus EPA, transfer, QB, coaching, returning production, and talent",
+    version: "v1",
+    role: "shadow",
+    family: "enriched",
+    canQualify: false,
+    marketInformed: false,
+    independent: true,
+  },
   "CFB-CFBD-REG-v1": {
     id: "CFB-CFBD-REG-v1",
     sport: "cfb",

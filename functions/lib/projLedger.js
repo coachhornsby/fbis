@@ -90,7 +90,7 @@ export const RECIPE_GUIDE = {
   },
   cfb: {
     engine: "CFB prior-v2-cfbd + season evidence",
-    body: "Champion: CollegeFootballData SP+/FPI/SRS/Elo covering all FBS (cfb-prior-v2-cfbd) blended with harvested points for/against, w = n/(n+6). HFA 2.5 (0 on confirmed neutral). Shadow challengers (CFB-LEAGUE-BASELINE, CFB-CFBD-RATINGS-v1, CFB-CFBD-REG-v1, ensemble, Pinnacle-implied, HFA) cannot QUALIFY, LOG, or write strategy tickets. League-average-only remains diagnostic. Pal is never a book.",
+    body: "Champion: CollegeFootballData SP+/FPI/SRS/Elo covering all FBS (cfb-prior-v2-cfbd) blended with harvested points for/against, w = n/(n+6). HFA 2.5 (0 on confirmed neutral). EPA, transfer, QB, coaching, returning-production, and talent adjustments run only in CFB-CFBD-ENRICHED-v1 shadow. All challengers cannot QUALIFY, LOG, or write strategy tickets until walk-forward validation and operator-approved promotion. League-average-only remains diagnostic. Pal is never a book.",
   },
   cbb: {
     engine: "Pinnacle line-implied champion; CBBD ratings are shadow",

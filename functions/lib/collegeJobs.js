@@ -470,7 +470,7 @@ export function gradeScores(pred, actualHome, actualAway) {
 export { lookupCbbdRating, indexCbbdAdjusted };
 
 const FREEZE_MODELS = {
-  cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1"],
+  cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-ENRICHED-v1"],
   cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1"],
 };
 
