@@ -260,7 +260,7 @@ function hydrateOddsFromSnapshot(game, snapshot) {
   return { ...game, odds };
 }
 
-export async function buildTodayBoard(date, env = {}, { buildSlateFn, querySnapshotsFn, now = Date.now() } = {}) {
+export async function buildTodayBoard(date, env = {}, { buildSlateFn, querySnapshotsFn, now = Date.now(), focusSport = "all" } = {}) {
   const builder = buildSlateFn || buildSlate;
   const querySnaps = querySnapshotsFn || querySnapshots;
   const sports = [];
@@ -269,10 +269,11 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, querySnaps
   let parlayNetwork = 0;
   for (const sport of BOARD_SPORTS) {
     try {
+      const liveFocus = focusSport && focusSport !== "all" && focusSport === sport;
       const slate = await builder(sport, date, {
         ...env,
-        parlayCacheOnly: true,
-        palCacheOnly: true,
+        parlayCacheOnly: !liveFocus,
+        palCacheOnly: !liveFocus,
       });
       let bySnapshot = new Map();
       if (env.DB) {
@@ -296,6 +297,7 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, querySnaps
         ok: true,
         n: rows.length,
         error: null,
+        liveFocus,
         pal: slate.pal || null,
         palReason: sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null,
         parlay: slate.parlay || null,
@@ -352,7 +354,8 @@ export async function buildTodayBoard(date, env = {}, { buildSlateFn, querySnaps
     feeds,
     empty,
     parlay: {
-      cacheOnly: true,
+      cacheOnly: focusSport === "all",
+      focusSport: focusSport || "all",
       extraFullOddsRequests: parlayNetwork,
     },
   };

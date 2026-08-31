@@ -142,7 +142,7 @@ export default function App() {
     setTodayLoading(true);
     setTodayError("");
     try {
-      const res = await fetch(`/api/today?date=${todayDate}&_t=${Date.now()}`, { signal });
+      const res = await fetch(`/api/today?date=${todayDate}&sport=${todaySport}&_t=${Date.now()}`, { signal });
       const data = await responseJson(res, "Today");
       if (signal?.aborted) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
@@ -153,7 +153,7 @@ export default function App() {
     } finally {
       if (!signal?.aborted) setTodayLoading(false);
     }
-  }, [todayDate]);
+  }, [todayDate, todaySport]);
 
   const refreshBets = useCallback(async (signal) => {
     try {

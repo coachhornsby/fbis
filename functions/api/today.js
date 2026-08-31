@@ -7,6 +7,7 @@ import { attachMyBetsToBoard } from "../lib/executedBets.js";
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const resolved = resolveTodayDate(url.searchParams.get("date") || "");
+  const focusSport = (url.searchParams.get("sport") || "all").toLowerCase();
   if (!resolved.ok) {
     return json({ error: resolved.error, date: resolved.date, games: [], sports: [], counts: {} }, 400);
   }
@@ -19,7 +20,7 @@ export async function onRequestGet(context) {
     DB: context.env.DB,
   };
   try {
-    const board = await buildTodayBoard(resolved.date, env);
+    const board = await buildTodayBoard(resolved.date, env, { focusSport });
     const betsQ = await queryExecutedBets(env, { date: resolved.date, includeRaw: false });
     const withBets = attachMyBetsToBoard(board, betsQ.rows || []);
     const ping = await pingDb(env);
@@ -57,6 +58,8 @@ export async function onRequestGet(context) {
         lastAttemptError: meta.last_pal_attempt_error || null,
         availableFromCache: Boolean(meta.last_pal_success_at && meta.last_pal_attempt_http_status === "429"),
       },
+      todayCacheOnly: board?.parlay?.cacheOnly !== false,
+      todayFocusSport: board?.parlay?.focusSport || "all",
       todayCt: todayCT(),
     };
     return json({ ...withBets, health, db: { ...ping, ...counts } }, 200, 30);

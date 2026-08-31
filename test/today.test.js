@@ -77,6 +77,23 @@ describe("TODAY cache-only and MY BET markers", () => {
     assert.ok(seen.every((s) => s.cache === true && s.pal === true));
   });
 
+  it("requests live feeds for the focused today sport only", async () => {
+    const seen = [];
+    await buildTodayBoard("2026-08-27", {}, {
+      focusSport: "mlb",
+      buildSlateFn: async (sport, date, env) => {
+        seen.push({ sport, cache: env.parlayCacheOnly, pal: env.palCacheOnly });
+        return { sport, date, games: [], parlay: { cached: true, skipped: true } };
+      },
+    });
+    const mlb = seen.find((s) => s.sport === "mlb");
+    const nfl = seen.find((s) => s.sport === "nfl");
+    assert.equal(mlb.cache, false);
+    assert.equal(mlb.pal, false);
+    assert.equal(nfl.cache, true);
+    assert.equal(nfl.pal, true);
+  });
+
   it("reports skipped MLB prop feed instead of an evaluated zero", async () => {
     const board = await buildTodayBoard("2026-08-28", {}, {
       buildSlateFn: async (sport) => ({

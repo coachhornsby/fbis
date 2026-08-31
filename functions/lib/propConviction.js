@@ -162,7 +162,9 @@ export function propWatchSummary(watch) {
 /** TODAY health sentence. Omit empty Pal/props fragments so the line never ends in "MLB props: ." */
 export function todayFeedNote(health = {}, mlbPropWatch) {
   const pal = health.pal || {};
-  const bits = ["Cache-only odds on this page. Missing Pinnacle is context, not a bet."];
+  const bits = [health?.todayCacheOnly === false
+    ? "Live odds requested for the selected sport. Missing Pinnacle still means no eligible market."
+    : "Cache-only odds on this page. Missing Pinnacle is context, not a bet."];
   const hasPal =
     pal.matched != null ||
     pal.unmatched != null ||
