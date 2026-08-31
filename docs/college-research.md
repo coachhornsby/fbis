@@ -13,7 +13,8 @@ Authenticated with `HARVEST_SECRET`. Separate Worker invocations (10 ms CPU / 50
 - `cfb-reference-backfill` / `cbb-reference-backfill` — manual historical seasons
 - `cfb-current-refresh` / `cbb-current-refresh` — incremental current season
 - `cfb-postgame-harvest` / `cbb-postgame-harvest` — grade frozen shadow projections
-- `model-train-validate` — Worker refuses to train; GitHub Actions runs `scripts/college-train.mjs`
+- `cfb-qb-transfer-refresh` — refresh durable transfer-QB identity + prior production history
+- `model-train-validate` — Worker runs shadow-model validation summaries (rolling blocked folds) from frozen predictions; external training remains in GitHub Actions
 - `model-promote` — explicit criteria + operator approval; never auto
 - `college-health` — quota / storage / key configured (no values)
 
@@ -21,7 +22,7 @@ GitHub workflow `.github/workflows/college.yml` is isolated from collect/harvest
 
 ## Storage
 
-Compact D1 tables in `migrations/0009_college_research.sql`. R2 `ARCHIVE` is optional (`fbis-archive`). Missing R2 does not block operational models.
+Compact D1 tables in `migrations/0009_college_research.sql` and transfer-QB history in `migrations/0011_transfer_qb_history.sql`. R2 `ARCHIVE` is optional (`fbis-archive`). Missing R2 does not block operational models.
 
 ## CBB score identity
 
