@@ -143,6 +143,43 @@ describe("TODAY cache-only and MY BET markers", () => {
     assert.equal(next.games[0].rec, null);
     assert.equal(next.counts.myBets, 1);
   });
+
+  it("hydrates missing cache-only odds from D1 snapshots", async () => {
+    const board = await buildTodayBoard("2026-08-28", { DB: {} }, {
+      buildSlateFn: async (sport) => ({
+        sport,
+        date: "2026-08-28",
+        games: sport === "mlb" ? [{
+          id: "evt-1",
+          sport: "mlb",
+          start: "2026-08-28T23:00:00Z",
+          home: { name: "Cubs", abbr: "CHC" },
+          away: { name: "Pirates", abbr: "PIT" },
+          status: { detail: "Scheduled" },
+          odds: {},
+          model: { projHome: 4.1, projAway: 3.8, layers: { score: 0.55 } },
+        }] : [],
+        parlay: { cached: false, skipped: true, propFeedStatus: "skipped", propRows: 0 },
+      }),
+      querySnapshotsFn: async () => ({
+        ok: true,
+        rows: [{
+          gameId: "evt-1",
+          frozenAt: "2026-08-28T22:00:00Z",
+          pinHomeMl: -132,
+          pinAwayMl: 118,
+          pinSpread: -1.5,
+          pinTotal: 8.5,
+        }],
+      }),
+    });
+    const game = board.games.find((g) => g.id === "evt-1");
+    assert.equal(game.pinMlHome, -132);
+    assert.equal(game.pinMlAway, 118);
+    assert.equal(game.pinSpread, -1.5);
+    assert.equal(game.pinTotal, 8.5);
+    assert.equal(game.marketUnavailable, false);
+  });
 });
 
 describe("accuracy vs tickets split", () => {
