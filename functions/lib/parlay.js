@@ -595,7 +595,14 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   const baseball = BASEBALL.has(sportId);
   const cacheKey = `${CACHE_VER}:odds${baseball ? "-props-v3" : ""}:${sportKey}`;
   const cached = await readCache(cacheKey, cfCache, TTL_MS);
-  if (cached) return { ...cached, meta: { ...cached.meta, cached: true } };
+  if (cached) {
+    const cachedMeta = { ...(cached.meta || {}), cached: true };
+    const cachedErr = String(cachedMeta.parlayError || cachedMeta.error || "");
+    if (isParlayCreditError(cachedErr) && !String(cachedMeta.source || "").includes("credit-exhausted")) {
+      cachedMeta.source = opts.backupApiKey ? "parlay-credit-exhausted-backup-failed" : "parlay-credit-exhausted";
+    }
+    return { ...cached, meta: cachedMeta };
+  }
   if (opts.cacheOnly) {
     return {
       events: [],
