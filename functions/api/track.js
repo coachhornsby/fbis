@@ -154,65 +154,41 @@ async function applyManualFinal(env, payload) {
 }
 
 async function cleanupFutureGrades(env) {
-  const gamesRows = await env.DB.prepare("SELECT id, start FROM games WHERE start IS NOT NULL").all();
-  const futureGameIds = new Set(
-    (gamesRows.results || [])
-      .filter((r) => isFutureStart(r.start))
-      .map((r) => String(r.id))
-  );
-  let snapReset = 0;
-  let predReset = 0;
-  const ids = [...futureGameIds];
-  for (let i = 0; i < ids.length; i += 200) {
-    const chunk = ids.slice(i, i + 200);
-    const placeholders = chunk.map(() => "?").join(", ");
-    const snapOut = await env.DB
-      .prepare(`UPDATE prediction_snapshots SET actual_home = NULL, actual_away = NULL, graded_at = NULL WHERE actual_home IS NOT NULL AND game_id IN (${placeholders})`)
-      .bind(...chunk)
-      .run();
-    const predOut = await env.DB
-      .prepare(`UPDATE predictions SET actual_home = NULL, actual_away = NULL, graded_at = NULL WHERE actual_home IS NOT NULL AND game_id IN (${placeholders})`)
-      .bind(...chunk)
-      .run();
-    snapReset += Number(snapOut?.meta?.changes || 0);
-    predReset += Number(predOut?.meta?.changes || 0);
-  }
-
-  let strategyReset = 0;
-  const strategy = await queryStrategyTickets(env, {});
-  for (const t of strategy || []) {
-    if (!["WON", "LOST", "PUSH", "VOID"].includes(String(t.result || ""))) continue;
-    if (!(t.gameId && futureGameIds.has(String(t.gameId)))) continue;
-    await env.DB
-      .prepare("UPDATE strategy_tickets SET result = 'OPEN', profit = NULL, clv = NULL, graded_at = NULL WHERE id = ?")
-      .bind(t.id)
-      .run();
-    strategyReset += 1;
-  }
-
-  let betsReset = 0;
-  const executed = await queryExecutedBets(env, { includeRaw: false });
-  for (const b of executed.rows || []) {
-    if (!["WON", "LOST", "PUSH", "VOID"].includes(String(b.result || ""))) continue;
-    if (!(b.gameId && futureGameIds.has(String(b.gameId)))) continue;
-    const out = await updateExecutedBet(
-      env,
-      b.id,
-      { result: "OPEN", profit: null, settledReturn: null, gradedAt: null, voidReason: null },
-      "cleanup-future-grade"
-    );
-    if (out?.ok) betsReset += 1;
-  }
+  const nowIso = new Date().toISOString();
+  const snapOut = await env.DB.prepare(
+    `UPDATE prediction_snapshots
+     SET actual_home = NULL, actual_away = NULL, graded_at = NULL
+     WHERE actual_home IS NOT NULL
+       AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
+  ).bind(nowIso).run();
+  const predOut = await env.DB.prepare(
+    `UPDATE predictions
+     SET actual_home = NULL, actual_away = NULL, graded_at = NULL
+     WHERE actual_home IS NOT NULL
+       AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
+  ).bind(nowIso).run();
+  const stratOut = await env.DB.prepare(
+    `UPDATE strategy_tickets
+     SET result = 'OPEN', profit = NULL, clv = NULL, graded_at = NULL
+     WHERE result IN ('WON','LOST','PUSH','VOID')
+       AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
+  ).bind(nowIso).run();
+  const betOut = await env.DB.prepare(
+    `UPDATE executed_bets
+     SET result = 'OPEN', profit = NULL, settled_return = NULL, graded_at = NULL, void_reason = NULL
+     WHERE result IN ('WON','LOST','PUSH','VOID')
+       AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
+  ).bind(nowIso).run();
 
   return {
     ok: true,
     status: 200,
     body: {
       ok: true,
-      snapshotRowsReset: snapReset,
-      predictionRowsReset: predReset,
-      strategyTicketsReset: strategyReset,
-      executedBetsReset: betsReset,
+      snapshotRowsReset: Number(snapOut?.meta?.changes || 0),
+      predictionRowsReset: Number(predOut?.meta?.changes || 0),
+      strategyTicketsReset: Number(stratOut?.meta?.changes || 0),
+      executedBetsReset: Number(betOut?.meta?.changes || 0),
     },
   };
 }
