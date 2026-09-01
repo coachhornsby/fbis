@@ -339,9 +339,9 @@ export async function onRequestGet(context) {
       }),
     };
     payload.authoritative = {
-      accuracy: semantic.state !== "UNAVAILABLE",
-      strategy: semantic.state !== "UNAVAILABLE",
-      anomalies: semantic.state !== "UNAVAILABLE",
+      accuracy: semantic.state === "HEALTHY",
+      strategy: semantic.state === "HEALTHY",
+      anomalies: semantic.state === "HEALTHY",
     };
     const auditQ = await queryEvAuditRecords({ DB: context.env.DB }, { limit: 500 });
     payload.anomalies = {
