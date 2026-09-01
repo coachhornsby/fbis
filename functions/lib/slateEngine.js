@@ -1021,7 +1021,20 @@ async function fetchCfbdGamesRange(startDay, endDay, apiKey) {
       Accept: "application/json",
     },
   });
-  if (!res.ok) throw new Error(`CFBD games ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 400) {
+      const year = Number(String(startDay).slice(0, 4));
+      const rows = await fetchCfbdGamesSeason(year, apiKey);
+      const startMs = Date.parse(`${startDay}T00:00:00Z`);
+      const endMs = Date.parse(`${endDay}T23:59:59Z`);
+      return rows.filter((row) => {
+        const ymd = ymdCtForIso(row.startDate || row.start_date);
+        const ms = Date.parse(`${ymd}T00:00:00Z`);
+        return Number.isFinite(ms) && ms >= startMs && ms <= endMs;
+      });
+    }
+    throw new Error(`CFBD games ${res.status}`);
+  }
   const rows = await res.json();
   return Array.isArray(rows) ? rows : [];
 }
