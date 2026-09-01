@@ -158,8 +158,10 @@ async function reconcileOpenStrategyGrades(env) {
 
 export async function onRequestGet(context) {
   const env = { DB: context.env.DB, CFBD_API_KEY: context.env.CFBD_API_KEY };
+  const url = new URL(context.request.url);
+  const reconcile = url.searchParams.get("reconcile") === "1";
   await freezeCanonicalSeed(env);
-  await reconcileOpenStrategyGrades(env);
+  if (reconcile) await reconcileOpenStrategyGrades(env);
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
   const seed = canonicalSeedTickets(dbSeed);
   const prospectiveRaw = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
