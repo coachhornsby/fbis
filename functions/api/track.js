@@ -1,5 +1,5 @@
 import { buildTrackReport } from "../lib/projLedger.js";
-import { queryAccuracyDailySummary, queryPipelineStages, queryStrategyTickets } from "../lib/store.js";
+import { queryAccuracyDailySummary, queryPipelineStages, queryStrategyTicketsStatus } from "../lib/store.js";
 import { rollupAccuracySummaries } from "../lib/accuracySummary.js";
 import { STRATEGY_HC_V1, scopedProspectiveTickets } from "../lib/strategy.js";
 
@@ -28,9 +28,10 @@ export async function onRequestGet(context) {
       });
       if (compact.ok && compact.rows.length) {
         const accuracy = rollupAccuracySummaries(compact.rows);
-        const tickets = await queryStrategyTickets({ DB: context.env.DB }, { strategyId: STRATEGY_HC_V1.id });
-        const cohort = scopedProspectiveTickets(tickets, { sport, since, until: null });
+        const ticketQuery = await queryStrategyTicketsStatus({ DB: context.env.DB }, { strategyId: STRATEGY_HC_V1.id });
+        const cohort = scopedProspectiveTickets(ticketQuery.rows, { sport, since, until: null });
         const strategyPerformance = {
+          available: ticketQuery.ok,
           population: cohort.population,
           scope: { ...cohort.scope, checkpoint: "qualification freeze", strategyId: STRATEGY_HC_V1.id },
           reconciliation: cohort.reconciliation,
@@ -43,7 +44,9 @@ export async function onRequestGet(context) {
           roi: cohort.stats.roi,
           avgEv: cohort.stats.avgEv,
           avgClv: cohort.stats.avgClv,
-          message: cohort.stats.settled ? null : "No settled FBIS-HC-v1 CONVICTION tickets in this exact scope.",
+          message: !ticketQuery.ok
+            ? "CONVICTION history is unavailable; this is not a zero-ticket result."
+            : cohort.stats.settled ? null : "No settled FBIS-HC-v1 CONVICTION tickets in this exact scope.",
         };
         const stages = await queryPipelineStages({ DB: context.env.DB }, { limit: 50 });
         return new Response(JSON.stringify({

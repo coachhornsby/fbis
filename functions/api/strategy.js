@@ -11,7 +11,7 @@ import {
   partitionProspectiveTickets,
   dateCT,
 } from "../lib/strategy.js";
-import { persistStrategy, persistStrategyTicket, queryStrategyTickets, queryCfbStrategySchedule, gradeStrategyTicket, hasDb } from "../lib/store.js";
+import { persistStrategy, persistStrategyTicket, queryStrategyTickets, queryStrategyTicketsStatus, queryCfbStrategySchedule, gradeStrategyTicket, hasDb } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
 
 function json(data, status = 200, extraHeaders = {}) {
@@ -64,7 +64,15 @@ export async function onRequestGet(context) {
   const env = { DB: context.env.DB };
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
   const seed = canonicalSeedTickets(dbSeed.length ? dbSeed : STRATEGY_HC_V1_SEED_TICKETS);
-  const rawProspective = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
+  const prospectiveQuery = await queryStrategyTicketsStatus(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
+  if (!prospectiveQuery.ok) return readJson({
+    schemaVersion: 2,
+    available: false,
+    population: "FBIS-HC-v1 prospective CONVICTION tickets",
+    error: "Strategy history is temporarily unavailable. No zero record is being reported.",
+    reason: prospectiveQuery.reason,
+  }, 503);
+  const rawProspective = prospectiveQuery.rows;
   const since = new Date(Date.now() - 21 * 86400000).toISOString().slice(0, 10);
   const schedules = await queryCfbStrategySchedule(env, since);
   const byGame = new Map(schedules.map((r) => [String(r.game_id), r.event_start]));
@@ -76,6 +84,7 @@ export async function onRequestGet(context) {
   const rec = reconstructionPayload(seed);
   return readJson({
     schemaVersion: 2,
+    available: true,
     population: "FBIS-HC-v1 prospective CONVICTION tickets",
     strategy: STRATEGY_HC_V1,
     reconstruction: rec,

@@ -28,6 +28,7 @@ import {
   persistStrategy,
   persistStrategyTicket,
   queryStrategyTickets,
+  queryStrategyTicketsStatus,
   gradeStrategyTicket,
   hasDb,
   enqueueHarvestRetry,
@@ -837,7 +838,8 @@ async function persistMatchingRec(env, slate, game, frozen) {
 }
 
 async function gradeStrategyAgainstFinals(env, finals) {
-  const tickets = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
+  const ticketQuery = await queryStrategyTicketsStatus(env, { strategyId: STRATEGY_HC_V1.id });
+  const tickets = ticketQuery.rows;
   const byId = new Map((finals || []).map((g) => [String(g.id), g]));
   const jobs = [];
   for (const t of tickets) {
@@ -1834,7 +1836,8 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
   }
   const acc = accuracyOf(displayRows);
   const pack = buildAccuracyPack(displayRows, { model, perGame, sport: sport === "all" ? null : sport });
-  const tickets = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
+  const ticketQuery = await queryStrategyTicketsStatus(env, { strategyId: STRATEGY_HC_V1.id });
+  const tickets = ticketQuery.rows;
   const over = overDiagnostics(displayRows, { tickets });
   const health = await dbPayload(env);
   const distinctProjected = new Set(
@@ -1869,6 +1872,7 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
   const strat = cohort.stats;
   const settledN = prospective.filter((t) => t.result === "WON" || t.result === "LOST").length;
   const strategyPerformance = {
+    available: ticketQuery.ok,
     population: cohort.population,
     scope: { ...cohort.scope, checkpoint: "qualification freeze", strategyId: STRATEGY_HC_V1.id },
     reconciliation: cohort.reconciliation,
@@ -1881,7 +1885,9 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
     roi: settledN && strat.roi != null ? strat.roi : null,
     avgEv: strat.avgEv ?? null,
     avgClv: clv.unavailable ? null : clv.avg,
-    message: settledN ? null : "No settled FBIS-HC-v1 CONVICTION tickets in this exact scope.",
+    message: !ticketQuery.ok
+      ? "CONVICTION history is unavailable; this is not a zero-ticket result."
+      : settledN ? null : "No settled FBIS-HC-v1 CONVICTION tickets in this exact scope.",
   };
   const pal = palHealth(mlbRows.length ? mlbRows : displayRows.filter((r) => r.sport === "mlb"), palMeta);
   const accSummary = {

@@ -1489,8 +1489,13 @@ export async function gradeStrategyTicket(env, id, { result, profit, clv, graded
 }
 
 export async function queryStrategyTickets(env, { strategyId, role } = {}) {
+  const result = await queryStrategyTicketsStatus(env, { strategyId, role });
+  return result.rows;
+}
+
+export async function queryStrategyTicketsStatus(env, { strategyId, role } = {}) {
   markBound(env);
-  if (!hasDb(env)) return [];
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
   try {
     let sql = "SELECT * FROM strategy_tickets WHERE 1=1";
     const binds = [];
@@ -1505,10 +1510,10 @@ export async function queryStrategyTickets(env, { strategyId, role } = {}) {
     sql += " ORDER BY date DESC, created_at DESC";
     const res = binds.length ? await env.DB.prepare(sql).bind(...binds).all() : await env.DB.prepare(sql).all();
     markRead();
-    return (res.results || []).map(mapStrategyTicket);
+    return { ok: true, reason: null, rows: (res.results || []).map(mapStrategyTicket) };
   } catch (err) {
     markErr(err);
-    return [];
+    return { ok: false, reason: String(err?.message || err), rows: [] };
   }
 }
 

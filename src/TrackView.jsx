@@ -336,13 +336,13 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
             Projection rows are never included.
           </p>
           <div className="status-grid">
-            <Stat label="Tickets" value={report?.strategyPerformance?.tickets ?? 0} />
-            <Stat label="Open" value={report?.strategyPerformance?.open ?? 0} />
-            <Stat label="Settled" value={report?.strategyPerformance?.settled ?? 0} />
+            <Stat label="Tickets" value={report?.strategyPerformance?.available === false ? "UNAVAILABLE" : report?.strategyPerformance?.tickets ?? 0} />
+            <Stat label="Open" value={report?.strategyPerformance?.available === false ? "—" : report?.strategyPerformance?.open ?? 0} />
+            <Stat label="Settled" value={report?.strategyPerformance?.available === false ? "—" : report?.strategyPerformance?.settled ?? 0} />
             <Stat label="Record" value={report?.strategyPerformance?.record || "—"} />
             <Stat label="Hit rate" value={fmtPct(report?.strategyPerformance?.hitRate)} />
             <Stat label="Units" value={fmtSigned(report?.strategyPerformance?.units)} />
-            <Stat label="Population check" value={report?.strategyPerformance?.reconciliation?.ok ? "RECONCILED" : "NOT RECONCILED"} />
+            <Stat label="Population check" value={report?.strategyPerformance?.available === false ? "UNAVAILABLE" : report?.strategyPerformance?.reconciliation?.ok ? "RECONCILED" : "NOT RECONCILED"} />
           </div>
           {report?.strategyPerformance?.reconciliation && <p className={report.strategyPerformance.reconciliation.ok ? "muted" : "error"}>
             Cohort N={report.strategyPerformance.reconciliation.scopedRows} · stats N={report.strategyPerformance.reconciliation.statsN} · settled rows={report.strategyPerformance.reconciliation.settledRows} · settled stats={report.strategyPerformance.reconciliation.statsSettled} · duplicates excluded={report.strategyPerformance.reconciliation.duplicateRowsExcluded}.
@@ -867,6 +867,7 @@ function OverBlock({ over }) {
 
 function StrategyPanel() {
   const [pack, setPack] = useState(null);
+  const [loadError, setLoadError] = useState("");
   const [score, setScore] = useState({ ticketId: "", homeScore: "", awayScore: "" });
   const [scorePreview, setScorePreview] = useState(null);
   const [scoreMessage, setScoreMessage] = useState("");
@@ -874,9 +875,13 @@ function StrategyPanel() {
   useEffect(() => {
     const ac = new AbortController();
     fetch(`/api/strategy?_t=${Date.now()}`, { signal: ac.signal })
-      .then((r) => r.json())
-      .then((d) => setPack(d))
-      .catch(() => {});
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok || d.available === false) throw new Error(d.error || "Strategy history unavailable");
+        return d;
+      })
+      .then((d) => { setPack(d); setLoadError(""); })
+      .catch((err) => setLoadError(err.message));
     return () => ac.abort();
   }, []);
   const seed = pack?.seed || { tickets: [], stats: {}, traits: {} };
@@ -913,6 +918,7 @@ function StrategyPanel() {
         <span className="last-updated">expected N={pack?.expectedSeedN || 7} · recovered {pack?.actualRecoveredN ?? rec.recoveredN ?? 0} · {rec.state || rec.confidence || "operator-declared"}</span>
       </div>
       <div className="panel-body">
+        {loadError && <div className="error">{loadError} This is not a 0-ticket result.</div>}
         <p className="headline-line">
           High-conviction means a <b>qualified</b> ticket with EV ≥ 8% (tag CONVICTION). Leans are excluded.
           The 7-0 does not rewrite blend weights. N=7 is not evidence the filter works.
