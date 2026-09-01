@@ -54,6 +54,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
   const [manualFinalByRow, setManualFinalByRow] = useState({});
   const [manualSavingKey, setManualSavingKey] = useState("");
   const [manualMsg, setManualMsg] = useState("");
+  const [teamInput, setTeamInput] = useState(filters?.team || "");
   const actionIssues = [];
   if (error) actionIssues.push(`SYS feed error: ${error}`);
   if (!db.ok) actionIssues.push(`Research DB unavailable (${db.reason || "unknown"}).`);
@@ -109,6 +110,17 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
       setManualSavingKey("");
     }
   }
+
+  useEffect(() => {
+    setTeamInput(filters?.team || "");
+  }, [filters?.team]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if ((filters?.team || "") !== teamInput) onFilters?.({ team: teamInput });
+    }, 300);
+    return () => clearTimeout(id);
+  }, [teamInput, filters?.team, onFilters]);
 
   return (
     <div className="main-content">
@@ -290,9 +302,9 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
             </Filter>
             <Filter label="Team">
               <input
-                value={filters.team || ""}
+                value={teamInput}
                 placeholder="abbr"
-                onChange={(e) => onFilters({ team: e.target.value })}
+                onChange={(e) => setTeamInput(e.target.value)}
                 style={{ background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "5px 8px", fontSize: 12, width: 80 }}
               />
             </Filter>
@@ -400,6 +412,9 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
           <span className="last-updated">qualified / executed tickets</span>
         </div>
         <div className="panel-body">
+          <p className="muted" style={{ marginBottom: 8 }}>
+            Population: strategy ticket outcomes only. Not the same population as imported Heritage executions and not the same as full projection-accuracy rows.
+          </p>
           <p className="headline-line">
             {report?.strategyPerformance?.message ||
               (report?.strategyPerformance?.settled
@@ -423,6 +438,9 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
           <span className="last-updated">{report?.clv?.n ?? 0} valid Pin entry+close</span>
         </div>
         <div className="panel-body">
+          <p className="muted" style={{ marginBottom: 8 }}>
+            Population: tickets with valid entry and close benchmark data for identical market contracts.
+          </p>
           <p className="headline-line">
             {report?.clv?.unavailable
               ? report.clv.message || "No tickets have both a valid Pinnacle entry and close yet."
@@ -445,7 +463,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
           <span className="last-updated">{report?.layers?.leader ? `leader ${report.layers.leader}` : "N=0"}</span>
         </div>
         <div className="panel-body">
-          <p className="muted">{report?.layers?.note || "Layer leader is lowest Brier on frozen forecasts. Closest-to-binary counts are not used."}</p>
+          <p className="muted">Population: frozen forecast rows with final outcomes. {report?.layers?.note || "Layer leader is lowest Brier on frozen forecasts. Closest-to-binary counts are not used."}</p>
           <div className="table-scroll"><table className="fbis-table">
             <thead>
               <tr>

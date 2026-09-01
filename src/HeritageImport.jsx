@@ -22,6 +22,9 @@ export default function HeritageImport({ open, onClose, onImported }) {
   const [busy, setBusy] = useState(false);
   const [wroteMessage, setWroteMessage] = useState("");
   const feedbackRef = useRef(null);
+  const modalRef = useRef(null);
+  const closeBtnRef = useRef(null);
+  const restoreFocusRef = useRef(null);
 
   const tickets = preview?.tickets || [];
   const stale = Boolean(preview) && previewIsStale(preview.sourceText, text);
@@ -37,6 +40,37 @@ export default function HeritageImport({ open, onClose, onImported }) {
     if (!open || (status.kind !== "error" && status.kind !== "ok")) return;
     feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [open, status.kind, status.text]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    restoreFocusRef.current = document.activeElement;
+    queueMicrotask(() => closeBtnRef.current?.focus());
+    function trap(e) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose?.();
+        return;
+      }
+      if (e.key !== "Tab" || !modalRef.current) return;
+      const nodes = [...modalRef.current.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")]
+        .filter((el) => !el.disabled && el.offsetParent !== null);
+      if (!nodes.length) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", trap);
+    return () => {
+      document.removeEventListener("keydown", trap);
+      restoreFocusRef.current?.focus?.();
+    };
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -102,10 +136,10 @@ export default function HeritageImport({ open, onClose, onImported }) {
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Import Heritage bet slip">
-      <div className="modal-card">
+      <div className="modal-card" ref={modalRef}>
         <div className="panel-header">
           <h2>IMPORT HERITAGE BET SLIP</h2>
-          <button type="button" className="header-btn" onClick={onClose}>Close</button>
+          <button ref={closeBtnRef} type="button" className="header-btn" onClick={onClose}>Close</button>
         </div>
         <div className="panel-body">
           <p className="muted">{FIXTURE_HINT} Actual Heritage wagers are not qualified tickets, CONVICTION, FBIS-HC-v1, or the 7–0 seed unless a frozen pre-execution recommendation matches.</p>

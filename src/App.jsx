@@ -257,6 +257,7 @@ export default function App() {
         : tab === "bets"
           ? (betsError ? "RED" : betsDegraded ? "YELLOW" : "GREEN")
           : error ? "RED" : stats.units > 0 ? "GREEN" : stats.settled >= 8 && stats.winPct < 0.45 ? "YELLOW" : "GREEN";
+  const healthLabel = health === "RED" ? "DOWN" : health === "YELLOW" ? "DEGRADED" : "LIVE";
 
   function onLog(game, ticket = game.rec) {
     if (!ticket?.qualified) return;
@@ -297,14 +298,17 @@ export default function App() {
 
   return (
     <>
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <header className="app-header">
         <h1>FBIS</h1>
         <div className="header-divider" />
         <span className="subtitle">
           Fastwater Betting Intelligence System — {tab === "sys" ? "System" : tab === "today" ? "TODAY" : tab === "bets" ? "My Bets" : SPORTS[sport].name}
         </span>
-        <nav className="nav-tabs">
+        <nav className="nav-tabs" role="tablist" aria-label="Primary views">
           <button
+            role="tab"
+            aria-selected={tab === "today"}
             className={tab === "today" ? "active" : ""}
             onClick={() => setTab("today")}
           >
@@ -313,6 +317,8 @@ export default function App() {
           {BOARD_SPORTS.map((id) => (
             <button
               key={id}
+              role="tab"
+              aria-selected={tab === "board" && sport === id}
               className={tab === "board" && sport === id ? "active" : ""}
               onClick={() => {
                 setSport(id);
@@ -322,10 +328,10 @@ export default function App() {
               {SPORTS[id].label}
             </button>
           ))}
-          <button className={tab === "bets" ? "active" : ""} onClick={() => setTab("bets")}>
+          <button role="tab" aria-selected={tab === "bets"} className={tab === "bets" ? "active" : ""} onClick={() => setTab("bets")}>
             BETS
           </button>
-          <button className={tab === "sys" ? "active" : ""} onClick={() => setTab("sys")}>
+          <button role="tab" aria-selected={tab === "sys"} className={tab === "sys" ? "active" : ""} onClick={() => setTab("sys")}>
             SYS
           </button>
         </nav>
@@ -338,11 +344,11 @@ export default function App() {
             {tab === "sys" ? (trackLoading ? "↻ …" : "↻ Reload") : loading || todayLoading ? "↻ …" : "↻ Refresh"}
           </button>
         </div>
-        <span className={`overall-badge badge-${health}`}>{error ? "FEED DOWN" : "LIVE"}</span>
+        <span className={`overall-badge badge-${health}`}>{healthLabel}</span>
       </header>
 
       <Ticker items={tab === "board" ? slate?.ticker || [] : []} logged={loggedOpen} />
-
+      <main id="main-content">
       {tab === "sys" ? (
         <TrackView
           report={track}
@@ -452,22 +458,14 @@ export default function App() {
           </div>
         </div>
 
-        <Panel title="FBIS System Glossary">
+        <Panel title={`${(SPORTS[sport]?.label || "Board").toUpperCase()} Operator Glossary`}>
           <div className="glossary-grid">
-            <G title="Loop" body="Forecast independently, price the no-vig Pinnacle market, compare, require +EV, log the ticket, freeze the projection, grade the final, diagnose error. Champion weights do not auto-rewrite from last night’s W/L." />
-            <G title="Heritage" body="Your book. Every recommended ticket is a Heritage play. Parlay does not list Heritage today, so the Pinnacle number is the benchmark to shop — it is not recorded as a Heritage execution price unless Heritage is actually in the feed." />
-            <G title="Pinnacle vig" body="Hold on the two-way Pinnacle market (multiplicative de-vig). FBIS never compares its probability to raw implied. Fair American is 1/p. EV is expectancy at the Pinnacle price." />
-            <G title="Kalshi" body="Public sentiment only. Implied probability on the game, not a price you bet. Polymarket and Robinhood sit in the same bucket." />
-            <G title="Ballpark Pal" body="Matchup data only: batter vs starting pitcher, park factors, simulated team/F5 runs. Pal is not a sportsbook and is never used as a betting price." />
-            <G title="Score layer" body="MLB moneyline uses the Savant/Pal projected margin as its own probability layer (not W-L form). Form stays Pal matchup or record. The frozen Brier number is the blended FBIS probability, not form." />
-            <G title="F5" body="First five innings is the starter-matchup market. Pal matchup/F5 run sims inform the lean. Book F5 prices are used only when a real line is posted. Baseball run line is 1.5 full game / 0.5 F5." />
-            <G title="ParlayAPI" body="Odds cached 15 minutes so the 1,000 free credits last. Pinnacle game lines (eu) cost 3 credits. Kalshi is a separate 1-credit sentiment pull; empty Kalshi/F5 responses are cached 6 hours so missing markets do not drain the month." />
-            <G title="Gates" body="A projection is not a bet. Qualified tickets need a complete two-way Pinnacle market, an actual price, sport-aware probability edge, and +3% EV. Missing EV fails the gate. Model leans are shown separately until they can be priced." />
-            <G title="CLV" body="Closing-line value is entry no-vig Pinnacle probability vs closing (last pregame) no-vig Pinnacle probability for the side you bet. Positive means the market moved toward your side. Model fair vs market is a separate disagreement number, not CLV." />
+            {glossaryBySport(sport).map((x) => <G key={x.title} title={x.title} body={x.body} />)}
           </div>
         </Panel>
       </div>
       )}
+      </main>
       <HeritageImport
         open={importOpen}
         onClose={() => setImportOpen(false)}
@@ -478,6 +476,38 @@ export default function App() {
       />
     </>
   );
+}
+
+function glossaryBySport(sport) {
+  const common = [
+    { title: "Loop", body: "Forecast independently, compare to no-vig benchmark, require edge and EV, log, freeze, grade, and diagnose error. Champion weights do not auto-rewrite from one day of results." },
+    { title: "Heritage", body: "Execution ledger only. Imported operator bets remain separate from model recommendations and separate from strategy simulation populations." },
+    { title: "Pinnacle benchmark", body: "Pinnacle is the price benchmark for fair/no-vig comparisons. It is not automatically your executed Heritage price." },
+    { title: "Gates", body: "A projection is not a bet. Qualification requires a complete two-way benchmark market and positive EV thresholds." },
+    { title: "CLV", body: "CLV is entry no-vig vs close no-vig for the same side and contract. It is independent of win/loss outcomes." },
+  ];
+  if (sport === "mlb") {
+    return [
+      ...common,
+      { title: "Ballpark Pal", body: "MLB matchup context and run simulations (including F5 context). Not an execution venue." },
+      { title: "F5", body: "First-five markets reflect starter-phase conditions. F5 projections and prices are tracked separately from full-game markets." },
+      { title: "Props", body: "Player props appear only when contract + projection alignment is available; missing contracts produce watch-only status." },
+    ];
+  }
+  if (sport === "cfb") {
+    return [
+      ...common,
+      { title: "CFB readiness", body: "Projection state depends on schedule, priors, and feature freshness (EPA/QB/transfer/coaching). Blocked projections are shown explicitly when inputs are incomplete." },
+      { title: "College status", body: "Fallback schedules can populate boards, but betting eligibility still requires quality gates and market completeness." },
+    ];
+  }
+  if (sport === "nfl") {
+    return [...common, { title: "NFL projection mode", body: "When proprietary projection is unavailable, implied-market diagnostics are shown as context only and are not automatic bets." }];
+  }
+  if (sport === "nba" || sport === "cbb") {
+    return [...common, { title: "Hoops coverage", body: "Market and model coverage are displayed by sport readiness; unavailable sections are labeled as unavailable, not zero performance." }];
+  }
+  return common;
 }
 
 function Panel({ title, stamp, extra, children }) {

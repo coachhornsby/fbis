@@ -31,6 +31,21 @@ body {
 
 button, input, select, textarea { font-family: inherit; }
 
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 300;
+  background: var(--panel2);
+  color: var(--blue-light);
+  border: 1px solid var(--blue);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+.skip-link:focus {
+  left: 10px;
+}
+
 header.app-header {
   background: linear-gradient(135deg, #07111f 0%, #0d1e30 60%, #0f2540 100%);
   border-bottom: 2px solid var(--blue);
