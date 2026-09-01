@@ -960,7 +960,7 @@ function TicketTable({ rows, empty }) {
             <td>{t.pick}</td>
             <td>{fmtPct(t.ev)}</td>
             <td>{t.tag}</td>
-            <td>{t.result || "OPEN"}</td>
+            <td title={t.attentionReason || ""}>{t.displayStatus || t.result || "OPEN"}</td>
           </tr>
         ))}
       </tbody>

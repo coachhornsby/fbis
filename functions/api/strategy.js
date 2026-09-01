@@ -91,7 +91,11 @@ export async function onRequestGet(context) {
       tickets: prospective.upcoming.slice(0, 100),
       upcoming: prospective.upcoming.slice(0, 100),
       completed: prospective.completed.slice(0, 100),
-      needsAttention: prospective.needsAttention.slice(0, 100),
+      needsAttention: prospective.needsAttention.slice(0, 100).map((t) => ({
+        ...t,
+        displayStatus: "FINAL NOT MATCHED",
+        attentionReason: "Past scheduled date; no unambiguous final matched this frozen ticket.",
+      })),
       duplicateRowsExcluded: prospective.duplicateRowsExcluded,
       totalCanonical: prospective.canonical.length,
       traits: characterizeTickets(prospective.canonical),
