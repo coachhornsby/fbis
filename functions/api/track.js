@@ -70,14 +70,19 @@ async function applyManualFinal(env, payload) {
   }
   const targetGameIds = await deriveTargetGameIds(env, payload);
   if (!targetGameIds.length) return { ok: false, status: 404, error: "no matching game ids found" };
-  const placeholders = targetGameIds.map(() => "?").join(", ");
-  const startsQ = await env.DB
-    .prepare(`SELECT game_id, MIN(start) AS start FROM prediction_snapshots WHERE game_id IN (${placeholders}) GROUP BY game_id`)
-    .bind(...targetGameIds)
-    .all();
-  const eligibleIds = (startsQ.results || [])
-    .filter((r) => !isFutureStart(r.start, nowMs))
-    .map((r) => String(r.game_id));
+  let eligibleIds = [...targetGameIds];
+  try {
+    const placeholders = targetGameIds.map(() => "?").join(", ");
+    const startsQ = await env.DB
+      .prepare(`SELECT game_id, MIN(start) AS start FROM prediction_snapshots WHERE game_id IN (${placeholders}) GROUP BY game_id`)
+      .bind(...targetGameIds)
+      .all();
+    eligibleIds = (startsQ.results || [])
+      .filter((r) => !isFutureStart(r.start, nowMs))
+      .map((r) => String(r.game_id));
+  } catch {
+    if (isFutureStart(payload.start, nowMs)) eligibleIds = [];
+  }
   if (!eligibleIds.length) {
     return { ok: false, status: 409, error: "manual final blocked before kickoff" };
   }
@@ -149,22 +154,29 @@ async function applyManualFinal(env, payload) {
 }
 
 async function cleanupFutureGrades(env) {
-  const nowIso = new Date().toISOString();
-  const resetSnaps = await env.DB
-    .prepare("UPDATE prediction_snapshots SET actual_home = NULL, actual_away = NULL, graded_at = NULL WHERE actual_home IS NOT NULL AND start IS NOT NULL AND start > ?")
-    .bind(nowIso)
-    .run();
-  const resetPred = await env.DB
-    .prepare("UPDATE predictions SET actual_home = NULL, actual_away = NULL, graded_at = NULL WHERE actual_home IS NOT NULL AND start IS NOT NULL AND start > ?")
-    .bind(nowIso)
-    .run();
-
   const gamesRows = await env.DB.prepare("SELECT id, start FROM games WHERE start IS NOT NULL").all();
   const futureGameIds = new Set(
     (gamesRows.results || [])
       .filter((r) => isFutureStart(r.start))
       .map((r) => String(r.id))
   );
+  let snapReset = 0;
+  let predReset = 0;
+  const ids = [...futureGameIds];
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const snapOut = await env.DB
+      .prepare(`UPDATE prediction_snapshots SET actual_home = NULL, actual_away = NULL, graded_at = NULL WHERE actual_home IS NOT NULL AND game_id IN (${placeholders})`)
+      .bind(...chunk)
+      .run();
+    const predOut = await env.DB
+      .prepare(`UPDATE predictions SET actual_home = NULL, actual_away = NULL, graded_at = NULL WHERE actual_home IS NOT NULL AND game_id IN (${placeholders})`)
+      .bind(...chunk)
+      .run();
+    snapReset += Number(snapOut?.meta?.changes || 0);
+    predReset += Number(predOut?.meta?.changes || 0);
+  }
 
   let strategyReset = 0;
   const strategy = await queryStrategyTickets(env, {});
@@ -197,8 +209,8 @@ async function cleanupFutureGrades(env) {
     status: 200,
     body: {
       ok: true,
-      snapshotRowsReset: Number(resetSnaps?.meta?.changes || 0),
-      predictionRowsReset: Number(resetPred?.meta?.changes || 0),
+      snapshotRowsReset: snapReset,
+      predictionRowsReset: predReset,
       strategyTicketsReset: strategyReset,
       executedBetsReset: betsReset,
     },
