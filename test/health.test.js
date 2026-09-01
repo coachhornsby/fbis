@@ -24,6 +24,9 @@ test("health is lightweight, reports D1, and exposes the deployment SHA", async 
   );
   assert.equal(body.ok, true);
   assert.equal(body.d1.ok, true);
+  assert.ok(body.latest.collect);
+  assert.equal(Object.hasOwn(body.latest.collect, "success_at"), true);
+  assert.equal(Object.hasOwn(body.latest.harvest, "attempt_at"), true);
   assert.equal(body.deployment_commit, "abc123");
   assert.equal(body.checked_at, "2026-08-31T12:00:00.000Z");
 });

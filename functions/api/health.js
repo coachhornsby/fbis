@@ -13,8 +13,15 @@ export async function buildHealth(env, now = new Date()) {
     d1: { bound: Boolean(db.bound), ok: Boolean(db.ok), reason: db.reason || null },
     schedule: scheduledHealth(durable, now),
     latest: {
-      collect: durable.latestCollect || null,
-      harvest: durable.latestHarvest || null,
+      collect: {
+        success_at: durable.lastCollectSuccessAt || null,
+        attempt_at: durable.lastCollectAttemptAt || null,
+      },
+      harvest: {
+        success_at: durable.lastHarvestSuccessAt || null,
+        attempt_at: durable.lastHarvestAttemptAt || null,
+      },
+      job: durable.lastJob || null,
     },
     stages,
   };

@@ -35,7 +35,9 @@ export async function onRequestGet(context) {
       },
       { trigger, sport }
     );
-    await persistPipelineStage(context.env, { ...stage, status: payload.status, completedAt: new Date().toISOString(), httpStatus: httpStatusForJob(payload.status), errorSummary: (payload.errors || []).slice(0, 4).join(" | ") || null });
+    const errors = payload.errors || [];
+    const stageStatus = payload.status === "success" && errors.length ? "degraded" : payload.status;
+    await persistPipelineStage(context.env, { ...stage, status: stageStatus, completedAt: new Date().toISOString(), httpStatus: httpStatusForJob(payload.status), errorSummary: errors.slice(0, 4).join(" | ") || null });
     return new Response(JSON.stringify(payload), {
       status: httpStatusForJob(payload.status),
       headers: {

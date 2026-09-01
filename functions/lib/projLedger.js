@@ -38,6 +38,7 @@ import {
   updateExecutedBet,
   persistMlbMarketProjections,
   replaceAccuracyDailySummary,
+  refreshAccuracySummariesFromSnapshots,
 } from "./store.js";
 import { buildAccuracyDailySummaries } from "./accuracySummary.js";
 import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
@@ -1457,6 +1458,15 @@ export async function harvestAll(days, env = {}, opts = {}) {
   const games = reports.flatMap((r) => r.games || []);
   const finals = reports.flatMap((r) => r.finals || []);
   const errors = reports.flatMap((r) => r.errors || (r.error ? [r.error] : []));
+  const accuracySummaryRefresh = [];
+  for (const sport of sportList) {
+    const report = reports.find((r) => r.sport === sport);
+    const dates = report?.dates || [];
+    accuracySummaryRefresh.push({ sport, ...(await refreshAccuracySummariesFromSnapshots(env, {
+      sport,
+      since: dates.length ? [...dates].sort()[0] : undefined,
+    })) });
+  }
   let writes = emptyWriteCounts();
   for (const r of reports) writes = mergeWriteCounts(writes, r.jobCounts || emptyWriteCounts());
   const okSports = reports.filter((r) => r.ok !== false && !r.error).length;
@@ -1499,6 +1509,7 @@ export async function harvestAll(days, env = {}, opts = {}) {
     env,
     triggerType: opts.trigger || "http",
     cacheStatus: "accelerator-not-ledger",
+    accuracySummaryRefresh,
   });
   await recordJob(env, {
     jobType: "harvest",

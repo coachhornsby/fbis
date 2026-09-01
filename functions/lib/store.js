@@ -193,6 +193,39 @@ export async function replaceAccuracyDailySummary(env, rows = []) {
   }
 }
 
+/** Refresh compact metrics from the durable frozen ledger, never browser/cache state. */
+export async function refreshAccuracySummariesFromSnapshots(env, { sport, since } = {}) {
+  if (!hasDb(env)) return { ok: false, reason: "unbound", written: 0 };
+  const filters = [];
+  const binds = [];
+  if (sport && sport !== "all") { filters.push("sport = ?"); binds.push(sport); }
+  if (since) { filters.push("date >= ?"); binds.push(since); }
+  const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+  const sql = `INSERT OR REPLACE INTO accuracy_daily_summary
+    (id, sport, date, checkpoint, model_version, projected_n, graded_n,
+     abs_total_error_sum, total_bias_sum, winner_correct_n, winner_graded_n,
+     brier_sum, brier_n, updated_at)
+    SELECT sport || '|' || date || '|' || checkpoint || '|' || COALESCE(model_version, 'unknown'),
+      sport, date, checkpoint, COALESCE(model_version, 'unknown'),
+      SUM(CASE WHEN proj_home IS NOT NULL AND proj_away IS NOT NULL THEN 1 ELSE 0 END),
+      SUM(CASE WHEN proj_home IS NOT NULL AND proj_away IS NOT NULL AND actual_home IS NOT NULL AND actual_away IS NOT NULL THEN 1 ELSE 0 END),
+      SUM(CASE WHEN proj_home IS NOT NULL AND proj_away IS NOT NULL AND actual_home IS NOT NULL AND actual_away IS NOT NULL THEN ABS((proj_home + proj_away) - (actual_home + actual_away)) ELSE 0 END),
+      SUM(CASE WHEN proj_home IS NOT NULL AND proj_away IS NOT NULL AND actual_home IS NOT NULL AND actual_away IS NOT NULL THEN (proj_home + proj_away) - (actual_home + actual_away) ELSE 0 END),
+      SUM(CASE WHEN actual_home != actual_away AND proj_home != proj_away AND ((proj_home > proj_away) = (actual_home > actual_away)) THEN 1 ELSE 0 END),
+      SUM(CASE WHEN actual_home != actual_away AND proj_home != proj_away THEN 1 ELSE 0 END),
+      SUM(CASE WHEN p_home_final IS NOT NULL AND actual_home IS NOT NULL AND actual_away IS NOT NULL AND actual_home != actual_away THEN (p_home_final - CASE WHEN actual_home > actual_away THEN 1.0 ELSE 0.0 END) * (p_home_final - CASE WHEN actual_home > actual_away THEN 1.0 ELSE 0.0 END) ELSE 0 END),
+      SUM(CASE WHEN p_home_final IS NOT NULL AND actual_home IS NOT NULL AND actual_away IS NOT NULL AND actual_home != actual_away THEN 1 ELSE 0 END),
+      ?
+    FROM prediction_snapshots ${where}
+    GROUP BY sport, date, checkpoint, COALESCE(model_version, 'unknown')`;
+  try {
+    const result = await env.DB.prepare(sql).bind(new Date().toISOString(), ...binds).run();
+    return { ok: true, written: Number(result?.meta?.changes) || 0 };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err), written: 0 };
+  }
+}
+
 export async function queryAccuracyDailySummary(env, { sport = "all", since, until, checkpoint, version } = {}) {
   if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
   try {

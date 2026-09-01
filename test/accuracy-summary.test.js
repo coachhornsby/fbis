@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { buildAccuracyDailySummaries, rollupAccuracySummaries } from "../functions/lib/accuracySummary.js";
+import { refreshAccuracySummariesFromSnapshots } from "../functions/lib/store.js";
 
 test("daily aggregates retain sufficient statistics without game rows", () => {
   const rows = [
@@ -21,6 +22,16 @@ test("daily aggregates retain sufficient statistics without game rows", () => {
   assert.equal(rolled.graded, 2);
   assert.equal(rolled.winnerHit, 1);
   assert.ok(Number.isFinite(rolled.maeTotal));
+});
+
+test("durable summary refresh aggregates frozen snapshots with scoped binds", async () => {
+  let captured;
+  const DB = { prepare(sql) { return { bind(...binds) { captured = { sql, binds }; return { async run() { return { meta: { changes: 3 } }; } }; } }; } };
+  const result = await refreshAccuracySummariesFromSnapshots({ DB }, { sport: "cfb", since: "2026-08-01" });
+  assert.deepEqual(result, { ok: true, written: 3 });
+  assert.match(captured.sql, /FROM prediction_snapshots/);
+  assert.match(captured.sql, /GROUP BY sport, date, checkpoint/);
+  assert.deepEqual(captured.binds.slice(1), ["cfb", "2026-08-01"]);
 });
 
 test("observability migration creates stage and accuracy summary stores", () => {
