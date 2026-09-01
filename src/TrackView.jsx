@@ -50,6 +50,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
   const hl = table.headline || {};
   const tab = filters?.tab || "overall";
   const perGame = filters?.type !== "totals";
+  const gamesBySport = splitRowsBySport(games);
 
   return (
     <div className="main-content">
@@ -522,36 +523,43 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
           {!games.length ? (
             <div className="empty">No frozen projections in this window. Collection is scheduled — opening the board is not required.</div>
           ) : (
-            <table className="fbis-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Game</th>
-                  <th>Cp</th>
-                  <th>FBIS</th>
-                  <th>Pal</th>
-                  <th>Actual</th>
-                  <th>Δ tot</th>
-                  <th>Δ mgn</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {games.slice(0, 120).map((g) => (
-                  <tr key={`${g.date}:${g.id}:${g.checkpoint || ""}`} title={(g.steps || []).join("\n")}>
-                    <td className="muted">{g.date}</td>
-                    <td>{g.matchup}</td>
-                    <td className="muted">{g.checkpoint || "—"}</td>
-                    <td className="text-blue">{fmtNum(g.projAway)} – {fmtNum(g.projHome)}</td>
-                    <td className="muted">{g.palAway != null ? `${fmtNum(g.palAway)} – ${fmtNum(g.palHome)}` : "—"}</td>
-                    <td>{g.actualHome == null ? "—" : `${fmtNum(g.actualAway, 0)} – ${fmtNum(g.actualHome, 0)}`}</td>
-                    <td className={errClass(g.errTotal)}>{fmtSigned(g.errTotal)}</td>
-                    <td className={errClass(g.errMargin)}>{fmtSigned(g.errMargin)}</td>
-                    <td className="muted">{g.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            (gamesBySport.length ? gamesBySport : [{ sport: "all", label: "All sports", rows: games.slice(0, 120) }]).map((group) => (
+              <div key={`pvf-${group.sport}`}>
+                <h3 className="subhead" style={{ margin: "12px 12px 4px" }}>
+                  {group.label} · {group.rows.length}
+                </h3>
+                <table className="fbis-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Game</th>
+                      <th>Cp</th>
+                      <th>FBIS</th>
+                      <th>Pal</th>
+                      <th>Actual</th>
+                      <th>Δ tot</th>
+                      <th>Δ mgn</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(group.rows || []).slice(0, 80).map((g) => (
+                      <tr key={`${g.date}:${g.id}:${g.checkpoint || ""}`} title={(g.steps || []).join("\n")}>
+                        <td className="muted">{g.date}</td>
+                        <td>{canonicalMatchup(g)}</td>
+                        <td className="muted">{g.checkpoint || "—"}</td>
+                        <td className="text-blue">{fmtNum(g.projAway)} – {fmtNum(g.projHome)}</td>
+                        <td className="muted">{g.palAway != null ? `${fmtNum(g.palAway)} – ${fmtNum(g.palHome)}` : "—"}</td>
+                        <td>{g.actualHome == null ? "—" : `${fmtNum(g.actualAway, 0)} – ${fmtNum(g.actualHome, 0)}`}</td>
+                        <td className={errClass(g.errTotal)}>{fmtSigned(g.errTotal)}</td>
+                        <td className={errClass(g.errMargin)}>{fmtSigned(g.errMargin)}</td>
+                        <td className="muted">{g.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))
           )}
         </div>
       </section>
@@ -866,6 +874,7 @@ function StrategyPanel() {
     return () => ac.abort();
   }, []);
   const seed = pack?.seed || { tickets: [], stats: {}, traits: {} };
+  const seedBySport = splitRowsBySport(seed.tickets || []);
   const pro = pack?.prospective || { tickets: [], stats: {}, traits: {} };
   const proBySport = pack?.prospectiveBySport || [];
   const rec = pack?.reconstruction || {};
@@ -909,7 +918,14 @@ function StrategyPanel() {
         <h3 className="subhead">Seed traits (shared characteristics)</h3>
         <TraitLine traits={seed.traits} />
         <h3 className="subhead">Seed tickets</h3>
-        <TicketTable rows={seed.tickets || []} empty="Operator-declared 2026-08-26 CONVICTION names. Journal EV/prices unrecovered until imported." />
+        {(seedBySport.length ? seedBySport : [{ sport: "all", label: "All sports", rows: seed.tickets || [] }]).map((group) => (
+          <div key={`seed-${group.sport}`}>
+            <p className="muted" style={{ marginBottom: 8 }}>
+              {group.label}: N={group.rows?.length || 0}
+            </p>
+            <TicketTable rows={group.rows || []} empty={`No ${group.label} seed tickets.`} />
+          </div>
+        ))}
         <h3 className="subhead">Prospective matches</h3>
         {(proBySport.length ? proBySport : [{ sport: "all", label: "All sports", tickets: pro.tickets || [], stats: pro.stats || {} }]).map((group) => (
           <div key={`pro-${group.sport}`}>
@@ -956,7 +972,7 @@ function TicketTable({ rows, empty }) {
         {rows.map((t) => (
           <tr key={t.id} className={t.result === "WON" ? "won-row" : t.result === "LOST" ? "lost-row" : ""}>
             <td className="muted">{t.date}</td>
-            <td>{t.matchupDisplay || t.matchup || t.gameId}</td>
+            <td>{canonicalMatchup(t)}</td>
             <td>{t.market} {t.side}</td>
             <td>{t.pick}</td>
             <td>{fmtPct(t.ev)}</td>
@@ -967,4 +983,26 @@ function TicketTable({ rows, empty }) {
       </tbody>
     </table>
   );
+}
+
+function splitRowsBySport(rows = []) {
+  const groups = new Map();
+  for (const row of rows || []) {
+    const sport = row?.sport || "other";
+    if (!groups.has(sport)) groups.set(sport, []);
+    groups.get(sport).push(row);
+  }
+  return Array.from(groups.entries())
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+    .map(([sport, grouped]) => ({
+      sport,
+      label: SPORTS[sport]?.label || String(sport).toUpperCase(),
+      rows: grouped,
+    }));
+}
+
+function canonicalMatchup(row = {}) {
+  if (row.matchupDisplay) return row.matchupDisplay;
+  if (row.awayName && row.homeName) return `${row.awayName} @ ${row.homeName}`;
+  return row.matchup || row.gameId || row.id || "—";
 }
