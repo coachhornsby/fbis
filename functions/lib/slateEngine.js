@@ -1007,9 +1007,27 @@ async function fetchCfbdGamesSeason(year, apiKey) {
   return Array.isArray(rows) ? rows : [];
 }
 
+async function fetchCfbdGamesRange(startDay, endDay, apiKey) {
+  if (!apiKey) return [];
+  if (!startDay || !endDay) return [];
+  const url = new URL("https://api.collegefootballdata.com/games");
+  url.searchParams.set("startDate", startDay);
+  url.searchParams.set("endDate", endDay);
+  url.searchParams.set("seasonType", "both");
+  url.searchParams.set("classification", "fbs");
+  const res = await fetch(String(url), {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(`CFBD games ${res.status}`);
+  const rows = await res.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
 async function fetchCfbdGamesForDate(day, apiKey) {
-  const year = Number(String(day).slice(0, 4));
-  const rows = await fetchCfbdGamesSeason(year, apiKey);
+  const rows = await fetchCfbdGamesRange(day, day, apiKey);
   const list = Array.isArray(rows) ? rows : [];
   return list
     .filter((g) => {
@@ -1020,8 +1038,8 @@ async function fetchCfbdGamesForDate(day, apiKey) {
 }
 
 export async function findNextCfbdGameDate(fromDay, apiKey, maxFutureDays = 14) {
-  const year = Number(String(fromDay).slice(0, 4));
-  const rows = await fetchCfbdGamesSeason(year, apiKey);
+  const futureDay = shiftDay(fromDay, maxFutureDays);
+  const rows = await fetchCfbdGamesRange(fromDay, futureDay, apiKey);
   const todayMs = Date.parse(`${fromDay}T00:00:00Z`);
   if (!Number.isFinite(todayMs)) return null;
   let best = null;
@@ -1037,29 +1055,12 @@ export async function findNextCfbdGameDate(fromDay, apiKey, maxFutureDays = 14) 
 }
 
 export async function fetchCfbdGamesForWeek(anchorDay, apiKey, weekShift = 0) {
-  const year = Number(String(anchorDay).slice(0, 4));
-  const rows = await fetchCfbdGamesSeason(year, apiKey);
+  const start = shiftDay(anchorDay, Number(weekShift || 0) * 7);
+  const end = shiftDay(start, 6);
+  const rows = await fetchCfbdGamesRange(start, end, apiKey);
   const list = Array.isArray(rows) ? rows : [];
-  const anchorMs = Date.parse(`${anchorDay}T00:00:00Z`);
-  const weeks = [...new Set(list.map((g) => Number(g.week)).filter((w) => Number.isFinite(w) && w > 0))].sort((a, b) => a - b);
-  if (!weeks.length) return { week: null, range: null, games: [] };
-  let baseIndex = 0;
-  for (let i = 0; i < weeks.length; i += 1) {
-    const w = weeks[i];
-    const weekRows = list.filter((g) => Number(g.week) === w);
-    const hasFuture = weekRows.some((g) => {
-      const ymd = ymdCtForIso(g.startDate || g.start_date);
-      const ms = Date.parse(`${ymd}T00:00:00Z`);
-      return Number.isFinite(ms) && ms >= anchorMs - 86400000;
-    });
-    if (hasFuture) {
-      baseIndex = i;
-      break;
-    }
-  }
-  const idx = Math.max(0, Math.min(weeks.length - 1, baseIndex + Number(weekShift || 0)));
-  const selectedWeek = weeks[idx];
-  const weekRows = list.filter((g) => Number(g.week) === selectedWeek);
+  const selectedWeek = list.map((g) => Number(g.week)).find((w) => Number.isFinite(w) && w > 0) || null;
+  const weekRows = selectedWeek ? list.filter((g) => Number(g.week) === selectedWeek) : list;
   const days = weekRows
     .map((g) => ymdCtForIso(g.startDate || g.start_date))
     .filter(Boolean)
@@ -1069,6 +1070,12 @@ export async function fetchCfbdGamesForWeek(anchorDay, apiKey, weekShift = 0) {
     range: days.length ? { since: days[0], until: days[days.length - 1] } : null,
     games: weekRows.map((g) => mapCfbdGame(g)),
   };
+}
+
+function shiftDay(day, delta) {
+  const t = Date.parse(`${day}T00:00:00Z`);
+  if (!Number.isFinite(t)) return day;
+  return new Date(t + Number(delta || 0) * 86400000).toISOString().slice(0, 10);
 }
 
 function mapCfbdGame(g) {

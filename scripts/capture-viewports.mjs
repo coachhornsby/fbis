@@ -49,7 +49,11 @@ const manifest = [];
 try {
   for (const t of targets) {
     const page = await browser.newPage({ viewport: t.viewport });
-    await page.goto(t.url, { waitUntil: "networkidle", timeout: 30000 });
+    try {
+      await page.goto(t.url, { waitUntil: "domcontentloaded", timeout: 45000 });
+    } catch (err) {
+      console.error(`goto-failed:${t.page}:${t.viewport.width}x${t.viewport.height}:${String(err?.message || err)}`);
+    }
     if (t.expandFirst) {
       const btn = page.locator("button.game-expand").first();
       if (await btn.count()) await btn.click().catch(() => {});
