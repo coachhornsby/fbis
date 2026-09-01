@@ -47,7 +47,7 @@ import { overDiagnostics } from "./overDiagnostics.js";
 import { buildDailyReport } from "./dailyReport.js";
 import { median, rmse, withinBands } from "./metrics.js";
 import { cfbSeasonYear } from "./cfbModel.js";
-import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult, strategyStats, dateCT } from "./strategy.js";
+import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult, scopedProspectiveTickets, dateCT } from "./strategy.js";
 import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
 import { settleExecutedBet } from "./executedBets.js";
 import { sourceCoverage, palHealth } from "./sourceCoverage.js";
@@ -1861,13 +1861,17 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
     if (!byGame[r.gameId]) byGame[r.gameId] = [];
     byGame[r.gameId].push(r);
   }
-  const prospective = (tickets || []).filter((t) => t.role === "prospective" || t.role !== "seed");
+  const cohort = scopedProspectiveTickets(tickets, { sport: sport || "all", since, until });
+  const prospective = cohort.rows;
   const clv = clvTracker(prospective, byGame);
   const close = closeCoverage(prospective, byGame);
   const layers = layerDiagnostics(displayRows);
-  const strat = strategyStats(prospective);
+  const strat = cohort.stats;
   const settledN = prospective.filter((t) => t.result === "WON" || t.result === "LOST").length;
   const strategyPerformance = {
+    population: cohort.population,
+    scope: { ...cohort.scope, checkpoint: "qualification freeze", strategyId: STRATEGY_HC_V1.id },
+    reconciliation: cohort.reconciliation,
     tickets: prospective.length,
     open: prospective.filter((t) => !t.result || t.result === "OPEN").length,
     settled: settledN,
@@ -1877,7 +1881,7 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
     roi: settledN && strat.roi != null ? strat.roi : null,
     avgEv: strat.avgEv ?? null,
     avgClv: clv.unavailable ? null : clv.avg,
-    message: settledN ? null : "No settled strategy tickets yet.",
+    message: settledN ? null : "No settled FBIS-HC-v1 CONVICTION tickets in this exact scope.",
   };
   const pal = palHealth(mlbRows.length ? mlbRows : displayRows.filter((r) => r.sport === "mlb"), palMeta);
   const accSummary = {

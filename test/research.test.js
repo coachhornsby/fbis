@@ -22,6 +22,7 @@ import {
   ticketId,
   partitionProspectiveTickets,
   invalidStrategySettlementReason,
+  scopedProspectiveTickets,
 } from "../functions/lib/strategy.js";
 import { DEFAULT_WEIGHTS } from "../functions/lib/weights.js";
 import { readFileSync } from "node:fs";
@@ -242,6 +243,22 @@ describe("high-conviction strategy", () => {
     assert.equal(out.validCanonical.length, 1);
     assert.match(invalidStrategySettlementReason(rows[0]), /moneyline/);
     assert.match(invalidStrategySettlementReason(rows[1]), /half-point/);
+  });
+
+  it("keeps projection populations out of scoped CONVICTION performance", () => {
+    const tickets = [
+      { id: "seed", role: "seed", sport: "mlb", date: "2026-08-26", gameId: "s", market: "ML", side: "HOME", result: "WON" },
+      { id: "m1", role: "prospective", sport: "mlb", date: "2026-08-30", gameId: "1", market: "ML", side: "HOME", result: "WON" },
+      { id: "m1-repeat", role: "prospective", sport: "mlb", date: "2026-08-30", gameId: "1", market: "ML", side: "HOME", result: "WON" },
+      { id: "c1", role: "prospective", sport: "cfb", date: "2026-08-30", gameId: "2", market: "ML", side: "AWAY", result: "LOST" },
+      { id: "old", role: "prospective", sport: "mlb", date: "2026-07-01", gameId: "3", market: "TOTAL", side: "OVER", line: 8.5, result: "WON" },
+    ];
+    const cohort = scopedProspectiveTickets(tickets, { sport: "mlb", since: "2026-08-01", until: "2026-09-01" });
+    assert.equal(cohort.rows.length, 1);
+    assert.equal(cohort.stats.n, 1);
+    assert.equal(cohort.stats.settled, 1);
+    assert.equal(cohort.reconciliation.ok, true);
+    assert.equal(cohort.population, "FBIS-HC-v1 prospective CONVICTION tickets");
   });
 
   it("reports strategy stats without claiming the filter works", () => {

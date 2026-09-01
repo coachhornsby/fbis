@@ -322,6 +322,36 @@ export function partitionProspectiveTickets(tickets = [], today = dateCT(new Dat
   };
 }
 
+/** Canonical FBIS-HC-v1 prospective cohort for one explicit report scope. */
+export function scopedProspectiveTickets(tickets = [], { sport = "all", since = null, until = null } = {}) {
+  const partition = partitionProspectiveTickets((tickets || []).filter((t) => t.role !== "seed"));
+  const rows = partition.validCanonical.filter((t) => {
+    if (sport && sport !== "all" && t.sport !== sport) return false;
+    if (since && String(t.date || "") < since) return false;
+    if (until && String(t.date || "") > until) return false;
+    return true;
+  });
+  const stats = strategyStats(rows);
+  const settled = rows.filter((t) => t.result === "WON" || t.result === "LOST");
+  return {
+    rows,
+    stats,
+    population: "FBIS-HC-v1 prospective CONVICTION tickets",
+    scope: { sport: sport || "all", since, until },
+    reconciliation: {
+      rawRows: (tickets || []).filter((t) => t.role !== "seed").length,
+      canonicalRows: partition.validCanonical.length,
+      scopedRows: rows.length,
+      settledRows: settled.length,
+      statsN: stats.n,
+      statsSettled: stats.settled,
+      duplicateRowsExcluded: partition.duplicateRowsExcluded,
+      invalidSettlementsExcluded: partition.invalidSettlements.length,
+      ok: rows.length === stats.n && settled.length === stats.settled,
+    },
+  };
+}
+
 /** Settlements that are impossible by market construction must never enter performance statistics. */
 export function invalidStrategySettlementReason(ticket = {}) {
   if (String(ticket.result || "").toUpperCase() !== "PUSH") return null;

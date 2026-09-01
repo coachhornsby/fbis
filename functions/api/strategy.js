@@ -75,6 +75,8 @@ export async function onRequestGet(context) {
   const prospective = partitionProspectiveTickets(prospectiveRows);
   const rec = reconstructionPayload(seed);
   return readJson({
+    schemaVersion: 2,
+    population: "FBIS-HC-v1 prospective CONVICTION tickets",
     strategy: STRATEGY_HC_V1,
     reconstruction: rec,
     expectedSeedN: EXPECTED_SEED_N,

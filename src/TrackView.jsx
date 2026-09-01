@@ -57,7 +57,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
       {report?.overviewNote && <div className="panel"><div className="muted">{report.overviewNote}</div></div>}
 
       <section className="panel">
-        <div className="panel-header"><h2>Sport systems</h2><span className="last-updated">independent tracking by board</span></div>
+        <div className="panel-header"><h2>Projection accuracy by sport</h2><span className="last-updated">all frozen game projections · never CONVICTION record</span></div>
         <div className="panel-body">
           <div className="chip-row" style={{ marginBottom: 12 }}>
             <button className={filters.sport === "all" ? "chip active" : "chip"} onClick={() => onFilters({ sport: "all" })}>ALL</button>
@@ -67,7 +67,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
             {(report?.sports || []).map((s) => <article className="g-card" key={s.sport}>
               <h3>{SPORTS[s.sport]?.label || s.sport}</h3>
               <p>{s.recipe?.engine || "No engine configured"}</p>
-              <div className="muted">Graded N={s.accuracy?.n ?? 0} · Total MAE {fmtNum(s.accuracy?.maeTotal)} · Margin MAE {fmtNum(s.accuracy?.maeMargin)}</div>
+              <div className="muted">Projection N={s.accuracy?.n ?? 0} · Total MAE {fmtNum(s.accuracy?.maeTotal)} · Margin MAE {fmtNum(s.accuracy?.maeMargin)}</div>
               <div className="muted">Winner {fmtPct(s.accuracy?.winnerHitProb ?? s.accuracy?.winnerHit)} · Brier {fmtNum(s.accuracy?.brierModel, 3)}</div>
             </article>)}
           </div>
@@ -320,8 +320,8 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
 
       <section className="panel">
         <div className="panel-header">
-          <h2>Strategy Performance</h2>
-          <span className="last-updated">qualified / executed tickets</span>
+          <h2>CONVICTION strategy performance</h2>
+          <span className="last-updated">FBIS-HC-v1 prospective tickets only</span>
         </div>
         <div className="panel-body">
           <p className="headline-line">
@@ -330,6 +330,11 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                 ? `Settled ${report.strategyPerformance.record} on ${report.strategyPerformance.settled} tickets.`
                 : "No settled strategy tickets yet.")}
           </p>
+          <p className="muted">
+            Population: {report?.strategyPerformance?.population || "FBIS-HC-v1 prospective CONVICTION tickets"}.
+            Scope: {report?.strategyPerformance?.scope?.sport?.toUpperCase?.() || filters.sport.toUpperCase()} · {report?.strategyPerformance?.scope?.since || "—"} through {report?.strategyPerformance?.scope?.until || "today"}.
+            Projection rows are never included.
+          </p>
           <div className="status-grid">
             <Stat label="Tickets" value={report?.strategyPerformance?.tickets ?? 0} />
             <Stat label="Open" value={report?.strategyPerformance?.open ?? 0} />
@@ -337,7 +342,11 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
             <Stat label="Record" value={report?.strategyPerformance?.record || "—"} />
             <Stat label="Hit rate" value={fmtPct(report?.strategyPerformance?.hitRate)} />
             <Stat label="Units" value={fmtSigned(report?.strategyPerformance?.units)} />
+            <Stat label="Population check" value={report?.strategyPerformance?.reconciliation?.ok ? "RECONCILED" : "NOT RECONCILED"} />
           </div>
+          {report?.strategyPerformance?.reconciliation && <p className={report.strategyPerformance.reconciliation.ok ? "muted" : "error"}>
+            Cohort N={report.strategyPerformance.reconciliation.scopedRows} · stats N={report.strategyPerformance.reconciliation.statsN} · settled rows={report.strategyPerformance.reconciliation.settledRows} · settled stats={report.strategyPerformance.reconciliation.statsSettled} · duplicates excluded={report.strategyPerformance.reconciliation.duplicateRowsExcluded}.
+          </p>}
         </div>
       </section>
 

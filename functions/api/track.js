@@ -1,6 +1,7 @@
 import { buildTrackReport } from "../lib/projLedger.js";
-import { queryAccuracyDailySummary, queryPipelineStages } from "../lib/store.js";
+import { queryAccuracyDailySummary, queryPipelineStages, queryStrategyTickets } from "../lib/store.js";
 import { rollupAccuracySummaries } from "../lib/accuracySummary.js";
+import { STRATEGY_HC_V1, scopedProspectiveTickets } from "../lib/strategy.js";
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
@@ -27,6 +28,23 @@ export async function onRequestGet(context) {
       });
       if (compact.ok && compact.rows.length) {
         const accuracy = rollupAccuracySummaries(compact.rows);
+        const tickets = await queryStrategyTickets({ DB: context.env.DB }, { strategyId: STRATEGY_HC_V1.id });
+        const cohort = scopedProspectiveTickets(tickets, { sport, since, until: null });
+        const strategyPerformance = {
+          population: cohort.population,
+          scope: { ...cohort.scope, checkpoint: "qualification freeze", strategyId: STRATEGY_HC_V1.id },
+          reconciliation: cohort.reconciliation,
+          tickets: cohort.stats.n,
+          open: cohort.stats.open,
+          settled: cohort.stats.settled,
+          record: cohort.stats.gradedRecord,
+          hitRate: cohort.stats.hitRate,
+          units: cohort.stats.units,
+          roi: cohort.stats.roi,
+          avgEv: cohort.stats.avgEv,
+          avgClv: cohort.stats.avgClv,
+          message: cohort.stats.settled ? null : "No settled FBIS-HC-v1 CONVICTION tickets in this exact scope.",
+        };
         const stages = await queryPipelineStages({ DB: context.env.DB }, { limit: 50 });
         return new Response(JSON.stringify({
           sport, days: requestedDays, checkpoint, version, source: "d1-preaggregated",
@@ -34,7 +52,7 @@ export async function onRequestGet(context) {
           accuracySummary: { sport, checkpoint, dateRange: { since, until: null }, distinctProjected: accuracy.projected, distinctGraded: accuracy.graded, ...accuracy },
           distinct: { projected: accuracy.projected, graded: accuracy.graded, checkpointRows: accuracy.projected },
           pack: { table: { headline: {}, rows: [] }, models: [], breakdowns: {} },
-          games: [], finals: [], pipelineStages: stages,
+          games: [], finals: [], pipelineStages: stages, strategyPerformance,
           compact: true,
           compactNote: "Season metrics are served from durable daily aggregates. Select a shorter window for game-level detail.",
         }), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=60", "access-control-allow-origin": "*" } });
