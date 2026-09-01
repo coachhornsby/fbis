@@ -516,10 +516,18 @@ function ctDateDiffDays(a, b) {
 
 export function resolveFinalForTicket(ticket, finals = []) {
   const t = ticketToMatchRef(ticket);
-  const candidates = (finals || [])
+  const rawCandidates = (finals || [])
     .map(finalToMatchRef)
     .filter((f) => f.completed && Number.isFinite(Number(f.homeScore)) && Number.isFinite(Number(f.awayScore)))
     .filter((f) => !t.sport || !f.sport || f.sport === t.sport);
+  const uniq = new Map();
+  for (const f of rawCandidates) {
+    const key = f.id
+      ? `id:${String(f.id)}`
+      : `g:${f.sport || ""}|${f.date || ""}|${String(f.awayName || "").toLowerCase()}|${String(f.homeName || "").toLowerCase()}|${f.awayScore}|${f.homeScore}`;
+    if (!uniq.has(key)) uniq.set(key, f);
+  }
+  const candidates = [...uniq.values()];
   const byId = t.id ? candidates.find((f) => String(f.id) === String(t.id)) : null;
   if (byId) {
     return {
@@ -538,7 +546,28 @@ export function resolveFinalForTicket(ticket, finals = []) {
     const awayOk = sameTeam(t.awayName, null, f.awayName, f.awayAbbr);
     return dateOk && homeOk && awayOk;
   });
-  if (byTeams.length !== 1) return null;
+  if (!byTeams.length) return null;
+  if (byTeams.length > 1) {
+    const withDate = byTeams
+      .map((f) => ({ f, d: ctDateDiffDays(t.date, f.date) }))
+      .sort((a, b) => a.d - b.d);
+    if (withDate.length && withDate[0].d < Infinity) {
+      const nearest = withDate.filter((x) => x.d === withDate[0].d).map((x) => x.f);
+      if (nearest.length === 1) {
+        const hit = nearest[0];
+        return {
+          id: hit.id,
+          sport: hit.sport,
+          date: hit.date,
+          start: hit.start,
+          home: { name: hit.homeName, abbr: hit.homeAbbr, score: Number(hit.homeScore) },
+          away: { name: hit.awayName, abbr: hit.awayAbbr, score: Number(hit.awayScore) },
+          status: { completed: true, detail: "Final" },
+        };
+      }
+    }
+    return null;
+  }
   const hit = byTeams[0];
   return {
     id: hit.id,
