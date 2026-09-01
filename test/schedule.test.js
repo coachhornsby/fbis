@@ -8,7 +8,7 @@ import {
   scheduledPipelineState,
   lastExpectedCollectUtc,
 } from "../functions/lib/pipelineSchedule.js";
-import { actionAcceptsJob, staleScheduleWarning, scheduledHealth } from "../functions/lib/jobs.js";
+import { actionAcceptsJob, staleScheduleWarning, scheduledHealth, pipelineStageId } from "../functions/lib/jobs.js";
 import fs from "node:fs";
 
 describe("GitHub scheduling", () => {
@@ -30,6 +30,12 @@ describe("GitHub scheduling", () => {
       selectPipelineJob({ hourUtc: 13, minuteUtc: 0, eventName: "workflow_dispatch", jobInput: "collect-full" }).trigger,
       "workflow_dispatch"
     );
+  });
+
+  it("uses one durable stage id for retries of the same run and scope", () => {
+    const args = { stage: "collect", sport: "mlb", runUrl: "https://github.com/coachhornsby/fbis/actions/runs/12345", scope: "cache:normal:window" };
+    assert.equal(pipelineStageId(args), pipelineStageId(args));
+    assert.notEqual(pipelineStageId(args), pipelineStageId({ ...args, scope: "full:normal:window" }));
   });
 
   it("selects runtime jobs for each UTC cron", () => {

@@ -1,6 +1,6 @@
 import { harvestAll } from "../lib/projLedger.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
-import { deploymentCommit, httpStatusForJob, parseJobTrigger } from "../lib/jobs.js";
+import { deploymentCommit, httpStatusForJob, parseJobTrigger, pipelineStageId } from "../lib/jobs.js";
 import { persistPipelineStage, setMeta } from "../lib/store.js";
 
 /** Scoreboard-only harvest. Never calls Parlay. */
@@ -17,7 +17,7 @@ export async function onRequestGet(context) {
   const sport = url.searchParams.get("sport") || "all";
   const trigger = parseJobTrigger(context.request);
   const runUrl = url.searchParams.get("runUrl") || "";
-  const stage = { id: `harvest:${sport}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`, runUrl, stage: "harvest", sport, triggerType: trigger, status: "running", startedAt: new Date().toISOString(), deploymentCommit: deploymentCommit(context.env) };
+  const stage = { id: pipelineStageId({ stage: "harvest", sport, runUrl, scope: `days-${days}` }), runUrl, stage: "harvest", sport, triggerType: trigger, status: "running", startedAt: new Date().toISOString(), deploymentCommit: deploymentCommit(context.env) };
   try {
     await persistPipelineStage(context.env, stage);
     if (trigger === "schedule") {

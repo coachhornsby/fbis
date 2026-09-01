@@ -15,6 +15,14 @@ export const JOB_SUCCESS = "success";
 export const JOB_PARTIAL = "partial";
 export const JOB_FAILED = "failed";
 
+export function pipelineStageId({ stage, sport, runUrl, scope = "default", now = Date.now() }) {
+  const runId = String(runUrl || "").match(/\/actions\/runs\/(\d+)/)?.[1];
+  const safeScope = String(scope || "default").replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 80);
+  return runId
+    ? `${stage}:${sport || "all"}:${runId}:${safeScope}`
+    : `${stage}:${sport || "all"}:${now}:${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function deploymentCommit(env) {
   return env?.CF_PAGES_COMMIT_SHA || env?.CF_PAGES_COMMIT || env?.GITHUB_SHA || env?.COMMIT_SHA || null;
 }

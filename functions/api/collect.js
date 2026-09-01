@@ -1,6 +1,6 @@
 import { collectBoards } from "../lib/projLedger.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
-import { deploymentCommit, httpStatusForJob, parseJobTrigger, parseJobMode } from "../lib/jobs.js";
+import { deploymentCommit, httpStatusForJob, parseJobTrigger, parseJobMode, pipelineStageId } from "../lib/jobs.js";
 import { persistPipelineStage, setMeta } from "../lib/store.js";
 
 /** Pregame collection. Builds every board and freezes checkpoints. Does not require the browser. */
@@ -20,7 +20,7 @@ export async function onRequestGet(context) {
   const trigger = parseJobTrigger(context.request);
   const mode = parseJobMode(context.request);
   const runUrl = url.searchParams.get("runUrl") || "";
-  const stage = { id: `collect:${sport}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`, runUrl, stage: "collect", sport, triggerType: trigger, status: "running", startedAt: new Date().toISOString(), deploymentCommit: deploymentCommit(context.env) };
+  const stage = { id: pipelineStageId({ stage: "collect", sport, runUrl, scope: `${odds}:${mode}:${dayOffset ?? "window"}` }), runUrl, stage: "collect", sport, triggerType: trigger, status: "running", startedAt: new Date().toISOString(), deploymentCommit: deploymentCommit(context.env) };
   try {
     await persistPipelineStage(context.env, stage);
     if (trigger === "schedule") {
