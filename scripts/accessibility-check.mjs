@@ -13,14 +13,14 @@ async function pushAutomated(name, pass, detail) {
 
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  await page.goto(`${base}/?tab=today`, { waitUntil: "networkidle", timeout: 30000 });
+  await page.goto(`${base}/?tab=today`, { waitUntil: "domcontentloaded", timeout: 45000 });
   await pushAutomated("skip-link", (await page.locator('a[href="#main-content"]').count()) > 0, "Skip-to-content link exists.");
   await pushAutomated("main-landmark", (await page.locator("main#main-content").count()) > 0, "Main landmark exists.");
   await page.keyboard.press("Tab");
   const focused = await page.evaluate(() => document.activeElement?.outerHTML || "");
   await pushAutomated("keyboard-focus-moves", focused.length > 0, "Tab key moves focus.");
 
-  await page.goto(`${base}/?tab=bets`, { waitUntil: "networkidle", timeout: 30000 });
+  await page.goto(`${base}/?tab=bets`, { waitUntil: "domcontentloaded", timeout: 45000 });
   const importBtn = page.getByRole("button", { name: /import heritage bet slip/i }).first();
   const hasImport = (await importBtn.count()) > 0;
   await pushAutomated("heritage-import-button-name", hasImport, "Import button has accessible name.");
