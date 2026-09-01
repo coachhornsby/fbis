@@ -388,6 +388,18 @@ header h1 {
   cursor: pointer;
 }
 .chip.active { color: var(--blue-light); border-color: var(--blue); background: #0d2a3a; }
+.sys-section-nav {
+  position: sticky;
+  top: 52px;
+  z-index: 98;
+}
+.sys-action-sticky {
+  position: sticky;
+  top: 92px;
+  z-index: 97;
+}
+.sys-section-nav .panel-body { padding: 8px 10px; }
+.sys-section-nav .chip { text-decoration: none; display: inline-flex; align-items: center; }
 .headline-line { color: #b7d4ea; font-size: 13px; margin: 0 0 12px; }
 .subhead {
   color: var(--blue-light);
@@ -535,6 +547,7 @@ header h1 {
   header.app-header { flex-wrap: wrap; height: auto; }
   #ticker-bar { top: auto; position: relative; }
   .subtitle { flex-basis: 100%; }
+  .sys-section-nav, .sys-action-sticky { position: static; }
 }
 
 @media (max-width: 760px) {

@@ -194,6 +194,11 @@ export default function App() {
   }, [tab, todayDate, sport]);
 
   useEffect(() => {
+    const part = tab === "board" ? String(SPORTS[sport]?.label || sport).toUpperCase() : tab === "today" ? "TODAY" : tab === "sys" ? "SYS" : "BETS";
+    document.title = `FBIS · ${part}`;
+  }, [tab, sport]);
+
+  useEffect(() => {
     if (tab !== "board") return undefined;
     const ac = new AbortController();
     refresh(ac.signal);
@@ -347,7 +352,7 @@ export default function App() {
         <span className={`overall-badge badge-${health}`}>{healthLabel}</span>
       </header>
 
-      <Ticker items={tab === "board" ? slate?.ticker || [] : []} logged={loggedOpen} />
+      {tab === "board" ? <Ticker items={slate?.ticker || []} logged={loggedOpen} /> : null}
       <main id="main-content">
       {tab === "sys" ? (
         <TrackView

@@ -55,6 +55,13 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
   const [manualSavingKey, setManualSavingKey] = useState("");
   const [manualMsg, setManualMsg] = useState("");
   const [teamInput, setTeamInput] = useState(filters?.team || "");
+  const [openPanels, setOpenPanels] = useState({
+    model: true,
+    guide: false,
+    calFav: false,
+    calHome: false,
+    bySport: false,
+  });
   const actionIssues = [];
   if (error) actionIssues.push(`SYS feed error: ${error}`);
   if (!db.ok) actionIssues.push(`Research DB unavailable (${db.reason || "unknown"}).`);
@@ -63,6 +70,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
   for (const w of db.scheduleWarnings || []) actionIssues.push(String(w));
 
   const rowKey = (g) => `${g.date}:${g.id}:${g.checkpoint || ""}`;
+  const togglePanel = (key) => setOpenPanels((prev) => ({ ...prev, [key]: !prev[key] }));
   const setManualField = (key, field, value) =>
     setManualFinalByRow((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [field]: value } }));
 
@@ -126,7 +134,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
     <div className="main-content">
       {error && <div className="panel"><div className="error">{error}</div></div>}
       {actionIssues.length ? (
-        <section className="panel">
+        <section id="action-required" className="panel sys-action-sticky">
           <div className="panel-header"><h2>Action required</h2><span className="last-updated">{loading ? "Loading…" : "Degraded"}</span></div>
           <div className="panel-body">
             <p className="muted" style={{ marginBottom: 8 }}>
@@ -140,7 +148,21 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         </section>
       ) : null}
 
-      <section className="panel">
+      <section className="panel sys-section-nav">
+        <div className="panel-body">
+          <div className="chip-row">
+            {actionIssues.length ? <a className="chip active" href="#action-required">Action required</a> : null}
+            <a className="chip" href="#sport-systems">Sport systems</a>
+            <a className="chip" href="#research-db">Research DB</a>
+            <a className="chip" href="#projection-accuracy">Projection accuracy</a>
+            <a className="chip" href="#strategy-performance">Strategy</a>
+            <a className="chip" href="#clv-tracker">CLV</a>
+            <a className="chip" href="#projection-vs-final">Projection vs final</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="sport-systems" className="panel">
         <div className="panel-header"><h2>Sport systems</h2><span className="last-updated">independent tracking by board</span></div>
         <div className="panel-body">
           <p className="muted" style={{ marginBottom: 8 }}>
@@ -161,7 +183,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         </div>
       </section>
 
-      <section className="panel">
+      <section id="research-db" className="panel">
         <div className="panel-header">
           <h2>Research DB</h2>
           <span className="last-updated">{loading ? "Loading…" : db.lastWrite ? `${new Date(db.lastWrite).toLocaleTimeString("en-US", { timeZone: "America/Chicago" })} CT` : ""}</span>
@@ -248,7 +270,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         </div>
       </section>
 
-      <section className="panel">
+      <section id="projection-accuracy" className="panel">
         <div className="panel-header">
           <h2>Projection Accuracy</h2>
           <span className="last-updated">{db.ok ? `${hl.n || 0} games` : "Unavailable"}</span>
@@ -406,7 +428,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         </div>
       </section>
 
-      <section className="panel">
+      <section id="strategy-performance" className="panel">
         <div className="panel-header">
           <h2>Strategy Performance</h2>
           <span className="last-updated">qualified / executed tickets</span>
@@ -432,7 +454,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         </div>
       </section>
 
-      <section className="panel">
+      <section id="clv-tracker" className="panel">
         <div className="panel-header">
           <h2>CLV Tracker</h2>
           <span className="last-updated">{report?.clv?.n ?? 0} valid Pin entry+close</span>
@@ -457,12 +479,15 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         </div>
       </section>
 
-      <section className="panel">
+      <section id="model-diagnostics" className="panel">
         <div className="panel-header">
           <h2>Model Diagnostics · layers</h2>
-          <span className="last-updated">{report?.layers?.leader ? `leader ${report.layers.leader}` : "N=0"}</span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span className="last-updated">{report?.layers?.leader ? `leader ${report.layers.leader}` : "N=0"}</span>
+            <button className="header-btn" onClick={() => togglePanel("model")}>{openPanels.model ? "Collapse" : "Expand"}</button>
+          </div>
         </div>
-        <div className="panel-body">
+        {openPanels.model ? <div className="panel-body">
           <p className="muted">Population: frozen forecast rows with final outcomes. {report?.layers?.note || "Layer leader is lowest Brier on frozen forecasts. Closest-to-binary counts are not used."}</p>
           <div className="table-scroll"><table className="fbis-table">
             <thead>
@@ -486,14 +511,17 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
               ))}
             </tbody>
           </table></div>
-        </div>
+        </div> : null}
       </section>
 
-      <StrategyPanel reloadKey={report?.generatedAt || report?.db?.lastWrite || ""} />
+      <StrategyPanel sectionId="strategy-seed-prospective" reloadKey={report?.generatedAt || report?.db?.lastWrite || ""} />
 
-      <section className="panel">
-        <div className="panel-header"><h2>How projections are made</h2></div>
-        <div className="panel-body">
+      <section id="projection-method" className="panel">
+        <div className="panel-header">
+          <h2>How projections are made</h2>
+          <button className="header-btn" onClick={() => togglePanel("guide")}>{openPanels.guide ? "Collapse" : "Expand"}</button>
+        </div>
+        {openPanels.guide ? <div className="panel-body">
           <div className="glossary-grid">
             {BOARD_SPORTS.map((id) => {
               const g = guide[id] || {};
@@ -505,12 +533,15 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
               );
             })}
           </div>
-        </div>
+        </div> : null}
       </section>
 
-      <section className="panel">
-        <div className="panel-header"><h2>Calibration (favorite confidence)</h2></div>
-        <div className="panel-body" style={{ padding: 0 }}>
+      <section id="calibration-favorite" className="panel">
+        <div className="panel-header">
+          <h2>Calibration (favorite confidence)</h2>
+          <button className="header-btn" onClick={() => togglePanel("calFav")}>{openPanels.calFav ? "Collapse" : "Expand"}</button>
+        </div>
+        {openPanels.calFav ? <div className="panel-body" style={{ padding: 0 }}>
           {!(acc.calibration || []).some((b) => b.n) ? (
             <div className="empty">Buckets fill after graded games freeze the final FBIS probability. Home p below 50% is included as the favorite side.</div>
           ) : (
@@ -537,12 +568,15 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
               </tbody>
             </table></div>
           )}
-        </div>
+        </div> : null}
       </section>
 
-      <section className="panel">
-        <div className="panel-header"><h2>Calibration (home win %)</h2></div>
-        <div className="panel-body" style={{ padding: 0 }}>
+      <section id="calibration-home" className="panel">
+        <div className="panel-header">
+          <h2>Calibration (home win %)</h2>
+          <button className="header-btn" onClick={() => togglePanel("calHome")}>{openPanels.calHome ? "Collapse" : "Expand"}</button>
+        </div>
+        {openPanels.calHome ? <div className="panel-body" style={{ padding: 0 }}>
           {!(acc.calibrationHome || []).some((b) => b.n) ? (
             <div className="empty">0–10 through 90–100 home-win buckets. Underdogs are no longer dropped.</div>
           ) : (
@@ -569,12 +603,15 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
               </tbody>
             </table></div>
           )}
-        </div>
+        </div> : null}
       </section>
 
-      <section className="panel">
-        <div className="panel-header"><h2>By sport</h2></div>
-        <div className="panel-body" style={{ padding: 0 }}>
+      <section id="by-sport" className="panel">
+        <div className="panel-header">
+          <h2>By sport</h2>
+          <button className="header-btn" onClick={() => togglePanel("bySport")}>{openPanels.bySport ? "Collapse" : "Expand"}</button>
+        </div>
+        {openPanels.bySport ? <div className="panel-body" style={{ padding: 0 }}>
           <div className="table-scroll"><table className="fbis-table">
             <thead>
               <tr>
@@ -605,10 +642,10 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
               ))}
             </tbody>
           </table></div>
-        </div>
+        </div> : null}
       </section>
 
-      <section className="panel">
+      <section id="projection-vs-final" className="panel">
         <div className="panel-header">
           <h2>Projection vs final</h2>
           <span className="last-updated">{graded.length} graded · {open.length} waiting</span>
@@ -988,7 +1025,7 @@ function OverBlock({ over }) {
   );
 }
 
-function StrategyPanel({ reloadKey = "" }) {
+function StrategyPanel({ sectionId = "", reloadKey = "" }) {
   const [pack, setPack] = useState(null);
   useEffect(() => {
     const ac = new AbortController();
@@ -1004,7 +1041,7 @@ function StrategyPanel({ reloadKey = "" }) {
   const proBySport = pack?.prospectiveBySport || [];
   const rec = pack?.reconstruction || {};
   return (
-    <section className="panel">
+    <section id={sectionId || undefined} className="panel">
       <div className="panel-header">
         <h2>Strategy · FBIS-HC-v1</h2>
         <span className="last-updated">expected N={pack?.expectedSeedN || 7} · recovered {pack?.actualRecoveredN ?? rec.recoveredN ?? 0} · {rec.state || rec.confidence || "operator-declared"}</span>
