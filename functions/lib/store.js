@@ -758,6 +758,42 @@ export async function queryGames(env, { sport, date, since } = {}) {
   }
 }
 
+export async function queryGamesByIds(env, ids = []) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
+  const clean = [...new Set((ids || []).map((id) => String(id || "").trim()).filter(Boolean))];
+  if (!clean.length) return { ok: true, rows: [] };
+  try {
+    const rows = [];
+    const chunkSize = 200;
+    for (let i = 0; i < clean.length; i += chunkSize) {
+      const chunk = clean.slice(i, i + chunkSize);
+      const placeholders = chunk.map(() => "?").join(", ");
+      const sql = `SELECT * FROM games WHERE id IN (${placeholders})`;
+      const res = await env.DB.prepare(sql).bind(...chunk).all();
+      for (const r of (res.results || [])) {
+        rows.push({
+          id: r.id,
+          sport: r.sport,
+          date: r.date,
+          start: r.start,
+          home: { name: r.home_name, abbr: r.home_abbr },
+          away: { name: r.away_name, abbr: r.away_abbr },
+          homeName: r.home_name,
+          awayName: r.away_name,
+          homeAbbr: r.home_abbr,
+          awayAbbr: r.away_abbr,
+        });
+      }
+    }
+    markRead();
+    return { ok: true, rows };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), rows: [] };
+  }
+}
+
 export async function persistDailyMetrics(env, row) {
   markBound(env);
   if (!hasDb(env) || !row?.date) return { ok: false, reason: "unbound" };
