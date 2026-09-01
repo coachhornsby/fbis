@@ -141,6 +141,76 @@ export async function pingDb(env) {
   }
 }
 
+export async function persistPipelineStage(env, row) {
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: "unbound" };
+  try {
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO pipeline_stage_runs
+       (id, run_url, stage, sport, trigger_type, status, started_at, completed_at,
+        attempt, http_status, error_summary, deployment_commit)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      row.id, n(row.runUrl), row.stage, row.sport || "all", n(row.triggerType), row.status,
+      row.startedAt, n(row.completedAt), Number(row.attempt) || 1, n(row.httpStatus),
+      n(row.errorSummary), n(row.deploymentCommit)
+    ).run();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function queryPipelineStages(env, { limit = 50 } = {}) {
+  if (!hasDb(env)) return [];
+  try {
+    const res = await env.DB.prepare(
+      "SELECT * FROM pipeline_stage_runs ORDER BY started_at DESC LIMIT ?"
+    ).bind(Math.max(1, Math.min(250, Number(limit) || 50))).all();
+    return res.results || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function replaceAccuracyDailySummary(env, rows = []) {
+  if (!hasDb(env)) return { ok: false, reason: "unbound", written: 0 };
+  if (!rows.length) return { ok: true, written: 0 };
+  const sql = `INSERT OR REPLACE INTO accuracy_daily_summary
+    (id, sport, date, checkpoint, model_version, projected_n, graded_n,
+     abs_total_error_sum, total_bias_sum, winner_correct_n, winner_graded_n,
+     brier_sum, brier_n, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  try {
+    const statements = rows.map((r) => env.DB.prepare(sql).bind(
+      r.id, r.sport, r.date, r.checkpoint, r.modelVersion, r.projectedN, r.gradedN,
+      r.absTotalErrorSum, r.totalBiasSum, r.winnerCorrectN, r.winnerGradedN,
+      r.brierSum, r.brierN, r.updatedAt
+    ));
+    for (let i = 0; i < statements.length; i += 75) await env.DB.batch(statements.slice(i, i + 75));
+    return { ok: true, written: rows.length };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err), written: 0 };
+  }
+}
+
+export async function queryAccuracyDailySummary(env, { sport = "all", since, until, checkpoint, version } = {}) {
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
+  try {
+    let sql = "SELECT * FROM accuracy_daily_summary WHERE 1=1";
+    const binds = [];
+    if (sport && sport !== "all") { sql += " AND sport = ?"; binds.push(sport); }
+    if (since) { sql += " AND date >= ?"; binds.push(since); }
+    if (until) { sql += " AND date <= ?"; binds.push(until); }
+    if (checkpoint && checkpoint !== "LATEST") { sql += " AND checkpoint = ?"; binds.push(checkpoint); }
+    if (version && version !== "all") { sql += " AND model_version = ?"; binds.push(version); }
+    sql += " ORDER BY date DESC";
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    return { ok: true, rows: res.results || [] };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err), rows: [] };
+  }
+}
+
 function n(v) {
   return v == null || v === "" ? null : v;
 }

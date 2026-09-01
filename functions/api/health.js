@@ -1,9 +1,10 @@
 import { deploymentCommit, durableHealth, scheduledHealth } from "../lib/jobs.js";
-import { pingDb } from "../lib/store.js";
+import { pingDb, queryPipelineStages } from "../lib/store.js";
 
 export async function buildHealth(env, now = new Date()) {
   const db = await pingDb(env);
   const durable = db.ok ? await durableHealth(env) : { bound: false, source: "unavailable" };
+  const stages = db.ok ? await queryPipelineStages(env, { limit: 10 }) : [];
   return {
     ok: Boolean(db.ok),
     service: "fbis",
@@ -15,6 +16,7 @@ export async function buildHealth(env, now = new Date()) {
       collect: durable.latestCollect || null,
       harvest: durable.latestHarvest || null,
     },
+    stages,
   };
 }
 

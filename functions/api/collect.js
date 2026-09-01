@@ -1,7 +1,7 @@
 import { collectBoards } from "../lib/projLedger.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
-import { httpStatusForJob, parseJobTrigger, parseJobMode } from "../lib/jobs.js";
-import { setMeta } from "../lib/store.js";
+import { deploymentCommit, httpStatusForJob, parseJobTrigger, parseJobMode } from "../lib/jobs.js";
+import { persistPipelineStage, setMeta } from "../lib/store.js";
 
 /** Pregame collection. Builds every board and freezes checkpoints. Does not require the browser. */
 export async function onRequestGet(context) {
@@ -20,7 +20,9 @@ export async function onRequestGet(context) {
   const trigger = parseJobTrigger(context.request);
   const mode = parseJobMode(context.request);
   const runUrl = url.searchParams.get("runUrl") || "";
+  const stage = { id: `collect:${sport}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`, runUrl, stage: "collect", sport, triggerType: trigger, status: "running", startedAt: new Date().toISOString(), deploymentCommit: deploymentCommit(context.env) };
   try {
+    await persistPipelineStage(context.env, stage);
     if (trigger === "schedule") {
       await setMeta(context.env, "last_scheduled_event_type", "schedule");
       if (runUrl) await setMeta(context.env, "last_scheduled_run_url", runUrl);
@@ -37,6 +39,7 @@ export async function onRequestGet(context) {
       },
       { odds: mode === "health" ? "cache" : odds, trigger, sport, dayOffset, mode }
     );
+    await persistPipelineStage(context.env, { ...stage, status: payload.status, completedAt: new Date().toISOString(), httpStatus: httpStatusForJob(payload.status), errorSummary: (payload.errors || []).slice(0, 4).join(" | ") || null });
     return new Response(JSON.stringify(payload), {
       status: httpStatusForJob(payload.status),
       headers: {
@@ -45,6 +48,7 @@ export async function onRequestGet(context) {
       },
     });
   } catch (err) {
+    await persistPipelineStage(context.env, { ...stage, status: "failed", completedAt: new Date().toISOString(), httpStatus: 502, errorSummary: String(err?.message || err) });
     return new Response(JSON.stringify({ ok: false, status: "failed", error: String(err?.message || err) }), {
       status: 502,
       headers: { "content-type": "application/json; charset=utf-8" },

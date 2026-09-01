@@ -37,7 +37,9 @@ import {
   queryExecutedBets,
   updateExecutedBet,
   persistMlbMarketProjections,
+  replaceAccuracyDailySummary,
 } from "./store.js";
+import { buildAccuracyDailySummaries } from "./accuracySummary.js";
 import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
 import { buildAccuracyPack } from "./accuracyReport.js";
 import { overDiagnostics } from "./overDiagnostics.js";
@@ -1158,11 +1160,14 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   if (cached?.finals && cached.ledgerSavedAt === ledger.savedAt) {
     const persisted = await persistGradedLedger(env, ledger);
     counts = mergeWriteCounts(counts, persisted);
-    await writeDailyMetrics(env, flattenLedgerRows(ledger));
+    const cachedRows = flattenLedgerRows(ledger);
+    await writeDailyMetrics(env, cachedRows);
+    const cachedSummary = await replaceAccuracyDailySummary(env, buildAccuracyDailySummaries(cachedRows));
     return {
       ...cached,
       ok: counts.writesFailed === 0,
       jobCounts: counts,
+      accuracySummaryWrite: cachedSummary,
       dates,
       errors,
       db: await dbPayload(env),
@@ -1225,7 +1230,9 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   const saved = await saveLedger(sport, ledger, cfCache);
   const persisted = await persistGradedLedger(env, saved);
   counts = mergeWriteCounts(counts, persisted);
-  await writeDailyMetrics(env, flattenLedgerRows(saved));
+  const flattened = flattenLedgerRows(saved);
+  await writeDailyMetrics(env, flattened);
+  const summaryWrite = await replaceAccuracyDailySummary(env, buildAccuracyDailySummaries(flattened));
   const daily = buildDailyReport(sport, flattenLedgerRows(saved), {
     date: todayCT(),
     title: sport === "cfb" ? "CFB research window" : `${sport} harvest`,
@@ -1278,6 +1285,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     jobCounts: counts,
     errors,
     daily,
+    accuracySummaryWrite: summaryWrite,
     ledgerSavedAt: saved.savedAt,
     db: await dbPayload(env),
   };

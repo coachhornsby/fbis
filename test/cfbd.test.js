@@ -6,6 +6,7 @@ import {
   cfbdPublicMeta,
   buildCfbdCatalog,
   buildCfbFeatureCatalog,
+  buildTransferQbHistory,
   mergePriorCatalog,
   loadCfbFeatureFeeds,
   loadCfbPrior,
@@ -254,6 +255,24 @@ describe("CFBD public meta", () => {
 });
 
 describe("CFBD CFB feature feeds", () => {
+  it("joins an incoming transfer QB to prior-school passing history by player identity", () => {
+    const transfers = [{ player: "Taylor Star", position: "QB", origin: "Old State", destination: "Ohio State", stars: 4 }];
+    const stats = [
+      { player: "Taylor Star", team: "Old State", statType: "passingAttempts", stat: 320 },
+      { player: "Taylor Star", team: "Old State", statType: "passingYards", stat: 2800 },
+      { player: "Taylor Star", team: "Old State", statType: "passingTouchdowns", stat: 24 },
+      { player: "Taylor Star", team: "Old State", statType: "interceptions", stat: 7 },
+    ];
+    const history = buildTransferQbHistory(transfers, stats, 2025).get("ohio state");
+    assert.equal(history.length, 1);
+    assert.equal(history[0].origin, "Old State");
+    assert.equal(history[0].prior.yards, 2800);
+    assert.equal(history[0].historyAvailable, true);
+    const catalog = buildCfbFeatureCatalog({ year: 2026, transfers, playerStats: stats });
+    assert.equal(catalog.byEspnId["194"].transferQbHistoryN, 1);
+    assert.equal(catalog.byEspnId["194"].transferQbs[0].priorSeason, 2025);
+  });
+
   it("builds EPA/transfer/QB/coaching feature rows by team", () => {
     const catalog = buildCfbFeatureCatalog({
       year: 2026,

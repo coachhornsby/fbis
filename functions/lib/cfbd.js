@@ -429,8 +429,51 @@ async function firstSuccessfulCfbdRequest(env, attempts, fetchFn) {
   return { rows: [], report, chosenPath: null };
 }
 
-export function buildCfbFeatureCatalog({ epa = [], returning = [], transfers = [], coaches = [], year = null, asOf = null } = {}) {
+function personKey(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+export function buildTransferQbHistory(transfers = [], playerStats = [], priorSeason = null) {
+  const stats = new Map();
+  for (const row of playerStats || []) {
+    const name = row.player || row.athlete || row.playerName || row.name;
+    const key = personKey(name);
+    if (!key) continue;
+    if (!stats.has(key)) stats.set(key, { player: name, team: row.team || null, season: priorSeason, attempts: 0, yards: 0, touchdowns: 0, interceptions: 0 });
+    const out = stats.get(key);
+    const type = String(row.statType || row.type || row.category || "").toLowerCase().replace(/[^a-z]/g, "");
+    const value = num(row.statValue ?? row.value ?? row.total ?? row.amount ?? row.stat);
+    if (value == null) continue;
+    if (/pass.*attempt|attempt.*pass/.test(type)) out.attempts += value;
+    else if (/pass.*yard/.test(type)) out.yards += value;
+    else if (/pass.*touchdown|passingtd/.test(type)) out.touchdowns += value;
+    else if (/interception/.test(type)) out.interceptions += value;
+  }
+  const byDestination = new Map();
+  for (const row of transfers || []) {
+    const pos = String(row.position || row.pos || row.positionGroup || "").toUpperCase();
+    const destination = row.destination || row.destinationTeam || row.newSchool || row.toTeam;
+    const name = row.player || row.playerName || row.name || [row.firstName, row.lastName].filter(Boolean).join(" ");
+    if (!(pos === "QB" || /QUARTERBACK/.test(pos)) || !destination || !name) continue;
+    const history = stats.get(personKey(name)) || null;
+    const record = {
+      player: name,
+      origin: row.origin || row.originTeam || row.fromTeam || row.oldSchool || history?.team || null,
+      destination,
+      priorSeason,
+      prior: history,
+      historyAvailable: Boolean(history && (history.attempts || history.yards || history.touchdowns || history.interceptions)),
+    };
+    const key = String(destination).trim().toLowerCase();
+    if (!byDestination.has(key)) byDestination.set(key, []);
+    byDestination.get(key).push(record);
+  }
+  return byDestination;
+}
+
+export function buildCfbFeatureCatalog({ epa = [], returning = [], transfers = [], playerStats = [], coaches = [], year = null, asOf = null } = {}) {
   const buckets = {};
+  const transferQbHistory = buildTransferQbHistory(transfers, playerStats, year == null ? null : Number(year) - 1);
   for (const row of epa || []) {
     const hit = resolveFeatureTeam(row);
     if (!hit) continue;
@@ -525,11 +568,14 @@ export function buildCfbFeatureCatalog({ epa = [], returning = [], transfers = [
     const qbOut = Number(row.qbTransferOut || 0);
     const starsIn = Number(row.transferStarsIn || 0);
     const starsOut = Number(row.transferStarsOut || 0);
+    const transferQbs = transferQbHistory.get(String(row.school || "").trim().toLowerCase()) || [];
     return {
       ...row,
       transferNet: transferIn - transferOut,
       qbTransferNet: qbIn - qbOut,
       transferStarDelta: starsIn - starsOut,
+      transferQbs,
+      transferQbHistoryN: transferQbs.filter((q) => q.historyAvailable).length,
     };
   });
   return trimFeatureOutput(Object.fromEntries(finalRows.map((r) => [r.espnId ? `id:${r.espnId}` : `school:${String(r.school).toLowerCase()}`, r])));
@@ -559,17 +605,19 @@ export async function loadCfbFeatureFeeds(env = {}, { fetchFn = fetch, now = Dat
   const cached = await readCache(cacheKey, env.caches, FEATURE_TTL_MS);
   if (cached?.catalog?.byEspnId && cached?.meta) return cached;
 
-  const [epa, transfer, coaches, returning] = await Promise.all([
+  const [epa, transfer, coaches, returning, playerStats] = await Promise.all([
     firstSuccessfulCfbdRequest(env, [["/ppa/teams", { year: season }], ["/ppa/teams/season", { year: season }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/player/portal", { year: season }], ["/player/transfer", { year: season }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/coaches", { year: season }], ["/coaches/teams", { year: season }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/player/returning", { year: season }]], fetchFn),
+    firstSuccessfulCfbdRequest(env, [["/stats/player/season", { year: season - 1, category: "passing" }], ["/player/season/stats", { year: season - 1, category: "passing" }]], fetchFn),
   ]);
 
-  const report = [...epa.report, ...transfer.report, ...coaches.report, ...returning.report];
+  const report = [...epa.report, ...transfer.report, ...coaches.report, ...returning.report, ...playerStats.report];
   const catalog = buildCfbFeatureCatalog({
     epa: epa.rows,
     transfers: transfer.rows,
+    playerStats: playerStats.rows,
     coaches: coaches.rows,
     returning: returning.rows,
     year: season,

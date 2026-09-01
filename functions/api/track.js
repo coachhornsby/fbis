@@ -1,4 +1,6 @@
 import { buildTrackReport } from "../lib/projLedger.js";
+import { queryAccuracyDailySummary, queryPipelineStages } from "../lib/store.js";
+import { rollupAccuracySummaries } from "../lib/accuracySummary.js";
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
@@ -15,6 +17,29 @@ export async function onRequestGet(context) {
   const year = url.searchParams.get("year") || "";
   const team = url.searchParams.get("team") || "";
   try {
+    if ((requestedDays === "season" || requestedDays === "lifetime") && !team) {
+      const now = new Date();
+      const y = Number(year || now.getUTCFullYear());
+      const since = requestedDays === "lifetime" ? "2000-01-01" :
+        (sport === "nba" || sport === "cbb" ? `${y - 1}-10-01` : `${y}-01-01`);
+      const compact = await queryAccuracyDailySummary({ DB: context.env.DB }, {
+        sport, since, checkpoint, version,
+      });
+      if (compact.ok && compact.rows.length) {
+        const accuracy = rollupAccuracySummaries(compact.rows);
+        const stages = await queryPipelineStages({ DB: context.env.DB }, { limit: 50 });
+        return new Response(JSON.stringify({
+          sport, days: requestedDays, checkpoint, version, source: "d1-preaggregated",
+          generatedAt: new Date().toISOString(), accuracy: { n: accuracy.graded, ...accuracy },
+          accuracySummary: { sport, checkpoint, dateRange: { since, until: null }, distinctProjected: accuracy.projected, distinctGraded: accuracy.graded, ...accuracy },
+          distinct: { projected: accuracy.projected, graded: accuracy.graded, checkpointRows: accuracy.projected },
+          pack: { table: { headline: {}, rows: [] }, models: [], breakdowns: {} },
+          games: [], finals: [], pipelineStages: stages,
+          compact: true,
+          compactNote: "Season metrics are served from durable daily aggregates. Select a shorter window for game-level detail.",
+        }), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=60", "access-control-allow-origin": "*" } });
+      }
+    }
     const payload = await buildTrackReport(
       sport,
       days,
