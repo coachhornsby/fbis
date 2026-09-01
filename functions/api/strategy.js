@@ -9,8 +9,9 @@ import {
   validateImportedTicket,
   EXPECTED_SEED_N,
   partitionProspectiveTickets,
+  dateCT,
 } from "../lib/strategy.js";
-import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb } from "../lib/store.js";
+import { persistStrategy, persistStrategyTicket, queryStrategyTickets, queryCfbStrategySchedule, gradeStrategyTicket, hasDb } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
 
 function json(data, status = 200, extraHeaders = {}) {
@@ -63,7 +64,14 @@ export async function onRequestGet(context) {
   const env = { DB: context.env.DB };
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
   const seed = canonicalSeedTickets(dbSeed.length ? dbSeed : STRATEGY_HC_V1_SEED_TICKETS);
-  const prospectiveRows = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
+  const rawProspective = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
+  const since = new Date(Date.now() - 21 * 86400000).toISOString().slice(0, 10);
+  const schedules = await queryCfbStrategySchedule(env, since);
+  const byGame = new Map(schedules.map((r) => [String(r.game_id), r.event_start]));
+  const prospectiveRows = rawProspective.map((t) => {
+    const eventStart = t.sport === "cfb" ? byGame.get(String(t.gameId)) : null;
+    return eventStart ? { ...t, date: dateCT(eventStart) || eventStart.slice(0, 10), eventStart } : t;
+  });
   const prospective = partitionProspectiveTickets(prospectiveRows);
   const rec = reconstructionPayload(seed);
   return readJson({

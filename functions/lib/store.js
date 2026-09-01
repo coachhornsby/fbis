@@ -1512,6 +1512,22 @@ export async function queryStrategyTickets(env, { strategyId, role } = {}) {
   }
 }
 
+export async function queryCfbStrategySchedule(env, since = "2000-01-01") {
+  if (!hasDb(env)) return [];
+  try {
+    const res = await env.DB.prepare(
+      `SELECT game_id, matchup,
+        MAX(json_extract(layers_json, '$._snap.start')) AS event_start
+       FROM prediction_snapshots
+       WHERE sport = 'cfb' AND date >= ? AND layers_json IS NOT NULL
+       GROUP BY game_id, matchup`
+    ).bind(since).all();
+    return (res.results || []).filter((r) => r.event_start);
+  } catch {
+    return [];
+  }
+}
+
 function mapStrategyTicket(r) {
   let traits = {};
   try {
