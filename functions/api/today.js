@@ -3,7 +3,8 @@ import { durableHealth, scheduledHealth } from "../lib/jobs.js";
 import { pingDb, countToday, readMeta, queryExecutedBets } from "../lib/store.js";
 import { todayCT } from "../lib/slateEngine.js";
 import { attachMyBetsToBoard } from "../lib/executedBets.js";
-import { deriveHealthState } from "../lib/healthContract.js";
+import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
+import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
@@ -31,6 +32,12 @@ export async function onRequestGet(context) {
     const meta = await readMeta(env);
     const sourceStatus = buildTodaySourceStatus(board);
     const schedule = scheduledHealth(durable, new Date());
+    const writeVerification = writeVerificationState({
+      readOk: ping.ok,
+      lastWriteSuccessAt: durable.lastD1WriteSuccessAt || null,
+      failedWrites: Number(durable.failedWrites || 0) + Number(durable.failedHarvests || 0),
+      reason: ping.reason || durable.lastError || "",
+    });
     const hasAuthoritativeData = ping.ok && (board?.counts?.games > 0 || board?.empty?.kind === "no-games");
     const semantic = deriveHealthState({
       hasAuthoritativeData,
@@ -73,6 +80,7 @@ export async function onRequestGet(context) {
       sourceStatus,
       checks: semantic.checks,
       failures: semantic.failures,
+      writeVerification,
       pal: {
         lastSuccess: meta.last_pal_success_at || board.feeds.mlb?.pal?.asOf || null,
         error: meta.last_pal_error || board.feeds.mlb?.pal?.error || null,
@@ -96,7 +104,38 @@ export async function onRequestGet(context) {
       todayFocusSport: board?.parlay?.focusSport || "all",
       todayCt: todayCT(),
     };
-    return json({ ...withBets, health, db: { ...ping, ...counts } }, 200, 30);
+    const successfulSports = Object.entries(sourceStatus.statuses).filter(([, s]) => s.schedule === "ok" && s.projections === "ok" && s.markets === "ok").map(([k]) => k);
+    const failedSports = Object.entries(sourceStatus.statuses).filter(([, s]) => s.schedule !== "ok" || s.projections !== "ok" || s.markets !== "ok").map(([k]) => k);
+    const allSportsAuthoritative = failedSports.length === 0;
+    return json({
+      ...withBets,
+      health,
+      db: { ...ping, ...counts },
+      coverage: {
+        successfulSports,
+        failedSports,
+        allSportsAuthoritative,
+        qualificationAuthoritative: allSportsAuthoritative,
+        denominator: Object.keys(sourceStatus.statuses).length,
+        numerator: successfulSports.length,
+      },
+      population: {
+        board: populationDescriptor({
+          populationType: POPULATION_TYPE.FROZEN_PROJECTION,
+          sport: focusSport || "all",
+          marketFamily: "mixed",
+          periodFamily: "mixed",
+          modelVersion: withBets.modelVersion || null,
+          checkpoint: "LATEST",
+          dateRange: { since: resolved.date, until: resolved.date },
+          settledN: Number(withBets.counts?.final || 0),
+          openN: Number(withBets.counts?.scheduled || 0) + Number(withBets.counts?.live || 0),
+          unresolvedN: Number(withBets.counts?.postponed || 0),
+          sourceHealth: semantic.state,
+          freshness: { attemptAt, lastSuccessAt: durable.lastCollectSuccessAt || null },
+        }),
+      },
+    }, 200, 30);
   } catch (err) {
     return json(
       { error: String(err?.message || err), date: resolved.date, games: [], sports: [], counts: {}, feeds: {} },

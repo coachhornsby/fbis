@@ -4,6 +4,7 @@ import { propWatchEmptyCopy, todayFeedNote } from "../functions/lib/propConvicti
 import { kickoffCt } from "../functions/lib/gameStatus.js";
 import { TeamIdentity } from "./components/TeamLogo.jsx";
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
+import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 import { Fragment, useState } from "react";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 
@@ -37,6 +38,7 @@ export default function TodayView({
   const health = board?.health || {};
   const counts = board?.counts || {};
   const empty = board?.empty;
+  const coverage = board?.coverage || null;
   const shown = (groups || []).map((g) => ({
     ...g,
     games: filterRows(g.games || [], sportFilter, bucket),
@@ -44,6 +46,10 @@ export default function TodayView({
   const unavailable = Boolean(error && !board);
   const d = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
   const sourceStatus = health?.sourceStatus?.statuses || {};
+  const qualificationValue =
+    sportFilter === "all" && coverage && !coverage.qualificationAuthoritative
+      ? "Qualification unavailable (incomplete all-sports coverage)"
+      : d(health.qualifiedTickets ?? counts.qualified ?? 0);
 
   return (
     <div className="main-content today-board">
@@ -93,8 +99,16 @@ export default function TodayView({
             <Stat label="Games" value={d(health.gamesLoaded ?? counts.games ?? 0)} />
             <Stat label="Projections" value={d(health.projectionsAvailable ?? "—")} />
             <Stat label="Markets" value={d(health.marketsAvailable ?? "—")} />
-            <Stat label="Qualified" value={d(health.qualifiedTickets ?? counts.qualified ?? 0)} />
+            <Stat label="Qualified" value={qualificationValue} />
           </div>
+          {coverage ? (
+            <p className="muted" style={{ marginTop: 8 }}>
+              Coverage: {coverage.numerator} of {coverage.denominator} sports authoritative.
+              {coverage.allSportsAuthoritative
+                ? " All-sports qualification counts are authoritative."
+                : " All-sports qualification is incomplete; unavailable sports are excluded from authoritative totals."}
+            </p>
+          ) : null}
           {Object.keys(sourceStatus).length ? (
             <div className="status-grid" style={{ marginTop: 10 }}>
               {Object.entries(sourceStatus).map(([sportId, s]) => (
@@ -112,6 +126,7 @@ export default function TodayView({
           <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
             {todayFeedNote(health, counts.mlbPropWatch)}
           </p>
+          <PopulationDescriptor descriptor={board?.population?.board} title="Board population descriptor" />
         </div>
       </section>
 

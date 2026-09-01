@@ -157,6 +157,9 @@ export default function App() {
       const data = await responseJson(res, "Tracking");
       if (signal?.aborted) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      if (data?.health?.state === "UNAVAILABLE") {
+        throw new Error(`SYS unavailable: ${(data?.health?.failures || []).map((f) => `${f.name}=${f.detail || "failed"}`).join(" · ") || "authoritative data unavailable"}`);
+      }
       setTrack(data);
       setTrackLastSuccessAt(new Date().toISOString());
       setTrackStale(false);
@@ -183,6 +186,9 @@ export default function App() {
       const data = await responseJson(res, "Today");
       if (signal?.aborted || ac.signal.aborted) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      if (data?.health?.state === "UNAVAILABLE") {
+        throw new Error(`TODAY unavailable: ${(data?.health?.failures || []).map((f) => `${f.name}=${f.detail || "failed"}`).join(" · ") || "authoritative data unavailable"}`);
+      }
       setTodayBoard(data);
       setTodayLastSuccessAt(new Date().toISOString());
       setTodayStale(false);
@@ -206,9 +212,13 @@ export default function App() {
       const data = await responseJson(res, "Bets");
       if (signal?.aborted) return;
       if (!res.ok || data?.error) throw new Error(data?.error || `HTTP ${res.status}`);
+      if (data?.state === "UNAVAILABLE") {
+        throw new Error(`Bets unavailable: ${(data?.d1Status?.failures || []).map((f) => `${f.name}=${f.detail || "failed"}`).join(" · ") || data?.d1 || "authoritative data unavailable"}`);
+      }
       setBetsPack({
         bets: data.bets || [],
         summary: data.summary,
+        population: data.population || null,
         ok: data.ok !== false,
         d1: data.d1 || "unknown",
         state: data.state || null,
@@ -463,6 +473,7 @@ export default function App() {
         <MyBetsView
           bets={betsPack.bets}
           summary={betsPack.summary}
+          population={betsPack.population}
           sourceOk={betsPack.ok}
           sourceD1={betsPack.d1}
           sourceStatus={betsPack.d1Status}
@@ -493,6 +504,10 @@ export default function App() {
             <Stat label="Pal" value={palLabel(slate)} />
             <Stat label="Parlay" value={parlayLabel(slate)} />
           </div>
+        </Panel>
+
+        <Panel title={`${String(SPORTS[sport]?.label || sport).toUpperCase()} Readiness`}>
+          <SportReadinessPanel sport={sport} slate={slate} />
         </Panel>
 
         <Panel title="Today's Slate" stamp={updated}>
@@ -543,7 +558,13 @@ export default function App() {
           </div>
         </div>
 
-        <Panel title={`${(SPORTS[sport]?.label || "Board").toUpperCase()} Operator Glossary`}>
+        <Panel title="FBIS Help Drawer">
+          <div className="glossary-grid">
+            {sharedGlossary().map((x) => <G key={x.title} title={x.title} body={x.body} />)}
+          </div>
+        </Panel>
+
+        <Panel title={`${(SPORTS[sport]?.label || "Board").toUpperCase()} Sport Diagnostics`}>
           <div className="glossary-grid">
             {glossaryBySport(sport).map((x) => <G key={x.title} title={x.title} body={x.body} />)}
           </div>
@@ -563,36 +584,77 @@ export default function App() {
   );
 }
 
-function glossaryBySport(sport) {
-  const common = [
-    { title: "Loop", body: "Forecast independently, compare to no-vig benchmark, require edge and EV, log, freeze, grade, and diagnose error. Champion weights do not auto-rewrite from one day of results." },
+function sharedGlossary() {
+  return [
+    { title: "Loop", body: "Forecast independently, compare to no-vig benchmark, require edge and expected ROI, log, freeze, grade, and diagnose error." },
     { title: "Heritage", body: "Execution ledger only. Imported operator bets remain separate from model recommendations and separate from strategy simulation populations." },
-    { title: "Pinnacle benchmark", body: "Pinnacle is the price benchmark for fair/no-vig comparisons. It is not automatically your executed Heritage price." },
-    { title: "Gates", body: "A projection is not a bet. Qualification requires a complete two-way benchmark market and positive EV thresholds." },
-    { title: "CLV", body: "CLV is entry no-vig vs close no-vig for the same side and contract. It is independent of win/loss outcomes." },
+    { title: "Pinnacle benchmark", body: "Pinnacle is the benchmark for fair/no-vig comparisons. It is not automatically your executed Heritage price." },
+    { title: "Qualification gates", body: "A projection is not a bet. Qualification requires complete market evidence and positive expected ROI thresholds." },
+    { title: "CLV", body: "CLV is entry no-vig vs close no-vig for the same side and contract; independent of win/loss." },
   ];
+}
+
+function glossaryBySport(sport) {
   if (sport === "mlb") {
     return [
-      ...common,
-      { title: "Ballpark Pal", body: "MLB matchup context and run simulations (including F5 context). Not an execution venue." },
-      { title: "F5", body: "First-five markets reflect starter-phase conditions. F5 projections and prices are tracked separately from full-game markets." },
-      { title: "Props", body: "Player props appear only when contract + projection alignment is available; missing contracts produce watch-only status." },
+      { title: "Savant + Ballpark Pal", body: "MLB diagnostics include Savant run environment and Ballpark Pal matchup context. These are analytics sources, not execution venues." },
+      { title: "Pitchers / Lineups / Park", body: "Starter context, lineup-official status, weather, and park factors are MLB-only readiness signals." },
+      { title: "FG + F5 + Props coverage", body: "Full-game and F5 markets are tracked separately. Player-prop qualification requires contract + model alignment." },
     ];
   }
   if (sport === "cfb") {
     return [
-      ...common,
-      { title: "CFB readiness", body: "Projection state depends on schedule, priors, and feature freshness (EPA/QB/transfer/coaching). Blocked projections are shown explicitly when inputs are incomplete." },
-      { title: "College status", body: "Fallback schedules can populate boards, but betting eligibility still requires quality gates and market completeness." },
+      { title: "CFB weekly readiness", body: "Readiness tracks CFBD schedule/team IDs, power priors, EPA, returning production, QB continuity/transfer, coaching continuity, and market coverage." },
+      { title: "Evidence completeness", body: "Games can be complete, partial, or blocked. Qualification only occurs when configured evidence contracts are met." },
+      { title: "Blocked reasons", body: "A blocked game lists exact missing evidence (inputs, market pairs, or quality constraints)." },
     ];
   }
   if (sport === "nfl") {
-    return [...common, { title: "NFL projection mode", body: "When proprietary projection is unavailable, implied-market diagnostics are shown as context only and are not automatic bets." }];
+    return [
+      { title: "NFL model status", body: "If only market-implied diagnostics are available, the page must not imply independent FBIS projections." },
+      { title: "Weekly operational inputs", body: "QB/starter status, injuries, travel/rest, weather, and market readiness are surfaced as diagnostics." },
+    ];
   }
   if (sport === "nba" || sport === "cbb") {
-    return [...common, { title: "Hoops coverage", body: "Market and model coverage are displayed by sport readiness; unavailable sections are labeled as unavailable, not zero performance." }];
+    if (sport === "nba") {
+      return [
+        { title: "NBA readiness", body: "Schedule, injury availability, rest/back-to-back, projected lineup continuity, and market coverage are shown per slate." },
+      ];
+    }
+    return [
+      { title: "CBB readiness", body: "CBBD/Torvik/rating freshness, continuity signals, and market coverage determine whether diagnostics are complete, partial, or blocked." },
+    ];
   }
-  return common;
+  return [];
+}
+
+function SportReadinessPanel({ sport, slate }) {
+  const rows = (slate?.games || []).filter((g) => g.sport === sport);
+  const complete = rows.filter((g) => !g.projectionUnavailable && !g.marketUnresolved && !g.marketUnavailable).length;
+  const partial = rows.filter((g) => !g.projectionUnavailable && (g.marketUnresolved || g.marketUnavailable)).length;
+  const blocked = rows.filter((g) => Boolean(g.qualificationBlocked || (g.cfb && !g.cfb.bettingAllowed))).length;
+  const qualified = rows.filter((g) => Boolean(g.rec)).length;
+  const reasons = {};
+  for (const g of rows) {
+    const reason = g.blockReason || g.noPlayReason || (g.marketUnavailable ? "market unavailable" : null);
+    if (!reason) continue;
+    reasons[reason] = (reasons[reason] || 0) + 1;
+  }
+  return (
+    <>
+      <div className="status-grid">
+        <Stat label="State" value={rows.length ? "DEGRADED" : "UNAVAILABLE"} />
+        <Stat label="Last successful collection" value={slate?.generatedAt ? fmtStamp(slate.generatedAt) : "—"} />
+        <Stat label="Games discovered" value={rows.length} />
+        <Stat label="Evidence complete" value={complete} />
+        <Stat label="Evidence partial" value={partial} />
+        <Stat label="Blocked" value={blocked} />
+        <Stat label="Qualified" value={qualified} />
+      </div>
+      <p className="muted" style={{ marginTop: 8 }}>Blocking reasons: {Object.keys(reasons).length ? Object.entries(reasons).map(([k, v]) => `${k} (${v})`).join(" · ") : "none reported"}.</p>
+      {sport === "cfb" ? <p className="muted">CFB weekly schedule view: upcoming-week aggregation is pending; current board reflects selected operator date evidence only.</p> : null}
+    </>
+  );
 }
 
 function Panel({ title, stamp, extra, children }) {

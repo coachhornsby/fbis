@@ -4,6 +4,7 @@ import { fmtNum, fmtPct, fmtSigned, fmtMetric as fmtMetricN0 } from "./lib/forma
 import { useEffect, useState } from "react";
 import useIsCompact from "./hooks/useIsCompact.js";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
+import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 
 const PERIODS = [
   ["7", "Last 7"],
@@ -38,13 +39,14 @@ const TABS = [
 ];
 
 export default function TrackView({ report, error, loading, stale, lastSuccessAt, attemptAt, state, filters, onFilters, onRefresh }) {
+  const unavailable = state === "UNAVAILABLE";
   const acc = report?.accuracy || { n: 0 };
   const pack = report?.pack || {};
   const table = pack.table || { headline: {}, rows: [] };
   const dist = pack.distribution || {};
   const models = pack.models || [];
   const br = pack.breakdowns || {};
-  const games = report?.games || [];
+  const games = unavailable ? [] : (report?.games || []);
   const graded = games.filter((g) => g.status === "GRADED");
   const open = games.filter((g) => g.status === "OPEN");
   const guide = report?.recipeGuide || {};
@@ -157,13 +159,68 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         <div className="panel-body">
           <div className="chip-row">
             {actionIssues.length ? <a className="chip active" href="#action-required">Action required</a> : null}
+            <a className="chip" href="#overall-health">Overall health</a>
+            <a className="chip" href="#scheduled-proof">Scheduled proof</a>
             <a className="chip" href="#sport-systems">Sport systems</a>
             <a className="chip" href="#research-db">Research DB</a>
+            <a className="chip" href="#settlement-backlog">Settlement backlog</a>
             <a className="chip" href="#projection-accuracy">Projection accuracy</a>
-            <a className="chip" href="#strategy-performance">Strategy</a>
+            <a className="chip" href="#strategy-seed-prospective">Strategy</a>
+            <a className="chip" href="#sys-anomalies">Anomalies</a>
             <a className="chip" href="#clv-tracker">CLV</a>
             <a className="chip" href="#projection-vs-final">Projection vs final</a>
           </div>
+          <div style={{ marginTop: 10 }}>
+            <label className="muted" htmlFor="sys-section-jump">Section</label>
+            <select
+              id="sys-section-jump"
+              style={{ marginLeft: 8 }}
+              onChange={(e) => {
+                const el = document.querySelector(e.target.value);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              defaultValue=""
+            >
+              <option value="" disabled>Select section</option>
+              <option value="#overall-health">Overall health</option>
+              <option value="#scheduled-proof">Scheduled proof</option>
+              <option value="#sport-systems">Sport systems</option>
+              <option value="#research-db">Research DB</option>
+              <option value="#settlement-backlog">Settlement backlog</option>
+              <option value="#strategy-seed-prospective">Strategy</option>
+              <option value="#sys-anomalies">Anomalies</option>
+              <option value="#projection-accuracy">Projection accuracy</option>
+              <option value="#projection-vs-final">Projection vs final</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section id="overall-health" className="panel">
+        <div className="panel-header"><h2>Overall pipeline health</h2><span className="last-updated">{badgeLabel(state || "DEGRADED")}</span></div>
+        <div className="panel-body">
+          <div className="status-grid">
+            <Stat label="Semantic state" value={state || "DEGRADED"} />
+            <Stat label="Current attempt" value={fmtTs(attemptAt)} />
+            <Stat label="Last success" value={fmtTs(lastSuccessAt)} />
+            <Stat label="Data source" value={db.source || report?.source || "unknown"} />
+            <Stat label="Health source" value={db.healthSource || "unknown"} />
+          </div>
+          <p className="muted">Effective scope: {report?.accuracySummary?.dateRange?.since || "—"} to {report?.accuracySummary?.dateRange?.until || "—"} · selected days={filters?.days || "—"}.</p>
+        </div>
+      </section>
+
+      <section id="scheduled-proof" className="panel">
+        <div className="panel-header"><h2>Scheduled pipeline proof</h2><span className="last-updated">{db.scheduled?.lastEventType || "unverified"}</span></div>
+        <div className="panel-body">
+          <div className="status-grid">
+            <Stat label="Scheduled collect state" value={db.scheduled?.collect?.state || "unknown"} />
+            <Stat label="Scheduled harvest state" value={db.scheduled?.harvest?.state || "unknown"} />
+            <Stat label="Last scheduled collect" value={fmtTs(db.lastScheduledCollectSuccess || db.scheduled?.collect?.lastObservedAt)} />
+            <Stat label="Last scheduled harvest" value={fmtTs(db.lastScheduledHarvestSuccess || db.scheduled?.harvest?.lastObservedAt)} />
+            <Stat label="Last scheduled run URL" value={db.scheduled?.lastRunUrl || "unverified"} />
+          </div>
+          <p className="muted">GitHub schedule observed; durable D1 schedule proof unverified.</p>
         </div>
       </section>
 
@@ -288,10 +345,28 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         </div>
       </section>
 
+      <section id="settlement-backlog" className="panel">
+        <div className="panel-header">
+          <h2>Settlement backlog</h2>
+          <span className="last-updated">{unavailable ? "Unavailable" : `${open.length} waiting`}</span>
+        </div>
+        <div className="panel-body">
+          <div className="status-grid">
+            <Stat label="Open snapshots" value={valueOrUnavailable(unavailable, open.length)} />
+            <Stat label="Graded snapshots" value={valueOrUnavailable(unavailable, graded.length)} />
+            <Stat label="Last collect success" value={fmtTs(db.lastCollectSuccess || db.lastCollect)} />
+            <Stat label="Last harvest success" value={fmtTs(db.lastHarvestSuccess || db.lastHarvest)} />
+          </div>
+          <p className="muted">Effective scope: projection snapshots in the currently active SYS filters; not all historical records.</p>
+        </div>
+      </section>
+
       <section id="projection-accuracy" className="panel">
         <div className="panel-header">
           <h2>Projection Accuracy</h2>
-          <span className="last-updated">{db.ok ? `${hl.n || 0} games` : "Unavailable"}</span>
+          <span className="last-updated">
+            {unavailable ? "DATA UNAVAILABLE" : (db.ok ? `${hl.n || 0} games` : "Unavailable")}
+          </span>
         </div>
         <div className="panel-body">
           <div className="filter-row">
@@ -363,7 +438,9 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
           </div>
 
           <p className="headline-line">
-            {hl.n
+            {unavailable
+              ? `Projection accuracy unavailable: ${(report?.health?.failures || []).map((f) => `${f.name}=${f.detail || "failed"}`).join(" · ") || error || "authoritative population unavailable"}.`
+              : hl.n
               ? `Projected runs have been ${fmtPctSigned(hl.pctDiff)} vs actual (${hl.n} games). Median abs ${fmtNum(hl.medianAbs)} · MAE ${fmtNum(hl.mae)} · RMSE ${fmtNum(hl.rmse)}.`
               : db.ok ? "No graded projections in this window yet. Collection runs on a schedule — you do not need to open the board." : "Projection accuracy unavailable until DB access recovers."}
           </p>
@@ -379,7 +456,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
           </p>
 
           <div className="status-grid" style={{ marginBottom: 14 }}>
-            <Stat label="Games graded" value={hl.n || 0} />
+            <Stat label="Games graded" value={valueOrUnavailable(unavailable, hl.n || 0)} />
             <Stat label={perGame ? "Actual / game" : "Actual runs"} value={fmtMetricN0(hl.n, hl.actualRuns, fmtNum)} />
             <Stat label={perGame ? "Projected / game" : "Projected runs"} value={fmtMetricN0(hl.n, hl.projectedRuns, fmtNum)} />
             <Stat label="Difference" value={fmtMetricN0(hl.n, hl.diff, fmtSigned)} />
@@ -394,8 +471,9 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
             <Stat label="Ensemble winner" value={fmtMetricN0(acc.n, acc.winnerHitProb, fmtPct)} />
             <Stat label="Brier vs Pin" value={fmtMetricN0(acc.n, acc.brierImprovement, (v) => fmtSigned(v, 3))} />
           </div>
+          <PopulationDescriptor descriptor={report?.population?.accuracy} title="Accuracy population descriptor" />
 
-          {tab === "overall" && (
+          {!unavailable && tab === "overall" && (
             <>
               <MetricTable rows={table.rows || []} />
               <h3 className="subhead">Error distribution</h3>
@@ -424,50 +502,24 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
               )}
             </>
           )}
-          {tab === "month" && <BreakTable rows={br.month || []} extra />}
-          {tab === "day" && <BreakTable rows={(br.day || []).slice(0, 45)} extra />}
-          {tab === "park" && <BreakTable rows={br.park || []} />}
-          {tab === "team" && <BreakTable rows={br.team || []} rpg />}
-          {tab === "starter" && <BreakTable rows={(br.starter || []).slice(0, 40)} rpg />}
-          {tab === "homeAway" && <BreakTable rows={br.homeAway || []} />}
-          {tab === "version" && <BreakTable rows={br.version || []} extra />}
-          {tab === "checkpoint" && <BreakTable rows={br.checkpoint || []} extra />}
-          {tab === "week" && <BreakTable rows={br.week || []} extra />}
-          {tab === "conference" && <BreakTable rows={br.conference || []} extra />}
-          {tab === "favDog" && <BreakTable rows={br.favDog || []} extra />}
-          {tab === "spreadRange" && <BreakTable rows={br.spreadRange || []} extra />}
+          {!unavailable && tab === "month" && <BreakTable rows={br.month || []} extra />}
+          {!unavailable && tab === "day" && <BreakTable rows={(br.day || []).slice(0, 45)} extra />}
+          {!unavailable && tab === "park" && <BreakTable rows={br.park || []} />}
+          {!unavailable && tab === "team" && <BreakTable rows={br.team || []} rpg />}
+          {!unavailable && tab === "starter" && <BreakTable rows={(br.starter || []).slice(0, 40)} rpg />}
+          {!unavailable && tab === "homeAway" && <BreakTable rows={br.homeAway || []} />}
+          {!unavailable && tab === "version" && <BreakTable rows={br.version || []} extra />}
+          {!unavailable && tab === "checkpoint" && <BreakTable rows={br.checkpoint || []} extra />}
+          {!unavailable && tab === "week" && <BreakTable rows={br.week || []} extra />}
+          {!unavailable && tab === "conference" && <BreakTable rows={br.conference || []} extra />}
+          {!unavailable && tab === "favDog" && <BreakTable rows={br.favDog || []} extra />}
+          {!unavailable && tab === "spreadRange" && <BreakTable rows={br.spreadRange || []} extra />}
 
           <div style={{ marginTop: 12 }}>
             <button className="header-btn header-btn-refresh" onClick={onRefresh} disabled={loading}>
               {loading ? "Loading…" : "Reload SYS"}
             </button>
             {manualMsg ? <span className="muted" style={{ marginLeft: 10 }}>{manualMsg}</span> : null}
-          </div>
-        </div>
-      </section>
-
-      <section id="strategy-performance" className="panel">
-        <div className="panel-header">
-          <h2>Strategy Performance</h2>
-          <span className="last-updated">qualified / executed tickets</span>
-        </div>
-        <div className="panel-body">
-          <p className="muted" style={{ marginBottom: 8 }}>
-            Population: strategy ticket outcomes only. Not the same population as imported Heritage executions and not the same as full projection-accuracy rows.
-          </p>
-          <p className="headline-line">
-            {report?.strategyPerformance?.message ||
-              (report?.strategyPerformance?.settled
-                ? `Settled ${report.strategyPerformance.record} on ${report.strategyPerformance.settled} tickets.`
-                : "No settled strategy tickets yet.")}
-          </p>
-          <div className="status-grid">
-            <Stat label="Tickets" value={report?.strategyPerformance?.tickets ?? 0} />
-            <Stat label="Open" value={report?.strategyPerformance?.open ?? 0} />
-            <Stat label="Settled" value={report?.strategyPerformance?.settled ?? 0} />
-            <Stat label="Record" value={report?.strategyPerformance?.record || "—"} />
-            <Stat label="Hit rate" value={fmtPct(report?.strategyPerformance?.hitRate)} />
-            <Stat label="Units" value={fmtSigned(report?.strategyPerformance?.units)} />
           </div>
         </div>
       </section>
@@ -482,18 +534,21 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
             Population: tickets with valid entry and close benchmark data for identical market contracts.
           </p>
           <p className="headline-line">
-            {report?.clv?.unavailable
+            {unavailable
+              ? "CLV unavailable because authoritative strategy/ticket population is unavailable."
+              : report?.clv?.unavailable
               ? report.clv.message || "No tickets have both a valid Pinnacle entry and close yet."
               : `Avg CLV ${fmtSigned(report?.clv?.avg, 3)} · positive share ${fmtPct(report?.clv?.positiveShare)}.`}
           </p>
           <p className="muted">CLV is close no-vig − entry no-vig, same side. Independent of W/L. Heritage Current Line is not Pin close.</p>
           <div className="status-grid">
-            <Stat label="Valid CLV N" value={report?.clv?.validClv ?? 0} />
+            <Stat label="Valid CLV N" value={valueOrUnavailable(unavailable, report?.clv?.validClv ?? 0)} />
             <Stat label="Missing entry" value={report?.clv?.missingEntry ?? 0} />
             <Stat label="Missing close" value={report?.clv?.missingClose ?? 0} />
             <Stat label="Line mismatch" value={report?.clv?.lineMismatch ?? 0} />
             <Stat label="Coverage" value={fmtPct(report?.clv?.coveragePct)} />
           </div>
+          <PopulationDescriptor descriptor={report?.population?.strategy} title="CLV/strategy population descriptor" />
         </div>
       </section>
 
@@ -533,6 +588,50 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
       </section>
 
       <StrategyPanel sectionId="strategy-seed-prospective" reloadKey={report?.generatedAt || report?.db?.lastWrite || ""} />
+
+      <section id="sys-anomalies" className="panel">
+        <div className="panel-header">
+          <h2>Historical EV anomalies</h2>
+          <span className="last-updated">{report?.anomalies?.available ? `${report?.anomalies?.count || 0} records` : "Unavailable"}</span>
+        </div>
+        <div className="panel-body">
+          {!report?.anomalies?.available ? (
+            <p className="error">EV anomaly audit unavailable: {report?.anomalies?.blockedReason || "blocked"}</p>
+          ) : (
+            <>
+              <p className="muted">Counts by reason: {fmtMapSummary(report?.anomalies?.byReason)}</p>
+              <div className="table-scroll"><table className="fbis-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Entity</th>
+                    <th>Sport</th>
+                    <th>Market</th>
+                    <th>Stored ROI</th>
+                    <th>Recomputed ROI</th>
+                    <th>Reason</th>
+                    <th>Disposition</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(report?.anomalies?.rows || []).slice(0, 30).map((r) => (
+                    <tr key={r.id}>
+                      <td className="muted">{r.entityId}</td>
+                      <td>{r.entityType}</td>
+                      <td>{String(r.sport || "").toUpperCase()}</td>
+                      <td>{r.market || "—"} {r.side || ""}</td>
+                      <td>{r.storedEv == null ? "—" : fmtPct(r.storedEv)}</td>
+                      <td>{r.recomputedEv == null ? "—" : fmtPct(r.recomputedEv)}</td>
+                      <td>{r.anomalyReason}</td>
+                      <td>{r.disposition}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
+            </>
+          )}
+        </div>
+      </section>
 
       <section id="projection-method" className="panel">
         <div className="panel-header">
@@ -1103,6 +1202,9 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
         let data = {};
         try { data = text ? JSON.parse(text) : {}; } catch { throw new Error("Strategy endpoint returned invalid JSON"); }
         if (!r.ok || data?.error) throw new Error(data?.error || `HTTP ${r.status}`);
+        if (data?.health?.state === "UNAVAILABLE") {
+          throw new Error(`strategy unavailable: ${(data?.health?.failures || []).map((f) => `${f.name}=${f.detail || "failed"}`).join(" · ") || "authoritative data unavailable"}`);
+        }
         return data;
       })
       .then((d) => {
@@ -1117,21 +1219,23 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
   }, [reloadKey]);
   const seed = pack?.seed || { tickets: [], stats: {}, traits: {} };
   const seedBySport = splitRowsBySport(seed.tickets || []);
-  const pro = pack?.prospective || { tickets: [], stats: {}, traits: {} };
+  const pro = pack?.prospective || { tickets: [], stats: null, traits: {} };
   const proBySport = pack?.prospectiveBySport || [];
   const rec = pack?.reconstruction || {};
+  const integrity = pack?.integrity || {};
+  const semanticUnavailable = Boolean(loadError);
   return (
     <section id={sectionId || undefined} className="panel">
       <div className="panel-header">
         <h2>Strategy · FBIS-HC-v1</h2>
         <span className="last-updated">
-          {loadError
+          {semanticUnavailable
             ? "DATA UNAVAILABLE"
             : `expected N=${pack?.expectedSeedN || 7} · recovered ${pack?.actualRecoveredN ?? rec.recoveredN ?? 0} · ${rec.state || rec.confidence || "operator-declared"}`}
         </span>
       </div>
       <div className="panel-body">
-        {loadError ? (
+        {semanticUnavailable ? (
           <div className="error" style={{ marginBottom: 10 }}>
             Canonical strategy population unavailable: {loadError}. Current attempt {fmtTs(attemptAt)}. Last success {fmtTs(lastSuccessAt)}.
           </div>
@@ -1140,6 +1244,12 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
           High-conviction means a <b>qualified</b> ticket with EV ≥ 8% (tag CONVICTION). Leans are excluded.
           The 7-0 does not rewrite blend weights. N=7 is not evidence the filter works.
         </p>
+        <div className="status-grid" style={{ marginBottom: 10 }}>
+          <Stat label="Operator-reported history" value={pack?.reportedRecord || "7-0"} />
+          <Stat label="Recovered N" value={pack?.actualRecoveredN ?? rec.recoveredN ?? 0} />
+          <Stat label="Recovery state" value={rec.state || "unrecovered"} />
+          <Stat label="Calculated inclusion" value="excluded from prospective metrics" />
+        </div>
         <p className="muted" style={{ marginBottom: 10 }}>
           Population: FBIS-HC-v1 strategy tickets only (seed/prospective), separate from projection-accuracy populations and separate from imported Heritage execution results.
         </p>
@@ -1156,7 +1266,9 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
           {pack?.strategy?.seedObservation ||
             "The 2026-08-26 seed sample was MLB-heavy overs (5/7 totals at 8.5–9.5, 1 ML, 1 +1.5 RL). That is an observation, not a gate."}
         </p>
-        {loadError ? <div className="empty">Calculated strategy summary unavailable until canonical strategy query succeeds.</div> : (
+        {semanticUnavailable ? <div className="empty">Calculated strategy summary unavailable until canonical strategy query succeeds.</div> : pro.aggregateUnavailable ? (
+          <div className="empty">Prospective aggregate unavailable: {pro.aggregateReason || "mixed populations require grouped breakdowns."}</div>
+        ) : (
           <div className="status-grid" style={{ marginBottom: 12 }}>
             <Stat label="Expected N" value={pack?.expectedSeedN ?? 7} />
             <Stat label="Recovered N" value={pack?.actualRecoveredN ?? rec.recoveredN ?? 0} />
@@ -1171,8 +1283,23 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
             <Stat label="Open" value={pro.stats?.open ?? 0} />
           </div>
         )}
-        {!loadError ? (
+        {!semanticUnavailable ? (
           <>
+        <PopulationDescriptor descriptor={pack?.population?.prospective} title="Strategy prospective population descriptor" />
+        <h3 className="subhead">Prospective integrity</h3>
+        <div className="status-grid" style={{ marginBottom: 12 }}>
+          <Stat label="Open tickets" value={integrity.open ?? 0} />
+          <Stat label="Settled tickets" value={integrity.settled ?? 0} />
+          <Stat label="Unresolved finals" value={integrity.unresolved ?? 0} />
+          <Stat label="Pushes" value={integrity.pushes ?? 0} />
+          <Stat label="Voids" value={integrity.voids ?? 0} />
+          <Stat label="Duplicates excluded" value={integrity.duplicatesExcluded ?? 0} />
+          <Stat label="Invalid" value={integrity.invalid ?? 0} />
+          <Stat label="Quarantined" value={integrity.quarantined ?? 0} />
+        </div>
+        <p className="muted" style={{ marginBottom: 8 }}>
+          Breakdown sport={fmtMapSummary(integrity.breakdowns?.sport)} · market={fmtMapSummary(integrity.breakdowns?.marketFamily)} · period={fmtMapSummary(integrity.breakdowns?.periodFamily)} · model={fmtMapSummary(integrity.breakdowns?.modelVersion)} · qual={fmtMapSummary(integrity.breakdowns?.qualificationRuleVersion)}
+        </p>
         <h3 className="subhead">Seed traits (shared characteristics)</h3>
         <TraitLine traits={seed.traits} />
         <h3 className="subhead">Seed tickets</h3>
@@ -1202,15 +1329,17 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
 
 function TraitLine({ traits }) {
   if (!traits?.n) return <p className="muted">No seed tickets recovered yet. Strategy definition still applies prospectively.</p>;
-  const fmtMap = (obj) =>
-    Object.entries(obj || {})
-      .map(([k, v]) => `${k} ${v}`)
-      .join(" · ") || "—";
   return (
     <p className="muted">
-      N={traits.n} · sports {fmtMap(traits.sports)} · markets {fmtMap(traits.markets)} · sides {fmtMap(traits.sides)} · avg Expected ROI {fmtPct(traits.avgEv)} · home {fmtPct(traits.homeShare)} · over {fmtPct(traits.overShare)}
+      N={traits.n} · sports {fmtMapSummary(traits.sports)} · markets {fmtMapSummary(traits.markets)} · sides {fmtMapSummary(traits.sides)} · avg Expected ROI {fmtPct(traits.avgEv)} · home {fmtPct(traits.homeShare)} · over {fmtPct(traits.overShare)}
     </p>
   );
+}
+
+function fmtMapSummary(obj) {
+  return Object.entries(obj || {})
+    .map(([k, v]) => `${k} ${v}`)
+    .join(" · ") || "—";
 }
 
 function TicketTable({ rows, empty }) {

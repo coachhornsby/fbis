@@ -1,6 +1,6 @@
 import { durableHealth, deploymentCommit, scheduledHealth } from "../lib/jobs.js";
 import { MODEL_VERSION } from "../lib/weights.js";
-import { deriveHealthState } from "../lib/healthContract.js";
+import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 
 /**
  * Read-only health endpoint.
@@ -20,7 +20,13 @@ export async function onRequestGet(context) {
     const health = await durableHealth(env);
     const schedule = scheduledHealth(health, new Date());
     const readOk = Boolean(health.bound) && String(health.source || "") === "d1";
-    const writeOk = Number(health.failedWrites || 0) === 0 && Number(health.failedHarvests || 0) === 0;
+    const writeVerification = writeVerificationState({
+      readOk,
+      lastWriteSuccessAt: health.lastD1WriteSuccessAt || null,
+      failedWrites: Number(health.failedWrites || 0) + Number(health.failedHarvests || 0),
+      reason: health.lastError || health.source || "",
+    });
+    const writeOk = writeVerification === "VERIFIED";
     const collectHealthy = schedule?.collect?.state === "healthy";
     const harvestHealthy = schedule?.harvest?.state === "healthy";
     const derived = deriveHealthState({
@@ -58,6 +64,7 @@ export async function onRequestGet(context) {
           lastD1WriteSuccessAt: health.lastD1WriteSuccessAt || null,
           readOk,
           writeOk,
+          writeVerification,
         },
         pipeline: {
           lastCollectSuccessAt: health.lastCollectSuccessAt || null,

@@ -1498,6 +1498,65 @@ export async function queryStrategyTickets(env, { strategyId, role } = {}) {
   }
 }
 
+export async function persistEvAuditRecords(env, records = []) {
+  markBound(env);
+  if (!hasDb(env) || !records.length) return { ok: false, reason: hasDb(env) ? "no-records" : "unbound", inserted: 0 };
+  let inserted = 0;
+  for (const row of records || []) {
+    if (!row?.id || !row?.entityType || !row?.entityId || !row?.anomalyReason) continue;
+    try {
+      const out = await env.DB.prepare(
+        `INSERT OR REPLACE INTO ev_audit_records (
+          id, entity_type, entity_id, sport, market, side, model_version, qualification_rule_version, freeze_at,
+          stored_ev, recomputed_ev, anomaly_reason, root_cause, qualified, entered_strategy, disposition, inputs_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        row.id,
+        row.entityType,
+        row.entityId,
+        n(row.sport),
+        n(row.market),
+        n(row.side),
+        n(row.modelVersion),
+        n(row.qualificationRuleVersion),
+        n(row.freezeAt),
+        n(row.storedEv),
+        n(row.recomputedEv),
+        row.anomalyReason,
+        n(row.rootCause),
+        row.qualified ? 1 : 0,
+        row.enteredStrategy ? 1 : 0,
+        row.disposition || "unresolved",
+        n(row.inputsJson),
+        row.createdAt || new Date().toISOString()
+      ).run();
+      if ((Number(out?.meta?.changes) || 0) > 0) inserted += 1;
+      markWrite();
+    } catch (err) {
+      markErr(err);
+    }
+  }
+  return { ok: true, inserted };
+}
+
+export async function queryEvAuditRecords(env, { since, limit = 1000 } = {}) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
+  try {
+    const sql = since
+      ? "SELECT * FROM ev_audit_records WHERE created_at >= ? ORDER BY created_at DESC LIMIT ?"
+      : "SELECT * FROM ev_audit_records ORDER BY created_at DESC LIMIT ?";
+    const res = since
+      ? await env.DB.prepare(sql).bind(since, Math.max(1, Math.min(5000, Number(limit) || 1000))).all()
+      : await env.DB.prepare(sql).bind(Math.max(1, Math.min(5000, Number(limit) || 1000))).all();
+    markRead();
+    return { ok: true, rows: res.results || [] };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), rows: [] };
+  }
+}
+
 function mapStrategyTicket(r) {
   let traits = {};
   try {

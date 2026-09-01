@@ -12,9 +12,13 @@ import {
 import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGamesByIds } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
 import { resolveTeam } from "../lib/teams.js";
+import { durableHealth } from "../lib/jobs.js";
+import { deriveHealthState } from "../lib/healthContract.js";
+import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 
 const SPORT_ORDER = ["mlb", "nba", "nfl", "cfb", "cbb", "other"];
 const SPORT_LABEL = { mlb: "MLB", nba: "NBA", nfl: "NFL", cfb: "CFB", cbb: "CBB", other: "Other" };
+const QUALIFICATION_RULE_VERSION = "FBIS-HC-v1";
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -100,8 +104,76 @@ function groupBySport(tickets = []) {
     });
 }
 
+function marketFamily(market = "") {
+  const m = String(market || "").toUpperCase();
+  if (m.includes("ML")) return "moneyline";
+  if (m.includes("SPREAD")) return "spread";
+  if (m.includes("TOTAL")) return "total";
+  if (m.includes("PROP")) return "player-prop";
+  return "other";
+}
+
+function periodFamily(market = "") {
+  const m = String(market || "").toUpperCase();
+  if (m.startsWith("F5")) return "F5";
+  if (m.includes("PROP")) return "player-prop";
+  return "full-game";
+}
+
+function countBy(rows = [], keyFn) {
+  const out = {};
+  for (const row of rows || []) {
+    const key = keyFn(row) || "unknown";
+    out[key] = (out[key] || 0) + 1;
+  }
+  return out;
+}
+
+function strategyIntegrity(tickets = []) {
+  const unresolved = tickets.filter((t) => String(t.result || "").toUpperCase() === "FINAL NOT MATCHED");
+  const pushes = tickets.filter((t) => String(t.result || "").toUpperCase() === "PUSH");
+  const voids = tickets.filter((t) => String(t.result || "").toUpperCase() === "VOID");
+  const settled = tickets.filter((t) => ["WON", "LOST"].includes(String(t.result || "").toUpperCase()));
+  const open = tickets.filter((t) => !t.result || String(t.result || "").toUpperCase() === "OPEN");
+  const invalid = tickets.filter((t) => String(t.provenance || t.traits?.provenance || "").toLowerCase() === "invalid");
+  const quarantined = tickets.filter((t) => Boolean(t.traits?.quarantineReason));
+  return {
+    open: open.length,
+    settled: settled.length,
+    unresolved: unresolved.length,
+    pushes: pushes.length,
+    voids: voids.length,
+    duplicatesExcluded: 0,
+    invalid: invalid.length,
+    quarantined: quarantined.length,
+    breakdowns: {
+      sport: countBy(tickets, (t) => t.sport || "unknown"),
+      marketFamily: countBy(tickets, (t) => marketFamily(t.market)),
+      periodFamily: countBy(tickets, (t) => periodFamily(t.market)),
+      modelVersion: countBy(tickets, (t) => t.modelVersion || "unknown"),
+      qualificationRuleVersion: countBy(tickets, () => QUALIFICATION_RULE_VERSION),
+    },
+    mixChecks: {
+      sports: Object.keys(countBy(tickets, (t) => t.sport || "unknown")).length,
+      marketFamilies: Object.keys(countBy(tickets, (t) => marketFamily(t.market))).length,
+      periods: Object.keys(countBy(tickets, (t) => periodFamily(t.market))).length,
+      modelVersions: Object.keys(countBy(tickets, (t) => t.modelVersion || "unknown")).length,
+      checkpoints: Object.keys(countBy(tickets, (t) => t.checkpoint || "unknown")).length,
+    },
+  };
+}
+
 export async function onRequestGet(context) {
   const env = { DB: context.env.DB };
+  const durable = await durableHealth(env);
+  const readOk = durable.bound && durable.source === "d1";
+  const semantic = deriveHealthState({
+    hasAuthoritativeData: readOk,
+    requiredChecks: [
+      { name: "d1-binding", ok: durable.bound, source: durable.source || "unbound" },
+      { name: "d1-read", ok: readOk, source: durable.source || "d1", detail: durable.lastError || null },
+    ],
+  });
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
   const seed = canonicalSeedTickets(dbSeed);
   const prospectiveRaw = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
@@ -111,8 +183,21 @@ export async function onRequestGet(context) {
   const prospective = (prospectiveRaw || []).map((t) => presentTicketWithCanonicalMatchup(t, gameById));
   const seedPresented = (seed || []).map((t) => presentTicketWithCanonicalMatchup(t, gameById));
   const prospectiveBySport = groupBySport(prospective);
+  const integrity = strategyIntegrity(prospective);
+  const mixed =
+    integrity.mixChecks?.sports > 1 ||
+    integrity.mixChecks?.marketFamilies > 1 ||
+    integrity.mixChecks?.periods > 1 ||
+    integrity.mixChecks?.modelVersions > 1 ||
+    integrity.mixChecks?.checkpoints > 1;
   const rec = reconstructionPayload(seed);
   return readJson({
+    health: {
+      state: semantic.state,
+      failures: semantic.failures,
+      checks: semantic.checks,
+      lastD1WriteSuccessAt: durable.lastD1WriteSuccessAt || null,
+    },
     strategy: STRATEGY_HC_V1,
     reconstruction: rec,
     expectedSeedN: EXPECTED_SEED_N,
@@ -125,8 +210,56 @@ export async function onRequestGet(context) {
     provenance: rec.provenance,
     namedPositions: STRATEGY_HC_V1_SEED_TICKETS.map((t) => t.pick),
     seed: { tickets: seedPresented, traits: characterizeTickets(seedPresented), stats: strategyStats(seedPresented) },
-    prospective: { tickets: prospective, traits: characterizeTickets(prospective), stats: strategyStats(prospective) },
+    prospective: {
+      tickets: prospective,
+      traits: characterizeTickets(prospective),
+      stats: mixed ? null : strategyStats(prospective),
+      aggregateUnavailable: mixed,
+      aggregateReason: mixed ? "mixed-populations-require-breakdown" : null,
+    },
     prospectiveBySport,
+    integrity,
+    authoritativeProspective: semantic.state !== "UNAVAILABLE",
+    population: {
+      seed: populationDescriptor({
+        populationType: POPULATION_TYPE.STRATEGY_TICKET,
+        sport: "all",
+        marketFamily: "mixed",
+        periodFamily: "mixed",
+        strategyId: STRATEGY_HC_V1.id,
+        strategyVersion: STRATEGY_HC_V1.version,
+        modelVersion: null,
+        qualificationRuleVersion: "FBIS-HC-v1",
+        dateRange: { since: STRATEGY_HC_V1.seedDate, until: STRATEGY_HC_V1.seedDate },
+        settledN: Number(seed.filter((t) => t.result === "WON" || t.result === "LOST").length),
+        openN: Number(seed.filter((t) => !t.result || t.result === "OPEN").length),
+        pushN: Number(seed.filter((t) => t.result === "PUSH").length),
+        voidN: Number(seed.filter((t) => t.result === "VOID").length),
+        unresolvedN: Number(seed.filter((t) => t.result === "FINAL NOT MATCHED").length),
+        clvN: Number(seed.filter((t) => t.clv != null).length),
+        sourceHealth: semantic.state,
+        freshness: { lastWriteSuccessAt: durable.lastD1WriteSuccessAt || null },
+      }),
+      prospective: populationDescriptor({
+        populationType: POPULATION_TYPE.STRATEGY_TICKET,
+        sport: "all",
+        marketFamily: "mixed",
+        periodFamily: "mixed",
+        strategyId: STRATEGY_HC_V1.id,
+        strategyVersion: STRATEGY_HC_V1.version,
+        modelVersion: null,
+        qualificationRuleVersion: "FBIS-HC-v1",
+        dateRange: null,
+        settledN: Number(prospective.filter((t) => t.result === "WON" || t.result === "LOST").length),
+        openN: Number(prospective.filter((t) => !t.result || t.result === "OPEN").length),
+        pushN: Number(prospective.filter((t) => t.result === "PUSH").length),
+        voidN: Number(prospective.filter((t) => t.result === "VOID").length),
+        unresolvedN: Number(prospective.filter((t) => t.result === "FINAL NOT MATCHED").length),
+        clvN: Number(prospective.filter((t) => t.clv != null).length),
+        sourceHealth: semantic.state,
+        freshness: { lastWriteSuccessAt: durable.lastD1WriteSuccessAt || null },
+      }),
+    },
   });
 }
 

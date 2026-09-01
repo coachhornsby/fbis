@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { deriveHealthState } from "../functions/lib/healthContract.js";
+import { deriveHealthState, writeVerificationState } from "../functions/lib/healthContract.js";
 import { deriveViewState, deriveGlobalState } from "../src/lib/healthState.js";
 
 describe("shared health-state contract", () => {
@@ -39,5 +39,12 @@ describe("shared health-state contract", () => {
       boardState: "HEALTHY",
     });
     assert.equal(global, "UNAVAILABLE");
+  });
+
+  it("classifies write verification states", () => {
+    assert.equal(writeVerificationState({ readOk: true, lastWriteSuccessAt: "2026-09-01T00:00:00Z", failedWrites: 0 }), "VERIFIED");
+    assert.equal(writeVerificationState({ readOk: false, lastWriteSuccessAt: null, failedWrites: 0 }), "UNVERIFIED");
+    assert.equal(writeVerificationState({ readOk: true, lastWriteSuccessAt: null, failedWrites: 2 }), "FAILED");
+    assert.equal(writeVerificationState({ readOk: false, lastWriteSuccessAt: null, failedWrites: 0, reason: "quota exceeded" }), "BLOCKED");
   });
 });

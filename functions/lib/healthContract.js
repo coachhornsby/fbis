@@ -5,6 +5,13 @@ export const HEALTH_STATE = {
   STALE: "STALE",
 };
 
+export const WRITE_VERIFICATION = {
+  VERIFIED: "VERIFIED",
+  UNVERIFIED: "UNVERIFIED",
+  FAILED: "FAILED",
+  BLOCKED: "BLOCKED",
+};
+
 function ts(value) {
   if (!value) return null;
   const at = Date.parse(String(value));
@@ -53,4 +60,21 @@ export function deriveHealthState({
     return { state: HEALTH_STATE.DEGRADED, failures, staleChecks, checks };
   }
   return { state: HEALTH_STATE.HEALTHY, failures, staleChecks, checks };
+}
+
+export function blockedByPlatform(reason = "") {
+  const msg = String(reason || "").toLowerCase();
+  return msg.includes("quota") || msg.includes("exceeded") || msg.includes("d1_error") || msg.includes("platform");
+}
+
+export function writeVerificationState({
+  readOk = false,
+  lastWriteSuccessAt = null,
+  failedWrites = 0,
+  reason = "",
+} = {}) {
+  if (blockedByPlatform(reason)) return WRITE_VERIFICATION.BLOCKED;
+  if (Number(failedWrites || 0) > 0) return WRITE_VERIFICATION.FAILED;
+  if (readOk && lastWriteSuccessAt) return WRITE_VERIFICATION.VERIFIED;
+  return WRITE_VERIFICATION.UNVERIFIED;
 }

@@ -30,7 +30,7 @@ import { onRequestPost, importStrategyTickets } from "../functions/api/strategy.
 import { projectCfbGame } from "../functions/lib/cfbModel.js";
 import { classifyCheckpoint, pickCanonical, rowsForCheckpoint } from "../functions/lib/checkpoints.js";
 import { projectMatchup } from "../functions/lib/savant.js";
-import { expectedRoi, twoWayMarket, brierScore, logLoss, americanToImplied, probabilityClv, evAnomaly, validAmericanOdds } from "../functions/lib/pricing.js";
+import { expectedRoi, twoWayMarket, brierScore, logLoss, americanToImplied, probabilityClv, evAnomaly, validAmericanOdds, priceSelection } from "../functions/lib/pricing.js";
 import { gameOutcome, freezeFromGame, accuracyOf, decorateRow, canonicalMatchupDisplay, resolveFinalForTicket } from "../functions/lib/projLedger.js";
 import { seriesStats } from "../functions/lib/accuracyReport.js";
 import { overDiagnostics, bucketOf } from "../functions/lib/overDiagnostics.js";
@@ -73,6 +73,12 @@ describe("EV and odds integrity guards", () => {
     const a = evAnomaly({ fair: 0.6, pinPrice: 300, ev: 1.4, marketComplete: true });
     assert.equal(a.quarantined, false);
     assert.equal(a.warning, "ev-over-100pct-verify-long-odds");
+  });
+
+  it("marks malformed market pricing as quarantined", () => {
+    const priced = priceSelection({ pWin: 0.6, pinPrice: -95, twoWay: { complete: true, noVigA: 0.5, noVigB: 0.5, priceA: -95, priceB: -105 } });
+    assert.equal(priced.quarantined, true);
+    assert.equal(priced.quarantineReason, "invalid-american-odds");
   });
 });
 

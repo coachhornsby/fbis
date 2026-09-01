@@ -3,6 +3,7 @@ import { fmtAmerican, fmtPct, fmtSigned, formatMarketPeriod, formatClv } from ".
 import { TicketMatchup } from "./components/TeamLogo.jsx";
 import useIsCompact from "./hooks/useIsCompact.js";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
+import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 
 const RESULT_FILTERS = [
   ["all", "All results"],
@@ -27,6 +28,7 @@ export default function MyBetsView({
   onImport,
   bets: external,
   summary: externalSummary,
+  population: externalPopulation,
   sourceOk = true,
   sourceD1 = "unknown",
   sourceStatus = null,
@@ -36,7 +38,7 @@ export default function MyBetsView({
   state,
   attemptAt,
 }) {
-  const [pack, setPack] = useState({ bets: external || [], summary: externalSummary || null });
+  const [pack, setPack] = useState({ bets: external || [], summary: externalSummary || null, population: externalPopulation || null });
   const [result, setResult] = useState("all");
   const [attr, setAttr] = useState("all");
   const [sport, setSport] = useState("all");
@@ -44,16 +46,16 @@ export default function MyBetsView({
 
   useEffect(() => {
     if (external) {
-      setPack({ bets: external, summary: externalSummary });
+      setPack({ bets: external, summary: externalSummary, population: externalPopulation || null });
       return undefined;
     }
     const ac = new AbortController();
     fetch(`/api/bets?_t=${Date.now()}`, { signal: ac.signal })
       .then((r) => r.json())
-      .then((d) => setPack({ bets: d.bets || [], summary: d.summary }))
+      .then((d) => setPack({ bets: d.bets || [], summary: d.summary, population: d.population || null }))
       .catch(() => {});
     return () => ac.abort();
-  }, [external, externalSummary]);
+  }, [external, externalSummary, externalPopulation]);
 
   const bets = pack.bets || [];
   const shown = useMemo(() => {
@@ -104,6 +106,7 @@ export default function MyBetsView({
             <Stat label="Avg CLV" value={stat(summary.avgClv == null ? "—" : fmtSigned(summary.avgClv, 3))} />
           </div>
           <p className="muted" style={{ marginTop: 8 }}>{unavailable ? "Bets data unavailable right now. Retry after data source recovers." : (summary.message || (summary.settled ? null : "No settled Heritage bets yet."))}</p>
+          <PopulationDescriptor descriptor={pack.population || null} title="Bets population descriptor" />
           <div className="filter-row" style={{ marginTop: 10 }}>
             <button className={sport === "all" ? "chip active" : "chip"} onClick={() => setSport("all")}>All sports</button>
             {["mlb", "nfl", "cfb", "nba", "cbb"].map((id) => (

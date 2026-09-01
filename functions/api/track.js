@@ -1,10 +1,12 @@
 import { buildTrackReport } from "../lib/projLedger.js";
-import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, updateExecutedBet, gradeStrategyTicket } from "../lib/store.js";
+import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords } from "../lib/store.js";
 import { settleExecutedBet } from "../lib/executedBets.js";
 import { gradeStrategyResult } from "../lib/strategy.js";
 import { resolveFinalForTicket } from "../lib/projLedger.js";
 import { resolveTeam } from "../lib/teams.js";
-import { deriveHealthState } from "../lib/healthContract.js";
+import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
+import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
+import { auditTicketEv, summarizeEvAudits } from "../lib/evAudit.js";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -33,6 +35,48 @@ function isFutureStart(value, nowMs = Date.now()) {
   const ts = Date.parse(String(value || ""));
   if (!Number.isFinite(ts)) return false;
   return ts > nowMs + 5 * 60 * 1000;
+}
+
+async function runEvAudit(env) {
+  const tickets = await queryStrategyTickets(env, {});
+  const anomalies = [];
+  for (const t of tickets || []) {
+    const audit = auditTicketEv(t);
+    for (const reason of audit.reasons || []) {
+      anomalies.push({
+        id: `strategy-ticket:${t.id}:${reason}`,
+        entityType: "strategy-ticket",
+        entityId: String(t.id),
+        sport: t.sport || null,
+        market: t.market || null,
+        side: t.side || null,
+        modelVersion: t.modelVersion || null,
+        qualificationRuleVersion: "FBIS-HC-v1",
+        freezeAt: t.qualifiedAt || null,
+        storedEv: audit.storedEv,
+        recomputedEv: audit.recomputedEv,
+        anomalyReason: reason,
+        rootCause: reason,
+        qualified: Boolean(t.qualified || String(t.tag || "").toUpperCase() === "CONVICTION"),
+        enteredStrategy: String(t.strategyId || "") === "FBIS-HC-v1",
+        disposition: reason === "ev-over-100pct" && Number(audit.inputs?.price || 0) > 0 ? "valid-long-odds-candidate" : "quarantined",
+        inputsJson: JSON.stringify(audit.inputs || {}),
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+  const persisted = await persistEvAuditRecords(env, anomalies);
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      ok: true,
+      scanned: tickets.length,
+      anomalies: anomalies.length,
+      byReason: summarizeEvAudits(anomalies.map((a) => ({ anomalyReason: a.anomalyReason }))),
+      persisted: persisted.inserted || 0,
+    },
+  };
 }
 
 async function deriveTargetGameIds(env, payload) {
@@ -219,6 +263,12 @@ export async function onRequestGet(context) {
       { checkpoint, version, model, type, year, team }
     );
     const db = payload?.db || {};
+    const writeVerification = writeVerificationState({
+      readOk: db.ok === true,
+      lastWriteSuccessAt: db.lastD1WriteSuccess || db.lastWrite || null,
+      failedWrites: Number(db.failedWrites || 0) + Number(db.failedHarvests || 0),
+      reason: db.reason || db.lastError || "",
+    });
     const hasAuthoritativeData = db.ok === true && (payload.aggregateOnly || Array.isArray(payload.games));
     const semantic = deriveHealthState({
       hasAuthoritativeData,
@@ -255,6 +305,65 @@ export async function onRequestGet(context) {
       checks: semantic.checks,
       failures: semantic.failures,
       staleChecks: semantic.staleChecks,
+      writeVerification,
+    };
+    payload.population = {
+      accuracy: populationDescriptor({
+        populationType: POPULATION_TYPE.FROZEN_PROJECTION,
+        sport: sport || "all",
+        marketFamily: "mixed",
+        periodFamily: "mixed",
+        modelVersion: version === "all" ? null : version,
+        qualificationRuleVersion: "FBIS-v1-qualified-gates",
+        checkpoint,
+        dateRange: { since: payload?.accuracySummary?.dateRange?.since || null, until: payload?.accuracySummary?.dateRange?.until || null },
+        settledN: Number(payload?.accuracy?.n || 0),
+        openN: Number((payload?.games || []).filter((g) => g.status === "OPEN").length),
+        sourceHealth: semantic.state,
+        freshness: { lastReadSuccessAt: db.lastCollectSuccess || db.lastCollect || null, lastWriteSuccessAt: db.lastD1WriteSuccess || db.lastWrite || null },
+      }),
+      strategy: populationDescriptor({
+        populationType: POPULATION_TYPE.STRATEGY_TICKET,
+        sport: sport || "all",
+        marketFamily: "mixed",
+        periodFamily: "mixed",
+        strategyId: "FBIS-HC-v1",
+        strategyVersion: 1,
+        qualificationRuleVersion: "FBIS-HC-v1",
+        dateRange: { since: payload?.accuracySummary?.dateRange?.since || null, until: payload?.accuracySummary?.dateRange?.until || null },
+        settledN: Number(payload?.strategyPerformance?.settled || 0),
+        openN: Number(payload?.strategyPerformance?.open || 0),
+        clvN: Number(payload?.clv?.validClv || 0),
+        sourceHealth: semantic.state,
+        freshness: { lastReadSuccessAt: db.lastCollectSuccess || db.lastCollect || null },
+      }),
+    };
+    payload.authoritative = {
+      accuracy: semantic.state !== "UNAVAILABLE",
+      strategy: semantic.state !== "UNAVAILABLE",
+      anomalies: semantic.state !== "UNAVAILABLE",
+    };
+    const auditQ = await queryEvAuditRecords({ DB: context.env.DB }, { limit: 500 });
+    payload.anomalies = {
+      available: auditQ.ok,
+      blockedReason: auditQ.ok ? null : auditQ.reason || "unavailable",
+      count: (auditQ.rows || []).length,
+      byReason: summarizeEvAudits((auditQ.rows || []).map((r) => ({ anomalyReason: r.anomaly_reason || r.anomalyReason }))),
+      rows: (auditQ.rows || []).slice(0, 50).map((r) => ({
+        id: r.id,
+        entityType: r.entity_type,
+        entityId: r.entity_id,
+        sport: r.sport,
+        market: r.market,
+        side: r.side,
+        storedEv: r.stored_ev,
+        recomputedEv: r.recomputed_ev,
+        anomalyReason: r.anomaly_reason,
+        disposition: r.disposition,
+        qualified: Boolean(r.qualified),
+        enteredStrategy: Boolean(r.entered_strategy),
+        createdAt: r.created_at,
+      })),
     };
     return new Response(JSON.stringify(payload), {
       headers: {
@@ -283,11 +392,13 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: "invalid json" }, 400);
     }
     const action = String(body?.action || "").toLowerCase();
-    if (action !== "manual-final" && action !== "cleanup-future-grades") return json({ ok: false, error: "unknown action" }, 400);
+    if (action !== "manual-final" && action !== "cleanup-future-grades" && action !== "audit-ev") return json({ ok: false, error: "unknown action" }, 400);
     const result =
       action === "cleanup-future-grades"
         ? await cleanupFutureGrades({ DB: context.env.DB })
-        : await applyManualFinal({ DB: context.env.DB }, body);
+        : action === "audit-ev"
+          ? await runEvAudit({ DB: context.env.DB })
+          : await applyManualFinal({ DB: context.env.DB }, body);
     if (!result.ok) return json({ ok: false, error: result.error || "failed" }, result.status || 400);
     return json(result.body, 200);
   } catch (err) {

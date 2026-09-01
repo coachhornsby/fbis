@@ -25,7 +25,8 @@ import {
 } from "../lib/store.js";
 import { authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 import { durableHealth, scheduledHealth } from "../lib/jobs.js";
-import { deriveHealthState } from "../lib/healthContract.js";
+import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
+import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -46,7 +47,13 @@ export async function handleBetsGet(env, url) {
   const durable = await durableHealth(env);
   const schedule = scheduledHealth(durable, new Date());
   const readOk = q.ok === true;
-  const writeOk = Number(durable.failedWrites || 0) === 0;
+  const writeVerification = writeVerificationState({
+    readOk,
+    lastWriteSuccessAt: durable.lastD1WriteSuccessAt || null,
+    failedWrites: Number(durable.failedWrites || 0) + Number(durable.failedHarvests || 0),
+    reason: q.reason || durable.lastError || "",
+  });
+  const writeOk = writeVerification === "VERIFIED";
   const semantic = deriveHealthState({
     hasAuthoritativeData: readOk,
     requiredChecks: [
@@ -74,11 +81,13 @@ export async function handleBetsGet(env, url) {
   return {
     ok: q.ok || hasDb(env),
     state: semantic.state,
+    authoritativeSummary: semantic.state !== "UNAVAILABLE",
     d1: readOk ? "healthy" : q.reason || "error",
     d1Status: {
       binding: hasDb(env) ? "bound" : "unbound",
       read: readOk ? "healthy" : "failed",
       write: writeOk ? "healthy" : "degraded",
+      writeVerification,
       source: readOk ? "d1" : (durable.source || (hasDb(env) ? "d1" : "unbound")),
       lastSuccessfulReadAt: durable.lastCollectSuccessAt || null,
       lastSuccessfulWriteAt: durable.lastD1WriteSuccessAt || null,
@@ -90,6 +99,24 @@ export async function handleBetsGet(env, url) {
     },
     bets: rows,
     summary: summarizeExecutedBets(rows),
+    population: populationDescriptor({
+      populationType: POPULATION_TYPE.IMPORTED_HERITAGE_EXECUTION,
+      sport: sport || "all",
+      marketFamily: "mixed",
+      periodFamily: "mixed",
+      dateRange: date ? { since: date, until: date } : null,
+      settledN: Number(rows.filter((r) => r.result === "WON" || r.result === "LOST").length),
+      openN: Number(rows.filter((r) => !r.result || r.result === "OPEN").length),
+      pushN: Number(rows.filter((r) => r.result === "PUSH").length),
+      voidN: Number(rows.filter((r) => r.result === "VOID").length),
+      unresolvedN: Number(rows.filter((r) => String(r.matchStatus || "").toLowerCase() !== "matched").length),
+      clvN: Number(rows.filter((r) => r.clv != null).length),
+      sourceHealth: semantic.state,
+      freshness: {
+        lastReadSuccessAt: durable.lastCollectSuccessAt || null,
+        lastWriteSuccessAt: durable.lastD1WriteSuccessAt || null,
+      },
+    }),
     auth: {
       write: "same-origin board, or header x-strategy-secret / x-harvest-secret",
       session: false,

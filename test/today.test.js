@@ -92,6 +92,18 @@ describe("TODAY cache-only and MY BET markers", () => {
     assert.equal(mlb.pal, false);
   });
 
+  it("marks all-sports qualification incomplete when any sport feed fails", async () => {
+    const board = await buildTodayBoard("2026-08-27", {}, {
+      buildSlateFn: async (sport) => {
+        if (sport === "mlb") return { sport, date: "2026-08-27", games: [{ id: "g1", sport: "mlb", start: "2026-08-27T23:00:00Z", home: { name: "A", abbr: "A" }, away: { name: "B", abbr: "B" }, status: { detail: "Scheduled" }, odds: {}, model: { projHome: 4, projAway: 3, layers: { score: 0.6 } } }], parlay: { cached: false, skipped: true } };
+        throw new Error(`${sport} unavailable`);
+      },
+    });
+    assert.equal(board.counts.games, 1);
+    assert.equal(board.feeds.mlb.ok, true);
+    assert.equal(Boolean(board.feeds.nba?.error), true);
+  });
+
   it("reports skipped MLB prop feed instead of an evaluated zero", async () => {
     const board = await buildTodayBoard("2026-08-28", {}, {
       buildSlateFn: async (sport) => ({
