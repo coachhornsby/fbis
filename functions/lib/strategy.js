@@ -265,6 +265,36 @@ export function strategyStats(tickets) {
   };
 }
 
+function prospectiveIdentity(t) {
+  const line = t.executionLine ?? t.line ?? "";
+  return [t.sport || "", t.gameId || "", t.market || "", t.side || "", line].join("|");
+}
+
+/** One strategy observation per game/market/side. Collection retries and date-window scans are not new bets. */
+export function partitionProspectiveTickets(tickets = [], today = dateCT(new Date().toISOString())) {
+  const groups = new Map();
+  for (const ticket of tickets) {
+    const key = prospectiveIdentity(ticket);
+    const prior = groups.get(key);
+    const settled = ticket.result && ticket.result !== "OPEN";
+    const priorSettled = prior?.result && prior.result !== "OPEN";
+    const newer = String(ticket.date || ticket.qualifiedAt || "") > String(prior?.date || prior?.qualifiedAt || "");
+    if (!prior || (settled && !priorSettled) || (settled === priorSettled && newer)) groups.set(key, ticket);
+  }
+  const canonical = [...groups.values()].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const completed = canonical.filter((t) => t.result && t.result !== "OPEN");
+  const open = canonical.filter((t) => !t.result || t.result === "OPEN");
+  const upcoming = open.filter((t) => String(t.date || "") >= String(today || ""));
+  const needsAttention = open.filter((t) => String(t.date || "") < String(today || ""));
+  return {
+    canonical,
+    upcoming,
+    completed,
+    needsAttention,
+    duplicateRowsExcluded: Math.max(0, tickets.length - canonical.length),
+  };
+}
+
 export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id } = {}) {
   const ev = ticketEv(ticket);
   const day = date || ticket.date || dateCT(ticket.qualifiedAt || ticket.loggedAt);

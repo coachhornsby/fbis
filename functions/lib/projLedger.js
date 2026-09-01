@@ -47,7 +47,7 @@ import { overDiagnostics } from "./overDiagnostics.js";
 import { buildDailyReport } from "./dailyReport.js";
 import { median, rmse, withinBands } from "./metrics.js";
 import { cfbSeasonYear } from "./cfbModel.js";
-import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult, strategyStats } from "./strategy.js";
+import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult, strategyStats, dateCT } from "./strategy.js";
 import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
 import { settleExecutedBet } from "./executedBets.js";
 import { sourceCoverage, palHealth } from "./sourceCoverage.js";
@@ -830,7 +830,7 @@ async function persistMatchingRec(env, slate, game, frozen) {
         qualified: true,
         tag: rec.tag,
       },
-      { role: "prospective", date: slate.date }
+      { role: "prospective", date: dateCT(game.start) || slate.date }
     ),
     { strictConflict: false }
   );
@@ -855,7 +855,10 @@ async function gradeExecutedBets(env, finals) {
   const jobs = [];
   for (const t of listed.rows || []) {
     if (!t.gameId) continue;
-    const g = byId.get(String(t.gameId));
+    const parts = String(t.matchup || "").split(/\s+@\s+/);
+    const g = byId.get(String(t.gameId)) || (parts.length === 2
+      ? (finals || []).find((f) => namesMatch(f.away?.name || f.away?.abbr, parts[0]) && namesMatch(f.home?.name || f.home?.abbr, parts[1]))
+      : null);
     if (!g) continue;
     const detail = String(g.status?.detail || "").toLowerCase();
     if (g.status?.completed !== true && !/\bfinal\b|cancel|void|postpone|suspend/.test(detail)) continue;

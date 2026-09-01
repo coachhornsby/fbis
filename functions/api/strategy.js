@@ -8,6 +8,7 @@ import {
   strategyReconstruction,
   validateImportedTicket,
   EXPECTED_SEED_N,
+  partitionProspectiveTickets,
 } from "../lib/strategy.js";
 import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
@@ -60,10 +61,10 @@ function reconstructionPayload(seed) {
 
 export async function onRequestGet(context) {
   const env = { DB: context.env.DB };
-  await freezeCanonicalSeed(env);
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
-  const seed = canonicalSeedTickets(dbSeed);
-  const prospective = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
+  const seed = canonicalSeedTickets(dbSeed.length ? dbSeed : STRATEGY_HC_V1_SEED_TICKETS);
+  const prospectiveRows = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
+  const prospective = partitionProspectiveTickets(prospectiveRows);
   const rec = reconstructionPayload(seed);
   return readJson({
     strategy: STRATEGY_HC_V1,
@@ -78,7 +79,16 @@ export async function onRequestGet(context) {
     provenance: rec.provenance,
     namedPositions: STRATEGY_HC_V1_SEED_TICKETS.map((t) => t.pick),
     seed: { tickets: seed, traits: characterizeTickets(seed), stats: strategyStats(seed) },
-    prospective: { tickets: prospective, traits: characterizeTickets(prospective), stats: strategyStats(prospective) },
+    prospective: {
+      tickets: prospective.upcoming.slice(0, 100),
+      upcoming: prospective.upcoming.slice(0, 100),
+      completed: prospective.completed.slice(0, 100),
+      needsAttention: prospective.needsAttention.slice(0, 100),
+      duplicateRowsExcluded: prospective.duplicateRowsExcluded,
+      totalCanonical: prospective.canonical.length,
+      traits: characterizeTickets(prospective.canonical),
+      stats: strategyStats(prospective.canonical),
+    },
   });
 }
 

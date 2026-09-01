@@ -910,8 +910,14 @@ function StrategyPanel() {
         <TraitLine traits={seed.traits} />
         <h3 className="subhead">Seed tickets</h3>
         <TicketTable rows={seed.tickets || []} empty="Operator-declared 2026-08-26 CONVICTION names. Journal EV/prices unrecovered until imported." />
-        <h3 className="subhead">Prospective matches</h3>
-        <TicketTable rows={(pro.tickets || []).slice(0, 40)} empty="No prospective CONVICTION tickets stored yet. Collection tags matches automatically." />
+        <h3 className="subhead">Upcoming CONVICTION candidates</h3>
+        <p className="muted">Frozen FBIS-HC-v1 candidates that have not started. These are model observations, not Heritage bets.</p>
+        <TicketTable rows={pro.upcoming || pro.tickets || []} empty="No upcoming CONVICTION candidates." />
+        <h3 className="subhead">Completed strategy results</h3>
+        <TicketTable rows={pro.completed || []} empty="No completed prospective strategy results yet." />
+        <h3 className="subhead">Needs grading attention</h3>
+        <p className="muted">Past-date candidates that remain open because a final could not be matched. Excluded duplicates: {pro.duplicateRowsExcluded ?? 0}.</p>
+        <TicketTable rows={pro.needsAttention || []} empty="No overdue strategy candidates." />
       </div>
     </section>
   );

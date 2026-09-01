@@ -20,6 +20,7 @@ import {
   americanPriceOrNull,
   immutableFieldsConflict,
   ticketId,
+  partitionProspectiveTickets,
 } from "../functions/lib/strategy.js";
 import { DEFAULT_WEIGHTS } from "../functions/lib/weights.js";
 import { readFileSync } from "node:fs";
@@ -183,6 +184,21 @@ describe("high-conviction strategy", () => {
     assert.equal(traits.n, 2);
     assert.equal(traits.sports.mlb, 2);
     assert.equal(traits.markets.TOTAL, 2);
+  });
+
+  it("deduplicates collection-window repeats and separates strategy states", () => {
+    const rows = [
+      { id: "old", sport: "cfb", gameId: "g1", market: "ML", side: "AWAY", date: "2026-08-29", result: "OPEN" },
+      { id: "new", sport: "cfb", gameId: "g1", market: "ML", side: "AWAY", date: "2026-09-05", result: "OPEN" },
+      { id: "done", sport: "mlb", gameId: "g2", market: "TOTAL", side: "OVER", line: 9, date: "2026-08-30", result: "WON" },
+      { id: "late", sport: "mlb", gameId: "g3", market: "ML", side: "HOME", date: "2026-08-30", result: "OPEN" },
+    ];
+    const out = partitionProspectiveTickets(rows, "2026-09-01");
+    assert.equal(out.canonical.length, 3);
+    assert.equal(out.duplicateRowsExcluded, 1);
+    assert.deepEqual(out.upcoming.map((t) => t.id), ["new"]);
+    assert.deepEqual(out.completed.map((t) => t.id), ["done"]);
+    assert.deepEqual(out.needsAttention.map((t) => t.id), ["late"]);
   });
 
   it("reports strategy stats without claiming the filter works", () => {
