@@ -28,6 +28,12 @@ function teamMatch(sport, left, right) {
   return Boolean(a?.id && b?.id && a.id === b.id);
 }
 
+function isFutureStart(value, nowMs = Date.now()) {
+  const ts = Date.parse(String(value || ""));
+  if (!Number.isFinite(ts)) return false;
+  return ts > nowMs + 5 * 60 * 1000;
+}
+
 async function deriveTargetGameIds(env, payload) {
   const ids = new Set();
   if (payload.gameId) ids.add(String(payload.gameId));
@@ -53,22 +59,37 @@ async function deriveTargetGameIds(env, payload) {
 }
 
 async function applyManualFinal(env, payload) {
+  const nowMs = Date.now();
   const homeScore = Number(payload.homeScore);
   const awayScore = Number(payload.awayScore);
   if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore) || homeScore < 0 || awayScore < 0) {
     return { ok: false, status: 400, error: "invalid final score" };
   }
+  if (isFutureStart(payload.start, nowMs)) {
+    return { ok: false, status: 409, error: "game has not started yet" };
+  }
   const targetGameIds = await deriveTargetGameIds(env, payload);
   if (!targetGameIds.length) return { ok: false, status: 404, error: "no matching game ids found" };
+  const placeholders = targetGameIds.map(() => "?").join(", ");
+  const startsQ = await env.DB
+    .prepare(`SELECT game_id, MIN(start) AS start FROM prediction_snapshots WHERE game_id IN (${placeholders}) GROUP BY game_id`)
+    .bind(...targetGameIds)
+    .all();
+  const eligibleIds = (startsQ.results || [])
+    .filter((r) => !isFutureStart(r.start, nowMs))
+    .map((r) => String(r.game_id));
+  if (!eligibleIds.length) {
+    return { ok: false, status: 409, error: "manual final blocked before kickoff" };
+  }
   const gradedAt = new Date().toISOString();
   let snapshotsUpdated = 0;
-  for (const gameId of targetGameIds) {
+  for (const gameId of eligibleIds) {
     const res = await gradeSnapshotsForGame(env, { gameId, actualHome: homeScore, actualAway: awayScore, gradedAt });
     if (res?.ok) snapshotsUpdated += 1;
   }
 
   const finalRef = {
-    id: String(payload.gameId || targetGameIds[0]),
+    id: String(payload.gameId || eligibleIds[0]),
     sport: payload.sport || null,
     date: payload.date || null,
     start: payload.start || null,
@@ -81,7 +102,9 @@ async function applyManualFinal(env, payload) {
   let strategyGraded = 0;
   for (const t of strategy || []) {
     if (t.result && t.result !== "OPEN") continue;
+    if (isFutureStart(t.start, nowMs)) continue;
     const resolved = resolveFinalForTicket(t, [finalRef]);
+    if (resolved?.start && isFutureStart(resolved.start, nowMs)) continue;
     const graded = gradeStrategyResult(t, resolved);
     if (!graded) continue;
     const out = await gradeStrategyTicket(env, t.id, graded);
@@ -92,7 +115,8 @@ async function applyManualFinal(env, payload) {
   let betsGraded = 0;
   for (const b of executed.rows || []) {
     if (b.result && b.result !== "OPEN") continue;
-    if (!b.gameId || !targetGameIds.includes(String(b.gameId))) continue;
+    if (!b.gameId || !eligibleIds.includes(String(b.gameId))) continue;
+    if (isFutureStart(b.start, nowMs)) continue;
     const settled = settleExecutedBet(b, finalRef);
     if (!settled || !settled.result || settled.result === "OPEN") continue;
     const out = await updateExecutedBet(
@@ -115,11 +139,68 @@ async function applyManualFinal(env, payload) {
     status: 200,
     body: {
       ok: true,
-      gameIds: targetGameIds,
+      gameIds: eligibleIds,
       snapshotsUpdated,
       strategyGraded,
       betsGraded,
       manualFinal: { homeScore, awayScore, gradedAt },
+    },
+  };
+}
+
+async function cleanupFutureGrades(env) {
+  const nowIso = new Date().toISOString();
+  const resetSnaps = await env.DB
+    .prepare("UPDATE prediction_snapshots SET actual_home = NULL, actual_away = NULL, graded_at = NULL WHERE actual_home IS NOT NULL AND start IS NOT NULL AND start > ?")
+    .bind(nowIso)
+    .run();
+  const resetPred = await env.DB
+    .prepare("UPDATE predictions SET actual_home = NULL, actual_away = NULL, graded_at = NULL WHERE actual_home IS NOT NULL AND start IS NOT NULL AND start > ?")
+    .bind(nowIso)
+    .run();
+
+  const gamesRows = await env.DB.prepare("SELECT id, start FROM games WHERE start IS NOT NULL").all();
+  const futureGameIds = new Set(
+    (gamesRows.results || [])
+      .filter((r) => isFutureStart(r.start))
+      .map((r) => String(r.id))
+  );
+
+  let strategyReset = 0;
+  const strategy = await queryStrategyTickets(env, {});
+  for (const t of strategy || []) {
+    if (!["WON", "LOST", "PUSH", "VOID"].includes(String(t.result || ""))) continue;
+    if (!(t.gameId && futureGameIds.has(String(t.gameId)))) continue;
+    await env.DB
+      .prepare("UPDATE strategy_tickets SET result = 'OPEN', profit = NULL, clv = NULL, graded_at = NULL WHERE id = ?")
+      .bind(t.id)
+      .run();
+    strategyReset += 1;
+  }
+
+  let betsReset = 0;
+  const executed = await queryExecutedBets(env, { includeRaw: false });
+  for (const b of executed.rows || []) {
+    if (!["WON", "LOST", "PUSH", "VOID"].includes(String(b.result || ""))) continue;
+    if (!(b.gameId && futureGameIds.has(String(b.gameId)))) continue;
+    const out = await updateExecutedBet(
+      env,
+      b.id,
+      { result: "OPEN", profit: null, settledReturn: null, gradedAt: null, voidReason: null },
+      "cleanup-future-grade"
+    );
+    if (out?.ok) betsReset += 1;
+  }
+
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      ok: true,
+      snapshotRowsReset: Number(resetSnaps?.meta?.changes || 0),
+      predictionRowsReset: Number(resetPred?.meta?.changes || 0),
+      strategyTicketsReset: strategyReset,
+      executedBetsReset: betsReset,
     },
   };
 }
@@ -174,8 +255,11 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: "invalid json" }, 400);
   }
   const action = String(body?.action || "").toLowerCase();
-  if (action !== "manual-final") return json({ ok: false, error: "unknown action" }, 400);
-  const result = await applyManualFinal({ DB: context.env.DB }, body);
+  if (action !== "manual-final" && action !== "cleanup-future-grades") return json({ ok: false, error: "unknown action" }, 400);
+  const result =
+    action === "cleanup-future-grades"
+      ? await cleanupFutureGrades({ DB: context.env.DB })
+      : await applyManualFinal({ DB: context.env.DB }, body);
   if (!result.ok) return json({ ok: false, error: result.error || "failed" }, result.status || 400);
   return json(result.body, 200);
 }
