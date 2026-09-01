@@ -59,13 +59,19 @@ export default function App() {
   const [todayBoard, setTodayBoard] = useState(null);
   const [todayError, setTodayError] = useState("");
   const [todayLoading, setTodayLoading] = useState(false);
+  const [todayLastSuccessAt, setTodayLastSuccessAt] = useState("");
+  const [todayStale, setTodayStale] = useState(false);
   const [todaySport, setTodaySport] = useState("all");
   const [todayBucket, setTodayBucket] = useState("all");
   const [importOpen, setImportOpen] = useState(false);
-  const [betsPack, setBetsPack] = useState({ bets: [], summary: null });
+  const [betsPack, setBetsPack] = useState({ bets: [], summary: null, ok: true, d1: "unknown" });
+  const [betsError, setBetsError] = useState("");
+  const [betsLoading, setBetsLoading] = useState(false);
   const [track, setTrack] = useState(null);
   const [trackError, setTrackError] = useState("");
   const [trackLoading, setTrackLoading] = useState(false);
+  const [trackLastSuccessAt, setTrackLastSuccessAt] = useState("");
+  const [trackStale, setTrackStale] = useState(false);
   const [trackFilters, setTrackFilters] = useState({
     sport: "all",
     days: "season",
@@ -128,41 +134,58 @@ export default function App() {
       if (signal?.aborted) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       setTrack(data);
+      setTrackLastSuccessAt(new Date().toISOString());
+      setTrackStale(false);
       const nextLearn = data.finals?.length ? gradeOpenBets(loadState(), data.finals) : loadState();
       if (data.finals?.length) setLearn(nextLearn);
     } catch (err) {
       if (err?.name === "AbortError") return;
       setTrackError(String(err.message || err));
+      setTrackStale(Boolean(track));
     } finally {
       if (!signal?.aborted) setTrackLoading(false);
     }
-  }, [trackFilters]);
+  }, [trackFilters, track]);
 
   const refreshToday = useCallback(async (signal) => {
     setTodayLoading(true);
     setTodayError("");
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(new Error("timeout")), 20_000);
+    if (signal) signal.addEventListener("abort", () => ac.abort(signal.reason), { once: true });
     try {
-      const res = await fetch(`/api/today?date=${todayDate}&sport=${todaySport}&_t=${Date.now()}`, { signal });
+      const res = await fetch(`/api/today?date=${todayDate}&sport=${todaySport}&_t=${Date.now()}`, { signal: ac.signal });
       const data = await responseJson(res, "Today");
-      if (signal?.aborted) return;
+      if (signal?.aborted || ac.signal.aborted) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       setTodayBoard(data);
+      setTodayLastSuccessAt(new Date().toISOString());
+      setTodayStale(false);
     } catch (err) {
       if (err?.name === "AbortError") return;
-      setTodayError(String(err.message || err));
+      const msg = String(err.message || err);
+      setTodayError(msg.includes("aborted") ? "Today feed timed out. Retry or continue with last known board." : msg);
+      setTodayStale(Boolean(todayBoard));
     } finally {
+      clearTimeout(timeout);
       if (!signal?.aborted) setTodayLoading(false);
     }
-  }, [todayDate, todaySport]);
+  }, [todayDate, todaySport, todayBoard]);
 
   const refreshBets = useCallback(async (signal) => {
+    setBetsLoading(true);
+    setBetsError("");
     try {
       const res = await fetch(`/api/bets?_t=${Date.now()}`, { signal });
       const data = await responseJson(res, "Bets");
       if (signal?.aborted) return;
-      setBetsPack({ bets: data.bets || [], summary: data.summary });
-    } catch {
-      /* keep last */
+      if (!res.ok || data?.error) throw new Error(data?.error || `HTTP ${res.status}`);
+      setBetsPack({ bets: data.bets || [], summary: data.summary, ok: data.ok !== false, d1: data.d1 || "connected" });
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      setBetsError(String(err?.message || err));
+    } finally {
+      if (!signal?.aborted) setBetsLoading(false);
     }
   }, []);
 
@@ -217,8 +240,23 @@ export default function App() {
   const stats = useMemo(() => summarize(learn, sport), [learn, sport]);
   const executedSportBets = useMemo(() => (betsPack.bets || []).filter((b) => b.sport === sport), [betsPack.bets, sport]);
   const executedStats = useMemo(() => summarizeExecutedRows(executedSportBets), [executedSportBets]);
+  const sysDegraded = Boolean(
+    trackError ||
+    !track?.db?.ok ||
+    Number(track?.db?.failedWrites || 0) > 0 ||
+    Number(track?.db?.failedHarvests || 0) > 0 ||
+    (track?.db?.scheduleWarnings || []).length
+  );
+  const todayDegraded = Boolean(todayError || (todayBoard?.health?.openFailures || []).length);
+  const betsDegraded = Boolean(betsError || betsPack?.ok === false || String(betsPack?.d1 || "").toLowerCase() !== "connected");
   const health =
-    error ? "RED" : stats.units > 0 ? "GREEN" : stats.settled >= 8 && stats.winPct < 0.45 ? "YELLOW" : "GREEN";
+    tab === "sys"
+      ? (trackError ? "RED" : sysDegraded ? "YELLOW" : "GREEN")
+      : tab === "today"
+        ? (todayError ? "RED" : todayDegraded ? "YELLOW" : "GREEN")
+        : tab === "bets"
+          ? (betsError ? "RED" : betsDegraded ? "YELLOW" : "GREEN")
+          : error ? "RED" : stats.units > 0 ? "GREEN" : stats.settled >= 8 && stats.winPct < 0.45 ? "YELLOW" : "GREEN";
 
   function onLog(game, ticket = game.rec) {
     if (!ticket?.qualified) return;
@@ -295,7 +333,7 @@ export default function App() {
           <button
             className="header-btn header-btn-refresh"
             onClick={() => (tab === "sys" ? refreshTrack() : tab === "today" ? refreshToday() : tab === "bets" ? refreshBets() : refresh())}
-            disabled={tab === "sys" ? trackLoading : tab === "today" ? todayLoading : loading}
+            disabled={tab === "sys" ? trackLoading : tab === "today" ? false : tab === "bets" ? false : loading}
           >
             {tab === "sys" ? (trackLoading ? "↻ …" : "↻ Reload") : loading || todayLoading ? "↻ …" : "↻ Refresh"}
           </button>
@@ -310,6 +348,8 @@ export default function App() {
           report={track}
           error={trackError}
           loading={trackLoading}
+          stale={trackStale}
+          lastSuccessAt={trackLastSuccessAt}
           filters={{ ...trackFilters, tab: sysTab }}
           onFilters={(patch) => {
             if (patch.tab) setSysTab(patch.tab);
@@ -324,18 +364,25 @@ export default function App() {
           board={todayBoard}
           error={todayError}
           loading={todayLoading}
+          stale={todayStale}
+          lastSuccessAt={todayLastSuccessAt}
           date={todayDate}
           onDate={setTodayDate}
           sportFilter={todaySport}
           onSportFilter={setTodaySport}
           bucket={todayBucket}
           onBucket={setTodayBucket}
+          onRetry={refreshToday}
           onImport={() => setImportOpen(true)}
         />
       ) : tab === "bets" ? (
         <MyBetsView
           bets={betsPack.bets}
           summary={betsPack.summary}
+          sourceOk={betsPack.ok}
+          sourceD1={betsPack.d1}
+          loading={betsLoading}
+          error={betsError}
           onImport={() => setImportOpen(true)}
           onRefresh={refreshBets}
         />
@@ -358,22 +405,22 @@ export default function App() {
         </Panel>
 
         <Panel title="Today's Slate" stamp={updated}>
-          <SlateTable games={slate?.games || []} onLog={onLog} logged={loggedOpen} />
+          <div className="table-scroll"><SlateTable games={slate?.games || []} onLog={onLog} logged={loggedOpen} /></div>
         </Panel>
 
         <Panel title="My Heritage Bets" extra={<span className="last-updated">{executedSportBets.length} imported · D1 history</span>}>
           <div className="today-controls" style={{ marginBottom: 10 }}>
             <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>IMPORT HERITAGE BET SLIP</button>
           </div>
-          <ExecutedBetsTable bets={executedSportBets} />
+          <div className="table-scroll"><ExecutedBetsTable bets={executedSportBets} /></div>
         </Panel>
 
         <Panel title="Qualified +EV" stamp={updated}>
-          <RecTable games={recGames} onLog={onLog} logged={loggedOpen} />
+          <div className="table-scroll"><RecTable games={recGames} onLog={onLog} logged={loggedOpen} /></div>
         </Panel>
 
         <Panel title="Model leans">
-          <LeanTable games={leanGames} />
+          <div className="table-scroll"><LeanTable games={leanGames} /></div>
         </Panel>
 
         <div className="compact-bottom">

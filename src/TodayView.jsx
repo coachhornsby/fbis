@@ -4,6 +4,7 @@ import { propWatchEmptyCopy, todayFeedNote } from "../functions/lib/propConvicti
 import { kickoffCt } from "../functions/lib/gameStatus.js";
 import { TeamIdentity } from "./components/TeamLogo.jsx";
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
+import { Fragment, useState } from "react";
 
 const FILTERS = [
   ["all", "All games"],
@@ -18,12 +19,15 @@ export default function TodayView({
   board,
   error,
   loading,
+  stale,
+  lastSuccessAt,
   date,
   onDate,
   sportFilter,
   onSportFilter,
   bucket,
   onBucket,
+  onRetry,
   onImport,
 }) {
   const groups = board?.groups || [];
@@ -34,6 +38,8 @@ export default function TodayView({
     ...g,
     games: filterRows(g.games || [], sportFilter, bucket),
   })).filter((g) => (sportFilter === "all" || g.sport === sportFilter) && (g.games.length || g.error));
+  const unavailable = Boolean(error && !board);
+  const d = (v) => (unavailable ? "Unavailable" : v);
 
   return (
     <div className="main-content today-board">
@@ -42,7 +48,9 @@ export default function TodayView({
       <section className="panel">
         <div className="panel-header">
           <h2>TODAY · {date} CT</h2>
-          <span className="last-updated">{loading ? "Loading…" : `${counts.games ?? 0} games`}</span>
+          <span className="last-updated">
+            {loading ? "Loading…" : unavailable ? "Unavailable" : `${counts.games ?? 0} games`}
+          </span>
         </div>
         <div className="panel-body">
           <div className="today-controls">
@@ -53,7 +61,12 @@ export default function TodayView({
             {onImport && (
               <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT HERITAGE BET SLIP</button>
             )}
+            {onRetry && <button className="header-btn" onClick={() => onRetry?.()} disabled={loading}>{loading ? "Retrying…" : "Retry"}</button>}
           </div>
+          <p className="muted" style={{ marginTop: 8 }}>
+            Population: scheduled and live board rows for this date/sport filter. {lastSuccessAt ? `Last successful load ${fmtTs(lastSuccessAt)}.` : "No successful load yet."}
+            {stale ? " Showing last-known-good snapshot (stale)." : ""}
+          </p>
           <div className="filter-row" style={{ marginTop: 10 }}>
             <button className={sportFilter === "all" ? "chip active" : "chip"} onClick={() => onSportFilter("all")}>All sports</button>
             {BOARD_SPORTS.map((id) => (
@@ -68,14 +81,14 @@ export default function TodayView({
             ))}
           </div>
           <div className="status-grid" style={{ marginTop: 10 }}>
-            <Stat label="Last collect" value={fmtTs(health.lastCollect)} />
-            <Stat label="Last harvest" value={fmtTs(health.lastHarvest)} />
-            <Stat label="D1" value={health.d1 || "—"} />
-            <Stat label="Sports" value={(health.sportsLoaded || []).join(" ") || "—"} />
-            <Stat label="Games" value={health.gamesLoaded ?? counts.games ?? 0} />
-            <Stat label="Projections" value={health.projectionsAvailable ?? "—"} />
-            <Stat label="Markets" value={health.marketsAvailable ?? "—"} />
-            <Stat label="Qualified" value={health.qualifiedTickets ?? counts.qualified ?? 0} />
+            <Stat label="Last collect" value={d(fmtTs(health.lastCollect))} />
+            <Stat label="Last harvest" value={d(fmtTs(health.lastHarvest))} />
+            <Stat label="D1" value={d(health.d1 || "—")} />
+            <Stat label="Sports" value={d((health.sportsLoaded || []).join(" ") || "—")} />
+            <Stat label="Games" value={d(health.gamesLoaded ?? counts.games ?? 0)} />
+            <Stat label="Projections" value={d(health.projectionsAvailable ?? "—")} />
+            <Stat label="Markets" value={d(health.marketsAvailable ?? "—")} />
+            <Stat label="Qualified" value={d(health.qualifiedTickets ?? counts.qualified ?? 0)} />
           </div>
           {(health.openFailures || []).length > 0 && (
             <p className="error" style={{ marginTop: 8 }}>{health.openFailures.join(" · ")}</p>
@@ -101,7 +114,7 @@ export default function TodayView({
             {group.sport === "mlb" && counts.mlbPropWatch && !counts.mlbPropWatch.convictions ? (
               <div className="muted" style={{ padding: "10px 14px 0" }}>{propWatchEmptyCopy(counts.mlbPropWatch)}</div>
             ) : null}
-            {group.games.length > 0 && <TodayTable games={group.games} propWatch={counts.mlbPropWatch} />}
+            {group.games.length > 0 && <div className="table-scroll"><TodayTable games={group.games} propWatch={counts.mlbPropWatch} /></div>}
           </div>
         </section>
       ))}
@@ -442,4 +455,3 @@ function pinMlLabel(g) {
 function pinSpreadLabel(g) {
   return g.marketLabels?.spreadHome?.label || (g.pinSpread != null ? `RL ${g.pinSpread > 0 ? "+" : ""}${g.pinSpread}` : "RL —");
 }
-import { Fragment, useState } from "react";

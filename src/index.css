@@ -130,6 +130,10 @@ header h1 {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+@media (prefers-reduced-motion: reduce) {
+  #ticker-track { animation: none; }
+  .live-dot { animation: none; }
+}
 .ticker-item {
   display: flex;
   align-items: center;
@@ -516,6 +520,14 @@ header h1 {
   header.app-header { flex-wrap: wrap; height: auto; }
   #ticker-bar { top: auto; position: relative; }
   .subtitle { flex-basis: 100%; }
+}
+
+@media (max-width: 760px) {
+  .main-content { padding: 10px 10px 30px; }
+  .nav-tabs { width: 100%; overflow-x: auto; padding-bottom: 2px; }
+  .nav-tabs button { min-height: 44px; padding: 10px 12px; white-space: nowrap; }
+  .header-btn, .log-btn, .chip, .game-expand { min-height: 44px; }
+  .status-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
 }
 .game-expand {
   margin-top: 7px;

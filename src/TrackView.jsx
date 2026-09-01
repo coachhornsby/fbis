@@ -35,7 +35,7 @@ const TABS = [
   ["spreadRange", "Spread range"],
 ];
 
-export default function TrackView({ report, error, loading, filters, onFilters, onRefresh }) {
+export default function TrackView({ report, error, loading, stale, lastSuccessAt, filters, onFilters, onRefresh }) {
   const acc = report?.accuracy || { n: 0 };
   const pack = report?.pack || {};
   const table = pack.table || { headline: {}, rows: [] };
@@ -54,6 +54,12 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
   const [manualFinalByRow, setManualFinalByRow] = useState({});
   const [manualSavingKey, setManualSavingKey] = useState("");
   const [manualMsg, setManualMsg] = useState("");
+  const actionIssues = [];
+  if (error) actionIssues.push(`SYS feed error: ${error}`);
+  if (!db.ok) actionIssues.push(`Research DB unavailable (${db.reason || "unknown"}).`);
+  if (Number(db.failedWrites || 0) > 0) actionIssues.push(`${db.failedWrites} failed write(s) detected.`);
+  if (Number(db.failedHarvests || 0) > 0) actionIssues.push(`${db.failedHarvests} failed harvest(s) detected.`);
+  for (const w of db.scheduleWarnings || []) actionIssues.push(String(w));
 
   const rowKey = (g) => `${g.date}:${g.id}:${g.checkpoint || ""}`;
   const setManualField = (key, field, value) =>
@@ -107,10 +113,27 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
   return (
     <div className="main-content">
       {error && <div className="panel"><div className="error">{error}</div></div>}
+      {actionIssues.length ? (
+        <section className="panel">
+          <div className="panel-header"><h2>Action required</h2><span className="last-updated">{loading ? "Loading…" : "Degraded"}</span></div>
+          <div className="panel-body">
+            <p className="muted" style={{ marginBottom: 8 }}>
+              {lastSuccessAt ? `Last successful SYS refresh ${fmtTs(lastSuccessAt)}.` : "No successful SYS refresh yet."}
+              {stale ? " Showing last-known-good report snapshot (stale)." : ""}
+            </p>
+            <ul style={{ marginLeft: 18 }}>
+              {actionIssues.slice(0, 8).map((issue, i) => <li key={`${issue}-${i}`} className="text-red">{issue}</li>)}
+            </ul>
+          </div>
+        </section>
+      ) : null}
 
       <section className="panel">
         <div className="panel-header"><h2>Sport systems</h2><span className="last-updated">independent tracking by board</span></div>
         <div className="panel-body">
+          <p className="muted" style={{ marginBottom: 8 }}>
+            Population: frozen projection snapshots and their settled finals for the selected filters.
+          </p>
           <div className="chip-row" style={{ marginBottom: 12 }}>
             <button className={filters.sport === "all" ? "chip active" : "chip"} onClick={() => onFilters({ sport: "all" })}>ALL</button>
             {BOARD_SPORTS.map((id) => <button key={id} className={filters.sport === id ? "chip active" : "chip"} onClick={() => onFilters({ sport: id })}>{SPORTS[id].label}</button>)}
@@ -216,7 +239,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
       <section className="panel">
         <div className="panel-header">
           <h2>Projection Accuracy</h2>
-          <span className="last-updated">{hl.n || 0} games</span>
+          <span className="last-updated">{db.ok ? `${hl.n || 0} games` : "Unavailable"}</span>
         </div>
         <div className="panel-body">
           <div className="filter-row">
@@ -290,7 +313,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
           <p className="headline-line">
             {hl.n
               ? `Projected runs have been ${fmtPctSigned(hl.pctDiff)} vs actual (${hl.n} games). Median abs ${fmtNum(hl.medianAbs)} · MAE ${fmtNum(hl.mae)} · RMSE ${fmtNum(hl.rmse)}.`
-              : "No graded projections in this window yet. Collection runs on a schedule — you do not need to open the board."}
+              : db.ok ? "No graded projections in this window yet. Collection runs on a schedule — you do not need to open the board." : "Projection accuracy unavailable until DB access recovers."}
           </p>
           <p className="muted">
             Projection Accuracy is frozen D1 snapshots vs finals — not ticket W/L.
@@ -423,7 +446,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
         </div>
         <div className="panel-body">
           <p className="muted">{report?.layers?.note || "Layer leader is lowest Brier on frozen forecasts. Closest-to-binary counts are not used."}</p>
-          <table className="fbis-table">
+          <div className="table-scroll"><table className="fbis-table">
             <thead>
               <tr>
                 <th>Layer</th>
@@ -444,7 +467,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </section>
 
@@ -473,7 +496,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
           {!(acc.calibration || []).some((b) => b.n) ? (
             <div className="empty">Buckets fill after graded games freeze the final FBIS probability. Home p below 50% is included as the favorite side.</div>
           ) : (
-            <table className="fbis-table">
+            <div className="table-scroll"><table className="fbis-table">
               <thead>
                 <tr>
                   <th>Bucket</th>
@@ -494,7 +517,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       </section>
@@ -505,7 +528,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
           {!(acc.calibrationHome || []).some((b) => b.n) ? (
             <div className="empty">0–10 through 90–100 home-win buckets. Underdogs are no longer dropped.</div>
           ) : (
-            <table className="fbis-table">
+            <div className="table-scroll"><table className="fbis-table">
               <thead>
                 <tr>
                   <th>Bucket</th>
@@ -526,7 +549,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       </section>
@@ -534,7 +557,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
       <section className="panel">
         <div className="panel-header"><h2>By sport</h2></div>
         <div className="panel-body" style={{ padding: 0 }}>
-          <table className="fbis-table">
+          <div className="table-scroll"><table className="fbis-table">
             <thead>
               <tr>
                 <th>Board</th>
@@ -563,7 +586,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </section>
 
@@ -581,7 +604,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                 <h3 className="subhead" style={{ margin: "12px 12px 4px" }}>
                   {group.label} · {group.rows.length}
                 </h3>
-                <table className="fbis-table">
+                <div className="table-scroll"><table className="fbis-table">
                   <thead>
                     <tr>
                       <th>Date</th>
@@ -641,7 +664,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             ))
           )}
@@ -662,7 +685,7 @@ function Filter({ label, children }) {
 
 function MetricTable({ rows }) {
   return (
-    <table className="fbis-table">
+    <div className="table-scroll"><table className="fbis-table">
       <thead>
         <tr>
           <th>Projection</th>
@@ -691,7 +714,7 @@ function MetricTable({ rows }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }
 
@@ -727,7 +750,7 @@ function DistBlock({ dist }) {
 
 function ModelsTable({ models }) {
   return (
-    <table className="fbis-table">
+    <div className="table-scroll"><table className="fbis-table">
       <thead>
         <tr>
           <th>Model</th>
@@ -758,13 +781,13 @@ function ModelsTable({ models }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }
 
 function SliceTable({ rows }) {
   return (
-    <table className="fbis-table">
+    <div className="table-scroll"><table className="fbis-table">
       <thead>
         <tr>
           <th>Slice</th>
@@ -785,13 +808,13 @@ function SliceTable({ rows }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }
 
 function BreakTable({ rows, extra, rpg }) {
   return (
-    <table className="fbis-table">
+    <div className="table-scroll"><table className="fbis-table">
       <thead>
         <tr>
           <th>{rpg ? "Name" : "Group"}</th>
@@ -818,13 +841,13 @@ function BreakTable({ rows, extra, rpg }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }
 
 function RollingTable({ rows }) {
   return (
-    <table className="fbis-table">
+    <div className="table-scroll"><table className="fbis-table">
       <thead>
         <tr>
           <th>Through</th>
@@ -843,7 +866,7 @@ function RollingTable({ rows }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }
 
@@ -917,7 +940,7 @@ function OverBlock({ over }) {
           value={palBias?.unavailable || palBias?.n === 0 ? "N=0 unavailable" : fmtSigned(palBias?.value ?? palBias)}
         />
       </div>
-      <table className="fbis-table">
+      <div className="table-scroll"><table className="fbis-table">
         <thead>
           <tr>
             <th>Disagreement</th>
@@ -942,7 +965,7 @@ function OverBlock({ over }) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }
@@ -972,6 +995,9 @@ function StrategyPanel({ reloadKey = "" }) {
         <p className="headline-line">
           High-conviction means a <b>qualified</b> ticket with EV ≥ 8% (tag CONVICTION). Leans are excluded.
           The 7-0 does not rewrite blend weights. N=7 is not evidence the filter works.
+        </p>
+        <p className="muted" style={{ marginBottom: 10 }}>
+          Population: FBIS-HC-v1 strategy tickets only (seed/prospective), separate from projection-accuracy populations and separate from imported Heritage execution results.
         </p>
         <p className="muted" style={{ marginBottom: 10 }}>
           Reconstruction: {rec.state || rec.confidence || "operator-declared"}
@@ -1040,7 +1066,7 @@ function TraitLine({ traits }) {
 function TicketTable({ rows, empty }) {
   if (!rows.length) return <div className="empty">{empty}</div>;
   return (
-    <table className="fbis-table">
+    <div className="table-scroll"><table className="fbis-table">
       <thead>
         <tr>
           <th>Date</th>
@@ -1065,7 +1091,7 @@ function TicketTable({ rows, empty }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }
 
