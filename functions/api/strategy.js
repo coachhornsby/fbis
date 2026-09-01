@@ -10,11 +10,11 @@ import {
   EXPECTED_SEED_N,
   gradeStrategyResult,
 } from "../lib/strategy.js";
-import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGames, querySnapshots } from "../lib/store.js";
+import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGames } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
 import { resolveTeam } from "../lib/teams.js";
 import { resolveFinalForTicket } from "../lib/projLedger.js";
-import { fetchResultsForReconcile, todayCT } from "../lib/slateEngine.js";
+import { fetchResultsForReconcile, shiftDateCT, todayCT } from "../lib/slateEngine.js";
 
 const SPORT_ORDER = ["mlb", "nba", "nfl", "cfb", "cbb", "other"];
 const SPORT_LABEL = { mlb: "MLB", nba: "NBA", nfl: "NFL", cfb: "CFB", cbb: "CBB", other: "Other" };
@@ -123,27 +123,19 @@ async function reconcileOpenStrategyGrades(env) {
   const rows = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
   const open = (rows || []).filter((t) => !t.result || t.result === "OPEN");
   if (!open.length) return { checked: 0, graded: 0 };
-  const minDate = open.map((t) => t.date).filter(Boolean).sort()[0] || STRATEGY_HC_V1.seedDate;
-  const snapshots = await querySnapshots(env, { since: minDate, checkpoint: "LATEST" });
-  const finalsFromSnapshots = (snapshots.rows || [])
-    .filter((r) => r.actualHome != null && r.actualAway != null)
-    .map((r) => ({
-      id: r.id,
-      sport: r.sport,
-      date: r.date,
-      start: r.start,
-      home: { name: r.homeName, abbr: r.homeAbbr, score: r.actualHome },
-      away: { name: r.awayName, abbr: r.awayAbbr, score: r.actualAway },
-      status: { completed: true, detail: "Final" },
-    }));
   const today = todayCT();
+  const floor = shiftDateCT(today, -4);
+  const pendingWindow = open.filter((t) => t?.sport && t?.date && t.date < today && t.date >= floor);
+  if (!pendingWindow.length) return { checked: open.length, graded: 0 };
   const bySportDate = new Map();
-  for (const t of open) {
-    if (!t?.sport || !t?.date || t.date >= today) continue;
+  for (const t of pendingWindow) {
     bySportDate.set(`${t.sport}|${t.date}`, { sport: t.sport, date: t.date });
   }
+  const keys = [...bySportDate.values()]
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    .slice(0, 6);
   const fetched = await Promise.all(
-    [...bySportDate.values()].map(async ({ sport, date }) => {
+    keys.map(async ({ sport, date }) => {
       try {
         const rowsForDay = await fetchResultsForReconcile(sport, date, { cfbdApiKey: env.CFBD_API_KEY });
         return (rowsForDay || []).filter((g) => g?.status?.completed);
@@ -152,9 +144,9 @@ async function reconcileOpenStrategyGrades(env) {
       }
     })
   );
-  const finals = [...finalsFromSnapshots, ...fetched.flat()];
+  const finals = fetched.flat();
   let graded = 0;
-  for (const ticket of open) {
+  for (const ticket of pendingWindow) {
     const final = resolveFinalForTicket(ticket, finals);
     const settled = gradeStrategyResult(ticket, final);
     if (!settled) continue;
