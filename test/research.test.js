@@ -31,7 +31,7 @@ import { projectCfbGame } from "../functions/lib/cfbModel.js";
 import { classifyCheckpoint, pickCanonical, rowsForCheckpoint } from "../functions/lib/checkpoints.js";
 import { projectMatchup } from "../functions/lib/savant.js";
 import { expectedRoi, twoWayMarket, brierScore, logLoss, americanToImplied, probabilityClv } from "../functions/lib/pricing.js";
-import { gameOutcome, freezeFromGame, accuracyOf, decorateRow, canonicalMatchupDisplay } from "../functions/lib/projLedger.js";
+import { gameOutcome, freezeFromGame, accuracyOf, decorateRow, canonicalMatchupDisplay, resolveFinalForTicket } from "../functions/lib/projLedger.js";
 import { seriesStats } from "../functions/lib/accuracyReport.js";
 import { overDiagnostics, bucketOf } from "../functions/lib/overDiagnostics.js";
 import { SPORTS } from "../functions/lib/slateEngine.js";
@@ -86,6 +86,59 @@ describe("track naming normalization", () => {
       homeAbbr: "XYZ",
     });
     assert.equal(out.matchupDisplay, "ABC @ XYZ");
+  });
+});
+
+describe("strategy grading final resolution", () => {
+  it("matches a final by canonical teams when game id differs", () => {
+    const ticket = {
+      sport: "cfb",
+      date: "2026-08-30",
+      gameId: "synthetic-id-1",
+      matchup: "Memphis Tigers @ UNLV Rebels",
+      market: "ML",
+      side: "AWAY",
+    };
+    const resolved = resolveFinalForTicket(ticket, [{
+      id: "401999111",
+      sport: "cfb",
+      date: "2026-08-30",
+      home: { name: "UNLV Rebels", abbr: "UNLV", score: 17 },
+      away: { name: "Memphis Tigers", abbr: "MEM", score: 24 },
+      status: { completed: true, detail: "Final" },
+    }]);
+    assert.ok(resolved);
+    assert.equal(resolved.id, "401999111");
+    assert.equal(resolved.home.score, 17);
+    assert.equal(resolved.away.score, 24);
+  });
+
+  it("does not grade ambiguous team/date matches", () => {
+    const ticket = {
+      sport: "mlb",
+      date: "2026-08-29",
+      gameId: "unknown",
+      matchup: "Seattle Mariners @ Toronto Blue Jays",
+    };
+    const resolved = resolveFinalForTicket(ticket, [
+      {
+        id: "g1",
+        sport: "mlb",
+        date: "2026-08-29",
+        home: { name: "Toronto Blue Jays", abbr: "TOR", score: 5 },
+        away: { name: "Seattle Mariners", abbr: "SEA", score: 2 },
+        status: { completed: true, detail: "Final" },
+      },
+      {
+        id: "g2",
+        sport: "mlb",
+        date: "2026-08-29",
+        home: { name: "Toronto Blue Jays", abbr: "TOR", score: 6 },
+        away: { name: "Seattle Mariners", abbr: "SEA", score: 3 },
+        status: { completed: true, detail: "Final" },
+      },
+    ]);
+    assert.equal(resolved, null);
   });
 });
 

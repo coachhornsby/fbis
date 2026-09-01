@@ -464,6 +464,93 @@ function matchFinal(row, finals) {
   );
 }
 
+function parseTicketMatchup(matchup = "") {
+  const parts = String(matchup || "").split("@");
+  if (parts.length !== 2) return { away: null, home: null };
+  return { away: parts[0].trim(), home: parts[1].trim() };
+}
+
+function sameTeam(aName, aAbbr, bName, bAbbr) {
+  return (
+    namesMatch(aName, bName) ||
+    namesMatch(aName, bAbbr) ||
+    namesMatch(aAbbr, bName) ||
+    namesMatch(aAbbr, bAbbr)
+  );
+}
+
+function ticketToMatchRef(ticket) {
+  const parsed = parseTicketMatchup(ticket.matchup);
+  return {
+    sport: ticket.sport,
+    date: ticket.date || null,
+    id: ticket.gameId || null,
+    homeName: parsed.home,
+    awayName: parsed.away,
+  };
+}
+
+function finalToMatchRef(final) {
+  return {
+    sport: final.sport || null,
+    date: final.date || null,
+    id: final.id || null,
+    homeName: final.home?.name || final.homeName || null,
+    homeAbbr: final.home?.abbr || final.homeAbbr || null,
+    awayName: final.away?.name || final.awayName || null,
+    awayAbbr: final.away?.abbr || final.awayAbbr || null,
+    start: final.start || null,
+    homeScore: final.home?.score ?? final.actualHome ?? null,
+    awayScore: final.away?.score ?? final.actualAway ?? null,
+    completed: final.status?.completed === true || (final.actualHome != null && final.actualAway != null),
+  };
+}
+
+function ctDateDiffDays(a, b) {
+  if (!a || !b) return Infinity;
+  const da = Date.parse(`${a}T00:00:00Z`);
+  const db = Date.parse(`${b}T00:00:00Z`);
+  if (!Number.isFinite(da) || !Number.isFinite(db)) return Infinity;
+  return Math.abs(Math.round((da - db) / 86400000));
+}
+
+export function resolveFinalForTicket(ticket, finals = []) {
+  const t = ticketToMatchRef(ticket);
+  const candidates = (finals || [])
+    .map(finalToMatchRef)
+    .filter((f) => f.completed && Number.isFinite(Number(f.homeScore)) && Number.isFinite(Number(f.awayScore)))
+    .filter((f) => !t.sport || !f.sport || f.sport === t.sport);
+  const byId = t.id ? candidates.find((f) => String(f.id) === String(t.id)) : null;
+  if (byId) {
+    return {
+      id: byId.id,
+      sport: byId.sport,
+      date: byId.date,
+      start: byId.start,
+      home: { name: byId.homeName, abbr: byId.homeAbbr, score: Number(byId.homeScore) },
+      away: { name: byId.awayName, abbr: byId.awayAbbr, score: Number(byId.awayScore) },
+      status: { completed: true, detail: "Final" },
+    };
+  }
+  const byTeams = candidates.filter((f) => {
+    const dateOk = !t.date || !f.date || ctDateDiffDays(t.date, f.date) <= 1;
+    const homeOk = sameTeam(t.homeName, null, f.homeName, f.homeAbbr);
+    const awayOk = sameTeam(t.awayName, null, f.awayName, f.awayAbbr);
+    return dateOk && homeOk && awayOk;
+  });
+  if (byTeams.length !== 1) return null;
+  const hit = byTeams[0];
+  return {
+    id: hit.id,
+    sport: hit.sport,
+    date: hit.date,
+    start: hit.start,
+    home: { name: hit.homeName, abbr: hit.homeAbbr, score: Number(hit.homeScore) },
+    away: { name: hit.awayName, abbr: hit.awayAbbr, score: Number(hit.awayScore) },
+    status: { completed: true, detail: "Final" },
+  };
+}
+
 export function accuracyOf(rows) {
   const graded = (rows || []).filter(
     (r) => r.actualHome != null && r.actualAway != null && ((r.projHome != null && r.projAway != null) || (r.palHome != null && r.palAway != null))
@@ -881,11 +968,25 @@ async function persistMatchingRec(env, slate, game, frozen) {
 
 async function gradeStrategyAgainstFinals(env, finals) {
   const tickets = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
-  const byId = new Map((finals || []).map((g) => [String(g.id), g]));
+  const open = (tickets || []).filter((t) => !t.result || t.result === "OPEN");
+  const minDate = open.map((t) => t.date).filter(Boolean).sort()[0] || lastNDatesCT(8).at(-1);
+  const snapshotQ = await querySnapshots(env, { since: minDate, checkpoint: "LATEST" });
+  const snapshotFinals = (snapshotQ.rows || [])
+    .filter((r) => r.actualHome != null && r.actualAway != null)
+    .map((r) => ({
+      id: r.id,
+      sport: r.sport,
+      date: r.date,
+      start: r.start,
+      home: { name: r.homeName, abbr: r.homeAbbr, score: r.actualHome },
+      away: { name: r.awayName, abbr: r.awayAbbr, score: r.actualAway },
+      status: { completed: true, detail: "Final" },
+    }));
+  const allFinals = [...(finals || []), ...snapshotFinals];
   const jobs = [];
   for (const t of tickets) {
     if (t.result && t.result !== "OPEN") continue;
-    const g = byId.get(String(t.gameId));
+    const g = resolveFinalForTicket(t, allFinals);
     const graded = gradeStrategyResult(t, g);
     if (graded) jobs.push(gradeStrategyTicket(env, t.id, graded));
   }

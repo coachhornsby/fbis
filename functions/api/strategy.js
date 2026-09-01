@@ -8,10 +8,12 @@ import {
   strategyReconstruction,
   validateImportedTicket,
   EXPECTED_SEED_N,
+  gradeStrategyResult,
 } from "../lib/strategy.js";
-import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGames } from "../lib/store.js";
+import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGames, querySnapshots } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
 import { resolveTeam } from "../lib/teams.js";
+import { resolveFinalForTicket } from "../lib/projLedger.js";
 
 const SPORT_ORDER = ["mlb", "nba", "nfl", "cfb", "cbb", "other"];
 const SPORT_LABEL = { mlb: "MLB", nba: "NBA", nfl: "NFL", cfb: "CFB", cbb: "CBB", other: "Other" };
@@ -116,9 +118,38 @@ function groupBySport(tickets = []) {
     });
 }
 
+async function reconcileOpenStrategyGrades(env) {
+  const rows = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
+  const open = (rows || []).filter((t) => !t.result || t.result === "OPEN");
+  if (!open.length) return { checked: 0, graded: 0 };
+  const minDate = open.map((t) => t.date).filter(Boolean).sort()[0] || STRATEGY_HC_V1.seedDate;
+  const snapshots = await querySnapshots(env, { since: minDate, checkpoint: "LATEST" });
+  const finals = (snapshots.rows || [])
+    .filter((r) => r.actualHome != null && r.actualAway != null)
+    .map((r) => ({
+      id: r.id,
+      sport: r.sport,
+      date: r.date,
+      start: r.start,
+      home: { name: r.homeName, abbr: r.homeAbbr, score: r.actualHome },
+      away: { name: r.awayName, abbr: r.awayAbbr, score: r.actualAway },
+      status: { completed: true, detail: "Final" },
+    }));
+  let graded = 0;
+  for (const ticket of open) {
+    const final = resolveFinalForTicket(ticket, finals);
+    const settled = gradeStrategyResult(ticket, final);
+    if (!settled) continue;
+    const out = await gradeStrategyTicket(env, ticket.id, settled);
+    if (out?.ok) graded += 1;
+  }
+  return { checked: open.length, graded };
+}
+
 export async function onRequestGet(context) {
   const env = { DB: context.env.DB };
   await freezeCanonicalSeed(env);
+  await reconcileOpenStrategyGrades(env);
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
   const seed = canonicalSeedTickets(dbSeed);
   const prospectiveRaw = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
