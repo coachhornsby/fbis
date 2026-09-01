@@ -93,13 +93,14 @@ export async function onRequestGet(context) {
       completed: prospective.completed.slice(0, 100),
       needsAttention: prospective.needsAttention.slice(0, 100).map((t) => ({
         ...t,
-        displayStatus: "FINAL NOT MATCHED",
-        attentionReason: "Past scheduled date; no unambiguous final matched this frozen ticket.",
+        displayStatus: t.invalidSettlementReason ? "INVALID SETTLEMENT" : "FINAL NOT MATCHED",
+        attentionReason: t.invalidSettlementReason || "Past scheduled date; no unambiguous final matched this frozen ticket.",
       })),
+      invalidSettlementCount: prospective.invalidSettlements.length,
       duplicateRowsExcluded: prospective.duplicateRowsExcluded,
       totalCanonical: prospective.canonical.length,
-      traits: characterizeTickets(prospective.canonical),
-      stats: strategyStats(prospective.canonical),
+      traits: characterizeTickets(prospective.validCanonical),
+      stats: strategyStats(prospective.validCanonical),
     },
   });
 }

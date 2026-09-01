@@ -299,17 +299,42 @@ export function partitionProspectiveTickets(tickets = [], today = dateCT(new Dat
     if (!prior || (settled && !priorSettled) || (settled === priorSettled && newer)) groups.set(key, ticket);
   }
   const canonical = [...groups.values()].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-  const completed = canonical.filter((t) => t.result && t.result !== "OPEN");
+  const invalidSettlements = canonical
+    .map((ticket) => ({ ticket, reason: invalidStrategySettlementReason(ticket) }))
+    .filter((row) => row.reason);
+  const invalidIds = new Set(invalidSettlements.map((row) => row.ticket.id));
+  const completed = canonical.filter((t) => t.result && t.result !== "OPEN" && !invalidIds.has(t.id));
   const open = canonical.filter((t) => !t.result || t.result === "OPEN");
   const upcoming = open.filter((t) => String(t.date || "") >= String(today || ""));
-  const needsAttention = open.filter((t) => String(t.date || "") < String(today || ""));
+  const needsAttention = [
+    ...invalidSettlements.map(({ ticket, reason }) => ({ ...ticket, invalidSettlementReason: reason })),
+    ...open.filter((t) => String(t.date || "") < String(today || "")),
+  ];
+  const validCanonical = canonical.filter((t) => !invalidIds.has(t.id));
   return {
     canonical,
+    validCanonical,
     upcoming,
     completed,
     needsAttention,
+    invalidSettlements,
     duplicateRowsExcluded: Math.max(0, tickets.length - canonical.length),
   };
+}
+
+/** Settlements that are impossible by market construction must never enter performance statistics. */
+export function invalidStrategySettlementReason(ticket = {}) {
+  if (String(ticket.result || "").toUpperCase() !== "PUSH") return null;
+  const market = String(ticket.market || "").toUpperCase();
+  const sport = String(ticket.sport || "").toLowerCase();
+  if (sport === "mlb" && market === "ML") return "MLB full-game moneyline cannot push";
+  if (market.includes("TOTAL") || market.includes("SPREAD")) {
+    const line = Number(ticket.executionLine ?? ticket.execution_line ?? ticket.line);
+    if (Number.isFinite(line) && Math.abs(line * 2 - Math.round(line * 2)) < 1e-9 && Math.abs(line % 1) === 0.5) {
+      return `${market} on a half-point line cannot push`;
+    }
+  }
+  return null;
 }
 
 export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id } = {}) {
@@ -446,9 +471,8 @@ export function gradeStrategyResult(ticket, game) {
   if (!game) return null;
   const outcome = String(game.status?.detail || game.gameStatus || "").toLowerCase();
   if (/postpone|cancel|suspend/.test(outcome)) return null;
-  if (!game.status?.completed && game.status?.completed !== undefined && !isF5Market(ticket.market)) {
-    if (fgScores(game) == null) return null;
-  }
+  const explicitlyFinal = game.status?.completed === true || /final|completed/.test(outcome);
+  if (!isF5Market(ticket.market) && !explicitlyFinal) return null;
   const scores = isF5Market(ticket.market) ? f5Scores(game) : fgScores(game);
   if (!scores) return null;
   const { hs, as } = scores;
@@ -472,7 +496,7 @@ export function gradeStrategyResult(ticket, game) {
 
   const market = ticket.market;
   if (market === "ML" || market === "F5 ML") {
-    if (hs === as) return wrap("PUSH", false);
+    if (hs === as) return market === "F5 ML" ? wrap("PUSH", false) : null;
     const won = ticket.side === "HOME" ? hs > as : as > hs;
     return wrap(won ? "WON" : "LOST", won);
   }

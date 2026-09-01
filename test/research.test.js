@@ -21,6 +21,7 @@ import {
   immutableFieldsConflict,
   ticketId,
   partitionProspectiveTickets,
+  invalidStrategySettlementReason,
 } from "../functions/lib/strategy.js";
 import { DEFAULT_WEIGHTS } from "../functions/lib/weights.js";
 import { readFileSync } from "node:fs";
@@ -202,6 +203,21 @@ describe("high-conviction strategy", () => {
     assert.deepEqual(out.needsAttention.map((t) => t.id), ["late"]);
   });
 
+  it("quarantines impossible pushes from completed results and statistics", () => {
+    const rows = [
+      { id: "ml", sport: "mlb", gameId: "1", market: "ML", side: "HOME", date: "2026-08-30", result: "PUSH" },
+      { id: "total", sport: "mlb", gameId: "2", market: "TOTAL", side: "OVER", line: 8.5, date: "2026-08-30", result: "PUSH" },
+      { id: "valid", sport: "mlb", gameId: "3", market: "TOTAL", side: "OVER", line: 9, date: "2026-08-30", result: "PUSH" },
+    ];
+    const out = partitionProspectiveTickets(rows, "2026-09-01");
+    assert.deepEqual(out.completed.map((t) => t.id), ["valid"]);
+    assert.deepEqual(out.needsAttention.map((t) => t.id).sort(), ["ml", "total"]);
+    assert.equal(out.invalidSettlements.length, 2);
+    assert.equal(out.validCanonical.length, 1);
+    assert.match(invalidStrategySettlementReason(rows[0]), /moneyline/);
+    assert.match(invalidStrategySettlementReason(rows[1]), /half-point/);
+  });
+
   it("reports strategy stats without claiming the filter works", () => {
     const st = strategyStats([
       { result: "WON", profit: 0.91, ev: 0.09, clv: 1.2 },
@@ -269,6 +285,16 @@ describe("high-conviction strategy", () => {
       { f5Score: { complete: true, home: 2, away: 2 }, home: { score: 9 }, away: { score: 1 }, status: { completed: true } }
     );
     assert.equal(f5mlPush.result, "PUSH");
+    const mlTie = gradeStrategyResult(
+      { sport: "mlb", market: "ML", side: "HOME", executionPrice: -110, stake: 1 },
+      { home: { score: 0 }, away: { score: 0 }, status: { completed: true } }
+    );
+    assert.equal(mlTie, null);
+    const notFinal = gradeStrategyResult(
+      packTicket({ ...base, line: 8.5, executionPrice: -110, date: "2026-08-26" }, { role: "prospective", date: "2026-08-26" }),
+      { home: { score: 6 }, away: { score: 5 }, status: { completed: false, detail: "In Progress" } }
+    );
+    assert.equal(notFinal, null);
     const postponed = gradeStrategyResult(
       packTicket({ ...base, line: 8.5, executionPrice: -110, date: "2026-08-26" }, { role: "prospective", date: "2026-08-26" }),
       { home: { score: 0 }, away: { score: 0 }, status: { completed: false, detail: "Postponed" } }
