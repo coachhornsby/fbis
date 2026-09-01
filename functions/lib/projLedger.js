@@ -470,13 +470,16 @@ function parseTicketMatchup(matchup = "") {
   return { away: parts[0].trim(), home: parts[1].trim() };
 }
 
-function sameTeam(aName, aAbbr, bName, bAbbr) {
-  return (
+function sameTeam(sport, aName, aAbbr, bName, bAbbr) {
+  if (
     namesMatch(aName, bName) ||
     namesMatch(aName, bAbbr) ||
     namesMatch(aAbbr, bName) ||
     namesMatch(aAbbr, bAbbr)
-  );
+  ) return true;
+  const a = resolveTeam(sport || "mlb", { name: aName, abbr: aAbbr, fullName: aName, school: aName });
+  const b = resolveTeam(sport || "mlb", { name: bName, abbr: bAbbr, fullName: bName, school: bName });
+  return Boolean(a?.id && b?.id && a.id === b.id);
 }
 
 function ticketToMatchRef(ticket) {
@@ -546,8 +549,8 @@ export function resolveFinalForTicket(ticket, finals = []) {
   }
   const byTeams = candidates.filter((f) => {
     const dateOk = !t.date || !f.date || ctDateDiffDays(t.date, f.date) <= 1;
-    const homeOk = sameTeam(t.homeName, null, f.homeName, f.homeAbbr);
-    const awayOk = sameTeam(t.awayName, null, f.awayName, f.awayAbbr);
+    const homeOk = sameTeam(t.sport, t.homeName, null, f.homeName, f.homeAbbr);
+    const awayOk = sameTeam(t.sport, t.awayName, null, f.awayName, f.awayAbbr);
     return dateOk && homeOk && awayOk;
   });
   if (!byTeams.length) return null;
