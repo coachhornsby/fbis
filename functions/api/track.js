@@ -1,4 +1,128 @@
 import { buildTrackReport } from "../lib/projLedger.js";
+import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, updateExecutedBet, gradeStrategyTicket } from "../lib/store.js";
+import { settleExecutedBet } from "../lib/executedBets.js";
+import { gradeStrategyResult } from "../lib/strategy.js";
+import { resolveFinalForTicket } from "../lib/projLedger.js";
+import { resolveTeam } from "../lib/teams.js";
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "access-control-allow-origin": "*",
+    },
+  });
+}
+
+function normalizeName(s = "") {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function teamMatch(sport, left, right) {
+  if (!left || !right) return false;
+  if (normalizeName(left) === normalizeName(right)) return true;
+  const a = resolveTeam(sport || "mlb", { name: left, displayName: left, fullName: left, school: left });
+  const b = resolveTeam(sport || "mlb", { name: right, displayName: right, fullName: right, school: right });
+  return Boolean(a?.id && b?.id && a.id === b.id);
+}
+
+async function deriveTargetGameIds(env, payload) {
+  const ids = new Set();
+  if (payload.gameId) ids.add(String(payload.gameId));
+  if (!env?.DB || !payload.sport || !payload.date) return [...ids];
+  const rows = await env.DB
+    .prepare("SELECT DISTINCT game_id, home_name, away_name, home_abbr, away_abbr FROM prediction_snapshots WHERE sport = ? AND date = ?")
+    .bind(payload.sport, payload.date)
+    .all();
+  for (const r of rows?.results || []) {
+    const homeOk =
+      teamMatch(payload.sport, payload.homeName, r.home_name) ||
+      teamMatch(payload.sport, payload.homeName, r.home_abbr) ||
+      teamMatch(payload.sport, payload.homeAbbr, r.home_name) ||
+      teamMatch(payload.sport, payload.homeAbbr, r.home_abbr);
+    const awayOk =
+      teamMatch(payload.sport, payload.awayName, r.away_name) ||
+      teamMatch(payload.sport, payload.awayName, r.away_abbr) ||
+      teamMatch(payload.sport, payload.awayAbbr, r.away_name) ||
+      teamMatch(payload.sport, payload.awayAbbr, r.away_abbr);
+    if (homeOk && awayOk && r.game_id) ids.add(String(r.game_id));
+  }
+  return [...ids];
+}
+
+async function applyManualFinal(env, payload) {
+  const homeScore = Number(payload.homeScore);
+  const awayScore = Number(payload.awayScore);
+  if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore) || homeScore < 0 || awayScore < 0) {
+    return { ok: false, status: 400, error: "invalid final score" };
+  }
+  const targetGameIds = await deriveTargetGameIds(env, payload);
+  if (!targetGameIds.length) return { ok: false, status: 404, error: "no matching game ids found" };
+  const gradedAt = new Date().toISOString();
+  let snapshotsUpdated = 0;
+  for (const gameId of targetGameIds) {
+    const res = await gradeSnapshotsForGame(env, { gameId, actualHome: homeScore, actualAway: awayScore, gradedAt });
+    if (res?.ok) snapshotsUpdated += 1;
+  }
+
+  const finalRef = {
+    id: String(payload.gameId || targetGameIds[0]),
+    sport: payload.sport || null,
+    date: payload.date || null,
+    start: payload.start || null,
+    home: { name: payload.homeName || payload.homeAbbr || "Home", abbr: payload.homeAbbr || null, score: homeScore },
+    away: { name: payload.awayName || payload.awayAbbr || "Away", abbr: payload.awayAbbr || null, score: awayScore },
+    status: { completed: true, detail: "Manual Final" },
+  };
+
+  const strategy = await queryStrategyTickets(env, {});
+  let strategyGraded = 0;
+  for (const t of strategy || []) {
+    if (t.result && t.result !== "OPEN") continue;
+    const resolved = resolveFinalForTicket(t, [finalRef]);
+    const graded = gradeStrategyResult(t, resolved);
+    if (!graded) continue;
+    const out = await gradeStrategyTicket(env, t.id, graded);
+    if (out?.ok) strategyGraded += 1;
+  }
+
+  const executed = await queryExecutedBets(env, { includeRaw: false });
+  let betsGraded = 0;
+  for (const b of executed.rows || []) {
+    if (b.result && b.result !== "OPEN") continue;
+    if (!b.gameId || !targetGameIds.includes(String(b.gameId))) continue;
+    const settled = settleExecutedBet(b, finalRef);
+    if (!settled || !settled.result || settled.result === "OPEN") continue;
+    const out = await updateExecutedBet(
+      env,
+      b.id,
+      {
+        result: settled.result,
+        profit: settled.profit,
+        settledReturn: settled.settledReturn,
+        gradedAt: settled.gradedAt,
+        voidReason: settled.voidReason || null,
+      },
+      "manual-final-score"
+    );
+    if (out?.ok) betsGraded += 1;
+  }
+
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      ok: true,
+      gameIds: targetGameIds,
+      snapshotsUpdated,
+      strategyGraded,
+      betsGraded,
+      manualFinal: { homeScore, awayScore, gradedAt },
+    },
+  };
+}
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
@@ -40,4 +164,29 @@ export async function onRequestGet(context) {
       }
     );
   }
+}
+
+export async function onRequestPost(context) {
+  let body = {};
+  try {
+    body = await context.request.json();
+  } catch {
+    return json({ ok: false, error: "invalid json" }, 400);
+  }
+  const action = String(body?.action || "").toLowerCase();
+  if (action !== "manual-final") return json({ ok: false, error: "unknown action" }, 400);
+  const result = await applyManualFinal({ DB: context.env.DB }, body);
+  if (!result.ok) return json({ ok: false, error: result.error || "failed" }, result.status || 400);
+  return json(result.body, 200);
+}
+
+export async function onRequestOptions() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,POST,OPTIONS",
+      "access-control-allow-headers": "content-type",
+    },
+  });
 }

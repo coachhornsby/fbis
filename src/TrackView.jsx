@@ -51,6 +51,58 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
   const tab = filters?.tab || "overall";
   const perGame = filters?.type !== "totals";
   const gamesBySport = splitRowsBySport(games);
+  const [manualFinalByRow, setManualFinalByRow] = useState({});
+  const [manualSavingKey, setManualSavingKey] = useState("");
+  const [manualMsg, setManualMsg] = useState("");
+
+  const rowKey = (g) => `${g.date}:${g.id}:${g.checkpoint || ""}`;
+  const setManualField = (key, field, value) =>
+    setManualFinalByRow((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [field]: value } }));
+
+  async function saveManualFinal(g) {
+    const key = rowKey(g);
+    const row = manualFinalByRow[key] || {};
+    const awayScore = Number(row.away);
+    const homeScore = Number(row.home);
+    if (!Number.isFinite(awayScore) || !Number.isFinite(homeScore) || awayScore < 0 || homeScore < 0) {
+      setManualMsg("Enter valid non-negative home and away final scores.");
+      return;
+    }
+    setManualSavingKey(key);
+    setManualMsg("");
+    try {
+      const res = await fetch("/api/track", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "manual-final",
+          sport: g.sport,
+          date: g.date,
+          gameId: g.id,
+          start: g.start,
+          homeName: g.homeName || g.homeDisplayName || "",
+          awayName: g.awayName || g.awayDisplayName || "",
+          homeAbbr: g.homeAbbr || "",
+          awayAbbr: g.awayAbbr || "",
+          homeScore,
+          awayScore,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.error) throw new Error(body.error || `HTTP ${res.status}`);
+      setManualMsg(`Saved final ${awayScore}-${homeScore}. SYS refreshed.`);
+      setManualFinalByRow((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      await onRefresh?.();
+    } catch (err) {
+      setManualMsg(String(err?.message || err));
+    } finally {
+      setManualSavingKey("");
+    }
+  }
 
   return (
     <div className="main-content">
@@ -314,6 +366,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
             <button className="header-btn header-btn-refresh" onClick={onRefresh} disabled={loading}>
               {loading ? "Loading…" : "Reload SYS"}
             </button>
+            {manualMsg ? <span className="muted" style={{ marginLeft: 10 }}>{manualMsg}</span> : null}
           </div>
         </div>
       </section>
@@ -395,7 +448,7 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
         </div>
       </section>
 
-      <StrategyPanel />
+      <StrategyPanel reloadKey={report?.generatedAt || report?.db?.lastWrite || ""} />
 
       <section className="panel">
         <div className="panel-header"><h2>How projections are made</h2></div>
@@ -539,12 +592,13 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                       <th>Actual</th>
                       <th>Δ tot</th>
                       <th>Δ mgn</th>
+                      <th>Manual final</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {(group.rows || []).slice(0, 80).map((g) => (
-                      <tr key={`${g.date}:${g.id}:${g.checkpoint || ""}`} title={(g.steps || []).join("\n")}>
+                      <tr key={rowKey(g)} title={(g.steps || []).join("\n")}>
                         <td className="muted">{g.date}</td>
                         <td>{canonicalMatchup(g)}</td>
                         <td className="muted">{g.checkpoint || "—"}</td>
@@ -553,6 +607,36 @@ export default function TrackView({ report, error, loading, filters, onFilters, 
                         <td>{g.actualHome == null ? "—" : `${fmtNum(g.actualAway, 0)} – ${fmtNum(g.actualHome, 0)}`}</td>
                         <td className={errClass(g.errTotal)}>{fmtSigned(g.errTotal)}</td>
                         <td className={errClass(g.errMargin)}>{fmtSigned(g.errMargin)}</td>
+                        <td>
+                          {g.actualHome == null ? (
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <input
+                                value={(manualFinalByRow[rowKey(g)] || {}).away || ""}
+                                onChange={(e) => setManualField(rowKey(g), "away", e.target.value)}
+                                placeholder="Away"
+                                inputMode="numeric"
+                                style={{ width: 62, background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "4px 6px", fontSize: 12 }}
+                              />
+                              <input
+                                value={(manualFinalByRow[rowKey(g)] || {}).home || ""}
+                                onChange={(e) => setManualField(rowKey(g), "home", e.target.value)}
+                                placeholder="Home"
+                                inputMode="numeric"
+                                style={{ width: 62, background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "4px 6px", fontSize: 12 }}
+                              />
+                              <button
+                                className="header-btn header-btn-refresh"
+                                onClick={() => saveManualFinal(g)}
+                                disabled={manualSavingKey === rowKey(g)}
+                                style={{ padding: "5px 8px", fontSize: 11 }}
+                              >
+                                {manualSavingKey === rowKey(g) ? "Saving…" : "Save"}
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
                         <td className="muted">{g.status}</td>
                       </tr>
                     ))}
@@ -863,7 +947,7 @@ function OverBlock({ over }) {
   );
 }
 
-function StrategyPanel() {
+function StrategyPanel({ reloadKey = "" }) {
   const [pack, setPack] = useState(null);
   useEffect(() => {
     const ac = new AbortController();
@@ -872,7 +956,7 @@ function StrategyPanel() {
       .then((d) => setPack(d))
       .catch(() => {});
     return () => ac.abort();
-  }, []);
+  }, [reloadKey]);
   const seed = pack?.seed || { tickets: [], stats: {}, traits: {} };
   const seedBySport = splitRowsBySport(seed.tickets || []);
   const pro = pack?.prospective || { tickets: [], stats: {}, traits: {} };
