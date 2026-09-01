@@ -275,11 +275,14 @@ export function failClosedShadow({
   };
 }
 
-export function evaluatePromotion({ n = 0, maeImproved = false, biasAbs = 99, leakageOk = false, operatorApproved = false, artifactOk = false } = {}) {
+export function evaluatePromotion({ n = 0, seasons = 0, maeImproved = false, biasAbs = 99, brierDegradation = 99, coverage = 0, leakageOk = false, operatorApproved = false, artifactOk = false } = {}) {
   const fail = [];
   if (n < PROMOTION_CRITERIA.minOosN) fail.push(`oos-n ${n} < ${PROMOTION_CRITERIA.minOosN}`);
   if (!maeImproved) fail.push("primary-mae-not-improved");
+  if (seasons < PROMOTION_CRITERIA.minSeasons) fail.push(`seasons ${seasons} < ${PROMOTION_CRITERIA.minSeasons}`);
   if (biasAbs > PROMOTION_CRITERIA.maxBiasAbs) fail.push("bias");
+  if (brierDegradation > PROMOTION_CRITERIA.maxBrierDegradation) fail.push("brier");
+  if (coverage < PROMOTION_CRITERIA.minCoverage) fail.push("coverage");
   if (!leakageOk) fail.push("leakage-audit");
   if (!artifactOk) fail.push("artifact");
   if (!operatorApproved) fail.push("operator-approval-required");

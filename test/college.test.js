@@ -220,6 +220,15 @@ describe("promotion and N=0", () => {
     assert.equal(unavailableMetric(0).label.includes("N=0"), true);
     assert.equal(metricUnavailable(0).display.includes("unavailable"), true);
   });
+  it("requires every preregistered promotion gate", () => {
+    const d = evaluatePromotion({ n: 500, seasons: 3, maeImproved: true, biasAbs: 0.2, brierDegradation: 0.01, coverage: 0.95, leakageOk: true, operatorApproved: true, artifactOk: true });
+    assert.equal(d.promote, true);
+    const weak = evaluatePromotion({ n: 500, seasons: 2, maeImproved: true, biasAbs: 0.2, brierDegradation: 0.03, coverage: 0.8, leakageOk: true, operatorApproved: true, artifactOk: true });
+    assert.equal(weak.promote, false);
+    assert.ok(weak.fail.some((x) => x.startsWith("seasons")));
+    assert.ok(weak.fail.includes("brier"));
+    assert.ok(weak.fail.includes("coverage"));
+  });
 });
 
 describe("immutable snapshots and grading", () => {
