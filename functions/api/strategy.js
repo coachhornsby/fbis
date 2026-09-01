@@ -31,22 +31,6 @@ function readJson(data, status = 200) {
   return json(data, status, { "access-control-allow-origin": "*" });
 }
 
-async function freezeCanonicalSeed(env) {
-  await persistStrategy(env, STRATEGY_HC_V1);
-  for (const t of STRATEGY_HC_V1_SEED_TICKETS) {
-    await persistStrategyTicket(env, t);
-    if (t.result && t.result !== "OPEN") {
-      await gradeStrategyTicket(env, t.id, {
-        result: t.result,
-        profit: t.profit,
-        clv: t.clv,
-        gradedAt: t.gradedAt,
-        missingExecutionPrice: true,
-      });
-    }
-  }
-}
-
 function reconstructionPayload(seed) {
   const rec = strategyReconstruction(seed);
   return {
@@ -118,7 +102,6 @@ function groupBySport(tickets = []) {
 
 export async function onRequestGet(context) {
   const env = { DB: context.env.DB };
-  await freezeCanonicalSeed(env);
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
   const seed = canonicalSeedTickets(dbSeed);
   const prospectiveRaw = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });

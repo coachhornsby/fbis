@@ -563,6 +563,7 @@ export function recommend(sport, game, model, weights) {
 
 function pushPriced(recs, cfg, game, base, priced, extraOk) {
   if (!extraOk || !withinProbCap(cfg, priced)) return;
+  if (priced?.quarantined) return;
   const qualified = isQualifiedTicket(cfg, priced);
   if (qualified) {
     recs.push(stampTicket(game, base, priced, { qualified: true, lean: false }));

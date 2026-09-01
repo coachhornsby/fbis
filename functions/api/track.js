@@ -4,6 +4,7 @@ import { settleExecutedBet } from "../lib/executedBets.js";
 import { gradeStrategyResult } from "../lib/strategy.js";
 import { resolveFinalForTicket } from "../lib/projLedger.js";
 import { resolveTeam } from "../lib/teams.js";
+import { deriveHealthState } from "../lib/healthContract.js";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -217,6 +218,44 @@ export async function onRequestGet(context) {
       },
       { checkpoint, version, model, type, year, team }
     );
+    const db = payload?.db || {};
+    const hasAuthoritativeData = db.ok === true && (payload.aggregateOnly || Array.isArray(payload.games));
+    const semantic = deriveHealthState({
+      hasAuthoritativeData,
+      requiredChecks: [
+        { name: "d1-binding", ok: db.bound !== false, source: db.source || "d1" },
+        { name: "d1-read", ok: db.ok === true, source: db.healthSource || db.source || "d1", detail: db.reason || db.lastError || null },
+        {
+          name: "d1-write",
+          ok: Number(db.failedWrites || 0) === 0 && Number(db.failedHarvests || 0) === 0,
+          source: db.source || "d1",
+          detail: `failedWrites=${Number(db.failedWrites || 0)} failedHarvests=${Number(db.failedHarvests || 0)}`,
+        },
+        {
+          name: "scheduled-collect",
+          ok: db.scheduled?.collect?.state === "healthy",
+          source: db.source || "d1",
+          detail: db.scheduled?.collect?.state || "unknown",
+          lastSuccessAt: db.lastScheduledCollectSuccess || null,
+          freshnessMs: 8 * 60 * 60 * 1000,
+        },
+        {
+          name: "scheduled-harvest",
+          ok: db.scheduled?.harvest?.state === "healthy",
+          source: db.source || "d1",
+          detail: db.scheduled?.harvest?.state || "unknown",
+          lastSuccessAt: db.lastScheduledHarvestSuccess || null,
+          freshnessMs: 8 * 60 * 60 * 1000,
+        },
+      ],
+    });
+    payload.health = {
+      state: semantic.state,
+      currentAttemptAt: new Date().toISOString(),
+      checks: semantic.checks,
+      failures: semantic.failures,
+      staleChecks: semantic.staleChecks,
+    };
     return new Response(JSON.stringify(payload), {
       headers: {
         "content-type": "application/json; charset=utf-8",

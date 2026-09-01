@@ -1,5 +1,6 @@
 import { durableHealth, deploymentCommit, scheduledHealth } from "../lib/jobs.js";
 import { MODEL_VERSION } from "../lib/weights.js";
+import { deriveHealthState } from "../lib/healthContract.js";
 
 /**
  * Read-only health endpoint.
@@ -18,16 +19,45 @@ export async function onRequestGet(context) {
   try {
     const health = await durableHealth(env);
     const schedule = scheduledHealth(health, new Date());
+    const readOk = Boolean(health.bound) && String(health.source || "") === "d1";
+    const writeOk = Number(health.failedWrites || 0) === 0 && Number(health.failedHarvests || 0) === 0;
+    const collectHealthy = schedule?.collect?.state === "healthy";
+    const harvestHealthy = schedule?.harvest?.state === "healthy";
+    const derived = deriveHealthState({
+      hasAuthoritativeData: readOk,
+      requiredChecks: [
+        { name: "d1-binding", ok: Boolean(health.bound), detail: health.bound ? "bound" : "unbound" },
+        { name: "d1-read", ok: readOk, detail: health.source || "unknown" },
+        { name: "d1-write", ok: writeOk, detail: `failedWrites=${Number(health.failedWrites || 0)} failedHarvests=${Number(health.failedHarvests || 0)}` },
+        {
+          name: "scheduled-collect",
+          ok: collectHealthy,
+          detail: schedule?.collect?.state || "unknown",
+          lastSuccessAt: health.lastScheduledCollectSuccessAt || null,
+          freshnessMs: 8 * 60 * 60 * 1000,
+        },
+        {
+          name: "scheduled-harvest",
+          ok: harvestHealthy,
+          detail: schedule?.harvest?.state || "unknown",
+          lastSuccessAt: health.lastScheduledHarvestSuccessAt || null,
+          freshnessMs: 8 * 60 * 60 * 1000,
+        },
+      ],
+    });
     return json(
       {
         ok: true,
         generatedAt: new Date().toISOString(),
         deploymentCommit: deploymentCommit(env),
         modelVersion: MODEL_VERSION,
+        state: derived.state,
         d1: {
           bound: Boolean(health.bound),
           source: health.source || (health.bound ? "d1" : "unbound"),
           lastD1WriteSuccessAt: health.lastD1WriteSuccessAt || null,
+          readOk,
+          writeOk,
         },
         pipeline: {
           lastCollectSuccessAt: health.lastCollectSuccessAt || null,
@@ -42,6 +72,8 @@ export async function onRequestGet(context) {
           immutableConflicts: Number(health.immutableConflicts || 0),
           schedule,
         },
+        checks: derived.checks,
+        failures: derived.failures,
         lastJob: health.lastJob || null,
       },
       200,

@@ -24,6 +24,8 @@ import {
   hasDb,
 } from "../lib/store.js";
 import { authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
+import { durableHealth, scheduledHealth } from "../lib/jobs.js";
+import { deriveHealthState } from "../lib/healthContract.js";
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -41,9 +43,51 @@ export async function handleBetsGet(env, url) {
   const sport = url.searchParams.get("sport") || "";
   const q = await queryExecutedBets(env, { date: date || undefined, sport: sport || undefined, includeRaw: false });
   const rows = q.rows || [];
+  const durable = await durableHealth(env);
+  const schedule = scheduledHealth(durable, new Date());
+  const readOk = q.ok === true;
+  const writeOk = Number(durable.failedWrites || 0) === 0;
+  const semantic = deriveHealthState({
+    hasAuthoritativeData: readOk,
+    requiredChecks: [
+      { name: "d1-binding", ok: hasDb(env), source: hasDb(env) ? "d1" : "unbound" },
+      { name: "d1-read", ok: readOk, source: readOk ? "d1" : "d1-error", detail: q.reason || null },
+      { name: "d1-write", ok: writeOk, source: "d1", detail: `failedWrites=${Number(durable.failedWrites || 0)}` },
+      {
+        name: "scheduled-collect",
+        ok: schedule?.collect?.state === "healthy",
+        source: "d1",
+        detail: schedule?.collect?.state || "unknown",
+        lastSuccessAt: durable.lastScheduledCollectSuccessAt || null,
+        freshnessMs: 8 * 60 * 60 * 1000,
+      },
+      {
+        name: "scheduled-harvest",
+        ok: schedule?.harvest?.state === "healthy",
+        source: "d1",
+        detail: schedule?.harvest?.state || "unknown",
+        lastSuccessAt: durable.lastScheduledHarvestSuccessAt || null,
+        freshnessMs: 8 * 60 * 60 * 1000,
+      },
+    ],
+  });
   return {
     ok: q.ok || hasDb(env),
-    d1: hasDb(env) ? "connected" : q.reason || "unbound",
+    state: semantic.state,
+    d1: readOk ? "healthy" : q.reason || "error",
+    d1Status: {
+      binding: hasDb(env) ? "bound" : "unbound",
+      read: readOk ? "healthy" : "failed",
+      write: writeOk ? "healthy" : "degraded",
+      source: durable.source || (hasDb(env) ? "d1" : "unbound"),
+      lastSuccessfulReadAt: durable.lastCollectSuccessAt || null,
+      lastSuccessfulWriteAt: durable.lastD1WriteSuccessAt || null,
+      failedWrites: Number(durable.failedWrites || 0),
+      failedHarvests: Number(durable.failedHarvests || 0),
+      schedule,
+      failures: semantic.failures,
+      checks: semantic.checks,
+    },
     bets: rows,
     summary: summarizeExecutedBets(rows),
     auth: {

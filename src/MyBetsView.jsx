@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fmtAmerican, fmtPct, fmtSigned, formatMarketPeriod, formatClv } from "./lib/format.js";
 import { TicketMatchup } from "./components/TeamLogo.jsx";
 import useIsCompact from "./hooks/useIsCompact.js";
+import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 
 const RESULT_FILTERS = [
   ["all", "All results"],
@@ -22,7 +23,19 @@ const ATTR_FILTERS = [
   ["UNMATCHED", "UNMATCHED"],
 ];
 
-export default function MyBetsView({ onImport, bets: external, summary: externalSummary, sourceOk = true, sourceD1 = "connected", loading, error, onRefresh }) {
+export default function MyBetsView({
+  onImport,
+  bets: external,
+  summary: externalSummary,
+  sourceOk = true,
+  sourceD1 = "unknown",
+  sourceStatus = null,
+  loading,
+  error,
+  onRefresh,
+  state,
+  attemptAt,
+}) {
   const [pack, setPack] = useState({ bets: external || [], summary: externalSummary || null });
   const [result, setResult] = useState("all");
   const [attr, setAttr] = useState("all");
@@ -52,8 +65,8 @@ export default function MyBetsView({ onImport, bets: external, summary: external
     });
   }, [bets, sport, result, attr]);
   const summary = pack.summary || emptySummary();
-  const unavailable = Boolean(error || sourceOk === false || String(sourceD1 || "").toLowerCase() !== "connected");
-  const stat = (v, fallback = "—") => (unavailable ? "Unavailable" : (v ?? fallback));
+  const unavailable = Boolean(state === "UNAVAILABLE" || error || sourceOk === false || String(sourceD1 || "").toLowerCase() === "error");
+  const stat = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
 
   return (
     <div className="main-content">
@@ -61,7 +74,7 @@ export default function MyBetsView({ onImport, bets: external, summary: external
       <section className="panel">
         <div className="panel-header">
           <h2>MY BETS · Heritage executed</h2>
-          <span className="last-updated">{loading ? "Loading…" : unavailable ? "Unavailable" : `${summary.bets || 0} imported`}</span>
+          <span className="last-updated">{loading ? "Loading…" : `${badgeLabel(state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${summary.bets || 0} imported`}`}</span>
         </div>
         <div className="panel-body">
           <p className="muted">
@@ -69,6 +82,10 @@ export default function MyBetsView({ onImport, bets: external, summary: external
           </p>
           <p className="muted" style={{ marginTop: 8 }}>
             Population: imported Heritage execution ledger only (not forecast accuracy and not strategy simulation results).
+          </p>
+          <p className="muted" style={{ marginTop: 8 }}>
+            {attemptAt ? `Current attempt ${fmtTs(attemptAt)}. ` : ""}
+            D1 binding: {sourceStatus?.binding || "unknown"} · read: {sourceStatus?.read || "unknown"} · write: {sourceStatus?.write || "unknown"}
           </p>
           <div className="today-controls" style={{ marginTop: 10 }}>
             <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT HERITAGE BET SLIP</button>
@@ -211,4 +228,9 @@ function Stat({ label, value }) {
       <b>{value}</b>
     </div>
   );
+}
+
+function fmtTs(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }

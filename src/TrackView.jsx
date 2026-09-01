@@ -3,6 +3,7 @@ import { CHECKPOINT_OPTIONS } from "../functions/lib/checkpoints.js";
 import { fmtNum, fmtPct, fmtSigned, fmtMetric as fmtMetricN0 } from "./lib/format.js";
 import { useEffect, useState } from "react";
 import useIsCompact from "./hooks/useIsCompact.js";
+import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 
 const PERIODS = [
   ["7", "Last 7"],
@@ -36,7 +37,7 @@ const TABS = [
   ["spreadRange", "Spread range"],
 ];
 
-export default function TrackView({ report, error, loading, stale, lastSuccessAt, filters, onFilters, onRefresh }) {
+export default function TrackView({ report, error, loading, stale, lastSuccessAt, attemptAt, state, filters, onFilters, onRefresh }) {
   const acc = report?.accuracy || { n: 0 };
   const pack = report?.pack || {};
   const table = pack.table || { headline: {}, rows: [] };
@@ -66,7 +67,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
   });
   const actionIssues = [];
   if (error) actionIssues.push(`SYS feed error: ${error}`);
-  if (!db.ok) actionIssues.push(`Research DB unavailable (${db.reason || "unknown"}).`);
+  if (!db.ok) actionIssues.push(`Research DB unavailable (${db.reason || db.lastError || "unknown"}).`);
   if (Number(db.failedWrites || 0) > 0) actionIssues.push(`${db.failedWrites} failed write(s) detected.`);
   if (Number(db.failedHarvests || 0) > 0) actionIssues.push(`${db.failedHarvests} failed harvest(s) detected.`);
   for (const w of db.scheduleWarnings || []) actionIssues.push(String(w));
@@ -137,9 +138,11 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
       {error && <div className="panel"><div className="error">{error}</div></div>}
       {actionIssues.length ? (
         <section id="action-required" className="panel sys-action-sticky">
-          <div className="panel-header"><h2>Action required</h2><span className="last-updated">{loading ? "Loading…" : "Degraded"}</span></div>
+          <div className="panel-header"><h2>Action required</h2><span className="last-updated">{loading ? "Loading…" : badgeLabel(state || "DEGRADED")}</span></div>
           <div className="panel-body">
             <p className="muted" style={{ marginBottom: 8 }}>
+              {attemptAt ? `Current attempt ${fmtTs(attemptAt)}.` : ""}
+              {attemptAt ? " " : ""}
               {lastSuccessAt ? `Last successful SYS refresh ${fmtTs(lastSuccessAt)}.` : "No successful SYS refresh yet."}
               {stale ? " Showing last-known-good report snapshot (stale)." : ""}
             </p>
@@ -192,7 +195,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         </div>
         <div className="panel-body">
           <div className={`db-banner ${db.ok ? "db-ok" : "db-bad"}`}>
-            {db.ok ? "RESEARCH DB: CONNECTED" : `RESEARCH DB ${db.reason === "unbound" ? "UNBOUND" : "ERROR"}`}
+            {db.ok ? "RESEARCH DB: READ HEALTHY" : `RESEARCH DB ${db.reason === "unbound" ? "UNBOUND" : "ERROR"}`}
             <span className="muted" style={{ marginLeft: 10 }}>
               health source {db.healthSource || db.source || report?.source || "—"} · stored today {db.predictions ?? 0} · graded today {db.graded ?? 0} · awaiting {db.awaiting ?? 0}
               {db.lastCollectSuccess || db.lastCollect ? ` · collect ${new Date(db.lastCollectSuccess || db.lastCollect).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
@@ -201,6 +204,19 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
               {db.failedHarvests ? ` · failed harvests ${db.failedHarvests}` : ""}
               {db.lastError ? ` · ${db.lastError}` : ""}
             </span>
+          </div>
+          <div className="status-grid" style={{ marginTop: 10 }}>
+            <Stat label="D1 binding" value={db.bound === false ? "unbound" : "bound"} />
+            <Stat label="D1 read health" value={db.ok ? "healthy" : "failed"} />
+            <Stat
+              label="D1 write health"
+              value={Number(db.failedWrites || 0) === 0 && Number(db.failedHarvests || 0) === 0 ? "healthy" : "degraded"}
+            />
+            <Stat label="Last successful read" value={valueOrUnavailable(!db.ok, fmtTs(db.lastCollectSuccess || db.lastCollect))} />
+            <Stat label="Last successful write" value={valueOrUnavailable(!db.ok, fmtTs(db.lastD1WriteSuccess || db.lastWrite))} />
+            <Stat label="Failed writes" value={db.failedWrites ?? 0} />
+            <Stat label="Failed harvest writes" value={db.failedHarvests ?? 0} />
+            <Stat label="Current DB error" value={db.reason || db.lastError || "none"} />
           </div>
           {(db.scheduleWarnings || []).length > 0 && (
             <p className="error" style={{ marginTop: 8, marginBottom: 0 }}>
@@ -1030,8 +1046,8 @@ function OverBlock({ over }) {
         <Stat label="Qualified OVER" value={over.qualified?.over ?? 0} />
         <Stat label="Qualified UNDER" value={over.qualified?.under ?? 0} />
         <Stat label="Settled N" value={over.settled?.n ?? 0} />
-        <Stat label="OVER EV" value={fmtMetric(over.avgEv?.over)} />
-        <Stat label="UNDER EV" value={fmtMetric(over.avgEv?.under)} />
+        <Stat label="OVER Expected ROI" value={fmtMetric(over.avgEv?.over)} />
+        <Stat label="UNDER Expected ROI" value={fmtMetric(over.avgEv?.under)} />
         <Stat label="OVER ROI" value={fmtMetric(over.roi?.over, true)} />
         <Stat label="UNDER ROI" value={fmtMetric(over.roi?.under, true)} />
         <Stat label="OVER CLV" value={fmtMetric(over.clv?.over, true)} />
@@ -1074,12 +1090,29 @@ function OverBlock({ over }) {
 
 function StrategyPanel({ sectionId = "", reloadKey = "" }) {
   const [pack, setPack] = useState(null);
+  const [loadError, setLoadError] = useState("");
+  const [attemptAt, setAttemptAt] = useState("");
+  const [lastSuccessAt, setLastSuccessAt] = useState("");
   useEffect(() => {
     const ac = new AbortController();
+    setAttemptAt(new Date().toISOString());
+    setLoadError("");
     fetch(`/api/strategy?_t=${Date.now()}`, { signal: ac.signal })
-      .then((r) => r.json())
-      .then((d) => setPack(d))
-      .catch(() => {});
+      .then(async (r) => {
+        const text = await r.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { throw new Error("Strategy endpoint returned invalid JSON"); }
+        if (!r.ok || data?.error) throw new Error(data?.error || `HTTP ${r.status}`);
+        return data;
+      })
+      .then((d) => {
+        setPack(d);
+        setLastSuccessAt(new Date().toISOString());
+      })
+      .catch((err) => {
+        if (ac.signal.aborted) return;
+        setLoadError(String(err?.message || err));
+      });
     return () => ac.abort();
   }, [reloadKey]);
   const seed = pack?.seed || { tickets: [], stats: {}, traits: {} };
@@ -1091,9 +1124,18 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
     <section id={sectionId || undefined} className="panel">
       <div className="panel-header">
         <h2>Strategy · FBIS-HC-v1</h2>
-        <span className="last-updated">expected N={pack?.expectedSeedN || 7} · recovered {pack?.actualRecoveredN ?? rec.recoveredN ?? 0} · {rec.state || rec.confidence || "operator-declared"}</span>
+        <span className="last-updated">
+          {loadError
+            ? "DATA UNAVAILABLE"
+            : `expected N=${pack?.expectedSeedN || 7} · recovered ${pack?.actualRecoveredN ?? rec.recoveredN ?? 0} · ${rec.state || rec.confidence || "operator-declared"}`}
+        </span>
       </div>
       <div className="panel-body">
+        {loadError ? (
+          <div className="error" style={{ marginBottom: 10 }}>
+            Canonical strategy population unavailable: {loadError}. Current attempt {fmtTs(attemptAt)}. Last success {fmtTs(lastSuccessAt)}.
+          </div>
+        ) : null}
         <p className="headline-line">
           High-conviction means a <b>qualified</b> ticket with EV ≥ 8% (tag CONVICTION). Leans are excluded.
           The 7-0 does not rewrite blend weights. N=7 is not evidence the filter works.
@@ -1114,19 +1156,23 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
           {pack?.strategy?.seedObservation ||
             "The 2026-08-26 seed sample was MLB-heavy overs (5/7 totals at 8.5–9.5, 1 ML, 1 +1.5 RL). That is an observation, not a gate."}
         </p>
-        <div className="status-grid" style={{ marginBottom: 12 }}>
-          <Stat label="Expected N" value={pack?.expectedSeedN ?? 7} />
-          <Stat label="Recovered N" value={pack?.actualRecoveredN ?? rec.recoveredN ?? 0} />
-          <Stat label="State" value={rec.state || rec.confidence || "unrecovered"} />
-          <Stat label="Recovered record" value={pack?.recoveredRecord || rec.recoveredRecord || "—"} />
-          <Stat label="Graded (named)" value={pack?.gradedRecord || rec.gradedRecord || (seed.stats?.settled ? `${seed.stats.wins}-${seed.stats.losses}` : "—")} />
-          <Stat label="Prospective N" value={pro.stats?.n ?? 0} />
-          <Stat label="Prospective hit" value={fmtPct(pro.stats?.hitRate)} />
-          <Stat label="Prospective ROI" value={fmtSigned(pro.stats?.roi)} />
-          <Stat label="Avg CLV" value={fmtSigned(pro.stats?.avgClv)} />
-          <Stat label="Drawdown" value={fmtSigned(pro.stats?.drawdown)} />
-          <Stat label="Open" value={pro.stats?.open ?? 0} />
-        </div>
+        {loadError ? <div className="empty">Calculated strategy summary unavailable until canonical strategy query succeeds.</div> : (
+          <div className="status-grid" style={{ marginBottom: 12 }}>
+            <Stat label="Expected N" value={pack?.expectedSeedN ?? 7} />
+            <Stat label="Recovered N" value={pack?.actualRecoveredN ?? rec.recoveredN ?? 0} />
+            <Stat label="State" value={rec.state || rec.confidence || "unrecovered"} />
+            <Stat label="Recovered record" value={pack?.recoveredRecord || rec.recoveredRecord || "—"} />
+            <Stat label="Graded (named)" value={pack?.gradedRecord || rec.gradedRecord || (seed.stats?.settled ? `${seed.stats.wins}-${seed.stats.losses}` : "—")} />
+            <Stat label="Prospective N" value={pro.stats?.n ?? 0} />
+            <Stat label="Prospective hit" value={fmtPct(pro.stats?.hitRate)} />
+            <Stat label="Prospective ROI" value={fmtSigned(pro.stats?.roi)} />
+            <Stat label="Avg CLV" value={fmtSigned(pro.stats?.avgClv)} />
+            <Stat label="Drawdown" value={fmtSigned(pro.stats?.drawdown)} />
+            <Stat label="Open" value={pro.stats?.open ?? 0} />
+          </div>
+        )}
+        {!loadError ? (
+          <>
         <h3 className="subhead">Seed traits (shared characteristics)</h3>
         <TraitLine traits={seed.traits} />
         <h3 className="subhead">Seed tickets</h3>
@@ -1147,6 +1193,8 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
             <TicketTable rows={(group.tickets || []).slice(0, 40)} empty={`No ${group.label} prospective tickets.`} />
           </div>
         ))}
+          </>
+        ) : null}
       </div>
     </section>
   );
@@ -1160,7 +1208,7 @@ function TraitLine({ traits }) {
       .join(" · ") || "—";
   return (
     <p className="muted">
-      N={traits.n} · sports {fmtMap(traits.sports)} · markets {fmtMap(traits.markets)} · sides {fmtMap(traits.sides)} · avg EV {fmtPct(traits.avgEv)} · home {fmtPct(traits.homeShare)} · over {fmtPct(traits.overShare)}
+      N={traits.n} · sports {fmtMap(traits.sports)} · markets {fmtMap(traits.markets)} · sides {fmtMap(traits.sides)} · avg Expected ROI {fmtPct(traits.avgEv)} · home {fmtPct(traits.homeShare)} · over {fmtPct(traits.overShare)}
     </p>
   );
 }
@@ -1181,7 +1229,7 @@ function TicketTable({ rows, empty }) {
             <div className="mobile-kv-grid" style={{ marginTop: 8 }}>
               <div><small>Market</small><b>{t.market} {t.side}</b></div>
               <div><small>Pick</small><b>{t.pick}</b></div>
-              <div><small>EV</small><b>{fmtPct(t.ev)}</b></div>
+              <div><small>Expected ROI</small><b>{fmtPct(t.ev)}</b></div>
               <div><small>Tag</small><b>{t.tag || "—"}</b></div>
             </div>
           </article>
@@ -1197,7 +1245,7 @@ function TicketTable({ rows, empty }) {
           <th>Game</th>
           <th>Market</th>
           <th>Pick</th>
-          <th>EV</th>
+          <th>Expected ROI</th>
           <th>Tag</th>
           <th>Result</th>
         </tr>

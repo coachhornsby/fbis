@@ -11,6 +11,7 @@ import HeritageImport from "./HeritageImport.jsx";
 import MyBetsView from "./MyBetsView.jsx";
 import { todayCT } from "../functions/lib/slateEngine.js";
 import { buildPropConvictions } from "../functions/lib/propConviction.js";
+import { badgeLabel, badgeTone, deriveGlobalState, deriveViewState } from "./lib/healthState.js";
 
 function readUrlState() {
   if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb" };
@@ -45,6 +46,17 @@ async function responseJson(res, label) {
   }
 }
 
+function fmtStamp(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-US", {
+    timeZone: "America/Chicago",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function App() {
   const initial = readUrlState();
   const [sport, setSport] = useState(initial.sport);
@@ -53,6 +65,9 @@ export default function App() {
   const [updated, setUpdated] = useState("");
   const [learn, setLearn] = useState(() => loadState());
   const [loading, setLoading] = useState(false);
+  const [boardLastSuccessAt, setBoardLastSuccessAt] = useState("");
+  const [boardLastAttemptAt, setBoardLastAttemptAt] = useState("");
+  const [boardStale, setBoardStale] = useState(false);
 
   const [tab, setTab] = useState(initial.tab);
   const [todayDate, setTodayDate] = useState(initial.date);
@@ -60,6 +75,7 @@ export default function App() {
   const [todayError, setTodayError] = useState("");
   const [todayLoading, setTodayLoading] = useState(false);
   const [todayLastSuccessAt, setTodayLastSuccessAt] = useState("");
+  const [todayLastAttemptAt, setTodayLastAttemptAt] = useState("");
   const [todayStale, setTodayStale] = useState(false);
   const [todaySport, setTodaySport] = useState("all");
   const [todayBucket, setTodayBucket] = useState("all");
@@ -67,11 +83,14 @@ export default function App() {
   const [betsPack, setBetsPack] = useState({ bets: [], summary: null, ok: true, d1: "unknown" });
   const [betsError, setBetsError] = useState("");
   const [betsLoading, setBetsLoading] = useState(false);
+  const [betsLastAttemptAt, setBetsLastAttemptAt] = useState("");
   const [track, setTrack] = useState(null);
   const [trackError, setTrackError] = useState("");
   const [trackLoading, setTrackLoading] = useState(false);
   const [trackLastSuccessAt, setTrackLastSuccessAt] = useState("");
+  const [trackLastAttemptAt, setTrackLastAttemptAt] = useState("");
   const [trackStale, setTrackStale] = useState(false);
+  const [pipelineState, setPipelineState] = useState("DEGRADED");
   const [trackFilters, setTrackFilters] = useState({
     sport: "all",
     days: "season",
@@ -87,6 +106,7 @@ export default function App() {
   const refresh = useCallback(async (signal) => {
     setLoading(true);
     setError("");
+    setBoardLastAttemptAt(new Date().toISOString());
     try {
       const [res, trackRes] = await Promise.all([
         fetch(`/api/slate?sport=${sport}&_t=${Date.now()}`, { signal }),
@@ -106,17 +126,21 @@ export default function App() {
       captureSlate(withRecs);
       setSlate(withRecs);
       setUpdated(new Date().toLocaleTimeString("en-US", { timeZone: "America/Chicago" }));
+      setBoardLastSuccessAt(new Date().toISOString());
+      setBoardStale(false);
     } catch (err) {
       if (err?.name === "AbortError") return;
       setError(String(err.message || err));
+      setBoardStale(Boolean(slate));
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [sport]);
+  }, [sport, slate]);
 
   const refreshTrack = useCallback(async (signal) => {
     setTrackLoading(true);
     setTrackError("");
+    setTrackLastAttemptAt(new Date().toISOString());
     try {
       const q = new URLSearchParams({
         sport: trackFilters.sport,
@@ -150,6 +174,7 @@ export default function App() {
   const refreshToday = useCallback(async (signal) => {
     setTodayLoading(true);
     setTodayError("");
+    setTodayLastAttemptAt(new Date().toISOString());
     const ac = new AbortController();
     const timeout = setTimeout(() => ac.abort(new Error("timeout")), 20_000);
     if (signal) signal.addEventListener("abort", () => ac.abort(signal.reason), { once: true });
@@ -175,12 +200,20 @@ export default function App() {
   const refreshBets = useCallback(async (signal) => {
     setBetsLoading(true);
     setBetsError("");
+    setBetsLastAttemptAt(new Date().toISOString());
     try {
       const res = await fetch(`/api/bets?_t=${Date.now()}`, { signal });
       const data = await responseJson(res, "Bets");
       if (signal?.aborted) return;
       if (!res.ok || data?.error) throw new Error(data?.error || `HTTP ${res.status}`);
-      setBetsPack({ bets: data.bets || [], summary: data.summary, ok: data.ok !== false, d1: data.d1 || "connected" });
+      setBetsPack({
+        bets: data.bets || [],
+        summary: data.summary,
+        ok: data.ok !== false,
+        d1: data.d1 || "unknown",
+        state: data.state || null,
+        d1Status: data.d1Status || null,
+      });
     } catch (err) {
       if (err?.name === "AbortError") return;
       setBetsError(String(err?.message || err));
@@ -234,6 +267,26 @@ export default function App() {
     return () => ac.abort();
   }, [tab, refreshTrack]);
 
+  useEffect(() => {
+    const ac = new AbortController();
+    const refreshHealth = async () => {
+      try {
+        const res = await fetch(`/api/health?_t=${Date.now()}`, { signal: ac.signal });
+        const data = await responseJson(res, "Health");
+        if (!res.ok || data?.ok === false) throw new Error(data?.error || `HTTP ${res.status}`);
+        setPipelineState(data.state || "DEGRADED");
+      } catch {
+        setPipelineState("DEGRADED");
+      }
+    };
+    refreshHealth();
+    const id = setInterval(refreshHealth, 60_000);
+    return () => {
+      ac.abort();
+      clearInterval(id);
+    };
+  }, []);
+
   const recGames = useMemo(
     () => (slate?.games || []).filter((g) => g.rec && !g.status.completed),
     [slate]
@@ -245,24 +298,40 @@ export default function App() {
   const stats = useMemo(() => summarize(learn, sport), [learn, sport]);
   const executedSportBets = useMemo(() => (betsPack.bets || []).filter((b) => b.sport === sport), [betsPack.bets, sport]);
   const executedStats = useMemo(() => summarizeExecutedRows(executedSportBets), [executedSportBets]);
-  const sysDegraded = Boolean(
-    trackError ||
-    !track?.db?.ok ||
-    Number(track?.db?.failedWrites || 0) > 0 ||
-    Number(track?.db?.failedHarvests || 0) > 0 ||
-    (track?.db?.scheduleWarnings || []).length
-  );
-  const todayDegraded = Boolean(todayError || (todayBoard?.health?.openFailures || []).length);
-  const betsDegraded = Boolean(betsError || betsPack?.ok === false || String(betsPack?.d1 || "").toLowerCase() !== "connected");
-  const health =
-    tab === "sys"
-      ? (trackError ? "RED" : sysDegraded ? "YELLOW" : "GREEN")
-      : tab === "today"
-        ? (todayError ? "RED" : todayDegraded ? "YELLOW" : "GREEN")
-        : tab === "bets"
-          ? (betsError ? "RED" : betsDegraded ? "YELLOW" : "GREEN")
-          : error ? "RED" : stats.units > 0 ? "GREEN" : stats.settled >= 8 && stats.winPct < 0.45 ? "YELLOW" : "GREEN";
-  const healthLabel = health === "RED" ? "DOWN" : health === "YELLOW" ? "DEGRADED" : "LIVE";
+  const todayState = deriveViewState({
+    apiState: todayBoard?.health?.state || null,
+    error: todayError,
+    stale: todayStale,
+    hasData: Boolean(todayBoard),
+  });
+  const betsState = deriveViewState({
+    apiState: betsPack?.state || null,
+    error: betsError,
+    stale: false,
+    hasData: Array.isArray(betsPack?.bets),
+  });
+  const sysState = deriveViewState({
+    apiState: track?.health?.state || null,
+    error: trackError,
+    stale: trackStale,
+    hasData: Boolean(track),
+  });
+  const boardState = deriveViewState({
+    apiState: null,
+    error,
+    stale: boardStale,
+    hasData: Boolean(slate),
+  });
+  const globalState = deriveGlobalState({
+    activeTab: tab,
+    pipelineState,
+    todayState,
+    betsState,
+    sysState,
+    boardState,
+  });
+  const health = badgeTone(globalState);
+  const healthLabel = badgeLabel(globalState);
 
   function onLog(game, ticket = game.rec) {
     if (!ticket?.qualified) return;
@@ -361,6 +430,8 @@ export default function App() {
           loading={trackLoading}
           stale={trackStale}
           lastSuccessAt={trackLastSuccessAt}
+          attemptAt={trackLastAttemptAt}
+          state={sysState}
           filters={{ ...trackFilters, tab: sysTab }}
           onFilters={(patch) => {
             if (patch.tab) setSysTab(patch.tab);
@@ -377,6 +448,8 @@ export default function App() {
           loading={todayLoading}
           stale={todayStale}
           lastSuccessAt={todayLastSuccessAt}
+          attemptAt={todayLastAttemptAt}
+          state={todayState}
           date={todayDate}
           onDate={setTodayDate}
           sportFilter={todaySport}
@@ -392,8 +465,11 @@ export default function App() {
           summary={betsPack.summary}
           sourceOk={betsPack.ok}
           sourceD1={betsPack.d1}
+          sourceStatus={betsPack.d1Status}
           loading={betsLoading}
           error={betsError}
+          attemptAt={betsLastAttemptAt}
+          state={betsState}
           onImport={() => setImportOpen(true)}
           onRefresh={refreshBets}
         />
@@ -402,6 +478,10 @@ export default function App() {
         {error && <div className="panel"><div className="error">{error}</div></div>}
 
         <Panel title="System Status" stamp={updated}>
+          <p className="muted" style={{ marginBottom: 8 }}>
+            Board attempt: {boardLastAttemptAt ? fmtStamp(boardLastAttemptAt) : "—"} · Last board success: {boardLastSuccessAt ? fmtStamp(boardLastSuccessAt) : "—"}
+            {boardStale ? " · Showing stale board snapshot." : ""}
+          </p>
           <div className="status-grid">
             <Stat label="Slate" value={slate?.counts?.games ?? "—"} />
             <Stat label="Live" value={slate?.counts?.live ?? "—"} />
@@ -663,7 +743,7 @@ function RecTable({ games, onLog, logged }) {
           <th>Price</th>
           <th>Pin vig</th>
           <th>Fair</th>
-          <th>EV</th>
+          <th>Expected ROI</th>
           <th>Book</th>
           <th>Edge</th>
           <th></th>
@@ -734,7 +814,7 @@ function LeanTable({ games }) {
             </td>
             <td>{g.lean.market}</td>
             <td className="muted">
-              {g.lean.ev == null ? "No complete Pinnacle pair / no EV" : `EV ${fmtNum((g.lean.evPct ?? g.lean.ev * 100), 1)}% below +3% gate`}
+              {g.lean.ev == null ? "No complete Pinnacle pair / expected ROI unavailable" : `Expected ROI ${fmtNum((g.lean.evPct ?? g.lean.ev * 100), 1)}% below +3% gate`}
             </td>
             <td>{fmtPct(g.lean.fair)}</td>
           </tr>
@@ -754,7 +834,7 @@ function BetsTable({ bets }) {
           <th>Pick</th>
           <th>Result</th>
           <th>P/L</th>
-          <th>EV</th>
+          <th>Expected ROI</th>
           <th>Pin</th>
           <th>Heritage</th>
           <th>CLV</th>

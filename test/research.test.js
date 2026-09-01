@@ -30,7 +30,7 @@ import { onRequestPost, importStrategyTickets } from "../functions/api/strategy.
 import { projectCfbGame } from "../functions/lib/cfbModel.js";
 import { classifyCheckpoint, pickCanonical, rowsForCheckpoint } from "../functions/lib/checkpoints.js";
 import { projectMatchup } from "../functions/lib/savant.js";
-import { expectedRoi, twoWayMarket, brierScore, logLoss, americanToImplied, probabilityClv } from "../functions/lib/pricing.js";
+import { expectedRoi, twoWayMarket, brierScore, logLoss, americanToImplied, probabilityClv, evAnomaly, validAmericanOdds } from "../functions/lib/pricing.js";
 import { gameOutcome, freezeFromGame, accuracyOf, decorateRow, canonicalMatchupDisplay, resolveFinalForTicket } from "../functions/lib/projLedger.js";
 import { seriesStats } from "../functions/lib/accuracyReport.js";
 import { overDiagnostics, bucketOf } from "../functions/lib/overDiagnostics.js";
@@ -52,6 +52,27 @@ describe("research metrics", () => {
     assert.ok(!cfb.bands.some((b) => b.threshold === 0.5));
     const mlb = withinBands([0.4, 1.2], "mlb", "total");
     assert.ok(mlb.bands.some((b) => b.threshold === 0.5));
+  });
+});
+
+describe("EV and odds integrity guards", () => {
+  it("rejects non-american or malformed prices", () => {
+    assert.equal(validAmericanOdds(-110), true);
+    assert.equal(validAmericanOdds(150), true);
+    assert.equal(validAmericanOdds(-99), false);
+    assert.equal(validAmericanOdds(0), false);
+  });
+
+  it("flags impossible favorite EV above 100%", () => {
+    const a = evAnomaly({ fair: 0.95, pinPrice: -110, ev: 1.2, marketComplete: true });
+    assert.equal(a.quarantined, true);
+    assert.equal(a.reason, "favorite-ev-over-100pct-impossible");
+  });
+
+  it("allows long-odds EV above 100% with warning only", () => {
+    const a = evAnomaly({ fair: 0.6, pinPrice: 300, ev: 1.4, marketComplete: true });
+    assert.equal(a.quarantined, false);
+    assert.equal(a.warning, "ev-over-100pct-verify-long-odds");
   });
 });
 

@@ -10,6 +10,11 @@ describe("read-only serving boundaries", () => {
     assert.equal(src.includes("freezeSlate("), false);
     assert.equal(src.includes("harvestSport("), false);
   });
+
+  it("strategy GET endpoint stays read-only", async () => {
+    const src = await readFile(new URL("../functions/api/strategy.js", import.meta.url), "utf8");
+    assert.equal(src.includes("await freezeCanonicalSeed("), false);
+  });
 });
 
 describe("health endpoint", () => {
@@ -23,7 +28,9 @@ describe("health endpoint", () => {
     const json = await res.json();
     assert.equal(json.ok, true);
     assert.equal(json.deploymentCommit, "abc123");
+    assert.equal(typeof json.state, "string");
     assert.equal(json.d1.bound, false);
+    assert.equal(Array.isArray(json.checks), true);
     assert.equal(typeof json.pipeline.schedule, "object");
   });
 });

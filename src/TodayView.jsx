@@ -5,6 +5,7 @@ import { kickoffCt } from "../functions/lib/gameStatus.js";
 import { TeamIdentity } from "./components/TeamLogo.jsx";
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 import { Fragment, useState } from "react";
+import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 
 const FILTERS = [
   ["all", "All games"],
@@ -21,6 +22,8 @@ export default function TodayView({
   loading,
   stale,
   lastSuccessAt,
+  attemptAt,
+  state,
   date,
   onDate,
   sportFilter,
@@ -39,7 +42,8 @@ export default function TodayView({
     games: filterRows(g.games || [], sportFilter, bucket),
   })).filter((g) => (sportFilter === "all" || g.sport === sportFilter) && (g.games.length || g.error));
   const unavailable = Boolean(error && !board);
-  const d = (v) => (unavailable ? "Unavailable" : v);
+  const d = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
+  const sourceStatus = health?.sourceStatus?.statuses || {};
 
   return (
     <div className="main-content today-board">
@@ -49,7 +53,7 @@ export default function TodayView({
         <div className="panel-header">
           <h2>TODAY · {date} CT</h2>
           <span className="last-updated">
-            {loading ? "Loading…" : unavailable ? "Unavailable" : `${counts.games ?? 0} games`}
+            {loading ? "Loading…" : `${badgeLabel(state || health?.state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${counts.games ?? 0} games`}`}
           </span>
         </div>
         <div className="panel-body">
@@ -64,6 +68,7 @@ export default function TodayView({
             {onRetry && <button className="header-btn" onClick={() => onRetry?.()} disabled={loading}>{loading ? "Retrying…" : "Retry"}</button>}
           </div>
           <p className="muted" style={{ marginTop: 8 }}>
+            {attemptAt ? `Current attempt ${fmtTs(attemptAt)}. ` : ""}
             Population: scheduled and live board rows for this date/sport filter. {lastSuccessAt ? `Last successful load ${fmtTs(lastSuccessAt)}.` : "No successful load yet."}
             {stale ? " Showing last-known-good snapshot (stale)." : ""}
           </p>
@@ -90,6 +95,17 @@ export default function TodayView({
             <Stat label="Markets" value={d(health.marketsAvailable ?? "—")} />
             <Stat label="Qualified" value={d(health.qualifiedTickets ?? counts.qualified ?? 0)} />
           </div>
+          {Object.keys(sourceStatus).length ? (
+            <div className="status-grid" style={{ marginTop: 10 }}>
+              {Object.entries(sourceStatus).map(([sportId, s]) => (
+                <Stat
+                  key={sportId}
+                  label={`${String(sportId).toUpperCase()} source`}
+                  value={`${s.schedule}/${s.projections}/${s.markets} · ${s.source}${s.error ? ` · ${s.error}` : ""}`}
+                />
+              ))}
+            </div>
+          ) : null}
           {(health.openFailures || []).length > 0 && (
             <p className="error" style={{ marginTop: 8 }}>{health.openFailures.join(" · ")}</p>
           )}
@@ -304,7 +320,7 @@ export function GameDetails({ g }) {
             })}
           </div>
         ) : (
-          <table className="mini-prop-table"><thead><tr><th>Player</th><th>Prop</th><th>FBIS proj</th><th>Probability</th><th>EV</th><th>Book</th></tr></thead>
+          <table className="mini-prop-table"><thead><tr><th>Player</th><th>Prop</th><th>FBIS proj</th><th>Probability</th><th>Expected ROI</th><th>Book</th></tr></thead>
             <tbody>{props.map((p, i) => <tr key={`${p.playerName}:${p.market}:${p.line}:${i}`}><td>{p.playerName}</td><td><span className="tier-badge tier-CONVICTION">CONVICTION</span> {p.side} {p.line} {fmtAmerican(p.price)}</td><td>{p.projection == null ? "—" : fmtNum(p.projection)}</td><td>{fmtPct(p.probability)}</td><td>{fmtPct(p.ev)}</td><td>{p.book || "—"}</td></tr>)}</tbody>
           </table>
         )}
@@ -394,7 +410,7 @@ function TodayPropsCell({ g, propWatch }) {
       <summary>{props.length} CONVICTION {props.length === 1 ? "PROP" : "PROPS"}</summary>
       {props.map((p, i) => (
         <div key={`${p.playerName}:${p.market}:${i}`} title={p.reason}>
-          {p.playerName} · {p.side} {p.line} {fmtAmerican(p.price)} · proj {p.projection == null ? "—" : fmtNum(p.projection)} · EV {fmtPct(p.ev)}
+          {p.playerName} · {p.side} {p.line} {fmtAmerican(p.price)} · proj {p.projection == null ? "—" : fmtNum(p.projection)} · Expected ROI {fmtPct(p.ev)}
         </div>
       ))}
     </details>

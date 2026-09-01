@@ -8,9 +8,14 @@ import { MODEL_VERSION } from "./weights.js";
 
 export { MODEL_VERSION };
 
+export function validAmericanOdds(american) {
+  const n = Number(american);
+  return Number.isFinite(n) && n !== 0 && Math.abs(n) >= 100;
+}
+
 export function americanToImplied(american) {
   const n = Number(american);
-  if (!Number.isFinite(n) || n === 0) return null;
+  if (!validAmericanOdds(n)) return null;
   if (n > 0) return 100 / (n + 100);
   return Math.abs(n) / (Math.abs(n) + 100);
 }
@@ -24,7 +29,7 @@ export function impliedToAmerican(p) {
 
 export function americanProfit(odds, stake = 1) {
   const n = Number(odds);
-  if (!Number.isFinite(n) || n === 0) return null;
+  if (!validAmericanOdds(n)) return null;
   if (n > 0) return (n / 100) * stake;
   return (100 / Math.abs(n)) * stake;
 }
@@ -63,9 +68,24 @@ export function expectedRoi(pWin, american) {
   const p = Number(pWin);
   const n = Number(american);
   if (!Number.isFinite(p) || p < 0 || p > 1) return null;
-  if (!Number.isFinite(n) || n === 0) return null;
+  if (!validAmericanOdds(n)) return null;
   const profit = n > 0 ? n / 100 : 100 / Math.abs(n);
   return p * profit - (1 - p);
+}
+
+export function evAnomaly({ fair, pinPrice, ev, marketComplete }) {
+  if (!marketComplete) return { quarantined: true, reason: "incomplete-market" };
+  if (!Number.isFinite(Number(fair)) || Number(fair) < 0 || Number(fair) > 1) {
+    return { quarantined: true, reason: "invalid-model-probability" };
+  }
+  if (!validAmericanOdds(pinPrice)) return { quarantined: true, reason: "invalid-american-odds" };
+  if (!Number.isFinite(Number(ev))) return { quarantined: true, reason: "invalid-ev" };
+  const price = Number(pinPrice);
+  const roi = Number(ev);
+  if (price < 0 && roi > 1) return { quarantined: true, reason: "favorite-ev-over-100pct-impossible" };
+  if (roi < -1) return { quarantined: true, reason: "ev-below-minus-100pct-impossible" };
+  if (roi > 1) return { quarantined: false, warning: "ev-over-100pct-verify-long-odds" };
+  return { quarantined: false, warning: null };
 }
 
 /**
@@ -86,6 +106,7 @@ export function priceSelection({ pWin, pinPrice, twoWay, side = "A" }) {
   const price = pinPrice ?? (side === "B" ? twoWay?.priceB : twoWay?.priceA);
   const ev = complete ? expectedRoi(pWin, price) : null;
   const probEdge = pWin != null && noVig != null ? pWin - noVig : null;
+  const anomaly = evAnomaly({ fair: pWin, pinPrice: price, ev, marketComplete: complete });
   return {
     fair: pWin ?? null,
     fairAmerican: impliedToAmerican(pWin),
@@ -95,8 +116,12 @@ export function priceSelection({ pWin, pinPrice, twoWay, side = "A" }) {
     probEdge: probEdge != null ? probEdge * 100 : null,
     ev,
     evPct: ev != null ? ev * 100 : null,
+    expectedRoiLabel: ev == null ? null : `Expected ROI ${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(1)}%`,
     sharp: "Pinnacle",
     marketComplete: complete,
+    evWarning: anomaly.warning || null,
+    quarantined: Boolean(anomaly.quarantined),
+    quarantineReason: anomaly.reason || null,
   };
 }
 
