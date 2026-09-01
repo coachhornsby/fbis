@@ -100,16 +100,20 @@ export default function App() {
     version: "all",
     type: "perGame",
     team: "",
+    includeAnomalies: "0",
   });
   const [sysTab, setSysTab] = useState("overall");
+  const [cfbWeekShift, setCfbWeekShift] = useState(0);
 
   const refresh = useCallback(async (signal) => {
     setLoading(true);
     setError("");
     setBoardLastAttemptAt(new Date().toISOString());
     try {
+      const slateParams = new URLSearchParams({ sport, _t: String(Date.now()) });
+      if (sport === "cfb") slateParams.set("weekShift", String(cfbWeekShift));
       const [res, trackRes] = await Promise.all([
-        fetch(`/api/slate?sport=${sport}&_t=${Date.now()}`, { signal }),
+        fetch(`/api/slate?${slateParams.toString()}`, { signal }),
         fetch(`/api/track?sport=${sport}&days=2&_t=${Date.now()}`, { signal }).catch(() => null),
       ]);
       const data = await responseJson(res, sport.toUpperCase());
@@ -135,7 +139,11 @@ export default function App() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [sport, slate]);
+  }, [sport, slate, cfbWeekShift]);
+
+  useEffect(() => {
+    if (sport !== "cfb" && cfbWeekShift !== 0) setCfbWeekShift(0);
+  }, [sport, cfbWeekShift]);
 
   const refreshTrack = useCallback(async (signal) => {
     setTrackLoading(true);
@@ -149,6 +157,7 @@ export default function App() {
         version: trackFilters.version,
         model: trackFilters.model,
         type: trackFilters.type,
+        includeAnomalies: trackFilters.includeAnomalies || "0",
         _t: String(Date.now()),
       });
       if (trackFilters.year) q.set("year", trackFilters.year);
@@ -264,7 +273,7 @@ export default function App() {
   }, [refreshToday, tab]);
 
   useEffect(() => {
-    if (tab !== "bets" && tab !== "today" && tab !== "board") return undefined;
+    if (tab !== "bets" && tab !== "today") return undefined;
     const ac = new AbortController();
     refreshBets(ac.signal);
     return () => ac.abort();
@@ -504,6 +513,16 @@ export default function App() {
             <Stat label="Pal" value={palLabel(slate)} />
             <Stat label="Parlay" value={parlayLabel(slate)} />
           </div>
+          {sport === "cfb" ? (
+            <div className="today-controls" style={{ marginTop: 10 }}>
+              <button className="header-btn" onClick={() => setCfbWeekShift((n) => n - 1)}>Previous Week</button>
+              <button className="header-btn" onClick={() => setCfbWeekShift(0)}>Current Week</button>
+              <button className="header-btn" onClick={() => setCfbWeekShift((n) => n + 1)}>Next Week</button>
+              <span className="last-updated" style={{ marginLeft: 8 }}>
+                Week {slate?.week?.number || "—"} · {slate?.week?.range?.since || "—"} to {slate?.week?.range?.until || "—"} CT
+              </span>
+            </div>
+          ) : null}
         </Panel>
 
         <Panel title={`${String(SPORTS[sport]?.label || sport).toUpperCase()} Readiness`}>
@@ -652,7 +671,7 @@ function SportReadinessPanel({ sport, slate }) {
         <Stat label="Qualified" value={qualified} />
       </div>
       <p className="muted" style={{ marginTop: 8 }}>Blocking reasons: {Object.keys(reasons).length ? Object.entries(reasons).map(([k, v]) => `${k} (${v})`).join(" · ") : "none reported"}.</p>
-      {sport === "cfb" ? <p className="muted">CFB weekly schedule view: upcoming-week aggregation is pending; current board reflects selected operator date evidence only.</p> : null}
+      {sport === "cfb" ? <p className="muted">CFB board scope: week {slate?.week?.number || "—"} ({slate?.week?.range?.since || "—"} to {slate?.week?.range?.until || "—"} CT).</p> : null}
     </>
   );
 }

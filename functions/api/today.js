@@ -24,12 +24,12 @@ export async function onRequestGet(context) {
   };
   try {
     const board = await buildTodayBoard(resolved.date, env, { focusSport });
-    const betsQ = await queryExecutedBets(env, { date: resolved.date, includeRaw: false });
-    const withBets = attachMyBetsToBoard(board, betsQ.rows || []);
     const ping = await pingDb(env);
-    const counts = await countToday(env, resolved.date);
+    const betsQ = ping.ok ? await queryExecutedBets(env, { date: resolved.date, includeRaw: false }) : { ok: false, rows: [] };
+    const withBets = attachMyBetsToBoard(board, betsQ.rows || []);
+    const counts = ping.ok ? await countToday(env, resolved.date) : { predictions: null, graded: null, awaiting: null, failedWrites: null, failedHarvests: null };
     const durable = await durableHealth(env);
-    const meta = await readMeta(env);
+    const meta = ping.ok ? await readMeta(env) : {};
     const sourceStatus = buildTodaySourceStatus(board);
     const schedule = scheduledHealth(durable, new Date());
     const writeVerification = writeVerificationState({
@@ -111,6 +111,15 @@ export async function onRequestGet(context) {
       ...withBets,
       health,
       db: { ...ping, ...counts },
+      telemetry: {
+        endpoint: "/api/today",
+        requestCount: 1,
+        queryCountEstimate: ping.ok ? 5 : 1,
+        rowsReadEstimate: ping.ok ? Number((withBets.games || []).length + (betsQ.rows || []).length) : 0,
+        cacheStatus: board?.parlay?.cacheOnly ? "cache-only" : "mixed-live",
+        dateRange: { since: resolved.date, until: resolved.date },
+        lastQuotaFailure: ping.ok ? null : (ping.reason || null),
+      },
       coverage: {
         successfulSports,
         failedSports,

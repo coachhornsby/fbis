@@ -592,11 +592,23 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
       <section id="sys-anomalies" className="panel">
         <div className="panel-header">
           <h2>Historical EV anomalies</h2>
-          <span className="last-updated">{report?.anomalies?.available ? `${report?.anomalies?.count || 0} records` : "Unavailable"}</span>
+          <span className="last-updated">
+            {filters?.includeAnomalies === "1"
+              ? (report?.anomalies?.available ? `${report?.anomalies?.count || 0} records` : "Unavailable")
+              : "Not loaded"}
+          </span>
         </div>
         <div className="panel-body">
+          {filters?.includeAnomalies !== "1" ? (
+            <div style={{ marginBottom: 8 }}>
+              <button className="header-btn" onClick={() => onFilters?.({ includeAnomalies: "1" })}>Load anomaly sample</button>
+              <span className="muted" style={{ marginLeft: 8 }}>Loads bounded anomaly rows only on demand to reduce D1 read usage.</span>
+            </div>
+          ) : null}
           {!report?.anomalies?.available ? (
-            <p className="error">EV anomaly audit unavailable: {report?.anomalies?.blockedReason || "blocked"}</p>
+            <p className="error">
+              EV anomaly audit unavailable: {report?.anomalies?.blockedReason || "blocked"} · migration {report?.anomalies?.migrationStatus || "MIGRATION UNVERIFIED"}.
+            </p>
           ) : (
             <>
               <p className="muted">Counts by reason: {fmtMapSummary(report?.anomalies?.byReason)}</p>

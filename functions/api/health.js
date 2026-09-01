@@ -13,6 +13,10 @@ export async function onRequestGet(context) {
     DB: context.env.DB,
     CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
     CF_PAGES_COMMIT: context.env.CF_PAGES_COMMIT,
+    CF_PAGES_BRANCH: context.env.CF_PAGES_BRANCH,
+    CF_PAGES_URL: context.env.CF_PAGES_URL,
+    CF_PAGES_DEPLOYMENT_ID: context.env.CF_PAGES_DEPLOYMENT_ID,
+    BUILD_TIMESTAMP: context.env.BUILD_TIMESTAMP,
     GITHUB_SHA: context.env.GITHUB_SHA,
     COMMIT_SHA: context.env.COMMIT_SHA,
   };
@@ -51,12 +55,15 @@ export async function onRequestGet(context) {
         },
       ],
     });
+    const schema = await schemaVersion(env, { readOk });
+    const build = buildMeta(context.request, env, schema);
     return json(
       {
         ok: true,
         generatedAt: new Date().toISOString(),
         deploymentCommit: deploymentCommit(env),
         modelVersion: MODEL_VERSION,
+        build,
         state: derived.state,
         d1: {
           bound: Boolean(health.bound),
@@ -82,6 +89,14 @@ export async function onRequestGet(context) {
         checks: derived.checks,
         failures: derived.failures,
         lastJob: health.lastJob || null,
+        telemetry: {
+          endpoint: "/api/health",
+          requestCount: 1,
+          queryCountEstimate: readOk ? 6 : 2,
+          rowsReadEstimate: 1,
+          cacheStatus: "max-age=15",
+          lastQuotaFailure: readOk ? null : (health.lastError || health.source || null),
+        },
       },
       200,
       15
@@ -109,4 +124,41 @@ function json(data, status = 200, maxAge = 15) {
       "access-control-allow-origin": "*",
     },
   });
+}
+
+function buildMeta(request, env, schema) {
+  const host = new URL(request.url).hostname;
+  const first = host.split(".")[0] || "";
+  const deploymentIdFromHost = /^[a-f0-9]{8,}$/i.test(first) ? first : null;
+  const branch = env.CF_PAGES_BRANCH || null;
+  const environment = branch === "main" || host === "fbis-myz.pages.dev" ? "production" : "preview";
+  return {
+    commitSha: deploymentCommit(env),
+    deploymentId: env.CF_PAGES_DEPLOYMENT_ID || deploymentIdFromHost || null,
+    buildTimestamp: env.BUILD_TIMESTAMP || null,
+    environment,
+    branch,
+    pagesUrl: env.CF_PAGES_URL || null,
+    schemaVersion: schema.version,
+    migrationStatus: schema.status,
+    expectedMigration: "0012_ev_audit_records",
+  };
+}
+
+async function schemaVersion(env, { readOk }) {
+  if (!readOk || !env?.DB?.prepare) return { version: null, status: "MIGRATION UNVERIFIED" };
+  try {
+    const row = await env.DB.prepare("SELECT id FROM schema_migrations ORDER BY id DESC LIMIT 1").first();
+    const check = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = '0012_ev_audit_records' LIMIT 1").first();
+    return {
+      version: row?.id || null,
+      status: check?.id ? "VERIFIED" : "MIGRATION UNVERIFIED",
+    };
+  } catch (err) {
+    const msg = String(err?.message || err);
+    return {
+      version: null,
+      status: msg ? `MIGRATION UNVERIFIED (${msg})` : "MIGRATION UNVERIFIED",
+    };
+  }
 }

@@ -174,6 +174,36 @@ export async function onRequestGet(context) {
       { name: "d1-read", ok: readOk, source: durable.source || "d1", detail: durable.lastError || null },
     ],
   });
+  if (!readOk) {
+    return readJson({
+      health: {
+        state: semantic.state,
+        failures: semantic.failures,
+        checks: semantic.checks,
+        lastD1WriteSuccessAt: durable.lastD1WriteSuccessAt || null,
+      },
+      strategy: STRATEGY_HC_V1,
+      reconstruction: {
+        state: "unrecovered",
+        expectedN: EXPECTED_SEED_N,
+        recoveredN: 0,
+        gradedRecord: STRATEGY_HC_V1.reportedRecord,
+        reportedRecord: STRATEGY_HC_V1.reportedRecord,
+      },
+      expectedSeedN: EXPECTED_SEED_N,
+      actualRecoveredN: 0,
+      authoritativeProspective: false,
+      unavailableReason: semantic.failures.map((f) => `${f.name}: ${f.detail || "failed"}`).join(" · "),
+      telemetry: {
+        endpoint: "/api/strategy",
+        requestCount: 1,
+        queryCountEstimate: 1,
+        rowsReadEstimate: 0,
+        cacheStatus: "no-store",
+        lastQuotaFailure: semantic.failures.find((f) => f.name === "d1-read")?.detail || null,
+      },
+    });
+  }
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
   const seed = canonicalSeedTickets(dbSeed);
   const prospectiveRaw = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
@@ -259,6 +289,14 @@ export async function onRequestGet(context) {
         sourceHealth: semantic.state,
         freshness: { lastWriteSuccessAt: durable.lastD1WriteSuccessAt || null },
       }),
+    },
+    telemetry: {
+      endpoint: "/api/strategy",
+      requestCount: 1,
+      queryCountEstimate: 4,
+      rowsReadEstimate: Number(seedPresented.length + prospective.length + gameIds.length),
+      cacheStatus: "no-store",
+      lastQuotaFailure: null,
     },
   });
 }

@@ -1498,6 +1498,42 @@ export async function queryStrategyTickets(env, { strategyId, role } = {}) {
   }
 }
 
+export async function queryStrategyTicketsPaged(env, { strategyId, role, cursor = null, limit = 200 } = {}) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [], nextCursor: null };
+  const max = Math.max(1, Math.min(500, Number(limit) || 200));
+  try {
+    let sql = "SELECT * FROM strategy_tickets WHERE 1=1";
+    const binds = [];
+    if (strategyId) {
+      sql += " AND strategy_id = ?";
+      binds.push(strategyId);
+    }
+    if (role) {
+      sql += " AND role = ?";
+      binds.push(role);
+    }
+    if (cursor?.createdAt && cursor?.id) {
+      sql += " AND (created_at < ? OR (created_at = ? AND id < ?))";
+      binds.push(cursor.createdAt, cursor.createdAt, cursor.id);
+    }
+    sql += " ORDER BY created_at DESC, id DESC LIMIT ?";
+    binds.push(max);
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    markRead();
+    const rows = (res.results || []).map(mapStrategyTicket);
+    const last = rows.at(-1);
+    return {
+      ok: true,
+      rows,
+      nextCursor: rows.length === max && last ? { createdAt: last.createdAt || null, id: last.id } : null,
+    };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), rows: [], nextCursor: null };
+  }
+}
+
 export async function persistEvAuditRecords(env, records = []) {
   markBound(env);
   if (!hasDb(env) || !records.length) return { ok: false, reason: hasDb(env) ? "no-records" : "unbound", inserted: 0 };

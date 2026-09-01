@@ -766,7 +766,11 @@ export async function fetchEspnScoreboard(sport, date) {
   const stamp = dateStamp(date);
   const url = `https://site.api.espn.com/apis/site/v2/sports/${cfg.espn}/scoreboard?dates=${stamp}&limit=300`;
   try {
-    const res = await fetch(url, {
+    return await fetchJsonGuarded(url, {
+      circuitKey: `espn-site:${sport}`,
+      label: `ESPN ${cfg.label}`,
+      retries: 1,
+      timeoutMs: 9000,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
@@ -775,25 +779,88 @@ export async function fetchEspnScoreboard(sport, date) {
         Referer: "https://www.espn.com/",
         Origin: "https://www.espn.com",
       },
+      shapeCheck: (json) => Array.isArray(json?.events),
     });
-    if (res.ok) return res.json();
-    if (sport !== "cfb") throw new Error(`ESPN ${cfg.label} ${res.status}`);
   } catch (err) {
     if (sport !== "cfb") throw err;
   }
   // CFB-specific fallback: site.api is intermittently geo/edge-blocked; cdn endpoint stays public.
   const fallback = `https://cdn.espn.com/core/college-football/scoreboard?xhr=1&dates=${stamp}&limit=300`;
-  const fb = await fetch(fallback, {
+  const json = await fetchJsonGuarded(fallback, {
+    circuitKey: "espn-cfb-cdn",
+    label: `ESPN ${cfg.label}`,
+    retries: 1,
+    timeoutMs: 9000,
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
       Accept: "application/json,text/plain,*/*",
       Referer: "https://www.espn.com/",
     },
+    shapeCheck: (body) => Array.isArray(body?.events) || Array.isArray(body?.content?.sbData?.events),
   });
-  if (!fb.ok) throw new Error(`ESPN ${cfg.label} ${fb.status}`);
-  const json = await fb.json();
   return { ...(json || {}), events: json?.events || json?.content?.sbData?.events || [] };
+}
+
+const CIRCUIT = new Map();
+
+function openCircuit(key, reason, ms = 120000) {
+  CIRCUIT.set(key, { openedUntil: Date.now() + ms, reason });
+}
+
+function circuitBlocked(key) {
+  const row = CIRCUIT.get(key);
+  if (!row) return null;
+  if (Date.now() > Number(row.openedUntil || 0)) {
+    CIRCUIT.delete(key);
+    return null;
+  }
+  return row;
+}
+
+async function fetchJsonGuarded(url, { circuitKey, label, retries = 0, timeoutMs = 9000, headers = {}, shapeCheck = null } = {}) {
+  const blocked = circuitKey ? circuitBlocked(circuitKey) : null;
+  if (blocked) throw new Error(`${label} circuit-open: ${blocked.reason}`);
+  let lastErr = null;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(`timeout:${timeoutMs}`), timeoutMs);
+    try {
+      const res = await fetch(url, { headers, signal: ac.signal });
+      const ct = String(res.headers.get("content-type") || "");
+      if (res.status === 403) {
+        if (circuitKey) openCircuit(circuitKey, "403", 180000);
+        throw new Error(`${label} 403`);
+      }
+      if (res.status === 429 || res.status >= 500) throw new Error(`${label} ${res.status}`);
+      if (!res.ok) throw new Error(`${label} ${res.status}`);
+      if (!ct.includes("application/json")) {
+        const txt = await res.text();
+        if (circuitKey) openCircuit(circuitKey, "non-json-response", 180000);
+        throw new Error(`${label} non-json content-type (${ct || "none"}): ${txt.slice(0, 60)}`);
+      }
+      const txt = await res.text();
+      let json = {};
+      try {
+        json = txt ? JSON.parse(txt) : {};
+      } catch {
+        if (circuitKey) openCircuit(circuitKey, "malformed-json", 180000);
+        throw new Error(`${label} malformed-json`);
+      }
+      if (shapeCheck && !shapeCheck(json)) throw new Error(`${label} invalid-json-shape`);
+      return json;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) await waitMs(300 * (attempt + 1));
+    } finally {
+      clearTimeout(tid);
+    }
+  }
+  throw lastErr || new Error(`${label} unavailable`);
+}
+
+function waitMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 
@@ -949,53 +1016,7 @@ async function fetchCfbdGamesForDate(day, apiKey) {
       const start = g.startDate || g.start_date;
       return ymdCtForIso(start) === day || String(start || "").slice(0, 10) === day;
     })
-    .map((g) =>
-      attachMarketLabels(
-        enrichGameTeams("cfb", {
-          id: String(g.id),
-          sport: "cfb",
-          start: g.startDate || g.start_date || null,
-          status: {
-            state: g.completed ? "post" : "pre",
-            detail: g.completed ? "Final" : "Scheduled",
-            completed: Boolean(g.completed),
-            live: false,
-            postponed: false,
-            canceled: false,
-            suspended: false,
-          },
-          home: {
-            name: g.homeTeam || "Home",
-            abbr: inferAbbr(g.homeTeam || ""),
-            logo: "",
-            score: num(g.homePoints),
-            rank: null,
-            record: "",
-          },
-          away: {
-            name: g.awayTeam || "Away",
-            abbr: inferAbbr(g.awayTeam || ""),
-            logo: "",
-            score: num(g.awayPoints),
-            rank: null,
-            record: "",
-          },
-          odds: { spread: null, total: null, homeMl: null, awayMl: null, details: "", book: EXECUTION_BOOK },
-          espnHomeWinPct: null,
-          projHomeScore: null,
-          projAwayScore: null,
-          marketProjHome: null,
-          marketProjAway: null,
-          projectionKind: "UNAVAILABLE",
-          venue: g.venue || "",
-          broadcast: "",
-          notes: [],
-          week: num(g.week),
-          neutralSite: Boolean(g.neutralSite),
-          conference: null,
-        })
-      )
-    );
+    .map((g) => mapCfbdGame(g));
 }
 
 export async function findNextCfbdGameDate(fromDay, apiKey, maxFutureDays = 14) {
@@ -1013,6 +1034,89 @@ export async function findNextCfbdGameDate(fromDay, apiKey, maxFutureDays = 14) 
     if (!best || ymd < best) best = ymd;
   }
   return best;
+}
+
+export async function fetchCfbdGamesForWeek(anchorDay, apiKey, weekShift = 0) {
+  const year = Number(String(anchorDay).slice(0, 4));
+  const rows = await fetchCfbdGamesSeason(year, apiKey);
+  const list = Array.isArray(rows) ? rows : [];
+  const anchorMs = Date.parse(`${anchorDay}T00:00:00Z`);
+  const weeks = [...new Set(list.map((g) => Number(g.week)).filter((w) => Number.isFinite(w) && w > 0))].sort((a, b) => a - b);
+  if (!weeks.length) return { week: null, range: null, games: [] };
+  let baseIndex = 0;
+  for (let i = 0; i < weeks.length; i += 1) {
+    const w = weeks[i];
+    const weekRows = list.filter((g) => Number(g.week) === w);
+    const hasFuture = weekRows.some((g) => {
+      const ymd = ymdCtForIso(g.startDate || g.start_date);
+      const ms = Date.parse(`${ymd}T00:00:00Z`);
+      return Number.isFinite(ms) && ms >= anchorMs - 86400000;
+    });
+    if (hasFuture) {
+      baseIndex = i;
+      break;
+    }
+  }
+  const idx = Math.max(0, Math.min(weeks.length - 1, baseIndex + Number(weekShift || 0)));
+  const selectedWeek = weeks[idx];
+  const weekRows = list.filter((g) => Number(g.week) === selectedWeek);
+  const days = weekRows
+    .map((g) => ymdCtForIso(g.startDate || g.start_date))
+    .filter(Boolean)
+    .sort();
+  return {
+    week: selectedWeek,
+    range: days.length ? { since: days[0], until: days[days.length - 1] } : null,
+    games: weekRows.map((g) => mapCfbdGame(g)),
+  };
+}
+
+function mapCfbdGame(g) {
+  return attachMarketLabels(
+    enrichGameTeams("cfb", {
+      id: String(g.id),
+      sport: "cfb",
+      start: g.startDate || g.start_date || null,
+      status: {
+        state: g.completed ? "post" : "pre",
+        detail: g.completed ? "Final" : "Scheduled",
+        completed: Boolean(g.completed),
+        live: false,
+        postponed: false,
+        canceled: false,
+        suspended: false,
+      },
+      home: {
+        name: g.homeTeam || "Home",
+        abbr: inferAbbr(g.homeTeam || ""),
+        logo: "",
+        score: num(g.homePoints),
+        rank: null,
+        record: "",
+      },
+      away: {
+        name: g.awayTeam || "Away",
+        abbr: inferAbbr(g.awayTeam || ""),
+        logo: "",
+        score: num(g.awayPoints),
+        rank: null,
+        record: "",
+      },
+      odds: { spread: null, total: null, homeMl: null, awayMl: null, details: "", book: EXECUTION_BOOK },
+      espnHomeWinPct: null,
+      projHomeScore: null,
+      projAwayScore: null,
+      marketProjHome: null,
+      marketProjAway: null,
+      projectionKind: "UNAVAILABLE",
+      venue: g.venue || "",
+      broadcast: "",
+      notes: [],
+      week: num(g.week),
+      neutralSite: Boolean(g.neutralSite),
+      conference: null,
+    })
+  );
 }
 
 export function slimFinal(game) {
@@ -1092,7 +1196,7 @@ export async function buildSlate(sport, date, env = {}) {
   const id = SPORTS[sport] ? sport : "cbb";
   const cfg = SPORTS[id];
   const day = date || todayCT();
-  let games = [];
+  let games = Array.isArray(env.prefetchedGames) ? env.prefetchedGames.slice() : [];
 
   if (id === "mlb") {
     try {

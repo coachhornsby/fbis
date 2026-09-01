@@ -331,6 +331,43 @@ describe("CFB projection recipe", () => {
 });
 
 describe("ESPN scoreboard fallback", () => {
+  it("rejects HTML responses as non-JSON", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response("<html>challenge</html>", { status: 200, headers: { "content-type": "text/html" } });
+    try {
+      await assert.rejects(() => fetchEspnScoreboard("nfl", "2026-09-03"), /non-json content-type/);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("retries once on transient 500 and then fails", async () => {
+    const realFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ error: "upstream" }), { status: 500, headers: { "content-type": "application/json" } });
+    };
+    try {
+      await assert.rejects(() => fetchEspnScoreboard("nba", "2026-09-03"), /ESPN NBA 500/);
+      assert.ok(calls >= 2);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("fails fast on malformed JSON payload", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response("{bad", { status: 200, headers: { "content-type": "application/json" } });
+    try {
+      await assert.rejects(() => fetchEspnScoreboard("nba", "2026-09-03"), /malformed-json/);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
   it("falls back to CDN CFB scoreboard when site API is blocked", async () => {
     const realFetch = globalThis.fetch;
     const calls = [];

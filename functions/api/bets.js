@@ -22,6 +22,7 @@ import {
   queryStrategyTickets,
   queryOddsSnapshots,
   hasDb,
+  pingDb,
 } from "../lib/store.js";
 import { authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 import { durableHealth, scheduledHealth } from "../lib/jobs.js";
@@ -42,7 +43,10 @@ function json(data, status = 200, extra = {}) {
 export async function handleBetsGet(env, url) {
   const date = url.searchParams.get("date") || "";
   const sport = url.searchParams.get("sport") || "";
-  const q = await queryExecutedBets(env, { date: date || undefined, sport: sport || undefined, includeRaw: false });
+  const ping = await pingDb(env);
+  const q = ping.ok
+    ? await queryExecutedBets(env, { date: date || undefined, sport: sport || undefined, includeRaw: false })
+    : { ok: false, reason: ping.reason || "d1-unavailable", rows: [] };
   const rows = q.rows || [];
   const durable = await durableHealth(env);
   const schedule = scheduledHealth(durable, new Date());
@@ -121,6 +125,15 @@ export async function handleBetsGet(env, url) {
       write: "same-origin board, or header x-strategy-secret / x-harvest-secret",
       session: false,
       limitation: "Confirm from the FBIS site does not paste HARVEST_SECRET. Collect and strategy POST still require the Pages secret. Parse/preview does not write.",
+    },
+    telemetry: {
+      endpoint: "/api/bets",
+      requestCount: 1,
+      queryCountEstimate: ping.ok ? 3 : 1,
+      rowsReadEstimate: (rows || []).length,
+      dateRange: date ? { since: date, until: date } : { since: null, until: null },
+      cacheStatus: "no-store",
+      lastQuotaFailure: ping.ok ? null : (ping.reason || null),
     },
   };
 }

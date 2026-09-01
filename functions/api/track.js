@@ -1,5 +1,5 @@
 import { buildTrackReport } from "../lib/projLedger.js";
-import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords } from "../lib/store.js";
+import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, queryStrategyTicketsPaged, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords, setMeta } from "../lib/store.js";
 import { settleExecutedBet } from "../lib/executedBets.js";
 import { gradeStrategyResult } from "../lib/strategy.js";
 import { resolveFinalForTicket } from "../lib/projLedger.js";
@@ -37,8 +37,32 @@ function isFutureStart(value, nowMs = Date.now()) {
   return ts > nowMs + 5 * 60 * 1000;
 }
 
-async function runEvAudit(env) {
-  const tickets = await queryStrategyTickets(env, {});
+async function verifyEvAuditMigration(env) {
+  if (!env?.DB?.prepare) return { ok: false, status: "MIGRATION UNVERIFIED", reason: "D1 unbound" };
+  try {
+    const mig = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = '0012_ev_audit_records' LIMIT 1").first();
+    if (!mig?.id) return { ok: false, status: "MIGRATION UNVERIFIED", reason: "schema_migrations missing 0012_ev_audit_records" };
+    await env.DB.prepare("SELECT id FROM ev_audit_records LIMIT 1").all();
+    return { ok: true, status: "VERIFIED", reason: null };
+  } catch (err) {
+    return { ok: false, status: "MIGRATION UNVERIFIED", reason: String(err?.message || err) };
+  }
+}
+
+async function runEvAudit(env, payload = {}) {
+  const migration = await verifyEvAuditMigration(env);
+  if (!migration.ok) {
+    return {
+      ok: false,
+      status: 409,
+      error: `EV audit persistence blocked: ${migration.status}. ${migration.reason || ""}`.trim(),
+    };
+  }
+  const limit = Math.max(10, Math.min(200, Number(payload.limit) || 100));
+  const cursor = payload.cursor && payload.cursor.id && payload.cursor.createdAt ? payload.cursor : null;
+  const page = await queryStrategyTicketsPaged(env, { strategyId: "FBIS-HC-v1", role: "prospective", cursor, limit });
+  if (!page.ok) return { ok: false, status: 502, error: page.reason || "strategy query failed" };
+  const tickets = page.rows || [];
   const anomalies = [];
   for (const t of tickets || []) {
     const audit = auditTicketEv(t);
@@ -66,6 +90,10 @@ async function runEvAudit(env) {
     }
   }
   const persisted = await persistEvAuditRecords(env, anomalies);
+  const nextCursor = page.nextCursor || null;
+  const complete = !nextCursor;
+  await setMeta(env, "ev_audit_last_cursor", nextCursor ? JSON.stringify(nextCursor) : "");
+  await setMeta(env, "ev_audit_last_run_at", new Date().toISOString());
   return {
     ok: true,
     status: 200,
@@ -75,6 +103,9 @@ async function runEvAudit(env) {
       anomalies: anomalies.length,
       byReason: summarizeEvAudits(anomalies.map((a) => ({ anomalyReason: a.anomalyReason }))),
       persisted: persisted.inserted || 0,
+      nextCursor,
+      complete,
+      limit,
     },
   };
 }
@@ -248,7 +279,9 @@ export async function onRequestGet(context) {
   const type = url.searchParams.get("type") || "perGame";
   const year = url.searchParams.get("year") || "";
   const team = url.searchParams.get("team") || "";
+  const includeAnomalies = url.searchParams.get("includeAnomalies") === "1";
   try {
+    const migration = await verifyEvAuditMigration({ DB: context.env.DB });
     const payload = await buildTrackReport(
       sport,
       days,
@@ -341,12 +374,19 @@ export async function onRequestGet(context) {
     payload.authoritative = {
       accuracy: semantic.state === "HEALTHY",
       strategy: semantic.state === "HEALTHY",
-      anomalies: semantic.state === "HEALTHY",
+      anomalies: includeAnomalies && semantic.state === "HEALTHY",
     };
-    const auditQ = await queryEvAuditRecords({ DB: context.env.DB }, { limit: 500 });
+    const auditQ = includeAnomalies
+      ? await queryEvAuditRecords({ DB: context.env.DB }, { limit: 200 })
+      : { ok: false, reason: "not-requested", rows: [] };
     payload.anomalies = {
-      available: auditQ.ok,
-      blockedReason: auditQ.ok ? null : auditQ.reason || "unavailable",
+      migrationStatus: migration.status,
+      available: includeAnomalies && auditQ.ok && migration.ok,
+      blockedReason: !includeAnomalies
+        ? "not-requested"
+        : migration.ok
+          ? (auditQ.ok ? null : auditQ.reason || "unavailable")
+          : migration.reason || "MIGRATION UNVERIFIED",
       count: (auditQ.rows || []).length,
       byReason: summarizeEvAudits((auditQ.rows || []).map((r) => ({ anomalyReason: r.anomaly_reason || r.anomalyReason }))),
       rows: (auditQ.rows || []).slice(0, 50).map((r) => ({
@@ -364,6 +404,16 @@ export async function onRequestGet(context) {
         enteredStrategy: Boolean(r.entered_strategy),
         createdAt: r.created_at,
       })),
+    };
+    payload.telemetry = {
+      endpoint: "/api/track",
+      requestCount: 1,
+      queryCountEstimate: includeAnomalies ? 8 : 6,
+      rowsReadEstimate: Number((payload.games || []).length) + Number((payload.finals || []).length) + Number((auditQ.rows || []).length),
+      cacheStatus: payload.source || "unknown",
+      dateRange: payload?.accuracySummary?.dateRange || null,
+      paginationCursor: includeAnomalies ? null : "anomalies-not-requested",
+      lastQuotaFailure: db.lastError || null,
     };
     return new Response(JSON.stringify(payload), {
       headers: {
@@ -397,7 +447,7 @@ export async function onRequestPost(context) {
       action === "cleanup-future-grades"
         ? await cleanupFutureGrades({ DB: context.env.DB })
         : action === "audit-ev"
-          ? await runEvAudit({ DB: context.env.DB })
+          ? await runEvAudit({ DB: context.env.DB }, body)
           : await applyManualFinal({ DB: context.env.DB }, body);
     if (!result.ok) return json({ ok: false, error: result.error || "failed" }, result.status || 400);
     return json(result.body, 200);

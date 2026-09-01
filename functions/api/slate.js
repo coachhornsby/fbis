@@ -1,10 +1,11 @@
-import { buildSlate, resolveSlateDate, findNextCfbdGameDate } from "../lib/slateEngine.js";
+import { buildSlate, resolveSlateDate, findNextCfbdGameDate, fetchCfbdGamesForWeek } from "../lib/slateEngine.js";
 import { compactMlbSlatePayload } from "../lib/propConviction.js";
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const sport = url.searchParams.get("sport") || "mlb";
   const rawDate = url.searchParams.get("date") || "";
+  const weekShift = Number(url.searchParams.get("weekShift") || 0);
   const resolved = resolveSlateDate(rawDate, slateDateWindowForSport(sport));
   if (rawDate && !resolved.ok) {
     return json({ error: resolved.error, games: [], ticker: [], counts: {} }, 400, 10);
@@ -19,6 +20,21 @@ export async function onRequestGet(context) {
   };
   try {
     let payload = await buildSlate(sport, resolved.date, env);
+    if (sport === "cfb" && env.CFBD_API_KEY) {
+      const weekly = await fetchCfbdGamesForWeek(resolved.date, env.CFBD_API_KEY, weekShift);
+      if ((weekly.games || []).length) {
+        payload = await buildSlate(sport, resolved.date, {
+          ...env,
+          prefetchedGames: weekly.games,
+        });
+        payload.week = {
+          mode: "cfb-week",
+          shift: weekShift,
+          number: weekly.week,
+          range: weekly.range,
+        };
+      }
+    }
     if (!rawDate && sport === "cfb" && payload.games?.length === 0 && env.CFBD_API_KEY) {
       const nextDate = await findNextCfbdGameDate(resolved.date, env.CFBD_API_KEY, 14);
       if (nextDate && nextDate !== resolved.date) {
