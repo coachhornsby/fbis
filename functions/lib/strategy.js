@@ -265,10 +265,14 @@ export function strategyStats(tickets) {
   };
 }
 
-function prospectiveIdentity(t) {
+function normalizedMatchup(t) {
+  return String(t.matchup || "").toLowerCase().replace(/[^a-z0-9@]+/g, " ").trim();
+}
+
+function prospectiveIdentity(t, cfbMatchupByGame = new Map()) {
   const line = t.executionLine ?? t.line ?? "";
   const sport = t.sport || "";
-  const matchup = String(t.matchup || "").toLowerCase().replace(/[^a-z0-9@]+/g, " ").trim();
+  const matchup = sport === "cfb" ? (cfbMatchupByGame.get(String(t.gameId || "")) || normalizedMatchup(t)) : normalizedMatchup(t);
   const season = String(t.date || "").slice(0, 4);
   // Early CFB discovery used a stable synthetic id before ESPN supplied its event id.
   // A season+matchup bridge joins those identities without collapsing MLB series games.
@@ -278,9 +282,16 @@ function prospectiveIdentity(t) {
 
 /** One strategy observation per game/market/side. Collection retries and date-window scans are not new bets. */
 export function partitionProspectiveTickets(tickets = [], today = dateCT(new Date().toISOString())) {
+  const cfbMatchupByGame = new Map();
+  for (const t of tickets) {
+    if (t.sport !== "cfb" || !t.gameId) continue;
+    const matchup = normalizedMatchup(t);
+    const prior = cfbMatchupByGame.get(String(t.gameId));
+    if (matchup.length > String(prior || "").length) cfbMatchupByGame.set(String(t.gameId), matchup);
+  }
   const groups = new Map();
   for (const ticket of tickets) {
-    const key = prospectiveIdentity(ticket);
+    const key = prospectiveIdentity(ticket, cfbMatchupByGame);
     const prior = groups.get(key);
     const settled = ticket.result && ticket.result !== "OPEN";
     const priorSettled = prior?.result && prior.result !== "OPEN";
