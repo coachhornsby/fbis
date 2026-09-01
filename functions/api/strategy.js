@@ -14,7 +14,7 @@ import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStra
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
 import { resolveTeam } from "../lib/teams.js";
 import { resolveFinalForTicket } from "../lib/projLedger.js";
-import { fetchResults, todayCT } from "../lib/slateEngine.js";
+import { fetchResultsForReconcile, todayCT } from "../lib/slateEngine.js";
 
 const SPORT_ORDER = ["mlb", "nba", "nfl", "cfb", "cbb", "other"];
 const SPORT_LABEL = { mlb: "MLB", nba: "NBA", nfl: "NFL", cfb: "CFB", cbb: "CBB", other: "Other" };
@@ -145,7 +145,7 @@ async function reconcileOpenStrategyGrades(env) {
   const fetched = await Promise.all(
     [...bySportDate.values()].map(async ({ sport, date }) => {
       try {
-        const rowsForDay = await fetchResults(sport, date);
+        const rowsForDay = await fetchResultsForReconcile(sport, date, { cfbdApiKey: env.CFBD_API_KEY });
         return (rowsForDay || []).filter((g) => g?.status?.completed);
       } catch {
         return [];
@@ -165,7 +165,7 @@ async function reconcileOpenStrategyGrades(env) {
 }
 
 export async function onRequestGet(context) {
-  const env = { DB: context.env.DB };
+  const env = { DB: context.env.DB, CFBD_API_KEY: context.env.CFBD_API_KEY };
   await freezeCanonicalSeed(env);
   await reconcileOpenStrategyGrades(env);
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });

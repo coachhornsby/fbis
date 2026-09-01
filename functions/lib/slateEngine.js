@@ -1042,6 +1042,22 @@ export async function fetchResults(sport, date) {
   return (json.events || []).map((ev) => slimFinal(mapEvent(id, ev)));
 }
 
+export async function fetchResultsForReconcile(sport, date, opts = {}) {
+  try {
+    return await fetchResults(sport, date);
+  } catch (err) {
+    if (sport === "cfb" && opts.cfbdApiKey) {
+      try {
+        const games = await fetchCfbdGamesForDate(date || todayCT(), opts.cfbdApiKey);
+        return games.map(slimFinal);
+      } catch {
+        /* fall through to original error */
+      }
+    }
+    throw err;
+  }
+}
+
 export function dataQuality(sport, game) {
   const flags = [];
   if (game.odds?.pinPresent === false || (game.pin?.ml && !game.pin.ml.complete)) flags.push("incomplete_pin_ml");
