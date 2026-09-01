@@ -79,7 +79,7 @@ export async function handleBetsGet(env, url) {
       binding: hasDb(env) ? "bound" : "unbound",
       read: readOk ? "healthy" : "failed",
       write: writeOk ? "healthy" : "degraded",
-      source: durable.source || (hasDb(env) ? "d1" : "unbound"),
+      source: readOk ? "d1" : (durable.source || (hasDb(env) ? "d1" : "unbound")),
       lastSuccessfulReadAt: durable.lastCollectSuccessAt || null,
       lastSuccessfulWriteAt: durable.lastD1WriteSuccessAt || null,
       failedWrites: Number(durable.failedWrites || 0),
