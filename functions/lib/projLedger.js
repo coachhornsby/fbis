@@ -514,6 +514,10 @@ function ctDateDiffDays(a, b) {
   return Math.abs(Math.round((da - db) / 86400000));
 }
 
+function sameFinalScore(a, b) {
+  return Number(a?.homeScore) === Number(b?.homeScore) && Number(a?.awayScore) === Number(b?.awayScore);
+}
+
 export function resolveFinalForTicket(ticket, finals = []) {
   const t = ticketToMatchRef(ticket);
   const rawCandidates = (finals || [])
@@ -554,6 +558,18 @@ export function resolveFinalForTicket(ticket, finals = []) {
     if (withDate.length && withDate[0].d < Infinity) {
       const nearest = withDate.filter((x) => x.d === withDate[0].d).map((x) => x.f);
       if (nearest.length === 1) {
+        const hit = nearest[0];
+        return {
+          id: hit.id,
+          sport: hit.sport,
+          date: hit.date,
+          start: hit.start,
+          home: { name: hit.homeName, abbr: hit.homeAbbr, score: Number(hit.homeScore) },
+          away: { name: hit.awayName, abbr: hit.awayAbbr, score: Number(hit.awayScore) },
+          status: { completed: true, detail: "Final" },
+        };
+      }
+      if (nearest.length > 1 && nearest.every((x) => sameFinalScore(x, nearest[0]))) {
         const hit = nearest[0];
         return {
           id: hit.id,

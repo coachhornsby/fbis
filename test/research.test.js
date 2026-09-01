@@ -140,6 +140,36 @@ describe("strategy grading final resolution", () => {
     ]);
     assert.equal(resolved, null);
   });
+
+  it("allows duplicate candidates when final score is identical", () => {
+    const ticket = {
+      sport: "cfb",
+      date: "2026-08-29",
+      gameId: "synthetic",
+      matchup: "Memphis Tigers @ UNLV Rebels",
+    };
+    const resolved = resolveFinalForTicket(ticket, [
+      {
+        id: "id-a",
+        sport: "cfb",
+        date: "2026-08-29",
+        home: { name: "UNLV Rebels", abbr: "UNLV", score: 21 },
+        away: { name: "Memphis Tigers", abbr: "MEM", score: 27 },
+        status: { completed: true, detail: "Final" },
+      },
+      {
+        id: "id-b",
+        sport: "cfb",
+        date: "2026-08-29",
+        home: { name: "UNLV Rebels", abbr: "UNLV", score: 21 },
+        away: { name: "Memphis Tigers", abbr: "MEM", score: 27 },
+        status: { completed: true, detail: "Final" },
+      },
+    ]);
+    assert.ok(resolved);
+    assert.equal(resolved.home.score, 21);
+    assert.equal(resolved.away.score, 27);
+  });
 });
 
 describe("CFB score identity", () => {
