@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fmtAmerican, fmtPct, fmtSigned, formatMarketPeriod, formatClv } from "./lib/format.js";
 import { TicketMatchup } from "./components/TeamLogo.jsx";
+import useIsCompact from "./hooks/useIsCompact.js";
 
 const RESULT_FILTERS = [
   ["all", "All results"],
@@ -26,6 +27,7 @@ export default function MyBetsView({ onImport, bets: external, summary: external
   const [result, setResult] = useState("all");
   const [attr, setAttr] = useState("all");
   const [sport, setSport] = useState("all");
+  const compact = useIsCompact(760);
 
   useEffect(() => {
     if (external) {
@@ -107,6 +109,38 @@ export default function MyBetsView({ onImport, bets: external, summary: external
         <div className="panel-body" style={{ padding: 0 }}>
           {!shown.length ? (
             <div className="empty">No imported Heritage bets in this filter.</div>
+          ) : compact ? (
+            <div className="mobile-card-list">
+              {shown.map((b) => (
+                <article key={b.id} className="mobile-card">
+                  <div className="mobile-card-head">
+                    <b>{b.externalTicketId}</b>
+                    <span className={b.result === "WON" ? "text-green" : b.result === "LOST" ? "text-red" : "muted"}>{b.result || "OPEN"}</span>
+                  </div>
+                  <div className="muted">{b.date}</div>
+                  <div style={{ marginTop: 6 }}>
+                    <TicketMatchup
+                      awayIdentity={b.awayIdentity}
+                      homeIdentity={b.homeIdentity}
+                      awayTeam={b.awayTeam}
+                      homeTeam={b.homeTeam}
+                      matchupText={b.matchupText}
+                    />
+                  </div>
+                  <div className="mobile-kv-grid" style={{ marginTop: 8 }}>
+                    <div><small>Market</small><b>{formatMarketPeriod(b.market, b.period)}</b></div>
+                    <div><small>Side</small><b>{b.selectedTeam || b.selectedSide || "—"}{b.executionLine != null ? ` ${b.executionLine}` : ""}</b></div>
+                    <div><small>Price</small><b>{fmtAmerican(b.executionPrice)}</b></div>
+                    <div><small>Risk</small><b>${Number(b.riskAmount || 0).toFixed(2)}</b></div>
+                    <div><small>P/L</small><b>{b.profit == null ? "—" : fmtSigned(b.profit, 2)}</b></div>
+                    <div><small>CLV</small><b>{formatClv(b.clv, b.clvStatus)}</b></div>
+                  </div>
+                  <div className="muted" style={{ marginTop: 8 }}>
+                    {b.attributionLabel || "OPERATOR BET · NOT ATTRIBUTED TO FBIS"} · {b.matchStatus}
+                  </div>
+                </article>
+              ))}
+            </div>
           ) : (
             <div className="table-scroll">
             <table className="fbis-table">

@@ -2,6 +2,7 @@ import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { CHECKPOINT_OPTIONS } from "../functions/lib/checkpoints.js";
 import { fmtNum, fmtPct, fmtSigned, fmtMetric as fmtMetricN0 } from "./lib/format.js";
 import { useEffect, useState } from "react";
+import useIsCompact from "./hooks/useIsCompact.js";
 
 const PERIODS = [
   ["7", "Last 7"],
@@ -55,6 +56,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
   const [manualSavingKey, setManualSavingKey] = useState("");
   const [manualMsg, setManualMsg] = useState("");
   const [teamInput, setTeamInput] = useState(filters?.team || "");
+  const compact = useIsCompact(760);
   const [openPanels, setOpenPanels] = useState({
     model: true,
     guide: false,
@@ -659,7 +661,52 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
                 <h3 className="subhead" style={{ margin: "12px 12px 4px" }}>
                   {group.label} · {group.rows.length}
                 </h3>
-                <div className="table-scroll"><table className="fbis-table">
+                {compact ? (
+                  <div className="mobile-card-list">
+                    {(group.rows || []).slice(0, 80).map((g) => (
+                      <article key={rowKey(g)} className="mobile-card">
+                        <div className="mobile-card-head">
+                          <b>{canonicalMatchup(g)}</b>
+                          <span className="muted">{g.status}</span>
+                        </div>
+                        <div className="muted">{g.date} · {g.checkpoint || "—"}</div>
+                        <div className="mobile-kv-grid" style={{ marginTop: 8 }}>
+                          <div><small>FBIS</small><b>{fmtNum(g.projAway)} – {fmtNum(g.projHome)}</b></div>
+                          <div><small>Pal</small><b>{g.palAway != null ? `${fmtNum(g.palAway)} – ${fmtNum(g.palHome)}` : "—"}</b></div>
+                          <div><small>Actual</small><b>{g.actualHome == null ? "—" : `${fmtNum(g.actualAway, 0)} – ${fmtNum(g.actualHome, 0)}`}</b></div>
+                          <div><small>Δ total</small><b className={errClass(g.errTotal)}>{fmtSigned(g.errTotal)}</b></div>
+                          <div><small>Δ margin</small><b className={errClass(g.errMargin)}>{fmtSigned(g.errMargin)}</b></div>
+                        </div>
+                        {g.actualHome == null ? (
+                          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 10 }}>
+                            <input
+                              value={(manualFinalByRow[rowKey(g)] || {}).away || ""}
+                              onChange={(e) => setManualField(rowKey(g), "away", e.target.value)}
+                              placeholder="Away"
+                              inputMode="numeric"
+                              style={{ width: 72, background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 8px", fontSize: 12 }}
+                            />
+                            <input
+                              value={(manualFinalByRow[rowKey(g)] || {}).home || ""}
+                              onChange={(e) => setManualField(rowKey(g), "home", e.target.value)}
+                              placeholder="Home"
+                              inputMode="numeric"
+                              style={{ width: 72, background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 8px", fontSize: 12 }}
+                            />
+                            <button
+                              className="header-btn header-btn-refresh"
+                              onClick={() => saveManualFinal(g)}
+                              disabled={manualSavingKey === rowKey(g)}
+                              style={{ padding: "8px 10px", fontSize: 12 }}
+                            >
+                              {manualSavingKey === rowKey(g) ? "Saving…" : "Save"}
+                            </button>
+                          </div>
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                ) : <div className="table-scroll"><table className="fbis-table">
                   <thead>
                     <tr>
                       <th>Date</th>
@@ -719,7 +766,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
                       </tr>
                     ))}
                   </tbody>
-                </table></div>
+                </table></div>}
               </div>
             ))
           )}
@@ -1120,6 +1167,28 @@ function TraitLine({ traits }) {
 
 function TicketTable({ rows, empty }) {
   if (!rows.length) return <div className="empty">{empty}</div>;
+  const compact = useIsCompact(760);
+  if (compact) {
+    return (
+      <div className="mobile-card-list">
+        {rows.map((t) => (
+          <article key={t.id} className="mobile-card">
+            <div className="mobile-card-head">
+              <b>{canonicalMatchup(t)}</b>
+              <span className={t.result === "WON" ? "text-green" : t.result === "LOST" ? "text-red" : "muted"}>{t.result || "OPEN"}</span>
+            </div>
+            <div className="muted">{t.date}</div>
+            <div className="mobile-kv-grid" style={{ marginTop: 8 }}>
+              <div><small>Market</small><b>{t.market} {t.side}</b></div>
+              <div><small>Pick</small><b>{t.pick}</b></div>
+              <div><small>EV</small><b>{fmtPct(t.ev)}</b></div>
+              <div><small>Tag</small><b>{t.tag || "—"}</b></div>
+            </div>
+          </article>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="table-scroll"><table className="fbis-table">
       <thead>
