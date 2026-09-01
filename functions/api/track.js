@@ -260,20 +260,24 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestPost(context) {
-  let body = {};
   try {
-    body = await context.request.json();
-  } catch {
-    return json({ ok: false, error: "invalid json" }, 400);
+    let body = {};
+    try {
+      body = await context.request.json();
+    } catch {
+      return json({ ok: false, error: "invalid json" }, 400);
+    }
+    const action = String(body?.action || "").toLowerCase();
+    if (action !== "manual-final" && action !== "cleanup-future-grades") return json({ ok: false, error: "unknown action" }, 400);
+    const result =
+      action === "cleanup-future-grades"
+        ? await cleanupFutureGrades({ DB: context.env.DB })
+        : await applyManualFinal({ DB: context.env.DB }, body);
+    if (!result.ok) return json({ ok: false, error: result.error || "failed" }, result.status || 400);
+    return json(result.body, 200);
+  } catch (err) {
+    return json({ ok: false, error: String(err?.message || err) }, 500);
   }
-  const action = String(body?.action || "").toLowerCase();
-  if (action !== "manual-final" && action !== "cleanup-future-grades") return json({ ok: false, error: "unknown action" }, 400);
-  const result =
-    action === "cleanup-future-grades"
-      ? await cleanupFutureGrades({ DB: context.env.DB })
-      : await applyManualFinal({ DB: context.env.DB }, body);
-  if (!result.ok) return json({ ok: false, error: result.error || "failed" }, result.status || 400);
-  return json(result.body, 200);
 }
 
 export async function onRequestOptions() {
