@@ -1027,7 +1027,7 @@ export function slimFinal(game) {
 }
 
 /** Scoreboard only — no Parlay, Pal, or Savant. Used to grade frozen projections. */
-export async function fetchResults(sport, date) {
+export async function fetchResults(sport, date, env = {}) {
   const id = SPORTS[sport] ? sport : "mlb";
   const day = date || todayCT();
   if (id === "mlb") {
@@ -1038,8 +1038,14 @@ export async function fetchResults(sport, date) {
       /* ESPN fallback below */
     }
   }
-  const json = await fetchEspnScoreboard(id, day);
-  return (json.events || []).map((ev) => slimFinal(mapEvent(id, ev)));
+  try {
+    const json = await fetchEspnScoreboard(id, day);
+    return (json.events || []).map((ev) => slimFinal(mapEvent(id, ev)));
+  } catch (err) {
+    if (id !== "cfb" || !env.CFBD_API_KEY) throw err;
+    const games = await fetchCfbdGamesForDate(day, env.CFBD_API_KEY);
+    return games.map(slimFinal);
+  }
 }
 
 export function dataQuality(sport, game) {

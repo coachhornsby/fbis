@@ -7,6 +7,7 @@ import { resolveSlateDate } from "../functions/lib/slateEngine.js";
 import { fetchEspnScoreboard } from "../functions/lib/slateEngine.js";
 import { buildSlate } from "../functions/lib/slateEngine.js";
 import { findNextCfbdGameDate } from "../functions/lib/slateEngine.js";
+import { fetchResults } from "../functions/lib/slateEngine.js";
 import { rowsForCheckpoint, CHECKPOINT_ALIASES } from "../functions/lib/checkpoints.js";
 import { palHealth } from "../functions/lib/sourceCoverage.js";
 import { freezeFromGame } from "../functions/lib/projLedger.js";
@@ -284,6 +285,29 @@ describe("ESPN scoreboard fallback", () => {
       assert.equal(slate.games.length, 1);
       assert.equal(slate.games[0].home.name, "Ohio State");
       assert.equal(slate.games[0].away.name, "Texas");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("grades CFB from CFBD when both ESPN result feeds are invalid", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      const s = String(url);
+      if (s.includes("espn.com")) return new Response("", { status: 200 });
+      if (s.startsWith("https://api.collegefootballdata.com/games")) {
+        return new Response(JSON.stringify([{
+          id: 9002, startDate: "2026-09-02T01:00:00Z", completed: true,
+          homeTeam: "Michigan State", awayTeam: "Toledo", homePoints: 31, awayPoints: 20,
+        }]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response("not found", { status: 404 });
+    };
+    try {
+      const rows = await fetchResults("cfb", "2026-09-01", { CFBD_API_KEY: "x" });
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].home.score, 31);
+      assert.equal(rows[0].status.completed, true);
     } finally {
       globalThis.fetch = realFetch;
     }

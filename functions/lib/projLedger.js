@@ -1178,7 +1178,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   const writes = [];
   for (const date of dates) {
     try {
-      const results = await fetchFn(sport, date);
+      const results = await fetchFn(sport, date, env);
       for (const g of results) finals.push({ ...g, date });
       for (const g of results) {
         const k = rowKey(date, g.id);
