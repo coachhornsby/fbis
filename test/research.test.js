@@ -37,6 +37,7 @@ import { gameOutcome, freezeFromGame, accuracyOf } from "../functions/lib/projLe
 import { seriesStats } from "../functions/lib/accuracyReport.js";
 import { overDiagnostics, bucketOf } from "../functions/lib/overDiagnostics.js";
 import { SPORTS } from "../functions/lib/slateEngine.js";
+import { validateManualScore, previewManualScore } from "../functions/lib/manualScore.js";
 
 describe("research metrics", () => {
   it("computes MAE RMSE bias median and within-X", () => {
@@ -54,6 +55,31 @@ describe("research metrics", () => {
     assert.ok(!cfb.bands.some((b) => b.threshold === 0.5));
     const mlb = withinBands([0.4, 1.2], "mlb", "total");
     assert.ok(mlb.bands.some((b) => b.threshold === 0.5));
+  });
+});
+
+describe("manual final score fallback", () => {
+  it("requires nonnegative integer scores and rejects an MLB tie", () => {
+    assert.equal(validateManualScore({ sport: "mlb", gameId: "1", homeScore: 5, awayScore: 3 }).ok, true);
+    assert.equal(validateManualScore({ sport: "mlb", gameId: "1", homeScore: 3, awayScore: 3 }).ok, false);
+    assert.equal(validateManualScore({ sport: "cfb", gameId: "1", homeScore: 20.5, awayScore: 17 }).ok, false);
+  });
+
+  it("previews affected open strategy tickets without mutating them", () => {
+    const ticket = { id: "s1", sport: "mlb", gameId: "g1", market: "ML", side: "HOME", result: "OPEN", executionPrice: -110, stake: 1 };
+    const preview = previewManualScore({ sport: "mlb", gameId: "g1", homeScore: 5, awayScore: 2 }, [ticket], []);
+    assert.equal(preview.strategy.length, 1);
+    assert.equal(preview.strategy[0].settlement.result, "WON");
+    assert.equal(ticket.result, "OPEN");
+  });
+
+  it("can resolve an unmatched imported bet directly by bet id", () => {
+    const bet = { id: "b1", sport: "mlb", gameId: null, market: "ML", period: "fg", selectedSide: "HOME", result: "OPEN", executionPrice: -110, riskAmount: 2, toWinAmount: 1.82 };
+    const checked = validateManualScore({ sport: "mlb", betId: "b1", homeScore: 4, awayScore: 1 });
+    assert.equal(checked.ok, true);
+    const preview = previewManualScore(checked.score, [], [bet]);
+    assert.equal(preview.bets.length, 1);
+    assert.equal(preview.bets[0].settlement.result, "WON");
   });
 });
 

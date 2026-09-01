@@ -842,7 +842,17 @@ async function gradeStrategyAgainstFinals(env, finals) {
   const jobs = [];
   for (const t of tickets) {
     if (t.result && t.result !== "OPEN") continue;
-    const g = byId.get(String(t.gameId));
+    let g = byId.get(String(t.gameId));
+    if (!g) {
+      const parts = String(t.matchup || "").split(/\s+@\s+/);
+      if (parts.length === 2) {
+        const matches = (finals || []).filter((f) =>
+          namesMatch(f.away?.name || f.away?.abbr, parts[0]) &&
+          namesMatch(f.home?.name || f.home?.abbr, parts[1])
+        );
+        if (matches.length === 1) g = matches[0];
+      }
+    }
     const graded = gradeStrategyResult(t, g);
     if (graded) jobs.push(gradeStrategyTicket(env, t.id, graded));
   }

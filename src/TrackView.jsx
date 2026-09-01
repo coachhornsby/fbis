@@ -858,6 +858,10 @@ function OverBlock({ over }) {
 
 function StrategyPanel() {
   const [pack, setPack] = useState(null);
+  const [score, setScore] = useState({ ticketId: "", homeScore: "", awayScore: "" });
+  const [scorePreview, setScorePreview] = useState(null);
+  const [scoreMessage, setScoreMessage] = useState("");
+  const load = () => fetch(`/api/strategy?_t=${Date.now()}`).then((r) => r.json()).then((d) => setPack(d));
   useEffect(() => {
     const ac = new AbortController();
     fetch(`/api/strategy?_t=${Date.now()}`, { signal: ac.signal })
@@ -869,6 +873,30 @@ function StrategyPanel() {
   const seed = pack?.seed || { tickets: [], stats: {}, traits: {} };
   const pro = pack?.prospective || { tickets: [], stats: {}, traits: {} };
   const rec = pack?.reconstruction || {};
+  const attention = pro.needsAttention || [];
+  const selected = attention.find((t) => t.id === score.ticketId) || attention[0];
+  async function submitScore(confirm) {
+    if (!selected) return;
+    setScoreMessage(confirm ? "Saving…" : "Checking…");
+    try {
+      const response = await fetch("/api/scores", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sport: selected.sport, gameId: selected.gameId, homeScore: score.homeScore, awayScore: score.awayScore, confirm }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Score could not be processed");
+      if (confirm) {
+        setScorePreview(null);
+        setScore({ ticketId: "", homeScore: "", awayScore: "" });
+        setScoreMessage("Final score saved and matching records graded.");
+        await load();
+      } else {
+        setScorePreview(data);
+        setScoreMessage("Review the results below, then confirm.");
+      }
+    } catch (err) { setScoreMessage(err.message); }
+  }
   return (
     <section className="panel">
       <div className="panel-header">
@@ -917,7 +945,25 @@ function StrategyPanel() {
         <TicketTable rows={pro.completed || []} empty="No completed prospective strategy results yet." />
         <h3 className="subhead">Needs grading attention</h3>
         <p className="muted">Past-date candidates that remain open because a final could not be matched. Excluded duplicates: {pro.duplicateRowsExcluded ?? 0}.</p>
-        <TicketTable rows={pro.needsAttention || []} empty="No overdue strategy candidates." />
+        <TicketTable rows={attention} empty="No overdue strategy candidates." />
+        {attention.length > 0 && <div className="g-card" style={{ marginTop: 12 }}>
+          <h3>Resolve a missing final score</h3>
+          <p className="muted">Use only after checking the official final. Nothing is written until you preview and confirm.</p>
+          <div className="filter-row">
+            <label>Game<select value={score.ticketId || selected?.id || ""} onChange={(e) => { setScore({ ...score, ticketId: e.target.value }); setScorePreview(null); }}>
+              {attention.map((t) => <option key={t.id} value={t.id}>{t.date} · {t.matchup || t.gameId}</option>)}
+            </select></label>
+            <label>Home score<input type="number" min="0" step="1" value={score.homeScore} onChange={(e) => setScore({ ...score, homeScore: e.target.value })} /></label>
+            <label>Away score<input type="number" min="0" step="1" value={score.awayScore} onChange={(e) => setScore({ ...score, awayScore: e.target.value })} /></label>
+            <button className="btn" onClick={() => submitScore(false)}>Preview</button>
+          </div>
+          {scoreMessage && <p className="muted">{scoreMessage}</p>}
+          {scorePreview && <div>
+            <p><b>{scorePreview.score.awayScore} away · {scorePreview.score.homeScore} home</b> — strategy records affected: {scorePreview.strategy.length}; imported bets affected: {scorePreview.bets.length}.</p>
+            {[...scorePreview.strategy, ...scorePreview.bets].map((x) => <p className="muted" key={x.id}>{x.matchup} · {x.market} · {x.result}</p>)}
+            <button className="btn" onClick={() => submitScore(true)}>Confirm final score</button>
+          </div>}
+        </div>}
       </div>
     </section>
   );

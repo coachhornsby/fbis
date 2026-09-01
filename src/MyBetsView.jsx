@@ -26,6 +26,9 @@ export default function MyBetsView({ onImport, bets: external, summary: external
   const [result, setResult] = useState("all");
   const [attr, setAttr] = useState("all");
   const [sport, setSport] = useState("all");
+  const [manual, setManual] = useState({ betId: "", homeScore: "", awayScore: "" });
+  const [manualPreview, setManualPreview] = useState(null);
+  const [manualMessage, setManualMessage] = useState("");
 
   useEffect(() => {
     if (external) {
@@ -50,6 +53,30 @@ export default function MyBetsView({ onImport, bets: external, summary: external
     });
   }, [bets, sport, result, attr]);
   const summary = pack.summary || emptySummary();
+  const openBets = bets.filter((b) => !b.result || b.result === "OPEN");
+  const selectedOpen = openBets.find((b) => b.id === manual.betId) || openBets[0];
+  async function resolveBet(confirm) {
+    if (!selectedOpen) return;
+    setManualMessage(confirm ? "Saving…" : "Checking…");
+    try {
+      const response = await fetch("/api/scores", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sport: selectedOpen.sport, gameId: selectedOpen.gameId, betId: selectedOpen.id, homeScore: manual.homeScore, awayScore: manual.awayScore, confirm }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Score could not be processed");
+      if (confirm) {
+        setManualPreview(null);
+        setManual({ betId: "", homeScore: "", awayScore: "" });
+        setManualMessage("Final score saved and bet graded.");
+        if (onRefresh) await onRefresh();
+      } else {
+        setManualPreview(data);
+        setManualMessage("Review the result, then confirm.");
+      }
+    } catch (err) { setManualMessage(err.message); }
+  }
 
   return (
     <div className="main-content">
@@ -98,6 +125,26 @@ export default function MyBetsView({ onImport, bets: external, summary: external
           </div>
         </div>
       </section>
+      {openBets.length > 0 && <section className="panel">
+        <div className="panel-header"><h2>Resolve a missing final</h2><span className="last-updated">manual fallback</span></div>
+        <div className="panel-body">
+          <p className="muted">Automatic score retrieval remains primary. Use this only after checking the official final; preview does not write anything.</p>
+          <div className="filter-row">
+            <label>Bet<select value={manual.betId || selectedOpen?.id || ""} onChange={(e) => { setManual({ ...manual, betId: e.target.value }); setManualPreview(null); }}>
+              {openBets.map((b) => <option key={b.id} value={b.id}>{b.externalTicketId} · {b.matchup || b.matchupText}</option>)}
+            </select></label>
+            <label>Home score<input type="number" min="0" step="1" value={manual.homeScore} onChange={(e) => setManual({ ...manual, homeScore: e.target.value })} /></label>
+            <label>Away score<input type="number" min="0" step="1" value={manual.awayScore} onChange={(e) => setManual({ ...manual, awayScore: e.target.value })} /></label>
+            <button className="btn" onClick={() => resolveBet(false)}>Preview</button>
+          </div>
+          {manualMessage && <p className="muted">{manualMessage}</p>}
+          {manualPreview && <div>
+            <p><b>Away {manualPreview.score.awayScore} · Home {manualPreview.score.homeScore}</b></p>
+            {manualPreview.bets.map((x) => <p key={x.id}>{x.matchup} · {x.market} · <b>{x.result}</b></p>)}
+            <button className="btn" onClick={() => resolveBet(true)}>Confirm final score</button>
+          </div>}
+        </div>
+      </section>}
       <section className="panel">
         <div className="panel-body" style={{ padding: 0 }}>
           {!shown.length ? (
