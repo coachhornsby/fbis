@@ -188,14 +188,15 @@ describe("high-conviction strategy", () => {
 
   it("deduplicates collection-window repeats and separates strategy states", () => {
     const rows = [
-      { id: "old", sport: "cfb", gameId: "g1", market: "ML", side: "AWAY", date: "2026-08-29", result: "OPEN" },
-      { id: "new", sport: "cfb", gameId: "g1", market: "ML", side: "AWAY", date: "2026-09-05", result: "OPEN" },
+      { id: "old", sport: "cfb", gameId: "g1", matchup: "Toledo @ Michigan State", market: "ML", side: "AWAY", date: "2026-08-29", result: "OPEN" },
+      { id: "new", sport: "cfb", gameId: "g1", matchup: "Toledo @ Michigan State", market: "ML", side: "AWAY", date: "2026-09-05", result: "OPEN" },
+      { id: "real-id", sport: "cfb", gameId: "espn-1", matchup: "Toledo @ Michigan State", market: "ML", side: "AWAY", date: "2026-09-05", result: "OPEN" },
       { id: "done", sport: "mlb", gameId: "g2", market: "TOTAL", side: "OVER", line: 9, date: "2026-08-30", result: "WON" },
       { id: "late", sport: "mlb", gameId: "g3", market: "ML", side: "HOME", date: "2026-08-30", result: "OPEN" },
     ];
     const out = partitionProspectiveTickets(rows, "2026-09-01");
     assert.equal(out.canonical.length, 3);
-    assert.equal(out.duplicateRowsExcluded, 1);
+    assert.equal(out.duplicateRowsExcluded, 2);
     assert.deepEqual(out.upcoming.map((t) => t.id), ["new"]);
     assert.deepEqual(out.completed.map((t) => t.id), ["done"]);
     assert.deepEqual(out.needsAttention.map((t) => t.id), ["late"]);

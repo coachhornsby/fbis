@@ -267,7 +267,13 @@ export function strategyStats(tickets) {
 
 function prospectiveIdentity(t) {
   const line = t.executionLine ?? t.line ?? "";
-  return [t.sport || "", t.gameId || "", t.market || "", t.side || "", line].join("|");
+  const sport = t.sport || "";
+  const matchup = String(t.matchup || "").toLowerCase().replace(/[^a-z0-9@]+/g, " ").trim();
+  const season = String(t.date || "").slice(0, 4);
+  // Early CFB discovery used a stable synthetic id before ESPN supplied its event id.
+  // A season+matchup bridge joins those identities without collapsing MLB series games.
+  const event = sport === "cfb" && matchup ? `${season}:${matchup}` : (t.gameId || "");
+  return [sport, event, t.market || "", t.side || "", line].join("|");
 }
 
 /** One strategy observation per game/market/side. Collection retries and date-window scans are not new bets. */
