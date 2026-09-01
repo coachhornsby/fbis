@@ -44,6 +44,36 @@ export async function onRequestGet(context) {
     }
     return json(compactMlbSlatePayload(payload), 200, 30);
   } catch (err) {
+    if (sport === "cfb" && env.CFBD_API_KEY) {
+      try {
+        const weekly = await fetchCfbdGamesForWeek(resolved.date, env.CFBD_API_KEY, weekShift);
+        const games = (weekly.games || []).map((g) => ({
+          ...g,
+          projectionUnavailable: true,
+          marketUnavailable: true,
+          qualificationBlocked: true,
+          blockReason: "CFB model unavailable: Worker subrequest limit",
+        }));
+        return json(
+          {
+            sport: "cfb",
+            sportName: "College Football",
+            date: resolved.date,
+            generatedAt: new Date().toISOString(),
+            counts: { games: games.length, live: 0, final: 0, upcoming: games.length },
+            modelVersion: null,
+            games,
+            ticker: [],
+            week: { mode: "cfb-week", shift: weekShift, number: weekly.week, range: weekly.range },
+            cfb: { source: "cfbd", state: "DEGRADED", reason: "model-subrequest-limit", lastAttemptAt: new Date().toISOString() },
+          },
+          200,
+          30
+        );
+      } catch {
+        // fall through to canonical error
+      }
+    }
     return json({ error: String(err?.message || err), games: [], ticker: [], counts: {} }, 502, 10);
   }
 }
