@@ -9,8 +9,12 @@ import {
   validateImportedTicket,
   EXPECTED_SEED_N,
 } from "../lib/strategy.js";
-import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb } from "../lib/store.js";
+import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGames } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
+import { resolveTeam } from "../lib/teams.js";
+
+const SPORT_ORDER = ["mlb", "nba", "nfl", "cfb", "cbb", "other"];
+const SPORT_LABEL = { mlb: "MLB", nba: "NBA", nfl: "NFL", cfb: "CFB", cbb: "CBB", other: "Other" };
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -58,12 +62,72 @@ function reconstructionPayload(seed) {
   };
 }
 
+function splitMatchup(matchup = "") {
+  const m = String(matchup || "").split("@");
+  if (m.length !== 2) return { away: null, home: null };
+  return { away: m[0].trim(), home: m[1].trim() };
+}
+
+function canonicalTeamName(sport, raw) {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  const hit = resolveTeam(sport || "mlb", {
+    name: value,
+    displayName: value,
+    school: value,
+    fullName: value,
+    abbr: value,
+  });
+  return hit?.displayName || hit?.school || value;
+}
+
+function presentTicketWithCanonicalMatchup(ticket, gameById) {
+  const fromGame = gameById.get(String(ticket.gameId || ""));
+  const parsed = splitMatchup(ticket.matchup);
+  const away = canonicalTeamName(ticket.sport, fromGame?.away?.name || parsed.away);
+  const home = canonicalTeamName(ticket.sport, fromGame?.home?.name || parsed.home);
+  const matchupDisplay = away && home ? `${away} @ ${home}` : ticket.matchup || ticket.gameId || "—";
+  return {
+    ...ticket,
+    matchupDisplay,
+    matchupSource: fromGame ? "games-table" : "ticket",
+    start: fromGame?.start || null,
+  };
+}
+
+function groupBySport(tickets = []) {
+  const buckets = new Map();
+  for (const t of tickets || []) {
+    const sport = SPORT_ORDER.includes(t.sport) ? t.sport : "other";
+    if (!buckets.has(sport)) buckets.set(sport, []);
+    buckets.get(sport).push(t);
+  }
+  return SPORT_ORDER
+    .filter((sport) => buckets.has(sport))
+    .map((sport) => {
+      const rows = buckets.get(sport) || [];
+      return {
+        sport,
+        label: SPORT_LABEL[sport] || String(sport).toUpperCase(),
+        tickets: rows,
+        stats: strategyStats(rows),
+        traits: characterizeTickets(rows),
+      };
+    });
+}
+
 export async function onRequestGet(context) {
   const env = { DB: context.env.DB };
   await freezeCanonicalSeed(env);
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
   const seed = canonicalSeedTickets(dbSeed);
-  const prospective = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
+  const prospectiveRaw = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
+  const minDate = [...seed, ...prospectiveRaw].map((t) => t.date).filter(Boolean).sort()[0] || STRATEGY_HC_V1.seedDate;
+  const gamesQ = await queryGames(env, { since: minDate });
+  const gameById = new Map((gamesQ.rows || []).map((g) => [String(g.id), g]));
+  const prospective = (prospectiveRaw || []).map((t) => presentTicketWithCanonicalMatchup(t, gameById));
+  const seedPresented = (seed || []).map((t) => presentTicketWithCanonicalMatchup(t, gameById));
+  const prospectiveBySport = groupBySport(prospective);
   const rec = reconstructionPayload(seed);
   return readJson({
     strategy: STRATEGY_HC_V1,
@@ -77,8 +141,9 @@ export async function onRequestGet(context) {
     reportedRecord: rec.reportedRecord,
     provenance: rec.provenance,
     namedPositions: STRATEGY_HC_V1_SEED_TICKETS.map((t) => t.pick),
-    seed: { tickets: seed, traits: characterizeTickets(seed), stats: strategyStats(seed) },
+    seed: { tickets: seedPresented, traits: characterizeTickets(seedPresented), stats: strategyStats(seedPresented) },
     prospective: { tickets: prospective, traits: characterizeTickets(prospective), stats: strategyStats(prospective) },
+    prospectiveBySport,
   });
 }
 

@@ -867,6 +867,7 @@ function StrategyPanel() {
   }, []);
   const seed = pack?.seed || { tickets: [], stats: {}, traits: {} };
   const pro = pack?.prospective || { tickets: [], stats: {}, traits: {} };
+  const proBySport = pack?.prospectiveBySport || [];
   const rec = pack?.reconstruction || {};
   return (
     <section className="panel">
@@ -910,7 +911,14 @@ function StrategyPanel() {
         <h3 className="subhead">Seed tickets</h3>
         <TicketTable rows={seed.tickets || []} empty="Operator-declared 2026-08-26 CONVICTION names. Journal EV/prices unrecovered until imported." />
         <h3 className="subhead">Prospective matches</h3>
-        <TicketTable rows={(pro.tickets || []).slice(0, 40)} empty="No prospective CONVICTION tickets stored yet. Collection tags matches automatically." />
+        {(proBySport.length ? proBySport : [{ sport: "all", label: "All sports", tickets: pro.tickets || [], stats: pro.stats || {} }]).map((group) => (
+          <div key={`pro-${group.sport}`}>
+            <p className="muted" style={{ marginBottom: 8 }}>
+              {group.label}: N={group.stats?.n ?? group.tickets?.length ?? 0} · Open {group.stats?.open ?? 0} · Settled {group.stats?.settled ?? 0}
+            </p>
+            <TicketTable rows={(group.tickets || []).slice(0, 40)} empty={`No ${group.label} prospective tickets.`} />
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -948,7 +956,7 @@ function TicketTable({ rows, empty }) {
         {rows.map((t) => (
           <tr key={t.id} className={t.result === "WON" ? "won-row" : t.result === "LOST" ? "lost-row" : ""}>
             <td className="muted">{t.date}</td>
-            <td>{t.matchup || t.gameId}</td>
+            <td>{t.matchupDisplay || t.matchup || t.gameId}</td>
             <td>{t.market} {t.side}</td>
             <td>{t.pick}</td>
             <td>{fmtPct(t.ev)}</td>
