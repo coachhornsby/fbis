@@ -31,7 +31,7 @@ import { projectCfbGame } from "../functions/lib/cfbModel.js";
 import { classifyCheckpoint, pickCanonical, rowsForCheckpoint } from "../functions/lib/checkpoints.js";
 import { projectMatchup } from "../functions/lib/savant.js";
 import { expectedRoi, twoWayMarket, brierScore, logLoss, americanToImplied, probabilityClv } from "../functions/lib/pricing.js";
-import { gameOutcome, freezeFromGame, accuracyOf } from "../functions/lib/projLedger.js";
+import { gameOutcome, freezeFromGame, accuracyOf, decorateRow, canonicalMatchupDisplay } from "../functions/lib/projLedger.js";
 import { seriesStats } from "../functions/lib/accuracyReport.js";
 import { overDiagnostics, bucketOf } from "../functions/lib/overDiagnostics.js";
 import { SPORTS } from "../functions/lib/slateEngine.js";
@@ -52,6 +52,40 @@ describe("research metrics", () => {
     assert.ok(!cfb.bands.some((b) => b.threshold === 0.5));
     const mlb = withinBands([0.4, 1.2], "mlb", "total");
     assert.ok(mlb.bands.some((b) => b.threshold === 0.5));
+  });
+});
+
+describe("track naming normalization", () => {
+  it("exposes canonical matchup display from team identities", () => {
+    const row = decorateRow({
+      id: "x1",
+      sport: "cfb",
+      matchup: "SMU @ Florida State",
+      awayName: "SMU",
+      homeName: "Florida State",
+      awayAbbr: "SMU",
+      homeAbbr: "FSU",
+      projHome: 28.1,
+      projAway: 24.5,
+      projTotal: 52.6,
+      actualHome: null,
+      actualAway: null,
+    });
+    assert.equal(row.matchupDisplay, "SMU Mustangs @ Florida State Seminoles");
+    assert.equal(row.awayDisplayName, "SMU Mustangs");
+    assert.equal(row.homeDisplayName, "Florida State Seminoles");
+  });
+
+  it("falls back to stored matchup when canonical identity is unavailable", () => {
+    const out = canonicalMatchupDisplay({
+      sport: "mlb",
+      matchup: "ABC @ XYZ",
+      awayName: "ABC",
+      homeName: "XYZ",
+      awayAbbr: "ABC",
+      homeAbbr: "XYZ",
+    });
+    assert.equal(out.matchupDisplay, "ABC @ XYZ");
   });
 });
 

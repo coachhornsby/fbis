@@ -1003,6 +1003,7 @@ function splitRowsBySport(rows = []) {
 
 function canonicalMatchup(row = {}) {
   if (row.matchupDisplay) return row.matchupDisplay;
+  if (row.awayDisplayName && row.homeDisplayName) return `${row.awayDisplayName} @ ${row.homeDisplayName}`;
   if (row.awayName && row.homeName) return `${row.awayName} @ ${row.homeName}`;
   return row.matchup || row.gameId || row.id || "—";
 }

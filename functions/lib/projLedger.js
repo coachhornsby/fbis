@@ -51,6 +51,7 @@ import { settleExecutedBet } from "./executedBets.js";
 import { sourceCoverage, palHealth } from "./sourceCoverage.js";
 import { palUnavailableReason, palHttpStatusToStore } from "./ballparkpal.js";
 import { layerDiagnostics } from "./layerDiagnostics.js";
+import { resolveTeam } from "./teams.js";
 import {
   classifyJobStatus,
   emptyWriteCounts,
@@ -667,12 +668,56 @@ function calibrationHome(rows, getP) {
   return bucketRows(rows, getP, HOME_BUCKETS, null);
 }
 
+function splitMatchupLabel(matchup = "") {
+  const parts = String(matchup || "").split("@");
+  if (parts.length !== 2) return { away: null, home: null };
+  return { away: parts[0].trim(), home: parts[1].trim() };
+}
+
+function canonicalTeamLabel(sport, name, abbr) {
+  const rawName = String(name || "").trim();
+  const rawAbbr = String(abbr || "").trim();
+  if (!rawName && !rawAbbr) return null;
+  const probe = rawName || rawAbbr;
+  const hit = resolveTeam(sport || "mlb", {
+    name: probe,
+    displayName: probe,
+    school: probe,
+    fullName: probe,
+    abbr: rawAbbr || probe,
+  });
+  return hit?.displayName || hit?.school || rawName || rawAbbr || null;
+}
+
+export function canonicalMatchupDisplay(row = {}) {
+  const parsed = splitMatchupLabel(row.matchup);
+  const awayDisplayName = canonicalTeamLabel(row.sport, row.awayName || parsed.away, row.awayAbbr || parsed.away);
+  const homeDisplayName = canonicalTeamLabel(row.sport, row.homeName || parsed.home, row.homeAbbr || parsed.home);
+  return {
+    awayDisplayName,
+    homeDisplayName,
+    matchupDisplay: awayDisplayName && homeDisplayName
+      ? `${awayDisplayName} @ ${homeDisplayName}`
+      : row.matchup || row.gameId || row.id || "—",
+  };
+}
+
 export function decorateRow(row) {
+  const canonical = canonicalMatchupDisplay(row);
   if (row.actualHome == null || row.projHome == null) {
-    return { ...row, errHome: null, errAway: null, errTotal: null, errMargin: null, status: row.projHome == null ? "NO_PROJ" : "OPEN" };
+    return {
+      ...row,
+      ...canonical,
+      errHome: null,
+      errAway: null,
+      errTotal: null,
+      errMargin: null,
+      status: row.projHome == null ? "NO_PROJ" : "OPEN",
+    };
   }
   return {
     ...row,
+    ...canonical,
     errHome: row.projHome - row.actualHome,
     errAway: row.projAway - row.actualAway,
     errTotal: row.projTotal - row.actualTotal,
@@ -1916,6 +1961,9 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
     };
   });
   const counts = await countToday(env, todayCT());
+  const decoratedGames = displayRows
+    .map(decorateRow)
+    .sort((a, b) => String(b.date).localeCompare(a.date) || String(a.matchupDisplay || a.matchup || "").localeCompare(String(b.matchupDisplay || b.matchup || "")));
   return {
     sport: sport || "all",
     sportName: !sport || sport === "all" ? "All boards" : SPORTS[sport]?.name || sport,
@@ -1950,13 +1998,22 @@ export async function buildTrackReport(sport, days, env = {}, opts = {}) {
     dailyReports: reports,
     byCheckpoint,
     versions,
-    games: displayRows.sort((a, b) => String(b.date).localeCompare(a.date) || String(a.matchup).localeCompare(b.matchup)).map(decorateRow),
+    games: decoratedGames,
     finals: displayRows.filter((r) => r.actualHome != null).map((r) => ({
       id: r.id,
       sport: r.sport,
       date: r.date,
-      home: { name: r.homeName, abbr: r.homeAbbr, score: r.actualHome },
-      away: { name: r.awayName, abbr: r.awayAbbr, score: r.actualAway },
+      home: {
+        name: canonicalTeamLabel(r.sport, r.homeName, r.homeAbbr) || r.homeName,
+        abbr: r.homeAbbr,
+        score: r.actualHome,
+      },
+      away: {
+        name: canonicalTeamLabel(r.sport, r.awayName, r.awayAbbr) || r.awayName,
+        abbr: r.awayAbbr,
+        score: r.actualAway,
+      },
+      matchupDisplay: canonicalMatchupDisplay(r).matchupDisplay,
       status: { completed: true },
     })),
     db: {
