@@ -161,6 +161,103 @@ export function ticketMatchesStrategy(ticket, strategy = STRATEGY_HC_V1) {
   return true;
 }
 
+function marketFamilyName(market) {
+  const m = String(market || "").toUpperCase();
+  if (m.includes("TOTAL")) return "total";
+  if (m.includes("SPREAD") || m.includes("RUN")) return "spread";
+  if (m.includes("ML") || m.includes("MONEY")) return "moneyline";
+  return "other";
+}
+
+function periodFamilyName(market) {
+  const m = String(market || "").toUpperCase();
+  if (m.startsWith("F5")) return "F5";
+  if (m.includes("PROP")) return "player-prop";
+  return "full-game";
+}
+
+function countByKey(rows = [], keyFn) {
+  const out = {};
+  for (const row of rows || []) {
+    const key = keyFn(row) || "unknown";
+    out[key] = (out[key] || 0) + 1;
+  }
+  return out;
+}
+
+function originalProbabilityMissing(ticket) {
+  const p = ticket?.modelProbability ?? ticket?.fair ?? ticket?.traits?.modelProbability ?? ticket?.traits?.fair;
+  return p == null || p === "";
+}
+
+/**
+ * Prospective integrity. Original tickets without persisted probability remain
+ * quarantined even when a reconstruction correction exists.
+ */
+export function strategyIntegrity(tickets = [], { reconstructions = [] } = {}) {
+  const reconById = new Map(
+    (reconstructions || []).map((r) => [String(r.originalTicketId || r.ticketId || r.id), r])
+  );
+  const unresolved = tickets.filter((t) => String(t.result || "").toUpperCase() === "FINAL NOT MATCHED");
+  const pushes = tickets.filter((t) => String(t.result || "").toUpperCase() === "PUSH");
+  const voids = tickets.filter((t) => String(t.result || "").toUpperCase() === "VOID");
+  const settled = tickets.filter((t) => ["WON", "LOST"].includes(String(t.result || "").toUpperCase()));
+  const open = tickets.filter((t) => !t.result || String(t.result || "").toUpperCase() === "OPEN");
+  const missingOriginal = tickets.filter((t) => originalProbabilityMissing(t));
+  const invalid = tickets.filter((t) => {
+    const rec = reconById.get(String(t.id));
+    if (String(t.provenance || t.traits?.provenance || "").toLowerCase() === "invalid") return true;
+    return rec?.status === "STILL_INVALID";
+  });
+  const quarantined = tickets.filter((t) => {
+    if (t.traits?.quarantineReason) return true;
+    if (originalProbabilityMissing(t)) return true;
+    const rec = reconById.get(String(t.id));
+    return rec?.status === "RECONSTRUCTION_BLOCKED" || rec?.status === "UNRECOVERABLE";
+  });
+  const reconCounts = {
+    RECOVERED_VERIFIED: 0,
+    RECONSTRUCTION_BLOCKED: 0,
+    UNRECOVERABLE: 0,
+    STILL_INVALID: 0,
+    missingCorrection: 0,
+  };
+  for (const t of tickets) {
+    const rec = reconById.get(String(t.id));
+    if (!rec) reconCounts.missingCorrection += 1;
+    else if (reconCounts[rec.status] != null) reconCounts[rec.status] += 1;
+  }
+  return {
+    open: open.length,
+    settled: settled.length,
+    unresolved: unresolved.length,
+    pushes: pushes.length,
+    voids: voids.length,
+    duplicatesExcluded: 0,
+    invalid: invalid.length,
+    quarantined: quarantined.length,
+    originalProbabilityMissing: missingOriginal.length,
+    reconstruction: reconCounts,
+    note: quarantined.length
+      ? `${quarantined.length} prospective tickets remain quarantined because original persisted probability is missing. Reconstruction corrections do not mutate originals.`
+      : null,
+    breakdowns: {
+      sport: countByKey(tickets, (t) => t.sport || "unknown"),
+      marketFamily: countByKey(tickets, (t) => marketFamilyName(t.market)),
+      periodFamily: countByKey(tickets, (t) => periodFamilyName(t.market)),
+      modelVersion: countByKey(tickets, (t) => t.modelVersion || "unknown"),
+      qualificationRuleVersion: countByKey(tickets, () => QUALIFICATION_RULE_VERSION),
+    },
+    mixChecks: {
+      sports: Object.keys(countByKey(tickets, (t) => t.sport || "unknown")).length,
+      marketFamilies: Object.keys(countByKey(tickets, (t) => marketFamilyName(t.market))).length,
+      periods: Object.keys(countByKey(tickets, (t) => periodFamilyName(t.market))).length,
+      modelVersions: Object.keys(countByKey(tickets, (t) => t.modelVersion || "unknown")).length,
+      checkpoints: Object.keys(countByKey(tickets, (t) => t.checkpoint || "unknown")).length,
+    },
+  };
+}
+
 export function ticketId(ticket, date) {
   const day = date || ticket.date || dateCT(ticket.qualifiedAt || ticket.loggedAt) || "";
   return `${ticket.sport || ""}:${day}:${ticket.gameId || ticket.game_id}:${ticket.market}:${ticket.side}`;
@@ -763,7 +860,7 @@ export function summarizeProspectiveConvictionCohort(
     eligibleForCalculated
       ? `Prospective CONVICTION cohort: 5–2, N=${expectedN}`
       : stats.wins === 5 && stats.losses === 2
-        ? "Operator reported 5–2; results recovered 5–2; probability integrity unresolved; excluded from calculated FBIS-HC-v1 performance"
+        ? "Operator reported 5–2; results recovered 5–2; probability integrity incomplete; excluded from complete calculated FBIS-HC-v1 cohort performance"
         : `Operator reported ${reportedRecord}; recovered N=${authoritative.length}; unreconciled`;
   const verifiedStats = strategyStats(probabilityVerified);
   return {

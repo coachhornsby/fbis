@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff, formatMarketPeriod, formatClv } from "./lib/format.js";
 import TeamLogo, { TeamIdentity, TicketMatchup } from "./components/TeamLogo.jsx";
@@ -12,6 +12,7 @@ import MyBetsView from "./MyBetsView.jsx";
 import { todayCT } from "../functions/lib/slateEngine.js";
 import { buildPropConvictions } from "../functions/lib/propConviction.js";
 import { badgeLabel, badgeTone, deriveGlobalState, deriveViewState } from "./lib/healthState.js";
+import { nextRequestScope, scopeMatches } from "./lib/requestScope.js";
 
 function readUrlState() {
   if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb" };
@@ -104,9 +105,17 @@ export default function App() {
   });
   const [sysTab, setSysTab] = useState("overall");
   const [cfbWeekShift, setCfbWeekShift] = useState(0);
+  const todayScopeRef = useRef({ seq: 0, sport: null, date: null, page: "today" });
+  const boardScopeRef = useRef({ seq: 0, sport: null, date: null, page: "board", week: null });
+  const todayBoardRef = useRef(todayBoard);
+  todayBoardRef.current = todayBoard;
+  const slateRef = useRef(slate);
+  slateRef.current = slate;
 
   const refresh = useCallback(async (signal) => {
-    setLoading(true);
+    const issued = nextRequestScope(boardScopeRef, { sport, date: "", page: "board", week: sport === "cfb" ? cfbWeekShift : null });
+    const firstLoad = !slateRef.current;
+    if (firstLoad) setLoading(true);
     setError("");
     setBoardLastAttemptAt(new Date().toISOString());
     try {
@@ -118,12 +127,14 @@ export default function App() {
       ]);
       const data = await responseJson(res, sport.toUpperCase());
       if (signal?.aborted) return;
+      if (!scopeMatches(boardScopeRef.current, issued, { responseSport: data.sport || sport })) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       let finals = [];
       if (trackRes?.ok) {
         const t = await responseJson(trackRes, "Tracking");
         finals = t.finals || [];
       }
+      if (!scopeMatches(boardScopeRef.current, issued)) return;
       const nextLearn = gradeOpenBets(loadState(), [...(data.games || []), ...finals]);
       setLearn(nextLearn);
       const withRecs = withRecommendations(data, nextLearn.weights);
@@ -134,12 +145,13 @@ export default function App() {
       setBoardStale(false);
     } catch (err) {
       if (err?.name === "AbortError") return;
+      if (!scopeMatches(boardScopeRef.current, issued)) return;
       setError(String(err.message || err));
-      setBoardStale(Boolean(slate));
+      setBoardStale(Boolean(slateRef.current));
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (!signal?.aborted && scopeMatches(boardScopeRef.current, issued)) setLoading(false);
     }
-  }, [sport, slate, cfbWeekShift]);
+  }, [sport, cfbWeekShift]);
 
   useEffect(() => {
     if (sport !== "cfb" && cfbWeekShift !== 0) setCfbWeekShift(0);
@@ -184,7 +196,9 @@ export default function App() {
   }, [trackFilters, track]);
 
   const refreshToday = useCallback(async (signal) => {
-    setTodayLoading(true);
+    const issued = nextRequestScope(todayScopeRef, { sport: todaySport, date: todayDate, page: "today" });
+    const firstLoad = !todayBoardRef.current;
+    if (firstLoad) setTodayLoading(true);
     setTodayError("");
     setTodayLastAttemptAt(new Date().toISOString());
     const ac = new AbortController();
@@ -194,6 +208,9 @@ export default function App() {
       const res = await fetch(`/api/today?date=${todayDate}&sport=${todaySport}&_t=${Date.now()}`, { signal: ac.signal });
       const data = await responseJson(res, "Today");
       if (signal?.aborted || ac.signal.aborted) return;
+      if (!scopeMatches(todayScopeRef.current, issued, { responseSport: data.health?.todayFocusSport || data.sport, responseDate: data.date })) {
+        return;
+      }
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       if (data?.health?.state === "UNAVAILABLE") {
         throw new Error(`TODAY unavailable: ${(data?.health?.failures || []).map((f) => `${f.name}=${f.detail || "failed"}`).join(" · ") || "authoritative data unavailable"}`);
@@ -203,14 +220,15 @@ export default function App() {
       setTodayStale(false);
     } catch (err) {
       if (err?.name === "AbortError") return;
+      if (!scopeMatches(todayScopeRef.current, issued)) return;
       const msg = String(err.message || err);
       setTodayError(msg.includes("aborted") ? "Today feed timed out. Retry or continue with last known board." : msg);
-      setTodayStale(Boolean(todayBoard));
+      setTodayStale(Boolean(todayBoardRef.current));
     } finally {
       clearTimeout(timeout);
-      if (!signal?.aborted) setTodayLoading(false);
+      if (!signal?.aborted && scopeMatches(todayScopeRef.current, issued)) setTodayLoading(false);
     }
-  }, [todayDate, todaySport, todayBoard]);
+  }, [todayDate, todaySport]);
 
   const refreshBets = useCallback(async (signal) => {
     setBetsLoading(true);

@@ -166,6 +166,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     weather: game.weather || game.cfb?.weather || null,
     park: game.bpp?.park || null,
     palPark: game.bpp?.park || null,
+    awaySp: game.bpp?.awaySp || game.awaySp || null,
+    homeSp: game.bpp?.homeSp || game.homeSp || null,
     palTeamTotals: game.bpp?.teamTotals || [],
     palProps: [],
     palPropCount: palProps.length,

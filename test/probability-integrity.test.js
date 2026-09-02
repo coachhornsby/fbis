@@ -290,7 +290,7 @@ describe("September 1 cohort labels", () => {
     const label = sept1CohortLabel({ recoveredN: 7, wins: 5, losses: 2, probabilityVerifiedN: 0, settledN: 7 });
     assert.equal(
       label,
-      "Operator reported 5–2; results recovered 5–2; probability integrity unresolved; excluded from calculated FBIS-HC-v1 performance"
+      "Operator reported 5–2; results recovered 5–2; probability integrity incomplete; excluded from complete calculated FBIS-HC-v1 cohort performance"
     );
   });
 

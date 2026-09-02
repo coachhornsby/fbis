@@ -79,28 +79,49 @@ function slimGame(g) {
 export function attributeRecommendation(ticket, { snapshots = [], strategyTickets = [] } = {}) {
   const executedAt = Date.parse(ticket.executedAt || "");
   const gameId = String(ticket.gameId || "");
+  const eventStart = Date.parse(ticket.start || ticket.eventStart || "");
   const priorSnaps = (snapshots || [])
     .filter((s) => String(s.gameId || s.id) === gameId || String(s.id) === gameId)
     .filter((s) => {
       const t = Date.parse(s.frozenAt || s.frozen_at || s.asOf || "");
-      return Number.isFinite(executedAt) && Number.isFinite(t) && t <= executedAt;
+      if (!Number.isFinite(executedAt) || !Number.isFinite(t) || t > executedAt) return false;
+      if (Number.isFinite(eventStart) && t >= eventStart) return false;
+      return true;
     })
     .sort((a, b) => String(a.frozenAt || "").localeCompare(String(b.frozenAt || "")));
   const snap = priorSnaps.at(-1) || null;
-  const market = ticket.market;
-  const side = ticket.selectedSide;
+  const market = String(ticket.market || "").toUpperCase();
+  const side = String(ticket.selectedSide || "").toUpperCase();
+  const period = String(ticket.period || "FULL_GAME").toUpperCase();
+  const line = ticket.executionLine;
+  const ticketPeriod = (t) => String(t.period || (String(t.market || "").includes("F5") ? "F5" : "FULL_GAME")).toUpperCase();
   const priorTickets = (strategyTickets || []).filter((t) => {
     if (String(t.gameId || t.game_id) !== gameId) return false;
     const at = Date.parse(t.qualifiedAt || t.qualified_at || t.createdAt || "");
     if (Number.isFinite(executedAt) && Number.isFinite(at) && at > executedAt) return false;
+    if (Number.isFinite(eventStart) && Number.isFinite(at) && at >= eventStart) return false;
     if (!market || !side) return false;
-    if (String(t.market || "").toUpperCase() !== String(market).toUpperCase()) return false;
-    if (String(t.side || "").toUpperCase() !== String(side).toUpperCase()) return false;
+    if (String(t.market || "").toUpperCase() !== market) return false;
+    if (String(t.side || "").toUpperCase() !== side) return false;
+    if (ticketPeriod(t) !== period) return false;
+    if (market !== "ML" && market !== "F5 ML") {
+      const recLine = t.executionLine ?? t.line;
+      if (line != null && recLine != null && Number(recLine) !== Number(line)) return false;
+    }
+    const recRule = t.qualificationRuleVersion || t.qualification_rule_version || "FBIS-HC-v1";
+    const ticketRule = ticket.qualificationRuleVersion || "FBIS-HC-v1";
+    if (recRule !== ticketRule) return false;
     return true;
   });
   const rec = priorTickets.sort((a, b) => String(a.qualifiedAt || "").localeCompare(String(b.qualifiedAt || ""))).at(-1) || null;
+  const freezeOk = Boolean(snap);
+  const execAfterFreezeBeforeStart =
+    freezeOk &&
+    Number.isFinite(executedAt) &&
+    Date.parse(snap.frozenAt || snap.frozen_at || "") <= executedAt &&
+    (!Number.isFinite(eventStart) || executedAt < eventStart);
   const projected = Boolean(snap && (snap.projHome != null || snap.pHomeFinal != null));
-  const recommended = Boolean(rec);
+  const recommended = Boolean(rec) && execAfterFreezeBeforeStart;
   const qualified = Boolean(rec?.qualified || rec?.tag && rec.tag !== "LEAN");
   const conviction = String(rec?.tag || "").toUpperCase() === "CONVICTION";
   const lean = String(rec?.tag || "").toUpperCase() === "LEAN" || Boolean(rec?.lean && !rec?.qualified);
@@ -197,7 +218,9 @@ export function attachPinnacleClv(ticket, snapshots, start) {
       ? { line: close.line, price: close.price, noVig: close.noVig, at: close.capturedAt }
       : null,
     clv,
-    clvStatus: clv == null ? "unavailable" : "ok",
+    clvStatus: clv == null
+      ? (!entry ? "MISSING_ENTRY" : !close ? (closePick.reason === "line-mismatch" ? "LINE_MISMATCH" : "MISSING_CLOSE") : !sameLine ? "LINE_MISMATCH" : "UNMATCHED_CONTRACT")
+      : "PRICE_CLV_SAME_LINE",
     clvReason: reason,
     clvMethodVersion: HERITAGE_CLV_METHOD,
     lineMovement: closePick.lineMovement,

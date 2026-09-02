@@ -9,6 +9,7 @@ import {
   validateImportedTicket,
   EXPECTED_SEED_N,
   summarizeProspectiveConvictionCohort,
+  strategyIntegrity,
 } from "../lib/strategy.js";
 import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGamesByIds, queryProbabilityCorrections } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
@@ -107,65 +108,6 @@ function groupBySport(tickets = []) {
     });
 }
 
-function marketFamily(market = "") {
-  const m = String(market || "").toUpperCase();
-  if (m.includes("ML")) return "moneyline";
-  if (m.includes("SPREAD")) return "spread";
-  if (m.includes("TOTAL")) return "total";
-  if (m.includes("PROP")) return "player-prop";
-  return "other";
-}
-
-function periodFamily(market = "") {
-  const m = String(market || "").toUpperCase();
-  if (m.startsWith("F5")) return "F5";
-  if (m.includes("PROP")) return "player-prop";
-  return "full-game";
-}
-
-function countBy(rows = [], keyFn) {
-  const out = {};
-  for (const row of rows || []) {
-    const key = keyFn(row) || "unknown";
-    out[key] = (out[key] || 0) + 1;
-  }
-  return out;
-}
-
-function strategyIntegrity(tickets = []) {
-  const unresolved = tickets.filter((t) => String(t.result || "").toUpperCase() === "FINAL NOT MATCHED");
-  const pushes = tickets.filter((t) => String(t.result || "").toUpperCase() === "PUSH");
-  const voids = tickets.filter((t) => String(t.result || "").toUpperCase() === "VOID");
-  const settled = tickets.filter((t) => ["WON", "LOST"].includes(String(t.result || "").toUpperCase()));
-  const open = tickets.filter((t) => !t.result || String(t.result || "").toUpperCase() === "OPEN");
-  const invalid = tickets.filter((t) => String(t.provenance || t.traits?.provenance || "").toLowerCase() === "invalid");
-  const quarantined = tickets.filter((t) => Boolean(t.traits?.quarantineReason));
-  return {
-    open: open.length,
-    settled: settled.length,
-    unresolved: unresolved.length,
-    pushes: pushes.length,
-    voids: voids.length,
-    duplicatesExcluded: 0,
-    invalid: invalid.length,
-    quarantined: quarantined.length,
-    breakdowns: {
-      sport: countBy(tickets, (t) => t.sport || "unknown"),
-      marketFamily: countBy(tickets, (t) => marketFamily(t.market)),
-      periodFamily: countBy(tickets, (t) => periodFamily(t.market)),
-      modelVersion: countBy(tickets, (t) => t.modelVersion || "unknown"),
-      qualificationRuleVersion: countBy(tickets, () => QUALIFICATION_RULE_VERSION),
-    },
-    mixChecks: {
-      sports: Object.keys(countBy(tickets, (t) => t.sport || "unknown")).length,
-      marketFamilies: Object.keys(countBy(tickets, (t) => marketFamily(t.market))).length,
-      periods: Object.keys(countBy(tickets, (t) => periodFamily(t.market))).length,
-      modelVersions: Object.keys(countBy(tickets, (t) => t.modelVersion || "unknown")).length,
-      checkpoints: Object.keys(countBy(tickets, (t) => t.checkpoint || "unknown")).length,
-    },
-  };
-}
-
 export async function onRequestGet(context) {
   const env = { DB: context.env.DB };
   const durable = await durableHealth(env);
@@ -224,7 +166,13 @@ export async function onRequestGet(context) {
   const prospective = (prospectiveRaw || []).map((t) => presentTicketWithCanonicalMatchup(t, gameById));
   const seedPresented = (seed || []).map((t) => presentTicketWithCanonicalMatchup(t, gameById));
   const prospectiveBySport = groupBySport(prospective);
-  const integrity = strategyIntegrity(prospective);
+  const integrity = strategyIntegrity(prospective, {
+    reconstructions: [...latestCorrection.values()].map((row) => ({
+      ...row,
+      originalTicketId: row.originalTicketId || row.ticketId,
+      ticketId: row.originalTicketId || row.ticketId,
+    })),
+  });
   const mixed =
     integrity.mixChecks?.sports > 1 ||
     integrity.mixChecks?.marketFamilies > 1 ||
@@ -259,6 +207,8 @@ export async function onRequestGet(context) {
         date: t.date,
         result: t.result,
         clv: t.clv,
+        modelVersion: t.modelVersion,
+        qualificationRuleVersion: QUALIFICATION_RULE_VERSION,
       };
     })
   );

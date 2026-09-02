@@ -1,12 +1,13 @@
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { fmtAmerican, fmtNum, fmtPct } from "./lib/format.js";
-import { propWatchEmptyCopy, todayFeedNote } from "../functions/lib/propConviction.js";
+import { todayFeedNote } from "../functions/lib/propConviction.js";
 import { kickoffCt } from "../functions/lib/gameStatus.js";
 import { TeamIdentity } from "./components/TeamLogo.jsx";
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 import { Fragment, useState } from "react";
-import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
+import { PHASE1_OUTSIDE_LABEL, QUALIFICATION_LABEL, displayPlayLabel, recHasMarketAndLine } from "../functions/lib/mlbPhase1.js";
+import { CONVICTION_QUALIFICATION_PAUSED } from "../functions/lib/convictionGate.js";
 
 const FILTERS = [
   ["all", "All games"],
@@ -46,6 +47,17 @@ export default function TodayView({
   const unavailable = Boolean(error && !board);
   const d = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
   const sourceStatus = health?.sourceStatus?.statuses || {};
+  const openHeritage = (board?.games || []).reduce((n, g) => n + (g.myBets || []).filter((b) => !b.result || b.result === "OPEN").length, 0);
+  const settlementAttention = openHeritage;
+  const qualifiedFg = sportFilter === "mlb" || sportFilter === "all"
+    ? (board?.games || []).filter((g) => g.sport === "mlb" && g.rec && recHasMarketAndLine(g.rec)).length
+    : counts.qualified ?? 0;
+  const headerStatus = board
+    ? `${badgeLabel(state || health?.state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${counts.games ?? 0} games`}`
+    : loading
+      ? "Loading…"
+      : `${badgeLabel(state || health?.state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${counts.games ?? 0} games`}`;
+  const retryLabel = loading && !board ? "Retrying…" : "Retry";
   const qualificationValue =
     sportFilter === "all" && coverage && !coverage.qualificationAuthoritative
       ? "Qualification unavailable (incomplete all-sports coverage)"
@@ -58,11 +70,10 @@ export default function TodayView({
       <section className="panel">
         <div className="panel-header">
           <h2>TODAY · {date} CT</h2>
-          <span className="last-updated">
-            {loading ? "Loading…" : `${badgeLabel(state || health?.state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${counts.games ?? 0} games`}`}
-          </span>
+          <span className="last-updated">{headerStatus}</span>
         </div>
         <div className="panel-body">
+          <div aria-live="polite" className="sr-only">{loading && !board ? "Loading today board" : board ? "Today board loaded" : error || ""}</div>
           <div className="today-controls">
             <button className="header-btn" onClick={() => onDate(shift(date, -1))} aria-label="Previous day">← Prev</button>
             <input type="date" value={date} onChange={(e) => onDate(e.target.value)} />
@@ -71,7 +82,7 @@ export default function TodayView({
             {onImport && (
               <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT HERITAGE BET SLIP</button>
             )}
-            {onRetry && <button className="header-btn" onClick={() => onRetry?.()} disabled={loading}>{loading ? "Retrying…" : "Retry"}</button>}
+            {onRetry && <button className="header-btn" onClick={() => onRetry?.()} disabled={loading && !board}>{retryLabel}</button>}
           </div>
           <p className="muted" style={{ marginTop: 8 }}>
             {attemptAt ? `Current attempt ${fmtTs(attemptAt)}. ` : ""}
@@ -92,14 +103,19 @@ export default function TodayView({
             ))}
           </div>
           <div className="status-grid" style={{ marginTop: 10 }}>
+            <Stat label="Current health" value={d(badgeLabel(state || health?.state || "DEGRADED"))} />
             <Stat label="Last collect" value={d(fmtTs(health.lastCollect))} />
             <Stat label="Last harvest" value={d(fmtTs(health.lastHarvest))} />
+            <Stat label="Market freshness" value={d(health.todayCacheOnly ? "cache-only board" : "mixed live")} />
+            <Stat label="Games today" value={d(health.gamesLoaded ?? counts.games ?? 0)} />
+            <Stat label="Qualified full-game" value={d(qualifiedFg)} />
+            <Stat label="Open Heritage bets" value={d(openHeritage)} />
+            <Stat label="Settlement attention" value={settlementAttention ? `${settlementAttention} open imported bet(s)` : "none"} />
             <Stat label="D1" value={d(health.d1 || "—")} />
             <Stat label="Sports" value={d((health.sportsLoaded || []).join(" ") || "—")} />
-            <Stat label="Games" value={d(health.gamesLoaded ?? counts.games ?? 0)} />
             <Stat label="Projections" value={d(health.projectionsAvailable ?? "—")} />
             <Stat label="Markets" value={d(health.marketsAvailable ?? "—")} />
-            <Stat label="Qualified" value={qualificationValue} />
+            <Stat label="Qualified (feed)" value={qualificationValue} />
           </div>
           {coverage ? (
             <p className="muted" style={{ marginTop: 8 }}>
@@ -124,7 +140,7 @@ export default function TodayView({
             <p className="error" style={{ marginTop: 8 }}>{health.openFailures.join(" · ")}</p>
           )}
           <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
-            {todayFeedNote(health, counts.mlbPropWatch)}
+            {sportFilter === "mlb" ? PHASE1_OUTSIDE_LABEL : todayFeedNote(health, counts.mlbPropWatch)}
           </p>
           <PopulationDescriptor descriptor={board?.population?.board} title="Board population descriptor" />
         </div>
@@ -142,8 +158,8 @@ export default function TodayView({
           <div className="panel-body" style={{ padding: 0 }}>
             {group.error && <div className="empty">Feed failure: {group.error}</div>}
             {!group.error && !group.games.length && <div className="empty">No games in this filter for {group.label}.</div>}
-            {group.sport === "mlb" && counts.mlbPropWatch && !counts.mlbPropWatch.convictions ? (
-              <div className="muted" style={{ padding: "10px 14px 0" }}>{propWatchEmptyCopy(counts.mlbPropWatch)}</div>
+            {group.sport === "mlb" ? (
+              <div className="muted" style={{ padding: "10px 14px 0" }}>{PHASE1_OUTSIDE_LABEL}</div>
             ) : null}
             {group.games.length > 0 && <div className="table-scroll"><TodayTable games={group.games} propWatch={counts.mlbPropWatch} /></div>}
           </div>
@@ -176,6 +192,56 @@ function fmtTs(iso) {
   return new Date(iso).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+function PitcherCell({ sp, label }) {
+  const name = sp?.last || sp?.name || "TBD";
+  const hand = sp?.throws || sp?.hand || sp?.bats || "";
+  return (
+    <div>
+      {label ? <span className="muted">{label} </span> : null}
+      {name}{hand ? ` (${hand})` : ""}
+    </div>
+  );
+}
+
+function PlayCell({ g }) {
+  if (g.qualificationBlocked || (g.sport === "cfb" && g.bettingAllowed === false)) {
+    return <span className="muted">{g.blockReason || g.noPlayReason || "Blocked"}</span>;
+  }
+  const paused = CONVICTION_QUALIFICATION_PAUSED;
+  const label = displayPlayLabel({
+    rec: g.rec,
+    lean: g.lean,
+    paused,
+    marketUnavailable: g.marketUnavailable,
+    projectionIncomplete: g.projectionUnavailable,
+  });
+  if (g.rec && recHasMarketAndLine(g.rec)) {
+    return (
+      <>
+        <span className={`tier-badge tier-${g.rec.tag === "CONVICTION" && paused ? "LEAN" : g.rec.tag}`}>{label || g.rec.tag}</span>
+        <div>{g.rec.pick} · {g.rec.market}{g.rec.line != null ? ` ${g.rec.line}` : ""}</div>
+        {g.projHome != null && g.projAway != null ? (
+          <div className="muted">Projected winner: {g.projHome >= g.projAway ? g.home.fullName || g.home.name : g.away.fullName || g.away.name}</div>
+        ) : null}
+      </>
+    );
+  }
+  if (g.rec && !recHasMarketAndLine(g.rec)) {
+    return <span className="muted">Recommendation missing market/line</span>;
+  }
+  if (g.lean) {
+    return (
+      <>
+        <span className="tier-badge tier-LEAN">{QUALIFICATION_LABEL.MODEL_LEAN}</span>
+        <div>{g.lean.pick}{g.lean.market ? ` · ${g.lean.market}` : ""}{g.lean.line != null ? ` ${g.lean.line}` : ""}</div>
+        <div className="muted">{g.lean.reason || g.noPlayReason}</div>
+      </>
+    );
+  }
+  if (label) return <span className="muted">{label}</span>;
+  return <span className="muted">{g.noPlayReason || "No play"}</span>;
+}
+
 function Stat({ label, value }) {
   return (
     <div className="status-cell">
@@ -193,18 +259,17 @@ function TodayTable({ games, propWatch }) {
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
-  const columns = 8 + (mlb ? 2 : 0);
+  const columns = mlb ? 9 : 8;
   return (
     <table className="fbis-table today-table">
       <thead>
         <tr>
           <th>Matchup</th>
+          {mlb ? <th>Pitchers</th> : null}
           <th>CT</th>
           <th>Status</th>
           <th>Proj</th>
-          {mlb ? <th>F5</th> : null}
-          {mlb ? <th>Props</th> : null}
-          <th>Pin</th>
+          <th>Pin FG</th>
           <th>Quality</th>
           <th>Play</th>
           <th>MY BET</th>
@@ -227,6 +292,12 @@ function TodayTable({ games, propWatch }) {
                 </button>
               </div>
             </td>
+            {mlb ? (
+              <td>
+                <PitcherCell sp={g.awaySp} />
+                <PitcherCell sp={g.homeSp} />
+              </td>
+            ) : null}
             <td>
               <div>{g.startCt || kickoffCt(g.start) || "—"}</div>
               <div className="muted">{g.modelVersion || ""}{g.checkpoint ? ` · ${g.checkpoint}` : ""}</div>
@@ -238,8 +309,6 @@ function TodayTable({ games, propWatch }) {
             <td>
               <ProjCell g={g} />
             </td>
-            {mlb ? <td><TodayF5Cell g={g} /></td> : null}
-            {mlb ? <td><TodayPropsCell g={g} propWatch={propWatch} /></td> : null}
             <td>
               {g.marketUnresolved || g.marketUnavailable ? (
                 <span className="muted">{g.marketUnresolved ? "TEAM MATCH UNRESOLVED" : "market unavailable"}</span>
@@ -256,24 +325,7 @@ function TodayTable({ games, propWatch }) {
               <div className="muted">{(g.quality?.flags || []).slice(0, 2).join(" · ") || "—"}</div>
             </td>
             <td>
-              {g.qualificationBlocked || (g.sport === "cfb" && g.bettingAllowed === false) ? (
-                <span className="muted">{g.blockReason || g.noPlayReason || "Blocked"}</span>
-              ) : g.rec ? (
-                <>
-                  <span className={`tier-badge tier-${g.rec.tag}`}>{g.rec.tag}</span>
-                  <div>{g.rec.pick} · {g.rec.market}</div>
-                  {g.sport === "cfb" && g.projHome != null && g.projAway != null ? <div className="muted">Projected winner: {g.projHome >= g.projAway ? g.home.fullName || g.home.name : g.away.fullName || g.away.name}</div> : null}
-                </>
-              ) : g.lean ? (
-                <>
-                  <span className="tier-badge tier-LEAN">LEAN</span>
-                  <div>{g.lean.pick}</div>
-                  <div className="muted">{g.lean.reason || g.noPlayReason}</div>
-                  {g.sport === "cfb" && g.projHome != null && g.projAway != null ? <div className="muted">Projected winner: {g.projHome >= g.projAway ? g.home.fullName || g.home.name : g.away.fullName || g.away.name}</div> : null}
-                </>
-              ) : (
-                <span className="muted">{g.noPlayReason || "No play"}</span>
-              )}
+              <PlayCell g={g} />
             </td>
             <td>
               {(g.myBets || []).length ? (
@@ -301,49 +353,99 @@ function TodayTable({ games, propWatch }) {
 
 export function GameDetails({ g }) {
   if (g.sport === "cfb") return <CfbGameDetails g={g} />;
+  if (g.sport === "mlb") return <MlbGameDetails g={g} />;
   const props = g.propConvictions || [];
   return (
     <div className="game-detail-grid">
       <section>
         <h3>GAME MODEL</h3>
         <div>FBIS: {fmtNum(g.projAway)}–{fmtNum(g.projHome)} · total {fmtNum(g.projTotal)}</div>
-        <div>Ballpark Pal: {g.palAway == null ? "—" : `${fmtNum(g.palAway)}–${fmtNum(g.palHome)}`}</div>
         <div>Pinnacle ML: {fmtAmerican(g.pinMlAway)} / {fmtAmerican(g.pinMlHome)}</div>
-        <div>Kalshi sentiment: {g.sentiment?.home == null ? "—" : `${fmtPct(g.sentiment.home)} home`}</div>
-      </section>
-      <section>
-        <h3>F5</h3>
-        <TodayF5Cell g={g} />
-        <div className="muted">Pal is the projection. Listed book prices are the executable market comparison.</div>
-      </section>
-      <section>
-        <h3>WEATHER / PARK</h3>
-        {g.weather ? <>
-          <div>{g.weather.description || "Conditions available"}</div>
-          <div>{g.weather.temperature == null ? "" : `${g.weather.temperature}°F`} {g.weather.windSpeed == null ? "" : `· wind ${g.weather.windSpeed} mph`}</div>
-        </> : <div className="muted">Weather unavailable for this feed.</div>}
-        <div>{g.palPark?.name || g.palPark?.parkName || g.venue || "Venue unavailable"}</div>
-      </section>
-      <section className="detail-props">
-        <h3>CONVICTION PLAYER PROPS · {props.length}</h3>
-        {!props.length ? (
-          <div className="muted">
-            {propWatchEmptyCopy({
-              status: (g.sportsbookPropCount || (g.sportsbookProps || []).length) ? "available" : "empty",
-              sportsbookContracts: g.sportsbookPropCount || (g.sportsbookProps || []).length || 0,
-              convictions: 0,
-            })}
-          </div>
-        ) : (
-          <table className="mini-prop-table"><thead><tr><th>Player</th><th>Prop</th><th>FBIS proj</th><th>Probability</th><th>Expected ROI</th><th>Book</th></tr></thead>
-            <tbody>{props.map((p, i) => <tr key={`${p.playerName}:${p.market}:${p.line}:${i}`}><td>{p.playerName}</td><td><span className="tier-badge tier-CONVICTION">CONVICTION</span> {p.side} {p.line} {fmtAmerican(p.price)}</td><td>{p.projection == null ? "—" : fmtNum(p.projection)}</td><td>{fmtPct(p.probability)}</td><td>{fmtPct(p.ev)}</td><td>{p.book || "—"}</td></tr>)}</tbody>
-          </table>
-        )}
       </section>
       <section>
         <h3>MY BET / TRACKING</h3>
         {(g.myBets || []).length ? g.myBets.map((b) => <div key={b.id}>{b.selectedTeam || b.selectedSide} {fmtAmerican(b.executionPrice)} · ${Number(b.riskAmount || 0).toFixed(2)} · {b.result || "OPEN"}</div>) : <div className="muted">No imported Heritage bet.</div>}
         <div className="muted">Checkpoint: {g.checkpoint || "—"} · Model: {g.modelVersion || "—"}</div>
+      </section>
+      {g.sport === "mlb" ? <p className="muted">{PHASE1_OUTSIDE_LABEL}</p> : null}
+      {props.length ? <section className="detail-props"><h3>Research-only props</h3></section> : null}
+    </div>
+  );
+}
+
+function asOf(source, at) {
+  if (!source && !at) return "source unavailable";
+  return `${source || "unknown source"}${at ? ` · as of ${fmtTs(at)}` : ""}`;
+}
+
+function MlbGameDetails({ g }) {
+  const winner = g.projHome == null || g.projAway == null ? "—" : g.projHome >= g.projAway ? (g.home.fullName || g.home.name) : (g.away.fullName || g.away.name);
+  return (
+    <div className="game-detail-grid">
+      <section>
+        <h3>1. Projection</h3>
+        <div>Away {fmtNum(g.projAway)} · Home {fmtNum(g.projHome)} · total {fmtNum(g.projTotal)} · margin {fmtNum(g.projMargin)}</div>
+        <div>Home win {fmtPct(g.pHome)} · Away win {g.pHome == null ? "—" : fmtPct(1 - g.pHome)}</div>
+        <div>Projected winner: {winner}</div>
+        <div className="muted">FBIS independent · {asOf("FBIS", g.checkpoint || g.modelVersion)}</div>
+      </section>
+      <section>
+        <h3>2. Market comparison</h3>
+        <div>Pinnacle ML {fmtAmerican(g.pinMlAway)} / {fmtAmerican(g.pinMlHome)}</div>
+        <div>Run line {g.pinSpread == null ? "—" : `${g.pinSpread > 0 ? "+" : ""}${g.pinSpread}`} · {fmtAmerican(g.pinSpreadAwayPrice)} / {fmtAmerican(g.pinSpreadHomePrice)}</div>
+        <div>Total {g.pinTotal ?? "—"} · O {fmtAmerican(g.pinOverPrice)} / U {fmtAmerican(g.pinUnderPrice)}</div>
+        <div className="muted">{asOf("Pinnacle", g.marketAsOf || g.palAsOf)}</div>
+      </section>
+      <section>
+        <h3>3. Starting pitchers</h3>
+        <PitcherCell sp={g.awaySp} label={g.away?.abbr || "Away"} />
+        <PitcherCell sp={g.homeSp} label={g.home?.abbr || "Home"} />
+        <div className="muted">{asOf("Ballpark Pal / MLB Stats", g.palAsOf)}</div>
+      </section>
+      <section>
+        <h3>4. Lineups</h3>
+        <div>{g.lineupsOfficial ? "Official lineups" : "Projected or unconfirmed lineups"}</div>
+        <div className="muted">{asOf("Ballpark Pal", g.palAsOf)}</div>
+      </section>
+      <section>
+        <h3>5. Bullpens</h3>
+        <div className="muted">{g.bpp?.bullpen ? JSON.stringify(g.bpp.bullpen).slice(0, 120) : "Bullpen context unavailable"}</div>
+        <div className="muted">{asOf("Ballpark Pal", g.palAsOf)}</div>
+      </section>
+      <section>
+        <h3>6. Weather and park</h3>
+        {g.weather ? <>
+          <div>{g.weather.description || "Conditions available"}</div>
+          <div>{g.weather.temperature == null ? "" : `${g.weather.temperature}°F`} {g.weather.windSpeed == null ? "" : `· wind ${g.weather.windSpeed} mph`}</div>
+        </> : <div className="muted">Weather unavailable for this feed.</div>}
+        <div>{g.palPark?.name || g.palPark?.parkName || g.venue || "Venue unavailable"}</div>
+        <div className="muted">{asOf("MLB Stats / Pal", g.weather?.asOf || g.palAsOf)}</div>
+      </section>
+      <section>
+        <h3>7. Ballpark Pal / Savant context</h3>
+        <div>Pal {g.palAway == null ? "unavailable" : `${fmtNum(g.palAway)}–${fmtNum(g.palHome)}`}</div>
+        <div className="muted">{asOf("Ballpark Pal", g.palAsOf)} · {g.palUnavailableReason || "matched"}</div>
+        <div className="muted">Kalshi is sentiment only and is not a sportsbook price.</div>
+      </section>
+      <section>
+        <h3>8. Full-game qualification gates</h3>
+        <PlayCell g={g} />
+        {CONVICTION_QUALIFICATION_PAUSED ? <div className="muted">{QUALIFICATION_LABEL.QUALIFICATION_PAUSED}</div> : null}
+      </section>
+      <section>
+        <h3>9. Heritage execution</h3>
+        {(g.myBets || []).length ? g.myBets.map((b) => (
+          <div key={b.id}>
+            {b.selectedTeam || b.selectedSide} {b.executionLine != null ? b.executionLine : ""} {fmtAmerican(b.executionPrice)} · ${Number(b.riskAmount || 0).toFixed(2)} · {b.result || "OPEN"}
+            <div className="muted">{b.attributionLabel || "OPERATOR BET · NOT ATTRIBUTED TO FBIS"}</div>
+          </div>
+        )) : <div className="muted">No imported Heritage bet.</div>}
+      </section>
+      <section>
+        <h3>10. Tracking and freeze metadata</h3>
+        <div>Checkpoint: {g.checkpoint || "—"} · Model: {g.modelVersion || "—"}</div>
+        <div>Game ID {g.id} · start {g.start || "—"}</div>
+        <p className="muted" style={{ marginTop: 8 }}>{PHASE1_OUTSIDE_LABEL}</p>
       </section>
     </div>
   );
@@ -463,7 +565,6 @@ function ProjCell({ g }) {
         <div className="muted">
           Pal {fmtNum(g.palAway)}–{fmtNum(g.palHome)}
           {g.palPHome != null ? ` · pH ${fmtPct(g.palPHome)}` : ""}
-          {g.palF5Away != null ? ` · F5 ${fmtNum(g.palF5Away)}–${fmtNum(g.palF5Home)}` : ""}
         </div>
       ) : g.sport === "mlb" ? (
         <div className="muted">Pal {g.palUnavailableReason || "unavailable"}</div>

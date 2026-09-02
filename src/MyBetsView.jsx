@@ -5,13 +5,11 @@ import useIsCompact from "./hooks/useIsCompact.js";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 
-const RESULT_FILTERS = [
+const DEFAULT_VIEWS = [
+  ["needs", "Needs settlement"],
+  ["OPEN", "Open bets"],
+  ["recent", "Recently settled"],
   ["all", "All results"],
-  ["OPEN", "OPEN"],
-  ["WON", "WON"],
-  ["LOST", "LOST"],
-  ["PUSH", "PUSH"],
-  ["VOID", "VOID"],
 ];
 const ATTR_FILTERS = [
   ["all", "All attribution"],
@@ -39,9 +37,10 @@ export default function MyBetsView({
   attemptAt,
 }) {
   const [pack, setPack] = useState({ bets: external || [], summary: externalSummary || null, population: externalPopulation || null });
-  const [result, setResult] = useState("all");
+  const [result, setResult] = useState("needs");
   const [attr, setAttr] = useState("all");
   const [sport, setSport] = useState("all");
+  const [moreFilters, setMoreFilters] = useState(false);
   const compact = useIsCompact(760);
 
   useEffect(() => {
@@ -59,9 +58,18 @@ export default function MyBetsView({
 
   const bets = pack.bets || [];
   const shown = useMemo(() => {
+    const recentCut = Date.now() - 7 * 24 * 60 * 60 * 1000;
     return bets.filter((b) => {
       if (sport !== "all" && b.sport !== sport) return false;
-      if (result !== "all" && (b.result || "OPEN") !== result) return false;
+      const res = b.result || "OPEN";
+      if (result === "needs") {
+        const needs = res === "OPEN" || res === "POSTPONED" || res === "SUSPENDED" || res === "MANUAL_REVIEW";
+        if (!needs) return false;
+      } else if (result === "recent") {
+        const settledAt = Date.parse(b.gradedAt || b.settledAt || "");
+        if (!["WON", "LOST", "PUSH", "VOID"].includes(res)) return false;
+        if (!Number.isFinite(settledAt) || settledAt < recentCut) return false;
+      } else if (result !== "all" && res !== result) return false;
       if (attr !== "all" && (b.recommendationStatus || "") !== attr) return false;
       return true;
     });
@@ -76,7 +84,7 @@ export default function MyBetsView({
       <section className="panel">
         <div className="panel-header">
           <h2>MY BETS · Heritage executed</h2>
-          <span className="last-updated">{loading ? "Loading…" : `${badgeLabel(state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${summary.bets || 0} imported`}`}</span>
+          <span className="last-updated">{loading && !pack.bets?.length && !error ? "Loading…" : `${badgeLabel(state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${summary.bets || 0} imported`}`}</span>
         </div>
         <div className="panel-body">
           <p className="muted">
@@ -108,14 +116,17 @@ export default function MyBetsView({
           <p className="muted" style={{ marginTop: 8 }}>{unavailable ? "Bets data unavailable right now. Retry after data source recovers." : (summary.message || (summary.settled ? null : "No settled Heritage bets yet."))}</p>
           <PopulationDescriptor descriptor={pack.population || null} title="Bets population descriptor" />
           <div className="filter-row" style={{ marginTop: 10 }}>
+            {DEFAULT_VIEWS.map(([id, label]) => (
+              <button key={id} className={result === id ? "chip active" : "chip"} onClick={() => setResult(id)}>{label}</button>
+            ))}
+            <button className={moreFilters ? "chip active" : "chip"} onClick={() => setMoreFilters((v) => !v)} aria-expanded={moreFilters}>More filters</button>
+          </div>
+          {moreFilters ? (
+            <>
+          <div className="filter-row" style={{ marginTop: 10 }}>
             <button className={sport === "all" ? "chip active" : "chip"} onClick={() => setSport("all")}>All sports</button>
             {["mlb", "nfl", "cfb", "nba", "cbb"].map((id) => (
               <button key={id} className={sport === id ? "chip active" : "chip"} onClick={() => setSport(id)}>{id.toUpperCase()}</button>
-            ))}
-          </div>
-          <div className="filter-row">
-            {RESULT_FILTERS.map(([id, label]) => (
-              <button key={id} className={result === id ? "chip active" : "chip"} onClick={() => setResult(id)}>{label}</button>
             ))}
           </div>
           <div className="filter-row">
@@ -123,6 +134,8 @@ export default function MyBetsView({
               <button key={id} className={attr === id ? "chip active" : "chip"} onClick={() => setAttr(id)}>{label}</button>
             ))}
           </div>
+            </>
+          ) : null}
         </div>
       </section>
       <section className="panel">
@@ -148,8 +161,10 @@ export default function MyBetsView({
                     />
                   </div>
                   <div className="mobile-kv-grid" style={{ marginTop: 8 }}>
+                    <div><small>Ticket</small><b>{b.externalTicketId}</b></div>
+                    <div><small>Selection</small><b>{b.selectedTeam || b.selectedSide || "—"}</b></div>
+                    <div><small>Line</small><b>{b.executionLine == null ? "—" : b.executionLine}</b></div>
                     <div><small>Market</small><b>{formatMarketPeriod(b.market, b.period)}</b></div>
-                    <div><small>Side</small><b>{b.selectedTeam || b.selectedSide || "—"}{b.executionLine != null ? ` ${b.executionLine}` : ""}</b></div>
                     <div><small>Price</small><b>{fmtAmerican(b.executionPrice)}</b></div>
                     <div><small>Risk</small><b>${Number(b.riskAmount || 0).toFixed(2)}</b></div>
                     <div><small>P/L</small><b>{b.profit == null ? "—" : fmtSigned(b.profit, 2)}</b></div>

@@ -5,6 +5,8 @@ Hosted on **Cloudflare Pages**. No droplet.
 
 Live: **https://fbis-myz.pages.dev/**
 
+Phase 1 production qualification is MLB full-game moneyline, run line, and total. See `docs/phase1-mlb.md`. Canonical deploy is authenticated Cloudflare Pages upload, not GitHub Deploy Pages (`docs/canonical-deployment.md`).
+
 FBIS is not a picks site. The loop is:
 
 **forecast → no-vig price → compare to Pinnacle → require +EV → record → grade final → diagnose error → repeat**
