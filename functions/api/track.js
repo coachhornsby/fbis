@@ -7,6 +7,13 @@ import { resolveTeam } from "../lib/teams.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 import { auditTicketEv, summarizeEvAudits } from "../lib/evAudit.js";
+const MIGRATION_STATUS = {
+  VERIFIED: "VERIFIED",
+  FAILED: "FAILED",
+  BLOCKED: "BLOCKED",
+  UNVERIFIED: "UNVERIFIED",
+};
+
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -38,23 +45,68 @@ function isFutureStart(value, nowMs = Date.now()) {
 }
 
 async function verifyEvAuditMigration(env) {
-  if (!env?.DB?.prepare) return { ok: false, status: "MIGRATION UNVERIFIED", reason: "D1 unbound" };
+  if (!env?.DB?.prepare) return { ok: false, status: MIGRATION_STATUS.UNVERIFIED, reason: "D1 unbound" };
   try {
     const mig = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = '0012_ev_audit_records' LIMIT 1").first();
-    if (!mig?.id) return { ok: false, status: "MIGRATION UNVERIFIED", reason: "schema_migrations missing 0012_ev_audit_records" };
+    if (!mig?.id) return { ok: false, status: MIGRATION_STATUS.UNVERIFIED, reason: "schema_migrations missing 0012_ev_audit_records" };
     await env.DB.prepare("SELECT id FROM ev_audit_records LIMIT 1").all();
-    return { ok: true, status: "VERIFIED", reason: null };
+    return { ok: true, status: MIGRATION_STATUS.VERIFIED, reason: null };
   } catch (err) {
-    return { ok: false, status: "MIGRATION UNVERIFIED", reason: String(err?.message || err) };
+    const reason = String(err?.message || err);
+    if (/not authorized|authentication|permission/i.test(reason)) {
+      return { ok: false, status: MIGRATION_STATUS.BLOCKED, reason };
+    }
+    if (/no such table|no such column|syntax/i.test(reason)) {
+      return { ok: false, status: MIGRATION_STATUS.FAILED, reason };
+    }
+    return { ok: false, status: MIGRATION_STATUS.UNVERIFIED, reason };
+  }
+}
+
+async function ensureEvAuditMigration(env) {
+  if (!env?.DB?.prepare) return { ok: false, status: MIGRATION_STATUS.UNVERIFIED, reason: "D1 unbound" };
+  try {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS ev_audit_records (
+        id TEXT PRIMARY KEY,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        sport TEXT,
+        market TEXT,
+        side TEXT,
+        model_version TEXT,
+        qualification_rule_version TEXT,
+        freeze_at TEXT,
+        stored_ev REAL,
+        recomputed_ev REAL,
+        anomaly_reason TEXT NOT NULL,
+        root_cause TEXT,
+        qualified INTEGER,
+        entered_strategy INTEGER,
+        disposition TEXT NOT NULL,
+        inputs_json TEXT,
+        created_at TEXT NOT NULL
+      )`
+    ).run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_ev_audit_entity ON ev_audit_records (entity_type, entity_id)").run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_ev_audit_reason ON ev_audit_records (anomaly_reason, created_at)").run();
+    await env.DB.prepare("INSERT OR IGNORE INTO schema_migrations (id, applied_at) VALUES ('0012_ev_audit_records', datetime('now'))").run();
+    return verifyEvAuditMigration(env);
+  } catch (err) {
+    const reason = String(err?.message || err);
+    if (/not authorized|authentication|permission/i.test(reason)) {
+      return { ok: false, status: MIGRATION_STATUS.BLOCKED, reason };
+    }
+    return { ok: false, status: MIGRATION_STATUS.FAILED, reason };
   }
 }
 
 async function runEvAudit(env, payload = {}) {
-  const migration = await verifyEvAuditMigration(env);
+  const migration = await ensureEvAuditMigration(env);
   if (!migration.ok) {
     return {
       ok: false,
-      status: 409,
+      status: migration.status === MIGRATION_STATUS.BLOCKED ? 423 : 409,
       error: `EV audit persistence blocked: ${migration.status}. ${migration.reason || ""}`.trim(),
     };
   }
@@ -386,7 +438,7 @@ export async function onRequestGet(context) {
         ? "not-requested"
         : migration.ok
           ? (auditQ.ok ? null : auditQ.reason || "unavailable")
-          : migration.reason || "MIGRATION UNVERIFIED",
+          : migration.reason || MIGRATION_STATUS.UNVERIFIED,
       count: (auditQ.rows || []).length,
       byReason: summarizeEvAudits((auditQ.rows || []).map((r) => ({ anomalyReason: r.anomaly_reason || r.anomalyReason }))),
       rows: (auditQ.rows || []).slice(0, 50).map((r) => ({

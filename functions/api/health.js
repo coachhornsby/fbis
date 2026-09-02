@@ -2,6 +2,13 @@ import { durableHealth, deploymentCommit, scheduledHealth } from "../lib/jobs.js
 import { MODEL_VERSION } from "../lib/weights.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 
+const MIGRATION_STATUS = {
+  VERIFIED: "VERIFIED",
+  FAILED: "FAILED",
+  BLOCKED: "BLOCKED",
+  UNVERIFIED: "UNVERIFIED",
+};
+
 /**
  * Read-only health endpoint.
  * - No upstream API calls
@@ -146,19 +153,25 @@ function buildMeta(request, env, schema) {
 }
 
 async function schemaVersion(env, { readOk }) {
-  if (!readOk || !env?.DB?.prepare) return { version: null, status: "MIGRATION UNVERIFIED" };
+  if (!readOk || !env?.DB?.prepare) return { version: null, status: MIGRATION_STATUS.UNVERIFIED };
   try {
     const row = await env.DB.prepare("SELECT id FROM schema_migrations ORDER BY id DESC LIMIT 1").first();
     const check = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = '0012_ev_audit_records' LIMIT 1").first();
     return {
       version: row?.id || null,
-      status: check?.id ? "VERIFIED" : "MIGRATION UNVERIFIED",
+      status: check?.id ? MIGRATION_STATUS.VERIFIED : MIGRATION_STATUS.UNVERIFIED,
     };
   } catch (err) {
     const msg = String(err?.message || err);
+    if (/not authorized|authentication|permission/i.test(msg)) {
+      return { version: null, status: MIGRATION_STATUS.BLOCKED };
+    }
+    if (/no such table|no such column|syntax/i.test(msg)) {
+      return { version: null, status: MIGRATION_STATUS.FAILED };
+    }
     return {
       version: null,
-      status: msg ? `MIGRATION UNVERIFIED (${msg})` : "MIGRATION UNVERIFIED",
+      status: MIGRATION_STATUS.UNVERIFIED,
     };
   }
 }
