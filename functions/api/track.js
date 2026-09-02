@@ -2,11 +2,12 @@ import { buildTrackReport } from "../lib/projLedger.js";
 import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, queryStrategyTicketsPaged, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords, queryEvAuditTicketSummary, setMeta, readMeta } from "../lib/store.js";
 import { settleExecutedBet } from "../lib/executedBets.js";
 import { gradeStrategyResult } from "../lib/strategy.js";
-import { resolveFinalForTicket } from "../lib/projLedger.js";
+import { resolveFinalForTicket, reconstructAffectedTickets } from "../lib/projLedger.js";
 import { resolveTeam } from "../lib/teams.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 import { auditTicketEv, summarizeEvAudits, anomalyRuleDetails, ANOMALY_RULES } from "../lib/evAudit.js";
+import { readCanonicalProbability } from "../lib/probability.js";
 const MIGRATION_STATUS = {
   VERIFIED: "VERIFIED",
   FAILED: "FAILED",
@@ -311,23 +312,26 @@ function mapRawTicket(r) {
     executionPrice: r.execution_price,
     entryNoVig: r.entry_no_vig,
     traits,
+    fair: r.model_probability ?? traits.modelProbability ?? null,
+    modelProbability: r.model_probability ?? traits.modelProbability ?? null,
   };
 }
 
 function recomputeTicketRoi(ticket) {
-  const p = Number(ticket.traits?.modelProbability ?? ticket.traits?.fair ?? ticket.traits?.homeWinProb ?? ticket.fair ?? NaN);
+  const canonical = readCanonicalProbability(ticket);
+  const p = canonical.ok ? canonical.modelProbability : null;
   const americanOdds = Number(ticket.pinPrice ?? ticket.benchmarkPrice ?? ticket.executionPrice);
   const reasons = [];
-  if (!Number.isFinite(p) || p < 0 || p > 1) reasons.push("probability-out-of-range");
+  if (!canonical.ok) reasons.push("probability-out-of-range");
   if (!validAmerican(americanOdds)) reasons.push("invalid-american-odds");
   const decimalOdds = validAmerican(americanOdds) ? americanToDecimal(americanOdds) : null;
-  const expectedRoi = Number.isFinite(p) && decimalOdds != null ? p * decimalOdds - 1 : null;
+  const expectedRoi = canonical.ok && decimalOdds != null ? p * decimalOdds - 1 : null;
   const freezeTs = Date.parse(String(ticket.qualifiedAt || ""));
   const startTs = Date.parse(String(ticket.start || ""));
   if (!Number.isFinite(freezeTs)) reasons.push("missing-freeze-timestamp");
   if (Number.isFinite(freezeTs) && Number.isFinite(startTs) && freezeTs > startTs) reasons.push("post-start-freeze");
   if (!ticket.market) reasons.push("market-mismatch");
-  return { modelProbability: Number.isFinite(p) ? p : null, americanOdds: validAmerican(americanOdds) ? americanOdds : null, decimalOdds, expectedRoi, reasons };
+  return { modelProbability: p, americanOdds: validAmerican(americanOdds) ? americanOdds : null, decimalOdds, expectedRoi, reasons };
 }
 
 function validAmerican(v) {
@@ -740,7 +744,8 @@ export async function onRequestPost(context) {
       action !== "cleanup-future-grades" &&
       action !== "audit-ev" &&
       action !== "d1-diagnostic" &&
-      action !== "recompute-ev"
+      action !== "recompute-ev" &&
+      action !== "reconstruct-probability"
     )
       return json({ ok: false, error: "unknown action" }, 400);
     const result =
@@ -752,6 +757,11 @@ export async function onRequestPost(context) {
             ? await runD1Diagnostic({ DB: context.env.DB }, body)
             : action === "recompute-ev"
               ? await recomputeAffectedTickets({ DB: context.env.DB }, body)
+              : action === "reconstruct-probability"
+                ? await (async () => {
+                    const out = await reconstructAffectedTickets({ DB: context.env.DB });
+                    return { ok: true, status: 200, body: out };
+                  })()
           : await applyManualFinal({ DB: context.env.DB }, body);
     if (!result.ok) return json({ ok: false, error: result.error || "failed" }, result.status || 400);
     return json(result.body, 200);

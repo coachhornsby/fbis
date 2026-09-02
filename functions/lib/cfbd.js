@@ -383,6 +383,43 @@ function ensureFeatureRow(buckets, row = {}) {
   return buckets[key];
 }
 
+function flattenCoachRows(rows = []) {
+  const out = [];
+  for (const row of rows || []) {
+    if (Array.isArray(row?.coaches)) {
+      for (const coach of row.coaches) {
+        out.push({ ...row, ...coach, school: coach.school || row.school || row.team, coaches: undefined });
+      }
+      continue;
+    }
+    if (Array.isArray(row?.seasons)) {
+      for (const season of row.seasons) {
+        out.push({ ...row, ...season, school: season.school || row.school || row.team, seasons: undefined });
+      }
+      continue;
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+function parseHireYear(row = {}) {
+  const direct = num(row.firstYear ?? row.startYear ?? row.hireYear ?? row.season);
+  if (direct != null) return direct;
+  const hire = row.hireDate || row.hired || row.startDate || null;
+  if (!hire) return null;
+  const year = Number(String(hire).slice(0, 4));
+  return Number.isFinite(year) && year >= 1900 ? year : null;
+}
+
+export function parseCoachTenure(row = {}, year = null) {
+  const tenure = num(row.years ?? row.yearsAtSchool ?? row.tenure);
+  if (tenure != null) return tenure;
+  const firstYear = parseHireYear(row);
+  if (firstYear != null && year != null) return Math.max(0, Number(year) - Number(firstYear));
+  return null;
+}
+
 function parseEpaFromRow(row = {}) {
   const off = num(
     row.offense?.overall ??
@@ -579,7 +616,7 @@ export function buildCfbFeatureCatalog({
       if (stars != null) out.transferStarsOut = (out.transferStarsOut || 0) + stars;
     }
   }
-  for (const row of coaches || []) {
+  for (const row of flattenCoachRows(coaches || [])) {
     const hit = resolveFeatureTeam(row);
     if (!hit) continue;
     const out = ensureFeatureRow(buckets, {
@@ -589,14 +626,14 @@ export function buildCfbFeatureCatalog({
       year,
     });
     if (!out) continue;
-    const firstYear = num(row.firstYear ?? row.startYear ?? row.hireYear ?? row.season);
-    const tenure = num(row.years ?? row.yearsAtSchool ?? row.tenure);
+    const firstYear = parseHireYear(row);
+    const tenure = parseCoachTenure(row, year);
     const coachName = row.firstName && row.lastName ? `${row.firstName} ${row.lastName}` : row.coach || row.name || null;
     out.coachName = coachName || out.coachName || null;
     out.coachFirstYear = firstYear ?? out.coachFirstYear ?? null;
-    out.coachTenure = tenure ?? (firstYear != null && year != null ? Math.max(0, Number(year) - Number(firstYear)) : out.coachTenure ?? null);
+    out.coachTenure = tenure ?? out.coachTenure ?? null;
     if (firstYear != null && year != null) out.newCoach = Number(firstYear) >= Number(year);
-    else if (typeof out.newCoach !== "boolean") out.newCoach = false;
+    else if (typeof out.newCoach !== "boolean" && tenure != null) out.newCoach = tenure <= 0;
   }
   const finalRows = Object.values(buckets).map((row) => {
     const transferIn = Number(row.transferIn || 0);
@@ -635,31 +672,49 @@ export async function loadCfbFeatureFeeds(env = {}, { fetchFn = fetch, now = Dat
       }),
     };
   }
-  const cacheKey = `cfb-feature-feeds-v1-${season}`;
+  const cacheKey = `cfb-feature-feeds-v2-${season}`;
   const cached = await readCache(cacheKey, env.caches, FEATURE_TTL_MS);
   if (cached?.catalog?.byEspnId && cached?.meta) return cached;
 
-  const [epa, transfer, coaches, returning, qbHistory] = await Promise.all([
+  const priorSeason = season - 1;
+  const [epaCurrent, epaPrior, transfer, coachesCurrent, coachesPrior, returning, qbHistory] = await Promise.all([
     firstSuccessfulCfbdRequest(env, [["/ppa/teams", { year: season }], ["/ppa/teams/season", { year: season }]], fetchFn),
+    firstSuccessfulCfbdRequest(env, [["/ppa/teams", { year: priorSeason }], ["/ppa/teams/season", { year: priorSeason }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/player/portal", { year: season }], ["/player/transfer", { year: season }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/coaches", { year: season }], ["/coaches/teams", { year: season }]], fetchFn),
+    firstSuccessfulCfbdRequest(env, [["/coaches", { year: priorSeason }], ["/coaches/teams", { year: priorSeason }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/player/returning", { year: season }]], fetchFn),
     firstSuccessfulCfbdRequest(
       env,
       [
-        ["/player/season/statistics", { year: season - 1, category: "passing" }],
-        ["/stats/player/season", { year: season - 1, category: "passing" }],
-        ["/player/usage", { year: season - 1 }],
+        ["/player/season/statistics", { year: priorSeason, category: "passing" }],
+        ["/stats/player/season", { year: priorSeason, category: "passing" }],
+        ["/player/usage", { year: priorSeason }],
       ],
       fetchFn
     ),
   ]);
 
-  const report = [...epa.report, ...transfer.report, ...coaches.report, ...returning.report, ...qbHistory.report];
+  const epaInSeason = (epaCurrent.rows || []).length > 0;
+  const coachesInSeason = (coachesCurrent.rows || []).length > 0;
+  const epaRows = epaInSeason ? epaCurrent.rows : epaPrior.rows;
+  const coachRows = coachesInSeason ? coachesCurrent.rows : coachesPrior.rows;
+  const epaVersion = epaInSeason ? "cfbd-ppa-in-season" : "cfbd-ppa-preseason-prior-v1";
+  const coachVersion = coachesInSeason ? "cfbd-coaches-in-season" : "cfbd-coaches-preseason-prior-v1";
+
+  const report = [
+    ...epaCurrent.report,
+    ...epaPrior.report,
+    ...transfer.report,
+    ...coachesCurrent.report,
+    ...coachesPrior.report,
+    ...returning.report,
+    ...qbHistory.report,
+  ];
   const catalog = buildCfbFeatureCatalog({
-    epa: epa.rows,
+    epa: epaRows,
     transfers: transfer.rows,
-    coaches: coaches.rows,
+    coaches: coachRows,
     returning: returning.rows,
     qbHistory: qbHistory.rows,
     year: season,
@@ -676,9 +731,74 @@ export async function loadCfbFeatureFeeds(env = {}, { fetchFn = fetch, now = Dat
     httpStatus: 200,
     endpoints: report,
     error: records ? null : "cfbd-features-empty",
+    limitation: [
+      epaInSeason ? null : "EPA using previous-season preseason prior; not in-season play-by-play",
+      coachesInSeason ? null : "Coaching using previous-season preseason prior",
+    ]
+      .filter(Boolean)
+      .join("; ") || null,
   });
+  meta.epaVersion = epaVersion;
+  meta.coachVersion = coachVersion;
+  meta.epaInSeason = epaInSeason;
+  meta.coachesInSeason = coachesInSeason;
   const payload = { season, asOf, catalog, meta };
   await writeCache(cacheKey, payload, env.caches, records ? FEATURE_TTL_MS : ERR_TTL_MS);
+  return payload;
+}
+
+function pickCfbdLine(lines = []) {
+  const list = Array.isArray(lines) ? lines : [];
+  const pin = list.find((l) => /pinnacle/i.test(String(l.provider || l.bookmaker || "")));
+  const cons = list.find((l) => /consensus|average|composite/i.test(String(l.provider || l.bookmaker || "")));
+  return pin || cons || list[0] || null;
+}
+
+export async function loadCfbBettingLines(env = {}, { year, weeks = [], fetchFn = fetch } = {}) {
+  const season = year || cfbSeasonYear(new Date());
+  const weekList = [...new Set((weeks || []).map((w) => Number(w)).filter((n) => Number.isFinite(n)))];
+  if (!cfbdConfigured(env)) {
+    return { season, byGame: {}, meta: cfbdPublicMeta({ configured: false, records: 0, error: "no-api-key", source: "cfbd-lines" }) };
+  }
+  const cacheKey = `cfb-lines-v1-${season}-${weekList.join("-") || "all"}`;
+  const cached = await readCache(cacheKey, env.caches, FEATURE_TTL_MS);
+  if (cached?.byGame) return cached;
+  const byGame = {};
+  const report = [];
+  const weekTargets = weekList.length ? weekList : [null];
+  for (const week of weekTargets) {
+    const query = week == null ? { year: season, seasonType: "regular" } : { year: season, week, seasonType: "regular" };
+    const res = await cfbdRequest(CFBD_BASE, "/lines", env, { query, fetchFn });
+    report.push({ path: "/lines", status: res.status, n: res.n || 0, ok: res.ok, week });
+    for (const row of res.data || []) {
+      const picked = pickCfbdLine(row.lines || row.bettingLines || []);
+      if (!picked) continue;
+      const home = String(row.homeTeam || row.home || "").trim().toLowerCase();
+      const away = String(row.awayTeam || row.away || "").trim().toLowerCase();
+      if (!home || !away) continue;
+      byGame[`${away}@${home}`] = {
+        spread: num(picked.spread ?? picked.homeSpread),
+        total: num(picked.overUnder ?? picked.total),
+        homeMl: num(picked.homeMoneyline ?? picked.homeMl),
+        awayMl: num(picked.awayMoneyline ?? picked.awayMl),
+        provider: picked.provider || picked.bookmaker || "cfbd",
+        source: "cfbd-lines",
+      };
+    }
+  }
+  const payload = {
+    season,
+    byGame,
+    meta: cfbdPublicMeta({
+      configured: true,
+      records: Object.keys(byGame).length,
+      year: season,
+      source: "cfbd-lines",
+      endpoints: report,
+      error: Object.keys(byGame).length ? null : "cfbd-lines-empty",
+    }),
+  };
+  await writeCache(cacheKey, payload, env.caches, payload.meta.records ? FEATURE_TTL_MS : ERR_TTL_MS);
   return payload;
 }
 

@@ -30,6 +30,7 @@ describe("GitHub scheduling", () => {
     assert.equal(selectPipelineJob({ hourUtc: 0, minuteUtc: 0 }).job, "collect-cache");
     assert.equal(selectPipelineJob({ hourUtc: 2, minuteUtc: 0 }).job, "collect-cache");
     assert.equal(selectPipelineJob({ hourUtc: 11, minuteUtc: 20 }).job, "harvest");
+    assert.equal(selectPipelineJob({ hourUtc: 16, minuteUtc: 20 }).job, "harvest");
   });
 
   it("maps CDT and CST wall times", () => {

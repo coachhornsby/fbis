@@ -216,7 +216,17 @@ CREATE TABLE IF NOT EXISTS strategy_tickets (
   provenance TEXT,
   execution_book TEXT,
   benchmark_book TEXT,
-  clv_version TEXT
+  clv_version TEXT,
+  model_probability REAL,
+  probability_schema_version TEXT,
+  expected_roi_formula_version TEXT,
+  validation_timestamp TEXT,
+  validation_result TEXT,
+  validation_failure_reason TEXT,
+  source_projection_id TEXT,
+  market_snapshot_id TEXT,
+  freeze_id TEXT,
+  qualification_rule_version TEXT
 );
 
 CREATE TABLE IF NOT EXISTS ev_audit_records (
@@ -277,6 +287,42 @@ CREATE INDEX IF NOT EXISTS idx_job_runs_type_time ON job_runs (job_type, started
 CREATE INDEX IF NOT EXISTS idx_strategy_tickets_role ON strategy_tickets (strategy_id, role, date);
 CREATE INDEX IF NOT EXISTS idx_ev_audit_entity ON ev_audit_records (entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_ev_audit_reason ON ev_audit_records (anomaly_reason, created_at);
+
+CREATE TABLE IF NOT EXISTS strategy_ticket_probability_corrections (
+  id TEXT PRIMARY KEY,
+  original_ticket_id TEXT NOT NULL,
+  reconstructed_model_probability REAL,
+  reconstruction_source TEXT,
+  reconstruction_status TEXT NOT NULL,
+  reconstruction_reason TEXT,
+  expected_roi_recomputed REAL,
+  freeze_id TEXT,
+  source_projection_id TEXT,
+  market_snapshot_id TEXT,
+  inputs_json TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_prob_corrections_ticket
+  ON strategy_ticket_probability_corrections (original_ticket_id, created_at);
+
+CREATE TABLE IF NOT EXISTS strategy_qualification_attempts (
+  id TEXT PRIMARY KEY,
+  game_id TEXT,
+  sport TEXT,
+  date TEXT,
+  market TEXT,
+  side TEXT,
+  model_probability REAL,
+  expected_roi REAL,
+  validation_result TEXT NOT NULL,
+  validation_failure_reason TEXT,
+  freeze_id TEXT,
+  source_projection_id TEXT,
+  market_snapshot_id TEXT,
+  canary INTEGER,
+  created_at TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS harvest_retry_queue (
   id TEXT PRIMARY KEY,

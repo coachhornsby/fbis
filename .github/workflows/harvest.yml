@@ -3,7 +3,7 @@ name: FBIS research pipeline
 on:
   schedule:
     - cron: "0 0,2,13,16,18,20,22 * * *"
-    - cron: "20 11 * * *"
+    - cron: "20 11,16 * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -48,7 +48,9 @@ jobs:
           if [ -z "$MODE" ]; then
             if [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then
               MODE="harvest"
-            elif [ "$HOUR" = "13" ] || [ "$HOUR" = "16" ]; then
+            elif [ "$HOUR" = "16" ] && [ "$MIN" -ge 20 ]; then
+              MODE="harvest"
+            elif [ "$HOUR" = "13" ] || { [ "$HOUR" = "16" ] && [ "$MIN" -lt 20 ]; }; then
               MODE="collect-full"
             else
               MODE="collect-cache"
@@ -64,30 +66,95 @@ jobs:
     needs: [determine-mode]
     steps:
       - name: Ensure production /api/health matches workflow SHA
+        id: verify
         env:
           BASE: "https://fbis-myz.pages.dev"
           EXPECTED_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           tmp="$(mktemp)"
-          attempts=10
+          attempts=12
+          last_outcome="unavailable"
+          last_actual=""
+          last_reason="health-unreachable"
           for i in $(seq 1 "$attempts"); do
-            code="$(curl -sS --max-time 20 -o "$tmp" -w "%{http_code}" "${BASE}/api/health?_t=$(date +%s)")" || code="000"
-            if [ "$code" = "200" ] && jq -e . "$tmp" >/dev/null 2>&1; then
-              live="$(jq -r '.deploymentCommit // empty' "$tmp")"
-              if [ -n "$live" ] && [ "$live" = "$EXPECTED_SHA" ]; then
-                echo "Deployment SHA verified: $live"
-                exit 0
+            set +e
+            code="$(curl -sS --max-time 20 -D "${tmp}.hdr" -o "$tmp" -w "%{http_code}" "${BASE}/api/health?_t=$(date +%s)")"
+            curl_ec=$?
+            set -e
+            ctype="$(grep -i '^content-type:' "${tmp}.hdr" 2>/dev/null | tr -d '\r' | awk -F': ' '{print tolower($2)}' || true)"
+            live=""
+            ok_shape="false"
+            if [ "$curl_ec" -eq 0 ] && [ "$code" = "200" ] && echo "$ctype" | grep -q 'application/json' && jq -e . "$tmp" >/dev/null 2>&1; then
+              live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp")"
+              ok_json="$(jq -r '.ok == true' "$tmp")"
+              if [ "$ok_json" = "true" ]; then ok_shape="true"; fi
+            fi
+            expected="$(echo "$EXPECTED_SHA" | tr 'A-F' 'a-f')"
+            actual="$(echo "$live" | tr 'A-F' 'a-f')"
+            last_actual="$actual"
+            if [ "$curl_ec" -ne 0 ] || [ "$code" = "000" ] || [ "$code" = "429" ] || [ "$code" = "500" ] || [ "$code" = "502" ] || [ "$code" = "503" ] || [ "$code" = "504" ]; then
+              last_outcome="unavailable"
+              last_reason="health-http-${code}"
+              echo "TEMPORARY health delay attempt ${i}/${attempts} http=${code} curl_ec=${curl_ec}"
+            elif [ "$ok_shape" != "true" ]; then
+              last_outcome="invalid-response"
+              last_reason="health-shape-or-content-type"
+              echo "INVALID health response attempt ${i}/${attempts} http=${code} content-type=${ctype}"
+            elif [ -z "$actual" ] || [ "$actual" = "unavailable" ] || [ "${#actual}" -ne 40 ]; then
+              last_outcome="propagating"
+              last_reason="sha-unavailable-or-not-full-40"
+              echo "PROPAGATING SHA attempt ${i}/${attempts} expected=${expected} actual=${actual:-<empty>}"
+            elif [ "$actual" != "$expected" ]; then
+              last_outcome="mismatch"
+              last_reason="sha-mismatch"
+              echo "SHA MISMATCH attempt ${i}/${attempts} expected=${expected} actual=${actual}"
+              if [ "$i" -ge 3 ]; then
+                echo "verify_outcome=${last_outcome}" >> "$GITHUB_OUTPUT"
+                echo "verify_actual=${last_actual}" >> "$GITHUB_OUTPUT"
+                echo "verify_reason=${last_reason}" >> "$GITHUB_OUTPUT"
+                echo "Genuine SHA mismatch after bounded retries. Fail closed."
+                jq . "$tmp" || true
+                exit 1
               fi
-              echo "SHA mismatch attempt ${i}/${attempts}: expected=${EXPECTED_SHA} live=${live:-<empty>}"
             else
-              echo "Health endpoint unavailable attempt ${i}/${attempts} http=${code}"
+              echo "Deployment SHA verified: ${actual}"
+              echo "verify_outcome=match" >> "$GITHUB_OUTPUT"
+              echo "verify_actual=${actual}" >> "$GITHUB_OUTPUT"
+              echo "verify_reason=" >> "$GITHUB_OUTPUT"
+              exit 0
             fi
             sleep $((i * 6))
           done
-          echo "Production deployment SHA did not converge to workflow SHA."
+          echo "verify_outcome=${last_outcome}" >> "$GITHUB_OUTPUT"
+          echo "verify_actual=${last_actual}" >> "$GITHUB_OUTPUT"
+          echo "verify_reason=${last_reason}" >> "$GITHUB_OUTPUT"
+          echo "Production deployment SHA did not converge. outcome=${last_outcome} expected=${EXPECTED_SHA} actual=${last_actual:-unavailable} reason=${last_reason}"
           jq . "$tmp" || true
           exit 1
+      - name: Record verification failure
+        if: failure()
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          EXPECTED_SHA: ${{ github.sha }}
+          OUTCOME: ${{ steps.verify.outputs.verify_outcome }}
+          ACTUAL: ${{ steps.verify.outputs.verify_actual }}
+          REASON: ${{ steps.verify.outputs.verify_reason }}
+          TRIGGER: ${{ needs.determine-mode.outputs.trigger }}
+          RUN_URL: ${{ needs.determine-mode.outputs.run_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HARVEST_SECRET:-}" ]; then
+            echo "HARVEST_SECRET unavailable; cannot persist verify failure row."
+            exit 0
+          fi
+          RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
+          curl -sS --max-time 30 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "accept: application/json" \
+            "${BASE}/api/collect?verifyRecord=1&verifyOutcome=${OUTCOME:-unavailable}&expectedSha=${EXPECTED_SHA}&actualSha=${ACTUAL:-}&reason=${REASON:-}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}" || true
+
 
   collect:
     runs-on: ubuntu-latest

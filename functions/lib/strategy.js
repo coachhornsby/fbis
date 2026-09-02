@@ -11,6 +11,13 @@
  */
 
 import { tagFromEv, americanProfit, probabilityClv } from "./pricing.js";
+import {
+  PROBABILITY_SCHEMA_VERSION,
+  EXPECTED_ROI_FORMULA_VERSION,
+  readCanonicalProbability,
+  validateCanonicalProbability,
+} from "./probability.js";
+import { QUALIFICATION_RULE_VERSION } from "./convictionGate.js";
 
 export const STRATEGY_HC_V1_SEED_GRADED_AT = "2026-08-27T05:00:00.000Z";
 export const EXPECTED_SEED_N = 7;
@@ -282,6 +289,25 @@ export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id 
   const pointLine = rawPoint != null && Math.abs(rawPoint) < 100 ? rawPoint : null;
   const missingExecutionPrice = executionPrice == null;
   const provenance = ticket.provenance || PROVENANCE.JOURNAL;
+  const canonical = readCanonicalProbability(ticket);
+  const modelProbability = canonical.ok ? canonical.modelProbability : null;
+  const traits = {
+    homeAway: ticket.side === "HOME" || ticket.side === "AWAY" ? ticket.side : null,
+    overUnder: ticket.side === "OVER" || ticket.side === "UNDER" ? ticket.side : null,
+    favorite: modelProbability != null ? modelProbability >= 0.5 : null,
+    missingExecutionPrice,
+    provenance,
+    executionBook: executionPrice != null ? EXECUTION_BOOK : null,
+    benchmarkBook: BENCHMARK_BOOK,
+    clvVersion: CLV_VERSION,
+    clvSign: "closeNoVig - entryNoVig; positive means the closing market moved toward the bet side",
+    modelProbability,
+    marketNoVigProbability: entryNoVig,
+    expectedRoi: ev,
+    probabilitySchemaVersion: PROBABILITY_SCHEMA_VERSION,
+    expectedRoiFormulaVersion: EXPECTED_ROI_FORMULA_VERSION,
+    qualificationRuleVersion: ticket.qualificationRuleVersion || QUALIFICATION_RULE_VERSION,
+  };
   return {
     id: ticket.id || ticketId(ticket, day),
     strategyId,
@@ -320,21 +346,18 @@ export function packTicket(ticket, { role, date, strategyId = STRATEGY_HC_V1.id 
     result: ticket.result || "OPEN",
     profit: ticket.profit ?? null,
     clv: ticket.clv ?? null,
-    fair: ticket.fair ?? null,
+    fair: modelProbability,
+    modelProbability,
     implied: entryNoVig,
-    traitsJson:
-      ticket.traitsJson ||
-      JSON.stringify({
-        homeAway: ticket.side === "HOME" || ticket.side === "AWAY" ? ticket.side : null,
-        overUnder: ticket.side === "OVER" || ticket.side === "UNDER" ? ticket.side : null,
-        favorite: ticket.fair != null ? ticket.fair >= 0.5 : null,
-        missingExecutionPrice,
-        provenance,
-        executionBook: executionPrice != null ? EXECUTION_BOOK : null,
-        benchmarkBook: BENCHMARK_BOOK,
-        clvVersion: CLV_VERSION,
-        clvSign: "closeNoVig - entryNoVig; positive means the closing market moved toward the bet side",
-      }),
+    marketNoVigProbability: entryNoVig,
+    expectedRoi: ev,
+    probabilitySchemaVersion: ticket.probabilitySchemaVersion || PROBABILITY_SCHEMA_VERSION,
+    expectedRoiFormulaVersion: ticket.expectedRoiFormulaVersion || EXPECTED_ROI_FORMULA_VERSION,
+    qualificationRuleVersion: ticket.qualificationRuleVersion || QUALIFICATION_RULE_VERSION,
+    sourceProjectionId: ticket.sourceProjectionId || ticket.gameId || ticket.game_id || null,
+    marketSnapshotId: ticket.marketSnapshotId || null,
+    freezeId: ticket.freezeId || ticket.qualifiedAt || null,
+    traitsJson: ticket.traitsJson || JSON.stringify(traits),
   };
 }
 
@@ -424,8 +447,12 @@ export function gradeStrategyResult(ticket, game) {
   });
 
   const market = ticket.market;
+  const sport = String(ticket.sport || game.sport || "").toLowerCase();
   if (market === "ML" || market === "F5 ML") {
-    if (hs === as) return wrap("PUSH", false);
+    if (hs === as) {
+      if (sport === "mlb" && market === "ML") return null;
+      return wrap("PUSH", false);
+    }
     const won = ticket.side === "HOME" ? hs > as : as > hs;
     return wrap(won ? "WON" : "LOST", won);
   }
@@ -433,7 +460,10 @@ export function gradeStrategyResult(ticket, game) {
     const line = Number(ticket.executionLine ?? ticket.line);
     if (!Number.isFinite(line)) return null;
     const cover = ticket.side === "HOME" ? hs - as + line : as - hs + line;
-    if (cover === 0) return wrap("PUSH", false);
+    if (cover === 0) {
+      if (!Number.isInteger(line)) return null;
+      return wrap("PUSH", false);
+    }
     const won = cover > 0;
     return wrap(won ? "WON" : "LOST", won);
   }
@@ -441,7 +471,10 @@ export function gradeStrategyResult(ticket, game) {
     const line = Number(ticket.executionLine ?? ticket.line);
     if (!Number.isFinite(line)) return null;
     const total = hs + as;
-    if (total === line) return wrap("PUSH", false);
+    if (total === line) {
+      if (!Number.isInteger(line)) return null;
+      return wrap("PUSH", false);
+    }
     const over = total > line;
     const won = ticket.side === "OVER" ? over : !over;
     return wrap(won ? "WON" : "LOST", won);
@@ -578,7 +611,8 @@ export function presentStrategyTicket(t) {
     result: t.result || "OPEN",
     profit: t.profit ?? null,
     clv: t.clv ?? null,
-    fair: t.fair ?? null,
+    fair: t.modelProbability ?? t.fair ?? null,
+    modelProbability: t.modelProbability ?? t.fair ?? null,
     implied: t.implied ?? t.entryNoVig ?? t.entry_no_vig ?? null,
     traits: traits || {},
     createdAt: t.createdAt || t.created_at || null,
@@ -696,7 +730,15 @@ export function strategyReconstruction(seedTickets = []) {
   };
 }
 
-export function summarizeProspectiveConvictionCohort(tickets = [], { targetDateCt, expectedN = 7, reportedRecord = "5-2" } = {}) {
+export function summarizeProspectiveConvictionCohort(
+  tickets = [],
+  {
+    targetDateCt,
+    expectedN = 7,
+    reportedRecord = "5-2",
+    reconstructions = [],
+  } = {}
+) {
   const rows = (tickets || []).map((t) => presentStrategyTicket(t));
   const cohort = rows.filter((t) => {
     if (String(t.role || "").toLowerCase() !== "prospective") return false;
@@ -705,16 +747,24 @@ export function summarizeProspectiveConvictionCohort(tickets = [], { targetDateC
     return dateInChicago(when) === targetDateCt;
   });
   const authoritative = cohort.filter((t) => Boolean(t.qualifiedAt && t.modelVersion && t.market && t.side && t.gameId));
+  const byId = new Map((reconstructions || []).map((r) => [String(r.originalTicketId || r.original_ticket_id || r.id), r]));
+  const probabilityVerified = authoritative.filter((t) => {
+    const rec = byId.get(String(t.id));
+    return rec && rec.status === "RECOVERED_VERIFIED" && validateCanonicalProbability(rec.reconstructedModelProbability ?? rec.reconstructed_model_probability).ok;
+  });
   const stats = strategyStats(authoritative);
   const settledN = authoritative.filter((t) => ["WON", "LOST"].includes(String(t.result || "").toUpperCase())).length;
   const openN = authoritative.filter((t) => !t.result || String(t.result).toUpperCase() === "OPEN").length;
   const pushN = authoritative.filter((t) => String(t.result || "").toUpperCase() === "PUSH").length;
   const voidN = authoritative.filter((t) => String(t.result || "").toUpperCase() === "VOID").length;
   const unresolvedN = authoritative.filter((t) => String(t.result || "").toUpperCase() === "FINAL NOT MATCHED").length;
+  const eligibleForCalculated = probabilityVerified.length === expectedN && stats.wins === 5 && stats.losses === 2 && settledN === expectedN;
   const label =
-    authoritative.length === expectedN && stats.wins === 5 && stats.losses === 2
+    eligibleForCalculated
       ? `Prospective CONVICTION cohort: 5–2, N=${expectedN}`
-      : `Operator reported ${reportedRecord}; recovered N=${authoritative.length}; unreconciled`;
+      : stats.wins === 5 && stats.losses === 2
+        ? "Operator reported 5–2; results recovered 5–2; probability integrity unresolved; excluded from calculated FBIS-HC-v1 performance"
+        : `Operator reported ${reportedRecord}; recovered N=${authoritative.length}; unreconciled`;
   return {
     targetDateCt,
     reportedRecord,
@@ -726,13 +776,17 @@ export function summarizeProspectiveConvictionCohort(tickets = [], { targetDateC
     pushes: pushN,
     voids: voidN,
     unresolved: unresolvedN,
-    units: stats.units,
-    roi: stats.roi,
+    units: eligibleForCalculated ? stats.units : null,
+    roi: eligibleForCalculated ? stats.roi : null,
     clvN: stats.clvN,
     averageClv: stats.avgClv,
     positiveClvN: authoritative.filter((t) => Number(t.clv) > 0).length,
     positiveClvPct: stats.clvN ? authoritative.filter((t) => Number(t.clv) > 0).length / stats.clvN : null,
     label,
+    unrecoveredSeedRecord: "7-0",
+    mergedWithUnrecoveredSeed: false,
+    probabilityVerifiedN: probabilityVerified.length,
+    eligibleForCalculatedFbisHcV1: eligibleForCalculated,
     tickets: authoritative,
   };
 }

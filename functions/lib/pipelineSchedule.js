@@ -7,6 +7,10 @@
 
 export const PRODUCTION_COLLECT_HOURS_UTC = [0, 2, 13, 16, 18, 20, 22];
 export const PRODUCTION_HARVEST_UTC = { hour: 11, minute: 20 };
+export const PRODUCTION_HARVEST_SLOTS_UTC = [
+  { hour: 11, minute: 20 },
+  { hour: 16, minute: 20 },
+];
 export const DIAGNOSTIC_MINUTES = [7, 37];
 
 export const CRON_CHICAGO = [
@@ -15,6 +19,7 @@ export const CRON_CHICAGO = [
   { utc: "11:20", cdt: "06:20", cst: "05:20", job: "harvest" },
   { utc: "13:00", cdt: "08:00", cst: "07:00", job: "collect-full" },
   { utc: "16:00", cdt: "11:00", cst: "10:00", job: "collect-full" },
+  { utc: "16:20", cdt: "11:20", cst: "10:20", job: "harvest" },
   { utc: "18:00", cdt: "13:00", cst: "12:00", job: "collect-cache" },
   { utc: "20:00", cdt: "15:00", cst: "14:00", job: "collect-cache" },
   { utc: "22:00", cdt: "17:00", cst: "16:00", job: "collect-cache" },
@@ -43,7 +48,8 @@ export function selectPipelineJob({ hourUtc, minuteUtc, eventName, jobInput, dia
     return { job: "health", trigger: "schedule" };
   }
   if (hour === 11 && minute >= 15) return { job: "harvest", trigger };
-  if (hour === 13 || hour === 16) return { job: "collect-full", trigger };
+  if (hour === 16 && minute >= 20) return { job: "harvest", trigger };
+  if (hour === 13 || (hour === 16 && minute < 20)) return { job: "collect-full", trigger };
   return { job: "collect-cache", trigger };
 }
 
@@ -74,9 +80,13 @@ export function nextCronUtc(now = new Date(), crons = PRODUCTION_COLLECT_HOURS_U
       slots.push(Date.UTC(y, m, d + add, hour, 0, 0));
     }
   }
-  const harvestToday = Date.UTC(y, m, d, PRODUCTION_HARVEST_UTC.hour, PRODUCTION_HARVEST_UTC.minute, 0);
-  const harvestTomorrow = Date.UTC(y, m, d + 1, PRODUCTION_HARVEST_UTC.hour, PRODUCTION_HARVEST_UTC.minute, 0);
-  const all = [...slots, harvestToday, harvestTomorrow].filter((ms) => ms > t.getTime()).sort((a, b) => a - b);
+  const harvestSlots = [];
+  for (const add of [0, 1]) {
+    for (const slot of PRODUCTION_HARVEST_SLOTS_UTC) {
+      harvestSlots.push(Date.UTC(y, m, d + add, slot.hour, slot.minute, 0));
+    }
+  }
+  const all = [...slots, ...harvestSlots].filter((ms) => ms > t.getTime()).sort((a, b) => a - b);
   return all[0] ? new Date(all[0]).toISOString() : null;
 }
 
@@ -100,10 +110,14 @@ export function lastExpectedHarvestUtc(now = new Date()) {
   const y = t.getUTCFullYear();
   const m = t.getUTCMonth();
   const d = t.getUTCDate();
-  const today = Date.UTC(y, m, d, PRODUCTION_HARVEST_UTC.hour, PRODUCTION_HARVEST_UTC.minute, 0);
-  const yest = Date.UTC(y, m, d - 1, PRODUCTION_HARVEST_UTC.hour, PRODUCTION_HARVEST_UTC.minute, 0);
-  const ms = today <= t.getTime() ? today : yest;
-  return new Date(ms).toISOString();
+  const slots = [];
+  for (const add of [-1, 0]) {
+    for (const slot of PRODUCTION_HARVEST_SLOTS_UTC) {
+      slots.push(Date.UTC(y, m, d + add, slot.hour, slot.minute, 0));
+    }
+  }
+  const past = slots.filter((ms) => ms <= t.getTime()).sort((a, b) => b - a);
+  return past[0] ? new Date(past[0]).toISOString() : null;
 }
 
 const GRACE_MS = 45 * 60 * 1000;

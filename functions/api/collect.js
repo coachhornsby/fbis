@@ -1,7 +1,7 @@
 import { collectBoards } from "../lib/projLedger.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
-import { httpStatusForJob, parseJobTrigger, parseJobMode } from "../lib/jobs.js";
-import { setMeta } from "../lib/store.js";
+import { httpStatusForJob, parseJobTrigger, parseJobMode, newJobId, JOB_FAILED, JOB_SUCCESS } from "../lib/jobs.js";
+import { setMeta, persistJobRun } from "../lib/store.js";
 
 /** Pregame collection. Builds every board and freezes checkpoints. Does not require the browser. */
 export async function onRequestGet(context) {
@@ -20,6 +20,41 @@ export async function onRequestGet(context) {
   const trigger = parseJobTrigger(context.request);
   const mode = parseJobMode(context.request);
   const runUrl = url.searchParams.get("runUrl") || "";
+  if (url.searchParams.get("verifyRecord") === "1") {
+    const outcome = url.searchParams.get("verifyOutcome") || "unavailable";
+    const expectedSha = url.searchParams.get("expectedSha") || "";
+    const actualSha = url.searchParams.get("actualSha") || "";
+    const reason = url.searchParams.get("reason") || "";
+    const now = new Date().toISOString();
+    const id = newJobId("deployment-verify");
+    await persistJobRun(context.env, {
+      id,
+      jobType: "deployment-verify",
+      triggerType: trigger,
+      startedAt: now,
+      completedAt: now,
+      status: outcome === "match" ? JOB_SUCCESS : JOB_FAILED,
+      sport: "all",
+      datesJson: JSON.stringify([]),
+      errorSummary: `outcome=${outcome} expected=${expectedSha} actual=${actualSha || "unavailable"} reason=${reason} runUrl=${runUrl}`,
+      deploymentCommit: expectedSha || null,
+    });
+    await setMeta(context.env, "last_deployment_verify_outcome", outcome);
+    await setMeta(context.env, "last_deployment_verify_expected_sha", expectedSha);
+    await setMeta(context.env, "last_deployment_verify_actual_sha", actualSha || "unavailable");
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        status: outcome === "match" ? JOB_SUCCESS : JOB_FAILED,
+        job: "deployment-verify",
+        trigger_type: trigger,
+        outcome,
+        expectedSha,
+        actualSha: actualSha || null,
+      }),
+      { status: 200, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } }
+    );
+  }
   try {
     if (trigger === "schedule") {
       await setMeta(context.env, "last_scheduled_event_type", "schedule");
