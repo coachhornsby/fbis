@@ -10,12 +10,14 @@ import {
   EXPECTED_SEED_N,
   summarizeProspectiveConvictionCohort,
 } from "../lib/strategy.js";
-import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGamesByIds } from "../lib/store.js";
+import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGamesByIds, queryProbabilityCorrections } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
 import { resolveTeam } from "../lib/teams.js";
 import { durableHealth } from "../lib/jobs.js";
 import { deriveHealthState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
+import { CONVICTION_PAUSE_MESSAGE, convictionQualificationState } from "../lib/convictionGate.js";
+import { RECONSTRUCTION_STATUS, summarizeReconstructions } from "../lib/probabilityReconstruction.js";
 
 const SPORT_ORDER = ["mlb", "nba", "nfl", "cfb", "cbb", "other"];
 const SPORT_LABEL = { mlb: "MLB", nba: "NBA", nfl: "NFL", cfb: "CFB", cbb: "CBB", other: "Other" };
@@ -208,6 +210,14 @@ export async function onRequestGet(context) {
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
   const seed = canonicalSeedTickets(dbSeed);
   const prospectiveRaw = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
+  const correctionsQ = await queryProbabilityCorrections(env, {
+    ticketIds: (prospectiveRaw || []).map((t) => t.id),
+  });
+  const corrections = correctionsQ.rows || [];
+  const latestCorrection = new Map();
+  for (const row of corrections) {
+    latestCorrection.set(String(row.originalTicketId), row);
+  }
   const gameIds = [...new Set([...seed, ...prospectiveRaw].map((t) => t.gameId).filter(Boolean))];
   const gamesQ = await queryGamesByIds(env, gameIds);
   const gameById = new Map((gamesQ.rows || []).map((g) => [String(g.id), g]));
@@ -231,7 +241,27 @@ export async function onRequestGet(context) {
     day: "2-digit",
   }).formatToParts(y);
   const yCt = `${yParts.find((p) => p.type === "year")?.value}-${yParts.find((p) => p.type === "month")?.value}-${yParts.find((p) => p.type === "day")?.value}`;
-  const yesterdayCohort = summarizeProspectiveConvictionCohort(prospective, { targetDateCt: yCt, expectedN: 7, reportedRecord: "5-2" });
+  const yesterdayCohort = summarizeProspectiveConvictionCohort(prospective, {
+    targetDateCt: yCt,
+    expectedN: 7,
+    reportedRecord: "5-2",
+    reconstructions: [...latestCorrection.values()],
+  });
+  const qualification = convictionQualificationState({ canaryPassed: false });
+  const calculatedTickets = prospective.filter((t) => latestCorrection.get(String(t.id))?.status === RECONSTRUCTION_STATUS.RECOVERED_VERIFIED);
+  const reconstructionSummary = summarizeReconstructions(
+    (prospectiveRaw || []).map((t) => {
+      const rec = latestCorrection.get(String(t.id));
+      return {
+        status: rec?.status || "STILL_INVALID",
+        sport: t.sport,
+        market: t.market,
+        date: t.date,
+        result: t.result,
+        clv: t.clv,
+      };
+    })
+  );
   return readJson({
     health: {
       state: semantic.state,
@@ -240,6 +270,15 @@ export async function onRequestGet(context) {
       lastD1WriteSuccessAt: durable.lastD1WriteSuccessAt || null,
     },
     strategy: STRATEGY_HC_V1,
+    convictionQualification: qualification,
+    convictionPauseMessage: qualification.paused ? CONVICTION_PAUSE_MESSAGE : null,
+    historicalProbabilityReconstruction: reconstructionSummary,
+    calculatedFbisHcV1: {
+      note: "Only RECOVERED_VERIFIED tickets enter calculated historical FBIS-HC-v1 performance.",
+      tickets: calculatedTickets,
+      stats: strategyStats(calculatedTickets),
+      n: calculatedTickets.length,
+    },
     reconstruction: rec,
     expectedSeedN: EXPECTED_SEED_N,
     actualRecoveredN: rec.recoveredN,

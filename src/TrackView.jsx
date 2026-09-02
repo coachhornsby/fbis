@@ -1295,6 +1295,9 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
             Canonical strategy population unavailable: {loadError}. Current attempt {fmtTs(attemptAt)}. Last success {fmtTs(lastSuccessAt)}.
           </div>
         ) : null}
+        <p className="headline-line" style={{ color: "#f0c674", fontWeight: 700 }}>
+          {pack?.convictionPauseMessage || "CONVICTION QUALIFICATION PAUSED — probability integrity verification pending"}
+        </p>
         <p className="headline-line">
           High-conviction means a <b>qualified</b> ticket with EV ≥ 8% (tag CONVICTION). Leans are excluded.
           The 7-0 does not rewrite blend weights. N=7 is not evidence the filter works.

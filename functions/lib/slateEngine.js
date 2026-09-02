@@ -12,6 +12,8 @@ import { enrichGameTeams } from "./teams.js";
 import { attachMarketLabels, TEAM_MATCH_UNRESOLVED } from "./marketLabels.js";
 import { attachCfbChallengers, attachCbbChallengers } from "./collegeApply.js";
 import { SHADOW_BLOCK_REASONS } from "./collegeModels.js";
+import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED } from "./convictionGate.js";
+import { canonicalProbabilityFields } from "./probability.js";
 
 export const SPORTS = {
   cbb: {
@@ -404,7 +406,9 @@ function shrinkToMarket(pModel, pMarket, wMarket = 0.65) {
 export function isQualifiedTicket(cfg, priced) {
   if (!priced?.marketComplete) return false;
   if (priced.pinPrice == null || priced.ev == null) return false;
-  if (priced.fair != null && cfg.maxProb != null && (priced.fair > cfg.maxProb || priced.fair < 1 - cfg.maxProb)) {
+  const canonical = canonicalProbabilityFields(priced.fair);
+  if (!canonical.valid) return false;
+  if (cfg.maxProb != null && (canonical.modelProbability > cfg.maxProb || canonical.modelProbability < 1 - cfg.maxProb)) {
     return false;
   }
   return priced.ev >= cfg.minEv;
@@ -417,6 +421,7 @@ function withinProbCap(cfg, priced) {
 
 function stampTicket(game, rec, priced, { qualified, lean }) {
   const heritageListed = Boolean(game.odds?.heritageListed);
+  const canonical = canonicalProbabilityFields(priced.fair);
   return {
     ...rec,
     ...priced,
@@ -429,6 +434,10 @@ function stampTicket(game, rec, priced, { qualified, lean }) {
     benchmarkBook: "Pinnacle",
     priceSource: heritageListed && rec.executionPrice != null ? "Heritage" : "Pinnacle (shop Heritage)",
     modelVersion: MODEL_VERSION,
+    modelProbability: canonical.modelProbability,
+    expectedRoi: priced.ev ?? null,
+    marketNoVigProbability: priced.implied ?? null,
+    probabilitySchemaVersion: canonical.probabilitySchemaVersion,
   };
 }
 
@@ -554,7 +563,28 @@ export function recommendBundle(sport, game, model, weights) {
 
   const qualified = sortTickets(recs.filter((r) => r.qualified));
   const leans = sortTickets(recs.filter((r) => r.lean && !r.qualified));
-  return { qualified: qualified[0] || null, lean: leans[0] || null };
+  const topQualified = qualified[0] || null;
+  const topLean = leans[0] || null;
+  if (CONVICTION_QUALIFICATION_PAUSED) {
+    const pausedLean = topLean || (topQualified
+      ? {
+          ...topQualified,
+          qualified: false,
+          lean: true,
+          tag: "LEAN",
+          pauseReason: CONVICTION_PAUSE_MESSAGE,
+        }
+      : null);
+    return {
+      qualified: null,
+      lean: pausedLean,
+      blocked: false,
+      qualificationPaused: true,
+      pauseMessage: CONVICTION_PAUSE_MESSAGE,
+      pausedCandidate: topQualified,
+    };
+  }
+  return { qualified: topQualified, lean: topLean };
 }
 
 export function recommend(sport, game, model, weights) {

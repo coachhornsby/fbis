@@ -219,9 +219,15 @@ describe("prospective conviction cohort reconciliation", () => {
     });
     const rows = [mk(1, "WON", 0.02), mk(2, "WON", 0.01), mk(3, "WON"), mk(4, "WON"), mk(5, "WON"), mk(6, "LOST"), mk(7, "LOST")];
     const out = summarizeProspectiveConvictionCohort(rows, { targetDateCt: "2026-09-01", expectedN: 7, reportedRecord: "5-2" });
-    assert.equal(out.label, "Prospective CONVICTION cohort: 5–2, N=7");
+    assert.equal(
+      out.label,
+      "Operator reported 5–2; results recovered 5–2; probability integrity unresolved; excluded from calculated FBIS-HC-v1 performance"
+    );
     assert.equal(out.wins, 5);
     assert.equal(out.losses, 2);
+    assert.equal(out.mergedWithUnrecoveredSeed, false);
+    assert.equal(out.unrecoveredSeedRecord, "7-0");
+    assert.equal(out.eligibleForCalculatedFbisHcV1, false);
   });
 
   it("does not combine unrecovered cohorts into 12-2", () => {

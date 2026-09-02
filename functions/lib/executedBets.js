@@ -227,21 +227,34 @@ export function settleExecutedBet(ticket, game) {
   const market = ticket.market;
   const side = ticket.selectedSide;
   const line = Number(ticket.executionLine);
+  const sport = String(ticket.sport || game.sport || "").toLowerCase();
   let won = null;
   let push = false;
   if (market === "ML" || market === "F5 ML") {
-    if (hs === as) push = true;
-    else won = side === "HOME" ? hs > as : as > hs;
+    if (hs === as) {
+      if (sport === "mlb" && market === "ML") {
+        return { result: "OPEN", profit: null, settledReturn: null, gradedAt: null, unresolvedReason: "mlb-moneyline-cannot-push" };
+      }
+      push = true;
+    } else won = side === "HOME" ? hs > as : as > hs;
   } else if (market === "SPREAD" || market === "F5 SPREAD") {
     if (!Number.isFinite(line)) return { result: "MANUAL_REVIEW", profit: null, settledReturn: null, gradedAt: null };
     const cover = side === "HOME" ? hs - as + line : as - hs + line;
-    if (cover === 0) push = true;
-    else won = cover > 0;
+    if (cover === 0) {
+      if (!Number.isInteger(line)) {
+        return { result: "OPEN", profit: null, settledReturn: null, gradedAt: null, unresolvedReason: "half-point-cannot-push" };
+      }
+      push = true;
+    } else won = cover > 0;
   } else if (market === "TOTAL" || market === "F5 TOTAL") {
     if (!Number.isFinite(line)) return { result: "MANUAL_REVIEW", profit: null, settledReturn: null, gradedAt: null };
     const tot = hs + as;
-    if (tot === line) push = true;
-    else won = side === "OVER" ? tot > line : tot < line;
+    if (tot === line) {
+      if (!Number.isInteger(line)) {
+        return { result: "OPEN", profit: null, settledReturn: null, gradedAt: null, unresolvedReason: "half-point-cannot-push" };
+      }
+      push = true;
+    } else won = side === "OVER" ? tot > line : tot < line;
   } else {
     return { result: "MANUAL_REVIEW", profit: null, settledReturn: null, gradedAt: null };
   }

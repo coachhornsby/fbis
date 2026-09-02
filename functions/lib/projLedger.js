@@ -27,8 +27,13 @@ import {
   readMeta,
   applyFinalToForm,
   persistStrategy,
-  persistStrategyTicket,
+  persistStrategyTicketWithReadback,
+  persistQualificationAttempt,
+  claimConvictionCanaryLock,
+  releaseConvictionCanaryLock,
+  persistProbabilityCorrection,
   queryStrategyTickets,
+  queryGamesByIds,
   gradeStrategyTicket,
   hasDb,
   enqueueHarvestRetry,
@@ -46,8 +51,10 @@ import { buildDailyReport } from "./dailyReport.js";
 import { median, rmse, withinBands } from "./metrics.js";
 import { cfbSeasonYear } from "./cfbModel.js";
 import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult, strategyStats } from "./strategy.js";
+import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED, evaluateConvictionGates } from "./convictionGate.js";
+import { reconstructTicketProbability } from "./probabilityReconstruction.js";
 import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
-import { settleExecutedBet } from "./executedBets.js";
+import { settleExecutedBet, matchExecutedBet } from "./executedBets.js";
 import { sourceCoverage, palHealth } from "./sourceCoverage.js";
 import { palUnavailableReason, palHttpStatusToStore } from "./ballparkpal.js";
 import { layerDiagnostics } from "./layerDiagnostics.js";
@@ -906,12 +913,14 @@ export async function freezeSlate(slate, env = {}) {
         frozen.checkpoints = cps;
         ledger.games[k] = frozen;
         changed = true;
-        writes.push(persistFrozen(env, frozen, game, slate.date));
-        writes.push(persistCheckpoint(env, first, game, slate.date));
-        if (frozen.checkpoint !== "FIRST_AVAILABLE") {
-          writes.push(persistCheckpoint(env, frozen, game, slate.date));
-        }
-        writes.push(persistMatchingRec(env, slate, game, frozen));
+        writes.push((async () => {
+          await persistFrozen(env, frozen, game, slate.date);
+          await persistCheckpoint(env, first, game, slate.date);
+          if (frozen.checkpoint !== "FIRST_AVAILABLE") {
+            await persistCheckpoint(env, frozen, game, slate.date);
+          }
+          return persistMatchingRec(env, slate, game, frozen);
+        })());
         writes.push(persistGameChallengers(env, game, slate.sport));
         if (slate.sport === "mlb") {
           writes.push(persistMlbMarketProjections(env, palMarketRowsFromGame(slate.date, game, frozen)));
@@ -935,9 +944,14 @@ export async function freezeSlate(slate, env = {}) {
         }
         if (!cps[packed.checkpoint]) {
           cps[packed.checkpoint] = { ...packed };
-          writes.push(persistCheckpoint(env, cps[packed.checkpoint], game, slate.date));
           next = { ...next, checkpoints: cps, checkpoint: packed.checkpoint };
-          writes.push(persistMatchingRec(env, slate, game, packed));
+          writes.push((async () => {
+            if (!cps.FIRST_AVAILABLE) {
+              /* FIRST_AVAILABLE already queued above when missing */
+            }
+            await persistCheckpoint(env, cps[packed.checkpoint], game, slate.date);
+            return persistMatchingRec(env, slate, game, packed);
+          })());
           writes.push(persistGameChallengers(env, game, slate.sport));
           changed = true;
         }
@@ -985,33 +999,181 @@ export async function freezeSlate(slate, env = {}) {
 async function persistMatchingRec(env, slate, game, frozen) {
   await persistStrategy(env, STRATEGY_HC_V1);
   const bundle = recommendBundle(slate.sport, game, game.model);
-  const rec = bundle?.qualified;
-  if (!rec || !ticketMatchesStrategy(rec)) return { ok: true, skipped: true, reason: "no-match" };
+  const rec = bundle?.pausedCandidate || bundle?.qualified;
   if (game.cfb && !game.cfb.bettingAllowed) return { ok: true, skipped: true, reason: "cfb-blocked" };
   if (slate.sport === "nfl" && game.projectionKind !== "FBIS") return { ok: true, skipped: true, reason: "nfl-no-independent-model" };
-  return persistStrategyTicket(
+  if (!rec) return { ok: true, skipped: true, reason: "no-match" };
+  const candidate = {
+    ...rec,
+    sport: slate.sport,
+    gameId: game.id,
+    matchup: frozen?.matchup || `${game.away?.abbr} @ ${game.home?.abbr}`,
+    modelVersion: game.modelVersion || frozen?.modelVersion,
+    checkpoint: frozen?.checkpoint,
+    dataQuality: game.quality?.score ?? frozen?.dataQuality,
+    pinVig: rec.pinVig ?? game.pin?.ml?.vig,
+    executionPrice: rec.executionPrice ?? null,
+    benchmarkPrice: rec.pinPrice,
+    entryNoVig: rec.implied ?? rec.entryNoVig,
+    qualifiedAt: frozen?.frozenAt || new Date().toISOString(),
+    qualified: true,
+    tag: rec.tag,
+    start: game.start || frozen?.start,
+    freezeId: frozen?.frozenAt || frozen?.id || null,
+    sourceProjectionId: frozen?.id || game.id,
+    qualificationRuleVersion: "FBIS-HC-v1",
+    line: rec.line ?? rec.executionLine ?? game.odds?.pinSpread ?? game.odds?.pinTotal,
+    marketComplete: rec.marketComplete ?? rec.implied != null,
+  };
+  const meta = await readMeta(env);
+  const canaryAlreadyPassed = Boolean(meta.conviction_canary_passed_at);
+  const gate = evaluateConvictionGates({
+    candidate,
+    frozen,
+    game,
+    paused: CONVICTION_QUALIFICATION_PAUSED,
+    canaryPassed: false,
+  });
+  if (!gate.ok) {
+    await persistQualificationAttempt(env, {
+      id: `attempt:${slate.sport}:${slate.date}:${game.id}:${rec.market}:${rec.side}`,
+      gameId: String(game.id),
+      sport: slate.sport,
+      date: slate.date,
+      market: rec.market,
+      side: rec.side,
+      modelProbability: gate.modelProbability,
+      expectedRoi: gate.expectedRoi,
+      validationResult: "FAILED",
+      validationFailureReason: gate.reason === "qualification-paused" ? CONVICTION_PAUSE_MESSAGE : gate.reason,
+      freezeId: candidate.freezeId,
+      sourceProjectionId: candidate.sourceProjectionId,
+      canary: false,
+    });
+    if (CONVICTION_QUALIFICATION_PAUSED && !canaryAlreadyPassed && rec.qualified !== false) {
+      return persistConvictionCanary(env, slate, game, frozen, candidate);
+    }
+    return { ok: true, skipped: true, reason: gate.reason || "no-match", paused: CONVICTION_QUALIFICATION_PAUSED };
+  }
+  if (!ticketMatchesStrategy({ ...candidate, ev: gate.expectedRoi, fair: gate.modelProbability, modelProbability: gate.modelProbability })) {
+    return { ok: true, skipped: true, reason: "no-match" };
+  }
+  return persistStrategyTicketWithReadback(
     env,
     packTicket(
       {
-        ...rec,
-        sport: slate.sport,
-        gameId: game.id,
-        matchup: frozen?.matchup || `${game.away?.abbr} @ ${game.home?.abbr}`,
-        modelVersion: game.modelVersion || frozen?.modelVersion,
-        checkpoint: frozen?.checkpoint,
-        dataQuality: game.quality?.score ?? frozen?.dataQuality,
-        pinVig: rec.pinVig ?? game.pin?.ml?.vig,
-        executionPrice: rec.executionPrice ?? null,
-        benchmarkPrice: rec.pinPrice,
-        entryNoVig: rec.implied ?? rec.entryNoVig,
-        qualifiedAt: frozen?.frozenAt || new Date().toISOString(),
-        qualified: true,
-        tag: rec.tag,
+        ...candidate,
+        modelProbability: gate.modelProbability,
+        fair: gate.modelProbability,
+        ev: gate.expectedRoi,
+        qualificationRuleVersion: "FBIS-HC-v1",
       },
       { role: "prospective", date: slate.date }
     ),
-    { strictConflict: false }
+    { strictConflict: false, requireFreezeReadback: true }
   );
+}
+
+async function persistConvictionCanary(env, slate, game, frozen, candidate) {
+  const claim = await claimConvictionCanaryLock(env);
+  if (!claim.claimed) return { ok: true, skipped: true, reason: "canary-lock-held", paused: true };
+  const canaryGate = evaluateConvictionGates({
+    candidate,
+    frozen,
+    game,
+    paused: false,
+    canaryPassed: true,
+  });
+  if (!canaryGate.ok) {
+    await releaseConvictionCanaryLock(env);
+    await persistQualificationAttempt(env, {
+      id: `canary-attempt:${slate.sport}:${slate.date}:${game.id}:${candidate.market}:${candidate.side}`,
+      gameId: String(game.id),
+      sport: slate.sport,
+      date: slate.date,
+      market: candidate.market,
+      side: candidate.side,
+      modelProbability: canaryGate.modelProbability,
+      expectedRoi: canaryGate.expectedRoi,
+      validationResult: "FAILED",
+      validationFailureReason: canaryGate.reason,
+      freezeId: candidate.freezeId,
+      sourceProjectionId: candidate.sourceProjectionId,
+      canary: true,
+    });
+    return { ok: true, skipped: true, reason: "canary-gates-failed", paused: true };
+  }
+  const packed = packTicket(
+    {
+      ...candidate,
+      modelProbability: canaryGate.modelProbability,
+      fair: canaryGate.modelProbability,
+      ev: canaryGate.expectedRoi,
+      tag: "CANARY",
+      qualificationRuleVersion: "FBIS-HC-v1",
+      id: `canary:${slate.sport}:${slate.date}:${game.id}:${candidate.market}:${candidate.side}`,
+    },
+    { role: "canary", date: slate.date, strategyId: "FBIS-CANARY-PROB-v1" }
+  );
+  const persisted = await persistStrategyTicketWithReadback(env, packed, {
+    strictConflict: false,
+    canary: true,
+    requireFreezeReadback: Boolean(candidate.sourceProjectionId),
+  });
+  if (!persisted.ok) await releaseConvictionCanaryLock(env);
+  return persisted;
+}
+
+export async function reconstructAffectedTickets(env, tickets) {
+  const list = tickets || (await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id }));
+  if (!list?.length) return { ok: true, n: 0, rows: [] };
+  const minDate = list.map((t) => t.date).filter(Boolean).sort()[0] || "2026-08-26";
+  const snapQ = await querySnapshots(env, { since: minDate });
+  const gamesQ = await queryGamesByIds(env, [...new Set(list.map((t) => t.gameId).filter(Boolean))]);
+  const gameById = new Map((gamesQ.rows || []).map((g) => [String(g.id), g]));
+  const byGame = new Map();
+  for (const snap of snapQ.rows || []) {
+    const key = String(snap.gameId || snap.id);
+    const prev = byGame.get(key) || [];
+    prev.push(snap);
+    byGame.set(key, prev);
+  }
+  const rows = [];
+  for (const ticket of list) {
+    const snaps = byGame.get(String(ticket.gameId)) || [];
+    const preferred =
+      snaps.find((s) => ticket.checkpoint && s.checkpoint === ticket.checkpoint) ||
+      snaps.slice().sort((a, b) => String(a.frozenAt).localeCompare(String(b.frozenAt)))[0] ||
+      null;
+    const gameStart = preferred?.start || gameById.get(String(ticket.gameId))?.start || ticket.start || null;
+    const reconstructed = reconstructTicketProbability(ticket, preferred, { gameStart });
+    const rec = {
+      id: `prob-recon:${ticket.id}`,
+      originalTicketId: ticket.id,
+      reconstructedModelProbability: reconstructed.reconstructedModelProbability,
+      reconstructionSource: reconstructed.reconstructionSource,
+      reconstructionStatus: reconstructed.status,
+      reconstructionReason: reconstructed.reason,
+      expectedRoiRecomputed: reconstructed.expectedRoiRecomputed,
+      freezeId: reconstructed.freezeId || preferred?.frozenAt || null,
+      sourceProjectionId: preferred?.gameId || ticket.gameId,
+      inputsJson: JSON.stringify({
+        market: ticket.market,
+        side: ticket.side,
+        checkpoint: ticket.checkpoint,
+        originalProbability: reconstructed.originalProbability,
+        originalProbabilityType: reconstructed.originalProbabilityType,
+      }),
+      sport: ticket.sport,
+      market: ticket.market,
+      date: ticket.date,
+      result: ticket.result,
+      clv: ticket.clv,
+    };
+    await persistProbabilityCorrection(env, rec);
+    rows.push({ ...rec, status: reconstructed.status });
+  }
+  return { ok: true, n: rows.length, rows };
 }
 
 async function gradeStrategyAgainstFinals(env, finals) {
@@ -1046,8 +1208,11 @@ async function gradeExecutedBets(env, finals) {
   const byId = new Map((finals || []).map((g) => [String(g.id), g]));
   const jobs = [];
   for (const t of listed.rows || []) {
-    if (!t.gameId) continue;
-    const g = byId.get(String(t.gameId));
+    let g = t.gameId ? byId.get(String(t.gameId)) : null;
+    if (!g) {
+      const matched = matchExecutedBet(t, finals || []);
+      if (matched.status === "matched") g = matched.game;
+    }
     if (!g) continue;
     const detail = String(g.status?.detail || "").toLowerCase();
     if (g.status?.completed !== true && !/\bfinal\b|cancel|void|postpone|suspend/.test(detail)) continue;
@@ -1061,8 +1226,11 @@ async function gradeExecutedBets(env, finals) {
       f5Score: g.f5Score,
     });
     if (settled.result && settled.result !== "OPEN") {
+      const alreadySettled = t.result && t.result !== "OPEN";
       const changed = settled.result !== t.result || Number(settled.profit) !== Number(t.profit);
-      if (changed) jobs.push(updateExecutedBet(env, t.id, settled, t.result && t.result !== "OPEN" ? "settlement-correction" : "settlement"));
+      if (changed) {
+        jobs.push(updateExecutedBet(env, t.id, settled, alreadySettled ? "settlement-correction" : "settlement"));
+      }
     }
   }
   await Promise.all(jobs);
@@ -1429,6 +1597,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   const dailyRes = await persistDailyReport(env, daily);
   if (dailyRes && dailyRes.ok === false) tallyPersist(counts, dailyRes);
   await gradeStrategyAgainstFinals(env, finals);
+  await reconstructAffectedTickets(env, null);
   await gradeExecutedBets(env, finals);
   const rows = Object.values(saved.games)
     .filter((r) => r.sport === sport || !r.sport)

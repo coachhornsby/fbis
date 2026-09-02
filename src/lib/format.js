@@ -31,6 +31,16 @@ export function fmtPct(n) {
   return `${(Number(n) * 100).toFixed(1)}%`;
 }
 
+/** UI-only: canonical decimal modelProbability → percentage string. Never used in calculation. */
+export function fmtModelProbabilityPct(modelProbability) {
+  return fmtPct(modelProbability);
+}
+
+/** UI-only: canonical expectedRoi decimal → percentage string. */
+export function fmtExpectedRoiPct(expectedRoi) {
+  return fmtPct(expectedRoi);
+}
+
 export function fmtMetric(n, value, format = fmtPct) {
   if (n == null || Number(n) === 0) return "N=0 — unavailable";
   return format(value);

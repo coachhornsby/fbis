@@ -5,6 +5,7 @@
  */
 
 import { MODEL_VERSION } from "./weights.js";
+import { validateCanonicalProbability } from "./probability.js";
 
 export { MODEL_VERSION };
 
@@ -63,19 +64,19 @@ export function twoWayMarket(priceA, priceB) {
   };
 }
 
-/** EV as ROI on 1u stake. +0.063 = +6.3% expectancy. */
+/** EV as ROI on 1u stake. +0.063 = +6.3% expectancy. Decimal p only — never a percentage such as 57.2. */
 export function expectedRoi(pWin, american) {
-  const p = Number(pWin);
+  const validated = validateCanonicalProbability(pWin);
+  if (!validated.ok) return null;
   const n = Number(american);
-  if (!Number.isFinite(p) || p < 0 || p > 1) return null;
   if (!validAmericanOdds(n)) return null;
   const profit = n > 0 ? n / 100 : 100 / Math.abs(n);
-  return p * profit - (1 - p);
+  return validated.modelProbability * profit - (1 - validated.modelProbability);
 }
 
 export function evAnomaly({ fair, pinPrice, ev, marketComplete }) {
   if (!marketComplete) return { quarantined: true, reason: "incomplete-market" };
-  if (!Number.isFinite(Number(fair)) || Number(fair) < 0 || Number(fair) > 1) {
+  if (!validateCanonicalProbability(fair).ok) {
     return { quarantined: true, reason: "invalid-model-probability" };
   }
   if (!validAmericanOdds(pinPrice)) return { quarantined: true, reason: "invalid-american-odds" };

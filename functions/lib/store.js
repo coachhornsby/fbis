@@ -7,6 +7,13 @@
 import { identityFieldsConflict, immutableFieldsConflict } from "./strategy.js";
 import { immutableConflict, packExecutedBetRow } from "./executedBets.js";
 import { identityFromName } from "./teams.js";
+import {
+  EXPECTED_ROI_FORMULA_VERSION,
+  PROBABILITY_SCHEMA_VERSION,
+  expectedRoiMatches,
+  readCanonicalProbability,
+} from "./probability.js";
+import { expectedRoi, validAmericanOdds } from "./pricing.js";
 
 const health = {
   bound: false,
@@ -1298,9 +1305,374 @@ export async function persistStrategy(env, strategy) {
   }
 }
 
+export async function ensureProbabilityIntegrityMigration(env) {
+  if (!hasDb(env)) return { ok: false, reason: "unbound" };
+  const alters = [
+    "ALTER TABLE strategy_tickets ADD COLUMN model_probability REAL",
+    "ALTER TABLE strategy_tickets ADD COLUMN probability_schema_version TEXT",
+    "ALTER TABLE strategy_tickets ADD COLUMN expected_roi_formula_version TEXT",
+    "ALTER TABLE strategy_tickets ADD COLUMN validation_timestamp TEXT",
+    "ALTER TABLE strategy_tickets ADD COLUMN validation_result TEXT",
+    "ALTER TABLE strategy_tickets ADD COLUMN validation_failure_reason TEXT",
+    "ALTER TABLE strategy_tickets ADD COLUMN source_projection_id TEXT",
+    "ALTER TABLE strategy_tickets ADD COLUMN market_snapshot_id TEXT",
+    "ALTER TABLE strategy_tickets ADD COLUMN freeze_id TEXT",
+    "ALTER TABLE strategy_tickets ADD COLUMN qualification_rule_version TEXT",
+  ];
+  for (const sql of alters) {
+    try {
+      await env.DB.prepare(sql).run();
+    } catch (err) {
+      const msg = String(err?.message || err);
+      if (!/duplicate column|already exists/i.test(msg)) {
+        /* keep going — some D1 drivers throw on duplicate */
+      }
+    }
+  }
+  try {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS strategy_ticket_probability_corrections (
+        id TEXT PRIMARY KEY,
+        original_ticket_id TEXT NOT NULL,
+        reconstructed_model_probability REAL,
+        reconstruction_source TEXT,
+        reconstruction_status TEXT NOT NULL,
+        reconstruction_reason TEXT,
+        expected_roi_recomputed REAL,
+        freeze_id TEXT,
+        source_projection_id TEXT,
+        market_snapshot_id TEXT,
+        inputs_json TEXT,
+        created_at TEXT NOT NULL
+      )`
+    ).run();
+    await env.DB.prepare(
+      "CREATE INDEX IF NOT EXISTS idx_prob_corrections_ticket ON strategy_ticket_probability_corrections (original_ticket_id, created_at)"
+    ).run();
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS strategy_qualification_attempts (
+        id TEXT PRIMARY KEY,
+        game_id TEXT,
+        sport TEXT,
+        date TEXT,
+        market TEXT,
+        side TEXT,
+        model_probability REAL,
+        expected_roi REAL,
+        validation_result TEXT NOT NULL,
+        validation_failure_reason TEXT,
+        freeze_id TEXT,
+        source_projection_id TEXT,
+        market_snapshot_id TEXT,
+        canary INTEGER,
+        created_at TEXT NOT NULL
+      )`
+    ).run();
+    await env.DB.prepare("INSERT OR IGNORE INTO schema_migrations (id, applied_at) VALUES ('0013_probability_integrity', datetime('now'))").run();
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+  return { ok: true };
+}
+
+export async function claimConvictionCanaryLock(env) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, claimed: false };
+  try {
+    const res = await env.DB.prepare("INSERT OR IGNORE INTO store_meta (k, v) VALUES (?, ?)").bind(
+      "conviction_canary_lock",
+      new Date().toISOString()
+    ).run();
+    markWrite();
+    return { ok: true, claimed: (Number(res?.meta?.changes) || 0) > 0 };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, claimed: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function releaseConvictionCanaryLock(env) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false };
+  try {
+    await env.DB.prepare("DELETE FROM store_meta WHERE k = ?").bind("conviction_canary_lock").run();
+    markWrite();
+    return { ok: true };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function persistQualificationAttempt(env, row) {
+  markBound(env);
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: "unbound" };
+  await ensureProbabilityIntegrityMigration(env);
+  try {
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO strategy_qualification_attempts (
+        id, game_id, sport, date, market, side, model_probability, expected_roi,
+        validation_result, validation_failure_reason, freeze_id, source_projection_id,
+        market_snapshot_id, canary, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        n(row.gameId),
+        n(row.sport),
+        n(row.date),
+        n(row.market),
+        n(row.side),
+        n(row.modelProbability),
+        n(row.expectedRoi),
+        row.validationResult || "FAILED",
+        n(row.validationFailureReason),
+        n(row.freezeId),
+        n(row.sourceProjectionId),
+        n(row.marketSnapshotId),
+        row.canary ? 1 : 0,
+        row.createdAt || new Date().toISOString()
+      )
+      .run();
+    markWrite();
+    return { ok: true };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function persistProbabilityCorrection(env, row) {
+  markBound(env);
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: "unbound" };
+  await ensureProbabilityIntegrityMigration(env);
+  try {
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO strategy_ticket_probability_corrections (
+        id, original_ticket_id, reconstructed_model_probability, reconstruction_source,
+        reconstruction_status, reconstruction_reason, expected_roi_recomputed,
+        freeze_id, source_projection_id, market_snapshot_id, inputs_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        row.originalTicketId,
+        n(row.reconstructedModelProbability),
+        n(row.reconstructionSource),
+        row.reconstructionStatus,
+        n(row.reconstructionReason),
+        n(row.expectedRoiRecomputed),
+        n(row.freezeId),
+        n(row.sourceProjectionId),
+        n(row.marketSnapshotId),
+        n(row.inputsJson),
+        row.createdAt || new Date().toISOString()
+      )
+      .run();
+    markWrite();
+    return { ok: true };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function queryProbabilityCorrections(env, { ticketIds } = {}) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, rows: [] };
+  try {
+    await ensureProbabilityIntegrityMigration(env);
+    let sql = "SELECT * FROM strategy_ticket_probability_corrections";
+    const binds = [];
+    if (ticketIds?.length) {
+      sql += ` WHERE original_ticket_id IN (${ticketIds.map(() => "?").join(",")})`;
+      binds.push(...ticketIds);
+    }
+    sql += " ORDER BY created_at ASC";
+    const res = binds.length ? await env.DB.prepare(sql).bind(...binds).all() : await env.DB.prepare(sql).all();
+    markRead();
+    return {
+      ok: true,
+      rows: (res.results || []).map((r) => ({
+        id: r.id,
+        originalTicketId: r.original_ticket_id,
+        reconstructedModelProbability: r.reconstructed_model_probability,
+        reconstructionSource: r.reconstruction_source,
+        status: r.reconstruction_status,
+        reconstructionStatus: r.reconstruction_status,
+        reconstructionReason: r.reconstruction_reason,
+        expectedRoiRecomputed: r.expected_roi_recomputed,
+        freezeId: r.freeze_id,
+        sourceProjectionId: r.source_projection_id,
+        marketSnapshotId: r.market_snapshot_id,
+        createdAt: r.created_at,
+        sport: null,
+        market: null,
+        date: null,
+        result: null,
+        clv: null,
+      })),
+    };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), rows: [] };
+  }
+}
+
+export async function persistStrategyTicketWithReadback(env, row, opts = {}) {
+  const now = new Date().toISOString();
+  const canonical = readCanonicalProbability(row);
+  const price = row.pinPrice ?? row.benchmarkPrice ?? row.executionPrice;
+  const recomputed = canonical.ok && validAmericanOdds(price) ? expectedRoi(canonical.modelProbability, price) : null;
+  if (!canonical.ok || recomputed == null) {
+    await persistQualificationAttempt(env, {
+      id: `attempt:${row.id}:${now}`,
+      gameId: row.gameId,
+      sport: row.sport,
+      date: row.date,
+      market: row.market,
+      side: row.side,
+      modelProbability: canonical.modelProbability,
+      expectedRoi: recomputed,
+      validationResult: "FAILED",
+      validationFailureReason: canonical.reason || "expected-roi-recompute-failed",
+      freezeId: row.freezeId,
+      sourceProjectionId: row.sourceProjectionId,
+      marketSnapshotId: row.marketSnapshotId,
+      canary: Boolean(opts.canary),
+      createdAt: now,
+    });
+    return { ok: false, reason: canonical.reason || "expected-roi-recompute-failed", exposed: false };
+  }
+  const toInsert = {
+    ...row,
+    modelProbability: canonical.modelProbability,
+    fair: canonical.modelProbability,
+    ev: row.ev ?? recomputed,
+    validationTimestamp: now,
+    validationResult: "PENDING_READBACK",
+    probabilitySchemaVersion: PROBABILITY_SCHEMA_VERSION,
+    expectedRoiFormulaVersion: EXPECTED_ROI_FORMULA_VERSION,
+  };
+  const inserted = await persistStrategyTicket(env, toInsert, opts);
+  if (!inserted.ok) {
+    await persistQualificationAttempt(env, {
+      id: `attempt:${row.id}:${now}`,
+      gameId: row.gameId,
+      sport: row.sport,
+      date: row.date,
+      market: row.market,
+      side: row.side,
+      modelProbability: canonical.modelProbability,
+      expectedRoi: recomputed,
+      validationResult: "FAILED",
+      validationFailureReason: inserted.reason || "insert-failed",
+      freezeId: row.freezeId,
+      canary: Boolean(opts.canary),
+      createdAt: now,
+    });
+    return { ...inserted, exposed: false };
+  }
+  const readbackRow = await env.DB.prepare("SELECT * FROM strategy_tickets WHERE id = ?").bind(row.id).first();
+  const mapped = readbackRow ? mapStrategyTicket(readbackRow) : null;
+  const readbackProb = mapped ? readCanonicalProbability(mapped) : { ok: false, reason: "readback-missing" };
+  const readbackRoi = readbackProb.ok && validAmericanOdds(mapped.pinPrice ?? mapped.benchmarkPrice)
+    ? expectedRoi(readbackProb.modelProbability, mapped.pinPrice ?? mapped.benchmarkPrice)
+    : null;
+  const roiOk = expectedRoiMatches(mapped?.ev, readbackRoi) || expectedRoiMatches(recomputed, readbackRoi);
+  if (opts.requireFreezeReadback && (row.sourceProjectionId || row.freezeId || row.gameId)) {
+    try {
+      const freezeRow =
+        (await env.DB.prepare(
+          "SELECT game_id, p_home_final, frozen_at FROM prediction_snapshots WHERE game_id = ? OR id = ? LIMIT 1"
+        )
+          .bind(String(row.sourceProjectionId || row.gameId), String(row.sourceProjectionId || row.id || ""))
+          .first()) || null;
+      if (!freezeRow) {
+        await persistQualificationAttempt(env, {
+          id: `attempt:${row.id}:freeze:${now}`,
+          gameId: row.gameId,
+          sport: row.sport,
+          date: row.date,
+          market: row.market,
+          side: row.side,
+          modelProbability: canonical.modelProbability,
+          expectedRoi: recomputed,
+          validationResult: "FAILED",
+          validationFailureReason: "frozen-record-readback-failed",
+          freezeId: row.freezeId,
+          sourceProjectionId: row.sourceProjectionId,
+          canary: Boolean(opts.canary),
+          createdAt: now,
+        });
+        return { ok: false, reason: "frozen-record-readback-failed", exposed: false, inserted: true };
+      }
+    } catch {
+      return { ok: false, reason: "frozen-record-readback-failed", exposed: false, inserted: true };
+    }
+  }
+  if (!readbackProb.ok || !roiOk) {
+    try {
+      await env.DB.prepare(
+        `UPDATE strategy_tickets SET tag = ?, validation_result = ?, validation_failure_reason = ?, validation_timestamp = ?
+         WHERE id = ? AND (result IS NULL OR result = 'OPEN')`
+      )
+        .bind("INVALID", "FAILED", readbackProb.reason || "readback-roi-mismatch", now, row.id)
+        .run();
+    } catch {
+      /* audit-visible attempt still recorded below */
+    }
+    await persistQualificationAttempt(env, {
+      id: `attempt:${row.id}:readback:${now}`,
+      gameId: row.gameId,
+      sport: row.sport,
+      date: row.date,
+      market: row.market,
+      side: row.side,
+      modelProbability: readbackProb.modelProbability,
+      expectedRoi: readbackRoi,
+      validationResult: "FAILED",
+      validationFailureReason: readbackProb.reason || "readback-roi-mismatch",
+      freezeId: row.freezeId,
+      canary: Boolean(opts.canary),
+      createdAt: now,
+    });
+    return { ok: false, reason: "readback-validation-failed", exposed: false, inserted: true };
+  }
+  try {
+    await env.DB.prepare(
+      `UPDATE strategy_tickets SET validation_result = ?, validation_timestamp = ?, validation_failure_reason = NULL WHERE id = ?`
+    )
+      .bind(opts.canary ? "CANARY_PASSED" : "PASSED", now, row.id)
+      .run();
+  } catch {
+    /* column may not exist in tests */
+  }
+  if (opts.canary) {
+    await persistQualificationAttempt(env, {
+      id: `canary:${row.id}:${now}`,
+      gameId: row.gameId,
+      sport: row.sport,
+      date: row.date,
+      market: row.market,
+      side: row.side,
+      modelProbability: readbackProb.modelProbability,
+      expectedRoi: readbackRoi,
+      validationResult: "CANARY_PASSED",
+      freezeId: row.freezeId,
+      canary: true,
+      createdAt: now,
+    });
+    await setMeta(env, "conviction_canary_passed_at", now);
+    await setMeta(env, "conviction_canary_ticket_id", row.id);
+  }
+  return { ok: true, exposed: !opts.canary, readback: mapped, modelProbability: readbackProb.modelProbability, expectedRoi: readbackRoi };
+}
+
 export async function persistStrategyTicket(env, row, opts = {}) {
   markBound(env);
   if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  await ensureProbabilityIntegrityMigration(env);
   const strict = opts.strictConflict !== false;
   try {
     const existing = await env.DB.prepare("SELECT * FROM strategy_tickets WHERE id = ?").bind(row.id).first();
@@ -1321,8 +1693,11 @@ export async function persistStrategyTicket(env, row, opts = {}) {
         result, profit, clv, traits_json, created_at, graded_at,
         qualified_at, execution_line, execution_price, benchmark_line, benchmark_price,
         entry_no_vig, closing_line, closing_price, closing_no_vig, stake, missing_execution_price,
-        provenance, execution_book, benchmark_book, clv_version
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        provenance, execution_book, benchmark_book, clv_version,
+        model_probability, probability_schema_version, expected_roi_formula_version,
+        validation_timestamp, validation_result, validation_failure_reason,
+        source_projection_id, market_snapshot_id, freeze_id, qualification_rule_version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         row.id,
@@ -1364,7 +1739,17 @@ export async function persistStrategyTicket(env, row, opts = {}) {
         n(row.provenance),
         n(row.executionBook),
         n(row.benchmarkBook),
-        n(row.clvVersion)
+        n(row.clvVersion),
+        n(row.modelProbability ?? row.fair),
+        n(row.probabilitySchemaVersion || PROBABILITY_SCHEMA_VERSION),
+        n(row.expectedRoiFormulaVersion || EXPECTED_ROI_FORMULA_VERSION),
+        n(row.validationTimestamp),
+        n(row.validationResult),
+        n(row.validationFailureReason),
+        n(row.sourceProjectionId),
+        n(row.marketSnapshotId),
+        n(row.freezeId),
+        n(row.qualificationRuleVersion)
       )
       .run();
     markWrite();
@@ -1757,6 +2142,17 @@ function mapStrategyTicket(r) {
     executionBook: r.execution_book || null,
     benchmarkBook: r.benchmark_book || "Pinnacle",
     clvVersion: r.clv_version || null,
+    modelProbability: r.model_probability ?? traits.modelProbability ?? null,
+    probabilitySchemaVersion: r.probability_schema_version || traits.probabilitySchemaVersion || null,
+    expectedRoiFormulaVersion: r.expected_roi_formula_version || traits.expectedRoiFormulaVersion || null,
+    validationTimestamp: r.validation_timestamp || null,
+    validationResult: r.validation_result || null,
+    validationFailureReason: r.validation_failure_reason || null,
+    sourceProjectionId: r.source_projection_id || null,
+    marketSnapshotId: r.market_snapshot_id || null,
+    freezeId: r.freeze_id || null,
+    qualificationRuleVersion: r.qualification_rule_version || traits.qualificationRuleVersion || null,
+    fair: r.model_probability ?? traits.modelProbability ?? null,
   };
 }
 
