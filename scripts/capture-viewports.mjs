@@ -66,7 +66,7 @@ try {
       const locator = page.locator(t.scrollTo);
       if (await locator.count()) await locator.scrollIntoViewIfNeeded().catch(() => {});
     }
-    const healthState = ((await page.locator(".top-badge").first().innerText().catch(() => "unknown")) || "unknown")
+    const healthState = ((await page.locator(".overall-badge").first().innerText().catch(() => "unknown")) || "unknown")
       .trim()
       .replace(/\s+/g, "-")
       .toLowerCase();

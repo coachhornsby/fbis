@@ -441,6 +441,10 @@ export async function onRequestGet(context) {
           : migration.reason || MIGRATION_STATUS.UNVERIFIED,
       count: (auditQ.rows || []).length,
       byReason: summarizeEvAudits((auditQ.rows || []).map((r) => ({ anomalyReason: r.anomaly_reason || r.anomalyReason }))),
+      bySport: summarizeBy((auditQ.rows || []), (r) => r.sport || "unknown"),
+      byMarketFamily: summarizeBy((auditQ.rows || []), (r) => normalizeMarketFamily(r.market)),
+      qualifiedCount: (auditQ.rows || []).filter((r) => Boolean(r.qualified)).length,
+      enteredStrategyCount: (auditQ.rows || []).filter((r) => Boolean(r.entered_strategy)).length,
       rows: (auditQ.rows || []).slice(0, 50).map((r) => ({
         id: r.id,
         entityType: r.entity_type,
@@ -483,6 +487,25 @@ export async function onRequestGet(context) {
       }
     );
   }
+}
+
+function summarizeBy(rows, keyFn) {
+  const out = {};
+  for (const row of rows || []) {
+    const k = String(keyFn(row) || "unknown");
+    out[k] = (out[k] || 0) + 1;
+  }
+  return out;
+}
+
+function normalizeMarketFamily(market) {
+  const m = String(market || "").toUpperCase();
+  if (m.includes("F5")) return "F5";
+  if (m.includes("PROP")) return "PLAYER_PROP";
+  if (m.includes("SPREAD") || m.includes("RL")) return "SPREAD";
+  if (m.includes("TOTAL")) return "TOTAL";
+  if (m.includes("ML")) return "MONEYLINE";
+  return m || "UNKNOWN";
 }
 
 export async function onRequestPost(context) {
