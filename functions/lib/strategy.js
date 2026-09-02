@@ -765,10 +765,16 @@ export function summarizeProspectiveConvictionCohort(
       : stats.wins === 5 && stats.losses === 2
         ? "Operator reported 5–2; results recovered 5–2; probability integrity unresolved; excluded from calculated FBIS-HC-v1 performance"
         : `Operator reported ${reportedRecord}; recovered N=${authoritative.length}; unreconciled`;
+  const verifiedStats = strategyStats(probabilityVerified);
   return {
     targetDateCt,
     reportedRecord,
     recoveredN: authoritative.length,
+    probabilityVerifiedN: probabilityVerified.length,
+    probabilityVerifiedRecord: probabilityVerified.length ? `${verifiedStats.wins}-${verifiedStats.losses}` : null,
+    probabilityVerifiedNote: probabilityVerified.length
+      ? `Probability-verified subset: N=${probabilityVerified.length}, record ${verifiedStats.wins}–${verifiedStats.losses}`
+      : null,
     settledN,
     openN,
     wins: stats.wins,
@@ -785,7 +791,6 @@ export function summarizeProspectiveConvictionCohort(
     label,
     unrecoveredSeedRecord: "7-0",
     mergedWithUnrecoveredSeed: false,
-    probabilityVerifiedN: probabilityVerified.length,
     eligibleForCalculatedFbisHcV1: eligibleForCalculated,
     tickets: authoritative,
   };

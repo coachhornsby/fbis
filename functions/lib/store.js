@@ -1477,42 +1477,52 @@ export async function persistProbabilityCorrection(env, row) {
   }
 }
 
+function mapProbabilityCorrectionRow(r) {
+  return {
+    id: r.id,
+    originalTicketId: r.original_ticket_id,
+    reconstructedModelProbability: r.reconstructed_model_probability,
+    reconstructionSource: r.reconstruction_source,
+    status: r.reconstruction_status,
+    reconstructionStatus: r.reconstruction_status,
+    reconstructionReason: r.reconstruction_reason,
+    expectedRoiRecomputed: r.expected_roi_recomputed,
+    freezeId: r.freeze_id,
+    sourceProjectionId: r.source_projection_id,
+    marketSnapshotId: r.market_snapshot_id,
+    createdAt: r.created_at,
+    sport: null,
+    market: null,
+    date: null,
+    result: null,
+    clv: null,
+  };
+}
+
 export async function queryProbabilityCorrections(env, { ticketIds } = {}) {
   markBound(env);
   if (!hasDb(env)) return { ok: false, rows: [] };
   try {
     await ensureProbabilityIntegrityMigration(env);
-    let sql = "SELECT * FROM strategy_ticket_probability_corrections";
-    const binds = [];
-    if (ticketIds?.length) {
-      sql += ` WHERE original_ticket_id IN (${ticketIds.map(() => "?").join(",")})`;
-      binds.push(...ticketIds);
+    const ids = [...new Set((ticketIds || []).map((id) => String(id)).filter(Boolean))];
+    if (!ids.length && ticketIds?.length === 0) return { ok: true, rows: [] };
+    if (!ids.length) {
+      const res = await env.DB.prepare(
+        "SELECT * FROM strategy_ticket_probability_corrections ORDER BY created_at ASC"
+      ).all();
+      markRead();
+      return { ok: true, rows: (res.results || []).map(mapProbabilityCorrectionRow) };
     }
-    sql += " ORDER BY created_at ASC";
-    const res = binds.length ? await env.DB.prepare(sql).bind(...binds).all() : await env.DB.prepare(sql).all();
+    const chunkSize = 80;
+    const rows = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      const sql = `SELECT * FROM strategy_ticket_probability_corrections WHERE original_ticket_id IN (${chunk.map(() => "?").join(",")}) ORDER BY created_at ASC`;
+      const res = await env.DB.prepare(sql).bind(...chunk).all();
+      rows.push(...(res.results || []).map(mapProbabilityCorrectionRow));
+    }
     markRead();
-    return {
-      ok: true,
-      rows: (res.results || []).map((r) => ({
-        id: r.id,
-        originalTicketId: r.original_ticket_id,
-        reconstructedModelProbability: r.reconstructed_model_probability,
-        reconstructionSource: r.reconstruction_source,
-        status: r.reconstruction_status,
-        reconstructionStatus: r.reconstruction_status,
-        reconstructionReason: r.reconstruction_reason,
-        expectedRoiRecomputed: r.expected_roi_recomputed,
-        freezeId: r.freeze_id,
-        sourceProjectionId: r.source_projection_id,
-        marketSnapshotId: r.market_snapshot_id,
-        createdAt: r.created_at,
-        sport: null,
-        market: null,
-        date: null,
-        result: null,
-        clv: null,
-      })),
-    };
+    return { ok: true, rows };
   } catch (err) {
     markErr(err);
     return { ok: false, reason: String(err?.message || err), rows: [] };
