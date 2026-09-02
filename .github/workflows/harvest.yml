@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "0 0,2,13,16,18,20,22 * * *"
     - cron: "20 11 * * *"
+    # Temporary schedule-proof slots (removed after verification).
+    - cron: "55 13 * * *"
+    - cron: "0 14 * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -47,6 +50,8 @@ jobs:
           fi
           if [ -z "$MODE" ]; then
             if [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then
+              MODE="harvest"
+            elif [ "$HOUR" = "14" ] && [ "$MIN" -lt 5 ]; then
               MODE="harvest"
             elif [ "$HOUR" = "13" ] || [ "$HOUR" = "16" ]; then
               MODE="collect-full"
