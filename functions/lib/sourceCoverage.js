@@ -43,6 +43,29 @@ export function sourceCoverage(rows, { scheduled = null } = {}) {
   };
 }
 
+export function reconcilePalCounts({
+  summaryMatched = null,
+  summaryUnmatched = null,
+  perGameMatched = 0,
+  perGameUnmatched = 0,
+} = {}) {
+  if (summaryMatched == null && summaryUnmatched == null) {
+    return { consistent: true, message: null, matched: perGameMatched, unmatched: perGameUnmatched };
+  }
+  const consistent =
+    Number(summaryMatched) === Number(perGameMatched) && Number(summaryUnmatched) === Number(perGameUnmatched);
+  return {
+    consistent,
+    matched: perGameMatched,
+    unmatched: perGameUnmatched,
+    summaryMatched,
+    summaryUnmatched,
+    message: consistent
+      ? null
+      : `Pal summary matched=${summaryMatched} unmatched=${summaryUnmatched} disagrees with per-game matched=${perGameMatched} unmatched=${perGameUnmatched}. Neither count is replaced with zero.`,
+  };
+}
+
 export function palHealth(rows, meta = {}) {
   const games = distinct(rows, gameKey);
   const projected = games.filter((r) => r.palHome != null && r.palAway != null);

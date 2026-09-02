@@ -201,6 +201,14 @@ export function summarizeReconstructions(rows = []) {
       r.status === RECONSTRUCTION_STATUS.RECOVERED_VERIFIED ||
       (r.reconstructedModelProbability != null && r.status !== RECONSTRUCTION_STATUS.UNRECOVERABLE)
   );
+  const allTally = (fn) => {
+    const m = {};
+    for (const r of xs) {
+      const k = fn(r) || "(none)";
+      m[k] = (m[k] || 0) + 1;
+    }
+    return m;
+  };
   return {
     recoverableN: recoverable.length,
     recoveredVerifiedN: count(RECONSTRUCTION_STATUS.RECOVERED_VERIFIED),
@@ -210,6 +218,16 @@ export function summarizeReconstructions(rows = []) {
     recoveredBySport: tally((r) => r.sport),
     recoveredByMarket: tally((r) => r.market),
     recoveredByDate: tally((r) => r.date),
+    recoveredByModelVersion: tally((r) => r.modelVersion),
+    recoveredByQualificationRuleVersion: tally((r) => r.qualificationRuleVersion),
+    recoveredByResult: tally((r) => r.result || "OPEN"),
+    allBySport: allTally((r) => r.sport),
+    allByMarket: allTally((r) => r.market),
+    allByDate: allTally((r) => r.date),
+    allByModelVersion: allTally((r) => r.modelVersion),
+    allByQualificationRuleVersion: allTally((r) => r.qualificationRuleVersion),
+    allByResult: allTally((r) => r.result || "OPEN"),
+    allByStatus: allTally((r) => r.status),
     recoveredSettled: recovered.filter((r) => r.result === "WON" || r.result === "LOST").length,
     recoveredWon: recovered.filter((r) => r.result === "WON").length,
     recoveredLost: recovered.filter((r) => r.result === "LOST").length,
@@ -236,7 +254,7 @@ export function sept1CohortLabel({
     settledN === expectedN;
   if (allVerified) return `Prospective CONVICTION cohort: 5–2, N=${expectedN}`;
   if (wins === 5 && losses === 2 && probabilityVerifiedN < expectedN) {
-    return "Operator reported 5–2; results recovered 5–2; probability integrity unresolved; excluded from calculated FBIS-HC-v1 performance";
+    return "Operator reported 5–2; results recovered 5–2; probability integrity incomplete; excluded from complete calculated FBIS-HC-v1 cohort performance";
   }
   return `Operator reported 5–2; recovered N=${recoveredN}; unreconciled`;
 }

@@ -2,6 +2,8 @@
 
 Live site: **https://fbis-myz.pages.dev/**
 
+Canonical production is **authenticated direct Wrangler Pages deploy**, not GitHub Deploy Pages, while the GitHub `CLOUDFLARE_API_TOKEN` secret is unset. See `docs/canonical-deployment.md`.
+
 Same path as CougarsDefense. Free tier. No DigitalOcean.
 
 ## CLI

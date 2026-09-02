@@ -1,9 +1,11 @@
 name: Deploy Pages
 
-# Canonical production is https://fbis-myz.pages.dev/ (Wrangler Pages project `fbis`).
-# Direct-upload deploy: Git is not connected, so main-push must publish the SHA.
+# Canonical production is authenticated direct Wrangler Pages deploy to
+# https://fbis-myz.pages.dev/ (project `fbis`). This workflow is not the
+# production deployment mechanism while CLOUDFLARE_API_TOKEN is unset in GitHub.
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -17,30 +19,40 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-      - name: Install dependencies
-        run: npm ci
-      - name: Verify schema/migrations
-        run: npm run verify:migrations
-      - name: Run test suite
-        run: npm test
-      - name: Build app
-        run: npm run build
-      - name: Require Cloudflare token
+      - name: Check Cloudflare token
+        id: token
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "CLOUDFLARE_API_TOKEN is not configured as a GitHub Actions secret."
-            echo "Cannot deploy https://fbis-myz.pages.dev/ from this workflow."
-            exit 1
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CLOUDFLARE_API_TOKEN is not configured as a GitHub Actions secret. Canonical production is authenticated direct Cloudflare Pages deploy. This workflow did not deploy and does not claim a production SHA."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.present == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.token.outputs.present == 'true'
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        if: steps.token.outputs.present == 'true'
+        run: npm ci
+      - name: Verify schema/migrations
+        if: steps.token.outputs.present == 'true'
+        run: npm run verify:migrations
+      - name: Run test suite
+        if: steps.token.outputs.present == 'true'
+        run: npm test
+      - name: Build app
+        if: steps.token.outputs.present == 'true'
+        run: npm run build
       - name: Deploy canonical Pages
+        if: steps.token.outputs.present == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -52,6 +64,7 @@ jobs:
             --commit-hash "${GITHUB_SHA}" \
             --commit-message "deploy ${GITHUB_SHA}"
       - name: Apply additive migration 0013
+        if: steps.token.outputs.present == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -1,13 +1,13 @@
 import { buildTrackReport } from "../lib/projLedger.js";
 import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, queryStrategyTicketsPaged, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords, queryEvAuditTicketSummary, setMeta, readMeta } from "../lib/store.js";
-import { settleExecutedBet } from "../lib/executedBets.js";
+import { settleExecutedBet, summarizeExecutedBets } from "../lib/executedBets.js";
 import { gradeStrategyResult } from "../lib/strategy.js";
 import { resolveFinalForTicket, reconstructAffectedTickets } from "../lib/projLedger.js";
 import { resolveTeam } from "../lib/teams.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 import { auditTicketEv, summarizeEvAudits, anomalyRuleDetails, ANOMALY_RULES } from "../lib/evAudit.js";
-import { readCanonicalProbability } from "../lib/probability.js";
+import { scheduledProofNote, endpointTelemetry } from "../lib/endpointTelemetry.js";
 const MIGRATION_STATUS = {
   VERIFIED: "VERIFIED",
   FAILED: "FAILED",
@@ -683,11 +683,31 @@ export async function onRequestGet(context) {
         createdAt: r.created_at,
       })),
     };
+    const heritageQ = db.ok ? await queryExecutedBets({ DB: context.env.DB }, { includeRaw: false }) : { rows: [] };
+    payload.heritageSettlement = summarizeExecutedBets(heritageQ.rows || []);
+    payload.scheduledProofNote = scheduledProofNote({
+      collectState: db.scheduled?.collect?.state,
+      harvestState: db.scheduled?.harvest?.state,
+      lastEventType: db.scheduled?.lastEventType,
+      lastRunUrl: db.scheduled?.lastRunUrl,
+      durableScheduleRow: Boolean(db.lastScheduledCollectSuccess || db.lastScheduledHarvestSuccess),
+    });
     payload.telemetry = {
-      endpoint: "/api/track",
+      ...endpointTelemetry({
+        endpoint: "/api/track",
+        source: db.source || "d1",
+        semanticHealth: semantic.state,
+        durationMs: null,
+        cacheHit: false,
+        d1QueryCount: includeAnomalies ? 8 : 6,
+        rowsRead: Number((payload.games || []).length) + Number((payload.finals || []).length) + Number((auditQ.rows || []).length) + Number((heritageQ.rows || []).length),
+        authoritativeCounts: {
+          games: (payload.games || []).length,
+          heritageBets: (heritageQ.rows || []).length,
+        },
+        buildSha: payload.deploymentCommit || null,
+      }),
       requestCount: 1,
-      queryCountEstimate: includeAnomalies ? 8 : 6,
-      rowsReadEstimate: Number((payload.games || []).length) + Number((payload.finals || []).length) + Number((auditQ.rows || []).length),
       cacheStatus: payload.source || "unknown",
       dateRange: payload?.accuracySummary?.dateRange || null,
       paginationCursor: includeAnomalies ? null : "anomalies-not-requested",

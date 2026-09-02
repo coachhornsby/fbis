@@ -221,7 +221,7 @@ describe("prospective conviction cohort reconciliation", () => {
     const out = summarizeProspectiveConvictionCohort(rows, { targetDateCt: "2026-09-01", expectedN: 7, reportedRecord: "5-2" });
     assert.equal(
       out.label,
-      "Operator reported 5–2; results recovered 5–2; probability integrity unresolved; excluded from calculated FBIS-HC-v1 performance"
+      "Operator reported 5–2; results recovered 5–2; probability integrity incomplete; excluded from complete calculated FBIS-HC-v1 cohort performance"
     );
     assert.equal(out.wins, 5);
     assert.equal(out.losses, 2);

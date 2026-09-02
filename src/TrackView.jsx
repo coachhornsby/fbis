@@ -4,7 +4,7 @@ import { fmtNum, fmtPct, fmtSigned, fmtMetric as fmtMetricN0 } from "./lib/forma
 import { useEffect, useState } from "react";
 import useIsCompact from "./hooks/useIsCompact.js";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
-import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
+import { scheduledProofNote } from "../functions/lib/endpointTelemetry.js";
 
 const PERIODS = [
   ["7", "Last 7"],
@@ -72,7 +72,9 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
   if (!db.ok) actionIssues.push(`Research DB unavailable (${db.reason || db.lastError || "unknown"}).`);
   if (Number(db.failedWrites || 0) > 0) actionIssues.push(`${db.failedWrites} failed write(s) detected.`);
   if (Number(db.failedHarvests || 0) > 0) actionIssues.push(`${db.failedHarvests} failed harvest(s) detected.`);
-  for (const w of db.scheduleWarnings || []) actionIssues.push(String(w));
+  if (Number(report?.heritageSettlement?.open || 0) > 0) {
+    actionIssues.push(`${report.heritageSettlement.open} imported Heritage bet(s) await settlement.`);
+  }
 
   const rowKey = (g) => `${g.date}:${g.id}:${g.checkpoint || ""}`;
   const togglePanel = (key) => setOpenPanels((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -140,7 +142,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
       {error && <div className="panel"><div className="error">{error}</div></div>}
       {actionIssues.length ? (
         <section id="action-required" className="panel sys-action-sticky">
-          <div className="panel-header"><h2>Action required</h2><span className="last-updated">{loading ? "Loading…" : badgeLabel(state || "DEGRADED")}</span></div>
+          <div className="panel-header"><h2>Action required</h2><span className="last-updated">{loading && !report ? "Loading…" : badgeLabel(state || "DEGRADED")}</span></div>
           <div className="panel-body">
             <p className="muted" style={{ marginBottom: 8 }}>
               {attemptAt ? `Current attempt ${fmtTs(attemptAt)}.` : ""}
@@ -220,7 +222,13 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
             <Stat label="Last scheduled harvest" value={fmtTs(db.lastScheduledHarvestSuccess || db.scheduled?.harvest?.lastObservedAt)} />
             <Stat label="Last scheduled run URL" value={db.scheduled?.lastRunUrl || "unverified"} />
           </div>
-          <p className="muted">GitHub schedule observed; durable D1 schedule proof unverified.</p>
+          <p className="muted">{report?.scheduledProofNote || scheduledProofNote({
+            collectState: db.scheduled?.collect?.state,
+            harvestState: db.scheduled?.harvest?.state,
+            lastEventType: db.scheduled?.lastEventType,
+            lastRunUrl: db.scheduled?.lastRunUrl,
+            durableScheduleRow: Boolean(db.lastScheduledCollectSuccess || db.lastScheduledHarvestSuccess),
+          })}</p>
         </div>
       </section>
 
@@ -348,16 +356,21 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
       <section id="settlement-backlog" className="panel">
         <div className="panel-header">
           <h2>Settlement backlog</h2>
-          <span className="last-updated">{unavailable ? "Unavailable" : `${open.length} waiting`}</span>
+          <span className="last-updated">{unavailable ? "Unavailable" : `${(report?.heritageSettlement?.open ?? 0) + open.length} waiting`}</span>
         </div>
         <div className="panel-body">
           <div className="status-grid">
             <Stat label="Open snapshots" value={valueOrUnavailable(unavailable, open.length)} />
             <Stat label="Graded snapshots" value={valueOrUnavailable(unavailable, graded.length)} />
+            <Stat label="Heritage open" value={valueOrUnavailable(unavailable, report?.heritageSettlement?.open)} />
+            <Stat label="Heritage settled" value={valueOrUnavailable(unavailable, report?.heritageSettlement?.settled)} />
             <Stat label="Last collect success" value={fmtTs(db.lastCollectSuccess || db.lastCollect)} />
             <Stat label="Last harvest success" value={fmtTs(db.lastHarvestSuccess || db.lastHarvest)} />
           </div>
-          <p className="muted">Effective scope: projection snapshots in the currently active SYS filters; not all historical records.</p>
+          <p className="muted">
+            Heritage open bets are the settlement backlog for executed wagers. Snapshot OPEN counts are frozen projections awaiting finals in the current SYS filter — they are a different population.
+            {(report?.heritageSettlement?.open || 0) > 0 ? ` ${report.heritageSettlement.open} imported Heritage bet(s) still open.` : " No imported Heritage bets await settlement in the current D1 ledger."}
+          </p>
         </div>
       </section>
 
@@ -1372,7 +1385,17 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
           <Stat label="Duplicates excluded" value={integrity.duplicatesExcluded ?? 0} />
           <Stat label="Invalid" value={integrity.invalid ?? 0} />
           <Stat label="Quarantined" value={integrity.quarantined ?? 0} />
+          <Stat label="Original p missing" value={integrity.originalProbabilityMissing ?? 0} />
         </div>
+        {integrity.note ? <p className="muted" style={{ marginBottom: 8 }}>{integrity.note}</p> : null}
+        {pack?.historicalProbabilityReconstruction ? (
+          <p className="muted" style={{ marginBottom: 8 }}>
+            Reconstruction: recovered {pack.historicalProbabilityReconstruction.recoveredVerifiedN ?? 0}
+            · blocked {pack.historicalProbabilityReconstruction.blockedN ?? 0}
+            · unrecoverable {pack.historicalProbabilityReconstruction.unrecoverableN ?? 0}
+            · still invalid {pack.historicalProbabilityReconstruction.stillInvalidN ?? 0}
+          </p>
+        ) : null}
         <p className="muted" style={{ marginBottom: 8 }}>
           Breakdown sport={fmtMapSummary(integrity.breakdowns?.sport)} · market={fmtMapSummary(integrity.breakdowns?.marketFamily)} · period={fmtMapSummary(integrity.breakdowns?.periodFamily)} · model={fmtMapSummary(integrity.breakdowns?.modelVersion)} · qual={fmtMapSummary(integrity.breakdowns?.qualificationRuleVersion)}
         </p>
