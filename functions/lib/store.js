@@ -1577,8 +1577,14 @@ export async function persistEvAuditRecords(env, records = []) {
 
 export async function queryEvAuditRecords(env, { since, limit = 1000 } = {}) {
   markBound(env);
-  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [], totalCount: 0 };
   try {
+    const countSql = since
+      ? "SELECT COUNT(*) AS n FROM ev_audit_records WHERE created_at >= ?"
+      : "SELECT COUNT(*) AS n FROM ev_audit_records";
+    const cnt = since
+      ? await env.DB.prepare(countSql).bind(since).first()
+      : await env.DB.prepare(countSql).first();
     const sql = since
       ? "SELECT * FROM ev_audit_records WHERE created_at >= ? ORDER BY created_at DESC LIMIT ?"
       : "SELECT * FROM ev_audit_records ORDER BY created_at DESC LIMIT ?";
@@ -1586,10 +1592,10 @@ export async function queryEvAuditRecords(env, { since, limit = 1000 } = {}) {
       ? await env.DB.prepare(sql).bind(since, Math.max(1, Math.min(5000, Number(limit) || 1000))).all()
       : await env.DB.prepare(sql).bind(Math.max(1, Math.min(5000, Number(limit) || 1000))).all();
     markRead();
-    return { ok: true, rows: res.results || [] };
+    return { ok: true, rows: res.results || [], totalCount: Number(cnt?.n || 0) };
   } catch (err) {
     markErr(err);
-    return { ok: false, reason: String(err?.message || err), rows: [] };
+    return { ok: false, reason: String(err?.message || err), rows: [], totalCount: 0 };
   }
 }
 

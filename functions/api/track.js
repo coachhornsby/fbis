@@ -440,6 +440,7 @@ export async function onRequestGet(context) {
           ? (auditQ.ok ? null : auditQ.reason || "unavailable")
           : migration.reason || MIGRATION_STATUS.UNVERIFIED,
       count: (auditQ.rows || []).length,
+      totalCount: Number(auditQ.totalCount || 0),
       byReason: summarizeEvAudits((auditQ.rows || []).map((r) => ({ anomalyReason: r.anomaly_reason || r.anomalyReason }))),
       bySport: summarizeBy((auditQ.rows || []), (r) => r.sport || "unknown"),
       byMarketFamily: summarizeBy((auditQ.rows || []), (r) => normalizeMarketFamily(r.market)),
