@@ -10,7 +10,7 @@ import {
   EXPECTED_SEED_N,
   summarizeProspectiveConvictionCohort,
 } from "../lib/strategy.js";
-import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGamesByIds, queryProbabilityCorrections } from "../lib/store.js";
+import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGamesByIds, queryProbabilityCorrections, readMeta } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
 import { resolveTeam } from "../lib/teams.js";
 import { durableHealth } from "../lib/jobs.js";
@@ -247,7 +247,8 @@ export async function onRequestGet(context) {
     reportedRecord: "5-2",
     reconstructions: [...latestCorrection.values()],
   });
-  const qualification = convictionQualificationState({ canaryPassed: false });
+  const meta = await readMeta(env);
+  const qualification = convictionQualificationState({ canaryPassed: Boolean(meta.conviction_canary_passed_at) });
   const calculatedTickets = prospective.filter((t) => latestCorrection.get(String(t.id))?.status === RECONSTRUCTION_STATUS.RECOVERED_VERIFIED);
   const reconstructionSummary = summarizeReconstructions(
     (prospectiveRaw || []).map((t) => {

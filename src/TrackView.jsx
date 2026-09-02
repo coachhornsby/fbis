@@ -1303,8 +1303,10 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
             Canonical strategy population unavailable: {loadError}. Current attempt {fmtTs(attemptAt)}. Last success {fmtTs(lastSuccessAt)}.
           </div>
         ) : null}
-        <p className="headline-line" style={{ color: "#f0c674", fontWeight: 700 }}>
-          {pack?.convictionPauseMessage || "CONVICTION QUALIFICATION PAUSED — probability integrity verification pending"}
+        <p className="headline-line" style={{ color: pack?.convictionQualification?.paused ? "#f0c674" : "#28d17c", fontWeight: 700 }}>
+          {pack?.convictionQualification?.message || (pack?.convictionQualification?.paused
+            ? "CONVICTION QUALIFICATION PAUSED — probability integrity verification pending"
+            : "CONVICTION ACTIVE — automated integrity gates enabled")}
         </p>
         <p className="headline-line">
           High-conviction means a <b>qualified</b> ticket with EV ≥ 8% (tag CONVICTION). Leans are excluded.

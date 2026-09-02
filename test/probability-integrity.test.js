@@ -95,8 +95,8 @@ describe("Expected ROI formula and units", () => {
 });
 
 describe("strategy insertion fail closed", () => {
-  it("pauses CONVICTION qualification until canary", () => {
-    assert.equal(CONVICTION_QUALIFICATION_PAUSED, true);
+  it("requires a canary before enabling CONVICTION qualification", () => {
+    assert.equal(CONVICTION_QUALIFICATION_PAUSED, false);
     const gate = evaluateConvictionGates({
       candidate: {
         qualified: true,
@@ -150,7 +150,7 @@ describe("strategy insertion fail closed", () => {
     assert.equal(open.modelProbability, 0.61);
   });
 
-  it("does not display live CONVICTION while paused", () => {
+  it("displays live CONVICTION candidates when the emergency pause is off", () => {
     const bundle = recommendBundle(
       "mlb",
       {
@@ -161,8 +161,8 @@ describe("strategy insertion fail closed", () => {
       },
       { layers: { score: 0.62 } }
     );
-    assert.equal(bundle.qualified, null);
-    assert.equal(bundle.qualificationPaused, true);
+    assert.equal(bundle.qualified?.tag, "CONVICTION");
+    assert.equal(bundle.qualificationPaused, undefined);
   });
 
   it("fails closed when post-insert readback cannot validate probability", async () => {

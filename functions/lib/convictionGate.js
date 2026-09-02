@@ -13,7 +13,9 @@ import {
   validateCanonicalProbability,
 } from "./probability.js";
 
-export const CONVICTION_QUALIFICATION_PAUSED = true;
+// Emergency kill switch only. Normal operation is governed by the durable
+// production canary and the per-candidate integrity gates below.
+export const CONVICTION_QUALIFICATION_PAUSED = false;
 export const CONVICTION_PAUSE_MESSAGE =
   "CONVICTION QUALIFICATION PAUSED — probability integrity verification pending";
 export const QUALIFICATION_RULE_VERSION = "FBIS-HC-v1";
@@ -28,7 +30,7 @@ export function convictionQualificationState({ canaryPassed = false } = {}) {
   return {
     paused,
     canaryPassed: Boolean(canaryPassed),
-    message: paused ? CONVICTION_PAUSE_MESSAGE : null,
+    message: paused ? CONVICTION_PAUSE_MESSAGE : "CONVICTION ACTIVE — every ticket passed frozen probability, market, price, and direction validation",
     probabilitySchemaVersion: PROBABILITY_SCHEMA_VERSION,
     expectedRoiFormulaVersion: EXPECTED_ROI_FORMULA_VERSION,
     qualificationRuleVersion: QUALIFICATION_RULE_VERSION,

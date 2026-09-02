@@ -1032,7 +1032,7 @@ async function persistMatchingRec(env, slate, game, frozen) {
     frozen,
     game,
     paused: CONVICTION_QUALIFICATION_PAUSED,
-    canaryPassed: false,
+    canaryPassed: canaryAlreadyPassed,
   });
   if (!gate.ok) {
     await persistQualificationAttempt(env, {
@@ -1050,7 +1050,7 @@ async function persistMatchingRec(env, slate, game, frozen) {
       sourceProjectionId: candidate.sourceProjectionId,
       canary: false,
     });
-    if (CONVICTION_QUALIFICATION_PAUSED && !canaryAlreadyPassed && rec.qualified !== false) {
+    if (!CONVICTION_QUALIFICATION_PAUSED && !canaryAlreadyPassed && rec.qualified !== false) {
       return persistConvictionCanary(env, slate, game, frozen, candidate);
     }
     return { ok: true, skipped: true, reason: gate.reason || "no-match", paused: CONVICTION_QUALIFICATION_PAUSED };
@@ -1120,8 +1120,27 @@ async function persistConvictionCanary(env, slate, game, frozen, candidate) {
     canary: true,
     requireFreezeReadback: Boolean(candidate.sourceProjectionId),
   });
-  if (!persisted.ok) await releaseConvictionCanaryLock(env);
-  return persisted;
+  if (!persisted.ok) {
+    await releaseConvictionCanaryLock(env);
+    return persisted;
+  }
+  // The same independently validated candidate can be exposed immediately;
+  // operators do not need a second collect or a manual resume step.
+  const live = packTicket(
+    {
+      ...candidate,
+      modelProbability: canaryGate.modelProbability,
+      fair: canaryGate.modelProbability,
+      ev: canaryGate.expectedRoi,
+      tag: "CONVICTION",
+      qualificationRuleVersion: "FBIS-HC-v1",
+    },
+    { role: "prospective", date: slate.date }
+  );
+  return persistStrategyTicketWithReadback(env, live, {
+    strictConflict: false,
+    requireFreezeReadback: true,
+  });
 }
 
 export async function reconstructAffectedTickets(env, tickets) {
