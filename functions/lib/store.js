@@ -1504,24 +1504,13 @@ export async function queryProbabilityCorrections(env, { ticketIds } = {}) {
   if (!hasDb(env)) return { ok: false, rows: [] };
   try {
     await ensureProbabilityIntegrityMigration(env);
-    const ids = [...new Set((ticketIds || []).map((id) => String(id)).filter(Boolean))];
-    if (!ids.length && ticketIds?.length === 0) return { ok: true, rows: [] };
-    if (!ids.length) {
-      const res = await env.DB.prepare(
-        "SELECT * FROM strategy_ticket_probability_corrections ORDER BY created_at ASC"
-      ).all();
-      markRead();
-      return { ok: true, rows: (res.results || []).map(mapProbabilityCorrectionRow) };
-    }
-    const chunkSize = 80;
-    const rows = [];
-    for (let i = 0; i < ids.length; i += chunkSize) {
-      const chunk = ids.slice(i, i + chunkSize);
-      const sql = `SELECT * FROM strategy_ticket_probability_corrections WHERE original_ticket_id IN (${chunk.map(() => "?").join(",")}) ORDER BY created_at ASC`;
-      const res = await env.DB.prepare(sql).bind(...chunk).all();
-      rows.push(...(res.results || []).map(mapProbabilityCorrectionRow));
-    }
+    const res = await env.DB.prepare(
+      "SELECT * FROM strategy_ticket_probability_corrections ORDER BY created_at ASC"
+    ).all();
     markRead();
+    const mapped = (res.results || []).map(mapProbabilityCorrectionRow);
+    const ids = [...new Set((ticketIds || []).map((id) => String(id)).filter(Boolean))];
+    const rows = ids.length ? mapped.filter((row) => ids.includes(String(row.originalTicketId))) : mapped;
     return { ok: true, rows };
   } catch (err) {
     markErr(err);
