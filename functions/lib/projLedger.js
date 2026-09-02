@@ -80,6 +80,21 @@ import { storageBudget } from "./storageBudget.js";
 import { collegeKeyHealth } from "./collegeSecrets.js";
 import { putArchive, r2Key } from "./r2Archive.js";
 
+async function archiveHarvestReport(env, report) {
+  const at = report.harvestedAt || report.generatedAt || new Date().toISOString();
+  const key = r2Key({
+    kind: "daily",
+    source: "research-harvest",
+    sport: report.sport,
+    season: cfbSeasonYear(report.dates?.[0] || todayCT()),
+    endpoint: "report",
+    partition: report.dates?.[0] || todayCT(),
+    name: `${at.replace(/[:.]/g, "-")}.json`,
+  });
+  const { archive: _previousArchive, ...payload } = report;
+  return putArchive(env, key, payload);
+}
+
 const TTL_MS = 21 * 24 * 60 * 60 * 1000;
 const HARVEST_TTL_MS = 10 * 60 * 1000;
 const CACHE_VER = "proj-v3";
@@ -1573,9 +1588,18 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     // historical ledger here caused thousands of redundant D1 writes and made
     // retries overlap the still-running Worker. Only settlement consumers need
     // to be rechecked against the cached finals.
+    const durableFinalWrites = (cached.finals || []).map((g) => gradeSnapshotsForGame(env, {
+      gameId: g.id,
+      actualHome: g.home?.score ?? g.actualHome,
+      actualAway: g.away?.score ?? g.actualAway,
+      f5ActualHome: g.f5Score?.complete ? g.f5Score.home : null,
+      f5ActualAway: g.f5Score?.complete ? g.f5Score.away : null,
+      gradedAt: cached.harvestedAt || cached.generatedAt,
+    }));
+    await Promise.all(durableFinalWrites);
     await gradeStrategyAgainstFinals(env, cached.finals);
     const executedBets = await gradeExecutedBets(env, cached.finals);
-    return {
+    const replay = {
       ...cached,
       ok: true,
       jobCounts: counts,
@@ -1584,6 +1608,8 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
       executedBets,
       db: await dbPayload(env),
     };
+    replay.archive = await archiveHarvestReport(env, replay);
+    return replay;
   }
 
   const writes = [];
@@ -1702,16 +1728,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     ledgerSavedAt: saved.savedAt,
     db: await dbPayload(env),
   };
-  const archiveKey = r2Key({
-    kind: "daily",
-    source: "research-harvest",
-    sport,
-    season: cfbSeasonYear(todayCT()),
-    endpoint: "report",
-    partition: todayCT(),
-    name: `${report.harvestedAt.replace(/[:.]/g, "-")}.json`,
-  });
-  report.archive = await putArchive(env, archiveKey, report);
+  report.archive = await archiveHarvestReport(env, report);
   if (report.ok) await writeCache(harvestKey, report, cfCache, HARVEST_TTL_MS);
   return report;
 }
