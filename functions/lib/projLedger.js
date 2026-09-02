@@ -54,7 +54,7 @@ import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult,
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED, evaluateConvictionGates } from "./convictionGate.js";
 import { reconstructTicketProbability } from "./probabilityReconstruction.js";
 import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
-import { settleExecutedBet, matchExecutedBet } from "./executedBets.js";
+import { settleExecutedBet, matchExecutedBet, summarizeExecutedBets } from "./executedBets.js";
 import { sourceCoverage, palHealth } from "./sourceCoverage.js";
 import { palUnavailableReason, palHttpStatusToStore } from "./ballparkpal.js";
 import { layerDiagnostics } from "./layerDiagnostics.js";
@@ -1205,12 +1205,30 @@ async function gradeStrategyAgainstFinals(env, finals) {
 
 async function gradeExecutedBets(env, finals) {
   const listed = await queryExecutedBets(env, { includeRaw: false });
-  const byId = new Map((finals || []).map((g) => [String(g.id), g]));
+  const open = (listed.rows || []).filter((t) => !t.result || t.result === "OPEN");
+  const minDate = open.map((t) => t.date).filter(Boolean).sort()[0] || lastNDatesCT(8).at(-1);
+  const snapshotQ = await querySnapshots(env, { since: minDate, checkpoint: "LATEST" });
+  const durableFinals = (snapshotQ.rows || [])
+    .filter((row) => row.actualHome != null && row.actualAway != null)
+    .map((row) => ({
+      id: String(row.gameId || row.id),
+      sport: row.sport,
+      date: row.date,
+      start: row.start,
+      home: { name: row.homeName, abbr: row.homeAbbr, score: row.actualHome },
+      away: { name: row.awayName, abbr: row.awayAbbr, score: row.actualAway },
+      status: { completed: true, detail: "Final (durable snapshot)" },
+      f5Score: row.f5ActualHome != null && row.f5ActualAway != null
+        ? { home: row.f5ActualHome, away: row.f5ActualAway, complete: true }
+        : null,
+    }));
+  const allFinals = [...(finals || []), ...durableFinals];
+  const byId = new Map(allFinals.map((g) => [String(g.id), g]));
   const jobs = [];
   for (const t of listed.rows || []) {
     let g = t.gameId ? byId.get(String(t.gameId)) : null;
     if (!g) {
-      const matched = matchExecutedBet(t, finals || []);
+      const matched = matchExecutedBet(t, allFinals);
       if (matched.status === "matched") g = matched.game;
     }
     if (!g) continue;
@@ -1234,6 +1252,13 @@ async function gradeExecutedBets(env, finals) {
     }
   }
   await Promise.all(jobs);
+  const after = await queryExecutedBets(env, { includeRaw: false });
+  return {
+    examined: open.length,
+    durableFinals: durableFinals.length,
+    updated: jobs.length,
+    summary: summarizeExecutedBets(after.rows || []),
+  };
 }
 
 function palJson(row) {
@@ -1524,13 +1549,14 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     // retries overlap the still-running Worker. Only settlement consumers need
     // to be rechecked against the cached finals.
     await gradeStrategyAgainstFinals(env, cached.finals);
-    await gradeExecutedBets(env, cached.finals);
+    const executedBets = await gradeExecutedBets(env, cached.finals);
     return {
       ...cached,
       ok: true,
       jobCounts: counts,
       dates,
       errors,
+      executedBets,
       db: await dbPayload(env),
     };
   }
@@ -1601,7 +1627,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   const dailyRes = await persistDailyReport(env, daily);
   if (dailyRes && dailyRes.ok === false) tallyPersist(counts, dailyRes);
   await gradeStrategyAgainstFinals(env, finals);
-  await gradeExecutedBets(env, finals);
+  const executedBets = await gradeExecutedBets(env, finals);
   const rows = Object.values(saved.games)
     .filter((r) => r.sport === sport || !r.sport)
     .sort((a, b) => String(b.date).localeCompare(a.date) || String(a.matchup).localeCompare(b.matchup))
@@ -1644,6 +1670,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     finalsFailed,
     jobCounts: counts,
     errors,
+    executedBets,
     daily,
     ledgerSavedAt: saved.savedAt,
     db: await dbPayload(env),
@@ -1842,6 +1869,7 @@ export async function harvestAll(days, env = {}, opts = {}) {
       accuracy: r.accuracy,
       error: r.error || (r.errors || [])[0] || null,
       games: r.gamesDiscovered ?? (r.games || []).length,
+      executedBets: r.executedBets || null,
       recipe: r.recipe,
     })),
     dates: [...new Set(reports.flatMap((r) => r.dates || []))],

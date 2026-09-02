@@ -305,7 +305,7 @@ jobs:
             head -c 300 "$tmp" || true
             exit 1
           fi
-          jq --arg http "$http" '{http:$http,ok:.ok,status:.status,sport:(.sports // []),finals_graded:.finals_graded,errors:(.errors // [])}' "$tmp"
+          jq --arg http "$http" '{http:$http,ok:.ok,status:.status,sport:(.sports // []),finals_graded:.finals_graded,executed_bets:[(.sports // [])[] | {sport,executedBets}],errors:(.errors // [])}' "$tmp"
           ok="$(jq -r '.ok == true' "$tmp")"
           st="$(jq -r '.status // ""' "$tmp")"
           if [ "$http" != "200" ] || [ "$ok" != "true" ] || [ "$st" != "success" ]; then
