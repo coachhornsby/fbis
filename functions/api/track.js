@@ -162,6 +162,39 @@ async function runEvAudit(env, payload = {}) {
   };
 }
 
+async function runD1Diagnostic(env, payload = {}) {
+  const migration = await ensureEvAuditMigration(env);
+  if (!migration.ok) {
+    return {
+      ok: false,
+      status: migration.status === MIGRATION_STATUS.BLOCKED ? 423 : 409,
+      error: `Diagnostic blocked: ${migration.status}. ${migration.reason || ""}`.trim(),
+    };
+  }
+  const id = String(payload.id || `diagnostic:${new Date().toISOString()}`);
+  const now = new Date().toISOString();
+  try {
+    if (payload.cleanup === true) {
+      await env.DB.prepare("DELETE FROM ev_audit_records WHERE id = ?").bind(id).run();
+      const verify = await env.DB.prepare("SELECT id FROM ev_audit_records WHERE id = ? LIMIT 1").bind(id).first();
+      return { ok: true, status: 200, body: { ok: true, action: "cleanup", id, removed: !verify } };
+    }
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO ev_audit_records (
+         id, entity_type, entity_id, sport, market, side, model_version, qualification_rule_version,
+         freeze_at, stored_ev, recomputed_ev, anomaly_reason, root_cause, qualified, entered_strategy,
+         disposition, inputs_json, created_at
+       ) VALUES (?, 'diagnostic', ?, 'system', 'DIAGNOSTIC', 'N/A', 'ops', 'ops', ?, 0, 0, 'diagnostic-check', 'ops-check', 0, 0, 'diagnostic', ?, ?)`
+    )
+      .bind(id, id, now, JSON.stringify({ source: "api/track", note: "d1-read-write-readback verification" }), now)
+      .run();
+    const row = await env.DB.prepare("SELECT id, anomaly_reason, disposition, created_at FROM ev_audit_records WHERE id = ? LIMIT 1").bind(id).first();
+    return { ok: true, status: 200, body: { ok: true, action: "insert-readback", id, readback: row || null } };
+  } catch (err) {
+    return { ok: false, status: 500, error: String(err?.message || err) };
+  }
+}
+
 async function deriveTargetGameIds(env, payload) {
   const ids = new Set();
   if (payload.gameId) ids.add(String(payload.gameId));
@@ -518,12 +551,15 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: "invalid json" }, 400);
     }
     const action = String(body?.action || "").toLowerCase();
-    if (action !== "manual-final" && action !== "cleanup-future-grades" && action !== "audit-ev") return json({ ok: false, error: "unknown action" }, 400);
+    if (action !== "manual-final" && action !== "cleanup-future-grades" && action !== "audit-ev" && action !== "d1-diagnostic")
+      return json({ ok: false, error: "unknown action" }, 400);
     const result =
       action === "cleanup-future-grades"
         ? await cleanupFutureGrades({ DB: context.env.DB })
         : action === "audit-ev"
           ? await runEvAudit({ DB: context.env.DB }, body)
+          : action === "d1-diagnostic"
+            ? await runD1Diagnostic({ DB: context.env.DB }, body)
           : await applyManualFinal({ DB: context.env.DB }, body);
     if (!result.ok) return json({ ok: false, error: result.error || "failed" }, result.status || 400);
     return json(result.body, 200);
