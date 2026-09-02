@@ -195,11 +195,13 @@ jobs:
           MODE: ${{ needs.determine-mode.outputs.mode }}
           SPORT: ${{ matrix.sport }}
           RUN_URL: ${{ needs.determine-mode.outputs.run_url }}
+          SCHEDULED_SLOT: ${{ needs.determine-mode.outputs.scheduled_slot }}
         run: |
           set -euo pipefail
           odds="cache"
           if [ "$MODE" = "collect-full" ] || [ "$MODE" = "all" ]; then odds="full"; fi
           RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
+          SCHEDULED_SLOT_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('SCHEDULED_SLOT',''), safe=''))")"
 
           call_api() {
             local path="$1"
