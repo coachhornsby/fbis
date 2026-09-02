@@ -12,6 +12,9 @@ export const PRODUCTION_HARVEST_SLOTS_UTC = [
   { hour: 16, minute: 20 },
 ];
 export const DIAGNOSTIC_MINUTES = [7, 37];
+export const FULL_COLLECT_CRON = "0 13,16 * * *";
+export const CACHE_COLLECT_CRON = "0 0,2,18,20,22 * * *";
+export const HARVEST_CRON = "20 11,16 * * *";
 
 export const CRON_CHICAGO = [
   { utc: "00:00", cdt: "19:00 previous day", cst: "18:00 previous day", job: "collect-cache" },
@@ -39,9 +42,15 @@ export function isDiagnosticMinute(minuteUtc) {
  * Job selection for the GitHub pipeline. Diagnostic schedule minutes never
  * spend Parlay or Pal quota (health = cache-only).
  */
-export function selectPipelineJob({ hourUtc, minuteUtc, eventName, jobInput, diagnostic = false } = {}) {
+export function selectPipelineJob({ hourUtc, minuteUtc, eventName, jobInput, scheduledExpression, diagnostic = false } = {}) {
   const trigger = triggerFromEvent(eventName || (jobInput ? "workflow_dispatch" : "schedule"));
   if (jobInput) return { job: jobInput, trigger };
+  if (eventName === "schedule" && scheduledExpression) {
+    if (scheduledExpression === HARVEST_CRON) return { job: "harvest", trigger, scheduledExpression };
+    if (scheduledExpression === FULL_COLLECT_CRON) return { job: "collect-full", trigger, scheduledExpression };
+    if (scheduledExpression === CACHE_COLLECT_CRON) return { job: "collect-cache", trigger, scheduledExpression };
+    return { job: "health", trigger, scheduledExpression };
+  }
   const hour = Number(hourUtc);
   const minute = Number(minuteUtc);
   if (diagnostic && eventName === "schedule" && isDiagnosticMinute(minute)) {

@@ -17,10 +17,13 @@ export async function onRequestGet(context) {
   const sport = url.searchParams.get("sport") || "all";
   const trigger = parseJobTrigger(context.request);
   const runUrl = url.searchParams.get("runUrl") || "";
+  const scheduledSlot = url.searchParams.get("scheduledSlot") || "";
   try {
     if (trigger === "schedule") {
       await setMeta(context.env, "last_scheduled_event_type", "schedule");
       if (runUrl) await setMeta(context.env, "last_scheduled_run_url", runUrl);
+      if (scheduledSlot) await setMeta(context.env, "last_scheduled_slot", scheduledSlot);
+      await setMeta(context.env, "last_scheduled_actual_start_at", new Date().toISOString());
     }
     const payload = await harvestAll(
       days,

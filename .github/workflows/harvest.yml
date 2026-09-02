@@ -2,7 +2,8 @@ name: FBIS research pipeline
 
 on:
   schedule:
-    - cron: "0 0,2,13,16,18,20,22 * * *"
+    - cron: "0 13,16 * * *"
+    - cron: "0 0,2,18,20,22 * * *"
     - cron: "20 11,16 * * *"
   workflow_dispatch:
     inputs:
@@ -28,11 +29,13 @@ jobs:
       mode: ${{ steps.mode.outputs.mode }}
       trigger: ${{ steps.mode.outputs.trigger }}
       run_url: ${{ steps.mode.outputs.run_url }}
+      scheduled_slot: ${{ steps.mode.outputs.scheduled_slot }}
     steps:
       - id: mode
         env:
           JOB_INPUT: ${{ github.event.inputs.job }}
           EVENT_NAME: ${{ github.event_name }}
+          SCHEDULED_EXPRESSION: ${{ github.event.schedule }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -46,7 +49,15 @@ jobs:
             TRIGGER="workflow_dispatch"
           fi
           if [ -z "$MODE" ]; then
-            if [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then
+            if [ "${EVENT_NAME}" = "schedule" ] && [ "${SCHEDULED_EXPRESSION}" = "20 11,16 * * *" ]; then
+              MODE="harvest"
+            elif [ "${EVENT_NAME}" = "schedule" ] && [ "${SCHEDULED_EXPRESSION}" = "0 13,16 * * *" ]; then
+              MODE="collect-full"
+            elif [ "${EVENT_NAME}" = "schedule" ] && [ "${SCHEDULED_EXPRESSION}" = "0 0,2,18,20,22 * * *" ]; then
+              MODE="collect-cache"
+            elif [ "${EVENT_NAME}" = "schedule" ]; then
+              MODE="health"
+            elif [ "$HOUR" = "11" ] && [ "$MIN" -ge 15 ]; then
               MODE="harvest"
             elif [ "$HOUR" = "16" ] && [ "$MIN" -ge 20 ]; then
               MODE="harvest"
@@ -59,7 +70,8 @@ jobs:
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           echo "trigger=$TRIGGER" >> "$GITHUB_OUTPUT"
           echo "run_url=${RUN_URL}" >> "$GITHUB_OUTPUT"
-          echo "Resolved mode=${MODE} trigger=${TRIGGER} utc=${HOUR}:${MIN}"
+          echo "scheduled_slot=${SCHEDULED_EXPRESSION:-manual}" >> "$GITHUB_OUTPUT"
+          echo "Resolved mode=${MODE} trigger=${TRIGGER} scheduled=${SCHEDULED_EXPRESSION:-manual} actual_utc=${HOUR}:${MIN}"
 
   verify-deployment:
     runs-on: ubuntu-latest
@@ -151,6 +163,7 @@ jobs:
           REASON: ${{ steps.verify.outputs.verify_reason }}
           TRIGGER: ${{ needs.determine-mode.outputs.trigger }}
           RUN_URL: ${{ needs.determine-mode.outputs.run_url }}
+          SCHEDULED_SLOT: ${{ needs.determine-mode.outputs.scheduled_slot }}
         run: |
           set -euo pipefail
           if [ -z "${HARVEST_SECRET:-}" ]; then
@@ -158,6 +171,7 @@ jobs:
             exit 0
           fi
           RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
+          SCHEDULED_SLOT_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('SCHEDULED_SLOT',''), safe=''))")"
           curl -sS --max-time 30 \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
             -H "accept: application/json" \
@@ -197,7 +211,7 @@ jobs:
                 -H "x-harvest-secret: ${HARVEST_SECRET}" \
                 -H "accept: application/json" \
                 -o "$tmp" -w "%{http_code}" \
-                "${BASE}${path}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}" > "${tmp}.code"
+                "${BASE}${path}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
               curl_ec=$?
               set -e
               http="$(tr -d '\r\n' < "${tmp}.code")"
@@ -260,9 +274,11 @@ jobs:
           TRIGGER: ${{ needs.determine-mode.outputs.trigger }}
           SPORT: ${{ matrix.sport }}
           RUN_URL: ${{ needs.determine-mode.outputs.run_url }}
+          SCHEDULED_SLOT: ${{ needs.determine-mode.outputs.scheduled_slot }}
         run: |
           set -euo pipefail
           RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
+          SCHEDULED_SLOT_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('SCHEDULED_SLOT',''), safe=''))")"
           tmp="$(mktemp)"
           for attempt in 1 2 3 4; do
             set +e
@@ -270,7 +286,7 @@ jobs:
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "accept: application/json" \
               -o "$tmp" -w "%{http_code}" \
-              "${BASE}/api/harvest?days=3&sport=${SPORT}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}" > "${tmp}.code"
+              "${BASE}/api/harvest?days=3&sport=${SPORT}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
             curl_ec=$?
             set -e
             http="$(tr -d '\r\n' < "${tmp}.code")"

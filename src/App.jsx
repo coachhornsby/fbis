@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff, formatMarketPeriod, formatClv } from "./lib/format.js";
 import TeamLogo, { TeamIdentity, TicketMatchup } from "./components/TeamLogo.jsx";
@@ -104,8 +104,12 @@ export default function App() {
   });
   const [sysTab, setSysTab] = useState("overall");
   const [cfbWeekShift, setCfbWeekShift] = useState(0);
+  const boardRequestId = useRef(0);
+  const todayRequestId = useRef(0);
+  const trackRequestId = useRef(0);
 
   const refresh = useCallback(async (signal) => {
+    const requestId = ++boardRequestId.current;
     setLoading(true);
     setError("");
     setBoardLastAttemptAt(new Date().toISOString());
@@ -117,7 +121,7 @@ export default function App() {
         fetch(`/api/track?sport=${sport}&days=2&_t=${Date.now()}`, { signal }).catch(() => null),
       ]);
       const data = await responseJson(res, sport.toUpperCase());
-      if (signal?.aborted) return;
+      if (signal?.aborted || requestId !== boardRequestId.current) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       let finals = [];
       if (trackRes?.ok) {
@@ -128,24 +132,26 @@ export default function App() {
       setLearn(nextLearn);
       const withRecs = withRecommendations(data, nextLearn.weights);
       captureSlate(withRecs);
+      if (requestId !== boardRequestId.current) return;
       setSlate(withRecs);
       setUpdated(new Date().toLocaleTimeString("en-US", { timeZone: "America/Chicago" }));
       setBoardLastSuccessAt(new Date().toISOString());
       setBoardStale(false);
     } catch (err) {
-      if (err?.name === "AbortError") return;
+      if (err?.name === "AbortError" || requestId !== boardRequestId.current) return;
       setError(String(err.message || err));
       setBoardStale(Boolean(slate));
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (!signal?.aborted && requestId === boardRequestId.current) setLoading(false);
     }
-  }, [sport, slate, cfbWeekShift]);
+  }, [sport, cfbWeekShift]);
 
   useEffect(() => {
     if (sport !== "cfb" && cfbWeekShift !== 0) setCfbWeekShift(0);
   }, [sport, cfbWeekShift]);
 
   const refreshTrack = useCallback(async (signal) => {
+    const requestId = ++trackRequestId.current;
     setTrackLoading(true);
     setTrackError("");
     setTrackLastAttemptAt(new Date().toISOString());
@@ -164,7 +170,7 @@ export default function App() {
       if (trackFilters.team) q.set("team", trackFilters.team);
       const res = await fetch(`/api/track?${q}`, { signal });
       const data = await responseJson(res, "Tracking");
-      if (signal?.aborted) return;
+      if (signal?.aborted || requestId !== trackRequestId.current) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       if (data?.health?.state === "UNAVAILABLE") {
         throw new Error(`SYS unavailable: ${(data?.health?.failures || []).map((f) => `${f.name}=${f.detail || "failed"}`).join(" · ") || "authoritative data unavailable"}`);
@@ -175,15 +181,16 @@ export default function App() {
       const nextLearn = data.finals?.length ? gradeOpenBets(loadState(), data.finals) : loadState();
       if (data.finals?.length) setLearn(nextLearn);
     } catch (err) {
-      if (err?.name === "AbortError") return;
+      if (err?.name === "AbortError" || requestId !== trackRequestId.current) return;
       setTrackError(String(err.message || err));
       setTrackStale(Boolean(track));
     } finally {
-      if (!signal?.aborted) setTrackLoading(false);
+      if (!signal?.aborted && requestId === trackRequestId.current) setTrackLoading(false);
     }
-  }, [trackFilters, track]);
+  }, [trackFilters]);
 
   const refreshToday = useCallback(async (signal) => {
+    const requestId = ++todayRequestId.current;
     setTodayLoading(true);
     setTodayError("");
     setTodayLastAttemptAt(new Date().toISOString());
@@ -193,7 +200,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/today?date=${todayDate}&sport=${todaySport}&_t=${Date.now()}`, { signal: ac.signal });
       const data = await responseJson(res, "Today");
-      if (signal?.aborted || ac.signal.aborted) return;
+      if (signal?.aborted || ac.signal.aborted || requestId !== todayRequestId.current) return;
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       if (data?.health?.state === "UNAVAILABLE") {
         throw new Error(`TODAY unavailable: ${(data?.health?.failures || []).map((f) => `${f.name}=${f.detail || "failed"}`).join(" · ") || "authoritative data unavailable"}`);
@@ -202,15 +209,15 @@ export default function App() {
       setTodayLastSuccessAt(new Date().toISOString());
       setTodayStale(false);
     } catch (err) {
-      if (err?.name === "AbortError") return;
+      if (err?.name === "AbortError" || requestId !== todayRequestId.current) return;
       const msg = String(err.message || err);
       setTodayError(msg.includes("aborted") ? "Today feed timed out. Retry or continue with last known board." : msg);
       setTodayStale(Boolean(todayBoard));
     } finally {
       clearTimeout(timeout);
-      if (!signal?.aborted) setTodayLoading(false);
+      if (!signal?.aborted && requestId === todayRequestId.current) setTodayLoading(false);
     }
-  }, [todayDate, todaySport, todayBoard]);
+  }, [todayDate, todaySport]);
 
   const refreshBets = useCallback(async (signal) => {
     setBetsLoading(true);

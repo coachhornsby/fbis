@@ -7,6 +7,9 @@ import {
   CRON_CHICAGO,
   scheduledPipelineState,
   lastExpectedCollectUtc,
+  FULL_COLLECT_CRON,
+  CACHE_COLLECT_CRON,
+  HARVEST_CRON,
 } from "../functions/lib/pipelineSchedule.js";
 import { actionAcceptsJob, staleScheduleWarning, scheduledHealth } from "../functions/lib/jobs.js";
 
@@ -31,6 +34,13 @@ describe("GitHub scheduling", () => {
     assert.equal(selectPipelineJob({ hourUtc: 2, minuteUtc: 0 }).job, "collect-cache");
     assert.equal(selectPipelineJob({ hourUtc: 11, minuteUtc: 20 }).job, "harvest");
     assert.equal(selectPipelineJob({ hourUtc: 16, minuteUtc: 20 }).job, "harvest");
+  });
+
+  it("routes delayed scheduled jobs by cron identity, not actual start minute", () => {
+    assert.equal(selectPipelineJob({ hourUtc: 16, minuteUtc: 27, eventName: "schedule", scheduledExpression: FULL_COLLECT_CRON }).job, "collect-full");
+    assert.equal(selectPipelineJob({ hourUtc: 3, minuteUtc: 12, eventName: "schedule", scheduledExpression: CACHE_COLLECT_CRON }).job, "collect-cache");
+    assert.equal(selectPipelineJob({ hourUtc: 16, minuteUtc: 47, eventName: "schedule", scheduledExpression: HARVEST_CRON }).job, "harvest");
+    assert.equal(selectPipelineJob({ hourUtc: 11, minuteUtc: 58, eventName: "schedule", scheduledExpression: HARVEST_CRON }).job, "harvest");
   });
 
   it("maps CDT and CST wall times", () => {

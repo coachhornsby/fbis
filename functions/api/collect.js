@@ -20,6 +20,7 @@ export async function onRequestGet(context) {
   const trigger = parseJobTrigger(context.request);
   const mode = parseJobMode(context.request);
   const runUrl = url.searchParams.get("runUrl") || "";
+  const scheduledSlot = url.searchParams.get("scheduledSlot") || "";
   if (url.searchParams.get("verifyRecord") === "1") {
     const outcome = url.searchParams.get("verifyOutcome") || "unavailable";
     const expectedSha = url.searchParams.get("expectedSha") || "";
@@ -59,6 +60,8 @@ export async function onRequestGet(context) {
     if (trigger === "schedule") {
       await setMeta(context.env, "last_scheduled_event_type", "schedule");
       if (runUrl) await setMeta(context.env, "last_scheduled_run_url", runUrl);
+      if (scheduledSlot) await setMeta(context.env, "last_scheduled_slot", scheduledSlot);
+      await setMeta(context.env, "last_scheduled_actual_start_at", new Date().toISOString());
     }
     const payload = await collectBoards(
       {
