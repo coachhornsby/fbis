@@ -78,6 +78,7 @@ import { persistGameChallengers, gradeGameChallengers } from "./collegeJobs.js";
 import { queryQuota } from "./collegeStore.js";
 import { storageBudget } from "./storageBudget.js";
 import { collegeKeyHealth } from "./collegeSecrets.js";
+import { putArchive, r2Key } from "./r2Archive.js";
 
 const TTL_MS = 21 * 24 * 60 * 60 * 1000;
 const HARVEST_TTL_MS = 10 * 60 * 1000;
@@ -1608,6 +1609,8 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
               gameId: next.id,
               actualHome: next.actualHome,
               actualAway: next.actualAway,
+              f5ActualHome: g.f5Score?.complete ? g.f5Score.home : null,
+              f5ActualAway: g.f5Score?.complete ? g.f5Score.away : null,
               gradedAt: next.gradedAt,
             }));
             writes.push(
@@ -1699,6 +1702,16 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     ledgerSavedAt: saved.savedAt,
     db: await dbPayload(env),
   };
+  const archiveKey = r2Key({
+    kind: "daily",
+    source: "research-harvest",
+    sport,
+    season: cfbSeasonYear(todayCT()),
+    endpoint: "report",
+    partition: todayCT(),
+    name: `${report.harvestedAt.replace(/[:.]/g, "-")}.json`,
+  });
+  report.archive = await putArchive(env, archiveKey, report);
   if (report.ok) await writeCache(harvestKey, report, cfCache, HARVEST_TTL_MS);
   return report;
 }

@@ -664,7 +664,7 @@ export async function queryOddsSnapshots(env, { gameId, sport, since, until } = 
   }
 }
 
-export async function gradeSnapshotsForGame(env, { gameId, actualHome, actualAway, gradedAt }) {
+export async function gradeSnapshotsForGame(env, { gameId, actualHome, actualAway, f5ActualHome = null, f5ActualAway = null, gradedAt }) {
   markBound(env);
   if (!hasDb(env) || !gameId) return { ok: false, reason: "unbound" };
   if (actualHome == null) return { ok: false, reason: "no-final" };
@@ -674,19 +674,23 @@ export async function gradeSnapshotsForGame(env, { gameId, actualHome, actualAwa
       `UPDATE prediction_snapshots
        SET actual_home = COALESCE(actual_home, ?),
            actual_away = COALESCE(actual_away, ?),
+           f5_actual_home = COALESCE(f5_actual_home, ?),
+           f5_actual_away = COALESCE(f5_actual_away, ?),
            graded_at = COALESCE(graded_at, ?)
-       WHERE game_id = ? AND actual_home IS NULL`
+       WHERE game_id = ?`
     )
-      .bind(n(actualHome), n(actualAway), n(at), String(gameId))
+      .bind(n(actualHome), n(actualAway), n(f5ActualHome), n(f5ActualAway), n(at), String(gameId))
       .run();
     await env.DB.prepare(
       `UPDATE predictions
        SET actual_home = COALESCE(actual_home, ?),
            actual_away = COALESCE(actual_away, ?),
+           f5_actual_home = COALESCE(f5_actual_home, ?),
+           f5_actual_away = COALESCE(f5_actual_away, ?),
            graded_at = COALESCE(graded_at, ?)
-       WHERE game_id = ? AND actual_home IS NULL`
+       WHERE game_id = ?`
     )
-      .bind(n(actualHome), n(actualAway), n(at), String(gameId))
+      .bind(n(actualHome), n(actualAway), n(f5ActualHome), n(f5ActualAway), n(at), String(gameId))
       .run();
     markWrite();
     return { ok: true };
@@ -957,6 +961,8 @@ export function mapSnapshotRow(r) {
     engine: r.engine,
     actualHome: r.actual_home,
     actualAway: r.actual_away,
+    f5ActualHome: r.f5_actual_home,
+    f5ActualAway: r.f5_actual_away,
     actualTotal: r.actual_home != null && r.actual_away != null ? r.actual_home + r.actual_away : null,
     gradedAt: r.graded_at,
     lineupsOfficial: r.lineups_official === 1 || extra.lineupsOfficial === true,

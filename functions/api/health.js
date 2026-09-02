@@ -152,7 +152,7 @@ function buildMeta(request, env, schema) {
     pagesUrl: env.CF_PAGES_URL || null,
     schemaVersion: schema.version,
     migrationStatus: schema.status,
-    expectedMigration: "0013_probability_integrity",
+    expectedMigration: "0014_operational_hardening",
   };
 }
 
@@ -160,7 +160,7 @@ async function schemaVersion(env, { readOk }) {
   if (!readOk || !env?.DB?.prepare) return { version: null, status: MIGRATION_STATUS.UNVERIFIED };
   try {
     const row = await env.DB.prepare("SELECT id FROM schema_migrations ORDER BY id DESC LIMIT 1").first();
-    const check = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = '0013_probability_integrity' LIMIT 1").first();
+    const check = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = '0014_operational_hardening' LIMIT 1").first();
     return {
       version: row?.id || null,
       status: check?.id ? MIGRATION_STATUS.VERIFIED : MIGRATION_STATUS.UNVERIFIED,

@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS predictions (
   engine TEXT,
   actual_home REAL,
   actual_away REAL,
+  f5_actual_home REAL,
+  f5_actual_away REAL,
   graded_at TEXT
 );
 
@@ -95,6 +97,8 @@ CREATE TABLE IF NOT EXISTS prediction_snapshots (
   engine TEXT,
   actual_home REAL,
   actual_away REAL,
+  f5_actual_home REAL,
+  f5_actual_away REAL,
   graded_at TEXT,
   deployment_commit TEXT
 );

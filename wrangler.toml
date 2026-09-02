@@ -7,9 +7,6 @@ binding = "DB"
 database_name = "fbis"
 database_id = "b50c724c-903b-4241-8ce1-48d931e7a44c"
 
-# Optional R2 archive for raw CFBD/CBBD JSON and play-by-play.
-# Operational college models use compact D1 rows and do not require this binding.
-# Create bucket fbis-archive, uncomment, and redeploy:
-# [[r2_buckets]]
-# binding = "ARCHIVE"
-# bucket_name = "fbis-archive"
+[[r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "fbis-archive"
