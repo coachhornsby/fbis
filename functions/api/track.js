@@ -1,6 +1,6 @@
 import { buildTrackReport } from "../lib/projLedger.js";
 import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, queryStrategyTicketsPaged, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords, queryEvAuditTicketSummary, setMeta, readMeta } from "../lib/store.js";
-import { settleExecutedBet } from "../lib/executedBets.js";
+import { settleExecutedBet, summarizeExecutedBets } from "../lib/executedBets.js";
 import { gradeStrategyResult } from "../lib/strategy.js";
 import { resolveFinalForTicket, reconstructAffectedTickets } from "../lib/projLedger.js";
 import { resolveTeam } from "../lib/teams.js";
@@ -623,27 +623,33 @@ export async function onRequestGet(context) {
         freshness: { lastReadSuccessAt: db.lastCollectSuccess || db.lastCollect || null },
       }),
     };
+    const executedQ = await queryExecutedBets({ DB: context.env.DB }, { includeRaw: false });
+    payload.executedBets = executedQ.ok
+      ? { available: true, summary: summarizeExecutedBets(executedQ.rows || []) }
+      : { available: false, reason: executedQ.reason || "executed-bet-query-failed", summary: null };
     payload.authoritative = {
       accuracy: semantic.state === "HEALTHY",
       strategy: semantic.state === "HEALTHY",
-      anomalies: includeAnomalies && semantic.state === "HEALTHY",
+      anomalies: migration.ok && semantic.state === "HEALTHY",
     };
     const auditQ = includeAnomalies
       ? await queryEvAuditRecords({ DB: context.env.DB }, { limit: 5000 })
       : { ok: false, reason: "not-requested", rows: [] };
-    const anomalySummaryQ = includeAnomalies && auditQ.ok ? await queryEvAuditTicketSummary({ DB: context.env.DB }) : { ok: false };
-    const meta = includeAnomalies ? await readMeta({ DB: context.env.DB }) : {};
+    // Summary counts are small and authoritative; only the bounded row sample
+    // is optional. SYS must not display zero anomalies merely because the
+    // operator has not requested detail rows.
+    const anomalySummaryQ = migration.ok ? await queryEvAuditTicketSummary({ DB: context.env.DB }) : { ok: false };
+    const meta = migration.ok ? await readMeta({ DB: context.env.DB }) : {};
     const sourceRowsScanned = Number(meta.ev_audit_scanned_total || 0);
     const uniqueAffectedTickets = Number(anomalySummaryQ?.summary?.uniqueAffectedTickets || uniqueCount((auditQ.rows || []).map((r) => r.entity_id)));
     const uniqueSourceWithoutAnomaly = sourceRowsScanned > 0 ? Math.max(0, sourceRowsScanned - uniqueAffectedTickets) : null;
     payload.anomalies = {
       migrationStatus: migration.status,
-      available: includeAnomalies && auditQ.ok && migration.ok,
-      blockedReason: !includeAnomalies
-        ? "not-requested"
-        : migration.ok
-          ? (auditQ.ok ? null : auditQ.reason || "unavailable")
-          : migration.reason || MIGRATION_STATUS.UNVERIFIED,
+      available: anomalySummaryQ.ok && migration.ok,
+      detailRowsLoaded: includeAnomalies && auditQ.ok,
+      blockedReason: migration.ok
+        ? (anomalySummaryQ.ok ? null : anomalySummaryQ.reason || "summary-unavailable")
+        : migration.reason || MIGRATION_STATUS.UNVERIFIED,
       count: Number(anomalySummaryQ?.summary?.totalFindings || (auditQ.rows || []).length),
       totalCount: Number(auditQ.totalCount || 0),
       sourceRowsScanned,

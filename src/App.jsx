@@ -902,7 +902,11 @@ function LeanTable({ games }) {
             </td>
             <td>{g.lean.market}</td>
             <td className="muted">
-              {g.lean.ev == null ? "No complete Pinnacle pair / expected ROI unavailable" : `Expected ROI ${fmtNum((g.lean.evPct ?? g.lean.ev * 100), 1)}% below +3% gate`}
+              {g.lean.pauseReason || g.lean.reason || (g.lean.ev == null
+                ? "No complete Pinnacle pair / expected ROI unavailable"
+                : (g.lean.evPct ?? g.lean.ev * 100) < 3
+                  ? `Expected ROI ${fmtNum((g.lean.evPct ?? g.lean.ev * 100), 1)}% below +3% gate`
+                  : "Candidate did not clear every qualification gate")}
             </td>
             <td>{fmtPct(g.lean.fair)}</td>
           </tr>

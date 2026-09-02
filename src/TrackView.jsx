@@ -541,6 +541,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
               : `Avg CLV ${fmtSigned(report?.clv?.avg, 3)} · positive share ${fmtPct(report?.clv?.positiveShare)}.`}
           </p>
           <p className="muted">CLV is close no-vig − entry no-vig, same side. Independent of W/L. Heritage Current Line is not Pin close.</p>
+          <h3 className="subhead">FBIS-HC-v1 strategy tickets</h3>
           <div className="status-grid">
             <Stat label="Valid CLV N" value={valueOrUnavailable(unavailable, report?.clv?.validClv ?? 0)} />
             <Stat label="Missing entry" value={report?.clv?.missingEntry ?? 0} />
@@ -549,6 +550,15 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
             <Stat label="Coverage" value={fmtPct(report?.clv?.coveragePct)} />
           </div>
           <PopulationDescriptor descriptor={report?.population?.strategy} title="CLV/strategy population descriptor" />
+          <h3 className="subhead">Heritage executed bets</h3>
+          <p className="muted">Separate population: bets actually entered at Heritage. These numbers are never merged into FBIS-HC-v1 strategy results.</p>
+          <div className="status-grid">
+            <Stat label="Bets" value={report?.executedBets?.summary?.bets ?? "—"} />
+            <Stat label="Settled" value={report?.executedBets?.summary?.settled ?? "—"} />
+            <Stat label="Open" value={report?.executedBets?.summary?.open ?? "—"} />
+            <Stat label="Valid CLV N" value={report?.executedBets?.summary?.validClvN ?? "—"} />
+            <Stat label="Avg CLV" value={fmtSigned(report?.executedBets?.summary?.avgClv)} />
+          </div>
         </div>
       </section>
 
@@ -593,9 +603,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         <div className="panel-header">
           <h2>Historical EV anomalies</h2>
           <span className="last-updated">
-            {filters?.includeAnomalies === "1"
-              ? (report?.anomalies?.available ? `${report?.anomalies?.count || 0} records` : "Unavailable")
-              : "Not loaded"}
+            {report?.anomalies?.available ? `${report?.anomalies?.count || 0} findings` : "Unavailable"}
           </span>
         </div>
         <div className="panel-body">
@@ -1370,8 +1378,8 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
           <Stat label="Pushes" value={integrity.pushes ?? 0} />
           <Stat label="Voids" value={integrity.voids ?? 0} />
           <Stat label="Duplicates excluded" value={integrity.duplicatesExcluded ?? 0} />
-          <Stat label="Invalid" value={integrity.invalid ?? 0} />
-          <Stat label="Quarantined" value={integrity.quarantined ?? 0} />
+          <Stat label="Provenance invalid" value={integrity.invalid ?? 0} />
+          <Stat label="Provenance quarantined" value={integrity.quarantined ?? 0} />
         </div>
         <p className="muted" style={{ marginBottom: 8 }}>
           Breakdown sport={fmtMapSummary(integrity.breakdowns?.sport)} · market={fmtMapSummary(integrity.breakdowns?.marketFamily)} · period={fmtMapSummary(integrity.breakdowns?.periodFamily)} · model={fmtMapSummary(integrity.breakdowns?.modelVersion)} · qual={fmtMapSummary(integrity.breakdowns?.qualificationRuleVersion)}

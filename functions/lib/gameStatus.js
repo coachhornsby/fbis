@@ -59,8 +59,11 @@ export function noPlayReason(game) {
   }
   if (game?.marketUnresolved) return "TEAM MATCH UNRESOLVED";
   if (game?.lean) {
+    if (game.lean.pauseReason) return game.lean.pauseReason;
+    if (game.lean.reason) return game.lean.reason;
     if (game.lean.ev == null) return "No complete Pinnacle pair / no EV";
-    return `EV below +3% gate`;
+    if (Number(game.lean.ev) < 0.03) return `EV below +3% gate`;
+    return "Candidate did not clear every qualification gate";
   }
   if (game?.model?.projHome == null && game?.model?.projAway == null) return "projection unavailable";
   if (game?.odds?.pinPresent === false || flags.includes("incomplete_pin_ml")) return "market unavailable";

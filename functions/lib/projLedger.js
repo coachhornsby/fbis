@@ -1519,12 +1519,16 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   let finalsFailed = 0;
 
   if (cached?.finals && cached.ledgerSavedAt === ledger.savedAt) {
-    const persisted = await persistGradedLedger(env, ledger);
-    counts = mergeWriteCounts(counts, persisted);
-    await writeDailyMetrics(env, flattenLedgerRows(ledger));
+    // A successful cached harvest is already durable. Replaying the entire
+    // historical ledger here caused thousands of redundant D1 writes and made
+    // retries overlap the still-running Worker. Only settlement consumers need
+    // to be rechecked against the cached finals.
+    await gradeStrategyAgainstFinals(env, cached.finals);
+    await reconstructAffectedTickets(env, null);
+    await gradeExecutedBets(env, cached.finals);
     return {
       ...cached,
-      ok: counts.writesFailed === 0,
+      ok: true,
       jobCounts: counts,
       dates,
       errors,
@@ -1586,9 +1590,10 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   for (const res of writeResults) tallyPersist(counts, res);
 
   const saved = await saveLedger(sport, ledger, cfCache);
-  const persisted = await persistGradedLedger(env, saved);
-  counts = mergeWriteCounts(counts, persisted);
-  await writeDailyMetrics(env, flattenLedgerRows(saved));
+  // Newly discovered finals were persisted above. Do not rewrite every graded
+  // game/checkpoint in the retained ledger on each harvest.
+  const windowRows = flattenLedgerRows(saved).filter((row) => dates.includes(row.date));
+  await writeDailyMetrics(env, windowRows);
   const daily = buildDailyReport(sport, flattenLedgerRows(saved), {
     date: todayCT(),
     title: sport === "cfb" ? "CFB research window" : `${sport} harvest`,

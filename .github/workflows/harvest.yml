@@ -264,6 +264,7 @@ jobs:
     if: contains(fromJSON('["harvest","all"]'), needs.determine-mode.outputs.mode)
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         sport: [mlb, nba, nfl, cfb, cbb]
     steps:
@@ -280,9 +281,9 @@ jobs:
           RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
           SCHEDULED_SLOT_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('SCHEDULED_SLOT',''), safe=''))")"
           tmp="$(mktemp)"
-          for attempt in 1 2 3 4; do
+          for attempt in 1 2; do
             set +e
-            curl -sS --max-time 120 --retry 0 \
+            curl -sS --max-time 300 --retry 0 \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "accept: application/json" \
               -o "$tmp" -w "%{http_code}" \
@@ -291,9 +292,9 @@ jobs:
             set -e
             http="$(tr -d '\r\n' < "${tmp}.code")"
             if [ "$curl_ec" -ne 0 ] || [ "$http" = "429" ] || [ "$http" = "500" ] || [ "$http" = "502" ] || [ "$http" = "503" ] || [ "$http" = "504" ]; then
-              if [ "$attempt" -lt 4 ]; then
-                echo "retryable harvest failure sport=${SPORT} http=${http} attempt ${attempt}/4"
-                sleep $((attempt * 5))
+              if [ "$attempt" -lt 2 ]; then
+                echo "retryable harvest failure sport=${SPORT} http=${http} attempt ${attempt}/2"
+                sleep 10
                 continue
               fi
             fi
