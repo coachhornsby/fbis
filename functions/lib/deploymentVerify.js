@@ -114,5 +114,14 @@ export function shouldFailClosed(result, { attempts, maxAttempts } = {}) {
   if (!result) return true;
   if (result.outcome === VERIFY_OUTCOME.MATCH) return false;
   if (result.outcome === VERIFY_OUTCOME.MISMATCH && attempts >= 3) return true;
-  return attempts >= (maxAttempts || 12);
+  if (result.outcome === VERIFY_OUTCOME.MISMATCH && attempts >= (maxAttempts || 12)) return true;
+  return false;
+}
+
+/** Temporary health/SHA unavailability is recorded; collection may continue. Genuine mismatch blocks. */
+export function collectionAllowedAfterVerify(result) {
+  if (!result) return false;
+  if (result.outcome === VERIFY_OUTCOME.MATCH) return true;
+  if (result.outcome === VERIFY_OUTCOME.MISMATCH) return false;
+  return result.outcome === VERIFY_OUTCOME.UNAVAILABLE || result.outcome === VERIFY_OUTCOME.PROPAGATING || result.outcome === VERIFY_OUTCOME.INVALID_RESPONSE;
 }

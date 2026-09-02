@@ -24,7 +24,7 @@ import {
 import { persistStrategyTicketWithReadback } from "../functions/lib/store.js";
 import { packTicket, summarizeProspectiveConvictionCohort, gradeStrategyResult } from "../functions/lib/strategy.js";
 import { settleExecutedBet } from "../functions/lib/executedBets.js";
-import { classifyHealthResponse, nextVerifyDelayMs, shouldFailClosed, VERIFY_OUTCOME } from "../functions/lib/deploymentVerify.js";
+import { classifyHealthResponse, nextVerifyDelayMs, shouldFailClosed, collectionAllowedAfterVerify, VERIFY_OUTCOME } from "../functions/lib/deploymentVerify.js";
 import { buildCfbFeatureVector, summarizeCfbEvidenceCoverage, cfbBettingAllowed, PROJECTION_STATES } from "../functions/lib/cfbModel.js";
 import { parseCoachTenure, buildCfbFeatureCatalog } from "../functions/lib/cfbd.js";
 import { recommendBundle } from "../functions/lib/slateEngine.js";
@@ -119,6 +119,35 @@ describe("strategy insertion fail closed", () => {
     assert.equal(gate.ok, false);
     assert.equal(gate.reason, "qualification-paused");
     assert.ok(gate.reasons[0].includes(CONVICTION_PAUSE_MESSAGE));
+    const open = evaluateConvictionGates({
+      candidate: {
+        qualified: true,
+        lean: false,
+        modelProbability: 0.61,
+        pinPrice: -110,
+        marketComplete: true,
+        implied: 0.52,
+        market: "ML",
+        side: "HOME",
+        checkpoint: "MORNING",
+        qualifiedAt: "2026-09-02T12:00:00.000Z",
+        start: "2026-09-02T23:00:00.000Z",
+        modelVersion: "FBIS-v1.3",
+        qualificationRuleVersion: "FBIS-HC-v1",
+        ev: expectedRoi(0.61, -110),
+      },
+      frozen: {
+        checkpoint: "MORNING",
+        frozenAt: "2026-09-02T12:00:00.000Z",
+        start: "2026-09-02T23:00:00.000Z",
+        pHomeFinal: 0.61,
+      },
+      game: { start: "2026-09-02T23:00:00.000Z" },
+      paused: false,
+      canaryPassed: true,
+    });
+    assert.equal(open.ok, true);
+    assert.equal(open.modelProbability, 0.61);
   });
 
   it("does not display live CONVICTION while paused", () => {
@@ -232,6 +261,28 @@ describe("immutable historical reconstruction", () => {
     reconstructTicketProbability(ticket, snap);
     assert.equal(ticket.fair, null);
   });
+
+  it("uses an independent pregame start when the snapshot omitted start", () => {
+    const ticket = {
+      id: "mlb:2026-09-01:1:ML:AWAY",
+      gameId: "1",
+      market: "ML",
+      side: "AWAY",
+      pinPrice: -110,
+      modelVersion: "FBIS-v1.3",
+    };
+    const snap = {
+      gameId: "1",
+      pHomeFinal: 0.42,
+      frozenAt: "2026-09-01T12:00:00.000Z",
+      modelVersion: "FBIS-v1.3",
+    };
+    const blocked = reconstructTicketProbability(ticket, snap);
+    assert.equal(blocked.status, RECONSTRUCTION_STATUS.RECONSTRUCTION_BLOCKED);
+    const out = reconstructTicketProbability(ticket, snap, { gameStart: "2026-09-01T23:10:00.000Z" });
+    assert.equal(out.status, RECONSTRUCTION_STATUS.RECOVERED_VERIFIED);
+    assert.ok(Math.abs(out.reconstructedModelProbability - 0.58) < 1e-12);
+  });
 });
 
 describe("September 1 cohort labels", () => {
@@ -338,6 +389,15 @@ describe("settlement rules", () => {
     );
     assert.equal(settled.result, "OPEN");
   });
+
+  it("settles a matched Heritage moneyline from final-score evidence", () => {
+    const settled = settleExecutedBet(
+      { market: "ML", selectedSide: "AWAY", sport: "mlb", riskAmount: 2.1, toWinAmount: 2 },
+      game(1, 5)
+    );
+    assert.equal(settled.result, "WON");
+    assert.equal(settled.profit, 2);
+  });
 });
 
 describe("scheduled SHA verification", () => {
@@ -361,6 +421,11 @@ describe("scheduled SHA verification", () => {
     assert.equal(mismatch.outcome, VERIFY_OUTCOME.MISMATCH);
     assert.equal(shouldFailClosed(mismatch, { attempts: 3, maxAttempts: 12 }), true);
     assert.equal(shouldFailClosed(propagating, { attempts: 2, maxAttempts: 12 }), false);
+    assert.equal(shouldFailClosed(propagating, { attempts: 12, maxAttempts: 12 }), false);
+    assert.equal(shouldFailClosed(unavailable, { attempts: 12, maxAttempts: 12 }), false);
+    assert.equal(collectionAllowedAfterVerify(unavailable), true);
+    assert.equal(collectionAllowedAfterVerify(propagating), true);
+    assert.equal(collectionAllowedAfterVerify(mismatch), false);
     assert.ok(nextVerifyDelayMs(2, { outcome: VERIFY_OUTCOME.PROPAGATING }) > nextVerifyDelayMs(2, { outcome: VERIFY_OUTCOME.MISMATCH }));
   });
 
@@ -407,5 +472,23 @@ describe("CFB missing evidence remains null", () => {
     });
     assert.equal(catalog.byEspnId["194"].coachTenure, 8);
     assert.equal(catalog.byEspnId["194"].newCoach, false);
+    const priorSeason = buildCfbFeatureCatalog({
+      year: 2026,
+      coachSeasonYear: 2025,
+      coaches: [
+        {
+          firstName: "Ryan",
+          lastName: "Day",
+          hireDate: "2018-12-04T00:00:00.000Z",
+          team: "Ohio State",
+          seasons: [
+            { school: "Ohio State", year: 2019 },
+            { school: "Ohio State", year: 2025 },
+          ],
+        },
+      ],
+    });
+    assert.equal(priorSeason.byEspnId["194"].coachTenure, 8);
+    assert.equal(priorSeason.byEspnId["194"].coachFirstYear, 2018);
   });
 });

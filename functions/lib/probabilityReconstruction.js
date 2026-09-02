@@ -21,13 +21,19 @@ function parseTs(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-function freezeBeforeStart(snapshot) {
+function freezeBeforeStart(snapshot, gameStart = null) {
   const frozenAt = parseTs(snapshot?.frozenAt);
-  const start = parseTs(snapshot?.start);
+  const start = parseTs(snapshot?.start) ?? parseTs(gameStart);
   if (frozenAt == null) return { ok: false, reason: "missing-freeze-timestamp" };
   if (start == null) return { ok: false, reason: "missing-game-start" };
   if (frozenAt >= start) return { ok: false, reason: "freeze-not-before-start" };
   return { ok: true, reason: null };
+}
+
+function invertHomeProbability(homeP, sourceHome, sourceAway) {
+  const away = validateCanonicalProbability(1 - homeP);
+  if (!away.ok) return { ok: false, reason: away.reason || "away-probability-invalid", source: null };
+  return { ok: true, modelProbability: away.modelProbability, source: sourceAway };
 }
 
 function sideModelProbability(snapshot, ticket) {
@@ -37,22 +43,14 @@ function sideModelProbability(snapshot, ticket) {
     const home = validateCanonicalProbability(snapshot.pHomeFinal);
     if (!home.ok) return { ok: false, reason: home.reason || "missing-p-home-final", source: null };
     if (side === "HOME") return { ok: true, modelProbability: home.modelProbability, source: "frozen-p_home_final" };
-    if (side === "AWAY") {
-      return {
-        ok: true,
-        modelProbability: 1 - home.modelProbability,
-        source: "frozen-1-p_home_final",
-      };
-    }
+    if (side === "AWAY") return invertHomeProbability(home.modelProbability, "frozen-p_home_final", "frozen-1-p_home_final");
     return { ok: false, reason: "side-mismatch", source: null };
   }
   if (market === "F5 ML") {
     const home = validateCanonicalProbability(snapshot.palPHome ?? snapshot.f5HomeWin);
     if (!home.ok) return { ok: false, reason: "missing-frozen-f5-win-probability", source: null };
     if (side === "HOME") return { ok: true, modelProbability: home.modelProbability, source: "frozen-pal_p_home" };
-    if (side === "AWAY") {
-      return { ok: true, modelProbability: 1 - home.modelProbability, source: "frozen-1-pal_p_home" };
-    }
+    if (side === "AWAY") return invertHomeProbability(home.modelProbability, "frozen-pal_p_home", "frozen-1-pal_p_home");
     return { ok: false, reason: "side-mismatch", source: null };
   }
   if (market === "SPREAD") {
@@ -61,9 +59,7 @@ function sideModelProbability(snapshot, ticket) {
       return { ok: false, reason: "spread-probability-not-frozen", source: null, blocked: true };
     }
     if (side === "HOME") return { ok: true, modelProbability: home.modelProbability, source: "frozen-pSpreadHome" };
-    if (side === "AWAY") {
-      return { ok: true, modelProbability: 1 - home.modelProbability, source: "frozen-1-pSpreadHome" };
-    }
+    if (side === "AWAY") return invertHomeProbability(home.modelProbability, "frozen-pSpreadHome", "frozen-1-pSpreadHome");
     return { ok: false, reason: "side-mismatch", source: null };
   }
   if (market === "TOTAL") {
@@ -72,15 +68,13 @@ function sideModelProbability(snapshot, ticket) {
       return { ok: false, reason: "total-probability-not-frozen", source: null, blocked: true };
     }
     if (side === "OVER") return { ok: true, modelProbability: over.modelProbability, source: "frozen-pOver" };
-    if (side === "UNDER") {
-      return { ok: true, modelProbability: 1 - over.modelProbability, source: "frozen-1-pOver" };
-    }
+    if (side === "UNDER") return invertHomeProbability(over.modelProbability, "frozen-pOver", "frozen-1-pOver");
     return { ok: false, reason: "side-mismatch", source: null };
   }
   return { ok: false, reason: "unsupported-market", source: null, blocked: true };
 }
 
-export function reconstructTicketProbability(ticket, snapshot, { oddsSnapshot = null } = {}) {
+export function reconstructTicketProbability(ticket, snapshot, { oddsSnapshot = null, gameStart = null } = {}) {
   const original = ticket?.modelProbability ?? ticket?.fair ?? ticket?.traits?.modelProbability ?? ticket?.traits?.fair;
   const originalClass = original == null || original === "" ? "missing" : typeof original;
   if (!ticket) {
@@ -127,7 +121,7 @@ export function reconstructTicketProbability(ticket, snapshot, { oddsSnapshot = 
       originalProbabilityType: originalClass,
     };
   }
-  const timing = freezeBeforeStart(snapshot);
+  const timing = freezeBeforeStart(snapshot, gameStart || ticket?.start);
   if (!timing.ok) {
     return {
       status: RECONSTRUCTION_STATUS.RECONSTRUCTION_BLOCKED,
@@ -166,6 +160,17 @@ export function reconstructTicketProbability(ticket, snapshot, { oddsSnapshot = 
   }
   const price = ticket.pinPrice ?? ticket.benchmarkPrice ?? ticket.executionPrice;
   const roi = validAmericanOdds(price) ? expectedRoi(canonical.modelProbability, price) : null;
+  if (roi == null || !Number.isFinite(roi)) {
+    return {
+      status: RECONSTRUCTION_STATUS.STILL_INVALID,
+      reconstructedModelProbability: canonical.modelProbability,
+      reconstructionSource: recovered.source,
+      expectedRoiRecomputed: null,
+      reason: "expected-roi-recompute-failed",
+      originalProbability: original ?? null,
+      originalProbabilityType: originalClass,
+    };
+  }
   return {
     status: RECONSTRUCTION_STATUS.RECOVERED_VERIFIED,
     reconstructedModelProbability: canonical.modelProbability,
@@ -191,8 +196,13 @@ export function summarizeReconstructions(rows = []) {
     }
     return m;
   };
+  const recoverable = xs.filter(
+    (r) =>
+      r.status === RECONSTRUCTION_STATUS.RECOVERED_VERIFIED ||
+      (r.reconstructedModelProbability != null && r.status !== RECONSTRUCTION_STATUS.UNRECOVERABLE)
+  );
   return {
-    recoverableN: recovered.length,
+    recoverableN: recoverable.length,
     recoveredVerifiedN: count(RECONSTRUCTION_STATUS.RECOVERED_VERIFIED),
     unrecoverableN: count(RECONSTRUCTION_STATUS.UNRECOVERABLE),
     blockedN: count(RECONSTRUCTION_STATUS.RECONSTRUCTION_BLOCKED),

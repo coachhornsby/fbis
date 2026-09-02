@@ -32,6 +32,7 @@ import { buildShadowHfa, championHfaForGame } from "./hfa.js";
 import { CFB_PRIOR_VERSION, freezePrior, hasTeamSpecificPrior, priorForTeam } from "./cfbPrior.js";
 import { buildCfbFeatureCatalog, cfbdPublicMeta, loadCfbFeatureFeeds, loadCfbPrior, loadCfbBettingLines } from "./cfbd.js";
 import { cfbSlateDiagnostics } from "./cfbDiagnostics.js";
+import { resolveTeamExact } from "./teams.js";
 
 function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -257,6 +258,12 @@ function lookupFeatureRow(team, featureCatalog = {}) {
   if (id && featureCatalog.byEspnId?.[id]) return featureCatalog.byEspnId[id];
   const schoolKey = String(team.school || team.fullName || team.name || "").trim().toLowerCase();
   if (schoolKey && featureCatalog.bySchool?.[schoolKey]) return featureCatalog.bySchool[schoolKey];
+  const resolved = resolveTeamExact("cfb", team);
+  if (resolved?.espnId && featureCatalog.byEspnId?.[String(resolved.espnId)]) {
+    return featureCatalog.byEspnId[String(resolved.espnId)];
+  }
+  const resolvedSchool = String(resolved?.school || "").trim().toLowerCase();
+  if (resolvedSchool && featureCatalog.bySchool?.[resolvedSchool]) return featureCatalog.bySchool[resolvedSchool];
   return null;
 }
 
@@ -705,8 +712,12 @@ export async function applyCfbModel(games, env = {}) {
     : { available: false, reason: "no-timestamped-closes", byTeam: {}, note: "No timestamped historical closing lines are stored." };
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "cfb") return game;
-    const lineKey = `${String(game.away?.school || game.away?.name || "").trim().toLowerCase()}@${String(game.home?.school || game.home?.name || "").trim().toLowerCase()}`;
-    const cfbdLine = linesBundle.byGame?.[lineKey] || null;
+    const awaySchool = resolveTeamExact("cfb", game.away)?.school || game.away?.school || game.away?.name || "";
+    const homeSchool = resolveTeamExact("cfb", game.home)?.school || game.home?.school || game.home?.name || "";
+    const lineKey = `${String(awaySchool).trim().toLowerCase()}@${String(homeSchool).trim().toLowerCase()}`;
+    const cfbdLine = linesBundle.byGame?.[lineKey] ||
+      linesBundle.byGame?.[`${String(game.away?.school || game.away?.name || "").trim().toLowerCase()}@${String(game.home?.school || game.home?.name || "").trim().toLowerCase()}`] ||
+      null;
     const odds = { ...(game.odds || {}) };
     if (odds.spread == null && cfbdLine?.spread != null) odds.spread = cfbdLine.spread;
     if (odds.total == null && cfbdLine?.total != null) odds.total = cfbdLine.total;

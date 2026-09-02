@@ -77,6 +77,15 @@ export function evaluateConvictionGates({
   if (ML_MARKETS.has(market) && side !== "HOME" && side !== "AWAY") return fail("side-mismatch");
   if (SPREAD_MARKETS.has(market) && side !== "HOME" && side !== "AWAY") return fail("side-mismatch");
   if (TOTAL_MARKETS.has(market) && side !== "OVER" && side !== "UNDER") return fail("side-mismatch");
+  if (SPREAD_MARKETS.has(market) || TOTAL_MARKETS.has(market)) {
+    const line = Number(candidate.line ?? candidate.executionLine ?? frozen.pinSpread ?? frozen.pinTotal);
+    if (!Number.isFinite(line)) return fail("market-family-line-mismatch");
+  }
+  const frozenHome = validateCanonicalProbability(frozen.pHomeFinal ?? frozen.p_home_final);
+  if (market === "ML" && frozenHome.ok) {
+    const expected = side === "HOME" ? frozenHome.modelProbability : 1 - frozenHome.modelProbability;
+    if (Math.abs(prob.modelProbability - expected) > 1e-6) return fail("side-model-mismatch");
+  }
 
   const periodFamily = F5_MARKETS.has(market) ? "F5" : "FULL_GAME";
   const projectionPeriod = game.periodFamily || frozen.periodFamily || candidate.periodFamily || "FULL_GAME";
@@ -93,9 +102,9 @@ export function evaluateConvictionGates({
   if (!candidate.modelVersion && !frozen.modelVersion && !game.modelVersion) {
     return fail("missing-model-version");
   }
-  if (!candidate.qualificationRuleVersion && QUALIFICATION_RULE_VERSION !== "FBIS-HC-v1") {
-    return fail("missing-qualification-rule-version");
-  }
+  const ruleVersion = candidate.qualificationRuleVersion || frozen.qualificationRuleVersion || QUALIFICATION_RULE_VERSION;
+  if (!ruleVersion) return fail("missing-qualification-rule-version");
+  if (ruleVersion !== QUALIFICATION_RULE_VERSION) return fail("qualification-rule-version-mismatch");
 
   const recomputed = expectedRoi(prob.modelProbability, price);
   if (recomputed == null || !Number.isFinite(recomputed)) return fail("expected-roi-recompute-failed");

@@ -383,8 +383,9 @@ function ensureFeatureRow(buckets, row = {}) {
   return buckets[key];
 }
 
-function flattenCoachRows(rows = []) {
+function flattenCoachRows(rows = [], seasonYear = null) {
   const out = [];
+  const yearN = seasonYear == null ? null : Number(seasonYear);
   for (const row of rows || []) {
     if (Array.isArray(row?.coaches)) {
       for (const coach of row.coaches) {
@@ -393,7 +394,12 @@ function flattenCoachRows(rows = []) {
       continue;
     }
     if (Array.isArray(row?.seasons)) {
-      for (const season of row.seasons) {
+      const matched =
+        yearN != null
+          ? row.seasons.filter((s) => Number(s.year ?? s.season) === yearN)
+          : row.seasons;
+      const use = matched.length ? matched : row.seasons.slice(-1);
+      for (const season of use) {
         out.push({ ...row, ...season, school: season.school || row.school || row.team, seasons: undefined });
       }
       continue;
@@ -404,7 +410,7 @@ function flattenCoachRows(rows = []) {
 }
 
 function parseHireYear(row = {}) {
-  const direct = num(row.firstYear ?? row.startYear ?? row.hireYear ?? row.season);
+  const direct = num(row.firstYear ?? row.startYear ?? row.hireYear);
   if (direct != null) return direct;
   const hire = row.hireDate || row.hired || row.startDate || null;
   if (!hire) return null;
@@ -506,6 +512,7 @@ export function buildCfbFeatureCatalog({
   coaches = [],
   qbHistory = [],
   year = null,
+  coachSeasonYear = null,
   asOf = null,
 } = {}) {
   const buckets = {};
@@ -616,7 +623,7 @@ export function buildCfbFeatureCatalog({
       if (stars != null) out.transferStarsOut = (out.transferStarsOut || 0) + stars;
     }
   }
-  for (const row of flattenCoachRows(coaches || [])) {
+  for (const row of flattenCoachRows(coaches || [], coachSeasonYear ?? year)) {
     const hit = resolveFeatureTeam(row);
     if (!hit) continue;
     const out = ensureFeatureRow(buckets, {
@@ -672,14 +679,14 @@ export async function loadCfbFeatureFeeds(env = {}, { fetchFn = fetch, now = Dat
       }),
     };
   }
-  const cacheKey = `cfb-feature-feeds-v2-${season}`;
+  const cacheKey = `cfb-feature-feeds-v3-${season}`;
   const cached = await readCache(cacheKey, env.caches, FEATURE_TTL_MS);
   if (cached?.catalog?.byEspnId && cached?.meta) return cached;
 
   const priorSeason = season - 1;
   const [epaCurrent, epaPrior, transfer, coachesCurrent, coachesPrior, returning, qbHistory] = await Promise.all([
-    firstSuccessfulCfbdRequest(env, [["/ppa/teams", { year: season }], ["/ppa/teams/season", { year: season }]], fetchFn),
-    firstSuccessfulCfbdRequest(env, [["/ppa/teams", { year: priorSeason }], ["/ppa/teams/season", { year: priorSeason }]], fetchFn),
+    firstSuccessfulCfbdRequest(env, [["/ppa/teams", { year: season, seasonType: "regular" }], ["/ppa/teams/season", { year: season }]], fetchFn),
+    firstSuccessfulCfbdRequest(env, [["/ppa/teams", { year: priorSeason, seasonType: "regular" }], ["/ppa/teams/season", { year: priorSeason }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/player/portal", { year: season }], ["/player/transfer", { year: season }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/coaches", { year: season }], ["/coaches/teams", { year: season }]], fetchFn),
     firstSuccessfulCfbdRequest(env, [["/coaches", { year: priorSeason }], ["/coaches/teams", { year: priorSeason }]], fetchFn),
@@ -718,6 +725,7 @@ export async function loadCfbFeatureFeeds(env = {}, { fetchFn = fetch, now = Dat
     returning: returning.rows,
     qbHistory: qbHistory.rows,
     year: season,
+    coachSeasonYear: coachesInSeason ? season : priorSeason,
     asOf,
   });
   const records = Object.keys(catalog.byEspnId || {}).length;
@@ -784,6 +792,11 @@ export async function loadCfbBettingLines(env = {}, { year, weeks = [], fetchFn 
         provider: picked.provider || picked.bookmaker || "cfbd",
         source: "cfbd-lines",
       };
+      const homeHit = resolveTeamExact("cfb", { name: row.homeTeam || row.home, school: row.homeTeam || row.home });
+      const awayHit = resolveTeamExact("cfb", { name: row.awayTeam || row.away, school: row.awayTeam || row.away });
+      if (homeHit?.school && awayHit?.school) {
+        byGame[`${String(awayHit.school).trim().toLowerCase()}@${String(homeHit.school).trim().toLowerCase()}`] = byGame[`${away}@${home}`];
+      }
     }
   }
   const payload = {

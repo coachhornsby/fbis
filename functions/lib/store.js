@@ -1375,6 +1375,35 @@ export async function ensureProbabilityIntegrityMigration(env) {
   return { ok: true };
 }
 
+export async function claimConvictionCanaryLock(env) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, claimed: false };
+  try {
+    const res = await env.DB.prepare("INSERT OR IGNORE INTO store_meta (k, v) VALUES (?, ?)").bind(
+      "conviction_canary_lock",
+      new Date().toISOString()
+    ).run();
+    markWrite();
+    return { ok: true, claimed: (Number(res?.meta?.changes) || 0) > 0 };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, claimed: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function releaseConvictionCanaryLock(env) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false };
+  try {
+    await env.DB.prepare("DELETE FROM store_meta WHERE k = ?").bind("conviction_canary_lock").run();
+    markWrite();
+    return { ok: true };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
 export async function persistQualificationAttempt(env, row) {
   markBound(env);
   if (!hasDb(env) || !row?.id) return { ok: false, reason: "unbound" };
@@ -1551,6 +1580,37 @@ export async function persistStrategyTicketWithReadback(env, row, opts = {}) {
     ? expectedRoi(readbackProb.modelProbability, mapped.pinPrice ?? mapped.benchmarkPrice)
     : null;
   const roiOk = expectedRoiMatches(mapped?.ev, readbackRoi) || expectedRoiMatches(recomputed, readbackRoi);
+  if (opts.requireFreezeReadback && (row.sourceProjectionId || row.freezeId || row.gameId)) {
+    try {
+      const freezeRow =
+        (await env.DB.prepare(
+          "SELECT game_id, p_home_final, frozen_at FROM prediction_snapshots WHERE game_id = ? OR id = ? LIMIT 1"
+        )
+          .bind(String(row.sourceProjectionId || row.gameId), String(row.sourceProjectionId || row.id || ""))
+          .first()) || null;
+      if (!freezeRow) {
+        await persistQualificationAttempt(env, {
+          id: `attempt:${row.id}:freeze:${now}`,
+          gameId: row.gameId,
+          sport: row.sport,
+          date: row.date,
+          market: row.market,
+          side: row.side,
+          modelProbability: canonical.modelProbability,
+          expectedRoi: recomputed,
+          validationResult: "FAILED",
+          validationFailureReason: "frozen-record-readback-failed",
+          freezeId: row.freezeId,
+          sourceProjectionId: row.sourceProjectionId,
+          canary: Boolean(opts.canary),
+          createdAt: now,
+        });
+        return { ok: false, reason: "frozen-record-readback-failed", exposed: false, inserted: true };
+      }
+    } catch {
+      return { ok: false, reason: "frozen-record-readback-failed", exposed: false, inserted: true };
+    }
+  }
   if (!readbackProb.ok || !roiOk) {
     try {
       await env.DB.prepare(
