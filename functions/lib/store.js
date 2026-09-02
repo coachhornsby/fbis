@@ -1599,6 +1599,116 @@ export async function queryEvAuditRecords(env, { since, limit = 1000 } = {}) {
   }
 }
 
+export async function queryEvAuditTicketSummary(env) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound" };
+  try {
+    const run = async (sql, binds = []) => {
+      const q = await env.DB.prepare(sql).bind(...binds).all();
+      return q.results || [];
+    };
+    const scalar = async (sql, binds = []) => {
+      const q = await env.DB.prepare(sql).bind(...binds).first();
+      return Number(q?.n || 0);
+    };
+    const totalFindings = await scalar("SELECT COUNT(*) AS n FROM ev_audit_records WHERE entity_type = 'strategy-ticket'");
+    const uniqueAffectedTickets = await scalar("SELECT COUNT(DISTINCT entity_id) AS n FROM ev_audit_records WHERE entity_type = 'strategy-ticket'");
+    const top = await run(
+      "SELECT entity_id, COUNT(*) AS n FROM ev_audit_records WHERE entity_type = 'strategy-ticket' GROUP BY entity_id ORDER BY n DESC LIMIT 1"
+    );
+    const byReason = await run(
+      "SELECT anomaly_reason AS key, COUNT(*) AS n FROM ev_audit_records WHERE entity_type = 'strategy-ticket' GROUP BY anomaly_reason ORDER BY n DESC"
+    );
+    const bySport = await run(
+      "SELECT COALESCE(sport, 'unknown') AS key, COUNT(*) AS n FROM ev_audit_records WHERE entity_type = 'strategy-ticket' GROUP BY COALESCE(sport, 'unknown') ORDER BY n DESC"
+    );
+    const byMarketFamily = await run(
+      `SELECT
+         CASE
+           WHEN UPPER(COALESCE(market, '')) LIKE '%PROP%' THEN 'PLAYER_PROP'
+           WHEN UPPER(COALESCE(market, '')) LIKE 'F5%' THEN 'F5'
+           WHEN UPPER(COALESCE(market, '')) LIKE '%SPREAD%' OR UPPER(COALESCE(market, '')) LIKE '%RL%' THEN 'SPREAD'
+           WHEN UPPER(COALESCE(market, '')) LIKE '%TOTAL%' THEN 'TOTAL'
+           WHEN UPPER(COALESCE(market, '')) LIKE '%ML%' THEN 'MONEYLINE'
+           ELSE 'UNKNOWN'
+         END AS key,
+         COUNT(*) AS n
+       FROM ev_audit_records
+       WHERE entity_type = 'strategy-ticket'
+       GROUP BY 1 ORDER BY n DESC`
+    );
+    const byPeriodFamily = await run(
+      `SELECT
+         CASE
+           WHEN UPPER(COALESCE(market, '')) LIKE 'F5%' THEN 'F5'
+           WHEN UPPER(COALESCE(market, '')) LIKE '%PROP%' THEN 'PLAYER_PROP'
+           ELSE 'FULL_GAME'
+         END AS key,
+         COUNT(*) AS n
+       FROM ev_audit_records
+       WHERE entity_type = 'strategy-ticket'
+       GROUP BY 1 ORDER BY n DESC`
+    );
+    const byModelVersion = await run(
+      "SELECT COALESCE(model_version, 'unknown') AS key, COUNT(*) AS n FROM ev_audit_records WHERE entity_type = 'strategy-ticket' GROUP BY COALESCE(model_version, 'unknown') ORDER BY n DESC"
+    );
+    const byQualificationRuleVersion = await run(
+      "SELECT COALESCE(qualification_rule_version, 'unknown') AS key, COUNT(*) AS n FROM ev_audit_records WHERE entity_type = 'strategy-ticket' GROUP BY COALESCE(qualification_rule_version, 'unknown') ORDER BY n DESC"
+    );
+    const byCheckpoint = await run(
+      "SELECT COALESCE(st.checkpoint, 'unknown') AS key, COUNT(DISTINCT ear.entity_id) AS n FROM ev_audit_records ear LEFT JOIN strategy_tickets st ON st.id = ear.entity_id WHERE ear.entity_type = 'strategy-ticket' GROUP BY COALESCE(st.checkpoint, 'unknown') ORDER BY n DESC"
+    );
+    const byDate = await run(
+      "SELECT SUBSTR(COALESCE(freeze_at, created_at), 1, 10) AS key, COUNT(*) AS n FROM ev_audit_records WHERE entity_type = 'strategy-ticket' GROUP BY SUBSTR(COALESCE(freeze_at, created_at), 1, 10) ORDER BY key DESC"
+    );
+    const qualifiedAffectedTickets = await scalar("SELECT COUNT(DISTINCT entity_id) AS n FROM ev_audit_records WHERE entity_type = 'strategy-ticket' AND qualified = 1");
+    const enteredStrategyTickets = await scalar("SELECT COUNT(DISTINCT entity_id) AS n FROM ev_audit_records WHERE entity_type = 'strategy-ticket' AND entered_strategy = 1");
+    const settledAffectedTickets = await scalar(
+      "SELECT COUNT(DISTINCT ear.entity_id) AS n FROM ev_audit_records ear JOIN strategy_tickets st ON st.id = ear.entity_id WHERE ear.entity_type = 'strategy-ticket' AND UPPER(COALESCE(st.result,'')) IN ('WON','LOST','PUSH','VOID')"
+    );
+    const openAffectedTickets = await scalar(
+      "SELECT COUNT(DISTINCT ear.entity_id) AS n FROM ev_audit_records ear JOIN strategy_tickets st ON st.id = ear.entity_id WHERE ear.entity_type = 'strategy-ticket' AND (st.result IS NULL OR UPPER(COALESCE(st.result,'')) = 'OPEN')"
+    );
+    const winningAffectedTickets = await scalar(
+      "SELECT COUNT(DISTINCT ear.entity_id) AS n FROM ev_audit_records ear JOIN strategy_tickets st ON st.id = ear.entity_id WHERE ear.entity_type = 'strategy-ticket' AND UPPER(COALESCE(st.result,'')) = 'WON'"
+    );
+    const losingAffectedTickets = await scalar(
+      "SELECT COUNT(DISTINCT ear.entity_id) AS n FROM ev_audit_records ear JOIN strategy_tickets st ON st.id = ear.entity_id WHERE ear.entity_type = 'strategy-ticket' AND UPPER(COALESCE(st.result,'')) = 'LOST'"
+    );
+    const unresolvedAffectedTickets = await scalar(
+      "SELECT COUNT(DISTINCT ear.entity_id) AS n FROM ev_audit_records ear JOIN strategy_tickets st ON st.id = ear.entity_id WHERE ear.entity_type = 'strategy-ticket' AND UPPER(COALESCE(st.result,'')) = 'FINAL NOT MATCHED'"
+    );
+    markRead();
+    return {
+      ok: true,
+      summary: {
+        totalFindings,
+        uniqueAffectedTickets,
+        averageFindingsPerAffectedTicket: uniqueAffectedTickets ? totalFindings / uniqueAffectedTickets : 0,
+        maxFindingsPerTicket: Number(top?.[0]?.n || 0),
+        byReason: Object.fromEntries(byReason.map((r) => [r.key, Number(r.n || 0)])),
+        bySport: Object.fromEntries(bySport.map((r) => [r.key, Number(r.n || 0)])),
+        byMarketFamily: Object.fromEntries(byMarketFamily.map((r) => [r.key, Number(r.n || 0)])),
+        byPeriodFamily: Object.fromEntries(byPeriodFamily.map((r) => [r.key, Number(r.n || 0)])),
+        byModelVersion: Object.fromEntries(byModelVersion.map((r) => [r.key, Number(r.n || 0)])),
+        byQualificationRuleVersion: Object.fromEntries(byQualificationRuleVersion.map((r) => [r.key, Number(r.n || 0)])),
+        byCheckpoint: Object.fromEntries(byCheckpoint.map((r) => [r.key, Number(r.n || 0)])),
+        byDate: Object.fromEntries(byDate.map((r) => [r.key || "unknown", Number(r.n || 0)])),
+        qualifiedAffectedTickets,
+        enteredStrategyTickets,
+        settledAffectedTickets,
+        openAffectedTickets,
+        winningAffectedTickets,
+        losingAffectedTickets,
+        unresolvedAffectedTickets,
+      },
+    };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
 function mapStrategyTicket(r) {
   let traits = {};
   try {
@@ -1802,6 +1912,12 @@ export async function queryJobHealth(env, { since } = {}) {
       lastScheduledEventType: meta.last_scheduled_event_type || (lastScheduledCollect ? "schedule" : null),
       lastScheduledRunUrl: meta.last_scheduled_run_url || null,
       lastD1WriteSuccessAt: meta.last_d1_write_success_at || collectOk?.completed_at || harvestOk?.completed_at || null,
+      lastD1ReadbackSuccessAt: meta.last_d1_readback_success_at || null,
+      lastD1FailureAt:
+        meta.last_d1_write_failure_at ||
+        collectFail?.completed_at ||
+        harvestFail?.completed_at ||
+        null,
       lastFailedCollectAt: collectFail && collectFail.status !== "success" ? collectFail.completed_at : unbound.lastFailedCollectAt,
       lastFailedHarvestAt: harvestFail && harvestFail.status !== "success" ? harvestFail.completed_at : unbound.lastFailedHarvestAt,
       failedWrites: Number(failWrites?.n) || 0,

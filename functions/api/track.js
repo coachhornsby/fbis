@@ -1,12 +1,12 @@
 import { buildTrackReport } from "../lib/projLedger.js";
-import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, queryStrategyTicketsPaged, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords, setMeta } from "../lib/store.js";
+import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, queryStrategyTicketsPaged, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords, queryEvAuditTicketSummary, setMeta, readMeta } from "../lib/store.js";
 import { settleExecutedBet } from "../lib/executedBets.js";
 import { gradeStrategyResult } from "../lib/strategy.js";
 import { resolveFinalForTicket } from "../lib/projLedger.js";
 import { resolveTeam } from "../lib/teams.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
-import { auditTicketEv, summarizeEvAudits } from "../lib/evAudit.js";
+import { auditTicketEv, summarizeEvAudits, anomalyRuleDetails, ANOMALY_RULES } from "../lib/evAudit.js";
 const MIGRATION_STATUS = {
   VERIFIED: "VERIFIED",
   FAILED: "FAILED",
@@ -144,6 +144,9 @@ async function runEvAudit(env, payload = {}) {
   const persisted = await persistEvAuditRecords(env, anomalies);
   const nextCursor = page.nextCursor || null;
   const complete = !nextCursor;
+  const meta = await readMeta(env);
+  const prevScanned = Number(meta.ev_audit_scanned_total || 0);
+  await setMeta(env, "ev_audit_scanned_total", String(prevScanned + tickets.length));
   await setMeta(env, "ev_audit_last_cursor", nextCursor ? JSON.stringify(nextCursor) : "");
   await setMeta(env, "ev_audit_last_run_at", new Date().toISOString());
   return {
@@ -177,6 +180,7 @@ async function runD1Diagnostic(env, payload = {}) {
     if (payload.cleanup === true) {
       await env.DB.prepare("DELETE FROM ev_audit_records WHERE id = ?").bind(id).run();
       const verify = await env.DB.prepare("SELECT id FROM ev_audit_records WHERE id = ? LIMIT 1").bind(id).first();
+      await setMeta(env, "last_d1_readback_success_at", new Date().toISOString());
       return { ok: true, status: 200, body: { ok: true, action: "cleanup", id, removed: !verify } };
     }
     await env.DB.prepare(
@@ -189,10 +193,167 @@ async function runD1Diagnostic(env, payload = {}) {
       .bind(id, id, now, JSON.stringify({ source: "api/track", note: "d1-read-write-readback verification" }), now)
       .run();
     const row = await env.DB.prepare("SELECT id, anomaly_reason, disposition, created_at FROM ev_audit_records WHERE id = ? LIMIT 1").bind(id).first();
+    await setMeta(env, "last_d1_write_success_at", new Date().toISOString());
+    await setMeta(env, "last_d1_readback_success_at", new Date().toISOString());
     return { ok: true, status: 200, body: { ok: true, action: "insert-readback", id, readback: row || null } };
   } catch (err) {
+    await setMeta(env, "last_d1_write_failure_at", new Date().toISOString());
     return { ok: false, status: 500, error: String(err?.message || err) };
   }
+}
+
+async function recomputeAffectedTickets(env, payload = {}) {
+  const limit = Math.max(1, Math.min(100, Number(payload.limit) || 50));
+  const cursor = payload.cursor ? String(payload.cursor) : null;
+  const uniqueQ = cursor
+    ? await env.DB
+        .prepare(
+          "SELECT entity_id FROM ev_audit_records WHERE entity_type = 'strategy-ticket' AND (qualified = 1 OR entered_strategy = 1) AND entity_id > ? GROUP BY entity_id ORDER BY entity_id LIMIT ?"
+        )
+        .bind(cursor, limit)
+        .all()
+    : await env.DB
+        .prepare(
+          "SELECT entity_id FROM ev_audit_records WHERE entity_type = 'strategy-ticket' AND (qualified = 1 OR entered_strategy = 1) GROUP BY entity_id ORDER BY entity_id LIMIT ?"
+        )
+        .bind(limit)
+        .all();
+  const ids = (uniqueQ.results || []).map((r) => String(r.entity_id || "")).filter(Boolean);
+  if (!ids.length) {
+    return { ok: true, status: 200, body: { ok: true, scanned: 0, nextCursor: null, rows: [] } };
+  }
+  const placeholders = ids.map(() => "?").join(", ");
+  const ticketQ = await env.DB.prepare(`SELECT * FROM strategy_tickets WHERE id IN (${placeholders})`).bind(...ids).all();
+  const tickets = (ticketQ.results || []).map(mapRawTicket);
+  const rows = [];
+  for (const t of tickets) {
+    const recompute = recomputeTicketRoi(t);
+    const reasons = recompute.reasons;
+    const severity = highestSeverity(reasons);
+    const disposition = severity === "INVALID" || severity === "QUARANTINED" ? "quarantined" : "warning";
+    const affectsStrategy = String(t.strategyId || "") === "FBIS-HC-v1";
+    const rec = {
+      id: `ev-recompute:${t.id}`,
+      entityType: "ev-recompute",
+      entityId: String(t.id),
+      sport: t.sport || null,
+      market: t.market || null,
+      side: t.side || null,
+      modelVersion: t.modelVersion || null,
+      qualificationRuleVersion: "FBIS-HC-v1",
+      freezeAt: t.qualifiedAt || null,
+      storedEv: t.ev == null ? null : Number(t.ev),
+      recomputedEv: recompute.expectedRoi,
+      anomalyReason: reasons[0] || "none",
+      rootCause: reasons.join(",") || "none",
+      qualified: Boolean(t.qualified || String(t.tag || "").toUpperCase() === "CONVICTION"),
+      enteredStrategy: affectsStrategy,
+      disposition,
+      inputsJson: JSON.stringify({
+        modelProbability: recompute.modelProbability,
+        americanOdds: recompute.americanOdds,
+        decimalOdds: recompute.decimalOdds,
+        opposingPrice: t.benchmarkPrice ?? null,
+        noVigProbability: t.entryNoVig ?? null,
+        side: t.side,
+        marketFamily: normalizeMarketFamily(t.market),
+        periodFamily: normalizePeriodFamily(t.market),
+        freezeAt: t.qualifiedAt || null,
+        eventStart: t.start || null,
+        severity,
+        reasons,
+      }),
+      createdAt: new Date().toISOString(),
+    };
+    rows.push({
+      ticketId: t.id,
+      game: t.matchup || t.gameId,
+      sport: t.sport,
+      market: t.market,
+      originalExpectedRoi: t.ev,
+      recomputedExpectedRoi: recompute.expectedRoi,
+      rootCause: reasons,
+      severity,
+      eligibilityDisposition: disposition,
+      affectsStrategyRecord: affectsStrategy,
+    });
+    await persistEvAuditRecords(env, [rec]);
+  }
+  const nextCursor = ids.length === limit ? ids[ids.length - 1] : null;
+  return { ok: true, status: 200, body: { ok: true, scanned: ids.length, nextCursor, rows } };
+}
+
+function mapRawTicket(r) {
+  let traits = {};
+  try {
+    traits = r.traits_json ? JSON.parse(r.traits_json) : {};
+  } catch {
+    traits = {};
+  }
+  return {
+    id: r.id,
+    strategyId: r.strategy_id,
+    sport: r.sport,
+    gameId: r.game_id,
+    matchup: r.matchup,
+    market: r.market,
+    side: r.side,
+    modelVersion: r.model_version,
+    checkpoint: r.checkpoint,
+    result: r.result,
+    ev: r.ev,
+    tag: r.tag,
+    qualified: String(r.tag || "").toUpperCase() === "CONVICTION",
+    qualifiedAt: r.qualified_at,
+    start: r.start,
+    pinPrice: r.pin_price,
+    benchmarkPrice: r.benchmark_price,
+    executionPrice: r.execution_price,
+    entryNoVig: r.entry_no_vig,
+    traits,
+  };
+}
+
+function recomputeTicketRoi(ticket) {
+  const p = Number(ticket.traits?.modelProbability ?? ticket.traits?.fair ?? ticket.traits?.homeWinProb ?? ticket.fair ?? NaN);
+  const americanOdds = Number(ticket.pinPrice ?? ticket.benchmarkPrice ?? ticket.executionPrice);
+  const reasons = [];
+  if (!Number.isFinite(p) || p < 0 || p > 1) reasons.push("probability-out-of-range");
+  if (!validAmerican(americanOdds)) reasons.push("invalid-american-odds");
+  const decimalOdds = validAmerican(americanOdds) ? americanToDecimal(americanOdds) : null;
+  const expectedRoi = Number.isFinite(p) && decimalOdds != null ? p * decimalOdds - 1 : null;
+  const freezeTs = Date.parse(String(ticket.qualifiedAt || ""));
+  const startTs = Date.parse(String(ticket.start || ""));
+  if (!Number.isFinite(freezeTs)) reasons.push("missing-freeze-timestamp");
+  if (Number.isFinite(freezeTs) && Number.isFinite(startTs) && freezeTs > startTs) reasons.push("post-start-freeze");
+  if (!ticket.market) reasons.push("market-mismatch");
+  return { modelProbability: Number.isFinite(p) ? p : null, americanOdds: validAmerican(americanOdds) ? americanOdds : null, decimalOdds, expectedRoi, reasons };
+}
+
+function validAmerican(v) {
+  return Number.isFinite(Number(v)) && Number(v) !== 0;
+}
+
+function americanToDecimal(v) {
+  const n = Number(v);
+  return n > 0 ? 1 + n / 100 : 1 + 100 / Math.abs(n);
+}
+
+function highestSeverity(reasons = []) {
+  const rank = { INVALID: 4, QUARANTINED: 3, WARNING: 2, INFORMATIONAL: 1 };
+  let best = "INFORMATIONAL";
+  for (const reason of reasons || []) {
+    const sev = anomalyRuleDetails(reason).severity || "INFORMATIONAL";
+    if ((rank[sev] || 0) > (rank[best] || 0)) best = sev;
+  }
+  return best;
+}
+
+function normalizePeriodFamily(market) {
+  const m = String(market || "").toUpperCase();
+  if (m.includes("F5")) return "F5";
+  if (m.includes("PROP")) return "player-prop";
+  return "full-game";
 }
 
 async function deriveTargetGameIds(env, payload) {
@@ -384,6 +545,8 @@ export async function onRequestGet(context) {
     const writeVerification = writeVerificationState({
       readOk: db.ok === true,
       lastWriteSuccessAt: db.lastD1WriteSuccess || db.lastWrite || null,
+      lastReadbackSuccessAt: db.lastD1ReadbackSuccessAt || db.lastD1WriteSuccess || null,
+      lastFailureAt: db.lastD1FailureAt || db.lastFailedCollectAt || db.lastFailedHarvestAt || null,
       failedWrites: Number(db.failedWrites || 0) + Number(db.failedHarvests || 0),
       reason: db.reason || db.lastError || "",
     });
@@ -462,8 +625,13 @@ export async function onRequestGet(context) {
       anomalies: includeAnomalies && semantic.state === "HEALTHY",
     };
     const auditQ = includeAnomalies
-      ? await queryEvAuditRecords({ DB: context.env.DB }, { limit: 200 })
+      ? await queryEvAuditRecords({ DB: context.env.DB }, { limit: 5000 })
       : { ok: false, reason: "not-requested", rows: [] };
+    const anomalySummaryQ = includeAnomalies && auditQ.ok ? await queryEvAuditTicketSummary({ DB: context.env.DB }) : { ok: false };
+    const meta = includeAnomalies ? await readMeta({ DB: context.env.DB }) : {};
+    const sourceRowsScanned = Number(meta.ev_audit_scanned_total || 0);
+    const uniqueAffectedTickets = Number(anomalySummaryQ?.summary?.uniqueAffectedTickets || uniqueCount((auditQ.rows || []).map((r) => r.entity_id)));
+    const uniqueSourceWithoutAnomaly = sourceRowsScanned > 0 ? Math.max(0, sourceRowsScanned - uniqueAffectedTickets) : null;
     payload.anomalies = {
       migrationStatus: migration.status,
       available: includeAnomalies && auditQ.ok && migration.ok,
@@ -472,13 +640,29 @@ export async function onRequestGet(context) {
         : migration.ok
           ? (auditQ.ok ? null : auditQ.reason || "unavailable")
           : migration.reason || MIGRATION_STATUS.UNVERIFIED,
-      count: (auditQ.rows || []).length,
+      count: Number(anomalySummaryQ?.summary?.totalFindings || (auditQ.rows || []).length),
       totalCount: Number(auditQ.totalCount || 0),
-      byReason: summarizeEvAudits((auditQ.rows || []).map((r) => ({ anomalyReason: r.anomaly_reason || r.anomalyReason }))),
-      bySport: summarizeBy((auditQ.rows || []), (r) => r.sport || "unknown"),
-      byMarketFamily: summarizeBy((auditQ.rows || []), (r) => normalizeMarketFamily(r.market)),
-      qualifiedCount: (auditQ.rows || []).filter((r) => Boolean(r.qualified)).length,
-      enteredStrategyCount: (auditQ.rows || []).filter((r) => Boolean(r.entered_strategy)).length,
+      sourceRowsScanned,
+      uniqueSourceTicketsWithoutAnomaly: uniqueSourceWithoutAnomaly,
+      byReason: anomalySummaryQ?.summary?.byReason || summarizeEvAudits((auditQ.rows || []).map((r) => ({ anomalyReason: r.anomaly_reason || r.anomalyReason }))),
+      bySport: anomalySummaryQ?.summary?.bySport || summarizeBy((auditQ.rows || []), (r) => r.sport || "unknown"),
+      byMarketFamily: anomalySummaryQ?.summary?.byMarketFamily || summarizeBy((auditQ.rows || []), (r) => normalizeMarketFamily(r.market)),
+      qualifiedCount: Number(anomalySummaryQ?.summary?.qualifiedAffectedTickets || 0),
+      enteredStrategyCount: Number(anomalySummaryQ?.summary?.enteredStrategyTickets || 0),
+      settledAffectedTickets: Number(anomalySummaryQ?.summary?.settledAffectedTickets || 0),
+      openAffectedTickets: Number(anomalySummaryQ?.summary?.openAffectedTickets || 0),
+      winningAffectedTickets: Number(anomalySummaryQ?.summary?.winningAffectedTickets || 0),
+      losingAffectedTickets: Number(anomalySummaryQ?.summary?.losingAffectedTickets || 0),
+      unresolvedAffectedTickets: Number(anomalySummaryQ?.summary?.unresolvedAffectedTickets || 0),
+      uniqueAffectedTickets,
+      averageFindingsPerAffectedTicket: Number(anomalySummaryQ?.summary?.averageFindingsPerAffectedTicket || averagePerUnique((auditQ.rows || []).map((r) => r.entity_id))),
+      maxFindingsPerTicket: Number(anomalySummaryQ?.summary?.maxFindingsPerTicket || maxFindings((auditQ.rows || []).map((r) => r.entity_id))),
+      ruleCatalog: ANOMALY_RULES,
+      byModelVersion: anomalySummaryQ?.summary?.byModelVersion || summarizeBy((auditQ.rows || []), (r) => r.model_version || "unknown"),
+      byQualificationRuleVersion: anomalySummaryQ?.summary?.byQualificationRuleVersion || summarizeBy((auditQ.rows || []), (r) => r.qualification_rule_version || "unknown"),
+      byCheckpoint: anomalySummaryQ?.summary?.byCheckpoint || summarizeBy((auditQ.rows || []), (r) => r.inputs_json ? (safeJson(r.inputs_json)?.checkpoint || "unknown") : "unknown"),
+      byDate: anomalySummaryQ?.summary?.byDate || summarizeBy((auditQ.rows || []), (r) => String(r.freeze_at || r.created_at || "").slice(0, 10) || "unknown"),
+      byPeriodFamily: anomalySummaryQ?.summary?.byPeriodFamily || summarizeBy((auditQ.rows || []), (r) => normalizePeriodFamily(r.market)),
       rows: (auditQ.rows || []).slice(0, 50).map((r) => ({
         id: r.id,
         entityType: r.entity_type,
@@ -551,7 +735,13 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: "invalid json" }, 400);
     }
     const action = String(body?.action || "").toLowerCase();
-    if (action !== "manual-final" && action !== "cleanup-future-grades" && action !== "audit-ev" && action !== "d1-diagnostic")
+    if (
+      action !== "manual-final" &&
+      action !== "cleanup-future-grades" &&
+      action !== "audit-ev" &&
+      action !== "d1-diagnostic" &&
+      action !== "recompute-ev"
+    )
       return json({ ok: false, error: "unknown action" }, 400);
     const result =
       action === "cleanup-future-grades"
@@ -560,11 +750,41 @@ export async function onRequestPost(context) {
           ? await runEvAudit({ DB: context.env.DB }, body)
           : action === "d1-diagnostic"
             ? await runD1Diagnostic({ DB: context.env.DB }, body)
+            : action === "recompute-ev"
+              ? await recomputeAffectedTickets({ DB: context.env.DB }, body)
           : await applyManualFinal({ DB: context.env.DB }, body);
     if (!result.ok) return json({ ok: false, error: result.error || "failed" }, result.status || 400);
     return json(result.body, 200);
   } catch (err) {
     return json({ ok: false, error: String(err?.message || err) }, 500);
+  }
+}
+
+function uniqueCount(values = []) {
+  return new Set((values || []).filter(Boolean).map(String)).size;
+}
+
+function averagePerUnique(values = []) {
+  const n = uniqueCount(values);
+  if (!n) return 0;
+  return (values || []).length / n;
+}
+
+function maxFindings(values = []) {
+  const counts = {};
+  for (const v of values || []) {
+    const k = String(v || "");
+    if (!k) continue;
+    counts[k] = (counts[k] || 0) + 1;
+  }
+  return Math.max(0, ...Object.values(counts));
+}
+
+function safeJson(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
   }
 }
 

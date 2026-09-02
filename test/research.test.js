@@ -20,6 +20,7 @@ import {
   americanPriceOrNull,
   immutableFieldsConflict,
   ticketId,
+  summarizeProspectiveConvictionCohort,
 } from "../functions/lib/strategy.js";
 import { DEFAULT_WEIGHTS } from "../functions/lib/weights.js";
 import { readFileSync } from "node:fs";
@@ -196,6 +197,41 @@ describe("strategy grading final resolution", () => {
     assert.ok(resolved);
     assert.equal(resolved.home.score, 21);
     assert.equal(resolved.away.score, 27);
+  });
+});
+
+describe("prospective conviction cohort reconciliation", () => {
+  it("labels recovered 5-2 cohort only when all 7 authoritative tickets are present", () => {
+    const mk = (id, result, clv = null) => ({
+      id: `p-${id}`,
+      role: "prospective",
+      tag: "CONVICTION",
+      gameId: `g-${id}`,
+      market: "ML",
+      side: "HOME",
+      ev: 0.12,
+      modelVersion: "m1",
+      qualifiedAt: "2026-09-01T12:00:00.000Z",
+      result,
+      clv,
+      stake: 1,
+      profit: result === "WON" ? 0.9 : -1,
+    });
+    const rows = [mk(1, "WON", 0.02), mk(2, "WON", 0.01), mk(3, "WON"), mk(4, "WON"), mk(5, "WON"), mk(6, "LOST"), mk(7, "LOST")];
+    const out = summarizeProspectiveConvictionCohort(rows, { targetDateCt: "2026-09-01", expectedN: 7, reportedRecord: "5-2" });
+    assert.equal(out.label, "Prospective CONVICTION cohort: 5–2, N=7");
+    assert.equal(out.wins, 5);
+    assert.equal(out.losses, 2);
+  });
+
+  it("does not combine unrecovered cohorts into 12-2", () => {
+    const rows = [
+      { id: "p1", role: "prospective", tag: "CONVICTION", gameId: "g1", market: "ML", side: "HOME", ev: 0.11, modelVersion: "m1", qualifiedAt: "2026-09-01T12:00:00.000Z", result: "WON", stake: 1, profit: 0.9 },
+      { id: "p2", role: "prospective", tag: "CONVICTION", gameId: "g2", market: "ML", side: "AWAY", ev: 0.11, modelVersion: "m1", qualifiedAt: "2026-09-01T12:00:00.000Z", result: "LOST", stake: 1, profit: -1 },
+    ];
+    const out = summarizeProspectiveConvictionCohort(rows, { targetDateCt: "2026-09-01", expectedN: 7, reportedRecord: "5-2" });
+    assert.equal(out.label, "Operator reported 5-2; recovered N=2; unreconciled");
+    assert.notEqual(out.label.includes("12-2"), true);
   });
 });
 

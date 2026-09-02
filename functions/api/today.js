@@ -35,6 +35,8 @@ export async function onRequestGet(context) {
     const writeVerification = writeVerificationState({
       readOk: ping.ok,
       lastWriteSuccessAt: durable.lastD1WriteSuccessAt || null,
+      lastReadbackSuccessAt: durable.lastD1ReadbackSuccessAt || durable.lastD1WriteSuccessAt || null,
+      lastFailureAt: durable.lastD1FailureAt || durable.lastFailedCollectAt || durable.lastFailedHarvestAt || null,
       failedWrites: Number(durable.failedWrites || 0) + Number(durable.failedHarvests || 0),
       reason: ping.reason || durable.lastError || "",
     });

@@ -34,6 +34,8 @@ export async function onRequestGet(context) {
     const writeVerification = writeVerificationState({
       readOk,
       lastWriteSuccessAt: health.lastD1WriteSuccessAt || null,
+      lastReadbackSuccessAt: health.lastD1ReadbackSuccessAt || health.lastD1WriteSuccessAt || null,
+      lastFailureAt: health.lastD1FailureAt || health.lastFailedCollectAt || health.lastFailedHarvestAt || null,
       failedWrites: Number(health.failedWrites || 0) + Number(health.failedHarvests || 0),
       reason: health.lastError || health.source || "",
     });
@@ -76,6 +78,8 @@ export async function onRequestGet(context) {
           bound: Boolean(health.bound),
           source: health.source || (health.bound ? "d1" : "unbound"),
           lastD1WriteSuccessAt: health.lastD1WriteSuccessAt || null,
+          lastD1ReadbackSuccessAt: health.lastD1ReadbackSuccessAt || null,
+          lastD1FailureAt: health.lastD1FailureAt || null,
           readOk,
           writeOk,
           writeVerification,

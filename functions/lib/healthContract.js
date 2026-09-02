@@ -70,11 +70,19 @@ export function blockedByPlatform(reason = "") {
 export function writeVerificationState({
   readOk = false,
   lastWriteSuccessAt = null,
+  lastReadbackSuccessAt = null,
+  lastFailureAt = null,
   failedWrites = 0,
   reason = "",
 } = {}) {
   if (blockedByPlatform(reason)) return WRITE_VERIFICATION.BLOCKED;
+  const writeTs = ts(lastWriteSuccessAt);
+  const readbackTs = ts(lastReadbackSuccessAt);
+  const failureTs = ts(lastFailureAt);
+  const hasRecentWrite = Boolean(writeTs) && (!failureTs || writeTs >= failureTs);
+  const hasRecentReadback = Boolean(readbackTs) && (!failureTs || readbackTs >= failureTs);
+  if (readOk && hasRecentWrite && hasRecentReadback) return WRITE_VERIFICATION.VERIFIED;
   if (Number(failedWrites || 0) > 0) return WRITE_VERIFICATION.FAILED;
-  if (readOk && lastWriteSuccessAt) return WRITE_VERIFICATION.VERIFIED;
+  if (readOk && hasRecentWrite) return WRITE_VERIFICATION.VERIFIED;
   return WRITE_VERIFICATION.UNVERIFIED;
 }

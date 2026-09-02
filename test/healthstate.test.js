@@ -42,9 +42,28 @@ describe("shared health-state contract", () => {
   });
 
   it("classifies write verification states", () => {
-    assert.equal(writeVerificationState({ readOk: true, lastWriteSuccessAt: "2026-09-01T00:00:00Z", failedWrites: 0 }), "VERIFIED");
+    assert.equal(
+      writeVerificationState({
+        readOk: true,
+        lastWriteSuccessAt: "2026-09-01T00:00:00Z",
+        lastReadbackSuccessAt: "2026-09-01T00:00:05Z",
+        failedWrites: 0,
+      }),
+      "VERIFIED"
+    );
     assert.equal(writeVerificationState({ readOk: false, lastWriteSuccessAt: null, failedWrites: 0 }), "UNVERIFIED");
     assert.equal(writeVerificationState({ readOk: true, lastWriteSuccessAt: null, failedWrites: 2 }), "FAILED");
     assert.equal(writeVerificationState({ readOk: false, lastWriteSuccessAt: null, failedWrites: 0, reason: "quota exceeded" }), "BLOCKED");
+  });
+
+  it("does not let historical failures override newer successful write/readback", () => {
+    const state = writeVerificationState({
+      readOk: true,
+      lastWriteSuccessAt: "2026-09-02T12:00:00Z",
+      lastReadbackSuccessAt: "2026-09-02T12:00:03Z",
+      lastFailureAt: "2026-09-01T12:00:00Z",
+      failedWrites: 9,
+    });
+    assert.equal(state, "VERIFIED");
   });
 });

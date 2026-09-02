@@ -8,6 +8,7 @@ import {
   strategyReconstruction,
   validateImportedTicket,
   EXPECTED_SEED_N,
+  summarizeProspectiveConvictionCohort,
 } from "../lib/strategy.js";
 import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGamesByIds } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
@@ -221,6 +222,16 @@ export async function onRequestGet(context) {
     integrity.mixChecks?.modelVersions > 1 ||
     integrity.mixChecks?.checkpoints > 1;
   const rec = reconstructionPayload(seed);
+  const now = new Date();
+  const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const yParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(y);
+  const yCt = `${yParts.find((p) => p.type === "year")?.value}-${yParts.find((p) => p.type === "month")?.value}-${yParts.find((p) => p.type === "day")?.value}`;
+  const yesterdayCohort = summarizeProspectiveConvictionCohort(prospective, { targetDateCt: yCt, expectedN: 7, reportedRecord: "5-2" });
   return readJson({
     health: {
       state: semantic.state,
@@ -248,6 +259,32 @@ export async function onRequestGet(context) {
       aggregateReason: mixed ? "mixed-populations-require-breakdown" : null,
     },
     prospectiveBySport,
+    yesterdayConvictionCohort: {
+      ...yesterdayCohort,
+      tickets: (yesterdayCohort.tickets || []).map((t) => ({
+        ticketId: t.id,
+        event: t.matchupDisplay || t.matchup || t.gameId || "—",
+        sport: t.sport,
+        market: t.market,
+        side: t.side,
+        line: t.line,
+        price: t.executionPrice ?? t.benchmarkPrice ?? t.pinPrice ?? null,
+        risk: t.stake ?? null,
+        qualificationAt: t.qualifiedAt || null,
+        freezeAt: t.qualifiedAt || null,
+        eventStart: t.start || null,
+        modelVersion: t.modelVersion || null,
+        qualificationRuleVersion: QUALIFICATION_RULE_VERSION,
+        expectedRoi: t.ev ?? null,
+        evidenceCompleteness: t.traits?.quarantineReason ? "partial" : "complete",
+        finalResult: t.result || "OPEN",
+        profitLoss: t.profit ?? null,
+        closingPinnaclePrice: t.closingPrice ?? null,
+        clv: t.clv ?? null,
+        evAnomalyStatus: t.traits?.quarantineReason ? "quarantined" : "none",
+        importedAsHeritageExecution: t.provenance === "verified",
+      })),
+    },
     integrity,
     authoritativeProspective: semantic.state !== "UNAVAILABLE",
     population: {

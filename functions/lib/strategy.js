@@ -696,6 +696,64 @@ export function strategyReconstruction(seedTickets = []) {
   };
 }
 
+export function summarizeProspectiveConvictionCohort(tickets = [], { targetDateCt, expectedN = 7, reportedRecord = "5-2" } = {}) {
+  const rows = (tickets || []).map((t) => presentStrategyTicket(t));
+  const cohort = rows.filter((t) => {
+    if (String(t.role || "").toLowerCase() !== "prospective") return false;
+    if (String(t.tag || "").toUpperCase() !== "CONVICTION") return false;
+    const when = t.qualifiedAt || t.createdAt || t.date;
+    return dateInChicago(when) === targetDateCt;
+  });
+  const authoritative = cohort.filter((t) => Boolean(t.qualifiedAt && t.modelVersion && t.market && t.side && t.gameId));
+  const stats = strategyStats(authoritative);
+  const settledN = authoritative.filter((t) => ["WON", "LOST"].includes(String(t.result || "").toUpperCase())).length;
+  const openN = authoritative.filter((t) => !t.result || String(t.result).toUpperCase() === "OPEN").length;
+  const pushN = authoritative.filter((t) => String(t.result || "").toUpperCase() === "PUSH").length;
+  const voidN = authoritative.filter((t) => String(t.result || "").toUpperCase() === "VOID").length;
+  const unresolvedN = authoritative.filter((t) => String(t.result || "").toUpperCase() === "FINAL NOT MATCHED").length;
+  const label =
+    authoritative.length === expectedN && stats.wins === 5 && stats.losses === 2
+      ? `Prospective CONVICTION cohort: 5–2, N=${expectedN}`
+      : `Operator reported ${reportedRecord}; recovered N=${authoritative.length}; unreconciled`;
+  return {
+    targetDateCt,
+    reportedRecord,
+    recoveredN: authoritative.length,
+    settledN,
+    openN,
+    wins: stats.wins,
+    losses: stats.losses,
+    pushes: pushN,
+    voids: voidN,
+    unresolved: unresolvedN,
+    units: stats.units,
+    roi: stats.roi,
+    clvN: stats.clvN,
+    averageClv: stats.avgClv,
+    positiveClvN: authoritative.filter((t) => Number(t.clv) > 0).length,
+    positiveClvPct: stats.clvN ? authoritative.filter((t) => Number(t.clv) > 0).length / stats.clvN : null,
+    label,
+    tickets: authoritative,
+  };
+}
+
+function dateInChicago(value) {
+  if (!value) return "";
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) return String(value).slice(0, 10);
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = fmt.formatToParts(at);
+  const y = parts.find((p) => p.type === "year")?.value || "0000";
+  const m = parts.find((p) => p.type === "month")?.value || "00";
+  const d = parts.find((p) => p.type === "day")?.value || "00";
+  return `${y}-${m}-${d}`;
+}
+
 export function snapshotReconciles(ticket, snapshot) {
   if (!ticket || !snapshot) return false;
   if (String(snapshot.gameId || snapshot.id || "") !== String(ticket.gameId || ticket.game_id || "")) return false;

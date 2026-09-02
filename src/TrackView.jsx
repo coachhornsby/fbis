@@ -611,7 +611,49 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
             </p>
           ) : (
             <>
+              <p className="muted">
+                Findings summary: {report?.anomalies?.count || 0} findings across {report?.anomalies?.uniqueAffectedTickets || 0} unique tickets
+                {report?.anomalies?.averageFindingsPerAffectedTicket ? ` · avg ${Number(report.anomalies.averageFindingsPerAffectedTicket).toFixed(2)} findings/affected ticket` : ""}
+                {report?.anomalies?.maxFindingsPerTicket ? ` · max ${report.anomalies.maxFindingsPerTicket} on one ticket` : ""}.
+              </p>
+              <p className="muted">
+                Source rows scanned: {report?.anomalies?.sourceRowsScanned ?? "—"} · unique tickets without anomaly: {report?.anomalies?.uniqueSourceTicketsWithoutAnomaly ?? "—"}.
+              </p>
               <p className="muted">Counts by reason: {fmtMapSummary(report?.anomalies?.byReason)}</p>
+              <p className="muted">By sport: {fmtMapSummary(report?.anomalies?.bySport)}</p>
+              <p className="muted">By market family: {fmtMapSummary(report?.anomalies?.byMarketFamily)} · period: {fmtMapSummary(report?.anomalies?.byPeriodFamily)}</p>
+              <p className="muted">By model: {fmtMapSummary(report?.anomalies?.byModelVersion)} · qual rule: {fmtMapSummary(report?.anomalies?.byQualificationRuleVersion)} · checkpoint: {fmtMapSummary(report?.anomalies?.byCheckpoint)}</p>
+              <p className="muted">By date: {fmtMapSummary(report?.anomalies?.byDate)}</p>
+              <p className="muted">
+                Ticket status impact: qualified {report?.anomalies?.qualifiedCount || 0} · strategy-entered {report?.anomalies?.enteredStrategyCount || 0} · settled {report?.anomalies?.settledAffectedTickets || 0} · open {report?.anomalies?.openAffectedTickets || 0} · won {report?.anomalies?.winningAffectedTickets || 0} · lost {report?.anomalies?.losingAffectedTickets || 0} · unresolved {report?.anomalies?.unresolvedAffectedTickets || 0}
+              </p>
+              {(report?.anomalies?.ruleCatalog && Object.keys(report.anomalies.ruleCatalog).length) ? (
+                <details style={{ marginBottom: 10 }}>
+                  <summary>Anomaly rule classification</summary>
+                  <div className="table-scroll"><table className="fbis-table">
+                    <thead>
+                      <tr>
+                        <th>Rule</th>
+                        <th>Severity</th>
+                        <th>Meaning</th>
+                        <th>Quarantine</th>
+                        <th>Eligible after review</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.values(report.anomalies.ruleCatalog).map((rule) => (
+                        <tr key={rule.id}>
+                          <td>{rule.id}</td>
+                          <td>{rule.severity}</td>
+                          <td>{rule.meaning}</td>
+                          <td>{rule.mustQuarantine ? "yes" : "no"}</td>
+                          <td>{rule.mayRemainEligibleAfterReview ? "yes" : "no"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table></div>
+                </details>
+              ) : null}
               <div className="table-scroll"><table className="fbis-table">
                 <thead>
                   <tr>
@@ -1235,6 +1277,7 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
   const proBySport = pack?.prospectiveBySport || [];
   const rec = pack?.reconstruction || {};
   const integrity = pack?.integrity || {};
+  const cohort = pack?.yesterdayConvictionCohort || null;
   const semanticUnavailable = Boolean(loadError);
   return (
     <section id={sectionId || undefined} className="panel">
@@ -1278,6 +1321,24 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
           {pack?.strategy?.seedObservation ||
             "The 2026-08-26 seed sample was MLB-heavy overs (5/7 totals at 8.5–9.5, 1 ML, 1 +1.5 RL). That is an observation, not a gate."}
         </p>
+        {cohort ? (
+          <>
+            <h3 className="subhead">Yesterday prospective CONVICTION cohort (America/Chicago)</h3>
+            <div className="status-grid" style={{ marginBottom: 10 }}>
+              <Stat label="Date (CT)" value={cohort.targetDateCt || "—"} />
+              <Stat label="Label" value={cohort.label || "—"} />
+              <Stat label="Recovered N" value={cohort.recoveredN ?? 0} />
+              <Stat label="Settled" value={cohort.settledN ?? 0} />
+              <Stat label="Open" value={cohort.openN ?? 0} />
+              <Stat label="W-L" value={`${cohort.wins ?? 0}-${cohort.losses ?? 0}`} />
+              <Stat label="Push/Void" value={`${cohort.pushes ?? 0}/${cohort.voids ?? 0}`} />
+              <Stat label="Unresolved" value={cohort.unresolved ?? 0} />
+              <Stat label="Units" value={fmtSigned(cohort.units)} />
+              <Stat label="ROI" value={fmtSigned(cohort.roi)} />
+              <Stat label="Avg CLV" value={fmtSigned(cohort.averageClv)} />
+            </div>
+          </>
+        ) : null}
         {semanticUnavailable ? <div className="empty">Calculated strategy summary unavailable until canonical strategy query succeeds.</div> : pro.aggregateUnavailable ? (
           <div className="empty">Prospective aggregate unavailable: {pro.aggregateReason || "mixed populations require grouped breakdowns."}</div>
         ) : (

@@ -54,6 +54,8 @@ export async function handleBetsGet(env, url) {
   const writeVerification = writeVerificationState({
     readOk,
     lastWriteSuccessAt: durable.lastD1WriteSuccessAt || null,
+    lastReadbackSuccessAt: durable.lastD1ReadbackSuccessAt || durable.lastD1WriteSuccessAt || null,
+    lastFailureAt: durable.lastD1FailureAt || durable.lastFailedCollectAt || durable.lastFailedHarvestAt || null,
     failedWrites: Number(durable.failedWrites || 0) + Number(durable.failedHarvests || 0),
     reason: q.reason || durable.lastError || "",
   });
@@ -95,6 +97,8 @@ export async function handleBetsGet(env, url) {
       source: readOk ? "d1" : (durable.source || (hasDb(env) ? "d1" : "unbound")),
       lastSuccessfulReadAt: durable.lastCollectSuccessAt || null,
       lastSuccessfulWriteAt: durable.lastD1WriteSuccessAt || null,
+      lastSuccessfulReadbackAt: durable.lastD1ReadbackSuccessAt || null,
+      lastFailureAt: durable.lastD1FailureAt || null,
       failedWrites: Number(durable.failedWrites || 0),
       failedHarvests: Number(durable.failedHarvests || 0),
       schedule,
