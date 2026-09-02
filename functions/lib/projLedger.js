@@ -50,7 +50,7 @@ import { overDiagnostics } from "./overDiagnostics.js";
 import { buildDailyReport } from "./dailyReport.js";
 import { median, rmse, withinBands } from "./metrics.js";
 import { cfbSeasonYear } from "./cfbModel.js";
-import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult, strategyStats } from "./strategy.js";
+import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult, strategyStats, dateCT } from "./strategy.js";
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED, evaluateConvictionGates } from "./convictionGate.js";
 import { reconstructTicketProbability } from "./probabilityReconstruction.js";
 import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
@@ -998,6 +998,11 @@ export async function freezeSlate(slate, env = {}) {
 
 async function persistMatchingRec(env, slate, game, frozen) {
   await persistStrategy(env, STRATEGY_HC_V1);
+  if (slate.date < todayCT()) return { ok: true, skipped: true, reason: "past-slate-not-eligible" };
+  const canonicalGameDate = dateCT(game.start || frozen?.start);
+  if (!canonicalGameDate || canonicalGameDate !== slate.date) {
+    return { ok: true, skipped: true, reason: "canonical-game-date-mismatch" };
+  }
   const bundle = recommendBundle(slate.sport, game, game.model);
   const rec = bundle?.pausedCandidate || bundle?.qualified;
   if (game.cfb && !game.cfb.bettingAllowed) return { ok: true, skipped: true, reason: "cfb-blocked" };

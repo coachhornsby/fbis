@@ -253,7 +253,7 @@ jobs:
           }
 
           if [ "$SPORT" = "cfb" ] || [ "$SPORT" = "nfl" ]; then
-            for off in -1 0 1 2; do
+            for off in 0 1 2; do
               call_api "/api/collect?odds=${odds}&sport=${SPORT}&dayOffset=${off}"
             done
           else

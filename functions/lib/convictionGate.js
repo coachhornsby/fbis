@@ -99,7 +99,8 @@ export function evaluateConvictionGates({
   const freezeAt = Date.parse(String(candidate.qualifiedAt || frozen.frozenAt || ""));
   const startAt = Date.parse(String(game.start || frozen.start || candidate.start || ""));
   if (!Number.isFinite(freezeAt)) return fail("missing-freeze-timestamp");
-  if (Number.isFinite(startAt) && freezeAt >= startAt) return fail("freeze-not-before-start");
+  if (!Number.isFinite(startAt)) return fail("missing-start-timestamp");
+  if (freezeAt >= startAt) return fail("freeze-not-before-start");
 
   if (!candidate.modelVersion && !frozen.modelVersion && !game.modelVersion) {
     return fail("missing-model-version");
