@@ -1524,7 +1524,6 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     // retries overlap the still-running Worker. Only settlement consumers need
     // to be rechecked against the cached finals.
     await gradeStrategyAgainstFinals(env, cached.finals);
-    await reconstructAffectedTickets(env, null);
     await gradeExecutedBets(env, cached.finals);
     return {
       ...cached,
@@ -1602,7 +1601,6 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   const dailyRes = await persistDailyReport(env, daily);
   if (dailyRes && dailyRes.ok === false) tallyPersist(counts, dailyRes);
   await gradeStrategyAgainstFinals(env, finals);
-  await reconstructAffectedTickets(env, null);
   await gradeExecutedBets(env, finals);
   const rows = Object.values(saved.games)
     .filter((r) => r.sport === sport || !r.sport)
