@@ -233,6 +233,23 @@ export function identityFromName(name) {
   return { name, abbr: "—", logo: "", canonicalId: null, sport: null };
 }
 
+/** Resolve an identity inside a known sport so shared abbreviations never cross leagues. */
+export function identityForSport(sport, nameOrAbbr) {
+  if (!nameOrAbbr) return { name: null, abbr: "—", logo: "", canonicalId: null, sport: sport || null };
+  const normalizedSport = String(sport || "").toLowerCase();
+  const hit = resolveTeam(normalizedSport, { abbr: nameOrAbbr, name: nameOrAbbr });
+  if (!hit) return { name: nameOrAbbr, abbr: "—", logo: "", canonicalId: null, sport: normalizedSport || null };
+  return {
+    name: normalizedSport === "cfb" || normalizedSport === "cbb" ? hit.school : hit.displayName,
+    fullName: hit.displayName,
+    school: hit.school,
+    abbr: hit.abbr,
+    logo: hit.logo,
+    canonicalId: hit.id,
+    sport: normalizedSport,
+  };
+}
+
 /** Board/Bets rows store names; hydrate ESPN logos at render time. */
 export function displayTeamIdentity(identity, name) {
   if (identity?.logo) return identity;

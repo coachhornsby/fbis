@@ -8,7 +8,7 @@ import { EXECUTION_BOOK } from "./books.js";
 import { probabilityClv } from "./pricing.js";
 import { selectPinAtOrBefore, selectClose, marketKey, periodOf } from "./closeCapture.js";
 import { expectedProfit, executedBetId, fbisSideOf, HERITAGE_CLV_METHOD, hashText } from "./heritageSlip.js";
-import { identityFromName } from "./teams.js";
+import { identityForSport } from "./teams.js";
 
 export const OPERATOR_ONLY = "OPERATOR BET · NOT ATTRIBUTED TO FBIS";
 
@@ -314,11 +314,26 @@ export function summarizeExecutedBets(rows) {
 }
 
 export async function decoratePreview(ticket, { games = [], existing = [], snapshots = [], oddsSnapshots = [], strategyTickets = [] } = {}) {
-  const match = matchExecutedBet(ticket, games);
+  const sport = String(ticket.sport || "mlb").toLowerCase();
+  const awayIdentity = ticket.awayIdentity?.sport === sport
+    ? ticket.awayIdentity
+    : identityForSport(sport, ticket.awayTeam);
+  const homeIdentity = ticket.homeIdentity?.sport === sport
+    ? ticket.homeIdentity
+    : identityForSport(sport, ticket.homeTeam);
+  const normalizedTicket = {
+    ...ticket,
+    sport,
+    awayTeam: awayIdentity.canonicalId ? awayIdentity.name : ticket.awayTeam,
+    homeTeam: homeIdentity.canonicalId ? homeIdentity.name : ticket.homeTeam,
+    awayIdentity,
+    homeIdentity,
+  };
+  const match = matchExecutedBet(normalizedTicket, games);
   const game = match.game;
   const side = resolveSelectedSide(ticket, game);
   const next = {
-    ...ticket,
+    ...normalizedTicket,
     gameId: game?.id ? String(game.id) : ticket.gameId || null,
     selectedSide: side || ticket.selectedSide,
     matchStatus: match.status,
@@ -377,8 +392,8 @@ export function packExecutedBetRow(ticket) {
     matchupText: ticket.matchupText,
     awayTeam: ticket.awayTeam,
     homeTeam: ticket.homeTeam,
-    awayIdentity: ticket.awayIdentity || identityFromName(ticket.awayTeam),
-    homeIdentity: ticket.homeIdentity || identityFromName(ticket.homeTeam),
+    awayIdentity: ticket.awayIdentity || identityForSport(ticket.sport || "mlb", ticket.awayTeam),
+    homeIdentity: ticket.homeIdentity || identityForSport(ticket.sport || "mlb", ticket.homeTeam),
     market: ticket.market,
     period: ticket.period,
     selectedSide: ticket.selectedSide,

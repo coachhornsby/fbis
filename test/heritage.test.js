@@ -15,6 +15,7 @@ import {
   expectedProfit,
 } from "../functions/lib/heritageSlip.js";
 import { parseNoVigSlip } from "../functions/lib/novigSlip.js";
+import { identityForSport } from "../functions/lib/teams.js";
 import {
   matchExecutedBet,
   attributeRecommendation,
@@ -593,8 +594,10 @@ describe("NoVig screenshot OCR text", () => {
     assert.equal(ticket.toWinAmount, 4.09);
     assert.equal(ticket.potentialPayout, 9.09);
     assert.equal(ticket.executionPrice, -122);
-    assert.equal(ticket.awayTeam, "SF");
-    assert.equal(ticket.homeTeam, "PIT");
+    assert.equal(ticket.awayTeam, "San Francisco Giants");
+    assert.equal(ticket.homeTeam, "Pittsburgh Pirates");
+    assert.equal(ticket.awayIdentity.sport, "mlb");
+    assert.equal(ticket.homeIdentity.sport, "mlb");
     assert.match(ticket.externalTicketId, /^NOVIG-/);
   });
 
@@ -606,9 +609,34 @@ describe("NoVig screenshot OCR text", () => {
     const ticket = parsed.tickets[0];
     assert.equal(ticket.riskAmount, 5);
     assert.equal(ticket.potentialPayout, 9.09);
-    assert.equal(ticket.awayTeam, "SF");
-    assert.equal(ticket.homeTeam, "PIT");
+    assert.equal(ticket.awayTeam, "San Francisco Giants");
+    assert.equal(ticket.homeTeam, "Pittsburgh Pirates");
     assert.ok(ticket.warnings.includes("Confirm placement time"));
+  });
+
+  it("keeps shared abbreviations inside MLB and matches the correct game", async () => {
+    assert.equal(identityForSport("mlb", "SF").name, "San Francisco Giants");
+    assert.equal(identityForSport("mlb", "PIT").name, "Pittsburgh Pirates");
+    const parsed = await parseNoVigSlip(
+      "Blade Tidwell U 4.5 55.0% MATCHED Strikeouts Thrown Amount ToPay $5.00 $9.09 Live a 3rd SF 0-2 PIT",
+      { dateHint: "2026-09-03" }
+    );
+    const preview = await decoratePreview(parsed.tickets[0], {
+      games: [{
+        id: "mlb-sf-pit",
+        sport: "mlb",
+        date: "2026-09-03",
+        start: "2026-09-03T16:35:00.000Z",
+        away: { name: "San Francisco Giants", abbr: "SF" },
+        home: { name: "Pittsburgh Pirates", abbr: "PIT" },
+      }],
+    });
+    assert.equal(preview.matchStatus, "matched");
+    assert.equal(preview.gameId, "mlb-sf-pit");
+    assert.equal(preview.awayIdentity.name, "San Francisco Giants");
+    assert.equal(preview.homeIdentity.name, "Pittsburgh Pirates");
+    assert.notEqual(preview.awayIdentity.canonicalId, null);
+    assert.notEqual(preview.homeIdentity.canonicalId, null);
   });
 });
 

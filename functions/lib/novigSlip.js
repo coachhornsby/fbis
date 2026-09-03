@@ -1,4 +1,5 @@
 import { hashText } from "./heritageSlip.js";
+import { identityForSport } from "./teams.js";
 
 function ctDate(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -44,8 +45,12 @@ export async function parseNoVigSlip(text, { dateHint } = {}) {
     : null;
   const teams = cleaned.match(/\b([A-Z]{2,4})\s+(?:Live\s*)?(?:[▲△]?\s*\d+(?:st|nd|rd|th))?\s*\d+\s*[-–]\s*\d+\s+([A-Z]{2,4})\b/)
     || cleaned.match(/\b([A-Z]{2,4})\s+\d+\s*[-–]\s*\d+\s+([A-Z]{2,4})\b/);
-  const awayTeam = teams?.[1] || null;
-  const homeTeam = teams?.[2] || null;
+  const awayAbbr = teams?.[1] || null;
+  const homeAbbr = teams?.[2] || null;
+  const awayIdentity = identityForSport("mlb", awayAbbr);
+  const homeIdentity = identityForSport("mlb", homeAbbr);
+  const awayTeam = awayIdentity.canonicalId ? awayIdentity.name : awayAbbr;
+  const homeTeam = homeIdentity.canonicalId ? homeIdentity.name : homeAbbr;
   const digest = await hashText(`${date}|${playerName}|${selectedSide}|${executionLine}|${riskAmount}|${potentialPayout}|${placedAt(cleaned, date)}`);
   const warnings = [];
   if (!awayTeam || !homeTeam) warnings.push("Confirm both teams");
@@ -62,6 +67,8 @@ export async function parseNoVigSlip(text, { dateHint } = {}) {
       matchupText: awayTeam && homeTeam ? `${awayTeam} @ ${homeTeam}` : null,
       awayTeam,
       homeTeam,
+      awayIdentity,
+      homeIdentity,
       market: "PLAYER_PROP",
       period: "FG",
       selectedSide,

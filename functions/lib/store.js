@@ -6,7 +6,7 @@
 
 import { identityFieldsConflict, immutableFieldsConflict } from "./strategy.js";
 import { immutableConflict, packExecutedBetRow } from "./executedBets.js";
-import { identityFromName } from "./teams.js";
+import { identityForSport } from "./teams.js";
 import {
   EXPECTED_ROI_FORMULA_VERSION,
   PROBABILITY_SCHEMA_VERSION,
@@ -2550,8 +2550,8 @@ function mapExecutedBet(r) {
     matchupText: r.matchup_text,
     awayTeam: r.away_team,
     homeTeam: r.home_team,
-    awayIdentity: identityFromName(r.away_team),
-    homeIdentity: identityFromName(r.home_team),
+    awayIdentity: identityForSport(r.sport, r.away_team),
+    homeIdentity: identityForSport(r.sport, r.home_team),
     market: r.market,
     period: r.period,
     selectedSide: r.selected_side,
