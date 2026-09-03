@@ -1,45 +1,73 @@
 name: Deploy Pages
 
 # Canonical production is https://fbis-myz.pages.dev/ (Wrangler Pages project `fbis`).
-# Direct-upload deploy: Git is not connected, so main-push must publish the SHA.
+# Production deploys only after CI succeeds on main. Manual dispatch remains available.
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
 
 concurrency:
-  group: deploy-pages
+  group: deploy-pages-production
   cancel-in-progress: false
 
 jobs:
   deploy:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.head_branch == 'main')
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact production SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "npm"
+
       - name: Install dependencies
         run: npm ci
+
       - name: Verify schema/migrations
         run: npm run verify:migrations
+
       - name: Run test suite
         run: npm test
+
       - name: Build app
         run: npm run build
-      - name: Require Cloudflare token
+
+      - name: Require Cloudflare credentials
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "CLOUDFLARE_API_TOKEN is not configured as a GitHub Actions secret."
-            echo "Cannot deploy https://fbis-myz.pages.dev/ from this workflow."
-            exit 1
-          fi
+          test -n "${CLOUDFLARE_API_TOKEN}" || { echo "Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+
+      - name: Apply additive D1 migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations apply fbis --remote
+
       - name: Deploy canonical Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -49,12 +77,31 @@ jobs:
           npx wrangler pages deploy dist \
             --project-name fbis \
             --branch main \
-            --commit-hash "${GITHUB_SHA}" \
-            --commit-message "deploy ${GITHUB_SHA}"
-      - name: Apply additive migration 0013
+            --commit-hash "${DEPLOY_SHA}" \
+            --commit-message "deploy ${DEPLOY_SHA}"
+
+      - name: Verify Cloudflare production SHA
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0013_probability_integrity.sql
+          JSON="$(npx wrangler pages deployment list --project-name fbis --format json)"
+          echo "$JSON"
+          node -e '
+            const fs = require("fs");
+            const rows = JSON.parse(fs.readFileSync(0, "utf8"));
+            const expected = process.env.DEPLOY_SHA;
+            const match = rows.find(r =>
+              (r.environment === "Production" || r.environment === "production") &&
+              (r.source?.config?.commit_hash === expected ||
+               r.source?.config?.commitHash === expected ||
+               r.commit_hash === expected ||
+               r.commitHash === expected)
+            );
+            if (!match) {
+              console.error(`Production deployment for ${expected} was not found.`);
+              process.exit(1);
+            }
+            console.log(`Verified Cloudflare production SHA ${expected}`);
+          ' <<< "$JSON"
