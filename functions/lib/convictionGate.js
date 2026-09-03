@@ -46,6 +46,8 @@ function fail(reason, extra = {}) {
     modelProbability: extra.modelProbability ?? null,
     expectedRoi: extra.expectedRoi ?? null,
     marketNoVigProbability: extra.marketNoVigProbability ?? null,
+    qualificationBook: extra.qualificationBook ?? null,
+    qualificationPrice: extra.qualificationPrice ?? null,
   };
 }
 
@@ -54,6 +56,18 @@ function canonicalMarketProbability(candidate = {}) {
   if (raw == null || raw === "") return null;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 && n < 1 ? n : null;
+}
+
+function qualificationPrice(candidate = {}) {
+  const executionPrice = candidate.executionPrice ?? candidate.execution_price;
+  if (validAmericanOdds(executionPrice)) {
+    return { price: Number(executionPrice), book: candidate.executionBook || candidate.execution_book || "Heritage" };
+  }
+  const benchmarkPrice = candidate.benchmarkPrice ?? candidate.benchmark_price ?? candidate.pinPrice ?? candidate.pin_price;
+  if (validAmericanOdds(benchmarkPrice)) {
+    return { price: Number(benchmarkPrice), book: candidate.benchmarkBook || candidate.benchmark_book || "Pinnacle" };
+  }
+  return { price: null, book: null };
 }
 
 export function evaluateConvictionGates({
@@ -76,15 +90,15 @@ export function evaluateConvictionGates({
   const prob = validateCanonicalProbability(candidate.modelProbability ?? candidate.fair);
   if (!prob.ok) return fail("frozen-probability-invalid", { reasons: [prob.reason || "missing"] });
 
-  // FBIS-HC-v1 is an executable-pick population. Pinnacle remains the
-  // benchmark/fair-market reference and can never substitute for the actual
-  // Heritage price available to the operator.
-  const price = candidate.executionPrice;
-  if (!validAmericanOdds(price)) return fail("missing-executable-price");
+  // Heritage remains the execution ledger when an actual operator price exists.
+  // Otherwise a complete two-way Pinnacle market is allowed to qualify the
+  // opportunity. Pinnacle qualification must never be relabeled as a Heritage fill.
+  const selectedPrice = qualificationPrice(candidate);
+  if (!validAmericanOdds(selectedPrice.price)) return fail("missing-qualification-price");
 
   const marketNoVigProbability = canonicalMarketProbability(candidate);
-  const opposing = candidate.marketComplete === true || marketNoVigProbability != null;
-  if (!opposing) return fail("missing-opposing-price");
+  const marketComplete = candidate.marketComplete === true;
+  if (!marketComplete) return fail("incomplete-two-way-market");
   if (marketNoVigProbability == null) return fail("invalid-market-no-vig-probability");
 
   // Extreme model/market disagreement is a data-integrity condition, not an
@@ -95,6 +109,8 @@ export function evaluateConvictionGates({
     return fail("extreme-model-market-disagreement", {
       modelProbability: prob.modelProbability,
       marketNoVigProbability,
+      qualificationBook: selectedPrice.book,
+      qualificationPrice: selectedPrice.price,
       reasons: [
         `model/market gap ${(modelMarketGap * 100).toFixed(1)}pp exceeds ${(MAX_MODEL_MARKET_GAP * 100).toFixed(0)}pp integrity limit`,
       ],
@@ -136,13 +152,15 @@ export function evaluateConvictionGates({
   if (!ruleVersion) return fail("missing-qualification-rule-version");
   if (ruleVersion !== QUALIFICATION_RULE_VERSION) return fail("qualification-rule-version-mismatch");
 
-  const recomputed = expectedRoi(prob.modelProbability, price);
+  const recomputed = expectedRoi(prob.modelProbability, selectedPrice.price);
   if (recomputed == null || !Number.isFinite(recomputed)) return fail("expected-roi-recompute-failed");
   if (candidate.ev != null && !expectedRoiMatches(candidate.ev, recomputed, EXPECTED_ROI_TOLERANCE)) {
     return fail("expected-roi-mismatch", {
       modelProbability: prob.modelProbability,
       expectedRoi: recomputed,
       marketNoVigProbability,
+      qualificationBook: selectedPrice.book,
+      qualificationPrice: selectedPrice.price,
     });
   }
 
@@ -153,6 +171,8 @@ export function evaluateConvictionGates({
     modelProbability: prob.modelProbability,
     expectedRoi: recomputed,
     marketNoVigProbability,
+    qualificationBook: selectedPrice.book,
+    qualificationPrice: selectedPrice.price,
     probabilitySchemaVersion: PROBABILITY_SCHEMA_VERSION,
     expectedRoiFormulaVersion: EXPECTED_ROI_FORMULA_VERSION,
     qualificationRuleVersion: QUALIFICATION_RULE_VERSION,
