@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { unwrapPalResponse } from "../functions/lib/ballparkpal.js";
-import { classifyCheckpoint, pickCanonical, materiallyChanged } from "../functions/lib/checkpoints.js";
+import { classifyCheckpoint, pickCanonical, materiallyChanged, snapshotKey } from "../functions/lib/checkpoints.js";
 import { accuracyOf, freezeFromGame, collectBoards, harvestAll } from "../functions/lib/projLedger.js";
 import { actionAcceptsJob } from "../functions/lib/jobs.js";
 import { seriesStats, buildAccuracyPack } from "../functions/lib/accuracyReport.js";
@@ -21,6 +21,12 @@ describe("Pal unwrap", () => {
 });
 
 describe("checkpoints", () => {
+  it("keeps model-version snapshots distinct without rewriting history", () => {
+    assert.notEqual(
+      snapshotKey("2026-09-03", "game-1", "MORNING", "FBIS-v1.3"),
+      snapshotKey("2026-09-03", "game-1", "MORNING", "FBIS-v1.4")
+    );
+  });
   it("classifies close inside 45 minutes", () => {
     const start = new Date(Date.now() + 20 * 60000).toISOString();
     assert.equal(classifyCheckpoint({ start }, Date.now()), "CLOSE");

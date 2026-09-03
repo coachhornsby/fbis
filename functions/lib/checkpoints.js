@@ -42,8 +42,9 @@ export function classifyCheckpoint(game, now = Date.now()) {
   return "EARLY";
 }
 
-export function snapshotKey(date, gameId, checkpoint) {
-  return `${date}:${gameId}:${checkpoint}`;
+export function snapshotKey(date, gameId, checkpoint, modelVersion = null) {
+  const base = `${date}:${gameId}:${checkpoint}`;
+  return modelVersion ? `${base}:${modelVersion}` : base;
 }
 
 export function materiallyChanged(prev, next) {

@@ -973,19 +973,25 @@ export async function freezeSlate(slate, env = {}) {
           writes.push(persistMlbMarketProjections(env, palMarketRowsFromGame(slate.date, game, packed)));
         }
         const cps = { ...(next.checkpoints || {}) };
-        if (!cps.FIRST_AVAILABLE) {
-          cps.FIRST_AVAILABLE = { ...packed, checkpoint: "FIRST_AVAILABLE" };
-          writes.push(persistCheckpoint(env, cps.FIRST_AVAILABLE, game, slate.date));
+        const version = packed.modelVersion || "unknown";
+        const firstKey = `FIRST_AVAILABLE@${version}`;
+        const checkpointKey = `${packed.checkpoint}@${version}`;
+        const hasVersionedFirst = Object.values(cps).some(
+          (cp) => cp?.checkpoint === "FIRST_AVAILABLE" && (cp.modelVersion || "unknown") === version
+        );
+        const hasVersionedCheckpoint = Object.values(cps).some(
+          (cp) => cp?.checkpoint === packed.checkpoint && (cp.modelVersion || "unknown") === version
+        );
+        if (!hasVersionedFirst) {
+          cps[firstKey] = { ...packed, checkpoint: "FIRST_AVAILABLE" };
+          writes.push(persistCheckpoint(env, cps[firstKey], game, slate.date));
           changed = true;
         }
-        if (!cps[packed.checkpoint]) {
-          cps[packed.checkpoint] = { ...packed };
+        if (!hasVersionedCheckpoint) {
+          cps[checkpointKey] = { ...packed };
           next = { ...next, checkpoints: cps, checkpoint: packed.checkpoint };
           writes.push((async () => {
-            if (!cps.FIRST_AVAILABLE) {
-              /* FIRST_AVAILABLE already queued above when missing */
-            }
-            await persistCheckpoint(env, cps[packed.checkpoint], game, slate.date);
+            await persistCheckpoint(env, cps[checkpointKey], game, slate.date);
             return persistMatchingRec(env, slate, game, packed);
           })());
           writes.push(persistGameChallengers(env, game, slate.sport));
@@ -1428,7 +1434,7 @@ async function persistCheckpoint(env, row, game, date) {
   if (!row?.checkpoint) return { ok: false, reason: "no-checkpoint", kind: "snapshot", inserted: 0, already: 0, failed: 1 };
   await persistGame(env, game || stubGame(row), date || row.date);
   const res = await persistSnapshot(env, {
-    id: snapshotKey(row.date || date, row.id, row.checkpoint),
+    id: snapshotKey(row.date || date, row.id, row.checkpoint, row.modelVersion),
     gameId: row.id,
     sport: row.sport,
     date: row.date || date,

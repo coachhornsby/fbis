@@ -9,6 +9,7 @@ function baseCandidate(overrides = {}) {
     lean: false,
     modelProbability: 0.61,
     pinPrice: -110,
+    executionPrice: -110,
     marketComplete: true,
     implied: 0.52,
     market: "ML",
@@ -48,6 +49,13 @@ describe("CONVICTION pricing integrity regressions", () => {
     assert.equal(out.ok, false);
     assert.equal(out.reason, "expected-roi-mismatch");
     assert.ok(Math.abs(out.expectedRoi - expectedRoi(0.61, -125)) < 1e-12);
+  });
+
+  it("rejects a Pinnacle-only candidate when Heritage is unpriced", () => {
+    const candidate = baseCandidate({ executionPrice: null });
+    const out = gate(candidate);
+    assert.equal(out.ok, false);
+    assert.equal(out.reason, "missing-executable-price");
   });
 
   it("quarantines extreme model/market disagreement instead of calling it edge", () => {

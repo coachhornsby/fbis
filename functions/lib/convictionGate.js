@@ -76,11 +76,11 @@ export function evaluateConvictionGates({
   const prob = validateCanonicalProbability(candidate.modelProbability ?? candidate.fair);
   if (!prob.ok) return fail("frozen-probability-invalid", { reasons: [prob.reason || "missing"] });
 
-  // Qualification must be priced from the executable ticket when one exists.
-  // Pinnacle remains the benchmark/fair-market reference, not a substitute for
-  // the price the operator can actually bet.
-  const price = candidate.executionPrice ?? candidate.pinPrice ?? candidate.benchmarkPrice;
-  if (!validAmericanOdds(price)) return fail("invalid-american-odds");
+  // FBIS-HC-v1 is an executable-pick population. Pinnacle remains the
+  // benchmark/fair-market reference and can never substitute for the actual
+  // Heritage price available to the operator.
+  const price = candidate.executionPrice;
+  if (!validAmericanOdds(price)) return fail("missing-executable-price");
 
   const marketNoVigProbability = canonicalMarketProbability(candidate);
   const opposing = candidate.marketComplete === true || marketNoVigProbability != null;
