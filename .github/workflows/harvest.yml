@@ -186,6 +186,7 @@ jobs:
     if: contains(fromJSON('["collect-full","collect-cache","all"]'), needs.determine-mode.outputs.mode)
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         sport: [mlb, nba, nfl, cfb, cbb]
     steps:
@@ -209,7 +210,7 @@ jobs:
             local path="$1"
             local tmp http curl_ec st ok retryable body_err
             tmp="$(mktemp)"
-            for attempt in 1 2 3 4; do
+            for attempt in 1 2; do
               set +e
               curl -sS --max-time 120 --retry 0 \
                 -H "x-harvest-secret: ${HARVEST_SECRET}" \
@@ -220,13 +221,13 @@ jobs:
               set -e
               http="$(tr -d '\r\n' < "${tmp}.code")"
               if [ "$curl_ec" -ne 0 ]; then
-                echo "transport error attempt ${attempt}/4"
+                echo "transport error attempt ${attempt}/2"
                 sleep $((attempt * 5))
                 continue
               fi
               if ! jq -e . "$tmp" >/dev/null 2>&1; then
                 if [ "$http" = "429" ] || [ "$http" = "500" ] || [ "$http" = "502" ] || [ "$http" = "503" ] || [ "$http" = "504" ]; then
-                  echo "non-json retryable http=${http} attempt ${attempt}/4"
+                  echo "non-json retryable http=${http} attempt ${attempt}/2"
                   sleep $((attempt * 5))
                   continue
                 fi
@@ -240,8 +241,8 @@ jobs:
               retryable="false"
               if [ "$http" = "429" ] || [ "$http" = "500" ] || [ "$http" = "502" ] || [ "$http" = "503" ] || [ "$http" = "504" ]; then retryable="true"; fi
               if [ "$st" = "failed" ] && echo "$body_err" | grep -qiE "429|503|502|504|timeout|temporar|rate|overloaded"; then retryable="true"; fi
-              if [ "$retryable" = "true" ] && [ "$attempt" -lt 4 ]; then
-                echo "retryable application/http failure http=${http} status=${st} attempt ${attempt}/4"
+              if [ "$retryable" = "true" ] && [ "$attempt" -lt 2 ]; then
+                echo "retryable application/http failure http=${http} status=${st} attempt ${attempt}/2"
                 sleep $((attempt * 5))
                 continue
               fi
@@ -264,8 +265,8 @@ jobs:
 
   harvest:
     runs-on: ubuntu-latest
-    needs: [determine-mode, verify-deployment]
-    if: contains(fromJSON('["harvest","all"]'), needs.determine-mode.outputs.mode)
+    needs: [determine-mode, verify-deployment, collect]
+    if: always() && needs.verify-deployment.result == 'success' && contains(fromJSON('["harvest","all"]'), needs.determine-mode.outputs.mode) && (needs.determine-mode.outputs.mode != 'all' || needs.collect.result == 'success')
     strategy:
       fail-fast: false
       max-parallel: 2
