@@ -1,12 +1,12 @@
 name: Deploy Pages
 
 # Canonical production is https://fbis-myz.pages.dev/ (Wrangler Pages project `fbis`).
-# Production deploys only after CI succeeds on main. Manual dispatch remains available.
+# Every main commit must test, build, deploy the exact SHA, then verify Cloudflare parity.
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -15,19 +15,12 @@ concurrency:
 
 jobs:
   deploy:
-    if: >-
-      ${{
-        github.event_name == 'workflow_dispatch' ||
-        (github.event_name == 'workflow_run' &&
-         github.event.workflow_run.conclusion == 'success' &&
-         github.event.workflow_run.head_branch == 'main')
-      }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
       contents: read
     env:
-      DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      DEPLOY_SHA: ${{ github.sha }}
     steps:
       - name: Checkout exact production SHA
         uses: actions/checkout@v4
