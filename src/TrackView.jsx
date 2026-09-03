@@ -55,9 +55,6 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
   const tab = filters?.tab || "overall";
   const perGame = filters?.type !== "totals";
   const gamesBySport = splitRowsBySport(games);
-  const [manualFinalByRow, setManualFinalByRow] = useState({});
-  const [manualSavingKey, setManualSavingKey] = useState("");
-  const [manualMsg, setManualMsg] = useState("");
   const [teamInput, setTeamInput] = useState(filters?.team || "");
   const compact = useIsCompact(760);
   const [openPanels, setOpenPanels] = useState({
@@ -76,54 +73,6 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
 
   const rowKey = (g) => `${g.date}:${g.id}:${g.checkpoint || ""}`;
   const togglePanel = (key) => setOpenPanels((prev) => ({ ...prev, [key]: !prev[key] }));
-  const setManualField = (key, field, value) =>
-    setManualFinalByRow((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [field]: value } }));
-
-  async function saveManualFinal(g) {
-    const key = rowKey(g);
-    const row = manualFinalByRow[key] || {};
-    const awayScore = Number(row.away);
-    const homeScore = Number(row.home);
-    if (!Number.isFinite(awayScore) || !Number.isFinite(homeScore) || awayScore < 0 || homeScore < 0) {
-      setManualMsg("Enter valid non-negative home and away final scores.");
-      return;
-    }
-    setManualSavingKey(key);
-    setManualMsg("");
-    try {
-      const res = await fetch("/api/track", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          action: "manual-final",
-          sport: g.sport,
-          date: g.date,
-          gameId: g.id,
-          start: g.start,
-          homeName: g.homeName || g.homeDisplayName || "",
-          awayName: g.awayName || g.awayDisplayName || "",
-          homeAbbr: g.homeAbbr || "",
-          awayAbbr: g.awayAbbr || "",
-          homeScore,
-          awayScore,
-        }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || body.error) throw new Error(body.error || `HTTP ${res.status}`);
-      setManualMsg(`Saved final ${awayScore}-${homeScore}. SYS refreshed.`);
-      setManualFinalByRow((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
-      await onRefresh?.();
-    } catch (err) {
-      setManualMsg(String(err?.message || err));
-    } finally {
-      setManualSavingKey("");
-    }
-  }
-
   useEffect(() => {
     setTeamInput(filters?.team || "");
   }, [filters?.team]);
@@ -519,7 +468,6 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
             <button className="header-btn header-btn-refresh" onClick={onRefresh} disabled={loading}>
               {loading ? "Loading…" : "Reload SYS"}
             </button>
-            {manualMsg ? <span className="muted" style={{ marginLeft: 10 }}>{manualMsg}</span> : null}
           </div>
         </div>
       </section>
@@ -854,32 +802,6 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
                           <div><small>Δ total</small><b className={errClass(g.errTotal)}>{fmtSigned(g.errTotal)}</b></div>
                           <div><small>Δ margin</small><b className={errClass(g.errMargin)}>{fmtSigned(g.errMargin)}</b></div>
                         </div>
-                        {g.actualHome == null ? (
-                          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 10 }}>
-                            <input
-                              value={(manualFinalByRow[rowKey(g)] || {}).away || ""}
-                              onChange={(e) => setManualField(rowKey(g), "away", e.target.value)}
-                              placeholder="Away"
-                              inputMode="numeric"
-                              style={{ width: 72, background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 8px", fontSize: 12 }}
-                            />
-                            <input
-                              value={(manualFinalByRow[rowKey(g)] || {}).home || ""}
-                              onChange={(e) => setManualField(rowKey(g), "home", e.target.value)}
-                              placeholder="Home"
-                              inputMode="numeric"
-                              style={{ width: 72, background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 8px", fontSize: 12 }}
-                            />
-                            <button
-                              className="header-btn header-btn-refresh"
-                              onClick={() => saveManualFinal(g)}
-                              disabled={manualSavingKey === rowKey(g)}
-                              style={{ padding: "8px 10px", fontSize: 12 }}
-                            >
-                              {manualSavingKey === rowKey(g) ? "Saving…" : "Save"}
-                            </button>
-                          </div>
-                        ) : null}
                       </article>
                     ))}
                   </div>
@@ -894,7 +816,6 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
                       <th>Actual</th>
                       <th>Δ tot</th>
                       <th>Δ mgn</th>
-                      <th>Manual final</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -909,36 +830,6 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
                         <td>{g.actualHome == null ? "—" : `${fmtNum(g.actualAway, 0)} – ${fmtNum(g.actualHome, 0)}`}</td>
                         <td className={errClass(g.errTotal)}>{fmtSigned(g.errTotal)}</td>
                         <td className={errClass(g.errMargin)}>{fmtSigned(g.errMargin)}</td>
-                        <td>
-                          {g.actualHome == null ? (
-                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                              <input
-                                value={(manualFinalByRow[rowKey(g)] || {}).away || ""}
-                                onChange={(e) => setManualField(rowKey(g), "away", e.target.value)}
-                                placeholder="Away"
-                                inputMode="numeric"
-                                style={{ width: 62, background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "4px 6px", fontSize: 12 }}
-                              />
-                              <input
-                                value={(manualFinalByRow[rowKey(g)] || {}).home || ""}
-                                onChange={(e) => setManualField(rowKey(g), "home", e.target.value)}
-                                placeholder="Home"
-                                inputMode="numeric"
-                                style={{ width: 62, background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "4px 6px", fontSize: 12 }}
-                              />
-                              <button
-                                className="header-btn header-btn-refresh"
-                                onClick={() => saveManualFinal(g)}
-                                disabled={manualSavingKey === rowKey(g)}
-                                style={{ padding: "5px 8px", fontSize: 11 }}
-                              >
-                                {manualSavingKey === rowKey(g) ? "Saving…" : "Save"}
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
-                        </td>
                         <td className="muted">{g.status}</td>
                       </tr>
                     ))}

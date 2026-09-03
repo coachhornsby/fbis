@@ -413,6 +413,13 @@ async function applyManualFinal(env, payload) {
     return { ok: false, status: 409, error: "manual final blocked before kickoff" };
   }
   const gradedAt = new Date().toISOString();
+  const hasF5Home = payload.f5HomeScore !== undefined && payload.f5HomeScore !== null && String(payload.f5HomeScore).trim() !== "";
+  const hasF5Away = payload.f5AwayScore !== undefined && payload.f5AwayScore !== null && String(payload.f5AwayScore).trim() !== "";
+  const f5HomeScore = hasF5Home ? Number(payload.f5HomeScore) : null;
+  const f5AwayScore = hasF5Away ? Number(payload.f5AwayScore) : null;
+  if (hasF5Home !== hasF5Away || (hasF5Home && (!Number.isFinite(f5HomeScore) || !Number.isFinite(f5AwayScore) || f5HomeScore < 0 || f5AwayScore < 0))) {
+    return { ok: false, status: 400, error: "enter both valid non-negative F5 scores" };
+  }
   let snapshotsUpdated = 0;
   for (const gameId of eligibleIds) {
     const res = await gradeSnapshotsForGame(env, { gameId, actualHome: homeScore, actualAway: awayScore, gradedAt });
@@ -427,6 +434,7 @@ async function applyManualFinal(env, payload) {
     home: { name: payload.homeName || payload.homeAbbr || "Home", abbr: payload.homeAbbr || null, score: homeScore },
     away: { name: payload.awayName || payload.awayAbbr || "Away", abbr: payload.awayAbbr || null, score: awayScore },
     status: { completed: true, detail: "Manual Final" },
+    f5Score: hasF5Home ? { home: f5HomeScore, away: f5AwayScore, complete: true } : null,
   };
 
   const strategy = await queryStrategyTickets(env, {});
@@ -474,7 +482,7 @@ async function applyManualFinal(env, payload) {
       snapshotsUpdated,
       strategyGraded,
       betsGraded,
-      manualFinal: { homeScore, awayScore, gradedAt },
+      manualFinal: { homeScore, awayScore, f5HomeScore, f5AwayScore, gradedAt },
     },
   };
 }

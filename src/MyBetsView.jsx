@@ -42,6 +42,9 @@ export default function MyBetsView({
   const [result, setResult] = useState("all");
   const [attr, setAttr] = useState("all");
   const [sport, setSport] = useState("all");
+  const [manualScores, setManualScores] = useState({});
+  const [manualSaving, setManualSaving] = useState("");
+  const [manualMessage, setManualMessage] = useState("");
   const compact = useIsCompact(760);
 
   useEffect(() => {
@@ -69,6 +72,64 @@ export default function MyBetsView({
   const summary = pack.summary || emptySummary();
   const unavailable = Boolean(state === "UNAVAILABLE" || error || sourceOk === false || String(sourceD1 || "").toLowerCase() === "error");
   const stat = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
+
+  const setScore = (id, field, value) => setManualScores((prev) => ({
+    ...prev,
+    [id]: { ...(prev[id] || {}), [field]: value },
+  }));
+
+  async function saveFinal(b) {
+    const scores = manualScores[b.id] || {};
+    const required = [scores.away, scores.home];
+    const isF5 = String(b.period || b.market || "").toUpperCase().includes("F5");
+    if (required.some((v) => String(v ?? "").trim() === "" || !Number.isFinite(Number(v)) || Number(v) < 0)) {
+      setManualMessage("Enter both non-negative final scores.");
+      return;
+    }
+    if (isF5 && [scores.f5Away, scores.f5Home].some((v) => String(v ?? "").trim() === "" || !Number.isFinite(Number(v)) || Number(v) < 0)) {
+      setManualMessage("F5 bets also require both first-five-inning scores.");
+      return;
+    }
+    setManualSaving(b.id);
+    setManualMessage("");
+    try {
+      const res = await fetch("/api/track", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "manual-final",
+          sport: b.sport,
+          date: b.date,
+          gameId: b.gameId,
+          start: b.start,
+          homeName: b.homeTeam || b.homeIdentity?.name || "",
+          awayName: b.awayTeam || b.awayIdentity?.name || "",
+          homeAbbr: b.homeIdentity?.abbr || "",
+          awayAbbr: b.awayIdentity?.abbr || "",
+          homeScore: Number(scores.home),
+          awayScore: Number(scores.away),
+          ...(isF5 ? { f5HomeScore: Number(scores.f5Home), f5AwayScore: Number(scores.f5Away) } : {}),
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.error) throw new Error(body.error || `HTTP ${res.status}`);
+      setManualMessage(`Final saved. ${body.betsGraded || 0} open bet${body.betsGraded === 1 ? "" : "s"} settled.`);
+      setManualScores((prev) => {
+        const next = { ...prev };
+        delete next[b.id];
+        return next;
+      });
+      if (onRefresh) await onRefresh();
+      else {
+        const fresh = await fetch(`/api/bets?_t=${Date.now()}`).then((r) => r.json());
+        setPack({ bets: fresh.bets || [], summary: fresh.summary, population: fresh.population || null });
+      }
+    } catch (err) {
+      setManualMessage(`Could not save final: ${String(err?.message || err)}`);
+    } finally {
+      setManualSaving("");
+    }
+  }
 
   return (
     <div className="main-content">
@@ -118,6 +179,7 @@ export default function MyBetsView({
               <button key={id} className={result === id ? "chip active" : "chip"} onClick={() => setResult(id)}>{label}</button>
             ))}
           </div>
+          {manualMessage ? <p className={manualMessage.startsWith("Could not") ? "error" : "muted"} style={{ marginTop: 10 }}>{manualMessage}</p> : null}
           <div className="filter-row">
             {ATTR_FILTERS.map(([id, label]) => (
               <button key={id} className={attr === id ? "chip active" : "chip"} onClick={() => setAttr(id)}>{label}</button>
@@ -158,6 +220,9 @@ export default function MyBetsView({
                   <div className="muted" style={{ marginTop: 8 }}>
                     {b.attributionLabel || "OPERATOR BET · NOT ATTRIBUTED TO FBIS"} · {b.matchStatus}
                   </div>
+                  {(b.result || "OPEN") === "OPEN" ? (
+                    <ManualScoreEditor bet={b} scores={manualScores[b.id] || {}} setScore={setScore} saveFinal={saveFinal} saving={manualSaving === b.id} />
+                  ) : null}
                 </article>
               ))}
             </div>
@@ -176,6 +241,7 @@ export default function MyBetsView({
                   <th>P/L</th>
                   <th>Attribution</th>
                   <th>CLV</th>
+                  <th>Enter final score</th>
                 </tr>
               </thead>
               <tbody>
@@ -208,6 +274,11 @@ export default function MyBetsView({
                       {formatClv(b.clv, b.clvStatus)}
                       {b.clvStatus && b.clvStatus !== "unavailable" ? <div className="muted">{b.clvStatus}</div> : null}
                     </td>
+                    <td>
+                      {(b.result || "OPEN") === "OPEN" ? (
+                        <ManualScoreEditor bet={b} scores={manualScores[b.id] || {}} setScore={setScore} saveFinal={saveFinal} saving={manualSaving === b.id} />
+                      ) : <span className="muted">—</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -216,6 +287,37 @@ export default function MyBetsView({
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function ManualScoreEditor({ bet, scores, setScore, saveFinal, saving }) {
+  const away = bet.awayIdentity?.abbr || bet.awayTeam || "Away";
+  const home = bet.homeIdentity?.abbr || bet.homeTeam || "Home";
+  const isF5 = String(bet.period || bet.market || "").toUpperCase().includes("F5");
+  const input = (field, label) => (
+    <label style={{ display: "grid", gap: 3, fontSize: 10 }}>
+      <span className="muted">{label}</span>
+      <input
+        aria-label={label}
+        value={scores[field] || ""}
+        onChange={(e) => setScore(bet.id, field, e.target.value)}
+        inputMode="numeric"
+        min="0"
+        type="number"
+        style={{ width: 72, background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 7px", fontSize: 12 }}
+      />
+    </label>
+  );
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "end", flexWrap: "wrap", marginTop: 8 }}>
+      {input("away", `${away} final`)}
+      {input("home", `${home} final`)}
+      {isF5 ? input("f5Away", `${away} F5`) : null}
+      {isF5 ? input("f5Home", `${home} F5`) : null}
+      <button className="header-btn header-btn-refresh" onClick={() => saveFinal(bet)} disabled={saving} style={{ padding: "7px 9px", fontSize: 11 }}>
+        {saving ? "Saving…" : "Save final"}
+      </button>
     </div>
   );
 }

@@ -385,6 +385,18 @@ describe("Heritage confirm write auth and feedback", () => {
     assert.ok(src.includes("2 · Confirm D1 write"));
   });
 
+  it("puts manual score entry on BETS only and supports F5 evidence", () => {
+    const bets = readFileSync(new URL("../src/MyBetsView.jsx", import.meta.url), "utf8");
+    const track = readFileSync(new URL("../src/TrackView.jsx", import.meta.url), "utf8");
+    const endpoint = readFileSync(new URL("../functions/api/track.js", import.meta.url), "utf8");
+    assert.match(bets, /Enter final score/);
+    assert.match(bets, /F5 bets also require both first-five-inning scores/);
+    assert.match(bets, /action: "manual-final"/);
+    assert.ok(!track.includes("Manual final"));
+    assert.ok(!track.includes("manualFinalByRow"));
+    assert.match(endpoint, /f5Score: hasF5Home/);
+  });
+
   it("SYS notes board confirm does not paste HARVEST_SECRET", () => {
     const sys = readFileSync(new URL("../src/TrackView.jsx", import.meta.url), "utf8");
     const modal = readFileSync(new URL("../src/HeritageImport.jsx", import.meta.url), "utf8");
