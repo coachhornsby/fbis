@@ -71,8 +71,8 @@ export function cfbRatingsV1(game, { homeOff, homeDef, awayOff, awayDef, hfa = C
     return { modelId: "CFB-CFBD-RATINGS-v1", ok: false, reason: "missing-ratings", home: null, away: null, featuresOk: false };
   }
   const h = venueHfa(game, hfa);
-  const home = round1((Number(homeOff) + Number(awayDef)) / 2 + h / 2);
-  const away = round1((Number(awayOff) + Number(homeDef)) / 2 - h / 2);
+  const home = round1(Number(homeOff) + (Number(awayDef) - Number(national)) + h / 2);
+  const away = round1(Number(awayOff) + (Number(homeDef) - Number(national)) - h / 2);
   return {
     modelId: "CFB-CFBD-RATINGS-v1",
     ...COLLEGE_MODELS["CFB-CFBD-RATINGS-v1"],
@@ -80,7 +80,7 @@ export function cfbRatingsV1(game, { homeOff, homeDef, awayOff, awayDef, hfa = C
     ...identity(home, away),
     hfa: h,
     national,
-    formula: "home=(homeOff+awayDef)/2+HFA/2; away=(awayOff+homeDef)/2-HFA/2; national environment frozen",
+    formula: "home=homeOff+(awayDef-national)+HFA/2; away=awayOff+(homeDef-national)-HFA/2; national environment frozen",
     featuresOk: true,
   };
 }

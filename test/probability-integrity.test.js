@@ -156,7 +156,7 @@ describe("strategy insertion fail closed", () => {
       {
         home: { name: "A" },
         away: { name: "B" },
-        odds: { pinHomeMl: -110, pinAwayMl: -110 },
+        odds: { pinHomeMl: -110, pinAwayMl: -110, heritageListed: true, heritageHomeMl: -110, heritageAwayMl: -110 },
         pin: { ml: { complete: true, noVigA: 0.5, noVigB: 0.5, priceA: -110, priceB: -110, vig: 0.048 } },
       },
       { layers: { score: 0.62 } }

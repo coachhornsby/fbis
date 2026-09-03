@@ -8,6 +8,7 @@ import { CONTRACTS, contractFor } from "../data/contracts/college-endpoints.js";
 import { identityFailClosed, miamiDisambiguation, mapSourceTeam, cutoffViolated, featureCutoffIso, AMBIGUOUS_ALONE } from "../functions/lib/collegeIdentity.js";
 import { COLLEGE_MODELS, failClosedShadow, evaluatePromotion, shadowCannotQualify, PROMOTION_CRITERIA, CHAMPION_HFA, unavailableMetric } from "../functions/lib/collegeModels.js";
 import { cfbLeagueBaseline, cfbRatingsV1, cfbRegV1, independentEnsemble, pinnacleImplied, projectCfbChallengers, attachMc } from "../functions/lib/cfbRatings.js";
+import { projectCfbMatchup } from "../functions/lib/cfbModel.js";
 import { cbbRatingsV1, cbbLeagueBaseline, rejectedOldCbbTotal, expectedPossessions, expectedEfficiency, projectCbbChallengers, torvikUnavailable, kenpomAbsent, cbbMarketShrunk, CBB_NATIONAL_EFF } from "../functions/lib/cbbRatings.js";
 import { r2Bound, r2Key, R2_SETUP } from "../functions/lib/r2Archive.js";
 import { warnLevel, metricUnavailable } from "../functions/lib/storageBudget.js";
@@ -17,7 +18,7 @@ import { recommendBundle } from "../functions/lib/slateEngine.js";
 import { DEFAULT_WEIGHTS } from "../functions/lib/weights.js";
 import { CHAMPION_HFA as HFA_CONST } from "../functions/lib/hfa.js";
 import { STRATEGY_HC_V1 } from "../functions/lib/strategy.js";
-import { resolveTeamExact } from "../functions/lib/teams.js";
+import { resolveTeam, resolveTeamExact } from "../functions/lib/teams.js";
 import { resetCacheMem } from "../functions/lib/cache.js";
 
 const FAKE = "test-college-key-not-real";
@@ -145,6 +146,21 @@ describe("CFB formulas", () => {
     }
     const rec = recommendBundle("cfb", { ...game, cfb: { bettingAllowed: false, blockReason: "shadow" }, marketUnresolved: false, model: { layers: { market: 0.5 }, projMargin: 7, projTotal: 50 }, odds: { spread: -3, total: 50 }, pin: {} }, { layers: { market: 0.5 } }, DEFAULT_WEIGHTS);
     assert.equal(rec.qualified, null);
+  });
+});
+
+describe("CFB mismatch integrity", () => {
+  it("does not halve opponent-adjusted power gaps", () => {
+    const p = projectCfbMatchup({ homeOff: 32, homeDef: 23, awayOff: 17, awayDef: 36, hfa: 2.5, national: 26.5 });
+    assert.equal(p.home, 42.8);
+    assert.equal(p.away, 12.3);
+    assert.equal(p.margin, 30.5);
+  });
+
+  it("resolves Idaho as a canonical FCS program", () => {
+    const idaho = resolveTeam("cfb", { name: "Idaho Vandals", espnId: "70" });
+    assert.equal(idaho?.school, "Idaho");
+    assert.equal(idaho?.classification, "FCS");
   });
 });
 

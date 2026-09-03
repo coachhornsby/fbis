@@ -7272,4 +7272,29 @@ export default [
     "fpi": -13.069,
     "fpiRank": 121
   }
+  ,{
+    "id": "cfb-70",
+    "sport": "cfb",
+    "league": "NCAAF",
+    "espnId": "70",
+    "displayName": "Idaho Vandals",
+    "school": "Idaho",
+    "nickname": "Vandals",
+    "city": "Idaho",
+    "abbr": "IDHO",
+    "conference": "Big Sky",
+    "division": null,
+    "classification": "FCS",
+    "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/70.png",
+    "color": "000000",
+    "altColor": "8c6e4a",
+    "sources": {
+      "espn": { "id": "70", "abbr": "IDHO", "name": "Idaho Vandals" },
+      "parlay": { "names": ["Idaho Vandals", "Idaho"] },
+      "heritage": { "names": ["Idaho Vandals", "Idaho"] },
+      "kalshi": { "names": ["Idaho Vandals", "Idaho"] },
+      "pal": null,
+      "savant": null
+    }
+  }
 ];

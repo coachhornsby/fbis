@@ -290,7 +290,7 @@ describe("HFA shadow snapshots and promotion", () => {
   it("does not let 7-0 change HFA or champion weights", () => {
     assert.equal(STRATEGY_HC_V1.reportedRecord, "7-0");
     assert.equal(CHAMPION_HFA, 2.5);
-    assert.equal(MODEL_VERSION, "FBIS-v1.3");
+    assert.equal(MODEL_VERSION, "FBIS-v1.4");
     assert.deepEqual(DEFAULT_WEIGHTS, { market: 0.22, espn: 0.08, score: 0.32, pal: 0.3, form: 0.08 });
     assert.equal(SCORE_HFA_VERSION, "score-oppadj-v1");
   });

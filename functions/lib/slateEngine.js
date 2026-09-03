@@ -4,7 +4,7 @@ import { BASEBALL, EXECUTION_BOOK, runLine } from "./books.js";
 import { fetchBallparkPal, mergeBallparkPal, palSlateView } from "./ballparkpal.js";
 import { fetchParlayOdds, mergeParlay } from "./parlay.js";
 import { fetchSavantSlate } from "./savant.js";
-import { MODEL_VERSION, pinMarkets, priceSelection, tagFromEv } from "./pricing.js";
+import { MODEL_VERSION, expectedRoi, pinMarkets, priceSelection, tagFromEv, validAmericanOdds } from "./pricing.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { applyCfbModel, cfbSpreadProb, cfbTotalProb, cfbWinProb, CFB_BLOCKED_MESSAGE } from "./cfbModel.js";
 import { loadCbbdRatings } from "./cfbd.js";
@@ -428,11 +428,11 @@ function stampTicket(game, rec, priced, { qualified, lean }) {
     qualified,
     lean,
     tag: qualified ? tagFromEv(priced.ev, priced.probEdge) : "LEAN",
-    book: EXECUTION_BOOK,
-    executionBook: EXECUTION_BOOK,
+    book: rec.executionPrice != null ? EXECUTION_BOOK : null,
+    executionBook: rec.executionPrice != null ? EXECUTION_BOOK : null,
     executionPrice: rec.executionPrice ?? null,
     benchmarkBook: "Pinnacle",
-    priceSource: heritageListed && rec.executionPrice != null ? "Heritage" : "Pinnacle (shop Heritage)",
+    priceSource: heritageListed && rec.executionPrice != null ? "Heritage" : "Pinnacle benchmark — verify Heritage price",
     modelVersion: MODEL_VERSION,
     modelProbability: canonical.modelProbability,
     expectedRoi: priced.ev ?? null,
@@ -594,13 +594,22 @@ export function recommend(sport, game, model, weights) {
 function pushPriced(recs, cfg, game, base, priced, extraOk) {
   if (!extraOk || !withinProbCap(cfg, priced)) return;
   if (priced?.quarantined) return;
-  const qualified = isQualifiedTicket(cfg, priced);
+  const executable = validAmericanOdds(base.executionPrice);
+  const executionEv = executable ? expectedRoi(priced.fair, base.executionPrice) : null;
+  const pricedForTicket = {
+    ...priced,
+    benchmarkPrice: priced.pinPrice ?? null,
+    ev: executionEv,
+    evPct: executionEv == null ? null : executionEv * 100,
+    expectedRoiLabel: executionEv == null ? null : `Expected ROI ${executionEv >= 0 ? "+" : ""}${(executionEv * 100).toFixed(1)}% at Heritage`,
+  };
+  const qualified = executable && isQualifiedTicket(cfg, pricedForTicket);
   if (qualified) {
-    recs.push(stampTicket(game, base, priced, { qualified: true, lean: false }));
+    recs.push(stampTicket(game, base, pricedForTicket, { qualified: true, lean: false }));
     return;
   }
-  if (priced.ev != null && priced.ev < 0) return;
-  recs.push(stampTicket(game, base, priced, { qualified: false, lean: true }));
+  if (executionEv != null && executionEv < 0) return;
+  recs.push(stampTicket(game, { ...base, reason: executable ? base.reason : "Heritage price unavailable — benchmark value only, not an executable CONVICTION" }, pricedForTicket, { qualified: false, lean: true }));
 }
 
 function pushMl(recs, cfg, game, side, pick, priced) {

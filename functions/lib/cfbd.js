@@ -884,7 +884,7 @@ export async function loadCfbPrior(env = {}, { fetchFn = fetch, now = Date.now()
     };
   }
 
-  const cacheKey = `cfb-prior-v2-cfbd-${season}`;
+  const cacheKey = `cfb-prior-v3-cfbd-${season}`;
   const cached = await readCache(cacheKey, env.caches, PRIOR_TTL_MS);
   if (cached?.catalog?.byEspnId && cached?.meta) {
     return { version: cached.version, catalog: cached.catalog, meta: cfbdPublicMeta(cached.meta) };
@@ -918,12 +918,14 @@ export async function loadCfbPrior(env = {}, { fetchFn = fetch, now = Date.now()
 
   const extras = await Promise.all([
     cfbdRequest(CFBD_BASE, "/ratings/srs/expanded", env, { query: { year }, fetchFn }),
+    cfbdRequest(CFBD_BASE, "/ratings/srs/expanded", env, { query: { year: year - 1 }, fetchFn }),
     cfbdRequest(CFBD_BASE, "/talent", env, { query: { year }, fetchFn }),
     cfbdRequest(CFBD_BASE, "/player/returning", env, { query: { year }, fetchFn }),
   ]);
-  const [srsExpanded, talent, returning] = extras;
+  const [srsExpanded, priorSrsExpanded, talent, returning] = extras;
   report.push(
     { path: "/ratings/srs/expanded", status: srsExpanded.status, n: srsExpanded.n || 0, ok: srsExpanded.ok },
+    { path: "/ratings/srs/expanded", status: priorSrsExpanded.status, n: priorSrsExpanded.n || 0, ok: priorSrsExpanded.ok, note: "prior-season-fcs-fallback" },
     { path: "/talent", status: talent.status, n: talent.n || 0, ok: talent.ok },
     { path: "/player/returning", status: returning.status, n: returning.n || 0, ok: returning.ok }
   );
@@ -934,7 +936,12 @@ export async function loadCfbPrior(env = {}, { fetchFn = fetch, now = Date.now()
   const built = buildCfbdCatalog({
     sp: slimSp(core.sp.data || []),
     fpi: slimNamed(core.fpi.data || [], ["fpi"]),
-    srs: slimNamed(srsExpanded.data || [], ["rating", "classification"]),
+    // Previous-season SRS supplies provisional FCS strength before the current
+    // season has enough games. Current-season rows come last and take priority.
+    srs: [
+      ...slimNamed(priorSrsExpanded.data || [], ["rating", "classification"]),
+      ...slimNamed(srsExpanded.data || [], ["rating", "classification"]),
+    ],
     elo: [],
     talent: slimNamed(talent.data || [], ["talent"]),
     returning: slimNamed(returning.data || [], ["percentPPA", "usage"]),
@@ -947,7 +954,7 @@ export async function loadCfbPrior(env = {}, { fetchFn = fetch, now = Date.now()
   const used = [
     core.sp.n ? "sp" : null,
     core.fpi.n ? "fpi" : null,
-    srsExpanded.n ? "srs" : null,
+    srsExpanded.n ? "srs" : priorSrsExpanded.n ? "prior-srs" : null,
     talent.n ? "talent" : null,
     returning.n ? "returning" : null,
   ].filter(Boolean);

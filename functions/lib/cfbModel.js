@@ -118,14 +118,18 @@ export function projectCfbMatchup({
   awayOff,
   awayDef,
   hfa = CFB_CONSTANTS.hfaPoints,
+  national = CFB_CONSTANTS.leaguePpg,
 } = {}) {
-  const home = round1((Number(homeOff) + Number(awayDef)) / 2 + Number(hfa) / 2);
-  const away = round1((Number(awayOff) + Number(homeDef)) / 2 - Number(hfa) / 2);
+  // Add opponent defensive residual to each offense. Averaging the two raw
+  // scoring figures divided true power gaps by two and badly compressed
+  // FBS/FCS mismatches (for example Utah vs Idaho).
+  const home = round1(Number(homeOff) + (Number(awayDef) - Number(national)) + Number(hfa) / 2);
+  const away = round1(Number(awayOff) + (Number(homeDef) - Number(national)) - Number(hfa) / 2);
   return {
     home,
     away,
-    total: home + away,
-    margin: home - away,
+    total: round1(home + away),
+    margin: round1(home - away),
   };
 }
 
@@ -522,8 +526,10 @@ export function projectCfbGame(game, ctx = {}) {
     ...venue.flags,
   ].filter(Boolean);
   const qualityFloor = leagueAverageOnly || rankingsUnavailable ? 0.08 : bettingAllowed ? 0.35 : 0.2;
+  const scoreIsDefensible = home.teamSpecificPrior && away.teamSpecificPrior;
   return {
-    ...scores,
+    ...(scoreIsDefensible ? scores : { home: null, away: null, total: null, margin: null }),
+    diagnosticScores: scoreIsDefensible ? null : scores,
     hfa,
     homeEst: home,
     awayEst: away,
@@ -827,4 +833,3 @@ export function formDelta(final) {
     { team: final.away, pointsFor: as, pointsAgainst: hs },
   ];
 }
-
