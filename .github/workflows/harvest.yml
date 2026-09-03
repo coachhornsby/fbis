@@ -5,6 +5,8 @@ on:
     - cron: "0 13,16 * * *"
     - cron: "0 0,2,18,20,22 * * *"
     - cron: "20 11,16 * * *"
+    # Hourly watchdog. It is read-mostly and only catches up a genuinely missed slot.
+    - cron: "35 * * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -319,10 +321,41 @@ jobs:
     needs: [determine-mode, verify-deployment]
     if: needs.determine-mode.outputs.mode == 'health'
     steps:
-      - name: Read-only health diagnostic
+      - name: Health diagnostic and missed-slot recovery
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          RUN_URL: ${{ needs.determine-mode.outputs.run_url }}
         run: |
           set -euo pipefail
-          curl -sS --max-time 20 "https://fbis-myz.pages.dev/api/health?_t=$(date +%s)" | jq .
+          BASE="https://fbis-myz.pages.dev"
+          tmp="$(mktemp)"
+          curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" -o "$tmp"
+          jq . "$tmp"
+          collect_state="$(jq -r '.pipeline.schedule.collect.state // "unknown"' "$tmp")"
+          harvest_state="$(jq -r '.pipeline.schedule.harvest.state // "unknown"' "$tmp")"
+          if [ "$collect_state" != "missed" ] && [ "$harvest_state" != "missed" ]; then
+            echo "No catch-up required. collect=${collect_state} harvest=${harvest_state}"
+            exit 0
+          fi
+          if [ -z "${HARVEST_SECRET:-}" ]; then
+            echo "A scheduled slot is missed but HARVEST_SECRET is unavailable; fail visibly."
+            exit 1
+          fi
+          run_url_enc="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
+          if [ "$collect_state" = "missed" ]; then
+            echo "Recovering missed collect slot"
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 180 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/collect?mode=cache&sport=all&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")"
+            jq '{ok,status,mode,sports,errors}' "$body"
+            [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$body")" = "true" ] || exit 1
+          fi
+          if [ "$harvest_state" = "missed" ]; then
+            echo "Recovering missed harvest slot"
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 180 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/harvest?days=3&sport=all&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")"
+            jq '{ok,status,finals_graded,errors}' "$body"
+            [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$body")" = "true" ] || exit 1
+          fi
 
   summary:
     runs-on: ubuntu-latest

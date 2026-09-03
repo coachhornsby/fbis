@@ -216,6 +216,21 @@ describe("Pal market classification", () => {
     assert.equal(out.find((r) => r.marketType.startsWith("PLAYER_PROP")).qualificationState, "PROP_WATCH");
     assert.equal(out.find((r) => r.marketType.startsWith("PLAYER_PROP")).priced, false);
   });
+
+  it("freezes only exact qualified prop matches as a separate CONVICTION population", () => {
+    const frozenAt = "2026-08-27T15:00:00Z";
+    const game = mlbGame({ rest: {
+      bpp: { lineupsOfficial: true, props: [{ playerId: 44, playerName: "Chris Sale", displayName: "Pitcher Strikeouts", line: 6.5, over: 0.66, under: 0.34, average: 7.3 }] },
+      odds: { playerProps: [{ playerName: "Chris Sale", marketKey: "player_pitcher_strikeouts", marketLabel: "Pitcher Strikeouts", line: 6.5, overPrice: -110, underPrice: -110, bookmaker: "Pinnacle", snapshotAt: frozenAt }] },
+    } });
+    const out = palMarketRowsFromGame("2026-08-27", game, { checkpoint: "FIRST_AVAILABLE", modelVersion: "test", frozenAt });
+    const qualified = out.filter((r) => r.qualificationState === "CONVICTION");
+    assert.equal(qualified.length, 1);
+    assert.equal(qualified[0].subjectName, "Chris Sale");
+    assert.equal(qualified[0].marketType, "PLAYER_PROP:pitcher_strikeouts");
+    assert.equal(qualified[0].pOver, 0.66);
+    assert.equal(qualified[0].bookOverPrice, -110);
+  });
 });
 
 describe("Pal matching", () => {

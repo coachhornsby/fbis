@@ -79,6 +79,7 @@ import { queryQuota } from "./collegeStore.js";
 import { storageBudget } from "./storageBudget.js";
 import { collegeKeyHealth } from "./collegeSecrets.js";
 import { putArchive, r2Key } from "./r2Archive.js";
+import { buildPropConvictions } from "./propConviction.js";
 
 async function archiveHarvestReport(env, report) {
   const at = report.harvestedAt || report.generatedAt || new Date().toISOString();
@@ -383,6 +384,25 @@ export function palMarketRowsFromGame(date, game, frozen = freezeFromGame(date, 
       sourceMarketName: p.marketLabel, sourceAsOf: p.snapshotAt, book: p.bookmaker,
       bookLine: p.line, bookOverPrice: p.overPrice, bookUnderPrice: p.underPrice, priced: true,
       qualificationState: "PRICED_MARKET", qualificationReason: "Sportsbook contract captured; no Pal player identity match yet",
+    });
+  }
+  const convictions = buildPropConvictions({
+    palProps: game.bpp?.props || [],
+    sportsbookProps: game.odds?.playerProps || [],
+    lineupsOfficial: Boolean(game.bpp?.lineupsOfficial || game.lineupsOfficial),
+    confirmedPitcherIds: [game.bpp?.homeSp?.id, game.bpp?.awaySp?.id, game.homeSp?.id, game.awaySp?.id],
+    now: Date.parse(frozen.frozenAt) || Date.now(),
+  });
+  for (const p of convictions) {
+    rows.push({ ...base,
+      id: marketRowId([date, game.id, frozen.checkpoint, "CONVICTION_PROP", p.market, p.playerName, p.side, p.line, p.book]),
+      period: "FULL_GAME", marketType: `PLAYER_PROP:${p.market}`, subjectType: "player",
+      subjectName: p.playerName, line: p.line, pOver: p.side === "OVER" ? p.probability : null,
+      pUnder: p.side === "UNDER" ? p.probability : null, average: p.projection,
+      source: "fbis-prop-conviction", sourceMarketKey: p.market, sourceMarketName: p.marketLabel,
+      sourceAsOf: p.snapshotAt, book: p.book, bookLine: p.line,
+      bookOverPrice: p.side === "OVER" ? p.price : null, bookUnderPrice: p.side === "UNDER" ? p.price : null,
+      priced: true, qualificationState: "CONVICTION", qualificationReason: p.reason,
     });
   }
   return rows;
