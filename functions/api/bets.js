@@ -13,6 +13,7 @@ import {
   packExecutedBetRow,
   summarizeExecutedBets,
   settleExecutedBet,
+  settlePlayerProp,
 } from "../lib/executedBets.js";
 import {
   queryExecutedBets,
@@ -272,6 +273,36 @@ export async function handleBetsPost(env, request, body) {
     if (!tickets.length) return { status: 400, body: { ok: false, error: "no tickets to import", wrote: false } };
     const result = await importBets(env, tickets);
     return { status: result.status, body: result.body };
+  }
+  if (action === "grade-player-prop") {
+    if (!hasDb(env)) return { status: 503, body: { ok: false, error: "D1 unbound" } };
+    const actual = Number(body.actual);
+    if (!body.id || !Number.isFinite(actual) || actual < 0) {
+      return { status: 400, body: { ok: false, error: "A valid bet and non-negative actual statistic are required." } };
+    }
+    const existingQ = await queryExecutedBets(env, { includeRaw: false });
+    const existing = (existingQ.rows || []).find((r) => r.id === body.id);
+    if (!existing) return { status: 404, body: { ok: false, error: "Bet not found." } };
+    if (String(existing.market || "").toUpperCase() !== "PLAYER_PROP") {
+      return { status: 400, body: { ok: false, error: "This settlement method is only for player props." } };
+    }
+    if ((existing.result || "OPEN") !== "OPEN") {
+      return { status: 409, body: { ok: false, error: "This bet is already settled." } };
+    }
+    const settlement = settlePlayerProp(existing, actual);
+    if (!settlement.ok) {
+      return { status: 400, body: { ok: false, error: "The prop line or Over/Under side is missing." } };
+    }
+    const patch = {
+      result: settlement.result,
+      profit: settlement.profit,
+      settledReturn: settlement.settledReturn,
+      gradedAt: settlement.gradedAt,
+      propActual: actual,
+      propStatSource: "operator-entered",
+    };
+    const res = await updateExecutedBet(env, body.id, patch, "manual-player-prop-stat");
+    return { status: res.ok ? 200 : 400, body: { ok: res.ok, error: res.reason || null, result: settlement.result, actual } };
   }
   if (action === "correct") {
     if (!hasDb(env)) return { status: 503, body: { ok: false, error: "D1 unbound" } };

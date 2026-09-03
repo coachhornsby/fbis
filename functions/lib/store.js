@@ -2556,6 +2556,8 @@ function mapExecutedBet(r) {
     period: r.period,
     selectedSide: r.selected_side,
     selectedTeam: r.selected_team,
+    playerName: r.player_name || r.selected_team,
+    propType: r.prop_type,
     executionLine: r.execution_line,
     executionPrice: r.execution_price,
     riskAmount: r.risk_amount,
@@ -2590,6 +2592,8 @@ function mapExecutedBet(r) {
     clvStatus: r.clv_status,
     clvMethodVersion: r.clv_method_version,
     attributionLabel: r.attribution_label,
+    propActual: r.prop_actual,
+    propStatSource: r.prop_stat_source,
   };
 }
 
@@ -2622,8 +2626,9 @@ export async function persistExecutedBet(env, row) {
         recommendation_status, model_version_at_entry, checkpoint_at_entry, result, settled_return,
         profit, graded_at, void_reason, heritage_current_line, heritage_current_price, heritage_current_at,
         pin_entry_line, pin_entry_price, pin_entry_no_vig, pin_close_line, pin_close_price, pin_close_no_vig,
-        clv, clv_status, clv_method_version, attribution_label
-      ) VALUES (${Array(52).fill("?").join(",")})`
+        clv, clv_status, clv_method_version, attribution_label, player_name, prop_type,
+        prop_actual, prop_stat_source
+      ) VALUES (${Array(56).fill("?").join(",")})`
     )
       .bind(
         packed.id,
@@ -2677,7 +2682,11 @@ export async function persistExecutedBet(env, row) {
         n(packed.clv),
         n(packed.clvStatus),
         n(packed.clvMethodVersion),
-        n(packed.attributionLabel)
+        n(packed.attributionLabel),
+        n(packed.playerName),
+        n(packed.propType),
+        n(packed.propActual),
+        n(packed.propStatSource)
       )
       .run();
     markWrite();
@@ -2739,7 +2748,8 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         matched_prediction_id = ?, matched_strategy_ticket_id = ?, recommendation_status = ?,
         attribution_label = ?, clv = ?, clv_status = ?,
         pin_entry_line = ?, pin_entry_price = ?, pin_entry_no_vig = ?,
-        pin_close_line = ?, pin_close_price = ?, pin_close_no_vig = ?
+        pin_close_line = ?, pin_close_price = ?, pin_close_no_vig = ?,
+        prop_actual = ?, prop_stat_source = ?
        WHERE id = ?`
     )
       .bind(
@@ -2764,6 +2774,8 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         n(mapped.pinCloseLine),
         n(mapped.pinClosePrice),
         n(mapped.pinCloseNoVig),
+        n(mapped.propActual),
+        n(mapped.propStatSource),
         id
       )
       .run();

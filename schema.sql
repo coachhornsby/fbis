@@ -426,8 +426,10 @@ CREATE TABLE IF NOT EXISTS executed_bets (
   home_team TEXT,
   market TEXT,
   period TEXT,
-  selected_side TEXT,
-  selected_team TEXT,
+    selected_side TEXT,
+    selected_team TEXT,
+    player_name TEXT,
+    prop_type TEXT,
   execution_line REAL,
   execution_price REAL,
   risk_amount REAL,
@@ -462,8 +464,10 @@ CREATE TABLE IF NOT EXISTS executed_bets (
   clv REAL,
   clv_status TEXT,
   clv_method_version TEXT,
-  attribution_label TEXT,
-  UNIQUE (execution_book, external_ticket_id)
+    attribution_label TEXT,
+    prop_actual REAL,
+    prop_stat_source TEXT,
+    UNIQUE (execution_book, external_ticket_id)
 );
 
 CREATE TABLE IF NOT EXISTS executed_bet_audit (

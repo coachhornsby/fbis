@@ -267,6 +267,24 @@ export function settleExecutedBet(ticket, game) {
   return { result, profit, settledReturn, gradedAt: new Date().toISOString() };
 }
 
+export function settlePlayerProp(ticket, actual) {
+  const value = Number(actual);
+  const line = Number(ticket?.executionLine);
+  const side = String(ticket?.selectedSide || "").toUpperCase();
+  if (!Number.isFinite(value) || value < 0 || !Number.isFinite(line) || !["OVER", "UNDER"].includes(side)) {
+    return { ok: false, error: "invalid-player-prop-evidence" };
+  }
+  const result = value === line ? "PUSH" : (side === "OVER" ? value > line : value < line) ? "WON" : "LOST";
+  return {
+    ok: true,
+    result,
+    actual: value,
+    profit: result === "WON" ? Number(ticket.toWinAmount) : result === "LOST" ? -Math.abs(Number(ticket.riskAmount)) : 0,
+    settledReturn: result === "WON" ? Number(ticket.potentialPayout) : result === "LOST" ? 0 : Number(ticket.riskAmount),
+    gradedAt: new Date().toISOString(),
+  };
+}
+
 export function immutableConflict(existing, next) {
   const keys = [
     ["selectedSide", "selected_side"],
@@ -398,6 +416,8 @@ export function packExecutedBetRow(ticket) {
     period: ticket.period,
     selectedSide: ticket.selectedSide,
     selectedTeam: ticket.selectedTeam,
+    playerName: ticket.playerName || (ticket.market === "PLAYER_PROP" ? ticket.selectedTeam : null),
+    propType: ticket.propType || null,
     executionLine: ticket.executionLine,
     executionPrice: ticket.executionPrice,
     riskAmount: ticket.riskAmount,
@@ -433,6 +453,8 @@ export function packExecutedBetRow(ticket) {
     clvStatus: ticket.clvStatus || clv.clvStatus || "unavailable",
     clvMethodVersion: ticket.clvMethodVersion || clv.clvMethodVersion || HERITAGE_CLV_METHOD,
     attributionLabel: ticket.attributionLabel || attr.label || OPERATOR_ONLY,
+    propActual: ticket.propActual ?? null,
+    propStatSource: ticket.propStatSource || null,
   };
 }
 

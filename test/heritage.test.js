@@ -21,6 +21,7 @@ import {
   attributeRecommendation,
   attachPinnacleClv,
   settleExecutedBet,
+  settlePlayerProp,
   immutableConflict,
   summarizeExecutedBets,
   decoratePreview,
@@ -637,6 +638,17 @@ describe("NoVig screenshot OCR text", () => {
     assert.equal(preview.homeIdentity.name, "Pittsburgh Pirates");
     assert.notEqual(preview.awayIdentity.canonicalId, null);
     assert.notEqual(preview.homeIdentity.canonicalId, null);
+  });
+
+  it("grades an operator-entered player statistic against the frozen side and line", () => {
+    const ticket = { selectedSide: "UNDER", executionLine: 4.5, riskAmount: 5, toWinAmount: 4.09, potentialPayout: 9.09 };
+    const won = settlePlayerProp(ticket, 3);
+    assert.equal(won.result, "WON");
+    assert.equal(won.profit, 4.09);
+    const lost = settlePlayerProp(ticket, 6);
+    assert.equal(lost.result, "LOST");
+    assert.equal(lost.profit, -5);
+    assert.equal(settlePlayerProp({ ...ticket, executionLine: 4 }, 4).result, "PUSH");
   });
 });
 

@@ -67,6 +67,12 @@ export default function MyBetsView({
       if (result !== "all" && (b.result || "OPEN") !== result) return false;
       if (attr !== "all" && (b.recommendationStatus || "") !== attr) return false;
       return true;
+    }).sort((a, b) => {
+      const dateOrder = String(b.date || "").localeCompare(String(a.date || ""));
+      if (dateOrder) return dateOrder;
+      const timeOrder = String(b.executedAt || b.importedAt || "").localeCompare(String(a.executedAt || a.importedAt || ""));
+      if (timeOrder) return timeOrder;
+      return String(a.externalTicketId || "").localeCompare(String(b.externalTicketId || ""));
     });
   }, [bets, sport, result, attr]);
   const summary = pack.summary || emptySummary();
@@ -80,6 +86,36 @@ export default function MyBetsView({
 
   async function saveFinal(b) {
     const scores = manualScores[b.id] || {};
+    if (String(b.market || "").toUpperCase() === "PLAYER_PROP") {
+      const actual = scores.propActual;
+      if (String(actual ?? "").trim() === "" || !Number.isFinite(Number(actual)) || Number(actual) < 0) {
+        setManualMessage("Enter the player's non-negative actual statistic.");
+        return;
+      }
+      setManualSaving(b.id);
+      setManualMessage("");
+      try {
+        const res = await fetch("/api/bets", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "grade-player-prop", id: b.id, actual: Number(actual) }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || body.error) throw new Error(body.error || `HTTP ${res.status}`);
+        setManualMessage(`Player prop graded ${body.result} from an actual value of ${body.actual}.`);
+        setManualScores((prev) => { const next = { ...prev }; delete next[b.id]; return next; });
+        if (onRefresh) await onRefresh();
+        else {
+          const fresh = await fetch(`/api/bets?_t=${Date.now()}`).then((r) => r.json());
+          setPack({ bets: fresh.bets || [], summary: fresh.summary, population: fresh.population || null });
+        }
+      } catch (err) {
+        setManualMessage(`Could not grade player prop: ${String(err?.message || err)}`);
+      } finally {
+        setManualSaving("");
+      }
+      return;
+    }
     const required = [scores.away, scores.home];
     const isF5 = String(b.period || b.market || "").toUpperCase().includes("F5");
     if (required.some((v) => String(v ?? "").trim() === "" || !Number.isFinite(Number(v)) || Number(v) < 0)) {
@@ -211,7 +247,7 @@ export default function MyBetsView({
                   </div>
                   <div className="mobile-kv-grid" style={{ marginTop: 8 }}>
                     <div><small>Market</small><b>{formatMarketPeriod(b.market, b.period)}</b></div>
-                    <div><small>Side</small><b>{b.selectedTeam || b.selectedSide || "—"}{b.executionLine != null ? ` ${b.executionLine}` : ""}</b></div>
+                    <div><small>Side</small><b>{betSelectionLabel(b)}</b></div>
                     <div><small>Price</small><b>{fmtAmerican(b.executionPrice)}</b></div>
                     <div><small>Risk</small><b>${Number(b.riskAmount || 0).toFixed(2)}</b></div>
                     <div><small>P/L</small><b>{b.profit == null ? "—" : fmtSigned(b.profit, 2)}</b></div>
@@ -261,7 +297,7 @@ export default function MyBetsView({
                       />
                     </td>
                     <td className="nowrap">{formatMarketPeriod(b.market, b.period)}</td>
-                    <td>{b.selectedTeam || b.selectedSide || "—"}{b.executionLine != null ? ` ${b.executionLine}` : ""}</td>
+                    <td>{betSelectionLabel(b)}</td>
                     <td>{fmtAmerican(b.executionPrice)}</td>
                     <td>${Number(b.riskAmount || 0).toFixed(2)}</td>
                     <td className={b.result === "WON" ? "text-green" : b.result === "LOST" ? "text-red" : "muted"}>{b.result || "OPEN"}</td>
@@ -295,6 +331,7 @@ function ManualScoreEditor({ bet, scores, setScore, saveFinal, saving }) {
   const away = bet.awayIdentity?.abbr || bet.awayTeam || "Away";
   const home = bet.homeIdentity?.abbr || bet.homeTeam || "Home";
   const isF5 = String(bet.period || bet.market || "").toUpperCase().includes("F5");
+  const isPlayerProp = String(bet.market || "").toUpperCase() === "PLAYER_PROP";
   const input = (field, label) => (
     <label style={{ display: "grid", gap: 3, fontSize: 10 }}>
       <span className="muted">{label}</span>
@@ -311,15 +348,32 @@ function ManualScoreEditor({ bet, scores, setScore, saveFinal, saving }) {
   );
   return (
     <div style={{ display: "flex", gap: 6, alignItems: "end", flexWrap: "wrap", marginTop: 8 }}>
-      {input("away", `${away} final`)}
-      {input("home", `${home} final`)}
-      {isF5 ? input("f5Away", `${away} F5`) : null}
-      {isF5 ? input("f5Home", `${home} F5`) : null}
+      {isPlayerProp ? input("propActual", `${bet.playerName || bet.selectedTeam || "Player"} actual ${propStatLabel(bet)}`) : input("away", `${away} final`)}
+      {isPlayerProp ? null : input("home", `${home} final`)}
+      {!isPlayerProp && isF5 ? input("f5Away", `${away} F5`) : null}
+      {!isPlayerProp && isF5 ? input("f5Home", `${home} F5`) : null}
       <button className="header-btn header-btn-refresh" onClick={() => saveFinal(bet)} disabled={saving} style={{ padding: "7px 9px", fontSize: 11 }}>
-        {saving ? "Saving…" : "Save final"}
+        {saving ? "Saving…" : isPlayerProp ? "Grade prop" : "Save final"}
       </button>
     </div>
   );
+}
+
+function propStatLabel(bet) {
+  if (String(bet.propType || "").toUpperCase() === "PITCHER_STRIKEOUTS") return "strikeouts";
+  return "stat";
+}
+
+function betSelectionLabel(bet) {
+  const market = String(bet.market || "").toUpperCase();
+  if (market === "PLAYER_PROP") {
+    const player = bet.playerName || bet.selectedTeam || "Player";
+    const side = String(bet.selectedSide || "").toUpperCase();
+    const direction = side === "UNDER" ? "Under" : side === "OVER" ? "Over" : side || "—";
+    const line = bet.executionLine != null ? ` ${bet.executionLine}` : "";
+    return `${player} ${direction}${line} ${propStatLabel(bet)}`;
+  }
+  return `${bet.selectedTeam || bet.selectedSide || "—"}${bet.executionLine != null ? ` ${bet.executionLine}` : ""}`;
 }
 
 function emptySummary() {
