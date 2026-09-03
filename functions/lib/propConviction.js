@@ -5,6 +5,20 @@ const MIN_EV = 0.10;
 const MAX_PRICE_AGE_MS = 90 * 60 * 1000;
 const SPORTSBOOKS = ["pinnacle", "fanduel", "draftkings", "betmgm", "caesars", "bet365", "betrivers", "bovada"];
 
+const PROP_MARKET_LABELS = Object.freeze({
+  pitcher_strikeouts: "Pitcher Strikeouts",
+  pitcher_outs: "Pitcher Outs Recorded",
+  batter_total_bases: "Total Bases",
+  batter_rbis: "RBIs",
+  batter_home_runs: "Home Runs",
+  batter_stolen_bases: "Stolen Bases",
+  batter_doubles: "Doubles",
+  batter_triples: "Triples",
+  batter_walks: "Walks",
+  batter_runs: "Runs Scored",
+  batter_hits: "Hits",
+});
+
 function clean(value) {
   return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, " ").trim();
@@ -27,6 +41,13 @@ export function canonicalPropMarket(value) {
   if (/batter_runs|player_runs|runs scored/.test(x) && !/\brbi/.test(x)) return "batter_runs";
   if (/player hits|batter.*hit|^hits$/.test(x)) return "batter_hits";
   return null;
+}
+
+export function propMarketDisplayName(market, fallback = null) {
+  if (market && PROP_MARKET_LABELS[market]) return PROP_MARKET_LABELS[market];
+  const raw = String(fallback || "").trim();
+  if (raw) return raw;
+  return String(market || "Player Prop").replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function samePlayer(a, b) {
@@ -88,7 +109,8 @@ export function buildPropConvictions({ palProps = [], sportsbookProps = [], line
       const price = Number(side === "over" ? book.overPrice : book.underPrice);
       const ev = propEv(probability, price);
       if (!Number.isFinite(probability) || probability < MIN_PROBABILITY || ev == null || ev < MIN_EV) continue;
-      out.push({ playerName: book.playerName, market, marketLabel: book.marketLabel || pal.displayName, side: side.toUpperCase(), line: Number(book.line), price,
+      const marketLabel = propMarketDisplayName(market, book.marketLabel || pal.displayName);
+      out.push({ playerName: book.playerName, market, marketLabel, side: side.toUpperCase(), line: Number(book.line), price,
         projection: pal.average, probability, ev, book: book.bookmaker, snapshotAt: book.snapshotAt, tag: "CONVICTION",
         reason: `Exact player, statistic and line matched; ${lineupNote}; p=${(probability * 100).toFixed(1)}%; EV=${(ev * 100).toFixed(1)}%` });
     }
@@ -208,9 +230,19 @@ export function compactMlbClientGame(game, now = Date.now()) {
       confirmedPitcherIds: [game.bpp?.homeSp?.id, game.bpp?.awaySp?.id],
       now,
     });
+  const clientPropConvictions = propConvictions.map((prop) => {
+    const marketLabel = propMarketDisplayName(prop.market, prop.marketLabel);
+    return {
+      ...prop,
+      marketLabel,
+      rawSide: prop.rawSide || prop.side,
+      side: `${marketLabel} · ${prop.side}`,
+      displayBet: `${marketLabel} · ${prop.side} ${prop.line}`,
+    };
+  });
   return {
     ...game,
-    propConvictions,
+    propConvictions: clientPropConvictions,
     sportsbookPropCount: game.sportsbookPropCount ?? sportsbookProps.length,
     palPropCount: game.palPropCount ?? palProps.length,
     odds: game.odds ? { ...game.odds, playerProps: [] } : game.odds,
