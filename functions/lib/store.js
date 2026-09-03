@@ -2201,6 +2201,21 @@ export async function persistJobRun(env, row) {
     markWrite();
     if (row.status === "success") {
       await setMeta(env, "last_d1_write_success_at", row.completedAt || new Date().toISOString());
+      // Prove that the exact job row written above is immediately readable.
+      // Historical failure counters remain diagnostic, but cannot make a
+      // newer successful write/readback look broken forever.
+      try {
+        const readback = await env.DB.prepare(
+          "SELECT id, status FROM job_runs WHERE id = ? LIMIT 1"
+        ).bind(row.id).first();
+        if (readback?.id === row.id && readback?.status === row.status) {
+          await setMeta(env, "last_d1_readback_success_at", row.completedAt || new Date().toISOString());
+          markRead();
+        }
+      } catch {
+        // The job write remains valid, but health stays unverified until a
+        // later exact readback succeeds.
+      }
     }
     return { ok: true };
   } catch (err) {

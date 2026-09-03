@@ -82,7 +82,8 @@ export function writeVerificationState({
   const hasRecentWrite = Boolean(writeTs) && (!failureTs || writeTs >= failureTs);
   const hasRecentReadback = Boolean(readbackTs) && (!failureTs || readbackTs >= failureTs);
   if (readOk && hasRecentWrite && hasRecentReadback) return WRITE_VERIFICATION.VERIFIED;
-  if (Number(failedWrites || 0) > 0) return WRITE_VERIFICATION.FAILED;
+  if (failureTs && (!writeTs || failureTs > writeTs)) return WRITE_VERIFICATION.FAILED;
+  if (Number(failedWrites || 0) > 0 && !hasRecentWrite) return WRITE_VERIFICATION.FAILED;
   if (readOk && hasRecentWrite) return WRITE_VERIFICATION.VERIFIED;
   return WRITE_VERIFICATION.UNVERIFIED;
 }
