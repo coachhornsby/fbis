@@ -69,7 +69,7 @@ export default function TodayView({
             <button className="header-btn" onClick={() => onDate(shift(date, 1))} aria-label="Next day">Next →</button>
             <button className="header-btn" onClick={() => onDate(board?.health?.todayCt || date)}>Today</button>
             {onImport && (
-              <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT HERITAGE BET SLIP</button>
+              <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
             )}
             {onRetry && <button className="header-btn" onClick={() => onRetry?.()} disabled={loading}>{loading ? "Retrying…" : "Retry"}</button>}
           </div>
@@ -342,7 +342,7 @@ export function GameDetails({ g }) {
       </section>
       <section>
         <h3>MY BET / TRACKING</h3>
-        {(g.myBets || []).length ? g.myBets.map((b) => <div key={b.id}>{b.selectedTeam || b.selectedSide} {fmtAmerican(b.executionPrice)} · ${Number(b.riskAmount || 0).toFixed(2)} · {b.result || "OPEN"}</div>) : <div className="muted">No imported Heritage bet.</div>}
+        {(g.myBets || []).length ? g.myBets.map((b) => <div key={b.id}>{b.selectedTeam || b.selectedSide} {fmtAmerican(b.executionPrice)} · ${Number(b.riskAmount || 0).toFixed(2)} · {b.result || "OPEN"}</div>) : <div className="muted">No imported bet.</div>}
         <div className="muted">Checkpoint: {g.checkpoint || "—"} · Model: {g.modelVersion || "—"}</div>
       </section>
     </div>

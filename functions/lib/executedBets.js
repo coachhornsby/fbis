@@ -309,7 +309,7 @@ export function summarizeExecutedBets(rows) {
     validClvN: clvs.length,
     avgClv: clvs.length ? clvs.reduce((s, v) => s + Number(v), 0) / clvs.length : null,
     positiveClvShare: clvs.length ? clvs.filter((v) => v > 0).length / clvs.length : null,
-    message: terminal.length ? null : n ? "No settled Heritage bets yet." : "No imported Heritage bets yet.",
+    message: terminal.length ? null : n ? "No settled sportsbook bets yet." : "No imported bets yet.",
   };
 }
 
@@ -355,7 +355,7 @@ export async function decoratePreview(ticket, { games = [], existing = [], snaps
   const clv = game ? attachPinnacleClv(next, pinRows, game.start) : attachPinnacleClv(next, [], null);
   next.attribution = attr;
   next.clvPack = clv;
-  next.id = executedBetId(EXECUTION_BOOK, ticket.externalTicketId);
+  next.id = executedBetId(ticket.executionBook || EXECUTION_BOOK, ticket.externalTicketId);
   next.rawTextHash = await hashText(ticket.rawText || "");
   return next;
 }

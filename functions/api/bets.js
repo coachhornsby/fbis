@@ -6,6 +6,7 @@
  */
 
 import { parseHeritageSlip } from "../lib/heritageSlip.js";
+import { parseNoVigSlip } from "../lib/novigSlip.js";
 import { todayCT } from "../lib/slateEngine.js";
 import {
   decoratePreview,
@@ -175,8 +176,10 @@ async function loadMatchContext(env, tickets) {
   };
 }
 
-export async function parseBetsPreview(env, text, yearHint) {
-  const parsed = parseHeritageSlip(text, { yearHint });
+export async function parseBetsPreview(env, text, yearHint, bookHint = "") {
+  const parsed = /novig/i.test(bookHint) || /\bNOVIG\b/i.test(text)
+    ? await parseNoVigSlip(text, { dateHint: yearHint?.date })
+    : parseHeritageSlip(text, { yearHint });
   const ctx = await loadMatchContext(env, parsed.tickets);
   const tickets = [];
   for (const t of parsed.tickets) {
@@ -252,7 +255,7 @@ export async function handleBetsPost(env, request, body) {
   if (action === "parse" || action === "preview") {
     const text = String(body.text || body.slip || "");
     if (!text.trim()) return { status: 400, body: { ok: false, error: "empty slip", wrote: false } };
-    const preview = await parseBetsPreview(env, text, body.yearHint);
+    const preview = await parseBetsPreview(env, text, body.yearHint, body.bookHint);
     return { status: 200, body: preview };
   }
   const auth = authorizeExecutedBetWrite(request, env);
@@ -263,7 +266,7 @@ export async function handleBetsPost(env, request, body) {
     let tickets = Array.isArray(body.tickets) ? body.tickets : [];
     const slip = String(body.text || body.slip || "");
     if (!tickets.length && slip.trim()) {
-      const preview = await parseBetsPreview(env, slip, body.yearHint);
+      const preview = await parseBetsPreview(env, slip, body.yearHint, body.bookHint);
       tickets = preview.tickets || [];
     }
     if (!tickets.length) return { status: 400, body: { ok: false, error: "no tickets to import", wrote: false } };

@@ -14,6 +14,7 @@ import {
   decodeEntities,
   expectedProfit,
 } from "../functions/lib/heritageSlip.js";
+import { parseNoVigSlip } from "../functions/lib/novigSlip.js";
 import {
   matchExecutedBet,
   attributeRecommendation,
@@ -323,7 +324,7 @@ describe("Heritage matching, attribution, CLV, settlement", () => {
     assert.equal(empty.profit, null);
     assert.equal(empty.roi, null);
     assert.equal(empty.avgClv, null);
-    assert.match(empty.message, /No imported Heritage bets/);
+    assert.match(empty.message, /No imported bets/);
   });
 
   it("parse preview does not write", async () => {
@@ -572,6 +573,42 @@ describe("Heritage confirm write auth and feedback", () => {
     );
     assert.equal(result.status, 503);
     assert.match(result.body.error, /D1 unbound/i);
+  });
+});
+
+describe("NoVig screenshot OCR text", () => {
+  it("parses a mobile player-prop receipt without storing the image", async () => {
+    const parsed = await parseNoVigSlip(
+      "NOVIG Blade Tidwell U 4.5 55.0% Strikeouts Thrown Amount $5.00 To Pay $9.09 SF Live 3rd 0 - 2 PIT Placed: 11:31AM",
+      { dateHint: "2026-09-03" }
+    );
+    assert.equal(parsed.tickets.length, 1);
+    const ticket = parsed.tickets[0];
+    assert.equal(ticket.executionBook, "NoVig");
+    assert.equal(ticket.selectedTeam, "Blade Tidwell");
+    assert.equal(ticket.selectedSide, "UNDER");
+    assert.equal(ticket.executionLine, 4.5);
+    assert.equal(ticket.propType, "PITCHER_STRIKEOUTS");
+    assert.equal(ticket.riskAmount, 5);
+    assert.equal(ticket.toWinAmount, 4.09);
+    assert.equal(ticket.potentialPayout, 9.09);
+    assert.equal(ticket.executionPrice, -122);
+    assert.equal(ticket.awayTeam, "SF");
+    assert.equal(ticket.homeTeam, "PIT");
+    assert.match(ticket.externalTicketId, /^NOVIG-/);
+  });
+
+  it("parses the sparse-layout OCR ordering produced by the real receipt", async () => {
+    const parsed = await parseNoVigSlip(
+      "Blade Tidwell U 4.5 55.0% MATCHED Strikeouts Thrown Amount ToPay $5.00 $9.09 Live a 3rd SF 0-2 PIT",
+      { dateHint: "2026-09-03" }
+    );
+    const ticket = parsed.tickets[0];
+    assert.equal(ticket.riskAmount, 5);
+    assert.equal(ticket.potentialPayout, 9.09);
+    assert.equal(ticket.awayTeam, "SF");
+    assert.equal(ticket.homeTeam, "PIT");
+    assert.ok(ticket.warnings.includes("Confirm placement time"));
   });
 });
 

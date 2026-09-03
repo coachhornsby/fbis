@@ -136,12 +136,12 @@ export default function MyBetsView({
       {error && <div className="panel"><div className="error">{error}</div></div>}
       <section className="panel">
         <div className="panel-header">
-          <h2>MY BETS · Heritage executed</h2>
+          <h2>MY BETS · Sportsbook executions</h2>
           <span className="last-updated">{loading ? "Loading…" : `${badgeLabel(state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${summary.bets || 0} imported`}`}</span>
         </div>
         <div className="panel-body">
           <p className="muted">
-            Imported Heritage slips are a separate dataset from forecasts, FBIS recommendations, qualified strategy tickets, and the unrecovered 7–0 CONVICTION cohort.
+            Imported sportsbook slips are a separate dataset from forecasts, FBIS recommendations, qualified strategy tickets, and the unrecovered 7–0 CONVICTION cohort.
           </p>
           <p className="muted" style={{ marginTop: 8 }}>
             Population: imported Heritage execution ledger only (not forecast accuracy and not strategy simulation results).
@@ -151,7 +151,7 @@ export default function MyBetsView({
             D1 binding: {sourceStatus?.binding || "unknown"} · read: {sourceStatus?.read || "unknown"} · write: {sourceStatus?.write || "unknown"}
           </p>
           <div className="today-controls" style={{ marginTop: 10 }}>
-            <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT HERITAGE BET SLIP</button>
+            <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
             {onRefresh && <button className="header-btn" onClick={onRefresh}>Reload</button>}
           </div>
           <div className="status-grid" style={{ marginTop: 12 }}>
@@ -190,7 +190,7 @@ export default function MyBetsView({
       <section className="panel">
         <div className="panel-body" style={{ padding: 0 }}>
           {!shown.length ? (
-            <div className="empty">No imported Heritage bets in this filter.</div>
+            <div className="empty">No imported bets in this filter.</div>
           ) : compact ? (
             <div className="mobile-card-list">
               {shown.map((b) => (

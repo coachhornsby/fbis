@@ -540,9 +540,9 @@ export default function App() {
           <div className="table-scroll"><SlateTable games={slate?.games || []} onLog={onLog} logged={loggedOpen} /></div>
         </Panel>
 
-        <Panel title="My Heritage Bets" extra={<span className="last-updated">{executedSportBets.length} imported · D1 history</span>}>
+        <Panel title="My Bets" extra={<span className="last-updated">{executedSportBets.length} imported · D1 history</span>}>
           <div className="today-controls" style={{ marginBottom: 10 }}>
-            <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>IMPORT HERITAGE BET SLIP</button>
+            <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>IMPORT BET SLIP</button>
           </div>
           <div className="table-scroll"><ExecutedBetsTable bets={executedSportBets} /></div>
         </Panel>
@@ -1085,7 +1085,7 @@ function F5Cell({ game }) {
 }
 
 function ExecutedBetsTable({ bets }) {
-  if (!bets.length) return <div className="empty">No imported Heritage bets for this sport.</div>;
+  if (!bets.length) return <div className="empty">No imported bets for this sport.</div>;
   return (
     <table className="fbis-table">
       <thead><tr><th>Ticket</th><th>Matchup</th><th>Pick</th><th>Result</th><th>P/L</th><th>Price</th><th>CLV</th></tr></thead>

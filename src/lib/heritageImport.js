@@ -28,7 +28,7 @@ export function mergeTicketEdits(tickets, edits) {
 }
 
 /** Confirm POST body must include the pasted slip and the preview ticket objects. */
-export function buildConfirmRequest({ text, tickets, edits }) {
+export function buildConfirmRequest({ text, tickets, edits, bookHint = "" }) {
   const payloadTickets = mergeTicketEdits(tickets, edits);
   const slip = String(text || "");
   const guard = confirmWriteGuard({
@@ -42,6 +42,7 @@ export function buildConfirmRequest({ text, tickets, edits }) {
     body: {
       action: "import",
       text: slip,
+      bookHint,
       tickets: payloadTickets.map((t) => packExecutedBetRow(t)),
     },
   };

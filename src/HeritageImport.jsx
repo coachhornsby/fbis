@@ -12,7 +12,7 @@ import {
 } from "./lib/heritageImport.js";
 
 const FIXTURE_HINT =
-  "Paste one or more Heritage tickets. Preview first — nothing is written until you confirm.";
+  "Paste Heritage ticket text or choose a Heritage/NoVig screenshot. Preview first — nothing is written until you confirm.";
 
 export default function HeritageImport({ open, onClose, onImported }) {
   const [text, setText] = useState("");
@@ -21,6 +21,8 @@ export default function HeritageImport({ open, onClose, onImported }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [wroteMessage, setWroteMessage] = useState("");
+  const [ocrMessage, setOcrMessage] = useState("");
+  const [bookHint, setBookHint] = useState("");
   const feedbackRef = useRef(null);
   const modalRef = useRef(null);
   const closeBtnRef = useRef(null);
@@ -82,7 +84,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
       const res = await fetch("/api/bets", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "parse", text }),
+        body: JSON.stringify({ action: "parse", text, bookHint }),
       });
       const data = await readResponseJson(res);
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
@@ -95,6 +97,31 @@ export default function HeritageImport({ open, onClose, onImported }) {
     }
   }
 
+  async function readScreenshot(file) {
+    if (!file) return;
+    setBusy(true);
+    setError("");
+    setPreview(null);
+    setOcrMessage("Reading screenshot on this device…");
+    try {
+      const { createWorker, PSM } = await import("tesseract.js");
+      const worker = await createWorker("eng");
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
+      const result = await worker.recognize(file);
+      await worker.terminate();
+      const extracted = String(result?.data?.text || "").trim();
+      if (!extracted) throw new Error("No readable ticket text was found. Try a sharper screenshot.");
+      setText(extracted);
+      setBookHint(/novig|to\s*pay|strikeouts?\s+thrown/i.test(extracted) ? "NoVig" : "");
+      setOcrMessage("Screenshot read. Review the extracted text, then parse and confirm.");
+    } catch (err) {
+      setError(String(err.message || err));
+      setOcrMessage("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function confirmImport() {
     if (stale) {
       setError(PASTE_CHANGED);
@@ -102,7 +129,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
       queueMicrotask(() => feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
       return;
     }
-    const req = buildConfirmRequest({ text, tickets, edits });
+    const req = buildConfirmRequest({ text, tickets, edits, bookHint });
     if (!req.ok) {
       setError(req.error);
       setWroteMessage("");
@@ -135,14 +162,25 @@ export default function HeritageImport({ open, onClose, onImported }) {
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Import Heritage bet slip">
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Import bet slip">
       <div className="modal-card" ref={modalRef}>
         <div className="panel-header">
-          <h2>IMPORT HERITAGE BET SLIP</h2>
+          <h2>IMPORT BET SLIP</h2>
           <button ref={closeBtnRef} type="button" className="header-btn" onClick={onClose}>Close</button>
         </div>
         <div className="panel-body">
-          <p className="muted">{FIXTURE_HINT} Actual Heritage wagers are not qualified tickets, CONVICTION, FBIS-HC-v1, or the 7–0 seed unless a frozen pre-execution recommendation matches.</p>
+          <p className="muted">{FIXTURE_HINT} Actual wagers are separate from CONVICTION and FBIS-HC-v1 unless a frozen pre-execution recommendation matches.</p>
+          <label className="header-btn header-btn-refresh slip-upload">
+            {busy && ocrMessage ? "Reading screenshot…" : "Choose screenshot / camera"}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              disabled={busy}
+              onChange={(e) => readScreenshot(e.target.files?.[0])}
+            />
+          </label>
+          {ocrMessage && <p className="muted" role="status">{ocrMessage}</p>}
           <textarea
             className="slip-paste"
             value={text}
@@ -151,7 +189,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
               if (error) setError("");
               if (wroteMessage) setWroteMessage("");
             }}
-            placeholder="G10904318 | Aug 27 10:06&#10;Los Angeles Dodgers … vs Atlanta Braves …"
+            placeholder="Paste Heritage text, or choose a NoVig screenshot above."
             rows={10}
           />
           <div className="today-controls" style={{ marginTop: 10 }}>
@@ -198,7 +236,13 @@ export default function HeritageImport({ open, onClose, onImported }) {
                         <tr key={t.externalTicketId || i} className={rowClass(t)}>
                           <td>
                             <div>{t.externalTicketId || "missing ID"}</div>
-                            <div className="muted">{t.date} {t.executedAt ? new Date(t.executedAt).toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour: "numeric", minute: "2-digit" }) : ""}</div>
+                            <div className="muted">{t.date}</div>
+                            <input
+                              type="datetime-local"
+                              aria-label="Bet placement time"
+                              value={localDateTimeValue(e.executedAt)}
+                              onChange={(ev) => patch(i, "executedAt", localDateTimeIso(ev.target.value))}
+                            />
                           </td>
                           <td>
                             <TicketMatchup
@@ -297,7 +341,26 @@ function ticketEdit(t) {
     executionPrice: t.executionPrice,
     riskAmount: t.riskAmount,
     toWinAmount: t.toWinAmount,
+    executedAt: t.executedAt || "",
   };
+}
+
+function localDateTimeValue(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(d);
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+function localDateTimeIso(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  return Number.isFinite(d.getTime()) ? d.toISOString() : "";
 }
 
 function coerce(field, value) {
