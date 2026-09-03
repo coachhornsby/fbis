@@ -24,6 +24,7 @@ const ML_MARKETS = new Set(["ML", "F5 ML"]);
 const SPREAD_MARKETS = new Set(["SPREAD", "F5 SPREAD"]);
 const TOTAL_MARKETS = new Set(["TOTAL", "F5 TOTAL"]);
 const F5_MARKETS = new Set(["F5 ML", "F5 SPREAD", "F5 TOTAL"]);
+const MAX_MODEL_MARKET_GAP = 0.15;
 
 export function convictionQualificationState({ canaryPassed = false } = {}) {
   const paused = CONVICTION_QUALIFICATION_PAUSED || !canaryPassed;
@@ -48,6 +49,13 @@ function fail(reason, extra = {}) {
   };
 }
 
+function canonicalMarketProbability(candidate = {}) {
+  const raw = candidate.marketNoVigProbability ?? candidate.implied ?? candidate.entryNoVig;
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 && n < 1 ? n : null;
+}
+
 export function evaluateConvictionGates({
   candidate = {},
   frozen = {},
@@ -68,11 +76,30 @@ export function evaluateConvictionGates({
   const prob = validateCanonicalProbability(candidate.modelProbability ?? candidate.fair);
   if (!prob.ok) return fail("frozen-probability-invalid", { reasons: [prob.reason || "missing"] });
 
-  const price = candidate.pinPrice ?? candidate.benchmarkPrice ?? candidate.executionPrice;
+  // Qualification must be priced from the executable ticket when one exists.
+  // Pinnacle remains the benchmark/fair-market reference, not a substitute for
+  // the price the operator can actually bet.
+  const price = candidate.executionPrice ?? candidate.pinPrice ?? candidate.benchmarkPrice;
   if (!validAmericanOdds(price)) return fail("invalid-american-odds");
 
-  const opposing = candidate.marketComplete === true || candidate.implied != null || candidate.entryNoVig != null;
+  const marketNoVigProbability = canonicalMarketProbability(candidate);
+  const opposing = candidate.marketComplete === true || marketNoVigProbability != null;
   if (!opposing) return fail("missing-opposing-price");
+  if (marketNoVigProbability == null) return fail("invalid-market-no-vig-probability");
+
+  // Extreme model/market disagreement is a data-integrity condition, not an
+  // automatic edge. Quarantine it until the underlying identity, projection,
+  // pitcher/team inputs, and probability orientation are verified.
+  const modelMarketGap = Math.abs(prob.modelProbability - marketNoVigProbability);
+  if (modelMarketGap > MAX_MODEL_MARKET_GAP) {
+    return fail("extreme-model-market-disagreement", {
+      modelProbability: prob.modelProbability,
+      marketNoVigProbability,
+      reasons: [
+        `model/market gap ${(modelMarketGap * 100).toFixed(1)}pp exceeds ${(MAX_MODEL_MARKET_GAP * 100).toFixed(0)}pp integrity limit`,
+      ],
+    });
+  }
 
   const market = String(candidate.market || "");
   const side = String(candidate.side || "");
@@ -112,7 +139,11 @@ export function evaluateConvictionGates({
   const recomputed = expectedRoi(prob.modelProbability, price);
   if (recomputed == null || !Number.isFinite(recomputed)) return fail("expected-roi-recompute-failed");
   if (candidate.ev != null && !expectedRoiMatches(candidate.ev, recomputed, EXPECTED_ROI_TOLERANCE)) {
-    return fail("expected-roi-mismatch", { modelProbability: prob.modelProbability, expectedRoi: recomputed });
+    return fail("expected-roi-mismatch", {
+      modelProbability: prob.modelProbability,
+      expectedRoi: recomputed,
+      marketNoVigProbability,
+    });
   }
 
   return {
@@ -121,7 +152,7 @@ export function evaluateConvictionGates({
     reasons: [],
     modelProbability: prob.modelProbability,
     expectedRoi: recomputed,
-    marketNoVigProbability: candidate.implied ?? candidate.entryNoVig ?? null,
+    marketNoVigProbability,
     probabilitySchemaVersion: PROBABILITY_SCHEMA_VERSION,
     expectedRoiFormulaVersion: EXPECTED_ROI_FORMULA_VERSION,
     qualificationRuleVersion: QUALIFICATION_RULE_VERSION,
