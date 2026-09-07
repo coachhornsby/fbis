@@ -1,12 +1,9 @@
 name: Deploy Pages
 
-# Canonical production is https://fbis-myz.pages.dev/ (Wrangler Pages project `fbis`).
-# Every main commit must test, build, deploy the exact SHA, then verify Cloudflare parity.
+# Manual fallback for canonical production https://fbis-myz.pages.dev/ (Wrangler Pages project `fbis`).
+# Automatic production deploys run in ci.yml after tests pass.
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
@@ -79,7 +76,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          JSON="$(npx wrangler pages deployment list --project-name fbis --format json)"
+          JSON="$(npx wrangler pages deployment list --project-name fbis --json)"
           echo "$JSON"
           node -e '
             const fs = require("fs");
