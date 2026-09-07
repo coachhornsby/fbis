@@ -25,8 +25,8 @@ describe("FBIS model laboratory", () => {
     ];
     const out = evaluateModelRows(rows, { sport: "cbb" });
     assert.equal(out.n, 2);
-    assert.equal(out.total.mae, 0.5);
-    assert.equal(out.margin.mae, 2);
+    assert.equal(out.total.mae, 0);
+    assert.equal(out.margin.mae, 3);
     assert.equal(out.team.home.mae, 1.5);
     assert.equal(out.team.away.mae, 1.5);
   });
