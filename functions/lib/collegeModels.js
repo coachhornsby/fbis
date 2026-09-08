@@ -34,6 +34,7 @@ export const COLLEGE_MODELS = {
   "CFB-PINNACLE-IMPLIED": { id: "CFB-PINNACLE-IMPLIED", sport: "cfb", name: "Pinnacle implied score (market baseline)", version: "v1", role: "shadow", family: "market", canQualify: false, marketInformed: true, independent: false },
   "CFB-HFA-GLOBAL-v1": { id: "CFB-HFA-GLOBAL-v1", sport: "cfb", name: "Season-global HFA challenger", version: "v1", role: "shadow", family: "hfa", canQualify: false, marketInformed: false, independent: true },
   "CFB-HFA-CONF-v1": { id: "CFB-HFA-CONF-v1", sport: "cfb", name: "Conference-aware HFA challenger", version: "v1", role: "shadow", family: "hfa", canQualify: false, marketInformed: false, independent: true },
+  "CFB-MATCHUP-v2": { id: "CFB-MATCHUP-v2", sport: "cfb", name: "Pass/rush/explosive/havoc/trench/QB matchup decomposition", version: "v2", role: "shadow", family: "matchup-decomposition", canQualify: false, marketInformed: false, independent: true },
   "CBB-LEAGUE-BASELINE": { id: "CBB-LEAGUE-BASELINE", sport: "cbb", name: "CBB league-average efficiency × tempo + documented HCA", version: "v1", role: "shadow", family: "baseline", canQualify: false, marketInformed: false, independent: true },
   "CBB-CBBD-RATINGS-v1": { id: "CBB-CBBD-RATINGS-v1", sport: "cbb", name: "CBBD AdjOE×AdjDE/national × possessions (identity-preserving)", version: "v1", role: "shadow", family: "ratings", canQualify: false, marketInformed: false, independent: true },
   "CBB-TORVIK-RATINGS-v1": { id: "CBB-TORVIK-RATINGS-v1", sport: "cbb", name: "Torvik ratings when authorized and cached", version: "v1", role: "shadow", family: "ratings", canQualify: false, marketInformed: false, independent: true, optional: true },
@@ -43,7 +44,9 @@ export const COLLEGE_MODELS = {
   "CBB-MARKET-SHRUNK-v1": { id: "CBB-MARKET-SHRUNK-v1", sport: "cbb", name: "Market-informed shrinkage toward Pinnacle (not independent edge)", version: "v1", role: "shadow", family: "market", canQualify: false, marketInformed: true, independent: false },
   "CBB-PINNACLE-IMPLIED": { id: "CBB-PINNACLE-IMPLIED", sport: "cbb", name: "Pinnacle implied score (market baseline)", version: "v1", role: "shadow", family: "market", canQualify: false, marketInformed: true, independent: false },
   "CBB-KENPOM-SHADOW": { id: "CBB-KENPOM-SHADOW", sport: "cbb", name: "Optional KenPom comparison — never required", version: "v1", role: "shadow", family: "optional", canQualify: false, marketInformed: false, independent: true, optional: true },
+  "MLB-RUN-ALLOC-v1": { id: "MLB-RUN-ALLOC-v1", sport: "mlb", name: "Starter/bullpen/lineup/park/weather run-allocation challenger", version: "v1", role: "shadow", family: "run-allocation", canQualify: false, marketInformed: false, independent: true },
   "NFL-TEAM-FORM-v0": { id: "NFL-TEAM-FORM-v0", sport: "nfl", name: "NFL previous/current scoring-form baseline", version: "v0", role: "shadow", family: "baseline", canQualify: false, marketInformed: false, independent: true },
+  "NFL-PRO-v1": { id: "NFL-PRO-v1", sport: "nfl", name: "Opponent-adjusted EPA/success/QB/trenches/special-teams NFL challenger", version: "v1", role: "shadow", family: "professional-football", canQualify: false, marketInformed: false, independent: true },
 };
 
 export function modelMeta(id) { return COLLEGE_MODELS[id] || null; }
