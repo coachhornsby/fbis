@@ -35,8 +35,14 @@ export async function verifyDeploymentSha({
 const expected = process.argv[2];
 if (expected && import.meta.url === `file://${process.argv[1]}`) {
   const base = process.env.BASE || "https://fbis-myz.pages.dev";
+  const { nextVerifyDelayMs } = await import("../functions/lib/deploymentVerify.js");
   const out = await verifyDeploymentSha({
     expectedSha: expected,
+    maxAttempts: 12,
+    sleep: async (attempt, outcome) => {
+      const ms = nextVerifyDelayMs(attempt, { outcome });
+      await new Promise((r) => setTimeout(r, ms));
+    },
     fetchHealth: async () => {
       const res = await fetch(`${base}/api/health?_t=${Date.now()}`);
       const contentType = res.headers.get("content-type") || "";

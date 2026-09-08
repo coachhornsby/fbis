@@ -421,7 +421,8 @@ describe("scheduled SHA verification", () => {
       expectedSha: "a".repeat(40),
     });
     assert.equal(mismatch.outcome, VERIFY_OUTCOME.MISMATCH);
-    assert.equal(shouldFailClosed(mismatch, { attempts: 3, maxAttempts: 12 }), true);
+    assert.equal(shouldFailClosed(mismatch, { attempts: 3, maxAttempts: 12 }), false);
+    assert.equal(shouldFailClosed(mismatch, { attempts: 10, maxAttempts: 12 }), true);
     assert.equal(shouldFailClosed(propagating, { attempts: 2, maxAttempts: 12 }), false);
     assert.equal(shouldFailClosed(propagating, { attempts: 12, maxAttempts: 12 }), true);
     assert.equal(shouldFailClosed(unavailable, { attempts: 12, maxAttempts: 12 }), true);
