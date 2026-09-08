@@ -6,6 +6,7 @@
     <meta name="description" content="Fastwater Sports Intelligence — transparent quantitative sports projections and market context." />
     <title>Fastwater Sports Intelligence | Projections</title>
     <link rel="stylesheet" href="/projections.css" />
+    <link rel="stylesheet" href="/projections-models.css" />
   </head>
   <body>
     <header class="site-header">
@@ -23,7 +24,7 @@
       <section class="hero">
         <p class="eyebrow">QUANTITATIVE PROJECTIONS · MARKET INTELLIGENCE · TRANSPARENT TRACKING</p>
         <h1>Model the game. Compare the market.</h1>
-        <p class="hero-copy">Independent FBIS projections are published separately from the market benchmark. PASS means the current evidence does not support an official qualifying wager.</p>
+        <p class="hero-copy">Independent FBIS projections are published separately from third-party model cross-checks and the Pinnacle market benchmark. PASS means the current evidence does not support an official qualifying wager.</p>
       </section>
 
       <section class="toolbar" aria-label="Projection controls">
@@ -43,29 +44,17 @@
       </section>
 
       <section class="board-meta" aria-live="polite">
-        <div>
-          <span class="meta-label">BOARD</span>
-          <strong id="board-title">Loading…</strong>
-        </div>
-        <div>
-          <span class="meta-label">MODEL</span>
-          <strong id="model-version">—</strong>
-        </div>
-        <div>
-          <span class="meta-label">UPDATED</span>
-          <strong id="board-updated">—</strong>
-        </div>
+        <div><span class="meta-label">BOARD</span><strong id="board-title">Loading…</strong></div>
+        <div><span class="meta-label">MODEL</span><strong id="model-version">—</strong></div>
+        <div><span class="meta-label">UPDATED</span><strong id="board-updated">—</strong></div>
       </section>
 
       <div id="board-alert" class="board-alert" hidden></div>
       <section id="projection-grid" class="projection-grid" aria-live="polite"></section>
 
       <section class="methodology">
-        <div>
-          <span class="meta-label">FASTWATER STANDARD</span>
-          <h2>Projection ≠ market ≠ wager.</h2>
-        </div>
-        <p>FBIS separates the independent model from Pinnacle market context and from the final qualification decision. Market-implied scores are never presented as proprietary FBIS projections.</p>
+        <div><span class="meta-label">FASTWATER STANDARD</span><h2>FBIS ≠ cross-check ≠ market.</h2></div>
+        <p>The proprietary FBIS projection is always identified separately. MLB may also show Ballpark Pal as an independent cross-check. Pinnacle is the market benchmark. Neither Ballpark Pal nor Pinnacle overwrites the FBIS projection.</p>
       </section>
     </main>
 
@@ -73,7 +62,6 @@
       <p id="board-disclaimer">Model projections and market intelligence are informational.</p>
       <p>Fastwater Capital · Houston, Texas</p>
     </footer>
-
     <script type="module" src="/projections.js"></script>
   </body>
 </html>
