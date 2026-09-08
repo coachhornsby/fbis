@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { productProjectionBoard, FORBIDDEN_PRODUCT_KEYS } from "../functions/lib/productProjection.js";
-import { authorizeProductTier } from "../functions/lib/productAccess.js";
+import { authorizeProductTier, productResponsePolicy } from "../functions/lib/productAccess.js";
 
 test("public projection board exposes product data but not private operator payloads", () => {
   const slate = {
@@ -43,4 +44,23 @@ test("PRO access fails closed until a subscriber credential is configured", () =
   assert.equal(denied.ok, false);
   const allowed = authorizeProductTier(new Request("https://x.test", { headers: { "x-fbis-pro-token": "right" } }), { SUBSCRIBER_API_TOKEN: "right" }, "pro");
   assert.equal(allowed.ok, true);
+});
+
+test("PRO responses are never shared-cacheable while PUBLIC can use stale-while-revalidate", () => {
+  const pro = productResponsePolicy("pro");
+  assert.match(pro.cacheControl, /private/);
+  assert.match(pro.cacheControl, /no-store/);
+  assert.equal(pro.allowOrigin, null);
+  const pub = productResponsePolicy("public");
+  assert.match(pub.cacheControl, /public/);
+  assert.match(pub.cacheControl, /stale-while-revalidate/);
+  assert.equal(pub.allowOrigin, "*");
+});
+
+test("projection serving is paid-feed cache-only", async () => {
+  const source = await readFile(new URL("../functions/api/projections.js", import.meta.url), "utf8");
+  assert.match(source, /parlayCacheOnly:\s*true/);
+  assert.match(source, /palCacheOnly:\s*true/);
+  assert.doesNotMatch(source, /parlayCacheOnly:\s*false/);
+  assert.doesNotMatch(source, /palCacheOnly:\s*false/);
 });
