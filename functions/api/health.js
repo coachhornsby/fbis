@@ -44,12 +44,20 @@ export async function onRequestGet(context) {
     const writeOk = writeVerification === "VERIFIED";
     const collectHealthy = schedule?.collect?.state === "healthy";
     const harvestHealthy = schedule?.harvest?.state === "healthy";
+    const schema = await schemaVersion(env, { readOk });
+    const conflicts = await conflictBreakdown(env, { readOk });
+    const migrationOk = schema.status === MIGRATION_STATUS.VERIFIED;
     const derived = deriveHealthState({
       hasAuthoritativeData: readOk,
       requiredChecks: [
         { name: "d1-binding", ok: Boolean(health.bound), detail: health.bound ? "bound" : "unbound" },
         { name: "d1-read", ok: readOk, detail: health.source || "unknown" },
         { name: "d1-write", ok: writeOk, detail: `failedWrites=${Number(health.failedWrites || 0)} failedHarvests=${Number(health.failedHarvests || 0)}` },
+        {
+          name: "schema-migration",
+          ok: migrationOk,
+          detail: `${schema.status}:${schema.version || "none"} expected=${EXPECTED_MIGRATION}`,
+        },
         {
           name: "scheduled-collect",
           ok: collectHealthy,
@@ -66,7 +74,6 @@ export async function onRequestGet(context) {
         },
       ],
     });
-    const schema = await schemaVersion(env, { readOk });
     const build = buildMeta(context.request, env, schema);
     return json(
       {
@@ -97,6 +104,7 @@ export async function onRequestGet(context) {
           failedHarvests: Number(health.failedHarvests || 0),
           retryOpen: Number(health.retryOpen || 0),
           immutableConflicts: Number(health.immutableConflicts || 0),
+          conflictBreakdown: conflicts,
           schedule,
         },
         checks: derived.checks,
@@ -105,7 +113,7 @@ export async function onRequestGet(context) {
         telemetry: {
           endpoint: "/api/health",
           requestCount: 1,
-          queryCountEstimate: readOk ? 6 : 2,
+          queryCountEstimate: readOk ? 8 : 2,
           rowsReadEstimate: 1,
           cacheStatus: "max-age=15",
           lastQuotaFailure: readOk ? null : (health.lastError || health.source || null),
@@ -181,5 +189,37 @@ async function schemaVersion(env, { readOk }) {
       version: null,
       status: MIGRATION_STATUS.UNVERIFIED,
     };
+  }
+}
+
+/** Split write_conflicts into expected re-freeze duplicates vs genuine payload mismatches. */
+async function conflictBreakdown(env, { readOk }) {
+  const empty = {
+    total: 0,
+    expectedDuplicates: 0,
+    genuineMismatches: 0,
+    other: 0,
+  };
+  if (!readOk || !env?.DB?.prepare) return empty;
+  try {
+    const rows = await env.DB.prepare(
+      "SELECT reason, COUNT(*) AS n FROM write_conflicts GROUP BY reason"
+    ).all();
+    const byReason = {};
+    for (const row of rows?.results || []) {
+      byReason[String(row.reason || "unknown")] = Number(row.n) || 0;
+    }
+    const genuineMismatches = Number(byReason["immutable-projection-mismatch"] || 0);
+    const expectedDuplicates = Number(byReason["expected-duplicate"] || byReason["duplicate-insert"] || 0);
+    const total = Object.values(byReason).reduce((s, n) => s + Number(n || 0), 0);
+    return {
+      total,
+      expectedDuplicates,
+      genuineMismatches,
+      other: Math.max(0, total - expectedDuplicates - genuineMismatches),
+      byReason,
+    };
+  } catch {
+    return empty;
   }
 }

@@ -1293,28 +1293,51 @@ async function gradeExecutedBets(env, finals) {
   const jobs = [];
   for (const t of listed.rows || []) {
     let g = t.gameId ? byId.get(String(t.gameId)) : null;
+    let sportCorrected = false;
+    let matchConfidence = t.matchConfidence || null;
     if (!g) {
-      const matched = matchExecutedBet(t, allFinals);
-      if (matched.status === "matched") g = matched.game;
+      const matched = matchExecutedBet(t, allFinals, { allowSportCorrection: true });
+      if (matched.status === "matched") {
+        g = matched.game;
+        sportCorrected = Boolean(matched.sportCorrected);
+        matchConfidence = matched.confidence;
+      }
     }
     if (!g) continue;
     const detail = String(g.status?.detail || "").toLowerCase();
     if (g.status?.completed !== true && !/\bfinal\b|cancel|void|postpone|suspend/.test(detail)) continue;
-    const settled = settleExecutedBet(t, {
-      ...g,
-      status: g.status || { completed: g.home?.score != null },
-      home: g.home,
-      away: g.away,
-      actualHome: g.home?.score ?? g.actualHome,
-      actualAway: g.away?.score ?? g.actualAway,
-      f5Score: g.f5Score,
-    });
+    const settled = settleExecutedBet(
+      sportCorrected ? { ...t, sport: g.sport || t.sport } : t,
+      {
+        ...g,
+        status: g.status || { completed: g.home?.score != null },
+        home: g.home,
+        away: g.away,
+        actualHome: g.home?.score ?? g.actualHome,
+        actualAway: g.away?.score ?? g.actualAway,
+        f5Score: g.f5Score,
+      }
+    );
+    const bindGame =
+      sportCorrected && g?.id && !t.gameId
+        ? { gameId: String(g.id), matchStatus: "matched", matchConfidence }
+        : null;
     if (settled.result && settled.result !== "OPEN") {
       const alreadySettled = t.result && t.result !== "OPEN";
       const changed = settled.result !== t.result || Number(settled.profit) !== Number(t.profit);
-      if (changed) {
-        jobs.push(updateExecutedBet(env, t.id, settled, alreadySettled ? "settlement-correction" : "settlement"));
+      if (changed || bindGame) {
+        jobs.push(
+          updateExecutedBet(
+            env,
+            t.id,
+            { ...settled, ...(bindGame || {}) },
+            bindGame ? "sport-correction-settlement" : alreadySettled ? "settlement-correction" : "settlement"
+          )
+        );
       }
+    } else if (bindGame) {
+      // Bind the matched game id so later harvests settle without re-scanning.
+      jobs.push(updateExecutedBet(env, t.id, bindGame, "sport-correction"));
     }
   }
   await Promise.all(jobs);

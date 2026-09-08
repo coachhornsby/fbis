@@ -32,23 +32,33 @@ function bothTeams(game, awayName, homeName) {
   );
 }
 
-export function matchExecutedBet(ticket, games) {
-  const list = (games || []).filter((g) => {
-    if (ticket.sport && g.sport && ticket.sport !== g.sport) return false;
-    if (ticket.date && g.date && ticket.date !== g.date) return false;
-    return bothTeams(
-      {
-        home: { name: g.home?.name || g.homeName, abbr: g.home?.abbr || g.homeAbbr },
-        away: { name: g.away?.name || g.awayName, abbr: g.away?.abbr || g.awayAbbr },
-      },
-      ticket.awayTeam,
-      ticket.homeTeam
-    );
-  });
+export function matchExecutedBet(ticket, games, { allowSportCorrection = true } = {}) {
+  const filter = (requireSport) =>
+    (games || []).filter((g) => {
+      if (requireSport && ticket.sport && g.sport && ticket.sport !== g.sport) return false;
+      if (ticket.date && g.date && ticket.date !== g.date) return false;
+      return bothTeams(
+        {
+          home: { name: g.home?.name || g.homeName, abbr: g.home?.abbr || g.homeAbbr },
+          away: { name: g.away?.name || g.awayName, abbr: g.away?.abbr || g.awayAbbr },
+        },
+        ticket.awayTeam,
+        ticket.homeTeam
+      );
+    });
+
+  let list = filter(true);
+  let sportCorrected = false;
+  // Heritage slips sometimes default sport to mlb while naming college teams.
+  // Allow a single exact team/date match across sports so harvest can settle.
+  if (!list.length && allowSportCorrection) {
+    list = filter(false);
+    sportCorrected = list.length > 0;
+  }
   const timed = list.filter((g) => kickoffProximity(ticket.executedAt, g.start, 18));
   const pool = timed.length ? timed : list;
   if (!pool.length) {
-    return { status: "unmatched", confidence: "none", game: null, candidates: [], warning: "unmatched games" };
+    return { status: "unmatched", confidence: "none", game: null, candidates: [], warning: "unmatched games", sportCorrected: false };
   }
   if (pool.length > 1) {
     return {
@@ -57,10 +67,18 @@ export function matchExecutedBet(ticket, games) {
       game: null,
       candidates: pool.map(slimGame),
       warning: "ambiguous team matches",
+      sportCorrected,
     };
   }
   const game = pool[0];
-  return { status: "matched", confidence: "high", game, candidates: [slimGame(game)], warning: null };
+  return {
+    status: "matched",
+    confidence: sportCorrected ? "medium" : "high",
+    game,
+    candidates: [slimGame(game)],
+    warning: sportCorrected ? `sport-corrected:${ticket.sport}->${game.sport}` : null,
+    sportCorrected,
+  };
 }
 
 function slimGame(g) {
@@ -227,7 +245,7 @@ export function settleExecutedBet(ticket, game) {
   const market = ticket.market;
   const side = ticket.selectedSide;
   const line = Number(ticket.executionLine);
-  const sport = String(ticket.sport || game.sport || "").toLowerCase();
+  const sport = String(game.sport || ticket.sport || "").toLowerCase();
   let won = null;
   let push = false;
   if (market === "ML" || market === "F5 ML") {
@@ -313,13 +331,17 @@ export function summarizeExecutedBets(rows) {
   const profit = profits.length ? profits.reduce((s, v) => s + Number(v), 0) : null;
   const clvs = xs.map((t) => t.clv).filter((v) => v != null && Number.isFinite(Number(v)));
   const n = xs.length;
+  const manualReview = xs.filter((t) => String(t.result || "").toUpperCase() === "MANUAL_REVIEW").length;
+  const open = xs.filter((t) => !t.result || t.result === "OPEN").length;
   return {
     bets: n,
-    open: xs.filter((t) => !t.result || t.result === "OPEN").length,
+    open,
     settled: terminal.length,
     decided: decided.length,
     pushes: terminal.filter((t) => t.result === "PUSH").length,
     voids: terminal.filter((t) => t.result === "VOID").length,
+    manualReview,
+    unresolved: open + manualReview,
     record: decided.length ? `${wins}-${losses}` : null,
     risk: n ? Math.round(risk * 100) / 100 : null,
     profit: profits.length ? Math.round(profit * 100) / 100 : null,

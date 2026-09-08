@@ -111,8 +111,16 @@ export async function onRequestGet(context) {
       todayFocusSport: board?.parlay?.focusSport || "all",
       todayCt: todayCT(),
     };
-    const successfulSports = Object.entries(sourceStatus.statuses).filter(([, s]) => s.schedule === "ok" && s.projections === "ok" && ["ok", "no-games"].includes(s.markets)).map(([k]) => k);
-    const failedSports = Object.entries(sourceStatus.statuses).filter(([, s]) => s.schedule !== "ok" || s.projections !== "ok" || !["ok", "no-games"].includes(s.markets)).map(([k]) => k);
+    const successfulSports = Object.entries(sourceStatus.statuses)
+      .filter(([, s]) =>
+        ["ok", "no-games"].includes(s.schedule) &&
+        ["ok", "no-games"].includes(s.projections) &&
+        ["ok", "no-games"].includes(s.markets)
+      )
+      .map(([k]) => k);
+    const failedSports = Object.entries(sourceStatus.statuses)
+      .filter(([k]) => !successfulSports.includes(k))
+      .map(([k]) => k);
     const allSportsAuthoritative = failedSports.length === 0;
     return json({
       ...withBets,
@@ -171,17 +179,21 @@ function buildTodaySourceStatus(board) {
   for (const [sport, feed] of Object.entries(feeds)) {
     const games = (board?.games || []).filter((game) => game?.sport === sport);
     const usableMarkets = games.filter((game) => !game?.marketUnavailable).length;
-    const scheduleOk = feed?.ok !== false;
-    const projectionOk = Number(feed?.n || 0) > 0 || scheduleOk;
+    const projectedGames = games.filter((game) => !game?.projectionUnavailable).length;
+    const scheduleOk = feed?.ok !== false && !feed?.error;
+    // Empty slate (no games) is healthy. A sport with games needs real projections —
+    // schedule transport success alone is not projection coverage.
+    const projectionOk = games.length === 0 ? scheduleOk : projectedGames > 0;
     // Successful transport is not usable market coverage. A sport with games
     // needs at least one paired executable market; an empty slate is healthy.
     const marketOk = !feed?.error && (games.length === 0 || usableMarkets > 0);
     const source = feed?.cachedParlay ? "cache" : "live";
     statuses[sport] = {
-      schedule: scheduleOk ? "ok" : "failed",
-      projections: projectionOk ? "ok" : "failed",
+      schedule: scheduleOk ? (games.length === 0 ? "no-games" : "ok") : "failed",
+      projections: games.length === 0 ? "no-games" : projectionOk ? "ok" : "unavailable",
       markets: games.length === 0 ? "no-games" : marketOk ? "ok" : "unavailable",
       games: games.length,
+      projectedGames,
       usableMarkets,
       source,
       error: feed?.error || null,
@@ -190,13 +202,13 @@ function buildTodaySourceStatus(board) {
       name: `${sport}-schedule`,
       ok: scheduleOk,
       source,
-      detail: feed?.error || "ok",
+      detail: feed?.error || (games.length === 0 ? "no-games" : "ok"),
     });
     requiredChecks.push({
       name: `${sport}-projection`,
       ok: projectionOk,
       source,
-      detail: Number(feed?.n || 0) > 0 ? `n=${feed.n}` : "no-games",
+      detail: games.length === 0 ? "no-games" : `projected=${projectedGames}/${games.length}`,
     });
     requiredChecks.push({
       name: `${sport}-market`,
