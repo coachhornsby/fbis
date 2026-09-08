@@ -9,6 +9,7 @@ import {
   validateImportedTicket,
   EXPECTED_SEED_N,
   summarizeProspectiveConvictionCohort,
+  classifyProspectiveLifecycle,
 } from "../lib/strategy.js";
 import { persistStrategy, persistStrategyTicket, queryStrategyTickets, gradeStrategyTicket, hasDb, queryGamesByIds, queryProbabilityCorrections, readMeta } from "../lib/store.js";
 import { authorizeStrategyPost, unauthorizedBody } from "../lib/auth.js";
@@ -297,6 +298,7 @@ export async function onRequestGet(context) {
       stats: mixed ? null : strategyStats(prospective),
       aggregateUnavailable: mixed,
       aggregateReason: mixed ? "mixed-populations-require-breakdown" : null,
+      lifecycle: classifyProspectiveLifecycle(prospective),
     },
     prospectiveBySport,
     yesterdayConvictionCohort: {

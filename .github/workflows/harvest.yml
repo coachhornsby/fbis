@@ -292,7 +292,7 @@ jobs:
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "accept: application/json" \
               -o "$tmp" -w "%{http_code}" \
-              "${BASE}/api/harvest?days=3&sport=${SPORT}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
+              "${BASE}/api/harvest?days=10&sport=${SPORT}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
             curl_ec=$?
             set -e
             http="$(tr -d '\r\n' < "${tmp}.code")"
@@ -353,7 +353,7 @@ jobs:
           if [ "$harvest_state" = "missed" ]; then
             echo "Recovering missed harvest slot"
             body="$(mktemp)"
-            code="$(curl -sS --max-time 180 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/harvest?days=3&sport=all&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")"
+            code="$(curl -sS --max-time 180 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/harvest?days=10&sport=all&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")"
             jq '{ok,status,finals_graded,errors}' "$body"
             [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$body")" = "true" ] || exit 1
           fi

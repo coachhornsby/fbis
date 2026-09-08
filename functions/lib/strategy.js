@@ -730,6 +730,55 @@ export function strategyReconstruction(seedTickets = []) {
   };
 }
 
+/** Segment prospective tickets for operator/subscriber views without rewriting rows. */
+export function classifyProspectiveLifecycle(tickets = [], { today = null } = {}) {
+  const todayCt = today || new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const buckets = {
+    upcoming: [],
+    awaitingFinal: [],
+    graded: [],
+    quarantined: [],
+    dataErrors: [],
+  };
+  for (const raw of tickets || []) {
+    const t = presentStrategyTicket(raw);
+    const result = String(t.result || "OPEN").toUpperCase();
+    const date = String(t.date || "").slice(0, 10);
+    const quarantined = Boolean(t.traits?.quarantineReason) || result === "QUARANTINED" || String(t.tag || "").toUpperCase() === "QUARANTINED";
+    // presentStrategyTicket keeps matchup, not homeName/awayName; accept either shape.
+    const hasTeams =
+      Boolean(t.homeName && t.awayName) ||
+      /@/.test(String(t.matchup || ""));
+    const dataError =
+      !t.gameId ||
+      !hasTeams ||
+      Number(t.dataQuality) === 0 ||
+      /incomplete|missing|unresolved/i.test(String(t.traits?.quarantineReason || ""));
+    if (quarantined) buckets.quarantined.push(t);
+    else if (dataError) buckets.dataErrors.push(t);
+    else if (["WON", "LOST", "PUSH", "VOID"].includes(result)) buckets.graded.push(t);
+    else if (date && date < todayCt) buckets.awaitingFinal.push(t);
+    else buckets.upcoming.push(t);
+  }
+  return {
+    todayCt,
+    counts: {
+      upcoming: buckets.upcoming.length,
+      awaitingFinal: buckets.awaitingFinal.length,
+      graded: buckets.graded.length,
+      quarantined: buckets.quarantined.length,
+      dataErrors: buckets.dataErrors.length,
+      total: (tickets || []).length,
+    },
+    buckets,
+  };
+}
+
 export function summarizeProspectiveConvictionCohort(
   tickets = [],
   {
