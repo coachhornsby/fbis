@@ -21,3 +21,24 @@ export function authorizeProductTier(request, env = {}, tier = "public") {
     ? { ok: true, tier: "pro", reason: null }
     : { ok: false, tier: "pro", reason: "pro-auth-required" };
 }
+
+/**
+ * Product responses have different confidentiality requirements by tier.
+ * PUBLIC can use shared caches. PRO contains subscriber-only analysis and must
+ * never enter a shared cache, even when a CDN honors Vary correctly.
+ */
+export function productResponsePolicy(tier = "public") {
+  const normalized = String(tier || "public").toLowerCase();
+  if (normalized === "pro") {
+    return {
+      cacheControl: "private, no-store, max-age=0",
+      allowOrigin: null,
+      vary: "x-fbis-pro-token",
+    };
+  }
+  return {
+    cacheControl: "public, max-age=60, stale-while-revalidate=120",
+    allowOrigin: "*",
+    vary: "accept-encoding",
+  };
+}
