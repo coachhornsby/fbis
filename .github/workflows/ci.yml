@@ -127,7 +127,8 @@ jobs:
           # Settle-only harvest for the stale OPEN college dates (full harvest exceeds Pages time).
           harvest_failed=0
           RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          for sport_day in "cfb:2026-09-05" "cfb:2026-09-03" "mlb:2026-09-03"; do
+          # Remaining OPEN college tickets are on 2026-09-05; keep 09-03 as a cheap recheck.
+          for sport_day in "cfb:2026-09-05" "cfb:2026-09-03"; do
             sport="${sport_day%%:*}"
             day="${sport_day##*:}"
             echo "settle-harvest ${sport} date=${day}"

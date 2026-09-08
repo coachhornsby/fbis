@@ -66,6 +66,44 @@ test("fetchResultsForReconcile falls back to CFBD when ESPN returns HTML", async
   }
 });
 
+test("fetchResultsForReconcile preferCfbd skips ESPN when CFBD has games", async () => {
+  const realFetch = globalThis.fetch;
+  let espnHits = 0;
+  globalThis.fetch = async (url) => {
+    const s = String(url);
+    if (s.includes("espn.com")) {
+      espnHits += 1;
+      return new Response("<html>challenge</html>", { status: 200, headers: { "content-type": "text/html; charset=UTF-8" } });
+    }
+    if (s.startsWith("https://api.collegefootballdata.com/games")) {
+      return new Response(JSON.stringify([{
+        id: 401628099,
+        startDate: "2026-09-05T23:00:00.000Z",
+        completed: true,
+        homeTeam: "New Mexico",
+        awayTeam: "Central Michigan",
+        homePoints: 35,
+        awayPoints: 10,
+        week: 1,
+        neutralSite: false,
+        venue: "Stadium",
+      }]), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response("not found", { status: 404 });
+  };
+  try {
+    const games = await fetchResultsForReconcile("cfb", "2026-09-05", {
+      cfbdApiKey: "test-key",
+      preferCfbd: true,
+    });
+    assert.equal(espnHits, 0);
+    assert.equal(games.length, 1);
+    assert.equal(games[0].home.name, "New Mexico");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
 test("settleOnly harvest uses CFBD finals when ESPN is blocked", async () => {
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
