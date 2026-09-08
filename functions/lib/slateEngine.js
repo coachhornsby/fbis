@@ -8,8 +8,10 @@
 
 import * as core from "./slateEngineCore.js";
 import { attachNflShadow } from "./nflModel.js";
+import { pinMarkets } from "./pricing.js";
 
 export * from "./slateEngineCore.js";
+export { pinMarkets } from "./pricing.js";
 
 const INDEPENDENT_SCORE_REQUIRED = new Set(["cbb", "nba", "nfl"]);
 const CRITICAL_QUALITY_FLAGS = new Set(["pinnacle_implied_score", "market_unresolved"]);
@@ -54,7 +56,7 @@ export function qualificationIntegrity(sport, game) {
 function pinF5Complete(game, market) {
   const m = String(market || "").toUpperCase();
   if (!m.startsWith("F5")) return true;
-  const pin = game?.pin || core.pinMarkets(game);
+  const pin = game?.pin || pinMarkets(game);
   if (m === "F5 ML") return Boolean(pin?.f5ml?.complete);
   if (m === "F5 TOTAL") return Boolean(pin?.f5total?.complete);
   if (m === "F5 SPREAD") return Boolean(pin?.f5spread?.complete);
