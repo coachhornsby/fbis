@@ -67,7 +67,7 @@ export function qualificationIntegrity(sport, game) {
   if (INDEPENDENT_SCORE_REQUIRED.has(id) && projectionKind !== "FBIS") {
     const label = id.toUpperCase();
     const reason = id === "nfl"
-      ? "NFL qualification blocked — no promoted independent NFL model"
+      ? "NFL qualification blocked — no independent NFL model"
       : `${label} qualification blocked — no independent FBIS projection`;
     return { ok: false, reason, code: "independent-projection-required" };
   }
