@@ -5,7 +5,8 @@
 
 import { readCache, writeCache } from "./cache.js";
 import { namesMatch } from "./parlay.js";
-import { BOARD_SPORTS, SPORTS, lastNDatesCT, todayCT, shiftDateCT, fetchResults, blendWinProb, buildSlate, recommendBundle } from "./slateEngine.js";
+import { BOARD_SPORTS, SPORTS, lastNDatesCT, todayCT, shiftDateCT, fetchResultsForReconcile, blendWinProb, buildSlate, recommendBundle } from "./slateEngine.js";
+import { collegeApiKey } from "./collegeSecrets.js";
 import { DEFAULT_WEIGHTS, MODEL_VERSION } from "./weights.js";
 import { brierScore, logLoss } from "./pricing.js";
 import {
@@ -1624,7 +1625,10 @@ async function writeDailyMetrics(env, rows) {
 }
 
 export async function harvestSport(sport, days, env = {}, opts = {}) {
-  const fetchFn = opts.fetchResultsFn || fetchResults;
+  // Prefer CFBD-backed reconcile for CFB when ESPN scoreboard is blocked/HTML.
+  // settleOnly grades from live finals only (skipDurableFinals), so this fallback is required.
+  const fetchFn = opts.fetchResultsFn || ((s, d) =>
+    fetchResultsForReconcile(s, d, { cfbdApiKey: collegeApiKey(env, "cfbd") }));
   const cfCache = env.caches;
   const singleDate = String(opts.date || "").slice(0, 10);
   const n = Math.max(1, Math.min(Number(days) || 8, KEEP_DAYS));
