@@ -59,7 +59,7 @@ test("track POST is protected by API middleware", async () => {
   const allowed = await apiMiddleware({
     request: new Request("https://fbis.example/api/track", { method: "POST", headers: { "x-strategy-secret": "abc123" } }),
     env: { HARVEST_SECRET: "abc123" },
-    next: async () => { nextCalled = true; return new Response("ok", { status: 204 }); },
+    next: async () => { nextCalled = true; return new Response(null, { status: 204 }); },
   });
   assert.equal(allowed.status, 204);
   assert.equal(nextCalled, true);
