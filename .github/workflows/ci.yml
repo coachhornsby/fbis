@@ -65,6 +65,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
+          # Production was bootstrapped via schema.sql; sync wrangler bookkeeping
+          # before apply so already-present columns are not ALTER'd again.
+          node scripts/sync-d1-migrations.mjs
           npx wrangler d1 migrations apply fbis --remote
 
       - name: Build production artifact
