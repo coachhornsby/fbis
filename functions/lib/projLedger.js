@@ -1625,15 +1625,19 @@ async function writeDailyMetrics(env, rows) {
 }
 
 export async function harvestSport(sport, days, env = {}, opts = {}) {
-  // Prefer CFBD-backed reconcile for CFB when ESPN scoreboard is blocked/HTML.
-  // settleOnly grades from live finals only (skipDurableFinals), so this fallback is required.
-  const fetchFn = opts.fetchResultsFn || ((s, d) =>
-    fetchResultsForReconcile(s, d, { cfbdApiKey: collegeApiKey(env, "cfbd") }));
   const cfCache = env.caches;
   const singleDate = String(opts.date || "").slice(0, 10);
   const n = Math.max(1, Math.min(Number(days) || 8, KEEP_DAYS));
   const dates = /^\d{4}-\d{2}-\d{2}$/.test(singleDate) ? [singleDate] : lastNDatesCT(n);
   const settleOnly = opts.settleOnly === true || opts.settleOnly === "1" || opts.settleOnly === 1;
+  // Prefer CFBD-backed reconcile for CFB when ESPN scoreboard is blocked/HTML.
+  // settleOnly grades from live finals only (skipDurableFinals), so this fallback is required.
+  // For settleOnly CFB, try CFBD first to avoid ESPN HTML/circuit burning Pages CPU.
+  const fetchFn = opts.fetchResultsFn || ((s, d) =>
+    fetchResultsForReconcile(s, d, {
+      cfbdApiKey: collegeApiKey(env, "cfbd"),
+      preferCfbd: settleOnly && s === "cfb",
+    }));
   // Lightweight path for Pages CPU/time limits: fetch finals + settle tickets only.
   if (settleOnly) {
     const finals = [];

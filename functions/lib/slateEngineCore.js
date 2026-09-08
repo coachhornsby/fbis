@@ -1083,7 +1083,11 @@ async function fetchCfbdGamesRange(startDay, endDay, apiKey) {
 }
 
 async function fetchCfbdGamesForDate(day, apiKey) {
-  const rows = await fetchCfbdGamesRange(day, day, apiKey);
+  // Widen one day either side: CFBD start/end bounds and CT/UTC startDate skew
+  // can otherwise drop evening games when querying a single calendar day.
+  const prev = shiftDay(day, -1);
+  const next = shiftDay(day, 1);
+  const rows = await fetchCfbdGamesRange(prev, next, apiKey);
   const list = Array.isArray(rows) ? rows : [];
   return list
     .filter((g) => {
@@ -1211,15 +1215,25 @@ export async function fetchResults(sport, date) {
 }
 
 export async function fetchResultsForReconcile(sport, date, opts = {}) {
+  const day = date || todayCT();
+  const preferCfbd = opts.preferCfbd === true || opts.cfbdFirst === true;
+  if (preferCfbd && sport === "cfb" && opts.cfbdApiKey) {
+    try {
+      const games = await fetchCfbdGamesForDate(day, opts.cfbdApiKey);
+      if (games.length) return games.map(slimFinal);
+    } catch {
+      /* fall through to ESPN, then CFBD-on-error below */
+    }
+  }
   try {
-    return await fetchResults(sport, date);
+    return await fetchResults(sport, day);
   } catch (err) {
     if (sport === "cfb" && opts.cfbdApiKey) {
       try {
-        const games = await fetchCfbdGamesForDate(date || todayCT(), opts.cfbdApiKey);
+        const games = await fetchCfbdGamesForDate(day, opts.cfbdApiKey);
         return games.map(slimFinal);
-      } catch {
-        /* fall through to original error */
+      } catch (cfbdErr) {
+        throw new Error(`${String(err?.message || err)}; CFBD fallback: ${String(cfbdErr?.message || cfbdErr)}`);
       }
     }
     throw err;
