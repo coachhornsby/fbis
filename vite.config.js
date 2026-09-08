@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { buildSlate, resolveSlateDate } from "./functions/lib/slateEngine.js";
-import { freezeSlate, buildTrackReport, harvestAll, collectBoards } from "./functions/lib/projLedger.js";
+import { buildTrackReport, harvestAll, collectBoards } from "./functions/lib/projLedger.js";
 import { buildTodayBoard, resolveTodayDate } from "./functions/lib/todayBoard.js";
 import { handleBetsGet, handleBetsPost } from "./functions/api/bets.js";
 
@@ -48,20 +48,11 @@ function slateMiddleware() {
           const sport = parsed.searchParams.get("sport") || "mlb";
           const date = parsed.searchParams.get("date") || "";
           if (url.startsWith("/api/bets")) {
-            const env = localEnv({
-              HARVEST_SECRET: process.env.HARVEST_SECRET,
-              STRATEGY_IMPORT_SECRET: process.env.STRATEGY_IMPORT_SECRET,
-            });
+            const env = localEnv({ HARVEST_SECRET: process.env.HARVEST_SECRET, STRATEGY_IMPORT_SECRET: process.env.STRATEGY_IMPORT_SECRET });
             const host = req.headers.host || "localhost";
             const fakeReq = {
               url: `http://${host}${parsed.pathname}${parsed.search}`,
-              headers: {
-                get(name) {
-                  const key = Object.keys(req.headers || {}).find((k) => k.toLowerCase() === String(name).toLowerCase());
-                  const v = key ? req.headers[key] : null;
-                  return Array.isArray(v) ? v[0] : v;
-                },
-              },
+              headers: { get(name) { const key = Object.keys(req.headers || {}).find((k) => k.toLowerCase() === String(name).toLowerCase()); const v = key ? req.headers[key] : null; return Array.isArray(v) ? v[0] : v; } },
             };
             if (req.method === "OPTIONS") {
               res.statusCode = 204;
@@ -120,13 +111,7 @@ function slateMiddleware() {
           }
           if (url.startsWith("/api/track")) {
             const days = parsed.searchParams.get("days") || "season";
-            const payload = await buildTrackReport(sport, days, localEnv(), {
-              checkpoint: parsed.searchParams.get("checkpoint") || "LATEST",
-              version: parsed.searchParams.get("version") || "all",
-              model: parsed.searchParams.get("model") || "ensemble",
-              type: parsed.searchParams.get("type") || "perGame",
-              year: parsed.searchParams.get("year") || "",
-            });
+            const payload = await buildTrackReport(sport, days, localEnv(), { checkpoint: parsed.searchParams.get("checkpoint") || "LATEST", version: parsed.searchParams.get("version") || "all", model: parsed.searchParams.get("model") || "ensemble", type: parsed.searchParams.get("type") || "perGame", year: parsed.searchParams.get("year") || "" });
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify(payload));
             return;
@@ -138,8 +123,9 @@ function slateMiddleware() {
             res.end(JSON.stringify({ error: resolved.error, games: [], ticker: [], counts: {} }));
             return;
           }
+          // Local /api/slate is read-only, matching production. Explicit
+          // /api/collect remains the only freeze/write entry point.
           const payload = await buildSlate(sport, resolved.date, localEnv());
-          await freezeSlate(payload, {}).catch(() => {});
           if (url.startsWith("/api/ticker")) {
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify({ items: payload.ticker, generatedAt: payload.generatedAt }));
@@ -164,11 +150,7 @@ function readJsonBody(req) {
     req.on("end", () => {
       const raw = Buffer.concat(chunks).toString("utf8");
       if (!raw) return resolve({});
-      try {
-        resolve(JSON.parse(raw));
-      } catch (err) {
-        reject(err);
-      }
+      try { resolve(JSON.parse(raw)); } catch (err) { reject(err); }
     });
     req.on("error", reject);
   });
@@ -176,12 +158,6 @@ function readJsonBody(req) {
 
 export default defineConfig({
   plugins: [react(), slateMiddleware()],
-  server: {
-    host: true,
-    port: 5175,
-  },
-  preview: {
-    host: true,
-    port: 4175,
-  },
+  server: { host: true, port: 5175 },
+  preview: { host: true, port: 4175 },
 });

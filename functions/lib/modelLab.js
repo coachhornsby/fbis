@@ -19,12 +19,7 @@ function rowActuals(row) {
   const home = finite(row?.actual_home ?? row?.actualHome);
   const away = finite(row?.actual_away ?? row?.actualAway);
   if (home == null || away == null) return null;
-  return {
-    home,
-    away,
-    margin: home - away,
-    total: home + away,
-  };
+  return { home, away, margin: home - away, total: home + away };
 }
 
 function rowProjection(row) {
@@ -38,6 +33,11 @@ function rowProjection(row) {
     margin: margin ?? (home != null && away != null ? home - away : null),
     total: total ?? (home != null && away != null ? home + away : null),
   };
+}
+
+function rowHomeProbability(row) {
+  const p = finite(row?.p_home_win ?? row?.pHomeWin);
+  return p != null && p > 0 && p < 1 ? p : null;
 }
 
 export function isGradedPrediction(row) {
@@ -57,19 +57,43 @@ export function predictionErrors(row) {
 }
 
 function metricVector(rows, key) {
-  return rows
-    .map((row) => predictionErrors(row)?.[key])
-    .filter((v) => Number.isFinite(v));
+  return rows.map((row) => predictionErrors(row)?.[key]).filter((v) => Number.isFinite(v));
 }
 
 function summarizeVector(errs, sport, kind) {
+  return { n: errs.length, mae: mae(errs), rmse: rmse(errs), bias: bias(errs), within: withinBands(errs, sport, kind) };
+}
+
+function probabilitySummary(rows) {
+  let n = 0;
+  let brierSum = 0;
+  let logLossSum = 0;
+  for (const row of rows) {
+    const actual = rowActuals(row);
+    const p = rowHomeProbability(row);
+    if (!actual || p == null || actual.home === actual.away) continue;
+    const y = actual.home > actual.away ? 1 : 0;
+    n += 1;
+    brierSum += (p - y) ** 2;
+    logLossSum += -(y * Math.log(p) + (1 - y) * Math.log(1 - p));
+  }
   return {
-    n: errs.length,
-    mae: mae(errs),
-    rmse: rmse(errs),
-    bias: bias(errs),
-    within: withinBands(errs, sport, kind),
+    n,
+    brier: n ? brierSum / n : null,
+    logLoss: n ? logLossSum / n : null,
+    coverage: rows.length ? n / rows.length : 0,
   };
+}
+
+export function predictionSeason(row) {
+  if (row?.season != null && row.season !== "") return String(row.season);
+  const frozen = row?.frozen_at ?? row?.frozenAt;
+  const ms = Date.parse(frozen || "");
+  return Number.isFinite(ms) ? String(new Date(ms).getUTCFullYear()) : null;
+}
+
+export function predictionSeasonCount(rows = []) {
+  return new Set(rows.filter(isGradedPrediction).map(predictionSeason).filter(Boolean)).size;
 }
 
 export function evaluateModelRows(rows = [], { sport = null } = {}) {
@@ -82,12 +106,14 @@ export function evaluateModelRows(rows = [], { sport = null } = {}) {
   return {
     sport: resolvedSport,
     n: graded.length,
+    seasons: predictionSeasonCount(graded),
     team: {
       home: summarizeVector(home, resolvedSport, "team"),
       away: summarizeVector(away, resolvedSport, "team"),
     },
     margin: summarizeVector(margin, resolvedSport, "margin"),
     total: summarizeVector(total, resolvedSport, "total"),
+    probability: probabilitySummary(graded),
   };
 }
 
@@ -96,12 +122,12 @@ function gameKey(row) {
 }
 
 export function pairedModelComparison(championRows = [], challengerRows = [], { sport = null } = {}) {
-  const championByGame = new Map(
-    championRows.filter(isGradedPrediction).map((row) => [gameKey(row), row]).filter(([key]) => key)
-  );
+  const championGraded = championRows.filter(isGradedPrediction);
+  const challengerGraded = challengerRows.filter(isGradedPrediction);
+  const championByGame = new Map(championGraded.map((row) => [gameKey(row), row]).filter(([key]) => key));
   const pairedChampion = [];
   const pairedChallenger = [];
-  for (const row of challengerRows.filter(isGradedPrediction)) {
+  for (const row of challengerGraded) {
     const key = gameKey(row);
     const champion = championByGame.get(key);
     if (!champion) continue;
@@ -114,8 +140,11 @@ export function pairedModelComparison(championRows = [], challengerRows = [], { 
   const champion = evaluateModelRows(pairedChampion, { sport });
   const challenger = evaluateModelRows(pairedChallenger, { sport });
   const delta = (a, b) => (Number.isFinite(a) && Number.isFinite(b) ? b - a : null);
+  const coverageDenominator = championGraded.length;
   return {
     n: pairedChampion.length,
+    seasons: predictionSeasonCount(pairedChallenger),
+    coverage: coverageDenominator ? pairedChampion.length / coverageDenominator : 0,
     champion,
     challenger,
     delta: {
@@ -123,8 +152,26 @@ export function pairedModelComparison(championRows = [], challengerRows = [], { 
       totalMae: delta(champion.total.mae, challenger.total.mae),
       marginBiasAbs: delta(Math.abs(champion.margin.bias ?? NaN), Math.abs(challenger.margin.bias ?? NaN)),
       totalBiasAbs: delta(Math.abs(champion.total.bias ?? NaN), Math.abs(challenger.total.bias ?? NaN)),
+      brier: delta(champion.probability.brier, challenger.probability.brier),
     },
-    interpretation: "Negative MAE delta means the challenger improved on the champion over identical graded games.",
+    interpretation: "Negative MAE/Brier delta means the challenger improved on the reference over identical graded games.",
+  };
+}
+
+export function promotionEvidence(referenceRows = [], challengerRows = [], { sport = null, leakageOk = false, artifactOk = false } = {}) {
+  const paired = pairedModelComparison(referenceRows, challengerRows, { sport });
+  const totalMaeDelta = paired.delta.totalMae;
+  const brierDelta = paired.delta.brier;
+  return {
+    n: paired.n,
+    seasons: paired.seasons,
+    maeImprovement: Number.isFinite(totalMaeDelta) ? -totalMaeDelta : null,
+    biasAbs: Number.isFinite(paired.challenger.total.bias) ? Math.abs(paired.challenger.total.bias) : null,
+    brierDegradation: Number.isFinite(brierDelta) ? brierDelta : null,
+    coverage: paired.coverage,
+    leakageOk: Boolean(leakageOk),
+    artifactOk: Boolean(artifactOk),
+    paired,
   };
 }
 
@@ -160,11 +207,7 @@ export async function buildModelLabReport(env, { sport, championModelId = null, 
       .filter((entry) => entry.modelId !== championModelId)
       .map((entry) => ({
         modelId: entry.modelId,
-        ...pairedModelComparison(
-          championRows,
-          graded.filter((row) => String(row.model_id) === entry.modelId),
-          { sport: normalizedSport }
-        ),
+        ...pairedModelComparison(championRows, graded.filter((row) => String(row.model_id) === entry.modelId), { sport: normalizedSport }),
       }));
   }
   return {

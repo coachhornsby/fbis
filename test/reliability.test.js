@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { onRequestGet as healthGet } from "../functions/api/health.js";
+import { collectionAllowedAfterVerify, VERIFY_OUTCOME } from "../functions/lib/deploymentVerify.js";
 
 describe("read-only serving boundaries", () => {
   it("slate endpoint does not trigger freeze or harvest side effects", async () => {
@@ -11,19 +12,31 @@ describe("read-only serving boundaries", () => {
     assert.equal(src.includes("harvestSport("), false);
   });
 
+  it("local Vite slate is read-only like production", async () => {
+    const src = await readFile(new URL("../vite.config.js", import.meta.url), "utf8");
+    assert.equal(src.includes("freezeSlate("), false);
+  });
+
   it("strategy GET endpoint stays read-only", async () => {
     const src = await readFile(new URL("../functions/api/strategy.js", import.meta.url), "utf8");
     assert.equal(src.includes("await freezeCanonicalSeed("), false);
   });
 });
 
+describe("deployment writer gate", () => {
+  it("allows research writes only after an exact verified SHA", () => {
+    assert.equal(collectionAllowedAfterVerify({ outcome: VERIFY_OUTCOME.MATCH }), true);
+    assert.equal(collectionAllowedAfterVerify({ outcome: VERIFY_OUTCOME.MISMATCH }), false);
+    assert.equal(collectionAllowedAfterVerify({ outcome: VERIFY_OUTCOME.UNAVAILABLE }), false);
+    assert.equal(collectionAllowedAfterVerify({ outcome: VERIFY_OUTCOME.PROPAGATING }), false);
+    assert.equal(collectionAllowedAfterVerify({ outcome: VERIFY_OUTCOME.INVALID_RESPONSE }), false);
+  });
+});
+
 describe("health endpoint", () => {
   it("returns deployment and pipeline health without DB binding", async () => {
     const req = new Request("https://example.com/api/health");
-    const res = await healthGet({
-      request: req,
-      env: { CF_PAGES_COMMIT_SHA: "abc123" },
-    });
+    const res = await healthGet({ request: req, env: { CF_PAGES_COMMIT_SHA: "abc123" } });
     assert.equal(res.status, 200);
     const json = await res.json();
     assert.equal(json.ok, true);
