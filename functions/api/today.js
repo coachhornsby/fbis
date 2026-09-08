@@ -111,8 +111,8 @@ export async function onRequestGet(context) {
       todayFocusSport: board?.parlay?.focusSport || "all",
       todayCt: todayCT(),
     };
-    const successfulSports = Object.entries(sourceStatus.statuses).filter(([, s]) => s.schedule === "ok" && s.projections === "ok" && s.markets === "ok").map(([k]) => k);
-    const failedSports = Object.entries(sourceStatus.statuses).filter(([, s]) => s.schedule !== "ok" || s.projections !== "ok" || s.markets !== "ok").map(([k]) => k);
+    const successfulSports = Object.entries(sourceStatus.statuses).filter(([, s]) => s.schedule === "ok" && s.projections === "ok" && ["ok", "no-games"].includes(s.markets)).map(([k]) => k);
+    const failedSports = Object.entries(sourceStatus.statuses).filter(([, s]) => s.schedule !== "ok" || s.projections !== "ok" || !["ok", "no-games"].includes(s.markets)).map(([k]) => k);
     const allSportsAuthoritative = failedSports.length === 0;
     return json({
       ...withBets,
@@ -169,14 +169,20 @@ function buildTodaySourceStatus(board) {
   const statuses = {};
   const requiredChecks = [];
   for (const [sport, feed] of Object.entries(feeds)) {
+    const games = (board?.games || []).filter((game) => game?.sport === sport);
+    const usableMarkets = games.filter((game) => !game?.marketUnavailable).length;
     const scheduleOk = feed?.ok !== false;
     const projectionOk = Number(feed?.n || 0) > 0 || scheduleOk;
-    const marketOk = !feed?.error;
+    // Successful transport is not usable market coverage. A sport with games
+    // needs at least one paired executable market; an empty slate is healthy.
+    const marketOk = !feed?.error && (games.length === 0 || usableMarkets > 0);
     const source = feed?.cachedParlay ? "cache" : "live";
     statuses[sport] = {
       schedule: scheduleOk ? "ok" : "failed",
       projections: projectionOk ? "ok" : "failed",
-      markets: marketOk ? "ok" : "failed",
+      markets: games.length === 0 ? "no-games" : marketOk ? "ok" : "unavailable",
+      games: games.length,
+      usableMarkets,
       source,
       error: feed?.error || null,
     };
@@ -196,7 +202,7 @@ function buildTodaySourceStatus(board) {
       name: `${sport}-market`,
       ok: marketOk,
       source,
-      detail: feed?.error || "ok",
+      detail: feed?.error || (games.length === 0 ? "no-games" : `usable=${usableMarkets}/${games.length}`),
     });
   }
   return { statuses, requiredChecks };

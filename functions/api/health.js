@@ -9,6 +9,8 @@ const MIGRATION_STATUS = {
   UNVERIFIED: "UNVERIFIED",
 };
 
+const EXPECTED_MIGRATION = "0016_published_projections";
+
 /**
  * Read-only health endpoint.
  * - No upstream API calls
@@ -152,7 +154,7 @@ function buildMeta(request, env, schema) {
     pagesUrl: env.CF_PAGES_URL || null,
     schemaVersion: schema.version,
     migrationStatus: schema.status,
-    expectedMigration: "0015_player_prop_settlement",
+    expectedMigration: EXPECTED_MIGRATION,
   };
 }
 
@@ -160,7 +162,9 @@ async function schemaVersion(env, { readOk }) {
   if (!readOk || !env?.DB?.prepare) return { version: null, status: MIGRATION_STATUS.UNVERIFIED };
   try {
     const row = await env.DB.prepare("SELECT id FROM schema_migrations ORDER BY id DESC LIMIT 1").first();
-    const check = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = '0015_player_prop_settlement' LIMIT 1").first();
+    const check = await env.DB.prepare("SELECT id FROM schema_migrations WHERE id = ? LIMIT 1")
+      .bind(EXPECTED_MIGRATION)
+      .first();
     return {
       version: row?.id || null,
       status: check?.id ? MIGRATION_STATUS.VERIFIED : MIGRATION_STATUS.UNVERIFIED,

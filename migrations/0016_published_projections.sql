@@ -18,3 +18,6 @@ CREATE INDEX IF NOT EXISTS idx_published_projections_date
 
 CREATE INDEX IF NOT EXISTS idx_published_projections_game
   ON published_projections (sport, game_id);
+
+INSERT OR IGNORE INTO schema_migrations (id, applied_at)
+VALUES ('0016_published_projections', datetime('now'));

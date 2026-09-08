@@ -1,7 +1,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const migrationsDir = join(root, "migrations");
 const schemaPaths = [join(root, "schema.sql"), join(root, "schema.extensions.sql")];
 
@@ -25,17 +26,28 @@ for (const path of schemaPaths) {
 
 const files = (await readdir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
 const missing = [];
+const registrationFailures = [];
 for (const file of files) {
   const body = await readFile(join(migrationsDir, file), "utf8");
   const tables = [...extractCreateTables(body)];
   for (const t of tables) {
     if (!schemaTables.has(t)) missing.push({ file, table: t });
   }
+  const id = file.replace(/\.sql$/, "");
+  if (file === files.at(-1) && !new RegExp(`schema_migrations[\\s\\S]*['\"]${id}['\"]`, "i").test(body)) {
+    registrationFailures.push({ file, id });
+  }
 }
 
 if (missing.length) {
   console.error("Canonical schema bundle is missing tables introduced by migrations:");
   for (const m of missing) console.error(`- ${m.file}: ${m.table}`);
+  process.exit(1);
+}
+
+if (registrationFailures.length) {
+  console.error("Latest migration does not register itself in schema_migrations:");
+  for (const m of registrationFailures) console.error(`- ${m.file}: expected ${m.id}`);
   process.exit(1);
 }
 
