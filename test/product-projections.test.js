@@ -25,6 +25,27 @@ test("public projection board exposes product data but not private operator payl
   for (const key of FORBIDDEN_PRODUCT_KEYS) assert.equal(dump.includes(`\"${key}\"`), false, key);
 });
 
+test("live games expose live score but explicitly preserve pregame projection lifecycle", () => {
+  const out = productProjectionBoard({
+    sport: "mlb",
+    games: [{
+      id: "live-1",
+      projectionKind: "FBIS",
+      home: { name: "Home", score: 3 },
+      away: { name: "Away", score: 2 },
+      status: { live: true, completed: false, detail: "Top 6th" },
+      model: { projectionKind: "FBIS", projHome: 4.8, projAway: 3.9, pHomeFinal: 0.61 },
+      quality: { score: 88, flags: [] },
+    }],
+  });
+  const card = out.games[0];
+  assert.equal(card.gameState.state, "LIVE");
+  assert.deepEqual(card.gameState.currentScore, { away: 2, home: 3 });
+  assert.equal(card.projection.lifecycle, "PREGAME");
+  assert.equal(card.projection.liveReforecast, false);
+  assert.equal(card.projection.home, 4.8);
+});
+
 test("market-implied CBB/NFL never masquerades as product projection", () => {
   for (const sport of ["cbb", "nfl"]) {
     const out = productProjectionBoard({ sport, games: [{ id: "x", projectionKind: "PINNACLE_IMPLIED", home: { name: "H" }, away: { name: "A" }, model: { projectionKind: "PINNACLE_IMPLIED", projHome: 75, projAway: 70 } }] });
