@@ -272,6 +272,7 @@ jobs:
       max-parallel: 1
       matrix:
         sport: [cfb, mlb, nba, nfl, cbb]
+        dayOffset: [0, 1, 2, 3, 4, 5]
     steps:
       - name: Harvest by sport (isolated)
         env:
@@ -279,6 +280,7 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           TRIGGER: ${{ needs.determine-mode.outputs.trigger }}
           SPORT: ${{ matrix.sport }}
+          DAY_OFFSET: ${{ matrix.dayOffset }}
           RUN_URL: ${{ needs.determine-mode.outputs.run_url }}
           SCHEDULED_SLOT: ${{ needs.determine-mode.outputs.scheduled_slot }}
         run: |
@@ -286,19 +288,27 @@ jobs:
           RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
           SCHEDULED_SLOT_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('SCHEDULED_SLOT',''), safe=''))")"
           tmp="$(mktemp)"
+          DAY="$(python3 - <<'PY'
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+import os
+today = datetime.now(ZoneInfo("America/Chicago")).date()
+print((today - timedelta(days=int(os.environ["DAY_OFFSET"]))).isoformat())
+PY
+)"
           for attempt in 1 2 3; do
             set +e
-            curl -sS --max-time 540 --retry 0 \
+            curl -sS --max-time 180 --retry 0 \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "accept: application/json" \
               -o "$tmp" -w "%{http_code}" \
-              "${BASE}/api/harvest?days=6&sport=${SPORT}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
+              "${BASE}/api/harvest?date=${DAY}&sport=${SPORT}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
             curl_ec=$?
             set -e
             http="$(tr -d '\r\n' < "${tmp}.code")"
             if [ "$curl_ec" -ne 0 ] || [ "$http" = "429" ] || [ "$http" = "500" ] || [ "$http" = "502" ] || [ "$http" = "503" ] || [ "$http" = "504" ] || [ "$http" = "524" ]; then
               if [ "$attempt" -lt 3 ]; then
-                echo "retryable harvest failure sport=${SPORT} http=${http} attempt ${attempt}/3"
+                echo "retryable harvest failure sport=${SPORT} day=${DAY} http=${http} attempt ${attempt}/3"
                 sleep $((attempt * 10))
                 continue
               fi
@@ -306,11 +316,11 @@ jobs:
             break
           done
           if ! jq -e . "$tmp" >/dev/null 2>&1; then
-            echo "non-json harvest response http=${http}"
+            echo "non-json harvest response http=${http} day=${DAY}"
             head -c 300 "$tmp" || true
             exit 1
           fi
-          jq --arg http "$http" '{http:$http,ok:.ok,status:.status,sport:(.sports // []),finals_graded:.finals_graded,executed_bets:[(.sports // [])[] | {sport,executedBets}],errors:(.errors // [])}' "$tmp"
+          jq --arg http "$http" --arg day "$DAY" '{http:$http,day:$day,ok:.ok,status:.status,sport:(.sports // []),finals_graded:.finals_graded,executed_bets:[(.sports // [])[] | {sport,executedBets}],errors:(.errors // [])}' "$tmp"
           ok="$(jq -r '.ok == true' "$tmp")"
           st="$(jq -r '.status // ""' "$tmp")"
           if [ "$http" != "200" ] || [ "$ok" != "true" ] || [ "$st" != "success" ]; then
@@ -351,29 +361,39 @@ jobs:
             [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$body")" = "true" ] || exit 1
           fi
           if [ "$harvest_state" = "missed" ]; then
-            echo "Recovering missed harvest slot"
+            echo "Recovering missed harvest slot (one day per invocation)"
+            mapfile -t HARVEST_DATES < <(python3 - <<'PY'
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+today = datetime.now(ZoneInfo("America/Chicago")).date()
+for i in range(6):
+    print((today - timedelta(days=i)).isoformat())
+PY
+)
             harvest_failed=0
             for sport in cfb mlb nba nfl cbb; do
-              body="$(mktemp)"
-              ok_sport=0
-              for attempt in 1 2 3; do
-                set +e
-                code="$(curl -sS --max-time 540 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/harvest?days=6&sport=${sport}&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")"
-                curl_ec=$?
-                set -e
-                echo "harvest ${sport} attempt=${attempt} curl_ec=${curl_ec} http=${code}"
-                if [ "$curl_ec" -ne 0 ] || [ "$code" = "000" ] || [ "$code" = "504" ] || [ "$code" = "524" ]; then
-                  sleep $((attempt * 8))
-                  continue
-                fi
-                jq '{ok,status,finals_graded,errors}' "$body" || true
-                if [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" = "true" ]; then
-                  ok_sport=1
-                  break
-                fi
-                sleep $((attempt * 5))
+              for day in "${HARVEST_DATES[@]}"; do
+                body="$(mktemp)"
+                ok_day=0
+                for attempt in 1 2 3; do
+                  set +e
+                  code="$(curl -sS --max-time 180 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/harvest?date=${day}&sport=${sport}&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")"
+                  curl_ec=$?
+                  set -e
+                  echo "harvest ${sport} ${day} attempt=${attempt} curl_ec=${curl_ec} http=${code}"
+                  if [ "$curl_ec" -ne 0 ] || [ "$code" = "000" ] || [ "$code" = "503" ] || [ "$code" = "504" ] || [ "$code" = "524" ]; then
+                    sleep $((attempt * 8))
+                    continue
+                  fi
+                  jq '{ok,status,finals_graded,errors,dates}' "$body" || true
+                  if [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" = "true" ]; then
+                    ok_day=1
+                    break
+                  fi
+                  sleep $((attempt * 5))
+                done
+                if [ "$ok_day" -ne 1 ]; then harvest_failed=1; fi
               done
-              if [ "$ok_sport" -ne 1 ]; then harvest_failed=1; fi
             done
             [ "$harvest_failed" = "0" ] || exit 1
           fi

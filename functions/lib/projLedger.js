@@ -1620,11 +1620,12 @@ async function writeDailyMetrics(env, rows) {
 export async function harvestSport(sport, days, env = {}, opts = {}) {
   const fetchFn = opts.fetchResultsFn || fetchResults;
   const cfCache = env.caches;
+  const singleDate = String(opts.date || "").slice(0, 10);
   const n = Math.max(1, Math.min(Number(days) || 8, KEEP_DAYS));
-  const harvestKey = `${CACHE_VER}:harvest:${sport}:${n}`;
+  const dates = /^\d{4}-\d{2}-\d{2}$/.test(singleDate) ? [singleDate] : lastNDatesCT(n);
+  const harvestKey = `${CACHE_VER}:harvest:${sport}:${singleDate || n}`;
   const cached = await readCache(harvestKey, cfCache, HARVEST_TTL_MS);
   const ledger = await loadLedger(sport, cfCache);
-  const dates = lastNDatesCT(n);
   const finals = [];
   const errors = [];
   let dateFailures = 0;
