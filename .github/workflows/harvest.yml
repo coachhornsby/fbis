@@ -288,14 +288,7 @@ jobs:
           RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
           SCHEDULED_SLOT_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('SCHEDULED_SLOT',''), safe=''))")"
           tmp="$(mktemp)"
-          DAY="$(python3 - <<'PY'
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-import os
-today = datetime.now(ZoneInfo("America/Chicago")).date()
-print((today - timedelta(days=int(os.environ["DAY_OFFSET"]))).isoformat())
-PY
-)"
+          DAY="$(TZ=America/Chicago date -d "today - ${DAY_OFFSET} days" +%F)"
           for attempt in 1 2 3; do
             set +e
             curl -sS --max-time 180 --retry 0 \
@@ -362,14 +355,7 @@ PY
           fi
           if [ "$harvest_state" = "missed" ]; then
             echo "Recovering missed harvest slot (one day per invocation)"
-            mapfile -t HARVEST_DATES < <(python3 - <<'PY'
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-today = datetime.now(ZoneInfo("America/Chicago")).date()
-for i in range(6):
-    print((today - timedelta(days=i)).isoformat())
-PY
-)
+            mapfile -t HARVEST_DATES < <(for i in 0 1 2 3 4 5; do TZ=America/Chicago date -d "today - $i days" +%F; done)
             harvest_failed=0
             for sport in cfb mlb nba nfl cbb; do
               for day in "${HARVEST_DATES[@]}"; do

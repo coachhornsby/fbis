@@ -135,15 +135,9 @@ jobs:
           done
           # One calendar day per Worker invocation — multi-day windows hit Pages CPU 1102.
           # CFB first so sport-corrected OPEN college tickets can settle.
-          mapfile -t HARVEST_DATES < <(python3 - <<'PY'
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-today = datetime.now(ZoneInfo("America/Chicago")).date()
-for i in range(6):
-    print((today - timedelta(days=i)).isoformat())
-PY
-)
+          mapfile -t HARVEST_DATES < <(for i in 0 1 2 3 4 5; do TZ=America/Chicago date -d "today - $i days" +%F; done)
           harvest_failed=0
+          RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           for sport in cfb mlb nba nfl cbb; do
             for day in "${HARVEST_DATES[@]}"; do
               echo "harvest ${sport} date=${day}"
@@ -151,9 +145,7 @@ PY
               for attempt in 1 2 3; do
                 tmp="$(mktemp)"
                 set +e
-                code="$(curl -sS --max-time 180 -o "$tmp" -w "%{http_code}" \
-                  -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
-                  "${BASE}/api/harvest?date=${day}&sport=${sport}&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")"
+                code="$(curl -sS --max-time 180 -o "$tmp" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" "${BASE}/api/harvest?date=${day}&sport=${sport}&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${RUN_URL_BASE}")"
                 curl_ec=$?
                 set -e
                 echo "harvest ${sport} ${day} attempt=${attempt} curl_ec=${curl_ec} http=${code}"
