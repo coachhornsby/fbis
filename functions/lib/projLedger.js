@@ -1242,23 +1242,26 @@ export async function reconstructAffectedTickets(env, tickets) {
   return { ok: true, n: rows.length, rows };
 }
 
-async function gradeStrategyAgainstFinals(env, finals) {
+async function gradeStrategyAgainstFinals(env, finals, opts = {}) {
   const tickets = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
   const open = (tickets || []).filter((t) => !t.result || t.result === "OPEN");
-  const minDate = open.map((t) => t.date).filter(Boolean).sort()[0] || lastNDatesCT(8).at(-1);
-  const snapshotQ = await querySnapshots(env, { since: minDate, checkpoint: "LATEST" });
-  const snapshotFinals = (snapshotQ.rows || [])
-    .filter((r) => r.actualHome != null && r.actualAway != null)
-    .map((r) => ({
-      id: r.id,
-      sport: r.sport,
-      date: r.date,
-      start: r.start,
-      home: { name: r.homeName, abbr: r.homeAbbr, score: r.actualHome },
-      away: { name: r.awayName, abbr: r.awayAbbr, score: r.actualAway },
-      status: { completed: true, detail: "Final" },
-    }));
-  const allFinals = [...(finals || []), ...snapshotFinals];
+  let allFinals = [...(finals || [])];
+  if (!opts.skipDurableFinals) {
+    const minDate = open.map((t) => t.date).filter(Boolean).sort()[0] || lastNDatesCT(8).at(-1);
+    const snapshotQ = await querySnapshots(env, { since: minDate, checkpoint: "LATEST" });
+    const snapshotFinals = (snapshotQ.rows || [])
+      .filter((r) => r.actualHome != null && r.actualAway != null)
+      .map((r) => ({
+        id: r.id,
+        sport: r.sport,
+        date: r.date,
+        start: r.start,
+        home: { name: r.homeName, abbr: r.homeAbbr, score: r.actualHome },
+        away: { name: r.awayName, abbr: r.awayAbbr, score: r.actualAway },
+        status: { completed: true, detail: "Final" },
+      }));
+    allFinals = [...allFinals, ...snapshotFinals];
+  }
   const jobs = [];
   for (const t of tickets) {
     if (t.result && t.result !== "OPEN") continue;
@@ -1269,25 +1272,28 @@ async function gradeStrategyAgainstFinals(env, finals) {
   await Promise.all(jobs);
 }
 
-async function gradeExecutedBets(env, finals) {
+async function gradeExecutedBets(env, finals, opts = {}) {
   const listed = await queryExecutedBets(env, { includeRaw: false });
   const open = (listed.rows || []).filter((t) => !t.result || t.result === "OPEN");
-  const minDate = open.map((t) => t.date).filter(Boolean).sort()[0] || lastNDatesCT(8).at(-1);
-  const snapshotQ = await querySnapshots(env, { since: minDate, checkpoint: "LATEST" });
-  const durableFinals = (snapshotQ.rows || [])
-    .filter((row) => row.actualHome != null && row.actualAway != null)
-    .map((row) => ({
-      id: String(row.gameId || row.id),
-      sport: row.sport,
-      date: row.date,
-      start: row.start,
-      home: { name: row.homeName, abbr: row.homeAbbr, score: row.actualHome },
-      away: { name: row.awayName, abbr: row.awayAbbr, score: row.actualAway },
-      status: { completed: true, detail: "Final (durable snapshot)" },
-      f5Score: row.f5ActualHome != null && row.f5ActualAway != null
-        ? { home: row.f5ActualHome, away: row.f5ActualAway, complete: true }
-        : null,
-    }));
+  let durableFinals = [];
+  if (!opts.skipDurableFinals) {
+    const minDate = open.map((t) => t.date).filter(Boolean).sort()[0] || lastNDatesCT(8).at(-1);
+    const snapshotQ = await querySnapshots(env, { since: minDate, checkpoint: "LATEST" });
+    durableFinals = (snapshotQ.rows || [])
+      .filter((row) => row.actualHome != null && row.actualAway != null)
+      .map((row) => ({
+        id: String(row.gameId || row.id),
+        sport: row.sport,
+        date: row.date,
+        start: row.start,
+        home: { name: row.homeName, abbr: row.homeAbbr, score: row.actualHome },
+        away: { name: row.awayName, abbr: row.awayAbbr, score: row.actualAway },
+        status: { completed: true, detail: "Final (durable snapshot)" },
+        f5Score: row.f5ActualHome != null && row.f5ActualAway != null
+          ? { home: row.f5ActualHome, away: row.f5ActualAway, complete: true }
+          : null,
+      }));
+  }
   const allFinals = [...(finals || []), ...durableFinals];
   const byId = new Map(allFinals.map((g) => [String(g.id), g]));
   const jobs = [];
@@ -1636,8 +1642,8 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
         errors.push(`${sport}@${date}: ${String(err?.message || err)}`);
       }
     }
-    await gradeStrategyAgainstFinals(env, finals);
-    const executedBets = await gradeExecutedBets(env, finals);
+    await gradeStrategyAgainstFinals(env, finals, { skipDurableFinals: true });
+    const executedBets = await gradeExecutedBets(env, finals, { skipDurableFinals: true });
     return {
       sport,
       sportName: SPORTS[sport]?.name || sport,
