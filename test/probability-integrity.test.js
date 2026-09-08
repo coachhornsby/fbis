@@ -423,10 +423,10 @@ describe("scheduled SHA verification", () => {
     assert.equal(mismatch.outcome, VERIFY_OUTCOME.MISMATCH);
     assert.equal(shouldFailClosed(mismatch, { attempts: 3, maxAttempts: 12 }), true);
     assert.equal(shouldFailClosed(propagating, { attempts: 2, maxAttempts: 12 }), false);
-    assert.equal(shouldFailClosed(propagating, { attempts: 12, maxAttempts: 12 }), false);
-    assert.equal(shouldFailClosed(unavailable, { attempts: 12, maxAttempts: 12 }), false);
-    assert.equal(collectionAllowedAfterVerify(unavailable), true);
-    assert.equal(collectionAllowedAfterVerify(propagating), true);
+    assert.equal(shouldFailClosed(propagating, { attempts: 12, maxAttempts: 12 }), true);
+    assert.equal(shouldFailClosed(unavailable, { attempts: 12, maxAttempts: 12 }), true);
+    assert.equal(collectionAllowedAfterVerify(unavailable), false);
+    assert.equal(collectionAllowedAfterVerify(propagating), false);
     assert.equal(collectionAllowedAfterVerify(mismatch), false);
     assert.ok(nextVerifyDelayMs(2, { outcome: VERIFY_OUTCOME.PROPAGATING }) > nextVerifyDelayMs(2, { outcome: VERIFY_OUTCOME.MISMATCH }));
   });
