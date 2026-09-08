@@ -72,9 +72,11 @@ test("CI release gate verifies live health SHA and API smoke", () => {
 test("harvest catch-up window covers stale OPEN college tickets", () => {
   const src = readFileSync(new URL("../.github/workflows/harvest.yml", import.meta.url), "utf8");
   const ci = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const api = readFileSync(new URL("../functions/api/harvest.js", import.meta.url), "utf8");
+  assert.match(api, /searchParams\.get\("date"\)/);
+  assert.match(api, /settleOnly/);
+  assert.match(ci, /settleOnly=1/);
   assert.match(src, /\/api\/harvest\?date=/);
-  assert.match(ci, /\/api\/harvest\?date=/);
-  assert.match(readFileSync(new URL("../functions/api/harvest.js", import.meta.url), "utf8"), /searchParams\.get\("date"\)/);
 });
 
 test("deep shadow models remain non-qualifying", async () => {

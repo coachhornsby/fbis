@@ -295,7 +295,7 @@ jobs:
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "accept: application/json" \
               -o "$tmp" -w "%{http_code}" \
-              "${BASE}/api/harvest?date=${DAY}&sport=${SPORT}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
+              "${BASE}/api/harvest?date=${DAY}&sport=${SPORT}&settleOnly=1&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
             curl_ec=$?
             set -e
             http="$(tr -d '\r\n' < "${tmp}.code")"
@@ -363,7 +363,7 @@ jobs:
                 ok_day=0
                 for attempt in 1 2 3; do
                   set +e
-                  code="$(curl -sS --max-time 180 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/harvest?date=${day}&sport=${sport}&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")"
+                  code="$(curl -sS --max-time 60 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/harvest?date=${day}&sport=${sport}&settleOnly=1&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")"
                   curl_ec=$?
                   set -e
                   echo "harvest ${sport} ${day} attempt=${attempt} curl_ec=${curl_ec} http=${code}"

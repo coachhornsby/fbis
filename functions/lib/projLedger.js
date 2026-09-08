@@ -1623,6 +1623,52 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   const singleDate = String(opts.date || "").slice(0, 10);
   const n = Math.max(1, Math.min(Number(days) || 8, KEEP_DAYS));
   const dates = /^\d{4}-\d{2}-\d{2}$/.test(singleDate) ? [singleDate] : lastNDatesCT(n);
+  const settleOnly = opts.settleOnly === true || opts.settleOnly === "1" || opts.settleOnly === 1;
+  // Lightweight path for Pages CPU/time limits: fetch finals + settle tickets only.
+  if (settleOnly) {
+    const finals = [];
+    const errors = [];
+    for (const date of dates) {
+      try {
+        const results = await fetchFn(sport, date);
+        for (const g of results) finals.push({ ...g, date, sport: g.sport || sport });
+      } catch (err) {
+        errors.push(`${sport}@${date}: ${String(err?.message || err)}`);
+      }
+    }
+    await gradeStrategyAgainstFinals(env, finals);
+    const executedBets = await gradeExecutedBets(env, finals);
+    return {
+      sport,
+      sportName: SPORTS[sport]?.name || sport,
+      ok: errors.length === 0,
+      settleOnly: true,
+      generatedAt: new Date().toISOString(),
+      harvestedAt: new Date().toISOString(),
+      days: dates.length,
+      dates,
+      recipe: RECIPE_GUIDE[sport] || null,
+      accuracy: accuracyOf([]),
+      games: [],
+      gamesDiscovered: 0,
+      finals: finals.filter((g) => g.status?.completed).map((g) => ({
+        id: g.id,
+        sport,
+        date: g.date,
+        home: g.home,
+        away: g.away,
+        status: g.status,
+        f5Score: g.f5Score,
+      })),
+      finalsDiscovered: finals.filter((g) => g.status?.completed).length,
+      finalsGraded: 0,
+      finalsFailed: 0,
+      jobCounts: emptyWriteCounts(),
+      errors,
+      executedBets,
+      db: await dbPayload(env),
+    };
+  }
   const harvestKey = `${CACHE_VER}:harvest:${sport}:${singleDate || n}`;
   const cached = await readCache(harvestKey, cfCache, HARVEST_TTL_MS);
   const ledger = await loadLedger(sport, cfCache);
