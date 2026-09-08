@@ -39,6 +39,8 @@ function projection(game = {}) {
     total: independent ? total : null,
     pHome: independent && pHome != null && pHome > 0 && pHome < 1 ? pHome : null,
     fairHomeMl: independent ? americanFromProbability(pHome) : null,
+    lifecycle: "PREGAME",
+    liveReforecast: false,
     unavailableReason: independent ? null : "independent-production-projection-unavailable",
   };
 }
@@ -53,6 +55,21 @@ function market(game = {}) {
     noVigHome: finite(pin?.ml?.noVigA),
     complete: Boolean(pin?.ml?.complete || pin?.spread?.complete || pin?.total?.complete),
     source: "Pinnacle",
+  };
+}
+
+function gameState(game = {}) {
+  const status = game.status || {};
+  const state = status.live ? "LIVE" : status.completed ? "FINAL" : "SCHEDULED";
+  return {
+    state,
+    detail: status.detail || null,
+    live: Boolean(status.live),
+    completed: Boolean(status.completed),
+    currentScore: {
+      away: finite(game.away?.score),
+      home: finite(game.home?.score),
+    },
   };
 }
 
@@ -93,6 +110,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
     away: team(game.away),
     home: team(game.home),
     neutral: Boolean(game.neutralSite),
+    gameState: gameState(game),
     modelVersion: game.modelVersion || game.championModel || null,
     projection: proj,
     market: pin,
@@ -127,7 +145,7 @@ export function productProjectionBoard(slate = {}, { tier = "public" } = {}) {
     generatedAt: slate.generatedAt || new Date().toISOString(),
     modelVersion: slate.modelVersion || null,
     games: (slate.games || []).map((game) => productProjectionCard(game, sport, { tier })),
-    disclaimer: "Model projections and market intelligence are informational; PASS means no qualifying FBIS wager at the frozen/current market state.",
+    disclaimer: "FBIS projections are pregame model outputs unless explicitly labeled otherwise. LIVE denotes game status, not an in-game reforecast. PASS means no qualifying FBIS wager at the frozen/current market state.",
   };
 }
 
