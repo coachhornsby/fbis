@@ -2053,7 +2053,9 @@ export async function harvestAll(days, env = {}, opts = {}) {
       failed: reports.reduce((s, r) => s + (r.finalsFailed || 0), 0),
       awaitingRetry: writes.writesFailed || 0,
     },
-    d1: await dbPayload(env),
+    d1: opts.settleOnly
+      ? { source: "settleOnly", skippedHeavyPayload: true }
+      : await dbPayload(env),
     errors,
     env,
     triggerType: opts.trigger || "http",
