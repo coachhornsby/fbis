@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 const root = new URL("..", import.meta.url).pathname;
 const migrationsDir = join(root, "migrations");
-const schemaPath = join(root, "schema.sql");
+const schemaPaths = [join(root, "schema.sql"), join(root, "schema.extensions.sql")];
 
 function extractCreateTables(sql) {
   const out = new Set();
@@ -13,8 +13,16 @@ function extractCreateTables(sql) {
   return out;
 }
 
-const schema = await readFile(schemaPath, "utf8");
-const schemaTables = extractCreateTables(schema);
+const schemaTables = new Set();
+for (const path of schemaPaths) {
+  try {
+    const body = await readFile(path, "utf8");
+    for (const table of extractCreateTables(body)) schemaTables.add(table);
+  } catch (err) {
+    if (String(path).endsWith("schema.sql")) throw err;
+  }
+}
+
 const files = (await readdir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
 const missing = [];
 for (const file of files) {
@@ -26,9 +34,9 @@ for (const file of files) {
 }
 
 if (missing.length) {
-  console.error("Schema is missing tables introduced by migrations:");
+  console.error("Canonical schema bundle is missing tables introduced by migrations:");
   for (const m of missing) console.error(`- ${m.file}: ${m.table}`);
   process.exit(1);
 }
 
-console.log(`Verified ${files.length} migrations against schema.sql (${schemaTables.size} tables).`);
+console.log(`Verified ${files.length} migrations against canonical schema bundle (${schemaTables.size} tables).`);
