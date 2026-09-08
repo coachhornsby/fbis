@@ -133,16 +133,41 @@ jobs:
             test "$code" = "200"
             test "$(jq -r '.ok == true' "$tmp")" = "true"
           done
-          for sport in mlb nba nfl cfb cbb; do
+          # CFB first: sport-corrected OPEN college tickets need CFB finals.
+          # MLB 10-day harvest can exceed Pages wall time; retry and continue other sports.
+          harvest_failed=0
+          for sport in cfb mlb nba nfl cbb; do
             echo "harvest ${sport}"
-            tmp="$(mktemp)"
-            code="$(curl -sS --max-time 300 -o "$tmp" -w "%{http_code}" \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
-              "${BASE}/api/harvest?days=10&sport=${sport}&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")"
-            echo "harvest ${sport} http=${code}"
-            jq -c '{ok,status,finals_graded,errors:(.errors//[])[:3]}' "$tmp" || cat "$tmp"
-            test "$code" = "200"
-            test "$(jq -r '.ok == true' "$tmp")" = "true"
+            ok_sport=0
+            for attempt in 1 2 3; do
+              tmp="$(mktemp)"
+              set +e
+              code="$(curl -sS --max-time 540 -o "$tmp" -w "%{http_code}" \
+                -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
+                "${BASE}/api/harvest?days=6&sport=${sport}&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")"
+              curl_ec=$?
+              set -e
+              echo "harvest ${sport} attempt=${attempt} curl_ec=${curl_ec} http=${code}"
+              if [ "$curl_ec" -ne 0 ] || [ "$code" = "000" ] || [ "$code" = "504" ] || [ "$code" = "524" ]; then
+                echo "retryable harvest transport/timeout sport=${sport}"
+                sleep $((attempt * 8))
+                continue
+              fi
+              jq -c '{ok,status,finals_graded,errors:(.errors//[])[:3]}' "$tmp" || head -c 300 "$tmp" || true
+              if [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$tmp" 2>/dev/null || echo false)" = "true" ]; then
+                ok_sport=1
+                break
+              fi
+              sleep $((attempt * 5))
+            done
+            if [ "$ok_sport" -ne 1 ]; then
+              echo "harvest ${sport} failed after retries"
+              harvest_failed=1
+            fi
           done
           curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq '{commit:.deploymentCommit,state,schedule:.pipeline.schedule,lastCollect:.pipeline.lastCollectSuccessAt,lastHarvest:.pipeline.lastHarvestSuccessAt}'
+          if [ "$harvest_failed" -ne 0 ]; then
+            echo "One or more harvest sports failed; collect catch-up succeeded."
+            exit 1
+          fi
           echo "Post-deploy catch-up complete"
