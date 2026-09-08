@@ -102,3 +102,35 @@ jobs:
             jq -e 'type == "object" or type == "array"' "$tmp" >/dev/null
           done
           echo "Release gate smoke passed for ${DEPLOY_SHA}"
+
+      - name: Catch-up collect and harvest
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "Missing HARVEST_SECRET"; exit 1; }
+          for sport in mlb nba nfl cfb cbb; do
+            echo "collect ${sport}"
+            tmp="$(mktemp)"
+            code="$(curl -sS --max-time 180 -o "$tmp" -w "%{http_code}" \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
+              "${BASE}/api/collect?odds=cache&sport=${sport}&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")"
+            echo "collect ${sport} http=${code}"
+            jq -c '{ok,status,errors:(.errors//[])[:3]}' "$tmp" || cat "$tmp"
+            test "$code" = "200"
+            test "$(jq -r '.ok == true' "$tmp")" = "true"
+          done
+          for sport in mlb nba nfl cfb cbb; do
+            echo "harvest ${sport}"
+            tmp="$(mktemp)"
+            code="$(curl -sS --max-time 300 -o "$tmp" -w "%{http_code}" \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
+              "${BASE}/api/harvest?days=10&sport=${sport}&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")"
+            echo "harvest ${sport} http=${code}"
+            jq -c '{ok,status,finals_graded,errors:(.errors//[])[:3]}' "$tmp" || cat "$tmp"
+            test "$code" = "200"
+            test "$(jq -r '.ok == true' "$tmp")" = "true"
+          done
+          curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq '{commit:.deploymentCommit,state,schedule:.pipeline.schedule,lastCollect:.pipeline.lastCollectSuccessAt,lastHarvest:.pipeline.lastHarvestSuccessAt}'
+          echo "Post-deploy catch-up complete"

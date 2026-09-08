@@ -63,6 +63,8 @@ test("CI release gate verifies live health SHA and API smoke", () => {
   assert.match(src, /verify-deployment-sha\.mjs/);
   assert.match(src, /\/api\/published-projections/);
   assert.match(src, /Release gate smoke passed/);
+  assert.match(src, /Catch-up collect and harvest/);
+  assert.match(src, /post-deploy-catchup/);
 });
 
 test("harvest catch-up window covers stale OPEN college tickets", () => {
