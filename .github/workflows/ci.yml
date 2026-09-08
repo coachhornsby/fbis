@@ -73,6 +73,18 @@ jobs:
       - name: Build production artifact
         run: npm run build
 
+      - name: Sync HARVEST_SECRET to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "Missing HARVEST_SECRET"; exit 1; }
+          # Keep Pages Functions auth aligned with Actions (dashboard edit is write-only / easy to desync).
+          printf '%s' "${HARVEST_SECRET}" | npx wrangler pages secret put HARVEST_SECRET --project-name fbis
+          echo "Synced HARVEST_SECRET to Pages project fbis"
+
       - name: Deploy canonical Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
