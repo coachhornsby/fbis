@@ -9,6 +9,7 @@
 import * as core from "./slateEngineCore.js";
 import { attachNflShadow } from "./nflModel.js";
 import { attachNflProShadow } from "./nflProModel.js";
+import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
@@ -53,12 +54,16 @@ export async function buildSlate(sport, date, env = {}) {
 
   if (id === "nfl") {
     const baseline = await attachNflShadow(slate.games || [], env);
-    const pro = attachNflProShadow(baseline.games);
+    const verse = await loadNflVerseFeatures(env).catch((err) => ({
+      byTeam: {}, meta: { source: "nflverse", teams: 0, error: String(err?.message || err), marketInformed: false },
+    }));
+    const enriched = attachNflVerseFeatures(baseline.games, verse);
+    const pro = attachNflProShadow(enriched);
     return {
       ...slate,
       games: pro.games,
       nfl: baseline.meta,
-      research: { ...(slate.research || {}), nflBaseline: baseline.meta, nflPro: pro.meta },
+      research: { ...(slate.research || {}), nflBaseline: baseline.meta, nflVerse: verse.meta, nflPro: pro.meta },
     };
   }
 
