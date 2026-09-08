@@ -64,3 +64,13 @@ test("projection serving is paid-feed cache-only", async () => {
   assert.doesNotMatch(source, /parlayCacheOnly:\s*false/);
   assert.doesNotMatch(source, /palCacheOnly:\s*false/);
 });
+
+test("public projection page cannot request or persist PRO credentials", async () => {
+  const html = await readFile(new URL("../public/projections.html", import.meta.url), "utf8");
+  const client = await readFile(new URL("../public/projections.js", import.meta.url), "utf8");
+  const source = `${html}\n${client}`;
+  assert.match(client, /tier:\s*"public"/);
+  assert.doesNotMatch(source, /x-fbis-pro-token/i);
+  assert.doesNotMatch(source, /SUBSCRIBER_API_TOKEN/);
+  assert.doesNotMatch(source, /localStorage|sessionStorage/);
+});
