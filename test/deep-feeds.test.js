@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { parseCfbDeepPpaRow, attachCfbDeepFeatures } from "../functions/lib/cfbDeepFeed.js";
 import { parseCsv, aggregateTeamWeeks, aggregateQbWeeks, attachNflVerseFeatures } from "../functions/lib/nflVerseFeed.js";
+import { parseBullpenStat, attachMlbBullpenContext } from "../functions/lib/mlbBullpenFeed.js";
 
 test("CFBD deep parser preserves pass/rush offense and defense dimensions", () => {
   const row = parseCfbDeepPpaRow({
@@ -59,4 +60,15 @@ test("nflverse features attach to NFL shadow input only", () => {
   assert.equal(out[0].projectionKind, "PINNACLE_IMPLIED");
   assert.equal(out[0].nflFeatures.home.offenseEpa, 0.12);
   assert.equal(out[0].nflFeatures.away.defenseEpa, -0.04);
+});
+
+test("MLB relief split parser and attachment feed bullpen ERA to shadow context only", () => {
+  const parsed = parseBullpenStat({ stats: [{ splits: [{ stat: { era: "3.62", whip: "1.21", inningsPitched: "410.2" } }] }] });
+  assert.equal(parsed.era, 3.62);
+  assert.equal(parsed.whip, 1.21);
+  const game = { sport: "mlb", home: { mlbId: 119 }, away: { mlbId: 137 }, projHomeScore: 4.7, projAwayScore: 4.1 };
+  const out = attachMlbBullpenContext([game], { byTeamId: { "119": { era: 3.62, asOf: "x" }, "137": { era: 4.18, asOf: "x" } } });
+  assert.equal(out[0].projHomeScore, 4.7);
+  assert.equal(out[0].mlbContext.homeBullpenEra, 3.62);
+  assert.equal(out[0].mlbContext.awayBullpenEra, 4.18);
 });
