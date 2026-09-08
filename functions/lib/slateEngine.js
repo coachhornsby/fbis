@@ -26,7 +26,9 @@ export function qualificationIntegrity(sport, game) {
     const label = id.toUpperCase();
     return {
       ok: false,
-      reason: `${label} qualification blocked — no independent FBIS projection`,
+      reason: id === "nfl"
+        ? "NFL qualification blocked — no independent NFL model"
+        : `${label} qualification blocked — no independent FBIS projection`,
       code: "independent-projection-required",
     };
   }
