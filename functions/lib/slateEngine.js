@@ -11,6 +11,7 @@ import { attachNflShadow } from "./nflModel.js";
 import { attachNflProShadow } from "./nflProModel.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
+import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { pinMarkets } from "./pricing.js";
@@ -31,11 +32,15 @@ export async function buildSlate(sport, date, env = {}) {
   const id = String(slate?.sport || sport).toLowerCase();
 
   if (id === "mlb") {
-    const deep = attachMlbDeepShadow(slate.games || []);
+    const bullpen = await loadMlbBullpenContext(slate.games || [], env).catch((err) => ({
+      byTeamId: {}, meta: { source: "MLB Stats relief split", teams: 0, available: 0, error: String(err?.message || err), marketInformed: false },
+    }));
+    const enriched = attachMlbBullpenContext(slate.games || [], bullpen);
+    const deep = attachMlbDeepShadow(enriched);
     return {
       ...slate,
       games: deep.games,
-      research: { ...(slate.research || {}), mlbDeep: deep.meta },
+      research: { ...(slate.research || {}), mlbBullpen: bullpen.meta, mlbDeep: deep.meta },
     };
   }
 
