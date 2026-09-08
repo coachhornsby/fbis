@@ -8,6 +8,7 @@ import { projectCfbChallengers } from "./cfbRatings.js";
 import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatings.js";
 import { readCache, writeCache } from "./cache.js";
 import { mapSourceTeam } from "./collegeIdentity.js";
+import { MODEL_VERSION } from "./weights.js";
 
 const CATALOG_TTL = 6 * 60 * 60 * 1000;
 
@@ -70,7 +71,7 @@ export async function attachCfbChallengers(games, env = {}) {
       home: { off: homeRow?.off, def: homeRow?.def, talent: homeRow?.talent, returningPct: homeRow?.returningPct },
       away: { off: awayRow?.off, def: awayRow?.def, talent: awayRow?.talent, returningPct: awayRow?.returningPct },
     });
-    return { ...game, challengers, championModel: "FBIS-v1.3" };
+    return { ...game, challengers, championModel: MODEL_VERSION };
   });
 }
 
@@ -91,7 +92,7 @@ export async function attachCbbChallengers(games, env = {}) {
           awayTempo: away?.tempo,
         },
       });
-      return { ...game, challengers, championModel: "FBIS-v1.3", cbbCatalogCoverage: { matched: catalog.matched, unmatched: catalog.unmatched } };
+      return { ...game, challengers, championModel: MODEL_VERSION, cbbCatalogCoverage: { matched: catalog.matched, unmatched: catalog.unmatched } };
     }),
     catalog,
   };

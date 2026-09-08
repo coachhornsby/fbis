@@ -3,7 +3,9 @@
  * Champion weights / HFA 2.5 / FBIS-HC-v1 are not modified here.
  */
 
-export const CHAMPION_CFB = "FBIS-v1.3";
+import { MODEL_VERSION } from "./weights.js";
+
+export const CHAMPION_CFB = MODEL_VERSION;
 export const CHAMPION_HFA = 2.5;
 export const NEUTRAL_HFA = 0;
 export const CHAMPION_CBB_HCA = 3.5;
