@@ -41,7 +41,7 @@ test("promotion evidence is paired and includes probability calibration", () => 
     const season = 2024 + Math.floor(i / 2);
     const actualHome = 75 + i;
     const actualAway = 70;
-    ref.push({ game_id: `g${i}`, sport: "cbb", season, frozen_at: `${season}-01-01T00:00:00Z`, actual_home: actualHome, actual_away: actualAway, proj_home: actualHome + 3, proj_away: actualAway - 2, p_home_win: 0.58 });
+    ref.push({ game_id: `g${i}`, sport: "cbb", season, frozen_at: `${season}-01-01T00:00:00Z`, actual_home: actualHome, actual_away: actualAway, proj_home: actualHome + 3, proj_away: actualAway + 2, p_home_win: 0.58 });
     challenger.push({ game_id: `g${i}`, sport: "cbb", season, frozen_at: `${season}-01-01T00:00:00Z`, actual_home: actualHome, actual_away: actualAway, proj_home: actualHome + 1, proj_away: actualAway, p_home_win: 0.68 });
   }
   const e = promotionEvidence(ref, challenger, { sport: "cbb", leakageOk: true, artifactOk: true });
