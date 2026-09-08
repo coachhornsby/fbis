@@ -22,6 +22,28 @@ function americanFromProbability(p) {
   return Math.round(q >= 0.5 ? (-100 * q) / (1 - q) : (100 * (1 - q)) / q);
 }
 
+function modelIdentity(sport, game = {}) {
+  if (sport === "mlb") {
+    return {
+      name: "FBIS MLB",
+      engine: "Savant + Starter/Offense",
+      independent: game.projectionKind === "FBIS" || game.model?.projectionKind === "FBIS",
+      state: game.savant?.source || "MLB",
+    };
+  }
+  if (sport === "cfb") {
+    return {
+      name: "FBIS CFB",
+      engine: "Power + Opponent Residual + Context",
+      independent: game.projectionKind === "FBIS" || game.model?.projectionKind === "FBIS",
+      state: game.cfb?.projectionState || game.projectionState || null,
+    };
+  }
+  if (sport === "cbb") return { name: "FBIS CBB", engine: "Production model pending validation", independent: false, state: game.projectionState || null };
+  if (sport === "nfl") return { name: "FBIS NFL", engine: "Independent production model pending validation", independent: false, state: game.projectionState || null };
+  return { name: "FBIS", engine: null, independent: false, state: null };
+}
+
 function projection(game = {}) {
   const kind = game.model?.projectionKind || game.projectionKind || null;
   const home = finite(game.model?.projHome ?? game.projHomeScore);
@@ -55,6 +77,40 @@ function market(game = {}) {
     noVigHome: finite(pin?.ml?.noVigA),
     complete: Boolean(pin?.ml?.complete || pin?.spread?.complete || pin?.total?.complete),
     source: "Pinnacle",
+  };
+}
+
+function ballparkPal(game = {}, proj = {}) {
+  const home = finite(game.bpp?.homeRuns);
+  const away = finite(game.bpp?.awayRuns);
+  const available = home != null && away != null;
+  if (!available) return { available: false, source: "Ballpark Pal" };
+  const total = home + away;
+  const margin = home - away;
+  const totalDelta = proj.independent && proj.total != null ? proj.total - total : null;
+  const marginDelta = proj.independent && proj.margin != null ? proj.margin - margin : null;
+  const maxDelta = Math.max(Math.abs(totalDelta ?? 0), Math.abs(marginDelta ?? 0));
+  const agreement = !proj.independent ? null : maxDelta <= 0.75 ? "AGREE" : maxDelta <= 1.5 ? "MIXED" : "DISAGREE";
+  return {
+    available: true,
+    source: "Ballpark Pal",
+    role: "INDEPENDENT_CROSS_CHECK",
+    home,
+    away,
+    total: Math.round(total * 10) / 10,
+    margin: Math.round(margin * 10) / 10,
+    pHome: finite(game.bpp?.pHome),
+    f5: game.bpp?.f5 ? {
+      home: finite(game.bpp.f5.homeRuns),
+      away: finite(game.bpp.f5.awayRuns),
+      total: finite(game.bpp.f5.total),
+    } : null,
+    lineupsOfficial: game.bpp?.lineupsOfficial === true,
+    comparison: {
+      totalDelta: totalDelta == null ? null : Math.round(totalDelta * 10) / 10,
+      marginDelta: marginDelta == null ? null : Math.round(marginDelta * 10) / 10,
+      agreement,
+    },
   };
 }
 
@@ -111,9 +167,11 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
     home: team(game.home),
     neutral: Boolean(game.neutralSite),
     gameState: gameState(game),
+    model: modelIdentity(sport, game),
     modelVersion: game.modelVersion || game.championModel || null,
     projection: proj,
     market: pin,
+    externalModels: sport === "mlb" ? { ballparkPal: ballparkPal(game, proj) } : undefined,
     decision: {
       status: d.status,
       market: tier === "pro" ? d.market : null,
@@ -145,7 +203,7 @@ export function productProjectionBoard(slate = {}, { tier = "public" } = {}) {
     generatedAt: slate.generatedAt || new Date().toISOString(),
     modelVersion: slate.modelVersion || null,
     games: (slate.games || []).map((game) => productProjectionCard(game, sport, { tier })),
-    disclaimer: "FBIS projections are pregame model outputs unless explicitly labeled otherwise. LIVE denotes game status, not an in-game reforecast. PASS means no qualifying FBIS wager at the frozen/current market state.",
+    disclaimer: "FBIS is the proprietary projection. Ballpark Pal, when shown for MLB, is an independent cross-check and never replaces the FBIS projection. Pinnacle is the market benchmark. PASS means no qualifying FBIS wager at the frozen/current market state.",
   };
 }
 
