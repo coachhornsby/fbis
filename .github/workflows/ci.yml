@@ -115,24 +115,15 @@ jobs:
           done
           echo "Release gate smoke passed for ${DEPLOY_SHA}"
 
-      - name: Catch-up collect and harvest
+      - name: Catch-up settle-only harvest
         env:
           BASE: https://fbis-myz.pages.dev
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET}" || { echo "Missing HARVEST_SECRET"; exit 1; }
-          for sport in mlb nba nfl cfb cbb; do
-            echo "collect ${sport}"
-            tmp="$(mktemp)"
-            code="$(curl -sS --max-time 180 -o "$tmp" -w "%{http_code}" \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
-              "${BASE}/api/collect?odds=cache&sport=${sport}&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")"
-            echo "collect ${sport} http=${code}"
-            jq -c '{ok,status,errors:(.errors//[])[:3]}' "$tmp" || cat "$tmp"
-            test "$code" = "200"
-            test "$(jq -r '.ok == true' "$tmp")" = "true"
-          done
+          # Skip post-deploy collect: scheduled collect is already healthy and full
+          # multi-sport collect loops overload D1 before settle can run.
           # Settle-only harvest for the stale OPEN college dates (full harvest exceeds Pages time).
           harvest_failed=0
           RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -141,15 +132,22 @@ jobs:
             day="${sport_day##*:}"
             echo "settle-harvest ${sport} date=${day}"
             ok_day=0
-            for attempt in 1 2 3; do
+            for attempt in 1 2 3 4 5; do
               tmp="$(mktemp)"
               set +e
-              code="$(curl -sS --max-time 60 -o "$tmp" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" "${BASE}/api/harvest?date=${day}&sport=${sport}&settleOnly=1&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${RUN_URL_BASE}")"
+              code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" "${BASE}/api/harvest?date=${day}&sport=${sport}&settleOnly=1&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${RUN_URL_BASE}")"
               curl_ec=$?
               set -e
               echo "settle ${sport} ${day} attempt=${attempt} curl_ec=${curl_ec} http=${code}"
+              body_snip="$(head -c 400 "$tmp" 2>/dev/null || true)"
               if [ "$curl_ec" -ne 0 ] || [ "$code" = "000" ] || [ "$code" = "503" ] || [ "$code" = "504" ] || [ "$code" = "524" ]; then
-                sleep $((attempt * 5))
+                echo "transient failure; backing off"
+                sleep $((attempt * 10))
+                continue
+              fi
+              if echo "$body_snip" | grep -qiE 'D1.*(overload|too many|busy|retry)|error code: 1102'; then
+                echo "D1/Pages overload in body; backing off"
+                sleep $((attempt * 15))
                 continue
               fi
               jq -c '{ok,status,finals_graded,executed_bets:(.sports//[]),errors:(.errors//[])[:3],dates}' "$tmp" || head -c 300 "$tmp" || true
@@ -157,16 +155,18 @@ jobs:
                 ok_day=1
                 break
               fi
-              sleep $((attempt * 3))
+              sleep $((attempt * 5))
             done
             if [ "$ok_day" -ne 1 ]; then
               echo "settle ${sport} ${day} failed after retries"
               harvest_failed=1
             fi
+            # Brief pause between sport/day targets to ease D1 pressure.
+            sleep 8
           done
           curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq '{commit:.deploymentCommit,state,schedule:.pipeline.schedule,lastCollect:.pipeline.lastCollectSuccessAt,lastHarvest:.pipeline.lastHarvestSuccessAt}'
           if [ "$harvest_failed" -ne 0 ]; then
-            echo "Settle-only harvest had failures; collect catch-up succeeded."
+            echo "Settle-only harvest had failures."
             exit 1
           fi
-          echo "Post-deploy catch-up complete"
+          echo "Post-deploy settle-only catch-up complete"
