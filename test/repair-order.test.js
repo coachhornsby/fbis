@@ -65,6 +65,8 @@ test("CI release gate verifies live health SHA and API smoke", () => {
   assert.match(src, /Release gate smoke passed/);
   assert.match(src, /Catch-up collect and harvest/);
   assert.match(src, /post-deploy-catchup/);
+  assert.match(src, /Sync HARVEST_SECRET to Cloudflare Pages/);
+  assert.match(src, /wrangler pages secret put HARVEST_SECRET/);
 });
 
 test("harvest catch-up window covers stale OPEN college tickets", () => {
