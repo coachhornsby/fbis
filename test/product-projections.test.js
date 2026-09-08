@@ -21,18 +21,39 @@ test("public projection board exposes product data but not private operator payl
   const dump = JSON.stringify(out);
   assert.equal(out.games[0].projection.independent, true);
   assert.equal(out.games[0].projection.home, 31);
+  assert.equal(out.games[0].model.name, "FBIS CFB");
+  assert.match(out.games[0].model.engine, /Opponent Residual/);
   assert.equal(out.games[0].decision.pick, null);
   for (const key of FORBIDDEN_PRODUCT_KEYS) assert.equal(dump.includes(`\"${key}\"`), false, key);
+});
+
+test("MLB exposes Ballpark Pal as a separate cross-check without overwriting FBIS", () => {
+  const out = productProjectionBoard({
+    sport: "mlb",
+    games: [{
+      id: "mlb-1", projectionKind: "FBIS",
+      home: { name: "Home" }, away: { name: "Away" },
+      model: { projectionKind: "FBIS", projHome: 4.8, projAway: 3.9, projMargin: 0.9, projTotal: 8.7, pHomeFinal: 0.61 },
+      bpp: { homeRuns: 4.4, awayRuns: 4.0, pHome: 0.56, lineupsOfficial: true, f5: { homeRuns: 2.3, awayRuns: 2.0, total: 4.3 } },
+      quality: { score: 88, flags: [] },
+    }],
+  });
+  const card = out.games[0];
+  assert.equal(card.projection.home, 4.8);
+  assert.equal(card.projection.away, 3.9);
+  assert.equal(card.model.name, "FBIS MLB");
+  assert.equal(card.externalModels.ballparkPal.available, true);
+  assert.equal(card.externalModels.ballparkPal.home, 4.4);
+  assert.equal(card.externalModels.ballparkPal.role, "INDEPENDENT_CROSS_CHECK");
+  assert.equal(card.externalModels.ballparkPal.comparison.agreement, "AGREE");
 });
 
 test("live games expose live score but explicitly preserve pregame projection lifecycle", () => {
   const out = productProjectionBoard({
     sport: "mlb",
     games: [{
-      id: "live-1",
-      projectionKind: "FBIS",
-      home: { name: "Home", score: 3 },
-      away: { name: "Away", score: 2 },
+      id: "live-1", projectionKind: "FBIS",
+      home: { name: "Home", score: 3 }, away: { name: "Away", score: 2 },
       status: { live: true, completed: false, detail: "Top 6th" },
       model: { projectionKind: "FBIS", projHome: 4.8, projAway: 3.9, pHomeFinal: 0.61 },
       quality: { score: 88, flags: [] },
