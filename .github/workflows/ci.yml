@@ -127,13 +127,13 @@ jobs:
           # Settle-only harvest for the stale OPEN college dates (full harvest exceeds Pages time).
           harvest_failed=0
           RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          # Remaining OPEN college tickets are on 2026-09-05; keep 09-03 as a cheap recheck.
-          for sport_day in "cfb:2026-09-05" "cfb:2026-09-03"; do
+          # Remaining OPEN college tickets are on 2026-09-05.
+          for sport_day in "cfb:2026-09-05"; do
             sport="${sport_day%%:*}"
             day="${sport_day##*:}"
             echo "settle-harvest ${sport} date=${day}"
             ok_day=0
-            for attempt in 1 2 3 4 5; do
+            for attempt in 1 2 3 4 5 6; do
               tmp="$(mktemp)"
               set +e
               code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" "${BASE}/api/harvest?date=${day}&sport=${sport}&settleOnly=1&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${RUN_URL_BASE}")"
@@ -143,12 +143,12 @@ jobs:
               body_snip="$(head -c 400 "$tmp" 2>/dev/null || true)"
               if [ "$curl_ec" -ne 0 ] || [ "$code" = "000" ] || [ "$code" = "503" ] || [ "$code" = "504" ] || [ "$code" = "524" ]; then
                 echo "transient failure; backing off"
-                sleep $((attempt * 10))
+                sleep $((attempt * 20))
                 continue
               fi
               if echo "$body_snip" | grep -qiE 'D1.*(overload|too many|busy|retry)|error code: 1102'; then
                 echo "D1/Pages overload in body; backing off"
-                sleep $((attempt * 15))
+                sleep $((attempt * 25))
                 continue
               fi
               jq -c '{ok,status,finals_graded,executed_bets:(.sports//[]),errors:(.errors//[])[:3],dates}' "$tmp" || head -c 300 "$tmp" || true
@@ -156,14 +156,12 @@ jobs:
                 ok_day=1
                 break
               fi
-              sleep $((attempt * 5))
+              sleep $((attempt * 8))
             done
             if [ "$ok_day" -ne 1 ]; then
               echo "settle ${sport} ${day} failed after retries"
               harvest_failed=1
             fi
-            # Brief pause between sport/day targets to ease D1 pressure.
-            sleep 8
           done
           curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq '{commit:.deploymentCommit,state,schedule:.pipeline.schedule,lastCollect:.pipeline.lastCollectSuccessAt,lastHarvest:.pipeline.lastHarvestSuccessAt}'
           if [ "$harvest_failed" -ne 0 ]; then

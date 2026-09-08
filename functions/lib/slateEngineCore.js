@@ -1083,18 +1083,20 @@ async function fetchCfbdGamesRange(startDay, endDay, apiKey) {
 }
 
 async function fetchCfbdGamesForDate(day, apiKey) {
-  // Widen one day either side: CFBD start/end bounds and CT/UTC startDate skew
-  // can otherwise drop evening games when querying a single calendar day.
-  const prev = shiftDay(day, -1);
-  const next = shiftDay(day, 1);
-  const rows = await fetchCfbdGamesRange(prev, next, apiKey);
-  const list = Array.isArray(rows) ? rows : [];
-  return list
-    .filter((g) => {
-      const start = g.startDate || g.start_date;
-      return ymdCtForIso(start) === day || String(start || "").slice(0, 10) === day;
-    })
-    .map((g) => mapCfbdGame(g));
+  const listFrom = async (startDay, endDay) => {
+    const rows = await fetchCfbdGamesRange(startDay, endDay, apiKey);
+    return (Array.isArray(rows) ? rows : [])
+      .filter((g) => {
+        const start = g.startDate || g.start_date;
+        return ymdCtForIso(start) === day || String(start || "").slice(0, 10) === day;
+      })
+      .map((g) => mapCfbdGame(g));
+  };
+  // Prefer a single-day query (Saturday slates are huge). Widen ±1 only if empty
+  // to cover CFBD bound/timezone skew without downloading the whole weekend first.
+  const exact = await listFrom(day, day);
+  if (exact.length) return exact;
+  return listFrom(shiftDay(day, -1), shiftDay(day, 1));
 }
 
 export async function findNextCfbdGameDate(fromDay, apiKey, maxFutureDays = 14) {

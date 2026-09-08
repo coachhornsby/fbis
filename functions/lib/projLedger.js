@@ -1298,7 +1298,8 @@ async function gradeExecutedBets(env, finals, opts = {}) {
   const allFinals = [...(finals || []), ...durableFinals];
   const byId = new Map(allFinals.map((g) => [String(g.id), g]));
   const jobs = [];
-  for (const t of listed.rows || []) {
+  const candidates = opts.openOnly ? open : (listed.rows || []);
+  for (const t of candidates) {
     let g = t.gameId ? byId.get(String(t.gameId)) : null;
     let sportCorrected = false;
     let matchConfidence = t.matchConfidence || null;
@@ -1645,13 +1646,20 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     for (const date of dates) {
       try {
         const results = await fetchFn(sport, date);
-        for (const g of results) finals.push({ ...g, date, sport: g.sport || sport });
+        for (const g of results) {
+          if (g?.status?.completed !== true) continue;
+          finals.push({ ...g, date, sport: g.sport || sport });
+        }
       } catch (err) {
         errors.push(`${sport}@${date}: ${String(err?.message || err)}`);
       }
     }
-    await gradeStrategyAgainstFinals(env, finals, { skipDurableFinals: true });
-    const executedBets = await gradeExecutedBets(env, finals, { skipDurableFinals: true });
+    // Skip strategy grading on settleOnly — OPEN executed tickets are the catch-up target
+    // and strategy scans push Saturday CFB slates over Pages CPU limits (503/1102).
+    const executedBets = await gradeExecutedBets(env, finals, {
+      skipDurableFinals: true,
+      openOnly: true,
+    });
     return {
       sport,
       sportName: SPORTS[sport]?.name || sport,
@@ -1665,7 +1673,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
       accuracy: accuracyOf([]),
       games: [],
       gamesDiscovered: 0,
-      finals: finals.filter((g) => g.status?.completed).map((g) => ({
+      finals: finals.map((g) => ({
         id: g.id,
         sport,
         date: g.date,
@@ -1674,13 +1682,13 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
         status: g.status,
         f5Score: g.f5Score,
       })),
-      finalsDiscovered: finals.filter((g) => g.status?.completed).length,
+      finalsDiscovered: finals.length,
       finalsGraded: 0,
       finalsFailed: 0,
       jobCounts: emptyWriteCounts(),
       errors,
       executedBets,
-      db: await dbPayload(env),
+      db: { source: "settleOnly", skippedHeavyPayload: true },
     };
   }
   const harvestKey = `${CACHE_VER}:harvest:${sport}:${singleDate || n}`;
@@ -2045,7 +2053,9 @@ export async function harvestAll(days, env = {}, opts = {}) {
       failed: reports.reduce((s, r) => s + (r.finalsFailed || 0), 0),
       awaitingRetry: writes.writesFailed || 0,
     },
-    d1: await dbPayload(env),
+    d1: opts.settleOnly
+      ? { source: "settleOnly", skippedHeavyPayload: true }
+      : await dbPayload(env),
     errors,
     env,
     triggerType: opts.trigger || "http",
