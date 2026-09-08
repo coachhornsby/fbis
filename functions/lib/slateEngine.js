@@ -11,6 +11,7 @@ import { attachNflShadow } from "./nflModel.js";
 import { attachNflProShadow } from "./nflProModel.js";
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
+import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { pinMarkets } from "./pricing.js";
 
 export * from "./slateEngineCore.js";
@@ -38,11 +39,15 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "cfb") {
-    const deep = attachCfbMatchupV2(slate.games || []);
+    const feed = await loadCfbDeepFeatures(env).catch((err) => ({
+      byEspnId: {}, bySchool: {}, meta: { configured: false, records: 0, error: String(err?.message || err) },
+    }));
+    const enriched = attachCfbDeepFeatures(slate.games || [], feed);
+    const deep = attachCfbMatchupV2(enriched);
     return {
       ...slate,
       games: deep.games,
-      research: { ...(slate.research || {}), cfbMatchupV2: deep.meta },
+      research: { ...(slate.research || {}), cfbDeepFeed: feed.meta, cfbMatchupV2: deep.meta },
     };
   }
 
