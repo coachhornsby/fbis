@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "deploy": "npm run build && wrangler pages deploy dist --project-name fbis",
-    "test": "node --test test/quant-integrity.test.js test/pipeline.test.js test/research.test.js test/hfa.test.js test/today.test.js test/heritage.test.js test/identity.test.js test/pal.test.js test/schedule.test.js test/cfbd.test.js test/college.test.js test/model-lab.test.js test/research-validation.test.js test/nfl-model.test.js test/reliability.test.js test/healthstate.test.js test/population.test.js test/ev-audit-reconcile.test.js test/probability-integrity.test.js test/conviction-integrity-regression.test.js test/security-integrity.test.js",
+    "test": "node --test test/quant-integrity.test.js test/pipeline.test.js test/research.test.js test/hfa.test.js test/today.test.js test/heritage.test.js test/identity.test.js test/pal.test.js test/schedule.test.js test/cfbd.test.js test/college.test.js test/model-lab.test.js test/research-validation.test.js test/nfl-model.test.js test/product-projections.test.js test/reliability.test.js test/healthstate.test.js test/population.test.js test/ev-audit-reconcile.test.js test/probability-integrity.test.js test/conviction-integrity-regression.test.js test/security-integrity.test.js",
     "verify:migrations": "node scripts/verify-migrations.mjs"
   },
   "dependencies": { "react": "^19.1.0", "react-dom": "^19.1.0", "tesseract.js": "^6.0.1" },
