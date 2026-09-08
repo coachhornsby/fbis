@@ -1,5 +1,5 @@
 /**
- * Versioned CFB/CBB challenger registry. Shadow models cannot QUALIFY, LOG, or write strategy tickets.
+ * Versioned challenger registry. Shadow models cannot QUALIFY, LOG, or write strategy tickets.
  * Champion weights / HFA 2.5 / FBIS-HC-v1 are not modified here.
  */
 
@@ -43,6 +43,7 @@ export const COLLEGE_MODELS = {
   "CBB-MARKET-SHRUNK-v1": { id: "CBB-MARKET-SHRUNK-v1", sport: "cbb", name: "Market-informed shrinkage toward Pinnacle (not independent edge)", version: "v1", role: "shadow", family: "market", canQualify: false, marketInformed: true, independent: false },
   "CBB-PINNACLE-IMPLIED": { id: "CBB-PINNACLE-IMPLIED", sport: "cbb", name: "Pinnacle implied score (market baseline)", version: "v1", role: "shadow", family: "market", canQualify: false, marketInformed: true, independent: false },
   "CBB-KENPOM-SHADOW": { id: "CBB-KENPOM-SHADOW", sport: "cbb", name: "Optional KenPom comparison — never required", version: "v1", role: "shadow", family: "optional", canQualify: false, marketInformed: false, independent: true, optional: true },
+  "NFL-TEAM-FORM-v0": { id: "NFL-TEAM-FORM-v0", sport: "nfl", name: "NFL previous/current scoring-form baseline", version: "v0", role: "shadow", family: "baseline", canQualify: false, marketInformed: false, independent: true },
 };
 
 export function modelMeta(id) { return COLLEGE_MODELS[id] || null; }
@@ -93,7 +94,6 @@ export function evaluatePromotion({ n = 0, maeImproved = false, biasAbs = 99, le
   return { promote: fail.length === 0, fail, criteria: PROMOTION_CRITERIA };
 }
 
-/** Full predeclared gate used by the evidence-driven promotion workflow. */
 export function evaluatePromotionEvidence({ n = 0, seasons = 0, maeImprovement = null, biasAbs = null, brierDegradation = null, coverage = 0, leakageOk = false, operatorApproved = false, artifactOk = false } = {}) {
   const fail = [];
   if (Number(n) < PROMOTION_CRITERIA.minOosN) fail.push(`oos-n ${Number(n) || 0} < ${PROMOTION_CRITERIA.minOosN}`);

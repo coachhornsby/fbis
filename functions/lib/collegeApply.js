@@ -5,7 +5,7 @@
 import { loadCfbPrior, lookupPrior } from "./cfbd.js";
 import { cbbdGet, cbbSeasonYear } from "./collegeApi.js";
 import { projectCfbChallengers } from "./cfbRatings.js";
-import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatings.js";
+import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatingsSafe.js";
 import { readCache, writeCache } from "./cache.js";
 import { mapSourceTeam } from "./collegeIdentity.js";
 import { MODEL_VERSION } from "./weights.js";
@@ -23,18 +23,8 @@ function indexCbbd(rows) {
     const off = Number(row.offensiveRating ?? row.offense?.rating ?? row.adjOe);
     const defn = Number(row.defensiveRating ?? row.defense?.rating ?? row.adjDe);
     const tempo = Number(row.tempo ?? row.adjTempo);
-    if (!Number.isFinite(off) || !Number.isFinite(defn)) {
-      unmatched += 1;
-      continue;
-    }
-    const rec = {
-      adjOe: off,
-      adjDe: defn,
-      tempo: Number.isFinite(tempo) ? tempo : 68,
-      canonicalId: mapped.ok ? mapped.canonicalId : null,
-      espnId: mapped.ok ? mapped.espnId : null,
-      school: mapped.ok ? mapped.school : row.team || row.school,
-    };
+    if (!Number.isFinite(off) || !Number.isFinite(defn)) { unmatched += 1; continue; }
+    const rec = { adjOe: off, adjDe: defn, tempo: Number.isFinite(tempo) ? tempo : 68, canonicalId: mapped.ok ? mapped.canonicalId : null, espnId: mapped.ok ? mapped.espnId : null, school: mapped.ok ? mapped.school : row.team || row.school };
     if (mapped.ok) {
       matched += 1;
       byCanonicalId[mapped.canonicalId] = rec;
@@ -67,11 +57,8 @@ export async function attachCfbChallengers(games, env = {}) {
     if (game.sport && game.sport !== "cfb") return game;
     const homeRow = lookupPrior(game.home, prior.catalog);
     const awayRow = lookupPrior(game.away, prior.catalog);
-    const challengers = projectCfbChallengers(game, {
-      home: { off: homeRow?.off, def: homeRow?.def, talent: homeRow?.talent, returningPct: homeRow?.returningPct },
-      away: { off: awayRow?.off, def: awayRow?.def, talent: awayRow?.talent, returningPct: awayRow?.returningPct },
-    });
-    return { ...game, challengers, championModel: MODEL_VERSION };
+    const challengers = projectCfbChallengers(game, { home: { off: homeRow?.off, def: homeRow?.def, talent: homeRow?.talent, returningPct: homeRow?.returningPct }, away: { off: awayRow?.off, def: awayRow?.def, talent: awayRow?.talent, returningPct: awayRow?.returningPct } });
+    return { ...game, challengers, championModel: MODEL_VERSION, researchProvenance: { priorAsOf: prior.meta?.asOf || null, priorSeasonYear: prior.meta?.year || null, priorSource: prior.meta?.source || null, priorVersion: prior.version || prior.meta?.version || null } };
   });
 }
 
@@ -82,17 +69,8 @@ export async function attachCbbChallengers(games, env = {}) {
       if (game.sport && game.sport !== "cbb") return game;
       const home = lookupCbbdRating(catalog, game.home);
       const away = lookupCbbdRating(catalog, game.away);
-      const challengers = projectCbbChallengers(game, {
-        ratings: {
-          homeAdjOe: home?.adjOe,
-          homeAdjDe: home?.adjDe,
-          homeTempo: home?.tempo,
-          awayAdjOe: away?.adjOe,
-          awayAdjDe: away?.adjDe,
-          awayTempo: away?.tempo,
-        },
-      });
-      return { ...game, challengers, championModel: MODEL_VERSION, cbbCatalogCoverage: { matched: catalog.matched, unmatched: catalog.unmatched } };
+      const challengers = projectCbbChallengers(game, { ratings: { homeAdjOe: home?.adjOe, homeAdjDe: home?.adjDe, homeTempo: home?.tempo, awayAdjOe: away?.adjOe, awayAdjDe: away?.adjDe, awayTempo: away?.tempo } });
+      return { ...game, challengers, championModel: MODEL_VERSION, cbbCatalogCoverage: { matched: catalog.matched, unmatched: catalog.unmatched }, researchProvenance: { ratingsAsOf: catalog.asOf || null, ratingsSeason: catalog.year || null, source: "cbbd-adjusted" } };
     }),
     catalog,
   };
@@ -105,12 +83,5 @@ export function pickChallenger(game, modelId) {
 }
 
 export function collegeSysSlice({ cfbd, cbbd, quota, storage, challengers } = {}) {
-  return {
-    cfbd: cfbd || { configured: false },
-    cbbd: cbbd || { configured: false },
-    quota: quota || null,
-    storage: storage || null,
-    challengers: challengers || Object.keys({}),
-    note: "Shadow college models cannot QUALIFY, LOG, or write strategy tickets.",
-  };
+  return { cfbd: cfbd || { configured: false }, cbbd: cbbd || { configured: false }, quota: quota || null, storage: storage || null, challengers: challengers || Object.keys({}), note: "Shadow college models cannot QUALIFY, LOG, or write strategy tickets." };
 }
