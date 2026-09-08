@@ -99,7 +99,13 @@ function projectedScore(card) {
   if (!card?.projection?.independent) {
     return `<div class="score-unavailable">Independent FBIS projection unavailable</div>`;
   }
-  return `<div class="score"><span>${fmtNumber(card.projection.away)}</span> <small>–</small> <span>${fmtNumber(card.projection.home)}</span></div><div class="score-label">FBIS PROJECTED SCORE</div>`;
+  const live = card?.gameState?.live;
+  const currentAway = card?.gameState?.currentScore?.away;
+  const currentHome = card?.gameState?.currentScore?.home;
+  const current = live && Number.isFinite(Number(currentAway)) && Number.isFinite(Number(currentHome))
+    ? `<div class="live-score">LIVE SCORE ${fmtNumber(currentAway, 0)}–${fmtNumber(currentHome, 0)}</div>`
+    : "";
+  return `<div class="score"><span>${fmtNumber(card.projection.away)}</span> <small>–</small> <span>${fmtNumber(card.projection.home)}</span></div><div class="score-label">FBIS PREGAME PROJECTION</div>${current}`;
 }
 
 function qualityValue(card) {
@@ -116,7 +122,14 @@ function publicCopy(card) {
   const spread = p.independent ? `Fair margin: ${fmtSpread(-p.margin)} ${home}` : "";
   const total = p.independent ? `Fair total: ${fmtNumber(p.total)}` : "";
   const market = `Pinnacle: ${fmtSpread(card.market?.spread)} / ${fmtNumber(card.market?.total)}`;
-  return [`FBIS ${String(card.sport || "").toUpperCase()} Projection`, score, spread, total, market, `Status: ${card.decision?.status || "PASS"}`].filter(Boolean).join("\n");
+  return [`FBIS ${String(card.sport || "").toUpperCase()} Pregame Projection`, score, spread, total, market, `Status: ${card.decision?.status || "PASS"}`].filter(Boolean).join("\n");
+}
+
+function gameStatusLabel(card) {
+  const gs = card?.gameState || {};
+  if (gs.live) return `<span class="live-game-label"><i></i>LIVE${gs.detail ? ` · ${escapeHtml(gs.detail)}` : ""}</span>`;
+  if (gs.completed) return `<span class="final-game-label">FINAL${gs.detail ? ` · ${escapeHtml(gs.detail)}` : ""}</span>`;
+  return `<span>${escapeHtml(fmtKickoff(card.start))}${card.neutral ? " · NEUTRAL" : ""}</span>`;
 }
 
 function cardHtml(card) {
@@ -127,9 +140,9 @@ function cardHtml(card) {
   const marketSpread = card.market?.spread;
   const homeWp = card.projection?.pHome;
   return `
-    <article class="game-card status-${escapeHtml(status)}" data-game-id="${escapeHtml(card.id)}">
+    <article class="game-card status-${escapeHtml(status)}${card?.gameState?.live ? " is-live" : ""}" data-game-id="${escapeHtml(card.id)}">
       <div class="game-top">
-        <span>${escapeHtml(fmtKickoff(card.start))}${card.neutral ? " · NEUTRAL" : ""}</span>
+        ${gameStatusLabel(card)}
         <span class="status-pill ${escapeHtml(status)}">${escapeHtml(String(card.decision?.status || "PASS"))}</span>
       </div>
       <div class="matchup">
@@ -156,7 +169,7 @@ function cardHtml(card) {
         <div class="intel-cell"><span>MODEL QUALITY</span><strong>${qualityValue(card)}</strong></div>
       </div>
       <div class="card-footer">
-        <span>${escapeHtml(card.modelVersion || "Model version unavailable")}${card.decision?.blocked && card.decision?.blockReason ? ` · ${escapeHtml(card.decision.blockReason)}` : ""}</span>
+        <span>${escapeHtml(card.modelVersion || "Model version unavailable")}${card?.gameState?.live ? " · Live game — pregame projection remains frozen" : ""}${card.decision?.blocked && card.decision?.blockReason ? ` · ${escapeHtml(card.decision.blockReason)}` : ""}</span>
         <button type="button" class="copy-button" data-copy-game="${escapeHtml(card.id)}">COPY PROJECTION</button>
       </div>
     </article>`;
