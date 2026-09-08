@@ -8,6 +8,9 @@
 
 import * as core from "./slateEngineCore.js";
 import { attachNflShadow } from "./nflModel.js";
+import { attachNflProShadow } from "./nflProModel.js";
+import { attachMlbDeepShadow } from "./mlbDeepModel.js";
+import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { pinMarkets } from "./pricing.js";
 
 export * from "./slateEngineCore.js";
@@ -17,12 +20,44 @@ const INDEPENDENT_SCORE_REQUIRED = new Set(["cbb", "nba", "nfl"]);
 const CRITICAL_QUALITY_FLAGS = new Set(["pinnacle_implied_score", "market_unresolved"]);
 const MLB_STARTER_FLAGS = new Set(["missing_home_sp", "missing_away_sp"]);
 
-/** Public build remains production-compatible; NFL gets a shadow only. */
+/**
+ * Production champion outputs remain untouched. Deepening work is attached only
+ * under challengers / shadow metadata until frozen rolling OOS promotion earns a role change.
+ */
 export async function buildSlate(sport, date, env = {}) {
   const slate = await core.buildSlate(sport, date, env);
-  if (String(slate?.sport || sport).toLowerCase() !== "nfl") return slate;
-  const shadow = await attachNflShadow(slate.games || [], env);
-  return { ...slate, games: shadow.games, nfl: shadow.meta };
+  const id = String(slate?.sport || sport).toLowerCase();
+
+  if (id === "mlb") {
+    const deep = attachMlbDeepShadow(slate.games || []);
+    return {
+      ...slate,
+      games: deep.games,
+      research: { ...(slate.research || {}), mlbDeep: deep.meta },
+    };
+  }
+
+  if (id === "cfb") {
+    const deep = attachCfbMatchupV2(slate.games || []);
+    return {
+      ...slate,
+      games: deep.games,
+      research: { ...(slate.research || {}), cfbMatchupV2: deep.meta },
+    };
+  }
+
+  if (id === "nfl") {
+    const baseline = await attachNflShadow(slate.games || [], env);
+    const pro = attachNflProShadow(baseline.games);
+    return {
+      ...slate,
+      games: pro.games,
+      nfl: baseline.meta,
+      research: { ...(slate.research || {}), nflBaseline: baseline.meta, nflPro: pro.meta },
+    };
+  }
+
+  return slate;
 }
 
 export function qualificationIntegrity(sport, game) {
@@ -32,7 +67,7 @@ export function qualificationIntegrity(sport, game) {
   if (INDEPENDENT_SCORE_REQUIRED.has(id) && projectionKind !== "FBIS") {
     const label = id.toUpperCase();
     const reason = id === "nfl"
-      ? "NFL qualification blocked — no independent NFL model"
+      ? "NFL qualification blocked — no promoted independent NFL model"
       : `${label} qualification blocked — no independent FBIS projection`;
     return { ok: false, reason, code: "independent-projection-required" };
   }
