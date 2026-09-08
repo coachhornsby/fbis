@@ -295,7 +295,7 @@ describe("jobs, R2, storage", () => {
     assert.equal(health.job, "college-health");
     const dump = JSON.stringify(health);
     assert.equal(dump.includes(FAKE), false);
-    const promo = await runCollegeJob("model-promote", env, { operatorApproved: false, n: 10 });
+    const promo = await runCollegeJob("model-promote", env, { sport: "cfb", modelId: "CFB-CFBD-RATINGS-v1", referenceModelId: "CFB-PINNACLE-IMPLIED", operatorApproved: false });
     assert.equal(promo.d1.promotion.promote, false);
     const train = await runCollegeJob("model-train-validate", env);
     assert.equal(train.status, "success");
