@@ -187,6 +187,8 @@ test("CI release gate verifies live health SHA and API smoke", () => {
   assert.match(src, /cleanup-future-grades/);
   assert.match(src, /cleanup-cross-date-strategy/);
   assert.match(src, /openStrategyTickets/);
+  assert.match(src, /post-deploy-collect-recovery/);
+  assert.match(src, /Recovering collect/);
   assert.doesNotMatch(src, /scheduledSlot=post-deploy-catchup[\s\S]*\/api\/collect/);
   assert.match(src, /Sync HARVEST_SECRET to Cloudflare Pages/);
   assert.match(src, /wrangler pages secret put HARVEST_SECRET/);

@@ -122,8 +122,32 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET}" || { echo "Missing HARVEST_SECRET"; exit 1; }
-          # Skip post-deploy collect: scheduled collect is already healthy and full
-          # multi-sport collect loops overload D1 before settle can run.
+          RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          health_tmp="$(mktemp)"
+          curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" -o "$health_tmp"
+          collect_state="$(jq -r '.pipeline.schedule.collect.state // "unknown"' "$health_tmp")"
+          collect_ok="$(jq -r '.checks[] | select(.name=="scheduled-collect") | .ok' "$health_tmp")"
+          # Recover missed/delayed collect when GitHub cron skips a slot (common under load).
+          if [ "$collect_state" = "missed" ] || [ "$collect_state" = "delayed" ] || [ "$collect_ok" = "false" ]; then
+            echo "Recovering collect state=${collect_state} ok=${collect_ok}"
+            collect_body="$(mktemp)"
+            collect_code="$(curl -sS --max-time 180 -o "$collect_body" -w "%{http_code}" \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              "${BASE}/api/collect?mode=cache&sport=mlb&trigger=schedule&scheduledSlot=post-deploy-collect-recovery&runUrl=${RUN_URL_BASE}")"
+            echo "collect-recovery mlb http=${collect_code}"
+            jq -c '{ok,status,mode,sports,errors:(.errors//[])[:3]}' "$collect_body" || head -c 300 "$collect_body" || true
+            # Second sport pass for active CFB season without full multi-sport overload.
+            collect_body2="$(mktemp)"
+            collect_code2="$(curl -sS --max-time 180 -o "$collect_body2" -w "%{http_code}" \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              "${BASE}/api/collect?mode=cache&sport=cfb&trigger=schedule&scheduledSlot=post-deploy-collect-recovery&runUrl=${RUN_URL_BASE}")"
+            echo "collect-recovery cfb http=${collect_code2}"
+            jq -c '{ok,status,mode,sports,errors:(.errors//[])[:3]}' "$collect_body2" || head -c 300 "$collect_body2" || true
+          else
+            echo "Collect healthy; skipping post-deploy collect recovery (state=${collect_state})"
+          fi
           # Reopen premature grades (cross-day series / pre-start) before settle.
           cleanup_tmp="$(mktemp)"
           cleanup_code="$(curl -sS --max-time 45 -o "$cleanup_tmp" -w "%{http_code}" \
@@ -146,7 +170,6 @@ jobs:
           jq -c '{ok,voided,voidPlanned,keepN,failed}' "$cross_tmp" || head -c 300 "$cross_tmp" || true
           # Settle-only harvest for open executed + research tickets (full harvest exceeds Pages time).
           harvest_failed=0
-          RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           # Prefer live settleTargets with open work (health sorts by open volume); cap for Pages time.
           mapfile -t TARGETS < <(curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq -r '
             [.pipeline.settleTargets // []

@@ -2,9 +2,24 @@ import { expectedRoi, validAmericanOdds } from "./pricing.js";
 import { readCanonicalProbability } from "./probability.js";
 
 export const ANOMALY_RULES = {
+  "missing-model-probability": {
+    id: "missing-model-probability",
+    meaning: "Model probability was never stored on the ticket (null/empty).",
+    severity: "INVALID",
+    mathematicallyImpossible: false,
+    canBeLegitimateLongOdds: false,
+    missingData: true,
+    incompleteTwoWayPricing: false,
+    probabilityConversionRisk: true,
+    staleOrMismatchedMarket: false,
+    selectionInversion: false,
+    postStartSnapshot: false,
+    mustQuarantine: true,
+    mayRemainEligibleAfterReview: false,
+  },
   "probability-out-of-range": {
     id: "probability-out-of-range",
-    meaning: "Model probability is missing or outside exclusive (0,1).",
+    meaning: "Model probability is present but outside exclusive (0,1).",
     severity: "INVALID",
     mathematicallyImpossible: true,
     canBeLegitimateLongOdds: false,
@@ -121,7 +136,10 @@ export function auditTicketEv(ticket = {}) {
   const marketComplete = classifyMarketCompleteness(ticket);
   const recomputedEv = canonical.ok && validAmericanOdds(price) ? expectedRoi(p, price) : null;
   const reasons = [];
-  if (!canonical.ok) reasons.push("probability-out-of-range");
+  if (!canonical.ok) {
+    const missingish = ["missing", "empty-string", "non-numeric", "nan", "infinite"].includes(String(canonical.reason || ""));
+    reasons.push(missingish ? "missing-model-probability" : "probability-out-of-range");
+  }
   if (!validAmericanOdds(price)) reasons.push("invalid-american-odds");
   if (!marketComplete) reasons.push("incomplete-two-way-market");
   if (storedEv != null && Number(storedEv) > 1) reasons.push("ev-over-100pct");

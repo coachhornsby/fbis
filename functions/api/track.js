@@ -322,7 +322,10 @@ function recomputeTicketRoi(ticket) {
   const p = canonical.ok ? canonical.modelProbability : null;
   const americanOdds = Number(ticket.pinPrice ?? ticket.benchmarkPrice ?? ticket.executionPrice);
   const reasons = [];
-  if (!canonical.ok) reasons.push("probability-out-of-range");
+  if (!canonical.ok) {
+    const missingish = ["missing", "empty-string", "non-numeric", "nan", "infinite"].includes(String(canonical.reason || ""));
+    reasons.push(missingish ? "missing-model-probability" : "probability-out-of-range");
+  }
   if (!validAmerican(americanOdds)) reasons.push("invalid-american-odds");
   const decimalOdds = validAmerican(americanOdds) ? americanToDecimal(americanOdds) : null;
   const expectedRoi = canonical.ok && decimalOdds != null ? p * decimalOdds - 1 : null;
