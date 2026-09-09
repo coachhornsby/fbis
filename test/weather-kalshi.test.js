@@ -10,6 +10,8 @@ import {
 import { attachKalshiSentiment, KALSHI_SERIES } from "../functions/lib/kalshi.js";
 import { projectMatchup } from "../functions/lib/savant.js";
 import { projectNflFormV0 } from "../functions/lib/nflModel.js";
+import { enrichGamesVenues } from "../functions/lib/venues.js";
+import { enrichGameTeams } from "../functions/lib/teams.js";
 import { resetCacheMem } from "../functions/lib/cache.js";
 
 describe("Open-Meteo weather helpers", () => {
@@ -126,6 +128,51 @@ describe("Open-Meteo weather helpers", () => {
     assert.equal(storm.ok, true);
     assert.ok(storm.total < clear.total);
     assert.equal(storm.provenance.weatherTotalFactor, 0.9);
+  });
+});
+
+describe("NFL stadium catalog for soft-odds stubs", () => {
+  it("fills outdoor home stadium coords so weather can apply", async () => {
+    resetCacheMem();
+    const stub = enrichGamesVenues([
+      enrichGameTeams("nfl", {
+        id: "nfl_patriots_seahawks",
+        sport: "nfl",
+        start: "2026-09-15T00:20:00Z",
+        home: { name: "Seattle Seahawks", abbr: "—" },
+        away: { name: "New England Patriots", abbr: "—" },
+        venue: "",
+      }),
+    ])[0];
+    assert.equal(stub.venue, "Lumen Field");
+    assert.equal(stub.venueIndoor, false);
+    assert.ok(stub.venueLat != null && stub.venueLon != null);
+
+    const [wx] = await attachWeather([stub], null);
+    assert.equal(wx.weather?.indoor, false);
+    assert.ok(wx.weatherImpact?.applied);
+    assert.ok(wx.weatherImpact.footballTotalFactor !== 1 || wx.weather?.temperature != null);
+  });
+
+  it("marks fixed indoor roofs closed so weather does not apply", async () => {
+    resetCacheMem();
+    const stub = enrichGamesVenues([
+      enrichGameTeams("nfl", {
+        id: "nfl_bears_lions",
+        sport: "nfl",
+        start: "2026-09-15T17:00:00Z",
+        home: { name: "Detroit Lions", abbr: "DET" },
+        away: { name: "Chicago Bears", abbr: "CHI" },
+        venue: "",
+      }),
+    ])[0];
+    assert.equal(stub.venueIndoor, true);
+    assert.match(stub.venue, /Ford Field/i);
+
+    const [wx] = await attachWeather([stub], null);
+    assert.equal(wx.weather?.indoor, true);
+    assert.equal(wx.weatherImpact?.applied, false);
+    assert.equal(wx.weatherImpact?.footballTotalFactor, 1);
   });
 });
 

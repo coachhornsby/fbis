@@ -15,6 +15,7 @@ import { SHADOW_BLOCK_REASONS } from "./collegeModels.js";
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED } from "./convictionGate.js";
 import { canonicalProbabilityFields } from "./probability.js";
 import { attachWeather } from "./weather.js";
+import { enrichGamesVenues } from "./venues.js";
 import { attachKalshiSentiment } from "./kalshi.js";
 
 export const SPORTS = {
@@ -1332,7 +1333,11 @@ export async function buildSlate(sport, date, env = {}) {
   const kalshi = await attachKalshiSentiment(games, id, env.caches, { replace: false });
   games = kalshi.games || games;
 
-  // Free Open-Meteo weather (MLB venues carry lat/lon from Stats hydrate).
+  // Soft-odds stubs often lack ESPN venue fields — fill NFL home stadium lat/lon/indoor.
+  games = enrichGamesVenues(games);
+
+  // Free Open-Meteo weather (MLB coords from Stats; NFL/CFB from ESPN or stadium catalog).
+  // Closed roofs / indoor venues skip outdoor weather impact on projections.
   games = await attachWeather(games, env.caches);
 
   let pal = { games: [], meta: { enabled: false } };
