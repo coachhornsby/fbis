@@ -168,6 +168,9 @@ test("health requires schema migration verification and conflict breakdown", () 
   const src = readFileSync(new URL("../functions/api/health.js", import.meta.url), "utf8");
   assert.match(src, /name: "schema-migration"/);
   assert.match(src, /conflictBreakdown/);
+  assert.match(src, /settleTargets/);
+  assert.match(src, /staleChecks/);
+  assert.match(src, /operatorNotes/);
   assert.match(src, /immutable-projection-mismatch/);
 });
 

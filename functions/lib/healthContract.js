@@ -32,10 +32,12 @@ export function deriveHealthState({
 } = {}) {
   const nowMs = Number.isFinite(Number(now)) ? Number(now) : Date.now();
   const checks = (requiredChecks || []).map((row) => {
-    const ok = row?.ok === true;
     const required = row?.required !== false;
     const freshnessMs = Number(row?.freshnessMs || 0) || 0;
     const staleNow = stale(row?.lastSuccessAt, freshnessMs, nowMs);
+    // Required freshness windows must fail closed: stale + "healthy" schedule
+    // text was letting the watchdog skip recovery while overall state looked confusing.
+    const ok = row?.ok === true && !staleNow;
     return {
       name: row?.name || "unknown",
       required,

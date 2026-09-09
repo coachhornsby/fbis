@@ -1,6 +1,8 @@
 import { durableHealth, deploymentCommit, scheduledHealth } from "../lib/jobs.js";
 import { MODEL_VERSION } from "../lib/weights.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
+import { queryExecutedBets, queryStrategyTickets } from "../lib/store.js";
+import { STRATEGY_HC_V1 } from "../lib/strategy.js";
 
 const MIGRATION_STATUS = {
   VERIFIED: "VERIFIED",
@@ -63,17 +65,27 @@ export async function onRequestGet(context) {
           ok: collectHealthy,
           detail: schedule?.collect?.state || "unknown",
           lastSuccessAt: health.lastScheduledCollectSuccessAt || null,
-          freshnessMs: 8 * 60 * 60 * 1000,
+          // Max production gap is 02:00 → 13:00 UTC (~11h).
+          freshnessMs: 12 * 60 * 60 * 1000,
         },
         {
           name: "scheduled-harvest",
           ok: harvestHealthy,
           detail: schedule?.harvest?.state || "unknown",
           lastSuccessAt: health.lastScheduledHarvestSuccessAt || null,
-          freshnessMs: 8 * 60 * 60 * 1000,
+          // Max production gap is 16:20 → next 11:20 UTC (~19h).
+          freshnessMs: 20 * 60 * 60 * 1000,
         },
       ],
     });
+    const settleTargets = await listSettleTargets(env, { readOk });
+    const operatorNotes = [];
+    if (!harvestHealthy || derived.checks.some((c) => c.name === "scheduled-harvest" && !c.ok)) {
+      operatorNotes.push("No successful harvest within the expected window.");
+    }
+    if (Number(health.retryOpen || 0) > 0) {
+      operatorNotes.push(`${Number(health.retryOpen)} open harvest retries need classification or catch-up.`);
+    }
     const build = buildMeta(context.request, env, schema);
     return json(
       {
@@ -106,9 +118,12 @@ export async function onRequestGet(context) {
           immutableConflicts: Number(health.immutableConflicts || 0),
           conflictBreakdown: conflicts,
           schedule,
+          settleTargets,
         },
         checks: derived.checks,
         failures: derived.failures,
+        staleChecks: derived.staleChecks,
+        operatorNotes,
         lastJob: health.lastJob || null,
         telemetry: {
           endpoint: "/api/health",
@@ -222,4 +237,54 @@ async function conflictBreakdown(env, { readOk }) {
   } catch {
     return empty;
   }
+}
+
+/** Active (sport, date) pairs that still need settle/research catch-up. */
+async function listSettleTargets(env, { readOk }) {
+  if (!readOk) return [];
+  const keyOf = (sport, date) => `${String(sport || "").toLowerCase()}|${String(date || "").slice(0, 10)}`;
+  const out = new Map();
+  try {
+    const bets = await queryExecutedBets(env, { includeRaw: false });
+    for (const b of bets.rows || []) {
+      if (b.result && b.result !== "OPEN") continue;
+      const sport = String(b.sport || "").toLowerCase();
+      const date = String(b.date || "").slice(0, 10);
+      if (!sport || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+      // College tickets mislabeled mlb still settle via sport-correction when CFB finals are fetched.
+      const key = keyOf(sport, date);
+      const row = out.get(key) || { sport, date, openExecutedBets: 0, openStrategyTickets: 0 };
+      row.openExecutedBets += 1;
+      out.set(key, row);
+      if (sport === "mlb") {
+        // Also queue CFB for the same date when unmatched college-looking tickets exist.
+        const text = `${b.matchupText || ""} ${b.awayTeam || ""} ${b.homeTeam || ""}`.toUpperCase();
+        const looksCollege = /\b(STATE|UNIVERSITY|WAKE|AKRON|MARSHALL|PENN|FIU|USF|FLORIDA INTERNATIONAL|CENTRAL MICHIGAN|NEW MEXICO)\b/.test(text);
+        if (looksCollege || b.matchStatus === "unmatched") {
+          const cfbKey = keyOf("cfb", date);
+          const cfb = out.get(cfbKey) || { sport: "cfb", date, openExecutedBets: 0, openStrategyTickets: 0 };
+          cfb.openExecutedBets += 1;
+          out.set(cfbKey, cfb);
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    const tickets = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
+    for (const t of tickets || []) {
+      if (t.result && t.result !== "OPEN") continue;
+      const sport = String(t.sport || "").toLowerCase();
+      const date = String(t.date || "").slice(0, 10);
+      if (!sport || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+      const key = keyOf(sport, date);
+      const row = out.get(key) || { sport, date, openExecutedBets: 0, openStrategyTickets: 0 };
+      row.openStrategyTickets += 1;
+      out.set(key, row);
+    }
+  } catch {
+    /* ignore */
+  }
+  return [...out.values()].sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(a.sport).localeCompare(String(b.sport)));
 }

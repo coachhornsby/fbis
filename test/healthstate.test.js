@@ -28,6 +28,28 @@ describe("shared health-state contract", () => {
     assert.equal(stale.state, "STALE");
   });
 
+  it("fails required checks when their success timestamp is stale", () => {
+    const now = Date.parse("2026-09-09T12:00:00Z");
+    const out = deriveHealthState({
+      now,
+      hasAuthoritativeData: true,
+      requiredChecks: [
+        {
+          name: "scheduled-harvest",
+          ok: true,
+          detail: "healthy",
+          lastSuccessAt: "2026-09-08T12:00:00Z",
+          freshnessMs: 8 * 60 * 60 * 1000,
+        },
+      ],
+    });
+    assert.equal(out.state, "DEGRADED");
+    assert.equal(out.checks[0].ok, false);
+    assert.equal(out.checks[0].stale, true);
+    assert.equal(out.failures.length, 1);
+    assert.equal(out.failures[0].name, "scheduled-harvest");
+  });
+
   it("frontend global state never reports LIVE on unavailable tab state", () => {
     const today = deriveViewState({ apiState: "UNAVAILABLE", error: "boom", stale: false, hasData: false });
     const global = deriveGlobalState({
