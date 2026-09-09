@@ -79,15 +79,26 @@ export function abbrMatch(a, b) {
   return Boolean(na && nb && na === nb && na.length >= 2);
 }
 
+function teamNameCandidates(team) {
+  const names = [team?.name, team?.school, team?.fullName, team?.nickname, team?.abbr];
+  const sources = team?.sources || {};
+  for (const key of ["parlay", "heritage", "espn", "kalshi", "pal", "savant"]) {
+    const src = sources[key];
+    if (!src) continue;
+    if (src.name) names.push(src.name);
+    if (src.abbr) names.push(src.abbr);
+    if (Array.isArray(src.names)) names.push(...src.names);
+  }
+  return [...new Set(names.filter(Boolean).map((n) => String(n)))];
+}
+
 export function teamsMatch(gameHome, gameAway, eventHome, eventAway) {
-  const homeOk =
-    namesMatch(gameHome?.name, eventHome) ||
-    namesMatch(gameHome?.abbr, eventHome) ||
-    abbrMatch(gameHome?.abbr, eventHome);
-  const awayOk =
-    namesMatch(gameAway?.name, eventAway) ||
-    namesMatch(gameAway?.abbr, eventAway) ||
-    abbrMatch(gameAway?.abbr, eventAway);
+  const homeOk = teamNameCandidates(gameHome).some(
+    (n) => namesMatch(n, eventHome) || abbrMatch(n, eventHome)
+  );
+  const awayOk = teamNameCandidates(gameAway).some(
+    (n) => namesMatch(n, eventAway) || abbrMatch(n, eventAway)
+  );
   return Boolean(homeOk && awayOk);
 }
 
