@@ -713,13 +713,13 @@ function Ticker({ items, logged }) {
         {loop.length ? loop.map((g, i) => (
           <div className={`ticker-item${logged.has(g.id) ? " has-bet" : ""}`} key={`${g.id}-${i}`}>
             {g.live && <span className="live-dot">●</span>}
-            {g.awayLogo && <TeamLogo team={{ logo: g.awayLogo, name: g.awayName || g.away, abbr: g.away }} />}
+            {g.awayLogo && <TeamLogo team={{ logo: g.awayLogo, name: g.awayName || g.away, abbr: g.away }} size={36} />}
             {g.away}
             <span className="score-accent">{g.awayScore ?? ""}</span>
             <span className="muted">@</span>
             <span className="score-accent">{g.homeScore ?? ""}</span>
             {g.home}
-            {g.homeLogo && <TeamLogo team={{ logo: g.homeLogo, name: g.homeName || g.home, abbr: g.home }} />}
+            {g.homeLogo && <TeamLogo team={{ logo: g.homeLogo, name: g.homeName || g.home, abbr: g.home }} size={36} />}
             <span className="muted" style={{ marginLeft: 8, fontSize: 11 }}>[{g.status}]</span>
           </div>
         )) : <span className="ticker-empty">NO LIVE GAMES</span>}
@@ -728,12 +728,8 @@ function Ticker({ items, logged }) {
   );
 }
 
-function Team({ t, align }) {
-  return (
-    <div className="team-line" style={{ justifyContent: align === "right" ? "flex-end" : "flex-start" }}>
-      <TeamIdentity team={t} />
-    </div>
-  );
+function Team({ t, size = 40 }) {
+  return <TeamIdentity team={t} size={size} />;
 }
 
 function OddsTile({ line, price, hot = false }) {
@@ -832,9 +828,9 @@ function SlateTable({ games, onLog, logged }) {
               ) : null}
             </td>
             <td>
-              <div className="team-block">
-                <Team t={g.away} />
-                <Team t={g.home} />
+              <div className="team-block team-block-lg">
+                <Team t={g.away} size={40} />
+                <Team t={g.home} size={40} />
                 <button className="game-expand" onClick={() => toggle(g.id)} aria-expanded={open.has(g.id)}>
                   {open.has(g.id) ? "Hide details" : "Details"}
                 </button>

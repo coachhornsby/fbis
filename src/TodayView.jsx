@@ -216,9 +216,9 @@ function TodayTable({ games, propWatch }) {
           return <Fragment key={key}>
           <tr>
             <td>
-              <div className="team-block">
-                <TeamIdentity team={g.away} score={g.score?.away} />
-                <TeamIdentity team={g.home} score={g.score?.home} />
+              <div className="team-block team-block-lg">
+                <TeamIdentity team={g.away} score={g.score?.away} size={40} />
+                <TeamIdentity team={g.home} score={g.score?.home} size={40} />
                 <div className="muted" style={{ fontSize: 10 }}>
                   {g.venue || "—"}{g.neutral ? " · NEUTRAL" : ""}
                 </div>
