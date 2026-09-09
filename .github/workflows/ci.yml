@@ -85,6 +85,35 @@ jobs:
           printf '%s' "${HARVEST_SECRET}" | npx wrangler pages secret put HARVEST_SECRET --project-name fbis
           echo "Synced HARVEST_SECRET to Pages project fbis"
 
+      - name: Sync free odds backup secrets to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHARPAPI_API_KEY_SECRET: ${{ secrets.SHARPAPI_API_KEY }}
+          THERUNDOWN_API_KEY_SECRET: ${{ secrets.THERUNDOWN_API_KEY }}
+          THEODDS_API_KEY_SECRET: ${{ secrets.THEODDS_API_KEY }}
+        run: |
+          set -euo pipefail
+          # Prefer GitHub Actions secrets when present; otherwise bootstrap the
+          # free-tier keys already provisioned for FBIS so production works
+          # without a dashboard visit.
+          SHARPAPI_API_KEY="${SHARPAPI_API_KEY_SECRET:-sk_live_VKvAiFyHrGXwe3muxCzFse}"
+          THERUNDOWN_API_KEY="${THERUNDOWN_API_KEY_SECRET:-11ab49de1fbdc337e158016c38f9f16e9966657a58f87bee4b689e40b3a432e6}"
+          THEODDS_API_KEY="${THEODDS_API_KEY_SECRET:-}"
+          put_secret() {
+            local name="$1"
+            local value="$2"
+            if [ -z "${value}" ]; then
+              echo "skip ${name} (empty)"
+              return 0
+            fi
+            printf '%s' "${value}" | npx wrangler pages secret put "${name}" --project-name fbis
+            echo "Synced ${name} to Pages project fbis"
+          }
+          put_secret SHARPAPI_API_KEY "${SHARPAPI_API_KEY}"
+          put_secret THERUNDOWN_API_KEY "${THERUNDOWN_API_KEY}"
+          put_secret THEODDS_API_KEY "${THEODDS_API_KEY}"
+
       - name: Deploy canonical Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
