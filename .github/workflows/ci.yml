@@ -144,7 +144,10 @@ jobs:
           done
           echo "Release gate smoke passed for ${DEPLOY_SHA}"
 
+      # Best-effort: Pages deploy + SHA verify already gated release. Catch-up timeouts
+      # (CFB collect / D1 busy) must not paint deploy-production red; harvest.yml recovers.
       - name: Catch-up settle-only harvest
+        continue-on-error: true
         env:
           BASE: https://fbis-myz.pages.dev
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
@@ -152,50 +155,75 @@ jobs:
           set -euo pipefail
           test -n "${HARVEST_SECRET}" || { echo "Missing HARVEST_SECRET"; exit 1; }
           RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          catchup_warn=0
+          # Retryable collect recovery (Pages can stall >180s on CFB; never abort under set -e).
+          recover_collect() {
+            local sport="$1"
+            local attempt code curl_ec body
+            for attempt in 1 2 3; do
+              body="$(mktemp)"
+              set +e
+              code="$(curl -sS --max-time 120 -o "$body" -w "%{http_code}" \
+                -H "x-harvest-secret: ${HARVEST_SECRET}" \
+                -H "accept: application/json" \
+                "${BASE}/api/collect?mode=cache&sport=${sport}&trigger=schedule&scheduledSlot=post-deploy-collect-recovery&runUrl=${RUN_URL_BASE}")"
+              curl_ec=$?
+              set -e
+              echo "collect-recovery ${sport} attempt=${attempt} curl_ec=${curl_ec} http=${code}"
+              jq -c '{ok,status,mode,sports,errors:(.errors//[])[:3]}' "$body" 2>/dev/null || head -c 300 "$body" || true
+              if [ "$curl_ec" -eq 0 ] && [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" = "true" ]; then
+                return 0
+              fi
+              if [ "$curl_ec" -ne 0 ] || [ "$code" = "000" ] || [ "$code" = "503" ] || [ "$code" = "504" ] || [ "$code" = "524" ]; then
+                echo "collect-recovery ${sport} transient; backing off"
+                sleep $((attempt * 15))
+                continue
+              fi
+              sleep $((attempt * 8))
+            done
+            echo "collect-recovery ${sport} failed after retries (non-fatal for deploy)"
+            return 1
+          }
           health_tmp="$(mktemp)"
+          set +e
           curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" -o "$health_tmp"
-          collect_state="$(jq -r '.pipeline.schedule.collect.state // "unknown"' "$health_tmp")"
-          collect_ok="$(jq -r '.checks[] | select(.name=="scheduled-collect") | .ok' "$health_tmp")"
+          set -e
+          collect_state="$(jq -r '.pipeline.schedule.collect.state // "unknown"' "$health_tmp" 2>/dev/null || echo unknown)"
+          collect_ok="$(jq -r '.checks[] | select(.name=="scheduled-collect") | .ok' "$health_tmp" 2>/dev/null || echo unknown)"
           # Recover missed/delayed collect when GitHub cron skips a slot (common under load).
           if [ "$collect_state" = "missed" ] || [ "$collect_state" = "delayed" ] || [ "$collect_ok" = "false" ]; then
             echo "Recovering collect state=${collect_state} ok=${collect_ok}"
-            collect_body="$(mktemp)"
-            collect_code="$(curl -sS --max-time 180 -o "$collect_body" -w "%{http_code}" \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              -H "accept: application/json" \
-              "${BASE}/api/collect?mode=cache&sport=mlb&trigger=schedule&scheduledSlot=post-deploy-collect-recovery&runUrl=${RUN_URL_BASE}")"
-            echo "collect-recovery mlb http=${collect_code}"
-            jq -c '{ok,status,mode,sports,errors:(.errors//[])[:3]}' "$collect_body" || head -c 300 "$collect_body" || true
+            recover_collect mlb || catchup_warn=1
             # Second sport pass for active CFB season without full multi-sport overload.
-            collect_body2="$(mktemp)"
-            collect_code2="$(curl -sS --max-time 180 -o "$collect_body2" -w "%{http_code}" \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              -H "accept: application/json" \
-              "${BASE}/api/collect?mode=cache&sport=cfb&trigger=schedule&scheduledSlot=post-deploy-collect-recovery&runUrl=${RUN_URL_BASE}")"
-            echo "collect-recovery cfb http=${collect_code2}"
-            jq -c '{ok,status,mode,sports,errors:(.errors//[])[:3]}' "$collect_body2" || head -c 300 "$collect_body2" || true
+            recover_collect cfb || catchup_warn=1
           else
             echo "Collect healthy; skipping post-deploy collect recovery (state=${collect_state})"
           fi
           # Reopen premature grades (cross-day series / pre-start) before settle.
           cleanup_tmp="$(mktemp)"
+          set +e
           cleanup_code="$(curl -sS --max-time 45 -o "$cleanup_tmp" -w "%{http_code}" \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
             -H "content-type: application/json" \
             -H "accept: application/json" \
             -d '{"action":"cleanup-future-grades"}' \
             "${BASE}/api/track")"
-          echo "cleanup-future-grades http=${cleanup_code}"
+          cleanup_ec=$?
+          set -e
+          echo "cleanup-future-grades curl_ec=${cleanup_ec} http=${cleanup_code:-000}"
           jq -c '{ok,strategyTicketsReset,executedBetsReset,snapshotRowsReset}' "$cleanup_tmp" || head -c 300 "$cleanup_tmp" || true
           # Void OPEN strategy tickets that reused one gameId across multiple dates.
           cross_tmp="$(mktemp)"
+          set +e
           cross_code="$(curl -sS --max-time 90 -o "$cross_tmp" -w "%{http_code}" \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
             -H "content-type: application/json" \
             -H "accept: application/json" \
             -d '{"action":"cleanup-cross-date-strategy"}' \
             "${BASE}/api/track")"
-          echo "cleanup-cross-date-strategy http=${cross_code}"
+          cross_ec=$?
+          set -e
+          echo "cleanup-cross-date-strategy curl_ec=${cross_ec} http=${cross_code:-000}"
           jq -c '{ok,voided,voidPlanned,keepN,failed}' "$cross_tmp" || head -c 300 "$cross_tmp" || true
           # Settle-only harvest for open executed + research tickets (full harvest exceeds Pages time).
           harvest_failed=0
@@ -207,7 +235,7 @@ jobs:
               | "\(.sport):\(.date)"]
             | .[0:14]
             | if length > 0 then .[] else empty end
-          ')
+          ' || true)
           if [ "${#TARGETS[@]}" -eq 0 ]; then
             TARGETS=("mlb:$(TZ=America/Chicago date -d 'yesterday' +%F)" "cfb:$(TZ=America/Chicago date -d 'yesterday' +%F)")
           fi
@@ -247,9 +275,11 @@ jobs:
             fi
             sleep 5
           done
+          set +e
           curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq '{commit:.deploymentCommit,state,schedule:.pipeline.schedule,lastCollect:.pipeline.lastCollectSuccessAt,lastHarvest:.pipeline.lastHarvestSuccessAt}'
-          if [ "$harvest_failed" -ne 0 ]; then
-            echo "Settle-only harvest had failures."
+          set -e
+          if [ "$harvest_failed" -ne 0 ] || [ "$catchup_warn" -ne 0 ]; then
+            echo "Post-deploy catch-up had warnings (harvest_failed=${harvest_failed} collect_warn=${catchup_warn}); scheduled harvest.yml will retry."
             exit 1
           fi
           echo "Post-deploy settle-only catch-up complete"
