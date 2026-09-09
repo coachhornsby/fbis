@@ -49,7 +49,11 @@ test("unresolved MLB probable starters block qualification", () => {
 test("track POST is protected by API middleware", async () => {
   let nextCalled = false;
   const denied = await apiMiddleware({
-    request: new Request("https://fbis.example/api/track", { method: "POST" }),
+    request: new Request("https://fbis.example/api/track", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "reconstruct-probability" }),
+    }),
     env: { HARVEST_SECRET: "abc123" },
     next: async () => { nextCalled = true; return new Response("ok"); },
   });
@@ -57,11 +61,49 @@ test("track POST is protected by API middleware", async () => {
   assert.equal(nextCalled, false);
 
   const allowed = await apiMiddleware({
-    request: new Request("https://fbis.example/api/track", { method: "POST", headers: { "x-strategy-secret": "abc123" } }),
+    request: new Request("https://fbis.example/api/track", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-strategy-secret": "abc123" },
+      body: JSON.stringify({ action: "reconstruct-probability" }),
+    }),
     env: { HARVEST_SECRET: "abc123" },
     next: async () => { nextCalled = true; return new Response(null, { status: 204 }); },
   });
   assert.equal(allowed.status, 204);
+  assert.equal(nextCalled, true);
+});
+
+test("track manual-final allows same-origin board writes without a secret header", async () => {
+  let nextCalled = false;
+  const deniedCrossOrigin = await apiMiddleware({
+    request: new Request("https://fbis.example/api/track", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://evil.example",
+      },
+      body: JSON.stringify({ action: "manual-final", homeScore: 1, awayScore: 0 }),
+    }),
+    env: { HARVEST_SECRET: "abc123" },
+    next: async () => { nextCalled = true; return new Response("ok"); },
+  });
+  assert.equal(deniedCrossOrigin.status, 401);
+  assert.equal(nextCalled, false);
+
+  const allowedSameOrigin = await apiMiddleware({
+    request: new Request("https://fbis.example/api/track", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://fbis.example",
+        "sec-fetch-site": "same-origin",
+      },
+      body: JSON.stringify({ action: "manual-final", homeScore: 1, awayScore: 0 }),
+    }),
+    env: { HARVEST_SECRET: "abc123" },
+    next: async () => { nextCalled = true; return new Response(null, { status: 204 }); },
+  });
+  assert.equal(allowedSameOrigin.status, 204);
   assert.equal(nextCalled, true);
 });
 

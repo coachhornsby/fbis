@@ -57,9 +57,12 @@ describe("TODAY date and grouping", () => {
   });
 
   it("supports configurable date windows for sparse sports", () => {
-    const okWide = resolveSlateDate("2026-09-10", { maxPast: 7, maxFuture: 14 });
+    const today = new Date();
+    const ymd = (d) => d.toISOString().slice(0, 10);
+    const inWindow = new Date(today.getTime() + 3 * 86400000);
+    const okWide = resolveSlateDate(ymd(inWindow), { maxPast: 7, maxFuture: 14 });
     assert.equal(okWide.ok, true);
-    const blockedDefault = resolveSlateDate("2026-09-10", { maxPast: 2, maxFuture: 1 });
+    const blockedDefault = resolveSlateDate(ymd(inWindow), { maxPast: 2, maxFuture: 1 });
     assert.equal(blockedDefault.ok, false);
   });
 });

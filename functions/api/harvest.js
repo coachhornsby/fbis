@@ -16,6 +16,7 @@ export async function onRequestGet(context) {
   const days = url.searchParams.get("days") || "3";
   const date = url.searchParams.get("date") || "";
   const settleOnly = url.searchParams.get("settleOnly") === "1";
+  const gradeResearch = url.searchParams.get("gradeResearch") === "1";
   const sport = url.searchParams.get("sport") || "all";
   const trigger = parseJobTrigger(context.request);
   const runUrl = url.searchParams.get("runUrl") || "";
@@ -37,7 +38,7 @@ export async function onRequestGet(context) {
         CBBD_API_KEY: context.env.CBBD_API_KEY,
         CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
       },
-      { trigger, sport, date, settleOnly }
+      { trigger, sport, date, settleOnly, gradeResearch }
     );
     return new Response(JSON.stringify(payload), {
       status: httpStatusForJob(payload.status),

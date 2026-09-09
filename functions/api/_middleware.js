@@ -1,11 +1,11 @@
-import { authorizeOperatorWrite, unauthorizedBody } from "../lib/auth.js";
+import { authorizeOperatorWrite, authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 
 /**
  * API write-surface guard.
  *
- * Read endpoints remain public. High-impact operator mutations on /api/track
- * require the strategy/harvest secret header. This prevents a public Pages
- * visitor from grading, reconstructing, or mutating the research ledger.
+ * Read endpoints remain public.
+ * - Board operator actions (manual-final) allow same-origin, like Heritage import.
+ * - Destructive research mutations on /api/track still require the strategy/harvest secret.
  */
 export async function onRequest(context) {
   const request = context.request;
@@ -13,7 +13,18 @@ export async function onRequest(context) {
   const method = String(request.method || "GET").toUpperCase();
 
   if (method === "POST" && url.pathname === "/api/track") {
-    const auth = authorizeOperatorWrite(request, context.env);
+    let action = "";
+    try {
+      const cloned = request.clone();
+      const body = await cloned.json();
+      action = String(body?.action || "").toLowerCase();
+    } catch {
+      action = "";
+    }
+    const auth =
+      action === "manual-final"
+        ? authorizeExecutedBetWrite(request, context.env)
+        : authorizeOperatorWrite(request, context.env);
     if (!auth.ok) {
       return new Response(JSON.stringify(unauthorizedBody(auth.reason || "unauthorized")), {
         status: 401,

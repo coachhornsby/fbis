@@ -1641,6 +1641,8 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     }));
   // Lightweight path for Pages CPU/time limits: fetch finals + settle tickets only.
   if (settleOnly) {
+    const gradeResearch =
+      opts.gradeResearch === true || opts.gradeResearch === "1" || opts.gradeResearch === 1;
     const finals = [];
     const errors = [];
     for (const date of dates) {
@@ -1654,8 +1656,11 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
         errors.push(`${sport}@${date}: ${String(err?.message || err)}`);
       }
     }
-    // Skip strategy grading on settleOnly — OPEN executed tickets are the catch-up target
-    // and strategy scans push Saturday CFB slates over Pages CPU limits (503/1102).
+    // Default settleOnly grades OPEN executed bets only (Pages CPU). Optional
+    // gradeResearch=1 also settles strategy tickets against the same live finals.
+    if (gradeResearch) {
+      await gradeStrategyAgainstFinals(env, finals, { skipDurableFinals: true });
+    }
     const executedBets = await gradeExecutedBets(env, finals, {
       skipDurableFinals: true,
       openOnly: true,
@@ -1665,6 +1670,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
       sportName: SPORTS[sport]?.name || sport,
       ok: errors.length === 0,
       settleOnly: true,
+      gradeResearch: Boolean(gradeResearch),
       generatedAt: new Date().toISOString(),
       harvestedAt: new Date().toISOString(),
       days: dates.length,
