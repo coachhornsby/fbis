@@ -573,15 +573,21 @@ export function resolveFinalForTicket(ticket, finals = []) {
   const candidates = [...uniq.values()];
   const byId = t.id ? candidates.find((f) => String(f.id) === String(t.id)) : null;
   if (byId) {
-    return {
-      id: byId.id,
-      sport: byId.sport,
-      date: byId.date,
-      start: byId.start,
-      home: { name: byId.homeName, abbr: byId.homeAbbr, score: Number(byId.homeScore) },
-      away: { name: byId.awayName, abbr: byId.awayAbbr, score: Number(byId.awayScore) },
-      status: { completed: true, detail: "Final" },
-    };
+    const dateOk =
+      !t.date ||
+      !byId.date ||
+      String(t.date).slice(0, 10) === String(byId.date).slice(0, 10);
+    if (dateOk) {
+      return {
+        id: byId.id,
+        sport: byId.sport,
+        date: byId.date,
+        start: byId.start,
+        home: { name: byId.homeName, abbr: byId.homeAbbr, score: Number(byId.homeScore) },
+        away: { name: byId.awayName, abbr: byId.awayAbbr, score: Number(byId.awayScore) },
+        status: { completed: true, detail: "Final" },
+      };
+    }
   }
   // Team fallback requires an exact CT date. Adjacent-day series games (common in MLB)
   // must never grade today's open ticket from yesterday's final.

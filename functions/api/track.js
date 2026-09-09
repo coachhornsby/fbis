@@ -1,7 +1,7 @@
 import { buildTrackReport } from "../lib/projLedger.js";
-import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, queryStrategyTicketsPaged, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords, queryEvAuditTicketSummary, setMeta, readMeta } from "../lib/store.js";
+import { gradeSnapshotsForGame, queryExecutedBets, queryStrategyTickets, queryStrategyTicketsPaged, updateExecutedBet, gradeStrategyTicket, persistEvAuditRecords, queryEvAuditRecords, queryEvAuditTicketSummary, setMeta, readMeta, queryGamesByIds } from "../lib/store.js";
 import { settleExecutedBet, summarizeExecutedBets } from "../lib/executedBets.js";
-import { gradeStrategyResult } from "../lib/strategy.js";
+import { gradeStrategyResult, planCrossDateStrategyCleanup, STRATEGY_HC_V1 } from "../lib/strategy.js";
 import { resolveFinalForTicket, reconstructAffectedTickets } from "../lib/projLedger.js";
 import { resolveTeam } from "../lib/teams.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
@@ -540,6 +540,55 @@ async function cleanupFutureGrades(env) {
   };
 }
 
+async function cleanupCrossDateStrategy(env) {
+  const tickets = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
+  const open = (tickets || []).filter((t) => !t.result || t.result === "OPEN");
+  const gameIds = [...new Set(open.map((t) => t.gameId).filter(Boolean))];
+  const gamesQ = await queryGamesByIds(env, gameIds);
+  const gameById = new Map((gamesQ.rows || []).map((g) => [String(g.id), g]));
+  const plan = planCrossDateStrategyCleanup(open, { gameById });
+  const gradedAt = new Date().toISOString();
+  let voided = 0;
+  let failed = 0;
+  for (const row of plan.void) {
+    const out = await gradeStrategyTicket(env, row.id, {
+      result: "VOID",
+      profit: 0,
+      clv: null,
+      gradedAt,
+    });
+    if (out?.ok) {
+      voided += 1;
+      try {
+        await env.DB.prepare(
+          `UPDATE strategy_tickets
+           SET validation_result = ?, validation_failure_reason = ?, validation_timestamp = ?
+           WHERE id = ?`
+        )
+          .bind("VOID_CROSS_DATE", `cross-date-duplicate; canonical=${row.canonicalDate}`, gradedAt, row.id)
+          .run();
+      } catch {
+        /* reason stamp is best-effort */
+      }
+    } else {
+      failed += 1;
+    }
+  }
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      ok: true,
+      groupsScanned: plan.groups,
+      keepN: plan.keep.length,
+      voidPlanned: plan.void.length,
+      voided,
+      failed,
+      sample: plan.void.slice(0, 12),
+    },
+  };
+}
+
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const sport = url.searchParams.get("sport") || "all";
@@ -769,6 +818,7 @@ export async function onRequestPost(context) {
     if (
       action !== "manual-final" &&
       action !== "cleanup-future-grades" &&
+      action !== "cleanup-cross-date-strategy" &&
       action !== "audit-ev" &&
       action !== "d1-diagnostic" &&
       action !== "recompute-ev" &&
@@ -778,6 +828,8 @@ export async function onRequestPost(context) {
     const result =
       action === "cleanup-future-grades"
         ? await cleanupFutureGrades({ DB: context.env.DB })
+        : action === "cleanup-cross-date-strategy"
+          ? await cleanupCrossDateStrategy({ DB: context.env.DB })
         : action === "audit-ev"
           ? await runEvAudit({ DB: context.env.DB }, body)
           : action === "d1-diagnostic"

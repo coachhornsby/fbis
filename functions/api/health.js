@@ -286,5 +286,10 @@ async function listSettleTargets(env, { readOk }) {
   } catch {
     /* ignore */
   }
-  return [...out.values()].sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(a.sport).localeCompare(String(b.sport)));
+  return [...out.values()].sort((a, b) => {
+    const aOpen = Number(a.openExecutedBets || 0) + Number(a.openStrategyTickets || 0);
+    const bOpen = Number(b.openExecutedBets || 0) + Number(b.openStrategyTickets || 0);
+    if (bOpen !== aOpen) return bOpen - aOpen;
+    return String(b.date).localeCompare(String(a.date)) || String(a.sport).localeCompare(String(b.sport));
+  });
 }

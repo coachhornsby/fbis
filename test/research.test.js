@@ -21,6 +21,7 @@ import {
   immutableFieldsConflict,
   ticketId,
   summarizeProspectiveConvictionCohort,
+  planCrossDateStrategyCleanup,
 } from "../functions/lib/strategy.js";
 import { DEFAULT_WEIGHTS } from "../functions/lib/weights.js";
 import { readFileSync } from "node:fs";
@@ -189,6 +190,43 @@ describe("strategy grading final resolution", () => {
       },
     ]);
     assert.equal(resolved, null);
+  });
+
+  it("does not grade same gameId on a mismatched ticket date", () => {
+    const ticket = {
+      sport: "cfb",
+      date: "2026-08-27",
+      gameId: "07abd7ef999870149d272c1692a662c2",
+      matchup: "Wyoming @ Colorado State",
+      market: "ML",
+      side: "AWAY",
+    };
+    const resolved = resolveFinalForTicket(ticket, [
+      {
+        id: "07abd7ef999870149d272c1692a662c2",
+        sport: "cfb",
+        date: "2026-08-30",
+        home: { name: "Colorado State", abbr: "CSU", score: 21 },
+        away: { name: "Wyoming", abbr: "WYO", score: 17 },
+        status: { completed: true, detail: "Final" },
+      },
+    ]);
+    assert.equal(resolved, null);
+  });
+
+  it("plans VOID for cross-date duplicate strategy tickets", () => {
+    const tickets = [
+      { id: "a-26", sport: "cfb", date: "2026-08-26", gameId: "g1", market: "ML", side: "AWAY", result: "OPEN", dataQuality: 0 },
+      { id: "a-30", sport: "cfb", date: "2026-08-30", gameId: "g1", market: "ML", side: "AWAY", result: "OPEN", dataQuality: 40, modelProbability: 0.55 },
+      { id: "b-only", sport: "mlb", date: "2026-09-02", gameId: "g2", market: "ML", side: "HOME", result: "OPEN", dataQuality: 60 },
+    ];
+    const plan = planCrossDateStrategyCleanup(tickets, {
+      gameById: new Map([["g1", { id: "g1", date: "2026-08-30", start: "2026-08-30T19:00:00.000Z" }]]),
+    });
+    assert.equal(plan.void.length, 1);
+    assert.equal(plan.void[0].id, "a-26");
+    assert.equal(plan.void[0].canonicalDate, "2026-08-30");
+    assert.equal(plan.keep.map((t) => t.id).sort().join(","), "a-30,b-only");
   });
 
   it("allows duplicate candidates when final score is identical", () => {

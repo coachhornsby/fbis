@@ -134,16 +134,26 @@ jobs:
             "${BASE}/api/track")"
           echo "cleanup-future-grades http=${cleanup_code}"
           jq -c '{ok,strategyTicketsReset,executedBetsReset,snapshotRowsReset}' "$cleanup_tmp" || head -c 300 "$cleanup_tmp" || true
+          # Void OPEN strategy tickets that reused one gameId across multiple dates.
+          cross_tmp="$(mktemp)"
+          cross_code="$(curl -sS --max-time 90 -o "$cross_tmp" -w "%{http_code}" \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -H "accept: application/json" \
+            -d '{"action":"cleanup-cross-date-strategy"}' \
+            "${BASE}/api/track")"
+          echo "cleanup-cross-date-strategy http=${cross_code}"
+          jq -c '{ok,voided,voidPlanned,keepN,failed}' "$cross_tmp" || head -c 300 "$cross_tmp" || true
           # Settle-only harvest for open executed + research tickets (full harvest exceeds Pages time).
           harvest_failed=0
           RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          # Prefer live settleTargets with open work; cap to keep Pages time budget.
+          # Prefer live settleTargets with open work (health sorts by open volume); cap for Pages time.
           mapfile -t TARGETS < <(curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq -r '
             [.pipeline.settleTargets // []
               | .[]
               | select((.openExecutedBets // 0) > 0 or (.openStrategyTickets // 0) > 0)
               | "\(.sport):\(.date)"]
-            | .[0:8]
+            | .[0:14]
             | if length > 0 then .[] else empty end
           ')
           if [ "${#TARGETS[@]}" -eq 0 ]; then
