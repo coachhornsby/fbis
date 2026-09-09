@@ -169,7 +169,12 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
             <Stat label="Last scheduled harvest" value={fmtTs(db.lastScheduledHarvestSuccess || db.scheduled?.harvest?.lastObservedAt)} />
             <Stat label="Last scheduled run URL" value={db.scheduled?.lastRunUrl || "unverified"} />
           </div>
-          <p className="muted">GitHub schedule observed; durable D1 schedule proof unverified.</p>
+          <p className="muted">
+            {db.scheduled?.collect?.state || db.scheduled?.harvest?.state
+              ? `Durable D1 schedule proof: collect=${db.scheduled?.collect?.state || "unknown"}, harvest=${db.scheduled?.harvest?.state || "unknown"}.`
+              : "Durable D1 schedule proof unavailable."}
+            {db.scheduled?.lastRunUrl ? " Last scheduled run URL is recorded in D1." : " No last scheduled run URL recorded yet."}
+          </p>
         </div>
       </section>
 

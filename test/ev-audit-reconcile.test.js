@@ -16,6 +16,14 @@ describe("ev anomaly reconciliation", () => {
     assert.ok(out.reasons.includes("invalid-american-odds"));
   });
 
+  it("labels missing probability separately from out-of-range", () => {
+    const missing = auditTicketEv({ fair: null, pinPrice: -110, ev: 0.1, result: "WON", qualifiedAt: "2026-09-01T12:00:00.000Z" });
+    assert.ok(missing.reasons.includes("missing-model-probability"));
+    assert.equal(missing.reasons.includes("probability-out-of-range"), false);
+    const info = anomalyRuleDetails("missing-model-probability");
+    assert.equal(info.missingData, true);
+  });
+
   it("classifies long-odds warning as non-invalid", () => {
     const info = anomalyRuleDetails("ev-over-100pct");
     assert.equal(info.severity, "WARNING");
