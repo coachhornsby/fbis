@@ -6,6 +6,7 @@ import {
   applyScoreWeatherFactor,
   attachWeather,
   isClosedVenue,
+  parseVenueLocation,
 } from "../functions/lib/weather.js";
 import { attachKalshiSentiment, KALSHI_SERIES } from "../functions/lib/kalshi.js";
 import { projectMatchup } from "../functions/lib/savant.js";
@@ -173,6 +174,76 @@ describe("NFL stadium catalog for soft-odds stubs", () => {
     assert.equal(wx.weather?.indoor, true);
     assert.equal(wx.weatherImpact?.applied, false);
     assert.equal(wx.weatherImpact?.footballTotalFactor, 1);
+  });
+  it("geocodes CFB venues from city-in-name or ESPN-merged city", async () => {
+    resetCacheMem();
+    const fromParen = await attachWeather(
+      [
+        {
+          id: "cfb-1",
+          sport: "cfb",
+          start: "2026-09-12T16:00:00Z",
+          venue: "Alumni Stadium (Chestnut Hill, MA)",
+        },
+      ],
+      null
+    );
+    assert.equal(fromParen[0].weather?.indoor, false);
+    assert.ok(fromParen[0].weatherImpact?.applied);
+    assert.ok(fromParen[0].venueLat != null);
+
+    resetCacheMem();
+    const fromCity = await attachWeather(
+      [
+        {
+          id: "cfb-2",
+          sport: "cfb",
+          start: "2026-09-11T00:00:00Z",
+          venue: "Hard Rock Stadium",
+          venueCity: "Miami Gardens",
+          venueState: "FL",
+          venueIndoor: false,
+        },
+      ],
+      null
+    );
+    assert.equal(fromCity[0].weather?.indoor, false);
+    assert.ok(fromCity[0].weatherImpact?.applied);
+  });
+
+  it("parses city/state from venue parentheses", () => {
+    assert.deepEqual(parseVenueLocation("Memorial Stadium (Bloomington, IN)"), {
+      city: "Bloomington",
+      state: "IN",
+    });
+    assert.deepEqual(parseVenueLocation("Hard Rock Stadium"), { city: "", state: "" });
+  });
+
+  it("merges ESPN venue city/indoor onto CFBD games", async () => {
+    const { mergeEspnVenueFields } = await import("../functions/lib/slateEngineCore.js");
+    const merged = mergeEspnVenueFields(
+      [
+        {
+          sport: "cfb",
+          home: { name: "Miami Hurricanes", school: "Miami" },
+          away: { name: "Florida A&M Rattlers", school: "Florida A&M" },
+          venue: "Hard Rock Stadium",
+        },
+      ],
+      [
+        {
+          home: { name: "Miami Hurricanes", school: "Miami" },
+          away: { name: "Florida A&M Rattlers", school: "Florida A&M" },
+          venue: "Hard Rock Stadium",
+          venueCity: "Miami Gardens",
+          venueState: "FL",
+          venueIndoor: false,
+        },
+      ]
+    );
+    assert.equal(merged[0].venueCity, "Miami Gardens");
+    assert.equal(merged[0].venueState, "FL");
+    assert.equal(merged[0].venueIndoor, false);
   });
 });
 

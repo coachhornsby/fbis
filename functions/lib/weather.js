@@ -85,6 +85,24 @@ export function isClosedVenue({ venueRoof = null, venueIndoor = null, venue = ""
   return FIXED_CLOSED_HINTS.some((h) => name.includes(h));
 }
 
+/** Parse "Stadium Name (City, ST)" style labels used by ESPN/CFBD. */
+export function parseVenueLocation(venue = "") {
+  const raw = String(venue || "").trim();
+  if (!raw) return { city: "", state: "" };
+  const m = raw.match(/\(([^)]+)\)\s*$/);
+  if (!m) return { city: "", state: "" };
+  const parts = m[1].split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const state = parts[parts.length - 1];
+    const city = parts.slice(0, -1).join(", ");
+    if (/^[A-Za-z]{2}$/.test(state) || state.length >= 2) {
+      return { city, state: state.length === 2 ? state.toUpperCase() : state };
+    }
+  }
+  if (parts.length === 1) return { city: parts[0], state: "" };
+  return { city: "", state: "" };
+}
+
 /** Map conditions → mild run-environment factor for MLB (1 = neutral). */
 export function weatherRunFactor(wx) {
   if (!wx || wx.indoor) return 1;
@@ -282,6 +300,10 @@ export async function attachWeather(games = [], caches = null) {
       roof = await fetchMlbVenueRoof(g.venueId, caches);
     }
 
+    const parsed = parseVenueLocation(g.venue);
+    let city = String(g.venueCity || "").trim() || parsed.city;
+    let state = String(g.venueState || "").trim() || parsed.state;
+
     const closed = isClosedVenue({
       venueRoof: roof,
       venueIndoor: g.venueIndoor,
@@ -302,6 +324,8 @@ export async function attachWeather(games = [], caches = null) {
       const impact = packImpact(weather);
       out.push({
         ...g,
+        venueCity: city || g.venueCity || "",
+        venueState: state || g.venueState || "",
         venueRoof: roof || g.venueRoof || null,
         weather,
         weatherImpact: impact,
@@ -310,8 +334,8 @@ export async function attachWeather(games = [], caches = null) {
       continue;
     }
 
-    if ((lat == null || lon == null) && g.venueCity) {
-      const geo = await geocodeCity(g.venueCity, g.venueState, caches);
+    if ((lat == null || lon == null) && city) {
+      const geo = await geocodeCity(city, state, caches);
       if (geo) {
         lat = geo.lat;
         lon = geo.lon;
@@ -321,6 +345,8 @@ export async function attachWeather(games = [], caches = null) {
     if (lat == null || lon == null) {
       out.push({
         ...g,
+        venueCity: city || g.venueCity || "",
+        venueState: state || g.venueState || "",
         weather: g.weather || null,
         weatherImpact: g.weatherImpact || { applied: false, runFactor: 1, footballTotalFactor: 1, footballPoints: 0 },
       });
@@ -340,6 +366,8 @@ export async function attachWeather(games = [], caches = null) {
         ...g,
         venueLat: lat,
         venueLon: lon,
+        venueCity: city || g.venueCity || "",
+        venueState: state || g.venueState || "",
         venueRoof: roof || g.venueRoof || null,
         weather,
         weatherImpact: impact,
@@ -351,6 +379,8 @@ export async function attachWeather(games = [], caches = null) {
     } catch {
       out.push({
         ...g,
+        venueCity: city || g.venueCity || "",
+        venueState: state || g.venueState || "",
         venueRoof: roof || g.venueRoof || null,
         weather: g.weather || {
           source: "open-meteo",
