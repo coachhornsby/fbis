@@ -1297,6 +1297,8 @@ export function dataQuality(sport, game) {
 }
 
 function teamMatchToken(team = {}) {
+  const abbr = String(team.abbr || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (abbr && abbr !== "" && abbr !== "—" && abbr.length >= 2) return abbr;
   return String(team.school || team.name || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
@@ -1398,8 +1400,9 @@ export async function buildSlate(sport, date, env = {}) {
     }
   }
 
-  // CFBD weekly boards lack city/indoor — merge ESPN venue fields when available.
+  // CFBD weekly boards lack city/indoor — resolve teams first, then merge ESPN venues.
   if (id === "cfb" && games.length && env.prefetchedGames) {
+    games = games.map((g) => attachMarketLabels(enrichGameTeams(id, g)));
     games = await enrichCfbVenuesFromEspn(games, day);
   }
 
