@@ -14,6 +14,8 @@ import { attachCfbChallengers, attachCbbChallengers } from "./collegeApply.js";
 import { SHADOW_BLOCK_REASONS } from "./collegeModels.js";
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED } from "./convictionGate.js";
 import { canonicalProbabilityFields } from "./probability.js";
+import { attachWeather } from "./weather.js";
+import { attachKalshiSentiment } from "./kalshi.js";
 
 export const SPORTS = {
   cbb: {
@@ -178,6 +180,7 @@ function parseOdds(comp, sport) {
     awayMl: num(awayOdds.moneyLine ?? raw.awayTeamOdds?.moneyLine),
     details: raw.details || "",
     book: EXECUTION_BOOK,
+    softSource: "espn",
   };
 }
 
@@ -993,6 +996,11 @@ function mapMlbStatsGame(g) {
     projHomeScore: null,
     projAwayScore: null,
     venue: g.venue?.name || "",
+    venueId: g.venue?.id || null,
+    venueLat: g.venue?.location?.defaultCoordinates?.latitude ?? null,
+    venueLon: g.venue?.location?.defaultCoordinates?.longitude ?? null,
+    venueCity: g.venue?.location?.city || "",
+    venueRoof: g.venue?.fieldInfo?.roofType || null,
     broadcast: "",
     notes: [],
     modelHint: { formHome },
@@ -1002,7 +1010,7 @@ function mapMlbStatsGame(g) {
 
 async function fetchMlbStats(date) {
   const day = date || todayCT();
-  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${day}&hydrate=team,linescore,probablePitcher`;
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${day}&hydrate=team,linescore,probablePitcher,venue(location)`;
   const res = await fetch(url, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`MLB Stats ${res.status}`);
   const json = await res.json();
@@ -1310,6 +1318,13 @@ export async function buildSlate(sport, date, env = {}) {
   games = mergeParlay(games, parlay.events, id);
   games = games.map((g) => attachMarketLabels(enrichGameTeams(id, g)));
 
+  // Free Kalshi public API for winner sentiment (independent of Parlay credits).
+  const kalshi = await attachKalshiSentiment(games, id, env.caches, { replace: false });
+  games = kalshi.games || games;
+
+  // Free Open-Meteo weather (MLB venues carry lat/lon from Stats hydrate).
+  games = await attachWeather(games, env.caches);
+
   let pal = { games: [], meta: { enabled: false } };
   let savant = { meta: { enabled: false } };
   let cfb = { meta: { enabled: false } };
@@ -1350,6 +1365,8 @@ export async function buildSlate(sport, date, env = {}) {
     generatedAt: new Date().toISOString(),
     counts: { games: games.length, live, final, upcoming },
     parlay: parlay.meta || { enabled: false },
+    kalshi: kalshi.meta || { enabled: false },
+    weather: { source: "open-meteo", free: true },
     pal: palSlateView(pal),
     savant: savant.meta || { enabled: false },
     cfb: cfb.meta || { enabled: false },
