@@ -229,7 +229,7 @@ header h1 {
   text-align: center;
   min-width: 88px;
 }
-.fbis-table.slate-board th.matchup-col { min-width: 220px; }
+.fbis-table.slate-board th.matchup-col { min-width: 240px; }
 .fbis-table.slate-board td.kick-col {
   white-space: nowrap;
   color: var(--muted);
