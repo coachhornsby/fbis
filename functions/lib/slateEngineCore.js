@@ -14,7 +14,7 @@ import { attachCfbChallengers, attachCbbChallengers } from "./collegeApply.js";
 import { SHADOW_BLOCK_REASONS } from "./collegeModels.js";
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED } from "./convictionGate.js";
 import { canonicalProbabilityFields } from "./probability.js";
-import { attachWeather } from "./weather.js";
+import { attachWeather, parseVenueLocation } from "./weather.js";
 import { enrichGamesVenues } from "./venues.js";
 import { attachKalshiSentiment } from "./kalshi.js";
 
@@ -1157,6 +1157,11 @@ function shiftDay(day, delta) {
 }
 
 function mapCfbdGame(g) {
+  const venue = g.venue || g.venueName || "";
+  const parsed = parseVenueLocation(venue);
+  const venueCity = g.venueCity || g.city || parsed.city || "";
+  const venueState = g.venueState || g.state || parsed.state || "";
+  const venueIndoor = g.venueIndoor === true || g.indoor === true || /dome/i.test(venue);
   return attachMarketLabels(
     enrichGameTeams("cfb", {
       id: String(g.id),
@@ -1194,7 +1199,11 @@ function mapCfbdGame(g) {
       marketProjHome: null,
       marketProjAway: null,
       projectionKind: "UNAVAILABLE",
-      venue: g.venue || "",
+      venue,
+      venueCity,
+      venueState,
+      venueIndoor,
+      venueRoof: venueIndoor ? "Indoor" : null,
       broadcast: "",
       notes: [],
       week: num(g.week),
@@ -1287,6 +1296,76 @@ export function dataQuality(sport, game) {
   return { score, flags };
 }
 
+function teamMatchToken(team = {}) {
+  return String(team.school || team.name || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function gameMatchKey(game = {}) {
+  const home = teamMatchToken(game.home);
+  const away = teamMatchToken(game.away);
+  if (!home || !away) return "";
+  return `${away}@${home}`;
+}
+
+/** Copy ESPN venue city/indoor/coords onto CFBD (or other) games missing them. */
+export function mergeEspnVenueFields(games = [], espnGames = []) {
+  const byKey = new Map();
+  for (const eg of espnGames || []) {
+    const key = gameMatchKey(eg);
+    if (key) byKey.set(key, eg);
+  }
+  return (games || []).map((g) => {
+    const hit = byKey.get(gameMatchKey(g));
+    if (!hit) {
+      const parsed = parseVenueLocation(g.venue);
+      if (!parsed.city && !g.venueCity) return g;
+      return {
+        ...g,
+        venueCity: g.venueCity || parsed.city || "",
+        venueState: g.venueState || parsed.state || "",
+      };
+    }
+    return {
+      ...g,
+      venue: g.venue || hit.venue || "",
+      venueId: g.venueId || hit.venueId || null,
+      venueCity: g.venueCity || hit.venueCity || "",
+      venueState: g.venueState || hit.venueState || "",
+      venueIndoor: g.venueIndoor == null ? Boolean(hit.venueIndoor) : g.venueIndoor,
+      venueLat: g.venueLat ?? hit.venueLat ?? null,
+      venueLon: g.venueLon ?? hit.venueLon ?? null,
+      venueRoof: g.venueRoof || hit.venueRoof || null,
+    };
+  });
+}
+
+async function enrichCfbVenuesFromEspn(games, anchorDay) {
+  const days = new Set();
+  if (anchorDay) days.add(anchorDay);
+  for (const g of games || []) {
+    const ymd = ymdCtForIso(g.start);
+    if (ymd) days.add(ymd);
+  }
+  const espnGames = [];
+  for (const day of [...days].sort().slice(0, 8)) {
+    try {
+      const json = await fetchEspnScoreboard("cfb", day);
+      for (const ev of json.events || []) {
+        espnGames.push(mapEvent("cfb", ev));
+      }
+    } catch {
+      /* ESPN optional — weather can still use venue parentheses / geocode. */
+    }
+  }
+  if (!espnGames.length) {
+    return mergeEspnVenueFields(games, []);
+  }
+  return mergeEspnVenueFields(games, espnGames);
+}
+
 export async function buildSlate(sport, date, env = {}) {
   const id = SPORTS[sport] ? sport : "cbb";
   const cfg = SPORTS[id];
@@ -1319,6 +1398,11 @@ export async function buildSlate(sport, date, env = {}) {
     }
   }
 
+  // CFBD weekly boards lack city/indoor — merge ESPN venue fields when available.
+  if (id === "cfb" && games.length && env.prefetchedGames) {
+    games = await enrichCfbVenuesFromEspn(games, day);
+  }
+
   const parlay = await fetchParlayOdds(id, env.PARLAY_API_KEY, env.caches, {
     date: day,
     cacheOnly: Boolean(env.parlayCacheOnly),
@@ -1333,10 +1417,10 @@ export async function buildSlate(sport, date, env = {}) {
   const kalshi = await attachKalshiSentiment(games, id, env.caches, { replace: false });
   games = kalshi.games || games;
 
-  // Soft-odds stubs often lack ESPN venue fields — fill NFL home stadium lat/lon/indoor.
+  // Soft-odds stubs / CFBD boards often lack ESPN lat/lon — fill NFL stadiums, then geocode.
   games = enrichGamesVenues(games);
 
-  // Free Open-Meteo weather (MLB coords from Stats; NFL/CFB from ESPN or stadium catalog).
+  // Free Open-Meteo weather (MLB coords from Stats; NFL/CFB from ESPN, stadium catalog, or geocode).
   // Closed roofs / indoor venues skip outdoor weather impact on projections.
   games = await attachWeather(games, env.caches);
 
