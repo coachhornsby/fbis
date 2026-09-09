@@ -81,20 +81,29 @@ export default [
         "abbr": "ATH",
         "name": "Athletics"
       },
-      "parlay": {
+    "parlay": {
         "names": [
           "Athletics",
+          "Oakland Athletics",
+          "Oakland A's",
+          "A's",
           "Athletics Athletics"
         ]
       },
       "heritage": {
         "names": [
-          "Athletics"
+          "Athletics",
+          "Oakland Athletics",
+          "Oakland A's",
+          "A's"
         ]
       },
       "kalshi": {
         "names": [
-          "Athletics"
+          "Athletics",
+          "Oakland Athletics",
+          "Oakland A's",
+          "A's"
         ]
       },
       "pal": {
