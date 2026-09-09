@@ -217,8 +217,8 @@ function TodayTable({ games, propWatch }) {
           <tr>
             <td>
               <div className="team-block team-block-lg">
-                <TeamIdentity team={g.away} score={g.score?.away} size={40} />
-                <TeamIdentity team={g.home} score={g.score?.home} size={40} />
+                <TeamIdentity team={g.away} score={g.score?.away} size={52} />
+                <TeamIdentity team={g.home} score={g.score?.home} size={52} />
                 <div className="muted" style={{ fontSize: 10 }}>
                   {g.venue || "—"}{g.neutral ? " · NEUTRAL" : ""}
                 </div>

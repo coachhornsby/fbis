@@ -524,6 +524,11 @@ export default function App() {
               </span>
             </div>
           ) : null}
+          {slate?.parlay?.pinGames === 0 && (slate?.parlay?.games > 0 || /soft|sharp|rundown|credit/i.test(String(slate?.parlay?.source || ""))) ? (
+            <div className="slate-notice">
+              Pinnacle feed is credit-limited right now. Board shows soft DK/FD lines for display — qualification still requires Pin.
+            </div>
+          ) : null}
           <div className="table-scroll"><SlateTable games={slate?.games || []} onLog={onLog} logged={loggedOpen} /></div>
         </Panel>
 
@@ -728,7 +733,7 @@ function Ticker({ items, logged }) {
   );
 }
 
-function Team({ t, size = 40 }) {
+function Team({ t, size = 52 }) {
   return <TeamIdentity team={t} size={size} />;
 }
 
@@ -770,13 +775,51 @@ function slateMl(game, side) {
 }
 
 function slateSpreadPrice(game, side) {
-  if (side === "home") return game.odds?.pinSpreadHomePrice ?? game.odds?.spreadPrice ?? null;
-  return game.odds?.pinSpreadAwayPrice ?? null;
+  if (side === "home") {
+    return (
+      game.odds?.pinSpreadHomePrice ??
+      game.odds?.heritageSpreadHomePrice ??
+      game.odds?.softSpreadHomePrice ??
+      game.odds?.spreadPrice ??
+      null
+    );
+  }
+  return (
+    game.odds?.pinSpreadAwayPrice ??
+    game.odds?.heritageSpreadAwayPrice ??
+    game.odds?.softSpreadAwayPrice ??
+    null
+  );
 }
 
 function slateTotalPrice(game, side) {
-  if (side === "over") return game.odds?.pinOverPrice ?? game.odds?.totalPrice ?? null;
-  return game.odds?.pinUnderPrice ?? null;
+  if (side === "over") {
+    return (
+      game.odds?.pinOverPrice ??
+      game.odds?.heritageOverPrice ??
+      game.odds?.softOverPrice ??
+      game.odds?.totalPrice ??
+      null
+    );
+  }
+  return (
+    game.odds?.pinUnderPrice ??
+    game.odds?.heritageUnderPrice ??
+    game.odds?.softUnderPrice ??
+    null
+  );
+}
+
+function oddsBookLabel(game) {
+  if (game.odds?.pinPresent) return "Pin";
+  if (game.odds?.heritageListed) return "Heritage";
+  const soft = String(game.odds?.softSource || "").toLowerCase();
+  if (soft.includes("sharp")) return "DK/FD";
+  if (soft.includes("rundown") || soft.includes("therundown")) return "Soft";
+  if (soft === "espn") return "ESPN";
+  if (soft) return soft;
+  if (game.odds?.homeMl != null || game.odds?.spread != null) return "Board";
+  return null;
 }
 
 function playHot(game, market, side) {
@@ -829,8 +872,8 @@ function SlateTable({ games, onLog, logged }) {
             </td>
             <td>
               <div className="team-block team-block-lg">
-                <Team t={g.away} size={40} />
-                <Team t={g.home} size={40} />
+                <Team t={g.away} size={52} />
+                <Team t={g.home} size={52} />
                 <button className="game-expand" onClick={() => toggle(g.id)} aria-expanded={open.has(g.id)}>
                   {open.has(g.id) ? "Hide details" : "Details"}
                 </button>
@@ -854,6 +897,7 @@ function SlateTable({ games, onLog, logged }) {
                   price={slateSpreadPrice(g, "home")}
                   hot={!blocked && playHot(g, "SPREAD", "HOME")}
                 />
+                {oddsBookLabel(g) ? <div className="odds-book muted">{oddsBookLabel(g)}</div> : null}
               </div>
             </td>
             <td className="odds-col">
@@ -1159,7 +1203,12 @@ function palLabel(slate) {
 function bookLabel(slate) {
   const p = slate?.parlay;
   if (!p?.enabled) return "—";
-  if (p.heritageInFeed) return "Pin + Her";
+  if (p.pinGames > 0 && p.heritageInFeed) return "Pin + Her";
+  if (p.pinGames > 0) return "Pin → Her";
+  const src = String(p.source || "");
+  if (/sharpapi/i.test(src)) return "Soft DK/FD";
+  if (/therundown|rundown/i.test(src)) return "Soft backup";
+  if (/credit|exhausted/i.test(src)) return "Pin out · soft";
   return "Pin → Her";
 }
 
