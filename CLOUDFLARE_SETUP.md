@@ -10,12 +10,15 @@ Same path as CougarsDefense. Free tier. No DigitalOcean.
 npx wrangler pages secret put PARLAY_API_KEY --project-name fbis
 npx wrangler pages secret put BALLPARK_PAL_API_KEY --project-name fbis
 npx wrangler pages secret put CFBD_API_KEY --project-name fbis
+npx wrangler pages secret put THEODDS_API_KEY --project-name fbis
+npx wrangler pages secret put SHARPAPI_API_KEY --project-name fbis
+npx wrangler pages secret put THERUNDOWN_API_KEY --project-name fbis
 # Optional alias if basketball uses a separate Pages secret name for the same bearer:
 # npx wrangler pages secret put CBBD_API_KEY --project-name fbis
 npm run deploy
 ```
 
-Parlay odds are cached 15 minutes so the 1,000 free credits last. Pinnacle is pulled from the `eu` region. Kalshi is a separate 1-credit sentiment pull and is never used as a betting book. `/api/slate?date=` only accepts today ± a couple of days.
+Parlay odds are cached 15 minutes so the 1,000 free credits last. Pinnacle is pulled from the `eu` region. If Parlay is credit-limited, `THEODDS_API_KEY` can provide a sharp Pinnacle backup. `SHARPAPI_API_KEY` and `THERUNDOWN_API_KEY` are optional free soft-book backups (DraftKings/FanDuel/BetMGM depending on provider) for cache-only reads or games that otherwise have no listed full-game market. Soft backups never populate `pin*` fields. Kalshi is a separate 1-credit sentiment pull and is never used as a betting book. `/api/slate?date=` only accepts today ± a couple of days.
 
 CFB live projection features use the same `CFBD_API_KEY` (no additional secret names required): SP+/FPI/SRS/Elo prior, EPA team efficiency proxy, transfer portal deltas, coaching continuity, and returning production. ESPN roster endpoints provide QB continuity signals and require no credential.
 

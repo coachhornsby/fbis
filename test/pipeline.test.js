@@ -8,6 +8,8 @@ import { seriesStats, buildAccuracyPack } from "../functions/lib/accuracyReport.
 import { attachFlatProps, attachPeriodF5, fetchParlayOdds, summarizeParlayEvent } from "../functions/lib/parlay.js";
 import { resetCacheMem } from "../functions/lib/cache.js";
 import { todayCT } from "../functions/lib/slateEngine.js";
+import { sharpRowsToEvents } from "../functions/lib/sharpApi.js";
+import { theRundownEventsToParlay } from "../functions/lib/theRundown.js";
 
 describe("Pal unwrap", () => {
   it("reads data.items so games are not dropped", () => {
@@ -283,6 +285,277 @@ describe("Parlay collect budget", () => {
       assert.equal(out.meta.source, "theodds-backup");
       assert.ok(out.events.length >= 1);
       assert.equal(out.events[0].homeMl, -130);
+      assert.equal(out.events[0].total, 8.5);
+    } finally {
+      globalThis.fetch = realFetch;
+      resetCacheMem();
+    }
+  });
+
+  it("maps SharpAPI soft books without populating pin fields", () => {
+    const events = sharpRowsToEvents([
+      {
+        event_id: "mlb-1",
+        sport: "baseball",
+        league: "mlb",
+        sportsbook: "draftkings",
+        market_type: "moneyline",
+        selection_type: "home",
+        selection: "Detroit Tigers",
+        odds_american: -120,
+        line: null,
+        event_start_time: "2026-09-09T17:10:00Z",
+        home_team: "Detroit Tigers",
+        away_team: "Minnesota Twins",
+        is_live: false,
+        is_main_line: true,
+      },
+      {
+        event_id: "mlb-1",
+        sport: "baseball",
+        league: "mlb",
+        sportsbook: "draftkings",
+        market_type: "moneyline",
+        selection_type: "away",
+        selection: "Minnesota Twins",
+        odds_american: 102,
+        line: null,
+        event_start_time: "2026-09-09T17:10:00Z",
+        home_team: "Detroit Tigers",
+        away_team: "Minnesota Twins",
+        is_live: false,
+        is_main_line: true,
+      },
+      {
+        event_id: "mlb-1",
+        sport: "baseball",
+        league: "mlb",
+        sportsbook: "fanduel",
+        market_type: "run_line",
+        selection_type: "home",
+        selection: "Detroit Tigers",
+        odds_american: 180,
+        line: -1.5,
+        event_start_time: "2026-09-09T17:10:00Z",
+        home_team: "Detroit Tigers",
+        away_team: "Minnesota Twins",
+        is_live: false,
+        is_main_line: true,
+      },
+      {
+        event_id: "mlb-1",
+        sport: "baseball",
+        league: "mlb",
+        sportsbook: "fanduel",
+        market_type: "run_line",
+        selection_type: "away",
+        selection: "Minnesota Twins",
+        odds_american: -235,
+        line: 1.5,
+        event_start_time: "2026-09-09T17:10:00Z",
+        home_team: "Detroit Tigers",
+        away_team: "Minnesota Twins",
+        is_live: false,
+        is_main_line: true,
+      },
+      {
+        event_id: "mlb-1",
+        sport: "baseball",
+        league: "mlb",
+        sportsbook: "fanduel",
+        market_type: "total_runs",
+        selection_type: "over",
+        selection: "Over",
+        odds_american: -110,
+        line: 8.5,
+        event_start_time: "2026-09-09T17:10:00Z",
+        home_team: "Detroit Tigers",
+        away_team: "Minnesota Twins",
+        is_live: false,
+        is_main_line: true,
+      },
+      {
+        event_id: "mlb-1",
+        sport: "baseball",
+        league: "mlb",
+        sportsbook: "fanduel",
+        market_type: "total_runs",
+        selection_type: "under",
+        selection: "Under",
+        odds_american: -110,
+        line: 8.5,
+        event_start_time: "2026-09-09T17:10:00Z",
+        home_team: "Detroit Tigers",
+        away_team: "Minnesota Twins",
+        is_live: false,
+        is_main_line: true,
+      },
+    ], "mlb");
+    const packed = summarizeParlayEvent(events[0], "mlb");
+    assert.equal(packed.homeMl, -120);
+    assert.equal(packed.spread, -1.5);
+    assert.equal(packed.total, 8.5);
+    assert.equal(packed.pinPresent, false);
+    assert.equal(packed.pinHomeMl, null);
+    assert.equal(packed.softSource, "sharpapi");
+  });
+
+  it("maps The Rundown soft books with full team names", () => {
+    const [event] = theRundownEventsToParlay([{
+      event_id: "tr-1",
+      event_date: "2026-09-09T17:10:00Z",
+      teams_normalized: [
+        { is_away: true, is_home: false, name: "Minnesota", mascot: "Twins" },
+        { is_away: false, is_home: true, name: "Detroit", mascot: "Tigers" },
+      ],
+      markets: [
+        {
+          market_id: 1,
+          participants: [
+            { name: "Detroit Tigers", lines: [{ prices: { "19": { price: -117, is_main_line: true } } }] },
+            { name: "Minnesota Twins", lines: [{ prices: { "19": { price: -103, is_main_line: true } } }] },
+          ],
+        },
+        {
+          market_id: 2,
+          participants: [
+            { name: "Detroit Tigers", lines: [{ value: "+1.5", prices: { "19": { price: -200, is_main_line: true } } }] },
+            { name: "Minnesota Twins", lines: [{ value: "-1.5", prices: { "19": { price: 164, is_main_line: true } } }] },
+          ],
+        },
+        {
+          market_id: 3,
+          participants: [
+            { name: "Over", lines: [{ value: "8.5", prices: { "22": { price: -110, is_main_line: true } } }] },
+            { name: "Under", lines: [{ value: "8.5", prices: { "22": { price: -110, is_main_line: true } } }] },
+          ],
+        },
+      ],
+    }], "mlb");
+    const packed = summarizeParlayEvent(event, "mlb");
+    assert.equal(packed.homeTeam, "Detroit Tigers");
+    assert.equal(packed.awayTeam, "Minnesota Twins");
+    assert.equal(packed.homeMl, -117);
+    assert.equal(packed.total, 8.5);
+    assert.equal(packed.pinPresent, false);
+    assert.equal(packed.softSource, "therundown");
+  });
+
+  it("uses SharpAPI cache-only backup when TheOdds is absent", async () => {
+    resetCacheMem();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      const s = String(url);
+      if (s.includes("api.sharpapi.io/api/v1/odds") && s.includes("market=moneyline")) {
+        return new Response(JSON.stringify({
+          data: [
+            {
+              event_id: "mlb-1",
+              sportsbook: "draftkings",
+              market_type: "moneyline",
+              selection_type: "home",
+              selection: "Detroit Tigers",
+              odds_american: -120,
+              home_team: "Detroit Tigers",
+              away_team: "Minnesota Twins",
+              event_start_time: "2026-09-09T17:10:00Z",
+              is_live: false,
+              is_main_line: true,
+            },
+            {
+              event_id: "mlb-1",
+              sportsbook: "draftkings",
+              market_type: "moneyline",
+              selection_type: "away",
+              selection: "Minnesota Twins",
+              odds_american: 102,
+              home_team: "Detroit Tigers",
+              away_team: "Minnesota Twins",
+              event_start_time: "2026-09-09T17:10:00Z",
+              is_live: false,
+              is_main_line: true,
+            },
+          ],
+        }), { status: 200, headers: { "X-Ratelimit-Remaining": "11", "X-Ratelimit-Limit": "12", "X-Tier": "free" } });
+      }
+      if (s.includes("api.sharpapi.io/api/v1/odds") && s.includes("market=run_line")) {
+        return new Response(JSON.stringify({
+          data: [
+            {
+              event_id: "mlb-1",
+              sportsbook: "fanduel",
+              market_type: "run_line",
+              selection_type: "home",
+              selection: "Detroit Tigers",
+              odds_american: 180,
+              line: -1.5,
+              home_team: "Detroit Tigers",
+              away_team: "Minnesota Twins",
+              event_start_time: "2026-09-09T17:10:00Z",
+              is_live: false,
+              is_main_line: true,
+            },
+            {
+              event_id: "mlb-1",
+              sportsbook: "fanduel",
+              market_type: "run_line",
+              selection_type: "away",
+              selection: "Minnesota Twins",
+              odds_american: -235,
+              line: 1.5,
+              home_team: "Detroit Tigers",
+              away_team: "Minnesota Twins",
+              event_start_time: "2026-09-09T17:10:00Z",
+              is_live: false,
+              is_main_line: true,
+            },
+          ],
+        }), { status: 200, headers: { "X-Ratelimit-Remaining": "10", "X-Ratelimit-Limit": "12", "X-Tier": "free" } });
+      }
+      if (s.includes("api.sharpapi.io/api/v1/odds") && s.includes("market=total_runs")) {
+        return new Response(JSON.stringify({
+          data: [
+            {
+              event_id: "mlb-1",
+              sportsbook: "fanduel",
+              market_type: "total_runs",
+              selection_type: "over",
+              selection: "Over",
+              odds_american: -110,
+              line: 8.5,
+              home_team: "Detroit Tigers",
+              away_team: "Minnesota Twins",
+              event_start_time: "2026-09-09T17:10:00Z",
+              is_live: false,
+              is_main_line: true,
+            },
+            {
+              event_id: "mlb-1",
+              sportsbook: "fanduel",
+              market_type: "total_runs",
+              selection_type: "under",
+              selection: "Under",
+              odds_american: -110,
+              line: 8.5,
+              home_team: "Detroit Tigers",
+              away_team: "Minnesota Twins",
+              event_start_time: "2026-09-09T17:10:00Z",
+              is_live: false,
+              is_main_line: true,
+            },
+          ],
+        }), { status: 200, headers: { "X-Ratelimit-Remaining": "9", "X-Ratelimit-Limit": "12", "X-Tier": "free" } });
+      }
+      throw new Error(`unexpected fetch ${s}`);
+    };
+    try {
+      const out = await fetchParlayOdds("mlb", null, null, { cacheOnly: true, sharpApiKey: "sharp-key" });
+      assert.equal(out.meta.source, "sharpapi-free-cacheonly");
+      assert.ok(out.events.length >= 1);
+      assert.equal(out.events[0].pinPresent, false);
+      assert.equal(out.events[0].softSource, "sharpapi");
+      assert.equal(out.events[0].homeMl, -120);
+      assert.equal(out.events[0].spread, -1.5);
       assert.equal(out.events[0].total, 8.5);
     } finally {
       globalThis.fetch = realFetch;

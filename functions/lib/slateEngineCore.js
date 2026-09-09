@@ -798,6 +798,13 @@ export function mapEvent(sport, event) {
     marketProjAway,
     projectionKind,
     venue: comp.venue?.fullName || "",
+    venueId: comp.venue?.id || null,
+    venueCity: comp.venue?.address?.city || "",
+    venueState: comp.venue?.address?.state || "",
+    venueIndoor: comp.venue?.indoor === true,
+    venueLat: num(comp.venue?.address?.latitude ?? comp.venue?.latitude),
+    venueLon: num(comp.venue?.address?.longitude ?? comp.venue?.longitude),
+    venueRoof: comp.venue?.indoor === true ? "Indoor" : null,
     broadcast: (comp.broadcasts || []).map((b) => b.names?.[0] || b.market).filter(Boolean).join(", "),
     notes,
     week: num(event.week?.number) ?? num(event.season?.week) ?? null,
@@ -1010,7 +1017,7 @@ function mapMlbStatsGame(g) {
 
 async function fetchMlbStats(date) {
   const day = date || todayCT();
-  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${day}&hydrate=team,linescore,probablePitcher,venue(location)`;
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${day}&hydrate=team,linescore,probablePitcher,venue(location,fieldInfo)`;
   const res = await fetch(url, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`MLB Stats ${res.status}`);
   const json = await res.json();
@@ -1312,8 +1319,11 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   const parlay = await fetchParlayOdds(id, env.PARLAY_API_KEY, env.caches, {
+    date: day,
     cacheOnly: Boolean(env.parlayCacheOnly),
     backupApiKey: env.THEODDS_API_KEY,
+    sharpApiKey: env.SHARPAPI_API_KEY,
+    theRundownApiKey: env.THERUNDOWN_API_KEY,
   });
   games = mergeParlay(games, parlay.events, id);
   games = games.map((g) => attachMarketLabels(enrichGameTeams(id, g)));

@@ -26,6 +26,15 @@ import {
 import { matchEvent, namesMatch } from "./match.js";
 import { enrichGameTeams } from "./teams.js";
 import { attachMarketLabels } from "./marketLabels.js";
+import { fetchSharpApiOdds } from "./sharpApi.js";
+import { fetchTheRundownOdds } from "./theRundown.js";
+
+/** Soft recreational books used only when pin + Heritage are absent. Never pin*. */
+const SOFT_QUOTE_KEYS = new Set(["draftkings", "fanduel", "betmgm", "caesars", "bovada", "novig"]);
+
+function isSoftQuoteBook(key) {
+  return SOFT_QUOTE_KEYS.has(String(key || "").toLowerCase());
+}
 
 export { namesMatch };
 
@@ -103,11 +112,16 @@ function packFg(books, sportId, home, away) {
   const heritageH2h = outcomes(books, "h2h", isExecutionBook);
   const heritageSpreads = outcomes(books, "spreads", isExecutionBook);
   const heritageTotals = outcomes(books, "totals", isExecutionBook);
+  const softH2h = outcomes(books, "h2h", isSoftQuoteBook);
+  const softSpreads = outcomes(books, "spreads", isSoftQuoteBook);
+  const softTotals = outcomes(books, "totals", isSoftQuoteBook);
 
   const pinHome = sideMl(pinH2h, home);
   const pinAway = sideMl(pinH2h, away);
   const herHome = sideMl(heritageH2h, home);
   const herAway = sideMl(heritageH2h, away);
+  const softHome = sideMl(softH2h, home);
+  const softAway = sideMl(softH2h, away);
 
   const pinSpreadPair = pickExactRunLinePair(
     pinSpreads.filter((r) => namesMatch(r.name, home) && r.point != null),
@@ -119,6 +133,11 @@ function packFg(books, sportId, home, away) {
     heritageSpreads.filter((r) => namesMatch(r.name, away) && r.point != null),
     sportId
   );
+  const softSpreadPair = pickExactRunLinePair(
+    softSpreads.filter((r) => namesMatch(r.name, home) && r.point != null),
+    softSpreads.filter((r) => namesMatch(r.name, away) && r.point != null),
+    sportId
+  );
   const pinTotalPair = pairTotalSides(
     pinTotals.filter((r) => /over/i.test(r.name) && r.point != null),
     pinTotals.filter((r) => /under/i.test(r.name) && r.point != null)
@@ -127,16 +146,23 @@ function packFg(books, sportId, home, away) {
     heritageTotals.filter((r) => /over/i.test(r.name) && r.point != null),
     heritageTotals.filter((r) => /under/i.test(r.name) && r.point != null)
   );
+  const softTotalPair = pairTotalSides(
+    softTotals.filter((r) => /over/i.test(r.name) && r.point != null),
+    softTotals.filter((r) => /under/i.test(r.name) && r.point != null)
+  );
 
-  const spreadPair = pinSpreadPair || herSpreadPair;
-  const totalPair = pinTotalPair || herTotalPair;
+  const spreadPair = pinSpreadPair || herSpreadPair || softSpreadPair;
+  const totalPair = pinTotalPair || herTotalPair || softTotalPair;
   const spread = spreadPair?.point ?? null;
   const total = totalPair?.point ?? null;
   const hasPin = Boolean(pinHome && pinAway) || Boolean(pinSpreadPair) || Boolean(pinTotalPair);
+  const hasSoft =
+    !hasPin &&
+    ((softHome && softAway) || Boolean(softSpreadPair) || Boolean(softTotalPair));
 
   return {
-    homeMl: herHome?.price ?? pinHome?.price ?? null,
-    awayMl: herAway?.price ?? pinAway?.price ?? null,
+    homeMl: herHome?.price ?? pinHome?.price ?? softHome?.price ?? null,
+    awayMl: herAway?.price ?? pinAway?.price ?? softAway?.price ?? null,
     fairHomeMl: pinHome && pinAway ? pinHome.price : null,
     fairAwayMl: pinHome && pinAway ? pinAway.price : null,
     pinHomeMl: pinHome && pinAway ? pinHome.price : null,
@@ -154,14 +180,15 @@ function packFg(books, sportId, home, away) {
     heritageOverPrice: herTotalPair?.over.price ?? null,
     heritageUnderPrice: herTotalPair?.under.price ?? null,
     spread,
-    spreadPrice: (pinSpreadPair || herSpreadPair)?.home.price ?? null,
+    spreadPrice: (pinSpreadPair || herSpreadPair || softSpreadPair)?.home.price ?? null,
     total,
-    totalPrice: (pinTotalPair || herTotalPair)?.over.price ?? null,
+    totalPrice: (pinTotalPair || herTotalPair || softTotalPair)?.over.price ?? null,
     details: "",
     book: EXECUTION_BOOK,
     sharp: hasPin ? SHARP_BOOK : "",
     heritageListed: Boolean(herHome || herAway || herSpreadPair || herTotalPair),
     pinPresent: hasPin,
+    softPresent: hasSoft,
   };
 }
 
@@ -211,12 +238,17 @@ export function summarizeParlayEvent(event, sportId) {
   const fg = packFg(books, sportId, home, away);
   const f5 = event.periodF5 || packF5(books, sportId, home, away);
   const kalshiH2h = outcomes(books, "h2h", (k) => k === "kalshi");
+  const softSource =
+    fg.pinPresent || fg.heritageListed
+      ? null
+      : event.softSource || (fg.softPresent ? "sharpapi" : null);
   return {
     parlayId: event.id,
     homeTeam: home,
     awayTeam: away,
     commence: event.commence_time,
     ...fg,
+    softSource,
     f5,
     sentiment: sentimentFromKalshi(kalshiH2h, home, away),
     playerProps: event.playerProps || [],
@@ -232,6 +264,7 @@ function applyOdds(game, p) {
   if (!p) return game;
   const softEspn =
     !p.pinPresent &&
+    !p.softSource &&
     (game.odds?.homeMl != null || game.odds?.awayMl != null) &&
     !game.odds?.pinPresent;
   const odds = {
@@ -247,7 +280,9 @@ function applyOdds(game, p) {
     awayMlBook: EXECUTION_BOOK,
     books: p.books,
     sentiment: p.sentiment || game.odds?.sentiment || null,
-    softSource: p.pinPresent ? null : softEspn ? "espn" : game.odds?.softSource || null,
+    softSource: p.pinPresent
+      ? null
+      : p.softSource || (softEspn ? "espn" : game.odds?.softSource || null),
     f5: p.f5 || game.odds?.f5 || null,
     playerProps: p.playerProps || game.odds?.playerProps || [],
     heritageListed: p.heritageListed,
@@ -594,7 +629,7 @@ function propsRowsToStubEvents(rows = []) {
 
 export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   const sportKey = PARLAY_SPORT[sportId];
-  if (!sportKey || (!apiKey && !opts.backupApiKey)) {
+  if (!sportKey || (!apiKey && !opts.backupApiKey && !opts.sharpApiKey && !opts.theRundownApiKey)) {
     return { events: [], meta: { enabled: false, remaining: null, cached: false } };
   }
   const baseball = BASEBALL.has(sportId);
@@ -609,8 +644,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     return { ...cached, meta: cachedMeta };
   }
   if (opts.cacheOnly) {
-    // Cache miss on TODAY sport=all: use The Odds free-tier backup for Pinnacle
-    // game lines only (no Kalshi/props credit burn on Parlay).
+    // Cache miss on TODAY sport=all: prefer sharp backup, then soft free books.
     if (opts.backupApiKey) {
       const backup = await fetchTheOddsJson(
         sportKey,
@@ -645,20 +679,62 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         await writeCache(cacheKey, payload, cfCache, TTL_MS);
         return payload;
       }
-      return {
-        events: [],
-        meta: {
-          enabled: true,
-          remaining: backup.credits.remaining,
-          cached: false,
-          skipped: true,
-          source: "theodds-free-cacheonly-empty",
-          error: backup.error || null,
-          propFeedStatus: baseball ? "skipped" : "not-applicable",
-          propFeedError: null,
-          propRows: 0,
-        },
-      };
+    }
+    if (opts.sharpApiKey) {
+      const sharp = await fetchSharpApiOdds(sportId, opts.sharpApiKey);
+      if (sharp.events?.length) {
+        const events = sharp.events.map((ev) => summarizeParlayEvent(ev, sportId)).filter(Boolean);
+        const payload = {
+          events,
+          meta: {
+            enabled: true,
+            remaining: sharp.credits.remaining,
+            used: null,
+            cached: false,
+            skipped: false,
+            source: "sharpapi-free-cacheonly",
+            free: true,
+            softBooks: sharp.books,
+            sharp: SHARP_BOOK,
+            execution: EXECUTION_BOOK,
+            sentiment: SENTIMENT_BOOK,
+            sentimentGames: 0,
+            propFeedStatus: baseball ? "skipped" : "not-applicable",
+            propFeedError: null,
+            propRows: 0,
+          },
+        };
+        await writeCache(cacheKey, payload, cfCache, TTL_MS);
+        return payload;
+      }
+    }
+    if (opts.theRundownApiKey) {
+      const rundown = await fetchTheRundownOdds(sportId, opts.theRundownApiKey, opts.date);
+      if (rundown.events?.length) {
+        const events = rundown.events.map((ev) => summarizeParlayEvent(ev, sportId)).filter(Boolean);
+        const payload = {
+          events,
+          meta: {
+            enabled: true,
+            remaining: rundown.credits.remaining,
+            used: null,
+            cached: false,
+            skipped: false,
+            source: "therundown-free-cacheonly",
+            free: true,
+            softBooks: rundown.books,
+            sharp: SHARP_BOOK,
+            execution: EXECUTION_BOOK,
+            sentiment: SENTIMENT_BOOK,
+            sentimentGames: 0,
+            propFeedStatus: baseball ? "skipped" : "not-applicable",
+            propFeedError: null,
+            propRows: 0,
+          },
+        };
+        await writeCache(cacheKey, payload, cfCache, TTL_MS);
+        return payload;
+      }
     }
     return {
       events: [],
@@ -667,6 +743,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         remaining: null,
         cached: false,
         skipped: true,
+        source: opts.backupApiKey || opts.sharpApiKey || opts.theRundownApiKey ? "free-backups-empty" : null,
         propFeedStatus: baseball ? "skipped" : "not-applicable",
         propFeedError: null,
         propRows: 0,
@@ -707,20 +784,30 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     source = opts.backupApiKey ? "parlay-credit-exhausted-backup-failed" : "parlay-credit-exhausted";
   }
   if (pin.error && !pin.events.length && !baseball) {
-    return {
-      events: [],
-      meta: {
-        enabled: true,
-        error: pin.error,
-        remaining: pin.credits.remaining,
-        used: pin.credits.used,
-        cached: false,
-        sportKey,
-        sharp: SHARP_BOOK,
-        execution: EXECUTION_BOOK,
-        source,
-      },
-    };
+    let soft = null;
+    if (opts.sharpApiKey) soft = await fetchSharpApiOdds(sportId, opts.sharpApiKey);
+    if ((!soft || !soft.events?.length) && opts.theRundownApiKey) {
+      soft = await fetchTheRundownOdds(sportId, opts.theRundownApiKey, opts.date);
+    }
+    if (soft?.events?.length) {
+      pin = { ...pin, events: soft.events };
+      source = soft.soft && soft.books?.includes("betmgm") ? "therundown-soft-backup" : "sharpapi-soft-backup";
+    } else {
+      return {
+        events: [],
+        meta: {
+          enabled: true,
+          error: pin.error,
+          remaining: pin.credits.remaining,
+          used: pin.credits.used,
+          cached: false,
+          sportKey,
+          sharp: SHARP_BOOK,
+          execution: EXECUTION_BOOK,
+          source,
+        },
+      };
+    }
   }
 
   let combined = pin.events;
@@ -798,6 +885,24 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     propRows = propsPayload.rows?.length || 0;
     propFeedStatus = propRows ? (propsPayload.stale ? "stale" : "available") : propsPayload?.error ? "error" : "empty";
     propFeedError = propsPayload?.error || null;
+  }
+
+  const softNeeds = combined.some((ev) => {
+    const packed = summarizeParlayEvent(ev, sportId);
+    return !packed.pinPresent && !packed.heritageListed;
+  });
+  if (softNeeds) {
+    let soft = null;
+    if (opts.sharpApiKey) soft = await fetchSharpApiOdds(sportId, opts.sharpApiKey);
+    if ((!soft || !soft.events?.length) && opts.theRundownApiKey) {
+      soft = await fetchTheRundownOdds(sportId, opts.theRundownApiKey, opts.date);
+    }
+    if (soft?.events?.length) {
+      combined = mergeByTeams(combined, soft.events);
+      if (source === "parlay") {
+        source = soft.books?.includes("betmgm") ? "parlay-plus-therundown-soft" : "parlay-plus-sharpapi-soft";
+      }
+    }
   }
 
   const events = combined.map((ev) => summarizeParlayEvent(ev, sportId));

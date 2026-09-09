@@ -8,6 +8,7 @@
 
 import { loadTeamForm } from "./store.js";
 import { pGreater } from "./metrics.js";
+import { applyScoreWeatherFactor } from "./weather.js";
 
 export const NFL_SHADOW_ID = "NFL-TEAM-FORM-v0";
 export const NFL_CONSTANTS = {
@@ -81,8 +82,11 @@ export function projectNflFormV0(game, { homePrior = null, awayPrior = null, hom
   const awayOff = blend(awayOffPrior, ac?.off, ac?.games || 0);
   const awayDef = blend(awayDefPrior, ac?.def, ac?.games || 0);
   const hfa = game?.neutralSite ? 0 : NFL_CONSTANTS.hfa;
-  const home = round1(homeOff + (awayDef - NFL_CONSTANTS.leaguePpg) + hfa / 2);
-  const away = round1(awayOff + (homeDef - NFL_CONSTANTS.leaguePpg) - hfa / 2);
+  let home = round1(homeOff + (awayDef - NFL_CONSTANTS.leaguePpg) + hfa / 2);
+  let away = round1(awayOff + (homeDef - NFL_CONSTANTS.leaguePpg) - hfa / 2);
+  const wx = applyScoreWeatherFactor(home, away, game?.weatherImpact?.footballTotalFactor ?? 1);
+  home = wx.home;
+  away = wx.away;
   const margin = round1(home - away);
   const total = round1(home + away);
   return {
@@ -107,6 +111,7 @@ export function projectNflFormV0(game, { homePrior = null, awayPrior = null, hom
       current: "current-season harvested team scoring form",
       marketUsed: false,
       hfa,
+      weatherTotalFactor: wx.factor,
     },
   };
 }

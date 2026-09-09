@@ -200,8 +200,19 @@ export function attachNflProShadow(games = []) {
   let available = 0;
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "nfl") return game;
+    // Score scaling uses footballTotalFactor only (no weatherPoints in context) to avoid double-count.
     const projection = projectNflProV1(game);
-    if (projection.ok) available += 1;
+    if (projection.ok) {
+      available += 1;
+      const factor = Number(game.weatherImpact?.footballTotalFactor);
+      if (Number.isFinite(factor) && factor > 0 && factor !== 1 && !game.weather?.indoor) {
+        projection.home = round1(projection.home * factor);
+        projection.away = round1(projection.away * factor);
+        projection.total = round1(projection.home + projection.away);
+        projection.margin = round1(projection.home - projection.away);
+        projection.weatherTotalFactor = factor;
+      }
+    }
     return {
       ...game,
       challengers: { ...(game.challengers || {}), [NFL_PRO_ID]: projection },
