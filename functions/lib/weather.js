@@ -43,6 +43,8 @@ const FIXED_CLOSED_HINTS = [
   "lucas oil stadium",
   "sofi stadium",
   "allegiant stadium",
+  "u.s. bank stadium",
+  "us bank stadium",
   "alamo dome",
   "alamodome",
   "carrier dome",

@@ -70,7 +70,7 @@ Model version: **FBIS-v1.3**
 - The Odds API (optional sharp backup) — when `THEODDS_API_KEY` is configured and Parlay returns a credit-limit error, game-line collection fails over to The Odds API Pinnacle feed for h2h/spreads/totals.
 - SharpAPI (optional soft backup) — when `SHARPAPI_API_KEY` is configured, cache-only reads and missing-game soft quotes can fall back to free DraftKings/FanDuel full-game lines. These are display/market-support lines only and never populate `pin*`.
 - The Rundown (optional soft backup) — when `THERUNDOWN_API_KEY` is configured, cache-only reads and missing-game soft quotes can fall back to free DraftKings/FanDuel/BetMGM full-game lines. These are display/market-support lines only and never populate `pin*`.
-- Open-Meteo weather — free venue forecast attached on every slate. Outdoor / non-closed-roof MLB, NFL, and CFB projections apply weather impact; indoor/dome/closed roofs skip it.
+- Open-Meteo weather — free venue forecast attached on every slate. Outdoor / non-closed-roof MLB, NFL, and CFB projections apply weather impact; indoor/dome/closed roofs skip it. NFL soft-odds stubs without ESPN venue data use a home-stadium catalog for lat/lon and indoor flags.
 - Ballpark Pal — optional; set `BALLPARK_PAL_API_KEY` when you have it (15k requests/month)
 - CollegeFootballData — CFB ratings (SP+/FPI/SRS/Elo) and college research jobs. Set `CFBD_API_KEY` as a Pages secret (never commit the value). Optional alias `CBBD_API_KEY` for the same bearer. See `docs/college-research.md`.
 
