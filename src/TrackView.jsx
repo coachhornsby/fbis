@@ -66,6 +66,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
     ops: false,
     research: false,
     projections: false,
+    diagnostics: false,
   });
   const actionIssues = [];
   if (error) actionIssues.push(`SYS feed error: ${error}`);
@@ -92,16 +93,13 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
       {error && <div className="panel"><div className="error">{error}</div></div>}
       {actionIssues.length ? (
         <section id="action-required" className="panel sys-action-sticky">
-          <div className="panel-header"><h2>Action required</h2><span className="last-updated">{loading ? "Loading…" : badgeLabel(state || "DEGRADED")}</span></div>
-          <div className="panel-body">
-            <p className="muted" style={{ marginBottom: 8 }}>
-              {attemptAt ? `Current attempt ${fmtTs(attemptAt)}.` : ""}
-              {attemptAt ? " " : ""}
-              {lastSuccessAt ? `Last successful SYS refresh ${fmtTs(lastSuccessAt)}.` : "No successful SYS refresh yet."}
-              {stale ? " Showing last-known-good report snapshot (stale)." : ""}
-            </p>
-            <ul style={{ marginLeft: 18 }}>
-              {actionIssues.slice(0, 8).map((issue, i) => <li key={`${issue}-${i}`} className="text-red">{issue}</li>)}
+          <div className="panel-body" style={{ padding: "8px 12px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+              <strong style={{ color: "#fff" }}>Action · {badgeLabel(state || "DEGRADED")}</strong>
+              <span className="muted">{lastSuccessAt ? `Last OK ${fmtTs(lastSuccessAt)}` : "No successful SYS refresh yet."}</span>
+            </div>
+            <ul style={{ margin: "6px 0 0 18px" }}>
+              {actionIssues.slice(0, 4).map((issue, i) => <li key={`${issue}-${i}`} className="text-red">{issue}</li>)}
             </ul>
           </div>
         </section>
@@ -110,14 +108,10 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
       <section className="panel sys-section-nav">
         <div className="panel-body">
           <div className="chip-row">
-            {actionIssues.length ? <a className="chip active" href="#action-required">Action required</a> : null}
             <a className="chip" href="#results-scoreboard">Results</a>
             <a className="chip" href="#your-picks">Your picks</a>
-            <a className="chip" href="#strategy-seed-prospective">Strategy detail</a>
-            <a className="chip" href="#ops-health">Ops health</a>
-            <a className="chip" href="#projection-accuracy">Projections</a>
-            <a className="chip" href="#sys-anomalies">Anomalies</a>
-            <a className="chip" href="#clv-tracker">CLV</a>
+            <a className="chip" href="#ops-health">Ops</a>
+            <a className="chip" href="#sys-diagnostics" onClick={() => setOpenPanels((p) => ({ ...p, diagnostics: true }))}>Diagnostics</a>
           </div>
         </div>
       </section>
@@ -128,35 +122,49 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
 
       <section id="ops-health" className="panel">
         <div className="panel-header">
-          <h2>Ops health</h2>
+          <h2>Ops</h2>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span className="last-updated">{badgeLabel(state || "DEGRADED")}</span>
-            <button className="header-btn" onClick={() => togglePanel("ops")}>{openPanels.ops ? "Collapse" : "Expand"}</button>
+            <button type="button" className="header-btn" onClick={() => togglePanel("ops")}>{openPanels.ops ? "Hide" : "Details"}</button>
           </div>
         </div>
         <div className="panel-body">
           <div className="status-grid">
-            <Stat label="Pipeline" value={badgeLabel(state || "DEGRADED")} />
             <Stat label="Collect" value={db.scheduled?.collect?.state || "unknown"} />
             <Stat label="Harvest" value={db.scheduled?.harvest?.state || "unknown"} />
-            <Stat label="D1 write" value={Number(db.failedWrites || 0) === 0 ? "healthy" : "degraded"} />
+            <Stat label="D1 write" value={Number(db.failedWrites || 0) === 0 ? "healthy" : `${db.failedWrites} failed`} />
+            <Stat label="Pipeline" value={badgeLabel(state || "DEGRADED")} />
           </div>
           {openPanels.ops ? (
-            <>
-              <p className="muted" style={{ marginTop: 10 }}>
-                Collect {fmtTs(db.lastScheduledCollectSuccess || db.scheduled?.collect?.lastObservedAt)} · Harvest {fmtTs(db.lastScheduledHarvestSuccess || db.scheduled?.harvest?.lastObservedAt)}
-                {db.scheduled?.lastRunUrl ? ` · ${db.scheduled.lastRunUrl}` : ""}
-              </p>
-              <p className="muted">
-                {db.scheduled?.collect?.state || db.scheduled?.harvest?.state
-                  ? `Durable D1 schedule proof: collect=${db.scheduled?.collect?.state || "unknown"}, harvest=${db.scheduled?.harvest?.state || "unknown"}.`
-                  : "Durable D1 schedule proof unavailable."}
-              </p>
-            </>
+            <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
+              Collect {fmtTs(db.lastScheduledCollectSuccess || db.scheduled?.collect?.lastObservedAt)} · Harvest {fmtTs(db.lastScheduledHarvestSuccess || db.scheduled?.harvest?.lastObservedAt)}
+              {db.scheduled?.lastRunUrl ? ` · ${db.scheduled.lastRunUrl}` : ""}
+            </p>
           ) : null}
         </div>
       </section>
 
+      <section id="sys-diagnostics" className="panel">
+        <div className="panel-header">
+          <h2>Diagnostics</h2>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span className="last-updated">projections · research · CLV · anomalies</span>
+            <button type="button" className="header-btn" onClick={() => togglePanel("diagnostics")}>
+              {openPanels.diagnostics ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
+        {!openPanels.diagnostics ? (
+          <div className="panel-body">
+            <p className="muted" style={{ margin: 0 }}>
+              Projection accuracy, Research DB, settlement backlog, CLV, model layers, and anomalies stay collapsed so Results and Your picks stay readable.
+            </p>
+          </div>
+        ) : null}
+      </section>
+
+      {openPanels.diagnostics ? (
+        <>
       <section id="sport-systems" className="panel">
         <div className="panel-header"><h2>Sport systems</h2><span className="last-updated">independent tracking by board</span></div>
         <div className="panel-body">
@@ -825,6 +833,8 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
           )}
         </div>
       </section>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -1130,10 +1140,8 @@ function fmtRecord(stats) {
   const w = Number(stats.wins || 0);
   const l = Number(stats.losses || 0);
   const p = Number(stats.pushes || 0);
-  const v = Number(stats.voids || 0);
   let s = `${w}-${l}`;
   if (p) s += `-${p}`;
-  if (v) s += ` (${v} void)`;
   return s;
 }
 
@@ -1169,8 +1177,8 @@ function ConvictionScoreboard({ rows }) {
             <th>Record</th>
             <th>Hit rate</th>
             <th>Open</th>
+            <th>Void</th>
             <th>Settled</th>
-            <th>Tickets</th>
           </tr>
         </thead>
         <tbody>
@@ -1184,8 +1192,8 @@ function ConvictionScoreboard({ rows }) {
                 <td>{fmtRecord(s)}</td>
                 <td>{Number(s.settled || 0) > 0 ? fmtPct(s.hitRate) : "—"}</td>
                 <td>{s.open ?? 0}</td>
+                <td>{s.voids ?? 0}</td>
                 <td>{s.settled ?? 0}</td>
-                <td>{s.n ?? 0}</td>
               </tr>
             );
           })}
@@ -1211,7 +1219,7 @@ function HeritageExecutedPanel({ summary, unavailable }) {
       </div>
       <div className="panel-body">
         <p className="muted" style={{ marginBottom: 10 }}>
-          Operator tickets you confirmed at Heritage. Tallied separately from FBIS-HC-v1 conviction research — never mixed into strategy hit rate.
+          Your confirmed Heritage tickets — separate from FBIS-HC-v1 conviction.
         </p>
         {unavailable ? (
           <p className="error">Executed-bet summary unavailable until SYS recovers.</p>
@@ -1331,76 +1339,43 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
     },
     { wins: 0, losses: 0, open: 0, settled: 0, n: 0, pushes: 0, voids: 0 }
   );
-  const totalsHit = totals.settled > 0 ? totals.wins / totals.settled : null;
 
   return (
     <section id={sectionId || undefined} className="panel">
       <div className="panel-header">
-        <h2>Conviction results (FBIS-HC-v1)</h2>
+        <h2>Conviction by sport</h2>
         <span className="last-updated">
           {semanticUnavailable
             ? "DATA UNAVAILABLE"
-            : `${totals.wins}-${totals.losses} · ${totals.open} open · ${scoreboardRows.length} sport${scoreboardRows.length === 1 ? "" : "s"}`}
+            : `${totals.wins}-${totals.losses} settled · ${totals.open} open`}
         </span>
       </div>
       <div className="panel-body">
         {semanticUnavailable ? (
           <div className="error" style={{ marginBottom: 10 }}>
-            Canonical strategy population unavailable: {loadError}. Current attempt {fmtTs(attemptAt)}. Last success {fmtTs(lastSuccessAt)}.
+            Strategy unavailable: {loadError}
           </div>
         ) : null}
 
-        <p className="muted" style={{ marginBottom: 10 }}>
-          Research conviction tickets (qualified + EV ≥ 8%). Not your Heritage confirmations. Leans excluded.
-        </p>
-
         {!semanticUnavailable ? (
           <>
-            <h3 className="subhead">Hit rate by sport</h3>
-            {pro.aggregateUnavailable ? (
-              <p className="muted" style={{ marginBottom: 8 }}>
-                Mixed markets/models across sports — hit rates below are per sport (no blended aggregate).
-              </p>
-            ) : null}
             <ConvictionScoreboard rows={scoreboardRows} />
-            {scoreboardRows.length > 1 ? (
-              <div className="status-grid" style={{ marginTop: 10, marginBottom: 4 }}>
-                <Stat label="All sports (sum)" value={fmtRecord(totals)} />
-                <Stat label="Combined hit" value={totals.settled > 0 ? fmtPct(totalsHit) : "—"} />
-                <Stat label="Open" value={totals.open} />
-                <Stat label="Tickets" value={totals.n} />
-              </div>
-            ) : null}
-
             {cohort ? (
-              <div style={{ marginTop: 12 }}>
-                <h3 className="subhead">Yesterday (CT) · {cohort.targetDateCt || "—"}</h3>
-                <div className="status-grid" style={{ marginBottom: 4 }}>
-                  <Stat label="W-L" value={`${cohort.wins ?? 0}-${cohort.losses ?? 0}`} />
-                  <Stat label="Settled / Open" value={`${cohort.settledN ?? 0} / ${cohort.openN ?? 0}`} />
-                  <Stat label="Push / Void" value={`${cohort.pushes ?? 0} / ${cohort.voids ?? 0}`} />
-                  <Stat label="Units" value={fmtSigned(cohort.units)} />
-                </div>
-              </div>
-            ) : null}
-
-            {!pro.aggregateUnavailable && pro.stats ? (
               <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
-                Same-population aggregate: {fmtRecord(pro.stats)} · hit {fmtPct(pro.stats.hitRate)} · ROI {fmtSigned(pro.stats.roi)} · CLV N={pro.stats.clvN ?? 0}
+                Yesterday ({cohort.targetDateCt || "CT"}): {cohort.wins ?? 0}-{cohort.losses ?? 0}
+                {" · "}settled {cohort.settledN ?? 0} · open {cohort.openN ?? 0}
               </p>
             ) : null}
-
-            <p className="headline-line" style={{ marginTop: 12, color: pack?.convictionQualification?.paused ? "#f0c674" : "#28d17c", fontWeight: 600 }}>
-              {pack?.convictionQualification?.message || (pack?.convictionQualification?.paused
-                ? "CONVICTION QUALIFICATION PAUSED"
-                : "CONVICTION ACTIVE")}
+            <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
+              FBIS-HC-v1 research conviction only — not Heritage confirms.
+              {pack?.convictionQualification?.paused ? " Qualification paused." : ""}
             </p>
           </>
         ) : (
-          <p className="muted">Scoreboard waits on a successful strategy query — other SYS sections above still load from the last report.</p>
+          <p className="muted">Scoreboard waits on a successful strategy query.</p>
         )}
 
-        <div id="strategy-seed-prospective" style={{ marginTop: 14 }}>
+        <div id="strategy-seed-prospective" style={{ marginTop: 12 }}>
           <button type="button" className="header-btn" onClick={() => setShowDetail((v) => !v)}>
             {showDetail ? "Hide strategy detail" : "Show strategy detail"}
           </button>
@@ -1408,6 +1383,13 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
 
         {showDetail && !semanticUnavailable ? (
           <div style={{ marginTop: 12 }}>
+            {pro.aggregateUnavailable ? (
+              <p className="muted">Mixed markets/models — use per-sport rows above (no blended aggregate).</p>
+            ) : pro.stats ? (
+              <p className="muted">
+                Aggregate: {fmtRecord(pro.stats)} · hit {fmtPct(pro.stats.hitRate)} · ROI {fmtSigned(pro.stats.roi)} · CLV N={pro.stats.clvN ?? 0}
+              </p>
+            ) : null}
             <p className="muted" style={{ marginBottom: 10 }}>
               Seed recovery: expected N={pack?.expectedSeedN ?? 7} · recovered {pack?.actualRecoveredN ?? rec.recoveredN ?? 0} ·{" "}
               {rec.state || rec.confidence || "operator-declared"} · recovered record {pack?.recoveredRecord || rec.recoveredRecord || "—"} ·
