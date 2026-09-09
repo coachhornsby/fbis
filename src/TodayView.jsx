@@ -310,6 +310,9 @@ export function GameDetails({ g }) {
         <div>Ballpark Pal: {g.palAway == null ? "—" : `${fmtNum(g.palAway)}–${fmtNum(g.palHome)}`}</div>
         <div>Pinnacle ML: {fmtAmerican(g.pinMlAway)} / {fmtAmerican(g.pinMlHome)}</div>
         <div>Kalshi sentiment: {g.sentiment?.home == null ? "—" : `${fmtPct(g.sentiment.home)} home`}</div>
+        {!g.pinMlHome && !g.pinMlAway && (g.odds?.homeMl != null || g.odds?.awayMl != null) ? (
+          <div className="muted">Soft ML ({g.odds?.softSource || "espn"}): {fmtAmerican(g.odds?.awayMl)} / {fmtAmerican(g.odds?.homeMl)}</div>
+        ) : null}
       </section>
       <section>
         <h3>F5</h3>
@@ -320,7 +323,13 @@ export function GameDetails({ g }) {
         <h3>WEATHER / PARK</h3>
         {g.weather ? <>
           <div>{g.weather.description || "Conditions available"}</div>
-          <div>{g.weather.temperature == null ? "" : `${g.weather.temperature}°F`} {g.weather.windSpeed == null ? "" : `· wind ${g.weather.windSpeed} mph`}</div>
+          <div>
+            {g.weather.temperature == null ? "" : `${g.weather.temperature}°F`}
+            {g.weather.windSpeed == null ? "" : ` · wind ${g.weather.windSpeed} mph`}
+            {g.weather.precipProbability == null ? "" : ` · precip ${g.weather.precipProbability}%`}
+          </div>
+          {g.weather.note ? <div className="muted">{g.weather.note}</div> : null}
+          {g.weather.attribution ? <div className="muted">{g.weather.attribution}</div> : null}
         </> : <div className="muted">Weather unavailable for this feed.</div>}
         <div>{g.palPark?.name || g.palPark?.parkName || g.venue || "Venue unavailable"}</div>
       </section>

@@ -230,25 +230,30 @@ export function matchParlay(game, events) {
 
 function applyOdds(game, p) {
   if (!p) return game;
+  const softEspn =
+    !p.pinPresent &&
+    (game.odds?.homeMl != null || game.odds?.awayMl != null) &&
+    !game.odds?.pinPresent;
   const odds = {
     ...game.odds,
-    spread: p.spread,
-    total: p.total,
-    homeMl: p.homeMl,
-    awayMl: p.awayMl,
+    spread: p.spread ?? game.odds?.spread ?? null,
+    total: p.total ?? game.odds?.total ?? null,
+    homeMl: p.homeMl ?? game.odds?.homeMl ?? null,
+    awayMl: p.awayMl ?? game.odds?.awayMl ?? null,
     details: p.details || game.odds?.details || "",
     book: EXECUTION_BOOK,
-    sharp: p.sharp || SHARP_BOOK,
+    sharp: p.sharp || (p.pinPresent ? SHARP_BOOK : game.odds?.sharp || ""),
     homeMlBook: EXECUTION_BOOK,
     awayMlBook: EXECUTION_BOOK,
     books: p.books,
-    sentiment: p.sentiment || null,
+    sentiment: p.sentiment || game.odds?.sentiment || null,
+    softSource: p.pinPresent ? null : softEspn ? "espn" : game.odds?.softSource || null,
     f5: p.f5 || game.odds?.f5 || null,
     playerProps: p.playerProps || game.odds?.playerProps || [],
     heritageListed: p.heritageListed,
     pinPresent: p.pinPresent,
-    pinHomeMl: p.pinHomeMl ?? p.fairHomeMl ?? null,
-    pinAwayMl: p.pinAwayMl ?? p.fairAwayMl ?? null,
+    pinHomeMl: p.pinHomeMl ?? p.fairHomeMl ?? game.odds?.pinHomeMl ?? null,
+    pinAwayMl: p.pinAwayMl ?? p.fairAwayMl ?? game.odds?.pinAwayMl ?? null,
     pinSpreadHomePrice: p.pinSpreadHomePrice ?? null,
     pinSpreadAwayPrice: p.pinSpreadAwayPrice ?? null,
     pinSpread: p.pinSpread ?? null,
@@ -288,7 +293,7 @@ function applyOdds(game, p) {
     parlayId: p.parlayId,
     fairHomeMl: p.fairHomeMl,
     fairAwayMl: p.fairAwayMl,
-    sentiment: p.sentiment || null,
+    sentiment: p.sentiment || game.sentiment || null,
   };
 }
 
@@ -604,6 +609,57 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     return { ...cached, meta: cachedMeta };
   }
   if (opts.cacheOnly) {
+    // Cache miss on TODAY sport=all: use The Odds free-tier backup for Pinnacle
+    // game lines only (no Kalshi/props credit burn on Parlay).
+    if (opts.backupApiKey) {
+      const backup = await fetchTheOddsJson(
+        sportKey,
+        {
+          regions: "eu",
+          markets: "h2h,spreads,totals",
+          bookmakers: "pinnacle",
+        },
+        opts.backupApiKey
+      );
+      if (backup.events?.length) {
+        const events = backup.events.map((ev) => summarizeParlayEvent(ev, sportId)).filter(Boolean);
+        const payload = {
+          events,
+          meta: {
+            enabled: true,
+            remaining: backup.credits.remaining,
+            used: backup.credits.used,
+            cached: false,
+            skipped: false,
+            source: "theodds-free-cacheonly",
+            free: true,
+            sharp: SHARP_BOOK,
+            execution: EXECUTION_BOOK,
+            sentiment: SENTIMENT_BOOK,
+            sentimentGames: 0,
+            propFeedStatus: baseball ? "skipped" : "not-applicable",
+            propFeedError: null,
+            propRows: 0,
+          },
+        };
+        await writeCache(cacheKey, payload, cfCache, TTL_MS);
+        return payload;
+      }
+      return {
+        events: [],
+        meta: {
+          enabled: true,
+          remaining: backup.credits.remaining,
+          cached: false,
+          skipped: true,
+          source: "theodds-free-cacheonly-empty",
+          error: backup.error || null,
+          propFeedStatus: baseball ? "skipped" : "not-applicable",
+          propFeedError: null,
+          propRows: 0,
+        },
+      };
+    }
     return {
       events: [],
       meta: {
