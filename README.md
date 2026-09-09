@@ -67,7 +67,9 @@ Model version: **FBIS-v1.3**
 
 - MLB Stats API — schedule, scores, probable pitchers, F5 linescore (free)
 - ParlayAPI — Pinnacle game lines (3 credits, `eu` region), cached 15 minutes. Kalshi sentiment is a 1-credit pull; empty Kalshi/F5 responses cache for 6 hours.
-- The Odds API (optional backup) — when `THEODDS_API_KEY` is configured and Parlay returns a credit-limit error, game-line collection fails over to The Odds API Pinnacle feed for h2h/spreads/totals.
+- The Odds API (optional sharp backup) — when `THEODDS_API_KEY` is configured and Parlay returns a credit-limit error, game-line collection fails over to The Odds API Pinnacle feed for h2h/spreads/totals.
+- SharpAPI (optional soft backup) — when `SHARPAPI_API_KEY` is configured, cache-only reads and missing-game soft quotes can fall back to free DraftKings/FanDuel full-game lines. These are display/market-support lines only and never populate `pin*`.
+- The Rundown (optional soft backup) — when `THERUNDOWN_API_KEY` is configured, cache-only reads and missing-game soft quotes can fall back to free DraftKings/FanDuel/BetMGM full-game lines. These are display/market-support lines only and never populate `pin*`.
 - Ballpark Pal — optional; set `BALLPARK_PAL_API_KEY` when you have it (15k requests/month)
 - CollegeFootballData — CFB ratings (SP+/FPI/SRS/Elo) and college research jobs. Set `CFBD_API_KEY` as a Pages secret (never commit the value). Optional alias `CBBD_API_KEY` for the same bearer. See `docs/college-research.md`.
 

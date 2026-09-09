@@ -7,6 +7,8 @@ export async function onRequestGet(context) {
     const payload = await buildSlate(sport, url.searchParams.get("date") || "", {
       PARLAY_API_KEY: context.env.PARLAY_API_KEY,
       THEODDS_API_KEY: context.env.THEODDS_API_KEY,
+      SHARPAPI_API_KEY: context.env.SHARPAPI_API_KEY,
+      THERUNDOWN_API_KEY: context.env.THERUNDOWN_API_KEY,
       BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
       CFBD_API_KEY: context.env.CFBD_API_KEY,
       caches: caches.default,

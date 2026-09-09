@@ -1312,8 +1312,11 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   const parlay = await fetchParlayOdds(id, env.PARLAY_API_KEY, env.caches, {
+    date: day,
     cacheOnly: Boolean(env.parlayCacheOnly),
     backupApiKey: env.THEODDS_API_KEY,
+    sharpApiKey: env.SHARPAPI_API_KEY,
+    theRundownApiKey: env.THERUNDOWN_API_KEY,
   });
   games = mergeParlay(games, parlay.events, id);
   games = games.map((g) => attachMarketLabels(enrichGameTeams(id, g)));
