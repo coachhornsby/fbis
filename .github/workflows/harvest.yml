@@ -295,7 +295,7 @@ jobs:
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "accept: application/json" \
               -o "$tmp" -w "%{http_code}" \
-              "${BASE}/api/harvest?date=${DAY}&sport=${SPORT}&settleOnly=1&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
+              "${BASE}/api/harvest?date=${DAY}&sport=${SPORT}&settleOnly=1&gradeResearch=1&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
             curl_ec=$?
             set -e
             http="$(tr -d '\r\n' < "${tmp}.code")"

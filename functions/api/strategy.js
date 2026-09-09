@@ -255,7 +255,9 @@ export async function onRequestGet(context) {
     (prospectiveRaw || []).map((t) => {
       const rec = latestCorrection.get(String(t.id));
       return {
-        status: rec?.status || "STILL_INVALID",
+        // Missing correction row means reconstruction was never run for this ticket —
+        // do not treat that as proven invalid probability history.
+        status: rec?.status || RECONSTRUCTION_STATUS.NOT_RECONSTRUCTED,
         sport: t.sport,
         market: t.market,
         date: t.date,

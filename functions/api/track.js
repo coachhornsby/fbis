@@ -501,12 +501,24 @@ async function cleanupFutureGrades(env) {
      WHERE actual_home IS NOT NULL
        AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
   ).bind(nowIso).run();
+  // Reopen strategy grades for games that have not started yet.
   const stratOut = await env.DB.prepare(
     `UPDATE strategy_tickets
      SET result = 'OPEN', profit = NULL, clv = NULL, graded_at = NULL
      WHERE result IN ('WON','LOST','PUSH','VOID')
        AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
   ).bind(nowIso).run();
+  // Also reopen when graded_at is strictly before the game start (cross-day series mismatch).
+  const stratPrematureOut = await env.DB.prepare(
+    `UPDATE strategy_tickets
+     SET result = 'OPEN', profit = NULL, clv = NULL, graded_at = NULL
+     WHERE result IN ('WON','LOST','PUSH','VOID')
+       AND graded_at IS NOT NULL
+       AND game_id IN (
+         SELECT id FROM games
+         WHERE start IS NOT NULL AND start > strategy_tickets.graded_at
+       )`
+  ).run();
   const betOut = await env.DB.prepare(
     `UPDATE executed_bets
      SET result = 'OPEN', profit = NULL, settled_return = NULL, graded_at = NULL, void_reason = NULL
@@ -521,7 +533,8 @@ async function cleanupFutureGrades(env) {
       ok: true,
       snapshotRowsReset: Number(snapOut?.meta?.changes || 0),
       predictionRowsReset: Number(predOut?.meta?.changes || 0),
-      strategyTicketsReset: Number(stratOut?.meta?.changes || 0),
+      strategyTicketsReset:
+        Number(stratOut?.meta?.changes || 0) + Number(stratPrematureOut?.meta?.changes || 0),
       executedBetsReset: Number(betOut?.meta?.changes || 0),
     },
   };

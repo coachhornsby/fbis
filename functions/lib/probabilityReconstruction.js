@@ -12,6 +12,8 @@ export const RECONSTRUCTION_STATUS = {
   UNRECOVERABLE: "UNRECOVERABLE",
   RECONSTRUCTION_BLOCKED: "RECONSTRUCTION_BLOCKED",
   STILL_INVALID: "STILL_INVALID",
+  /** Ticket has not been through reconstructAffectedTickets yet — not proof of bad history. */
+  NOT_RECONSTRUCTED: "NOT_RECONSTRUCTED",
 };
 
 export const RECONSTRUCTION_VERSION = "prob-recon-v1";
@@ -207,6 +209,7 @@ export function summarizeReconstructions(rows = []) {
     unrecoverableN: count(RECONSTRUCTION_STATUS.UNRECOVERABLE),
     blockedN: count(RECONSTRUCTION_STATUS.RECONSTRUCTION_BLOCKED),
     stillInvalidN: count(RECONSTRUCTION_STATUS.STILL_INVALID),
+    notReconstructedN: count(RECONSTRUCTION_STATUS.NOT_RECONSTRUCTED),
     recoveredBySport: tally((r) => r.sport),
     recoveredByMarket: tally((r) => r.market),
     recoveredByDate: tally((r) => r.date),

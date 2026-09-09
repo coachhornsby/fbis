@@ -203,7 +203,8 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
           <div className={`db-banner ${db.ok ? "db-ok" : "db-bad"}`}>
             {db.ok ? "RESEARCH DB: READ HEALTHY" : `RESEARCH DB ${db.reason === "unbound" ? "UNBOUND" : "ERROR"}`}
             <span className="muted" style={{ marginLeft: 10 }}>
-              health source {db.healthSource || db.source || report?.source || "—"} · stored today {db.predictions ?? 0} · graded today {db.graded ?? 0} · awaiting {db.awaiting ?? 0}
+              health source {db.healthSource || db.source || report?.source || "—"} · snapshot rows today {db.predictions ?? 0} · snapshot graded today {db.graded ?? 0} · snapshot awaiting (≤14d) {db.awaiting ?? 0}
+              {report?.accuracySummary?.n != null ? ` · projection games graded ${report.accuracySummary.n}` : ""}
               {db.lastCollectSuccess || db.lastCollect ? ` · collect ${new Date(db.lastCollectSuccess || db.lastCollect).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
               {db.lastHarvestSuccess || db.lastHarvest ? ` · harvest ${new Date(db.lastHarvestSuccess || db.lastHarvest).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
               {db.failedWrites ? ` · failed writes ${db.failedWrites}` : ""}
