@@ -127,8 +127,12 @@ jobs:
           # Settle-only harvest for the stale OPEN college dates (full harvest exceeds Pages time).
           harvest_failed=0
           RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          # Remaining OPEN college tickets are on 2026-09-05.
-          for sport_day in "cfb:2026-09-05"; do
+          # Prefer live settleTargets with open executed bets; fallback to known open dates.
+          mapfile -t TARGETS < <(curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq -r '
+            [.pipeline.settleTargets // [] | .[] | select((.openExecutedBets // 0) > 0) | "\(.sport):\(.date)"]
+            | if length > 0 then .[] else "mlb:2026-09-08","cfb:2026-09-05" end
+          ')
+          for sport_day in "${TARGETS[@]}"; do
             sport="${sport_day%%:*}"
             day="${sport_day##*:}"
             echo "settle-harvest ${sport} date=${day}"
@@ -136,7 +140,7 @@ jobs:
             for attempt in 1 2 3 4 5 6; do
               tmp="$(mktemp)"
               set +e
-              code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" "${BASE}/api/harvest?date=${day}&sport=${sport}&settleOnly=1&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${RUN_URL_BASE}")"
+              code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" "${BASE}/api/harvest?date=${day}&sport=${sport}&settleOnly=1&gradeResearch=1&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${RUN_URL_BASE}")"
               curl_ec=$?
               set -e
               echo "settle ${sport} ${day} attempt=${attempt} curl_ec=${curl_ec} http=${code}"
@@ -162,6 +166,7 @@ jobs:
               echo "settle ${sport} ${day} failed after retries"
               harvest_failed=1
             fi
+            sleep 5
           done
           curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq '{commit:.deploymentCommit,state,schedule:.pipeline.schedule,lastCollect:.pipeline.lastCollectSuccessAt,lastHarvest:.pipeline.lastHarvestSuccessAt}'
           if [ "$harvest_failed" -ne 0 ]; then
