@@ -169,6 +169,28 @@ describe("strategy grading final resolution", () => {
     assert.equal(resolved, null);
   });
 
+  it("does not grade adjacent-day series games by team name alone", () => {
+    const ticket = {
+      sport: "mlb",
+      date: "2026-09-09",
+      gameId: "824713",
+      matchup: "Los Angeles @ Boston",
+      market: "ML",
+      side: "HOME",
+    };
+    const resolved = resolveFinalForTicket(ticket, [
+      {
+        id: "824714",
+        sport: "mlb",
+        date: "2026-09-08",
+        home: { name: "Boston Red Sox", abbr: "BOS", score: 4 },
+        away: { name: "Los Angeles Angels", abbr: "LAA", score: 2 },
+        status: { completed: true, detail: "Final" },
+      },
+    ]);
+    assert.equal(resolved, null);
+  });
+
   it("allows duplicate candidates when final score is identical", () => {
     const ticket = {
       sport: "cfb",

@@ -124,14 +124,31 @@ jobs:
           test -n "${HARVEST_SECRET}" || { echo "Missing HARVEST_SECRET"; exit 1; }
           # Skip post-deploy collect: scheduled collect is already healthy and full
           # multi-sport collect loops overload D1 before settle can run.
-          # Settle-only harvest for the stale OPEN college dates (full harvest exceeds Pages time).
+          # Reopen premature grades (cross-day series / pre-start) before settle.
+          cleanup_tmp="$(mktemp)"
+          cleanup_code="$(curl -sS --max-time 45 -o "$cleanup_tmp" -w "%{http_code}" \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -H "accept: application/json" \
+            -d '{"action":"cleanup-future-grades"}' \
+            "${BASE}/api/track")"
+          echo "cleanup-future-grades http=${cleanup_code}"
+          jq -c '{ok,strategyTicketsReset,executedBetsReset,snapshotRowsReset}' "$cleanup_tmp" || head -c 300 "$cleanup_tmp" || true
+          # Settle-only harvest for open executed + research tickets (full harvest exceeds Pages time).
           harvest_failed=0
           RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          # Prefer live settleTargets with open executed bets; fallback to known open dates.
+          # Prefer live settleTargets with open work; cap to keep Pages time budget.
           mapfile -t TARGETS < <(curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq -r '
-            [.pipeline.settleTargets // [] | .[] | select((.openExecutedBets // 0) > 0) | "\(.sport):\(.date)"]
-            | if length > 0 then .[] else "mlb:2026-09-08","cfb:2026-09-05" end
+            [.pipeline.settleTargets // []
+              | .[]
+              | select((.openExecutedBets // 0) > 0 or (.openStrategyTickets // 0) > 0)
+              | "\(.sport):\(.date)"]
+            | .[0:8]
+            | if length > 0 then .[] else empty end
           ')
+          if [ "${#TARGETS[@]}" -eq 0 ]; then
+            TARGETS=("mlb:$(TZ=America/Chicago date -d 'yesterday' +%F)" "cfb:$(TZ=America/Chicago date -d 'yesterday' +%F)")
+          fi
           for sport_day in "${TARGETS[@]}"; do
             sport="${sport_day%%:*}"
             day="${sport_day##*:}"

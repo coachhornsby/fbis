@@ -330,6 +330,11 @@ describe("September 1 cohort labels", () => {
     assert.equal(UNRECOVERED_SEED_RECORD, "7-0");
     const summary = summarizeReconstructions([]);
     assert.equal(summary.recoveredVerifiedN, 0);
+    assert.equal(summary.stillInvalidN, 0);
+    assert.equal(summary.notReconstructedN, 0);
+    const pending = summarizeReconstructions([{ status: RECONSTRUCTION_STATUS.NOT_RECONSTRUCTED }]);
+    assert.equal(pending.notReconstructedN, 1);
+    assert.equal(pending.stillInvalidN, 0);
     const label = sept1CohortLabel({ recoveredN: 7, wins: 5, losses: 2, probabilityVerifiedN: 7, settledN: 7 });
     assert.equal(label.includes("7–0"), false);
     assert.equal(label.includes("12"), false);

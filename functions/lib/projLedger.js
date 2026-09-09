@@ -553,14 +553,6 @@ function finalToMatchRef(final) {
   };
 }
 
-function ctDateDiffDays(a, b) {
-  if (!a || !b) return Infinity;
-  const da = Date.parse(`${a}T00:00:00Z`);
-  const db = Date.parse(`${b}T00:00:00Z`);
-  if (!Number.isFinite(da) || !Number.isFinite(db)) return Infinity;
-  return Math.abs(Math.round((da - db) / 86400000));
-}
-
 function sameFinalScore(a, b) {
   return Number(a?.homeScore) === Number(b?.homeScore) && Number(a?.awayScore) === Number(b?.awayScore);
 }
@@ -591,43 +583,27 @@ export function resolveFinalForTicket(ticket, finals = []) {
       status: { completed: true, detail: "Final" },
     };
   }
+  // Team fallback requires an exact CT date. Adjacent-day series games (common in MLB)
+  // must never grade today's open ticket from yesterday's final.
   const byTeams = candidates.filter((f) => {
-    const dateOk = !t.date || !f.date || ctDateDiffDays(t.date, f.date) <= 1;
+    const dateOk = Boolean(t.date) && Boolean(f.date) && String(t.date).slice(0, 10) === String(f.date).slice(0, 10);
     const homeOk = sameTeam(t.sport, t.homeName, null, f.homeName, f.homeAbbr);
     const awayOk = sameTeam(t.sport, t.awayName, null, f.awayName, f.awayAbbr);
     return dateOk && homeOk && awayOk;
   });
   if (!byTeams.length) return null;
   if (byTeams.length > 1) {
-    const withDate = byTeams
-      .map((f) => ({ f, d: ctDateDiffDays(t.date, f.date) }))
-      .sort((a, b) => a.d - b.d);
-    if (withDate.length && withDate[0].d < Infinity) {
-      const nearest = withDate.filter((x) => x.d === withDate[0].d).map((x) => x.f);
-      if (nearest.length === 1) {
-        const hit = nearest[0];
-        return {
-          id: hit.id,
-          sport: hit.sport,
-          date: hit.date,
-          start: hit.start,
-          home: { name: hit.homeName, abbr: hit.homeAbbr, score: Number(hit.homeScore) },
-          away: { name: hit.awayName, abbr: hit.awayAbbr, score: Number(hit.awayScore) },
-          status: { completed: true, detail: "Final" },
-        };
-      }
-      if (nearest.length > 1 && nearest.every((x) => sameFinalScore(x, nearest[0]))) {
-        const hit = nearest[0];
-        return {
-          id: hit.id,
-          sport: hit.sport,
-          date: hit.date,
-          start: hit.start,
-          home: { name: hit.homeName, abbr: hit.homeAbbr, score: Number(hit.homeScore) },
-          away: { name: hit.awayName, abbr: hit.awayAbbr, score: Number(hit.awayScore) },
-          status: { completed: true, detail: "Final" },
-        };
-      }
+    if (byTeams.every((x) => sameFinalScore(x, byTeams[0]))) {
+      const hit = byTeams[0];
+      return {
+        id: hit.id,
+        sport: hit.sport,
+        date: hit.date,
+        start: hit.start,
+        home: { name: hit.homeName, abbr: hit.homeAbbr, score: Number(hit.homeScore) },
+        away: { name: hit.awayName, abbr: hit.awayAbbr, score: Number(hit.awayScore) },
+        status: { completed: true, detail: "Final" },
+      };
     }
     return null;
   }
@@ -641,6 +617,11 @@ export function resolveFinalForTicket(ticket, finals = []) {
     away: { name: hit.awayName, abbr: hit.awayAbbr, score: Number(hit.awayScore) },
     status: { completed: true, detail: "Final" },
   };
+}
+
+function isFutureStartTs(value, nowMs = Date.now()) {
+  const ms = Date.parse(String(value || ""));
+  return Number.isFinite(ms) && ms > nowMs;
 }
 
 export function accuracyOf(rows) {
@@ -1263,10 +1244,15 @@ async function gradeStrategyAgainstFinals(env, finals, opts = {}) {
       }));
     allFinals = [...allFinals, ...snapshotFinals];
   }
+  const nowMs = Date.now();
   const jobs = [];
   for (const t of tickets) {
     if (t.result && t.result !== "OPEN") continue;
+    if (isFutureStartTs(t.start, nowMs)) continue;
     const g = resolveFinalForTicket(t, allFinals);
+    if (!g) continue;
+    if (isFutureStartTs(g.start, nowMs)) continue;
+    if (g.status?.completed !== true) continue;
     const graded = gradeStrategyResult(t, g);
     if (graded) jobs.push(gradeStrategyTicket(env, t.id, graded));
   }

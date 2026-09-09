@@ -184,6 +184,8 @@ test("CI release gate verifies live health SHA and API smoke", () => {
   assert.match(src, /gradeResearch=1/);
   assert.match(src, /post-deploy-catchup/);
   assert.match(src, /settleOnly=1/);
+  assert.match(src, /cleanup-future-grades/);
+  assert.match(src, /openStrategyTickets/);
   assert.doesNotMatch(src, /scheduledSlot=post-deploy-catchup[\s\S]*\/api\/collect/);
   assert.match(src, /Sync HARVEST_SECRET to Cloudflare Pages/);
   assert.match(src, /wrangler pages secret put HARVEST_SECRET/);
@@ -197,6 +199,7 @@ test("harvest catch-up window covers stale OPEN college tickets", () => {
   assert.match(api, /settleOnly/);
   assert.match(ci, /settleOnly=1/);
   assert.match(src, /\/api\/harvest\?date=/);
+  assert.match(src, /settleOnly=1&gradeResearch=1/);
 });
 
 test("deep shadow models remain non-qualifying", async () => {
