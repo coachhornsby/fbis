@@ -11,7 +11,10 @@
  *   Fallback prior — ESPN FPI + opponent-adjusted 2025 SRS (cfb-prior-v1) if CFBD is missing or 401/404
  *
  * Not present in this repo and NOT invented:
- *   Injuries, weather, travel, rest.
+ *   Injuries, travel, rest.
+ *
+ * Weather (Open-Meteo) IS applied for outdoor / non-closed-roof venues via
+ * game.weatherImpact.footballTotalFactor. Indoor/dome/closed roofs skip it.
  *
  * Early-season blend (documented, versioned):
  *   w_current = n / (n + PRIOR_GAMES) with PRIOR_GAMES = 6
@@ -474,6 +477,14 @@ export function projectCfbGame(game, ctx = {}) {
     awayDef: away.def,
     hfa,
   });
+  const weatherFactor = Number(game.weatherImpact?.footballTotalFactor ?? game.mlbContext?.weatherRunFactor);
+  const wxFactor = Number.isFinite(weatherFactor) && weatherFactor > 0 && !game.weather?.indoor ? weatherFactor : 1;
+  if (wxFactor !== 1) {
+    scores.home = Math.round(scores.home * wxFactor * 10) / 10;
+    scores.away = Math.round(scores.away * wxFactor * 10) / 10;
+    scores.total = Math.round((scores.home + scores.away) * 10) / 10;
+    scores.margin = Math.round((scores.home - scores.away) * 10) / 10;
+  }
   const sig = cfbSigma({ gamesHome: home.n, gamesAway: away.n });
   const bothUnranked = home.rank == null && away.rank == null;
   const noTeamForm = home.currentOff == null && away.currentOff == null;
@@ -523,6 +534,7 @@ export function projectCfbGame(game, ctx = {}) {
     venue.uncertain ? "venue_uncertain" : null,
     marketUnavailable ? "market_unavailable" : null,
     bettingAllowed ? null : "qualification_blocked",
+    wxFactor !== 1 ? "weather_adjusted" : game.weather?.indoor ? "weather_indoor_skipped" : null,
     ...venue.flags,
   ].filter(Boolean);
   const qualityFloor = leagueAverageOnly || rankingsUnavailable ? 0.08 : bettingAllowed ? 0.35 : 0.2;
@@ -556,6 +568,7 @@ export function projectCfbGame(game, ctx = {}) {
       hfaPoints: hfa,
       model: priorVersion,
       priorVersion,
+      weatherTotalFactor: wxFactor,
       scales: {
         epa: CFB_CONSTANTS.epaScale,
         transfer: CFB_CONSTANTS.transferScale,

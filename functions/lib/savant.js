@@ -189,7 +189,16 @@ export async function fetchSavantSlate(games, cfCache) {
     const awaySp = pitchers.get(Number(g.awaySp?.id));
     const homeEra = homeSp?.eraEq ?? eraById.get(Number(g.homeSp?.id))?.era;
     const awayEra = awaySp?.eraEq ?? eraById.get(Number(g.awaySp?.id))?.era;
-    const proj = projectMatchup({ homeRpg, awayRpg, homeSpEra: homeEra, awaySpEra: awayEra, leagueRpg });
+    const weatherFactor = Number(g.mlbContext?.weatherRunFactor);
+    const park = Number.isFinite(weatherFactor) && weatherFactor > 0 ? weatherFactor : 1;
+    const proj = projectMatchup({
+      homeRpg,
+      awayRpg,
+      homeSpEra: homeEra,
+      awaySpEra: awayEra,
+      leagueRpg,
+      park,
+    });
     return {
       ...g,
       savant: {
@@ -197,6 +206,7 @@ export async function fetchSavantSlate(games, cfCache) {
         awayRpg,
         homeSpEra: homeEra ?? null,
         awaySpEra: awayEra ?? null,
+        weatherRunFactor: park,
         source: homeSp || awaySp ? "Savant" : "MLB",
       },
       projHomeScore: proj.home,
