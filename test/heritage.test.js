@@ -297,9 +297,27 @@ describe("Heritage matching, attribution, CLV, settlement", () => {
     ]);
     assert.equal(summary.settled, 4);
     assert.equal(summary.record, "1-1");
+    assert.equal(summary.wins, 1);
+    assert.equal(summary.losses, 1);
+    assert.equal(summary.hitRate, 0.5);
     assert.equal(summary.pushes, 1);
     assert.equal(summary.voids, 1);
     assert.equal(summary.risk, 8);
+  });
+
+  it("summarizeExecutedBets breaks tallies down by sport", () => {
+    const summary = summarizeExecutedBets([
+      { sport: "mlb", result: "WON", riskAmount: 2, profit: 1.8 },
+      { sport: "mlb", result: "LOST", riskAmount: 2, profit: -2 },
+      { sport: "cfb", result: "WON", riskAmount: 3, profit: 2.7 },
+      { sport: "cfb", result: "OPEN", riskAmount: 3, profit: null },
+    ]);
+    assert.equal(summary.record, "2-1");
+    assert.equal(summary.bySport.mlb.record, "1-1");
+    assert.equal(summary.bySport.mlb.hitRate, 0.5);
+    assert.equal(summary.bySport.cfb.record, "1-0");
+    assert.equal(summary.bySport.cfb.open, 1);
+    assert.equal(summary.bySport.cfb.hitRate, 1);
   });
 
   it("conflicts when the same ticket ID has different immutable fields", () => {

@@ -321,6 +321,20 @@ export function immutableConflict(existing, next) {
 }
 
 export function summarizeExecutedBets(rows) {
+  const core = summarizeExecutedBetsCore(rows);
+  const bySport = {};
+  for (const t of rows || []) {
+    const sport = String(t.sport || "unknown").toLowerCase() || "unknown";
+    if (!bySport[sport]) bySport[sport] = [];
+    bySport[sport].push(t);
+  }
+  return {
+    ...core,
+    bySport: Object.fromEntries(Object.entries(bySport).map(([sport, xs]) => [sport, summarizeExecutedBetsCore(xs)])),
+  };
+}
+
+function summarizeExecutedBetsCore(rows) {
   const xs = rows || [];
   const terminal = xs.filter((t) => ["WON", "LOST", "PUSH", "VOID"].includes(t.result));
   const decided = terminal.filter((t) => t.result === "WON" || t.result === "LOST");
@@ -343,6 +357,9 @@ export function summarizeExecutedBets(rows) {
     manualReview,
     unresolved: open + manualReview,
     record: decided.length ? `${wins}-${losses}` : null,
+    wins,
+    losses,
+    hitRate: decided.length ? wins / decided.length : null,
     risk: n ? Math.round(risk * 100) / 100 : null,
     profit: profits.length ? Math.round(profit * 100) / 100 : null,
     roi: profits.length && risk ? profit / risk : null,

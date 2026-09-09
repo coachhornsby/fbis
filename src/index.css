@@ -431,6 +431,8 @@ header h1 {
 }
 .sys-section-nav .panel-body { padding: 8px 10px; }
 .sys-section-nav .chip { text-decoration: none; display: inline-flex; align-items: center; }
+.sys-scoreboard th, .sys-scoreboard td { white-space: nowrap; }
+.sys-scoreboard td strong { font-weight: 700; letter-spacing: 0.02em; }
 .headline-line { color: #b7d4ea; font-size: 13px; margin: 0 0 12px; }
 .subhead {
   color: var(--blue-light);

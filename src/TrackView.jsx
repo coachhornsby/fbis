@@ -58,11 +58,14 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
   const [teamInput, setTeamInput] = useState(filters?.team || "");
   const compact = useIsCompact(760);
   const [openPanels, setOpenPanels] = useState({
-    model: true,
+    model: false,
     guide: false,
     calFav: false,
     calHome: false,
     bySport: false,
+    ops: false,
+    research: false,
+    projections: false,
   });
   const actionIssues = [];
   if (error) actionIssues.push(`SYS feed error: ${error}`);
@@ -108,73 +111,49 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
         <div className="panel-body">
           <div className="chip-row">
             {actionIssues.length ? <a className="chip active" href="#action-required">Action required</a> : null}
-            <a className="chip" href="#overall-health">Overall health</a>
-            <a className="chip" href="#scheduled-proof">Scheduled proof</a>
-            <a className="chip" href="#sport-systems">Sport systems</a>
-            <a className="chip" href="#research-db">Research DB</a>
-            <a className="chip" href="#settlement-backlog">Settlement backlog</a>
-            <a className="chip" href="#projection-accuracy">Projection accuracy</a>
-            <a className="chip" href="#strategy-seed-prospective">Strategy</a>
+            <a className="chip" href="#results-scoreboard">Results</a>
+            <a className="chip" href="#your-picks">Your picks</a>
+            <a className="chip" href="#strategy-seed-prospective">Strategy detail</a>
+            <a className="chip" href="#ops-health">Ops health</a>
+            <a className="chip" href="#projection-accuracy">Projections</a>
             <a className="chip" href="#sys-anomalies">Anomalies</a>
             <a className="chip" href="#clv-tracker">CLV</a>
-            <a className="chip" href="#projection-vs-final">Projection vs final</a>
-          </div>
-          <div style={{ marginTop: 10 }}>
-            <label className="muted" htmlFor="sys-section-jump">Section</label>
-            <select
-              id="sys-section-jump"
-              style={{ marginLeft: 8 }}
-              onChange={(e) => {
-                const el = document.querySelector(e.target.value);
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-              defaultValue=""
-            >
-              <option value="" disabled>Select section</option>
-              <option value="#overall-health">Overall health</option>
-              <option value="#scheduled-proof">Scheduled proof</option>
-              <option value="#sport-systems">Sport systems</option>
-              <option value="#research-db">Research DB</option>
-              <option value="#settlement-backlog">Settlement backlog</option>
-              <option value="#strategy-seed-prospective">Strategy</option>
-              <option value="#sys-anomalies">Anomalies</option>
-              <option value="#projection-accuracy">Projection accuracy</option>
-              <option value="#projection-vs-final">Projection vs final</option>
-            </select>
           </div>
         </div>
       </section>
 
-      <section id="overall-health" className="panel">
-        <div className="panel-header"><h2>Overall pipeline health</h2><span className="last-updated">{badgeLabel(state || "DEGRADED")}</span></div>
-        <div className="panel-body">
-          <div className="status-grid">
-            <Stat label="Semantic state" value={state || "DEGRADED"} />
-            <Stat label="Current attempt" value={fmtTs(attemptAt)} />
-            <Stat label="Last success" value={fmtTs(lastSuccessAt)} />
-            <Stat label="Data source" value={db.source || report?.source || "unknown"} />
-            <Stat label="Health source" value={db.healthSource || "unknown"} />
-          </div>
-          <p className="muted">Effective scope: {report?.accuracySummary?.dateRange?.since || "—"} to {report?.accuracySummary?.dateRange?.until || "—"} · selected days={filters?.days || "—"}.</p>
-        </div>
-      </section>
+      <StrategyPanel sectionId="results-scoreboard" reloadKey={`${lastSuccessAt || ""}:${attemptAt || ""}`} />
 
-      <section id="scheduled-proof" className="panel">
-        <div className="panel-header"><h2>Scheduled pipeline proof</h2><span className="last-updated">{db.scheduled?.lastEventType || "unverified"}</span></div>
+      <HeritageExecutedPanel summary={report?.executedBets?.summary} unavailable={unavailable} />
+
+      <section id="ops-health" className="panel">
+        <div className="panel-header">
+          <h2>Ops health</h2>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span className="last-updated">{badgeLabel(state || "DEGRADED")}</span>
+            <button className="header-btn" onClick={() => togglePanel("ops")}>{openPanels.ops ? "Collapse" : "Expand"}</button>
+          </div>
+        </div>
         <div className="panel-body">
           <div className="status-grid">
-            <Stat label="Scheduled collect state" value={db.scheduled?.collect?.state || "unknown"} />
-            <Stat label="Scheduled harvest state" value={db.scheduled?.harvest?.state || "unknown"} />
-            <Stat label="Last scheduled collect" value={fmtTs(db.lastScheduledCollectSuccess || db.scheduled?.collect?.lastObservedAt)} />
-            <Stat label="Last scheduled harvest" value={fmtTs(db.lastScheduledHarvestSuccess || db.scheduled?.harvest?.lastObservedAt)} />
-            <Stat label="Last scheduled run URL" value={db.scheduled?.lastRunUrl || "unverified"} />
+            <Stat label="Pipeline" value={badgeLabel(state || "DEGRADED")} />
+            <Stat label="Collect" value={db.scheduled?.collect?.state || "unknown"} />
+            <Stat label="Harvest" value={db.scheduled?.harvest?.state || "unknown"} />
+            <Stat label="D1 write" value={Number(db.failedWrites || 0) === 0 ? "healthy" : "degraded"} />
           </div>
-          <p className="muted">
-            {db.scheduled?.collect?.state || db.scheduled?.harvest?.state
-              ? `Durable D1 schedule proof: collect=${db.scheduled?.collect?.state || "unknown"}, harvest=${db.scheduled?.harvest?.state || "unknown"}.`
-              : "Durable D1 schedule proof unavailable."}
-            {db.scheduled?.lastRunUrl ? " Last scheduled run URL is recorded in D1." : " No last scheduled run URL recorded yet."}
-          </p>
+          {openPanels.ops ? (
+            <>
+              <p className="muted" style={{ marginTop: 10 }}>
+                Collect {fmtTs(db.lastScheduledCollectSuccess || db.scheduled?.collect?.lastObservedAt)} · Harvest {fmtTs(db.lastScheduledHarvestSuccess || db.scheduled?.harvest?.lastObservedAt)}
+                {db.scheduled?.lastRunUrl ? ` · ${db.scheduled.lastRunUrl}` : ""}
+              </p>
+              <p className="muted">
+                {db.scheduled?.collect?.state || db.scheduled?.harvest?.state
+                  ? `Durable D1 schedule proof: collect=${db.scheduled?.collect?.state || "unknown"}, harvest=${db.scheduled?.harvest?.state || "unknown"}.`
+                  : "Durable D1 schedule proof unavailable."}
+              </p>
+            </>
+          ) : null}
         </div>
       </section>
 
@@ -202,21 +181,21 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
       <section id="research-db" className="panel">
         <div className="panel-header">
           <h2>Research DB</h2>
-          <span className="last-updated">{loading ? "Loading…" : db.lastWrite ? `${new Date(db.lastWrite).toLocaleTimeString("en-US", { timeZone: "America/Chicago" })} CT` : ""}</span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span className="last-updated">{loading ? "Loading…" : db.lastWrite ? `${new Date(db.lastWrite).toLocaleTimeString("en-US", { timeZone: "America/Chicago" })} CT` : ""}</span>
+            <button className="header-btn" onClick={() => togglePanel("research")}>{openPanels.research ? "Collapse" : "Expand"}</button>
+          </div>
         </div>
         <div className="panel-body">
           <div className={`db-banner ${db.ok ? "db-ok" : "db-bad"}`}>
             {db.ok ? "RESEARCH DB: READ HEALTHY" : `RESEARCH DB ${db.reason === "unbound" ? "UNBOUND" : "ERROR"}`}
             <span className="muted" style={{ marginLeft: 10 }}>
-              health source {db.healthSource || db.source || report?.source || "—"} · snapshot rows today {db.predictions ?? 0} · snapshot graded today {db.graded ?? 0} · snapshot awaiting (≤14d) {db.awaiting ?? 0}
-              {report?.accuracySummary?.n != null ? ` · projection games graded ${report.accuracySummary.n}` : ""}
-              {db.lastCollectSuccess || db.lastCollect ? ` · collect ${new Date(db.lastCollectSuccess || db.lastCollect).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
-              {db.lastHarvestSuccess || db.lastHarvest ? ` · harvest ${new Date(db.lastHarvestSuccess || db.lastHarvest).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT` : ""}
+              collect {db.scheduled?.collect?.state || "—"} · harvest {db.scheduled?.harvest?.state || "—"}
               {db.failedWrites ? ` · failed writes ${db.failedWrites}` : ""}
-              {db.failedHarvests ? ` · failed harvests ${db.failedHarvests}` : ""}
-              {db.lastError ? ` · ${db.lastError}` : ""}
             </span>
           </div>
+          {openPanels.research ? (
+          <>
           <div className="status-grid" style={{ marginTop: 10 }}>
             <Stat label="D1 binding" value={db.bound === false ? "unbound" : "bound"} />
             <Stat label="D1 read health" value={db.ok ? "healthy" : "failed"} />
@@ -297,6 +276,8 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
           <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
             Heritage Confirm writes from this site without pasting HARVEST_SECRET. Collect and strategy POST still use the Pages secret.
           </p>
+          </>
+          ) : null}
         </div>
       </section>
 
@@ -550,8 +531,6 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
           </table></div>
         </div> : null}
       </section>
-
-      <StrategyPanel sectionId="strategy-seed-prospective" reloadKey={report?.generatedAt || report?.db?.lastWrite || ""} />
 
       <section id="sys-anomalies" className="panel">
         <div className="panel-header">
@@ -1146,11 +1125,160 @@ function OverBlock({ over }) {
   );
 }
 
+function fmtRecord(stats) {
+  if (!stats) return "—";
+  const w = Number(stats.wins || 0);
+  const l = Number(stats.losses || 0);
+  const p = Number(stats.pushes || 0);
+  const v = Number(stats.voids || 0);
+  let s = `${w}-${l}`;
+  if (p) s += `-${p}`;
+  if (v) s += ` (${v} void)`;
+  return s;
+}
+
+function convictionStatsForGroup(group) {
+  if (group?.convictionStats) return group.convictionStats;
+  const tickets = (group?.tickets || []).filter((t) => String(t.tag || "").toUpperCase() === "CONVICTION");
+  if (!tickets.length && group?.stats) return group.stats;
+  const settled = tickets.filter((t) => t.result === "WON" || t.result === "LOST");
+  const wins = settled.filter((t) => t.result === "WON").length;
+  const losses = settled.filter((t) => t.result === "LOST").length;
+  return {
+    n: tickets.length,
+    open: tickets.filter((t) => !t.result || t.result === "OPEN").length,
+    settled: settled.length,
+    wins,
+    losses,
+    pushes: tickets.filter((t) => t.result === "PUSH").length,
+    voids: tickets.filter((t) => t.result === "VOID").length,
+    hitRate: settled.length ? wins / settled.length : null,
+  };
+}
+
+function ConvictionScoreboard({ rows }) {
+  if (!rows.length) {
+    return <p className="muted">No conviction tickets yet.</p>;
+  }
+  return (
+    <div className="table-scroll">
+      <table className="fbis-table sys-scoreboard">
+        <thead>
+          <tr>
+            <th>Sport</th>
+            <th>Record</th>
+            <th>Hit rate</th>
+            <th>Open</th>
+            <th>Settled</th>
+            <th>Tickets</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((group) => {
+            const s = convictionStatsForGroup(group);
+            return (
+              <tr key={`conv-${group.sport}`}>
+                <td>
+                  <strong>{group.label || String(group.sport || "").toUpperCase()}</strong>
+                </td>
+                <td>{fmtRecord(s)}</td>
+                <td>{Number(s.settled || 0) > 0 ? fmtPct(s.hitRate) : "—"}</td>
+                <td>{s.open ?? 0}</td>
+                <td>{s.settled ?? 0}</td>
+                <td>{s.n ?? 0}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function HeritageExecutedPanel({ summary, unavailable }) {
+  const bySport = summary?.bySport && typeof summary.bySport === "object" ? summary.bySport : {};
+  const sportRows = Object.keys(bySport)
+    .sort()
+    .map((sport) => ({ sport, ...(bySport[sport] || {}) }));
+
+  return (
+    <section id="your-picks" className="panel">
+      <div className="panel-header">
+        <h2>Your picks (Heritage)</h2>
+        <span className="last-updated">
+          {unavailable ? "Unavailable" : `${summary?.bets ?? 0} tickets`}
+        </span>
+      </div>
+      <div className="panel-body">
+        <p className="muted" style={{ marginBottom: 10 }}>
+          Operator tickets you confirmed at Heritage. Tallied separately from FBIS-HC-v1 conviction research — never mixed into strategy hit rate.
+        </p>
+        {unavailable ? (
+          <p className="error">Executed-bet summary unavailable until SYS recovers.</p>
+        ) : !summary || !(summary.bets > 0) ? (
+          <p className="muted">No executed bets yet. Confirm picks from Research to start the tally.</p>
+        ) : (
+          <>
+            <div className="status-grid" style={{ marginBottom: 12 }}>
+              <Stat label="Record" value={summary.record || `${summary.wins ?? 0}-${summary.losses ?? 0}`} />
+              <Stat label="Hit rate" value={Number(summary.decided || 0) > 0 ? fmtPct(summary.hitRate) : "—"} />
+              <Stat label="Open" value={summary.open ?? 0} />
+              <Stat label="Push / Void" value={`${summary.pushes ?? 0} / ${summary.voids ?? 0}`} />
+              <Stat label="Profit" value={summary.profit == null ? "—" : fmtSigned(summary.profit, 2)} />
+              <Stat label="ROI" value={summary.roi == null ? "—" : fmtPct(summary.roi)} />
+              <Stat label="Risk" value={summary.risk == null ? "—" : `$${Number(summary.risk).toFixed(2)}`} />
+              <Stat label="Tickets" value={summary.bets ?? 0} />
+            </div>
+            {sportRows.length ? (
+              <>
+                <h3 className="subhead">By sport</h3>
+                <div className="table-scroll">
+                  <table className="fbis-table sys-scoreboard">
+                    <thead>
+                      <tr>
+                        <th>Sport</th>
+                        <th>Record</th>
+                        <th>Hit rate</th>
+                        <th>Open</th>
+                        <th>Profit</th>
+                        <th>Tickets</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sportRows.map((row) => (
+                        <tr key={`exec-${row.sport}`}>
+                          <td>
+                            <strong>{SPORTS[row.sport]?.label || String(row.sport || "").toUpperCase()}</strong>
+                          </td>
+                          <td>
+                            {row.record || `${row.wins ?? 0}-${row.losses ?? 0}`}
+                            {row.voids ? ` (${row.voids} void)` : ""}
+                          </td>
+                          <td>{Number(row.decided || 0) > 0 ? fmtPct(row.hitRate) : "—"}</td>
+                          <td>{row.open ?? 0}</td>
+                          <td>{row.profit == null ? "—" : fmtSigned(row.profit, 2)}</td>
+                          <td>{row.bets ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : null}
+            {summary.message ? <p className="muted" style={{ marginTop: 8 }}>{summary.message}</p> : null}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function StrategyPanel({ sectionId = "", reloadKey = "" }) {
   const [pack, setPack] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [attemptAt, setAttemptAt] = useState("");
   const [lastSuccessAt, setLastSuccessAt] = useState("");
+  const [showDetail, setShowDetail] = useState(false);
   useEffect(() => {
     const ac = new AbortController();
     setAttemptAt(new Date().toISOString());
@@ -1184,14 +1312,35 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
   const integrity = pack?.integrity || {};
   const cohort = pack?.yesterdayConvictionCohort || null;
   const semanticUnavailable = Boolean(loadError);
+  const scoreboardRows = proBySport.length
+    ? proBySport
+    : pro.tickets?.length
+      ? splitRowsBySport(pro.tickets).map((g) => ({ ...g, tickets: g.rows, label: g.label }))
+      : [];
+  const totals = scoreboardRows.reduce(
+    (acc, g) => {
+      const s = convictionStatsForGroup(g);
+      acc.wins += Number(s.wins || 0);
+      acc.losses += Number(s.losses || 0);
+      acc.open += Number(s.open || 0);
+      acc.settled += Number(s.settled || 0);
+      acc.n += Number(s.n || 0);
+      acc.pushes += Number(s.pushes || 0);
+      acc.voids += Number(s.voids || 0);
+      return acc;
+    },
+    { wins: 0, losses: 0, open: 0, settled: 0, n: 0, pushes: 0, voids: 0 }
+  );
+  const totalsHit = totals.settled > 0 ? totals.wins / totals.settled : null;
+
   return (
     <section id={sectionId || undefined} className="panel">
       <div className="panel-header">
-        <h2>Strategy · FBIS-HC-v1</h2>
+        <h2>Conviction results (FBIS-HC-v1)</h2>
         <span className="last-updated">
           {semanticUnavailable
             ? "DATA UNAVAILABLE"
-            : `expected N=${pack?.expectedSeedN || 7} · recovered ${pack?.actualRecoveredN ?? rec.recoveredN ?? 0} · ${rec.state || rec.confidence || "operator-declared"}`}
+            : `${totals.wins}-${totals.losses} · ${totals.open} open · ${scoreboardRows.length} sport${scoreboardRows.length === 1 ? "" : "s"}`}
         </span>
       </div>
       <div className="panel-body">
@@ -1200,110 +1349,109 @@ function StrategyPanel({ sectionId = "", reloadKey = "" }) {
             Canonical strategy population unavailable: {loadError}. Current attempt {fmtTs(attemptAt)}. Last success {fmtTs(lastSuccessAt)}.
           </div>
         ) : null}
-        <p className="headline-line" style={{ color: pack?.convictionQualification?.paused ? "#f0c674" : "#28d17c", fontWeight: 700 }}>
-          {pack?.convictionQualification?.message || (pack?.convictionQualification?.paused
-            ? "CONVICTION QUALIFICATION PAUSED — probability integrity verification pending"
-            : "CONVICTION ACTIVE — automated integrity gates enabled")}
-        </p>
-        <p className="headline-line">
-          High-conviction means a <b>qualified</b> ticket with EV ≥ 8% (tag CONVICTION). Leans are excluded.
-          The 7-0 does not rewrite blend weights. N=7 is not evidence the filter works.
-        </p>
-        <div className="status-grid" style={{ marginBottom: 10 }}>
-          <Stat label="Operator-reported history" value={pack?.reportedRecord || "7-0"} />
-          <Stat label="Recovered N" value={pack?.actualRecoveredN ?? rec.recoveredN ?? 0} />
-          <Stat label="Recovery state" value={rec.state || "unrecovered"} />
-          <Stat label="Calculated inclusion" value="excluded from prospective metrics" />
-        </div>
+
         <p className="muted" style={{ marginBottom: 10 }}>
-          Population: FBIS-HC-v1 strategy tickets only (seed/prospective), separate from projection-accuracy populations and separate from imported Heritage execution results.
+          Research conviction tickets (qualified + EV ≥ 8%). Not your Heritage confirmations. Leans excluded.
         </p>
-        <p className="muted" style={{ marginBottom: 10 }}>
-          Reconstruction: {rec.state || rec.confidence || "operator-declared"}
-          {` · expected seed N=${pack?.expectedSeedN ?? 7}`}
-          {` · recovered N=${pack?.actualRecoveredN ?? rec.recoveredN ?? 0}`}
-          {` · recovered record ${pack?.recoveredRecord || rec.recoveredRecord || "—"}`}
-          {` · settled (recovered) ${pack?.settledTicketCount ?? rec.settledTicketCount ?? 0}`}
-          {` · operator-graded ${pack?.gradedRecord || rec.gradedRecord || seed.stats?.gradedRecord || "—"}`}
-          {rec.note ? ` — ${rec.note}` : ""}
-        </p>
-        <p className="muted" style={{ marginBottom: 10 }}>
-          {pack?.strategy?.seedObservation ||
-            "The 2026-08-26 seed sample was MLB-heavy overs (5/7 totals at 8.5–9.5, 1 ML, 1 +1.5 RL). That is an observation, not a gate."}
-        </p>
-        {cohort ? (
-          <>
-            <h3 className="subhead">Yesterday prospective CONVICTION cohort (America/Chicago)</h3>
-            <div className="status-grid" style={{ marginBottom: 10 }}>
-              <Stat label="Date (CT)" value={cohort.targetDateCt || "—"} />
-              <Stat label="Label" value={cohort.label || "—"} />
-              <Stat label="Recovered N" value={cohort.recoveredN ?? 0} />
-              <Stat label="Settled" value={cohort.settledN ?? 0} />
-              <Stat label="Open" value={cohort.openN ?? 0} />
-              <Stat label="W-L" value={`${cohort.wins ?? 0}-${cohort.losses ?? 0}`} />
-              <Stat label="Push/Void" value={`${cohort.pushes ?? 0}/${cohort.voids ?? 0}`} />
-              <Stat label="Unresolved" value={cohort.unresolved ?? 0} />
-              <Stat label="Units" value={fmtSigned(cohort.units)} />
-              <Stat label="ROI" value={fmtSigned(cohort.roi)} />
-              <Stat label="Avg CLV" value={fmtSigned(cohort.averageClv)} />
-            </div>
-          </>
-        ) : null}
-        {semanticUnavailable ? <div className="empty">Calculated strategy summary unavailable until canonical strategy query succeeds.</div> : pro.aggregateUnavailable ? (
-          <div className="empty">Prospective aggregate unavailable: {pro.aggregateReason || "mixed populations require grouped breakdowns."}</div>
-        ) : (
-          <div className="status-grid" style={{ marginBottom: 12 }}>
-            <Stat label="Expected N" value={pack?.expectedSeedN ?? 7} />
-            <Stat label="Recovered N" value={pack?.actualRecoveredN ?? rec.recoveredN ?? 0} />
-            <Stat label="State" value={rec.state || rec.confidence || "unrecovered"} />
-            <Stat label="Recovered record" value={pack?.recoveredRecord || rec.recoveredRecord || "—"} />
-            <Stat label="Graded (named)" value={pack?.gradedRecord || rec.gradedRecord || (seed.stats?.settled ? `${seed.stats.wins}-${seed.stats.losses}` : "—")} />
-            <Stat label="Prospective N" value={pro.stats?.n ?? 0} />
-            <Stat label="Prospective hit" value={fmtPct(pro.stats?.hitRate)} />
-            <Stat label="Prospective ROI" value={fmtSigned(pro.stats?.roi)} />
-            <Stat label="Avg CLV" value={fmtSigned(pro.stats?.avgClv)} />
-            <Stat label="Drawdown" value={fmtSigned(pro.stats?.drawdown)} />
-            <Stat label="Open" value={pro.stats?.open ?? 0} />
-          </div>
-        )}
+
         {!semanticUnavailable ? (
           <>
-        <PopulationDescriptor descriptor={pack?.population?.prospective} title="Strategy prospective population descriptor" />
-        <h3 className="subhead">Prospective integrity</h3>
-        <div className="status-grid" style={{ marginBottom: 12 }}>
-          <Stat label="Open tickets" value={integrity.open ?? 0} />
-          <Stat label="Settled tickets" value={integrity.settled ?? 0} />
-          <Stat label="Unresolved finals" value={integrity.unresolved ?? 0} />
-          <Stat label="Pushes" value={integrity.pushes ?? 0} />
-          <Stat label="Voids" value={integrity.voids ?? 0} />
-          <Stat label="Duplicates excluded" value={integrity.duplicatesExcluded ?? 0} />
-          <Stat label="Provenance invalid" value={integrity.invalid ?? 0} />
-          <Stat label="Provenance quarantined" value={integrity.quarantined ?? 0} />
-        </div>
-        <p className="muted" style={{ marginBottom: 8 }}>
-          Breakdown sport={fmtMapSummary(integrity.breakdowns?.sport)} · market={fmtMapSummary(integrity.breakdowns?.marketFamily)} · period={fmtMapSummary(integrity.breakdowns?.periodFamily)} · model={fmtMapSummary(integrity.breakdowns?.modelVersion)} · qual={fmtMapSummary(integrity.breakdowns?.qualificationRuleVersion)}
-        </p>
-        <h3 className="subhead">Seed traits (shared characteristics)</h3>
-        <TraitLine traits={seed.traits} />
-        <h3 className="subhead">Seed tickets</h3>
-        {(seedBySport.length ? seedBySport : [{ sport: "all", label: "All sports", rows: seed.tickets || [] }]).map((group) => (
-          <div key={`seed-${group.sport}`}>
-            <p className="muted" style={{ marginBottom: 8 }}>
-              {group.label}: N={group.rows?.length || 0}
+            <h3 className="subhead">Hit rate by sport</h3>
+            {pro.aggregateUnavailable ? (
+              <p className="muted" style={{ marginBottom: 8 }}>
+                Mixed markets/models across sports — hit rates below are per sport (no blended aggregate).
+              </p>
+            ) : null}
+            <ConvictionScoreboard rows={scoreboardRows} />
+            {scoreboardRows.length > 1 ? (
+              <div className="status-grid" style={{ marginTop: 10, marginBottom: 4 }}>
+                <Stat label="All sports (sum)" value={fmtRecord(totals)} />
+                <Stat label="Combined hit" value={totals.settled > 0 ? fmtPct(totalsHit) : "—"} />
+                <Stat label="Open" value={totals.open} />
+                <Stat label="Tickets" value={totals.n} />
+              </div>
+            ) : null}
+
+            {cohort ? (
+              <div style={{ marginTop: 12 }}>
+                <h3 className="subhead">Yesterday (CT) · {cohort.targetDateCt || "—"}</h3>
+                <div className="status-grid" style={{ marginBottom: 4 }}>
+                  <Stat label="W-L" value={`${cohort.wins ?? 0}-${cohort.losses ?? 0}`} />
+                  <Stat label="Settled / Open" value={`${cohort.settledN ?? 0} / ${cohort.openN ?? 0}`} />
+                  <Stat label="Push / Void" value={`${cohort.pushes ?? 0} / ${cohort.voids ?? 0}`} />
+                  <Stat label="Units" value={fmtSigned(cohort.units)} />
+                </div>
+              </div>
+            ) : null}
+
+            {!pro.aggregateUnavailable && pro.stats ? (
+              <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
+                Same-population aggregate: {fmtRecord(pro.stats)} · hit {fmtPct(pro.stats.hitRate)} · ROI {fmtSigned(pro.stats.roi)} · CLV N={pro.stats.clvN ?? 0}
+              </p>
+            ) : null}
+
+            <p className="headline-line" style={{ marginTop: 12, color: pack?.convictionQualification?.paused ? "#f0c674" : "#28d17c", fontWeight: 600 }}>
+              {pack?.convictionQualification?.message || (pack?.convictionQualification?.paused
+                ? "CONVICTION QUALIFICATION PAUSED"
+                : "CONVICTION ACTIVE")}
             </p>
-            <TicketTable rows={group.rows || []} empty={`No ${group.label} seed tickets.`} />
-          </div>
-        ))}
-        <h3 className="subhead">Prospective matches</h3>
-        {(proBySport.length ? proBySport : [{ sport: "all", label: "All sports", tickets: pro.tickets || [], stats: pro.stats || {} }]).map((group) => (
-          <div key={`pro-${group.sport}`}>
-            <p className="muted" style={{ marginBottom: 8 }}>
-              {group.label}: N={group.stats?.n ?? group.tickets?.length ?? 0} · Open {group.stats?.open ?? 0} · Settled {group.stats?.settled ?? 0}
-            </p>
-            <TicketTable rows={(group.tickets || []).slice(0, 40)} empty={`No ${group.label} prospective tickets.`} />
-          </div>
-        ))}
           </>
+        ) : (
+          <p className="muted">Scoreboard waits on a successful strategy query — other SYS sections above still load from the last report.</p>
+        )}
+
+        <div id="strategy-seed-prospective" style={{ marginTop: 14 }}>
+          <button type="button" className="header-btn" onClick={() => setShowDetail((v) => !v)}>
+            {showDetail ? "Hide strategy detail" : "Show strategy detail"}
+          </button>
+        </div>
+
+        {showDetail && !semanticUnavailable ? (
+          <div style={{ marginTop: 12 }}>
+            <p className="muted" style={{ marginBottom: 10 }}>
+              Seed recovery: expected N={pack?.expectedSeedN ?? 7} · recovered {pack?.actualRecoveredN ?? rec.recoveredN ?? 0} ·{" "}
+              {rec.state || rec.confidence || "operator-declared"} · recovered record {pack?.recoveredRecord || rec.recoveredRecord || "—"} ·
+              graded {pack?.gradedRecord || rec.gradedRecord || "—"}. Operator-reported {pack?.reportedRecord || "7-0"} is not calculated performance.
+            </p>
+            <PopulationDescriptor descriptor={pack?.population?.prospective} title="Strategy prospective population descriptor" />
+            <h3 className="subhead">Prospective integrity</h3>
+            <div className="status-grid" style={{ marginBottom: 12 }}>
+              <Stat label="Open tickets" value={integrity.open ?? 0} />
+              <Stat label="Settled tickets" value={integrity.settled ?? 0} />
+              <Stat label="Unresolved finals" value={integrity.unresolved ?? 0} />
+              <Stat label="Pushes" value={integrity.pushes ?? 0} />
+              <Stat label="Voids" value={integrity.voids ?? 0} />
+              <Stat label="Duplicates excluded" value={integrity.duplicatesExcluded ?? 0} />
+              <Stat label="Provenance invalid" value={integrity.invalid ?? 0} />
+              <Stat label="Provenance quarantined" value={integrity.quarantined ?? 0} />
+            </div>
+            <p className="muted" style={{ marginBottom: 8 }}>
+              Breakdown sport={fmtMapSummary(integrity.breakdowns?.sport)} · market={fmtMapSummary(integrity.breakdowns?.marketFamily)} · period={fmtMapSummary(integrity.breakdowns?.periodFamily)} · model={fmtMapSummary(integrity.breakdowns?.modelVersion)} · qual={fmtMapSummary(integrity.breakdowns?.qualificationRuleVersion)}
+            </p>
+            <h3 className="subhead">Seed traits</h3>
+            <TraitLine traits={seed.traits} />
+            <h3 className="subhead">Seed tickets</h3>
+            {(seedBySport.length ? seedBySport : [{ sport: "all", label: "All sports", rows: seed.tickets || [] }]).map((group) => (
+              <div key={`seed-${group.sport}`}>
+                <p className="muted" style={{ marginBottom: 8 }}>
+                  {group.label}: N={group.rows?.length || 0}
+                </p>
+                <TicketTable rows={group.rows || []} empty={`No ${group.label} seed tickets.`} />
+              </div>
+            ))}
+            <h3 className="subhead">Prospective tickets</h3>
+            {(proBySport.length ? proBySport : [{ sport: "all", label: "All sports", tickets: pro.tickets || [], stats: pro.stats || {} }]).map((group) => {
+              const cs = convictionStatsForGroup(group);
+              return (
+                <div key={`pro-${group.sport}`}>
+                  <p className="muted" style={{ marginBottom: 8 }}>
+                    {group.label}: {fmtRecord(cs)} · hit {Number(cs.settled || 0) > 0 ? fmtPct(cs.hitRate) : "—"} · Open {cs.open ?? 0} · N={cs.n ?? 0}
+                  </p>
+                  <TicketTable rows={(group.tickets || []).slice(0, 40)} empty={`No ${group.label} prospective tickets.`} />
+                </div>
+              );
+            })}
+          </div>
         ) : null}
       </div>
     </section>
