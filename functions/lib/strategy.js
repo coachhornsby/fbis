@@ -298,6 +298,7 @@ export function strategyStats(tickets) {
   const wins = settled.filter((t) => t.result === "WON").length;
   const losses = settled.filter((t) => t.result === "LOST").length;
   const pushes = xs.filter((t) => t.result === "PUSH").length;
+  const voids = xs.filter((t) => t.result === "VOID").length;
   const profits = xs.map((t) => finiteOrNull(t.profit)).filter((v) => v != null);
   const settledWithProfit = settled.filter((t) => finiteOrNull(t.profit) != null);
   const roi =
@@ -327,6 +328,7 @@ export function strategyStats(tickets) {
     wins,
     losses,
     pushes,
+    voids,
     hitRate: settled.length ? wins / settled.length : null,
     roi,
     roiN: settledWithProfit.length,

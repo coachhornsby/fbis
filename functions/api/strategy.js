@@ -87,6 +87,10 @@ function presentTicketWithCanonicalMatchup(ticket, gameById) {
   };
 }
 
+function convictionOnly(tickets = []) {
+  return (tickets || []).filter((t) => String(t.tag || "").toUpperCase() === "CONVICTION");
+}
+
 function groupBySport(tickets = []) {
   const buckets = new Map();
   for (const t of tickets || []) {
@@ -98,11 +102,15 @@ function groupBySport(tickets = []) {
     .filter((sport) => buckets.has(sport))
     .map((sport) => {
       const rows = buckets.get(sport) || [];
+      const conviction = convictionOnly(rows);
       return {
         sport,
         label: SPORT_LABEL[sport] || String(sport).toUpperCase(),
         tickets: rows,
         stats: strategyStats(rows),
+        // Always present for SYS scoreboard — even when aggregate stats are null due to mixed populations.
+        convictionStats: strategyStats(conviction),
+        convictionN: conviction.length,
         traits: characterizeTickets(rows),
       };
     });
