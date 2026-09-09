@@ -166,6 +166,77 @@ export function ticketId(ticket, date) {
   return `${ticket.sport || ""}:${day}:${ticket.gameId || ticket.game_id}:${ticket.market}:${ticket.side}`;
 }
 
+/**
+ * Plan VOID for OPEN strategy tickets that reuse the same gameId across multiple dates.
+ * Keep one canonical date per (sport, gameId, market, side); void the rest.
+ */
+export function planCrossDateStrategyCleanup(tickets = [], { gameById = new Map() } = {}) {
+  const open = (tickets || []).filter((t) => !t.result || t.result === "OPEN");
+  const groups = new Map();
+  for (const t of open) {
+    const sport = String(t.sport || "").toLowerCase();
+    const gameId = String(t.gameId || t.game_id || "").trim();
+    const market = String(t.market || "");
+    const side = String(t.side || "");
+    const date = String(t.date || "").slice(0, 10);
+    if (!sport || !gameId || !market || !side || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const key = `${sport}|${gameId}|${market}|${side}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(t);
+  }
+
+  const voidRows = [];
+  const keepRows = [];
+  for (const [, rows] of groups) {
+    const dates = [...new Set(rows.map((t) => String(t.date).slice(0, 10)))];
+    if (dates.length <= 1) {
+      keepRows.push(...rows);
+      continue;
+    }
+    const sample = rows[0];
+    const game = gameById.get(String(sample.gameId || sample.game_id || "")) || null;
+    let canonical = null;
+    if (game) {
+      const fromStart = dateCT(game.start || game.commence || null);
+      const fromDate = String(game.date || "").slice(0, 10);
+      if (fromStart && dates.includes(fromStart)) canonical = fromStart;
+      else if (/^\d{4}-\d{2}-\d{2}$/.test(fromDate) && dates.includes(fromDate)) canonical = fromDate;
+    }
+    if (!canonical) {
+      // Prefer the row with usable model probability / higher data quality, else earliest date.
+      const ranked = [...rows].sort((a, b) => {
+        const aProb = a.modelProbability != null || a.fair != null ? 1 : 0;
+        const bProb = b.modelProbability != null || b.fair != null ? 1 : 0;
+        if (bProb !== aProb) return bProb - aProb;
+        const aQ = Number(a.dataQuality);
+        const bQ = Number(b.dataQuality);
+        const aQs = Number.isFinite(aQ) ? aQ : -1;
+        const bQs = Number.isFinite(bQ) ? bQ : -1;
+        if (bQs !== aQs) return bQs - aQs;
+        return String(a.date).localeCompare(String(b.date));
+      });
+      canonical = String(ranked[0].date).slice(0, 10);
+    }
+    for (const t of rows) {
+      const day = String(t.date).slice(0, 10);
+      if (day === canonical) keepRows.push(t);
+      else {
+        voidRows.push({
+          id: t.id,
+          sport: t.sport,
+          date: day,
+          gameId: t.gameId || t.game_id,
+          market: t.market,
+          side: t.side,
+          canonicalDate: canonical,
+          reason: "cross-date-duplicate",
+        });
+      }
+    }
+  }
+  return { keep: keepRows, void: voidRows, groups: groups.size };
+}
+
 export function requiresLine(market) {
   return LINE_MARKETS.has(String(market || ""));
 }

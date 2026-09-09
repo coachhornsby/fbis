@@ -362,7 +362,26 @@ jobs:
           fi
           if [ "$need_harvest" -eq 1 ]; then
             echo "Recovering missed/stale harvest using targeted settle dates"
-            mapfile -t TARGETS < <(jq -r '.pipeline.settleTargets // [] | .[] | "\(.sport):\(.date)"' "$tmp")
+            # Void cross-date duplicate OPEN strategy tickets before settle.
+            cross_tmp="$(mktemp)"
+            cross_code="$(curl -sS --max-time 90 -o "$cross_tmp" -w "%{http_code}" \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "content-type: application/json" \
+              -H "accept: application/json" \
+              -d '{"action":"cleanup-cross-date-strategy"}' \
+              "${BASE}/api/track")"
+            echo "cleanup-cross-date-strategy http=${cross_code}"
+            jq -c '{ok,voided,voidPlanned,keepN}' "$cross_tmp" || true
+            # Refresh settleTargets after voids so volume-sorted targets are accurate.
+            curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" -o "$tmp"
+            mapfile -t TARGETS < <(jq -r '
+              [.pipeline.settleTargets // []
+                | .[]
+                | select((.openExecutedBets // 0) > 0 or (.openStrategyTickets // 0) > 0)
+                | "\(.sport):\(.date)"]
+              | .[0:14]
+              | .[]
+            ' "$tmp")
             if [ "${#TARGETS[@]}" -eq 0 ]; then
               mapfile -t TARGETS < <(for i in 0 1 2 3; do
                 day="$(TZ=America/Chicago date -d "today - $i days" +%F)"
