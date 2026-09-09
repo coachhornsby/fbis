@@ -504,97 +504,96 @@ export default function App() {
       <div className="main-content">
         {error && <div className="panel"><div className="error">{error}</div></div>}
 
-        <Panel title="System Status" stamp={updated}>
-          <p className="muted" style={{ marginBottom: 8 }}>
-            Board attempt: {boardLastAttemptAt ? fmtStamp(boardLastAttemptAt) : "—"} · Last board success: {boardLastSuccessAt ? fmtStamp(boardLastSuccessAt) : "—"}
-            {boardStale ? " · Showing stale board snapshot." : ""}
-          </p>
-          <div className="status-grid">
-            <Stat label="Slate" value={slate?.counts?.games ?? "—"} />
-            <Stat label="Live" value={slate?.counts?.live ?? "—"} />
-            <Stat label="Open bets" value={executedStats.open} />
-            <Stat label="Record" value={executedStats.record || "—"} />
-            <Stat label="P/L" value={executedStats.profit == null ? "—" : `${executedStats.profit >= 0 ? "+" : ""}$${executedStats.profit.toFixed(2)}`} />
-            <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.3"} />
-            <Stat label="Pin / Heritage" value={bookLabel(slate)} />
-            <Stat label="Pal" value={palLabel(slate)} />
-            <Stat label="Parlay" value={parlayLabel(slate)} />
-          </div>
+        <Panel
+          title={`${String(SPORTS[sport]?.label || sport).toUpperCase()} Slate`}
+          stamp={updated}
+          extra={
+            <span className="last-updated">
+              {slate?.counts?.games ?? 0} games
+              {slate?.counts?.live ? ` · ${slate.counts.live} live` : ""}
+            </span>
+          }
+        >
           {sport === "cfb" ? (
-            <div className="today-controls" style={{ marginTop: 10 }}>
+            <div className="slate-toolbar">
               <button className="header-btn" onClick={() => setCfbWeekShift((n) => n - 1)}>Previous Week</button>
               <button className="header-btn" onClick={() => setCfbWeekShift(0)}>Current Week</button>
               <button className="header-btn" onClick={() => setCfbWeekShift((n) => n + 1)}>Next Week</button>
-              <span className="last-updated" style={{ marginLeft: 8 }}>
+              <span className="slate-meta">
                 Week {slate?.week?.number || "—"} · {slate?.week?.range?.since || "—"} to {slate?.week?.range?.until || "—"} CT
               </span>
             </div>
           ) : null}
-        </Panel>
-
-        <Panel title={`${String(SPORTS[sport]?.label || sport).toUpperCase()} Readiness`}>
-          <SportReadinessPanel sport={sport} slate={slate} />
-        </Panel>
-
-        <Panel title="Today's Slate" stamp={updated}>
           <div className="table-scroll"><SlateTable games={slate?.games || []} onLog={onLog} logged={loggedOpen} /></div>
         </Panel>
 
-        <Panel title="My Bets" extra={<span className="last-updated">{executedSportBets.length} imported · D1 history</span>}>
-          <div className="today-controls" style={{ marginBottom: 10 }}>
-            <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>IMPORT BET SLIP</button>
-          </div>
-          <div className="table-scroll"><ExecutedBetsTable bets={executedSportBets} /></div>
-        </Panel>
-
-        <Panel title="Qualified +EV" stamp={updated}>
+        <Panel title="Featured Plays" stamp={updated}>
           <div className="table-scroll"><RecTable games={recGames} onLog={onLog} logged={loggedOpen} /></div>
         </Panel>
 
-        <Panel title="Model leans">
-          <div className="table-scroll"><LeanTable games={leanGames} /></div>
-        </Panel>
-
-        <div className="compact-bottom">
-          <Panel title="Model Diagnostics">
-            <LearningPanel learn={learn} />
-          </Panel>
-          <div className="compact-stacked">
-            <Panel title="Cumulative P/L">
-              <PlCurve curve={stats.curve} />
+        {(leanGames.length > 0 || executedSportBets.length > 0) ? (
+          <div className="compact-bottom">
+            {leanGames.length ? (
+              <Panel title="Leans">
+                <div className="table-scroll"><LeanTable games={leanGames} /></div>
+              </Panel>
+            ) : null}
+            <Panel title="My Bets" extra={<span className="last-updated">{executedSportBets.length} imported</span>}>
+              <div className="today-controls" style={{ marginBottom: 10 }}>
+                <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>IMPORT BET SLIP</button>
+              </div>
+              <div className="table-scroll"><ExecutedBetsTable bets={executedSportBets} /></div>
             </Panel>
-            <Panel title="Model Accuracy">
+          </div>
+        ) : (
+          <Panel title="My Bets" extra={<span className="last-updated">0 imported</span>}>
+            <div className="today-controls" style={{ marginBottom: 10 }}>
+              <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>IMPORT BET SLIP</button>
+            </div>
+            <div className="table-scroll"><ExecutedBetsTable bets={executedSportBets} /></div>
+          </Panel>
+        )}
+
+        <details className="board-ops panel">
+          <summary className="panel-title">Board ops & diagnostics</summary>
+          <div className="panel-body board-ops-body">
+            <div>
+              <p className="muted" style={{ marginBottom: 8 }}>
+                Board attempt: {boardLastAttemptAt ? fmtStamp(boardLastAttemptAt) : "—"} · Last success: {boardLastSuccessAt ? fmtStamp(boardLastSuccessAt) : "—"}
+                {boardStale ? " · Showing stale board snapshot." : ""}
+              </p>
+              <div className="status-grid">
+                <Stat label="Slate" value={slate?.counts?.games ?? "—"} />
+                <Stat label="Live" value={slate?.counts?.live ?? "—"} />
+                <Stat label="Open bets" value={executedStats.open} />
+                <Stat label="Record" value={executedStats.record || "—"} />
+                <Stat label="P/L" value={executedStats.profit == null ? "—" : `${executedStats.profit >= 0 ? "+" : ""}$${executedStats.profit.toFixed(2)}`} />
+                <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.3"} />
+                <Stat label="Pin / Heritage" value={bookLabel(slate)} />
+                <Stat label="Pal" value={palLabel(slate)} />
+                <Stat label="Parlay" value={parlayLabel(slate)} />
+              </div>
+            </div>
+            <SportReadinessPanel sport={sport} slate={slate} />
+            <LearningPanel learn={learn} />
+            <div className="compact-stacked">
+              <PlCurve curve={stats.curve} />
               <p>
                 Projection accuracy lives on SYS. Logged-rec win rate{" "}
                 <b className={stats.winPct >= 0.52 ? "text-green" : "text-blue"}>{stats.winPct == null ? "—" : fmtPct(stats.winPct)}</b>
                 {stats.settled ? ` on ${stats.settled} settled tickets.` : " — no settled strategy tickets yet."}
               </p>
-            </Panel>
-          </div>
-          <div className="compact-stacked">
-            <Panel title="CLV Tracker">
-              <p>Positive CLV means Pinnacle close no-vig beat entry no-vig for the side you bet. Heritage Current Line is not Pin CLV. Model fair vs market is not CLV.</p>
               <div className="status-grid" style={{ marginTop: 10 }}>
                 <Stat label="Avg CLV" value={stats.clv == null ? "—" : `${stats.clv >= 0 ? "+" : ""}${stats.clv.toFixed(2)}`} />
               </div>
-            </Panel>
-            <Panel title="Alerts">
               <Alerts error={error} recs={recGames.length} open={stats.open} />
-            </Panel>
+            </div>
+            <div className="glossary-grid">
+              {sharedGlossary().map((x) => <G key={x.title} title={x.title} body={x.body} />)}
+              {glossaryBySport(sport).map((x) => <G key={x.title} title={x.title} body={x.body} />)}
+            </div>
           </div>
-        </div>
-
-        <Panel title="FBIS Help Drawer">
-          <div className="glossary-grid">
-            {sharedGlossary().map((x) => <G key={x.title} title={x.title} body={x.body} />)}
-          </div>
-        </Panel>
-
-        <Panel title={`${(SPORTS[sport]?.label || "Board").toUpperCase()} Sport Diagnostics`}>
-          <div className="glossary-grid">
-            {glossaryBySport(sport).map((x) => <G key={x.title} title={x.title} body={x.body} />)}
-          </div>
-        </Panel>
+        </details>
       </div>
       )}
       </main>
@@ -690,7 +689,7 @@ function Panel({ title, stamp, extra, children }) {
         <h2>{title}</h2>
         {extra || (stamp ? <span className="last-updated">{stamp} CT</span> : null)}
       </div>
-      <div className="panel-body" style={title.includes("Slate") || title.includes("Bets") || title.includes("Qualified") || title.includes("leans") ? { padding: 0 } : undefined}>
+      <div className="panel-body" style={/Slate|Bets|Featured|Leans|Qualified|leans/i.test(title) ? { padding: 0 } : undefined}>
         {children}
       </div>
     </section>
@@ -737,6 +736,60 @@ function Team({ t, align }) {
   );
 }
 
+function OddsTile({ line, price, hot = false }) {
+  if (line == null && price == null) {
+    return (
+      <div className="odds-tile">
+        <span className="odds-empty">—</span>
+      </div>
+    );
+  }
+  return (
+    <div className={`odds-tile${hot ? " odds-hot" : ""}`}>
+      {line != null ? <span className="odds-line">{line}</span> : null}
+      <span className="odds-price">{price == null ? "—" : fmtAmerican(price)}</span>
+    </div>
+  );
+}
+
+function fmtSpreadLine(n) {
+  if (n == null || Number.isNaN(Number(n))) return null;
+  const v = Number(n);
+  return v > 0 ? `+${v}` : String(v);
+}
+
+function slateSpread(game) {
+  return game.odds?.pinSpread ?? game.odds?.spread ?? null;
+}
+
+function slateTotal(game) {
+  return game.odds?.pinTotal ?? game.odds?.total ?? null;
+}
+
+function slateMl(game, side) {
+  if (side === "home") {
+    return game.odds?.pinHomeMl ?? game.odds?.homeMl ?? null;
+  }
+  return game.odds?.pinAwayMl ?? game.odds?.awayMl ?? null;
+}
+
+function slateSpreadPrice(game, side) {
+  if (side === "home") return game.odds?.pinSpreadHomePrice ?? game.odds?.spreadPrice ?? null;
+  return game.odds?.pinSpreadAwayPrice ?? null;
+}
+
+function slateTotalPrice(game, side) {
+  if (side === "over") return game.odds?.pinOverPrice ?? game.odds?.totalPrice ?? null;
+  return game.odds?.pinUnderPrice ?? null;
+}
+
+function playHot(game, market, side) {
+  const ticket = game.rec || game.lean;
+  if (!ticket) return false;
+  if (String(ticket.market || "").toUpperCase() !== market) return false;
+  return String(ticket.side || "").toUpperCase() === side;
+}
+
 function SlateTable({ games, onLog, logged }) {
   const [open, setOpen] = useState(() => new Set());
   const toggle = (id) => setOpen((before) => {
@@ -746,40 +799,46 @@ function SlateTable({ games, onLog, logged }) {
   });
   if (!games.length) return <div className="empty">No games on the board for this date.</div>;
   const mlb = games.some((g) => g.sport === "mlb" || g.homeSp || g.bpp);
-  const columns = 9 + (mlb ? 2 : 0);
+  const columns = 7 + (mlb ? 1 : 0);
   return (
-    <table className="fbis-table">
+    <table className="fbis-table slate-board">
       <thead>
         <tr>
-          <th>Matchup</th>
-          <th>Kick</th>
+          <th className="kick-col">Time</th>
+          <th className="matchup-col">Matchup</th>
           {mlb ? <th>SP</th> : null}
-          <th>Proj</th>
-          <th>{mlb ? "RL" : "Line"}</th>
-          <th>Pin vig</th>
-          {mlb ? <th>F5</th> : null}
-          <th>Public</th>
-          <th>Edge</th>
-          <th>Play</th>
+          <th className="odds-col">Spread</th>
+          <th className="odds-col">Total</th>
+          <th className="odds-col">Moneyline</th>
+          <th>FBIS</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        {games.map((g) => (
+        {games.map((g) => {
+          const spread = slateSpread(g);
+          const total = slateTotal(g);
+          const blocked = Boolean(g.cfb && !g.cfb.bettingAllowed);
+          return (
           <Fragment key={g.id}>
           <tr>
+            <td className="kick-col">
+              <div>{g.status.live || g.status.completed ? g.status.detail : kickoff(g.start)}</div>
+              {g.status.live && <span className="live-dot">● LIVE</span>}
+              {g.weatherImpact?.applied && g.weather?.temperature != null ? (
+                <div className="muted" style={{ fontSize: 10 }}>{g.weather.temperature}°F</div>
+              ) : g.weather?.indoor ? (
+                <div className="muted" style={{ fontSize: 10 }}>Indoor</div>
+              ) : null}
+            </td>
             <td>
               <div className="team-block">
                 <Team t={g.away} />
                 <Team t={g.home} />
-                {(mlb || g.sport === "cfb") ? <button className="game-expand" onClick={() => toggle(g.id)} aria-expanded={open.has(g.id)}>
-                  {open.has(g.id) ? "Hide game details" : "View game details"}
-                </button> : null}
+                <button className="game-expand" onClick={() => toggle(g.id)} aria-expanded={open.has(g.id)}>
+                  {open.has(g.id) ? "Hide details" : "Details"}
+                </button>
               </div>
-            </td>
-            <td>
-              <div>{g.status.live || g.status.completed ? g.status.detail : kickoff(g.start)}</div>
-              {g.status.live && <span className="live-dot">● LIVE</span>}
             </td>
             {mlb ? (
               <td className="sp-cell">
@@ -787,33 +846,73 @@ function SlateTable({ games, onLog, logged }) {
                 <div>{g.homeSp?.last || g.homeSp?.name || "TBD"}</div>
               </td>
             ) : null}
-            <td className="text-blue" title={(g.model?.recipe?.steps || []).join("\n")}>
-              <SlateProj game={g} />
+            <td className="odds-col">
+              <div className="odds-stack">
+                <OddsTile
+                  line={fmtSpreadLine(spread == null ? null : -spread)}
+                  price={slateSpreadPrice(g, "away")}
+                  hot={!blocked && playHot(g, "SPREAD", "AWAY")}
+                />
+                <OddsTile
+                  line={fmtSpreadLine(spread)}
+                  price={slateSpreadPrice(g, "home")}
+                  hot={!blocked && playHot(g, "SPREAD", "HOME")}
+                />
+              </div>
+            </td>
+            <td className="odds-col">
+              <div className="odds-stack">
+                <OddsTile
+                  line={total == null ? null : `O ${total}`}
+                  price={slateTotalPrice(g, "over")}
+                  hot={!blocked && playHot(g, "TOTAL", "OVER")}
+                />
+                <OddsTile
+                  line={total == null ? null : `U ${total}`}
+                  price={slateTotalPrice(g, "under")}
+                  hot={!blocked && playHot(g, "TOTAL", "UNDER")}
+                />
+              </div>
+            </td>
+            <td className="odds-col">
+              <div className="odds-stack">
+                <OddsTile price={slateMl(g, "away")} hot={!blocked && playHot(g, "ML", "AWAY")} />
+                <OddsTile price={slateMl(g, "home")} hot={!blocked && playHot(g, "ML", "HOME")} />
+              </div>
             </td>
             <td>
-              <div>{g.marketLabels?.spreadHome?.label || g.odds.details || fmtAmerican(g.odds.homeMl)}</div>
-              <div className="muted">{pinLine(g)}</div>
+              <div className="slate-signal">
+                <div className="proj-mini" title={(g.model?.recipe?.steps || []).join("\n")}>
+                  <SlateProj game={g} />
+                </div>
+                {blocked ? (
+                  <span className="muted">{g.cfb.blockReason || "Blocked"}</span>
+                ) : g.rec ? (
+                  <>
+                    <span className={`tier-badge tier-${g.rec.tag}`}>{g.rec.tag}</span>
+                    <b>{g.rec.pick}</b>
+                    <span className={edgeClass(g.rec.edge)}>{g.rec.edge >= 0 ? "+" : ""}{fmtNum(g.rec.edge, 2)}</span>
+                  </>
+                ) : g.lean ? (
+                  <>
+                    <span className="tier-badge tier-LEAN">LEAN</span>
+                    <span className="muted">{g.lean.pick}</span>
+                  </>
+                ) : (
+                  <span className="muted">No edge</span>
+                )}
+              </div>
             </td>
             <td>
-              <PinVigCell game={g} rec={g.rec} />
-            </td>
-            {mlb ? <td><F5Cell game={g} /></td> : null}
-            <td><PublicCell game={g} /></td>
-            <td>
-              {g.cfb && !g.cfb.bettingAllowed ? (
-                <span className="muted">—</span>
-              ) : g.rec ? <span className={edgeClass(g.rec.edge)}>{g.rec.edge >= 0 ? "+" : ""}{fmtNum(g.rec.edge, 2)}</span> : <span className="edge-neutral">—</span>}
-            </td>
-            <td>{g.cfb && !g.cfb.bettingAllowed ? <span className="muted">{g.cfb.blockReason || "Blocked"}</span> : g.rec ? g.rec.pick : g.lean ? <span className="muted">{g.lean.pick} · lean</span> : <span className="muted">No edge</span>}</td>
-            <td>
-              <button className="log-btn" disabled={!g.rec || Boolean(g.cfb && !g.cfb.bettingAllowed) || logged.has(g.id) || g.status.completed} onClick={() => onLog(g)}>
+              <button className="log-btn" disabled={!g.rec || blocked || logged.has(g.id) || g.status.completed} onClick={() => onLog(g)}>
                 {logged.has(g.id) ? "LOGGED" : "LOG"}
               </button>
             </td>
           </tr>
           {open.has(g.id) ? <tr className="game-detail-row"><td colSpan={columns}><GameDetails g={slateDetailGame(g)} /></td></tr> : null}
           </Fragment>
-        ))}
+          );
+        })}
       </tbody>
     </table>
   );

@@ -16,6 +16,9 @@
   --yellow-bg: #241a04;
   --red: #f85149;
   --red-bg: #270a09;
+  --odds-bg: #0a1628;
+  --odds-hover: #16304a;
+  --price: #f2f6fa;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -48,24 +51,24 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 header.app-header {
-  background: linear-gradient(135deg, #07111f 0%, #0d1e30 60%, #0f2540 100%);
-  border-bottom: 2px solid var(--blue);
+  background: linear-gradient(180deg, #0a1628 0%, #07111f 100%);
+  border-bottom: 1px solid var(--border);
   padding: 10px 20px;
-  min-height: 48px;
+  min-height: 52px;
   display: flex;
   align-items: center;
   gap: 12px;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2px 12px rgba(75, 156, 211, 0.15);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
 
 header h1 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   color: #fff;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
   white-space: nowrap;
 }
 
@@ -73,7 +76,7 @@ header h1 {
 
 .subtitle { color: var(--muted); font-size: 11px; flex: 1; min-width: 120px; }
 
-.nav-tabs { display: flex; gap: 4px; }
+.nav-tabs { display: flex; gap: 2px; }
 .nav-tabs button {
   background: transparent;
   border: 1px solid transparent;
@@ -81,14 +84,15 @@ header h1 {
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.6px;
-  padding: 5px 10px;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: 4px 4px 0 0;
   cursor: pointer;
 }
 .nav-tabs button.active {
   color: #fff;
   border-color: var(--border);
-  background: rgba(255, 255, 255, 0.06);
+  border-bottom-color: transparent;
+  background: var(--panel);
 }
 
 .header-actions { display: flex; gap: 8px; align-items: center; }
@@ -129,10 +133,10 @@ header h1 {
   width: 100%;
   overflow: hidden;
   background: #050a14;
-  border-bottom: 2px solid #00d4ff;
+  border-bottom: 1px solid var(--border);
   padding: 8px 0;
   position: sticky;
-  top: 48px;
+  top: 52px;
   z-index: 99;
 }
 #ticker-track {
@@ -220,7 +224,116 @@ header h1 {
 .f5-cell { font-size: 11px; line-height: 1.35; }
 
 .fbis-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.table-scroll { overflow-x: auto; }
+.fbis-table.slate-board th.odds-col,
+.fbis-table.slate-board td.odds-col {
+  text-align: center;
+  min-width: 88px;
+}
+.fbis-table.slate-board th.matchup-col { min-width: 180px; }
+.fbis-table.slate-board td.kick-col {
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.odds-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+}
+.odds-tile {
+  background: var(--odds-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  min-height: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.odds-tile:hover { background: var(--odds-hover); border-color: #3a5570; }
+.odds-tile.odds-hot {
+  border-color: var(--green);
+  background: var(--green-bg);
+}
+.odds-tile .odds-line {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+}
+.odds-tile .odds-price {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--price);
+  font-variant-numeric: tabular-nums;
+}
+.odds-tile .odds-empty {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.slate-signal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 160px;
+}
+.slate-signal .proj-mini {
+  font-size: 11px;
+  color: var(--muted);
+}
+.board-ops {
+  margin-top: 8px;
+}
+.board-ops > summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 8px 0;
+}
+.board-ops > summary::-webkit-details-marker { display: none; }
+.board-ops[open] > summary { color: var(--text); }
+.board-ops-body {
+  display: grid;
+  gap: 10px;
+}
+.slate-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 10px 14px 0;
+}
+.slate-meta {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+details.board-ops.panel {
+  padding: 0 14px 12px;
+}
+details.board-ops > summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 12px 0 8px;
+}
+details.board-ops > summary::-webkit-details-marker { display: none; }
+details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid var(--border); margin-bottom: 10px; }
 .mobile-card-list {
   display: grid;
   grid-template-columns: 1fr;
