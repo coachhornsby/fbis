@@ -17,10 +17,10 @@ export function ChallengerSelect({ game, championHome, championAway }) {
   return (
     <div className="challenger-block">
       <select
+        className="challenger-select"
         aria-label="Champion versus challenger"
         value={sel}
         onChange={(e) => setSel(e.target.value)}
-        style={{ background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 10, maxWidth: 180 }}
       >
         <option value="champion">Champion {game.championModel || "FBIS-v1.3"}</option>
         {ids.map((id) => (
