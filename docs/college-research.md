@@ -14,11 +14,14 @@ Authenticated with `HARVEST_SECRET`. Separate Worker invocations (10 ms CPU / 50
 - `cfb-current-refresh` / `cbb-current-refresh` — incremental current season
 - `cfb-postgame-harvest` / `cbb-postgame-harvest` — grade frozen shadow projections
 - `cfb-qb-transfer-refresh` — refresh durable transfer-QB identity + prior production history
+- `cfbd-endpoint-audit` — read-only CFBD entitlement/schema probe + feature availability table (manual)
 - `model-train-validate` — Worker runs shadow-model validation summaries (rolling blocked folds) from frozen predictions; external training remains in GitHub Actions
 - `model-promote` — explicit criteria + operator approval; never auto
 - `college-health` — quota / storage / key configured (no values)
 
 GitHub workflow `.github/workflows/college.yml` is isolated from collect/harvest.
+
+See `docs/cfb-fbis-v2.md` for the CFB-FBIS-v2 challenger (shadow; does not replace the champion).
 
 ## Storage
 

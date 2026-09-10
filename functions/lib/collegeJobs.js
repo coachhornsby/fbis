@@ -15,7 +15,7 @@ export * from "./collegeJobsCore.js";
 
 const SCORE_FAMILIES = new Set(["baseline", "ratings", "reg", "ensemble", "matchup"]);
 const FREEZE_MODELS = {
-  cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1", "CFB-PINNACLE-IMPLIED"],
+  cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1", "CFB-PINNACLE-IMPLIED", "CFB-FBIS-v2"],
   cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1", "CBB-PINNACLE-IMPLIED"],
   nfl: ["NFL-TEAM-FORM-v0"],
 };
