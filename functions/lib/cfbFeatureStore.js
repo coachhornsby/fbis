@@ -187,7 +187,7 @@ export async function persistPregameFeatureVector(env, record, { sport = "cfb", 
  * Rolling opponent-adjusted efficiency from game rows before kickoff.
  * Simple mean of team offense PPA and opponent-facing defense PPA allowed.
  */
-export function rollingTeamStrengthFromGames(gameRows = [], teamName, { kickoffTimestamp = null } = {}) {
+export function rollingTeamStrengthFromGames(gameRows = [], teamName, { kickoffTimestamp = null, endpoint = "/ppa/games" } = {}) {
   const priorGames = kickoffTimestamp
     ? filterGamesBeforeKickoff(gameRows, kickoffTimestamp)
     : gameRows;
@@ -198,6 +198,7 @@ export function rollingTeamStrengthFromGames(gameRows = [], teamName, { kickoffT
   const rushOff = [];
   const passDef = [];
   const rushDef = [];
+  const sourceObservations = [];
   for (const g of priorGames) {
     const name = String(g.team || g.school || "").toLowerCase();
     if (name !== team) continue;
@@ -213,6 +214,13 @@ export function rollingTeamStrengthFromGames(gameRows = [], teamName, { kickoffT
     if (Number.isFinite(ro)) rushOff.push(ro);
     if (Number.isFinite(pd)) passDef.push(pd);
     if (Number.isFinite(rd)) rushDef.push(rd);
+    sourceObservations.push({
+      sourceGameId: g.gameId || g.game_id || g.id || null,
+      sourceKickoffTimestamp: g.startDate || g.start_date || g.kickoff || null,
+      sourceSeason: g.season || g.year || null,
+      sourceWeek: g.week ?? null,
+      endpoint,
+    });
   }
   const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
   return {
@@ -225,5 +233,8 @@ export function rollingTeamStrengthFromGames(gameRows = [], teamName, { kickoffT
     rushDefensePpa: avg(rushDef),
     reconstructedFromGames: true,
     leakageRisk: "none",
+    sourceObservations,
+    rollingSourceGameIds: sourceObservations.map((o) => o.sourceGameId).filter(Boolean),
+    actualSourceWeeks: [...new Set(sourceObservations.map((o) => o.sourceWeek).filter((w) => w != null))],
   };
 }

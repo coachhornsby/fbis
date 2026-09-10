@@ -341,7 +341,7 @@ export function regularizePreseasonPrior(input = {}) {
  * Rolling current-season strength from game PPA rows strictly before kickoff.
  */
 export function buildRollingMatchupFeatures({ ppaGameRows = [], advGameRows = [], team, kickoffTimestamp }) {
-  const rolling = rollingTeamStrengthFromGames(ppaGameRows, team, { kickoffTimestamp });
+  const rolling = rollingTeamStrengthFromGames(ppaGameRows, team, { kickoffTimestamp, endpoint: "/ppa/games" });
   const teamKey = schoolKey(team);
   const advBefore = filterGamesBeforeKickoff(
     (advGameRows || []).filter((r) => schoolKey(r.team) === teamKey),
@@ -360,6 +360,15 @@ export function buildRollingMatchupFeatures({ ppaGameRows = [], advGameRows = []
   const ppo = avg(advBefore.map((r) => num(r.offense?.pointsPerOpportunity)).filter((v) => v != null));
   const ppoAllowed = avg(advBefore.map((r) => num(r.defense?.pointsPerOpportunity)).filter((v) => v != null));
   const plays = avg(advBefore.map((r) => num(r.offense?.plays)).filter((v) => v != null));
+
+  const advObservations = advBefore.map((g) => ({
+    sourceGameId: g.gameId || g.game_id || g.id || null,
+    sourceKickoffTimestamp: g.startDate || g.start_date || g.kickoff || null,
+    sourceSeason: g.season || g.year || null,
+    sourceWeek: g.week ?? null,
+    endpoint: "/stats/game/advanced",
+  }));
+  const sourceObservations = [...(rolling.sourceObservations || []), ...advObservations];
 
   return {
     ...rolling,
@@ -381,6 +390,10 @@ export function buildRollingMatchupFeatures({ ppaGameRows = [], advGameRows = []
     rushEpaAllowed: rolling.rushDefensePpa,
     temporalClass: TEMPORAL_CLASS.C,
     reconstructedFromGames: true,
+    sourceObservations,
+    rollingSourceObservations: sourceObservations,
+    rollingSourceGameIds: sourceObservations.map((o) => o.sourceGameId).filter(Boolean),
+    actualSourceWeeks: [...new Set(sourceObservations.map((o) => o.sourceWeek).filter((w) => w != null))],
   };
 }
 
@@ -644,12 +657,25 @@ export function assembleGameFeatures({
   const side = (prior, roll, qb, fcs, offB, defB, core) => ({
     priorOff: prior.priorOff ?? null,
     priorDef: prior.priorDef ?? null,
+    priorSourceSeason: prior.sourceSeason ?? priorCatalog.season ?? null,
     spOffense: prior.priorOff ?? null,
     spDefense: prior.priorDef ?? null,
     coreThroughWeek: core?.throughWeek ?? null,
+    coreYear: core?.season ?? core?.year ?? null,
+    coreThroughSeasonType: core?.throughSeasonType ?? null,
     coreRating: core?.rating ?? null,
     coreOffense: core?.offense ?? null,
     coreDefense: core?.defense ?? null,
+    coreRow: core
+      ? {
+          year: core.season ?? core.year ?? null,
+          throughWeek: core.throughWeek ?? null,
+          throughSeasonType: core.throughSeasonType ?? null,
+          rating: core.rating ?? null,
+          offense: core.offense ?? null,
+          defense: core.defense ?? null,
+        }
+      : null,
     off: offB.value,
     def: defB.value,
     gamesPlayed: roll.gamesPlayed,
@@ -673,6 +699,11 @@ export function assembleGameFeatures({
     fbsEquivalentPower: fcs.fbsEquivalentPower,
     fcsState: fcs.state,
     ...qb,
+    sourceObservations: roll.sourceObservations || [],
+    rollingSourceObservations: roll.rollingSourceObservations || roll.sourceObservations || [],
+    rollingSourceGameIds: roll.rollingSourceGameIds || [],
+    actualSourceWeeks: roll.actualSourceWeeks || [],
+    reconstructedFromGames: true,
     temperature: weatherRow ? num(weatherRow.temperature) : null,
     windSpeed: weatherRow ? num(weatherRow.windSpeed ?? weatherRow.wind_speed) : null,
     humidity: weatherRow ? num(weatherRow.humidity) : null,
@@ -685,6 +716,7 @@ export function assembleGameFeatures({
       rolling: roll.gamesPlayed === 0,
       core: !core,
       weather: !weatherRow,
+      priorSourceSeason: prior.sourceSeason == null && priorCatalog.season == null,
     },
   });
 
