@@ -91,11 +91,11 @@ Notes:
 ### Representative reconstructed player-role examples
 
 - **South Florida @ Alabama** (W2) home.QB1: Jalen Milroe — priorRows=1, conf=0.56 (MEDIUM), method=`prior-games+usage`, sources=['401628319']
-- **South Florida @ Alabama** (W2) home.RB1: None — priorRows=0, conf=0.00 (LOW), method=`uncertain`, sources=[]
-- **South Florida @ Alabama** (W2) home.WR1: None — priorRows=0, conf=0.00 (LOW), method=`uncertain`, sources=[]
+- **South Florida @ Alabama** (W2) home.RB1: Kevin Riley — priorRows=1, conf=0.64 (MEDIUM), method=`recent-carries+usage`, sources=['401628319']
+- **South Florida @ Alabama** (W2) home.WR1: Ryan Williams — priorRows=1, conf=0.43 (LOW), method=`recent-usage+targets`, sources=['401628319']
 - **South Florida @ Alabama** (W2) away.QB1: Byrum Brown — priorRows=1, conf=0.87 (HIGH), method=`prior-games+usage`, sources=['401636363']
-- **South Florida @ Alabama** (W2) away.RB1: None — priorRows=0, conf=0.00 (LOW), method=`uncertain`, sources=[]
-- **South Florida @ Alabama** (W2) away.WR1: None — priorRows=0, conf=0.00 (LOW), method=`uncertain`, sources=[]
+- **South Florida @ Alabama** (W2) away.RB1: Kelley Joiner Jr. — priorRows=1, conf=0.76 (HIGH), method=`recent-carries+usage`, sources=['401636363']
+- **South Florida @ Alabama** (W2) away.WR1: Abdur-Rahmaan Yaseen — priorRows=1, conf=0.53 (MEDIUM), method=`recent-usage+targets`, sources=['401636363']
 
 Checked-in samples:
 

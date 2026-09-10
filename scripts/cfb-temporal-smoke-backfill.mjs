@@ -112,7 +112,8 @@ function normalizePlayerGameRow(r, gamesById) {
     name: r.name || r.player || r.athleteName || null,
     position: r.position || r.pos || null,
     startDate: kick,
-    passingAttempts: r.passingAttempts ?? r.passAttempts ?? r.attempts ?? null,
+    // Do not fall back to generic `attempts` — that collides across pass/rush feeds
+    passingAttempts: r.passingAttempts ?? r.passAttempts ?? null,
     passingYards: r.passingYards ?? r.passYards ?? null,
     rushingAttempts: r.rushingAttempts ?? r.carries ?? null,
     rushingYards: r.rushingYards ?? null,

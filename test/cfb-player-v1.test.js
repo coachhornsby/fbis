@@ -376,3 +376,38 @@ test("QB1 role scoring is team-scoped to prior player-game rows", () => {
   assert.equal(qb.player_name, "Payton Thorne");
   assert.notEqual(qb.player_name, "Jalen Milroe");
 });
+
+test("null passingAttempts does not exclude RBs (Number(null) footgun)", () => {
+  const kick = "2024-09-14T19:00:00.000Z";
+  const rb = identifyRb1({
+    team: "Alabama",
+    playerGameRows: [
+      {
+        team: "Alabama",
+        name: "Justice Haynes",
+        athleteId: "jh",
+        position: "RB",
+        rushingAttempts: 12,
+        rushingYards: 100,
+        passingAttempts: null,
+        startDate: "2024-09-07T19:00:00.000Z",
+        gameId: "g1",
+      },
+      {
+        team: "Alabama",
+        name: "Jalen Milroe",
+        athleteId: "jm",
+        position: "QB",
+        rushingAttempts: 10,
+        rushingYards: 80,
+        passingAttempts: 25,
+        startDate: "2024-09-07T19:00:00.000Z",
+        gameId: "g1",
+      },
+    ],
+    kickoffTimestamp: kick,
+    week: 3,
+    identityAsOf: "2024-09-14T18:59:00.000Z",
+  });
+  assert.equal(rb.player_name, "Justice Haynes");
+});

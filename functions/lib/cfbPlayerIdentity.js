@@ -378,7 +378,8 @@ export function identifyRb1({
   sortedGames.forEach((g, idx) => {
     const pos = posOf(g);
     // Dual-threat QBs have CAR stats — never select them as RB1
-    if (pos === "QB" || num(g.passingAttempts) != null) return;
+    // Note: num(null)===0 because Number(null)===0; only treat explicit pass attempts as QB signal
+    if (pos === "QB" || (g.passingAttempts != null && Number(g.passingAttempts) > 0)) return;
     if (pos && !["RB", "TB", "HB", "FB"].includes(pos) && num(g.rushingAttempts ?? g.carries) == null) return;
     const carries = num(g.rushingAttempts ?? g.carries) || 0;
     const yards = num(g.rushingYards ?? g.yards) || 0;
@@ -495,7 +496,8 @@ export function identifyWr1({
   );
   sortedGames.forEach((g, idx) => {
     const pos = posOf(g);
-    if (pos === "QB" || num(g.passingAttempts) != null) return;
+    // Note: num(null)===0 because Number(null)===0; only treat explicit pass attempts as QB signal
+    if (pos === "QB" || (g.passingAttempts != null && Number(g.passingAttempts) > 0)) return;
     if (pos && !["WR", "WR1", "WR2"].includes(pos) && num(g.receptions ?? g.receivingYards) == null) return;
     // TE excluded from WR1 by design in this phase
     if (pos === "TE") return;

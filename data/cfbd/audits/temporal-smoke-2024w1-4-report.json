@@ -1,7 +1,7 @@
 {
   "ok": true,
   "job": "cfb-temporal-smoke-backfill",
-  "generatedAt": "2026-09-10T16:57:51.190Z",
+  "generatedAt": "2026-09-10T17:05:39.334Z",
   "auditVersion": "cfb-temporal-audit-v2",
   "pipelineVersion": "cfb-feature-pipeline-v2",
   "mode": "historical",
