@@ -36,6 +36,14 @@ seasons=2022,2023,2024,2025
 
 Writes ablation A–K metrics + fold chronology under `artifacts/`.
 
+## Calibration / model selection (fitted)
+
+See `docs/cfb-v2-calibration.md`. Rolling-origin ridge fits on provenance-eligible 2022–2025 games select **ablation A** (simplest; within 0.05 maeMargin of best). **Not promoted** — `canQualify` stays false.
+
+```bash
+CFB_CALIBRATE_SKIP_FETCH=1 node scripts/cfb-v2-calibrate.mjs
+```
+
 ## Model
 
 Layers: prior → rolling `n/(n+k)` → matchup → QB residual → context (HFA 2.5) → score.

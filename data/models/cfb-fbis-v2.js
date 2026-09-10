@@ -18,13 +18,20 @@ export default {
     pipeline: "cfb-feature-pipeline-v2",
     canonical: "cfbd-canonical-v1",
   },
+  calibrationExperiment: {
+    report: "data/cfbd/calibration/calibration-report.json",
+    selectedAblation: "A",
+    promote: false,
+    canQualify: false,
+    note: "Rolling-origin fitted A–K completed; simplest A selected. Artifact coefficients remain provisional until an explicit promotion replace.",
+  },
   expectedUnits: {
     margin: "points (home - away)",
     total: "points",
     ppa: "predicted points added per play",
   },
   notes:
-    "Provisional coefficients for architecture + temporal integrity tests. Do not promote. Fit via rolling-origin folds on frozen pregame features only.",
+    "Provisional coefficients remain the runtime shadow defaults. Fitted rolling-origin selection chose ablation A but is not wired into production projection. Do not promote.",
   coefficients: {
     hfa: 2.5,
     nationalPpg: 26.5,
