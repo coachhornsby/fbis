@@ -27,6 +27,25 @@ function fairSpreadTeamLine(proj, away, home) {
   return `${away?.abbr || "AWAY"} ${formatSpreadLabel(-line)}`;
 }
 
+function teamTitle(team) {
+  return team?.school || team?.fullName || team?.name || team?.abbr || "Team";
+}
+
+function pitcherLine(game, side) {
+  if (game.sport !== "mlb") return null;
+  const sp = side === "home" ? game.homeSp : game.awaySp;
+  const era = side === "home" ? game.savant?.homeSpEra : game.savant?.awaySpEra;
+  const bppSp = side === "home" ? game.bpp?.homeSp : game.bpp?.awaySp;
+  const name = sp?.last || sp?.name || bppSp?.last || bppSp?.name;
+  if (!name && era == null) return null;
+  const record =
+    sp?.record ||
+    bppSp?.record ||
+    (sp?.wins != null && sp?.losses != null ? `${sp.wins}-${sp.losses}` : null);
+  const eraTxt = era == null || Number.isNaN(Number(era)) ? null : `${Number(era).toFixed(2)} ERA`;
+  return [name || "TBD SP", record, eraTxt].filter(Boolean).join(" · ");
+}
+
 export default function GameCard({
   game,
   expanded = false,
@@ -46,6 +65,21 @@ export default function GameCard({
   const glow = glowClassForTier(decision.tier);
   const live = Boolean(game.status?.live);
   const done = Boolean(game.status?.completed);
+  const awayPitch = pitcherLine(game, "away");
+  const homePitch = pitcherLine(game, "home");
+
+  const toggleDetails = (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    onToggle?.(game.id);
+  };
+
+  const onDetailsKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onToggle?.(game.id);
+    }
+  };
 
   return (
     <article
@@ -70,21 +104,23 @@ export default function GameCard({
         </div>
       </header>
 
-      <div className="gc-matchup">
-        <div className="gc-team">
-          <TeamLogo team={game.away} size={52} />
-          <div className="gc-team-text">
-            <span className="gc-team-name">{game.away?.name || game.away?.fullName || game.away?.abbr || "Away"}</span>
-            <span className="gc-team-abbr muted">{game.away?.abbr || ""}</span>
+      <div className="gc-matchup-row" aria-label="Matchup">
+        <div className="gc-side away">
+          <TeamLogo team={game.away} size={48} />
+          <div className="gc-side-text">
+            <span className="gc-team-name">{teamTitle(game.away)}</span>
+            <span className="gc-team-record muted">{game.away?.record || game.away?.abbr || ""}</span>
+            {awayPitch ? <span className="gc-pitcher muted">{awayPitch}</span> : null}
           </div>
           {game.away?.score != null ? <span className="gc-live-score">{game.away.score}</span> : null}
         </div>
-        <div className="gc-vs muted" aria-hidden="true">vs</div>
-        <div className="gc-team">
-          <TeamLogo team={game.home} size={52} />
-          <div className="gc-team-text">
-            <span className="gc-team-name">{game.home?.name || game.home?.fullName || game.home?.abbr || "Home"}</span>
-            <span className="gc-team-abbr muted">{game.home?.abbr || ""}</span>
+        <div className="gc-at" aria-hidden="true">@</div>
+        <div className="gc-side home">
+          <TeamLogo team={game.home} size={48} />
+          <div className="gc-side-text">
+            <span className="gc-team-name">{teamTitle(game.home)}</span>
+            <span className="gc-team-record muted">{game.home?.record || game.home?.abbr || ""}</span>
+            {homePitch ? <span className="gc-pitcher muted">{homePitch}</span> : null}
           </div>
           {game.home?.score != null ? <span className="gc-live-score">{game.home.score}</span> : null}
         </div>
@@ -196,6 +232,9 @@ export default function GameCard({
             {fmtNum(decision.evPct, 1)}%
           </span>
         ) : null}
+        {(game.rec?.softBenchmark || game.lean?.softBenchmark) ? (
+          <span className="gc-soft-flag muted">SOFT BENCH</span>
+        ) : null}
       </div>
 
       <section className="gc-quality" aria-label="Model quality">
@@ -228,7 +267,7 @@ export default function GameCard({
             </strong>
           </div>
           <div className="gc-mlb-row benchmark">
-            <span>PINNACLE</span>
+            <span>{mkt.book === "Pinnacle" ? "PINNACLE" : String(mkt.book || "MARKET").toUpperCase()}</span>
             <strong>
               {fmtAmerican(mkt.awayMl)} / {fmtAmerican(mkt.homeMl)}
               {mkt.total != null ? ` · Tot ${fmtNum(mkt.total, 1)}` : ""}
@@ -246,7 +285,8 @@ export default function GameCard({
           className="gc-details-btn"
           aria-expanded={expanded}
           aria-controls={detailsId}
-          onClick={() => onToggle?.(game.id)}
+          onClick={toggleDetails}
+          onKeyDown={onDetailsKeyDown}
         >
           MODEL DETAILS {expanded ? "↑" : "↓"}
         </button>
@@ -254,7 +294,10 @@ export default function GameCard({
           type="button"
           className="log-btn"
           disabled={!game.rec || decision.tier === "BLOCKED" || logged || done}
-          onClick={() => onLog?.(game)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onLog?.(game);
+          }}
         >
           {logged ? "LOGGED" : "LOG"}
         </button>

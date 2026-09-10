@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FBIS board glow fixture</title>
+  <link rel="stylesheet" href="/src/index.css" />
+  <style>
+    body { padding: 24px; }
+    h1 { margin-bottom: 8px; font-size: 18px; }
+    .hint { color: var(--muted); margin-bottom: 18px; }
+  </style>
+</head>
+<body>
+  <h1>Decision glow fixture</h1>
+  <p class="hint">CONVICTION (green) → QUALIFIED (cyan) → LEAN (amber) → PASS (no glow) → BLOCKED</p>
+  <div class="board-card-grid" style="grid-template-columns: repeat(5, minmax(0, 1fr));">
+    <article class="game-card gc-glow-conviction decision-tier-CONVICTION" data-decision="CONVICTION">
+      <header class="gc-header"><div class="gc-when"><div class="gc-date">FRI SEP 12</div><div class="gc-time">7:00 PM CT</div></div><div class="gc-meta"><span class="gc-sport">CFB</span></div></header>
+      <div class="gc-matchup-row"><div class="gc-side"><span class="gc-team-name">Ohio State</span></div><div class="gc-at">@</div><div class="gc-side"><span class="gc-team-name">Michigan</span></div></div>
+      <div class="gc-decision-row"><div class="decision-badge decision-CONVICTION"><span class="decision-badge-tier">CONVICTION</span><span class="decision-badge-pick">MICH -3.5</span></div></div>
+    </article>
+    <article class="game-card gc-glow-qualified decision-tier-QUALIFIED" data-decision="QUALIFIED">
+      <header class="gc-header"><div class="gc-when"><div class="gc-date">FRI SEP 12</div><div class="gc-time">7:30 PM CT</div></div><div class="gc-meta"><span class="gc-sport">CFB</span></div></header>
+      <div class="gc-matchup-row"><div class="gc-side"><span class="gc-team-name">Alabama</span></div><div class="gc-at">@</div><div class="gc-side"><span class="gc-team-name">Georgia</span></div></div>
+      <div class="gc-decision-row"><div class="decision-badge decision-QUALIFIED"><span class="decision-badge-tier">QUALIFIED</span><span class="decision-badge-pick">ALA +7.5</span></div></div>
+    </article>
+    <article class="game-card gc-glow-lean decision-tier-LEAN" data-decision="LEAN">
+      <header class="gc-header"><div class="gc-when"><div class="gc-date">SAT SEP 13</div><div class="gc-time">12:00 PM CT</div></div><div class="gc-meta"><span class="gc-sport">CFB</span></div></header>
+      <div class="gc-matchup-row"><div class="gc-side"><span class="gc-team-name">Clemson</span></div><div class="gc-at">@</div><div class="gc-side"><span class="gc-team-name">Florida State Seminoles</span></div></div>
+      <div class="gc-decision-row"><div class="decision-badge decision-LEAN"><span class="decision-badge-tier">LEAN</span><span class="decision-badge-pick">Under 52.5</span></div></div>
+    </article>
+    <article class="game-card gc-glow-pass decision-tier-PASS" data-decision="PASS">
+      <header class="gc-header"><div class="gc-when"><div class="gc-date">SAT SEP 13</div><div class="gc-time">3:30 PM CT</div></div><div class="gc-meta"><span class="gc-sport">CFB</span></div></header>
+      <div class="gc-matchup-row"><div class="gc-side"><span class="gc-team-name">Oregon</span></div><div class="gc-at">@</div><div class="gc-side"><span class="gc-team-name">Washington</span></div></div>
+      <div class="gc-decision-row"><div class="decision-badge decision-PASS"><span class="decision-badge-tier">PASS</span><span class="decision-badge-pick">No ticket</span></div></div>
+    </article>
+    <article class="game-card gc-glow-blocked decision-tier-BLOCKED" data-decision="BLOCKED">
+      <header class="gc-header"><div class="gc-when"><div class="gc-date">SAT SEP 13</div><div class="gc-time">7:00 PM CT</div></div><div class="gc-meta"><span class="gc-sport">CFB</span></div></header>
+      <div class="gc-matchup-row"><div class="gc-side"><span class="gc-team-name">Florida A&amp;M Rattlers</span></div><div class="gc-at">@</div><div class="gc-side"><span class="gc-team-name">Miami Hurricanes</span></div></div>
+      <div class="gc-decision-row"><div class="decision-badge decision-BLOCKED"><span class="decision-badge-tier">BLOCKED</span><span class="decision-badge-pick">Inputs missing</span></div></div>
+    </article>
+  </div>
+</body>
+</html>

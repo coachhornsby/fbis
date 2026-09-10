@@ -92,6 +92,7 @@ export default function App() {
   const [trackLastAttemptAt, setTrackLastAttemptAt] = useState("");
   const [trackStale, setTrackStale] = useState(false);
   const [pipelineState, setPipelineState] = useState("DEGRADED");
+  const [pipelineHealth, setPipelineHealth] = useState(null);
   const [trackFilters, setTrackFilters] = useState({
     sport: "all",
     days: "season",
@@ -302,8 +303,10 @@ export default function App() {
         const data = await responseJson(res, "Health");
         if (!res.ok || data?.ok === false) throw new Error(data?.error || `HTTP ${res.status}`);
         setPipelineState(data.state || "DEGRADED");
+        setPipelineHealth(data);
       } catch {
         setPipelineState("DEGRADED");
+        setPipelineHealth(null);
       }
     };
     refreshHealth();
@@ -536,11 +539,34 @@ export default function App() {
               ) : null
             }
             notice={
-              slate?.parlay?.pinGames === 0 && (slate?.parlay?.games > 0 || /soft|sharp|rundown|credit/i.test(String(slate?.parlay?.source || ""))) ? (
-                <div className="slate-notice">
-                  Pinnacle feed is credit-limited right now. Board shows soft DK/FD lines for display — qualification still requires Pin.
-                </div>
-              ) : null
+              <>
+                {pipelineHealth?.state === "DEGRADED" || pipelineHealth?.state === "UNAVAILABLE" ? (
+                  <div className="board-health-strip" role="status">
+                    <strong>PIPELINE {pipelineHealth.state}</strong>
+                    <div>
+                      {(pipelineHealth.failures || [])
+                        .map((f) => `${f.name}: ${f.detail || (f.ok === false ? "failed" : "ok")}`)
+                        .join(" · ") || "Research freshness degraded"}
+                    </div>
+                    {(pipelineHealth.operatorNotes || []).length ? (
+                      <div className="muted">{pipelineHealth.operatorNotes.join(" · ")}</div>
+                    ) : null}
+                  </div>
+                ) : null}
+                {(() => {
+                  const games = slate?.games || [];
+                  const pinLive = games.some((g) => g.odds?.pinPresent);
+                  const softLive = games.some((g) => g.odds?.softPresent || g.odds?.softSource);
+                  const creditLimited = /credit|exhausted|soft|sharp|rundown/i.test(String(slate?.parlay?.source || ""));
+                  if (pinLive || !(softLive || creditLimited || slate?.parlay?.pinGames === 0)) return null;
+                  return (
+                    <div className="slate-notice">
+                      Pinnacle feed is credit-limited. Soft DK/FD lines are the temporary EV benchmark for lean/qualified
+                      tickets when Pin two-ways are absent. Soft never populates pin* fields.
+                    </div>
+                  );
+                })()}
+              </>
             }
           />
         </Panel>
