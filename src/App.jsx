@@ -4,6 +4,7 @@ import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, ki
 import TeamLogo, { TeamIdentity, TicketMatchup } from "./components/TeamLogo.jsx";
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 import BoardGrid from "./components/board/BoardGrid.jsx";
+import { mergeBoardQaFixtures } from "./lib/boardFixtures.js";
 import { gradeOpenBets, loadState, logBet, summarize } from "./lib/learning.js";
 import { captureSlate } from "./lib/ledger.js";
 import TrackView from "./TrackView.jsx";
@@ -31,6 +32,8 @@ function writeUrlState({ tab, date, sport }) {
   if (sport) u.searchParams.set("sport", sport);
   if (tab === "today" && date) u.searchParams.set("date", date);
   else u.searchParams.delete("date");
+  // Preserve visual QA fixture flag across tab/sport navigation.
+  if (u.searchParams.get("boardQa") !== "1") u.searchParams.delete("boardQa");
   window.history.replaceState({}, "", u);
 }
 
@@ -517,7 +520,7 @@ export default function App() {
         >
           <BoardGrid
             sport={sport}
-            games={slate?.games || []}
+            games={mergeBoardQaFixtures(slate?.games || [])}
             onLog={onLog}
             logged={loggedOpen}
             detailMapper={slateDetailGame}
@@ -538,7 +541,7 @@ export default function App() {
             notice={
               slate?.parlay?.pinGames === 0 && (slate?.parlay?.games > 0 || /soft|sharp|rundown|credit/i.test(String(slate?.parlay?.source || ""))) ? (
                 <div className="slate-notice">
-                  Pinnacle feed is credit-limited right now. Board shows soft DK/FD lines for display — qualification still requires Pin.
+                  Pinnacle feed is credit-limited. Soft DK/FD two-ways are the provisional benchmark for lean/qualified tickets until Pin returns — shop carefully.
                 </div>
               ) : null
             }
