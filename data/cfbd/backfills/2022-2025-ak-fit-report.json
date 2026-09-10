@@ -1,0 +1,304 @@
+{
+  "generatedAt": "2026-09-10T17:40:01.515Z",
+  "method": "rolling-origin-by-season",
+  "ranking": "maeMargin then |biasMargin| then maeTotal on provenance-eligible rows",
+  "eligibleN": 5306,
+  "bestAblation": "J",
+  "bestMetrics": {
+    "n": 5306,
+    "maeTotal": 13.598774971730096,
+    "maeMargin": 15.746117602713888,
+    "maeHome": 11.019355446664118,
+    "maeAway": 10.167960799095349,
+    "maeTeam": 10.593658122879734,
+    "rmseMargin": 20.12536355443715,
+    "biasMargin": -2.4356388993592146,
+    "brier": 0.2227613221525536,
+    "logLoss": 0.6342786446778976
+  },
+  "ablationRankEligible": [
+    {
+      "ablation": "J",
+      "n": 5306,
+      "maeTotal": 13.5988,
+      "maeMargin": 15.7461,
+      "maeHome": 11.0194,
+      "maeAway": 10.168,
+      "maeTeam": 10.5937,
+      "rmseMargin": 20.1254,
+      "biasMargin": -2.4356,
+      "brier": 0.2228,
+      "logLoss": 0.6343
+    },
+    {
+      "ablation": "K",
+      "n": 5306,
+      "maeTotal": 13.5988,
+      "maeMargin": 15.7461,
+      "maeHome": 11.0194,
+      "maeAway": 10.168,
+      "maeTeam": 10.5937,
+      "rmseMargin": 20.1254,
+      "biasMargin": -2.4356,
+      "brier": 0.2228,
+      "logLoss": 0.6343
+    },
+    {
+      "ablation": "B",
+      "n": 5306,
+      "maeTotal": 13.5987,
+      "maeMargin": 15.8994,
+      "maeHome": 11.0624,
+      "maeAway": 10.284,
+      "maeTeam": 10.6732,
+      "rmseMargin": 20.3637,
+      "biasMargin": -4.7708,
+      "brier": 0.2258,
+      "logLoss": 0.6411
+    },
+    {
+      "ablation": "C",
+      "n": 5306,
+      "maeTotal": 13.5997,
+      "maeMargin": 15.9212,
+      "maeHome": 11.0512,
+      "maeAway": 10.2974,
+      "maeTeam": 10.6743,
+      "rmseMargin": 20.3897,
+      "biasMargin": -4.642,
+      "brier": 0.2258,
+      "logLoss": 0.641
+    },
+    {
+      "ablation": "A",
+      "n": 5306,
+      "maeTotal": 13.5992,
+      "maeMargin": 15.9407,
+      "maeHome": 11.0946,
+      "maeAway": 10.2951,
+      "maeTeam": 10.6949,
+      "rmseMargin": 20.4025,
+      "biasMargin": -5.2487,
+      "brier": 0.2268,
+      "logLoss": 0.6433
+    },
+    {
+      "ablation": "D",
+      "n": 5306,
+      "maeTotal": 13.5988,
+      "maeMargin": 15.947,
+      "maeHome": 11.0654,
+      "maeAway": 10.2977,
+      "maeTeam": 10.6816,
+      "rmseMargin": 20.4164,
+      "biasMargin": -4.4989,
+      "brier": 0.2262,
+      "logLoss": 0.6419
+    },
+    {
+      "ablation": "E",
+      "n": 5306,
+      "maeTotal": 13.5988,
+      "maeMargin": 15.947,
+      "maeHome": 11.0654,
+      "maeAway": 10.2977,
+      "maeTeam": 10.6816,
+      "rmseMargin": 20.4164,
+      "biasMargin": -4.4989,
+      "brier": 0.2262,
+      "logLoss": 0.6419
+    },
+    {
+      "ablation": "I",
+      "n": 5306,
+      "maeTotal": 13.5995,
+      "maeMargin": 15.9735,
+      "maeHome": 11.0738,
+      "maeAway": 10.3041,
+      "maeTeam": 10.689,
+      "rmseMargin": 20.4471,
+      "biasMargin": -4.4127,
+      "brier": 0.2262,
+      "logLoss": 0.6419
+    },
+    {
+      "ablation": "F",
+      "n": 5306,
+      "maeTotal": 13.5992,
+      "maeMargin": 15.9854,
+      "maeHome": 11.0765,
+      "maeAway": 10.3122,
+      "maeTeam": 10.6943,
+      "rmseMargin": 20.4648,
+      "biasMargin": -4.4293,
+      "brier": 0.2265,
+      "logLoss": 0.6424
+    },
+    {
+      "ablation": "G",
+      "n": 5306,
+      "maeTotal": 13.5992,
+      "maeMargin": 15.9854,
+      "maeHome": 11.0765,
+      "maeAway": 10.3122,
+      "maeTeam": 10.6943,
+      "rmseMargin": 20.4648,
+      "biasMargin": -4.4293,
+      "brier": 0.2265,
+      "logLoss": 0.6424
+    },
+    {
+      "ablation": "H",
+      "n": 5306,
+      "maeTotal": 13.5992,
+      "maeMargin": 15.9854,
+      "maeHome": 11.0765,
+      "maeAway": 10.3122,
+      "maeTeam": 10.6943,
+      "rmseMargin": 20.4648,
+      "biasMargin": -4.4293,
+      "brier": 0.2265,
+      "logLoss": 0.6424
+    }
+  ],
+  "foldMeanMaeMargin": {
+    "J": 16.0471,
+    "K": 16.0471,
+    "B": 16.2555,
+    "C": 16.2707,
+    "D": 16.2916,
+    "E": 16.2916,
+    "A": 16.2927,
+    "I": 16.3088,
+    "F": 16.3254,
+    "G": 16.3254,
+    "H": 16.3254
+  },
+  "foldsEligible": [
+    {
+      "fold": "train=[2022]->val=2023",
+      "ablation": "A",
+      "n": 1478,
+      "maeMargin": 15.7422,
+      "maeTotal": 13.9112,
+      "biasMargin": -5.2558,
+      "brier": 0.2243
+    },
+    {
+      "fold": "train=[2022]->val=2023",
+      "ablation": "B",
+      "n": 1478,
+      "maeMargin": 15.6699,
+      "maeTotal": 13.9133,
+      "biasMargin": -4.8297,
+      "brier": 0.2232
+    },
+    {
+      "fold": "train=[2022]->val=2023",
+      "ablation": "J",
+      "n": 1478,
+      "maeMargin": 15.3922,
+      "maeTotal": 13.9137,
+      "biasMargin": -2.416,
+      "brier": 0.2198
+    },
+    {
+      "fold": "train=[2022]->val=2023",
+      "ablation": "K",
+      "n": 1478,
+      "maeMargin": 15.3922,
+      "maeTotal": 13.9137,
+      "biasMargin": -2.416,
+      "brier": 0.2198
+    },
+    {
+      "fold": "train=[2022, 2023]->val=2024",
+      "ablation": "A",
+      "n": 1545,
+      "maeMargin": 16.5182,
+      "maeTotal": 13.5683,
+      "biasMargin": -6.0506,
+      "brier": 0.2336
+    },
+    {
+      "fold": "train=[2022, 2023]->val=2024",
+      "ablation": "B",
+      "n": 1545,
+      "maeMargin": 16.5503,
+      "maeTotal": 13.5682,
+      "biasMargin": -5.6161,
+      "brier": 0.2329
+    },
+    {
+      "fold": "train=[2022, 2023]->val=2024",
+      "ablation": "J",
+      "n": 1545,
+      "maeMargin": 16.4328,
+      "maeTotal": 13.5689,
+      "biasMargin": -3.3762,
+      "brier": 0.2298
+    },
+    {
+      "fold": "train=[2022, 2023]->val=2024",
+      "ablation": "K",
+      "n": 1545,
+      "maeMargin": 16.4328,
+      "maeTotal": 13.5689,
+      "biasMargin": -3.3762,
+      "brier": 0.2298
+    },
+    {
+      "fold": "train=[2022, 2023, 2024]->val=2025",
+      "ablation": "A",
+      "n": 1559,
+      "maeMargin": 16.6179,
+      "maeTotal": 13.1471,
+      "biasMargin": -5.7336,
+      "brier": 0.2291
+    },
+    {
+      "fold": "train=[2022, 2023, 2024]->val=2025",
+      "ablation": "B",
+      "n": 1559,
+      "maeMargin": 16.5462,
+      "maeTotal": 13.1457,
+      "biasMargin": -5.298,
+      "brier": 0.2282
+    },
+    {
+      "fold": "train=[2022, 2023, 2024]->val=2025",
+      "ablation": "J",
+      "n": 1559,
+      "maeMargin": 16.3162,
+      "maeTotal": 13.1452,
+      "biasMargin": -3.1022,
+      "brier": 0.2246
+    },
+    {
+      "fold": "train=[2022, 2023, 2024]->val=2025",
+      "ablation": "K",
+      "n": 1559,
+      "maeMargin": 16.3162,
+      "maeTotal": 13.1452,
+      "biasMargin": -3.1022,
+      "brier": 0.2246
+    }
+  ],
+  "interpretation": {
+    "maeTotal": "Nearly identical across A\u2013K on eligible rows (~13.60) with provisional coefficients",
+    "maeMargin": "J/K best (~15.75) vs A (~15.94); pass/rush (B) tiny gain over base (A)",
+    "bias": "All ablations home-underdog bias negative; J/K least biased (~-2.4)",
+    "next": "Coefficient fitting should target margin calibration and bias before expanding feature set past B/J"
+  },
+  "canQualify": false,
+  "fitted": false,
+  "researchReady": false,
+  "promotionReady": false,
+  "artifactHashes": {
+    "report": "9d1d9bb787db10e7bf606ddf3dcfa62a793ba7f048948d3c5ebebf1dd1a0ec0c",
+    "snapshots": "078e10ff928b9fa46e5eef9cce30707c6de9b0afcaad5bdb83c50297ea30997b",
+    "predictions": "82d5a26f43fc6f4607b70ad5bbaf1cc96453bf86174accd5fbc482b6a6e96673",
+    "folds": "5e4e6ea6c29c816afbdc75d95dd85740512158c2f2423f16c18f64b042cf2d80",
+    "reportBody": "647497cd6d0fde3cfab269dd7256064361c42ec1becbd96b0924fddc27288bd4"
+  }
+}

@@ -1,0 +1,713 @@
+{
+  "generatedAt": "2026-09-10T17:40:01.515Z",
+  "auditVersion": "cfb-temporal-audit-v2",
+  "pipelineVersion": "cfb-feature-pipeline-v2",
+  "seasons": [
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "counts": {
+    "gamesSeen": 14736,
+    "snapshots": 14736,
+    "skippedNoKickoff": 0,
+    "skippedTemporalGate": 0,
+    "provenancePass": 5306,
+    "provenanceFail": 9430,
+    "priorPass": 10939,
+    "priorFail": 18533,
+    "priorMissing": 18533,
+    "postCutoffRejections": 0,
+    "coreCutoffRejections": 0,
+    "corePresentOk": 0,
+    "coreAbsent": 29472,
+    "acceptedTemporalViolations": 0,
+    "requestErrors": 0,
+    "provenancePassRate": 0.36007057546145493,
+    "priorPassRate": 0.3711658523344191
+  },
+  "bySeason": {
+    "2022": {
+      "games": 3657,
+      "snapshots": 3657,
+      "provenancePass": 724,
+      "provenanceFail": 2933,
+      "priorPass": 1577,
+      "priorFail": 5737,
+      "corePresentOk": 0,
+      "coreAbsent": 7314,
+      "coreInvalid": 0
+    },
+    "2023": {
+      "games": 3591,
+      "snapshots": 3591,
+      "provenancePass": 1478,
+      "provenanceFail": 2113,
+      "priorPass": 3014,
+      "priorFail": 4168,
+      "corePresentOk": 0,
+      "coreAbsent": 7182,
+      "coreInvalid": 0
+    },
+    "2024": {
+      "games": 3745,
+      "snapshots": 3745,
+      "provenancePass": 1545,
+      "provenanceFail": 2200,
+      "priorPass": 3158,
+      "priorFail": 4332,
+      "corePresentOk": 0,
+      "coreAbsent": 7490,
+      "coreInvalid": 0
+    },
+    "2025": {
+      "games": 3743,
+      "snapshots": 3743,
+      "provenancePass": 1559,
+      "provenanceFail": 2184,
+      "priorPass": 3190,
+      "priorFail": 4296,
+      "corePresentOk": 0,
+      "coreAbsent": 7486,
+      "coreInvalid": 0
+    }
+  },
+  "rejectionReasons": {
+    "prior:missing-source-provenance": 18533,
+    "feature:season-qb-ppa-unsafe-for-historical": 18860,
+    "feature:missing-source-provenance": 37066
+  },
+  "missingnessByFamily": {
+    "priorOff": 18533,
+    "priorDef": 18533,
+    "rollingPassEpa": 23525,
+    "rollingRushEpa": 23525,
+    "rollingSuccess": 17383,
+    "core": 29472,
+    "qb": 29472,
+    "weather": 29472
+  },
+  "coreAvailability": {
+    "2022": {
+      "1": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 664
+      },
+      "2": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 624
+      },
+      "3": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 626
+      },
+      "4": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 588
+      },
+      "5": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 624
+      },
+      "6": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 592
+      },
+      "7": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 600
+      },
+      "8": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 610
+      },
+      "9": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 598
+      },
+      "10": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 616
+      },
+      "11": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 614
+      },
+      "12": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 304
+      },
+      "13": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 178
+      },
+      "14": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 58
+      },
+      "15": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 18
+      }
+    },
+    "2023": {
+      "1": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 666
+      },
+      "2": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 632
+      },
+      "3": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 642
+      },
+      "4": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 576
+      },
+      "5": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 610
+      },
+      "6": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 584
+      },
+      "7": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 604
+      },
+      "8": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 610
+      },
+      "9": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 614
+      },
+      "10": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 638
+      },
+      "11": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 596
+      },
+      "12": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 254
+      },
+      "13": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 134
+      },
+      "14": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 20
+      },
+      "15": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 2
+      }
+    },
+    "2024": {
+      "1": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 354
+      },
+      "2": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 628
+      },
+      "3": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 598
+      },
+      "4": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 622
+      },
+      "5": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 538
+      },
+      "6": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 584
+      },
+      "7": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 576
+      },
+      "8": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 612
+      },
+      "9": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 610
+      },
+      "10": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 596
+      },
+      "11": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 604
+      },
+      "12": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 592
+      },
+      "13": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 290
+      },
+      "14": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 204
+      },
+      "15": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 60
+      },
+      "16": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 22
+      }
+    },
+    "2025": {
+      "1": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 400
+      },
+      "2": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 626
+      },
+      "3": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 592
+      },
+      "4": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 600
+      },
+      "5": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 532
+      },
+      "6": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 584
+      },
+      "7": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 574
+      },
+      "8": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 590
+      },
+      "9": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 612
+      },
+      "10": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 608
+      },
+      "11": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 618
+      },
+      "12": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 608
+      },
+      "13": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 276
+      },
+      "14": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 188
+      },
+      "15": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 64
+      },
+      "16": {
+        "present": 0,
+        "valid": 0,
+        "invalid": 0,
+        "absent": 14
+      }
+    }
+  },
+  "playerRoles": {
+    "confidenceDistribution": {
+      "QB1": {
+        "LOW": 17477,
+        "MEDIUM": 1881,
+        "HIGH": 10114
+      },
+      "RB1": {
+        "LOW": 18549,
+        "MEDIUM": 6583,
+        "HIGH": 4340
+      },
+      "WR1": {
+        "LOW": 19562,
+        "MEDIUM": 8719,
+        "HIGH": 1191
+      }
+    },
+    "resolved": {
+      "QB1": 12294,
+      "RB1": 12294,
+      "WR1": 12294,
+      "totalSlots": 88416
+    },
+    "usableSampleSizes": {
+      "QB1": 12294,
+      "RB1": 12294,
+      "WR1": 12294,
+      "note": "Count of role slots with a selected player from pre-kickoff /games/players only"
+    }
+  },
+  "eligibleMetrics": {
+    "A": {
+      "n": 5306,
+      "maeTotal": 13.599208443271776,
+      "maeMargin": 15.940652091971337,
+      "maeHome": 11.094609875612498,
+      "maeAway": 10.29513758009799,
+      "maeTeam": 10.694873727855244,
+      "rmseMargin": 20.402480808558835,
+      "biasMargin": -5.248680738786289,
+      "brier": 0.22675254868555875,
+      "logLoss": 0.6433329374855712
+    },
+    "B": {
+      "n": 5306,
+      "maeTotal": 13.598718431963817,
+      "maeMargin": 15.899359215981901,
+      "maeHome": 11.062382208820216,
+      "maeAway": 10.283980399547664,
+      "maeTeam": 10.67318130418394,
+      "rmseMargin": 20.363738623715868,
+      "biasMargin": -4.770825480588004,
+      "brier": 0.22578442076449975,
+      "logLoss": 0.6410511682145785
+    },
+    "C": {
+      "n": 5306,
+      "maeTotal": 13.599736147757245,
+      "maeMargin": 15.921183565774603,
+      "maeHome": 11.051187335092328,
+      "maeAway": 10.297399170750094,
+      "maeTeam": 10.674293252921212,
+      "rmseMargin": 20.389744785643362,
+      "biasMargin": -4.641990199773858,
+      "brier": 0.22579591667459645,
+      "logLoss": 0.6409732191161339
+    },
+    "D": {
+      "n": 5306,
+      "maeTotal": 13.598812664907655,
+      "maeMargin": 15.946984545797207,
+      "maeHome": 11.065435356200515,
+      "maeAway": 10.297719562759145,
+      "maeTeam": 10.68157745947983,
+      "rmseMargin": 20.41641510290131,
+      "biasMargin": -4.498925744440264,
+      "brier": 0.2262311815520811,
+      "logLoss": 0.6419025316582045
+    },
+    "E": {
+      "n": 5306,
+      "maeTotal": 13.598812664907655,
+      "maeMargin": 15.946984545797207,
+      "maeHome": 11.065435356200515,
+      "maeAway": 10.297719562759145,
+      "maeTeam": 10.68157745947983,
+      "rmseMargin": 20.41641510290131,
+      "biasMargin": -4.498925744440264,
+      "brier": 0.2262311815520811,
+      "logLoss": 0.6419025316582045
+    },
+    "F": {
+      "n": 5306,
+      "maeTotal": 13.59918959668297,
+      "maeMargin": 15.985393893705186,
+      "maeHome": 11.076479457218232,
+      "maeAway": 10.312156049754988,
+      "maeTeam": 10.69431775348661,
+      "rmseMargin": 20.464837458001835,
+      "biasMargin": -4.429306445533366,
+      "brier": 0.22650558930792886,
+      "logLoss": 0.6424272271632674
+    },
+    "G": {
+      "n": 5306,
+      "maeTotal": 13.59918959668297,
+      "maeMargin": 15.985393893705186,
+      "maeHome": 11.076479457218232,
+      "maeAway": 10.312156049754988,
+      "maeTeam": 10.69431775348661,
+      "rmseMargin": 20.464837458001835,
+      "biasMargin": -4.429306445533366,
+      "brier": 0.22650558930792886,
+      "logLoss": 0.6424272271632674
+    },
+    "H": {
+      "n": 5306,
+      "maeTotal": 13.59918959668297,
+      "maeMargin": 15.985393893705186,
+      "maeHome": 11.076479457218232,
+      "maeAway": 10.312156049754988,
+      "maeTeam": 10.69431775348661,
+      "rmseMargin": 20.464837458001835,
+      "biasMargin": -4.429306445533366,
+      "brier": 0.22650558930792886,
+      "logLoss": 0.6424272271632674
+    },
+    "I": {
+      "n": 5306,
+      "maeTotal": 13.599472295514488,
+      "maeMargin": 15.973539389370567,
+      "maeHome": 11.073784395024497,
+      "maeAway": 10.304127402940065,
+      "maeTeam": 10.68895589898228,
+      "rmseMargin": 20.44705296913233,
+      "biasMargin": -4.412702600829253,
+      "brier": 0.2262267300476479,
+      "logLoss": 0.6418785700878176
+    },
+    "J": {
+      "n": 5306,
+      "maeTotal": 13.598774971730096,
+      "maeMargin": 15.746117602713888,
+      "maeHome": 11.019355446664118,
+      "maeAway": 10.167960799095349,
+      "maeTeam": 10.593658122879734,
+      "rmseMargin": 20.12536355443715,
+      "biasMargin": -2.4356388993592146,
+      "brier": 0.2227613221525536,
+      "logLoss": 0.6342786446778976
+    },
+    "K": {
+      "n": 5306,
+      "maeTotal": 13.598774971730096,
+      "maeMargin": 15.746117602713888,
+      "maeHome": 11.019355446664118,
+      "maeAway": 10.167960799095349,
+      "maeTeam": 10.593658122879734,
+      "rmseMargin": 20.12536355443715,
+      "biasMargin": -2.4356388993592146,
+      "brier": 0.2227613221525536,
+      "logLoss": 0.6342786446778976
+    }
+  },
+  "bestAblationEligible": {
+    "ablation": "B",
+    "metrics": {
+      "n": 5306,
+      "maeTotal": 13.598718431963817,
+      "maeMargin": 15.899359215981901,
+      "maeHome": 11.062382208820216,
+      "maeAway": 10.283980399547664,
+      "maeTeam": 10.67318130418394,
+      "rmseMargin": 20.363738623715868,
+      "biasMargin": -4.770825480588004,
+      "brier": 0.22578442076449975,
+      "logLoss": 0.6410511682145785
+    },
+    "metricsAll": {
+      "n": 14736,
+      "maeTotal": 14.029750271444103,
+      "maeMargin": 19.659758414766515,
+      "maeHome": 12.607037187839255,
+      "maeAway": 12.069496471226955,
+      "maeTeam": 12.338266829533104,
+      "rmseMargin": 25.161336495395624,
+      "biasMargin": -4.107111834962021,
+      "brier": 0.24132197028425315,
+      "logLoss": 0.6744821380038992
+    }
+  },
+  "rollingOriginSummary": {
+    "method": "rolling-origin-by-season",
+    "foldCount": 33,
+    "bestAblation": "B"
+  },
+  "artifactHashes": {
+    "report": "9d1d9bb787db10e7bf606ddf3dcfa62a793ba7f048948d3c5ebebf1dd1a0ec0c",
+    "snapshots": "078e10ff928b9fa46e5eef9cce30707c6de9b0afcaad5bdb83c50297ea30997b",
+    "predictions": "82d5a26f43fc6f4607b70ad5bbaf1cc96453bf86174accd5fbc482b6a6e96673",
+    "folds": "5e4e6ea6c29c816afbdc75d95dd85740512158c2f2423f16c18f64b042cf2d80",
+    "reportBody": "647497cd6d0fde3cfab269dd7256064361c42ec1becbd96b0924fddc27288bd4"
+  },
+  "canQualify": false,
+  "fitted": false,
+  "researchReady": false,
+  "promotionReady": false,
+  "bestAblationEligibleReranked": {
+    "ablation": "J",
+    "metrics": {
+      "n": 5306,
+      "maeTotal": 13.598774971730096,
+      "maeMargin": 15.746117602713888,
+      "maeHome": 11.019355446664118,
+      "maeAway": 10.167960799095349,
+      "maeTeam": 10.593658122879734,
+      "rmseMargin": 20.12536355443715,
+      "biasMargin": -2.4356388993592146,
+      "brier": 0.2227613221525536,
+      "logLoss": 0.6342786446778976
+    },
+    "rankBy": "maeMargin"
+  },
+  "akFit": {
+    "bestAblation": "J",
+    "foldMeanMaeMargin": {
+      "J": 16.0471,
+      "K": 16.0471,
+      "B": 16.2555,
+      "C": 16.2707,
+      "D": 16.2916,
+      "E": 16.2916,
+      "A": 16.2927,
+      "I": 16.3088,
+      "F": 16.3254,
+      "G": 16.3254,
+      "H": 16.3254
+    }
+  }
+}
