@@ -137,6 +137,66 @@ export function pinMarkets(game) {
   };
 }
 
+/** Soft-book display label. Never writes into pin* fields. */
+export function softBookLabel(odds = {}) {
+  const soft = String(odds.softSource || "").toLowerCase();
+  if (soft.includes("sharp")) return "DK/FD";
+  if (soft.includes("rundown") || soft.includes("therundown")) return "Soft";
+  if (soft.includes("espn")) return "ESPN";
+  if (soft) return soft;
+  if (odds.softPresent) return "Soft";
+  return "Soft";
+}
+
+/**
+ * Prefer complete Pinnacle two-ways. When Pin is credit-exhausted / absent,
+ * fall back to soft DK/FD (or other soft) two-ways for lean/qualified EV.
+ * Soft prices never populate odds.pin*.
+ */
+export function benchmarkMarkets(game) {
+  const o = game?.odds || {};
+  const pin = pinMarkets(game);
+  const pinComplete = Boolean(pin.ml.complete || pin.spread.complete || pin.total.complete || o.pinPresent);
+  if (pinComplete) {
+    return { ...pin, source: "Pinnacle", softFallback: false };
+  }
+  return {
+    ml: twoWayMarket(o.homeMl, o.awayMl),
+    spread: twoWayMarket(
+      o.softSpreadHomePrice ?? o.spreadPrice,
+      o.softSpreadAwayPrice ?? o.spreadPrice
+    ),
+    total: twoWayMarket(
+      o.softOverPrice ?? o.totalPrice,
+      o.softUnderPrice ?? o.totalPrice
+    ),
+    f5ml: pin.f5ml,
+    f5total: pin.f5total,
+    source: softBookLabel(o),
+    softFallback: true,
+  };
+}
+
+export function benchmarkSpreadPrice(game, side, softFallback) {
+  const o = game?.odds || {};
+  if (!softFallback) {
+    return side === "HOME" ? o.pinSpreadHomePrice ?? null : o.pinSpreadAwayPrice ?? null;
+  }
+  return side === "HOME"
+    ? o.softSpreadHomePrice ?? o.spreadPrice ?? null
+    : o.softSpreadAwayPrice ?? o.spreadPrice ?? null;
+}
+
+export function benchmarkTotalPrice(game, over, softFallback) {
+  const o = game?.odds || {};
+  if (!softFallback) {
+    return over ? o.pinOverPrice ?? null : o.pinUnderPrice ?? null;
+  }
+  return over
+    ? o.softOverPrice ?? o.totalPrice ?? null
+    : o.softUnderPrice ?? o.totalPrice ?? null;
+}
+
 export function tagFromEv(ev) {
   if (ev == null) return "LEAN";
   if (ev >= 0.08) return "CONVICTION";

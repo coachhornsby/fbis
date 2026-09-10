@@ -4,7 +4,7 @@ import { BASEBALL, EXECUTION_BOOK, runLine } from "./books.js";
 import { fetchBallparkPal, mergeBallparkPal, palSlateView } from "./ballparkpal.js";
 import { fetchParlayOdds, mergeParlay } from "./parlay.js";
 import { fetchSavantSlate } from "./savant.js";
-import { MODEL_VERSION, expectedRoi, pinMarkets, priceSelection, tagFromEv, validAmericanOdds } from "./pricing.js";
+import { MODEL_VERSION, expectedRoi, pinMarkets, benchmarkMarkets, benchmarkSpreadPrice, benchmarkTotalPrice, priceSelection, tagFromEv, validAmericanOdds } from "./pricing.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { applyCfbModel, cfbSpreadProb, cfbTotalProb, cfbWinProb, CFB_BLOCKED_MESSAGE } from "./cfbModel.js";
 import { loadCbbdRatings } from "./cfbd.js";
@@ -423,24 +423,28 @@ function withinProbCap(cfg, priced) {
   return priced.fair <= cfg.maxProb && priced.fair >= 1 - cfg.maxProb;
 }
 
-function stampTicket(game, rec, priced, { qualified, lean }) {
+function stampTicket(game, rec, priced, { qualified, lean, benchmarkSource = "Pinnacle", softFallback = false }) {
   const heritageListed = Boolean(game.odds?.heritageListed);
   const canonical = canonicalProbabilityFields(priced.fair);
+  const book = softFallback ? benchmarkSource : "Pinnacle";
   return {
     ...rec,
     ...priced,
     qualified,
     lean,
     tag: qualified ? tagFromEv(priced.ev, priced.probEdge) : "LEAN",
-    book: "Pinnacle",
+    book,
     executionBook: rec.executionPrice != null ? EXECUTION_BOOK : null,
     executionPrice: rec.executionPrice ?? null,
-    benchmarkBook: "Pinnacle",
-    qualificationBook: "Pinnacle",
+    benchmarkBook: book,
+    qualificationBook: book,
     qualificationPrice: priced.pinPrice ?? null,
-    priceSource: heritageListed && rec.executionPrice != null
-      ? "Pinnacle-qualified · Heritage execution available"
-      : "Pinnacle-qualified · shop Heritage before betting",
+    priceSource: softFallback
+      ? `${book} soft-book benchmark (Pinnacle unavailable) · shop carefully before betting`
+      : heritageListed && rec.executionPrice != null
+        ? "Pinnacle-qualified · Heritage execution available"
+        : "Pinnacle-qualified · shop Heritage before betting",
+    softBenchmark: Boolean(softFallback),
     modelVersion: MODEL_VERSION,
     modelProbability: canonical.modelProbability,
     expectedRoi: priced.ev ?? null,
@@ -492,10 +496,14 @@ export function recommendBundle(sport, game, model, weights) {
   if (homeP == null) return { qualified: null, lean: null };
   const awayP = 1 - homeP;
   const recs = [];
-  const pin = game.pin || pinMarkets(game);
+  // Prefer live Pinnacle two-ways; when Pin is absent (credit exhaustion), use soft DK/FD
+  // two-ways for lean/qualified EV. Soft prices never write into odds.pin*.
+  const bench = benchmarkMarkets(game);
+  const softFallback = Boolean(bench.softFallback);
+  const stampOpts = { softFallback, benchmarkSource: bench.source || "Pinnacle" };
 
-  pushMl(recs, cfg, game, "HOME", game.home.name, priceSelection({ pWin: homeP, twoWay: pin.ml, side: "A" }));
-  pushMl(recs, cfg, game, "AWAY", game.away.name, priceSelection({ pWin: awayP, twoWay: pin.ml, side: "B" }));
+  pushMl(recs, cfg, game, "HOME", game.home.name, priceSelection({ pWin: homeP, twoWay: bench.ml, side: "A" }), stampOpts);
+  pushMl(recs, cfg, game, "AWAY", game.away.name, priceSelection({ pWin: awayP, twoWay: bench.ml, side: "B" }), stampOpts);
 
   if (homeSpreadValid(game) && model.projMargin != null) {
     const homeSpread = game.odds.spread;
@@ -508,13 +516,13 @@ export function recommendBundle(sport, game, model, weights) {
         const pHomeCover = cfbSpreadProb(model.projMargin, homeSpread, game.cfb.sigmaMargin);
         pCoverRaw = side === "HOME" ? pHomeCover : pHomeCover != null ? 1 - pHomeCover : null;
       }
-      const pMarket = side === "HOME" ? pin.spread?.noVigA : pin.spread?.noVigB;
+      const pMarket = side === "HOME" ? bench.spread?.noVigA : bench.spread?.noVigB;
       const pCover = shrinkToMarket(pCoverRaw, pMarket);
       const priced = priceSelection({
         pWin: pCover,
-        twoWay: pin.spread,
+        twoWay: bench.spread,
         side: side === "HOME" ? "A" : "B",
-        pinPrice: side === "HOME" ? game.odds.pinSpreadHomePrice : game.odds.pinSpreadAwayPrice,
+        pinPrice: benchmarkSpreadPrice(game, side, softFallback),
       });
       const base = {
         market: "SPREAD",
@@ -524,7 +532,7 @@ export function recommendBundle(sport, game, model, weights) {
         executionPrice: heritageSpreadPrice(game, side),
         edge: priced.probEdge ?? spreadEdge,
       };
-      pushPriced(recs, cfg, game, base, priced, true);
+      pushPriced(recs, cfg, game, base, priced, true, stampOpts);
     }
   }
 
@@ -536,13 +544,13 @@ export function recommendBundle(sport, game, model, weights) {
         sport === "cfb" && game.cfb?.sigmaTotal != null
           ? cfbTotalProb(model.projTotal, game.odds.total, game.cfb.sigmaTotal, over)
           : logistic(Math.abs(diff), cfg.totalK);
-      const pMarket = over ? pin.total?.noVigA : pin.total?.noVigB;
+      const pMarket = over ? bench.total?.noVigA : bench.total?.noVigB;
       const p = shrinkToMarket(pRaw, pMarket);
       const priced = priceSelection({
         pWin: p,
-        twoWay: pin.total,
+        twoWay: bench.total,
         side: over ? "A" : "B",
-        pinPrice: over ? game.odds.pinOverPrice : game.odds.pinUnderPrice,
+        pinPrice: benchmarkTotalPrice(game, over, softFallback),
       });
       const base = {
         market: "TOTAL",
@@ -552,11 +560,12 @@ export function recommendBundle(sport, game, model, weights) {
         executionPrice: heritageTotalPrice(game, over),
         edge: priced.probEdge ?? Math.abs(diff),
       };
-      pushPriced(recs, cfg, game, base, priced, true);
+      pushPriced(recs, cfg, game, base, priced, true, stampOpts);
     }
   }
 
-  pushF5Recs(sport, game, recs, cfg, pin);
+  // F5 stays on explicit f5 book prices (already side-channel); pass Pin markets when present.
+  pushF5Recs(sport, game, recs, cfg, softFallback ? bench : (game.pin || pinMarkets(game)));
 
   if (sport === "cfb" && game.cfb?.projectionState === "PRIOR_ONLY") {
     const priorOnly = sortTickets(recs.map((r) => ({
@@ -599,31 +608,34 @@ export function recommend(sport, game, model, weights) {
   return recommendBundle(sport, game, model, weights).qualified;
 }
 
-function pushPriced(recs, cfg, game, base, priced, extraOk) {
+function pushPriced(recs, cfg, game, base, priced, extraOk, stampOpts = {}) {
   if (!extraOk || !withinProbCap(cfg, priced)) return;
   if (priced?.quarantined) return;
-  const pinnaclePriced = validAmericanOdds(priced.pinPrice);
-  const qualificationEv = pinnaclePriced ? expectedRoi(priced.fair, priced.pinPrice) : null;
+  const pricedOk = validAmericanOdds(priced.pinPrice);
+  const qualificationEv = pricedOk ? expectedRoi(priced.fair, priced.pinPrice) : null;
+  const bookLabel = stampOpts.softFallback ? (stampOpts.benchmarkSource || "Soft") : "Pinnacle";
   const pricedForTicket = {
     ...priced,
     benchmarkPrice: priced.pinPrice ?? null,
     ev: qualificationEv,
     evPct: qualificationEv == null ? null : qualificationEv * 100,
-    expectedRoiLabel: qualificationEv == null ? null : `Expected ROI ${qualificationEv >= 0 ? "+" : ""}${(qualificationEv * 100).toFixed(1)}% at Pinnacle`,
+    expectedRoiLabel: qualificationEv == null
+      ? null
+      : `Expected ROI ${qualificationEv >= 0 ? "+" : ""}${(qualificationEv * 100).toFixed(1)}% at ${bookLabel}`,
   };
-  const qualified = pinnaclePriced && isQualifiedTicket(cfg, pricedForTicket);
+  const qualified = pricedOk && isQualifiedTicket(cfg, pricedForTicket);
   if (qualified) {
-    recs.push(stampTicket(game, base, pricedForTicket, { qualified: true, lean: false }));
+    recs.push(stampTicket(game, base, pricedForTicket, { qualified: true, lean: false, ...stampOpts }));
     return;
   }
   if (qualificationEv != null && qualificationEv < 0) return;
-  recs.push(stampTicket(game, base, pricedForTicket, { qualified: false, lean: true }));
+  recs.push(stampTicket(game, base, pricedForTicket, { qualified: false, lean: true, ...stampOpts }));
 }
 
-function pushMl(recs, cfg, game, side, pick, priced) {
-  const hasPin = priced.implied != null;
-  const edge = hasPin ? priced.probEdge : (priced.fair - 0.5) * 100;
-  if (hasPin) {
+function pushMl(recs, cfg, game, side, pick, priced, stampOpts = {}) {
+  const hasMarket = priced.implied != null;
+  const edge = hasMarket ? priced.probEdge : (priced.fair - 0.5) * 100;
+  if (hasMarket) {
     if (priced.probEdge == null || priced.probEdge / 100 < cfg.minMlEdge) return;
   } else if (priced.fair == null || priced.fair < 0.5 + cfg.minMlEdge) return;
   pushPriced(
@@ -640,7 +652,8 @@ function pushMl(recs, cfg, game, side, pick, priced) {
       edge: edge ?? 0,
     },
     priced,
-    true
+    true,
+    stampOpts
   );
 }
 
@@ -923,11 +936,25 @@ function mapPitcher(p) {
   const name = p.fullName || [p.firstName, p.lastName].filter(Boolean).join(" ");
   if (!name && p.id == null) return null;
   const parts = String(name).trim().split(/\s+/);
+  const seasonPitching = (p.stats || []).find((row) => {
+    const group = String(row?.group?.displayName || row?.group || "").toLowerCase();
+    const type = String(row?.type?.displayName || row?.type || "").toLowerCase();
+    return group.includes("pitch") && (type.includes("season") || type.includes("stat"));
+  })?.stats || p.seasonStats || null;
+  const wins = seasonPitching?.wins ?? seasonPitching?.w ?? null;
+  const losses = seasonPitching?.losses ?? seasonPitching?.l ?? null;
+  const record =
+    wins != null && losses != null && Number.isFinite(Number(wins)) && Number.isFinite(Number(losses))
+      ? `${Number(wins)}-${Number(losses)}`
+      : null;
   return {
     id: p.id || null,
     name,
     last: p.lastName || parts[parts.length - 1] || "",
     hand: p.pitchHand?.code || p.pitchHand?.description || "",
+    wins: wins == null ? null : Number(wins),
+    losses: losses == null ? null : Number(losses),
+    record,
   };
 }
 
@@ -1018,7 +1045,7 @@ function mapMlbStatsGame(g) {
 
 async function fetchMlbStats(date) {
   const day = date || todayCT();
-  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${day}&hydrate=team,linescore,probablePitcher,venue(location,fieldInfo)`;
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${day}&hydrate=team,linescore,probablePitcher(stats),venue(location,fieldInfo)`;
   const res = await fetch(url, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`MLB Stats ${res.status}`);
   const json = await res.json();
