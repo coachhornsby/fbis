@@ -2,6 +2,7 @@ name: Deploy Pages
 
 # Manual fallback for canonical production https://fbis-myz.pages.dev/ (Wrangler Pages project `fbis`).
 # Automatic production deploys run in ci.yml after tests pass.
+# Shares concurrency group deploy-pages-production with ci.yml DEPLOY PRODUCTION.
 
 on:
   workflow_dispatch:
@@ -12,6 +13,7 @@ concurrency:
 
 jobs:
   deploy:
+    name: DEPLOY PRODUCTION (manual)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
@@ -73,7 +75,7 @@ jobs:
             --commit-hash "${DEPLOY_SHA}" \
             --commit-message "deploy ${DEPLOY_SHA}"
 
-      - name: Verify Cloudflare production SHA
+      - name: VERIFY PRODUCTION SHA
         env:
           BASE: https://fbis-myz.pages.dev
         run: |

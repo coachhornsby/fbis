@@ -176,20 +176,22 @@ test("health requires schema migration verification and conflict breakdown", () 
 
 test("CI release gate verifies live health SHA and API smoke", () => {
   const src = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const deployPages = readFileSync(new URL("../.github/workflows/deploy-pages.yml", import.meta.url), "utf8");
   assert.match(src, /verify-deployment-sha\.mjs/);
   assert.match(src, /\/api\/published-projections/);
   assert.match(src, /Release gate smoke passed/);
-  assert.match(src, /Catch-up settle-only harvest/);
-  assert.match(src, /settleTargets/);
-  assert.match(src, /gradeResearch=1/);
-  assert.match(src, /post-deploy-catchup/);
-  assert.match(src, /settleOnly=1/);
-  assert.match(src, /cleanup-future-grades/);
-  assert.match(src, /cleanup-cross-date-strategy/);
-  assert.match(src, /openStrategyTickets/);
-  assert.match(src, /post-deploy-collect-recovery/);
-  assert.match(src, /Recovering collect/);
-  assert.doesNotMatch(src, /scheduledSlot=post-deploy-catchup[\s\S]*\/api\/collect/);
+  assert.match(src, /VERIFY PRODUCTION SHA/);
+  assert.match(src, /group: deploy-pages-production/);
+  assert.match(src, /cancel-in-progress: false/);
+  assert.match(deployPages, /group: deploy-pages-production/);
+  assert.match(src, /pull_request:/);
+  assert.match(src, /push:\s*\n\s*branches:\s*\n\s*- main/);
+  assert.doesNotMatch(src, /branches:\s*\n\s*- "\*\*"/);
+  // Software deploy must not be gated on research harvest/catch-up.
+  assert.doesNotMatch(src, /Catch-up settle-only harvest/);
+  assert.doesNotMatch(src, /settleOnly=1/);
+  assert.doesNotMatch(src, /post-deploy-catchup/);
+  assert.doesNotMatch(src, /\/api\/collect\?/);
   assert.match(src, /Sync HARVEST_SECRET to Cloudflare Pages/);
   assert.match(src, /wrangler pages secret put HARVEST_SECRET/);
 });
@@ -200,9 +202,16 @@ test("harvest catch-up window covers stale OPEN college tickets", () => {
   const api = readFileSync(new URL("../functions/api/harvest.js", import.meta.url), "utf8");
   assert.match(api, /searchParams\.get\("date"\)/);
   assert.match(api, /settleOnly/);
-  assert.match(ci, /settleOnly=1/);
+  // Catch-up lives in research pipeline, not the deploy release gate.
+  assert.doesNotMatch(ci, /settleOnly=1/);
   assert.match(src, /\/api\/harvest\?date=/);
   assert.match(src, /settleOnly=1&gradeResearch=1/);
+  assert.match(src, /VERIFY_MODE: resolve-live/);
+  assert.match(src, /cleanup-future-grades/);
+  assert.match(src, /cleanup-cross-date-strategy/);
+  assert.match(src, /settleTargets/);
+  assert.match(src, /watchdog-recovery/);
+  assert.match(src, /Production SHA changed mid-run/);
 });
 
 test("deep shadow models remain non-qualifying", async () => {
