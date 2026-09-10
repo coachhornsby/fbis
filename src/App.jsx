@@ -32,6 +32,8 @@ function writeUrlState({ tab, date, sport }) {
   if (sport) u.searchParams.set("sport", sport);
   if (tab === "today" && date) u.searchParams.set("date", date);
   else u.searchParams.delete("date");
+  // Preserve visual QA fixture flag across tab/sport navigation.
+  if (u.searchParams.get("boardQa") !== "1") u.searchParams.delete("boardQa");
   window.history.replaceState({}, "", u);
 }
 

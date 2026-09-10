@@ -97,7 +97,9 @@ export default function GameCard({
             {game.away?.record ? <span className="gc-record muted">{game.away.record}</span> : null}
             {awayStarter ? <span className="gc-starter muted">{awayStarter}</span> : null}
           </div>
-          {game.away?.score != null ? <span className="gc-live-score">{game.away.score}</span> : null}
+          {live || done ? (
+            game.away?.score != null ? <span className="gc-live-score">{game.away.score}</span> : null
+          ) : null}
         </div>
         <div className="gc-at" aria-hidden="true">@</div>
         <div className="gc-side home">
@@ -107,7 +109,9 @@ export default function GameCard({
             {game.home?.record ? <span className="gc-record muted">{game.home.record}</span> : null}
             {homeStarter ? <span className="gc-starter muted">{homeStarter}</span> : null}
           </div>
-          {game.home?.score != null ? <span className="gc-live-score">{game.home.score}</span> : null}
+          {live || done ? (
+            game.home?.score != null ? <span className="gc-live-score">{game.home.score}</span> : null
+          ) : null}
         </div>
       </div>
 
