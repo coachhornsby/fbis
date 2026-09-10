@@ -1,0 +1,1601 @@
+{
+  "fold1": {
+    "A": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.864277267030182,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.675097289903675
+        ],
+        "features": [
+          "base"
+        ]
+      },
+      "total": {
+        "intercept": 54.30524861878452,
+        "beta": [
+          3.492514532684468
+        ],
+        "features": [
+          "base_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    },
+    "B": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.833813794127362,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.6323751095868,
+          0.8857441507472521,
+          0.26948570013962225
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush"
+        ]
+      },
+      "total": {
+        "intercept": 54.305248618784525,
+        "beta": [
+          1.9307240480885655,
+          1.5901560537880046,
+          1.201766360360691
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    },
+    "C": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.823956589665475,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.609367573700476,
+          1.2903881924790221,
+          0.6745349810510363,
+          -0.8805835108713616
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success"
+        ]
+      },
+      "total": {
+        "intercept": 54.30524861878452,
+        "beta": [
+          1.4546678103897728,
+          3.9986370271584883,
+          2.4256000032071094,
+          -3.7935671904802213
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    },
+    "D": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.81741782073883,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.576107941212138,
+          1.4845715450191475,
+          0.7675368199335407,
+          -1.0314799656163427,
+          -0.49816449521776185
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness"
+        ]
+      },
+      "total": {
+        "intercept": 54.305248618784525,
+        "beta": [
+          1.4538107570427883,
+          3.770998454907418,
+          2.376356180751113,
+          -3.6670242478663004,
+          0.522063412904818
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    },
+    "E": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.81741782073883,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.576107941212138,
+          1.4845715450191475,
+          0.7675368199335407,
+          -1.0314799656163427,
+          -0.49816449521776185,
+          0
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc"
+        ]
+      },
+      "total": {
+        "intercept": 54.305248618784525,
+        "beta": [
+          1.4538107570427883,
+          3.770998454907418,
+          2.376356180751113,
+          -3.6670242478663004,
+          0.522063412904818,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    },
+    "F": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.802803003309233,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.598701486728292,
+          1.140907694486314,
+          1.0477816282557255,
+          -0.10054720283022989,
+          -0.45384424458640416,
+          0,
+          -1.1892324498479832
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches"
+        ]
+      },
+      "total": {
+        "intercept": 54.30524861878453,
+        "beta": [
+          1.2861170228603112,
+          3.233693029932896,
+          2.543075916734657,
+          -0.7449881346506211,
+          0.6600290064427856,
+          0,
+          -2.7113587776364776
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    },
+    "G": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.802803003309233,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.598701486728292,
+          1.140907694486314,
+          1.0477816282557255,
+          -0.10054720283022989,
+          -0.45384424458640416,
+          0,
+          -1.1892324498479832,
+          0
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing"
+        ]
+      },
+      "total": {
+        "intercept": 54.30524861878453,
+        "beta": [
+          1.2861170228603112,
+          3.233693029932896,
+          2.543075916734657,
+          -0.7449881346506211,
+          0.6600290064427856,
+          0,
+          -2.7113587776364776,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    },
+    "H": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.802803003309233,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.598701486728292,
+          1.140907694486314,
+          1.0477816282557255,
+          -0.10054720283022989,
+          -0.45384424458640416,
+          0,
+          -1.1892324498479832,
+          0,
+          0
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb"
+        ]
+      },
+      "total": {
+        "intercept": 54.30524861878453,
+        "beta": [
+          1.2861170228603112,
+          3.233693029932896,
+          2.543075916734657,
+          -0.7449881346506211,
+          0.6600290064427856,
+          0,
+          -2.7113587776364776,
+          0,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    },
+    "I": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.801871767913806,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.615231859103082,
+          1.1342414798092548,
+          1.0318820173825007,
+          -0.07043681147861165,
+          -0.4435106075772073,
+          0,
+          -1.206490185634074,
+          0,
+          0,
+          -0.1782441241768261
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace"
+        ]
+      },
+      "total": {
+        "intercept": 54.30524861878453,
+        "beta": [
+          1.0590578102581247,
+          2.9484564131374937,
+          2.5431071041242994,
+          -1.5683723486009251,
+          0.8492290467220642,
+          0,
+          -1.5761598146586697,
+          0,
+          0,
+          1.8107342260224473
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total",
+          "pace_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    },
+    "J": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.78462881322578,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.59171077268614,
+          1.038797288768366,
+          1.0018407603871844,
+          0.08175177797828921,
+          -0.4048471880537659,
+          0,
+          -1.2011671391497853,
+          0,
+          0,
+          -0.18312347968819537,
+          0.769344785549762
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace",
+          "context"
+        ]
+      },
+      "total": {
+        "intercept": 54.30524861878453,
+        "beta": [
+          1.0590578102581247,
+          2.9484564131374937,
+          2.5431071041242994,
+          -1.5683723486009251,
+          0.8492290467220642,
+          0,
+          -1.5761598146586697,
+          0,
+          0,
+          1.8107342260224473,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total",
+          "pace_total",
+          "context_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    },
+    "K": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 0.3,
+      "sigmaMargin": 16.78462881322578,
+      "margin": {
+        "intercept": 3.9654696132596667,
+        "beta": [
+          10.59171077268614,
+          1.038797288768366,
+          1.0018407603871844,
+          0.08175177797828921,
+          -0.4048471880537659,
+          0,
+          -1.2011671391497853,
+          0,
+          0,
+          -0.18312347968819537,
+          0.769344785549762
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace",
+          "context"
+        ]
+      },
+      "total": {
+        "intercept": 54.30524861878453,
+        "beta": [
+          1.0590578102581247,
+          2.9484564131374937,
+          2.5431071041242994,
+          -1.5683723486009251,
+          0.8492290467220642,
+          0,
+          -1.5761598146586697,
+          0,
+          0,
+          1.8107342260224473,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total",
+          "pace_total",
+          "context_total"
+        ]
+      },
+      "trainN": 724,
+      "testN": 1478
+    }
+  },
+  "fold2": {
+    "A": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.669943701336326,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          9.231844161221096
+        ],
+        "features": [
+          "base"
+        ]
+      },
+      "total": {
+        "intercept": 53.10581289736603,
+        "beta": [
+          1.6917584005168913
+        ],
+        "features": [
+          "base_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    },
+    "B": {
+      "lambdaMargin": 0.3,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.65794870372827,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          9.205538328821383,
+          0.6979732571768158,
+          -0.33910520006584866
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush"
+        ]
+      },
+      "total": {
+        "intercept": 53.10581289736603,
+        "beta": [
+          0.23317384305132743,
+          0.9610329301410319,
+          1.4570431032319602
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    },
+    "C": {
+      "lambdaMargin": 30,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.63504976816251,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          9.07866324789453,
+          0.32263498978361294,
+          -0.662918949806411,
+          1.082560248565639
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success"
+        ]
+      },
+      "total": {
+        "intercept": 53.10581289736603,
+        "beta": [
+          0.20518713169171554,
+          1.0135200980799173,
+          1.4885775113818875,
+          -0.10977675519104857
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    },
+    "D": {
+      "lambdaMargin": 100,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.60637617664232,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          8.849805558343043,
+          0.3185634762152643,
+          -0.5437381891719575,
+          0.7248469110783731,
+          1.0918106085113055
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness"
+        ]
+      },
+      "total": {
+        "intercept": 53.105812897366036,
+        "beta": [
+          0.2137843652270056,
+          0.9791462713894076,
+          1.4920181000323818,
+          -0.14918955108354032,
+          0.3093378809674313
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    },
+    "E": {
+      "lambdaMargin": 100,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.60637617664232,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          8.849805558343043,
+          0.3185634762152643,
+          -0.5437381891719575,
+          0.7248469110783731,
+          1.0918106085113055,
+          0
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc"
+        ]
+      },
+      "total": {
+        "intercept": 53.105812897366036,
+        "beta": [
+          0.2137843652270056,
+          0.9791462713894076,
+          1.4920181000323818,
+          -0.14918955108354032,
+          0.3093378809674313,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    },
+    "F": {
+      "lambdaMargin": 100,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.60430607029686,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          8.84636185801704,
+          0.4076670870707528,
+          -0.6139015914521606,
+          0.3786408246635474,
+          1.059130971536922,
+          0,
+          0.45761084133326085
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches"
+        ]
+      },
+      "total": {
+        "intercept": 53.10581289736603,
+        "beta": [
+          0.16363435897383483,
+          0.9264193506722977,
+          1.6248032021014005,
+          0.9995321193031526,
+          0.3364911058483142,
+          0,
+          -1.4013350181861204
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    },
+    "G": {
+      "lambdaMargin": 100,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.60430607029686,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          8.84636185801704,
+          0.4076670870707528,
+          -0.6139015914521606,
+          0.3786408246635474,
+          1.059130971536922,
+          0,
+          0.45761084133326085,
+          0
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing"
+        ]
+      },
+      "total": {
+        "intercept": 53.10581289736603,
+        "beta": [
+          0.16363435897383483,
+          0.9264193506722977,
+          1.6248032021014005,
+          0.9995321193031526,
+          0.3364911058483142,
+          0,
+          -1.4013350181861204,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    },
+    "H": {
+      "lambdaMargin": 100,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.60430607029686,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          8.84636185801704,
+          0.4076670870707528,
+          -0.6139015914521606,
+          0.3786408246635474,
+          1.059130971536922,
+          0,
+          0.45761084133326085,
+          0,
+          0
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb"
+        ]
+      },
+      "total": {
+        "intercept": 53.10581289736603,
+        "beta": [
+          0.16363435897383483,
+          0.9264193506722977,
+          1.6248032021014005,
+          0.9995321193031526,
+          0.3364911058483142,
+          0,
+          -1.4013350181861204,
+          0,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    },
+    "I": {
+      "lambdaMargin": 100,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.59096106727889,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          8.80822120465417,
+          0.4130427673679849,
+          -0.6630440691605094,
+          0.38522929705688486,
+          1.1033976488190025,
+          0,
+          0.5202442134967805,
+          0,
+          0,
+          0.6945038055776189
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace"
+        ]
+      },
+      "total": {
+        "intercept": 53.10581289736603,
+        "beta": [
+          -0.42061035111988954,
+          0.7391570847354172,
+          1.468538327154873,
+          0.9928108889196269,
+          0.5752196334627491,
+          0,
+          -1.0025531640840613,
+          0,
+          0,
+          1.8670349420398304
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total",
+          "pace_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    },
+    "J": {
+      "lambdaMargin": 100,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.590939048855503,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          8.80709162164659,
+          0.41329613182333935,
+          -0.6619751258765252,
+          0.3859367842826385,
+          1.103460396930174,
+          0,
+          0.5206122779684965,
+          0,
+          0,
+          0.6935318203143298,
+          0.04057702283504072
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace",
+          "context"
+        ]
+      },
+      "total": {
+        "intercept": 53.10581289736603,
+        "beta": [
+          -0.42061035111988954,
+          0.7391570847354172,
+          1.468538327154873,
+          0.9928108889196269,
+          0.5752196334627491,
+          0,
+          -1.0025531640840613,
+          0,
+          0,
+          1.8670349420398304,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total",
+          "pace_total",
+          "context_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    },
+    "K": {
+      "lambdaMargin": 100,
+      "lambdaTotal": 300,
+      "sigmaMargin": 18.590939048855503,
+      "margin": {
+        "intercept": 5.302906448683012,
+        "beta": [
+          8.80709162164659,
+          0.41329613182333935,
+          -0.6619751258765252,
+          0.3859367842826385,
+          1.103460396930174,
+          0,
+          0.5206122779684965,
+          0,
+          0,
+          0.6935318203143298,
+          0.04057702283504072
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace",
+          "context"
+        ]
+      },
+      "total": {
+        "intercept": 53.10581289736603,
+        "beta": [
+          -0.42061035111988954,
+          0.7391570847354172,
+          1.468538327154873,
+          0.9928108889196269,
+          0.5752196334627491,
+          0,
+          -1.0025531640840613,
+          0,
+          0,
+          1.8670349420398304,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total",
+          "pace_total",
+          "context_total"
+        ]
+      },
+      "trainN": 2202,
+      "testN": 1545
+    }
+  },
+  "fold3": {
+    "A": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.342898328877574,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.694385015774745
+        ],
+        "features": [
+          "base"
+        ]
+      },
+      "total": {
+        "intercept": 53.1208967173739,
+        "beta": [
+          1.3057956982763645
+        ],
+        "features": [
+          "base_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    },
+    "B": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.337860201713184,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.694449965794854,
+          0.3131145799115188,
+          -0.3803050294751524
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush"
+        ]
+      },
+      "total": {
+        "intercept": 53.12089671737391,
+        "beta": [
+          0.25182152801219543,
+          0.6251613050509706,
+          0.9640374444633544
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    },
+    "C": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.326382853103418,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.690186029133103,
+          0.09534799341523276,
+          -0.5869249593741963,
+          0.7012308266519629
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success"
+        ]
+      },
+      "total": {
+        "intercept": 53.12089671737391,
+        "beta": [
+          0.2957713895265147,
+          0.5614883286862133,
+          0.9267903380791824,
+          0.12014854512201256
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    },
+    "D": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.314329236372068,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.70310928924839,
+          0.055259167935186794,
+          -0.5551400391917762,
+          0.5564110397545412,
+          0.6522354253168263
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness"
+        ]
+      },
+      "total": {
+        "intercept": 53.12089671737392,
+        "beta": [
+          0.3185538195583749,
+          0.4996995281189217,
+          0.9257620426455878,
+          0.07793422413923029,
+          0.41062540203810644
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    },
+    "E": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.314329236372068,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.70310928924839,
+          0.055259167935186794,
+          -0.5551400391917762,
+          0.5564110397545412,
+          0.6522354253168263,
+          0
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc"
+        ]
+      },
+      "total": {
+        "intercept": 53.12089671737392,
+        "beta": [
+          0.3185538195583749,
+          0.4996995281189217,
+          0.9257620426455878,
+          0.07793422413923029,
+          0.41062540203810644,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    },
+    "F": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.31208461492943,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.704981098263994,
+          0.12899407957725206,
+          -0.6340413244319499,
+          0.2532962993843535,
+          0.6300752121886188,
+          0,
+          0.4251393877789036
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches"
+        ]
+      },
+      "total": {
+        "intercept": 53.12089671737391,
+        "beta": [
+          0.3147120297033763,
+          0.4365572839193669,
+          1.0167645160085443,
+          0.8950417072927475,
+          0.41534458830128873,
+          0,
+          -0.939474195893173
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    },
+    "G": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.31208461492943,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.704981098263994,
+          0.12899407957725206,
+          -0.6340413244319499,
+          0.2532962993843535,
+          0.6300752121886188,
+          0,
+          0.4251393877789036,
+          0
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing"
+        ]
+      },
+      "total": {
+        "intercept": 53.12089671737391,
+        "beta": [
+          0.3147120297033763,
+          0.4365572839193669,
+          1.0167645160085443,
+          0.8950417072927475,
+          0.41534458830128873,
+          0,
+          -0.939474195893173,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    },
+    "H": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.31208461492943,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.704981098263994,
+          0.12899407957725206,
+          -0.6340413244319499,
+          0.2532962993843535,
+          0.6300752121886188,
+          0,
+          0.4251393877789036,
+          0,
+          0
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb"
+        ]
+      },
+      "total": {
+        "intercept": 53.12089671737391,
+        "beta": [
+          0.3147120297033763,
+          0.4365572839193669,
+          1.0167645160085443,
+          0.8950417072927475,
+          0.41534458830128873,
+          0,
+          -0.939474195893173,
+          0,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    },
+    "I": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.287972464870744,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.64688981915206,
+          0.12280057381397044,
+          -0.6828345751699456,
+          0.24976396411185833,
+          0.6790330180794755,
+          0,
+          0.5079956645170554,
+          0,
+          0,
+          0.9283262855003087
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace"
+        ]
+      },
+      "total": {
+        "intercept": 53.12089671737392,
+        "beta": [
+          -0.31747350625439563,
+          0.24291976311155355,
+          0.8092635023186906,
+          0.8679177822847689,
+          0.696735481685218,
+          0,
+          -0.4017179314030608,
+          0,
+          0,
+          2.22498650040307
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total",
+          "pace_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    },
+    "J": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.285986019999573,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.639308357480182,
+          0.12829877863067088,
+          -0.6730267131212485,
+          0.2510048933855298,
+          0.6802987909481973,
+          0,
+          0.5077022136900845,
+          0,
+          0,
+          0.9203872528988304,
+          0.27571148452619976
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace",
+          "context"
+        ]
+      },
+      "total": {
+        "intercept": 53.12089671737392,
+        "beta": [
+          -0.31747350625439563,
+          0.24291976311155355,
+          0.8092635023186906,
+          0.8679177822847689,
+          0.696735481685218,
+          0,
+          -0.4017179314030608,
+          0,
+          0,
+          2.22498650040307,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total",
+          "pace_total",
+          "context_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    },
+    "K": {
+      "lambdaMargin": 300,
+      "lambdaTotal": 300,
+      "sigmaMargin": 19.285986019999573,
+      "margin": {
+        "intercept": 5.888444088604222,
+        "beta": [
+          7.639308357480182,
+          0.12829877863067088,
+          -0.6730267131212485,
+          0.2510048933855298,
+          0.6802987909481973,
+          0,
+          0.5077022136900845,
+          0,
+          0,
+          0.9203872528988304,
+          0.27571148452619976
+        ],
+        "features": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace",
+          "context"
+        ]
+      },
+      "total": {
+        "intercept": 53.12089671737392,
+        "beta": [
+          -0.31747350625439563,
+          0.24291976311155355,
+          0.8092635023186906,
+          0.8679177822847689,
+          0.696735481685218,
+          0,
+          -0.4017179314030608,
+          0,
+          0,
+          2.22498650040307,
+          0
+        ],
+        "features": [
+          "base_total",
+          "pass_total",
+          "rush_total",
+          "success_total",
+          "explosiveness_total",
+          "havoc_total",
+          "trenches_total",
+          "finishing_total",
+          "qb_total",
+          "pace_total",
+          "context_total"
+        ]
+      },
+      "trainN": 3747,
+      "testN": 1559
+    }
+  }
+}

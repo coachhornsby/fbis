@@ -1,0 +1,7246 @@
+{
+  "generatedAt": "2026-09-10T21:40:40.609Z",
+  "modelId": "CFB-FBIS-v2",
+  "canQualify": false,
+  "method": "rolling-origin-ridge-fitted",
+  "folds": [
+    {
+      "id": "fold1",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023
+    },
+    {
+      "id": "fold2",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024
+    },
+    {
+      "id": "fold3",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025
+    }
+  ],
+  "eligibleDesignN": 5306,
+  "activation": {
+    "eligibleN": 5306,
+    "byFeature": {
+      "base": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 3361,
+        "nonzeroPct": 0.6334338484734263,
+        "variance": 108.44052911936834,
+        "meanAbs": 6.527860912174902
+      },
+      "pass": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 2790,
+        "nonzeroPct": 0.5258198266113834,
+        "variance": 2.630270356628093,
+        "meanAbs": 0.9257086317376575
+      },
+      "rush": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 2791,
+        "nonzeroPct": 0.5260082924990577,
+        "variance": 0.7533294641906523,
+        "meanAbs": 0.494148134187712
+      },
+      "success": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 4907,
+        "nonzeroPct": 0.924802110817942,
+        "variance": 1.7852381948107823,
+        "meanAbs": 0.9137316245759538
+      },
+      "explosiveness": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 4869,
+        "nonzeroPct": 0.9176404070863173,
+        "variance": 6.104822944546089,
+        "meanAbs": 1.5595740670938643
+      },
+      "havoc": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 0,
+        "nonzeroPct": 0,
+        "variance": 0,
+        "meanAbs": 0
+      },
+      "trenches": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 4895,
+        "nonzeroPct": 0.92254052016585,
+        "variance": 0.8831406509091757,
+        "meanAbs": 0.6318262344515666
+      },
+      "finishing": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 0,
+        "nonzeroPct": 0,
+        "variance": 0,
+        "meanAbs": 0
+      },
+      "qb": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 0,
+        "nonzeroPct": 0,
+        "variance": 0,
+        "meanAbs": 0
+      },
+      "pace": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 4884,
+        "nonzeroPct": 0.9204673954014323,
+        "variance": 0.8325370534591002,
+        "meanAbs": 0.6523407463249149
+      },
+      "context": {
+        "nonNullN": 5306,
+        "nonNullPct": 1,
+        "nonzeroN": 5154,
+        "nonzeroPct": 0.9713531850735017,
+        "variance": 0.17391359325667582,
+        "meanAbs": 2.428382962683754
+      }
+    },
+    "ablationActivation": {
+      "A": {
+        "featuresEnabled": [
+          "base"
+        ],
+        "addedVsPrevious": [
+          "base"
+        ],
+        "inactiveAddedBlocks": [],
+        "status": "active"
+      },
+      "B": {
+        "featuresEnabled": [
+          "base",
+          "pass",
+          "rush"
+        ],
+        "addedVsPrevious": [
+          "pass",
+          "rush"
+        ],
+        "inactiveAddedBlocks": [],
+        "status": "active"
+      },
+      "C": {
+        "featuresEnabled": [
+          "base",
+          "pass",
+          "rush",
+          "success"
+        ],
+        "addedVsPrevious": [
+          "success"
+        ],
+        "inactiveAddedBlocks": [],
+        "status": "active"
+      },
+      "D": {
+        "featuresEnabled": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness"
+        ],
+        "addedVsPrevious": [
+          "explosiveness"
+        ],
+        "inactiveAddedBlocks": [],
+        "status": "active"
+      },
+      "E": {
+        "featuresEnabled": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc"
+        ],
+        "addedVsPrevious": [
+          "havoc"
+        ],
+        "inactiveAddedBlocks": [
+          "havoc"
+        ],
+        "status": "inactive_in_historical_sample"
+      },
+      "F": {
+        "featuresEnabled": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches"
+        ],
+        "addedVsPrevious": [
+          "trenches"
+        ],
+        "inactiveAddedBlocks": [],
+        "status": "active"
+      },
+      "G": {
+        "featuresEnabled": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing"
+        ],
+        "addedVsPrevious": [
+          "finishing"
+        ],
+        "inactiveAddedBlocks": [
+          "finishing"
+        ],
+        "status": "inactive_in_historical_sample"
+      },
+      "H": {
+        "featuresEnabled": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb"
+        ],
+        "addedVsPrevious": [
+          "qb"
+        ],
+        "inactiveAddedBlocks": [
+          "qb"
+        ],
+        "status": "inactive_in_historical_sample"
+      },
+      "I": {
+        "featuresEnabled": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace"
+        ],
+        "addedVsPrevious": [
+          "pace"
+        ],
+        "inactiveAddedBlocks": [],
+        "status": "active"
+      },
+      "J": {
+        "featuresEnabled": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace",
+          "context"
+        ],
+        "addedVsPrevious": [
+          "context"
+        ],
+        "inactiveAddedBlocks": [],
+        "status": "active"
+      },
+      "K": {
+        "featuresEnabled": [
+          "base",
+          "pass",
+          "rush",
+          "success",
+          "explosiveness",
+          "havoc",
+          "trenches",
+          "finishing",
+          "qb",
+          "pace",
+          "context"
+        ],
+        "addedVsPrevious": [],
+        "inactiveAddedBlocks": [],
+        "status": "architecturally_identical_to_J"
+      }
+    },
+    "explanations": {
+      "J_equals_K": "Identical feature sets/masks; K adds nothing architectural.",
+      "inactive_blocks": "Blocks with nonzeroPct≈0 are inactive_in_historical_sample — not proof they lack value if populated later.",
+      "provisional_total_flat": "Unfitted total ≈ 2×nationalPpg; fitted total uses intentional totalFeatures."
+    }
+  },
+  "coefficientsByFold": {
+    "fold1": {
+      "A": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.864277267030182,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.675097289903675
+          ],
+          "features": [
+            "base"
+          ]
+        },
+        "total": {
+          "intercept": 54.30524861878452,
+          "beta": [
+            3.492514532684468
+          ],
+          "features": [
+            "base_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      },
+      "B": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.833813794127362,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.6323751095868,
+            0.8857441507472521,
+            0.26948570013962225
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush"
+          ]
+        },
+        "total": {
+          "intercept": 54.305248618784525,
+          "beta": [
+            1.9307240480885655,
+            1.5901560537880046,
+            1.201766360360691
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      },
+      "C": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.823956589665475,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.609367573700476,
+            1.2903881924790221,
+            0.6745349810510363,
+            -0.8805835108713616
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success"
+          ]
+        },
+        "total": {
+          "intercept": 54.30524861878452,
+          "beta": [
+            1.4546678103897728,
+            3.9986370271584883,
+            2.4256000032071094,
+            -3.7935671904802213
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      },
+      "D": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.81741782073883,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.576107941212138,
+            1.4845715450191475,
+            0.7675368199335407,
+            -1.0314799656163427,
+            -0.49816449521776185
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness"
+          ]
+        },
+        "total": {
+          "intercept": 54.305248618784525,
+          "beta": [
+            1.4538107570427883,
+            3.770998454907418,
+            2.376356180751113,
+            -3.6670242478663004,
+            0.522063412904818
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      },
+      "E": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.81741782073883,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.576107941212138,
+            1.4845715450191475,
+            0.7675368199335407,
+            -1.0314799656163427,
+            -0.49816449521776185,
+            0
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc"
+          ]
+        },
+        "total": {
+          "intercept": 54.305248618784525,
+          "beta": [
+            1.4538107570427883,
+            3.770998454907418,
+            2.376356180751113,
+            -3.6670242478663004,
+            0.522063412904818,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      },
+      "F": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.802803003309233,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.598701486728292,
+            1.140907694486314,
+            1.0477816282557255,
+            -0.10054720283022989,
+            -0.45384424458640416,
+            0,
+            -1.1892324498479832
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches"
+          ]
+        },
+        "total": {
+          "intercept": 54.30524861878453,
+          "beta": [
+            1.2861170228603112,
+            3.233693029932896,
+            2.543075916734657,
+            -0.7449881346506211,
+            0.6600290064427856,
+            0,
+            -2.7113587776364776
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      },
+      "G": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.802803003309233,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.598701486728292,
+            1.140907694486314,
+            1.0477816282557255,
+            -0.10054720283022989,
+            -0.45384424458640416,
+            0,
+            -1.1892324498479832,
+            0
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing"
+          ]
+        },
+        "total": {
+          "intercept": 54.30524861878453,
+          "beta": [
+            1.2861170228603112,
+            3.233693029932896,
+            2.543075916734657,
+            -0.7449881346506211,
+            0.6600290064427856,
+            0,
+            -2.7113587776364776,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      },
+      "H": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.802803003309233,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.598701486728292,
+            1.140907694486314,
+            1.0477816282557255,
+            -0.10054720283022989,
+            -0.45384424458640416,
+            0,
+            -1.1892324498479832,
+            0,
+            0
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb"
+          ]
+        },
+        "total": {
+          "intercept": 54.30524861878453,
+          "beta": [
+            1.2861170228603112,
+            3.233693029932896,
+            2.543075916734657,
+            -0.7449881346506211,
+            0.6600290064427856,
+            0,
+            -2.7113587776364776,
+            0,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      },
+      "I": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.801871767913806,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.615231859103082,
+            1.1342414798092548,
+            1.0318820173825007,
+            -0.07043681147861165,
+            -0.4435106075772073,
+            0,
+            -1.206490185634074,
+            0,
+            0,
+            -0.1782441241768261
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb",
+            "pace"
+          ]
+        },
+        "total": {
+          "intercept": 54.30524861878453,
+          "beta": [
+            1.0590578102581247,
+            2.9484564131374937,
+            2.5431071041242994,
+            -1.5683723486009251,
+            0.8492290467220642,
+            0,
+            -1.5761598146586697,
+            0,
+            0,
+            1.8107342260224473
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total",
+            "pace_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      },
+      "J": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.78462881322578,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.59171077268614,
+            1.038797288768366,
+            1.0018407603871844,
+            0.08175177797828921,
+            -0.4048471880537659,
+            0,
+            -1.2011671391497853,
+            0,
+            0,
+            -0.18312347968819537,
+            0.769344785549762
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb",
+            "pace",
+            "context"
+          ]
+        },
+        "total": {
+          "intercept": 54.30524861878453,
+          "beta": [
+            1.0590578102581247,
+            2.9484564131374937,
+            2.5431071041242994,
+            -1.5683723486009251,
+            0.8492290467220642,
+            0,
+            -1.5761598146586697,
+            0,
+            0,
+            1.8107342260224473,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total",
+            "pace_total",
+            "context_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      },
+      "K": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 0.3,
+        "sigmaMargin": 16.78462881322578,
+        "margin": {
+          "intercept": 3.9654696132596667,
+          "beta": [
+            10.59171077268614,
+            1.038797288768366,
+            1.0018407603871844,
+            0.08175177797828921,
+            -0.4048471880537659,
+            0,
+            -1.2011671391497853,
+            0,
+            0,
+            -0.18312347968819537,
+            0.769344785549762
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb",
+            "pace",
+            "context"
+          ]
+        },
+        "total": {
+          "intercept": 54.30524861878453,
+          "beta": [
+            1.0590578102581247,
+            2.9484564131374937,
+            2.5431071041242994,
+            -1.5683723486009251,
+            0.8492290467220642,
+            0,
+            -1.5761598146586697,
+            0,
+            0,
+            1.8107342260224473,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total",
+            "pace_total",
+            "context_total"
+          ]
+        },
+        "trainN": 724,
+        "testN": 1478
+      }
+    },
+    "fold2": {
+      "A": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.669943701336326,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            9.231844161221096
+          ],
+          "features": [
+            "base"
+          ]
+        },
+        "total": {
+          "intercept": 53.10581289736603,
+          "beta": [
+            1.6917584005168913
+          ],
+          "features": [
+            "base_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      },
+      "B": {
+        "lambdaMargin": 0.3,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.65794870372827,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            9.205538328821383,
+            0.6979732571768158,
+            -0.33910520006584866
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush"
+          ]
+        },
+        "total": {
+          "intercept": 53.10581289736603,
+          "beta": [
+            0.23317384305132743,
+            0.9610329301410319,
+            1.4570431032319602
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      },
+      "C": {
+        "lambdaMargin": 30,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.63504976816251,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            9.07866324789453,
+            0.32263498978361294,
+            -0.662918949806411,
+            1.082560248565639
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success"
+          ]
+        },
+        "total": {
+          "intercept": 53.10581289736603,
+          "beta": [
+            0.20518713169171554,
+            1.0135200980799173,
+            1.4885775113818875,
+            -0.10977675519104857
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      },
+      "D": {
+        "lambdaMargin": 100,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.60637617664232,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            8.849805558343043,
+            0.3185634762152643,
+            -0.5437381891719575,
+            0.7248469110783731,
+            1.0918106085113055
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness"
+          ]
+        },
+        "total": {
+          "intercept": 53.105812897366036,
+          "beta": [
+            0.2137843652270056,
+            0.9791462713894076,
+            1.4920181000323818,
+            -0.14918955108354032,
+            0.3093378809674313
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      },
+      "E": {
+        "lambdaMargin": 100,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.60637617664232,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            8.849805558343043,
+            0.3185634762152643,
+            -0.5437381891719575,
+            0.7248469110783731,
+            1.0918106085113055,
+            0
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc"
+          ]
+        },
+        "total": {
+          "intercept": 53.105812897366036,
+          "beta": [
+            0.2137843652270056,
+            0.9791462713894076,
+            1.4920181000323818,
+            -0.14918955108354032,
+            0.3093378809674313,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      },
+      "F": {
+        "lambdaMargin": 100,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.60430607029686,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            8.84636185801704,
+            0.4076670870707528,
+            -0.6139015914521606,
+            0.3786408246635474,
+            1.059130971536922,
+            0,
+            0.45761084133326085
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches"
+          ]
+        },
+        "total": {
+          "intercept": 53.10581289736603,
+          "beta": [
+            0.16363435897383483,
+            0.9264193506722977,
+            1.6248032021014005,
+            0.9995321193031526,
+            0.3364911058483142,
+            0,
+            -1.4013350181861204
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      },
+      "G": {
+        "lambdaMargin": 100,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.60430607029686,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            8.84636185801704,
+            0.4076670870707528,
+            -0.6139015914521606,
+            0.3786408246635474,
+            1.059130971536922,
+            0,
+            0.45761084133326085,
+            0
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing"
+          ]
+        },
+        "total": {
+          "intercept": 53.10581289736603,
+          "beta": [
+            0.16363435897383483,
+            0.9264193506722977,
+            1.6248032021014005,
+            0.9995321193031526,
+            0.3364911058483142,
+            0,
+            -1.4013350181861204,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      },
+      "H": {
+        "lambdaMargin": 100,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.60430607029686,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            8.84636185801704,
+            0.4076670870707528,
+            -0.6139015914521606,
+            0.3786408246635474,
+            1.059130971536922,
+            0,
+            0.45761084133326085,
+            0,
+            0
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb"
+          ]
+        },
+        "total": {
+          "intercept": 53.10581289736603,
+          "beta": [
+            0.16363435897383483,
+            0.9264193506722977,
+            1.6248032021014005,
+            0.9995321193031526,
+            0.3364911058483142,
+            0,
+            -1.4013350181861204,
+            0,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      },
+      "I": {
+        "lambdaMargin": 100,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.59096106727889,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            8.80822120465417,
+            0.4130427673679849,
+            -0.6630440691605094,
+            0.38522929705688486,
+            1.1033976488190025,
+            0,
+            0.5202442134967805,
+            0,
+            0,
+            0.6945038055776189
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb",
+            "pace"
+          ]
+        },
+        "total": {
+          "intercept": 53.10581289736603,
+          "beta": [
+            -0.42061035111988954,
+            0.7391570847354172,
+            1.468538327154873,
+            0.9928108889196269,
+            0.5752196334627491,
+            0,
+            -1.0025531640840613,
+            0,
+            0,
+            1.8670349420398304
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total",
+            "pace_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      },
+      "J": {
+        "lambdaMargin": 100,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.590939048855503,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            8.80709162164659,
+            0.41329613182333935,
+            -0.6619751258765252,
+            0.3859367842826385,
+            1.103460396930174,
+            0,
+            0.5206122779684965,
+            0,
+            0,
+            0.6935318203143298,
+            0.04057702283504072
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb",
+            "pace",
+            "context"
+          ]
+        },
+        "total": {
+          "intercept": 53.10581289736603,
+          "beta": [
+            -0.42061035111988954,
+            0.7391570847354172,
+            1.468538327154873,
+            0.9928108889196269,
+            0.5752196334627491,
+            0,
+            -1.0025531640840613,
+            0,
+            0,
+            1.8670349420398304,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total",
+            "pace_total",
+            "context_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      },
+      "K": {
+        "lambdaMargin": 100,
+        "lambdaTotal": 300,
+        "sigmaMargin": 18.590939048855503,
+        "margin": {
+          "intercept": 5.302906448683012,
+          "beta": [
+            8.80709162164659,
+            0.41329613182333935,
+            -0.6619751258765252,
+            0.3859367842826385,
+            1.103460396930174,
+            0,
+            0.5206122779684965,
+            0,
+            0,
+            0.6935318203143298,
+            0.04057702283504072
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb",
+            "pace",
+            "context"
+          ]
+        },
+        "total": {
+          "intercept": 53.10581289736603,
+          "beta": [
+            -0.42061035111988954,
+            0.7391570847354172,
+            1.468538327154873,
+            0.9928108889196269,
+            0.5752196334627491,
+            0,
+            -1.0025531640840613,
+            0,
+            0,
+            1.8670349420398304,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total",
+            "pace_total",
+            "context_total"
+          ]
+        },
+        "trainN": 2202,
+        "testN": 1545
+      }
+    },
+    "fold3": {
+      "A": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.342898328877574,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.694385015774745
+          ],
+          "features": [
+            "base"
+          ]
+        },
+        "total": {
+          "intercept": 53.1208967173739,
+          "beta": [
+            1.3057956982763645
+          ],
+          "features": [
+            "base_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      },
+      "B": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.337860201713184,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.694449965794854,
+            0.3131145799115188,
+            -0.3803050294751524
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush"
+          ]
+        },
+        "total": {
+          "intercept": 53.12089671737391,
+          "beta": [
+            0.25182152801219543,
+            0.6251613050509706,
+            0.9640374444633544
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      },
+      "C": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.326382853103418,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.690186029133103,
+            0.09534799341523276,
+            -0.5869249593741963,
+            0.7012308266519629
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success"
+          ]
+        },
+        "total": {
+          "intercept": 53.12089671737391,
+          "beta": [
+            0.2957713895265147,
+            0.5614883286862133,
+            0.9267903380791824,
+            0.12014854512201256
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      },
+      "D": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.314329236372068,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.70310928924839,
+            0.055259167935186794,
+            -0.5551400391917762,
+            0.5564110397545412,
+            0.6522354253168263
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness"
+          ]
+        },
+        "total": {
+          "intercept": 53.12089671737392,
+          "beta": [
+            0.3185538195583749,
+            0.4996995281189217,
+            0.9257620426455878,
+            0.07793422413923029,
+            0.41062540203810644
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      },
+      "E": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.314329236372068,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.70310928924839,
+            0.055259167935186794,
+            -0.5551400391917762,
+            0.5564110397545412,
+            0.6522354253168263,
+            0
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc"
+          ]
+        },
+        "total": {
+          "intercept": 53.12089671737392,
+          "beta": [
+            0.3185538195583749,
+            0.4996995281189217,
+            0.9257620426455878,
+            0.07793422413923029,
+            0.41062540203810644,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      },
+      "F": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.31208461492943,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.704981098263994,
+            0.12899407957725206,
+            -0.6340413244319499,
+            0.2532962993843535,
+            0.6300752121886188,
+            0,
+            0.4251393877789036
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches"
+          ]
+        },
+        "total": {
+          "intercept": 53.12089671737391,
+          "beta": [
+            0.3147120297033763,
+            0.4365572839193669,
+            1.0167645160085443,
+            0.8950417072927475,
+            0.41534458830128873,
+            0,
+            -0.939474195893173
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      },
+      "G": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.31208461492943,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.704981098263994,
+            0.12899407957725206,
+            -0.6340413244319499,
+            0.2532962993843535,
+            0.6300752121886188,
+            0,
+            0.4251393877789036,
+            0
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing"
+          ]
+        },
+        "total": {
+          "intercept": 53.12089671737391,
+          "beta": [
+            0.3147120297033763,
+            0.4365572839193669,
+            1.0167645160085443,
+            0.8950417072927475,
+            0.41534458830128873,
+            0,
+            -0.939474195893173,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      },
+      "H": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.31208461492943,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.704981098263994,
+            0.12899407957725206,
+            -0.6340413244319499,
+            0.2532962993843535,
+            0.6300752121886188,
+            0,
+            0.4251393877789036,
+            0,
+            0
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb"
+          ]
+        },
+        "total": {
+          "intercept": 53.12089671737391,
+          "beta": [
+            0.3147120297033763,
+            0.4365572839193669,
+            1.0167645160085443,
+            0.8950417072927475,
+            0.41534458830128873,
+            0,
+            -0.939474195893173,
+            0,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      },
+      "I": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.287972464870744,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.64688981915206,
+            0.12280057381397044,
+            -0.6828345751699456,
+            0.24976396411185833,
+            0.6790330180794755,
+            0,
+            0.5079956645170554,
+            0,
+            0,
+            0.9283262855003087
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb",
+            "pace"
+          ]
+        },
+        "total": {
+          "intercept": 53.12089671737392,
+          "beta": [
+            -0.31747350625439563,
+            0.24291976311155355,
+            0.8092635023186906,
+            0.8679177822847689,
+            0.696735481685218,
+            0,
+            -0.4017179314030608,
+            0,
+            0,
+            2.22498650040307
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total",
+            "pace_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      },
+      "J": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.285986019999573,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.639308357480182,
+            0.12829877863067088,
+            -0.6730267131212485,
+            0.2510048933855298,
+            0.6802987909481973,
+            0,
+            0.5077022136900845,
+            0,
+            0,
+            0.9203872528988304,
+            0.27571148452619976
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb",
+            "pace",
+            "context"
+          ]
+        },
+        "total": {
+          "intercept": 53.12089671737392,
+          "beta": [
+            -0.31747350625439563,
+            0.24291976311155355,
+            0.8092635023186906,
+            0.8679177822847689,
+            0.696735481685218,
+            0,
+            -0.4017179314030608,
+            0,
+            0,
+            2.22498650040307,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total",
+            "pace_total",
+            "context_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      },
+      "K": {
+        "lambdaMargin": 300,
+        "lambdaTotal": 300,
+        "sigmaMargin": 19.285986019999573,
+        "margin": {
+          "intercept": 5.888444088604222,
+          "beta": [
+            7.639308357480182,
+            0.12829877863067088,
+            -0.6730267131212485,
+            0.2510048933855298,
+            0.6802987909481973,
+            0,
+            0.5077022136900845,
+            0,
+            0,
+            0.9203872528988304,
+            0.27571148452619976
+          ],
+          "features": [
+            "base",
+            "pass",
+            "rush",
+            "success",
+            "explosiveness",
+            "havoc",
+            "trenches",
+            "finishing",
+            "qb",
+            "pace",
+            "context"
+          ]
+        },
+        "total": {
+          "intercept": 53.12089671737392,
+          "beta": [
+            -0.31747350625439563,
+            0.24291976311155355,
+            0.8092635023186906,
+            0.8679177822847689,
+            0.696735481685218,
+            0,
+            -0.4017179314030608,
+            0,
+            0,
+            2.22498650040307,
+            0
+          ],
+          "features": [
+            "base_total",
+            "pass_total",
+            "rush_total",
+            "success_total",
+            "explosiveness_total",
+            "havoc_total",
+            "trenches_total",
+            "finishing_total",
+            "qb_total",
+            "pace_total",
+            "context_total"
+          ]
+        },
+        "trainN": 3747,
+        "testN": 1559
+      }
+    }
+  },
+  "foldReports": [
+    {
+      "fold": "fold1",
+      "ablation": "A",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.36337240524698,
+        "rmseMargin": 19.62283236390696,
+        "biasMargin": -2.7323468804135476,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 18.700377835939154,
+        "rmseTotal": 23.36110957541516,
+        "maeHome": 12.866148949592336,
+        "maeAway": 10.960122115397605,
+        "maeTeam": 11.913135532494866,
+        "brier": 0.21744882521692702,
+        "logLoss": 0.6215224397527496,
+        "calibration": {
+          "slope": 0.981949634784372,
+          "intercept": 0.03876333963641465,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 6,
+            "meanPredicted": 0.06699618353627819,
+            "meanActual": 0
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 22,
+            "meanPredicted": 0.15980867993786935,
+            "meanActual": 0.22727272727272727
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 69,
+            "meanPredicted": 0.2561795367895098,
+            "meanActual": 0.2753623188405797
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 108,
+            "meanPredicted": 0.35400229846792797,
+            "meanActual": 0.49074074074074076
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 109,
+            "meanPredicted": 0.44974880235343484,
+            "meanActual": 0.48623853211009177
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 761,
+            "meanPredicted": 0.5576900484098799,
+            "meanActual": 0.5466491458607096
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 145,
+            "meanPredicted": 0.6493541302335395,
+            "meanActual": 0.7310344827586207
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 122,
+            "meanPredicted": 0.7491833351370456,
+            "meanActual": 0.8524590163934426
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 97,
+            "meanPredicted": 0.8475501690470094,
+            "meanActual": 0.8969072164948454
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 39,
+            "meanPredicted": 0.9438642473801611,
+            "meanActual": 0.9487179487179487
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6278755074424899,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold1",
+      "ablation": "B",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.35822177482711,
+        "rmseMargin": 19.643836585392858,
+        "biasMargin": -2.869571477659757,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 16.227120487887426,
+        "rmseTotal": 20.33797577432121,
+        "maeHome": 11.994037370331148,
+        "maeAway": 10.230366003766848,
+        "maeTeam": 11.112201687048985,
+        "brier": 0.2174459292284383,
+        "logLoss": 0.6214197242651431,
+        "calibration": {
+          "slope": 0.9805683821578243,
+          "intercept": 0.042766086305340845,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 4,
+            "meanPredicted": 0.055358255850755274,
+            "meanActual": 0
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 26,
+            "meanPredicted": 0.15649239176156884,
+            "meanActual": 0.3076923076923077
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 66,
+            "meanPredicted": 0.2557661044212558,
+            "meanActual": 0.25757575757575757
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 103,
+            "meanPredicted": 0.3497807929791753,
+            "meanActual": 0.49514563106796117
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 122,
+            "meanPredicted": 0.4491826873551133,
+            "meanActual": 0.47540983606557374
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 755,
+            "meanPredicted": 0.5517280089878168,
+            "meanActual": 0.552317880794702
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 135,
+            "meanPredicted": 0.6478831184939443,
+            "meanActual": 0.7037037037037037
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 131,
+            "meanPredicted": 0.7460351706700188,
+            "meanActual": 0.8244274809160306
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 97,
+            "meanPredicted": 0.8492940673885413,
+            "meanActual": 0.9175257731958762
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 39,
+            "meanPredicted": 0.9448288209738632,
+            "meanActual": 0.9487179487179487
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6244925575101489,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold1",
+      "ablation": "C",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.42037975595204,
+        "rmseMargin": 19.72680948541317,
+        "biasMargin": -2.7800578379548573,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 16.57001143049351,
+        "rmseTotal": 20.90462321385454,
+        "maeHome": 12.08531379872982,
+        "maeAway": 10.584454612551452,
+        "maeTeam": 11.334884205640641,
+        "brier": 0.21844814080494723,
+        "logLoss": 0.623734841259287,
+        "calibration": {
+          "slope": 0.9536755313995753,
+          "intercept": 0.05582994316429879,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 5,
+            "meanPredicted": 0.06328402852472499,
+            "meanActual": 0
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 23,
+            "meanPredicted": 0.15332901819979186,
+            "meanActual": 0.2608695652173913
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 72,
+            "meanPredicted": 0.25405735076672836,
+            "meanActual": 0.3055555555555556
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 98,
+            "meanPredicted": 0.3531810157968477,
+            "meanActual": 0.46938775510204084
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 154,
+            "meanPredicted": 0.45608340728697705,
+            "meanActual": 0.512987012987013
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 693,
+            "meanPredicted": 0.5567526447211549,
+            "meanActual": 0.5411255411255411
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 167,
+            "meanPredicted": 0.6424431582603777,
+            "meanActual": 0.718562874251497
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 133,
+            "meanPredicted": 0.747050949711545,
+            "meanActual": 0.8270676691729323
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 92,
+            "meanPredicted": 0.8491786109981097,
+            "meanActual": 0.9021739130434783
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 41,
+            "meanPredicted": 0.9423738959506309,
+            "meanActual": 0.9512195121951219
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6211096075778079,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold1",
+      "ablation": "D",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.493184682398978,
+        "rmseMargin": 19.850825895213397,
+        "biasMargin": -2.8206858498171115,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 16.41874401324462,
+        "rmseTotal": 20.73051994215948,
+        "maeHome": 12.077917394142206,
+        "maeAway": 10.552307519696672,
+        "maeTeam": 11.31511245691943,
+        "brier": 0.21992341867096335,
+        "logLoss": 0.6271047061635245,
+        "calibration": {
+          "slope": 0.9136429212129727,
+          "intercept": 0.07920919260721881,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 6,
+            "meanPredicted": 0.0685867561543832,
+            "meanActual": 0.16666666666666666
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 27,
+            "meanPredicted": 0.15626433734235892,
+            "meanActual": 0.25925925925925924
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 69,
+            "meanPredicted": 0.2550097262795673,
+            "meanActual": 0.2898550724637681
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 111,
+            "meanPredicted": 0.3583514920729218,
+            "meanActual": 0.5225225225225225
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 139,
+            "meanPredicted": 0.4476983435483641,
+            "meanActual": 0.49640287769784175
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 677,
+            "meanPredicted": 0.5570500185887288,
+            "meanActual": 0.5376661742983752
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 184,
+            "meanPredicted": 0.6423748894855364,
+            "meanActual": 0.7065217391304348
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 128,
+            "meanPredicted": 0.7460730400322052,
+            "meanActual": 0.8203125
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 97,
+            "meanPredicted": 0.8481189827391468,
+            "meanActual": 0.9072164948453608
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 40,
+            "meanPredicted": 0.943058051430101,
+            "meanActual": 0.95
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6211096075778079,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold1",
+      "ablation": "E",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.493184682398978,
+        "rmseMargin": 19.850825895213397,
+        "biasMargin": -2.8206858498171115,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 16.41874401324462,
+        "rmseTotal": 20.73051994215948,
+        "maeHome": 12.077917394142206,
+        "maeAway": 10.552307519696672,
+        "maeTeam": 11.31511245691943,
+        "brier": 0.21992341867096335,
+        "logLoss": 0.6271047061635245,
+        "calibration": {
+          "slope": 0.9136429212129727,
+          "intercept": 0.07920919260721881,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 6,
+            "meanPredicted": 0.0685867561543832,
+            "meanActual": 0.16666666666666666
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 27,
+            "meanPredicted": 0.15626433734235892,
+            "meanActual": 0.25925925925925924
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 69,
+            "meanPredicted": 0.2550097262795673,
+            "meanActual": 0.2898550724637681
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 111,
+            "meanPredicted": 0.3583514920729218,
+            "meanActual": 0.5225225225225225
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 139,
+            "meanPredicted": 0.4476983435483641,
+            "meanActual": 0.49640287769784175
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 677,
+            "meanPredicted": 0.5570500185887288,
+            "meanActual": 0.5376661742983752
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 184,
+            "meanPredicted": 0.6423748894855364,
+            "meanActual": 0.7065217391304348
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 128,
+            "meanPredicted": 0.7460730400322052,
+            "meanActual": 0.8203125
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 97,
+            "meanPredicted": 0.8481189827391468,
+            "meanActual": 0.9072164948453608
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 40,
+            "meanPredicted": 0.943058051430101,
+            "meanActual": 0.95
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6211096075778079,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold1",
+      "ablation": "F",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.535919048242322,
+        "rmseMargin": 19.93111755828341,
+        "biasMargin": -2.880502683506003,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 15.887275522427911,
+        "rmseTotal": 20.057428421764456,
+        "maeHome": 11.885734135700137,
+        "maeAway": 10.420130901523107,
+        "maeTeam": 11.15293251861161,
+        "brier": 0.22027102097885748,
+        "logLoss": 0.6281016685669328,
+        "calibration": {
+          "slope": 0.8995718847531368,
+          "intercept": 0.08836146271902723,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 6,
+            "meanPredicted": 0.062217144569951,
+            "meanActual": 0.16666666666666666
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 28,
+            "meanPredicted": 0.1581153486683275,
+            "meanActual": 0.32142857142857145
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 66,
+            "meanPredicted": 0.25387142745106334,
+            "meanActual": 0.30303030303030304
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 125,
+            "meanPredicted": 0.35263960970038843,
+            "meanActual": 0.496
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 140,
+            "meanPredicted": 0.4542563727933019,
+            "meanActual": 0.5214285714285715
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 632,
+            "meanPredicted": 0.5538292140090048,
+            "meanActual": 0.5427215189873418
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 216,
+            "meanPredicted": 0.6401732302840799,
+            "meanActual": 0.6574074074074074
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 130,
+            "meanPredicted": 0.7463927115922848,
+            "meanActual": 0.8076923076923077
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 96,
+            "meanPredicted": 0.850285600249646,
+            "meanActual": 0.9166666666666666
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 39,
+            "meanPredicted": 0.9455654886114169,
+            "meanActual": 0.9487179487179487
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6163734776725305,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold1",
+      "ablation": "G",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.535919048242322,
+        "rmseMargin": 19.93111755828341,
+        "biasMargin": -2.880502683506003,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 15.887275522427911,
+        "rmseTotal": 20.057428421764456,
+        "maeHome": 11.885734135700137,
+        "maeAway": 10.420130901523107,
+        "maeTeam": 11.15293251861161,
+        "brier": 0.22027102097885748,
+        "logLoss": 0.6281016685669328,
+        "calibration": {
+          "slope": 0.8995718847531368,
+          "intercept": 0.08836146271902723,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 6,
+            "meanPredicted": 0.062217144569951,
+            "meanActual": 0.16666666666666666
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 28,
+            "meanPredicted": 0.1581153486683275,
+            "meanActual": 0.32142857142857145
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 66,
+            "meanPredicted": 0.25387142745106334,
+            "meanActual": 0.30303030303030304
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 125,
+            "meanPredicted": 0.35263960970038843,
+            "meanActual": 0.496
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 140,
+            "meanPredicted": 0.4542563727933019,
+            "meanActual": 0.5214285714285715
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 632,
+            "meanPredicted": 0.5538292140090048,
+            "meanActual": 0.5427215189873418
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 216,
+            "meanPredicted": 0.6401732302840799,
+            "meanActual": 0.6574074074074074
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 130,
+            "meanPredicted": 0.7463927115922848,
+            "meanActual": 0.8076923076923077
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 96,
+            "meanPredicted": 0.850285600249646,
+            "meanActual": 0.9166666666666666
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 39,
+            "meanPredicted": 0.9455654886114169,
+            "meanActual": 0.9487179487179487
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6163734776725305,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold1",
+      "ablation": "H",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.535919048242322,
+        "rmseMargin": 19.93111755828341,
+        "biasMargin": -2.880502683506003,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 15.887275522427911,
+        "rmseTotal": 20.057428421764456,
+        "maeHome": 11.885734135700137,
+        "maeAway": 10.420130901523107,
+        "maeTeam": 11.15293251861161,
+        "brier": 0.22027102097885748,
+        "logLoss": 0.6281016685669328,
+        "calibration": {
+          "slope": 0.8995718847531368,
+          "intercept": 0.08836146271902723,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 6,
+            "meanPredicted": 0.062217144569951,
+            "meanActual": 0.16666666666666666
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 28,
+            "meanPredicted": 0.1581153486683275,
+            "meanActual": 0.32142857142857145
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 66,
+            "meanPredicted": 0.25387142745106334,
+            "meanActual": 0.30303030303030304
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 125,
+            "meanPredicted": 0.35263960970038843,
+            "meanActual": 0.496
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 140,
+            "meanPredicted": 0.4542563727933019,
+            "meanActual": 0.5214285714285715
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 632,
+            "meanPredicted": 0.5538292140090048,
+            "meanActual": 0.5427215189873418
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 216,
+            "meanPredicted": 0.6401732302840799,
+            "meanActual": 0.6574074074074074
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 130,
+            "meanPredicted": 0.7463927115922848,
+            "meanActual": 0.8076923076923077
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 96,
+            "meanPredicted": 0.850285600249646,
+            "meanActual": 0.9166666666666666
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 39,
+            "meanPredicted": 0.9455654886114169,
+            "meanActual": 0.9487179487179487
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6163734776725305,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold1",
+      "ablation": "I",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.540885505731534,
+        "rmseMargin": 19.934831860774576,
+        "biasMargin": -2.89364832174701,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 15.901235386834067,
+        "rmseTotal": 20.078637600607927,
+        "maeHome": 11.889495371038324,
+        "maeAway": 10.423171802292718,
+        "maeTeam": 11.156333586665514,
+        "brier": 0.2203708635637117,
+        "logLoss": 0.6282508834341822,
+        "calibration": {
+          "slope": 0.8990351871373615,
+          "intercept": 0.08891574658383983,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 5,
+            "meanPredicted": 0.05532527962544278,
+            "meanActual": 0.2
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 29,
+            "meanPredicted": 0.15582239310099,
+            "meanActual": 0.3103448275862069
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 66,
+            "meanPredicted": 0.25331256421127046,
+            "meanActual": 0.30303030303030304
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 127,
+            "meanPredicted": 0.35466327019321925,
+            "meanActual": 0.49606299212598426
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 138,
+            "meanPredicted": 0.4550901054613467,
+            "meanActual": 0.5144927536231884
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 642,
+            "meanPredicted": 0.5541517494469623,
+            "meanActual": 0.5467289719626168
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 205,
+            "meanPredicted": 0.6408082428933979,
+            "meanActual": 0.6487804878048781
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 130,
+            "meanPredicted": 0.7451030257942514,
+            "meanActual": 0.823076923076923
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 96,
+            "meanPredicted": 0.8490339383837814,
+            "meanActual": 0.90625
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 40,
+            "meanPredicted": 0.9447609324727428,
+            "meanActual": 0.95
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6156968876860622,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold1",
+      "ablation": "J",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.556581808826902,
+        "rmseMargin": 19.934522270038688,
+        "biasMargin": -2.9147137237225555,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 15.901235386834067,
+        "rmseTotal": 20.078637600607927,
+        "maeHome": 11.88552848763592,
+        "maeAway": 10.438985373100367,
+        "maeTeam": 11.162256930368141,
+        "brier": 0.22042448706993,
+        "logLoss": 0.6279956064929749,
+        "calibration": {
+          "slope": 0.8979082628900014,
+          "intercept": 0.08995364160909591,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 5,
+            "meanPredicted": 0.05770862416636696,
+            "meanActual": 0.2
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 31,
+            "meanPredicted": 0.15795903380303233,
+            "meanActual": 0.22580645161290322
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 66,
+            "meanPredicted": 0.2529294429846943,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 118,
+            "meanPredicted": 0.35747063670244605,
+            "meanActual": 0.5084745762711864
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 154,
+            "meanPredicted": 0.4496961740948571,
+            "meanActual": 0.538961038961039
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 637,
+            "meanPredicted": 0.5554920877412415,
+            "meanActual": 0.5368916797488226
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 206,
+            "meanPredicted": 0.6413881781469859,
+            "meanActual": 0.6553398058252428
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 124,
+            "meanPredicted": 0.7458031019541084,
+            "meanActual": 0.8467741935483871
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 95,
+            "meanPredicted": 0.8488466887228605,
+            "meanActual": 0.8947368421052632
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 42,
+            "meanPredicted": 0.942375414798069,
+            "meanActual": 0.9523809523809523
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6150202976995941,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold1",
+      "ablation": "K",
+      "trainSeasons": [
+        2022
+      ],
+      "testSeason": 2023,
+      "metrics": {
+        "n": 1478,
+        "maeMargin": 15.556581808826902,
+        "rmseMargin": 19.934522270038688,
+        "biasMargin": -2.9147137237225555,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 15.901235386834067,
+        "rmseTotal": 20.078637600607927,
+        "maeHome": 11.88552848763592,
+        "maeAway": 10.438985373100367,
+        "maeTeam": 11.162256930368141,
+        "brier": 0.22042448706993,
+        "logLoss": 0.6279956064929749,
+        "calibration": {
+          "slope": 0.8979082628900014,
+          "intercept": 0.08995364160909591,
+          "n": 1478
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 5,
+            "meanPredicted": 0.05770862416636696,
+            "meanActual": 0.2
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 31,
+            "meanPredicted": 0.15795903380303233,
+            "meanActual": 0.22580645161290322
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 66,
+            "meanPredicted": 0.2529294429846943,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 118,
+            "meanPredicted": 0.35747063670244605,
+            "meanActual": 0.5084745762711864
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 154,
+            "meanPredicted": 0.4496961740948571,
+            "meanActual": 0.538961038961039
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 637,
+            "meanPredicted": 0.5554920877412415,
+            "meanActual": 0.5368916797488226
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 206,
+            "meanPredicted": 0.6413881781469859,
+            "meanActual": 0.6553398058252428
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 124,
+            "meanPredicted": 0.7458031019541084,
+            "meanActual": 0.8467741935483871
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 95,
+            "meanPredicted": 0.8488466887228605,
+            "meanActual": 0.8947368421052632
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 42,
+            "meanPredicted": 0.942375414798069,
+            "meanActual": 0.9523809523809523
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1478,
+          "coverage": 0.6150202976995941,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "A",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.940245993453484,
+        "rmseMargin": 20.27443713389458,
+        "biasMargin": -1.7145597299326802,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.546569035875674,
+        "rmseTotal": 17.27554246549928,
+        "maeHome": 11.355529671784682,
+        "maeAway": 9.938446032022895,
+        "maeTeam": 10.64698785190379,
+        "brier": 0.2240686223187458,
+        "logLoss": 0.636202813903196,
+        "calibration": {
+          "slope": 0.8612820226209501,
+          "intercept": 0.09984971776147289,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 12,
+            "meanPredicted": 0.16252727579046533,
+            "meanActual": 0.25
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 30,
+            "meanPredicted": 0.26345533085324047,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 95,
+            "meanPredicted": 0.3561448444102167,
+            "meanActual": 0.4631578947368421
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 114,
+            "meanPredicted": 0.45380546953517903,
+            "meanActual": 0.5877192982456141
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 852,
+            "meanPredicted": 0.5834040396521039,
+            "meanActual": 0.5715962441314554
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 169,
+            "meanPredicted": 0.6534305478313397,
+            "meanActual": 0.6745562130177515
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 150,
+            "meanPredicted": 0.7484053546573702,
+            "meanActual": 0.74
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 89,
+            "meanPredicted": 0.8509733074080934,
+            "meanActual": 0.9213483146067416
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 34,
+            "meanPredicted": 0.9359603524168553,
+            "meanActual": 0.9117647058823529
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6679611650485436,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "B",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.952815657122086,
+        "rmseMargin": 20.288361207092876,
+        "biasMargin": -1.7410543457529097,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.566522815070183,
+        "rmseTotal": 17.344047405316775,
+        "maeHome": 11.421696688927796,
+        "maeAway": 9.912691202926828,
+        "maeTeam": 10.667193945927322,
+        "brier": 0.22404311500037136,
+        "logLoss": 0.6362511883609656,
+        "calibration": {
+          "slope": 0.8620940953031294,
+          "intercept": 0.09990229892262337,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 12,
+            "meanPredicted": 0.16596914403513308,
+            "meanActual": 0.25
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 28,
+            "meanPredicted": 0.2595267867483267,
+            "meanActual": 0.32142857142857145
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 93,
+            "meanPredicted": 0.3545587739087588,
+            "meanActual": 0.4731182795698925
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 124,
+            "meanPredicted": 0.45371951868703836,
+            "meanActual": 0.5483870967741935
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 838,
+            "meanPredicted": 0.5823270541656735,
+            "meanActual": 0.5787589498806682
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 176,
+            "meanPredicted": 0.6512305709762832,
+            "meanActual": 0.6704545454545454
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 146,
+            "meanPredicted": 0.7462249496800015,
+            "meanActual": 0.7191780821917808
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 93,
+            "meanPredicted": 0.849384707769766,
+            "meanActual": 0.9139784946236559
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 35,
+            "meanPredicted": 0.9350397546257674,
+            "meanActual": 0.9142857142857143
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6640776699029126,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "C",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.936728334735374,
+        "rmseMargin": 20.293382545156756,
+        "biasMargin": -1.7766766581442355,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.56957248950591,
+        "rmseTotal": 17.346713890579487,
+        "maeHome": 11.409723953211092,
+        "maeAway": 9.911454771991417,
+        "maeTeam": 10.660589362601215,
+        "brier": 0.2240567467925159,
+        "logLoss": 0.6362196346838405,
+        "calibration": {
+          "slope": 0.8625774985216415,
+          "intercept": 0.10011662186828074,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 11,
+            "meanPredicted": 0.16966635815480807,
+            "meanActual": 0.2727272727272727
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 30,
+            "meanPredicted": 0.26227688743454375,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 91,
+            "meanPredicted": 0.35732091050620096,
+            "meanActual": 0.45054945054945056
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 125,
+            "meanPredicted": 0.4562866525426655,
+            "meanActual": 0.568
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 708,
+            "meanPredicted": 0.5736351390676296,
+            "meanActual": 0.5621468926553672
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 303,
+            "meanPredicted": 0.6356863794753091,
+            "meanActual": 0.66996699669967
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 151,
+            "meanPredicted": 0.7469217231993589,
+            "meanActual": 0.7218543046357616
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 92,
+            "meanPredicted": 0.8513342150994627,
+            "meanActual": 0.9021739130434783
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 34,
+            "meanPredicted": 0.9331329867171989,
+            "meanActual": 0.9117647058823529
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6673139158576051,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "D",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.971263676530635,
+        "rmseMargin": 20.308919422895634,
+        "biasMargin": -1.8036871893936917,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.565177365066456,
+        "rmseTotal": 17.3406229816293,
+        "maeHome": 11.42619465425584,
+        "maeAway": 9.912084455796549,
+        "maeTeam": 10.669139555026216,
+        "brier": 0.22460365375941377,
+        "logLoss": 0.6377976778273269,
+        "calibration": {
+          "slope": 0.8552072277173798,
+          "intercept": 0.10466640984942188,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 9,
+            "meanPredicted": 0.16804761847948557,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 29,
+            "meanPredicted": 0.2619933212654326,
+            "meanActual": 0.2413793103448276
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 92,
+            "meanPredicted": 0.3556795786945951,
+            "meanActual": 0.45652173913043476
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 124,
+            "meanPredicted": 0.455103741526275,
+            "meanActual": 0.5806451612903226
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 701,
+            "meanPredicted": 0.5727096225907016,
+            "meanActual": 0.5691868758915835
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 304,
+            "meanPredicted": 0.6325297600720821,
+            "meanActual": 0.6414473684210527
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 159,
+            "meanPredicted": 0.7430820835495381,
+            "meanActual": 0.7232704402515723
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 98,
+            "meanPredicted": 0.8492411216905252,
+            "meanActual": 0.9285714285714286
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 29,
+            "meanPredicted": 0.9373987701298939,
+            "meanActual": 0.8620689655172413
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6627831715210356,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "E",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.971263676530635,
+        "rmseMargin": 20.308919422895634,
+        "biasMargin": -1.8036871893936917,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.565177365066456,
+        "rmseTotal": 17.3406229816293,
+        "maeHome": 11.42619465425584,
+        "maeAway": 9.912084455796549,
+        "maeTeam": 10.669139555026216,
+        "brier": 0.22460365375941377,
+        "logLoss": 0.6377976778273269,
+        "calibration": {
+          "slope": 0.8552072277173798,
+          "intercept": 0.10466640984942188,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 9,
+            "meanPredicted": 0.16804761847948557,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 29,
+            "meanPredicted": 0.2619933212654326,
+            "meanActual": 0.2413793103448276
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 92,
+            "meanPredicted": 0.3556795786945951,
+            "meanActual": 0.45652173913043476
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 124,
+            "meanPredicted": 0.455103741526275,
+            "meanActual": 0.5806451612903226
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 701,
+            "meanPredicted": 0.5727096225907016,
+            "meanActual": 0.5691868758915835
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 304,
+            "meanPredicted": 0.6325297600720821,
+            "meanActual": 0.6414473684210527
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 159,
+            "meanPredicted": 0.7430820835495381,
+            "meanActual": 0.7232704402515723
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 98,
+            "meanPredicted": 0.8492411216905252,
+            "meanActual": 0.9285714285714286
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 29,
+            "meanPredicted": 0.9373987701298939,
+            "meanActual": 0.8620689655172413
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6627831715210356,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "F",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.968268591212784,
+        "rmseMargin": 20.306554365705782,
+        "biasMargin": -1.7969490721805197,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.58346532048104,
+        "rmseTotal": 17.353284015624034,
+        "maeHome": 11.422488089652981,
+        "maeAway": 9.93005416952372,
+        "maeTeam": 10.676271129588374,
+        "brier": 0.22467757957820975,
+        "logLoss": 0.6379530376760653,
+        "calibration": {
+          "slope": 0.8536491239331477,
+          "intercept": 0.10546846543993083,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 9,
+            "meanPredicted": 0.16878697071323467,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 29,
+            "meanPredicted": 0.26364604947290343,
+            "meanActual": 0.27586206896551724
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 91,
+            "meanPredicted": 0.35583714890286755,
+            "meanActual": 0.45054945054945056
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 123,
+            "meanPredicted": 0.45410017705637556,
+            "meanActual": 0.5609756097560976
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 702,
+            "meanPredicted": 0.5724942116554504,
+            "meanActual": 0.5754985754985755
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 306,
+            "meanPredicted": 0.6327538225906504,
+            "meanActual": 0.6339869281045751
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 157,
+            "meanPredicted": 0.7434731932967462,
+            "meanActual": 0.7197452229299363
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 98,
+            "meanPredicted": 0.8478280910454817,
+            "meanActual": 0.9183673469387755
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 30,
+            "meanPredicted": 0.9362213604389308,
+            "meanActual": 0.9
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6608414239482201,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "G",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.968268591212784,
+        "rmseMargin": 20.306554365705782,
+        "biasMargin": -1.7969490721805197,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.58346532048104,
+        "rmseTotal": 17.353284015624034,
+        "maeHome": 11.422488089652981,
+        "maeAway": 9.93005416952372,
+        "maeTeam": 10.676271129588374,
+        "brier": 0.22467757957820975,
+        "logLoss": 0.6379530376760653,
+        "calibration": {
+          "slope": 0.8536491239331477,
+          "intercept": 0.10546846543993083,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 9,
+            "meanPredicted": 0.16878697071323467,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 29,
+            "meanPredicted": 0.26364604947290343,
+            "meanActual": 0.27586206896551724
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 91,
+            "meanPredicted": 0.35583714890286755,
+            "meanActual": 0.45054945054945056
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 123,
+            "meanPredicted": 0.45410017705637556,
+            "meanActual": 0.5609756097560976
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 702,
+            "meanPredicted": 0.5724942116554504,
+            "meanActual": 0.5754985754985755
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 306,
+            "meanPredicted": 0.6327538225906504,
+            "meanActual": 0.6339869281045751
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 157,
+            "meanPredicted": 0.7434731932967462,
+            "meanActual": 0.7197452229299363
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 98,
+            "meanPredicted": 0.8478280910454817,
+            "meanActual": 0.9183673469387755
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 30,
+            "meanPredicted": 0.9362213604389308,
+            "meanActual": 0.9
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6608414239482201,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "H",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.968268591212784,
+        "rmseMargin": 20.306554365705782,
+        "biasMargin": -1.7969490721805197,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.58346532048104,
+        "rmseTotal": 17.353284015624034,
+        "maeHome": 11.422488089652981,
+        "maeAway": 9.93005416952372,
+        "maeTeam": 10.676271129588374,
+        "brier": 0.22467757957820975,
+        "logLoss": 0.6379530376760653,
+        "calibration": {
+          "slope": 0.8536491239331477,
+          "intercept": 0.10546846543993083,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 9,
+            "meanPredicted": 0.16878697071323467,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 29,
+            "meanPredicted": 0.26364604947290343,
+            "meanActual": 0.27586206896551724
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 91,
+            "meanPredicted": 0.35583714890286755,
+            "meanActual": 0.45054945054945056
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 123,
+            "meanPredicted": 0.45410017705637556,
+            "meanActual": 0.5609756097560976
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 702,
+            "meanPredicted": 0.5724942116554504,
+            "meanActual": 0.5754985754985755
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 306,
+            "meanPredicted": 0.6327538225906504,
+            "meanActual": 0.6339869281045751
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 157,
+            "meanPredicted": 0.7434731932967462,
+            "meanActual": 0.7197452229299363
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 98,
+            "meanPredicted": 0.8478280910454817,
+            "meanActual": 0.9183673469387755
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 30,
+            "meanPredicted": 0.9362213604389308,
+            "meanActual": 0.9
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6608414239482201,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "I",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.954416642022423,
+        "rmseMargin": 20.274991632761623,
+        "biasMargin": -1.7961131451007588,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.432493907127027,
+        "rmseTotal": 17.185124994128287,
+        "maeHome": 11.351075064970079,
+        "maeAway": 9.90413234319774,
+        "maeTeam": 10.62760370408389,
+        "brier": 0.2241986225263118,
+        "logLoss": 0.6368474846346884,
+        "calibration": {
+          "slope": 0.8612861557679952,
+          "intercept": 0.10092579619890263,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 9,
+            "meanPredicted": 0.16423166726154687,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 30,
+            "meanPredicted": 0.2626902206348627,
+            "meanActual": 0.3
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 89,
+            "meanPredicted": 0.3557652180891719,
+            "meanActual": 0.449438202247191
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 130,
+            "meanPredicted": 0.45364793423507976,
+            "meanActual": 0.5538461538461539
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 649,
+            "meanPredicted": 0.5692872863420859,
+            "meanActual": 0.5808936825885979
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 353,
+            "meanPredicted": 0.6321105863846469,
+            "meanActual": 0.6062322946175638
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 159,
+            "meanPredicted": 0.74571675312873,
+            "meanActual": 0.7484276729559748
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 97,
+            "meanPredicted": 0.8497667957936498,
+            "meanActual": 0.9175257731958762
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 29,
+            "meanPredicted": 0.937998966168974,
+            "meanActual": 0.896551724137931
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6621359223300971,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "J",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.953199300539657,
+        "rmseMargin": 20.27375551083994,
+        "biasMargin": -1.7984282643083918,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.432493907127027,
+        "rmseTotal": 17.185124994128287,
+        "maeHome": 11.350121919605277,
+        "maeAway": 9.903880026603224,
+        "maeTeam": 10.62700097310427,
+        "brier": 0.22416785573637657,
+        "logLoss": 0.6367798201598787,
+        "calibration": {
+          "slope": 0.8621124153321091,
+          "intercept": 0.10047360917793657,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 9,
+            "meanPredicted": 0.16437520508944206,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 30,
+            "meanPredicted": 0.262589720391556,
+            "meanActual": 0.3
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 89,
+            "meanPredicted": 0.3557749302126615,
+            "meanActual": 0.449438202247191
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 130,
+            "meanPredicted": 0.45348803748641003,
+            "meanActual": 0.5538461538461539
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 649,
+            "meanPredicted": 0.5692448765668087,
+            "meanActual": 0.5793528505392912
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 353,
+            "meanPredicted": 0.6320850183294995,
+            "meanActual": 0.6090651558073654
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 159,
+            "meanPredicted": 0.7456412260708531,
+            "meanActual": 0.7484276729559748
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 97,
+            "meanPredicted": 0.8497366702886848,
+            "meanActual": 0.9175257731958762
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 29,
+            "meanPredicted": 0.9380331383772251,
+            "meanActual": 0.896551724137931
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6621359223300971,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold2",
+      "ablation": "K",
+      "trainSeasons": [
+        2022,
+        2023
+      ],
+      "testSeason": 2024,
+      "metrics": {
+        "n": 1545,
+        "maeMargin": 15.953199300539657,
+        "rmseMargin": 20.27375551083994,
+        "biasMargin": -1.7984282643083918,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.432493907127027,
+        "rmseTotal": 17.185124994128287,
+        "maeHome": 11.350121919605277,
+        "maeAway": 9.903880026603224,
+        "maeTeam": 10.62700097310427,
+        "brier": 0.22416785573637657,
+        "logLoss": 0.6367798201598787,
+        "calibration": {
+          "slope": 0.8621124153321091,
+          "intercept": 0.10047360917793657,
+          "n": 1545
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 9,
+            "meanPredicted": 0.16437520508944206,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 30,
+            "meanPredicted": 0.262589720391556,
+            "meanActual": 0.3
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 89,
+            "meanPredicted": 0.3557749302126615,
+            "meanActual": 0.449438202247191
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 130,
+            "meanPredicted": 0.45348803748641003,
+            "meanActual": 0.5538461538461539
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 649,
+            "meanPredicted": 0.5692448765668087,
+            "meanActual": 0.5793528505392912
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 353,
+            "meanPredicted": 0.6320850183294995,
+            "meanActual": 0.6090651558073654
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 159,
+            "meanPredicted": 0.7456412260708531,
+            "meanActual": 0.7484276729559748
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 97,
+            "meanPredicted": 0.8497366702886848,
+            "meanActual": 0.9175257731958762
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 29,
+            "meanPredicted": 0.9380331383772251,
+            "meanActual": 0.896551724137931
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1545,
+          "coverage": 0.6621359223300971,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "A",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.052140492889,
+        "rmseMargin": 20.624314434128753,
+        "biasMargin": -0.6603053275400241,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.159497573614022,
+        "rmseTotal": 16.376235857976226,
+        "maeHome": 11.090349443593489,
+        "maeAway": 10.192960199319057,
+        "maeTeam": 10.641654821456262,
+        "brier": 0.2195461086797529,
+        "logLoss": 0.6264515847359757,
+        "calibration": {
+          "slope": 1.1543238068017287,
+          "intercept": -0.0944391308628224,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.1733825855223123,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 24,
+            "meanPredicted": 0.26656285272753827,
+            "meanActual": 0.20833333333333334
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 66,
+            "meanPredicted": 0.3527415291494817,
+            "meanActual": 0.3787878787878788
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 116,
+            "meanPredicted": 0.4531834289583548,
+            "meanActual": 0.39655172413793105
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 193,
+            "meanPredicted": 0.5540529557717297,
+            "meanActual": 0.6321243523316062
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 882,
+            "meanPredicted": 0.6150844740853889,
+            "meanActual": 0.5941043083900227
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 169,
+            "meanPredicted": 0.7476275840468748,
+            "meanActual": 0.7514792899408284
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 84,
+            "meanPredicted": 0.8404696106268512,
+            "meanActual": 0.9166666666666666
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 22,
+            "meanPredicted": 0.9327400655474816,
+            "meanActual": 1
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6735086593970494,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "B",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.06488732087001,
+        "rmseMargin": 20.630105140849036,
+        "biasMargin": -0.6847894502865168,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.121663239902293,
+        "rmseTotal": 16.304636184066055,
+        "maeHome": 11.094103246162124,
+        "maeAway": 10.169210426773182,
+        "maeTeam": 10.631656836467682,
+        "brier": 0.21976626368239496,
+        "logLoss": 0.6269305620405532,
+        "calibration": {
+          "slope": 1.1482385835337139,
+          "intercept": -0.09033266921974248,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.17360822261705997,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 24,
+            "meanPredicted": 0.2658740227341607,
+            "meanActual": 0.20833333333333334
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 65,
+            "meanPredicted": 0.3523235087462845,
+            "meanActual": 0.36923076923076925
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 116,
+            "meanPredicted": 0.4522908634678538,
+            "meanActual": 0.4051724137931034
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 205,
+            "meanPredicted": 0.5545746243808033,
+            "meanActual": 0.624390243902439
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 872,
+            "meanPredicted": 0.615398015148112,
+            "meanActual": 0.5951834862385321
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 172,
+            "meanPredicted": 0.7487129284839845,
+            "meanActual": 0.75
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 81,
+            "meanPredicted": 0.8420432063446307,
+            "meanActual": 0.9259259259259259
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 21,
+            "meanPredicted": 0.9315839295569399,
+            "meanActual": 1
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6715843489416292,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "C",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.056205726625535,
+        "rmseMargin": 20.623064076414593,
+        "biasMargin": -0.7001653178584485,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.115372770779878,
+        "rmseTotal": 16.295749041337363,
+        "maeHome": 11.082355107530596,
+        "maeAway": 10.165197965305376,
+        "maeTeam": 10.623776536417976,
+        "brier": 0.21990974697911062,
+        "logLoss": 0.6271429859403203,
+        "calibration": {
+          "slope": 1.1336964401194198,
+          "intercept": -0.08100216504168456,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.17293491326691157,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 22,
+            "meanPredicted": 0.2633824918952616,
+            "meanActual": 0.22727272727272727
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 70,
+            "meanPredicted": 0.3520576620822606,
+            "meanActual": 0.38571428571428573
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 117,
+            "meanPredicted": 0.4550607832238463,
+            "meanActual": 0.39316239316239315
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 444,
+            "meanPredicted": 0.5756327269914177,
+            "meanActual": 0.5675675675675675
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 626,
+            "meanPredicted": 0.6222641190321802,
+            "meanActual": 0.6214057507987221
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 174,
+            "meanPredicted": 0.7497853327326487,
+            "meanActual": 0.764367816091954
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 78,
+            "meanPredicted": 0.8393780384634015,
+            "meanActual": 0.9230769230769231
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 25,
+            "meanPredicted": 0.9289165788752228,
+            "meanActual": 0.96
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6645285439384221,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "D",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.04956783102838,
+        "rmseMargin": 20.606874732800456,
+        "biasMargin": -0.7246400628284283,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.106322164008425,
+        "rmseTotal": 16.28329455779411,
+        "maeHome": 11.080151239554558,
+        "maeAway": 10.154329892875605,
+        "maeTeam": 10.617240566215052,
+        "brier": 0.21973121776928922,
+        "logLoss": 0.6267267647432193,
+        "calibration": {
+          "slope": 1.1351384072422153,
+          "intercept": -0.08138356097170463,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.17497231269289124,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 24,
+            "meanPredicted": 0.26508398038352055,
+            "meanActual": 0.20833333333333334
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 68,
+            "meanPredicted": 0.35308238790283036,
+            "meanActual": 0.38235294117647056
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 119,
+            "meanPredicted": 0.45478402549111774,
+            "meanActual": 0.42016806722689076
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 461,
+            "meanPredicted": 0.5747817185359996,
+            "meanActual": 0.5683297180043384
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 601,
+            "meanPredicted": 0.623045791268193,
+            "meanActual": 0.6173044925124792
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 177,
+            "meanPredicted": 0.7466791108076595,
+            "meanActual": 0.7570621468926554
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 84,
+            "meanPredicted": 0.8415658309735266,
+            "meanActual": 0.9285714285714286
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 22,
+            "meanPredicted": 0.9317812968614795,
+            "meanActual": 1
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6651699807568955,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "E",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.04956783102838,
+        "rmseMargin": 20.606874732800456,
+        "biasMargin": -0.7246400628284283,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.106322164008425,
+        "rmseTotal": 16.28329455779411,
+        "maeHome": 11.080151239554558,
+        "maeAway": 10.154329892875605,
+        "maeTeam": 10.617240566215052,
+        "brier": 0.21973121776928922,
+        "logLoss": 0.6267267647432193,
+        "calibration": {
+          "slope": 1.1351384072422153,
+          "intercept": -0.08138356097170463,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.17497231269289124,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 24,
+            "meanPredicted": 0.26508398038352055,
+            "meanActual": 0.20833333333333334
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 68,
+            "meanPredicted": 0.35308238790283036,
+            "meanActual": 0.38235294117647056
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 119,
+            "meanPredicted": 0.45478402549111774,
+            "meanActual": 0.42016806722689076
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 461,
+            "meanPredicted": 0.5747817185359996,
+            "meanActual": 0.5683297180043384
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 601,
+            "meanPredicted": 0.623045791268193,
+            "meanActual": 0.6173044925124792
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 177,
+            "meanPredicted": 0.7466791108076595,
+            "meanActual": 0.7570621468926554
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 84,
+            "meanPredicted": 0.8415658309735266,
+            "meanActual": 0.9285714285714286
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 22,
+            "meanPredicted": 0.9317812968614795,
+            "meanActual": 1
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6651699807568955,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "F",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.052576555127814,
+        "rmseMargin": 20.60894974113279,
+        "biasMargin": -0.7343403392361225,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.098899754182016,
+        "rmseTotal": 16.266682514626954,
+        "maeHome": 11.082133825476074,
+        "maeAway": 10.157915768864443,
+        "maeTeam": 10.620024797170261,
+        "brier": 0.21958120430798053,
+        "logLoss": 0.6264187236125259,
+        "calibration": {
+          "slope": 1.1404763645196512,
+          "intercept": -0.08445157536619796,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.1738133685657757,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 24,
+            "meanPredicted": 0.2639471196752452,
+            "meanActual": 0.20833333333333334
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 71,
+            "meanPredicted": 0.354780754591449,
+            "meanActual": 0.38028169014084506
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 118,
+            "meanPredicted": 0.4571794311643049,
+            "meanActual": 0.423728813559322
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 471,
+            "meanPredicted": 0.575444296781367,
+            "meanActual": 0.5690021231422505
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 590,
+            "meanPredicted": 0.623700025976234,
+            "meanActual": 0.6186440677966102
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 179,
+            "meanPredicted": 0.7474630815550182,
+            "meanActual": 0.7486033519553073
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 81,
+            "meanPredicted": 0.8424841809240241,
+            "meanActual": 0.9506172839506173
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 22,
+            "meanPredicted": 0.9320118010409204,
+            "meanActual": 1
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6670942912123156,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "G",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.052576555127814,
+        "rmseMargin": 20.60894974113279,
+        "biasMargin": -0.7343403392361225,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.098899754182016,
+        "rmseTotal": 16.266682514626954,
+        "maeHome": 11.082133825476074,
+        "maeAway": 10.157915768864443,
+        "maeTeam": 10.620024797170261,
+        "brier": 0.21958120430798053,
+        "logLoss": 0.6264187236125259,
+        "calibration": {
+          "slope": 1.1404763645196512,
+          "intercept": -0.08445157536619796,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.1738133685657757,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 24,
+            "meanPredicted": 0.2639471196752452,
+            "meanActual": 0.20833333333333334
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 71,
+            "meanPredicted": 0.354780754591449,
+            "meanActual": 0.38028169014084506
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 118,
+            "meanPredicted": 0.4571794311643049,
+            "meanActual": 0.423728813559322
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 471,
+            "meanPredicted": 0.575444296781367,
+            "meanActual": 0.5690021231422505
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 590,
+            "meanPredicted": 0.623700025976234,
+            "meanActual": 0.6186440677966102
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 179,
+            "meanPredicted": 0.7474630815550182,
+            "meanActual": 0.7486033519553073
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 81,
+            "meanPredicted": 0.8424841809240241,
+            "meanActual": 0.9506172839506173
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 22,
+            "meanPredicted": 0.9320118010409204,
+            "meanActual": 1
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6670942912123156,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "H",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.052576555127814,
+        "rmseMargin": 20.60894974113279,
+        "biasMargin": -0.7343403392361225,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.098899754182016,
+        "rmseTotal": 16.266682514626954,
+        "maeHome": 11.082133825476074,
+        "maeAway": 10.157915768864443,
+        "maeTeam": 10.620024797170261,
+        "brier": 0.21958120430798053,
+        "logLoss": 0.6264187236125259,
+        "calibration": {
+          "slope": 1.1404763645196512,
+          "intercept": -0.08445157536619796,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.1738133685657757,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 24,
+            "meanPredicted": 0.2639471196752452,
+            "meanActual": 0.20833333333333334
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 71,
+            "meanPredicted": 0.354780754591449,
+            "meanActual": 0.38028169014084506
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 118,
+            "meanPredicted": 0.4571794311643049,
+            "meanActual": 0.423728813559322
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 471,
+            "meanPredicted": 0.575444296781367,
+            "meanActual": 0.5690021231422505
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 590,
+            "meanPredicted": 0.623700025976234,
+            "meanActual": 0.6186440677966102
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 179,
+            "meanPredicted": 0.7474630815550182,
+            "meanActual": 0.7486033519553073
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 81,
+            "meanPredicted": 0.8424841809240241,
+            "meanActual": 0.9506172839506173
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 22,
+            "meanPredicted": 0.9320118010409204,
+            "meanActual": 1
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6670942912123156,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "I",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.06357007330465,
+        "rmseMargin": 20.61644427781136,
+        "biasMargin": -0.7808057854931052,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.082457953364576,
+        "rmseTotal": 16.20456145157529,
+        "maeHome": 11.070149439075614,
+        "maeAway": 10.196601059447795,
+        "maeTeam": 10.633375249261706,
+        "brier": 0.21973301642864604,
+        "logLoss": 0.6267501232425323,
+        "calibration": {
+          "slope": 1.1258047625966114,
+          "intercept": -0.07462158690714682,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.17961462128978556,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 25,
+            "meanPredicted": 0.26219266095027816,
+            "meanActual": 0.32
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 67,
+            "meanPredicted": 0.35295413466194014,
+            "meanActual": 0.34328358208955223
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 125,
+            "meanPredicted": 0.4563391888547331,
+            "meanActual": 0.424
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 465,
+            "meanPredicted": 0.5684072182596306,
+            "meanActual": 0.5612903225806452
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 598,
+            "meanPredicted": 0.6291229196243662,
+            "meanActual": 0.6270903010033445
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 175,
+            "meanPredicted": 0.7478215624953202,
+            "meanActual": 0.7485714285714286
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 78,
+            "meanPredicted": 0.8424437863816309,
+            "meanActual": 0.9487179487179487
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 23,
+            "meanPredicted": 0.9304058077715675,
+            "meanActual": 1
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6658114175753689,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "J",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.058670910380613,
+        "rmseMargin": 20.609125656135483,
+        "biasMargin": -0.7679252313665986,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.082457953364576,
+        "rmseTotal": 16.20456145157529,
+        "maeHome": 11.06388011413553,
+        "maeAway": 10.196671980245139,
+        "maeTeam": 10.630276047190323,
+        "brier": 0.21958897162483726,
+        "logLoss": 0.6264433568482202,
+        "calibration": {
+          "slope": 1.1295410850938363,
+          "intercept": -0.07715134475408181,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.18071693962540558,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 25,
+            "meanPredicted": 0.2634732917128302,
+            "meanActual": 0.32
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 70,
+            "meanPredicted": 0.355511866876763,
+            "meanActual": 0.32857142857142857
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 122,
+            "meanPredicted": 0.4566769678495981,
+            "meanActual": 0.4262295081967213
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 465,
+            "meanPredicted": 0.5683802032948254,
+            "meanActual": 0.5634408602150538
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 595,
+            "meanPredicted": 0.6293240064444358,
+            "meanActual": 0.6235294117647059
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 177,
+            "meanPredicted": 0.7470903528582075,
+            "meanActual": 0.7570621468926554
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 79,
+            "meanPredicted": 0.8422189383901761,
+            "meanActual": 0.9493670886075949
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 23,
+            "meanPredicted": 0.9306406994395016,
+            "meanActual": 1
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6664528543938422,
+          "z": 1
+        }
+      }
+    },
+    {
+      "fold": "fold3",
+      "ablation": "K",
+      "trainSeasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "testSeason": 2025,
+      "metrics": {
+        "n": 1559,
+        "maeMargin": 16.058670910380613,
+        "rmseMargin": 20.609125656135483,
+        "biasMargin": -0.7679252313665986,
+        "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+        "maeTotal": 13.082457953364576,
+        "rmseTotal": 16.20456145157529,
+        "maeHome": 11.06388011413553,
+        "maeAway": 10.196671980245139,
+        "maeTeam": 10.630276047190323,
+        "brier": 0.21958897162483726,
+        "logLoss": 0.6264433568482202,
+        "calibration": {
+          "slope": 1.1295410850938363,
+          "intercept": -0.07715134475408181,
+          "n": 1559
+        },
+        "calibrationBuckets": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 0,
+            "meanPredicted": null,
+            "meanActual": null
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 3,
+            "meanPredicted": 0.18071693962540558,
+            "meanActual": 0.3333333333333333
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 25,
+            "meanPredicted": 0.2634732917128302,
+            "meanActual": 0.32
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 70,
+            "meanPredicted": 0.355511866876763,
+            "meanActual": 0.32857142857142857
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 122,
+            "meanPredicted": 0.4566769678495981,
+            "meanActual": 0.4262295081967213
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 465,
+            "meanPredicted": 0.5683802032948254,
+            "meanActual": 0.5634408602150538
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 595,
+            "meanPredicted": 0.6293240064444358,
+            "meanActual": 0.6235294117647059
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 177,
+            "meanPredicted": 0.7470903528582075,
+            "meanActual": 0.7570621468926554
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 79,
+            "meanPredicted": 0.8422189383901761,
+            "meanActual": 0.9493670886075949
+          },
+          {
+            "lo": 0.9,
+            "hi": 1.0001,
+            "n": 23,
+            "meanPredicted": 0.9306406994395016,
+            "meanActual": 1
+          }
+        ],
+        "intervalCoverage1sig": {
+          "n": 1559,
+          "coverage": 0.6664528543938422,
+          "z": 1
+        }
+      }
+    }
+  ],
+  "pooledOos": {
+    "A": {
+      "n": 4582,
+      "maeMargin": 15.792237342482391,
+      "rmseMargin": 20.187513469599146,
+      "biasMargin": -1.6841596415608506,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 15.077316525362368,
+      "rmseTotal": 19.181168546369012,
+      "maeHome": 11.75257884612991,
+      "maeAway": 10.354601605580823,
+      "maeTeam": 11.053590225855528,
+      "brier": 0.22039453701109135,
+      "logLoss": 0.6281496145871723,
+      "calibration": {
+        "slope": 0.9769450168498016,
+        "intercept": 0.0284261151656926,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 6,
+          "meanPredicted": 0.06699618353627819,
+          "meanActual": 0
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 37,
+          "meanPredicted": 0.1617909736401526,
+          "meanActual": 0.24324324324324326
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 123,
+          "meanPredicted": 0.2599801335734496,
+          "meanActual": 0.2764227642276423
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 269,
+          "meanPredicted": 0.3544496259381879,
+          "meanActual": 0.45353159851301117
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 339,
+          "meanPredicted": 0.45228826177788756,
+          "meanActual": 0.4896755162241888
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1806,
+          "meanPredicted": 0.5694322198712327,
+          "meanActual": 0.5675526024363233
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1196,
+          "meanPredicted": 0.624657707032347,
+          "meanActual": 0.6220735785953178
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 441,
+          "meanPredicted": 0.7483225210640524,
+          "meanActual": 0.7755102040816326
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 270,
+          "meanPredicted": 0.8464756964797622,
+          "meanActual": 0.9111111111111111
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 95,
+          "meanPredicted": 0.9384593586530943,
+          "meanActual": 0.9473684210526315
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6569183762549106,
+        "z": 1
+      }
+    },
+    "B": {
+      "n": 4582,
+      "maeMargin": 15.799151310930714,
+      "rmseMargin": 20.20082839521044,
+      "biasMargin": -1.7456879880326954,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.273381672062134,
+      "rmseTotal": 18.036271085084504,
+      "maeHome": 11.494852810674246,
+      "maeAway": 10.10244171048209,
+      "maeTeam": 10.798647260578106,
+      "brier": 0.22045990858927303,
+      "logLoss": 0.6282957627025079,
+      "calibration": {
+        "slope": 0.9731067319504826,
+        "intercept": 0.0320469668426735,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 4,
+          "meanPredicted": 0.055358255850755274,
+          "meanActual": 0
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 41,
+          "meanPredicted": 0.16051845322130648,
+          "meanActual": 0.2926829268292683
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 118,
+          "meanPredicted": 0.2587143175116601,
+          "meanActual": 0.2627118644067797
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 261,
+          "meanPredicted": 0.3521165353213721,
+          "meanActual": 0.4559386973180077
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 362,
+          "meanPredicted": 0.4517327302121208,
+          "meanActual": 0.47790055248618785
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1798,
+          "meanPredicted": 0.5663139689514345,
+          "meanActual": 0.5728587319243604
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1183,
+          "meanPredicted": 0.6244360699050475,
+          "meanActual": 0.6187658495350803
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 449,
+          "meanPredicted": 0.747122658597546,
+          "meanActual": 0.7616926503340757
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 271,
+          "meanPredicted": 0.8471579412294905,
+          "meanActual": 0.9188191881918819
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 95,
+          "meanPredicted": 0.9382945047429291,
+          "meanActual": 0.9473684210526315
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6538629419467481,
+        "z": 1
+      }
+    },
+    "C": {
+      "n": 4582,
+      "maeMargin": 15.810823065096589,
+      "rmseMargin": 20.226148324274497,
+      "biasMargin": -1.7340568860478838,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.382874845089882,
+      "rmseTotal": 18.242205821274254,
+      "maeHome": 11.516261221055023,
+      "maeAway": 10.21487672806386,
+      "maeTeam": 10.865568974559421,
+      "brier": 0.22083660441828507,
+      "logLoss": 0.6291041785352957,
+      "calibration": {
+        "slope": 0.960673366819628,
+        "intercept": 0.03903042497152631,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 5,
+          "meanPredicted": 0.06328402852472499,
+          "meanActual": 0
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 37,
+          "meanPredicted": 0.15977573238104958,
+          "meanActual": 0.2702702702702703
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 124,
+          "meanPredicted": 0.25770040887045575,
+          "meanActual": 0.29838709677419356
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 259,
+          "meanPredicted": 0.3543319642853805,
+          "meanActual": 0.44015444015444016
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 396,
+          "meanPredicted": 0.4558454240586307,
+          "meanActual": 0.494949494949495
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1845,
+          "meanPredicted": 0.5677746298297209,
+          "meanActual": 0.5555555555555556
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1096,
+          "meanPredicted": 0.6290495610626349,
+          "meanActual": 0.6496350364963503
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 458,
+          "meanPredicted": 0.7480471712013527,
+          "meanActual": 0.7685589519650655
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 262,
+          "meanPredicted": 0.8470178129813819,
+          "meanActual": 0.9083969465648855
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 100,
+          "meanPredicted": 0.935867657542412,
+          "meanActual": 0.94
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6514622435617634,
+        "z": 1
+      }
+    },
+    "D": {
+      "n": 4582,
+      "maeMargin": 15.84369393046681,
+      "rmseMargin": 20.264893868877646,
+      "biasMargin": -1.7645971740708177,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.329519627737284,
+      "rmseTotal": 18.17224674147995,
+      "maeHome": 11.518679273643151,
+      "maeAway": 10.201021672045076,
+      "maeTeam": 10.859850472844093,
+      "brier": 0.22143614717509852,
+      "logLoss": 0.6305816661256195,
+      "calibration": {
+        "slope": 0.942192112414135,
+        "intercept": 0.05038420703946567,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 6,
+          "meanPredicted": 0.0685867561543832,
+          "meanActual": 0.16666666666666666
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 39,
+          "meanPredicted": 0.16042263109327526,
+          "meanActual": 0.28205128205128205
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 122,
+          "meanPredicted": 0.2586515816327229,
+          "meanActual": 0.26229508196721313
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 271,
+          "meanPredicted": 0.35612228500881704,
+          "meanActual": 0.46494464944649444
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 382,
+          "meanPredicted": 0.45230950977990486,
+          "meanActual": 0.5
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1839,
+          "meanPredicted": 0.567464208953642,
+          "meanActual": 0.5573681348559
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1089,
+          "meanPredicted": 0.6289591802382326,
+          "meanActual": 0.6391184573002755
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 464,
+          "meanPredicted": 0.7452793168565834,
+          "meanActual": 0.7629310344827587
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 279,
+          "meanPredicted": 0.8465401471438884,
+          "meanActual": 0.921146953405018
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 91,
+          "meanPredicted": 0.9385282958453137,
+          "meanActual": 0.9340659340659341
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6501527717154081,
+        "z": 1
+      }
+    },
+    "E": {
+      "n": 4582,
+      "maeMargin": 15.84369393046681,
+      "rmseMargin": 20.264893868877646,
+      "biasMargin": -1.7645971740708177,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.329519627737284,
+      "rmseTotal": 18.17224674147995,
+      "maeHome": 11.518679273643151,
+      "maeAway": 10.201021672045076,
+      "maeTeam": 10.859850472844093,
+      "brier": 0.22143614717509852,
+      "logLoss": 0.6305816661256195,
+      "calibration": {
+        "slope": 0.942192112414135,
+        "intercept": 0.05038420703946567,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 6,
+          "meanPredicted": 0.0685867561543832,
+          "meanActual": 0.16666666666666666
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 39,
+          "meanPredicted": 0.16042263109327526,
+          "meanActual": 0.28205128205128205
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 122,
+          "meanPredicted": 0.2586515816327229,
+          "meanActual": 0.26229508196721313
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 271,
+          "meanPredicted": 0.35612228500881704,
+          "meanActual": 0.46494464944649444
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 382,
+          "meanPredicted": 0.45230950977990486,
+          "meanActual": 0.5
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1839,
+          "meanPredicted": 0.567464208953642,
+          "meanActual": 0.5573681348559
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1089,
+          "meanPredicted": 0.6289591802382326,
+          "meanActual": 0.6391184573002755
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 464,
+          "meanPredicted": 0.7452793168565834,
+          "meanActual": 0.7629310344827587
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 279,
+          "meanPredicted": 0.8465401471438884,
+          "meanActual": 0.921146953405018
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 91,
+          "meanPredicted": 0.9385282958453137,
+          "meanActual": 0.9340659340659341
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6501527717154081,
+        "z": 1
+      }
+    },
+    "F": {
+      "n": 4582,
+      "maeMargin": 15.857492399862533,
+      "rmseMargin": 20.29021836579819,
+      "biasMargin": -1.7849205306874463,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.161726726115575,
+      "rmseTotal": 17.92592921925872,
+      "maeHome": 11.456112131164545,
+      "maeAway": 10.16566517853016,
+      "maeTeam": 10.810888654847332,
+      "brier": 0.2215221577850782,
+      "logLoss": 0.6308508292150532,
+      "calibration": {
+        "slope": 0.93594068624743,
+        "intercept": 0.05447891216657541,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 6,
+          "meanPredicted": 0.062217144569951,
+          "meanActual": 0.16666666666666666
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 40,
+          "meanPredicted": 0.16169381512074021,
+          "meanActual": 0.325
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 119,
+          "meanPredicted": 0.2582855505772291,
+          "meanActual": 0.2773109243697479
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 287,
+          "meanPredicted": 0.3541831544902524,
+          "meanActual": 0.4529616724738676
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 381,
+          "meanPredicted": 0.45511125156531373,
+          "meanActual": 0.5039370078740157
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1805,
+          "meanPredicted": 0.5667286779057283,
+          "meanActual": 0.5623268698060941
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1112,
+          "meanPredicted": 0.6293912794784874,
+          "meanActual": 0.6303956834532374
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 466,
+          "meanPredicted": 0.7458202477530784,
+          "meanActual": 0.7553648068669528
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 275,
+          "meanPredicted": 0.8471119607318883,
+          "meanActual": 0.9272727272727272
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 91,
+          "meanPredicted": 0.9392082911199277,
+          "meanActual": 0.945054945054945
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6486250545613269,
+        "z": 1
+      }
+    },
+    "G": {
+      "n": 4582,
+      "maeMargin": 15.857492399862533,
+      "rmseMargin": 20.29021836579819,
+      "biasMargin": -1.7849205306874463,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.161726726115575,
+      "rmseTotal": 17.92592921925872,
+      "maeHome": 11.456112131164545,
+      "maeAway": 10.16566517853016,
+      "maeTeam": 10.810888654847332,
+      "brier": 0.2215221577850782,
+      "logLoss": 0.6308508292150532,
+      "calibration": {
+        "slope": 0.93594068624743,
+        "intercept": 0.05447891216657541,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 6,
+          "meanPredicted": 0.062217144569951,
+          "meanActual": 0.16666666666666666
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 40,
+          "meanPredicted": 0.16169381512074021,
+          "meanActual": 0.325
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 119,
+          "meanPredicted": 0.2582855505772291,
+          "meanActual": 0.2773109243697479
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 287,
+          "meanPredicted": 0.3541831544902524,
+          "meanActual": 0.4529616724738676
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 381,
+          "meanPredicted": 0.45511125156531373,
+          "meanActual": 0.5039370078740157
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1805,
+          "meanPredicted": 0.5667286779057283,
+          "meanActual": 0.5623268698060941
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1112,
+          "meanPredicted": 0.6293912794784874,
+          "meanActual": 0.6303956834532374
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 466,
+          "meanPredicted": 0.7458202477530784,
+          "meanActual": 0.7553648068669528
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 275,
+          "meanPredicted": 0.8471119607318883,
+          "meanActual": 0.9272727272727272
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 91,
+          "meanPredicted": 0.9392082911199277,
+          "meanActual": 0.945054945054945
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6486250545613269,
+        "z": 1
+      }
+    },
+    "H": {
+      "n": 4582,
+      "maeMargin": 15.857492399862533,
+      "rmseMargin": 20.29021836579819,
+      "biasMargin": -1.7849205306874463,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.161726726115575,
+      "rmseTotal": 17.92592921925872,
+      "maeHome": 11.456112131164545,
+      "maeAway": 10.16566517853016,
+      "maeTeam": 10.810888654847332,
+      "brier": 0.2215221577850782,
+      "logLoss": 0.6308508292150532,
+      "calibration": {
+        "slope": 0.93594068624743,
+        "intercept": 0.05447891216657541,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 6,
+          "meanPredicted": 0.062217144569951,
+          "meanActual": 0.16666666666666666
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 40,
+          "meanPredicted": 0.16169381512074021,
+          "meanActual": 0.325
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 119,
+          "meanPredicted": 0.2582855505772291,
+          "meanActual": 0.2773109243697479
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 287,
+          "meanPredicted": 0.3541831544902524,
+          "meanActual": 0.4529616724738676
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 381,
+          "meanPredicted": 0.45511125156531373,
+          "meanActual": 0.5039370078740157
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1805,
+          "meanPredicted": 0.5667286779057283,
+          "meanActual": 0.5623268698060941
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1112,
+          "meanPredicted": 0.6293912794784874,
+          "meanActual": 0.6303956834532374
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 466,
+          "meanPredicted": 0.7458202477530784,
+          "meanActual": 0.7553648068669528
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 275,
+          "meanPredicted": 0.8471119607318883,
+          "meanActual": 0.9272727272727272
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 91,
+          "meanPredicted": 0.9392082911199277,
+          "meanActual": 0.945054945054945
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6486250545613269,
+        "z": 1
+      }
+    },
+    "I": {
+      "n": 4582,
+      "maeMargin": 15.858164171470484,
+      "rmseMargin": 20.28334182020874,
+      "biasMargin": -1.8046886181376074,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.109729580433767,
+      "rmseTotal": 17.859698359525034,
+      "maeHome": 11.429168072739497,
+      "maeAway": 10.171067971564423,
+      "maeTeam": 10.800118022151985,
+      "brier": 0.22144451784429853,
+      "logLoss": 0.630638937497036,
+      "calibration": {
+        "slope": 0.9350386536241746,
+        "intercept": 0.05535638969408985,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 5,
+          "meanPredicted": 0.05532527962544278,
+          "meanActual": 0.2
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 41,
+          "meanPredicted": 0.15940922607687777,
+          "meanActual": 0.3170731707317073
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 121,
+          "meanPredicted": 0.25747233372517936,
+          "meanActual": 0.30578512396694213
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 283,
+          "meanPredicted": 0.3546051828509723,
+          "meanActual": 0.4452296819787986
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 393,
+          "meanPredicted": 0.45501034252180095,
+          "meanActual": 0.49872773536895676
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1756,
+          "meanPredicted": 0.5635206312481157,
+          "meanActual": 0.5632118451025057
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1156,
+          "meanPredicted": 0.6321074677528528,
+          "meanActual": 0.6245674740484429
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 464,
+          "meanPredicted": 0.7463386433995722,
+          "meanActual": 0.7693965517241379
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 271,
+          "meanPredicted": 0.8473994561424141,
+          "meanActual": 0.922509225092251
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 92,
+          "meanPredicted": 0.9390406619190873,
+          "meanActual": 0.9456521739130435
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6484068092536011,
+        "z": 1
+      }
+    },
+    "J": {
+      "n": 4582,
+      "maeMargin": 15.861149886962766,
+      "rmseMargin": 20.280296257178204,
+      "biasMargin": -1.8078817083629308,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.109729580433767,
+      "rmseTotal": 17.859698359525034,
+      "maeHome": 11.425433995734075,
+      "maeAway": 10.176107952803687,
+      "maeTeam": 10.800770974268827,
+      "brier": 0.22140243032849818,
+      "logLoss": 0.6304294024159764,
+      "calibration": {
+        "slope": 0.9353963449209332,
+        "intercept": 0.05522200747747774,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 5,
+          "meanPredicted": 0.05770862416636696,
+          "meanActual": 0.2
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 43,
+          "meanPredicted": 0.16088971424593482,
+          "meanActual": 0.2558139534883721
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 121,
+          "meanPredicted": 0.25750303422774595,
+          "meanActual": 0.32231404958677684
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 277,
+          "meanPredicted": 0.3564308108346171,
+          "meanActual": 0.44404332129963897
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 406,
+          "meanPredicted": 0.45300799448643414,
+          "meanActual": 0.5098522167487685
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1751,
+          "meanPredicted": 0.5640120955540393,
+          "meanActual": 0.5596801827527127
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1154,
+          "meanPredicted": 0.6323221490494202,
+          "meanActual": 0.6247833622183708
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 460,
+          "meanPredicted": 0.7462424609640822,
+          "meanActual": 0.7782608695652173
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 271,
+          "meanPredicted": 0.8472331681900297,
+          "meanActual": 0.9188191881918819
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 94,
+          "meanPredicted": 0.9381645161868826,
+          "meanActual": 0.9468085106382979
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6484068092536011,
+        "z": 1
+      }
+    },
+    "K": {
+      "n": 4582,
+      "maeMargin": 15.861149886962766,
+      "rmseMargin": 20.280296257178204,
+      "biasMargin": -1.8078817083629308,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.109729580433767,
+      "rmseTotal": 17.859698359525034,
+      "maeHome": 11.425433995734075,
+      "maeAway": 10.176107952803687,
+      "maeTeam": 10.800770974268827,
+      "brier": 0.22140243032849818,
+      "logLoss": 0.6304294024159764,
+      "calibration": {
+        "slope": 0.9353963449209332,
+        "intercept": 0.05522200747747774,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 5,
+          "meanPredicted": 0.05770862416636696,
+          "meanActual": 0.2
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 43,
+          "meanPredicted": 0.16088971424593482,
+          "meanActual": 0.2558139534883721
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 121,
+          "meanPredicted": 0.25750303422774595,
+          "meanActual": 0.32231404958677684
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 277,
+          "meanPredicted": 0.3564308108346171,
+          "meanActual": 0.44404332129963897
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 406,
+          "meanPredicted": 0.45300799448643414,
+          "meanActual": 0.5098522167487685
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1751,
+          "meanPredicted": 0.5640120955540393,
+          "meanActual": 0.5596801827527127
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1154,
+          "meanPredicted": 0.6323221490494202,
+          "meanActual": 0.6247833622183708
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 460,
+          "meanPredicted": 0.7462424609640822,
+          "meanActual": 0.7782608695652173
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 271,
+          "meanPredicted": 0.8472331681900297,
+          "meanActual": 0.9188191881918819
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 94,
+          "meanPredicted": 0.9381645161868826,
+          "meanActual": 0.9468085106382979
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6484068092536011,
+        "z": 1
+      }
+    }
+  },
+  "ranking": [
+    {
+      "ablation": "A",
+      "complexity": 1,
+      "n": 4582,
+      "maeMargin": 15.792237342482391,
+      "rmseMargin": 20.187513469599146,
+      "biasMargin": -1.6841596415608506,
+      "maeTotal": 15.077316525362368,
+      "maeHome": 11.75257884612991,
+      "maeAway": 10.354601605580823,
+      "brier": 0.22039453701109135,
+      "logLoss": 0.6281496145871723
+    },
+    {
+      "ablation": "B",
+      "complexity": 3,
+      "n": 4582,
+      "maeMargin": 15.799151310930714,
+      "rmseMargin": 20.20082839521044,
+      "biasMargin": -1.7456879880326954,
+      "maeTotal": 14.273381672062134,
+      "maeHome": 11.494852810674246,
+      "maeAway": 10.10244171048209,
+      "brier": 0.22045990858927303,
+      "logLoss": 0.6282957627025079
+    },
+    {
+      "ablation": "C",
+      "complexity": 4,
+      "n": 4582,
+      "maeMargin": 15.810823065096589,
+      "rmseMargin": 20.226148324274497,
+      "biasMargin": -1.7340568860478838,
+      "maeTotal": 14.382874845089882,
+      "maeHome": 11.516261221055023,
+      "maeAway": 10.21487672806386,
+      "brier": 0.22083660441828507,
+      "logLoss": 0.6291041785352957
+    },
+    {
+      "ablation": "D",
+      "complexity": 5,
+      "n": 4582,
+      "maeMargin": 15.84369393046681,
+      "rmseMargin": 20.264893868877646,
+      "biasMargin": -1.7645971740708177,
+      "maeTotal": 14.329519627737284,
+      "maeHome": 11.518679273643151,
+      "maeAway": 10.201021672045076,
+      "brier": 0.22143614717509852,
+      "logLoss": 0.6305816661256195
+    },
+    {
+      "ablation": "E",
+      "complexity": 6,
+      "n": 4582,
+      "maeMargin": 15.84369393046681,
+      "rmseMargin": 20.264893868877646,
+      "biasMargin": -1.7645971740708177,
+      "maeTotal": 14.329519627737284,
+      "maeHome": 11.518679273643151,
+      "maeAway": 10.201021672045076,
+      "brier": 0.22143614717509852,
+      "logLoss": 0.6305816661256195
+    },
+    {
+      "ablation": "F",
+      "complexity": 7,
+      "n": 4582,
+      "maeMargin": 15.857492399862533,
+      "rmseMargin": 20.29021836579819,
+      "biasMargin": -1.7849205306874463,
+      "maeTotal": 14.161726726115575,
+      "maeHome": 11.456112131164545,
+      "maeAway": 10.16566517853016,
+      "brier": 0.2215221577850782,
+      "logLoss": 0.6308508292150532
+    },
+    {
+      "ablation": "G",
+      "complexity": 8,
+      "n": 4582,
+      "maeMargin": 15.857492399862533,
+      "rmseMargin": 20.29021836579819,
+      "biasMargin": -1.7849205306874463,
+      "maeTotal": 14.161726726115575,
+      "maeHome": 11.456112131164545,
+      "maeAway": 10.16566517853016,
+      "brier": 0.2215221577850782,
+      "logLoss": 0.6308508292150532
+    },
+    {
+      "ablation": "H",
+      "complexity": 9,
+      "n": 4582,
+      "maeMargin": 15.857492399862533,
+      "rmseMargin": 20.29021836579819,
+      "biasMargin": -1.7849205306874463,
+      "maeTotal": 14.161726726115575,
+      "maeHome": 11.456112131164545,
+      "maeAway": 10.16566517853016,
+      "brier": 0.2215221577850782,
+      "logLoss": 0.6308508292150532
+    },
+    {
+      "ablation": "I",
+      "complexity": 10,
+      "n": 4582,
+      "maeMargin": 15.858164171470484,
+      "rmseMargin": 20.28334182020874,
+      "biasMargin": -1.8046886181376074,
+      "maeTotal": 14.109729580433767,
+      "maeHome": 11.429168072739497,
+      "maeAway": 10.171067971564423,
+      "brier": 0.22144451784429853,
+      "logLoss": 0.630638937497036
+    },
+    {
+      "ablation": "J",
+      "complexity": 11,
+      "n": 4582,
+      "maeMargin": 15.861149886962766,
+      "rmseMargin": 20.280296257178204,
+      "biasMargin": -1.8078817083629308,
+      "maeTotal": 14.109729580433767,
+      "maeHome": 11.425433995734075,
+      "maeAway": 10.176107952803687,
+      "brier": 0.22140243032849818,
+      "logLoss": 0.6304294024159764
+    },
+    {
+      "ablation": "K",
+      "complexity": 11,
+      "n": 4582,
+      "maeMargin": 15.861149886962766,
+      "rmseMargin": 20.280296257178204,
+      "biasMargin": -1.8078817083629308,
+      "maeTotal": 14.109729580433767,
+      "maeHome": 11.425433995734075,
+      "maeAway": 10.176107952803687,
+      "brier": 0.22140243032849818,
+      "logLoss": 0.6304294024159764
+    }
+  ],
+  "baselines": {
+    "historicalMeanHfa": {
+      "n": 4582,
+      "maeMargin": 16.960819941127564,
+      "rmseMargin": 21.609875017620542,
+      "biasMargin": -1.2817462056423006,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 13.564984790626958,
+      "rmseTotal": 17.010721597213408,
+      "maeHome": 11.659973562359882,
+      "maeAway": 10.600584260124764,
+      "maeTeam": 11.130278911242417,
+      "brier": 0.23879592594875887,
+      "logLoss": 0.6705712700532263,
+      "calibration": {
+        "slope": 0.49409116262342784,
+        "intercept": 0.31142570907406375,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 0,
+          "meanPredicted": null,
+          "meanActual": null
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 0,
+          "meanPredicted": null,
+          "meanActual": null
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 0,
+          "meanPredicted": null,
+          "meanActual": null
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 0,
+          "meanPredicted": null,
+          "meanActual": null
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 0,
+          "meanPredicted": null,
+          "meanActual": null
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1478,
+          "meanPredicted": 0.5787346672992406,
+          "meanActual": 0.5953991880920162
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 3104,
+          "meanPredicted": 0.6053606062737382,
+          "meanActual": 0.6114690721649485
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 0,
+          "meanPredicted": null,
+          "meanActual": null
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 0,
+          "meanPredicted": null,
+          "meanActual": null
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 0,
+          "meanPredicted": null,
+          "meanActual": null
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6569183762549106,
+        "z": 1
+      }
+    },
+    "priorStrengthOnly": {
+      "n": 4582,
+      "maeMargin": 15.778843986404446,
+      "rmseMargin": 20.177024903384076,
+      "biasMargin": -1.6855487851422104,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 15.040263306630335,
+      "rmseTotal": 19.12558634064622,
+      "maeHome": 11.729909755848684,
+      "maeAway": 10.341130660022753,
+      "maeTeam": 11.035520207935697,
+      "brier": 0.22066730353473088,
+      "logLoss": 0.6291676687029837,
+      "calibration": {
+        "slope": 1.0626186957219865,
+        "intercept": -0.013153200126779008,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 3,
+          "meanPredicted": 0.08160039234281664,
+          "meanActual": 0
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 23,
+          "meanPredicted": 0.16909646245093088,
+          "meanActual": 0.17391304347826086
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 99,
+          "meanPredicted": 0.26122893678691833,
+          "meanActual": 0.24242424242424243
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 283,
+          "meanPredicted": 0.3563832153965661,
+          "meanActual": 0.44876325088339225
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 378,
+          "meanPredicted": 0.452634385838529,
+          "meanActual": 0.48412698412698413
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 2530,
+          "meanPredicted": 0.5712542422727774,
+          "meanActual": 0.5691699604743083
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 542,
+          "meanPredicted": 0.6481155865706284,
+          "meanActual": 0.7103321033210332
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 436,
+          "meanPredicted": 0.743991824392112,
+          "meanActual": 0.7935779816513762
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 225,
+          "meanPredicted": 0.8414716927382926,
+          "meanActual": 0.9244444444444444
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 63,
+          "meanPredicted": 0.9333532691690959,
+          "meanActual": 0.9682539682539683
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6986032300305544,
+        "z": 1
+      }
+    },
+    "rollingOffDef": {
+      "n": 4582,
+      "maeMargin": 16.33211261457875,
+      "rmseMargin": 20.923504582126146,
+      "biasMargin": -5.5273854212134275,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 33.12811698203137,
+      "rmseTotal": 40.37395585983635,
+      "maeHome": 19.854033909477213,
+      "maeAway": 16.538154062107697,
+      "maeTeam": 18.19609398579246,
+      "brier": 0.22912987983609567,
+      "logLoss": 0.6478513062970173,
+      "calibration": {
+        "slope": 0.8623457987419585,
+        "intercept": 0.1646014490599339,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 31,
+          "meanPredicted": 0.0718395898062321,
+          "meanActual": 0.16129032258064516
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 140,
+          "meanPredicted": 0.1601715402100686,
+          "meanActual": 0.29285714285714287
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 279,
+          "meanPredicted": 0.25329856766583986,
+          "meanActual": 0.4444444444444444
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 341,
+          "meanPredicted": 0.35222698202941666,
+          "meanActual": 0.5073313782991202
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 2399,
+          "meanPredicted": 0.49107525221306714,
+          "meanActual": 0.563151313047103
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 429,
+          "meanPredicted": 0.5491582934737242,
+          "meanActual": 0.682983682983683
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 378,
+          "meanPredicted": 0.6490174642360936,
+          "meanActual": 0.7275132275132276
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 304,
+          "meanPredicted": 0.7450874849199008,
+          "meanActual": 0.8289473684210527
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 196,
+          "meanPredicted": 0.846285290810041,
+          "meanActual": 0.9336734693877551
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 85,
+          "meanPredicted": 0.9415719324722497,
+          "meanActual": 0.9529411764705882
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6868179834133566,
+        "z": 1
+      }
+    },
+    "fbisV14Shell": {
+      "n": 4582,
+      "maeMargin": 15.878064382365794,
+      "rmseMargin": 20.346737463600938,
+      "biasMargin": -3.2237140986468744,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 13.53448275862069,
+      "rmseTotal": 16.98225509803552,
+      "maeHome": 11.138962789175055,
+      "maeAway": 10.168502618943705,
+      "maeTeam": 10.653732704059376,
+      "brier": 0.2224348063255958,
+      "logLoss": 0.6329198158650073,
+      "calibration": {
+        "slope": 0.9869009789189687,
+        "intercept": 0.05882967129620509,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 5,
+          "meanPredicted": 0.07171821319586193,
+          "meanActual": 0
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 50,
+          "meanPredicted": 0.16149042057519755,
+          "meanActual": 0.24
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 165,
+          "meanPredicted": 0.2555859106745886,
+          "meanActual": 0.2909090909090909
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 330,
+          "meanPredicted": 0.350724797357033,
+          "meanActual": 0.45454545454545453
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 482,
+          "meanPredicted": 0.45764555465382956,
+          "meanActual": 0.553941908713693
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 2434,
+          "meanPredicted": 0.5485877913093445,
+          "meanActual": 0.575595727198028
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 478,
+          "meanPredicted": 0.6493729728481324,
+          "meanActual": 0.7259414225941423
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 362,
+          "meanPredicted": 0.7454683006167557,
+          "meanActual": 0.8093922651933702
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 206,
+          "meanPredicted": 0.8435177059905893,
+          "meanActual": 0.9320388349514563
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 70,
+          "meanPredicted": 0.9360063385705337,
+          "meanActual": 0.9714285714285714
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6970755128764732,
+        "z": 1
+      }
+    },
+    "bookClosing": {
+      "n": 4582,
+      "maeMargin": 12.247490178961153,
+      "rmseMargin": 15.690525851100979,
+      "biasMargin": -0.8188563945875164,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 14.808162374508948,
+      "rmseTotal": 20.193447364323315,
+      "maeHome": 10.241051942383239,
+      "maeAway": 9.219773024879965,
+      "maeTeam": 9.730412483631602,
+      "brier": 0.16898521579227505,
+      "logLoss": 0.5064703338130462,
+      "calibration": {
+        "slope": 1.2102610737392732,
+        "intercept": -0.09635965623338161,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 46,
+          "meanPredicted": 0.07324358415351748,
+          "meanActual": 0.021739130434782608
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 162,
+          "meanPredicted": 0.15167152033195055,
+          "meanActual": 0.08641975308641975
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 311,
+          "meanPredicted": 0.25133560297421875,
+          "meanActual": 0.18006430868167203
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 502,
+          "meanPredicted": 0.3544172173241654,
+          "meanActual": 0.30677290836653387
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 780,
+          "meanPredicted": 0.461083757864321,
+          "meanActual": 0.46923076923076923
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 706,
+          "meanPredicted": 0.5564781467296541,
+          "meanActual": 0.5878186968838527
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 641,
+          "meanPredicted": 0.6463987002066955,
+          "meanActual": 0.7051482059282371
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 545,
+          "meanPredicted": 0.7538222659513757,
+          "meanActual": 0.8587155963302753
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 453,
+          "meanPredicted": 0.8495430220726852,
+          "meanActual": 0.9359823399558499
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 436,
+          "meanPredicted": 0.948685582163518,
+          "meanActual": 0.981651376146789
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.8116542994325622,
+        "z": 1
+      }
+    }
+  },
+  "pairedUncertainty": {
+    "best_vs_A": {
+      "nCommon": 4582,
+      "deltaMaeMargin": {
+        "nBoot": 500,
+        "mean": 0,
+        "ci95": [
+          0,
+          0
+        ],
+        "signPositiveShare": 0
+      },
+      "deltaSqMargin": {
+        "nBoot": 500,
+        "mean": 0,
+        "ci95": [
+          0,
+          0
+        ],
+        "signPositiveShare": 0
+      },
+      "deltaBrier": {
+        "nBoot": 500,
+        "mean": 0,
+        "ci95": [
+          0,
+          0
+        ],
+        "signPositiveShare": 0
+      },
+      "note": "delta = mean(best_err - other_err) under season-week block bootstrap; negative ⇒ best better"
+    },
+    "best_vs_B": {
+      "nCommon": 4582,
+      "deltaMaeMargin": {
+        "nBoot": 500,
+        "mean": -0.006345945517488253,
+        "ci95": [
+          -0.026453079326191897,
+          0.011557414823698764
+        ],
+        "signPositiveShare": 0.248
+      },
+      "deltaSqMargin": {
+        "nBoot": 500,
+        "mean": -0.5048921515863904,
+        "ci95": [
+          -1.3829584141829514,
+          0.20753882521592004
+        ],
+        "signPositiveShare": 0.092
+      },
+      "deltaBrier": {
+        "nBoot": 500,
+        "mean": -0.00005393314474138444,
+        "ci95": [
+          -0.00041897587898301336,
+          0.00032580083320032927
+        ],
+        "signPositiveShare": 0.364
+      },
+      "note": "delta = mean(best_err - other_err) under season-week block bootstrap; negative ⇒ best better"
+    },
+    "best_vs_next_simpler": null
+  },
+  "selectedCandidate": {
+    "ablation": "A",
+    "promote": false,
+    "canQualify": false,
+    "rationale": "Simplest ablation within 0.05 maeMargin of best fitted model (A). Not promoted.",
+    "metrics": {
+      "ablation": "A",
+      "complexity": 1,
+      "n": 4582,
+      "maeMargin": 15.792237342482391,
+      "rmseMargin": 20.187513469599146,
+      "biasMargin": -1.6841596415608506,
+      "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); positive overpredicts home margin (home-away)",
+      "maeTotal": 15.077316525362368,
+      "rmseTotal": 19.181168546369012,
+      "maeHome": 11.75257884612991,
+      "maeAway": 10.354601605580823,
+      "maeTeam": 11.053590225855528,
+      "brier": 0.22039453701109135,
+      "logLoss": 0.6281496145871723,
+      "calibration": {
+        "slope": 0.9769450168498016,
+        "intercept": 0.0284261151656926,
+        "n": 4582
+      },
+      "calibrationBuckets": [
+        {
+          "lo": 0,
+          "hi": 0.1,
+          "n": 6,
+          "meanPredicted": 0.06699618353627819,
+          "meanActual": 0
+        },
+        {
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 37,
+          "meanPredicted": 0.1617909736401526,
+          "meanActual": 0.24324324324324326
+        },
+        {
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 123,
+          "meanPredicted": 0.2599801335734496,
+          "meanActual": 0.2764227642276423
+        },
+        {
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 269,
+          "meanPredicted": 0.3544496259381879,
+          "meanActual": 0.45353159851301117
+        },
+        {
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 339,
+          "meanPredicted": 0.45228826177788756,
+          "meanActual": 0.4896755162241888
+        },
+        {
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 1806,
+          "meanPredicted": 0.5694322198712327,
+          "meanActual": 0.5675526024363233
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 1196,
+          "meanPredicted": 0.624657707032347,
+          "meanActual": 0.6220735785953178
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 441,
+          "meanPredicted": 0.7483225210640524,
+          "meanActual": 0.7755102040816326
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 270,
+          "meanPredicted": 0.8464756964797622,
+          "meanActual": 0.9111111111111111
+        },
+        {
+          "lo": 0.9,
+          "hi": 1.0001,
+          "n": 95,
+          "meanPredicted": 0.9384593586530943,
+          "meanActual": 0.9473684210526315
+        }
+      ],
+      "intervalCoverage1sig": {
+        "n": 4582,
+        "coverage": 0.6569183762549106,
+        "z": 1
+      }
+    },
+    "blockersToReplaceShell": [
+      "canQualify remains false by policy",
+      "Eligible universe is prior-catalog-complete (selection bias vs full CFB)",
+      "Several feature blocks inactive historically (havoc/finishing/qb/pace)",
+      "No production shadow soak / wiring yet",
+      "CORE throughWeek absent historically"
+    ]
+  },
+  "featureEffects": {
+    "margin": "Ridge on signed matchup components per ablation",
+    "total": "Separate ridge on intentional totalFeatures (side sums); home/away = (total ± margin)/2"
+  },
+  "biasSignConvention": "biasMargin = mean(predMargin - actualMargin); margin = home - away"
+}
