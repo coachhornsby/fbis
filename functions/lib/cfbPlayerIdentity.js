@@ -9,6 +9,25 @@ import { TEMPORAL_CLASS } from "./cfbFeaturePipeline.js";
 export const PLAYER_ROLES = Object.freeze(["QB1", "RB1", "WR1"]);
 export const IDENTITY_VERSION = "cfb-player-identity-v1";
 
+/** Explicit role-confidence tiers for historical identity audit. */
+export const ROLE_CONFIDENCE_TIERS = Object.freeze({
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+});
+
+/**
+ * Map numeric confidence + identity state → LOW/MEDIUM/HIGH.
+ * Uncertain competitions always LOW and widen uncertainty.
+ */
+export function classifyRoleConfidence(confidence, state = null) {
+  const c = Number(confidence);
+  const s = String(state || "").toUpperCase();
+  if (s.includes("UNCERTAIN") || !Number.isFinite(c) || c < 0.45) return ROLE_CONFIDENCE_TIERS.LOW;
+  if (c < 0.7 || s === "LIKELY") return ROLE_CONFIDENCE_TIERS.MEDIUM;
+  return ROLE_CONFIDENCE_TIERS.HIGH;
+}
+
 function num(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;

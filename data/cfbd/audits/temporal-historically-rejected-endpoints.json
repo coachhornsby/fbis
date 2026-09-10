@@ -1,0 +1,58 @@
+{
+  "auditVersion": "cfb-temporal-audit-v1",
+  "rejectedForHistoricalIndependentUse": [
+    {
+      "endpoint": "/stats/season/advanced",
+      "reason": "same-season cumulative aggregate cannot prove cutoff bound",
+      "requiredAlternative": "reconstruct from /stats/game/advanced before kickoff",
+      "temporalClassIfUnreconstructed": "D"
+    },
+    {
+      "endpoint": "/ppa/players/season",
+      "reason": "same-season cumulative aggregate cannot prove cutoff bound",
+      "requiredAlternative": "reconstruct from player-game rows / plays before kickoff; Week 1 use prior-season only with widened uncertainty",
+      "temporalClassIfUnreconstructed": "D"
+    },
+    {
+      "endpoint": "/player/usage",
+      "reason": "same-season cumulative aggregate cannot prove cutoff bound",
+      "requiredAlternative": "reconstruct from player-game rows / plays before kickoff; Week 1 use prior-season only with widened uncertainty",
+      "temporalClassIfUnreconstructed": "D"
+    },
+    {
+      "endpoint": "/stats/player/season",
+      "reason": "same-season cumulative aggregate cannot prove cutoff bound",
+      "requiredAlternative": "reconstruct from player-game rows / plays before kickoff; Week 1 use prior-season only with widened uncertainty",
+      "temporalClassIfUnreconstructed": "D"
+    },
+    {
+      "endpoint": "/ppa/teams",
+      "reason": "same-season cumulative aggregate cannot prove cutoff bound",
+      "requiredAlternative": "reconstruct from /ppa/games before kickoff",
+      "temporalClassIfUnreconstructed": "D"
+    }
+  ],
+  "undatedSameSeasonRatingsExcluded": [
+    {
+      "endpoint": "/ratings/sp",
+      "reason": "undated same-season aggregate \u2014 prior-season freeze only for historical early/in-season"
+    },
+    {
+      "endpoint": "/ratings/fpi",
+      "reason": "undated same-season aggregate \u2014 prior-season freeze only for historical early/in-season"
+    },
+    {
+      "endpoint": "/ratings/srs",
+      "reason": "undated same-season aggregate \u2014 prior-season freeze only for historical early/in-season"
+    },
+    {
+      "endpoint": "/ratings/elo",
+      "reason": "undated same-season aggregate \u2014 prior-season freeze only for historical early/in-season"
+    }
+  ],
+  "coreRule": "CORE allowed only when throughWeek <= latestAllowedWeek for the prediction cutoff (or prior-season freeze)",
+  "provisionalNotes": {
+    "priorWeights": "SP.35 CORE.25 FPI.20 SRS.12 Elo.08 \u2014 provisional",
+    "shrink": "n/(n+6) \u2014 provisional"
+  }
+}
