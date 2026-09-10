@@ -14,6 +14,7 @@ import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbFbisV2 } from "./cfbFbisV2.js";
+import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { pinMarkets } from "./pricing.js";
 
@@ -52,10 +53,18 @@ export async function buildSlate(sport, date, env = {}) {
     const enriched = attachCfbDeepFeatures(slate.games || [], feed);
     const deep = attachCfbMatchupV2(enriched);
     const v2 = attachCfbFbisV2(deep.games);
+    // Player model consumes game environment only — no CFBD fanout on customer refresh
+    const players = attachCfbPlayerV1(v2.games);
     return {
       ...slate,
-      games: v2.games,
-      research: { ...(slate.research || {}), cfbDeepFeed: feed.meta, cfbMatchupV2: deep.meta, cfbFbisV2: v2.meta },
+      games: players.games,
+      research: {
+        ...(slate.research || {}),
+        cfbDeepFeed: feed.meta,
+        cfbMatchupV2: deep.meta,
+        cfbFbisV2: v2.meta,
+        cfbPlayerV1: players.meta,
+      },
     };
   }
 

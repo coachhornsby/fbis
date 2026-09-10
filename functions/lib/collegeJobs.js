@@ -20,6 +20,11 @@ const FREEZE_MODELS = {
   nfl: ["NFL-TEAM-FORM-v0"],
 };
 
+/** Player projection freeze list — research only, never qualifies. */
+export const PLAYER_FREEZE_MODELS = {
+  cfb: ["CFB-PLAYER-v1"],
+};
+
 export function researchModelIds(sport, requested = "all") {
   const id = String(sport || "").toLowerCase();
   if (!new Set(["cbb", "cfb"]).has(id)) return [];

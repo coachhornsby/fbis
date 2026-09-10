@@ -40,6 +40,12 @@ function round2(n) {
   return Math.round(Number(n) * 100) / 100;
 }
 
+function fairAmerican(p) {
+  const pp = Math.min(0.999, Math.max(0.001, Number(p) || 0.5));
+  if (pp >= 0.5) return Math.round(-100 * pp / (1 - pp));
+  return Math.round(100 * (1 - pp) / pp);
+}
+
 function sideFeatures(game, side) {
   const explicit = game?.cfbFbisV2Input?.[side] || game?.cfbDeepInput?.[side] || {};
   const est = game?.cfb?.[`${side}Est`] || {};
@@ -171,6 +177,8 @@ export function uncertaintyModel({
   return {
     margin_sigma: marginSigma,
     total_sigma: totalSigma,
+    home_score_sigma: round2(totalSigma * 0.72),
+    away_score_sigma: round2(totalSigma * 0.72),
     model_quality: round2(Math.max(0, Math.min(1, dataCompleteness * (1 - 0.35 * priorShare)))),
     data_completeness: round2(dataCompleteness),
     uncertainty_state: uncertaintyState,
@@ -408,8 +416,17 @@ export function projectCfbFbisV2(game = {}, { ablation = "K", coefficients = DEF
     margin: finalMargin,
     total,
     pHomeWin: pGreater(finalMargin, 0, unc.margin_sigma),
+    pAwayWin: round2(1 - pGreater(finalMargin, 0, unc.margin_sigma)),
+    fairHomeMl: fairAmerican(pGreater(finalMargin, 0, unc.margin_sigma)),
+    fairAwayMl: fairAmerican(1 - pGreater(finalMargin, 0, unc.margin_sigma)),
+    away_expected_points: projAway,
+    home_expected_points: projHome,
+    fair_margin: finalMargin,
+    fair_total: total,
     sigmaMargin: unc.margin_sigma,
     sigmaTotal: unc.total_sigma,
+    home_score_sigma: unc.home_score_sigma,
+    away_score_sigma: unc.away_score_sigma,
     independent: true,
     marketInformed: false,
     canQualify: false,

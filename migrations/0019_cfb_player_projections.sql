@@ -1,67 +1,5 @@
--- Additive schema extensions introduced after the original schema.sql baseline.
--- Fresh databases should apply migrations; this file keeps schema verification explicit.
-
-CREATE TABLE IF NOT EXISTS published_projections (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  sport TEXT NOT NULL,
-  game_id TEXT NOT NULL,
-  game_date TEXT NOT NULL,
-  start_time TEXT,
-  model_version TEXT,
-  payload_hash TEXT NOT NULL,
-  payload_json TEXT NOT NULL,
-  published_at TEXT NOT NULL,
-  published_by TEXT NOT NULL DEFAULT 'operator',
-  UNIQUE (sport, game_id, model_version)
-);
-
-CREATE INDEX IF NOT EXISTS idx_published_projections_date
-  ON published_projections (game_date, sport, published_at);
-CREATE INDEX IF NOT EXISTS idx_published_projections_game
-  ON published_projections (sport, game_id);
-
-CREATE TABLE IF NOT EXISTS cfbd_endpoint_audit (
-  id TEXT PRIMARY KEY,
-  audited_at TEXT NOT NULL,
-  season INTEGER,
-  week INTEGER,
-  job_run_id TEXT,
-  summary_json TEXT,
-  endpoints_json TEXT,
-  catalog_version TEXT,
-  feature_table_json TEXT,
-  content_hash TEXT,
-  r2_key TEXT,
-  created_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_cfbd_endpoint_audit_season
-  ON cfbd_endpoint_audit (season, audited_at);
-
-CREATE TABLE IF NOT EXISTS cfb_pregame_feature_vectors (
-  id TEXT PRIMARY KEY,
-  game_id TEXT NOT NULL,
-  season INTEGER,
-  week INTEGER,
-  kickoff_timestamp TEXT,
-  home_team TEXT,
-  away_team TEXT,
-  feature_as_of_timestamp TEXT NOT NULL,
-  feature_cutoff_timestamp TEXT NOT NULL,
-  source_version TEXT,
-  source_endpoint TEXT,
-  collection_timestamp TEXT NOT NULL,
-  features_json TEXT,
-  decomposition_json TEXT,
-  uncertainty_json TEXT,
-  model_id TEXT,
-  content_hash TEXT,
-  job_run_id TEXT,
-  created_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_cfb_pregame_feat_game
-  ON cfb_pregame_feature_vectors (game_id, feature_cutoff_timestamp);
+-- CFB player projections (QB1/RB1/WR1) + prop market comparison layer.
+-- Additive only. Shadow research tables — never alter champion projection storage.
 
 CREATE TABLE IF NOT EXISTS cfb_player_role_snapshots (
   id TEXT PRIMARY KEY,
@@ -174,3 +112,6 @@ CREATE TABLE IF NOT EXISTS cfb_player_prop_comparisons (
 
 CREATE INDEX IF NOT EXISTS idx_cfb_player_prop_cmp_game
   ON cfb_player_prop_comparisons (game_id, market_type);
+
+INSERT OR IGNORE INTO schema_migrations (id, applied_at)
+VALUES ('0019_cfb_player_projections', datetime('now'));
