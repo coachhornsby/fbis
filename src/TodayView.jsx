@@ -365,6 +365,8 @@ export function GameDetails({ g }) {
 function CfbGameDetails({ g }) {
   const c = g.cfbDetail || {};
   const steps = g.projectionRecipe?.steps || [];
+  const v2 = g.cfbFbisV2 || g.challengers?.["CFB-FBIS-v2"] || null;
+  const d = v2?.decomposition || null;
   return (
     <div className="game-detail-grid">
       <section>
@@ -398,6 +400,25 @@ function CfbGameDetails({ g }) {
         ) : null}
         <div className="muted">Prior: {c.priorVersion || "—"}</div>
       </section>
+      {d ? (
+        <section>
+          <h3>CFB-FBIS-v2 (SHADOW)</h3>
+          <div>Fair {fmtNum(v2.away)}–{fmtNum(v2.home)} · total {fmtNum(v2.total)} · line {fmtNum(d.FINAL_FAIR_LINE)}</div>
+          <div className="muted">
+            BASE {fmtNum(d.BASE_POWER)} · PASS {fmtNum(d.PASS_MATCHUP)} · RUSH {fmtNum(d.RUSH_MATCHUP)} · SUCCESS {fmtNum(d.SUCCESS)} · EXPLO {fmtNum(d.EXPLOSIVENESS)}
+          </div>
+          <div className="muted">
+            HAVOC {fmtNum(d.HAVOC)} · TRENCH {fmtNum(d.TRENCHES)} · FINISH {fmtNum(d.FINISHING_DRIVES)} · QB {fmtNum(d.QB)} · PACE {fmtNum(d.PACE)}
+          </div>
+          <div className="muted">
+            HFA {fmtNum(d.HFA)} · CTX {fmtNum(d.WEATHER_CONTEXT)} · SHRINK {fmtNum(d.RELIABILITY_SHRINK)} · RAW {fmtNum(d.RAW_MARGIN)}
+          </div>
+          <div className="muted">
+            Uncertainty {v2.uncertainty?.uncertainty_state || "—"} · σm {fmtNum(v2.uncertainty?.margin_sigma)} · completeness {fmtNum(v2.dataCompleteness)} · canQualify false
+          </div>
+          <div className="muted">Provenance: independent · marketUsed {String(v2.provenance?.marketUsed)} · artifact {v2.provenance?.artifactId || "—"}</div>
+        </section>
+      ) : null}
       <section className="detail-props">
         <h3>HOW THIS PROJECTION WAS BUILT</h3>
         {steps.length ? steps.map((s, i) => <div key={i} className="muted">{i + 1}. {s}</div>) : <div className="muted">Projection recipe unavailable.</div>}

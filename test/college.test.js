@@ -288,6 +288,7 @@ describe("jobs, R2, storage", () => {
     assert.ok(COLLEGE_JOBS.includes("model-promote"));
     assert.ok(COLLEGE_JOBS.includes("cfb-current-refresh"));
     assert.ok(COLLEGE_JOBS.includes("cfb-qb-transfer-refresh"));
+    assert.ok(COLLEGE_JOBS.includes("cfbd-endpoint-audit"));
     const env = collegeDb(new Map());
     const unknown = await runCollegeJob("nope", env);
     assert.equal(unknown.status, "failed");

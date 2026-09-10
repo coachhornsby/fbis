@@ -3,9 +3,9 @@
  * Shadow models never auto-promote. Training does not run in this Worker.
  */
 
-import { collegeKeyHealth } from "./collegeSecrets.js";
+import { collegeKeyHealth, assertNoSecretLeak } from "./collegeSecrets.js";
 import { cfbdGet, cbbdGet, cfbSeasonYear, cbbSeasonYear, summarizeSchema, collegePublicResult } from "./collegeApi.js";
-import { queryQuota, insertSourceObservation, insertTeamFeatureSnapshot, insertGameFeatureSnapshot, insertModelPrediction, gradeModelPrediction, upsertModelRegistry, insertModelArtifact, insertValidationRun, insertPromotionDecision, upsertTeamSeasonIdentity, queryModelPredictions, queryEndpointUsage, upsertQbTransferHistory } from "./collegeStore.js";
+import { queryQuota, insertSourceObservation, insertTeamFeatureSnapshot, insertGameFeatureSnapshot, insertModelPrediction, gradeModelPrediction, upsertModelRegistry, insertModelArtifact, insertValidationRun, insertPromotionDecision, upsertTeamSeasonIdentity, queryModelPredictions, queryEndpointUsage, upsertQbTransferHistory, insertCfbdEndpointAudit } from "./collegeStore.js";
 import { COLLEGE_MODELS, evaluatePromotion, PROMOTION_CRITERIA } from "./collegeModels.js";
 import { projectCfbChallengers } from "./cfbRatings.js";
 import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatings.js";
@@ -17,6 +17,9 @@ import { hasDb } from "./store.js";
 import { resolveTeamExact, listTeams } from "./teams.js";
 import CFB_REG from "../../data/models/cfb-cfbd-reg-v1.js";
 import CBB_REG from "../../data/models/cbb-reg-v1.js";
+import CFB_FBIS_V2 from "../../data/models/cfb-fbis-v2.js";
+import { runCfbdEndpointAudit, auditArtifactPayload, auditContentHash } from "./cfbdEndpointAudit.js";
+import { featureAvailabilityTable, markdownFeatureTable, FEATURE_CATALOG_VERSION } from "./cfbdFeatureCatalog.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -38,6 +41,7 @@ export const COLLEGE_JOBS = [
   "cfb-current-refresh",
   "cfb-postgame-harvest",
   "cfb-qb-transfer-refresh",
+  "cfbd-endpoint-audit",
   "cbb-reference-backfill",
   "cbb-current-refresh",
   "cbb-postgame-harvest",
@@ -188,6 +192,7 @@ export async function seedRegistry(env) {
   }
   await insertModelArtifact(env, { id: CFB_REG.id, modelId: CFB_REG.modelId, schema: CFB_REG.expectedUnits, coefficients: CFB_REG.coefficients, trainingCutoff: CFB_REG.trainingCutoff, trainingHash: CFB_REG.trainingHash, sourceVersions: CFB_REG.sourceVersions, expectedUnits: CFB_REG.expectedUnits });
   await insertModelArtifact(env, { id: CBB_REG.id, modelId: CBB_REG.modelId, schema: CBB_REG.expectedUnits, coefficients: CBB_REG.coefficients, trainingCutoff: CBB_REG.trainingCutoff, trainingHash: CBB_REG.trainingHash, sourceVersions: CBB_REG.sourceVersions, expectedUnits: CBB_REG.expectedUnits });
+  await insertModelArtifact(env, { id: CFB_FBIS_V2.id, modelId: CFB_FBIS_V2.modelId, schema: CFB_FBIS_V2.expectedUnits, coefficients: CFB_FBIS_V2.coefficients, trainingCutoff: CFB_FBIS_V2.trainingCutoff, trainingHash: CFB_FBIS_V2.trainingHash, sourceVersions: CFB_FBIS_V2.sourceVersions, expectedUnits: CFB_FBIS_V2.expectedUnits });
 }
 
 async function persistTeamFeatures(env, sport, season, catalog, jobRunId) {
@@ -277,11 +282,101 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       });
     }
 
+    if (job === "cfbd-endpoint-audit") {
+      const seasons = opts.seasons || [yearCfb, yearCfb - 1];
+      const audit = await runCfbdEndpointAudit(env, {
+        seasons,
+        week: opts.week,
+        probes: opts.probes,
+        fetchFn: opts.fetchFn || fetch,
+        jobRunId: id,
+      });
+      const catalogRows = featureAvailabilityTable(audit.byEndpoint || {});
+      const artifact = auditArtifactPayload(audit);
+      const contentHash = await auditContentHash(audit);
+      let r2k = null;
+      if (r2Bound(env)) {
+        r2k = r2Key({
+          kind: "audit",
+          source: "cfbd",
+          sport: "cfb",
+          season: seasons[0],
+          endpoint: "endpoint-audit",
+          partition: contentHash.slice(0, 12),
+          hash: contentHash.slice(0, 12),
+          name: `cfbd-endpoint-audit-${contentHash.slice(0, 12)}.json`,
+        });
+        await putArchive(env, r2k, artifact);
+      }
+      await persistObservation(env, {
+        source: "cfbd",
+        sport: "cfb",
+        endpoint: "cfbd-endpoint-audit",
+        season: seasons[0],
+        partition: "audit",
+        data: artifact.endpoints,
+        jobRunId: id,
+        status: audit.summary?.configured ? "ok" : "auth-missing",
+      });
+      const inserted = await insertCfbdEndpointAudit(env, {
+        id: `${id}:cfbd-audit`,
+        auditedAt: audit.summary?.auditedAt || new Date().toISOString(),
+        season: seasons[0],
+        week: opts.week ?? null,
+        jobRunId: id,
+        summary: { ...audit.summary, catalogVersion: FEATURE_CATALOG_VERSION },
+        endpoints: artifact.endpoints,
+        catalogVersion: FEATURE_CATALOG_VERSION,
+        contentHash,
+        r2Key: r2k,
+        featureTable: catalogRows,
+      });
+      if (inserted.ok) writes.writesSucceeded += 1;
+      else writes.writesFailed += 1;
+      assertNoSecretLeak(audit, env);
+      const payload = jobPayload({
+        ok: true,
+        job,
+        status: "success",
+        attemptedAt: started,
+        successfulAt: new Date().toISOString(),
+        env,
+        writes,
+        d1: {
+          bound: hasDb(env),
+          audit: {
+            summary: audit.summary,
+            endpointCount: (audit.endpoints || []).length,
+            classifications: audit.summary?.classifications || {},
+            featureTableMarkdown: markdownFeatureTable(catalogRows),
+            featureTable: catalogRows,
+            r2Key: r2k,
+            contentHash,
+            note: "Safe diagnostics only. Empty responses are AVAILABLE-BUT-EMPTY, not unavailable. Champion unchanged.",
+          },
+        },
+      });
+      await recordJob(env, {
+        id,
+        jobType: job,
+        triggerType: opts.trigger || "http",
+        startedAt: started,
+        completedAt: payload.successful_at,
+        status: payload.status,
+        sport: "cfb",
+        writesAttempted: writes.writesSucceeded + writes.writesFailed,
+        writesSucceeded: writes.writesSucceeded,
+        writesFailed: writes.writesFailed,
+        env,
+      });
+      return payload;
+    }
+
     if (job === "model-train-validate") {
       const modelIds =
         opts.modelId && opts.modelId !== "all"
           ? [opts.modelId]
-          : ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1"];
+          : ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1", "CFB-FBIS-v2"];
       const validation = [];
       for (const modelId of modelIds) {
         const rows = await queryModelPredictions(env, { sport: "cfb", modelId, limit: 5000 });
@@ -648,7 +743,7 @@ async function persistQbTransferSeason(env, { season, portalRows = [], qbStatRow
 }
 
 const FREEZE_MODELS = {
-  cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1"],
+  cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1", "CFB-FBIS-v2"],
   cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1"],
 };
 

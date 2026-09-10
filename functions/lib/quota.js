@@ -58,16 +58,22 @@ export function estimateMonthlyCalls({
   cfbSeasonDays = 120,
   cbbSeasonDays = 150,
   backfillOnce = 400,
+  cfbdAuditOnce = 90,
+  cfbFbisV2FeatureRefreshPerDay = 12,
 } = {}) {
   const daily =
     cfbRefreshPerDay * cfbSeasonDays +
     cbbRefreshPerDay * cbbSeasonDays +
     cfbHarvestPerDay * cfbSeasonDays +
-    cbbHarvestPerDay * cbbSeasonDays;
+    cbbHarvestPerDay * cbbSeasonDays +
+    cfbFbisV2FeatureRefreshPerDay * cfbSeasonDays;
   return {
-    estimated: daily + backfillOnce,
-    dailyProduction: cfbRefreshPerDay + cbbRefreshPerDay + cfbHarvestPerDay + cbbHarvestPerDay,
-    underDesign: daily + backfillOnce < QUOTA_DESIGN_TARGET,
-    underCap: daily + backfillOnce < MONTHLY_QUOTA,
+    estimated: daily + backfillOnce + cfbdAuditOnce,
+    dailyProduction: cfbRefreshPerDay + cbbRefreshPerDay + cfbHarvestPerDay + cbbHarvestPerDay + cfbFbisV2FeatureRefreshPerDay,
+    dailyCfbFbisV2: cfbFbisV2FeatureRefreshPerDay,
+    auditOnce: cfbdAuditOnce,
+    underDesign: daily + backfillOnce + cfbdAuditOnce < QUOTA_DESIGN_TARGET,
+    underCap: daily + backfillOnce + cfbdAuditOnce < MONTHLY_QUOTA,
+    note: "CFB-FBIS-v2 features are scheduled/background only — never from customer page loads",
   };
 }

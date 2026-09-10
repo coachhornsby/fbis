@@ -518,3 +518,33 @@ export async function queryQbTransferHistory(env, { season = null, destinationSc
     return [];
   }
 }
+
+export async function insertCfbdEndpointAudit(env, row) {
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  try {
+    const res = await env.DB.prepare(
+      `INSERT OR IGNORE INTO cfbd_endpoint_audit (
+        id, audited_at, season, week, job_run_id, summary_json, endpoints_json,
+        catalog_version, feature_table_json, content_hash, r2_key, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        row.auditedAt || new Date().toISOString(),
+        n(row.season),
+        n(row.week),
+        n(row.jobRunId),
+        json(row.summary),
+        json(row.endpoints),
+        n(row.catalogVersion),
+        json(row.featureTable),
+        n(row.contentHash),
+        n(row.r2Key),
+        row.createdAt || new Date().toISOString()
+      )
+      .run();
+    return { ok: true, inserted: res.meta?.changes ? 1 : 0, already: res.meta?.changes ? 0 : 1 };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}

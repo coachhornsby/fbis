@@ -40,6 +40,7 @@ export async function onRequestGet(context) {
     const payload = await runCollegeJob(job, envFrom(context), {
       trigger,
       year: url.searchParams.get("year") ? Number(url.searchParams.get("year")) : undefined,
+      week: url.searchParams.get("week") ? Number(url.searchParams.get("week")) : undefined,
       date: url.searchParams.get("date") || undefined,
       modelId: url.searchParams.get("modelId") || undefined,
       operatorApproved: url.searchParams.get("operatorApproved") === "true",

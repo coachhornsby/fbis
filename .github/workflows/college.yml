@@ -19,6 +19,7 @@ on:
           - cbb-postgame-harvest
           - cfb-reference-backfill
           - cbb-reference-backfill
+          - cfbd-endpoint-audit
           - model-train-validate
           - model-promote
           - college-health
@@ -27,6 +28,14 @@ on:
         description: Required true for model-promote (still must meet criteria)
         type: boolean
         default: false
+      year:
+        description: Optional season year override for audit/backfill jobs
+        type: string
+        required: false
+      week:
+        description: Optional week for week-scoped CFBD audit probes
+        type: string
+        required: false
 
 concurrency:
   group: fbis-college-research
@@ -39,7 +48,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-        if: ${{ (github.event.inputs.job || '') == 'model-train-validate' || github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'model-train-validate' }}
+        if: ${{ github.event.inputs.job == 'model-train-validate' || github.event.inputs.job == 'cfbd-endpoint-audit' }}
       - name: Offline train/validate (Actions CPU, not Workers)
         if: ${{ github.event.inputs.job == 'model-train-validate' }}
         run: node scripts/college-train.mjs
@@ -49,6 +58,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           JOB_INPUT: ${{ github.event.inputs.job }}
           OPERATOR: ${{ github.event.inputs.operatorApproved }}
+          YEAR_INPUT: ${{ github.event.inputs.year }}
+          WEEK_INPUT: ${{ github.event.inputs.week }}
         run: |
           set -euo pipefail
           BASE="https://fbis-myz.pages.dev"
@@ -99,7 +110,7 @@ jobs:
             for attempt in 1 2 3 4; do
               tmp="$(mktemp)"
               set +e
-              http=$(curl -sS --max-time 90 \
+              http=$(curl -sS --max-time 180 \
                 -H "x-harvest-secret: ${HARVEST_SECRET}" \
                 -H "accept: application/json" \
                 -o "$tmp" -w "%{http_code}" \
@@ -112,6 +123,17 @@ jobs:
                 ok=$(jq -r '(.ok == true) and (.status == "success")' "$tmp" 2>/dev/null || echo false)
                 if [ "$http" = "200" ] && [ "$ok" = "true" ]; then
                   echo "college job success job=${job} attempt=${attempt}"
+                  # Persist audit artifact for download when present
+                  if [ "$job" = "cfbd-endpoint-audit" ]; then
+                    mkdir -p artifacts
+                    cp "$tmp" artifacts/cfbd-endpoint-audit.json
+                    jq -r '.d1.audit.featureTableMarkdown // empty' "$tmp" > artifacts/cfbd-feature-table.md || true
+                    echo "## CFBD endpoint audit" >> "$GITHUB_STEP_SUMMARY"
+                    echo "" >> "$GITHUB_STEP_SUMMARY"
+                    jq -r '.d1.audit.summary | "- configured: \(.configured)\n- probes: \(.resultCount)\n- available: \(.available|length)\n- empty: \(.availableButEmpty|length)\n- not entitled: \(.notEntitled|length)\n- deprecated: \(.deprecatedOrMissing|length)\n- auth failure: \(.authFailure|length)"' "$tmp" >> "$GITHUB_STEP_SUMMARY" || true
+                    echo "" >> "$GITHUB_STEP_SUMMARY"
+                    jq -r '.d1.audit.featureTableMarkdown // "_feature table unavailable_"' "$tmp" >> "$GITHUB_STEP_SUMMARY" || true
+                  fi
                   return 0
                 fi
               else
@@ -140,10 +162,18 @@ jobs:
             return 1
           }
 
+          EXTRA=""
+          if [ -n "${YEAR_INPUT:-}" ]; then
+            EXTRA="${EXTRA}&year=${YEAR_INPUT}"
+          fi
+          if [ -n "${WEEK_INPUT:-}" ]; then
+            EXTRA="${EXTRA}&week=${WEEK_INPUT}"
+          fi
+
           if [ "$JOB" = "model-promote" ]; then
-            call model-promote "&operatorApproved=${OPERATOR:-false}"
+            call model-promote "&operatorApproved=${OPERATOR:-false}${EXTRA}"
           elif [ "$JOB" = "model-train-validate" ]; then
-            call model-train-validate
+            call model-train-validate "${EXTRA}"
           elif [ "$EVENT_NAME" = "schedule" ]; then
             # Keep sequential for CFBD quota; each call has its own bounded retries.
             call cfb-current-refresh
@@ -152,5 +182,12 @@ jobs:
             call cbb-postgame-harvest
             call college-health
           else
-            call "$JOB"
+            call "$JOB" "${EXTRA}"
           fi
+      - name: Upload CFBD audit artifact
+        if: ${{ github.event.inputs.job == 'cfbd-endpoint-audit' && hashFiles('artifacts/cfbd-endpoint-audit.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfbd-endpoint-audit
+          path: artifacts/
+          if-no-files-found: ignore

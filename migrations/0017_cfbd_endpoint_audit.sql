@@ -1,24 +1,5 @@
--- Additive schema extensions introduced after the original schema.sql baseline.
--- Fresh databases should apply migrations; this file keeps schema verification explicit.
-
-CREATE TABLE IF NOT EXISTS published_projections (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  sport TEXT NOT NULL,
-  game_id TEXT NOT NULL,
-  game_date TEXT NOT NULL,
-  start_time TEXT,
-  model_version TEXT,
-  payload_hash TEXT NOT NULL,
-  payload_json TEXT NOT NULL,
-  published_at TEXT NOT NULL,
-  published_by TEXT NOT NULL DEFAULT 'operator',
-  UNIQUE (sport, game_id, model_version)
-);
-
-CREATE INDEX IF NOT EXISTS idx_published_projections_date
-  ON published_projections (game_date, sport, published_at);
-CREATE INDEX IF NOT EXISTS idx_published_projections_game
-  ON published_projections (sport, game_id);
+-- CFBD endpoint audit artifacts + CFB-FBIS-v2 pregame feature vector index.
+-- Additive only. Does not alter champion projection tables.
 
 CREATE TABLE IF NOT EXISTS cfbd_endpoint_audit (
   id TEXT PRIMARY KEY,
@@ -62,3 +43,6 @@ CREATE TABLE IF NOT EXISTS cfb_pregame_feature_vectors (
 
 CREATE INDEX IF NOT EXISTS idx_cfb_pregame_feat_game
   ON cfb_pregame_feature_vectors (game_id, feature_cutoff_timestamp);
+
+INSERT OR IGNORE INTO schema_migrations (id, applied_at)
+VALUES ('0017_cfbd_endpoint_audit', datetime('now'));

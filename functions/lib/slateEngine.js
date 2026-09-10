@@ -13,6 +13,7 @@ import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js"
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
+import { attachCfbFbisV2 } from "./cfbFbisV2.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { pinMarkets } from "./pricing.js";
 
@@ -50,10 +51,11 @@ export async function buildSlate(sport, date, env = {}) {
     }));
     const enriched = attachCfbDeepFeatures(slate.games || [], feed);
     const deep = attachCfbMatchupV2(enriched);
+    const v2 = attachCfbFbisV2(deep.games);
     return {
       ...slate,
-      games: deep.games,
-      research: { ...(slate.research || {}), cfbDeepFeed: feed.meta, cfbMatchupV2: deep.meta },
+      games: v2.games,
+      research: { ...(slate.research || {}), cfbDeepFeed: feed.meta, cfbMatchupV2: deep.meta, cfbFbisV2: v2.meta },
     };
   }
 
