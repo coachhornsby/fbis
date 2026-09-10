@@ -10,64 +10,37 @@ Independent College Football challenger built on CFBD. **Shadow only** — does 
 4. Champion remains intact during development
 5. Adapt to what CFBD actually returns — do not invent metrics
 
-## Phase 1 — `cfbd-endpoint-audit`
+## Live audit
 
-Manual college research job:
+- College job: `/api/college?job=cfbd-endpoint-audit`
+- Post-deploy CI step on `main` uploads `cfbd-endpoint-audit-<sha>` artifact + job summary table
+- Manual: Actions → FBIS college research → `cfbd-endpoint-audit`
+
+## Feature pipeline
+
+`functions/lib/cfbFeaturePipeline.js` + offline `scripts/cfb-feature-backfill.mjs`:
+
+- Prior = **prior-season** SP+/FPI/SRS/Elo/talent/returning freeze (temporal class A)
+- Matchup = rolling reconstruction from `/ppa/games` + `/stats/game/advanced` before kickoff (class C)
+- Season aggregates (`/ppa/teams`, `/stats/season/advanced`) are **not** used naïvely in historical backtests
+- Market lines under `features.evaluation` only
+- FCS: team SRS/Elo → conference mean → provisional if missing
+
+## Offline backfill
+
+College workflow job `cfb-feature-backfill` (requires GitHub secret `CFBD_API_KEY`):
 
 ```
-/api/college?job=cfbd-endpoint-audit
+seasons=2022,2023,2024,2025
 ```
 
-Also available via GitHub Actions → FBIS college research → `cfbd-endpoint-audit`.
+Writes ablation A–K metrics + fold chronology under `artifacts/`.
 
-Safe diagnostics only per endpoint:
+## Model
 
-`endpoint, httpStatus, ok, rowCount, latencyMs, topLevelType, sampleFieldNames, seasonTested, weekTested, error, classification`
-
-Classifications: `AVAILABLE`, `AVAILABLE-BUT-EMPTY`, `NOT-ENTITLED`, `DEPRECATED`, `INVALID-PARAMETERS`, `AUTH-FAILURE`, `TRANSIENT-FAILURE`.
-
-Empty 200 ≠ unavailable.
-
-Persists to D1 `cfbd_endpoint_audit` + optional R2, uploads a JSON Actions artifact, and prints a feature availability markdown table in the job summary.
-
-## Feature catalog
-
-Canonical dictionary: `functions/lib/cfbdFeatureCatalog.js` (`cfb-feature-catalog-v1`).
-
-Live audit classifications merge into the availability table used by the job summary.
-
-## Temporal feature store
-
-`functions/lib/cfbFeatureStore.js` enforces:
-
-- `feature_as_of_timestamp` ≤ kickoff
-- `feature_cutoff_timestamp` ≤ kickoff
-- `collection_timestamp` ≤ kickoff
-- rolling reconstruction from game rows before kickoff
-- full-season aggregates without week/as-of → marked leakage-risk / excluded from temporal eval
-
-## Model architecture (`CFB-FBIS-v2`)
-
-Layers: preseason prior → rolling strength with `n/(n+k)` shrink → matchup (pass/rush/success/explosiveness/havoc/trenches/finishing) → separate QB residual → context (HFA 2.5 preserved) → expected score.
-
-Ablations A–K in `ABLATION_MASKS`. Uncertainty states: LOW / MEDIUM / HIGH.
-
-FCS: equivalent power when available; otherwise `PROVISIONAL` + wider sigma.
+Layers: prior → rolling `n/(n+k)` → matchup → QB residual → context (HFA 2.5) → score.
+Ablations A–K. Uncertainty LOW/MEDIUM/HIGH. Shadow `canQualify: false`.
 
 ## Promotion
 
-Uses existing `PROMOTION_CRITERIA` exactly (`minOosN: 400`, `minSeasons: 3`, `mae_total`, etc.). No auto flip.
-
-## Cost control
-
-Customer page loads never call CFBD. Scheduled refresh + offline backfill only. Design target remains under the CFBD monthly quota.
-
-## Files
-
-- `functions/lib/cfbdEndpointAudit.js`
-- `functions/lib/cfbdFeatureCatalog.js`
-- `functions/lib/cfbFeatureStore.js`
-- `functions/lib/cfbFbisV2.js`
-- `data/cfbd/endpoint-probe-plan.js`
-- `data/models/cfb-fbis-v2.js`
-- `migrations/0017_cfbd_endpoint_audit.sql`
+Uses existing `PROMOTION_CRITERIA` exactly. No auto flip.
