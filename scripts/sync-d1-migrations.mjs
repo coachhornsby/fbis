@@ -133,7 +133,8 @@ if (!hasQualifiedAt || !hasExecutionPrice) {
 }
 
 // Mark every migration before the latest as applied when the live schema already
-// contains the pre-0016 contract. The latest file (0016+) still runs via apply.
+// contains the pre-0016 contract. Never auto-mark the latest file unless its
+// primary table already exists (prevents skipping new additive migrations).
 const historical = files.slice(0, -1);
 let inserted = 0;
 for (const file of historical) {
@@ -144,12 +145,14 @@ for (const file of historical) {
   console.log(`Marked already-applied: ${file}`);
 }
 
-if (hasPublishedProjections && !applied.has(files.at(-1))) {
-  const latest = files.at(-1);
+const latest = files.at(-1);
+if (latest === "0016_published_projections.sql" && hasPublishedProjections && !applied.has(latest)) {
   const safe = latest.replace(/'/g, "''");
   d1Exec(`INSERT OR IGNORE INTO d1_migrations (name) VALUES ('${safe}');`);
   inserted += 1;
-  console.log(`Marked already-applied latest (table exists): ${latest}`);
+  console.log(`Marked already-applied latest (published_projections exists): ${latest}`);
+} else if (latest && latest !== "0016_published_projections.sql") {
+  console.log(`Leaving latest migration unsynced for wrangler apply: ${latest}`);
 }
 
 console.log(`D1 migration sync complete. newly_marked=${inserted}`);
