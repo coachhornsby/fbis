@@ -153,3 +153,40 @@ jobs:
           done
           echo "Release gate smoke passed for ${DEPLOY_SHA}"
           echo "DEPLOY PRODUCTION complete — research catch-up runs in harvest.yml, not this gate."
+
+      - name: CFBD endpoint audit (live production)
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          tmp="$(mktemp)"
+          http=$(curl -sS --max-time 180 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "accept: application/json" \
+            -o "$tmp" -w "%{http_code}" \
+            "https://fbis-myz.pages.dev/api/college?job=cfbd-endpoint-audit&trigger=workflow_dispatch&year=2026&week=8")
+          echo "cfbd_audit_http=${http}"
+          cp "$tmp" artifacts/cfbd-endpoint-audit.json
+          jq -c '{ok:.ok, job:.job, status:.status, configured:(.d1.audit.summary.configured // null), classifications:(.d1.audit.summary.classifications // {}), availableN:(.d1.audit.summary.available|length // 0)}' "$tmp" || true
+          jq -r '.d1.audit.featureTableMarkdown // empty' "$tmp" > artifacts/cfbd-feature-table.md || true
+          printf 'production_sha=%s\naudited_at=%s\n' "${DEPLOY_SHA}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > artifacts/cfbd-audit-meta.txt
+          test "$http" = "200"
+          jq -e '.ok == true and .job == "cfbd-endpoint-audit"' "$tmp" >/dev/null
+          {
+            echo "## CFBD endpoint audit (post-deploy)"
+            echo ""
+            echo "- production SHA: \`${DEPLOY_SHA}\`"
+            echo "- configured: $(jq -r '.d1.audit.summary.configured' "$tmp")"
+            echo "- resultCount: $(jq -r '.d1.audit.summary.resultCount' "$tmp")"
+            echo ""
+            jq -r '.d1.audit.featureTableMarkdown // "_unavailable_"' "$tmp"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload CFBD audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfbd-endpoint-audit-${{ env.DEPLOY_SHA }}
+          path: artifacts/
+          if-no-files-found: warn

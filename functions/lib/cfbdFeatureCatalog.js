@@ -4,10 +4,19 @@
  * Market features are evaluation-only and MUST NOT enter independent score generation.
  */
 
-export const FEATURE_CATALOG_VERSION = "cfb-feature-catalog-v1";
+export const FEATURE_CATALOG_VERSION = "cfb-feature-catalog-v2";
 
 /** @typedef {"prior"|"matchup"|"context"|"qb"|"personnel"|"evaluation"|"benchmark"|"exclude"} FeatureUse */
+/** @typedef {"A"|"B"|"C"|"D"|"E"} TemporalSafetyClass */
 
+/**
+ * Temporal safety:
+ * A PRE-KICKOFF SAFE DIRECTLY
+ * B SAFE IF WEEK/GAME FILTERED
+ * C MUST BE RECONSTRUCTED FROM GAME/PLAY DATA
+ * D NOT SAFE FOR HISTORICAL BACKTEST (same-season aggregates without as-of)
+ * E EVALUATION-ONLY
+ */
 /**
  * @type {Array<{
  *  canonical: string,
@@ -118,6 +127,18 @@ export function featureAvailabilityTable(auditByEndpoint = {}) {
           : null;
     const pregame =
       f.pregameSafe === true ? "✅" : f.pregameSafe === "conditional" ? "⚠️" : f.use === "evaluation" ? "❌ model" : "❌";
+    let temporalSafety = "D";
+    if (f.use === "evaluation") temporalSafety = "E";
+    else if (f.pregameSafe === true && f.leakageRisk === "none") temporalSafety = "A";
+    else if (f.grain === "game" || f.endpoint === "/ppa/games" || f.endpoint === "/stats/game/advanced") temporalSafety = "B";
+    else if (
+      ["/ppa/teams", "/stats/season/advanced", "/stats/season"].includes(f.endpoint) ||
+      (f.grain === "season" && f.leakageRisk === "high" && f.use === "matchup")
+    ) {
+      temporalSafety = "C";
+    } else if (f.grain === "season" && (f.use === "prior" || f.use === "benchmark")) {
+      temporalSafety = "D";
+    } else if (f.pregameSafe === true) temporalSafety = "A";
     return {
       feature: f.canonical,
       group: f.group,
@@ -125,6 +146,7 @@ export function featureAvailabilityTable(auditByEndpoint = {}) {
       available2026: available2026 == null ? "unprobed" : available2026 ? "✅" : "❌",
       historical: historical == null ? "unprobed" : historical ? "✅" : "❌",
       pregameSafe: pregame,
+      temporalSafety,
       use: f.use,
       leakageRisk: f.leakageRisk,
       classification: audit?.classification || (f.endpoint === "internal" ? "INTERNAL" : "UNPROBED"),
@@ -136,9 +158,13 @@ export function featureAvailabilityTable(auditByEndpoint = {}) {
 }
 
 export function markdownFeatureTable(rows) {
-  const header = "| Feature | Endpoint | 2026? | Historical? | Pregame-safe? | Use |\n|---|---|---|---|---|---|";
+  const header =
+    "| Feature | Endpoint | 2026? | Historical? | Pregame-safe? | Temporal | Use |\n|---|---|---|---|---|---|---|";
   const body = rows
-    .map((r) => `| ${r.feature} | ${r.endpoint} | ${r.available2026} | ${r.historical} | ${r.pregameSafe} | ${r.use} |`)
+    .map(
+      (r) =>
+        `| ${r.feature} | ${r.endpoint} | ${r.available2026} | ${r.historical} | ${r.pregameSafe} | ${r.temporalSafety || "?"} | ${r.use} |`
+    )
     .join("\n");
   return `${header}\n${body}`;
 }

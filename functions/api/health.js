@@ -11,7 +11,7 @@ const MIGRATION_STATUS = {
   UNVERIFIED: "UNVERIFIED",
 };
 
-const EXPECTED_MIGRATION = "0016_published_projections";
+const EXPECTED_MIGRATION = "0017_cfbd_endpoint_audit";
 
 /**
  * Read-only health endpoint.
