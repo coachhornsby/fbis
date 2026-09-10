@@ -34,8 +34,9 @@ concurrency:
 
 jobs:
   college:
+    name: COLLEGE RESEARCH
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         if: ${{ (github.event.inputs.job || '') == 'model-train-validate' || github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'model-train-validate' }}
@@ -62,28 +63,89 @@ jobs:
             JOB="cfb-current-refresh"
           fi
           echo "job=$JOB event=${EVENT_NAME} trigger=${TRIGGER}"
+
+          classify_failure() {
+            local http="$1"
+            local curl_ec="$2"
+            local body_snip="$3"
+            if [ "$curl_ec" -ne 0 ]; then
+              echo "retryable-transport"
+              return
+            fi
+            if [ "$http" = "401" ] || [ "$http" = "403" ]; then
+              echo "non-retryable-auth"
+              return
+            fi
+            if [ "$http" = "400" ] || [ "$http" = "404" ] || [ "$http" = "422" ]; then
+              echo "non-retryable-client"
+              return
+            fi
+            if [ "$http" = "429" ] || [ "$http" = "500" ] || [ "$http" = "502" ] || [ "$http" = "503" ] || [ "$http" = "504" ] || [ "$http" = "524" ]; then
+              echo "retryable-http"
+              return
+            fi
+            if echo "$body_snip" | grep -qiE 'D1.*(overload|too many|busy|retry)|error code: 1102|timeout|temporar|rate.?limit|overloaded'; then
+              echo "retryable-upstream"
+              return
+            fi
+            echo "non-retryable-application"
+          }
+
           call() {
             local job="$1"
             local extra="${2:-}"
+            local attempt http curl_ec tmp body_snip ok classification
             echo "college job=${job}"
-            tmp="$(mktemp)"
-            http=$(curl -sS --max-time 90 \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              -H "accept: application/json" \
-              -o "$tmp" -w "%{http_code}" \
-              "${BASE}/api/college?job=${job}&trigger=${TRIGGER}${extra}")
-            jq -c '{http: $http, ok: .ok, job: .job, status: .status, errors: (.errors // []), d1: (.d1.bound // false)}' --arg http "$http" "$tmp"
-            ok=$(jq -r '(.ok == true) and (.status == "success")' "$tmp")
-            if [ "$http" != "200" ] || [ "$ok" != "true" ]; then
-              echo "college job unsuccessful job=${job} http=${http}"
-              exit 1
-            fi
+            for attempt in 1 2 3 4; do
+              tmp="$(mktemp)"
+              set +e
+              http=$(curl -sS --max-time 90 \
+                -H "x-harvest-secret: ${HARVEST_SECRET}" \
+                -H "accept: application/json" \
+                -o "$tmp" -w "%{http_code}" \
+                "${BASE}/api/college?job=${job}&trigger=${TRIGGER}${extra}")
+              curl_ec=$?
+              set -e
+              body_snip="$(head -c 400 "$tmp" 2>/dev/null || true)"
+              if [ "$curl_ec" -eq 0 ] && jq -e . "$tmp" >/dev/null 2>&1; then
+                jq -c '{http: $http, ok: .ok, job: .job, status: .status, errors: (.errors // []), d1: (.d1.bound // false)}' --arg http "$http" "$tmp" || true
+                ok=$(jq -r '(.ok == true) and (.status == "success")' "$tmp" 2>/dev/null || echo false)
+                if [ "$http" = "200" ] && [ "$ok" = "true" ]; then
+                  echo "college job success job=${job} attempt=${attempt}"
+                  return 0
+                fi
+              else
+                echo "college job non-json/transport job=${job} attempt=${attempt} curl_ec=${curl_ec} http=${http:-000}"
+                echo "body_snip=${body_snip}"
+              fi
+              classification="$(classify_failure "${http:-000}" "$curl_ec" "$body_snip")"
+              echo "college classification=${classification} job=${job} attempt=${attempt} http=${http:-000} curl_ec=${curl_ec}"
+              if [ "$classification" = "non-retryable-auth" ] || [ "$classification" = "non-retryable-client" ]; then
+                echo "college job failed permanently job=${job} class=${classification}"
+                echo "body_snip=${body_snip}"
+                return 1
+              fi
+              if [ "$attempt" -ge 4 ]; then
+                echo "college job failed after retries job=${job} class=${classification}"
+                echo "body_snip=${body_snip}"
+                return 1
+              fi
+              if [[ "$classification" == retryable-* ]]; then
+                sleep $((attempt * 12))
+                continue
+              fi
+              # Application failure: one bounded retry then fail.
+              sleep $((attempt * 8))
+            done
+            return 1
           }
+
           if [ "$JOB" = "model-promote" ]; then
             call model-promote "&operatorApproved=${OPERATOR:-false}"
           elif [ "$JOB" = "model-train-validate" ]; then
             call model-train-validate
           elif [ "$EVENT_NAME" = "schedule" ]; then
+            # Keep sequential for CFBD quota; each call has its own bounded retries.
             call cfb-current-refresh
             call cbb-current-refresh
             call cfb-postgame-harvest

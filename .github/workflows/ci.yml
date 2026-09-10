@@ -1,15 +1,18 @@
 name: CI
 
+# PR → TEST / BUILD only. Push to main → TEST / BUILD then DEPLOY PRODUCTION.
+# Feature-branch pushes no longer duplicate PR validation.
 on:
-  push:
-    branches:
-      - "**"
   pull_request:
+    branches:
+      - main
+  push:
     branches:
       - main
 
 jobs:
   test-build:
+    name: TEST / BUILD
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -28,10 +31,15 @@ jobs:
         run: npm run build
 
   deploy-production:
+    name: DEPLOY PRODUCTION
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     needs: test-build
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # Shared with Deploy Pages workflow — serialize production deploys; never cancel in-flight.
+    concurrency:
+      group: deploy-pages-production
+      cancel-in-progress: false
     permissions:
       contents: read
     env:
@@ -126,12 +134,13 @@ jobs:
             --commit-hash "${DEPLOY_SHA}" \
             --commit-message "deploy ${DEPLOY_SHA}"
 
-      - name: Verify Cloudflare production SHA
+      - name: VERIFY PRODUCTION SHA
         env:
           BASE: https://fbis-myz.pages.dev
         run: |
           set -euo pipefail
           # Prefer live /api/health (authoritative Worker env SHA) over wrangler list shape churn.
+          # CLI waits between retries via nextVerifyDelayMs (propagating vs mismatch vs unavailable).
           node scripts/verify-deployment-sha.mjs "${DEPLOY_SHA}"
           # Release-gate smoke: product APIs must return JSON, not the SPA HTML shell.
           for path in "/api/health" "/api/projections?sport=mlb" "/api/published-projections"; do
@@ -143,113 +152,4 @@ jobs:
             jq -e 'type == "object" or type == "array"' "$tmp" >/dev/null
           done
           echo "Release gate smoke passed for ${DEPLOY_SHA}"
-
-      - name: Catch-up settle-only harvest
-        env:
-          BASE: https://fbis-myz.pages.dev
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-        run: |
-          set -euo pipefail
-          test -n "${HARVEST_SECRET}" || { echo "Missing HARVEST_SECRET"; exit 1; }
-          RUN_URL_BASE="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          health_tmp="$(mktemp)"
-          curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" -o "$health_tmp"
-          collect_state="$(jq -r '.pipeline.schedule.collect.state // "unknown"' "$health_tmp")"
-          collect_ok="$(jq -r '.checks[] | select(.name=="scheduled-collect") | .ok' "$health_tmp")"
-          # Recover missed/delayed collect when GitHub cron skips a slot (common under load).
-          if [ "$collect_state" = "missed" ] || [ "$collect_state" = "delayed" ] || [ "$collect_ok" = "false" ]; then
-            echo "Recovering collect state=${collect_state} ok=${collect_ok}"
-            collect_body="$(mktemp)"
-            collect_code="$(curl -sS --max-time 180 -o "$collect_body" -w "%{http_code}" \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              -H "accept: application/json" \
-              "${BASE}/api/collect?mode=cache&sport=mlb&trigger=schedule&scheduledSlot=post-deploy-collect-recovery&runUrl=${RUN_URL_BASE}")"
-            echo "collect-recovery mlb http=${collect_code}"
-            jq -c '{ok,status,mode,sports,errors:(.errors//[])[:3]}' "$collect_body" || head -c 300 "$collect_body" || true
-            # Second sport pass for active CFB season without full multi-sport overload.
-            collect_body2="$(mktemp)"
-            collect_code2="$(curl -sS --max-time 180 -o "$collect_body2" -w "%{http_code}" \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              -H "accept: application/json" \
-              "${BASE}/api/collect?mode=cache&sport=cfb&trigger=schedule&scheduledSlot=post-deploy-collect-recovery&runUrl=${RUN_URL_BASE}")"
-            echo "collect-recovery cfb http=${collect_code2}"
-            jq -c '{ok,status,mode,sports,errors:(.errors//[])[:3]}' "$collect_body2" || head -c 300 "$collect_body2" || true
-          else
-            echo "Collect healthy; skipping post-deploy collect recovery (state=${collect_state})"
-          fi
-          # Reopen premature grades (cross-day series / pre-start) before settle.
-          cleanup_tmp="$(mktemp)"
-          cleanup_code="$(curl -sS --max-time 45 -o "$cleanup_tmp" -w "%{http_code}" \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "content-type: application/json" \
-            -H "accept: application/json" \
-            -d '{"action":"cleanup-future-grades"}' \
-            "${BASE}/api/track")"
-          echo "cleanup-future-grades http=${cleanup_code}"
-          jq -c '{ok,strategyTicketsReset,executedBetsReset,snapshotRowsReset}' "$cleanup_tmp" || head -c 300 "$cleanup_tmp" || true
-          # Void OPEN strategy tickets that reused one gameId across multiple dates.
-          cross_tmp="$(mktemp)"
-          cross_code="$(curl -sS --max-time 90 -o "$cross_tmp" -w "%{http_code}" \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "content-type: application/json" \
-            -H "accept: application/json" \
-            -d '{"action":"cleanup-cross-date-strategy"}' \
-            "${BASE}/api/track")"
-          echo "cleanup-cross-date-strategy http=${cross_code}"
-          jq -c '{ok,voided,voidPlanned,keepN,failed}' "$cross_tmp" || head -c 300 "$cross_tmp" || true
-          # Settle-only harvest for open executed + research tickets (full harvest exceeds Pages time).
-          harvest_failed=0
-          # Prefer live settleTargets with open work (health sorts by open volume); cap for Pages time.
-          mapfile -t TARGETS < <(curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq -r '
-            [.pipeline.settleTargets // []
-              | .[]
-              | select((.openExecutedBets // 0) > 0 or (.openStrategyTickets // 0) > 0)
-              | "\(.sport):\(.date)"]
-            | .[0:14]
-            | if length > 0 then .[] else empty end
-          ')
-          if [ "${#TARGETS[@]}" -eq 0 ]; then
-            TARGETS=("mlb:$(TZ=America/Chicago date -d 'yesterday' +%F)" "cfb:$(TZ=America/Chicago date -d 'yesterday' +%F)")
-          fi
-          for sport_day in "${TARGETS[@]}"; do
-            sport="${sport_day%%:*}"
-            day="${sport_day##*:}"
-            echo "settle-harvest ${sport} date=${day}"
-            ok_day=0
-            for attempt in 1 2 3 4 5 6; do
-              tmp="$(mktemp)"
-              set +e
-              code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" "${BASE}/api/harvest?date=${day}&sport=${sport}&settleOnly=1&gradeResearch=1&trigger=schedule&scheduledSlot=post-deploy-catchup&runUrl=${RUN_URL_BASE}")"
-              curl_ec=$?
-              set -e
-              echo "settle ${sport} ${day} attempt=${attempt} curl_ec=${curl_ec} http=${code}"
-              body_snip="$(head -c 400 "$tmp" 2>/dev/null || true)"
-              if [ "$curl_ec" -ne 0 ] || [ "$code" = "000" ] || [ "$code" = "503" ] || [ "$code" = "504" ] || [ "$code" = "524" ]; then
-                echo "transient failure; backing off"
-                sleep $((attempt * 20))
-                continue
-              fi
-              if echo "$body_snip" | grep -qiE 'D1.*(overload|too many|busy|retry)|error code: 1102'; then
-                echo "D1/Pages overload in body; backing off"
-                sleep $((attempt * 25))
-                continue
-              fi
-              jq -c '{ok,status,finals_graded,executed_bets:(.sports//[]),errors:(.errors//[])[:3],dates}' "$tmp" || head -c 300 "$tmp" || true
-              if [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$tmp" 2>/dev/null || echo false)" = "true" ]; then
-                ok_day=1
-                break
-              fi
-              sleep $((attempt * 8))
-            done
-            if [ "$ok_day" -ne 1 ]; then
-              echo "settle ${sport} ${day} failed after retries"
-              harvest_failed=1
-            fi
-            sleep 5
-          done
-          curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq '{commit:.deploymentCommit,state,schedule:.pipeline.schedule,lastCollect:.pipeline.lastCollectSuccessAt,lastHarvest:.pipeline.lastHarvestSuccessAt}'
-          if [ "$harvest_failed" -ne 0 ]; then
-            echo "Settle-only harvest had failures."
-            exit 1
-          fi
-          echo "Post-deploy settle-only catch-up complete"
+          echo "DEPLOY PRODUCTION complete — research catch-up runs in harvest.yml, not this gate."
