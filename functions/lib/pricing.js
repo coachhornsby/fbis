@@ -128,13 +128,35 @@ export function priceSelection({ pWin, pinPrice, twoWay, side = "A" }) {
 
 export function pinMarkets(game) {
   const o = game?.odds || {};
+  const pinMl = twoWayMarket(o.pinHomeMl ?? o.fairHomeMl, o.pinAwayMl ?? o.fairAwayMl);
+  const softMl = twoWayMarket(o.homeMl, o.awayMl);
+  const pinSpread = twoWayMarket(o.pinSpreadHomePrice, o.pinSpreadAwayPrice);
+  const softSpread = twoWayMarket(
+    o.softSpreadHomePrice ?? o.spreadPrice ?? null,
+    o.softSpreadAwayPrice ?? null
+  );
+  const pinTotal = twoWayMarket(o.pinOverPrice, o.pinUnderPrice);
+  const softTotal = twoWayMarket(o.softOverPrice, o.softUnderPrice);
   return {
-    ml: twoWayMarket(o.pinHomeMl ?? o.fairHomeMl, o.pinAwayMl ?? o.fairAwayMl),
-    spread: twoWayMarket(o.pinSpreadHomePrice, o.pinSpreadAwayPrice),
-    total: twoWayMarket(o.pinOverPrice, o.pinUnderPrice),
+    // Prefer complete Pinnacle two-ways; fall back to soft DK/FD pairs when Pin is absent.
+    ml: pinMl.complete ? pinMl : softMl,
+    spread: pinSpread.complete ? pinSpread : softSpread,
+    total: pinTotal.complete ? pinTotal : softTotal,
     f5ml: twoWayMarket(o.f5?.homeMl, o.f5?.awayMl),
     f5total: twoWayMarket(o.f5?.overPrice, o.f5?.underPrice),
+    pinComplete: Boolean(pinMl.complete || pinSpread.complete || pinTotal.complete),
+    softComplete: Boolean(softMl.complete || softSpread.complete || softTotal.complete),
+    softOnly: !Boolean(pinMl.complete || pinSpread.complete || pinTotal.complete) &&
+      Boolean(softMl.complete || softSpread.complete || softTotal.complete),
   };
+}
+
+export function softBookLabel(game) {
+  const soft = String(game?.odds?.softSource || "").toLowerCase();
+  if (soft.includes("sharp")) return "DK/FD";
+  if (soft.includes("rundown") || soft.includes("therundown")) return "Soft";
+  if (soft) return soft;
+  return "Soft books";
 }
 
 export function tagFromEv(ev) {

@@ -4,7 +4,7 @@ import { BASEBALL, EXECUTION_BOOK, runLine } from "./books.js";
 import { fetchBallparkPal, mergeBallparkPal, palSlateView } from "./ballparkpal.js";
 import { fetchParlayOdds, mergeParlay } from "./parlay.js";
 import { fetchSavantSlate } from "./savant.js";
-import { MODEL_VERSION, expectedRoi, pinMarkets, priceSelection, tagFromEv, validAmericanOdds } from "./pricing.js";
+import { MODEL_VERSION, expectedRoi, pinMarkets, priceSelection, softBookLabel, tagFromEv, validAmericanOdds } from "./pricing.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { applyCfbModel, cfbSpreadProb, cfbTotalProb, cfbWinProb, CFB_BLOCKED_MESSAGE } from "./cfbModel.js";
 import { loadCbbdRatings } from "./cfbd.js";
@@ -425,6 +425,8 @@ function withinProbCap(cfg, priced) {
 
 function stampTicket(game, rec, priced, { qualified, lean }) {
   const heritageListed = Boolean(game.odds?.heritageListed);
+  const softOnly = Boolean(priced?.softBenchmark) || (!game.odds?.pinPresent && Boolean(game.odds?.softSource));
+  const softLabel = softBookLabel(game);
   const canonical = canonicalProbabilityFields(priced.fair);
   return {
     ...rec,
@@ -432,15 +434,18 @@ function stampTicket(game, rec, priced, { qualified, lean }) {
     qualified,
     lean,
     tag: qualified ? tagFromEv(priced.ev, priced.probEdge) : "LEAN",
-    book: "Pinnacle",
+    book: softOnly ? softLabel : "Pinnacle",
     executionBook: rec.executionPrice != null ? EXECUTION_BOOK : null,
     executionPrice: rec.executionPrice ?? null,
-    benchmarkBook: "Pinnacle",
-    qualificationBook: "Pinnacle",
+    benchmarkBook: softOnly ? softLabel : "Pinnacle",
+    qualificationBook: softOnly ? softLabel : "Pinnacle",
     qualificationPrice: priced.pinPrice ?? null,
-    priceSource: heritageListed && rec.executionPrice != null
-      ? "Pinnacle-qualified · Heritage execution available"
-      : "Pinnacle-qualified · shop Heritage before betting",
+    softBenchmark: softOnly,
+    priceSource: softOnly
+      ? `${softLabel} provisional — Pinnacle unavailable; shop carefully`
+      : heritageListed && rec.executionPrice != null
+        ? "Pinnacle-qualified · Heritage execution available"
+        : "Pinnacle-qualified · shop Heritage before betting",
     modelVersion: MODEL_VERSION,
     modelProbability: canonical.modelProbability,
     expectedRoi: priced.ev ?? null,
@@ -493,9 +498,13 @@ export function recommendBundle(sport, game, model, weights) {
   const awayP = 1 - homeP;
   const recs = [];
   const pin = game.pin || pinMarkets(game);
+  const softOnly = Boolean(pin.softOnly);
+  const softLabel = softBookLabel(game);
 
-  pushMl(recs, cfg, game, "HOME", game.home.name, priceSelection({ pWin: homeP, twoWay: pin.ml, side: "A" }));
-  pushMl(recs, cfg, game, "AWAY", game.away.name, priceSelection({ pWin: awayP, twoWay: pin.ml, side: "B" }));
+  const mlHomePrice = game.odds?.pinHomeMl ?? (softOnly ? game.odds?.homeMl : null);
+  const mlAwayPrice = game.odds?.pinAwayMl ?? (softOnly ? game.odds?.awayMl : null);
+  pushMl(recs, cfg, game, "HOME", game.home.name, priceSelection({ pWin: homeP, twoWay: pin.ml, side: "A", pinPrice: mlHomePrice }), softOnly);
+  pushMl(recs, cfg, game, "AWAY", game.away.name, priceSelection({ pWin: awayP, twoWay: pin.ml, side: "B", pinPrice: mlAwayPrice }), softOnly);
 
   if (homeSpreadValid(game) && model.projMargin != null) {
     const homeSpread = game.odds.spread;
@@ -510,11 +519,15 @@ export function recommendBundle(sport, game, model, weights) {
       }
       const pMarket = side === "HOME" ? pin.spread?.noVigA : pin.spread?.noVigB;
       const pCover = shrinkToMarket(pCoverRaw, pMarket);
+      const spreadPrice =
+        side === "HOME"
+          ? game.odds.pinSpreadHomePrice ?? game.odds.softSpreadHomePrice ?? game.odds.spreadPrice
+          : game.odds.pinSpreadAwayPrice ?? game.odds.softSpreadAwayPrice;
       const priced = priceSelection({
         pWin: pCover,
         twoWay: pin.spread,
         side: side === "HOME" ? "A" : "B",
-        pinPrice: side === "HOME" ? game.odds.pinSpreadHomePrice : game.odds.pinSpreadAwayPrice,
+        pinPrice: spreadPrice,
       });
       const base = {
         market: "SPREAD",
@@ -524,7 +537,7 @@ export function recommendBundle(sport, game, model, weights) {
         executionPrice: heritageSpreadPrice(game, side),
         edge: priced.probEdge ?? spreadEdge,
       };
-      pushPriced(recs, cfg, game, base, priced, true);
+      pushPriced(recs, cfg, game, base, priced, true, softOnly, softLabel);
     }
   }
 
@@ -538,11 +551,14 @@ export function recommendBundle(sport, game, model, weights) {
           : logistic(Math.abs(diff), cfg.totalK);
       const pMarket = over ? pin.total?.noVigA : pin.total?.noVigB;
       const p = shrinkToMarket(pRaw, pMarket);
+      const totalPrice = over
+        ? game.odds.pinOverPrice ?? game.odds.softOverPrice
+        : game.odds.pinUnderPrice ?? game.odds.softUnderPrice;
       const priced = priceSelection({
         pWin: p,
         twoWay: pin.total,
         side: over ? "A" : "B",
-        pinPrice: over ? game.odds.pinOverPrice : game.odds.pinUnderPrice,
+        pinPrice: totalPrice,
       });
       const base = {
         market: "TOTAL",
@@ -552,7 +568,7 @@ export function recommendBundle(sport, game, model, weights) {
         executionPrice: heritageTotalPrice(game, over),
         edge: priced.probEdge ?? Math.abs(diff),
       };
-      pushPriced(recs, cfg, game, base, priced, true);
+      pushPriced(recs, cfg, game, base, priced, true, softOnly, softLabel);
     }
   }
 
@@ -599,19 +615,24 @@ export function recommend(sport, game, model, weights) {
   return recommendBundle(sport, game, model, weights).qualified;
 }
 
-function pushPriced(recs, cfg, game, base, priced, extraOk) {
+function pushPriced(recs, cfg, game, base, priced, extraOk, softOnly = false, softLabel = "DK/FD") {
   if (!extraOk || !withinProbCap(cfg, priced)) return;
   if (priced?.quarantined) return;
-  const pinnaclePriced = validAmericanOdds(priced.pinPrice);
-  const qualificationEv = pinnaclePriced ? expectedRoi(priced.fair, priced.pinPrice) : null;
+  const marketPriced = validAmericanOdds(priced.pinPrice);
+  const qualificationEv = marketPriced ? expectedRoi(priced.fair, priced.pinPrice) : null;
+  const bookName = softOnly ? softLabel : "Pinnacle";
   const pricedForTicket = {
     ...priced,
+    softBenchmark: softOnly,
     benchmarkPrice: priced.pinPrice ?? null,
     ev: qualificationEv,
     evPct: qualificationEv == null ? null : qualificationEv * 100,
-    expectedRoiLabel: qualificationEv == null ? null : `Expected ROI ${qualificationEv >= 0 ? "+" : ""}${(qualificationEv * 100).toFixed(1)}% at Pinnacle`,
+    expectedRoiLabel:
+      qualificationEv == null
+        ? null
+        : `Expected ROI ${qualificationEv >= 0 ? "+" : ""}${(qualificationEv * 100).toFixed(1)}% at ${bookName}`,
   };
-  const qualified = pinnaclePriced && isQualifiedTicket(cfg, pricedForTicket);
+  const qualified = marketPriced && isQualifiedTicket(cfg, pricedForTicket);
   if (qualified) {
     recs.push(stampTicket(game, base, pricedForTicket, { qualified: true, lean: false }));
     return;
@@ -620,7 +641,7 @@ function pushPriced(recs, cfg, game, base, priced, extraOk) {
   recs.push(stampTicket(game, base, pricedForTicket, { qualified: false, lean: true }));
 }
 
-function pushMl(recs, cfg, game, side, pick, priced) {
+function pushMl(recs, cfg, game, side, pick, priced, softOnly = false) {
   const hasPin = priced.implied != null;
   const edge = hasPin ? priced.probEdge : (priced.fair - 0.5) * 100;
   if (hasPin) {
@@ -640,7 +661,9 @@ function pushMl(recs, cfg, game, side, pick, priced) {
       edge: edge ?? 0,
     },
     priced,
-    true
+    true,
+    softOnly,
+    softBookLabel(game)
   );
 }
 

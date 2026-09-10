@@ -8,8 +8,10 @@ import {
   fbisProjection,
   glowClassForTier,
   marketDeltas,
+  marketLines,
   sortBoardGames,
 } from "../src/lib/boardDecision.js";
+import { boardQaFixtureGames } from "../src/lib/boardFixtures.js";
 
 function game(partial) {
   return {
@@ -126,5 +128,33 @@ describe("board date and projection display helpers", () => {
     assert.equal(counts.PASS, 1);
     assert.equal(counts.BLOCKED, 1);
     assert.equal(filterBoardGames(games, "QUALIFIED").length, 1);
+  });
+
+  it("labels soft books when Pinnacle is absent", () => {
+    const soft = marketLines(
+      game({
+        odds: {
+          pinPresent: false,
+          softSource: "sharpapi",
+          spread: -3.5,
+          total: 46.5,
+          homeMl: -150,
+          awayMl: 130,
+        },
+      })
+    );
+    assert.equal(soft.book, "DK/FD");
+    assert.equal(soft.spread, -3.5);
+  });
+
+  it("QA fixtures exercise glow classes for every tier", () => {
+    const byTier = Object.fromEntries(
+      boardQaFixtureGames().map((g) => [boardDecision(g).tier, glowClassForTier(boardDecision(g).tier)])
+    );
+    assert.equal(byTier.CONVICTION, "gc-glow-conviction");
+    assert.equal(byTier.QUALIFIED, "gc-glow-qualified");
+    assert.equal(byTier.LEAN, "gc-glow-lean");
+    assert.equal(byTier.PASS, "gc-glow-pass");
+    assert.equal(byTier.BLOCKED, "gc-glow-blocked");
   });
 });

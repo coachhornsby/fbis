@@ -1,8 +1,8 @@
 :root {
-  --bg: #05080d;
-  --panel: #101b2a;
-  --panel2: #122238;
-  --border: #2a4058;
+  --bg: #000000;
+  --panel: #1a2f45;
+  --panel2: #223a54;
+  --border: #3a5570;
   --text: #f2f6fa;
   --muted: #9aa5b1;
   /* Decorative only — never use --blue / --blue-light for text on navy panels. */
@@ -10,21 +10,21 @@
   --cyan: #3ec7e8;
   --blue-light: #f2f6fa;
   --navy: #0a1628;
-  --row-alt: #0a1a2e;
+  --row-alt: #16283c;
   --green: #3fb950;
   --green-bg: #0a2215;
   --yellow: #e3b341;
   --yellow-bg: #241a04;
   --red: #f85149;
   --red-bg: #270a09;
-  --odds-bg: #0a1628;
-  --odds-hover: #16304a;
+  --odds-bg: #122033;
+  --odds-hover: #1a334d;
   --price: #f2f6fa;
-  --card: #101b2a;
-  --card-border: #2a3f57;
-  --glow-conviction: rgba(63, 185, 80, 0.35);
-  --glow-qualified: rgba(62, 199, 232, 0.28);
-  --glow-lean: rgba(227, 179, 65, 0.22);
+  --card: #1c334c;
+  --card-border: #3a5570;
+  --glow-conviction: rgba(63, 185, 80, 0.38);
+  --glow-qualified: rgba(62, 199, 232, 0.3);
+  --glow-lean: rgba(227, 179, 65, 0.24);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,10 +32,7 @@
 html, body, #root { min-height: 100%; }
 
 body {
-  background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(62, 199, 232, 0.08), transparent 55%),
-    radial-gradient(900px 500px at 90% 0%, rgba(63, 185, 80, 0.05), transparent 50%),
-    var(--bg);
+  background: var(--bg);
   color: #fff;
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   font-size: 13px;
@@ -60,7 +57,7 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 header.app-header {
-  background: linear-gradient(180deg, #0a1628 0%, #07111f 100%);
+  background: linear-gradient(180deg, #0c1520 0%, #000000 100%);
   border-bottom: 1px solid var(--border);
   padding: 10px 20px;
   min-height: 52px;
@@ -879,6 +876,12 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
+  align-items: stretch;
+}
+.board-card-grid > [role="listitem"] {
+  display: flex;
+  min-width: 0;
+  height: 100%;
 }
 
 .game-card {
@@ -886,12 +889,14 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  width: 100%;
+  height: 100%;
   padding: 14px 14px 12px;
   border-radius: 10px;
   border: 1px solid var(--card-border);
   background:
-    linear-gradient(165deg, rgba(22, 38, 58, 0.98), rgba(12, 20, 34, 0.96));
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+    linear-gradient(165deg, rgba(36, 58, 84, 0.98), rgba(22, 40, 60, 0.96));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 .game-card:hover {
@@ -928,8 +933,8 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 }
 .gc-glow-pass {
   border-color: var(--card-border);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-  opacity: 0.96;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  /* PASS: structural depth only — no ambient decision glow */
 }
 .gc-glow-blocked {
   border-color: #3a4454;
@@ -997,6 +1002,41 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 }
 
 .gc-matchup { display: flex; flex-direction: column; gap: 8px; }
+.gc-matchup-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+}
+.gc-side {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.gc-side.home {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+.gc-side-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.gc-side.home .gc-side-text {
+  align-items: flex-end;
+}
+.gc-at {
+  align-self: center;
+  padding-top: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
 .gc-team {
   display: flex;
   align-items: center;
@@ -1010,12 +1050,20 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   flex: 1;
 }
 .gc-team-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 750;
-  line-height: 1.15;
+  line-height: 1.2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.gc-record,
+.gc-starter {
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 .gc-team-abbr { font-size: 11px; letter-spacing: 0.04em; }
 .gc-vs {
@@ -1028,6 +1076,16 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 18px;
   font-weight: 700;
+  flex: 0 0 auto;
+}
+.gc-soft-flag {
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  border: 1px solid rgba(227, 179, 65, 0.35);
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: var(--yellow);
 }
 
 .gc-section-label {
@@ -1257,16 +1315,19 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 }
 .gc-details-btn {
   flex: 1;
-  min-height: 40px;
+  min-height: 44px;
+  touch-action: manipulation;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: rgba(12, 24, 40, 0.9);
+  background: rgba(18, 34, 52, 0.95);
   color: #fff;
   font: inherit;
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.06em;
   cursor: pointer;
+  position: relative;
+  z-index: 2;
 }
 .gc-details-btn:hover,
 .gc-details-btn:focus-visible {
@@ -1296,6 +1357,21 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   .gc-score-num { font-size: 24px; }
   .gc-market-grid,
   .gc-quality { grid-template-columns: 1fr 1fr; }
+  .gc-matchup-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .gc-at {
+    padding-top: 0;
+    text-align: center;
+  }
+  .gc-side.home {
+    flex-direction: row;
+    text-align: left;
+  }
+  .gc-side.home .gc-side-text {
+    align-items: flex-start;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .game-card,
