@@ -67,16 +67,44 @@ Or Actions: `cfb-feature-backfill` with seasons `2022,2023,2024,2025`.
 
 ## Smoke results (2024 Weeks 1–4)
 
-See checked-in samples under `data/cfbd/audits/` (refreshed by the hardened smoke run). Report fields include:
+Hardened smoke (`cfb-temporal-audit-v2`) executed against CFBD (key not stored in repo).
 
-- `snapshotCount` / `counts.provenancePassRate`
-- `priorPass` / `priorFail` / `priorMissing`
-- `postCutoffRejections` / `coreCutoffRejections`
-- player-role reconstructed examples (pre-kickoff `/games/players` only)
+| Metric | Value |
+|--------|-------|
+| Snapshots | 1101 |
+| Actual provenance pass rate | 41.5% (457/1101) |
+| Prior provenance pass / fail | 965 / 1237 |
+| Missing prior provenance | 1237 |
+| Post-cutoff source rejections | 0 |
+| CORE cutoff rejections | 0 |
+| CORE present + valid | 0 |
+| Season QB aggregates in independent matrix | **Rejected** |
+| Evaluation lines in independent matrix | **Rejected** |
+| Fitted / research-ready / promotion-ready | **false** |
 
-### Role identity note
+Notes:
 
-Empty player-game rows correctly resolve to `*_UNCERTAIN` / LOW confidence. The reconstructed slice uses only rows preceding each target kickoff — never eventual season leaders. Ambiguous situations stay LOW confidence.
+- Prior failures are almost entirely `missing-source-provenance` (FCS/D2 and teams absent from the frozen prior catalog) — fail closed, not defaulted.
+- CFBD `/ratings/core?year=2024` currently returns only a final `throughSeasonType=postseason` snapshot; regular-season week-bounded CORE is therefore correctly absent (`corePresentOk=0`), not invented as `targetWeek-1`.
+- Player-role slice flattens nested `/games/players` and resolves QB1/RB1/WR1 from **pre-kickoff** rows only.
+
+### Representative reconstructed player-role examples
+
+- **South Florida @ Alabama** (W2) home.QB1: Jalen Milroe — priorRows=1, conf=0.56 (MEDIUM), method=`prior-games+usage`, sources=['401628319']
+- **South Florida @ Alabama** (W2) home.RB1: None — priorRows=0, conf=0.00 (LOW), method=`uncertain`, sources=[]
+- **South Florida @ Alabama** (W2) home.WR1: None — priorRows=0, conf=0.00 (LOW), method=`uncertain`, sources=[]
+- **South Florida @ Alabama** (W2) away.QB1: Byrum Brown — priorRows=1, conf=0.87 (HIGH), method=`prior-games+usage`, sources=['401636363']
+- **South Florida @ Alabama** (W2) away.RB1: None — priorRows=0, conf=0.00 (LOW), method=`uncertain`, sources=[]
+- **South Florida @ Alabama** (W2) away.WR1: None — priorRows=0, conf=0.00 (LOW), method=`uncertain`, sources=[]
+
+Checked-in samples:
+
+- `data/cfbd/audits/temporal-smoke-2024w1-4-report.json`
+- `data/cfbd/audits/temporal-smoke-2024w1-4-provenance.json`
+- `data/cfbd/audits/temporal-smoke-2024w1-4-roles.json`
+- `data/cfbd/audits/temporal-smoke-2024w1-4-roles-uncertain.json`
+- `data/cfbd/audits/temporal-historically-rejected-endpoints.json`
+
 
 ## Adversarial tests
 

@@ -22,7 +22,11 @@ import {
 } from "../functions/lib/cfbFeaturePipeline.js";
 import { indexCoreByTeam, estimateRequestCount } from "../functions/lib/cfbdCanonical.js";
 import { projectCfbFbisV2, CFB_FBIS_V2_ID } from "../functions/lib/cfbFbisV2.js";
-import { identifyGamePlayerRoles, filterPlayerGamesBeforeKickoff } from "../functions/lib/cfbPlayerIdentity.js";
+import {
+  identifyGamePlayerRoles,
+  filterPlayerGamesBeforeKickoff,
+  flattenGamesPlayersResponse,
+} from "../functions/lib/cfbPlayerIdentity.js";
 import {
   auditPreseasonPriorSources,
   auditPlayerRoleResolution,
@@ -119,6 +123,40 @@ function normalizePlayerGameRow(r, gamesById) {
   };
 }
 
+/** Merge nested /games/players feeds (passing/rushing/receiving) into flat rows. */
+function flattenPlayerGameFeeds(nestedFeeds, gamesById, seasonYear) {
+  const merged = new Map();
+  for (const feed of nestedFeeds) {
+    const flat = flattenGamesPlayersResponse(feed.rows || [], {
+      gamesById,
+      week: null,
+      season: seasonYear,
+    }).map((r) => normalizePlayerGameRow(r, gamesById));
+    for (const row of flat) {
+      const key = `${row.gameId || ""}::${row.athleteId || row.name || ""}::${schoolKey(row.team)}`;
+      const prev = merged.get(key);
+      if (!prev) {
+        merged.set(key, row);
+        continue;
+      }
+      merged.set(key, {
+        ...prev,
+        ...Object.fromEntries(Object.entries(row).filter(([, v]) => v != null)),
+        // Keep QB if passing attempts present; otherwise prefer receiving then rushing
+        position:
+          (prev.passingAttempts != null || row.passingAttempts != null
+            ? "QB"
+            : prev.receptions != null || row.receptions != null
+              ? "WR"
+              : prev.rushingAttempts != null || row.rushingAttempts != null
+                ? "RB"
+                : prev.position || row.position) || null,
+      });
+    }
+  }
+  return [...merged.values()];
+}
+
 const requestLog = [];
 const snapshots = [];
 const provenanceExamples = [];
@@ -172,9 +210,12 @@ requestLog.push({
   calls: gamesPlayers.calls + gamesPlayersRush.calls + gamesPlayersRec.calls,
   rows: gamesPlayers.rows.length + gamesPlayersRush.rows.length + gamesPlayersRec.rows.length,
 });
-const playerGameRowsRaw = [...gamesPlayers.rows, ...gamesPlayersRush.rows, ...gamesPlayersRec.rows].map((r) =>
-  normalizePlayerGameRow(r, gamesById)
+const playerGameRowsRaw = flattenPlayerGameFeeds(
+  [gamesPlayers, gamesPlayersRush, gamesPlayersRec],
+  gamesById,
+  season
 );
+requestLog.push({ kind: "games-players-flat", rows: playerGameRowsRaw.length });
 
 let used = 0;
 for (const g of allGames) {
@@ -373,9 +414,17 @@ for (const g of allGames) {
   used += 1;
 }
 
-// Representative player-role reconstruction on a small slice (weeks >= 2 preferred)
+// Representative player-role reconstruction: prefer FBS week≥2 games with both sides named
 const roleCandidates = allGames
-  .filter((g) => Number(g.week) >= 2 && (g.startDate || g.start_date))
+  .filter((g) => {
+    if (Number(g.week) < 2 || !(g.startDate || g.start_date)) return false;
+    const homeClass = String(g.homeClassification || g.home_classification || "");
+    const awayClass = String(g.awayClassification || g.away_classification || "");
+    const fbsHome = !homeClass || /fbs/i.test(homeClass);
+    const fbsAway = !awayClass || /fbs/i.test(awayClass);
+    return fbsHome && fbsAway;
+  })
+  .sort((a, b) => Number(a.week) - Number(b.week) || String(a.id).localeCompare(String(b.id)))
   .slice(0, Math.max(playerRoleN, 12));
 
 for (const g of roleCandidates) {
@@ -399,6 +448,8 @@ for (const g of roleCandidates) {
   const enrich = (roleRow, team) => {
     const usedRows = priorOnly.filter((r) => {
       if (schoolKey(r.team) !== schoolKey(team)) return false;
+      const id = roleRow.player_id != null ? String(roleRow.player_id) : null;
+      if (id && (String(r.athleteId || "") === id || String(r.player_id || r.id || "") === id)) return true;
       if (!roleRow.player_name) return false;
       return String(r.name || "").toLowerCase() === String(roleRow.player_name).toLowerCase();
     });

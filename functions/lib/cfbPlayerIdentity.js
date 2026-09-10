@@ -86,6 +86,104 @@ export function filterPlayerGamesBeforeKickoff(rows = [], kickoffTimestamp) {
   });
 }
 
+function parseIntStat(v) {
+  if (v == null || v === "") return null;
+  const s = String(v);
+  if (s.includes("/")) {
+    const parts = s.split("/");
+    return { left: num(parts[0]), right: num(parts[1]) };
+  }
+  return num(s.replace(/,/g, ""));
+}
+
+/**
+ * Flatten CFBD `/games/players` nested game→teams→categories→types→athletes
+ * into flat player-game rows consumable by identifyQb1/Rb1/Wr1.
+ */
+export function flattenGamesPlayersResponse(rows = [], opts = {}) {
+  const gamesById = opts.gamesById || null;
+  const week = opts.week ?? null;
+  const season = opts.season ?? null;
+  const out = [];
+  for (const game of rows || []) {
+    if (game && (game.team || game.school) && (game.name || game.player || game.athleteName) && !game.teams) {
+      out.push({
+        ...game,
+        gameId: game.gameId || game.game_id || game.id || null,
+        startDate: game.startDate || game.start_date || (gamesById && gamesById.get(String(game.gameId || game.id))) || null,
+        week: game.week ?? week,
+        season: game.season ?? season,
+      });
+      continue;
+    }
+    const gameId = game?.id ?? game?.gameId ?? null;
+    const kick =
+      game?.startDate ||
+      game?.start_date ||
+      (gamesById && gameId != null ? gamesById.get(String(gameId)) : null) ||
+      null;
+    const gameWeek = game?.week ?? week;
+    const gameSeason = game?.season ?? game?.year ?? season;
+    for (const teamBlock of game?.teams || []) {
+      const team = teamBlock?.team || teamBlock?.school || null;
+      const byAthlete = new Map();
+      for (const cat of teamBlock?.categories || []) {
+        const catName = String(cat?.name || "").toLowerCase();
+        for (const typ of cat?.types || []) {
+          const typeName = String(typ?.name || "").toUpperCase();
+          for (const ath of typ?.athletes || []) {
+            const aid = ath?.id != null ? String(ath.id) : nameKey(ath?.name);
+            if (!aid || !ath?.name) continue;
+            const row =
+              byAthlete.get(aid) ||
+              {
+                gameId: gameId != null ? String(gameId) : null,
+                team,
+                name: ath.name,
+                athleteId: ath.id != null ? String(ath.id) : null,
+                position: null,
+                startDate: kick,
+                week: gameWeek,
+                season: gameSeason,
+                endpoint: "/games/players",
+                passingAttempts: null,
+                passingCompletions: null,
+                passingYards: null,
+                rushingAttempts: null,
+                rushingYards: null,
+                receptions: null,
+                receivingYards: null,
+                targets: null,
+              };
+            const parsed = parseIntStat(ath.stat);
+            if (catName === "passing") {
+              row.position = row.position || "QB";
+              if (typeName === "C/ATT" && parsed && typeof parsed === "object") {
+                row.passingCompletions = parsed.left;
+                row.passingAttempts = parsed.right;
+              } else if (typeName === "YDS") row.passingYards = typeof parsed === "number" ? parsed : null;
+            } else if (catName === "rushing") {
+              if (!row.position) row.position = "RB";
+              if (typeName === "CAR") row.rushingAttempts = typeof parsed === "number" ? parsed : null;
+              else if (typeName === "YDS") row.rushingYards = typeof parsed === "number" ? parsed : null;
+            } else if (catName === "receiving") {
+              if (!row.position || row.position === "RB") row.position = "WR";
+              if (typeName === "REC") row.receptions = typeof parsed === "number" ? parsed : null;
+              else if (typeName === "YDS") row.receivingYards = typeof parsed === "number" ? parsed : null;
+              else if (typeName === "TGTS" || typeName === "TARGETS") {
+                row.targets = typeof parsed === "number" ? parsed : null;
+              }
+            }
+            byAthlete.set(aid, row);
+          }
+        }
+      }
+      for (const row of byAthlete.values()) out.push(row);
+    }
+  }
+  return out;
+}
+
 /**
  * Reject using future production to pick a role.
  * Season leader after week N for a week-N game is leakage.
@@ -123,8 +221,8 @@ export function identifyQb1({
   const asOf = identityAsOf || new Date().toISOString();
   const teamRoster = filterTeam(rosterRows, team).filter((r) => ["QB", "QB1"].includes(posOf(r)) || posOf(r) === "QB");
   const priorGames = kickoffTimestamp
-    ? filterPlayerGamesBeforeKickoff(playerGameRows, kickoffTimestamp)
-    : [];
+    ? filterPlayerGamesBeforeKickoff(filterTeam(playerGameRows, team), kickoffTimestamp)
+    : filterTeam(playerGameRows, team);
 
   if (confirmedStarter?.name || confirmedStarter?.playerName) {
     const name = confirmedStarter.name || confirmedStarter.playerName;
@@ -252,8 +350,8 @@ export function identifyRb1({
 } = {}) {
   const asOf = identityAsOf || new Date().toISOString();
   const priorGames = kickoffTimestamp
-    ? filterPlayerGamesBeforeKickoff(playerGameRows, kickoffTimestamp)
-    : [];
+    ? filterPlayerGamesBeforeKickoff(filterTeam(playerGameRows, team), kickoffTimestamp)
+    : filterTeam(playerGameRows, team);
   const candidates = new Map();
   const bump = (row, score, source) => {
     const id = playerIdOf(row) || nameKey(playerNameOf(row));
@@ -279,6 +377,8 @@ export function identifyRb1({
   );
   sortedGames.forEach((g, idx) => {
     const pos = posOf(g);
+    // Dual-threat QBs have CAR stats — never select them as RB1
+    if (pos === "QB" || num(g.passingAttempts) != null) return;
     if (pos && !["RB", "TB", "HB", "FB"].includes(pos) && num(g.rushingAttempts ?? g.carries) == null) return;
     const carries = num(g.rushingAttempts ?? g.carries) || 0;
     const yards = num(g.rushingYards ?? g.yards) || 0;
@@ -366,8 +466,8 @@ export function identifyWr1({
 } = {}) {
   const asOf = identityAsOf || new Date().toISOString();
   const priorGames = kickoffTimestamp
-    ? filterPlayerGamesBeforeKickoff(playerGameRows, kickoffTimestamp)
-    : [];
+    ? filterPlayerGamesBeforeKickoff(filterTeam(playerGameRows, team), kickoffTimestamp)
+    : filterTeam(playerGameRows, team);
   const candidates = new Map();
   const bump = (row, score, source, extra = {}) => {
     const id = playerIdOf(row) || nameKey(playerNameOf(row));
@@ -395,6 +495,7 @@ export function identifyWr1({
   );
   sortedGames.forEach((g, idx) => {
     const pos = posOf(g);
+    if (pos === "QB" || num(g.passingAttempts) != null) return;
     if (pos && !["WR", "WR1", "WR2"].includes(pos) && num(g.receptions ?? g.receivingYards) == null) return;
     // TE excluded from WR1 by design in this phase
     if (pos === "TE") return;

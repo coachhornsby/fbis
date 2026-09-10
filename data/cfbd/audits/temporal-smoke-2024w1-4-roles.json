@@ -1,39 +1,57 @@
 [
   {
-    "gameId": "401693677",
-    "week": 1,
+    "targetGame": {
+      "gameId": "401628335",
+      "week": 2,
+      "kickoff": "2024-09-07T23:00:00.000Z",
+      "matchup": "South Florida @ Alabama"
+    },
     "away": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "College of Idaho",
+        "player": "Byrum Brown",
+        "player_id": "4880272",
+        "team": "South Florida",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 30.08,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.8695478723404256,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401636363"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T23:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "College of Idaho",
+        "team": "South Florida",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -41,7 +59,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -53,14 +71,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "College of Idaho",
+        "team": "South Florida",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -68,7 +90,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -80,43 +102,61 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     },
     "home": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Lincoln (CA)",
+        "player": "Jalen Milroe",
+        "player_id": "4432734",
+        "team": "Alabama",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 18.799999999999997,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.5568085106382978,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "MEDIUM",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "LIKELY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628319"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T23:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Lincoln (CA)",
+        "team": "Alabama",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -124,7 +164,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -136,14 +176,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Lincoln (CA)",
+        "team": "Alabama",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -151,7 +195,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -163,47 +207,69 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     }
   },
   {
-    "gameId": "401635525",
-    "week": 1,
+    "targetGame": {
+      "gameId": "401628336",
+      "week": 2,
+      "kickoff": "2024-09-07T16:00:00.000Z",
+      "matchup": "Arkansas @ Oklahoma State"
+    },
     "away": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Florida State",
+        "player": "Taylen Green",
+        "player_id": "4431325",
+        "team": "Arkansas",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 36.76,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.6986398258977149,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "MEDIUM",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "LIKELY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628320"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-29T23:30:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Florida State",
+        "team": "Arkansas",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -211,7 +277,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -223,14 +289,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Florida State",
+        "team": "Arkansas",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -238,7 +308,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -250,43 +320,61 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     },
     "home": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Georgia Tech",
+        "player": "Alan Bowman",
+        "player_id": "4362159",
+        "team": "Oklahoma State",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 51.48,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.95,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401634212"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T18:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Georgia Tech",
+        "team": "Oklahoma State",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -294,7 +382,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -306,14 +394,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Georgia Tech",
+        "team": "Oklahoma State",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -321,7 +413,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -333,47 +425,69 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     }
   },
   {
-    "gameId": "401654665",
-    "week": 1,
+    "targetGame": {
+      "gameId": "401628337",
+      "week": 2,
+      "kickoff": "2024-09-07T19:30:00.000Z",
+      "matchup": "California @ Auburn"
+    },
     "away": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "McNeese",
+        "player": "Fernando Mendoza",
+        "player_id": "4837248",
+        "team": "California",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 32.72,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.8148533007334964,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401634301"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T21:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "McNeese",
+        "team": "California",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -381,7 +495,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -393,14 +507,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "McNeese",
+        "team": "California",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -408,7 +526,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -420,43 +538,61 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     },
     "home": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Tarleton State",
+        "player": "Payton Thorne",
+        "player_id": "4430590",
+        "team": "Auburn",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 38.08,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.8078781512605042,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628321"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T23:30:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Tarleton State",
+        "team": "Auburn",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -464,7 +600,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -476,14 +612,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Tarleton State",
+        "team": "Auburn",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -491,7 +631,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -503,47 +643,69 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     }
   },
   {
-    "gameId": "401643697",
-    "week": 1,
+    "targetGame": {
+      "gameId": "401628340",
+      "week": 2,
+      "kickoff": "2024-09-07T19:30:00.000Z",
+      "matchup": "South Carolina @ Kentucky"
+    },
     "away": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Montana State",
+        "player": "Lanorris Sellers",
+        "player_id": "4875127",
+        "team": "South Carolina",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 32.16,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.8715999999999999,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628329"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T20:15:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Montana State",
+        "team": "South Carolina",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -551,7 +713,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -563,14 +725,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Montana State",
+        "team": "South Carolina",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -578,7 +744,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -590,43 +756,61 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     },
     "home": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "New Mexico",
+        "player": "Brock Vandagriff",
+        "player_id": "4432782",
+        "team": "Kentucky",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 28.36,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.8336000000000001,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628324"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T23:45:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "New Mexico",
+        "team": "Kentucky",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -634,7 +818,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -646,14 +830,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "New Mexico",
+        "team": "Kentucky",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -661,7 +849,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -673,47 +861,69 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     }
   },
   {
-    "gameId": "401654662",
-    "week": 1,
+    "targetGame": {
+      "gameId": "401628342",
+      "week": 2,
+      "kickoff": "2024-09-07T20:15:00.000Z",
+      "matchup": "Middle Tennessee @ Ole Miss"
+    },
     "away": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "North Alabama",
+        "player": "Nick Vattiato",
+        "player_id": "4682518",
+        "team": "Middle Tennessee",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 50.4,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.95,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401641023"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T23:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "North Alabama",
+        "team": "Middle Tennessee",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -721,7 +931,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -733,14 +943,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "North Alabama",
+        "team": "Middle Tennessee",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -748,7 +962,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -760,43 +974,61 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     },
     "home": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Southeast Missouri State",
+        "player": "Jaxson Dart",
+        "player_id": "4689114",
+        "team": "Ole Miss",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 49.12,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.6853013029315962,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "MEDIUM",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "LIKELY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628325"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T23:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Southeast Missouri State",
+        "team": "Ole Miss",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -804,7 +1036,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -816,14 +1048,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Southeast Missouri State",
+        "team": "Ole Miss",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -831,7 +1067,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -843,47 +1079,69 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     }
   },
   {
-    "gameId": "401636372",
-    "week": 1,
+    "targetGame": {
+      "gameId": "401628343",
+      "week": 2,
+      "kickoff": "2024-09-08T02:30:00.000Z",
+      "matchup": "Mississippi State @ Arizona State"
+    },
     "away": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Florida A&M",
+        "player": "Blake Shapen",
+        "player_id": "4565315",
+        "team": "Mississippi State",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 33.88,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.9110389610389611,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628326"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T22:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Florida A&M",
+        "team": "Mississippi State",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -891,7 +1149,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -903,14 +1161,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Florida A&M",
+        "team": "Mississippi State",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -918,7 +1180,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -930,43 +1192,61 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     },
     "home": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Norfolk State",
+        "player": "Sam Leavitt",
+        "player_id": "5078810",
+        "team": "Arizona State",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 36.72,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.9172,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401636609"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-09-01T02:30:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Norfolk State",
+        "team": "Arizona State",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -974,7 +1254,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -986,14 +1266,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Norfolk State",
+        "team": "Arizona State",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -1001,7 +1285,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -1013,47 +1297,69 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     }
   },
   {
-    "gameId": "401643696",
-    "week": 1,
+    "targetGame": {
+      "gameId": "401628344",
+      "week": 2,
+      "kickoff": "2024-09-07T23:00:00.000Z",
+      "matchup": "Buffalo @ Missouri"
+    },
     "away": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "SMU",
+        "player": "CJ Ogbonna",
+        "player_id": "4877296",
+        "team": "Buffalo",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 36.599999999999994,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.9159999999999999,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401644727"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-29T23:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "SMU",
+        "team": "Buffalo",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -1061,7 +1367,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -1073,14 +1379,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "SMU",
+        "team": "Buffalo",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -1088,7 +1398,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -1100,43 +1410,61 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     },
     "home": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Nevada",
+        "player": "Brady Cook",
+        "player_id": "4429435",
+        "team": "Missouri",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 44.72,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.7473166368515207,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628327"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-30T00:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Nevada",
+        "team": "Missouri",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -1144,7 +1472,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -1156,14 +1484,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Nevada",
+        "team": "Missouri",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -1171,7 +1503,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -1183,47 +1515,69 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     }
   },
   {
-    "gameId": "401643858",
-    "week": 1,
+    "targetGame": {
+      "gameId": "401628345",
+      "week": 2,
+      "kickoff": "2024-09-07T23:45:00.000Z",
+      "matchup": "Houston @ Oklahoma"
+    },
     "away": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Delaware State",
+        "player": "Donovan Smith",
+        "player_id": "4690977",
+        "team": "Houston",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 41.4,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.7831400966183576,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401636611"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T23:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Delaware State",
+        "team": "Houston",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -1231,7 +1585,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -1243,14 +1597,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Delaware State",
+        "team": "Houston",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -1258,7 +1616,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -1270,43 +1628,61 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     },
     "home": {
       "QB1": {
-        "player": null,
-        "player_id": null,
-        "team": "Hawai'i",
+        "player": "Jackson Arnold",
+        "player_id": "4870607",
+        "team": "Oklahoma",
         "position": "QB",
         "role": "QB1",
-        "priorStarts": null,
-        "recentGameUsage": null,
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
-          "method": "uncertain",
-          "week": 1,
-          "rankedTop": []
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 35.64,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
         },
         "transferOrNewPlayer": null,
-        "roleConfidence": 0,
+        "roleConfidence": 0.8654320987654323,
         "roleConfidenceTier": {
           "LOW": "LOW",
           "MEDIUM": "MEDIUM",
           "HIGH": "HIGH"
         },
-        "roleConfidenceTierAssigned": "LOW",
-        "selectionReason": "uncertain",
-        "state": "QB_UNCERTAIN",
-        "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628328"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-30T23:00:00.000Z"
+        ]
       },
       "RB1": {
         "player": null,
         "player_id": null,
-        "team": "Hawai'i",
+        "team": "Oklahoma",
         "position": "RB",
         "role": "RB1",
         "priorStarts": null,
@@ -1314,7 +1690,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -1326,14 +1702,18 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "RB_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       },
       "WR1": {
         "player": null,
         "player_id": null,
-        "team": "Hawai'i",
+        "team": "Oklahoma",
         "position": "WR",
         "role": "WR1",
         "priorStarts": null,
@@ -1341,7 +1721,7 @@
         "priorSeasonRole": null,
         "currentSeasonPregameUsage": {
           "method": "uncertain",
-          "week": 1,
+          "week": 2,
           "rankedTop": []
         },
         "transferOrNewPlayer": null,
@@ -1353,9 +1733,885 @@
         },
         "roleConfidenceTierAssigned": "LOW",
         "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
         "state": "WR_UNCERTAIN",
         "widensUncertainty": true,
-        "futureEvidenceUsed": false
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      }
+    }
+  },
+  {
+    "targetGame": {
+      "gameId": "401628346",
+      "week": 2,
+      "kickoff": "2024-09-07T23:30:00.000Z",
+      "matchup": "Tennessee @ NC State"
+    },
+    "away": {
+      "QB1": {
+        "player": "Nico Iamaleava",
+        "player_id": "4870799",
+        "team": "Tennessee",
+        "position": "QB",
+        "role": "QB1",
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 46.160000000000004,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0.7455372616984404,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628330"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T16:45:00.000Z"
+        ]
+      },
+      "RB1": {
+        "player": null,
+        "player_id": null,
+        "team": "Tennessee",
+        "position": "RB",
+        "role": "RB1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "RB_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      },
+      "WR1": {
+        "player": null,
+        "player_id": null,
+        "team": "Tennessee",
+        "position": "WR",
+        "role": "WR1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "WR_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      }
+    },
+    "home": {
+      "QB1": {
+        "player": "Grayson McCall",
+        "player_id": "4427936",
+        "team": "NC State",
+        "position": "QB",
+        "role": "QB1",
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 60.72,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0.95,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401634299"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-29T23:00:00.000Z"
+        ]
+      },
+      "RB1": {
+        "player": null,
+        "player_id": null,
+        "team": "NC State",
+        "position": "RB",
+        "role": "RB1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "RB_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      },
+      "WR1": {
+        "player": null,
+        "player_id": null,
+        "team": "NC State",
+        "position": "WR",
+        "role": "WR1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "WR_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      }
+    }
+  },
+  {
+    "targetGame": {
+      "gameId": "401628347",
+      "week": 2,
+      "kickoff": "2024-09-07T16:00:00.000Z",
+      "matchup": "Texas @ Michigan"
+    },
+    "away": {
+      "QB1": {
+        "player": "Quinn Ewers",
+        "player_id": "4889929",
+        "team": "Texas",
+        "position": "QB",
+        "role": "QB1",
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 42.8,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0.8086448598130842,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628331"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T19:30:00.000Z"
+        ]
+      },
+      "RB1": {
+        "player": null,
+        "player_id": null,
+        "team": "Texas",
+        "position": "RB",
+        "role": "RB1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "RB_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      },
+      "WR1": {
+        "player": null,
+        "player_id": null,
+        "team": "Texas",
+        "position": "WR",
+        "role": "WR1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "WR_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      }
+    },
+    "home": {
+      "QB1": {
+        "player": "Davis Warren",
+        "player_id": "4878681",
+        "team": "Michigan",
+        "position": "QB",
+        "role": "QB1",
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 34.72,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0.9100806451612904,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628452"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T23:30:00.000Z"
+        ]
+      },
+      "RB1": {
+        "player": null,
+        "player_id": null,
+        "team": "Michigan",
+        "position": "RB",
+        "role": "RB1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "RB_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      },
+      "WR1": {
+        "player": null,
+        "player_id": null,
+        "team": "Michigan",
+        "position": "WR",
+        "role": "WR1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "WR_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      }
+    }
+  },
+  {
+    "targetGame": {
+      "gameId": "401628462",
+      "week": 2,
+      "kickoff": "2024-09-07T23:00:00.000Z",
+      "matchup": "Kansas @ Illinois"
+    },
+    "away": {
+      "QB1": {
+        "player": "Jalon Daniels",
+        "player_id": "4596472",
+        "team": "Kansas",
+        "position": "QB",
+        "role": "QB1",
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 23.92,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0.737541806020067,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401636606"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-30T00:00:00.000Z"
+        ]
+      },
+      "RB1": {
+        "player": null,
+        "player_id": null,
+        "team": "Kansas",
+        "position": "RB",
+        "role": "RB1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "RB_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      },
+      "WR1": {
+        "player": null,
+        "player_id": null,
+        "team": "Kansas",
+        "position": "WR",
+        "role": "WR1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "WR_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      }
+    },
+    "home": {
+      "QB1": {
+        "player": "Luke Altmyer",
+        "player_id": "4597679",
+        "team": "Illinois",
+        "position": "QB",
+        "role": "QB1",
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 37.31999999999999,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0.8444801714898178,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401654845"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-30T01:00:00.000Z"
+        ]
+      },
+      "RB1": {
+        "player": null,
+        "player_id": null,
+        "team": "Illinois",
+        "position": "RB",
+        "role": "RB1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "RB_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      },
+      "WR1": {
+        "player": null,
+        "player_id": null,
+        "team": "Illinois",
+        "position": "WR",
+        "role": "WR1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "WR_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      }
+    }
+  },
+  {
+    "targetGame": {
+      "gameId": "401628464",
+      "week": 2,
+      "kickoff": "2024-09-07T19:30:00.000Z",
+      "matchup": "Iowa State @ Iowa"
+    },
+    "away": {
+      "QB1": {
+        "player": "Rocco Becht",
+        "player_id": "4801299",
+        "team": "Iowa State",
+        "position": "QB",
+        "role": "QB1",
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 41.879999999999995,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0.95,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401634197"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T19:30:00.000Z"
+        ]
+      },
+      "RB1": {
+        "player": null,
+        "player_id": null,
+        "team": "Iowa State",
+        "position": "RB",
+        "role": "RB1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "RB_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      },
+      "WR1": {
+        "player": null,
+        "player_id": null,
+        "team": "Iowa State",
+        "position": "WR",
+        "role": "WR1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "WR_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      }
+    },
+    "home": {
+      "QB1": {
+        "player": "Cade McNamara",
+        "player_id": "4427455",
+        "team": "Iowa",
+        "position": "QB",
+        "role": "QB1",
+        "priorStarts": 1,
+        "recentGameUsage": [
+          "prior-game"
+        ],
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "prior-games+usage",
+          "week": 2,
+          "score": 47.239999999999995,
+          "sample_size": 1,
+          "sources": [
+            "prior-game"
+          ]
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0.95,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "HIGH",
+        "selectionReason": "prior-games+usage",
+        "selectionMethod": "prior-games+usage",
+        "state": "PRIMARY",
+        "widensUncertainty": false,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 1,
+        "sourceGameIds": [
+          "401628450"
+        ],
+        "sourceKickoffTimestamps": [
+          "2024-08-31T16:00:00.000Z"
+        ]
+      },
+      "RB1": {
+        "player": null,
+        "player_id": null,
+        "team": "Iowa",
+        "position": "RB",
+        "role": "RB1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "RB_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
+      },
+      "WR1": {
+        "player": null,
+        "player_id": null,
+        "team": "Iowa",
+        "position": "WR",
+        "role": "WR1",
+        "priorStarts": null,
+        "recentGameUsage": null,
+        "priorSeasonRole": null,
+        "currentSeasonPregameUsage": {
+          "method": "uncertain",
+          "week": 2,
+          "rankedTop": []
+        },
+        "transferOrNewPlayer": null,
+        "roleConfidence": 0,
+        "roleConfidenceTier": {
+          "LOW": "LOW",
+          "MEDIUM": "MEDIUM",
+          "HIGH": "HIGH"
+        },
+        "roleConfidenceTierAssigned": "LOW",
+        "selectionReason": "uncertain",
+        "selectionMethod": "uncertain",
+        "state": "WR_UNCERTAIN",
+        "widensUncertainty": true,
+        "futureEvidenceUsed": false,
+        "actualPriorGameRowsConsumed": 0,
+        "sourceGameIds": [],
+        "sourceKickoffTimestamps": []
       }
     }
   }
