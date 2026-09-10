@@ -63,6 +63,9 @@ export default function GameCard({
   const done = Boolean(game.status?.completed);
   const awayStarter = starterLine(game, "away");
   const homeStarter = starterLine(game, "home");
+  const isMlb = game?.sport === "mlb";
+  const logoSize = isMlb ? 48 : 144;
+  const matchupClass = isMlb ? "gc-matchup-row" : "gc-matchup-row logo-stack";
 
   const toggleDetails = () => onToggle?.(game.id);
 
@@ -71,6 +74,7 @@ export default function GameCard({
       className={`game-card ${glow} decision-tier-${decision.tier}`}
       data-decision={decision.tier}
       data-game-id={game.id}
+      data-sport={game.sport || ""}
     >
       <header className="gc-header">
         <div className="gc-when">
@@ -89,9 +93,9 @@ export default function GameCard({
         </div>
       </header>
 
-      <div className="gc-matchup-row" aria-label="Matchup">
+      <div className={matchupClass} aria-label="Matchup">
         <div className="gc-side away">
-          <TeamLogo team={game.away} size={48} />
+          <TeamLogo team={game.away} size={logoSize} />
           <div className="gc-side-text">
             <span className="gc-team-name">{teamTitle(game.away)}</span>
             {game.away?.record ? <span className="gc-record muted">{game.away.record}</span> : null}
@@ -103,7 +107,7 @@ export default function GameCard({
         </div>
         <div className="gc-at" aria-hidden="true">@</div>
         <div className="gc-side home">
-          <TeamLogo team={game.home} size={48} />
+          <TeamLogo team={game.home} size={logoSize} />
           <div className="gc-side-text">
             <span className="gc-team-name">{teamTitle(game.home)}</span>
             {game.home?.record ? <span className="gc-record muted">{game.home.record}</span> : null}
