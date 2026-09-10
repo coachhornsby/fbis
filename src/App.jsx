@@ -704,13 +704,14 @@ function SportReadinessPanel({ sport, slate }) {
 }
 
 function Panel({ title, stamp, extra, children }) {
+  const isBoard = /Slate|Intelligence Board|Bets|Featured|Leans|Qualified|leans/i.test(title);
   return (
-    <section className="panel">
+    <section className={isBoard ? "panel panel-board" : "panel"}>
       <div className="panel-header">
         <h2>{title}</h2>
         {extra || (stamp ? <span className="last-updated">{stamp} CT</span> : null)}
       </div>
-      <div className="panel-body" style={/Slate|Intelligence Board|Bets|Featured|Leans|Qualified|leans/i.test(title) ? { padding: 0 } : undefined}>
+      <div className="panel-body" style={isBoard ? { padding: 0 } : undefined}>
         {children}
       </div>
     </section>

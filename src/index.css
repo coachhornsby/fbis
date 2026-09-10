@@ -4,8 +4,14 @@
   --panel2: #223a54;
   --border: #3a5570;
   --text: #f2f6fa;
-  --muted: #c2ccd8;
-  --muted-soft: #a8b4c2;
+  --muted: #d0d8e2;
+  --muted-soft: #b8c4d2;
+  --card-float:
+    linear-gradient(165deg, #2a4560 0%, #1a3148 55%, #152a3e 100%);
+  --card-float-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 12px 28px rgba(0, 0, 0, 0.65),
+    0 4px 10px rgba(0, 0, 0, 0.45);
   /* Decorative only — never use --blue / --blue-light for text on navy panels. */
   --blue: #5aa8d4;
   --cyan: #3ec7e8;
@@ -186,6 +192,7 @@ header h1 {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  background: #000;
 }
 
 .panel {
@@ -377,7 +384,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   padding: 8px 10px;
   color: var(--muted);
   font-weight: 800;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 2px solid var(--border);
@@ -768,22 +775,167 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 /* ─── Intelligence board cards ─────────────────────────────────────────── */
 .text-yellow { color: var(--yellow); font-weight: 700; }
 
-/* Black well so slate-blue game cards float */
+/* Black well so slate-blue game cards/rows float — all boards */
+.panel-board,
 .panel:has(.board-intel) {
   background: #000;
   border-color: #1c1c1c;
 }
+.panel-board .panel-header,
 .panel:has(.board-intel) .panel-header {
   background: #000;
   border-bottom-color: #222;
 }
+.panel-board .panel-body,
 .panel:has(.board-intel) .panel-body {
   background: #000;
   padding: 0;
 }
+.panel-board.panel-board-controls .panel-body {
+  padding: 12px 14px;
+}
+.panel-board .last-updated,
 .panel:has(.board-intel) .last-updated {
   color: var(--muted);
   font-size: 12px;
+}
+
+.board-well {
+  background: #000;
+  padding: 12px 14px 18px;
+}
+
+.today-board {
+  background: #000;
+  color: var(--text);
+  font-size: 14px;
+}
+.today-board .muted {
+  color: var(--muted);
+}
+
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* TODAY game rows float like sport board cards */
+.today-board .fbis-table.today-table {
+  width: 100%;
+  font-size: 14px;
+  border-collapse: separate;
+  border-spacing: 0 14px;
+  background: transparent;
+}
+.today-board .fbis-table.today-table thead th {
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  border-bottom: 0;
+  padding: 4px 12px 0;
+}
+.today-board .fbis-table.today-table tbody tr.game-row,
+.today-board .fbis-table.today-table tbody tr:not(.game-detail-row) {
+  background: var(--card-float);
+  box-shadow: var(--card-float-shadow);
+}
+.today-board .fbis-table.today-table tbody tr:nth-child(odd),
+.today-board .fbis-table.today-table tbody tr:nth-child(even) {
+  background: var(--card-float);
+}
+.today-board .fbis-table.today-table tbody tr:hover {
+  background: linear-gradient(165deg, #314e6c 0%, #1f3a54 55%, #183248 100%);
+}
+.today-board .fbis-table.today-table td {
+  border-top: 1px solid #4a6785;
+  border-bottom: 1px solid #4a6785;
+  border-left: 0;
+  border-right: 0;
+  padding: 14px 12px;
+  vertical-align: top;
+  font-size: 14px;
+}
+.today-board .fbis-table.today-table td:first-child {
+  border-left: 1px solid #4a6785;
+  border-radius: 12px 0 0 12px;
+}
+.today-board .fbis-table.today-table td:last-child {
+  border-right: 1px solid #4a6785;
+  border-radius: 0 12px 12px 0;
+}
+.today-board .fbis-table.today-table tr.game-detail-row td {
+  background: #0c1420 !important;
+  border-color: #2a3f55;
+  box-shadow: none;
+  border-radius: 0 0 12px 12px;
+  padding: 12px 14px 16px;
+}
+.today-board .fbis-table.today-table tr.game-detail-row td:first-child {
+  border-left: 1px solid #2a3f55;
+  border-radius: 0 0 0 12px;
+}
+.today-board .fbis-table.today-table tr.game-detail-row td:last-child {
+  border-right: 1px solid #2a3f55;
+  border-radius: 0 0 12px 0;
+}
+.today-board .team-line-lg .team-name {
+  font-size: 16px;
+}
+.today-board .team-line-lg .team-abbr {
+  font-size: 12px;
+  color: var(--muted);
+}
+.today-board .sp-cell {
+  font-size: 13px;
+  color: var(--muted);
+}
+.today-board .today-venue {
+  font-size: 12px;
+  margin-top: 2px;
+}
+.today-board .game-expand {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* Featured / leans / bets tables on board pages also float on black */
+.panel-board .fbis-table:not(.today-table) {
+  font-size: 13px;
+  border-collapse: separate;
+  border-spacing: 0 10px;
+  background: transparent;
+}
+.panel-board .fbis-table:not(.today-table) thead th {
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  border-bottom: 0;
+}
+.panel-board .fbis-table:not(.today-table) tbody tr:nth-child(odd),
+.panel-board .fbis-table:not(.today-table) tbody tr:nth-child(even) {
+  background: var(--card-float);
+  box-shadow: var(--card-float-shadow);
+}
+.panel-board .fbis-table:not(.today-table) tbody tr:hover {
+  background: linear-gradient(165deg, #314e6c 0%, #1f3a54 55%, #183248 100%);
+}
+.panel-board .fbis-table:not(.today-table) td {
+  border-top: 1px solid #4a6785;
+  border-bottom: 1px solid #4a6785;
+  padding: 12px 12px;
+  font-size: 13px;
+}
+.panel-board .fbis-table:not(.today-table) td:first-child {
+  border-left: 1px solid #4a6785;
+  border-radius: 10px 0 0 10px;
+}
+.panel-board .fbis-table:not(.today-table) td:last-child {
+  border-right: 1px solid #4a6785;
+  border-radius: 0 10px 10px 0;
+}
+.panel-board .table-scroll {
+  padding: 8px 14px 14px;
+  background: #000;
 }
 
 .board-intel {
@@ -919,12 +1071,8 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   padding: 16px 16px 14px;
   border-radius: 12px;
   border: 1px solid #4a6785;
-  background:
-    linear-gradient(165deg, #2a4560 0%, #1a3148 55%, #152a3e 100%);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 12px 28px rgba(0, 0, 0, 0.65),
-    0 4px 10px rgba(0, 0, 0, 0.45);
+  background: var(--card-float);
+  box-shadow: var(--card-float-shadow);
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 .game-card:hover {

@@ -55,7 +55,7 @@ export default function TodayView({
     <div className="main-content today-board">
       {error && <div className="panel"><div className="error">{error}</div></div>}
 
-      <section className="panel">
+      <section className="panel panel-board panel-board-controls">
         <div className="panel-header">
           <h2>TODAY · {date} CT</h2>
           <span className="last-updated">
@@ -131,11 +131,11 @@ export default function TodayView({
       </section>
 
       {empty && !shown.some((g) => g.games.length) && (
-        <div className="panel"><div className="empty">{empty.message || "No games scheduled."}</div></div>
+        <div className="panel panel-board"><div className="empty">{empty.message || "No games scheduled."}</div></div>
       )}
 
       {shown.map((group) => (
-        <section className="panel" key={group.sport}>
+        <section className="panel panel-board" key={group.sport}>
           <div className="panel-header">
             <h2>{group.label} · {group.games.length}{group.n != null && group.n !== group.games.length ? ` / ${group.n}` : ""}</h2>
           </div>
@@ -145,7 +145,11 @@ export default function TodayView({
             {group.sport === "mlb" && counts.mlbPropWatch && !counts.mlbPropWatch.convictions ? (
               <div className="muted" style={{ padding: "10px 14px 0" }}>{propWatchEmptyCopy(counts.mlbPropWatch)}</div>
             ) : null}
-            {group.games.length > 0 && <div className="table-scroll"><TodayTable games={group.games} propWatch={counts.mlbPropWatch} /></div>}
+            {group.games.length > 0 && (
+              <div className="board-well table-scroll">
+                <TodayTable games={group.games} propWatch={counts.mlbPropWatch} />
+              </div>
+            )}
           </div>
         </section>
       ))}
@@ -214,12 +218,12 @@ function TodayTable({ games, propWatch }) {
         {games.map((g) => {
           const key = `${g.sport}:${g.id}`;
           return <Fragment key={key}>
-          <tr>
+          <tr className="game-row">
             <td>
               <div className="team-block team-block-lg">
                 <TeamIdentity team={g.away} score={g.score?.away} size={52} />
                 <TeamIdentity team={g.home} score={g.score?.home} size={52} />
-                <div className="muted" style={{ fontSize: 10 }}>
+                <div className="muted today-venue">
                   {g.venue || "—"}{g.neutral ? " · NEUTRAL" : ""}
                 </div>
                 <button className="game-expand" onClick={() => toggle(key)} aria-expanded={open.has(key)}>
