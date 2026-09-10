@@ -21,6 +21,7 @@ on:
           - cbb-reference-backfill
           - cfbd-endpoint-audit
           - cfb-feature-backfill
+          - cfb-temporal-smoke
           - model-train-validate
           - model-promote
           - college-health
@@ -42,6 +43,10 @@ on:
         type: string
         required: false
         default: "2022,2023,2024,2025"
+      weeks:
+        description: Optional comma-separated weeks filter (smoke default 1,2,3,4)
+        type: string
+        required: false
       maxGames:
         description: Optional cap on backfill games (cost control)
         type: string
@@ -58,16 +63,40 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
-        if: ${{ github.event.inputs.job == 'model-train-validate' || github.event.inputs.job == 'cfbd-endpoint-audit' || github.event.inputs.job == 'cfb-feature-backfill' }}
+        if: ${{ github.event.inputs.job == 'model-train-validate' || github.event.inputs.job == 'cfbd-endpoint-audit' || github.event.inputs.job == 'cfb-feature-backfill' || github.event.inputs.job == 'cfb-temporal-smoke' }}
       - name: Offline train/validate (Actions CPU, not Workers)
         if: ${{ github.event.inputs.job == 'model-train-validate' }}
         run: node scripts/college-train.mjs
+      - name: CFB temporal smoke backfill (2024 W1–4 default)
+        if: ${{ github.event.inputs.job == 'cfb-temporal-smoke' }}
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          CFB_SMOKE_SEASON: ${{ github.event.inputs.year || '2024' }}
+          CFB_SMOKE_WEEKS: ${{ github.event.inputs.weeks || '1,2,3,4' }}
+          CFB_SMOKE_MAX_GAMES: ${{ github.event.inputs.maxGames }}
+          CFB_SMOKE_MODE: historical
+        run: |
+          set -euo pipefail
+          if [ -z "${CFBD_API_KEY:-}" ]; then
+            echo "CFBD_API_KEY GitHub secret missing — temporal smoke cannot run."
+            exit 2
+          fi
+          node scripts/cfb-temporal-smoke-backfill.mjs
+      - name: Upload temporal smoke artifacts
+        if: ${{ github.event.inputs.job == 'cfb-temporal-smoke' && hashFiles('artifacts/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-temporal-smoke
+          path: artifacts/
+          if-no-files-found: ignore
       - name: Offline CFB feature backfill (Actions CPU)
         if: ${{ github.event.inputs.job == 'cfb-feature-backfill' }}
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
           CFB_BACKFILL_SEASONS: ${{ github.event.inputs.seasons }}
           CFB_BACKFILL_MAX_GAMES: ${{ github.event.inputs.maxGames }}
+          CFB_BACKFILL_WEEKS: ${{ github.event.inputs.weeks }}
+          CFB_BACKFILL_MODE: historical
           CFB_ABLATIONS: A,B,C,D,E,F,G,H,I,J,K
         run: |
           set -euo pipefail
@@ -85,7 +114,7 @@ jobs:
           path: artifacts/
           if-no-files-found: ignore
       - name: Dispatch college Worker job
-        if: ${{ github.event.inputs.job != 'cfb-feature-backfill' }}
+        if: ${{ github.event.inputs.job != 'cfb-feature-backfill' && github.event.inputs.job != 'cfb-temporal-smoke' && github.event.inputs.job != 'model-train-validate' }}
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           EVENT_NAME: ${{ github.event_name }}

@@ -8,6 +8,8 @@
  *   CFBD_API_KEY (required)
  *   CFB_BACKFILL_SEASONS=2022,2023,2024,2025
  *   CFB_BACKFILL_MAX_GAMES (optional cap for cost control)
+ *   CFB_BACKFILL_MODE=historical (default) — rejects same-season player aggregates
+ *   CFB_BACKFILL_WEEKS=1,2,3,4 (optional week filter for smoke)
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { cfbdGet } from "../functions/lib/collegeApi.js";
@@ -34,6 +36,10 @@ const seasons = (process.env.CFB_BACKFILL_SEASONS || "2022,2023,2024,2025")
   .filter((n) => Number.isFinite(n));
 const maxGames = process.env.CFB_BACKFILL_MAX_GAMES ? Number(process.env.CFB_BACKFILL_MAX_GAMES) : null;
 const ablations = (process.env.CFB_ABLATIONS || "A,K").split(",").map((s) => s.trim()).filter(Boolean);
+const mode = process.env.CFB_BACKFILL_MODE || "historical";
+const weekFilter = process.env.CFB_BACKFILL_WEEKS
+  ? process.env.CFB_BACKFILL_WEEKS.split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n))
+  : null;
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -134,11 +140,16 @@ for (const season of seasons) {
 
   const seasonBundle = await fetchSeasonFeatureBundle(env, season, { week: null });
   requestLog.push({ kind: "season-bundle", season });
-  const games = (seasonBundle.endpoints.games.data || []).filter(
-    (g) => (g.homePoints ?? g.home_points ?? g.homeScore) != null && (g.awayPoints ?? g.away_points ?? g.awayScore) != null
-  );
+  const games = (seasonBundle.endpoints.games.data || []).filter((g) => {
+    const scored =
+      (g.homePoints ?? g.home_points ?? g.homeScore) != null &&
+      (g.awayPoints ?? g.away_points ?? g.awayScore) != null;
+    if (!scored) return false;
+    if (weekFilter && !weekFilter.includes(Number(g.week))) return false;
+    return true;
+  });
 
-  console.error(JSON.stringify({ phase: "fetch-rolling", season, games: games.length }));
+  console.error(JSON.stringify({ phase: "fetch-rolling", season, games: games.length, mode }));
   const ppaRaw = await fetchAllWeeksPpa(season);
   const advRaw = await fetchAllWeeksAdv(season);
   const ppaRows = attachKickoffs(ppaRaw, seasonBundle.endpoints.games.data);
@@ -146,8 +157,9 @@ for (const season of seasons) {
   requestLog.push({ kind: "ppa-games-weeks", season, rows: ppaRows.length });
   requestLog.push({ kind: "adv-games-weeks", season, rows: advRows.length });
 
-  const qbRows = seasonBundle.endpoints.qbPpa.data || [];
-  const usageRows = seasonBundle.endpoints.usage.data || [];
+  // Historical mode: never pass cumulative season player aggregates into independent features
+  const qbRows = mode === "historical" ? [] : seasonBundle.endpoints.qbPpa.data || [];
+  const usageRows = mode === "historical" ? [] : seasonBundle.endpoints.usage.data || [];
 
   let used = 0;
   for (const g of games) {
@@ -165,6 +177,7 @@ for (const season of seasons) {
       qbRows,
       usageRows,
       collectionTimestamp: asOf,
+      mode,
     });
     if (!record.temporalOk) continue;
     featureRecords.push(record);
@@ -176,7 +189,16 @@ for (const season of seasons) {
       away: { name: record.away_team },
       neutralSite: Boolean(record.features.neutralSite),
       featureCutoffOk: true,
-      cfbFbisV2Input: record.features,
+      cfbFbisV2Input: {
+        home: {
+          ...record.features.home,
+          qbPpa: record.features.home?.qbHistoricalUnsafe ? null : record.features.home?.qbPpa,
+        },
+        away: {
+          ...record.features.away,
+          qbPpa: record.features.away?.qbHistoricalUnsafe ? null : record.features.away?.qbPpa,
+        },
+      },
     };
     for (const ablation of ablations) {
       const proj = projectCfbFbisV2(gameInput, { ablation });
@@ -251,6 +273,8 @@ const report = {
   generatedAt: new Date().toISOString(),
   pipelineVersion: PIPELINE_VERSION,
   modelId: CFB_FBIS_V2_ID,
+  mode,
+  weekFilter,
   seasons,
   featureRowCount: featureRecords.length,
   predictionCounts: Object.fromEntries(ablations.map((a) => [a, predictionsByAblation[a].length])),
@@ -264,10 +288,14 @@ const report = {
     approxCalls: seasons.length * (20 + 15 * 2) + seasons.length * 12,
   },
   leakage: {
-    rule: "collectionTimestamp forced to kickoff-60s; prior from prior season only; rolling from games before kickoff",
+    rule: "collectionTimestamp forced to kickoff-60s; prior from prior season only; rolling from games before kickoff; historical mode rejects season player aggregates",
     rejectedPostKickoff: featureRecords.filter((r) => !r.temporalOk).length,
+    historicalSeasonAggregatesRejected: mode === "historical",
   },
   canQualify: false,
+  fitted: false,
+  researchReady: false,
+  promotionReady: false,
   championUntouched: true,
 };
 

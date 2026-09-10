@@ -447,12 +447,84 @@ export function fcsEquivalentForTeam(teamRow, confMap = {}) {
 }
 
 /**
- * QB features from player PPA + usage. Residual vs team pass PPA when both present.
+ * QB features from player PPA + usage.
+ * Historical mode: same-season /ppa/players/season and /player/usage are UNSAFE
+ * unless reconstructed from player-game rows before kickoff.
  */
-export function buildQbFeatures({ qbRows = [], usageRows = [], team, kickoffTimestamp = null }) {
+export function buildQbFeatures({
+  qbRows = [],
+  usageRows = [],
+  team,
+  kickoffTimestamp = null,
+  mode = "live",
+  playerGameRows = [],
+  allowSeasonAggregates = null,
+} = {}) {
+  const historical = mode === "historical";
+  const allowAgg =
+    allowSeasonAggregates != null ? Boolean(allowSeasonAggregates) : !historical;
   const teamKey = schoolKey(team);
+
+  // Prefer player-game reconstruction when available
+  const priorGames = (playerGameRows || []).filter((r) => {
+    if (schoolKey(r.team) !== teamKey) return false;
+    const pos = String(r.position || "").toUpperCase();
+    if (pos && pos !== "QB" && num(r.passingAttempts ?? r.attempts) == null) return false;
+    if (!kickoffTimestamp) return !historical;
+    const start = Date.parse(r.startDate || r.start_date || r.kickoff || "");
+    const kick = Date.parse(kickoffTimestamp);
+    return Number.isFinite(start) && Number.isFinite(kick) && start < kick;
+  });
+
+  if (priorGames.length) {
+    const byPlayer = new Map();
+    for (const g of priorGames) {
+      const name = g.name || g.player;
+      if (!name) continue;
+      const prev = byPlayer.get(name) || { name, attempts: 0, ppa: [], games: 0 };
+      prev.attempts += num(g.passingAttempts ?? g.attempts) || 0;
+      const ppa = num(g.averagePPA?.pass ?? g.ppa);
+      if (ppa != null) prev.ppa.push(ppa);
+      prev.games += 1;
+      byPlayer.set(name, prev);
+    }
+    const ranked = [...byPlayer.values()].sort((a, b) => b.attempts - a.attempts);
+    const best = ranked[0];
+    const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+    return {
+      qbStarterKnown: Boolean(best),
+      qbName: best?.name || null,
+      qbPpa: best ? avg(best.ppa) : null,
+      qbPassPpa: best ? avg(best.ppa) : null,
+      qbRushPpa: null,
+      qbUsage: null,
+      qbGamesPlayed: best?.games || null,
+      missingness: { qb: !best },
+      temporalClass: TEMPORAL_CLASS.C,
+      qbSourceEndpoint: "/ppa/players/games|/stats reconstructed",
+      qbTemporalClass: "C",
+      qbHistoricalUnsafe: false,
+      reconstructedFromGames: true,
+      rollingSourceGameIds: priorGames.map((g) => g.gameId || g.game_id).filter(Boolean),
+    };
+  }
+
+  if (!allowAgg) {
+    return {
+      qbStarterKnown: false,
+      qbPpa: null,
+      qbUsage: null,
+      qbName: null,
+      missingness: { qb: true },
+      temporalClass: TEMPORAL_CLASS.D,
+      qbSourceEndpoint: "/ppa/players/season",
+      qbTemporalClass: "D",
+      qbHistoricalUnsafe: true,
+      leakageNote: "season QB PPA/usage rejected for historical — reconstruct from player games",
+    };
+  }
+
   const candidates = (qbRows || []).filter((r) => schoolKey(r.team) === teamKey);
-  // Prefer highest usage / averagePPA
   let best = null;
   let bestScore = -Infinity;
   for (const row of candidates) {
@@ -475,6 +547,7 @@ export function buildQbFeatures({ qbRows = [], usageRows = [], team, kickoffTime
       qbName: null,
       missingness: { qb: true },
       temporalClass: TEMPORAL_CLASS.C,
+      qbHistoricalUnsafe: false,
     };
   }
   return {
@@ -487,8 +560,10 @@ export function buildQbFeatures({ qbRows = [], usageRows = [], team, kickoffTime
     qbGamesPlayed: num(best?.games) || null,
     missingness: { qb: false },
     temporalClass: TEMPORAL_CLASS.C,
-    // Season aggregates: for historical backtest only use prior-season QB or reconstruct from player games
-    leakageNote: "season QB PPA is cumulative — prefer prior-season or player-game reconstruction for backtests",
+    qbSourceEndpoint: "/ppa/players/season",
+    qbTemporalClass: "C",
+    qbHistoricalUnsafe: false,
+    leakageNote: "live/prospective only — season QB PPA is cumulative",
   };
 }
 
@@ -504,12 +579,14 @@ export function assembleGameFeatures({
   advGameRows = [],
   qbRows = [],
   usageRows = [],
+  playerGameRows = [],
   weatherRow = null,
   venueRow = null,
   lineRow = null,
   coreByTeam = null,
   shrinkK = 6,
   collectionTimestamp = null,
+  mode = "live",
 }) {
   const kickoff = game.startDate || game.start_date || game.start || game.kickoff;
   const homeName = game.homeTeam || game.home_team || game.home?.school || game.home?.name;
@@ -518,8 +595,22 @@ export function assembleGameFeatures({
   const awayPrior = priorCatalog.bySchool[schoolKey(awayName)] || {};
   const homeRoll = buildRollingMatchupFeatures({ ppaGameRows, advGameRows, team: homeName, kickoffTimestamp: kickoff });
   const awayRoll = buildRollingMatchupFeatures({ ppaGameRows, advGameRows, team: awayName, kickoffTimestamp: kickoff });
-  const homeQb = buildQbFeatures({ qbRows, usageRows, team: homeName, kickoffTimestamp: kickoff });
-  const awayQb = buildQbFeatures({ qbRows, usageRows, team: awayName, kickoffTimestamp: kickoff });
+  const homeQb = buildQbFeatures({
+    qbRows,
+    usageRows,
+    playerGameRows,
+    team: homeName,
+    kickoffTimestamp: kickoff,
+    mode,
+  });
+  const awayQb = buildQbFeatures({
+    qbRows,
+    usageRows,
+    playerGameRows,
+    team: awayName,
+    kickoffTimestamp: kickoff,
+    mode,
+  });
   const homeFcs = fcsEquivalentForTeam(homePrior, confMap);
   const awayFcs = fcsEquivalentForTeam(awayPrior, confMap);
 
@@ -615,6 +706,8 @@ export function assembleGameFeatures({
       marketInIndependentScore: false,
       coreWeekBounded: Boolean(homeCore || awayCore),
       shrinkK,
+      mode,
+      historicalSeasonAggregatesRejected: mode === "historical",
     },
   };
 
