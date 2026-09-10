@@ -64,6 +64,8 @@ export function catalogWithTemporalClasses(auditByEndpoint = {}) {
 }
 
 function num(v) {
+  // Number(null)===0 — never coerce missing values into fabricated zeros.
+  if (v == null || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
@@ -189,15 +191,36 @@ export function buildPriorCatalog(priorSeasonBundle) {
   const recruiting = indexByTeam(priorSeasonBundle?.endpoints?.recruiting?.data);
   const ppa = indexByTeam(priorSeasonBundle?.endpoints?.ppaTeams?.data);
 
+  const expectedPriorSeason =
+    priorSeasonBundle?.season != null && Number.isFinite(Number(priorSeasonBundle.season))
+      ? Number(priorSeasonBundle.season)
+      : null;
+
+  /** Talent keys enter the catalog only when the row carries an explicit matching prior-season year. */
+  const talentKeysWithProvenance = [];
+  for (const [key, row] of Object.entries(talent)) {
+    const talentYear = num(row?.year ?? row?.season);
+    if (
+      expectedPriorSeason != null &&
+      talentYear != null &&
+      talentYear === expectedPriorSeason &&
+      num(row?.talent) != null
+    ) {
+      talentKeysWithProvenance.push(key);
+    }
+  }
+
   const schools = new Set([
     ...Object.keys(sp),
     ...Object.keys(fpi),
     ...Object.keys(srs),
     ...Object.keys(elo),
     ...Object.keys(core),
+    ...talentKeysWithProvenance,
   ]);
 
   const bySchool = {};
+  let talentOnlyKeys = 0;
   for (const key of schools) {
     const spRow = sp[key] || {};
     const fpiRow = fpi[key] || {};
@@ -208,11 +231,25 @@ export function buildPriorCatalog(priorSeasonBundle) {
     const talentRow = talent[key] || {};
     const retRow = returning[key] || {};
     const recRow = recruiting[key] || {};
-    const classification = String(srsRow.division || spRow.conference || "").toUpperCase().includes("FCS")
-      ? "FCS"
-      : srsRow.division || null;
 
-    const priorBlend = regularizePreseasonPrior({
+    const hasRatingRow =
+      spRow.rating != null ||
+      fpiRow.fpi != null ||
+      fpiRow.rating != null ||
+      srsRow.rating != null ||
+      eloRow.elo != null ||
+      coreRow.rating != null ||
+      coreRow.overall != null;
+
+    const talentYear = num(talentRow.year ?? talentRow.season);
+    const talentOk =
+      expectedPriorSeason != null &&
+      talentYear != null &&
+      talentYear === expectedPriorSeason &&
+      num(talentRow.talent) != null;
+
+    // Talent-only membership is allowed; talent is never a substitute rating.
+    const ratingInputs = {
       spOverall: num(spRow.rating),
       spOffense: num(spRow.offense?.rating),
       spDefense: num(spRow.defense?.rating),
@@ -222,13 +259,32 @@ export function buildPriorCatalog(priorSeasonBundle) {
       coreOverall: num(coreRow.rating ?? coreRow.overall),
       coreOffense: num(coreRow.offense?.rating ?? coreRow.offense),
       coreDefense: num(coreRow.defense?.rating ?? coreRow.defense),
-      talent: num(talentRow.talent),
-      returningPct: num(retRow.percentPPA ?? retRow.usage),
-      recruitingPoints: num(recRow.points),
-    });
+      // Personnel bumps only when a rating spine exists — never synthesize off/def from talent alone.
+      talent: hasRatingRow && talentOk ? num(talentRow.talent) : null,
+      returningPct: hasRatingRow ? num(retRow.percentPPA ?? retRow.usage) : null,
+      recruitingPoints: hasRatingRow ? num(recRow.points) : null,
+    };
+
+    const priorBlend = regularizePreseasonPrior(ratingInputs);
+    if (!hasRatingRow) talentOnlyKeys += 1;
+
+    const classification = String(srsRow.division || spRow.conference || "").toUpperCase().includes("FCS")
+      ? "FCS"
+      : srsRow.division || null;
+
+    // Prefer explicit talent year for talent-only rows; otherwise the prior-season bundle freeze.
+    const sourceSeason = !hasRatingRow && talentOk ? talentYear : expectedPriorSeason;
 
     bySchool[key] = {
-      school: spRow.team || fpiRow.team || srsRow.team || eloRow.team || coreRow.team || key,
+      school:
+        spRow.team ||
+        fpiRow.team ||
+        srsRow.team ||
+        eloRow.team ||
+        coreRow.team ||
+        talentRow.team ||
+        talentRow.school ||
+        key,
       conference: spRow.conference || fpiRow.conference || srsRow.conference || coreRow.conference || null,
       classification,
       spOverall: num(spRow.rating),
@@ -240,7 +296,7 @@ export function buildPriorCatalog(priorSeasonBundle) {
       srs: num(srsRow.rating),
       elo: num(eloRow.elo),
       coreOverall: num(coreRow.rating ?? coreRow.overall),
-      talent: num(talentRow.talent),
+      talent: talentOk ? num(talentRow.talent) : null,
       returningPct: num(retRow.percentPPA ?? retRow.usage),
       recruitingPoints: num(recRow.points),
       priorPassPpa: num(ppaRow.offense?.passing),
@@ -253,16 +309,24 @@ export function buildPriorCatalog(priorSeasonBundle) {
         srs: srsRow.rating == null,
         elo: eloRow.elo == null,
         core: coreRow.rating == null && coreRow.overall == null,
-        talent: talentRow.talent == null,
+        talent: !talentOk,
         returning: retRow.percentPPA == null && retRow.usage == null,
       },
-      sourceSeason: priorSeasonBundle?.season ?? null,
+      sourceSeason: sourceSeason ?? null,
+      catalogMembership: hasRatingRow ? "ratings" : "talent-only",
       temporalClass: TEMPORAL_CLASS.A,
-      provenance: "prior-season-freeze",
+      provenance: hasRatingRow ? "prior-season-freeze" : "prior-season-talent-membership",
       artifactHash: priorBlend.hash,
     };
   }
-  return { bySchool, season: priorSeasonBundle?.season ?? null, n: Object.keys(bySchool).length, frozen: true };
+  return {
+    bySchool,
+    season: expectedPriorSeason,
+    n: Object.keys(bySchool).length,
+    frozen: true,
+    talentKeysAdded: talentKeysWithProvenance.length,
+    talentOnlyKeys,
+  };
 }
 
 /**

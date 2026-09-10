@@ -76,9 +76,13 @@ export function shrinkageWeight(gamesPlayed, k = 6) {
 
 export function blendPriorCurrent(prior, current, gamesPlayed, k = 6) {
   const w = shrinkageWeight(gamesPlayed, k);
-  if (!Number.isFinite(Number(current))) return { value: Number(prior), weight: 0, k };
-  if (!Number.isFinite(Number(prior))) return { value: Number(current), weight: 1, k };
-  return { value: (1 - w) * Number(prior) + w * Number(current), weight: w, k };
+  // Number(null)===0 — never coerce missing prior/current into a fabricated 0 rating.
+  const p = prior == null || prior === "" ? NaN : Number(prior);
+  const c = current == null || current === "" ? NaN : Number(current);
+  if (!Number.isFinite(c) && !Number.isFinite(p)) return { value: NaN, weight: 0, k };
+  if (!Number.isFinite(c)) return { value: p, weight: 0, k };
+  if (!Number.isFinite(p)) return { value: c, weight: 1, k };
+  return { value: (1 - w) * p + w * c, weight: w, k };
 }
 
 export function buildPregameFeatureRecord({

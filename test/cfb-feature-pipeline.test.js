@@ -101,6 +101,39 @@ describe("prior / rolling / FCS assembly", () => {
     assert.equal(catalog.bySchool["ohio state"].temporalClass, TEMPORAL_CLASS.A);
   });
 
+
+  it("unions talent keys with valid prior-season provenance without inventing ratings", () => {
+    const catalog = buildPriorCatalog({
+      ...priorBundle,
+      season: 2024,
+      endpoints: {
+        ...priorBundle.endpoints,
+        talent: {
+          data: [
+            { school: "Ohio State", talent: 950, year: 2024 },
+            { school: "Talent Only U", talent: 412, year: 2024 },
+            { school: "Wrong Year U", talent: 300, year: 2023 },
+            { school: "No Year U", talent: 300 },
+          ],
+        },
+      },
+    });
+    assert.ok(catalog.bySchool["talent only u"]);
+    assert.equal(catalog.bySchool["talent only u"].catalogMembership, "talent-only");
+    assert.equal(catalog.bySchool["talent only u"].sourceSeason, 2024);
+    assert.equal(catalog.bySchool["talent only u"].priorOff, null);
+    assert.equal(catalog.bySchool["talent only u"].priorDef, null);
+    assert.equal(catalog.bySchool["talent only u"].talent, 412);
+    assert.equal(catalog.bySchool["wrong year u"], undefined);
+    assert.equal(catalog.bySchool["no year u"], undefined);
+    assert.ok(catalog.talentKeysAdded >= 2);
+    assert.ok(catalog.talentOnlyKeys >= 1);
+    // Rating-spine teams keep real priors; talent is not a substitute rating.
+    assert.ok(catalog.bySchool["ohio state"].priorOff > 30);
+    assert.equal(catalog.bySchool["ohio state"].catalogMembership, "ratings");
+  });
+
+
   it("rejects future games when rolling and keeps missing as null", () => {
     const kick = "2025-10-11T19:00:00.000Z";
     const rolling = buildRollingMatchupFeatures({
