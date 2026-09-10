@@ -367,6 +367,31 @@ function CfbGameDetails({ g }) {
   const steps = g.projectionRecipe?.steps || [];
   const v2 = g.cfbFbisV2 || g.challengers?.["CFB-FBIS-v2"] || null;
   const d = v2?.decomposition || null;
+  const players = g.cfbPlayerV1 || g.challengers?.["CFB-PLAYER-v1"] || null;
+  const fmtPlayerBlock = (sideLabel, sideKey) => {
+    const block = players?.players?.[sideKey];
+    if (!block) return null;
+    const qb = block.QB1 || {};
+    const rb = block.RB1 || {};
+    const wr = block.WR1 || {};
+    const id = block.identity || {};
+    return (
+      <div key={sideKey} style={{ marginTop: 6 }}>
+        <div>{sideLabel}</div>
+        <div className="muted">
+          QB1 {id.QB1?.player_name || "—"}{id.QB1?.state === "QB_UNCERTAIN" ? " · UNCERTAIN" : ""}:{" "}
+          {fmtNum(qb.completions?.projection)}/{fmtNum(qb.attempts?.projection)} · {fmtNum(qb.passing_yards?.projection)} yds
+          {" · rush "}{fmtNum(qb.carries?.projection)} · {fmtNum(qb.rushing_yards?.projection)} yds
+        </div>
+        <div className="muted">
+          RB1 {id.RB1?.player_name || "—"}: carries {fmtNum(rb.carries?.projection)} · rush {fmtNum(rb.rushing_yards?.projection)} yds
+        </div>
+        <div className="muted">
+          WR1 {id.WR1?.player_name || "—"}: rec {fmtNum(wr.receptions?.projection)} · {fmtNum(wr.receiving_yards?.projection)} yds
+        </div>
+      </div>
+    );
+  };
   return (
     <div className="game-detail-grid">
       <section>
@@ -417,6 +442,28 @@ function CfbGameDetails({ g }) {
             Uncertainty {v2.uncertainty?.uncertainty_state || "—"} · σm {fmtNum(v2.uncertainty?.margin_sigma)} · completeness {fmtNum(v2.dataCompleteness)} · canQualify false
           </div>
           <div className="muted">Provenance: independent · marketUsed {String(v2.provenance?.marketUsed)} · artifact {v2.provenance?.artifactId || "—"}</div>
+        </section>
+      ) : null}
+      {players ? (
+        <section>
+          <h3>PLAYER PROJECTIONS (CFB-PLAYER-v1 SHADOW)</h3>
+          <div className="muted">QB1 / RB1 / WR1 only · derived from independent game model · canQualify false · no wager auth</div>
+          {fmtPlayerBlock(g.away?.fullName || g.away?.name || "AWAY", "away")}
+          {fmtPlayerBlock(g.home?.fullName || g.home?.name || "HOME", "home")}
+          {players.coherence ? (
+            <div className="muted">
+              Coherence {players.coherence.ok ? "ok" : "flags"} · OTHER_RUSH / OTHER_REC residual buckets · quality {fmtNum(players.coherence.dataQuality)}
+            </div>
+          ) : null}
+          {(players.propMarket || g.cfbPropMarket) ? (
+            <div className="muted" style={{ marginTop: 6 }}>
+              PROP MARKET comparison is separate from FBIS projection (import/manual until live feeds exist).
+            </div>
+          ) : (
+            <div className="muted" style={{ marginTop: 6 }}>
+              PROP MARKET: no imported PrizePicks/NoVig/book lines for this game.
+            </div>
+          )}
         </section>
       ) : null}
       <section className="detail-props">

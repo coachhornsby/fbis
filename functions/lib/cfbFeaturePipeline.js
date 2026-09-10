@@ -108,11 +108,12 @@ export async function fetchSeasonFeatureBundle(env, season, { entitled = null, w
     return { ok: res.ok, path, data: res.ok ? res.data || [] : [], status: res.status, reason: res.reason };
   };
 
-  const [sp, fpi, srs, elo, ppaTeams, talent, returning, recruiting, venues, coaches] = await Promise.all([
+  const [sp, fpi, srs, elo, core, ppaTeams, talent, returning, recruiting, venues, coaches] = await Promise.all([
     get("/ratings/sp", { year: season }),
     get("/ratings/fpi", { year: season }),
     get("/ratings/srs", { year: season }),
     get("/ratings/elo", { year: season }),
+    get("/ratings/core", { year: season }),
     get("/ppa/teams", { year: season, seasonType: "regular" }),
     get("/talent", { year: season }),
     get("/player/returning", { year: season }),
@@ -154,6 +155,7 @@ export async function fetchSeasonFeatureBundle(env, season, { entitled = null, w
       fpi,
       srs,
       elo,
+      core,
       ppaTeams,
       ppaGames,
       advSeason,
@@ -174,12 +176,14 @@ export async function fetchSeasonFeatureBundle(env, season, { entitled = null, w
 
 /**
  * Build per-team prior from PRIOR season ratings only (temporal-safe for early weeks).
+ * Ratings are regularized — correlated SP+/FPI/SRS/Elo are not naïvely averaged 1:1.
  */
 export function buildPriorCatalog(priorSeasonBundle) {
   const sp = indexByTeam(priorSeasonBundle?.endpoints?.sp?.data);
   const fpi = indexByTeam(priorSeasonBundle?.endpoints?.fpi?.data);
   const srs = indexByTeam(priorSeasonBundle?.endpoints?.srs?.data);
   const elo = indexByTeam(priorSeasonBundle?.endpoints?.elo?.data);
+  const core = indexByTeam(priorSeasonBundle?.endpoints?.core?.data);
   const talent = indexByTeam(priorSeasonBundle?.endpoints?.talent?.data, ["school", "team"]);
   const returning = indexByTeam(priorSeasonBundle?.endpoints?.returning?.data);
   const recruiting = indexByTeam(priorSeasonBundle?.endpoints?.recruiting?.data);
@@ -190,6 +194,7 @@ export function buildPriorCatalog(priorSeasonBundle) {
     ...Object.keys(fpi),
     ...Object.keys(srs),
     ...Object.keys(elo),
+    ...Object.keys(core),
   ]);
 
   const bySchool = {};
@@ -198,6 +203,7 @@ export function buildPriorCatalog(priorSeasonBundle) {
     const fpiRow = fpi[key] || {};
     const srsRow = srs[key] || {};
     const eloRow = elo[key] || {};
+    const coreRow = core[key] || {};
     const ppaRow = ppa[key] || {};
     const talentRow = talent[key] || {};
     const retRow = returning[key] || {};
@@ -206,16 +212,34 @@ export function buildPriorCatalog(priorSeasonBundle) {
       ? "FCS"
       : srsRow.division || null;
 
-    bySchool[key] = {
-      school: spRow.team || fpiRow.team || srsRow.team || eloRow.team || key,
-      conference: spRow.conference || fpiRow.conference || srsRow.conference || null,
-      classification,
+    const priorBlend = regularizePreseasonPrior({
       spOverall: num(spRow.rating),
-      priorOff: num(spRow.offense?.rating),
-      priorDef: num(spRow.defense?.rating),
+      spOffense: num(spRow.offense?.rating),
+      spDefense: num(spRow.defense?.rating),
       fpi: num(fpiRow.fpi ?? fpiRow.rating),
       srs: num(srsRow.rating),
       elo: num(eloRow.elo),
+      coreOverall: num(coreRow.rating ?? coreRow.overall),
+      coreOffense: num(coreRow.offense?.rating ?? coreRow.offense),
+      coreDefense: num(coreRow.defense?.rating ?? coreRow.defense),
+      talent: num(talentRow.talent),
+      returningPct: num(retRow.percentPPA ?? retRow.usage),
+      recruitingPoints: num(recRow.points),
+    });
+
+    bySchool[key] = {
+      school: spRow.team || fpiRow.team || srsRow.team || eloRow.team || coreRow.team || key,
+      conference: spRow.conference || fpiRow.conference || srsRow.conference || coreRow.conference || null,
+      classification,
+      spOverall: num(spRow.rating),
+      priorOff: priorBlend.priorOff,
+      priorDef: priorBlend.priorDef,
+      priorOverall: priorBlend.priorOverall,
+      priorBlend,
+      fpi: num(fpiRow.fpi ?? fpiRow.rating),
+      srs: num(srsRow.rating),
+      elo: num(eloRow.elo),
+      coreOverall: num(coreRow.rating ?? coreRow.overall),
       talent: num(talentRow.talent),
       returningPct: num(retRow.percentPPA ?? retRow.usage),
       recruitingPoints: num(recRow.points),
@@ -228,15 +252,89 @@ export function buildPriorCatalog(priorSeasonBundle) {
         fpi: fpiRow.fpi == null && fpiRow.rating == null,
         srs: srsRow.rating == null,
         elo: eloRow.elo == null,
+        core: coreRow.rating == null && coreRow.overall == null,
         talent: talentRow.talent == null,
         returning: retRow.percentPPA == null && retRow.usage == null,
       },
       sourceSeason: priorSeasonBundle?.season ?? null,
       temporalClass: TEMPORAL_CLASS.A,
       provenance: "prior-season-freeze",
+      artifactHash: priorBlend.hash,
     };
   }
-  return { bySchool, season: priorSeasonBundle?.season ?? null, n: Object.keys(bySchool).length };
+  return { bySchool, season: priorSeasonBundle?.season ?? null, n: Object.keys(bySchool).length, frozen: true };
+}
+
+/**
+ * Regularized preseason prior — avoid double-counting correlated ratings.
+ * Weights prefer SP+ offense/defense when present; FPI/SRS/Elo/CORE shrink toward consensus.
+ */
+export function regularizePreseasonPrior(input = {}) {
+  const spOff = num(input.spOffense);
+  const spDef = num(input.spDefense);
+  const coreOff = num(input.coreOffense);
+  const coreDef = num(input.coreDefense);
+  const fpi = num(input.fpi);
+  const srs = num(input.srs);
+  const eloPower = num(input.elo) != null ? (num(input.elo) - 1500) / 25 : null;
+  const core = num(input.coreOverall);
+  const sp = num(input.spOverall);
+
+  // Overall consensus with diminishing weights for correlated strength ratings
+  const overallParts = [];
+  if (sp != null) overallParts.push({ v: sp, w: 0.35 });
+  if (core != null) overallParts.push({ v: core, w: 0.25 });
+  if (fpi != null) overallParts.push({ v: fpi, w: 0.2 });
+  if (srs != null) overallParts.push({ v: srs, w: 0.12 });
+  if (eloPower != null) overallParts.push({ v: eloPower, w: 0.08 });
+  const wSum = overallParts.reduce((a, p) => a + p.w, 0) || 1;
+  const priorOverall =
+    overallParts.length === 0 ? null : overallParts.reduce((a, p) => a + p.v * p.w, 0) / wSum;
+
+  // Offense/defense: prefer SP+, then CORE, else split overall ±0
+  let priorOff = spOff;
+  let priorDef = spDef;
+  if (priorOff == null && coreOff != null) priorOff = coreOff;
+  if (priorDef == null && coreDef != null) priorDef = coreDef;
+  if (priorOff == null && priorOverall != null) priorOff = 26.5 + priorOverall * 0.35;
+  if (priorDef == null && priorOverall != null) priorDef = 26.5 - priorOverall * 0.35;
+
+  // Personnel continuity soft bump (not a rating substitute)
+  const returning = num(input.returningPct);
+  const talent = num(input.talent);
+  const recruiting = num(input.recruitingPoints);
+  let personnelAdj = 0;
+  if (returning != null) personnelAdj += (returning - 0.55) * 1.5;
+  if (talent != null) personnelAdj += (talent - 700) / 400;
+  if (recruiting != null) personnelAdj += (recruiting - 200) / 500;
+  personnelAdj = Math.max(-1.5, Math.min(1.5, personnelAdj));
+
+  if (priorOff != null) priorOff += personnelAdj * 0.5;
+  if (priorDef != null) priorDef -= personnelAdj * 0.35;
+
+  const hashPayload = JSON.stringify({
+    sp,
+    core,
+    fpi,
+    srs,
+    eloPower,
+    priorOff,
+    priorDef,
+    personnelAdj,
+  });
+  // Simple stable hash without crypto
+  let h = 0;
+  for (let i = 0; i < hashPayload.length; i++) h = (h * 31 + hashPayload.charCodeAt(i)) >>> 0;
+
+  return {
+    priorOff: priorOff == null ? null : Math.round(priorOff * 100) / 100,
+    priorDef: priorDef == null ? null : Math.round(priorDef * 100) / 100,
+    priorOverall: priorOverall == null ? null : Math.round(priorOverall * 100) / 100,
+    personnelAdj: Math.round(personnelAdj * 100) / 100,
+    weights: { sp: 0.35, core: 0.25, fpi: 0.2, srs: 0.12, elo: 0.08 },
+    hash: `prior-${h.toString(16)}`,
+    method: "regularized-correlated-ratings",
+  };
 }
 
 /**
@@ -409,6 +507,7 @@ export function assembleGameFeatures({
   weatherRow = null,
   venueRow = null,
   lineRow = null,
+  coreByTeam = null,
   shrinkK = 6,
   collectionTimestamp = null,
 }) {
@@ -424,16 +523,42 @@ export function assembleGameFeatures({
   const homeFcs = fcsEquivalentForTeam(homePrior, confMap);
   const awayFcs = fcsEquivalentForTeam(awayPrior, confMap);
 
-  const homeOffBlend = blendPriorCurrent(homePrior.priorOff, homeRoll.offensePpa != null ? 26.5 + homeRoll.offensePpa * 40 : null, homeRoll.gamesPlayed, shrinkK);
-  const homeDefBlend = blendPriorCurrent(homePrior.priorDef, homeRoll.defensePpa != null ? 26.5 + homeRoll.defensePpa * 40 : null, homeRoll.gamesPlayed, shrinkK);
-  const awayOffBlend = blendPriorCurrent(awayPrior.priorOff, awayRoll.offensePpa != null ? 26.5 + awayRoll.offensePpa * 40 : null, awayRoll.gamesPlayed, shrinkK);
-  const awayDefBlend = blendPriorCurrent(awayPrior.priorDef, awayRoll.defensePpa != null ? 26.5 + awayRoll.defensePpa * 40 : null, awayRoll.gamesPlayed, shrinkK);
+  // Week-bounded CORE (class B) preferred over undated same-season SP for current strength
+  const homeCore = coreByTeam?.[schoolKey(homeName)] || null;
+  const awayCore = coreByTeam?.[schoolKey(awayName)] || null;
+  const coreToPoints = (coreOff) => (coreOff == null ? null : 26.5 + Number(coreOff) * 0.4);
 
-  const side = (prior, roll, qb, fcs, offB, defB) => ({
+  const homeCurrentOff =
+    homeRoll.offensePpa != null
+      ? 26.5 + homeRoll.offensePpa * 40
+      : coreToPoints(homeCore?.offense ?? homeCore?.rating);
+  const homeCurrentDef =
+    homeRoll.defensePpa != null
+      ? 26.5 + homeRoll.defensePpa * 40
+      : coreToPoints(homeCore?.defense != null ? -homeCore.defense : null);
+  const awayCurrentOff =
+    awayRoll.offensePpa != null
+      ? 26.5 + awayRoll.offensePpa * 40
+      : coreToPoints(awayCore?.offense ?? awayCore?.rating);
+  const awayCurrentDef =
+    awayRoll.defensePpa != null
+      ? 26.5 + awayRoll.defensePpa * 40
+      : coreToPoints(awayCore?.defense != null ? -awayCore.defense : null);
+
+  const homeOffBlend = blendPriorCurrent(homePrior.priorOff, homeCurrentOff, homeRoll.gamesPlayed || (homeCore ? 3 : 0), shrinkK);
+  const homeDefBlend = blendPriorCurrent(homePrior.priorDef, homeCurrentDef, homeRoll.gamesPlayed || (homeCore ? 3 : 0), shrinkK);
+  const awayOffBlend = blendPriorCurrent(awayPrior.priorOff, awayCurrentOff, awayRoll.gamesPlayed || (awayCore ? 3 : 0), shrinkK);
+  const awayDefBlend = blendPriorCurrent(awayPrior.priorDef, awayCurrentDef, awayRoll.gamesPlayed || (awayCore ? 3 : 0), shrinkK);
+
+  const side = (prior, roll, qb, fcs, offB, defB, core) => ({
     priorOff: prior.priorOff ?? null,
     priorDef: prior.priorDef ?? null,
     spOffense: prior.priorOff ?? null,
     spDefense: prior.priorDef ?? null,
+    coreThroughWeek: core?.throughWeek ?? null,
+    coreRating: core?.rating ?? null,
+    coreOffense: core?.offense ?? null,
+    coreDefense: core?.defense ?? null,
     off: offB.value,
     def: defB.value,
     gamesPlayed: roll.gamesPlayed,
@@ -449,6 +574,7 @@ export function assembleGameFeatures({
     havocAllowed: roll.havocAllowed,
     lineYards: roll.lineYards,
     lineYardsAllowed: roll.lineYardsAllowed,
+    stuffRate: roll.stuffRate,
     pointsPerOpportunity: roll.pointsPerOpportunity,
     pointsPerOpportunityAllowed: roll.pointsPerOpportunityAllowed,
     paceNorm: roll.pacePlays != null ? (roll.pacePlays - 70) / 15 : null,
@@ -466,13 +592,14 @@ export function assembleGameFeatures({
       ...(prior.missingness || {}),
       ...(qb.missingness || {}),
       rolling: roll.gamesPlayed === 0,
+      core: !core,
       weather: !weatherRow,
     },
   });
 
   const features = {
-    home: side(homePrior, homeRoll, homeQb, homeFcs, homeOffBlend, homeDefBlend),
-    away: side(awayPrior, awayRoll, awayQb, awayFcs, awayOffBlend, awayDefBlend),
+    home: side(homePrior, homeRoll, homeQb, homeFcs, homeOffBlend, homeDefBlend, homeCore),
+    away: side(awayPrior, awayRoll, awayQb, awayFcs, awayOffBlend, awayDefBlend, awayCore),
     neutralSite: Boolean(game.neutralSite ?? game.neutral_site ?? game.neutral),
     dataCompleteness: null,
     evaluation: {
@@ -486,6 +613,8 @@ export function assembleGameFeatures({
       priorSeason: priorCatalog.season,
       sourceVersion: SOURCE_VERSION,
       marketInIndependentScore: false,
+      coreWeekBounded: Boolean(homeCore || awayCore),
+      shrinkK,
     },
   };
 

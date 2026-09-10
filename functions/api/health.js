@@ -11,7 +11,7 @@ const MIGRATION_STATUS = {
   UNVERIFIED: "UNVERIFIED",
 };
 
-const EXPECTED_MIGRATION = "0018_cfbd_audit_tables_ensure";
+const EXPECTED_MIGRATION = "0019_cfb_player_projections";
 
 /**
  * Read-only health endpoint.

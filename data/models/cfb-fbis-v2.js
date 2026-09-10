@@ -12,10 +12,11 @@ export default {
   canQualify: false,
   trainingCutoff: null,
   trainingHash: "provisional-unfitted",
-  sourceVersion: "cfbd-feature-pipeline-v1",
+  sourceVersion: "cfbd-feature-pipeline-v2",
   sourceVersions: {
-    catalog: "cfb-feature-catalog-v1",
-    pipeline: "cfbd-feature-pipeline-v1",
+    catalog: "cfb-feature-catalog-v2",
+    pipeline: "cfb-feature-pipeline-v2",
+    canonical: "cfbd-canonical-v1",
   },
   expectedUnits: {
     margin: "points (home - away)",

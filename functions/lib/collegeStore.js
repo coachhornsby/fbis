@@ -548,3 +548,168 @@ export async function insertCfbdEndpointAudit(env, row) {
     return { ok: false, reason: String(err?.message || err) };
   }
 }
+
+export async function insertCfbPregameFeatureVector(env, row) {
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  try {
+    const res = await env.DB.prepare(
+      `INSERT OR IGNORE INTO cfb_pregame_feature_vectors (
+        id, game_id, season, week, kickoff_timestamp, home_team, away_team,
+        feature_as_of_timestamp, feature_cutoff_timestamp, source_version, source_endpoint,
+        collection_timestamp, features_json, decomposition_json, uncertainty_json,
+        model_id, content_hash, job_run_id, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        row.gameId,
+        n(row.season),
+        n(row.week),
+        n(row.kickoffTimestamp),
+        n(row.homeTeam),
+        n(row.awayTeam),
+        row.featureAsOfTimestamp,
+        row.featureCutoffTimestamp,
+        n(row.sourceVersion),
+        n(row.sourceEndpoint),
+        row.collectionTimestamp,
+        json(row.features),
+        json(row.decomposition),
+        json(row.uncertainty),
+        n(row.modelId),
+        n(row.contentHash),
+        n(row.jobRunId),
+        row.createdAt || new Date().toISOString()
+      )
+      .run();
+    return { ok: true, inserted: res.meta?.changes ? 1 : 0, already: res.meta?.changes ? 0 : 1 };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function insertCfbPlayerRoleSnapshot(env, row) {
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  try {
+    const res = await env.DB.prepare(
+      `INSERT OR IGNORE INTO cfb_player_role_snapshots (
+        id, game_id, season, week, season_type, kickoff_timestamp, team, side, role,
+        player_id, player_name, position, role_confidence, identity_as_of,
+        feature_cutoff_timestamp, selection_json, provenance_json, model_version,
+        content_hash, job_run_id, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        row.gameId,
+        n(row.season),
+        n(row.week),
+        n(row.seasonType),
+        n(row.kickoffTimestamp),
+        row.team,
+        row.side,
+        row.role,
+        n(row.playerId),
+        n(row.playerName),
+        n(row.position),
+        n(row.roleConfidence),
+        row.identityAsOf,
+        row.featureCutoffTimestamp,
+        json(row.selection),
+        json(row.provenance),
+        n(row.modelVersion),
+        n(row.contentHash),
+        n(row.jobRunId),
+        row.createdAt || new Date().toISOString()
+      )
+      .run();
+    return { ok: true, inserted: res.meta?.changes ? 1 : 0 };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function insertCfbPlayerProjection(env, row) {
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  try {
+    const res = await env.DB.prepare(
+      `INSERT OR IGNORE INTO cfb_player_projections (
+        id, game_id, season, week, kickoff_timestamp, team, side, role, player_id, player_name,
+        market_type, projection, median, sigma, quantiles_json, data_quality, sample_size,
+        uncertainty_state, model_id, model_version, game_model_id, game_model_version,
+        feature_cutoff_timestamp, feature_as_of_timestamp, provenance_json, coherence_json,
+        content_hash, job_run_id, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        row.gameId,
+        n(row.season),
+        n(row.week),
+        n(row.kickoffTimestamp),
+        row.team,
+        row.side,
+        row.role,
+        n(row.playerId),
+        n(row.playerName),
+        row.marketType,
+        n(row.projection),
+        n(row.median),
+        n(row.sigma),
+        json(row.quantiles),
+        n(row.dataQuality),
+        n(row.sampleSize),
+        n(row.uncertaintyState),
+        row.modelId,
+        n(row.modelVersion),
+        n(row.gameModelId),
+        n(row.gameModelVersion),
+        row.featureCutoffTimestamp,
+        n(row.featureAsOfTimestamp),
+        json(row.provenance),
+        json(row.coherence),
+        n(row.contentHash),
+        n(row.jobRunId),
+        row.createdAt || new Date().toISOString()
+      )
+      .run();
+    return { ok: true, inserted: res.meta?.changes ? 1 : 0 };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function insertCfbPropMarketLine(env, row) {
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  try {
+    const res = await env.DB.prepare(
+      `INSERT OR IGNORE INTO cfb_prop_market_lines (
+        id, game_id, player_id, player_name, team, market_type, line, over_price, under_price,
+        source, sportsbook, observed_at, market_quality, import_mode, payload_json, content_hash, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        row.gameId,
+        n(row.playerId),
+        n(row.playerName),
+        n(row.team),
+        row.marketType,
+        row.line,
+        n(row.overPrice),
+        n(row.underPrice),
+        row.source,
+        n(row.sportsbook),
+        row.observedAt,
+        n(row.marketQuality),
+        n(row.importMode),
+        json(row.payload),
+        n(row.contentHash),
+        row.createdAt || new Date().toISOString()
+      )
+      .run();
+    return { ok: true, inserted: res.meta?.changes ? 1 : 0 };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}

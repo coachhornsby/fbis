@@ -10,10 +10,15 @@ test("published projection migration is registered", async () => {
 test("CFBD audit migrations are registered and health expects latest", async () => {
   const m17 = await readFile(new URL("../migrations/0017_cfbd_endpoint_audit.sql", import.meta.url), "utf8");
   const m18 = await readFile(new URL("../migrations/0018_cfbd_audit_tables_ensure.sql", import.meta.url), "utf8");
+  const m19 = await readFile(new URL("../migrations/0019_cfb_player_projections.sql", import.meta.url), "utf8");
   const health = await readFile(new URL("../functions/api/health.js", import.meta.url), "utf8");
   assert.match(m17, /schema_migrations[\s\S]*0017_cfbd_endpoint_audit/i);
   assert.match(m18, /schema_migrations[\s\S]*0018_cfbd_audit_tables_ensure/i);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0018_cfbd_audit_tables_ensure["']/);
+  assert.match(m19, /schema_migrations[\s\S]*0019_cfb_player_projections/i);
+  assert.match(m19, /cfb_player_role_snapshots/);
+  assert.match(m19, /cfb_player_projections/);
+  assert.match(m19, /cfb_prop_market_lines/);
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0019_cfb_player_projections["']/);
   assert.match(health, /WHERE id = \?/);
 });
 

@@ -4,10 +4,10 @@
  */
 
 import { featureCutoffIso, cutoffViolated, hashPayload } from "./collegeIdentity.js";
-import { insertGameFeatureSnapshot } from "./collegeStore.js";
+import { insertGameFeatureSnapshot, insertCfbPregameFeatureVector } from "./collegeStore.js";
 
-export const FEATURE_STORE_VERSION = "cfb-pregame-features-v1";
-export const SOURCE_VERSION = "cfbd-feature-pipeline-v1";
+export const FEATURE_STORE_VERSION = "cfb-pregame-features-v2";
+export const SOURCE_VERSION = "cfbd-feature-pipeline-v2";
 
 export function assertPregameTemporalIntegrity({
   kickoffTimestamp,
@@ -134,6 +134,13 @@ export async function persistPregameFeatureVector(env, record, { sport = "cfb", 
     sourceVersion: record.source_version,
   });
   const id = `${sport}:${record.game_id}:${FEATURE_STORE_VERSION}:${hash.slice(0, 12)}`;
+  const featuresPayload = {
+    ...record.features,
+    feature_as_of_timestamp: record.feature_as_of_timestamp,
+    collection_timestamp: record.collection_timestamp,
+    week: record.week,
+    season: record.season,
+  };
   const res = await insertGameFeatureSnapshot(env, {
     id,
     sport,
@@ -151,15 +158,29 @@ export async function persistPregameFeatureVector(env, record, { sport = "cfb", 
     dataQuality: record.features?.dataCompleteness ?? null,
     contentHash: hash,
     jobRunId,
-    features: {
-      ...record.features,
-      feature_as_of_timestamp: record.feature_as_of_timestamp,
-      collection_timestamp: record.collection_timestamp,
-      week: record.week,
-      season: record.season,
-    },
+    features: featuresPayload,
   });
-  return { ...res, id, contentHash: hash };
+  const dedicated = await insertCfbPregameFeatureVector(env, {
+    id: `cfbvec:${hash.slice(0, 16)}`,
+    gameId: record.game_id,
+    season: record.season,
+    week: record.week,
+    kickoffTimestamp: record.kickoff_timestamp,
+    homeTeam: record.home_team,
+    awayTeam: record.away_team,
+    featureAsOfTimestamp: record.feature_as_of_timestamp,
+    featureCutoffTimestamp: record.feature_cutoff_timestamp,
+    sourceVersion: record.source_version,
+    sourceEndpoint: record.source_endpoint,
+    collectionTimestamp: record.collection_timestamp,
+    features: featuresPayload,
+    decomposition: record.decomposition || null,
+    uncertainty: record.uncertainty || null,
+    modelId: modelVersion,
+    contentHash: hash,
+    jobRunId,
+  });
+  return { ...res, id, contentHash: hash, dedicated };
 }
 
 /**
