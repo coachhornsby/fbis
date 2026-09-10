@@ -1,48 +1,48 @@
 {
-  "eligibleN": 5306,
+  "eligibleN": 5767,
   "byFeature": {
     "base": {
-      "nonNullN": 5306,
+      "nonNullN": 5767,
       "nonNullPct": 1,
-      "nonzeroN": 3361,
-      "nonzeroPct": 0.6334338484734263,
-      "variance": 108.44052911936834,
-      "meanAbs": 6.527860912174902
+      "nonzeroN": 5411,
+      "nonzeroPct": 0.9382694641928212,
+      "variance": 155.7053640932459,
+      "meanAbs": 9.515058089127809
     },
     "pass": {
-      "nonNullN": 5306,
-      "nonNullPct": 1,
-      "nonzeroN": 2790,
-      "nonzeroPct": 0.5258198266113834,
-      "variance": 2.630270356628093,
-      "meanAbs": 0.9257086317376575
+      "nonNullN": 2808,
+      "nonNullPct": 0.48690827119819663,
+      "nonzeroN": 2799,
+      "nonzeroPct": 0.4853476677648691,
+      "variance": 4.7461064100535015,
+      "meanAbs": 1.7555056980057022
     },
     "rush": {
-      "nonNullN": 5306,
-      "nonNullPct": 1,
-      "nonzeroN": 2791,
-      "nonzeroPct": 0.5260082924990577,
-      "variance": 0.7533294641906523,
-      "meanAbs": 0.494148134187712
+      "nonNullN": 2808,
+      "nonNullPct": 0.48690827119819663,
+      "nonzeroN": 2800,
+      "nonzeroPct": 0.48552106814634993,
+      "variance": 1.370660296131939,
+      "meanAbs": 0.9384188034188033
     },
     "success": {
-      "nonNullN": 5306,
+      "nonNullN": 5767,
       "nonNullPct": 1,
-      "nonzeroN": 4907,
-      "nonzeroPct": 0.924802110817942,
-      "variance": 1.7852381948107823,
-      "meanAbs": 0.9137316245759538
+      "nonzeroN": 5318,
+      "nonzeroPct": 0.9221432287151031,
+      "variance": 1.8088949255326918,
+      "meanAbs": 0.9181324778914545
     },
     "explosiveness": {
-      "nonNullN": 5306,
-      "nonNullPct": 1,
-      "nonzeroN": 4869,
-      "nonzeroPct": 0.9176404070863173,
-      "variance": 6.104822944546089,
-      "meanAbs": 1.5595740670938643
+      "nonNullN": 5288,
+      "nonNullPct": 0.916941217270678,
+      "nonzeroN": 5275,
+      "nonzeroPct": 0.9146870123114271,
+      "variance": 6.949116306194351,
+      "meanAbs": 1.7327874432677781
     },
     "havoc": {
-      "nonNullN": 5306,
+      "nonNullN": 5767,
       "nonNullPct": 1,
       "nonzeroN": 0,
       "nonzeroPct": 0,
@@ -50,15 +50,15 @@
       "meanAbs": 0
     },
     "trenches": {
-      "nonNullN": 5306,
+      "nonNullN": 5767,
       "nonNullPct": 1,
-      "nonzeroN": 4895,
-      "nonzeroPct": 0.92254052016585,
-      "variance": 0.8831406509091757,
-      "meanAbs": 0.6318262344515666
+      "nonzeroN": 5304,
+      "nonzeroPct": 0.9197156233743714,
+      "variance": 0.9027119086733574,
+      "meanAbs": 0.6362077336570158
     },
     "finishing": {
-      "nonNullN": 5306,
+      "nonNullN": 5767,
       "nonNullPct": 1,
       "nonzeroN": 0,
       "nonzeroPct": 0,
@@ -66,7 +66,7 @@
       "meanAbs": 0
     },
     "qb": {
-      "nonNullN": 5306,
+      "nonNullN": 5767,
       "nonNullPct": 1,
       "nonzeroN": 0,
       "nonzeroPct": 0,
@@ -74,20 +74,20 @@
       "meanAbs": 0
     },
     "pace": {
-      "nonNullN": 5306,
+      "nonNullN": 5767,
       "nonNullPct": 1,
-      "nonzeroN": 4884,
-      "nonzeroPct": 0.9204673954014323,
-      "variance": 0.8325370534591002,
-      "meanAbs": 0.6523407463249149
+      "nonzeroN": 5292,
+      "nonzeroPct": 0.9176348187966014,
+      "variance": 0.8400594118055852,
+      "meanAbs": 0.6583700364140797
     },
     "context": {
-      "nonNullN": 5306,
+      "nonNullN": 5767,
       "nonNullPct": 1,
-      "nonzeroN": 5154,
-      "nonzeroPct": 0.9713531850735017,
-      "variance": 0.17391359325667582,
-      "meanAbs": 2.428382962683754
+      "nonzeroN": 5604,
+      "nonzeroPct": 0.9717357378186232,
+      "variance": 0.1716587104044714,
+      "meanAbs": 2.429339344546558
     }
   },
   "ablationActivation": {
