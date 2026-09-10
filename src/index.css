@@ -812,6 +812,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 }
 .today-board .muted {
   color: var(--muted);
+  font-size: 13px;
 }
 
 .table-scroll {
