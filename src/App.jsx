@@ -3,6 +3,7 @@ import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff, formatMarketPeriod, formatClv } from "./lib/format.js";
 import TeamLogo, { TeamIdentity, TicketMatchup } from "./components/TeamLogo.jsx";
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
+import BoardGrid from "./components/board/BoardGrid.jsx";
 import { gradeOpenBets, loadState, logBet, summarize } from "./lib/learning.js";
 import { captureSlate } from "./lib/ledger.js";
 import TrackView from "./TrackView.jsx";
@@ -505,7 +506,7 @@ export default function App() {
         {error && <div className="panel"><div className="error">{error}</div></div>}
 
         <Panel
-          title={`${String(SPORTS[sport]?.label || sport).toUpperCase()} Slate`}
+          title={`${String(SPORTS[sport]?.label || sport).toUpperCase()} Intelligence Board`}
           stamp={updated}
           extra={
             <span className="last-updated">
@@ -514,22 +515,34 @@ export default function App() {
             </span>
           }
         >
-          {sport === "cfb" ? (
-            <div className="slate-toolbar">
-              <button className="header-btn" onClick={() => setCfbWeekShift((n) => n - 1)}>Previous Week</button>
-              <button className="header-btn" onClick={() => setCfbWeekShift(0)}>Current Week</button>
-              <button className="header-btn" onClick={() => setCfbWeekShift((n) => n + 1)}>Next Week</button>
-              <span className="slate-meta">
-                Week {slate?.week?.number || "—"} · {slate?.week?.range?.since || "—"} to {slate?.week?.range?.until || "—"} CT
-              </span>
-            </div>
-          ) : null}
-          {slate?.parlay?.pinGames === 0 && (slate?.parlay?.games > 0 || /soft|sharp|rundown|credit/i.test(String(slate?.parlay?.source || ""))) ? (
-            <div className="slate-notice">
-              Pinnacle feed is credit-limited right now. Board shows soft DK/FD lines for display — qualification still requires Pin.
-            </div>
-          ) : null}
-          <div className="table-scroll"><SlateTable games={slate?.games || []} onLog={onLog} logged={loggedOpen} /></div>
+          <BoardGrid
+            sport={sport}
+            games={slate?.games || []}
+            onLog={onLog}
+            logged={loggedOpen}
+            detailMapper={slateDetailGame}
+            slateMeta={
+              sport === "cfb"
+                ? `Week ${slate?.week?.number || "—"} · ${slate?.week?.range?.since || "—"} to ${slate?.week?.range?.until || "—"} CT`
+                : null
+            }
+            weekControls={
+              sport === "cfb" ? (
+                <div className="slate-toolbar slate-toolbar-inline">
+                  <button type="button" className="header-btn" onClick={() => setCfbWeekShift((n) => n - 1)}>Previous Week</button>
+                  <button type="button" className="header-btn" onClick={() => setCfbWeekShift(0)}>Current Week</button>
+                  <button type="button" className="header-btn" onClick={() => setCfbWeekShift((n) => n + 1)}>Next Week</button>
+                </div>
+              ) : null
+            }
+            notice={
+              slate?.parlay?.pinGames === 0 && (slate?.parlay?.games > 0 || /soft|sharp|rundown|credit/i.test(String(slate?.parlay?.source || ""))) ? (
+                <div className="slate-notice">
+                  Pinnacle feed is credit-limited right now. Board shows soft DK/FD lines for display — qualification still requires Pin.
+                </div>
+              ) : null
+            }
+          />
         </Panel>
 
         <Panel title="Featured Plays" stamp={updated}>
@@ -694,7 +707,7 @@ function Panel({ title, stamp, extra, children }) {
         <h2>{title}</h2>
         {extra || (stamp ? <span className="last-updated">{stamp} CT</span> : null)}
       </div>
-      <div className="panel-body" style={/Slate|Bets|Featured|Leans|Qualified|leans/i.test(title) ? { padding: 0 } : undefined}>
+      <div className="panel-body" style={/Slate|Intelligence Board|Bets|Featured|Leans|Qualified|leans/i.test(title) ? { padding: 0 } : undefined}>
         {children}
       </div>
     </section>
@@ -718,13 +731,13 @@ function Ticker({ items, logged }) {
         {loop.length ? loop.map((g, i) => (
           <div className={`ticker-item${logged.has(g.id) ? " has-bet" : ""}`} key={`${g.id}-${i}`}>
             {g.live && <span className="live-dot">●</span>}
-            {g.awayLogo && <TeamLogo team={{ logo: g.awayLogo, name: g.awayName || g.away, abbr: g.away }} size={36} />}
+            {g.awayLogo && <TeamLogo team={{ logo: g.awayLogo, name: g.awayName || g.away, abbr: g.away }} size={28} />}
             {g.away}
             <span className="score-accent">{g.awayScore ?? ""}</span>
             <span className="muted">@</span>
             <span className="score-accent">{g.homeScore ?? ""}</span>
             {g.home}
-            {g.homeLogo && <TeamLogo team={{ logo: g.homeLogo, name: g.homeName || g.home, abbr: g.home }} size={36} />}
+            {g.homeLogo && <TeamLogo team={{ logo: g.homeLogo, name: g.homeName || g.home, abbr: g.home }} size={28} />}
             <span className="muted" style={{ marginLeft: 8, fontSize: 11 }}>[{g.status}]</span>
           </div>
         )) : <span className="ticker-empty">NO LIVE GAMES</span>}
