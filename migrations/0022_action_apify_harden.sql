@@ -1,5 +1,6 @@
 -- Action/Apify candidate hardening (additive).
 -- Durable scheduler lease/circuit + observation enrichment columns.
+-- Authoritative overlap control for Cloudflare isolates (memory is local-only).
 -- Shadow/candidate only. Never grants canQualify / canAuthorizeWager.
 -- Never enters ODDS_PROVIDER_ORDER. Never feeds CFB-FBIS-v2 features.
 -- 0021 is already deployed — do not mutate it.
