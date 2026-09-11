@@ -144,6 +144,13 @@ export function normalizeProviderAttempts(attempts = []) {
 /**
  * Derive board-vs-live health from last persisted odds summary meta.
  * A cached board can be available while live collection is unhealthy.
+ *
+ * Recompute usability from provider identity on read so already-poisoned
+ * `last_odds_*` rows (provider=backup, source=parlay-credit-exhausted,
+ * usable=0, games>0) report the same healed state as fetchParlayOdds cache
+ * reads — without waiting for the next collect rewrite.
+ * Parlay quota diagnostics remain in meta when present; only the contradictory
+ * source label / usable flag is corrected for health display.
  */
 export function deriveOddsBoardHealth(metaMap = {}, sports = ["mlb", "cfb", "nfl", "cbb"]) {
   const bySport = {};
@@ -151,14 +158,43 @@ export function deriveOddsBoardHealth(metaMap = {}, sports = ["mlb", "cfb", "nfl
   let liveCollectionHealthy = false;
   for (const sport of sports) {
     const prefix = `last_odds_${sport}_`;
-    const source = metaMap[`${prefix}source`] || null;
+    let source = metaMap[`${prefix}source`] || null;
     const sourceMode = metaMap[`${prefix}source_mode`] || null;
     const cached = metaMap[`${prefix}cached`] === "1";
-    const usable = metaMap[`${prefix}usable`] === "1";
     const provider = metaMap[`${prefix}provider`] || null;
     const observedAt = metaMap[`${prefix}observed_at`] || null;
     const updatedAt = metaMap[`${prefix}at`] || null;
     const games = Number(metaMap[`${prefix}games`] || 0);
+    const pinGames = Number(metaMap[`${prefix}pin_games`]);
+    const parlayError = metaMap[`${prefix}parlay_error`] || metaMap[`${prefix}error`] || null;
+    const gamesN = Number.isFinite(games) ? games : 0;
+    const probe = {
+      source,
+      provider,
+      sourceMode,
+      games: gamesN,
+      pinGames: Number.isFinite(pinGames) ? pinGames : undefined,
+      parlayError,
+      cached,
+    };
+    // Heal poisoned source labels using provider identity (same as cache-read).
+    if (
+      isSuccessfulFallbackOddsSource(probe) &&
+      gamesN > 0 &&
+      String(source || "").toLowerCase().includes("credit-exhausted")
+    ) {
+      const restored = canonicalFallbackSourceForProvider(provider);
+      if (restored) {
+        source = restored;
+        probe.source = restored;
+      }
+    }
+    // Prefer recomputed usability over a stale persisted usable=0/1 bit.
+    let usable = !isUnusableCachedOddsMeta(probe) && gamesN > 0;
+    // If helpers cannot classify (missing games/provider), fall back to persisted flag.
+    if (!provider && !source && !Number.isFinite(games)) {
+      usable = metaMap[`${prefix}usable`] === "1";
+    }
     const row = {
       sport,
       source,
@@ -168,7 +204,7 @@ export function deriveOddsBoardHealth(metaMap = {}, sports = ["mlb", "cfb", "nfl
       provider,
       observedAt,
       updatedAt,
-      games: Number.isFinite(games) ? games : 0,
+      games: gamesN,
     };
     bySport[sport] = row;
     if (usable && row.games > 0) boardAvailable = true;

@@ -370,6 +370,32 @@ describe("retry temporal safety + classification", () => {
     assert.equal(h.boardAvailable, true);
     assert.equal(h.liveCollectionHealthy, true);
     assert.equal(h.boardSourceMode, MARKET_SOURCE_MODE.FALLBACK_PROVIDER);
+    assert.equal(h.bySport.mlb.usable, false);
+  });
+
+  it("deriveOddsBoardHealth heals poisoned NFL fallback attribution on read", () => {
+    // Exact production residue after #64 deploy: provider=sharpapi with games,
+    // but source/usable still reflect the Parlay quota rewrite.
+    const h = deriveOddsBoardHealth({
+      last_odds_nfl_source: "parlay-credit-exhausted",
+      last_odds_nfl_source_mode: MARKET_SOURCE_MODE.CACHED_PROVIDER,
+      last_odds_nfl_cached: "1",
+      last_odds_nfl_usable: "0",
+      last_odds_nfl_provider: "sharpapi",
+      last_odds_nfl_games: "74",
+      last_odds_nfl_observed_at: "2026-09-11T16:57:41.767Z",
+      last_odds_nfl_at: "2026-09-11T16:58:08.182Z",
+      last_odds_nfl_parlay_error: "OUT_OF_USAGE_CREDITS",
+    });
+    assert.equal(h.bySport.nfl.usable, true);
+    assert.equal(h.bySport.nfl.provider, "sharpapi");
+    assert.equal(h.bySport.nfl.source, "sharpapi-soft-backup");
+    assert.equal(h.bySport.nfl.games, 74);
+    assert.equal(h.bySport.nfl.cached, true);
+    assert.equal(h.boardAvailable, true);
+    // Cached healed board is available; live collection remains unhealthy.
+    assert.equal(h.liveCollectionHealthy, false);
+    assert.equal(h.boardSourceMode, MARKET_SOURCE_MODE.CACHED_PROVIDER);
   });
 
   it("normalizeProviderAttempts classifies quota/skip/success without secrets", () => {
