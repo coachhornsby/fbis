@@ -9,7 +9,7 @@
  * Secrets: APIFY_TOKEN only via env/secret storage. Never log or persist the token.
  */
 
-import { createHash } from "node:crypto";
+import { sha256Hex } from "./sha256Hex.js";
 import { namesMatch } from "./match.js";
 import { ODDS_PROVIDER_ORDER } from "./oddsProviderRouter.js";
 
@@ -208,7 +208,7 @@ export function createResearchBudget({ limitUsd = ACTION_APIFY_RESEARCH_BUDGET_U
 
 export function hashPayload(value) {
   const raw = typeof value === "string" ? value : JSON.stringify(value ?? null);
-  return createHash("sha256").update(raw).digest("hex");
+  return sha256Hex(raw);
 }
 
 export function normalizeBookKey(name) {

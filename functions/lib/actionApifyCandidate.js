@@ -6,7 +6,7 @@
  * canonicalization, schema-drift, cost breakdown, and idempotent keys.
  */
 
-import { createHash } from "node:crypto";
+import { sha256Hex } from "./sha256Hex.js";
 import {
   ACTION_APIFY_PRICING_USD,
   ACTION_APIFY_PROVIDER,
@@ -374,7 +374,7 @@ export function observationNaturalKey({
     sourceObservedAt || movementTimestamp ? "" : scrapedAt || "",
     payloadHash || "",
   ];
-  return createHash("sha256").update(parts.join("|")).digest("hex");
+  return sha256Hex(parts.join("|"));
 }
 
 /**
@@ -458,9 +458,9 @@ export function fingerprintSchema(payload, { previousFingerprint = null } = {}) 
     notes.push(`optional-keys:${unexpected.slice(0, 12).join(",")}`);
   }
 
-  const fingerprint = createHash("sha256")
-    .update(JSON.stringify({ topLevelKeys, missingCore, typeProblems, schema: ACTION_APIFY_SCHEMA_VERSION }))
-    .digest("hex");
+  const fingerprint = sha256Hex(
+    JSON.stringify({ topLevelKeys, missingCore, typeProblems, schema: ACTION_APIFY_SCHEMA_VERSION })
+  );
 
   return {
     schemaVersion: ACTION_APIFY_SCHEMA_VERSION,

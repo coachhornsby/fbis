@@ -6,7 +6,6 @@
  * Failures here must not poison incumbent production odds collection.
  */
 
-import { randomUUID } from "node:crypto";
 import {
   COLLECTION_PROFILES,
   LIFECYCLE_PHASES,
@@ -205,7 +204,7 @@ export async function ingestCandidateObservation(db, row, ctx) {
   if (db?.putObservationKey) {
     await db.putObservationKey({
       natural_key: naturalKey,
-      observation_id: row.actionGameId || randomUUID(),
+      observation_id: row.actionGameId || globalThis.crypto.randomUUID(),
       run_id: ctx.runId,
       provider: ACTION_APIFY_PROVIDER,
       action_game_id: row.actionGameId || row.gameId || null,
@@ -412,7 +411,7 @@ export async function persistCandidateRunArtifacts(db, artifact) {
 export async function runCandidateCollection(env, opts) {
   assertActionApifyNotInProductionRouter();
   const startedAt = new Date().toISOString();
-  const runId = `acr_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
+  const runId = `acr_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
   let plan;
   try {
     plan = planCandidateCollection(env, opts);
@@ -616,7 +615,7 @@ export async function runCandidateCollection(env, opts) {
         else observationsWritten += 1;
       } catch (err) {
         deadLetters.push({
-          id: `dl_${randomUUID().slice(0, 12)}`,
+          id: `dl_${globalThis.crypto.randomUUID().slice(0, 12)}`,
           runId,
           errorClass: "ingest_error",
           errorMessage: redactSecrets(err instanceof Error ? err.message : String(err), env.APIFY_TOKEN),
