@@ -108,25 +108,30 @@ jobs:
           printf '%s' "${HARVEST_SECRET}" | npx wrangler pages secret put HARVEST_SECRET --project-name fbis
           echo "Synced HARVEST_SECRET to Pages project fbis"
 
-      - name: Sync odds fallback secrets to Cloudflare Pages
+      - name: Sync Pages secrets from GitHub Actions
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           SHARPAPI_API_KEY_SECRET: ${{ secrets.SHARPAPI_API_KEY }}
           THERUNDOWN_API_KEY_SECRET: ${{ secrets.THERUNDOWN_API_KEY }}
           THEODDS_API_KEY_SECRET: ${{ secrets.THEODDS_API_KEY }}
+          APIFY_TOKEN_SECRET: ${{ secrets.APIFY_TOKEN }}
+          ACTION_APIFY_ENABLED_SECRET: ${{ secrets.ACTION_APIFY_ENABLED }}
+          ACTION_APIFY_PLAN_SECRET: ${{ secrets.ACTION_APIFY_PLAN }}
+          ACTION_APIFY_MONTHLY_BUDGET_USD_SECRET: ${{ secrets.ACTION_APIFY_MONTHLY_BUDGET_USD }}
         run: |
           set -euo pipefail
-          # Provider pool fallbacks from GitHub Actions secrets only (never workflow YAML).
-          # SharpAPI / TheRundown are intentional production fallbacks once newly rotated
-          # keys are installed. Empty GitHub secrets must NEVER overwrite Cloudflare secrets.
-          # Deploy succeeds with all three absent (safe degrade; Parlay primary unchanged).
+          # Secrets from GitHub Actions only (never workflow YAML / logs).
+          # Odds: SharpAPI / TheRundown intentional fallbacks once rotated keys installed.
+          # Action/Apify: shadow candidate only — never ODDS_PROVIDER_ORDER authority.
+          # Empty GitHub secrets must NEVER overwrite Cloudflare secrets.
           SHARPAPI_API_KEY="${SHARPAPI_API_KEY_SECRET:-}"
           THERUNDOWN_API_KEY="${THERUNDOWN_API_KEY_SECRET:-}"
           THEODDS_API_KEY="${THEODDS_API_KEY_SECRET:-}"
-          if [ -z "${SHARPAPI_API_KEY}" ] && [ -z "${THERUNDOWN_API_KEY}" ] && [ -z "${THEODDS_API_KEY}" ]; then
-            echo "No odds fallback secrets in GitHub Actions; skipping Pages odds secret sync (safe degrade)."
-          fi
+          APIFY_TOKEN="${APIFY_TOKEN_SECRET:-}"
+          ACTION_APIFY_ENABLED="${ACTION_APIFY_ENABLED_SECRET:-}"
+          ACTION_APIFY_PLAN="${ACTION_APIFY_PLAN_SECRET:-}"
+          ACTION_APIFY_MONTHLY_BUDGET_USD="${ACTION_APIFY_MONTHLY_BUDGET_USD_SECRET:-}"
           put_secret() {
             local name="$1"
             local value="$2"
@@ -140,6 +145,10 @@ jobs:
           put_secret SHARPAPI_API_KEY "${SHARPAPI_API_KEY}"
           put_secret THERUNDOWN_API_KEY "${THERUNDOWN_API_KEY}"
           put_secret THEODDS_API_KEY "${THEODDS_API_KEY}"
+          put_secret APIFY_TOKEN "${APIFY_TOKEN}"
+          put_secret ACTION_APIFY_ENABLED "${ACTION_APIFY_ENABLED}"
+          put_secret ACTION_APIFY_PLAN "${ACTION_APIFY_PLAN}"
+          put_secret ACTION_APIFY_MONTHLY_BUDGET_USD "${ACTION_APIFY_MONTHLY_BUDGET_USD}"
 
       - name: Deploy canonical Pages
         env:
