@@ -203,7 +203,9 @@ describe("odds provider router", () => {
   });
 
   it("preserves source attribution and market timestamp on provider switch", async () => {
-    const asOf = "2026-09-11T17:58:00Z";
+    // Relative asOf — a hardcoded wall-clock stamp ages out of the 15m freshness
+    // window and flakes CI unrelated to router behavior.
+    const asOf = new Date().toISOString();
     const resolution = await resolveOddsProviders({
       configured: { parlay: true, theodds: true, sharpapi: false, therundown: false },
       fetchers: {
