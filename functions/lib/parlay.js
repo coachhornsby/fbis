@@ -863,27 +863,31 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   });
 
   if (!canQualifyFromOddsResolution(pool)) {
-    return {
-      events: [],
-      meta: {
-        enabled: true,
-        error: parlayError || backupError || pool.reason || "no-valid-market-data",
-        remaining: pinCredits.remaining,
-        used: pinCredits.used,
-        cached: false,
-        sportKey,
-        sharp: SHARP_BOOK,
-        execution: EXECUTION_BOOK,
-        source: null,
-        failClosed: true,
-        providerAttempts: pool.attempts,
-        providerStatuses: pool.statuses,
-      },
-    };
+    // Non-MLB: fail closed — no fabricated game lines.
+    // MLB may still attach cached F5/props stubs without inventing pin* markets.
+    if (!baseball) {
+      return {
+        events: [],
+        meta: {
+          enabled: true,
+          error: parlayError || backupError || pool.reason || "no-valid-market-data",
+          remaining: pinCredits.remaining,
+          used: pinCredits.used,
+          cached: false,
+          sportKey,
+          sharp: SHARP_BOOK,
+          execution: EXECUTION_BOOK,
+          source: null,
+          failClosed: true,
+          providerAttempts: pool.attempts,
+          providerStatuses: pool.statuses,
+        },
+      };
+    }
   }
 
-  let source =
-    pool.provider === "parlay"
+  let source = canQualifyFromOddsResolution(pool)
+    ? pool.provider === "parlay"
       ? "parlay"
       : pool.provider === "theodds"
         ? "theodds-backup"
@@ -891,10 +895,15 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
           ? "therundown-soft-backup"
           : pool.provider === "sharpapi"
             ? "sharpapi-soft-backup"
-            : pool.provider;
+            : pool.provider
+    : isParlayCreditError(parlayError)
+      ? opts.backupApiKey
+        ? "parlay-credit-exhausted-backup-failed"
+        : "parlay-credit-exhausted"
+      : "parlay";
   const pin = {
-    events: pool.events,
-    error: null,
+    events: pool.ok ? pool.events : [],
+    error: pool.ok ? null : parlayError,
     credits: pinCredits,
   };
 
