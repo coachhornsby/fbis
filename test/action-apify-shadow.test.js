@@ -15,6 +15,9 @@ import {
   apifyTokenConfigured,
   assertActionApifyNotInProductionRouter,
   buildActorInput,
+  normalizeActorGameStatus,
+  normalizeActorPeriod,
+  canonicalizeShadowPeriod,
   buildResearchFields,
   clampMaxItems,
   compareShadowToProvider,
@@ -62,6 +65,18 @@ test("free-plan maxItems hard-clamps to 10", () => {
   assert.equal(input.includeFutures, false);
 });
 
+test("Actor input enums alias final→complete and firstfive→firstfiveinnings", () => {
+  assert.equal(normalizeActorGameStatus("final"), "complete");
+  assert.equal(normalizeActorGameStatus("complete"), "complete");
+  assert.equal(normalizeActorPeriod("firstfive"), "firstfiveinnings");
+  assert.equal(normalizeActorPeriod("firstfiveinnings"), "firstfiveinnings");
+  assert.equal(canonicalizeShadowPeriod("firstfiveinnings"), "firstfive");
+  const c = buildActorInput({ leagues: ["ncaaf"], gameStatus: "final", maxItems: 10 });
+  assert.equal(c.gameStatus, "complete");
+  const e = buildActorInput({ leagues: ["mlb"], periods: ["firstfive"], maxItems: 10 });
+  assert.deepEqual(e.periods, ["firstfiveinnings"]);
+});
+
 test("cost accounting estimates Actor PPE pricing and enforces $1 research budget", () => {
   const input = buildActorInput({ leagues: ["ncaaf"], periods: ["event"], maxItems: 10, includeLineMovement: false });
   const est = estimateActorCostUsd(input, { gamesReturned: 10 });
@@ -95,6 +110,7 @@ test("scheduled games keep null results (never invent 0-0)", async () => {
   assert.equal(row.consensus.spreadHome, -3.5);
   assert.equal(row.publicBetting.spreadHome.moneyMinusTickets, 19);
   assert.equal(row.books.length, 2);
+  assert.equal(row.lineMovement.openSpreadHome, -2.5);
   assert.equal(row.lineMovement.history.length, 2);
   assert.equal(row.lineMovement.history[0].observedAt, "2025-09-12T18:00:00.000Z");
   assert.equal(row.playerProps.length, 1);

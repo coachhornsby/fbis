@@ -8,12 +8,23 @@
 
 It never grants `canQualify` / `canAuthorizeWager`, and it never feeds CFB-FBIS-v2 projection features.
 
+Live matrix **A–F complete** under the **$1** research budget (~**$0.79** estimated Actor PPE). Keep Action/Apify as shadow intelligence; do **not** promote into the production router.
+
 ## Actor
 
 - Apify Actor: `parseforge/action-network-scraper`
 - Provider id: `ACTION_APIFY`
 - Source class: `SHADOW_MARKET_INTELLIGENCE`
 - Schema version: `action-apify-shadow-v1`
+
+### Valid Actor input enums (required)
+
+| Field | Allowed values |
+| --- | --- |
+| `gameStatus` | `any`, `scheduled`, `live`, `complete`, `notStarted` (**not** `final`) |
+| `periods` | `event`, `firsthalf`, `secondhalf`, `firstquarter`, `firstfiveinnings` (**not** `firstfive`) |
+
+`buildActorInput` aliases `final`→`complete` and `firstfive`→`firstfiveinnings`. Shadow rows canonicalize F5 period to `firstfive`.
 
 ## Architecture
 
@@ -27,7 +38,7 @@ Parlay → TheOdds → SharpAPI          Action Network via Apify
 ```
 
 Implementation: `functions/lib/actionApifyShadow.js`  
-Storage: `migrations/0020_action_apify_shadow.sql`  
+Storage: `migrations/0020_action_apify_shadow.sql` (+ `schema.extensions.sql`)  
 Offline tests: `test/action-apify-shadow.test.js`  
 Manual eval: `scripts/action-apify-shadow-eval.mjs`
 
@@ -37,6 +48,7 @@ Manual eval: `scripts/action-apify-shadow-eval.mjs`
 - Never commit, log, print, or store the token in D1 / artifacts / client JS
 - Live runner redacts token material from error details
 - CI uses fixtures only — no Apify credit burn in `npm test`
+- **Rotate any token that was pasted into chat**; install the replacement only via secret store
 
 ## Free-plan constraints
 
@@ -75,6 +87,8 @@ Critical temporal rule:
 - Never manufacture a historical `observedAt` from `scrapedAt`
 - Never treat closing lines as projection features
 
+Line movement: Actor summary lives on `lineMovement`; tick history lives on `lineMovementHistory` (nested `history[]` with `updatedAt`). The normalizer merges both.
+
 ## Event matching
 
 Deterministic matcher: league + both teams + kickoff tolerance.  
@@ -87,18 +101,53 @@ Disagreement is **not** auto-labeled as error because observation times may diff
 
 Metrics include game match rate, exact spread/total agreement, ML abs price diff, missing-on-Action / missing-on-provider counts.
 
-## Live test matrix (manual, budget-capped)
+## Live test matrix results
 
-| ID | Goal | Caps | Optional blocks |
+| ID | Goal | Caps | Result | Run | Games | Est. USD | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A | Current CFB base | ≤10 | OK | `q6zpWRS6KgFHw1DAb` | 10 | 0.134 | Consensus + ~7 books + splits; finals include scores/closing/ATS |
+| B | Current CFB + movement | ≤5 | OK | `qxARQgkXtwCuLJYJl` | 5 | 0.129 | `lineMovementHistory` present (nested ticks + Actor timestamps) |
+| C | Historical CFB | ≤10 `gameStatus=complete` | OK | `kBdXkurDQCHeYzYAh` | 10 | 0.134 | 10/10 finals with scores + closing lines; `final` enum rejected (400) |
+| D | Current MLB full game | ≤10 `periods=event` | OK | `iaRwIabkYynncx46Y` | 10 | 0.134 | Scheduled slate; consensus + splits + multi-book |
+| E | MLB first five | ≤10 `periods=firstfiveinnings` | OK | `kq1E7QfUIjmlAO8uN` | 10 | 0.134 | Period canonicalized to `firstfive`; `firstfive` enum rejected (400) |
+| F | MLB player props | ≤4 | OK | `o1RIwhI9uYjcvU1gD` | 4 | 0.124 | Dense props (hundreds/game when enabled) |
+
+**Total estimated PPE: ~$0.79** (under $1 hard stop).  
+All normalized rows: `canQualify=false`, `decisionEligible=false`.
+
+## Capability comparison (FBIS production vs Action/Apify shadow)
+
+| Capability | FBIS production path | Action/Apify shadow | Verdict |
 | --- | --- | --- | --- |
-| A | Current CFB base | ≤10 | none |
-| B | Current CFB + movement | ≤5 | line movement |
-| C | Historical CFB | ≤10 completed | none |
-| D | Current MLB full game | ≤10 | none |
-| E | MLB first five | ≤10 | period=firstfive |
-| F | MLB player props | ≤3–5 | player props |
+| Authoritative odds for board/execution | Parlay → TheOdds → SharpAPI → TheRundown | Not wired | Keep production router |
+| Multi-book consensus | Provider-dependent | Strong (Consensus + Opening + DK/FD/etc.) | Shadow value-add |
+| Public betting splits / money-ticket gaps | Limited / not primary | Strong on live samples | Shadow intelligence |
+| Line movement with source timestamps | Limited | Strong when `includeLineMovement` (history ticks) | Shadow intelligence |
+| MLB F5 markets | Native strategy support | Available via `firstfiveinnings` | Shadow cross-check |
+| Player props | Not primary board path | Very dense when enabled (costly) | Research-only |
+| Historical finals / closing / ATS | Settlement / CFBD paths | Usable with `gameStatus=complete` | Shadow / research |
+| Free-plan scale | N/A | Max 10 games/run | Not a production odds backbone |
+| Latency / reliability for live board | Existing fallbacks | Scrape Actor; PPE cost; free caps | Keep out of router |
 
-Stop when estimated cumulative spend approaches **$1**.
+## Provider recommendations
+
+| Provider | Recommendation | Why |
+| --- | --- | --- |
+| Parlay | **KEEP** (primary) | Authoritative when credits available; restore after monthly reset |
+| TheOdds | **KEEP** (install key) | Configured=false in production — owner must install rotated key |
+| SharpAPI | **KEEP** | Proven live fallback during Parlay exhaustion |
+| TheRundown | **KEEP** | Last soft backup before fail-closed |
+| Action/Apify (`ACTION_APIFY`) | **SHADOW** | Excellent splits, multi-book, F5, props, closing/ATS research — **not** production odds |
+| Replace production with Action/Apify | **NO** | Free-plan 10-game cap, scrape economics, not fail-closed institutional feed |
+| $19 Apify Starter | **DEFER** | Not justified solely to replace odds; reconsider only if shadow CLV/splits research needs higher caps |
+
+### Exact blockers to production promotion
+
+1. Free plan hard-caps at 10 games — insufficient for full CFB/MLB boards  
+2. Not in fail-closed institutional odds path; scrape Actor ≠ contracted odds API  
+3. Observation time discipline: never invent `observedAt` from scrape time  
+4. CFB-FBIS-v2 must stay isolated (`canQualify` / `canAuthorize` remain false)  
+5. Token hygiene: chat-pasted tokens must be rotated before any shared/prod secret install  
 
 ## Running offline
 
@@ -114,9 +163,10 @@ node --test test/action-apify-shadow.test.js
 # APIFY_TOKEN must already be installed in the environment — do not paste into chat/logs.
 node scripts/action-apify-shadow-eval.mjs --matrix A
 node scripts/action-apify-shadow-eval.mjs --matrix A,B,D --budget 1.0
+node scripts/action-apify-shadow-eval.mjs --matrix C,E --budget 0.45
 ```
 
-Writes a redacted summary under `artifacts/action-apify-shadow/` (no token).
+Writes a redacted summary under `artifacts/action-apify-shadow/` (no token; directory is gitignored).
 
 ## Model / qualification safeguards
 
@@ -125,14 +175,11 @@ Writes a redacted summary under `artifacts/action-apify-shadow/` (no token).
 - `canAuthorizeWager=false`
 - No Action splits / CLV / sharpSide wired into independent projections
 
-## Recommendation workflow
-
-After live matrix cells complete, fill:
-
-1. Capability comparison table (existing FBIS vs Action/Apify)
-2. Provider-by-provider KEEP / SHADOW / REPLACE CANDIDATE / REMOVE LATER
-3. Whether $19 Apify Starter is justified
-4. Exact blockers
-
-Do **not** cancel Parlay / TheOdds / SharpAPI / TheRundown in this phase.
+Do **not** cancel Parlay / TheOdds / SharpAPI / TheRundown in this phase.  
 Do **not** promote Action/Apify into the authoritative router.
+
+## Out of scope (not in this PR)
+
+PR #63 intentionally contains **no** production odds-router / Parlay / market-lineage behavior changes.
+
+A residual post-#62 cache-label issue may still exist when a successful SharpAPI (or other backup) cache entry retains `parlayError` and the Parlay cache-read path rewrites `source` back to `parlay-credit-exhausted` while `provider` stays `sharpapi`. PR #62 covers successful fallbacks whose `source` remains a backup label (`sharpapi-soft-backup` + `FALLBACK_PROVIDER`); it does **not** cover that rewrite-poisoned cache-read case. Track that as a **separate narrow follow-up** — do not fold production-path edits into this shadow PR.

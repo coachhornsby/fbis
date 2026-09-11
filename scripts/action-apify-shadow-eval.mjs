@@ -51,7 +51,8 @@ const MATRIX = {
       leagues: ["ncaaf"],
       maxItems: 10,
       season: 2025,
-      gameStatus: "final",
+      // Actor enum is "complete" (not "final"); buildActorInput also aliases final→complete.
+      gameStatus: "complete",
       includeLineMovement: false,
     },
   },
@@ -63,7 +64,8 @@ const MATRIX = {
   E: {
     id: "E",
     title: "MLB first five",
-    opts: { leagues: ["mlb"], maxItems: 10, periods: ["firstfive"] },
+    // Actor enum is "firstfiveinnings"; buildActorInput aliases firstfive→firstfiveinnings.
+    opts: { leagues: ["mlb"], maxItems: 10, periods: ["firstfiveinnings"] },
   },
   F: {
     id: "F",

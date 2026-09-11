@@ -74,11 +74,54 @@ export function clampMaxItems(maxItems, { freePlan = true } = {}) {
   return Math.min(requested, ACTION_APIFY_FREE_MAX_ITEMS);
 }
 
+/** Actor input enums (parseforge/action-network-scraper). */
+const ACTOR_GAME_STATUS = new Set(["any", "scheduled", "live", "complete", "notStarted"]);
+const ACTOR_PERIODS = new Set(["event", "firsthalf", "secondhalf", "firstquarter", "firstfiveinnings"]);
+
+/** Map shorthand / legacy labels onto valid Actor enums. */
+export function normalizeActorGameStatus(status) {
+  if (status == null || status === "") return null;
+  const s = String(status).trim();
+  const key = s.toLowerCase();
+  if (ACTOR_GAME_STATUS.has(s)) return s;
+  if (key === "final" || key === "completed" || key === "finished") return "complete";
+  if (key === "notstarted" || key === "not_started" || key === "pre") return "notStarted";
+  if (ACTOR_GAME_STATUS.has(key)) return key === "notstarted" ? "notStarted" : key;
+  return s;
+}
+
+export function normalizeActorPeriod(period) {
+  if (period == null || period === "") return "event";
+  const p = String(period).trim();
+  const key = p.toLowerCase().replace(/[_\s-]+/g, "");
+  if (ACTOR_PERIODS.has(p)) return p;
+  if (key === "firstfive" || key === "f5" || key === "first5" || key === "firstfiveinnings") {
+    return "firstfiveinnings";
+  }
+  if (key === "1h" || key === "firsthalf") return "firsthalf";
+  if (key === "2h" || key === "secondhalf") return "secondhalf";
+  if (key === "1q" || key === "firstquarter") return "firstquarter";
+  if (key === "fg" || key === "fullgame" || key === "full" || key === "event") return "event";
+  return p;
+}
+
+/** Canonical period label for shadow rows (internal, not Actor enum). */
+export function canonicalizeShadowPeriod(period) {
+  const p = String(period || "event").toLowerCase().replace(/[_\s-]+/g, "");
+  if (p === "firstfive" || p === "f5" || p === "first5" || p === "firstfiveinnings") return "firstfive";
+  if (p === "firsthalf" || p === "1h") return "firsthalf";
+  if (p === "secondhalf" || p === "2h") return "secondhalf";
+  if (p === "firstquarter" || p === "1q") return "firstquarter";
+  return String(period || "event");
+}
+
 export function buildActorInput(opts = {}) {
   const freePlan = opts.freePlan !== false;
   const maxItems = clampMaxItems(opts.maxItems ?? opts.maxGames ?? ACTION_APIFY_FREE_MAX_ITEMS, { freePlan });
   const leagues = Array.isArray(opts.leagues) && opts.leagues.length ? opts.leagues.map(String) : ["ncaaf"];
-  const periods = Array.isArray(opts.periods) && opts.periods.length ? opts.periods.map(String) : ["event"];
+  const periods = Array.isArray(opts.periods) && opts.periods.length
+    ? opts.periods.map(normalizeActorPeriod)
+    : ["event"];
   const books = Array.isArray(opts.books) && opts.books.length
     ? opts.books.map(normalizeBookKey).filter(Boolean)
     : ["draftkings", "fanduel", "betmgm", "caesars", "bet365"];
@@ -101,7 +144,7 @@ export function buildActorInput(opts = {}) {
   if (opts.week != null) input.week = Number(opts.week);
   if (opts.season != null) input.season = Number(opts.season);
   if (opts.seasonType) input.seasonType = String(opts.seasonType);
-  if (opts.gameStatus) input.gameStatus = String(opts.gameStatus);
+  if (opts.gameStatus) input.gameStatus = normalizeActorGameStatus(opts.gameStatus);
   if (opts.onlyWithOdds) input.onlyWithOdds = true;
   return input;
 }
@@ -298,36 +341,65 @@ function normalizeBooks(books) {
     .filter(Boolean);
 }
 
-function normalizeLineMovement(lm) {
-  if (!lm || typeof lm !== "object") return null;
-  const history = Array.isArray(lm.history)
-    ? lm.history
-        .map((h) => ({
-          book: normalizeBookKey(h.book || h.bookName),
-          market: strOrNull(h.market || h.marketType),
-          line: numOrNull(h.line ?? h.value ?? h.spread ?? h.total),
-          odds: numOrNull(h.odds ?? h.price),
-          // scrapedAt is collection time elsewhere; keep Actor-supplied move times only.
-          observedAt: strOrNull(h.timestamp || h.observedAt || h.ts),
-          side: strOrNull(h.side),
-        }))
-        .filter((h) => h.observedAt || h.line != null || h.odds != null)
-    : [];
+function normalizeLineMovement(lm, historySource = null) {
+  const summary = lm && typeof lm === "object" && !Array.isArray(lm) ? lm : null;
+  const rawHistory = Array.isArray(historySource)
+    ? historySource
+    : Array.isArray(summary?.history)
+      ? summary.history
+      : Array.isArray(lm)
+        ? lm
+        : [];
+
+  const history = [];
+  for (const h of rawHistory) {
+    if (!h || typeof h !== "object") continue;
+    // Actor PPE shape: lineMovementHistory[] with nested history[] ticks.
+    if (Array.isArray(h.history) && h.history.length) {
+      for (const tick of h.history) {
+        if (!tick || typeof tick !== "object") continue;
+        history.push({
+          book: normalizeBookKey(h.book || h.bookName || tick.book),
+          market: strOrNull(h.betType || h.market || h.marketType || tick.market),
+          line: numOrNull(tick.value ?? tick.line ?? tick.spread ?? tick.total ?? h.currentValue),
+          odds: numOrNull(tick.odds ?? tick.price ?? h.currentOdds),
+          observedAt: strOrNull(tick.updatedAt || tick.timestamp || tick.observedAt || tick.ts || h.lastMovedAt),
+          side: strOrNull(h.side || tick.side),
+          period: strOrNull(h.period || tick.period),
+          openedAt: strOrNull(h.openedAt),
+        });
+      }
+      continue;
+    }
+    history.push({
+      book: normalizeBookKey(h.book || h.bookName),
+      market: strOrNull(h.market || h.marketType || h.betType),
+      line: numOrNull(h.line ?? h.value ?? h.spread ?? h.total ?? h.currentValue),
+      odds: numOrNull(h.odds ?? h.price ?? h.currentOdds),
+      // scrapedAt is collection time elsewhere; keep Actor-supplied move times only.
+      observedAt: strOrNull(h.timestamp || h.observedAt || h.updatedAt || h.ts || h.lastMovedAt),
+      side: strOrNull(h.side),
+      period: strOrNull(h.period),
+      openedAt: strOrNull(h.openedAt),
+    });
+  }
+  const filtered = history.filter((h) => h.observedAt || h.line != null || h.odds != null);
+  if (!summary && !filtered.length) return null;
   return {
-    openSpreadHome: numOrNull(lm.openSpreadHome ?? lm.openingSpreadHome),
-    openTotal: numOrNull(lm.openTotal ?? lm.openingTotal),
-    openMoneylineHome: numOrNull(lm.openMoneylineHome ?? lm.openingMoneylineHome),
-    openMoneylineAway: numOrNull(lm.openMoneylineAway),
-    currentSpreadHome: numOrNull(lm.currentSpreadHome ?? lm.spreadHome),
-    currentTotal: numOrNull(lm.currentTotal ?? lm.total),
-    currentMoneylineHome: numOrNull(lm.currentMoneylineHome),
-    currentMoneylineAway: numOrNull(lm.currentMoneylineAway),
-    spreadMove: numOrNull(lm.spreadMove),
-    totalMove: numOrNull(lm.totalMove),
-    moneylineHomeMove: numOrNull(lm.moneylineHomeMove),
-    spreadDirection: strOrNull(lm.spreadDirection),
-    totalDirection: strOrNull(lm.totalDirection),
-    history,
+    openSpreadHome: numOrNull(summary?.openSpreadHome ?? summary?.openingSpreadHome),
+    openTotal: numOrNull(summary?.openTotal ?? summary?.openingTotal),
+    openMoneylineHome: numOrNull(summary?.openMoneylineHome ?? summary?.openingMoneylineHome),
+    openMoneylineAway: numOrNull(summary?.openMoneylineAway),
+    currentSpreadHome: numOrNull(summary?.currentSpreadHome ?? summary?.spreadHome),
+    currentTotal: numOrNull(summary?.currentTotal ?? summary?.total),
+    currentMoneylineHome: numOrNull(summary?.currentMoneylineHome),
+    currentMoneylineAway: numOrNull(summary?.currentMoneylineAway),
+    spreadMove: numOrNull(summary?.spreadMove),
+    totalMove: numOrNull(summary?.totalMove),
+    moneylineHomeMove: numOrNull(summary?.moneylineHomeMove),
+    spreadDirection: strOrNull(summary?.spreadDirection),
+    totalDirection: strOrNull(summary?.totalDirection),
+    history: filtered,
   };
 }
 
@@ -382,7 +454,7 @@ export function normalizeActionGameRow(raw, ctx = {}) {
 
     const publicBetting = normalizePublicBetting(raw.publicBetting);
     const books = normalizeBooks(raw.books);
-    const lineMovement = normalizeLineMovement(raw.lineMovement);
+    const lineMovement = normalizeLineMovement(raw.lineMovement, raw.lineMovementHistory);
     const result = normalizeResult(raw);
     const playerProps = normalizePlayerProps(raw.playerProps || raw.props);
 
@@ -415,7 +487,7 @@ export function normalizeActionGameRow(raw, ctx = {}) {
       startTime: strOrNull(raw.startTime),
       status: strOrNull(raw.status || raw.gameStatus),
       isLive: Boolean(raw.isLive),
-      period: strOrNull(raw.period || "event"),
+      period: canonicalizeShadowPeriod(raw.period || "event"),
       periodLabel: strOrNull(raw.periodLabel),
       scrapedAt,
       receivedAt,

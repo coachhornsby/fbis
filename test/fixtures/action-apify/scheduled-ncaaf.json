@@ -89,6 +89,22 @@
       }
     ]
   },
+  "lineMovementHistory": [
+    {
+      "book": "DraftKings",
+      "period": "event",
+      "betType": "spread",
+      "side": "home",
+      "currentOdds": -110,
+      "currentValue": -3.5,
+      "openedAt": "2025-09-12T12:00:00.000Z",
+      "lastMovedAt": "2025-09-13T12:00:00.000Z",
+      "history": [
+        { "odds": -110, "value": -3.0, "updatedAt": "2025-09-12T18:00:00.000Z" },
+        { "odds": -110, "value": -3.5, "updatedAt": "2025-09-13T12:00:00.000Z" }
+      ]
+    }
+  ],
   "books": [
     {
       "bookId": 15,
