@@ -1,0 +1,68 @@
+{
+  "gameId": 290288,
+  "url": "https://www.actionnetwork.com/mlb/red-sox-vs-yankees-odds/290288",
+  "league": "mlb",
+  "season": 2025,
+  "seasonType": "reg",
+  "week": null,
+  "status": "final",
+  "isFinal": true,
+  "isLive": false,
+  "startTime": "2025-09-10T23:05:00.000Z",
+  "homeTeam": { "id": 1, "name": "New York Yankees", "abbreviation": "NYY" },
+  "awayTeam": { "id": 2, "name": "Boston Red Sox", "abbreviation": "BOS" },
+  "period": "event",
+  "periodLabel": "Full game",
+  "consensusSpreadHome": -1.5,
+  "consensusSpreadHomeOdds": -120,
+  "consensusSpreadAway": 1.5,
+  "consensusSpreadAwayOdds": 100,
+  "consensusMoneylineHome": -155,
+  "consensusMoneylineAway": 135,
+  "consensusTotal": 8.5,
+  "consensusOverOdds": -110,
+  "consensusUnderOdds": -110,
+  "bookCount": 1,
+  "publicBetting": {
+    "spreadHome": { "ticketsPercent": 55, "moneyPercent": 48, "moneyMinusTickets": -7 },
+    "spreadAway": { "ticketsPercent": 45, "moneyPercent": 52, "moneyMinusTickets": 7 },
+    "maxMoneyTicketGap": 7,
+    "sharpSide": "spreadAway",
+    "betCount": 920
+  },
+  "lineMovement": {
+    "openSpreadHome": -1.5,
+    "openTotal": 9.0,
+    "currentSpreadHome": -1.5,
+    "currentTotal": 8.5,
+    "spreadMove": 0,
+    "totalMove": -0.5,
+    "spreadDirection": "flat",
+    "totalDirection": "down",
+    "history": []
+  },
+  "books": [
+    {
+      "book": "DraftKings",
+      "spreadHome": -1.5,
+      "spreadHomeOdds": -120,
+      "moneylineHome": -155,
+      "moneylineAway": 135,
+      "total": 8.5,
+      "overOdds": -110,
+      "underOdds": -110
+    }
+  ],
+  "homeScore": 5,
+  "awayScore": 3,
+  "result": {
+    "homeScore": 5,
+    "awayScore": 3,
+    "closingSpreadHome": -1.5,
+    "closingTotal": 8.5,
+    "atsResult": "home",
+    "ouResult": "under"
+  },
+  "boxscore": { "homeScore": 5, "awayScore": 3 },
+  "scrapedAt": "2025-09-11T04:30:00.000Z"
+}

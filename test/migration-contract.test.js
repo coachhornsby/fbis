@@ -11,6 +11,7 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   const m17 = await readFile(new URL("../migrations/0017_cfbd_endpoint_audit.sql", import.meta.url), "utf8");
   const m18 = await readFile(new URL("../migrations/0018_cfbd_audit_tables_ensure.sql", import.meta.url), "utf8");
   const m19 = await readFile(new URL("../migrations/0019_cfb_player_projections.sql", import.meta.url), "utf8");
+  const m20 = await readFile(new URL("../migrations/0020_action_apify_shadow.sql", import.meta.url), "utf8");
   const health = await readFile(new URL("../functions/api/health.js", import.meta.url), "utf8");
   assert.match(m17, /schema_migrations[\s\S]*0017_cfbd_endpoint_audit/i);
   assert.match(m18, /schema_migrations[\s\S]*0018_cfbd_audit_tables_ensure/i);
@@ -18,7 +19,14 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(m19, /cfb_player_role_snapshots/);
   assert.match(m19, /cfb_player_projections/);
   assert.match(m19, /cfb_prop_market_lines/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0019_cfb_player_projections["']/);
+  assert.match(m20, /schema_migrations[\s\S]*0020_action_apify_shadow/i);
+  assert.match(m20, /shadow_provider_runs/);
+  assert.match(m20, /shadow_market_observations/);
+  assert.match(m20, /shadow_market_books/);
+  assert.match(m20, /shadow_market_splits/);
+  assert.match(m20, /shadow_line_movement/);
+  assert.match(m20, /shadow_provider_comparisons/);
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0020_action_apify_shadow["']/);
   assert.match(health, /WHERE id = \?/);
 });
 
