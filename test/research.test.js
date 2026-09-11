@@ -364,15 +364,15 @@ describe("high-conviction strategy", () => {
     assert.equal(SPORTS.mlb.minEv, 0.03);
   });
 
-  it("persists the operator-corrected 7 CONVICTION names", () => {
+  it("persists synthetic public seed fixtures (production seeds are D1)", () => {
     const names = [
-      "Tampa Bay ML",
-      "Col/Wash over 9.5",
-      "Hou/NYY over 9",
-      "MIL/NYM over 8.5",
-      "LAD/ATL over 8.5",
-      "BAL/STL over 8.5",
-      "OAK +1.5",
+      "Away ML",
+      "Game A over 9.5",
+      "Game B over 9",
+      "Game C over 8.5",
+      "Game D over 8.5",
+      "Game E over 8.5",
+      "Home +1.5",
     ];
     assert.equal(STRATEGY_HC_V1_SEED_TICKETS.length, 7);
     assert.equal(STRATEGY_HC_V1_SEED_SPEC.length, 7);

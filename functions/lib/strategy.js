@@ -5,9 +5,9 @@
  * FBIS-HC-v1 is a strategy cohort (conjunction), not a model version:
  * a qualified +EV ticket with EV >= 8% (tag CONVICTION). Leans are excluded.
  *
- * The 2026-08-26 seed names are operator-declared identity, not a recovered journal.
+ * Synthetic seed fixtures preserve cohort shape for offline tests only.
+ * Production seed identity and graded tickets live in Cloudflare D1 (not this repository).
  * EV / prices / qualification timestamps stay null until the browser journal is imported.
- * The seed sample was MLB-heavy overs — that is an observation, not a qualification gate.
  */
 
 import { tagFromEv, americanProfit, probabilityClv } from "./pricing.js";
@@ -39,7 +39,7 @@ export const STRATEGY_HC_V1 = {
   version: 1,
   seedRevision: 1,
   seedDate: "2026-08-26",
-  reportedRecord: "7-0",
+  reportedRecord: "7-0", // offline fixture graded record; production uses D1
   reconstructionConfidence: "operator-declared",
   rules: {
     qualified: true,
@@ -49,17 +49,17 @@ export const STRATEGY_HC_V1 = {
     marketComplete: true,
   },
   seedObservation:
-    "The 2026-08-26 seed sample was MLB-heavy overs (5/7 totals at 8.5–9.5, 1 ML, 1 +1.5 RL). That is an observation, not a gate. Prospective tracking remains qualified CONVICTION / EV ≥ 8%.",
+    "Synthetic offline seed preserves the historical market mix (5 totals / 1 ML / 1 spread) as an observation for tests. Real operator positions are D1-only. Prospective tracking remains qualified CONVICTION / EV ≥ 8%.",
   notes:
     "Conjunction: qualified ticket AND EV ≥ 8% (CONVICTION). Not a lean. Complete two-way Pinnacle market. Champion weights stay frozen. N=7 is a sample, not proof the filter works. FBIS-HC-v1 is a strategy cohort, not a model version.",
 };
 
-/** Operator-named 2026-08-26 CONVICTION positions. Matchups from MLB Stats finals. */
+/** Synthetic 2026-08-26 CONVICTION fixtures for offline tests (no real clubs / operator slips). */
 export const STRATEGY_HC_V1_SEED_SPEC = [
   {
-    pick: "Tampa Bay ML",
-    gameId: "824234",
-    matchup: "TB @ DET",
+    pick: "Away ML",
+    gameId: "900001",
+    matchup: "AWY @ HOM",
     market: "ML",
     side: "AWAY",
     line: null,
@@ -67,9 +67,9 @@ export const STRATEGY_HC_V1_SEED_SPEC = [
     actualAway: 3,
   },
   {
-    pick: "Col/Wash over 9.5",
-    gameId: "822692",
-    matchup: "COL @ WSH",
+    pick: "Game A over 9.5",
+    gameId: "900002",
+    matchup: "AAA @ BBB",
     market: "TOTAL",
     side: "OVER",
     line: 9.5,
@@ -77,9 +77,9 @@ export const STRATEGY_HC_V1_SEED_SPEC = [
     actualAway: 13,
   },
   {
-    pick: "Hou/NYY over 9",
-    gameId: "823506",
-    matchup: "HOU @ NYY",
+    pick: "Game B over 9",
+    gameId: "900003",
+    matchup: "CCC @ DDD",
     market: "TOTAL",
     side: "OVER",
     line: 9,
@@ -87,9 +87,9 @@ export const STRATEGY_HC_V1_SEED_SPEC = [
     actualAway: 3,
   },
   {
-    pick: "MIL/NYM over 8.5",
-    gameId: "823584",
-    matchup: "MIL @ NYM",
+    pick: "Game C over 8.5",
+    gameId: "900004",
+    matchup: "EEE @ FFF",
     market: "TOTAL",
     side: "OVER",
     line: 8.5,
@@ -97,9 +97,9 @@ export const STRATEGY_HC_V1_SEED_SPEC = [
     actualAway: 8,
   },
   {
-    pick: "LAD/ATL over 8.5",
-    gameId: "824878",
-    matchup: "LAD @ ATL",
+    pick: "Game D over 8.5",
+    gameId: "900005",
+    matchup: "GGG @ HHH",
     market: "TOTAL",
     side: "OVER",
     line: 8.5,
@@ -107,9 +107,9 @@ export const STRATEGY_HC_V1_SEED_SPEC = [
     actualAway: 5,
   },
   {
-    pick: "BAL/STL over 8.5",
-    gameId: "823015",
-    matchup: "BAL @ STL",
+    pick: "Game E over 8.5",
+    gameId: "900006",
+    matchup: "III @ JJJ",
     market: "TOTAL",
     side: "OVER",
     line: 8.5,
@@ -117,15 +117,15 @@ export const STRATEGY_HC_V1_SEED_SPEC = [
     actualAway: 8,
   },
   {
-    pick: "OAK +1.5",
-    gameId: "824963",
-    matchup: "MIN @ ATH",
+    pick: "Home +1.5",
+    gameId: "900007",
+    matchup: "KKK @ LLL",
     market: "SPREAD",
     side: "HOME",
     line: 1.5,
     actualHome: 7,
     actualAway: 4,
-  },
+  }
 ];
 
 export function dateCT(iso) {
@@ -629,8 +629,11 @@ export const STRATEGY_HC_V1_SEED_TICKETS = STRATEGY_HC_V1_SEED_SPEC.map(buildHcV
 
 export const STRATEGY_HC_V1_SEED_IDS = new Set(STRATEGY_HC_V1_SEED_TICKETS.map((t) => t.id));
 
-export function isCanonicalSeedId(id) {
-  return STRATEGY_HC_V1_SEED_IDS.has(String(id || ""));
+export function isCanonicalSeedId(id, dbSeedIds = null) {
+  const key = String(id || "");
+  if (dbSeedIds instanceof Set) return dbSeedIds.has(key);
+  if (Array.isArray(dbSeedIds)) return dbSeedIds.map(String).includes(key);
+  return STRATEGY_HC_V1_SEED_IDS.has(key);
 }
 
 export function presentStrategyTicket(t) {
@@ -706,29 +709,17 @@ export function hasJournalGradeFields(t) {
   return true;
 }
 
+/**
+ * Prefer Cloudflare D1 seed rows when present (production identity).
+ * Synthetic STRATEGY_HC_V1_SEED_TICKETS are offline fixtures only — never overlay
+ * invented picks onto a live D1 seed set.
+ */
 export function canonicalSeedTickets(dbRows = []) {
-  const byId = new Map((dbRows || []).map((r) => [r.id, r]));
-  return STRATEGY_HC_V1_SEED_TICKETS.map((seed) => {
-    const row = byId.get(seed.id);
-    const presented = presentStrategyTicket(seed);
-    if (!row) return presented;
-    const merged = presentStrategyTicket({
-      ...seed,
-      ...row,
-      pick: seed.pick,
-      matchup: row.matchup || seed.matchup,
-    });
-    if (!merged.result || merged.result === "OPEN") {
-      return {
-        ...merged,
-        result: presented.result,
-        profit: presented.profit ?? merged.profit,
-        gradedAt: presented.gradedAt || merged.gradedAt,
-        missingExecutionPrice: true,
-      };
-    }
-    return { ...merged, missingExecutionPrice: merged.executionPrice == null };
-  });
+  const rows = Array.isArray(dbRows) ? dbRows : [];
+  if (rows.length > 0) {
+    return rows.map((row) => presentStrategyTicket(row));
+  }
+  return STRATEGY_HC_V1_SEED_TICKETS.map((seed) => presentStrategyTicket(seed));
 }
 
 function invalidResultPattern(tickets) {
@@ -741,21 +732,24 @@ function invalidResultPattern(tickets) {
  * Operator-declared names are not journal-recovered.
  */
 export function strategyReconstruction(seedTickets = []) {
-  const named = STRATEGY_HC_V1_SEED_TICKETS;
   const rows = (seedTickets || []).map(presentStrategyTicket);
+  // D1 (or caller-supplied) seed rows define named identity when present;
+  // otherwise fall back to synthetic offline fixtures for tests.
+  const named =
+    rows.length > 0 ? rows : STRATEGY_HC_V1_SEED_TICKETS.map((t) => presentStrategyTicket(t));
+  const canonicalIds = new Set(named.map((t) => String(t.id)));
   const unique = new Map();
   for (const t of rows) unique.set(t.id, t);
   const distinct = [...unique.values()];
-  const extras = distinct.filter((t) => !isCanonicalSeedId(t.id));
-  const journal = distinct.filter((t) => isCanonicalSeedId(t.id) && hasJournalGradeFields(t));
+  const extras = distinct.filter((t) => !isCanonicalSeedId(t.id, canonicalIds));
+  const journal = distinct.filter((t) => isCanonicalSeedId(t.id, canonicalIds) && hasJournalGradeFields(t));
   const recoveredN = journal.length;
   const seedN = distinct.length;
-  const stats = strategyStats(named.map((t) => presentStrategyTicket(t)));
   const gradedFromNamed = strategyStats(canonicalSeedTickets(rows));
 
   let state = "unrecovered";
   let note =
-    "Operator-declared 2026-08-26 CONVICTION names exist in-repo. Journal EV, prices, and qualification timestamps are unrecovered until exact journal tickets are imported. Recovered N is not the reported 7-0.";
+    "Operator-declared 2026-08-26 CONVICTION identity lives in Cloudflare D1. Repository fixtures are synthetic for offline tests only. Journal EV, prices, and qualification timestamps are unrecovered until exact journal tickets are imported. Recovered N is not the reported 7-0.";
 
   if (seedN > EXPECTED_SEED_N || extras.length > 0 || invalidResultPattern(distinct)) {
     state = "conflict";
@@ -770,11 +764,11 @@ export function strategyReconstruction(seedTickets = []) {
     note = "All seven seed tickets passed journal-grade validation. Recovered does not automatically mean graded 7-0.";
   } else if (recoveredN >= 1 && recoveredN <= 6) {
     state = "partial";
-    note = `Journal-recovered N=${recoveredN} of ${EXPECTED_SEED_N}. Identity of the seven named positions is operator-declared.`;
+    note = `Journal-recovered N=${recoveredN} of ${EXPECTED_SEED_N}. Identity of the seven named positions is operator-declared (D1).`;
   } else if (named.length === EXPECTED_SEED_N) {
     state = "unrecovered";
     note =
-      "Identity is operator-declared (seven named 2026-08-26 CONVICTION picks). Journal fields unrecovered. Do not treat this as a reconstructed journal import.";
+      "Identity is operator-declared (seven named 2026-08-26 CONVICTION picks in D1; synthetic fixtures offline only). Journal fields unrecovered. Do not treat this as a reconstructed journal import.";
   }
 
   const recoveredStats = strategyStats(journal);
@@ -795,7 +789,7 @@ export function strategyReconstruction(seedTickets = []) {
     provenance: {
       journal: journal.length,
       verified: journal.filter((t) => t.provenance === PROVENANCE.VERIFIED).length,
-      invalid: distinct.filter((t) => classifyProvenance(t) === PROVENANCE.INVALID && isCanonicalSeedId(t.id)).length,
+      invalid: distinct.filter((t) => classifyProvenance(t) === PROVENANCE.INVALID && isCanonicalSeedId(t.id, canonicalIds)).length,
       conflicting: extras.length,
     },
     note,
