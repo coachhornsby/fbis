@@ -13,6 +13,7 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   const m19 = await readFile(new URL("../migrations/0019_cfb_player_projections.sql", import.meta.url), "utf8");
   const m20 = await readFile(new URL("../migrations/0020_action_apify_shadow.sql", import.meta.url), "utf8");
   const m21 = await readFile(new URL("../migrations/0021_action_apify_candidate.sql", import.meta.url), "utf8");
+  const m22 = await readFile(new URL("../migrations/0022_action_apify_harden.sql", import.meta.url), "utf8");
   const health = await readFile(new URL("../functions/api/health.js", import.meta.url), "utf8");
   const schemaExt = await readFile(new URL("../schema.extensions.sql", import.meta.url), "utf8");
   assert.match(m17, /schema_migrations[\s\S]*0017_cfbd_endpoint_audit/i);
@@ -39,7 +40,10 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(schemaExt, /shadow_collection_runs/);
   assert.match(schemaExt, /shadow_cost_ledger/);
   assert.match(schemaExt, /shadow_observation_keys/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0021_action_apify_candidate["']/);
+  assert.match(m22, /schema_migrations[\s\S]*0022_action_apify_harden/i);
+  assert.match(m22, /shadow_candidate_scheduler_state/);
+  assert.match(schemaExt, /shadow_candidate_scheduler_state/);
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0022_action_apify_harden["']/);
   assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /WHERE id = \?/);
 });

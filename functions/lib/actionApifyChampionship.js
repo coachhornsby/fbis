@@ -483,7 +483,15 @@ export function buildPromotionReadinessScorecard(evidence = {}) {
       canAuthorizeWager: false,
       feedsCfbFbisV2: false,
     },
-    note: "Scorecard is advisory only. Promotion remains an explicit owner/config decision.",
+    thresholdMode: "advisory",
+    hardIntegrityBlockers: blockers.filter((b) =>
+      ["BLOCKED_SCHEMA_DRIFT", "BLOCKED_TEMPORAL_INTEGRITY"].includes(b.code)
+    ),
+    advisoryWarnings: blockers.filter((b) =>
+      ["BLOCKED_RELIABILITY", "BLOCKED_COST"].includes(b.code) || /sample/i.test(b.detail || "")
+    ),
+    note: "Scorecard is advisory only. Sample-size/reliability/cost thresholds warn; they do not auto-promote. Owner review required. Commercial rights review remains unresolved.",
+    commercialUseReviewRequired: true,
   };
 }
 

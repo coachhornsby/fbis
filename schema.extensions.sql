@@ -540,3 +540,25 @@ CREATE TABLE IF NOT EXISTS shadow_observation_keys (
 CREATE INDEX IF NOT EXISTS idx_shadow_obs_keys_game
   ON shadow_observation_keys (action_game_id, market, period, book);
 
+-- Action/Apify candidate hardening (migration 0022)
+-- Durable scheduler lease/circuit. Shadow/candidate only.
+
+CREATE TABLE IF NOT EXISTS shadow_candidate_scheduler_state (
+  provider TEXT NOT NULL,
+  scope_key TEXT NOT NULL,
+  active_run_id TEXT,
+  lease_acquired_at TEXT,
+  lease_expires_at TEXT,
+  consecutive_failures INTEGER NOT NULL DEFAULT 0,
+  circuit_open_until TEXT,
+  last_run_id TEXT,
+  last_run_at TEXT,
+  last_success_at TEXT,
+  last_error_class TEXT,
+  last_error_message TEXT,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (provider, scope_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_shadow_scheduler_lease_expires
+  ON shadow_candidate_scheduler_state (lease_expires_at);

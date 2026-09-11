@@ -15,12 +15,16 @@ import {
   runCandidateCollection,
   actionApifyCandidateHealth,
 } from "../lib/actionApifyCollector.js";
-import {
-  evaluateCandidatePromotionPackage,
-  projectMonthlyStarterSufficiency,
-} from "../lib/actionApifyChampionship.js";
+import { projectMonthlyStarterSufficiency } from "../lib/actionApifyChampionship.js";
 import { assertActionApifyNotInProductionRouter } from "../lib/actionApifyShadow.js";
 import { ODDS_PROVIDER_ORDER } from "../lib/oddsProviderRouter.js";
+import { queryGames } from "../lib/store.js";
+import {
+  loadDurableCandidateHealth,
+  loadPersistedChampionshipScorecard,
+  mapGamesToFbisEvents,
+} from "../lib/actionApifyEvidence.js";
+import { queryMonthToDateSpendUsd } from "../lib/actionApifyDurableState.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -32,13 +36,69 @@ function json(body, status = 200) {
   });
 }
 
+function createCandidateDb(env) {
+  if (!env?.DB) return null;
+  return {
+    exec: async (sql, params = []) => env.DB.prepare(sql).bind(...params).run(),
+    queryOne: async (sql, params = []) => {
+      const row = await env.DB.prepare(sql).bind(...params).first();
+      return row || null;
+    },
+    queryAll: async (sql, params = []) => {
+      const res = await env.DB.prepare(sql).bind(...params).all();
+      return res?.results || [];
+    },
+    getObservationKey: async (naturalKey) => {
+      const row = await env.DB.prepare(
+        "SELECT * FROM shadow_observation_keys WHERE natural_key = ?"
+      )
+        .bind(naturalKey)
+        .first();
+      return row || null;
+    },
+    putObservationKey: async (row) => {
+      await env.DB.prepare(
+        `INSERT OR REPLACE INTO shadow_observation_keys (
+          natural_key, observation_id, run_id, provider, action_game_id, market, period, book,
+          source_observed_at, collected_at, payload_hash, created_at,
+          run_idempotency_key, sampling_kind, fbis_event_id, line, price
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+        .bind(
+          row.natural_key,
+          row.observation_id,
+          row.run_id,
+          row.provider,
+          row.action_game_id,
+          row.market,
+          row.period,
+          row.book,
+          row.source_observed_at,
+          row.collected_at,
+          row.payload_hash,
+          row.created_at,
+          row.run_idempotency_key || null,
+          row.sampling_kind || null,
+          row.fbis_event_id || null,
+          row.line ?? null,
+          row.price ?? null
+        )
+        .run();
+    },
+  };
+}
+
+async function loadFbisSlate(env, { sport, date }) {
+  const games = await queryGames(env, { sport, date });
+  if (!games?.ok) {
+    return { fbisEvents: [], gamesExpected: null, slateError: games?.reason || "slate-unavailable" };
+  }
+  const fbisEvents = mapGamesToFbisEvents(games.rows || []);
+  return { fbisEvents, gamesExpected: fbisEvents.length, slateError: null };
+}
+
 /**
- * GET — dry-run plan / health / monthly model (no Actor network by default).
- * Query:
- *   sport=cfb|nfl|mlb
- *   lifecycle=early_slate|pregame|final_pregame|postgame
- *   profile=BASE|MOVEMENT|MLB_F5|PLAYER_PROPS|FINAL
- *   mode=plan|health|monthly|scorecard
+ * GET — dry-run plan / health / monthly / scorecard (no Actor spend by default).
  */
 export async function onRequestGet(context) {
   assertActionApifyNotInProductionRouter(ODDS_PROVIDER_ORDER);
@@ -50,25 +110,39 @@ export async function onRequestGet(context) {
   const sport = String(url.searchParams.get("sport") || "cfb").toLowerCase();
   const lifecycle = String(url.searchParams.get("lifecycle") || "pregame").toLowerCase();
   const profile = url.searchParams.get("profile") || undefined;
+  const date = url.searchParams.get("date") || undefined;
+  const window = url.searchParams.get("window") || "7d";
+  const db = createCandidateDb(context.env);
 
   if (mode === "health") {
+    const durable = await loadDurableCandidateHealth(context.env, db, {
+      sport,
+      profile: profile || "BASE",
+      lifecycle,
+    });
     return json({
       ok: true,
       job: "action-apify-candidate",
       mode: "shadow",
-      actionApify: actionApifyCandidateHealth(context.env),
+      actionApify: durable,
+      // Cold-request proof: durable metrics do not require warm isolate memory.
+      ephemeralFallback: actionApifyCandidateHealth(context.env),
       inProductionRouter: false,
       canQualify: false,
       canAuthorizeWager: false,
+      affectsProductionOdds: false,
     });
   }
 
   if (mode === "monthly") {
+    const mtd = await queryMonthToDateSpendUsd(db);
     return json({
       ok: true,
       job: "action-apify-candidate",
       mode: "shadow",
       monthly: projectMonthlyStarterSufficiency({}),
+      monthToDateCostUsd: mtd.mtdUsd,
+      monthStart: mtd.monthStart,
       inProductionRouter: false,
       canQualify: false,
       canAuthorizeWager: false,
@@ -76,25 +150,28 @@ export async function onRequestGet(context) {
   }
 
   if (mode === "scorecard") {
-    const pkg = evaluateCandidatePromotionPackage({
-      actionRows: [],
-      incumbents: {},
-      sampleRuns: 0,
+    const pkg = await loadPersistedChampionshipScorecard(db, {
+      window,
+      sport: url.searchParams.get("sport") || null,
       plan: String(context.env.ACTION_APIFY_PLAN || "free"),
     });
     return json({
       ok: true,
       job: "action-apify-candidate",
       mode: "shadow",
+      evidenceBasis: pkg.evidenceBasis,
       package: pkg,
       inProductionRouter: false,
       canQualify: false,
       canAuthorizeWager: false,
+      autoPromotion: false,
     });
   }
 
-  const plan = planCandidateCollection(context.env, { sport, lifecycle, profile });
-  const safety = evaluateSchedulerSafety(plan);
+  const plan = planCandidateCollection(context.env, { sport, lifecycle, profile, date });
+  const slate = await loadFbisSlate(context.env, { sport, date });
+  const mtd = await queryMonthToDateSpendUsd(db);
+  const safety = evaluateSchedulerSafety(plan, { monthToDateCostUsd: mtd.mtdUsd });
   return json({
     ok: true,
     job: "action-apify-candidate",
@@ -107,6 +184,8 @@ export async function onRequestGet(context) {
       temporalClass: plan.temporalClass,
       freePlan: plan.freePlan,
       estimatedCostUsd: plan.estimatedCostUsd,
+      requestedMaxItems: plan.input.maxItems,
+      expectedSlateGames: slate.gamesExpected,
       input: plan.input,
       cfg: {
         enabled: plan.cfg.enabled,
@@ -116,7 +195,14 @@ export async function onRequestGet(context) {
         monthlyBudgetUsd: plan.cfg.monthlyBudgetUsd,
       },
     },
+    budget: {
+      monthToDateCostUsd: mtd.mtdUsd,
+      estimatedNextRunUsd: plan.estimatedCostUsd,
+      monthlyBudgetUsd: plan.cfg.monthlyBudgetUsd,
+      remainingBudgetUsd: Math.max(0, Number(plan.cfg.monthlyBudgetUsd) - Number(mtd.mtdUsd || 0)),
+    },
     safety,
+    slateError: slate.slateError,
     inProductionRouter: false,
     canQualify: false,
     canAuthorizeWager: false,
@@ -126,10 +212,6 @@ export async function onRequestGet(context) {
 
 /**
  * POST — execute candidate collection when enabled.
- * Body/query:
- *   sport, lifecycle, profile, date
- *   execute=1 required to hit Apify
- * Never spends in CI; offline callers may inject rows via test harness only.
  */
 export async function onRequestPost(context) {
   assertActionApifyNotInProductionRouter(ODDS_PROVIDER_ORDER);
@@ -149,10 +231,12 @@ export async function onRequestPost(context) {
   const lifecycle = String(body.lifecycle || url.searchParams.get("lifecycle") || "pregame").toLowerCase();
   const profile = body.profile || url.searchParams.get("profile") || undefined;
   const date = body.date || url.searchParams.get("date") || undefined;
+  const db = createCandidateDb(context.env);
 
   if (!execute) {
     const plan = planCandidateCollection(context.env, { sport, lifecycle, profile, date });
-    const safety = evaluateSchedulerSafety(plan);
+    const mtd = await queryMonthToDateSpendUsd(db);
+    const safety = evaluateSchedulerSafety(plan, { monthToDateCostUsd: mtd.mtdUsd });
     return json({
       ok: true,
       executed: false,
@@ -163,6 +247,12 @@ export async function onRequestPost(context) {
         estimatedCostUsd: plan.estimatedCostUsd,
         input: plan.input,
       },
+      budget: {
+        monthToDateCostUsd: mtd.mtdUsd,
+        estimatedNextRunUsd: plan.estimatedCostUsd,
+        monthlyBudgetUsd: plan.cfg.monthlyBudgetUsd,
+        remainingBudgetUsd: Math.max(0, Number(plan.cfg.monthlyBudgetUsd) - Number(mtd.mtdUsd || 0)),
+      },
       safety,
       inProductionRouter: false,
       canQualify: false,
@@ -171,74 +261,55 @@ export async function onRequestPost(context) {
   }
 
   try {
+    const slate = await loadFbisSlate(context.env, { sport, date });
     const result = await runCandidateCollection(context.env, {
       sport,
       lifecycle,
       profile,
       date,
-      db: context.env.DB
-        ? {
-            exec: async (sql, params = []) => context.env.DB.prepare(sql).bind(...params).run(),
-            getObservationKey: async (naturalKey) => {
-              const row = await context.env.DB.prepare(
-                "SELECT * FROM shadow_observation_keys WHERE natural_key = ?"
-              )
-                .bind(naturalKey)
-                .first();
-              return row || null;
-            },
-            putObservationKey: async (row) => {
-              await context.env.DB.prepare(
-                `INSERT OR REPLACE INTO shadow_observation_keys (
-                  natural_key, observation_id, run_id, provider, action_game_id, market, period, book,
-                  source_observed_at, collected_at, payload_hash, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-              )
-                .bind(
-                  row.natural_key,
-                  row.observation_id,
-                  row.run_id,
-                  row.provider,
-                  row.action_game_id,
-                  row.market,
-                  row.period,
-                  row.book,
-                  row.source_observed_at,
-                  row.collected_at,
-                  row.payload_hash,
-                  row.created_at
-                )
-                .run();
-            },
-          }
-        : null,
+      fbisEvents: slate.fbisEvents,
+      gamesExpected: slate.gamesExpected,
+      db,
     });
 
-    // Strip any accidental secret material; never return token.
     const safe = {
       ...result,
       rows: undefined,
       token: undefined,
       authorization: undefined,
     };
-    return json({
-      ...safe,
-      executed: true,
-      trigger: parseJobTrigger(context.request),
-      inProductionRouter: false,
-      canQualify: false,
-      canAuthorizeWager: false,
-      actionApify: actionApifyCandidateHealth(context.env),
-    }, result.ok ? 200 : 502);
+    const durableHealth = await loadDurableCandidateHealth(context.env, db, {
+      sport,
+      profile: profile || result.profile || "BASE",
+      lifecycle,
+    });
+    return json(
+      {
+        ...safe,
+        executed: true,
+        expectedSlateGames: slate.gamesExpected,
+        slateError: slate.slateError,
+        trigger: parseJobTrigger(context.request),
+        inProductionRouter: false,
+        canQualify: false,
+        canAuthorizeWager: false,
+        affectsProductionOdds: false,
+        actionApify: durableHealth,
+      },
+      result.ok ? 200 : 502
+    );
   } catch (err) {
-    return json({
-      ok: false,
-      executed: true,
-      error: String(err?.message || err),
-      inProductionRouter: false,
-      canQualify: false,
-      canAuthorizeWager: false,
-      affectsProductionOdds: false,
-    }, 502);
+    return json(
+      {
+        ok: false,
+        executed: true,
+        error: String(err?.message || err),
+        inProductionRouter: false,
+        canQualify: false,
+        canAuthorizeWager: false,
+        affectsProductionOdds: false,
+      },
+      502
+    );
   }
 }

@@ -333,11 +333,14 @@ test("candidate collect API plans without spending and refuses unauthorized", as
   assert.equal(postBody.executed, false);
 });
 
-test("migration 0021 + schema.extensions + health expected migration", async () => {
+test("migration 0021/0022 + schema.extensions + health expected migration", async () => {
   const m21 = await readFile(new URL("../migrations/0021_action_apify_candidate.sql", import.meta.url), "utf8");
+  const m22 = await readFile(new URL("../migrations/0022_action_apify_harden.sql", import.meta.url), "utf8");
   const schema = await readFile(new URL("../schema.extensions.sql", import.meta.url), "utf8");
   const health = await readFile(new URL("../functions/api/health.js", import.meta.url), "utf8");
   assert.match(m21, /0021_action_apify_candidate/);
+  assert.match(m22, /0022_action_apify_harden/);
+  assert.match(m22, /shadow_candidate_scheduler_state/);
   for (const t of [
     "shadow_collection_runs",
     "shadow_cost_ledger",
@@ -350,7 +353,8 @@ test("migration 0021 + schema.extensions + health expected migration", async () 
     assert.match(m21, new RegExp(t));
     assert.match(schema, new RegExp(t));
   }
-  assert.match(health, /0021_action_apify_candidate/);
+  assert.match(schema, /shadow_candidate_scheduler_state/);
+  assert.match(health, /0022_action_apify_harden/);
   assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /actionApify:/);
 });

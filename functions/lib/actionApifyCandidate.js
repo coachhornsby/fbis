@@ -361,7 +361,19 @@ export function observationNaturalKey({
   movementTimestamp = null,
   scrapedAt = null,
   payloadHash = null,
+  runId = null,
+  line = null,
+  price = null,
 } = {}) {
+  // Three distinct concepts:
+  // A) Run idempotency — retries of the same logical run must not double-write
+  //    (handled via logical_collection_key + runId when no source timestamp).
+  // B) Observation identity — when provider supplies sourceObservedAt, key by
+  //    event/market/period/book/sourceObservedAt/line/price (payloadHash).
+  // C) Temporal resampling — without source timestamp, a later scrape of the
+  //    same unchanged price is a NEW sampling observation (different runId),
+  //    not a duplicate. scrapedAt alone never invents source observation time.
+  const hasSourceTs = Boolean(sourceObservedAt || movementTimestamp);
   const parts = [
     provider,
     actionGameId ?? "",
@@ -369,10 +381,10 @@ export function observationNaturalKey({
     period ?? "",
     book ?? "",
     sourceObservedAt || movementTimestamp || "",
-    // scrapedAt alone never invents source observation — include only when no source ts,
-    // and pair with payload hash so identical rescrapes collapse while line changes do not.
-    sourceObservedAt || movementTimestamp ? "" : scrapedAt || "",
-    payloadHash || "",
+    hasSourceTs ? "" : (runId || scrapedAt || ""),
+    hasSourceTs
+      ? `${line ?? ""}|${price ?? ""}|${payloadHash || ""}`
+      : (payloadHash || ""),
   ];
   return sha256Hex(parts.join("|"));
 }
@@ -448,7 +460,31 @@ export function fingerprintSchema(payload, { previousFingerprint = null } = {}) 
     driftLevel = SCHEMA_DRIFT_LEVELS.WARN;
     notes.push(`missing-optional-required:${missingRequired.join(",")}`);
   } else if (previousFingerprint) {
-    notes.push("schema-stable-or-additive");
+    const priorKeys = Array.isArray(previousFingerprint?.topLevelKeys)
+      ? previousFingerprint.topLevelKeys
+      : typeof previousFingerprint === "object" && previousFingerprint?.top_level_keys_json
+        ? (() => { try { return JSON.parse(previousFingerprint.top_level_keys_json); } catch { return []; } })()
+        : [];
+    if (priorKeys.length) {
+      const priorSet = new Set(priorKeys);
+      const added = topLevelKeys.filter((k) => !priorSet.has(k));
+      const removed = priorKeys.filter((k) => !topLevelKeys.includes(k));
+      const removedCore = removed.filter((k) => CORE_IDENTITY_KEYS.includes(k) || REQUIRED_TOP_LEVEL_KEYS.includes(k));
+      if (removedCore.length) {
+        driftLevel = SCHEMA_DRIFT_LEVELS.BLOCK;
+        notes.push(`removed-core-vs-prior:${removedCore.join(",")}`);
+      } else if (removed.length) {
+        if (driftLevel === SCHEMA_DRIFT_LEVELS.INFO) driftLevel = SCHEMA_DRIFT_LEVELS.WARN;
+        notes.push(`removed-optional-vs-prior:${removed.slice(0, 12).join(",")}`);
+      } else if (added.length) {
+        notes.push(`additive-vs-prior:${added.slice(0, 12).join(",")}`);
+      } else {
+        notes.push("schema-stable-vs-prior");
+      }
+      notes.push(`priorFingerprint:${previousFingerprint.fingerprint || previousFingerprint}`);
+    } else {
+      notes.push("schema-stable-or-additive");
+    }
   } else {
     notes.push("baseline-fingerprint");
   }
