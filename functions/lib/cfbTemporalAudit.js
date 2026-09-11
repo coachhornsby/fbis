@@ -1,19 +1,15 @@
 /**
  * Historical temporal-source audit for CFB-FBIS-v2 and CFB-PLAYER-v1.
- * Does not fit or promote models. Classifies every feature for a prediction cutoff.
- *
- * Absolute rule: Week N may only consume information available before kickoff.
- * "Fetched in a weekly bundle" ≠ temporally safe.
+ * A PASS must prove actual source eligibility — never inferred maximum eligibility.
  */
 
 import { CFBD_FEATURE_CATALOG, FEATURE_CATALOG_VERSION } from "./cfbdFeatureCatalog.js";
 import { TEMPORAL_CLASS, temporalClassForFeature } from "./cfbFeaturePipeline.js";
-import { assertPregameTemporalIntegrity, filterGamesBeforeKickoff } from "./cfbFeatureStore.js";
+import { filterGamesBeforeKickoff } from "./cfbFeatureStore.js";
 import { ROLE_CONFIDENCE_TIERS, classifyRoleConfidence } from "./cfbPlayerIdentity.js";
 
-export const TEMPORAL_AUDIT_VERSION = "cfb-temporal-audit-v1";
+export const TEMPORAL_AUDIT_VERSION = "cfb-temporal-audit-v2";
 
-/** Same-season aggregates that are unsafe for historical in-season prediction unless reconstructed. */
 export const HISTORICALLY_UNSAFE_ENDPOINTS = Object.freeze([
   "/stats/season/advanced",
   "/ppa/players/season",
@@ -22,7 +18,6 @@ export const HISTORICALLY_UNSAFE_ENDPOINTS = Object.freeze([
   "/ppa/teams",
 ]);
 
-/** Ratings that are only safe as prior-season freeze (or week-bounded CORE). */
 export const PRIOR_ONLY_SAME_SEASON_ENDPOINTS = Object.freeze([
   "/ratings/sp",
   "/ratings/fpi",
@@ -41,8 +36,193 @@ function isoOrNull(v) {
   return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
 
+export function latestAllowedWeekForTarget(targetWeek, { includeCurrentWeek = false } = {}) {
+  if (targetWeek == null || !Number.isFinite(Number(targetWeek))) return null;
+  return Math.max(0, Number(targetWeek) - (includeCurrentWeek ? 0 : 1));
+}
+
 /**
- * Classify one catalog feature for a specific historical prediction context.
+ * Assert every source observation kickoff is strictly before the target kickoff.
+ * Does NOT accept week labels as proof — kickoff timestamps required.
+ */
+export function assertSourceObservationsBeforeKickoff({
+  targetKickoffTimestamp,
+  targetPredictionCutoff = null,
+  observations = [],
+} = {}) {
+  const targetKick = Date.parse(targetKickoffTimestamp || "");
+  const cutoff = targetPredictionCutoff
+    ? Date.parse(targetPredictionCutoff)
+    : Number.isFinite(targetKick)
+      ? targetKick - 60_000
+      : NaN;
+  const errors = [];
+  const accepted = [];
+  const rejected = [];
+
+  if (!Number.isFinite(targetKick)) errors.push("target-kickoff-missing");
+  if (!Number.isFinite(cutoff)) errors.push("prediction-cutoff-missing");
+
+  for (const obs of observations || []) {
+    const sourceKick = Date.parse(obs.sourceKickoffTimestamp || obs.startDate || obs.start_date || obs.kickoff || "");
+    const row = {
+      sourceGameId: obs.sourceGameId ?? obs.gameId ?? obs.game_id ?? null,
+      sourceKickoffTimestamp: isoOrNull(obs.sourceKickoffTimestamp || obs.startDate || obs.start_date || obs.kickoff),
+      sourceSeason: obs.sourceSeason ?? obs.season ?? obs.year ?? null,
+      sourceWeek: obs.sourceWeek ?? obs.week ?? null,
+      endpoint: obs.endpoint || null,
+      labeledWeek: obs.week ?? obs.sourceWeek ?? null,
+    };
+    if (!Number.isFinite(sourceKick)) {
+      rejected.push({ ...row, reason: "missing-source-kickoff-timestamp" });
+      errors.push("missing-source-kickoff-timestamp");
+      continue;
+    }
+    // Reject even if metadata claims an earlier week
+    if (sourceKick >= targetKick) {
+      rejected.push({
+        ...row,
+        reason: "source-kickoff-on-or-after-target",
+        labeledWeek: row.labeledWeek,
+      });
+      errors.push("source-kickoff-on-or-after-target");
+      continue;
+    }
+    if (Number.isFinite(cutoff) && sourceKick > cutoff) {
+      // Source after constructed cutoff but before kickoff still unsafe for freeze-at-cutoff
+      rejected.push({ ...row, reason: "source-kickoff-after-prediction-cutoff" });
+      errors.push("source-kickoff-after-prediction-cutoff");
+      continue;
+    }
+    accepted.push(row);
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors: [...new Set(errors)],
+    accepted,
+    rejected,
+    targetKickoffTimestamp: isoOrNull(targetKickoffTimestamp),
+    targetPredictionCutoff: isoOrNull(targetPredictionCutoff) || (Number.isFinite(cutoff) ? new Date(cutoff).toISOString() : null),
+    actualSourceWeeks: [...new Set(accepted.map((a) => a.sourceWeek).filter((w) => w != null))],
+    sourceGameIds: accepted.map((a) => a.sourceGameId).filter(Boolean),
+  };
+}
+
+/**
+ * CORE provenance from the actual retrieved row — never substitute targetWeek-1.
+ */
+export function auditCoreProvenance({
+  coreRow = null,
+  targetWeek = null,
+  targetKickoffTimestamp = null,
+  priorSeasonFreeze = false,
+  expectedPriorSeason = null,
+} = {}) {
+  const latestAllowedWeek = latestAllowedWeekForTarget(targetWeek);
+  if (priorSeasonFreeze) {
+    const year = num(coreRow?.year ?? coreRow?.season);
+    const ok = year != null && expectedPriorSeason != null && year === Number(expectedPriorSeason);
+    return {
+      ok,
+      eligibleForIndependentProjection: ok,
+      year: year,
+      throughWeek: num(coreRow?.throughWeek),
+      throughSeasonType: coreRow?.throughSeasonType || coreRow?.seasonType || null,
+      latestAllowedWeek,
+      actualThroughWeek: num(coreRow?.throughWeek),
+      priorSeasonFreeze: true,
+      exclusionReason: ok ? null : "core-prior-season-mismatch-or-missing",
+    };
+  }
+  if (!coreRow) {
+    return {
+      ok: false,
+      eligibleForIndependentProjection: false,
+      year: null,
+      throughWeek: null,
+      throughSeasonType: null,
+      latestAllowedWeek,
+      actualThroughWeek: null,
+      exclusionReason: "core-row-missing",
+    };
+  }
+  const throughWeek = num(coreRow.throughWeek ?? coreRow.week);
+  const year = num(coreRow.year ?? coreRow.season);
+  const throughSeasonType = coreRow.throughSeasonType || coreRow.seasonType || null;
+  let ok = true;
+  let exclusionReason = null;
+  if (throughWeek == null) {
+    ok = false;
+    exclusionReason = "core-missing-throughWeek";
+  } else if (latestAllowedWeek != null && throughWeek > latestAllowedWeek) {
+    ok = false;
+    exclusionReason = `core-throughWeek-${throughWeek}-gt-latestAllowedWeek-${latestAllowedWeek}`;
+  } else if (latestAllowedWeek != null && throughWeek >= Number(targetWeek)) {
+    ok = false;
+    exclusionReason = `core-throughWeek-${throughWeek}-gte-targetWeek-${targetWeek}`;
+  }
+  return {
+    ok,
+    eligibleForIndependentProjection: ok,
+    year,
+    throughWeek,
+    throughSeasonType,
+    latestAllowedWeek,
+    actualThroughWeek: throughWeek,
+    targetKickoffTimestamp: isoOrNull(targetKickoffTimestamp),
+    rating: num(coreRow.rating ?? coreRow.overall),
+    exclusionReason,
+  };
+}
+
+/**
+ * Provenance for a reconstructed rolling feature — contaminated source fails the feature.
+ */
+export function auditReconstructedFeatureProvenance({
+  featureName,
+  endpoint,
+  targetKickoffTimestamp,
+  targetPredictionCutoff = null,
+  targetWeek = null,
+  observations = [],
+  requireAtLeastOne = false,
+} = {}) {
+  const check = assertSourceObservationsBeforeKickoff({
+    targetKickoffTimestamp,
+    targetPredictionCutoff,
+    observations: (observations || []).map((o) => ({ ...o, endpoint: o.endpoint || endpoint })),
+  });
+  let ok = check.ok;
+  let exclusionReason = check.ok ? null : check.errors.join(",");
+  if (requireAtLeastOne && check.accepted.length === 0) {
+    ok = false;
+    exclusionReason = exclusionReason || "no-pre-kickoff-source-observations";
+  }
+  // One contaminated source fails the whole reconstructed feature
+  if (check.rejected.length > 0) {
+    ok = false;
+    exclusionReason = `contaminated-source:${check.rejected.map((r) => r.reason).join("|")}`;
+  }
+  return {
+    featureName,
+    endpoint,
+    ok,
+    eligibleForIndependentProjection: ok,
+    exclusionReason,
+    latestAllowedWeek: latestAllowedWeekForTarget(targetWeek),
+    actualSourceWeeks: check.actualSourceWeeks,
+    sourceGameIds: check.sourceGameIds,
+    sourceObservations: check.accepted,
+    rejectedObservations: check.rejected,
+    targetKickoffTimestamp: check.targetKickoffTimestamp,
+    targetPredictionCutoff: check.targetPredictionCutoff,
+    temporalClass: TEMPORAL_CLASS.C,
+  };
+}
+
+/**
+ * Classify one catalog feature. Eligibility requires actual provenance when reconstructed/CORE/prior.
  */
 export function auditFeatureForCutoff(feature, ctx = {}) {
   const {
@@ -51,24 +231,29 @@ export function auditFeatureForCutoff(feature, ctx = {}) {
     targetWeek = null,
     kickoffTimestamp = null,
     predictionCutoff = null,
-    throughWeek = null,
-    sourceWeek = null,
+    throughWeek = null, // actual CORE throughWeek when known
+    sourceWeek = null, // actual source week(s) — never invent targetWeek-1
     sourceGameIds = null,
     sourceSeason = null,
+    actualSourceWeeks = null,
     reconstructedFromGames = false,
     priorSeasonFreeze = false,
     evaluationOnly = false,
+    sourceObservations = null,
+    coreRow = null,
   } = ctx;
 
   const temporalClass = feature.temporalClass || temporalClassForFeature(feature);
   const endpoint = feature.endpoint;
-  const cutoff = predictionCutoff || (kickoffTimestamp ? new Date(Date.parse(kickoffTimestamp) - 60_000).toISOString() : null);
-  const latestAllowedWeek =
-    targetWeek == null ? null : Math.max(0, Number(targetWeek) - (ctx.includeCurrentWeek === true ? 0 : 1));
+  const cutoff =
+    predictionCutoff || (kickoffTimestamp ? new Date(Date.parse(kickoffTimestamp) - 60_000).toISOString() : null);
+  const latestAllowedWeek = latestAllowedWeekForTarget(targetWeek);
 
   let eligible = true;
   let exclusionReason = null;
   let resolvedClass = temporalClass;
+  let coreProvenance = null;
+  let reconstructionProvenance = null;
 
   if (evaluationOnly || feature.use === "evaluation" || temporalClass === TEMPORAL_CLASS.E) {
     eligible = false;
@@ -82,25 +267,58 @@ export function auditFeatureForCutoff(feature, ctx = {}) {
     eligible = false;
     exclusionReason = "undated-same-season-rating-aggregate";
     resolvedClass = TEMPORAL_CLASS.D;
-  } else if (endpoint === "/ratings/core") {
-    if (throughWeek == null && !priorSeasonFreeze) {
+  } else if (PRIOR_ONLY_SAME_SEASON_ENDPOINTS.includes(endpoint) && priorSeasonFreeze) {
+    if (sourceSeason == null) {
       eligible = false;
-      exclusionReason = "core-missing-throughWeek";
-      resolvedClass = TEMPORAL_CLASS.D;
-    } else if (throughWeek != null && latestAllowedWeek != null && Number(throughWeek) > Number(latestAllowedWeek)) {
+      exclusionReason = "missing-source-provenance";
+    } else if (ctx.expectedPriorSeason != null && Number(sourceSeason) !== Number(ctx.expectedPriorSeason)) {
       eligible = false;
-      exclusionReason = `core-throughWeek-${throughWeek}-after-cutoff-week-${latestAllowedWeek}`;
-      resolvedClass = TEMPORAL_CLASS.D;
-    } else if (priorSeasonFreeze || (throughWeek != null && latestAllowedWeek != null && Number(throughWeek) <= Number(latestAllowedWeek))) {
+      exclusionReason = "prior-source-season-mismatch";
+    } else {
       eligible = true;
-      resolvedClass = priorSeasonFreeze ? TEMPORAL_CLASS.A : TEMPORAL_CLASS.B;
+      resolvedClass = TEMPORAL_CLASS.A;
     }
+  } else if (endpoint === "/ratings/core") {
+    coreProvenance = auditCoreProvenance({
+      coreRow: coreRow || (throughWeek != null ? { throughWeek, year, throughSeasonType: seasonType } : null),
+      targetWeek,
+      targetKickoffTimestamp: kickoffTimestamp,
+      priorSeasonFreeze,
+      expectedPriorSeason: ctx.expectedPriorSeason,
+    });
+    eligible = coreProvenance.eligibleForIndependentProjection;
+    exclusionReason = coreProvenance.exclusionReason;
+    resolvedClass = priorSeasonFreeze ? TEMPORAL_CLASS.A : TEMPORAL_CLASS.B;
   } else if (reconstructedFromGames) {
-    eligible = true;
+    if (sourceObservations) {
+      reconstructionProvenance = auditReconstructedFeatureProvenance({
+        featureName: feature.canonical,
+        endpoint,
+        targetKickoffTimestamp: kickoffTimestamp,
+        targetPredictionCutoff: cutoff,
+        targetWeek,
+        observations: sourceObservations,
+      });
+      eligible = reconstructionProvenance.ok;
+      exclusionReason = reconstructionProvenance.exclusionReason;
+    } else if (!sourceGameIds || !sourceGameIds.length) {
+      // Catalog-level: reconstruction path is allowed in principle, but no actual sources yet
+      eligible = true;
+      resolvedClass = TEMPORAL_CLASS.C;
+      exclusionReason = null;
+    } else {
+      eligible = true;
+      resolvedClass = TEMPORAL_CLASS.C;
+    }
     resolvedClass = TEMPORAL_CLASS.C;
   } else if (priorSeasonFreeze) {
-    eligible = true;
-    resolvedClass = TEMPORAL_CLASS.A;
+    if (sourceSeason == null) {
+      eligible = false;
+      exclusionReason = "missing-source-provenance";
+    } else {
+      eligible = true;
+      resolvedClass = TEMPORAL_CLASS.A;
+    }
   } else if (temporalClass === TEMPORAL_CLASS.D) {
     eligible = false;
     exclusionReason = "class-D-unsafe-without-dated-snapshot";
@@ -109,42 +327,37 @@ export function auditFeatureForCutoff(feature, ctx = {}) {
     exclusionReason = "class-C-requires-game-play-reconstruction";
   }
 
-  // Timestamp integrity when provided
-  if (eligible && kickoffTimestamp && cutoff) {
-    const integrity = assertPregameTemporalIntegrity({
-      kickoffTimestamp,
-      featureAsOfTimestamp: cutoff,
-      featureCutoffTimestamp: cutoff,
-      collectionTimestamp: cutoff,
-    });
-    if (!integrity.ok) {
-      eligible = false;
-      exclusionReason = `temporal-integrity:${integrity.errors.join(",")}`;
-    }
-  }
+  const actualWeeks =
+    actualSourceWeeks ||
+    reconstructionProvenance?.actualSourceWeeks ||
+    (sourceWeek != null ? [sourceWeek] : null);
 
   return {
     featureName: feature.canonical,
     group: feature.group,
-    endpoint: endpoint,
+    endpoint,
     rawSource: feature.rawFields,
     temporalClass: resolvedClass,
     catalogClass: temporalClass,
     year,
     seasonType,
-    sourceWeek: sourceWeek ?? null,
-    throughWeek: throughWeek ?? null,
-    sourceGameIds: sourceGameIds || null,
+    // Separated fields — do not conflate allowance with consumption
+    latestAllowedWeek,
+    actualSourceWeeks: actualWeeks,
+    sourceWeek: sourceWeek ?? null, // only when actual
+    throughWeek: coreProvenance?.actualThroughWeek ?? throughWeek ?? null,
+    sourceGameIds: reconstructionProvenance?.sourceGameIds || sourceGameIds || null,
     sourceSeason: sourceSeason ?? null,
     predictionCutoff: cutoff,
     latestInformationTimestampAllowed: cutoff,
-    latestAllowedWeek,
     kickoffTimestamp: isoOrNull(kickoffTimestamp),
     eligibleForIndependentProjection: eligible,
     exclusionReason,
     priorSeasonFreeze: Boolean(priorSeasonFreeze),
     reconstructedFromGames: Boolean(reconstructedFromGames),
     evaluationOnly: Boolean(evaluationOnly || feature.use === "evaluation"),
+    coreProvenance,
+    reconstructionProvenance,
     provisionalWeightsNote:
       feature.use === "prior"
         ? "SP.35/CORE.25/FPI.20/SRS.12/Elo.08 and n/(n+6) are provisional — not fitted"
@@ -152,25 +365,27 @@ export function auditFeatureForCutoff(feature, ctx = {}) {
   };
 }
 
-/**
- * Full catalog audit matrix for a historical prediction context.
- */
 export function auditCatalogForGame(ctx = {}) {
   const rows = CFBD_FEATURE_CATALOG.map((f) => {
     const endpoint = f.endpoint;
-    const isUnsafeAgg = HISTORICALLY_UNSAFE_ENDPOINTS.includes(endpoint);
     const isPriorRating = PRIOR_ONLY_SAME_SEASON_ENDPOINTS.includes(endpoint);
     const isCore = endpoint === "/ratings/core";
     const isGameGrain = f.grain === "game" || endpoint === "/ppa/games" || endpoint === "/stats/game/advanced";
-    const isPersonnelPrior = ["prior"].includes(f.use) && !isPriorRating && !isCore && endpoint !== "/ratings/sp";
+    const isPersonnelPrior = f.use === "prior" && !isPriorRating && !isCore && endpoint !== "internal";
 
     return auditFeatureForCutoff(f, {
       ...ctx,
       priorSeasonFreeze: isPriorRating || isPersonnelPrior || (isCore && ctx.corePriorSeason),
-      reconstructedFromGames: isGameGrain || (isUnsafeAgg && ctx.forceReconstructUnsafe === true),
+      reconstructedFromGames: isGameGrain,
       evaluationOnly: f.use === "evaluation",
-      throughWeek: isCore ? ctx.coreThroughWeek : null,
-      sourceSeason: isPriorRating || isPersonnelPrior || ctx.corePriorSeason ? ctx.priorSeason : ctx.year,
+      // Do NOT pass targetWeek-1 as throughWeek — only actual CORE row
+      throughWeek: isCore ? ctx.coreThroughWeek ?? null : null,
+      coreRow: isCore ? ctx.coreRow ?? null : null,
+      sourceSeason:
+        isPriorRating || isPersonnelPrior || ctx.corePriorSeason
+          ? ctx.priorSourceSeason ?? null
+          : null,
+      expectedPriorSeason: ctx.priorSeason ?? (ctx.year != null ? Number(ctx.year) - 1 : null),
     });
   });
 
@@ -187,7 +402,8 @@ export function auditCatalogForGame(ctx = {}) {
       kickoffTimestamp: ctx.kickoffTimestamp ?? null,
       predictionCutoff: ctx.predictionCutoff ?? null,
       priorSeason: ctx.priorSeason ?? (ctx.year != null ? Number(ctx.year) - 1 : null),
-      coreThroughWeek: ctx.coreThroughWeek ?? null,
+      latestAllowedWeek: latestAllowedWeekForTarget(ctx.targetWeek),
+      coreThroughWeekActual: ctx.coreThroughWeek ?? null,
     },
     summary: {
       total: rows.length,
@@ -211,26 +427,63 @@ function summarizeRejectedByEndpoint(rejected) {
 }
 
 /**
- * Audit preseason prior sources for one team/game — prove no current-season finals.
+ * Fail closed: missing sourceSeason does NOT default to expected prior season.
  */
 export function auditPreseasonPriorSources({
   gameYear,
-  priorCatalogEntry = {},
+  priorCatalogEntry = null,
   priorSeason = null,
 } = {}) {
   const expectedPrior = priorSeason ?? (gameYear != null ? Number(gameYear) - 1 : null);
-  const sourceSeason = priorCatalogEntry.sourceSeason ?? expectedPrior;
-  const ok = sourceSeason != null && expectedPrior != null && Number(sourceSeason) === Number(expectedPrior);
+  const entry = priorCatalogEntry && typeof priorCatalogEntry === "object" ? priorCatalogEntry : null;
+  const explicitSource =
+    entry && Object.prototype.hasOwnProperty.call(entry, "sourceSeason") ? entry.sourceSeason : undefined;
+
+  if (entry == null) {
+    return {
+      ok: false,
+      gameYear,
+      expectedPriorSeason: expectedPrior,
+      sourceSeason: null,
+      consumedPriorSeason: null,
+      leakageIfCurrentSeasonFinals: false,
+      provisionalWeights: { sp: 0.35, core: 0.25, fpi: 0.2, srs: 0.12, elo: 0.08, note: "provisional-unfitted" },
+      shrinkBenchmark: { formula: "n/(n+6)", note: "provisional until OOS supports" },
+      priorBlendHash: null,
+      sources: null,
+      exclusionReason: "missing-source-provenance",
+    };
+  }
+
+  if (explicitSource == null || explicitSource === "") {
+    return {
+      ok: false,
+      gameYear,
+      expectedPriorSeason: expectedPrior,
+      sourceSeason: null,
+      consumedPriorSeason: null,
+      leakageIfCurrentSeasonFinals: false,
+      provisionalWeights: { sp: 0.35, core: 0.25, fpi: 0.2, srs: 0.12, elo: 0.08, note: "provisional-unfitted" },
+      shrinkBenchmark: { formula: "n/(n+6)", note: "provisional until OOS supports" },
+      priorBlendHash: entry.artifactHash || entry.priorBlend?.hash || null,
+      sources: null,
+      exclusionReason: "missing-source-provenance",
+    };
+  }
+
+  const sourceSeason = Number(explicitSource);
+  const ok = Number.isFinite(sourceSeason) && expectedPrior != null && sourceSeason === Number(expectedPrior);
+  const currentSeasonLeak = Number.isFinite(sourceSeason) && gameYear != null && sourceSeason === Number(gameYear);
 
   const sources = {
-    sp: { season: sourceSeason, value: priorCatalogEntry.spOverall ?? null, endpoint: "/ratings/sp" },
-    core: { season: sourceSeason, value: priorCatalogEntry.coreOverall ?? null, endpoint: "/ratings/core" },
-    fpi: { season: sourceSeason, value: priorCatalogEntry.fpi ?? null, endpoint: "/ratings/fpi" },
-    srs: { season: sourceSeason, value: priorCatalogEntry.srs ?? null, endpoint: "/ratings/srs" },
-    elo: { season: sourceSeason, value: priorCatalogEntry.elo ?? null, endpoint: "/ratings/elo" },
-    talent: { season: sourceSeason, value: priorCatalogEntry.talent ?? null, endpoint: "/talent" },
-    returning: { season: sourceSeason, value: priorCatalogEntry.returningPct ?? null, endpoint: "/player/returning" },
-    recruiting: { season: sourceSeason, value: priorCatalogEntry.recruitingPoints ?? null, endpoint: "/recruiting/teams" },
+    sp: { season: sourceSeason, value: entry.spOverall ?? null, endpoint: "/ratings/sp" },
+    core: { season: sourceSeason, value: entry.coreOverall ?? null, endpoint: "/ratings/core" },
+    fpi: { season: sourceSeason, value: entry.fpi ?? null, endpoint: "/ratings/fpi" },
+    srs: { season: sourceSeason, value: entry.srs ?? null, endpoint: "/ratings/srs" },
+    elo: { season: sourceSeason, value: entry.elo ?? null, endpoint: "/ratings/elo" },
+    talent: { season: sourceSeason, value: entry.talent ?? null, endpoint: "/talent" },
+    returning: { season: sourceSeason, value: entry.returningPct ?? null, endpoint: "/player/returning" },
+    recruiting: { season: sourceSeason, value: entry.recruitingPoints ?? null, endpoint: "/recruiting/teams" },
     portal: { season: sourceSeason, value: null, endpoint: "/player/portal", note: "identity/continuity only" },
     coaching: { season: sourceSeason, value: null, endpoint: "/coaches", note: "hire/tenure continuity" },
   };
@@ -239,24 +492,30 @@ export function auditPreseasonPriorSources({
     ok,
     gameYear,
     expectedPriorSeason: expectedPrior,
-    consumedPriorSeason: sourceSeason,
-    leakageIfCurrentSeasonFinals: !ok,
+    sourceSeason: Number.isFinite(sourceSeason) ? sourceSeason : null,
+    consumedPriorSeason: Number.isFinite(sourceSeason) ? sourceSeason : null,
+    leakageIfCurrentSeasonFinals: Boolean(currentSeasonLeak),
     provisionalWeights: { sp: 0.35, core: 0.25, fpi: 0.2, srs: 0.12, elo: 0.08, note: "provisional-unfitted" },
     shrinkBenchmark: { formula: "n/(n+6)", note: "provisional until OOS supports" },
-    priorBlendHash: priorCatalogEntry.artifactHash || priorCatalogEntry.priorBlend?.hash || null,
+    priorBlendHash: entry.artifactHash || entry.priorBlend?.hash || null,
     sources,
-    exclusionReason: ok ? null : "prior-source-season-mismatch-or-missing",
+    exclusionReason: ok
+      ? null
+      : currentSeasonLeak
+        ? "current-season-prior-data-when-prior-season-required"
+        : "prior-source-season-mismatch-or-missing",
   };
 }
 
 /**
- * Build machine-readable provenance for every feature value passed into a model input.
+ * Build machine-readable provenance for features actually passed to the model.
  */
 export function buildModelInputProvenance({
   game = {},
   featureRecord = null,
   roles = null,
   mode = "historical",
+  priorAudits = null,
 } = {}) {
   const kickoff = game.startDate || game.start_date || game.kickoff || featureRecord?.kickoff_timestamp;
   const week = game.week ?? featureRecord?.week;
@@ -264,70 +523,120 @@ export function buildModelInputProvenance({
   const cutoff =
     featureRecord?.feature_cutoff_timestamp ||
     (kickoff ? new Date(Date.parse(kickoff) - 60_000).toISOString() : null);
+  const latestAllowedWeek = latestAllowedWeekForTarget(week);
 
   const home = featureRecord?.features?.home || {};
   const away = featureRecord?.features?.away || {};
-  const catalogAudit = auditCatalogForGame({
-    year,
-    targetWeek: week,
-    kickoffTimestamp: kickoff,
-    predictionCutoff: cutoff,
-    priorSeason: year != null ? Number(year) - 1 : null,
-    coreThroughWeek: home.coreThroughWeek ?? away.coreThroughWeek ?? null,
-    corePriorSeason: false,
-  });
 
   const passed = [];
   const rejected = [];
+  let provenancePass = true;
 
-  const pushSide = (side, feat) => {
-    const entries = [
-      { name: `${side}.priorOff`, value: feat.priorOff, endpoint: "/ratings/sp", priorSeasonFreeze: true, class: "A" },
-      { name: `${side}.priorDef`, value: feat.priorDef, endpoint: "/ratings/sp", priorSeasonFreeze: true, class: "A" },
-      { name: `${side}.coreThroughWeek`, value: feat.coreThroughWeek, endpoint: "/ratings/core", class: "B" },
-      { name: `${side}.coreRating`, value: feat.coreRating, endpoint: "/ratings/core", class: "B" },
-      { name: `${side}.passEpa`, value: feat.passEpa, endpoint: "/ppa/games", reconstructed: true, class: "C" },
-      { name: `${side}.rushEpa`, value: feat.rushEpa, endpoint: "/ppa/games", reconstructed: true, class: "C" },
-      { name: `${side}.successRate`, value: feat.successRate, endpoint: "/stats/game/advanced", reconstructed: true, class: "C" },
-      { name: `${side}.explosiveRate`, value: feat.explosiveRate, endpoint: "/stats/game/advanced", reconstructed: true, class: "C" },
-      { name: `${side}.havocRate`, value: feat.havocRate, endpoint: "/stats/game/advanced", reconstructed: true, class: "C" },
-      { name: `${side}.lineYards`, value: feat.lineYards, endpoint: "/stats/game/advanced", reconstructed: true, class: "C" },
-      { name: `${side}.pointsPerOpportunity`, value: feat.pointsPerOpportunity, endpoint: "/stats/game/advanced", reconstructed: true, class: "C" },
-      { name: `${side}.qbPpa`, value: feat.qbPpa, endpoint: feat.qbSourceEndpoint || null, class: feat.qbTemporalClass || "D" },
-      { name: `${side}.qbName`, value: feat.qbName, endpoint: "identity", class: "C" },
-    ];
-    for (const e of entries) {
-      const row = {
-        featureName: e.name,
-        value: e.value ?? null,
-        endpoint: e.endpoint,
-        temporalClass: e.class,
-        year,
-        seasonType: "regular",
-        sourceWeek: week != null ? Number(week) - 1 : null,
-        throughWeek: e.name.includes("core") ? feat.coreThroughWeek : null,
-        sourceGameIds: feat.rollingSourceGameIds || null,
-        predictionCutoff: cutoff,
-        latestInformationTimestampAllowed: cutoff,
-        priorSeasonFreeze: Boolean(e.priorSeasonFreeze),
-        reconstructedFromGames: Boolean(e.reconstructed),
-        eligibleForIndependentProjection: true,
-        exclusionReason: null,
-      };
-      // Reject null QB season aggregates explicitly when marked unsafe
-      if (e.name.endsWith(".qbPpa") && feat.qbHistoricalUnsafe) {
-        row.eligibleForIndependentProjection = false;
-        row.exclusionReason = "season-qb-ppa-unsafe-for-historical";
-        row.value = null;
-        rejected.push(row);
-      } else if (
-        e.endpoint &&
-        HISTORICALLY_UNSAFE_ENDPOINTS.includes(e.endpoint) &&
-        !e.reconstructed &&
-        mode === "historical"
-      ) {
-        row.eligibleForIndependentProjection = false;
-        row.exclusionReason = "same-season-aggregate-without-game-reconstruction";
+  const pushReconstructed = (side, feat, name, value, endpoint) => {
+    const obs = feat.sourceObservations || feat.rollingSourceObservations || [];
+    const audit = auditReconstructedFeatureProvenance({
+      featureName: `${side}.${name}`,
+      endpoint,
+      targetKickoffTimestamp: kickoff,
+      targetPredictionCutoff: cutoff,
+      targetWeek: week,
+      observations: obs,
+      requireAtLeastOne: value != null,
+    });
+    const row = {
+      featureName: `${side}.${name}`,
+      value: value ?? null,
+      endpoint,
+      temporalClass: "C",
+      year,
+      latestAllowedWeek,
+      actualSourceWeeks: audit.actualSourceWeeks,
+      sourceWeek: null,
+      throughWeek: null,
+      sourceGameIds: audit.sourceGameIds,
+      sourceObservations: audit.sourceObservations,
+      predictionCutoff: cutoff,
+      eligibleForIndependentProjection: audit.ok && value != null,
+      exclusionReason: !audit.ok ? audit.exclusionReason : value == null ? "missing-value" : null,
+    };
+    // Contaminated / post-cutoff / present-without-sources fail provenance. Absent values do not.
+    if (!audit.ok) {
+      provenancePass = false;
+      rejected.push(row);
+    } else if (value == null) {
+      rejected.push(row);
+    } else {
+      passed.push(row);
+    }
+  };
+
+  const pushPrior = (side, feat, name, value, endpoint, priorAudit) => {
+    const sourceSeason = priorAudit?.sourceSeason ?? feat.priorSourceSeason ?? null;
+    const okPrior = priorAudit?.ok === true && sourceSeason != null;
+    const row = {
+      featureName: `${side}.${name}`,
+      value: value ?? null,
+      endpoint,
+      temporalClass: "A",
+      year,
+      latestAllowedWeek,
+      actualSourceWeeks: null,
+      sourceWeek: null,
+      throughWeek: null,
+      sourceSeason,
+      sourceGameIds: null,
+      predictionCutoff: cutoff,
+      eligibleForIndependentProjection: okPrior && value != null,
+      exclusionReason: !okPrior
+        ? priorAudit?.exclusionReason || "missing-source-provenance"
+        : value == null
+          ? "missing-value"
+          : null,
+    };
+    // Bad/missing prior provenance fails. Absent prior values with valid prior audit do not.
+    if (!okPrior) {
+      provenancePass = false;
+      rejected.push(row);
+    } else if (value == null) {
+      rejected.push(row);
+    } else {
+      passed.push(row);
+    }
+  };
+
+  const pushCore = (side, feat) => {
+    const coreRow = feat.coreRow || {
+      year: feat.coreYear,
+      throughWeek: feat.coreThroughWeek,
+      throughSeasonType: feat.coreThroughSeasonType,
+      rating: feat.coreRating,
+    };
+    const audit = auditCoreProvenance({
+      coreRow: feat.coreThroughWeek != null || feat.coreRow ? coreRow : null,
+      targetWeek: week,
+      targetKickoffTimestamp: kickoff,
+    });
+    const row = {
+      featureName: `${side}.core`,
+      value: feat.coreRating ?? null,
+      endpoint: "/ratings/core",
+      temporalClass: "B",
+      year: audit.year,
+      latestAllowedWeek: audit.latestAllowedWeek,
+      actualSourceWeeks: null,
+      sourceWeek: null,
+      throughWeek: audit.actualThroughWeek,
+      throughSeasonType: audit.throughSeasonType,
+      sourceGameIds: null,
+      predictionCutoff: cutoff,
+      eligibleForIndependentProjection: audit.ok,
+      exclusionReason: audit.exclusionReason,
+      coreProvenance: audit,
+    };
+    // Missing CORE is allowed as absent (not a pass of invented week) — mark rejected only if present but invalid
+    if (feat.coreThroughWeek != null || feat.coreRating != null) {
+      if (!row.eligibleForIndependentProjection) {
+        provenancePass = false;
         rejected.push(row);
       } else {
         passed.push(row);
@@ -335,10 +644,39 @@ export function buildModelInputProvenance({
     }
   };
 
-  pushSide("home", home);
-  pushSide("away", away);
+  for (const side of ["home", "away"]) {
+    const feat = side === "home" ? home : away;
+    const priorAudit = priorAudits?.[side] || null;
+    pushPrior(side, feat, "priorOff", feat.priorOff, "/ratings/sp", priorAudit);
+    pushPrior(side, feat, "priorDef", feat.priorDef, "/ratings/sp", priorAudit);
+    pushCore(side, feat);
+    pushReconstructed(side, feat, "passEpa", feat.passEpa, "/ppa/games");
+    pushReconstructed(side, feat, "rushEpa", feat.rushEpa, "/ppa/games");
+    pushReconstructed(side, feat, "successRate", feat.successRate, "/stats/game/advanced");
+    pushReconstructed(side, feat, "explosiveRate", feat.explosiveRate, "/stats/game/advanced");
+    pushReconstructed(side, feat, "havocRate", feat.havocRate, "/stats/game/advanced");
+    pushReconstructed(side, feat, "lineYards", feat.lineYards, "/stats/game/advanced");
+    pushReconstructed(side, feat, "pointsPerOpportunity", feat.pointsPerOpportunity, "/stats/game/advanced");
 
-  // Evaluation namespace must never be in passed independent set
+    if (feat.qbHistoricalUnsafe || (mode === "historical" && feat.qbSourceEndpoint === "/ppa/players/season")) {
+      const unsafeValue = feat.qbPpa;
+      rejected.push({
+        featureName: `${side}.qbPpa`,
+        value: unsafeValue ?? null,
+        endpoint: "/ppa/players/season",
+        temporalClass: "D",
+        latestAllowedWeek,
+        eligibleForIndependentProjection: false,
+        exclusionReason: "season-qb-ppa-unsafe-for-historical",
+      });
+      // Correctly excluding unsafe season aggregates must not fail provenance.
+      // Only fail if an unsafe value was still present for independent use.
+      if (unsafeValue != null) provenancePass = false;
+    } else if (feat.qbPpa != null && feat.reconstructedFromGames) {
+      pushReconstructed(side, feat, "qbPpa", feat.qbPpa, feat.qbSourceEndpoint || "/ppa/players/games");
+    }
+  }
+
   const evalBlock = featureRecord?.features?.evaluation || {};
   for (const [k, v] of Object.entries(evalBlock)) {
     rejected.push({
@@ -348,6 +686,7 @@ export function buildModelInputProvenance({
       temporalClass: "E",
       year,
       predictionCutoff: cutoff,
+      latestAllowedWeek,
       eligibleForIndependentProjection: false,
       exclusionReason: "evaluation-only",
     });
@@ -361,21 +700,19 @@ export function buildModelInputProvenance({
     week,
     kickoffTimestamp: kickoff,
     predictionCutoff: cutoff,
+    latestAllowedWeek,
     homeTeam: featureRecord?.home_team || game.homeTeam || game.home?.name,
     awayTeam: featureRecord?.away_team || game.awayTeam || game.away?.name,
     modelDataVersion: featureRecord?.source_version || null,
-    catalogAuditSummary: catalogAudit.summary,
+    provenancePass,
     independentFeaturesPassed: passed,
     featuresRejected: rejected,
     roles: roles || null,
     targetsSeparated: true,
-    note: "Results/targets must be stored separately from prediction features",
+    note: "Actual source observations only — latestAllowedWeek is not a substitute for actualSourceWeeks",
   };
 }
 
-/**
- * Reject post-cutoff game rows and return diagnostic.
- */
 export function rejectPostCutoffObservations(rows = [], kickoffTimestamp) {
   const kick = Date.parse(kickoffTimestamp || "");
   const kept = [];
@@ -387,6 +724,7 @@ export function rejectPostCutoffObservations(rows = [], kickoffTimestamp) {
         reason: !Number.isFinite(start) ? "missing-or-undated-observation" : "on-or-after-kickoff",
         startDate: row.startDate || row.start_date || null,
         gameId: row.gameId || row.game_id || null,
+        labeledWeek: row.week ?? null,
       });
       continue;
     }
@@ -395,36 +733,40 @@ export function rejectPostCutoffObservations(rows = [], kickoffTimestamp) {
   return { kept, rejected, filter: filterGamesBeforeKickoff };
 }
 
-/**
- * Role confidence tiers for historical identity audit logs.
- */
-export function auditPlayerRoleResolution(roleRow = {}, { priorStarts = null, priorSeasonRole = null, transfer = null } = {}) {
+export function auditPlayerRoleResolution(roleRow = {}, extra = {}) {
   const conf = num(roleRow.role_confidence) ?? 0;
   const tier = classifyRoleConfidence(conf, roleRow.state);
+  const priorGames = extra.priorGameRows || roleRow.selection?.priorGames || [];
   return {
     player: roleRow.player_name || null,
     player_id: roleRow.player_id || null,
     team: roleRow.team || null,
     position: roleRow.position || null,
     role: roleRow.role || null,
-    priorStarts: priorStarts,
+    priorStarts: extra.priorStarts ?? null,
     recentGameUsage: roleRow.selection?.sources || null,
-    priorSeasonRole: priorSeasonRole,
+    priorSeasonRole: extra.priorSeasonRole ?? null,
     currentSeasonPregameUsage: roleRow.selection || null,
-    transferOrNewPlayer: transfer,
+    transferOrNewPlayer: extra.transfer ?? null,
     roleConfidence: conf,
     roleConfidenceTier: ROLE_CONFIDENCE_TIERS,
     roleConfidenceTierAssigned: tier,
     selectionReason: roleRow.selection?.method || roleRow.state || null,
+    selectionMethod: roleRow.selection?.method || null,
     state: roleRow.state || null,
-    widensUncertainty: Boolean(roleRow.provenance?.widenUncertainty) || tier === "LOW" || String(roleRow.state || "").includes("UNCERTAIN"),
+    widensUncertainty:
+      Boolean(roleRow.provenance?.widenUncertainty) ||
+      tier === "LOW" ||
+      String(roleRow.state || "").includes("UNCERTAIN"),
     futureEvidenceUsed: false,
+    actualPriorGameRowsConsumed: priorGames.length,
+    sourceGameIds: priorGames.map((g) => g.gameId || g.game_id).filter(Boolean),
+    sourceKickoffTimestamps: priorGames
+      .map((g) => isoOrNull(g.startDate || g.start_date || g.kickoff))
+      .filter(Boolean),
   };
 }
 
-/**
- * Static inventory of endpoints rejected for historical independent use.
- */
 export function historicallyRejectedEndpointReport() {
   return {
     auditVersion: TEMPORAL_AUDIT_VERSION,
@@ -436,16 +778,14 @@ export function historicallyRejectedEndpointReport() {
           ? "reconstruct from /ppa/games before kickoff"
           : endpoint === "/stats/season/advanced"
             ? "reconstruct from /stats/game/advanced before kickoff"
-            : endpoint.startsWith("/ppa/players") || endpoint.includes("player")
-              ? "reconstruct from player-game rows / plays before kickoff; Week 1 use prior-season only with widened uncertainty"
-              : "reconstruct from game/play grain",
+            : "reconstruct from player-game rows before kickoff",
       temporalClassIfUnreconstructed: "D",
     })),
     undatedSameSeasonRatingsExcluded: PRIOR_ONLY_SAME_SEASON_ENDPOINTS.map((endpoint) => ({
       endpoint,
-      reason: "undated same-season aggregate — prior-season freeze only for historical early/in-season",
+      reason: "undated same-season aggregate — prior-season freeze only",
     })),
-    coreRule: "CORE allowed only when throughWeek <= latestAllowedWeek for the prediction cutoff (or prior-season freeze)",
+    coreRule: "CORE passes only when actual row throughWeek <= latestAllowedWeek (= targetWeek-1)",
     provisionalNotes: {
       priorWeights: "SP.35 CORE.25 FPI.20 SRS.12 Elo.08 — provisional",
       shrink: "n/(n+6) — provisional",
@@ -453,9 +793,6 @@ export function historicallyRejectedEndpointReport() {
   };
 }
 
-/**
- * Request-count estimate for smoke vs full backfill.
- */
 export function backfillRequestEstimate({
   seasons = [2022, 2023, 2024, 2025],
   weeksPerSeason = 15,
@@ -463,23 +800,21 @@ export function backfillRequestEstimate({
 } = {}) {
   const weeks = smokeWeeks != null ? smokeWeeks : weeksPerSeason;
   const seasonCount = seasons.length;
-  // prior bundle ~11 rating/personnel paths; current season games list; per week: ppa games + adv games (+ optional player games)
   const priorPaths = 11;
-  const perWeekPaths = 2; // /ppa/games + /stats/game/advanced
-  const seasonFixed = 2; // games list + optional roster
+  const perWeekPaths = 2;
+  const seasonFixed = 2;
   const perSeason = priorPaths + seasonFixed + weeks * perWeekPaths;
-  const total = seasonCount * perSeason;
   return {
     seasons,
     weeksPerSeason: weeks,
     mode: smokeWeeks != null ? "smoke" : "full",
-    estimate: total,
+    estimate: seasonCount * perSeason,
     breakdown: {
       priorSeasonBundles: seasonCount * priorPaths,
       seasonFixed,
       weeklyGameGrain: seasonCount * weeks * perWeekPaths,
     },
-    note: "Excludes unsafe season-aggregate player endpoints from historical independent matrix; player-game reconstruction adds more if enabled",
+    note: "Game-grain reconstruction only; player-game reconstruction adds more",
     customerPageFanout: 0,
   };
 }

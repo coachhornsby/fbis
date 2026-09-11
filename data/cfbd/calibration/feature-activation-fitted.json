@@ -1,0 +1,279 @@
+{
+  "eligibleN": 5767,
+  "byFeature": {
+    "base": {
+      "nonNullN": 5767,
+      "nonNullPct": 1,
+      "nonzeroN": 5411,
+      "nonzeroPct": 0.9382694641928212,
+      "variance": 155.7053640932459,
+      "meanAbs": 9.515058089127809
+    },
+    "pass": {
+      "nonNullN": 2808,
+      "nonNullPct": 0.48690827119819663,
+      "nonzeroN": 2799,
+      "nonzeroPct": 0.4853476677648691,
+      "variance": 4.7461064100535015,
+      "meanAbs": 1.7555056980057022
+    },
+    "rush": {
+      "nonNullN": 2808,
+      "nonNullPct": 0.48690827119819663,
+      "nonzeroN": 2800,
+      "nonzeroPct": 0.48552106814634993,
+      "variance": 1.370660296131939,
+      "meanAbs": 0.9384188034188033
+    },
+    "success": {
+      "nonNullN": 5767,
+      "nonNullPct": 1,
+      "nonzeroN": 5318,
+      "nonzeroPct": 0.9221432287151031,
+      "variance": 1.8088949255326918,
+      "meanAbs": 0.9181324778914545
+    },
+    "explosiveness": {
+      "nonNullN": 5288,
+      "nonNullPct": 0.916941217270678,
+      "nonzeroN": 5275,
+      "nonzeroPct": 0.9146870123114271,
+      "variance": 6.949116306194351,
+      "meanAbs": 1.7327874432677781
+    },
+    "havoc": {
+      "nonNullN": 5767,
+      "nonNullPct": 1,
+      "nonzeroN": 0,
+      "nonzeroPct": 0,
+      "variance": 0,
+      "meanAbs": 0
+    },
+    "trenches": {
+      "nonNullN": 5767,
+      "nonNullPct": 1,
+      "nonzeroN": 5304,
+      "nonzeroPct": 0.9197156233743714,
+      "variance": 0.9027119086733574,
+      "meanAbs": 0.6362077336570158
+    },
+    "finishing": {
+      "nonNullN": 5767,
+      "nonNullPct": 1,
+      "nonzeroN": 0,
+      "nonzeroPct": 0,
+      "variance": 0,
+      "meanAbs": 0
+    },
+    "qb": {
+      "nonNullN": 5767,
+      "nonNullPct": 1,
+      "nonzeroN": 0,
+      "nonzeroPct": 0,
+      "variance": 0,
+      "meanAbs": 0
+    },
+    "pace": {
+      "nonNullN": 5767,
+      "nonNullPct": 1,
+      "nonzeroN": 5292,
+      "nonzeroPct": 0.9176348187966014,
+      "variance": 0.8400594118055852,
+      "meanAbs": 0.6583700364140797
+    },
+    "context": {
+      "nonNullN": 5767,
+      "nonNullPct": 1,
+      "nonzeroN": 5604,
+      "nonzeroPct": 0.9717357378186232,
+      "variance": 0.1716587104044714,
+      "meanAbs": 2.429339344546558
+    }
+  },
+  "ablationActivation": {
+    "A": {
+      "featuresEnabled": [
+        "base"
+      ],
+      "addedVsPrevious": [
+        "base"
+      ],
+      "inactiveAddedBlocks": [],
+      "status": "active"
+    },
+    "B": {
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush"
+      ],
+      "addedVsPrevious": [
+        "pass",
+        "rush"
+      ],
+      "inactiveAddedBlocks": [],
+      "status": "active"
+    },
+    "C": {
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success"
+      ],
+      "addedVsPrevious": [
+        "success"
+      ],
+      "inactiveAddedBlocks": [],
+      "status": "active"
+    },
+    "D": {
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness"
+      ],
+      "addedVsPrevious": [
+        "explosiveness"
+      ],
+      "inactiveAddedBlocks": [],
+      "status": "active"
+    },
+    "E": {
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc"
+      ],
+      "addedVsPrevious": [
+        "havoc"
+      ],
+      "inactiveAddedBlocks": [
+        "havoc"
+      ],
+      "status": "inactive_in_historical_sample"
+    },
+    "F": {
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches"
+      ],
+      "addedVsPrevious": [
+        "trenches"
+      ],
+      "inactiveAddedBlocks": [],
+      "status": "active"
+    },
+    "G": {
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches",
+        "finishing"
+      ],
+      "addedVsPrevious": [
+        "finishing"
+      ],
+      "inactiveAddedBlocks": [
+        "finishing"
+      ],
+      "status": "inactive_in_historical_sample"
+    },
+    "H": {
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches",
+        "finishing",
+        "qb"
+      ],
+      "addedVsPrevious": [
+        "qb"
+      ],
+      "inactiveAddedBlocks": [
+        "qb"
+      ],
+      "status": "inactive_in_historical_sample"
+    },
+    "I": {
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches",
+        "finishing",
+        "qb",
+        "pace"
+      ],
+      "addedVsPrevious": [
+        "pace"
+      ],
+      "inactiveAddedBlocks": [],
+      "status": "active"
+    },
+    "J": {
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches",
+        "finishing",
+        "qb",
+        "pace",
+        "context"
+      ],
+      "addedVsPrevious": [
+        "context"
+      ],
+      "inactiveAddedBlocks": [],
+      "status": "active"
+    },
+    "K": {
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches",
+        "finishing",
+        "qb",
+        "pace",
+        "context"
+      ],
+      "addedVsPrevious": [],
+      "inactiveAddedBlocks": [],
+      "status": "architecturally_identical_to_J"
+    }
+  },
+  "explanations": {
+    "J_equals_K": "Identical feature sets/masks; K adds nothing architectural.",
+    "inactive_blocks": "Blocks with nonzeroPct≈0 are inactive_in_historical_sample — not proof they lack value if populated later.",
+    "provisional_total_flat": "Unfitted total ≈ 2×nationalPpg; fitted total uses intentional totalFeatures."
+  }
+}

@@ -1,123 +1,272 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  auditCatalogForGame,
-  auditFeatureForCutoff,
   auditPreseasonPriorSources,
-  auditPlayerRoleResolution,
+  auditCoreProvenance,
+  auditReconstructedFeatureProvenance,
+  assertSourceObservationsBeforeKickoff,
   buildModelInputProvenance,
-  historicallyRejectedEndpointReport,
   rejectPostCutoffObservations,
-  backfillRequestEstimate,
-  HISTORICALLY_UNSAFE_ENDPOINTS,
+  TEMPORAL_AUDIT_VERSION,
 } from "../functions/lib/cfbTemporalAudit.js";
-import { assembleGameFeatures, buildPriorCatalog, buildQbFeatures } from "../functions/lib/cfbFeaturePipeline.js";
-import { classifyRoleConfidence, ROLE_CONFIDENCE_TIERS } from "../functions/lib/cfbPlayerIdentity.js";
-import { CFBD_FEATURE_CATALOG } from "../functions/lib/cfbdFeatureCatalog.js";
+import { assembleGameFeatures, buildPriorCatalog } from "../functions/lib/cfbFeaturePipeline.js";
 import { COLLEGE_MODELS } from "../functions/lib/collegeModels.js";
 
-test("governance unchanged — both models cannot qualify", () => {
+const KICK = "2024-10-12T19:00:00.000Z";
+const CUTOFF = "2024-10-12T18:59:00.000Z";
+
+test("governance unchanged", () => {
   assert.equal(COLLEGE_MODELS["CFB-FBIS-v2"].canQualify, false);
   assert.equal(COLLEGE_MODELS["CFB-PLAYER-v1"].canQualify, false);
+  assert.match(TEMPORAL_AUDIT_VERSION, /v2/);
 });
 
-test("historically unsafe season aggregates are rejected without reconstruction", () => {
-  const report = historicallyRejectedEndpointReport();
-  for (const ep of [
-    "/stats/season/advanced",
-    "/ppa/players/season",
-    "/player/usage",
-    "/stats/player/season",
-    "/ppa/teams",
-  ]) {
-    assert.ok(HISTORICALLY_UNSAFE_ENDPOINTS.includes(ep));
-    assert.ok(report.rejectedForHistoricalIndependentUse.some((r) => r.endpoint === ep));
-  }
-  const adv = CFBD_FEATURE_CATALOG.find((f) => f.canonical === "adv_success_offense");
-  const row = auditFeatureForCutoff(adv, {
-    year: 2024,
-    targetWeek: 3,
-    kickoffTimestamp: "2024-09-14T19:00:00.000Z",
-    reconstructedFromGames: false,
-    priorSeasonFreeze: false,
+test("A: post-kickoff source rejected even if labeled earlier week", () => {
+  const check = assertSourceObservationsBeforeKickoff({
+    targetKickoffTimestamp: KICK,
+    targetPredictionCutoff: CUTOFF,
+    observations: [
+      {
+        sourceGameId: "future",
+        sourceKickoffTimestamp: "2024-10-19T18:00:00.000Z",
+        sourceWeek: 3, // false label
+        week: 3,
+        endpoint: "/ppa/games",
+      },
+    ],
   });
-  assert.equal(row.eligibleForIndependentProjection, false);
-  assert.match(row.exclusionReason, /same-season-aggregate/);
+  assert.equal(check.ok, false);
+  assert.ok(check.rejected.some((r) => r.reason === "source-kickoff-on-or-after-target"));
 });
 
-test("CORE without throughWeek rejected; throughWeek after cutoff rejected; valid throughWeek accepted", () => {
-  const core = CFBD_FEATURE_CATALOG.find((f) => f.canonical === "core_overall");
-  const missing = auditFeatureForCutoff(core, {
-    year: 2024,
-    targetWeek: 5,
-    kickoffTimestamp: "2024-09-28T19:00:00.000Z",
-    throughWeek: null,
-  });
-  assert.equal(missing.eligibleForIndependentProjection, false);
-  const future = auditFeatureForCutoff(core, {
-    year: 2024,
-    targetWeek: 5,
-    kickoffTimestamp: "2024-09-28T19:00:00.000Z",
-    throughWeek: 5,
-  });
-  assert.equal(future.eligibleForIndependentProjection, false);
-  const ok = auditFeatureForCutoff(core, {
-    year: 2024,
-    targetWeek: 5,
-    kickoffTimestamp: "2024-09-28T19:00:00.000Z",
-    throughWeek: 4,
-  });
-  assert.equal(ok.eligibleForIndependentProjection, true);
-});
-
-test("undated same-season SP/FPI/SRS excluded; prior-season freeze accepted", () => {
-  const sp = CFBD_FEATURE_CATALOG.find((f) => f.canonical === "sp_plus_overall");
-  const same = auditFeatureForCutoff(sp, { year: 2024, targetWeek: 3, priorSeasonFreeze: false });
-  assert.equal(same.eligibleForIndependentProjection, false);
-  const prior = auditFeatureForCutoff(sp, {
-    year: 2024,
-    targetWeek: 3,
-    priorSeasonFreeze: true,
-    sourceSeason: 2023,
-    kickoffTimestamp: "2024-09-14T19:00:00.000Z",
-    predictionCutoff: "2024-09-14T18:59:00.000Z",
-  });
-  assert.equal(prior.eligibleForIndependentProjection, true);
-});
-
-test("preseason prior audit detects current-season finals leakage", () => {
-  const ok = auditPreseasonPriorSources({
+test("B: missing prior sourceSeason fails closed — no default to expected", () => {
+  const missingEntry = auditPreseasonPriorSources({
     gameYear: 2024,
     priorSeason: 2023,
-    priorCatalogEntry: { sourceSeason: 2023, spOverall: 10, fpi: 8 },
+    priorCatalogEntry: null,
   });
-  assert.equal(ok.ok, true);
+  assert.equal(missingEntry.ok, false);
+  assert.equal(missingEntry.sourceSeason, null);
+  assert.equal(missingEntry.exclusionReason, "missing-source-provenance");
+
+  const missingField = auditPreseasonPriorSources({
+    gameYear: 2024,
+    priorSeason: 2023,
+    priorCatalogEntry: { spOverall: 12 }, // no sourceSeason key
+  });
+  assert.equal(missingField.ok, false);
+  assert.equal(missingField.sourceSeason, null);
+  assert.equal(missingField.exclusionReason, "missing-source-provenance");
+});
+
+test("C: current-season prior data fails when prior-season freeze required", () => {
   const leak = auditPreseasonPriorSources({
     gameYear: 2024,
     priorSeason: 2023,
-    priorCatalogEntry: { sourceSeason: 2024, spOverall: 99 },
+    priorCatalogEntry: { sourceSeason: 2024, spOverall: 20 },
   });
   assert.equal(leak.ok, false);
   assert.equal(leak.leakageIfCurrentSeasonFinals, true);
+  assert.match(leak.exclusionReason, /current-season/);
 });
 
-test("post-cutoff observations are rejected", () => {
-  const kickoff = "2024-10-12T19:00:00.000Z";
-  const { kept, rejected } = rejectPostCutoffObservations(
-    [
-      { gameId: 1, startDate: "2024-10-05T18:00:00.000Z" },
-      { gameId: 2, startDate: "2024-10-12T19:00:00.000Z" },
-      { gameId: 3, startDate: "2024-10-19T18:00:00.000Z" },
-      { gameId: 4 },
+test("D: CORE with throughWeek >= targetWeek fails", () => {
+  const failEq = auditCoreProvenance({
+    coreRow: { year: 2024, throughWeek: 5, throughSeasonType: "regular", rating: 0.2 },
+    targetWeek: 5,
+    targetKickoffTimestamp: KICK,
+  });
+  assert.equal(failEq.ok, false);
+  const failGt = auditCoreProvenance({
+    coreRow: { year: 2024, throughWeek: 6, throughSeasonType: "regular", rating: 0.2 },
+    targetWeek: 5,
+    targetKickoffTimestamp: KICK,
+  });
+  assert.equal(failGt.ok, false);
+});
+
+test("E: CORE with valid actual throughWeek <= targetWeek-1 passes", () => {
+  const ok = auditCoreProvenance({
+    coreRow: { year: 2024, throughWeek: 4, throughSeasonType: "regular", rating: 0.2 },
+    targetWeek: 5,
+    targetKickoffTimestamp: KICK,
+  });
+  assert.equal(ok.ok, true);
+  assert.equal(ok.actualThroughWeek, 4);
+  assert.equal(ok.latestAllowedWeek, 4);
+  assert.notEqual(ok.actualThroughWeek, null);
+});
+
+test("F: rolling feature composed entirely of pre-kickoff sources passes", () => {
+  const audit = auditReconstructedFeatureProvenance({
+    featureName: "home.passEpa",
+    endpoint: "/ppa/games",
+    targetKickoffTimestamp: KICK,
+    targetPredictionCutoff: CUTOFF,
+    targetWeek: 7,
+    observations: [
+      {
+        sourceGameId: "g1",
+        sourceKickoffTimestamp: "2024-09-28T18:00:00.000Z",
+        sourceSeason: 2024,
+        sourceWeek: 5,
+      },
+      {
+        sourceGameId: "g2",
+        sourceKickoffTimestamp: "2024-10-05T18:00:00.000Z",
+        sourceSeason: 2024,
+        sourceWeek: 6,
+      },
     ],
-    kickoff
-  );
-  assert.equal(kept.length, 1);
-  assert.equal(kept[0].gameId, 1);
-  assert.equal(rejected.length, 3);
+  });
+  assert.equal(audit.ok, true);
+  assert.deepEqual(audit.actualSourceWeeks.sort(), [5, 6]);
+  assert.equal(audit.latestAllowedWeek, 6);
 });
 
-test("intentional post-cutoff feature injection fails temporal integrity on assemble", () => {
+test("G: one contaminated source game fails reconstructed provenance", () => {
+  const audit = auditReconstructedFeatureProvenance({
+    featureName: "home.passEpa",
+    endpoint: "/ppa/games",
+    targetKickoffTimestamp: KICK,
+    targetPredictionCutoff: CUTOFF,
+    targetWeek: 7,
+    observations: [
+      {
+        sourceGameId: "ok",
+        sourceKickoffTimestamp: "2024-10-05T18:00:00.000Z",
+        sourceWeek: 6,
+      },
+      {
+        sourceGameId: "bad",
+        sourceKickoffTimestamp: "2024-10-19T18:00:00.000Z",
+        sourceWeek: 4, // lying week label
+      },
+    ],
+  });
+  assert.equal(audit.ok, false);
+  assert.match(audit.exclusionReason, /contaminated-source/);
+});
+
+test("H: evaluation lines remain incapable of entering independent features", () => {
+  const provenance = buildModelInputProvenance({
+    game: { id: "g1", week: 2, season: 2024, startDate: KICK },
+    featureRecord: {
+      game_id: "g1",
+      season: 2024,
+      week: 2,
+      kickoff_timestamp: KICK,
+      feature_cutoff_timestamp: CUTOFF,
+      home_team: "Alabama",
+      away_team: "Georgia",
+      features: {
+        home: {
+          priorOff: 34,
+          priorSourceSeason: 2023,
+          sourceObservations: [
+            {
+              sourceGameId: "p1",
+              sourceKickoffTimestamp: "2024-10-05T18:00:00.000Z",
+              sourceWeek: 6,
+              endpoint: "/ppa/games",
+            },
+          ],
+          passEpa: 0.2,
+        },
+        away: {
+          priorOff: 32,
+          priorSourceSeason: 2023,
+          sourceObservations: [
+            {
+              sourceGameId: "p2",
+              sourceKickoffTimestamp: "2024-10-05T18:00:00.000Z",
+              sourceWeek: 6,
+              endpoint: "/ppa/games",
+            },
+          ],
+          passEpa: 0.1,
+        },
+        evaluation: { closingSpread: -7.5, closingTotal: 55 },
+      },
+    },
+    priorAudits: {
+      home: auditPreseasonPriorSources({
+        gameYear: 2024,
+        priorSeason: 2023,
+        priorCatalogEntry: { sourceSeason: 2023, spOverall: 10, priorOff: 34, priorDef: 16 },
+      }),
+      away: auditPreseasonPriorSources({
+        gameYear: 2024,
+        priorSeason: 2023,
+        priorCatalogEntry: { sourceSeason: 2023, spOverall: 8, priorOff: 32, priorDef: 18 },
+      }),
+    },
+    mode: "historical",
+  });
+  assert.ok(provenance.featuresRejected.some((r) => r.featureName.startsWith("evaluation.") && r.exclusionReason === "evaluation-only"));
+  assert.ok(!provenance.independentFeaturesPassed.some((r) => String(r.featureName).startsWith("evaluation.")));
+  assert.equal(provenance.provenancePass, true);
+});
+
+test("absent reconstructed values do not fail provenance; present without sources do", () => {
+  const priorOk = auditPreseasonPriorSources({
+    gameYear: 2024,
+    priorSeason: 2023,
+    priorCatalogEntry: { sourceSeason: 2023, spOverall: 10, priorOff: 30, priorDef: 20 },
+  });
+  const absentOk = buildModelInputProvenance({
+    game: { id: "w1", week: 1, season: 2024, startDate: KICK },
+    featureRecord: {
+      week: 1,
+      season: 2024,
+      kickoff_timestamp: KICK,
+      feature_cutoff_timestamp: CUTOFF,
+      features: {
+        home: {
+          priorOff: 30,
+          priorDef: 20,
+          priorSourceSeason: 2023,
+          sourceObservations: [],
+          qbHistoricalUnsafe: true,
+          qbSourceEndpoint: "/ppa/players/season",
+          qbPpa: null,
+        },
+        away: {
+          priorOff: 28,
+          priorDef: 18,
+          priorSourceSeason: 2023,
+          sourceObservations: [],
+          qbHistoricalUnsafe: true,
+          qbPpa: null,
+        },
+        evaluation: {},
+      },
+    },
+    priorAudits: { home: priorOk, away: priorOk },
+    mode: "historical",
+  });
+  assert.equal(absentOk.provenancePass, true);
+
+  const presentNoSrc = buildModelInputProvenance({
+    game: { id: "bad", week: 2, season: 2024, startDate: KICK },
+    featureRecord: {
+      week: 2,
+      season: 2024,
+      kickoff_timestamp: KICK,
+      feature_cutoff_timestamp: CUTOFF,
+      features: {
+        home: { priorOff: 30, priorSourceSeason: 2023, sourceObservations: [], passEpa: 0.2 },
+        away: { priorOff: 28, priorSourceSeason: 2023, sourceObservations: [] },
+        evaluation: {},
+      },
+    },
+    priorAudits: { home: priorOk, away: priorOk },
+    mode: "historical",
+  });
+  assert.equal(presentNoSrc.provenancePass, false);
+});
+
+test("assemble drops post-kickoff rows from rolling features (timestamp gated)", () => {
   const priorCatalog = buildPriorCatalog({
     season: 2023,
     endpoints: {
@@ -132,14 +281,13 @@ test("intentional post-cutoff feature injection fails temporal integrity on asse
       ppaTeams: { data: [] },
     },
   });
-  const kickoff = "2024-10-12T19:00:00.000Z";
-  // Inject a future game row into rolling features
+  assert.equal(priorCatalog.bySchool.alabama.sourceSeason, 2023);
   const record = assembleGameFeatures({
     game: {
       id: "inj-1",
       season: 2024,
       week: 7,
-      startDate: kickoff,
+      startDate: KICK,
       homeTeam: "Alabama",
       awayTeam: "Georgia",
     },
@@ -148,96 +296,39 @@ test("intentional post-cutoff feature injection fails temporal integrity on asse
     ppaGameRows: [
       {
         team: "Alabama",
+        gameId: "future",
+        week: 2,
         startDate: "2024-10-19T18:00:00.000Z",
         offense: { overall: 0.9, passing: 0.5, rushing: 0.2 },
         defense: { overall: -0.1, passing: 0, rushing: 0 },
       },
+      {
+        team: "Alabama",
+        gameId: "past",
+        week: 6,
+        startDate: "2024-10-05T18:00:00.000Z",
+        offense: { overall: 0.2, passing: 0.1, rushing: 0.05 },
+        defense: { overall: 0, passing: 0, rushing: 0 },
+      },
     ],
     advGameRows: [],
-    collectionTimestamp: new Date(Date.parse(kickoff) - 60_000).toISOString(),
+    collectionTimestamp: CUTOFF,
     mode: "historical",
   });
-  assert.equal(record.temporalOk, true);
-  // Future row must not contribute to gamesPlayed
-  assert.equal(record.features.home.gamesPlayed, 0);
-  assert.equal(record.features.home.passEpa, null);
+  assert.equal(record.features.home.gamesPlayed, 1);
+  assert.deepEqual(record.features.home.rollingSourceGameIds, ["past"]);
+  assert.ok(record.features.home.sourceObservations.every((o) => Date.parse(o.sourceKickoffTimestamp) < Date.parse(KICK)));
 });
 
-test("historical mode rejects season QB aggregates", () => {
-  const blocked = buildQbFeatures({
-    team: "Alabama",
-    mode: "historical",
-    qbRows: [{ team: "Alabama", name: "FutureQB", averagePPA: { pass: 0.5 }, games: 12 }],
-    usageRows: [{ team: "Alabama", position: "QB", usage: { overall: 0.9 } }],
-    kickoffTimestamp: "2024-10-12T19:00:00.000Z",
-  });
-  assert.equal(blocked.qbHistoricalUnsafe, true);
-  assert.equal(blocked.qbPpa, null);
-  assert.equal(blocked.qbStarterKnown, false);
-});
-
-test("role confidence tiers LOW/MEDIUM/HIGH and uncertain widens", () => {
-  assert.equal(classifyRoleConfidence(0.2, "PRIMARY"), ROLE_CONFIDENCE_TIERS.LOW);
-  assert.equal(classifyRoleConfidence(0.55, "LIKELY"), ROLE_CONFIDENCE_TIERS.MEDIUM);
-  assert.equal(classifyRoleConfidence(0.9, "CONFIRMED_STARTER"), ROLE_CONFIDENCE_TIERS.HIGH);
-  assert.equal(classifyRoleConfidence(0.95, "QB_UNCERTAIN"), ROLE_CONFIDENCE_TIERS.LOW);
-  const audit = auditPlayerRoleResolution({
-    player_name: "Test QB",
-    team: "Alabama",
-    position: "QB",
-    role: "QB1",
-    role_confidence: 0.3,
-    state: "QB_UNCERTAIN",
-    selection: { method: "uncertain" },
-    provenance: { widenUncertainty: true },
-  });
-  assert.equal(audit.roleConfidenceTierAssigned, "LOW");
-  assert.equal(audit.widensUncertainty, true);
-  assert.equal(audit.futureEvidenceUsed, false);
-});
-
-test("catalog audit for a week-3 game rejects class D/E and unsafe aggregates", () => {
-  const audit = auditCatalogForGame({
-    year: 2024,
-    targetWeek: 3,
-    kickoffTimestamp: "2024-09-14T19:00:00.000Z",
-    predictionCutoff: "2024-09-14T18:59:00.000Z",
-    priorSeason: 2023,
-    coreThroughWeek: 2,
-  });
-  assert.ok(audit.summary.rejected > 0);
-  assert.ok(audit.features.some((f) => f.featureName === "closing_lines" && !f.eligibleForIndependentProjection));
-  assert.ok(audit.features.some((f) => f.endpoint === "/ppa/teams" && !f.eligibleForIndependentProjection));
-});
-
-test("provenance builder keeps evaluation lines out of independent passed set", () => {
-  const provenance = buildModelInputProvenance({
-    game: { id: "g1", week: 2, season: 2024, startDate: "2024-09-07T19:00:00.000Z" },
-    featureRecord: {
-      game_id: "g1",
-      season: 2024,
-      week: 2,
-      kickoff_timestamp: "2024-09-07T19:00:00.000Z",
-      feature_cutoff_timestamp: "2024-09-07T18:59:00.000Z",
-      home_team: "Alabama",
-      away_team: "Georgia",
-      features: {
-        home: { priorOff: 34, passEpa: 0.2, qbHistoricalUnsafe: true, qbPpa: 0.9 },
-        away: { priorOff: 32, passEpa: 0.1 },
-        evaluation: { closingSpread: -7.5, closingTotal: 55 },
-      },
-    },
-    mode: "historical",
-  });
-  assert.ok(provenance.featuresRejected.some((r) => r.featureName.startsWith("evaluation.")));
-  assert.ok(provenance.featuresRejected.some((r) => r.featureName === "home.qbPpa"));
-  assert.equal(provenance.targetsSeparated, true);
-});
-
-test("full backfill request estimate is reported and smoke is smaller", () => {
-  const smoke = backfillRequestEstimate({ seasons: [2024], smokeWeeks: 4 });
-  const full = backfillRequestEstimate({ seasons: [2022, 2023, 2024, 2025], weeksPerSeason: 15 });
-  assert.ok(smoke.estimate < full.estimate);
-  assert.equal(smoke.customerPageFanout ?? full.customerPageFanout, 0);
-  assert.equal(full.customerPageFanout, 0);
+test("rejectPostCutoffObservations still rejects undated and future rows", () => {
+  const { kept, rejected } = rejectPostCutoffObservations(
+    [
+      { gameId: 1, startDate: "2024-10-05T18:00:00.000Z", week: 6 },
+      { gameId: 2, startDate: "2024-10-19T18:00:00.000Z", week: 1 },
+      { gameId: 3, week: 1 },
+    ],
+    KICK
+  );
+  assert.equal(kept.length, 1);
+  assert.equal(rejected.length, 2);
 });

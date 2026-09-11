@@ -6,6 +6,7 @@ import {
   identifyWr1,
   identifyGamePlayerRoles,
   filterPlayerGamesBeforeKickoff,
+  flattenGamesPlayersResponse,
   assertNoFutureRoleLeakage,
 } from "../functions/lib/cfbPlayerIdentity.js";
 import {
@@ -306,4 +307,107 @@ test("missing player data widens uncertainty; no fake zero projections for named
   assert.ok(proj.players.home.QB1.passing_yards.sigma > 40);
   assert.notEqual(proj.players.home.QB1.passing_yards.projection, null);
   assert.ok(["HIGH", "MEDIUM", "LOW"].includes(proj.players.home.QB1.passing_yards.uncertainty_state));
+});
+
+test("flattenGamesPlayersResponse expands nested CFBD /games/players", () => {
+  const nested = [
+    {
+      id: 401,
+      week: 2,
+      teams: [
+        {
+          team: "Auburn",
+          categories: [
+            {
+              name: "passing",
+              types: [
+                { name: "C/ATT", athletes: [{ id: "1", name: "Payton Thorne", stat: "14/27" }] },
+                { name: "YDS", athletes: [{ id: "1", name: "Payton Thorne", stat: "165" }] },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+  const gamesById = new Map([["401", "2024-09-07T19:00:00.000Z"]]);
+  const flat = flattenGamesPlayersResponse(nested, { gamesById, season: 2024 });
+  assert.equal(flat.length, 1);
+  assert.equal(flat[0].team, "Auburn");
+  assert.equal(flat[0].name, "Payton Thorne");
+  assert.equal(flat[0].passingAttempts, 27);
+  assert.equal(flat[0].passingCompletions, 14);
+  assert.equal(flat[0].passingYards, 165);
+  assert.equal(flat[0].startDate, "2024-09-07T19:00:00.000Z");
+  assert.equal(flat[0].position, "QB");
+});
+
+test("QB1 role scoring is team-scoped to prior player-game rows", () => {
+  const kick = "2024-09-14T19:00:00.000Z";
+  const rows = [
+    {
+      team: "Auburn",
+      name: "Payton Thorne",
+      athleteId: "a1",
+      position: "QB",
+      passingAttempts: 30,
+      passingYards: 250,
+      startDate: "2024-09-07T19:00:00.000Z",
+      gameId: "g-aub",
+    },
+    {
+      team: "Alabama",
+      name: "Jalen Milroe",
+      athleteId: "a2",
+      position: "QB",
+      passingAttempts: 40,
+      passingYards: 400,
+      startDate: "2024-09-07T23:00:00.000Z",
+      gameId: "g-ala",
+    },
+  ];
+  const qb = identifyQb1({
+    team: "Auburn",
+    playerGameRows: rows,
+    kickoffTimestamp: kick,
+    week: 3,
+    identityAsOf: "2024-09-14T18:59:00.000Z",
+  });
+  assert.equal(qb.player_name, "Payton Thorne");
+  assert.notEqual(qb.player_name, "Jalen Milroe");
+});
+
+test("null passingAttempts does not exclude RBs (Number(null) footgun)", () => {
+  const kick = "2024-09-14T19:00:00.000Z";
+  const rb = identifyRb1({
+    team: "Alabama",
+    playerGameRows: [
+      {
+        team: "Alabama",
+        name: "Justice Haynes",
+        athleteId: "jh",
+        position: "RB",
+        rushingAttempts: 12,
+        rushingYards: 100,
+        passingAttempts: null,
+        startDate: "2024-09-07T19:00:00.000Z",
+        gameId: "g1",
+      },
+      {
+        team: "Alabama",
+        name: "Jalen Milroe",
+        athleteId: "jm",
+        position: "QB",
+        rushingAttempts: 10,
+        rushingYards: 80,
+        passingAttempts: 25,
+        startDate: "2024-09-07T19:00:00.000Z",
+        gameId: "g1",
+      },
+    ],
+    kickoffTimestamp: kick,
+    week: 3,
+    identityAsOf: "2024-09-14T18:59:00.000Z",
+  });
+  assert.equal(rb.player_name, "Justice Haynes");
 });

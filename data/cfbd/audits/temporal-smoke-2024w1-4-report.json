@@ -1,8 +1,8 @@
 {
   "ok": true,
   "job": "cfb-temporal-smoke-backfill",
-  "generatedAt": "2026-09-10T16:10:32.627Z",
-  "auditVersion": "cfb-temporal-audit-v1",
+  "generatedAt": "2026-09-10T17:05:39.334Z",
+  "auditVersion": "cfb-temporal-audit-v2",
   "pipelineVersion": "cfb-feature-pipeline-v2",
   "mode": "historical",
   "season": 2024,
@@ -13,6 +13,19 @@
     4
   ],
   "snapshotCount": 1101,
+  "counts": {
+    "snapshots": 1101,
+    "provenancePass": 457,
+    "provenanceFail": 644,
+    "priorPass": 965,
+    "priorFail": 1237,
+    "priorMissing": 1237,
+    "postCutoffRejections": 0,
+    "coreCutoffRejections": 0,
+    "corePresentOk": 0,
+    "provenancePassRate": 0.4150772025431426,
+    "priorPassRate": 0.43823796548592187
+  },
   "canQualify": false,
   "canAuthorizeWager": false,
   "championUntouched": true,
@@ -26,100 +39,103 @@
     },
     "CFB-PLAYER-v1": {
       "canQualify": false
-    },
-    "marketExcludedFromIndependent": true
+    }
   },
-  "temporalAudit": {
-    "catalogSample": {
-      "gameId": "401693677",
-      "summary": {
-        "total": 39,
-        "eligible": 20,
-        "rejected": 19,
-        "rejectedByEndpoint": {
-          "/ppa/teams::same-season-aggregate-without-game-reconstruction": 6,
-          "/stats/season/advanced::same-season-aggregate-without-game-reconstruction": 8,
-          "/ppa/players/season::same-season-aggregate-without-game-reconstruction": 1,
-          "/player/usage::same-season-aggregate-without-game-reconstruction": 1,
-          "/stats/player/season::same-season-aggregate-without-game-reconstruction": 1,
-          "/lines::evaluation-only": 1,
-          "/metrics/wp/pregame::evaluation-only": 1
-        },
-        "historicallyUnsafeEndpoints": [
-          "/stats/season/advanced",
-          "/ppa/players/season",
-          "/player/usage",
-          "/stats/player/season",
-          "/ppa/teams"
-        ],
-        "priorOnlySameSeasonEndpoints": [
-          "/ratings/sp",
-          "/ratings/fpi",
-          "/ratings/srs",
-          "/ratings/elo"
-        ]
+  "rejectedEndpoints": {
+    "auditVersion": "cfb-temporal-audit-v2",
+    "rejectedForHistoricalIndependentUse": [
+      {
+        "endpoint": "/stats/season/advanced",
+        "reason": "same-season cumulative aggregate cannot prove cutoff bound",
+        "requiredAlternative": "reconstruct from /stats/game/advanced before kickoff",
+        "temporalClassIfUnreconstructed": "D"
+      },
+      {
+        "endpoint": "/ppa/players/season",
+        "reason": "same-season cumulative aggregate cannot prove cutoff bound",
+        "requiredAlternative": "reconstruct from player-game rows before kickoff",
+        "temporalClassIfUnreconstructed": "D"
+      },
+      {
+        "endpoint": "/player/usage",
+        "reason": "same-season cumulative aggregate cannot prove cutoff bound",
+        "requiredAlternative": "reconstruct from player-game rows before kickoff",
+        "temporalClassIfUnreconstructed": "D"
+      },
+      {
+        "endpoint": "/stats/player/season",
+        "reason": "same-season cumulative aggregate cannot prove cutoff bound",
+        "requiredAlternative": "reconstruct from player-game rows before kickoff",
+        "temporalClassIfUnreconstructed": "D"
+      },
+      {
+        "endpoint": "/ppa/teams",
+        "reason": "same-season cumulative aggregate cannot prove cutoff bound",
+        "requiredAlternative": "reconstruct from /ppa/games before kickoff",
+        "temporalClassIfUnreconstructed": "D"
       }
-    },
-    "rejectedEndpoints": {
-      "auditVersion": "cfb-temporal-audit-v1",
-      "rejectedForHistoricalIndependentUse": [
-        {
-          "endpoint": "/stats/season/advanced",
-          "reason": "same-season cumulative aggregate cannot prove cutoff bound",
-          "requiredAlternative": "reconstruct from /stats/game/advanced before kickoff",
-          "temporalClassIfUnreconstructed": "D"
-        },
-        {
-          "endpoint": "/ppa/players/season",
-          "reason": "same-season cumulative aggregate cannot prove cutoff bound",
-          "requiredAlternative": "reconstruct from player-game rows / plays before kickoff; Week 1 use prior-season only with widened uncertainty",
-          "temporalClassIfUnreconstructed": "D"
-        },
-        {
-          "endpoint": "/player/usage",
-          "reason": "same-season cumulative aggregate cannot prove cutoff bound",
-          "requiredAlternative": "reconstruct from player-game rows / plays before kickoff; Week 1 use prior-season only with widened uncertainty",
-          "temporalClassIfUnreconstructed": "D"
-        },
-        {
-          "endpoint": "/stats/player/season",
-          "reason": "same-season cumulative aggregate cannot prove cutoff bound",
-          "requiredAlternative": "reconstruct from player-game rows / plays before kickoff; Week 1 use prior-season only with widened uncertainty",
-          "temporalClassIfUnreconstructed": "D"
-        },
-        {
-          "endpoint": "/ppa/teams",
-          "reason": "same-season cumulative aggregate cannot prove cutoff bound",
-          "requiredAlternative": "reconstruct from /ppa/games before kickoff",
-          "temporalClassIfUnreconstructed": "D"
-        }
-      ],
-      "undatedSameSeasonRatingsExcluded": [
-        {
-          "endpoint": "/ratings/sp",
-          "reason": "undated same-season aggregate \u2014 prior-season freeze only for historical early/in-season"
-        },
-        {
-          "endpoint": "/ratings/fpi",
-          "reason": "undated same-season aggregate \u2014 prior-season freeze only for historical early/in-season"
-        },
-        {
-          "endpoint": "/ratings/srs",
-          "reason": "undated same-season aggregate \u2014 prior-season freeze only for historical early/in-season"
-        },
-        {
-          "endpoint": "/ratings/elo",
-          "reason": "undated same-season aggregate \u2014 prior-season freeze only for historical early/in-season"
-        }
-      ],
-      "coreRule": "CORE allowed only when throughWeek <= latestAllowedWeek for the prediction cutoff (or prior-season freeze)",
-      "provisionalNotes": {
-        "priorWeights": "SP.35 CORE.25 FPI.20 SRS.12 Elo.08 \u2014 provisional",
-        "shrink": "n/(n+6) \u2014 provisional"
+    ],
+    "undatedSameSeasonRatingsExcluded": [
+      {
+        "endpoint": "/ratings/sp",
+        "reason": "undated same-season aggregate — prior-season freeze only"
+      },
+      {
+        "endpoint": "/ratings/fpi",
+        "reason": "undated same-season aggregate — prior-season freeze only"
+      },
+      {
+        "endpoint": "/ratings/srs",
+        "reason": "undated same-season aggregate — prior-season freeze only"
+      },
+      {
+        "endpoint": "/ratings/elo",
+        "reason": "undated same-season aggregate — prior-season freeze only"
       }
-    },
-    "priorAuditOkRate": 1
+    ],
+    "coreRule": "CORE passes only when actual row throughWeek <= latestAllowedWeek (= targetWeek-1)",
+    "provisionalNotes": {
+      "priorWeights": "SP.35 CORE.25 FPI.20 SRS.12 Elo.08 — provisional",
+      "shrink": "n/(n+6) — provisional"
+    }
   },
+  "requestLog": [
+    {
+      "kind": "prior-bundle",
+      "season": 2023
+    },
+    {
+      "kind": "core-season",
+      "season": 2024,
+      "ok": true,
+      "n": 134
+    },
+    {
+      "kind": "games",
+      "season": 2024,
+      "ok": true,
+      "n": 3747
+    },
+    {
+      "kind": "ppa-games",
+      "calls": 4,
+      "rows": 497
+    },
+    {
+      "kind": "adv-games",
+      "calls": 4,
+      "rows": 974
+    },
+    {
+      "kind": "games-players",
+      "calls": 12,
+      "rows": 1518
+    },
+    {
+      "kind": "games-players-flat",
+      "rows": 11560
+    }
+  ],
   "requestEstimates": {
     "smoke": {
       "seasons": [
@@ -133,7 +149,7 @@
         "seasonFixed": 2,
         "weeklyGameGrain": 8
       },
-      "note": "Excludes unsafe season-aggregate player endpoints from historical independent matrix; player-game reconstruction adds more if enabled",
+      "note": "Game-grain reconstruction only; player-game reconstruction adds more",
       "customerPageFanout": 0
     },
     "full2022_2025": {
@@ -151,7 +167,7 @@
         "seasonFixed": 2,
         "weeklyGameGrain": 120
       },
-      "note": "Excludes unsafe season-aggregate player endpoints from historical independent matrix; player-game reconstruction adds more if enabled",
+      "note": "Game-grain reconstruction only; player-game reconstruction adds more",
       "customerPageFanout": 0
     },
     "canonicalEstimate": {
@@ -159,37 +175,21 @@
       "weekly": 396,
       "perWeekSteadyState": 6.6,
       "historicalBackfillSeasons4": {
-        "note": "2022-2025 \u00d7 ~15 weeks; prior season once each",
+        "note": "2022-2025 × ~15 weeks; prior season once each",
         "estimate": 476
       },
       "customerPageFanout": 0
     }
   },
+  "playerRoleReconstruction": {
+    "games": 12,
+    "note": "Only pre-kickoff /games/players rows; no season leaders"
+  },
   "nextFullBackfillCommands": {
-    "note": "Only after smoke provenance audit passes",
-    "githubWorkflow": "FBIS college research",
-    "workflowDispatch": {
-      "job": "cfb-feature-backfill",
-      "seasons": "2022,2023,2024,2025",
-      "maxGames": ""
-    },
+    "note": "Only after this hardened smoke provenance audit passes review",
     "cli": [
       "export CFBD_API_KEY=***",
       "CFB_BACKFILL_SEASONS=2022,2023,2024,2025 CFB_BACKFILL_MODE=historical node scripts/cfb-feature-backfill.mjs"
-    ],
-    "smokeCli": [
-      "export CFBD_API_KEY=***",
-      "CFB_SMOKE_SEASON=2024 CFB_SMOKE_WEEKS=1,2,3,4 node scripts/cfb-temporal-smoke-backfill.mjs"
-    ]
-  },
-  "requestLogSummary": {
-    "entries": 5,
-    "kinds": [
-      "adv-games",
-      "core-season",
-      "games",
-      "ppa-games",
-      "prior-bundle"
     ]
   }
 }

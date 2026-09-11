@@ -1,0 +1,1296 @@
+{
+  "generatedAt": "2026-09-10T21:23:13.089Z",
+  "audit": "cfb-v2-eligible-sample-selection-bias",
+  "universe": {
+    "snapshots": 14736,
+    "metaJoinHit": 14736,
+    "metaJoinMiss": 0,
+    "pass_n": 5306,
+    "pass_rate": 0.36007057546145493
+  },
+  "bySeason": {
+    "2022": {
+      "n": 3657,
+      "pass_n": 724,
+      "pass_rate": 0.19797648345638502
+    },
+    "2023": {
+      "n": 3591,
+      "pass_n": 1478,
+      "pass_rate": 0.4115845168476747
+    },
+    "2024": {
+      "n": 3745,
+      "pass_n": 1545,
+      "pass_rate": 0.41255006675567424
+    },
+    "2025": {
+      "n": 3743,
+      "pass_n": 1559,
+      "pass_rate": 0.41651082019770236
+    }
+  },
+  "byWeek": {
+    "1": {
+      "n": 1042,
+      "pass_n": 435,
+      "pass_rate": 0.41746641074856045
+    },
+    "2": {
+      "n": 1255,
+      "pass_n": 394,
+      "pass_rate": 0.3139442231075697
+    },
+    "3": {
+      "n": 1229,
+      "pass_n": 381,
+      "pass_rate": 0.31000813669650124
+    },
+    "4": {
+      "n": 1193,
+      "pass_n": 395,
+      "pass_rate": 0.3310980720871752
+    },
+    "5": {
+      "n": 1152,
+      "pass_n": 378,
+      "pass_rate": 0.328125
+    },
+    "6": {
+      "n": 1172,
+      "pass_n": 365,
+      "pass_rate": 0.31143344709897613
+    },
+    "7": {
+      "n": 1177,
+      "pass_n": 371,
+      "pass_rate": 0.31520815632965166
+    },
+    "8": {
+      "n": 1211,
+      "pass_n": 380,
+      "pass_rate": 0.3137902559867878
+    },
+    "9": {
+      "n": 1217,
+      "pass_n": 383,
+      "pass_rate": 0.31470829909613807
+    },
+    "10": {
+      "n": 1229,
+      "pass_n": 397,
+      "pass_rate": 0.323026851098454
+    },
+    "11": {
+      "n": 1216,
+      "pass_n": 407,
+      "pass_rate": 0.3347039473684211
+    },
+    "12": {
+      "n": 879,
+      "pass_n": 422,
+      "pass_rate": 0.4800910125142207
+    },
+    "13": {
+      "n": 439,
+      "pass_n": 375,
+      "pass_rate": 0.8542141230068337
+    },
+    "14": {
+      "n": 235,
+      "pass_n": 175,
+      "pass_rate": 0.7446808510638298
+    },
+    "15": {
+      "n": 72,
+      "pass_n": 38,
+      "pass_rate": 0.5277777777777778
+    },
+    "16": {
+      "n": 18,
+      "pass_n": 10,
+      "pass_rate": 0.5555555555555556
+    }
+  },
+  "bySeasonWeek": {
+    "2022-W01": {
+      "n": 332,
+      "pass_n": 52,
+      "pass_rate": 0.1566265060240964
+    },
+    "2022-W02": {
+      "n": 312,
+      "pass_n": 47,
+      "pass_rate": 0.15064102564102563
+    },
+    "2022-W03": {
+      "n": 313,
+      "pass_n": 50,
+      "pass_rate": 0.1597444089456869
+    },
+    "2022-W04": {
+      "n": 294,
+      "pass_n": 59,
+      "pass_rate": 0.20068027210884354
+    },
+    "2022-W05": {
+      "n": 312,
+      "pass_n": 56,
+      "pass_rate": 0.1794871794871795
+    },
+    "2022-W06": {
+      "n": 296,
+      "pass_n": 56,
+      "pass_rate": 0.1891891891891892
+    },
+    "2022-W07": {
+      "n": 300,
+      "pass_n": 50,
+      "pass_rate": 0.16666666666666666
+    },
+    "2022-W08": {
+      "n": 305,
+      "pass_n": 51,
+      "pass_rate": 0.16721311475409836
+    },
+    "2022-W09": {
+      "n": 299,
+      "pass_n": 47,
+      "pass_rate": 0.15719063545150502
+    },
+    "2022-W10": {
+      "n": 308,
+      "pass_n": 59,
+      "pass_rate": 0.19155844155844157
+    },
+    "2022-W11": {
+      "n": 307,
+      "pass_n": 63,
+      "pass_rate": 0.20521172638436483
+    },
+    "2022-W12": {
+      "n": 152,
+      "pass_n": 60,
+      "pass_rate": 0.39473684210526316
+    },
+    "2022-W13": {
+      "n": 89,
+      "pass_n": 62,
+      "pass_rate": 0.6966292134831461
+    },
+    "2022-W14": {
+      "n": 29,
+      "pass_n": 11,
+      "pass_rate": 0.3793103448275862
+    },
+    "2022-W15": {
+      "n": 9,
+      "pass_n": 1,
+      "pass_rate": 0.1111111111111111
+    },
+    "2023-W01": {
+      "n": 333,
+      "pass_n": 128,
+      "pass_rate": 0.3843843843843844
+    },
+    "2023-W02": {
+      "n": 316,
+      "pass_n": 118,
+      "pass_rate": 0.37341772151898733
+    },
+    "2023-W03": {
+      "n": 321,
+      "pass_n": 118,
+      "pass_rate": 0.367601246105919
+    },
+    "2023-W04": {
+      "n": 288,
+      "pass_n": 116,
+      "pass_rate": 0.4027777777777778
+    },
+    "2023-W05": {
+      "n": 305,
+      "pass_n": 114,
+      "pass_rate": 0.3737704918032787
+    },
+    "2023-W06": {
+      "n": 292,
+      "pass_n": 102,
+      "pass_rate": 0.3493150684931507
+    },
+    "2023-W07": {
+      "n": 302,
+      "pass_n": 109,
+      "pass_rate": 0.3609271523178808
+    },
+    "2023-W08": {
+      "n": 305,
+      "pass_n": 109,
+      "pass_rate": 0.35737704918032787
+    },
+    "2023-W09": {
+      "n": 307,
+      "pass_n": 113,
+      "pass_rate": 0.36807817589576547
+    },
+    "2023-W10": {
+      "n": 319,
+      "pass_n": 124,
+      "pass_rate": 0.3887147335423197
+    },
+    "2023-W11": {
+      "n": 298,
+      "pass_n": 124,
+      "pass_rate": 0.4161073825503356
+    },
+    "2023-W12": {
+      "n": 127,
+      "pass_n": 126,
+      "pass_rate": 0.9921259842519685
+    },
+    "2023-W13": {
+      "n": 67,
+      "pass_n": 66,
+      "pass_rate": 0.9850746268656716
+    },
+    "2023-W14": {
+      "n": 10,
+      "pass_n": 10,
+      "pass_rate": 1
+    },
+    "2023-W15": {
+      "n": 1,
+      "pass_n": 1,
+      "pass_rate": 1
+    },
+    "2024-W01": {
+      "n": 177,
+      "pass_n": 127,
+      "pass_rate": 0.7175141242937854
+    },
+    "2024-W02": {
+      "n": 314,
+      "pass_n": 111,
+      "pass_rate": 0.3535031847133758
+    },
+    "2024-W03": {
+      "n": 299,
+      "pass_n": 106,
+      "pass_rate": 0.35451505016722407
+    },
+    "2024-W04": {
+      "n": 311,
+      "pass_n": 113,
+      "pass_rate": 0.3633440514469453
+    },
+    "2024-W05": {
+      "n": 269,
+      "pass_n": 104,
+      "pass_rate": 0.38661710037174724
+    },
+    "2024-W06": {
+      "n": 292,
+      "pass_n": 102,
+      "pass_rate": 0.3493150684931507
+    },
+    "2024-W07": {
+      "n": 288,
+      "pass_n": 105,
+      "pass_rate": 0.3645833333333333
+    },
+    "2024-W08": {
+      "n": 306,
+      "pass_n": 111,
+      "pass_rate": 0.3627450980392157
+    },
+    "2024-W09": {
+      "n": 305,
+      "pass_n": 113,
+      "pass_rate": 0.3704918032786885
+    },
+    "2024-W10": {
+      "n": 298,
+      "pass_n": 106,
+      "pass_rate": 0.35570469798657717
+    },
+    "2024-W11": {
+      "n": 302,
+      "pass_n": 108,
+      "pass_rate": 0.3576158940397351
+    },
+    "2024-W12": {
+      "n": 296,
+      "pass_n": 115,
+      "pass_rate": 0.3885135135135135
+    },
+    "2024-W13": {
+      "n": 145,
+      "pass_n": 124,
+      "pass_rate": 0.8551724137931035
+    },
+    "2024-W14": {
+      "n": 102,
+      "pass_n": 77,
+      "pass_rate": 0.7549019607843137
+    },
+    "2024-W15": {
+      "n": 30,
+      "pass_n": 18,
+      "pass_rate": 0.6
+    },
+    "2024-W16": {
+      "n": 11,
+      "pass_n": 5,
+      "pass_rate": 0.45454545454545453
+    },
+    "2025-W01": {
+      "n": 200,
+      "pass_n": 128,
+      "pass_rate": 0.64
+    },
+    "2025-W02": {
+      "n": 313,
+      "pass_n": 118,
+      "pass_rate": 0.3769968051118211
+    },
+    "2025-W03": {
+      "n": 296,
+      "pass_n": 107,
+      "pass_rate": 0.3614864864864865
+    },
+    "2025-W04": {
+      "n": 300,
+      "pass_n": 107,
+      "pass_rate": 0.3566666666666667
+    },
+    "2025-W05": {
+      "n": 266,
+      "pass_n": 104,
+      "pass_rate": 0.39097744360902253
+    },
+    "2025-W06": {
+      "n": 292,
+      "pass_n": 105,
+      "pass_rate": 0.3595890410958904
+    },
+    "2025-W07": {
+      "n": 287,
+      "pass_n": 107,
+      "pass_rate": 0.37282229965156793
+    },
+    "2025-W08": {
+      "n": 295,
+      "pass_n": 109,
+      "pass_rate": 0.3694915254237288
+    },
+    "2025-W09": {
+      "n": 306,
+      "pass_n": 110,
+      "pass_rate": 0.35947712418300654
+    },
+    "2025-W10": {
+      "n": 304,
+      "pass_n": 108,
+      "pass_rate": 0.35526315789473684
+    },
+    "2025-W11": {
+      "n": 309,
+      "pass_n": 112,
+      "pass_rate": 0.36245954692556637
+    },
+    "2025-W12": {
+      "n": 304,
+      "pass_n": 121,
+      "pass_rate": 0.3980263157894737
+    },
+    "2025-W13": {
+      "n": 138,
+      "pass_n": 123,
+      "pass_rate": 0.8913043478260869
+    },
+    "2025-W14": {
+      "n": 94,
+      "pass_n": 77,
+      "pass_rate": 0.8191489361702128
+    },
+    "2025-W15": {
+      "n": 32,
+      "pass_n": 18,
+      "pass_rate": 0.5625
+    },
+    "2025-W16": {
+      "n": 7,
+      "pass_n": 5,
+      "pass_rate": 0.7142857142857143
+    }
+  },
+  "byWeekBucket": {
+    "2022:early_W1-4": {
+      "n": 1251,
+      "pass_n": 208,
+      "pass_rate": 0.16626698641087131
+    },
+    "2022:late_W10-12": {
+      "n": 767,
+      "pass_n": 182,
+      "pass_rate": 0.23728813559322035
+    },
+    "2022:late_W13+": {
+      "n": 127,
+      "pass_n": 74,
+      "pass_rate": 0.5826771653543307
+    },
+    "2022:mid_W5-9": {
+      "n": 1512,
+      "pass_n": 260,
+      "pass_rate": 0.17195767195767195
+    },
+    "2023:early_W1-4": {
+      "n": 1258,
+      "pass_n": 480,
+      "pass_rate": 0.3815580286168522
+    },
+    "2023:late_W10-12": {
+      "n": 744,
+      "pass_n": 374,
+      "pass_rate": 0.5026881720430108
+    },
+    "2023:late_W13+": {
+      "n": 78,
+      "pass_n": 77,
+      "pass_rate": 0.9871794871794872
+    },
+    "2023:mid_W5-9": {
+      "n": 1511,
+      "pass_n": 547,
+      "pass_rate": 0.3620119126406353
+    },
+    "2024:early_W1-4": {
+      "n": 1101,
+      "pass_n": 457,
+      "pass_rate": 0.4150772025431426
+    },
+    "2024:late_W10-12": {
+      "n": 896,
+      "pass_n": 329,
+      "pass_rate": 0.3671875
+    },
+    "2024:late_W13+": {
+      "n": 288,
+      "pass_n": 224,
+      "pass_rate": 0.7777777777777778
+    },
+    "2024:mid_W5-9": {
+      "n": 1460,
+      "pass_n": 535,
+      "pass_rate": 0.3664383561643836
+    },
+    "2025:early_W1-4": {
+      "n": 1109,
+      "pass_n": 460,
+      "pass_rate": 0.4147880973850316
+    },
+    "2025:late_W10-12": {
+      "n": 917,
+      "pass_n": 341,
+      "pass_rate": 0.3718647764449291
+    },
+    "2025:late_W13+": {
+      "n": 271,
+      "pass_n": 223,
+      "pass_rate": 0.8228782287822878
+    },
+    "2025:mid_W5-9": {
+      "n": 1446,
+      "pass_n": 535,
+      "pass_rate": 0.3699861687413555
+    }
+  },
+  "byClassificationPair": {
+    "iii|iii": {
+      "n": 4756,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "ii|ii": {
+      "n": 3428,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "fbs|fbs": {
+      "n": 2998,
+      "pass_n": 2988,
+      "pass_rate": 0.9966644429619747
+    },
+    "fcs|fcs": {
+      "n": 2626,
+      "pass_n": 1953,
+      "pass_rate": 0.7437166793602438
+    },
+    "fbs|fcs": {
+      "n": 485,
+      "pass_n": 365,
+      "pass_rate": 0.7525773195876289
+    },
+    "fcs|ii": {
+      "n": 139,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "fcs|null": {
+      "n": 81,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "ii|null": {
+      "n": 72,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "iii|null": {
+      "n": 53,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "null|iii": {
+      "n": 37,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "null|ii": {
+      "n": 19,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "ii|iii": {
+      "n": 13,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "iii|ii": {
+      "n": 9,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "fcs|iii": {
+      "n": 8,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "ii|fcs": {
+      "n": 5,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "null|null": {
+      "n": 5,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "iii|fcs": {
+      "n": 1,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "null|fcs": {
+      "n": 1,
+      "pass_n": 0,
+      "pass_rate": 0
+    }
+  },
+  "byMatchupType": {
+    "D2/D3": {
+      "n": 8387,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "FBS-FBS": {
+      "n": 2998,
+      "pass_n": 2988,
+      "pass_rate": 0.9966644429619747
+    },
+    "FBS-FCS": {
+      "n": 485,
+      "pass_n": 365,
+      "pass_rate": 0.7525773195876289
+    },
+    "FCS-FCS": {
+      "n": 2626,
+      "pass_n": 1953,
+      "pass_rate": 0.7437166793602438
+    },
+    "FCS-other": {
+      "n": 235,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "other/unknown": {
+      "n": 5,
+      "pass_n": 0,
+      "pass_rate": 0
+    }
+  },
+  "byHomeConference_top30": {
+    "Big Ten": {
+      "n": 449,
+      "pass_n": 440,
+      "pass_rate": 0.9799554565701559
+    },
+    "SEC": {
+      "n": 440,
+      "pass_n": 426,
+      "pass_rate": 0.9681818181818181
+    },
+    "ACC": {
+      "n": 419,
+      "pass_n": 405,
+      "pass_rate": 0.9665871121718377
+    },
+    "Big 12": {
+      "n": 371,
+      "pass_n": 363,
+      "pass_rate": 0.9784366576819407
+    },
+    "Pennsylvania State Athletic": {
+      "n": 350,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Sun Belt": {
+      "n": 341,
+      "pass_n": 318,
+      "pass_rate": 0.9325513196480938
+    },
+    "American Athletic": {
+      "n": 335,
+      "pass_n": 325,
+      "pass_rate": 0.9701492537313433
+    },
+    "Northern Sun": {
+      "n": 304,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Mountain West": {
+      "n": 303,
+      "pass_n": 291,
+      "pass_rate": 0.9603960396039604
+    },
+    "Mid-American": {
+      "n": 283,
+      "pass_n": 271,
+      "pass_rate": 0.9575971731448764
+    },
+    "Big Sky": {
+      "n": 276,
+      "pass_n": 195,
+      "pass_rate": 0.7065217391304348
+    },
+    "SWAC": {
+      "n": 270,
+      "pass_n": 169,
+      "pass_rate": 0.6259259259259259
+    },
+    "Great American": {
+      "n": 268,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "MVFC": {
+      "n": 267,
+      "pass_n": 197,
+      "pass_rate": 0.7378277153558053
+    },
+    "SIAC": {
+      "n": 260,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Conference USA": {
+      "n": 252,
+      "pass_n": 242,
+      "pass_rate": 0.9603174603174603
+    },
+    "Pioneer": {
+      "n": 250,
+      "pass_n": 145,
+      "pass_rate": 0.58
+    },
+    "South Atlantic": {
+      "n": 248,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Coastal Athletic": {
+      "n": 241,
+      "pass_n": 235,
+      "pass_rate": 0.975103734439834
+    },
+    "Mid America": {
+      "n": 241,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Mountain East": {
+      "n": 234,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Presidents'": {
+      "n": 230,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Rocky Mountain": {
+      "n": 224,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "CIAA": {
+      "n": 214,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Lone Star": {
+      "n": 209,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Ohio": {
+      "n": 209,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Great Midwest Athletic": {
+      "n": 208,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Mid Atlantic": {
+      "n": 208,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Midwest": {
+      "n": 206,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "CCIW": {
+      "n": 204,
+      "pass_n": 0,
+      "pass_rate": 0
+    }
+  },
+  "byConferencePair_top40": {
+    "Pennsylvania State Athletic|Pennsylvania State Athletic": {
+      "n": 308,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Big Ten|Big Ten": {
+      "n": 292,
+      "pass_n": 292,
+      "pass_rate": 1
+    },
+    "Northern Sun|Northern Sun": {
+      "n": 284,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Great American|Great American": {
+      "n": 264,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Big 12|Big 12": {
+      "n": 259,
+      "pass_n": 259,
+      "pass_rate": 1
+    },
+    "ACC|ACC": {
+      "n": 252,
+      "pass_n": 252,
+      "pass_rate": 1
+    },
+    "SEC|SEC": {
+      "n": 244,
+      "pass_n": 244,
+      "pass_rate": 1
+    },
+    "Sun Belt|Sun Belt": {
+      "n": 228,
+      "pass_n": 220,
+      "pass_rate": 0.9649122807017544
+    },
+    "American Athletic|American Athletic": {
+      "n": 218,
+      "pass_n": 218,
+      "pass_rate": 1
+    },
+    "SIAC|SIAC": {
+      "n": 213,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Mid America|Mid America": {
+      "n": 211,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "South Atlantic|South Atlantic": {
+      "n": 208,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "SWAC|SWAC": {
+      "n": 203,
+      "pass_n": 153,
+      "pass_rate": 0.7536945812807881
+    },
+    "Presidents'|Presidents'": {
+      "n": 202,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Mountain East|Mountain East": {
+      "n": 201,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Mid-American|Mid-American": {
+      "n": 200,
+      "pass_n": 200,
+      "pass_rate": 1
+    },
+    "Big Sky|Big Sky": {
+      "n": 194,
+      "pass_n": 145,
+      "pass_rate": 0.7474226804123711
+    },
+    "Mountain West|Mountain West": {
+      "n": 190,
+      "pass_n": 190,
+      "pass_rate": 1
+    },
+    "Mid Atlantic|Mid Atlantic": {
+      "n": 181,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Rocky Mountain|Rocky Mountain": {
+      "n": 181,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Midwest|Midwest": {
+      "n": 178,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "MVFC|MVFC": {
+      "n": 177,
+      "pass_n": 133,
+      "pass_rate": 0.751412429378531
+    },
+    "CIAA|CIAA": {
+      "n": 176,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "NESCAC|NESCAC": {
+      "n": 176,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Pioneer|Pioneer": {
+      "n": 176,
+      "pass_n": 132,
+      "pass_rate": 0.75
+    },
+    "Ohio|Ohio": {
+      "n": 173,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Conference USA|Conference USA": {
+      "n": 172,
+      "pass_n": 172,
+      "pass_rate": 1
+    },
+    "CCIW|CCIW": {
+      "n": 171,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Lone Star|Lone Star": {
+      "n": 171,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Coastal Athletic|Coastal Athletic": {
+      "n": 164,
+      "pass_n": 164,
+      "pass_rate": 1
+    },
+    "Great Midwest Athletic|Great Midwest Athletic": {
+      "n": 162,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "MSCAC|MSCAC": {
+      "n": 161,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Minnesota|Minnesota": {
+      "n": 156,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "American Rivers|American Rivers": {
+      "n": 144,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "NACC|NACC": {
+      "n": 144,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Southern|Southern": {
+      "n": 144,
+      "pass_n": 108,
+      "pass_rate": 0.75
+    },
+    "North Coast|North Coast": {
+      "n": 139,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Northeast 10|Northeast 10": {
+      "n": 136,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "USA South|USA South": {
+      "n": 128,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "Southland|Southland": {
+      "n": 125,
+      "pass_n": 92,
+      "pass_rate": 0.736
+    }
+  },
+  "byVenue": {
+    "home": {
+      "n": 14309,
+      "pass_n": 5154,
+      "pass_rate": 0.3601928855964777
+    },
+    "neutral": {
+      "n": 427,
+      "pass_n": 152,
+      "pass_rate": 0.3559718969555035
+    }
+  },
+  "bySeasonType": {
+    "regular": {
+      "n": 14736,
+      "pass_n": 5306,
+      "pass_rate": 0.36007057546145493
+    }
+  },
+  "scoringEnvironment_actualTotals": {
+    "actual_total_<40": {
+      "n": 3230,
+      "pass_n": 1132,
+      "pass_rate": 0.3504643962848297
+    },
+    "actual_total_40_54": {
+      "n": 4701,
+      "pass_n": 1761,
+      "pass_rate": 0.3746011486917677
+    },
+    "actual_total_55_69": {
+      "n": 4275,
+      "pass_n": 1534,
+      "pass_rate": 0.35883040935672517
+    },
+    "actual_total_70+": {
+      "n": 2530,
+      "pass_n": 879,
+      "pass_rate": 0.3474308300395257
+    }
+  },
+  "teamStrengthAvailability": {
+    "home": {
+      "home_strength_absent": {
+        "n": 9123,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "home_strength_present": {
+        "n": 5613,
+        "pass_n": 5306,
+        "pass_rate": 0.9453055407090682
+      }
+    },
+    "away": {
+      "away_strength_absent": {
+        "n": 9410,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "away_strength_present": {
+        "n": 5326,
+        "pass_n": 5306,
+        "pass_rate": 0.9962448366503943
+      }
+    }
+  },
+  "marketFavoriteBucket_evaluationMetadataOnly": {
+    "proxy_actual_away_won_EVAL_ONLY": {
+      "n": 6316,
+      "pass_n": 2102,
+      "pass_rate": 0.33280557314756176
+    },
+    "proxy_actual_home_won_EVAL_ONLY": {
+      "n": 8381,
+      "pass_n": 3200,
+      "pass_rate": 0.3818160124090204
+    },
+    "proxy_actual_tie_EVAL_ONLY": {
+      "n": 39,
+      "pass_n": 4,
+      "pass_rate": 0.10256410256410256
+    }
+  },
+  "marketTotalBucket_evaluationMetadataOnly": {},
+  "rejectPatterns": {
+    "away_prior_missing": {
+      "n": 307,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "both_prior_missing": {
+      "n": 9103,
+      "pass_n": 0,
+      "pass_rate": 0
+    },
+    "home_prior_missing": {
+      "n": 20,
+      "pass_n": 0,
+      "pass_rate": 0
+    }
+  },
+  "rejectPatternsBySeason": {
+    "2022": {
+      "away_prior_missing": {
+        "n": 124,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "both_prior_missing": {
+        "n": 2804,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "home_prior_missing": {
+        "n": 5,
+        "pass_n": 0,
+        "pass_rate": 0
+      }
+    },
+    "2023": {
+      "away_prior_missing": {
+        "n": 56,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "both_prior_missing": {
+        "n": 2055,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "home_prior_missing": {
+        "n": 2,
+        "pass_n": 0,
+        "pass_rate": 0
+      }
+    },
+    "2024": {
+      "away_prior_missing": {
+        "n": 62,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "both_prior_missing": {
+        "n": 2132,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "home_prior_missing": {
+        "n": 6,
+        "pass_n": 0,
+        "pass_rate": 0
+      }
+    },
+    "2025": {
+      "away_prior_missing": {
+        "n": 65,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "both_prior_missing": {
+        "n": 2112,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "home_prior_missing": {
+        "n": 7,
+        "pass_n": 0,
+        "pass_rate": 0
+      }
+    }
+  },
+  "rejectPatternsByMatchup": {
+    "FBS-FCS": {
+      "away_prior_missing": {
+        "n": 119,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "both_prior_missing": {
+        "n": 1,
+        "pass_n": 0,
+        "pass_rate": 0
+      }
+    },
+    "D2/D3": {
+      "both_prior_missing": {
+        "n": 8387,
+        "pass_n": 0,
+        "pass_rate": 0
+      }
+    },
+    "FCS-FCS": {
+      "away_prior_missing": {
+        "n": 22,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "both_prior_missing": {
+        "n": 641,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "home_prior_missing": {
+        "n": 10,
+        "pass_n": 0,
+        "pass_rate": 0
+      }
+    },
+    "FCS-other": {
+      "away_prior_missing": {
+        "n": 161,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "both_prior_missing": {
+        "n": 69,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "home_prior_missing": {
+        "n": 5,
+        "pass_n": 0,
+        "pass_rate": 0
+      }
+    },
+    "FBS-FBS": {
+      "away_prior_missing": {
+        "n": 5,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "home_prior_missing": {
+        "n": 5,
+        "pass_n": 0,
+        "pass_rate": 0
+      }
+    },
+    "other/unknown": {
+      "both_prior_missing": {
+        "n": 5,
+        "pass_n": 0,
+        "pass_rate": 0
+      }
+    }
+  },
+  "why2022Low": {
+    "headline": "2022 passes 724/3657 (19.8%) while 2023–2025 pass ≈41% because the prior catalog for 2022 games is the 2021 ratings freeze, and CFBD 2021 SRS/SP+/FPI/Elo cover FBS-only (~130 schools), whereas 2022+ SRS expands to ~261 (FBS+FCS).",
+    "evidence": {
+      "cfbd_srs_2021_n": 130,
+      "cfbd_srs_2022_n": 261,
+      "cfbd_talent_2021_n": 224,
+      "cfbd_sp_2021_n": 131,
+      "priorCatalogSchoolUnion": "sp ∪ fpi ∪ srs ∪ elo ∪ core — talent/recruiting keys are NOT unioned into school set",
+      "dominantReject": "both_prior_missing (side absent from 2021 rating freeze → fail-closed missing-source-provenance)",
+      "fbsFbsPass": {
+        "n": 2998,
+        "pass_n": 2988,
+        "pass_rate": 0.9966644429619747
+      },
+      "fbsFcsPass": {
+        "n": 485,
+        "pass_n": 365,
+        "pass_rate": 0.7525773195876289
+      },
+      "fcsFcsPass": {
+        "n": 2626,
+        "pass_n": 1953,
+        "pass_rate": 0.7437166793602438
+      },
+      "d2d3Pass": {
+        "n": 8387,
+        "pass_n": 0,
+        "pass_rate": 0
+      },
+      "week2022_W1_11": {
+        "n": 3378,
+        "pass_n": 590,
+        "pass_rate": 0.17465956187092954
+      },
+      "week2022_W12_15": {
+        "n": 279,
+        "pass_n": 134,
+        "pass_rate": 0.48028673835125446
+      },
+      "lateSeasonNote": "2022 W12–15 pass rate rises because the slate densifies toward FBS–FBS (and FCS sides that appear in denser late catalogs), not because provenance rules loosened."
+    },
+    "legitimateRepairsFromExistingRawMetadata": [
+      {
+        "repair": "Union /talent (and optionally /recruiting/teams) school keys into buildPriorCatalog schools Set",
+        "effect": "Schools with real prior-season talent/recruiting rows but no SRS/SP/FPI/Elo row would receive catalog entries with explicit sourceSeason=priorYear",
+        "inventsProvenance": false,
+        "appliedInThisFit": false
+      },
+      {
+        "repair": "Do not back-copy 2022 SRS onto 2021 for missing FCS priors",
+        "inventsProvenance": true,
+        "appliedInThisFit": false
+      },
+      {
+        "repair": "Do not default missing sourceSeason to expectedPriorSeason",
+        "inventsProvenance": true,
+        "appliedInThisFit": false,
+        "alreadyForbidden": true
+      }
+    ],
+    "selectionBiasImplication": "Fitting universe ≈ prior-catalog-complete games (near-all FBS–FBS; some FCS sides when prior SRS rows exist). 2022 eligible N is thinner and late-season skewed. OOS metrics generalize to that universe, not the full CFB/D2/D3 population."
+  },
+  "marketLinesNote": "Backfill predictions currently have null closingSpread/closingTotal. Calibration fetches /lines as evaluation-only metadata and never as model input."
+}

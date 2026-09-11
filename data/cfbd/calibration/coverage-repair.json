@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-09-10T22:20:55.209Z",
+  "oldEligibleN": 5306,
+  "newEligibleN": 5767,
+  "oldBySeason": {
+    "2022": 724,
+    "2023": 1478,
+    "2024": 1545,
+    "2025": 1559
+  },
+  "newBySeason": {
+    "2022": 1185,
+    "2023": 1478,
+    "2024": 1545,
+    "2025": 1559
+  },
+  "rejectCounts": {
+    "prior:missing-source-provenance": 8969
+  },
+  "designSha256": "631a9e38825783d558a0a226686a43921433cbcc07466517ec970e21edfed4fd",
+  "snapshotSha256": "fe4c23a6c542f6d3484131db8f6bef7f316845e2518ec29473cc5cf29180a1aa"
+}

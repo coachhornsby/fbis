@@ -1,0 +1,510 @@
+{
+  "generatedAt": "2026-09-10T21:24:01.557Z",
+  "method": "provisional-unfitted-prediction-identity-audit",
+  "eligibleN": 5306,
+  "masks": {
+    "A": {
+      "base": true
+    },
+    "B": {
+      "base": true,
+      "pass": true,
+      "rush": true
+    },
+    "C": {
+      "base": true,
+      "pass": true,
+      "rush": true,
+      "success": true
+    },
+    "D": {
+      "base": true,
+      "pass": true,
+      "rush": true,
+      "success": true,
+      "explosiveness": true
+    },
+    "E": {
+      "base": true,
+      "pass": true,
+      "rush": true,
+      "success": true,
+      "explosiveness": true,
+      "havoc": true
+    },
+    "F": {
+      "base": true,
+      "pass": true,
+      "rush": true,
+      "success": true,
+      "explosiveness": true,
+      "havoc": true,
+      "trenches": true
+    },
+    "G": {
+      "base": true,
+      "pass": true,
+      "rush": true,
+      "success": true,
+      "explosiveness": true,
+      "havoc": true,
+      "trenches": true,
+      "finishing": true
+    },
+    "H": {
+      "base": true,
+      "pass": true,
+      "rush": true,
+      "success": true,
+      "explosiveness": true,
+      "havoc": true,
+      "trenches": true,
+      "finishing": true,
+      "qb": true
+    },
+    "I": {
+      "base": true,
+      "pass": true,
+      "rush": true,
+      "success": true,
+      "explosiveness": true,
+      "havoc": true,
+      "trenches": true,
+      "finishing": true,
+      "qb": true,
+      "pace": true
+    },
+    "J": {
+      "base": true,
+      "pass": true,
+      "rush": true,
+      "success": true,
+      "explosiveness": true,
+      "havoc": true,
+      "trenches": true,
+      "finishing": true,
+      "qb": true,
+      "pace": true,
+      "context": true
+    },
+    "K": {
+      "base": true,
+      "pass": true,
+      "rush": true,
+      "success": true,
+      "explosiveness": true,
+      "havoc": true,
+      "trenches": true,
+      "finishing": true,
+      "qb": true,
+      "pace": true,
+      "context": true
+    }
+  },
+  "identicalEligibleGroups": [
+    [
+      "D",
+      "E"
+    ],
+    [
+      "F",
+      "G"
+    ],
+    [
+      "F",
+      "H"
+    ],
+    [
+      "G",
+      "H"
+    ],
+    [
+      "J",
+      "K"
+    ]
+  ],
+  "explanations": {
+    "J_equals_K": {
+      "fact": "J and K have identical ABLATION_MASKS (both end at context:true). No additional features in K.",
+      "classification": "architecturally_identical_not_inactive"
+    },
+    "F_equals_G_equals_H": {
+      "fact": "Masks differ (G adds finishing, H adds qb) but eligible provisional predictions are identical ⇒ added blocks contributed 0 to every eligible game under provisional coefficients.",
+      "likelyCauses": [
+        "QB: historical mode nulls qbPpa (qbHistoricalUnsafe / season aggregates rejected) ⇒ qbValueAdjustment points=0",
+        "finishing: pointsPerOpportunity often null in reconstructed advanced stats ⇒ zDiff null ⇒ 0 contribution",
+        "Classify as inactive_in_historical_sample, NOT as evidence the feature family has no predictive value if populated"
+      ],
+      "classification": "inactive_in_historical_sample"
+    },
+    "total_MAE_flat_across_AK": {
+      "fact": "projectCfbFbisV2 constructs total ≈ 2*nationalPpg with margin canceling in home/away PPP identity; only pace/possessions can move total, and pace is near-null historically.",
+      "classification": "mechanical_invariance_of_provisional_total_path",
+      "implication": "Fitted phase must model total intentionally (separate total regression or explicit possession/PPP path) so A–K are not forced to share identical total MAE."
+    }
+  },
+  "pairwisePctPredictionsChanged_eligible": {
+    "A->B": {
+      "n": 5306,
+      "changed": 2763,
+      "pct": 0.5207312476441764
+    },
+    "B->C": {
+      "n": 5306,
+      "changed": 4668,
+      "pct": 0.8797587636637768
+    },
+    "C->D": {
+      "n": 5306,
+      "changed": 4739,
+      "pct": 0.8931398416886543
+    },
+    "D->E": {
+      "n": 5306,
+      "changed": 0,
+      "pct": 0
+    },
+    "E->F": {
+      "n": 5306,
+      "changed": 4598,
+      "pct": 0.8665661515265737
+    },
+    "F->G": {
+      "n": 5306,
+      "changed": 0,
+      "pct": 0
+    },
+    "G->H": {
+      "n": 5306,
+      "changed": 0,
+      "pct": 0
+    },
+    "H->I": {
+      "n": 5306,
+      "changed": 4660,
+      "pct": 0.8782510365623822
+    },
+    "I->J": {
+      "n": 5306,
+      "changed": 5154,
+      "pct": 0.9713531850735017
+    },
+    "J->K": {
+      "n": 5306,
+      "changed": 0,
+      "pct": 0
+    }
+  },
+  "totalsByAblation_eligible": [
+    {
+      "ablation": "A",
+      "meanTotal": 53.0280437240864,
+      "varTotal": 0.0020480764900134237,
+      "maeTotal": 13.599208443271776,
+      "maeMargin": 15.940652091971337
+    },
+    {
+      "ablation": "B",
+      "meanTotal": 53.02804372408639,
+      "varTotal": 0.002055615125520854,
+      "maeTotal": 13.598718431963817,
+      "maeMargin": 15.899359215981901
+    },
+    {
+      "ablation": "C",
+      "meanTotal": 53.04104787033638,
+      "varTotal": 0.00247262982301846,
+      "maeTotal": 13.599736147757245,
+      "maeMargin": 15.921183565774603
+    },
+    {
+      "ablation": "D",
+      "meanTotal": 53.04140595552291,
+      "varTotal": 0.002467604894799482,
+      "maeTotal": 13.598812664907655,
+      "maeMargin": 15.946984545797207
+    },
+    {
+      "ablation": "E",
+      "meanTotal": 53.04140595552291,
+      "varTotal": 0.002467604894799482,
+      "maeTotal": 13.598812664907655,
+      "maeMargin": 15.946984545797207
+    },
+    {
+      "ablation": "F",
+      "meanTotal": 53.04223520542873,
+      "varTotal": 0.002526402273582037,
+      "maeTotal": 13.59918959668297,
+      "maeMargin": 15.985393893705186
+    },
+    {
+      "ablation": "G",
+      "meanTotal": 53.04223520542873,
+      "varTotal": 0.002526402273582037,
+      "maeTotal": 13.59918959668297,
+      "maeMargin": 15.985393893705186
+    },
+    {
+      "ablation": "H",
+      "meanTotal": 53.04223520542873,
+      "varTotal": 0.002526402273582037,
+      "maeTotal": 13.59918959668297,
+      "maeMargin": 15.985393893705186
+    },
+    {
+      "ablation": "I",
+      "meanTotal": 53.04176404070943,
+      "varTotal": 0.0024774007875928167,
+      "maeTotal": 13.599472295514488,
+      "maeMargin": 15.973539389370567
+    },
+    {
+      "ablation": "J",
+      "meanTotal": 53.042159819073575,
+      "varTotal": 0.0025214565536048356,
+      "maeTotal": 13.598774971730096,
+      "maeMargin": 15.746117602713888
+    },
+    {
+      "ablation": "K",
+      "meanTotal": 53.042159819073575,
+      "varTotal": 0.0025214565536048356,
+      "maeTotal": 13.598774971730096,
+      "maeMargin": 15.746117602713888
+    }
+  ],
+  "ablationLadder": [
+    {
+      "ablation": "A",
+      "featuresEnabled": [
+        "base"
+      ],
+      "addedVsPrevious": [
+        "base"
+      ],
+      "pctChangedVsPrevious": null,
+      "inactiveAddedBlocks": []
+    },
+    {
+      "ablation": "B",
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush"
+      ],
+      "addedVsPrevious": [
+        "pass",
+        "rush"
+      ],
+      "pctChangedVsPrevious": {
+        "n": 5306,
+        "changed": 2763,
+        "pct": 0.5207312476441764
+      },
+      "inactiveAddedBlocks": []
+    },
+    {
+      "ablation": "C",
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success"
+      ],
+      "addedVsPrevious": [
+        "success"
+      ],
+      "pctChangedVsPrevious": {
+        "n": 5306,
+        "changed": 4668,
+        "pct": 0.8797587636637768
+      },
+      "inactiveAddedBlocks": []
+    },
+    {
+      "ablation": "D",
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness"
+      ],
+      "addedVsPrevious": [
+        "explosiveness"
+      ],
+      "pctChangedVsPrevious": {
+        "n": 5306,
+        "changed": 4739,
+        "pct": 0.8931398416886543
+      },
+      "inactiveAddedBlocks": []
+    },
+    {
+      "ablation": "E",
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc"
+      ],
+      "addedVsPrevious": [
+        "havoc"
+      ],
+      "pctChangedVsPrevious": {
+        "n": 5306,
+        "changed": 0,
+        "pct": 0
+      },
+      "inactiveAddedBlocks": [
+        "havoc"
+      ]
+    },
+    {
+      "ablation": "F",
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches"
+      ],
+      "addedVsPrevious": [
+        "trenches"
+      ],
+      "pctChangedVsPrevious": {
+        "n": 5306,
+        "changed": 4598,
+        "pct": 0.8665661515265737
+      },
+      "inactiveAddedBlocks": []
+    },
+    {
+      "ablation": "G",
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches",
+        "finishing"
+      ],
+      "addedVsPrevious": [
+        "finishing"
+      ],
+      "pctChangedVsPrevious": {
+        "n": 5306,
+        "changed": 0,
+        "pct": 0
+      },
+      "inactiveAddedBlocks": [
+        "finishing"
+      ]
+    },
+    {
+      "ablation": "H",
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches",
+        "finishing",
+        "qb"
+      ],
+      "addedVsPrevious": [
+        "qb"
+      ],
+      "pctChangedVsPrevious": {
+        "n": 5306,
+        "changed": 0,
+        "pct": 0
+      },
+      "inactiveAddedBlocks": [
+        "qb"
+      ]
+    },
+    {
+      "ablation": "I",
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches",
+        "finishing",
+        "qb",
+        "pace"
+      ],
+      "addedVsPrevious": [
+        "pace"
+      ],
+      "pctChangedVsPrevious": {
+        "n": 5306,
+        "changed": 4660,
+        "pct": 0.8782510365623822
+      },
+      "inactiveAddedBlocks": []
+    },
+    {
+      "ablation": "J",
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches",
+        "finishing",
+        "qb",
+        "pace",
+        "context"
+      ],
+      "addedVsPrevious": [
+        "context"
+      ],
+      "pctChangedVsPrevious": {
+        "n": 5306,
+        "changed": 5154,
+        "pct": 0.9713531850735017
+      },
+      "inactiveAddedBlocks": []
+    },
+    {
+      "ablation": "K",
+      "featuresEnabled": [
+        "base",
+        "pass",
+        "rush",
+        "success",
+        "explosiveness",
+        "havoc",
+        "trenches",
+        "finishing",
+        "qb",
+        "pace",
+        "context"
+      ],
+      "addedVsPrevious": [],
+      "pctChangedVsPrevious": {
+        "n": 5306,
+        "changed": 0,
+        "pct": 0
+      },
+      "inactiveAddedBlocks": []
+    }
+  ],
+  "note": "Non-null historical N / variance / mean |contribution| require design-matrix rebuild; see calibration fit artifacts for those fields."
+}

@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 /**
- * CFB historical smoke backfill + temporal provenance audit.
- *
- * Default: 2024 weeks 1–4 only. Does NOT fit or promote models.
- * Rejects historically unsafe same-season aggregates from the independent matrix.
+ * CFB historical smoke backfill + hardened temporal provenance audit.
+ * Default: 2024 weeks 1–4. Does NOT fit or promote models.
  *
  * Env:
  *   CFBD_API_KEY (required)
  *   CFB_SMOKE_SEASON=2024
  *   CFB_SMOKE_WEEKS=1,2,3,4
  *   CFB_SMOKE_MAX_GAMES (optional)
- *   CFB_SMOKE_MODE=historical (default)
+ *   CFB_SMOKE_MODE=historical
+ *   CFB_SMOKE_PLAYER_ROLE_N=12  (representative games for real player-game identity)
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { cfbdGet } from "../functions/lib/collegeApi.js";
@@ -21,20 +20,23 @@ import {
   assembleGameFeatures,
   PIPELINE_VERSION,
 } from "../functions/lib/cfbFeaturePipeline.js";
-import { indexCoreByTeam } from "../functions/lib/cfbdCanonical.js";
+import { indexCoreByTeam, estimateRequestCount } from "../functions/lib/cfbdCanonical.js";
 import { projectCfbFbisV2, CFB_FBIS_V2_ID } from "../functions/lib/cfbFbisV2.js";
-import { identifyGamePlayerRoles } from "../functions/lib/cfbPlayerIdentity.js";
 import {
-  auditCatalogForGame,
+  identifyGamePlayerRoles,
+  filterPlayerGamesBeforeKickoff,
+  flattenGamesPlayersResponse,
+} from "../functions/lib/cfbPlayerIdentity.js";
+import {
   auditPreseasonPriorSources,
   auditPlayerRoleResolution,
+  auditCoreProvenance,
   buildModelInputProvenance,
   historicallyRejectedEndpointReport,
   backfillRequestEstimate,
   TEMPORAL_AUDIT_VERSION,
 } from "../functions/lib/cfbTemporalAudit.js";
 import { assertNoSecretLeak } from "../functions/lib/collegeSecrets.js";
-import { estimateRequestCount } from "../functions/lib/cfbdCanonical.js";
 
 const env = { CFBD_API_KEY: process.env.CFBD_API_KEY || "" };
 if (!env.CFBD_API_KEY) {
@@ -49,6 +51,7 @@ const weeks = (process.env.CFB_SMOKE_WEEKS || "1,2,3,4")
   .filter((n) => Number.isFinite(n) && n > 0);
 const maxGames = process.env.CFB_SMOKE_MAX_GAMES ? Number(process.env.CFB_SMOKE_MAX_GAMES) : null;
 const mode = process.env.CFB_SMOKE_MODE || "historical";
+const playerRoleN = Number(process.env.CFB_SMOKE_PLAYER_ROLE_N || 12);
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -62,11 +65,13 @@ function schoolKey(v) {
     .trim();
 }
 
-async function fetchWeeks(path, seasonYear, weekList) {
+async function fetchWeeks(path, seasonYear, weekList, extraQuery = {}) {
   const rows = [];
   let calls = 0;
   for (const week of weekList) {
-    const res = await cfbdGet(path, env, { query: { year: seasonYear, week, seasonType: "regular" } });
+    const res = await cfbdGet(path, env, {
+      query: { year: seasonYear, week, seasonType: "regular", ...extraQuery },
+    });
     calls += 1;
     if (res.ok && Array.isArray(res.data)) {
       for (const r of res.data) rows.push({ ...r, week, startDate: r.startDate || r.start_date || null });
@@ -82,42 +87,10 @@ function attachKickoffs(rows, games) {
   return (rows || []).map((r) => ({
     ...r,
     startDate: r.startDate || byId.get(String(r.gameId || r.game_id)) || null,
+    gameId: r.gameId || r.game_id || null,
   }));
 }
 
-const requestLog = [];
-const snapshots = [];
-const provenanceExamples = [];
-const roleExamples = [];
-const priorAudits = [];
-const catalogAudits = [];
-
-console.error(JSON.stringify({ phase: "start", season, weeks, mode, auditVersion: TEMPORAL_AUDIT_VERSION }));
-
-const priorSeason = season - 1;
-const priorBundle = await fetchSeasonFeatureBundle(env, priorSeason, { week: null });
-requestLog.push({ kind: "prior-bundle", season: priorSeason, paths: Object.keys(priorBundle.endpoints || {}).length });
-const priorCatalog = buildPriorCatalog(priorBundle);
-const confMap = buildFcsConferenceStrength(priorCatalog);
-
-// Current-season CORE for week-bounded lookups (filter client-side)
-const coreRes = await cfbdGet("/ratings/core", env, { query: { year: season } });
-requestLog.push({ kind: "core-season", season, ok: coreRes.ok, n: (coreRes.data || []).length });
-await sleep(120);
-
-const gamesRes = await cfbdGet("/games", env, { query: { year: season, seasonType: "regular" } });
-requestLog.push({ kind: "games", season, ok: gamesRes.ok, n: (gamesRes.data || []).length });
-const allGames = (gamesRes.data || []).filter((g) => weeks.includes(Number(g.week)));
-
-const ppaFetch = await fetchWeeks("/ppa/games", season, weeks);
-const advFetch = await fetchWeeks("/stats/game/advanced", season, weeks);
-requestLog.push({ kind: "ppa-games", calls: ppaFetch.calls, rows: ppaFetch.rows.length });
-requestLog.push({ kind: "adv-games", calls: advFetch.calls, rows: advFetch.rows.length });
-
-const ppaRows = attachKickoffs(ppaFetch.rows, gamesRes.data);
-const advRows = attachKickoffs(advFetch.rows, gamesRes.data);
-
-// Representative case tags for manual audit
 function tagGame(g) {
   const tags = [];
   if (Number(g.week) === 1) tags.push("week1");
@@ -129,14 +102,127 @@ function tagGame(g) {
   return tags;
 }
 
+function normalizePlayerGameRow(r, gamesById) {
+  const gid = String(r.gameId || r.game_id || "");
+  const kick = r.startDate || r.start_date || gamesById.get(gid) || null;
+  return {
+    ...r,
+    gameId: gid || null,
+    team: r.team || r.school || null,
+    name: r.name || r.player || r.athleteName || null,
+    position: r.position || r.pos || null,
+    startDate: kick,
+    // Do not fall back to generic `attempts` — that collides across pass/rush feeds
+    passingAttempts: r.passingAttempts ?? r.passAttempts ?? null,
+    passingYards: r.passingYards ?? r.passYards ?? null,
+    rushingAttempts: r.rushingAttempts ?? r.carries ?? null,
+    rushingYards: r.rushingYards ?? null,
+    receptions: r.receptions ?? null,
+    receivingYards: r.receivingYards ?? null,
+    targets: r.targets ?? r.receivingTargets ?? null,
+    week: r.week ?? null,
+  };
+}
+
+/** Merge nested /games/players feeds (passing/rushing/receiving) into flat rows. */
+function flattenPlayerGameFeeds(nestedFeeds, gamesById, seasonYear) {
+  const merged = new Map();
+  for (const feed of nestedFeeds) {
+    const flat = flattenGamesPlayersResponse(feed.rows || [], {
+      gamesById,
+      week: null,
+      season: seasonYear,
+    }).map((r) => normalizePlayerGameRow(r, gamesById));
+    for (const row of flat) {
+      const key = `${row.gameId || ""}::${row.athleteId || row.name || ""}::${schoolKey(row.team)}`;
+      const prev = merged.get(key);
+      if (!prev) {
+        merged.set(key, row);
+        continue;
+      }
+      merged.set(key, {
+        ...prev,
+        ...Object.fromEntries(Object.entries(row).filter(([, v]) => v != null)),
+        // Keep QB if passing attempts present; otherwise prefer receiving then rushing
+        position:
+          (prev.passingAttempts != null || row.passingAttempts != null
+            ? "QB"
+            : prev.receptions != null || row.receptions != null
+              ? "WR"
+              : prev.rushingAttempts != null || row.rushingAttempts != null
+                ? "RB"
+                : prev.position || row.position) || null,
+      });
+    }
+  }
+  return [...merged.values()];
+}
+
+const requestLog = [];
+const snapshots = [];
+const provenanceExamples = [];
+const roleExamplesUncertain = [];
+const roleExamplesReconstructed = [];
+const priorAudits = [];
+
+let counts = {
+  snapshots: 0,
+  provenancePass: 0,
+  provenanceFail: 0,
+  priorPass: 0,
+  priorFail: 0,
+  priorMissing: 0,
+  postCutoffRejections: 0,
+  coreCutoffRejections: 0,
+  corePresentOk: 0,
+};
+
+console.error(JSON.stringify({ phase: "start", season, weeks, mode, auditVersion: TEMPORAL_AUDIT_VERSION }));
+
+const priorSeason = season - 1;
+const priorBundle = await fetchSeasonFeatureBundle(env, priorSeason, { week: null });
+requestLog.push({ kind: "prior-bundle", season: priorSeason });
+const priorCatalog = buildPriorCatalog(priorBundle);
+const confMap = buildFcsConferenceStrength(priorCatalog);
+
+const coreRes = await cfbdGet("/ratings/core", env, { query: { year: season } });
+requestLog.push({ kind: "core-season", season, ok: coreRes.ok, n: (coreRes.data || []).length });
+await sleep(120);
+
+const gamesRes = await cfbdGet("/games", env, { query: { year: season, seasonType: "regular" } });
+requestLog.push({ kind: "games", season, ok: gamesRes.ok, n: (gamesRes.data || []).length });
+const allGames = (gamesRes.data || []).filter((g) => weeks.includes(Number(g.week)));
+const gamesById = new Map((gamesRes.data || []).map((g) => [String(g.id), g.startDate || g.start_date]));
+
+const ppaFetch = await fetchWeeks("/ppa/games", season, weeks);
+const advFetch = await fetchWeeks("/stats/game/advanced", season, weeks);
+requestLog.push({ kind: "ppa-games", calls: ppaFetch.calls, rows: ppaFetch.rows.length });
+requestLog.push({ kind: "adv-games", calls: advFetch.calls, rows: advFetch.rows.length });
+
+const ppaRows = attachKickoffs(ppaFetch.rows, gamesRes.data);
+const advRows = attachKickoffs(advFetch.rows, gamesRes.data);
+
+// Player-game rows for role reconstruction slice
+const gamesPlayers = await fetchWeeks("/games/players", season, weeks, { category: "passing" });
+const gamesPlayersRush = await fetchWeeks("/games/players", season, weeks, { category: "rushing" });
+const gamesPlayersRec = await fetchWeeks("/games/players", season, weeks, { category: "receiving" });
+requestLog.push({
+  kind: "games-players",
+  calls: gamesPlayers.calls + gamesPlayersRush.calls + gamesPlayersRec.calls,
+  rows: gamesPlayers.rows.length + gamesPlayersRush.rows.length + gamesPlayersRec.rows.length,
+});
+const playerGameRowsRaw = flattenPlayerGameFeeds(
+  [gamesPlayers, gamesPlayersRush, gamesPlayersRec],
+  gamesById,
+  season
+);
+requestLog.push({ kind: "games-players-flat", rows: playerGameRowsRaw.length });
+
 let used = 0;
 for (const g of allGames) {
   if (maxGames != null && used >= maxGames) break;
   const kickoff = g.startDate || g.start_date;
   if (!kickoff) continue;
-  if ((g.homePoints ?? g.home_points) == null || (g.awayPoints ?? g.away_points) == null) {
-    // Still allow pregame-style feature build for prospective, but smoke prefers completed for targets-separated check
-  }
   const asOf = new Date(Date.parse(kickoff) - 60_000).toISOString();
   const maxCoreWeek = Math.max(0, Number(g.week) - 1);
   const coreByTeam = indexCoreByTeam(coreRes.data || [], { maxWeek: maxCoreWeek, seasonType: "regular" });
@@ -147,7 +233,7 @@ for (const g of allGames) {
     confMap,
     ppaGameRows: ppaRows,
     advGameRows: advRows,
-    qbRows: [], // historical: do not pass season aggregates
+    qbRows: [],
     usageRows: [],
     playerGameRows: [],
     coreByTeam,
@@ -158,29 +244,51 @@ for (const g of allGames) {
 
   const homeKey = schoolKey(record.home_team);
   const awayKey = schoolKey(record.away_team);
+  // Fail closed: do NOT invent { sourceSeason: priorSeason } for missing teams
+  const homeEntry = priorCatalog.bySchool[homeKey] || null;
+  const awayEntry = priorCatalog.bySchool[awayKey] || null;
   const homePriorAudit = auditPreseasonPriorSources({
     gameYear: season,
-    priorCatalogEntry: priorCatalog.bySchool[homeKey] || { sourceSeason: priorSeason },
+    priorCatalogEntry: homeEntry,
     priorSeason,
   });
   const awayPriorAudit = auditPreseasonPriorSources({
     gameYear: season,
-    priorCatalogEntry: priorCatalog.bySchool[awayKey] || { sourceSeason: priorSeason },
+    priorCatalogEntry: awayEntry,
     priorSeason,
   });
   priorAudits.push({ gameId: String(g.id), home: homePriorAudit, away: awayPriorAudit });
+  for (const a of [homePriorAudit, awayPriorAudit]) {
+    if (a.ok) counts.priorPass += 1;
+    else {
+      counts.priorFail += 1;
+      if (a.exclusionReason === "missing-source-provenance") counts.priorMissing += 1;
+    }
+  }
 
-  const catalogAudit = auditCatalogForGame({
-    year: season,
-    targetWeek: g.week,
-    kickoffTimestamp: kickoff,
-    predictionCutoff: asOf,
-    priorSeason,
-    coreThroughWeek: maxCoreWeek,
-  });
-  catalogAudits.push({ gameId: String(g.id), summary: catalogAudit.summary });
+  // CORE: use actual retrieved row throughWeek — never substitute maxCoreWeek as if it were the row
+  for (const side of ["home", "away"]) {
+    const feat = record.features[side];
+    const coreAudit = auditCoreProvenance({
+      coreRow: feat.coreRow,
+      targetWeek: g.week,
+      targetKickoffTimestamp: kickoff,
+    });
+    if (feat.coreThroughWeek != null || feat.coreRating != null) {
+      if (coreAudit.ok) counts.corePresentOk += 1;
+      else counts.coreCutoffRejections += 1;
+    }
+  }
 
-  const roles = identifyGamePlayerRoles(
+  // Count contaminated / post-cutoff among assembled source observations
+  for (const side of ["home", "away"]) {
+    for (const obs of record.features[side].sourceObservations || []) {
+      const sk = Date.parse(obs.sourceKickoffTimestamp || "");
+      if (!Number.isFinite(sk) || sk >= Date.parse(kickoff)) counts.postCutoffRejections += 1;
+    }
+  }
+
+  const rolesEmpty = identifyGamePlayerRoles(
     {
       id: g.id,
       week: g.week,
@@ -191,133 +299,189 @@ for (const g of allGames) {
       home: { name: record.home_team },
       away: { name: record.away_team },
     },
-    {
-      identityAsOf: asOf,
-      // No future player-game rows — empty forces uncertain/widen where needed
-      playerGameRows: [],
-      qbPpaRows: [],
-      rbPpaRows: [],
-      wrPpaRows: [],
-      usageRows: [],
-    }
+    { identityAsOf: asOf, playerGameRows: [] }
   );
-
-  const roleAudit = {
+  const roleAuditEmpty = {
     gameId: String(g.id),
     week: g.week,
+    mode: "empty-player-games",
     away: {
-      QB1: auditPlayerRoleResolution(roles.roles.away.QB1),
-      RB1: auditPlayerRoleResolution(roles.roles.away.RB1),
-      WR1: auditPlayerRoleResolution(roles.roles.away.WR1),
+      QB1: auditPlayerRoleResolution(rolesEmpty.roles.away.QB1),
+      RB1: auditPlayerRoleResolution(rolesEmpty.roles.away.RB1),
+      WR1: auditPlayerRoleResolution(rolesEmpty.roles.away.WR1),
     },
     home: {
-      QB1: auditPlayerRoleResolution(roles.roles.home.QB1),
-      RB1: auditPlayerRoleResolution(roles.roles.home.RB1),
-      WR1: auditPlayerRoleResolution(roles.roles.home.WR1),
+      QB1: auditPlayerRoleResolution(rolesEmpty.roles.home.QB1),
+      RB1: auditPlayerRoleResolution(rolesEmpty.roles.home.RB1),
+      WR1: auditPlayerRoleResolution(rolesEmpty.roles.home.WR1),
     },
   };
-  roleExamples.push(roleAudit);
+  if (roleExamplesUncertain.length < 8) roleExamplesUncertain.push(roleAuditEmpty);
 
   const provenance = buildModelInputProvenance({
     game: g,
     featureRecord: record,
-    roles: roleAudit,
+    roles: roleAuditEmpty,
     mode,
+    priorAudits: { home: homePriorAudit, away: awayPriorAudit },
   });
+  if (provenance.provenancePass) counts.provenancePass += 1;
+  else counts.provenanceFail += 1;
 
-  const gameInput = {
-    sport: "cfb",
-    home: { name: record.home_team },
-    away: { name: record.away_team },
-    neutralSite: Boolean(record.features.neutralSite),
-    featureCutoffOk: true,
-    cfbFbisV2Input: {
-      home: { ...record.features.home, qbPpa: record.features.home.qbHistoricalUnsafe ? null : record.features.home.qbPpa },
-      away: { ...record.features.away, qbPpa: record.features.away.qbHistoricalUnsafe ? null : record.features.away.qbPpa },
-      neutralSite: record.features.neutralSite,
+  const proj = projectCfbFbisV2(
+    {
+      sport: "cfb",
+      home: { name: record.home_team },
+      away: { name: record.away_team },
+      neutralSite: Boolean(record.features.neutralSite),
+      featureCutoffOk: true,
+      cfbFbisV2Input: {
+        home: { ...record.features.home, qbPpa: record.features.home.qbHistoricalUnsafe ? null : record.features.home.qbPpa },
+        away: { ...record.features.away, qbPpa: record.features.away.qbHistoricalUnsafe ? null : record.features.away.qbPpa },
+        neutralSite: record.features.neutralSite,
+      },
     },
-  };
-  // Strip evaluation from independent input
-  const proj = projectCfbFbisV2(gameInput, { ablation: "K" });
+    { ablation: "K" }
+  );
 
   const snapshot = {
     game_id: String(g.id),
     season,
     week: g.week,
-    season_type: "regular",
     kickoff_timestamp: kickoff,
     prediction_cutoff: asOf,
     home_team: record.home_team,
     away_team: record.away_team,
     tags: tagGame(g),
-    feature_values: {
-      home: record.features.home,
-      away: record.features.away,
-      neutralSite: record.features.neutralSite,
-      dataCompleteness: record.features.dataCompleteness,
+    provenancePass: provenance.provenancePass,
+    prior_audit: { home: homePriorAudit, away: awayPriorAudit },
+    feature_provenance_summary: {
+      passed: provenance.independentFeaturesPassed.length,
+      rejected: provenance.featuresRejected.length,
+      latestAllowedWeek: provenance.latestAllowedWeek,
     },
-    feature_provenance: provenance,
-    feature_temporal_ok: record.temporalOk,
-    model_data_version: PIPELINE_VERSION,
-    role_snapshots: roleAudit,
-    // Targets stored separately — not in feature matrix
+    actual_core: {
+      homeThroughWeek: record.features.home.coreThroughWeek,
+      awayThroughWeek: record.features.away.coreThroughWeek,
+      homeYear: record.features.home.coreYear,
+      awayYear: record.features.away.coreYear,
+    },
+    actual_source_weeks: {
+      home: record.features.home.actualSourceWeeks,
+      away: record.features.away.actualSourceWeeks,
+    },
+    source_game_ids: {
+      home: record.features.home.rollingSourceGameIds,
+      away: record.features.away.rollingSourceGameIds,
+    },
     targets: {
       home_points: g.homePoints ?? g.home_points ?? null,
       away_points: g.awayPoints ?? g.away_points ?? null,
     },
     shadow_projection: proj.ok
-      ? {
-          modelId: CFB_FBIS_V2_ID,
-          home: proj.home,
-          away: proj.away,
-          margin: proj.margin,
-          total: proj.total,
-          canQualify: false,
-        }
+      ? { modelId: CFB_FBIS_V2_ID, home: proj.home, away: proj.away, margin: proj.margin, total: proj.total, canQualify: false }
       : { ok: false, reason: proj.reason },
-    prior_audit: { home: homePriorAudit, away: awayPriorAudit },
   };
   snapshots.push(snapshot);
+  counts.snapshots += 1;
 
-  // Keep a handful of detailed provenance examples covering required cases
   if (
     provenanceExamples.length < 12 &&
-    (snapshot.tags.includes("week1") ||
-      snapshot.tags.includes("fbs-fcs") ||
-      snapshot.tags.includes("early-season") ||
-      used < 4)
+    (snapshot.tags.includes("week1") || snapshot.tags.includes("fbs-fcs") || used < 4)
   ) {
     provenanceExamples.push({
       gameId: snapshot.game_id,
       matchup: `${snapshot.away_team} @ ${snapshot.home_team}`,
       week: snapshot.week,
       tags: snapshot.tags,
+      provenancePass: provenance.provenancePass,
       predictionCutoff: asOf,
-      independentFeatureCount: provenance.independentFeaturesPassed.length,
-      rejectedFeatureCount: provenance.featuresRejected.length,
-      rejectedReasons: [...new Set(provenance.featuresRejected.map((r) => r.exclusionReason))],
+      latestAllowedWeek: provenance.latestAllowedWeek,
       priorSeasons: {
-        home: homePriorAudit.consumedPriorSeason,
-        away: awayPriorAudit.consumedPriorSeason,
-        ok: homePriorAudit.ok && awayPriorAudit.ok,
+        home: homePriorAudit.sourceSeason,
+        away: awayPriorAudit.sourceSeason,
+        homeOk: homePriorAudit.ok,
+        awayOk: awayPriorAudit.ok,
+        homeReason: homePriorAudit.exclusionReason,
+        awayReason: awayPriorAudit.exclusionReason,
       },
-      roles: {
-        awayQB: roleAudit.away.QB1,
-        homeQB: roleAudit.home.QB1,
-      },
-      featuresPassedSample: provenance.independentFeaturesPassed.slice(0, 20),
-      featuresRejectedSample: provenance.featuresRejected.slice(0, 20),
-      fullProvenance: provenance,
+      actualSourceWeeks: snapshot.actual_source_weeks,
+      actualCoreThroughWeek: snapshot.actual_core,
+      featuresPassedSample: provenance.independentFeaturesPassed.slice(0, 10),
+      featuresRejectedSample: provenance.featuresRejected.slice(0, 10),
     });
   }
 
   used += 1;
 }
 
+// Representative player-role reconstruction: prefer FBS week≥2 games with both sides named
+const roleCandidates = allGames
+  .filter((g) => {
+    if (Number(g.week) < 2 || !(g.startDate || g.start_date)) return false;
+    const homeClass = String(g.homeClassification || g.home_classification || "");
+    const awayClass = String(g.awayClassification || g.away_classification || "");
+    const fbsHome = !homeClass || /fbs/i.test(homeClass);
+    const fbsAway = !awayClass || /fbs/i.test(awayClass);
+    return fbsHome && fbsAway;
+  })
+  .sort((a, b) => Number(a.week) - Number(b.week) || String(a.id).localeCompare(String(b.id)))
+  .slice(0, Math.max(playerRoleN, 12));
+
+for (const g of roleCandidates) {
+  const kickoff = g.startDate || g.start_date;
+  const asOf = new Date(Date.parse(kickoff) - 60_000).toISOString();
+  const priorOnly = filterPlayerGamesBeforeKickoff(playerGameRowsRaw, kickoff);
+  const roles = identifyGamePlayerRoles(
+    {
+      id: g.id,
+      week: g.week,
+      season,
+      startDate: kickoff,
+      homeTeam: g.homeTeam || g.home_team,
+      awayTeam: g.awayTeam || g.away_team,
+      home: { name: g.homeTeam || g.home_team },
+      away: { name: g.awayTeam || g.away_team },
+    },
+    { identityAsOf: asOf, playerGameRows: priorOnly }
+  );
+
+  const enrich = (roleRow, team) => {
+    const usedRows = priorOnly.filter((r) => {
+      if (schoolKey(r.team) !== schoolKey(team)) return false;
+      const id = roleRow.player_id != null ? String(roleRow.player_id) : null;
+      if (id && (String(r.athleteId || "") === id || String(r.player_id || r.id || "") === id)) return true;
+      if (!roleRow.player_name) return false;
+      return String(r.name || "").toLowerCase() === String(roleRow.player_name).toLowerCase();
+    });
+    return auditPlayerRoleResolution(roleRow, { priorGameRows: usedRows, priorStarts: usedRows.length || null });
+  };
+
+  const homeTeam = g.homeTeam || g.home_team;
+  const awayTeam = g.awayTeam || g.away_team;
+  roleExamplesReconstructed.push({
+    targetGame: {
+      gameId: String(g.id),
+      week: g.week,
+      kickoff,
+      matchup: `${awayTeam} @ ${homeTeam}`,
+    },
+    away: {
+      QB1: enrich(roles.roles.away.QB1, awayTeam),
+      RB1: enrich(roles.roles.away.RB1, awayTeam),
+      WR1: enrich(roles.roles.away.WR1, awayTeam),
+    },
+    home: {
+      QB1: enrich(roles.roles.home.QB1, homeTeam),
+      RB1: enrich(roles.roles.home.RB1, homeTeam),
+      WR1: enrich(roles.roles.home.WR1, homeTeam),
+    },
+  });
+}
+
 const rejectedEndpoints = historicallyRejectedEndpointReport();
 const smokeEstimate = backfillRequestEstimate({ seasons: [season], smokeWeeks: weeks.length });
 const fullEstimate = backfillRequestEstimate({ seasons: [2022, 2023, 2024, 2025], weeksPerSeason: 15 });
-const canonicalEstimate = estimateRequestCount({ seasons: 4, weeks: 15 });
 
 const report = {
   ok: true,
@@ -328,7 +492,12 @@ const report = {
   mode,
   season,
   weeks,
-  snapshotCount: snapshots.length,
+  snapshotCount: counts.snapshots,
+  counts: {
+    ...counts,
+    provenancePassRate: counts.snapshots ? counts.provenancePass / counts.snapshots : null,
+    priorPassRate: counts.priorPass + counts.priorFail ? counts.priorPass / (counts.priorPass + counts.priorFail) : null,
+  },
   canQualify: false,
   canAuthorizeWager: false,
   championUntouched: true,
@@ -339,49 +508,34 @@ const report = {
   governance: {
     "CFB-FBIS-v2": { canQualify: false },
     "CFB-PLAYER-v1": { canQualify: false },
-    marketExcludedFromIndependent: true,
   },
-  temporalAudit: {
-    catalogSample: catalogAudits[0] || null,
-    rejectedEndpoints,
-    priorAuditOkRate:
-      priorAudits.length === 0
-        ? null
-        : priorAudits.filter((p) => p.home.ok && p.away.ok).length / priorAudits.length,
-  },
+  rejectedEndpoints,
   requestLog,
   requestEstimates: {
     smoke: smokeEstimate,
     full2022_2025: fullEstimate,
-    canonicalEstimate,
+    canonicalEstimate: estimateRequestCount({ seasons: 4, weeks: 15 }),
+  },
+  playerRoleReconstruction: {
+    games: roleExamplesReconstructed.length,
+    note: "Only pre-kickoff /games/players rows; no season leaders",
   },
   nextFullBackfillCommands: {
-    note: "Only after smoke provenance audit passes",
-    githubWorkflow: "FBIS college research",
-    workflowDispatch: {
-      job: "cfb-feature-backfill",
-      seasons: "2022,2023,2024,2025",
-      maxGames: "",
-    },
+    note: "Only after this hardened smoke provenance audit passes review",
     cli: [
       "export CFBD_API_KEY=***",
       "CFB_BACKFILL_SEASONS=2022,2023,2024,2025 CFB_BACKFILL_MODE=historical node scripts/cfb-feature-backfill.mjs",
-    ],
-    smokeCli: [
-      "export CFBD_API_KEY=***",
-      "CFB_SMOKE_SEASON=2024 CFB_SMOKE_WEEKS=1,2,3,4 node scripts/cfb-temporal-smoke-backfill.mjs",
     ],
   },
 };
 
 assertNoSecretLeak(report, env);
-assertNoSecretLeak({ snapshots: snapshots.slice(0, 1), provenanceExamples }, env);
-
 mkdirSync("artifacts", { recursive: true });
 writeFileSync("artifacts/cfb-temporal-smoke-report.json", JSON.stringify(report, null, 2));
 writeFileSync("artifacts/cfb-temporal-smoke-snapshots.json", JSON.stringify(snapshots, null, 2));
 writeFileSync("artifacts/cfb-temporal-smoke-provenance-examples.json", JSON.stringify(provenanceExamples, null, 2));
-writeFileSync("artifacts/cfb-temporal-smoke-role-examples.json", JSON.stringify(roleExamples.slice(0, 20), null, 2));
+writeFileSync("artifacts/cfb-temporal-smoke-role-uncertain.json", JSON.stringify(roleExamplesUncertain, null, 2));
+writeFileSync("artifacts/cfb-temporal-smoke-role-reconstructed.json", JSON.stringify(roleExamplesReconstructed, null, 2));
 writeFileSync("artifacts/cfb-temporal-rejected-endpoints.json", JSON.stringify(rejectedEndpoints, null, 2));
 
 console.log(
@@ -390,18 +544,16 @@ console.log(
       ok: true,
       season,
       weeks,
-      snapshotCount: snapshots.length,
-      provenanceExamples: provenanceExamples.length,
-      priorAuditOkRate: report.temporalAudit.priorAuditOkRate,
-      smokeRequestEstimate: smokeEstimate.estimate,
-      fullRequestEstimate: fullEstimate.estimate,
+      snapshotCount: counts.snapshots,
+      provenancePassRate: report.counts.provenancePassRate,
+      priorPass: counts.priorPass,
+      priorFail: counts.priorFail,
+      priorMissing: counts.priorMissing,
+      postCutoffRejections: counts.postCutoffRejections,
+      coreCutoffRejections: counts.coreCutoffRejections,
+      playerRoleExamples: roleExamplesReconstructed.length,
       fitted: false,
       researchReady: false,
-      artifacts: [
-        "artifacts/cfb-temporal-smoke-report.json",
-        "artifacts/cfb-temporal-smoke-provenance-examples.json",
-        "artifacts/cfb-temporal-rejected-endpoints.json",
-      ],
     },
     null,
     2
