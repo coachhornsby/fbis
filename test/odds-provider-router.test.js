@@ -222,6 +222,46 @@ describe("odds provider router", () => {
     assert.equal(resolution.asOf, asOf);
     assert.equal(resolution.meta.book, "pinnacle");
   });
+
+  it("rejects incomplete markets when completeness is required", async () => {
+    const resolution = await resolveOddsProviders({
+      configured: { parlay: true, theodds: true, sharpapi: false, therundown: false },
+      fetchers: {
+        parlay: async () => ({
+          provider: "parlay",
+          ok: true,
+          complete: true,
+          incomplete: true,
+          events: [{ id: 1 }],
+          asOf: new Date().toISOString(),
+          error: "missing-side",
+        }),
+        theodds: async () => okResult("theodds", [{ id: 2 }]),
+      },
+    });
+    assert.equal(resolution.provider, "theodds");
+    assert.ok(resolution.attempts.some((a) => a.provider === "parlay" && a.incomplete));
+  });
+
+  it("can skip a preferred provider when configurable quota reserve is reached", async () => {
+    const called = [];
+    const resolution = await resolveOddsProviders({
+      configured: { parlay: true, theodds: true, sharpapi: false, therundown: false },
+      quotaReserve: { parlay: 50 },
+      fetchers: {
+        parlay: async () => {
+          called.push("parlay");
+          return okResult("parlay", [{ id: 1 }], { quotaRemaining: 10 });
+        },
+        theodds: async () => {
+          called.push("theodds");
+          return okResult("theodds", [{ id: 2 }], { quotaRemaining: 500 });
+        },
+      },
+    });
+    assert.equal(resolution.provider, "theodds");
+    assert.deepEqual(called, ["parlay", "theodds"]);
+  });
 });
 
 describe("Pages odds-secret sync never overwrites with empty values", () => {

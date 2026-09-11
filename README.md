@@ -55,11 +55,11 @@ Checkpoints: FIRST_AVAILABLE · EARLY · MORNING · LINEUP_CONFIRMED · PREGAME 
 
 **CLV** is entry no-vig vs close (last pregame) no-vig for the side you bet — not model fair vs market.
 
-Model version: **FBIS-v1.3** (production champion)
+Model version: **FBIS-v1.4** (platform) / **CFB-FBIS-v2** (CFB production projection)
 
-**CFB (v1.3 / prior-v2-cfbd)** — Independent score model. Team-specific prior is CollegeFootballData SP+/FPI/SRS/Elo covering all FBS, not AP25. Live projection inputs include CFBD EPA proxies, transfer portal deltas (including QB transfer deltas), transfer-QB prior production (PPA/success/efficiency where available), coaching-tenure continuity, returning production, and ESPN QB continuity signals. Fallback is ESPN FPI + harvested 2025 SRS. Current-season points for/against blend with `w = n/(n+6)`. HFA 2.5 (0 on confirmed neutral). FCS and newly promoted FBS are provisional. League-average-only cannot qualify, show LOG, or create a strategy ticket. Champion HFA weights stay frozen. Pal is never a book. Missing feature feeds fail soft and are flagged as absent.
+**CFB-FBIS-v2 (production projection)** — Fitted M\*=A / T\*=A ridge on provenance-repaired 2022–2025 design rows. Coherent scores: `home = (total + margin) / 2`, `away = (total - margin) / 2`. Runtime loads fold3 A coefficients from `data/models/cfb-fbis-v2-fitted-aa.js` (betas verbatim from `fitted-coefficients-final.json`). **`canQualify = false`**. **Wager authorization disabled**. Closing lines remain evaluation-only and are never model features.
 
-**CFB-FBIS-v2** — Fitted calibration / final-selection artifacts live under `data/cfbd/calibration/` (tracked lineage; only transient cache/tmp/log ignored). Final selection currently reports `canQualify: false` / `promote: false` — v2 remains a selected challenger package until an explicit promotion cutover. Do not treat v2 fitted coefficients as the live production wager model until promoted.
+**CFB prior layer** — Team-specific prior is CollegeFootballData SP+/FPI/SRS/Elo covering all FBS when `CFBD_API_KEY` is bound. Feature feeds include CFBD EPA proxies, transfer portal deltas, coaching continuity, returning production, and ESPN QB continuity. Missing feature feeds fail soft and are flagged as absent. League-average-only cannot qualify, show LOG, or create a strategy ticket.
 
 **Strategy FBIS-HC-v1** — Qualified tickets with EV ≥ 8% (CONVICTION). Production seed identity and graded tickets live in Cloudflare D1 (`strategy_tickets` role=seed). The repo ships **synthetic** cohort fixtures under `data/cohorts/` for offline tests only — not real operator slips. Reconstruction is operator-declared until journal EV/timestamps are imported. Champion weights, logistic k, and qualification gates stay frozen. Prospective matches still use the CONVICTION / EV ≥ 8% conjunction and are graded separately from forecast MAE/Brier.
 

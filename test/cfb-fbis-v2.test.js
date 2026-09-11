@@ -248,7 +248,7 @@ describe("CFB-FBIS-v2 model", () => {
     },
   };
 
-  it("is deterministic and shadow-only", () => {
+  it("is deterministic and projection-enabled without qualification", () => {
     const a = projectCfbFbisV2(baseGame);
     const b = projectCfbFbisV2(baseGame);
     assert.equal(a.ok, true);
@@ -257,7 +257,9 @@ describe("CFB-FBIS-v2 model", () => {
     assert.equal(a.modelId, CFB_FBIS_V2_ID);
     assert.equal(a.canQualify, false);
     assert.equal(shadowCannotQualify(CFB_FBIS_V2_ID), true);
-    assert.equal(COLLEGE_MODELS[CFB_FBIS_V2_ID].role, "shadow");
+    assert.equal(COLLEGE_MODELS[CFB_FBIS_V2_ID].role, "production-projection");
+    assert.equal(COLLEGE_MODELS[CFB_FBIS_V2_ID].projectionEnabled, true);
+    assert.equal(COLLEGE_MODELS[CFB_FBIS_V2_ID].canAuthorizeWager, false);
   });
 
   it("zeros HFA on neutral and keeps 2.5 at home", () => {

@@ -23,8 +23,10 @@ export const ODDS_PROVIDER_ORDER = Object.freeze([
  * @property {boolean} configured
  * @property {boolean} healthy
  * @property {number|null} [quotaRemaining]
+ * @property {string|null} [quotaResetAt]
  * @property {boolean} rateLimited
  * @property {string|null} [lastSuccessAt]
+ * @property {string|null} [lastFailureAt]
  * @property {string|null} [lastError]
  * @property {boolean} [complete]
  * @property {string|null} [asOf]
@@ -59,6 +61,7 @@ export const providersConfigured = providerConfigured;
 export function isFreshComplete(result, { nowMs = Date.now(), maxAgeMs = 15 * 60 * 1000 } = {}) {
   if (!result || !result.ok || !result.complete) return false;
   if (!Array.isArray(result.events) || result.events.length === 0) return false;
+  if (result.incomplete) return false;
   if (result.asOf) {
     const t = Date.parse(result.asOf);
     if (Number.isFinite(t) && nowMs - t > maxAgeMs) return false;
@@ -88,6 +91,7 @@ export async function resolveOddsProviders(opts = {}) {
   const order = opts.order || ODDS_PROVIDER_ORDER;
   const configured = opts.configured || {};
   const fetchers = opts.fetchers || {};
+  const quotaReserve = opts.quotaReserve && typeof opts.quotaReserve === "object" ? opts.quotaReserve : {};
   const attempts = [];
   const statuses = [];
 
@@ -99,8 +103,10 @@ export async function resolveOddsProviders(opts = {}) {
         configured: false,
         healthy: false,
         quotaRemaining: null,
+        quotaResetAt: null,
         rateLimited: false,
         lastSuccessAt: null,
+        lastFailureAt: null,
         lastError: "not-configured",
         complete: false,
         asOf: null,
@@ -116,8 +122,10 @@ export async function resolveOddsProviders(opts = {}) {
         configured: true,
         healthy: false,
         quotaRemaining: null,
+        quotaResetAt: null,
         rateLimited: false,
         lastSuccessAt: null,
+        lastFailureAt: null,
         lastError: "fetcher-missing",
         complete: false,
         asOf: null,
@@ -127,16 +135,29 @@ export async function resolveOddsProviders(opts = {}) {
     }
 
     const result = await fetch();
-    const fresh = isFreshComplete(result, { nowMs: opts.nowMs, maxAgeMs: opts.maxAgeMs });
+    const reserve = quotaReserve[provider];
+    const quotaRemaining = result?.quotaRemaining ?? null;
+    const nearReserve =
+      Number.isFinite(reserve) &&
+      Number.isFinite(quotaRemaining) &&
+      quotaRemaining <= Number(reserve);
+    const fresh = isFreshComplete(result, { nowMs: opts.nowMs, maxAgeMs: opts.maxAgeMs }) && !nearReserve;
+    const failed = !fresh;
     statuses.push({
       provider,
       configured: true,
-      healthy: Boolean(result?.ok) && !isProviderUnavailable(result),
-      quotaRemaining: result?.quotaRemaining ?? null,
+      healthy: Boolean(result?.ok) && !isProviderUnavailable(result) && !nearReserve,
+      quotaRemaining,
+      quotaResetAt: result?.quotaResetAt ?? null,
       rateLimited: Boolean(result?.rateLimited),
       lastSuccessAt: fresh ? result.asOf || new Date(opts.nowMs || Date.now()).toISOString() : null,
-      lastError: result?.error || null,
-      complete: Boolean(result?.complete && result?.events?.length),
+      lastFailureAt: failed ? new Date(opts.nowMs || Date.now()).toISOString() : null,
+      lastError: nearReserve
+        ? "quota-reserve"
+        : result?.incomplete
+          ? "market-incomplete"
+          : result?.error || null,
+      complete: Boolean(result?.complete && result?.events?.length && !result?.incomplete),
       asOf: result?.asOf || null,
     });
     attempts.push({
@@ -145,9 +166,12 @@ export async function resolveOddsProviders(opts = {}) {
       ok: Boolean(result?.ok),
       complete: Boolean(result?.complete),
       fresh,
-      error: result?.error || null,
+      nearReserve,
+      incomplete: Boolean(result?.incomplete),
+      error: nearReserve ? "quota-reserve" : result?.error || null,
       eventCount: Array.isArray(result?.events) ? result.events.length : 0,
       asOf: result?.asOf || null,
+      source: provider,
     });
 
     if (fresh) {
@@ -173,6 +197,7 @@ export async function resolveOddsProviders(opts = {}) {
     asOf: null,
     source: null,
     reason: "no-valid-market-data",
+    code: "NO_MARKET_DATA",
     meta: {},
     attempts,
     statuses,

@@ -1,6 +1,6 @@
 # CFB-FBIS-v2 final model selection (talent-catalog repair)
 
-**Status:** final selection complete — **not promoted**. `canQualify: false`. Wager authorization remains **disabled**.
+**Status:** final selection complete — **projection cutover wired**. `canQualify: false`. Wager authorization remains **disabled**.
 
 ## Purpose
 
@@ -125,11 +125,11 @@ Do **not** say “books win both” as a vague slogan without metrics — but on
 | **Wager authorization** | **DO NOT ENABLE** |
 | `canQualify` | **false** (unchanged) |
 
-### Remaining engineering blockers
+### Production wiring (landed)
 
-1. Production wiring must load M\*=A / T\*=A coefficients and the coherent score path.
-2. Shadow / production enablement process for the game engine (policy), without enabling wager auth.
-3. `canQualify` stays false until a separate qualification task.
+1. `data/models/cfb-fbis-v2-fitted-aa.js` packages fold3 A intercept/beta **verbatim** from `fitted-coefficients-final.json` plus train means/stds for `predictRidge`.
+2. `projectCfbFbisV2Production` / `promoteCfbFbisV2ToBoard` load A/A coherent scores onto the CFB board.
+3. `canQualify` and wager authorization remain **false**.
 4. Inactive blocks (havoc / finishing / qb) still untested as predictors if later populated.
 
 ## Artifacts
