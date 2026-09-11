@@ -1,15 +1,20 @@
 /**
- * CFB-FBIS-v2 — independent opponent-adjusted CFB challenger.
- * Shadow only. Never auto-promotes. Never consumes market lines for score generation.
- * Champion (FBIS-HC / opponent-residual) remains untouched.
+ * CFB-FBIS-v2 — independent opponent-adjusted CFB projection.
+ *
+ * Production projection cutover uses fitted M*=A / T*=A ridge coefficients
+ * (data/models/cfb-fbis-v2-fitted-aa.js). Qualification and wager authorization
+ * remain disabled. Never consumes market lines for score generation.
  */
 
 import { CHAMPION_HFA, NEUTRAL_HFA, COLLEGE_MODELS, failClosedShadow } from "./collegeModels.js";
 import { pGreater } from "./metrics.js";
 import { blendPriorCurrent, shrinkageWeight } from "./cfbFeatureStore.js";
+import { predictRidge, pHomeWinFromMargin } from "./cfbFbisV2Fit.js";
 import CFB_FBIS_V2_ARTIFACT from "../../data/models/cfb-fbis-v2.js";
+import CFB_FBIS_V2_FITTED_AA from "../../data/models/cfb-fbis-v2-fitted-aa.js";
 
 export const CFB_FBIS_V2_ID = "CFB-FBIS-v2";
+export const CFB_FBIS_V2_PRODUCTION = CFB_FBIS_V2_FITTED_AA;
 
 export const ABLATION_MASKS = {
   A: { base: true },
@@ -472,12 +477,158 @@ export function projectCfbFbisV2Deterministic(game, opts) {
   return projectCfbFbisV2(game, opts);
 }
 
+function sideSum(a, b) {
+  const x = num(a);
+  const y = num(b);
+  if (x == null && y == null) return null;
+  return (x || 0) + (y || 0);
+}
+
+/**
+ * Apply fitted M*=A / T*=A ridge on top of provisional feature decomposition.
+ * Intercept/beta are verbatim from fitted-coefficients-final.json fold3 A.
+ * canQualify / canAuthorize stay false.
+ */
+export function applyFittedAaProjection(provisional, game = {}, fitted = CFB_FBIS_V2_FITTED_AA) {
+  if (!provisional?.ok) {
+    return {
+      ...provisional,
+      modelId: CFB_FBIS_V2_ID,
+      projectionEnabled: Boolean(fitted?.projectionEnabled),
+      canQualify: false,
+      canAuthorize: false,
+      Mstar: fitted?.Mstar || "A",
+      Tstar: fitted?.Tstar || "A",
+      fittedApplied: false,
+    };
+  }
+
+  const homeIn = sideFeatures(game, "home");
+  const awayIn = sideFeatures(game, "away");
+  const d = provisional.decomposition || {};
+  const marginFeatures = {
+    base: num(d.BASE_POWER),
+  };
+  const totalFeatures = {
+    base_total: sideSum(homeIn.off ?? homeIn.priorOff, awayIn.off ?? awayIn.priorOff),
+  };
+
+  if (!Number.isFinite(marginFeatures.base)) {
+    return {
+      ...provisional,
+      ok: false,
+      reason: "missing-fitted-base",
+      canQualify: false,
+      canAuthorize: false,
+      fittedApplied: false,
+    };
+  }
+
+  const marginModel = {
+    intercept: fitted.margin.intercept,
+    beta: fitted.margin.beta,
+    means: fitted.margin.means,
+    stds: fitted.margin.stds,
+  };
+  const totalModel = {
+    intercept: fitted.total.intercept,
+    beta: fitted.total.beta,
+    means: fitted.total.means,
+    stds: fitted.total.stds,
+  };
+
+  const predMargin = predictRidge(marginModel, [[marginFeatures.base]])[0];
+  const predTotal = predictRidge(totalModel, [[
+    Number.isFinite(totalFeatures.base_total) ? totalFeatures.base_total : fitted.total.means[0],
+  ]])[0];
+
+  if (!Number.isFinite(predMargin) || !Number.isFinite(predTotal)) {
+    return {
+      ...provisional,
+      ok: false,
+      reason: "fitted-predict-failed",
+      canQualify: false,
+      canAuthorize: false,
+      fittedApplied: false,
+    };
+  }
+
+  const home = round1((predTotal + predMargin) / 2);
+  const away = round1((predTotal - predMargin) / 2);
+  const margin = round1(home - away);
+  const total = round1(home + away);
+  const sigma = Number(fitted.margin.sigma) || Number(provisional.sigmaMargin) || 16.5;
+  const pHome = pHomeWinFromMargin(margin, sigma);
+
+  return {
+    ...provisional,
+    modelId: CFB_FBIS_V2_ID,
+    version: fitted.version || "v2-fitted-aa",
+    ok: true,
+    home,
+    away,
+    margin,
+    total,
+    pHomeWin: pHome,
+    pAwayWin: round2(1 - pHome),
+    fairHomeMl: fairAmerican(pHome),
+    fairAwayMl: fairAmerican(1 - pHome),
+    away_expected_points: away,
+    home_expected_points: home,
+    fair_margin: margin,
+    fair_total: total,
+    sigmaMargin: sigma,
+    independent: true,
+    marketInformed: false,
+    projectionEnabled: true,
+    canQualify: false,
+    canAuthorize: false,
+    Mstar: fitted.Mstar,
+    Tstar: fitted.Tstar,
+    ablation: "A",
+    fittedApplied: true,
+    productionFold: fitted.productionFold || "fold3",
+    marginFeatures,
+    totalFeatures,
+    provenance: {
+      ...(provisional.provenance || {}),
+      fittedArtifactId: fitted.id,
+      fittedCoefficientsSha256: fitted.sourceArtifacts?.fittedCoefficientsFinalSha256 || null,
+      coherentScores: true,
+      championOverwritable: true,
+      marketUsed: false,
+    },
+    ...failClosedShadow({
+      identityOk: Boolean(game?.home && game?.away),
+      projectionState: provisional.provisional ? "PROVISIONAL" : "COMPLETE",
+      featuresOk: true,
+      artifactKnown: true,
+      cutoffOk: game?.featureCutoffOk !== false,
+      marketPaired: false,
+      pricePresent: false,
+      dataQuality: provisional.dataCompleteness ?? 1,
+      pinnacleOnly: false,
+      modelId: CFB_FBIS_V2_ID,
+    }),
+  };
+}
+
+export function projectCfbFbisV2Production(game = {}, opts = {}) {
+  const provisional = projectCfbFbisV2(game, { ...opts, ablation: opts.ablation || "K" });
+  return applyFittedAaProjection(provisional, game, opts.fitted || CFB_FBIS_V2_FITTED_AA);
+}
+
 export function attachCfbFbisV2(games = [], opts = {}) {
   let available = 0;
+  let fittedOk = 0;
+  const useFitted = opts.useFittedAa !== false;
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "cfb") return game;
-    const projection = projectCfbFbisV2(game, opts);
+    const projection = useFitted
+      ? projectCfbFbisV2Production(game, opts)
+      : projectCfbFbisV2(game, opts);
     if (projection.ok) available += 1;
+    if (projection.fittedApplied) fittedOk += 1;
     return {
       ...game,
       challengers: { ...(game.challengers || {}), [CFB_FBIS_V2_ID]: projection },
@@ -488,11 +639,62 @@ export function attachCfbFbisV2(games = [], opts = {}) {
     games: next,
     meta: {
       modelId: CFB_FBIS_V2_ID,
-      role: "shadow",
+      role: useFitted ? "production-projection" : "shadow",
+      Mstar: CFB_FBIS_V2_FITTED_AA.Mstar,
+      Tstar: CFB_FBIS_V2_FITTED_AA.Tstar,
       games: next.length,
       available,
+      fittedOk,
+      projectionEnabled: true,
       qualificationAllowed: false,
       canQualify: false,
+      canAuthorize: false,
+    },
+  };
+}
+
+/**
+ * Promote fitted CFB-FBIS-v2 A/A scores onto the board projection fields.
+ * Never enables qualification or wager authorization.
+ */
+export function promoteCfbFbisV2ToBoard(games = []) {
+  let promoted = 0;
+  const next = (games || []).map((game) => {
+    if (game.sport && game.sport !== "cfb") return game;
+    const projection = game.cfbFbisV2 || game.challengers?.[CFB_FBIS_V2_ID];
+    if (!projection?.ok || !projection.fittedApplied) return game;
+    promoted += 1;
+    return {
+      ...game,
+      projHomeScore: projection.home,
+      projAwayScore: projection.away,
+      modelVersion: CFB_FBIS_V2_ID,
+      projectionKind: "FBIS",
+      projectionEngine: CFB_FBIS_V2_ID,
+      projectionArchitecture: { Mstar: projection.Mstar || "A", Tstar: projection.Tstar || "A" },
+      qualificationBlocked: true,
+      cfb: {
+        ...(game.cfb || {}),
+        bettingAllowed: false,
+        blockReason: "CFB-FBIS-v2 projection cutover — qualification disabled",
+        productionModelId: CFB_FBIS_V2_ID,
+        Mstar: projection.Mstar || "A",
+        Tstar: projection.Tstar || "A",
+        fittedApplied: true,
+        home: projection.home,
+        away: projection.away,
+        margin: projection.margin,
+        total: projection.total,
+      },
+    };
+  });
+  return {
+    games: next,
+    meta: {
+      modelId: CFB_FBIS_V2_ID,
+      promoted,
+      canQualify: false,
+      canAuthorize: false,
     },
   };
 }

@@ -1,7 +1,43 @@
-node_modules
-dist
+# Dependencies & build
+node_modules/
+dist/
+.vite/
+.cache/
+
+# Local secrets & Wrangler
 .env
+.env.*
+!.env.example
+.dev.vars
+.wrangler/
+wrangler.toml.local
+
+# OS / editor
 .DS_Store
-.wrangler
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Logs & temp
+*.log
 tmp-*.json
+tmp/
+*.sqlite
+*.sqlite3
+
+# Local research dumps / caches (never commit)
+# Keep data/cfbd/calibration/ model-selection + coefficient lineage tracked.
 artifacts/
+data/cfbd/calibration/**/cache/
+data/cfbd/calibration/**/*.tmp
+data/cfbd/calibration/**/*.log
+**/cfbd-http-cache/
+
+# Operator-local dumps
+strategy.local.json
+*.pem
+*.p12
+*.key
+credentials*.json
+service-account*.json

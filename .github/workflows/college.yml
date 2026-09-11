@@ -56,13 +56,16 @@ concurrency:
   group: fbis-college-research
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   college:
     name: COLLEGE RESEARCH
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
         if: ${{ github.event.inputs.job == 'model-train-validate' || github.event.inputs.job == 'cfbd-endpoint-audit' || github.event.inputs.job == 'cfb-feature-backfill' || github.event.inputs.job == 'cfb-temporal-smoke' }}
       - name: Offline train/validate (Actions CPU, not Workers)
         if: ${{ github.event.inputs.job == 'model-train-validate' }}
@@ -89,6 +92,7 @@ jobs:
           name: cfb-temporal-smoke
           path: artifacts/
           if-no-files-found: ignore
+          retention-days: 14
       - name: Offline CFB feature backfill (Actions CPU)
         if: ${{ github.event.inputs.job == 'cfb-feature-backfill' }}
         env:
@@ -113,6 +117,7 @@ jobs:
           name: cfb-fbis-v2-backfill
           path: artifacts/
           if-no-files-found: ignore
+          retention-days: 14
       - name: Dispatch college Worker job
         if: ${{ github.event.inputs.job != 'cfb-feature-backfill' && github.event.inputs.job != 'cfb-temporal-smoke' && github.event.inputs.job != 'model-train-validate' }}
         env:
@@ -253,3 +258,4 @@ jobs:
           name: cfbd-endpoint-audit
           path: artifacts/
           if-no-files-found: ignore
+          retention-days: 14

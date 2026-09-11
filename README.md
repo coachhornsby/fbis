@@ -55,26 +55,31 @@ Checkpoints: FIRST_AVAILABLE · EARLY · MORNING · LINEUP_CONFIRMED · PREGAME 
 
 **CLV** is entry no-vig vs close (last pregame) no-vig for the side you bet — not model fair vs market.
 
-Model version: **FBIS-v1.3**
+Model version: **FBIS-v1.4** (platform) / **CFB-FBIS-v2** (CFB production projection)
 
-**CFB (v1.3 / prior-v2-cfbd)** — Independent score model. Team-specific prior is CollegeFootballData SP+/FPI/SRS/Elo covering all FBS, not AP25. Live projection inputs include CFBD EPA proxies, transfer portal deltas (including QB transfer deltas), transfer-QB prior production (PPA/success/efficiency where available), coaching-tenure continuity, returning production, and ESPN QB continuity signals. Fallback is ESPN FPI + harvested 2025 SRS. Current-season points for/against blend with `w = n/(n+6)`. HFA 2.5 (0 on confirmed neutral). FCS and newly promoted FBS are provisional. League-average-only cannot qualify, show LOG, or create a strategy ticket. Champion HFA weights stay frozen. Pal is never a book. Missing feature feeds fail soft and are flagged as absent.
+**CFB-FBIS-v2 (production projection)** — Fitted M\*=A / T\*=A ridge on provenance-repaired 2022–2025 design rows. Coherent scores: `home = (total + margin) / 2`, `away = (total - margin) / 2`. Runtime loads fold3 A coefficients from `data/models/cfb-fbis-v2-fitted-aa.js` (betas verbatim from `fitted-coefficients-final.json`). **`canQualify = false`**. **Wager authorization disabled**. Closing lines remain evaluation-only and are never model features.
 
-**Strategy FBIS-HC-v1** — Qualified tickets with EV ≥ 8% (CONVICTION). The 2026-08-26 seed is the operator-corrected 7 CONVICTION tickets (`data/cohorts/fbis-hc-v1.json`, D1 `strategy_tickets` role=seed). Reported record 7-0. Reconstruction is operator-declared until journal EV/timestamps are imported (recovered N is separate from the graded 7-0 record). The seed sample was MLB-heavy overs — that is an observation, not a gate. Champion weights, logistic k, and qualification gates stay frozen. Prospective matches still use the CONVICTION / EV ≥ 8% conjunction and are graded separately from forecast MAE/Brier.
+**CFB prior layer** — Team-specific prior is CollegeFootballData SP+/FPI/SRS/Elo covering all FBS when `CFBD_API_KEY` is bound. Feature feeds include CFBD EPA proxies, transfer portal deltas, coaching continuity, returning production, and ESPN QB continuity. Missing feature feeds fail soft and are flagged as absent. League-average-only cannot qualify, show LOG, or create a strategy ticket.
+
+**Strategy FBIS-HC-v1** — Qualified tickets with EV ≥ 8% (CONVICTION). Production seed identity and graded tickets live in Cloudflare D1 (`strategy_tickets` role=seed). The repo ships **synthetic** cohort fixtures under `data/cohorts/` for offline tests only — not real operator slips. Reconstruction is operator-declared until journal EV/timestamps are imported. Champion weights, logistic k, and qualification gates stay frozen. Prospective matches still use the CONVICTION / EV ≥ 8% conjunction and are graded separately from forecast MAE/Brier.
 
 **CFB HFA** — Production champion remains 2.5 points at a true home venue and 0 at a confirmed neutral site. Team-specific score-based and market-residual HFA live as **shadow challengers** only. Blue Chip Analytics 2026 raw/smooth values are stored as dated third-party research and are never production recommendations. FBIS does not reproduce Blue Chip smoothing and does not invent Action Network ratings. Missing historical closes keep the market-residual challenger unavailable.
 
 ## Data
 
 - MLB Stats API — schedule, scores, probable pitchers, F5 linescore (free)
-- ParlayAPI — Pinnacle game lines (3 credits, `eu` region), cached 15 minutes. Kalshi sentiment is a 1-credit pull; empty Kalshi/F5 responses cache for 6 hours.
-- The Odds API (optional sharp backup) — when `THEODDS_API_KEY` is configured and Parlay returns a credit-limit error, game-line collection fails over to The Odds API Pinnacle feed for h2h/spreads/totals.
-- SharpAPI (optional soft backup) — when `SHARPAPI_API_KEY` is configured, cache-only reads and missing-game soft quotes can fall back to free DraftKings/FanDuel full-game lines. These are display/market-support lines only and never populate `pin*`.
-- The Rundown (optional soft backup) — when `THERUNDOWN_API_KEY` is configured, cache-only reads and missing-game soft quotes can fall back to free DraftKings/FanDuel/BetMGM full-game lines. These are display/market-support lines only and never populate `pin*`.
+- Odds provider pool (router) — Parlay → TheOdds API → SharpAPI → TheRundown → fail closed / no market data. Backups are queried only when a preferred provider is unavailable, exhausted, rate-limited, stale, or incomplete. Fresh complete primary data does not burn backup quota. Absence of any one provider is a safe degrade; absence of all valid market data fails closed. Soft SharpAPI/TheRundown quotes never populate `pin*`; wager qualification never fabricates market data.
+- ParlayAPI — preferred primary for Pinnacle game lines (3 credits, `eu` region), cached 15 minutes. Kalshi sentiment is a 1-credit pull; empty Kalshi/F5 responses cache for 6 hours.
+- The Odds API — intentional production fallback (`THEODDS_API_KEY`) for Pinnacle h2h/spreads/totals when Parlay is unavailable/exhausted.
+- SharpAPI — intentional production fallback (`SHARPAPI_API_KEY`, newly rotated keys only). Soft DraftKings/FanDuel full-game lines for market coverage / display; never `pin*`.
+- The Rundown — intentional production fallback (`THERUNDOWN_API_KEY`, newly rotated keys only). Soft DraftKings/FanDuel/BetMGM full-game lines for market coverage / display; never `pin*`.
 - Open-Meteo weather — free venue forecast attached on every slate. Outdoor / non-closed-roof MLB, NFL, and CFB projections apply weather impact; indoor/dome/closed roofs skip it. NFL soft-odds stubs use a home-stadium catalog; CFB CFBD boards geocode from venue name or `(City, ST)` labels.
 - Ballpark Pal — optional; set `BALLPARK_PAL_API_KEY` when you have it (15k requests/month)
 - CollegeFootballData — CFB ratings (SP+/FPI/SRS/Elo) and college research jobs. Set `CFBD_API_KEY` as a Pages secret (never commit the value). Optional alias `CBBD_API_KEY` for the same bearer. See `docs/college-research.md`.
 
-The operator ticket journal still lives in the browser (`fbis-learning-v1`). POST `/api/strategy` is secret-protected (`x-harvest-secret` or `STRATEGY_IMPORT_SECRET`) and does not accept arbitrary CORS. Heritage bet-slip Confirm from the operator board is same-origin and does not paste **HARVEST_SECRET**. Collect/harvest still use that Pages secret. Parse/preview does not write. Changing the paste after preview requires parse again before write. Imported slips are executed bets, not the 7–0 FBIS-HC-v1 seed. The FBIS-HC-v1 seed names are the seven operator-declared 2026-08-26 positions; they are not a recovered journal. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql` plus `migrations/`) is the authoritative research ledger.
+The operator ticket journal still lives in the browser (`fbis-learning-v1`). POST `/api/strategy` is secret-protected (`x-harvest-secret` or `STRATEGY_IMPORT_SECRET`) and does not accept arbitrary CORS. Heritage bet-slip Confirm from the operator board is same-origin and does not paste **HARVEST_SECRET**. Collect/harvest still use that Pages secret. Parse/preview does not write. Changing the paste after preview requires parse again before write. Imported slips are executed bets, separate from the FBIS-HC-v1 seed cohort in D1. Frozen projections live in Function cache (~21 days). Cloudflare D1 (`schema.sql` plus `migrations/`) is the authoritative research ledger.
+
+See `SECURITY.md` for secret-handling rules.
 
 ## Tests
 

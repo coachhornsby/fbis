@@ -7,6 +7,9 @@ name: Deploy Pages
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: deploy-pages-production
   cancel-in-progress: false
@@ -22,11 +25,11 @@ jobs:
       DEPLOY_SHA: ${{ github.sha }}
     steps:
       - name: Checkout exact production SHA
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           ref: ${{ env.DEPLOY_SHA }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
           cache: "npm"

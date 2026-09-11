@@ -13,7 +13,7 @@ import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js"
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
-import { attachCfbFbisV2 } from "./cfbFbisV2.js";
+import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
 import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { pinMarkets } from "./pricing.js";
@@ -26,8 +26,8 @@ const CRITICAL_QUALITY_FLAGS = new Set(["pinnacle_implied_score", "market_unreso
 const MLB_STARTER_FLAGS = new Set(["missing_home_sp", "missing_away_sp"]);
 
 /**
- * Production champion outputs remain untouched. Deepening work is attached only
- * under challengers / shadow metadata until frozen rolling OOS promotion earns a role change.
+ * Research shadows attach under challengers. CFB-FBIS-v2 fitted A/A is the
+ * production projection engine after cutover; qualification stays disabled.
  */
 export async function buildSlate(sport, date, env = {}) {
   const slate = await core.buildSlate(sport, date, env);
@@ -53,16 +53,19 @@ export async function buildSlate(sport, date, env = {}) {
     const enriched = attachCfbDeepFeatures(slate.games || [], feed);
     const deep = attachCfbMatchupV2(enriched);
     const v2 = attachCfbFbisV2(deep.games);
+    const promoted = promoteCfbFbisV2ToBoard(v2.games);
     // Player model consumes game environment only — no CFBD fanout on customer refresh
-    const players = attachCfbPlayerV1(v2.games);
+    const players = attachCfbPlayerV1(promoted.games);
     return {
       ...slate,
       games: players.games,
+      modelVersion: "CFB-FBIS-v2",
       research: {
         ...(slate.research || {}),
         cfbDeepFeed: feed.meta,
         cfbMatchupV2: deep.meta,
         cfbFbisV2: v2.meta,
+        cfbFbisV2Board: promoted.meta,
         cfbPlayerV1: players.meta,
       },
     };
