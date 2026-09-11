@@ -61,6 +61,35 @@ describe("market lineage + cache policy", () => {
     );
   });
 
+  it("keeps successful SharpAPI fallback usable when primary Parlay quota error is retained", () => {
+    assert.equal(
+      isUnusableCachedOddsMeta({
+        source: "sharpapi-soft-backup",
+        sourceMode: MARKET_SOURCE_MODE.FALLBACK_PROVIDER,
+        provider: "sharpapi",
+        games: 15,
+        pinGames: 15,
+        cached: false,
+        parlayError: 'Parlay 403: {"detail":{"error":"OUT_OF_USAGE_CREDITS"}}',
+        asOf: "2026-09-11T15:22:31.300Z",
+      }),
+      false
+    );
+    const board = deriveOddsBoardHealth({
+      last_odds_mlb_source: "sharpapi-soft-backup",
+      last_odds_mlb_source_mode: MARKET_SOURCE_MODE.FALLBACK_PROVIDER,
+      last_odds_mlb_cached: "0",
+      last_odds_mlb_usable: "1",
+      last_odds_mlb_provider: "sharpapi",
+      last_odds_mlb_observed_at: "2026-09-11T15:22:31.300Z",
+      last_odds_mlb_games: "15",
+      last_odds_mlb_at: "2026-09-11T15:22:31.358Z",
+    });
+    assert.equal(board.boardAvailable, true);
+    assert.equal(board.liveCollectionHealthy, true);
+    assert.equal(board.bySport.mlb.usable, true);
+  });
+
   it("preserves original observedAt and rejects stale cache", () => {
     const observedAt = "2026-09-11T14:00:00.000Z";
     const fresh = evaluateCachedMarketFreshness(
