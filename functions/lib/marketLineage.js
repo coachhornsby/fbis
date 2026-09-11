@@ -45,6 +45,19 @@ export function normalizeMarketSourceMode({ source = null, cached = false, provi
   return MARKET_SOURCE_MODE.LIVE_PROVIDER;
 }
 
+function isSuccessfulFallbackOddsSource(meta = {}) {
+  const source = String(meta.source || "").toLowerCase();
+  const mode = String(meta.sourceMode || "");
+  if (mode === MARKET_SOURCE_MODE.FALLBACK_PROVIDER) return true;
+  return (
+    source.includes("backup") ||
+    source.includes("soft") ||
+    source.includes("theodds") ||
+    source.includes("sharp") ||
+    source.includes("rundown")
+  );
+}
+
 export function isUnusableCachedOddsMeta(meta = {}) {
   const source = String(meta.source || "").toLowerCase();
   const err = String(meta.parlayError || meta.error || meta.backupError || "").toLowerCase();
@@ -52,6 +65,11 @@ export function isUnusableCachedOddsMeta(meta = {}) {
   const games = Number(meta.games);
   const pinGames = Number(meta.pinGames);
   if (Number.isFinite(games) && Number.isFinite(pinGames) && games === 0 && pinGames === 0) return true;
+  // Successful soft/backup providers remain usable even when primary Parlay
+  // quota/auth diagnostics are retained on the same meta object.
+  if (isSuccessfulFallbackOddsSource(meta) && Number.isFinite(games) && games > 0) {
+    return false;
+  }
   // Provider error shells must never terminate routing as market successes —
   // even when a prior board payload is still attached to the cache entry.
   if (
@@ -65,11 +83,7 @@ export function isUnusableCachedOddsMeta(meta = {}) {
       source.includes("malformed") ||
       source.includes("fail-closed") ||
       source.includes("fail_closed")) &&
-    !source.includes("backup") &&
-    !source.includes("soft") &&
-    !source.includes("theodds") &&
-    !source.includes("sharp") &&
-    !source.includes("rundown")
+    !isSuccessfulFallbackOddsSource(meta)
   ) {
     return true;
   }
