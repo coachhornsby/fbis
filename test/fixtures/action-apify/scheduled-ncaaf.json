@@ -1,0 +1,160 @@
+{
+  "gameId": 294100,
+  "url": "https://www.actionnetwork.com/ncaaf/alabama-vs-georgia-odds/294100",
+  "league": "ncaaf",
+  "leagueId": 2,
+  "season": 2025,
+  "seasonType": "reg",
+  "week": 3,
+  "status": "scheduled",
+  "isFinal": false,
+  "isLive": false,
+  "startTime": "2025-09-13T23:30:00.000Z",
+  "matchup": "Alabama @ Georgia",
+  "homeTeam": {
+    "id": 10,
+    "name": "Georgia",
+    "abbreviation": "UGA"
+  },
+  "awayTeam": {
+    "id": 11,
+    "name": "Alabama",
+    "abbreviation": "ALA"
+  },
+  "period": "event",
+  "periodLabel": "Full game",
+  "consensusSpreadHome": -3.5,
+  "consensusSpreadHomeOdds": -110,
+  "consensusSpreadAway": 3.5,
+  "consensusSpreadAwayOdds": -110,
+  "consensusMoneylineHome": -165,
+  "consensusMoneylineAway": 140,
+  "consensusTotal": 51.5,
+  "consensusOverOdds": -105,
+  "consensusUnderOdds": -115,
+  "homeWinProbability": 0.6226,
+  "awayWinProbability": 0.4167,
+  "homeWinProbabilityNoVig": 0.599,
+  "awayWinProbabilityNoVig": 0.401,
+  "moneylineHoldPercent": 3.93,
+  "spreadHoldPercent": 4.55,
+  "totalHoldPercent": 4.76,
+  "bookCount": 2,
+  "publicBetting": {
+    "moneylineHome": { "ticketsPercent": 48, "moneyPercent": 55, "moneyMinusTickets": 7 },
+    "moneylineAway": { "ticketsPercent": 52, "moneyPercent": 45, "moneyMinusTickets": -7 },
+    "spreadHome": { "ticketsPercent": 42, "moneyPercent": 61, "moneyMinusTickets": 19 },
+    "spreadAway": { "ticketsPercent": 58, "moneyPercent": 39, "moneyMinusTickets": -19 },
+    "over": { "ticketsPercent": 57, "moneyPercent": 52, "moneyMinusTickets": -5 },
+    "under": { "ticketsPercent": 43, "moneyPercent": 48, "moneyMinusTickets": 5 },
+    "maxMoneyTicketGap": 19,
+    "sharpSide": "spreadHome",
+    "betCount": 1840
+  },
+  "bestOdds": {
+    "moneylineHome": { "odds": -162, "book": "FanDuel", "value": null },
+    "moneylineAway": { "odds": 145, "book": "DraftKings", "value": null },
+    "spreadHome": { "odds": -108, "book": "FanDuel", "value": -3.5 },
+    "over": { "odds": -105, "book": "DraftKings", "value": 51.5 },
+    "bookCount": 2
+  },
+  "lineMovement": {
+    "openSpreadHome": -2.5,
+    "openTotal": 50.5,
+    "openMoneylineHome": -150,
+    "currentSpreadHome": -3.5,
+    "currentTotal": 51.5,
+    "currentMoneylineHome": -165,
+    "spreadMove": -1,
+    "totalMove": 1,
+    "moneylineHomeMove": -15,
+    "spreadDirection": "towardHome",
+    "totalDirection": "up",
+    "history": [
+      {
+        "book": "DraftKings",
+        "market": "spread",
+        "side": "home",
+        "line": -3.0,
+        "odds": -110,
+        "timestamp": "2025-09-12T18:00:00.000Z"
+      },
+      {
+        "book": "DraftKings",
+        "market": "spread",
+        "side": "home",
+        "line": -3.5,
+        "odds": -110,
+        "timestamp": "2025-09-13T12:00:00.000Z"
+      }
+    ]
+  },
+  "lineMovementHistory": [
+    {
+      "book": "DraftKings",
+      "period": "event",
+      "betType": "spread",
+      "side": "home",
+      "currentOdds": -110,
+      "currentValue": -3.5,
+      "openedAt": "2025-09-12T12:00:00.000Z",
+      "lastMovedAt": "2025-09-13T12:00:00.000Z",
+      "history": [
+        { "odds": -110, "value": -3.0, "updatedAt": "2025-09-12T18:00:00.000Z" },
+        { "odds": -110, "value": -3.5, "updatedAt": "2025-09-13T12:00:00.000Z" }
+      ]
+    }
+  ],
+  "books": [
+    {
+      "bookId": 15,
+      "book": "DraftKings",
+      "period": "event",
+      "marketId": "m1",
+      "isLive": false,
+      "spreadHome": -3.5,
+      "spreadHomeOdds": -110,
+      "spreadAway": 3.5,
+      "spreadAwayOdds": -110,
+      "moneylineHome": -165,
+      "moneylineAway": 145,
+      "total": 51.5,
+      "overOdds": -105,
+      "underOdds": -115,
+      "moneylineHoldPercent": 3.8,
+      "spreadHoldPercent": 4.55,
+      "totalHoldPercent": 4.76
+    },
+    {
+      "bookId": 30,
+      "book": "FanDuel",
+      "period": "event",
+      "isLive": false,
+      "spreadHome": -3.5,
+      "spreadHomeOdds": -108,
+      "spreadAway": 3.5,
+      "spreadAwayOdds": -112,
+      "moneylineHome": -162,
+      "moneylineAway": 136,
+      "total": 51.5,
+      "overOdds": -110,
+      "underOdds": -110
+    }
+  ],
+  "playerProps": [
+    {
+      "playerId": "p1",
+      "playerName": "QB One",
+      "team": "Alabama",
+      "market": "pass_yards",
+      "line": 245.5,
+      "overOdds": -115,
+      "underOdds": -105,
+      "book": "DraftKings",
+      "timestamp": "2025-09-13T10:00:00.000Z"
+    }
+  ],
+  "boxscore": null,
+  "result": null,
+  "scrapedAt": "2025-09-11T16:00:00.000Z"
+}

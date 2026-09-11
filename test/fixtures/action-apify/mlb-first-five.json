@@ -1,0 +1,56 @@
+{
+  "gameId": 290289,
+  "league": "mlb",
+  "season": 2025,
+  "status": "scheduled",
+  "isFinal": false,
+  "isLive": false,
+  "startTime": "2025-09-11T23:10:00.000Z",
+  "homeTeam": { "name": "Los Angeles Dodgers", "abbreviation": "LAD" },
+  "awayTeam": { "name": "San Diego Padres", "abbreviation": "SD" },
+  "period": "firstfive",
+  "periodLabel": "First five innings",
+  "consensusSpreadHome": -0.5,
+  "consensusSpreadHomeOdds": -115,
+  "consensusSpreadAway": 0.5,
+  "consensusSpreadAwayOdds": -105,
+  "consensusMoneylineHome": -135,
+  "consensusMoneylineAway": 115,
+  "consensusTotal": 4.5,
+  "consensusOverOdds": -110,
+  "consensusUnderOdds": -110,
+  "bookCount": 2,
+  "books": [
+    {
+      "book": "DraftKings",
+      "period": "firstfive",
+      "spreadHome": -0.5,
+      "spreadHomeOdds": -115,
+      "moneylineHome": -135,
+      "moneylineAway": 115,
+      "total": 4.5,
+      "overOdds": -110,
+      "underOdds": -110
+    },
+    {
+      "book": "FanDuel",
+      "period": "firstfive",
+      "spreadHome": -0.5,
+      "spreadHomeOdds": -112,
+      "moneylineHome": -130,
+      "moneylineAway": 110,
+      "total": 4.5,
+      "overOdds": -105,
+      "underOdds": -115
+    }
+  ],
+  "publicBetting": {
+    "spreadHome": { "ticketsPercent": 50, "moneyPercent": 50, "moneyMinusTickets": 0 },
+    "maxMoneyTicketGap": 0,
+    "sharpSide": null,
+    "betCount": 210
+  },
+  "boxscore": null,
+  "result": null,
+  "scrapedAt": "2025-09-11T16:00:00.000Z"
+}
