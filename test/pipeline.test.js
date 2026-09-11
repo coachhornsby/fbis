@@ -292,6 +292,161 @@ describe("Parlay collect budget", () => {
     }
   });
 
+  it("keeps successful TheOdds/SharpAPI/TheRundown fallback attribution after cache round-trip", async () => {
+    const { writeCache } = await import("../functions/lib/cache.js");
+    const { isUnusableCachedOddsMeta } = await import("../functions/lib/marketLineage.js");
+    const observedAt = new Date().toISOString();
+    const cases = [
+      { provider: "theodds", source: "theodds-backup", opts: { backupApiKey: "odds-key" } },
+      { provider: "sharpapi", source: "sharpapi-soft-backup", opts: { sharpApiKey: "sharp-key" } },
+      { provider: "therundown", source: "therundown-soft-backup", opts: { theRundownApiKey: "rundown-key" } },
+    ];
+    for (const c of cases) {
+      resetCacheMem();
+      const realFetch = globalThis.fetch;
+      let liveHits = 0;
+      globalThis.fetch = async () => {
+        liveHits += 1;
+        return new Response('{"detail":{"error":"OUT_OF_USAGE_CREDITS"}}', { status: 403 });
+      };
+      try {
+        await writeCache(
+          "v7:odds-props-v3:baseball_mlb",
+          {
+            events: [
+              {
+                homeTeam: "Chicago Cubs",
+                awayTeam: "Pittsburgh Pirates",
+                homeMl: -130,
+                awayMl: 115,
+                spread: -1.5,
+                total: 8.5,
+              },
+            ],
+            meta: {
+              source: c.source,
+              provider: c.provider,
+              games: 1,
+              pinGames: c.provider === "theodds" ? 1 : 0,
+              parlayError: 'Parlay 403: {"detail":{"error":"OUT_OF_USAGE_CREDITS"}}',
+              observedAt,
+              asOf: observedAt,
+              failClosed: false,
+            },
+          },
+          null,
+          15 * 60 * 1000
+        );
+        const out = await fetchParlayOdds("mlb", "parlay-key", null, c.opts);
+        assert.equal(out.meta.source, c.source, `${c.provider} source must survive cache read`);
+        assert.equal(out.meta.provider, c.provider);
+        assert.equal(out.meta.cached, true);
+        assert.match(String(out.meta.parlayError || ""), /OUT_OF_USAGE_CREDITS/);
+        assert.equal(isUnusableCachedOddsMeta(out.meta), false);
+        assert.equal(liveHits, 0, `${c.provider} must serve from cache without re-hitting providers`);
+        assert.ok(out.events.length >= 1);
+      } finally {
+        globalThis.fetch = realFetch;
+        resetCacheMem();
+      }
+    }
+  });
+
+  it("heals already-poisoned cached fallback source labels using provider identity", async () => {
+    const { writeCache } = await import("../functions/lib/cache.js");
+    resetCacheMem();
+    const realFetch = globalThis.fetch;
+    const observedAt = new Date().toISOString();
+    globalThis.fetch = async () => new Response("[]", { status: 200 });
+    try {
+      await writeCache(
+        "v7:odds-props-v3:baseball_mlb",
+        {
+          events: [{ homeTeam: "Detroit Tigers", awayTeam: "Minnesota Twins", homeMl: -120, awayMl: 102 }],
+          meta: {
+            // Poisoned label that older cache-read rewrite produced in health/response paths.
+            source: "parlay-credit-exhausted",
+            provider: "sharpapi",
+            games: 1,
+            pinGames: 0,
+            parlayError: "OUT_OF_USAGE_CREDITS",
+            observedAt,
+            asOf: observedAt,
+            failClosed: false,
+          },
+        },
+        null,
+        15 * 60 * 1000
+      );
+      const out = await fetchParlayOdds("mlb", "parlay-key", null, { sharpApiKey: "sharp-key" });
+      assert.equal(out.meta.source, "sharpapi-soft-backup");
+      assert.equal(out.meta.provider, "sharpapi");
+      assert.match(String(out.meta.parlayError || ""), /OUT_OF_USAGE_CREDITS/);
+      assert.equal(out.meta.cached, true);
+      assert.ok(out.events.length >= 1);
+    } finally {
+      globalThis.fetch = realFetch;
+      resetCacheMem();
+    }
+  });
+
+  it("keeps Parlay success unchanged and fail-closes when primary + backups all fail", async () => {
+    resetCacheMem();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      const s = String(url);
+      if (s.includes("parlay-api.com/v1/sports/baseball_mlb/odds")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "evt-ok",
+              home_team: "Chicago Cubs",
+              away_team: "Pittsburgh Pirates",
+              commence_time: "2026-08-28T23:00:00Z",
+              bookmakers: [
+                {
+                  key: "pinnacle",
+                  title: "Pinnacle",
+                  markets: [
+                    { key: "h2h", outcomes: [{ name: "Chicago Cubs", price: -140 }, { name: "Pittsburgh Pirates", price: 120 }] },
+                    { key: "spreads", outcomes: [{ name: "Chicago Cubs", price: -110, point: -1.5 }, { name: "Pittsburgh Pirates", price: -110, point: 1.5 }] },
+                    { key: "totals", outcomes: [{ name: "Over", price: -110, point: 8 }, { name: "Under", price: -110, point: 8 }] },
+                  ],
+                },
+              ],
+            },
+          ]),
+          { status: 200 }
+        );
+      }
+      return new Response(JSON.stringify([]), { status: 200 });
+    };
+    try {
+      const ok = await fetchParlayOdds("mlb", "parlay-key", null);
+      assert.equal(ok.meta.source, "parlay");
+      assert.equal(ok.meta.provider, "parlay");
+      assert.ok(ok.events.length >= 1);
+    } finally {
+      globalThis.fetch = realFetch;
+      resetCacheMem();
+    }
+
+    globalThis.fetch = async () => new Response('{"detail":{"error":"OUT_OF_USAGE_CREDITS"}}', { status: 403 });
+    try {
+      const dead = await fetchParlayOdds("mlb", "parlay-key", null, {
+        backupApiKey: "odds-key",
+        sharpApiKey: "sharp-key",
+        theRundownApiKey: "rundown-key",
+      });
+      assert.equal(dead.events.length, 0);
+      assert.equal(dead.meta.source, "parlay-credit-exhausted-backup-failed");
+      assert.ok(dead.meta.parlayError);
+    } finally {
+      globalThis.fetch = realFetch;
+      resetCacheMem();
+    }
+  });
+
   it("maps SharpAPI soft books without populating pin fields", () => {
     const events = sharpRowsToEvents([
       {

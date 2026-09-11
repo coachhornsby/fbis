@@ -36,7 +36,9 @@ import {
 import {
   MARKET_SOURCE_MODE,
   attachMarketLineage,
+  canonicalFallbackSourceForProvider,
   evaluateCachedMarketFreshness,
+  isSuccessfulFallbackOddsSource,
   isUnusableCachedOddsMeta,
   normalizeProviderAttempts,
 } from "./marketLineage.js";
@@ -663,8 +665,25 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   if (cached) {
     const cachedMeta = { ...(cached.meta || {}), cached: true };
     const cachedErr = String(cachedMeta.parlayError || cachedMeta.error || "");
-    if (isParlayCreditError(cachedErr) && !String(cachedMeta.source || "").includes("credit-exhausted")) {
-      cachedMeta.source = opts.backupApiKey ? "parlay-credit-exhausted-backup-failed" : "parlay-credit-exhausted";
+    const games = Number(cachedMeta.games);
+    const successfulFallback =
+      isSuccessfulFallbackOddsSource(cachedMeta) && Number.isFinite(games) && games > 0;
+    // Heal already-poisoned labels: provider success is authoritative.
+    // Keep parlayError so primary quota failure remains visible for diagnostics.
+    if (successfulFallback && String(cachedMeta.source || "").includes("credit-exhausted")) {
+      const restored = canonicalFallbackSourceForProvider(cachedMeta.provider);
+      if (restored) cachedMeta.source = restored;
+    }
+    // Retain Parlay quota diagnostics, but never rewrite a successful backup
+    // source label back to parlay-credit-exhausted on cache read.
+    if (
+      isParlayCreditError(cachedErr) &&
+      !String(cachedMeta.source || "").includes("credit-exhausted") &&
+      !successfulFallback
+    ) {
+      cachedMeta.source = opts.backupApiKey
+        ? "parlay-credit-exhausted-backup-failed"
+        : "parlay-credit-exhausted";
     }
     // Never treat quota-exhausted / fail-closed cache as a fresh live market.
     // Bypass unusable cache so the provider pool can try TheOdds → SharpAPI → TheRundown.
