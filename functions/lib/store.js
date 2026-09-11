@@ -2420,6 +2420,33 @@ export async function resolveHarvestRetry(env, { sport, date, gameId }) {
   }
 }
 
+/** Mark open retries terminal (missed / post-kickoff / auth) without inventing market snapshots. */
+export async function closeHarvestRetry(env, { id, sport, date, gameId, status = "terminal", reason = null }) {
+  if (!hasDb(env)) return { ok: false };
+  const allowed = new Set(["terminal", "missed", "post_kickoff", "resolved"]);
+  const next = allowed.has(String(status)) ? String(status) : "terminal";
+  const rowId = id || (sport && date ? `${sport}:${date}:${gameId || "*"}` : null);
+  if (!rowId && !(sport && date)) return { ok: false };
+  try {
+    if (rowId) {
+      await env.DB.prepare(
+        "UPDATE harvest_retry_queue SET status = ?, reason = COALESCE(?, reason), last_attempt_at = ? WHERE id = ? AND status = 'open'"
+      )
+        .bind(next, n(reason), new Date().toISOString(), rowId)
+        .run();
+    } else {
+      await env.DB.prepare(
+        "UPDATE harvest_retry_queue SET status = ?, reason = COALESCE(?, reason), last_attempt_at = ? WHERE sport = ? AND date = ? AND status = 'open'"
+      )
+        .bind(next, n(reason), new Date().toISOString(), sport, date)
+        .run();
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+}
+
 export async function openHarvestRetries(env, sport) {
   if (!hasDb(env)) return [];
   try {

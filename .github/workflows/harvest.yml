@@ -407,6 +407,7 @@ jobs:
           set -e
           echo "cleanup-future-grades curl_ec=${cleanup_ec} http=${cleanup_code:-000}"
           jq -c '{ok,strategyTicketsReset,executedBetsReset}' "$cleanup_tmp" 2>/dev/null || true
+          collect_failed=0
           if [ "$need_collect" -eq 1 ]; then
             echo "Recovering missed/stale/delayed collect slot"
             for sport in mlb cfb; do
@@ -429,9 +430,13 @@ jobs:
                 fi
                 sleep $((attempt * 8))
               done
-              [ "$ok_collect" = "1" ] || { echo "collect-recovery ${sport} failed after retries"; exit 1; }
+              if [ "$ok_collect" != "1" ]; then
+                echo "collect-recovery ${sport} failed after retries (continuing so harvest catch-up can still run)"
+                collect_failed=1
+              fi
             done
           fi
+          harvest_failed=0
           if [ "$need_harvest" -eq 1 ]; then
             echo "Recovering missed/stale harvest using targeted settle dates"
             # Void cross-date duplicate OPEN strategy tickets before settle.
@@ -497,7 +502,10 @@ jobs:
               fi
               sleep 5
             done
-            [ "$harvest_failed" = "0" ] || exit 1
+          fi
+          if [ "$collect_failed" != "0" ] || [ "$harvest_failed" != "0" ]; then
+            echo "Catch-up incomplete collect_failed=${collect_failed} harvest_failed=${harvest_failed}"
+            exit 1
           fi
 
   summary:

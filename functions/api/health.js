@@ -1,8 +1,9 @@
 import { durableHealth, deploymentCommit, scheduledHealth } from "../lib/jobs.js";
 import { MODEL_VERSION } from "../lib/weights.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
-import { queryExecutedBets, queryStrategyTickets } from "../lib/store.js";
+import { openHarvestRetries, queryExecutedBets, queryStrategyTickets, readMeta } from "../lib/store.js";
 import { STRATEGY_HC_V1 } from "../lib/strategy.js";
+import { classifyOpenHarvestRetries, deriveOddsBoardHealth, providerConfigFlags } from "../lib/marketLineage.js";
 
 const MIGRATION_STATUS = {
   VERIFIED: "VERIFIED",
@@ -30,6 +31,11 @@ export async function onRequestGet(context) {
     BUILD_TIMESTAMP: context.env.BUILD_TIMESTAMP,
     GITHUB_SHA: context.env.GITHUB_SHA,
     COMMIT_SHA: context.env.COMMIT_SHA,
+    // Boolean presence only — values never leave this scope / response.
+    PARLAY_API_KEY: context.env.PARLAY_API_KEY,
+    THEODDS_API_KEY: context.env.THEODDS_API_KEY,
+    SHARPAPI_API_KEY: context.env.SHARPAPI_API_KEY,
+    THERUNDOWN_API_KEY: context.env.THERUNDOWN_API_KEY,
   };
   try {
     const health = await durableHealth(env);
@@ -79,12 +85,67 @@ export async function onRequestGet(context) {
       ],
     });
     const settleTargets = await listSettleTargets(env, { readOk });
+    const providerConfigured = providerConfigFlags(env);
+    let retryClassification = {
+      total: Number(health.retryOpen || 0),
+      counts: {},
+      retryable: null,
+      terminal: null,
+      postKickoff: null,
+      rows: [],
+    };
+    if (readOk && Number(health.retryOpen || 0) > 0) {
+      try {
+        const openRows = await openHarvestRetries(env, "all");
+        retryClassification = classifyOpenHarvestRetries(openRows);
+      } catch {
+        /* classification is best-effort; never fail health */
+      }
+    }
+    let oddsBoard = {
+      boardAvailable: false,
+      liveCollectionHealthy: false,
+      boardSourceMode: null,
+      bySport: {},
+    };
+    if (readOk) {
+      try {
+        const metaMap = await readMeta(env);
+        oddsBoard = deriveOddsBoardHealth(metaMap);
+      } catch {
+        /* board health is best-effort */
+      }
+    }
     const operatorNotes = [];
+    if (oddsBoard.boardAvailable && !oddsBoard.liveCollectionHealthy) {
+      operatorNotes.push(
+        "Board available from cache/fallback snapshot but live odds collection is unhealthy — cached boards must not be treated as live provider health."
+      );
+    }
+
     if (!harvestHealthy || derived.checks.some((c) => c.name === "scheduled-harvest" && !c.ok)) {
       operatorNotes.push("No successful harvest within the expected window.");
+      operatorNotes.push(
+        "Schedule diagnosis: harvest cron slots may not have fired; check Actions runs around 11:20/16:20 UTC before changing cadence. Watchdog catch-up should recover without editing crons."
+      );
     }
     if (Number(health.retryOpen || 0) > 0) {
-      operatorNotes.push(`${Number(health.retryOpen)} open harvest retries need classification or catch-up.`);
+      operatorNotes.push(
+        `${Number(health.retryOpen)} open harvest retries need classification or catch-up` +
+          (retryClassification.retryable != null
+            ? ` (retryable=${retryClassification.retryable}, terminal=${retryClassification.terminal}, postKickoff=${retryClassification.postKickoff}).`
+            : ".")
+      );
+    }
+    if (!providerConfigured.theodds || !providerConfigured.sharpapi || !providerConfigured.therundown) {
+      const missing = Object.entries(providerConfigured)
+        .filter(([k, v]) => k !== "parlay" && !v)
+        .map(([k]) => k);
+      if (missing.length) {
+        operatorNotes.push(
+          `OWNER ACTION REQUIRED: missing rotated odds backup credential(s): ${missing.join(", ")}. Do not restore compromised historical keys.`
+        );
+      }
     }
     const build = buildMeta(context.request, env, schema);
     return json(
@@ -105,6 +166,15 @@ export async function onRequestGet(context) {
           writeOk,
           writeVerification,
         },
+        oddsProviders: {
+          order: ["parlay", "theodds", "sharpapi", "therundown"],
+          configured: providerConfigured,
+          boardAvailable: oddsBoard.boardAvailable,
+          liveCollectionHealthy: oddsBoard.liveCollectionHealthy,
+          boardSourceMode: oddsBoard.boardSourceMode,
+          bySport: oddsBoard.bySport,
+          note: "Boolean configured flags only. No secret values. Quota/rate-limit require live provider probes. boardAvailable can be true from cache while liveCollectionHealthy is false.",
+        },
         pipeline: {
           lastCollectSuccessAt: health.lastCollectSuccessAt || null,
           lastCollectAttemptAt: health.lastCollectAttemptAt || null,
@@ -115,6 +185,15 @@ export async function onRequestGet(context) {
           failedWrites: Number(health.failedWrites || 0),
           failedHarvests: Number(health.failedHarvests || 0),
           retryOpen: Number(health.retryOpen || 0),
+          retryClassification: {
+            total: retryClassification.total,
+            counts: retryClassification.counts,
+            retryable: retryClassification.retryable,
+            terminal: retryClassification.terminal,
+            postKickoff: retryClassification.postKickoff,
+            // Cap rows to keep health payload bounded.
+            sample: (retryClassification.rows || []).slice(0, 40),
+          },
           immutableConflicts: Number(health.immutableConflicts || 0),
           conflictBreakdown: conflicts,
           schedule,
