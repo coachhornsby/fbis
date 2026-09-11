@@ -90,6 +90,48 @@ describe("market lineage + cache policy", () => {
     assert.equal(board.bySport.mlb.usable, true);
   });
 
+  it("treats provider-attributed successful fallbacks as usable even if source was rewritten to parlay-credit-exhausted", () => {
+    // Post-#62 residual: cache-read rewrite poisoned `source` while provider stayed sharpapi/theodds/therundown.
+    for (const provider of ["sharpapi", "theodds", "therundown"]) {
+      assert.equal(
+        isUnusableCachedOddsMeta({
+          source: "parlay-credit-exhausted",
+          sourceMode: MARKET_SOURCE_MODE.CACHED_PROVIDER,
+          provider,
+          games: 15,
+          pinGames: 15,
+          cached: true,
+          parlayError: "OUT_OF_USAGE_CREDITS",
+          asOf: "2026-09-11T16:57:46.087Z",
+        }),
+        false,
+        `${provider} successful fallback must remain usable`
+      );
+    }
+    // Provider name alone must not make empty shells usable.
+    assert.equal(
+      isUnusableCachedOddsMeta({
+        source: "parlay-credit-exhausted",
+        provider: "sharpapi",
+        games: 0,
+        pinGames: 0,
+        parlayError: "OUT_OF_USAGE_CREDITS",
+      }),
+      true
+    );
+    // True Parlay failure with no successful backup provider stays unusable.
+    assert.equal(
+      isUnusableCachedOddsMeta({
+        source: "parlay-credit-exhausted",
+        provider: "parlay",
+        games: 15,
+        pinGames: 15,
+        parlayError: "OUT_OF_USAGE_CREDITS",
+      }),
+      true
+    );
+  });
+
   it("preserves original observedAt and rejects stale cache", () => {
     const observedAt = "2026-09-11T14:00:00.000Z";
     const fresh = evaluateCachedMarketFreshness(

@@ -45,10 +45,33 @@ export function normalizeMarketSourceMode({ source = null, cached = false, provi
   return MARKET_SOURCE_MODE.LIVE_PROVIDER;
 }
 
-function isSuccessfulFallbackOddsSource(meta = {}) {
+const SUCCESSFUL_FALLBACK_PROVIDERS = new Set(["theodds", "sharpapi", "therundown"]);
+
+/**
+ * Canonical source labels written when a backup provider wins the pool.
+ * Used to heal cache/health rows whose source was incorrectly rewritten to a
+ * Parlay quota label while provider still identifies the successful backup.
+ */
+export function canonicalFallbackSourceForProvider(provider) {
+  const p = String(provider || "").toLowerCase();
+  if (p === "theodds") return "theodds-backup";
+  if (p === "sharpapi") return "sharpapi-soft-backup";
+  if (p === "therundown") return "therundown-soft-backup";
+  return null;
+}
+
+/**
+ * True when meta represents a successful backup/fallback market.
+ * Provider identity is authoritative even if a stale Parlay quota label was
+ * rewritten onto `source` (post-#62 cache-read residual).
+ * Callers must still require games > 0 before treating the board as usable.
+ */
+export function isSuccessfulFallbackOddsSource(meta = {}) {
   const source = String(meta.source || "").toLowerCase();
+  const provider = String(meta.provider || "").toLowerCase();
   const mode = String(meta.sourceMode || "");
   if (mode === MARKET_SOURCE_MODE.FALLBACK_PROVIDER) return true;
+  if (SUCCESSFUL_FALLBACK_PROVIDERS.has(provider)) return true;
   return (
     source.includes("backup") ||
     source.includes("soft") ||
