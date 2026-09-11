@@ -26,9 +26,12 @@ tmp/
 *.sqlite
 *.sqlite3
 
-# Local research dumps (never commit)
+# Local research dumps / caches (never commit)
+# Keep data/cfbd/calibration/ model-selection + coefficient lineage tracked.
 artifacts/
-data/cfbd/calibration/
+data/cfbd/calibration/**/cache/
+data/cfbd/calibration/**/*.tmp
+data/cfbd/calibration/**/*.log
 **/cfbd-http-cache/
 
 # Operator-local dumps
