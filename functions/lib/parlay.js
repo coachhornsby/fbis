@@ -28,6 +28,11 @@ import { enrichGameTeams } from "./teams.js";
 import { attachMarketLabels } from "./marketLabels.js";
 import { fetchSharpApiOdds } from "./sharpApi.js";
 import { fetchTheRundownOdds } from "./theRundown.js";
+import {
+  canQualifyFromOddsResolution,
+  providerConfigured,
+  resolveOddsProviders,
+} from "./oddsProviderRouter.js";
 
 /** Soft recreational books used only when pin + Heritage are absent. Never pin*. */
 const SOFT_QUOTE_KEYS = new Set(["draftkings", "fanduel", "betmgm", "caesars", "bovada", "novig"]);
@@ -764,64 +769,134 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     };
   }
 
-  let pin = await fetchJson(
-    sportKey,
-    {
-      regions: "eu",
-      markets: "h2h,spreads,totals",
-      bookmakers: "pinnacle",
-    },
-    apiKey
-  );
-  let source = "parlay";
-  let parlayError = pin.error || null;
+  // Provider pool: Parlay → TheOdds → SharpAPI → TheRundown → fail closed.
+  // Later providers are not queried when an earlier one returns fresh complete data.
+  const marketParams = {
+    regions: "eu",
+    markets: "h2h,spreads,totals",
+    bookmakers: "pinnacle",
+  };
+  const configured = providerConfigured({
+    parlayApiKey: apiKey,
+    theOddsApiKey: opts.backupApiKey,
+    sharpApiKey: opts.sharpApiKey,
+    theRundownApiKey: opts.theRundownApiKey,
+  });
+  let pinCredits = { remaining: null, used: null, asOf: null };
+  let parlayError = null;
   let backupError = null;
-  if (pin.error && !pin.events.length && isParlayCreditError(pin.error) && opts.backupApiKey) {
-    const backup = await fetchTheOddsJson(
-      sportKey,
-      {
-        regions: "eu",
-        markets: "h2h,spreads,totals",
-        bookmakers: "pinnacle",
+  const pool = await resolveOddsProviders({
+    configured,
+    fetchers: {
+      parlay: async () => {
+        if (!apiKey) {
+          return { provider: "parlay", ok: false, complete: false, events: [], error: "not-configured" };
+        }
+        const pin = await fetchJson(sportKey, marketParams, apiKey);
+        pinCredits = pin.credits || pinCredits;
+        parlayError = pin.error || null;
+        const credit = isParlayCreditError(pin.error);
+        return {
+          provider: "parlay",
+          ok: !pin.error && Boolean(pin.events?.length),
+          complete: Boolean(pin.events?.length),
+          events: pin.events || [],
+          error: pin.error || null,
+          rateLimited: credit,
+          quotaExhausted: credit,
+          quotaRemaining: pin.credits?.remaining ?? null,
+          asOf: pin.credits?.asOf || new Date().toISOString(),
+          meta: { credits: pin.credits },
+        };
       },
-      opts.backupApiKey
-    );
-    if (!backup.error && backup.events?.length) {
-      pin = { ...pin, events: backup.events, credits: backup.credits };
-      source = "theodds-backup";
-    } else if (backup.error) {
-      backupError = backup.error;
-    }
+      theodds: async () => {
+        if (!opts.backupApiKey) {
+          return { provider: "theodds", ok: false, complete: false, events: [], error: "not-configured" };
+        }
+        const backup = await fetchTheOddsJson(sportKey, marketParams, opts.backupApiKey);
+        if (backup.error) backupError = backup.error;
+        pinCredits = backup.credits || pinCredits;
+        return {
+          provider: "theodds",
+          ok: !backup.error && Boolean(backup.events?.length),
+          complete: Boolean(backup.events?.length),
+          events: backup.events || [],
+          error: backup.error || null,
+          quotaRemaining: backup.credits?.remaining ?? null,
+          asOf: backup.credits?.asOf || new Date().toISOString(),
+          meta: { credits: backup.credits },
+        };
+      },
+      sharpapi: async () => {
+        if (!opts.sharpApiKey) {
+          return { provider: "sharpapi", ok: false, complete: false, events: [], error: "not-configured" };
+        }
+        const soft = await fetchSharpApiOdds(sportId, opts.sharpApiKey);
+        return {
+          provider: "sharpapi",
+          ok: !soft.error && Boolean(soft.events?.length),
+          complete: Boolean(soft.events?.length),
+          events: soft.events || [],
+          error: soft.error || null,
+          quotaRemaining: soft.credits?.remaining ?? null,
+          asOf: soft.credits?.asOf || new Date().toISOString(),
+          meta: { soft: true, books: soft.books },
+        };
+      },
+      therundown: async () => {
+        if (!opts.theRundownApiKey) {
+          return { provider: "therundown", ok: false, complete: false, events: [], error: "not-configured" };
+        }
+        const soft = await fetchTheRundownOdds(sportId, opts.theRundownApiKey, opts.date);
+        return {
+          provider: "therundown",
+          ok: !soft.error && Boolean(soft.events?.length),
+          complete: Boolean(soft.events?.length),
+          events: soft.events || [],
+          error: soft.error || null,
+          quotaRemaining: soft.credits?.remaining ?? null,
+          asOf: soft.credits?.asOf || new Date().toISOString(),
+          meta: { soft: true, books: soft.books },
+        };
+      },
+    },
+  });
+
+  if (!canQualifyFromOddsResolution(pool)) {
+    return {
+      events: [],
+      meta: {
+        enabled: true,
+        error: parlayError || backupError || pool.reason || "no-valid-market-data",
+        remaining: pinCredits.remaining,
+        used: pinCredits.used,
+        cached: false,
+        sportKey,
+        sharp: SHARP_BOOK,
+        execution: EXECUTION_BOOK,
+        source: null,
+        failClosed: true,
+        providerAttempts: pool.attempts,
+        providerStatuses: pool.statuses,
+      },
+    };
   }
-  if (pin.error && !pin.events.length && isParlayCreditError(pin.error) && source !== "theodds-backup") {
-    source = opts.backupApiKey ? "parlay-credit-exhausted-backup-failed" : "parlay-credit-exhausted";
-  }
-  if (pin.error && !pin.events.length && !baseball) {
-    let soft = null;
-    if (opts.sharpApiKey) soft = await fetchSharpApiOdds(sportId, opts.sharpApiKey);
-    if ((!soft || !soft.events?.length) && opts.theRundownApiKey) {
-      soft = await fetchTheRundownOdds(sportId, opts.theRundownApiKey, opts.date);
-    }
-    if (soft?.events?.length) {
-      pin = { ...pin, events: soft.events };
-      source = soft.soft && soft.books?.includes("betmgm") ? "therundown-soft-backup" : "sharpapi-soft-backup";
-    } else {
-      return {
-        events: [],
-        meta: {
-          enabled: true,
-          error: pin.error,
-          remaining: pin.credits.remaining,
-          used: pin.credits.used,
-          cached: false,
-          sportKey,
-          sharp: SHARP_BOOK,
-          execution: EXECUTION_BOOK,
-          source,
-        },
-      };
-    }
-  }
+
+  let source =
+    pool.provider === "parlay"
+      ? "parlay"
+      : pool.provider === "theodds"
+        ? "theodds-backup"
+        : pool.provider === "therundown"
+          ? "therundown-soft-backup"
+          : pool.provider === "sharpapi"
+            ? "sharpapi-soft-backup"
+            : pool.provider;
+  const pin = {
+    events: pool.events,
+    error: null,
+    credits: pinCredits,
+  };
 
   let combined = pin.events;
   let remaining = pin.credits.remaining;
@@ -900,10 +975,14 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     propFeedError = propsPayload?.error || null;
   }
 
-  const softNeeds = combined.some((ev) => {
-    const packed = summarizeParlayEvent(ev, sportId);
-    return !packed.pinPresent && !packed.heritageListed;
-  });
+  // Fill soft display quotes only when sharp/primary coverage is incomplete.
+  // Do not re-query backups when the provider pool already selected SharpAPI/TheRundown.
+  const softNeeds =
+    (source === "parlay" || source === "theodds-backup") &&
+    combined.some((ev) => {
+      const packed = summarizeParlayEvent(ev, sportId);
+      return !packed.pinPresent && !packed.heritageListed;
+    });
   if (softNeeds) {
     let soft = null;
     if (opts.sharpApiKey) soft = await fetchSharpApiOdds(sportId, opts.sharpApiKey);

@@ -12,9 +12,18 @@ If you discover a vulnerability or exposed credential, contact the repository ow
 - Never commit `.env`, `.dev.vars`, private keys, service-account JSON, or raw API tokens.
 - Never pass secret values through `workflow_dispatch` string inputs (they appear in Actions logs).
 
-## Soft-book backups
+## Odds provider pool
 
-`SHARPAPI_API_KEY` and `THERUNDOWN_API_KEY` are **optional**. Collect/harvest continue without them. Historical values that once appeared in workflow YAML must be treated as compromised — install **newly rotated** keys only, and never embed fallbacks in git.
+Production market collection uses a provider pool (fail closed when no valid market data):
+
+1. **Parlay** (preferred primary)
+2. **TheOdds API**
+3. **SharpAPI** (intentional production fallback)
+4. **TheRundown** (intentional production fallback)
+
+`SHARPAPI_API_KEY`, `THERUNDOWN_API_KEY`, and `THEODDS_API_KEY` are optional only in the fail-safe sense: FBIS must not crash, overwrite Cloudflare secrets with empty values, or fabricate odds when a key is absent, exhausted, or rate-limited. When valid credentials are installed, SharpAPI and TheRundown are **active production fallbacks** used for market coverage — not dormant integrations.
+
+Historical SharpAPI / TheRundown values that once appeared in workflow YAML remain compromised. Revoke/rotate them at each provider and install **only newly rotated** keys into GitHub Actions and Cloudflare Pages secrets. Never embed fallbacks in git. Never accept raw secret values via `workflow_dispatch` inputs.
 
 ## Recommended GitHub settings (owner)
 

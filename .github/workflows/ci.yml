@@ -108,7 +108,7 @@ jobs:
           printf '%s' "${HARVEST_SECRET}" | npx wrangler pages secret put HARVEST_SECRET --project-name fbis
           echo "Synced HARVEST_SECRET to Pages project fbis"
 
-      - name: Sync free odds backup secrets to Cloudflare Pages
+      - name: Sync odds fallback secrets to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -117,20 +117,21 @@ jobs:
           THEODDS_API_KEY_SECRET: ${{ secrets.THEODDS_API_KEY }}
         run: |
           set -euo pipefail
-          # Optional soft/sharp backups from GitHub Actions secrets only.
-          # Never embed API key fallbacks in workflow YAML.
-          # SharpAPI / TheRundown are optional; leave empty unless newly rotated keys are installed.
+          # Provider pool fallbacks from GitHub Actions secrets only (never workflow YAML).
+          # SharpAPI / TheRundown are intentional production fallbacks once newly rotated
+          # keys are installed. Empty GitHub secrets must NEVER overwrite Cloudflare secrets.
+          # Deploy succeeds with all three absent (safe degrade; Parlay primary unchanged).
           SHARPAPI_API_KEY="${SHARPAPI_API_KEY_SECRET:-}"
           THERUNDOWN_API_KEY="${THERUNDOWN_API_KEY_SECRET:-}"
           THEODDS_API_KEY="${THEODDS_API_KEY_SECRET:-}"
           if [ -z "${SHARPAPI_API_KEY}" ] && [ -z "${THERUNDOWN_API_KEY}" ] && [ -z "${THEODDS_API_KEY}" ]; then
-            echo "No odds backup secrets provided in GitHub Actions secrets; skipping Pages odds secret sync."
+            echo "No odds fallback secrets in GitHub Actions; skipping Pages odds secret sync (safe degrade)."
           fi
           put_secret() {
             local name="$1"
             local value="$2"
             if [ -z "${value}" ]; then
-              echo "skip ${name} (empty)"
+              echo "skip ${name} (empty — leave existing Cloudflare secret unchanged)"
               return 0
             fi
             printf '%s' "${value}" | npx wrangler pages secret put "${name}" --project-name fbis
