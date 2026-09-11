@@ -183,3 +183,7 @@ Do **not** promote Action/Apify into the authoritative router.
 PR #63 intentionally contains **no** production odds-router / Parlay / market-lineage behavior changes.
 
 A residual post-#62 cache-label issue may still exist when a successful SharpAPI (or other backup) cache entry retains `parlayError` and the Parlay cache-read path rewrites `source` back to `parlay-credit-exhausted` while `provider` stays `sharpapi`. PR #62 covers successful fallbacks whose `source` remains a backup label (`sharpapi-soft-backup` + `FALLBACK_PROVIDER`); it does **not** cover that rewrite-poisoned cache-read case. Track that as a **separate narrow follow-up** — do not fold production-path edits into this shadow PR.
+
+## Next research phase
+
+See `docs/action-apify-provider-championship.md` for the evidence-based provider championship plan (coverage, freshness, accuracy, economics, recommendation outcomes). Discovery A–F is complete; promotion remains blocked until that scorecard is produced.
