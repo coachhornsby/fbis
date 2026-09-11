@@ -53,6 +53,25 @@ Parlay → TheOdds → SharpAPI            Scheduled Collector
 | `functions/lib/actionApifyShadow.js` | Existing research adapter / Actor runner (unchanged authority) |
 | `functions/api/action-apify-collect.js` | Auth-gated plan/execute endpoint for scheduled jobs |
 | `migrations/0021_action_apify_candidate.sql` | Additive candidate ops tables |
+| `migrations/0022_action_apify_harden.sql` | Durable scheduler lease/circuit + observation enrichment |
+| `functions/lib/actionApifyDurableState.js` | D1-backed lease, circuit, MTD spend |
+| `functions/lib/actionApifyObservationStore.js` | Full shadow market observation persistence (0020 tables) |
+| `functions/lib/actionApifyEvidence.js` | Cold-start health + persisted championship scorecard |
+
+## Hardening (0022)
+
+Production-shadow enablement fixes:
+
+1. **FBIS event matching wired** — live collect loads the canonical `games` slate via `queryGames` and passes `fbisEvents` into the collector. Only EXACT/HIGH matches persist `fbis_event_id`.
+2. **Full market persistence** — normalized Action rows write into `shadow_market_observations` / `_books` / `_splits` / `shadow_line_movement` (0020), not just observation keys.
+3. **Idempotency split** — run retries share a logical collection key; source-timestamped observations key by event/market/book/sourceObservedAt; later scrapes without source timestamps are temporal resamples (new rows), not false duplicates.
+4. **Durable scheduler** — D1 `shadow_candidate_scheduler_state` owns overlap lease + circuit; in-memory guards are a local fast path only.
+5. **MTD budget from ledger** — `actual_total_usd` preferred over `estimated_total_usd`; budget blocks never affect incumbent odds.
+6. **Cold-safe health / scorecard** — `mode=health` and `mode=scorecard` read D1 evidence; empty in-memory state after cold start still returns prior runs.
+7. **Schema drift vs prior** — fingerprints compare to the last INFO/WARN fingerprint before classifying BLOCK.
+8. **`gamesExpected` ≠ `maxItems`** — expected slate size comes from FBIS events (or null); a 16-game NFL slate is not partial because `maxItems=200`.
+9. **Match denominators** — `actionToFbisMatchRate`, `fbisCoverageRate`, `ambiguousRate` tracked separately.
+10. **Promotion thresholds advisory** — sample-size/reliability/cost warn only; no auto PRIMARY; commercial-use review remains required.
 
 ## Configuration
 

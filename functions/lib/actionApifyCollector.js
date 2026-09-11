@@ -35,6 +35,19 @@ import {
   hashPayload,
   runActionApifyShadow,
 } from "./actionApifyShadow.js";
+import {
+  acquireSchedulerLease,
+  buildLogicalCollectionKey,
+  queryMonthToDateSpendUsd,
+  releaseSchedulerLease,
+  schedulerScopeKey,
+} from "./actionApifyDurableState.js";
+import {
+  computeMatchDenominators,
+  ensureShadowProviderRun,
+  persistFullMarketObservation,
+} from "./actionApifyObservationStore.js";
+import { loadPriorSchemaFingerprint } from "./actionApifyEvidence.js";
 
 const SPORT_LEAGUES = Object.freeze({
   cfb: ["ncaaf"],
@@ -142,17 +155,26 @@ export function evaluateSchedulerSafety(plan, state = {}) {
   if (!plan.cfg.configured) {
     blocks.push({ code: "TOKEN_MISSING", message: "APIFY_TOKEN not installed" });
   }
-  if (runtimeGuards.activeRunId) {
+  // In-memory guards are a local fast path only — durable lease/circuit are authoritative.
+  if (runtimeGuards.activeRunId && !state.ignoreMemoryOverlap) {
     blocks.push({ code: "OVERLAP", message: `active run ${runtimeGuards.activeRunId}` });
   }
-  if (runtimeGuards.circuitOpenUntil && Date.parse(runtimeGuards.circuitOpenUntil) > now.getTime()) {
-    blocks.push({ code: "CIRCUIT_OPEN", message: `circuit open until ${runtimeGuards.circuitOpenUntil}` });
+  const circuitUntil = state.circuitOpenUntil ?? runtimeGuards.circuitOpenUntil;
+  if (circuitUntil && Date.parse(circuitUntil) > now.getTime()) {
+    blocks.push({ code: "CIRCUIT_OPEN", message: `circuit open until ${circuitUntil}` });
+  }
+  if (state.durableOverlapBlocked) {
+    blocks.push({ code: "OVERLAP", message: state.durableOverlapMessage || "durable lease held" });
   }
   const mtd = Number(state.monthToDateCostUsd ?? runtimeGuards.monthToDateEstimatedCost) || 0;
   if (mtd + Number(plan.estimatedCostUsd || 0) > Number(plan.cfg.monthlyBudgetUsd) + 1e-9) {
     blocks.push({
       code: "MONTHLY_BUDGET",
       message: `monthly budget ${plan.cfg.monthlyBudgetUsd} would be exceeded (mtd=${mtd}, estimate=${plan.estimatedCostUsd})`,
+      mtdUsd: mtd,
+      estimatedNextRunUsd: plan.estimatedCostUsd,
+      monthlyBudgetUsd: plan.cfg.monthlyBudgetUsd,
+      remainingBudgetUsd: Math.max(0, Number(plan.cfg.monthlyBudgetUsd) - mtd),
     });
   }
   if (Number(plan.estimatedCostUsd || 0) > Number(plan.cfg.perRunBudgetUsd) + 1e-9) {
@@ -168,6 +190,10 @@ export function evaluateSchedulerSafety(plan, state = {}) {
     budgetBlocked: blocks.some((b) => b.code === "MONTHLY_BUDGET" || b.code === "PER_RUN_BUDGET"),
     overlapBlocked: blocks.some((b) => b.code === "OVERLAP"),
     circuitOpen: blocks.some((b) => b.code === "CIRCUIT_OPEN"),
+    monthToDateCostUsd: mtd,
+    estimatedNextRunUsd: plan.estimatedCostUsd,
+    monthlyBudgetUsd: plan.cfg.monthlyBudgetUsd,
+    remainingBudgetUsd: Math.max(0, Number(plan.cfg.monthlyBudgetUsd) - mtd),
   };
 }
 
@@ -177,9 +203,10 @@ export function evaluateSchedulerSafety(plan, state = {}) {
  * @param {object} row — normalized candidate row
  * @param {{ runId: string }} ctx
  */
-export async function ingestCandidateObservation(db, row, ctx) {
+export async function ingestCandidateObservation(db, row, ctx = {}) {
   const payloadHash = row.rawPayloadHash || hashPayload(row);
   const book = row.books?.[0]?.book || "consensus";
+  const consensus = row.consensus || {};
   const naturalKey = observationNaturalKey({
     actionGameId: row.actionGameId || row.gameId,
     market: "consensus",
@@ -188,6 +215,9 @@ export async function ingestCandidateObservation(db, row, ctx) {
     sourceObservedAt: row.observedAt || null,
     scrapedAt: row.scrapedAt || null,
     payloadHash,
+    runId: ctx.runId || null,
+    line: consensus.spreadHome ?? consensus.total ?? null,
+    price: consensus.spreadHomeOdds ?? consensus.moneylineHome ?? null,
   });
 
   const existing = db?.getObservationKey ? await db.getObservationKey(naturalKey) : null;
@@ -197,14 +227,21 @@ export async function ingestCandidateObservation(db, row, ctx) {
     book,
   });
 
-  if (delta.kind === "identical_repeated_snapshot" || delta.kind === "same_price_observed_again") {
+  // Run retry / identical snapshot: suppress. Same price on a later run uses a
+  // different natural key (runId) and is retained as temporal resampling.
+  if (delta.kind === "identical_repeated_snapshot") {
     return { written: false, duplicate: true, naturalKey, delta };
   }
+  if (delta.kind === "same_price_observed_again" && existing?.run_id === ctx.runId) {
+    return { written: false, duplicate: true, naturalKey, delta };
+  }
+
+  const observationId = `smo_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
 
   if (db?.putObservationKey) {
     await db.putObservationKey({
       natural_key: naturalKey,
-      observation_id: row.actionGameId || globalThis.crypto.randomUUID(),
+      observation_id: observationId,
       run_id: ctx.runId,
       provider: ACTION_APIFY_PROVIDER,
       action_game_id: row.actionGameId || row.gameId || null,
@@ -215,10 +252,37 @@ export async function ingestCandidateObservation(db, row, ctx) {
       collected_at: row.scrapedAt || new Date().toISOString(),
       payload_hash: payloadHash,
       created_at: new Date().toISOString(),
+      run_idempotency_key: ctx.logicalCollectionKey || null,
+      sampling_kind: row.observedAt ? "source_timestamped" : "temporal_resample",
+      fbis_event_id: ctx.match?.comparisonEligible ? ctx.match?.candidate?.id || null : null,
+      line: consensus.spreadHome ?? consensus.total ?? null,
+      price: consensus.spreadHomeOdds ?? consensus.moneylineHome ?? null,
     });
   }
 
-  return { written: true, duplicate: false, naturalKey, delta, payloadHash };
+  let marketPersist = null;
+  if (db?.exec && ctx.persistFullMarket !== false) {
+    marketPersist = await persistFullMarketObservation(db, row, {
+      runId: ctx.runId,
+      observationId,
+      sport: ctx.sport,
+      profile: ctx.profile,
+      lifecycle: ctx.lifecycle,
+      temporalClass: ctx.temporalClass || row.temporalClass,
+      match: ctx.match || null,
+      collectedAt: new Date().toISOString(),
+    });
+  }
+
+  return {
+    written: true,
+    duplicate: false,
+    naturalKey,
+    delta,
+    payloadHash,
+    observationId,
+    marketPersist,
+  };
 }
 
 /**
@@ -425,8 +489,87 @@ export async function runCandidateCollection(env, opts) {
     };
   }
 
-  const safety = evaluateSchedulerSafety(plan, { monthToDateCostUsd: opts.monthToDateCostUsd });
+  const scopeKey = schedulerScopeKey(plan.sport, plan.profile, plan.lifecycle);
+  let mtdUsd = Number(opts.monthToDateCostUsd);
+  if (!Number.isFinite(mtdUsd)) {
+    const mtd = await queryMonthToDateSpendUsd(opts.db);
+    mtdUsd = mtd.mtdUsd;
+  }
+
+  // Durable lease is authoritative for overlap; memory is a local fast path only.
+  const lease = await acquireSchedulerLease(opts.db, {
+    scopeKey,
+    runId,
+  });
+  let leaseHeld = Boolean(lease?.ok);
+  if (!lease?.ok) {
+    const status = lease?.code === "CIRCUIT_OPEN" ? "circuit_open" : "overlap_blocked";
+    const artifact = {
+      run: {
+        id: runId,
+        plan: plan.cfg.plan,
+        profile: plan.profile,
+        sport: plan.sport,
+        lifecycle: plan.lifecycle,
+        status,
+        overlapBlocked: status === "overlap_blocked",
+        budgetBlocked: false,
+        circuitOpen: status === "circuit_open",
+        apifyRunId: null,
+        datasetId: null,
+        requestedMaxItems: plan.input.maxItems,
+        gamesExpected: Array.isArray(opts.fbisEvents) && opts.fbisEvents.length ? opts.fbisEvents.length : null,
+        gamesReturned: 0,
+        gamesMatched: 0,
+        gamesUnmatched: 0,
+        observationsWritten: 0,
+        duplicatesSkipped: 0,
+        malformedRows: 0,
+        schemaFingerprint: null,
+        schemaDriftLevel: null,
+        estimatedCostUsd: plan.estimatedCostUsd,
+        actualCostUsd: null,
+        costBasis: "ESTIMATED",
+        errorClass: status,
+        errorMessage: lease?.message || status,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        durationMs: 0,
+        createdAt: startedAt,
+      },
+    };
+    await persistCandidateRunArtifacts(opts.db, artifact);
+    return {
+      ok: false,
+      blocked: true,
+      status,
+      blocks: [{ code: lease?.code || "OVERLAP", message: lease?.message || "lease unavailable" }],
+      runId,
+      provider: ACTION_APIFY_PROVIDER,
+      sourceClass: ACTION_APIFY_SOURCE_CLASS,
+      affectsProductionOdds: false,
+      canQualify: false,
+      canAuthorizeWager: false,
+      estimatedCostUsd: plan.estimatedCostUsd,
+      monthToDateCostUsd: mtdUsd,
+    };
+  }
+
+  const safety = evaluateSchedulerSafety(plan, {
+    monthToDateCostUsd: mtdUsd,
+    ignoreMemoryOverlap: true,
+    circuitOpenUntil: lease?.existing?.circuit_open_until || null,
+  });
   if (!safety.allowed) {
+    await releaseSchedulerLease(opts.db, {
+      scopeKey,
+      runId,
+      success: false,
+      errorClass: safety.budgetBlocked ? "budget_blocked" : "blocked",
+      errorMessage: safety.blocks.map((b) => b.message).join("; "),
+    });
+    leaseHeld = false;
+
     const status = safety.budgetBlocked
       ? "budget_blocked"
       : safety.overlapBlocked
@@ -580,39 +723,112 @@ export async function runCandidateCollection(env, opts) {
       .map((r) => (r && r.provider ? r : normalizeCandidateGameRow(r, { runId, lifecycle: plan.lifecycle })))
       .filter(Boolean);
 
+    const priorSchema = await loadPriorSchemaFingerprint(opts.db);
     const schema = fingerprintSchema(
-      Array.isArray(opts.rowsInject) && opts.rowsInject[0] ? opts.rowsInject[0] : normalized[0] || {}
+      Array.isArray(opts.rowsInject) && opts.rowsInject[0] ? opts.rowsInject[0] : normalized[0] || {},
+      { previousFingerprint: priorSchema }
     );
 
     const fbisEvents = Array.isArray(opts.fbisEvents) ? opts.fbisEvents : [];
+    const gamesExpected =
+      opts.gamesExpected != null
+        ? Number(opts.gamesExpected)
+        : fbisEvents.length > 0
+          ? fbisEvents.length
+          : null;
+
     let gamesMatched = 0;
     let gamesUnmatched = 0;
     const matchDetails = [];
+    const matchByActionId = new Map();
     for (const row of normalized) {
       if (!fbisEvents.length) {
         gamesUnmatched += 1;
-        matchDetails.push({ actionGameId: row.actionGameId || row.gameId, confidence: "UNMATCHED", reason: "no-fbis-events" });
+        const detail = {
+          actionGameId: row.actionGameId || row.gameId,
+          confidence: "UNMATCHED",
+          reason: "no-fbis-events",
+          comparisonEligible: false,
+          fbisEventId: null,
+        };
+        matchDetails.push(detail);
+        matchByActionId.set(String(row.actionGameId || row.gameId), detail);
         continue;
       }
       const m = matchEventWithConfidence(row, fbisEvents);
       if (m.comparisonEligible) gamesMatched += 1;
       else gamesUnmatched += 1;
-      matchDetails.push({
+      const detail = {
         actionGameId: row.actionGameId || row.gameId,
         confidence: m.confidence,
         reason: m.reason,
         comparisonEligible: m.comparisonEligible,
+        fbisEventId: m.comparisonEligible && m.candidate?.id ? String(m.candidate.id) : null,
+        candidate: m.candidate || null,
+      };
+      matchDetails.push(detail);
+      matchByActionId.set(String(row.actionGameId || row.gameId), { ...detail, ...m });
+    }
+
+    const denominators = computeMatchDenominators({
+      fbisEvents,
+      actionRows: normalized,
+      matchDetails,
+    });
+
+    const logicalCollectionKey =
+      opts.logicalCollectionKey ||
+      buildLogicalCollectionKey({
+        sport: plan.sport,
+        lifecycle: plan.lifecycle,
+        profile: plan.profile,
+        date: opts.date || null,
+      });
+
+    if (opts.db?.exec) {
+      await ensureShadowProviderRun(opts.db, {
+        runId,
+        plan: {
+          ...plan,
+          apifyRunId: shadowResult.runId || null,
+          datasetId: shadowResult.datasetId || null,
+          gamesReturned: normalized.length,
+          malformedRows: Number(shadowResult.malformed || 0),
+          estimatedCostUsd: plan.estimatedCostUsd,
+        },
+        startedAt,
+        finishedAt,
+        status: "SUCCEEDED",
       });
     }
 
     let observationsWritten = 0;
     let duplicatesSkipped = 0;
+    let booksWritten = 0;
+    let splitsWritten = 0;
+    let movementWritten = 0;
+    let propsWritten = 0;
     const deadLetters = [];
     for (const row of normalized) {
       try {
-        const ing = await ingestCandidateObservation(opts.db, row, { runId });
+        const match = matchByActionId.get(String(row.actionGameId || row.gameId)) || null;
+        const ing = await ingestCandidateObservation(opts.db, row, {
+          runId,
+          sport: plan.sport,
+          profile: plan.profile,
+          lifecycle: plan.lifecycle,
+          temporalClass: plan.temporalClass,
+          match,
+          logicalCollectionKey,
+        });
         if (ing.duplicate) duplicatesSkipped += 1;
-        else observationsWritten += 1;
+        else {
+          observationsWritten += 1;
+          booksWritten += Number(ing.marketPersist?.books || 0);
+          splitsWritten += Number(ing.marketPersist?.splits || 0);
+          movementWritten += Number(ing.marketPersist?.movement || 0);
+          propsWritten += Number(ing.marketPersist?.props || 0);
+        }
       } catch (err) {
         deadLetters.push({
           id: `dl_${globalThis.crypto.randomUUID().slice(0, 12)}`,
@@ -647,6 +863,11 @@ export async function runCandidateCollection(env, opts) {
     runtimeGuards.lastError = null;
     runtimeGuards.gamesLastRun = normalized.length;
 
+    const partialRun =
+      gamesExpected != null &&
+      normalized.length > 0 &&
+      normalized.length < Number(gamesExpected);
+
     const artifact = {
       run: {
         id: runId,
@@ -654,14 +875,14 @@ export async function runCandidateCollection(env, opts) {
         profile: plan.profile,
         sport: plan.sport,
         lifecycle: plan.lifecycle,
-        status: schema.promotionEligible ? "success" : "success_schema_warn",
+        status: schema.driftLevel === "BLOCK" ? "success_schema_block" : schema.promotionEligible ? "success" : "success_schema_warn",
         overlapBlocked: false,
         budgetBlocked: false,
         circuitOpen: false,
         apifyRunId: shadowResult.runId || null,
         datasetId: shadowResult.datasetId || null,
         requestedMaxItems: plan.input.maxItems,
-        gamesExpected: plan.input.maxItems,
+        gamesExpected,
         gamesReturned: normalized.length,
         gamesMatched,
         gamesUnmatched,
@@ -679,6 +900,19 @@ export async function runCandidateCollection(env, opts) {
         finishedAt,
         durationMs,
         createdAt: startedAt,
+        logicalCollectionKey,
+        fbisEventsExpected: denominators.fbisEventsExpected,
+        actionEventsReturned: denominators.actionEventsReturned,
+        matchedEvents: denominators.matchedEvents,
+        ambiguousEvents: denominators.ambiguousEvents,
+        actionOnlyEvents: denominators.actionOnlyEvents,
+        fbisOnlyEvents: denominators.fbisOnlyEvents,
+        previousSchemaFingerprint: priorSchema?.fingerprint || null,
+        schemaDriftDetailJson: JSON.stringify(schema.driftNotes || []),
+        booksWritten,
+        splitsWritten,
+        movementWritten,
+        propsWritten,
       },
       cost,
       reliability: {
@@ -686,35 +920,49 @@ export async function runCandidateCollection(env, opts) {
         runId,
         sport: plan.sport,
         profile: plan.profile,
-        success: true,
+        lifecycle: plan.lifecycle,
+        success: schema.driftLevel !== "BLOCK",
         httpStatus: 200,
         actorFailure: false,
         apiFailure: false,
         malformedPayload: Number(shadowResult.malformed || 0) > 0,
         emptyRun: normalized.length === 0,
-        partialRun: normalized.length > 0 && normalized.length < Number(plan.input.maxItems || 0),
+        partialRun,
         schemaViolation: schema.driftLevel === "BLOCK",
         timeout: false,
         retries,
         latencyMs: durationMs,
-        gamesExpected: plan.input.maxItems,
+        gamesExpected,
         gamesReturned: normalized.length,
         unmatchedGames: gamesUnmatched,
         duplicateRows: duplicatesSkipped,
+        fbisEventsExpected: denominators.fbisEventsExpected,
+        matchedEvents: denominators.matchedEvents,
+        ambiguousEvents: denominators.ambiguousEvents,
         errorClass: null,
         errorMessage: null,
         createdAt: finishedAt,
+        promotionEligible: schema.driftLevel !== "BLOCK",
       },
       schema: {
         id: `sch_${runId}`,
         runId,
         ...schema,
+        previousFingerprint: priorSchema?.fingerprint || null,
         createdAt: finishedAt,
       },
       deadLetters,
     };
 
     await persistCandidateRunArtifacts(opts.db, artifact);
+    await releaseSchedulerLease(opts.db, {
+      scopeKey,
+      runId,
+      success: schema.driftLevel !== "BLOCK",
+      errorClass: schema.driftLevel === "BLOCK" ? "schema_block" : null,
+      errorMessage: null,
+    });
+    leaseHeld = false;
 
     return {
       ok: true,
@@ -728,18 +976,27 @@ export async function runCandidateCollection(env, opts) {
       sport: plan.sport,
       lifecycle: plan.lifecycle,
       temporalClass: plan.temporalClass,
+      requestedMaxItems: plan.input.maxItems,
+      gamesExpected,
       gamesReturned: normalized.length,
       gamesMatched,
       gamesUnmatched,
       observationsWritten,
       duplicatesSkipped,
+      booksWritten,
+      splitsWritten,
+      movementWritten,
+      propsWritten,
       malformedRows: Number(shadowResult.malformed || 0),
       estimatedCostUsd: cost.estimated_total_usd,
       costBasis: cost.cost_basis,
       schemaDriftLevel: schema.driftLevel,
-      schemaPromotionEligible: schema.promotionEligible,
+      schemaPromotionEligible: schema.driftLevel !== "BLOCK",
+      priorSchemaFingerprint: priorSchema?.fingerprint || null,
       unmappedBooks: unmappedBookCoverage(normalized),
       matchDetails: matchDetails.slice(0, 50),
+      denominators,
+      logicalCollectionKey,
       rows: normalized,
       cost,
       costWindows: aggregateCostWindows([cost], finishedAt),
@@ -747,6 +1004,7 @@ export async function runCandidateCollection(env, opts) {
       canQualify: false,
       canAuthorizeWager: false,
       inProductionRouter: false,
+      decisionEligible: false,
     };
   } catch (err) {
     runtimeGuards.consecutiveFailures += 1;
@@ -759,6 +1017,19 @@ export async function runCandidateCollection(env, opts) {
     };
   } finally {
     runtimeGuards.activeRunId = null;
+    if (typeof leaseHeld !== "undefined" && leaseHeld) {
+      try {
+        await releaseSchedulerLease(opts.db, {
+          scopeKey,
+          runId,
+          success: false,
+          errorClass: "released_on_exit",
+          errorMessage: null,
+        });
+      } catch {
+        // best-effort lease release
+      }
+    }
   }
 }
 
@@ -777,7 +1048,7 @@ function buildFailureArtifact({ runId, plan, startedAt, finishedAt, durationMs, 
       apifyRunId: null,
       datasetId: null,
       requestedMaxItems: plan.input.maxItems,
-      gamesExpected: plan.input.maxItems,
+      gamesExpected: null,
       gamesReturned: 0,
       gamesMatched: 0,
       gamesUnmatched: 0,
@@ -812,7 +1083,7 @@ function buildFailureArtifact({ runId, plan, startedAt, finishedAt, durationMs, 
       timeout: /timeout/i.test(String(error || "")),
       retries,
       latencyMs: durationMs,
-      gamesExpected: plan.input.maxItems,
+      gamesExpected: null,
       gamesReturned: 0,
       unmatchedGames: 0,
       duplicateRows: 0,

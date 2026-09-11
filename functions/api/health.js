@@ -14,7 +14,7 @@ const MIGRATION_STATUS = {
   UNVERIFIED: "UNVERIFIED",
 };
 
-const EXPECTED_MIGRATION = "0021_action_apify_candidate";
+const EXPECTED_MIGRATION = "0022_action_apify_harden";
 
 /**
  * Read-only health endpoint.
