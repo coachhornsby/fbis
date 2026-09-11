@@ -6,9 +6,28 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE*"
+      - "SECURITY.md"
+      - ".github/dependabot.yml"
   push:
     branches:
       - main
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE*"
+      - "SECURITY.md"
+      - ".github/dependabot.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test-build:
@@ -16,8 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
           cache: "npm"
@@ -46,11 +65,11 @@ jobs:
       DEPLOY_SHA: ${{ github.sha }}
     steps:
       - name: Checkout exact production SHA
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           ref: ${{ env.DEPLOY_SHA }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
           cache: "npm"
@@ -102,12 +121,13 @@ jobs:
           THEODDS_API_KEY_SECRET: ${{ secrets.THEODDS_API_KEY }}
         run: |
           set -euo pipefail
-          # Prefer GitHub Actions secrets when present; otherwise bootstrap the
-          # free-tier keys already provisioned for FBIS so production works
-          # without a dashboard visit.
-          SHARPAPI_API_KEY="${SHARPAPI_API_KEY_SECRET:-sk_live_VKvAiFyHrGXwe3muxCzFse}"
-          THERUNDOWN_API_KEY="${THERUNDOWN_API_KEY_SECRET:-11ab49de1fbdc337e158016c38f9f16e9966657a58f87bee4b689e40b3a432e6}"
+          # Require GitHub Actions secrets — never embed API key fallbacks in workflow YAML.
+          SHARPAPI_API_KEY="${SHARPAPI_API_KEY_SECRET:-}"
+          THERUNDOWN_API_KEY="${THERUNDOWN_API_KEY_SECRET:-}"
           THEODDS_API_KEY="${THEODDS_API_KEY_SECRET:-}"
+          if [ -z "${SHARPAPI_API_KEY}" ] && [ -z "${THERUNDOWN_API_KEY}" ] && [ -z "${THEODDS_API_KEY}" ]; then
+            echo "No odds backup secrets provided in GitHub Actions secrets; skipping Pages odds secret sync."
+          fi
           put_secret() {
             local name="$1"
             local value="$2"
@@ -190,3 +210,4 @@ jobs:
           name: cfbd-endpoint-audit-${{ env.DEPLOY_SHA }}
           path: artifacts/
           if-no-files-found: warn
+          retention-days: 14

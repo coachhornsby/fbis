@@ -300,7 +300,10 @@ export async function onRequestGet(context) {
     settledTicketCount: rec.settledTicketCount,
     reportedRecord: rec.reportedRecord,
     provenance: rec.provenance,
-    namedPositions: STRATEGY_HC_V1_SEED_TICKETS.map((t) => t.pick),
+    namedPositions:
+      seedPresented.length > 0
+        ? seedPresented.map((t) => t.pick)
+        : STRATEGY_HC_V1_SEED_TICKETS.map((t) => t.pick),
     seed: { tickets: seedPresented, traits: characterizeTickets(seedPresented), stats: strategyStats(seedPresented) },
     prospective: {
       tickets: prospective,

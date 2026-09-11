@@ -24,6 +24,9 @@ concurrency:
   group: fbis-research-pipeline
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   determine-mode:
     name: RESEARCH MODE
@@ -87,8 +90,8 @@ jobs:
       production_sha: ${{ steps.verify.outputs.production_sha }}
       fail_closed: ${{ steps.verify.outputs.fail_closed }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
           cache: "npm"
