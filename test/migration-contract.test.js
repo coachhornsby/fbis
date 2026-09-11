@@ -12,7 +12,9 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   const m18 = await readFile(new URL("../migrations/0018_cfbd_audit_tables_ensure.sql", import.meta.url), "utf8");
   const m19 = await readFile(new URL("../migrations/0019_cfb_player_projections.sql", import.meta.url), "utf8");
   const m20 = await readFile(new URL("../migrations/0020_action_apify_shadow.sql", import.meta.url), "utf8");
+  const m21 = await readFile(new URL("../migrations/0021_action_apify_candidate.sql", import.meta.url), "utf8");
   const health = await readFile(new URL("../functions/api/health.js", import.meta.url), "utf8");
+  const schemaExt = await readFile(new URL("../schema.extensions.sql", import.meta.url), "utf8");
   assert.match(m17, /schema_migrations[\s\S]*0017_cfbd_endpoint_audit/i);
   assert.match(m18, /schema_migrations[\s\S]*0018_cfbd_audit_tables_ensure/i);
   assert.match(m19, /schema_migrations[\s\S]*0019_cfb_player_projections/i);
@@ -26,7 +28,19 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(m20, /shadow_market_splits/);
   assert.match(m20, /shadow_line_movement/);
   assert.match(m20, /shadow_provider_comparisons/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0020_action_apify_shadow["']/);
+  assert.match(m21, /schema_migrations[\s\S]*0021_action_apify_candidate/i);
+  assert.match(m21, /shadow_collection_runs/);
+  assert.match(m21, /shadow_cost_ledger/);
+  assert.match(m21, /shadow_provider_reliability/);
+  assert.match(m21, /shadow_schema_fingerprints/);
+  assert.match(m21, /shadow_promotion_metrics/);
+  assert.match(m21, /shadow_dead_letters/);
+  assert.match(m21, /shadow_observation_keys/);
+  assert.match(schemaExt, /shadow_collection_runs/);
+  assert.match(schemaExt, /shadow_cost_ledger/);
+  assert.match(schemaExt, /shadow_observation_keys/);
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0021_action_apify_candidate["']/);
+  assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /WHERE id = \?/);
 });
 
