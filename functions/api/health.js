@@ -4,6 +4,8 @@ import { deriveHealthState, writeVerificationState } from "../lib/healthContract
 import { openHarvestRetries, queryExecutedBets, queryStrategyTickets, readMeta } from "../lib/store.js";
 import { STRATEGY_HC_V1 } from "../lib/strategy.js";
 import { classifyOpenHarvestRetries, deriveOddsBoardHealth, providerConfigFlags } from "../lib/marketLineage.js";
+import { actionApifyCandidateHealth } from "../lib/actionApifyCollector.js";
+// Action/Apify candidate health is shadow-only — never drives global DOWN.
 
 const MIGRATION_STATUS = {
   VERIFIED: "VERIFIED",
@@ -12,7 +14,7 @@ const MIGRATION_STATUS = {
   UNVERIFIED: "UNVERIFIED",
 };
 
-const EXPECTED_MIGRATION = "0020_action_apify_shadow";
+const EXPECTED_MIGRATION = "0021_action_apify_candidate";
 
 /**
  * Read-only health endpoint.
@@ -36,6 +38,10 @@ export async function onRequestGet(context) {
     THEODDS_API_KEY: context.env.THEODDS_API_KEY,
     SHARPAPI_API_KEY: context.env.SHARPAPI_API_KEY,
     THERUNDOWN_API_KEY: context.env.THERUNDOWN_API_KEY,
+    // Presence only for Action candidate health — token value never returned.
+    APIFY_TOKEN: context.env.APIFY_TOKEN,
+    ACTION_APIFY_ENABLED: context.env.ACTION_APIFY_ENABLED,
+    ACTION_APIFY_PLAN: context.env.ACTION_APIFY_PLAN,
   };
   try {
     const health = await durableHealth(env);
@@ -175,6 +181,7 @@ export async function onRequestGet(context) {
           bySport: oddsBoard.bySport,
           note: "Boolean configured flags only. No secret values. Quota/rate-limit require live provider probes. boardAvailable can be true from cache while liveCollectionHealthy is false.",
         },
+        actionApify: actionApifyCandidateHealth(env),
         pipeline: {
           lastCollectSuccessAt: health.lastCollectSuccessAt || null,
           lastCollectAttemptAt: health.lastCollectAttemptAt || null,

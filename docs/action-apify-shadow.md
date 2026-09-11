@@ -187,3 +187,7 @@ A residual post-#62 cache-label issue may still exist when a successful SharpAPI
 ## Next research phase
 
 See `docs/action-apify-provider-championship.md` for the evidence-based provider championship plan (coverage, freshness, accuracy, economics, recommendation outcomes). Discovery A–F is complete; promotion remains blocked until that scorecard is produced.
+
+## Related
+
+- Production-candidate layer (scheduler/cost/reliability/championship): `docs/action-apify-candidate.md`
