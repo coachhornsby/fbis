@@ -17,6 +17,8 @@ import { canonicalProbabilityFields } from "./probability.js";
 import { attachWeather, parseVenueLocation } from "./weather.js";
 import { enrichGamesVenues } from "./venues.js";
 import { attachKalshiSentiment } from "./kalshi.js";
+import { setMeta } from "./store.js";
+import { isUnusableCachedOddsMeta } from "./marketLineage.js";
 
 export const SPORTS = {
   cbb: {
@@ -1436,6 +1438,25 @@ export async function buildSlate(sport, date, env = {}) {
     sharpApiKey: env.SHARPAPI_API_KEY,
     theRundownApiKey: env.THERUNDOWN_API_KEY,
   });
+  // Persist board-vs-live odds health (no secrets) for /api/health.
+  if (env?.DB && parlay?.meta) {
+    const m = parlay.meta;
+    const usable = !isUnusableCachedOddsMeta(m) && !m.failClosed && Array.isArray(parlay.events) && parlay.events.length > 0;
+    const prefix = `last_odds_${id}_`;
+    const pairs = [
+      [`${prefix}source`, m.source || ""],
+      [`${prefix}source_mode`, m.sourceMode || ""],
+      [`${prefix}cached`, m.cached ? "1" : "0"],
+      [`${prefix}usable`, usable ? "1" : "0"],
+      [`${prefix}provider`, m.provider || ""],
+      [`${prefix}observed_at`, m.observedAt || m.asOf || ""],
+      [`${prefix}games`, String(Array.isArray(parlay.events) ? parlay.events.length : Number(m.games || 0))],
+      [`${prefix}at`, new Date().toISOString()],
+    ];
+    for (const [k, v] of pairs) {
+      try { await setMeta(env, k, v); } catch { /* best-effort */ }
+    }
+  }
   games = mergeParlay(games, parlay.events, id);
   games = games.map((g) => attachMarketLabels(enrichGameTeams(id, g)));
 

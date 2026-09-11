@@ -52,8 +52,19 @@ export function isUnusableCachedOddsMeta(meta = {}) {
   const games = Number(meta.games);
   const pinGames = Number(meta.pinGames);
   if (Number.isFinite(games) && Number.isFinite(pinGames) && games === 0 && pinGames === 0) return true;
+  // Provider error shells must never terminate routing as market successes —
+  // even when a prior board payload is still attached to the cache entry.
   if (
-    (source.includes("credit-exhausted") || source.includes("out_of_usage")) &&
+    (source.includes("credit-exhausted") ||
+      source.includes("out_of_usage") ||
+      source.includes("rate-limit") ||
+      source.includes("auth-fail") ||
+      source.includes("unauthorized") ||
+      source.includes("forbidden") ||
+      source.includes("empty") ||
+      source.includes("malformed") ||
+      source.includes("fail-closed") ||
+      source.includes("fail_closed")) &&
     !source.includes("backup") &&
     !source.includes("soft") &&
     !source.includes("theodds") &&
@@ -62,10 +73,95 @@ export function isUnusableCachedOddsMeta(meta = {}) {
   ) {
     return true;
   }
-  if (/(out_of_usage_credits|credit limit|quota|rate.?limit|401|403|429)/i.test(err) && !meta.events?.length) {
+  if (
+    /(out_of_usage_credits|credit limit|quota|rate.?limit|401|403|429|unauthorized|forbidden|malformed|empty response)/i.test(
+      err
+    )
+  ) {
     return true;
   }
   return false;
+}
+
+/** Normalize provider pool attempts for diagnostics (never includes secrets). */
+export function normalizeProviderAttempts(attempts = []) {
+  return (attempts || []).map((a) => {
+    const provider = String(a?.provider || a?.source || "unknown");
+    let outcome = "UNKNOWN";
+    if (a?.skipped || a?.reason === "not-configured") outcome = "NOT_CONFIGURED";
+    else if (a?.quotaExhausted || /quota|credit|usage/i.test(String(a?.error || ""))) outcome = "PROVIDER_QUOTA";
+    else if (a?.rateLimited || /429|rate.?limit/i.test(String(a?.error || ""))) outcome = "PROVIDER_RATE_LIMIT";
+    else if (/401|403|unauthorized|forbidden|api.?key|auth/i.test(String(a?.error || ""))) outcome = "AUTH_FAILURE";
+    else if (a?.ok && (a?.fresh || a?.complete || a?.success)) outcome = "SUCCESS";
+    else if (a?.ok === false || a?.error) outcome = "PROVIDER_OUTAGE";
+    return {
+      provider,
+      outcome,
+      error: a?.error ? String(a.error).slice(0, 160) : null,
+      skipped: Boolean(a?.skipped),
+      asOf: a?.asOf || null,
+    };
+  });
+}
+
+/**
+ * Derive board-vs-live health from last persisted odds summary meta.
+ * A cached board can be available while live collection is unhealthy.
+ */
+export function deriveOddsBoardHealth(metaMap = {}, sports = ["mlb", "cfb", "nfl", "cbb"]) {
+  const bySport = {};
+  let boardAvailable = false;
+  let liveCollectionHealthy = false;
+  for (const sport of sports) {
+    const prefix = `last_odds_${sport}_`;
+    const source = metaMap[`${prefix}source`] || null;
+    const sourceMode = metaMap[`${prefix}source_mode`] || null;
+    const cached = metaMap[`${prefix}cached`] === "1";
+    const usable = metaMap[`${prefix}usable`] === "1";
+    const provider = metaMap[`${prefix}provider`] || null;
+    const observedAt = metaMap[`${prefix}observed_at`] || null;
+    const updatedAt = metaMap[`${prefix}at`] || null;
+    const games = Number(metaMap[`${prefix}games`] || 0);
+    const row = {
+      sport,
+      source,
+      sourceMode,
+      cached,
+      usable,
+      provider,
+      observedAt,
+      updatedAt,
+      games: Number.isFinite(games) ? games : 0,
+    };
+    bySport[sport] = row;
+    if (usable && row.games > 0) boardAvailable = true;
+    if (
+      usable &&
+      !cached &&
+      (sourceMode === MARKET_SOURCE_MODE.LIVE_PROVIDER || sourceMode === MARKET_SOURCE_MODE.FALLBACK_PROVIDER)
+    ) {
+      liveCollectionHealthy = true;
+    }
+  }
+  let boardSourceMode = null;
+  for (const row of Object.values(bySport)) {
+    if (!row.usable || row.games <= 0) continue;
+    if (!row.cached && row.sourceMode === MARKET_SOURCE_MODE.LIVE_PROVIDER) {
+      boardSourceMode = MARKET_SOURCE_MODE.LIVE_PROVIDER;
+      break;
+    }
+    if (!row.cached && row.sourceMode === MARKET_SOURCE_MODE.FALLBACK_PROVIDER) {
+      boardSourceMode = MARKET_SOURCE_MODE.FALLBACK_PROVIDER;
+    } else if (!boardSourceMode && row.cached) {
+      boardSourceMode = MARKET_SOURCE_MODE.CACHED_PROVIDER;
+    }
+  }
+  return {
+    boardAvailable,
+    liveCollectionHealthy,
+    boardSourceMode,
+    bySport,
+  };
 }
 
 /**

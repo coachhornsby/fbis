@@ -1,9 +1,9 @@
 import { durableHealth, deploymentCommit, scheduledHealth } from "../lib/jobs.js";
 import { MODEL_VERSION } from "../lib/weights.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
-import { openHarvestRetries, queryExecutedBets, queryStrategyTickets } from "../lib/store.js";
+import { openHarvestRetries, queryExecutedBets, queryStrategyTickets, readMeta } from "../lib/store.js";
 import { STRATEGY_HC_V1 } from "../lib/strategy.js";
-import { classifyOpenHarvestRetries, providerConfigFlags } from "../lib/marketLineage.js";
+import { classifyOpenHarvestRetries, deriveOddsBoardHealth, providerConfigFlags } from "../lib/marketLineage.js";
 
 const MIGRATION_STATUS = {
   VERIFIED: "VERIFIED",
@@ -102,7 +102,27 @@ export async function onRequestGet(context) {
         /* classification is best-effort; never fail health */
       }
     }
+    let oddsBoard = {
+      boardAvailable: false,
+      liveCollectionHealthy: false,
+      boardSourceMode: null,
+      bySport: {},
+    };
+    if (readOk) {
+      try {
+        const metaMap = await readMeta(env);
+        oddsBoard = deriveOddsBoardHealth(metaMap);
+      } catch {
+        /* board health is best-effort */
+      }
+    }
     const operatorNotes = [];
+    if (oddsBoard.boardAvailable && !oddsBoard.liveCollectionHealthy) {
+      operatorNotes.push(
+        "Board available from cache/fallback snapshot but live odds collection is unhealthy — cached boards must not be treated as live provider health."
+      );
+    }
+
     if (!harvestHealthy || derived.checks.some((c) => c.name === "scheduled-harvest" && !c.ok)) {
       operatorNotes.push("No successful harvest within the expected window.");
       operatorNotes.push(
@@ -149,7 +169,11 @@ export async function onRequestGet(context) {
         oddsProviders: {
           order: ["parlay", "theodds", "sharpapi", "therundown"],
           configured: providerConfigured,
-          note: "Boolean configured flags only. No secret values. Quota/rate-limit require live provider probes.",
+          boardAvailable: oddsBoard.boardAvailable,
+          liveCollectionHealthy: oddsBoard.liveCollectionHealthy,
+          boardSourceMode: oddsBoard.boardSourceMode,
+          bySport: oddsBoard.bySport,
+          note: "Boolean configured flags only. No secret values. Quota/rate-limit require live provider probes. boardAvailable can be true from cache while liveCollectionHealthy is false.",
         },
         pipeline: {
           lastCollectSuccessAt: health.lastCollectSuccessAt || null,

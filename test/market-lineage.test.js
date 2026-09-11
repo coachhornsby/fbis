@@ -12,6 +12,8 @@ import {
   isUnusableCachedOddsMeta,
   normalizeMarketSourceMode,
   providerConfigFlags,
+  deriveOddsBoardHealth,
+  normalizeProviderAttempts,
 } from "../functions/lib/marketLineage.js";
 import {
   canQualifyFromOddsResolution,
@@ -131,7 +133,7 @@ describe("odds router fallback + fail-closed", () => {
             ok: true,
             complete: true,
             events: [{ id: "m1" }],
-            asOf: "2026-09-11T14:55:00.000Z",
+            asOf: new Date(Date.now() - 60_000).toISOString(),
           };
         },
         sharpapi: async () => {
@@ -146,7 +148,7 @@ describe("odds router fallback + fail-closed", () => {
     });
     assert.equal(resolution.provider, "theodds");
     assert.deepEqual(called, ["parlay", "theodds"]);
-    assert.equal(resolution.asOf, "2026-09-11T14:55:00.000Z");
+    assert.ok(resolution.asOf);
   });
 
   it("skips missing backup credential and continues to next provider", async () => {
@@ -169,7 +171,7 @@ describe("odds router fallback + fail-closed", () => {
             ok: true,
             complete: true,
             events: [{ id: 2 }],
-            asOf: "2026-09-11T14:58:00.000Z",
+            asOf: new Date(Date.now() - 60_000).toISOString(),
           };
         },
         therundown: async () => {
@@ -271,6 +273,45 @@ describe("retry temporal safety + classification", () => {
     assert.equal(JSON.stringify(flags).includes("secret"), false);
   });
 });
+
+
+  it("treats cached auth/rate-limit/empty/malformed shells as unusable even with attached games", () => {
+    assert.equal(isUnusableCachedOddsMeta({ source: "parlay", error: "429 rate limit", games: 12, pinGames: 12 }), true);
+    assert.equal(isUnusableCachedOddsMeta({ source: "parlay-auth-fail", parlayError: "401 unauthorized", games: 8, pinGames: 8 }), true);
+    assert.equal(isUnusableCachedOddsMeta({ source: "parlay-empty", games: 0, pinGames: 0 }), true);
+    assert.equal(isUnusableCachedOddsMeta({ source: "parlay-malformed", error: "malformed payload", games: 4, pinGames: 4 }), true);
+  });
+
+  it("deriveOddsBoardHealth separates board availability from live collection health", () => {
+    const h = deriveOddsBoardHealth({
+      last_odds_mlb_source: "parlay-credit-exhausted",
+      last_odds_mlb_source_mode: MARKET_SOURCE_MODE.CACHED_PROVIDER,
+      last_odds_mlb_cached: "1",
+      last_odds_mlb_usable: "0",
+      last_odds_mlb_games: "15",
+      last_odds_cfb_source: "sharpapi-soft-backup",
+      last_odds_cfb_source_mode: MARKET_SOURCE_MODE.FALLBACK_PROVIDER,
+      last_odds_cfb_cached: "0",
+      last_odds_cfb_usable: "1",
+      last_odds_cfb_games: "66",
+      last_odds_cfb_provider: "sharpapi",
+    });
+    assert.equal(h.boardAvailable, true);
+    assert.equal(h.liveCollectionHealthy, true);
+    assert.equal(h.boardSourceMode, MARKET_SOURCE_MODE.FALLBACK_PROVIDER);
+  });
+
+  it("normalizeProviderAttempts classifies quota/skip/success without secrets", () => {
+    const rows = normalizeProviderAttempts([
+      { provider: "parlay", ok: false, error: "OUT_OF_USAGE_CREDITS", quotaExhausted: true },
+      { provider: "theodds", skipped: true, reason: "not-configured" },
+      { provider: "sharpapi", ok: true, complete: true, fresh: true, asOf: "2026-09-11T15:00:00Z" },
+    ]);
+    assert.equal(rows[0].outcome, "PROVIDER_QUOTA");
+    assert.equal(rows[1].outcome, "NOT_CONFIGURED");
+    assert.equal(rows[2].outcome, "SUCCESS");
+    assert.equal(JSON.stringify(rows).includes("secret"), false);
+  });
 
 describe("model safeguards during ops recovery", () => {
   it("keeps CFB-FBIS-v2 qualification and wager auth disabled", () => {

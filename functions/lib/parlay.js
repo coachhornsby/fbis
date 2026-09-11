@@ -38,6 +38,7 @@ import {
   attachMarketLineage,
   evaluateCachedMarketFreshness,
   isUnusableCachedOddsMeta,
+  normalizeProviderAttempts,
 } from "./marketLineage.js";
 
 /** Soft recreational books used only when pin + Heritage are absent. Never pin*. */
@@ -1062,7 +1063,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     execution: EXECUTION_BOOK,
     sentiment: SENTIMENT_BOOK,
     heritageInFeed: events.some((e) => e.heritageListed),
-    providerAttempts: pool.attempts,
+    providerAttempts: normalizeProviderAttempts(pool.attempts),
     providerStatuses: pool.statuses,
     failClosed: Boolean(pool.failClosed),
     freshnessStatus: "live",
