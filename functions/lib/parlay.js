@@ -33,6 +33,12 @@ import {
   providerConfigured,
   resolveOddsProviders,
 } from "./oddsProviderRouter.js";
+import {
+  MARKET_SOURCE_MODE,
+  attachMarketLineage,
+  evaluateCachedMarketFreshness,
+  isUnusableCachedOddsMeta,
+} from "./marketLineage.js";
 
 /** Soft recreational books used only when pin + Heritage are absent. Never pin*. */
 const SOFT_QUOTE_KEYS = new Set(["draftkings", "fanduel", "betmgm", "caesars", "bovada", "novig"]);
@@ -659,7 +665,30 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
     if (isParlayCreditError(cachedErr) && !String(cachedMeta.source || "").includes("credit-exhausted")) {
       cachedMeta.source = opts.backupApiKey ? "parlay-credit-exhausted-backup-failed" : "parlay-credit-exhausted";
     }
-    return { ...cached, meta: cachedMeta };
+    // Never treat quota-exhausted / fail-closed cache as a fresh live market.
+    // Bypass unusable cache so the provider pool can try TheOdds → SharpAPI → TheRundown.
+    const unusable = isUnusableCachedOddsMeta(cachedMeta);
+    const freshness = evaluateCachedMarketFreshness(cachedMeta, {
+      nowMs: Date.now(),
+      maxAgeMs: TTL_MS,
+    });
+    if (!unusable && freshness.ok) {
+      const lineage = attachMarketLineage(cachedMeta, {
+        provider: cachedMeta.provider || null,
+        cached: true,
+        receivedAt: new Date().toISOString(),
+        jobId: opts.collectionJobId || null,
+        retryOf: opts.retryOf || null,
+      });
+      // Preserve original observedAt / asOf — do not rewrite to "now".
+      lineage.observedAt = freshness.observedAt;
+      lineage.asOf = freshness.observedAt;
+      lineage.sourceMode = MARKET_SOURCE_MODE.CACHED_PROVIDER;
+      lineage.freshnessStatus = "fresh";
+      lineage.cacheAgeMs = freshness.ageMs;
+      return { ...cached, meta: lineage };
+    }
+    // Stale or unusable cache: fall through to live provider pool (fail closed if all fail).
   }
   if (opts.cacheOnly) {
     // Cache miss on TODAY sport=all: prefer sharp backup, then soft free books.
@@ -1007,31 +1036,48 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
   }
 
   const events = combined.map((ev) => summarizeParlayEvent(ev, sportId));
-  const payload = {
-    events,
-    meta: {
-      enabled: true,
-      remaining,
-      used,
-      cached: false,
-      source,
-      parlayError,
-      backupError,
-      sportKey,
-      games: events.length,
-      pinGames: pin.events.length,
-      sentimentGames,
-      f5Games,
-      propRows,
-      propFeedStatus,
-      propFeedError,
-      asOf: pin.credits.asOf,
-      sharp: SHARP_BOOK,
-      execution: EXECUTION_BOOK,
-      sentiment: SENTIMENT_BOOK,
-      heritageInFeed: events.some((e) => e.heritageListed),
-    },
+  const observedAt = pool.asOf || pin.credits.asOf || new Date().toISOString();
+  const receivedAt = new Date().toISOString();
+  const baseMeta = {
+    enabled: true,
+    remaining,
+    used,
+    cached: false,
+    source,
+    provider: pool.provider || null,
+    parlayError,
+    backupError,
+    sportKey,
+    games: events.length,
+    pinGames: pin.events.length,
+    sentimentGames,
+    f5Games,
+    propRows,
+    propFeedStatus,
+    propFeedError,
+    asOf: observedAt,
+    observedAt,
+    receivedAt,
+    sharp: SHARP_BOOK,
+    execution: EXECUTION_BOOK,
+    sentiment: SENTIMENT_BOOK,
+    heritageInFeed: events.some((e) => e.heritageListed),
+    providerAttempts: pool.attempts,
+    providerStatuses: pool.statuses,
+    failClosed: Boolean(pool.failClosed),
+    freshnessStatus: "live",
   };
-  await writeCache(cacheKey, payload, cfCache, TTL_MS);
+  const meta = attachMarketLineage(baseMeta, {
+    provider: pool.provider || null,
+    cached: false,
+    receivedAt,
+    jobId: opts.collectionJobId || null,
+    retryOf: opts.retryOf || null,
+  });
+  const payload = { events, meta };
+  // Do not cache unusable quota-exhausted / fail-closed shells — they poison fallback.
+  if (!isUnusableCachedOddsMeta(meta) && events.length > 0 && !meta.failClosed) {
+    await writeCache(cacheKey, payload, cfCache, TTL_MS);
+  }
   return payload;
 }
