@@ -210,13 +210,17 @@ function buildPropReasonCodes({
  * Classify PLAYER_PROPS readiness from coverage metrics (no auto-promotion).
  */
 export function classifyPlayerPropsReadiness(metrics = {}) {
-  const modelMarketRate = Number(metrics.modelMarketNormalizationRate);
-  const gameIdRate = Number(metrics.gameIdentityUsableRate);
-  const playerIdRate = Number(metrics.playerIdentityUsableRate);
-  const lineRate = Number(metrics.lineCoverage);
-  const priceRate = Number(metrics.priceCoverage);
-  const bookRate = Number(metrics.bookCoverage);
-  const sideRate = Number(metrics.sideCoverage);
+  const modelMarketRate = Number(
+    metrics.modelMarketNormalizationRate ?? metrics.canonicalMarketRate ?? 0
+  );
+  const gameIdRate = Number(metrics.gameIdentityUsableRate ?? 0);
+  const playerIdRate = Number(
+    metrics.playerIdentityUsableRate ?? metrics.stablePlayerIdRate ?? 0
+  );
+  const lineRate = Number(metrics.lineCoverage ?? 0);
+  const priceRate = Number(metrics.priceCoverage ?? 0);
+  const bookRate = Number(metrics.bookCoverage ?? 0);
+  const sideRate = Number(metrics.sideCoverage ?? 0);
 
   const blockers = [];
   if (!(gameIdRate >= 0.9)) blockers.push("GAME_IDENTITY");

@@ -4,15 +4,28 @@
 
 **State: `COLLECTING`**
 
-Production baseline (post match-rate fix smoke):
+Authoritative checkpoint: [`docs/action-apify-championship-checkpoint-2026-09-12.md`](./action-apify-championship-checkpoint-2026-09-12.md)
+
+Production baseline (post-repair SHA-gated verify on `417dc76…`, run `34697253243`):
+
+| Field | Value |
+| --- | --- |
+| Production SHA | `417dc76e8c12cbd7131e77fe3b3aa8f1b4e3312b` |
+| Migration | `0022_action_apify_harden` VERIFIED |
+| Action mode | shadow |
+| Plan env | **free** (owner should set `ACTION_APIFY_PLAN=starter`) |
+| In router | **false** |
+| decisionEligible / canQualify / canAuthorizeWager | **false** |
+| Fixture matching CFB | **3/3** (2 EXACT / 1 HIGH) |
+| Fixture matching NFL | **4/4 EXACT** |
+| PLAYER_PROPS CFB/NFL | identity/price/line/book **1.0**; canonical ~0.54 → **RESEARCH_READY** |
+| Role recommendation | **CONTINUE_CHAMPIONSHIP** (shadow) |
+
+### Earlier smoke baseline (historical; superseded for matching)
 
 | Field | Value |
 | --- | --- |
 | Production SHA | `cd71f905ce928ca650a996aa97d7fc15d0f3706d` |
-| Migration | `0022_action_apify_harden` VERIFIED |
-| Action mode | shadow |
-| In router | **false** |
-| decisionEligible / canQualify / canAuthorizeWager | **false** |
 | FBIS dated slate | 83 |
 | Action returned | 10 (`maxItems=10` free plan) |
 | EXACT / HIGH / AMBIGUOUS / UNMATCHED | 5 / 2 / 0 / 3 |
