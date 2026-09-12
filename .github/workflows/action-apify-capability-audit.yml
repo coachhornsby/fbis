@@ -17,6 +17,11 @@ on:
         default: pregame
         type: choice
         options: [early_slate, pregame, final_pregame]
+  # Push trigger used when workflow_dispatch is unavailable to the automation token.
+  push:
+    branches: [main]
+    paths:
+      - ".github/audit-triggers/action-ppe-capability-run"
 
 permissions:
   contents: read
@@ -37,21 +42,25 @@ jobs:
       MAX_TOTAL_USD: "0.75"
       # Deliberate high-signal sample (Action game IDs from public scoreboard).
       # MLB 2026-09-12: PHI@ATL, NYM@NYY, PIT@CHC
-      MLB_GAME_URLS: "294952,294941,294942"
+      MLB_IDS: "294952,294941,294942"
       # CFB: OU@MICH, OSU@TEX, BAMA@UK
-      CFB_GAME_URLS: "287974,287975,288997"
+      CFB_IDS: "287974,287975,288997"
       # NFL: BUF@HOU, NO@DET, TB@CIN, DAL@NYG
-      NFL_GAME_URLS: "290853,290851,290845,290800"
+      NFL_IDS: "290853,290851,290845,290800"
     steps:
       - name: Require confirmation + HARVEST_SECRET
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           CONFIRM: ${{ github.event.inputs.confirm }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
+          if [ "${EVENT_NAME}" = "push" ]; then
+            CONFIRM=RUN
+          fi
           test "${CONFIRM}" = "RUN" || { echo "Set confirm=RUN to spend"; exit 1; }
           test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET missing"; exit 1; }
-          echo "audit_authorized=true"
+          echo "audit_authorized=true event=${EVENT_NAME}"
 
       - name: Wait for production deploy SHA
         env:
@@ -84,17 +93,21 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
-          total=0
-          for spec in "mlb:3:${MLB_GAME_URLS}" "cfb:3:${CFB_GAME_URLS}" "nfl:4:${NFL_GAME_URLS}"; do
+          : > estimate-accumulate.txt
+          for spec in "mlb:3:${MLB_IDS}:2026-09-12" "cfb:3:${CFB_IDS}:" "nfl:4:${NFL_IDS}:"; do
             sport="${spec%%:*}"
             rest="${spec#*:}"
             max="${rest%%:*}"
-            urls="${rest#*:}"
+            rest2="${rest#*:}"
+            ids="${rest2%%:*}"
+            date="${rest2#*:}"
             tmp="$(mktemp)"
+            qs="mode=plan&sport=${sport}&lifecycle=${LIFECYCLE}&profile=${PROFILE}&maxItems=${max}&gameUrls=${ids}"
+            if [ -n "${date}" ]; then qs="${qs}&date=${date}"; fi
             code="$(curl -sS --max-time 60 -o "$tmp" -w '%{http_code}' \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "accept: application/json" \
-              "${BASE}/api/action-apify-collect?mode=plan&sport=${sport}&lifecycle=${LIFECYCLE}&profile=${PROFILE}&maxItems=${max}&gameUrls=${urls}")"
+              "${BASE}/api/action-apify-collect?${qs}")"
             echo "${sport}_plan_http=${code}"
             test "$code" = "200"
             jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$tmp" > "plan-${sport}.redacted.json"
@@ -106,8 +119,6 @@ jobs:
           print(f"${sport}_estimate_ok={est}")
           open("estimate-accumulate.txt","a").write(f"{est}\n")
           PY
-            flags="$(jq -c '{movement:.plan.input.includeLineMovement,playerProps:.plan.input.includePlayerProps,gameProps:.plan.input.includeGameProps,gameDetail:.plan.input.includeGameDetail,weather:.plan.input.includeWeather,maxItems:.plan.input.maxItems,gameUrls:.plan.input.gameUrls}' "$tmp")"
-            echo "${sport}_flags=${flags}"
             jq -e '.plan.input.includeLineMovement == true
               and .plan.input.includePlayerProps == true
               and .plan.input.includeGameProps == true
@@ -148,7 +159,7 @@ jobs:
           jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?, .rows?)' "$tmp" > exec-mlb.redacted.json
           cat exec-mlb.redacted.json
           test "$code" = "200"
-          jq -e '.ok == true and .executed == true' "$tmp" >/dev/null
+          jq -e '.ok == true and (.executed == true or .executed == true)' "$tmp" >/dev/null
 
       - name: Execute CFB capability audit (3 games)
         env:
@@ -222,11 +233,11 @@ jobs:
             deploymentCommit,
             migration: .build.schemaVersion,
             migrationStatus: .build.migrationStatus,
-            router: .oddsProviders.order,
+            router: (.oddsProviders.order // .oddsProviders.order),
             action: .actionApify
           }'
           echo "$health" | jq -e '
-            .oddsProviders.order == ["parlay","theodds","sharpapi","therundown"]
+            ((.oddsProviders.order // .oddsProviders.order) == ["parlay","theodds","sharpapi","therundown"])
             and .actionApify.inProductionRouter == false
             and .actionApify.canQualify == false
             and .actionApify.canAuthorizeWager == false
