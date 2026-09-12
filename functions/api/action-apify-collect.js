@@ -198,6 +198,7 @@ export async function onRequestGet(context) {
     },
     safety,
     slateError: slate.slateError,
+    slateDates: slate.slateDates || null,
     inProductionRouter: false,
     canQualify: false,
     canAuthorizeWager: false,
