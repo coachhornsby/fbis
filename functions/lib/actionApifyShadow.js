@@ -12,6 +12,7 @@
 import { sha256Hex } from "./sha256Hex.js";
 import { abbrMatch, namesMatchStrict } from "./match.js";
 import { ODDS_PROVIDER_ORDER } from "./oddsProviderRouter.js";
+import { canonicalizeFootballPropMarket } from "./actionApifyPropContract.js";
 
 export const ACTION_APIFY_PROVIDER = "ACTION_APIFY";
 export const ACTION_APIFY_SOURCE_CLASS = "SHADOW_MARKET_INTELLIGENCE";
@@ -432,6 +433,11 @@ export function normalizePlayerProps(props) {
     if (!raw || typeof raw !== "object") continue;
     const flattened = flattenPlayerPropEntries(raw);
     for (const p of flattened) {
+      const market = strOrNull(
+        p.market || p.marketType || p.market_type || p.propType || p.prop_type ||
+          p.type || p.betType || p.bet_type || p.stat || p.statType || p.marketName ||
+          p.market_name || p.prop_name || p.propName
+      );
       const row = {
         providerPlayerId: strOrNull(
           p.providerPlayerId ?? p.playerId ?? p.player_id ?? p.athleteId ?? p.athlete_id ??
@@ -458,28 +464,37 @@ export function normalizePlayerProps(props) {
           p.position || p.pos ||
             (p.player && typeof p.player === "object" ? p.player.position || p.player.pos : null)
         ),
-        market: strOrNull(
-          p.market || p.marketType || p.market_type || p.propType || p.prop_type ||
-            p.type || p.betType || p.bet_type || p.stat || p.statType || p.marketName
-        ),
+        market,
+        // Canonical FBIS football market when alias is known; else null (research-only).
+        marketCanonical: canonicalizeFootballPropMarket(market),
         marketId: strOrNull(p.marketId ?? p.market_id ?? p.propId ?? p.prop_id),
         period: strOrNull(p.period || p.periodLabel || p.period_id),
         line: numOrNull(p.line ?? p.points ?? p.value ?? p.total ?? p.handicap),
-        side: strOrNull(p.side || p.selection || p.outcome),
+        side: strOrNull(p.side || p.selection || p.outcome || p.name),
         overOdds: numOrNull(
-          p.overOdds ?? p.over_odds ?? p.over ?? p.oddsOver ??
-            (p.over && typeof p.over === "object" ? p.over.odds ?? p.over.price : null)
+          p.overOdds ?? p.over_odds ?? p.over ?? p.oddsOver ?? p.overPrice ?? p.over_price ??
+            (p.over && typeof p.over === "object" ? p.over.odds ?? p.over.price ?? p.over.american : null)
         ),
         underOdds: numOrNull(
-          p.underOdds ?? p.under_odds ?? p.under ?? p.oddsUnder ??
-            (p.under && typeof p.under === "object" ? p.under.odds ?? p.under.price : null)
+          p.underOdds ?? p.under_odds ?? p.under ?? p.oddsUnder ?? p.underPrice ?? p.under_price ??
+            (p.under && typeof p.under === "object" ? p.under.odds ?? p.under.price ?? p.under.american : null)
         ),
-        price: numOrNull(p.price ?? p.odds ?? p.americanOdds ?? p.american_odds),
+        price: numOrNull(
+          p.price ?? p.odds ?? p.americanOdds ?? p.american_odds ?? p.american ??
+            (p.odds && typeof p.odds === "object" ? p.odds.american ?? p.odds.price : null)
+        ),
         book: normalizeBookKey(
-          p.book || p.bookName || p.book_name || p.sportsbook || p.sportsbookName ||
+          p.book || p.bookName || p.book_name || p.sportsbook || p.sportsbookName || p.bookmaker ||
             (p.book && typeof p.book === "object" ? p.book.name || p.book.book : null)
         ),
         isAlternate: p.isAlternate === true || p.alternate === true || p.is_alternate === true ? true : null,
+        // Imagery: only pass through if Actor genuinely supplies it. Never invent.
+        imageUrl: strOrNull(
+          p.imageUrl ?? p.headshotUrl ?? p.photoUrl ?? p.playerImage ??
+            (p.player && typeof p.player === "object"
+              ? p.player.imageUrl ?? p.player.headshotUrl ?? p.player.photoUrl
+              : null)
+        ),
         // Do not invent observation time for props.
         observedAt: strOrNull(
           p.timestamp || p.observedAt || p.observed_at || p.updatedAt || p.updated_at ||
@@ -514,27 +529,86 @@ export function normalizePlayerProps(props) {
  */
 function flattenPlayerPropEntries(raw) {
   if (!raw || typeof raw !== "object") return [];
+
+  // Action Network Actor shape observed in live PPE:
+  // { marketId, type, name, lineType, outcomes:[{book,side,line,odds,playerId,playerName,...}] }
+  if (Array.isArray(raw.outcomes) && raw.outcomes.length) {
+    return raw.outcomes
+      .filter((o) => o && typeof o === "object")
+      .map((o) => {
+        const side = o.side || o.selection || o.outcome || null;
+        const price = o.odds ?? o.price ?? o.american ?? null;
+        const sideKey = String(side || "").toLowerCase();
+        return {
+          ...raw,
+          playerId: o.playerId ?? o.player_id ?? raw.playerId,
+          providerPlayerId: o.playerId ?? o.player_id ?? raw.providerPlayerId,
+          playerName: o.playerName ?? o.player_name ?? raw.playerName ?? raw.name,
+          teamId: o.teamId ?? raw.teamId,
+          team: o.team || o.teamName || raw.team,
+          market: raw.type || raw.name || raw.market || raw.marketType,
+          marketId: raw.marketId ?? raw.market_id,
+          line: o.line ?? o.points ?? o.value ?? raw.line,
+          side,
+          price,
+          overOdds: /over/i.test(sideKey) ? price : raw.overOdds,
+          underOdds: /under/i.test(sideKey) ? price : raw.underOdds,
+          book: o.book || o.bookName || o.sportsbook || raw.book,
+          bookId: o.bookId ?? raw.bookId,
+          isAlternate: o.isAlternate === true || o.alternate === true || raw.isAlternate === true,
+          ticketsPercent: o.ticketsPercent ?? null,
+          moneyPercent: o.moneyPercent ?? null,
+          timestamp: o.timestamp || o.updatedAt || raw.timestamp || raw.updatedAt,
+          observedAt: o.observedAt || raw.observedAt,
+        };
+      });
+  }
+
   const books = Array.isArray(raw.books)
     ? raw.books
     : Array.isArray(raw.odds)
       ? raw.odds
       : Array.isArray(raw.prices)
         ? raw.prices
-        : null;
+        : Array.isArray(raw.offers)
+          ? raw.offers
+          : null;
   if (books && books.length) {
     return books
       .filter((b) => b && typeof b === "object")
       .map((b) => ({
         ...raw,
-        book: b.book || b.bookName || b.name || b.sportsbook || raw.book,
+        book: b.book || b.bookName || b.name || b.sportsbook || b.bookmaker || raw.book,
         bookName: b.bookName || b.name,
         overOdds: b.overOdds ?? b.over_odds ?? b.over ?? (b.over && b.over.odds) ?? raw.overOdds,
         underOdds: b.underOdds ?? b.under_odds ?? b.under ?? (b.under && b.under.odds) ?? raw.underOdds,
         line: b.line ?? b.points ?? b.value ?? raw.line ?? raw.points,
-        price: b.price ?? b.odds ?? raw.price,
-        side: b.side || raw.side,
+        price: b.price ?? b.odds ?? b.american ?? raw.price,
+        side: b.side || b.selection || b.outcome || raw.side,
         timestamp: b.timestamp || b.updatedAt || raw.timestamp || raw.updatedAt,
         observedAt: b.observedAt || raw.observedAt,
+      }));
+  }
+  // Over/under option rows (common Actor shape).
+  if (Array.isArray(raw.options) && raw.options.length) {
+    return raw.options
+      .filter((o) => o && typeof o === "object")
+      .map((o) => ({
+        ...raw,
+        side: o.side || o.type || o.name || o.selection || raw.side,
+        line: o.line ?? o.points ?? o.value ?? raw.line ?? raw.points,
+        price: o.price ?? o.odds ?? o.american ?? raw.price,
+        overOdds:
+          /over/i.test(String(o.side || o.type || o.name || ""))
+            ? (o.price ?? o.odds ?? o.american)
+            : raw.overOdds,
+        underOdds:
+          /under/i.test(String(o.side || o.type || o.name || ""))
+            ? (o.price ?? o.odds ?? o.american)
+            : raw.underOdds,
+        book: o.book || o.bookName || o.sportsbook || raw.book,
+        timestamp: o.timestamp || o.updatedAt || raw.timestamp || raw.updatedAt,
+        observedAt: o.observedAt || raw.observedAt,
       }));
   }
   // Nested markets[] under a player object.
