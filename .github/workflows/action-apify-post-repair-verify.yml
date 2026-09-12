@@ -12,8 +12,16 @@ on:
         description: Type RUN to execute paid verification
         required: true
         default: ""
+      expected_sha:
+        description: Optional production deploymentCommit that must be live before spend (full SHA)
+        required: false
+        default: ""
   push:
-    branches: [main, cursor/action-championship-complete-312d, cursor/deploy-secret-sync-retry-312d]
+    branches:
+      - main
+      - cursor/action-championship-complete-312d
+      - cursor/deploy-secret-sync-retry-312d
+      - cursor/action-props-reverify-312d
     paths:
       - ".github/verify-triggers/action-post-repair-run"
 
@@ -33,6 +41,8 @@ jobs:
       BASE: https://fbis-myz.pages.dev
       LIFECYCLE: pregame
       MAX_TOTAL_USD: "0.50"
+      # Minimum SHA that includes outcomes[] prop normalizer + secret-sync retries.
+      OUTCOMES_NORMALIZER_SHA: "417dc76e8c12cbd7131e77fe3b3aa8f1b4e3312b"
       CFB_IDS: "287974,287975,288997"
       NFL_IDS: "290853,290851,290845,290800"
       CFB_PROP_ID: "287974"
@@ -50,19 +60,46 @@ jobs:
           test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET missing"; exit 1; }
           echo "authorized=true"
 
-      - name: Record live production SHA
+      # Push-triggered verifies race Pages deploy. Wait until live SHA is safe to measure.
+      # - main push: wait for this commit (github.sha)
+      # - workflow_dispatch: wait for inputs.expected_sha when provided
+      # - feature-branch push: wait for OUTCOMES_NORMALIZER_SHA (already on main)
+      - name: Wait for production deploy SHA
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          HEAD_SHA: ${{ github.sha }}
+          INPUT_SHA: ${{ github.event.inputs.expected_sha }}
         run: |
           set -euo pipefail
-          tmp="$(mktemp)"
-          code="$(curl -sS --max-time 30 -o "$tmp" -w '%{http_code}' \
-            -H "accept: application/json" \
-            "${BASE}/api/health?_=$(date +%s)")"
-          live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp")"
-          echo "health_http=${code} live_sha=${live}"
-          test "$code" = "200"
-          test -n "$live"
-          echo "LIVE_SHA=${live}" >> "$GITHUB_ENV"
-          jq '{deploymentCommit, actionApify, oddsProviders}' "$tmp" > health.json
+          if [ -n "${INPUT_SHA:-}" ]; then
+            WANT_SHA="${INPUT_SHA}"
+          elif [ "${REF_NAME}" = "main" ]; then
+            WANT_SHA="${HEAD_SHA}"
+          else
+            WANT_SHA="${OUTCOMES_NORMALIZER_SHA}"
+          fi
+          echo "want_sha=${WANT_SHA} event=${EVENT_NAME} ref=${REF_NAME}"
+          deadline=$((SECONDS + 900))
+          while true; do
+            tmp="$(mktemp)"
+            code="$(curl -sS --max-time 30 -o "$tmp" -w '%{http_code}' \
+              -H "accept: application/json" \
+              "${BASE}/api/health?_=$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp" 2>/dev/null || true)"
+            echo "health_http=${code} live_sha=${live}"
+            if [ "${code}" = "200" ] && [ -n "${live}" ] && [ "${live}" = "${WANT_SHA}" ]; then
+              echo "production_sha_matched=true"
+              echo "LIVE_SHA=${live}" >> "$GITHUB_ENV"
+              jq '{deploymentCommit, actionApify, oddsProviders}' "$tmp" > health.json
+              break
+            fi
+            if [ "${SECONDS}" -ge "${deadline}" ]; then
+              echo "Timed out waiting for production deploymentCommit=${WANT_SHA} (live=${live})"
+              exit 1
+            fi
+            sleep 15
+          done
 
       - name: Plan all runs (spend gate)
         env:
@@ -173,23 +210,40 @@ jobs:
           ok_nfl = match_gate(nfl, "nfl")
           print("cfb_matching_gate", ok_cfb)
           print("nfl_matching_gate", ok_nfl)
+          props_ok = True
           for sport, doc in [("cfb", props_cfb), ("nfl", props_nfl)]:
               pp = ((doc.get("capabilitySummary") or {}).get("playerProps")
                     if isinstance(doc.get("capabilitySummary"), dict) and "playerProps" in (doc.get("capabilitySummary") or {})
                     else doc.get("capabilitySummary") or {})
+              sid = float(pp.get("stablePlayerIdRate") or 0)
+              price = float(pp.get("priceCoverage") or 0)
+              line = float(pp.get("lineCoverage") or 0)
+              book = float(pp.get("bookCoverage") or 0)
+              canon = float(pp.get("canonicalMarketRate") or 0)
+              readiness = (pp.get("readiness") or pp.get("classification") or pp.get("status") or "UNKNOWN")
               print(f"{sport}_props", {
                   "propRows": pp.get("propRows") or pp.get("propsWritten") or doc.get("propsWritten"),
-                  "stablePlayerIdRate": pp.get("stablePlayerIdRate"),
-                  "priceCoverage": pp.get("priceCoverage"),
-                  "lineCoverage": pp.get("lineCoverage"),
-                  "bookCoverage": pp.get("bookCoverage"),
-                  "canonicalMarketRate": pp.get("canonicalMarketRate"),
+                  "stablePlayerIdRate": sid,
+                  "priceCoverage": price,
+                  "lineCoverage": line,
+                  "bookCoverage": book,
+                  "canonicalMarketRate": canon,
+                  "readiness": readiness,
                   "markets": (pp.get("markets") or [])[:20],
                   "rawFieldInventory": ((pp.get("rawFieldInventory") or {}).get("keys") or [])[:20],
               })
+              # Outcomes[] normalizer must lift identity+price off zero on live Action payloads.
+              if sid <= 0 or price <= 0:
+                  props_ok = False
+                  print(f"{sport}_props_gate FAILED sid={sid} price={price}")
+              else:
+                  print(f"{sport}_props_gate PASSED sid={sid} price={price} line={line} book={book} canon={canon}")
           if not (ok_cfb and ok_nfl):
               raise SystemExit("Matching verification gate failed")
           print("matching_verification_passed=true")
+          print(f"props_verification_passed={str(props_ok).lower()}")
+          if not props_ok:
+              raise SystemExit("PLAYER_PROPS coverage still zero after outcomes[] normalizer — abort")
           PY
 
       - name: Upload artifacts
