@@ -250,8 +250,9 @@ If a rotated token is unavailable, continue offline/fixture work and cost modeli
 
 ## FBIS non-negotiables (unchanged)
 
-- Private repository; no history rewrite / force-push for cleanup
+- Repository may be public; tip stays secret-free; no history rewrite / force-push without explicit owner approval
 - Additive migrations only
+
 - No fake probabilities / EV / fabricated markets
 - No stale market silently treated as current
 - No closing-line leakage into projections
