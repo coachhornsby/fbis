@@ -10,7 +10,7 @@ This document tracks what was already done for a safe tip, and what the owner mu
 - `.env` / `.dev.vars` ignored; `.env.example` is names-only.
 - `SECURITY.md` documents secret handling and recommended GitHub settings.
 - Cohort / strategy tip fixtures are synthetic; D1 is authoritative for production tickets.
-- Action/Apify remains shadow-only: not in `ODDS_PROVIDER_ORDER`, `canQualify=false`, `canAuthorizeWager=false`.
+- Action/Apify remains shadow-only: not in the production odds router; `canQualify=false`, `canAuthorizeWager=false`.
 
 ## Still owner-gated (not done by agents)
 
