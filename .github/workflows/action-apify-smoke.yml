@@ -51,6 +51,32 @@ jobs:
           test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET missing in Actions secrets"; exit 1; }
           echo "harvestAuthAvailable=true"
 
+      # Push-triggered smokes race CI deploy; wait until live Pages serves this SHA.
+      - name: Wait for production deploy SHA
+        env:
+          WANT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "want_sha=${WANT_SHA}"
+          deadline=$((SECONDS + 900))
+          while true; do
+            tmp="$(mktemp)"
+            code="$(curl -sS --max-time 30 -o "$tmp" -w '%{http_code}' \
+              -H "accept: application/json" \
+              "${BASE}/api/health?_=$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp" 2>/dev/null || true)"
+            echo "health_http=${code} live_sha=${live}"
+            if [ "${code}" = "200" ] && [ -n "${live}" ] && [ "${live}" = "${WANT_SHA}" ]; then
+              echo "production_sha_matched=true"
+              break
+            fi
+            if [ "${SECONDS}" -ge "${deadline}" ]; then
+              echo "Timed out waiting for production deploymentCommit=${WANT_SHA} (live=${live})"
+              exit 1
+            fi
+            sleep 15
+          done
+
       - name: No-spend plan
         id: plan
         env:
@@ -68,6 +94,15 @@ jobs:
           # Never print secrets; redact common token shapes if present.
           jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$tmp" > plan.redacted.json
           cat plan.redacted.json
+          # Date-scoped FBIS slate must not be a season dump (~300+).
+          expected="$(jq -r '(.plan.expectedSlateGames // .expectedSlateGames // .gamesExpected // 0)' "$tmp")"
+          echo "expectedSlateGames=${expected}"
+          python3 - <<PY
+          exp = float("${expected}" or 0)
+          if exp > 80:
+              raise SystemExit(f"expectedSlateGames={exp} looks like undated season dump; aborting spend")
+          print(f"slate_scope_ok={exp}")
+          PY
           estimate="$(jq -r '(.plan.estimatedCostUsd // .budget.estimatedNextRunUsd // .estimatedCostUsd // 0)' "$tmp")"
           echo "estimate=${estimate}"
           python3 - <<PY
