@@ -13,7 +13,7 @@ on:
         required: true
         default: ""
   push:
-    branches: [main, cursor/action-championship-complete-312d]
+    branches: [main, cursor/action-championship-complete-312d, cursor/deploy-secret-sync-retry-312d]
     paths:
       - ".github/verify-triggers/action-post-repair-run"
 

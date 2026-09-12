@@ -139,8 +139,24 @@ jobs:
               echo "skip ${name} (empty — leave existing Cloudflare secret unchanged)"
               return 0
             fi
-            printf '%s' "${value}" | npx wrangler pages secret put "${name}" --project-name fbis
-            echo "Synced ${name} to Pages project fbis"
+            # Retry transient Cloudflare/wrangler connectivity flakes (fetch failed).
+            local attempt=1
+            local max_attempts=4
+            local delay=5
+            while true; do
+              if printf '%s' "${value}" | npx wrangler pages secret put "${name}" --project-name fbis; then
+                echo "Synced ${name} to Pages project fbis (attempt ${attempt})"
+                return 0
+              fi
+              if [ "${attempt}" -ge "${max_attempts}" ]; then
+                echo "Failed to sync ${name} after ${max_attempts} attempts"
+                return 1
+              fi
+              echo "wrangler secret put ${name} failed (attempt ${attempt}/${max_attempts}); retrying in ${delay}s"
+              sleep "${delay}"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
           }
           put_secret SHARPAPI_API_KEY "${SHARPAPI_API_KEY}"
           put_secret THERUNDOWN_API_KEY "${THERUNDOWN_API_KEY}"
