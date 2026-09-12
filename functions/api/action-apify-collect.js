@@ -22,7 +22,7 @@ import { queryGames } from "../lib/store.js";
 import {
   loadDurableCandidateHealth,
   loadPersistedChampionshipScorecard,
-  mapGamesToFbisEvents,
+  loadFbisSlateForMatching,
 } from "../lib/actionApifyEvidence.js";
 import { queryMonthToDateSpendUsd } from "../lib/actionApifyDurableState.js";
 
@@ -89,12 +89,7 @@ function createCandidateDb(env) {
 }
 
 async function loadFbisSlate(env, { sport, date }) {
-  const games = await queryGames(env, { sport, date });
-  if (!games?.ok) {
-    return { fbisEvents: [], gamesExpected: null, slateError: games?.reason || "slate-unavailable" };
-  }
-  const fbisEvents = mapGamesToFbisEvents(games.rows || []);
-  return { fbisEvents, gamesExpected: fbisEvents.length, slateError: null };
+  return loadFbisSlateForMatching(queryGames, env, { sport, date });
 }
 
 /**

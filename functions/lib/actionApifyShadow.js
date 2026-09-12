@@ -10,7 +10,7 @@
  */
 
 import { sha256Hex } from "./sha256Hex.js";
-import { namesMatch } from "./match.js";
+import { abbrMatch, namesMatchStrict } from "./match.js";
 import { ODDS_PROVIDER_ORDER } from "./oddsProviderRouter.js";
 
 export const ACTION_APIFY_PROVIDER = "ACTION_APIFY";
@@ -615,11 +615,22 @@ export function normalizeActionDataset(items, ctx = {}) {
   return { rows, malformed, schemaVersion: ACTION_APIFY_SCHEMA_VERSION };
 }
 
+/** Prefer full-name strict equality; abbr only against abbr (never abbr↔full fuzzy). */
+function sidesMatch(actionName, actionAbbr, candName, candAbbr) {
+  if (actionName && candName && namesMatchStrict(actionName, candName)) return true;
+  if (actionAbbr && candAbbr && abbrMatch(actionAbbr, candAbbr)) return true;
+  return false;
+}
+
 /**
  * Deterministic event matcher — league + both teams + kickoff tolerance.
  * Never force low-confidence matches.
  */
-export function matchShadowEvent(actionRow, candidates = [], { kickoffToleranceMs = 3 * 60 * 60 * 1000 } = {}) {
+export function matchShadowEvent(
+  actionRow,
+  candidates = [],
+  { kickoffToleranceMs = 3 * 60 * 60 * 1000, nearestKickoffMarginMs = 30 * 60 * 1000 } = {}
+) {
   if (!actionRow?.homeTeam || !actionRow?.awayTeam) {
     return { matched: false, reason: "missing-action-teams", candidate: null };
   }
@@ -632,8 +643,10 @@ export function matchShadowEvent(actionRow, candidates = [], { kickoffToleranceM
     if (league && cLeague && !leaguesCompatible(league, cLeague)) continue;
     const cHome = c.homeTeam || c.home || c.home_team;
     const cAway = c.awayTeam || c.away || c.away_team;
-    const homeOk = namesMatch(actionRow.homeTeam, cHome) || namesMatch(actionRow.homeAbbr, cHome);
-    const awayOk = namesMatch(actionRow.awayTeam, cAway) || namesMatch(actionRow.awayAbbr, cAway);
+    const cHomeAbbr = c.homeAbbr || c.home_abbr || null;
+    const cAwayAbbr = c.awayAbbr || c.away_abbr || null;
+    const homeOk = sidesMatch(actionRow.homeTeam, actionRow.homeAbbr, cHome, cHomeAbbr);
+    const awayOk = sidesMatch(actionRow.awayTeam, actionRow.awayAbbr, cAway, cAwayAbbr);
     if (!homeOk || !awayOk) continue;
 
     const cStart = Date.parse(c.startTime || c.commence_time || c.kickoff || c.start || "");
@@ -641,8 +654,8 @@ export function matchShadowEvent(actionRow, candidates = [], { kickoffToleranceM
     if (Number.isFinite(actionStart) && Number.isFinite(cStart)) {
       kickoffDeltaMs = Math.abs(actionStart - cStart);
       if (kickoffDeltaMs > kickoffToleranceMs) continue;
-    } else if (Number.isFinite(actionStart) || Number.isFinite(cStart)) {
-      // One side missing kickoff → do not force match.
+    } else {
+      // Require kickoff on both sides — missing times against a large slate cause false AMBIGUOUS.
       continue;
     }
     matches.push({ candidate: c, kickoffDeltaMs });
@@ -652,6 +665,18 @@ export function matchShadowEvent(actionRow, candidates = [], { kickoffToleranceM
     return { matched: true, reason: "unique-team-kickoff", candidate: matches[0].candidate, kickoffDeltaMs: matches[0].kickoffDeltaMs };
   }
   if (matches.length > 1) {
+    const timed = [...matches].sort((a, b) => a.kickoffDeltaMs - b.kickoffDeltaMs);
+    const best = timed[0];
+    const second = timed[1];
+    if (!second || second.kickoffDeltaMs - best.kickoffDeltaMs >= nearestKickoffMarginMs) {
+      return {
+        matched: true,
+        reason: "unique-nearest-kickoff",
+        candidate: best.candidate,
+        kickoffDeltaMs: best.kickoffDeltaMs,
+        candidates: matches.length,
+      };
+    }
     return { matched: false, reason: "ambiguous-match", candidate: null, candidates: matches.length };
   }
   return { matched: false, reason: "no-match", candidate: null };
