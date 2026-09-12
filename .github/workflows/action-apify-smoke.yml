@@ -94,12 +94,13 @@ jobs:
           # Never print secrets; redact common token shapes if present.
           jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$tmp" > plan.redacted.json
           cat plan.redacted.json
-          # Date-scoped FBIS slate must not be a season dump (~300+).
+          # Date-scoped FBIS slate (today+tomorrow) must not be a season dump (~300+).
+          # CFB Saturdays can legitimately land ~80–120 across two days.
           expected="$(jq -r '(.plan.expectedSlateGames // .expectedSlateGames // .gamesExpected // 0)' "$tmp")"
           echo "expectedSlateGames=${expected}"
           python3 - <<PY
           exp = float("${expected}" or 0)
-          if exp > 80:
+          if exp > 200:
               raise SystemExit(f"expectedSlateGames={exp} looks like undated season dump; aborting spend")
           print(f"slate_scope_ok={exp}")
           PY
