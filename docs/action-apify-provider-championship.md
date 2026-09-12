@@ -1,5 +1,55 @@
 # Action/Apify Provider Championship Plan
 
+## Championship status (live)
+
+**State: `COLLECTING`**
+
+Production baseline (post match-rate fix smoke):
+
+| Field | Value |
+| --- | --- |
+| Production SHA | `cd71f905ce928ca650a996aa97d7fc15d0f3706d` |
+| Migration | `0022_action_apify_harden` VERIFIED |
+| Action mode | shadow |
+| In router | **false** |
+| decisionEligible / canQualify / canAuthorizeWager | **false** |
+| FBIS dated slate | 83 |
+| Action returned | 10 (`maxItems=10` free plan) |
+| EXACT / HIGH / AMBIGUOUS / UNMATCHED | 5 / 2 / 0 / 3 |
+| **Action→FBIS match rate** | **7/10 = 0.70** |
+| Ambiguous rate | 0/10 = 0.00 |
+| Unmatched rate | 3/10 = 0.30 |
+| FBIS dated-slate coverage (secondary) | 7/83 ≈ 0.084 — **not** the match-rate denominator |
+
+### Unmatched smoke events (classified; do not force-match)
+
+| Action ID | Matchup | Kickoffs | Classification |
+| --- | --- | --- | --- |
+| 288907 | Appalachian State @ East Carolina | both ~16:00Z | **PROVIDER_NAMING** / slate-date gap — school+mascot vs school; Fri-evening +36h slate skipped Sat board date |
+| 288908 | Gardner-Webb @ Liberty | Action 16:00Z vs FBIS 22:00Z | **TIME_WINDOW** (6h > 3h tolerance) — leave unmatched |
+| 288945 | Wofford @ Kent State | both ~16:00Z | **PROVIDER_NAMING** — Golden Flashes / Terriers fluff |
+
+Narrow fixes landed for consecutive Chicago slate dates + mascot fluff (`flames`/`flashes`/`terriers`/`golden`/`runnin`). Kickoff tolerance was **not** widened.
+
+### Denominator rules (non-negotiable)
+
+1. **Action→FBIS match rate** = (EXACT+HIGH) / Action returned  
+2. **FBIS dated-slate coverage** = matched unique FBIS / dated slate size (secondary when `maxItems` ≪ slate)  
+3. Store separately: `fbisDatedSlateCount`, `actionRequestMaxItems`, `actionEventsReturned`  
+4. Never report 7/83 as the match rate for a maxItems=10 run  
+
+### Lifecycle windows
+
+| Championship window | Internal phase | Profile |
+| --- | --- | --- |
+| OPENING | `opening` (alias of early board) | BASE |
+| EARLY | `early_slate` | BASE |
+| PREGAME | `pregame` | BASE |
+| FINAL_PREGAME | `final_pregame` | MOVEMENT |
+| POSTGAME | `postgame` | FINAL |
+
+---
+
 ## Purpose
 
 PR #63 proved Action Network via Apify **works** as shadow market intelligence.
@@ -265,12 +315,12 @@ If a rotated token is unavailable, continue offline/fixture work and cost modeli
 
 ## Implementation sequence (future work; not this PR)
 
-1. Merge post-#62 cache-attribution fix (#64) so incumbent baselines are not self-poisoned during comparison
-2. Owner rotates Apify token into secret storage
-3. Add scheduled **shadow-only** championship collector writing to `shadow_*` tables
-4. Add offline scorecard builder over stored comparisons (no router changes)
-5. Run 14-day sample across CFB/NFL/MLB
-6. Publish scorecard + recommendation
+1. ~~Merge post-#62 cache-attribution fix (#64)~~ — landed; usable fallbacks no longer poisoned by `parlay-credit-exhausted` source rewrite when provider is a live backup
+2. Owner rotates Apify token into secret storage (confirmed present for smoke)
+3. Scheduled **shadow-only** championship collector writing to `shadow_*` tables (COLLECTING — lifecycle snapshots, not minute-polling)
+4. Offline scorecard builder over stored comparisons (no router changes)
+5. Accumulate CFB weekend + NFL week + MLB slates across OPENING→POSTGAME
+6. Publish scorecard + role recommendation (PRIMARY / SECONDARY / MARKET_INTELLIGENCE_ONLY / …)
 7. Only if PRIMARY CANDIDATE: open a **separate** promotion design PR (still with independent fallback)
 
 ## What #63 already gives us

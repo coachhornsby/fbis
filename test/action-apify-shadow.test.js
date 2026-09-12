@@ -189,6 +189,11 @@ test("strict matching rejects Texas⊆Texas Tech and Tech≠State; allows short�
   assert.equal(namesMatchStrict("Miami", "Miami Ohio"), false);
   assert.equal(namesMatchStrict("Georgia", "Georgia Bulldogs"), true);
   assert.equal(namesMatchStrict("Alabama", "Alabama Crimson Tide"), true);
+  // Smoke UNMATCHED regressions: Action full names vs FBIS school names.
+  assert.equal(namesMatchStrict("Liberty Flames", "Liberty"), true);
+  assert.equal(namesMatchStrict("Kent State Golden Flashes", "Kent State"), true);
+  assert.equal(namesMatchStrict("Wofford Terriers", "Wofford"), true);
+  assert.equal(namesMatchStrict("Gardner-Webb Runnin' Bulldogs", "Gardner-Webb"), true);
 });
 
 test("matchShadowEvent scopes by strict sides + kickoff; nearest wins with margin", () => {

@@ -192,24 +192,58 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
   };
 }
 
-export function computeMatchDenominators({ fbisEvents = [], actionRows = [], matchDetails = [] } = {}) {
-  const fbisExpected = fbisEvents.length;
+/**
+ * Championship denominators — keep these metrics separate.
+ *
+ * A. actionToFbisMatchRate = (EXACT+HIGH) / Action returned
+ * B. fbisCoverageOfDatedSlate = matched unique FBIS / dated slate size
+ *    (secondary; NOT the primary coverage score when maxItems << slate)
+ * C. ambiguousRate = AMBIGUOUS / Action returned
+ * D. unmatchedRate = UNMATCHED / Action returned
+ *
+ * Never treat (EXACT+HIGH)/datedSlate as Action→FBIS match rate when the
+ * request was maxItems-bounded (e.g. free plan 10 of 83).
+ */
+export function computeMatchDenominators({
+  fbisEvents = [],
+  actionRows = [],
+  matchDetails = [],
+  requestedMaxItems = null,
+} = {}) {
+  const fbisDatedSlateCount = fbisEvents.length;
   const actionReturned = actionRows.length;
   const matched = matchDetails.filter((m) => m.comparisonEligible).length;
+  const exact = matchDetails.filter((m) => m.confidence === MATCH_CONFIDENCE.EXACT).length;
+  const high = matchDetails.filter((m) => m.confidence === MATCH_CONFIDENCE.HIGH).length;
   const ambiguous = matchDetails.filter((m) => m.confidence === MATCH_CONFIDENCE.AMBIGUOUS).length;
   const unmatched = matchDetails.filter((m) => m.confidence === MATCH_CONFIDENCE.UNMATCHED).length;
   const matchedFbisIds = new Set(
     matchDetails.filter((m) => m.comparisonEligible && m.fbisEventId).map((m) => String(m.fbisEventId))
   );
+  const maxItems =
+    requestedMaxItems != null && Number.isFinite(Number(requestedMaxItems))
+      ? Math.max(0, Math.floor(Number(requestedMaxItems)))
+      : null;
   return {
-    fbisEventsExpected: fbisExpected,
+    fbisEventsExpected: fbisDatedSlateCount,
+    fbisDatedSlateCount,
+    actionRequestMaxItems: maxItems,
     actionEventsReturned: actionReturned,
     matchedEvents: matched,
+    exactEvents: exact,
+    highEvents: high,
     ambiguousEvents: ambiguous,
+    unmatchedEvents: unmatched,
     actionOnlyEvents: unmatched,
-    fbisOnlyEvents: Math.max(0, fbisExpected - matchedFbisIds.size),
+    fbisOnlyEvents: Math.max(0, fbisDatedSlateCount - matchedFbisIds.size),
+    /** A — primary Action→FBIS identity rate */
     actionToFbisMatchRate: actionReturned > 0 ? matched / actionReturned : null,
-    fbisCoverageRate: fbisExpected > 0 ? matchedFbisIds.size / fbisExpected : null,
+    /** B — full dated-slate coverage (secondary when maxItems-bounded) */
+    fbisCoverageRate: fbisDatedSlateCount > 0 ? matchedFbisIds.size / fbisDatedSlateCount : null,
+    fbisCoverageOfDatedSlate:
+      fbisDatedSlateCount > 0 ? matchedFbisIds.size / fbisDatedSlateCount : null,
+    /** C / D — never merge into one failure bucket */
     ambiguousRate: actionReturned > 0 ? ambiguous / actionReturned : null,
+    unmatchedRate: actionReturned > 0 ? unmatched / actionReturned : null,
   };
 }
