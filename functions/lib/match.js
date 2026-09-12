@@ -14,6 +14,65 @@ const MASCOT = new Set([
   "tarheels", "tar", "heels", "demon", "deacons", "mountaineers", "volunteers", "commodores",
 ]);
 
+/**
+ * Extra nickname fluff for provider↔FBIS strict joins only.
+ * Keep these OUT of MASCOT: namesMatch (Blue Chip / loose callers) uses subset
+ * logic, and school+mascot fluff there falsely collapses e.g. Arkansas Razorbacks
+ * onto Arkansas State.
+ */
+const ACTION_NAME_FLUFF = new Set([
+  "crimson",
+  "tide",
+  "fighting",
+  "irish",
+  "nittany",
+  "wolverines",
+  "buckeyes",
+  "razorbacks",
+  "hurricanes",
+  "seminole",
+  "boilermakers",
+  "hoosiers",
+  "badgers",
+  "gophers",
+  "illini",
+  "cornhuskers",
+  "cyclones",
+  "sun",
+  "devils",
+  "utes",
+  "cougar",
+  // NFL nicknames so city↔full-name can resolve when abbrs are missing.
+  "bills",
+  "dolphins",
+  "patriots",
+  "jets",
+  "ravens",
+  "bengals",
+  "browns",
+  "steelers",
+  "texans",
+  "colts",
+  "jaguars",
+  "titans",
+  "broncos",
+  "chargers",
+  "cowboys",
+  "giants",
+  "commanders",
+  "packers",
+  "vikings",
+  "falcons",
+  "saints",
+  "buccaneers",
+  "bucs",
+  "cardinals",
+  "seahawks",
+  "niners",
+  "49ers",
+  "fortyniners",
+]);
+
 export function normName(s) {
   return String(s || "")
     .toLowerCase()
@@ -97,11 +156,9 @@ export function namesMatchStrict(a, b) {
   // Keep school disambiguators (tech/state/forest) out of FLUFF — those are WEAK.
   const FLUFF = new Set([
     ...MASCOT,
-    "crimson",
-    "tide",
-    "fighting",
-    // Common Action full-name mascots missing from MASCOT (Liberty Flames,
-    // Kent State Golden Flashes, Wofford Terriers, Gardner-Webb Runnin' Bulldogs).
+    ...ACTION_NAME_FLUFF,
+    // Common Action full-name mascots (Liberty Flames, Kent State Golden Flashes,
+    // Wofford Terriers, Gardner-Webb Runnin' Bulldogs, etc.).
     "flames",
     "flashes",
     "terriers",

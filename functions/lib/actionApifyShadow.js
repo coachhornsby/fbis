@@ -417,25 +417,166 @@ function normalizeLineMovement(lm, historySource = null) {
   };
 }
 
-function normalizePlayerProps(props) {
+/**
+ * Flatten Actor player-prop rows into FBIS research shape.
+ *
+ * Upstream schemas vary (flat fixture rows vs nested player/odds/books).
+ * Capture only genuine fields — never invent player ids, prices, or timestamps.
+ * Returns { rows, fieldInventory } so capability audits can diagnose schema gaps
+ * without another paid collection.
+ */
+export function normalizePlayerProps(props) {
   if (!Array.isArray(props)) return [];
-  return props
-    .map((p) => {
-      if (!p || typeof p !== "object") return null;
-      return {
-        playerId: strOrNull(p.playerId ?? p.id),
-        playerName: strOrNull(p.playerName ?? p.name),
-        team: strOrNull(p.team || p.teamName || p.teamAbbr),
-        market: strOrNull(p.market || p.marketType || p.propType),
-        line: numOrNull(p.line ?? p.points),
-        overOdds: numOrNull(p.overOdds ?? p.over),
-        underOdds: numOrNull(p.underOdds ?? p.under),
-        book: normalizeBookKey(p.book || p.bookName),
+  const out = [];
+  for (const raw of props) {
+    if (!raw || typeof raw !== "object") continue;
+    const flattened = flattenPlayerPropEntries(raw);
+    for (const p of flattened) {
+      const row = {
+        providerPlayerId: strOrNull(
+          p.providerPlayerId ?? p.playerId ?? p.player_id ?? p.athleteId ?? p.athlete_id ??
+            (p.player && typeof p.player === "object" ? p.player.id ?? p.player.playerId : null)
+        ),
+        // Legacy alias kept for championship metrics / existing readers.
+        playerId: strOrNull(
+          p.providerPlayerId ?? p.playerId ?? p.player_id ?? p.athleteId ?? p.athlete_id ??
+            (p.player && typeof p.player === "object" ? p.player.id ?? p.player.playerId : null)
+        ),
+        playerName: strOrNull(
+          p.playerName ?? p.player_name ?? p.name ?? p.athleteName ??
+            (p.player && typeof p.player === "object"
+              ? p.player.name ?? p.player.fullName ?? p.player.playerName
+              : null)
+        ),
+        team: strOrNull(
+          p.team || p.teamName || p.teamAbbr || p.team_abbr || p.teamAbbreviation ||
+            (p.player && typeof p.player === "object"
+              ? p.player.team || p.player.teamName || p.player.teamAbbr || p.player.abbreviation
+              : null)
+        ),
+        position: strOrNull(
+          p.position || p.pos ||
+            (p.player && typeof p.player === "object" ? p.player.position || p.player.pos : null)
+        ),
+        market: strOrNull(
+          p.market || p.marketType || p.market_type || p.propType || p.prop_type ||
+            p.type || p.betType || p.bet_type || p.stat || p.statType || p.marketName
+        ),
+        marketId: strOrNull(p.marketId ?? p.market_id ?? p.propId ?? p.prop_id),
+        period: strOrNull(p.period || p.periodLabel || p.period_id),
+        line: numOrNull(p.line ?? p.points ?? p.value ?? p.total ?? p.handicap),
+        side: strOrNull(p.side || p.selection || p.outcome),
+        overOdds: numOrNull(
+          p.overOdds ?? p.over_odds ?? p.over ?? p.oddsOver ??
+            (p.over && typeof p.over === "object" ? p.over.odds ?? p.over.price : null)
+        ),
+        underOdds: numOrNull(
+          p.underOdds ?? p.under_odds ?? p.under ?? p.oddsUnder ??
+            (p.under && typeof p.under === "object" ? p.under.odds ?? p.under.price : null)
+        ),
+        price: numOrNull(p.price ?? p.odds ?? p.americanOdds ?? p.american_odds),
+        book: normalizeBookKey(
+          p.book || p.bookName || p.book_name || p.sportsbook || p.sportsbookName ||
+            (p.book && typeof p.book === "object" ? p.book.name || p.book.book : null)
+        ),
+        isAlternate: p.isAlternate === true || p.alternate === true || p.is_alternate === true ? true : null,
         // Do not invent observation time for props.
-        observedAt: strOrNull(p.timestamp || p.observedAt || p.updatedAt),
+        observedAt: strOrNull(
+          p.timestamp || p.observedAt || p.observed_at || p.updatedAt || p.updated_at ||
+            p.sourceObservedAt || p.lastUpdated
+        ),
+        identityConfidence: null,
       };
-    })
-    .filter(Boolean);
+      // Drop completely empty shells (Actor sometimes embeds non-prop objects).
+      if (
+        !row.playerName &&
+        !row.providerPlayerId &&
+        !row.market &&
+        row.line == null &&
+        row.overOdds == null &&
+        row.underOdds == null &&
+        row.price == null
+      ) {
+        continue;
+      }
+      if (!row.identityConfidence) {
+        row.identityConfidence = row.providerPlayerId ? "HIGH" : row.playerName ? "HIGH" : "UNMATCHED";
+      }
+      out.push(row);
+    }
+  }
+  return out;
+}
+
+/**
+ * Expand nested Actor prop shapes into flat rows (one book / one line each).
+ * If already flat, returns [raw].
+ */
+function flattenPlayerPropEntries(raw) {
+  if (!raw || typeof raw !== "object") return [];
+  const books = Array.isArray(raw.books)
+    ? raw.books
+    : Array.isArray(raw.odds)
+      ? raw.odds
+      : Array.isArray(raw.prices)
+        ? raw.prices
+        : null;
+  if (books && books.length) {
+    return books
+      .filter((b) => b && typeof b === "object")
+      .map((b) => ({
+        ...raw,
+        book: b.book || b.bookName || b.name || b.sportsbook || raw.book,
+        bookName: b.bookName || b.name,
+        overOdds: b.overOdds ?? b.over_odds ?? b.over ?? (b.over && b.over.odds) ?? raw.overOdds,
+        underOdds: b.underOdds ?? b.under_odds ?? b.under ?? (b.under && b.under.odds) ?? raw.underOdds,
+        line: b.line ?? b.points ?? b.value ?? raw.line ?? raw.points,
+        price: b.price ?? b.odds ?? raw.price,
+        side: b.side || raw.side,
+        timestamp: b.timestamp || b.updatedAt || raw.timestamp || raw.updatedAt,
+        observedAt: b.observedAt || raw.observedAt,
+      }));
+  }
+  // Nested markets[] under a player object.
+  if (Array.isArray(raw.markets) && raw.markets.length && (raw.player || raw.playerName || raw.name)) {
+    return raw.markets.flatMap((m) => flattenPlayerPropEntries({
+      player: raw.player,
+      playerId: raw.playerId ?? raw.player?.id,
+      playerName: raw.playerName ?? raw.name ?? raw.player?.name,
+      team: raw.team,
+      ...m,
+    }));
+  }
+  return [raw];
+}
+
+/** Inventory of raw prop field keys for schema forensics (no values / no PII dump). */
+export function inventoryPlayerPropFields(props, { sample = 5 } = {}) {
+  if (!Array.isArray(props) || !props.length) {
+    return { samples: 0, topLevelKeys: [], nestedKeys: [] };
+  }
+  const top = new Map();
+  const nested = new Map();
+  const n = Math.min(props.length, Math.max(1, sample));
+  for (let i = 0; i < n; i += 1) {
+    const p = props[i];
+    if (!p || typeof p !== "object") continue;
+    for (const k of Object.keys(p)) {
+      top.set(k, (top.get(k) || 0) + 1);
+      const v = p[k];
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        for (const nk of Object.keys(v)) nested.set(`${k}.${nk}`, (nested.get(`${k}.${nk}`) || 0) + 1);
+      }
+      if (Array.isArray(v) && v[0] && typeof v[0] === "object") {
+        for (const nk of Object.keys(v[0])) nested.set(`${k}[].${nk}`, (nested.get(`${k}[].${nk}`) || 0) + 1);
+      }
+    }
+  }
+  return {
+    samples: n,
+    topLevelKeys: [...top.entries()].sort((a, b) => b[1] - a[1]).map(([k, c]) => ({ key: k, count: c })),
+    nestedKeys: [...nested.entries()].sort((a, b) => b[1] - a[1]).map(([k, c]) => ({ key: k, count: c })),
+  };
 }
 
 /**
@@ -471,6 +612,7 @@ export function normalizeActionGameRow(raw, ctx = {}) {
     const lineMovement = normalizeLineMovement(raw.lineMovement, raw.lineMovementHistory);
     const result = normalizeResult(raw);
     const playerProps = normalizePlayerProps(raw.playerProps || raw.props);
+    const playerPropFieldInventory = inventoryPlayerPropFields(raw.playerProps || raw.props);
     // Optional PPE enrichments — pass through when Actor returns them (no invention).
     const gameProps = Array.isArray(raw.gameProps)
       ? raw.gameProps
@@ -573,6 +715,7 @@ export function normalizeActionGameRow(raw, ctx = {}) {
       books,
       result,
       playerProps,
+      playerPropFieldInventory,
       gameProps,
       gameDetail,
       researchFields: buildResearchFields({
@@ -582,6 +725,7 @@ export function normalizeActionGameRow(raw, ctx = {}) {
         scrapedAt,
         consensusSpreadHome,
         consensusTotal,
+        playerPropFieldInventory,
       }),
       decisionEligible: false,
       canQualify: false,
@@ -605,6 +749,7 @@ export function buildResearchFields({
   consensusTotal = null,
   fbisSpreadProjection = null,
   fbisTotalProjection = null,
+  playerPropFieldInventory = null,
 } = {}) {
   const ticketsPct = publicBetting?.spreadHome?.ticketsPercent ?? null;
   const moneyPct = publicBetting?.spreadHome?.moneyPercent ?? null;
@@ -645,6 +790,8 @@ export function buildResearchFields({
       ? { homeScore: result.homeScore, awayScore: result.awayScore, atsResult: result.atsResult, ouResult: result.ouResult }
       : null,
     unitsResult: null,
+    // Schema forensics only — keys/counts, never raw prop payloads.
+    playerPropFieldInventory: playerPropFieldInventory || null,
   };
 }
 
@@ -666,9 +813,83 @@ function sidesMatch(actionName, actionAbbr, candName, candAbbr) {
   return false;
 }
 
+/** Synthetic book/board ids vs canonical ESPN/numeric schedule ids. */
+export function isSyntheticFbisEventId(id) {
+  const s = String(id || "");
+  if (!s) return true;
+  if (/^(ncaaf_|nfl_|mlb_|nba_|ncaab_)/i.test(s)) return true;
+  if (/_b\d+$/i.test(s)) return true;
+  return false;
+}
+
+function candidateStartMs(c) {
+  return Date.parse(c?.startTime || c?.commence_time || c?.kickoff || c?.start || "");
+}
+
+function sameMatchupIdentity(a, b) {
+  const aHome = a?.homeTeam || a?.home || a?.home_team;
+  const aAway = a?.awayTeam || a?.away || a?.away_team;
+  const bHome = b?.homeTeam || b?.home || b?.home_team;
+  const bAway = b?.awayTeam || b?.away || b?.away_team;
+  const homeOk =
+    sidesMatch(aHome, a?.homeAbbr || a?.home_abbr, bHome, b?.homeAbbr || b?.home_abbr) ||
+    sidesMatch(bHome, b?.homeAbbr || b?.home_abbr, aHome, a?.homeAbbr || a?.home_abbr);
+  const awayOk =
+    sidesMatch(aAway, a?.awayAbbr || a?.away_abbr, bAway, b?.awayAbbr || b?.away_abbr) ||
+    sidesMatch(bAway, b?.awayAbbr || b?.away_abbr, aAway, a?.awayAbbr || a?.away_abbr);
+  return Boolean(homeOk && awayOk);
+}
+
+/**
+ * Prefer ESPN/numeric schedule ids over synthetic book-board duplicates.
+ * Stable tie-break by id string so collapses are deterministic.
+ */
+export function pickCanonicalFbisCandidate(candidates = []) {
+  const list = (candidates || []).filter(Boolean);
+  if (!list.length) return null;
+  return [...list].sort((a, b) => {
+    const sa = isSyntheticFbisEventId(a.id) ? 1 : 0;
+    const sb = isSyntheticFbisEventId(b.id) ? 1 : 0;
+    if (sa !== sb) return sa - sb;
+    const na = /^\d+$/.test(String(a.id || "")) ? 0 : 1;
+    const nb = /^\d+$/.test(String(b.id || "")) ? 0 : 1;
+    if (na !== nb) return na - nb;
+    return String(a.id || "").localeCompare(String(b.id || ""));
+  })[0];
+}
+
+/**
+ * Drop synthetic FBIS board duplicates when a canonical same-matchup row exists.
+ * Does not loosen team/kickoff thresholds — only collapses identical slate clones.
+ */
+export function dedupeCanonicalFbisCandidates(candidates = [], { kickoffEpsilonMs = 2 * 60 * 1000 } = {}) {
+  const list = [...(candidates || [])];
+  const kept = [];
+  for (const c of list) {
+    const cStart = candidateStartMs(c);
+    const dupIdx = kept.findIndex((k) => {
+      if (!sameMatchupIdentity(c, k)) return false;
+      const kStart = candidateStartMs(k);
+      if (Number.isFinite(cStart) && Number.isFinite(kStart)) {
+        return Math.abs(cStart - kStart) <= kickoffEpsilonMs;
+      }
+      return true;
+    });
+    if (dupIdx < 0) {
+      kept.push(c);
+      continue;
+    }
+    const preferred = pickCanonicalFbisCandidate([kept[dupIdx], c]);
+    kept[dupIdx] = preferred;
+  }
+  return kept;
+}
+
 /**
  * Deterministic event matcher — league + both teams + kickoff tolerance.
  * Never force low-confidence matches.
+ * When multiple FBIS clones of the same matchup survive, collapse to canonical id
+ * instead of AMBIGUOUS (duplicate slate rows are not true ambiguity).
  */
 export function matchShadowEvent(
   actionRow,
@@ -680,9 +901,10 @@ export function matchShadowEvent(
   }
   const actionStart = actionRow.startTime ? Date.parse(actionRow.startTime) : NaN;
   const league = String(actionRow.league || "").toLowerCase();
+  const universe = dedupeCanonicalFbisCandidates(candidates);
   const matches = [];
 
-  for (const c of candidates) {
+  for (const c of universe) {
     const cLeague = String(c.league || c.sport || "").toLowerCase();
     if (league && cLeague && !leaguesCompatible(league, cLeague)) continue;
     const cHome = c.homeTeam || c.home || c.home_team;
@@ -702,7 +924,7 @@ export function matchShadowEvent(
       // Require kickoff on both sides — missing times against a large slate cause false AMBIGUOUS.
       continue;
     }
-    matches.push({ candidate: c, kickoffDeltaMs });
+    matches.push({ candidate: c, kickoffDeltaMs, startMs: cStart });
   }
 
   if (matches.length === 1) {
@@ -721,6 +943,28 @@ export function matchShadowEvent(
         candidates: matches.length,
       };
     }
+
+    // Near-tie cluster: collapse only when every near candidate is the same matchup
+    // (canonical ESPN row + synthetic book board clone), not two distinct games.
+    const cluster = timed.filter((m) => m.kickoffDeltaMs - best.kickoffDeltaMs < nearestKickoffMarginMs);
+    const clusterCands = cluster.map((m) => m.candidate);
+    const allSameMatchup = clusterCands.every((c) => sameMatchupIdentity(c, clusterCands[0]));
+    const starts = cluster.map((m) => m.startMs).filter(Number.isFinite);
+    const kickoffsAligned =
+      starts.length >= 2 ? Math.max(...starts) - Math.min(...starts) <= 2 * 60 * 1000 : true;
+    const hasSynthetic = clusterCands.some((c) => isSyntheticFbisEventId(c.id));
+    if (allSameMatchup && (hasSynthetic || kickoffsAligned)) {
+      const chosen = pickCanonicalFbisCandidate(clusterCands);
+      return {
+        matched: true,
+        reason: "unique-canonical-among-duplicates",
+        candidate: chosen,
+        kickoffDeltaMs: Math.abs(actionStart - candidateStartMs(chosen)),
+        candidates: matches.length,
+        collapsedDuplicates: clusterCands.length,
+      };
+    }
+
     return { matched: false, reason: "ambiguous-match", candidate: null, candidates: matches.length };
   }
   return { matched: false, reason: "no-match", candidate: null };
