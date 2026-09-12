@@ -349,14 +349,22 @@ export function calendarDateChicago(d = new Date()) {
 
 /**
  * Default FBIS slate dates when caller omits `date`.
- * Today + tomorrow (Chicago) — avoids season-wide 300+ game ambiguity.
+ * Today + tomorrow in America/Chicago — never an undated season dump.
+ *
+ * Important: do NOT use a fixed +36h offset. On Chicago evening, +36h can
+ * skip the next calendar day (e.g. Fri 22:00 CT → Sun), dropping Saturday's
+ * board date from the matching universe.
  */
 export function defaultFbisSlateDates(now = new Date()) {
-  const dates = new Set([
-    calendarDateChicago(now),
-    calendarDateChicago(new Date(now.getTime() + 36 * 60 * 60 * 1000)),
-  ]);
-  return [...dates].sort();
+  const today = calendarDateChicago(now);
+  let cursor = now.getTime();
+  let tomorrow = today;
+  // Advance hour-by-hour until the Chicago calendar day rolls (DST-safe).
+  for (let i = 0; i < 48 && tomorrow === today; i += 1) {
+    cursor += 60 * 60 * 1000;
+    tomorrow = calendarDateChicago(new Date(cursor));
+  }
+  return [...new Set([today, tomorrow])].sort();
 }
 
 /**

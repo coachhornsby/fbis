@@ -774,6 +774,7 @@ export async function runCandidateCollection(env, opts) {
       fbisEvents,
       actionRows: normalized,
       matchDetails,
+      requestedMaxItems: plan.input.maxItems,
     });
 
     const logicalCollectionKey =

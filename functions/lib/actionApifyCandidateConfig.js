@@ -24,6 +24,8 @@ export const COLLECTION_PROFILES = Object.freeze({
 });
 
 export const LIFECYCLE_PHASES = Object.freeze({
+  /** Alias for early board snapshot (championship OPENING window). */
+  OPENING: "opening",
   EARLY_SLATE: "early_slate",
   PREGAME: "pregame",
   FINAL_PREGAME: "final_pregame",
@@ -163,11 +165,15 @@ export function cadenceForPhase(phase, sport = "") {
   const p = String(phase || "").toLowerCase();
   const s = String(sport || "").toLowerCase();
   switch (p) {
+    case LIFECYCLE_PHASES.OPENING:
+    case "opening":
     case LIFECYCLE_PHASES.EARLY_SLATE:
+    case "early":
       return {
         profile: COLLECTION_PROFILES.BASE,
         temporalClass: TEMPORAL_CLASS.PREGAME_OBSERVATION,
         gameStatus: "scheduled",
+        championshipWindow: p === "early" || p === LIFECYCLE_PHASES.EARLY_SLATE ? "EARLY" : "OPENING",
       };
     case LIFECYCLE_PHASES.PREGAME:
       return {
@@ -175,18 +181,21 @@ export function cadenceForPhase(phase, sport = "") {
         temporalClass: TEMPORAL_CLASS.PREGAME_OBSERVATION,
         gameStatus: "scheduled",
         preferMovementNearKickoff: true,
+        championshipWindow: "PREGAME",
       };
     case LIFECYCLE_PHASES.FINAL_PREGAME:
       return {
         profile: COLLECTION_PROFILES.MOVEMENT,
         temporalClass: TEMPORAL_CLASS.PREGAME_OBSERVATION,
         gameStatus: "scheduled",
+        championshipWindow: "FINAL_PREGAME",
       };
     case LIFECYCLE_PHASES.POSTGAME:
       return {
         profile: COLLECTION_PROFILES.FINAL,
         temporalClass: TEMPORAL_CLASS.EVALUATION_CLOSE,
         gameStatus: "complete",
+        championshipWindow: "POSTGAME",
       };
     default:
       return {

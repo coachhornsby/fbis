@@ -94,7 +94,21 @@ export function namesMatchStrict(a, b) {
   if (aWeak !== bWeak) return false;
 
   // Nickname / mascot fluff stripped only for this strict core check.
-  const FLUFF = new Set([...MASCOT, "crimson", "tide", "fighting"]);
+  // Keep school disambiguators (tech/state/forest) out of FLUFF — those are WEAK.
+  const FLUFF = new Set([
+    ...MASCOT,
+    "crimson",
+    "tide",
+    "fighting",
+    // Common Action full-name mascots missing from MASCOT (Liberty Flames,
+    // Kent State Golden Flashes, Wofford Terriers, Gardner-Webb Runnin' Bulldogs).
+    "flames",
+    "flashes",
+    "terriers",
+    "golden",
+    "runnin",
+    "running",
+  ]);
   const core = (toks) =>
     [...new Set(toks.filter((t) => t && !WEAK.has(t) && !FLUFF.has(t) && !STOP.has(t)))].sort();
   const ca = core(ta);

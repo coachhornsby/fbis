@@ -417,10 +417,16 @@ test("logical collection key is deterministic for run idempotency", () => {
   assert.equal(a, b);
 });
 
-test("default FBIS slate dates are today+tomorrow Chicago — never undated season dump", async () => {
+test("default FBIS slate dates are consecutive Chicago today+tomorrow — never skip via +36h", async () => {
+  // Friday evening Chicago (Sat early UTC): +36h wrongly skipped Saturday.
+  const friEve = new Date("2026-09-12T03:01:00.000Z");
+  assert.equal(calendarDateChicago(friEve), "2026-09-11");
+  assert.deepEqual(defaultFbisSlateDates(friEve), ["2026-09-11", "2026-09-12"]);
+
   const now = new Date("2026-09-12T18:00:00.000Z");
   const dates = defaultFbisSlateDates(now);
   assert.ok(dates.includes(calendarDateChicago(now)));
+  assert.deepEqual(dates, ["2026-09-12", "2026-09-13"]);
   assert.equal(dates.length, 2);
 
   const seen = [];
@@ -450,4 +456,40 @@ test("explicit date keeps single-day FBIS slate", async () => {
   const slate = await loadFbisSlateForMatching(queryGames, {}, { sport: "nfl", date: "2026-09-14" });
   assert.deepEqual(slate.slateDates, ["2026-09-14"]);
   assert.equal(slate.gamesExpected, 1);
+});
+
+test("championship denominators keep match rate separate from dated-slate coverage", () => {
+  const fbisEvents = Array.from({ length: 83 }, (_, i) => ({ id: `f${i}` }));
+  const actionRows = Array.from({ length: 10 }, (_, i) => ({ actionGameId: `a${i}` }));
+  const matchDetails = [
+    ...Array.from({ length: 7 }, (_, i) => ({
+      comparisonEligible: true,
+      confidence: i < 5 ? "EXACT" : "HIGH",
+      fbisEventId: `f${i}`,
+    })),
+    ...Array.from({ length: 3 }, (_, i) => ({
+      comparisonEligible: false,
+      confidence: "UNMATCHED",
+      fbisEventId: null,
+    })),
+  ];
+  const den = computeMatchDenominators({
+    fbisEvents,
+    actionRows,
+    matchDetails,
+    requestedMaxItems: 10,
+  });
+  assert.equal(den.actionEventsReturned, 10);
+  assert.equal(den.fbisDatedSlateCount, 83);
+  assert.equal(den.actionRequestMaxItems, 10);
+  assert.equal(den.matchedEvents, 7);
+  assert.equal(den.exactEvents, 5);
+  assert.equal(den.highEvents, 2);
+  assert.equal(den.unmatchedEvents, 3);
+  assert.equal(den.actionToFbisMatchRate, 0.7);
+  assert.equal(den.ambiguousRate, 0);
+  assert.equal(den.unmatchedRate, 0.3);
+  // Full-slate coverage is secondary — must NOT be confused with Action→FBIS match rate.
+  assert.ok(den.fbisCoverageOfDatedSlate < 0.2);
+  assert.notEqual(den.actionToFbisMatchRate, den.fbisCoverageOfDatedSlate);
 });
