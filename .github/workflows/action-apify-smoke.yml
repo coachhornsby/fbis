@@ -1,0 +1,162 @@
+name: Action Apify BASE smoke
+
+# One-shot / on-demand shadow smoke. Uses GitHub Actions secrets only.
+# Never logs secret values. Never puts Action in the odds router.
+# Spend gate: estimatedCostUsd must be <= 0.25 before execute.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sport:
+        description: Sport (cfb|mlb|nfl)
+        required: true
+        default: cfb
+        type: choice
+        options: [cfb, mlb, nfl]
+      lifecycle:
+        description: Lifecycle window
+        required: true
+        default: pregame
+        type: choice
+        options: [early_slate, pregame, final_pregame, postgame]
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/action-apify-smoke.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: action-apify-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: BASE SMOKE (<= $0.25)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE: https://fbis-myz.pages.dev
+      SPORT: ${{ github.event.inputs.sport || 'cfb' }}
+      LIFECYCLE: ${{ github.event.inputs.lifecycle || 'pregame' }}
+      PROFILE: BASE
+      MAX_ESTIMATE_USD: "0.25"
+    steps:
+      - name: Require HARVEST_SECRET
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET missing in Actions secrets"; exit 1; }
+          echo "harvestAuthAvailable=true"
+
+      - name: No-spend plan
+        id: plan
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp)"
+          code="$(curl -sS --max-time 60 -o "$tmp" -w '%{http_code}' \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "accept: application/json" \
+            "${BASE}/api/action-apify-collect?mode=plan&sport=${SPORT}&lifecycle=${LIFECYCLE}&profile=${PROFILE}")"
+          echo "plan_http=${code}"
+          test "$code" = "200"
+          jq -e '.ok == true' "$tmp" >/dev/null
+          # Never print secrets; redact common token shapes if present.
+          jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$tmp" > plan.redacted.json
+          cat plan.redacted.json
+          estimate="$(jq -r '(.plan.estimatedCostUsd // .budget.estimatedNextRunUsd // .estimatedCostUsd // 0)' "$tmp")"
+          echo "estimate=${estimate}"
+          python3 - <<PY
+          import json, os
+          est = float("${estimate}" or 0)
+          cap = float(os.environ["MAX_ESTIMATE_USD"])
+          if est > cap:
+              raise SystemExit(f"estimatedCostUsd={est} exceeds cap={cap}")
+          print(f"estimate_ok={est}")
+          PY
+          blocks="$(jq -r '[.safety.blocks[]?.code // empty] | join(",")' "$tmp")"
+          allowed="$(jq -r '.safety.allowed // .safety.ok // true' "$tmp")"
+          echo "safety_allowed=${allowed} blocks=${blocks}"
+          if [ "${allowed}" = "false" ]; then
+            echo "Plan safety blocked; refusing spend"
+            exit 1
+          fi
+          echo "estimate=${estimate}" >> "$GITHUB_OUTPUT"
+
+      - name: Execute one BASE smoke
+        id: exec
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp)"
+          code="$(curl -sS --max-time 300 -o "$tmp" -w '%{http_code}' \
+            -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -H "accept: application/json" \
+            -d "{\"execute\":\"1\",\"sport\":\"${SPORT}\",\"lifecycle\":\"${LIFECYCLE}\",\"profile\":\"${PROFILE}\"}" \
+            "${BASE}/api/action-apify-collect?execute=1&sport=${SPORT}&lifecycle=${LIFECYCLE}&profile=${PROFILE}")"
+          echo "exec_http=${code}"
+          jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?, .rows?)' "$tmp" > exec.redacted.json
+          cat exec.redacted.json
+          test "$code" = "200"
+          jq -e '.ok == true and .executed == true' "$tmp" >/dev/null
+          echo "smoke_ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: Cold health + scorecard + monthly (D1 durability)
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          # Independent requests after execute — must reconstruct from D1, not warm memory.
+          for mode in health monthly; do
+            tmp="$(mktemp)"
+            code="$(curl -sS --max-time 60 -o "$tmp" -w '%{http_code}' \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              "${BASE}/api/action-apify-collect?mode=${mode}&sport=${SPORT}&profile=${PROFILE}&_=$(date +%s)")"
+            echo "cold_${mode}_http=${code}"
+            test "$code" = "200"
+            jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$tmp" > "cold-${mode}.redacted.json"
+            cat "cold-${mode}.redacted.json"
+          done
+          tmp="$(mktemp)"
+          code="$(curl -sS --max-time 60 -o "$tmp" -w '%{http_code}' \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "accept: application/json" \
+            "${BASE}/api/action-apify-collect?mode=scorecard&window=24h&sport=${SPORT}&_=$(date +%s)")"
+          echo "cold_scorecard_http=${code}"
+          test "$code" = "200"
+          jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$tmp" > cold-scorecard.redacted.json
+          cat cold-scorecard.redacted.json
+          # Durability: last run must be present after cold request
+          jq -e '
+            (.actionApify.lastRunAt // .lastRunAt // .actionApify.lastSuccessAt // .lastSuccessAt) != null
+            or (.package.sampleRuns // 0) > 0
+            or (.evidenceBasis == "persisted")
+          ' cold-health.redacted.json cold-scorecard.redacted.json >/dev/null || {
+            # Prefer health last run; scorecard sample as fallback
+            last="$(jq -r '.actionApify.lastRunAt // .actionApify.lastSuccessAt // .lastRunAt // empty' cold-health.redacted.json)"
+            sample="$(jq -r '.package.sampleRuns // .sampleRuns // 0' cold-scorecard.redacted.json)"
+            echo "lastRunAt=${last} sampleRuns=${sample}"
+            if [ -z "${last}" ] && [ "${sample}" = "0" ]; then
+              echo "D1 durability proof failed: cold health/scorecard show no prior run"
+              exit 1
+            fi
+          }
+          echo "D1_durability_proven=true"
+
+      - name: Upload redacted smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: action-apify-base-smoke
+          path: |
+            *.redacted.json
+          if-no-files-found: ignore
+          retention-days: 14
