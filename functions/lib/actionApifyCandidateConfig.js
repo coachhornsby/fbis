@@ -21,6 +21,12 @@ export const COLLECTION_PROFILES = Object.freeze({
   MLB_F5: "MLB_F5",
   PLAYER_PROPS: "PLAYER_PROPS",
   FINAL: "FINAL",
+  /**
+   * Bounded PPE capability audit only — enables BASE enrichments:
+   * movement + player props + game props + game detail.
+   * Shadow/research; never a routine production profile.
+   */
+  CAPABILITY_AUDIT: "CAPABILITY_AUDIT",
 });
 
 export const LIFECYCLE_PHASES = Object.freeze({
@@ -138,6 +144,12 @@ export function profileToActorFlags(profile, overrides = {}) {
       break;
     case COLLECTION_PROFILES.FINAL:
       flags.includeLineMovement = true;
+      flags.includeGameDetail = true;
+      break;
+    case COLLECTION_PROFILES.CAPABILITY_AUDIT:
+      flags.includeLineMovement = true;
+      flags.includePlayerProps = true;
+      flags.includeGameProps = true;
       flags.includeGameDetail = true;
       break;
     case COLLECTION_PROFILES.BASE:

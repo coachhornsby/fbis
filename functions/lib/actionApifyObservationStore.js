@@ -34,7 +34,13 @@ export async function ensureShadowProviderRun(db, { runId, plan, startedAt, fini
       JSON.stringify(plan?.input?.leagues || []),
       JSON.stringify(plan?.input?.periods || ["event"]),
       plan?.input?.maxItems ?? null,
-      JSON.stringify({ profile: plan?.profile || null, includeLineMovement: Boolean(plan?.input?.includeLineMovement), includePlayerProps: Boolean(plan?.input?.includePlayerProps) }),
+      JSON.stringify({
+        profile: plan?.profile || null,
+        includeLineMovement: Boolean(plan?.input?.includeLineMovement),
+        includePlayerProps: Boolean(plan?.input?.includePlayerProps),
+        includeGameProps: Boolean(plan?.input?.includeGameProps),
+        includeGameDetail: Boolean(plan?.input?.includeGameDetail),
+      }),
       plan?.gamesReturned ?? null,
       plan?.malformedRows ?? 0,
       plan?.estimatedCostUsd ?? null,
@@ -67,8 +73,15 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
   const sourceObservedAt = row.observedAt || row.sourceObservedAt || null;
   const scrapedAt = row.scrapedAt || null;
   const profile = String(ctx.profile || "BASE").toUpperCase();
-  const persistMovement = profile === "MOVEMENT" || profile === "FINAL" || Boolean(ctx.persistMovement);
-  const persistProps = profile === "PLAYER_PROPS" || Boolean(ctx.persistProps);
+  const persistMovement =
+    profile === "MOVEMENT" ||
+    profile === "FINAL" ||
+    profile === "CAPABILITY_AUDIT" ||
+    Boolean(ctx.persistMovement);
+  const persistProps =
+    profile === "PLAYER_PROPS" ||
+    profile === "CAPABILITY_AUDIT" ||
+    Boolean(ctx.persistProps);
 
   await db.exec(
     `INSERT INTO shadow_market_observations (
@@ -101,6 +114,9 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
         propsPersisted: persistProps,
         research: row.researchFields || null,
         playerProps: persistProps ? row.playerProps || null : undefined,
+        // CAPABILITY_AUDIT / raw enrichments — store when Actor returns them.
+        gameProps: row.gameProps || null,
+        gameDetail: row.gameDetail || null,
       }),
       now, fbisEventId, ctx.sport || row.sport || null,
       row.temporalClass || ctx.temporalClass || null, confidence, now, sourceObservedAt,

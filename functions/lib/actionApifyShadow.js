@@ -146,6 +146,20 @@ export function buildActorInput(opts = {}) {
   if (opts.seasonType) input.seasonType = String(opts.seasonType);
   if (opts.gameStatus) input.gameStatus = normalizeActorGameStatus(opts.gameStatus);
   if (opts.onlyWithOdds) input.onlyWithOdds = true;
+  // Deliberate sample selection (Actor filters — no extra PPE).
+  if (Array.isArray(opts.gameUrls) && opts.gameUrls.length) {
+    input.gameUrls = opts.gameUrls.map(String).filter(Boolean).slice(0, maxItems);
+  }
+  if (Array.isArray(opts.teams) && opts.teams.length) {
+    input.teams = opts.teams.map(String).filter(Boolean);
+  }
+  if (opts.sortBy) input.sortBy = String(opts.sortBy);
+  if (opts.minNumBets != null && Number.isFinite(Number(opts.minNumBets))) {
+    input.minNumBets = Math.max(0, Math.floor(Number(opts.minNumBets)));
+  }
+  if (opts.minSharpGap != null && Number.isFinite(Number(opts.minSharpGap))) {
+    input.minSharpGap = Math.max(0, Math.floor(Number(opts.minSharpGap)));
+  }
   return input;
 }
 
@@ -457,6 +471,34 @@ export function normalizeActionGameRow(raw, ctx = {}) {
     const lineMovement = normalizeLineMovement(raw.lineMovement, raw.lineMovementHistory);
     const result = normalizeResult(raw);
     const playerProps = normalizePlayerProps(raw.playerProps || raw.props);
+    // Optional PPE enrichments — pass through when Actor returns them (no invention).
+    const gameProps = Array.isArray(raw.gameProps)
+      ? raw.gameProps
+      : Array.isArray(raw.teamProps)
+        ? raw.teamProps
+        : Array.isArray(raw.gamePropMarkets)
+          ? raw.gamePropMarkets
+          : raw.gameProps && typeof raw.gameProps === "object"
+            ? raw.gameProps
+            : null;
+    // Game detail may arrive as one object or as sibling roster/trend blocks.
+    let gameDetail =
+      raw.gameDetail && typeof raw.gameDetail === "object"
+        ? raw.gameDetail
+        : raw.detail && typeof raw.detail === "object"
+          ? raw.detail
+          : null;
+    if (!gameDetail) {
+      const detailBits = {};
+      if (raw.rosters || raw.roster) detailBits.rosters = raw.rosters || raw.roster;
+      if (raw.depthCharts || raw.depthChart) detailBits.depthCharts = raw.depthCharts || raw.depthChart;
+      if (raw.trends || raw.situationalTrends) detailBits.trends = raw.trends || raw.situationalTrends;
+      if (raw.teamRankings || raw.statRankings) detailBits.teamRankings = raw.teamRankings || raw.statRankings;
+      if (raw.headToHead || raw.h2h || raw.lastFiveMeetings) {
+        detailBits.headToHead = raw.headToHead || raw.h2h || raw.lastFiveMeetings;
+      }
+      if (Object.keys(detailBits).length) gameDetail = detailBits;
+    }
 
     const bestOdds = raw.bestOdds && typeof raw.bestOdds === "object"
       ? {
@@ -531,6 +573,8 @@ export function normalizeActionGameRow(raw, ctx = {}) {
       books,
       result,
       playerProps,
+      gameProps,
+      gameDetail,
       researchFields: buildResearchFields({
         publicBetting,
         lineMovement,
