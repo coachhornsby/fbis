@@ -285,6 +285,7 @@ export async function onRequestPost(context) {
         executed: true,
         expectedSlateGames: slate.gamesExpected,
         slateError: slate.slateError,
+        slateDates: slate.slateDates || null,
         trigger: parseJobTrigger(context.request),
         inProductionRouter: false,
         canQualify: false,
