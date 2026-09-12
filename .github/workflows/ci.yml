@@ -124,14 +124,19 @@ jobs:
           # Secrets from GitHub Actions only (never workflow YAML / logs).
           # Odds: SharpAPI / TheRundown intentional fallbacks once rotated keys installed.
           # Action/Apify: shadow candidate only — never ODDS_PROVIDER_ORDER authority.
-          # Empty GitHub secrets must NEVER overwrite Cloudflare secrets.
+          # Empty GitHub secrets must NEVER overwrite Cloudflare secrets (credentials).
+          # ACTION_APIFY_PLAN is a tier label (not a credential). Owner is on Apify Starter;
+          # pin starter when the GH secret is empty or still "free" so health matches billing.
           SHARPAPI_API_KEY="${SHARPAPI_API_KEY_SECRET:-}"
           THERUNDOWN_API_KEY="${THERUNDOWN_API_KEY_SECRET:-}"
           THEODDS_API_KEY="${THEODDS_API_KEY_SECRET:-}"
           APIFY_TOKEN="${APIFY_TOKEN_SECRET:-}"
           ACTION_APIFY_ENABLED="${ACTION_APIFY_ENABLED_SECRET:-}"
-          ACTION_APIFY_PLAN="${ACTION_APIFY_PLAN_SECRET:-}"
-          ACTION_APIFY_MONTHLY_BUDGET_USD="${ACTION_APIFY_MONTHLY_BUDGET_USD_SECRET:-}"
+          ACTION_APIFY_PLAN="${ACTION_APIFY_PLAN_SECRET:-starter}"
+          if [ "${ACTION_APIFY_PLAN}" = "free" ]; then
+            ACTION_APIFY_PLAN=starter
+          fi
+          ACTION_APIFY_MONTHLY_BUDGET_USD="${ACTION_APIFY_MONTHLY_BUDGET_USD_SECRET:-19}"
           put_secret() {
             local name="$1"
             local value="$2"
