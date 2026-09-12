@@ -383,16 +383,28 @@ export function projectMonthlyStarterSufficiency({
 
     const pctOfCredit = starterCreditUsd > 0 ? round4(totalCost / starterCreditUsd) : null;
     const overage = Math.max(0, totalCost - starterCreditUsd);
+    // Starter economics: $19 subscription includes $19 prepaid platform usage.
+    // Gross platform usage can exceed prepaid; excess is billable beyond included credit.
+    const subscriptionCostUsd = 19;
+    const prepaidPlatformUsageUsd = starterCreditUsd;
+    const estimatedGrossPlatformUsageUsd = roundUsd(totalCost);
+    const estimatedExcessPlatformUsageUsd = roundUsd(overage);
     out[name] = {
       scenario: name,
       bySport,
       combined: {
         runs: totalRuns,
         games: totalGames,
-        estimatedMonthlyCostUsd: roundUsd(totalCost),
+        estimatedMonthlyCostUsd: estimatedGrossPlatformUsageUsd,
         percentOfStarterCredit: pctOfCredit,
-        expectedOverageUsd: roundUsd(overage),
+        expectedOverageUsd: estimatedExcessPlatformUsageUsd,
         withinStarterCredit: totalCost <= starterCreditUsd + 1e-9,
+        // Explicit prepaid vs excess breakdown (never conflate with subscription invoice).
+        subscriptionCostUsd,
+        prepaidPlatformUsageUsd,
+        estimatedGrossPlatformUsageUsd,
+        estimatedExcessPlatformUsageUsd,
+        estimatedInvoicePreTaxUsd: roundUsd(subscriptionCostUsd + estimatedExcessPlatformUsageUsd),
       },
       starterCreditUsd,
       costBasis: "ESTIMATED",
@@ -402,9 +414,63 @@ export function projectMonthlyStarterSufficiency({
 
   return {
     starterCreditUsd,
+    subscriptionCostUsd: 19,
+    prepaidPlatformUsageUsd: starterCreditUsd,
     scenarios: out,
-    note: "Projections are ESTIMATED from Actor PPE pricing / observed run economics. Not labeled as actual.",
+    note: "Projections are ESTIMATED from Actor PPE pricing / observed run economics. Not labeled as actual. Starter $19 subscription includes $19 prepaid platform usage; excess platform usage is separate from the subscription fee.",
   };
+}
+
+/**
+ * Championship cadence experiment profiles (shadow only).
+ * A = lean BASE, B = decision-intel with targeted MOVEMENT, C = movement-heavy sample.
+ */
+export const CADENCE_EXPERIMENT_PROFILES = Object.freeze({
+  A_LEAN: {
+    id: "A_LEAN",
+    label: "Lean BASE",
+    windows: {
+      OPENING: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      EARLY: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      FINAL_PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      POSTGAME: { profile: "FINAL", includeMovement: false, includePlayerProps: false },
+    },
+    costClass: "PREPAID_VALUE",
+  },
+  B_DECISION_INTEL: {
+    id: "B_DECISION_INTEL",
+    label: "Decision intelligence",
+    windows: {
+      OPENING: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      EARLY: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      PREGAME: { profile: "MOVEMENT", includeMovement: true, includePlayerProps: false },
+      FINAL_PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      POSTGAME: { profile: "FINAL", includeMovement: false, includePlayerProps: false },
+    },
+    costClass: "VALUE_JUSTIFIED_OVERAGE",
+  },
+  C_MOVEMENT_HEAVY: {
+    id: "C_MOVEMENT_HEAVY",
+    label: "Movement heavy (sampled)",
+    windows: {
+      OPENING: { profile: "MOVEMENT", includeMovement: true, includePlayerProps: false },
+      EARLY: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      PREGAME: { profile: "MOVEMENT", includeMovement: true, includePlayerProps: false },
+      FINAL_PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      POSTGAME: { profile: "FINAL", includeMovement: false, includePlayerProps: false },
+    },
+    costClass: "RESEARCH_ONLY",
+    note: "Sample only — tests whether early MOVEMENT is reconstructable from later pulls.",
+  },
+});
+
+export function resolveCadenceExperimentProfile(id = "B_DECISION_INTEL") {
+  const key = String(id || "").toUpperCase();
+  return (
+    CADENCE_EXPERIMENT_PROFILES[key] ||
+    CADENCE_EXPERIMENT_PROFILES.B_DECISION_INTEL
+  );
 }
 
 /**
@@ -623,6 +689,11 @@ export function buildCapabilityAuditSummary(rows = [], ctx = {}) {
   let playerPropsWithId = 0;
   let playerPropsWithPrice = 0;
   let playerPropsWithTs = 0;
+  let playerPropsWithLine = 0;
+  let playerPropsWithBook = 0;
+  let playerPropsWithSide = 0;
+  let playerPropsWithCanonical = 0;
+  let playerPropsWithImage = 0;
   let withGameProps = 0;
   let gamePropRows = 0;
   let withGameDetail = 0;
@@ -695,9 +766,15 @@ export function buildCapabilityAuditSummary(rows = [], ctx = {}) {
     playerPropRows += props.length;
     for (const p of props) {
       if (p.market) playerMarkets.add(String(p.market));
+      if (p.marketCanonical) playerMarkets.add(`canonical:${p.marketCanonical}`);
       if (p.playerId || p.providerPlayerId) playerPropsWithId += 1;
       if (p.overOdds != null || p.underOdds != null || p.price != null) playerPropsWithPrice += 1;
       if (p.observedAt) playerPropsWithTs += 1;
+      if (p.line != null) playerPropsWithLine += 1;
+      if (p.book) playerPropsWithBook += 1;
+      if (p.side) playerPropsWithSide += 1;
+      if (p.marketCanonical) playerPropsWithCanonical += 1;
+      if (p.imageUrl) playerPropsWithImage += 1;
     }
     if (propInv?.topLevelKeys?.length) {
       propInventorySamples += Number(propInv.samples) || 0;
@@ -790,6 +867,11 @@ export function buildCapabilityAuditSummary(rows = [], ctx = {}) {
       stablePlayerIdRate: playerPropRows ? round4(playerPropsWithId / playerPropRows) : 0,
       priceCoverage: playerPropRows ? round4(playerPropsWithPrice / playerPropRows) : 0,
       timestampCoverage: playerPropRows ? round4(playerPropsWithTs / playerPropRows) : 0,
+      lineCoverage: playerPropRows ? round4(playerPropsWithLine / playerPropRows) : 0,
+      bookCoverage: playerPropRows ? round4(playerPropsWithBook / playerPropRows) : 0,
+      sideCoverage: playerPropRows ? round4(playerPropsWithSide / playerPropRows) : 0,
+      canonicalMarketRate: playerPropRows ? round4(playerPropsWithCanonical / playerPropRows) : 0,
+      imageUrlRate: playerPropRows ? round4(playerPropsWithImage / playerPropRows) : 0,
       markets: [...playerMarkets].sort().slice(0, 80),
       // Key inventory from raw Actor props (forensics; not a coverage claim).
       rawFieldInventory: {
