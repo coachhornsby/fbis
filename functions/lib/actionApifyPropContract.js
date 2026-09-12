@@ -28,16 +28,19 @@ export const ACTION_PROP_MARKET_ALIASES = Object.freeze({
   player_pass_yds: "passing_yards",
   "passing yards": "passing_yards",
   "pass yards": "passing_yards",
+  core_bet_type_9_passing_yards: "passing_yards",
   passing_attempts: "passing_attempts",
   pass_attempts: "passing_attempts",
   pass_atts: "passing_attempts",
   player_pass_attempts: "passing_attempts",
   "passing attempts": "passing_attempts",
   "pass attempts": "passing_attempts",
+  core_bet_type_30_passing_attempts: "passing_attempts",
   completions: "completions",
   pass_completions: "completions",
   player_pass_completions: "completions",
   "pass completions": "completions",
+  core_bet_type_10_pass_completions: "completions",
   // Rushing
   rushing_yards: "rushing_yards",
   rush_yards: "rushing_yards",
@@ -45,35 +48,49 @@ export const ACTION_PROP_MARKET_ALIASES = Object.freeze({
   player_rush_yds: "rushing_yards",
   "rushing yards": "rushing_yards",
   "rush yards": "rushing_yards",
+  core_bet_type_12_rushing_yards: "rushing_yards",
   rushing_attempts: "rushing_attempts",
   rush_attempts: "rushing_attempts",
   rush_atts: "rushing_attempts",
   player_rush_attempts: "rushing_attempts",
   "rushing attempts": "rushing_attempts",
   "rush attempts": "rushing_attempts",
+  core_bet_type_18_rushing_attempts: "rushing_attempts",
   // Receiving
   receptions: "receptions",
   recs: "receptions",
   player_receptions: "receptions",
   catches: "receptions",
+  core_bet_type_15_receptions: "receptions",
   receiving_yards: "receiving_yards",
   rec_yards: "receiving_yards",
   rec_yds: "receiving_yards",
   player_rec_yds: "receiving_yards",
   "receiving yards": "receiving_yards",
   "rec yards": "receiving_yards",
+  core_bet_type_16_receiving_yards: "receiving_yards",
 });
 
 export function canonicalizeFootballPropMarket(raw) {
   if (raw == null || raw === "") return null;
-  const key = String(raw).trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  const original = String(raw).trim().toLowerCase();
+  const key = original.replace(/[_-]+/g, " ").replace(/\s+/g, " ");
   const compact = key.replace(/\s+/g, "_");
-  return (
+  const direct =
     ACTION_PROP_MARKET_ALIASES[key] ||
     ACTION_PROP_MARKET_ALIASES[compact] ||
-    ACTION_PROP_MARKET_ALIASES[String(raw).trim().toLowerCase()] ||
-    null
-  );
+    ACTION_PROP_MARKET_ALIASES[original] ||
+    null;
+  if (direct) return direct;
+  // Action core_bet_type_* labels: match by trailing market token(s).
+  if (original.includes("passing_yards") || original.endsWith("_passing_yards")) return "passing_yards";
+  if (original.includes("passing_attempts") || original.endsWith("_passing_attempts")) return "passing_attempts";
+  if (original.includes("pass_completions") || original.endsWith("_pass_completions")) return "completions";
+  if (original.includes("rushing_yards") || original.endsWith("_rushing_yards")) return "rushing_yards";
+  if (original.includes("rushing_attempts") || original.endsWith("_rushing_attempts")) return "rushing_attempts";
+  if (original.includes("receiving_yards") || original.endsWith("_receiving_yards")) return "receiving_yards";
+  if (/(^|_)receptions$/.test(original) || original.endsWith("_receptions")) return "receptions";
+  return null;
 }
 
 export function isFbisFootballModelMarket(canonical) {

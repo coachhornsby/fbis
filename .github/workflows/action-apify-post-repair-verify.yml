@@ -155,18 +155,19 @@ jobs:
               details = doc.get("matchDetails") or doc.get("matches") or []
               dens = doc.get("denominators") or {}
               print(f"{sport}_denominators={dens}")
-              print(f"{sport}_matches={[(d.get('actionGameId') or d.get('actionGameId'), d.get('confidence'), d.get('reason')) for d in details]}")
-              if not details:
-                  # fall back to aggregate counters when detail array absent
-                  matched = int(doc.get("gamesMatched") or dens.get("matchedEvents") or 0)
-                  ambiguous = int(dens.get("ambiguousEvents") or 0)
-                  unmatched = int(dens.get("unmatchedEvents") or 0)
-                  returned = int(doc.get("gamesReturned") or dens.get("actionEventsReturned") or 0)
-                  ok = returned > 0 and matched == returned and ambiguous == 0 and unmatched == 0
-                  print(f"{sport}_aggregate_gate matched={matched} returned={returned} ambiguous={ambiguous} unmatched={unmatched} ok={ok}")
+              print(f"{sport}_matches={[(d.get('actionGameId') or d.get('gameId'), d.get('confidence'), d.get('reason')) for d in details]}")
+              if details:
+                  bad = [d for d in details if str(d.get("confidence") or "").upper() in ("AMBIGUOUS", "UNMATCHED", "")]
+                  ok = len(bad) == 0
+                  print(f"{sport}_detail_gate bad={len(bad)} ok={ok}")
                   return ok
-              bad = [d for d in details if str(d.get("confidence") or "").upper() in ("AMBIGUOUS", "UNMATCHED", "")]
-              return len(details) > 0 and len(bad) == 0
+              matched = int(doc.get("gamesMatched") or dens.get("matchedEvents") or 0)
+              ambiguous = int(dens.get("ambiguousEvents") or 0)
+              unmatched = int(dens.get("unmatchedEvents") or 0)
+              returned = int(doc.get("gamesReturned") or dens.get("actionEventsReturned") or 0)
+              ok = returned > 0 and matched == returned and ambiguous == 0 and unmatched == 0
+              print(f"{sport}_aggregate_gate matched={matched} returned={returned} ambiguous={ambiguous} unmatched={unmatched} ok={ok}")
+              return ok
 
           ok_cfb = match_gate(cfb, "cfb")
           ok_nfl = match_gate(nfl, "nfl")

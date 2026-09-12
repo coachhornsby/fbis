@@ -68,24 +68,57 @@ test("normalizePlayerProps attaches marketCanonical + nullable imageUrl", () => 
   assert.equal(rows[0].book, "fanduel");
 });
 
-test("options[] Actor shape flattens into priced sides without invention", () => {
+test("Action outcomes[] shape extracts playerId/odds/book/line and core_bet_type aliases", () => {
   const rows = normalizePlayerProps([
     {
-      playerName: "CeeDee Lamb",
-      market: "receptions",
-      line: 6.5,
-      book: "DraftKings",
-      options: [
-        { side: "Over", price: -120 },
-        { side: "Under", price: -110 },
+      marketId: 9,
+      type: "core_bet_type_9_passing_yards",
+      name: "Passing Yards",
+      lineType: "main",
+      outcomes: [
+        {
+          bookId: 15,
+          book: "DraftKings",
+          side: "Over",
+          line: 267.5,
+          odds: -110,
+          teamId: 1,
+          playerId: 42456,
+          playerName: "Josh Allen",
+          isAlternate: false,
+          ticketsPercent: 54,
+          moneyPercent: 61,
+        },
+        {
+          bookId: 15,
+          book: "DraftKings",
+          side: "Under",
+          line: 267.5,
+          odds: -110,
+          teamId: 1,
+          playerId: 42456,
+          playerName: "Josh Allen",
+          isAlternate: false,
+        },
       ],
     },
   ]);
   assert.equal(rows.length, 2);
-  assert.ok(rows.every((r) => r.marketCanonical === "receptions"));
-  assert.ok(rows.some((r) => r.overOdds === -120 || r.price === -120));
-  assert.ok(rows.some((r) => r.underOdds === -110 || r.price === -110));
+  assert.equal(rows[0].providerPlayerId, "42456");
+  assert.equal(rows[0].playerName, "Josh Allen");
+  assert.equal(rows[0].marketCanonical, "passing_yards");
+  assert.equal(rows[0].line, 267.5);
+  assert.equal(rows[0].book, "draftkings");
+  assert.ok(rows.some((r) => r.overOdds === -110));
+  assert.ok(rows.some((r) => r.underOdds === -110));
+  assert.equal(canonicalizeFootballPropMarket("core_bet_type_12_rushing_yards"), "rushing_yards");
+  assert.equal(canonicalizeFootballPropMarket("core_bet_type_15_receptions"), "receptions");
+  assert.equal(canonicalizeFootballPropMarket("core_bet_type_16_receiving_yards"), "receiving_yards");
+  assert.equal(canonicalizeFootballPropMarket("core_bet_type_18_rushing_attempts"), "rushing_attempts");
+  assert.equal(canonicalizeFootballPropMarket("core_bet_type_30_passing_attempts"), "passing_attempts");
+  assert.equal(canonicalizeFootballPropMarket("core_bet_type_10_pass_completions"), "completions");
 });
+
 
 test("player-prop readiness classifier stays fail-closed without coverage", () => {
   const blocked = classifyPlayerPropsReadiness({});

@@ -529,6 +529,41 @@ export function normalizePlayerProps(props) {
  */
 function flattenPlayerPropEntries(raw) {
   if (!raw || typeof raw !== "object") return [];
+
+  // Action Network Actor shape observed in live PPE:
+  // { marketId, type, name, lineType, outcomes:[{book,side,line,odds,playerId,playerName,...}] }
+  if (Array.isArray(raw.outcomes) && raw.outcomes.length) {
+    return raw.outcomes
+      .filter((o) => o && typeof o === "object")
+      .map((o) => {
+        const side = o.side || o.selection || o.outcome || null;
+        const price = o.odds ?? o.price ?? o.american ?? null;
+        const sideKey = String(side || "").toLowerCase();
+        return {
+          ...raw,
+          playerId: o.playerId ?? o.player_id ?? raw.playerId,
+          providerPlayerId: o.playerId ?? o.player_id ?? raw.providerPlayerId,
+          playerName: o.playerName ?? o.player_name ?? raw.playerName ?? raw.name,
+          teamId: o.teamId ?? raw.teamId,
+          team: o.team || o.teamName || raw.team,
+          market: raw.type || raw.name || raw.market || raw.marketType,
+          marketId: raw.marketId ?? raw.market_id,
+          line: o.line ?? o.points ?? o.value ?? raw.line,
+          side,
+          price,
+          overOdds: /over/i.test(sideKey) ? price : raw.overOdds,
+          underOdds: /under/i.test(sideKey) ? price : raw.underOdds,
+          book: o.book || o.bookName || o.sportsbook || raw.book,
+          bookId: o.bookId ?? raw.bookId,
+          isAlternate: o.isAlternate === true || o.alternate === true || raw.isAlternate === true,
+          ticketsPercent: o.ticketsPercent ?? null,
+          moneyPercent: o.moneyPercent ?? null,
+          timestamp: o.timestamp || o.updatedAt || raw.timestamp || raw.updatedAt,
+          observedAt: o.observedAt || raw.observedAt,
+        };
+      });
+  }
+
   const books = Array.isArray(raw.books)
     ? raw.books
     : Array.isArray(raw.odds)
