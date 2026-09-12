@@ -182,6 +182,49 @@ test("event matching requires league + both teams + kickoff tolerance; never for
   assert.equal(missKickoff.matched, false);
 });
 
+test("strict matching rejects Texas⊆Texas Tech and Tech≠State; allows short↔mascot", async () => {
+  const { namesMatchStrict } = await import("../functions/lib/match.js");
+  assert.equal(namesMatchStrict("Texas", "Texas Tech"), false);
+  assert.equal(namesMatchStrict("Texas Tech", "Texas State"), false);
+  assert.equal(namesMatchStrict("Miami", "Miami Ohio"), false);
+  assert.equal(namesMatchStrict("Georgia", "Georgia Bulldogs"), true);
+  assert.equal(namesMatchStrict("Alabama", "Alabama Crimson Tide"), true);
+});
+
+test("matchShadowEvent scopes by strict sides + kickoff; nearest wins with margin", () => {
+  const kick = "2026-09-13T19:00:00.000Z";
+  const action = {
+    homeTeam: "Texas",
+    awayTeam: "Oklahoma",
+    homeAbbr: "TEX",
+    awayAbbr: "OU",
+    league: "ncaaf",
+    startTime: kick,
+  };
+  // Texas Tech must not steal the Texas row
+  const noTech = matchShadowEvent(action, [
+    { id: "ttu", league: "ncaaf", homeTeam: "Texas Tech", awayTeam: "Oklahoma State", startTime: kick },
+    { id: "tex", league: "ncaaf", homeTeam: "Texas", awayTeam: "Oklahoma", startTime: kick },
+  ]);
+  assert.equal(noTech.matched, true);
+  assert.equal(noTech.candidate.id, "tex");
+
+  // Missing kickoff → no match (avoids season-wide AMBIGUOUS)
+  const noKick = matchShadowEvent(action, [
+    { id: "tex", league: "ncaaf", homeTeam: "Texas", awayTeam: "Oklahoma", startTime: null },
+  ]);
+  assert.equal(noKick.matched, false);
+
+  // Unique nearest kickoff (≥30m margin)
+  const nearest = matchShadowEvent(action, [
+    { id: "near", league: "ncaaf", homeTeam: "Texas", awayTeam: "Oklahoma", startTime: kick },
+    { id: "far", league: "ncaaf", homeTeam: "Texas", awayTeam: "Oklahoma", startTime: "2026-09-13T21:00:00.000Z" },
+  ]);
+  assert.equal(nearest.matched, true);
+  assert.equal(nearest.reason, "unique-nearest-kickoff");
+  assert.equal(nearest.candidate.id, "near");
+});
+
 test("shadow vs provider comparison is book/market aware and not auto-error", async () => {
   const fixture = await loadFixture(FIX.scheduled);
   const row = normalizeActionGameRow(fixture, {});

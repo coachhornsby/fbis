@@ -73,6 +73,37 @@ export function namesMatch(a, b) {
   return jaccard >= 0.8 && inter >= 1 && strongInter.length >= 1;
 }
 
+/**
+ * Stricter club equality for provider↔FBIS event joins.
+ * Builds on namesMatch, then requires:
+ *   - identical WEAK school disambiguators (tech/state/forest)
+ *   - identical non-fluff cores (rejects Miami ⊆ Miami Ohio; allows Georgia ⊆ Georgia Bulldogs)
+ */
+export function namesMatchStrict(a, b) {
+  const na = normName(a);
+  const nb = normName(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (!namesMatch(a, b)) return false;
+  const ta = tokens(a);
+  const tb = tokens(b);
+  if (!ta.length || !tb.length) return false;
+
+  const aWeak = ta.filter((t) => WEAK.has(t)).slice().sort().join(" ");
+  const bWeak = tb.filter((t) => WEAK.has(t)).slice().sort().join(" ");
+  if (aWeak !== bWeak) return false;
+
+  // Nickname / mascot fluff stripped only for this strict core check.
+  const FLUFF = new Set([...MASCOT, "crimson", "tide", "fighting"]);
+  const core = (toks) =>
+    [...new Set(toks.filter((t) => t && !WEAK.has(t) && !FLUFF.has(t) && !STOP.has(t)))].sort();
+  const ca = core(ta);
+  const cb = core(tb);
+  if (!ca.length || !cb.length) return false;
+  if (ca.length !== cb.length) return false;
+  return ca.every((t, i) => t === cb[i]);
+}
+
 export function abbrMatch(a, b) {
   const na = String(a || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const nb = String(b || "").toLowerCase().replace(/[^a-z0-9]/g, "");

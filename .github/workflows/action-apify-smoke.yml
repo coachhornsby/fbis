@@ -134,21 +134,14 @@ jobs:
           test "$code" = "200"
           jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$tmp" > cold-scorecard.redacted.json
           cat cold-scorecard.redacted.json
-          # Durability: last run must be present after cold request
-          jq -e '
-            (.actionApify.lastRunAt // .lastRunAt // .actionApify.lastSuccessAt // .lastSuccessAt) != null
-            or (.package.sampleRuns // 0) > 0
-            or (.evidenceBasis == "persisted")
-          ' cold-health.redacted.json cold-scorecard.redacted.json >/dev/null || {
-            # Prefer health last run; scorecard sample as fallback
-            last="$(jq -r '.actionApify.lastRunAt // .actionApify.lastSuccessAt // .lastRunAt // empty' cold-health.redacted.json)"
-            sample="$(jq -r '.package.sampleRuns // .sampleRuns // 0' cold-scorecard.redacted.json)"
-            echo "lastRunAt=${last} sampleRuns=${sample}"
-            if [ -z "${last}" ] && [ "${sample}" = "0" ]; then
-              echo "D1 durability proof failed: cold health/scorecard show no prior run"
-              exit 1
-            fi
-          }
+          last="$(jq -r '.actionApify.lastRunAt // .actionApify.lastSuccessAt // .lastRunAt // .lastSuccessAt // empty' cold-health.redacted.json)"
+          sample="$(jq -r '.package.sampleRuns // .sampleRuns // .runs // 0' cold-scorecard.redacted.json)"
+          echo "cold_lastRunAt=${last}"
+          echo "cold_sampleRuns=${sample}"
+          if [ -z "${last}" ] && [ "${sample}" = "0" ]; then
+            echo "D1 durability proof failed: cold health/scorecard show no prior run"
+            exit 1
+          fi
           echo "D1_durability_proven=true"
 
       - name: Upload redacted smoke artifacts

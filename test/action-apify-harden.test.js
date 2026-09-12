@@ -22,6 +22,11 @@ import {
 } from "../functions/lib/actionApifyCollector.js";
 import { computeMatchDenominators } from "../functions/lib/actionApifyObservationStore.js";
 import { buildPromotionReadinessScorecard } from "../functions/lib/actionApifyChampionship.js";
+import {
+  calendarDateChicago,
+  defaultFbisSlateDates,
+  loadFbisSlateForMatching,
+} from "../functions/lib/actionApifyEvidence.js";
 
 function memoryDb() {
   const tables = new Map();
@@ -410,4 +415,39 @@ test("logical collection key is deterministic for run idempotency", () => {
     scheduledBucket: "2026-09-12T15:00:00.000Z",
   });
   assert.equal(a, b);
+});
+
+test("default FBIS slate dates are today+tomorrow Chicago — never undated season dump", async () => {
+  const now = new Date("2026-09-12T18:00:00.000Z");
+  const dates = defaultFbisSlateDates(now);
+  assert.ok(dates.includes(calendarDateChicago(now)));
+  assert.equal(dates.length, 2);
+
+  const seen = [];
+  const queryGames = async (_env, opts) => {
+    seen.push(opts.date);
+    assert.ok(opts.date, "must pass date — undated query returns season slate");
+    return {
+      ok: true,
+      rows: [
+        { id: `g-${opts.date}`, homeName: "A", awayName: "B", homeAbbr: "A", awayAbbr: "B", start: `${opts.date}T19:00:00Z`, sport: "cfb" },
+      ],
+    };
+  };
+  const slate = await loadFbisSlateForMatching(queryGames, {}, { sport: "cfb", now });
+  assert.equal(slate.slateError, null);
+  assert.equal(slate.gamesExpected, 2);
+  assert.deepEqual(seen.sort(), dates);
+  assert.deepEqual(slate.slateDates, dates);
+  assert.ok(slate.gamesExpected < 50);
+});
+
+test("explicit date keeps single-day FBIS slate", async () => {
+  const queryGames = async (_env, opts) => ({
+    ok: true,
+    rows: [{ id: "only", homeName: "X", awayName: "Y", start: `${opts.date}T18:00:00Z`, sport: "nfl" }],
+  });
+  const slate = await loadFbisSlateForMatching(queryGames, {}, { sport: "nfl", date: "2026-09-14" });
+  assert.deepEqual(slate.slateDates, ["2026-09-14"]);
+  assert.equal(slate.gamesExpected, 1);
 });

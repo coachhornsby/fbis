@@ -336,3 +336,49 @@ export function mapGamesToFbisEvents(rows = []) {
     status: r.status || null,
   }));
 }
+
+/** YYYY-MM-DD in America/Chicago (board-local slate day). */
+export function calendarDateChicago(d = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+/**
+ * Default FBIS slate dates when caller omits `date`.
+ * Today + tomorrow (Chicago) — avoids season-wide 300+ game ambiguity.
+ */
+export function defaultFbisSlateDates(now = new Date()) {
+  const dates = new Set([
+    calendarDateChicago(now),
+    calendarDateChicago(new Date(now.getTime() + 36 * 60 * 60 * 1000)),
+  ]);
+  return [...dates].sort();
+}
+
+/**
+ * Load FBIS games for Action matching. Never returns an undated season dump.
+ */
+export async function loadFbisSlateForMatching(queryGamesFn, env, { sport, date, now } = {}) {
+  const dates = date ? [String(date)] : defaultFbisSlateDates(now || new Date());
+  const byId = new Map();
+  let lastError = null;
+  for (const d of dates) {
+    const games = await queryGamesFn(env, { sport, date: d });
+    if (!games?.ok) {
+      lastError = games?.reason || "slate-unavailable";
+      continue;
+    }
+    for (const row of games.rows || []) {
+      if (row?.id) byId.set(String(row.id), row);
+    }
+  }
+  if (!byId.size && lastError) {
+    return { fbisEvents: [], gamesExpected: null, slateError: lastError, slateDates: dates };
+  }
+  const fbisEvents = mapGamesToFbisEvents([...byId.values()]);
+  return { fbisEvents, gamesExpected: fbisEvents.length, slateError: null, slateDates: dates };
+}
