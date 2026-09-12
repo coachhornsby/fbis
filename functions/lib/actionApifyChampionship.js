@@ -635,6 +635,8 @@ export function buildCapabilityAuditSummary(rows = [], ctx = {}) {
   const movementBooks = new Set();
   const playerMarkets = new Set();
   const gamePropCategories = new Set();
+  const propFieldKeyCounts = new Map();
+  let propInventorySamples = 0;
   const games = [];
 
   for (const r of list) {
@@ -651,6 +653,10 @@ export function buildCapabilityAuditSummary(rows = [], ctx = {}) {
         ? Object.values(r.gameProps)
         : [];
     const detail = r.gameDetail && typeof r.gameDetail === "object" ? r.gameDetail : null;
+    const propInv =
+      r.playerPropFieldInventory ||
+      r.researchFields?.playerPropFieldInventory ||
+      null;
 
     if (r.actionGameId) identity += 1;
     if (c.moneylineHome != null || c.moneylineAway != null) consensusMl += 1;
@@ -689,9 +695,18 @@ export function buildCapabilityAuditSummary(rows = [], ctx = {}) {
     playerPropRows += props.length;
     for (const p of props) {
       if (p.market) playerMarkets.add(String(p.market));
-      if (p.playerId) playerPropsWithId += 1;
-      if (p.overOdds != null || p.underOdds != null) playerPropsWithPrice += 1;
+      if (p.playerId || p.providerPlayerId) playerPropsWithId += 1;
+      if (p.overOdds != null || p.underOdds != null || p.price != null) playerPropsWithPrice += 1;
       if (p.observedAt) playerPropsWithTs += 1;
+    }
+    if (propInv?.topLevelKeys?.length) {
+      propInventorySamples += Number(propInv.samples) || 0;
+      for (const { key, count } of propInv.topLevelKeys) {
+        propFieldKeyCounts.set(key, (propFieldKeyCounts.get(key) || 0) + Number(count || 0));
+      }
+      for (const { key, count } of propInv.nestedKeys || []) {
+        propFieldKeyCounts.set(key, (propFieldKeyCounts.get(key) || 0) + Number(count || 0));
+      }
     }
 
     if (gprops.length) withGameProps += 1;
@@ -776,6 +791,14 @@ export function buildCapabilityAuditSummary(rows = [], ctx = {}) {
       priceCoverage: playerPropRows ? round4(playerPropsWithPrice / playerPropRows) : 0,
       timestampCoverage: playerPropRows ? round4(playerPropsWithTs / playerPropRows) : 0,
       markets: [...playerMarkets].sort().slice(0, 80),
+      // Key inventory from raw Actor props (forensics; not a coverage claim).
+      rawFieldInventory: {
+        samples: propInventorySamples,
+        keys: [...propFieldKeyCounts.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 80)
+          .map(([key, count]) => ({ key, count })),
+      },
     },
     gameProps: {
       gamesWithProps: withGameProps,

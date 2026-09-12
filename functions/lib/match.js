@@ -12,6 +12,16 @@ const MASCOT = new Set([
   "pirates", "rebels", "raiders", "warriors", "chiefs", "indians", "redhawks", "bluejays",
   "jayhawks", "sooners", "longhorns", "aggies", "mean", "green", "wave", "gamecocks",
   "tarheels", "tar", "heels", "demon", "deacons", "mountaineers", "volunteers", "commodores",
+  // CFB identity fluff (Action often ships school+mascot; FBIS slate is school-only).
+  "wolverines", "buckeyes", "crimson", "tide", "nittany", "fighting", "irish",
+  "razorbacks", "hurricanes", "seminole", "boilermakers", "hoosiers", "badgers",
+  "gophers", "illini", "cornhuskers", "cyclones", "sun", "devils", "utes", "cougar",
+  // NFL nicknames so city↔full-name can resolve when abbrs are missing.
+  "bills", "dolphins", "patriots", "jets", "ravens", "bengals", "browns", "steelers",
+  "texans", "colts", "jaguars", "titans", "broncos", "chiefs", "chargers", "raiders",
+  "cowboys", "giants", "eagles", "commanders", "bears", "lions", "packers", "vikings",
+  "falcons", "panthers", "saints", "buccaneers", "bucs", "cardinals", "rams",
+  "seahawks", "niners", "49ers", "fortyniners",
 ]);
 
 export function normName(s) {
@@ -97,11 +107,8 @@ export function namesMatchStrict(a, b) {
   // Keep school disambiguators (tech/state/forest) out of FLUFF — those are WEAK.
   const FLUFF = new Set([
     ...MASCOT,
-    "crimson",
-    "tide",
-    "fighting",
-    // Common Action full-name mascots missing from MASCOT (Liberty Flames,
-    // Kent State Golden Flashes, Wofford Terriers, Gardner-Webb Runnin' Bulldogs).
+    // Common Action full-name mascots (Liberty Flames, Kent State Golden Flashes,
+    // Wofford Terriers, Gardner-Webb Runnin' Bulldogs, etc.).
     "flames",
     "flashes",
     "terriers",

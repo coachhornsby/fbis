@@ -167,7 +167,7 @@ test("MTD budget from ledger blocks candidate without production odds impact", a
   assert.equal(blocked.blocks.some((b) => b.code === "MONTHLY_BUDGET"), true);
 });
 
-test("matching: exact/ambiguous/unmatched + denominators", () => {
+test("matching: exact / canonical-duplicate-collapse / true-ambiguous / unmatched", () => {
   const fbis = [
     {
       id: "e1",
@@ -199,7 +199,9 @@ test("matching: exact/ambiguous/unmatched + denominators", () => {
   assert.equal(exact.confidence, "EXACT");
   assert.equal(exact.comparisonEligible, true);
 
-  const ambiguous = matchEventWithConfidence(
+  // Identical slate clones (same teams + same kickoff) collapse to a canonical id —
+  // not AMBIGUOUS. Prefer stable id order among equal-rank non-synthetic rows.
+  const collapsed = matchEventWithConfidence(
     {
       homeTeam: "Texas",
       awayTeam: "Alabama",
@@ -209,8 +211,75 @@ test("matching: exact/ambiguous/unmatched + denominators", () => {
     },
     fbis
   );
-  assert.equal(ambiguous.confidence, "AMBIGUOUS");
-  assert.equal(ambiguous.comparisonEligible, false);
+  assert.equal(collapsed.confidence, "EXACT");
+  assert.equal(collapsed.comparisonEligible, true);
+  assert.equal(collapsed.candidate?.id, "e1");
+
+  // True ambiguity: same teams, kickoffs near but not aligned, both canonical numeric ids.
+  const trueAmbiguous = matchEventWithConfidence(
+    {
+      homeTeam: "Texas",
+      awayTeam: "Alabama",
+      homeAbbr: "TEX",
+      awayAbbr: "ALA",
+      startTime: "2026-09-12T19:00:00Z",
+    },
+    [
+      {
+        id: "401111111",
+        homeTeam: "Texas",
+        awayTeam: "Alabama",
+        homeAbbr: "TEX",
+        awayAbbr: "ALA",
+        startTime: "2026-09-12T19:00:00Z",
+      },
+      {
+        id: "401222222",
+        homeTeam: "Texas",
+        awayTeam: "Alabama",
+        homeAbbr: "TEX",
+        awayAbbr: "ALA",
+        startTime: "2026-09-12T19:20:00Z",
+      },
+    ]
+  );
+  assert.equal(trueAmbiguous.confidence, "AMBIGUOUS");
+  assert.equal(trueAmbiguous.comparisonEligible, false);
+
+  // ESPN + synthetic board clone of the same kickoff → prefer ESPN numeric id.
+  const espnOverBoard = matchEventWithConfidence(
+    {
+      homeTeam: "Michigan Wolverines",
+      awayTeam: "Oklahoma Sooners",
+      homeAbbr: "MICH",
+      awayAbbr: "OU",
+      league: "ncaaf",
+      startTime: "2026-09-12T16:00:00.000Z",
+    },
+    [
+      {
+        id: "ncaaf_michiganwolverines_oklahomasooners_2026-09-12_b2",
+        sport: "cfb",
+        homeTeam: "Michigan",
+        awayTeam: "Oklahoma",
+        homeAbbr: "MICH",
+        awayAbbr: "OU",
+        startTime: "2026-09-12T16:00Z",
+      },
+      {
+        id: "401856679",
+        sport: "cfb",
+        homeTeam: "Michigan",
+        awayTeam: "Oklahoma",
+        homeAbbr: "MICH",
+        awayAbbr: "OU",
+        startTime: "2026-09-12T16:00:00.000Z",
+      },
+    ]
+  );
+  assert.ok(["EXACT", "HIGH"].includes(espnOverBoard.confidence));
+  assert.equal(espnOverBoard.candidate?.id, "401856679");
+  assert.equal(espnOverBoard.comparisonEligible, true);
 
   const unmatched = matchEventWithConfidence(
     { homeTeam: "Ohio State", awayTeam: "Michigan", startTime: "2026-09-12T19:00:00Z" },
@@ -417,17 +486,33 @@ test("logical collection key is deterministic for run idempotency", () => {
   assert.equal(a, b);
 });
 
-test("default FBIS slate dates are consecutive Chicago today+tomorrow — never skip via +36h", async () => {
+test("default FBIS slate dates: MLB today+tomorrow; football extends through +3 Chicago days", async () => {
   // Friday evening Chicago (Sat early UTC): +36h wrongly skipped Saturday.
   const friEve = new Date("2026-09-12T03:01:00.000Z");
   assert.equal(calendarDateChicago(friEve), "2026-09-11");
   assert.deepEqual(defaultFbisSlateDates(friEve), ["2026-09-11", "2026-09-12"]);
+  // Football Fri-night collections must reach Sunday NFL kickoffs.
+  assert.deepEqual(defaultFbisSlateDates(friEve, { sport: "nfl" }), [
+    "2026-09-11",
+    "2026-09-12",
+    "2026-09-13",
+    "2026-09-14",
+  ]);
+  assert.deepEqual(defaultFbisSlateDates(friEve, { sport: "cfb" }), [
+    "2026-09-11",
+    "2026-09-12",
+    "2026-09-13",
+    "2026-09-14",
+  ]);
 
   const now = new Date("2026-09-12T18:00:00.000Z");
-  const dates = defaultFbisSlateDates(now);
-  assert.ok(dates.includes(calendarDateChicago(now)));
-  assert.deepEqual(dates, ["2026-09-12", "2026-09-13"]);
-  assert.equal(dates.length, 2);
+  const mlbDates = defaultFbisSlateDates(now, { sport: "mlb" });
+  assert.ok(mlbDates.includes(calendarDateChicago(now)));
+  assert.deepEqual(mlbDates, ["2026-09-12", "2026-09-13"]);
+  assert.equal(mlbDates.length, 2);
+
+  const footballDates = defaultFbisSlateDates(now, { sport: "cfb" });
+  assert.deepEqual(footballDates, ["2026-09-12", "2026-09-13", "2026-09-14", "2026-09-15"]);
 
   const seen = [];
   const queryGames = async (_env, opts) => {
@@ -442,10 +527,9 @@ test("default FBIS slate dates are consecutive Chicago today+tomorrow — never 
   };
   const slate = await loadFbisSlateForMatching(queryGames, {}, { sport: "cfb", now });
   assert.equal(slate.slateError, null);
-  assert.equal(slate.gamesExpected, 2);
-  assert.deepEqual(seen.sort(), dates);
-  assert.deepEqual(slate.slateDates, dates);
-  assert.ok(slate.gamesExpected < 50);
+  assert.equal(slate.gamesExpected, footballDates.length);
+  assert.deepEqual(seen.sort(), footballDates);
+  assert.deepEqual(slate.slateDates, footballDates);
 });
 
 test("explicit date keeps single-day FBIS slate", async () => {

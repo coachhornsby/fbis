@@ -351,27 +351,38 @@ export function calendarDateChicago(d = new Date()) {
  * Default FBIS slate dates when caller omits `date`.
  * Today + tomorrow in America/Chicago — never an undated season dump.
  *
+ * Football (nfl/cfb): extend through +3 Chicago calendar days so Friday/Saturday
+ * collections still see Sunday NFL kickoffs. MLB and others stay today+tomorrow.
+ *
  * Important: do NOT use a fixed +36h offset. On Chicago evening, +36h can
  * skip the next calendar day (e.g. Fri 22:00 CT → Sun), dropping Saturday's
  * board date from the matching universe.
  */
-export function defaultFbisSlateDates(now = new Date()) {
+export function defaultFbisSlateDates(now = new Date(), { sport } = {}) {
   const today = calendarDateChicago(now);
+  const s = String(sport || "").toLowerCase();
+  const football = s === "nfl" || s === "cfb" || s === "ncaaf" || s === "college-football";
+  const horizonDays = football ? 3 : 1;
+  const dates = new Set([today]);
   let cursor = now.getTime();
-  let tomorrow = today;
-  // Advance hour-by-hour until the Chicago calendar day rolls (DST-safe).
-  for (let i = 0; i < 48 && tomorrow === today; i += 1) {
+  let last = today;
+  // Advance hour-by-hour collecting distinct Chicago calendar days (DST-safe).
+  for (let i = 0; i < 24 * (horizonDays + 2) && dates.size < horizonDays + 1; i += 1) {
     cursor += 60 * 60 * 1000;
-    tomorrow = calendarDateChicago(new Date(cursor));
+    const d = calendarDateChicago(new Date(cursor));
+    if (d !== last) {
+      dates.add(d);
+      last = d;
+    }
   }
-  return [...new Set([today, tomorrow])].sort();
+  return [...dates].sort();
 }
 
 /**
  * Load FBIS games for Action matching. Never returns an undated season dump.
  */
 export async function loadFbisSlateForMatching(queryGamesFn, env, { sport, date, now } = {}) {
-  const dates = date ? [String(date)] : defaultFbisSlateDates(now || new Date());
+  const dates = date ? [String(date)] : defaultFbisSlateDates(now || new Date(), { sport });
   const byId = new Map();
   let lastError = null;
   for (const d of dates) {

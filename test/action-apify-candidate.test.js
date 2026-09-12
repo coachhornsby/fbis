@@ -188,9 +188,33 @@ test("event matching: exact/ambiguous/unmatched + postponed skew", async () => {
   assert.ok(exact.confidence === MATCH_CONFIDENCE.EXACT || exact.confidence === MATCH_CONFIDENCE.HIGH);
   assert.equal(exact.comparisonEligible, true);
 
-  const amb = matchEventWithConfidence(row, [
+  // Identical slate clones collapse to a canonical id (not AMBIGUOUS).
+  const collapsed = matchEventWithConfidence(row, [
     { id: "a", homeTeam: row.homeTeam, awayTeam: row.awayTeam, startTime: row.startTime, league: row.league },
     { id: "b", homeTeam: row.homeTeam, awayTeam: row.awayTeam, startTime: row.startTime, league: row.league },
+  ]);
+  assert.ok(
+    collapsed.confidence === MATCH_CONFIDENCE.EXACT || collapsed.confidence === MATCH_CONFIDENCE.HIGH
+  );
+  assert.equal(collapsed.comparisonEligible, true);
+  assert.equal(collapsed.candidate?.id, "a");
+
+  // True ambiguity: same teams, near but unaligned kickoffs, both canonical numeric ids.
+  const amb = matchEventWithConfidence(row, [
+    {
+      id: "401111111",
+      homeTeam: row.homeTeam,
+      awayTeam: row.awayTeam,
+      startTime: row.startTime,
+      league: row.league,
+    },
+    {
+      id: "401222222",
+      homeTeam: row.homeTeam,
+      awayTeam: row.awayTeam,
+      startTime: new Date(Date.parse(row.startTime) + 20 * 60 * 1000).toISOString(),
+      league: row.league,
+    },
   ]);
   assert.equal(amb.confidence, MATCH_CONFIDENCE.AMBIGUOUS);
   assert.equal(amb.comparisonEligible, false);
