@@ -163,7 +163,24 @@ export async function onRequestGet(context) {
     });
   }
 
-  const plan = planCandidateCollection(context.env, { sport, lifecycle, profile, date });
+  const maxItemsRaw = url.searchParams.get("maxItems");
+  const maxItems =
+    maxItemsRaw != null && String(maxItemsRaw).trim() !== "" && Number.isFinite(Number(maxItemsRaw))
+      ? Number(maxItemsRaw)
+      : undefined;
+  const gameUrlsRaw = url.searchParams.get("gameUrls");
+  const gameUrls =
+    gameUrlsRaw != null && String(gameUrlsRaw).trim() !== ""
+      ? String(gameUrlsRaw).split(",").map((s) => s.trim()).filter(Boolean)
+      : undefined;
+  const plan = planCandidateCollection(context.env, {
+    sport,
+    lifecycle,
+    profile,
+    date,
+    maxItems,
+    gameUrls,
+  });
   const slate = await loadFbisSlate(context.env, { sport, date });
   const mtd = await queryMonthToDateSpendUsd(db);
   const safety = evaluateSchedulerSafety(plan, { monthToDateCostUsd: mtd.mtdUsd });
@@ -227,10 +244,28 @@ export async function onRequestPost(context) {
   const lifecycle = String(body.lifecycle || url.searchParams.get("lifecycle") || "pregame").toLowerCase();
   const profile = body.profile || url.searchParams.get("profile") || undefined;
   const date = body.date || url.searchParams.get("date") || undefined;
+  const maxItemsRaw = body.maxItems ?? url.searchParams.get("maxItems");
+  const maxItems =
+    maxItemsRaw != null && String(maxItemsRaw).trim() !== "" && Number.isFinite(Number(maxItemsRaw))
+      ? Number(maxItemsRaw)
+      : undefined;
+  const gameUrlsRaw = body.gameUrls ?? body.gameIds ?? url.searchParams.get("gameUrls");
+  const gameUrls = Array.isArray(gameUrlsRaw)
+    ? gameUrlsRaw.map(String).filter(Boolean)
+    : typeof gameUrlsRaw === "string" && gameUrlsRaw.trim()
+      ? gameUrlsRaw.split(",").map((s) => s.trim()).filter(Boolean)
+      : undefined;
   const db = createCandidateDb(context.env);
 
   if (!execute) {
-    const plan = planCandidateCollection(context.env, { sport, lifecycle, profile, date });
+    const plan = planCandidateCollection(context.env, {
+      sport,
+      lifecycle,
+      profile,
+      date,
+      maxItems,
+      gameUrls,
+    });
     const mtd = await queryMonthToDateSpendUsd(db);
     const safety = evaluateSchedulerSafety(plan, { monthToDateCostUsd: mtd.mtdUsd });
     return json({
@@ -263,6 +298,8 @@ export async function onRequestPost(context) {
       lifecycle,
       profile,
       date,
+      maxItems,
+      gameUrls,
       fbisEvents: slate.fbisEvents,
       gamesExpected: slate.gamesExpected,
       db,

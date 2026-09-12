@@ -93,8 +93,61 @@ test("profiles map Actor flags without enabling every expensive block", () => {
   assert.ok(Array.isArray(f5.periods) && f5.periods.length >= 1);
   const props = profileToActorFlags(COLLECTION_PROFILES.PLAYER_PROPS);
   assert.equal(props.includePlayerProps, true);
+  const audit = profileToActorFlags(COLLECTION_PROFILES.CAPABILITY_AUDIT);
+  assert.equal(audit.includeLineMovement, true);
+  assert.equal(audit.includePlayerProps, true);
+  assert.equal(audit.includeGameProps, true);
+  assert.equal(audit.includeGameDetail, true);
+  assert.equal(audit.includeWeather, false);
+  assert.equal(audit.includeInjuries, false);
   const cadence = cadenceForPhase("postgame", "mlb");
   assert.equal(cadence.temporalClass, TEMPORAL_CLASS.EVALUATION_CLOSE);
+});
+
+test("CAPABILITY_AUDIT plan enables all four enrichments and respects maxItems", () => {
+  const env = {
+    ACTION_APIFY_ENABLED: "true",
+    ACTION_APIFY_PLAN: "free",
+    ACTION_APIFY_MAX_ITEMS: "10",
+    APIFY_TOKEN: "x",
+  };
+  const plan = planCandidateCollection(env, {
+    sport: "nfl",
+    lifecycle: "pregame",
+    profile: "CAPABILITY_AUDIT",
+    maxItems: 4,
+    gameUrls: ["290853", "290851", "290845", "290800"],
+  });
+  assert.equal(plan.profile, "CAPABILITY_AUDIT");
+  assert.equal(plan.input.maxItems, 4);
+  assert.equal(plan.input.includeLineMovement, true);
+  assert.equal(plan.input.includePlayerProps, true);
+  assert.equal(plan.input.includeGameProps, true);
+  assert.equal(plan.input.includeGameDetail, true);
+  assert.equal(plan.input.includeWeather, false);
+  assert.deepEqual(plan.input.gameUrls, ["290853", "290851", "290845", "290800"]);
+  assert.equal(plan.input.onlyWithOdds, true);
+  // 4 games × $0.030 + $0.054 start + $0.01 scoreboard = $0.184
+  assert.ok(plan.estimatedCostUsd > 0.15 && plan.estimatedCostUsd < 0.2);
+});
+
+test("capability audit summary covers BASE + enrichments without inventing observedAt", async () => {
+  const { buildCapabilityAuditSummary } = await import("../functions/lib/actionApifyChampionship.js");
+  const fixture = await loadFixture("scheduled-ncaaf.json");
+  const row = normalizeCandidateGameRow({
+    ...fixture,
+    gameProps: [{ market: "team_total", line: 24.5, overOdds: -110, underOdds: -110 }],
+    gameDetail: { rosters: [{ player: "QB One" }], depthCharts: { offense: [] } },
+  });
+  assert.equal(row.observedAt, null);
+  assert.ok(Array.isArray(row.lineMovement?.history) ? row.lineMovement.history.length >= 1 : true);
+  const summary = buildCapabilityAuditSummary([row], { sport: "cfb", profile: "CAPABILITY_AUDIT" });
+  assert.equal(summary.gamesReturned, 1);
+  assert.equal(summary.base.identityCoverage, 1);
+  assert.ok(summary.base.consensusMoneylineCoverage >= 0);
+  assert.equal(summary.gameDetail.gamesWithDetail, 1);
+  assert.ok(summary.gameDetail.detailKeys.includes("rosters"));
+  assert.equal(summary.games[0].observedAt, null);
 });
 
 test("book/market/price normalization + unmapped books", async () => {

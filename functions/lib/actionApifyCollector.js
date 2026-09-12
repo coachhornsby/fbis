@@ -7,6 +7,8 @@
  */
 
 import {
+  ACTION_APIFY_FREE_MAX_ITEMS,
+  ACTION_APIFY_STARTER_SAFETY_CAP,
   COLLECTION_PROFILES,
   LIFECYCLE_PHASES,
   cadenceForPhase,
@@ -35,6 +37,7 @@ import {
   hashPayload,
   runActionApifyShadow,
 } from "./actionApifyShadow.js";
+import { buildCapabilityAuditSummary } from "./actionApifyChampionship.js";
 import {
   acquireSchedulerLease,
   buildLogicalCollectionKey,
@@ -100,15 +103,27 @@ export function planCandidateCollection(env, opts) {
 
   const flags = profileToActorFlags(profile, {
     sport,
-    collectMovement: cfg.collectMovement || profile === COLLECTION_PROFILES.MOVEMENT || profile === COLLECTION_PROFILES.FINAL,
+    collectMovement:
+      cfg.collectMovement ||
+      profile === COLLECTION_PROFILES.MOVEMENT ||
+      profile === COLLECTION_PROFILES.FINAL ||
+      profile === COLLECTION_PROFILES.CAPABILITY_AUDIT,
     collectMlbF5: cfg.collectMlbF5 || profile === COLLECTION_PROFILES.MLB_F5,
-    collectProps: cfg.collectProps || profile === COLLECTION_PROFILES.PLAYER_PROPS,
+    collectProps:
+      cfg.collectProps ||
+      profile === COLLECTION_PROFILES.PLAYER_PROPS ||
+      profile === COLLECTION_PROFILES.CAPABILITY_AUDIT,
   });
 
   const freePlan = cfg.plan === "free";
+  const requestedMax =
+    opts.maxItems != null && Number.isFinite(Number(opts.maxItems)) ? Number(opts.maxItems) : cfg.maxItems;
+  const maxItems = freePlan
+    ? Math.min(Math.max(1, Math.floor(requestedMax)), ACTION_APIFY_FREE_MAX_ITEMS)
+    : Math.min(Math.max(1, Math.floor(requestedMax)), ACTION_APIFY_STARTER_SAFETY_CAP);
   const input = buildActorInput({
     leagues: leaguesForSport(sport),
-    maxItems: cfg.maxItems,
+    maxItems,
     freePlan,
     periods: flags.periods.length ? flags.periods : ["event"],
     includeLineMovement: flags.includeLineMovement,
@@ -121,6 +136,15 @@ export function planCandidateCollection(env, opts) {
     includeFutures: flags.includeFutures,
     gameStatus: cadence.gameStatus,
     date: opts.date,
+    // Deliberate audit sample controls (Actor-native filters; no extra PPE).
+    gameUrls: opts.gameUrls,
+    teams: opts.teams,
+    sortBy: opts.sortBy,
+    minNumBets: opts.minNumBets,
+    minSharpGap: opts.minSharpGap,
+    onlyWithOdds:
+      opts.onlyWithOdds === true ||
+      profile === COLLECTION_PROFILES.CAPABILITY_AUDIT,
   });
 
   const estimatedCostUsd = estimateActorCostUsd(input, { gamesReturned: input.maxItems });
@@ -999,6 +1023,10 @@ export async function runCandidateCollection(env, opts) {
       denominators,
       logicalCollectionKey,
       rows: normalized,
+      capabilitySummary: buildCapabilityAuditSummary(normalized, {
+        sport: plan.sport,
+        profile: plan.profile,
+      }),
       cost,
       costWindows: aggregateCostWindows([cost], finishedAt),
       affectsProductionOdds: false,
