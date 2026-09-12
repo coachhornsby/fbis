@@ -14,6 +14,7 @@ const MIGRATION_STATUS = {
   UNVERIFIED: "UNVERIFIED",
 };
 
+/** Production tip expects harden migration after public/Actions billing recovery. */
 const EXPECTED_MIGRATION = "0022_action_apify_harden";
 
 /**

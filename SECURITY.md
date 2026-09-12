@@ -1,8 +1,12 @@
 # Security policy
 
+This repository is **public**. Treat every commit on every reachable ref as world-readable. Never put secret values in git, issues, PRs, chat, workflow inputs, or client bundles.
+
 ## Reporting
 
 If you discover a vulnerability or exposed credential, contact the repository owner privately and rotate any affected credentials immediately. Do not paste secret values into issues, PRs, chat, or workflow inputs.
+
+See also: `docs/public-visibility-prep.md` for the public-visibility checklist.
 
 ## Secrets
 
