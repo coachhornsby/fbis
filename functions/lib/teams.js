@@ -100,22 +100,44 @@ function uniqueHit(list) {
   return list[0];
 }
 
+/** True when a provider abbreviation is missing or a placeholder glyph. */
+export function isMalformedAbbr(abbr) {
+  const raw = String(abbr ?? "").trim();
+  if (!raw) return true;
+  if (/^[—–−\-?]+$/.test(raw)) return true;
+  const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return cleaned.length < 2;
+}
+
 /**
  * Resolve a team query to exactly one canonical row. Fail closed.
+ * Priority: canonicalId → espnId → validated abbr → unique name/slug/location.
  * Never match on mascot / State / Tech / Forest last-word alone.
+ * Never invent an abbreviation.
  */
 export function resolveTeam(sport, query = {}) {
   const idx = INDEX.get(sport);
   if (!idx) return null;
   if (query.canonicalId && idx.byId.has(query.canonicalId)) return idx.byId.get(query.canonicalId);
-  if (query.espnId && idx.byEspn.has(String(query.espnId))) return idx.byEspn.get(String(query.espnId));
-  const abbr = String(query.abbr || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if (abbr && abbr !== "—" && abbr.length >= 2) {
+  const espnId = query.espnId ?? query.espnTeamId ?? query.providerTeamId ?? null;
+  if (espnId != null && String(espnId) !== "" && idx.byEspn.has(String(espnId))) {
+    return idx.byEspn.get(String(espnId));
+  }
+  if (!isMalformedAbbr(query.abbr)) {
+    const abbr = String(query.abbr || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const byAb = uniqueHit(idx.byAbbr.get(abbr));
     if (byAb) return byAb;
   }
   const candidates = [];
-  for (const name of [query.name, query.displayName, query.school, query.fullName]) {
+  for (const name of [
+    query.name,
+    query.displayName,
+    query.shortDisplayName,
+    query.school,
+    query.fullName,
+    query.location,
+    query.slug,
+  ]) {
     for (const key of nameLookupKeys(name)) {
       const exact = uniqueHit(idx.byName.get(key));
       if (exact) return exact;
@@ -150,17 +172,25 @@ export function resolveTeamExact(sport, query = {}) {
 export function enrichTeam(sport, raw = {}) {
   const hit = resolveTeam(sport, raw);
   if (!hit) {
-    const abbr = String(raw.abbr || "").toUpperCase();
-    const invented = !abbr || abbr === "—" || looksInventedAbbr(raw.name, abbr);
+    const malformed = isMalformedAbbr(raw.abbr);
+    const abbr = malformed ? "—" : String(raw.abbr || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const invented = malformed || looksInventedAbbr(raw.name, abbr);
+    const hasProviderId = raw.espnId != null && String(raw.espnId) !== "";
     return {
       ...raw,
       canonicalId: null,
       matchStatus: "unresolved",
+      identityBlock: hasProviderId ? "PROVIDER_IDENTITY_BLOCK" : "AMBIGUOUS_TEAM_IDENTITY",
+      identityBlockReason: hasProviderId
+        ? "provider-id-not-in-canonical-registry"
+        : malformed
+          ? "malformed-abbr-without-unique-provider-identity"
+          : "no-unique-canonical-match",
       school: raw.school || raw.name || null,
-      fullName: raw.name || raw.displayName || null,
+      fullName: raw.name || raw.displayName || raw.shortDisplayName || null,
       abbr: invented ? "—" : abbr,
       logo: raw.logo || espnLogoUrl(sport, raw.espnId, abbr),
-      espnId: raw.espnId || null,
+      espnId: raw.espnId || raw.espnTeamId || null,
     };
   }
   const espnAbbr = hit.sources?.espn?.abbr || hit.abbr;
@@ -168,13 +198,15 @@ export function enrichTeam(sport, raw = {}) {
     ...raw,
     canonicalId: hit.id,
     matchStatus: "resolved",
+    identityBlock: null,
+    identityBlockReason: null,
     name: sport === "cfb" || sport === "cbb" ? hit.school : hit.displayName,
     school: hit.school,
     nickname: hit.nickname,
     fullName: hit.displayName,
     abbr: hit.abbr,
     logo: hit.logo || raw.logo || espnLogoUrl(sport, hit.espnId, espnAbbr),
-    espnId: hit.espnId || raw.espnId || null,
+    espnId: hit.espnId || raw.espnId || raw.espnTeamId || null,
     color: hit.color || raw.color || null,
     altColor: hit.altColor || raw.altColor || null,
     conference: hit.conference || raw.conference || null,

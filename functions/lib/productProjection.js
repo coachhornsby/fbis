@@ -28,8 +28,8 @@ function modelIdentity(sport, game = {}) {
     game.canQualify === false;
   const independentFbis =
     (game.projectionKind === "FBIS" || game.model?.projectionKind === "FBIS") &&
-    (Number.isFinite(Number(game.model?.projHome ?? game.projHomeScore)) &&
-      Number.isFinite(Number(game.model?.projAway ?? game.projAwayScore)));
+    (Number.isFinite(Number(game.model?.projHome ?? game.projHome ?? game.projHomeScore)) &&
+      Number.isFinite(Number(game.model?.projAway ?? game.projAway ?? game.projAwayScore)));
 
   if (sport === "mlb") {
     return {
@@ -78,8 +78,8 @@ function modelIdentity(sport, game = {}) {
 
 function projection(game = {}) {
   const kind = game.model?.projectionKind || game.projectionKind || null;
-  const home = finite(game.model?.projHome ?? game.projHomeScore);
-  const away = finite(game.model?.projAway ?? game.projAwayScore);
+  const home = finite(game.model?.projHome ?? game.projHome ?? game.projHomeScore);
+  const away = finite(game.model?.projAway ?? game.projAway ?? game.projAwayScore);
   const margin = finite(game.model?.projMargin ?? (home != null && away != null ? home - away : null));
   const total = finite(game.model?.projTotal ?? (home != null && away != null ? home + away : null));
   const pHome = finite(game.model?.pHomeFinal);

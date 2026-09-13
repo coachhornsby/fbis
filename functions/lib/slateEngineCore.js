@@ -199,15 +199,39 @@ function statusInfo(comp) {
 }
 
 function teamPayload(c) {
-  if (!c) return { name: "TBD", abbr: "—", logo: "", score: null, rank: null, record: "" };
+  if (!c) {
+    return {
+      name: "TBD",
+      abbr: "—",
+      logo: "",
+      score: null,
+      rank: null,
+      record: "",
+      espnId: null,
+      location: null,
+      shortDisplayName: null,
+      slug: null,
+    };
+  }
   const rec = (c.records || []).find((r) => r.type === "total")?.summary || "";
+  const team = c.team || {};
+  const rawAbbr = team.abbreviation;
+  const abbr =
+    rawAbbr && String(rawAbbr).replace(/[—–−-]/g, "").trim()
+      ? String(rawAbbr).toUpperCase()
+      : "—";
   return {
-    name: c.team?.displayName || c.team?.name || "TBD",
-    abbr: c.team?.abbreviation || "—",
-    logo: c.team?.logo || "",
+    name: team.displayName || team.name || "TBD",
+    abbr,
+    logo: team.logo || "",
     score: num(c.score),
     rank: num(c.curatedRank?.current) && c.curatedRank.current < 99 ? c.curatedRank.current : null,
     record: rec,
+    // Provider identity — prefer ESPN team id when abbreviation is missing/malformed.
+    espnId: team.id != null ? String(team.id) : c.id != null ? String(c.id) : null,
+    location: team.location || null,
+    shortDisplayName: team.shortDisplayName || null,
+    slug: team.slug || null,
   };
 }
 
