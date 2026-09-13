@@ -120,7 +120,17 @@ function stampResearchBoard(game, {
       projMargin: scores.margin,
       projTotal: scores.total,
       projectionKind: "FBIS",
-      recipe: `${modelId}@${modelVersion}`,
+      // Object shape required by freezeFromGame (recipe.engine) + GameCard.
+      recipe: {
+        engine: modelId,
+        version: modelVersion,
+        family: "research",
+        steps: [
+          `${modelId}@${modelVersion}`,
+          underlying ? `underlying ${underlying}` : "independent research scores",
+          "Research only — no wager authority",
+        ].filter(Boolean),
+      },
       maturity: "RESEARCH",
       canQualify: false,
       canAuthorize: false,
