@@ -43,6 +43,33 @@ export const FBIS_PLAYER_MARKETS = Object.freeze([
   "receiving_yards",
 ]);
 
+/** Human-readable labels — never show snake_case in the product UI. */
+export const MARKET_LABELS = Object.freeze({
+  passing_yards: "Passing Yards",
+  passing_attempts: "Passing Attempts",
+  completions: "Completions",
+  rushing_yards: "Rushing Yards",
+  rushing_attempts: "Rushing Attempts",
+  receptions: "Receptions",
+  receiving_yards: "Receiving Yards",
+});
+
+export function formatMarketLabel(canonicalOrRaw) {
+  if (!canonicalOrRaw) return "Player Prop";
+  const key = String(canonicalOrRaw).trim();
+  if (MARKET_LABELS[key]) return MARKET_LABELS[key];
+  return key
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .map((word) => {
+      if (/^(td|qb|rb|wr|te|fg|xp)$/i.test(word)) return word.toUpperCase();
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 /**
  * Map propConvictions → playerMarkets when upstream only has convictions.
  * Same adapter used by Today command center — never invents eligibility.

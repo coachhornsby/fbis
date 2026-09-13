@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   FBIS_PLAYER_MARKETS,
   buildPlayerPropsBoard,
+  formatMarketLabel,
   groupPlayerPropRows,
   normalizeBoardGame,
 } from "../src/features/playerProps/buildPlayerPropsBoard.js";
@@ -207,4 +208,12 @@ test("player props rows attach team logo from event sides", () => {
   );
   const grouped = groupPlayerPropRows(board.rows);
   assert.equal(grouped[0].teamIdentity.logo, board.rows[0].teamIdentity.logo);
+});
+
+
+test("formatMarketLabel turns snake_case into normal words", () => {
+  assert.equal(formatMarketLabel("passing_yards"), "Passing Yards");
+  assert.equal(formatMarketLabel("receiving_yards"), "Receiving Yards");
+  assert.equal(formatMarketLabel("anytime_td"), "Anytime TD");
+  assert.equal(formatMarketLabel(""), "Player Prop");
 });

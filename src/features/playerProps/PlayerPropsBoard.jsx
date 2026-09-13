@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import TeamLogo from "../../components/TeamLogo.jsx";
-import DecisionChip from "../today/DecisionChip.jsx";
 import { fmtLine, fmtPrice } from "../today/formatters.js";
 import {
   FBIS_PLAYER_MARKETS,
+  MARKET_LABELS,
   buildPlayerPropsBoard,
+  formatMarketLabel,
   groupPlayerPropRows,
 } from "./buildPlayerPropsBoard.js";
 import PlayerWorkspace from "./PlayerWorkspace.jsx";
@@ -45,152 +46,139 @@ export default function PlayerPropsBoard({
 
   return (
     <div className="main-content props-board">
-      <section className="panel">
-        <div className="panel-header">
-          <h2>PLAYER PROPS</h2>
-          <span className="last-updated">
+      <header className="props-hero">
+        <div className="props-hero-copy">
+          <p className="props-kicker">Player props</p>
+          <h1>Today&apos;s board</h1>
+          <p className="props-lede">
+            Browse lines like a pick board. This is research only — FBIS does not place
+            wagers from here.
+          </p>
+        </div>
+        <div className="props-hero-meta">
+          <span>
             {loading
               ? "Loading…"
-              : `${filteredRows.length} markets · ${propsBoard.counts.eventsWithProps} events`}
+              : `${filteredRows.length} prop${filteredRows.length === 1 ? "" : "s"}`}
           </span>
+          {onRetry ? (
+            <button type="button" className="header-btn" onClick={onRetry} disabled={loading}>
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+          ) : null}
         </div>
-        <div className="panel-body">
-          <p className="props-banner">
-            RESEARCH · MODEL NOT AUTHORIZED — Action props stay shadow. FBIS will not imply a
-            wager.
-          </p>
-          {error ? <div className="error">{error}</div> : null}
-          <div className="props-controls">
-            <label className="props-toggle">
-              <input
-                type="checkbox"
-                checked={supportedOnly}
-                onChange={(e) => setSupportedOnly(e.target.checked)}
-              />
-              FBIS-supported markets only
-            </label>
-            <div className="filter-row" role="toolbar" aria-label="Market filter">
-              <button
-                type="button"
-                className={marketFilter === "all" ? "chip active" : "chip"}
-                onClick={() => setMarketFilter("all")}
-              >
-                All markets
-              </button>
-              {FBIS_PLAYER_MARKETS.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={marketFilter === id ? "chip active" : "chip"}
-                  onClick={() => setMarketFilter(id)}
-                >
-                  {id.replace(/_/g, " ")}
-                  {propsBoard.counts.byMarket[id]
-                    ? ` (${propsBoard.counts.byMarket[id]})`
-                    : ""}
-                </button>
-              ))}
-            </div>
-            {onRetry ? (
-              <button type="button" className="header-btn" onClick={onRetry} disabled={loading}>
-                {loading ? "Retrying…" : "Retry"}
-              </button>
+      </header>
+
+      {error ? <div className="error">{error}</div> : null}
+
+      <div className="props-filters" role="toolbar" aria-label="Filter props">
+        <button
+          type="button"
+          className={marketFilter === "all" ? "props-pill active" : "props-pill"}
+          onClick={() => setMarketFilter("all")}
+        >
+          All
+        </button>
+        {FBIS_PLAYER_MARKETS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            className={marketFilter === id ? "props-pill active" : "props-pill"}
+            onClick={() => setMarketFilter(id)}
+          >
+            {MARKET_LABELS[id] || formatMarketLabel(id)}
+            {propsBoard.counts.byMarket[id] ? (
+              <span className="props-pill-count">{propsBoard.counts.byMarket[id]}</span>
             ) : null}
-          </div>
-          <p className="muted">
-            Readiness: {propsBoard.readiness.classification}. Supported rows:{" "}
-            {propsBoard.counts.supportedRows}. Unsupported novelty:{" "}
-            {propsBoard.counts.unsupportedRows}. Decision-eligible:{" "}
-            {propsBoard.counts.decisionEligible}.
-          </p>
-        </div>
-      </section>
+          </button>
+        ))}
+        <label className="props-toggle">
+          <input
+            type="checkbox"
+            checked={supportedOnly}
+            onChange={(e) => setSupportedOnly(e.target.checked)}
+          />
+          Core markets only
+        </label>
+      </div>
 
       {selected ? (
         <PlayerWorkspace player={selected} onClose={() => setSelectedKey(null)} />
       ) : null}
 
-      <section className="panel">
-        <div className="panel-header">
-          <h2>PROP BOARD</h2>
-          <span className="last-updated">{filteredRows.length} shown</span>
+      {!filteredRows.length ? (
+        <div className="props-empty">
+          <h2>Nothing on the board yet</h2>
+          <p>
+            {loading
+              ? "Pulling the latest player markets…"
+              : "No player props match these filters. Try another market or refresh."}
+          </p>
         </div>
-        <div className="panel-body">
-          {!filteredRows.length ? (
-            <p className="today-empty">
-              {loading
-                ? "Loading player markets…"
-                : "No player props meet the current criteria. FBIS is not forcing volume."}
-            </p>
-          ) : (
-            <div className="table-scroll">
-              <table className="fbis-table props-table">
-                <thead>
-                  <tr>
-                    <th>Player</th>
-                    <th>Market</th>
-                    <th>Line</th>
-                    <th>Best</th>
-                    <th>Book</th>
-                    <th>Matchup</th>
-                    <th>Identity</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRows.map((row, i) => {
-                    const playerKey =
-                      row.fbisPlayerId ||
-                      row.providerPlayerId ||
-                      `${row.playerName}|${row.team}|${row.eventId}`;
-                    return (
-                      <tr key={`${row.eventId}-${row.playerName}-${row.marketCanonical}-${i}`}>
-                        <td>
-                          <button
-                            type="button"
-                            className="props-player-btn"
-                            onClick={() => setSelectedKey(playerKey)}
-                          >
-                            <TeamLogo
-                              team={row.teamIdentity || { abbr: row.team, name: row.team }}
-                              size={24}
-                            />
-                            <span>
-                              <strong>{row.playerName || "—"}</strong>
-                              <span className="muted props-sub">
-                                {[row.team, row.position].filter(Boolean).join(" · ") || "—"}
-                              </span>
-                            </span>
-                          </button>
-                        </td>
-                        <td>
-                          {row.marketCanonical || row.market || "—"}
-                          {!row.supportedMarket ? (
-                            <div className="muted">Unsupported novelty</div>
-                          ) : null}
-                        </td>
-                        <td>{fmtLine(row.line)}</td>
-                        <td>{fmtPrice(row.overOdds ?? row.price)}</td>
-                        <td className="muted">{row.book || "—"}</td>
-                        <td className="muted">
-                          {row.matchup?.away || "—"} @ {row.matchup?.home || "—"}
-                        </td>
-                        <td className="muted">{row.playerIdentityConfidence || "—"}</td>
-                        <td>
-                          <DecisionChip
-                            state={row.surfaceStatus || "RESEARCH"}
-                            reasonCodes={row.reasonCodes}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+      ) : (
+        <div className="props-card-grid" role="list">
+          {filteredRows.map((row, i) => {
+            const playerKey =
+              row.fbisPlayerId ||
+              row.providerPlayerId ||
+              `${row.playerName}|${row.team}|${row.eventId}`;
+            const marketLabel = formatMarketLabel(row.marketCanonical || row.market);
+            const initial = (row.playerName || "?").slice(0, 1).toUpperCase();
+            const over = row.overOdds ?? (row.side === "over" ? row.price : null);
+            const under = row.underOdds ?? (row.side === "under" ? row.price : null);
+            return (
+              <article
+                key={`${row.eventId}-${row.playerName}-${row.marketCanonical}-${i}`}
+                className="props-card"
+                role="listitem"
+              >
+                <button
+                  type="button"
+                  className="props-card-player"
+                  onClick={() => setSelectedKey(playerKey)}
+                >
+                  <span className="props-avatar" aria-hidden="true">
+                    {row.imageUrl ? <img src={row.imageUrl} alt="" /> : initial}
+                  </span>
+                  <TeamLogo
+                    team={row.teamIdentity || { abbr: row.team, name: row.team }}
+                    size={22}
+                  />
+                  <span className="props-card-player-text">
+                    <strong>{row.playerName || "Unknown"}</strong>
+                    <span className="muted">
+                      {[row.team, row.position].filter(Boolean).join(" · ") || "—"}
+                    </span>
+                  </span>
+                </button>
+
+                <p className="props-card-matchup muted">
+                  {row.matchup?.away || "—"} @ {row.matchup?.home || "—"}
+                </p>
+
+                <p className="props-card-market">{marketLabel}</p>
+                <p className="props-card-line">{fmtLine(row.line)}</p>
+
+                <div className="props-more-less" aria-label={`${marketLabel} line sides`}>
+                  <div className="props-side">
+                    <span className="props-side-label">More</span>
+                    <span className="props-side-price">{fmtPrice(over)}</span>
+                  </div>
+                  <div className="props-side">
+                    <span className="props-side-label">Less</span>
+                    <span className="props-side-price">{fmtPrice(under)}</span>
+                  </div>
+                </div>
+
+                <div className="props-card-footer muted">
+                  <span>{row.book ? String(row.book) : "Best available"}</span>
+                  {!row.supportedMarket ? <span>Other market</span> : <span>Research</span>}
+                </div>
+              </article>
+            );
+          })}
         </div>
-      </section>
+      )}
     </div>
   );
 }
