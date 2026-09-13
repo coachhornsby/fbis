@@ -17,8 +17,12 @@ import { badgeLabel, badgeTone, deriveGlobalState, deriveViewState } from "./lib
 import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
 import { legacyToRoute, routeToLegacy } from "./app/navigation.js";
 import PlayerPropsBoard from "./features/playerProps/PlayerPropsBoard.jsx";
+import ModelLabView from "./features/modelLab/ModelLabView.jsx";
+import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
+import MispricesView from "./features/misprices/MispricesView.jsx";
 import "./features/playerProps/playerProps.css";
 import "./features/today/today.css"; // DecisionChip / table tokens for props route without TodayView
+import "./features/canonical/canonical.css";
 
 function readUrlState() {
   if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb", route: "today", sportFilter: "all" };
@@ -539,29 +543,32 @@ export default function App() {
             body="Model vs qualified vs executed populations stay separate. This page will surface units, ROI, CLV, and drawdown without bankroll dollars."
           />
         ) : route === "research" ? (
-          <FeaturePlaceholder
-            title="Research"
-            status="PHASE 8"
-            body="Model lab, calibration, and historical research move here. Operator SYS diagnostics remain under SYSTEM."
-          />
+          <div className="canonical-research-stack">
+            <ModelLabView sportFilter={sportFilter} />
+            <MispricesView sportFilter={sportFilter} />
+            <DataHealthView />
+          </div>
         ) : tab === "sys" || route === "system" ? (
-          <TrackView
-            report={track}
-            error={trackError}
-            loading={trackLoading}
-            stale={trackStale}
-            lastSuccessAt={trackLastSuccessAt}
-            attemptAt={trackLastAttemptAt}
-            state={sysState}
-            filters={{ ...trackFilters, tab: sysTab }}
-            onFilters={(patch) => {
-              if (patch.tab) setSysTab(patch.tab);
-              const rest = { ...patch };
-              delete rest.tab;
-              if (Object.keys(rest).length) setTrackFilters((prev) => ({ ...prev, ...rest }));
-            }}
-            onRefresh={refreshTrack}
-          />
+          <>
+            <DataHealthView />
+            <TrackView
+              report={track}
+              error={trackError}
+              loading={trackLoading}
+              stale={trackStale}
+              lastSuccessAt={trackLastSuccessAt}
+              attemptAt={trackLastAttemptAt}
+              state={sysState}
+              filters={{ ...trackFilters, tab: sysTab }}
+              onFilters={(patch) => {
+                if (patch.tab) setSysTab(patch.tab);
+                const rest = { ...patch };
+                delete rest.tab;
+                if (Object.keys(rest).length) setTrackFilters((prev) => ({ ...prev, ...rest }));
+              }}
+              onRefresh={refreshTrack}
+            />
+          </>
         ) : tab === "today" || route === "today" ? (
           <TodayView
             board={todayBoard}

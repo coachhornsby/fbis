@@ -431,7 +431,7 @@ test("migration 0021/0022 + schema.extensions + health expected migration", asyn
     assert.match(schema, new RegExp(t));
   }
   assert.match(schema, /shadow_candidate_scheduler_state/);
-  assert.match(health, /0022_action_apify_harden/);
+  assert.match(health, /0023_canonical_governance/);
   assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /actionApify:/);
 });

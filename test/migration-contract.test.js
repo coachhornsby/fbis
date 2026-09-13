@@ -14,6 +14,7 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   const m20 = await readFile(new URL("../migrations/0020_action_apify_shadow.sql", import.meta.url), "utf8");
   const m21 = await readFile(new URL("../migrations/0021_action_apify_candidate.sql", import.meta.url), "utf8");
   const m22 = await readFile(new URL("../migrations/0022_action_apify_harden.sql", import.meta.url), "utf8");
+  const m23 = await readFile(new URL("../migrations/0023_canonical_governance.sql", import.meta.url), "utf8");
   const health = await readFile(new URL("../functions/api/health.js", import.meta.url), "utf8");
   const schemaExt = await readFile(new URL("../schema.extensions.sql", import.meta.url), "utf8");
   assert.match(m17, /schema_migrations[\s\S]*0017_cfbd_endpoint_audit/i);
@@ -43,7 +44,13 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(m22, /schema_migrations[\s\S]*0022_action_apify_harden/i);
   assert.match(m22, /shadow_candidate_scheduler_state/);
   assert.match(schemaExt, /shadow_candidate_scheduler_state/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0022_action_apify_harden["']/);
+  assert.match(m23, /schema_migrations[\s\S]*0023_canonical_governance/i);
+  assert.match(m23, /canonical_source_registry/);
+  assert.match(m23, /canonical_model_registry/);
+  assert.match(m23, /canonical_misprice_snapshots/);
+  assert.match(schemaExt, /canonical_source_registry/);
+  assert.match(schemaExt, /canonical_model_registry/);
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0023_canonical_governance["']/);
   assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /WHERE id = \?/);
 });

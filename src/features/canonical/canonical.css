@@ -1,0 +1,76 @@
+.canonical-research-stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.canonical-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.canonical-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.canonical-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.85rem;
+}
+
+.canonical-card {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.92));
+}
+
+.canonical-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.canonical-meta,
+.canonical-maturity,
+.canonical-stat,
+.canonical-flags {
+  margin: 0.25rem 0;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+}
+
+.canonical-maturity {
+  font-weight: 650;
+  color: #7dd3fc;
+  text-transform: capitalize;
+}
+
+.canonical-flags {
+  padding-left: 1.1rem;
+}
+
+.canonical-flags li {
+  margin: 0.15rem 0;
+}
+
+.canonical-card .small {
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 720px) {
+  .canonical-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
