@@ -274,3 +274,128 @@ export function mergeBoardQaFixtures(games = [], search) {
   const live = Array.isArray(games) ? games : [];
   return [...boardQaFixtureGames(), ...live];
 }
+
+/**
+ * Today / Player Props QA fixtures — opt-in via ?boardQa=1 only.
+ * Never invents decision eligibility; research surface samples only.
+ */
+export function todayQaPlayerPropGames() {
+  return [
+    baseGame({
+      id: "qa-player-props",
+      start: "2026-09-13T19:00:00.000Z",
+      away: {
+        abbr: "ORE",
+        name: "Oregon",
+        fullName: "Oregon Ducks",
+        logo: "https://a.espncdn.com/i/teamlogos/ncaa/500/2483.png",
+      },
+      home: {
+        abbr: "OSU",
+        name: "Ohio State",
+        fullName: "Ohio State Buckeyes",
+        logo: "https://a.espncdn.com/i/teamlogos/ncaa/500/194.png",
+      },
+      venue: "Ohio Stadium",
+      projAway: 24.2,
+      projHome: 31.8,
+      extra: {
+        playerMarkets: [
+          {
+            playerName: "Will Howard",
+            team: "OSU",
+            position: "QB",
+            marketCanonical: "passing_yards",
+            line: 249.5,
+            overOdds: -110,
+            underOdds: -110,
+            book: "draftkings",
+            providerPlayerId: "qa-wh",
+            playerIdentityConfidence: "HIGH",
+            fbisProjection: 288.0,
+            fbisSigma: 36,
+          },
+          {
+            playerName: "Will Howard",
+            team: "OSU",
+            position: "QB",
+            marketCanonical: "passing_attempts",
+            line: 32.5,
+            overOdds: -115,
+            underOdds: -105,
+            book: "fanduel",
+            providerPlayerId: "qa-wh",
+            playerIdentityConfidence: "HIGH",
+            fbisProjection: 34.1,
+            fbisSigma: 5.2,
+          },
+          {
+            playerName: "Quinshon Judkins",
+            team: "OSU",
+            position: "RB",
+            marketCanonical: "rushing_yards",
+            line: 78.5,
+            overOdds: -108,
+            underOdds: -112,
+            book: "draftkings",
+            providerPlayerId: "qa-qj",
+            playerIdentityConfidence: "MEDIUM",
+            fbisProjection: 64.0,
+            fbisSigma: 18,
+          },
+          {
+            playerName: "Jeremiah Smith",
+            team: "OSU",
+            position: "WR",
+            marketCanonical: "receiving_yards",
+            line: 72.5,
+            overOdds: -110,
+            underOdds: -110,
+            book: "betmgm",
+            providerPlayerId: "qa-js",
+            playerIdentityConfidence: "HIGH",
+            fbisProjection: 79.8,
+            fbisSigma: 24,
+          },
+          {
+            playerName: "Jeremiah Smith",
+            team: "OSU",
+            position: "WR",
+            marketCanonical: "receptions",
+            line: 5.5,
+            overOdds: -120,
+            underOdds: 100,
+            book: "fanduel",
+            providerPlayerId: "qa-js",
+            playerIdentityConfidence: "HIGH",
+            fbisProjection: 6.1,
+            fbisSigma: 1.8,
+          },
+          {
+            playerName: "Novelty Prop",
+            team: "ORE",
+            position: "WR",
+            marketCanonical: "anytime_td",
+            line: 0.5,
+            overOdds: 145,
+            book: "draftkings",
+            providerPlayerId: "qa-nov",
+            playerIdentityConfidence: "LOW",
+          },
+        ],
+      },
+    }),
+  ];
+}
+
+export function mergeTodayQaFixtures(board = {}, search) {
+  if (!boardQaEnabled(search)) return board;
+  if (!board || typeof board !== "object") return board;
+  const fixtures = todayQaPlayerPropGames();
+  const games = Array.isArray(board.games) ? board.games : [];
+  const withoutDup = games.filter((g) => !String(g?.id || "").startsWith("qa-player-props"));
+  return {
+    ...board,
+    games: [...fixtures, ...withoutDup],
+  };
+}

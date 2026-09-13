@@ -160,6 +160,21 @@ export function toDomainPlayerMarket(row = {}) {
     reasonCodes: Array.isArray(row.reasonCodes)
       ? row.reasonCodes.map(String)
       : ["NOT_DECISION_ELIGIBLE"],
+
+    // FBIS research analytics — pass through only; never invent.
+    fbisProjection: numOrNull(
+      row.fbisProjection ?? row.projection ?? row.average ?? row.proj,
+    ),
+    fbisSigma: numOrNull(row.fbisSigma ?? row.sigma),
+    probabilityOver: numOrNull(
+      row.probabilityOver ?? row.pMore ?? row.probOver,
+    ),
+    probabilityUnder: numOrNull(
+      row.probabilityUnder ?? row.pLess ?? row.probUnder,
+    ),
+    probability: numOrNull(row.probability),
+    edge: numOrNull(row.edge ?? row.ev),
+    projectionSide: strOrNull(row.projectionSide ?? row.sideLean ?? row.leanSide),
   };
 }
 
@@ -167,11 +182,23 @@ export function toDomainPlayerMarket(row = {}) {
  * Derive decision state from existing board flags only.
  */
 export function deriveDecisionState(boardGame = {}) {
-  if (boardGame.qualificationBlocked || boardGame.bettingAllowed === false) {
+  const qualificationBlocked =
+    boardGame.qualificationBlocked ?? boardGame.qualificationBlocked;
+  const bettingAllowed = boardGame.bettingAllowed ?? boardGame.bettingAllowed;
+  const projectionUnavailable =
+    boardGame.projectionUnavailable ?? boardGame.projectionUnavailable;
+  const marketUnavailable =
+    boardGame.marketUnavailable ?? boardGame.marketUnavailable;
+  const noPlayReason = boardGame.noPlayReason ?? boardGame.noPlayReason;
+
+  if (qualificationBlocked || bettingAllowed === false) {
     return {
       state: "BLOCKED",
       reasonCodes: [
-        boardGame.blockReason || boardGame.noPlayReason || "QUALIFICATION_BLOCKED",
+        boardGame.blockReason ||
+          boardGame.blockReason ||
+          noPlayReason ||
+          "QUALIFICATION_BLOCKED",
       ].filter(Boolean),
     };
   }
@@ -184,44 +211,52 @@ export function deriveDecisionState(boardGame = {}) {
       reasonCodes: [boardGame.lean.reason || "LEAN_NOT_QUALIFIED"].filter(Boolean),
     };
   }
-  if (boardGame.projectionUnavailable || boardGame.marketUnavailable) {
+  if (projectionUnavailable || marketUnavailable) {
     return {
       state: "UNAVAILABLE",
       reasonCodes: [
-        boardGame.projectionUnavailable ? "PROJECTION_UNAVAILABLE" : null,
-        boardGame.marketUnavailable ? "MARKET_UNAVAILABLE" : null,
+        projectionUnavailable ? "PROJECTION_UNAVAILABLE" : null,
+        marketUnavailable ? "MARKET_UNAVAILABLE" : null,
       ].filter(Boolean),
     };
   }
-  if (boardGame.noPlayReason) {
-    return { state: "PASS", reasonCodes: [String(boardGame.noPlayReason)] };
+  if (noPlayReason) {
+    return { state: "PASS", reasonCodes: [String(noPlayReason)] };
   }
   return { state: "RESEARCH", reasonCodes: ["NO_QUALIFIED_OR_LEAN"] };
 }
 
 export function toMovementSummary(boardGame = {}) {
   const sentiment = boardGame.sentiment || {};
+  const openingLine = numOrNull(sentiment.openingLine ?? boardGame.openingSpread ?? null);
+  const currentLine = numOrNull(
+    boardGame.pinSpread ?? sentiment.currentLine ?? boardGame.spread ?? null,
+  );
+  const explicitMagnitude = numOrNull(sentiment.magnitude ?? boardGame.movementMagnitude);
+  // Derive magnitude only from real opening+current lines — never invent a move.
+  const derivedMagnitude =
+    explicitMagnitude == null && openingLine != null && currentLine != null
+      ? Math.abs(currentLine - openingLine)
+      : null;
+  const ticketPct = numOrNull(sentiment.ticketPct ?? boardGame.ticketPct);
+  const moneyPct = numOrNull(sentiment.moneyPct ?? boardGame.moneyPct);
   return {
-    openingLine: numOrNull(sentiment.openingLine ?? boardGame.openingSpread ?? null),
-    currentLine: numOrNull(
-      boardGame.pinSpread ?? sentiment.currentLine ?? boardGame.spread ?? null,
-    ),
+    openingLine,
+    currentLine,
     bestLine: numOrNull(boardGame.bestSpread ?? boardGame.pinSpread ?? null),
     bestPrice: numOrNull(
       boardGame.bestSpreadPrice ?? boardGame.pinSpreadHomePrice ?? null,
     ),
     bestBook: strOrNull(boardGame.bestBook ?? boardGame.pinBook ?? null),
     movementDirection: strOrNull(sentiment.direction ?? boardGame.movementDirection),
-    movementMagnitude: numOrNull(sentiment.magnitude ?? boardGame.movementMagnitude),
+    movementMagnitude: explicitMagnitude ?? derivedMagnitude,
     movementCount: numOrNull(sentiment.count ?? boardGame.movementCount),
     lastMovementAt: strOrNull(sentiment.lastAt ?? boardGame.lastMovementAt),
-    ticketPct: numOrNull(sentiment.ticketPct ?? boardGame.ticketPct),
-    moneyPct: numOrNull(sentiment.moneyPct ?? boardGame.moneyPct),
+    ticketPct,
+    moneyPct,
     moneyTicketGap: numOrNull(
       sentiment.moneyTicketGap ??
-        (sentiment.moneyPct != null && sentiment.ticketPct != null
-          ? Number(sentiment.moneyPct) - Number(sentiment.ticketPct)
-          : null),
+        (moneyPct != null && ticketPct != null ? moneyPct - ticketPct : null),
     ),
     bookCount: numOrNull(boardGame.bookCount ?? sentiment.bookCount),
     hold: numOrNull(boardGame.hold ?? boardGame.quality?.hold),
@@ -354,30 +389,94 @@ export function toDomainEvent(boardGame = {}, opts = {}) {
   };
 }
 
+/**
+ * Filter domain events by sport without inventing rows.
+ */
+export function filterDomainEventsBySport(events = [], sportFilter = "all") {
+  const filter = strOrNull(sportFilter) || "all";
+  if (filter === "all") return Array.isArray(events) ? events : [];
+  return (events || []).filter((e) => e?.sport === filter);
+}
+
+/**
+ * Market movers from real movement magnitude only — never fabricate.
+ */
+export function selectMarketMovers(events = [], limit = 8) {
+  return (events || [])
+    .filter((e) => {
+      const mag = e?.movement?.movementMagnitude;
+      return mag != null && Number.isFinite(Number(mag)) && Number(mag) > 0;
+    })
+    .slice()
+    .sort(
+      (a, b) =>
+        Number(b.movement.movementMagnitude) - Number(a.movement.movementMagnitude),
+    )
+    .slice(0, Math.max(0, limit));
+}
+
+/**
+ * Watchlist = decision.state WATCHLIST only (near-qualified / lean).
+ */
+export function selectWatchlist(events = [], limit = 12) {
+  return (events || [])
+    .filter((e) => e?.decision?.state === "WATCHLIST")
+    .slice(0, Math.max(0, limit));
+}
+
+/**
+ * Player props surface — only real playerMarkets; default RESEARCH / not decision-eligible.
+ */
+export function selectTopPlayerProps(events = [], limit = 8) {
+  const rows = [];
+  for (const event of events || []) {
+    for (const pm of event.playerMarkets || []) {
+      rows.push({
+        ...pm,
+        eventId: event.id,
+        sport: event.sport,
+        matchup: {
+          away: event.teams?.away?.abbr || event.teams?.away?.name || null,
+          home: event.teams?.home?.abbr || event.teams?.home?.name || null,
+        },
+        // Product label until Phase 6 earns model authority.
+        surfaceStatus: pm.decisionEligible ? "WATCHLIST" : "RESEARCH",
+      });
+    }
+  }
+  return rows.slice(0, Math.max(0, limit));
+}
+
 export function toDomainTodayBoard(board = {}, opts = {}) {
   const games = Array.isArray(board.games) ? board.games : [];
   const events = games.map((g) => toDomainEvent(g, opts));
+  const sportFilter = strOrNull(opts.sportFilter) || "all";
+  const scoped = filterDomainEventsBySport(events, sportFilter);
   const byState = Object.fromEntries(DECISION_STATES.map((s) => [s, 0]));
-  for (const e of events) {
+  for (const e of scoped) {
     const st = e.decision?.state || "UNAVAILABLE";
     byState[st] = (byState[st] || 0) + 1;
   }
+  // Only real QUALIFIED then WATCHLIST — never invent ranking weights.
+  const topGameOpportunities = [
+    ...scoped.filter((e) => e.decision.state === "QUALIFIED"),
+    ...scoped.filter((e) => e.decision.state === "WATCHLIST"),
+  ].slice(0, 5);
   return {
     date: strOrNull(board.date) || strOrNull(opts.date),
     generatedAt: strOrNull(opts.generatedAt) || new Date().toISOString(),
-    sportFilter: strOrNull(opts.sportFilter) || "all",
+    sportFilter,
     counts: {
-      events: events.length,
+      events: scoped.length,
       byDecisionState: byState,
       games: board.counts?.games ?? events.length,
       qualified: board.counts?.qualified ?? byState.QUALIFIED,
     },
-    events,
-    // Only real QUALIFIED then WATCHLIST — never invent ranking weights.
-    topGameOpportunities: [
-      ...events.filter((e) => e.decision.state === "QUALIFIED"),
-      ...events.filter((e) => e.decision.state === "WATCHLIST"),
-    ].slice(0, 5),
+    events: scoped,
+    topGameOpportunities,
+    marketMovers: selectMarketMovers(scoped),
+    watchlist: selectWatchlist(scoped),
+    topPlayerProps: selectTopPlayerProps(scoped),
     schemaVersion: "fbis-today-v1",
   };
 }

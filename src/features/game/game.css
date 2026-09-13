@@ -1,0 +1,119 @@
+/* Phase 5 — Game workspace */
+
+.game-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 4px 4px;
+}
+
+.game-ws-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border, #2a3344);
+}
+
+.game-ws-title {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.game-ws-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.game-ws-section {
+  border: 1px solid var(--border, #2a3344);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.game-ws-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.game-ws-section-head h3 {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #9aa3b5);
+}
+
+.game-ws-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.game-ws-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.game-ws-metric-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted, #9aa3b5);
+}
+
+.game-ws-metric-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-ws-empty,
+.game-ws-note {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+}
+
+.game-ws-reasons {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+}
+
+.game-ws-table th,
+.game-ws-table td {
+  font-size: 0.82rem;
+}
+
+.game-ws-lab {
+  margin-top: 4px;
+}
+
+.game-ws-lab > summary {
+  cursor: pointer;
+  color: var(--muted, #9aa3b5);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .game-ws-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-ws-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
