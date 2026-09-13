@@ -10,6 +10,12 @@ import {
   ACTION_APIFY_SCHEMA_VERSION,
 } from "./actionApifyShadow.js";
 import { MATCH_CONFIDENCE } from "./actionApifyCandidateConfig.js";
+import {
+  expandBookObservations,
+  expandPlayerPropObservations,
+  persistActionObservationSeries,
+  derivePublicSplitMetrics,
+} from "./actionObservationSeries.js";
 
 const ELIGIBLE = new Set([MATCH_CONFIDENCE.EXACT, MATCH_CONFIDENCE.HIGH]);
 
@@ -155,6 +161,14 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
     ["total", "over", pb.over], ["total", "under", pb.under],
   ]) {
     if (!node || (node.ticketsPercent == null && node.moneyPercent == null)) continue;
+    // Preserve ticket % and money % independently. Derive differential locally.
+    // Never persist provider "sharp" labels as FBIS truth.
+    const splitMetrics = derivePublicSplitMetrics({
+      publicTicketPct: node.ticketsPercent,
+      publicMoneyPct: node.moneyPercent,
+      trackedBetCount: node.betCount ?? pb.betCount,
+      providerSharpLabel: node.sharpSide ?? pb.sharpSide,
+    });
     await db.exec(
       `INSERT INTO shadow_market_splits (
         id, observation_id, run_id, action_game_id, market, side,
@@ -164,8 +178,13 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
       [
         `sms_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
         observationId, runId, actionGameId, market, side,
-        node.ticketsPercent ?? null, node.moneyPercent ?? null, node.moneyMinusTickets ?? null,
-        pb.maxMoneyTicketGap ?? null, pb.sharpSide || null, pb.betCount ?? null, now,
+        splitMetrics.publicTicketPct,
+        splitMetrics.publicMoneyPct,
+        splitMetrics.moneyMinusTicketPct,
+        pb.maxMoneyTicketGap ?? null,
+        null, // sharp_side intentionally null — not an FBIS label
+        splitMetrics.trackedBetCount,
+        now,
       ]
     );
     splits += 1;
@@ -201,10 +220,36 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
     }
   }
 
+  // Append-only ACTION time series (individual book + prop observations).
+  // Never overwrites prior observations; snapshot types are derived pointers.
+  let series = { inserted: 0, ignored: 0, pointers: 0 };
+  try {
+    const seriesCtx = {
+      canonicalEventId: fbisEventId,
+      sport: ctx.sport || row.sport || null,
+      matchConfidence: confidence,
+      runId,
+      sourceObservationId: observationId,
+      collectedAt: now,
+      lifecycle: ctx.lifecycle || row.temporalClass || null,
+      temporalClass: row.temporalClass || ctx.temporalClass || null,
+      snapshotType: ctx.snapshotType || null,
+    };
+    const seriesRows = [
+      ...expandBookObservations(row, seriesCtx),
+      ...(persistProps ? expandPlayerPropObservations(row, seriesCtx) : []),
+    ];
+    series = await persistActionObservationSeries(db, seriesRows);
+  } catch {
+    // Series persistence must not fail the parent shadow observation write.
+    series = { inserted: 0, ignored: 0, pointers: 0, error: true };
+  }
+
   return {
     observationId, books, splits, movement,
     props: persistProps && Array.isArray(row.playerProps) ? row.playerProps.length : 0,
     fbisEventId, confidence,
+    series,
   };
 }
 

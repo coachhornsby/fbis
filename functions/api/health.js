@@ -5,7 +5,9 @@ import { openHarvestRetries, queryExecutedBets, queryStrategyTickets, readMeta }
 import { STRATEGY_HC_V1 } from "../lib/strategy.js";
 import { classifyOpenHarvestRetries, deriveOddsBoardHealth, providerConfigFlags } from "../lib/marketLineage.js";
 import { actionApifyCandidateHealth } from "../lib/actionApifyCollector.js";
-// Action/Apify candidate health is shadow-only — never drives global DOWN.
+import { loadDurableCandidateHealth } from "../lib/actionApifyEvidence.js";
+import { decorateActionMarketHealth } from "../lib/actionMarketIntelligence.js";
+// Action/Apify is live market intelligence, shadow-governed — never drives global DOWN.
 
 const MIGRATION_STATUS = {
   VERIFIED: "VERIFIED",
@@ -15,7 +17,7 @@ const MIGRATION_STATUS = {
 };
 
 /** Production tip expects harden migration after public/Actions billing recovery. */
-const EXPECTED_MIGRATION = "0023_canonical_governance";
+const EXPECTED_MIGRATION = "0024_action_observation_timeseries";
 
 /**
  * Read-only health endpoint.
@@ -182,7 +184,30 @@ export async function onRequestGet(context) {
           bySport: oddsBoard.bySport,
           note: "Boolean configured flags only. No secret values. Quota/rate-limit require live provider probes. boardAvailable can be true from cache while liveCollectionHealthy is false.",
         },
-        actionApify: actionApifyCandidateHealth(env),
+        actionApify: await (async () => {
+          const ephemeral = actionApifyCandidateHealth(env);
+          try {
+            if (!env.DB) return decorateActionMarketHealth(ephemeral);
+            const db = {
+              queryOne: async (sql, params = []) => {
+                const row = await env.DB.prepare(sql).bind(...params).first();
+                return row || null;
+              },
+              queryAll: async (sql, params = []) => {
+                const res = await env.DB.prepare(sql).bind(...params).all();
+                return res?.results || [];
+              },
+            };
+            const durable = await loadDurableCandidateHealth(env, db, {
+              sport: "cfb",
+              profile: "BASE",
+              lifecycle: "pregame",
+            });
+            return decorateActionMarketHealth({ ...ephemeral, ...durable });
+          } catch {
+            return decorateActionMarketHealth(ephemeral);
+          }
+        })(),
         pipeline: {
           lastCollectSuccessAt: health.lastCollectSuccessAt || null,
           lastCollectAttemptAt: health.lastCollectAttemptAt || null,

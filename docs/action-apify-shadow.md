@@ -1,5 +1,33 @@
 # Action Network via Apify — Shadow Market Intelligence
 
+## Immutable observation time series
+
+ACTION market intelligence stores **append-only** individual book and player-prop observations
+(migration `0024_action_observation_timeseries`). Prior rows are never overwritten.
+
+Each observation retains canonical/provider event IDs (and player IDs for props), sport, market type,
+period, selection/side, line, American price, sportsbook, provider timestamp, `collected_at`,
+event start time, snapshot type label, public ticket %, public money %, tracked bet count/volume when
+exposed, raw payload hash, match confidence, and schema version.
+
+`OPEN` / `CURRENT` / `DECISION` / `FINAL_PREGAME` / `CLOSE` are **derived** from the immutable series
+(via snapshot pointers), not stored as a single mutable line.
+
+Ticket % and money % are preserved independently. FBIS derives money−ticket itself and does **not**
+convert provider metadata into an assumed “sharp” label.
+
+Player-prop identity is canonicalized at:
+`event + player + market + period + selection + book + observation time`.
+
+ACTION may power market history, model-vs-market, misprice research, book disagreement, line shopping,
+public-split research, CLV, and separately governed MARKET challengers.
+
+ACTION remains unable to:
+1. enter PURE game features
+2. enter PURE player features
+3. directly qualify a wager
+4. authorize a wager
+
 ## Status
 
 **SHADOW RESEARCH ONLY.** This adapter never enters the authoritative production odds router:

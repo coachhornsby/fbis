@@ -657,3 +657,74 @@ CREATE TABLE IF NOT EXISTS canonical_governance_meta (
   value TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+
+-- ACTION immutable observation time series (migration 0024)
+CREATE TABLE IF NOT EXISTS action_market_book_observations (
+  id TEXT PRIMARY KEY,
+  observation_key TEXT NOT NULL UNIQUE,
+  canonical_event_id TEXT,
+  canonical_player_id TEXT,
+  provider_event_id TEXT NOT NULL,
+  provider_player_id TEXT,
+  sport TEXT NOT NULL,
+  market_type TEXT NOT NULL,
+  market_period TEXT NOT NULL DEFAULT 'event',
+  selection TEXT NOT NULL,
+  line REAL,
+  american_price REAL,
+  sportsbook TEXT NOT NULL,
+  provider_timestamp TEXT,
+  collected_at TEXT NOT NULL,
+  event_start_time TEXT,
+  snapshot_type TEXT,
+  public_ticket_pct REAL,
+  public_money_pct REAL,
+  money_minus_ticket_pct REAL,
+  tracked_bet_count REAL,
+  tracked_volume REAL,
+  raw_payload_hash TEXT NOT NULL,
+  match_confidence TEXT,
+  schema_version TEXT NOT NULL,
+  run_id TEXT,
+  source_observation_id TEXT,
+  decision_eligible INTEGER NOT NULL DEFAULT 0,
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize_wager INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_action_book_obs_event_market
+  ON action_market_book_observations (canonical_event_id, market_type, market_period, selection, sportsbook, collected_at);
+CREATE INDEX IF NOT EXISTS idx_action_book_obs_provider_event
+  ON action_market_book_observations (provider_event_id, sport, collected_at);
+CREATE INDEX IF NOT EXISTS idx_action_book_obs_player
+  ON action_market_book_observations (canonical_player_id, market_type, collected_at);
+CREATE INDEX IF NOT EXISTS idx_action_book_obs_snapshot
+  ON action_market_book_observations (snapshot_type, sport, collected_at);
+CREATE INDEX IF NOT EXISTS idx_action_book_obs_run
+  ON action_market_book_observations (run_id);
+
+CREATE TABLE IF NOT EXISTS action_market_snapshot_pointers (
+  id TEXT PRIMARY KEY,
+  sport TEXT NOT NULL,
+  canonical_event_id TEXT,
+  canonical_player_id TEXT,
+  provider_event_id TEXT NOT NULL,
+  provider_player_id TEXT,
+  market_type TEXT NOT NULL,
+  market_period TEXT NOT NULL DEFAULT 'event',
+  selection TEXT NOT NULL,
+  sportsbook TEXT NOT NULL,
+  snapshot_type TEXT NOT NULL,
+  observation_id TEXT NOT NULL,
+  observation_key TEXT NOT NULL,
+  derived_at TEXT NOT NULL,
+  event_start_time TEXT,
+  FOREIGN KEY (observation_id) REFERENCES action_market_book_observations(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_action_snap_ptr_event
+  ON action_market_snapshot_pointers (canonical_event_id, market_type, snapshot_type);
+CREATE INDEX IF NOT EXISTS idx_action_snap_ptr_type
+  ON action_market_snapshot_pointers (snapshot_type, sport, derived_at);
