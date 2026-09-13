@@ -33,13 +33,21 @@ export function nflSeasonYear(date = new Date()) {
   return m >= 7 ? y : y - 1;
 }
 
+function espnIdFromCanonical(canonicalId) {
+  const m = String(canonicalId || "").match(/^nfl-(\d+)$/i);
+  return m ? m[1] : null;
+}
+
 function formRow(map, team) {
   if (!map?.get || !team) return null;
+  const fromCanonical = espnIdFromCanonical(team.canonicalId || team.id);
   const candidates = [
     team.espnId != null ? `id:${team.espnId}` : null,
+    fromCanonical ? `id:${fromCanonical}` : null,
     team.abbr ? `abbr:${String(team.abbr).toUpperCase()}` : null,
     team.name ? `name:${String(team.name).toLowerCase()}` : null,
     team.school ? `name:${String(team.school).toLowerCase()}` : null,
+    team.fullName ? `name:${String(team.fullName).toLowerCase()}` : null,
   ].filter(Boolean);
   for (const key of candidates) {
     const hit = map.get(key);

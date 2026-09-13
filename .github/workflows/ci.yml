@@ -242,3 +242,52 @@ jobs:
           path: artifacts/
           if-no-files-found: warn
           retention-days: 14
+
+      # NFL team_form was never seeded because freeze historically skipped NFL
+      # (no independent FBIS projection) — a circular dependency. Seed form from
+      # ESPN finals via /api/harvest only. Do NOT call /api/collect here — research
+      # catch-up stays in harvest.yml. /api/today builds the slate live from form.
+      - name: NFL form backfill (post-deploy seed)
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          auth=(-H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json")
+
+          seed() {
+            local season="$1"
+            local weeks="$2"
+            local out="artifacts/nfl-form-backfill-${season}.json"
+            local http
+            http=$(curl -sS --max-time 300 \
+              "${auth[@]}" \
+              -o "$out" -w "%{http_code}" \
+              "${BASE}/api/harvest?formBackfill=1&formSeason=${season}&formWeeks=${weeks}&includePostseason=0&trigger=workflow_dispatch")
+            echo "nfl_form_backfill season=${season} http=${http}"
+            test "$http" = "200"
+            jq -c '{ok:.ok, job:.job, season:.season, weeksFetched:.weeksFetched, finalsSeen:.finalsSeen, formApplied:.formApplied, formFailed:.formFailed, errors:(.errors//[])}' "$out" || true
+            jq -e '.ok == true' "$out" >/dev/null
+          }
+
+          seed 2025 "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18"
+          seed 2026 "1,2,3"
+
+          {
+            echo "## NFL form backfill (post-deploy)"
+            echo ""
+            echo "- production SHA: \`${DEPLOY_SHA}\`"
+            echo "- 2025 formApplied: $(jq -r '.formApplied // 0' artifacts/nfl-form-backfill-2025.json)"
+            echo "- 2026 formApplied: $(jq -r '.formApplied // 0' artifacts/nfl-form-backfill-2026.json)"
+            echo "- note: board projections rebuild live from team_form; freeze/collect remains in harvest.yml"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload NFL form-backfill artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-form-backfill-${{ env.DEPLOY_SHA }}
+          path: artifacts/nfl-form-backfill-*.json
+          if-no-files-found: warn
+          retention-days: 14

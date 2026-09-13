@@ -1,4 +1,4 @@
-import { harvestAll } from "../lib/projLedger.js";
+import { harvestAll, backfillNflFormViaHarvest } from "../lib/projLedger.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { httpStatusForJob, parseJobTrigger } from "../lib/jobs.js";
 import { setMeta } from "../lib/store.js";
@@ -18,6 +18,9 @@ export async function onRequestGet(context) {
   const settleOnly = url.searchParams.get("settleOnly") === "1";
   const gradeResearch = url.searchParams.get("gradeResearch") === "1";
   const sport = url.searchParams.get("sport") || "all";
+  const formBackfill = url.searchParams.get("formBackfill") === "1";
+  const formSeason = url.searchParams.get("formSeason");
+  const formWeeks = url.searchParams.get("formWeeks");
   const trigger = parseJobTrigger(context.request);
   const runUrl = url.searchParams.get("runUrl") || "";
   const scheduledSlot = url.searchParams.get("scheduledSlot") || "";
@@ -27,6 +30,34 @@ export async function onRequestGet(context) {
       if (runUrl) await setMeta(context.env, "last_scheduled_run_url", runUrl);
       if (scheduledSlot) await setMeta(context.env, "last_scheduled_slot", scheduledSlot);
       await setMeta(context.env, "last_scheduled_actual_start_at", new Date().toISOString());
+    }
+    if (formBackfill) {
+      const weeks = formWeeks
+        ? formWeeks
+            .split(",")
+            .map((w) => Number(w.trim()))
+            .filter((n) => Number.isFinite(n) && n > 0)
+        : null;
+      const payload = await backfillNflFormViaHarvest(
+        {
+          caches: caches.default,
+          DB: context.env.DB,
+          ARCHIVE: context.env.ARCHIVE,
+          CF_PAGES_COMMIT_SHA: context.env.CF_PAGES_COMMIT_SHA,
+        },
+        {
+          season: formSeason ? Number(formSeason) : undefined,
+          weeks,
+          includePostseason: url.searchParams.get("includePostseason") !== "0",
+        }
+      );
+      return new Response(JSON.stringify({ ok: payload.ok !== false, job: "nfl-form-backfill", ...payload }), {
+        status: payload.ok === false ? 502 : 200,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+        },
+      });
     }
     const payload = await harvestAll(
       days,
