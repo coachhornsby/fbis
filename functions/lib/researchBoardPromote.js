@@ -18,6 +18,10 @@ import {
 } from "./cbbPureChallenger.js";
 import { NFL_SHADOW_ID } from "./nflModel.js";
 import { lookupCbbdRating } from "./cbbRatingsSafe.js";
+import {
+  buildProbabilityProvenance,
+  PROBABILITY_SOURCE,
+} from "./canonical/probabilityAuthority.js";
 
 function round1(v) {
   return Math.round(Number(v) * 10) / 10;
@@ -110,17 +114,42 @@ function stampResearchBoard(game, {
     maturity: "RESEARCH",
     projectionKind: "FBIS",
   };
+  const priorKind = String(game.projectionKind || game.model?.projectionKind || "").toUpperCase();
+  const priorWasMarket =
+    priorKind.includes("PINNACLE") || priorKind.includes("MARKET") || priorKind.includes("IMPLIED");
+  const marketProjHome = priorWasMarket
+    ? game.model?.projHome ?? game.projHomeScore ?? game.marketProjHome ?? null
+    : game.model?.marketProjHome ?? game.marketProjHome ?? null;
+  const marketProjAway = priorWasMarket
+    ? game.model?.projAway ?? game.projAwayScore ?? game.marketProjAway ?? null
+    : game.model?.marketProjAway ?? game.marketProjAway ?? null;
+  const probabilityProvenance = buildProbabilityProvenance({
+    probabilitySource: PROBABILITY_SOURCE.HEURISTIC_SIGMA,
+    modelId,
+    modelVersion,
+    validationStatus: "RESEARCH",
+    oosSampleSize: null,
+  });
+
   return {
     ...game,
     projHomeScore: scores.home,
     projAwayScore: scores.away,
+    marketProjHome,
+    marketProjAway,
     model: {
       ...(game.model || {}),
       projHome: scores.home,
       projAway: scores.away,
       projMargin: scores.margin,
       projTotal: scores.total,
+      // Independent research scores — never leave market p(home) attached.
+      pHomeFinal: null,
+      pHome: null,
+      marketProjHome,
+      marketProjAway,
       projectionKind: "FBIS",
+      probabilityProvenance,
       // Object shape required by freezeFromGame (recipe.engine) + GameCard.
       recipe: {
         engine: modelId,
@@ -137,6 +166,7 @@ function stampResearchBoard(game, {
       canAuthorize: false,
       canShowCalibratedEv: false,
     },
+    probabilityProvenance,
     modelVersion,
     projectionKind: "FBIS",
     projectionEngine: modelId,
@@ -162,6 +192,7 @@ function stampResearchBoard(game, {
       note: researchNote,
       canQualify: false,
       canAuthorize: false,
+      probabilityProvenance,
       generatedAt: new Date().toISOString(),
     },
     challengers: {

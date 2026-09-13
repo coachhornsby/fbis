@@ -113,6 +113,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     bettingAuthority: game.bettingAuthority || null,
     modelDisagreement: game.modelDisagreement || null,
     researchProjection: game.researchProjection || null,
+    probabilityProvenance: game.probabilityProvenance || game.model?.probabilityProvenance || null,
     pureProjectionAvailable: game.pureProjectionAvailable ?? null,
     canQualify: game.canQualify !== false && !game.qualificationBlocked,
     projectionRecipe: game.model?.recipe || null,

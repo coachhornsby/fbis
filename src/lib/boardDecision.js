@@ -6,6 +6,12 @@
  * wager was found. Missing PURE projection is NO_MODEL, never PASS.
  */
 
+import {
+  buildProbabilityProvenance,
+  probabilityDisplayContract,
+  PROBABILITY_SOURCE,
+} from "../../functions/lib/canonical/probabilityAuthority.js";
+
 export const DECISION_ORDER = Object.freeze({
   CONVICTION: 0,
   QUALIFIED: 1,
@@ -77,35 +83,140 @@ export function isResearchProjection(game) {
   return false;
 }
 
-export function hasPureFbisProjection(game) {
-  if (!game) return false;
-  if (game.projectionUnavailable) return false;
-  if (game.pureProjectionAvailable === false) return false;
-  if (game.cfb?.projectionState === "LEAGUE_AVERAGE_ONLY") return false;
+function finiteScore(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pairScores(away, home) {
+  const a = finiteScore(away);
+  const h = finiteScore(home);
+  if (a == null || h == null) return null;
+  return { away: a, home: h };
+}
+
+/**
+ * Independent FBIS / research scores only — never market-implied headline numbers.
+ * Shared by compact rows and expanded detail.
+ */
+export function resolveIndependentScores(game) {
+  if (!game) return null;
+  if (game.projectionUnavailable) return null;
+  if (game.pureProjectionAvailable === false) return null;
+  if (game.cfb?.projectionState === "LEAGUE_AVERAGE_ONLY") return null;
+
+  const rp = game.researchProjection;
+  if (rp && typeof rp === "object") {
+    const fromResearch = pairScores(
+      rp.away ?? rp.projAway ?? rp.awayScore,
+      rp.home ?? rp.projHome ?? rp.homeScore
+    );
+    if (fromResearch) {
+      return { ...fromResearch, source: "researchProjection", fromResearch: true };
+    }
+  }
 
   const kind = String(
     game.projectionKind || game.projectionState || game.model?.projectionKind || ""
   ).toUpperCase();
-  if (MARKET_IMPLIED_KINDS.has(kind)) return false;
-  if (kind === "UNAVAILABLE" || kind === "NONE" || kind === "NO_MODEL") return false;
+  if (kind === "UNAVAILABLE" || kind === "NONE" || kind === "NO_MODEL") return null;
 
-  // Research FBIS scores count as pure for display / freeze / publish — not for PASS.
-  if (kind === "FBIS" || kind === "PURE" || kind === "FBIS_PURE") {
-    const away = game?.model?.projAway ?? game?.projAwayScore ?? null;
-    const home = game?.model?.projHome ?? game?.projHomeScore ?? null;
-    if (away == null || home == null) return false;
-    if (Number.isNaN(Number(away)) || Number.isNaN(Number(home))) return false;
-    return true;
+  const modelPair = pairScores(
+    game?.model?.projAway ?? game?.projAwayScore ?? game?.projAway,
+    game?.model?.projHome ?? game?.projHomeScore ?? game?.projHome
+  );
+
+  const research =
+    isResearchProjection(game) ||
+    String(game.projectionMaturity || game.model?.maturity || "").toUpperCase() === "RESEARCH";
+  const pureFlag = game.pureProjectionAvailable === true;
+
+  // Explicit FBIS / PURE kinds — independent when scores exist.
+  if (modelPair && (kind === "FBIS" || kind === "PURE" || kind === "FBIS_PURE")) {
+    return { ...modelPair, source: "model", fromResearch: research };
   }
 
-  const sport = String(game.sport || "").toLowerCase();
-  if (sport === "nfl") return false;
+  // Research / pure flags win even if a stale market kind label remains.
+  if (modelPair && (research || pureFlag)) {
+    return {
+      ...modelPair,
+      source: MARKET_IMPLIED_KINDS.has(kind) ? "research-over-market-kind" : "model",
+      fromResearch: true,
+    };
+  }
 
-  const away = game?.model?.projAway ?? game?.projAwayScore ?? null;
-  const home = game?.model?.projHome ?? game?.projHomeScore ?? null;
-  if (away == null || home == null) return false;
-  if (Number.isNaN(Number(away)) || Number.isNaN(Number(home))) return false;
-  return true;
+  if (MARKET_IMPLIED_KINDS.has(kind)) return null;
+
+  const sport = String(game.sport || "").toLowerCase();
+  if (sport === "nfl") return null;
+
+  if (modelPair) return { ...modelPair, source: "model", fromResearch: false };
+  return null;
+}
+
+/**
+ * Canonical board projection resolver — compact rows and expanded detail must share this.
+ * Never headlines PINNACLE_IMPLIED when an FBIS research projection exists.
+ */
+export function resolveBoardProjection(game) {
+  const independent = resolveIndependentScores(game);
+  const market = marketImpliedScores(game);
+  const rawKind = String(
+    game?.projectionKind || game?.model?.projectionKind || game?.projectionState || ""
+  ).toUpperCase() || null;
+
+  if (independent) {
+    const away = independent.away;
+    const home = independent.home;
+    // Prefer explicit board margin/total when present; otherwise derive and round to 1dp.
+    const derivedMargin = Math.round((home - away) * 10) / 10;
+    const derivedTotal = Math.round((away + home) * 10) / 10;
+    const explicitMargin = finiteScore(game?.model?.projMargin ?? game?.projMargin);
+    const explicitTotal = finiteScore(game?.model?.projTotal ?? game?.projTotal);
+    const margin = explicitMargin != null ? explicitMargin : derivedMargin;
+    const total = explicitTotal != null ? explicitTotal : derivedTotal;
+    const research = Boolean(independent.fromResearch || isResearchProjection(game));
+    return {
+      available: true,
+      independent: true,
+      away,
+      home,
+      total,
+      margin,
+      fairHomeSpread: -margin,
+      fairTotal: total,
+      kind: "FBIS",
+      displayKind: "FBIS",
+      headlineLabel: research ? "FBIS RESEARCH" : "FBIS",
+      state: game?.cfb?.projectionState || game?.projectionState || null,
+      marketBenchmark: market.available ? market : null,
+      source: independent.source,
+      research,
+    };
+  }
+
+  return {
+    available: false,
+    independent: false,
+    away: null,
+    home: null,
+    total: null,
+    margin: null,
+    fairHomeSpread: null,
+    fairTotal: null,
+    kind: rawKind,
+    displayKind: MARKET_IMPLIED_KINDS.has(rawKind || "") ? rawKind : rawKind,
+    headlineLabel: null,
+    state: game?.cfb?.projectionState || game?.projectionState || null,
+    marketBenchmark: market.available ? market : null,
+    source: null,
+    research: false,
+  };
+}
+
+export function hasPureFbisProjection(game) {
+  return resolveIndependentScores(game) != null;
 }
 
 export function isBlockedGame(game) {
@@ -320,37 +431,22 @@ export function formatBoardDate(iso, { now = new Date() } = {}) {
 }
 
 export function fbisProjection(game) {
-  const available = hasPureFbisProjection(game);
-  const away = game?.model?.projAway ?? game?.projAwayScore ?? null;
-  const home = game?.model?.projHome ?? game?.projHomeScore ?? null;
-  if (!available) {
-    return {
-      available: false,
-      away: null,
-      home: null,
-      total: null,
-      margin: null,
-      fairHomeSpread: null,
-      fairTotal: null,
-      kind: game?.projectionKind || null,
-      state: game?.cfb?.projectionState || game?.projectionState || null,
-    };
-  }
-  const a = Number(away);
-  const h = Number(home);
-  const margin = h - a;
-  const total = a + h;
+  // Compact + detail share resolveBoardProjection.
+  const resolved = resolveBoardProjection(game);
   return {
-    available: true,
-    away: a,
-    home: h,
-    total,
-    margin,
-    // Home spread: if home favored by M, line is -M.
-    fairHomeSpread: -margin,
-    fairTotal: total,
-    kind: game?.projectionKind || "FBIS",
-    state: game?.cfb?.projectionState || game?.projectionState || null,
+    available: resolved.available,
+    away: resolved.away,
+    home: resolved.home,
+    total: resolved.total,
+    margin: resolved.margin,
+    fairHomeSpread: resolved.fairHomeSpread,
+    fairTotal: resolved.fairTotal,
+    kind: resolved.displayKind || resolved.kind,
+    state: resolved.state,
+    headlineLabel: resolved.headlineLabel,
+    independent: resolved.independent,
+    marketBenchmark: resolved.marketBenchmark,
+    research: resolved.research,
   };
 }
 
@@ -531,4 +627,63 @@ export function favoriteFairLabel(proj, awayAbbr, homeAbbr) {
   if (line === 0) return `PICK'EM · TOTAL ${Number(proj.fairTotal).toFixed(1)}`;
   if (line < 0) return `${homeAbbr || "HOME"} ${formatSpreadLabel(line)}`;
   return `${awayAbbr || "AWAY"} ${formatSpreadLabel(-line)}`;
+}
+
+function researchModelVersion(game) {
+  return String(
+    game?.researchProjection?.modelVersion ||
+      game?.modelVersion ||
+      game?.model?.recipe?.version ||
+      game?.model?.version ||
+      ""
+  );
+}
+
+/**
+ * Infer probability provenance for board display when the payload omits it.
+ * research-v0-form is heuristic-sigma research and fails the authority contract.
+ */
+export function inferBoardProbabilityProvenance(game = {}) {
+  if (game?.probabilityProvenance && typeof game.probabilityProvenance === "object") {
+    return buildProbabilityProvenance(game.probabilityProvenance);
+  }
+  if (game?.model?.probabilityProvenance && typeof game.model.probabilityProvenance === "object") {
+    return buildProbabilityProvenance(game.model.probabilityProvenance);
+  }
+  const version = researchModelVersion(game);
+  const researchForm =
+    version.includes("research-v0-form") ||
+    (isResearchProjection(game) && String(game?.sport || "").toLowerCase() === "nfl");
+  if (researchForm) {
+    return buildProbabilityProvenance({
+      probabilitySource: PROBABILITY_SOURCE.HEURISTIC_SIGMA,
+      modelId:
+        game?.researchProjection?.modelId ||
+        game?.projectionEngine ||
+        game?.model?.recipe?.engine ||
+        "NFL-FBIS-PURE",
+      modelVersion: version || "research-v0-form",
+      validationStatus: "RESEARCH",
+      rawProbability: finiteScore(game?.pHome ?? game?.model?.pHomeFinal ?? game?.model?.pHome),
+    });
+  }
+  if (game?.probabilityProvenance == null && game?.model?.probabilityProvenance == null) {
+    return buildProbabilityProvenance({
+      probabilitySource: PROBABILITY_SOURCE.UNKNOWN,
+      modelId: game?.projectionEngine || game?.model?.recipe?.engine || null,
+      modelVersion: version || null,
+      rawProbability: finiteScore(game?.pHome ?? game?.model?.pHomeFinal ?? game?.model?.pHome),
+    });
+  }
+  return buildProbabilityProvenance({});
+}
+
+/** True only when probability provenance passes the probability-authority contract. */
+export function boardShowsFairProbability(game) {
+  const contract = probabilityDisplayContract(inferBoardProbabilityProvenance(game));
+  return Boolean(contract.showFairProbability);
+}
+
+export function boardProbabilityDisplay(game) {
+  return probabilityDisplayContract(inferBoardProbabilityProvenance(game));
 }
