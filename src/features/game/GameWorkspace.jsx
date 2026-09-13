@@ -319,7 +319,7 @@ export default function GameWorkspace({ event, weather = null, footer = null }) 
           <p className="muted">
             {(event.league || event.sport || "").toString().toUpperCase()}
             {event.startCt ? ` · ${event.startCt} CT` : ""}
-            {event.status ? ` · ${event.status}` : ""}
+            {event.status ? ` · ${typeof event.status === "object" ? (event.status.state || event.status.detail || "") : event.status}` : ""}
           </p>
         </div>
         <DecisionChip state={event.decision?.state} reasonCodes={event.decision?.reasonCodes} />

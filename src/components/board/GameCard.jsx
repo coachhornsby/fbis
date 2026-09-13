@@ -11,9 +11,12 @@ import {
   formatSpreadLabel,
   glowClassForTier,
   marketDeltas,
+  marketImpliedScores,
   marketLines,
   mlbModelAgreement,
   modelQualityView,
+  safeDisplayString,
+  teamCardTitle,
 } from "../../lib/boardDecision.js";
 import { fmtAmerican, fmtNum } from "../../lib/format.js";
 import { GameDetails } from "../../TodayView.jsx";
@@ -25,10 +28,6 @@ function fairSpreadTeamLine(proj, away, home) {
   if (Math.abs(line) < 0.05) return "PICK'EM";
   if (line < 0) return `${home?.abbr || "HOME"} ${formatSpreadLabel(line)}`;
   return `${away?.abbr || "AWAY"} ${formatSpreadLabel(-line)}`;
-}
-
-function teamTitle(team) {
-  return team?.fullName || team?.name || team?.school || team?.abbr || "Team";
 }
 
 function starterLine(game, side) {
@@ -56,6 +55,7 @@ export default function GameCard({
   const mkt = marketLines(game);
   const deltas = marketDeltas(game);
   const quality = modelQualityView(game);
+  const marketScores = marketImpliedScores(game);
   const pal = game.sport === "mlb" ? mlbModelAgreement(game) : { available: false };
   const detailsId = useId();
   const glow = glowClassForTier(decision.tier);
@@ -66,6 +66,8 @@ export default function GameCard({
   const isMlb = game?.sport === "mlb";
   const logoSize = isMlb ? 48 : 86;
   const matchupClass = isMlb ? "gc-matchup-row" : "gc-matchup-row logo-stack";
+  const venueLabel = safeDisplayString(game.venue, "");
+  const statusDetail = safeDisplayString(game.status?.detail || game.status, "");
 
   const toggleDetails = () => onToggle?.(game.id);
 
@@ -73,6 +75,7 @@ export default function GameCard({
     <article
       className={`game-card ${glow} decision-tier-${decision.tier}`}
       data-decision={decision.tier}
+      data-misprice-state={decision.mispriceState || ""}
       data-game-id={game.id}
       data-sport={game.sport || ""}
     >
@@ -84,12 +87,12 @@ export default function GameCard({
           </div>
           <div className="gc-time">
             {live ? <span className="live-dot" aria-hidden="true">●</span> : null}
-            {live || done ? game.status?.detail || when.timeLine : when.timeLine}
+            {live || done ? statusDetail || when.timeLine : when.timeLine}
           </div>
         </div>
         <div className="gc-meta">
           <span className="gc-sport">{String(game.sport || "").toUpperCase()}</span>
-          {game.venue ? <span className="gc-venue" title={game.venue}>{game.venue}</span> : null}
+          {venueLabel ? <span className="gc-venue" title={venueLabel}>{venueLabel}</span> : null}
         </div>
       </header>
 
@@ -97,8 +100,8 @@ export default function GameCard({
         <div className="gc-side away">
           <TeamLogo team={game.away} size={logoSize} />
           <div className="gc-side-text">
-            <span className="gc-team-name">{teamTitle(game.away)}</span>
-            {game.away?.record ? <span className="gc-record muted">{game.away.record}</span> : null}
+            <span className="gc-team-name">{teamCardTitle(game.away)}</span>
+            {game.away?.record ? <span className="gc-record muted">{safeDisplayString(game.away.record)}</span> : null}
             {awayStarter ? <span className="gc-starter muted">{awayStarter}</span> : null}
           </div>
           {live || done ? (
@@ -109,8 +112,8 @@ export default function GameCard({
         <div className="gc-side home">
           <TeamLogo team={game.home} size={logoSize} />
           <div className="gc-side-text">
-            <span className="gc-team-name">{teamTitle(game.home)}</span>
-            {game.home?.record ? <span className="gc-record muted">{game.home.record}</span> : null}
+            <span className="gc-team-name">{teamCardTitle(game.home)}</span>
+            {game.home?.record ? <span className="gc-record muted">{safeDisplayString(game.home.record)}</span> : null}
             {homeStarter ? <span className="gc-starter muted">{homeStarter}</span> : null}
           </div>
           {live || done ? (
@@ -146,22 +149,26 @@ export default function GameCard({
           </>
         ) : (
           <div className="gc-proj-unavailable">
-            {game.sport === "nfl" || game.projectionKind === "PINNACLE_IMPLIED" ? (
-              <>
-                <div className="muted">FBIS projection unavailable</div>
-                {(game.marketProjAway ?? game.model?.marketProjAway) != null ? (
-                  <div className="proj-implied">
-                    PINNACLE IMPLIED {fmtNum(game.marketProjAway ?? game.model?.marketProjAway)} –{" "}
-                    {fmtNum(game.marketProjHome ?? game.model?.marketProjHome)}
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <>
-                <div className="proj-blocked">PROJECTION BLOCKED</div>
-                <div className="muted">{game.cfb?.blockReason || "Team-specific inputs missing"}</div>
-              </>
-            )}
+            <div className="proj-blocked">NO PURE MODEL</div>
+            <div className="muted">
+              {decision.reason || game.cfb?.blockReason || "Independent FBIS projection unavailable"}
+            </div>
+            {marketScores?.available ? (
+              <div className="proj-implied market-benchmark">
+                <span className="muted">MARKET-IMPLIED SCORE / MARKET BENCHMARK</span>
+                <strong>
+                  {fmtNum(marketScores.away, 1)} – {fmtNum(marketScores.home, 1)}
+                </strong>
+              </div>
+            ) : (game.marketProjAway ?? game.model?.marketProjAway) != null ? (
+              <div className="proj-implied market-benchmark">
+                <span className="muted">MARKET-IMPLIED SCORE / MARKET BENCHMARK</span>
+                <strong>
+                  {fmtNum(game.marketProjAway ?? game.model?.marketProjAway, 1)} –{" "}
+                  {fmtNum(game.marketProjHome ?? game.model?.marketProjHome, 1)}
+                </strong>
+              </div>
+            ) : null}
           </div>
         )}
         {(game.sport === "cfb" || game.sport === "cbb") && proj.available ? (
@@ -217,12 +224,15 @@ export default function GameCard({
       )}
 
       <div className="gc-decision-row">
-        <DecisionBadge tier={decision.tier} pick={decision.pick} />
+        <DecisionBadge tier={decision.tier} label={decision.label} pick={decision.pick} />
+        {decision.mispriceState ? (
+          <span className="gc-misprice-state muted">{String(decision.mispriceState).replace(/_/g, " ")}</span>
+        ) : null}
         {decision.market ? <span className="gc-decision-market muted">{decision.market}</span> : null}
         {(game.rec?.softBenchmark || game.lean?.softBenchmark) ? (
           <span className="gc-soft-flag muted">{game.rec?.book || game.lean?.book || "DK/FD"}</span>
         ) : null}
-        {decision.evPct != null ? (
+        {decision.evPct != null && quality.hasPureModel ? (
           <span className={decision.evPct >= 0 ? "text-green" : "text-red"}>
             ROI {decision.evPct >= 0 ? "+" : ""}
             {fmtNum(decision.evPct, 1)}%
@@ -230,19 +240,41 @@ export default function GameCard({
         ) : null}
       </div>
 
-      <section className="gc-quality" aria-label="Model quality">
+      <section className="gc-quality" aria-label="Quality and data readiness">
         <div>
-          <span className="muted">MODEL QUALITY</span>
-          <strong>{quality.score == null ? "—" : quality.score}</strong>
+          <span className="muted">{quality.hasPureModel ? "MODEL QUALITY" : "MARKET / DATA QUALITY"}</span>
+          <strong>
+            {quality.hasPureModel
+              ? (quality.modelQuality ?? quality.score) == null
+                ? "—"
+                : (quality.modelQuality ?? quality.score)
+              : (quality.marketDataQuality ?? quality.score) == null
+                ? "—"
+                : (quality.marketDataQuality ?? quality.score)}
+          </strong>
         </div>
         <div>
-          <span className="muted">UNCERTAINTY</span>
-          <strong className={quality.uncertainty === "HIGH" ? "text-yellow" : ""}>{quality.uncertainty}</strong>
+          <span className="muted">{quality.hasPureModel ? "UNCERTAINTY" : "MODEL STATUS"}</span>
+          <strong className={quality.uncertainty === "HIGH" ? "text-yellow" : ""}>
+            {quality.hasPureModel ? quality.uncertainty : "NO PURE MODEL"}
+          </strong>
         </div>
         <div>
           <span className="muted">DATA STATE</span>
-          <strong>{quality.dataState}</strong>
+          <strong>{quality.dataState ?? "—"}</strong>
         </div>
+      </section>
+      <section className="gc-data-readiness muted" aria-label="Data readiness breakdown">
+        <span>SPORT {quality.sportDataState || "—"}</span>
+        <span>MARKET {quality.marketDataState || "—"}</span>
+        <span>MODEL INPUTS {quality.modelInputsState || "—"}</span>
+        <span>PROJECTION {quality.projectionState || "—"}</span>
+      </section>
+      <section className="gc-data-readiness muted" aria-label="Data readiness breakdown">
+        <span>SPORT {quality.sportDataState}</span>
+        <span>MARKET {quality.marketDataState}</span>
+        <span>MODEL INPUTS {quality.modelInputsState}</span>
+        <span>PROJECTION {quality.projectionState}</span>
       </section>
 
       {game.sport === "mlb" && pal.available ? (
@@ -260,7 +292,7 @@ export default function GameCard({
             </strong>
           </div>
           <div className="gc-mlb-row benchmark">
-            <span>PINNACLE</span>
+            <span>MARKET BENCHMARK</span>
             <strong>
               {fmtAmerican(mkt.awayMl)} / {fmtAmerican(mkt.homeMl)}
               {mkt.total != null ? ` · Tot ${fmtNum(mkt.total, 1)}` : ""}
@@ -296,7 +328,7 @@ export default function GameCard({
         <button
           type="button"
           className="log-btn"
-          disabled={!game.rec || decision.tier === "BLOCKED" || logged || done}
+          disabled={!game.rec || decision.tier === "BLOCKED" || decision.tier === "NO_MODEL" || logged || done}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
