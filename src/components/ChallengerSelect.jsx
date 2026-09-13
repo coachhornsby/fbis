@@ -22,7 +22,7 @@ export function ChallengerSelect({ game, championHome, championAway }) {
         onChange={(e) => setSel(e.target.value)}
         style={{ background: "var(--navy)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 10, maxWidth: 180 }}
       >
-        <option value="champion">Champion {game.championModel || "FBIS-v1.3"}</option>
+        <option value="champion">Champion {game.championModel || "FBIS-v1.4"}</option>
         {ids.map((id) => (
           <option key={id} value={id}>
             {id}{game.challengers[id]?.marketInformed ? " · market-informed" : ""} · shadow

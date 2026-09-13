@@ -723,7 +723,7 @@ export default function App() {
                           : `${executedStats.profit >= 0 ? "+" : ""}$${executedStats.profit.toFixed(2)}`
                       }
                     />
-                    <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.3"} />
+                    <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.4"} />
                     <Stat label="Pin / Heritage" value={bookLabel(slate)} />
                     <Stat label="Pal" value={palLabel(slate)} />
                     <Stat label="Parlay" value={parlayLabel(slate)} />
