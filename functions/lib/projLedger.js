@@ -192,11 +192,40 @@ function snapshotOdds(game) {
   };
 }
 
+function normalizeRecipe(recipe, game = {}) {
+  if (recipe && typeof recipe === "object" && !Array.isArray(recipe)) {
+    return {
+      ...recipe,
+      engine:
+        recipe.engine ||
+        game.projectionEngine ||
+        game.researchProjection?.modelId ||
+        null,
+    };
+  }
+  if (typeof recipe === "string" && recipe.trim()) {
+    const engine = recipe.includes("@") ? recipe.split("@")[0] : recipe;
+    return {
+      engine,
+      version: recipe.includes("@") ? recipe.split("@").slice(1).join("@") : null,
+      raw: recipe,
+      steps: [recipe],
+    };
+  }
+  return {
+    engine: game.projectionEngine || game.researchProjection?.modelId || null,
+    steps: [],
+  };
+}
+
 export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
   const model = game.model || {};
-  const recipe = model.recipe || {};
-  const projHome = model.projHome ?? game.projHomeScore;
-  const projAway = model.projAway ?? game.projAwayScore;
+  const recipe = normalizeRecipe(model.recipe, game);
+  const research = game.researchProjection || {};
+  const projHome =
+    model.projHome ?? game.projHomeScore ?? research.home ?? game.projHome ?? null;
+  const projAway =
+    model.projAway ?? game.projAwayScore ?? research.away ?? game.projAway ?? null;
   const palHome = model.palHome ?? game.bpp?.homeRuns ?? null;
   const palAway = model.palAway ?? game.bpp?.awayRuns ?? null;
   if (projHome == null && palHome == null) return null;

@@ -40,9 +40,47 @@ describe("live research projection launch", () => {
     assert.equal(g.publicationStatus, "RESEARCH_PUBLISHABLE");
     assert.equal(g.projHomeScore, 22.7);
     assert.equal(g.projAwayScore, 24.1);
+    assert.equal(g.model?.recipe?.engine, "NFL-FBIS-PURE");
+    assert.equal(typeof g.model?.recipe, "object");
     const qi = qualificationIntegrity("nfl", g);
     assert.equal(qi.ok, false);
     assert.match(String(qi.code || qi.reasonCode || qi.reason), /research|wager|authority|no-wager/i);
+  });
+
+  it("freezes NFL research with NFL-FBIS-PURE engine (not unknown)", async () => {
+    const { freezeFromGame } = await import("../functions/lib/projLedger.js");
+    const { games } = promoteNflResearchToBoard([
+      {
+        id: "nfl-freeze-1",
+        sport: "nfl",
+        home: { abbr: "MIN", name: "Vikings", school: "Minnesota" },
+        away: { abbr: "GB", name: "Packers", school: "Green Bay" },
+        start: "2026-09-13T20:25:00Z",
+        nflShadow: { ok: true, home: 19.7, away: 19.3 },
+        challengers: { "NFL-TEAM-FORM-v0": { ok: true, home: 19.7, away: 19.3 } },
+      },
+    ]);
+    const frozen = freezeFromGame("2026-09-13", games[0]);
+    assert.ok(frozen);
+    assert.equal(frozen.engine, "NFL-FBIS-PURE");
+    assert.equal(frozen.projectionKind, "FBIS");
+    assert.equal(frozen.projHome, 19.7);
+    assert.equal(frozen.projAway, 19.3);
+    // Legacy string recipes from earlier deploys must still resolve.
+    const legacy = freezeFromGame("2026-09-13", {
+      id: "nfl-legacy",
+      sport: "nfl",
+      away: { abbr: "GB" },
+      home: { abbr: "MIN" },
+      projectionKind: "FBIS",
+      model: {
+        projHome: 19.7,
+        projAway: 19.3,
+        recipe: "NFL-FBIS-PURE@research-v0-form",
+        projectionKind: "FBIS",
+      },
+    });
+    assert.equal(legacy.engine, "NFL-FBIS-PURE");
   });
 
   it("computes model-market disagreement with documented home convention", () => {
