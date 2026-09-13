@@ -895,7 +895,7 @@ function Ticker({ items, logged }) {
             <span className="score-accent">{g.homeScore ?? ""}</span>
             {g.home}
             {g.homeLogo && <TeamLogo team={{ logo: g.homeLogo, name: g.homeName || g.home, abbr: g.home }} size={28} />}
-            <span className="muted" style={{ marginLeft: 8, fontSize: 11 }}>[{g.status}]</span>
+            <span className="muted board-inline-meta" style={{ marginLeft: 8 }}>[{g.status}]</span>
           </div>
         )) : <span className="ticker-empty">NO LIVE GAMES</span>}
       </div>
@@ -1035,9 +1035,9 @@ function SlateTable({ games, onLog, logged }) {
               <div>{g.status.live || g.status.completed ? g.status.detail : kickoff(g.start)}</div>
               {g.status.live && <span className="live-dot">● LIVE</span>}
               {g.weatherImpact?.applied && g.weather?.temperature != null ? (
-                <div className="muted" style={{ fontSize: 10 }}>{g.weather.temperature}°F</div>
+                <div className="muted board-inline-meta">{g.weather.temperature}°F</div>
               ) : g.weather?.indoor ? (
-                <div className="muted" style={{ fontSize: 10 }}>Indoor</div>
+                <div className="muted board-inline-meta">Indoor</div>
               ) : null}
             </td>
             <td>
@@ -1151,7 +1151,7 @@ function RecTable({ games, onLog, logged }) {
           <tr key={g.id}>
             <td><span className={`tier-badge tier-${g.rec.tag}`}>{g.rec.tag}</span></td>
             <td>
-              <div className="muted" style={{ fontSize: 10 }}>{g.away.abbr} @ {g.home.abbr}</div>
+              <div className="muted board-inline-meta">{g.away.abbr} @ {g.home.abbr}</div>
               <b>{g.rec.pick}</b>
             </td>
             <td>{g.rec.market}</td>
@@ -1206,7 +1206,7 @@ function LeanTable({ games }) {
           <tr key={g.id}>
             <td><span className="tier-badge tier-LEAN">LEAN</span></td>
             <td>
-              <div className="muted" style={{ fontSize: 10 }}>{g.away.abbr} @ {g.home.abbr}</div>
+              <div className="muted board-inline-meta">{g.away.abbr} @ {g.home.abbr}</div>
               <b>{g.lean.pick}</b>
             </td>
             <td>{g.lean.market}</td>
