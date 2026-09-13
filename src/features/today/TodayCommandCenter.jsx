@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { toDomainTodayBoard } from "../../../functions/lib/fbisDomain.js";
+import { normalizeBoardGame } from "../playerProps/buildPlayerPropsBoard.js";
 import TopGameOpportunities from "./TopGameOpportunities.jsx";
 import TopPlayerProps from "./TopPlayerProps.jsx";
 import MarketMovers from "./MarketMovers.jsx";
@@ -38,26 +39,4 @@ export default function TodayCommandCenter({ board, sportFilter = "all", date })
       <MarketMovers events={domain.marketMovers || []} />
     </div>
   );
-}
-
-/** Map propConvictions → playerMarkets when upstream only has convictions. */
-function normalizeBoardGame(game = {}) {
-  if (Array.isArray(game.playerMarkets) && game.playerMarkets.length) return game;
-  const convictions = game.propConvictions || [];
-  if (!convictions.length) return game;
-  return {
-    ...game,
-    playerMarkets: convictions.map((c) => ({
-      playerName: c.playerName,
-      team: c.team,
-      position: c.position,
-      market: c.marketLabel || c.market,
-      marketCanonical: c.market,
-      line: c.line,
-      overOdds: c.price,
-      book: c.book,
-      decisionEligible: false,
-      reasonCodes: ["PROP_CONVICTION_RESEARCH_ONLY"],
-    })),
-  };
 }

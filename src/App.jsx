@@ -16,6 +16,9 @@ import { buildPropConvictions } from "../functions/lib/propConviction.js";
 import { badgeLabel, badgeTone, deriveGlobalState, deriveViewState } from "./lib/healthState.js";
 import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
 import { legacyToRoute, routeToLegacy } from "./app/navigation.js";
+import PlayerPropsBoard from "./features/playerProps/PlayerPropsBoard.jsx";
+import "./features/playerProps/playerProps.css";
+import "./features/today/today.css"; // DecisionChip / table tokens for props route without TodayView
 
 function readUrlState() {
   if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb", route: "today", sportFilter: "all" };
@@ -511,10 +514,13 @@ export default function App() {
         ) : null}
 
         {route === "player-props" ? (
-          <FeaturePlaceholder
-            title="Player Props"
-            status="PHASE 6"
-            body="Normalized FBIS player markets (QB/RB/WR model set) will land here. Action props remain RESEARCH_READY / shadow-only."
+          <PlayerPropsBoard
+            board={todayBoard}
+            sportFilter={sportFilter === "all" ? todaySport : sportFilter}
+            date={todayDate}
+            loading={todayLoading}
+            error={todayError}
+            onRetry={refreshToday}
           />
         ) : route === "performance" ? (
           <FeaturePlaceholder

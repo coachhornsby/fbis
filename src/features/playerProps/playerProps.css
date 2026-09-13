@@ -1,0 +1,112 @@
+/* Phase 6 — Player props board */
+
+.props-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.props-banner {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid #8a6a2f;
+  border-radius: 6px;
+  background: rgba(138, 106, 47, 0.12);
+  color: #f0d59a;
+  font-size: 0.85rem;
+}
+
+.props-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.props-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+
+.props-table th,
+.props-table td {
+  font-size: 0.85rem;
+  vertical-align: top;
+}
+
+.props-player-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.props-player-btn:focus-visible {
+  outline: 2px solid #4c8bf5;
+  outline-offset: 2px;
+}
+
+.props-sub {
+  display: block;
+  font-size: 0.78rem;
+}
+
+.props-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #1b2433;
+  border: 1px solid var(--border, #2a3344);
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.props-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.props-avatar-lg {
+  width: 48px;
+  height: 48px;
+  font-size: 1rem;
+}
+
+.props-workspace-header {
+  align-items: flex-start;
+}
+
+.props-player-identity {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.props-player-identity h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.props-workspace-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 700px) {
+  .props-workspace-header {
+    flex-direction: column;
+  }
+}
