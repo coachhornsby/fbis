@@ -212,6 +212,10 @@ test("harvest catch-up window covers stale OPEN college tickets", () => {
   assert.match(src, /settleTargets/);
   assert.match(src, /watchdog-recovery/);
   assert.match(src, /Production SHA changed mid-run/);
+  // NFL freeze/publish proof stays in research pipeline (not CI deploy gate).
+  assert.match(src, /nfl-live-ops-summary\.json/);
+  assert.match(src, /\/api\/published-projections/);
+  assert.doesNotMatch(ci, /\/api\/collect\?/);
 });
 
 test("deep shadow models remain non-qualifying", async () => {
