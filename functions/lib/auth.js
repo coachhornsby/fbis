@@ -70,8 +70,14 @@ export function authorizeStrategyPost(request, env) {
   return { ok: true };
 }
 
-/** Explicit operator-write authorization. Same-origin alone is not authentication. */
+/**
+ * Explicit operator-write authorization.
+ * Same-origin alone is not authentication.
+ * Accept either harvest or strategy secret — publication proof runs with HARVEST_SECRET.
+ */
 export function authorizeOperatorWrite(request, env) {
+  const harvest = authorizeHarvest(request, env);
+  if (harvest.ok) return { ok: true, via: "harvest" };
   return authorizeStrategyPost(request, env);
 }
 

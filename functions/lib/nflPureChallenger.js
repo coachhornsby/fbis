@@ -31,6 +31,8 @@ import {
 // Literal IDs avoid TDZ circular init with nflResearchPipeline.js
 export const NFL_PURE_CHALLENGER_ID = "NFL-FBIS-PURE";
 export const NFL_PURE_CHALLENGER_VERSION = "pbp-ols-research-v0";
+/** Parallel PBP challenger label — does not replace research-v0-form on the board. */
+export const NFL_PURE_CHALLENGER_V1_VERSION = "research-v1-pbp";
 
 /** Declared manual feature list — presence here ≠ implemented. */
 export const NFL_FEATURE_PIPELINE = Object.freeze([
