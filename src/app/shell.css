@@ -1,0 +1,157 @@
+/**
+ * Phase 3 shell styles — dark, dense, professional.
+ * Extends existing tokens; does not introduce casino aesthetics.
+ */
+
+.app-shell-header {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.shell-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.shell-date {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.shell-tagline {
+  font-size: 10px;
+  color: var(--muted-soft);
+  letter-spacing: 0.02em;
+}
+
+.shell-nav {
+  flex: 1 1 auto;
+}
+
+.shell-admin-tab {
+  opacity: 0.85;
+  border-style: dashed !important;
+}
+
+.shell-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 20px;
+  background: #070d14;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 52px;
+  z-index: 90;
+}
+
+.shell-sport-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.shell-sport-chip {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.shell-sport-chip.active {
+  color: var(--text);
+  border-color: var(--cyan);
+  background: rgba(62, 199, 232, 0.12);
+}
+
+.shell-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.shell-freshness-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 2px rgba(63, 185, 80, 0.2);
+}
+
+.freshness-stale .shell-freshness-dot,
+.freshness-degraded .shell-freshness-dot {
+  background: var(--yellow);
+  box-shadow: 0 0 0 2px rgba(227, 179, 65, 0.2);
+}
+
+.freshness-unavailable .shell-freshness-dot {
+  background: var(--red);
+  box-shadow: 0 0 0 2px rgba(248, 81, 73, 0.2);
+}
+
+.shell-main {
+  min-height: calc(100vh - 96px);
+}
+
+.shell-placeholder {
+  margin: 20px;
+  padding: 24px;
+  max-width: 720px;
+}
+
+.shell-placeholder-kicker {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+  margin-bottom: 8px;
+}
+
+.shell-placeholder h2 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.shell-placeholder-note {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--muted-soft);
+}
+
+@media (max-width: 900px) {
+  .shell-filter-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    top: auto;
+    position: static;
+  }
+
+  .shell-brand {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .shell-tagline {
+    display: none;
+  }
+}
