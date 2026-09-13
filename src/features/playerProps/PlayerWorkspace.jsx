@@ -1,6 +1,27 @@
 import TeamLogo from "../../components/TeamLogo.jsx";
-import { fmtLine, fmtPrice } from "../today/formatters.js";
+import { fmtNum, fmtPrice } from "../today/formatters.js";
 import { formatMarketLabel } from "./buildPlayerPropsBoard.js";
+
+function fmtPropLine(v) {
+  if (v == null || !Number.isFinite(Number(v))) return "—";
+  return String(Number(v));
+}
+
+function fmtProb(v) {
+  if (v == null || v === "" || !Number.isFinite(Number(v))) return "—";
+  const n = Number(v);
+  const pct = n <= 1 ? n * 100 : n;
+  return `${Math.round(pct)}%`;
+}
+
+function fmtDelta(v) {
+  if (v == null || !Number.isFinite(Number(v))) return "—";
+  const n = Number(v);
+  const body = Math.abs(n).toFixed(1);
+  if (n > 0) return `+${body}`;
+  if (n < 0) return `-${body}`;
+  return "0.0";
+}
 
 export default function PlayerWorkspace({ player, onClose }) {
   if (!player) return null;
@@ -34,7 +55,7 @@ export default function PlayerWorkspace({ player, onClose }) {
       </div>
 
       <p className="props-workspace-note">
-        Research view only. Lines and prices are shown for comparison — nothing is submitted.
+        FBIS projection and probabilities are research signals only. No wager is submitted.
       </p>
 
       {!markets.length ? (
@@ -46,22 +67,43 @@ export default function PlayerWorkspace({ player, onClose }) {
             const over = m.overOdds ?? (m.side === "over" ? m.price : null);
             const under = m.underOdds ?? (m.side === "under" ? m.price : null);
             return (
-              <article key={`${m.marketCanonical || m.market}-${m.line}-${i}`} className="props-card props-card-compact">
-                <p className="props-card-market">{label}</p>
-                <p className="props-card-line">{fmtLine(m.line)}</p>
+              <article
+                key={`${m.marketCanonical || m.market}-${m.line}-${i}`}
+                className="props-card props-card-compact"
+              >
+                <div className="props-card-line-row">
+                  <span className="props-card-line">{fmtPropLine(m.line)}</span>
+                  <span className="props-card-market">{label}</span>
+                </div>
+                <div className="props-fbis-panel">
+                  <div className="props-fbis-metric">
+                    <span className="props-fbis-label">FBIS proj</span>
+                    <span className="props-fbis-value">
+                      {m.fbisProjection == null ? "—" : fmtNum(m.fbisProjection, 1)}
+                    </span>
+                  </div>
+                  <div className="props-fbis-metric">
+                    <span className="props-fbis-label">vs line</span>
+                    <span className="props-fbis-value">{fmtDelta(m.projectionDelta)}</span>
+                  </div>
+                  <div className="props-fbis-metric">
+                    <span className="props-fbis-label">P(More)</span>
+                    <span className="props-fbis-value">{fmtProb(m.probabilityOver)}</span>
+                  </div>
+                  <div className="props-fbis-metric">
+                    <span className="props-fbis-label">P(Less)</span>
+                    <span className="props-fbis-value">{fmtProb(m.probabilityUnder)}</span>
+                  </div>
+                </div>
                 <div className="props-more-less">
                   <div className="props-side">
-                    <span className="props-side-label">More</span>
+                    <span className="props-side-label">↑ More</span>
                     <span className="props-side-price">{fmtPrice(over)}</span>
                   </div>
                   <div className="props-side">
-                    <span className="props-side-label">Less</span>
+                    <span className="props-side-label">↓ Less</span>
                     <span className="props-side-price">{fmtPrice(under)}</span>
                   </div>
-                </div>
-                <div className="props-card-footer muted">
-                  <span>{m.book || "Best available"}</span>
-                  {m.isAlternate ? <span>Alternate</span> : null}
                 </div>
               </article>
             );

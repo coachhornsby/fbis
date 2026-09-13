@@ -312,6 +312,8 @@ export function todayQaPlayerPropGames() {
             book: "draftkings",
             providerPlayerId: "qa-wh",
             playerIdentityConfidence: "HIGH",
+            fbisProjection: 262.4,
+            fbisSigma: 42,
           },
           {
             playerName: "Will Howard",
@@ -324,6 +326,8 @@ export function todayQaPlayerPropGames() {
             book: "fanduel",
             providerPlayerId: "qa-wh",
             playerIdentityConfidence: "HIGH",
+            fbisProjection: 34.1,
+            fbisSigma: 5.2,
           },
           {
             playerName: "Quinshon Judkins",
@@ -336,6 +340,8 @@ export function todayQaPlayerPropGames() {
             book: "draftkings",
             providerPlayerId: "qa-qj",
             playerIdentityConfidence: "MEDIUM",
+            fbisProjection: 86.2,
+            fbisSigma: 22,
           },
           {
             playerName: "Jeremiah Smith",
@@ -348,6 +354,8 @@ export function todayQaPlayerPropGames() {
             book: "betmgm",
             providerPlayerId: "qa-js",
             playerIdentityConfidence: "HIGH",
+            fbisProjection: 79.8,
+            fbisSigma: 24,
           },
           {
             playerName: "Jeremiah Smith",
@@ -360,6 +368,8 @@ export function todayQaPlayerPropGames() {
             book: "fanduel",
             providerPlayerId: "qa-js",
             playerIdentityConfidence: "HIGH",
+            fbisProjection: 6.1,
+            fbisSigma: 1.8,
           },
           {
             playerName: "Novelty Prop",

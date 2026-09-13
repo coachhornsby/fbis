@@ -160,6 +160,21 @@ export function toDomainPlayerMarket(row = {}) {
     reasonCodes: Array.isArray(row.reasonCodes)
       ? row.reasonCodes.map(String)
       : ["NOT_DECISION_ELIGIBLE"],
+
+    // FBIS research analytics — pass through only; never invent.
+    fbisProjection: numOrNull(
+      row.fbisProjection ?? row.projection ?? row.average ?? row.proj,
+    ),
+    fbisSigma: numOrNull(row.fbisSigma ?? row.sigma),
+    probabilityOver: numOrNull(
+      row.probabilityOver ?? row.pMore ?? row.probOver,
+    ),
+    probabilityUnder: numOrNull(
+      row.probabilityUnder ?? row.pLess ?? row.probUnder,
+    ),
+    probability: numOrNull(row.probability),
+    edge: numOrNull(row.edge ?? row.ev),
+    projectionSide: strOrNull(row.projectionSide ?? row.sideLean ?? row.leanSide),
   };
 }
 

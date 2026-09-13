@@ -1,5 +1,58 @@
 import { toDomainTodayBoard } from "../../../functions/lib/fbisDomain.js";
+import { probabilityAtThreshold } from "../../../functions/lib/cfbPlayerModel.js";
 import { identityForSport } from "../../../functions/lib/teams.js";
+
+/**
+ * Attach FBIS projection analytics when upstream provided them.
+ * May derive over/under probability from projection + sigma + line only —
+ * never invents a projection or price.
+ */
+export function withFbisPropAnalytics(row = {}) {
+  const fbisProjection =
+    row.fbisProjection ?? row.projection ?? row.average ?? row.proj ?? null;
+  const fbisSigma = row.fbisSigma ?? row.sigma ?? null;
+  const line = row.line ?? null;
+  let probabilityOver = row.probabilityOver ?? row.pMore ?? null;
+  let probabilityUnder = row.probabilityUnder ?? row.pLess ?? null;
+
+  if (
+    (probabilityOver == null || probabilityUnder == null) &&
+    Number.isFinite(Number(fbisProjection)) &&
+    Number.isFinite(Number(fbisSigma)) &&
+    Number(fbisSigma) > 0 &&
+    Number.isFinite(Number(line))
+  ) {
+    const derived = probabilityAtThreshold(
+      { projection: Number(fbisProjection), sigma: Number(fbisSigma) },
+      Number(line),
+    );
+    probabilityOver = derived.probabilityOver;
+    probabilityUnder = derived.probabilityUnder;
+  }
+
+  const edge = row.edge ?? row.ev ?? null;
+  const projectionDelta =
+    fbisProjection != null &&
+    line != null &&
+    Number.isFinite(Number(fbisProjection)) &&
+    Number.isFinite(Number(line))
+      ? Number(fbisProjection) - Number(line)
+      : null;
+
+  const finiteOrNull = (v) =>
+    v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v);
+
+  return {
+    ...row,
+    fbisProjection: finiteOrNull(fbisProjection),
+    fbisSigma: finiteOrNull(fbisSigma),
+    probabilityOver: finiteOrNull(probabilityOver),
+    probabilityUnder: finiteOrNull(probabilityUnder),
+    probability: finiteOrNull(row.probability),
+    edge: finiteOrNull(edge),
+    projectionDelta,
+  };
+}
 
 /**
  * Resolve the player's team identity (logo/abbr/name) from the event sides,
@@ -45,13 +98,13 @@ export const FBIS_PLAYER_MARKETS = Object.freeze([
 
 /** Human-readable labels — never show snake_case in the product UI. */
 export const MARKET_LABELS = Object.freeze({
-  passing_yards: "Passing Yards",
-  passing_attempts: "Passing Attempts",
+  passing_yards: "Pass Yards",
+  passing_attempts: "Pass Attempts",
   completions: "Completions",
-  rushing_yards: "Rushing Yards",
-  rushing_attempts: "Rushing Attempts",
+  rushing_yards: "Rush Yards",
+  rushing_attempts: "Rush Attempts",
   receptions: "Receptions",
-  receiving_yards: "Receiving Yards",
+  receiving_yards: "Rec Yards",
 });
 
 export function formatMarketLabel(canonicalOrRaw) {
@@ -89,6 +142,22 @@ export function normalizeBoardGame(game = {}) {
       line: c.line,
       overOdds: c.price,
       book: c.book,
+      fbisProjection: c.projection ?? c.average ?? null,
+      fbisSigma: c.sigma ?? null,
+      probability: c.probability ?? null,
+      probabilityOver:
+        c.probabilityOver ??
+        (String(c.side || "").toUpperCase() === "OVER" ||
+        String(c.side || "").toUpperCase() === "MORE"
+          ? c.probability
+          : null),
+      probabilityUnder:
+        c.probabilityUnder ??
+        (String(c.side || "").toUpperCase() === "UNDER" ||
+        String(c.side || "").toUpperCase() === "LESS"
+          ? c.probability
+          : null),
+      edge: c.ev ?? c.edge ?? null,
       decisionEligible: false,
       reasonCodes: ["PROP_CONVICTION_RESEARCH_ONLY"],
     })),
@@ -125,21 +194,23 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
         ? FBIS_PLAYER_MARKETS.includes(canonical)
         : false;
       const teamIdentity = resolvePlayerTeamIdentity(event, pm.team);
-      allRows.push({
-        ...pm,
-        eventId: event.id,
-        sport: event.sport,
-        league: event.league,
-        startCt: event.startCt,
-        matchup: {
-          away: event.teams?.away?.abbr || event.teams?.away?.name || null,
-          home: event.teams?.home?.abbr || event.teams?.home?.name || null,
-        },
-        teamIdentity,
-        supportedMarket,
-        surfaceStatus: pm.decisionEligible ? "WATCHLIST" : "RESEARCH",
-        modelAuthorized: false,
-      });
+      allRows.push(
+        withFbisPropAnalytics({
+          ...pm,
+          eventId: event.id,
+          sport: event.sport,
+          league: event.league,
+          startCt: event.startCt,
+          matchup: {
+            away: event.teams?.away?.abbr || event.teams?.away?.name || null,
+            home: event.teams?.home?.abbr || event.teams?.home?.name || null,
+          },
+          teamIdentity,
+          supportedMarket,
+          surfaceStatus: pm.decisionEligible ? "WATCHLIST" : "RESEARCH",
+          modelAuthorized: false,
+        }),
+      );
     }
   }
 

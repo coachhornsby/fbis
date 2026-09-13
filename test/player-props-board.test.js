@@ -4,6 +4,7 @@ import {
   FBIS_PLAYER_MARKETS,
   buildPlayerPropsBoard,
   formatMarketLabel,
+  withFbisPropAnalytics,
   groupPlayerPropRows,
   normalizeBoardGame,
 } from "../src/features/playerProps/buildPlayerPropsBoard.js";
@@ -130,7 +131,7 @@ test("propConvictions normalize into research-only player markets", () => {
         team: "TEX",
         position: "RB",
         market: "rushing_yards",
-        marketLabel: "Rushing Yards",
+        marketLabel: "Rush Yards",
         line: 68.5,
         price: -110,
         book: "fanduel",
@@ -212,8 +213,29 @@ test("player props rows attach team logo from event sides", () => {
 
 
 test("formatMarketLabel turns snake_case into normal words", () => {
-  assert.equal(formatMarketLabel("passing_yards"), "Passing Yards");
-  assert.equal(formatMarketLabel("receiving_yards"), "Receiving Yards");
+  assert.equal(formatMarketLabel("passing_yards"), "Pass Yards");
+  assert.equal(formatMarketLabel("receiving_yards"), "Rec Yards");
   assert.equal(formatMarketLabel("anytime_td"), "Anytime TD");
   assert.equal(formatMarketLabel(""), "Player Prop");
+});
+
+
+test("withFbisPropAnalytics derives More/Less probability from projection + sigma + line", () => {
+  const row = withFbisPropAnalytics({
+    line: 249.5,
+    fbisProjection: 262.4,
+    fbisSigma: 42,
+  });
+  assert.equal(row.fbisProjection, 262.4);
+  assert.ok(row.probabilityOver > 0.5);
+  assert.ok(row.probabilityUnder < 0.5);
+  assert.ok(row.projectionDelta > 0);
+  assert.equal(row.edge, null);
+});
+
+test("withFbisPropAnalytics does not invent a projection", () => {
+  const row = withFbisPropAnalytics({ line: 249.5, overOdds: -110 });
+  assert.equal(row.fbisProjection, null);
+  assert.equal(row.probabilityOver, null);
+  assert.equal(row.probabilityUnder, null);
 });

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import TeamLogo from "../../components/TeamLogo.jsx";
 import { mergeTodayQaFixtures } from "../../lib/boardFixtures.js";
-import { fmtLine, fmtPrice } from "../today/formatters.js";
+import { fmtLine, fmtNum, fmtPrice } from "../today/formatters.js";
 import {
   FBIS_PLAYER_MARKETS,
   MARKET_LABELS,
@@ -10,6 +10,36 @@ import {
   groupPlayerPropRows,
 } from "./buildPlayerPropsBoard.js";
 import PlayerWorkspace from "./PlayerWorkspace.jsx";
+
+function fmtProb(v) {
+  if (v == null || v === "" || !Number.isFinite(Number(v))) return "—";
+  const n = Number(v);
+  const pct = n <= 1 ? n * 100 : n;
+  return `${Math.round(pct)}%`;
+}
+
+function fmtPropLine(v) {
+  if (v == null || !Number.isFinite(Number(v))) return "—";
+  return String(Number(v));
+}
+
+function fmtDelta(v) {
+  if (v == null || !Number.isFinite(Number(v))) return "—";
+  const n = Number(v);
+  const body = Math.abs(n).toFixed(1);
+  if (n > 0) return `+${body}`;
+  if (n < 0) return `-${body}`;
+  return "0.0";
+}
+
+function matchupText(row) {
+  const away = row.matchup?.away || "—";
+  const home = row.matchup?.home || "—";
+  const team = String(row.team || "").toUpperCase();
+  if (team && team === String(home).toUpperCase()) return `vs ${away}`;
+  if (team && team === String(away).toUpperCase()) return `@ ${home}`;
+  return `${away} @ ${home}`;
+}
 
 export default function PlayerPropsBoard({
   board,
@@ -23,8 +53,6 @@ export default function PlayerPropsBoard({
   const [supportedOnly, setSupportedOnly] = useState(true);
   const [selectedKey, setSelectedKey] = useState(null);
 
-  // boardQa fixtures are merged here so the props page stays demoable even when
-  // the live today feed has no player markets for the active sport filter.
   const boardWithQa = useMemo(
     () => mergeTodayQaFixtures(board || { date, games: [] }),
     [board, date],
@@ -43,9 +71,10 @@ export default function PlayerPropsBoard({
   const filteredRows = useMemo(() => {
     let rows = propsBoard.allRows || propsBoard.rows || [];
     if (sportFilter && sportFilter !== "all") {
-      rows = rows.filter((r) => String(r.sport || "").toLowerCase() === String(sportFilter).toLowerCase());
+      rows = rows.filter(
+        (r) => String(r.sport || "").toLowerCase() === String(sportFilter).toLowerCase(),
+      );
     }
-    // If the active sport has no props but QA fixtures exist, keep the board useful.
     if (!rows.length && (propsBoard.allRows || []).length) {
       rows = propsBoard.allRows || [];
     }
@@ -64,10 +93,9 @@ export default function PlayerPropsBoard({
       <header className="props-hero">
         <div className="props-hero-copy">
           <p className="props-kicker">Player props</p>
-          <h1>Today&apos;s board</h1>
+          <h1>Board</h1>
           <p className="props-lede">
-            Browse lines like a pick board. This is research only — FBIS does not place
-            wagers from here.
+            Market line vs FBIS projection. Research only — nothing is placed from here.
           </p>
         </div>
         <div className="props-hero-meta">
@@ -92,7 +120,7 @@ export default function PlayerPropsBoard({
           className={marketFilter === "all" ? "props-pill active" : "props-pill"}
           onClick={() => setMarketFilter("all")}
         >
-          All
+          Popular
         </button>
         {FBIS_PLAYER_MARKETS.map((id) => (
           <button
@@ -102,9 +130,6 @@ export default function PlayerPropsBoard({
             onClick={() => setMarketFilter(id)}
           >
             {MARKET_LABELS[id] || formatMarketLabel(id)}
-            {propsBoard.counts.byMarket[id] ? (
-              <span className="props-pill-count">{propsBoard.counts.byMarket[id]}</span>
-            ) : null}
           </button>
         ))}
         <label className="props-toggle">
@@ -138,8 +163,18 @@ export default function PlayerPropsBoard({
               row.providerPlayerId ||
               `${row.playerName}|${row.team}|${row.eventId}`;
             const marketLabel = formatMarketLabel(row.marketCanonical || row.market);
+            const teamAbbr = row.teamIdentity?.abbr || row.team || "—";
             const over = row.overOdds ?? (row.side === "over" ? row.price : null);
             const under = row.underOdds ?? (row.side === "under" ? row.price : null);
+            const leanMore =
+              row.probabilityOver != null &&
+              row.probabilityUnder != null &&
+              row.probabilityOver > row.probabilityUnder;
+            const leanLess =
+              row.probabilityOver != null &&
+              row.probabilityUnder != null &&
+              row.probabilityUnder > row.probabilityOver;
+
             return (
               <article
                 key={`${row.eventId}-${row.playerName}-${row.marketCanonical}-${i}`}
@@ -148,42 +183,76 @@ export default function PlayerPropsBoard({
               >
                 <button
                   type="button"
-                  className="props-card-player"
+                  className="props-card-top"
                   onClick={() => setSelectedKey(playerKey)}
                 >
-                  <TeamLogo
-                    team={row.teamIdentity || { abbr: row.team, name: row.team }}
-                    size={24}
-                  />
-                  <span className="props-card-player-text">
-                    <strong>{row.playerName || "Unknown"}</strong>
-                    <span className="muted">
-                      {[row.team, row.position].filter(Boolean).join(" · ") || "—"}
+                  <div className="props-card-identity">
+                    <TeamLogo
+                      team={row.teamIdentity || { abbr: row.team, name: row.team }}
+                      size={28}
+                    />
+                    <span className="props-card-teampos">
+                      {teamAbbr}
+                      {row.position ? ` · ${row.position}` : ""}
                     </span>
-                  </span>
+                  </div>
+                  <h3 className="props-card-name">{row.playerName || "Unknown"}</h3>
+                  <p className="props-card-matchup">{matchupText(row)}</p>
                 </button>
 
-                <p className="props-card-matchup muted">
-                  {row.matchup?.away || "—"} @ {row.matchup?.home || "—"}
-                </p>
-
-                <p className="props-card-market">{marketLabel}</p>
-                <p className="props-card-line">{fmtLine(row.line)}</p>
-
-                <div className="props-more-less" aria-label={`${marketLabel} line sides`}>
-                  <div className="props-side">
-                    <span className="props-side-label">More</span>
-                    <span className="props-side-price">{fmtPrice(over)}</span>
-                  </div>
-                  <div className="props-side">
-                    <span className="props-side-label">Less</span>
-                    <span className="props-side-price">{fmtPrice(under)}</span>
-                  </div>
+                <div className="props-card-line-row">
+                  <span className="props-card-line">{fmtPropLine(row.line)}</span>
+                  <span className="props-card-market">{marketLabel}</span>
                 </div>
 
-                <div className="props-card-footer muted">
-                  <span>{row.book ? String(row.book) : "Best available"}</span>
-                  {!row.supportedMarket ? <span>Other market</span> : <span>Research</span>}
+                <div className="props-fbis-panel" aria-label="FBIS projection">
+                  <div className="props-fbis-metric">
+                    <span className="props-fbis-label">FBIS proj</span>
+                    <span className="props-fbis-value">
+                      {row.fbisProjection == null ? "—" : fmtNum(row.fbisProjection, 1)}
+                    </span>
+                  </div>
+                  <div className="props-fbis-metric">
+                    <span className="props-fbis-label">vs line</span>
+                    <span
+                      className={`props-fbis-value${
+                        row.projectionDelta > 0 ? " up" : row.projectionDelta < 0 ? " down" : ""
+                      }`}
+                    >
+                      {fmtDelta(row.projectionDelta)}
+                    </span>
+                  </div>
+                  <div className="props-fbis-metric">
+                    <span className="props-fbis-label">P(More)</span>
+                    <span className={`props-fbis-value${leanMore ? " up" : ""}`}>
+                      {fmtProb(row.probabilityOver)}
+                    </span>
+                  </div>
+                  <div className="props-fbis-metric">
+                    <span className="props-fbis-label">P(Less)</span>
+                    <span className={`props-fbis-value${leanLess ? " up" : ""}`}>
+                      {fmtProb(row.probabilityUnder)}
+                    </span>
+                  </div>
+                  {row.edge != null ? (
+                    <div className="props-fbis-metric">
+                      <span className="props-fbis-label">Edge</span>
+                      <span className="props-fbis-value">
+                        {fmtProb(Math.abs(Number(row.edge)) <= 1 ? row.edge : Number(row.edge) / 100)}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="props-more-less" aria-label={`${marketLabel} market prices`}>
+                  <div className={`props-side${leanMore ? " lean" : ""}`}>
+                    <span className="props-side-label">↑ More</span>
+                    <span className="props-side-price">{fmtPrice(over)}</span>
+                  </div>
+                  <div className={`props-side${leanLess ? " lean" : ""}`}>
+                    <span className="props-side-label">↓ Less</span>
+                    <span className="props-side-price">{fmtPrice(under)}</span>
+                  </div>
                 </div>
               </article>
             );
