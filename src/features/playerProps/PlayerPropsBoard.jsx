@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import TeamLogo from "../../components/TeamLogo.jsx";
 import { mergeTodayQaFixtures } from "../../lib/boardFixtures.js";
-import { fmtLine, fmtNum, fmtPrice } from "../today/formatters.js";
+import { fmtNum, fmtPrice } from "../today/formatters.js";
 import {
   FBIS_PLAYER_MARKETS,
   MARKET_LABELS,
