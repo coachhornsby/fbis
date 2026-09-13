@@ -9,6 +9,7 @@ import { DEFAULT_WEIGHTS } from "./weights.js";
 import { palUnavailableReason } from "./ballparkpal.js";
 import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
 import { querySnapshots, queryOddsSnapshots } from "./store.js";
+import { attachActionIntelToGames } from "./boardActionIntel.js";
 
 function withRecs(slate, weights = DEFAULT_WEIGHTS) {
   return {
@@ -172,6 +173,9 @@ export function toBoardGame(game, sport, now = Date.now()) {
     propConvictions,
     lineupsOfficial: Boolean(game.bpp?.lineupsOfficial),
     sentiment: game.sentiment || game.odds?.sentiment || null,
+    // ACTION Apify market intel — display/research only (never odds authority).
+    actionIntel: game.actionIntel || null,
+    publicSplits: game.publicSplits || game.actionIntel?.publicSplits || null,
     weather: game.weather || game.cfb?.weather || null,
     park: game.bpp?.park || null,
     palPark: game.bpp?.park || null,
@@ -390,7 +394,26 @@ export async function buildTodayBoard(
       });
     }
   }
-  const all = sortByStart(games);
+  let all = sortByStart(games);
+  let actionIntelMeta = { attached: 0, checked: 0 };
+  if (env.DB) {
+    try {
+      const attached = await attachActionIntelToGames(all, env.DB);
+      all = sortByStart(attached.games || all);
+      actionIntelMeta = {
+        attached: attached.attached || 0,
+        checked: attached.checked || 0,
+        matchedIds: attached.matchedIds || [],
+      };
+      // Keep per-sport game lists in sync with attached intel.
+      for (const s of sports) {
+        const byId = new Map(all.filter((g) => g.sport === s.sport).map((g) => [g.id, g]));
+        s.games = sortByStart((s.games || []).map((g) => byId.get(g.id) || g));
+      }
+    } catch {
+      // Fail-open: board still renders without ACTION intel.
+    }
+  }
   const empty = all.length ? null : emptyTodayState({ date, feeds });
   return {
     date,
@@ -398,6 +421,14 @@ export async function buildTodayBoard(
     generatedAt: new Date().toISOString(),
     sports,
     games: all,
+    actionIntel: {
+      role: "market_intelligence",
+      governanceMode: "shadow",
+      displayOnly: true,
+      inProductionRouter: false,
+      canQualify: false,
+      ...actionIntelMeta,
+    },
     groups: groupBySport(all).filter((g) => sportsToLoad.includes(g.sport)),
     counts: {
       games: all.length,

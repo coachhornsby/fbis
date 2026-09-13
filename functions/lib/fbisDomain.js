@@ -232,30 +232,41 @@ export function deriveDecisionState(boardGame = {}) {
 
 export function toMovementSummary(boardGame = {}) {
   const sentiment = boardGame.sentiment || {};
-  const openingLine = numOrNull(sentiment.openingLine ?? boardGame.openingSpread ?? null);
-  const currentLine = numOrNull(
-    boardGame.pinSpread ?? sentiment.currentLine ?? boardGame.spread ?? null,
+  const action = boardGame.actionIntel || {};
+  const openingLine = numOrNull(
+    sentiment.openingLine ?? action.movement?.openingLine ?? boardGame.openingSpread ?? null
   );
-  const explicitMagnitude = numOrNull(sentiment.magnitude ?? boardGame.movementMagnitude);
+  const currentLine = numOrNull(
+    boardGame.pinSpread ?? sentiment.currentLine ?? action.movement?.currentLine ?? boardGame.spread ?? null
+  );
+  const explicitMagnitude = numOrNull(
+    sentiment.magnitude ?? action.movement?.movementMagnitude ?? boardGame.movementMagnitude
+  );
   // Derive magnitude only from real opening+current lines — never invent a move.
   const derivedMagnitude =
     explicitMagnitude == null && openingLine != null && currentLine != null
       ? Math.abs(currentLine - openingLine)
       : null;
-  const ticketPct = numOrNull(sentiment.ticketPct ?? boardGame.ticketPct);
-  const moneyPct = numOrNull(sentiment.moneyPct ?? boardGame.moneyPct);
+  const ticketPct = numOrNull(
+    sentiment.ticketPct ?? action.publicSplits?.ticketPct ?? boardGame.ticketPct
+  );
+  const moneyPct = numOrNull(
+    sentiment.moneyPct ?? action.publicSplits?.moneyPct ?? boardGame.moneyPct
+  );
   return {
     openingLine,
     currentLine,
     bestLine: numOrNull(boardGame.bestSpread ?? boardGame.pinSpread ?? null),
     bestPrice: numOrNull(
-      boardGame.bestSpreadPrice ?? boardGame.pinSpreadHomePrice ?? null,
+      boardGame.bestSpreadPrice ?? boardGame.pinSpreadHomePrice ?? null
     ),
-    bestBook: strOrNull(boardGame.bestBook ?? boardGame.pinBook ?? null),
+    bestBook: strOrNull(
+      boardGame.bestBook ?? action.movement?.bestBook ?? boardGame.pinBook ?? null
+    ),
     movementDirection: strOrNull(sentiment.direction ?? boardGame.movementDirection),
     movementMagnitude: explicitMagnitude ?? derivedMagnitude,
     movementCount: numOrNull(sentiment.count ?? boardGame.movementCount),
-    lastMovementAt: strOrNull(sentiment.lastAt ?? boardGame.lastMovementAt),
+    lastMovementAt: strOrNull(sentiment.lastAt ?? boardGame.lastMovementAt ?? action.collectedAt),
     ticketPct,
     moneyPct,
     moneyTicketGap: numOrNull(
@@ -359,9 +370,24 @@ export function toDomainEvent(boardGame = {}, opts = {}) {
     consensusMarkets,
     movement: toMovementSummary(boardGame),
     publicSplits: {
-      ticketPct: numOrNull(boardGame.sentiment?.ticketPct ?? boardGame.ticketPct),
-      moneyPct: numOrNull(boardGame.sentiment?.moneyPct ?? boardGame.moneyPct),
+      ticketPct: numOrNull(
+        boardGame.actionIntel?.publicSplits?.ticketPct ??
+          boardGame.publicSplits?.ticketPct ??
+          boardGame.sentiment?.ticketPct ??
+          boardGame.ticketPct
+      ),
+      moneyPct: numOrNull(
+        boardGame.actionIntel?.publicSplits?.moneyPct ??
+          boardGame.publicSplits?.moneyPct ??
+          boardGame.sentiment?.moneyPct ??
+          boardGame.moneyPct
+      ),
+      source: boardGame.actionIntel
+        ? "ACTION_APIFY"
+        : boardGame.sentiment?.source || boardGame.publicSplits?.source || null,
+      displayOnly: Boolean(boardGame.actionIntel?.displayOnly || boardGame.sentiment?.displayOnly),
     },
+    actionIntel: boardGame.actionIntel || null,
 
     playerMarkets: Array.isArray(boardGame.playerMarkets)
       ? boardGame.playerMarkets.map(toDomainPlayerMarket)

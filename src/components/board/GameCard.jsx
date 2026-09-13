@@ -204,6 +204,67 @@ export default function GameCard({
         </div>
       </section>
 
+      {game.actionIntel ? (
+        <section className="gc-action-intel" aria-label="ACTION market intelligence">
+          <div className="gc-section-label">
+            ACTION · RESEARCH
+            <span className="gc-action-badge">SHADOW</span>
+          </div>
+          <div className="gc-action-grid">
+            <div>
+              <span className="muted">Cons. spread</span>
+              <strong>
+                {game.actionIntel.consensus?.spreadHome == null
+                  ? "—"
+                  : `${game.home?.abbr || "HOME"} ${formatSpreadLabel(game.actionIntel.consensus.spreadHome)}`}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Cons. total</span>
+              <strong>
+                {game.actionIntel.consensus?.total == null
+                  ? "—"
+                  : fmtNum(game.actionIntel.consensus.total, 1)}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Tickets</span>
+              <strong>
+                {game.actionIntel.publicSplits?.ticketPct == null
+                  ? "—"
+                  : `${fmtNum(game.actionIntel.publicSplits.ticketPct, 0)}%`}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Money</span>
+              <strong>
+                {game.actionIntel.publicSplits?.moneyPct == null
+                  ? "—"
+                  : `${fmtNum(game.actionIntel.publicSplits.moneyPct, 0)}%`}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">$/ticket gap</span>
+              <strong>
+                {game.actionIntel.publicSplits?.moneyTicketGap == null
+                  ? "—"
+                  : `${game.actionIntel.publicSplits.moneyTicketGap > 0 ? "+" : ""}${fmtNum(
+                      game.actionIntel.publicSplits.moneyTicketGap,
+                      1
+                    )}`}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Best book</span>
+              <strong>{game.actionIntel.movement?.bestBook || "—"}</strong>
+            </div>
+          </div>
+          <div className="gc-action-footnote muted">
+            Display-only market intelligence · not odds authority · not qualify
+          </div>
+        </section>
+      ) : null}
+
       {(deltas.spreadDelta != null || deltas.totalDelta != null) && (
         <section className="gc-deltas" aria-label="Model market delta">
           <DeltaRail

@@ -1401,6 +1401,50 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   overflow-wrap: anywhere;
 }
 
+.gc-action-intel {
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px dashed rgba(90, 140, 180, 0.55);
+  background: rgba(10, 24, 36, 0.55);
+}
+.gc-action-intel .gc-section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gc-action-badge {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 170, 210, 0.55);
+  color: #9ec9e8;
+}
+.gc-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.gc-action-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.gc-action-grid .muted {
+  font-size: 11px;
+}
+.gc-action-grid strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+.gc-action-footnote {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
 .gc-deltas { display: flex; flex-direction: column; gap: 8px; }
 .delta-rail {
   padding: 8px;
