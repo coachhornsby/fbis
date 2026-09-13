@@ -52,7 +52,30 @@ export default function DataHealthView() {
             <span className="canonical-chip">
               Review required: {(data.commercialReviewRequired || []).length}
             </span>
+            {data.ops?.productionSha ? (
+              <span className="canonical-chip">SHA {String(data.ops.productionSha).slice(0, 8)}</span>
+            ) : null}
+            {data.ops?.nflFormRows != null ? (
+              <span className="canonical-chip">NFL form rows: {data.ops.nflFormRows}</span>
+            ) : null}
           </div>
+          {data.ops?.bySport ? (
+            <div className="canonical-card-grid" style={{ marginBottom: "1rem" }}>
+              {Object.values(data.ops.bySport).map((s) => (
+                <article key={s.sport} className="canonical-card">
+                  <h3>{String(s.sport || "").toUpperCase()} live ops</h3>
+                  <p className="canonical-maturity">{s.liveOperational || "NOT_WIRED"}</p>
+                  <p className="canonical-meta">
+                    {s.currentModelId || "—"} {s.currentModelVersion || ""}
+                  </p>
+                  <p className="muted small">
+                    frozen {s.frozenCount || 0} · published {s.publishedCount || 0} · graded{" "}
+                    {s.gradedCount || 0}
+                  </p>
+                </article>
+              ))}
+            </div>
+          ) : null}
           <div className="canonical-card-grid">
             {sources.map((s) => (
               <article key={s.providerId} className="canonical-card">

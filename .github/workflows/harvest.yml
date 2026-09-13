@@ -279,6 +279,61 @@ jobs:
             call_api "/api/collect?odds=${odds}&sport=${SPORT}"
           fi
 
+          # NFL research live-ops proof: board FBIS count + one published ledger row.
+          # Soft evidence only — never fails the collect matrix job.
+          if [ "$SPORT" = "nfl" ]; then
+            mkdir -p artifacts
+            curl -sS --max-time 60 -o artifacts/nfl-today-after-collect.json \
+              "${BASE}/api/today?sport=nfl" || true
+            node <<'NODE'
+            const fs = require("fs");
+            const today = JSON.parse(fs.readFileSync("artifacts/nfl-today-after-collect.json", "utf8"));
+            const games = today.games || [];
+            const fbis = games.filter((g) => g.projectionKind === "FBIS" && g.projHome != null);
+            const summary = {
+              fbisCount: fbis.length,
+              sample: fbis.slice(0, 6).map((g) => ({
+                id: g.id,
+                matchup: `${g.away?.abbr}@${g.home?.abbr}`,
+                engine: g.projectionEngine,
+                version: g.researchProjection?.modelVersion || g.projectionRecipe?.version,
+                away: g.projAway,
+                home: g.projHome,
+                maturity: g.projectionMaturity,
+                publicationStatus: g.publicationStatus,
+                start: g.start,
+              })),
+              publishCandidate: fbis.find((g) => {
+                const t = Date.parse(g.start || "");
+                return Number.isFinite(t) && t > Date.now() + 5 * 60 * 1000;
+              }) || null,
+            };
+            fs.writeFileSync("artifacts/nfl-live-ops-summary.json", JSON.stringify(summary, null, 2));
+            console.log(JSON.stringify({ fbisCount: summary.fbisCount, candidate: summary.publishCandidate?.id || null }));
+            NODE
+            candidate=$(jq -r '.publishCandidate.id // empty' artifacts/nfl-live-ops-summary.json 2>/dev/null || true)
+            if [ -n "${candidate:-}" ]; then
+              pub_http=$(curl -sS --max-time 60 -o artifacts/nfl-publish-proof.json -w "%{http_code}" \
+                -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" -H "content-type: application/json" \
+                -d "{\"sport\":\"nfl\",\"gameId\":\"${candidate}\"}" \
+                "${BASE}/api/published-projections" || echo "000")
+              echo "nfl_publish_proof candidate=${candidate} http=${pub_http}"
+            else
+              echo '{"ok":false,"reason":"no-pregame-fbis-candidate"}' > artifacts/nfl-publish-proof.json
+              echo "nfl_publish_proof skipped — no pregame FBIS candidate"
+            fi
+            curl -sS --max-time 30 -o artifacts/nfl-published-list.json \
+              "${BASE}/api/published-projections?sport=nfl&limit=20" || true
+          fi
+
+      - name: Upload NFL live-ops proof artifacts
+        if: always() && matrix.sport == 'nfl'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-live-ops-${{ github.run_id }}-${{ matrix.sport }}
+          path: artifacts/nfl-*.json
+          if-no-files-found: warn
+          retention-days: 14
 
   action-market-intel:
     name: ACTION MARKET INTELLIGENCE (soft-fail)

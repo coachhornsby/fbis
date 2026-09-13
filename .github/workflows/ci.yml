@@ -332,3 +332,6 @@ jobs:
           path: artifacts/nfl-form-backfill-*.json
           if-no-files-found: warn
           retention-days: 14
+
+      # Freeze/publish proof lives in harvest.yml (research pipeline), not this
+      # deploy gate — CI release-gate tests forbid /api/collect here.
