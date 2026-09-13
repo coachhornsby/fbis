@@ -5,13 +5,29 @@
  * NFL freeze was historically skipped (no independent FBIS projection), so form
  * priors never accumulated — a circular dependency. This path writes form from
  * completed ESPN finals without requiring a prior freeze.
+ *
+ * Cloudflare Workers often get HTTP 403 from site.api.espn.com; prefer the CDN
+ * scoreboard (same pattern as CFB) and fall back to site.web.api.
  */
 
 import { applyFinalToForm } from "./store.js";
 import { nflSeasonYear } from "./nflModel.js";
 
-const ESPN_NFL_SCOREBOARD =
-  "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
+const ESPN_NFL_CDN =
+  "https://cdn.espn.com/core/nfl/scoreboard";
+const ESPN_NFL_WEB_API =
+  "https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
+
+/** Regular-season weeks included when formWeeks is omitted. */
+export const NFL_FORM_BACKFILL_WEEK_MAX = 18;
+
+const FETCH_HEADERS = {
+  Accept: "application/json,text/plain,*/*",
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+  Referer: "https://www.espn.com/nfl/scoreboard",
+  "Accept-Language": "en-US,en;q=0.9",
+};
 
 function num(v) {
   const n = Number(v);
@@ -28,9 +44,18 @@ function eventDate(event) {
   return String(iso).slice(0, 10);
 }
 
+/** Normalize site.api / site.web.api / CDN xhr payloads to an events[]. */
+export function espnNflEvents(payload = {}) {
+  if (Array.isArray(payload.events)) return payload.events;
+  const sb = payload.content?.sbData;
+  if (Array.isArray(sb?.events)) return sb.events;
+  if (Array.isArray(payload.content?.events)) return payload.content.events;
+  return [];
+}
+
 export function parseEspnNflFinals(payload = {}) {
   const out = [];
-  for (const event of payload.events || []) {
+  for (const event of espnNflEvents(payload)) {
     const comp = event.competitions?.[0] || {};
     const status = comp.status?.type || {};
     if (!status.completed && status.state !== "post") continue;
@@ -61,17 +86,33 @@ export function parseEspnNflFinals(payload = {}) {
   return out.filter((g) => g.gameId);
 }
 
-async function fetchEspnWeek(season, week, seasonType = 2) {
-  const url = `${ESPN_NFL_SCOREBOARD}?seasontype=${seasonType}&week=${week}&dates=${season}`;
-  const res = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "FBIS-form-backfill/1.0",
-      Referer: "https://www.espn.com/",
-    },
-  });
-  if (!res.ok) throw new Error(`espn-nfl-scoreboard ${res.status} week=${week} season=${season}`);
+async function fetchJson(url) {
+  const res = await fetch(url, { headers: FETCH_HEADERS });
+  if (!res.ok) {
+    const err = new Error(`espn-nfl-scoreboard ${res.status} url=${url}`);
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
+}
+
+async function fetchEspnWeek(season, week, seasonType = 2) {
+  // CDN accepts year= and is reachable from Cloudflare Workers (site.api often 403s).
+  const cdnUrl =
+    `${ESPN_NFL_CDN}?xhr=1&seasontype=${seasonType}&week=${week}&year=${season}&limit=300`;
+  try {
+    return await fetchJson(cdnUrl);
+  } catch (cdnErr) {
+    const webUrl =
+      `${ESPN_NFL_WEB_API}?seasontype=${seasonType}&week=${week}&dates=${season}&limit=300`;
+    try {
+      return await fetchJson(webUrl);
+    } catch (webErr) {
+      throw new Error(
+        `espn-nfl-scoreboard week=${week} season=${season} cdn=${cdnErr?.status || cdnErr?.message}; web=${webErr?.status || webErr?.message}`
+      );
+    }
+  }
 }
 
 /**
@@ -85,12 +126,13 @@ export async function backfillNflTeamForm(
     weeks = null,
     includePostseason = true,
     fetchWeek = fetchEspnWeek,
+    applyFinal = applyFinalToForm,
   } = {}
 ) {
   const seasonNum = Number(season);
   const regularWeeks = Array.isArray(weeks) && weeks.length
     ? weeks.map(Number)
-    : Array.from({ length: 18 }, (_, i) => i + 1);
+    : Array.from({ length: NFL_FORM_BACKFILL_WEEK_MAX }, (_, i) => i + 1);
   const postWeeks = includePostseason ? [1, 2, 3, 4, 5] : [];
   const plan = [
     ...regularWeeks.map((week) => ({ seasonType: 2, week })),
@@ -118,7 +160,7 @@ export async function backfillNflTeamForm(
     finals += games.length;
     for (const g of games) {
       try {
-        const res = await applyFinalToForm(env, {
+        const res = await applyFinal(env, {
           sport: "nfl",
           season: Number(g.season || seasonNum),
           gameId: g.gameId,

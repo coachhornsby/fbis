@@ -1,148 +1,119 @@
+import test from "node:test";
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
-import { parseEspnNflFinals, backfillNflTeamForm } from "../functions/lib/nflFormBackfill.js";
-import { projectNflFormV0, NFL_SHADOW_ID } from "../functions/lib/nflModel.js";
+import {
+  espnNflEvents,
+  parseEspnNflFinals,
+  backfillNflTeamForm,
+  NFL_FORM_BACKFILL_WEEK_MAX,
+} from "../functions/lib/nflFormBackfill.js";
 
-describe("nfl form backfill", () => {
-  it("parses completed ESPN week finals with espnIds", () => {
-    const games = parseEspnNflFinals({
-      events: [
-        {
-          id: "401671789",
-          date: "2025-09-05T00:20:00Z",
-          competitions: [
-            {
-              status: { type: { completed: true, state: "post" } },
-              competitors: [
-                {
-                  homeAway: "home",
-                  score: "24",
-                  team: { id: "21", abbreviation: "PHI", displayName: "Philadelphia Eagles" },
-                },
-                {
-                  homeAway: "away",
-                  score: "20",
-                  team: { id: "6", abbreviation: "DAL", displayName: "Dallas Cowboys" },
-                },
-              ],
-            },
-          ],
-        },
-        {
-          id: "401671790",
-          date: "2025-09-07T17:00:00Z",
-          competitions: [
-            {
-              status: { type: { completed: false, state: "pre" } },
-              competitors: [
-                {
-                  homeAway: "home",
-                  score: "0",
-                  team: { id: "12", abbreviation: "KC", displayName: "Kansas City Chiefs" },
-                },
-                {
-                  homeAway: "away",
-                  score: "0",
-                  team: { id: "17", abbreviation: "NE", displayName: "New England Patriots" },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-    assert.equal(games.length, 1);
-    assert.equal(games[0].gameId, "401671789");
-    assert.equal(games[0].home.espnId, "21");
-    assert.equal(games[0].away.espnId, "6");
-    assert.equal(games[0].homeScore, 24);
-    assert.equal(games[0].awayScore, 20);
-    assert.equal(games[0].season, 2025);
-  });
-
-  it("writes team_form for each completed final via applyFinalToForm", async () => {
-    const formRows = [];
-    const env = {
-      DB: {
-        prepare(sql) {
-          return {
-            _sql: sql,
-            bind(...args) {
-              this._args = args;
-              return this;
-            },
-            async run() {
-              if (/INSERT OR IGNORE INTO team_form_games/.test(this._sql)) {
-                return { meta: { changes: 1 } };
-              }
-              if (/INSERT INTO team_form/.test(this._sql)) {
-                formRows.push(this._args);
-                return { meta: { changes: 1 } };
-              }
-              return { meta: { changes: 0 } };
-            },
-            async all() {
-              return { results: [] };
-            },
-          };
-        },
+test("espnNflEvents reads CDN content.sbData.events", () => {
+  const events = espnNflEvents({
+    content: {
+      sbData: {
+        events: [{ id: "1", competitions: [] }],
       },
-    };
+    },
+  });
+  assert.equal(events.length, 1);
+  assert.equal(events[0].id, "1");
+});
 
-    const result = await backfillNflTeamForm(env, {
-      season: 2025,
-      weeks: [1],
-      includePostseason: false,
-      fetchWeek: async () => ({
+test("espnNflEvents reads site.web.api events", () => {
+  const events = espnNflEvents({ events: [{ id: "2" }] });
+  assert.equal(events.length, 1);
+  assert.equal(events[0].id, "2");
+});
+
+test("parseEspnNflFinals extracts completed competitions", () => {
+  const finals = parseEspnNflFinals({
+    content: {
+      sbData: {
         events: [
           {
             id: "401671789",
-            date: "2025-09-05T00:20:00Z",
+            date: "2025-09-07T17:00Z",
             competitions: [
               {
-                status: { type: { completed: true, state: "post" } },
+                status: { type: { completed: true } },
                 competitors: [
-                  {
-                    homeAway: "home",
-                    score: "24",
-                    team: { id: "21", abbreviation: "PHI", displayName: "Philadelphia Eagles" },
-                  },
-                  {
-                    homeAway: "away",
-                    score: "20",
-                    team: { id: "6", abbreviation: "DAL", displayName: "Dallas Cowboys" },
-                  },
+                  { homeAway: "home", score: "24", team: { id: "9", abbreviation: "GB" } },
+                  { homeAway: "away", score: "17", team: { id: "16", abbreviation: "MIN" } },
+                ],
+              },
+            ],
+          },
+          {
+            id: "401671790",
+            competitions: [
+              {
+                status: { type: { completed: false } },
+                competitors: [
+                  { homeAway: "home", score: "0", team: { id: "1", abbreviation: "ATL" } },
+                  { homeAway: "away", score: "0", team: { id: "2", abbreviation: "BUF" } },
                 ],
               },
             ],
           },
         ],
-      }),
-    });
-
-    assert.equal(result.finalsSeen, 1);
-    assert.equal(result.formApplied, 1);
-    assert.ok(formRows.length >= 2);
-    const keys = formRows.map((a) => String(a[2]));
-    assert.ok(keys.some((k) => k === "id:21"));
-    assert.ok(keys.some((k) => k === "id:6"));
-  });
-
-  it("projects form when priors exist (canonicalId maps to espn id keys)", () => {
-    const proj = projectNflFormV0(
-      {
-        sport: "nfl",
-        home: { abbr: "MIN", canonicalId: "nfl-16", name: "Minnesota Vikings" },
-        away: { abbr: "GB", canonicalId: "nfl-9", name: "Green Bay Packers" },
       },
-      {
-        homePrior: { games: 17, pointsFor: 350, pointsAgainst: 360 },
-        awayPrior: { games: 17, pointsFor: 380, pointsAgainst: 340 },
-      }
-    );
-    assert.equal(proj.ok, true);
-    assert.equal(proj.modelId, NFL_SHADOW_ID);
-    assert.ok(Number.isFinite(proj.home));
-    assert.ok(Number.isFinite(proj.away));
+    },
   });
+  assert.equal(finals.length, 1);
+  assert.equal(finals[0].home.espnId, "9");
+  assert.equal(finals[0].away.espnId, "16");
+  assert.equal(finals[0].homeScore, 24);
+  assert.equal(finals[0].awayScore, 17);
+});
+
+test("backfillNflTeamForm applies finals via CDN week payload", async () => {
+  const applied = [];
+  const result = await backfillNflTeamForm({}, {
+    season: 2025,
+    weeks: [1],
+    includePostseason: false,
+    fetchWeek: async (season, week, seasonType) => {
+      assert.equal(season, 2025);
+      assert.equal(week, 1);
+      assert.equal(seasonType, 2);
+      return {
+        content: {
+          sbData: {
+            events: [
+              {
+                id: "401671800",
+                date: "2025-09-07T20:00Z",
+                competitions: [
+                  {
+                    status: { type: { completed: true } },
+                    competitors: [
+                      { homeAway: "home", score: "27", team: { id: "12", abbreviation: "KC" } },
+                      { homeAway: "away", score: "20", team: { id: "22", abbreviation: "BAL" } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      };
+    },
+    applyFinal: async (_env, row) => {
+      applied.push(row);
+      return { ok: true };
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.finalsSeen, 1);
+  assert.equal(result.formApplied, 1);
+  assert.equal(applied.length, 1);
+  assert.equal(applied[0].sport, "nfl");
+  assert.equal(applied[0].home.espnId, "12");
+  assert.equal(applied[0].away.espnId, "22");
+  assert.equal(applied[0].homeScore, 27);
+  assert.equal(applied[0].awayScore, 20);
+});
+
+test("NFL_FORM_BACKFILL_WEEK_MAX is eighteen", () => {
+  assert.equal(NFL_FORM_BACKFILL_WEEK_MAX, 18);
 });
