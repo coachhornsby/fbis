@@ -9,6 +9,7 @@
 import {
   projectNflPureChallenger,
   NFL_PURE_CHALLENGER_ID,
+  NFL_PURE_CHALLENGER_V1_VERSION,
 } from "./nflPureChallenger.js";
 import {
   projectCbbPureChallenger,
@@ -213,7 +214,8 @@ export function promoteNflResearchToBoard(games = []) {
     }
 
     promoted += 1;
-    return stampResearchBoard(game, {
+    // Keep research-v0-form as the board primary. Attach PBP v1 as a parallel challenger only.
+    const stamped = stampResearchBoard(game, {
       modelId: NFL_PURE_CHALLENGER_ID,
       modelVersion: version,
       scores,
@@ -221,6 +223,33 @@ export function promoteNflResearchToBoard(games = []) {
       underlying,
       researchNote: note,
     });
+    // Parallel challenger slot — never overwrites the v0 board stamp / freeze recipe.
+    const pbp = projectNflPureChallenger(game, {});
+    const pbpScores = scoresFrom(pbp);
+    if (pbp?.ok && pbpScores) {
+      stamped.challengers = {
+        ...(stamped.challengers || {}),
+        [`${NFL_PURE_CHALLENGER_ID}@${NFL_PURE_CHALLENGER_V1_VERSION}`]: {
+          home: pbpScores.home,
+          away: pbpScores.away,
+          margin: pbpScores.margin,
+          total: pbpScores.total,
+          ok: true,
+          modelId: NFL_PURE_CHALLENGER_ID,
+          version: NFL_PURE_CHALLENGER_V1_VERSION,
+          role: "research-challenger",
+          family: "pure-pbp",
+          independent: true,
+          marketInformed: false,
+          canQualify: false,
+          canAuthorize: false,
+          maturity: "RESEARCH",
+          projectionKind: "FBIS",
+          status: "CHALLENGER_ONLY_NOT_BOARD_DEFAULT",
+        },
+      };
+    }
+    return stamped;
   });
   return {
     games: next,
@@ -231,6 +260,7 @@ export function promoteNflResearchToBoard(games = []) {
       canQualify: false,
       canAuthorize: false,
       publication: "RESEARCH_PUBLISHABLE",
+      parallelChallenger: NFL_PURE_CHALLENGER_V1_VERSION,
     },
   };
 }
