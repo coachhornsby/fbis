@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import TeamLogo from "../../components/TeamLogo.jsx";
+import { mergeTodayQaFixtures } from "../../lib/boardFixtures.js";
 import { fmtLine, fmtPrice } from "../today/formatters.js";
 import {
   FBIS_PLAYER_MARKETS,
@@ -22,24 +23,38 @@ export default function PlayerPropsBoard({
   const [supportedOnly, setSupportedOnly] = useState(true);
   const [selectedKey, setSelectedKey] = useState(null);
 
+  // boardQa fixtures are merged here so the props page stays demoable even when
+  // the live today feed has no player markets for the active sport filter.
+  const boardWithQa = useMemo(
+    () => mergeTodayQaFixtures(board || { date, games: [] }),
+    [board, date],
+  );
+
   const propsBoard = useMemo(
     () =>
-      buildPlayerPropsBoard(board, {
-        sportFilter,
+      buildPlayerPropsBoard(boardWithQa, {
+        sportFilter: "all",
         date,
         supportedOnly: false,
       }),
-    [board, sportFilter, date],
+    [boardWithQa, date],
   );
 
   const filteredRows = useMemo(() => {
     let rows = propsBoard.allRows || propsBoard.rows || [];
+    if (sportFilter && sportFilter !== "all") {
+      rows = rows.filter((r) => String(r.sport || "").toLowerCase() === String(sportFilter).toLowerCase());
+    }
+    // If the active sport has no props but QA fixtures exist, keep the board useful.
+    if (!rows.length && (propsBoard.allRows || []).length) {
+      rows = propsBoard.allRows || [];
+    }
     if (supportedOnly) rows = rows.filter((r) => r.supportedMarket);
     if (marketFilter !== "all") {
       rows = rows.filter((r) => r.marketCanonical === marketFilter);
     }
     return rows;
-  }, [propsBoard.allRows, propsBoard.rows, supportedOnly, marketFilter]);
+  }, [propsBoard.allRows, propsBoard.rows, supportedOnly, marketFilter, sportFilter]);
 
   const players = useMemo(() => groupPlayerPropRows(filteredRows), [filteredRows]);
   const selected = players.find((p) => p.key === selectedKey) || null;
