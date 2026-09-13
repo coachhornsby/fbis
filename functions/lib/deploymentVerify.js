@@ -42,9 +42,10 @@ export function shouldFailClosed(result, { attempts, maxAttempts } = {}) {
   if (!result) return true;
   if (result.outcome === VERIFY_OUTCOME.MATCH) return false;
   if (attempts >= (maxAttempts || 12)) return true;
-  // Pages can keep serving the previous SHA briefly after deploy; allow more
-  // mismatch retries than the old hard stop at 3 so catch-up can run.
-  if (result.outcome === VERIFY_OUTCOME.MISMATCH && attempts >= Math.min(10, maxAttempts || 12)) return true;
+  // Pages often keeps the previous production alias SHA while the new
+  // deployment finishes Functions activation / alias cutover. Do not
+  // fail-closed early on mismatch — use the full attempt budget.
+  if (result.outcome === VERIFY_OUTCOME.MISMATCH && attempts >= (maxAttempts || 12)) return true;
   return false;
 }
 

@@ -186,6 +186,8 @@ jobs:
       - name: VERIFY PRODUCTION SHA
         env:
           BASE: https://fbis-myz.pages.dev
+          # Pages alias cutover + Functions activation can lag past ~75s; use full budget.
+          VERIFY_MAX_ATTEMPTS: "24"
         run: |
           set -euo pipefail
           # Prefer live /api/health (authoritative Worker env SHA) over wrangler list shape churn.

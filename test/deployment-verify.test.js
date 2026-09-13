@@ -64,7 +64,7 @@ describe("deployment SHA verify orchestration", () => {
     });
     assert.equal(result.outcome, VERIFY_OUTCOME.MISMATCH);
     assert.equal(result.actualSha, SHA_B);
-    assert.ok(result.attempt >= 10, `fail-closed attempt=${result.attempt}`);
+    assert.equal(result.attempt, 12, `fail-closed attempt=${result.attempt}`);
     assert.equal(shouldFailClosed(result, { attempts: result.attempt, maxAttempts: 12 }), true);
     assert.equal(collectionAllowedAfterVerify(result), false);
   });
