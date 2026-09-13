@@ -255,16 +255,20 @@ jobs:
             return 1
           }
 
-          # Seed/refresh NFL team_form from ESPN finals before collect so
-          # research-v0-form can attach without requiring prior freeze history.
+          # Seed/refresh NFL team_form in small chunks before collect (Pages timeout-safe).
           if [ "$SPORT" = "nfl" ]; then
             season="$(date -u +%Y)"
-            # Current calendar year is fine mid-season; Jan-Jun still maps via API season helper.
-            form_http=$(curl -sS --max-time 300 -o /tmp/nfl-form-backfill.json -w "%{http_code}" \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
-              "${BASE}/api/harvest?formBackfill=1&formSeason=${season}&formWeeks=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18&includePostseason=0&trigger=${TRIGGER}")
-            echo "nfl_form_backfill http=${form_http}"
-            jq -c '{ok:.ok,formApplied:.formApplied,formSkipped:.formSkipped,finalsSeen:.finalsSeen,errors:(.errors//[])}' /tmp/nfl-form-backfill.json || true
+            for start in 1 4 7 10 13 16; do
+              end=$((start + 2))
+              if [ "$end" -gt 18 ]; then end=18; fi
+              weeks=$(seq -s, "$start" "$end")
+              form_http=$(curl -sS --max-time 90 -o /tmp/nfl-form-backfill.json -w "%{http_code}" \
+                -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
+                "${BASE}/api/harvest?formBackfill=1&formSeason=${season}&formWeeks=${weeks}&includePostseason=0&trigger=${TRIGGER}" || echo "000")
+              echo "nfl_form_backfill season=${season} weeks=${weeks} http=${form_http}"
+              jq -c '{ok:.ok,formApplied:.formApplied,formSkipped:.formSkipped,finalsSeen:.finalsSeen,errors:(.errors//[])}' /tmp/nfl-form-backfill.json || true
+              sleep 1
+            done
           fi
 
           if [ "$SPORT" = "cfb" ] || [ "$SPORT" = "nfl" ]; then

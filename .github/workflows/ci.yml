@@ -247,44 +247,85 @@ jobs:
       # (no independent FBIS projection) — a circular dependency. Seed form from
       # ESPN finals via /api/harvest only. Do NOT call /api/collect here — research
       # catch-up stays in harvest.yml. /api/today builds the slate live from form.
+      # Seed NFL team_form in small week chunks (Pages Function request limits).
+      # Soft-fail: Pages deploy already verified above; form seed must not red the release gate.
       - name: NFL form backfill (post-deploy seed)
+        continue-on-error: true
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
           BASE: https://fbis-myz.pages.dev
         run: |
-          set -euo pipefail
+          set -u
           mkdir -p artifacts
           auth=(-H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json")
+          total_applied=0
+          total_finals=0
+          any_fail=0
 
-          seed() {
+          seed_chunk() {
             local season="$1"
             local weeks="$2"
-            local out="artifacts/nfl-form-backfill-${season}.json"
+            local tag="$3"
+            local out="artifacts/nfl-form-backfill-${season}-${tag}.json"
             local http
-            http=$(curl -sS --max-time 300 \
+            http=$(curl -sS --max-time 90 \
               "${auth[@]}" \
               -o "$out" -w "%{http_code}" \
-              "${BASE}/api/harvest?formBackfill=1&formSeason=${season}&formWeeks=${weeks}&includePostseason=0&trigger=workflow_dispatch")
-            echo "nfl_form_backfill season=${season} http=${http}"
-            test "$http" = "200"
-            jq -c '{ok:.ok, job:.job, season:.season, weeksFetched:.weeksFetched, finalsSeen:.finalsSeen, formApplied:.formApplied, formFailed:.formFailed, errors:(.errors//[])}' "$out" || true
-            jq -e '.ok == true' "$out" >/dev/null
+              "${BASE}/api/harvest?formBackfill=1&formSeason=${season}&formWeeks=${weeks}&includePostseason=0&trigger=workflow_dispatch" || echo "000")
+            echo "nfl_form_backfill season=${season} weeks=${weeks} http=${http}"
+            if [ "$http" != "200" ]; then
+              any_fail=1
+              echo "chunk_failed season=${season} tag=${tag} http=${http}"
+              return 0
+            fi
+            jq -c '{ok:.ok, season:.season, weeksFetched:.weeksFetched, finalsSeen:.finalsSeen, formApplied:.formApplied, formSkipped:.formSkipped, formFailed:.formFailed, errors:(.errors//[])}' "$out" || true
+            applied=$(jq -r '.formApplied // 0' "$out")
+            finals=$(jq -r '.finalsSeen // 0' "$out")
+            total_applied=$((total_applied + applied))
+            total_finals=$((total_finals + finals))
+            # Partial ESPN/week failures should not fail the whole seed if rows applied.
+            if [ "$(jq -r '.ok' "$out")" != "true" ] && [ "$applied" = "0" ]; then
+              any_fail=1
+            fi
           }
 
-          seed 2025 "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18"
-          seed 2026 "1,2,3"
+          # 2025 regular season in 3-week chunks (avoids Pages Function timeout).
+          for start in 1 4 7 10 13 16; do
+            end=$((start + 2))
+            if [ "$end" -gt 18 ]; then end=18; fi
+            weeks=$(seq -s, "$start" "$end")
+            seed_chunk 2025 "$weeks" "w${start}-${end}"
+            sleep 1
+          done
+          # 2026 early weeks
+          seed_chunk 2026 "1,2,3" "w1-3"
+
+          # Aggregate summary artifact
+          printf '{"ok":%s,"formApplied":%s,"finalsSeen":%s}\n' \
+            "$([ "$any_fail" -eq 0 ] && echo true || echo false)" \
+            "$total_applied" "$total_finals" > artifacts/nfl-form-backfill-summary.json
 
           {
             echo "## NFL form backfill (post-deploy)"
             echo ""
             echo "- production SHA: \`${DEPLOY_SHA}\`"
-            echo "- 2025 formApplied: $(jq -r '.formApplied // 0' artifacts/nfl-form-backfill-2025.json)"
-            echo "- 2026 formApplied: $(jq -r '.formApplied // 0' artifacts/nfl-form-backfill-2026.json)"
-            echo "- note: board projections rebuild live from team_form; freeze/collect remains in harvest.yml"
+            echo "- formApplied (sum): ${total_applied}"
+            echo "- finalsSeen (sum): ${total_finals}"
+            echo "- anyChunkFail: ${any_fail}"
+            echo "- note: soft-fail step — Pages deploy already verified; freeze/collect stays in harvest.yml"
           } >> "$GITHUB_STEP_SUMMARY"
 
+          # Soft-fail the step if nothing applied (so the badge shows yellow), but
+          # continue-on-error keeps the deploy job green once Pages is live.
+          if [ "$total_applied" -le 0 ]; then
+            echo "No form rows applied — investigate ESPN/form path."
+            exit 1
+          fi
+          exit 0
+
       - name: Upload NFL form-backfill artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nfl-form-backfill-${{ env.DEPLOY_SHA }}

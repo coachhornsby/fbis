@@ -142,7 +142,9 @@ export async function backfillNflTeamForm(
   }
 
   return {
-    ok: failed === 0,
+    // Partial ESPN/week failures are OK when some form rows applied — callers
+    // chunk weeks to stay under Pages Function time limits.
+    ok: failed === 0 || applied > 0,
     sport: "nfl",
     season: seasonNum,
     weeksFetched: fetched,
