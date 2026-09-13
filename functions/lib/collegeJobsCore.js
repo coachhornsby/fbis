@@ -744,11 +744,12 @@ async function persistQbTransferSeason(env, { season, portalRows = [], qbStatRow
 
 const FREEZE_MODELS = {
   cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1", "CFB-FBIS-v2"],
-  cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1"],
+  cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1", "CBB-FBIS-PURE"],
+  nfl: ["NFL-TEAM-FORM-v0", "NFL-FBIS-PURE"],
 };
 
 export async function persistGameChallengers(env, game, sport) {
-  if (sport !== "cfb" && sport !== "cbb") return { ok: true, skipped: true };
+  if (sport !== "cfb" && sport !== "cbb" && sport !== "nfl") return { ok: true, skipped: true };
   const keep = FREEZE_MODELS[sport] || [];
   const subset = {};
   for (const id of keep) {
@@ -766,7 +767,7 @@ export async function persistGameChallengers(env, game, sport) {
 }
 
 export async function gradeGameChallengers(env, game, sport) {
-  if (sport !== "cfb" && sport !== "cbb") return { ok: true, skipped: true };
+  if (sport !== "cfb" && sport !== "cbb" && sport !== "nfl") return { ok: true, skipped: true };
   const hs = game?.home?.score;
   const as = game?.away?.score;
   if (hs == null || as == null) return { ok: true, skipped: true };

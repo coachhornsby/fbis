@@ -17,7 +17,7 @@ const MIGRATION_STATUS = {
 };
 
 /** Production tip expects harden migration after public/Actions billing recovery. */
-const EXPECTED_MIGRATION = "0024_action_observation_timeseries";
+const EXPECTED_MIGRATION = "0025_manual_completion_contracts";
 
 /**
  * Read-only health endpoint.

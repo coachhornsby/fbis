@@ -15,6 +15,7 @@ import { todayCT } from "../functions/lib/slateEngine.js";
 import { buildPropConvictions } from "../functions/lib/propConviction.js";
 import { badgeLabel, badgeTone, deriveGlobalState, deriveViewState } from "./lib/healthState.js";
 import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
+import PublishView from "./features/publish/PublishView.jsx";
 import { legacyToRoute, routeToLegacy } from "./app/navigation.js";
 import PlayerPropsBoard from "./features/playerProps/PlayerPropsBoard.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
@@ -542,6 +543,14 @@ export default function App() {
             status="PHASE 7"
             body="Model vs qualified vs executed populations stay separate. This page will surface units, ROI, CLV, and drawdown without bankroll dollars."
           />
+        ) : route === "publish" ? (
+          <PublishView
+            board={todayBoard}
+            sportFilter={sportFilter}
+            date={todayDate}
+            loading={todayLoading}
+            error={todayError}
+          />
         ) : route === "research" ? (
           <div className="canonical-research-stack">
             <ModelLabView sportFilter={sportFilter} />
@@ -723,7 +732,7 @@ export default function App() {
                           : `${executedStats.profit >= 0 ? "+" : ""}$${executedStats.profit.toFixed(2)}`
                       }
                     />
-                    <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.3"} />
+                    <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.4"} />
                     <Stat label="Pin / Heritage" value={bookLabel(slate)} />
                     <Stat label="Pal" value={palLabel(slate)} />
                     <Stat label="Parlay" value={parlayLabel(slate)} />

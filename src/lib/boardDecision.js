@@ -10,9 +10,10 @@ export const DECISION_ORDER = Object.freeze({
   CONVICTION: 0,
   QUALIFIED: 1,
   LEAN: 2,
-  PASS: 3,
-  NO_MODEL: 4,
-  BLOCKED: 5,
+  RESEARCH: 3,
+  PASS: 4,
+  NO_MODEL: 5,
+  BLOCKED: 6,
 });
 
 /** Canonical misprice / decision states (board + research share these). */
@@ -68,6 +69,14 @@ export function teamCardTitle(team) {
   return primary;
 }
 
+export function isResearchProjection(game) {
+  if (!game) return false;
+  if (String(game.projectionMaturity || game.model?.maturity || "").toUpperCase() === "RESEARCH") return true;
+  if (game.publicationStatus === "RESEARCH_PUBLISHABLE") return true;
+  if (game.researchProjection) return true;
+  return false;
+}
+
 export function hasPureFbisProjection(game) {
   if (!game) return false;
   if (game.projectionUnavailable) return false;
@@ -80,11 +89,17 @@ export function hasPureFbisProjection(game) {
   if (MARKET_IMPLIED_KINDS.has(kind)) return false;
   if (kind === "UNAVAILABLE" || kind === "NONE" || kind === "NO_MODEL") return false;
 
-  const sport = String(game.sport || "").toLowerCase();
-  // NFL currently has no independent FBIS PURE model on the board.
-  if (sport === "nfl" && kind !== "FBIS" && kind !== "PURE" && kind !== "FBIS_PURE") {
-    return false;
+  // Research FBIS scores count as pure for display / freeze / publish — not for PASS.
+  if (kind === "FBIS" || kind === "PURE" || kind === "FBIS_PURE") {
+    const away = game?.model?.projAway ?? game?.projAwayScore ?? null;
+    const home = game?.model?.projHome ?? game?.projHomeScore ?? null;
+    if (away == null || home == null) return false;
+    if (Number.isNaN(Number(away)) || Number.isNaN(Number(home))) return false;
+    return true;
   }
+
+  const sport = String(game.sport || "").toLowerCase();
+  if (sport === "nfl") return false;
 
   const away = game?.model?.projAway ?? game?.projAwayScore ?? null;
   const home = game?.model?.projHome ?? game?.projHomeScore ?? null;
@@ -95,6 +110,11 @@ export function hasPureFbisProjection(game) {
 
 export function isBlockedGame(game) {
   if (!game) return true;
+  // Research models are qualification-blocked by design — that is not a board BLOCKED state.
+  if (isResearchProjection(game)) {
+    if (game.projectionUnavailable) return true;
+    return false;
+  }
   if (game.qualificationBlocked) return true;
   if (game.projectionUnavailable) return true;
   if (game.cfb && game.cfb.bettingAllowed === false) return true;
@@ -206,6 +226,20 @@ export function boardDecision(game) {
       evPct: game.lean.evPct ?? (game.lean.ev != null ? game.lean.ev * 100 : null),
       reason: game.lean.pauseReason || game.lean.reason || null,
       mispriceState: BOARD_MISPRICE_STATE.MODEL_DISAGREEMENT,
+    };
+  }
+
+  // Research projections display scores but never PASS (PASS requires wager-eligible model).
+  if (isResearchProjection(game)) {
+    return {
+      tier: "RESEARCH",
+      label: "RESEARCH",
+      pick: null,
+      market: null,
+      reason: "Research projection — not wager-authorized",
+      mispriceState: BOARD_MISPRICE_STATE.MODEL_ONLY,
+      publicationStatus: game.publicationStatus || "RESEARCH_PUBLISHABLE",
+      bettingAuthority: "NOT_ELIGIBLE",
     };
   }
 
@@ -472,6 +506,10 @@ export function glowClassForTier(tier) {
       return "gc-glow-qualified";
     case "LEAN":
       return "gc-glow-lean";
+    case "RESEARCH":
+      return "gc-glow-research";
+    case "RESEARCH":
+      return "gc-glow-research";
     case "NO_MODEL":
       return "gc-glow-no-model";
     case "BLOCKED":

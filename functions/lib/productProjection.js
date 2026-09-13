@@ -23,12 +23,21 @@ function americanFromProbability(p) {
 }
 
 function modelIdentity(sport, game = {}) {
+  const research =
+    String(game.projectionMaturity || game.model?.maturity || "").toUpperCase() === "RESEARCH" ||
+    game.canQualify === false;
+  const independentFbis =
+    (game.projectionKind === "FBIS" || game.model?.projectionKind === "FBIS") &&
+    (Number.isFinite(Number(game.model?.projHome ?? game.projHomeScore)) &&
+      Number.isFinite(Number(game.model?.projAway ?? game.projAwayScore)));
+
   if (sport === "mlb") {
     return {
       name: "FBIS MLB",
       engine: "Savant + Starter/Offense",
       independent: game.projectionKind === "FBIS" || game.model?.projectionKind === "FBIS",
       state: game.savant?.source || "MLB",
+      maturity: "PRODUCTION",
     };
   }
   if (sport === "cfb") {
@@ -37,10 +46,33 @@ function modelIdentity(sport, game = {}) {
       engine: "Power + Opponent Residual + Context",
       independent: game.projectionKind === "FBIS" || game.model?.projectionKind === "FBIS",
       state: game.cfb?.projectionState || game.projectionState || null,
+      maturity: "PRODUCTION",
     };
   }
-  if (sport === "cbb") return { name: "FBIS CBB", engine: "Production model pending validation", independent: false, state: game.projectionState || null };
-  if (sport === "nfl") return { name: "FBIS NFL", engine: "Independent production model pending validation", independent: false, state: game.projectionState || null };
+  if (sport === "cbb") {
+    return {
+      name: research ? "FBIS CBB Research" : "FBIS CBB",
+      engine: research
+        ? game.researchProjection?.modelId || "CBB-FBIS-PURE possessions×PPP"
+        : "Production model pending validation",
+      independent: Boolean(independentFbis),
+      state: game.projectionState || game.projectionMaturity || null,
+      maturity: research ? "RESEARCH" : "PENDING",
+      canQualify: false,
+    };
+  }
+  if (sport === "nfl") {
+    return {
+      name: research ? "FBIS NFL Research" : "FBIS NFL",
+      engine: research
+        ? game.researchProjection?.modelId || "NFL-FBIS-PURE research-v0-form"
+        : "Independent production model pending validation",
+      independent: Boolean(independentFbis),
+      state: game.projectionState || game.projectionMaturity || null,
+      maturity: research ? "RESEARCH" : "PENDING",
+      canQualify: false,
+    };
+  }
   return { name: "FBIS", engine: null, independent: false, state: null };
 }
 
@@ -52,18 +84,25 @@ function projection(game = {}) {
   const total = finite(game.model?.projTotal ?? (home != null && away != null ? home + away : null));
   const pHome = finite(game.model?.pHomeFinal);
   const independent = kind === "FBIS" && home != null && away != null;
+  const research =
+    String(game.projectionMaturity || game.model?.maturity || "").toUpperCase() === "RESEARCH" ||
+    game.canQualify === false;
   return {
     kind,
     independent,
+    maturity: research ? "RESEARCH" : kind === "FBIS" ? "PRODUCTION" : null,
     home: independent ? home : null,
     away: independent ? away : null,
     margin: independent ? margin : null,
     total: independent ? total : null,
-    pHome: independent && pHome != null && pHome > 0 && pHome < 1 ? pHome : null,
-    fairHomeMl: independent ? americanFromProbability(pHome) : null,
+    // Never expose calibrated EV / fair odds for uncalibrated research.
+    pHome: independent && !research && pHome != null && pHome > 0 && pHome < 1 ? pHome : null,
+    fairHomeMl: independent && !research ? americanFromProbability(pHome) : null,
     lifecycle: "PREGAME",
     liveReforecast: false,
     unavailableReason: independent ? null : "independent-production-projection-unavailable",
+    canQualify: false,
+    calibratedEvAvailable: false,
   };
 }
 
