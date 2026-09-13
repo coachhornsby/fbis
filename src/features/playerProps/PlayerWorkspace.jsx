@@ -1,3 +1,4 @@
+import TeamLogo from "../../components/TeamLogo.jsx";
 import DecisionChip from "../today/DecisionChip.jsx";
 import { fmtLine, fmtPrice } from "../today/formatters.js";
 
@@ -13,6 +14,10 @@ export default function PlayerWorkspace({ player, onClose }) {
           <div className="props-avatar props-avatar-lg" aria-hidden="true">
             {player.imageUrl ? <img src={player.imageUrl} alt="" /> : initial}
           </div>
+          <TeamLogo
+            team={player.teamIdentity || { abbr: player.team, name: player.team }}
+            size={32}
+          />
           <div>
             <h2>{player.playerName || "Unknown player"}</h2>
             <p className="muted">

@@ -110,3 +110,11 @@
     flex-direction: column;
   }
 }
+
+
+.props-player-btn .team-logo,
+.props-player-btn .team-logo-fallback,
+.props-player-identity .team-logo,
+.props-player-identity .team-logo-fallback {
+  flex: 0 0 auto;
+}

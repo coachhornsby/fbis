@@ -170,3 +170,41 @@ test("groupPlayerPropRows groups markets under one player key", () => {
   assert.equal(groups[0].markets.length, 2);
   assert.equal(groups[0].providerPlayerId, "p9");
 });
+
+
+test("player props rows attach team logo from event sides", () => {
+  const board = buildPlayerPropsBoard({
+    games: [
+      {
+        id: "g1",
+        sport: "cfb",
+        away: {
+          abbr: "ORE",
+          name: "Oregon",
+          logo: "https://a.espncdn.com/i/teamlogos/ncaa/500/2483.png",
+        },
+        home: {
+          abbr: "OSU",
+          name: "Ohio State",
+          logo: "https://a.espncdn.com/i/teamlogos/ncaa/500/194.png",
+        },
+        playerMarkets: [
+          {
+            playerName: "Will Howard",
+            team: "OSU",
+            marketCanonical: "passing_yards",
+            line: 249.5,
+            overOdds: -110,
+          },
+        ],
+      },
+    ],
+  });
+  assert.equal(board.rows[0].teamIdentity.abbr, "OSU");
+  assert.equal(
+    board.rows[0].teamIdentity.logo,
+    "https://a.espncdn.com/i/teamlogos/ncaa/500/194.png",
+  );
+  const grouped = groupPlayerPropRows(board.rows);
+  assert.equal(grouped[0].teamIdentity.logo, board.rows[0].teamIdentity.logo);
+});

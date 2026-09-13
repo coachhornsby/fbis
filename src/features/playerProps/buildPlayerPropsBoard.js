@@ -1,4 +1,36 @@
 import { toDomainTodayBoard } from "../../../functions/lib/fbisDomain.js";
+import { identityForSport } from "../../../functions/lib/teams.js";
+
+/**
+ * Resolve the player's team identity (logo/abbr/name) from the event sides,
+ * falling back to the shared team catalog. Never invents a logo URL.
+ */
+export function resolvePlayerTeamIdentity(event = {}, teamKey = null) {
+  const needle = String(teamKey || "").trim().toLowerCase();
+  const sides = [event?.teams?.away, event?.teams?.home].filter(Boolean);
+  const match = needle
+    ? sides.find((t) => {
+        const keys = [t.abbr, t.name, t.school, t.fullName]
+          .filter(Boolean)
+          .map((v) => String(v).trim().toLowerCase());
+        return keys.includes(needle);
+      })
+    : null;
+  if (match?.logoUrl || match?.logo || match?.abbr || match?.name) {
+    return {
+      abbr: match.abbr || null,
+      name: match.name || match.fullName || match.school || null,
+      logo: match.logoUrl || match.logo || null,
+    };
+  }
+  if (!teamKey) return { abbr: null, name: null, logo: null };
+  const resolved = identityForSport(event?.sport, teamKey);
+  return {
+    abbr: resolved?.abbr && resolved.abbr !== "—" ? resolved.abbr : String(teamKey),
+    name: resolved?.name || String(teamKey),
+    logo: resolved?.logo || null,
+  };
+}
 
 /** FBIS-supported football player markets for product surfaces. */
 export const FBIS_PLAYER_MARKETS = Object.freeze([
@@ -65,6 +97,7 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       const supportedMarket = canonical
         ? FBIS_PLAYER_MARKETS.includes(canonical)
         : false;
+      const teamIdentity = resolvePlayerTeamIdentity(event, pm.team);
       allRows.push({
         ...pm,
         eventId: event.id,
@@ -75,6 +108,7 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
           away: event.teams?.away?.abbr || event.teams?.away?.name || null,
           home: event.teams?.home?.abbr || event.teams?.home?.name || null,
         },
+        teamIdentity,
         supportedMarket,
         surfaceStatus: pm.decisionEligible ? "WATCHLIST" : "RESEARCH",
         modelAuthorized: false,
@@ -131,6 +165,7 @@ export function groupPlayerPropRows(rows = []) {
         providerPlayerId: row.providerPlayerId || null,
         playerName: row.playerName || null,
         team: row.team || null,
+        teamIdentity: row.teamIdentity || null,
         position: row.position || null,
         imageUrl: row.imageUrl || null,
         imageSource: row.imageSource || null,

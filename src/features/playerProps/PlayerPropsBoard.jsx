@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import TeamLogo from "../../components/TeamLogo.jsx";
 import DecisionChip from "../today/DecisionChip.jsx";
 import { fmtLine, fmtPrice } from "../today/formatters.js";
 import {
@@ -150,9 +151,10 @@ export default function PlayerPropsBoard({
                             className="props-player-btn"
                             onClick={() => setSelectedKey(playerKey)}
                           >
-                            <span className="props-avatar" aria-hidden="true">
-                              {(row.playerName || "?").slice(0, 1)}
-                            </span>
+                            <TeamLogo
+                              team={row.teamIdentity || { abbr: row.team, name: row.team }}
+                              size={24}
+                            />
                             <span>
                               <strong>{row.playerName || "—"}</strong>
                               <span className="muted props-sub">
