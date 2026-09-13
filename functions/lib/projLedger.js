@@ -51,6 +51,8 @@ import { overDiagnostics } from "./overDiagnostics.js";
 import { buildDailyReport } from "./dailyReport.js";
 import { median, rmse, withinBands } from "./metrics.js";
 import { cfbSeasonYear } from "./cfbModel.js";
+import { nflSeasonYear } from "./nflModel.js";
+import { backfillNflTeamForm } from "./nflFormBackfill.js";
 import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult, strategyStats, dateCT } from "./strategy.js";
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED, evaluateConvictionGates } from "./convictionGate.js";
 import { reconstructTicketProbability } from "./probabilityReconstruction.js";
@@ -415,6 +417,52 @@ function seasonOf(date, sport) {
   if (sport === "cfb" || sport === "nfl") return m >= 8 ? String(y) : String(y - 1);
   if (sport === "nba" || sport === "cbb") return m >= 10 ? String(y) : String(y - 1);
   return String(y);
+}
+
+/** Sport-correct season for team_form writes (NFL must not inherit CFB helper). */
+function formSeasonForSport(sport, date) {
+  if (sport === "nfl") return Number(nflSeasonYear(date));
+  if (sport === "cfb") return Number(cfbSeasonYear(date));
+  const y = Number(String(date).slice(0, 4));
+  return Number.isFinite(y) ? y : Number(nflSeasonYear(date));
+}
+
+/**
+ * Fold completed scoreboard finals into team_form even when the game was never
+ * frozen. Breaks the NFL circular dependency (no form ⇒ no FBIS ⇒ no freeze ⇒ no form).
+ */
+async function applyScoreboardForm(env, sport, finals) {
+  let applied = 0;
+  let skipped = 0;
+  let failed = 0;
+  for (const g of finals || []) {
+    const homeScore = Number(g.home?.score);
+    const awayScore = Number(g.away?.score);
+    if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore)) continue;
+    const completed =
+      g.status?.completed === true ||
+      g.status?.state === "post" ||
+      String(g.status?.detail || "").toLowerCase().includes("final");
+    if (!completed) continue;
+    try {
+      const res = await applyFinalToForm(env, {
+        sport,
+        season: formSeasonForSport(sport, g.date),
+        gameId: String(g.id),
+        date: g.date,
+        home: { name: g.home?.name, abbr: g.home?.abbr, espnId: g.home?.espnId },
+        away: { name: g.away?.name, abbr: g.away?.abbr, espnId: g.away?.espnId },
+        homeScore,
+        awayScore,
+      });
+      if (res?.skipped) skipped += 1;
+      else if (res?.ok) applied += 1;
+      else failed += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  return { applied, skipped, failed };
 }
 
 export function gameOutcome(final) {
@@ -1758,7 +1806,7 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
             writes.push(
               applyFinalToForm(env, {
                 sport,
-                season: Number(cfbSeasonYear(date)),
+                season: formSeasonForSport(sport, date),
                 gameId: next.id,
                 date,
                 home: { name: next.homeName, abbr: next.homeAbbr, espnId: next.espnIdHome },
@@ -1782,6 +1830,13 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   }
   const writeResults = await Promise.all(writes);
   for (const res of writeResults) tallyPersist(counts, res);
+
+  // Always write team_form from completed scoreboard finals — even when the
+  // game was never frozen (historical NFL circular dependency).
+  const formStats = await applyScoreboardForm(env, sport, finals);
+  counts.formApplied = (counts.formApplied || 0) + formStats.applied;
+  counts.formSkipped = (counts.formSkipped || 0) + formStats.skipped;
+  counts.formFailed = (counts.formFailed || 0) + formStats.failed;
 
   const saved = await saveLedger(sport, ledger, cfCache);
   // Newly discovered finals were persisted above. Do not rewrite every graded
@@ -2713,4 +2768,9 @@ async function buildAggregateTrackReport({
       aggregateRows: rows.length,
     },
   };
+}
+
+/** Explicit NFL form seed — used post-deploy until freeze→form history exists. */
+export async function backfillNflFormViaHarvest(env, opts = {}) {
+  return backfillNflTeamForm(env, opts);
 }

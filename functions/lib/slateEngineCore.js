@@ -1243,8 +1243,18 @@ export function slimFinal(game) {
     id: String(game.id),
     sport: game.sport,
     start: game.start,
-    home: { name: game.home?.name, abbr: game.home?.abbr, score: game.home?.score },
-    away: { name: game.away?.name, abbr: game.away?.abbr, score: game.away?.score },
+    home: {
+      name: game.home?.name,
+      abbr: game.home?.abbr,
+      score: game.home?.score,
+      espnId: game.home?.espnId || null,
+    },
+    away: {
+      name: game.away?.name,
+      abbr: game.away?.abbr,
+      score: game.away?.score,
+      espnId: game.away?.espnId || null,
+    },
     status: game.status,
     f5Score: game.f5Score || null,
   };
