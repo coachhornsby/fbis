@@ -1630,3 +1630,32 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   .game-card:hover { transform: none; }
   .game-card:hover .team-logo { transform: none; }
 }
+
+
+/* Board: no independent PURE model */
+.gc-glow-no-model,
+.decision-tier-NO_MODEL {
+  box-shadow: inset 0 0 0 1px rgba(180, 160, 80, 0.35);
+}
+.decision-badge.decision-NO_MODEL {
+  background: rgba(180, 160, 80, 0.16);
+  color: #e6d89a;
+}
+.gc-data-readiness {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.9rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  margin: 0.35rem 0 0.15rem;
+  opacity: 0.85;
+}
+.proj-implied.market-benchmark,
+.market-benchmark {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 0.45rem;
+}
+.proj-implied.market-benchmark strong {
+  font-variant-numeric: tabular-nums;
+}

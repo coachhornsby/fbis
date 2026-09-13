@@ -43,7 +43,9 @@ export const MODEL_FAMILY = Object.freeze({
 export const MISPRICE_STATE = Object.freeze({
   NO_MODEL: "NO_MODEL",
   MODEL_ONLY: "MODEL_ONLY",
-  DISAGREEMENT: "DISAGREEMENT",
+  MODEL_DISAGREEMENT: "MODEL_DISAGREEMENT",
+  /** @deprecated use MODEL_DISAGREEMENT */
+  DISAGREEMENT: "MODEL_DISAGREEMENT",
   CALIBRATED_EDGE: "CALIBRATED_EDGE",
   QUALIFIED: "QUALIFIED",
   AUTHORIZED: "AUTHORIZED",
@@ -54,6 +56,7 @@ export const MISPRICE_STATE = Object.freeze({
 export const MISPRICE_LABEL = Object.freeze({
   NO_MODEL: "No model",
   MODEL_ONLY: "Model only",
+  MODEL_DISAGREEMENT: "Model disagreement",
   DISAGREEMENT: "Model disagreement",
   CALIBRATED_EDGE: "Calibrated edge",
   QUALIFIED: "Qualified",

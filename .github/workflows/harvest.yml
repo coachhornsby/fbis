@@ -263,6 +263,84 @@ jobs:
             call_api "/api/collect?odds=${odds}&sport=${SPORT}"
           fi
 
+
+  action-market-intel:
+    name: ACTION MARKET INTELLIGENCE (soft-fail)
+    runs-on: ubuntu-latest
+    needs: [determine-mode, verify-deployment]
+    # Parallel to incumbent collect. Soft-fail so ACTION never blocks production odds collect/harvest.
+    if: needs.verify-deployment.outputs.outcome == 'match' && contains(fromJSON('["collect-full","collect-cache","all"]'), needs.determine-mode.outputs.mode)
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        sport: [cfb, mlb, nfl]
+    steps:
+      - name: Assert production SHA unchanged
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
+        run: |
+          set -euo pipefail
+          test "${#PRODUCTION_SHA}" -eq 40
+          tmp="$(mktemp)"
+          code="$(curl -sS --max-time 20 -o "$tmp" -w "%{http_code}" "${BASE}/api/health?_t=$(date +%s)")"
+          live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp" | tr 'A-F' 'a-f')"
+          expected="$(echo "$PRODUCTION_SHA" | tr 'A-F' 'a-f')"
+          echo "mid-run SHA check http=${code} expected=${expected} live=${live}"
+          if [ "$code" != "200" ] || [ "${#live}" -ne 40 ] || [ "$live" != "$expected" ]; then
+            echo "Production SHA unavailable/changed — skip ACTION write (fail soft)."
+            exit 1
+          fi
+      - name: Collect ACTION market snapshots (shadow-governed)
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          SPORT: ${{ matrix.sport }}
+          PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
+        run: |
+          set -euo pipefail
+          echo "ACTION market-intel sport=${SPORT} production_sha=${PRODUCTION_SHA}"
+          echo "role=market_intelligence governance=shadow inProductionRouter=false canQualify=false"
+          if [ -z "${HARVEST_SECRET:-}" ]; then
+            echo "HARVEST_SECRET missing — cannot collect ACTION (soft-fail)."
+            exit 1
+          fi
+          plan="$(mktemp)"
+          code="$(curl -sS --max-time 60 -o "$plan" -w "%{http_code}" \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "accept: application/json" \
+            "${BASE}/api/action-apify-collect?mode=plan&sport=${SPORT}&lifecycle=pregame&profile=BASE")"
+          echo "plan_http=${code}"
+          jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$plan" || cat "$plan"
+          test "$code" = "200"
+          allowed="$(jq -r '.safety.allowed // .safety.ok // true' "$plan")"
+          estimate="$(jq -r '(.plan.estimatedCostUsd // .budget.estimatedNextRunUsd // 0)' "$plan")"
+          echo "safety_allowed=${allowed} estimate=${estimate}"
+          if [ "$allowed" = "false" ]; then
+            echo "Plan safety blocked — no ACTION spend."
+            exit 0
+          fi
+          python3 - <<PY
+          est = float("${estimate}" or 0)
+          if est > 1.0:
+              raise SystemExit(f"estimate {est} exceeds soft cap 1.0")
+          print(f"estimate_ok={est}")
+          PY
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 300 -o "$body" -w "%{http_code}" \
+            -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -H "accept: application/json" \
+            -d "{\"execute\":\"1\",\"sport\":\"${SPORT}\",\"lifecycle\":\"pregame\",\"profile\":\"BASE\"}" \
+            "${BASE}/api/action-apify-collect?execute=1&sport=${SPORT}&lifecycle=pregame&profile=BASE")"
+          echo "exec_http=${code}"
+          jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?, .rows?)' "$body" || cat "$body"
+          test "$code" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+
   harvest:
     name: RESEARCH HARVEST
     runs-on: ubuntu-latest
@@ -511,7 +589,7 @@ jobs:
   summary:
     name: RESEARCH SUMMARY
     runs-on: ubuntu-latest
-    needs: [determine-mode, verify-deployment, collect, harvest, health]
+    needs: [determine-mode, verify-deployment, collect, action-market-intel, harvest, health]
     if: always()
     steps:
       - name: Consolidated pipeline summary
@@ -521,6 +599,7 @@ jobs:
           COLLECT: ${{ needs.collect.result }}
           HARVEST: ${{ needs.harvest.result }}
           HEALTH: ${{ needs.health.result }}
+          ACTION: ${{ needs.action-market-intel.result }}
         run: |
           set -euo pipefail
           echo "mode=${MODE}"
@@ -528,6 +607,7 @@ jobs:
           echo "collect=${COLLECT}"
           echo "harvest=${HARVEST}"
           echo "health=${HEALTH}"
+          echo "action-market-intel=${ACTION} (soft-fail; never blocks pipeline)"
           echo "verify-outcome=${{ needs.verify-deployment.outputs.outcome }}"
           echo "production-sha=${{ needs.verify-deployment.outputs.production_sha }}"
           echo "verify-reason=${{ needs.verify-deployment.outputs.reason }}"

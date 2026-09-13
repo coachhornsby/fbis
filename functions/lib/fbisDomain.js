@@ -41,6 +41,10 @@ function numOrNull(v) {
 
 function strOrNull(v) {
   if (v == null) return null;
+  if (typeof v === "object") {
+    const s = v.state || v.detail || v.label || v.name || null;
+    return s == null ? null : String(s).trim() || null;
+  }
   const s = String(v).trim();
   return s ? s : null;
 }

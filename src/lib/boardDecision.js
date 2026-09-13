@@ -1,6 +1,9 @@
 /**
  * Presentation-layer board decision, sort, and display helpers.
  * Does not change qualification / betting logic — only maps existing fields.
+ *
+ * PASS means: an eligible FBIS model evaluated this market and no qualifying
+ * wager was found. Missing PURE projection is NO_MODEL, never PASS.
  */
 
 export const DECISION_ORDER = Object.freeze({
@@ -8,10 +11,87 @@ export const DECISION_ORDER = Object.freeze({
   QUALIFIED: 1,
   LEAN: 2,
   PASS: 3,
-  BLOCKED: 4,
+  NO_MODEL: 4,
+  BLOCKED: 5,
+});
+
+/** Canonical misprice / decision states (board + research share these). */
+export const BOARD_MISPRICE_STATE = Object.freeze({
+  NO_MODEL: "NO_MODEL",
+  MODEL_ONLY: "MODEL_ONLY",
+  MODEL_DISAGREEMENT: "MODEL_DISAGREEMENT",
+  CALIBRATED_EDGE: "CALIBRATED_EDGE",
+  QUALIFIED: "QUALIFIED",
+  AUTHORIZED: "AUTHORIZED",
+  BLOCKED: "BLOCKED",
 });
 
 const CT = "America/Chicago";
+
+const MARKET_IMPLIED_KINDS = new Set([
+  "PINNACLE_IMPLIED",
+  "PINNACLE_IMPLIED_SCORE",
+  "MARKET_IMPLIED",
+  "MARKET_BENCHMARK",
+]);
+
+/** Coerce any UI value to a safe display string — never "[object Object]". */
+export function safeDisplayString(value, fallback = "") {
+  if (value == null) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "object") {
+    if (typeof value.state === "string" && value.state.trim()) return value.state.trim();
+    if (typeof value.detail === "string" && value.detail.trim()) return value.detail.trim();
+    if (typeof value.name === "string" && value.name.trim()) return value.name.trim();
+    if (typeof value.label === "string" && value.label.trim()) return value.label.trim();
+    if (typeof value.fullName === "string" && value.fullName.trim()) return value.fullName.trim();
+    if (typeof value.status === "string" && value.status.trim()) return value.status.trim();
+    return fallback;
+  }
+  return fallback;
+}
+
+export function teamCardTitle(team) {
+  if (!team || typeof team !== "object") return "Team";
+  const full = safeDisplayString(team.fullName);
+  const name = safeDisplayString(team.name);
+  const school = safeDisplayString(team.school);
+  const abbr = safeDisplayString(team.abbr);
+  // Prefer a single canonical name — never concatenate school + nickname when fullName exists.
+  const primary = full || name || school || abbr || "Team";
+  // Guard against accidental "Green Bay Packers Packers" / duplicate tokens.
+  const nick = safeDisplayString(team.nickname);
+  if (nick && primary.endsWith(` ${nick} ${nick}`)) {
+    return primary.slice(0, primary.length - nick.length - 1);
+  }
+  return primary;
+}
+
+export function hasPureFbisProjection(game) {
+  if (!game) return false;
+  if (game.projectionUnavailable) return false;
+  if (game.pureProjectionAvailable === false) return false;
+  if (game.cfb?.projectionState === "LEAGUE_AVERAGE_ONLY") return false;
+
+  const kind = String(
+    game.projectionKind || game.projectionState || game.model?.projectionKind || ""
+  ).toUpperCase();
+  if (MARKET_IMPLIED_KINDS.has(kind)) return false;
+  if (kind === "UNAVAILABLE" || kind === "NONE" || kind === "NO_MODEL") return false;
+
+  const sport = String(game.sport || "").toLowerCase();
+  // NFL currently has no independent FBIS PURE model on the board.
+  if (sport === "nfl" && kind !== "FBIS" && kind !== "PURE" && kind !== "FBIS_PURE") {
+    return false;
+  }
+
+  const away = game?.model?.projAway ?? game?.projAwayScore ?? null;
+  const home = game?.model?.projHome ?? game?.projHomeScore ?? null;
+  if (away == null || home == null) return false;
+  if (Number.isNaN(Number(away)) || Number.isNaN(Number(home))) return false;
+  return true;
+}
 
 export function isBlockedGame(game) {
   if (!game) return true;
@@ -24,11 +104,51 @@ export function isBlockedGame(game) {
 }
 
 /**
+ * Derive canonical misprice state for a board/research row.
+ * qualified=false alone never implies PASS / CALIBRATED_EDGE.
+ */
+export function deriveBoardMispriceState(game = {}) {
+  if (game.mispriceState && BOARD_MISPRICE_STATE[game.mispriceState]) {
+    return game.mispriceState;
+  }
+  if (game.authorized === true || game.decision?.authorized === true) {
+    return BOARD_MISPRICE_STATE.AUTHORIZED;
+  }
+  if (game.rec || game.qualified === true || game.decision?.qualified === true) {
+    return BOARD_MISPRICE_STATE.QUALIFIED;
+  }
+  if (isBlockedGame(game) && hasPureFbisProjection(game)) {
+    return BOARD_MISPRICE_STATE.BLOCKED;
+  }
+  if (!hasPureFbisProjection(game)) {
+    return BOARD_MISPRICE_STATE.NO_MODEL;
+  }
+  const kind = String(game.projectionKind || "").toUpperCase();
+  if (MARKET_IMPLIED_KINDS.has(kind)) {
+    return BOARD_MISPRICE_STATE.NO_MODEL;
+  }
+  if (game.calibratedEdge === true || game.edgeState === "CALIBRATED_EDGE") {
+    return BOARD_MISPRICE_STATE.CALIBRATED_EDGE;
+  }
+  if (game.lean || game.modelDisagreement === true) {
+    return BOARD_MISPRICE_STATE.MODEL_DISAGREEMENT;
+  }
+  if (game.modelOnly === true) {
+    return BOARD_MISPRICE_STATE.MODEL_ONLY;
+  }
+  // Eligible model present, no lean/rec → still not a misprice PASS signal here.
+  return BOARD_MISPRICE_STATE.MODEL_ONLY;
+}
+
+/**
  * Map existing rec/lean/block fields onto the customer board taxonomy.
  * STRONG/STANDARD qualified tags display as QUALIFIED (not a new taxonomy).
+ * Missing PURE projection → NO_MODEL (never PASS).
  */
 export function boardDecision(game) {
-  if (game?.rec) {
+  const mispriceState = deriveBoardMispriceState(game);
+
+  if (game?.rec && hasPureFbisProjection(game)) {
     const tag = String(game.rec.tag || "QUALIFIED").toUpperCase();
     const tier = tag === "CONVICTION" ? "CONVICTION" : "QUALIFIED";
     return {
@@ -39,8 +159,32 @@ export function boardDecision(game) {
       edge: game.rec.edge ?? null,
       evPct: game.rec.evPct ?? (game.rec.ev != null ? game.rec.ev * 100 : null),
       reason: null,
+      mispriceState:
+        tier === "QUALIFIED" || tier === "CONVICTION"
+          ? BOARD_MISPRICE_STATE.QUALIFIED
+          : mispriceState,
     };
   }
+
+  if (!hasPureFbisProjection(game)) {
+    const kind = String(game?.projectionKind || game?.projectionState || "").toUpperCase();
+    const marketImplied = MARKET_IMPLIED_KINDS.has(kind);
+    return {
+      tier: "NO_MODEL",
+      label: marketImplied ? "RESEARCH · NO PURE MODEL" : "NO MODEL",
+      pick: null,
+      market: null,
+      reason:
+        game?.blockReason ||
+        game?.cfb?.blockReason ||
+        game?.noPlayReason ||
+        (marketImplied
+          ? "No independent FBIS PURE projection — market-implied scores are benchmarks only"
+          : "No independent FBIS PURE projection"),
+      mispriceState: BOARD_MISPRICE_STATE.NO_MODEL,
+    };
+  }
+
   if (isBlockedGame(game)) {
     return {
       tier: "BLOCKED",
@@ -48,8 +192,10 @@ export function boardDecision(game) {
       pick: null,
       market: null,
       reason: game?.cfb?.blockReason || game?.blockReason || game?.noPlayReason || "Unavailable",
+      mispriceState: BOARD_MISPRICE_STATE.BLOCKED,
     };
   }
+
   if (game?.lean) {
     return {
       tier: "LEAN",
@@ -59,14 +205,18 @@ export function boardDecision(game) {
       edge: game.lean.edge ?? null,
       evPct: game.lean.evPct ?? (game.lean.ev != null ? game.lean.ev * 100 : null),
       reason: game.lean.pauseReason || game.lean.reason || null,
+      mispriceState: BOARD_MISPRICE_STATE.MODEL_DISAGREEMENT,
     };
   }
+
+  // Eligible FBIS model evaluated the market; nothing qualified.
   return {
     tier: "PASS",
     label: "PASS",
     pick: null,
     market: null,
     reason: null,
+    mispriceState: BOARD_MISPRICE_STATE.MODEL_ONLY,
   };
 }
 
@@ -90,12 +240,25 @@ export function sortBoardGames(games = []) {
 export function filterBoardGames(games = [], filter = "ALL") {
   const f = String(filter || "ALL").toUpperCase();
   if (f === "ALL") return games;
-  if (f === "HIDE_BLOCKED") return games.filter((g) => boardDecision(g).tier !== "BLOCKED");
+  if (f === "HIDE_BLOCKED") {
+    return games.filter((g) => {
+      const tier = boardDecision(g).tier;
+      return tier !== "BLOCKED" && tier !== "NO_MODEL";
+    });
+  }
   return games.filter((g) => boardDecision(g).tier === f);
 }
 
 export function boardDecisionCounts(games = []) {
-  const counts = { ALL: games.length, CONVICTION: 0, QUALIFIED: 0, LEAN: 0, PASS: 0, BLOCKED: 0 };
+  const counts = {
+    ALL: games.length,
+    CONVICTION: 0,
+    QUALIFIED: 0,
+    LEAN: 0,
+    PASS: 0,
+    NO_MODEL: 0,
+    BLOCKED: 0,
+  };
   for (const g of games) {
     const tier = boardDecision(g).tier;
     counts[tier] = (counts[tier] || 0) + 1;
@@ -123,14 +286,10 @@ export function formatBoardDate(iso, { now = new Date() } = {}) {
 }
 
 export function fbisProjection(game) {
-  const unavailable =
-    game?.projectionUnavailable ||
-    game?.sport === "nfl" ||
-    game?.projectionKind === "PINNACLE_IMPLIED" ||
-    game?.cfb?.projectionState === "LEAGUE_AVERAGE_ONLY";
+  const available = hasPureFbisProjection(game);
   const away = game?.model?.projAway ?? game?.projAwayScore ?? null;
   const home = game?.model?.projHome ?? game?.projHomeScore ?? null;
-  if (unavailable || away == null || home == null || Number.isNaN(Number(away)) || Number.isNaN(Number(home))) {
+  if (!available) {
     return {
       available: false,
       away: null,
@@ -159,6 +318,15 @@ export function fbisProjection(game) {
     kind: game?.projectionKind || "FBIS",
     state: game?.cfb?.projectionState || game?.projectionState || null,
   };
+}
+
+export function marketImpliedScores(game) {
+  const away = game?.marketProjAway ?? game?.model?.marketProjAway ?? null;
+  const home = game?.marketProjHome ?? game?.model?.marketProjHome ?? null;
+  if (away == null || home == null || Number.isNaN(Number(away)) || Number.isNaN(Number(home))) {
+    return { available: false, away: null, home: null };
+  }
+  return { available: true, away: Number(away), home: Number(home) };
 }
 
 export function marketLines(game) {
@@ -190,7 +358,14 @@ export function marketDeltas(game) {
   const proj = fbisProjection(game);
   const mkt = marketLines(game);
   if (!proj.available) {
-    return { spreadDelta: null, totalDelta: null, fairHomeSpread: null, fairTotal: null, marketSpread: mkt.spread, marketTotal: mkt.total };
+    return {
+      spreadDelta: null,
+      totalDelta: null,
+      fairHomeSpread: null,
+      fairTotal: null,
+      marketSpread: mkt.spread,
+      marketTotal: mkt.total,
+    };
   }
   const spreadDelta =
     proj.fairHomeSpread != null && mkt.spread != null ? proj.fairHomeSpread - mkt.spread : null;
@@ -205,6 +380,11 @@ export function marketDeltas(game) {
   };
 }
 
+/**
+ * Separate model quality from market/data quality.
+ * When no applicable PURE model exists, modelQuality is null — never show a
+ * market/data score as "Model Quality".
+ */
 export function modelQualityView(game) {
   const score = game?.cfb?.dataQuality ?? game?.quality?.score ?? null;
   const state = game?.cfb?.projectionState || game?.projectionState || null;
@@ -212,19 +392,53 @@ export function modelQualityView(game) {
   const early =
     state === "PRIOR_ONLY" ||
     flags.some((f) => /early_season|prior_only|form_missing/i.test(String(f)));
+  const pure = hasPureFbisProjection(game);
+
   let uncertainty = "MEDIUM";
   if (early || (score != null && score < 50)) uncertainty = "HIGH";
   else if (score != null && score >= 75) uncertainty = "LOW";
+
+  const numericScore = score == null || Number.isNaN(Number(score)) ? null : Number(score);
+
+  const sportData =
+    game?.sportDataState ||
+    (early ? "EARLY-SEASON" : game?.sportDataUnavailable ? "MISSING" : "READY");
+  const marketData =
+    game?.marketUnresolved || game?.marketUnavailable
+      ? "PARTIAL"
+      : game?.odds?.pinPresent || game?.odds?.spread != null
+        ? "READY"
+        : "MISSING";
+  const modelInputs = pure
+    ? early
+      ? "PARTIAL"
+      : "READY"
+    : "MISSING";
+  const projection = pure ? "READY" : "MISSING";
+
   let dataState = "COMPLETE";
-  if (state === "LEAGUE_AVERAGE_ONLY") dataState = "BLOCKED";
+  if (!pure) dataState = "MARKET ONLY";
+  else if (state === "LEAGUE_AVERAGE_ONLY") dataState = "BLOCKED";
   else if (early || state === "PRIOR_ONLY" || state === "PARTIAL") dataState = "EARLY-SEASON DATA";
   else if (game?.marketUnresolved || game?.marketUnavailable) dataState = "PARTIAL";
+  else if (sportData !== "READY" || marketData !== "READY" || modelInputs !== "READY") {
+    dataState = "PARTIAL";
+  }
+
   return {
-    score: score == null || Number.isNaN(Number(score)) ? null : Number(score),
-    uncertainty,
+    // Back-compat: score only when a PURE model exists; otherwise null.
+    score: pure ? numericScore : null,
+    modelQuality: pure ? numericScore : null,
+    marketDataQuality: numericScore,
+    uncertainty: pure ? uncertainty : "N/A",
     dataState,
+    sportDataState: sportData,
+    marketDataState: marketData,
+    modelInputsState: modelInputs,
+    projectionState: projection,
     rawState: state,
     earlySeason: Boolean(early),
+    hasPureModel: pure,
   };
 }
 
@@ -258,6 +472,8 @@ export function glowClassForTier(tier) {
       return "gc-glow-qualified";
     case "LEAN":
       return "gc-glow-lean";
+    case "NO_MODEL":
+      return "gc-glow-no-model";
     case "BLOCKED":
       return "gc-glow-blocked";
     default:

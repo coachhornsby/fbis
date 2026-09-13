@@ -1,6 +1,6 @@
 /**
  * Misprices API — MODEL DISAGREEMENT vs calibrated edge.
- * Does not invent EV. ACTION remains non-authoritative.
+ * Does not invent EV. ACTION is market intelligence only (non-authoritative).
  */
 
 import {
@@ -10,15 +10,30 @@ import {
   listModels,
   autoPromoteAllowed,
 } from "../lib/canonical/index.js";
+import {
+  loadLiveActionMisprices,
+  actionPolicyFlags,
+} from "../lib/actionMarketIntelligence.js";
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const sport = String(url.searchParams.get("sport") || "all").toLowerCase();
 
   const rows = [];
+  let liveActionCount = 0;
+  let freshness = "contract-example";
+
   try {
     const db = context.env?.DB;
     if (db) {
+      // Prefer live ACTION↔projection joins (manual-correct market-intelligence path).
+      const live = await loadLiveActionMisprices(db, { sport, limit: 200 });
+      if (live.length) {
+        liveActionCount = live.length;
+        freshness = "action-model-join";
+        for (const r of live) rows.push(r);
+      }
+
       const stored = await db
         .prepare(
           `SELECT id, sport, event_id, player_id, market_type, model_id, state, label,
@@ -32,7 +47,10 @@ export async function onRequestGet(context) {
         .bind(sport, sport)
         .all()
         .catch(() => ({ results: [] }));
+
+      const seen = new Set(rows.map((r) => r.id));
       for (const r of stored.results || []) {
+        if (seen.has(r.id)) continue;
         rows.push({
           id: r.id,
           sport: r.sport,
@@ -51,8 +69,10 @@ export async function onRequestGet(context) {
           informationCutoff: r.information_cutoff,
           marketTimestamp: r.market_timestamp,
           createdAt: r.created_at,
+          ...actionPolicyFlags(),
         });
       }
+      if (!liveActionCount && rows.length) freshness = "d1-snapshots";
     }
   } catch {
     // fail open to empty research board
@@ -74,7 +94,9 @@ export async function onRequestGet(context) {
       marketType: "spread",
       modelId: "CFB-FBIS-v2",
       ...demo,
-      note: "Contract example only — not a live slate row. Live rows appear after snapshot jobs write canonical_misprice_snapshots.",
+      ...actionPolicyFlags(),
+      note:
+        "Contract example only — not a live slate row. Live rows appear when ACTION market snapshots join FBIS projections.",
     });
   }
 
@@ -86,12 +108,18 @@ export async function onRequestGet(context) {
     generatedAt: new Date().toISOString(),
     sport,
     qualityStatus: rows.length ? "OK" : "PARTIAL",
-    freshness: rows.length ? "d1-snapshots" : "contract-example",
+    freshness,
+    liveActionCount,
     states: Object.values(MISPRICE_STATE),
     policy: {
       uncalibratedLabel: "Model disagreement",
       evRequires: "CALIBRATED_EDGE or higher",
       actionAuthoritative: false,
+      actionRole: "market_intelligence",
+      actionGovernanceMode: "shadow",
+      inProductionRouter: false,
+      canQualify: false,
+      canAuthorizeWager: false,
       autoPromoteAllowed: autoPromoteAllowed(),
     },
     modelCount: models.length,

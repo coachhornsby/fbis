@@ -53,6 +53,15 @@ export function evaluateMisprice(input = {}) {
       marketLine,
     });
   }
+  const kind = String(input.projectionKind || input.projectionState || "").toUpperCase();
+  const marketImplied = ["PINNACLE_IMPLIED", "PINNACLE_IMPLIED_SCORE", "MARKET_IMPLIED", "MARKET_BENCHMARK"].includes(kind);
+  if (input.hasPureProjection === false || marketImplied) {
+    return pack(MISPRICE_STATE.NO_MODEL, {
+      projection: null,
+      marketLine,
+      blockReason: marketImplied ? "market-implied-benchmark-only" : "no-pure-projection",
+    });
+  }
   if (projection == null || !Number.isFinite(Number(projection))) {
     return pack(MISPRICE_STATE.NO_MODEL, { projection: null, marketLine });
   }
@@ -113,12 +122,12 @@ export function evaluateMisprice(input = {}) {
   }
 
   // Default research label — never EV.
-  return pack(MISPRICE_STATE.DISAGREEMENT, {
+  return pack(MISPRICE_STATE.MODEL_DISAGREEMENT, {
     projection: proj,
     marketLine: line,
     disagreementUnits: delta,
     modelProbability: null,
-    labelOverride: MISPRICE_LABEL.DISAGREEMENT,
+    labelOverride: MISPRICE_LABEL.MODEL_DISAGREEMENT,
     note:
       "Projection delta only. Probability/EV withheld until calibration is locked for this model/market.",
   });
@@ -143,7 +152,7 @@ export function rankMisprices(rows = []) {
     [MISPRICE_STATE.AUTHORIZED]: 60,
     [MISPRICE_STATE.QUALIFIED]: 50,
     [MISPRICE_STATE.CALIBRATED_EDGE]: 40,
-    [MISPRICE_STATE.DISAGREEMENT]: 20,
+    [MISPRICE_STATE.MODEL_DISAGREEMENT]: 20,
     [MISPRICE_STATE.MODEL_ONLY]: 10,
     [MISPRICE_STATE.NO_MODEL]: 0,
     [MISPRICE_STATE.BLOCKED]: -10,

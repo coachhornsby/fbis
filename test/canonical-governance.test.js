@@ -106,6 +106,10 @@ test("rankMisprices prefers calibrated states without inventing rows", () => {
 
 test("migration 0023 registers canonical governance tables", async () => {
   const migration = await readFile(new URL("../migrations/0023_canonical_governance.sql", import.meta.url), "utf8");
+  const migration24 = await readFile(
+    new URL("../migrations/0024_action_observation_timeseries.sql", import.meta.url),
+    "utf8"
+  );
   const schemaExt = await readFile(new URL("../schema.extensions.sql", import.meta.url), "utf8");
   const health = await readFile(new URL("../functions/api/health.js", import.meta.url), "utf8");
   assert.match(migration, /schema_migrations[\s\S]*0023_canonical_governance/i);
@@ -113,7 +117,12 @@ test("migration 0023 registers canonical governance tables", async () => {
   assert.match(migration, /canonical_model_registry/);
   assert.match(migration, /canonical_misprice_snapshots/);
   assert.match(schemaExt, /canonical_source_registry/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0023_canonical_governance["']/);
+  assert.match(migration24, /schema_migrations[\s\S]*0024_action_observation_timeseries/i);
+  assert.match(migration24, /action_market_book_observations/);
+  assert.match(migration24, /action_market_snapshot_pointers/);
+  assert.match(schemaExt, /action_market_book_observations/);
+  // Latest expected migration advances with ACTION time-series storage.
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0024_action_observation_timeseries["']/);
 });
 
 test("gap report exists and freezes incumbents in prose", async () => {

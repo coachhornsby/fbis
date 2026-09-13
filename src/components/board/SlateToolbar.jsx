@@ -3,7 +3,7 @@ import {
   formatBoardDate,
 } from "../../lib/boardDecision.js";
 
-const FILTERS = ["ALL", "CONVICTION", "QUALIFIED", "LEAN", "PASS"];
+const FILTERS = ["ALL", "CONVICTION", "QUALIFIED", "LEAN", "PASS", "NO_MODEL"];
 
 export default function SlateToolbar({
   sport,
@@ -55,6 +55,7 @@ export default function SlateToolbar({
         <span>{counts.QUALIFIED} QUALIFIED</span>
         <span>{counts.LEAN} LEAN</span>
         <span>{counts.PASS} PASS</span>
+        {counts.NO_MODEL ? <span>{counts.NO_MODEL} NO MODEL</span> : null}
         {counts.BLOCKED ? <span>{counts.BLOCKED} BLOCKED</span> : null}
       </div>
       {weekControls}

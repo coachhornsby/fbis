@@ -299,21 +299,34 @@ function truthy(v) {
  * @param {Record<string, unknown>} [runtime]
  */
 export function candidateHealthSection(cfg, runtime = {}) {
+  const lastSuccessAt = runtime.lastSuccessAt ?? null;
+  const lastRunAt = runtime.lastRunAt ?? null;
+  const collectionLive = Boolean(lastSuccessAt || lastRunAt);
   return {
     mode: "shadow",
+    role: "market_intelligence",
+    governanceMode: "shadow",
     plan: cfg.plan,
     configured: Boolean(cfg.configured),
     enabled: Boolean(cfg.enabled),
     planError: cfg.planError || null,
-    lastRunAt: runtime.lastRunAt ?? null,
-    lastSuccessAt: runtime.lastSuccessAt ?? null,
+    lastRunAt,
+    lastSuccessAt,
     lastError: runtime.lastError ?? null,
     gamesLastRun: runtime.gamesLastRun ?? null,
     successRate7d: runtime.successRate7d ?? null,
     monthToDateEstimatedCost: runtime.monthToDateEstimatedCost ?? null,
     promotionReadiness: runtime.promotionReadiness ?? "NOT_READY",
+    collectionLive,
+    label: collectionLive
+      ? "Live market intelligence (shadow-governed)"
+      : "Market intelligence configured — awaiting first successful collection",
+    note:
+      "Manual-correct ACTION use: scheduled snapshots + model-vs-market / misprices. Not odds authority. Not PURE features. Not qualify/authorize.",
     inProductionRouter: false,
+    decisionEligible: false,
     canQualify: false,
     canAuthorizeWager: false,
+    affectsProductionOdds: false,
   };
 }

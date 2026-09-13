@@ -40,8 +40,9 @@ export default function MispricesView({ sportFilter = "all" }) {
         <div>
           <h2 className="panel-title">Misprices</h2>
           <p className="muted">
-            Uncalibrated rows stay labeled <strong>Model disagreement</strong>. EV only after
-            calibrated edge.
+            FBIS projection vs ACTION market snapshots (market intelligence only). Uncalibrated
+            rows stay labeled <strong>Model disagreement</strong>. EV only after calibrated edge.
+            ACTION never qualifies or authorizes wagers.
           </p>
         </div>
       </header>

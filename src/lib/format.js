@@ -10,6 +10,13 @@ export function withRecommendations(slate, weights) {
         ...game,
         rec: bundle.qualified,
         lean: bundle.lean,
+        qualificationBlocked: Boolean(game.qualificationBlocked || bundle.blocked),
+        blockReason: bundle.blockReason || game.blockReason || null,
+        projectionUnavailable: Boolean(
+          game.projectionUnavailable ||
+            bundle.integrityCode === "independent-projection-required"
+        ),
+        mispriceState: game.mispriceState || null,
       };
     }),
   };
