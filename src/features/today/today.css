@@ -1,0 +1,230 @@
+/* Phase 4 — Today command center */
+
+.today-command-center {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.today-command-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 12px;
+}
+
+.today-section .panel-header h2 {
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.today-empty {
+  margin: 0;
+  color: var(--muted, #9aa3b5);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.today-opp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.today-opp-card {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #2a3344);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.today-opp-rank {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #9aa3b5);
+  padding-top: 2px;
+}
+
+.today-opp-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.today-opp-matchup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.today-opp-metrics {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.today-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.today-metric-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted, #9aa3b5);
+}
+
+.today-metric-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.today-compact-table th,
+.today-compact-table td {
+  font-size: 0.85rem;
+}
+
+.today-player-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.today-player-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #1b2433;
+  border: 1px solid var(--border, #2a3344);
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.today-watch-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.today-watch-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, #2a3344);
+}
+
+.today-watch-item:last-child {
+  border-bottom: 0;
+}
+
+.today-watch-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.today-watch-why {
+  margin: 6px 0;
+  font-size: 0.88rem;
+}
+
+.today-move-mag {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.decision-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #2a3344);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  max-width: 180px;
+}
+
+.decision-chip-label {
+  font-weight: 700;
+}
+
+.decision-chip-reason {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted, #9aa3b5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.decision-qualified {
+  border-color: #2f6f4e;
+  background: rgba(47, 111, 78, 0.18);
+  color: #9fe0bc;
+}
+
+.decision-watchlist {
+  border-color: #8a6a2f;
+  background: rgba(138, 106, 47, 0.18);
+  color: #f0d59a;
+}
+
+.decision-pass,
+.decision-research,
+.decision-blocked,
+.decision-unavailable {
+  border-color: #3a4558;
+  background: rgba(58, 69, 88, 0.25);
+  color: #c5cee0;
+}
+
+.today-ops-details {
+  margin-top: 10px;
+}
+
+.today-ops-details > summary {
+  cursor: pointer;
+  color: var(--muted, #9aa3b5);
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+  .today-command-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .today-opp-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .today-opp-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

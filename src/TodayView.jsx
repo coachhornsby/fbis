@@ -7,6 +7,8 @@ import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 import PopulationDescriptor from "./components/PopulationDescriptor.jsx";
 import { Fragment, useState } from "react";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
+import TodayCommandCenter from "./features/today/TodayCommandCenter.jsx";
+import "./features/today/today.css";
 
 const FILTERS = [
   ["all", "All games"],
@@ -91,6 +93,8 @@ export default function TodayView({
               <button key={id} className={bucket === id ? "chip active" : "chip"} onClick={() => onBucket(id)}>{label}</button>
             ))}
           </div>
+          <details className="today-ops-details">
+            <summary>Pipeline / data health (operator)</summary>
           <div className="status-grid" style={{ marginTop: 10 }}>
             <Stat label="Last collect" value={d(fmtTs(health.lastCollect))} />
             <Stat label="Last harvest" value={d(fmtTs(health.lastHarvest))} />
@@ -127,8 +131,11 @@ export default function TodayView({
             {todayFeedNote(health, counts.mlbPropWatch)}
           </p>
           <PopulationDescriptor descriptor={board?.population?.board} title="Board population descriptor" />
+          </details>
         </div>
       </section>
+
+      <TodayCommandCenter board={board} sportFilter={sportFilter} date={date} />
 
       {empty && !shown.some((g) => g.games.length) && (
         <div className="panel panel-board"><div className="empty">{empty.message || "No games scheduled."}</div></div>

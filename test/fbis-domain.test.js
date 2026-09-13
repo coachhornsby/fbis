@@ -135,3 +135,76 @@ test("movement storage advisor stays fail-closed without volume evidence", () =>
     "R2_ARCHIVE_REQUIRED",
   );
 });
+
+test("today domain board exposes movers, watchlist, and research-only props without inventing ranks", () => {
+  const board = toDomainTodayBoard(
+    {
+      date: "2026-09-13",
+      games: [
+        {
+          id: "cfb-1",
+          sport: "cfb",
+          away: { abbr: "OHIO" },
+          home: { abbr: "TEX" },
+          rec: { qualified: true, pick: "HOME" },
+          pinSpread: -3,
+          openingSpread: -1,
+          sentiment: { ticketPct: 40, moneyPct: 60 },
+        },
+        {
+          id: "nfl-1",
+          sport: "nfl",
+          away: { abbr: "KC" },
+          home: { abbr: "BUF" },
+          lean: { pick: "AWAY", reason: "EDGE_BELOW_THRESHOLD" },
+          pinSpread: -7,
+          openingSpread: -3,
+        },
+        {
+          id: "mlb-1",
+          sport: "mlb",
+          away: { abbr: "NYY" },
+          home: { abbr: "BOS" },
+          playerMarkets: [
+            {
+              playerName: "Judge",
+              team: "NYY",
+              position: "OF",
+              marketCanonical: "total_bases",
+              line: 1.5,
+              overOdds: -115,
+              book: "FD",
+            },
+          ],
+        },
+      ],
+    },
+    { sportFilter: "all" },
+  );
+
+  assert.equal(board.topGameOpportunities.length, 2);
+  assert.equal(board.topGameOpportunities[0].id, "cfb-1");
+  assert.equal(board.watchlist.length, 1);
+  assert.equal(board.watchlist[0].decision.state, "WATCHLIST");
+  assert.ok(board.marketMovers.length >= 1);
+  assert.ok(board.marketMovers[0].movement.movementMagnitude > 0);
+  assert.equal(board.topPlayerProps.length, 1);
+  assert.equal(board.topPlayerProps[0].surfaceStatus, "RESEARCH");
+  assert.equal(board.topPlayerProps[0].decisionEligible, false);
+
+  const cfbOnly = toDomainTodayBoard(
+    {
+      games: board.events.map((e) => ({
+        id: e.id,
+        sport: e.sport,
+        away: e.teams.away,
+        home: e.teams.home,
+        rec: e.decision?.rec,
+        lean: e.decision?.lean,
+      })),
+    },
+    { sportFilter: "cfb" },
+  );
+  assert.equal(cfbOnly.events.length, 1);
+  assert.equal(cfbOnly.events[0].sport, "cfb");
+});
