@@ -277,6 +277,8 @@ export function readCandidateConfig(env) {
       cfb: profileFor("cfb", COLLECTION_PROFILES.BASE),
       nfl: profileFor("nfl", COLLECTION_PROFILES.BASE),
       mlb: profileFor("mlb", COLLECTION_PROFILES.BASE),
+      nba: profileFor("nba", COLLECTION_PROFILES.BASE),
+      cbb: profileFor("cbb", COLLECTION_PROFILES.BASE),
     },
     /** Circuit breaker: consecutive Actor failures before pause. */
     circuitBreakerThreshold: Math.max(1, Number(e.ACTION_APIFY_CIRCUIT_BREAKER) || 5),

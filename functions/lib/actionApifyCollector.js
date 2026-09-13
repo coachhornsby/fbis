@@ -80,7 +80,9 @@ const runtimeGuards = {
  */
 export function leaguesForSport(sport) {
   const key = String(sport || "").toLowerCase();
-  const leagues = SPORT_LEAGUES[key];
+  // Board sport "cbb" maps to Action Network league "ncaab".
+  const resolved = key === "cbb" ? "ncaab" : key;
+  const leagues = SPORT_LEAGUES[resolved];
   if (!leagues) {
     const err = new Error(`Unsupported Action candidate sport="${sport}"`);
     err.code = "ACTION_APIFY_UNSUPPORTED_SPORT";

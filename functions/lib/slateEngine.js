@@ -19,6 +19,7 @@ import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { promoteNflResearchToBoard, promoteCbbResearchToBoard } from "./researchBoardPromote.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
+import { attachActionIntelToGames } from "./boardActionIntel.js";
 import {
   marketImpliedAuthority,
   deriveBoardDecision,
@@ -42,20 +43,20 @@ export async function buildSlate(sport, date, env = {}) {
   const slate = await core.buildSlate(sport, date, env);
   const id = String(slate?.sport || sport).toLowerCase();
 
+  let next = slate;
+
   if (id === "mlb") {
     const bullpen = await loadMlbBullpenContext(slate.games || [], env).catch((err) => ({
       byTeamId: {}, meta: { source: "MLB Stats relief split", teams: 0, available: 0, error: String(err?.message || err), marketInformed: false },
     }));
     const enriched = attachMlbBullpenContext(slate.games || [], bullpen);
     const deep = attachMlbDeepShadow(enriched);
-    return {
+    next = {
       ...slate,
       games: deep.games,
       research: { ...(slate.research || {}), mlbBullpen: bullpen.meta, mlbDeep: deep.meta },
     };
-  }
-
-  if (id === "cfb") {
+  } else if (id === "cfb") {
     const feed = await loadCfbDeepFeatures(env).catch((err) => ({
       byEspnId: {}, bySchool: {}, meta: { configured: false, records: 0, error: String(err?.message || err) },
     }));
@@ -65,7 +66,7 @@ export async function buildSlate(sport, date, env = {}) {
     const promoted = promoteCfbFbisV2ToBoard(v2.games);
     // Player model consumes game environment only — no CFBD fanout on customer refresh
     const players = attachCfbPlayerV1(promoted.games);
-    return {
+    next = {
       ...slate,
       games: players.games,
       modelVersion: "CFB-FBIS-v2",
@@ -78,9 +79,7 @@ export async function buildSlate(sport, date, env = {}) {
         cfbPlayerV1: players.meta,
       },
     };
-  }
-
-  if (id === "nfl") {
+  } else if (id === "nfl") {
     const baseline = await attachNflShadow(slate.games || [], env);
     const verse = await loadNflVerseFeatures(env).catch((err) => ({
       byTeam: {}, meta: { source: "nflverse", teams: 0, error: String(err?.message || err), marketInformed: false },
@@ -90,7 +89,7 @@ export async function buildSlate(sport, date, env = {}) {
     // Research board: independent form/pure scores are displayable + freezable,
     // but never qualify or authorize.
     const research = promoteNflResearchToBoard(pro.games);
-    return {
+    next = {
       ...slate,
       games: research.games,
       nfl: baseline.meta,
@@ -102,21 +101,41 @@ export async function buildSlate(sport, date, env = {}) {
         nflResearchBoard: research.meta,
       },
     };
-  }
-
-  if (id === "cbb") {
+  } else if (id === "cbb") {
     // Core already attached CBBD challengers + market-implied board scores.
     // Promote possessions×PPP research onto the board; strip market masquerade.
     const catalog = await loadCbbdCatalog(env).catch(() => null);
     const research = promoteCbbResearchToBoard(slate.games || [], catalog);
-    return {
+    next = {
       ...slate,
       games: research.games,
       research: { ...(slate.research || {}), cbbResearchBoard: research.meta },
     };
   }
 
-  return slate;
+  // ACTION market intelligence — display on every board sport; never odds authority.
+  if (env.DB && Array.isArray(next.games) && next.games.length) {
+    try {
+      const attached = await attachActionIntelToGames(next.games, env.DB);
+      next = {
+        ...next,
+        games: attached.games,
+        actionIntel: {
+          role: "market_intelligence",
+          governanceMode: "shadow",
+          displayOnly: true,
+          inProductionRouter: false,
+          canQualify: false,
+          attached: attached.attached || 0,
+          checked: attached.checked || 0,
+        },
+      };
+    } catch {
+      // Fail-open.
+    }
+  }
+
+  return next;
 }
 
 export function qualificationIntegrity(sport, game) {

@@ -348,7 +348,7 @@ console.log(JSON.stringify({ fbisCount: summary.fbisCount, candidate: summary.pu
       fail-fast: false
       max-parallel: 2
       matrix:
-        sport: [cfb, mlb, nfl]
+        sport: [cfb, mlb, nfl, nba, cbb]
     steps:
       - name: Assert production SHA unchanged
         env:
