@@ -1,3 +1,4 @@
+import { formatMarketLabel } from "../playerProps/buildPlayerPropsBoard.js";
 import DecisionChip from "./DecisionChip.jsx";
 import { fmtLine, fmtPrice } from "./formatters.js";
 
@@ -42,7 +43,7 @@ export default function TopPlayerProps({ rows = [] }) {
                         </div>
                       </div>
                     </td>
-                    <td>{row.marketCanonical || row.market || "—"}</td>
+                    <td>{formatMarketLabel(row.marketCanonical || row.market)}</td>
                     <td>{fmtLine(row.line)}</td>
                     <td>
                       {fmtPrice(row.overOdds ?? row.price)}
