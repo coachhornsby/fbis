@@ -60,7 +60,19 @@ export async function onRequestPost(context) {
     }
     const card = productProjectionCard(game, sport, { tier: "public" });
     if (!card.projection?.independent) return json({ ok: false, error: "independent-fbis-projection-required" }, 409);
-    const payloadJson = JSON.stringify(card);
+    const { buildXGameCopy, publicationEligibilityForGame } = await import("../lib/xPublication.js");
+    const eligibility = publicationEligibilityForGame(game);
+    if (!eligibility.eligible) return json({ ok: false, error: eligibility.reason || "not-publishable" }, 409);
+    const xCopy = buildXGameCopy(game, sport);
+    const payload = {
+      ...card,
+      publicationStatus: eligibility.status,
+      research: eligibility.status === "RESEARCH_PUBLISHABLE",
+      canQualify: false,
+      xCopy: xCopy.text,
+      projectionCard: xCopy.card,
+    };
+    const payloadJson = JSON.stringify(payload);
     const payloadHash = await sha256Hex(payloadJson);
     const publishedAt = new Date().toISOString();
     const saved = await insertPublishedProjection(context.env, {
@@ -68,14 +80,22 @@ export async function onRequestPost(context) {
       gameId,
       gameDate: resolved.date,
       startTime: game.start || null,
-      modelVersion: card.modelVersion || slate.modelVersion || null,
+      modelVersion: card.modelVersion || slate.modelVersion || game.researchProjection?.modelVersion || null,
       payloadHash,
       payloadJson,
       publishedAt,
       publishedBy: "operator",
     });
     if (saved.conflict) return json({ ok: false, error: saved.reason, existingHash: saved.existing?.payload_hash || null }, 409);
-    return json({ ok: true, inserted: saved.inserted, payloadHash, publishedAt, projection: card }, saved.inserted ? 201 : 200);
+    return json({
+      ok: true,
+      inserted: saved.inserted,
+      payloadHash,
+      publishedAt,
+      publicationStatus: eligibility.status,
+      projection: payload,
+      xCopy: xCopy.text,
+    }, saved.inserted ? 201 : 200);
   } catch (err) {
     return json({ ok: false, error: "projection-publication-failed", detail: String(err?.message || err) }, 502);
   }

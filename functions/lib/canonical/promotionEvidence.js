@@ -6,7 +6,7 @@
  * Fixture ridge artifacts must not masquerade as trained production models.
  */
 
-import { createHash } from "node:crypto";
+import { sha256Hex } from "../sha256Hex.js";
 import { MODEL_MATURITY } from "./maturityStates.js";
 import { REASON_CODE } from "./decisionAuthority.js";
 import { autoPromoteAllowed } from "./modelRegistry.js";
@@ -66,7 +66,7 @@ function finiteOrNull(v) {
 }
 
 export function hashArtifactContent(content) {
-  return createHash("sha256").update(String(content ?? "")).digest("hex");
+  return sha256Hex(String(content ?? ""));
 }
 
 /**

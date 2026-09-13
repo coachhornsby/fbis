@@ -22,16 +22,15 @@ import {
 import { projectNflFormV0, NFL_SHADOW_ID } from "./nflModel.js";
 import { featureStatusMap, NFL_COMPUTED_FROM_PBP, NFL_DECLARED_NOT_COMPUTED } from "./nflPbpFeatures.js";
 import {
-  NFL_RESEARCH_MODEL_ID,
-  NFL_RESEARCH_MODEL_VERSION,
   buildNflResearchFeatureSnapshot,
   projectMarginFromFit,
   freezeNflResearchProjection,
   nflResearchPipelineStatus,
 } from "./nflResearchPipeline.js";
 
-export const NFL_PURE_CHALLENGER_ID = NFL_RESEARCH_MODEL_ID;
-export const NFL_PURE_CHALLENGER_VERSION = NFL_RESEARCH_MODEL_VERSION;
+// Literal IDs avoid TDZ circular init with nflResearchPipeline.js
+export const NFL_PURE_CHALLENGER_ID = "NFL-FBIS-PURE";
+export const NFL_PURE_CHALLENGER_VERSION = "pbp-ols-research-v0";
 
 /** Declared manual feature list — presence here ≠ implemented. */
 export const NFL_FEATURE_PIPELINE = Object.freeze([

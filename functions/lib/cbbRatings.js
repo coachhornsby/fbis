@@ -28,6 +28,7 @@ export const CBB_EFF_MIN = 70;
 export const CBB_EFF_MAX = 140;
 
 function num(v) {
+  if (v == null || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }

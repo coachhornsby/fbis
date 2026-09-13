@@ -18,6 +18,7 @@ describe("FBIS product navigation", () => {
       "player-props",
       "bets",
       "performance",
+      "publish",
       "research",
     ]);
     assert.ok(!ids.includes("mlb"));

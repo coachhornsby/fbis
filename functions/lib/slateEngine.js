@@ -16,6 +16,8 @@ import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
 import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
+import { promoteNflResearchToBoard, promoteCbbResearchToBoard } from "./researchBoardPromote.js";
+import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
 import {
   marketImpliedAuthority,
@@ -85,11 +87,32 @@ export async function buildSlate(sport, date, env = {}) {
     }));
     const enriched = attachNflVerseFeatures(baseline.games, verse);
     const pro = attachNflProShadow(enriched);
+    // Research board: independent form/pure scores are displayable + freezable,
+    // but never qualify or authorize.
+    const research = promoteNflResearchToBoard(pro.games);
     return {
       ...slate,
-      games: pro.games,
+      games: research.games,
       nfl: baseline.meta,
-      research: { ...(slate.research || {}), nflBaseline: baseline.meta, nflVerse: verse.meta, nflPro: pro.meta },
+      research: {
+        ...(slate.research || {}),
+        nflBaseline: baseline.meta,
+        nflVerse: verse.meta,
+        nflPro: pro.meta,
+        nflResearchBoard: research.meta,
+      },
+    };
+  }
+
+  if (id === "cbb") {
+    // Core already attached CBBD challengers + market-implied board scores.
+    // Promote possessions×PPP research onto the board; strip market masquerade.
+    const catalog = await loadCbbdCatalog(env).catch(() => null);
+    const research = promoteCbbResearchToBoard(slate.games || [], catalog);
+    return {
+      ...slate,
+      games: research.games,
+      research: { ...(slate.research || {}), cbbResearchBoard: research.meta },
     };
   }
 
@@ -100,6 +123,22 @@ export function qualificationIntegrity(sport, game) {
   const id = String(sport || game?.sport || "").toLowerCase();
   const projectionKind = game?.projectionKind || game?.model?.projectionKind || null;
   const flags = new Set(game?.quality?.flags || []);
+
+  // Research / maturity-gated models may display and publish but never qualify.
+  if (
+    game?.canQualify === false ||
+    game?.qualificationBlocked === true ||
+    game?.model?.canQualify === false ||
+    String(game?.projectionMaturity || game?.model?.maturity || "").toUpperCase() === "RESEARCH" ||
+    game?.bettingAuthority === "NOT_ELIGIBLE"
+  ) {
+    return {
+      ok: false,
+      reason: "Qualification blocked — research / non-production projection has no wager authority",
+      code: "research-no-wager-authority",
+      reasonCode: REASON_CODE.NO_PURE_MODEL,
+    };
+  }
 
   // Canonical authority: projectionKind != FBIS (incl. market-implied) never qualifies.
   const implied = marketImpliedAuthority(projectionKind);

@@ -8,7 +8,7 @@
  * Does not auto-qualify or authorize.
  */
 
-import { createHash } from "node:crypto";
+import { sha256Hex } from "./sha256Hex.js";
 import { normalizeNflPbpPlays } from "./nflPbpNormalize.js";
 import { buildMatchupFeatureSnapshot, NFL_COMPUTED_FROM_PBP } from "./nflPbpFeatures.js";
 import { gradeScores } from "./collegeJobsCore.js";
@@ -17,6 +17,9 @@ import { MODEL_FAMILY, MODEL_MATURITY } from "./canonical/maturityStates.js";
 export const NFL_RESEARCH_MODEL_ID = "NFL-FBIS-PURE";
 export const NFL_RESEARCH_MODEL_VERSION = "pbp-ols-research-v0";
 
+function fingerprint(obj) {
+  return sha256Hex(JSON.stringify(obj)).slice(0, 40);
+}
 export const NFL_FEATURE_KEYS = Object.freeze([
   "epa_diff",
   "success_diff",
@@ -36,7 +39,7 @@ function num(v) {
 }
 
 function hashObj(obj) {
-  return createHash("sha256").update(JSON.stringify(obj)).digest("hex").slice(0, 40);
+  return sha256Hex(JSON.stringify(obj)).slice(0, 40);
 }
 
 function featureVector(features = {}) {

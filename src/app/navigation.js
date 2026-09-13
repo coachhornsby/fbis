@@ -9,6 +9,7 @@ export const CUSTOMER_NAV = Object.freeze([
   { id: "player-props", label: "PLAYER PROPS", description: "Normalized player markets" },
   { id: "bets", label: "MY BETS", description: "Executed bets only" },
   { id: "performance", label: "PERFORMANCE", description: "Model / qualified / executed" },
+  { id: "publish", label: "PUBLISH", description: "X-ready projection copy" },
   { id: "research", label: "RESEARCH", description: "Labs & historical analysis" },
 ]);
 
@@ -55,6 +56,7 @@ export function routeToLegacy(route, sportFilter = "all") {
       };
     case "player-props":
     case "performance":
+    case "publish":
     case "research":
       // Load today board as backing data until feature modules land.
       return { tab: "today", sport: sportFilter === "all" ? "mlb" : sportFilter };

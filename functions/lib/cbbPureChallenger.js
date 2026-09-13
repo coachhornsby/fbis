@@ -72,10 +72,13 @@ export function projectCbbPureChallenger(input = {}) {
     }
   }
 
+  const ratingsPresent = [homeAdjOe, homeAdjDe, homeTempo, awayAdjOe, awayAdjDe, awayTempo].every(
+    (v) => v != null && v !== "" && Number.isFinite(Number(v))
+  );
   const poss = expectedPossessions(homeTempo, awayTempo, { venueFactor: 1 });
   const homeEff = expectedEfficiency(homeAdjOe, awayAdjDe, CBB_NATIONAL_EFF);
   const awayEff = expectedEfficiency(awayAdjOe, homeAdjDe, CBB_NATIONAL_EFF);
-  if (poss == null || homeEff == null || awayEff == null) {
+  if (!ratingsPresent || poss == null || poss <= 0 || homeEff == null || awayEff == null || homeEff <= 0 || awayEff <= 0) {
     return {
       ok: false,
       reason: "missing-required-ratings",
@@ -88,6 +91,8 @@ export function projectCbbPureChallenger(input = {}) {
         awayAdjDe,
         awayTempo,
         possessions: poss,
+        homeEff,
+        awayEff,
       },
       ...CBB_PURE_STATUS,
     };
