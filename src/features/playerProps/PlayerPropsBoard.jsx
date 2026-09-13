@@ -8,8 +8,17 @@ import {
   buildPlayerPropsBoard,
   formatMarketLabel,
   groupPlayerPropRows,
+  sortPropsByConviction,
 } from "./buildPlayerPropsBoard.js";
 import PlayerWorkspace from "./PlayerWorkspace.jsx";
+
+const TIER_LABELS = Object.freeze({
+  CONVICTION: "Conviction",
+  STRONG: "Strong",
+  LEAN: "Lean",
+  WATCH: "Watch",
+  NONE: "No FBIS read",
+});
 
 function fmtProb(v) {
   if (v == null || v === "" || !Number.isFinite(Number(v))) return "—";
@@ -82,7 +91,7 @@ export default function PlayerPropsBoard({
     if (marketFilter !== "all") {
       rows = rows.filter((r) => r.marketCanonical === marketFilter);
     }
-    return rows;
+    return sortPropsByConviction(rows);
   }, [propsBoard.allRows, propsBoard.rows, supportedOnly, marketFilter, sportFilter]);
 
   const players = useMemo(() => groupPlayerPropRows(filteredRows), [filteredRows]);
@@ -95,7 +104,8 @@ export default function PlayerPropsBoard({
           <p className="props-kicker">Player props</p>
           <h1>Board</h1>
           <p className="props-lede">
-            Market line vs FBIS projection. Research only — nothing is placed from here.
+            Sorted by FBIS mispricing — strongest conviction first. Research only; nothing is
+            placed from here.
           </p>
         </div>
         <div className="props-hero-meta">
@@ -166,21 +176,30 @@ export default function PlayerPropsBoard({
             const teamAbbr = row.teamIdentity?.abbr || row.team || "—";
             const over = row.overOdds ?? (row.side === "over" ? row.price : null);
             const under = row.underOdds ?? (row.side === "under" ? row.price : null);
-            const leanMore =
-              row.probabilityOver != null &&
-              row.probabilityUnder != null &&
-              row.probabilityOver > row.probabilityUnder;
-            const leanLess =
-              row.probabilityOver != null &&
-              row.probabilityUnder != null &&
-              row.probabilityUnder > row.probabilityOver;
+            const leanMore = row.convictionLean === "MORE";
+            const leanLess = row.convictionLean === "LESS";
+            const tier = row.convictionTier || "NONE";
+            const rank = i + 1;
 
             return (
               <article
                 key={`${row.eventId}-${row.playerName}-${row.marketCanonical}-${i}`}
-                className="props-card"
+                className={`props-card props-tier-${tier}${
+                  leanMore ? " props-lean-more" : leanLess ? " props-lean-less" : ""
+                }`}
                 role="listitem"
               >
+                <div className="props-card-ribbon">
+                  <span className={`props-tier-badge props-tier-badge-${tier}`}>
+                    {rank <= 3 && tier !== "NONE" && tier !== "WATCH" ? `#${rank} · ` : ""}
+                    {TIER_LABELS[tier] || tier}
+                    {row.convictionLean ? ` · ${row.convictionLean}` : ""}
+                  </span>
+                  {row.leanProbability != null ? (
+                    <span className="props-tier-prob">{fmtProb(row.leanProbability)}</span>
+                  ) : null}
+                </div>
+
                 <button
                   type="button"
                   className="props-card-top"

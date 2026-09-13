@@ -98,12 +98,122 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px 12px 12px;
+  padding: 12px 12px 12px;
   border-radius: 16px;
   background: #121c29;
   border: 1px solid #2a3d52;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
-  min-height: 280px;
+  min-height: 300px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.props-card-ribbon {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.props-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.props-tier-prob {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #f2f6fa);
+}
+
+.props-tier-badge-CONVICTION {
+  color: var(--green, #3fb950);
+  background: var(--green-bg, #0a2215);
+  border-color: var(--green, #3fb950);
+  box-shadow: 0 0 12px var(--glow-conviction, rgba(63, 185, 80, 0.38));
+}
+
+.props-tier-badge-STRONG {
+  color: var(--cyan, #3ec7e8);
+  background: rgba(62, 199, 232, 0.12);
+  border-color: var(--cyan, #3ec7e8);
+}
+
+.props-tier-badge-LEAN {
+  color: var(--yellow, #e3b341);
+  background: var(--yellow-bg, #241a04);
+  border-color: var(--yellow, #e3b341);
+}
+
+.props-tier-badge-WATCH,
+.props-tier-badge-NONE {
+  color: var(--muted, #d0d8e2);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: #3a5570;
+}
+
+.props-card.props-tier-CONVICTION {
+  border-color: rgba(63, 185, 80, 0.65);
+  box-shadow:
+    0 0 0 1px rgba(63, 185, 80, 0.25),
+    0 12px 32px rgba(63, 185, 80, 0.18),
+    0 10px 28px rgba(0, 0, 0, 0.32);
+  background:
+    linear-gradient(180deg, rgba(63, 185, 80, 0.12), transparent 42%),
+    #121c29;
+}
+
+.props-card.props-tier-STRONG {
+  border-color: rgba(62, 199, 232, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(62, 199, 232, 0.18),
+    0 12px 30px rgba(62, 199, 232, 0.12),
+    0 10px 28px rgba(0, 0, 0, 0.32);
+  background:
+    linear-gradient(180deg, rgba(62, 199, 232, 0.1), transparent 40%),
+    #121c29;
+}
+
+.props-card.props-tier-LEAN {
+  border-color: rgba(227, 179, 65, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(227, 179, 65, 0.14),
+    0 10px 28px rgba(0, 0, 0, 0.32);
+  background:
+    linear-gradient(180deg, rgba(227, 179, 65, 0.08), transparent 38%),
+    #121c29;
+}
+
+.props-card.props-lean-more .props-side.lean {
+  background: rgba(63, 185, 80, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(63, 185, 80, 0.35);
+}
+
+.props-card.props-lean-less .props-side.lean {
+  background: rgba(248, 81, 73, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(248, 81, 73, 0.35);
+}
+
+.props-card.props-lean-more .props-side.lean .props-side-label {
+  color: var(--green, #3fb950);
+}
+
+.props-card.props-lean-less .props-side.lean .props-side-label {
+  color: var(--red, #f85149);
+}
+
+.props-card.props-tier-CONVICTION:hover,
+.props-card.props-tier-STRONG:hover {
+  transform: translateY(-2px);
 }
 
 .props-card-compact {

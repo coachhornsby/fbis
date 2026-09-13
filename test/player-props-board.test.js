@@ -5,6 +5,8 @@ import {
   buildPlayerPropsBoard,
   formatMarketLabel,
   withFbisPropAnalytics,
+  rankPropConviction,
+  sortPropsByConviction,
   groupPlayerPropRows,
   normalizeBoardGame,
 } from "../src/features/playerProps/buildPlayerPropsBoard.js";
@@ -238,4 +240,25 @@ test("withFbisPropAnalytics does not invent a projection", () => {
   assert.equal(row.fbisProjection, null);
   assert.equal(row.probabilityOver, null);
   assert.equal(row.probabilityUnder, null);
+});
+
+
+test("sorts props by conviction / mispricing descending", () => {
+  const rows = sortPropsByConviction([
+    withFbisPropAnalytics({ playerName: "Soft", line: 100, fbisProjection: 101, fbisSigma: 40 }),
+    withFbisPropAnalytics({ playerName: "Hot", line: 249.5, fbisProjection: 290, fbisSigma: 35 }),
+    withFbisPropAnalytics({ playerName: "Blank", line: 70, overOdds: -110 }),
+  ]);
+  assert.equal(rows[0].playerName, "Hot");
+  assert.equal(rows[0].convictionTier, "CONVICTION");
+  assert.equal(rows[0].convictionLean, "MORE");
+  assert.equal(rows[rows.length - 1].playerName, "Blank");
+  assert.equal(rows[rows.length - 1].convictionTier, "NONE");
+});
+
+test("rankPropConviction stays null when FBIS has no read", () => {
+  const rank = rankPropConviction({ line: 50, overOdds: -110 });
+  assert.equal(rank.convictionScore, -1);
+  assert.equal(rank.convictionTier, "NONE");
+  assert.equal(rank.convictionLean, null);
 });

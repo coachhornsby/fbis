@@ -42,7 +42,7 @@ export function withFbisPropAnalytics(row = {}) {
   const finiteOrNull = (v) =>
     v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v);
 
-  return {
+  const enriched = {
     ...row,
     fbisProjection: finiteOrNull(fbisProjection),
     fbisSigma: finiteOrNull(fbisSigma),
@@ -52,6 +52,116 @@ export function withFbisPropAnalytics(row = {}) {
     edge: finiteOrNull(edge),
     projectionDelta,
   };
+  return {
+    ...enriched,
+    ...rankPropConviction(enriched),
+  };
+}
+
+/**
+ * Rank mispricing / conviction from real FBIS signals only.
+ * Higher convictionScore = more mispriced. No signal → sorts last.
+ */
+export function rankPropConviction(row = {}) {
+  const pOverRaw = row.probabilityOver;
+  const pUnderRaw = row.probabilityUnder;
+  const edgeRaw = row.edge;
+  const deltaRaw = row.projectionDelta;
+  const sigmaRaw = row.fbisSigma;
+  const projRaw = row.fbisProjection;
+
+  const pOver = pOverRaw == null || pOverRaw === "" ? NaN : Number(pOverRaw);
+  const pUnder = pUnderRaw == null || pUnderRaw === "" ? NaN : Number(pUnderRaw);
+  const edge = edgeRaw == null || edgeRaw === "" ? NaN : Number(edgeRaw);
+  const delta = deltaRaw == null || deltaRaw === "" ? NaN : Number(deltaRaw);
+  const sigma = sigmaRaw == null || sigmaRaw === "" ? NaN : Number(sigmaRaw);
+  const hasProb = Number.isFinite(pOver) && Number.isFinite(pUnder);
+  const hasEdge = Number.isFinite(edge);
+  const hasDelta = Number.isFinite(delta);
+  const hasProj = projRaw != null && projRaw !== "" && Number.isFinite(Number(projRaw));
+
+  if (!hasProj && !hasProb && !hasEdge) {
+    return {
+      convictionScore: -1,
+      convictionTier: "NONE",
+      convictionLean: null,
+      leanProbability: null,
+      mispricingZ: null,
+    };
+  }
+
+  let lean = null;
+  let leanProbability = null;
+  if (hasProb) {
+    lean = pOver >= pUnder ? "MORE" : "LESS";
+    leanProbability = Math.max(pOver, pUnder);
+  } else if (hasDelta && delta !== 0) {
+    lean = delta > 0 ? "MORE" : "LESS";
+  } else if (hasEdge && edge !== 0) {
+    // Positive edge assumed on the conviction side when side is present.
+    const side = String(row.projectionSide || row.side || "").toUpperCase();
+    if (side === "OVER" || side === "MORE") lean = "MORE";
+    else if (side === "UNDER" || side === "LESS") lean = "LESS";
+    else lean = edge > 0 ? "MORE" : "LESS";
+  }
+
+  const mispricingZ =
+    hasDelta && Number.isFinite(sigma) && sigma > 0 ? delta / sigma : null;
+
+  const absEdge = hasEdge ? Math.abs(edge > 1 ? edge / 100 : edge) : null;
+  const probEdge = leanProbability != null ? Math.max(0, leanProbability - 0.5) : 0;
+  const zEdge = mispricingZ != null ? Math.abs(mispricingZ) : 0;
+
+  // Weighted research score — probability lean dominates, then edge, then z.
+  const convictionScore =
+    probEdge * 200 +
+    (absEdge != null ? absEdge * 100 : 0) +
+    zEdge * 12 +
+    (hasProj ? 0.01 : 0);
+
+  let convictionTier = "WATCH";
+  if (
+    (leanProbability != null && leanProbability >= 0.7) ||
+    (absEdge != null && absEdge >= 0.08) ||
+    zEdge >= 1
+  ) {
+    convictionTier = "CONVICTION";
+  } else if (
+    (leanProbability != null && leanProbability >= 0.62) ||
+    (absEdge != null && absEdge >= 0.05) ||
+    zEdge >= 0.6
+  ) {
+    convictionTier = "STRONG";
+  } else if (
+    (leanProbability != null && leanProbability >= 0.55) ||
+    (absEdge != null && absEdge >= 0.03) ||
+    zEdge >= 0.35
+  ) {
+    convictionTier = "LEAN";
+  } else if (!hasProj && !hasProb && !hasEdge) {
+    convictionTier = "NONE";
+  }
+
+  return {
+    convictionScore,
+    convictionTier,
+    convictionLean: lean,
+    leanProbability: leanProbability != null ? leanProbability : null,
+    mispricingZ,
+  };
+}
+
+export function sortPropsByConviction(rows = []) {
+  return [...(rows || [])].sort((a, b) => {
+    const sa = Number(a?.convictionScore);
+    const sb = Number(b?.convictionScore);
+    const aScore = Number.isFinite(sa) ? sa : -1;
+    const bScore = Number.isFinite(sb) ? sb : -1;
+    if (bScore !== aScore) return bScore - aScore;
+    const nameA = String(a?.playerName || "");
+    const nameB = String(b?.playerName || "");
+    return nameA.localeCompare(nameB);
+  });
 }
 
 /**
@@ -222,14 +332,16 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
   }
 
   const supportedRows = allRows.filter((r) => r.supportedMarket);
-  const rows = opts.supportedOnly === false ? allRows : supportedRows;
+  const scoped = opts.supportedOnly === false ? allRows : supportedRows;
+  const rows = sortPropsByConviction(scoped);
+  const rankedAllRows = sortPropsByConviction(allRows);
 
   return {
     date: domain.date,
     generatedAt: domain.generatedAt,
     sportFilter,
     rows,
-    allRows,
+    allRows: rankedAllRows,
     counts: {
       rows: rows.length,
       eventsWithProps: new Set(rows.map((r) => r.eventId).filter(Boolean)).size,

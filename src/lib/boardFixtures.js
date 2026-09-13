@@ -312,8 +312,8 @@ export function todayQaPlayerPropGames() {
             book: "draftkings",
             providerPlayerId: "qa-wh",
             playerIdentityConfidence: "HIGH",
-            fbisProjection: 262.4,
-            fbisSigma: 42,
+            fbisProjection: 288.0,
+            fbisSigma: 36,
           },
           {
             playerName: "Will Howard",
@@ -340,8 +340,8 @@ export function todayQaPlayerPropGames() {
             book: "draftkings",
             providerPlayerId: "qa-qj",
             playerIdentityConfidence: "MEDIUM",
-            fbisProjection: 86.2,
-            fbisSigma: 22,
+            fbisProjection: 64.0,
+            fbisSigma: 18,
           },
           {
             playerName: "Jeremiah Smith",
