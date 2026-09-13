@@ -189,7 +189,7 @@ export const MODEL_REGISTRY = Object.freeze([
     modelId: "NFL-FBIS-PURE",
     sport: "nfl",
     family: MODEL_FAMILY.PURE,
-    displayName: "NFL FBIS Pure research challenger",
+    displayName: "NFL FBIS Pure research-v0-form",
     maturity: MODEL_MATURITY.RESEARCH,
     role: "challenger",
     artifactRef: "functions/lib/nflPureChallenger.js",
@@ -200,7 +200,9 @@ export const MODEL_REGISTRY = Object.freeze([
     marketInformed: false,
     independent: true,
     preservesIncumbent: true,
-    notes: "Manual NFL PURE scaffold. OOS_DATA_PENDING. Never qualifies until locked OOS + operator promotion.",
+    // LIVE_OPERATIONAL is evidence-derived at runtime via /api/health ops — not a static claim.
+    notes:
+      "Live research-v0-form baseline (team-form priors). RESEARCH only — never qualifies/authorizes. LIVE_OPERATIONAL from production ops telemetry.",
   },
   {
     modelId: "NBA-PINNACLE-IMPLIED",

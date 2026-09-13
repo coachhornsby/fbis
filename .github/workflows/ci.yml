@@ -332,3 +332,106 @@ jobs:
           path: artifacts/nfl-form-backfill-*.json
           if-no-files-found: warn
           retention-days: 14
+
+      # After form seed: collect+freeze NFL research, then ledger one publication.
+      # Soft-fail: Pages deploy already verified. Evidence lands in artifacts.
+      - name: NFL live freeze + publication proof
+        continue-on-error: true
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -u
+          mkdir -p artifacts
+          auth=(-H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" -H "content-type: application/json")
+
+          echo "Collect+freeze NFL (odds=cache)"
+          collect_http=$(curl -sS --max-time 120 \
+            "${auth[@]}" \
+            -o artifacts/nfl-collect-freeze.json -w "%{http_code}" \
+            "${BASE}/api/collect?odds=cache&sport=nfl&trigger=workflow_dispatch" || echo "000")
+          echo "nfl_collect_http=${collect_http}"
+          jq -c '{ok:.ok,status:.status,sports:.sports,frozen:.frozen,errors:(.errors//[])}' artifacts/nfl-collect-freeze.json 2>/dev/null || true
+
+          curl -sS --max-time 60 -o artifacts/nfl-today-after-collect.json \
+            "${BASE}/api/today?sport=nfl" || true
+
+          node <<'NODE'
+          const fs = require("fs");
+          const today = JSON.parse(fs.readFileSync("artifacts/nfl-today-after-collect.json", "utf8"));
+          const games = today.games || [];
+          const fbis = games.filter((g) => g.projectionKind === "FBIS" && g.projHome != null);
+          const summary = {
+            fbisCount: fbis.length,
+            pinnacleImplied: games.filter((g) => g.projectionKind === "PINNACLE_IMPLIED").length,
+            sample: fbis.slice(0, 5).map((g) => ({
+              id: g.id,
+              matchup: `${g.away?.abbr}@${g.home?.abbr}`,
+              engine: g.projectionEngine,
+              version: g.researchProjection?.modelVersion || g.projectionRecipe?.version,
+              away: g.projAway,
+              home: g.projHome,
+              maturity: g.projectionMaturity,
+              publicationStatus: g.publicationStatus,
+            })),
+            publishCandidate: fbis.find((g) => {
+              const t = Date.parse(g.start || "");
+              return Number.isFinite(t) && t > Date.now() + 5 * 60 * 1000;
+            }) || null,
+          };
+          fs.writeFileSync("artifacts/nfl-live-ops-summary.json", JSON.stringify(summary, null, 2));
+          console.log(JSON.stringify({ fbisCount: summary.fbisCount, candidate: summary.publishCandidate?.id || null }));
+          NODE
+
+          candidate=$(jq -r '.publishCandidate.id // empty' artifacts/nfl-live-ops-summary.json)
+          if [ -n "$candidate" ]; then
+            echo "Publishing candidate ${candidate}"
+            pub_http=$(curl -sS --max-time 60 \
+              "${auth[@]}" \
+              -o artifacts/nfl-publish-proof.json -w "%{http_code}" \
+              -d "{\"sport\":\"nfl\",\"gameId\":\"${candidate}\"}" \
+              "${BASE}/api/published-projections" || echo "000")
+            echo "nfl_publish_http=${pub_http}"
+            jq -c '{ok:.ok,id:.id,publicationStatus:.publicationStatus,engine:.payload.projectionEngine//.projectionEngine,xCopy:(.xCopy//.payload.xCopy//""|.[0:180])}' \
+              artifacts/nfl-publish-proof.json 2>/dev/null || true
+          else
+            echo "No pregame FBIS candidate available for publication proof"
+            echo '{"ok":false,"reason":"no-pregame-fbis-candidate"}' > artifacts/nfl-publish-proof.json
+          fi
+
+          curl -sS --max-time 30 -o artifacts/nfl-published-list.json \
+            "${BASE}/api/published-projections?sport=nfl&limit=20" || true
+
+          {
+            echo "## NFL live freeze + publication proof"
+            echo ""
+            echo "- collect HTTP: ${collect_http}"
+            echo "- FBIS board count: $(jq -r '.fbisCount' artifacts/nfl-live-ops-summary.json)"
+            echo "- publish candidate: ${candidate:-none}"
+            echo "- publish HTTP: ${pub_http:-skipped}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$collect_http" != "200" ]; then
+            echo "Collect did not return 200"
+            exit 1
+          fi
+          if [ "$(jq -r '.fbisCount' artifacts/nfl-live-ops-summary.json)" -le 0 ]; then
+            echo "No FBIS projections on board after collect"
+            exit 1
+          fi
+          exit 0
+
+      - name: Upload NFL live-ops proof artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-live-ops-${{ env.DEPLOY_SHA }}
+          path: |
+            artifacts/nfl-collect-freeze.json
+            artifacts/nfl-today-after-collect.json
+            artifacts/nfl-live-ops-summary.json
+            artifacts/nfl-publish-proof.json
+            artifacts/nfl-published-list.json
+          if-no-files-found: warn
+          retention-days: 14

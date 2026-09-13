@@ -7,6 +7,7 @@ import { classifyOpenHarvestRetries, deriveOddsBoardHealth, providerConfigFlags 
 import { actionApifyCandidateHealth } from "../lib/actionApifyCollector.js";
 import { loadDurableCandidateHealth } from "../lib/actionApifyEvidence.js";
 import { decorateActionMarketHealth } from "../lib/actionMarketIntelligence.js";
+import { buildOpsTelemetry } from "../lib/opsTelemetry.js";
 // Action/Apify is live market intelligence, shadow-governed — never drives global DOWN.
 
 const MIGRATION_STATUS = {
@@ -232,6 +233,12 @@ export async function onRequestGet(context) {
           schedule,
           settleTargets,
         },
+        ops: await buildOpsTelemetry(env, {
+          lastCollectSuccessAt: health.lastCollectSuccessAt || null,
+          lastScheduledCollectSuccessAt: health.lastScheduledCollectSuccessAt || null,
+          lastHarvestSuccessAt: health.lastHarvestSuccessAt || null,
+          lastScheduledHarvestSuccessAt: health.lastScheduledHarvestSuccessAt || null,
+        }).catch(() => null),
         checks: derived.checks,
         failures: derived.failures,
         staleChecks: derived.staleChecks,

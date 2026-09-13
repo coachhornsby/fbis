@@ -10,6 +10,8 @@ import {
   listChampions,
   COMMERCIAL_STATUS,
 } from "../lib/canonical/index.js";
+import { buildOpsTelemetry } from "../lib/opsTelemetry.js";
+import { durableHealth } from "../lib/jobs.js";
 
 export async function onRequestGet(context) {
   const env = context.env;
@@ -74,6 +76,14 @@ export async function onRequestGet(context) {
     freshness = "commercial-review";
   }
 
+  let ops = null;
+  try {
+    const health = await durableHealth(env).catch(() => ({}));
+    ops = await buildOpsTelemetry(env, health || {});
+  } catch {
+    ops = null;
+  }
+
   const payload = {
     ok: true,
     generatedAt: new Date().toISOString(),
@@ -99,6 +109,7 @@ export async function onRequestGet(context) {
     providerHealth,
     governanceMeta: d1Meta,
     gapReport: "docs/canonical/manual-completion-matrix.md",
+    ops,
   };
 
   return new Response(JSON.stringify(payload), {
