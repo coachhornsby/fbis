@@ -3,6 +3,12 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
 
+# Non-secret Action/Apify shadow config. Plan is a tier label, not a credential.
+# Pages secrets of the same name override these if present — deploy sync pins starter.
+[vars]
+ACTION_APIFY_PLAN = "starter"
+ACTION_APIFY_MONTHLY_BUDGET_USD = "19"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "fbis"
