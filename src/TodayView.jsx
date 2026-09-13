@@ -9,6 +9,9 @@ import { Fragment, useState } from "react";
 import { badgeLabel, valueOrUnavailable } from "./lib/healthState.js";
 import TodayCommandCenter from "./features/today/TodayCommandCenter.jsx";
 import "./features/today/today.css";
+import GameWorkspace from "./features/game/GameWorkspace.jsx";
+import { buildGameWorkspaceView } from "./features/game/buildGameWorkspaceView.js";
+import "./features/game/game.css";
 
 const FILTERS = [
   ["all", "All games"],
@@ -303,7 +306,7 @@ function TodayTable({ games, propWatch }) {
             </td>
           </tr>
           {open.has(key) ? <tr className="game-detail-row"><td colSpan={columns}><GameDetails g={g} /></td></tr> : null}
-          </Fragment>;
+          </Fragment>
         })}
       </tbody>
     </table>
@@ -311,38 +314,26 @@ function TodayTable({ games, propWatch }) {
 }
 
 export function GameDetails({ g }) {
-  if (g.sport === "cfb") return <CfbGameDetails g={g} />;
-  const props = g.propConvictions || [];
+  const { event, weather, lab } = buildGameWorkspaceView(g);
+  const footer = (
+    <details className="game-ws-lab">
+      <summary>
+        {g.sport === "cfb" ? "CFB model lab / shadow diagnostics" : "Legacy game diagnostics"}
+      </summary>
+      {g.sport === "cfb" ? <CfbGameDetails g={g} /> : <LegacyGameLab g={g} lab={lab} />}
+    </details>
+  );
+  return <GameWorkspace event={event} weather={weather} footer={footer} />;
+}
+
+function LegacyGameLab({ g, lab }) {
+  const props = lab?.propConvictions || g.propConvictions || [];
   return (
     <div className="game-detail-grid">
       <section>
-        <h3>GAME MODEL</h3>
-        <div>FBIS: {fmtNum(g.projAway)}–{fmtNum(g.projHome)} · total {fmtNum(g.projTotal)}</div>
-        <div>Ballpark Pal: {g.palAway == null ? "—" : `${fmtNum(g.palAway)}–${fmtNum(g.palHome)}`}</div>
-        <div>Pinnacle ML: {fmtAmerican(g.pinMlAway)} / {fmtAmerican(g.pinMlHome)}</div>
-        <div>Kalshi sentiment: {g.sentiment?.home == null ? "—" : `${fmtPct(g.sentiment.home)} home`}</div>
-        {!g.pinMlHome && !g.pinMlAway && (g.odds?.homeMl != null || g.odds?.awayMl != null) ? (
-          <div className="muted">Soft ML ({g.odds?.softSource || "espn"}): {fmtAmerican(g.odds?.awayMl)} / {fmtAmerican(g.odds?.homeMl)}</div>
-        ) : null}
-      </section>
-      <section>
-        <h3>F5</h3>
+        <h3>F5 / SIDE MARKETS</h3>
         <TodayF5Cell g={g} />
         <div className="muted">Pal is the projection. Listed book prices are the executable market comparison.</div>
-      </section>
-      <section>
-        <h3>WEATHER / PARK</h3>
-        {g.weather ? <>
-          <div>{g.weather.description || "Conditions available"}</div>
-          <div>
-            {g.weather.temperature == null ? "" : `${g.weather.temperature}°F`}
-            {g.weather.windSpeed == null ? "" : ` · wind ${g.weather.windSpeed} mph`}
-            {g.weather.precipProbability == null ? "" : ` · precip ${g.weather.precipProbability}%`}
-          </div>
-          {g.weather.note ? <div className="muted">{g.weather.note}</div> : null}
-          {g.weather.attribution ? <div className="muted">{g.weather.attribution}</div> : null}
-        </> : <div className="muted">Weather unavailable for this feed.</div>}
-        <div>{g.palPark?.name || g.palPark?.parkName || g.venue || "Venue unavailable"}</div>
       </section>
       <section className="detail-props">
         <h3>CONVICTION PLAYER PROPS · {props.length}</h3>
@@ -355,14 +346,47 @@ export function GameDetails({ g }) {
             })}
           </div>
         ) : (
-          <table className="mini-prop-table"><thead><tr><th>Player</th><th>Prop</th><th>FBIS proj</th><th>Probability</th><th>Expected ROI</th><th>Book</th></tr></thead>
-            <tbody>{props.map((p, i) => <tr key={`${p.playerName}:${p.market}:${p.line}:${i}`}><td>{p.playerName}</td><td><span className="tier-badge tier-CONVICTION">CONVICTION</span> {p.side} {p.line} {fmtAmerican(p.price)}</td><td>{p.projection == null ? "—" : fmtNum(p.projection)}</td><td>{fmtPct(p.probability)}</td><td>{fmtPct(p.ev)}</td><td>{p.book || "—"}</td></tr>)}</tbody>
+          <table className="mini-prop-table">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Prop</th>
+                <th>FBIS proj</th>
+                <th>Probability</th>
+                <th>Expected ROI</th>
+                <th>Book</th>
+              </tr>
+            </thead>
+            <tbody>
+              {props.map((p, i) => (
+                <tr key={`${p.playerName}:${p.market}:${p.line}:${i}`}>
+                  <td>{p.playerName}</td>
+                  <td>
+                    <span className="tier-badge tier-CONVICTION">CONVICTION</span> {p.side} {p.line}{" "}
+                    {fmtAmerican(p.price)}
+                  </td>
+                  <td>{p.projection == null ? "—" : fmtNum(p.projection)}</td>
+                  <td>{fmtPct(p.probability)}</td>
+                  <td>{fmtPct(p.ev)}</td>
+                  <td>{p.book || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         )}
       </section>
       <section>
         <h3>MY BET / TRACKING</h3>
-        {(g.myBets || []).length ? g.myBets.map((b) => <div key={b.id}>{b.selectedTeam || b.selectedSide} {fmtAmerican(b.executionPrice)} · ${Number(b.riskAmount || 0).toFixed(2)} · {b.result || "OPEN"}</div>) : <div className="muted">No imported bet.</div>}
+        {(g.myBets || []).length ? (
+          g.myBets.map((b) => (
+            <div key={b.id}>
+              {b.selectedTeam || b.selectedSide} {fmtAmerican(b.executionPrice)} · {b.result || "OPEN"}
+              {b.units != null ? ` · ${b.units}u` : ""}
+            </div>
+          ))
+        ) : (
+          <div className="muted">No imported bet.</div>
+        )}
         <div className="muted">Checkpoint: {g.checkpoint || "—"} · Model: {g.modelVersion || "—"}</div>
       </section>
     </div>
