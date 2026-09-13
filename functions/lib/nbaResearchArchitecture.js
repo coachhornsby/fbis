@@ -1,6 +1,8 @@
 /**
- * NBA research / provider-gated architecture.
- * Market-implied scores must never qualify.
+ * NBA research architecture — split provider block from buildable engineering.
+ *
+ * PROVIDER_OR_LICENSE_BLOCKED applies only to licensed feed ingestion / redistribution.
+ * Provider-independent contracts remain IMPLEMENTATION_PENDING or IMPLEMENTED_SCAFFOLD.
  */
 
 import { MODEL_FAMILY, MODEL_MATURITY, COMMERCIAL_STATUS } from "./canonical/maturityStates.js";
@@ -29,8 +31,66 @@ export const NBA_SUPPORTED_PROPS = Object.freeze([
   "ra",
 ]);
 
+/** Exact components that require a rights-cleared production feed. */
+export const NBA_PROVIDER_BLOCKED = Object.freeze([
+  "production_stats_ingestion",
+  "live_availability_feed",
+  "official_lineup_redistribution",
+]);
+
+/** Provider-independent engineering that can proceed without the licensed feed. */
+export const NBA_BUILDABLE = Object.freeze([
+  {
+    requirement: "player_opportunity_contract",
+    status: "IMPLEMENTED_SCAFFOLD",
+    module: "buildNbaPlayerOpportunity",
+  },
+  {
+    requirement: "availability_state_enum",
+    status: "IMPLEMENTED",
+    module: "NBA_AVAILABILITY_STATUS",
+  },
+  {
+    requirement: "supported_prop_market_list",
+    status: "IMPLEMENTED",
+    module: "NBA_SUPPORTED_PROPS",
+  },
+  {
+    requirement: "market_implied_cannot_qualify_guard",
+    status: "IMPLEMENTED",
+    module: "nbaMarketImpliedCannotQualify",
+  },
+  {
+    requirement: "team_score_distribution_model",
+    status: "IMPLEMENTATION_PENDING",
+    module: null,
+  },
+  {
+    requirement: "expected_possessions_ppp_model",
+    status: "IMPLEMENTATION_PENDING",
+    module: null,
+  },
+  {
+    requirement: "combination_prop_covariance",
+    status: "IMPLEMENTATION_PENDING",
+    module: null,
+  },
+  {
+    requirement: "shadow_freeze_grade_path",
+    status: "IMPLEMENTATION_PENDING",
+    module: null,
+  },
+  {
+    requirement: "identity_publication_contracts",
+    status: "IMPLEMENTED_SCAFFOLD",
+    module: "canonical lineage + publication ledger (shared)",
+  },
+]);
+
 export const NBA_PROVIDER_STATUS = Object.freeze({
   implementation: "PROVIDER_OR_LICENSE_BLOCKED",
+  blockedComponents: NBA_PROVIDER_BLOCKED,
+  buildableComponents: NBA_BUILDABLE,
   maturity: MODEL_MATURITY.INSUFFICIENT_DATA,
   canQualify: false,
   canAuthorizeWager: false,
@@ -52,8 +112,20 @@ export const NBA_PROVIDER_STATUS = Object.freeze({
   availabilityStates: NBA_AVAILABILITY_STATUS,
   expectedMinutesFirstClass: true,
   combinationPropsCovarianceAware: true,
+  note: "Provider block does not excuse unfinished provider-independent model/grade/publication work",
 });
 
+export function nbaComponentAudit() {
+  return {
+    providerOrLicenseBlocked: [...NBA_PROVIDER_BLOCKED],
+    buildable: NBA_BUILDABLE,
+  };
+}
+
+/**
+ * Provider-independent opportunity math. Inputs must be supplied by caller
+ * (fixtures / licensed feed). Does not fetch NBA.com.
+ */
 export function buildNbaPlayerOpportunity({
   playerId = null,
   expectedMinutes = null,
@@ -72,7 +144,8 @@ export function buildNbaPlayerOpportunity({
       playerId,
       availability,
       expectedMinutes: minutesKnown ? Number(expectedMinutes) : null,
-      ...NBA_PROVIDER_STATUS,
+      implementation: "IMPLEMENTED_SCAFFOLD",
+      ingestionStatus: "PROVIDER_OR_LICENSE_BLOCKED",
     };
   }
   const raw = Number(expectedMinutes) * Number(perMinuteRate);
@@ -92,7 +165,8 @@ export function buildNbaPlayerOpportunity({
     canShowEv: false,
     canQualify: false,
     family: MODEL_FAMILY.PLAYER,
-    ...NBA_PROVIDER_STATUS,
+    implementation: "IMPLEMENTED_SCAFFOLD",
+    ingestionStatus: "PROVIDER_OR_LICENSE_BLOCKED",
   };
 }
 

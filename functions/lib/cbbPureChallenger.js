@@ -3,7 +3,9 @@
  *
  * Does NOT qualify or authorize. Does NOT invent coefficients.
  * Pinnacle-implied scores remain MARKET BENCHMARK only.
- * Status: IMPLEMENTED_RESEARCH_ONLY / OOS_DATA_PENDING until walk-forward evidence exists.
+ * Baseline status: IMPLEMENTED_RESEARCH_ONLY.
+ * Full CBB manual is NOT complete — see cbbProgramAudit.js.
+ * Do NOT use OOS_DATA_PENDING for the whole program while KenPom/Torvik/minutes remain pending.
  */
 
 import { MODEL_FAMILY, MODEL_MATURITY } from "./canonical/maturityStates.js";
@@ -18,6 +20,7 @@ import {
   expectedEfficiency,
   CBB_NATIONAL_EFF,
 } from "./cbbRatings.js";
+import { cbbProgramAudit } from "./cbbProgramAudit.js";
 
 export const CBB_PURE_CHALLENGER_ID = "CBB-FBIS-PURE";
 export const CBB_PURE_CHALLENGER_VERSION = "research-v0";
@@ -27,8 +30,9 @@ export const CBB_PURE_STATUS = Object.freeze({
   maturity: MODEL_MATURITY.RESEARCH,
   canQualify: false,
   canAuthorizeWager: false,
-  oosStatus: "OOS_DATA_PENDING",
-  note: "Independent possessions×PPP challenger. Shadow only until walk-forward OOS + operator promotion.",
+  oosStatus: null,
+  programComplete: false,
+  note: "Minimal independent possessions×PPP research baseline only — not full CBB manual completion.",
 });
 
 /**
@@ -135,6 +139,7 @@ export function projectCbbPureChallenger(input = {}) {
     canShowEv: false,
     canQualify: false,
     canAuthorizeWager: false,
+    programAudit: cbbProgramAudit(),
     ...CBB_PURE_STATUS,
   };
 }

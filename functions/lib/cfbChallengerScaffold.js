@@ -50,16 +50,35 @@ export function buildCfbPriorProvenance({
   };
 }
 
+/**
+ * Declared challenger feature slots only.
+ * Champion CFB-FBIS-v2 feature pipeline lives in cfbFeaturePipeline.js — separate.
+ * These slots are NOT actual implemented feature pipelines.
+ */
 export function cfbChallengerSlots() {
   return CFB_CHALLENGER_FEATURES.map((focus) => ({
     modelId: `CFB-CHALLENGER-${focus.toUpperCase().replace(/_/g, "-")}`,
     focus,
     maturity: MODEL_MATURITY.RESEARCH,
-    status: "IMPLEMENTED_RESEARCH_ONLY",
+    status: "IMPLEMENTED_SCAFFOLD",
+    pipelineStatus: "IMPLEMENTATION_PENDING",
+    declaredFeatureSlot: true,
+    actualFeaturePipeline: false,
     canQualify: false,
     canAuthorizeWager: false,
     preservesChampion: CFB_CHAMPION_ID,
     autoPromote: false,
+    path: {
+      provider: null,
+      rawArtifact: null,
+      normalization: null,
+      pitSnapshot: null,
+      feature: null,
+      modelConsumption: null,
+      projection: null,
+      freeze: null,
+      grade: null,
+    },
   }));
 }
 

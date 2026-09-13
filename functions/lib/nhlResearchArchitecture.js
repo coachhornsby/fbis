@@ -1,6 +1,5 @@
 /**
- * NHL research / provider-gated architecture.
- * Do not scrape around commercial licensing requirements.
+ * NHL research architecture — split commercial feed block from buildable contracts.
  */
 
 import { MODEL_FAMILY, MODEL_MATURITY, COMMERCIAL_STATUS } from "./canonical/maturityStates.js";
@@ -15,8 +14,59 @@ export const NHL_GOALIE_STATUS = Object.freeze({
   UNKNOWN: "UNKNOWN",
 });
 
+export const NHL_PROVIDER_BLOCKED = Object.freeze([
+  "production_stats_ingestion",
+  "live_line_toi_feed",
+  "official_goalie_confirmation_redistribution",
+]);
+
+export const NHL_BUILDABLE = Object.freeze([
+  {
+    requirement: "goalie_status_enum",
+    status: "IMPLEMENTED",
+    module: "NHL_GOALIE_STATUS",
+  },
+  {
+    requirement: "player_opportunity_contract",
+    status: "IMPLEMENTED_SCAFFOLD",
+    module: "buildNhlPlayerOpportunity",
+  },
+  {
+    requirement: "player_market_list",
+    status: "IMPLEMENTED",
+    module: "NHL_PROVIDER_STATUS.playerMarkets",
+  },
+  {
+    requirement: "five_v_five_xg_model",
+    status: "IMPLEMENTATION_PENDING",
+    module: null,
+  },
+  {
+    requirement: "special_teams_model",
+    status: "IMPLEMENTATION_PENDING",
+    module: null,
+  },
+  {
+    requirement: "shadow_freeze_grade_path",
+    status: "IMPLEMENTATION_PENDING",
+    module: null,
+  },
+  {
+    requirement: "distribution_calibrator_validation",
+    status: "IMPLEMENTATION_PENDING",
+    module: null,
+  },
+  {
+    requirement: "identity_publication_contracts",
+    status: "IMPLEMENTED_SCAFFOLD",
+    module: "canonical shared ledger",
+  },
+]);
+
 export const NHL_PROVIDER_STATUS = Object.freeze({
   implementation: "PROVIDER_OR_LICENSE_BLOCKED",
+  blockedComponents: NHL_PROVIDER_BLOCKED,
+  buildableComponents: NHL_BUILDABLE,
   maturity: MODEL_MATURITY.INSUFFICIENT_DATA,
   canQualify: false,
   canAuthorizeWager: false,
@@ -41,7 +91,15 @@ export const NHL_PROVIDER_STATUS = Object.freeze({
     "goals_allowed",
   ]),
   goalieFirstClass: true,
+  note: "Provider block covers ingestion only; model/grade/publication engineering stays IMPLEMENTATION_PENDING until built",
 });
+
+export function nhlComponentAudit() {
+  return {
+    providerOrLicenseBlocked: [...NHL_PROVIDER_BLOCKED],
+    buildable: NHL_BUILDABLE,
+  };
+}
 
 export function buildNhlPlayerOpportunity({
   playerId = null,
@@ -59,7 +117,8 @@ export function buildNhlPlayerOpportunity({
       playerId,
       goalieStatus,
       market,
-      ...NHL_PROVIDER_STATUS,
+      implementation: "IMPLEMENTED_SCAFFOLD",
+      ingestionStatus: "PROVIDER_OR_LICENSE_BLOCKED",
     };
   }
   return {
@@ -75,7 +134,8 @@ export function buildNhlPlayerOpportunity({
     family: MODEL_FAMILY.PLAYER,
     distributionValidated: false,
     calibratorValidated: false,
-    ...NHL_PROVIDER_STATUS,
+    implementation: "IMPLEMENTED_SCAFFOLD",
+    ingestionStatus: "PROVIDER_OR_LICENSE_BLOCKED",
   };
 }
 
@@ -85,7 +145,8 @@ export function nhlResearchContracts() {
     modelVersion: NHL_PURE_CHALLENGER_VERSION,
     family: MODEL_FAMILY.PURE,
     ...NHL_PROVIDER_STATUS,
+    componentAudit: nhlComponentAudit(),
     uiStates: Object.freeze(["NO_MODEL", "RESEARCH", "PROVIDER_OR_LICENSE_BLOCKED"]),
-    gradingInfrastructure: "shared-model-lab",
+    gradingInfrastructure: "shared-model-lab-reusable-but-nhl-path-not-wired",
   };
 }
