@@ -5,6 +5,7 @@ import { todayCT } from "../lib/slateEngine.js";
 import { attachMyBetsToBoard } from "../lib/executedBets.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
+import { toDomainTodayBoard } from "../lib/fbisDomain.js";
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
@@ -124,8 +125,15 @@ export async function onRequestGet(context) {
       .filter(([k]) => !successfulSports.includes(k))
       .map(([k]) => k);
     const allSportsAuthoritative = failedSports.length === 0;
+    const domain = toDomainTodayBoard(withBets, {
+      date: resolved.date,
+      sportFilter: focusSport || "all",
+      generatedAt: attemptAt,
+    });
     return json({
       ...withBets,
+      // Additive FBIS domain contract for product UI (does not replace legacy board fields).
+      domain,
       health,
       db: { ...ping, ...counts },
       telemetry: {

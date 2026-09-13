@@ -1,0 +1,137 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  DECISION_STATES,
+  deriveDecisionState,
+  recommendMovementStorage,
+  toDomainEvent,
+  toDomainPlayerMarket,
+  toDomainTodayBoard,
+  toDomainMarketQuote,
+} from "../functions/lib/fbisDomain.js";
+
+test("domain market quote never invents prices or timestamps", () => {
+  const q = toDomainMarketQuote({ marketType: "spread", side: "home", line: -3.5 });
+  assert.equal(q.line, -3.5);
+  assert.equal(q.price, null);
+  assert.equal(q.sourceObservedAt, null);
+  assert.equal(q.book, null);
+});
+
+test("player market keeps provider/fbis ids separate and decisionEligible false", () => {
+  const row = toDomainPlayerMarket({
+    provider: "ACTION_APIFY",
+    providerPlayerId: "p1",
+    playerName: "Test QB",
+    marketCanonical: "passing_yards",
+    line: 249.5,
+    overOdds: -110,
+    underOdds: -110,
+    book: "draftkings",
+  });
+  assert.equal(row.providerPlayerId, "p1");
+  assert.equal(row.fbisPlayerId, null);
+  assert.equal(row.imageUrl, null);
+  assert.equal(row.decisionEligible, false);
+  assert.ok(row.reasonCodes.includes("NOT_DECISION_ELIGIBLE"));
+});
+
+test("decision state maps board flags without inventing qualification", () => {
+  assert.equal(deriveDecisionState({ rec: { qualified: true } }).state, "QUALIFIED");
+  assert.equal(
+    deriveDecisionState({ lean: { pick: "HOME", reason: "EDGE_LOW" } }).state,
+    "WATCHLIST",
+  );
+  assert.equal(
+    deriveDecisionState({ qualificationBlocked: true, blockReason: "NFL_MODEL" }).state,
+    "BLOCKED",
+  );
+  assert.equal(deriveDecisionState({ projectionUnavailable: true }).state, "UNAVAILABLE");
+  assert.equal(deriveDecisionState({ noPlayReason: "NO_EDGE" }).state, "PASS");
+  assert.equal(deriveDecisionState({}).state, "RESEARCH");
+});
+
+test("toDomainEvent builds Event contract from today board game", () => {
+  const event = toDomainEvent({
+    id: "401628349",
+    sport: "cfb",
+    sportLabel: "CFB",
+    start: "2026-09-13T19:00:00Z",
+    status: "scheduled",
+    away: { name: "Ohio State", abbr: "OHIO", canonicalId: "osu" },
+    home: { name: "Texas", abbr: "TEX", canonicalId: "tex" },
+    projHome: 27.2,
+    projAway: 23.1,
+    projMargin: 4.1,
+    pinSpread: -2.5,
+    pinSpreadHomePrice: -110,
+    pinMlHome: -130,
+    pinMlAway: 110,
+    pinTotal: 51.5,
+    pinOverPrice: -105,
+    bettingAllowed: true,
+    lean: { pick: "HOME", market: "spread", reason: "EDGE_BELOW_THRESHOLD" },
+  });
+  assert.equal(event.id, "401628349");
+  assert.equal(event.teams.home.abbr, "TEX");
+  assert.equal(event.model.projMargin, 4.1);
+  assert.equal(event.decision.state, "WATCHLIST");
+  assert.equal(event.decision.authorized, false);
+  assert.ok(event.consensusMarkets.some((m) => m.marketType === "spread"));
+  assert.equal(event.provenance.schemaVersion, "fbis-event-v1");
+});
+
+test("today domain board ranks only real QUALIFIED then WATCHLIST (max 5)", () => {
+  const board = toDomainTodayBoard({
+    date: "2026-09-13",
+    counts: { games: 4, qualified: 1 },
+    games: [
+      {
+        id: "1",
+        sport: "cfb",
+        away: { abbr: "A" },
+        home: { abbr: "B" },
+        rec: { qualified: true, pick: "HOME" },
+      },
+      {
+        id: "2",
+        sport: "cfb",
+        away: { abbr: "C" },
+        home: { abbr: "D" },
+        lean: { pick: "AWAY" },
+      },
+      {
+        id: "3",
+        sport: "nfl",
+        away: { abbr: "E" },
+        home: { abbr: "F" },
+        noPlayReason: "NO_EDGE",
+      },
+      { id: "4", sport: "mlb", away: { abbr: "G" }, home: { abbr: "H" } },
+    ],
+  });
+  assert.equal(board.events.length, 4);
+  assert.equal(board.topGameOpportunities.length, 2);
+  assert.equal(board.topGameOpportunities[0].decision.state, "QUALIFIED");
+  assert.equal(board.topGameOpportunities[1].decision.state, "WATCHLIST");
+  assert.ok(DECISION_STATES.includes("QUALIFIED"));
+});
+
+test("movement storage advisor stays fail-closed without volume evidence", () => {
+  assert.equal(recommendMovementStorage({}).recommendation, "INSUFFICIENT_EVIDENCE");
+  assert.equal(
+    recommendMovementStorage({ estimatedTicksPerGame: 50, gamesPerWeek: 40 })
+      .recommendation,
+    "KEEP_ALL_IN_D1",
+  );
+  assert.equal(
+    recommendMovementStorage({ estimatedTicksPerGame: 800, gamesPerWeek: 60 })
+      .recommendation,
+    "HYBRID_D1_R2_RECOMMENDED",
+  );
+  assert.equal(
+    recommendMovementStorage({ estimatedTicksPerGame: 8000, gamesPerWeek: 100 })
+      .recommendation,
+    "R2_ARCHIVE_REQUIRED",
+  );
+});
