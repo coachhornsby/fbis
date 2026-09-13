@@ -3,11 +3,9 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
 
-# Non-secret Action/Apify shadow config. Plan is a tier label, not a credential.
-# Pages secrets of the same name override these if present — deploy sync pins starter.
-[vars]
-ACTION_APIFY_PLAN = "starter"
-ACTION_APIFY_MONTHLY_BUDGET_USD = "19"
+# ACTION_APIFY_PLAN / ACTION_APIFY_MONTHLY_BUDGET_USD are pinned to starter/19 by
+# CI + Sync Pages Secrets (tier config, not credentials). Do NOT also declare them
+# under [vars] — Cloudflare rejects duplicate binding names when a Pages secret exists.
 
 [[d1_databases]]
 binding = "DB"
