@@ -1,5 +1,14 @@
 name: FBIS research pipeline
 
+# Explicit mode contract (UTC crons):
+#   collect-full  — 13:00, 16:00          → RESEARCH COLLECT (odds=full)  incl. NFL
+#   collect-cache — 00:00, 02:00, 18:00, 20:00, 22:00 → RESEARCH COLLECT (odds=cache) incl. NFL
+#   harvest       — 11:20, 16:20          → settle / grade only (no collect)
+#   health        — :35 hourly            → read-mostly watchdog; catch-up collect if slot missed
+# workflow_dispatch job=… selects the same modes explicitly.
+# A green health/harvest run does NOT imply NFL collect succeeded.
+# NFL publish proof is soft-fail evidence only (COLLECT can succeed while PUBLICATION_PROOF fails).
+
 on:
   schedule:
     - cron: "0 13,16 * * *"
@@ -552,7 +561,7 @@ jobs:
           collect_failed=0
           if [ "$need_collect" -eq 1 ]; then
             echo "Recovering missed/stale/delayed collect slot"
-            for sport in mlb cfb; do
+            for sport in mlb cfb nfl; do
               body="$(mktemp)"
               ok_collect=0
               for attempt in 1 2 3; do
@@ -675,6 +684,19 @@ jobs:
           echo "verify-outcome=${{ needs.verify-deployment.outputs.outcome }}"
           echo "production-sha=${{ needs.verify-deployment.outputs.production_sha }}"
           echo "verify-reason=${{ needs.verify-deployment.outputs.reason }}"
+          # Telemetry separation: a green harvest/health run ≠ NFL collect success.
+          case "$MODE" in
+            collect-full|collect-cache|all)
+              if [ "$COLLECT" = "success" ]; then
+                echo "NFL/RESEARCH COLLECT: SUCCESS (matrix job green; publish proof is soft-fail separately)"
+              else
+                echo "NFL/RESEARCH COLLECT: FAILED_OR_SKIPPED result=${COLLECT}"
+              fi
+              ;;
+            *)
+              echo "NFL/RESEARCH COLLECT: NOT_IN_SCOPE_FOR_MODE mode=${MODE}"
+              ;;
+          esac
           if [ "$VERIFY" != "success" ]; then
             echo "VERIFY LIVE PRODUCTION SHA fail-closed (no research writes)."
             exit 1
