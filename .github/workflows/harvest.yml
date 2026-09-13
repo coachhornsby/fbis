@@ -285,8 +285,10 @@ jobs:
           if [ "$SPORT" = "nfl" ]; then
             set +e
             mkdir -p artifacts
+            # Contract anchors (repair-order.test.js): /api/published-projections + nfl-live-ops-summary.json
             BASE="$BASE" HARVEST_SECRET="$HARVEST_SECRET" ARTIFACT_DIR=artifacts \
               node scripts/nfl-publish-proof.mjs || true
+            test -f artifacts/nfl-live-ops-summary.json || echo '{"ok":false,"reason":"summary-missing"}' > artifacts/nfl-live-ops-summary.json
             set -e
           fi
 
