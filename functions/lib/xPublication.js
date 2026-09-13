@@ -91,8 +91,8 @@ function sportTag(sport) {
 export function publicationEligibilityForGame(game = {}) {
   const maturity = String(game.projectionMaturity || game.model?.maturity || "").toUpperCase();
   const kind = String(game.projectionKind || game.model?.projectionKind || "").toUpperCase();
-  const home = Number(game.model?.projHome ?? game.projHomeScore);
-  const away = Number(game.model?.projAway ?? game.projAwayScore);
+  const home = Number(game.model?.projHome ?? game.projHome ?? game.projHomeScore);
+  const away = Number(game.model?.projAway ?? game.projAway ?? game.projAwayScore);
   const hasScores = Number.isFinite(home) && Number.isFinite(away);
   const independent = kind === "FBIS" && hasScores && game.pureProjectionAvailable !== false;
 
@@ -126,8 +126,8 @@ export function publicationEligibilityForGame(game = {}) {
 }
 
 export function buildProjectionCard(game = {}, sport = null) {
-  const home = Number(game.model?.projHome ?? game.projHomeScore);
-  const away = Number(game.model?.projAway ?? game.projAwayScore);
+  const home = Number(game.model?.projHome ?? game.projHome ?? game.projHomeScore);
+  const away = Number(game.model?.projAway ?? game.projAway ?? game.projAwayScore);
   const marketSpread = Number(game.odds?.pinSpread ?? game.odds?.spread ?? game.pin?.spread?.line);
   const marketTotal = Number(game.odds?.pinTotal ?? game.odds?.total ?? game.pin?.total?.line);
   const disagreement = modelMarketDisagreement({
@@ -242,8 +242,8 @@ export function buildXSlateCopy(games = [], sport = null, { dateLabel = null } =
     "",
   ];
   for (const g of publishable.slice(0, 40)) {
-    const away = Number(g.model?.projAway ?? g.projAwayScore);
-    const home = Number(g.model?.projHome ?? g.projHomeScore);
+    const away = Number(g.model?.projAway ?? g.projAway ?? g.projAwayScore);
+    const home = Number(g.model?.projHome ?? g.projHome ?? g.projHomeScore);
     lines.push(`${teamAbbr(g.away)} ${fmt(away)} – ${teamAbbr(g.home)} ${fmt(home)}`);
   }
   if (research) {
