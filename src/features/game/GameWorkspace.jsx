@@ -61,8 +61,13 @@ export function ModelPanel({ event }) {
         <Metric label="Home proj" value={fmtNum(model.projHome)} />
         <Metric label="Total" value={fmtNum(model.projTotal)} />
         <Metric label="Margin" value={fmtNum(model.projMargin)} />
-        <Metric label="P(home)" value={fmtProb(model.pHome)} />
-        <Metric label="State" value={model.projectionState || model.projectionKind || "—"} />
+        {model.showFairProbability ? (
+          <Metric label="P(home)" value={fmtProb(model.pHome)} />
+        ) : null}
+        <Metric
+          label="State"
+          value={model.projectionDisplayKind || model.projectionState || model.projectionKind || "—"}
+        />
       </div>
     </Section>
   );

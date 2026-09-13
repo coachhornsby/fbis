@@ -24,6 +24,7 @@ import MispricesView from "./features/misprices/MispricesView.jsx";
 import "./features/playerProps/playerProps.css";
 import "./features/today/today.css"; // DecisionChip / table tokens for props route without TodayView
 import "./features/canonical/canonical.css";
+import { resolveBoardProjection } from "./lib/boardDecision.js";
 
 function readUrlState() {
   if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb", route: "today", sportFilter: "all" };
@@ -1321,16 +1322,6 @@ function pinLine(g) {
 }
 
 function SlateProj({ game }) {
-  if (game.sport === "nfl" || game.projectionKind === "PINNACLE_IMPLIED") {
-    const a = game.marketProjAway ?? game.model?.marketProjAway;
-    const h = game.marketProjHome ?? game.model?.marketProjHome;
-    return (
-      <>
-        <div className="muted">FBIS projection unavailable</div>
-        {a != null && <div className="proj-implied">PINNACLE IMPLIED {fmtNum(a)} – {fmtNum(h)}</div>}
-      </>
-    );
-  }
   if (game.cfb?.projectionState === "LEAGUE_AVERAGE_ONLY") {
     return (
       <>
@@ -1339,17 +1330,33 @@ function SlateProj({ game }) {
       </>
     );
   }
+  const proj = resolveBoardProjection(game);
+  if (!proj.available) {
+    const a = proj.marketBenchmark?.away ?? game.marketProjAway ?? game.model?.marketProjAway;
+    const h = proj.marketBenchmark?.home ?? game.marketProjHome ?? game.model?.marketProjHome;
+    return (
+      <>
+        <div className="muted">FBIS projection unavailable</div>
+        {a != null && <div className="proj-implied">PINNACLE IMPLIED {fmtNum(a)} – {fmtNum(h)}</div>}
+      </>
+    );
+  }
   return (
     <>
-      <div>{fmtNum(game.model.projAway)} – {fmtNum(game.model.projHome)}</div>
-      <div className="muted">{game.model?.recipe?.engine || (game.bpp?.homeRuns != null ? "Pal" : game.savant?.source || "")}</div>
+      <div>{fmtNum(proj.away)} – {fmtNum(proj.home)}</div>
+      <div className="muted">
+        {proj.headlineLabel ||
+          game.model?.recipe?.engine ||
+          (game.bpp?.homeRuns != null ? "Pal" : game.savant?.source || "")}
+      </div>
       {game.cfb?.projectionState && <div className="proj-state muted">{game.cfb.projectionState}</div>}
       {(game.sport === "cfb" || game.sport === "cbb") && (
-        <ChallengerSelect game={game} championHome={game.model?.projHome} championAway={game.model?.projAway} />
+        <ChallengerSelect game={game} championHome={proj.home} championAway={proj.away} />
       )}
     </>
   );
 }
+
 
 function PinVigCell({ game, rec }) {
   const vig = rec?.pinVig ?? game?.pin?.ml?.vig;

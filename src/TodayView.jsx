@@ -12,6 +12,7 @@ import "./features/today/today.css";
 import GameWorkspace from "./features/game/GameWorkspace.jsx";
 import { buildGameWorkspaceView } from "./features/game/buildGameWorkspaceView.js";
 import "./features/game/game.css";
+import { resolveBoardProjection } from "./lib/boardDecision.js";
 
 const FILTERS = [
   ["all", "All games"],
@@ -555,8 +556,13 @@ function ProjCell({ g }) {
       </>
     );
   }
-  if (g.sport === "nfl") {
-    const implied = g.marketProjAway != null ? `${fmtNum(g.marketProjAway)} – ${fmtNum(g.marketProjHome)}` : null;
+  const proj = resolveBoardProjection(g);
+  if (!proj.available) {
+    const implied = proj.marketBenchmark?.available
+      ? `${fmtNum(proj.marketBenchmark.away)} – ${fmtNum(proj.marketBenchmark.home)}`
+      : g.marketProjAway != null
+        ? `${fmtNum(g.marketProjAway)} – ${fmtNum(g.marketProjHome)}`
+        : null;
     return (
       <>
         <div className="muted">FBIS projection unavailable</div>
@@ -564,13 +570,10 @@ function ProjCell({ g }) {
       </>
     );
   }
-  if (g.projectionUnavailable || (g.projHome == null && g.projAway == null)) {
-    return <span className="muted">projection unavailable</span>;
-  }
   return (
     <>
-      <div className="text-blue">{fmtNum(g.projAway)} – {fmtNum(g.projHome)}</div>
-      <div className="muted">tot {fmtNum(g.projTotal)} · mgn {fmtNum(g.projMargin)}</div>
+      <div className="text-blue">{fmtNum(proj.away)} – {fmtNum(proj.home)}</div>
+      <div className="muted">tot {fmtNum(proj.total)} · mgn {fmtNum(proj.margin)}</div>
       {g.palAway != null && g.palHome != null ? (
         <div className="muted">
           Pal {fmtNum(g.palAway)}–{fmtNum(g.palHome)}
@@ -582,7 +585,7 @@ function ProjCell({ g }) {
       ) : null}
       {g.projectionState && <div className="proj-state muted">{g.projectionState}</div>}
       {(g.sport === "cfb" || g.sport === "cbb") && (
-        <ChallengerSelect game={g} championHome={g.projHome} championAway={g.projAway} />
+        <ChallengerSelect game={g} championHome={proj.home} championAway={proj.away} />
       )}
     </>
   );
