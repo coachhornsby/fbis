@@ -4,7 +4,7 @@ import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, ki
 import TeamLogo, { TeamIdentity, TicketMatchup } from "./components/TeamLogo.jsx";
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 import BoardGrid from "./components/board/BoardGrid.jsx";
-import { mergeBoardQaFixtures } from "./lib/boardFixtures.js";
+import { mergeBoardQaFixtures, mergeTodayQaFixtures } from "./lib/boardFixtures.js";
 import { gradeOpenBets, loadState, logBet, summarize } from "./lib/learning.js";
 import { captureSlate } from "./lib/ledger.js";
 import TrackView from "./TrackView.jsx";
@@ -224,7 +224,7 @@ export default function App() {
       if (data?.health?.state === "UNAVAILABLE") {
         throw new Error(`TODAY unavailable: ${(data?.health?.failures || []).map((f) => `${f.name}=${f.detail || "failed"}`).join(" · ") || "authoritative data unavailable"}`);
       }
-      setTodayBoard(data);
+      setTodayBoard(mergeTodayQaFixtures(data));
       setTodayLastSuccessAt(new Date().toISOString());
       setTodayStale(false);
     } catch (err) {
@@ -232,6 +232,16 @@ export default function App() {
       const msg = String(err.message || err);
       setTodayError(msg.includes("aborted") ? "Today feed timed out. Retry or continue with last known board." : msg);
       setTodayStale(Boolean(todayBoard));
+      // Opt-in visual QA: still surface fixture props when the live feed is unavailable.
+      if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("boardQa") === "1") {
+        setTodayBoard(
+          mergeTodayQaFixtures({
+            date: todayDate,
+            games: [],
+            health: { state: "DEGRADED" },
+          }),
+        );
+      }
     } finally {
       clearTimeout(timeout);
       if (!signal?.aborted && requestId === todayRequestId.current) setTodayLoading(false);

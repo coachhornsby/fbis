@@ -8,6 +8,10 @@
 - Shared `normalizeBoardGame` adapter for `propConvictions` → `playerMarkets` (Today + Props)
 - Empty states stay honest — no invented volume or eligibility
 
+## QA
+
+- `?boardQa=1` injects research-only sample player markets into Today / Player Props for layout verification (never decision-eligible).
+
 ## Supported markets
 
 - `passing_yards`, `passing_attempts`, `completions`
