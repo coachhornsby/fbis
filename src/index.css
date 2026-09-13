@@ -1620,8 +1620,8 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   }
   .gc-matchup-row.logo-stack .team-logo,
   .gc-matchup-row.logo-stack .team-logo-fallback {
-    width: 96px !important;
-    height: 96px !important;
+    width: 58px !important;
+    height: 58px !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {
