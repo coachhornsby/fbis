@@ -14,22 +14,32 @@ import MyBetsView from "./MyBetsView.jsx";
 import { todayCT } from "../functions/lib/slateEngine.js";
 import { buildPropConvictions } from "../functions/lib/propConviction.js";
 import { badgeLabel, badgeTone, deriveGlobalState, deriveViewState } from "./lib/healthState.js";
+import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
+import { legacyToRoute, routeToLegacy } from "./app/navigation.js";
 
 function readUrlState() {
-  if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb" };
+  if (typeof window === "undefined") return { tab: "today", date: todayCT(), sport: "mlb", route: "today", sportFilter: "all" };
   const u = new URL(window.location.href);
+  const tab = u.searchParams.get("tab") || "today";
+  const sport = u.searchParams.get("sport") || "mlb";
+  const routeParam = u.searchParams.get("route");
+  const mapped = legacyToRoute({ tab, sport });
   return {
-    tab: u.searchParams.get("tab") || "today",
+    tab,
     date: u.searchParams.get("date") || todayCT(),
-    sport: u.searchParams.get("sport") || "mlb",
+    sport,
+    route: routeParam || mapped.route,
+    sportFilter: u.searchParams.get("sportFilter") || mapped.sportFilter || "all",
   };
 }
 
-function writeUrlState({ tab, date, sport }) {
+function writeUrlState({ tab, date, sport, route, sportFilter }) {
   if (typeof window === "undefined") return;
   const u = new URL(window.location.href);
   u.searchParams.set("tab", tab);
   if (sport) u.searchParams.set("sport", sport);
+  if (route) u.searchParams.set("route", route);
+  if (sportFilter) u.searchParams.set("sportFilter", sportFilter);
   if (tab === "today" && date) u.searchParams.set("date", date);
   else u.searchParams.delete("date");
   // Preserve visual QA fixture flag across tab/sport navigation.
@@ -74,6 +84,8 @@ export default function App() {
   const [boardStale, setBoardStale] = useState(false);
 
   const [tab, setTab] = useState(initial.tab);
+  const [route, setRoute] = useState(initial.route || "today");
+  const [sportFilter, setSportFilter] = useState(initial.sportFilter || "all");
   const [todayDate, setTodayDate] = useState(initial.date);
   const [todayBoard, setTodayBoard] = useState(null);
   const [todayError, setTodayError] = useState("");
@@ -253,13 +265,49 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    writeUrlState({ tab, date: todayDate, sport });
-  }, [tab, todayDate, sport]);
+    writeUrlState({ tab, date: todayDate, sport, route, sportFilter });
+  }, [tab, todayDate, sport, route, sportFilter]);
+
+  const onRouteChange = useCallback((nextRoute) => {
+    setRoute(nextRoute);
+    const legacy = routeToLegacy(nextRoute, sportFilter);
+    setTab(legacy.tab);
+    if (legacy.tab === "board") setSport(legacy.sport);
+    if (nextRoute === "today" && sportFilter && sportFilter !== "all") {
+      setTodaySport(sportFilter);
+    }
+  }, [sportFilter]);
+
+  const onSportFilterChange = useCallback((nextFilter) => {
+    setSportFilter(nextFilter);
+    setTodaySport(nextFilter);
+    if (route === "markets" && nextFilter !== "all") {
+      setSport(nextFilter);
+      setTab("board");
+    }
+  }, [route]);
 
   useEffect(() => {
-    const part = tab === "board" ? String(SPORTS[sport]?.label || sport).toUpperCase() : tab === "today" ? "TODAY" : tab === "sys" ? "SYS" : "BETS";
+    const routeTitles = {
+      today: "TODAY",
+      markets: "MARKETS",
+      "player-props": "PLAYER PROPS",
+      bets: "MY BETS",
+      performance: "PERFORMANCE",
+      research: "RESEARCH",
+      system: "SYSTEM",
+    };
+    const part =
+      routeTitles[route] ||
+      (tab === "board"
+        ? String(SPORTS[sport]?.label || sport).toUpperCase()
+        : tab === "today"
+          ? "TODAY"
+          : tab === "sys"
+            ? "SYSTEM"
+            : "MY BETS");
     document.title = `FBIS · ${part}`;
-  }, [tab, sport]);
+  }, [route, tab, sport]);
 
   useEffect(() => {
     if (tab !== "board") return undefined;
@@ -400,224 +448,297 @@ export default function App() {
     learn.bets.filter((b) => b.sport === sport && b.result === "OPEN").map((b) => b.gameId)
   );
 
+  const shellFreshness =
+    route === "markets" || tab === "board"
+      ? boardStale
+        ? "STALE"
+        : slate
+          ? "CURRENT"
+          : loading
+            ? "LOADING"
+            : error
+              ? "UNAVAILABLE"
+              : "CURRENT"
+      : todayStale
+        ? "STALE"
+        : todayBoard
+          ? "CURRENT"
+          : todayLoading
+            ? "LOADING"
+            : todayError
+              ? "UNAVAILABLE"
+              : "CURRENT";
+
   return (
     <>
-      <a href="#main-content" className="skip-link">Skip to content</a>
-      <header className="app-header">
-        <h1>FBIS</h1>
-        <div className="header-divider" />
-        <span className="subtitle">
-          Fastwater Betting Intelligence System — {tab === "sys" ? "System" : tab === "today" ? "TODAY" : tab === "bets" ? "My Bets" : SPORTS[sport].name}
-        </span>
-        <nav className="nav-tabs" role="tablist" aria-label="Primary views">
-          <button
-            role="tab"
-            aria-selected={tab === "today"}
-            className={tab === "today" ? "active" : ""}
-            onClick={() => setTab("today")}
-          >
-            TODAY
-          </button>
-          {BOARD_SPORTS.map((id) => (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={tab === "board" && sport === id}
-              className={tab === "board" && sport === id ? "active" : ""}
-              onClick={() => {
-                setSport(id);
-                setTab("board");
-              }}
-            >
-              {SPORTS[id].label}
-            </button>
-          ))}
-          <button role="tab" aria-selected={tab === "bets"} className={tab === "bets" ? "active" : ""} onClick={() => setTab("bets")}>
-            BETS
-          </button>
-          <button role="tab" aria-selected={tab === "sys"} className={tab === "sys" ? "active" : ""} onClick={() => setTab("sys")}>
-            SYS
-          </button>
-        </nav>
-        <div className="header-actions">
-          <button
-            className="header-btn header-btn-refresh"
-            onClick={() => (tab === "sys" ? refreshTrack() : tab === "today" ? refreshToday() : tab === "bets" ? refreshBets() : refresh())}
-            disabled={tab === "sys" ? trackLoading : tab === "today" ? false : tab === "bets" ? false : loading}
-          >
-            {tab === "sys" ? (trackLoading ? "↻ …" : "↻ Reload") : loading || todayLoading ? "↻ …" : "↻ Refresh"}
-          </button>
-        </div>
-        <span className={`overall-badge badge-${health}`}>{healthLabel}</span>
-      </header>
+      <AppShell
+        route={route}
+        sportFilter={sportFilter}
+        freshnessLabel="MARKET DATA"
+        freshnessState={shellFreshness}
+        healthLabel={healthLabel}
+        healthTone={health}
+        onRouteChange={onRouteChange}
+        onSportFilterChange={onSportFilterChange}
+        onRefresh={() =>
+          route === "system" || tab === "sys"
+            ? refreshTrack()
+            : route === "bets" || tab === "bets"
+              ? refreshBets()
+              : route === "markets" || tab === "board"
+                ? refresh()
+                : refreshToday()
+        }
+        refreshDisabled={
+          route === "system" || tab === "sys"
+            ? trackLoading
+            : route === "markets" || tab === "board"
+              ? loading
+              : todayLoading || betsLoading
+        }
+        refreshLabel={
+          route === "system" || tab === "sys"
+            ? trackLoading
+              ? "↻ …"
+              : "↻ Reload"
+            : loading || todayLoading || betsLoading
+              ? "↻ …"
+              : "↻ Refresh"
+        }
+      >
+        {tab === "board" || route === "markets" ? (
+          <Ticker items={slate?.ticker || []} logged={loggedOpen} />
+        ) : null}
 
-      {tab === "board" ? <Ticker items={slate?.ticker || []} logged={loggedOpen} /> : null}
-      <main id="main-content">
-      {tab === "sys" ? (
-        <TrackView
-          report={track}
-          error={trackError}
-          loading={trackLoading}
-          stale={trackStale}
-          lastSuccessAt={trackLastSuccessAt}
-          attemptAt={trackLastAttemptAt}
-          state={sysState}
-          filters={{ ...trackFilters, tab: sysTab }}
-          onFilters={(patch) => {
-            if (patch.tab) setSysTab(patch.tab);
-            const rest = { ...patch };
-            delete rest.tab;
-            if (Object.keys(rest).length) setTrackFilters((prev) => ({ ...prev, ...rest }));
-          }}
-          onRefresh={refreshTrack}
-        />
-      ) : tab === "today" ? (
-        <TodayView
-          board={todayBoard}
-          error={todayError}
-          loading={todayLoading}
-          stale={todayStale}
-          lastSuccessAt={todayLastSuccessAt}
-          attemptAt={todayLastAttemptAt}
-          state={todayState}
-          date={todayDate}
-          onDate={setTodayDate}
-          sportFilter={todaySport}
-          onSportFilter={setTodaySport}
-          bucket={todayBucket}
-          onBucket={setTodayBucket}
-          onRetry={refreshToday}
-          onImport={() => setImportOpen(true)}
-        />
-      ) : tab === "bets" ? (
-        <MyBetsView
-          bets={betsPack.bets}
-          summary={betsPack.summary}
-          population={betsPack.population}
-          sourceOk={betsPack.ok}
-          sourceD1={betsPack.d1}
-          sourceStatus={betsPack.d1Status}
-          loading={betsLoading}
-          error={betsError}
-          attemptAt={betsLastAttemptAt}
-          state={betsState}
-          onImport={() => setImportOpen(true)}
-          onRefresh={refreshBets}
-        />
-      ) : (
-      <div className="main-content">
-        {error && <div className="panel"><div className="error">{error}</div></div>}
-
-        <Panel
-          title={`${String(SPORTS[sport]?.label || sport).toUpperCase()} Intelligence Board`}
-          stamp={updated}
-          extra={
-            <span className="last-updated">
-              {slate?.counts?.games ?? 0} games
-              {slate?.counts?.live ? ` · ${slate.counts.live} live` : ""}
-            </span>
-          }
-        >
-          <BoardGrid
-            sport={sport}
-            games={mergeBoardQaFixtures(slate?.games || [])}
-            onLog={onLog}
-            logged={loggedOpen}
-            detailMapper={slateDetailGame}
-            slateMeta={
-              sport === "cfb"
-                ? `Week ${slate?.week?.number || "—"} · ${slate?.week?.range?.since || "—"} to ${slate?.week?.range?.until || "—"} CT`
-                : null
-            }
-            weekControls={
-              sport === "cfb" ? (
-                <div className="slate-toolbar slate-toolbar-inline">
-                  <button type="button" className="header-btn" onClick={() => setCfbWeekShift((n) => n - 1)}>Previous Week</button>
-                  <button type="button" className="header-btn" onClick={() => setCfbWeekShift(0)}>Current Week</button>
-                  <button type="button" className="header-btn" onClick={() => setCfbWeekShift((n) => n + 1)}>Next Week</button>
-                </div>
-              ) : null
-            }
-            notice={
-              slate?.parlay?.pinGames === 0 && (slate?.parlay?.games > 0 || /soft|sharp|rundown|credit/i.test(String(slate?.parlay?.source || ""))) ? (
-                <div className="slate-notice">
-                  Pinnacle feed is credit-limited. Soft DK/FD two-ways are the provisional benchmark for lean/qualified tickets until Pin returns — shop carefully.
-                </div>
-              ) : null
-            }
+        {route === "player-props" ? (
+          <FeaturePlaceholder
+            title="Player Props"
+            status="PHASE 6"
+            body="Normalized FBIS player markets (QB/RB/WR model set) will land here. Action props remain RESEARCH_READY / shadow-only."
           />
-        </Panel>
-
-        <Panel title="Featured Plays" stamp={updated}>
-          <div className="table-scroll"><RecTable games={recGames} onLog={onLog} logged={loggedOpen} /></div>
-        </Panel>
-
-        {(leanGames.length > 0 || executedSportBets.length > 0) ? (
-          <div className="compact-bottom">
-            {leanGames.length ? (
-              <Panel title="Leans">
-                <div className="table-scroll"><LeanTable games={leanGames} /></div>
-              </Panel>
-            ) : null}
-            <Panel title="My Bets" extra={<span className="last-updated">{executedSportBets.length} imported</span>}>
-              <div className="today-controls" style={{ marginBottom: 10 }}>
-                <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>IMPORT BET SLIP</button>
-              </div>
-              <div className="table-scroll"><ExecutedBetsTable bets={executedSportBets} /></div>
-            </Panel>
-          </div>
+        ) : route === "performance" ? (
+          <FeaturePlaceholder
+            title="Performance"
+            status="PHASE 7"
+            body="Model vs qualified vs executed populations stay separate. This page will surface units, ROI, CLV, and drawdown without bankroll dollars."
+          />
+        ) : route === "research" ? (
+          <FeaturePlaceholder
+            title="Research"
+            status="PHASE 8"
+            body="Model lab, calibration, and historical research move here. Operator SYS diagnostics remain under SYSTEM."
+          />
+        ) : tab === "sys" || route === "system" ? (
+          <TrackView
+            report={track}
+            error={trackError}
+            loading={trackLoading}
+            stale={trackStale}
+            lastSuccessAt={trackLastSuccessAt}
+            attemptAt={trackLastAttemptAt}
+            state={sysState}
+            filters={{ ...trackFilters, tab: sysTab }}
+            onFilters={(patch) => {
+              if (patch.tab) setSysTab(patch.tab);
+              const rest = { ...patch };
+              delete rest.tab;
+              if (Object.keys(rest).length) setTrackFilters((prev) => ({ ...prev, ...rest }));
+            }}
+            onRefresh={refreshTrack}
+          />
+        ) : tab === "today" || route === "today" ? (
+          <TodayView
+            board={todayBoard}
+            error={todayError}
+            loading={todayLoading}
+            stale={todayStale}
+            lastSuccessAt={todayLastSuccessAt}
+            attemptAt={todayLastAttemptAt}
+            state={todayState}
+            date={todayDate}
+            onDate={setTodayDate}
+            sportFilter={sportFilter === "all" ? todaySport : sportFilter}
+            onSportFilter={(next) => {
+              setTodaySport(next);
+              setSportFilter(next);
+            }}
+            bucket={todayBucket}
+            onBucket={setTodayBucket}
+            onRetry={refreshToday}
+            onImport={() => setImportOpen(true)}
+          />
+        ) : tab === "bets" || route === "bets" ? (
+          <MyBetsView
+            bets={betsPack.bets}
+            summary={betsPack.summary}
+            population={betsPack.population}
+            sourceOk={betsPack.ok}
+            sourceD1={betsPack.d1}
+            sourceStatus={betsPack.d1Status}
+            loading={betsLoading}
+            error={betsError}
+            attemptAt={betsLastAttemptAt}
+            state={betsState}
+            onImport={() => setImportOpen(true)}
+            onRefresh={refreshBets}
+          />
         ) : (
-          <Panel title="My Bets" extra={<span className="last-updated">0 imported</span>}>
-            <div className="today-controls" style={{ marginBottom: 10 }}>
-              <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>IMPORT BET SLIP</button>
-            </div>
-            <div className="table-scroll"><ExecutedBetsTable bets={executedSportBets} /></div>
-          </Panel>
-        )}
+          <div className="main-content">
+            {error && (
+              <div className="panel">
+                <div className="error">{error}</div>
+              </div>
+            )}
 
-        <details className="board-ops panel">
-          <summary className="panel-title">Board ops & diagnostics</summary>
-          <div className="panel-body board-ops-body">
-            <div>
-              <p className="muted" style={{ marginBottom: 8 }}>
-                Board attempt: {boardLastAttemptAt ? fmtStamp(boardLastAttemptAt) : "—"} · Last success: {boardLastSuccessAt ? fmtStamp(boardLastSuccessAt) : "—"}
-                {boardStale ? " · Showing stale board snapshot." : ""}
-              </p>
-              <div className="status-grid">
-                <Stat label="Slate" value={slate?.counts?.games ?? "—"} />
-                <Stat label="Live" value={slate?.counts?.live ?? "—"} />
-                <Stat label="Open bets" value={executedStats.open} />
-                <Stat label="Record" value={executedStats.record || "—"} />
-                <Stat label="P/L" value={executedStats.profit == null ? "—" : `${executedStats.profit >= 0 ? "+" : ""}$${executedStats.profit.toFixed(2)}`} />
-                <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.3"} />
-                <Stat label="Pin / Heritage" value={bookLabel(slate)} />
-                <Stat label="Pal" value={palLabel(slate)} />
-                <Stat label="Parlay" value={parlayLabel(slate)} />
+            <Panel
+              title={`${String(SPORTS[sport]?.label || sport).toUpperCase()} Intelligence Board`}
+              stamp={updated}
+              extra={
+                <span className="last-updated">
+                  {slate?.counts?.games ?? 0} games
+                  {slate?.counts?.live ? ` · ${slate.counts.live} live` : ""}
+                </span>
+              }
+            >
+              <BoardGrid
+                sport={sport}
+                games={mergeBoardQaFixtures(slate?.games || [])}
+                onLog={onLog}
+                logged={loggedOpen}
+                detailMapper={slateDetailGame}
+                slateMeta={
+                  sport === "cfb"
+                    ? `Week ${slate?.week?.number || "—"} · ${slate?.week?.range?.since || "—"} to ${slate?.week?.range?.until || "—"} CT`
+                    : null
+                }
+                weekControls={
+                  sport === "cfb" ? (
+                    <div className="slate-toolbar slate-toolbar-inline">
+                      <button type="button" className="header-btn" onClick={() => setCfbWeekShift((n) => n - 1)}>
+                        Previous Week
+                      </button>
+                      <button type="button" className="header-btn" onClick={() => setCfbWeekShift(0)}>
+                        Current Week
+                      </button>
+                      <button type="button" className="header-btn" onClick={() => setCfbWeekShift((n) => n + 1)}>
+                        Next Week
+                      </button>
+                    </div>
+                  ) : null
+                }
+                notice={
+                  slate?.parlay?.pinGames === 0 &&
+                  (slate?.parlay?.games > 0 ||
+                    /soft|sharp|rundown|credit/i.test(String(slate?.parlay?.source || ""))) ? (
+                    <div className="slate-notice">
+                      Pinnacle feed is credit-limited. Soft DK/FD two-ways are the provisional benchmark for lean/qualified
+                      tickets until Pin returns — shop carefully.
+                    </div>
+                  ) : null
+                }
+              />
+            </Panel>
+
+            <Panel title="Featured Plays" stamp={updated}>
+              <div className="table-scroll">
+                <RecTable games={recGames} onLog={onLog} logged={loggedOpen} />
               </div>
-            </div>
-            <SportReadinessPanel sport={sport} slate={slate} />
-            <LearningPanel learn={learn} />
-            <div className="compact-stacked">
-              <PlCurve curve={stats.curve} />
-              <p>
-                Projection accuracy lives on SYS. Logged-rec win rate{" "}
-                <b className={stats.winPct >= 0.52 ? "text-green" : "text-blue"}>{stats.winPct == null ? "—" : fmtPct(stats.winPct)}</b>
-                {stats.settled ? ` on ${stats.settled} settled tickets.` : " — no settled strategy tickets yet."}
-              </p>
-              <div className="status-grid" style={{ marginTop: 10 }}>
-                <Stat label="Avg CLV" value={stats.clv == null ? "—" : `${stats.clv >= 0 ? "+" : ""}${stats.clv.toFixed(2)}`} />
+            </Panel>
+
+            {leanGames.length > 0 || executedSportBets.length > 0 ? (
+              <div className="compact-bottom">
+                {leanGames.length ? (
+                  <Panel title="Leans">
+                    <div className="table-scroll">
+                      <LeanTable games={leanGames} />
+                    </div>
+                  </Panel>
+                ) : null}
+                <Panel title="My Bets" extra={<span className="last-updated">{executedSportBets.length} imported</span>}>
+                  <div className="today-controls" style={{ marginBottom: 10 }}>
+                    <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>
+                      IMPORT BET SLIP
+                    </button>
+                  </div>
+                  <div className="table-scroll">
+                    <ExecutedBetsTable bets={executedSportBets} />
+                  </div>
+                </Panel>
               </div>
-              <Alerts error={error} recs={recGames.length} open={stats.open} />
-            </div>
-            <div className="glossary-grid">
-              {sharedGlossary().map((x) => <G key={x.title} title={x.title} body={x.body} />)}
-              {glossaryBySport(sport).map((x) => <G key={x.title} title={x.title} body={x.body} />)}
-            </div>
+            ) : (
+              <Panel title="My Bets" extra={<span className="last-updated">0 imported</span>}>
+                <div className="today-controls" style={{ marginBottom: 10 }}>
+                  <button className="header-btn header-btn-refresh" onClick={() => setImportOpen(true)}>
+                    IMPORT BET SLIP
+                  </button>
+                </div>
+                <div className="table-scroll">
+                  <ExecutedBetsTable bets={executedSportBets} />
+                </div>
+              </Panel>
+            )}
+
+            <details className="board-ops panel">
+              <summary className="panel-title">Board ops & diagnostics</summary>
+              <div className="panel-body board-ops-body">
+                <div>
+                  <p className="muted" style={{ marginBottom: 8 }}>
+                    Board attempt: {boardLastAttemptAt ? fmtStamp(boardLastAttemptAt) : "—"} · Last success:{" "}
+                    {boardLastSuccessAt ? fmtStamp(boardLastSuccessAt) : "—"}
+                    {boardStale ? " · Showing stale board snapshot." : ""}
+                  </p>
+                  <div className="status-grid">
+                    <Stat label="Slate" value={slate?.counts?.games ?? "—"} />
+                    <Stat label="Live" value={slate?.counts?.live ?? "—"} />
+                    <Stat label="Open bets" value={executedStats.open} />
+                    <Stat label="Record" value={executedStats.record || "—"} />
+                    <Stat
+                      label="P/L"
+                      value={
+                        executedStats.profit == null
+                          ? "—"
+                          : `${executedStats.profit >= 0 ? "+" : ""}$${executedStats.profit.toFixed(2)}`
+                      }
+                    />
+                    <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.3"} />
+                    <Stat label="Pin / Heritage" value={bookLabel(slate)} />
+                    <Stat label="Pal" value={palLabel(slate)} />
+                    <Stat label="Parlay" value={parlayLabel(slate)} />
+                  </div>
+                </div>
+                <SportReadinessPanel sport={sport} slate={slate} />
+                <LearningPanel learn={learn} />
+                <div className="compact-stacked">
+                  <PlCurve curve={stats.curve} />
+                  <p>
+                    Projection accuracy lives on SYS. Logged-rec win rate{" "}
+                    <b className={stats.winPct >= 0.52 ? "text-green" : "text-blue"}>
+                      {stats.winPct == null ? "—" : fmtPct(stats.winPct)}
+                    </b>
+                    {stats.settled ? ` on ${stats.settled} settled tickets.` : " — no settled strategy tickets yet."}
+                  </p>
+                  <div className="status-grid" style={{ marginTop: 10 }}>
+                    <Stat
+                      label="Avg CLV"
+                      value={stats.clv == null ? "—" : `${stats.clv >= 0 ? "+" : ""}${stats.clv.toFixed(2)}`}
+                    />
+                  </div>
+                  <Alerts error={error} recs={recGames.length} open={stats.open} />
+                </div>
+                <div className="glossary-grid">
+                  {sharedGlossary().map((x) => (
+                    <G key={x.title} title={x.title} body={x.body} />
+                  ))}
+                  {glossaryBySport(sport).map((x) => (
+                    <G key={x.title} title={x.title} body={x.body} />
+                  ))}
+                </div>
+              </div>
+            </details>
           </div>
-        </details>
-      </div>
-      )}
-      </main>
+        )}
+      </AppShell>
+
       <HeritageImport
         open={importOpen}
         onClose={() => setImportOpen(false)}
