@@ -5,18 +5,14 @@ import { formatMarketLabel } from "./buildPlayerPropsBoard.js";
 export default function PlayerWorkspace({ player, onClose }) {
   if (!player) return null;
   const markets = player.markets || [];
-  const initial = (player.playerName || "?").slice(0, 1).toUpperCase();
 
   return (
     <section className="props-workspace" aria-label="Player detail">
       <div className="props-workspace-header">
         <div className="props-player-identity">
-          <div className="props-avatar props-avatar-lg" aria-hidden="true">
-            {player.imageUrl ? <img src={player.imageUrl} alt="" /> : initial}
-          </div>
           <TeamLogo
             team={player.teamIdentity || { abbr: player.team, name: player.team }}
-            size={28}
+            size={32}
           />
           <div>
             <h2>{player.playerName || "Unknown player"}</h2>

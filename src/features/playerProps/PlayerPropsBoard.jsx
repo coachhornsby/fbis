@@ -138,7 +138,6 @@ export default function PlayerPropsBoard({
               row.providerPlayerId ||
               `${row.playerName}|${row.team}|${row.eventId}`;
             const marketLabel = formatMarketLabel(row.marketCanonical || row.market);
-            const initial = (row.playerName || "?").slice(0, 1).toUpperCase();
             const over = row.overOdds ?? (row.side === "over" ? row.price : null);
             const under = row.underOdds ?? (row.side === "under" ? row.price : null);
             return (
@@ -152,12 +151,9 @@ export default function PlayerPropsBoard({
                   className="props-card-player"
                   onClick={() => setSelectedKey(playerKey)}
                 >
-                  <span className="props-avatar" aria-hidden="true">
-                    {row.imageUrl ? <img src={row.imageUrl} alt="" /> : initial}
-                  </span>
                   <TeamLogo
                     team={row.teamIdentity || { abbr: row.team, name: row.team }}
-                    size={22}
+                    size={24}
                   />
                   <span className="props-card-player-text">
                     <strong>{row.playerName || "Unknown"}</strong>
