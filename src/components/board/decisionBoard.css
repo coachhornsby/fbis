@@ -722,3 +722,32 @@
   .db-hero-score { font-size: 26px; }
   .db-card { padding: 10px 12px; }
 }
+
+
+.db-action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.db-action-pill {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(120, 160, 190, 0.45);
+  color: #9ec9e8;
+  background: rgba(12, 28, 40, 0.65);
+}
+.db-action-pill.is-sharp {
+  border-color: rgba(220, 160, 70, 0.6);
+  color: #f0d09a;
+}
+.db-action-pill.is-steam {
+  border-color: rgba(220, 90, 90, 0.55);
+  color: #f0b0b0;
+}
+.db-action-pill.is-regime {
+  border-color: rgba(160, 140, 210, 0.5);
+  color: #d2c4ef;
+}

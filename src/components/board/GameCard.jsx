@@ -236,7 +236,25 @@ export default function GameCard({
           <div className="gc-section-label">
             ACTION · RESEARCH
             <span className="gc-action-badge">SHADOW</span>
+            {game.actionIntel.marketRegime ? (
+              <span className="gc-action-badge gc-action-regime">{game.actionIntel.marketRegime}</span>
+            ) : null}
           </div>
+          {(game.actionIntel.providerSharpSignal || game.actionIntel.providerSteamSignal) ? (
+            <div className="gc-action-provider-signals" aria-label="ACTION provider signals">
+              {game.actionIntel.providerSharpSignal ? (
+                <span className="gc-action-pill gc-action-sharp" title="Provider-supplied ACTION sharp label — not FBIS-derived">
+                  ACTION SHARP · {game.actionIntel.providerSharpSignal}
+                  {game.actionIntel.providerSharpMarket ? ` (${game.actionIntel.providerSharpMarket})` : ""}
+                </span>
+              ) : null}
+              {game.actionIntel.providerSteamSignal ? (
+                <span className="gc-action-pill gc-action-steam" title="Provider-supplied ACTION steam label — not FBIS-derived">
+                  ACTION STEAM · {game.actionIntel.providerSteamSignal}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           <div className="gc-action-grid">
             <div>
               <span className="muted">Cons. spread</span>
@@ -282,12 +300,57 @@ export default function GameCard({
               </strong>
             </div>
             <div>
+              <span className="muted">Move</span>
+              <strong>
+                {game.actionIntel.movement?.openingLine == null || game.actionIntel.movement?.currentLine == null
+                  ? "—"
+                  : `${fmtNum(game.actionIntel.movement.openingLine, 1)} → ${fmtNum(game.actionIntel.movement.currentLine, 1)}`}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Sample</span>
+              <strong>
+                {game.actionIntel.trackedBetCount != null
+                  ? `${fmtNum(game.actionIntel.trackedBetCount, 0)} bets`
+                  : game.actionIntel.sampleQuality || "—"}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Books</span>
+              <strong>
+                {game.actionIntel.bookDisagreement?.line_range != null
+                  ? `${fmtNum(game.actionIntel.bookDisagreement.min_line, 1)}–${fmtNum(game.actionIntel.bookDisagreement.max_line, 1)}`
+                  : game.actionIntel.booksCount != null
+                    ? `${game.actionIntel.booksCount}`
+                    : "—"}
+              </strong>
+            </div>
+            <div>
               <span className="muted">Best book</span>
               <strong>{game.actionIntel.movement?.bestBook || "—"}</strong>
             </div>
           </div>
+          {Array.isArray(game.actionIntel.signals) && game.actionIntel.signals.some((s) => s.source === "FBIS_DERIVED" && s.code !== "MARKET_STABLE" && s.code !== "MIXED_MARKET" && s.code !== "MARKET_UNAVAILABLE") ? (
+            <div className="gc-action-derived" aria-label="FBIS-derived market patterns">
+              {game.actionIntel.signals
+                .filter((s) => s.source === "FBIS_DERIVED" && ["POTENTIAL_SHARP_PATTERN", "REVERSE_LINE_MOVE", "LARGE_MONEY_TICKET_DIVERGENCE", "LOW_SAMPLE"].includes(s.code))
+                .slice(0, 3)
+                .map((s) => (
+                  <span key={s.code} className="gc-action-pill gc-action-derived-pill" title={(s.evidence || []).join(" · ")}>
+                    {s.uiLabel || s.code}{s.side ? ` · ${s.side}` : ""}
+                  </span>
+                ))}
+            </div>
+          ) : null}
+          {Array.isArray(game.actionIntel.movement?.sparkline) && game.actionIntel.movement.sparkline.length >= 2 ? (
+            <div className="gc-action-spark" aria-hidden="true" title="Real ACTION observations only">
+              {game.actionIntel.movement.sparkline.map((v, i) => (
+                <span key={i} style={{ height: `${12 + Math.min(18, Math.abs(Number(v) || 0) * 2)}px` }} />
+              ))}
+            </div>
+          ) : null}
           <div className="gc-action-footnote muted">
-            Display-only market intelligence · not odds authority · not qualify
+            Display-only market intelligence · provider sharp/steam labeled ACTION · not odds authority · not qualify
           </div>
         </section>
       ) : null}
