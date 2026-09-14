@@ -459,17 +459,36 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 
 .matchup { display: flex; align-items: center; gap: 8px; }
 .team-logo { width: 22px; height: 22px; object-fit: contain; flex: 0 0 auto; background: transparent; }
+.team-logo-wrap,
 .team-logo-fallback {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+.team-logo-plate {
+  background: radial-gradient(circle at 40% 35%, rgba(255, 255, 255, 0.96), rgba(230, 236, 245, 0.9) 55%, rgba(200, 210, 224, 0.88));
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+.team-logo-wrap .team-logo {
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+.team-logo-fallback {
+  border-radius: 50%;
   background: #12314a;
   border: 1px solid var(--border);
   color: var(--text);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.3px;
-  flex: 0 0 auto;
+}
+.team-logo-fallback.team-logo-plate {
+  background: radial-gradient(circle at 40% 35%, #f7f9fc, #d7dee8 70%);
+  color: #0d2137;
+  border-color: rgba(255, 255, 255, 0.35);
 }
 .team-block { display: flex; flex-direction: column; gap: 4px; }
 .team-block-lg { gap: 10px; min-width: 220px; }

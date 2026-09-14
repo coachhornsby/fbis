@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import GameCard from "./GameCard.jsx";
+import PremiumGameCard from "./PremiumGameCard.jsx";
 import SlateToolbar from "./SlateToolbar.jsx";
 import { filterBoardGames, sortBoardGames } from "../../lib/boardDecision.js";
+import { GameDetails } from "../../TodayView.jsx";
 
 export default function BoardGrid({
   sport,
@@ -24,11 +25,11 @@ export default function BoardGrid({
     return rows;
   }, [sorted, filter, hideBlocked]);
 
-  const toggle = (id) => {
+  const toggle = (key) => {
     setOpen((before) => {
       const next = new Set(before);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
@@ -54,18 +55,21 @@ export default function BoardGrid({
         <div className="empty">No games match this decision filter.</div>
       ) : (
         <div className="board-card-grid" role="list">
-          {visible.map((g) => (
-            <div key={g.id} role="listitem">
-              <GameCard
-                game={g}
-                expanded={open.has(g.id)}
-                onToggle={toggle}
-                onLog={onLog}
-                logged={logged?.has?.(g.id)}
-                detailGame={detailMapper ? detailMapper(g) : g}
-              />
-            </div>
-          ))}
+          {visible.map((g) => {
+            const key = `${g.sport || sport}:${g.id}`;
+            return (
+              <div key={key} role="listitem">
+                <PremiumGameCard
+                  game={g}
+                  open={open.has(key)}
+                  onToggle={toggle}
+                  renderDetail={(game) => (
+                    <GameDetails g={detailMapper ? detailMapper(game) : game} />
+                  )}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
