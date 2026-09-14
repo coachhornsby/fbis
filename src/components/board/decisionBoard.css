@@ -176,8 +176,8 @@
   background-repeat: no-repeat;
 }
 .db-card--mlb {
-  --db-venue-image: url("/backgrounds/mlb-stadium-night.jpg");
-  background-position: center, center, center 72%;
+  --db-venue-image: url("/backgrounds/mlb-stadium-homeplate.jpg");
+  background-position: center, center, center 68%;
 }
 .db-card--football {
   --db-venue-image: url("/backgrounds/football-stadium-night.jpg");
