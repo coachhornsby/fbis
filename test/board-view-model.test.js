@@ -187,6 +187,95 @@ describe("Board game view-model", () => {
     assert.ok(d.authorization === "NONE" || d.authorization === "AWAITING_REVIEW");
   });
 
+  it("demotes model QUALIFIED to WATCH when execution book is unlisted or wager blocked", () => {
+    const base = {
+      id: "mlb-1",
+      sport: "mlb",
+      start: "2026-09-14T02:10:00Z",
+      away: { abbr: "LAD", name: "Dodgers" },
+      home: { abbr: "SF", name: "Giants" },
+      model: { projAway: 5.2, projHome: 3.8, projTotal: 9, projMargin: 1.4 },
+      pureProjectionAvailable: true,
+      projectionKind: "FBIS",
+      projectionMaturity: "CALIBRATED",
+      rec: {
+        tag: "QUALIFIED",
+        pick: "LAD -1.5",
+        market: "SPREAD",
+        side: "AWAY",
+        line: -1.5,
+        ev: 0.05,
+      },
+      market: {
+        marketAvailable: true,
+        executionMarketAvailable: false,
+        executionActionable: false,
+        execution: { available: false },
+        consensus: {
+          available: true,
+          source: "OBSERVED",
+          observedOnly: true,
+          spread: -1.5,
+          total: 8.5,
+        },
+        reference: { available: false },
+      },
+    };
+
+    const unpriced = buildBoardGameViewModel({
+      ...base,
+      canAuthorizeWager: true,
+      executionMarketAvailable: false,
+    });
+    assert.equal(unpriced.decision.qualification, "WATCH");
+    assert.equal(unpriced.market.executionMarketAvailable, false);
+    assert.equal(unpriced.authority.canAuthorizeWager, true);
+
+    const blocked = buildBoardGameViewModel({
+      ...base,
+      canAuthorizeWager: false,
+      executionMarketAvailable: true,
+      market: {
+        ...base.market,
+        executionMarketAvailable: true,
+        executionActionable: true,
+        execution: {
+          available: true,
+          book: "Heritage",
+          spread: -1.5,
+          total: 8.5,
+          moneyline: { home: -110, away: -110 },
+          actionable: true,
+        },
+        consensus: { available: false },
+      },
+    });
+    assert.equal(blocked.decision.qualification, "WATCH");
+    assert.equal(blocked.authority.canAuthorizeWager, false);
+
+    const ok = buildBoardGameViewModel({
+      ...base,
+      canAuthorizeWager: true,
+      authorized: true,
+      executionMarketAvailable: true,
+      market: {
+        ...base.market,
+        executionMarketAvailable: true,
+        executionActionable: true,
+        execution: {
+          available: true,
+          book: "Heritage",
+          spread: -1.5,
+          total: 8.5,
+          moneyline: { home: -110, away: -110 },
+          actionable: true,
+        },
+        consensus: { available: false },
+      },
+    });
+    assert.equal(ok.decision.qualification, "QUALIFIED");
+  });
+
   it("stale execution cannot produce an actionable decision", () => {
     const d = buildDecisionPresentation(
       researchNflGame({

@@ -471,8 +471,20 @@ export function marketLines(game) {
     const useRef = !useExec && !useCons && Boolean(ref.available);
     const spread = useExec ? exec.spread : useCons ? cons.spread : useRef ? ref.spread : null;
     const total = useExec ? exec.total : useCons ? cons.total : useRef ? ref.total : null;
-    const homeMl = useExec ? exec.moneyline?.home : useRef ? ref.moneyline?.home : null;
-    const awayMl = useExec ? exec.moneyline?.away : useRef ? ref.moneyline?.away : null;
+    const homeMl = useExec
+      ? exec.moneyline?.home
+      : useCons
+        ? cons.moneyline?.home ?? game?.odds?.homeMl ?? null
+        : useRef
+          ? ref.moneyline?.home
+          : null;
+    const awayMl = useExec
+      ? exec.moneyline?.away
+      : useCons
+        ? cons.moneyline?.away ?? game?.odds?.awayMl ?? null
+        : useRef
+          ? ref.moneyline?.away
+          : null;
     let book = "Market";
     if (useExec) book = exec.book || "Execution";
     else if (useCons) book = cons.source === "ACTION" ? "Consensus" : cons.source || "Consensus";

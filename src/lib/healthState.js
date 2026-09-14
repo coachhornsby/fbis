@@ -5,8 +5,18 @@ export const HEALTH_STATE = {
   STALE: "STALE",
 };
 
-export function badgeLabel(state) {
-  if (state === HEALTH_STATE.HEALTHY) return "LIVE";
+export function badgeLabel(state, meta = {}) {
+  const liveOk = meta.liveCollectionHealthy;
+  const mode = String(meta.boardSourceMode || meta.sourceMode || "").toUpperCase();
+  const cached =
+    liveOk === false ||
+    mode.includes("CACHE") ||
+    mode.includes("FALLBACK") ||
+    mode.includes("CACHED");
+  if (state === HEALTH_STATE.HEALTHY) {
+    // Healthy D1/read path ≠ live provider collection.
+    return cached ? "CACHED" : "LIVE";
+  }
   if (state === HEALTH_STATE.STALE) return "STALE";
   if (state === HEALTH_STATE.UNAVAILABLE) return "DATA UNAVAILABLE";
   return "DEGRADED";

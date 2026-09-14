@@ -165,17 +165,27 @@ export function buildDecisionPresentation(game) {
     Number.isFinite(Number(evPct)) &&
     (decision.tier === "QUALIFIED" || decision.tier === "CONVICTION");
 
+  const executionMarketAvailable = Boolean(
+    game?.market?.executionMarketAvailable ??
+      game?.executionMarketAvailable ??
+      executionActionable
+  );
+  const canAuthorizeWager = game?.canAuthorizeWager === true;
+
   let qualification = "NOT_EVALUATED";
   if (research) qualification = "RESEARCH_ONLY";
   else if (decision.tier === "BLOCKED" || decision.tier === "NO_MODEL") {
     qualification = "NO_QUALIFY";
   } else if (decision.tier === "LEAN") qualification = "WATCH";
   else if (decision.tier === "QUALIFIED" || decision.tier === "CONVICTION") {
-    qualification = "QUALIFIED";
+    // Green QUALIFIED requires a listed execution market and wager authority.
+    // Soft/consensus-only leans stay WATCH even if the model stamped a rec.
+    qualification =
+      executionMarketAvailable && canAuthorizeWager ? "QUALIFIED" : "WATCH";
   } else if (decision.tier === "PASS") qualification = "NO_QUALIFY";
 
   const authorization =
-    game?.authorized === true
+    canAuthorizeWager && game?.authorized === true
       ? "AUTHORIZED"
       : game?.authorizationState ||
         (qualification === "QUALIFIED" ? "AWAITING_REVIEW" : "NONE");
@@ -186,6 +196,8 @@ export function buildDecisionPresentation(game) {
     marketAvailable,
     marketFresh,
     executionActionable,
+    executionMarketAvailable,
+    canAuthorizeWager,
     dqState,
     disagreementLabel: research || !evAvailable ? "MODEL DIFFERENCE" : "CALIBRATED EDGE",
     evAvailable,
@@ -301,6 +313,7 @@ export function buildBoardGameViewModel(game) {
       homeMl: market.homeMl,
       awayMl: market.awayMl,
       actionable: Boolean(decision.executionActionable),
+      executionMarketAvailable: Boolean(decision.executionMarketAvailable),
       emptyReason,
     },
     comparison: {
@@ -314,6 +327,7 @@ export function buildBoardGameViewModel(game) {
       probabilityAuthority: decision.probabilityAuthority,
       evAvailable: decision.evAvailable,
       research: Boolean(projection.research || decision.maturity === "RESEARCH"),
+      canAuthorizeWager: Boolean(decision.canAuthorizeWager),
     },
     decision: {
       tier: decision.tier,

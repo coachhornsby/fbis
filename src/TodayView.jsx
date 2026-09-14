@@ -1,4 +1,3 @@
-import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { fmtAmerican, fmtNum, fmtPct } from "./lib/format.js";
 import { propWatchEmptyCopy, todayFeedNote } from "../functions/lib/propConviction.js";
 import { kickoffCt } from "../functions/lib/gameStatus.js";
@@ -85,14 +84,6 @@ export default function TodayView({
             Population: scheduled and live board rows for this date/sport filter. {lastSuccessAt ? `Last successful load ${fmtTs(lastSuccessAt)}.` : "No successful load yet."}
             {stale ? " Showing last-known-good snapshot (stale)." : ""}
           </p>
-          <div className="filter-row" style={{ marginTop: 10 }}>
-            <button className={sportFilter === "all" ? "chip active" : "chip"} onClick={() => onSportFilter("all")}>All sports</button>
-            {BOARD_SPORTS.map((id) => (
-              <button key={id} className={sportFilter === id ? "chip active" : "chip"} onClick={() => onSportFilter(id)}>
-                {SPORTS[id].label} {counts.bySport?.[id] != null ? `(${counts.bySport[id]})` : ""}
-              </button>
-            ))}
-          </div>
           <div className="filter-row">
             {FILTERS.map(([id, label]) => (
               <button key={id} className={bucket === id ? "chip active" : "chip"} onClick={() => onBucket(id)}>{label}</button>

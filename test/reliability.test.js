@@ -12,6 +12,13 @@ describe("read-only serving boundaries", () => {
     assert.equal(src.includes("harvestSport("), false);
   });
 
+  it("slate requires sport and bounds build time", async () => {
+    const src = await readFile(new URL("../functions/api/slate.js", import.meta.url), "utf8");
+    assert.match(src, /sport query is required/);
+    assert.match(src, /SLATE_BUILD_BUDGET_MS/);
+    assert.match(src, /Promise\.race/);
+  });
+
   it("local Vite slate is read-only like production", async () => {
     const src = await readFile(new URL("../vite.config.js", import.meta.url), "utf8");
     assert.equal(src.includes("freezeSlate("), false);
