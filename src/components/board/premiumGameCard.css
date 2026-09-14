@@ -394,21 +394,23 @@
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.04em;
-  color: #ff7ba6;
+  color: #ffffff;
 }
 .pgc-signal-body {
   display: flex;
   align-items: center;
   gap: 8px;
+  color: #ffffff;
 }
 .pgc-signal-line {
   font-size: 14px;
   font-weight: 900;
+  color: #ffffff;
 }
 .pgc-signal-detail {
   font-size: 10px;
-  font-weight: 800;
-  color: var(--pgc-muted);
+  font-weight: 900;
+  color: #ffffff;
   letter-spacing: 0.04em;
 }
 
@@ -675,9 +677,9 @@
 .pgc-mini-box strong { font-size: 18px; }
 
 .pgc-signal { display: grid; grid-template-columns: 1fr 1.15fr; align-items: center; min-height: 50px; padding: 7px 10px; background: linear-gradient(90deg, rgba(113, 8, 49, .76), rgba(31, 13, 38, .75)); border-color: #f3214c; box-shadow: 0 0 12px rgba(255, 23, 96, .16); }
-.pgc-signal-top { font-size: 12px; color: #ff7ba6; }
-.pgc-signal-line { font-size: 15px; }
-.pgc-signal-detail { color: #ff507f; }
+.pgc-signal-top { font-size: 12px; font-weight: 900; color: #ffffff; }
+.pgc-signal-line { font-size: 15px; font-weight: 900; color: #ffffff; }
+.pgc-signal-detail { font-weight: 900; color: #ffffff; }
 .pgc-meters { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .pgc-meter { padding: 6px 8px; border: 1px solid rgba(0, 169, 107, .42); border-radius: 8px; background: rgba(3, 30, 35, .68); }
 .pgc-meter-lab { color: #4cdaff; font-size: 10px; }
