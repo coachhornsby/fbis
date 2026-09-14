@@ -47,6 +47,11 @@
   --glow-conviction: rgba(63, 185, 80, 0.38);
   --glow-qualified: rgba(62, 199, 232, 0.3);
   --glow-lean: rgba(227, 179, 65, 0.24);
+
+  /* Typography — Georgia everywhere */
+  --font-body: Georgia, "Times New Roman", Times, serif;
+  --font-title: Georgia, "Times New Roman", Times, serif;
+  --font-specialty: Georgia, "Times New Roman", Times, serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -56,12 +61,47 @@ html, body, #root { min-height: 100%; }
 body {
   background: var(--bg);
   color: #fff;
-  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
   line-height: 1.45;
 }
 
 button, input, select, textarea { font-family: inherit; }
+
+h1, h2, h3, h4, h5, h6,
+.shell-brand,
+.shell-brand-copy,
+.panel-header h2,
+.db-card-title,
+.gc-team-name,
+.game-ws-title,
+.section-title,
+.app-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+}
+
+.font-specialty,
+.db-sport-tag,
+.db-mkt-chip,
+.db-knife,
+.gc-sport,
+.gc-misprice-state,
+.decision-badge,
+.status-pill,
+.db-pill {
+  font-family: var(--font-specialty);
+  font-style: italic;
+}
+
+.font-specialty-strong,
+.db-mkt-chip strong,
+.db-knife-amt,
+.decision-badge.is-strong {
+  font-family: var(--font-specialty);
+  font-style: italic;
+  font-weight: 700;
+}
 
 .skip-link {
   position: absolute;
@@ -688,7 +728,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 10px;
-  font-family: ui-monospace, Consolas, monospace;
+  font-family: var(--font-body);
   font-size: 12px;
   min-height: 160px;
 }
@@ -1032,7 +1072,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   background: rgba(62, 199, 232, 0.12);
 }
 .slate-filter-count {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-body);
   color: var(--muted);
   font-size: 12px;
 }
@@ -1181,7 +1221,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 }
 .gc-time {
   margin-top: 2px;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-body);
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -1323,7 +1363,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   padding-left: 62px;
 }
 .gc-live-score {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-body);
   font-size: 18px;
   font-weight: 700;
   flex: 0 0 auto;
@@ -1371,7 +1411,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   letter-spacing: 0.04em;
 }
 .gc-score-num {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-body);
   font-size: 30px;
   font-weight: 700;
   line-height: 1.05;
@@ -1392,7 +1432,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   font-size: 12px;
 }
 .gc-fair strong {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-body);
   font-size: 15px;
 }
 .gc-proj-unavailable { display: flex; flex-direction: column; gap: 4px; }
@@ -1487,7 +1527,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   gap: 8px;
   align-items: center;
 }
-.delta-rail-end { font-size: 11px; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.delta-rail-end { font-size: 11px; font-family: var(--font-body); }
 .delta-rail-bar {
   position: relative;
   height: 4px;
