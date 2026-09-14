@@ -95,6 +95,9 @@ export function normalizeRoute(route) {
     case "publish":
     case "performance":
       return "models";
+    case "dev/team-identities":
+    case "dev-team-identities":
+      return "dev/team-identities";
     default:
       return route || "board";
   }

@@ -33,7 +33,7 @@ export default function PlayerWorkspace({ player, onClose }) {
         <div className="props-player-identity">
           <TeamLogo
             team={player.teamIdentity || { abbr: player.team, name: player.team }}
-            size={32}
+            size="compact"
           />
           <div>
             <h2>{player.playerName || "Unknown player"}</h2>
