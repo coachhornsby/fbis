@@ -194,6 +194,30 @@ export function deriveDecisionState(boardGame = {}) {
   const marketUnavailable =
     boardGame.marketUnavailable ?? boardGame.marketUnavailable;
   const noPlayReason = boardGame.noPlayReason ?? boardGame.noPlayReason;
+  const research =
+    boardGame.researchProjection === true ||
+    boardGame.research === true ||
+    String(boardGame.projectionMaturity || boardGame.model?.maturity || "").toUpperCase() === "RESEARCH";
+
+  // Research projections stay visible even when wagering is gated.
+  if (research && !projectionUnavailable) {
+    if (boardGame.rec?.qualified) {
+      return { state: "QUALIFIED", reasonCodes: ["BOARD_REC_QUALIFIED"] };
+    }
+    if (boardGame.lean?.pick) {
+      return {
+        state: "WATCHLIST",
+        reasonCodes: [boardGame.lean.reason || "LEAN_NOT_QUALIFIED"].filter(Boolean),
+      };
+    }
+    return {
+      state: "RESEARCH",
+      reasonCodes: [
+        marketUnavailable ? "OPERATIONAL_MARKET_UNAVAILABLE" : null,
+        "RESEARCH_NO_WAGER_AUTHORITY",
+      ].filter(Boolean),
+    };
+  }
 
   if (qualificationBlocked || bettingAllowed === false) {
     return {
@@ -215,13 +239,11 @@ export function deriveDecisionState(boardGame = {}) {
       reasonCodes: [boardGame.lean.reason || "LEAN_NOT_QUALIFIED"].filter(Boolean),
     };
   }
-  if (projectionUnavailable || marketUnavailable) {
+  // Missing operational market must NOT hide an independent FBIS projection.
+  if (projectionUnavailable) {
     return {
       state: "UNAVAILABLE",
-      reasonCodes: [
-        projectionUnavailable ? "PROJECTION_UNAVAILABLE" : null,
-        marketUnavailable ? "MARKET_UNAVAILABLE" : null,
-      ].filter(Boolean),
+      reasonCodes: ["PROJECTION_UNAVAILABLE"],
     };
   }
   if (noPlayReason) {
@@ -395,6 +417,9 @@ export function toDomainEvent(boardGame = {}, opts = {}) {
 
     marketQuality: {
       unavailable: Boolean(boardGame.marketUnavailable),
+      executionUnavailable: Boolean(boardGame.executionMarketUnavailable),
+      referenceUnavailable: Boolean(boardGame.referenceMarketUnavailable),
+      referenceOnly: Boolean(boardGame.referenceMarketAvailable && boardGame.marketUnavailable),
       labels: boardGame.marketLabels || null,
       quality: boardGame.quality || null,
     },

@@ -6,21 +6,14 @@ import {
   SPORT_FILTERS,
   formatShellDate,
   legacyToRoute,
+  normalizeRoute,
   routeToLegacy,
 } from "../src/app/navigation.js";
 
-describe("FBIS product navigation", () => {
-  it("exposes customer nav without sports as primary tabs", () => {
+describe("FBIS Board-first product navigation", () => {
+  it("exposes Board-first customer nav without sports as primary tabs", () => {
     const ids = CUSTOMER_NAV.map((x) => x.id);
-    assert.deepEqual(ids, [
-      "today",
-      "markets",
-      "player-props",
-      "bets",
-      "performance",
-      "publish",
-      "research",
-    ]);
+    assert.deepEqual(ids, ["board", "models", "model-lab", "bets", "market"]);
     assert.ok(!ids.includes("mlb"));
     assert.ok(!ids.includes("cfb"));
     assert.equal(ADMIN_NAV.length, 1);
@@ -35,21 +28,29 @@ describe("FBIS product navigation", () => {
     assert.ok(ids.includes("mlb"));
   });
 
-  it("maps legacy tabs to product routes", () => {
+  it("maps legacy tabs to Board-first routes", () => {
     assert.equal(legacyToRoute({ tab: "sys" }).route, "system");
-    assert.equal(legacyToRoute({ tab: "board", sport: "cfb" }).route, "markets");
+    assert.equal(legacyToRoute({ tab: "board", sport: "cfb" }).route, "market");
     assert.equal(legacyToRoute({ tab: "board", sport: "cfb" }).sportFilter, "cfb");
-    assert.equal(legacyToRoute({ tab: "today" }).route, "today");
+    assert.equal(legacyToRoute({ tab: "today" }).route, "board");
     assert.equal(legacyToRoute({ tab: "bets" }).route, "bets");
+  });
+
+  it("normalizes legacy route ids", () => {
+    assert.equal(normalizeRoute("today"), "board");
+    assert.equal(normalizeRoute("markets"), "market");
+    assert.equal(normalizeRoute("research"), "model-lab");
+    assert.equal(normalizeRoute("player-props"), "models");
+    assert.equal(normalizeRoute("board"), "board");
   });
 
   it("maps product routes back to legacy loaders", () => {
     assert.equal(routeToLegacy("system").tab, "sys");
-    assert.equal(routeToLegacy("markets", "nfl").tab, "board");
-    assert.equal(routeToLegacy("markets", "nfl").sport, "nfl");
-    assert.equal(routeToLegacy("player-props").tab, "today");
-    assert.equal(routeToLegacy("performance").tab, "today");
-    assert.equal(routeToLegacy("research").tab, "today");
+    assert.equal(routeToLegacy("market", "nfl").tab, "board");
+    assert.equal(routeToLegacy("market", "nfl").sport, "nfl");
+    assert.equal(routeToLegacy("board").tab, "today");
+    assert.equal(routeToLegacy("models").tab, "today");
+    assert.equal(routeToLegacy("model-lab").tab, "today");
   });
 
   it("formats shell date in Chicago timezone", () => {

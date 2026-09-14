@@ -94,3 +94,38 @@ test("leaguesForSport accepts board sport cbb via ncaab alias", () => {
   assert.deepEqual(leaguesForSport("nba"), ["nba"]);
   assert.deepEqual(leaguesForSport("nfl"), ["nfl"]);
 });
+
+test("publicSplits.markets exposes ML / RL / TOTAL money leans for knife UI", () => {
+  const intel = buildBoardActionIntel({
+    fbis_event_id: "nfl_knife_1",
+    sport: "nfl",
+    match_confidence: "EXACT",
+    collected_at: "2026-09-13T21:00:00.000Z",
+    consensus_json: JSON.stringify({
+      spreadHome: -3,
+      total: 45.5,
+      moneylineHome: -150,
+      moneylineAway: 130,
+    }),
+    public_betting_json: JSON.stringify({
+      spreadHome: { ticketsPercent: 38, moneyPercent: 55 },
+      moneylineHome: { ticketsPercent: 70, moneyPercent: 45 },
+      over: { ticketsPercent: 52, moneyPercent: 61 },
+    }),
+    best_odds_json: null,
+    line_movement_json: null,
+    research_fields_json: null,
+  });
+  assert.equal(intel.publicSplits.sharpLabel, null);
+  assert.equal(intel.publicSplits.primaryMarket, "RL");
+  assert.equal(intel.publicSplits.ticketPct, 38);
+  const byMkt = Object.fromEntries(intel.publicSplits.markets.map((m) => [m.market, m]));
+  assert.equal(byMkt.RL.leanSide, "HOME");
+  assert.equal(byMkt.RL.magnitude, 17);
+  assert.equal(byMkt.ML.leanSide, "AWAY");
+  assert.equal(byMkt.ML.magnitude, 25);
+  assert.equal(byMkt.TOTAL.leanSide, "OVER");
+  assert.equal(byMkt.TOTAL.magnitude, 9);
+  assert.ok(intel.publicSplits.markets.every((m) => m.sharpLabel == null));
+});
+

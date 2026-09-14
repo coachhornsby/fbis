@@ -4,7 +4,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 8px 4px 4px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #2a3344);
 }
 
 .game-ws-header {

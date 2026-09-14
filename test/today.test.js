@@ -208,7 +208,10 @@ describe("TODAY cache-only and MY BET markers", () => {
     assert.equal(game.pinMlAway, 118);
     assert.equal(game.pinSpread, -1.5);
     assert.equal(game.pinTotal, 8.5);
-    assert.equal(game.marketUnavailable, false);
+    // Hydrated Pinnacle is REFERENCE only — not an operational market.
+    assert.equal(game.referenceMarketAvailable, true);
+    assert.equal(game.marketUnavailable, true);
+    assert.equal(game.executionMarketAvailable, false);
   });
 
   it("hydrates missing odds from odds_snapshots rows", async () => {
@@ -244,7 +247,10 @@ describe("TODAY cache-only and MY BET markers", () => {
     assert.equal(game.pinMlAway, 109);
     assert.equal(game.pinSpread, -1.5);
     assert.equal(game.pinTotal, 8.5);
-    assert.equal(game.marketUnavailable, false);
+    // Snapshot Pin hydrate remains reference; operational market stays unavailable.
+    assert.equal(game.referenceMarketAvailable, true);
+    assert.equal(game.marketUnavailable, true);
+    assert.equal(game.executionMarketAvailable, false);
   });
 });
 

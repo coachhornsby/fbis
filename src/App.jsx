@@ -16,7 +16,7 @@ import { buildPropConvictions } from "../functions/lib/propConviction.js";
 import { badgeLabel, badgeTone, deriveGlobalState, deriveViewState } from "./lib/healthState.js";
 import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
 import PublishView from "./features/publish/PublishView.jsx";
-import { legacyToRoute, routeToLegacy } from "./app/navigation.js";
+import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.js";
 import PlayerPropsBoard from "./features/playerProps/PlayerPropsBoard.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
 import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
@@ -37,7 +37,7 @@ function readUrlState() {
     tab,
     date: u.searchParams.get("date") || todayCT(),
     sport,
-    route: routeParam || mapped.route,
+    route: normalizeRoute(routeParam || mapped.route),
     sportFilter: u.searchParams.get("sportFilter") || mapped.sportFilter || "all",
   };
 }
@@ -93,7 +93,7 @@ export default function App() {
   const [boardStale, setBoardStale] = useState(false);
 
   const [tab, setTab] = useState(initial.tab);
-  const [route, setRoute] = useState(initial.route || "today");
+  const [route, setRoute] = useState(normalizeRoute(initial.route || "board"));
   const [sportFilter, setSportFilter] = useState(initial.sportFilter || "all");
   const [todayDate, setTodayDate] = useState(initial.date);
   const [todayBoard, setTodayBoard] = useState(null);
@@ -288,11 +288,12 @@ export default function App() {
   }, [tab, todayDate, sport, route, sportFilter]);
 
   const onRouteChange = useCallback((nextRoute) => {
-    setRoute(nextRoute);
-    const legacy = routeToLegacy(nextRoute, sportFilter);
+    const normalized = normalizeRoute(nextRoute);
+    setRoute(normalized);
+    const legacy = routeToLegacy(normalized, sportFilter);
     setTab(legacy.tab);
     if (legacy.tab === "board") setSport(legacy.sport);
-    if (nextRoute === "today" && sportFilter && sportFilter !== "all") {
+    if ((normalized === "board" || nextRoute === "today") && sportFilter && sportFilter !== "all") {
       setTodaySport(sportFilter);
     }
   }, [sportFilter]);
@@ -300,7 +301,7 @@ export default function App() {
   const onSportFilterChange = useCallback((nextFilter) => {
     setSportFilter(nextFilter);
     setTodaySport(nextFilter);
-    if (route === "markets" && nextFilter !== "all") {
+    if ((route === "market" || route === "markets") && nextFilter !== "all") {
       setSport(nextFilter);
       setTab("board");
     }
@@ -308,12 +309,17 @@ export default function App() {
 
   useEffect(() => {
     const routeTitles = {
-      today: "TODAY",
-      markets: "MARKETS",
-      "player-props": "PLAYER PROPS",
+      board: "BOARD",
+      today: "BOARD",
+      market: "MARKET",
+      markets: "MARKET",
+      models: "MODELS",
+      "model-lab": "MODEL LAB",
+      "player-props": "MODELS",
       bets: "MY BETS",
-      performance: "PERFORMANCE",
-      research: "RESEARCH",
+      performance: "MODELS",
+      publish: "MODELS",
+      research: "MODEL LAB",
       system: "SYSTEM",
     };
     const part =
@@ -321,7 +327,7 @@ export default function App() {
       (tab === "board"
         ? String(SPORTS[sport]?.label || sport).toUpperCase()
         : tab === "today"
-          ? "TODAY"
+          ? "BOARD"
           : tab === "sys"
             ? "SYSTEM"
             : "MY BETS");
@@ -468,7 +474,7 @@ export default function App() {
   );
 
   const shellFreshness =
-    route === "markets" || tab === "board"
+    route === "market" || route === "markets" || tab === "board"
       ? boardStale
         ? "STALE"
         : slate
@@ -504,14 +510,14 @@ export default function App() {
             ? refreshTrack()
             : route === "bets" || tab === "bets"
               ? refreshBets()
-              : route === "markets" || tab === "board"
+              : route === "market" || route === "markets" || tab === "board"
                 ? refresh()
                 : refreshToday()
         }
         refreshDisabled={
           route === "system" || tab === "sys"
             ? trackLoading
-            : route === "markets" || tab === "board"
+            : route === "market" || route === "markets" || tab === "board"
               ? loading
               : todayLoading || betsLoading
         }
@@ -525,38 +531,41 @@ export default function App() {
               : "↻ Refresh"
         }
       >
-        {tab === "board" || route === "markets" ? (
+        {tab === "board" || route === "market" || route === "markets" ? (
           <Ticker items={slate?.ticker || []} logged={loggedOpen} />
         ) : null}
 
-        {route === "player-props" ? (
-          <PlayerPropsBoard
-            board={todayBoard}
-            sportFilter={sportFilter === "all" ? todaySport : sportFilter}
-            date={todayDate}
-            loading={todayLoading}
-            error={todayError}
-            onRetry={refreshToday}
-          />
-        ) : route === "performance" ? (
-          <FeaturePlaceholder
-            title="Performance"
-            status="PHASE 7"
-            body="Model vs qualified vs executed populations stay separate. This page will surface units, ROI, CLV, and drawdown without bankroll dollars."
-          />
-        ) : route === "publish" ? (
-          <PublishView
-            board={todayBoard}
-            sportFilter={sportFilter}
-            date={todayDate}
-            loading={todayLoading}
-            error={todayError}
-          />
-        ) : route === "research" ? (
+        {route === "models" || route === "player-props" || route === "publish" || route === "performance" ? (
+          <div className="canonical-models-stack">
+            <FeaturePlaceholder
+              title="Models"
+              status="BOARD-FIRST · PHASE A"
+              body="Sport/model status, projection coverage, and publish tooling live here. Player props and performance remain secondary to the Board decision loop."
+            />
+            {route === "player-props" || route === "models" ? (
+              <PlayerPropsBoard
+                board={todayBoard}
+                sportFilter={sportFilter === "all" ? todaySport : sportFilter}
+                date={todayDate}
+                loading={todayLoading}
+                error={todayError}
+                onRetry={refreshToday}
+              />
+            ) : null}
+            {route === "publish" || route === "models" ? (
+              <PublishView
+                board={todayBoard}
+                sportFilter={sportFilter}
+                date={todayDate}
+                loading={todayLoading}
+                error={todayError}
+              />
+            ) : null}
+          </div>
+        ) : route === "model-lab" || route === "research" ? (
           <div className="canonical-research-stack">
             <ModelLabView sportFilter={sportFilter} />
             <MispricesView sportFilter={sportFilter} />
-            <DataHealthView />
           </div>
         ) : tab === "sys" || route === "system" ? (
           <>
@@ -579,7 +588,7 @@ export default function App() {
               onRefresh={refreshTrack}
             />
           </>
-        ) : tab === "today" || route === "today" ? (
+        ) : tab === "today" || route === "today" || route === "board" ? (
           <TodayView
             board={todayBoard}
             error={todayError}
@@ -616,6 +625,7 @@ export default function App() {
             onRefresh={refreshBets}
           />
         ) : (
+
           <div className="main-content">
             {error && (
               <div className="panel">
@@ -664,8 +674,8 @@ export default function App() {
                   (slate?.parlay?.games > 0 ||
                     /soft|sharp|rundown|credit/i.test(String(slate?.parlay?.source || ""))) ? (
                     <div className="slate-notice">
-                      Pinnacle feed is credit-limited. Soft DK/FD two-ways are the provisional benchmark for lean/qualified
-                      tickets until Pin returns — shop carefully.
+                      Reference (Pinnacle) feed is credit-limited. Soft DK/FD two-ways are the provisional operational
+                      consensus for lean/qualified tickets until a reference quote returns — shop carefully.
                     </div>
                   ) : null
                 }
@@ -734,7 +744,7 @@ export default function App() {
                       }
                     />
                     <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.4"} />
-                    <Stat label="Pin / Heritage" value={bookLabel(slate)} />
+                    <Stat label="Market / Heritage" value={bookLabel(slate)} />
                     <Stat label="Pal" value={palLabel(slate)} />
                     <Stat label="Parlay" value={parlayLabel(slate)} />
                   </div>
@@ -788,7 +798,7 @@ function sharedGlossary() {
   return [
     { title: "Loop", body: "Forecast independently, compare to no-vig benchmark, require edge and expected ROI, log, freeze, grade, and diagnose error." },
     { title: "Heritage", body: "Execution ledger only. Imported operator bets remain separate from model recommendations and separate from strategy simulation populations." },
-    { title: "Pinnacle benchmark", body: "Pinnacle is the benchmark for fair/no-vig comparisons. It is not automatically your executed Heritage price." },
+    { title: "Reference market", body: "Pinnacle is an optional research/reference benchmark for fair/no-vig studies. It is not the operational market and not your executed Heritage price." },
     { title: "Qualification gates", body: "A projection is not a bet. Qualification requires complete market evidence and positive expected ROI thresholds." },
     { title: "CLV", body: "CLV is entry no-vig vs close no-vig for the same side and contract; independent of win/loss." },
   ];
@@ -982,7 +992,9 @@ function slateTotalPrice(game, side) {
 }
 
 function oddsBookLabel(game) {
-  if (game.odds?.pinPresent) return "Pin";
+  if (game.odds?.heritageListed) return "Heritage";
+  if (game.odds?.softPresent || game.odds?.softSource) return "Consensus";
+  if (game.odds?.pinPresent) return "Reference";
   if (game.odds?.heritageListed) return "Heritage";
   const soft = String(game.odds?.softSource || "").toLowerCase();
   if (soft.includes("sharp")) return "DK/FD";
@@ -1139,7 +1151,7 @@ function RecTable({ games, onLog, logged }) {
           <th>Pick</th>
           <th>Market</th>
           <th>Price</th>
-          <th>Pin vig</th>
+          <th>Ref vig</th>
           <th>Fair</th>
           <th>Expected ROI</th>
           <th>Book</th>
@@ -1213,7 +1225,7 @@ function LeanTable({ games }) {
             <td>{g.lean.market}</td>
             <td className="muted">
               {g.lean.pauseReason || g.lean.reason || (g.lean.ev == null
-                ? "No complete Pinnacle pair / expected ROI unavailable"
+                ? "No complete reference pair / expected ROI unavailable"
                 : (g.lean.evPct ?? g.lean.ev * 100) < 3
                   ? `Expected ROI ${fmtNum((g.lean.evPct ?? g.lean.ev * 100), 1)}% below +3% gate`
                   : "Candidate did not clear every qualification gate")}
@@ -1237,7 +1249,7 @@ function BetsTable({ bets }) {
           <th>Result</th>
           <th>P/L</th>
           <th>Expected ROI</th>
-          <th>Pin</th>
+          <th>Reference</th>
           <th>Heritage</th>
           <th>CLV</th>
         </tr>
@@ -1317,7 +1329,7 @@ function Alerts({ error, recs, open }) {
 function pinLine(g) {
   const home = g.odds?.pinHomeMl ?? g.fairHomeMl;
   const away = g.odds?.pinAwayMl ?? g.fairAwayMl;
-  if (home == null && away == null) return g.odds?.pinPresent === false ? "Pin missing" : "Pin → Her";
+  if (home == null && away == null) return g.odds?.pinPresent === false ? "Reference missing" : "Ref → Her";
   return `${fmtAmerican(away)} / ${fmtAmerican(home)}`;
 }
 
@@ -1337,7 +1349,7 @@ function SlateProj({ game }) {
     return (
       <>
         <div className="muted">FBIS projection unavailable</div>
-        {a != null && <div className="proj-implied">PINNACLE IMPLIED {fmtNum(a)} – {fmtNum(h)}</div>}
+        {a != null && <div className="proj-implied">REFERENCE MARKET-IMPLIED {fmtNum(a)} – {fmtNum(h)}</div>}
       </>
     );
   }
@@ -1365,7 +1377,7 @@ function PinVigCell({ game, rec }) {
   return (
     <div>
       <div className="text-blue">{fmtVig(vig)}</div>
-      <div className="muted">{nv != null ? `${fmtPct(nv)} nv` : "Pin hold"}</div>
+      <div className="muted">{nv != null ? `${fmtPct(nv)} nv` : "Ref hold"}</div>
     </div>
   );
 }
@@ -1380,13 +1392,13 @@ function palLabel(slate) {
 function bookLabel(slate) {
   const p = slate?.parlay;
   if (!p?.enabled) return "—";
-  if (p.pinGames > 0 && p.heritageInFeed) return "Pin + Her";
-  if (p.pinGames > 0) return "Pin → Her";
+  if (p.pinGames > 0 && p.heritageInFeed) return "Ref + Her";
+  if (p.pinGames > 0) return "Ref → Her";
   const src = String(p.source || "");
   if (/sharpapi/i.test(src)) return "Soft DK/FD";
   if (/therundown|rundown/i.test(src)) return "Soft backup";
-  if (/credit|exhausted/i.test(src)) return "Pin out · soft";
-  return "Pin → Her";
+  if (/credit|exhausted/i.test(src)) return "Ref out · soft";
+  return "Ref → Her";
 }
 
 function F5Cell({ game }) {

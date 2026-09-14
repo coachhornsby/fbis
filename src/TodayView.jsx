@@ -13,6 +13,7 @@ import GameWorkspace from "./features/game/GameWorkspace.jsx";
 import { buildGameWorkspaceView } from "./features/game/buildGameWorkspaceView.js";
 import "./features/game/game.css";
 import { resolveBoardProjection } from "./lib/boardDecision.js";
+import DecisionBoard from "./components/board/DecisionBoard.jsx";
 
 const FILTERS = [
   ["all", "All games"],
@@ -63,7 +64,7 @@ export default function TodayView({
 
       <section className="panel panel-board panel-board-controls">
         <div className="panel-header">
-          <h2>TODAY · {date} CT</h2>
+          <h2>BOARD · {date} CT</h2>
           <span className="last-updated">
             {loading ? "Loading…" : `${badgeLabel(state || health?.state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${counts.games ?? 0} games`}`}
           </span>
@@ -157,8 +158,11 @@ export default function TodayView({
               <div className="muted" style={{ padding: "10px 14px 0" }}>{propWatchEmptyCopy(counts.mlbPropWatch)}</div>
             ) : null}
             {group.games.length > 0 && (
-              <div className="board-well table-scroll">
-                <TodayTable games={group.games} propWatch={counts.mlbPropWatch} />
+              <div className="board-well table-scroll decision-board-well">
+                <DecisionBoard
+                  games={group.games}
+                  renderDetail={(g) => <GameDetails g={g} />}
+                />
               </div>
             )}
           </div>
@@ -219,7 +223,7 @@ function TodayTable({ games, propWatch }) {
           <th>Proj</th>
           {mlb ? <th>F5</th> : null}
           {mlb ? <th>Props</th> : null}
-          <th>Pin</th>
+          <th>Market</th>
           <th>Quality</th>
           <th>Play</th>
           <th>MY BET</th>
@@ -256,14 +260,23 @@ function TodayTable({ games, propWatch }) {
             {mlb ? <td><TodayF5Cell g={g} /></td> : null}
             {mlb ? <td><TodayPropsCell g={g} propWatch={propWatch} /></td> : null}
             <td>
-              {g.marketUnresolved || g.marketUnavailable ? (
-                <span className="muted">{g.marketUnresolved ? "TEAM MATCH UNRESOLVED" : "market unavailable"}</span>
-              ) : (
+              {g.marketUnresolved ? (
+                <span className="muted">TEAM MATCH UNRESOLVED</span>
+              ) : !g.marketUnavailable ? (
                 <>
-                  <div>{pinMlLabel(g)}</div>
-                  <div className="muted">{pinSpreadLabel(g)}</div>
-                  <div className="muted">{g.marketLabels?.totalOver?.label || (g.pinTotal != null ? `tot ${g.pinTotal}` : "tot —")}</div>
+                  <div>{marketMlLabel(g)}</div>
+                  <div className="muted">{marketSpreadLabel(g)}</div>
+                  <div className="muted">{marketTotalLabel(g)}</div>
                 </>
+              ) : g.referenceMarketAvailable ? (
+                <>
+                  <div className="muted">REFERENCE ONLY</div>
+                  <div>{marketMlLabel(g)}</div>
+                  <div className="muted">{marketSpreadLabel(g)}</div>
+                  <div className="muted">{marketTotalLabel(g)}</div>
+                </>
+              ) : (
+                <span className="muted">operational market unavailable</span>
               )}
             </td>
             <td>
@@ -436,7 +449,7 @@ function CfbGameDetails({ g }) {
         <h3>MARKET</h3>
         <div>ML: {fmtAmerican(g.pinMlAway)} / {fmtAmerican(g.pinMlHome)}</div>
         <div>Home spread: {g.pinSpread == null ? "—" : g.pinSpread} · total {g.pinTotal ?? "—"}</div>
-        <div className="muted">Pinnacle is the benchmark; it is not an independent projection input.</div>
+        <div className="muted">Operational market (execution / consensus). Pinnacle is an optional reference benchmark only.</div>
       </section>
       <section>
         <h3>UNCERTAINTY / VENUE</h3>
@@ -566,7 +579,7 @@ function ProjCell({ g }) {
     return (
       <>
         <div className="muted">FBIS projection unavailable</div>
-        {implied && <div className="proj-implied">Pinnacle implied score: {implied}</div>}
+        {implied && <div className="proj-implied">Reference market-implied score: {implied}</div>}
       </>
     );
   }
@@ -596,6 +609,28 @@ function pinMlLabel(g) {
   const home = g.marketLabels?.mlHome?.label;
   if (away && home) return `${away} / ${home}`;
   return `${fmtAmerican(g.pinMlAway)} / ${fmtAmerican(g.pinMlHome)}`;
+}
+
+
+function marketSpreadLabel(g) {
+  const spread = g.market?.execution?.spread ?? g.market?.consensus?.spread ?? g.market?.comparison?.spread ?? g.pinSpread;
+  const book = g.market?.primaryMarketLabel || g.market?.execution?.book || g.market?.consensus?.source || null;
+  const base = g.marketLabels?.spreadHome?.label || (spread != null ? `RL ${spread > 0 ? "+" : ""}${spread}` : "RL —");
+  return book ? `${base} · ${book}` : base;
+}
+
+function marketTotalLabel(g) {
+  const total = g.market?.execution?.total ?? g.market?.consensus?.total ?? g.market?.comparison?.total ?? g.pinTotal;
+  return g.marketLabels?.totalOver?.label || (total != null ? `tot ${total}` : "tot —");
+}
+
+function marketMlLabel(g) {
+  const away = g.market?.execution?.moneyline?.away ?? g.pinMlAway;
+  const home = g.market?.execution?.moneyline?.home ?? g.pinMlHome;
+  const awayL = g.marketLabels?.mlAway?.label;
+  const homeL = g.marketLabels?.mlHome?.label;
+  if (awayL && homeL) return `${awayL} / ${homeL}`;
+  return `${fmtAmerican(away)} / ${fmtAmerican(home)}`;
 }
 
 function pinSpreadLabel(g) {

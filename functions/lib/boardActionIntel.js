@@ -36,6 +36,53 @@ function pickPct(...vals) {
 }
 
 /**
+ * Money−tickets lean for one market node (home/over anchored).
+ * Positive gap ⇒ lean on home/over; negative ⇒ away/under.
+ * Never invents an FBIS "sharp" label.
+ */
+function buildMarketLean(node, { market, posSide, negSide }) {
+  if (!node || typeof node !== "object") return null;
+  const ticketPct = pickPct(
+    node.ticketsPercent,
+    node.ticketPct,
+    node.tickets,
+    node.ticketPercent
+  );
+  const moneyPct = pickPct(
+    node.moneyPercent,
+    node.moneyPct,
+    node.money,
+    node.moneyPercentHandle
+  );
+  if (ticketPct == null && moneyPct == null) return null;
+  const moneyTicketGap =
+    ticketPct != null && moneyPct != null ? Math.round((moneyPct - ticketPct) * 10) / 10 : null;
+  const leanSide =
+    moneyTicketGap == null || moneyTicketGap === 0
+      ? null
+      : moneyTicketGap > 0
+        ? posSide
+        : negSide;
+  return {
+    market,
+    ticketPct,
+    moneyPct,
+    moneyTicketGap,
+    magnitude: moneyTicketGap == null ? null : Math.abs(moneyTicketGap),
+    leanSide,
+    // Research context only — never promote provider sharp metadata.
+    sharpLabel: null,
+  };
+}
+
+function pickPrimaryMarket(markets) {
+  if (!markets.length) return null;
+  const withGap = markets.filter((m) => m.magnitude != null);
+  if (!withGap.length) return markets[0];
+  return withGap.slice().sort((a, b) => b.magnitude - a.magnitude)[0];
+}
+
+/**
  * Normalize a shadow_market_observations row into a board-safe actionIntel payload.
  */
 export function buildBoardActionIntel(row = {}) {
@@ -56,20 +103,60 @@ export function buildBoardActionIntel(row = {}) {
   const mlHome = num(consensus.moneylineHome) ?? num(consensus.mlHome) ?? num(consensus.homeMl);
   const mlAway = num(consensus.moneylineAway) ?? num(consensus.mlAway) ?? num(consensus.awayMl);
 
-  const ticketPct = pickPct(
-    publicBetting?.spreadHome?.ticketsPercent,
-    publicBetting?.spreadHome?.ticketPct,
-    publicBetting?.spread?.ticketsPercent,
-    research.ticketsPct
+  const rl = buildMarketLean(publicBetting.spreadHome || publicBetting.spread, {
+    market: "RL",
+    posSide: "HOME",
+    negSide: "AWAY",
+  });
+  const ml = buildMarketLean(publicBetting.moneylineHome || publicBetting.mlHome, {
+    market: "ML",
+    posSide: "HOME",
+    negSide: "AWAY",
+  });
+  const tot = buildMarketLean(
+    publicBetting.over || publicBetting.totalOver || publicBetting.total,
+    {
+      market: "TOTAL",
+      posSide: "OVER",
+      negSide: "UNDER",
+    }
   );
-  const moneyPct = pickPct(
-    publicBetting?.spreadHome?.moneyPercent,
-    publicBetting?.spreadHome?.moneyPct,
-    publicBetting?.spread?.moneyPercent,
-    research.moneyPct
-  );
-  const moneyTicketGap =
-    ticketPct != null && moneyPct != null ? Math.round((moneyPct - ticketPct) * 10) / 10 : null;
+
+  // Legacy single-split fallback when only research tickets/money exist.
+  let markets = [rl, ml, tot].filter(Boolean);
+  if (!markets.length) {
+    const ticketPct = pickPct(research.ticketsPct, research.ticketPct);
+    const moneyPct = pickPct(research.moneyPct);
+    if (ticketPct != null || moneyPct != null) {
+      const moneyTicketGap =
+        ticketPct != null && moneyPct != null
+          ? Math.round((moneyPct - ticketPct) * 10) / 10
+          : null;
+      markets = [
+        {
+          market: "RL",
+          ticketPct,
+          moneyPct,
+          moneyTicketGap,
+          magnitude: moneyTicketGap == null ? null : Math.abs(moneyTicketGap),
+          leanSide:
+            moneyTicketGap == null || moneyTicketGap === 0
+              ? null
+              : moneyTicketGap > 0
+                ? "HOME"
+                : "AWAY",
+          sharpLabel: null,
+        },
+      ];
+    }
+  }
+
+  // Legacy single-split fields stay RL-first for backward compatibility.
+  // Full ML/RL/TOTAL leans live on publicSplits.markets for the knife UI.
+  const primary = rl || pickPrimaryMarket(markets);
+  const ticketPct = primary?.ticketPct ?? null;
+  const moneyPct = primary?.moneyPct ?? null;
+  const moneyTicketGap = primary?.moneyTicketGap ?? null;
 
   const openSpread =
     num(lineMovement.openSpreadHome) ??
@@ -78,7 +165,9 @@ export function buildBoardActionIntel(row = {}) {
     num(research.openingLine);
   const currentSpread = spreadHome ?? num(lineMovement.currentSpreadHome) ?? num(research.observedLine);
   const movementMagnitude =
-    openSpread != null && currentSpread != null ? Math.round((currentSpread - openSpread) * 10) / 10 : null;
+    openSpread != null && currentSpread != null
+      ? Math.round((currentSpread - openSpread) * 10) / 10
+      : null;
 
   const bestBook =
     bestOdds?.spreadHome?.book ||
@@ -114,8 +203,10 @@ export function buildBoardActionIntel(row = {}) {
       ticketPct,
       moneyPct,
       moneyTicketGap,
-      // Never invent "sharp" — divergence is research context only.
+      // Never invent "sharp" — money/ticket lean is research context only.
       sharpLabel: null,
+      primaryMarket: primary?.market ?? null,
+      markets,
     },
     movement: {
       openingLine: openSpread,
@@ -139,7 +230,6 @@ export async function loadBoardActionIntelByEventIds(db, eventIds = []) {
   const ids = [...new Set((eventIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
   if (!ids.length) return map;
 
-  // Chunk to stay under D1 bind limits.
   const chunkSize = 40;
   for (let i = 0; i < ids.length; i += chunkSize) {
     const chunk = ids.slice(i, i + chunkSize);
@@ -163,7 +253,6 @@ export async function loadBoardActionIntelByEventIds(db, eventIds = []) {
         if (intel) map.set(eid, intel);
       }
     } catch {
-      // Table missing or schema lag — fail open.
       return map;
     }
   }
@@ -195,6 +284,8 @@ export async function attachActionIntelToGames(games = [], db = null) {
       ticketPct: intel.publicSplits?.ticketPct ?? null,
       moneyPct: intel.publicSplits?.moneyPct ?? null,
       moneyTicketGap: intel.publicSplits?.moneyTicketGap ?? null,
+      primaryMarket: intel.publicSplits?.primaryMarket ?? null,
+      markets: intel.publicSplits?.markets ?? null,
       openingLine: intel.movement?.openingLine ?? null,
       currentLine: intel.movement?.currentLine ?? null,
       magnitude: intel.movement?.movementMagnitude ?? null,
@@ -204,7 +295,6 @@ export async function attachActionIntelToGames(games = [], db = null) {
     return {
       ...g,
       actionIntel: intel,
-      // Prefer existing non-ACTION sentiment; otherwise expose ACTION splits for movers UI.
       sentiment: existingSentiment || sentimentFromAction,
       publicSplits: g.publicSplits || intel.publicSplits,
     };
