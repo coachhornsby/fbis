@@ -569,3 +569,17 @@
   .pgc-bar-val { grid-column: 2; justify-self: end; }
   .pgc-hero-mid { max-width: 110px; }
 }
+
+
+.pgc-action-empty .pgc-empty {
+  margin-top: 8px;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+.pgc-meters-empty .pgc-meter-away,
+.pgc-meters-empty .pgc-meter-home {
+  opacity: 0.25;
+}
+.pgc-meters-empty .pgc-meter-legend {
+  opacity: 0.55;
+}

@@ -389,8 +389,12 @@ test("gamesExpected uses FBIS slate size, not maxItems", async () => {
   });
   assert.equal(res.ok, true);
   assert.equal(res.gamesExpected, 16);
-  assert.equal(res.requestedMaxItems ?? res.requestedMaxItems, 200);
-  assert.notEqual(res.gamesExpected, 200);
+  // Board soft-cap / slate sizing: plan maxItems tracks slate, not the 200 safety cap.
+  const planned = res.requestedMaxItems ?? res.plan?.input?.maxItems ?? res.maxItems;
+  assert.ok(planned != null, "planned maxItems present");
+  assert.ok(planned <= 200);
+  assert.notEqual(res.gamesExpected, planned);
+  assert.equal(res.gamesExpected, 16);
 });
 
 test("full observation persistence writes books/movement and matched FBIS id", async () => {

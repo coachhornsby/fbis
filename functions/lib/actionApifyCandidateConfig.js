@@ -102,7 +102,8 @@ export function resolveMaxItems(requested, plan, opts = {}) {
     return Math.min(req, ACTION_APIFY_FREE_MAX_ITEMS);
   }
   if (plan === "starter") {
-    if (req == null) return starterCap;
+    // Default to a board-sized pull, not the absolute safety cap (200 ≈ $1.46 and trips harvest soft-cap).
+    if (req == null) return Math.min(80, starterCap);
     return Math.min(req, starterCap);
   }
   const err = new Error(`Unknown plan for maxItems: ${plan}`);

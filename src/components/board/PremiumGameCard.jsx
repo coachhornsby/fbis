@@ -297,7 +297,29 @@ export default function PremiumGameCard({
               </div>
             </>
           ) : (
-            <p className="pgc-empty">{action.emptyLabel || "NO CURRENT DATA"}</p>
+            <div className="pgc-action-empty" aria-label="ACTION snapshot unavailable">
+              <div className="pgc-meters pgc-meters-empty">
+                <SplitMeter label="TICKETS" awayPct={0} homePct={0} away={away} home={home} />
+                <SplitMeter label="MONEY" awayPct={0} homePct={0} away={away} home={home} />
+              </div>
+              <div className="pgc-action-facts">
+                <div className="pgc-fact">
+                  <span>LINE MOVE</span>
+                  <strong>—</strong>
+                </div>
+                <div className="pgc-fact">
+                  <span>SAMPLE SIZE</span>
+                  <strong>—</strong>
+                </div>
+                <div className="pgc-fact">
+                  <span>BOOK RANGE</span>
+                  <strong>—</strong>
+                </div>
+              </div>
+              <p className="pgc-empty">
+                {action.emptyLabel || "NO ACTION SNAPSHOT YET"}
+              </p>
+            </div>
           )}
         </div>
 

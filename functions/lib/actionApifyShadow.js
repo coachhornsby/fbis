@@ -185,6 +185,35 @@ export function estimateActorCostUsd(input = {}, { gamesReturned = null, futures
   return roundUsd(usd);
 }
 
+/** Soft harvest/board cap — keep routine BASE collects under this by default. */
+export const ACTION_APIFY_BOARD_SOFT_CAP_USD = 0.95;
+
+/**
+ * Shrink maxItems so estimated Actor cost stays under budgetUsd.
+ * Preserves other input flags. Returns { maxItems, estimatedCostUsd }.
+ */
+export function fitMaxItemsToUsdBudget(input = {}, budgetUsd = ACTION_APIFY_BOARD_SOFT_CAP_USD) {
+  const budget = Number(budgetUsd);
+  const cap = Number.isFinite(budget) && budget > 0 ? budget : ACTION_APIFY_BOARD_SOFT_CAP_USD;
+  const base = { ...(input || {}) };
+  let lo = 1;
+  let hi = Math.max(1, Number(base.maxItems) || 1);
+  let best = 1;
+  let bestCost = estimateActorCostUsd({ ...base, maxItems: 1 }, { gamesReturned: 1 });
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const cost = estimateActorCostUsd({ ...base, maxItems: mid }, { gamesReturned: mid });
+    if (cost <= cap + 1e-9) {
+      best = mid;
+      bestCost = cost;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return { maxItems: best, estimatedCostUsd: bestCost, budgetUsd: cap };
+}
+
 export function createResearchBudget({ limitUsd = ACTION_APIFY_RESEARCH_BUDGET_USD } = {}) {
   let spentUsd = 0;
   const runs = [];

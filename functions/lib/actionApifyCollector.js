@@ -34,6 +34,8 @@ import {
   assertActionApifyNotInProductionRouter,
   buildActorInput,
   estimateActorCostUsd,
+  fitMaxItemsToUsdBudget,
+  ACTION_APIFY_BOARD_SOFT_CAP_USD,
   hashPayload,
   runActionApifyShadow,
 } from "./actionApifyShadow.js";
@@ -120,9 +122,37 @@ export function planCandidateCollection(env, opts) {
   const freePlan = cfg.plan === "free";
   const requestedMax =
     opts.maxItems != null && Number.isFinite(Number(opts.maxItems)) ? Number(opts.maxItems) : cfg.maxItems;
-  const maxItems = freePlan
+  let maxItems = freePlan
     ? Math.min(Math.max(1, Math.floor(requestedMax)), ACTION_APIFY_FREE_MAX_ITEMS)
     : Math.min(Math.max(1, Math.floor(requestedMax)), ACTION_APIFY_STARTER_SAFETY_CAP);
+  // Prefer slate-sized pulls for board intel (avoid estimating the 200-item safety cap).
+  const slateExpected = Number(opts.slateExpected);
+  if (Number.isFinite(slateExpected) && slateExpected > 0) {
+    const slateCap = Math.min(maxItems, Math.ceil(slateExpected) + 8);
+    maxItems = Math.max(1, slateCap);
+  }
+  // Fit under soft board/harvest budget unless caller disables (fitBudgetUsd=false).
+  const fitBudget =
+    opts.fitBudgetUsd === false
+      ? null
+      : Number(opts.fitBudgetUsd) > 0
+        ? Number(opts.fitBudgetUsd)
+        : ACTION_APIFY_BOARD_SOFT_CAP_USD;
+  if (fitBudget != null && !freePlan) {
+    const fitted = fitMaxItemsToUsdBudget(
+      {
+        leagues: leaguesForSport(sport),
+        periods: ["event"],
+        maxItems,
+        includeLineMovement: Boolean(flags.includeLineMovement),
+        includePlayerProps: Boolean(flags.includePlayerProps),
+        includeGameProps: Boolean(flags.includeGameProps),
+        includeGameDetail: Boolean(flags.includeGameDetail),
+      },
+      fitBudget
+    );
+    maxItems = fitted.maxItems;
+  }
   const input = buildActorInput({
     leagues: leaguesForSport(sport),
     maxItems,
@@ -504,7 +534,10 @@ export async function runCandidateCollection(env, opts) {
   const runId = `acr_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
   let plan;
   try {
-    plan = planCandidateCollection(env, opts);
+    plan = planCandidateCollection(env, {
+      ...opts,
+      slateExpected: opts.slateExpected ?? opts.gamesExpected,
+    });
   } catch (err) {
     return {
       ok: false,

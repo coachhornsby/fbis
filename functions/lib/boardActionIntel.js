@@ -10,6 +10,7 @@
  */
 
 import { actionPolicyFlags, normalizeActionSport } from "./actionMarketIntelligence.js";
+import { matchShadowEvent } from "./actionApifyShadow.js";
 
 function safeJson(v) {
   if (v == null) return null;
@@ -234,7 +235,7 @@ export async function loadBoardActionIntelByEventIds(db, eventIds = []) {
   for (let i = 0; i < ids.length; i += chunkSize) {
     const chunk = ids.slice(i, i + chunkSize);
     const placeholders = chunk.map(() => "?").join(",");
-    const sql = `SELECT id, sport, fbis_event_id, home_team, away_team,
+    const sql = `SELECT id, sport, fbis_event_id, home_team, away_team, home_abbr, away_abbr, start_time,
                         consensus_json, public_betting_json, best_odds_json, line_movement_json,
                         research_fields_json, match_confidence,
                         collected_at, source_observed_at, observed_at, scraped_at, created_at
@@ -260,6 +261,99 @@ export async function loadBoardActionIntelByEventIds(db, eventIds = []) {
 }
 
 /**
+ * Display rematch: recent observations without fbis_event_id (or unmatched) → board games.
+ * Fail-closed on ambiguous matches. Never grants qualify/authorize.
+ */
+export async function rematchBoardActionIntel(games = [], db = null, { lookbackHours = 72 } = {}) {
+  const map = new Map();
+  if (!db?.prepare || !games?.length) return map;
+  const missing = games.filter((g) => {
+    const id = String(g?.id || g?.eventId || g?.gameId || "");
+    return id && !(g.actionIntel);
+  });
+  if (!missing.length) return map;
+
+  const sports = [...new Set(missing.map((g) => normalizeActionSport(g.sport || g.league)).filter(Boolean))];
+  const candidates = missing.map((g) => ({
+    id: String(g.id || g.eventId || g.gameId),
+    sport: normalizeActionSport(g.sport || g.league),
+    league: normalizeActionSport(g.sport || g.league),
+    homeTeam: g.home?.name || g.home?.team || g.homeTeam || g.home_team || g.home?.abbr,
+    awayTeam: g.away?.name || g.away?.team || g.awayTeam || g.away_team || g.away?.abbr,
+    homeAbbr: g.home?.abbr || g.homeAbbr || null,
+    awayAbbr: g.away?.abbr || g.awayAbbr || null,
+    startTime: g.start || g.startTime || g.commence_time || g.kickoff || null,
+  }));
+
+  const lookback = Math.max(6, Number(lookbackHours) || 72);
+  for (const sport of sports.length ? sports : [null]) {
+    let sql;
+    let binds;
+    if (sport) {
+      sql = `SELECT id, sport, fbis_event_id, home_team, away_team, home_abbr, away_abbr, start_time, league,
+                    consensus_json, public_betting_json, best_odds_json, line_movement_json,
+                    research_fields_json, match_confidence,
+                    collected_at, source_observed_at, observed_at, scraped_at, created_at
+             FROM shadow_market_observations
+             WHERE LOWER(COALESCE(sport, league, '')) IN (?, ?)
+               AND COALESCE(decision_eligible, 0) = 0
+               AND COALESCE(can_qualify, 0) = 0
+               AND COALESCE(can_authorize_wager, 0) = 0
+               AND COALESCE(collected_at, created_at) >= datetime('now', ?)
+             ORDER BY COALESCE(collected_at, created_at) DESC
+             LIMIT 250`;
+      const aliases =
+        sport === "cfb" ? ["cfb", "ncaaf"] :
+        sport === "cbb" ? ["cbb", "ncaab"] :
+        [sport, sport];
+      binds = [aliases[0], aliases[1], `-${lookback} hours`];
+    } else {
+      sql = `SELECT id, sport, fbis_event_id, home_team, away_team, home_abbr, away_abbr, start_time, league,
+                    consensus_json, public_betting_json, best_odds_json, line_movement_json,
+                    research_fields_json, match_confidence,
+                    collected_at, source_observed_at, observed_at, scraped_at, created_at
+             FROM shadow_market_observations
+             WHERE COALESCE(decision_eligible, 0) = 0
+               AND COALESCE(can_qualify, 0) = 0
+               AND COALESCE(can_authorize_wager, 0) = 0
+               AND COALESCE(collected_at, created_at) >= datetime('now', ?)
+             ORDER BY COALESCE(collected_at, created_at) DESC
+             LIMIT 250`;
+      binds = [`-${lookback} hours`];
+    }
+    let rows = [];
+    try {
+      const res = await db.prepare(sql).bind(...binds).all();
+      rows = res?.results || [];
+    } catch {
+      continue;
+    }
+
+    const sportCands = candidates.filter((c) => !sport || c.sport === sport);
+    for (const row of rows) {
+      const actionRow = {
+        homeTeam: row.home_team,
+        awayTeam: row.away_team,
+        homeAbbr: row.home_abbr,
+        awayAbbr: row.away_abbr,
+        startTime: row.start_time,
+        league: row.league || row.sport,
+      };
+      const m = matchShadowEvent(actionRow, sportCands);
+      if (!m.matched || !m.candidate?.id) continue;
+      const eid = String(m.candidate.id);
+      if (map.has(eid)) continue;
+      const intel = buildBoardActionIntel({ ...row, fbis_event_id: eid });
+      if (!intel) continue;
+      intel.matchConfidence = intel.matchConfidence || m.reason || "REMATCH_DISPLAY";
+      intel.rematchedForDisplay = true;
+      map.set(eid, intel);
+    }
+  }
+  return map;
+}
+
+/**
  * Attach actionIntel onto board/slate games (mutates shallow copies).
  * Also fills display sentiment/publicSplits from ACTION when those are empty,
  * without overwriting production-router odds fields.
@@ -271,6 +365,21 @@ export async function attachActionIntelToGames(games = [], db = null) {
   }
   const ids = list.map((g) => g?.id || g?.eventId || g?.gameId).filter(Boolean);
   const byId = await loadBoardActionIntelByEventIds(db, ids);
+  // Rematch recent observations when fbis_event_id join misses (common when collect skipped/unmatched).
+  const needRematch = list.filter((g) => {
+    const eid = String(g?.id || g?.eventId || g?.gameId || "");
+    return eid && !byId.has(eid);
+  });
+  let rematched = 0;
+  if (needRematch.length) {
+    const rematchMap = await rematchBoardActionIntel(needRematch, db);
+    for (const [eid, intel] of rematchMap) {
+      if (!byId.has(eid)) {
+        byId.set(eid, intel);
+        rematched += 1;
+      }
+    }
+  }
   let attached = 0;
   const out = list.map((g) => {
     const eid = String(g?.id || g?.eventId || g?.gameId || "");
@@ -299,5 +408,11 @@ export async function attachActionIntelToGames(games = [], db = null) {
       publicSplits: g.publicSplits || intel.publicSplits,
     };
   });
-  return { games: out, attached, checked: ids.length, matchedIds: [...byId.keys()] };
+  return {
+    games: out,
+    attached,
+    checked: ids.length,
+    matchedIds: [...byId.keys()],
+    rematched,
+  };
 }

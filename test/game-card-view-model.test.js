@@ -108,7 +108,7 @@ describe("buildGameCardViewModel", () => {
       mlbOppositeSides({ actionIntel: null, publicSplits: null })
     );
     assert.equal(vm.action.available, false);
-    assert.match(vm.action.emptyLabel, /NO CURRENT DATA/);
+    assert.match(vm.action.emptyLabel, /NO ACTION SNAPSHOT YET/);
   });
 
   it("research cards stay research — no EV inventing", () => {

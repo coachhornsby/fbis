@@ -173,6 +173,7 @@ export async function onRequestGet(context) {
     gameUrlsRaw != null && String(gameUrlsRaw).trim() !== ""
       ? String(gameUrlsRaw).split(",").map((s) => s.trim()).filter(Boolean)
       : undefined;
+  const slate = await loadFbisSlate(context.env, { sport, date });
   const plan = planCandidateCollection(context.env, {
     sport,
     lifecycle,
@@ -180,8 +181,8 @@ export async function onRequestGet(context) {
     date,
     maxItems,
     gameUrls,
+    slateExpected: slate.gamesExpected,
   });
-  const slate = await loadFbisSlate(context.env, { sport, date });
   const mtd = await queryMonthToDateSpendUsd(db);
   const safety = evaluateSchedulerSafety(plan, { monthToDateCostUsd: mtd.mtdUsd });
   return json({
@@ -258,6 +259,7 @@ export async function onRequestPost(context) {
   const db = createCandidateDb(context.env);
 
   if (!execute) {
+    const slateDry = await loadFbisSlate(context.env, { sport, date });
     const plan = planCandidateCollection(context.env, {
       sport,
       lifecycle,
@@ -265,6 +267,7 @@ export async function onRequestPost(context) {
       date,
       maxItems,
       gameUrls,
+      slateExpected: slateDry.gamesExpected,
     });
     const mtd = await queryMonthToDateSpendUsd(db);
     const safety = evaluateSchedulerSafety(plan, { monthToDateCostUsd: mtd.mtdUsd });
@@ -293,12 +296,22 @@ export async function onRequestPost(context) {
 
   try {
     const slate = await loadFbisSlate(context.env, { sport, date });
-    const result = await runCandidateCollection(context.env, {
+    // Size to slate + soft board budget so harvest $1 soft-cap no longer blocks NFL/CFB.
+    const sized = planCandidateCollection(context.env, {
       sport,
       lifecycle,
       profile,
       date,
       maxItems,
+      gameUrls,
+      slateExpected: slate.gamesExpected,
+    });
+    const result = await runCandidateCollection(context.env, {
+      sport,
+      lifecycle,
+      profile,
+      date,
+      maxItems: sized.input.maxItems,
       gameUrls,
       fbisEvents: slate.fbisEvents,
       gamesExpected: slate.gamesExpected,

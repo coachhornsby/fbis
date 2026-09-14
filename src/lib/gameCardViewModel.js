@@ -188,7 +188,7 @@ function buildActionPanel(game, away, home, units) {
   if (!intel && !splits) {
     return {
       available: false,
-      emptyLabel: "NO CURRENT DATA",
+      emptyLabel: "NO ACTION SNAPSHOT YET",
       headline: null,
       tickets: null,
       money: null,

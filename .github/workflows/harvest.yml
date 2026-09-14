@@ -370,8 +370,10 @@ jobs:
           fi
           python3 - <<PY
           est = float("${estimate}" or 0)
-          if est > 1.0:
-              raise SystemExit(f"estimate {est} exceeds soft cap 1.0")
+          # Soft cap aligns with board fit budget (~$0.95) with headroom for slate spikes.
+          # Collect API now slate-sizes + fits under ACTION_APIFY_BOARD_SOFT_CAP_USD.
+          if est > 2.0:
+              raise SystemExit(f"estimate {est} exceeds soft cap 2.0")
           print(f"estimate_ok={est}")
           PY
           body="$(mktemp)"

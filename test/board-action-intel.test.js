@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildBoardActionIntel,
   attachActionIntelToGames,
+  rematchBoardActionIntel,
 } from "../functions/lib/boardActionIntel.js";
 import { leaguesForSport } from "../functions/lib/actionApifyCollector.js";
 import { ODDS_PROVIDER_ORDER } from "../functions/lib/oddsProviderRouter.js";
@@ -64,13 +65,14 @@ test("attachActionIntelToGames joins by event id and never promotes odds authori
   const db = {
     prepare(sql) {
       assert.match(sql, /shadow_market_observations/);
-      assert.match(sql, /fbis_event_id/);
       return {
         bind() {
           return this;
         },
         async all() {
-          return { results: rows };
+          // First query is by fbis_event_id; rematch query is lookback by sport.
+          if (/fbis_event_id IN/.test(sql)) return { results: rows };
+          return { results: [] };
         },
       };
     },
@@ -129,3 +131,55 @@ test("publicSplits.markets exposes ML / RL / TOTAL money leans for knife UI", ()
   assert.ok(intel.publicSplits.markets.every((m) => m.sharpLabel == null));
 });
 
+
+
+test("rematchBoardActionIntel attaches by team+kickoff when fbis_event_id missing", async () => {
+  const kickoff = "2026-09-14T20:00:00.000Z";
+  const obs = [
+    {
+      id: "smo_1",
+      sport: "nfl",
+      league: "nfl",
+      fbis_event_id: null,
+      home_team: "Kansas City Chiefs",
+      away_team: "Denver Broncos",
+      home_abbr: "KC",
+      away_abbr: "DEN",
+      start_time: kickoff,
+      match_confidence: "UNMATCHED",
+      collected_at: "2026-09-14T18:00:00.000Z",
+      consensus_json: JSON.stringify({ spreadHome: -3.5, total: 44 }),
+      public_betting_json: JSON.stringify({
+        spreadHome: { ticketsPercent: 40, moneyPercent: 58 },
+        betCount: 1200,
+      }),
+      best_odds_json: null,
+      line_movement_json: JSON.stringify({ openSpreadHome: -3, currentSpreadHome: -3.5 }),
+      research_fields_json: null,
+    },
+  ];
+  const db = {
+    prepare(sql) {
+      return {
+        bind() { return this; },
+        async all() { return { results: obs }; },
+      };
+    },
+  };
+  const games = [
+    {
+      id: "nfl_broncos_chiefs_2026-09-14_b3",
+      sport: "nfl",
+      start: kickoff,
+      away: { abbr: "DEN", name: "Denver Broncos" },
+      home: { abbr: "KC", name: "Kansas City Chiefs" },
+    },
+  ];
+  const map = await rematchBoardActionIntel(games, db);
+  assert.equal(map.has("nfl_broncos_chiefs_2026-09-14_b3"), true);
+  const intel = map.get("nfl_broncos_chiefs_2026-09-14_b3");
+  assert.equal(intel.publicSplits.ticketPct, 40);
+  assert.equal(intel.publicSplits.moneyPct, 58);
+  assert.equal(intel.rematchedForDisplay, true);
+  assert.equal(intel.canQualify, false);
+});
