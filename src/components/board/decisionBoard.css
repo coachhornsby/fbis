@@ -113,9 +113,11 @@
 /* —— Layout: multi-column card grid —— */
 .db-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  /* Full-width cards to match approved mockup density. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
   align-items: start;
+  max-width: 1120px;
 }
 
 .db-grid-item {
@@ -167,27 +169,27 @@
   background-image:
     linear-gradient(
       185deg,
-      rgba(6, 14, 24, 0.58) 0%,
-      rgba(8, 18, 30, 0.68) 42%,
-      rgba(6, 12, 22, 0.78) 100%
+      rgba(6, 14, 24, 0.42) 0%,
+      rgba(8, 18, 30, 0.52) 38%,
+      rgba(6, 12, 22, 0.68) 100%
     ),
-    radial-gradient(ellipse 90% 70% at 50% 40%, rgba(20, 40, 60, 0.12) 0%, rgba(4, 10, 18, 0.4) 72%),
+    radial-gradient(ellipse 95% 75% at 50% 55%, rgba(30, 55, 80, 0.08) 0%, rgba(4, 10, 18, 0.28) 75%),
     var(--db-venue-image);
   background-size: cover, cover, cover;
-  background-position: center, center, center 45%;
+  background-position: center, center, center 55%;
   background-repeat: no-repeat;
 }
 .db-card--mlb {
-  --db-venue-image: url("/backgrounds/mlb-stadium-angel-sunset.jpg");
-  background-position: center, center, center 62%;
+  --db-venue-image: url("/backgrounds/mlb-stadium-homeplate.jpg");
+  background-position: center, center, center 72%;
 }
 .db-card--cfb {
   --db-venue-image: url("/backgrounds/cfb-stadium-big-house.jpg");
-  background-position: center, center, center 58%;
+  background-position: center, center, center 62%;
 }
 .db-card--football {
   --db-venue-image: url("/backgrounds/nfl-stadium-levis.jpg");
-  background-position: center, center, center 62%;
+  background-position: center, center, center 68%;
 }
 .db-card--nba {
   --db-venue-image: url("/backgrounds/nba-kobe-jordan.jpg");
@@ -199,7 +201,7 @@
 }
 .db-card--nhl {
   --db-venue-image: url("/backgrounds/nhl-arena-garden.jpg");
-  background-position: center, center, center 58%;
+  background-position: center, center, center 62%;
 }
 
 .db-card--mlb:hover,
@@ -212,11 +214,11 @@
   background-image:
     linear-gradient(
       185deg,
-      rgba(6, 14, 24, 0.52) 0%,
-      rgba(8, 18, 30, 0.62) 42%,
-      rgba(6, 12, 22, 0.74) 100%
+      rgba(6, 14, 24, 0.34) 0%,
+      rgba(8, 18, 30, 0.44) 38%,
+      rgba(6, 12, 22, 0.62) 100%
     ),
-    radial-gradient(ellipse 90% 70% at 50% 40%, rgba(30, 55, 80, 0.16) 0%, rgba(4, 10, 18, 0.36) 72%),
+    radial-gradient(ellipse 95% 75% at 50% 55%, rgba(40, 70, 100, 0.12) 0%, rgba(4, 10, 18, 0.22) 75%),
     var(--db-venue-image);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -229,11 +231,11 @@
     background-image:
       linear-gradient(
         185deg,
-        rgba(6, 14, 24, 0.58) 0%,
-        rgba(8, 18, 30, 0.68) 42%,
-        rgba(6, 12, 22, 0.78) 100%
+        rgba(6, 14, 24, 0.42) 0%,
+        rgba(8, 18, 30, 0.52) 38%,
+        rgba(6, 12, 22, 0.68) 100%
       ),
-      radial-gradient(ellipse 90% 70% at 50% 40%, rgba(20, 40, 60, 0.12) 0%, rgba(4, 10, 18, 0.4) 72%),
+      radial-gradient(ellipse 95% 75% at 50% 55%, rgba(30, 55, 80, 0.08) 0%, rgba(4, 10, 18, 0.28) 75%),
       var(--db-venue-image);
   }
 }
@@ -696,7 +698,7 @@
 
 @media (max-width: 1200px) {
   .db-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -716,8 +718,8 @@
 
 @media (min-width: 1400px) {
   .db-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
   }
   .db-hero-score { font-size: 26px; }
   .db-card { padding: 10px 12px; }

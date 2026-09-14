@@ -1129,11 +1129,14 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   background: transparent;
 }
 
+/* Full-width premium cards so mockup 3-panel density fits.
+   2-up only on very wide viewports. */
 .board-card-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 22px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
   align-items: stretch;
+  max-width: 1120px;
 }
 .board-card-grid > [role="listitem"] {
   display: flex;
@@ -1742,7 +1745,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 }
 
 @media (max-width: 1199px) {
-  .board-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .board-card-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
 }
 @media (max-width: 699px) {
   .board-card-grid { grid-template-columns: 1fr; gap: 14px; }

@@ -30,6 +30,8 @@ const mlb = {
   decision: { qualification: "QUALIFIED", tier: "QUALIFIED", label: "QUALIFIED" },
   market: {
     marketAvailable: true,
+    label: "CONSENSUS",
+    book: "SharpAPI",
     execution: {
       available: true,
       book: "FanDuel",
@@ -98,8 +100,8 @@ function Preview() {
       <h1 style={{ color: "#fff", fontFamily: "system-ui", marginBottom: 16 }}>
         Premium card preview
       </h1>
-      <div style={{ display: "grid", gap: 24, maxWidth: 1100 }}>
-        <PremiumGameCard game={mlb} open={true} onToggle={() => {}} />
+      <div style={{ display: "grid", gap: 24, maxWidth: 1120 }}>
+        <PremiumGameCard game={mlb} open={false} onToggle={() => {}} />
         <PremiumGameCard game={nfl} />
       </div>
     </div>
