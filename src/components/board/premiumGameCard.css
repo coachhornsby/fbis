@@ -29,7 +29,7 @@
 
 .pgc.status-qualified {
   box-shadow:
-    0 0 0 1px rgba(63, 185, 80, 0.5),
+    0 0 0 1px rgba(0, 245, 118, 0.5),
     0 12px 30px rgba(0, 0, 0, 0.4);
 }
 .pgc.status-research {
@@ -80,8 +80,8 @@
   font-weight: 900;
   letter-spacing: 0.06em;
   color: #d7f6ff;
-  background: rgba(62, 199, 232, 0.16);
-  border: 1px solid rgba(62, 199, 232, 0.35);
+  background: rgba(26, 194, 254, 0.16);
+  border: 1px solid rgba(26, 194, 254, 0.35);
 }
 .pgc-status {
   display: inline-flex;
@@ -96,9 +96,9 @@
   background: rgba(255, 255, 255, 0.06);
 }
 .pgc-status-qualified {
-  color: #aff5b4;
-  background: rgba(63, 185, 80, 0.16);
-  border-color: rgba(63, 185, 80, 0.45);
+  color: #00f576;
+  background: rgba(0, 245, 118, 0.16);
+  border-color: rgba(0, 245, 118, 0.45);
 }
 .pgc-status-research {
   color: #d2a8ff;
@@ -260,12 +260,12 @@
   min-width: 0;
 }
 .pgc-panel-model {
-  border-color: rgba(62, 199, 232, 0.35);
-  box-shadow: inset 0 0 0 1px rgba(62, 199, 232, 0.08);
+  border-color: rgba(26, 194, 254, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(26, 194, 254, 0.08);
 }
 .pgc-panel-action {
-  border-color: rgba(63, 185, 80, 0.35);
-  box-shadow: inset 0 0 0 1px rgba(63, 185, 80, 0.08);
+  border-color: rgba(0, 245, 118, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 245, 118, 0.08);
 }
 .pgc-panel-info {
   border-color: rgba(170, 200, 230, 0.2);
@@ -343,8 +343,8 @@
   border-color: rgba(248, 81, 73, 0.35);
 }
 .pgc-pill.ok {
-  color: #aff5b4;
-  border-color: rgba(63, 185, 80, 0.3);
+  color: #00f576;
+  border-color: rgba(0, 245, 118, 0.3);
 }
 
 .pgc-side-compare,
@@ -384,8 +384,8 @@
   gap: 6px;
   padding: 7px 8px;
   border-radius: 8px;
-  background: rgba(255, 107, 74, 0.12);
-  border: 1px solid rgba(255, 107, 74, 0.4);
+  background: rgba(243, 33, 76, 0.12);
+  border: 1px solid rgba(243, 33, 76, 0.4);
 }
 .pgc-signal-top {
   display: flex;
@@ -394,7 +394,7 @@
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.04em;
-  color: #ffc1b5;
+  color: #ff7ba6;
 }
 .pgc-signal-body {
   display: flex;
@@ -496,7 +496,7 @@
   margin-left: 4px;
 }
 .pgc-fact em.neg { color: #ffc1c0; }
-.pgc-fact em.pos { color: #aff5b4; }
+.pgc-fact em.pos { color: #00f576; }
 .pgc-fact em.warn { color: #ffd999; }
 
 .pgc-info-lab {
