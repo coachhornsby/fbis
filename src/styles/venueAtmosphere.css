@@ -33,8 +33,9 @@
   background-position: center, center, center 58% !important;
 }
 .venue-bg--football {
-  --venue-image: url("/backgrounds/football-stadium-night.jpg");
-  background-position: center, center, center 55% !important;
+  --venue-image: url("/backgrounds/nfl-stadium-levis.jpg");
+  /* Frame the field bowl; keep the sun flare from washing card text */
+  background-position: center, center, center 62% !important;
 }
 .venue-bg--basketball {
   --venue-image: url("/backgrounds/basketball-arena-night.jpg");

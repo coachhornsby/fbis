@@ -185,8 +185,8 @@
   background-position: center, center, center 58%;
 }
 .db-card--football {
-  --db-venue-image: url("/backgrounds/football-stadium-night.jpg");
-  background-position: center, center, center 55%;
+  --db-venue-image: url("/backgrounds/nfl-stadium-levis.jpg");
+  background-position: center, center, center 62%;
 }
 .db-card--basketball {
   --db-venue-image: url("/backgrounds/basketball-arena-night.jpg");
