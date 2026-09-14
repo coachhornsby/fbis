@@ -87,7 +87,7 @@ jobs:
           node scripts/cfb-temporal-smoke-backfill.mjs
       - name: Upload temporal smoke artifacts
         if: ${{ github.event.inputs.job == 'cfb-temporal-smoke' && hashFiles('artifacts/**') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-temporal-smoke
           path: artifacts/
@@ -112,7 +112,7 @@ jobs:
           node scripts/cfb-feature-backfill.mjs
       - name: Upload backfill artifacts
         if: ${{ github.event.inputs.job == 'cfb-feature-backfill' && hashFiles('artifacts/**') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfb-fbis-v2-backfill
           path: artifacts/
@@ -253,7 +253,7 @@ jobs:
           fi
       - name: Upload CFBD audit artifact
         if: ${{ github.event.inputs.job == 'cfbd-endpoint-audit' && hashFiles('artifacts/cfbd-endpoint-audit.json') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfbd-endpoint-audit
           path: artifacts/

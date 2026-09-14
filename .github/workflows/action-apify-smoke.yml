@@ -182,7 +182,7 @@ jobs:
 
       - name: Upload redacted smoke artifacts
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: action-apify-base-smoke
           path: |
