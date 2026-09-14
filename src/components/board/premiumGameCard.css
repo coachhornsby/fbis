@@ -607,7 +607,7 @@
 }
 
 .pgc-top { min-height: 28px; position: relative; z-index: 2; }
-.pgc-time { font-size: 20px; line-height: 1; }
+.pgc-time { font-size: 11px; line-height: 1.1; }
 .pgc-sport-pill { font-size: 12px; padding: 4px 13px; border-color: #0da9ed; color: #43d5ff; }
 .pgc-status { font-size: 12px; padding: 5px 15px; }
 .pgc-status-qualified { color: #00ff78; background: rgba(0, 105, 49, 0.55); border-color: #00e86c; box-shadow: 0 0 15px rgba(0, 238, 114, 0.24); }
@@ -723,7 +723,7 @@
 @media (max-width: 520px) {
   .pgc { border-radius: 12px; gap: 8px; }
   .pgc-top { align-items: flex-start; }
-  .pgc-time { font-size: 17px; }
+  .pgc-time { font-size: 10px; }
   .pgc-status { max-width: 150px; text-align: center; justify-content: center; }
   .pgc-hero { grid-template-columns: 1fr 76px 1fr; min-height: 178px; gap: 5px; }
   .pgc-hero-logo .team-logo { width: 62px !important; height: 62px !important; }

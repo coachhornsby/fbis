@@ -644,7 +644,7 @@
 .agd-hero-proj-label { margin-top: 10px; color: #70d9ff; font-size: 11px; font-weight: 900; letter-spacing: .04em; }
 .agd-hero-score { font-size: 43px; line-height: 1; font-weight: 950; }
 .agd-hero-center { text-align: center; text-shadow: 0 2px 8px #000; }
-.agd-hero-time { font-size: 28px; font-weight: 950; }
+.agd-hero-time { font-size: 16px; font-weight: 950; }
 .agd-hero-venue { font-size: 15px; font-weight: 900; }
 .agd-hero-weather { margin-top: 10px; font-size: 14px; }
 .agd-hero-matchup { display: inline-block; margin-top: 10px; padding: 4px 16px; border-radius: 7px; background: rgba(1, 13, 26, .72); font-size: 22px; font-weight: 900; letter-spacing: .05em; }
