@@ -296,12 +296,12 @@
   min-height: 48px;
 }
 
-/* —— Comparison graphics —— */
+/* —— Comparison graphics (stacked for narrow multi-col cards) —— */
 .db-row-compare {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 12px;
-  align-items: center;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .db-track {
@@ -546,12 +546,6 @@
 /* Dense board well */
 .decision-board-well {
   padding: 8px !important;
-}
-
-/* Narrower cards: stack FBIS↔market graphics vertically */
-.db-row-compare {
-  grid-template-columns: 1fr;
-  gap: 8px;
 }
 
 .db-public {
