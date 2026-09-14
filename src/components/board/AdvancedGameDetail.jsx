@@ -85,7 +85,6 @@ export default function AdvancedGameDetail({ game, onClose }) {
                 <ProbBar title="COVER PROBABILITY" data={vm.probabilities.cover} away={vm.away} home={vm.home} />
                 <EvCard ev={vm.probabilities.ev} home={vm.home} />
                 <ConfidenceCard confidence={vm.probabilities.confidence} />
-                <TotalCard total={vm.probabilities.total} />
               </div>
             </div>
 
@@ -227,34 +226,32 @@ function ProjectedScores({ vm }) {
       <h3 className="agd-section-title">PROJECTED SCORES</h3>
       {p.available ? (
         <div className="agd-proj-row">
-          <div className="agd-proj-team">
-            <TeamLogo team={vm.away} size={28} />
-            <div>
-              <div className="agd-proj-score">{p.away ?? "—"}</div>
-              <div className="agd-proj-name">
-                {String(vm.away?.name || vm.away?.abbr || "AWAY").toUpperCase()}
-                {vm.away?.record ? ` (${vm.away.record})` : ""}
-              </div>
-            </div>
-          </div>
+          <ProjTeam side="away" team={vm.away} score={p.away} />
           <div className="agd-proj-total">
             <span>Total</span>
             <strong>{p.total ?? "—"}</strong>
           </div>
-          <div className="agd-proj-team agd-proj-team-home">
-            <div>
-              <div className="agd-proj-score">{p.home ?? "—"}</div>
-              <div className="agd-proj-name">
-                {String(vm.home?.name || vm.home?.abbr || "HOME").toUpperCase()}
-                {vm.home?.record ? ` (${vm.home.record})` : ""}
-              </div>
-            </div>
-            <TeamLogo team={vm.home} size={28} />
-          </div>
+          <ProjTeam side="home" team={vm.home} score={p.home} />
         </div>
       ) : (
         <p className="agd-empty">No FBIS projection published</p>
       )}
+    </div>
+  );
+}
+
+function ProjTeam({ side, team, score }) {
+  const abbr = String(team?.abbr || team?.name || (side === "home" ? "HOME" : "AWAY")).toUpperCase();
+  const full = team?.name ? String(team.name).toUpperCase() : null;
+  return (
+    <div className={`agd-proj-team agd-proj-team-${side}`}>
+      <TeamLogo team={team} size={28} />
+      <div className="agd-proj-score">{score ?? "—"}</div>
+      <div className="agd-proj-name" title={full || abbr}>
+        <span className="agd-proj-abbr">{abbr}</span>
+        {team?.record ? <span className="agd-proj-record">({team.record})</span> : null}
+      </div>
+      {full && full !== abbr ? <div className="agd-proj-fullname">{full}</div> : null}
     </div>
   );
 }
@@ -358,7 +355,9 @@ function LineHistoryCard({ history, compact = false }) {
       {history?.available ? (
         <LineSpark points={history.points || []} />
       ) : (
-        <p className="agd-empty">{history?.emptyReason || "Unavailable"}</p>
+        <p className="agd-empty">
+          {compact ? "No ACTION snapshot yet" : history?.emptyReason || "Unavailable"}
+        </p>
       )}
     </div>
   );
@@ -420,7 +419,7 @@ function BettingSplitsCard({ splits, away, home, mode, setMode, compact = false 
       </div>
 
       {!splits?.available ? (
-        <p className="agd-empty">No ACTION splits for this game</p>
+        <p className="agd-empty">{compact ? "No ACTION snapshot yet" : "No ACTION splits for this game"}</p>
       ) : mode === "both" ? (
         <>
           <SplitRow label="Public Tickets" row={splits.tickets} away={away} home={home} />
