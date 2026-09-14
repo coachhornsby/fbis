@@ -256,14 +256,23 @@ function TodayTable({ games, propWatch }) {
             {mlb ? <td><TodayF5Cell g={g} /></td> : null}
             {mlb ? <td><TodayPropsCell g={g} propWatch={propWatch} /></td> : null}
             <td>
-              {g.marketUnresolved || g.marketUnavailable ? (
-                <span className="muted">{g.marketUnresolved ? "TEAM MATCH UNRESOLVED" : (g.referenceMarketAvailable ? "execution market unavailable" : "operational market unavailable")}</span>
-              ) : (
+              {g.marketUnresolved ? (
+                <span className="muted">TEAM MATCH UNRESOLVED</span>
+              ) : !g.marketUnavailable ? (
                 <>
                   <div>{marketMlLabel(g)}</div>
                   <div className="muted">{marketSpreadLabel(g)}</div>
                   <div className="muted">{marketTotalLabel(g)}</div>
                 </>
+              ) : g.referenceMarketAvailable ? (
+                <>
+                  <div className="muted">REFERENCE ONLY</div>
+                  <div>{marketMlLabel(g)}</div>
+                  <div className="muted">{marketSpreadLabel(g)}</div>
+                  <div className="muted">{marketTotalLabel(g)}</div>
+                </>
+              ) : (
+                <span className="muted">operational market unavailable</span>
               )}
             </td>
             <td>
