@@ -1,6 +1,7 @@
 import TeamLogo from "../TeamLogo.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
+import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
 import "./premiumGameCard.css";
 
 function StatusPill({ status }) {
@@ -365,13 +366,17 @@ export default function PremiumGameCard({
         )}
       </footer>
 
-      {open && typeof renderDetail === "function" ? (
-        <div className="pgc-detail">{renderDetail(game)}</div>
+      {open ? (
+        <div className="pgc-advanced">
+          <AdvancedGameDetail game={game} onClose={handleToggle} />
+          {typeof renderDetail === "function" ? (
+            <div className="pgc-detail">{renderDetail(game)}</div>
+          ) : null}
+        </div>
       ) : null}
     </article>
   );
 }
-
 function nickname(team) {
   if (!team) return "—";
   const full = String(team.fullName || team.displayName || "").trim();

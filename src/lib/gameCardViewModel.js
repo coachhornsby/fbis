@@ -176,8 +176,15 @@ function sideFromHomeSpread(homeSpread, away, home) {
 }
 
 function buildActionPanel(game, away, home, units) {
-  const intel = game?.actionIntel || null;
-  const splits = game?.publicSplits || intel?.publicSplits || null;
+  // Board attaches `actionIntel` (shadow ACTION). Accept legacy aliases too.
+  const intel = game?.actionIntel || game?.actionIntel || game?.action || null;
+  const splits =
+    game?.publicSplits ||
+    game?.publicSplits ||
+    intel?.publicSplits ||
+    intel?.publicSplits ||
+    game?.sentiment ||
+    null;
   if (!intel && !splits) {
     return {
       available: false,
@@ -190,19 +197,36 @@ function buildActionPanel(game, away, home, units) {
       lineMove: null,
       sample: null,
       bookRange: null,
+      markets: [],
+      consensus: null,
       poweredBy: null,
       canQualify: false,
       canAuthorize: false,
+      advanced: null,
     };
   }
 
   const ticketHome = num(
-    splits?.ticketPct ?? splits?.ticketsPct ?? intel?.publicSplits?.ticketPct
+    splits?.ticketPct ??
+      splits?.ticketsPct ??
+      splits?.ticketPct ??
+      intel?.publicSplits?.ticketPct ??
+      intel?.publicSplits?.ticketPct
   );
-  const moneyHome = num(splits?.moneyPct ?? splits?.money ?? intel?.publicSplits?.moneyPct);
+  const moneyHome = num(
+    splits?.moneyPct ??
+      splits?.money ??
+      splits?.moneyPct ??
+      intel?.publicSplits?.moneyPct ??
+      intel?.publicSplits?.moneyPct
+  );
   const gap =
-    num(splits?.moneyTicketGap ?? intel?.publicSplits?.moneyTicketGap) ??
-    (ticketHome != null && moneyHome != null ? moneyHome - ticketHome : null);
+    num(
+      splits?.moneyTicketGap ??
+        splits?.moneyTicketGap ??
+        intel?.publicSplits?.moneyTicketGap ??
+        intel?.publicSplits?.moneyTicketGap
+    ) ?? (ticketHome != null && moneyHome != null ? moneyHome - ticketHome : null);
 
   const tickets =
     ticketHome == null
@@ -224,11 +248,25 @@ function buildActionPanel(game, away, home, units) {
           away,
         };
 
-  const open = num(intel?.movement?.openingLine ?? intel?.movement?.openLine);
-  const curr = num(intel?.movement?.currentLine ?? intel?.consensus?.spreadHome);
+  const open = num(
+    intel?.movement?.openingLine ??
+      intel?.movement?.openingLine ??
+      intel?.movement?.openLine ??
+      intel?.movement?.openingLine ??
+      intel?.sentiment?.openingLine
+  );
+  const curr = num(
+    intel?.movement?.currentLine ??
+      intel?.movement?.currentLine ??
+      intel?.consensus?.spreadHome ??
+      intel?.sentiment?.currentLine
+  );
   const moveMag =
-    num(intel?.movement?.movementMagnitude) ??
-    (open != null && curr != null ? curr - open : null);
+    num(
+      intel?.movement?.movementMagnitude ??
+        intel?.movement?.movementMagnitude ??
+        intel?.movement?.magnitude
+    ) ?? (open != null && curr != null ? curr - open : null);
 
   const moveSide = sideFromHomeSpread(curr ?? open, away, home);
   const openSide = sideFromHomeSpread(open, away, home);
@@ -272,17 +310,30 @@ function buildActionPanel(game, away, home, units) {
       : null;
 
   const books =
-    num(intel?.booksCount) ??
-    (Array.isArray(intel?.bestOdds) ? intel.bestOdds.length : null);
+    num(intel?.booksCount ?? intel?.booksCount ?? intel?.booksCount) ??
+    (Array.isArray(intel?.bestOdds) ? Object.keys(intel.bestOdds).length : null) ??
+    (Array.isArray(intel?.books) ? intel.books.length : null);
 
-  const rangeLow = num(intel?.lineRange?.low ?? intel?.bookRange?.low);
-  const rangeHigh = num(intel?.lineRange?.high ?? intel?.bookRange?.high);
+  const rangeLow = num(
+    intel?.lineRange?.low ?? intel?.bookRange?.low ?? intel?.lineRange?.min
+  );
+  const rangeHigh = num(
+    intel?.lineRange?.high ?? intel?.bookRange?.high ?? intel?.lineRange?.max
+  );
 
   const sampleRaw =
     num(intel?.sampleSize) ??
     num(intel?.trackedBets) ??
+    num(intel?.trackedBets) ??
     num(splits?.sampleSize) ??
+    num(splits?.betCount) ??
     null;
+
+  const marketRows = normalizeActionMarkets(
+    splits?.markets || intel?.publicSplits?.markets || intel?.publicSplits?.markets,
+    away,
+    home
+  );
 
   const bookRange =
     books != null || (rangeLow != null && rangeHigh != null)
@@ -301,23 +352,45 @@ function buildActionPanel(game, away, home, units) {
         }
       : null;
 
+  const providerSharp =
+    intel?.publicSplits?.sharpLabel ||
+    intel?.publicSplits?.sharpLabel ||
+    intel?.sharpLabel ||
+    intel?.providerSharpSignal ||
+    null;
+  const providerSteam =
+    intel?.providerSteamSignal || intel?.steamLabel || intel?.publicSplits?.steamLabel || null;
+
+  const headline = pickActionHeadline({
+    ticketHome,
+    moneyHome,
+    gap,
+    movement,
+    providerSharp,
+    providerSteam,
+    away,
+    home,
+    marketHomeSpread: num(
+      game?.market?.execution?.spread ??
+        game?.market?.consensus?.spread ??
+        intel?.consensus?.spreadHome ??
+        game?.odds?.spread
+    ),
+  });
+
+  const consensus = intel?.consensus
+    ? {
+        spreadHome: num(intel.consensus.spreadHome),
+        total: num(intel.consensus.total),
+        mlHome: num(intel.consensus.mlHome),
+        mlAway: num(intel.consensus.mlAway),
+      }
+    : null;
+
   return {
     available: true,
     emptyLabel: null,
-    headline: pickActionHeadline({
-      ticketHome,
-      moneyHome,
-      gap,
-      movement,
-      providerSharp: intel?.publicSplits?.sharpLabel || intel?.sharpLabel || null,
-      away,
-      home,
-      marketHomeSpread: num(
-        game?.market?.execution?.spread ??
-          game?.market?.consensus?.spread ??
-          game?.odds?.spread
-      ),
-    }),
+    headline,
     tickets,
     money,
     divergence:
@@ -346,11 +419,65 @@ function buildActionPanel(game, away, home, units) {
             low: sampleRaw < 500,
           },
     bookRange,
+    markets: marketRows,
+    consensus,
+    bestBook: intel?.movement?.bestBook || null,
+    collectedAt: intel?.collectedAt || null,
     poweredBy: "ACTION",
     displayOnly: true,
     canQualify: false,
     canAuthorize: false,
+    // Full ACTION payload for the advanced expand — presentation only.
+    advanced: {
+      provider: intel?.provider || "ACTION",
+      role: intel?.role || "market_intelligence",
+      displayOnly: true,
+      headline,
+      tickets,
+      money,
+      markets: marketRows,
+      consensus,
+      lineMove,
+      sample:
+        sampleRaw == null
+          ? null
+          : { count: sampleRaw, label: formatSample(sampleRaw), low: sampleRaw < 500 },
+      bookRange,
+      bestBook: intel?.movement?.bestBook || null,
+      providerSharp: providerSharp ? String(providerSharp) : null,
+      providerSteam: providerSteam ? String(providerSteam) : null,
+      collectedAt: intel?.collectedAt || null,
+      matchConfidence: intel?.matchConfidence || null,
+    },
   };
+}
+
+function normalizeActionMarkets(rows, away, home) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+  return rows
+    .map((m) => {
+      if (!m || typeof m !== "object") return null;
+      const market = String(m.market || m.key || "").toUpperCase() || "RL";
+      const ticketPct = num(m.ticketPct ?? m.ticketsPct ?? m.ticketPct);
+      const moneyPct = num(m.moneyPct ?? m.moneyPct);
+      const gap = num(m.moneyTicketGap ?? m.moneyTicketGap);
+      const lean =
+        m.leanSide ||
+        (gap == null || gap === 0 ? null : gap > 0 ? "HOME" : "AWAY");
+      const leanTeam =
+        lean === "HOME" || lean === "OVER" ? home : lean === "AWAY" || lean === "UNDER" ? away : null;
+      return {
+        market,
+        ticketPct: ticketPct == null ? null : clampPct(ticketPct),
+        moneyPct: moneyPct == null ? null : clampPct(moneyPct),
+        moneyTicketGap: gap,
+        leanSide: lean,
+        leanTeam,
+        // Never invent sharp — only pass through if provider set it (usually null).
+        providerSharp: m.sharpLabel || m.providerSharpSignal || null,
+      };
+    })
+    .filter(Boolean);
 }
 
 function pickActionHeadline({
@@ -359,6 +486,7 @@ function pickActionHeadline({
   gap,
   movement,
   providerSharp,
+  providerSteam,
   away,
   home,
   marketHomeSpread,
@@ -371,15 +499,25 @@ function pickActionHeadline({
         ? `${home.abbr} ${fmtLine(marketHomeSpread)}`
         : `${away.abbr} ${fmtLine(-Number(marketHomeSpread))}`;
 
-  // Never invent "ACTION SHARP" — only provider-supplied sharp labels.
+  // Provider-supplied only — never invent FBIS "sharp".
   if (providerSharp && String(providerSharp).trim()) {
     return {
       kind: "PROVIDER_SHARP",
       icon: "🎯",
-      label: "SHARP MONEY",
+      label: "ACTION SHARP SIGNAL",
       detail: "LARGER BETS DETECTED",
       team: leanTeam,
       lineLabel: leanLine || String(providerSharp),
+    };
+  }
+  if (providerSteam && String(providerSteam).trim()) {
+    return {
+      kind: "PROVIDER_STEAM",
+      icon: "♨️",
+      label: "ACTION STEAM",
+      detail: String(providerSteam),
+      team: leanTeam,
+      lineLabel: leanLine,
     };
   }
   if (gap != null && Math.abs(gap) >= BIG_MONEY_GAP_PTS) {
