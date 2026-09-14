@@ -13,12 +13,15 @@
   align-items: center;
   gap: 10px;
   min-width: 220px;
+  font-family: var(--font-title, Georgia, "Times New Roman", Times, serif);
+  font-weight: 700;
 }
 
 .shell-brand-copy {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  font-family: var(--font-title, Georgia, "Times New Roman", Times, serif);
 }
 
 .shell-date {
@@ -26,16 +29,21 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--text);
+  font-family: var(--font-title, Georgia, "Times New Roman", Times, serif);
 }
 
 .shell-tagline {
   font-size: 10px;
   color: var(--muted-soft);
   letter-spacing: 0.02em;
+  font-family: var(--font-specialty, Georgia, "Times New Roman", Times, serif);
+  font-style: italic;
 }
 
 .shell-nav {
   flex: 1 1 auto;
+  font-family: var(--font-title, Georgia, "Times New Roman", Times, serif);
+  font-weight: 700;
 }
 
 .shell-admin-tab {
