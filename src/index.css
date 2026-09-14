@@ -1,4 +1,16 @@
 :root {
+  /* FBIS decision workstation semantic tokens */
+  --surface: var(--panel);
+  --surface-elevated: var(--panel2);
+  --status-research: #8b9cb3;
+  --status-watch: var(--yellow);
+  --status-qualified: var(--cyan);
+  --status-authorized: var(--green);
+  --status-blocked: var(--red);
+  --status-live: #ff6b4a;
+  --status-final: #9aa8b8;
+  --status-stale: var(--yellow);
+
   --bg: #000000;
   --panel: #1a2f45;
   --panel2: #223a54;

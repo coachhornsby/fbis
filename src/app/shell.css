@@ -155,3 +155,147 @@
     display: none;
   }
 }
+
+/* Shell additions for Board-first IA */
+.shell-brand-mark {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.shell-product-subtitle {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted-soft, var(--muted));
+}
+
+.shell-sport-chip,
+.shell-sport-chip.active {
+  border-radius: 4px;
+}
+
+.shell-sport-count {
+  margin-left: 4px;
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+.badge-subtle {
+  opacity: 0.85;
+}
+
+.badge-actionable {
+  border-color: var(--yellow, #e3b341);
+}
+
+.shell-mobile-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .shell-nav-desktop {
+    display: none;
+  }
+  .shell-mobile-nav {
+    display: flex;
+    position: sticky;
+    bottom: 0;
+    z-index: 120;
+    background: #070d14;
+    border-top: 1px solid var(--border, #3a5570);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    gap: 2px;
+    justify-content: space-between;
+  }
+  .shell-mobile-nav-item {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    color: var(--muted, #d0d8e2);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    padding: 8px 2px;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .shell-mobile-nav-item.active {
+    color: var(--text, #f2f6fa);
+  }
+  .fbis-shell-main {
+    padding-bottom: 64px;
+  }
+}
+
+/* Shell additions for Board-first IA */
+.shell-brand-mark {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.shell-product-subtitle {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted-soft, var(--muted));
+}
+
+.shell-sport-chip,
+.shell-sport-chip.active {
+  border-radius: 4px;
+}
+
+.shell-sport-count {
+  margin-left: 4px;
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+.badge-subtle {
+  opacity: 0.85;
+}
+
+.badge-actionable {
+  border-color: var(--yellow, #e3b341);
+}
+
+.shell-mobile-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .shell-nav-desktop {
+    display: none;
+  }
+  .shell-mobile-nav {
+    display: flex;
+    position: sticky;
+    bottom: 0;
+    z-index: 120;
+    background: #070d14;
+    border-top: 1px solid var(--border, #3a5570);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    gap: 2px;
+    justify-content: space-between;
+  }
+  .shell-mobile-nav-item {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    color: var(--muted, #d0d8e2);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    padding: 8px 2px;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .shell-mobile-nav-item.active {
+    color: var(--text, #f2f6fa);
+  }
+  .fbis-shell-main {
+    padding-bottom: 64px;
+  }
+}

@@ -13,6 +13,7 @@ import GameWorkspace from "./features/game/GameWorkspace.jsx";
 import { buildGameWorkspaceView } from "./features/game/buildGameWorkspaceView.js";
 import "./features/game/game.css";
 import { resolveBoardProjection } from "./lib/boardDecision.js";
+import DecisionBoard from "./components/board/DecisionBoard.jsx";
 
 const FILTERS = [
   ["all", "All games"],
@@ -63,7 +64,7 @@ export default function TodayView({
 
       <section className="panel panel-board panel-board-controls">
         <div className="panel-header">
-          <h2>TODAY · {date} CT</h2>
+          <h2>BOARD · {date} CT</h2>
           <span className="last-updated">
             {loading ? "Loading…" : `${badgeLabel(state || health?.state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${counts.games ?? 0} games`}`}
           </span>
@@ -157,8 +158,11 @@ export default function TodayView({
               <div className="muted" style={{ padding: "10px 14px 0" }}>{propWatchEmptyCopy(counts.mlbPropWatch)}</div>
             ) : null}
             {group.games.length > 0 && (
-              <div className="board-well table-scroll">
-                <TodayTable games={group.games} propWatch={counts.mlbPropWatch} />
+              <div className="board-well table-scroll decision-board-well">
+                <DecisionBoard
+                  games={group.games}
+                  renderDetail={(g) => <GameDetails g={g} />}
+                />
               </div>
             )}
           </div>

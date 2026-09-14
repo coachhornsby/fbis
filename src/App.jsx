@@ -16,7 +16,7 @@ import { buildPropConvictions } from "../functions/lib/propConviction.js";
 import { badgeLabel, badgeTone, deriveGlobalState, deriveViewState } from "./lib/healthState.js";
 import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
 import PublishView from "./features/publish/PublishView.jsx";
-import { legacyToRoute, routeToLegacy } from "./app/navigation.js";
+import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.js";
 import PlayerPropsBoard from "./features/playerProps/PlayerPropsBoard.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
 import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
@@ -37,7 +37,7 @@ function readUrlState() {
     tab,
     date: u.searchParams.get("date") || todayCT(),
     sport,
-    route: routeParam || mapped.route,
+    route: normalizeRoute(routeParam || mapped.route),
     sportFilter: u.searchParams.get("sportFilter") || mapped.sportFilter || "all",
   };
 }
@@ -93,7 +93,7 @@ export default function App() {
   const [boardStale, setBoardStale] = useState(false);
 
   const [tab, setTab] = useState(initial.tab);
-  const [route, setRoute] = useState(initial.route || "today");
+  const [route, setRoute] = useState(normalizeRoute(initial.route || "board"));
   const [sportFilter, setSportFilter] = useState(initial.sportFilter || "all");
   const [todayDate, setTodayDate] = useState(initial.date);
   const [todayBoard, setTodayBoard] = useState(null);
@@ -288,11 +288,12 @@ export default function App() {
   }, [tab, todayDate, sport, route, sportFilter]);
 
   const onRouteChange = useCallback((nextRoute) => {
-    setRoute(nextRoute);
-    const legacy = routeToLegacy(nextRoute, sportFilter);
+    const normalized = normalizeRoute(nextRoute);
+    setRoute(normalized);
+    const legacy = routeToLegacy(normalized, sportFilter);
     setTab(legacy.tab);
     if (legacy.tab === "board") setSport(legacy.sport);
-    if (nextRoute === "today" && sportFilter && sportFilter !== "all") {
+    if ((normalized === "board" || nextRoute === "today") && sportFilter && sportFilter !== "all") {
       setTodaySport(sportFilter);
     }
   }, [sportFilter]);
@@ -300,7 +301,7 @@ export default function App() {
   const onSportFilterChange = useCallback((nextFilter) => {
     setSportFilter(nextFilter);
     setTodaySport(nextFilter);
-    if (route === "markets" && nextFilter !== "all") {
+    if ((route === "market" || route === "markets") && nextFilter !== "all") {
       setSport(nextFilter);
       setTab("board");
     }
@@ -308,12 +309,17 @@ export default function App() {
 
   useEffect(() => {
     const routeTitles = {
-      today: "TODAY",
-      markets: "MARKETS",
-      "player-props": "PLAYER PROPS",
+      board: "BOARD",
+      today: "BOARD",
+      market: "MARKET",
+      markets: "MARKET",
+      models: "MODELS",
+      "model-lab": "MODEL LAB",
+      "player-props": "MODELS",
       bets: "MY BETS",
-      performance: "PERFORMANCE",
-      research: "RESEARCH",
+      performance: "MODELS",
+      publish: "MODELS",
+      research: "MODEL LAB",
       system: "SYSTEM",
     };
     const part =
@@ -321,7 +327,7 @@ export default function App() {
       (tab === "board"
         ? String(SPORTS[sport]?.label || sport).toUpperCase()
         : tab === "today"
-          ? "TODAY"
+          ? "BOARD"
           : tab === "sys"
             ? "SYSTEM"
             : "MY BETS");
@@ -468,7 +474,7 @@ export default function App() {
   );
 
   const shellFreshness =
-    route === "markets" || tab === "board"
+    route === "market" || route === "markets" || tab === "board"
       ? boardStale
         ? "STALE"
         : slate
@@ -504,14 +510,14 @@ export default function App() {
             ? refreshTrack()
             : route === "bets" || tab === "bets"
               ? refreshBets()
-              : route === "markets" || tab === "board"
+              : route === "market" || route === "markets" || tab === "board"
                 ? refresh()
                 : refreshToday()
         }
         refreshDisabled={
           route === "system" || tab === "sys"
             ? trackLoading
-            : route === "markets" || tab === "board"
+            : route === "market" || route === "markets" || tab === "board"
               ? loading
               : todayLoading || betsLoading
         }
@@ -525,38 +531,41 @@ export default function App() {
               : "↻ Refresh"
         }
       >
-        {tab === "board" || route === "markets" ? (
+        {tab === "board" || route === "market" || route === "markets" ? (
           <Ticker items={slate?.ticker || []} logged={loggedOpen} />
         ) : null}
 
-        {route === "player-props" ? (
-          <PlayerPropsBoard
-            board={todayBoard}
-            sportFilter={sportFilter === "all" ? todaySport : sportFilter}
-            date={todayDate}
-            loading={todayLoading}
-            error={todayError}
-            onRetry={refreshToday}
-          />
-        ) : route === "performance" ? (
-          <FeaturePlaceholder
-            title="Performance"
-            status="PHASE 7"
-            body="Model vs qualified vs executed populations stay separate. This page will surface units, ROI, CLV, and drawdown without bankroll dollars."
-          />
-        ) : route === "publish" ? (
-          <PublishView
-            board={todayBoard}
-            sportFilter={sportFilter}
-            date={todayDate}
-            loading={todayLoading}
-            error={todayError}
-          />
-        ) : route === "research" ? (
+        {route === "models" || route === "player-props" || route === "publish" || route === "performance" ? (
+          <div className="canonical-models-stack">
+            <FeaturePlaceholder
+              title="Models"
+              status="BOARD-FIRST · PHASE A"
+              body="Sport/model status, projection coverage, and publish tooling live here. Player props and performance remain secondary to the Board decision loop."
+            />
+            {route === "player-props" || route === "models" ? (
+              <PlayerPropsBoard
+                board={todayBoard}
+                sportFilter={sportFilter === "all" ? todaySport : sportFilter}
+                date={todayDate}
+                loading={todayLoading}
+                error={todayError}
+                onRetry={refreshToday}
+              />
+            ) : null}
+            {route === "publish" || route === "models" ? (
+              <PublishView
+                board={todayBoard}
+                sportFilter={sportFilter}
+                date={todayDate}
+                loading={todayLoading}
+                error={todayError}
+              />
+            ) : null}
+          </div>
+        ) : route === "model-lab" || route === "research" ? (
           <div className="canonical-research-stack">
             <ModelLabView sportFilter={sportFilter} />
             <MispricesView sportFilter={sportFilter} />
-            <DataHealthView />
           </div>
         ) : tab === "sys" || route === "system" ? (
           <>
@@ -579,7 +588,7 @@ export default function App() {
               onRefresh={refreshTrack}
             />
           </>
-        ) : tab === "today" || route === "today" ? (
+        ) : tab === "today" || route === "today" || route === "board" ? (
           <TodayView
             board={todayBoard}
             error={todayError}
@@ -616,6 +625,7 @@ export default function App() {
             onRefresh={refreshBets}
           />
         ) : (
+
           <div className="main-content">
             {error && (
               <div className="panel">
