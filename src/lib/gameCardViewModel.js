@@ -523,8 +523,9 @@ function pickActionHeadline({
   if (gap != null && Math.abs(gap) >= BIG_MONEY_GAP_PTS) {
     return {
       kind: "MONEY_GAP",
-      icon: "🎯",
-      label: "MONEY SIGNAL",
+      icon: "🔥",
+      // ACTION-sourced money imbalance label (mockup). Not an FBIS sharp call.
+      label: "SHARP MONEY",
       detail: "LARGER BETS DETECTED",
       team: leanTeam,
       lineLabel: leanLine,

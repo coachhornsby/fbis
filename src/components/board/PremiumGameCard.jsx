@@ -29,7 +29,7 @@ function SideBox({ title, side }) {
     <div className="pgc-side-box">
       <span className="pgc-side-box-title">{title}</span>
       <div className="pgc-side-box-body">
-        {team ? <TeamLogo team={team} size={20} /> : null}
+        {team ? <TeamLogo team={team} size={18} /> : null}
         <span>{side.label || side.abbr || "—"}</span>
       </div>
     </div>
@@ -42,11 +42,9 @@ function SplitMeter({ label, awayPct, homePct, away, home }) {
   return (
     <div className="pgc-meter">
       <div className="pgc-meter-lab">{label}</div>
-      <div className="pgc-meter-row">
-        <div className="pgc-meter-track" aria-hidden="true">
-          <div className="pgc-meter-away" style={{ width: `${a}%` }} />
-          <div className="pgc-meter-home" style={{ width: `${h}%` }} />
-        </div>
+      <div className="pgc-meter-track" aria-hidden="true">
+        <div className="pgc-meter-away" style={{ width: `${a}%` }} />
+        <div className="pgc-meter-home" style={{ width: `${h}%` }} />
       </div>
       <div className="pgc-meter-legend">
         <span>
@@ -86,6 +84,7 @@ export default function PremiumGameCard({
   const footer = vm.footer || {};
 
   const handleToggle = () => onToggle?.(cardKey);
+  const weather = ctx.weather || null;
 
   return (
     <article
@@ -99,12 +98,35 @@ export default function PremiumGameCard({
           <span className="pgc-time">{vm.timing?.timeLine || "—"}</span>
           <span className="pgc-sport-pill">{String(sport || "").toUpperCase() || "—"}</span>
         </div>
-        <StatusPill status={vm.status} />
+
+        <div className="pgc-top-center">
+          {ctx.venueName ? <div className="pgc-top-venue">{ctx.venueName}</div> : null}
+          {ctx.venueCity ? <div className="pgc-top-city">{ctx.venueCity}</div> : null}
+          {!ctx.venueName && ctx.venueLabel ? (
+            <div className="pgc-top-venue">{ctx.venueLabel}</div>
+          ) : null}
+        </div>
+
+        <div className="pgc-top-right">
+          {weather?.temp != null || weather?.description || weather?.windLabel ? (
+            <div className="pgc-top-weather" title={ctx.weatherLine || ""}>
+              <span className="pgc-wx-icon" aria-hidden="true">
+                🌤
+              </span>
+              <span className="pgc-wx-text">
+                {weather?.temp != null ? <strong>{weather.temp}°</strong> : null}
+                {weather?.windLabel ? <span>{weather.windLabel}</span> : null}
+                {weather?.description ? <span>{weather.description}</span> : null}
+              </span>
+            </div>
+          ) : null}
+          <StatusPill status={vm.status} />
+        </div>
       </div>
 
       <section className="pgc-hero" aria-label="Matchup">
         <div className="pgc-hero-team">
-          <TeamLogo team={away} size={72} />
+          <TeamLogo team={away} size={78} />
           <div className="pgc-hero-id">
             <span className="pgc-hero-abbr">{away?.abbr || "—"}</span>
             <span className="pgc-hero-name">{nickname(away)}</span>
@@ -119,9 +141,7 @@ export default function PremiumGameCard({
         </div>
 
         <div className="pgc-hero-mid">
-          {ctx.venueLabel ? <div className="pgc-hero-venue">{ctx.venueLabel}</div> : null}
           <div className="pgc-vs">VS</div>
-          {ctx.weatherLine ? <div className="pgc-weather">{ctx.weatherLine}</div> : null}
           {vm.projection?.research ? (
             <div className="pgc-research-tag">RESEARCH PROJECTION</div>
           ) : null}
@@ -131,7 +151,7 @@ export default function PremiumGameCard({
         </div>
 
         <div className="pgc-hero-team">
-          <TeamLogo team={home} size={72} />
+          <TeamLogo team={home} size={78} />
           <div className="pgc-hero-id">
             <span className="pgc-hero-abbr">{home?.abbr || "—"}</span>
             <span className="pgc-hero-name">{nickname(home)}</span>
@@ -153,7 +173,7 @@ export default function PremiumGameCard({
             <div className="pgc-bar-fill fbis" style={{ width: `${bars.fbisPct ?? 0}%` }} />
           </div>
           <span className="pgc-bar-val fbis">
-            FBIS TOTAL {bars.fbisTotal ?? "—"}
+            FBIS TOTAL <strong>{bars.fbisTotal ?? "—"}</strong>
           </span>
         </div>
         <div className="pgc-bar-row">
@@ -162,58 +182,62 @@ export default function PremiumGameCard({
             <div className="pgc-bar-fill mkt" style={{ width: `${bars.marketPct ?? 0}%` }} />
           </div>
           <span className="pgc-bar-val mkt">
-            MARKET TOTAL {bars.marketTotal ?? "—"}
+            MARKET TOTAL <strong>{bars.marketTotal ?? "—"}</strong>
           </span>
         </div>
       </section>
 
       <section className="pgc-panels">
         <div className="pgc-panel pgc-panel-model">
-          <h3 className="pgc-panel-title">MODEL vs MARKET</h3>
+          <h3 className="pgc-panel-title">
+            <span>📊 MODEL vs MARKET</span>
+          </h3>
 
-          <div className="pgc-diff-cell">
-            <span className="pgc-diff-lab">⚔ SIDE DIFF</span>
-            <span className="pgc-diff-val">{cmp.sideDiffLabel || "—"}</span>
-            {cmp.sideRelationshipLabel ? (
-              <span
-                className={`pgc-pill ${
-                  cmp.sideRelationship === "OPPOSITE_SIDES" ? "warn" : "ok"
-                }`}
-              >
-                {cmp.sideRelationshipLabel}
-              </span>
-            ) : null}
-            <div className="pgc-side-compare">
-              <SideBox title="FBIS" side={cmp.fbisSide} />
-              <SideBox title="MARKET" side={cmp.marketSide} />
-            </div>
-          </div>
-
-          <div className="pgc-diff-cell">
-            <span className="pgc-diff-lab">TOTAL DIFF</span>
-            <span className="pgc-diff-val">{cmp.totalDiffLabel || "—"}</span>
-            {cmp.totalDirectionLabel ? (
-              <span
-                className={`pgc-pill ${
-                  cmp.totalDirection === "FBIS_HIGHER"
-                    ? "up"
-                    : cmp.totalDirection === "FBIS_LOWER"
-                      ? "down"
-                      : "ok"
-                }`}
-              >
-                {cmp.totalDirection === "FBIS_HIGHER" ? "↑ " : ""}
-                {cmp.totalDirectionLabel}
-              </span>
-            ) : null}
-            <div className="pgc-total-compare">
-              <div className="pgc-mini-box">
-                <span>FBIS</span>
-                <strong>{cmp.fbisTotal ?? "—"}</strong>
+          <div className="pgc-diff-grid">
+            <div className="pgc-diff-cell">
+              <span className="pgc-diff-lab">⚔ SIDE DIFF</span>
+              <span className="pgc-diff-val">{cmp.sideDiffLabel || "—"}</span>
+              {cmp.sideRelationshipLabel ? (
+                <span
+                  className={`pgc-pill ${
+                    cmp.sideRelationship === "OPPOSITE_SIDES" ? "warn" : "ok"
+                  }`}
+                >
+                  {cmp.sideRelationshipLabel}
+                </span>
+              ) : null}
+              <div className="pgc-side-compare">
+                <SideBox title="FBIS" side={cmp.fbisSide} />
+                <SideBox title="MARKET" side={cmp.marketSide} />
               </div>
-              <div className="pgc-mini-box">
-                <span>MARKET</span>
-                <strong>{cmp.marketTotal ?? "—"}</strong>
+            </div>
+
+            <div className="pgc-diff-cell">
+              <span className="pgc-diff-lab">TOTAL DIFF</span>
+              <span className="pgc-diff-val">{cmp.totalDiffLabel || "—"}</span>
+              {cmp.totalDirectionLabel ? (
+                <span
+                  className={`pgc-pill ${
+                    cmp.totalDirection === "FBIS_HIGHER"
+                      ? "up"
+                      : cmp.totalDirection === "FBIS_LOWER"
+                        ? "down"
+                        : "ok"
+                  }`}
+                >
+                  {cmp.totalDirection === "FBIS_HIGHER" ? "↑ " : ""}
+                  {cmp.totalDirectionLabel}
+                </span>
+              ) : null}
+              <div className="pgc-total-compare">
+                <div className="pgc-mini-box">
+                  <span>FBIS</span>
+                  <strong>{cmp.fbisTotal ?? "—"}</strong>
+                </div>
+                <div className="pgc-mini-box">
+                  <span>MARKET</span>
+                  <strong>{cmp.marketTotal ?? "—"}</strong>
+                </div>
               </div>
             </div>
           </div>
@@ -273,27 +297,22 @@ export default function PremiumGameCard({
               ) : null}
 
               <div className="pgc-action-facts">
-                {action.lineMove?.label ? (
-                  <div className="pgc-fact">
-                    <span>LINE MOVE</span>
-                    <strong>{action.lineMove.label}</strong>
-                  </div>
-                ) : null}
-                {action.sample?.label ? (
-                  <div className="pgc-fact">
-                    <span>SAMPLE SIZE</span>
-                    <strong>
-                      {action.sample.label}
-                      {action.sample.count != null ? " tracked bets" : ""}
-                    </strong>
-                  </div>
-                ) : null}
-                {action.bookRange?.label ? (
-                  <div className="pgc-fact">
-                    <span>BOOK RANGE</span>
-                    <strong>{action.bookRange.label}</strong>
-                  </div>
-                ) : null}
+                <div className="pgc-fact">
+                  <span>LINE MOVE</span>
+                  <strong>{action.lineMove?.label || "—"}</strong>
+                </div>
+                <div className="pgc-fact">
+                  <span>SAMPLE SIZE</span>
+                  <strong>
+                    {action.sample?.label
+                      ? `${action.sample.label}${action.sample.count != null ? " bets" : ""}`
+                      : "—"}
+                  </strong>
+                </div>
+                <div className="pgc-fact">
+                  <span>BOOK RANGE</span>
+                  <strong>{action.bookRange?.label || "—"}</strong>
+                </div>
               </div>
             </>
           ) : (
@@ -316,15 +335,15 @@ export default function PremiumGameCard({
                   <strong>—</strong>
                 </div>
               </div>
-              <p className="pgc-empty">
-                {action.emptyLabel || "NO ACTION SNAPSHOT YET"}
-              </p>
+              <p className="pgc-empty">{action.emptyLabel || "NO ACTION SNAPSHOT YET"}</p>
             </div>
           )}
         </div>
 
         <div className="pgc-panel pgc-panel-info">
-          <h3 className="pgc-panel-title">GAME INFO</h3>
+          <h3 className="pgc-panel-title">
+            <span>📅 GAME INFO</span>
+          </h3>
 
           {ctx.startersLabel && (ctx.starters?.away || ctx.starters?.home) ? (
             <div className="pgc-info-block">
@@ -339,7 +358,7 @@ export default function PremiumGameCard({
                       <strong>{s.name}</strong>
                       <span>
                         {[
-                          s.hand ? `${s.hand}HP` : null,
+                          s.hand ? `${String(s.hand).toUpperCase()}HP` : null,
                           s.era != null ? `${Number(s.era).toFixed(2)} ERA` : null,
                         ]
                           .filter(Boolean)
@@ -352,17 +371,29 @@ export default function PremiumGameCard({
             </div>
           ) : null}
 
-          {ctx.venueLabel ? (
+          {ctx.venueName || ctx.venueLabel ? (
             <div className="pgc-info-row">
               <strong>🏟 {ctx.venueName || ctx.venueLabel}</strong>
               {ctx.venueCity ? <span>{ctx.venueCity}</span> : null}
             </div>
           ) : null}
 
-          {ctx.weatherLine ? (
+          {weather?.temp != null || weather?.description ? (
+            <div className="pgc-info-row">
+              <strong>
+                🌤{" "}
+                {[
+                  weather.temp != null ? `${weather.temp}°` : null,
+                  weather.description,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </strong>
+              {weather.windLabel ? <span>{weather.windLabel}</span> : null}
+            </div>
+          ) : ctx.weatherLine ? (
             <div className="pgc-info-row">
               <strong>🌤 {ctx.weatherLine}</strong>
-              {ctx.weather?.windLabel ? <span>{ctx.weather.windLabel}</span> : null}
             </div>
           ) : null}
 
@@ -399,6 +430,7 @@ export default function PremiumGameCard({
     </article>
   );
 }
+
 function nickname(team) {
   if (!team) return "—";
   const full = String(team.fullName || team.displayName || "").trim();

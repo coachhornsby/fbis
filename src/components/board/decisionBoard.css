@@ -113,9 +113,11 @@
 /* —— Layout: multi-column card grid —— */
 .db-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  /* Full-width cards to match approved mockup density. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
   align-items: start;
+  max-width: 1120px;
 }
 
 .db-grid-item {
@@ -696,7 +698,7 @@
 
 @media (max-width: 1200px) {
   .db-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -716,8 +718,8 @@
 
 @media (min-width: 1400px) {
   .db-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
   }
   .db-hero-score { font-size: 26px; }
   .db-card { padding: 10px 12px; }
