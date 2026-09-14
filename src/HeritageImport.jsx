@@ -12,7 +12,7 @@ import {
 } from "./lib/heritageImport.js";
 
 const FIXTURE_HINT =
-  "Paste Heritage ticket text or choose a Heritage/NoVig screenshot. Preview first — nothing is written until you confirm.";
+  "Paste Heritage ticket text or choose a Heritage / NoVig / PrizePicks screenshot. Preview first — nothing is written until you confirm.";
 
 export default function HeritageImport({ open, onClose, onImported }) {
   const [text, setText] = useState("");
@@ -112,7 +112,13 @@ export default function HeritageImport({ open, onClose, onImported }) {
       const extracted = String(result?.data?.text || "").trim();
       if (!extracted) throw new Error("No readable ticket text was found. Try a sharper screenshot.");
       setText(extracted);
-      setBookHint(/novig|to\s*pay|strikeouts?\s+thrown/i.test(extracted) ? "NoVig" : "");
+      if (/prize\s*picks|power\s*play|\bMore\b|\bLess\b|↑|↓/i.test(extracted) && /\$\s*\d+.*win|pick/i.test(extracted)) {
+        setBookHint("PrizePicks");
+      } else if (/novig|to\s*pay|strikeouts?\s+thrown/i.test(extracted)) {
+        setBookHint("NoVig");
+      } else {
+        setBookHint("");
+      }
       setOcrMessage("Screenshot read. Review the extracted text, then parse and confirm.");
     } catch (err) {
       setError(String(err.message || err));
@@ -189,10 +195,24 @@ export default function HeritageImport({ open, onClose, onImported }) {
               if (error) setError("");
               if (wroteMessage) setWroteMessage("");
             }}
-            placeholder="Paste Heritage text, or choose a NoVig screenshot above."
+            placeholder="Paste Heritage / PrizePicks text, or choose a screenshot above."
             rows={10}
           />
           <div className="today-controls" style={{ marginTop: 10 }}>
+            <label className="muted" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              Book
+              <select
+                aria-label="Book hint"
+                value={bookHint}
+                disabled={busy}
+                onChange={(e) => setBookHint(e.target.value)}
+              >
+                <option value="">Auto-detect</option>
+                <option value="Heritage">Heritage</option>
+                <option value="NoVig">NoVig</option>
+                <option value="PrizePicks">PrizePicks</option>
+              </select>
+            </label>
             <button type="button" className="header-btn header-btn-refresh" onClick={parseSlip} disabled={busy || !text.trim()}>
               {busy && !preview ? "Parsing…" : "1 · Parse & preview"}
             </button>
@@ -213,6 +233,9 @@ export default function HeritageImport({ open, onClose, onImported }) {
                 <Stat label="ML" value={preview.ml ?? 0} />
                 <Stat label="RL" value={preview.spread ?? 0} />
                 <Stat label="Totals" value={preview.total ?? 0} />
+                {(preview.props > 0 || preview.entryType) && (
+                  <Stat label="Props" value={preview.props ?? 0} />
+                )}
               </div>
               <div className="preview-scroll" style={{ opacity: stale ? 0.45 : 1 }}>
                 <table className="fbis-table">
@@ -263,7 +286,23 @@ export default function HeritageImport({ open, onClose, onImported }) {
                           </td>
                           <td className="nowrap">{formatMarketPeriod(t.market || "unsupported", t.period)}</td>
                           <td>
-                            {isTotalMarket(t.market) ? (
+                            {t.market === "PLAYER_PROP" ? (
+                              <>
+                                <input
+                                  value={e.selectedTeam || ""}
+                                  placeholder="player"
+                                  aria-label="Player name"
+                                  onChange={(ev) => patch(i, "selectedTeam", ev.target.value)}
+                                />
+                                <input
+                                  value={e.selectedSide || ""}
+                                  placeholder="OVER or UNDER"
+                                  aria-label="Over or Under"
+                                  onChange={(ev) => patch(i, "selectedSide", ev.target.value.toUpperCase())}
+                                />
+                                <div className="muted">{t.propType || t.propLabel || "prop"}</div>
+                              </>
+                            ) : isTotalMarket(t.market) ? (
                               <input
                                 value={e.selectedSide || ""}
                                 placeholder="OVER or UNDER"

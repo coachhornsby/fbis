@@ -15,6 +15,7 @@ import {
   expectedProfit,
 } from "../functions/lib/heritageSlip.js";
 import { parseNoVigSlip } from "../functions/lib/novigSlip.js";
+import { looksLikePrizePicksSlip, parsePrizePicksSlip } from "../functions/lib/prizePicksSlip.js";
 import { identityForSport } from "../functions/lib/teams.js";
 import {
   matchExecutedBet,
@@ -667,6 +668,101 @@ describe("NoVig screenshot OCR text", () => {
     assert.equal(lost.result, "LOST");
     assert.equal(lost.profit, -5);
     assert.equal(settlePlayerProp({ ...ticket, executionLine: 4 }, 4).result, "PUSH");
+  });
+});
+
+const PRIZEPICKS_POWER_PLAY_FIXTURE = `PRIZEPICKS
+$5 to win $30
+3-Pick Power Play
+NFL | DEN vs KC
+Starts in 41:44
+Patrick Mahomes
+KC • QB • #15
+↑ 0.5 Pass Attempts
+Bo Nix
+DEN • QB • #10
+↓ 17.5 Rush Yards
+RJ Harvey
+DEN • RB • #12
+↑ 17.5 Rush Yards
+Slide for Refund : $5
+Self refund available. Time remaining: 03:53
+PRIZEPICKS
+Sep 14, 2026 @ 6:33 PM`;
+
+describe("PrizePicks Power Play slip", () => {
+  it("detects PrizePicks from slip text and book hint", () => {
+    assert.equal(looksLikePrizePicksSlip(PRIZEPICKS_POWER_PLAY_FIXTURE), true);
+    assert.equal(looksLikePrizePicksSlip("", "PrizePicks"), true);
+    assert.equal(looksLikePrizePicksSlip("Heritage G10904318"), false);
+  });
+
+  it("expands a 3-pick Power Play into three PLAYER_PROP tickets with stake on leg 1", async () => {
+    const parsed = await parsePrizePicksSlip(PRIZEPICKS_POWER_PLAY_FIXTURE);
+    assert.equal(parsed.tickets.length, 3);
+    assert.equal(parsed.totalRisk, 5);
+    assert.equal(parsed.totalToWin, 25);
+    assert.equal(parsed.entryType, "POWER_PLAY");
+    const [a, b, c] = parsed.tickets;
+    assert.equal(a.executionBook, "PrizePicks");
+    assert.equal(a.market, "PLAYER_PROP");
+    assert.equal(a.playerName, "Patrick Mahomes");
+    assert.equal(a.selectedSide, "OVER");
+    assert.equal(a.executionLine, 0.5);
+    assert.equal(a.propType, "PASS_ATTEMPTS");
+    assert.equal(a.riskAmount, 5);
+    assert.equal(a.toWinAmount, 25);
+    assert.equal(a.potentialPayout, 30);
+    assert.equal(a.executionPrice, 500);
+    assert.equal(a.sport, "nfl");
+    assert.equal(a.date, "2026-09-14");
+    assert.equal(a.awayTeam, "Denver Broncos");
+    assert.equal(a.homeTeam, "Kansas City Chiefs");
+    assert.equal(a.awayIdentity.canonicalId, "nfl-7");
+    assert.equal(a.homeIdentity.canonicalId, "nfl-12");
+    assert.match(a.externalTicketId, /^PP-[A-F0-9]+-L1$/);
+
+    assert.equal(b.playerName, "Bo Nix");
+    assert.equal(b.selectedSide, "UNDER");
+    assert.equal(b.executionLine, 17.5);
+    assert.equal(b.propType, "RUSH_YARDS");
+    assert.equal(b.riskAmount, 0);
+    assert.equal(b.executionPrice, null);
+    assert.match(b.externalTicketId, /-L2$/);
+
+    assert.equal(c.playerName, "RJ Harvey");
+    assert.equal(c.selectedSide, "OVER");
+    assert.equal(c.executionLine, 17.5);
+    assert.equal(c.propType, "RUSH_YARDS");
+    assert.equal(c.riskAmount, 0);
+    assert.equal(a.entryId, b.entryId);
+    assert.equal(b.entryId, c.entryId);
+  });
+
+  it("parses More/Less wording and routes through parseBetsPreview", async () => {
+    const text = `$5 to win $30
+2-Pick Power Play
+NFL | DEN vs KC
+Patrick Mahomes More 0.5 Pass Attempts
+Bo Nix Less 17.5 Rush Yards
+Sep 14, 2026`;
+    assert.equal(looksLikePrizePicksSlip(text, "PrizePicks"), true);
+    const parsed = await parsePrizePicksSlip(text);
+    assert.equal(parsed.tickets.length, 2);
+    assert.equal(parsed.tickets[0].selectedSide, "OVER");
+    assert.equal(parsed.tickets[1].selectedSide, "UNDER");
+
+    const preview = await parseBetsPreview({}, text, { date: "2026-09-14" }, "PrizePicks");
+    assert.equal(preview.wrote, false);
+    assert.equal(preview.n, 2);
+    assert.equal(preview.props, 2);
+    assert.equal(preview.tickets[0].executionBook, "PrizePicks");
+  });
+
+  it("treats PLAYER_PROP as an over/under market in the importer UX helper", () => {
+    assert.equal(isTotalMarket("PLAYER_PROP"), true);
+    assert.equal(isTotalMarket("TOTAL"), true);
+    assert.equal(isTotalMarket("ML"), false);
   });
 });
 
