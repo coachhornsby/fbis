@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import TeamLogo from "../TeamLogo.jsx";
 import { buildBoardGameViewModel } from "../../lib/boardViewModel.js";
 import { fmtNum, fmtSigned } from "../../lib/format.js";
+import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
 import "./decisionBoard.css";
 
 /** Short badge; long explanation lives in title tooltips. */
@@ -375,20 +376,11 @@ function DecisionBoardCard({ game, open, onToggle, renderDetail }) {
   const vm = useMemo(() => buildBoardGameViewModel(game), [game]);
   const key = `${game.sport}:${game.id}`;
   const sport = String(vm.sport || game.sport || "").toLowerCase();
-  const venueClass =
-    sport === "mlb"
-      ? " db-card--mlb"
-      : sport === "nfl" || sport === "cfb"
-        ? " db-card--football"
-        : sport === "nba" || sport === "cbb"
-          ? " db-card--basketball"
-          : sport === "nhl"
-            ? " db-card--nhl"
-            : "";
+  const venueClass = venueAtmosphereClass(sport);
 
   return (
     <article
-      className={`db-card decision-tier-${vm.decision?.tier || "NONE"}${venueClass}`}
+      className={`db-card decision-tier-${vm.decision?.tier || "NONE"}${venueClass ? ` ${venueClass}` : ""}`}
       data-game-id={game.id}
       data-sport={sport || undefined}
     >

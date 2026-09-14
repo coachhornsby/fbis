@@ -19,6 +19,7 @@ import {
   teamCardTitle,
 } from "../../lib/boardDecision.js";
 import { fmtAmerican, fmtNum } from "../../lib/format.js";
+import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
 import { GameDetails } from "../../TodayView.jsx";
 
 function fairSpreadTeamLine(proj, away, home) {
@@ -68,12 +69,13 @@ export default function GameCard({
   const matchupClass = isMlb ? "gc-matchup-row" : "gc-matchup-row logo-stack";
   const venueLabel = safeDisplayString(game.venue, "");
   const statusDetail = safeDisplayString(game.status?.detail || game.status, "");
+  const venueClass = venueAtmosphereClass(game?.sport);
 
   const toggleDetails = () => onToggle?.(game.id);
 
   return (
     <article
-      className={`game-card ${glow} decision-tier-${decision.tier}`}
+      className={`game-card ${glow} decision-tier-${decision.tier}${venueClass ? ` ${venueClass}` : ""}`}
       data-decision={decision.tier}
       data-misprice-state={decision.mispriceState || ""}
       data-game-id={game.id}

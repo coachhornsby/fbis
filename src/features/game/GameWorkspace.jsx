@@ -1,5 +1,6 @@
 import DecisionChip from "../today/DecisionChip.jsx";
 import { fmtLine, fmtNum, fmtPct, fmtPrice, matchupLabel } from "../today/formatters.js";
+import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
 
 function Section({ id, title, children, aside = null }) {
   return (
@@ -309,6 +310,7 @@ export function ProvenancePanel({ event }) {
 }
 
 export default function GameWorkspace({ event, weather = null, footer = null }) {
+  const venueClass = venueAtmosphereClass(event?.sport || event?.league);
   if (!event) {
     return (
       <div className="game-workspace">
@@ -317,7 +319,11 @@ export default function GameWorkspace({ event, weather = null, footer = null }) 
     );
   }
   return (
-    <div className="game-workspace" data-game-id={event.id || undefined}>
+    <div
+      className={`game-workspace${venueClass ? ` ${venueClass}` : ""}`}
+      data-game-id={event.id || undefined}
+      data-sport={event.sport || event.league || undefined}
+    >
       <header className="game-ws-header">
         <div>
           <h2 className="game-ws-title">{matchupLabel(event)}</h2>
