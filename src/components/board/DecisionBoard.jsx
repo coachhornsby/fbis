@@ -34,10 +34,28 @@ function StatusPill({ vm }) {
     );
   }
   if (decision?.qualification === "QUALIFIED") {
-    return <span className="db-pill db-pill-qualified">QUALIFIED</span>;
+    return (
+      <span className="db-pill db-pill-qualified" title="Qualified with execution market and wager authority">
+        QUALIFIED
+      </span>
+    );
   }
   if (decision?.qualification === "WATCH") {
-    return <span className="db-pill db-pill-watch">WATCH</span>;
+    const unpriced =
+      vm?.market?.executionMarketAvailable === false ||
+      vm?.authority?.canAuthorizeWager === false;
+    return (
+      <span
+        className="db-pill db-pill-watch"
+        title={
+          unpriced
+            ? "Model lean only — no execution price / wager authority"
+            : "Watch — not wager-authorized"
+        }
+      >
+        {unpriced ? "WATCH · UNPRICED" : "WATCH"}
+      </span>
+    );
   }
   if (decision?.dqState || vm.quality?.marketUnresolved) {
     return (

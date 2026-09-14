@@ -1,9 +1,15 @@
 import { buildSlate, resolveSlateDate, findNextCfbdGameDate, fetchCfbdGamesForWeek } from "../lib/slateEngine.js";
 import { compactMlbSlatePayload } from "../lib/propConviction.js";
 
+const SLATE_BUILD_BUDGET_MS = 20_000;
+
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
-  const sport = url.searchParams.get("sport") || "mlb";
+  const sportParam = url.searchParams.get("sport");
+  if (sportParam == null || !String(sportParam).trim()) {
+    return json({ error: "sport query is required (mlb|nfl|cfb|nba|cbb|nhl)", games: [], ticker: [], counts: {} }, 400, 10);
+  }
+  const sport = String(sportParam).trim().toLowerCase();
   const rawDate = url.searchParams.get("date") || "";
   const weekShift = Number(url.searchParams.get("weekShift") || 0);
   const resolved = resolveSlateDate(rawDate, slateDateWindowForSport(sport));
@@ -21,7 +27,10 @@ export async function onRequestGet(context) {
     DB: context.env.DB,
   };
   try {
-    let payload = await buildSlate(sport, resolved.date, env);
+    const budget = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("slate build timed out")), SLATE_BUILD_BUDGET_MS)
+    );
+    let payload = await Promise.race([buildSlate(sport, resolved.date, env), budget]);
     if (sport === "cfb" && env.CFBD_API_KEY) {
       const weekly = await fetchCfbdGamesForWeek(resolved.date, env.CFBD_API_KEY, weekShift);
       if ((weekly.games || []).length) {

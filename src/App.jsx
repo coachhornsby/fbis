@@ -94,15 +94,30 @@ export default function App() {
 
   const [tab, setTab] = useState(initial.tab);
   const [route, setRoute] = useState(normalizeRoute(initial.route || "board"));
-  const [sportFilter, setSportFilter] = useState(initial.sportFilter || "all");
+  const [sportFilter, setSportFilter] = useState(() => {
+    const filter = String(initial.sportFilter || "all").toLowerCase();
+    const boardRoute = initial.route === "board" || initial.tab === "today";
+    // Board first paint: prefer sport=mlb over stale sportFilter=all (avoids megapayload).
+    if (boardRoute && filter === "all" && BOARD_SPORTS.includes(initial.sport)) {
+      return initial.sport;
+    }
+    return filter || "all";
+  });
   const [todayDate, setTodayDate] = useState(initial.date);
   const [todayBoard, setTodayBoard] = useState(null);
+  const todayBoardRef = useRef(null);
   const [todayError, setTodayError] = useState("");
   const [todayLoading, setTodayLoading] = useState(false);
   const [todayLastSuccessAt, setTodayLastSuccessAt] = useState("");
   const [todayLastAttemptAt, setTodayLastAttemptAt] = useState("");
   const [todayStale, setTodayStale] = useState(false);
-  const [todaySport, setTodaySport] = useState("all");
+  const [todaySport, setTodaySport] = useState(() => {
+    const fromFilter = String(initial.sportFilter || "").toLowerCase();
+    if (fromFilter && fromFilter !== "all") return fromFilter;
+    const boardRoute = initial.route === "board" || initial.tab === "today";
+    if (boardRoute && BOARD_SPORTS.includes(initial.sport)) return initial.sport;
+    return "all";
+  });
   const [todayBucket, setTodayBucket] = useState("all");
   const [importOpen, setImportOpen] = useState(false);
   const [betsPack, setBetsPack] = useState({ bets: [], summary: null, ok: true, d1: "unknown" });
@@ -116,6 +131,7 @@ export default function App() {
   const [trackLastAttemptAt, setTrackLastAttemptAt] = useState("");
   const [trackStale, setTrackStale] = useState(false);
   const [pipelineState, setPipelineState] = useState("DEGRADED");
+  const [healthMeta, setHealthMeta] = useState({});
   const [trackFilters, setTrackFilters] = useState({
     sport: "all",
     days: "season",
@@ -220,7 +236,7 @@ export default function App() {
     setTodayError("");
     setTodayLastAttemptAt(new Date().toISOString());
     const ac = new AbortController();
-    const timeout = setTimeout(() => ac.abort(new Error("timeout")), 20_000);
+    const timeout = setTimeout(() => ac.abort(new Error("timeout")), 45_000);
     if (signal) signal.addEventListener("abort", () => ac.abort(signal.reason), { once: true });
     try {
       const res = await fetch(`/api/today?date=${todayDate}&sport=${todaySport}&_t=${Date.now()}`, { signal: ac.signal });
@@ -230,23 +246,37 @@ export default function App() {
       if (data?.health?.state === "UNAVAILABLE") {
         throw new Error(`TODAY unavailable: ${(data?.health?.failures || []).map((f) => `${f.name}=${f.detail || "failed"}`).join(" · ") || "authoritative data unavailable"}`);
       }
-      setTodayBoard(mergeTodayQaFixtures(data));
+      const next = mergeTodayQaFixtures(data);
+      setTodayBoard(next);
+      todayBoardRef.current = next;
       setTodayLastSuccessAt(new Date().toISOString());
       setTodayStale(false);
     } catch (err) {
-      if (err?.name === "AbortError" || requestId !== todayRequestId.current) return;
+      if (requestId !== todayRequestId.current) return;
+      const aborted = err?.name === "AbortError" || /abort|timeout/i.test(String(err?.message || err));
+      const hadBoard = Boolean(todayBoardRef.current);
+      if (aborted && !hadBoard) {
+        setTodayError("Board load timed out. Retry — prefer a single sport filter for faster loads.");
+        setTodayStale(false);
+        return;
+      }
+      if (aborted && hadBoard) {
+        setTodayError("Board refresh timed out. Showing last successful load.");
+        setTodayStale(true);
+        return;
+      }
       const msg = String(err.message || err);
-      setTodayError(msg.includes("aborted") ? "Today feed timed out. Retry or continue with last known board." : msg);
-      setTodayStale(Boolean(todayBoard));
+      setTodayError(msg);
+      setTodayStale(hadBoard);
       // Opt-in visual QA: still surface fixture props when the live feed is unavailable.
       if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("boardQa") === "1") {
-        setTodayBoard(
-          mergeTodayQaFixtures({
-            date: todayDate,
-            games: [],
-            health: { state: "DEGRADED" },
-          }),
-        );
+        const qa = mergeTodayQaFixtures({
+          date: todayDate,
+          games: [],
+          health: { state: "DEGRADED" },
+        });
+        setTodayBoard(qa);
+        todayBoardRef.current = qa;
       }
     } finally {
       clearTimeout(timeout);
@@ -378,8 +408,13 @@ export default function App() {
         const data = await responseJson(res, "Health");
         if (!res.ok || data?.ok === false) throw new Error(data?.error || `HTTP ${res.status}`);
         setPipelineState(data.state || "DEGRADED");
+        setHealthMeta({
+          liveCollectionHealthy: data?.oddsProviders?.liveCollectionHealthy ?? null,
+          boardSourceMode: data?.oddsProviders?.boardSourceMode || data?.boardSourceMode || "",
+        });
       } catch {
         setPipelineState("DEGRADED");
+        setHealthMeta({});
       }
     };
     refreshHealth();
@@ -434,7 +469,10 @@ export default function App() {
     boardState,
   });
   const health = badgeTone(globalState);
-  const healthLabel = badgeLabel(globalState);
+  const healthLabel = badgeLabel(globalState, {
+    liveCollectionHealthy: healthMeta.liveCollectionHealthy ?? null,
+    boardSourceMode: healthMeta.boardSourceMode || "",
+  });
 
   function onLog(game, ticket = game.rec) {
     if (!ticket?.qualified) return;

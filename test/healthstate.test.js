@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { deriveHealthState, writeVerificationState } from "../functions/lib/healthContract.js";
-import { deriveViewState, deriveGlobalState } from "../src/lib/healthState.js";
+import { deriveViewState, deriveGlobalState, badgeLabel } from "../src/lib/healthState.js";
 
 describe("shared health-state contract", () => {
   it("distinguishes healthy, degraded, unavailable, stale", () => {
@@ -61,6 +61,16 @@ describe("shared health-state contract", () => {
       boardState: "HEALTHY",
     });
     assert.equal(global, "UNAVAILABLE");
+  });
+
+  it("HEALTHY + cached/fallback board source is CACHED not LIVE", () => {
+    assert.equal(badgeLabel("HEALTHY"), "LIVE");
+    assert.equal(
+      badgeLabel("HEALTHY", { liveCollectionHealthy: false, boardSourceMode: "CACHED_PROVIDER" }),
+      "CACHED",
+    );
+    assert.equal(badgeLabel("HEALTHY", { boardSourceMode: "LIVE_PROVIDER" }), "LIVE");
+    assert.equal(badgeLabel("DEGRADED", { liveCollectionHealthy: false }), "DEGRADED");
   });
 
   it("classifies write verification states", () => {
