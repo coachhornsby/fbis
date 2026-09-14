@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import TeamLogo from "../TeamLogo.jsx";
 import { buildAdvancedGameViewModel } from "../../lib/advancedGameViewModel.js";
+import { venueAtmosphereClass, venueAtmosphereStyle } from "../../lib/venueAtmosphere.js";
 import "./advancedGameDetail.css";
 
 /**
@@ -13,29 +14,15 @@ export default function AdvancedGameDetail({ game, onClose }) {
   const [splitsMode, setSplitsMode] = useState("tickets");
 
   if (!vm) return null;
+  const venueClass = venueAtmosphereClass(vm.sport);
+  const venueStyle = venueAtmosphereStyle(game);
+  const tabs = supportedTabs(vm, game);
 
   return (
-    <section className="agd" aria-label="Advanced game details">
-      <header className="agd-header">
-        <div className="agd-matchup">
-          <TeamLogo team={vm.away} size={36} />
-          <div className="agd-matchup-text">
-            <div className="agd-matchup-title">{vm.matchupLabel}</div>
-            <div className="agd-matchup-meta">
-              <span>{vm.timeLine}</span>
-              <span className="agd-sport">{String(vm.sport || "").toUpperCase()}</span>
-            </div>
-          </div>
-          <TeamLogo team={vm.home} size={36} />
-        </div>
-
-        <div className="agd-meta">
-          {vm.venueLine ? <span>📍 {vm.venueLine}</span> : null}
-          {vm.weatherLine ? <span>🌤 {vm.weatherLine}</span> : null}
-          {vm.windLabel ? <span>💨 {vm.windLabel}</span> : null}
-        </div>
-
-        <div className="agd-header-right">
+    <section className={`agd${venueClass ? ` ${venueClass}` : ""}`} style={venueStyle} aria-label="Advanced game details">
+      <header className="agd-hero">
+        <div className="agd-hero-ribbon">{String(vm.sport || "").toUpperCase()} · GAME WORKSTATION</div>
+        <div className="agd-hero-status">
           {vm.status?.label ? (
             <span className={`agd-status agd-status-${String(vm.status.tone || "").toLowerCase()}`}>
               {vm.status.key === "QUALIFIED" ? "✓ " : ""}
@@ -48,10 +35,18 @@ export default function AdvancedGameDetail({ game, onClose }) {
             </button>
           ) : null}
         </div>
+        <HeroTeam team={vm.away} score={vm.projectedScores?.away} projectionLabel={vm.projectedScores?.label} side="away" />
+        <div className="agd-hero-center">
+          <div className="agd-hero-time">{[vm.card?.timing?.dateLine, vm.timeLine].filter((v) => v && v !== "—").join(" · ") || "—"}</div>
+          {vm.venueLine ? <div className="agd-hero-venue">{vm.venueLine}</div> : null}
+          {vm.weatherLine ? <div className="agd-hero-weather">{weatherEmoji(vm.weatherLine)} {vm.weatherLine}</div> : null}
+          <div className="agd-hero-matchup">{vm.matchupLabel}</div>
+        </div>
+        <HeroTeam team={vm.home} score={vm.projectedScores?.home} projectionLabel={vm.projectedScores?.label} side="home" />
       </header>
 
       <nav className="agd-tabs" aria-label="Detail sections">
-        {vm.tabs.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -66,8 +61,23 @@ export default function AdvancedGameDetail({ game, onClose }) {
       <div className="agd-body">
         {tab === "overview" ? (
           <div className="agd-overview">
-            <aside className="agd-takeaways">
-              <h3 className="agd-section-title">KEY TAKEAWAYS</h3>
+            <StarterCard side="away" vm={vm} />
+
+            <div className="agd-model-command">
+              <ProbBar title="WIN PROBABILITY (FBIS MODEL)" data={vm.probabilities.win} away={vm.away} home={vm.home} />
+              <ProjectedScores vm={vm} />
+              <div className="agd-command-metrics">
+                <TeamMetric label="FBIS SIDE" side={vm.comparison?.fbisSide} tone="fbis" />
+                <TeamMetric label="MARKET SIDE" side={vm.comparison?.marketSide} tone="market" />
+                <Kv label="MODEL TOTAL" value={vm.projectedScores?.total ?? "—"} />
+                <ConfidenceCard confidence={vm.probabilities.confidence} />
+              </div>
+            </div>
+
+            <StarterCard side="home" vm={vm} />
+
+            <aside className="agd-takeaways agd-overview-takeaways">
+              <h3 className="agd-section-title">⚔ KEY MATCHUP ADVANTAGES</h3>
               <ul>
                 {(vm.takeaways || []).map((t, i) => (
                   <li key={`${t.tone}-${i}`} className={`agd-takeaway agd-takeaway-${t.tone}`}>
@@ -78,19 +88,19 @@ export default function AdvancedGameDetail({ game, onClose }) {
               </ul>
             </aside>
 
-            <div className="agd-center">
-              <ProjectedScores vm={vm} />
-              <div className="agd-prob-grid">
-                <ProbBar title="WIN PROBABILITY (MODEL)" data={vm.probabilities.win} away={vm.away} home={vm.home} />
-                <ProbBar title="COVER PROBABILITY" data={vm.probabilities.cover} away={vm.away} home={vm.home} />
-                <EvCard ev={vm.probabilities.ev} home={vm.home} />
-                <ConfidenceCard confidence={vm.probabilities.confidence} />
-                <TotalCard total={vm.probabilities.total} />
+            <div className="agd-market-command">
+              <h3 className="agd-section-title">📊 MODEL vs MARKET</h3>
+              <div className="agd-market-grid">
+                <TeamMetric label="FBIS SIDE" side={vm.comparison?.fbisSide} tone="fbis" />
+                <TeamMetric label="MARKET SIDE" side={vm.comparison?.marketSide} tone="market" />
+                <Kv label="SIDE DIFF" value={vm.comparison?.sideDiffLabel || "—"} />
+                <Kv label="TOTAL DIFF" value={vm.comparison?.totalDiffLabel || "—"} />
+                <Kv label="FBIS TOTAL" value={vm.projectedScores?.total ?? "—"} />
+                <Kv label="MARKET TOTAL" value={vm.comparison?.marketTotal ?? "—"} />
               </div>
             </div>
 
-            <aside className="agd-right">
-              <LineHistoryCard history={vm.lineHistory} compact />
+            <aside className="agd-right agd-overview-market">
               <BettingSplitsCard
                 splits={vm.bettingSplits}
                 away={vm.away}
@@ -99,7 +109,23 @@ export default function AdvancedGameDetail({ game, onClose }) {
                 setMode={setSplitsMode}
                 compact
               />
+              <LineHistoryCard history={vm.lineHistory} compact />
             </aside>
+
+            <div className="agd-context-strip">
+              <h3 className="agd-section-title">📋 ADDITIONAL FACTORS</h3>
+              <div className="agd-context-grid">
+                <Kv label={`${weatherEmoji(vm.weatherLine)} WEATHER`} value={vm.weatherLine || "Unavailable"} />
+                <Kv label="🏟 VENUE" value={vm.venueLine || "Unavailable"} />
+                <Kv label="🩹 PERSONNEL" value={vm.injuries?.available ? `${vm.injuries.rows.length} listed` : "Unavailable"} />
+                <Kv label="🧠 AUTHORITY" value={vm.authority?.research ? "RESEARCH" : vm.status?.label || "—"} />
+              </div>
+            </div>
+
+            <div className="agd-action-strip">
+              <h3 className="agd-section-title">🔥 ACTION INTEL</h3>
+              <ActionSnapshot vm={vm} />
+            </div>
           </div>
         ) : null}
 
@@ -220,6 +246,99 @@ export default function AdvancedGameDetail({ game, onClose }) {
   );
 }
 
+function HeroTeam({ team, score, projectionLabel, side }) {
+  return (
+    <div className={`agd-hero-team agd-hero-team-${side}`}>
+      <TeamLogo team={team} size={126} className="agd-hero-logo" />
+      <div className="agd-hero-team-copy">
+        <div className="agd-hero-city">{team?.fullName || team?.displayName || team?.name || team?.abbr || "—"}</div>
+        {team?.record ? <div className="agd-hero-record">({team.record})</div> : null}
+        <div className="agd-hero-proj-label">{projectionLabel || "FBIS PROJECTED SCORE"}</div>
+        <div className="agd-hero-score">{score ?? "—"}</div>
+      </div>
+    </div>
+  );
+}
+
+function supportedTabs(vm, game) {
+  return (vm.tabs || []).filter((t) => {
+    if (t.id === "action") return Boolean(vm.action?.available);
+    if (t.id === "market") return Boolean(vm.market?.available || vm.market?.marketAvailable || vm.comparison?.marketTotal != null);
+    if (t.id === "weather") return Boolean(vm.weatherLine || vm.windLabel || vm.venueLine);
+    if (t.id === "injuries") return Boolean(vm.injuries?.available);
+    if (t.id === "lineHistory") return Boolean(vm.lineHistory?.available);
+    if (t.id === "projections") return Boolean(vm.projectedScores?.available);
+    if (t.id === "trends") return Boolean(game?.trends || game?.trendSeries);
+    if (t.id === "bettingSplits") return Boolean(vm.bettingSplits?.available);
+    return true;
+  });
+}
+
+function StarterCard({ side, vm }) {
+  const team = side === "away" ? vm.away : vm.home;
+  const starter = vm.context?.starters?.[side];
+  return (
+    <div className={`agd-starter-card agd-starter-card-${side}`}>
+      <h3 className="agd-section-title">{team?.abbr || side.toUpperCase()} · {vm.context?.startersLabel || "GAME PERSONNEL"}</h3>
+      <div className="agd-starter-lead">
+        {starter?.photo ? (
+          <span className="agd-player-photo-wrap"><img className="agd-player-photo" src={starter.photo} alt={`${starter.name} headshot`} /></span>
+        ) : (
+          <TeamLogo team={team} size={62} />
+        )}
+        <div>
+          <strong>{starter?.name || "Not available"}</strong>
+          <span>{starter ? [starter.hand ? `${starter.hand}HP` : null, starter.era != null ? `${Number(starter.era).toFixed(2)} ERA` : null].filter(Boolean).join(" · ") : "Upstream starter data unavailable"}</span>
+        </div>
+      </div>
+      {starter ? (
+        <div className="agd-starter-metrics">
+          <Kv label="ERA" value={starter.era != null ? Number(starter.era).toFixed(2) : "—"} />
+          <Kv label="HAND" value={starter.hand ? `${starter.hand}HP` : "—"} />
+          {starter.record ? <Kv label="RECORD" value={starter.record} /> : null}
+          {starter.whip != null ? <Kv label="WHIP" value={starter.whip.toFixed(2)} /> : null}
+          {starter.strikeoutPct != null ? <Kv label="K%" value={`${starter.strikeoutPct}%`} /> : null}
+          {starter.walkPct != null ? <Kv label="BB%" value={`${starter.walkPct}%`} /> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ActionSnapshot({ vm }) {
+  const a = vm.action || {};
+  if (!a.available) return <p className="agd-empty">{a.emptyLabel || "No current ACTION snapshot"}</p>;
+  return (
+    <div className="agd-action-snapshot">
+      <ActionTile tone="signal" icon="🎯" label={a.headline?.label || "SIGNAL"} value={a.headline?.lineLabel || a.headline?.detail || "—"} team={a.headline?.team} />
+      <ActionTile tone="move" icon="📈" label="LINE MOVE" value={a.lineMove?.label || "—"} />
+      <ActionTile tone="tickets" icon="🎟️" label="TICKETS" value={a.tickets ? `${a.tickets.awayPct}% / ${a.tickets.homePct}%` : "—"} />
+      <ActionTile tone="money" icon="💰" label="MONEY" value={a.money ? `${a.money.awayPct}% / ${a.money.homePct}%` : "—"} />
+      <ActionTile tone="sample" icon="👥" label="SAMPLE" value={a.sample?.label || "—"} />
+    </div>
+  );
+}
+
+function ActionTile({ tone, icon, label, value, team }) {
+  return <div className={`agd-action-tile agd-action-tile-${tone}`}><span>{icon} {label}</span><strong>{team ? <TeamLogo team={team} size={22} /> : null}{value}</strong></div>;
+}
+
+function TeamMetric({ label, side, tone }) {
+  return <div className={`agd-team-metric agd-team-metric-${tone}`}><span>{label}</span><strong>{side?.team ? <TeamLogo team={side.team} size={34} /> : null}{side?.line != null ? fmtLine(side.line) : side?.label || "—"}</strong></div>;
+}
+
+function weatherEmoji(text) {
+  const value = String(text || "").toLowerCase();
+  if (/thunder|storm/.test(value)) return "⛈️";
+  if (/rain|shower/.test(value)) return "🌧️";
+  if (/snow|sleet|ice/.test(value)) return "🌨️";
+  if (/partly|mostly cloudy/.test(value)) return "🌤️";
+  if (/cloud|overcast/.test(value)) return "☁️";
+  if (/sun|clear/.test(value)) return "☀️";
+  if (/wind/.test(value)) return "💨";
+  return "🌡️";
+}
+
 function ProjectedScores({ vm }) {
   const p = vm.projectedScores || {};
   return (
@@ -228,7 +347,7 @@ function ProjectedScores({ vm }) {
       {p.available ? (
         <div className="agd-proj-row">
           <div className="agd-proj-team">
-            <TeamLogo team={vm.away} size={28} />
+            <TeamLogo team={vm.away} size={38} />
             <div>
               <div className="agd-proj-score">{p.away ?? "—"}</div>
               <div className="agd-proj-name">
@@ -249,7 +368,7 @@ function ProjectedScores({ vm }) {
                 {vm.home?.record ? ` (${vm.home.record})` : ""}
               </div>
             </div>
-            <TeamLogo team={vm.home} size={28} />
+            <TeamLogo team={vm.home} size={38} />
           </div>
         </div>
       ) : (
@@ -383,9 +502,12 @@ function LineSpark({ points }) {
   return (
     <div className="agd-spark">
       <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Line history">
-        <path d={d} fill="none" stroke="#ff6b8a" strokeWidth="2.5" />
+        {[pad, h / 2, h - pad].map((y) => <line key={y} x1={pad} x2={w - pad} y1={y} y2={y} className="agd-spark-grid" />)}
+        <text x={pad + 2} y={pad + 11} className="agd-spark-axis">{fmtLine(max)}</text>
+        <text x={pad + 2} y={h - pad - 4} className="agd-spark-axis">{fmtLine(min)}</text>
+        <path d={d} fill="none" stroke="#ff4f7b" strokeWidth="3" />
         {coords.map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r="3" fill="#ff6b8a" />
+          <circle key={i} cx={x} cy={y} r="3.5" fill="#ff84a5" stroke="#fff" strokeWidth=".7" />
         ))}
       </svg>
       <div className="agd-spark-labels">

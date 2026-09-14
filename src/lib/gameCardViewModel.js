@@ -667,7 +667,23 @@ function pitcherInfo(sp, era, team) {
     hand: sp?.hand || sp?.throws || null,
     era: era != null && Number.isFinite(Number(era)) ? Number(era) : null,
     record: sp?.record || sp?.wL || null,
+    number: sp?.number || sp?.jersey || null,
+    photo: safeImageUrl(sp?.photo || sp?.headshot || sp?.headshotUrl || sp?.image || sp?.playerImage),
+    whip: finite(sp?.whip),
+    strikeoutPct: finite(sp?.strikeoutPct ?? sp?.kPct ?? sp?.strikeoutRate),
+    walkPct: finite(sp?.walkPct ?? sp?.bbPct ?? sp?.walkRate),
+    innings: finite(sp?.innings ?? sp?.ip),
   };
+}
+
+function finite(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function safeImageUrl(value) {
+  return typeof value === "string" && (/^https:\/\//i.test(value) || /^\/(?!\/)/.test(value)) ? value : null;
 }
 
 function buildStatus(board) {
