@@ -323,11 +323,14 @@ function GameBody({ vm, game }) {
 function DecisionBoardCard({ game, open, onToggle, renderDetail }) {
   const vm = useMemo(() => buildBoardGameViewModel(game), [game]);
   const key = `${game.sport}:${game.id}`;
+  const sport = String(vm.sport || game.sport || "").toLowerCase();
+  const sportBg = sport === "mlb" ? " db-card--mlb" : "";
 
   return (
     <article
-      className={`db-card decision-tier-${vm.decision?.tier || "NONE"}`}
+      className={`db-card decision-tier-${vm.decision?.tier || "NONE"}${sportBg}`}
       data-game-id={game.id}
+      data-sport={sport || undefined}
     >
       <header className="db-card-header">
         <div className="db-kick">
