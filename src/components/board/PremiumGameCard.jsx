@@ -134,7 +134,7 @@ export default function PremiumGameCard({
           </div>
           <div className="pgc-hero-proj">
             <span className="pgc-hero-score">
-              {vm.projection?.available ? (vm.projection.away ?? "—") : "—"}
+              {vm.projection?.available ? fmtScore(vm.projection.away) : "—"}
             </span>
             <span className="pgc-hero-proj-lab">{units.projectedLabel || "FBIS PROJECTED"}</span>
           </div>
@@ -159,7 +159,7 @@ export default function PremiumGameCard({
           </div>
           <div className="pgc-hero-proj">
             <span className="pgc-hero-score">
-              {vm.projection?.available ? (vm.projection.home ?? "—") : "—"}
+              {vm.projection?.available ? fmtScore(vm.projection.home) : "—"}
             </span>
             <span className="pgc-hero-proj-lab">{units.projectedLabel || "FBIS PROJECTED"}</span>
           </div>
@@ -443,4 +443,11 @@ function nickname(team) {
     return (parts.length > 1 ? parts.slice(1).join(" ") : full).toUpperCase();
   }
   return String(team.abbr || "—").toUpperCase();
+}
+
+function fmtScore(n) {
+  if (n == null || n === "") return "—";
+  const v = Number(n);
+  if (!Number.isFinite(v)) return String(n);
+  return v.toFixed(1);
 }

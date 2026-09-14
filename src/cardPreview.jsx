@@ -30,6 +30,8 @@ const mlb = {
   decision: { qualification: "QUALIFIED", tier: "QUALIFIED", label: "QUALIFIED" },
   market: {
     marketAvailable: true,
+    label: "CONSENSUS",
+    book: "SharpAPI",
     execution: {
       available: true,
       book: "FanDuel",

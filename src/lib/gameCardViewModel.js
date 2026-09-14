@@ -776,6 +776,6 @@ function fmtLine(n) {
 }
 
 function formatSample(n) {
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K`;
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 100000 ? 0 : 1)}K`;
   return String(Math.round(n));
 }
