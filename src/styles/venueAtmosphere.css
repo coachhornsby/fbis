@@ -23,9 +23,9 @@
 }
 
 .venue-bg--mlb {
-  --venue-image: url("/backgrounds/mlb-stadium-homeplate.jpg");
-  /* Frame diamond + stands; keep twilight sky from dominating the card */
-  background-position: center, center, center 68% !important;
+  --venue-image: url("/backgrounds/mlb-stadium-angel-sunset.jpg");
+  /* Frame diamond + stands; keep sunset sky from dominating the card */
+  background-position: center, center, center 62% !important;
 }
 .venue-bg--cfb {
   --venue-image: url("/backgrounds/cfb-stadium-big-house.jpg");
