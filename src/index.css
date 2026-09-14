@@ -2,16 +2,18 @@
   /* FBIS decision workstation semantic tokens */
   --surface: var(--panel);
   --surface-elevated: var(--panel2);
-  --status-research: #a78bfa;
+  /* Exact accents sampled from approved FBIS card mockup */
+  --status-research: #8469f6;
   --status-watch: var(--yellow);
   --status-qualified: var(--cyan);
   --status-authorized: var(--green);
   --status-blocked: var(--red);
-  --status-live: #ff6b4a;
+  --status-live: #f3214c;
   --status-final: #9aa8b8;
   --status-stale: var(--yellow);
-  --fbis-accent: #3ec7e8;
-  --market-accent: #e3b341;
+  --fbis-accent: #1ac2fe;
+  --market-accent: #ffd338;
+  --action-accent: #f3214c;
   --diff-accent: #f0f3f7;
 
   --bg: #000000;
@@ -29,24 +31,24 @@
     0 4px 10px rgba(0, 0, 0, 0.45);
   /* Decorative only — never use --blue / --blue-light for text on navy panels. */
   --blue: #5aa8d4;
-  --cyan: #3ec7e8;
+  --cyan: #1ac2fe;
   --blue-light: #f2f6fa;
   --navy: #0a1628;
   --row-alt: #16283c;
-  --green: #3fb950;
+  --green: #00f576;
   --green-bg: #0a2215;
-  --yellow: #e3b341;
+  --yellow: #ffd338;
   --yellow-bg: #241a04;
-  --red: #f85149;
+  --red: #f3214c;
   --red-bg: #270a09;
   --odds-bg: #122033;
   --odds-hover: #1a334d;
   --price: #f2f6fa;
   --card: #1c334c;
   --card-border: #3a5570;
-  --glow-conviction: rgba(63, 185, 80, 0.38);
-  --glow-qualified: rgba(62, 199, 232, 0.3);
-  --glow-lean: rgba(227, 179, 65, 0.24);
+  --glow-conviction: rgba(0, 245, 118, 0.42);
+  --glow-qualified: rgba(26, 194, 254, 0.42);
+  --glow-lean: rgba(255, 211, 56, 0.35);
 
   /* Typography — Georgia everywhere */
   --font-body: Georgia, "Times New Roman", Times, serif;
@@ -530,8 +532,8 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 .text-red { color: var(--red); font-weight: 700; }
 
 .edge-pos { color: var(--green); font-weight: 600; }
-.edge-pos-h { color: #3fb950; background: rgba(63, 185, 80, 0.1); border-radius: 2px; font-weight: 700; padding: 0 4px; }
-.edge-pos-hh { color: #3fb950; background: rgba(63, 185, 80, 0.2); border-radius: 2px; font-weight: 700; padding: 0 4px; }
+.edge-pos-h { color: #00f576; background: rgba(0, 245, 118, 0.12); border-radius: 2px; font-weight: 700; padding: 0 4px; }
+.edge-pos-hh { color: #00f576; background: rgba(0, 245, 118, 0.22); border-radius: 2px; font-weight: 700; padding: 0 4px; }
 .edge-neg { color: var(--red); font-weight: 600; }
 .edge-neutral { color: var(--muted); }
 
@@ -1132,12 +1134,15 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 .board-card-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 22px;
+  gap: 18px;
   align-items: stretch;
+  width: 100%;
+  max-width: none;
 }
 .board-card-grid > [role="listitem"] {
   display: flex;
   min-width: 0;
+  width: 100%;
   height: 100%;
 }
 .board-card-grid > .board-card-grid-item-open {

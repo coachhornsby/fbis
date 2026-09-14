@@ -4,20 +4,20 @@
   --agd-bg: rgba(6, 12, 22, 0.96);
   --agd-panel: rgba(10, 18, 32, 0.9);
   --agd-line: rgba(120, 170, 220, 0.18);
-  --agd-fbis: #3ec7e8;
-  --agd-mkt: #e3b341;
-  --agd-ok: #3fb950;
-  --agd-warn: #ff6b8a;
+  --agd-fbis: #1ac2fe;
+  --agd-mkt: #ffd338;
+  --agd-ok: #00f576;
+  --agd-warn: #f3214c;
   --agd-text: #f3f7fc;
   --agd-muted: #9db0c4;
   --agd-radius: 12px;
 
   margin-top: 10px;
-  border: 1px solid rgba(62, 199, 232, 0.28);
+  border: 1px solid rgba(26, 194, 254, 0.28);
   border-radius: var(--agd-radius);
   background: var(--agd-bg);
   color: var(--agd-text);
-  box-shadow: 0 0 0 1px rgba(62, 199, 232, 0.08), 0 18px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 0 1px rgba(26, 194, 254, 0.08), 0 18px 40px rgba(0, 0, 0, 0.45);
   overflow: hidden;
 }
 
@@ -56,9 +56,9 @@
   display: inline-flex;
   padding: 1px 7px;
   border-radius: 999px;
-  border: 1px solid rgba(62, 199, 232, 0.4);
+  border: 1px solid rgba(26, 194, 254, 0.4);
   color: #d7f6ff;
-  background: rgba(62, 199, 232, 0.12);
+  background: rgba(26, 194, 254, 0.12);
   font-size: 10px;
   font-weight: 900;
 }
@@ -138,9 +138,9 @@
 
 .agd-tab.is-active {
   color: #d7f6ff;
-  background: linear-gradient(180deg, rgba(62, 199, 232, 0.22), rgba(62, 199, 232, 0.08));
-  border-color: rgba(62, 199, 232, 0.45);
-  box-shadow: 0 0 12px rgba(62, 199, 232, 0.18);
+  background: linear-gradient(180deg, rgba(26, 194, 254, 0.22), rgba(26, 194, 254, 0.08));
+  border-color: rgba(26, 194, 254, 0.45);
+  box-shadow: 0 0 12px rgba(26, 194, 254, 0.18);
 }
 
 .agd-body {
@@ -383,7 +383,7 @@
 }
 
 .agd-toggle-btn.is-active {
-  background: rgba(62, 199, 232, 0.18);
+  background: rgba(26, 194, 254, 0.18);
   color: #d7f6ff;
 }
 
@@ -435,7 +435,7 @@
   gap: 8px;
   font-size: 12px;
   font-weight: 900;
-  color: #ffc1c0;
+  color: #ffffff;
   margin-bottom: 6px;
 }
 
@@ -443,17 +443,19 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  color: #ffffff;
 }
 
 .agd-signal-line {
   font-size: 16px;
   font-weight: 900;
+  color: #ffffff;
 }
 
 .agd-signal-detail {
   font-size: 11px;
-  color: var(--agd-muted);
-  font-weight: 800;
+  color: #ffffff;
+  font-weight: 900;
 }
 
 .agd-match-teams {

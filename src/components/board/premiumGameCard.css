@@ -1,12 +1,12 @@
 /* Premium FBIS game card — matches approved mockup */
 
 .pgc {
-  --pgc-fbis: #3ec7e8;
-  --pgc-mkt: #e3b341;
-  --pgc-action: #ff6b4a;
-  --pgc-ok: #3fb950;
-  --pgc-warn: #ff7b72;
-  --pgc-research: #a371f7;
+  --pgc-fbis: #1ac2fe;
+  --pgc-mkt: #ffd338;
+  --pgc-action: #f3214c;
+  --pgc-ok: #00f576;
+  --pgc-warn: #f3214c;
+  --pgc-research: #a855f7;
   --pgc-text: #f3f7fc;
   --pgc-muted: #9db0c4;
   --pgc-panel: rgba(7, 14, 26, 0.78);
@@ -23,12 +23,13 @@
   color: var(--pgc-text);
   overflow: hidden;
   min-width: 0;
+  width: 100%;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
 }
 
 .pgc.status-qualified {
   box-shadow:
-    0 0 0 1px rgba(63, 185, 80, 0.5),
+    0 0 0 1px rgba(0, 245, 118, 0.5),
     0 12px 30px rgba(0, 0, 0, 0.4);
 }
 .pgc.status-research {
@@ -79,8 +80,8 @@
   font-weight: 900;
   letter-spacing: 0.06em;
   color: #d7f6ff;
-  background: rgba(62, 199, 232, 0.16);
-  border: 1px solid rgba(62, 199, 232, 0.35);
+  background: rgba(26, 194, 254, 0.16);
+  border: 1px solid rgba(26, 194, 254, 0.35);
 }
 .pgc-status {
   display: inline-flex;
@@ -95,9 +96,9 @@
   background: rgba(255, 255, 255, 0.06);
 }
 .pgc-status-qualified {
-  color: #aff5b4;
-  background: rgba(63, 185, 80, 0.16);
-  border-color: rgba(63, 185, 80, 0.45);
+  color: #00f576;
+  background: rgba(0, 245, 118, 0.16);
+  border-color: rgba(0, 245, 118, 0.45);
 }
 .pgc-status-research {
   color: #d2a8ff;
@@ -231,10 +232,10 @@
 }
 .pgc-bar-fill { height: 100%; border-radius: inherit; }
 .pgc-bar-fill.fbis {
-  background: linear-gradient(90deg, #1f8fad, var(--pgc-fbis));
+  background: linear-gradient(90deg, #0eb8ef, #1ac2fe); box-shadow: 0 0 14px rgba(26, 194, 254, 0.45);
 }
 .pgc-bar-fill.mkt {
-  background: linear-gradient(90deg, #a67c1d, var(--pgc-mkt));
+  background: linear-gradient(90deg, #f0c020, #ffd338); box-shadow: 0 0 14px rgba(255, 211, 56, 0.4);
 }
 .pgc-bar-val {
   font-size: 11px;
@@ -259,12 +260,12 @@
   min-width: 0;
 }
 .pgc-panel-model {
-  border-color: rgba(62, 199, 232, 0.35);
-  box-shadow: inset 0 0 0 1px rgba(62, 199, 232, 0.08);
+  border-color: rgba(26, 194, 254, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(26, 194, 254, 0.08);
 }
 .pgc-panel-action {
-  border-color: rgba(63, 185, 80, 0.35);
-  box-shadow: inset 0 0 0 1px rgba(63, 185, 80, 0.08);
+  border-color: rgba(0, 245, 118, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 245, 118, 0.08);
 }
 .pgc-panel-info {
   border-color: rgba(170, 200, 230, 0.2);
@@ -342,8 +343,8 @@
   border-color: rgba(248, 81, 73, 0.35);
 }
 .pgc-pill.ok {
-  color: #aff5b4;
-  border-color: rgba(63, 185, 80, 0.3);
+  color: #00f576;
+  border-color: rgba(0, 245, 118, 0.3);
 }
 
 .pgc-side-compare,
@@ -383,8 +384,8 @@
   gap: 6px;
   padding: 7px 8px;
   border-radius: 8px;
-  background: rgba(255, 107, 74, 0.12);
-  border: 1px solid rgba(255, 107, 74, 0.4);
+  background: rgba(243, 33, 76, 0.12);
+  border: 1px solid rgba(243, 33, 76, 0.4);
 }
 .pgc-signal-top {
   display: flex;
@@ -393,21 +394,23 @@
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.04em;
-  color: #ffc1b5;
+  color: #ffffff;
 }
 .pgc-signal-body {
   display: flex;
   align-items: center;
   gap: 8px;
+  color: #ffffff;
 }
 .pgc-signal-line {
   font-size: 14px;
   font-weight: 900;
+  color: #ffffff;
 }
 .pgc-signal-detail {
   font-size: 10px;
-  font-weight: 800;
-  color: var(--pgc-muted);
+  font-weight: 900;
+  color: #ffffff;
   letter-spacing: 0.04em;
 }
 
@@ -495,7 +498,7 @@
   margin-left: 4px;
 }
 .pgc-fact em.neg { color: #ffc1c0; }
-.pgc-fact em.pos { color: #aff5b4; }
+.pgc-fact em.pos { color: #00f576; }
 .pgc-fact em.warn { color: #ffd999; }
 
 .pgc-info-lab {
@@ -591,10 +594,10 @@
 /* Approved workstation fidelity pass. These rules deliberately refine the
    existing data-safe component without changing any model or authority logic. */
 .pgc {
-  --pgc-fbis: #28d7ff;
+  --pgc-fbis: #1ac2fe;
   --pgc-mkt: #ffd338;
-  --pgc-action: #ff416c;
-  --pgc-ok: #00ef72;
+  --pgc-action: #f3214c;
+  --pgc-ok: #00f576;
   --pgc-panel: rgba(3, 14, 27, 0.9);
   --pgc-line: rgba(71, 164, 221, 0.28);
   width: 100%;
@@ -610,7 +613,7 @@
 .pgc-time { font-size: 11px; line-height: 1.1; }
 .pgc-sport-pill { font-size: 12px; padding: 4px 13px; border-color: #0da9ed; color: #43d5ff; }
 .pgc-status { font-size: 12px; padding: 5px 15px; }
-.pgc-status-qualified { color: #00ff78; background: rgba(0, 105, 49, 0.55); border-color: #00e86c; box-shadow: 0 0 15px rgba(0, 238, 114, 0.24); }
+.pgc-status-qualified { color: #00f576; background: rgba(0, 120, 55, 0.55); border-color: #00f576; box-shadow: 0 0 18px rgba(0, 245, 118, 0.35); }
 
 .pgc-hero {
   grid-template-columns: minmax(285px, 1fr) minmax(210px, .72fr) minmax(285px, 1fr);
@@ -654,15 +657,15 @@
 .pgc-bars { gap: 5px; padding: 7px 12px; background: rgba(1, 12, 24, .84); border-color: rgba(23, 133, 196, .45); }
 .pgc-bar-row { grid-template-columns: 66px 1fr 142px; gap: 10px; }
 .pgc-bar-track { height: 11px; border: 1px solid rgba(27, 174, 235, .55); background: rgba(0, 8, 18, .78); }
-.pgc-bar-fill.fbis { background: linear-gradient(90deg, #1ecbea, #31d6ff); box-shadow: 0 0 12px rgba(40, 215, 255, .35); }
-.pgc-bar-fill.mkt { background: linear-gradient(90deg, #ffcf2b, #ffe35b); box-shadow: 0 0 10px rgba(255, 211, 56, .25); }
+.pgc-bar-fill.fbis { background: linear-gradient(90deg, #0eb8ef, #1ac2fe); box-shadow: 0 0 16px rgba(26, 194, 254, 0.55); }
+.pgc-bar-fill.mkt { background: linear-gradient(90deg, #ffc400, #ffd338); box-shadow: 0 0 16px rgba(255, 211, 56, 0.5); }
 .pgc-bar-lab, .pgc-bar-val { font-size: 12px; }
 
 .pgc-panels { grid-template-columns: 1.13fr 1.2fr .82fr; gap: 7px; min-height: 218px; }
 .pgc-panel { padding: 8px 9px; border-radius: 11px; gap: 6px; backdrop-filter: blur(10px); }
-.pgc-panel-model { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; border-color: #6848ff; box-shadow: inset 0 0 0 1px rgba(125, 87, 255, .55), 0 0 13px rgba(105, 69, 255, .18); }
+.pgc-panel-model { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; border-color: #8469f6; box-shadow: inset 0 0 0 1px rgba(125, 87, 255, .55), 0 0 13px rgba(105, 69, 255, .18); }
 .pgc-panel-model > .pgc-panel-title { grid-column: 1 / -1; }
-.pgc-panel-action { border-color: #00bd65; box-shadow: inset 0 0 0 1px rgba(0, 229, 118, .35), 0 0 14px rgba(0, 207, 107, .14); }
+.pgc-panel-action { border-color: #00f576; box-shadow: inset 0 0 0 1px rgba(0, 245, 118, .45), 0 0 18px rgba(0, 245, 118, .22); }
 .pgc-panel-title { font-size: 15px; border-bottom: 1px solid rgba(84, 151, 201, .22); padding-bottom: 5px; }
 .pgc-powered { font-size: 9px; }
 .pgc-diff-cell { padding: 7px; background: rgba(5, 25, 44, .82); border: 1px solid rgba(41, 130, 189, .4); }
@@ -673,16 +676,16 @@
 .pgc-side-box-body { font-size: 12px; font-weight: 900; }
 .pgc-mini-box strong { font-size: 18px; }
 
-.pgc-signal { display: grid; grid-template-columns: 1fr 1.15fr; align-items: center; min-height: 50px; padding: 7px 10px; background: linear-gradient(90deg, rgba(113, 8, 49, .76), rgba(31, 13, 38, .75)); border-color: #ff1760; box-shadow: 0 0 12px rgba(255, 23, 96, .16); }
-.pgc-signal-top { font-size: 12px; color: #ff7ba6; }
-.pgc-signal-line { font-size: 15px; }
-.pgc-signal-detail { color: #ff507f; }
+.pgc-signal { display: grid; grid-template-columns: 1fr 1.15fr; align-items: center; min-height: 50px; padding: 7px 10px; background: linear-gradient(90deg, rgba(113, 8, 49, .76), rgba(31, 13, 38, .75)); border-color: #f3214c; box-shadow: 0 0 12px rgba(255, 23, 96, .16); }
+.pgc-signal-top { font-size: 12px; font-weight: 900; color: #ffffff; }
+.pgc-signal-line { font-size: 15px; font-weight: 900; color: #ffffff; }
+.pgc-signal-detail { font-weight: 900; color: #ffffff; }
 .pgc-meters { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .pgc-meter { padding: 6px 8px; border: 1px solid rgba(0, 169, 107, .42); border-radius: 8px; background: rgba(3, 30, 35, .68); }
 .pgc-meter-lab { color: #4cdaff; font-size: 10px; }
 .pgc-meter-track { height: 9px; }
 .pgc-meter-away { background: #bed0e2; }
-.pgc-meter-home { background: #ff416c; }
+.pgc-meter-home { background: #f3214c; }
 .pgc-meter-legend { color: #f2f6fb; }
 .pgc-action-facts { display: grid; grid-template-columns: 1.25fr .9fr 1fr; gap: 5px; }
 .pgc-fact { flex-direction: column; justify-content: flex-start; padding: 6px; border-radius: 7px; border: 1px solid rgba(0, 169, 107, .4); background: rgba(2, 30, 35, .72); }

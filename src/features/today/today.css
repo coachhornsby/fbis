@@ -1,3 +1,12 @@
+/* Top Opportunities — exact accents from approved mockup */
+.today-section {
+  --top-fbis: #1ac2fe;
+  --top-mkt: #ffd338;
+  --top-diff: #a855f7;
+  --top-ok: #00f576;
+  --top-action: #f3214c;
+}
+
 /* Phase 4 — Today command center */
 
 .today-command-center {
@@ -36,17 +45,27 @@
   display: grid;
   grid-template-columns: 42px 1fr;
   gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border, #2a3344);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(26, 194, 254, 0.45);
+  border-radius: 12px;
+  background: rgba(8, 16, 28, 0.92);
+  box-shadow: 0 0 18px rgba(26, 194, 254, 0.12), 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+.today-opp-card:first-child {
+  border-color: rgba(255, 211, 56, 0.65);
+  box-shadow: 0 0 22px rgba(255, 211, 56, 0.18), 0 12px 28px rgba(0, 0, 0, 0.4);
 }
 
 .today-opp-rank {
-  font-weight: 700;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: var(--muted, #9aa3b5);
+  color: #ffd338;
   padding-top: 2px;
+}
+.today-opp-card:first-child .today-opp-rank {
+  color: #ffd338;
+  text-shadow: 0 0 12px rgba(255, 211, 56, 0.45);
 }
 
 .today-opp-main {
@@ -86,11 +105,16 @@
 
 .today-metric-value {
   font-variant-numeric: tabular-nums;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #f5f8fc;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.today-metric:nth-child(1) .today-metric-value { color: #1ac2fe; text-shadow: 0 0 10px rgba(26, 194, 254, 0.35); }
+.today-metric:nth-child(2) .today-metric-value { color: #ffd338; text-shadow: 0 0 10px rgba(255, 211, 56, 0.3); }
+.today-metric:nth-child(3) .today-metric-value { color: #a855f7; }
 
 .today-compact-table th,
 .today-compact-table td {
