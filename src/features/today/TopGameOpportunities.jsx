@@ -190,7 +190,10 @@ function buildView(event, rank) {
     : Number.isFinite(Number(spread?.line))
       ? Number(spread.line)
       : null;
-  const diff = proj != null && marketRaw != null ? Math.abs(proj - marketRaw) : null;
+  // currentLine is a home spread; convert to home-centric margin for comparison with projMargin.
+  const marketHomeMargin = marketRaw != null ? -marketRaw : null;
+  const diff =
+    proj != null && marketHomeMargin != null ? Math.abs(proj - marketHomeMargin) : null;
 
   const ticketPct = Number.isFinite(Number(movement.ticketPct))
     ? Number(movement.ticketPct)

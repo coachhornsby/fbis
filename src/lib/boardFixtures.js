@@ -16,34 +16,45 @@ function team(partial) {
 }
 
 function baseGame(partial) {
+  const projAway = partial.projAway ?? 21;
+  const projHome = partial.projHome ?? 28;
   return {
     id: partial.id,
     sport: partial.sport || "cfb",
     start: partial.start,
+    startCt: partial.start,
     status: partial.status || { detail: "Scheduled", live: false, completed: false },
     venue: partial.venue || "Fixture Stadium",
     away: team(partial.away),
     home: team(partial.home),
-    projAwayScore: partial.projAway ?? 21,
-    projHomeScore: partial.projHome ?? 28,
+    projAway,
+    projHome,
+    projMargin: Number.isFinite(projHome - projAway) ? projHome - projAway : null,
+    projAwayScore: projAway,
+    projHomeScore: projHome,
     projectionKind: "FBIS",
     projectionState: partial.projectionState || "COMPLETE",
     model: {
-      projAway: partial.projAway ?? 21,
-      projHome: partial.projHome ?? 28,
+      projAway,
+      projHome,
+      projMargin: projHome - projAway,
       recipe: { engine: "fixture" },
     },
+    spread: partial.spread ?? -6.5,
+    pinSpread: partial.pinSpread ?? partial.spread ?? -6.5,
+    ticketPct: partial.ticketPct ?? null,
+    moneyPct: partial.moneyPct ?? null,
     odds: {
-      pinPresent: partial.pinPresent ?? false,
+      pinPresent: partial.pinPresent ?? true,
       softSource: partial.softSource || "sharpapi",
       spread: partial.spread ?? -6.5,
       total: partial.total ?? 52.5,
       homeMl: partial.homeMl ?? -250,
       awayMl: partial.awayMl ?? 210,
-      pinSpread: partial.pinPresent ? partial.spread ?? -6.5 : null,
-      pinTotal: partial.pinPresent ? partial.total ?? 52.5 : null,
-      pinHomeMl: partial.pinPresent ? partial.homeMl ?? -250 : null,
-      pinAwayMl: partial.pinPresent ? partial.awayMl ?? 210 : null,
+      pinSpread: partial.pinSpread ?? partial.spread ?? -6.5,
+      pinTotal: partial.total ?? 52.5,
+      pinHomeMl: partial.homeMl ?? -250,
+      pinAwayMl: partial.awayMl ?? 210,
       softSpreadHomePrice: -110,
       softSpreadAwayPrice: -110,
       softOverPrice: -110,
@@ -90,6 +101,7 @@ export function boardQaFixtureGames() {
       projAway: 24.2,
       projHome: 31.8,
       rec: {
+        qualified: true,
         tag: "CONVICTION",
         pick: "Ohio State -6.5",
         market: "SPREAD",
@@ -98,6 +110,11 @@ export function boardQaFixtureGames() {
         book: "DK/FD",
         softBenchmark: true,
       },
+      ticketPct: 38,
+      moneyPct: 61,
+      pinSpread: -6.5,
+      openingSpread: -5.5,
+      spread: -6.5,
     }),
     baseGame({
       id: "qa-qualified",
@@ -121,6 +138,7 @@ export function boardQaFixtureGames() {
       projHome: 29.4,
       pinPresent: true,
       rec: {
+        qualified: true,
         tag: "STRONG",
         pick: "Over 55.5",
         market: "TOTAL",
@@ -128,6 +146,11 @@ export function boardQaFixtureGames() {
         evPct: 5.4,
         book: "Pinnacle",
       },
+      ticketPct: 54,
+      moneyPct: 47,
+      pinSpread: -3.0,
+      openingSpread: -2.5,
+      spread: -3.0,
     }),
     baseGame({
       id: "qa-lean",
@@ -160,6 +183,11 @@ export function boardQaFixtureGames() {
         softBenchmark: true,
         reason: "PRIOR_ONLY CFB projection — value signal only",
       },
+      ticketPct: 72,
+      moneyPct: 58,
+      pinSpread: -17.5,
+      openingSpread: -16.5,
+      spread: -17.5,
     }),
     baseGame({
       id: "qa-pass-long-names",
@@ -391,11 +419,12 @@ export function todayQaPlayerPropGames() {
 export function mergeTodayQaFixtures(board = {}, search) {
   if (!boardQaEnabled(search)) return board;
   if (!board || typeof board !== "object") return board;
-  const fixtures = todayQaPlayerPropGames();
+  const propFixtures = todayQaPlayerPropGames();
+  const gameFixtures = boardQaFixtureGames();
   const games = Array.isArray(board.games) ? board.games : [];
-  const withoutDup = games.filter((g) => !String(g?.id || "").startsWith("qa-player-props"));
+  const withoutDup = games.filter((g) => !String(g?.id || "").startsWith("qa-"));
   return {
     ...board,
-    games: [...fixtures, ...withoutDup],
+    games: [...gameFixtures, ...propFixtures, ...withoutDup],
   };
 }
