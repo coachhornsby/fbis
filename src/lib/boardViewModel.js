@@ -43,6 +43,88 @@ function maturityFromGame(game, projection) {
 }
 
 /**
+ * True only when the execution resolver has proven a like-for-like ranking
+ * among comparable configured-book offers. Never infer "best" from role alone.
+ */
+export function isProvenBestExecutionOffer(game, marketLinesResult = null) {
+  const m = game?.market;
+  const exec = m?.execution || {};
+  const offer =
+    exec.selectedOffer ||
+    exec.bestOffer ||
+    m?.comparison ||
+    null;
+  const rankLabel = String(
+    offer?.rankLabel || exec.rankLabel || offer?.label || exec.label || ""
+  ).toUpperCase();
+  const likeForLike = Boolean(
+    offer?.likeForLike === true ||
+      exec.likeForLike === true ||
+      rankLabel.includes("BEST_LIKE_FOR_LIKE") ||
+      rankLabel === "BEST EXECUTION"
+  );
+  const alternatives = offer?.alternativesInLine || exec.alternativesInLine || [];
+  const rankedBest = Boolean(exec.rankedBest === true || m?.executionRankedBest === true);
+  const multiComparable =
+    rankedBest ||
+    (Array.isArray(alternatives) && alternatives.length > 0) ||
+    Number(exec.comparableOfferCount || exec.offerCount || 0) > 1;
+  if (!(marketLinesResult || marketLines(game)).marketAvailable) return false;
+  if ((marketLinesResult || marketLines(game)).marketRole !== "EXECUTION_MARKET") {
+    return false;
+  }
+  return Boolean(likeForLike && multiComparable);
+}
+
+/**
+ * Role-aware Board market label — never collapses missing states into one phrase.
+ */
+export function resolveBoardMarketLabel(game, marketLinesResult = null) {
+  const lines = marketLinesResult || marketLines(game);
+  const m = game?.market || {};
+  const exec = m.execution || {};
+  const cons = m.consensus || {};
+
+  if (lines.marketAvailable && lines.marketRole === "EXECUTION_MARKET") {
+    return isProvenBestExecutionOffer(game, lines)
+      ? "BEST AVAILABLE"
+      : "EXECUTION OFFER";
+  }
+
+  if (lines.marketAvailable && lines.marketRole === "CONSENSUS_MARKET") {
+    const source = String(cons.source || m.primaryMarketLabel || lines.book || "").toUpperCase();
+    // Non-executable observed feed (e.g. unconfigured Heritage) → OBSERVED MARKET
+    if (source.includes("OBSERVED") || cons.observedOnly === true) {
+      return "OBSERVED MARKET";
+    }
+    return "CONSENSUS";
+  }
+
+  if (lines.referenceOnly || lines.marketRole === "REFERENCE_MARKET") {
+    return "REFERENCE ONLY";
+  }
+
+  if (!lines.marketAvailable) {
+    return "NO CURRENT MARKET";
+  }
+
+  return "OBSERVED MARKET";
+}
+
+export function resolveBoardMarketEmptyReason(game, marketLinesResult = null) {
+  const lines = marketLinesResult || marketLines(game);
+  if (lines.marketAvailable) return null;
+  if (lines.referenceOnly || lines.marketRole === "REFERENCE_MARKET") {
+    return "Reference market only — not from your configured execution books.";
+  }
+  const books = game?.market?.operatorExecutionBooks;
+  if (Array.isArray(books) && books.length > 0) {
+    return "NO CURRENT EXECUTION OFFER from your configured books.";
+  }
+  return "No current operational or reference market.";
+}
+
+/**
  * Decision presentation — authority-honest.
  * Research models never surface EV / fair probability / qualification as actionable.
  */
@@ -56,16 +138,29 @@ export function buildDecisionPresentation(game) {
   const probabilityAuthority = boardShowsFairProbability(game);
   const market = marketLines(game);
   const marketAvailable = Boolean(market.marketAvailable);
-  const marketFresh = !(game?.marketStale || game?.odds?.stale);
+  const executionActionable = Boolean(
+    game?.market?.executionActionable ??
+      game?.market?.execution?.actionable ??
+      false
+  );
+  const marketFresh = !(
+    game?.marketStale ||
+    game?.odds?.stale ||
+    (market.marketRole === "EXECUTION_MARKET" &&
+      game?.market?.execution?.freshness === "STALE")
+  );
   const dqState = game?.quality?.state || game?.dqState || null;
 
   const evPct =
     decision.evPct ?? (decision.ev != null ? Number(decision.ev) * 100 : null);
 
+  // Stale / non-actionable execution cannot create an actionable EV decision.
   const evAvailable =
     !research &&
     probabilityAuthority &&
     marketAvailable &&
+    executionActionable &&
+    marketFresh &&
     evPct != null &&
     Number.isFinite(Number(evPct)) &&
     (decision.tier === "QUALIFIED" || decision.tier === "CONVICTION");
@@ -90,6 +185,7 @@ export function buildDecisionPresentation(game) {
     probabilityAuthority,
     marketAvailable,
     marketFresh,
+    executionActionable,
     dqState,
     disagreementLabel: research || !evAvailable ? "MODEL DIFFERENCE" : "CALIBRATED EDGE",
     evAvailable,
@@ -143,16 +239,8 @@ export function buildBoardGameViewModel(game) {
     game.status?.completed || game.status === "final" || game.status === "completed"
   );
 
-  let marketLabel = "OBSERVED MARKET";
-  if (market.marketAvailable && market.marketRole === "EXECUTION_MARKET") {
-    marketLabel = "BEST AVAILABLE";
-  } else if (market.marketAvailable && market.marketRole === "CONSENSUS_MARKET") {
-    marketLabel = "CONSENSUS";
-  } else if (market.referenceOnly) {
-    marketLabel = "REFERENCE ONLY";
-  } else if (!market.marketAvailable) {
-    marketLabel = "NO EXECUTABLE MARKET";
-  }
+  const marketLabel = resolveBoardMarketLabel(game, market);
+  const emptyReason = resolveBoardMarketEmptyReason(game, market);
 
   const spreadLabel = projection.available
     ? favoriteFairLabel(projection, awayAbbr, homeAbbr) ||
@@ -212,11 +300,8 @@ export function buildBoardGameViewModel(game) {
       spreadLabel: spreadTeamLabel(market.spread, awayAbbr, homeAbbr),
       homeMl: market.homeMl,
       awayMl: market.awayMl,
-      emptyReason: market.marketAvailable
-        ? null
-        : market.referenceOnly
-          ? "Reference market only — not from your configured execution books."
-          : "No current executable market from your configured books.",
+      actionable: Boolean(decision.executionActionable),
+      emptyReason,
     },
     comparison: {
       label: decision.disagreementLabel,

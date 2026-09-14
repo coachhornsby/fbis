@@ -489,33 +489,51 @@ export function marketLines(game) {
       referenceOnly: Boolean(!m.marketAvailable && ref.available),
     };
   }
-  // Legacy fallback: execution/soft before Pinnacle; Pinnacle is reference-only.
+  // Legacy fallback: soft/observed before Pinnacle; Pinnacle is reference-only.
+  // Heritage alone is NOT execution unless explicitly listed in operatorExecutionBooks.
   const heritage = Boolean(game?.odds?.heritageListed);
   const soft = Boolean(game?.odds?.softPresent || game?.odds?.softSource);
   const pinPresent = Boolean(game?.odds?.pinPresent);
+  const operatorBooks = [
+    ...(Array.isArray(game?.operatorExecutionBooks) ? game.operatorExecutionBooks : []),
+    ...(Array.isArray(game?.market?.operatorExecutionBooks)
+      ? game.market.operatorExecutionBooks
+      : []),
+  ].map((b) => String(b || "").toLowerCase());
+  const heritageConfigured = operatorBooks.some((b) => b.includes("heritage"));
   let spread = null;
   let total = null;
   let homeMl = null;
   let awayMl = null;
   let book = "Market";
   let marketRole = null;
-  if (heritage) {
+  if (heritage && heritageConfigured) {
     book = "Heritage";
     marketRole = "EXECUTION_MARKET";
     spread = game?.odds?.spread ?? null;
     total = game?.odds?.total ?? null;
     homeMl = game?.odds?.heritageHomeMl ?? game?.odds?.homeMl ?? null;
     awayMl = game?.odds?.heritageAwayMl ?? game?.odds?.awayMl ?? null;
-  } else if (soft || (!pinPresent && (game?.odds?.spread != null || game?.odds?.total != null))) {
-    book = game?.odds?.softSource ? String(game.odds.softSource) : "Consensus";
-    const softName = String(game?.odds?.softSource || "").toLowerCase();
-    if (softName.includes("sharp")) book = "DK/FD";
-    else if (softName.includes("rundown")) book = "Soft";
+  } else if (
+    heritage ||
+    soft ||
+    (!pinPresent && (game?.odds?.spread != null || game?.odds?.total != null))
+  ) {
+    if (heritage && !heritageConfigured) {
+      book = "Heritage";
+    } else {
+      book = game?.odds?.softSource ? String(game.odds.softSource) : "Consensus";
+      const softName = String(game?.odds?.softSource || "").toLowerCase();
+      if (softName.includes("sharp")) book = "DK/FD";
+      else if (softName.includes("rundown")) book = "Soft";
+    }
     marketRole = "CONSENSUS_MARKET";
     spread = game?.odds?.spread ?? null;
     total = game?.odds?.total ?? null;
-    homeMl = game?.odds?.homeMl ?? null;
-    awayMl = game?.odds?.awayMl ?? null;
+    homeMl =
+      game?.odds?.heritageHomeMl ?? game?.odds?.homeMl ?? null;
+    awayMl =
+      game?.odds?.heritageAwayMl ?? game?.odds?.awayMl ?? null;
   } else if (pinPresent || game?.odds?.pinSpread != null || game?.odds?.pinHomeMl != null) {
     book = "Reference";
     marketRole = "REFERENCE_MARKET";

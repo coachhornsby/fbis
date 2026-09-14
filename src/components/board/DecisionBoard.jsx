@@ -78,7 +78,7 @@ function MarketBlock({ vm }) {
     return (
       <div className="db-block db-market">
         <div className="db-block-label">{m?.label || "MARKET"}</div>
-        <div className="db-empty">{m?.emptyReason || "No executable market."}</div>
+        <div className="db-empty">{m?.emptyReason || "No current market."}</div>
       </div>
     );
   }
