@@ -111,11 +111,11 @@ export default function PremiumGameCard({
           {weather?.temp != null || weather?.description || weather?.windLabel ? (
             <div className="pgc-top-weather" title={ctx.weatherLine || ""}>
               <span className="pgc-wx-icon" aria-hidden="true">
-                🌤
+                {weatherIcon(weather)}
               </span>
               <span className="pgc-wx-text">
                 {weather?.temp != null ? <strong>{weather.temp}°</strong> : null}
-                {weather?.windLabel ? <span>{weather.windLabel}</span> : null}
+                {weather?.windLabel ? <span>💨 {weather.windLabel}</span> : null}
                 {weather?.description ? <span>{weather.description}</span> : null}
               </span>
             </div>
@@ -203,6 +203,7 @@ export default function PremiumGameCard({
                     cmp.sideRelationship === "OPPOSITE_SIDES" ? "warn" : "ok"
                   }`}
                 >
+                  {cmp.sideRelationship === "OPPOSITE_SIDES" ? "⇄ " : "✓ "}
                   {cmp.sideRelationshipLabel}
                 </span>
               ) : null}
@@ -213,7 +214,7 @@ export default function PremiumGameCard({
             </div>
 
             <div className="pgc-diff-cell">
-              <span className="pgc-diff-lab">TOTAL DIFF</span>
+              <span className="pgc-diff-lab">📊 TOTAL DIFF</span>
               <span className="pgc-diff-val">{cmp.totalDiffLabel || "—"}</span>
               {cmp.totalDirectionLabel ? (
                 <span
@@ -246,7 +247,12 @@ export default function PremiumGameCard({
         <div className="pgc-panel pgc-panel-action">
           <h3 className="pgc-panel-title">
             <span>🔥 ACTION INTEL</span>
-            <span className="pgc-powered">Powered by ACTION</span>
+            <span className="pgc-powered">
+              <span className="pgc-powered-mark" aria-hidden="true">
+                A
+              </span>
+              Powered by ACTION
+            </span>
           </h3>
 
           {action.available ? (
@@ -298,11 +304,11 @@ export default function PremiumGameCard({
 
               <div className="pgc-action-facts">
                 <div className="pgc-fact">
-                  <span>LINE MOVE</span>
+                  <span>📈 LINE MOVE</span>
                   <strong>{action.lineMove?.label || "—"}</strong>
                 </div>
                 <div className="pgc-fact">
-                  <span>SAMPLE SIZE</span>
+                  <span>👥 SAMPLE SIZE</span>
                   <strong>
                     {action.sample?.label
                       ? `${action.sample.label}${action.sample.count != null ? " bets" : ""}`
@@ -310,7 +316,7 @@ export default function PremiumGameCard({
                   </strong>
                 </div>
                 <div className="pgc-fact">
-                  <span>BOOK RANGE</span>
+                  <span>📚 BOOK RANGE</span>
                   <strong>{action.bookRange?.label || "—"}</strong>
                 </div>
               </div>
@@ -323,15 +329,15 @@ export default function PremiumGameCard({
               </div>
               <div className="pgc-action-facts">
                 <div className="pgc-fact">
-                  <span>LINE MOVE</span>
+                  <span>📈 LINE MOVE</span>
                   <strong>—</strong>
                 </div>
                 <div className="pgc-fact">
-                  <span>SAMPLE SIZE</span>
+                  <span>👥 SAMPLE SIZE</span>
                   <strong>—</strong>
                 </div>
                 <div className="pgc-fact">
-                  <span>BOOK RANGE</span>
+                  <span>📚 BOOK RANGE</span>
                   <strong>—</strong>
                 </div>
               </div>
@@ -381,7 +387,7 @@ export default function PremiumGameCard({
           {weather?.temp != null || weather?.description ? (
             <div className="pgc-info-row">
               <strong>
-                🌤{" "}
+                {weatherIcon(weather)}{" "}
                 {[
                   weather.temp != null ? `${weather.temp}°` : null,
                   weather.description,
@@ -389,7 +395,7 @@ export default function PremiumGameCard({
                   .filter(Boolean)
                   .join(" · ")}
               </strong>
-              {weather.windLabel ? <span>{weather.windLabel}</span> : null}
+              {weather.windLabel ? <span>💨 {weather.windLabel}</span> : null}
             </div>
           ) : ctx.weatherLine ? (
             <div className="pgc-info-row">
@@ -404,9 +410,17 @@ export default function PremiumGameCard({
       </section>
 
       <footer className="pgc-footer">
-        <span className="pgc-foot-src">{footer.marketSourceLabel || "Market Source: —"}</span>
+        <span className="pgc-foot-src">
+          <span aria-hidden="true">🗄 </span>
+          {footer.marketSourceLabel || "Market Source: —"}
+        </span>
         <span className={`pgc-foot-fresh${footer.stale ? " is-stale" : ""}`}>
-          {footer.asOfLabel || ""}
+          {footer.asOfLabel ? (
+            <>
+              <span aria-hidden="true">⏱ </span>
+              {footer.asOfLabel}
+            </>
+          ) : null}
         </span>
         {typeof onToggle === "function" ? (
           <button type="button" className="pgc-details-btn" onClick={handleToggle}>
@@ -450,4 +464,17 @@ function fmtScore(n) {
   const v = Number(n);
   if (!Number.isFinite(v)) return String(n);
   return v.toFixed(1);
+}
+
+function weatherIcon(weather) {
+  const d = String(weather?.description || "").toLowerCase();
+  if (weather?.indoor) return "🏟";
+  if (/thunder|storm/.test(d)) return "⛈";
+  if (/rain|shower|drizzle/.test(d)) return "🌧";
+  if (/snow|sleet/.test(d)) return "❄️";
+  if (/fog|haze|mist/.test(d)) return "🌫";
+  if (/cloud|overcast/.test(d)) return "☁️";
+  if (/partly/.test(d)) return "⛅";
+  if (/clear|fair|sunny/.test(d)) return "☀️";
+  return "🌤";
 }
