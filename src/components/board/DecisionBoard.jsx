@@ -324,11 +324,20 @@ function DecisionBoardCard({ game, open, onToggle, renderDetail }) {
   const vm = useMemo(() => buildBoardGameViewModel(game), [game]);
   const key = `${game.sport}:${game.id}`;
   const sport = String(vm.sport || game.sport || "").toLowerCase();
-  const sportBg = sport === "mlb" ? " db-card--mlb" : "";
+  const venueClass =
+    sport === "mlb"
+      ? " db-card--mlb"
+      : sport === "nfl" || sport === "cfb"
+        ? " db-card--football"
+        : sport === "nba" || sport === "cbb"
+          ? " db-card--basketball"
+          : sport === "nhl"
+            ? " db-card--nhl"
+            : "";
 
   return (
     <article
-      className={`db-card decision-tier-${vm.decision?.tier || "NONE"}${sportBg}`}
+      className={`db-card decision-tier-${vm.decision?.tier || "NONE"}${venueClass}`}
       data-game-id={game.id}
       data-sport={sport || undefined}
     >
