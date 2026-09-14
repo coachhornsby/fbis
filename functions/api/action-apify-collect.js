@@ -40,6 +40,12 @@ function createCandidateDb(env) {
   if (!env?.DB) return null;
   return {
     exec: async (sql, params = []) => env.DB.prepare(sql).bind(...params).run(),
+    batch: async (statements = []) => {
+      if (!statements.length) return [];
+      return env.DB.batch(
+        statements.map(({ sql, params = [] }) => env.DB.prepare(sql).bind(...params))
+      );
+    },
     queryOne: async (sql, params = []) => {
       const row = await env.DB.prepare(sql).bind(...params).first();
       return row || null;
@@ -90,6 +96,26 @@ function createCandidateDb(env) {
 
 async function loadFbisSlate(env, { sport, date }) {
   return loadFbisSlateForMatching(queryGames, env, { sport, date });
+}
+
+function emptySlateResponse({ sport, lifecycle, profile, slate, trigger }) {
+  return {
+    ok: true,
+    executed: false,
+    status: "skipped_no_slate",
+    reason: "no active FBIS games in the ACTION matching window",
+    sport,
+    lifecycle,
+    profile: profile || "BASE",
+    expectedSlateGames: 0,
+    slateError: slate?.slateError || null,
+    slateDates: slate?.slateDates || null,
+    trigger,
+    inProductionRouter: false,
+    canQualify: false,
+    canAuthorizeWager: false,
+    affectsProductionOdds: false,
+  };
 }
 
 /**
@@ -174,6 +200,15 @@ export async function onRequestGet(context) {
       ? String(gameUrlsRaw).split(",").map((s) => s.trim()).filter(Boolean)
       : undefined;
   const slate = await loadFbisSlate(context.env, { sport, date });
+  if (slate.gamesExpected === 0 && !slate.slateError) {
+    return json(emptySlateResponse({
+      sport,
+      lifecycle,
+      profile,
+      slate,
+      trigger: parseJobTrigger(context.request),
+    }));
+  }
   const plan = planCandidateCollection(context.env, {
     sport,
     lifecycle,
@@ -296,6 +331,15 @@ export async function onRequestPost(context) {
 
   try {
     const slate = await loadFbisSlate(context.env, { sport, date });
+    if (slate.gamesExpected === 0 && !slate.slateError) {
+      return json(emptySlateResponse({
+        sport,
+        lifecycle,
+        profile,
+        slate,
+        trigger: parseJobTrigger(context.request),
+      }));
+    }
     // Size to slate + soft board budget so harvest $1 soft-cap no longer blocks NFL/CFB.
     const sized = planCandidateCollection(context.env, {
       sport,
