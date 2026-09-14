@@ -1,6 +1,6 @@
 import TeamLogo from "../TeamLogo.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
-import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
+import { venueAtmosphereClass, venueAtmosphereStyle } from "../../lib/venueAtmosphere.js";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
 import "./premiumGameCard.css";
 
@@ -36,12 +36,12 @@ function SideBox({ title, side }) {
   );
 }
 
-function SplitMeter({ label, awayPct, homePct, away, home }) {
+function SplitMeter({ label, icon, awayPct, homePct, away, home }) {
   const a = awayPct ?? 0;
   const h = homePct ?? 0;
   return (
     <div className="pgc-meter">
-      <div className="pgc-meter-lab">{label}</div>
+      <div className="pgc-meter-lab">{icon ? `${icon} ` : ""}{label}</div>
       <div className="pgc-meter-row">
         <div className="pgc-meter-track" aria-hidden="true">
           <div className="pgc-meter-away" style={{ width: `${a}%` }} />
@@ -75,6 +75,7 @@ export default function PremiumGameCard({
 
   const sport = vm.sport || game?.sport;
   const venueClass = venueAtmosphereClass(sport);
+  const venueStyle = venueAtmosphereStyle(game);
   const cardKey = `${sport || ""}:${vm.id || game?.id}`;
   const units = vm.units || {};
   const away = vm.away;
@@ -82,7 +83,6 @@ export default function PremiumGameCard({
   const cmp = vm.comparison || {};
   const action = vm.action || {};
   const ctx = vm.context || {};
-  const bars = vm.bars || {};
   const footer = vm.footer || {};
 
   const handleToggle = () => onToggle?.(cardKey);
@@ -92,19 +92,20 @@ export default function PremiumGameCard({
       className={`pgc${venueClass ? ` ${venueClass}` : ""} status-${String(vm.status?.tone || "neutral").toLowerCase()}${open ? " pgc-open" : ""}`}
       data-sport={sport || ""}
       data-game-id={vm.id || game?.id || ""}
+      style={venueStyle}
     >
       <div className="pgc-top">
         <div className="pgc-top-left">
           {vm.event?.live ? <span className="pgc-live-dot" aria-hidden="true" /> : null}
-          <span className="pgc-time">{vm.timing?.timeLine || "—"}</span>
+          <span className="pgc-time">{gameDateTime(vm.timing)}</span>
           <span className="pgc-sport-pill">{String(sport || "").toUpperCase() || "—"}</span>
         </div>
         <StatusPill status={vm.status} />
       </div>
 
       <section className="pgc-hero" aria-label="Matchup">
-        <div className="pgc-hero-team">
-          <TeamLogo team={away} size={72} />
+        <div className="pgc-hero-team pgc-hero-away">
+          <TeamLogo team={away} size={96} className="pgc-hero-logo" />
           <div className="pgc-hero-id">
             <span className="pgc-hero-abbr">{away?.abbr || "—"}</span>
             <span className="pgc-hero-name">{nickname(away)}</span>
@@ -130,8 +131,8 @@ export default function PremiumGameCard({
           ) : null}
         </div>
 
-        <div className="pgc-hero-team">
-          <TeamLogo team={home} size={72} />
+        <div className="pgc-hero-team pgc-hero-home">
+          <TeamLogo team={home} size={96} className="pgc-hero-logo" />
           <div className="pgc-hero-id">
             <span className="pgc-hero-abbr">{home?.abbr || "—"}</span>
             <span className="pgc-hero-name">{nickname(home)}</span>
@@ -146,30 +147,9 @@ export default function PremiumGameCard({
         </div>
       </section>
 
-      <section className="pgc-bars" aria-label="FBIS versus market totals">
-        <div className="pgc-bar-row">
-          <span className="pgc-bar-lab fbis">FBIS</span>
-          <div className="pgc-bar-track">
-            <div className="pgc-bar-fill fbis" style={{ width: `${bars.fbisPct ?? 0}%` }} />
-          </div>
-          <span className="pgc-bar-val fbis">
-            FBIS TOTAL {bars.fbisTotal ?? "—"}
-          </span>
-        </div>
-        <div className="pgc-bar-row">
-          <span className="pgc-bar-lab mkt">MARKET</span>
-          <div className="pgc-bar-track">
-            <div className="pgc-bar-fill mkt" style={{ width: `${bars.marketPct ?? 0}%` }} />
-          </div>
-          <span className="pgc-bar-val mkt">
-            MARKET TOTAL {bars.marketTotal ?? "—"}
-          </span>
-        </div>
-      </section>
-
       <section className="pgc-panels">
         <div className="pgc-panel pgc-panel-model">
-          <h3 className="pgc-panel-title">MODEL vs MARKET</h3>
+          <h3 className="pgc-panel-title"><span>📊 MODEL vs MARKET</span></h3>
 
           <div className="pgc-diff-cell">
             <span className="pgc-diff-lab">⚔ SIDE DIFF</span>
@@ -190,7 +170,7 @@ export default function PremiumGameCard({
           </div>
 
           <div className="pgc-diff-cell">
-            <span className="pgc-diff-lab">TOTAL DIFF</span>
+            <span className="pgc-diff-lab">📊 TOTAL DIFF</span>
             <span className="pgc-diff-val">{cmp.totalDiffLabel || "—"}</span>
             {cmp.totalDirectionLabel ? (
               <span
@@ -254,6 +234,7 @@ export default function PremiumGameCard({
                   {action.tickets ? (
                     <SplitMeter
                       label="TICKETS"
+                      icon="🎟"
                       awayPct={action.tickets.awayPct}
                       homePct={action.tickets.homePct}
                       away={away}
@@ -263,6 +244,7 @@ export default function PremiumGameCard({
                   {action.money ? (
                     <SplitMeter
                       label="MONEY"
+                      icon="💰"
                       awayPct={action.money.awayPct}
                       homePct={action.money.homePct}
                       away={away}
@@ -304,15 +286,15 @@ export default function PremiumGameCard({
               </div>
               <div className="pgc-action-facts">
                 <div className="pgc-fact">
-                  <span>LINE MOVE</span>
+                  <span>📈 LINE MOVE</span>
                   <strong>—</strong>
                 </div>
                 <div className="pgc-fact">
-                  <span>SAMPLE SIZE</span>
+                  <span>👥 SAMPLE SIZE</span>
                   <strong>—</strong>
                 </div>
                 <div className="pgc-fact">
-                  <span>BOOK RANGE</span>
+                  <span>📚 BOOK RANGE</span>
                   <strong>—</strong>
                 </div>
               </div>
@@ -324,7 +306,7 @@ export default function PremiumGameCard({
         </div>
 
         <div className="pgc-panel pgc-panel-info">
-          <h3 className="pgc-panel-title">GAME INFO</h3>
+          <h3 className="pgc-panel-title"><span>📋 GAME INFO</span></h3>
 
           {ctx.startersLabel && (ctx.starters?.away || ctx.starters?.home) ? (
             <div className="pgc-info-block">
@@ -411,4 +393,10 @@ function nickname(team) {
     return (parts.length > 1 ? parts.slice(1).join(" ") : full).toUpperCase();
   }
   return String(team.abbr || "—").toUpperCase();
+}
+
+function gameDateTime(timing) {
+  const date = timing?.dateLine && timing.dateLine !== "—" ? timing.dateLine : null;
+  const time = timing?.timeLine && timing.timeLine !== "—" ? timing.timeLine : null;
+  return [date, time].filter(Boolean).join(" · ") || "—";
 }

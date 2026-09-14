@@ -58,7 +58,11 @@ export default function BoardGrid({
           {visible.map((g) => {
             const key = `${g.sport || sport}:${g.id}`;
             return (
-              <div key={key} role="listitem">
+              <div
+                key={key}
+                role="listitem"
+                className={open.has(key) ? "board-card-grid-item-open" : undefined}
+              >
                 <PremiumGameCard
                   game={g}
                   open={open.has(key)}

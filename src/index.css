@@ -1140,6 +1140,9 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
   min-width: 0;
   height: 100%;
 }
+.board-card-grid > .board-card-grid-item-open {
+  grid-column: 1 / -1;
+}
 
 .game-card {
   display: flex;
@@ -1746,6 +1749,7 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 }
 @media (max-width: 699px) {
   .board-card-grid { grid-template-columns: 1fr; gap: 14px; }
+  .board-card-grid > .board-card-grid-item-open { grid-column: auto; }
   .board-intel { padding: 10px; }
   .gc-time { font-size: 16px; }
   .gc-score-num { font-size: 24px; }
