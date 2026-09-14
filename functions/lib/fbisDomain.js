@@ -64,6 +64,7 @@ export function toDomainTeam(team = {}) {
     fbisTeamId: strOrNull(team.canonicalId) || strOrNull(team.fbisTeamId),
     providerTeamId: strOrNull(team.providerTeamId) || null,
     score: numOrNull(team.score),
+    record: strOrNull(team.record) || strOrNull(team.recordString) || null,
   };
 }
 
