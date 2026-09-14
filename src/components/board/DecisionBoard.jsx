@@ -276,7 +276,7 @@ function ScoreHero({ vm, game }) {
   return (
     <div className="db-hero">
       <div className="db-hero-side">
-        <TeamLogo team={game.away} size={36} />
+        <TeamLogo team={game.away} size="card" />
         <div className="db-hero-meta">
           <span className="db-hero-abbr">{vm.teams.awayAbbr}</span>
           <strong className="db-hero-score">{fmtNum(p.away, 1)}</strong>
@@ -295,7 +295,7 @@ function ScoreHero({ vm, game }) {
           <span className="db-hero-abbr">{vm.teams.homeAbbr}</span>
           <strong className="db-hero-score">{fmtNum(p.home, 1)}</strong>
         </div>
-        <TeamLogo team={game.home} size={36} />
+        <TeamLogo team={game.home} size="card" />
       </div>
     </div>
   );

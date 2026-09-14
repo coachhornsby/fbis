@@ -65,7 +65,7 @@ export default function GameCard({
   const awayStarter = starterLine(game, "away");
   const homeStarter = starterLine(game, "home");
   const isMlb = game?.sport === "mlb";
-  const logoSize = isMlb ? 48 : 86;
+  const logoSize = isMlb ? "card" : "hero";
   const matchupClass = isMlb ? "gc-matchup-row" : "gc-matchup-row logo-stack";
   const venueLabel = safeDisplayString(game.venue, "");
   const statusDetail = safeDisplayString(game.status?.detail || game.status, "");

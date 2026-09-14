@@ -208,7 +208,7 @@ export default function PlayerPropsBoard({
                   <div className="props-card-identity">
                     <TeamLogo
                       team={row.teamIdentity || { abbr: row.team, name: row.team }}
-                      size={28}
+                      size="compact"
                     />
                     <span className="props-card-teampos">
                       {teamAbbr}

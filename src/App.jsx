@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { BOARD_SPORTS, SPORTS } from "../functions/lib/slateEngine.js";
 import { withRecommendations, fmtAmerican, fmtNum, fmtPct, fmtVig, edgeClass, kickoff, formatMarketPeriod, formatClv } from "./lib/format.js";
 import TeamLogo, { TeamIdentity, TicketMatchup } from "./components/TeamLogo.jsx";
+import TeamIdentityGallery from "./features/dev/TeamIdentityGallery.jsx";
 import { ChallengerSelect } from "./components/ChallengerSelect.jsx";
 import BoardGrid from "./components/board/BoardGrid.jsx";
 import { mergeBoardQaFixtures, mergeTodayQaFixtures } from "./lib/boardFixtures.js";
@@ -588,6 +589,8 @@ export default function App() {
               onRefresh={refreshTrack}
             />
           </>
+        ) : route === "dev/team-identities" || route === "dev-team-identities" ? (
+          <TeamIdentityGallery />
         ) : tab === "today" || route === "today" || route === "board" ? (
           <TodayView
             board={todayBoard}
@@ -899,13 +902,13 @@ function Ticker({ items, logged }) {
         {loop.length ? loop.map((g, i) => (
           <div className={`ticker-item${logged.has(g.id) ? " has-bet" : ""}`} key={`${g.id}-${i}`}>
             {g.live && <span className="live-dot">●</span>}
-            {g.awayLogo && <TeamLogo team={{ logo: g.awayLogo, name: g.awayName || g.away, abbr: g.away }} size={28} />}
+            {g.awayLogo && <TeamLogo team={{ logo: g.awayLogo, name: g.awayName || g.away, abbr: g.away }} size="compact" />}
             {g.away}
             <span className="score-accent">{g.awayScore ?? ""}</span>
             <span className="muted">@</span>
             <span className="score-accent">{g.homeScore ?? ""}</span>
             {g.home}
-            {g.homeLogo && <TeamLogo team={{ logo: g.homeLogo, name: g.homeName || g.home, abbr: g.home }} size={28} />}
+            {g.homeLogo && <TeamLogo team={{ logo: g.homeLogo, name: g.homeName || g.home, abbr: g.home }} size="compact" />}
             <span className="muted" style={{ marginLeft: 8, fontSize: 11 }}>[{g.status}]</span>
           </div>
         )) : <span className="ticker-empty">NO LIVE GAMES</span>}
