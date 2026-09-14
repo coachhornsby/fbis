@@ -25,7 +25,7 @@ jobs:
       DEPLOY_SHA: ${{ github.sha }}
     steps:
       - name: Checkout exact production SHA
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.DEPLOY_SHA }}
 
