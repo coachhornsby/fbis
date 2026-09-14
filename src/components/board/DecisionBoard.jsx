@@ -1,17 +1,36 @@
 import { Fragment, useMemo, useState } from "react";
-import { TeamIdentity } from "../TeamLogo.jsx";
+import TeamLogo from "../TeamLogo.jsx";
 import { buildBoardGameViewModel } from "../../lib/boardViewModel.js";
-import { fmtNum } from "../../lib/format.js";
+import { fmtNum, fmtSigned } from "../../lib/format.js";
 import "./decisionBoard.css";
 
+/** Short badge; long explanation lives in title tooltips. */
 function StatusPill({ vm }) {
   const { event, decision, authority } = vm;
-  if (event?.final) return <span className="db-pill db-pill-final">FINAL</span>;
+  if (event?.final) {
+    return (
+      <span className="db-pill db-pill-final" title="Game is final">
+        FINAL
+      </span>
+    );
+  }
   if (event?.live) {
-    return <span className="db-pill db-pill-live">LIVE · PREGAME MODEL</span>;
+    return (
+      <span className="db-pill db-pill-live" title="Live — pregame model shown">
+        <span className="db-live-dot" aria-hidden="true" />
+        LIVE
+      </span>
+    );
   }
   if (authority?.research || decision?.qualification === "RESEARCH_ONLY") {
-    return <span className="db-pill db-pill-research">RESEARCH</span>;
+    return (
+      <span
+        className="db-pill db-pill-research"
+        title="Research projection — not calibrated for wager qualification"
+      >
+        RESEARCH
+      </span>
+    );
   }
   if (decision?.qualification === "QUALIFIED") {
     return <span className="db-pill db-pill-qualified">QUALIFIED</span>;
@@ -20,121 +39,284 @@ function StatusPill({ vm }) {
     return <span className="db-pill db-pill-watch">WATCH</span>;
   }
   if (decision?.dqState || vm.quality?.marketUnresolved) {
-    return <span className="db-pill db-pill-block">DATA BLOCK</span>;
+    return (
+      <span className="db-pill db-pill-block" title="Data quality block">
+        BLOCKED
+      </span>
+    );
   }
   return <span className="db-pill db-pill-neutral">{decision?.label || "—"}</span>;
 }
 
-function FbisBlock({ vm }) {
-  const p = vm.projection;
-  if (p?.loading) {
-    return (
-      <div className="db-block db-fbis db-skeleton" aria-busy="true">
-        <div className="db-block-label">FBIS</div>
-        <div className="db-skel-line" />
-        <div className="db-skel-line short" />
-      </div>
-    );
-  }
-  if (!p?.available) {
-    return (
-      <div className="db-block db-fbis">
-        <div className="db-block-label">FBIS</div>
-        <div className="db-empty">No independent FBIS projection for this event.</div>
-      </div>
-    );
-  }
+function SpreadTrack({ fbis, market, fbisLabel, marketLabel }) {
+  const a = fbis == null || Number.isNaN(Number(fbis)) ? null : Number(fbis);
+  const b = market == null || Number.isNaN(Number(market)) ? null : Number(market);
+  if (a == null && b == null) return null;
+  const vals = [a, b].filter((x) => x != null);
+  const min = Math.min(...vals) - 1.5;
+  const max = Math.max(...vals) + 1.5;
+  const span = max - min || 1;
+  const pct = (v) => `${((v - min) / span) * 100}%`;
+
   return (
-    <div className="db-block db-fbis">
-      <div className="db-block-label">
-        {p.headlineLabel || "FBIS"}
-        {p.research ? <span className="db-mini-badge">RESEARCH</span> : null}
+    <div
+      className="db-track"
+      role="img"
+      aria-label={`FBIS ${fbisLabel || (a ?? "—")}, market ${marketLabel || (b ?? "—")}`}
+    >
+      <div className="db-track-rail" aria-hidden="true">
+        {a != null && b != null ? (
+          <span
+            className="db-track-span"
+            style={{
+              left: pct(Math.min(a, b)),
+              width: `calc(${pct(Math.max(a, b))} - ${pct(Math.min(a, b))})`,
+            }}
+          />
+        ) : null}
+        {a != null ? <span className="db-track-dot db-track-fbis" style={{ left: pct(a) }} /> : null}
+        {b != null ? <span className="db-track-dot db-track-mkt" style={{ left: pct(b) }} /> : null}
       </div>
-      <div className="db-scoreline">
-        <span>{vm.teams.awayAbbr}</span>
-        <strong>{fmtNum(p.away, 1)}</strong>
+      <div className="db-track-legend">
+        <span className="db-leg-fbis">
+          FBIS <strong>{fbisLabel || fmtSigned(a)}</strong>
+        </span>
+        <span className="db-leg-mkt">
+          MKT <strong>{marketLabel || (b == null ? "—" : fmtSigned(b))}</strong>
+        </span>
       </div>
-      <div className="db-scoreline">
-        <span>{vm.teams.homeAbbr}</span>
-        <strong>{fmtNum(p.home, 1)}</strong>
-      </div>
-      <div className="db-derived">
-        <span>{p.spreadLabel || "—"}</span>
-        <span>Total {p.total == null ? "—" : fmtNum(p.total, 1)}</span>
-      </div>
-      {p.modelVersion ? (
-        <div className="db-model-meta muted">
-          {p.modelId ? `${p.modelId} · ` : ""}
-          {p.modelVersion}
+    </div>
+  );
+}
+
+function TotalBars({ fbis, market }) {
+  const a = fbis == null || Number.isNaN(Number(fbis)) ? null : Number(fbis);
+  const b = market == null || Number.isNaN(Number(market)) ? null : Number(market);
+  if (a == null && b == null) return null;
+  const max = Math.max(a ?? 0, b ?? 0, 1);
+  return (
+    <div
+      className="db-total-bars"
+      role="img"
+      aria-label={`FBIS total ${a ?? "—"}, market total ${b ?? "—"}`}
+    >
+      <div className="db-tbar-row">
+        <span className="db-tbar-lab db-leg-fbis">FBIS</span>
+        <div className="db-tbar-track">
+          {a != null ? (
+            <div className="db-tbar db-tbar-fbis" style={{ width: `${(a / max) * 100}%` }} />
+          ) : null}
         </div>
-      ) : null}
-    </div>
-  );
-}
-
-function MarketBlock({ vm }) {
-  const m = vm.market;
-  if (!m?.available) {
-    return (
-      <div className="db-block db-market">
-        <div className="db-block-label">{m?.label || "MARKET"}</div>
-        <div className="db-empty">{m?.emptyReason || "No current market."}</div>
+        <strong className="db-tbar-val">{a == null ? "—" : fmtNum(a, 1)}</strong>
       </div>
-    );
-  }
-  return (
-    <div className="db-block db-market">
-      <div className="db-block-label">
-        {m.label}
-        {m.book ? <span className="db-mini-badge muted-badge">{m.book}</span> : null}
-      </div>
-      <div className="db-derived primary">
-        <strong>{m.spreadLabel || "—"}</strong>
-      </div>
-      <div className="db-derived">
-        <span>Total {m.total == null ? "—" : fmtNum(m.total, 1)}</span>
+      <div className="db-tbar-row">
+        <span className="db-tbar-lab db-leg-mkt">MKT</span>
+        <div className="db-tbar-track">
+          {b != null ? (
+            <div className="db-tbar db-tbar-mkt" style={{ width: `${(b / max) * 100}%` }} />
+          ) : (
+            <div className="db-tbar db-tbar-empty" />
+          )}
+        </div>
+        <strong className="db-tbar-val">{b == null ? "—" : fmtNum(b, 1)}</strong>
       </div>
     </div>
   );
 }
 
-function DiffBlock({ vm }) {
+function DeltaPills({ vm }) {
   const c = vm.comparison;
   const d = vm.decision;
   if (vm.authority?.evAvailable && d?.ev != null) {
     return (
-      <div className="db-block db-diff">
-        <div className="db-block-label">EV</div>
-        <strong className={d.ev >= 0 ? "text-pos" : "text-neg"}>
-          {d.ev >= 0 ? "+" : ""}
-          {fmtNum(d.ev, 1)}%
-        </strong>
+      <div className="db-delta-pills">
+        <div className={`db-kpi ${d.ev >= 0 ? "db-kpi-pos" : "db-kpi-neg"}`}>
+          <span className="db-kpi-lab">EV</span>
+          <strong>
+            {d.ev >= 0 ? "+" : ""}
+            {fmtNum(d.ev, 1)}%
+          </strong>
+        </div>
       </div>
     );
   }
   if (!c?.hasDiff) {
     return (
-      <div className="db-block db-diff">
-        <div className="db-block-label">{c?.label || "MODEL DIFFERENCE"}</div>
-        <div className="db-empty">—</div>
+      <div className="db-delta-pills">
+        <div className="db-kpi db-kpi-muted">
+          <span className="db-kpi-lab">Δ</span>
+          <strong>—</strong>
+        </div>
       </div>
     );
   }
   return (
-    <div className="db-block db-diff">
-      <div className="db-block-label">{c.label}</div>
-      <div className="db-diff-row">
-        <span>Side</span>
-        <strong>{c.spreadDelta == null ? "—" : `${Math.abs(c.spreadDelta)} pts`}</strong>
+    <div className="db-delta-pills" title={c.label || "Model difference"}>
+      <div className="db-kpi">
+        <span className="db-kpi-lab">SIDE Δ</span>
+        <strong>{c.spreadDelta == null ? "—" : fmtNum(Math.abs(c.spreadDelta), 1)}</strong>
       </div>
-      <div className="db-diff-row">
-        <span>Total</span>
-        <strong>{c.totalDelta == null ? "—" : `${Math.abs(c.totalDelta)} pts`}</strong>
+      <div className="db-kpi">
+        <span className="db-kpi-lab">TOTAL Δ</span>
+        <strong>{c.totalDelta == null ? "—" : fmtSigned(c.totalDelta, 1)}</strong>
       </div>
-      {vm.authority?.research ? (
-        <div className="db-authority-note muted">No wagering authority</div>
-      ) : null}
     </div>
+  );
+}
+
+function PublicBars({ game }) {
+  const splits = game?.publicSplits || game?.actionIntel?.publicSplits;
+  if (!splits) return null;
+  const tickets = Number(splits.ticketPct ?? splits.tickets);
+  const money = Number(splits.moneyPct ?? splits.money);
+  if (!Number.isFinite(tickets) && !Number.isFinite(money)) return null;
+  const gap =
+    Number.isFinite(tickets) && Number.isFinite(money) ? money - tickets : null;
+  return (
+    <div
+      className="db-public"
+      role="img"
+      aria-label={`Public tickets ${tickets || "—"}%, money ${money || "—"}%`}
+    >
+      <div className="db-public-title">PUBLIC</div>
+      {Number.isFinite(tickets) ? (
+        <div className="db-public-row">
+          <span>TKT</span>
+          <div className="db-public-track">
+            <div className="db-public-fill" style={{ width: `${Math.min(100, tickets)}%` }} />
+          </div>
+          <strong>{fmtNum(tickets, 0)}%</strong>
+        </div>
+      ) : null}
+      {Number.isFinite(money) ? (
+        <div className="db-public-row">
+          <span>$$$</span>
+          <div className="db-public-track">
+            <div
+              className="db-public-fill db-public-money"
+              style={{ width: `${Math.min(100, money)}%` }}
+            />
+          </div>
+          <strong>{fmtNum(money, 0)}%</strong>
+        </div>
+      ) : null}
+      {gap != null ? <div className="db-public-gap">Δ {fmtSigned(gap, 0)}</div> : null}
+    </div>
+  );
+}
+
+function ScoreHero({ vm, game }) {
+  const p = vm.projection;
+  if (p?.loading) {
+    return (
+      <div className="db-hero db-skeleton" aria-busy="true">
+        <div className="db-skel-line" />
+      </div>
+    );
+  }
+  if (!p?.available) {
+    return (
+      <div className="db-hero db-hero-empty">
+        <span className="db-empty">No FBIS</span>
+      </div>
+    );
+  }
+  return (
+    <div className="db-hero">
+      <div className="db-hero-side">
+        <TeamLogo team={game.away} size={36} />
+        <div className="db-hero-meta">
+          <span className="db-hero-abbr">{vm.teams.awayAbbr}</span>
+          <strong className="db-hero-score">{fmtNum(p.away, 1)}</strong>
+        </div>
+      </div>
+      <div className="db-hero-mid">
+        <span className="db-vs">VS</span>
+        {p.research ? (
+          <span className="db-mini-badge" title="Research model">
+            R
+          </span>
+        ) : null}
+      </div>
+      <div className="db-hero-side db-hero-home">
+        <div className="db-hero-meta">
+          <span className="db-hero-abbr">{vm.teams.homeAbbr}</span>
+          <strong className="db-hero-score">{fmtNum(p.home, 1)}</strong>
+        </div>
+        <TeamLogo team={game.home} size={36} />
+      </div>
+    </div>
+  );
+}
+
+function MarketChip({ vm }) {
+  const m = vm.market;
+  if (!m?.available) {
+    const short = m?.referenceOnly ? "REF ONLY" : "NO MARKET";
+    return (
+      <div
+        className={`db-mkt-chip ${m?.referenceOnly ? "db-mkt-ref" : "db-mkt-none"}`}
+        title={m?.emptyReason || "No current operational market"}
+      >
+        <span className="db-mkt-icon" aria-hidden="true">
+          ◌
+        </span>
+        <span>{short}</span>
+      </div>
+    );
+  }
+  const roleClass =
+    m.role === "EXECUTION_MARKET"
+      ? "db-mkt-exec"
+      : m.role === "CONSENSUS_MARKET"
+        ? "db-mkt-cons"
+        : "db-mkt-obs";
+  const shortLabel =
+    m.label === "BEST AVAILABLE"
+      ? "BEST"
+      : m.label === "EXECUTION OFFER"
+        ? "EXEC"
+        : m.label === "CONSENSUS"
+          ? "CONSENSUS"
+          : m.label === "OBSERVED MARKET"
+            ? "OBSERVED"
+            : m.label || "MARKET";
+  return (
+    <div
+      className={`db-mkt-chip ${roleClass}`}
+      title={[m.label, m.book].filter(Boolean).join(" · ")}
+    >
+      <span className="db-mkt-icon" aria-hidden="true">
+        ●
+      </span>
+      <span>{shortLabel}</span>
+      {m.book ? <span className="db-mkt-book">{m.book}</span> : null}
+    </div>
+  );
+}
+
+function GameBody({ vm, game }) {
+  return (
+    <>
+      <ScoreHero vm={vm} game={game} />
+      <div className="db-row-compare">
+        <SpreadTrack
+          fbis={vm.projection?.fairHomeSpread}
+          market={vm.market?.available ? vm.market.spread : null}
+          fbisLabel={vm.projection?.spreadLabel}
+          marketLabel={vm.market?.spreadLabel}
+        />
+        <TotalBars
+          fbis={vm.projection?.total}
+          market={vm.market?.available ? vm.market.total : null}
+        />
+      </div>
+      <div className="db-row-bottom">
+        <MarketChip vm={vm} />
+        <DeltaPills vm={vm} />
+        <PublicBars game={game} />
+      </div>
+    </>
   );
 }
 
@@ -145,60 +327,39 @@ function DecisionBoardRow({ game, open, onToggle, renderDetail }) {
   return (
     <Fragment>
       <tr
-        className={`db-row decision-tier-${vm.decision?.tier || "NONE"}`}
+        className={`db-row decision-tier-${vm.decision?.tier || "NONE"} ${open ? "db-row-open" : ""}`}
         data-game-id={game.id}
         data-maturity={vm.authority?.maturity || ""}
       >
-        <td className="db-col-matchup">
-          <div className="db-matchup">
-            <div className="db-kick">
-              {vm.event?.live ? (
-                <span className="live-dot" aria-hidden="true">
-                  ●
+        <td className="db-row-cell">
+          <div className="db-row-card">
+            <div className="db-row-top">
+              <div className="db-kick">
+                {vm.event?.live ? <span className="db-live-dot" aria-hidden="true" /> : null}
+                <span className="db-kick-time">{vm.timing?.timeLine || game.startCt || "—"}</span>
+                <span className="db-sport-tag">
+                  {String(vm.sport || game.sport || "").toUpperCase()}
                 </span>
-              ) : null}
-              <span>{vm.timing?.timeLine || game.startCt || "—"}</span>
-              <span className="db-sport-tag">{String(vm.sport || "").toUpperCase()}</span>
+              </div>
+              <StatusPill vm={vm} />
             </div>
-            <div className="db-teams">
-              {!vm.teams?.identityOk ? (
-                <div className="db-identity-warn">Opponent identity unavailable</div>
-              ) : (
-                <>
-                  <TeamIdentity team={game.away} score={game.score?.away} size={36} />
-                  <TeamIdentity team={game.home} score={game.score?.home} size={36} />
-                </>
-              )}
+            <GameBody vm={vm} game={game} />
+            <div className="db-row-actions">
+              <button
+                type="button"
+                className="db-expand-btn"
+                aria-expanded={open}
+                onClick={() => onToggle(key)}
+              >
+                {open ? "Hide" : "Open"}
+              </button>
             </div>
-            <button
-              type="button"
-              className="db-expand-btn"
-              aria-expanded={open}
-              onClick={() => onToggle(key)}
-            >
-              {open ? "Hide" : "View"} →
-            </button>
           </div>
-        </td>
-        <td className="db-col-fbis">
-          <FbisBlock vm={vm} />
-        </td>
-        <td className="db-col-market">
-          <MarketBlock vm={vm} />
-        </td>
-        <td className="db-col-diff">
-          <DiffBlock vm={vm} />
-        </td>
-        <td className="db-col-status">
-          <StatusPill vm={vm} />
-          {vm.decision?.reason ? (
-            <div className="db-status-reason muted">{vm.decision.reason}</div>
-          ) : null}
         </td>
       </tr>
       {open ? (
         <tr className="db-detail-row">
-          <td colSpan={5}>
+          <td>
             <div className="db-detail-panel">{renderDetail?.(game)}</div>
           </td>
         </tr>
@@ -217,26 +378,19 @@ function DecisionBoardCard({ game, open, onToggle, renderDetail }) {
       data-game-id={game.id}
     >
       <header className="db-card-header">
-        <div className="db-card-matchup">
-          {!vm.teams?.identityOk ? (
-            <strong>Identity unavailable</strong>
-          ) : (
-            <strong>
-              {vm.teams.awayAbbr} @ {vm.teams.homeAbbr}
-            </strong>
-          )}
-          <span className="muted">{vm.timing?.timeLine || "—"}</span>
+        <div className="db-kick">
+          {vm.event?.live ? <span className="db-live-dot" aria-hidden="true" /> : null}
+          <span className="db-kick-time">{vm.timing?.timeLine || "—"}</span>
+          <span className="db-sport-tag">
+            {String(vm.sport || game.sport || "").toUpperCase()}
+          </span>
         </div>
         <StatusPill vm={vm} />
       </header>
-      <div className="db-card-grid">
-        <FbisBlock vm={vm} />
-        <MarketBlock vm={vm} />
-      </div>
-      <DiffBlock vm={vm} />
+      <GameBody vm={vm} game={game} />
       <footer className="db-card-footer">
         <button type="button" className="db-expand-btn" onClick={() => onToggle(key)}>
-          {open ? "Hide details" : "View →"}
+          {open ? "Hide" : "Open"}
         </button>
       </footer>
       {open ? <div className="db-detail-panel">{renderDetail?.(game)}</div> : null}
@@ -244,9 +398,90 @@ function DecisionBoardCard({ game, open, onToggle, renderDetail }) {
   );
 }
 
+export function BoardSummaryStrip({ games = [] }) {
+  const stats = useMemo(() => {
+    let research = 0;
+    let watch = 0;
+    let qualified = 0;
+    let blocked = 0;
+    let live = 0;
+    let final = 0;
+    let withMarket = 0;
+    for (const g of games || []) {
+      const vm = buildBoardGameViewModel(g);
+      if (vm.event?.final) final += 1;
+      else if (vm.event?.live) live += 1;
+      if (vm.authority?.research || vm.decision?.qualification === "RESEARCH_ONLY") {
+        research += 1;
+      } else if (vm.decision?.qualification === "WATCH") watch += 1;
+      else if (vm.decision?.qualification === "QUALIFIED") qualified += 1;
+      if (vm.decision?.dqState || vm.quality?.marketUnresolved) blocked += 1;
+      if (vm.market?.available) withMarket += 1;
+    }
+    return { n: games.length, research, watch, qualified, blocked, live, final, withMarket };
+  }, [games]);
+
+  if (!stats.n) return null;
+
+  return (
+    <div className="db-summary" aria-label="Board summary">
+      <div className="db-summary-count">
+        <strong>{stats.n}</strong>
+        <span>GAMES</span>
+      </div>
+      <div className="db-summary-tiles">
+        {stats.research > 0 ? (
+          <div className="db-sum-tile db-sum-research" title="Research projections">
+            <strong>{stats.research}</strong>
+            <span>RESEARCH</span>
+          </div>
+        ) : null}
+        {stats.watch > 0 ? (
+          <div className="db-sum-tile db-sum-watch">
+            <strong>{stats.watch}</strong>
+            <span>WATCH</span>
+          </div>
+        ) : null}
+        {stats.qualified > 0 ? (
+          <div className="db-sum-tile db-sum-qual">
+            <strong>{stats.qualified}</strong>
+            <span>QUAL</span>
+          </div>
+        ) : null}
+        {stats.blocked > 0 ? (
+          <div className="db-sum-tile db-sum-block">
+            <strong>{stats.blocked}</strong>
+            <span>BLOCK</span>
+          </div>
+        ) : null}
+        {stats.live > 0 ? (
+          <div className="db-sum-tile db-sum-live">
+            <strong>{stats.live}</strong>
+            <span>LIVE</span>
+          </div>
+        ) : null}
+        {stats.final > 0 ? (
+          <div className="db-sum-tile db-sum-final">
+            <strong>{stats.final}</strong>
+            <span>FINAL</span>
+          </div>
+        ) : null}
+        <div className="db-sum-tile db-sum-mkt" title="Games with operational market">
+          <strong>{stats.withMarket}</strong>
+          <span>MKT</span>
+        </div>
+      </div>
+      <div className="db-legend" title="Color legend">
+        <span className="db-leg-fbis">● FBIS</span>
+        <span className="db-leg-mkt">● Market</span>
+      </div>
+    </div>
+  );
+}
+
 /**
- * Decision Board slate — desktop dense rows + mobile cards.
- * Columns: MATCHUP | FBIS | MARKET | DIFF | STATUS
+ * Decision Board — visual hybrid cards.
+ * Presentation only: FBIS → Market → Difference → Decision.
  */
 export default function DecisionBoard({ games = [], renderDetail }) {
   const [open, setOpen] = useState(() => new Set());
@@ -260,22 +495,14 @@ export default function DecisionBoard({ games = [], renderDetail }) {
   };
 
   if (!games.length) {
-    return <div className="empty">No games on the board for this filter.</div>;
+    return <div className="empty">No games on this filter.</div>;
   }
 
   return (
     <div className="decision-board">
-      <div className="db-desktop table-scroll" role="region" aria-label="Decision board table">
-        <table className="fbis-table db-table">
-          <thead>
-            <tr>
-              <th>Matchup</th>
-              <th>FBIS</th>
-              <th>Market</th>
-              <th>Diff</th>
-              <th>Status</th>
-            </tr>
-          </thead>
+      <BoardSummaryStrip games={games} />
+      <div className="db-desktop" role="region" aria-label="Decision board">
+        <table className="db-table">
           <tbody>
             {games.map((g) => {
               const key = `${g.sport}:${g.id}`;

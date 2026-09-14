@@ -2,7 +2,7 @@
   /* FBIS decision workstation semantic tokens */
   --surface: var(--panel);
   --surface-elevated: var(--panel2);
-  --status-research: #8b9cb3;
+  --status-research: #a78bfa;
   --status-watch: var(--yellow);
   --status-qualified: var(--cyan);
   --status-authorized: var(--green);
@@ -10,6 +10,9 @@
   --status-live: #ff6b4a;
   --status-final: #9aa8b8;
   --status-stale: var(--yellow);
+  --fbis-accent: #3ec7e8;
+  --market-accent: #e3b341;
+  --diff-accent: #f0f3f7;
 
   --bg: #000000;
   --panel: #1a2f45;
@@ -814,7 +817,12 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 
 .board-well {
   background: #000;
-  padding: 12px 14px 18px;
+  padding: 8px 10px 12px;
+}
+
+.decision-board-well {
+  padding: 8px !important;
+  background: #0a121c;
 }
 
 .today-board {
