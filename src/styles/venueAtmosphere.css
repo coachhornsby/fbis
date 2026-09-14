@@ -47,8 +47,9 @@
   background-position: center, center, center 60% !important;
 }
 .venue-bg--nhl {
-  --venue-image: url("/backgrounds/nhl-arena-night.jpg");
-  background-position: center, center, center 55% !important;
+  --venue-image: url("/backgrounds/nhl-arena-garden.jpg");
+  /* Frame the lit ice bowl; keep rafters from dominating the card */
+  background-position: center, center, center 58% !important;
 }
 
 .venue-bg:hover {

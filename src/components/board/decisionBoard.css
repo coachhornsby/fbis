@@ -198,8 +198,8 @@
   background-position: center, center, center 60%;
 }
 .db-card--nhl {
-  --db-venue-image: url("/backgrounds/nhl-arena-night.jpg");
-  background-position: center, center, center 55%;
+  --db-venue-image: url("/backgrounds/nhl-arena-garden.jpg");
+  background-position: center, center, center 58%;
 }
 
 .db-card--mlb:hover,
