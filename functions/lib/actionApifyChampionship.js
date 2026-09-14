@@ -21,6 +21,7 @@ import {
   compareShadowToProvider,
   estimateActorCostUsd,
 } from "./actionApifyShadow.js";
+import { classifyPlayerPropsReadiness } from "./actionApifyPropContract.js";
 
 export const INCUMBENT_PROVIDERS = Object.freeze([
   "parlay",
@@ -859,29 +860,53 @@ export function buildCapabilityAuditSummary(rows = [], ctx = {}) {
       markets: [...movementMarkets].sort(),
       books: [...movementBooks].sort(),
     },
-    playerProps: {
-      gamesWithProps: withPlayerProps,
-      coverage: pct(withPlayerProps),
-      propRows: playerPropRows,
-      propsPerGame: n ? round4(playerPropRows / n) : 0,
-      stablePlayerIdRate: playerPropRows ? round4(playerPropsWithId / playerPropRows) : 0,
-      priceCoverage: playerPropRows ? round4(playerPropsWithPrice / playerPropRows) : 0,
-      timestampCoverage: playerPropRows ? round4(playerPropsWithTs / playerPropRows) : 0,
-      lineCoverage: playerPropRows ? round4(playerPropsWithLine / playerPropRows) : 0,
-      bookCoverage: playerPropRows ? round4(playerPropsWithBook / playerPropRows) : 0,
-      sideCoverage: playerPropRows ? round4(playerPropsWithSide / playerPropRows) : 0,
-      canonicalMarketRate: playerPropRows ? round4(playerPropsWithCanonical / playerPropRows) : 0,
-      imageUrlRate: playerPropRows ? round4(playerPropsWithImage / playerPropRows) : 0,
-      markets: [...playerMarkets].sort().slice(0, 80),
-      // Key inventory from raw Actor props (forensics; not a coverage claim).
-      rawFieldInventory: {
-        samples: propInventorySamples,
-        keys: [...propFieldKeyCounts.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 80)
-          .map(([key, count]) => ({ key, count })),
-      },
-    },
+    playerProps: (() => {
+      const stablePlayerIdRate = playerPropRows ? round4(playerPropsWithId / playerPropRows) : 0;
+      const priceCoverage = playerPropRows ? round4(playerPropsWithPrice / playerPropRows) : 0;
+      const lineCoverage = playerPropRows ? round4(playerPropsWithLine / playerPropRows) : 0;
+      const bookCoverage = playerPropRows ? round4(playerPropsWithBook / playerPropRows) : 0;
+      const sideCoverage = playerPropRows ? round4(playerPropsWithSide / playerPropRows) : 0;
+      const canonicalMarketRate = playerPropRows
+        ? round4(playerPropsWithCanonical / playerPropRows)
+        : 0;
+      // Matched games in this summary are already identity-gated by the collector.
+      const gameIdentityUsableRate = n ? 1 : 0;
+      const readiness = classifyPlayerPropsReadiness({
+        modelMarketNormalizationRate: canonicalMarketRate,
+        gameIdentityUsableRate,
+        playerIdentityUsableRate: stablePlayerIdRate,
+        lineCoverage,
+        priceCoverage,
+        bookCoverage,
+        sideCoverage,
+        rawPropRows: playerPropRows,
+        normalizedPropRows: playerPropRows,
+      });
+      return {
+        gamesWithProps: withPlayerProps,
+        coverage: pct(withPlayerProps),
+        propRows: playerPropRows,
+        propsPerGame: n ? round4(playerPropRows / n) : 0,
+        stablePlayerIdRate,
+        priceCoverage,
+        timestampCoverage: playerPropRows ? round4(playerPropsWithTs / playerPropRows) : 0,
+        lineCoverage,
+        bookCoverage,
+        sideCoverage,
+        canonicalMarketRate,
+        imageUrlRate: playerPropRows ? round4(playerPropsWithImage / playerPropRows) : 0,
+        readiness,
+        markets: [...playerMarkets].sort().slice(0, 80),
+        // Key inventory from raw Actor props (forensics; not a coverage claim).
+        rawFieldInventory: {
+          samples: propInventorySamples,
+          keys: [...propFieldKeyCounts.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 80)
+            .map(([key, count]) => ({ key, count })),
+        },
+      };
+    })(),
     gameProps: {
       gamesWithProps: withGameProps,
       coverage: pct(withGameProps),
