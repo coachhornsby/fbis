@@ -164,10 +164,30 @@ export function buildBoardActionIntel(row = {}) {
     num(lineMovement.open?.spreadHome) ??
     num(research.openingLine);
   const currentSpread = spreadHome ?? num(lineMovement.currentSpreadHome) ?? num(research.observedLine);
+  const openTotal =
+    num(lineMovement.openTotal) ??
+    num(lineMovement.openingTotal) ??
+    num(lineMovement.open?.total) ??
+    num(research.openingTotal);
+  const currentTotal = total ?? num(lineMovement.currentTotal) ?? num(research.observedTotal);
+  const openMlHome =
+    num(lineMovement.openMlHome) ??
+    num(lineMovement.openingMlHome) ??
+    num(lineMovement.open?.mlHome);
+  const openMlAway =
+    num(lineMovement.openMlAway) ??
+    num(lineMovement.openingMlAway) ??
+    num(lineMovement.open?.mlAway);
   const movementMagnitude =
     openSpread != null && currentSpread != null
       ? Math.round((currentSpread - openSpread) * 10) / 10
       : null;
+  const movementDirection =
+    movementMagnitude == null || movementMagnitude === 0
+      ? null
+      : movementMagnitude < 0
+        ? "TOWARD_HOME"
+        : "TOWARD_AWAY";
 
   const bestBook =
     bestOdds?.spreadHome?.book ||
@@ -175,6 +195,10 @@ export function buildBoardActionIntel(row = {}) {
     bestOdds?.moneylineHome?.book ||
     bestOdds?.book ||
     null;
+
+  const quality = safeJson(row.market_quality_json) || safeJson(row.quality_json) || {};
+  const booksCount =
+    Array.isArray(row.books) ? row.books.length : num(row.books_count) ?? num(quality.bookCount) ?? num(quality.books);
 
   const collectedAt =
     row.collected_at ||
@@ -187,6 +211,8 @@ export function buildBoardActionIntel(row = {}) {
   return {
     provider: "ACTION_APIFY",
     role: "market_intelligence",
+    // Board market context — Action sets consensus/public/movement; FBIS projection overlays.
+    boardMarketSource: true,
     governanceMode: "shadow",
     displayOnly: true,
     eventId: row.fbis_event_id || null,
@@ -198,6 +224,7 @@ export function buildBoardActionIntel(row = {}) {
       total,
       mlHome,
       mlAway,
+      bookCount: booksCount,
     },
     publicSplits: {
       ticketPct,
@@ -211,11 +238,28 @@ export function buildBoardActionIntel(row = {}) {
     movement: {
       openingLine: openSpread,
       currentLine: currentSpread,
+      openingTotal: openTotal,
+      currentTotal,
+      openingMlHome: openMlHome,
+      openingMlAway: openMlAway,
       movementMagnitude,
+      direction: movementDirection,
       bestBook: bestBook || null,
     },
+    open: {
+      spreadHome: openSpread,
+      total: openTotal,
+      mlHome: openMlHome,
+      mlAway: openMlAway,
+    },
+    current: {
+      spreadHome: currentSpread,
+      total: currentTotal,
+      mlHome,
+      mlAway,
+    },
     bestOdds: bestOdds && typeof bestOdds === "object" ? bestOdds : null,
-    booksCount: Array.isArray(row.books) ? row.books.length : num(row.books_count),
+    booksCount,
     ...actionPolicyFlags(),
   };
 }
@@ -261,14 +305,16 @@ export async function loadBoardActionIntelByEventIds(db, eventIds = []) {
 
 /**
  * Attach actionIntel onto board/slate games (mutates shallow copies).
- * Also fills display sentiment/publicSplits from ACTION when those are empty,
- * without overwriting production-router odds fields.
+ * Re-merges Action into game.market so Board consensus prefers Action after
+ * toBoardGame (which resolves market before intel is available).
+ * Fills display sentiment/publicSplits when empty — never sets qualify/authorize.
  */
 export async function attachActionIntelToGames(games = [], db = null) {
   const list = Array.isArray(games) ? games : [];
   if (!list.length || !db) {
     return { games: list, attached: 0, checked: 0 };
   }
+  const { mergeActionIntelIntoMarket } = await import("./canonical/marketRoles.js");
   const ids = list.map((g) => g?.id || g?.eventId || g?.gameId).filter(Boolean);
   const byId = await loadBoardActionIntelByEventIds(db, ids);
   let attached = 0;
@@ -292,12 +338,25 @@ export async function attachActionIntelToGames(games = [], db = null) {
       bestBook: intel.movement?.bestBook ?? null,
       collectedAt: intel.collectedAt,
     };
-    return {
+    const next = {
       ...g,
       actionIntel: intel,
       sentiment: existingSentiment || sentimentFromAction,
       publicSplits: g.publicSplits || intel.publicSplits,
     };
+    // Board rows already carry a pre-Action market — merge Action consensus/intel in.
+    next.market = mergeActionIntelIntoMarket(g.market, intel);
+    if (next.market) {
+      next.marketAvailable = Boolean(next.market.marketAvailable);
+      next.executionMarketAvailable = Boolean(next.market.executionMarketAvailable);
+      next.referenceMarketAvailable = Boolean(next.market.referenceMarketAvailable);
+      next.consensusAvailable = Boolean(next.market.consensus?.available);
+      next.intelligenceAvailable = Boolean(next.market.intelligence?.available);
+      next.marketUnavailable = !next.market.marketAvailable;
+      next.executionMarketUnavailable = !next.market.executionMarketAvailable;
+      next.referenceMarketUnavailable = !next.market.referenceMarketAvailable;
+    }
+    return next;
   });
   return { games: out, attached, checked: ids.length, matchedIds: [...byId.keys()] };
 }

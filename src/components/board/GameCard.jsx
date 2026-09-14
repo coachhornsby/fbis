@@ -180,30 +180,97 @@ export default function GameCard({
         ) : null}
       </section>
 
-      <section className="gc-market" aria-label="Market benchmark">
-        <div className="gc-section-label">MARKET · {mkt.book === "Pinnacle" || mkt.book === "Reference" ? (mkt.marketAvailable ? mkt.book : "REFERENCE ONLY") : mkt.book}{mkt.referenceOnly ? " (non-executable)" : ""}</div>
-        <div className="gc-market-grid">
-          <div>
-            <span className="muted">Spread</span>
-            <strong>
-              {mkt.spread == null
-                ? "—"
-                : `${game.home?.abbr || "HOME"} ${formatSpreadLabel(mkt.spread)}`}
-            </strong>
-          </div>
-          <div>
-            <span className="muted">Total</span>
-            <strong>{mkt.total == null ? "—" : fmtNum(mkt.total, 1)}</strong>
-          </div>
-          <div>
-            <span className="muted">ML</span>
-            <strong>
-              {mkt.awayMl == null && mkt.homeMl == null
-                ? "—"
-                : `${fmtAmerican(mkt.awayMl)} / ${fmtAmerican(mkt.homeMl)}`}
-            </strong>
-          </div>
+      <section className="gc-market" aria-label="Board market">
+        <div className="gc-section-label">
+          {game.actionIntel?.consensus
+            ? "MARKET · ACTION"
+            : `MARKET · ${mkt.book === "Pinnacle" || mkt.book === "Reference" ? (mkt.marketAvailable ? mkt.book : "REFERENCE ONLY") : mkt.book}${mkt.referenceOnly ? " (non-executable)" : ""}`}
         </div>
+        {game.actionIntel?.consensus ? (
+          <div className="gc-action-grid">
+            <div>
+              <span className="muted">Open</span>
+              <strong>
+                {game.actionIntel.open?.spreadHome == null && game.actionIntel.movement?.openingLine == null
+                  ? "—"
+                  : `${game.home?.abbr || "HOME"} ${formatSpreadLabel(
+                      game.actionIntel.open?.spreadHome ?? game.actionIntel.movement?.openingLine
+                    )}`}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Now</span>
+              <strong>
+                {game.actionIntel.consensus?.spreadHome == null
+                  ? "—"
+                  : `${game.home?.abbr || "HOME"} ${formatSpreadLabel(game.actionIntel.consensus.spreadHome)}`}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Total</span>
+              <strong>
+                {game.actionIntel.consensus?.total == null
+                  ? "—"
+                  : fmtNum(game.actionIntel.consensus.total, 1)}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Tickets</span>
+              <strong>
+                {game.actionIntel.publicSplits?.ticketPct == null
+                  ? "—"
+                  : `${fmtNum(game.actionIntel.publicSplits.ticketPct, 0)}%`}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Money</span>
+              <strong>
+                {game.actionIntel.publicSplits?.moneyPct == null
+                  ? "—"
+                  : `${fmtNum(game.actionIntel.publicSplits.moneyPct, 0)}%`}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Move</span>
+              <strong>
+                {game.actionIntel.movement?.movementMagnitude == null
+                  ? "—"
+                  : `${game.actionIntel.movement.movementMagnitude > 0 ? "+" : ""}${fmtNum(
+                      game.actionIntel.movement.movementMagnitude,
+                      1
+                    )}`}
+              </strong>
+            </div>
+          </div>
+        ) : (
+          <div className="gc-market-grid">
+            <div>
+              <span className="muted">Spread</span>
+              <strong>
+                {mkt.spread == null
+                  ? "—"
+                  : `${game.home?.abbr || "HOME"} ${formatSpreadLabel(mkt.spread)}`}
+              </strong>
+            </div>
+            <div>
+              <span className="muted">Total</span>
+              <strong>{mkt.total == null ? "—" : fmtNum(mkt.total, 1)}</strong>
+            </div>
+            <div>
+              <span className="muted">ML</span>
+              <strong>
+                {mkt.awayMl == null && mkt.homeMl == null
+                  ? "—"
+                  : `${fmtAmerican(mkt.awayMl)} / ${fmtAmerican(mkt.homeMl)}`}
+              </strong>
+            </div>
+          </div>
+        )}
+        {game.actionIntel?.consensus ? (
+          <div className="gc-action-footnote muted">
+            ACTION sets board market context · FBIS projection overlays · not wager authority
+          </div>
+        ) : null}
       </section>
 
       {game.market?.reference?.available && (mkt.referenceOnly || mkt.book === "Reference" || !game.market?.marketAvailable) ? (
@@ -231,66 +298,7 @@ export default function GameCard({
         </section>
       ) : null}
 
-      {game.actionIntel ? (
-        <section className="gc-action-intel" aria-label="ACTION market intelligence">
-          <div className="gc-section-label">
-            ACTION · RESEARCH
-            <span className="gc-action-badge">SHADOW</span>
-          </div>
-          <div className="gc-action-grid">
-            <div>
-              <span className="muted">Cons. spread</span>
-              <strong>
-                {game.actionIntel.consensus?.spreadHome == null
-                  ? "—"
-                  : `${game.home?.abbr || "HOME"} ${formatSpreadLabel(game.actionIntel.consensus.spreadHome)}`}
-              </strong>
-            </div>
-            <div>
-              <span className="muted">Cons. total</span>
-              <strong>
-                {game.actionIntel.consensus?.total == null
-                  ? "—"
-                  : fmtNum(game.actionIntel.consensus.total, 1)}
-              </strong>
-            </div>
-            <div>
-              <span className="muted">Tickets</span>
-              <strong>
-                {game.actionIntel.publicSplits?.ticketPct == null
-                  ? "—"
-                  : `${fmtNum(game.actionIntel.publicSplits.ticketPct, 0)}%`}
-              </strong>
-            </div>
-            <div>
-              <span className="muted">Money</span>
-              <strong>
-                {game.actionIntel.publicSplits?.moneyPct == null
-                  ? "—"
-                  : `${fmtNum(game.actionIntel.publicSplits.moneyPct, 0)}%`}
-              </strong>
-            </div>
-            <div>
-              <span className="muted">$/ticket gap</span>
-              <strong>
-                {game.actionIntel.publicSplits?.moneyTicketGap == null
-                  ? "—"
-                  : `${game.actionIntel.publicSplits.moneyTicketGap > 0 ? "+" : ""}${fmtNum(
-                      game.actionIntel.publicSplits.moneyTicketGap,
-                      1
-                    )}`}
-              </strong>
-            </div>
-            <div>
-              <span className="muted">Best book</span>
-              <strong>{game.actionIntel.movement?.bestBook || "—"}</strong>
-            </div>
-          </div>
-          <div className="gc-action-footnote muted">
-            Display-only market intelligence · not odds authority · not qualify
-          </div>
-        </section>
-      ) : null}
+      {/* legacy duplicate ACTION block removed — Action is primary MARKET when present */}
 
       {(deltas.spreadDelta != null || deltas.totalDelta != null) && (
         <section className="gc-deltas" aria-label="Model market delta">
