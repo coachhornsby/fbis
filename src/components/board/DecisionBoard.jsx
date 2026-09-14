@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import TeamLogo from "../TeamLogo.jsx";
 import { buildBoardGameViewModel } from "../../lib/boardViewModel.js";
 import { fmtNum, fmtSigned } from "../../lib/format.js";
@@ -320,54 +320,6 @@ function GameBody({ vm, game }) {
   );
 }
 
-function DecisionBoardRow({ game, open, onToggle, renderDetail }) {
-  const vm = useMemo(() => buildBoardGameViewModel(game), [game]);
-  const key = `${game.sport}:${game.id}`;
-
-  return (
-    <Fragment>
-      <tr
-        className={`db-row decision-tier-${vm.decision?.tier || "NONE"} ${open ? "db-row-open" : ""}`}
-        data-game-id={game.id}
-        data-maturity={vm.authority?.maturity || ""}
-      >
-        <td className="db-row-cell">
-          <div className="db-row-card">
-            <div className="db-row-top">
-              <div className="db-kick">
-                {vm.event?.live ? <span className="db-live-dot" aria-hidden="true" /> : null}
-                <span className="db-kick-time">{vm.timing?.timeLine || game.startCt || "—"}</span>
-                <span className="db-sport-tag">
-                  {String(vm.sport || game.sport || "").toUpperCase()}
-                </span>
-              </div>
-              <StatusPill vm={vm} />
-            </div>
-            <GameBody vm={vm} game={game} />
-            <div className="db-row-actions">
-              <button
-                type="button"
-                className="db-expand-btn"
-                aria-expanded={open}
-                onClick={() => onToggle(key)}
-              >
-                {open ? "Hide" : "Open"}
-              </button>
-            </div>
-          </div>
-        </td>
-      </tr>
-      {open ? (
-        <tr className="db-detail-row">
-          <td>
-            <div className="db-detail-panel">{renderDetail?.(game)}</div>
-          </td>
-        </tr>
-      ) : null}
-    </Fragment>
-  );
-}
-
 function DecisionBoardCard({ game, open, onToggle, renderDetail }) {
   const vm = useMemo(() => buildBoardGameViewModel(game), [game]);
   const key = `${game.sport}:${game.id}`;
@@ -501,32 +453,19 @@ export default function DecisionBoard({ games = [], renderDetail }) {
   return (
     <div className="decision-board">
       <BoardSummaryStrip games={games} />
-      <div className="db-desktop" role="region" aria-label="Decision board">
-        <table className="db-table">
-          <tbody>
-            {games.map((g) => {
-              const key = `${g.sport}:${g.id}`;
-              return (
-                <DecisionBoardRow
-                  key={key}
-                  game={g}
-                  open={open.has(key)}
-                  onToggle={toggle}
-                  renderDetail={renderDetail}
-                />
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div className="db-mobile" role="list" aria-label="Decision board cards">
+      <div className="db-grid" role="list" aria-label="Decision board cards">
         {games.map((g) => {
           const key = `${g.sport}:${g.id}`;
+          const isOpen = open.has(key);
           return (
-            <div key={key} role="listitem">
+            <div
+              key={key}
+              role="listitem"
+              className={`db-grid-item${isOpen ? " db-grid-item-open" : ""}`}
+            >
               <DecisionBoardCard
                 game={g}
-                open={open.has(key)}
+                open={isOpen}
                 onToggle={toggle}
                 renderDetail={renderDetail}
               />

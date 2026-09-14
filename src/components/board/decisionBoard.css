@@ -110,11 +110,25 @@
 .db-leg-fbis { color: var(--db-fbis); }
 .db-leg-mkt { color: var(--db-mkt); }
 
-/* —— Layout —— */
-.db-desktop { display: block; }
-.db-mobile { display: none; }
-.db-table { width: 100%; border-collapse: collapse; }
-.db-row-cell { padding: 0 0 8px; border: 0; }
+/* —— Layout: multi-column card grid —— */
+.db-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.db-grid-item {
+  min-width: 0;
+}
+
+.db-grid-item-open {
+  grid-column: 1 / -1;
+}
+
+.db-card {
+  height: 100%;
+}
 
 .db-row-card,
 .db-card {
@@ -534,22 +548,46 @@
   padding: 8px !important;
 }
 
-@media (max-width: 900px) {
-  .db-desktop { display: none; }
-  .db-mobile {
-    display: flex;
-    flex-direction: column;
+/* Narrower cards: stack FBIS↔market graphics vertically */
+.db-row-compare {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.db-public {
+  margin-left: 0;
+  width: 100%;
+}
+
+.db-hero-score {
+  font-size: 24px;
+}
+
+@media (max-width: 1200px) {
+  .db-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .db-grid {
+    grid-template-columns: 1fr;
     gap: 8px;
     padding: 0 2px 8px;
   }
-  .db-row-compare { grid-template-columns: 1fr; gap: 8px; }
-  .db-hero-score { font-size: 26px; }
-  .db-public { margin-left: 0; width: 100%; }
+  .db-grid-item-open {
+    grid-column: auto;
+  }
   .db-summary { padding: 8px; }
   .db-legend { display: none; }
+  .db-hero-score { font-size: 26px; }
 }
 
-@media (min-width: 1100px) {
-  .db-hero-score { font-size: 30px; }
-  .db-row-card { padding: 10px 14px; }
+@media (min-width: 1400px) {
+  .db-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .db-hero-score { font-size: 26px; }
+  .db-card { padding: 10px 12px; }
 }
