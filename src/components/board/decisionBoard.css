@@ -156,7 +156,7 @@
     0 10px 24px rgba(0, 0, 0, 0.5);
 }
 
-/* Sport venues: atmosphere under a heavy scrim — readable first */
+/* Legacy db-card venue hooks — keep in sync with venueAtmosphere.css */
 .db-card--mlb,
 .db-card--football,
 .db-card--basketball,
@@ -165,25 +165,31 @@
   background-image:
     linear-gradient(
       185deg,
-      rgba(6, 14, 24, 0.78) 0%,
-      rgba(8, 18, 30, 0.86) 42%,
-      rgba(6, 12, 22, 0.94) 100%
+      rgba(6, 14, 24, 0.58) 0%,
+      rgba(8, 18, 30, 0.68) 42%,
+      rgba(6, 12, 22, 0.78) 100%
     ),
-    radial-gradient(ellipse 90% 70% at 50% 35%, rgba(20, 40, 60, 0.15) 0%, rgba(4, 10, 18, 0.55) 70%),
+    radial-gradient(ellipse 90% 70% at 50% 40%, rgba(20, 40, 60, 0.12) 0%, rgba(4, 10, 18, 0.4) 72%),
     var(--db-venue-image);
   background-size: cover, cover, cover;
-  background-position: center, center, center 38%;
+  background-position: center, center, center 45%;
   background-repeat: no-repeat;
 }
-.db-card--mlb { --db-venue-image: url("/backgrounds/mlb-stadium-night.jpg"); }
-.db-card--football { --db-venue-image: url("/backgrounds/football-stadium-night.jpg"); }
+.db-card--mlb {
+  --db-venue-image: url("/backgrounds/mlb-stadium-night.jpg");
+  background-position: center, center, center 72%;
+}
+.db-card--football {
+  --db-venue-image: url("/backgrounds/football-stadium-night.jpg");
+  background-position: center, center, center 55%;
+}
 .db-card--basketball {
   --db-venue-image: url("/backgrounds/basketball-arena-night.jpg");
-  background-position: center, center, center 55%;
+  background-position: center, center, center 60%;
 }
 .db-card--nhl {
   --db-venue-image: url("/backgrounds/nhl-arena-night.jpg");
-  background-position: center, center, center 45%;
+  background-position: center, center, center 55%;
 }
 
 .db-card--mlb:hover,
@@ -194,11 +200,11 @@
   background-image:
     linear-gradient(
       185deg,
-      rgba(6, 14, 24, 0.72) 0%,
-      rgba(8, 18, 30, 0.82) 42%,
-      rgba(6, 12, 22, 0.92) 100%
+      rgba(6, 14, 24, 0.52) 0%,
+      rgba(8, 18, 30, 0.62) 42%,
+      rgba(6, 12, 22, 0.74) 100%
     ),
-    radial-gradient(ellipse 90% 70% at 50% 35%, rgba(30, 55, 80, 0.2) 0%, rgba(4, 10, 18, 0.5) 70%),
+    radial-gradient(ellipse 90% 70% at 50% 40%, rgba(30, 55, 80, 0.16) 0%, rgba(4, 10, 18, 0.36) 72%),
     var(--db-venue-image);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -209,11 +215,11 @@
     background-image:
       linear-gradient(
         185deg,
-        rgba(6, 14, 24, 0.78) 0%,
-        rgba(8, 18, 30, 0.86) 42%,
-        rgba(6, 12, 22, 0.94) 100%
+        rgba(6, 14, 24, 0.58) 0%,
+        rgba(8, 18, 30, 0.68) 42%,
+        rgba(6, 12, 22, 0.78) 100%
       ),
-      radial-gradient(ellipse 90% 70% at 50% 35%, rgba(20, 40, 60, 0.15) 0%, rgba(4, 10, 18, 0.55) 70%),
+      radial-gradient(ellipse 90% 70% at 50% 40%, rgba(20, 40, 60, 0.12) 0%, rgba(4, 10, 18, 0.4) 72%),
       var(--db-venue-image);
   }
 }
