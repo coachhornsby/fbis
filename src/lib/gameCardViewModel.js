@@ -26,6 +26,12 @@ export function buildGameCardViewModel(game) {
 
   const away = enrichTeam(board.teams?.away, board.teams?.awayAbbr);
   const home = enrichTeam(board.teams?.home, board.teams?.homeAbbr);
+  const comparison = buildComparison(board, away, home, units);
+  const action = buildActionPanel(game, away, home, units);
+  const context = buildContext(game, sport, away, home);
+  const status = buildStatus(board);
+  const marketCopy = buildMarketCopy(board);
+  const freshness = buildFreshness(game);
 
   return {
     ...board,
@@ -33,12 +39,14 @@ export function buildGameCardViewModel(game) {
     units,
     away,
     home,
-    comparison: buildComparison(board, away, home, units),
-    action: buildActionPanel(game, away, home),
-    context: buildContext(game, sport, away, home),
-    status: buildStatus(board),
-    marketCopy: buildMarketCopy(board),
-    freshness: buildFreshness(game),
+    comparison,
+    action,
+    context,
+    status,
+    marketCopy,
+    freshness,
+    bars: buildBars(comparison),
+    footer: buildFooter(marketCopy, freshness),
   };
 }
 
@@ -48,9 +56,11 @@ function enrichTeam(team, abbrFallback) {
   return {
     ...(team || {}),
     abbr,
-    name: logo.name,
+    name: team?.name || logo.name,
+    fullName: team?.fullName || team?.displayName || logo.name,
     displayName: team?.fullName || team?.displayName || logo.name,
     record: team?.record || team?.recordString || null,
+    logo: team?.logo || logo.url,
     logoUrl: logo.url,
     logoAvailable: logo.available,
     logoSource: logo.source,
@@ -129,6 +139,18 @@ function buildComparison(board, away, home, units) {
   };
 }
 
+function buildBars(comparison) {
+  const fbisTotal = comparison.fbisTotal;
+  const marketTotal = comparison.marketTotal;
+  const max = Math.max(Number(fbisTotal) || 0, Number(marketTotal) || 0, 1);
+  return {
+    fbisTotal: fbisTotal ?? null,
+    marketTotal: marketTotal ?? null,
+    fbisPct: fbisTotal == null ? 0 : Math.max(8, Math.round((Number(fbisTotal) / max) * 100)),
+    marketPct: marketTotal == null ? 0 : Math.max(8, Math.round((Number(marketTotal) / max) * 100)),
+  };
+}
+
 function sideFromHomeSpread(homeSpread, away, home) {
   if (homeSpread == null || Number.isNaN(Number(homeSpread))) return null;
   const n = Number(homeSpread);
@@ -153,14 +175,9 @@ function sideFromHomeSpread(homeSpread, away, home) {
   };
 }
 
-function buildActionPanel(game, away, home) {
-  const intel = game?.actionIntel || game?.actionIntel || null;
-  const splits =
-    game?.publicSplits ||
-    game?.publicSplits ||
-    intel?.publicSplits ||
-    intel?.publicSplits ||
-    null;
+function buildActionPanel(game, away, home, units) {
+  const intel = game?.actionIntel || null;
+  const splits = game?.publicSplits || intel?.publicSplits || null;
   if (!intel && !splits) {
     return {
       available: false,
@@ -170,6 +187,7 @@ function buildActionPanel(game, away, home) {
       money: null,
       divergence: null,
       movement: null,
+      lineMove: null,
       sample: null,
       bookRange: null,
       poweredBy: null,
@@ -212,6 +230,9 @@ function buildActionPanel(game, away, home) {
     num(intel?.movement?.movementMagnitude) ??
     (open != null && curr != null ? curr - open : null);
 
+  const moveSide = sideFromHomeSpread(curr ?? open, away, home);
+  const openSide = sideFromHomeSpread(open, away, home);
+
   const movement =
     open != null || curr != null
       ? {
@@ -224,7 +245,29 @@ function buildActionPanel(game, away, home) {
               : curr != null
                 ? fmtLine(curr)
                 : null,
-          team: sideFromHomeSpread(curr ?? open, away, home),
+          team: moveSide?.team || null,
+        }
+      : null;
+
+  const lineMove =
+    open != null && curr != null
+      ? {
+          teamAbbr: moveSide?.abbr || openSide?.abbr || null,
+          fromLabel: openSide?.label || fmtLine(open),
+          toLabel: moveSide?.label || fmtLine(curr),
+          delta: moveMag,
+          label: [
+            moveSide?.abbr || openSide?.abbr,
+            openSide ? fmtLine(openSide.line) : fmtLine(open),
+            "→",
+            moveSide ? fmtLine(moveSide.line) : fmtLine(curr),
+          ]
+            .filter(Boolean)
+            .join(" "),
+          deltaLabel:
+            moveMag == null
+              ? null
+              : `${moveMag > 0 ? "+" : ""}${round1(moveMag)} ${units.shortUnit}`,
         }
       : null;
 
@@ -232,11 +275,31 @@ function buildActionPanel(game, away, home) {
     num(intel?.booksCount) ??
     (Array.isArray(intel?.bestOdds) ? intel.bestOdds.length : null);
 
+  const rangeLow = num(intel?.lineRange?.low ?? intel?.bookRange?.low);
+  const rangeHigh = num(intel?.lineRange?.high ?? intel?.bookRange?.high);
+
   const sampleRaw =
     num(intel?.sampleSize) ??
     num(intel?.trackedBets) ??
     num(splits?.sampleSize) ??
     null;
+
+  const bookRange =
+    books != null || (rangeLow != null && rangeHigh != null)
+      ? {
+          books,
+          fromLabel: rangeLow != null ? fmtLine(rangeLow) : null,
+          toLabel: rangeHigh != null ? fmtLine(rangeHigh) : null,
+          label:
+            rangeLow != null && rangeHigh != null
+              ? `${fmtLine(rangeLow)} to ${fmtLine(rangeHigh)}${
+                  books != null ? ` · ${books} BOOKS` : ""
+                }`
+              : books != null
+                ? `${books} BOOK${books === 1 ? "" : "S"}`
+                : null,
+        }
+      : null;
 
   return {
     available: true,
@@ -247,6 +310,13 @@ function buildActionPanel(game, away, home) {
       gap,
       movement,
       providerSharp: intel?.publicSplits?.sharpLabel || intel?.sharpLabel || null,
+      away,
+      home,
+      marketHomeSpread: num(
+        game?.market?.execution?.spread ??
+          game?.market?.consensus?.spread ??
+          game?.odds?.spread
+      ),
     }),
     tickets,
     money,
@@ -266,6 +336,7 @@ function buildActionPanel(game, away, home) {
             team: gap > 0 ? home : away,
           },
     movement,
+    lineMove,
     sample:
       sampleRaw == null
         ? null
@@ -274,13 +345,7 @@ function buildActionPanel(game, away, home) {
             label: formatSample(sampleRaw),
             low: sampleRaw < 500,
           },
-    bookRange:
-      books == null
-        ? null
-        : {
-            books,
-            label: `${books} BOOK${books === 1 ? "" : "S"}`,
-          },
+    bookRange,
     poweredBy: "ACTION",
     displayOnly: true,
     canQualify: false,
@@ -288,21 +353,43 @@ function buildActionPanel(game, away, home) {
   };
 }
 
-function pickActionHeadline({ ticketHome, gap, movement, providerSharp }) {
+function pickActionHeadline({
+  ticketHome,
+  moneyHome,
+  gap,
+  movement,
+  providerSharp,
+  away,
+  home,
+  marketHomeSpread,
+}) {
+  const leanTeam = gap != null ? (gap > 0 ? home : away) : null;
+  const leanLine =
+    marketHomeSpread == null || leanTeam == null
+      ? null
+      : leanTeam === home
+        ? `${home.abbr} ${fmtLine(marketHomeSpread)}`
+        : `${away.abbr} ${fmtLine(-Number(marketHomeSpread))}`;
+
+  // Never invent "ACTION SHARP" — only provider-supplied sharp labels.
   if (providerSharp && String(providerSharp).trim()) {
     return {
       kind: "PROVIDER_SHARP",
-      icon: "💵",
-      label: "ACTION SHARP",
-      detail: String(providerSharp),
+      icon: "🎯",
+      label: "SHARP MONEY",
+      detail: "LARGER BETS DETECTED",
+      team: leanTeam,
+      lineLabel: leanLine || String(providerSharp),
     };
   }
   if (gap != null && Math.abs(gap) >= BIG_MONEY_GAP_PTS) {
     return {
       kind: "MONEY_GAP",
-      icon: "⚡",
-      label: "BIG MONEY GAP",
-      detail: `${gap > 0 ? "HOME" : "AWAY"} ${gap > 0 ? "+" : ""}${Math.round(gap)} pts`,
+      icon: "🎯",
+      label: "MONEY SIGNAL",
+      detail: "LARGER BETS DETECTED",
+      team: leanTeam,
+      lineLabel: leanLine,
     };
   }
   if (gap != null && Math.abs(gap) >= MONEY_GAP_PTS) {
@@ -310,7 +397,9 @@ function pickActionHeadline({ ticketHome, gap, movement, providerSharp }) {
       kind: "MONEY_GAP",
       icon: "💰",
       label: "MONEY GAP",
-      detail: `${gap > 0 ? "HOME" : "AWAY"} ${gap > 0 ? "+" : ""}${Math.round(gap)} pts`,
+      detail: `${leanTeam?.abbr || (gap > 0 ? "HOME" : "AWAY")} ${gap > 0 ? "+" : ""}${Math.round(gap)} pts money vs tickets`,
+      team: leanTeam,
+      lineLabel: leanLine,
     };
   }
   if (ticketHome != null && ticketHome >= PUBLIC_HEAVY_TICKET_PCT) {
@@ -318,7 +407,9 @@ function pickActionHeadline({ ticketHome, gap, movement, providerSharp }) {
       kind: "PUBLIC_HEAVY",
       icon: "🎟️",
       label: "PUBLIC HEAVY",
-      detail: `HOME ${Math.round(ticketHome)}% TICKETS`,
+      detail: `${home.abbr} ${Math.round(ticketHome)}% TICKETS`,
+      team: home,
+      lineLabel: leanLine,
     };
   }
   if (ticketHome != null && ticketHome <= 100 - PUBLIC_HEAVY_TICKET_PCT) {
@@ -326,7 +417,9 @@ function pickActionHeadline({ ticketHome, gap, movement, providerSharp }) {
       kind: "PUBLIC_HEAVY",
       icon: "🎟️",
       label: "PUBLIC HEAVY",
-      detail: `AWAY ${Math.round(100 - ticketHome)}% TICKETS`,
+      detail: `${away.abbr} ${Math.round(100 - ticketHome)}% TICKETS`,
+      team: away,
+      lineLabel: leanLine,
     };
   }
   if (movement?.delta != null && Math.abs(movement.delta) >= 0.5) {
@@ -335,41 +428,97 @@ function pickActionHeadline({ ticketHome, gap, movement, providerSharp }) {
       icon: "📈",
       label: "LINE MOVE",
       detail: movement.label,
+      team: movement.team || null,
+      lineLabel: movement.label,
     };
   }
-  if (ticketHome != null) {
-    return { kind: "SPLITS", icon: "🔥", label: "ACTION INTEL", detail: "PUBLIC SPLITS" };
+  if (moneyHome != null || ticketHome != null) {
+    return {
+      kind: "SPLITS",
+      icon: "🔥",
+      label: "ACTION INTEL",
+      detail: "PUBLIC SPLITS",
+      team: null,
+      lineLabel: null,
+    };
   }
-  return { kind: "AVAILABLE", icon: "🔥", label: "ACTION INTEL", detail: null };
+  return {
+    kind: "AVAILABLE",
+    icon: "🔥",
+    label: "ACTION INTEL",
+    detail: null,
+    team: null,
+    lineLabel: null,
+  };
 }
 
 function buildContext(game, sport, away, home) {
-  const weather = game?.weather || game?.cfb?.weather || null;
-  const venue =
+  const weatherRaw = game?.weather || game?.cfb?.weather || null;
+  const venueRaw =
     game?.venue ||
     game?.venueName ||
     (typeof game?.event?.venue === "string" ? game.event.venue : null) ||
     null;
 
-  return {
-    venue,
-    weather: weather
+  let venueName = null;
+  let venueCity = null;
+  if (venueRaw && typeof venueRaw === "object") {
+    venueName = venueRaw.name || venueRaw.venue || null;
+    venueCity = [venueRaw.city, venueRaw.state].filter(Boolean).join(", ") || null;
+  } else if (typeof venueRaw === "string") {
+    const parts = venueRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    venueName = parts[0] || venueRaw;
+    venueCity = parts.length > 1 ? parts.slice(1).join(", ") : null;
+  }
+
+  const weather = weatherRaw
+    ? {
+        temp: weatherRaw.temperature ?? weatherRaw.temp ?? null,
+        wind: weatherRaw.windSpeed ?? weatherRaw.wind ?? null,
+        windDir: weatherRaw.windDirection || weatherRaw.windDir || null,
+        description: weatherRaw.description || weatherRaw.condition || null,
+        indoor: Boolean(weatherRaw.indoor || weatherRaw.dome),
+        windLabel: formatWind(weatherRaw),
+      }
+    : null;
+
+  const weatherLine = weather
+    ? [
+        weather.temp != null ? `${weather.temp}°` : null,
+        weather.description,
+        weather.windLabel,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
+
+  const starters =
+    sport === "mlb"
       ? {
-          temp: weather.temperature ?? weather.temp ?? null,
-          wind: weather.windSpeed ?? weather.wind ?? null,
-          windDir: weather.windDirection || weather.windDir || null,
-          description: weather.description || weather.condition || null,
-          indoor: Boolean(weather.indoor || weather.dome),
+          away: pitcherInfo(game?.awaySp || game?.bpp?.awaySp, game?.savant?.awaySpEra, away),
+          home: pitcherInfo(game?.homeSp || game?.bpp?.homeSp, game?.savant?.homeSpEra, home),
         }
-      : null,
-    starters:
-      sport === "mlb"
-        ? {
-            away: pitcherInfo(game?.awaySp || game?.bpp?.awaySp, game?.savant?.awaySpEra, away),
-            home: pitcherInfo(game?.homeSp || game?.bpp?.homeSp, game?.savant?.homeSpEra, home),
-          }
-        : null,
+      : null;
+
+  return {
+    venue: venueRaw,
+    venueName,
+    venueCity,
+    venueLabel: [venueName, venueCity].filter(Boolean).join(", ") || null,
+    weather,
+    weatherLine,
+    starters,
+    startersLabel: sport === "mlb" ? "STARTING PITCHERS" : null,
   };
+}
+
+function formatWind(weather) {
+  const speed = weather.windSpeed ?? weather.wind ?? null;
+  const dir = weather.windDirection || weather.windDir || null;
+  if (speed == null && !dir) return null;
+  if (speed != null && dir) return `Wind ${speed} mph ${dir}`;
+  if (speed != null) return `Wind ${speed} mph`;
+  return `Wind ${dir}`;
 }
 
 function pitcherInfo(sp, era, team) {
@@ -428,14 +577,41 @@ function buildFreshness(game) {
     game?.oddsUpdatedAt ||
     game?.updatedAt ||
     null;
-  if (!ts) return { label: null, stale: false };
+  if (!ts) return { label: null, stale: false, asOf: null };
   const ms = Date.parse(ts);
-  if (!Number.isFinite(ms)) return { label: null, stale: false };
+  if (!Number.isFinite(ms)) return { label: null, stale: false, asOf: ts };
   const ageMin = Math.round((Date.now() - ms) / 60000);
   return {
-    label: ageMin < 1 ? "just now" : `${ageMin}m`,
+    label: ageMin < 1 ? "just now" : `${ageMin}m ago`,
     stale: ageMin > 90,
     asOf: ts,
+  };
+}
+
+function buildFooter(marketCopy, freshness) {
+  const sourceBits = ["Market Source:", marketCopy.primary];
+  if (marketCopy.source && !/consensus/i.test(marketCopy.primary)) {
+    sourceBits.push(`(${marketCopy.source})`);
+  }
+  let asOfLabel = null;
+  if (freshness.asOf) {
+    const d = new Date(freshness.asOf);
+    if (Number.isFinite(d.getTime())) {
+      const time = d.toLocaleTimeString("en-US", {
+        timeZone: "America/Chicago",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      asOfLabel = `Lines as of ${time} CT${freshness.label ? ` (${freshness.label})` : ""}`;
+    }
+  } else if (freshness.label) {
+    asOfLabel = `Updated ${freshness.label}`;
+  }
+  return {
+    marketSourceLabel: sourceBits.filter(Boolean).join(" "),
+    asOfLabel,
+    stale: Boolean(freshness.stale),
   };
 }
 

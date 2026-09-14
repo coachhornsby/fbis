@@ -95,7 +95,8 @@ describe("buildGameCardViewModel", () => {
     const vm = buildGameCardViewModel(mlbOppositeSides());
     assert.equal(vm.action.available, true);
     assert.notEqual(vm.action.headline?.kind, "PROVIDER_SHARP");
-    assert.equal(vm.action.headline?.label, "BIG MONEY GAP");
+    assert.equal(vm.action.headline?.label, "MONEY SIGNAL");
+    assert.equal(vm.action.headline?.detail, "LARGER BETS DETECTED");
     assert.equal(vm.action.tickets.awayPct, 66);
     assert.equal(vm.action.tickets.homePct, 34);
     assert.equal(vm.action.canQualify, false);
