@@ -37,6 +37,11 @@
   /* Frame the field bowl; keep the sun flare from washing card text */
   background-position: center, center, center 62% !important;
 }
+.venue-bg--nba {
+  --venue-image: url("/backgrounds/nba-kobe-jordan.jpg");
+  /* Bias toward jersey wordmarks / logos in frame */
+  background-position: center, center, center 42% !important;
+}
 .venue-bg--basketball {
   --venue-image: url("/backgrounds/basketball-arena-night.jpg");
   background-position: center, center, center 60% !important;

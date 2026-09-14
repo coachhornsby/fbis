@@ -266,25 +266,25 @@ function ScoreHero({ vm, game }) {
       </div>
     );
   }
-  if (!p?.available) {
-    return (
-      <div className="db-hero db-hero-empty">
-        <span className="db-empty">No FBIS</span>
-      </div>
-    );
-  }
+  // Always keep logos/abbrs visible — NBA often has no independent FBIS score yet.
+  const available = Boolean(p?.available);
   return (
-    <div className="db-hero">
+    <div className={`db-hero${available ? "" : " db-hero-nomodel"}`}>
       <div className="db-hero-side">
-        <TeamLogo team={game.away} size={36} />
+        <TeamLogo team={game.away || vm.teams?.away} size={36} />
         <div className="db-hero-meta">
-          <span className="db-hero-abbr">{vm.teams.awayAbbr}</span>
-          <strong className="db-hero-score">{fmtNum(p.away, 1)}</strong>
+          <span className="db-hero-abbr">{vm.teams?.awayAbbr || "AWAY"}</span>
+          <strong className="db-hero-score">{available ? fmtNum(p.away, 1) : "—"}</strong>
         </div>
       </div>
       <div className="db-hero-mid">
         <span className="db-vs">VS</span>
-        {p.research ? (
+        {!available ? (
+          <span className="db-empty-hint" title="No independent FBIS projection for this game">
+            No FBIS
+          </span>
+        ) : null}
+        {available && p.research ? (
           <span className="db-mini-badge" title="Research model">
             R
           </span>
@@ -292,10 +292,10 @@ function ScoreHero({ vm, game }) {
       </div>
       <div className="db-hero-side db-hero-home">
         <div className="db-hero-meta">
-          <span className="db-hero-abbr">{vm.teams.homeAbbr}</span>
-          <strong className="db-hero-score">{fmtNum(p.home, 1)}</strong>
+          <span className="db-hero-abbr">{vm.teams?.homeAbbr || "HOME"}</span>
+          <strong className="db-hero-score">{available ? fmtNum(p.home, 1) : "—"}</strong>
         </div>
-        <TeamLogo team={game.home} size={36} />
+        <TeamLogo team={game.home || vm.teams?.home} size={36} />
       </div>
     </div>
   );

@@ -5,8 +5,9 @@ export default function TeamLogo({ team, size = 22 }) {
   const [failed, setFailed] = useState(false);
   const name = teamDisplayName(team) === "—" ? "Team" : teamDisplayName(team);
   const abbr = team?.abbr && team.abbr !== "—" ? team.abbr : "";
+  const logo = team?.logo || team?.logoUrl || "";
   const px = Number(size) || 22;
-  if (!team?.logo || failed) {
+  if (!logo || failed) {
     return (
       <span
         className="team-logo-fallback"
@@ -21,7 +22,7 @@ export default function TeamLogo({ team, size = 22 }) {
   return (
     <img
       className="team-logo"
-      src={team.logo}
+      src={logo}
       alt={name}
       width={px}
       height={px}

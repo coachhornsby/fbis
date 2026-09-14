@@ -160,6 +160,7 @@
 .db-card--mlb,
 .db-card--cfb,
 .db-card--football,
+.db-card--nba,
 .db-card--basketball,
 .db-card--nhl {
   background-color: #0a1520;
@@ -188,6 +189,10 @@
   --db-venue-image: url("/backgrounds/nfl-stadium-levis.jpg");
   background-position: center, center, center 62%;
 }
+.db-card--nba {
+  --db-venue-image: url("/backgrounds/nba-kobe-jordan.jpg");
+  background-position: center, center, center 42%;
+}
 .db-card--basketball {
   --db-venue-image: url("/backgrounds/basketball-arena-night.jpg");
   background-position: center, center, center 60%;
@@ -200,6 +205,7 @@
 .db-card--mlb:hover,
 .db-card--cfb:hover,
 .db-card--football:hover,
+.db-card--nba:hover,
 .db-card--basketball:hover,
 .db-card--nhl:hover {
   border-color: #5a7a9a;
@@ -217,6 +223,7 @@
   .db-card--mlb:hover,
   .db-card--cfb:hover,
   .db-card--football:hover,
+  .db-card--nba:hover,
   .db-card--basketball:hover,
   .db-card--nhl:hover {
     background-image:
@@ -372,6 +379,18 @@
   color: var(--db-muted);
   font-size: 12px;
   min-height: 48px;
+}
+.db-hero-nomodel .db-hero-score {
+  color: var(--db-muted);
+  font-weight: 600;
+}
+.db-empty-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--db-muted);
 }
 
 /* —— Comparison graphics (stacked for narrow multi-col cards) —— */
