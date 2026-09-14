@@ -158,6 +158,7 @@
 
 /* Legacy db-card venue hooks — keep in sync with venueAtmosphere.css */
 .db-card--mlb,
+.db-card--cfb,
 .db-card--football,
 .db-card--basketball,
 .db-card--nhl {
@@ -179,6 +180,10 @@
   --db-venue-image: url("/backgrounds/mlb-stadium-homeplate.jpg");
   background-position: center, center, center 68%;
 }
+.db-card--cfb {
+  --db-venue-image: url("/backgrounds/cfb-stadium-big-house.jpg");
+  background-position: center, center, center 58%;
+}
 .db-card--football {
   --db-venue-image: url("/backgrounds/football-stadium-night.jpg");
   background-position: center, center, center 55%;
@@ -193,6 +198,7 @@
 }
 
 .db-card--mlb:hover,
+.db-card--cfb:hover,
 .db-card--football:hover,
 .db-card--basketball:hover,
 .db-card--nhl:hover {
@@ -209,6 +215,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .db-card--mlb:hover,
+  .db-card--cfb:hover,
   .db-card--football:hover,
   .db-card--basketball:hover,
   .db-card--nhl:hover {

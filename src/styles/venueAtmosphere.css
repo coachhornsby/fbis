@@ -27,6 +27,11 @@
   /* Frame diamond + stands; keep twilight sky from dominating the card */
   background-position: center, center, center 68% !important;
 }
+.venue-bg--cfb {
+  --venue-image: url("/backgrounds/cfb-stadium-big-house.jpg");
+  /* Frame the field bowl; keep the sunset sky from owning the card */
+  background-position: center, center, center 58% !important;
+}
 .venue-bg--football {
   --venue-image: url("/backgrounds/football-stadium-night.jpg");
   background-position: center, center, center 55% !important;
