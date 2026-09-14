@@ -169,14 +169,49 @@ function PublicBars({ game }) {
   if (!splits) return null;
   const tickets = Number(splits.ticketPct ?? splits.tickets);
   const money = Number(splits.moneyPct ?? splits.money);
-  if (!Number.isFinite(tickets) && !Number.isFinite(money)) return null;
-  const gap =
-    Number.isFinite(tickets) && Number.isFinite(money) ? money - tickets : null;
+  const markets = Array.isArray(splits.markets) ? splits.markets : [];
+  const knifeRows = markets.filter(
+    (m) => m && m.leanSide && m.magnitude != null && m.magnitude > 0
+  );
+  if (!Number.isFinite(tickets) && !Number.isFinite(money) && !knifeRows.length) return null;
+
+  const homeAbbr =
+    game?.home?.abbr || game?.homeAbbr || game?.teams?.homeAbbr || "HOME";
+  const awayAbbr =
+    game?.away?.abbr || game?.awayAbbr || game?.teams?.awayAbbr || "AWAY";
+
+  const sideLabel = (lean) => {
+    if (lean === "HOME") return homeAbbr;
+    if (lean === "AWAY") return awayAbbr;
+    if (lean === "OVER") return "OVER";
+    if (lean === "UNDER") return "UNDER";
+    return lean || "—";
+  };
+
+  const marketLabel = (market) => {
+    if (market === "TOTAL") return "TOT";
+    return market || "—";
+  };
+
+  const ariaKnives = knifeRows
+    .map(
+      (m) =>
+        `${marketLabel(m.market)} ${sideLabel(m.leanSide)} ${Math.round(m.magnitude)}`
+    )
+    .join(", ");
+
   return (
     <div
       className="db-public"
       role="img"
-      aria-label={`Public tickets ${tickets || "—"}%, money ${money || "—"}%`}
+      aria-label={[
+        Number.isFinite(tickets) || Number.isFinite(money)
+          ? `Public tickets ${Number.isFinite(tickets) ? tickets : "—"}%, money ${Number.isFinite(money) ? money : "—"}%`
+          : null,
+        ariaKnives ? `Money lean ${ariaKnives}` : null,
+      ]
+        .filter(Boolean)
+        .join(". ")}
     >
       <div className="db-public-title">PUBLIC</div>
       {Number.isFinite(tickets) ? (
@@ -200,10 +235,26 @@ function PublicBars({ game }) {
           <strong>{fmtNum(money, 0)}%</strong>
         </div>
       ) : null}
-      {gap != null ? <div className="db-public-gap">Δ {fmtSigned(gap, 0)}</div> : null}
+      {knifeRows.length ? (
+        <div className="db-knife-row" aria-hidden="true">
+          {knifeRows.map((m) => (
+            <span
+              key={m.market}
+              className={`db-knife${m.magnitude >= 10 ? " is-hot" : ""}`}
+              title={`Money vs tickets on ${m.market}: ${sideLabel(m.leanSide)} ${fmtSigned(m.moneyTicketGap, 0)} (research lean, not a sharp label)`}
+            >
+              <span className="db-knife-ico">🔪</span>
+              <span className="db-knife-mkt">{marketLabel(m.market)}</span>
+              <span className="db-knife-side">{sideLabel(m.leanSide)}</span>
+              <strong className="db-knife-amt">{fmtSigned(m.magnitude, 0)}</strong>
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
+
 
 function ScoreHero({ vm, game }) {
   const p = vm.projection;
