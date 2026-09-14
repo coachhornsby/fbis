@@ -362,7 +362,9 @@ export function defaultFbisSlateDates(now = new Date(), { sport } = {}) {
   const today = calendarDateChicago(now);
   const s = String(sport || "").toLowerCase();
   const football = s === "nfl" || s === "cfb" || s === "ncaaf" || s === "college-football";
-  const horizonDays = football ? 3 : 1;
+  // Football boards need the full upcoming week: early-week collections must
+  // still see Saturday CFB and Sunday/Monday NFL games.
+  const horizonDays = football ? 7 : 1;
   const dates = new Set([today]);
   let cursor = now.getTime();
   let last = today;
@@ -379,10 +381,33 @@ export function defaultFbisSlateDates(now = new Date(), { sport } = {}) {
 }
 
 /**
+ * The games table is append-oriented and can retain rows whose collection date
+ * no longer matches their actual kickoff date. ACTION sizing/matching must use
+ * the event clock, not that historical collection partition.
+ */
+export function filterActionMatchingWindow(rows = [], { sport, date, now = new Date() } = {}) {
+  const list = Array.isArray(rows) ? rows : [];
+  const explicitDate = String(date || "").trim();
+  const s = String(sport || "").toLowerCase();
+  const football = s === "nfl" || s === "cfb" || s === "ncaaf" || s === "college-football";
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  const lowerMs = nowMs - 2 * 60 * 60 * 1000;
+  const upperMs = nowMs + (football ? 8 : 2) * 24 * 60 * 60 * 1000;
+
+  return list.filter((row) => {
+    const startMs = Date.parse(row?.start || row?.startTime || "");
+    if (!Number.isFinite(startMs)) return false;
+    if (explicitDate) return calendarDateChicago(new Date(startMs)) === explicitDate;
+    return startMs >= lowerMs && startMs <= upperMs;
+  });
+}
+
+/**
  * Load FBIS games for Action matching. Never returns an undated season dump.
  */
 export async function loadFbisSlateForMatching(queryGamesFn, env, { sport, date, now } = {}) {
-  const dates = date ? [String(date)] : defaultFbisSlateDates(now || new Date(), { sport });
+  const clock = now || new Date();
+  const dates = date ? [String(date)] : defaultFbisSlateDates(clock, { sport });
   const byId = new Map();
   let lastError = null;
   for (const d of dates) {
@@ -391,7 +416,12 @@ export async function loadFbisSlateForMatching(queryGamesFn, env, { sport, date,
       lastError = games?.reason || "slate-unavailable";
       continue;
     }
-    for (const row of games.rows || []) {
+    const activeRows = filterActionMatchingWindow(games.rows || [], {
+      sport,
+      date: date ? String(date) : null,
+      now: clock,
+    });
+    for (const row of activeRows) {
       if (row?.id) byId.set(String(row.id), row);
     }
   }

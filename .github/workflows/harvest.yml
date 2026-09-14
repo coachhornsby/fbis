@@ -311,12 +311,12 @@ jobs:
           retention-days: 14
 
   action-market-intel:
-    name: ACTION MARKET INTELLIGENCE (soft-fail)
+    name: ACTION MARKET INTELLIGENCE
     runs-on: ubuntu-latest
     needs: [determine-mode, verify-deployment]
-    # Parallel to incumbent collect. Soft-fail so ACTION never blocks production odds collect/harvest.
+    # Parallel to incumbent collect. A provider failure is isolated from the
+    # core collector but remains a visible failed job for operator recovery.
     if: needs.verify-deployment.outputs.outcome == 'match' && contains(fromJSON('["collect-full","collect-cache","all"]'), needs.determine-mode.outputs.mode)
-    continue-on-error: true
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -350,7 +350,7 @@ jobs:
           echo "ACTION market-intel sport=${SPORT} production_sha=${PRODUCTION_SHA}"
           echo "role=market_intelligence governance=shadow inProductionRouter=false canQualify=false"
           if [ -z "${HARVEST_SECRET:-}" ]; then
-            echo "HARVEST_SECRET missing — cannot collect ACTION (soft-fail)."
+            echo "HARVEST_SECRET missing — cannot collect ACTION."
             exit 1
           fi
           plan="$(mktemp)"
@@ -534,11 +534,15 @@ jobs:
           harvest_ok="$(jq -r '.checks[] | select(.name=="scheduled-harvest") | .ok' "$tmp")"
           harvest_stale="$(jq -r '.checks[] | select(.name=="scheduled-harvest") | .stale' "$tmp")"
           collect_ok="$(jq -r '.checks[] | select(.name=="scheduled-collect") | .ok' "$tmp")"
+          action_enabled="$(jq -r '.actionApify.enabled // false' "$tmp")"
+          action_runs_24h="$(jq -r '.actionApify.runsLast24h // 0' "$tmp")"
           need_collect=0
           need_harvest=0
+          need_action=0
           if [ "$collect_state" = "missed" ] || [ "$collect_ok" = "false" ] || [ "$collect_state" = "delayed" ]; then need_collect=1; fi
           if [ "$harvest_state" = "missed" ] || [ "$harvest_ok" = "false" ] || [ "$harvest_stale" = "true" ]; then need_harvest=1; fi
-          if [ "$need_collect" -eq 0 ] && [ "$need_harvest" -eq 0 ]; then
+          if [ "$action_enabled" = "true" ] && [ "$action_runs_24h" -lt 1 ]; then need_action=1; fi
+          if [ "$need_collect" -eq 0 ] && [ "$need_harvest" -eq 0 ] && [ "$need_action" -eq 0 ]; then
             echo "No catch-up required. collect=${collect_state} harvest=${harvest_state} harvest_ok=${harvest_ok} harvest_stale=${harvest_stale}"
             exit 0
           fi
@@ -586,6 +590,28 @@ jobs:
               if [ "$ok_collect" != "1" ]; then
                 echo "collect-recovery ${sport} failed after retries (continuing so harvest catch-up can still run)"
                 collect_failed=1
+              fi
+            done
+          fi
+          action_failed=0
+          if [ "$need_action" -eq 1 ] || [ "$need_collect" -eq 1 ]; then
+            echo "Recovering stale ACTION board intelligence"
+            for sport in mlb cfb nfl; do
+              body="$(mktemp)"
+              set +e
+              code="$(curl -sS --max-time 420 -o "$body" -w '%{http_code}' \
+                -X POST \
+                -H "x-harvest-secret: ${HARVEST_SECRET}" \
+                -H "content-type: application/json" \
+                -H "accept: application/json" \
+                -d "{\"execute\":\"1\",\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"BASE\"}" \
+                "${BASE}/api/action-apify-collect?execute=1&sport=${sport}&lifecycle=pregame&profile=BASE")"
+              curl_ec=$?
+              set -e
+              echo "action-recovery ${sport} curl_ec=${curl_ec} http=${code:-000}"
+              jq -c '{ok,status,gamesReturned,gamesMatched,gamesUnmatched,observationsWritten,expectedSlateGames}' "$body" 2>/dev/null || true
+              if [ "$curl_ec" -ne 0 ] || [ "$code" != "200" ] || [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" != "true" ]; then
+                action_failed=1
               fi
             done
           fi
@@ -656,8 +682,8 @@ jobs:
               sleep 5
             done
           fi
-          if [ "$collect_failed" != "0" ] || [ "$harvest_failed" != "0" ]; then
-            echo "Catch-up incomplete collect_failed=${collect_failed} harvest_failed=${harvest_failed}"
+          if [ "$collect_failed" != "0" ] || [ "$harvest_failed" != "0" ] || [ "$action_failed" != "0" ]; then
+            echo "Catch-up incomplete collect_failed=${collect_failed} harvest_failed=${harvest_failed} action_failed=${action_failed}"
             exit 1
           fi
 
@@ -682,7 +708,7 @@ jobs:
           echo "collect=${COLLECT}"
           echo "harvest=${HARVEST}"
           echo "health=${HEALTH}"
-          echo "action-market-intel=${ACTION} (soft-fail; never blocks pipeline)"
+          echo "action-market-intel=${ACTION} (visible failure; core collect remains isolated)"
           echo "verify-outcome=${{ needs.verify-deployment.outputs.outcome }}"
           echo "production-sha=${{ needs.verify-deployment.outputs.production_sha }}"
           echo "verify-reason=${{ needs.verify-deployment.outputs.reason }}"

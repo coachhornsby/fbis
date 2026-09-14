@@ -522,7 +522,61 @@ export async function persistActionObservationSeries(db, observations = []) {
     if (!firewall.ok) {
       throw new Error(`action_firewall_violation:${firewall.violations.join(",")}`);
     }
+  }
 
+  // Cloudflare D1 has substantial round-trip cost when every book quote is
+  // queried and inserted serially. The IDs are deterministic from the natural
+  // observation key, so INSERT OR IGNORE plus pointer upserts are safe to batch.
+  if (typeof db.batch === "function") {
+    const insertStatements = observations.map((obs) => ({
+      sql: `INSERT OR IGNORE INTO action_market_book_observations (
+        id, observation_key, canonical_event_id, canonical_player_id,
+        provider_event_id, provider_player_id, sport, market_type, market_period, selection,
+        line, american_price, sportsbook, provider_timestamp, collected_at, event_start_time,
+        snapshot_type, public_ticket_pct, public_money_pct, money_minus_ticket_pct,
+        tracked_bet_count, tracked_volume, raw_payload_hash, match_confidence, schema_version,
+        run_id, source_observation_id, decision_eligible, can_qualify, can_authorize_wager, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)`,
+      params: [
+        obs.id, obs.observationKey, obs.canonicalEventId, obs.canonicalPlayerId,
+        obs.providerEventId, obs.providerPlayerId, obs.sport, obs.marketType,
+        obs.marketPeriod, obs.selection, obs.line, obs.americanPrice, obs.sportsbook,
+        obs.providerTimestamp, obs.collectedAt, obs.eventStartTime, obs.snapshotType,
+        obs.publicTicketPct, obs.publicMoneyPct, obs.moneyMinusTicketPct,
+        obs.trackedBetCount, obs.trackedVolume, obs.rawPayloadHash, obs.matchConfidence,
+        obs.schemaVersion, obs.runId, obs.sourceObservationId, obs.createdAt,
+      ],
+    }));
+    const insertResults = await db.batch(insertStatements);
+    inserted = insertResults.reduce(
+      (sum, result) => sum + (Number(result?.meta?.changes ?? result?.changes ?? 0) > 0 ? 1 : 0),
+      0
+    );
+    ignored = Math.max(0, observations.length - inserted);
+
+    const pointerStatements = observations
+      .filter((obs) => obs.snapshotType && obs.snapshotType !== ACTION_SNAPSHOT_TYPE.UNKNOWN)
+      .map((obs) => ({
+        sql: `INSERT INTO action_market_snapshot_pointers (
+          id, sport, canonical_event_id, canonical_player_id, provider_event_id, provider_player_id,
+          market_type, market_period, selection, sportsbook, snapshot_type,
+          observation_id, observation_key, derived_at, event_start_time
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET observation_id = excluded.observation_id,
+          observation_key = excluded.observation_key, derived_at = excluded.derived_at`,
+        params: [
+          snapshotPointerId(obs), obs.sport, obs.canonicalEventId, obs.canonicalPlayerId,
+          obs.providerEventId, obs.providerPlayerId, obs.marketType, obs.marketPeriod,
+          obs.selection, obs.sportsbook, obs.snapshotType, obs.id, obs.observationKey,
+          obs.collectedAt, obs.eventStartTime,
+        ],
+      }));
+    if (pointerStatements.length) await db.batch(pointerStatements);
+    pointers = pointerStatements.length;
+    return { inserted, ignored, pointers, provider: ACTION_APIFY_PROVIDER };
+  }
+
+  for (const obs of observations) {
     const existing = await dbQueryOne(
       db,
       "SELECT id FROM action_market_book_observations WHERE observation_key = ?",

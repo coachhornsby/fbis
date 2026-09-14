@@ -26,6 +26,7 @@ import {
   calendarDateChicago,
   defaultFbisSlateDates,
   loadFbisSlateForMatching,
+  filterActionMatchingWindow,
 } from "../functions/lib/actionApifyEvidence.js";
 
 function memoryDb() {
@@ -490,7 +491,7 @@ test("logical collection key is deterministic for run idempotency", () => {
   assert.equal(a, b);
 });
 
-test("default FBIS slate dates: MLB today+tomorrow; football extends through +3 Chicago days", async () => {
+test("default FBIS slate dates: MLB today+tomorrow; football extends through +7 Chicago days", async () => {
   // Friday evening Chicago (Sat early UTC): +36h wrongly skipped Saturday.
   const friEve = new Date("2026-09-12T03:01:00.000Z");
   assert.equal(calendarDateChicago(friEve), "2026-09-11");
@@ -501,12 +502,20 @@ test("default FBIS slate dates: MLB today+tomorrow; football extends through +3 
     "2026-09-12",
     "2026-09-13",
     "2026-09-14",
+    "2026-09-15",
+    "2026-09-16",
+    "2026-09-17",
+    "2026-09-18",
   ]);
   assert.deepEqual(defaultFbisSlateDates(friEve, { sport: "cfb" }), [
     "2026-09-11",
     "2026-09-12",
     "2026-09-13",
     "2026-09-14",
+    "2026-09-15",
+    "2026-09-16",
+    "2026-09-17",
+    "2026-09-18",
   ]);
 
   const now = new Date("2026-09-12T18:00:00.000Z");
@@ -516,7 +525,16 @@ test("default FBIS slate dates: MLB today+tomorrow; football extends through +3 
   assert.equal(mlbDates.length, 2);
 
   const footballDates = defaultFbisSlateDates(now, { sport: "cfb" });
-  assert.deepEqual(footballDates, ["2026-09-12", "2026-09-13", "2026-09-14", "2026-09-15"]);
+  assert.deepEqual(footballDates, [
+    "2026-09-12",
+    "2026-09-13",
+    "2026-09-14",
+    "2026-09-15",
+    "2026-09-16",
+    "2026-09-17",
+    "2026-09-18",
+    "2026-09-19",
+  ]);
 
   const seen = [];
   const queryGames = async (_env, opts) => {
@@ -544,6 +562,35 @@ test("explicit date keeps single-day FBIS slate", async () => {
   const slate = await loadFbisSlateForMatching(queryGames, {}, { sport: "nfl", date: "2026-09-14" });
   assert.deepEqual(slate.slateDates, ["2026-09-14"]);
   assert.equal(slate.gamesExpected, 1);
+});
+
+test("ACTION matching window removes stale season dumps stored under today's partition", () => {
+  const now = new Date("2026-09-14T16:00:00.000Z");
+  const rows = [
+    { id: "today", start: "2026-09-14T23:00:00Z" },
+    { id: "old", start: "2026-09-01T23:00:00Z" },
+    { id: "season-dump", start: "2026-12-20T18:00:00Z" },
+    { id: "invalid", start: null },
+  ];
+  assert.deepEqual(
+    filterActionMatchingWindow(rows, { sport: "nfl", now }).map((r) => r.id),
+    ["today"]
+  );
+});
+
+test("ACTION explicit-date matching uses kickoff date instead of stored partition", () => {
+  const rows = [
+    { id: "right", start: "2026-09-15T01:00:00Z" }, // Sep 14 in Chicago
+    { id: "wrong", start: "2026-09-15T18:00:00Z" },
+  ];
+  assert.deepEqual(
+    filterActionMatchingWindow(rows, {
+      sport: "mlb",
+      date: "2026-09-14",
+      now: new Date("2026-09-14T16:00:00Z"),
+    }).map((r) => r.id),
+    ["right"]
+  );
 });
 
 test("championship denominators keep match rate separate from dated-slate coverage", () => {

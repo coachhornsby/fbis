@@ -288,6 +288,43 @@ test("snapshot types derive OPEN/CURRENT/DECISION/FINAL_PREGAME/CLOSE", () => {
   );
 });
 
+test("D1 adapter batches immutable quote inserts and pointer updates", async () => {
+  const batchCalls = [];
+  const db = {
+    async batch(statements) {
+      batchCalls.push(statements);
+      return statements.map(() => ({ meta: { changes: 1 } }));
+    },
+  };
+  const rows = expandBookObservations(
+    {
+      actionGameId: "ag-batch",
+      sport: "mlb",
+      startTime: "2026-09-14T23:00:00Z",
+      books: [{
+        book: "pinnacle",
+        spreadHome: -1.5,
+        spreadHomeOdds: -110,
+        spreadAway: 1.5,
+        spreadAwayOdds: -110,
+        moneylineHome: -145,
+        moneylineAway: 130,
+      }],
+    },
+    {
+      canonicalEventId: "fbis-batch",
+      lifecycle: "pregame",
+      collectedAt: "2026-09-14T16:00:00Z",
+    }
+  );
+  const result = await persistActionObservationSeries(db, rows);
+  assert.equal(batchCalls.length, 2);
+  assert.equal(batchCalls[0].length, rows.length);
+  assert.equal(batchCalls[1].length, rows.length);
+  assert.equal(result.inserted, rows.length);
+  assert.equal(result.pointers, rows.length);
+});
+
 test("persist rejects rows that attempt to set qualify/authorize flags", async () => {
   const db = memorySeriesDb();
   const [row] = expandBookObservations(
