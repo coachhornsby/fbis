@@ -1,9 +1,11 @@
 /**
  * Book roles — one job each. Never mix them.
  *
- * Heritage  = execution (where tickets are actually placed)
- * Pinnacle  = sharp / fair / CLV (always the market layer)
+ * Heritage  = EXECUTION market (where tickets are actually placed)
+ * Pinnacle  = REFERENCE market (optional research benchmark — never required for board/ops)
  * Kalshi    = public sentiment only (never a betting book)
+ *
+ * Do not treat Pinnacle as synonymous with "the market." Prefer execution + consensus.
  */
 
 export const EXECUTION_BOOK = "Heritage";

@@ -460,20 +460,71 @@ export function marketImpliedScores(game) {
 }
 
 export function marketLines(game) {
-  const spread = game?.odds?.pinSpread ?? game?.odds?.spread ?? null;
-  const total = game?.odds?.pinTotal ?? game?.odds?.total ?? null;
-  const homeMl = game?.odds?.pinHomeMl ?? game?.odds?.homeMl ?? null;
-  const awayMl = game?.odds?.pinAwayMl ?? game?.odds?.awayMl ?? null;
-  const pinPresent = Boolean(game?.odds?.pinPresent);
-  let book = "Market";
-  if (pinPresent || game?.odds?.pinSpread != null || game?.odds?.pinHomeMl != null) book = "Pinnacle";
-  else if (game?.odds?.heritageListed) book = "Heritage";
-  else if (game?.odds?.softSource) {
-    const soft = String(game.odds.softSource).toLowerCase();
-    if (soft.includes("sharp")) book = "DK/FD";
-    else if (soft.includes("rundown")) book = "Soft";
-    else book = soft;
+  // Prefer canonical market roles when present (board payload).
+  const m = game?.market;
+  if (m && typeof m === "object") {
+    const exec = m.execution || {};
+    const cons = m.consensus || {};
+    const ref = m.reference || {};
+    const useExec = Boolean(exec.available);
+    const useCons = !useExec && Boolean(cons.available);
+    const useRef = !useExec && !useCons && Boolean(ref.available);
+    const spread = useExec ? exec.spread : useCons ? cons.spread : useRef ? ref.spread : null;
+    const total = useExec ? exec.total : useCons ? cons.total : useRef ? ref.total : null;
+    const homeMl = useExec ? exec.moneyline?.home : useRef ? ref.moneyline?.home : null;
+    const awayMl = useExec ? exec.moneyline?.away : useRef ? ref.moneyline?.away : null;
+    let book = "Market";
+    if (useExec) book = exec.book || "Execution";
+    else if (useCons) book = cons.source === "ACTION" ? "Consensus" : cons.source || "Consensus";
+    else if (useRef) book = "Reference";
+    return {
+      spread: spread == null || Number.isNaN(Number(spread)) ? null : Number(spread),
+      total: total == null || Number.isNaN(Number(total)) ? null : Number(total),
+      homeMl: homeMl == null || Number.isNaN(Number(homeMl)) ? null : Number(homeMl),
+      awayMl: awayMl == null || Number.isNaN(Number(awayMl)) ? null : Number(awayMl),
+      book,
+      pinPresent: Boolean(ref.available || game?.odds?.pinPresent),
+      marketRole: useExec ? "EXECUTION_MARKET" : useCons ? "CONSENSUS_MARKET" : useRef ? "REFERENCE_MARKET" : null,
+      marketAvailable: Boolean(m.marketAvailable),
+      referenceOnly: Boolean(!m.marketAvailable && ref.available),
+    };
   }
+  // Legacy fallback: execution/soft before Pinnacle; Pinnacle is reference-only.
+  const heritage = Boolean(game?.odds?.heritageListed);
+  const soft = Boolean(game?.odds?.softPresent || game?.odds?.softSource);
+  const pinPresent = Boolean(game?.odds?.pinPresent);
+  let spread = null;
+  let total = null;
+  let homeMl = null;
+  let awayMl = null;
+  let book = "Market";
+  let marketRole = null;
+  if (heritage) {
+    book = "Heritage";
+    marketRole = "EXECUTION_MARKET";
+    spread = game?.odds?.spread ?? null;
+    total = game?.odds?.total ?? null;
+    homeMl = game?.odds?.heritageHomeMl ?? game?.odds?.homeMl ?? null;
+    awayMl = game?.odds?.heritageAwayMl ?? game?.odds?.awayMl ?? null;
+  } else if (soft || (!pinPresent && (game?.odds?.spread != null || game?.odds?.total != null))) {
+    book = game?.odds?.softSource ? String(game.odds.softSource) : "Consensus";
+    const softName = String(game?.odds?.softSource || "").toLowerCase();
+    if (softName.includes("sharp")) book = "DK/FD";
+    else if (softName.includes("rundown")) book = "Soft";
+    marketRole = "CONSENSUS_MARKET";
+    spread = game?.odds?.spread ?? null;
+    total = game?.odds?.total ?? null;
+    homeMl = game?.odds?.homeMl ?? null;
+    awayMl = game?.odds?.awayMl ?? null;
+  } else if (pinPresent || game?.odds?.pinSpread != null || game?.odds?.pinHomeMl != null) {
+    book = "Reference";
+    marketRole = "REFERENCE_MARKET";
+    spread = game?.odds?.pinSpread ?? game?.odds?.spread ?? null;
+    total = game?.odds?.pinTotal ?? game?.odds?.total ?? null;
+    homeMl = game?.odds?.pinHomeMl ?? null;
+    awayMl = game?.odds?.pinAwayMl ?? null;
+  }
+  const marketAvailable = marketRole === "EXECUTION_MARKET" || marketRole === "CONSENSUS_MARKET";
   return {
     spread: spread == null || Number.isNaN(Number(spread)) ? null : Number(spread),
     total: total == null || Number.isNaN(Number(total)) ? null : Number(total),
@@ -481,6 +532,9 @@ export function marketLines(game) {
     awayMl: awayMl == null || Number.isNaN(Number(awayMl)) ? null : Number(awayMl),
     book,
     pinPresent,
+    marketRole,
+    marketAvailable,
+    referenceOnly: Boolean(!marketAvailable && pinPresent),
   };
 }
 
@@ -534,11 +588,17 @@ export function modelQualityView(game) {
     game?.sportDataState ||
     (early ? "EARLY-SEASON" : game?.sportDataUnavailable ? "MISSING" : "READY");
   const marketData =
-    game?.marketUnresolved || game?.marketUnavailable
+    game?.marketUnresolved
       ? "PARTIAL"
-      : game?.odds?.pinPresent || game?.odds?.spread != null
+      : game?.marketAvailable || game?.odds?.heritageListed || game?.odds?.softPresent || (game?.odds?.spread != null && !game?.odds?.pinPresent)
         ? "READY"
-        : "MISSING";
+        : game?.odds?.pinPresent
+          ? "REFERENCE_ONLY"
+          : game?.marketUnavailable
+            ? "MISSING"
+            : game?.odds?.spread != null
+              ? "READY"
+              : "MISSING";
   const modelInputs = pure
     ? early
       ? "PARTIAL"

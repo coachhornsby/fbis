@@ -94,7 +94,8 @@ describe("board NO_MODEL / PASS contract", () => {
     assert.equal(q.marketDataQuality, 64);
     assert.equal(q.dataState, "MARKET ONLY");
     assert.equal(q.sportDataState, "READY");
-    assert.equal(q.marketDataState, "READY");
+    // Pinnacle-only cards are reference benchmarks, not operational market readiness.
+    assert.equal(q.marketDataState, "REFERENCE_ONLY");
     assert.equal(q.modelInputsState, "MISSING");
     assert.equal(q.projectionState, "MISSING");
   });

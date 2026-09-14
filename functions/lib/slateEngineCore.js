@@ -1328,9 +1328,16 @@ export async function fetchResultsForReconcile(sport, date, opts = {}) {
 
 export function dataQuality(sport, game) {
   const flags = [];
-  if (game.odds?.pinPresent === false || (game.pin?.ml && !game.pin.ml.complete)) flags.push("incomplete_pin_ml");
-  if (game.odds?.spread != null && game.pin?.spread && !game.pin.spread.complete) flags.push("incomplete_pin_spread");
-  if (game.odds?.total != null && game.pin?.total && !game.pin.total.complete) flags.push("incomplete_pin_total");
+  // Reference-market diagnostics only — do not treat missing Pinnacle as a global defect.
+  if (game.odds?.pinPresent === false || (game.pin?.ml && !game.pin.ml.complete)) {
+    flags.push("reference_market_incomplete_ml");
+  }
+  if (game.odds?.spread != null && game.pin?.spread && !game.pin.spread.complete) {
+    flags.push("reference_market_incomplete_spread");
+  }
+  if (game.odds?.total != null && game.pin?.total && !game.pin.total.complete) {
+    flags.push("reference_market_incomplete_total");
+  }
   if (sport === "mlb") {
     if (!game.homeSp?.name) flags.push("missing_home_sp");
     if (!game.awaySp?.name) flags.push("missing_away_sp");
@@ -1339,20 +1346,28 @@ export function dataQuality(sport, game) {
     if (game.model?.layers?.pal != null && game.model?.layers?.score != null) {
       if (Math.abs(game.model.layers.pal - game.model.layers.score) >= 0.08) flags.push("model_disagreement");
     }
-    if (game.odds?.pinTotal == null && game.odds?.pinOverPrice == null) flags.push("missing_pin_total");
-    if (game.odds?.pinSpread == null && game.odds?.pinSpreadHomePrice == null) flags.push("missing_pin_spread");
+    if (game.odds?.pinTotal == null && game.odds?.pinOverPrice == null) {
+      flags.push("reference_market_missing_total");
+    }
+    if (game.odds?.pinSpread == null && game.odds?.pinSpreadHomePrice == null) {
+      flags.push("reference_market_missing_spread");
+    }
   }
   if (sport === "cfb" && Array.isArray(game.cfb?.flags)) {
     for (const f of game.cfb.flags) flags.push(f);
     if (game.cfb.projectionState === "LEAGUE_AVERAGE_ONLY") {
-      return { score: Math.min(12, Math.max(0, 100 - flags.length * 12)), flags };
+      // Early-season model input gap — independent of reference market.
+      const modelFlags = flags.filter((f) => !String(f).startsWith("reference_market_"));
+      return { score: Math.min(12, Math.max(0, 100 - modelFlags.length * 12)), flags };
     }
   }
   if (game.projectionKind === "PINNACLE_IMPLIED") flags.push("pinnacle_implied_score");
   if (game.marketUnresolved) flags.push("market_unresolved");
-  if (!game.odds?.heritageListed) flags.push("heritage_unlisted");
-  const score = Math.max(0, 100 - flags.length * 12);
-  return { score, flags };
+  if (!game.odds?.heritageListed) flags.push("execution_market_unlisted");
+  // Operational score ignores reference-only gaps so missing Pinnacle does not look "broken".
+  const operationalFlags = flags.filter((f) => !String(f).startsWith("reference_market_"));
+  const score = Math.max(0, 100 - operationalFlags.length * 12);
+  return { score, flags, operationalFlags, referenceFlags: flags.filter((f) => String(f).startsWith("reference_market_")) };
 }
 
 function teamMatchToken(team = {}) {

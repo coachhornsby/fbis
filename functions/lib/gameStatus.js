@@ -2,6 +2,8 @@
  * Operator-facing game status. ESPN/MLB codes map onto a fixed board vocabulary.
  */
 
+import { resolveCanonicalMarket } from "./canonical/marketRoles.js";
+
 export const BOARD_STATUSES = [
   "scheduled",
   "pregame",
@@ -55,18 +57,23 @@ export function noPlayReason(game) {
     return game.cfb.blockReason || "Projection unavailable for betting — team-specific inputs missing.";
   }
   if (game?.projectionKind === "PINNACLE_IMPLIED" && game?.sport === "nfl") {
-    return "FBIS projection unavailable";
+    return "NO INDEPENDENT FBIS PROJECTION";
   }
   if (game?.marketUnresolved) return "TEAM MATCH UNRESOLVED";
   if (game?.lean) {
     if (game.lean.pauseReason) return game.lean.pauseReason;
     if (game.lean.reason) return game.lean.reason;
-    if (game.lean.ev == null) return "No complete Pinnacle pair / no EV";
+    if (game.lean.ev == null) return "No complete execution-market pair / no EV";
     if (Number(game.lean.ev) < 0.03) return `EV below +3% gate`;
     return "Candidate did not clear every qualification gate";
   }
   if (game?.model?.projHome == null && game?.model?.projAway == null) return "projection unavailable";
-  if (game?.odds?.pinPresent === false || flags.includes("incomplete_pin_ml")) return "market unavailable";
+  // Operational market = execution OR consensus. Missing Pinnacle/reference alone is not a defect.
+  const market = game?.market || resolveCanonicalMarket(game);
+  if (market && market.marketAvailable === false) {
+    if (market.referenceMarketAvailable) return "execution market unavailable";
+    return "operational market unavailable";
+  }
   if (flags.includes("missing_pal") && game?.sport === "mlb") return "context only — Pal unmatched, no qualifying market";
   return "No qualifying ticket";
 }

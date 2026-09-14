@@ -664,8 +664,8 @@ export default function App() {
                   (slate?.parlay?.games > 0 ||
                     /soft|sharp|rundown|credit/i.test(String(slate?.parlay?.source || ""))) ? (
                     <div className="slate-notice">
-                      Pinnacle feed is credit-limited. Soft DK/FD two-ways are the provisional benchmark for lean/qualified
-                      tickets until Pin returns — shop carefully.
+                      Reference (Pinnacle) feed is credit-limited. Soft DK/FD two-ways are the provisional operational
+                      consensus for lean/qualified tickets until a reference quote returns — shop carefully.
                     </div>
                   ) : null
                 }
@@ -734,7 +734,7 @@ export default function App() {
                       }
                     />
                     <Stat label="Model" value={slate?.modelVersion || "FBIS-v1.4"} />
-                    <Stat label="Pin / Heritage" value={bookLabel(slate)} />
+                    <Stat label="Market / Heritage" value={bookLabel(slate)} />
                     <Stat label="Pal" value={palLabel(slate)} />
                     <Stat label="Parlay" value={parlayLabel(slate)} />
                   </div>
@@ -788,7 +788,7 @@ function sharedGlossary() {
   return [
     { title: "Loop", body: "Forecast independently, compare to no-vig benchmark, require edge and expected ROI, log, freeze, grade, and diagnose error." },
     { title: "Heritage", body: "Execution ledger only. Imported operator bets remain separate from model recommendations and separate from strategy simulation populations." },
-    { title: "Pinnacle benchmark", body: "Pinnacle is the benchmark for fair/no-vig comparisons. It is not automatically your executed Heritage price." },
+    { title: "Reference market", body: "Pinnacle is an optional research/reference benchmark for fair/no-vig studies. It is not the operational market and not your executed Heritage price." },
     { title: "Qualification gates", body: "A projection is not a bet. Qualification requires complete market evidence and positive expected ROI thresholds." },
     { title: "CLV", body: "CLV is entry no-vig vs close no-vig for the same side and contract; independent of win/loss." },
   ];
@@ -982,7 +982,9 @@ function slateTotalPrice(game, side) {
 }
 
 function oddsBookLabel(game) {
-  if (game.odds?.pinPresent) return "Pin";
+  if (game.odds?.heritageListed) return "Heritage";
+  if (game.odds?.softPresent || game.odds?.softSource) return "Consensus";
+  if (game.odds?.pinPresent) return "Reference";
   if (game.odds?.heritageListed) return "Heritage";
   const soft = String(game.odds?.softSource || "").toLowerCase();
   if (soft.includes("sharp")) return "DK/FD";
@@ -1139,7 +1141,7 @@ function RecTable({ games, onLog, logged }) {
           <th>Pick</th>
           <th>Market</th>
           <th>Price</th>
-          <th>Pin vig</th>
+          <th>Ref vig</th>
           <th>Fair</th>
           <th>Expected ROI</th>
           <th>Book</th>
@@ -1213,7 +1215,7 @@ function LeanTable({ games }) {
             <td>{g.lean.market}</td>
             <td className="muted">
               {g.lean.pauseReason || g.lean.reason || (g.lean.ev == null
-                ? "No complete Pinnacle pair / expected ROI unavailable"
+                ? "No complete reference pair / expected ROI unavailable"
                 : (g.lean.evPct ?? g.lean.ev * 100) < 3
                   ? `Expected ROI ${fmtNum((g.lean.evPct ?? g.lean.ev * 100), 1)}% below +3% gate`
                   : "Candidate did not clear every qualification gate")}
@@ -1237,7 +1239,7 @@ function BetsTable({ bets }) {
           <th>Result</th>
           <th>P/L</th>
           <th>Expected ROI</th>
-          <th>Pin</th>
+          <th>Reference</th>
           <th>Heritage</th>
           <th>CLV</th>
         </tr>
@@ -1317,7 +1319,7 @@ function Alerts({ error, recs, open }) {
 function pinLine(g) {
   const home = g.odds?.pinHomeMl ?? g.fairHomeMl;
   const away = g.odds?.pinAwayMl ?? g.fairAwayMl;
-  if (home == null && away == null) return g.odds?.pinPresent === false ? "Pin missing" : "Pin → Her";
+  if (home == null && away == null) return g.odds?.pinPresent === false ? "Reference missing" : "Ref → Her";
   return `${fmtAmerican(away)} / ${fmtAmerican(home)}`;
 }
 
@@ -1337,7 +1339,7 @@ function SlateProj({ game }) {
     return (
       <>
         <div className="muted">FBIS projection unavailable</div>
-        {a != null && <div className="proj-implied">PINNACLE IMPLIED {fmtNum(a)} – {fmtNum(h)}</div>}
+        {a != null && <div className="proj-implied">REFERENCE MARKET-IMPLIED {fmtNum(a)} – {fmtNum(h)}</div>}
       </>
     );
   }
@@ -1365,7 +1367,7 @@ function PinVigCell({ game, rec }) {
   return (
     <div>
       <div className="text-blue">{fmtVig(vig)}</div>
-      <div className="muted">{nv != null ? `${fmtPct(nv)} nv` : "Pin hold"}</div>
+      <div className="muted">{nv != null ? `${fmtPct(nv)} nv` : "Ref hold"}</div>
     </div>
   );
 }
@@ -1380,13 +1382,13 @@ function palLabel(slate) {
 function bookLabel(slate) {
   const p = slate?.parlay;
   if (!p?.enabled) return "—";
-  if (p.pinGames > 0 && p.heritageInFeed) return "Pin + Her";
-  if (p.pinGames > 0) return "Pin → Her";
+  if (p.pinGames > 0 && p.heritageInFeed) return "Ref + Her";
+  if (p.pinGames > 0) return "Ref → Her";
   const src = String(p.source || "");
   if (/sharpapi/i.test(src)) return "Soft DK/FD";
   if (/therundown|rundown/i.test(src)) return "Soft backup";
-  if (/credit|exhausted/i.test(src)) return "Pin out · soft";
-  return "Pin → Her";
+  if (/credit|exhausted/i.test(src)) return "Ref out · soft";
+  return "Ref → Her";
 }
 
 function F5Cell({ game }) {

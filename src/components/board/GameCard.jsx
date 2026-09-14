@@ -179,7 +179,7 @@ export default function GameCard({
       </section>
 
       <section className="gc-market" aria-label="Market benchmark">
-        <div className="gc-section-label">MARKET · {mkt.book}</div>
+        <div className="gc-section-label">MARKET · {mkt.book === "Pinnacle" || mkt.book === "Reference" ? (mkt.marketAvailable ? mkt.book : "REFERENCE ONLY") : mkt.book}{mkt.referenceOnly ? " (non-executable)" : ""}</div>
         <div className="gc-market-grid">
           <div>
             <span className="muted">Spread</span>
@@ -203,6 +203,31 @@ export default function GameCard({
           </div>
         </div>
       </section>
+
+      {game.market?.reference?.available && (mkt.referenceOnly || mkt.book === "Reference" || !game.market?.marketAvailable) ? (
+        <section className="gc-reference muted" aria-label="Reference market">
+          <div className="gc-section-label">REFERENCE BENCHMARK · {game.market.reference.provider || "Pinnacle"}</div>
+          <div className="gc-market-grid">
+            <div>
+              <span className="muted">Spread</span>
+              <strong>{game.market.reference.spread == null ? "—" : `${game.home?.abbr || "HOME"} ${formatSpreadLabel(game.market.reference.spread)}`}</strong>
+            </div>
+            <div>
+              <span className="muted">Total</span>
+              <strong>{game.market.reference.total == null ? "—" : fmtNum(game.market.reference.total, 1)}</strong>
+            </div>
+            <div>
+              <span className="muted">ML</span>
+              <strong>
+                {game.market.reference.moneyline?.away == null && game.market.reference.moneyline?.home == null
+                  ? "—"
+                  : `${fmtAmerican(game.market.reference.moneyline?.away)} / ${fmtAmerican(game.market.reference.moneyline?.home)}`}
+              </strong>
+            </div>
+          </div>
+          <div className="gc-action-footnote muted">Optional research benchmark · not required for board usability</div>
+        </section>
+      ) : null}
 
       {game.actionIntel ? (
         <section className="gc-action-intel" aria-label="ACTION market intelligence">

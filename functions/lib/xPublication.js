@@ -128,8 +128,32 @@ export function publicationEligibilityForGame(game = {}) {
 export function buildProjectionCard(game = {}, sport = null) {
   const home = Number(game.model?.projHome ?? game.projHome ?? game.projHomeScore);
   const away = Number(game.model?.projAway ?? game.projAway ?? game.projAwayScore);
-  const marketSpread = Number(game.odds?.pinSpread ?? game.odds?.spread ?? game.pin?.spread?.line);
-  const marketTotal = Number(game.odds?.pinTotal ?? game.odds?.total ?? game.pin?.total?.line);
+  const comparison = game.market?.comparison || null;
+  const marketSpread = Number(
+    comparison?.spread ??
+      game.market?.execution?.spread ??
+      game.market?.consensus?.spread ??
+      game.odds?.spread ??
+      game.odds?.pinSpread ??
+      game.pin?.spread?.line
+  );
+  const marketTotal = Number(
+    comparison?.total ??
+      game.market?.execution?.total ??
+      game.market?.consensus?.total ??
+      game.odds?.total ??
+      game.odds?.pinTotal ??
+      game.pin?.total?.line
+  );
+  const comparisonMarketRole =
+    game.market?.comparisonMarketRole ||
+    (game.market?.execution?.available
+      ? "EXECUTION_MARKET"
+      : game.market?.consensus?.available
+        ? "CONSENSUS_MARKET"
+        : game.market?.reference?.available
+          ? "REFERENCE_MARKET"
+          : null);
   const disagreement = modelMarketDisagreement({
     projHome: home,
     projAway: away,
@@ -155,6 +179,7 @@ export function buildProjectionCard(game = {}, sport = null) {
     projected_margin: Number.isFinite(home) && Number.isFinite(away) ? home - away : null,
     projected_total: Number.isFinite(home) && Number.isFinite(away) ? home + away : null,
     market_spread: Number.isFinite(marketSpread) ? marketSpread : null,
+    comparison_market_role: comparisonMarketRole,
     market_total: Number.isFinite(marketTotal) ? marketTotal : null,
     market_moneyline: {
       home: game.odds?.pinHomeMl ?? null,

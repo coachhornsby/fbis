@@ -10,6 +10,12 @@ import { palUnavailableReason } from "./ballparkpal.js";
 import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
 import { querySnapshots, queryOddsSnapshots } from "./store.js";
 import { attachActionIntelToGames } from "./boardActionIntel.js";
+import {
+  resolveCanonicalMarket,
+  marketAvailabilitySummary,
+  normalizeQualityFlags,
+  resolveMarketQualityComponents,
+} from "./canonical/marketRoles.js";
 
 function withRecs(slate, weights = DEFAULT_WEIGHTS) {
   return {
@@ -55,6 +61,10 @@ export function toBoardGame(game, sport, now = Date.now()) {
     (game.odds?.pinSpreadHomePrice != null ? game.odds.spread : null);
   const pinTotal =
     game.odds?.pinTotal ?? (game.odds?.pinOverPrice != null ? game.odds.total : null);
+  const market = resolveCanonicalMarket(game);
+  const marketAvail = marketAvailabilitySummary(market);
+  const qualityFlags = normalizeQualityFlags(game.quality?.flags || [], market);
+  const qualityComponents = resolveMarketQualityComponents(game, market);
   const rec = game.rec || null;
   const lean = game.lean || null;
   const sportsbookProps = [...(game.odds?.playerProps || [])]
@@ -135,7 +145,15 @@ export function toBoardGame(game, sport, now = Date.now()) {
     pinTotal,
     pinOverPrice: game.odds?.pinOverPrice ?? null,
     pinUnderPrice: game.odds?.pinUnderPrice ?? null,
-    quality: game.quality || null,
+    quality: game.quality
+      ? { ...game.quality, flags: qualityFlags, components: qualityComponents }
+      : { flags: qualityFlags, components: qualityComponents, score: qualityComponents?.operationalScore ?? null },
+    market,
+    marketAvailable: marketAvail.marketAvailable,
+    executionMarketAvailable: marketAvail.executionMarketAvailable,
+    referenceMarketAvailable: marketAvail.referenceMarketAvailable,
+    consensusAvailable: marketAvail.consensusAvailable,
+    intelligenceAvailable: marketAvail.intelligenceAvailable,
     modelVersion: game.modelVersion || null,
     checkpoint: game.checkpoint || null,
     rec: rec
@@ -151,11 +169,15 @@ export function toBoardGame(game, sport, now = Date.now()) {
       ? {
           pick: lean.pick,
           market: lean.market,
-          reason: lean.reason || noPlayReason({ ...game, lean, rec: null }),
+          reason: lean.reason || noPlayReason({ ...game, lean, rec: null, market }),
         }
       : null,
-    noPlayReason: rec ? null : noPlayReason(game),
-    marketUnavailable: !(game.odds?.pinHomeMl != null && game.odds?.pinAwayMl != null) && pinTotal == null && pinSpread == null,
+    noPlayReason: rec ? null : noPlayReason({ ...game, market }),
+    // Operational market = execution OR consensus. Pinnacle/reference alone is NOT enough.
+    marketUnavailable: !marketAvail.marketAvailable,
+    executionMarketUnavailable: !marketAvail.executionMarketAvailable,
+    referenceMarketUnavailable: !marketAvail.referenceMarketAvailable,
+    operationalMarketLabel: marketAvail.labels?.market || null,
     projectionUnavailable: (game.model?.projHome == null && game.model?.projAway == null) || game.projectionKind === "UNAVAILABLE",
     qualificationBlocked: Boolean(game.qualificationBlocked || (game.cfb && !game.cfb.bettingAllowed) || (game.sport === "nfl" && game.projectionKind !== "FBIS")),
     challengers: game.challengers || null,
