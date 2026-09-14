@@ -4,16 +4,16 @@
  */
 
 .decision-board {
-  --db-fbis: #3ec7e8;
-  --db-fbis-dim: rgba(62, 199, 232, 0.18);
-  --db-mkt: #e3b341;
-  --db-mkt-dim: rgba(227, 179, 65, 0.16);
-  --db-research: #a78bfa;
+  --db-fbis: #1ac2fe;
+  --db-fbis-dim: rgba(26, 194, 254, 0.22);
+  --db-mkt: #ffd338;
+  --db-mkt-dim: rgba(255, 211, 56, 0.22);
+  --db-research: #a855f7;
   --db-research-dim: rgba(167, 139, 250, 0.16);
-  --db-qual: #3fb950;
-  --db-watch: #e3b341;
-  --db-block: #f85149;
-  --db-live: #ff6b4a;
+  --db-qual: #00f576;
+  --db-watch: #ffd338;
+  --db-block: #f3214c;
+  --db-live: #f3214c;
   --db-final: #9aa8b8;
   --db-surface: #152a3e;
   --db-elevated: #1c334c;
