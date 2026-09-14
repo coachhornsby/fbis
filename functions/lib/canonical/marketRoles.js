@@ -28,8 +28,18 @@ export const MARKET_ROLE = Object.freeze({
   REFERENCE: "REFERENCE_MARKET",
 });
 
-/** Default operator wagerable books — configurable boundary; not every feed book. */
-export const DEFAULT_OPERATOR_EXECUTION_BOOKS = Object.freeze([
+/**
+ * Canonical default: no configured execution books.
+ * Do not invent an operator preference (including Heritage) without explicit config.
+ * Preserve this boundary so books can be added later via operatorExecutionBooks.
+ */
+export const DEFAULT_OPERATOR_EXECUTION_BOOKS = Object.freeze([]);
+
+/**
+ * Supported Heritage aliases — provider/book support only.
+ * Heritage may be configured as an execution book; it is never the implicit default.
+ */
+export const HERITAGE_EXECUTION_ALIASES = Object.freeze([
   "heritage",
   "heritagesports",
   "heritagesports_nonguaranteed",
@@ -50,8 +60,23 @@ export const CONSENSUS_SOFT_KEYS = Object.freeze([
 
 export const REFERENCE_PROVIDER_PINNACLE = "Pinnacle";
 
-/** Freshness window for operational market use (ms). */
-export const MARKET_FRESH_MS = 6 * 60 * 60 * 1000;
+/**
+ * Role-aware market freshness policy (ms).
+ * Conservative defaults — document before changing production thresholds.
+ *
+ * EXECUTION: strict — stale execution may remain visible but is not actionable
+ * CONSENSUS / INTELLIGENCE: moderate
+ * REFERENCE: research-oriented / looser
+ */
+export const MARKET_FRESHNESS_MS = Object.freeze({
+  EXECUTION: 45 * 60 * 1000,
+  CONSENSUS: 3 * 60 * 60 * 1000,
+  INTELLIGENCE: 3 * 60 * 60 * 1000,
+  REFERENCE: 12 * 60 * 60 * 1000,
+});
+
+/** @deprecated Prefer MARKET_FRESHNESS_MS by role. Kept as consensus/reference outer bound. */
+export const MARKET_FRESH_MS = MARKET_FRESHNESS_MS.REFERENCE;
 
 function num(v) {
   if (v == null || v === "") return null;
@@ -67,7 +92,7 @@ function str(v) {
 
 /**
  * Resolve configured operator execution books.
- * Does not fabricate preferences — empty/invalid config falls back to defaults.
+ * Empty / missing config → []. Never invents Heritage (or any book) as a preference.
  */
 export function resolveOperatorExecutionBooks(config = null) {
   const raw =
@@ -77,21 +102,25 @@ export function resolveOperatorExecutionBooks(config = null) {
   if (!Array.isArray(raw) || !raw.length) {
     return [...DEFAULT_OPERATOR_EXECUTION_BOOKS];
   }
-  const cleaned = raw
-    .map((b) => bookKey(b))
-    .filter(Boolean);
-  return cleaned.length ? cleaned : [...DEFAULT_OPERATOR_EXECUTION_BOOKS];
+  const cleaned = raw.map((b) => bookKey(b)).filter(Boolean);
+  // Deduplicate while preserving order.
+  return [...new Set(cleaned)];
 }
 
 export function isConfiguredExecutionBook(key, operatorBooks = null) {
   const k = bookKey(key);
   if (!k) return false;
-  const allowed = new Set(
-    (operatorBooks || DEFAULT_OPERATOR_EXECUTION_BOOKS).map((b) => bookKey(b))
-  );
-  if (allowed.has(k)) return true;
-  // Legacy Heritage aliases already in EXECUTION_KEYS
-  return isExecutionBook(k) && [...allowed].some((a) => a.includes("heritage") && k.includes("heritage"));
+  const allowed = resolveOperatorExecutionBooks(operatorBooks);
+  if (!allowed.length) return false;
+  if (allowed.includes(k)) return true;
+  // Heritage aliases match only when some Heritage entry is explicitly configured.
+  const heritageConfigured = allowed.some((a) => a.includes("heritage"));
+  return heritageConfigured && isExecutionBook(k) && k.includes("heritage");
+}
+
+export function isHeritageBookKey(key) {
+  const k = bookKey(key);
+  return Boolean(k && (HERITAGE_EXECUTION_ALIASES.includes(k) || k.includes("heritage")));
 }
 
 function offer({
@@ -112,44 +141,83 @@ function offer({
     line: ln,
     price: pr != null && validAmerican(pr) ? pr : pr,
     observedAt: str(observedAt),
-    freshness: str(freshness) || inferFreshness(observedAt),
+    freshness: str(freshness) || inferFreshness(observedAt, "CONSENSUS"),
     marketType: str(marketType),
   };
 }
 
-function inferFreshness(observedAt, now = Date.now()) {
+/**
+ * Role-aware freshness classification.
+ * @param {string|null} observedAt
+ * @param {keyof typeof MARKET_FRESHNESS_MS | string} role
+ */
+export function inferFreshness(observedAt, role = "CONSENSUS", now = Date.now()) {
   if (!observedAt) return "UNKNOWN";
   const t = Date.parse(observedAt);
   if (!Number.isFinite(t)) return "UNKNOWN";
   const age = now - t;
   if (age < 0) return "UNKNOWN";
+  const roleKey = String(role || "CONSENSUS").toUpperCase();
+  const limit =
+    MARKET_FRESHNESS_MS[roleKey] ??
+    (roleKey.includes("EXECUTION")
+      ? MARKET_FRESHNESS_MS.EXECUTION
+      : roleKey.includes("REFERENCE")
+        ? MARKET_FRESHNESS_MS.REFERENCE
+        : roleKey.includes("INTEL")
+          ? MARKET_FRESHNESS_MS.INTELLIGENCE
+          : MARKET_FRESHNESS_MS.CONSENSUS);
   if (age <= 15 * 60 * 1000) return "FRESH";
-  if (age <= MARKET_FRESH_MS) return "OK";
+  if (age <= limit) return "OK";
   return "STALE";
 }
 
+export function isFreshEnough(observedAt, role = "CONSENSUS", now = Date.now()) {
+  const f = inferFreshness(observedAt, role, now);
+  return f === "FRESH" || f === "OK";
+}
+
 /**
- * Best legitimate executable offer among candidates that share the same line
- * comparison group. Line and price stay coupled — never juice-shop across lines.
+ * Select an execution offer among candidates.
  *
- * @param {Array<{book, selection, line, price, observedAt}>} offers
- * @param {"price"|"line"} prefer
+ * "best" is only claimed for like-for-like line+selection comparisons.
+ * Mixed line/price packages are returned as AVAILABLE_OFFER without implying
+ * +3 -120 is objectively better/worse than +2.5 -105 (no valuation engine yet).
+ *
+ * Prefer selectExecutionOffer(); selectBestExecutionOffer remains as a thin alias
+ * that only awards BEST when the comparison is like-for-like.
  */
-export function selectBestExecutionOffer(offers = [], { prefer = "price" } = {}) {
-  const rows = (offers || [])
+export function selectExecutionOffer(
+  offers = [],
+  { prefer = "price", line = undefined, selection = undefined } = {}
+) {
+  let rows = (offers || [])
     .map((o) => ({
       book: str(o.book),
       selection: str(o.selection),
       line: num(o.line),
       price: num(o.price),
       observedAt: str(o.observedAt),
-      freshness: str(o.freshness) || inferFreshness(o.observedAt),
+      freshness: str(o.freshness) || inferFreshness(o.observedAt, "EXECUTION"),
       marketType: str(o.marketType),
     }))
     .filter((o) => o.book && (o.line != null || o.price != null));
   if (!rows.length) return null;
 
-  // Group by line so +3 -120 is never compared to +2.5 -105 as juice-only.
+  if (selection != null) {
+    const want = str(selection);
+    rows = rows.filter((r) => r.selection == null || r.selection === want);
+    if (!rows.length) return null;
+  }
+
+  if (line !== undefined) {
+    const wantLine = line == null ? null : num(line);
+    rows = rows.filter((r) =>
+      wantLine == null ? r.line == null : r.line === wantLine
+    );
+    if (!rows.length) return null;
+  }
+
   const byLine = new Map();
   for (const row of rows) {
     const key = row.line == null ? "__null__" : String(row.line);
@@ -157,9 +225,11 @@ export function selectBestExecutionOffer(offers = [], { prefer = "price" } = {})
     byLine.get(key).push(row);
   }
 
-  let bestGroup = null;
-  let bestOffer = null;
-  for (const [, group] of byLine) {
+  const lineKeys = [...byLine.keys()];
+  const likeForLike = lineKeys.length === 1;
+
+  // Within each line group, pick the best price (or first if no prices).
+  const pickInGroup = (group) => {
     let local = group[0];
     for (const row of group.slice(1)) {
       if (prefer === "price") {
@@ -168,29 +238,51 @@ export function selectBestExecutionOffer(offers = [], { prefer = "price" } = {})
         local = row;
       }
     }
-    if (!bestOffer) {
-      bestOffer = local;
-      bestGroup = group;
-      continue;
-    }
-    // Prefer groups with a price; among equal preference, keep first (stable).
-    if (prefer === "price") {
-      if ((local.price ?? -Infinity) > (bestOffer.price ?? -Infinity) && local.line === bestOffer.line) {
-        bestOffer = local;
-        bestGroup = group;
-      } else if (bestOffer.price == null && local.price != null) {
-        bestOffer = local;
-        bestGroup = group;
-      }
-    }
+    return local;
+  };
+
+  if (likeForLike) {
+    const group = byLine.get(lineKeys[0]);
+    const best = pickInGroup(group);
+    return {
+      ...best,
+      alternativesInLine: group.filter((r) => r !== best),
+      comparisonNote: "line_and_price_coupled",
+      rankLabel: "BEST_LIKE_FOR_LIKE",
+      label: "BEST EXECUTION",
+      likeForLike: true,
+    };
   }
-  return bestOffer
-    ? {
-        ...bestOffer,
-        alternativesInLine: (bestGroup || []).filter((r) => r !== bestOffer),
-        comparisonNote: "line_and_price_coupled",
-      }
-    : null;
+
+  // Mixed lines: return a stable available offer without claiming objective "best."
+  const firstGroup = byLine.get(lineKeys[0]);
+  const chosen = pickInGroup(firstGroup);
+  return {
+    ...chosen,
+    alternativesInLine: firstGroup.filter((r) => r !== chosen),
+    comparisonNote: "mixed_lines_unranked_no_valuation",
+    rankLabel: "AVAILABLE_OFFER",
+    label: "AVAILABLE OFFER",
+    likeForLike: false,
+  };
+}
+
+/**
+ * @deprecated Prefer selectExecutionOffer. Only returns BEST when like-for-like.
+ */
+export function selectBestExecutionOffer(offers = [], opts = {}) {
+  const selected = selectExecutionOffer(offers, opts);
+  if (!selected) return null;
+  if (!selected.likeForLike && opts.line === undefined) {
+    // Honest semantics: do not advertise "best" across unequal lines.
+    return {
+      ...selected,
+      rankLabel: "AVAILABLE_OFFER",
+      label: "AVAILABLE OFFER",
+      comparisonNote: selected.comparisonNote || "mixed_lines_unranked_no_valuation",
+    };
+  }
+  return selected;
 }
 
 function heritageExecution(odds, observedAt) {
@@ -442,6 +534,32 @@ function referenceFromPinnacle(odds, pin, observedAt) {
  * Build canonical market object for a game/board row.
  * Additive — does not mutate historical odds fields.
  */
+function emptyExecution(observedAt) {
+  return {
+    available: false,
+    book: null,
+    spread: null,
+    spreadPrice: null,
+    total: null,
+    totalPrice: null,
+    moneyline: { home: null, away: null },
+    offers: {},
+    observedAt,
+    freshness: inferFreshness(observedAt, "EXECUTION"),
+    role: MARKET_ROLE.EXECUTION,
+    actionable: false,
+  };
+}
+
+/**
+ * Heritage observation extracted regardless of operator config.
+ * Becomes EXECUTION only when Heritage is explicitly configured.
+ * Otherwise may feed OBSERVED / consensus comparison — never invents execution.
+ */
+function heritageObservation(odds, observedAt) {
+  return heritageExecution(odds, observedAt);
+}
+
 export function resolveCanonicalMarket(game = {}, { operatorBooks = null, now = Date.now() } = {}) {
   const odds = game.odds || {};
   const observedAt =
@@ -453,54 +571,101 @@ export function resolveCanonicalMarket(game = {}, { operatorBooks = null, now = 
   const books = resolveOperatorExecutionBooks(
     operatorBooks || game.operatorExecutionBooks || game.config || null
   );
+  const heritageConfigured = isConfiguredExecutionBook(EXECUTION_BOOK, books);
 
-  const execution = heritageExecution(odds, observedAt) || {
-    available: false,
-    book: null,
-    spread: null,
-    spreadPrice: null,
-    total: null,
-    totalPrice: null,
-    moneyline: { home: null, away: null },
-    offers: {},
-    observedAt,
-    freshness: inferFreshness(observedAt, now),
-    role: MARKET_ROLE.EXECUTION,
-  };
-
-  // If heritage-listed but spread packed from pin-only, still mark execution ML when present.
-  if (!execution.available && odds.heritageListed) {
-    execution.available = Boolean(
+  const heritageObs = heritageObservation(odds, observedAt);
+  // Patch heritage ML-only listing when spread packed from pin.
+  if (heritageObs && !heritageObs.available && odds.heritageListed) {
+    heritageObs.available = Boolean(
       odds.heritageHomeMl != null ||
         odds.heritageAwayMl != null ||
         odds.heritageSpreadHomePrice != null ||
         odds.heritageOverPrice != null
     );
-    if (execution.available) execution.book = EXECUTION_BOOK;
+    if (heritageObs.available) heritageObs.book = EXECUTION_BOOK;
+  }
+
+  let execution = emptyExecution(observedAt);
+  if (heritageConfigured && heritageObs?.available) {
+    execution = {
+      ...heritageObs,
+      role: MARKET_ROLE.EXECUTION,
+      freshness: inferFreshness(heritageObs.observedAt || observedAt, "EXECUTION", now),
+    };
+  }
+
+  const actionCons = actionConsensus(game.actionIntel);
+  const softCons = softConsensusFromOdds(odds, observedAt);
+  // Unconfigured Heritage (or other book) observations → OBSERVED consensus path.
+  let observedCons = null;
+  if (!heritageConfigured && heritageObs?.available) {
+    observedCons = {
+      available: true,
+      spread: heritageObs.spread,
+      total: heritageObs.total,
+      books: 1,
+      source: "OBSERVED",
+      book: heritageObs.book || EXECUTION_BOOK,
+      observedAt: heritageObs.observedAt || observedAt,
+      freshness: inferFreshness(heritageObs.observedAt || observedAt, "CONSENSUS", now),
+      role: MARKET_ROLE.CONSENSUS,
+      observedOnly: true,
+      executable: false,
+    };
   }
 
   const consensus =
-    actionConsensus(game.actionIntel) ||
-    softConsensusFromOdds(odds, observedAt) || {
+    actionCons ||
+    softCons ||
+    observedCons || {
       available: false,
       spread: null,
       total: null,
       books: null,
       source: null,
       observedAt,
-      freshness: inferFreshness(observedAt, now),
+      freshness: inferFreshness(observedAt, "CONSENSUS", now),
       role: MARKET_ROLE.CONSENSUS,
     };
+  if (consensus.available) {
+    consensus.freshness = inferFreshness(consensus.observedAt || observedAt, "CONSENSUS", now);
+    consensus.executable = false;
+  }
 
   const intelligence = actionIntelligence(game.actionIntel);
+  if (intelligence) {
+    intelligence.freshness = inferFreshness(
+      intelligence.observedAt || observedAt,
+      "INTELLIGENCE",
+      now
+    );
+  }
   const reference = referenceFromPinnacle(odds, game.pin, observedAt);
+  if (reference) {
+    reference.freshness = inferFreshness(
+      reference.observedAt || observedAt,
+      "REFERENCE",
+      now
+    );
+  }
 
+  const executionFresh = isFreshEnough(execution.observedAt || observedAt, "EXECUTION", now);
   const hasUsableExecutionMarket = Boolean(execution.available);
   const hasUsableConsensusMarket = Boolean(consensus.available);
-  // CRITICAL: Pinnacle / reference alone does NOT define market availability.
+  // Research comparison may use execution OR consensus.
   const marketAvailable = hasUsableExecutionMarket || hasUsableConsensusMarket;
   const referenceMarketAvailable = Boolean(reference.available);
   const executionMarketAvailable = hasUsableExecutionMarket;
+  // Stale execution may remain visible but is not actionable.
+  const executionActionable = Boolean(executionMarketAvailable && executionFresh);
+  execution.actionable = executionActionable;
+
+  // Consensus supports MODEL vs MARKET research only — never EV / qualify / authorize / YOUR BET.
+  const canSupportModelVsMarket = Boolean(marketAvailable);
+  const canSupportEv = false; // requires calibrated authority + actionable execution (future)
+  const canQualify = false;
+  const canAuthorize = false;
+  const canEnterYourBet = Boolean(executionActionable); // required gate for eventual YOUR BET
 
   const comparison = resolveComparisonMarket({
     execution,
@@ -516,6 +681,7 @@ export function resolveCanonicalMarket(game = {}, { operatorBooks = null, now = 
     marketAvailable,
     executionMarketAvailable,
     referenceMarketAvailable,
+    executionActionable,
     // Precise terminology when reference exists but nothing wagerable/operational.
     executionMarketUnavailable: !executionMarketAvailable,
     operationalMarketUnavailable: !marketAvailable,
@@ -524,13 +690,27 @@ export function resolveCanonicalMarket(game = {}, { operatorBooks = null, now = 
     comparisonTimestamp: comparison.observedAt,
     comparison: comparison.offer,
     operatorExecutionBooks: books,
+    // Research vs execution authority (UI/decision must honor these).
+    authority: {
+      canSupportModelVsMarket,
+      canSupportEv,
+      canQualify,
+      canAuthorize,
+      canEnterYourBet,
+      consensusExecutable: false,
+      requiresExecutionForYourBet: true,
+    },
     // Compatibility mirrors for board readers.
     primaryMarketLabel: marketAvailable
       ? execution.available
-        ? execution.book || "EXECUTION"
+        ? executionActionable
+          ? execution.book || "EXECUTION"
+          : `${execution.book || "EXECUTION"} (STALE)`
         : consensus.source === "ACTION"
           ? "CONSENSUS"
-          : "MARKET"
+          : consensus.source === "OBSERVED"
+            ? "OBSERVED"
+            : "MARKET"
       : referenceMarketAvailable
         ? "REFERENCE_ONLY"
         : "NO_MARKET",

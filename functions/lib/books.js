@@ -1,11 +1,14 @@
 /**
- * Book roles — one job each. Never mix them.
+ * Book capability keys — one job each. Never mix them.
  *
- * Heritage  = EXECUTION market (where tickets are actually placed)
+ * Heritage  = supported EXECUTION provider (only becomes EXECUTION_MARKET when listed
+ *             in operatorExecutionBooks — never assumed by default)
  * Pinnacle  = REFERENCE market (optional research benchmark — never required for board/ops)
  * Kalshi    = public sentiment only (never a betting book)
  *
  * Do not treat Pinnacle as synonymous with "the market." Prefer execution + consensus.
+ * isExecutionBook() means "this key is an execution-capable provider," not
+ * "this book is currently configured for the operator."
  */
 
 export const EXECUTION_BOOK = "Heritage";
