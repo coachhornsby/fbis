@@ -434,6 +434,12 @@ function actionIntelligence(actionIntel) {
       role: MARKET_ROLE.INTELLIGENCE,
       publicPositioningLabel: "PUBLIC_POSITIONING",
       sharpLabel: null,
+      providerSharpSignal: null,
+      providerSteamSignal: null,
+      providerSignalSource: null,
+      sampleQuality: null,
+      marketRegime: null,
+      signals: [],
     };
   }
   const splits = actionIntel.publicSplits || {};
@@ -473,9 +479,16 @@ function actionIntelligence(actionIntel) {
     observedAt,
     freshness: inferFreshness(observedAt),
     role: MARKET_ROLE.INTELLIGENCE,
-    // Ticket/money % are public positioning — never auto-labeled sharp.
+    // Ticket/money % are public positioning — never auto-labeled FBIS sharp.
     publicPositioningLabel: "PUBLIC_POSITIONING",
     sharpLabel: null,
+    providerSharpSignal: actionIntel.providerSharpSignal || null,
+    providerSteamSignal: actionIntel.providerSteamSignal || null,
+    providerSignalSource: actionIntel.providerSignalSource || null,
+    sampleQuality: actionIntel.sampleQuality || splits.sampleQuality || null,
+    marketRegime: actionIntel.marketRegime || null,
+    signals: Array.isArray(actionIntel.signals) ? actionIntel.signals : [],
+    marketSignal: actionIntel.marketSignal || null,
     commercialStatus: "COMMERCIAL_USE_REVIEW_REQUIRED",
     firewall: {
       canQualify: false,

@@ -129,3 +129,63 @@ test("publicSplits.markets exposes ML / RL / TOTAL money leans for knife UI", ()
   assert.ok(intel.publicSplits.markets.every((m) => m.sharpLabel == null));
 });
 
+
+
+test("provider sharp/steam preserved as ACTION signals; FBIS sharpLabel stays null", () => {
+  const intel = buildBoardActionIntel({
+    fbis_event_id: "nfl_sharp_1",
+    sport: "nfl",
+    match_confidence: "EXACT",
+    collected_at: "2026-09-13T21:00:00.000Z",
+    consensus_json: JSON.stringify({ spreadHome: -3, total: 45.5 }),
+    public_betting_json: JSON.stringify({
+      sharpSide: "spreadAway",
+      steamSide: "spreadAway",
+      betCount: 18400,
+      spreadHome: { ticketsPercent: 72, moneyPercent: 41 },
+      over: { ticketsPercent: 39, moneyPercent: 71 },
+    }),
+    best_odds_json: null,
+    line_movement_json: JSON.stringify({
+      openSpreadHome: -3,
+      currentSpreadHome: -1.5,
+      history: [
+        { book: "dk", market: "spread", line: -3, observedAt: "2026-09-12T12:00:00Z" },
+        { book: "dk", market: "spread", line: -1.5, observedAt: "2026-09-13T18:00:00Z" },
+      ],
+    }),
+    market_quality_json: JSON.stringify({ bookCount: 9 }),
+    research_fields_json: null,
+  });
+  assert.equal(intel.publicSplits.sharpLabel, null);
+  assert.equal(intel.providerSharpSignal, "AWAY");
+  assert.equal(intel.providerSteamSignal, "AWAY");
+  assert.equal(intel.providerSignalSource, "ACTION");
+  assert.equal(intel.sampleQuality, "HIGH");
+  assert.equal(intel.trackedBetCount, 18400);
+  assert.ok(intel.signals.some((s) => s.code === "PROVIDER_SHARP" && s.uiLabel === "ACTION SHARP SIGNAL"));
+  assert.ok(intel.signals.some((s) => s.code === "PROVIDER_STEAM"));
+  assert.ok(intel.signals.some((s) => s.code === "REVERSE_LINE_MOVE"));
+  assert.ok(intel.signals.every((s) => Array.isArray(s.evidence) && s.evidence.length));
+  assert.equal(intel.canQualify, false);
+  assert.equal(intel.canAuthorizeWager, false);
+  assert.equal(intel.movement.sparkline.length, 2);
+});
+
+test("TOTAL can become focusMarket when money-ticket gap is largest", () => {
+  const intel = buildBoardActionIntel({
+    fbis_event_id: "nfl_tot_focus",
+    sport: "nfl",
+    collected_at: "2026-09-13T21:00:00.000Z",
+    consensus_json: JSON.stringify({ spreadHome: -3, total: 48.5 }),
+    public_betting_json: JSON.stringify({
+      spreadHome: { ticketsPercent: 50, moneyPercent: 52 },
+      over: { ticketsPercent: 39, moneyPercent: 71 },
+    }),
+    line_movement_json: JSON.stringify({ openTotal: 50, currentTotal: 48.5 }),
+    research_fields_json: null,
+  });
+  assert.equal(intel.publicSplits.focusMarket, "TOTAL");
+  assert.equal(intel.marketFocus?.market, "TOTAL");
+  assert.equal(intel.marketFocus?.leanSide, "OVER");
+});

@@ -182,7 +182,8 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
         splitMetrics.publicMoneyPct,
         splitMetrics.moneyMinusTicketPct,
         pb.maxMoneyTicketGap ?? null,
-        null, // sharp_side intentionally null — not an FBIS label
+        // Persist provider sharp token when supplied — ACTION label only, never FBIS truth.
+        splitMetrics.providerSharpLabelIgnored || null,
         splitMetrics.trackedBetCount,
         now,
       ]

@@ -321,8 +321,13 @@ function normalizePublicBetting(pb) {
     over: side(pb.over),
     under: side(pb.under),
     maxMoneyTicketGap: numOrNull(pb.maxMoneyTicketGap ?? pb.maxMoneyMinusTickets),
-    sharpSide: strOrNull(pb.sharpSide),
-    betCount: numOrNull(pb.betCount ?? pb.numBets),
+    // Provider-supplied labels — preserved as ACTION signals, never FBIS truth.
+    sharpSide: strOrNull(pb.sharpSide ?? pb.sharp_side ?? pb.providerSharpSignal),
+    steamSide: strOrNull(
+      pb.steamSide ?? pb.steam_side ?? pb.providerSteamSignal ?? pb.steam ?? (pb.isSteam ? pb.sharpSide : null)
+    ),
+    betCount: numOrNull(pb.betCount ?? pb.numBets ?? pb.trackedBetCount),
+    trackedVolume: numOrNull(pb.trackedVolume ?? pb.volume ?? pb.handle),
   };
 }
 
@@ -849,6 +854,9 @@ export function buildResearchFields({
     moneyPct,
     moneyMinusTickets,
     sharpSide: publicBetting?.sharpSide ?? null,
+    steamSide: publicBetting?.steamSide ?? null,
+    betCount: publicBetting?.betCount ?? null,
+    trackedVolume: publicBetting?.trackedVolume ?? null,
     openingLine,
     observedLine,
     closingLine,

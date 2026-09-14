@@ -117,6 +117,9 @@ export function derivePublicSplitMetrics({
     trackedVolume: numOrNull(trackedVolume),
     providerSharpLabelIgnored:
       providerSharpLabel == null ? null : String(providerSharpLabel),
+    // Honest provider preservation — not an FBIS-derived sharp label.
+    providerSharpSignal:
+      providerSharpLabel == null ? null : String(providerSharpLabel),
     sharpLabelApplied: false,
   };
 }

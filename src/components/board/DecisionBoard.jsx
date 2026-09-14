@@ -252,6 +252,30 @@ function PublicBars({ game }) {
           ))}
         </div>
       ) : null}
+      {game?.actionIntel?.providerSharpSignal || game?.actionIntel?.providerSteamSignal || game?.actionIntel?.sampleQuality ? (
+        <div className="db-action-meta" aria-label="ACTION provider context">
+          {game?.actionIntel?.providerSharpSignal ? (
+            <span className="db-action-pill is-sharp" title="ACTION provider sharp signal">
+              ACTION SHARP {sideLabel(game.actionIntel.providerSharpSignal)}
+            </span>
+          ) : null}
+          {game?.actionIntel?.providerSteamSignal ? (
+            <span className="db-action-pill is-steam" title="ACTION provider steam signal">
+              ACTION STEAM {sideLabel(game.actionIntel.providerSteamSignal)}
+            </span>
+          ) : null}
+          {game?.actionIntel?.trackedBetCount != null ? (
+            <span className="db-action-pill" title={`Sample quality ${game.actionIntel.sampleQuality || "UNKNOWN"}`}>
+              {fmtNum(game.actionIntel.trackedBetCount, 0)} bets
+            </span>
+          ) : game?.actionIntel?.sampleQuality ? (
+            <span className="db-action-pill">{game.actionIntel.sampleQuality} SAMPLE</span>
+          ) : null}
+          {game?.actionIntel?.marketRegime ? (
+            <span className="db-action-pill is-regime">{game.actionIntel.marketRegime}</span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

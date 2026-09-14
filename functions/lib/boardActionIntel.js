@@ -10,6 +10,7 @@
  */
 
 import { actionPolicyFlags, normalizeActionSport } from "./actionMarketIntelligence.js";
+import { buildActionIntelligenceEnrichment } from "./actionMarketSignals.js";
 
 function safeJson(v) {
   if (v == null) return null;
@@ -82,6 +83,51 @@ function pickPrimaryMarket(markets) {
   return withGap.slice().sort((a, b) => b.magnitude - a.magnitude)[0];
 }
 
+
+function movementHistory(lineMovement) {
+  const hist = Array.isArray(lineMovement?.history) ? lineMovement.history : [];
+  return hist
+    .filter((h) => h && (h.line != null || h.odds != null || h.observedAt))
+    .slice(0, 40)
+    .map((h) => ({
+      book: h.book || null,
+      market: h.market || null,
+      side: h.side || null,
+      line: num(h.line),
+      odds: num(h.odds),
+      observedAt: h.observedAt || null,
+    }));
+}
+
+function bookRowsFromObservation(row, bestOdds) {
+  if (Array.isArray(row.books) && row.books.length) {
+    return row.books.map((b) => ({
+      book: b.book || b.sportsbook || null,
+      sportsbook: b.book || b.sportsbook || null,
+      line: num(b.spreadHome ?? b.line ?? b.point ?? b.total),
+      point: num(b.spreadHome ?? b.line ?? b.point),
+      americanPrice: num(b.spreadHomeOdds ?? b.americanPrice ?? b.price ?? b.overOdds),
+      price: num(b.spreadHomeOdds ?? b.americanPrice ?? b.price ?? b.overOdds),
+    }));
+  }
+  const out = [];
+  if (bestOdds && typeof bestOdds === "object") {
+    for (const [key, node] of Object.entries(bestOdds)) {
+      if (!node || typeof node !== "object" || !node.book) continue;
+      out.push({
+        book: node.book,
+        sportsbook: node.book,
+        line: num(node.line ?? node.point ?? node.value),
+        point: num(node.line ?? node.point ?? node.value),
+        americanPrice: num(node.price ?? node.odds ?? node.americanPrice),
+        price: num(node.price ?? node.odds ?? node.americanPrice),
+        marketKey: key,
+      });
+    }
+  }
+  return out;
+}
+
 /**
  * Normalize a shadow_market_observations row into a board-safe actionIntel payload.
  */
@@ -92,6 +138,7 @@ export function buildBoardActionIntel(row = {}) {
   const bestOdds = safeJson(row.best_odds_json) || {};
   const lineMovement = safeJson(row.line_movement_json) || {};
   const research = safeJson(row.research_fields_json) || {};
+  const marketQuality = safeJson(row.market_quality_json) || {};
 
   const spreadHome =
     num(consensus.spreadHome) ??
@@ -153,7 +200,10 @@ export function buildBoardActionIntel(row = {}) {
 
   // Legacy single-split fields stay RL-first for backward compatibility.
   // Full ML/RL/TOTAL leans live on publicSplits.markets for the knife UI.
-  const primary = rl || pickPrimaryMarket(markets);
+  // Focus = strongest magnitude across markets (may be TOTAL/ML).
+  const strongest = pickPrimaryMarket(markets);
+  const primary = rl || strongest;
+  const focus = strongest || primary;
   const ticketPct = primary?.ticketPct ?? null;
   const moneyPct = primary?.moneyPct ?? null;
   const moneyTicketGap = primary?.moneyTicketGap ?? null;
@@ -163,10 +213,19 @@ export function buildBoardActionIntel(row = {}) {
     num(lineMovement.openingSpreadHome) ??
     num(lineMovement.open?.spreadHome) ??
     num(research.openingLine);
-  const currentSpread = spreadHome ?? num(lineMovement.currentSpreadHome) ?? num(research.observedLine);
+  const currentSpread =
+    num(lineMovement.currentSpreadHome) ?? spreadHome ?? num(research.observedLine);
   const movementMagnitude =
     openSpread != null && currentSpread != null
       ? Math.round((currentSpread - openSpread) * 10) / 10
+      : null;
+
+  const openTotal =
+    num(lineMovement.openTotal) ?? num(lineMovement.openingTotal) ?? num(lineMovement.open?.total);
+  const currentTotal = total ?? num(lineMovement.currentTotal);
+  const totalMovementMagnitude =
+    openTotal != null && currentTotal != null
+      ? Math.round((currentTotal - openTotal) * 10) / 10
       : null;
 
   const bestBook =
@@ -184,6 +243,38 @@ export function buildBoardActionIntel(row = {}) {
     row.created_at ||
     null;
 
+  const booksCount =
+    num(marketQuality.bookCount) ??
+    (Array.isArray(row.books) ? row.books.length : null) ??
+    num(row.books_count);
+
+  const history = movementHistory(lineMovement);
+  const bookRows = bookRowsFromObservation(row, bestOdds);
+
+  const enrichment = buildActionIntelligenceEnrichment({
+    publicBetting,
+    research,
+    lineMovement,
+    markets,
+    ticketPct: focus?.ticketPct ?? ticketPct,
+    moneyPct: focus?.moneyPct ?? moneyPct,
+    moneyTicketGap: focus?.moneyTicketGap ?? moneyTicketGap,
+    openLine: openSpread,
+    currentLine: currentSpread,
+    // RLM pairs RL public splits with spread open→current (not TOTAL focus %).
+    rlmContext: {
+      ticketPct: rl?.ticketPct ?? ticketPct,
+      moneyPct: rl?.moneyPct ?? moneyPct,
+      openLine: openSpread,
+      currentLine: currentSpread,
+    },
+    trackedBetCount:
+      num(publicBetting.betCount) ?? num(publicBetting.numBets) ?? num(research.betCount),
+    trackedVolume: num(publicBetting.trackedVolume) ?? num(publicBetting.volume),
+    booksCount,
+    bookRows,
+  });
+
   return {
     provider: "ACTION_APIFY",
     role: "market_intelligence",
@@ -198,26 +289,57 @@ export function buildBoardActionIntel(row = {}) {
       total,
       mlHome,
       mlAway,
+      bookCount: booksCount,
     },
     publicSplits: {
       ticketPct,
       moneyPct,
       moneyTicketGap,
-      // Never invent "sharp" — money/ticket lean is research context only.
+      // Never invent FBIS "sharp" — provider signals are separate fields.
       sharpLabel: null,
       primaryMarket: primary?.market ?? null,
+      focusMarket: focus?.market ?? null,
       markets,
+      trackedBetCount: enrichment.trackedBetCount,
+      trackedVolume: enrichment.trackedVolume,
+      sampleQuality: enrichment.sampleQuality,
     },
     movement: {
       openingLine: openSpread,
       currentLine: currentSpread,
       movementMagnitude,
+      openingTotal: openTotal,
+      currentTotal,
+      totalMovementMagnitude,
       bestBook: bestBook || null,
+      history,
+      sparkline: history
+        .map((h) => num(h.line))
+        .filter((n) => n != null)
+        .slice(-24),
     },
     bestOdds: bestOdds && typeof bestOdds === "object" ? bestOdds : null,
-    booksCount: Array.isArray(row.books) ? row.books.length : num(row.books_count),
+    booksCount,
+    providerSharpSignal: enrichment.providerSharpSignal,
+    providerSteamSignal: enrichment.providerSteamSignal,
+    providerSharpMarket: enrichment.providerSharpMarket,
+    providerSteamMarket: enrichment.providerSteamMarket,
+    providerSharpRaw: enrichment.providerSharpRaw,
+    providerSteamRaw: enrichment.providerSteamRaw,
+    providerSignalSource: enrichment.providerSignalSource,
+    sampleQuality: enrichment.sampleQuality,
+    trackedBetCount: enrichment.trackedBetCount,
+    trackedVolume: enrichment.trackedVolume,
+    sampleEvidence: enrichment.sampleEvidence,
+    bookDisagreement: enrichment.bookDisagreement,
+    signals: enrichment.signals,
+    marketFocus: enrichment.marketFocus,
+    marketRegime: enrichment.marketRegime,
+    marketRegimeEvidence: enrichment.marketRegimeEvidence,
+    marketSignal: enrichment.marketSignal,
     ...actionPolicyFlags(),
   };
+
 }
 
 /**
@@ -236,7 +358,7 @@ export async function loadBoardActionIntelByEventIds(db, eventIds = []) {
     const placeholders = chunk.map(() => "?").join(",");
     const sql = `SELECT id, sport, fbis_event_id, home_team, away_team,
                         consensus_json, public_betting_json, best_odds_json, line_movement_json,
-                        research_fields_json, match_confidence,
+                        research_fields_json, market_quality_json, match_confidence,
                         collected_at, source_observed_at, observed_at, scraped_at, created_at
                  FROM shadow_market_observations
                  WHERE fbis_event_id IN (${placeholders})
@@ -246,10 +368,58 @@ export async function loadBoardActionIntelByEventIds(db, eventIds = []) {
                  ORDER BY COALESCE(collected_at, created_at) DESC`;
     try {
       const res = await db.prepare(sql).bind(...chunk).all();
+      const pending = [];
+      const obsIds = [];
       for (const row of res?.results || []) {
         const eid = String(row.fbis_event_id || "");
         if (!eid || map.has(eid)) continue;
-        const intel = buildBoardActionIntel(row);
+        pending.push(row);
+        if (row.id) obsIds.push(row.id);
+      }
+      const booksByObs = new Map();
+      if (obsIds.length) {
+        try {
+          const bPlace = obsIds.map(() => "?").join(",");
+          const bSql = `SELECT observation_id, book, spread_home, spread_home_odds, total, over_odds
+                        FROM shadow_market_books
+                        WHERE observation_id IN (${bPlace})`;
+          const bRes = await db.prepare(bSql).bind(...obsIds).all();
+          for (const b of bRes?.results || []) {
+            const list = booksByObs.get(b.observation_id) || [];
+            list.push({
+              sportsbook: b.book,
+              book: b.book,
+              line:
+                b.spread_home != null
+                  ? Number(b.spread_home)
+                  : b.total != null
+                    ? Number(b.total)
+                    : null,
+              point: b.spread_home != null ? Number(b.spread_home) : null,
+              americanPrice:
+                b.spread_home_odds != null
+                  ? Number(b.spread_home_odds)
+                  : b.over_odds != null
+                    ? Number(b.over_odds)
+                    : null,
+              price:
+                b.spread_home_odds != null
+                  ? Number(b.spread_home_odds)
+                  : b.over_odds != null
+                    ? Number(b.over_odds)
+                    : null,
+            });
+            booksByObs.set(b.observation_id, list);
+          }
+        } catch {
+          // fail-open: board still builds without book matrix
+        }
+      }
+      for (const row of pending) {
+        const eid = String(row.fbis_event_id || "");
+        if (!eid || map.has(eid)) continue;
+        const books = booksByObs.get(row.id) || [];
+        const intel = buildBoardActionIntel({ ...row, books });
         if (intel) map.set(eid, intel);
       }
     } catch {
@@ -291,6 +461,10 @@ export async function attachActionIntelToGames(games = [], db = null) {
       magnitude: intel.movement?.movementMagnitude ?? null,
       bestBook: intel.movement?.bestBook ?? null,
       collectedAt: intel.collectedAt,
+      providerSharpSignal: intel.providerSharpSignal ?? null,
+      providerSteamSignal: intel.providerSteamSignal ?? null,
+      sampleQuality: intel.sampleQuality ?? null,
+      marketRegime: intel.marketRegime ?? null,
     };
     return {
       ...g,
