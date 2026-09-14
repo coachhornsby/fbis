@@ -129,3 +129,65 @@ test("publicSplits.markets exposes ML / RL / TOTAL money leans for knife UI", ()
   assert.ok(intel.publicSplits.markets.every((m) => m.sharpLabel == null));
 });
 
+test("attachActionIntelToGames remaps board market to ACTION consensus after toBoardGame", async () => {
+  const rows = [
+    {
+      fbis_event_id: "cfb_usc_rut",
+      sport: "cfb",
+      match_confidence: "EXACT",
+      collected_at: "2026-09-14T04:00:00.000Z",
+      consensus_json: JSON.stringify({
+        spreadHome: 24.5,
+        total: 59.5,
+        moneylineHome: 1400,
+        moneylineAway: -2800,
+      }),
+      public_betting_json: JSON.stringify({
+        spreadHome: { ticketsPercent: 56, moneyPercent: 46 },
+      }),
+      best_odds_json: null,
+      line_movement_json: JSON.stringify({ openSpreadHome: 23.5, openTotal: 55.5 }),
+      research_fields_json: null,
+      decision_eligible: 0,
+      can_qualify: 0,
+      can_authorize_wager: 0,
+    },
+  ];
+  const db = {
+    prepare(sql) {
+      assert.match(sql, /shadow_market_observations/);
+      return {
+        bind() {
+          return this;
+        },
+        async all() {
+          return { results: rows };
+        },
+      };
+    },
+  };
+  const games = [
+    {
+      id: "cfb_usc_rut",
+      sport: "cfb",
+      market: {
+        execution: { available: false },
+        consensus: { available: false },
+        reference: { available: false },
+        marketAvailable: false,
+        primaryMarketLabel: "NO_MARKET",
+      },
+    },
+  ];
+  const out = await attachActionIntelToGames(games, db);
+  assert.equal(out.attached, 1);
+  assert.equal(out.games[0].actionIntel.boardMarketSource, true);
+  assert.equal(out.games[0].market.primaryMarketLabel, "ACTION");
+  assert.equal(out.games[0].market.consensus.source, "ACTION");
+  assert.equal(out.games[0].market.consensus.spread, 24.5);
+  assert.equal(out.games[0].market.marketAvailable, true);
+  assert.equal(out.games[0].market.authority.canQualify, false);
+  assert.equal(out.games[0].actionIntel.open.spreadHome, 23.5);
+  assert.equal(out.games[0].actionIntel.movement.movementMagnitude, 1);
+});
+

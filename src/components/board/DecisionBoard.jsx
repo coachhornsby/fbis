@@ -266,25 +266,25 @@ function ScoreHero({ vm, game }) {
       </div>
     );
   }
-  if (!p?.available) {
-    return (
-      <div className="db-hero db-hero-empty">
-        <span className="db-empty">No FBIS</span>
-      </div>
-    );
-  }
+  // Always keep logos/abbrs visible — NBA/CFB often have no independent FBIS score yet.
+  const available = Boolean(p?.available);
   return (
-    <div className="db-hero">
+    <div className={`db-hero${available ? "" : " db-hero-nomodel"}`}>
       <div className="db-hero-side">
-        <TeamLogo team={game.away} size={36} />
+        <TeamLogo team={game.away || vm.teams?.away} size={36} />
         <div className="db-hero-meta">
-          <span className="db-hero-abbr">{vm.teams.awayAbbr}</span>
-          <strong className="db-hero-score">{fmtNum(p.away, 1)}</strong>
+          <span className="db-hero-abbr">{vm.teams?.awayAbbr || "AWAY"}</span>
+          <strong className="db-hero-score">{available ? fmtNum(p.away, 1) : "—"}</strong>
         </div>
       </div>
       <div className="db-hero-mid">
         <span className="db-vs">VS</span>
-        {p.research ? (
+        {!available ? (
+          <span className="db-empty-hint" title="No independent FBIS projection for this game">
+            No FBIS
+          </span>
+        ) : null}
+        {available && p.research ? (
           <span className="db-mini-badge" title="Research model">
             R
           </span>
@@ -292,10 +292,10 @@ function ScoreHero({ vm, game }) {
       </div>
       <div className="db-hero-side db-hero-home">
         <div className="db-hero-meta">
-          <span className="db-hero-abbr">{vm.teams.homeAbbr}</span>
-          <strong className="db-hero-score">{fmtNum(p.home, 1)}</strong>
+          <span className="db-hero-abbr">{vm.teams?.homeAbbr || "HOME"}</span>
+          <strong className="db-hero-score">{available ? fmtNum(p.home, 1) : "—"}</strong>
         </div>
-        <TeamLogo team={game.home} size={36} />
+        <TeamLogo team={game.home || vm.teams?.home} size={36} />
       </div>
     </div>
   );
@@ -328,21 +328,85 @@ function MarketChip({ vm }) {
       ? "BEST"
       : m.label === "EXECUTION OFFER"
         ? "EXEC"
-        : m.label === "CONSENSUS"
-          ? "CONSENSUS"
-          : m.label === "OBSERVED MARKET"
-            ? "OBSERVED"
-            : m.label || "MARKET";
+        : m.label === "ACTION"
+          ? "ACTION"
+          : m.label === "CONSENSUS"
+            ? "CONSENSUS"
+            : m.label === "OBSERVED MARKET"
+              ? "OBSERVED"
+              : m.label || "MARKET";
   return (
     <div
-      className={`db-mkt-chip ${roleClass}`}
+      className={`db-mkt-chip ${roleClass}${m.label === "ACTION" ? " db-mkt-action" : ""}`}
       title={[m.label, m.book].filter(Boolean).join(" · ")}
     >
       <span className="db-mkt-icon" aria-hidden="true">
         ●
       </span>
       <span>{shortLabel}</span>
-      {m.book ? <span className="db-mkt-book">{m.book}</span> : null}
+      {m.book && m.label !== "ACTION" ? <span className="db-mkt-book">{m.book}</span> : null}
+    </div>
+  );
+}
+
+/** ACTION open → current → public strip. FBIS projection stays in ScoreHero / tracks. */
+function ActionMarketStrip({ game }) {
+  const intel = game?.actionIntel;
+  if (!intel?.boardMarketSource && !intel?.consensus) return null;
+  const openSpr = intel.open?.spreadHome ?? intel.movement?.openingLine;
+  const curSpr = intel.current?.spreadHome ?? intel.consensus?.spreadHome ?? intel.movement?.currentLine;
+  const openTot = intel.open?.total ?? intel.movement?.openingTotal;
+  const curTot = intel.current?.total ?? intel.consensus?.total ?? intel.movement?.currentTotal;
+  const move = intel.movement?.movementMagnitude;
+  const tkt = intel.publicSplits?.ticketPct;
+  const mon = intel.publicSplits?.moneyPct;
+  const homeAbbr = game?.home?.abbr || "HOME";
+  const fmtSpr = (v) => {
+    if (v == null || Number.isNaN(Number(v))) return "—";
+    const n = Number(v);
+    return `${homeAbbr} ${n > 0 ? `+${n}` : n}`;
+  };
+  return (
+    <div className="db-action-strip" aria-label="ACTION board market">
+      <div className="db-action-strip-title">
+        ACTION
+        <span className="db-action-strip-sub">board market</span>
+      </div>
+      <div className="db-action-strip-grid">
+        <div>
+          <span>OPEN</span>
+          <strong>{fmtSpr(openSpr)}</strong>
+        </div>
+        <div>
+          <span>NOW</span>
+          <strong>{fmtSpr(curSpr)}</strong>
+        </div>
+        <div>
+          <span>TOTAL</span>
+          <strong>
+            {curTot == null ? "—" : Number(curTot).toFixed(1)}
+            {openTot != null && curTot != null && Number(openTot) !== Number(curTot)
+              ? ` ←${Number(openTot).toFixed(1)}`
+              : ""}
+          </strong>
+        </div>
+        <div>
+          <span>MOVE</span>
+          <strong>
+            {move == null || Number.isNaN(Number(move))
+              ? "—"
+              : `${Number(move) > 0 ? "+" : ""}${Number(move)}`}
+          </strong>
+        </div>
+        <div>
+          <span>TKT</span>
+          <strong>{tkt == null ? "—" : `${Math.round(tkt)}%`}</strong>
+        </div>
+        <div>
+          <span>$$$</span>
+          <strong>{mon == null ? "—" : `${Math.round(mon)}%`}</strong>
+        </div>
+      </div>
     </div>
   );
 }
@@ -351,6 +415,7 @@ function GameBody({ vm, game }) {
   return (
     <>
       <ScoreHero vm={vm} game={game} />
+      <ActionMarketStrip game={game} />
       <div className="db-row-compare">
         <SpreadTrack
           fbis={vm.projection?.fairHomeSpread}

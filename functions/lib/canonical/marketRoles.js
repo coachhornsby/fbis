@@ -405,18 +405,88 @@ function actionConsensus(actionIntel) {
   if (!c || typeof c !== "object") return null;
   const spread = num(c.spreadHome ?? c.spread_home ?? c.homeSpread ?? c.spread);
   const total = num(c.total ?? c.totalLine ?? c.overUnder ?? c.ou);
-  if (spread == null && total == null) return null;
+  const homeMl = num(c.mlHome ?? c.moneylineHome ?? c.homeMl);
+  const awayMl = num(c.mlAway ?? c.moneylineAway ?? c.awayMl);
+  if (spread == null && total == null && homeMl == null && awayMl == null) return null;
   const observedAt = str(actionIntel.collectedAt || actionIntel.observedAt || c.observedAt);
   return {
     available: true,
     spread,
     total,
-    books: num(c.bookCount ?? c.books ?? actionIntel.bookCount),
+    moneyline: homeMl != null || awayMl != null ? { home: homeMl, away: awayMl } : null,
+    books: num(c.bookCount ?? c.books ?? actionIntel.booksCount ?? actionIntel.bookCount),
     source: "ACTION",
     observedAt,
-    freshness: inferFreshness(observedAt),
+    freshness: inferFreshness(observedAt, "CONSENSUS"),
     role: MARKET_ROLE.CONSENSUS,
   };
+}
+
+/**
+ * Merge attached ACTION intel into an existing board `market` object.
+ * Used after toBoardGame (which resolves market before intel attaches).
+ * Does not promote Action into execution / qualify / authorize.
+ */
+export function mergeActionIntelIntoMarket(market, actionIntel, { now = Date.now() } = {}) {
+  if (!actionIntel || typeof actionIntel !== "object") return market || null;
+  const base = market && typeof market === "object" ? { ...market } : {};
+  const actionCons = actionConsensus(actionIntel);
+  const intelligence = actionIntelligence(actionIntel);
+  if (intelligence) {
+    intelligence.freshness = inferFreshness(
+      intelligence.observedAt || actionIntel.collectedAt,
+      "INTELLIGENCE",
+      now
+    );
+    base.intelligence = intelligence;
+  }
+  if (actionCons?.available) {
+    actionCons.freshness = inferFreshness(actionCons.observedAt, "CONSENSUS", now);
+    actionCons.executable = false;
+    base.consensus = actionCons;
+  }
+  const execution = base.execution || {};
+  const consensus = base.consensus || {};
+  const reference = base.reference || {};
+  const hasExec = Boolean(execution.available);
+  const hasCons = Boolean(consensus.available);
+  const hasRef = Boolean(reference.available);
+  base.marketAvailable = hasExec || hasCons;
+  base.executionMarketAvailable = hasExec;
+  base.referenceMarketAvailable = hasRef;
+  base.executionMarketUnavailable = !hasExec;
+  base.operationalMarketUnavailable = !(hasExec || hasCons);
+  base.authority = {
+    ...(base.authority || {}),
+    canSupportModelVsMarket: Boolean(hasExec || hasCons),
+    canSupportEv: false,
+    canQualify: false,
+    canAuthorize: false,
+    canEnterYourBet: Boolean(execution.actionable),
+    consensusExecutable: false,
+    requiresExecutionForYourBet: true,
+  };
+  if (hasExec || hasCons) {
+    const comparison = resolveComparisonMarket({ execution, consensus, reference });
+    base.comparisonMarketRole = comparison.role;
+    base.comparisonSource = comparison.source;
+    base.comparisonTimestamp = comparison.observedAt;
+    base.comparison = comparison.offer;
+  }
+  base.primaryMarketLabel = hasExec
+    ? execution.actionable
+      ? execution.book || "EXECUTION"
+      : `${execution.book || "EXECUTION"} (STALE)`
+    : hasCons
+      ? consensus.source === "ACTION"
+        ? "ACTION"
+        : consensus.source === "OBSERVED"
+          ? "OBSERVED"
+          : "CONSENSUS"
+      : hasRef
+        ? "REFERENCE_ONLY"
+        : "NO_MARKET";
+  return base;
 }
 
 function actionIntelligence(actionIntel) {
@@ -707,10 +777,10 @@ export function resolveCanonicalMarket(game = {}, { operatorBooks = null, now = 
           ? execution.book || "EXECUTION"
           : `${execution.book || "EXECUTION"} (STALE)`
         : consensus.source === "ACTION"
-          ? "CONSENSUS"
+          ? "ACTION"
           : consensus.source === "OBSERVED"
             ? "OBSERVED"
-            : "MARKET"
+            : "CONSENSUS"
       : referenceMarketAvailable
         ? "REFERENCE_ONLY"
         : "NO_MARKET",

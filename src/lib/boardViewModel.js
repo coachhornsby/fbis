@@ -97,6 +97,10 @@ export function resolveBoardMarketLabel(game, marketLinesResult = null) {
     if (source.includes("OBSERVED") || cons.observedOnly === true) {
       return "OBSERVED MARKET";
     }
+    // ACTION sets the board consensus — label it explicitly.
+    if (source.includes("ACTION") || game?.actionIntel?.boardMarketSource) {
+      return "ACTION";
+    }
     return "CONSENSUS";
   }
 
