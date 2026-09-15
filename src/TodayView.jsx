@@ -147,6 +147,35 @@ export default function TodayView({
         date={date}
       />
 
+      {(board?.unmatchedOpenBets || []).length > 0 && (
+        <section className="panel panel-board" aria-label="Unmatched open bets">
+          <div className="panel-header">
+            <h2>OPEN BETS · UNMATCHED</h2>
+            <span className="last-updated">{board.unmatchedOpenBets.length} ticket(s)</span>
+          </div>
+          <div className="panel-body">
+            <p className="muted" style={{ marginBottom: 8 }}>
+              Imported slips without a board game link still count as open bets. Open My Bets to grade or correct the matchup.
+            </p>
+            <div className="mobile-card-list">
+              {board.unmatchedOpenBets.map((b) => (
+                <article key={b.id || b.externalTicketId} className="mobile-card">
+                  <div className="mobile-card-head">
+                    <b>{b.executionBook || "Book"} · {b.playerName || b.selectedTeam || b.selectedSide || "—"}</b>
+                    <span className="muted">{b.result || "OPEN"}</span>
+                  </div>
+                  <div className="muted">{b.matchupText || `${b.awayTeam || "?"} @ ${b.homeTeam || "?"}`}</div>
+                  <div className="muted">
+                    {b.market || "—"} {b.executionLine != null ? b.executionLine : ""} · ${Number(b.riskAmount || 0).toFixed(2)}
+                    {b.matchStatus ? ` · ${b.matchStatus}` : ""}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {empty && !shown.some((g) => g.games.length) && (
         <div className="panel panel-board"><div className="empty">{empty.message || "No games scheduled."}</div></div>
       )}

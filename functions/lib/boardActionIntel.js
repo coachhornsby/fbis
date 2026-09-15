@@ -11,6 +11,13 @@
 
 import { actionPolicyFlags, normalizeActionSport } from "./actionMarketIntelligence.js";
 import { matchShadowEvent } from "./actionApifyShadow.js";
+import { matchEventWithConfidence, MATCH_CONFIDENCE } from "./actionApifyCandidate.js";
+import {
+  ACTION_BOARD_SOURCE,
+  loadDurableActionEventStates,
+  persistActionEventIdentityLink,
+  isPersistableActionMatchConfidence,
+} from "./actionEventState.js";
 
 function safeJson(v) {
   if (v == null) return null;
@@ -222,7 +229,15 @@ export function buildBoardActionIntel(row = {}) {
 }
 
 /**
- * Load newest matched ACTION observations for a set of FBIS event ids.
+ * Load ACTION board intel for FBIS event ids.
+ *
+ * Hierarchy (never let a lower tier overwrite a higher one):
+ *   1. canonical ACTION durable observations
+ *   2. canonical snapshot pointers (via durable reader)
+ *   3. durable identity links (via durable reader)
+ *   4. legacy shadow_market_observations fallback
+ *   5. no ACTION data
+ *
  * @returns {Promise<Map<string, object>>} eventId → actionIntel
  */
 export async function loadBoardActionIntelByEventIds(db, eventIds = []) {
@@ -231,9 +246,37 @@ export async function loadBoardActionIntelByEventIds(db, eventIds = []) {
   const ids = [...new Set((eventIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
   if (!ids.length) return map;
 
+  // 1–3: durable series + pointers + identity links
+  try {
+    const durable = await loadDurableActionEventStates(db, ids);
+    for (const [eid, state] of durable) {
+      if (!state || map.has(eid)) continue;
+      map.set(eid, {
+        ...state,
+        // Board UI historically reads these keys:
+        publicSplits: {
+          ticketPct: state.publicSplits?.ticketPct ?? null,
+          moneyPct: state.publicSplits?.moneyPct ?? null,
+          moneyTicketGap: state.publicSplits?.moneyTicketGap ?? null,
+          sharpLabel: null,
+          primaryMarket: state.publicSplits?.primaryMarket ?? null,
+          markets: state.publicSplits?.markets || [],
+        },
+        lineHistory: state.lineHistory || [],
+        source: state.source || ACTION_BOARD_SOURCE.DURABLE_SERIES,
+      });
+    }
+  } catch {
+    // Durable path unavailable — fall through to legacy shadow.
+  }
+
+  const missing = ids.filter((id) => !map.has(id));
+  if (!missing.length) return map;
+
+  // 4: legacy shadow_market_observations fallback (compatibility only)
   const chunkSize = 40;
-  for (let i = 0; i < ids.length; i += chunkSize) {
-    const chunk = ids.slice(i, i + chunkSize);
+  for (let i = 0; i < missing.length; i += chunkSize) {
+    const chunk = missing.slice(i, i + chunkSize);
     const placeholders = chunk.map(() => "?").join(",");
     const sql = `SELECT id, sport, fbis_event_id, home_team, away_team, home_abbr, away_abbr, start_time,
                         consensus_json, public_betting_json, best_odds_json, line_movement_json,
@@ -249,9 +292,14 @@ export async function loadBoardActionIntelByEventIds(db, eventIds = []) {
       const res = await db.prepare(sql).bind(...chunk).all();
       for (const row of res?.results || []) {
         const eid = String(row.fbis_event_id || "");
+        // Never overwrite durable state with legacy shadow.
         if (!eid || map.has(eid)) continue;
         const intel = buildBoardActionIntel(row);
-        if (intel) map.set(eid, intel);
+        if (intel) {
+          intel.source = ACTION_BOARD_SOURCE.LEGACY_SHADOW;
+          intel.lineHistory = intel.lineHistory || [];
+          map.set(eid, intel);
+        }
       }
     } catch {
       return map;
@@ -290,7 +338,7 @@ export async function rematchBoardActionIntel(games = [], db = null, { lookbackH
     let sql;
     let binds;
     if (sport) {
-      sql = `SELECT id, sport, fbis_event_id, home_team, away_team, home_abbr, away_abbr, start_time, league,
+      sql = `SELECT id, sport, fbis_event_id, action_game_id, home_team, away_team, home_abbr, away_abbr, start_time, league,
                     consensus_json, public_betting_json, best_odds_json, line_movement_json,
                     research_fields_json, match_confidence,
                     collected_at, source_observed_at, observed_at, scraped_at, created_at
@@ -308,7 +356,7 @@ export async function rematchBoardActionIntel(games = [], db = null, { lookbackH
         [sport, sport];
       binds = [aliases[0], aliases[1], `-${lookback} hours`];
     } else {
-      sql = `SELECT id, sport, fbis_event_id, home_team, away_team, home_abbr, away_abbr, start_time, league,
+      sql = `SELECT id, sport, fbis_event_id, action_game_id, home_team, away_team, home_abbr, away_abbr, start_time, league,
                     consensus_json, public_betting_json, best_odds_json, line_movement_json,
                     research_fields_json, match_confidence,
                     collected_at, source_observed_at, observed_at, scraped_at, created_at
@@ -338,15 +386,33 @@ export async function rematchBoardActionIntel(games = [], db = null, { lookbackH
         awayAbbr: row.away_abbr,
         startTime: row.start_time,
         league: row.league || row.sport,
+        sport: row.sport || row.league,
+        actionGameId: row.action_game_id || row.id,
       };
-      const m = matchShadowEvent(actionRow, sportCands);
+      const m = matchEventWithConfidence(actionRow, sportCands);
       if (!m.matched || !m.candidate?.id) continue;
+      // Ambiguous / weak matches stay unlinked and do not attach silently.
+      if (!m.comparisonEligible && !isPersistableActionMatchConfidence(m.confidence)) continue;
       const eid = String(m.candidate.id);
       if (map.has(eid)) continue;
       const intel = buildBoardActionIntel({ ...row, fbis_event_id: eid });
       if (!intel) continue;
-      intel.matchConfidence = intel.matchConfidence || m.reason || "REMATCH_DISPLAY";
+      intel.matchConfidence = m.confidence || intel.matchConfidence || m.reason || "REMATCH_DISPLAY";
       intel.rematchedForDisplay = true;
+      intel.source = intel.source || ACTION_BOARD_SOURCE.LEGACY_SHADOW;
+
+      if (isPersistableActionMatchConfidence(m.confidence)) {
+        const persist = await persistActionEventIdentityLink(db, {
+          providerEventId: row.action_game_id || row.id,
+          sport: row.sport || row.league || m.candidate.sport,
+          canonicalEventId: eid,
+          matchConfidence: m.confidence,
+          matchReason: m.reason || null,
+          sourceObservationId: row.id || null,
+        });
+        intel.identityPersisted = Boolean(persist?.ok);
+        intel.rematchedForDisplay = !persist?.ok;
+      }
       map.set(eid, intel);
     }
   }
@@ -381,11 +447,18 @@ export async function attachActionIntelToGames(games = [], db = null) {
     }
   }
   let attached = 0;
+  let durableMatched = 0;
+  let legacyFallbackMatched = 0;
   const out = list.map((g) => {
     const eid = String(g?.id || g?.eventId || g?.gameId || "");
     const intel = byId.get(eid);
     if (!intel) return g;
     attached += 1;
+    if (intel.source === ACTION_BOARD_SOURCE.DURABLE_SERIES || intel.source === ACTION_BOARD_SOURCE.IDENTITY_LINK) {
+      durableMatched += 1;
+    } else if (intel.source === ACTION_BOARD_SOURCE.LEGACY_SHADOW) {
+      legacyFallbackMatched += 1;
+    }
     const existingSentiment = g.sentiment || g.odds?.sentiment || null;
     const sentimentFromAction = {
       source: "ACTION_APIFY",
@@ -414,5 +487,7 @@ export async function attachActionIntelToGames(games = [], db = null) {
     checked: ids.length,
     matchedIds: [...byId.keys()],
     rematched,
+    durableMatched,
+    legacyFallbackMatched,
   };
 }

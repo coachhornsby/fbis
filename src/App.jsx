@@ -788,6 +788,9 @@ export default function App() {
         onImported={() => {
           refreshBets();
           if (tab === "today") refreshToday();
+          // PrizePicks / unmatched tickets live on My Bets — surface them after confirm.
+          setTab("bets");
+          setRoute("bets");
         }}
       />
     </>
