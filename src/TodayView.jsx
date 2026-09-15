@@ -140,7 +140,12 @@ export default function TodayView({
         </div>
       </section>
 
-      <TodayCommandCenter board={board} sportFilter={sportFilter} date={date} />
+      <TodayCommandCenter
+        board={board}
+        sportFilter={sportFilter}
+        onSportFilter={onSportFilter}
+        date={date}
+      />
 
       {empty && !shown.some((g) => g.games.length) && (
         <div className="panel panel-board"><div className="empty">{empty.message || "No games scheduled."}</div></div>
