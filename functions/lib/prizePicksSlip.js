@@ -180,7 +180,8 @@ function isTeamMetaLine(line) {
   // e.g. "KC QB #15" / "DEN • RB • #12" after bullet normalization.
   // Require jersey number so short names like "Bo Nix" are not treated as team meta.
   return /^[A-Z]{2,4}\s+(?:[A-Z]{1,3}\s+)?#?\d+\s*$/i.test(line)
-    || /^[A-Z]{2,4}\s+(QB|RB|WR|TE|K|P|LB|DB|CB|S|DE|DT|G|T|C|OT|OG|FB|SF|PF|PG|SG|C|F|D|G|P|C|LW|RW|SP|RP|DH|OF|IF|1B|2B|3B|SS)\s+#?\d+\s*$/i.test(line);
+    || /^[A-Z]{2,4}\s+(QB|RB|WR|TE|K|P|LB|DB|CB|S|DE|DT|G|T|C|OT|OG|FB|SF|PF|PG|SG|C|F|D|G|P|C|LW|RW|SP|RP|DH|OF|IF|1B|2B|3B|SS)\s+#?\d+\s*$/i.test(line)
+    || /^[A-Z]{2,4}\s*[+«*]+\s*(QB|RB|WR|TE|K|P)\b/i.test(line); // OCR: "KC + QB « #15"
 }
 
 function isPlayerNameLine(line) {
@@ -192,6 +193,34 @@ function isPlayerNameLine(line) {
     /^[A-Z][a-z]+(?:\s+[A-Z]\.?\s*)?[A-Z][a-z'-]+$/.test(line) ||
     /^[A-Z]{1,3}\s+[A-Z][a-z'-]+$/.test(line) // RJ Harvey
   );
+}
+
+function isPropLabelLine(line) {
+  return /^(pass(?:ing)?\s*attempts?|pass(?:ing)?\s*yards?|pass(?:ing)?\s*(?:tds?|touchdowns?)|rush(?:ing)?\s*yards?|rush(?:ing)?\s*attempts?|rush(?:ing)?\s*(?:tds?|touchdowns?)|receiv(?:ing)?\s*yards?|receptions?|receiv(?:ing)?\s*(?:tds?|touchdowns?)|anytime\s*(?:td|touchdown)|points|rebounds?|assists?|strikeouts?|hits|total\s*bases?)$/i.test(
+    String(line || "").trim(),
+  );
+}
+
+function normalizeOcrLineNumber(raw) {
+  const cleaned = String(raw || "").replace(/[^\d.]/g, "");
+  if (!cleaned) return null;
+  // Phone OCR often drops the decimal: "05" → 0.5, "175" with nearby .5 context handled separately.
+  if (/^\d{2}$/.test(cleaned) && cleaned.startsWith("0")) {
+    return Number(`${cleaned[0]}.${cleaned[1]}`);
+  }
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function sideFromToken(token) {
+  const t = String(token || "").trim();
+  if (!t) return null;
+  if (/^(↓|Less|Under|v)$/i.test(t)) return "UNDER";
+  if (/^(↑|More|Over|\^)$/i.test(t)) return "OVER";
+  // Common OCR substitutions for PrizePicks arrows on dark UI screenshots.
+  if (/^(4|L)$/i.test(t)) return "UNDER";
+  if (/^(T|I|™|T™|1)$/i.test(t) || /™/.test(t)) return "OVER";
+  return null;
 }
 
 function parseProjectionLine(line) {
@@ -227,19 +256,40 @@ function parseInlineLeg(line) {
   };
 }
 
+/** Phone OCR often splits: player → garbled arrow+line → prop label on separate lines. */
+function parseOcrSideAndLine(line) {
+  const cleaned = String(line || "").trim();
+  if (!cleaned || isPropLabelLine(cleaned) || isPlayerNameLine(cleaned) || isMetaLine(cleaned)) return null;
+
+  // "↑ 0.5" / "More 17.5" / "T™ 05" / "™ 17.5" / "4 17.5"
+  const withSide = cleaned.match(/^(↑|↓|More|Less|Over|Under|T™|™|\^|v|T|I|1|4|L)\s*([0-9]+(?:\.[0-9]+)?)$/i);
+  if (withSide) {
+    const side = sideFromToken(withSide[1]) || "OVER";
+    const lineNum = normalizeOcrLineNumber(withSide[2]);
+    if (lineNum == null) return null;
+    return { selectedSide: side, executionLine: lineNum };
+  }
+
+  // Bare line value on its own row: "17.5" / "0.5" / "05"
+  const bare = cleaned.match(/^([0-9]+(?:\.[0-9]+)?)$/);
+  if (bare) {
+    const lineNum = normalizeOcrLineNumber(bare[1]);
+    if (lineNum == null) return null;
+    return { selectedSide: null, executionLine: lineNum };
+  }
+
+  return null;
+}
+
 /**
  * Extract legs from OCR / paste text.
- * Supports:
- *   ↑ 0.5 Pass Attempts / ↓ 17.5 Rush Yards
- *   More 0.5 Pass Attempts / Less 17.5 Rush Yards
- *   Patrick Mahomes More 0.5 Pass Attempts
- * with a nearby player name line.
+ * Supports clean slips and phone-photo OCR where arrows/lines/props are split across rows.
  */
 function extractLegs(text) {
   const lines = String(text || "")
     .replace(/\r/g, "\n")
     .split(/\n+/)
-    .map((l) => l.replace(/[•·]/g, " ").replace(/\s+/g, " ").trim())
+    .map((l) => l.replace(/[•·«»+]/g, " ").replace(/\s+/g, " ").trim())
     .filter(Boolean);
 
   const legs = [];
@@ -252,27 +302,62 @@ function extractLegs(text) {
     }
 
     const proj = parseProjectionLine(lines[i]);
-    if (!proj || !proj.propLabel) continue;
-    let playerName = null;
-    for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
-      const cand = lines[j];
-      if (isTeamMetaLine(cand)) continue;
-      if (isPlayerNameLine(cand)) {
-        playerName = cand;
-        break;
+    if (proj?.propLabel) {
+      let playerName = null;
+      for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
+        const cand = lines[j];
+        if (isTeamMetaLine(cand)) continue;
+        if (isPlayerNameLine(cand)) {
+          playerName = cand;
+          break;
+        }
       }
+      if (playerName) {
+        legs.push({
+          playerName,
+          selectedSide: proj.selectedSide,
+          executionLine: proj.executionLine,
+          propLabel: proj.propLabel,
+          propType: normalizePropType(proj.propLabel),
+        });
+      }
+      continue;
     }
-    if (!playerName) continue;
-    legs.push({
-      playerName,
-      selectedSide: proj.selectedSide,
-      executionLine: proj.executionLine,
-      propLabel: proj.propLabel,
-      propType: normalizePropType(proj.propLabel),
-    });
   }
 
-  // Deduplicate identical legs.
+  // Phone OCR fallback: walk player → side/line → prop label within a short window.
+  if (!legs.length) {
+    for (let i = 0; i < lines.length; i++) {
+      if (!isPlayerNameLine(lines[i])) continue;
+      let sideLine = null;
+      let propLabel = null;
+      for (let j = i + 1; j <= Math.min(lines.length - 1, i + 5); j++) {
+        if (isPlayerNameLine(lines[j])) break;
+        if (isTeamMetaLine(lines[j]) || isMetaLine(lines[j])) continue;
+        if (!sideLine) {
+          const parsed = parseOcrSideAndLine(lines[j]);
+          if (parsed) {
+            sideLine = parsed;
+            continue;
+          }
+        }
+        if (!propLabel && isPropLabelLine(lines[j])) {
+          propLabel = lines[j];
+          break;
+        }
+      }
+      if (!sideLine || !propLabel) continue;
+      legs.push({
+        playerName: lines[i],
+        selectedSide: sideLine.selectedSide || "OVER",
+        executionLine: sideLine.executionLine,
+        propLabel,
+        propType: normalizePropType(propLabel),
+        warnings: sideLine.selectedSide == null ? ["Confirm More/Less — OCR did not read the arrow clearly"] : [],
+      });
+    }
+  }
+
   const seen = new Set();
   return legs.filter((leg) => {
     const key = `${leg.playerName}|${leg.selectedSide}|${leg.executionLine}|${leg.propType}`;

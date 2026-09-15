@@ -12,7 +12,9 @@ import {
 } from "./lib/heritageImport.js";
 
 const FIXTURE_HINT =
-  "Paste Heritage ticket text or choose a Heritage / NoVig / PrizePicks screenshot. Preview first — nothing is written until you confirm.";
+  "Upload a bet-slip photo from your phone, or paste ticket text. Heritage / NoVig / PrizePicks. Preview first — nothing is written until you confirm.";
+
+const MAX_OCR_EDGE = 1800;
 
 export default function HeritageImport({ open, onClose, onImported }) {
   const [text, setText] = useState("");
@@ -23,10 +25,14 @@ export default function HeritageImport({ open, onClose, onImported }) {
   const [wroteMessage, setWroteMessage] = useState("");
   const [ocrMessage, setOcrMessage] = useState("");
   const [bookHint, setBookHint] = useState("");
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [photoName, setPhotoName] = useState("");
   const feedbackRef = useRef(null);
   const modalRef = useRef(null);
   const closeBtnRef = useRef(null);
   const restoreFocusRef = useRef(null);
+  const libraryInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   const tickets = preview?.tickets || [];
   const stale = Boolean(preview) && previewIsStale(preview.sourceText, text);
@@ -97,20 +103,33 @@ export default function HeritageImport({ open, onClose, onImported }) {
     }
   }
 
-  async function readScreenshot(file) {
+  async function readScreenshot(file, inputEl) {
     if (!file) return;
+    if (!String(file.type || "").startsWith("image/") && !/\.(jpe?g|png|webp|heic|heif|gif)$/i.test(file.name || "")) {
+      setError("Choose a photo or screenshot of the bet slip (JPG, PNG, or HEIC).");
+      if (inputEl) inputEl.value = "";
+      return;
+    }
     setBusy(true);
     setError("");
     setPreview(null);
-    setOcrMessage("Reading screenshot on this device…");
+    setWroteMessage("");
+    setPhotoName(file.name || "phone-photo");
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    const objectUrl = URL.createObjectURL(file);
+    setPhotoPreview(objectUrl);
+    setOcrMessage("Reading photo on this device — it is not uploaded to the server…");
     try {
+      const ocrSource = await prepareImageForOcr(file);
       const { createWorker, PSM } = await import("tesseract.js");
       const worker = await createWorker("eng");
       await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-      const result = await worker.recognize(file);
+      const result = await worker.recognize(ocrSource);
       await worker.terminate();
       const extracted = String(result?.data?.text || "").trim();
-      if (!extracted) throw new Error("No readable ticket text was found. Try a sharper screenshot.");
+      if (!extracted) {
+        throw new Error("No readable ticket text was found. Try a sharper photo of the slip, or paste the text.");
+      }
       setText(extracted);
       if (/prize\s*picks|power\s*play|\bMore\b|\bLess\b|↑|↓/i.test(extracted) && /\$\s*\d+.*win|pick/i.test(extracted)) {
         setBookHint("PrizePicks");
@@ -119,13 +138,21 @@ export default function HeritageImport({ open, onClose, onImported }) {
       } else {
         setBookHint("");
       }
-      setOcrMessage("Screenshot read. Review the extracted text, then parse and confirm.");
+      setOcrMessage("Photo read on this device. Review the text, then parse and confirm.");
     } catch (err) {
       setError(String(err.message || err));
       setOcrMessage("");
     } finally {
+      if (inputEl) inputEl.value = "";
       setBusy(false);
     }
+  }
+
+  function clearPhoto() {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview("");
+    setPhotoName("");
+    setOcrMessage("");
   }
 
   async function confirmImport() {
@@ -176,16 +203,43 @@ export default function HeritageImport({ open, onClose, onImported }) {
         </div>
         <div className="panel-body">
           <p className="muted">{FIXTURE_HINT} Actual wagers are separate from CONVICTION and FBIS-HC-v1 unless a frozen pre-execution recommendation matches.</p>
-          <label className="header-btn header-btn-refresh slip-upload">
-            {busy && ocrMessage ? "Reading screenshot…" : "Choose screenshot / camera"}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              disabled={busy}
-              onChange={(e) => readScreenshot(e.target.files?.[0])}
-            />
-          </label>
+          <div className="slip-photo-actions" role="group" aria-label="Import bet slip photo">
+            <label className="header-btn header-btn-refresh slip-upload slip-upload-primary">
+              {busy && ocrMessage ? "Reading photo…" : "Upload photo from phone"}
+              <input
+                ref={libraryInputRef}
+                type="file"
+                accept="image/*,.heic,.heif"
+                disabled={busy}
+                onChange={(e) => readScreenshot(e.target.files?.[0], e.target)}
+              />
+            </label>
+            <label className="header-btn slip-upload">
+              {busy && ocrMessage ? "Reading…" : "Take photo"}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                disabled={busy}
+                onChange={(e) => readScreenshot(e.target.files?.[0], e.target)}
+              />
+            </label>
+          </div>
+          <p className="muted slip-photo-hint">
+            On your phone: tap <b>Upload photo from phone</b>, then choose the PrizePicks screenshot from Photos. OCR runs on-device — the image is not sent to the server.
+          </p>
+          {photoPreview && (
+            <div className="slip-photo-preview">
+              <img src={photoPreview} alt="Selected bet slip photo" />
+              <div className="slip-photo-meta">
+                <span className="muted">{photoName}</span>
+                <button type="button" className="header-btn" disabled={busy} onClick={clearPhoto}>
+                  Clear photo
+                </button>
+              </div>
+            </div>
+          )}
           {ocrMessage && <p className="muted" role="status">{ocrMessage}</p>}
           <textarea
             className="slip-paste"
@@ -195,7 +249,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
               if (error) setError("");
               if (wroteMessage) setWroteMessage("");
             }}
-            placeholder="Paste Heritage / PrizePicks text, or choose a screenshot above."
+            placeholder="Or paste Heritage / PrizePicks text here after uploading a photo."
             rows={10}
           />
           <div className="today-controls" style={{ marginTop: 10 }}>
@@ -429,4 +483,57 @@ function Stat({ label, value }) {
       <b>{value}</b>
     </div>
   );
+}
+
+/** Downscale phone photos before OCR so Tesseract stays responsive on mobile. */
+async function prepareImageForOcr(file) {
+  if (typeof createImageBitmap !== "function" && typeof Image === "undefined") return file;
+  try {
+    let bitmap = null;
+    if (typeof createImageBitmap === "function") {
+      try {
+        bitmap = await createImageBitmap(file);
+      } catch {
+        bitmap = null;
+      }
+    }
+    if (!bitmap) {
+      bitmap = await loadImageElement(file);
+    }
+    const w = bitmap.width || bitmap.naturalWidth || 0;
+    const h = bitmap.height || bitmap.naturalHeight || 0;
+    if (!(w > 0 && h > 0)) return file;
+    const scale = Math.min(1, MAX_OCR_EDGE / Math.max(w, h));
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return file;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, tw, th);
+    ctx.drawImage(bitmap, 0, 0, tw, th);
+    if (typeof bitmap.close === "function") bitmap.close();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    return blob || file;
+  } catch {
+    return file;
+  }
+}
+
+function loadImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not decode photo"));
+    };
+    img.src = url;
+  });
 }

@@ -759,6 +759,63 @@ Sep 14, 2026`;
     assert.equal(preview.tickets[0].executionBook, "PrizePicks");
   });
 
+  it("recovers legs from phone-photo OCR where arrows and lines are garbled/split", async () => {
+    // Representative Tesseract output from an iPhone screenshot of a PrizePicks Power Play.
+    const phoneOcr = `$5 to win $30
+
+3-Pick Power Play
+
+NFL
+
+DEN vs KC
+
+Starts in 41:44
+
+Patrick Mahomes
+
+T™ 05
+
+Pass Attempts
+
+KC + QB « #15
+
+Bo Nix
+
+4 17.5
+
+Rush Yards
+
+DEN « QB + #10
+
+RJ Harvey
+
+™ 17.5
+
+DEN « RB « #12
+
+Rush Yards
+
+Self refund available. Time remaining: 03:53
+
+PRIZEPICKS
+
+Sep 14,2026 @ 6:33 PM`;
+    const parsed = await parsePrizePicksSlip(phoneOcr, { dateHint: "2026-09-14" });
+    assert.equal(parsed.tickets.length, 3);
+    assert.equal(parsed.totalRisk, 5);
+    assert.equal(parsed.totalToWin, 25);
+    assert.equal(parsed.tickets[0].playerName, "Patrick Mahomes");
+    assert.equal(parsed.tickets[0].selectedSide, "OVER");
+    assert.equal(parsed.tickets[0].executionLine, 0.5);
+    assert.equal(parsed.tickets[0].propType, "PASS_ATTEMPTS");
+    assert.equal(parsed.tickets[1].playerName, "Bo Nix");
+    assert.equal(parsed.tickets[1].selectedSide, "UNDER");
+    assert.equal(parsed.tickets[1].executionLine, 17.5);
+    assert.equal(parsed.tickets[2].playerName, "RJ Harvey");
+    assert.equal(parsed.tickets[2].selectedSide, "OVER");
+    assert.equal(parsed.tickets[2].executionLine, 17.5);
+  });
+
   it("treats PLAYER_PROP as an over/under market in the importer UX helper", () => {
     assert.equal(isTotalMarket("PLAYER_PROP"), true);
     assert.equal(isTotalMarket("TOTAL"), true);
