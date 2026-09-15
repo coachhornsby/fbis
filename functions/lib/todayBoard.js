@@ -198,6 +198,11 @@ export function toBoardGame(game, sport, now = Date.now()) {
     sentiment: game.sentiment || game.odds?.sentiment || null,
     // ACTION Apify market intel — display/research only (never odds authority).
     actionIntel: game.actionIntel || null,
+    // ACTION is the preferred player-props source (research-only).
+    playerMarkets: game.playerMarkets || null,
+    playerPropsSource: game.playerPropsSource || null,
+    playerPropsChecked: Boolean(game.playerPropsChecked),
+    actionPlayerProps: game.actionPlayerProps || null,
     publicSplits: game.publicSplits || game.actionIntel?.publicSplits || null,
     weather: game.weather || game.cfb?.weather || null,
     park: game.bpp?.park || null,
@@ -427,6 +432,8 @@ export async function buildTodayBoard(
         attached: attached.attached || 0,
         checked: attached.checked || 0,
         matchedIds: attached.matchedIds || [],
+        playerPropsAttached: attached.playerPropsAttached || 0,
+        playerPropsSource: attached.playerPropsSource || "none",
       };
       // Keep per-sport game lists in sync with attached intel.
       for (const s of sports) {

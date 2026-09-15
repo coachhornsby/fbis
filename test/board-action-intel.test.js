@@ -64,7 +64,10 @@ test("attachActionIntelToGames joins by event id and never promotes odds authori
   ];
   const db = {
     prepare(sql) {
-      assert.match(sql, /shadow_market_observations/);
+      // Durable props reader may query action_market_book_observations first.
+      if (!/shadow_market_observations|action_market_book_observations|action_event_identity/.test(sql)) {
+        assert.match(sql, /shadow_market_observations/);
+      }
       return {
         bind() {
           return this;

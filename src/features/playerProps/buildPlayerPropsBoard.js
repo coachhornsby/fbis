@@ -239,6 +239,11 @@ export function formatMarketLabel(canonicalOrRaw) {
  */
 export function normalizeBoardGame(game = {}) {
   if (Array.isArray(game.playerMarkets) && game.playerMarkets.length) return game;
+  // ACTION is the preferred props source. After an ACTION check, do not promote
+  // Parlay/Pal convictions into playerMarkets (keeps Top Props ACTION-only).
+  if (game.playerPropsChecked || game.actionPlayerProps || game.playerPropsSource) {
+    return game;
+  }
   const convictions = game.propConvictions || [];
   if (!convictions.length) return game;
   return {
