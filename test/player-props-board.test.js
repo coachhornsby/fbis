@@ -11,15 +11,25 @@ import {
   normalizeBoardGame,
 } from "../src/features/playerProps/buildPlayerPropsBoard.js";
 
-test("supported FBIS player markets cover QB/RB/WR model set", () => {
+test("supported FBIS player markets cover pro football and MLB core markets", () => {
   for (const id of [
     "passing_yards",
     "passing_attempts",
     "completions",
     "rushing_yards",
-    "rushing_attempts",
     "receptions",
     "receiving_yards",
+    "hits",
+    "total_bases",
+    "home_runs",
+    "rbis",
+    "strikeouts",
+    "pitcher_outs",
+    "points",
+    "rebounds",
+    "assists",
+    "shots_on_goal",
+    "saves",
   ]) {
     assert.ok(FBIS_PLAYER_MARKETS.includes(id), id);
   }
@@ -30,21 +40,21 @@ test("player props board never invents decision eligibility or model authority",
     date: "2026-09-13",
     games: [
       {
-        id: "cfb-1",
-        sport: "cfb",
-        away: { abbr: "OHIO" },
-        home: { abbr: "TEX" },
+        id: "nfl-1",
+        sport: "nfl",
+        away: { abbr: "KC" },
+        home: { abbr: "BUF" },
         playerMarkets: [
           {
             playerName: "Test QB",
-            team: "OHIO",
+            team: "KC",
             position: "QB",
             marketCanonical: "passing_yards",
             line: 249.5,
             overOdds: -110,
             underOdds: -105,
             book: "draftkings",
-            decisionEligible: true, // upstream claim must be stripped by domain
+            decisionEligible: true,
           },
         ],
       },
@@ -60,6 +70,61 @@ test("player props board never invents decision eligibility or model authority",
   assert.equal(board.rows[0].surfaceStatus, "RESEARCH");
   assert.equal(board.rows[0].supportedMarket, true);
   assert.equal(board.counts.decisionEligible, 0);
+});
+
+test("college player props are excluded from the product board", () => {
+  const board = buildPlayerPropsBoard({
+    games: [
+      {
+        id: "cfb-1",
+        sport: "cfb",
+        away: { abbr: "TEX" },
+        home: { abbr: "OU" },
+        playerMarkets: [
+          {
+            playerName: "College QB",
+            marketCanonical: "passing_yards",
+            line: 250.5,
+            overOdds: -110,
+          },
+        ],
+      },
+    ],
+  });
+  assert.equal(board.rows.length, 0);
+  assert.equal(board.allRows.length, 0);
+});
+
+test("MLB core markets remain visible without an FBIS projection", () => {
+  const board = buildPlayerPropsBoard({
+    games: [
+      {
+        id: "mlb-1",
+        sport: "mlb",
+        away: { abbr: "NYY" },
+        home: { abbr: "BOS" },
+        playerMarkets: [
+          {
+            provider: "ACTION_APIFY",
+            providerPlayerId: "action-judge",
+            playerName: "Aaron Judge",
+            team: "NYY",
+            market: "total bases",
+            marketCanonical: "total_bases",
+            line: 1.5,
+            overOdds: -115,
+            underOdds: -105,
+            book: "draftkings",
+            fbisProjection: null,
+          },
+        ],
+      },
+    ],
+  });
+  assert.equal(board.rows.length, 1);
+  assert.equal(board.rows[0].marketCanonical, "total_bases");
+  assert.equal(board.rows[0].fbisProjection, null);
+  assert.equal(board.rows[0].convictionTier, "NONE");
 });
 
 test("unsupported novelty markets are excluded by default but counted", () => {
@@ -79,9 +144,9 @@ test("unsupported novelty markets are excluded by default but counted", () => {
           },
           {
             playerName: "Star WR",
-            marketCanonical: "anytime_td",
+            marketCanonical: "first_touchdown",
             line: 0.5,
-            overOdds: 140,
+            overOdds: 500,
           },
         ],
       },
@@ -102,7 +167,7 @@ test("unsupported novelty markets are excluded by default but counted", () => {
           sport: "nfl",
           playerMarkets: [
             { playerName: "A", marketCanonical: "receiving_yards", line: 1 },
-            { playerName: "A", marketCanonical: "anytime_td", line: 0.5 },
+            { playerName: "A", marketCanonical: "first_touchdown", line: 0.5 },
           ],
         },
       ],
@@ -130,7 +195,7 @@ test("propConvictions normalize into research-only player markets", () => {
     propConvictions: [
       {
         playerName: "RB1",
-        team: "TEX",
+        team: "BUF",
         position: "RB",
         market: "rushing_yards",
         marketLabel: "Rush Yards",
@@ -145,7 +210,7 @@ test("propConvictions normalize into research-only player markets", () => {
   assert.equal(game.playerMarkets[0].decisionEligible, false);
   assert.ok(game.playerMarkets[0].reasonCodes.includes("PROP_CONVICTION_RESEARCH_ONLY"));
 
-  const board = buildPlayerPropsBoard({ games: [{ id: "x", sport: "cfb", ...game }] });
+  const board = buildPlayerPropsBoard({ games: [{ id: "x", sport: "nfl", ...game }] });
   assert.equal(board.rows.length, 1);
   assert.equal(board.rows[0].surfaceStatus, "RESEARCH");
 });
@@ -156,7 +221,7 @@ test("groupPlayerPropRows groups markets under one player key", () => {
       fbisPlayerId: null,
       providerPlayerId: "p9",
       playerName: "QB1",
-      team: "OHIO",
+      team: "BUF",
       eventId: "e1",
       marketCanonical: "passing_yards",
       line: 250.5,
@@ -164,7 +229,7 @@ test("groupPlayerPropRows groups markets under one player key", () => {
     {
       providerPlayerId: "p9",
       playerName: "QB1",
-      team: "OHIO",
+      team: "BUF",
       eventId: "e1",
       marketCanonical: "passing_attempts",
       line: 32.5,
@@ -175,27 +240,26 @@ test("groupPlayerPropRows groups markets under one player key", () => {
   assert.equal(groups[0].providerPlayerId, "p9");
 });
 
-
 test("player props rows attach team logo from event sides", () => {
   const board = buildPlayerPropsBoard({
     games: [
       {
         id: "g1",
-        sport: "cfb",
+        sport: "nfl",
         away: {
-          abbr: "ORE",
-          name: "Oregon",
-          logo: "https://a.espncdn.com/i/teamlogos/ncaa/500/2483.png",
+          abbr: "KC",
+          name: "Kansas City Chiefs",
+          logo: "https://a.espncdn.com/i/teamlogos/nfl/500/kc.png",
         },
         home: {
-          abbr: "OSU",
-          name: "Ohio State",
-          logo: "https://a.espncdn.com/i/teamlogos/ncaa/500/194.png",
+          abbr: "BUF",
+          name: "Buffalo Bills",
+          logo: "https://a.espncdn.com/i/teamlogos/nfl/500/buf.png",
         },
         playerMarkets: [
           {
-            playerName: "Will Howard",
-            team: "OSU",
+            playerName: "Test QB",
+            team: "BUF",
             marketCanonical: "passing_yards",
             line: 249.5,
             overOdds: -110,
@@ -204,23 +268,22 @@ test("player props rows attach team logo from event sides", () => {
       },
     ],
   });
-  assert.equal(board.rows[0].teamIdentity.abbr, "OSU");
+  assert.equal(board.rows[0].teamIdentity.abbr, "BUF");
   assert.equal(
     board.rows[0].teamIdentity.logo,
-    "https://a.espncdn.com/i/teamlogos/ncaa/500/194.png",
+    "https://a.espncdn.com/i/teamlogos/nfl/500/buf.png",
   );
   const grouped = groupPlayerPropRows(board.rows);
   assert.equal(grouped[0].teamIdentity.logo, board.rows[0].teamIdentity.logo);
 });
 
-
 test("formatMarketLabel turns snake_case into normal words", () => {
   assert.equal(formatMarketLabel("passing_yards"), "Pass Yards");
   assert.equal(formatMarketLabel("receiving_yards"), "Rec Yards");
-  assert.equal(formatMarketLabel("anytime_td"), "Anytime TD");
+  assert.equal(formatMarketLabel("total_bases"), "Total Bases");
+  assert.equal(formatMarketLabel("first_touchdown"), "First Touchdown");
   assert.equal(formatMarketLabel(""), "Player Prop");
 });
-
 
 test("withFbisPropAnalytics derives More/Less probability from projection + sigma + line", () => {
   const row = withFbisPropAnalytics({
@@ -241,7 +304,6 @@ test("withFbisPropAnalytics does not invent a projection", () => {
   assert.equal(row.probabilityOver, null);
   assert.equal(row.probabilityUnder, null);
 });
-
 
 test("sorts props by conviction / mispricing descending", () => {
   const rows = sortPropsByConviction([
