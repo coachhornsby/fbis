@@ -7,6 +7,7 @@
 
 import { parseHeritageSlip } from "../lib/heritageSlip.js";
 import { parseNoVigSlip } from "../lib/novigSlip.js";
+import { looksLikePrizePicksSlip, parsePrizePicksSlip } from "../lib/prizePicksSlip.js";
 import { todayCT } from "../lib/slateEngine.js";
 import {
   decoratePreview,
@@ -178,9 +179,18 @@ async function loadMatchContext(env, tickets) {
 }
 
 export async function parseBetsPreview(env, text, yearHint, bookHint = "") {
-  const parsed = /novig/i.test(bookHint) || /\bNOVIG\b/i.test(text)
-    ? await parseNoVigSlip(text, { dateHint: yearHint?.date })
-    : parseHeritageSlip(text, { yearHint });
+  let parsed;
+  if (looksLikePrizePicksSlip(text, bookHint)) {
+    parsed = await parsePrizePicksSlip(text, {
+      dateHint: typeof yearHint === "object" ? yearHint?.date : undefined,
+    });
+  } else if (/novig/i.test(bookHint) || /\bNOVIG\b/i.test(text)) {
+    parsed = await parseNoVigSlip(text, {
+      dateHint: typeof yearHint === "object" ? yearHint?.date : yearHint,
+    });
+  } else {
+    parsed = parseHeritageSlip(text, { yearHint });
+  }
   const ctx = await loadMatchContext(env, parsed.tickets);
   const tickets = [];
   for (const t of parsed.tickets) {
@@ -203,6 +213,8 @@ export async function parseBetsPreview(env, text, yearHint, bookHint = "") {
     ml: tickets.filter((t) => t.market === "ML" || t.market === "F5 ML").length,
     spread: tickets.filter((t) => t.market === "SPREAD" || t.market === "F5 SPREAD").length,
     total: tickets.filter((t) => t.market === "TOTAL" || t.market === "F5 TOTAL").length,
+    props: tickets.filter((t) => t.market === "PLAYER_PROP").length,
+    entryType: parsed.entryType || null,
     tickets,
     summary: summarizeExecutedBets(tickets),
   };

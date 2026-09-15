@@ -11,7 +11,8 @@ export const CLOUDFLARE_HTML_503 =
   "Cloudflare killed the import worker (HTTP 503). Retry parse/confirm — this is not a secret error.";
 
 export function isTotalMarket(market) {
-  return /TOTAL/i.test(String(market || ""));
+  const m = String(market || "");
+  return /TOTAL/i.test(m) || /PLAYER_PROP/i.test(m);
 }
 
 export function previewIsStale(sourceText, currentText) {
