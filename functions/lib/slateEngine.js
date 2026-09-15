@@ -19,7 +19,6 @@ import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { promoteNflResearchToBoard, promoteCbbResearchToBoard } from "./researchBoardPromote.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
-import { attachActionIntelToGames } from "./boardActionIntel.js";
 import {
   marketImpliedAuthority,
   deriveBoardDecision,
@@ -116,6 +115,8 @@ export async function buildSlate(sport, date, env = {}) {
   // ACTION market intelligence — display on every board sport; never odds authority.
   if (env.DB && Array.isArray(next.games) && next.games.length) {
     try {
+      // Dynamic import keeps ACTION/node:crypto off the browser slateEngine graph.
+      const { attachActionIntelToGames } = await import("./boardActionIntel.js");
       const attached = await attachActionIntelToGames(next.games, env.DB);
       next = {
         ...next,

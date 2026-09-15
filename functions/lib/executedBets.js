@@ -500,8 +500,12 @@ export function packExecutedBetRow(ticket) {
 export function attachMyBetsToBoard(board, bets) {
   const list = bets || [];
   const byGame = new Map();
+  const unmatchedOpen = [];
   for (const b of list) {
-    if (!b.gameId) continue;
+    if (!b.gameId) {
+      if (!b.result || b.result === "OPEN") unmatchedOpen.push(b);
+      continue;
+    }
     const k = String(b.gameId);
     if (!byGame.has(k)) byGame.set(k, []);
     byGame.get(k).push(b);
@@ -519,9 +523,11 @@ export function attachMyBetsToBoard(board, bets) {
     ...board,
     games,
     groups: (board.groups || []).map((gr) => ({ ...gr, games: (gr.games || []).map(decorate) })),
+    unmatchedOpenBets: unmatchedOpen,
     counts: {
       ...(board.counts || {}),
       myBets: list.length,
+      unmatchedOpenBets: unmatchedOpen.length,
     },
   };
 }
