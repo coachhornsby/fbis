@@ -1,6 +1,24 @@
 import { toDomainTodayBoard } from "../../../functions/lib/fbisDomain.js";
 import { probabilityAtThreshold } from "../../../functions/lib/cfbPlayerModel.js";
-import { identityForSport } from "../../../functions/lib/teams.js";
+import {
+  PRO_PLAYER_PROP_LABELS,
+  PRO_PLAYER_PROP_MARKETS,
+  PRO_PLAYER_PROP_SPORTS,
+  canonicalizeProPlayerPropMarket,
+  normalizeProPropSport,
+} from "../../../functions/lib/proPlayerProps.js";
+import { identityForSport } from "../../lib/teams.js";
+
+/**
+ * All player-prop markets currently supported on FBIS product surfaces.
+ * Scope is deliberately pro-only: MLB, NFL, NBA, NHL.
+ */
+export const FBIS_PLAYER_MARKETS = Object.freeze([
+  ...new Set(PRO_PLAYER_PROP_SPORTS.flatMap((sport) => PRO_PLAYER_PROP_MARKETS[sport] || [])),
+]);
+
+/** Human-readable labels — never show snake_case in the product UI. */
+export const MARKET_LABELS = Object.freeze({ ...PRO_PLAYER_PROP_LABELS });
 
 /**
  * Attach FBIS projection analytics when upstream provided them.
@@ -98,7 +116,6 @@ export function rankPropConviction(row = {}) {
   } else if (hasDelta && delta !== 0) {
     lean = delta > 0 ? "MORE" : "LESS";
   } else if (hasEdge && edge !== 0) {
-    // Positive edge assumed on the conviction side when side is present.
     const side = String(row.projectionSide || row.side || "").toUpperCase();
     if (side === "OVER" || side === "MORE") lean = "MORE";
     else if (side === "UNDER" || side === "LESS") lean = "LESS";
@@ -112,7 +129,6 @@ export function rankPropConviction(row = {}) {
   const probEdge = leanProbability != null ? Math.max(0, leanProbability - 0.5) : 0;
   const zEdge = mispricingZ != null ? Math.abs(mispricingZ) : 0;
 
-  // Weighted research score — probability lean dominates, then edge, then z.
   const convictionScore =
     probEdge * 200 +
     (absEdge != null ? absEdge * 100 : 0) +
@@ -195,28 +211,6 @@ export function resolvePlayerTeamIdentity(event = {}, teamKey = null) {
   };
 }
 
-/** FBIS-supported football player markets for product surfaces. */
-export const FBIS_PLAYER_MARKETS = Object.freeze([
-  "passing_yards",
-  "passing_attempts",
-  "completions",
-  "rushing_yards",
-  "rushing_attempts",
-  "receptions",
-  "receiving_yards",
-]);
-
-/** Human-readable labels — never show snake_case in the product UI. */
-export const MARKET_LABELS = Object.freeze({
-  passing_yards: "Pass Yards",
-  passing_attempts: "Pass Attempts",
-  completions: "Completions",
-  rushing_yards: "Rush Yards",
-  rushing_attempts: "Rush Attempts",
-  receptions: "Receptions",
-  receiving_yards: "Rec Yards",
-});
-
 export function formatMarketLabel(canonicalOrRaw) {
   if (!canonicalOrRaw) return "Player Prop";
   const key = String(canonicalOrRaw).trim();
@@ -227,14 +221,14 @@ export function formatMarketLabel(canonicalOrRaw) {
     .trim()
     .split(" ")
     .map((word) => {
-      if (/^(td|qb|rb|wr|te|fg|xp)$/i.test(word)) return word.toUpperCase();
+      if (/^(td|qb|rb|wr|te|fg|xp|rbi|rbis|pra)$/i.test(word)) return word.toUpperCase();
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     })
     .join(" ");
 }
 
 /**
- * Map propConvictions → playerMarkets when upstream only has convictions.
+ * Map legacy propConvictions → playerMarkets when upstream only has convictions.
  * Same adapter used by Today command center — never invents eligibility.
  */
 export function normalizeBoardGame(game = {}) {
@@ -276,6 +270,7 @@ export function normalizeBoardGame(game = {}) {
 
 /**
  * Build the Player Props board from a today board payload.
+ * Player props are intentionally limited to MLB/NFL/NBA/NHL.
  * Never invents rows, prices, or decision eligibility.
  */
 export function buildPlayerPropsBoard(board = {}, opts = {}) {
@@ -298,17 +293,23 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
 
   const allRows = [];
   for (const event of domain.events || []) {
+    const sport = normalizeProPropSport(event.sport || event.league);
+    if (!sport) continue;
     for (const pm of event.playerMarkets || []) {
-      const canonical = pm.marketCanonical || null;
-      const supportedMarket = canonical
-        ? FBIS_PLAYER_MARKETS.includes(canonical)
-        : false;
+      const canonical =
+        canonicalizeProPlayerPropMarket(sport, pm.marketCanonical || pm.market) ||
+        pm.marketCanonical ||
+        null;
+      const supportedMarket = Boolean(
+        canonical && (PRO_PLAYER_PROP_MARKETS[sport] || []).includes(canonical),
+      );
       const teamIdentity = resolvePlayerTeamIdentity(event, pm.team);
       allRows.push(
         withFbisPropAnalytics({
           ...pm,
+          marketCanonical: canonical,
           eventId: event.id,
-          sport: event.sport,
+          sport,
           league: event.league,
           startCt: event.startCt,
           matchup: {
@@ -351,13 +352,12 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       decisionEligible: rows.filter((r) => r.decisionEligible).length,
     },
     readiness: {
-      // Successful parsing ≠ production market readiness.
       classification: "RESEARCH_READY",
       modelAuthorized: false,
       decisionEligible: false,
-      note: "Player props remain research-only until model authority is earned.",
+      note: "Pro player props are market-intelligence/research only until model authority is earned.",
     },
-    schemaVersion: "fbis-player-props-board-v1",
+    schemaVersion: "fbis-player-props-board-v2",
   };
 }
 
