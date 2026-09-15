@@ -12,7 +12,7 @@ export default function TopPlayerProps({ rows = [] }) {
       <div className="panel-body">
         {!rows.length ? (
           <p className="today-empty">
-            No normalized player props available for this slate. Action props remain shadow / research-only.
+            No ACTION player props on this slate yet. Props come from Action Network (research-only) after a PLAYER_PROPS or pregame collect.
           </p>
         ) : (
           <div className="table-scroll">

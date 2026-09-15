@@ -11,6 +11,7 @@
 
 import { actionPolicyFlags, normalizeActionSport } from "./actionMarketIntelligence.js";
 import { matchShadowEvent } from "./actionApifyShadow.js";
+import { attachActionPlayerPropsToGames } from "./boardActionProps.js";
 
 function safeJson(v) {
   if (v == null) return null;
@@ -408,11 +409,17 @@ export async function attachActionIntelToGames(games = [], db = null) {
       publicSplits: g.publicSplits || intel.publicSplits,
     };
   });
+  // ACTION is the preferred player-props source for board display.
+  const withProps = await attachActionPlayerPropsToGames(out, db);
   return {
-    games: out,
+    games: withProps.games || out,
     attached,
     checked: ids.length,
     matchedIds: [...byId.keys()],
     rematched,
+    playerPropsAttached: withProps.attached || 0,
+    playerPropsSource: withProps.source || "none",
+    playerPropsFromSeries: withProps.fromSeries || 0,
+    playerPropsFromShadow: withProps.fromShadow || 0,
   };
 }
