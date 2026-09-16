@@ -27,6 +27,14 @@ test("ACTION has exactly one automatic paid scheduler", () => {
   assert.match(orchestrator, /api\/action-apify-collect\?execute=1/);
 });
 
+test("core harvest workflow cannot execute ACTION", () => {
+  const harvest = read(".github/workflows/harvest.yml");
+  assert.doesNotMatch(harvest, /api\/action-apify-collect/);
+  assert.doesNotMatch(harvest, /^\s*action-market-intel\s*:/m);
+  assert.doesNotMatch(harvest, /need_action|action_failed|action_runs_24h/);
+  assert.match(harvest, /ACTION: NOT OWNED BY THIS WORKFLOW/);
+});
+
 test("manual ACTION workflows cannot wake up from push or cron", () => {
   const smoke = read(".github/workflows/action-apify-smoke.yml");
   const props = read(".github/workflows/action-player-props.yml");
