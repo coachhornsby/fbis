@@ -78,6 +78,10 @@ async function guardActionCollection(context, request, url) {
   const sport = String(body.sport || url.searchParams.get("sport") || "cfb").toLowerCase();
   const lifecycle = String(body.lifecycle || url.searchParams.get("lifecycle") || "pregame").toLowerCase();
   const profile = String(body.profile || url.searchParams.get("profile") || "BASE").toUpperCase();
+  const maxItemsRaw = body.maxItems ?? url.searchParams.get("maxItems");
+  const maxItems = Number.isFinite(Number(maxItemsRaw)) && Number(maxItemsRaw) > 0
+    ? Number(maxItemsRaw)
+    : 20;
 
   try {
     const state = await loadActionSpendState(context.env, { sport, profile, lifecycle });
@@ -85,6 +89,7 @@ async function guardActionCollection(context, request, url) {
       ...state,
       profile,
       lifecycle,
+      maxItems,
       env: context.env,
     });
 
@@ -103,6 +108,8 @@ async function guardActionCollection(context, request, url) {
           dayToDateUsd: guard.dayToDateUsd,
           monthlyBudgetUsd: guard.policy.monthlyBudgetUsd,
           dailyBudgetUsd: guard.policy.dailyBudgetUsd,
+          profileDailyCeilingUsd: guard.profileDailyCeilingUsd,
+          estimatedNextRunUsd: guard.estimatedNextRunUsd,
           successfulRunsToday: guard.successfulRunsToday,
           maxSuccessfulRunsPerDay: guard.policy.maxSuccessfulRunsPerDay,
           cooldownMinutes: guard.cooldownMinutes,
