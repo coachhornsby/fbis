@@ -7,10 +7,10 @@ import {
   evaluateActionSpendGuard,
 } from "../functions/lib/actionCostPolicy.js";
 
-test("default ACTION hard budgets are conservative", () => {
+test("default ACTION hard budgets reserve room for pro props while staying under total ops cap", () => {
   const policy = actionCostPolicyFromEnv({});
-  assert.equal(policy.monthlyBudgetUsd, 15);
-  assert.equal(policy.dailyBudgetUsd, 1.25);
+  assert.equal(policy.monthlyBudgetUsd, 22);
+  assert.equal(policy.dailyBudgetUsd, 0.9);
   assert.equal(policy.maxSuccessfulRunsPerDay, 6);
   assert.deepEqual(policy, ACTION_COST_DEFAULTS);
 });
@@ -41,7 +41,7 @@ test("FINAL_PREGAME can refresh after ninety minutes", () => {
 
 test("hard monthly budget blocks paid collection", () => {
   const guard = evaluateActionSpendGuard({
-    monthToDateUsd: 15,
+    monthToDateUsd: 22,
     dayToDateUsd: 0.1,
     successfulRunsToday: 1,
   });
@@ -52,7 +52,7 @@ test("hard monthly budget blocks paid collection", () => {
 test("hard daily budget blocks paid collection", () => {
   const guard = evaluateActionSpendGuard({
     monthToDateUsd: 8,
-    dayToDateUsd: 1.25,
+    dayToDateUsd: 0.9,
     successfulRunsToday: 3,
   });
   assert.equal(guard.allowed, false);
