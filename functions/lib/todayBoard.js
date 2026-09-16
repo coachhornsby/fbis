@@ -9,7 +9,6 @@ import { DEFAULT_WEIGHTS } from "./weights.js";
 import { palUnavailableReason } from "./ballparkpal.js";
 import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
 import { querySnapshots, queryOddsSnapshots } from "./store.js";
-import { attachActionIntelToGames } from "./boardActionIntel.js";
 import {
   resolveCanonicalMarket,
   marketAvailabilitySummary,
@@ -356,6 +355,14 @@ export async function buildTodayBoard(
   const games = [];
   const feeds = {};
   let parlayNetwork = 0;
+  const actionIntelMeta = {
+    attached: 0,
+    checked: 0,
+    rematched: 0,
+    durableMatched: 0,
+    legacyFallbackMatched: 0,
+    matchedIds: new Set(),
+  };
   for (const sport of sportsToLoad) {
     try {
       const liveFocus = focusSport && focusSport !== "all" && focusSport === sport;
@@ -386,9 +393,30 @@ export async function buildTodayBoard(
         ),
       }, DEFAULT_WEIGHTS);
       const palReason = sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null;
-      const rows = (recSlate.games || []).map((g) =>
-        toBoardGame({ ...g, sport, palUnavailableReason: g.bpp ? g.palUnavailableReason : palReason }, sport, now)
-      );
+
+      // ACTION must hydrate onto slate games BEFORE resolveCanonicalMarket / toBoardGame.
+      let slateGames = (recSlate.games || []).map((g) => ({
+        ...g,
+        sport,
+        palUnavailableReason: g.bpp ? g.palUnavailableReason : palReason,
+      }));
+      if (env.DB) {
+        try {
+          const { attachActionIntelToGames } = await import("./boardActionIntel.js");
+          const attached = await attachActionIntelToGames(slateGames, env.DB);
+          slateGames = attached.games || slateGames;
+          actionIntelMeta.checked += attached.checked || 0;
+          actionIntelMeta.attached += attached.attached || 0;
+          actionIntelMeta.rematched += attached.rematched || 0;
+          actionIntelMeta.durableMatched += attached.durableMatched || 0;
+          actionIntelMeta.legacyFallbackMatched += attached.legacyFallbackMatched || 0;
+          for (const id of attached.matchedIds || []) actionIntelMeta.matchedIds.add(String(id));
+        } catch {
+          // Fail-open: continue without ACTION on this sport.
+        }
+      }
+
+      const rows = slateGames.map((g) => toBoardGame(g, sport, now));
       feeds[sport] = {
         ok: true,
         n: rows.length,
@@ -417,25 +445,11 @@ export async function buildTodayBoard(
       });
     }
   }
-  let all = sortByStart(games);
-  let actionIntelMeta = { attached: 0, checked: 0 };
-  if (env.DB) {
-    try {
-      const attached = await attachActionIntelToGames(all, env.DB);
-      all = sortByStart(attached.games || all);
-      actionIntelMeta = {
-        attached: attached.attached || 0,
-        checked: attached.checked || 0,
-        matchedIds: attached.matchedIds || [],
-      };
-      // Keep per-sport game lists in sync with attached intel.
-      for (const s of sports) {
-        const byId = new Map(all.filter((g) => g.sport === s.sport).map((g) => [g.id, g]));
-        s.games = sortByStart((s.games || []).map((g) => byId.get(g.id) || g));
-      }
-    } catch {
-      // Fail-open: board still renders without ACTION intel.
-    }
+  const all = sortByStart(games);
+  // Derive sport groups from the same canonical game objects (already ACTION-hydrated).
+  for (const s of sports) {
+    const byId = new Map(all.filter((g) => g.sport === s.sport).map((g) => [g.id, g]));
+    s.games = sortByStart((s.games || []).map((g) => byId.get(g.id) || g));
   }
   const empty = all.length ? null : emptyTodayState({ date, feeds });
   return {
@@ -450,7 +464,18 @@ export async function buildTodayBoard(
       displayOnly: true,
       inProductionRouter: false,
       canQualify: false,
-      ...actionIntelMeta,
+      canAuthorizeWager: false,
+      decisionEligible: false,
+      pureGameFeatureAllowed: false,
+      purePlayerFeatureAllowed: false,
+      source: "durable-series",
+      attached: actionIntelMeta.attached,
+      checked: actionIntelMeta.checked,
+      rematched: actionIntelMeta.rematched,
+      durableMatched: actionIntelMeta.durableMatched,
+      legacyFallbackMatched: actionIntelMeta.legacyFallbackMatched,
+      unmatched: Math.max(0, actionIntelMeta.checked - actionIntelMeta.attached),
+      matchedIds: [...actionIntelMeta.matchedIds],
     },
     groups: groupBySport(all).filter((g) => sportsToLoad.includes(g.sport)),
     counts: {

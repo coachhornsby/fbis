@@ -144,6 +144,13 @@ function parseSlipDate(text, dateHint) {
   return `${year}-${String(month).padStart(2, "0")}-${day}`;
 }
 
+/** Evening CT fallback when OCR has a game date but no clock time. */
+export function executedAtFromSlipDate(date) {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(String(date))) return null;
+  // 18:00 America/Chicago ≈ 23:00 UTC during CDT; good enough for matching windows.
+  return `${date}T23:00:00.000Z`;
+}
+
 function parseEntryType(text) {
   const cleaned = String(text || "");
   const power = cleaned.match(/(\d+)\s*[- ]\s*pick\s+power\s*play/i) || cleaned.match(/power\s*play/i);
@@ -425,7 +432,9 @@ export async function parsePrizePicksSlip(text, { dateHint } = {}) {
     return {
       externalTicketId: `${entryId}-L${idx + 1}`,
       executionBook: "PrizePicks",
-      executedAt: null,
+      // Prefer a real slip timestamp; fall back to game-date evening CT so matching
+      // and My Bets sorting still work when OCR omits a clock time.
+      executedAt: executedAtFromSlipDate(date),
       timezone: "America/Chicago",
       sport,
       date,

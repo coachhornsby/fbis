@@ -179,8 +179,11 @@ test("NFL Fri-night Chicago slate horizon includes Sunday board date (audit DATE
   const mlb = defaultFbisSlateDates(auditNow, { sport: "mlb" });
   assert.deepEqual(mlb, ["2026-09-11", "2026-09-12"]);
   const nfl = defaultFbisSlateDates(auditNow, { sport: "nfl" });
+  // Football horizon is a full upcoming week so early-week collections still see Sunday/Monday.
   assert.ok(nfl.includes("2026-09-13"), `nfl slate missing Sunday: ${nfl.join(",")}`);
-  assert.deepEqual(nfl, ["2026-09-11", "2026-09-12", "2026-09-13", "2026-09-14"]);
+  assert.ok(nfl.includes("2026-09-14"), `nfl slate missing Mon: ${nfl.join(",")}`);
+  assert.equal(nfl[0], "2026-09-11");
+  assert.ok(nfl.length >= 7, `expected week-long NFL horizon, got ${nfl.join(",")}`);
 });
 
 test("player-prop normalizer: flat fixture fields + nested player/books Actor shape", () => {
