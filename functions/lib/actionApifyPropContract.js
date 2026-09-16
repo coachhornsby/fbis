@@ -103,7 +103,10 @@ export function isFbisFootballModelMarket(canonical) {
  */
 export function toStablePlayerPropContract(row = {}, ctx = {}) {
   const marketRaw = row.market ?? null;
-  const marketCanonical = canonicalizeFootballPropMarket(marketRaw);
+  // Prefer an upstream-provided canonical (e.g. MLB aliases from boardActionProps)
+  // before football-only alias resolution.
+  const marketCanonical =
+    row.marketCanonical || canonicalizeFootballPropMarket(marketRaw) || null;
   const providerPlayerId = row.providerPlayerId ?? row.playerId ?? null;
   const playerName = row.playerName ?? null;
   const line = row.line ?? null;

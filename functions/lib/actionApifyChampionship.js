@@ -432,8 +432,8 @@ export const CADENCE_EXPERIMENT_PROFILES = Object.freeze({
     windows: {
       OPENING: { profile: "BASE", includeMovement: false, includePlayerProps: false },
       EARLY: { profile: "BASE", includeMovement: false, includePlayerProps: false },
-      PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: false },
-      FINAL_PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: true },
+      FINAL_PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: true },
       POSTGAME: { profile: "FINAL", includeMovement: false, includePlayerProps: false },
     },
     costClass: "PREPAID_VALUE",
@@ -444,8 +444,8 @@ export const CADENCE_EXPERIMENT_PROFILES = Object.freeze({
     windows: {
       OPENING: { profile: "BASE", includeMovement: false, includePlayerProps: false },
       EARLY: { profile: "BASE", includeMovement: false, includePlayerProps: false },
-      PREGAME: { profile: "MOVEMENT", includeMovement: true, includePlayerProps: false },
-      FINAL_PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      PREGAME: { profile: "MOVEMENT", includeMovement: true, includePlayerProps: true },
+      FINAL_PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: true },
       POSTGAME: { profile: "FINAL", includeMovement: false, includePlayerProps: false },
     },
     costClass: "VALUE_JUSTIFIED_OVERAGE",
@@ -456,8 +456,8 @@ export const CADENCE_EXPERIMENT_PROFILES = Object.freeze({
     windows: {
       OPENING: { profile: "MOVEMENT", includeMovement: true, includePlayerProps: false },
       EARLY: { profile: "BASE", includeMovement: false, includePlayerProps: false },
-      PREGAME: { profile: "MOVEMENT", includeMovement: true, includePlayerProps: false },
-      FINAL_PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: false },
+      PREGAME: { profile: "MOVEMENT", includeMovement: true, includePlayerProps: true },
+      FINAL_PREGAME: { profile: "BASE", includeMovement: false, includePlayerProps: true },
       POSTGAME: { profile: "FINAL", includeMovement: false, includePlayerProps: false },
     },
     costClass: "RESEARCH_ONLY",
