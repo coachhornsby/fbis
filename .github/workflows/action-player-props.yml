@@ -39,6 +39,7 @@ jobs:
             http="$(curl -sS --max-time 420 --retry 0 \
               -X POST \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "x-fbis-action-execution: manual-confirmed" \
               -H "content-type: application/json" \
               -H "accept: application/json" \
               -o "$body" -w "%{http_code}" \
