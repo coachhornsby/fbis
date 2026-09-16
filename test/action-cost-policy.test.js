@@ -11,7 +11,7 @@ import {
 
 test("default ACTION hard budgets stay below total ops cap", () => {
   const policy = actionCostPolicyFromEnv({});
-  assert.equal(policy.monthlyBudgetUsd, 22);
+  assert.equal(policy.monthlyBudgetUsd, 19);
   assert.equal(policy.dailyBudgetUsd, 0.9);
   assert.equal(policy.maxSuccessfulRunsPerDay, 6);
   assert.equal(ACTION_COST_DEFAULTS.profileDailyCeilingsUsd.BASE, 0.35);
@@ -45,7 +45,7 @@ test("FINAL_PREGAME can refresh after ninety minutes", () => {
 
 test("hard monthly budget blocks a run before it overshoots", () => {
   const guard = evaluateActionSpendGuard({
-    monthToDateUsd: 21.9,
+    monthToDateUsd: 18.9,
     dayToDateUsd: 0.1,
     successfulRunsToday: 1,
     maxItems: 20,
