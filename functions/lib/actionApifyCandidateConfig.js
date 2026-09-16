@@ -23,16 +23,13 @@ export const COLLECTION_PROFILES = Object.freeze({
   MLB_F5: "MLB_F5",
   PLAYER_PROPS: "PLAYER_PROPS",
   FINAL: "FINAL",
-  /**
-   * Bounded PPE capability audit only — enables BASE enrichments:
-   * movement + player props + game props + game detail.
-   * Shadow/research; never a routine production profile.
-   */
+  // Bounded PPE capability audit only — enables BASE enrichments:
+  // movement + player props + game props + game detail.
+  // Shadow/research; never a routine production profile.
   CAPABILITY_AUDIT: "CAPABILITY_AUDIT",
 });
 
 export const LIFECYCLE_PHASES = Object.freeze({
-  /** Alias for early board snapshot (championship OPENING window). */
   OPENING: "opening",
   EARLY_SLATE: "early_slate",
   PREGAME: "pregame",
@@ -40,7 +37,6 @@ export const LIFECYCLE_PHASES = Object.freeze({
   POSTGAME: "postgame",
 });
 
-/** Observation temporal class — never invent timestamps. */
 export const TEMPORAL_CLASS = Object.freeze({
   PREGAME_OBSERVATION: "pregame_observation",
   EVALUATION_CLOSE: "evaluation_close",
@@ -74,10 +70,6 @@ export const SCHEMA_DRIFT_LEVELS = Object.freeze({
   BLOCK: "BLOCK",
 });
 
-/**
- * @param {unknown} raw
- * @returns {"free"|"starter"}
- */
 export function parseActionApifyPlan(raw) {
   const v = String(raw ?? "free").trim().toLowerCase();
   if (v === "free" || v === "starter") return v;
@@ -86,12 +78,6 @@ export function parseActionApifyPlan(raw) {
   throw err;
 }
 
-/**
- * Plan-aware maxItems. Never infer starter from token presence.
- * @param {unknown} requested
- * @param {"free"|"starter"} plan
- * @param {{ starterCap?: number }} [opts]
- */
 export function resolveMaxItems(requested, plan, opts = {}) {
   const starterCap = Number(opts.starterCap) > 0
     ? Math.floor(Number(opts.starterCap))
@@ -113,12 +99,6 @@ export function resolveMaxItems(requested, plan, opts = {}) {
   throw err;
 }
 
-/**
- * Build Actor input flags from a collection profile.
- * Does not enable every expensive block by default.
- * @param {string} profile
- * @param {{ sport?: string, collectMovement?: boolean, collectMlbF5?: boolean, collectProps?: boolean }} [overrides]
- */
 export function profileToActorFlags(profile, overrides = {}) {
   const p = String(profile || COLLECTION_PROFILES.BASE).toUpperCase();
   const sport = String(overrides.sport || "").toLowerCase();
@@ -132,7 +112,7 @@ export function profileToActorFlags(profile, overrides = {}) {
     includeInjuries: false,
     includeStandings: false,
     includeFutures: false,
-    periods: /** @type {string[]} */ ([]),
+    periods: [],
   };
 
   switch (p) {
@@ -171,11 +151,6 @@ export function profileToActorFlags(profile, overrides = {}) {
   return flags;
 }
 
-/**
- * Lifecycle phase → recommended profile + temporal class.
- * @param {string} phase
- * @param {string} [sport]
- */
 export function cadenceForPhase(phase, sport = "") {
   const p = String(phase || "").toLowerCase();
   const s = String(sport || "").toLowerCase();
@@ -221,11 +196,6 @@ export function cadenceForPhase(phase, sport = "") {
   }
 }
 
-/**
- * Read candidate config from env. Fail-safe defaults.
- * Never infers starter from APIFY_TOKEN alone.
- * @param {Record<string, string|undefined>|null|undefined} env
- */
 export function readCandidateConfig(env) {
   const e = env && typeof env === "object" ? env : {};
   const enabledRaw = String(e.ACTION_APIFY_ENABLED ?? "false").trim().toLowerCase();
@@ -258,8 +228,8 @@ export function readCandidateConfig(env) {
     ? monthlyBudget
     : (plan === "starter" ? ACTION_APIFY_DEFAULT_MONTHLY_BUDGET_USD : 5);
 
-  const profileFor = (sport, fallback) => {
-    const key = `ACTION_APIFY_PROFILE_${String(sport).toUpperCase()}`;
+  const profileFor = (sportName, fallback) => {
+    const key = `ACTION_APIFY_PROFILE_${String(sportName).toUpperCase()}`;
     const v = String(e[key] || fallback || COLLECTION_PROFILES.BASE).trim().toUpperCase();
     return COLLECTION_PROFILES[v] || COLLECTION_PROFILES.BASE;
   };
@@ -283,7 +253,6 @@ export function readCandidateConfig(env) {
       nba: profileFor("nba", COLLECTION_PROFILES.BASE),
       cbb: profileFor("cbb", COLLECTION_PROFILES.BASE),
     },
-    /** Circuit breaker: consecutive Actor failures before pause. */
     circuitBreakerThreshold: Math.max(1, Number(e.ACTION_APIFY_CIRCUIT_BREAKER) || 5),
     maxRunDurationMs: Math.max(30_000, Number(e.ACTION_APIFY_MAX_RUN_MS) || 180_000),
     maxRetries: Math.min(3, Math.max(0, Number(e.ACTION_APIFY_MAX_RETRIES) || 2)),
@@ -298,11 +267,6 @@ function truthy(v) {
   return s === "1" || s === "true" || s === "yes" || s === "on";
 }
 
-/**
- * Health-safe public candidate status (no secrets).
- * @param {ReturnType<typeof readCandidateConfig>} cfg
- * @param {Record<string, unknown>} [runtime]
- */
 export function candidateHealthSection(cfg, runtime = {}) {
   const lastSuccessAt = runtime.lastSuccessAt ?? null;
   const lastRunAt = runtime.lastRunAt ?? null;
