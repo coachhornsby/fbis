@@ -3,6 +3,8 @@ name: ACTION orchestration v2
 # Single paid-collection scheduler for normal production operation.
 # Runs frequently but the planning call is free/read-only. Apify is launched only
 # when D1 slate timing + freshness say a high-value observation is due.
+# Paid execution is fail-closed at the API unless this workflow supplies the
+# scheduler marker below; legacy schedulers therefore cannot spend money.
 on:
   schedule:
     - cron: "7,37 * * * *"
@@ -65,6 +67,7 @@ jobs:
             http="$(curl -sS --max-time 420 --retry 0 \
               -X POST \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "x-fbis-action-execution: orchestrator-v2" \
               -H "content-type: application/json" \
               -H "accept: application/json" \
               -o "$body" -w "%{http_code}" \
