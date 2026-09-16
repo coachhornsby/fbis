@@ -1,0 +1,88 @@
+name: ACTION orchestration v2
+
+# Single paid-collection scheduler for normal production operation.
+# Runs frequently but the planning call is free/read-only. Apify is launched only
+# when D1 slate timing + freshness say a high-value observation is due.
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: action-orchestration-v2
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  orchestrate:
+    name: PLAN → PRIORITIZE → COLLECT
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Require operator secret
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "HARVEST_SECRET unavailable; refusing ACTION orchestration."; exit 1; }
+
+      - name: Build free D1-backed collection plan
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          curl -sS --fail --max-time 60 --retry 0 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "accept: application/json" \
+            "${BASE}/api/action-orchestrator" > /tmp/action-plan.json
+          jq '{ok,version,generatedAt,jobs,sportState,slateMeta}' /tmp/action-plan.json
+          jq -e '.ok == true and (.jobs | type == "array")' /tmp/action-plan.json >/dev/null
+
+      - name: Execute prioritized jobs without retries
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+
+          # The API spend guard is authoritative. This loop intentionally has no
+          # retry path: budget/cooldown/empty-slate responses are valid no-spend outcomes.
+          # Limit each orchestration tick to the top 3 due jobs even if the planner
+          # returns more; later ticks can pick up the rest if budget remains.
+          jq -c '.jobs[:3][]' /tmp/action-plan.json | while IFS= read -r job; do
+            sport="$(jq -r '.sport' <<<"$job")"
+            profile="$(jq -r '.profile' <<<"$job")"
+            lifecycle="$(jq -r '.lifecycle' <<<"$job")"
+            max_items="$(jq -r '.maxItems' <<<"$job")"
+            reason="$(jq -r '.reason' <<<"$job")"
+
+            echo "ACTION due sport=${sport} profile=${profile} lifecycle=${lifecycle} maxItems=${max_items} reason=${reason}"
+            body="$(mktemp)"
+            set +e
+            http="$(curl -sS --max-time 420 --retry 0 \
+              -X POST \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "content-type: application/json" \
+              -H "accept: application/json" \
+              -o "$body" -w "%{http_code}" \
+              -d "{\"execute\":\"1\",\"sport\":\"${sport}\",\"lifecycle\":\"${lifecycle}\",\"profile\":\"${profile}\",\"maxItems\":${max_items}}" \
+              "${BASE}/api/action-apify-collect?execute=1&sport=${sport}&lifecycle=${lifecycle}&profile=${profile}&maxItems=${max_items}")"
+            curl_ec=$?
+            set -e
+
+            echo "ACTION result sport=${sport} profile=${profile} curl_ec=${curl_ec} http=${http:-000}"
+            if jq -e . "$body" >/dev/null 2>&1; then
+              jq -c '{ok,executed,status,reason,sport,profile,lifecycle,expectedSlateGames,gamesReturned,gamesMatched,propsWritten,budget,blocks:(.blocks//[])}' "$body"
+            else
+              head -c 500 "$body" || true
+              echo
+            fi
+
+            # Never retry a paid collection in this workflow.
+            if [ "$curl_ec" -ne 0 ]; then
+              echo "Transport failure; leave recovery to a later orchestrator tick."
+            fi
+          done
