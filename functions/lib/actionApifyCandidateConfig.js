@@ -13,7 +13,9 @@ export const ACTION_APIFY_FREE_MAX_ITEMS = 10;
 /** Safety upper bound even on paid plans (never unbounded). */
 export const ACTION_APIFY_STARTER_SAFETY_CAP = 200;
 
-export const ACTION_APIFY_DEFAULT_MONTHLY_BUDGET_USD = 19;
+// Keep this aligned with the hard ACTION cost policy. $22 leaves operating
+// headroom under the user's <=$30/mo total infrastructure/data ceiling.
+export const ACTION_APIFY_DEFAULT_MONTHLY_BUDGET_USD = 22;
 
 export const COLLECTION_PROFILES = Object.freeze({
   BASE: "BASE",
