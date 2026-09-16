@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import TeamLogo from "../../components/TeamLogo.jsx";
-import { mergeTodayQaFixtures } from "../../lib/boardFixtures.js";
 import { fmtNum, fmtPrice } from "../today/formatters.js";
 import {
   FBIS_PLAYER_MARKETS,
@@ -19,6 +18,8 @@ const TIER_LABELS = Object.freeze({
   WATCH: "Watch",
   NONE: "No FBIS read",
 });
+
+const PRO_SPORTS = new Set(["mlb", "nfl", "nba", "nhl"]);
 
 function fmtProb(v) {
   if (v == null || v === "" || !Number.isFinite(Number(v))) return "—";
@@ -50,6 +51,67 @@ function matchupText(row) {
   return `${away} @ ${home}`;
 }
 
+function PlayerAvatar({ row, size = 54 }) {
+  const [failed, setFailed] = useState(false);
+  if (row?.imageUrl && !failed) {
+    return (
+      <img
+        src={row.imageUrl}
+        alt={row.playerName || "Player headshot"}
+        width={size}
+        height={size}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        style={{
+          width: size,
+          height: size,
+          objectFit: "cover",
+          objectPosition: "center top",
+          borderRadius: "50%",
+          flex: "0 0 auto",
+          background: "rgba(255,255,255,.06)",
+        }}
+      />
+    );
+  }
+  return (
+    <TeamLogo
+      team={row?.teamIdentity || { abbr: row?.team, name: row?.team }}
+      size={Math.min(size, 34)}
+    />
+  );
+}
+
+function rawBoardGames(board = {}) {
+  if (Array.isArray(board?.games)) return board.games;
+  return (board?.groups || []).flatMap((group) => group.games || []);
+}
+
+function mergeDurableProps(board = {}, rows = []) {
+  if (!rows.length) return board || {};
+  const games = rawBoardGames(board);
+  const byEvent = new Map();
+  for (const row of rows) {
+    const id = String(row?.fbisEventId || row?.eventId || "");
+    if (!id) continue;
+    if (!byEvent.has(id)) byEvent.set(id, []);
+    byEvent.get(id).push(row);
+  }
+  const mergedGames = games.map((game) => {
+    const id = String(game?.id || game?.eventId || game?.gameId || "");
+    const durable = byEvent.get(id) || [];
+    if (!durable.length) return game;
+    return {
+      ...game,
+      // Durable ACTION observations are the board read source. Legacy
+      // propConvictions remain a fallback only when no durable rows exist.
+      playerMarkets: durable,
+    };
+  });
+  return { ...board, games: mergedGames };
+}
+
 export default function PlayerPropsBoard({
   board,
   sportFilter = "all",
@@ -61,20 +123,80 @@ export default function PlayerPropsBoard({
   const [marketFilter, setMarketFilter] = useState("all");
   const [supportedOnly, setSupportedOnly] = useState(true);
   const [selectedKey, setSelectedKey] = useState(null);
+  const [durableRows, setDurableRows] = useState([]);
+  const [durableLoading, setDurableLoading] = useState(false);
+  const [durableError, setDurableError] = useState("");
+  const [diagnostics, setDiagnostics] = useState(null);
 
-  const boardWithQa = useMemo(
-    () => mergeTodayQaFixtures(board || { date, games: [] }),
-    [board, date],
+  const eventIds = useMemo(
+    () =>
+      [...new Set(
+        rawBoardGames(board)
+          .filter((game) => PRO_SPORTS.has(String(game?.sport || "").toLowerCase()))
+          .map((game) => String(game?.id || game?.eventId || game?.gameId || "").trim())
+          .filter(Boolean),
+      )],
+    [board],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const filter = String(sportFilter || "all").toLowerCase();
+    if ((filter !== "all" && !PRO_SPORTS.has(filter)) || !eventIds.length) {
+      setDurableRows([]);
+      setDiagnostics(null);
+      setDurableError("");
+      setDurableLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const params = new URLSearchParams({ eventIds: eventIds.join(",") });
+    if (filter !== "all") params.set("sport", filter);
+    setDurableLoading(true);
+    setDurableError("");
+    fetch(`/api/player-props?${params.toString()}`)
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload?.ok === false) {
+          throw new Error(payload?.error || `Player props request failed (${response.status})`);
+        }
+        return payload;
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        setDurableRows(Array.isArray(payload?.rows) ? payload.rows : []);
+        setDiagnostics(payload?.diagnostics || null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setDurableRows([]);
+        setDiagnostics(null);
+        setDurableError(String(err?.message || err));
+      })
+      .finally(() => {
+        if (!cancelled) setDurableLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventIds, sportFilter]);
+
+  const boardWithProps = useMemo(
+    () => mergeDurableProps(board || { date, games: [] }, durableRows),
+    [board, date, durableRows],
   );
 
   const propsBoard = useMemo(
     () =>
-      buildPlayerPropsBoard(boardWithQa, {
+      buildPlayerPropsBoard(boardWithProps, {
         sportFilter: "all",
         date,
         supportedOnly: false,
       }),
-    [boardWithQa, date],
+    [boardWithProps, date],
   );
 
   const filteredRows = useMemo(() => {
@@ -84,9 +206,6 @@ export default function PlayerPropsBoard({
         (r) => String(r.sport || "").toLowerCase() === String(sportFilter).toLowerCase(),
       );
     }
-    if (!rows.length && (propsBoard.allRows || []).length) {
-      rows = propsBoard.allRows || [];
-    }
     if (supportedOnly) rows = rows.filter((r) => r.supportedMarket);
     if (marketFilter !== "all") {
       rows = rows.filter((r) => r.marketCanonical === marketFilter);
@@ -94,35 +213,42 @@ export default function PlayerPropsBoard({
     return sortPropsByConviction(rows);
   }, [propsBoard.allRows, propsBoard.rows, supportedOnly, marketFilter, sportFilter]);
 
+  const availableMarkets = useMemo(() => {
+    const set = new Set((propsBoard.allRows || []).map((row) => row.marketCanonical).filter(Boolean));
+    return FBIS_PLAYER_MARKETS.filter((id) => set.has(id));
+  }, [propsBoard.allRows]);
+
   const players = useMemo(() => groupPlayerPropRows(filteredRows), [filteredRows]);
   const selected = players.find((p) => p.key === selectedKey) || null;
+  const busy = loading || durableLoading;
 
   return (
     <div className="main-content props-board">
       <header className="props-hero">
         <div className="props-hero-copy">
-          <p className="props-kicker">Player props</p>
+          <p className="props-kicker">Player props · Pro sports only</p>
           <h1>Board</h1>
           <p className="props-lede">
-            Sorted by FBIS mispricing — strongest conviction first. Research only; nothing is
-            placed from here.
+            MLB, NFL, NBA and NHL markets from durable ACTION observations. FBIS model reads are
+            shown when available; market rows do not disappear when a projection is unavailable.
           </p>
         </div>
         <div className="props-hero-meta">
           <span>
-            {loading
+            {busy
               ? "Loading…"
               : `${filteredRows.length} prop${filteredRows.length === 1 ? "" : "s"}`}
           </span>
           {onRetry ? (
-            <button type="button" className="header-btn" onClick={onRetry} disabled={loading}>
-              {loading ? "Refreshing…" : "Refresh"}
+            <button type="button" className="header-btn" onClick={onRetry} disabled={busy}>
+              {busy ? "Refreshing…" : "Refresh"}
             </button>
           ) : null}
         </div>
       </header>
 
       {error ? <div className="error">{error}</div> : null}
+      {durableError ? <div className="error">ACTION props: {durableError}</div> : null}
 
       <div className="props-filters" role="toolbar" aria-label="Filter props">
         <button
@@ -132,7 +258,7 @@ export default function PlayerPropsBoard({
         >
           Popular
         </button>
-        {FBIS_PLAYER_MARKETS.map((id) => (
+        {availableMarkets.map((id) => (
           <button
             key={id}
             type="button"
@@ -160,9 +286,11 @@ export default function PlayerPropsBoard({
         <div className="props-empty">
           <h2>Nothing on the board yet</h2>
           <p>
-            {loading
-              ? "Pulling the latest player markets…"
-              : "No player props match these filters. Try another market or refresh."}
+            {busy
+              ? "Reading persisted ACTION player markets…"
+              : diagnostics?.durableObservations > 0
+                ? `ACTION stored ${diagnostics.durableObservations} observations, but none match the current pro-market filters.`
+                : "No persisted ACTION player props are available for these games yet."}
           </p>
         </div>
       ) : (
@@ -183,7 +311,7 @@ export default function PlayerPropsBoard({
 
             return (
               <article
-                key={`${row.eventId}-${row.playerName}-${row.marketCanonical}-${i}`}
+                key={`${row.eventId}-${row.providerPlayerId || row.playerName}-${row.marketCanonical}-${row.book || "book"}-${i}`}
                 className={`props-card props-tier-${tier}${
                   leanMore ? " props-lean-more" : leanLess ? " props-lean-less" : ""
                 }`}
@@ -206,16 +334,13 @@ export default function PlayerPropsBoard({
                   onClick={() => setSelectedKey(playerKey)}
                 >
                   <div className="props-card-identity">
-                    <TeamLogo
-                      team={row.teamIdentity || { abbr: row.team, name: row.team }}
-                      size={28}
-                    />
+                    <PlayerAvatar row={row} size={54} />
                     <span className="props-card-teampos">
                       {teamAbbr}
                       {row.position ? ` · ${row.position}` : ""}
                     </span>
                   </div>
-                  <h3 className="props-card-name">{row.playerName || "Unknown"}</h3>
+                  <h3 className="props-card-name">{row.playerName || "Player"}</h3>
                   <p className="props-card-matchup">{matchupText(row)}</p>
                 </button>
 
