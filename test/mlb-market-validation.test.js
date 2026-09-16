@@ -56,7 +56,15 @@ test("grades model-favorite run-line and total directions independently", () => 
 
 test("keeps pushes out of hit-rate denominator", () => {
   const report = buildMlbMarketValidation([
-    row({ gameId: "push", projAway: 5, projHome: 4, actualAway: 5, actualHome: 4, pinSpread: 1, pinTotal: 9 }),
+    row({
+      gameId: "push",
+      projAway: 5.5,
+      projHome: 4,
+      actualAway: 5,
+      actualHome: 4,
+      pinSpread: 1,
+      pinTotal: 9.5,
+    }),
   ]);
   assert.equal(report.side.pushes, 1);
   assert.equal(report.side.hitRate, null);
@@ -90,9 +98,9 @@ test("uses only the latest pregame frozen snapshot per game", () => {
 
 test("tracks the requested edge buckets and >=1.0 cohort", () => {
   const rows = [
-    row({ gameId: "b1", projAway: 4.6, projHome: 4.7, actualAway: 1, actualHome: 2, pinSpread: -1.5 }), // 1.4 edge, W away +1.5
-    row({ gameId: "b2", matchup: "DET @ TOR", projAway: 4.4, projHome: 3.8, actualAway: 10, actualHome: 1, pinSpread: -1.5 }), // 2.1 edge, W away +1.5
-    row({ gameId: "b3", matchup: "ATL @ CHC", projAway: 4.4, projHome: 6.1, actualAway: 6, actualHome: 3, pinSpread: -1.5 }), // 0.2 edge, L home -1.5
+    row({ gameId: "b1", projAway: 4.6, projHome: 4.7, actualAway: 1, actualHome: 2, pinSpread: -1.5 }),
+    row({ gameId: "b2", matchup: "DET @ TOR", projAway: 4.4, projHome: 3.8, actualAway: 10, actualHome: 1, pinSpread: -1.5 }),
+    row({ gameId: "b3", matchup: "ATL @ CHC", projAway: 4.4, projHome: 6.1, actualAway: 6, actualHome: 3, pinSpread: -1.5 }),
   ];
   const report = buildMlbMarketValidation(rows);
   assert.equal(report.side.n, 3);
