@@ -1,6 +1,6 @@
 name: Action Apify BASE smoke
 
-# One-shot / on-demand shadow smoke. Uses GitHub Actions secrets only.
+# Explicit manual-only paid smoke. Uses GitHub Actions secrets only.
 # Never logs secret values. Never puts Action in the odds router.
 # Spend gate: estimatedCostUsd must be <= 0.25 before execute.
 
@@ -19,10 +19,6 @@ on:
         default: pregame
         type: choice
         options: [early_slate, pregame, final_pregame, postgame]
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/action-apify-smoke.yml"
 
 permissions:
   contents: read
@@ -51,32 +47,6 @@ jobs:
           test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET missing in Actions secrets"; exit 1; }
           echo "harvestAuthAvailable=true"
 
-      # Push-triggered smokes race CI deploy; wait until live Pages serves this SHA.
-      - name: Wait for production deploy SHA
-        env:
-          WANT_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          echo "want_sha=${WANT_SHA}"
-          deadline=$((SECONDS + 900))
-          while true; do
-            tmp="$(mktemp)"
-            code="$(curl -sS --max-time 30 -o "$tmp" -w '%{http_code}' \
-              -H "accept: application/json" \
-              "${BASE}/api/health?_=$(date +%s)" || true)"
-            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp" 2>/dev/null || true)"
-            echo "health_http=${code} live_sha=${live}"
-            if [ "${code}" = "200" ] && [ -n "${live}" ] && [ "${live}" = "${WANT_SHA}" ]; then
-              echo "production_sha_matched=true"
-              break
-            fi
-            if [ "${SECONDS}" -ge "${deadline}" ]; then
-              echo "Timed out waiting for production deploymentCommit=${WANT_SHA} (live=${live})"
-              exit 1
-            fi
-            sleep 15
-          done
-
       - name: No-spend plan
         id: plan
         env:
@@ -91,11 +61,8 @@ jobs:
           echo "plan_http=${code}"
           test "$code" = "200"
           jq -e '.ok == true' "$tmp" >/dev/null
-          # Never print secrets; redact common token shapes if present.
           jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$tmp" > plan.redacted.json
           cat plan.redacted.json
-          # Date-scoped FBIS slate (today+tomorrow) must not be a season dump (~300+).
-          # CFB Saturdays can legitimately land ~80–120 across two days.
           expected="$(jq -r '(.plan.expectedSlateGames // .expectedSlateGames // .gamesExpected // 0)' "$tmp")"
           echo "expectedSlateGames=${expected}"
           python3 - <<PY
@@ -107,7 +74,7 @@ jobs:
           estimate="$(jq -r '(.plan.estimatedCostUsd // .budget.estimatedNextRunUsd // .estimatedCostUsd // 0)' "$tmp")"
           echo "estimate=${estimate}"
           python3 - <<PY
-          import json, os
+          import os
           est = float("${estimate}" or 0)
           cap = float(os.environ["MAX_ESTIMATE_USD"])
           if est > cap:
@@ -133,6 +100,7 @@ jobs:
           code="$(curl -sS --max-time 300 -o "$tmp" -w '%{http_code}' \
             -X POST \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "x-fbis-action-execution: manual-confirmed" \
             -H "content-type: application/json" \
             -H "accept: application/json" \
             -d "{\"execute\":\"1\",\"sport\":\"${SPORT}\",\"lifecycle\":\"${LIFECYCLE}\",\"profile\":\"${PROFILE}\"}" \
@@ -149,7 +117,6 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
-          # Independent requests after execute — must reconstruct from D1, not warm memory.
           for mode in health monthly; do
             tmp="$(mktemp)"
             code="$(curl -sS --max-time 60 -o "$tmp" -w '%{http_code}' \

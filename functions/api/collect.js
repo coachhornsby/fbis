@@ -3,7 +3,14 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { httpStatusForJob, parseJobTrigger, parseJobMode, newJobId, JOB_FAILED, JOB_SUCCESS } from "../lib/jobs.js";
 import { setMeta, persistJobRun } from "../lib/store.js";
 
-/** Pregame collection. Builds every board and freezes checkpoints. Does not require the browser. */
+/**
+ * Pregame collection. Builds model/scoreboard state and freezes checkpoints.
+ *
+ * IMPORTANT: legacy paid odds-provider credentials are intentionally NOT passed
+ * into collectBoards. ACTION has its own cost-governed orchestrator and durable
+ * observation store. This endpoint must never wake Parlay/TheOdds/SharpAPI/
+ * TheRundown simply because an old GitHub schedule still calls /api/collect.
+ */
 export async function onRequestGet(context) {
   const auth = authorizeHarvest(context.request, context.env);
   if (!auth.ok) {
@@ -65,10 +72,7 @@ export async function onRequestGet(context) {
     }
     const payload = await collectBoards(
       {
-        PARLAY_API_KEY: context.env.PARLAY_API_KEY,
-        THEODDS_API_KEY: context.env.THEODDS_API_KEY,
-        SHARPAPI_API_KEY: context.env.SHARPAPI_API_KEY,
-        THERUNDOWN_API_KEY: context.env.THERUNDOWN_API_KEY,
+        // Legacy odds-provider keys deliberately omitted. Do not re-add them here.
         BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
         CFBD_API_KEY: context.env.CFBD_API_KEY,
         CBBD_API_KEY: context.env.CBBD_API_KEY,

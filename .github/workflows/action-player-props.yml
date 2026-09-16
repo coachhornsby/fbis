@@ -1,16 +1,12 @@
-name: ACTION pro player props
+name: ACTION pro player props (manual fallback)
 
-# Cost-controlled, pro-only player-prop snapshots.
-# UTC schedule = 10:30 AM and 3:30 PM Houston during CDT.
-# The API hard guard is authoritative: no Actor launches after daily/monthly caps.
+# Manual fallback only. Normal production scheduling is owned by
+# action-orchestrator.yml so props cannot compete with separate fixed-clock jobs.
 on:
-  schedule:
-    - cron: "30 15 * * *"
-    - cron: "30 20 * * *"
   workflow_dispatch:
 
 concurrency:
-  group: action-pro-player-props
+  group: action-pro-player-props-manual
   cancel-in-progress: false
 
 permissions:
@@ -18,7 +14,7 @@ permissions:
 
 jobs:
   collect-props:
-    name: PRO PLAYER PROPS
+    name: MANUAL PRO PLAYER PROPS
     runs-on: ubuntu-latest
     steps:
       - name: Require operator secret
@@ -37,20 +33,18 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
-          # Priority order matters when the daily budget is nearly exhausted.
-          # NFL goes first for early Sunday/Thursday/Monday markets; MLB follows.
-          # NBA/NHL are attempted only when their same-day FBIS slate exists.
           for sport in nfl mlb nba nhl; do
             body="$(mktemp)"
             set +e
             http="$(curl -sS --max-time 420 --retry 0 \
               -X POST \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "x-fbis-action-execution: manual-confirmed" \
               -H "content-type: application/json" \
               -H "accept: application/json" \
               -o "$body" -w "%{http_code}" \
-              -d "{\"execute\":\"1\",\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"PLAYER_PROPS\",\"maxItems\":28}" \
-              "${BASE}/api/action-apify-collect?execute=1&sport=${sport}&lifecycle=pregame&profile=PLAYER_PROPS&maxItems=28")"
+              -d "{\"execute\":\"1\",\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"PLAYER_PROPS\",\"maxItems\":24}" \
+              "${BASE}/api/action-apify-collect?execute=1&sport=${sport}&lifecycle=pregame&profile=PLAYER_PROPS&maxItems=24")"
             curl_ec=$?
             set -e
 
@@ -61,15 +55,5 @@ jobs:
               head -c 500 "$body" || true
               echo
             fi
-
-            # Never retry paid prop pulls in this workflow. Empty slates, cooldowns,
-            # and budget throttles are expected no-spend outcomes, not failures.
-            if [ "$curl_ec" -ne 0 ]; then
-              echo "Transport failure for ${sport}; continuing without retry to protect budget."
-              continue
-            fi
-            if [ "$http" = "200" ]; then
-              continue
-            fi
-            echo "Non-200 for ${sport}; continuing without retry to protect budget."
+            # No retries. The shared API cost guard remains authoritative.
           done

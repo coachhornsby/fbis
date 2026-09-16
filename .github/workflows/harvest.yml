@@ -1,25 +1,26 @@
 name: FBIS research pipeline
 
-# Explicit mode contract (UTC crons):
-#   collect-full  — 13:00, 16:00          → RESEARCH COLLECT (odds=full)  incl. NFL
-#   collect-cache — 00:00, 02:00, 18:00, 20:00, 22:00 → RESEARCH COLLECT (odds=cache) incl. NFL
-#   harvest       — 11:20, 16:20          → settle / grade only (no collect)
-#   health        — :35 hourly            → read-mostly watchdog; catch-up collect if slot missed
-# workflow_dispatch job=… selects the same modes explicitly.
-# A green health/harvest run does NOT imply NFL collect succeeded.
-# NFL publish proof is soft-fail evidence only (COLLECT can succeed while PUBLICATION_PROOF fails).
+# Core model/settlement pipeline only.
+# IMPORTANT: this workflow never executes ACTION/Apify. Paid ACTION collection is
+# owned exclusively by action-orchestrator.yml. Legacy odds-provider credentials
+# are also disconnected at /api/collect.
+#
+# UTC schedule contract:
+#   collect-full  — 13:00, 16:00
+#   collect-cache — 00:00, 02:00, 18:00, 20:00, 22:00
+#   harvest       — 11:20, 16:20
+#   health        — :35 hourly; read-mostly, core collect/settle recovery only
 
 on:
   schedule:
     - cron: "0 13,16 * * *"
     - cron: "0 0,2,18,20,22 * * *"
     - cron: "20 11,16 * * *"
-    # Hourly watchdog. It is read-mostly and only catches up a genuinely missed slot.
     - cron: "35 * * * *"
   workflow_dispatch:
     inputs:
       job:
-        description: Which job to run
+        description: Which core research job to run
         type: choice
         options:
           - all
@@ -86,7 +87,6 @@ jobs:
           echo "trigger=$TRIGGER" >> "$GITHUB_OUTPUT"
           echo "run_url=${RUN_URL}" >> "$GITHUB_OUTPUT"
           echo "scheduled_slot=${SCHEDULED_EXPRESSION:-manual}" >> "$GITHUB_OUTPUT"
-          echo "Resolved mode=${MODE} trigger=${TRIGGER} scheduled=${SCHEDULED_EXPRESSION:-manual} actual_utc=${HOUR}:${MIN}"
 
   verify-deployment:
     name: VERIFY LIVE PRODUCTION SHA
@@ -94,10 +94,7 @@ jobs:
     needs: [determine-mode]
     outputs:
       outcome: ${{ steps.verify.outputs.verify_outcome }}
-      actual: ${{ steps.verify.outputs.verify_actual }}
-      reason: ${{ steps.verify.outputs.verify_reason }}
       production_sha: ${{ steps.verify.outputs.production_sha }}
-      fail_closed: ${{ steps.verify.outputs.fail_closed }}
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
@@ -106,7 +103,7 @@ jobs:
           cache: "npm"
       - name: Install dependencies
         run: npm ci
-      - name: Resolve live production SHA (not workflow checkout SHA)
+      - name: Resolve live production SHA
         id: verify
         env:
           BASE: "https://fbis-myz.pages.dev"
@@ -115,56 +112,17 @@ jobs:
           WORKFLOW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          # Scheduled research must operate against the SHA that is actually live.
-          # Comparing github.sha races concurrent main deploys and causes false-red.
-          # Fail closed if health never yields a full 40-char production SHA.
           out="$(mktemp)"
-          set +e
           node scripts/verify-deployment-sha.mjs > "$out"
-          ec=$?
-          set -e
           cat "$out"
           outcome="$(jq -r '.outcome // "unavailable"' "$out")"
-          actual="$(jq -r '.actualSha // .productionSha // empty' "$out")"
-          reason="$(jq -r '.reason // "resolve-failed"' "$out")"
           production="$(jq -r '.productionSha // .actualSha // empty' "$out")"
           echo "verify_outcome=${outcome}" >> "$GITHUB_OUTPUT"
-          echo "verify_actual=${actual}" >> "$GITHUB_OUTPUT"
-          echo "verify_reason=${reason}" >> "$GITHUB_OUTPUT"
           echo "production_sha=${production}" >> "$GITHUB_OUTPUT"
-          if [ "$ec" -ne 0 ] || [ "$outcome" != "match" ] || [ "${#production}" -ne 40 ]; then
-            echo "fail_closed=true" >> "$GITHUB_OUTPUT"
-            echo "NO VERIFIED PRODUCTION SHA — research writes blocked. workflow_sha=${WORKFLOW_SHA} live=${production:-unavailable} outcome=${outcome} reason=${reason}"
+          if [ "$outcome" != "match" ] || [ "${#production}" -ne 40 ]; then
+            echo "NO VERIFIED PRODUCTION SHA — research writes blocked."
             exit 1
           fi
-          echo "fail_closed=false" >> "$GITHUB_OUTPUT"
-          echo "Live production SHA snapshot for this research run: ${production}"
-          if [ "$(echo "$WORKFLOW_SHA" | tr 'A-F' 'a-f')" != "$(echo "$production" | tr 'A-F' 'a-f')" ]; then
-            echo "Note: workflow checkout SHA (${WORKFLOW_SHA}) differs from live production (${production}); using live as provenance."
-          fi
-      - name: Record verification outcome
-        if: always() && steps.verify.outputs.verify_outcome != 'match'
-        env:
-          BASE: "https://fbis-myz.pages.dev"
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          EXPECTED_SHA: ${{ steps.verify.outputs.production_sha || github.sha }}
-          OUTCOME: ${{ steps.verify.outputs.verify_outcome }}
-          ACTUAL: ${{ steps.verify.outputs.verify_actual }}
-          REASON: ${{ steps.verify.outputs.verify_reason }}
-          TRIGGER: ${{ needs.determine-mode.outputs.trigger }}
-          RUN_URL: ${{ needs.determine-mode.outputs.run_url }}
-          SCHEDULED_SLOT: ${{ needs.determine-mode.outputs.scheduled_slot }}
-        run: |
-          set -euo pipefail
-          if [ -z "${HARVEST_SECRET:-}" ]; then
-            echo "HARVEST_SECRET unavailable; cannot persist verify failure row."
-            exit 0
-          fi
-          RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
-          curl -sS --max-time 30 \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "accept: application/json" \
-            "${BASE}/api/collect?verifyRecord=1&verifyOutcome=${OUTCOME:-unavailable}&expectedSha=${EXPECTED_SHA}&actualSha=${ACTUAL:-}&reason=${REASON:-}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}" || true
 
   collect:
     name: RESEARCH COLLECT
@@ -178,27 +136,7 @@ jobs:
         sport: [mlb, nba, nfl, cfb, cbb]
     steps:
       - uses: actions/checkout@v4.2.2
-      - name: Assert production SHA unchanged
-        env:
-          BASE: "https://fbis-myz.pages.dev"
-          PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
-        run: |
-          set -euo pipefail
-          test "${#PRODUCTION_SHA}" -eq 40
-          tmp="$(mktemp)"
-          code="$(curl -sS --max-time 20 -o "$tmp" -w "%{http_code}" "${BASE}/api/health?_t=$(date +%s)")"
-          live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp" | tr 'A-F' 'a-f')"
-          expected="$(echo "$PRODUCTION_SHA" | tr 'A-F' 'a-f')"
-          echo "mid-run SHA check http=${code} expected=${expected} live=${live}"
-          if [ "$code" != "200" ] || [ "${#live}" -ne 40 ]; then
-            echo "Production SHA unavailable mid-run — fail closed for writes."
-            exit 1
-          fi
-          if [ "$live" != "$expected" ]; then
-            echo "Production SHA changed mid-run (${expected} -> ${live}) — fail closed (no mixed SHAs)."
-            exit 1
-          fi
-      - name: Collect by sport (isolated)
+      - name: Collect by sport
         env:
           BASE: "https://fbis-myz.pages.dev"
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
@@ -210,94 +148,47 @@ jobs:
           PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
         run: |
           set -euo pipefail
-          echo "collect provenance production_sha=${PRODUCTION_SHA} sport=${SPORT}"
+          test -n "${HARVEST_SECRET:-}"
+          test "${#PRODUCTION_SHA}" -eq 40
+
+          live="$(curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" | jq -r '.deploymentCommit // .build.commitSha // empty' | tr 'A-F' 'a-f')"
+          expected="$(echo "$PRODUCTION_SHA" | tr 'A-F' 'a-f')"
+          if [ "$live" != "$expected" ]; then
+            echo "Production SHA changed mid-run (${expected} -> ${live})"
+            exit 1
+          fi
+
           odds="cache"
           if [ "$MODE" = "collect-full" ] || [ "$MODE" = "all" ]; then odds="full"; fi
           RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
-          SCHEDULED_SLOT_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('SCHEDULED_SLOT',''), safe=''))")"
+          SLOT_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('SCHEDULED_SLOT',''), safe=''))")"
 
-          call_api() {
-            local path="$1"
-            local tmp http curl_ec st ok retryable body_err
+          call_collect() {
+            local off="$1"
+            local suffix=""
+            if [ -n "$off" ]; then suffix="&dayOffset=${off}"; fi
             tmp="$(mktemp)"
-            for attempt in 1 2; do
-              set +e
-              curl -sS --max-time 120 --retry 0 \
-                -H "x-harvest-secret: ${HARVEST_SECRET}" \
-                -H "accept: application/json" \
-                -o "$tmp" -w "%{http_code}" \
-                "${BASE}${path}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
-              curl_ec=$?
-              set -e
-              http="$(tr -d '\r\n' < "${tmp}.code")"
-              if [ "$curl_ec" -ne 0 ]; then
-                echo "transport error attempt ${attempt}/2"
-                sleep $((attempt * 5))
-                continue
-              fi
-              if ! jq -e . "$tmp" >/dev/null 2>&1; then
-                if [ "$http" = "429" ] || [ "$http" = "500" ] || [ "$http" = "502" ] || [ "$http" = "503" ] || [ "$http" = "504" ]; then
-                  echo "non-json retryable http=${http} attempt ${attempt}/2"
-                  sleep $((attempt * 5))
-                  continue
-                fi
-                echo "non-json non-retryable http=${http}"
-                head -c 300 "$tmp" || true
-                return 1
-              fi
-              st="$(jq -r '.status // ""' "$tmp")"
-              ok="$(jq -r '.ok == true' "$tmp")"
-              body_err="$(jq -r '(.errors // []) | join(" | ")' "$tmp")"
-              retryable="false"
-              if [ "$http" = "429" ] || [ "$http" = "500" ] || [ "$http" = "502" ] || [ "$http" = "503" ] || [ "$http" = "504" ]; then retryable="true"; fi
-              if [ "$st" = "failed" ] && echo "$body_err" | grep -qiE "429|503|502|504|timeout|temporar|rate|overloaded"; then retryable="true"; fi
-              if [ "$retryable" = "true" ] && [ "$attempt" -lt 2 ]; then
-                echo "retryable application/http failure http=${http} status=${st} attempt ${attempt}/2"
-                sleep $((attempt * 5))
-                continue
-              fi
-              jq --arg http "$http" '{http:$http,ok:.ok,status:.status,sport:.sports,errors:(.errors//[]),games:.games_discovered,writes_failed:.failed_writes}' "$tmp"
-              if [ "$http" != "200" ] || [ "$ok" != "true" ] || [ "$st" != "success" ]; then
-                return 1
-              fi
-              return 0
-            done
-            return 1
+            code="$(curl -sS --max-time 150 --retry 0 -o "$tmp" -w '%{http_code}' \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
+              "${BASE}/api/collect?odds=${odds}&sport=${SPORT}${suffix}&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SLOT_ENC}")"
+            jq -c '{ok,status,errors:(.errors//[])[:3],games:.games_discovered}' "$tmp" || true
+            test "$code" = "200"
+            jq -e '.ok == true and .status == "success"' "$tmp" >/dev/null
           }
 
-          # Seed/refresh NFL team_form in small chunks before collect (Pages timeout-safe).
-          if [ "$SPORT" = "nfl" ]; then
-            season="$(date -u +%Y)"
-            for start in 1 4 7 10 13 16; do
-              end=$((start + 2))
-              if [ "$end" -gt 18 ]; then end=18; fi
-              weeks=$(seq -s, "$start" "$end")
-              form_http=$(curl -sS --max-time 90 -o /tmp/nfl-form-backfill.json -w "%{http_code}" \
-                -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
-                "${BASE}/api/harvest?formBackfill=1&formSeason=${season}&formWeeks=${weeks}&includePostseason=0&trigger=${TRIGGER}" || echo "000")
-              echo "nfl_form_backfill season=${season} weeks=${weeks} http=${form_http}"
-              jq -c '{ok:.ok,formApplied:.formApplied,formSkipped:.formSkipped,finalsSeen:.finalsSeen,errors:(.errors//[])}' /tmp/nfl-form-backfill.json || true
-              sleep 1
-            done
-          fi
-
           if [ "$SPORT" = "cfb" ] || [ "$SPORT" = "nfl" ]; then
-            for off in 0 1 2; do
-              call_api "/api/collect?odds=${odds}&sport=${SPORT}&dayOffset=${off}"
-            done
+            for off in 0 1 2; do call_collect "$off"; done
           else
-            call_api "/api/collect?odds=${odds}&sport=${SPORT}"
+            call_collect ""
           fi
 
-          # NFL research live-ops proof: board FBIS count + one published ledger row.
-          # Soft evidence only — must never fail the collect matrix job.
+          # NFL publication proof remains research evidence only.
           if [ "$SPORT" = "nfl" ]; then
             set +e
             mkdir -p artifacts
-            # Contract anchors (repair-order.test.js): /api/published-projections + nfl-live-ops-summary.json
-            BASE="$BASE" HARVEST_SECRET="$HARVEST_SECRET" ARTIFACT_DIR=artifacts \
-              node scripts/nfl-publish-proof.mjs || true
+            BASE="$BASE" HARVEST_SECRET="$HARVEST_SECRET" ARTIFACT_DIR=artifacts node scripts/nfl-publish-proof.mjs || true
             test -f artifacts/nfl-live-ops-summary.json || echo '{"ok":false,"reason":"summary-missing"}' > artifacts/nfl-live-ops-summary.json
+            curl -sS --max-time 20 "${BASE}/api/published-projections?sport=nfl&limit=5" > artifacts/nfl-published-after-collect.json || true
             set -e
           fi
 
@@ -309,85 +200,6 @@ jobs:
           path: artifacts/nfl-*.json
           if-no-files-found: warn
           retention-days: 14
-
-  action-market-intel:
-    name: ACTION MARKET INTELLIGENCE
-    runs-on: ubuntu-latest
-    needs: [determine-mode, verify-deployment]
-    # Parallel to incumbent collect. A provider failure is isolated from the
-    # core collector but remains a visible failed job for operator recovery.
-    if: needs.verify-deployment.outputs.outcome == 'match' && contains(fromJSON('["collect-full","collect-cache","all"]'), needs.determine-mode.outputs.mode)
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        sport: [cfb, mlb, nfl, nba, cbb]
-    steps:
-      - name: Assert production SHA unchanged
-        env:
-          BASE: "https://fbis-myz.pages.dev"
-          PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
-        run: |
-          set -euo pipefail
-          test "${#PRODUCTION_SHA}" -eq 40
-          tmp="$(mktemp)"
-          code="$(curl -sS --max-time 20 -o "$tmp" -w "%{http_code}" "${BASE}/api/health?_t=$(date +%s)")"
-          live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp" | tr 'A-F' 'a-f')"
-          expected="$(echo "$PRODUCTION_SHA" | tr 'A-F' 'a-f')"
-          echo "mid-run SHA check http=${code} expected=${expected} live=${live}"
-          if [ "$code" != "200" ] || [ "${#live}" -ne 40 ] || [ "$live" != "$expected" ]; then
-            echo "Production SHA unavailable/changed — skip ACTION write (fail soft)."
-            exit 1
-          fi
-      - name: Collect ACTION market snapshots (shadow-governed)
-        env:
-          BASE: "https://fbis-myz.pages.dev"
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          SPORT: ${{ matrix.sport }}
-          PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
-        run: |
-          set -euo pipefail
-          echo "ACTION market-intel sport=${SPORT} production_sha=${PRODUCTION_SHA}"
-          echo "role=market_intelligence governance=shadow inProductionRouter=false canQualify=false"
-          if [ -z "${HARVEST_SECRET:-}" ]; then
-            echo "HARVEST_SECRET missing — cannot collect ACTION."
-            exit 1
-          fi
-          plan="$(mktemp)"
-          code="$(curl -sS --max-time 60 -o "$plan" -w "%{http_code}" \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "accept: application/json" \
-            "${BASE}/api/action-apify-collect?mode=plan&sport=${SPORT}&lifecycle=pregame&profile=BASE")"
-          echo "plan_http=${code}"
-          jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$plan" || cat "$plan"
-          test "$code" = "200"
-          allowed="$(jq -r '.safety.allowed // .safety.ok // true' "$plan")"
-          estimate="$(jq -r '(.plan.estimatedCostUsd // .budget.estimatedNextRunUsd // 0)' "$plan")"
-          echo "safety_allowed=${allowed} estimate=${estimate}"
-          if [ "$allowed" = "false" ]; then
-            echo "Plan safety blocked — no ACTION spend."
-            exit 0
-          fi
-          python3 - <<PY
-          est = float("${estimate}" or 0)
-          # Soft cap aligns with board fit budget (~$0.95) with headroom for slate spikes.
-          # Collect API now slate-sizes + fits under ACTION_APIFY_BOARD_SOFT_CAP_USD.
-          if est > 2.0:
-              raise SystemExit(f"estimate {est} exceeds soft cap 2.0")
-          print(f"estimate_ok={est}")
-          PY
-          body="$(mktemp)"
-          code="$(curl -sS --max-time 300 -o "$body" -w "%{http_code}" \
-            -X POST \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "content-type: application/json" \
-            -H "accept: application/json" \
-            -d "{\"execute\":\"1\",\"sport\":\"${SPORT}\",\"lifecycle\":\"pregame\",\"profile\":\"BASE\"}" \
-            "${BASE}/api/action-apify-collect?execute=1&sport=${SPORT}&lifecycle=pregame&profile=BASE")"
-          echo "exec_http=${code}"
-          jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?, .rows?)' "$body" || cat "$body"
-          test "$code" = "200"
-          jq -e '.ok == true' "$body" >/dev/null
 
   harvest:
     name: RESEARCH HARVEST
@@ -401,27 +213,7 @@ jobs:
         sport: [cfb, mlb, nba, nfl, cbb]
         dayOffset: [0, 1, 2, 3, 4, 5]
     steps:
-      - name: Assert production SHA unchanged
-        env:
-          BASE: "https://fbis-myz.pages.dev"
-          PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
-        run: |
-          set -euo pipefail
-          test "${#PRODUCTION_SHA}" -eq 40
-          tmp="$(mktemp)"
-          code="$(curl -sS --max-time 20 -o "$tmp" -w "%{http_code}" "${BASE}/api/health?_t=$(date +%s)")"
-          live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp" | tr 'A-F' 'a-f')"
-          expected="$(echo "$PRODUCTION_SHA" | tr 'A-F' 'a-f')"
-          echo "mid-run SHA check http=${code} expected=${expected} live=${live}"
-          if [ "$code" != "200" ] || [ "${#live}" -ne 40 ]; then
-            echo "Production SHA unavailable mid-run — fail closed for writes."
-            exit 1
-          fi
-          if [ "$live" != "$expected" ]; then
-            echo "Production SHA changed mid-run (${expected} -> ${live}) — fail closed (no mixed SHAs)."
-            exit 1
-          fi
-      - name: Harvest by sport (isolated)
+      - name: Harvest by sport and date
         env:
           BASE: "https://fbis-myz.pages.dev"
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
@@ -433,82 +225,115 @@ jobs:
           PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
         run: |
           set -euo pipefail
-          echo "harvest provenance production_sha=${PRODUCTION_SHA} sport=${SPORT}"
-          RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
-          SCHEDULED_SLOT_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('SCHEDULED_SLOT',''), safe=''))")"
-          tmp="$(mktemp)"
+          test -n "${HARVEST_SECRET:-}"
           DAY="$(TZ=America/Chicago date -d "today - ${DAY_OFFSET} days" +%F)"
-          for attempt in 1 2 3; do
-            set +e
-            curl -sS --max-time 180 --retry 0 \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              -H "accept: application/json" \
-              -o "$tmp" -w "%{http_code}" \
-              "${BASE}/api/harvest?date=${DAY}&sport=${SPORT}&settleOnly=1&gradeResearch=1&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SCHEDULED_SLOT_ENC}" > "${tmp}.code"
-            curl_ec=$?
-            set -e
-            http="$(tr -d '\r\n' < "${tmp}.code")"
-            if [ "$curl_ec" -ne 0 ] || [ "$http" = "429" ] || [ "$http" = "500" ] || [ "$http" = "502" ] || [ "$http" = "503" ] || [ "$http" = "504" ] || [ "$http" = "524" ]; then
-              if [ "$attempt" -lt 3 ]; then
-                echo "retryable harvest failure sport=${SPORT} day=${DAY} http=${http} attempt ${attempt}/3"
-                sleep $((attempt * 10))
-                continue
-              fi
-            fi
-            break
-          done
-          if ! jq -e . "$tmp" >/dev/null 2>&1; then
-            echo "non-json harvest response http=${http} day=${DAY}"
-            head -c 300 "$tmp" || true
-            exit 1
-          fi
-          jq --arg http "$http" --arg day "$DAY" '{http:$http,day:$day,ok:.ok,status:.status,sport:(.sports // []),finals_graded:.finals_graded,executed_bets:[(.sports // [])[] | {sport,executedBets}],errors:(.errors // [])}' "$tmp"
-          ok="$(jq -r '.ok == true' "$tmp")"
-          st="$(jq -r '.status // ""' "$tmp")"
-          if [ "$http" != "200" ] || [ "$ok" != "true" ] || [ "$st" != "success" ]; then
-            exit 1
-          fi
+          RUN_URL_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
+          SLOT_ENC="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('SCHEDULED_SLOT',''), safe=''))")"
+          tmp="$(mktemp)"
+          code="$(curl -sS --max-time 180 --retry 1 --retry-delay 5 -o "$tmp" -w '%{http_code}' \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" \
+            "${BASE}/api/harvest?date=${DAY}&sport=${SPORT}&settleOnly=1&gradeResearch=1&trigger=${TRIGGER}&runUrl=${RUN_URL_ENC}&scheduledSlot=${SLOT_ENC}")"
+          jq -c '{ok,status,finals_graded,errors:(.errors//[])[:3]}' "$tmp" || true
+          test "$code" = "200"
+          jq -e '.ok == true and .status == "success"' "$tmp" >/dev/null
 
   health:
-    name: RESEARCH HEALTH / CATCH-UP
+    name: RESEARCH HEALTH / CORE CATCH-UP
     runs-on: ubuntu-latest
     needs: [determine-mode, verify-deployment]
     if: needs.determine-mode.outputs.mode == 'health' && needs.verify-deployment.outputs.outcome == 'match'
     steps:
-      - uses: actions/checkout@v4.2.2
-      - name: Assert production SHA unchanged
+      - name: Core health diagnostic and missed-slot recovery
         env:
           BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          RUN_URL: ${{ needs.determine-mode.outputs.run_url }}
           PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
         run: |
           set -euo pipefail
-          test "${#PRODUCTION_SHA}" -eq 40
+          test -n "${HARVEST_SECRET:-}"
           tmp="$(mktemp)"
-          code="$(curl -sS --max-time 20 -o "$tmp" -w "%{http_code}" "${BASE}/api/health?_t=$(date +%s)")"
+          curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" -o "$tmp"
+          jq '{state,failures,staleChecks,operatorNotes,schedule:.pipeline.schedule,settleTargets:.pipeline.settleTargets,commit:.deploymentCommit}' "$tmp"
+
           live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp" | tr 'A-F' 'a-f')"
           expected="$(echo "$PRODUCTION_SHA" | tr 'A-F' 'a-f')"
-          if [ "$code" != "200" ] || [ "$live" != "$expected" ]; then
-            echo "Production SHA unavailable or changed mid-run — fail closed."
+          if [ "$live" != "$expected" ]; then
+            echo "Production SHA changed mid-run (${expected} -> ${live})"
             exit 1
           fi
-      - name: NFL publication proof (always — soft)
+
+          collect_state="$(jq -r '.pipeline.schedule.collect.state // "unknown"' "$tmp")"
+          harvest_state="$(jq -r '.pipeline.schedule.harvest.state // "unknown"' "$tmp")"
+          need_collect=0
+          need_harvest=0
+          if [ "$collect_state" = "missed" ] || [ "$collect_state" = "delayed" ]; then need_collect=1; fi
+          if [ "$harvest_state" = "missed" ] || [ "$harvest_state" = "delayed" ]; then need_harvest=1; fi
+          if [ "$need_collect" -eq 0 ] && [ "$need_harvest" -eq 0 ]; then
+            echo "No core catch-up required."
+            exit 0
+          fi
+
+          run_url_enc="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
+
+          # Repair premature/cross-date grading only when a settle catch-up is required.
+          if [ "$need_harvest" -eq 1 ]; then
+            curl -sS --max-time 45 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" \
+              -d '{"action":"cleanup-future-grades"}' "${BASE}/api/track" | jq -c '{ok,strategyTicketsReset,executedBetsReset}' || true
+            curl -sS --max-time 45 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" \
+              -d '{"action":"cleanup-cross-date-strategy"}' "${BASE}/api/track" | jq -c '{ok,voided,voidPlanned}' || true
+          fi
+
+          collect_failed=0
+          if [ "$need_collect" -eq 1 ]; then
+            echo "Recovering missed core collect only — ACTION is intentionally excluded."
+            for sport in mlb cfb nfl; do
+              body="$(mktemp)"
+              code="$(curl -sS --max-time 120 --retry 1 --retry-delay 10 -o "$body" -w '%{http_code}' \
+                -H "x-harvest-secret: ${HARVEST_SECRET}" \
+                "${BASE}/api/collect?odds=cache&sport=${sport}&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")" || code=000
+              jq -c '{ok,status,errors:(.errors//[])[:3]}' "$body" 2>/dev/null || true
+              if [ "$code" != "200" ] || [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" != "true" ]; then collect_failed=1; fi
+            done
+          fi
+
+          harvest_failed=0
+          if [ "$need_harvest" -eq 1 ]; then
+            curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" -o "$tmp"
+            mapfile -t TARGETS < <(jq -r '[.pipeline.settleTargets // [] | .[] | select((.openExecutedBets // 0) > 0 or (.openStrategyTickets // 0) > 0) | "\(.sport):\(.date)"] | .[0:14] | .[]' "$tmp")
+            if [ "${#TARGETS[@]}" -eq 0 ]; then
+              mapfile -t TARGETS < <(for i in 0 1 2 3; do day="$(TZ=America/Chicago date -d "today - $i days" +%F)"; for sport in mlb cfb nfl; do echo "${sport}:${day}"; done; done)
+            fi
+            for sport_day in "${TARGETS[@]}"; do
+              sport="${sport_day%%:*}"
+              day="${sport_day##*:}"
+              body="$(mktemp)"
+              code="$(curl -sS --max-time 120 --retry 1 --retry-delay 10 -o "$body" -w '%{http_code}' \
+                -H "x-harvest-secret: ${HARVEST_SECRET}" \
+                "${BASE}/api/harvest?date=${day}&sport=${sport}&settleOnly=1&gradeResearch=1&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")" || code=000
+              if [ "$code" != "200" ] || [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" != "true" ]; then harvest_failed=1; fi
+              sleep 3
+            done
+          fi
+
+          if [ "$collect_failed" != "0" ] || [ "$harvest_failed" != "0" ]; then
+            echo "Core catch-up incomplete collect_failed=${collect_failed} harvest_failed=${harvest_failed}"
+            exit 1
+          fi
+
+      - name: NFL publication proof (soft)
         env:
           BASE: "https://fbis-myz.pages.dev"
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set +e
           mkdir -p artifacts
-          published="$(curl -sS --max-time 20 "${BASE}/api/published-projections?sport=nfl&limit=5" | jq -r '.count // 0')"
-          echo "nfl_published_count_before=${published}"
-          if [ "${published}" != "0" ] && [ -n "${published}" ]; then
-            echo "NFL publication ledger already has rows — still refresh X-ready artifact."
-          fi
-          BASE="$BASE" HARVEST_SECRET="$HARVEST_SECRET" ARTIFACT_DIR=artifacts \
-            node scripts/nfl-publish-proof.mjs || true
-          curl -sS --max-time 20 "${BASE}/api/published-projections?sport=nfl&limit=5" \
-            | tee artifacts/nfl-published-after-health.json \
-            | jq '{ok,count,sample:(.rows//[])[:1]|map({gameId,modelVersion,publishedAt})}'
+          BASE="$BASE" HARVEST_SECRET="$HARVEST_SECRET" ARTIFACT_DIR=artifacts node scripts/nfl-publish-proof.mjs || true
+          curl -sS --max-time 20 "${BASE}/api/published-projections?sport=nfl&limit=5" > artifacts/nfl-published-after-health.json || true
           set -e
+
       - name: Upload NFL health publish artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -517,229 +342,29 @@ jobs:
           path: artifacts/nfl-*.json
           if-no-files-found: warn
           retention-days: 14
-      - name: Health diagnostic and missed-slot recovery
-        env:
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          RUN_URL: ${{ needs.determine-mode.outputs.run_url }}
-          PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
-        run: |
-          set -euo pipefail
-          BASE="https://fbis-myz.pages.dev"
-          echo "health/catch-up provenance production_sha=${PRODUCTION_SHA}"
-          tmp="$(mktemp)"
-          curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" -o "$tmp"
-          jq '{state,failures,staleChecks,operatorNotes,schedule:.pipeline.schedule,settleTargets:.pipeline.settleTargets,retryOpen:.pipeline.retryOpen,commit:.deploymentCommit}' "$tmp"
-          collect_state="$(jq -r '.pipeline.schedule.collect.state // "unknown"' "$tmp")"
-          harvest_state="$(jq -r '.pipeline.schedule.harvest.state // "unknown"' "$tmp")"
-          harvest_ok="$(jq -r '.checks[] | select(.name=="scheduled-harvest") | .ok' "$tmp")"
-          harvest_stale="$(jq -r '.checks[] | select(.name=="scheduled-harvest") | .stale' "$tmp")"
-          collect_ok="$(jq -r '.checks[] | select(.name=="scheduled-collect") | .ok' "$tmp")"
-          action_enabled="$(jq -r '.actionApify.enabled // false' "$tmp")"
-          action_runs_24h="$(jq -r '.actionApify.runsLast24h // 0' "$tmp")"
-          need_collect=0
-          need_harvest=0
-          need_action=0
-          if [ "$collect_state" = "missed" ] || [ "$collect_ok" = "false" ] || [ "$collect_state" = "delayed" ]; then need_collect=1; fi
-          if [ "$harvest_state" = "missed" ] || [ "$harvest_ok" = "false" ] || [ "$harvest_stale" = "true" ]; then need_harvest=1; fi
-          if [ "$action_enabled" = "true" ] && [ "$action_runs_24h" -lt 1 ]; then need_action=1; fi
-          if [ "$need_collect" -eq 0 ] && [ "$need_harvest" -eq 0 ] && [ "$need_action" -eq 0 ]; then
-            echo "No catch-up required. collect=${collect_state} harvest=${harvest_state} harvest_ok=${harvest_ok} harvest_stale=${harvest_stale}"
-            exit 0
-          fi
-          if [ -z "${HARVEST_SECRET:-}" ]; then
-            echo "Catch-up required but HARVEST_SECRET is unavailable; fail visibly."
-            exit 1
-          fi
-          run_url_enc="$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ.get('RUN_URL',''), safe=''))")"
-          # Reopen premature grades before settle (moved out of deploy release gate).
-          cleanup_tmp="$(mktemp)"
-          set +e
-          cleanup_code="$(curl -sS --max-time 45 -o "$cleanup_tmp" -w "%{http_code}" \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "content-type: application/json" \
-            -H "accept: application/json" \
-            -d '{"action":"cleanup-future-grades"}' \
-            "${BASE}/api/track")"
-          cleanup_ec=$?
-          set -e
-          echo "cleanup-future-grades curl_ec=${cleanup_ec} http=${cleanup_code:-000}"
-          jq -c '{ok,strategyTicketsReset,executedBetsReset}' "$cleanup_tmp" 2>/dev/null || true
-          collect_failed=0
-          if [ "$need_collect" -eq 1 ]; then
-            echo "Recovering missed/stale/delayed collect slot"
-            for sport in mlb cfb nfl; do
-              body="$(mktemp)"
-              ok_collect=0
-              for attempt in 1 2 3; do
-                set +e
-                code="$(curl -sS --max-time 120 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/collect?mode=cache&sport=${sport}&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")"
-                curl_ec=$?
-                set -e
-                echo "collect-recovery ${sport} attempt=${attempt} curl_ec=${curl_ec} http=${code}"
-                jq -c '{ok,status,errors:(.errors//[])[:3]}' "$body" 2>/dev/null || head -c 300 "$body" || true
-                if [ "$curl_ec" -eq 0 ] && [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" = "true" ]; then
-                  ok_collect=1
-                  break
-                fi
-                if [ "$curl_ec" -ne 0 ] || [ "$code" = "000" ] || [ "$code" = "429" ] || [ "$code" = "500" ] || [ "$code" = "502" ] || [ "$code" = "503" ] || [ "$code" = "504" ] || [ "$code" = "524" ]; then
-                  sleep $((attempt * 15))
-                  continue
-                fi
-                sleep $((attempt * 8))
-              done
-              if [ "$ok_collect" != "1" ]; then
-                echo "collect-recovery ${sport} failed after retries (continuing so harvest catch-up can still run)"
-                collect_failed=1
-              fi
-            done
-          fi
-          action_failed=0
-          if [ "$need_action" -eq 1 ] || [ "$need_collect" -eq 1 ]; then
-            echo "Recovering stale ACTION board intelligence"
-            for sport in mlb cfb nfl; do
-              body="$(mktemp)"
-              set +e
-              code="$(curl -sS --max-time 420 -o "$body" -w '%{http_code}' \
-                -X POST \
-                -H "x-harvest-secret: ${HARVEST_SECRET}" \
-                -H "content-type: application/json" \
-                -H "accept: application/json" \
-                -d "{\"execute\":\"1\",\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"BASE\"}" \
-                "${BASE}/api/action-apify-collect?execute=1&sport=${sport}&lifecycle=pregame&profile=BASE")"
-              curl_ec=$?
-              set -e
-              echo "action-recovery ${sport} curl_ec=${curl_ec} http=${code:-000}"
-              jq -c '{ok,status,gamesReturned,gamesMatched,gamesUnmatched,observationsWritten,expectedSlateGames}' "$body" 2>/dev/null || true
-              if [ "$curl_ec" -ne 0 ] || [ "$code" != "200" ] || [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" != "true" ]; then
-                action_failed=1
-              fi
-            done
-          fi
-          harvest_failed=0
-          if [ "$need_harvest" -eq 1 ]; then
-            echo "Recovering missed/stale harvest using targeted settle dates"
-            # Void cross-date duplicate OPEN strategy tickets before settle.
-            cross_tmp="$(mktemp)"
-            set +e
-            cross_code="$(curl -sS --max-time 90 -o "$cross_tmp" -w "%{http_code}" \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              -H "content-type: application/json" \
-              -H "accept: application/json" \
-              -d '{"action":"cleanup-cross-date-strategy"}' \
-              "${BASE}/api/track")"
-            cross_ec=$?
-            set -e
-            echo "cleanup-cross-date-strategy curl_ec=${cross_ec} http=${cross_code:-000}"
-            jq -c '{ok,voided,voidPlanned,keepN}' "$cross_tmp" || true
-            # Refresh settleTargets after voids so volume-sorted targets are accurate.
-            curl -sS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" -o "$tmp"
-            mapfile -t TARGETS < <(jq -r '
-              [.pipeline.settleTargets // []
-                | .[]
-                | select((.openExecutedBets // 0) > 0 or (.openStrategyTickets // 0) > 0)
-                | "\(.sport):\(.date)"]
-              | .[0:14]
-              | .[]
-            ' "$tmp")
-            if [ "${#TARGETS[@]}" -eq 0 ]; then
-              mapfile -t TARGETS < <(for i in 0 1 2 3; do
-                day="$(TZ=America/Chicago date -d "today - $i days" +%F)"
-                for sport in mlb cfb nfl; do echo "${sport}:${day}"; done
-              done)
-            fi
-            harvest_failed=0
-            for sport_day in "${TARGETS[@]}"; do
-              sport="${sport_day%%:*}"
-              day="${sport_day##*:}"
-              body="$(mktemp)"
-              ok_day=0
-              for attempt in 1 2 3 4; do
-                set +e
-                code="$(curl -sS --max-time 90 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/harvest?date=${day}&sport=${sport}&settleOnly=1&gradeResearch=1&trigger=schedule&scheduledSlot=watchdog-recovery&runUrl=${run_url_enc}")"
-                curl_ec=$?
-                set -e
-                echo "harvest ${sport} ${day} attempt=${attempt} curl_ec=${curl_ec} http=${code}"
-                body_snip="$(head -c 400 "$body" 2>/dev/null || true)"
-                if [ "$curl_ec" -ne 0 ] || [ "$code" = "000" ] || [ "$code" = "429" ] || [ "$code" = "500" ] || [ "$code" = "502" ] || [ "$code" = "503" ] || [ "$code" = "504" ] || [ "$code" = "524" ]; then
-                  sleep $((attempt * 10))
-                  continue
-                fi
-                if echo "$body_snip" | grep -qiE 'D1.*(overload|too many|busy|retry)|error code: 1102'; then
-                  sleep $((attempt * 15))
-                  continue
-                fi
-                jq '{ok,status,finals_graded,errors,dates,executed_bets:(.sports//[])}' "$body" || true
-                if [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" = "true" ]; then
-                  ok_day=1
-                  break
-                fi
-                sleep $((attempt * 5))
-              done
-              if [ "$ok_day" -ne 1 ]; then
-                echo "targeted settle failed for ${sport} ${day}"
-                harvest_failed=1
-              fi
-              sleep 5
-            done
-          fi
-          if [ "$collect_failed" != "0" ] || [ "$harvest_failed" != "0" ] || [ "$action_failed" != "0" ]; then
-            echo "Catch-up incomplete collect_failed=${collect_failed} harvest_failed=${harvest_failed} action_failed=${action_failed}"
-            exit 1
-          fi
 
   summary:
     name: RESEARCH SUMMARY
     runs-on: ubuntu-latest
-    needs: [determine-mode, verify-deployment, collect, action-market-intel, harvest, health]
+    needs: [determine-mode, verify-deployment, collect, harvest, health]
     if: always()
     steps:
-      - name: Consolidated pipeline summary
+      - name: Consolidated core pipeline summary
         env:
           MODE: ${{ needs.determine-mode.outputs.mode }}
           VERIFY: ${{ needs.verify-deployment.result }}
           COLLECT: ${{ needs.collect.result }}
           HARVEST: ${{ needs.harvest.result }}
           HEALTH: ${{ needs.health.result }}
-          ACTION: ${{ needs.action-market-intel.result }}
         run: |
           set -euo pipefail
-          echo "mode=${MODE}"
-          echo "verify-deployment=${VERIFY}"
-          echo "collect=${COLLECT}"
-          echo "harvest=${HARVEST}"
-          echo "health=${HEALTH}"
-          echo "action-market-intel=${ACTION} (visible failure; core collect remains isolated)"
-          echo "verify-outcome=${{ needs.verify-deployment.outputs.outcome }}"
-          echo "production-sha=${{ needs.verify-deployment.outputs.production_sha }}"
-          echo "verify-reason=${{ needs.verify-deployment.outputs.reason }}"
-          # Telemetry separation: a green harvest/health run ≠ NFL collect success.
+          echo "mode=${MODE} verify=${VERIFY} collect=${COLLECT} harvest=${HARVEST} health=${HEALTH}"
+          echo "ACTION: NOT OWNED BY THIS WORKFLOW"
+          if [ "$VERIFY" != "success" ]; then exit 1; fi
           case "$MODE" in
-            collect-full|collect-cache|all)
-              if [ "$COLLECT" = "success" ]; then
-                echo "NFL/RESEARCH COLLECT: SUCCESS (matrix job green; publish proof is soft-fail separately)"
-              else
-                echo "NFL/RESEARCH COLLECT: FAILED_OR_SKIPPED result=${COLLECT}"
-              fi
-              ;;
-            *)
-              echo "NFL/RESEARCH COLLECT: NOT_IN_SCOPE_FOR_MODE mode=${MODE}"
-              ;;
+            health) [ "$HEALTH" = "success" ] ;;
+            collect-full|collect-cache) [ "$COLLECT" = "success" ] ;;
+            harvest) [ "$HARVEST" = "success" ] ;;
+            all) [ "$COLLECT" = "success" ] && [ "$HARVEST" = "success" ] ;;
+            *) exit 1 ;;
           esac
-          if [ "$VERIFY" != "success" ]; then
-            echo "VERIFY LIVE PRODUCTION SHA fail-closed (no research writes)."
-            exit 1
-          fi
-          if [ "$MODE" = "health" ]; then
-            [ "$HEALTH" = "success" ] && exit 0 || exit 1
-          fi
-          if [ "$MODE" = "collect-full" ] || [ "$MODE" = "collect-cache" ]; then
-            [ "$COLLECT" = "success" ] && exit 0 || exit 1
-          fi
-          if [ "$MODE" = "harvest" ]; then
-            [ "$HARVEST" = "success" ] && exit 0 || exit 1
-          fi
-          if [ "$MODE" = "all" ]; then
-            [ "$COLLECT" = "success" ] && [ "$HARVEST" = "success" ] && exit 0 || exit 1
-          fi
-          echo "Unknown mode ${MODE}"
-          exit 1

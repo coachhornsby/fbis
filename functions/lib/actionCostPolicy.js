@@ -1,9 +1,19 @@
 export const ACTION_COST_DEFAULTS = Object.freeze({
-  // Keep ACTION inside the user's <=$30/mo total operating ceiling while
-  // reserving enough room for the pro-player-prop snapshots that actually matter.
-  monthlyBudgetUsd: 22,
+  // ACTION has a hard $19/month default so the rest of FBIS infrastructure
+  // retains headroom inside the user's <=$30/month operating ceiling.
+  // Daily ceilings reserve spend for later, higher-value windows instead of
+  // letting early BASE calls consume the entire day.
+  monthlyBudgetUsd: 19,
   dailyBudgetUsd: 0.9,
   maxSuccessfulRunsPerDay: 6,
+  profileDailyCeilingsUsd: Object.freeze({
+    BASE: 0.35,
+    PLAYER_PROPS: 0.72,
+    MLB_F5: 0.72,
+    MOVEMENT: 0.9,
+    FINAL: 0.9,
+    CAPABILITY_AUDIT: 0.9,
+  }),
 });
 
 const PROFILE_COOLDOWN_MINUTES = Object.freeze({
@@ -52,6 +62,19 @@ export function actionCooldownMinutes({ profile, lifecycle, env = {} } = {}) {
   return PROFILE_COOLDOWN_MINUTES[p] || 240;
 }
 
+export function profileDailyCeilingUsd(profile, env = {}) {
+  const p = String(profile || "BASE").toUpperCase();
+  const explicit = Number(env[`ACTION_APIFY_DAILY_CEILING_${p}_USD`]);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  return ACTION_COST_DEFAULTS.profileDailyCeilingsUsd[p] ?? ACTION_COST_DEFAULTS.dailyBudgetUsd;
+}
+
+/** Conservative preflight estimate. Observed ACTION runs have been ~0.0076/item. */
+export function estimateActionRunUsd(maxItems) {
+  const n = Math.max(1, Math.min(200, Number(maxItems) || 20));
+  return Math.max(0.05, n * 0.008);
+}
+
 export function evaluateActionSpendGuard({
   now = new Date(),
   monthToDateUsd = 0,
@@ -60,27 +83,40 @@ export function evaluateActionSpendGuard({
   lastSuccessAt = null,
   profile = "BASE",
   lifecycle = "pregame",
+  maxItems = 20,
   env = {},
 } = {}) {
   const policy = actionCostPolicyFromEnv(env);
   const cooldownMinutes = actionCooldownMinutes({ profile, lifecycle, env });
   const blocks = [];
 
+  const p = String(profile || "BASE").toUpperCase();
   const mtd = Number(monthToDateUsd) || 0;
   const dtd = Number(dayToDateUsd) || 0;
   const runs = Number(successfulRunsToday) || 0;
+  const estimatedNextRunUsd = estimateActionRunUsd(maxItems);
+  const profileCeilingUsd = Math.min(policy.dailyBudgetUsd, profileDailyCeilingUsd(p, env));
 
-  if (mtd >= policy.monthlyBudgetUsd - 1e-9) {
+  if (mtd + estimatedNextRunUsd > policy.monthlyBudgetUsd + 1e-9) {
     blocks.push({
       code: "HARD_MONTHLY_BUDGET",
-      message: `ACTION hard monthly budget reached (${mtd.toFixed(2)} / ${policy.monthlyBudgetUsd.toFixed(2)})`,
+      message: `ACTION next run would exceed monthly budget (${mtd.toFixed(2)} + ${estimatedNextRunUsd.toFixed(2)} > ${policy.monthlyBudgetUsd.toFixed(2)})`,
     });
   }
 
-  if (dtd >= policy.dailyBudgetUsd - 1e-9) {
+  if (dtd + estimatedNextRunUsd > policy.dailyBudgetUsd + 1e-9) {
     blocks.push({
       code: "HARD_DAILY_BUDGET",
-      message: `ACTION hard daily budget reached (${dtd.toFixed(2)} / ${policy.dailyBudgetUsd.toFixed(2)})`,
+      message: `ACTION next run would exceed daily budget (${dtd.toFixed(2)} + ${estimatedNextRunUsd.toFixed(2)} > ${policy.dailyBudgetUsd.toFixed(2)})`,
+    });
+  }
+
+  // Information-value reservation: low-value BASE calls stop early so later
+  // PLAYER_PROPS and FINAL_PREGAME windows retain spend headroom.
+  if (dtd + estimatedNextRunUsd > profileCeilingUsd + 1e-9) {
+    blocks.push({
+      code: "PROFILE_DAILY_RESERVE",
+      message: `ACTION ${p} daily allocation exhausted (${dtd.toFixed(2)} + ${estimatedNextRunUsd.toFixed(2)} > ${profileCeilingUsd.toFixed(2)})`,
     });
   }
 
@@ -98,7 +134,7 @@ export function evaluateActionSpendGuard({
       if (elapsedMinutes >= 0 && elapsedMinutes < cooldownMinutes) {
         blocks.push({
           code: "COLLECTION_COOLDOWN",
-          message: `ACTION ${String(profile || "BASE").toUpperCase()} cooldown active (${Math.floor(elapsedMinutes)}m elapsed; ${cooldownMinutes}m required)`,
+          message: `ACTION ${p} cooldown active (${Math.floor(elapsedMinutes)}m elapsed; ${cooldownMinutes}m required)`,
           retryAfterMinutes: Math.ceil(cooldownMinutes - elapsedMinutes),
         });
       }
@@ -110,6 +146,8 @@ export function evaluateActionSpendGuard({
     blocks,
     policy,
     cooldownMinutes,
+    profileDailyCeilingUsd: profileCeilingUsd,
+    estimatedNextRunUsd,
     monthToDateUsd: mtd,
     dayToDateUsd: dtd,
     successfulRunsToday: runs,

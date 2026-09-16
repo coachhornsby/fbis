@@ -1,6 +1,9 @@
 import { authorizeOperatorWrite, authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 import { evaluateActionSpendGuard } from "../lib/actionCostPolicy.js";
 
+const ACTION_EXECUTION_HEADER = "x-fbis-action-execution";
+const ACTION_EXECUTION_MARKERS = new Set(["orchestrator-v2", "manual-confirmed"]);
+
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -79,12 +82,38 @@ async function guardActionCollection(context, request, url) {
   const lifecycle = String(body.lifecycle || url.searchParams.get("lifecycle") || "pregame").toLowerCase();
   const profile = String(body.profile || url.searchParams.get("profile") || "BASE").toUpperCase();
 
+  // Paid ACTION execution has one production scheduler. Legacy cron/watchdog code
+  // may still reach this endpoint during a rolling deploy, but it cannot launch an
+  // Actor unless it presents an explicit current scheduler or manual marker.
+  const executionMarker = String(request.headers.get(ACTION_EXECUTION_HEADER) || "").toLowerCase();
+  if (!ACTION_EXECUTION_MARKERS.has(executionMarker)) {
+    return json({
+      ok: true,
+      executed: false,
+      status: "stale_scheduler_blocked",
+      reason: "Paid ACTION collection requires the current orchestrator or explicit manual marker",
+      sport,
+      lifecycle,
+      profile,
+      inProductionRouter: false,
+      canQualify: false,
+      canAuthorizeWager: false,
+      affectsProductionOdds: false,
+    });
+  }
+
+  const maxItemsRaw = body.maxItems ?? url.searchParams.get("maxItems");
+  const maxItems = Number.isFinite(Number(maxItemsRaw)) && Number(maxItemsRaw) > 0
+    ? Number(maxItemsRaw)
+    : 20;
+
   try {
     const state = await loadActionSpendState(context.env, { sport, profile, lifecycle });
     const guard = evaluateActionSpendGuard({
       ...state,
       profile,
       lifecycle,
+      maxItems,
       env: context.env,
     });
 
@@ -103,6 +132,8 @@ async function guardActionCollection(context, request, url) {
           dayToDateUsd: guard.dayToDateUsd,
           monthlyBudgetUsd: guard.policy.monthlyBudgetUsd,
           dailyBudgetUsd: guard.policy.dailyBudgetUsd,
+          profileDailyCeilingUsd: guard.profileDailyCeilingUsd,
+          estimatedNextRunUsd: guard.estimatedNextRunUsd,
           successfulRunsToday: guard.successfulRunsToday,
           maxSuccessfulRunsPerDay: guard.policy.maxSuccessfulRunsPerDay,
           cooldownMinutes: guard.cooldownMinutes,
@@ -140,7 +171,7 @@ async function guardActionCollection(context, request, url) {
  * Read endpoints remain public.
  * - Board operator actions (manual-final) allow same-origin, like Heritage import.
  * - Destructive research mutations on /api/track still require the strategy/harvest secret.
- * - Paid ACTION collection is D1-first and hard-throttled before the Actor can launch.
+ * - Paid ACTION collection is D1-first, single-scheduler, and hard-throttled before the Actor can launch.
  */
 export async function onRequest(context) {
   const request = context.request;
