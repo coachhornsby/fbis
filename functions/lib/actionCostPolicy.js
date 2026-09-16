@@ -1,8 +1,9 @@
 export const ACTION_COST_DEFAULTS = Object.freeze({
-  // Total ACTION budget remains comfortably inside the user's <=$30/mo
-  // operating ceiling. Daily ceilings below reserve spend for later, higher-value
-  // windows instead of letting early BASE calls consume the entire day.
-  monthlyBudgetUsd: 22,
+  // ACTION has a hard $19/month default so the rest of FBIS infrastructure
+  // retains headroom inside the user's <=$30/month operating ceiling.
+  // Daily ceilings reserve spend for later, higher-value windows instead of
+  // letting early BASE calls consume the entire day.
+  monthlyBudgetUsd: 19,
   dailyBudgetUsd: 0.9,
   maxSuccessfulRunsPerDay: 6,
   profileDailyCeilingsUsd: Object.freeze({
