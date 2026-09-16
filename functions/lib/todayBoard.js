@@ -1,6 +1,6 @@
 /**
  * TODAY board: every scheduled game on the operator CT date, all supported sports.
- * Ordinary loads are cache-only for Parlay (and Pal). ESPN/MLB Stats remain free.
+ * Ordinary loads are cache-only for paid/legacy market feeds. ESPN/MLB Stats remain free.
  */
 
 import { BOARD_SPORTS, SPORTS, todayCT, shiftDateCT, buildSlate, recommendBundle } from "./slateEngine.js";
@@ -9,6 +9,7 @@ import { DEFAULT_WEIGHTS } from "./weights.js";
 import { palUnavailableReason } from "./ballparkpal.js";
 import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
 import { querySnapshots, queryOddsSnapshots } from "./store.js";
+import { attachActionPlayerPropsToGames } from "./boardActionProps.js";
 import {
   resolveCanonicalMarket,
   marketAvailabilitySummary,
@@ -53,6 +54,25 @@ export function utcMidnightVsCt(utcIso) {
   return { utcDate, ctDate, differs: utcDate !== ctDate };
 }
 
+export function isGameOnBoardDate(game, date) {
+  const start = game?.start;
+  if (!start || !date) return false;
+  const parsed = new Date(start);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return todayCTFrom(parsed) === date;
+}
+
+function hasComparableOperationalMarket(market, marketAvail) {
+  if (!marketAvail?.marketAvailable) return false;
+  const offer = market?.comparison || {};
+  return Boolean(
+    offer.spread != null ||
+      offer.total != null ||
+      offer.moneyline?.home != null ||
+      offer.moneyline?.away != null
+  );
+}
+
 export function toBoardGame(game, sport, now = Date.now()) {
   const status = classifyBoardStatus(game, now);
   const pinSpread =
@@ -60,11 +80,12 @@ export function toBoardGame(game, sport, now = Date.now()) {
     (game.odds?.pinSpreadHomePrice != null ? game.odds.spread : null);
   const pinTotal =
     game.odds?.pinTotal ?? (game.odds?.pinOverPrice != null ? game.odds.total : null);
-  const market = resolveCanonicalMarket(game);
+  const market = resolveCanonicalMarket(game, { now });
   const marketAvail = marketAvailabilitySummary(market);
+  const comparableOperationalMarket = hasComparableOperationalMarket(market, marketAvail);
   const qualityFlags = normalizeQualityFlags(game.quality?.flags || [], market);
   const qualityComponents = resolveMarketQualityComponents(game, market);
-  const rec = game.rec || null;
+  const rec = game.rec && comparableOperationalMarket ? game.rec : null;
   const lean = game.lean || null;
   const sportsbookProps = [...(game.odds?.playerProps || [])]
     .filter((p) => p?.overPrice != null && p?.underPrice != null && p?.line != null);
@@ -124,7 +145,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     researchProjection: game.researchProjection || null,
     probabilityProvenance: game.probabilityProvenance || game.model?.probabilityProvenance || null,
     pureProjectionAvailable: game.pureProjectionAvailable ?? null,
-    canQualify: game.canQualify !== false && !game.qualificationBlocked,
+    canQualify: game.canQualify !== false && !game.qualificationBlocked && comparableOperationalMarket,
     projectionRecipe: game.model?.recipe || null,
     cfbDetail: game.cfb ? {
       hfa: game.cfb.hfa, sigmaMargin: game.cfb.sigmaMargin, sigmaTotal: game.cfb.sigmaTotal,
@@ -148,6 +169,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
       ? { ...game.quality, flags: qualityFlags, components: qualityComponents }
       : { flags: qualityFlags, components: qualityComponents, score: qualityComponents?.operationalScore ?? null },
     market,
+    marketComparable: comparableOperationalMarket,
     marketAvailable: marketAvail.marketAvailable,
     executionMarketAvailable: marketAvail.executionMarketAvailable,
     referenceMarketAvailable: marketAvail.referenceMarketAvailable,
@@ -171,14 +193,13 @@ export function toBoardGame(game, sport, now = Date.now()) {
           reason: lean.reason || noPlayReason({ ...game, lean, rec: null, market }),
         }
       : null,
-    noPlayReason: rec ? null : noPlayReason({ ...game, market }),
-    // Operational market = execution OR consensus. Pinnacle/reference alone is NOT enough.
+    noPlayReason: rec ? null : (!comparableOperationalMarket ? "OPERATIONAL_MARKET_UNAVAILABLE" : noPlayReason({ ...game, market })),
     marketUnavailable: !marketAvail.marketAvailable,
     executionMarketUnavailable: !marketAvail.executionMarketAvailable,
     referenceMarketUnavailable: !marketAvail.referenceMarketAvailable,
     operationalMarketLabel: marketAvail.labels?.market || null,
     projectionUnavailable: (game.model?.projHome == null && game.model?.projAway == null) || game.projectionKind === "UNAVAILABLE",
-    qualificationBlocked: Boolean(game.qualificationBlocked || (game.cfb && !game.cfb.bettingAllowed) || (game.sport === "nfl" && game.projectionKind !== "FBIS")),
+    qualificationBlocked: Boolean(game.qualificationBlocked || !comparableOperationalMarket || (game.cfb && !game.cfb.bettingAllowed) || (game.sport === "nfl" && game.projectionKind !== "FBIS")),
     challengers: game.challengers || null,
     championModel: game.championModel || null,
     palMatched: Boolean(game.bpp),
@@ -193,9 +214,9 @@ export function toBoardGame(game, sport, now = Date.now()) {
     sportsbookProps: [],
     sportsbookPropCount: sportsbookProps.length,
     propConvictions,
+    playerMarkets: Array.isArray(game.playerMarkets) ? game.playerMarkets : [],
     lineupsOfficial: Boolean(game.bpp?.lineupsOfficial),
     sentiment: game.sentiment || game.odds?.sentiment || null,
-    // ACTION Apify market intel — display/research only (never odds authority).
     actionIntel: game.actionIntel || null,
     publicSplits: game.publicSplits || game.actionIntel?.publicSplits || null,
     weather: game.weather || game.cfb?.weather || null,
@@ -237,12 +258,7 @@ export function groupBySport(games) {
   }
   for (const id of BOARD_SPORTS) {
     const list = sortByStart(by.get(id) || []);
-    groups.push({
-      sport: id,
-      label: SPORTS[id]?.label || id.toUpperCase(),
-      n: list.length,
-      games: list,
-    });
+    groups.push({ sport: id, label: SPORTS[id]?.label || id.toUpperCase(), n: list.length, games: list });
   }
   return groups;
 }
@@ -272,11 +288,7 @@ function buildSnapshotOddsByGame(rows = []) {
     const id = String(row?.gameId || row?.id || "");
     if (!id) continue;
     const at = Date.parse(row.frozenAt || row.marketAt || row.start || "") || 0;
-    const hasAny =
-      row.pinHomeMl != null ||
-      row.pinAwayMl != null ||
-      row.pinSpread != null ||
-      row.pinTotal != null;
+    const hasAny = row.pinHomeMl != null || row.pinAwayMl != null || row.pinSpread != null || row.pinTotal != null;
     if (!hasAny) continue;
     const prev = byGame.get(id);
     const prevAt = Date.parse(prev?.frozenAt || prev?.marketAt || prev?.start || "") || 0;
@@ -311,16 +323,10 @@ function buildMarketOddsByGame(rows = []) {
       if (side === "HOME") pack.pinHomeMl = row.price;
       if (side === "AWAY") pack.pinAwayMl = row.price;
     } else if (mkt === "SPREAD") {
-      if (side === "HOME") {
-        pack.pinSpread = row.line;
-        pack.pinSpreadHomePrice = row.price;
-      }
+      if (side === "HOME") { pack.pinSpread = row.line; pack.pinSpreadHomePrice = row.price; }
       if (side === "AWAY") pack.pinSpreadAwayPrice = row.price;
     } else if (mkt === "TOTAL") {
-      if (side === "OVER") {
-        pack.pinTotal = row.line;
-        pack.pinOverPrice = row.price;
-      }
+      if (side === "OVER") { pack.pinTotal = row.line; pack.pinOverPrice = row.price; }
       if (side === "UNDER") pack.pinUnderPrice = row.price;
     }
   }
@@ -341,65 +347,39 @@ function hydrateOddsFromMarketRows(game, pack) {
   return { ...game, odds };
 }
 
-export async function buildTodayBoard(
-  date,
-  env = {},
-  { buildSlateFn, querySnapshotsFn, queryOddsSnapshotsFn, now = Date.now(), focusSport = "all" } = {}
-) {
+export async function buildTodayBoard(date, env = {}, { buildSlateFn, querySnapshotsFn, queryOddsSnapshotsFn, now = Date.now(), focusSport = "all" } = {}) {
   const builder = buildSlateFn || buildSlate;
   const querySnaps = querySnapshotsFn || querySnapshots;
   const queryOdds = queryOddsSnapshotsFn || queryOddsSnapshots;
-  const sportsToLoad =
-    focusSport && focusSport !== "all" && BOARD_SPORTS.includes(focusSport) ? [focusSport] : BOARD_SPORTS;
+  const sportsToLoad = focusSport && focusSport !== "all" && BOARD_SPORTS.includes(focusSport) ? [focusSport] : BOARD_SPORTS;
   const sports = [];
   const games = [];
   const feeds = {};
   let parlayNetwork = 0;
-  const actionIntelMeta = {
-    attached: 0,
-    checked: 0,
-    rematched: 0,
-    durableMatched: 0,
-    legacyFallbackMatched: 0,
-    matchedIds: new Set(),
-  };
+  const actionIntelMeta = { attached: 0, checked: 0, rematched: 0, durableMatched: 0, legacyFallbackMatched: 0, matchedIds: new Set() };
+  const actionPropsMeta = { attachedGames: 0, attachedRows: 0, durableRows: 0, legacyRows: 0 };
+
   for (const sport of sportsToLoad) {
     try {
       const liveFocus = focusSport && focusSport !== "all" && focusSport === sport;
-      const slate = await builder(sport, date, {
-        ...env,
-        parlayCacheOnly: !liveFocus,
-        palCacheOnly: !liveFocus,
-      });
+      const slate = await builder(sport, date, { ...env, parlayCacheOnly: !liveFocus, palCacheOnly: !liveFocus });
+      const dateScopedGames = (slate.games || []).filter((g) => isGameOnBoardDate(g, date));
       let bySnapshot = new Map();
       let byMarketOdds = new Map();
       if (env.DB) {
         const snapQ = await querySnaps(env, { sport, since: date, until: date, checkpoint: "LATEST" });
-        if (snapQ?.ok && Array.isArray(snapQ.rows) && snapQ.rows.length) {
-          bySnapshot = buildSnapshotOddsByGame(snapQ.rows);
-        }
+        if (snapQ?.ok && Array.isArray(snapQ.rows) && snapQ.rows.length) bySnapshot = buildSnapshotOddsByGame(snapQ.rows);
         const oddsQ = await queryOdds(env, { sport, since: date, until: date });
-        if (oddsQ?.ok && Array.isArray(oddsQ.rows) && oddsQ.rows.length) {
-          byMarketOdds = buildMarketOddsByGame(oddsQ.rows);
-        }
+        if (oddsQ?.ok && Array.isArray(oddsQ.rows) && oddsQ.rows.length) byMarketOdds = buildMarketOddsByGame(oddsQ.rows);
       }
-      if (slate?.parlay?.cached === false && slate?.parlay?.skipped !== true && !slate?.parlay?.error) {
-        parlayNetwork += 1;
-      }
+      if (slate?.parlay?.cached === false && slate?.parlay?.skipped !== true && !slate?.parlay?.error) parlayNetwork += 1;
       const recSlate = withRecs({
         ...slate,
-        games: (slate.games || []).map((g) =>
-          hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id)))
-        ),
+        games: dateScopedGames.map((g) => hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id)))),
       }, DEFAULT_WEIGHTS);
       const palReason = sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null;
+      let slateGames = (recSlate.games || []).map((g) => ({ ...g, sport, palUnavailableReason: g.bpp ? g.palUnavailableReason : palReason }));
 
-      // ACTION must hydrate onto slate games BEFORE resolveCanonicalMarket / toBoardGame.
-      let slateGames = (recSlate.games || []).map((g) => ({
-        ...g,
-        sport,
-        palUnavailableReason: g.bpp ? g.palUnavailableReason : palReason,
-      }));
       if (env.DB) {
         try {
           const { attachActionIntelToGames } = await import("./boardActionIntel.js");
@@ -412,41 +392,31 @@ export async function buildTodayBoard(
           actionIntelMeta.legacyFallbackMatched += attached.legacyFallbackMatched || 0;
           for (const id of attached.matchedIds || []) actionIntelMeta.matchedIds.add(String(id));
         } catch {
-          // Fail-open: continue without ACTION on this sport.
+          // ACTION intelligence is optional; PURE board must continue.
+        }
+        try {
+          const attachedProps = await attachActionPlayerPropsToGames(slateGames, env.DB);
+          slateGames = attachedProps.games || slateGames;
+          actionPropsMeta.attachedGames += attachedProps.attachedGames || 0;
+          actionPropsMeta.attachedRows += attachedProps.attachedRows || 0;
+          actionPropsMeta.durableRows += attachedProps.durableRows || 0;
+          actionPropsMeta.legacyRows += attachedProps.legacyRows || 0;
+        } catch {
+          // Player props are research/display only; never break the board.
         }
       }
 
       const rows = slateGames.map((g) => toBoardGame(g, sport, now));
-      feeds[sport] = {
-        ok: true,
-        n: rows.length,
-        error: null,
-        liveFocus,
-        pal: slate.pal || null,
-        palReason: sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null,
-        parlay: slate.parlay || null,
-        cachedParlay: Boolean(slate.parlay?.cached || slate.parlay?.skipped),
-      };
-      sports.push({
-        sport,
-        label: SPORTS[sport].label,
-        n: rows.length,
-        games: sortByStart(rows),
-      });
+      feeds[sport] = { ok: true, n: rows.length, error: null, liveFocus, pal: slate.pal || null, palReason: sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null, parlay: slate.parlay || null, cachedParlay: Boolean(slate.parlay?.cached || slate.parlay?.skipped) };
+      sports.push({ sport, label: SPORTS[sport].label, n: rows.length, games: sortByStart(rows) });
       games.push(...rows);
     } catch (err) {
       feeds[sport] = { ok: false, n: 0, error: String(err?.message || err) };
-      sports.push({
-        sport,
-        label: SPORTS[sport].label,
-        n: 0,
-        games: [],
-        error: String(err?.message || err),
-      });
+      sports.push({ sport, label: SPORTS[sport].label, n: 0, games: [], error: String(err?.message || err) });
     }
   }
+
   const all = sortByStart(games);
-  // Derive sport groups from the same canonical game objects (already ACTION-hydrated).
   for (const s of sports) {
     const byId = new Map(all.filter((g) => g.sport === s.sport).map((g) => [g.id, g]));
     s.games = sortByStart((s.games || []).map((g) => byId.get(g.id) || g));
@@ -476,6 +446,7 @@ export async function buildTodayBoard(
       legacyFallbackMatched: actionIntelMeta.legacyFallbackMatched,
       unmatched: Math.max(0, actionIntelMeta.checked - actionIntelMeta.attached),
       matchedIds: [...actionIntelMeta.matchedIds],
+      playerProps: actionPropsMeta,
     },
     groups: groupBySport(all).filter((g) => sportsToLoad.includes(g.sport)),
     counts: {
@@ -488,23 +459,12 @@ export async function buildTodayBoard(
       leans: all.filter((g) => g.lean && !g.rec).length,
       postponed: all.filter((g) => g.status === "postponed").length,
       mlbPropWatch: summarizeMlbPropWatch(all, feeds.mlb?.parlay || {}),
-      cfbDiagnostics: (all.filter((g) => g.sport === "cfb").length
-        ? {
-            states: Object.fromEntries(
-              ["COMPLETE", "PARTIAL", "PRIOR_ONLY", "LEAGUE_AVERAGE_ONLY", "UNAVAILABLE"].map((s) => [
-                s,
-                all.filter((g) => g.sport === "cfb" && g.projectionState === s).length,
-              ])
-            ),
-          }
-        : null),
+      cfbDiagnostics: (all.filter((g) => g.sport === "cfb").length ? {
+        states: Object.fromEntries(["COMPLETE", "PARTIAL", "PRIOR_ONLY", "LEAGUE_AVERAGE_ONLY", "UNAVAILABLE"].map((s) => [s, all.filter((g) => g.sport === "cfb" && g.projectionState === s).length])),
+      } : null),
     },
     feeds,
     empty,
-    parlay: {
-      cacheOnly: focusSport === "all",
-      focusSport: focusSport || "all",
-      extraFullOddsRequests: parlayNetwork,
-    },
+    parlay: { cacheOnly: focusSport === "all", focusSport: focusSport || "all", extraFullOddsRequests: parlayNetwork },
   };
 }
