@@ -78,6 +78,31 @@ async function guardActionCollection(context, request, url) {
   const sport = String(body.sport || url.searchParams.get("sport") || "cfb").toLowerCase();
   const lifecycle = String(body.lifecycle || url.searchParams.get("lifecycle") || "pregame").toLowerCase();
   const profile = String(body.profile || url.searchParams.get("profile") || "BASE").toUpperCase();
+  const manualOverride = String(
+    body.manualOverride || url.searchParams.get("manualOverride") || ""
+  ) === "1";
+
+  // Production collection is now intentionally one paid ACTION run per local day,
+  // owned by /api/action-daily-snapshot. Legacy BASE/MOVEMENT/PLAYER_PROPS
+  // workflows may still make harmless HTTP attempts while they are being retired,
+  // but they cannot launch an Actor unless an operator explicitly overrides them.
+  if (profile !== "DAILY" && !manualOverride) {
+    return json({
+      ok: true,
+      executed: false,
+      status: "scheduled_disabled_daily_only",
+      reason: "Legacy automatic ACTION collection is disabled; the 07:00 America/Chicago daily snapshot is authoritative.",
+      sport,
+      lifecycle,
+      profile,
+      dailyEndpoint: "/api/action-daily-snapshot",
+      manualOverrideRequired: true,
+      inProductionRouter: false,
+      canQualify: false,
+      canAuthorizeWager: false,
+      affectsProductionOdds: false,
+    });
+  }
 
   try {
     const state = await loadActionSpendState(context.env, { sport, profile, lifecycle });
@@ -140,7 +165,8 @@ async function guardActionCollection(context, request, url) {
  * Read endpoints remain public.
  * - Board operator actions (manual-final) allow same-origin, like Heritage import.
  * - Destructive research mutations on /api/track still require the strategy/harvest secret.
- * - Paid ACTION collection is D1-first and hard-throttled before the Actor can launch.
+ * - Legacy paid ACTION collection is disabled by default; the single daily snapshot
+ *   owns production ACTION spend and carries its own D1/monthly/idempotency guards.
  */
 export async function onRequest(context) {
   const request = context.request;
