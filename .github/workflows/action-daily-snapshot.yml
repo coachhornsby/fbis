@@ -1,0 +1,73 @@
+name: ACTION daily market snapshot
+
+# One paid ACTION collection per America/Chicago day.
+# GitHub cron is UTC, so both possible UTC offsets are scheduled.
+# Only the trigger that resolves to 07:00 America/Chicago proceeds.
+on:
+  schedule:
+    - cron: "0 12 * * *"
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: action-daily-snapshot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    name: ACTION DAILY 07:00 CT
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate to 07:00 America/Chicago
+        id: gate
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "manual dispatch: running daily snapshot"
+            exit 0
+          fi
+          local_hour="$(TZ=America/Chicago date +%H)"
+          local_stamp="$(TZ=America/Chicago date '+%Y-%m-%d %H:%M:%S %Z')"
+          echo "local=${local_stamp}"
+          if [ "$local_hour" = "07" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "UTC twin cron is outside 07:00 Central; no paid request."
+          fi
+
+      - name: Require operator secret
+        if: steps.gate.outputs.run == 'true'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+
+      - name: Run one ACTION snapshot
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          manual=""
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then manual="&manual=1"; fi
+          http="$(curl -sS --max-time 600 --retry 0 \
+            -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -H "accept: application/json" \
+            -d '{"execute":"1"}' \
+            -o "$body" -w "%{http_code}" \
+            "${BASE}/api/action-daily-snapshot?execute=1${manual}")"
+          echo "http=${http}"
+          jq -c '{ok,executed,status,today,yesterday,activeSports,leagues,gamesReturned,matched,unmatched,observationsWritten,todayRows,closeRows,propsWritten,estimatedCostUsd,monthToDateBeforeUsd,monthlyBudgetUsd,note,error}' "$body" || cat "$body"
+          test "$http" = "200"
+          jq -e '.ok == true or .executed == false' "$body" >/dev/null
