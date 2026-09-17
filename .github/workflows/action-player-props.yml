@@ -1,75 +1,25 @@
-name: ACTION pro player props
+name: ACTION pro player props (manual fallback)
 
-# Cost-controlled, pro-only player-prop snapshots.
-# UTC schedule = 10:30 AM and 3:30 PM Houston during CDT.
-# The API hard guard is authoritative: no Actor launches after daily/monthly caps.
+# Scheduled prop polling is retired. Player props are collected by the single
+# 07:00 America/Chicago ACTION daily snapshot. Keep this only for operator-led
+# diagnostics; it must never spend automatically.
 on:
-  schedule:
-    - cron: "30 15 * * *"
-    - cron: "30 20 * * *"
   workflow_dispatch:
 
 concurrency:
-  group: action-pro-player-props
+  group: action-pro-player-props-manual
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  collect-props:
-    name: PRO PLAYER PROPS
+  explain:
+    name: MANUAL FALLBACK ONLY
     runs-on: ubuntu-latest
     steps:
-      - name: Require operator secret
-        env:
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      - name: Explain retired schedule
         run: |
-          set -euo pipefail
-          if [ -z "${HARVEST_SECRET:-}" ]; then
-            echo "HARVEST_SECRET unavailable; refusing paid ACTION collection."
-            exit 1
-          fi
-
-      - name: Collect ACTION player props — pro sports only
-        env:
-          BASE: "https://fbis-myz.pages.dev"
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-        run: |
-          set -euo pipefail
-          # Priority order matters when the daily budget is nearly exhausted.
-          # NFL goes first for early Sunday/Thursday/Monday markets; MLB follows.
-          # NBA/NHL are attempted only when their same-day FBIS slate exists.
-          for sport in nfl mlb nba nhl; do
-            body="$(mktemp)"
-            set +e
-            http="$(curl -sS --max-time 420 --retry 0 \
-              -X POST \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              -H "content-type: application/json" \
-              -H "accept: application/json" \
-              -o "$body" -w "%{http_code}" \
-              -d "{\"execute\":\"1\",\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"PLAYER_PROPS\",\"maxItems\":28}" \
-              "${BASE}/api/action-apify-collect?execute=1&sport=${sport}&lifecycle=pregame&profile=PLAYER_PROPS&maxItems=28")"
-            curl_ec=$?
-            set -e
-
-            echo "ACTION props sport=${sport} curl_ec=${curl_ec} http=${http:-000}"
-            if jq -e . "$body" >/dev/null 2>&1; then
-              jq -c '{ok,executed,status,reason,sport,profile,expectedSlateGames,gamesReturned,gamesMatched,propsWritten,budget,blocks:(.blocks//[])}' "$body"
-            else
-              head -c 500 "$body" || true
-              echo
-            fi
-
-            # Never retry paid prop pulls in this workflow. Empty slates, cooldowns,
-            # and budget throttles are expected no-spend outcomes, not failures.
-            if [ "$curl_ec" -ne 0 ]; then
-              echo "Transport failure for ${sport}; continuing without retry to protect budget."
-              continue
-            fi
-            if [ "$http" = "200" ]; then
-              continue
-            fi
-            echo "Non-200 for ${sport}; continuing without retry to protect budget."
-          done
+          echo "Scheduled player-prop polling is disabled."
+          echo "Production ACTION collection is handled by action-daily-snapshot.yml at 07:00 America/Chicago."
+          echo "Use /api/action-daily-snapshot?execute=1&manual=1 for an explicit operator test if necessary."
