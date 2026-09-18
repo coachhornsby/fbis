@@ -1,8 +1,5 @@
 name: ACTION daily market snapshot
 
-# One paid ACTION collection per America/Chicago day.
-# GitHub cron is UTC, so both possible UTC offsets are scheduled.
-# Only the trigger that resolves to 07:00 America/Chicago proceeds.
 on:
   schedule:
     - cron: "0 12 * * *"
@@ -27,47 +24,46 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "manual dispatch: running daily snapshot"
             exit 0
           fi
-          local_hour="$(TZ=America/Chicago date +%H)"
-          local_stamp="$(TZ=America/Chicago date '+%Y-%m-%d %H:%M:%S %Z')"
-          echo "local=${local_stamp}"
-          if [ "$local_hour" = "07" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "UTC twin cron is outside 07:00 Central; no paid request."
-          fi
+          [ "$(TZ=America/Chicago date +%H)" = "07" ] && echo "run=true" >> "$GITHUB_OUTPUT" || echo "run=false" >> "$GITHUB_OUTPUT"
 
       - name: Require operator secret
         if: steps.gate.outputs.run == 'true'
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-        run: |
-          set -euo pipefail
-          test -n "${HARVEST_SECRET:-}"
+        run: test -n "${HARVEST_SECRET:-}"
 
-      - name: Run one ACTION snapshot
+      - name: Start one paid ACTION run
         if: steps.gate.outputs.run == 'true'
         env:
           BASE: "https://fbis-myz.pages.dev"
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           body="$(mktemp)"
-          manual=""
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then manual="&manual=1"; fi
-          http="$(curl -sS --max-time 600 --retry 0 \
-            -X POST \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "content-type: application/json" \
-            -H "accept: application/json" \
-            -d '{"execute":"1"}' \
-            -o "$body" -w "%{http_code}" \
-            "${BASE}/api/action-daily-snapshot?execute=1${manual}")"
-          echo "http=${http}"
-          jq -c '{ok,executed,status,today,yesterday,activeSports,leagues,gamesReturned,matched,unmatched,observationsWritten,todayRows,closeRows,propsWritten,estimatedCostUsd,monthToDateBeforeUsd,monthlyBudgetUsd,note,error}' "$body" || cat "$body"
-          test "$http" = "200"
-          jq -e '.ok == true or .executed == false' "$body" >/dev/null
+          http="$(curl -sS --max-time 30 --retry 0 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d '{"mode":"start"}' -o "$body" -w "%{http_code}"             "${BASE}/api/action-daily-async?mode=start")"
+          cat "$body"
+          test "$http" = "202" -o "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+
+      - name: Harvest same ACTION run
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 30 --retry 0 -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               -d '{"mode":"harvest"}' -o "$body" -w "%{http_code}"               "${BASE}/api/action-daily-async?mode=harvest")"
+            echo "attempt=${attempt} http=${http}"
+            cat "$body"
+            status="$(jq -r '.status // empty' "$body")"
+            if [ "$http" = "200" ] && [ "$status" = "success_daily" ]; then exit 0; fi
+            if [ "$status" = "actor_running" ] && [ "$http" = "202" ]; then sleep 30; continue; fi
+            if [ "$status" = "already_collected_today" ]; then exit 0; fi
+            exit 1
+          done
+          echo "ACTION run did not finish inside harvest window; no second paid run was started."
+          exit 1
