@@ -20,12 +20,19 @@ function finitePositive(value, fallback) {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-export function actionCostPolicyFromEnv(env = {}) {
+export function actionCostPolicyFromEnv(env = {}, now = new Date()) {
+  const configuredMonthlyBudgetUsd = finitePositive(
+    env.ACTION_APIFY_HARD_MONTHLY_BUDGET_USD,
+    ACTION_COST_DEFAULTS.monthlyBudgetUsd,
+  );
+  // Temporary recovery allowance authorized for September 2026 after the
+  // retired multi-run orchestration exhausted the normal monthly ceiling.
+  // This automatically disappears on October 1, 2026.
+  const september2026Recovery =
+    now.getUTCFullYear() === 2026 && now.getUTCMonth() === 8 ? 25 : 0;
+
   return {
-    monthlyBudgetUsd: finitePositive(
-      env.ACTION_APIFY_HARD_MONTHLY_BUDGET_USD,
-      ACTION_COST_DEFAULTS.monthlyBudgetUsd,
-    ),
+    monthlyBudgetUsd: Math.max(configuredMonthlyBudgetUsd, september2026Recovery),
     dailyBudgetUsd: finitePositive(
       env.ACTION_APIFY_HARD_DAILY_BUDGET_USD,
       ACTION_COST_DEFAULTS.dailyBudgetUsd,
@@ -62,7 +69,7 @@ export function evaluateActionSpendGuard({
   lifecycle = "pregame",
   env = {},
 } = {}) {
-  const policy = actionCostPolicyFromEnv(env);
+  const policy = actionCostPolicyFromEnv(env, now);
   const cooldownMinutes = actionCooldownMinutes({ profile, lifecycle, env });
   const blocks = [];
 
