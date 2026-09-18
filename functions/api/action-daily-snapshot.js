@@ -204,7 +204,7 @@ export async function onRequestGet(context) {
     activeSports,
     slate: slate.bySport,
     monthToDateUsd: await monthSpend(db, now),
-    monthlyBudgetUsd: Number(context.env.ACTION_APIFY_HARD_MONTHLY_BUDGET_USD || 22),
+    monthlyBudgetUsd: Number(context.env.ACTION_APIFY_HARD_MONTHLY_BUDGET_USD || 15),
     configured: cfg.configured,
     enabled: cfg.enabled,
     onePaidRunPerLocalDay: true,
@@ -263,8 +263,8 @@ export async function onRequestPost(context) {
   }
 
   const requestedRows = Math.max(1, Math.min(200, slate.allEvents.length + 12));
-  const perRunBudgetUsd = Number(context.env.ACTION_APIFY_DAILY_RUN_BUDGET_USD || 1.5);
-  const monthlyBudgetUsd = Number(context.env.ACTION_APIFY_HARD_MONTHLY_BUDGET_USD || 22);
+  const perRunBudgetUsd = Number(context.env.ACTION_APIFY_DAILY_RUN_BUDGET_USD || 1.0);
+  const monthlyBudgetUsd = Number(context.env.ACTION_APIFY_HARD_MONTHLY_BUDGET_USD || 15);
   const inputBase = {
     leagues,
     periods: ["event"],
