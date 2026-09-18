@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7.0.1
         if: ${{ github.event.inputs.job == 'model-train-validate' || github.event.inputs.job == 'cfbd-endpoint-audit' || github.event.inputs.job == 'cfb-feature-backfill' || github.event.inputs.job == 'cfb-temporal-smoke' }}
       - name: Offline train/validate (Actions CPU, not Workers)
         if: ${{ github.event.inputs.job == 'model-train-validate' }}
