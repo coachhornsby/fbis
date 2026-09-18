@@ -1,6 +1,5 @@
 name: ACTION daily snapshot one-shot
-# retry after production runtime fix
-# retry after Apify READY polling fix
+# controlled production validation for async START + HARVEST
 
 on:
   push:
@@ -17,32 +16,50 @@ concurrency:
 
 jobs:
   run:
-    name: RUN ACTION DAILY SNAPSHOT ONCE
+    name: RUN ACTION ASYNC CONTROLLED TEST
     runs-on: ubuntu-latest
     steps:
       - name: Require operator secret
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-        run: |
-          set -euo pipefail
-          test -n "${HARVEST_SECRET:-}"
+        run: test -n "${HARVEST_SECRET:-}"
 
-      - name: Run guarded daily ACTION snapshot
+      - name: Start exactly one ACTION run
         env:
           BASE: "https://fbis-myz.pages.dev"
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
           body="$(mktemp)"
-          http="$(curl -sS --max-time 600 --retry 0 \
-            -X POST \
+          http="$(curl -sS --max-time 30 --retry 0 -X POST \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
             -H "content-type: application/json" \
-            -H "accept: application/json" \
-            -d '{"execute":"1","manual":"1"}' \
-            -o "$body" -w "%{http_code}" \
-            "${BASE}/api/action-daily-snapshot?execute=1&manual=1")"
-          echo "http=${http}"
+            -d '{"mode":"start"}' -o "$body" -w "%{http_code}" \
+            "${BASE}/api/action-daily-async?mode=start")"
+          echo "START http=${http}"
           cat "$body"
-          test "$http" = "200"
-          jq -e '.ok == true or .executed == false' "$body" >/dev/null
+          test "$http" = "202" -o "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+
+      - name: Harvest same ACTION run
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 30 --retry 0 -X POST \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "content-type: application/json" \
+              -d '{"mode":"harvest"}' -o "$body" -w "%{http_code}" \
+              "${BASE}/api/action-daily-async?mode=harvest")"
+            echo "HARVEST attempt=${attempt} http=${http}"
+            cat "$body"
+            status="$(jq -r '.status // empty' "$body")"
+            if [ "$http" = "200" ] && [ "$status" = "success_daily" ]; then exit 0; fi
+            if [ "$http" = "202" ] && [ "$status" = "actor_running" ]; then sleep 30; continue; fi
+            exit 1
+          done
+          echo "Actor did not finish inside harvest window; no second paid run was started."
+          exit 1
