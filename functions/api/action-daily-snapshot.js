@@ -78,7 +78,7 @@ function previousDateKey(dateKey) {
   return dt.toISOString().slice(0, 10);
 }
 
-function monthlyBudgetUsd(env, now = new Date()) {
+function effectiveMonthlyBudgetUsd(env, now = new Date()) {
   const configured = Number(env?.ACTION_APIFY_HARD_MONTHLY_BUDGET_USD);
   const normal = Number.isFinite(configured) && configured > 0 ? configured : 15;
   // Temporary September 2026 recovery allowance. Automatically returns to the
@@ -213,7 +213,7 @@ export async function onRequestGet(context) {
     activeSports,
     slate: slate.bySport,
     monthToDateUsd: await monthSpend(db, now),
-    monthlyBudgetUsd: monthlyBudgetUsd(context.env, now),
+    monthlyBudgetUsd: effectiveMonthlyBudgetUsd(context.env, now),
     configured: cfg.configured,
     enabled: cfg.enabled,
     onePaidRunPerLocalDay: true,
@@ -273,7 +273,7 @@ export async function onRequestPost(context) {
 
   const requestedRows = Math.max(1, Math.min(200, slate.allEvents.length + 12));
   const perRunBudgetUsd = Number(context.env.ACTION_APIFY_DAILY_RUN_BUDGET_USD || 1.0);
-  const monthlyBudgetUsd = monthlyBudgetUsd(context.env, now);
+  const monthlyBudgetUsd = effectiveMonthlyBudgetUsd(context.env, now);
   const inputBase = {
     leagues,
     periods: ["event"],
