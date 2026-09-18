@@ -1258,14 +1258,18 @@ export async function runActionApifyShadow(env, opts = {}) {
 
   const waitSecs = Math.min(Number(opts.waitSecs) || 300, 600);
   const actorPath = encodeURIComponent(ACTION_APIFY_ACTOR_ID);
-  const url = `https://api.apify.com/v2/acts/${actorPath}/runs?waitForFinish=${waitSecs}`;
+  // Apify's waitForFinish request can return while a run is still READY/RUNNING.
+  // Keep the paid Actor start singular, then poll that same run until terminal.
+  const initialWaitSecs = Math.min(waitSecs, 60);
+  const url = `https://api.apify.com/v2/acts/${actorPath}/runs?waitForFinish=${initialWaitSecs}`;
   const receivedAt = new Date().toISOString();
   const fetchImpl = opts.fetchImpl || globalThis.fetch;
+  const authHeaders = { Authorization: `Bearer ${token}` };
 
   const res = await fetchImpl(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...authHeaders,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(input),
@@ -1286,16 +1290,55 @@ export async function runActionApifyShadow(env, opts = {}) {
   }
 
   const runJson = await res.json();
-  const run = runJson?.data || runJson;
+  let run = runJson?.data || runJson;
   const runId = run?.id || null;
+  const successStatuses = new Set(["SUCCEEDED", "SUCCEEDED_WITH_WARNINGS"]);
+  const pendingStatuses = new Set(["READY", "RUNNING"]);
+  const terminalFailureStatuses = new Set(["FAILED", "ABORTED", "TIMED-OUT"]);
+
+  if (runId && pendingStatuses.has(String(run?.status || ""))) {
+    const pollStartedAt = Date.now();
+    while (
+      pendingStatuses.has(String(run?.status || "")) &&
+      Date.now() - pollStartedAt < Math.max(0, waitSecs - initialWaitSecs) * 1000
+    ) {
+      const remainingSecs = Math.max(
+        1,
+        Math.ceil((waitSecs * 1000 - (Date.now() - pollStartedAt) - initialWaitSecs * 1000) / 1000),
+      );
+      const pollWaitSecs = Math.min(60, remainingSecs);
+      const pollUrl =
+        `https://api.apify.com/v2/actor-runs/${encodeURIComponent(runId)}?waitForFinish=${pollWaitSecs}`;
+      const pollRes = await fetchImpl(pollUrl, { headers: authHeaders });
+      if (!pollRes.ok) {
+        const bodyText = await pollRes.text().catch(() => "");
+        return {
+          ok: false,
+          configured: true,
+          error: `apify-poll-http-${pollRes.status}`,
+          detail: String(bodyText).replaceAll(token, "[redacted]").slice(0, 240),
+          runId,
+          estimatedCostUsd: estimate,
+          provider: ACTION_APIFY_PROVIDER,
+          sourceClass: ACTION_APIFY_SOURCE_CLASS,
+        };
+      }
+      const pollJson = await pollRes.json();
+      run = pollJson?.data || pollJson;
+      if (successStatuses.has(String(run?.status || ""))) break;
+      if (terminalFailureStatuses.has(String(run?.status || ""))) break;
+    }
+  }
+
   const status = run?.status || null;
   const datasetId = run?.defaultDatasetId || null;
-  if (!datasetId || !["SUCCEEDED", "SUCCEEDED_WITH_WARNINGS"].includes(String(status))) {
+  if (!datasetId || !successStatuses.has(String(status))) {
     return {
       ok: false,
       configured: true,
       error: `apify-run-${status || "unknown"}`,
       runId,
+      datasetId,
       estimatedCostUsd: estimate,
       provider: ACTION_APIFY_PROVIDER,
       sourceClass: ACTION_APIFY_SOURCE_CLASS,
