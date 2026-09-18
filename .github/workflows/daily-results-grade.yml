@@ -1,0 +1,68 @@
+name: Daily results and grading
+
+# Free/non-ACTION final-score settlement. Runs after the 07:00 Central ACTION
+# snapshot so yesterday's closing market state can be joined to final results.
+on:
+  schedule:
+    - cron: "20 12 * * *"
+    - cron: "20 13 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: daily-results-grade
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  settle:
+    name: RESULTS 07:20 CT
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate to 07:20 America/Chicago
+        id: gate
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          local_hour="$(TZ=America/Chicago date +%H)"
+          local_min="$(TZ=America/Chicago date +%M)"
+          if [ "$local_hour" = "07" ] && [ "$local_min" -ge "15" ] && [ "$local_min" -le "30" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "UTC twin cron outside 07:20 Central; no settlement call."
+          fi
+
+      - name: Settle yesterday from free scoreboard sources
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          yesterday="$(TZ=America/Chicago date -d 'yesterday' +%F)"
+          echo "settling ${yesterday}"
+          for sport in mlb nfl nba nhl cfb cbb; do
+            body="$(mktemp)"
+            set +e
+            http="$(curl -sS --max-time 180 --retry 1 --retry-delay 4 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              -o "$body" -w "%{http_code}" \
+              "${BASE}/api/harvest?date=${yesterday}&sport=${sport}&settleOnly=1&gradeResearch=1&trigger=schedule&scheduledSlot=daily-results-0720")"
+            ec=$?
+            set -e
+            echo "results sport=${sport} curl_ec=${ec} http=${http:-000}"
+            if jq -e . "$body" >/dev/null 2>&1; then
+              jq -c '{ok,status,sport,finalsSeen,settled,graded,errors:(.errors//[])}' "$body"
+            else
+              head -c 400 "$body" || true
+              echo
+            fi
+            # Results are free and isolated by sport. One failed league must not
+            # prevent the others from settling.
+          done

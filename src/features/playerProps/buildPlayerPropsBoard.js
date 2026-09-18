@@ -7,7 +7,6 @@ import {
   canonicalizeProPlayerPropMarket,
   normalizeProPropSport,
 } from "../../../functions/lib/proPlayerProps.js";
-import { identityForSport } from "../../lib/teams.js";
 
 /**
  * All player-prop markets currently supported on FBIS product surfaces.
@@ -203,11 +202,10 @@ export function resolvePlayerTeamIdentity(event = {}, teamKey = null) {
     };
   }
   if (!teamKey) return { abbr: null, name: null, logo: null };
-  const resolved = identityForSport(event?.sport, teamKey);
   return {
-    abbr: resolved?.abbr && resolved.abbr !== "—" ? resolved.abbr : String(teamKey),
-    name: resolved?.name || String(teamKey),
-    logo: resolved?.logo || null,
+    abbr: String(teamKey),
+    name: String(teamKey),
+    logo: null,
   };
 }
 
