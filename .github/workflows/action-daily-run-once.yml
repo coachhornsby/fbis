@@ -1,0 +1,46 @@
+name: ACTION daily snapshot one-shot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/action-daily-run-once.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: action-daily-run-once
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: RUN ACTION DAILY SNAPSHOT ONCE
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require operator secret
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+
+      - name: Run guarded daily ACTION snapshot
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 600 --retry 0 \
+            -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -H "accept: application/json" \
+            -d '{"execute":"1","manual":"1"}' \
+            -o "$body" -w "%{http_code}" \
+            "${BASE}/api/action-daily-snapshot?execute=1&manual=1")"
+          echo "http=${http}"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok == true or .executed == false' "$body" >/dev/null
