@@ -1,9 +1,9 @@
 export const ACTION_COST_DEFAULTS = Object.freeze({
   // Keep ACTION inside the user's <=$30/mo total operating ceiling while
   // reserving enough room for the pro-player-prop snapshots that actually matter.
-  monthlyBudgetUsd: 22,
-  dailyBudgetUsd: 0.9,
-  maxSuccessfulRunsPerDay: 6,
+  monthlyBudgetUsd: 15,
+  dailyBudgetUsd: 1.0,
+  maxSuccessfulRunsPerDay: 1,
 });
 
 const PROFILE_COOLDOWN_MINUTES = Object.freeze({
