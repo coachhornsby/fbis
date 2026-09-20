@@ -1,0 +1,146 @@
+name: ACTION daily watchdog
+
+on:
+  schedule:
+    # 09:15 America/Chicago across DST changes; local-time gate prevents duplicate window.
+    - cron: "15 14 * * *"
+    - cron: "15 15 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: action-daily-watchdog
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    name: ACTION DAILY WATCHDOG 09:15 CT
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate to 09:00 America/Chicago
+        id: gate
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hour="$(TZ=America/Chicago date +%H)"
+          if [ "$hour" = "09" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No-op twin UTC schedule; local Chicago hour=$hour"
+          fi
+
+      - name: Require operator secret
+        if: steps.gate.outputs.run == 'true'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Inspect current daily state
+        if: steps.gate.outputs.run == 'true'
+        id: inspect
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 30 --retry 0 -o "$body" -w "%{http_code}"             "$BASE/api/action-daily-status")"
+          echo "STATUS http=$http"
+          cat "$body"
+          test "$http" = "200"
+          jq -e . "$body" >/dev/null
+          state="$(jq -r '.state // empty' "$body")"
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          case "$state" in
+            HEALTHY)
+              echo "ACTION daily already verified healthy."
+              ;;
+            MISSING|RUNNING|STALE)
+              echo "Recoverable watchdog state=$state"
+              ;;
+            DEGRADED|FAILED|UNAVAILABLE|"")
+              echo "Terminal/non-recoverable watchdog state=$state"
+              exit 1
+              ;;
+            *)
+              echo "Unexpected watchdog state=$state"
+              exit 1
+              ;;
+          esac
+
+      - name: Start missing daily run
+        if: steps.gate.outputs.run == 'true' && steps.inspect.outputs.state == 'MISSING'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 30 --retry 0 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d '{"mode":"start"}' -o "$body" -w "%{http_code}"             "$BASE/api/action-daily-async?mode=start")"
+          echo "START http=$http"
+          cat "$body"
+          test "$http" = "202" -o "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          status="$(jq -r '.status // empty' "$body")"
+          case "$status" in
+            started_daily|actor_running|already_collected_today) ;;
+            *) echo "Unexpected START status=$status"; exit 1 ;;
+          esac
+
+      - name: Resume harvest without starting another paid run
+        if: steps.gate.outputs.run == 'true' && steps.inspect.outputs.state != 'HEALTHY'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 30 --retry 0 -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               -d '{"mode":"harvest"}' -o "$body" -w "%{http_code}"               "$BASE/api/action-daily-async?mode=harvest")"
+            echo "HARVEST attempt=${attempt} http=${http}"
+            cat "$body"
+            jq -e . "$body" >/dev/null
+            status="$(jq -r '.status // empty' "$body")"
+            if [ "$http" = "200" ] && { [ "$status" = "success_daily" ] || [ "$status" = "already_collected_today" ]; }; then
+              exit 0
+            fi
+            if [ "$http" = "202" ] && [ "$status" = "actor_running" ]; then
+              sleep 30
+              continue
+            fi
+            echo "Watchdog harvest failed status=$status http=$http"
+            exit 1
+          done
+          echo "Watchdog did not reach terminal harvest state; no second paid run was started."
+          exit 1
+
+      - name: Verify persisted state
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 30 --retry 0 -o "$body" -w "%{http_code}"               "$BASE/api/action-daily-status")"
+            echo "VERIFY attempt=${attempt} http=${http}"
+            cat "$body"
+            if [ "$http" != "200" ]; then sleep 15; continue; fi
+            jq -e . "$body" >/dev/null
+            state="$(jq -r '.state // empty' "$body")"
+            verified="$(jq -r '.verifiedPersisted // false' "$body")"
+            if [ "$state" = "HEALTHY" ] && [ "$verified" = "true" ]; then
+              echo "ACTION daily watchdog verified healthy persisted state."
+              exit 0
+            fi
+            if [ "$state" = "RUNNING" ]; then sleep 15; continue; fi
+            echo "Verification failed state=$state verified=$verified"
+            exit 1
+          done
+          echo "ACTION daily watchdog could not verify healthy persisted state."
+          exit 1
