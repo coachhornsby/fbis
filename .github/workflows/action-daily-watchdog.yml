@@ -75,6 +75,7 @@ jobs:
 
       - name: Start missing daily run
         if: steps.gate.outputs.run == 'true' && steps.inspect.outputs.state == 'MISSING'
+        id: start_missing
         env:
           BASE: "https://fbis-myz.pages.dev"
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
@@ -89,11 +90,16 @@ jobs:
           status="$(jq -r '.status // empty' "$body")"
           case "$status" in
             started_daily|actor_running|already_collected_today) ;;
+            no_slate)
+              echo "no_slate=true" >> "$GITHUB_OUTPUT"
+              echo "No slate today; watchdog has nothing to collect."
+              exit 0
+              ;;
             *) echo "Unexpected START status=$status"; exit 1 ;;
           esac
 
       - name: Resume harvest without starting another paid run
-        if: steps.gate.outputs.run == 'true' && steps.inspect.outputs.state != 'HEALTHY'
+        if: steps.gate.outputs.run == 'true' && steps.inspect.outputs.state != 'HEALTHY' && steps.start_missing.outputs.no_slate != 'true'
         env:
           BASE: "https://fbis-myz.pages.dev"
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
@@ -120,7 +126,7 @@ jobs:
           exit 1
 
       - name: Verify persisted state
-        if: steps.gate.outputs.run == 'true'
+        if: steps.gate.outputs.run == 'true' && steps.start_missing.outputs.no_slate != 'true'
         env:
           BASE: "https://fbis-myz.pages.dev"
         run: |
