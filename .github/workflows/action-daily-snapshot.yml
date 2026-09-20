@@ -91,6 +91,33 @@ jobs:
           echo "ACTION run did not finish inside harvest window; no second paid run was started."
           exit 1
 
+      - name: Verify D1 persisted ACTION state
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 30 --retry 0 -o "$body" -w "%{http_code}" \
+              "$BASE/api/action-daily-status")"
+            echo "VERIFY attempt=${attempt} http=${http}"
+            cat "$body"
+            if [ "$http" != "200" ]; then sleep 15; continue; fi
+            jq -e . "$body" >/dev/null
+            state="$(jq -r '.state // empty' "$body")"
+            verified="$(jq -r '.verifiedPersisted // false' "$body")"
+            if [ "$state" = "HEALTHY" ] && [ "$verified" = "true" ]; then
+              echo "ACTION daily D1 readback verified."
+              exit 0
+            fi
+            if [ "$state" = "RUNNING" ]; then sleep 15; continue; fi
+            echo "ACTION daily verification failed: state=$state verified=$verified"
+            exit 1
+          done
+          echo "ACTION daily status endpoint did not reach verified HEALTHY state."
+          exit 1
+
       - name: Assert collection actually executed
         if: steps.gate.outputs.run == 'true'
-        run: echo "ACTION daily workflow reached terminal persisted state."
+        run: echo "ACTION daily workflow reached terminal persisted and verified state."
