@@ -50,6 +50,33 @@ describe("shared health-state contract", () => {
     assert.equal(out.failures[0].name, "scheduled-harvest");
   });
 
+  it("does not falsely degrade late-night TODAY health between scheduled harvest slots", () => {
+    const now = Date.parse("2026-09-21T04:36:00Z");
+    const out = deriveHealthState({
+      now,
+      hasAuthoritativeData: true,
+      requiredChecks: [
+        {
+          name: "scheduled-collect",
+          ok: true,
+          detail: "healthy",
+          lastSuccessAt: "2026-09-21T02:00:00Z",
+          freshnessMs: 12 * 60 * 60 * 1000,
+        },
+        {
+          name: "scheduled-harvest",
+          ok: true,
+          detail: "healthy",
+          lastSuccessAt: "2026-09-20T16:20:00Z",
+          freshnessMs: 20 * 60 * 60 * 1000,
+        },
+      ],
+    });
+    assert.equal(out.state, "HEALTHY");
+    assert.equal(out.failures.length, 0);
+    assert.equal(out.staleChecks.length, 0);
+  });
+
   it("frontend global state never reports LIVE on unavailable tab state", () => {
     const today = deriveViewState({ apiState: "UNAVAILABLE", error: "boom", stale: false, hasData: false });
     const global = deriveGlobalState({
