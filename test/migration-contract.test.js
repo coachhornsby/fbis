@@ -59,13 +59,16 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(m24, /public_money_pct/);
   assert.match(schemaExt, /action_market_book_observations/);
   assert.match(schemaExt, /action_market_snapshot_pointers/);
-  const m25 = await readFile(new URL("../migrations/0028_executed_bet_tracker_metadata.sql", import.meta.url), "utf8");
-  assert.match(m25, /schema_migrations[\s\S]*0028_executed_bet_tracker_metadata/i);
+  const m25 = await readFile(new URL("../migrations/0025_manual_completion_contracts.sql", import.meta.url), "utf8");
+  assert.match(m25, /schema_migrations[\s\S]*0025_manual_completion_contracts/i);
   assert.match(m25, /canonical_publication_ledger/);
   assert.match(m25, /canonical_dq_findings/);
   assert.match(m25, /canonical_probability_provenance/);
   assert.match(m25, /canonical_promotion_evidence/);
   assert.match(schemaExt, /canonical_publication_ledger/);
+  const m28 = await readFile(new URL("../migrations/0028_executed_bet_tracker_metadata.sql", import.meta.url), "utf8");
+  assert.match(m28, /schema_migrations[\\s\\S]*0028_executed_bet_tracker_metadata/i);
+  assert.match(m28, /tracker_metadata_json/);
   assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0028_executed_bet_tracker_metadata["']/);
   assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /WHERE id = \?/);
