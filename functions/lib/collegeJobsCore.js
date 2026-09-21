@@ -311,7 +311,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         });
         await putArchive(env, r2k, artifact);
       }
-      await persistObservation(env, {
+      const auditObservation = await persistObservation(env, {
         source: "cfbd",
         sport: "cfb",
         endpoint: "cfbd-endpoint-audit",
@@ -321,6 +321,10 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         jobRunId: id,
         status: audit.summary?.configured ? "ok" : "auth-missing",
       });
+      if (!auditObservation?.ok) {
+        writes.writesFailed += 1;
+        errors.push(`cfbd endpoint audit observation persistence: ${auditObservation?.reason || "unknown-error"}`);
+      }
       const inserted = await insertCfbdEndpointAudit(env, {
         id: `${id}:cfbd-audit`,
         auditedAt: audit.summary?.auditedAt || new Date().toISOString(),
@@ -337,12 +341,19 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       if (inserted.ok) writes.writesSucceeded += 1;
       else writes.writesFailed += 1;
       assertNoSecretLeak(audit, env);
+      const auditStatus = classifyJobStatus({
+        okSports: 1,
+        failedSports: 0,
+        writesFailed: writes.writesFailed,
+        unbound: !hasDb(env),
+        requiredFailed: false,
+      });
       const payload = jobPayload({
-        ok: true,
+        ok: auditStatus === "success",
         job,
-        status: "success",
+        status: auditStatus,
         attemptedAt: started,
-        successfulAt: new Date().toISOString(),
+        successfulAt: auditStatus === "success" ? new Date().toISOString() : null,
         env,
         writes,
         d1: {
