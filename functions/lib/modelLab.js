@@ -282,7 +282,7 @@ export function buildLearningFindings(
       severity,
       windowStart,
       windowEnd,
-      hypothesis: \`\${resolvedModel} \${spec.label} has degraded in the recent window; investigate changed data quality, feature behavior, roster/context inputs, or model calibration before changing production logic.\`,
+      hypothesis: `${resolvedModel} ${spec.label} has degraded in the recent window; investigate changed data quality, feature behavior, roster/context inputs, or model calibration before changing production logic.`,
       evidence: {
         sport: resolvedSport,
         modelId: resolvedModel,
@@ -337,7 +337,7 @@ export function buildLearningFindings(
       severity,
       windowStart: sliceRows[0]?.frozen_at ?? sliceRows[0]?.frozenAt ?? null,
       windowEnd: sliceRows.at(-1)?.frozen_at ?? sliceRows.at(-1)?.frozenAt ?? null,
-      hypothesis: \`\${resolvedModel} is materially less accurate on \${label}; test whether the error is explained by data quality, favorite-strength compression, player availability, or matchup-feature misspecification.\`,
+      hypothesis: `${resolvedModel} is materially less accurate on ${label}; test whether the error is explained by data quality, favorite-strength compression, player availability, or matchup-feature misspecification.`,
       evidence: {
         sport: resolvedSport,
         modelId: resolvedModel,
