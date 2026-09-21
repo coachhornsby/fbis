@@ -105,6 +105,58 @@ describe("canonical identity", () => {
 });
 
 describe("CBBD capability audit", () => {
+  it("chunks the OpenAPI inventory without skipping the next window", async () => {
+    resetCacheMem();
+    const spec = {
+      info: { title: "Test CBBD", version: "1.0" },
+      paths: Object.fromEntries(
+        ["/games", "/teams", "/ratings/adjusted", "/ratings/srs", "/players"].map((path) => [
+          path,
+          {
+            get: {
+              operationId: path.slice(1).replaceAll("/", "-"),
+              parameters: [{ in: "query", name: "season", required: true }],
+            },
+          },
+        ])
+      ),
+    };
+    const fetchFn = async (url) => {
+      if (String(url).endsWith("/api-docs.json")) {
+        return { ok: true, status: 200, async json() { return spec; } };
+      }
+      const parsed = new URL(String(url));
+      const season = Number(parsed.searchParams.get("season"));
+      return {
+        ok: true,
+        status: 200,
+        async json() { return [{ season, ok: true }]; },
+      };
+    };
+    const env = { ...collegeDb(new Map()), CBBD_API_KEY: FAKE };
+    const a = await runCbbdEndpointAudit(env, {
+      seasons: [2024],
+      maxRequests: 2,
+      operationStart: 0,
+      operationLimit: 2,
+      fetchFn,
+    });
+    const b = await runCbbdEndpointAudit(env, {
+      seasons: [2024],
+      maxRequests: 2,
+      operationStart: a.summary.nextOperationStart,
+      operationLimit: 2,
+      fetchFn,
+    });
+    assert.equal(a.summary.inventoryGetOperations, 5);
+    assert.equal(a.summary.windowOperations, 2);
+    assert.equal(a.summary.hasMore, true);
+    assert.equal(a.summary.nextOperationStart, 2);
+    assert.deepEqual(a.probes.map((p) => p.path), ["/games", "/teams"]);
+    assert.deepEqual(b.probes.map((p) => p.path), ["/ratings/adjusted", "/ratings/srs"]);
+    assert.equal(b.summary.nextOperationStart, 4);
+  });
+
   it("discovers GET endpoints and proves historical season rows without exposing the key", async () => {
     resetCacheMem();
     const spec = {
