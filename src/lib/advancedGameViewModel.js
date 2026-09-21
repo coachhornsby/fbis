@@ -105,8 +105,10 @@ function buildProbabilities(game, card) {
       ? Number(card.decision.ev)
       : null;
 
+  // Generic operational/market quality is not model confidence. Only publish
+  // an explicitly model-scoped confidence value.
   const confidence = num(
-    game?.quality?.modelQuality ?? game?.quality?.score ?? game?.model?.confidence
+    game?.model?.confidence ?? game?.quality?.modelQuality
   );
 
   return {
