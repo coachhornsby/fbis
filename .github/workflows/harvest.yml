@@ -10,6 +10,11 @@ name: FBIS research pipeline
 # NFL publish proof is soft-fail evidence only (COLLECT can succeed while PUBLICATION_PROOF fails).
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/harvest.yml"
+      - "functions/api/action-apify-collect.js"
   schedule:
     - cron: "0 13,16 * * *"
     - cron: "0 0,2,18,20,22 * * *"
@@ -26,6 +31,7 @@ on:
           - collect-full
           - collect-cache
           - harvest
+          - action-only
           - health
         default: all
 
@@ -170,7 +176,7 @@ jobs:
     name: RESEARCH COLLECT
     runs-on: ubuntu-latest
     needs: [determine-mode, verify-deployment]
-    if: needs.verify-deployment.outputs.outcome == 'match' && contains(fromJSON('["collect-full","collect-cache","all"]'), needs.determine-mode.outputs.mode)
+    if: needs.verify-deployment.outputs.outcome == 'match' && contains(fromJSON('["collect-full","collect-cache","action-only","all"]'), needs.determine-mode.outputs.mode)
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -388,6 +394,21 @@ jobs:
           jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?, .rows?)' "$body" || cat "$body"
           test "$code" = "200"
           jq -e '.ok == true' "$body" >/dev/null
+          mkdir -p artifacts
+          dump="artifacts/action-${SPORT}-${GITHUB_RUN_ID}.json"
+          dump_code="$(curl -sS --max-time 60 -o "$dump" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" "${BASE}/api/action-apify-collect?mode=observations&sport=${SPORT}&lifecycle=pregame&profile=BASE&limit=5000")"
+          echo "dump_http=${dump_code} path=${dump}"
+          test "$dump_code" = "200"
+          jq -e '.ok == true' "$dump" >/dev/null
+
+      - name: Upload ACTION persisted data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: action-market-data-${{ github.run_id }}-${{ matrix.sport }}
+          path: artifacts/action-*.json
+          if-no-files-found: warn
+          retention-days: 14
 
   harvest:
     name: RESEARCH HARVEST
@@ -535,13 +556,30 @@ jobs:
           harvest_stale="$(jq -r '.checks[] | select(.name=="scheduled-harvest") | .stale' "$tmp")"
           collect_ok="$(jq -r '.checks[] | select(.name=="scheduled-collect") | .ok' "$tmp")"
           action_enabled="$(jq -r '.actionApify.enabled // false' "$tmp")"
-          action_runs_24h="$(jq -r '.actionApify.runsLast24h // 0' "$tmp")"
           need_collect=0
           need_harvest=0
           need_action=0
           if [ "$collect_state" = "missed" ] || [ "$collect_ok" = "false" ] || [ "$collect_state" = "delayed" ]; then need_collect=1; fi
           if [ "$harvest_state" = "missed" ] || [ "$harvest_ok" = "false" ] || [ "$harvest_stale" = "true" ]; then need_harvest=1; fi
-          if [ "$action_enabled" = "true" ] && [ "$action_runs_24h" -lt 1 ]; then need_action=1; fi
+          if [ "$action_enabled" = "true" ]; then
+            for sport in mlb cfb nfl; do
+              ah="$(mktemp)"
+              ap="$(mktemp)"
+              acode="$(curl -sS --max-time 30 -o "$ah" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/action-apify-collect?mode=health&sport=${sport}&lifecycle=pregame&profile=BASE")"
+              pcode="$(curl -sS --max-time 30 -o "$ap" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/action-apify-collect?mode=plan&sport=${sport}&lifecycle=pregame&profile=BASE")"
+              last_success="$(jq -r '.actionApify.lastSuccessAt // empty' "$ah" 2>/dev/null)"
+              expected="$(jq -r '.expectedSlateGames // .plan.gamesExpected // 0' "$ap" 2>/dev/null)"
+              fresh=0
+              if [ -n "$last_success" ]; then
+                ts="$(date -u -d "$last_success" +%s 2>/dev/null || echo 0)"
+                now="$(date -u +%s)"
+                age="$((now - ts))"
+                if [ "$age" -le 21600 ]; then fresh=1; fi
+              fi
+              echo "ACTION health sport=${sport} health_http=${acode} plan_http=${pcode} expected=${expected} fresh=${fresh} lastSuccess=${last_success:-none}"
+              if [ "$acode" != "200" ] || [ "$pcode" != "200" ] || { [ "$expected" -gt 0 ] && [ "$fresh" -ne 1 ]; }; then need_action=1; fi
+            done
+          fi
           if [ "$need_collect" -eq 0 ] && [ "$need_harvest" -eq 0 ] && [ "$need_action" -eq 0 ]; then
             echo "No catch-up required. collect=${collect_state} harvest=${harvest_state} harvest_ok=${harvest_ok} harvest_stale=${harvest_stale}"
             exit 0
@@ -737,6 +775,9 @@ jobs:
           fi
           if [ "$MODE" = "harvest" ]; then
             [ "$HARVEST" = "success" ] && exit 0 || exit 1
+          fi
+          if [ "$MODE" = "action-only" ]; then
+            [ "$ACTION" = "success" ] && exit 0 || exit 1
           fi
           if [ "$MODE" = "all" ]; then
             [ "$COLLECT" = "success" ] && [ "$HARVEST" = "success" ] && exit 0 || exit 1

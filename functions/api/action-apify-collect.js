@@ -155,6 +155,62 @@ export async function onRequestGet(context) {
     });
   }
 
+  if (mode === "observations") {
+    const limitRaw = Number(url.searchParams.get("limit") || 1000);
+    const limit = Math.max(1, Math.min(5000, Number.isFinite(limitRaw) ? Math.floor(limitRaw) : 1000));
+    const dateFilter = date ? String(date).slice(0, 10) : null;
+    if (!db?.queryAll) {
+      return json({ ok: false, error: "D1 unavailable", sport, observations: [], books: [], splits: [], lineMovement: [] }, 503);
+    }
+    const obsParams = [sport];
+    let obsWhere = "LOWER(COALESCE(league, '')) = LOWER(?)";
+    if (sport === "mlb") obsWhere = "(LOWER(COALESCE(league, '')) IN ('mlb','baseball') OR LOWER(COALESCE(league, '')) = LOWER(?))";
+    if (dateFilter) {
+      obsWhere += " AND substr(COALESCE(start_time, created_at),1,10) = ?";
+      obsParams.push(dateFilter);
+    }
+    const observations = await db.queryAll(
+      "SELECT * FROM shadow_market_observations WHERE " + obsWhere + " ORDER BY created_at DESC LIMIT " + limit,
+      obsParams
+    );
+    const ids = observations.map((row) => row.id).filter(Boolean);
+    let books = [], splits = [], lineMovement = [], bookObservations = [];
+    if (ids.length) {
+      const qs = ids.map(() => "?").join(",");
+      books = await db.queryAll("SELECT * FROM shadow_market_books WHERE observation_id IN (" + qs + ") ORDER BY created_at DESC", ids);
+      splits = await db.queryAll("SELECT * FROM shadow_market_splits WHERE observation_id IN (" + qs + ") ORDER BY created_at DESC", ids);
+      lineMovement = await db.queryAll("SELECT * FROM shadow_line_movement WHERE observation_id IN (" + qs + ") ORDER BY created_at DESC", ids);
+      try {
+        const providerIds = [...new Set(observations.map((row) => row.action_game_id).filter(Boolean))];
+        if (providerIds.length) {
+          const pqs = providerIds.map(() => "?").join(",");
+          bookObservations = await db.queryAll(
+            "SELECT * FROM action_market_book_observations WHERE sport = ? AND provider_event_id IN (" + pqs + ") ORDER BY collected_at DESC LIMIT " + limit,
+            [sport, ...providerIds]
+          );
+        }
+      } catch {
+        bookObservations = [];
+      }
+    }
+    return json({
+      ok: true,
+      mode: "observations",
+      sport,
+      date: dateFilter,
+      count: { observations: observations.length, books: books.length, splits: splits.length, lineMovement: lineMovement.length, bookObservations: bookObservations.length },
+      observations,
+      books,
+      splits,
+      lineMovement,
+      bookObservations,
+      inProductionRouter: false,
+      canQualify: false,
+      canAuthorizeWager: false,
+      affectsProductionOdds: false,
+    });
+  }
+
   if (mode === "monthly") {
     const mtd = await queryMonthToDateSpendUsd(db);
     return json({
