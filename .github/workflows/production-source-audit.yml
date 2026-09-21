@@ -1,0 +1,99 @@
+name: FBIS production source audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 12 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: SOURCE TO BOARD PROOF
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Require secret
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Capture production health and persistence
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl -fsS --max-time 45 "${BASE}/api/health?_t=$(date +%s)" > artifacts/health.json
+          curl -fsS --max-time 45 "${BASE}/api/bets?_t=$(date +%s)" > artifacts/bets.json
+          curl -fsS --max-time 45 -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/action-daily-status?_t=$(date +%s)" > artifacts/action.json
+          curl -fsS --max-time 45 -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/bet-learning?_t=$(date +%s)" > artifacts/bet-learning.json
+          jq -e '.ok == true and .d1.bound == true and .d1.readOk == true' artifacts/health.json >/dev/null
+          jq -e '.ok == true' artifacts/bets.json >/dev/null
+          jq -e '.ok == true' artifacts/bet-learning.json >/dev/null
+
+      - name: Build nine-point operational evidence
+        run: |
+          set -euo pipefail
+          jq -n             --slurpfile h artifacts/health.json             --slurpfile a artifacts/action.json             --slurpfile b artifacts/bets.json             --slurpfile l artifacts/bet-learning.json             '{
+              generatedAt: now|todate,
+              contract:[
+                "credential/binding present",
+                "successful request",
+                "response record count",
+                "normalization evidence",
+                "D1 write/readback evidence",
+                "persisted row evidence",
+                "model/evaluation consumption",
+                "freshness timestamp",
+                "frontend/API consumption"
+              ],
+              d1:{
+                binding:$h[0].d1.bound,
+                read:$h[0].d1.readOk,
+                write:$h[0].d1.writeOk,
+                migration:$h[0].build.migrationStatus,
+                version:$h[0].build.schemaVersion,
+                lastWrite:$h[0].d1.lastD1WriteSuccessAt,
+                lastReadback:$h[0].d1.lastD1ReadbackSuccessAt
+              },
+              odds:{
+                order:$h[0].oddsProviders.order,
+                configured:$h[0].oddsProviders.configured,
+                liveCollectionHealthy:$h[0].oddsProviders.liveCollectionHealthy,
+                boardAvailable:$h[0].oddsProviders.boardAvailable,
+                bySport:$h[0].oddsProviders.bySport
+              },
+              action:$a[0],
+              bets:{
+                rows:($b[0].bets|length),
+                state:$b[0].state,
+                d1:$b[0].d1Status,
+                learning:$l[0].population
+              },
+              failures:$h[0].failures,
+              operatorNotes:$h[0].operatorNotes
+            }' > artifacts/source-audit.json
+          cat artifacts/source-audit.json
+          jq -e '.d1.binding == true and .d1.read == true and .d1.write == true' artifacts/source-audit.json >/dev/null
+
+      - name: Publish audit summary
+        run: |
+          {
+            echo "## FBIS production source audit"
+            echo "- D1 migration: $(jq -r '.d1.migration + " / " + (.d1.version // "none")' artifacts/source-audit.json)"
+            echo "- D1 write/readback: $(jq -r '.d1.write|tostring' artifacts/source-audit.json) / $(jq -r '.d1.lastReadback // "none"' artifacts/source-audit.json)"
+            echo "- Odds live healthy: $(jq -r '.odds.liveCollectionHealthy|tostring' artifacts/source-audit.json)"
+            echo "- Odds board available: $(jq -r '.odds.boardAvailable|tostring' artifacts/source-audit.json)"
+            echo "- ACTION state: $(jq -r '.action.state // "unknown"' artifacts/source-audit.json)"
+            echo "- Bets rows: $(jq -r '.bets.rows' artifacts/source-audit.json)"
+            echo "- Calibration eligible: $(jq -r '.bets.learning.eligible' artifacts/source-audit.json)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: fbis-source-audit-${{ github.run_id }}
+          path: artifacts/*.json
+          retention-days: 90
