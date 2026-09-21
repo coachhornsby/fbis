@@ -18,6 +18,18 @@ function matchup(s){
   const m=s.match(/([A-Za-z0-9 .&'-]{2,40})\s+(?:@|at|vs\.?|v\.)\s+([A-Za-z0-9 .&'-]{2,40})/i);
   return m?{away:m[1].trim(),home:m[2].trim()}: {away:null,home:null};
 }
+function sportOf(s){
+  if(/NFL|touchdown|passing yards|receiving yards|rushing yards/i.test(s)) return "nfl";
+  if(/MLB|strikeouts|innings|runs\b/i.test(s)) return "mlb";
+  if(/NBA|points\s*\+\s*rebounds|rebounds|assists/i.test(s)) return "nba";
+  if(/NHL|shots on goal|puck line/i.test(s)) return "nhl";
+  if(/NCAAF|college football/i.test(s)) return "cfb";
+  if(/NCAAB|college basketball/i.test(s)) return "cbb";
+  if(/WNBA/i.test(s)) return "wnba";
+  if(/soccer|premier league|mls|serie a|la liga/i.test(s)) return "soccer";
+  if(/tennis|sets|games won/i.test(s)) return "tennis";
+  return "unknown";
+}
 function marketOf(s){
   if(/same game parlay|\bsgp\b|parlay/i.test(s)) return "PARLAY";
   if(/total|over\s*\d|under\s*\d/i.test(s)) return "TOTAL";
@@ -60,7 +72,7 @@ export async function parseFanDuelSlip(text,{dateHint}={}){
   if(!market) warnings.push("market needs review");
   if(!ticketId(s)) warnings.push("FanDuel ticket ID not visible; content fingerprint used for duplicate protection");
   const ticket={
-    externalTicketId:id,executionBook:"FanDuel",executedAt:null,timezone:"America/Chicago",date,sport:null,
+    externalTicketId:id,executionBook:"FanDuel",executedAt:null,timezone:"America/Chicago",date,sport:sportOf(s),
     matchupText:teams.away&&teams.home?`${teams.away} @ ${teams.home}`:null,awayTeam:teams.away,homeTeam:teams.home,
     market:market||"UNCLASSIFIED",period:"FULL_GAME",...sel,executionPrice:price,riskAmount:risk,toWinAmount:toWin,
     potentialPayout:payout,currency:"USD",warnings,rawText:s,parseOk:Boolean(risk&&market),
