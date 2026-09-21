@@ -8,7 +8,7 @@ import { ensureShadowProviderRun, persistFullMarketObservation } from "../lib/ac
 
 const TZ="America/Chicago", SPORTS=["mlb","nfl","nba","nhl","cfb","cbb"];
 const LEAGUE={mlb:"mlb",nfl:"nfl",nba:"nba",nhl:"nhl",cfb:"ncaaf",cbb:"ncaab"};
-const PRO=new Set(["mlb","nfl","nba","nhl"]), PROFILE="DAILY", LIFECYCLE="daily";
+const PRO=new Set(["mlb","nfl","nba","nhl"]), PROFILE="DAILY", LIFECYCLE="daily", STALE_RUNNING_MS=30*60*1000;
 const json=(b,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});
 function dbOf(env){if(!env?.DB)return null;return{exec:async(s,p=[])=>env.DB.prepare(s).bind(...p).run(),queryOne:async(s,p=[])=>(await env.DB.prepare(s).bind(...p).first())||null}}
 function parts(d=new Date()){const a=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",hourCycle:"h23"}).formatToParts(d),g=t=>a.find(x=>x.type===t)?.value||"";return{y:g("year"),m:g("month"),d:g("day"),h:Number(g("hour"))}}
@@ -31,12 +31,22 @@ export async function onRequestPost(context){
  const url=new URL(context.request.url);let body={};try{body=await context.request.json()}catch{}const mode=String(url.searchParams.get("mode")||body.mode||"start").toLowerCase();
  const db=dbOf(context.env);if(!db)return json({ok:false,status:"d1_unavailable"},503);const now=new Date(),today=day(now),yesterday=prev(today),cfg=readCandidateConfig(context.env);
  if(mode==="start"){
-   const running=await active(db,today);if(running)return json({ok:true,executed:false,status:"actor_running",runId:running.id,apifyRunId:running.apify_run_id,datasetId:running.dataset_id,today},202);
+   let running=await active(db,today);
+   if(running){
+     const startedMs=Date.parse(String(running.started_at||"")),stale=!Number.isFinite(startedMs)||(Date.now()-startedMs)>STALE_RUNNING_MS;
+     if(!stale)return json({ok:true,executed:false,status:"actor_running",runId:running.id,apifyRunId:running.apify_run_id,datasetId:running.dataset_id,today},202);
+     const token=String(context.env.APIFY_TOKEN||context.env.APIFY_API_TOKEN||"").trim();
+     if(token&&running.apify_run_id){
+       try{await fetch(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(running.apify_run_id)}/abort`,{method:"POST",headers:{Authorization:`Bearer ${token}`}})}catch{}
+     }
+     await finalizeRun(db,running,{status:"failed_daily",errorClass:"stale_daily_replaced",errorMessage:"daily Actor exceeded 30-minute running window and was replaced"});
+     running=null;
+   }
    const done=await successful(db,today);if(done)return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id,today});
    if(!cfg.enabled||!cfg.configured)return json({ok:true,executed:false,status:"action_not_configured",enabled:cfg.enabled,configured:cfg.configured});
-   const sl=await slate(context.env,today,yesterday),activeSports=SPORTS.filter(s=>(sl.by[s]?.today||0)+(sl.by[s]?.yesterday||0)>0),leagues=activeSports.map(s=>LEAGUE[s]);if(!leagues.length)return json({ok:true,executed:false,status:"no_slate",today,slate:sl.by});
-   const requested=Math.max(1,Math.min(200,sl.all.length+12)),per=Number(context.env.ACTION_APIFY_DAILY_RUN_BUDGET_USD||1),fit=cfg.plan==="starter"?fitMaxItemsToUsdBudget({leagues,periods:["event"],maxItems:requested,freePlan:false,includeLineMovement:true,includePlayerProps:true,gameStatus:"any",onlyWithOdds:true},per):{maxItems:Math.min(10,requested)};
-   const input=buildActorInput({leagues,periods:["event"],maxItems:fit.maxItems,freePlan:cfg.plan==="free",includeLineMovement:true,includePlayerProps:true,gameStatus:"any",onlyWithOdds:true}),estimate=estimateActorCostUsd(input),spent=await mtd(db,now),cap=budget(context.env,now);
+   const sl=await slate(context.env,today,yesterday),activeSports=SPORTS.filter(s=>(sl.by[s]?.today||0)>0),leagues=activeSports.map(s=>LEAGUE[s]);if(!leagues.length)return json({ok:true,executed:false,status:"no_slate",today,slate:sl.by});
+   const requested=Math.max(1,Math.min(200,sl.all.length+12)),per=Number(context.env.ACTION_APIFY_DAILY_RUN_BUDGET_USD||1),fit=cfg.plan==="starter"?fitMaxItemsToUsdBudget({leagues,periods:["event"],maxItems:requested,freePlan:false,includeLineMovement:true,includePlayerProps:true,gameStatus:"scheduled",onlyWithOdds:true},per):{maxItems:Math.min(10,requested)};
+   const input=buildActorInput({leagues,periods:["event"],maxItems:fit.maxItems,freePlan:cfg.plan==="free",includeLineMovement:true,includePlayerProps:true,gameStatus:"scheduled",onlyWithOdds:true}),estimate=estimateActorCostUsd(input),spent=await mtd(db,now),cap=budget(context.env,now);
    if(spent+estimate>cap+1e-9)return json({ok:true,executed:false,status:"monthly_budget_blocked",monthToDateUsd:spent,estimatedNextRunUsd:estimate,monthlyBudgetUsd:cap});
    const token=String(context.env.APIFY_TOKEN||context.env.APIFY_API_TOKEN||"").trim();if(!token)return json({ok:false,status:"apify_not_configured"},503);
    const actorPath=encodeURIComponent(ACTION_APIFY_ACTOR_ID),res=await fetch(`https://api.apify.com/v2/acts/${actorPath}/runs?waitForFinish=0`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify(input)});
