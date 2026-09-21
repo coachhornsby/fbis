@@ -9,7 +9,7 @@ function row(i, {
   totalError = 0,
   p = 0.6,
   actualHomeWin = true,
-  projectedMargin = 4,
+  projectedMargin = null,
 } = {}) {
   const ah = actualHomeWin ? 30 : 20;
   const aa = actualHomeWin ? 20 : 30;
@@ -55,8 +55,8 @@ describe("FBIS model learning findings", () => {
 
   it("finds a repeated high-error projected-favorite slice", () => {
     const rows = [];
-    for (let i = 0; i < 45; i += 1) rows.push(row(i, { marginError: 1, projectedMargin: 4 }));
-    for (let i = 45; i < 65; i += 1) rows.push(row(i, { marginError: 5, projectedMargin: 14 }));
+    for (let i = 0; i < 45; i += 1) rows.push(row(i, { projectedMargin: 8 }));
+    for (let i = 45; i < 65; i += 1) rows.push(row(i, { projectedMargin: 15 }));
     const findings = buildLearningFindings(rows, { sport: "cfb", modelId: "M1", recentN: 20 });
     const f = findings.find((x) => x.findingType === "slice" && x.sliceKey === "favorite:large" && x.metric === "margin.mae");
     assert.ok(f);
