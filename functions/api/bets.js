@@ -27,6 +27,9 @@ import {
   queryOddsSnapshots,
   hasDb,
   pingDb,
+  upsertExecutedBetEntry,
+  queryExecutedBetEntries,
+  reconcileExecutedBetEntries,
 } from "../lib/store.js";
 import { authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 import { durableHealth, scheduledHealth } from "../lib/jobs.js";
@@ -294,7 +297,22 @@ export async function handleBetsPost(env, request, body) {
     }
     if (!tickets.length) return { status: 400, body: { ok: false, error: "no tickets to import", wrote: false } };
     const result = await importBets(env, tickets);
-    return { status: result.status, body: result.body };
+    const byEntry = new Map();
+    for (const t of tickets) {
+      const entryId=t.entryId || t.trackerMetadata?.entryId;
+      if(!entryId) continue;
+      if(!byEntry.has(entryId)) byEntry.set(entryId,[]);
+      byEntry.get(entryId).push(t);
+    }
+    for(const [entryId,legs] of byEntry){
+      const primary=legs.find(x=>Number(x.riskAmount)>0)||legs[0]; const meta=primary.trackerMetadata||{};
+      await upsertExecutedBetEntry(env,{id:entryId,executionBook:primary.executionBook,entryType:meta.entryType||body.entryType||"MULTI_LEG",
+        executedAt:primary.executedAt,sport:primary.sport,riskAmount:meta.cardRiskAmount??primary.riskAmount,
+        toWinAmount:meta.cardToWinAmount??primary.toWinAmount,potentialPayout:meta.cardPotentialPayout??primary.potentialPayout,
+        legCount:legs.length,sourceTicketId:primary.externalTicketId,trackerMetadata:meta});
+    }
+    await reconcileExecutedBetEntries(env);
+    return { status: result.status, body: {...result.body, entries: byEntry.size} };
   }
   if (action === "grade-player-prop") {
     if (!hasDb(env)) return { status: 503, body: { ok: false, error: "D1 unbound" } };
@@ -323,7 +341,8 @@ export async function handleBetsPost(env, request, body) {
       propActual: actual,
       propStatSource: "operator-entered",
     };
-    const res = await updateExecutedBet(env, body.id, patch, "manual-player-prop-stat");
+    const res = await updateExecutedBet(env, body.id, {...patch, legResult:settlement.result, exceptionCode:null}, "manual-player-prop-stat");
+    await reconcileExecutedBetEntries(env);
     return { status: res.ok ? 200 : 400, body: { ok: res.ok, error: res.reason || null, result: settlement.result, actual } };
   }
   if (action === "correct") {
