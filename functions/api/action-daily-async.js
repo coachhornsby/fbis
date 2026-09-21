@@ -42,15 +42,24 @@ export async function onRequestPost(context){
      await finalizeRun(db,running,{status:"failed_daily",errorClass:"stale_daily_replaced",errorMessage:"daily Actor exceeded 30-minute running window and was replaced"});
      running=null;
    }
-   const done=await successful(db,today);if(done)return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id,today});
    if(!cfg.enabled||!cfg.configured)return json({ok:true,executed:false,status:"action_not_configured",enabled:cfg.enabled,configured:cfg.configured});
-   const sl=await slate(context.env,today,yesterday),activeSports=SPORTS.filter(s=>(sl.by[s]?.today||0)>0),leagues=activeSports.map(s=>LEAGUE[s]);if(!leagues.length)return json({ok:true,executed:false,status:"no_slate",today,slate:sl.by});
-   const requested=Math.max(1,Math.min(200,sl.all.length+12)),per=Number(context.env.ACTION_APIFY_DAILY_RUN_BUDGET_USD||1),fit=cfg.plan==="starter"?fitMaxItemsToUsdBudget({leagues,periods:["event"],maxItems:requested,freePlan:false,includeLineMovement:true,includePlayerProps:true,gameStatus:"scheduled",onlyWithOdds:true},per):{maxItems:Math.min(10,requested)};
-   const input=buildActorInput({leagues,periods:["event"],maxItems:fit.maxItems,freePlan:cfg.plan==="free",includeLineMovement:true,includePlayerProps:true,gameStatus:"scheduled",onlyWithOdds:true}),estimate=estimateActorCostUsd(input),spent=await mtd(db,now),cap=budget(context.env,now);
+   const sl=await slate(context.env,today,yesterday),activeSports=SPORTS.filter(s=>(sl.by[s]?.today||0)>0);
+   if(!activeSports.length)return json({ok:true,executed:false,status:"no_slate",today,slate:sl.by});
+   const done=await successful(db,today);
+   let collectionSports=[...activeSports];
+   if(done){
+     let prior={};try{prior=JSON.parse(done.plan||"{}")}catch{}
+     const priorSports=new Set(prior.activeSports||[]);
+     collectionSports=activeSports.filter(s=>!priorSports.has(s));
+     if(!collectionSports.length)return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id,today,activeSports});
+   }
+   const leagues=collectionSports.map(s=>LEAGUE[s]);
+   const requested=Math.max(1,Math.min(200,sl.all.filter(g=>collectionSports.includes(sport(g?.league||g?.sport))).length+8)),per=Number(context.env.ACTION_APIFY_DAILY_RUN_BUDGET_USD||1),fit=cfg.plan==="starter"?fitMaxItemsToUsdBudget({leagues,periods:["event"],maxItems:requested,freePlan:false,includeLineMovement:true,includePlayerProps:false,gameStatus:"scheduled",onlyWithOdds:true},per):{maxItems:Math.min(10,requested)};
+   const input=buildActorInput({leagues,periods:["event"],maxItems:fit.maxItems,freePlan:cfg.plan==="free",includeLineMovement:true,includePlayerProps:false,gameStatus:"scheduled",onlyWithOdds:true}),estimate=estimateActorCostUsd(input),spent=await mtd(db,now),cap=budget(context.env,now);
    if(spent+estimate>cap+1e-9)return json({ok:true,executed:false,status:"monthly_budget_blocked",monthToDateUsd:spent,estimatedNextRunUsd:estimate,monthlyBudgetUsd:cap});
    const token=String(context.env.APIFY_TOKEN||context.env.APIFY_API_TOKEN||"").trim();if(!token)return json({ok:false,status:"apify_not_configured"},503);
    const actorPath=encodeURIComponent(ACTION_APIFY_ACTOR_ID),res=await fetch(`https://api.apify.com/v2/acts/${actorPath}/runs?waitForFinish=0`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify(input)});
-   if(!res.ok)return json({ok:false,status:"apify_start_http",http:res.status},502);const j=await res.json(),a=j.data||j,runId=`daily_${today.replaceAll("-","")}_${crypto.randomUUID().replace(/-/g,"").slice(0,10)}`,started=new Date().toISOString(),plan=JSON.stringify({input,activeSports,leagues,requestedRows:requested,estimatedCostUsd:estimate,today,yesterday});
+   if(!res.ok)return json({ok:false,status:"apify_start_http",http:res.status},502);const j=await res.json(),a=j.data||j,runId=`daily_${today.replaceAll("-","")}_${crypto.randomUUID().replace(/-/g,"").slice(0,10)}`,started=new Date().toISOString(),plan=JSON.stringify({input,activeSports:collectionSports,fullActiveSports:activeSports,leagues,requestedRows:requested,estimatedCostUsd:estimate,today,yesterday});
    await db.exec(`INSERT INTO shadow_collection_runs(id,provider,mode,plan,profile,sport,lifecycle,status,enabled,apify_run_id,dataset_id,requested_max_items,estimated_cost_usd,cost_basis,started_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[runId,"ACTION_APIFY","shadow",plan,PROFILE,"all",LIFECYCLE,"running_daily",1,a.id||null,a.defaultDatasetId||null,input.maxItems,estimate,"ESTIMATED",started,started]);
    return json({ok:true,executed:true,status:"started_daily",runId,apifyRunId:a.id||null,datasetId:a.defaultDatasetId||null,today,estimatedCostUsd:estimate},202);
  }
