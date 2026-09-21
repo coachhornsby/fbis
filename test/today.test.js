@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { BOARD_STATUSES, classifyBoardStatus } from "../functions/lib/gameStatus.js";
-import { resolveTodayDate, utcMidnightVsCt, groupBySport, sortByStart, emptyTodayState, buildTodayBoard } from "../functions/lib/todayBoard.js";
+import { resolveTodayDate, utcMidnightVsCt, groupBySport, sortByStart, emptyTodayState, buildTodayBoard, boardDateCtForStart } from "../functions/lib/todayBoard.js";
 import { projectionRecipe } from "../functions/lib/slateEngine.js";
 import { resolveSlateDate } from "../functions/lib/slateEngine.js";
 import { fetchEspnScoreboard } from "../functions/lib/slateEngine.js";
@@ -129,6 +129,50 @@ describe("TODAY cache-only and MY BET markers", () => {
     });
     assert.ok(seen.length >= 5);
     assert.ok(seen.every((s) => s.cache === true && s.pal === true));
+  });
+
+  it("keeps TODAY population on the selected Chicago date even when provider returns a weekly slate", async () => {
+    assert.equal(boardDateCtForStart("2026-09-22T00:15:00Z"), "2026-09-21");
+    assert.equal(boardDateCtForStart("2026-09-22T20:00:00Z"), "2026-09-22");
+
+    const mk = (id, start) => ({
+      id,
+      sport: "nfl",
+      start,
+      home: { name: "Home", abbr: "H" },
+      away: { name: "Away", abbr: "A" },
+      status: { detail: "Scheduled" },
+      odds: {},
+      model: {
+        projHome: 24,
+        projAway: 21,
+        projTotal: 45,
+        projMargin: 3,
+        projectionKind: "FBIS",
+        layers: { score: 0.55 },
+      },
+      projectionKind: "FBIS",
+      projectionMaturity: "RESEARCH",
+    });
+
+    const board = await buildTodayBoard("2026-09-21", {}, {
+      focusSport: "nfl",
+      buildSlateFn: async () => ({
+        sport: "nfl",
+        date: "2026-09-21",
+        games: [
+          mk("monday-night", "2026-09-22T00:15:00Z"),
+          mk("thursday", "2026-09-25T00:15:00Z"),
+          mk("sunday", "2026-09-27T17:00:00Z"),
+        ],
+        parlay: { cached: true, skipped: true },
+      }),
+    });
+
+    assert.equal(board.counts.games, 1);
+    assert.equal(board.counts.bySport.nfl, 1);
+    assert.equal(board.feeds.nfl.n, 1);
+    assert.equal(board.games[0].id, "monday-night");
   });
 
   it("requests live feeds for the focused today sport only", async () => {
