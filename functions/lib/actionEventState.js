@@ -295,22 +295,29 @@ function pickSnapshots(rows, pointersByType) {
   return out;
 }
 
-function movementFromSnapshots(snapshots, consensus) {
-  const openingLine =
-    snapshots.open?.market === "spread" ? snapshots.open.line : snapshots.open?.line ?? null;
-  const currentLine =
-    snapshots.current?.market === "spread"
-      ? snapshots.current.line
-      : snapshots.current?.line ?? consensus.spreadHome ?? null;
+function movementFromSnapshots(snapshots, consensus, observations = []) {
+  // Movement must compare like-for-like quotes. The generic OPEN/CURRENT
+  // pointers can belong to different market families (for example total vs
+  // spread), so never use them to construct a spread move.
+  const spreadHome = sortByTimeAsc(observations).filter((row) => {
+    const family = marketFamily(row.market_type || row.marketType);
+    return family === "spread" && isHomeish(row.selection) && numOrNull(row.line) != null;
+  });
+  const first = spreadHome[0] || null;
+  const last = spreadHome.at(-1) || null;
+  const openingLine = first ? numOrNull(first.line) : null;
+  const currentLine = last ? numOrNull(last.line) : numOrNull(consensus?.spreadHome);
   const movementMagnitude =
     openingLine != null && currentLine != null
       ? Math.round((currentLine - openingLine) * 10) / 10
       : null;
   return {
+    market: "spread",
+    selection: "home",
     openingLine,
     currentLine,
     movementMagnitude,
-    bestBook: snapshots.current?.sportsbook || null,
+    bestBook: strOrNull(last?.sportsbook) || null,
   };
 }
 
@@ -362,7 +369,7 @@ export function buildDurableActionEventState({
     observedAt,
     consensus,
     publicSplits,
-    movement: movementFromSnapshots(snapshots, consensus),
+    movement: movementFromSnapshots(snapshots, consensus, observations),
     snapshots,
     lineHistory,
     books,
