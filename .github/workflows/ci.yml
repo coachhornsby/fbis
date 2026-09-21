@@ -302,6 +302,36 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Controlled CFBD + CBBD capability audit
+        if: contains(github.event.head_commit.message, '[college-capability-audit]')
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          CBBD_API_KEY: ${{ secrets.CBBD_API_KEY }}
+          COLLEGE_AUDIT_YEARS: "2026,2024,2022"
+          CBBD_AUDIT_MAX_REQUESTS: "60"
+        run: |
+          set -euo pipefail
+          node scripts/college-capability-audit.mjs | tee artifacts/college-capability-audit-summary.log
+          test -s artifacts/college-capability-audit.json
+          jq -e '.ok == true' artifacts/college-capability-audit.json >/dev/null
+          {
+            echo "## Controlled CFBD + CBBD capability audit"
+            echo ""
+            cat artifacts/college-capability-audit-summary.log
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload college capability audit artifact
+        if: contains(github.event.head_commit.message, '[college-capability-audit]')
+        uses: actions/upload-artifact@v4
+        with:
+          name: college-capability-audit-${{ env.DEPLOY_SHA }}
+          path: |
+            artifacts/college-capability-audit.json
+            artifacts/college-capability-audit.md
+            artifacts/college-capability-audit-summary.log
+          if-no-files-found: error
+          retention-days: 14
+
       # NFL team_form was never seeded because freeze historically skipped NFL
       # (no independent FBIS projection) — a circular dependency. Seed form from
       # ESPN finals via /api/harvest only. Do NOT call /api/collect here — research
