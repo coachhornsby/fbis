@@ -5,13 +5,14 @@
  */
 
 import * as core from "./collegeJobsCore.js";
-import { queryModelPredictions, insertValidationRun, insertPromotionDecision, insertModelPrediction, gradeModelPrediction } from "./collegeStore.js";
+import { queryModelPredictions, insertValidationRun, insertPromotionDecision, insertModelPrediction, gradeModelPrediction, insertModelLearningFinding } from "./collegeStore.js";
 import { COLLEGE_MODELS, PROMOTION_CRITERIA, evaluatePromotionEvidence } from "./collegeModels.js";
-import { evaluateModelRows, pairedModelComparison, promotionEvidence } from "./modelLab.js";
+import { evaluateModelRows, pairedModelComparison, promotionEvidence, buildLearningFindings } from "./modelLab.js";
 import { newJobId, jobPayload, emptyWriteCounts, recordJob } from "./jobs.js";
 import { hasDb } from "./store.js";
 
 export * from "./collegeJobsCore.js";
+export const COLLEGE_JOBS = [...core.COLLEGE_JOBS, "model-learn-analyze"];
 
 const SCORE_FAMILIES = new Set(["baseline", "ratings", "reg", "ensemble", "matchup"]);
 const FREEZE_MODELS = {
@@ -149,6 +150,120 @@ async function runSportValidation(env, opts = {}) {
   return payload;
 }
 
+
+function learningFindingId(sport, modelId, finding) {
+  const safe = (value) => String(value || "none").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
+  const window = String(finding?.windowEnd || "undated").slice(0, 10);
+  return `mlf:${safe(sport)}:${safe(modelId)}:${safe(finding?.findingType)}:${safe(finding?.metric)}:${safe(finding?.sliceKey)}:${window}`;
+}
+
+async function runLearningAnalysis(env, opts = {}) {
+  const started = new Date().toISOString();
+  const sport = String(opts.sport || "cfb").toLowerCase();
+  if (!new Set(["cbb", "cfb"]).has(sport)) {
+    return jobPayload({
+      ok: false,
+      job: "model-learn-analyze",
+      status: "failed",
+      attemptedAt: started,
+      errors: ["model-learn-analyze supports sport=cbb or sport=cfb"],
+      env,
+      writes: emptyWriteCounts(),
+    });
+  }
+
+  await core.seedRegistry(env);
+  const ids = new Set(researchModelIds(sport, opts.modelId || "all"));
+  const referenceId = String(opts.championModelId || "");
+  const referenceMeta = COLLEGE_MODELS[referenceId];
+  if (referenceMeta?.sport === sport && referenceMeta.independent && !referenceMeta.marketInformed) {
+    ids.add(referenceId);
+  }
+
+  if (!ids.size) {
+    return jobPayload({
+      ok: false,
+      job: "model-learn-analyze",
+      status: "failed",
+      attemptedAt: started,
+      errors: ["no-learning-models"],
+      env,
+      writes: emptyWriteCounts(),
+    });
+  }
+
+  const jobId = newJobId(`model-learn-analyze-${sport}`);
+  const writes = emptyWriteCounts();
+  const models = [];
+  const persisted = [];
+
+  for (const modelId of ids) {
+    const rows = await queryModelPredictions(env, { sport, modelId, limit: 5000 });
+    const graded = rows.filter((r) => r.actual_home != null && r.actual_away != null);
+    const findings = buildLearningFindings(graded, { sport, modelId });
+    let inserted = 0;
+    let already = 0;
+    for (const finding of findings) {
+      const result = await insertModelLearningFinding(env, {
+        id: learningFindingId(sport, modelId, finding),
+        sport,
+        modelId,
+        ...finding,
+        createdAt: new Date().toISOString(),
+      });
+      if (result.ok) {
+        inserted += Number(result.inserted || 0);
+        already += Number(result.already || 0);
+        writes.writesSucceeded += 1;
+      } else {
+        writes.writesFailed += 1;
+      }
+    }
+    models.push({
+      modelId,
+      gradedN: graded.length,
+      findingCount: findings.length,
+      inserted,
+      already,
+      findings,
+    });
+    persisted.push(...findings.map((finding) => ({ modelId, ...finding })));
+  }
+
+  const successfulAt = new Date().toISOString();
+  const payload = jobPayload({
+    ok: true,
+    job: "model-learn-analyze",
+    status: "success",
+    attemptedAt: started,
+    successfulAt,
+    env,
+    writes,
+    d1: {
+      bound: hasDb(env),
+      sport,
+      referenceModelId: referenceId || null,
+      models,
+      findings: persisted,
+      note: "Research findings only. No champion, qualification, wager authority, or frozen historical prediction is changed.",
+    },
+  });
+  await recordJob(env, {
+    id: jobId,
+    jobType: "model-learn-analyze",
+    triggerType: opts.trigger || "http",
+    startedAt: started,
+    completedAt: successfulAt,
+    status: payload.status,
+    sport,
+    writesAttempted: writes.writesSucceeded + writes.writesFailed,
+    writesSucceeded: writes.writesSucceeded,
+    writesFailed: writes.writesFailed,
+    env,
+  });
+  return payload;
+}
+
 async function runEvidencePromotion(env, opts = {}) {
   const started = new Date().toISOString();
   const sport = String(opts.sport || COLLEGE_MODELS[opts.modelId]?.sport || "").toLowerCase();
@@ -173,6 +288,7 @@ async function runEvidencePromotion(env, opts = {}) {
 
 export async function runCollegeJob(job, env = {}, opts = {}) {
   if (job === "model-train-validate") return runSportValidation(env, opts);
+  if (job === "model-learn-analyze") return runLearningAnalysis(env, opts);
   if (job === "model-promote") return runEvidencePromotion(env, opts);
   return core.runCollegeJob(job, env, opts);
 }

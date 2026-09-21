@@ -73,6 +73,35 @@ jobs:
           test "$http" = "200"
           jq -e '.ok == true and .job == "model-train-validate" and .d1.bound == true and .d1.sport == "cbb"' "$out" >/dev/null
 
+      - name: Analyze CFB drift and error slices
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          out="artifacts/model-findings-cfb.json"
+          http="$(curl -sS --max-time 180 --retry 1 -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" -o "$out" -w "%{http_code}" "$BASE/api/college?job=model-learn-analyze&sport=cfb&referenceModelId=CFB-FBIS-v2&trigger=schedule")"
+          echo "CFB findings http=$http"
+          cat "$out"
+          test "$http" = "200"
+          jq -e '.ok == true and .job == "model-learn-analyze" and .d1.bound == true and .d1.sport == "cfb"' "$out" >/dev/null
+
+      - name: Analyze CBB drift and error slices
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          out="artifacts/model-findings-cbb.json"
+          http="$(curl -sS --max-time 180 --retry 1 -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" -o "$out" -w "%{http_code}" "$BASE/api/college?job=model-learn-analyze&sport=cbb&referenceModelId=CBB-PINNACLE-IMPLIED&trigger=schedule")"
+          echo "CBB findings http=$http"
+          cat "$out"
+          test "$http" = "200"
+          jq -e '.ok == true and .job == "model-learn-analyze" and .d1.bound == true and .d1.sport == "cbb"' "$out" >/dev/null
       - name: Build learning summary
         if: steps.gate.outputs.run == 'true'
         run: |
@@ -82,22 +111,26 @@ jobs:
             echo ""
             for sport in cfb cbb; do
               file="artifacts/model-learning-${sport}.json"
+              findings="artifacts/model-findings-${sport}.json"
               echo "### ${sport^^}"
               echo "- reference: $(jq -r '.d1.referenceModelId // "none"' "$file")"
               echo "- models evaluated: $(jq -r '.d1.validation | length' "$file")"
               echo "- paired comparisons: $(jq -r '.d1.paired | length' "$file")"
+              echo "- learning findings: $(jq -r '.d1.findings | length' "$findings")"
               echo ""
-              jq -r '.d1.validation[]? | "- (.modelId): n=(.metrics.n), seasons=(.metrics.seasons), total_MAE=(.metrics.total.mae // "NA"), margin_MAE=(.metrics.margin.mae // "NA"), brier=(.metrics.probability.brier // "NA"), leakage=(.leakageOk)"' "$file"
+              jq -r '.d1.validation[]? | "- \(.modelId): n=\(.metrics.n), seasons=\(.metrics.seasons), total_MAE=\(.metrics.total.mae // "NA"), margin_MAE=\(.metrics.margin.mae // "NA"), brier=\(.metrics.probability.brier // "NA"), leakage=\(.leakageOk)"' "$file"
+              jq -r '.d1.findings[]? | "  - [\(.severity)] \(.modelId) \(.findingType) \(.sliceKey) \(.metric): baseline=\(.baselineValue) recent=\(.recentValue) delta=\(.delta)"' "$findings"
               echo ""
             done
-            echo "Research only. No automatic model promotion or wager-authority change."
+            echo "Research only. Findings persist as OPEN hypotheses. No automatic model promotion or wager-authority change."
           } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Upload learning evidence
         if: steps.gate.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: fbis-model-learning-${{ github.run_id }}
-          path: artifacts/model-learning-*.json
+          path: |
+            artifacts/model-learning-*.json
+            artifacts/model-findings-*.json
           if-no-files-found: error
           retention-days: 90

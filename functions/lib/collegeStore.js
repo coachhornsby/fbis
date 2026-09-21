@@ -376,6 +376,76 @@ export async function upsertTeamSeasonIdentity(env, row) {
   }
 }
 
+
+export async function insertModelLearningFinding(env, row) {
+  if (!hasDb(env) || !row?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  try {
+    const now = row.updatedAt || row.createdAt || new Date().toISOString();
+    const res = await env.DB.prepare(
+      `INSERT OR IGNORE INTO model_learning_findings (
+        id, sport, model_id, finding_type, slice_key, metric,
+        baseline_n, recent_n, baseline_value, recent_value, delta,
+        severity, window_start, window_end, evidence_json, hypothesis,
+        status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        row.sport,
+        row.modelId,
+        row.findingType,
+        n(row.sliceKey),
+        row.metric,
+        n(row.baselineN),
+        n(row.recentN),
+        n(row.baselineValue),
+        n(row.recentValue),
+        n(row.delta),
+        row.severity,
+        n(row.windowStart),
+        n(row.windowEnd),
+        json(row.evidence || {}),
+        n(row.hypothesis),
+        row.status || "OPEN",
+        row.createdAt || now,
+        now
+      )
+      .run();
+    return { ok: true, inserted: res.meta?.changes ? 1 : 0, already: res.meta?.changes ? 0 : 1 };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function queryModelLearningFindings(
+  env,
+  { sport = null, modelId = null, status = null, limit = 200 } = {}
+) {
+  if (!hasDb(env)) return [];
+  try {
+    let sql = "SELECT * FROM model_learning_findings WHERE 1=1";
+    const binds = [];
+    if (sport) {
+      sql += " AND sport = ?";
+      binds.push(sport);
+    }
+    if (modelId) {
+      sql += " AND model_id = ?";
+      binds.push(modelId);
+    }
+    if (status) {
+      sql += " AND status = ?";
+      binds.push(status);
+    }
+    sql += " ORDER BY created_at DESC LIMIT ?";
+    binds.push(Math.max(1, Math.min(1000, Number(limit) || 200)));
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    return res.results || [];
+  } catch {
+    return [];
+  }
+}
+
 export async function queryModelPredictions(env, { sport, modelId, gameId, ungraded = false, limit = 200 } = {}) {
   if (!hasDb(env)) return [];
   try {

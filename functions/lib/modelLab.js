@@ -175,6 +175,183 @@ export function promotionEvidence(referenceRows = [], challengerRows = [], { spo
   };
 }
 
+
+function learningFrozenAt(row) {
+  const raw = row?.frozen_at ?? row?.frozenAt;
+  const ms = Date.parse(raw || "");
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function learningMetric(summary, key) {
+  if (key === "total.mae") return summary?.total?.mae ?? null;
+  if (key === "margin.mae") return summary?.margin?.mae ?? null;
+  if (key === "total.biasAbs") {
+    const v = summary?.total?.bias;
+    return Number.isFinite(v) ? Math.abs(v) : null;
+  }
+  if (key === "margin.biasAbs") {
+    const v = summary?.margin?.bias;
+    return Number.isFinite(v) ? Math.abs(v) : null;
+  }
+  if (key === "probability.brier") return summary?.probability?.brier ?? null;
+  return null;
+}
+
+function favoriteBucket(row) {
+  const margin = rowProjection(row).margin;
+  if (!Number.isFinite(margin)) return null;
+  const abs = Math.abs(margin);
+  if (abs <= 3) return "favorite:tossup";
+  if (abs <= 10) return "favorite:medium";
+  return "favorite:large";
+}
+
+function learningSeverity(delta, warning, high) {
+  if (!Number.isFinite(delta) || delta < warning) return null;
+  return delta >= high ? "HIGH" : "WATCH";
+}
+
+/**
+ * Detect repeatable degradation, not one-off misses.
+ * Research-only: findings do not mutate or promote production models.
+ */
+export function buildLearningFindings(
+  rows = [],
+  {
+    sport = null,
+    modelId = null,
+    recentN = 50,
+    minWindowN = 20,
+    minSliceN = 15,
+  } = {}
+) {
+  const ordered = rows
+    .filter(isGradedPrediction)
+    .filter((row) => learningFrozenAt(row) != null)
+    .slice()
+    .sort((a, b) => learningFrozenAt(a) - learningFrozenAt(b));
+
+  if (ordered.length < minWindowN * 2) return [];
+
+  const resolvedSport = String(sport || ordered[0]?.sport || "").toLowerCase() || "unknown";
+  const resolvedModel = String(modelId || ordered[0]?.model_id || ordered[0]?.modelId || "unknown");
+  const requestedRecent = Math.max(minWindowN, Number(recentN) || 50);
+  const recentSize = Math.min(requestedRecent, ordered.length - minWindowN);
+  const baselineRows = ordered.slice(0, ordered.length - recentSize);
+  const recentRows = ordered.slice(ordered.length - recentSize);
+  if (baselineRows.length < minWindowN || recentRows.length < minWindowN) return [];
+
+  const baseline = evaluateModelRows(baselineRows, { sport: resolvedSport });
+  const recent = evaluateModelRows(recentRows, { sport: resolvedSport });
+  const windowStart = recentRows[0]?.frozen_at ?? recentRows[0]?.frozenAt ?? null;
+  const windowEnd = recentRows.at(-1)?.frozen_at ?? recentRows.at(-1)?.frozenAt ?? null;
+  const findings = [];
+
+  const driftSpecs = [
+    { metric: "total.mae", warning: 0.5, high: 1.0, label: "total projection MAE" },
+    { metric: "margin.mae", warning: 0.5, high: 1.0, label: "margin projection MAE" },
+    { metric: "total.biasAbs", warning: 0.75, high: 1.5, label: "absolute total bias" },
+    { metric: "margin.biasAbs", warning: 0.75, high: 1.5, label: "absolute margin bias" },
+    { metric: "probability.brier", warning: 0.02, high: 0.05, label: "home-win Brier score" },
+  ];
+
+  for (const spec of driftSpecs) {
+    if (
+      spec.metric === "probability.brier" &&
+      (Number(baseline?.probability?.n || 0) < minWindowN || Number(recent?.probability?.n || 0) < minWindowN)
+    ) {
+      continue;
+    }
+    const baseValue = learningMetric(baseline, spec.metric);
+    const recentValue = learningMetric(recent, spec.metric);
+    const delta =
+      Number.isFinite(baseValue) && Number.isFinite(recentValue)
+        ? recentValue - baseValue
+        : null;
+    const severity = learningSeverity(delta, spec.warning, spec.high);
+    if (!severity) continue;
+    findings.push({
+      findingType: "drift",
+      sliceKey: "recent-vs-prior",
+      metric: spec.metric,
+      baselineN: baseline.n,
+      recentN: recent.n,
+      baselineValue: baseValue,
+      recentValue,
+      delta,
+      severity,
+      windowStart,
+      windowEnd,
+      hypothesis: `${resolvedModel} ${spec.label} has degraded in the recent window; investigate changed data quality, feature behavior, roster/context inputs, or model calibration before changing production logic.`,
+      evidence: {
+        sport: resolvedSport,
+        modelId: resolvedModel,
+        baselineWindow: {
+          n: baselineRows.length,
+          from: baselineRows[0]?.frozen_at ?? baselineRows[0]?.frozenAt ?? null,
+          to: baselineRows.at(-1)?.frozen_at ?? baselineRows.at(-1)?.frozenAt ?? null,
+        },
+        recentWindow: { n: recentRows.length, from: windowStart, to: windowEnd },
+      },
+      status: "OPEN",
+    });
+  }
+
+  const groups = new Map();
+  for (const row of ordered) {
+    const key = favoriteBucket(row);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+
+  for (const [sliceKey, sliceRows] of groups.entries()) {
+    if (sliceRows.length < minSliceN) continue;
+    const sliceSet = new Set(sliceRows);
+    const rest = ordered.filter((row) => !sliceSet.has(row));
+    if (rest.length < minWindowN) continue;
+    const sliceSummary = evaluateModelRows(sliceRows, { sport: resolvedSport });
+    const restSummary = evaluateModelRows(rest, { sport: resolvedSport });
+    const sliceMae = sliceSummary.margin.mae;
+    const restMae = restSummary.margin.mae;
+    const delta =
+      Number.isFinite(sliceMae) && Number.isFinite(restMae)
+        ? sliceMae - restMae
+        : null;
+    const severity = learningSeverity(delta, 1.5, 3.0);
+    if (!severity) continue;
+    const label = sliceKey === "favorite:large"
+      ? "large projected favorites"
+      : sliceKey === "favorite:medium"
+        ? "medium projected favorites"
+        : "near-pick'em games";
+    findings.push({
+      findingType: "slice",
+      sliceKey,
+      metric: "margin.mae",
+      baselineN: restSummary.n,
+      recentN: sliceSummary.n,
+      baselineValue: restMae,
+      recentValue: sliceMae,
+      delta,
+      severity,
+      windowStart: sliceRows[0]?.frozen_at ?? sliceRows[0]?.frozenAt ?? null,
+      windowEnd: sliceRows.at(-1)?.frozen_at ?? sliceRows.at(-1)?.frozenAt ?? null,
+      hypothesis: `${resolvedModel} is materially less accurate on ${label}; test whether the error is explained by data quality, favorite-strength compression, player availability, or matchup-feature misspecification.`,
+      evidence: {
+        sport: resolvedSport,
+        modelId: resolvedModel,
+        slice: sliceKey,
+        sliceN: sliceSummary.n,
+        comparisonN: restSummary.n,
+      },
+      status: "OPEN",
+    });
+  }
+
+  return findings;
+}
+
 export function modelLeaderboard(rows = [], { sport = null, includeMarketInformed = false } = {}) {
   const groups = new Map();
   for (const row of rows) {
