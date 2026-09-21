@@ -154,7 +154,7 @@ async function runSportValidation(env, opts = {}) {
 function learningFindingId(sport, modelId, finding) {
   const safe = (value) => String(value || "none").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
   const window = String(finding?.windowEnd || "undated").slice(0, 10);
-  return \`mlf:\${safe(sport)}:\${safe(modelId)}:\${safe(finding?.findingType)}:\${safe(finding?.metric)}:\${safe(finding?.sliceKey)}:\${window}\`;
+  return `mlf:${safe(sport)}:${safe(modelId)}:${safe(finding?.findingType)}:${safe(finding?.metric)}:${safe(finding?.sliceKey)}:${window}`;
 }
 
 async function runLearningAnalysis(env, opts = {}) {
@@ -192,7 +192,7 @@ async function runLearningAnalysis(env, opts = {}) {
     });
   }
 
-  const jobId = newJobId(\`model-learn-analyze-\${sport}\`);
+  const jobId = newJobId(`model-learn-analyze-${sport}`);
   const writes = emptyWriteCounts();
   const models = [];
   const persisted = [];
