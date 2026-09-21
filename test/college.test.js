@@ -155,6 +155,17 @@ describe("CBBD capability audit", () => {
     assert.deepEqual(a.probes.map((p) => p.path), ["/games", "/teams"]);
     assert.deepEqual(b.probes.map((p) => p.path), ["/ratings/adjusted", "/ratings/srs"]);
     assert.equal(b.summary.nextOperationStart, 4);
+
+    const last = await runCbbdEndpointAudit(env, {
+      seasons: [2024],
+      maxRequests: 2,
+      operationStart: b.summary.nextOperationStart,
+      operationLimit: 2,
+      fetchFn,
+    });
+    assert.deepEqual(last.probes.map((p) => p.path), ["/players"]);
+    assert.equal(last.summary.hasMore, false);
+    assert.equal(last.summary.nextOperationStart, null);
   });
 
   it("discovers GET endpoints and proves historical season rows without exposing the key", async () => {
