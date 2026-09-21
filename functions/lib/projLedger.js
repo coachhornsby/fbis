@@ -2246,8 +2246,15 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
         sportWrites = mergeWriteCounts(sportWrites, frozen.counts || emptyWriteCounts());
         if (frozen.failReasons?.length) sportFailReasons.push(...frozen.failReasons);
         n += slate.games?.length || 0;
-        pal = slate.pal?.match || slate.pal?.meta || slate.pal || pal;
-        if (sport === "mlb" && shouldRecordPalHealth(day, date, { healthMode, dayOffset })) {
+        const palView = slate.pal?.match || slate.pal?.meta || slate.pal || null;
+        const recordsPalHealth = sport === "mlb" && shouldRecordPalHealth(day, date, { healthMode, dayOffset });
+        // Preserve the operator-day MLB Pal observation in the job response.
+        // The MLB collect also builds tomorrow; tomorrow is cache-only and used to
+        // overwrite today's live Pal telemetry with a zero-record cache view.
+        if (sport !== "mlb" || pal == null || recordsPalHealth) {
+          pal = palView || pal;
+        }
+        if (recordsPalHealth) {
           const palMeta = slate.pal?.meta || slate.pal || {};
           const palMatch = slate.pal?.match || {};
           const persisted = (slate.games || []).filter((g) => g.bpp?.homeRuns != null || g.bpp?.awayRuns != null).length;

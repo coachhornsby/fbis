@@ -852,6 +852,47 @@ describe("collect and harvest fail honestly", () => {
     assert.equal(harvest.status, "success");
   });
 
+  it("keeps operator-day Ballpark Pal telemetry when tomorrow is cache-only", async () => {
+    let calls = 0;
+    const out = await collectBoards(
+      { DB: pipelineDb().DB },
+      {
+        odds: "cache",
+        sport: "mlb",
+        buildSlateFn: async (sport, date) => {
+          calls += 1;
+          return {
+            sport,
+            date,
+            games: [],
+            parlay: { enabled: true },
+            pal: calls === 1
+              ? {
+                  meta: {
+                    enabled: true,
+                    recordsReturned: 18,
+                    usable: 17,
+                    asOf: "2026-09-20T15:00:00Z",
+                    requestId: "pal-live",
+                    httpStatus: 200,
+                  },
+                  match: { mlbGames: 18, palRecords: 18, palUsable: 17, matched: 17, unmatched: 1, ambiguous: 0 },
+                }
+              : {
+                  meta: { enabled: true, recordsReturned: 0, usable: 0, reason: "cache-miss" },
+                  match: { mlbGames: 3, palRecords: 0, palUsable: 0, matched: 0, unmatched: 3, ambiguous: 0 },
+                },
+          };
+        },
+      }
+    );
+    assert.equal(calls, 2);
+    assert.equal(out.status, "success");
+    assert.equal(out.sports[0].pal.recordsReturned, 18);
+    assert.equal(out.sports[0].pal.matched, 17);
+    assert.equal(out.sports[0].pal.requestId, "pal-live");
+  });
+
   it("can collect one football date without the four-day window", async () => {
     const days = [];
     const out = await collectBoards(
