@@ -178,10 +178,28 @@ export async function onRequestGet(context) {
       },
     }, 200, 30);
   } catch (err) {
-    return json(
-      { error: String(err?.message || err), date: resolved.date, games: [], sports: [], counts: {}, feeds: {} },
-      502
-    );
+    // Keep the Board transport available even when an upstream/provider path
+    // throws. The payload remains explicitly UNAVAILABLE and carries no games,
+    // so qualification still fails closed without turning a recoverable data
+    // outage into a Cloudflare 5xx page failure.
+    const message = String(err?.message || err);
+    return json({
+      ok: false,
+      error: message,
+      date: resolved.date,
+      timezone: "America/Chicago",
+      games: [],
+      sports: [],
+      groups: [],
+      counts: { games: 0, scheduled: 0, live: 0, final: 0, qualified: 0, leans: 0, postponed: 0 },
+      feeds: {},
+      health: {
+        state: "UNAVAILABLE",
+        currentAttemptAt: attemptAt,
+        failures: [{ name: "today-board", source: "server", detail: message }],
+      },
+      empty: { kind: "feed-failure", message: "Today board data is temporarily unavailable." },
+    }, 200, 0);
   }
 }
 
