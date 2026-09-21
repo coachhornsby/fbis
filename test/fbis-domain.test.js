@@ -130,6 +130,8 @@ test("domain event exposes canonical consensus market to Game Workstation", () =
   const total = event.consensusMarkets.find((m) => m.marketType === "total");
   assert.equal(spread.line, -7.5);
   assert.equal(spread.provider, "consensus_market");
+  assert.equal(spread.sourceObservedAt, "2026-09-21T04:00:00Z");
+  assert.equal(spread.provenance, "canonical_operational_market");
   assert.equal(total.line, 48.5);
 });
 
