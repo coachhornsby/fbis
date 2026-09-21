@@ -7,6 +7,20 @@ import { deriveHealthState, writeVerificationState } from "../lib/healthContract
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 import { toDomainTodayBoard } from "../lib/fbisDomain.js";
 
+export function todayEnv(context) {
+  return {
+    PARLAY_API_KEY: context.env.PARLAY_API_KEY,
+    THEODDS_API_KEY: context.env.THEODDS_API_KEY,
+    SHARPAPI_API_KEY: context.env.SHARPAPI_API_KEY,
+    THERUNDOWN_API_KEY: context.env.THERUNDOWN_API_KEY,
+    BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
+    CFBD_API_KEY: context.env.CFBD_API_KEY,
+    CBBD_API_KEY: context.env.CBBD_API_KEY,
+    caches: caches.default,
+    DB: context.env.DB,
+  };
+}
+
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const resolved = resolveTodayDate(url.searchParams.get("date") || "");
@@ -15,16 +29,7 @@ export async function onRequestGet(context) {
   if (!resolved.ok) {
     return json({ error: resolved.error, date: resolved.date, games: [], sports: [], counts: {} }, 400);
   }
-  const env = {
-    PARLAY_API_KEY: context.env.PARLAY_API_KEY,
-    THEODDS_API_KEY: context.env.THEODDS_API_KEY,
-    SHARPAPI_API_KEY: context.env.SHARPAPI_API_KEY,
-    THERUNDOWN_API_KEY: context.env.THERUNDOWN_API_KEY,
-    BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
-    CFBD_API_KEY: context.env.CFBD_API_KEY,
-    caches: caches.default,
-    DB: context.env.DB,
-  };
+  const env = todayEnv(context);
   try {
     const board = await buildTodayBoard(resolved.date, env, { focusSport });
     const ping = await pingDb(env);
