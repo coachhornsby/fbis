@@ -1384,12 +1384,10 @@ async function gradeExecutedBets(env, finals, opts = {}) {
     }
     if (!g) continue;
     const detail = String(g.status?.detail || "").toLowerCase();
+    let closePatch={};
     if (t.gameId && !t.pinClosePrice && String(t.market||"").toUpperCase() !== "PLAYER_PROP") {
       const oq=await queryOddsSnapshots(env,{gameId:String(t.gameId)});
-      const closePatch=executedBetClosePatch(t,oq.rows||[],g.start||t.start);
-      if(closePatch.pinClosePrice!=null || closePatch.clvStatus) {
-        jobs.push(updateExecutedBet(env,t.id,closePatch,"closing-line-capture"));
-      }
+      closePatch=executedBetClosePatch(t,oq.rows||[],g.start||t.start);
     }
     if (g.status?.completed !== true && !/\bfinal\b|cancel|void|postpone|suspend/.test(detail)) continue;
     if (String(t.market || "").toUpperCase() === "PLAYER_PROP" && (!t.result || t.result === "OPEN")) {
@@ -1441,6 +1439,7 @@ async function gradeExecutedBets(env, finals, opts = {}) {
             t.id,
             {
               ...settled,
+              ...closePatch,
               ...(bindGame || {}),
               finalAwayScore: g.away?.score ?? g.actualAway ?? null,
               finalHomeScore: g.home?.score ?? g.actualHome ?? null,
@@ -1458,9 +1457,9 @@ async function gradeExecutedBets(env, finals, opts = {}) {
           )
         );
       }
-    } else if (bindGame) {
-      // Bind the matched game id so later harvests settle without re-scanning.
-      jobs.push(updateExecutedBet(env, t.id, bindGame, "sport-correction"));
+    } else if (bindGame || Object.keys(closePatch).length) {
+      // Bind the matched game id / close so later harvests do not re-scan.
+      jobs.push(updateExecutedBet(env, t.id, {...closePatch,...(bindGame||{})}, bindGame ? "sport-correction" : "closing-line-capture"));
     }
   }
   await Promise.all(jobs);
