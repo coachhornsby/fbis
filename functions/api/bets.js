@@ -30,6 +30,7 @@ import {
   upsertExecutedBetEntry,
   queryExecutedBetEntries,
   reconcileExecutedBetEntries,
+  queryAdvisorReviews,
 } from "../lib/store.js";
 import { authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 import { durableHealth, scheduledHealth } from "../lib/jobs.js";
@@ -309,6 +310,18 @@ export async function handleBetsPost(env, request, body) {
       tickets = preview.tickets || [];
     }
     if (!tickets.length) return { status: 400, body: { ok: false, error: "no tickets to import", wrote: false } };
+    const advisorQ=await queryAdvisorReviews(env,{});
+    const advisorByGame=new Map();
+    for(const a of advisorQ.rows||[]){if(!advisorByGame.has(String(a.game_id)))advisorByGame.set(String(a.game_id),a);}
+    tickets=tickets.map(t=>{
+      const a=advisorByGame.get(String(t.gameId||"")); if(!a)return t;
+      const exec=Date.parse(t.executedAt||""), reviewed=Date.parse(a.reviewed_at||"");
+      if(!Number.isFinite(exec)||!Number.isFinite(reviewed)||reviewed>exec)return t;
+      return {...t,advisorDecision:a.decision,advisorConfidence:a.confidence,advisorReason:a.reason,
+        advisorReviewedAt:a.reviewed_at,advisorSnapshotHash:a.snapshot_hash,
+        trackerMetadata:{...(t.trackerMetadata||{}),advisor:"ChatGPT",advisorReviewed:true,advisorDecision:a.decision,
+          advisorConfidence:a.confidence,advisorReason:a.reason,advisorRecordedAt:a.reviewed_at,advisorSnapshotHash:a.snapshot_hash}};
+    });
     const result = await importBets(env, tickets);
     const byEntry = new Map();
     for (const t of tickets) {
