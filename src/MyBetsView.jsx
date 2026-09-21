@@ -62,7 +62,13 @@ export default function MyBetsView({
   }, [external, externalSummary, externalPopulation]);
 
   const bets = pack.bets || [];
-  const exceptionIds = new Set((pack.exceptions || []).map((x)=>x.id));
+  const derivedExceptions = (pack.exceptions || []).length ? pack.exceptions : bets.filter((b)=>{
+    if(b.exceptionCode)return true;
+    if(String(b.matchStatus||"").toLowerCase()!=="matched" && (!b.result||b.result==="OPEN"))return true;
+    if(String(b.market||"").toUpperCase()==="PLAYER_PROP" && (!b.result||b.result==="OPEN"))return true;
+    return !b.result||b.result==="OPEN";
+  });
+  const exceptionIds = new Set(derivedExceptions.map((x)=>x.id));
   const shown = useMemo(() => {
     return bets.filter((b) => {
       if (viewMode === "exceptions" && !exceptionIds.has(b.id)) return false;
@@ -191,7 +197,7 @@ export default function MyBetsView({
           </p>
           <div className="today-controls" style={{ marginTop: 10 }}>
             <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
-            <button className={viewMode === "exceptions" ? "chip active" : "chip"} onClick={() => setViewMode("exceptions")}>ACTION NEEDED ({(pack.exceptions || []).length})</button>
+            <button className={viewMode === "exceptions" ? "chip active" : "chip"} onClick={() => setViewMode("exceptions")}>ACTION NEEDED ({derivedExceptions.length})</button>
             <button className={viewMode === "all" ? "chip active" : "chip"} onClick={() => setViewMode("all")}>ALL LEDGER</button>
             {onRefresh && <button className="header-btn" onClick={onRefresh}>Reload</button>}
           </div>
@@ -204,7 +210,7 @@ export default function MyBetsView({
             <Stat label="Risk" value={stat(summary.risk == null ? "—" : `$${Number(summary.risk).toFixed(2)}`)} />
             <Stat label="Profit" value={stat(summary.profit == null ? "—" : fmtSigned(summary.profit, 2))} />
             <Stat label="ROI" value={stat(summary.roi == null ? "—" : fmtPct(summary.roi))} />
-            <Stat label="Action needed" value={stat((pack.exceptions || []).length, 0)} />
+            <Stat label="Action needed" value={stat(derivedExceptions.length, 0)} />
             <Stat label="CLV N" value={stat(summary.validClvN, 0)} />
             <Stat label="Avg CLV" value={stat(summary.avgClv == null ? "—" : fmtSigned(summary.avgClv, 3))} />
           </div>
