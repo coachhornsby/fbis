@@ -105,7 +105,9 @@ export function MarketPanel({ event }) {
 
 export function BestPricesPanel({ event }) {
   const m = event.movement || {};
-  const hasBest = m.bestLine != null || m.bestPrice != null || m.bestBook;
+  // A book name by itself is market-intelligence context, not a shopped best
+  // offer. Require an actual line or price before rendering BEST PRICES.
+  const hasBest = m.bestLine != null || m.bestPrice != null;
   return (
     <Section id="game-ws-best" title="Best prices">
       {!hasBest ? (
