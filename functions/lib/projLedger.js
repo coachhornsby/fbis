@@ -43,6 +43,7 @@ import {
   gradeSnapshotsForGame,
   queryExecutedBets,
   updateExecutedBet,
+  reconcileExecutedBetEntries,
   persistMlbMarketProjections,
 } from "./store.js";
 import { classifyCheckpoint, materiallyChanged, pickCanonical, snapshotKey, CHECKPOINTS, rowsForCheckpoint } from "./checkpoints.js";
@@ -57,7 +58,8 @@ import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult,
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED, evaluateConvictionGates } from "./convictionGate.js";
 import { reconstructTicketProbability } from "./probabilityReconstruction.js";
 import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
-import { settleExecutedBet, matchExecutedBet, summarizeExecutedBets } from "./executedBets.js";
+import { settleExecutedBet, settlePlayerProp, matchExecutedBet, summarizeExecutedBets } from "./executedBets.js";
+import { fetchPlayerPropActual } from "./playerPropSettlement.js";
 import { sourceCoverage, palHealth } from "./sourceCoverage.js";
 import { palUnavailableReason, palHttpStatusToStore } from "./ballparkpal.js";
 import { layerDiagnostics } from "./layerDiagnostics.js";
@@ -1383,6 +1385,28 @@ async function gradeExecutedBets(env, finals, opts = {}) {
     if (!g) continue;
     const detail = String(g.status?.detail || "").toLowerCase();
     if (g.status?.completed !== true && !/\bfinal\b|cancel|void|postpone|suspend/.test(detail)) continue;
+    if (String(t.market || "").toUpperCase() === "PLAYER_PROP" && (!t.result || t.result === "OPEN")) {
+      try {
+        const stat = await fetchPlayerPropActual({...t, gameId: g.id || t.gameId});
+        if (stat.ok) {
+          const ps = settlePlayerProp(t, stat.actual);
+          if (ps.ok) {
+            jobs.push(updateExecutedBet(env,t.id,{
+              result:ps.result,profit:ps.profit,settledReturn:ps.settledReturn,gradedAt:ps.gradedAt,
+              propActual:stat.actual,propStatSource:stat.source,legResult:ps.result,exceptionCode:null,
+              settlementSource:"automatic-player-stat",
+              settlementEvidence:{gameId:String(g.id||t.gameId||""),statSource:stat.source,sourceUrl:stat.sourceUrl,capturedAt:new Date().toISOString()}
+            },"automatic-player-prop-stat"));
+            continue;
+          }
+        }
+        jobs.push(updateExecutedBet(env,t.id,{exceptionCode:"NEEDS_STAT"},"player-prop-stat-unavailable"));
+        continue;
+      } catch {
+        jobs.push(updateExecutedBet(env,t.id,{exceptionCode:"NEEDS_STAT"},"player-prop-stat-error"));
+        continue;
+      }
+    }
     const settled = settleExecutedBet(
       sportCorrected ? { ...t, sport: g.sport || t.sport } : t,
       {
@@ -1433,6 +1457,7 @@ async function gradeExecutedBets(env, finals, opts = {}) {
     }
   }
   await Promise.all(jobs);
+  await reconcileExecutedBetEntries(env);
   const after = await queryExecutedBets(env, { includeRaw: false });
   return {
     examined: open.length,
