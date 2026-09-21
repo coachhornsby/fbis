@@ -1,0 +1,70 @@
+name: ACTION live inspect
+
+on:
+  push:
+    branches: [diag/action-live-inspect]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Status before
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+        run: |
+          set -euo pipefail
+          curl -sS --max-time 30 "$BASE/api/action-daily-status" | tee status-before.json | jq .
+
+      - name: One bounded harvest probe
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set +e
+          curl -sS --max-time 120 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -d '{"mode":"harvest"}' \
+            "$BASE/api/action-daily-async?mode=harvest" \
+            | tee harvest-probe.json
+          ec=${PIPESTATUS[0]}
+          echo
+          echo "harvest_probe_curl_ec=$ec"
+          set -e
+
+      - name: Status after
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+        run: |
+          set -euo pipefail
+          curl -sS --max-time 30 "$BASE/api/action-daily-status" | tee status-after.json | jq .
+
+      - name: Export persisted MLB ACTION rows
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          day="$(TZ=America/Chicago date +%F)"
+          code="$(curl -sS --max-time 60 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -o action-mlb.json -w "%{http_code}" \
+            "$BASE/api/action-daily-data?date=${day}&sport=mlb&limit=5000")"
+          echo "data_http=$code"
+          test "$code" = "200"
+          jq '{ok,run,count}' action-mlb.json
+
+      - name: Upload inspect artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: action-live-inspect-${{ github.run_id }}
+          path: |
+            status-before.json
+            harvest-probe.json
+            status-after.json
+            action-mlb.json
+          if-no-files-found: warn
+          retention-days: 7
