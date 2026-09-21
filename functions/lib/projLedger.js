@@ -1407,7 +1407,21 @@ async function gradeExecutedBets(env, finals, opts = {}) {
           updateExecutedBet(
             env,
             t.id,
-            { ...settled, ...(bindGame || {}) },
+            {
+              ...settled,
+              ...(bindGame || {}),
+              finalAwayScore: g.away?.score ?? g.actualAway ?? null,
+              finalHomeScore: g.home?.score ?? g.actualHome ?? null,
+              f5AwayScore: g.f5Score?.away ?? null,
+              f5HomeScore: g.f5Score?.home ?? null,
+              settlementSource: String(g.status?.detail || "").includes("durable") ? "durable-scoreboard" : "scoreboard",
+              settlementEvidence: {
+                gameId: String(g.id || t.gameId || ""),
+                status: g.status?.detail || "Final",
+                completed: g.status?.completed === true,
+                capturedAt: new Date().toISOString(),
+              },
+            },
             bindGame ? "sport-correction-settlement" : alreadySettled ? "settlement-correction" : "settlement"
           )
         );
