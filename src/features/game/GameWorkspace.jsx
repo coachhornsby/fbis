@@ -152,19 +152,39 @@ export function MovementPanel({ event }) {
 export function PublicSplitsPanel({ event }) {
   const splits = event.publicSplits || {};
   const m = event.movement || {};
-  const ticket = splits.ticketPct ?? m.ticketPct;
-  const money = splits.moneyPct ?? m.moneyPct;
+  // Domain ticketPct/moneyPct are HOME-side percentages. Display both sides so
+  // an operator never has to infer which team a bare percentage refers to.
+  const ticketHome = splits.ticketPct ?? m.ticketPct;
+  const moneyHome = splits.moneyPct ?? m.moneyPct;
+  const ticketAway = ticketHome == null ? null : 100 - Number(ticketHome);
+  const moneyAway = moneyHome == null ? null : 100 - Number(moneyHome);
   const gap = m.moneyTicketGap;
-  const empty = ticket == null && money == null;
+  const away = event?.teams?.away?.abbr || event?.teams?.away?.name || "AWAY";
+  const home = event?.teams?.home?.abbr || event?.teams?.home?.name || "HOME";
+  const empty = ticketHome == null && moneyHome == null;
   return (
     <Section id="game-ws-public" title="Public splits">
       {empty ? (
         <p className="game-ws-empty">Ticket / money splits unavailable.</p>
       ) : (
         <div className="game-ws-metrics">
-          <Metric label="Tickets" value={fmtPct(ticket)} />
-          <Metric label="Money" value={fmtPct(money)} />
-          <Metric label="Money − tickets" value={gap == null ? "—" : fmtPct(gap)} />
+          <Metric
+            label="Tickets"
+            value={
+              ticketHome == null
+                ? "—"
+                : `${away} ${fmtPct(ticketAway)} · ${home} ${fmtPct(ticketHome)}`
+            }
+          />
+          <Metric
+            label="Money"
+            value={
+              moneyHome == null
+                ? "—"
+                : `${away} ${fmtPct(moneyAway)} · ${home} ${fmtPct(moneyHome)}`
+            }
+          />
+          <Metric label="Home money − tickets" value={gap == null ? "—" : fmtPct(gap)} />
         </div>
       )}
       <p className="muted game-ws-note">Public positioning — not labeled sharp unless upstream says so.</p>
