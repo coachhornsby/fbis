@@ -4,12 +4,12 @@ import { parseCollegeJobOptions } from "../functions/api/college.js";
 
 test("college API passes sport and reference model into model validation", () => {
   const req = new Request(
-    "https://example.com/api/college?job=model-train-validate&sport=cfb&championModelId=CFB-FBIS-v2&trigger=scheduled"
+    "https://example.com/api/college?job=model-train-validate&sport=cfb&championModelId=CFB-FBIS-v2&trigger=schedule"
   );
   const opts = parseCollegeJobOptions(req);
   assert.equal(opts.sport, "cfb");
   assert.equal(opts.championModelId, "CFB-FBIS-v2");
-  assert.equal(opts.trigger, "scheduled");
+  assert.equal(opts.trigger, "schedule");
 });
 
 test("referenceModelId alias maps to the legacy championModelId option", () => {
