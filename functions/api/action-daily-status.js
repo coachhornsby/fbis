@@ -1,7 +1,11 @@
+import { queryGames } from "../lib/store.js";
+import { loadFbisSlateForMatching } from "../lib/actionApifyEvidence.js";
+
 const TZ = "America/Chicago";
 const PROFILE = "DAILY";
 const LIFECYCLE = "daily";
 const STALE_RUNNING_MS = 30 * 60 * 1000;
+const SPORTS = Object.freeze(["mlb", "nfl", "nba", "nhl", "cfb", "cbb"]);
 
 function localDay(d = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -14,12 +18,19 @@ function localDay(d = new Date()) {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
-export function deriveActionDailyStatus({ run = null, persistedObservations = 0, now = Date.now() } = {}) {
+export function deriveActionDailyStatus({
+  run = null,
+  persistedObservations = 0,
+  expectedSlateGames = 0,
+  coveredSlateGames = 0,
+  now = Date.now(),
+} = {}) {
   if (!run) {
     return {
       state: "MISSING",
       healthy: false,
       verifiedPersisted: false,
+      verifiedSlateCoverage: false,
       reason: "no_daily_run_today",
     };
   }
@@ -28,6 +39,8 @@ export function deriveActionDailyStatus({ run = null, persistedObservations = 0,
   const startedMs = Date.parse(String(run.started_at || ""));
   const ageMs = Number.isFinite(startedMs) ? Math.max(0, now - startedMs) : null;
   const persisted = Math.max(0, Number(persistedObservations || 0));
+  const expected = Math.max(0, Number(expectedSlateGames || 0));
+  const covered = Math.max(0, Number(coveredSlateGames || 0));
 
   if (status === "running_daily") {
     const stale = ageMs == null || ageMs > STALE_RUNNING_MS;
@@ -35,6 +48,7 @@ export function deriveActionDailyStatus({ run = null, persistedObservations = 0,
       state: stale ? "STALE" : "RUNNING",
       healthy: false,
       verifiedPersisted: false,
+      verifiedSlateCoverage: false,
       reason: stale ? "daily_run_exceeded_running_window" : "daily_run_in_progress",
       ageMs,
     };
@@ -42,11 +56,18 @@ export function deriveActionDailyStatus({ run = null, persistedObservations = 0,
 
   if (status.startsWith("success")) {
     const verifiedPersisted = persisted > 0;
+    const verifiedSlateCoverage = expected === 0 ? verifiedPersisted : covered >= expected;
+    const healthy = verifiedPersisted && verifiedSlateCoverage;
     return {
-      state: verifiedPersisted ? "HEALTHY" : "DEGRADED",
-      healthy: verifiedPersisted,
+      state: healthy ? "HEALTHY" : "DEGRADED",
+      healthy,
       verifiedPersisted,
-      reason: verifiedPersisted ? "daily_run_persisted" : "success_without_persisted_observations",
+      verifiedSlateCoverage,
+      reason: healthy
+        ? "daily_run_persisted_and_slate_covered"
+        : !verifiedPersisted
+          ? "success_without_persisted_observations"
+          : "success_without_full_slate_coverage",
       ageMs,
     };
   }
@@ -56,6 +77,7 @@ export function deriveActionDailyStatus({ run = null, persistedObservations = 0,
       state: "FAILED",
       healthy: false,
       verifiedPersisted: false,
+      verifiedSlateCoverage: false,
       reason: run.error_class || run.error_message || "daily_run_failed",
       ageMs,
     };
@@ -65,6 +87,7 @@ export function deriveActionDailyStatus({ run = null, persistedObservations = 0,
     state: "DEGRADED",
     healthy: false,
     verifiedPersisted: false,
+    verifiedSlateCoverage: false,
     reason: `unexpected_daily_status:${status || "unknown"}`,
     ageMs,
   };
@@ -81,6 +104,73 @@ function json(body, status = 200) {
   });
 }
 
+async function loadTodayCoverage(env, runId, today) {
+  const coverage = [];
+  let expectedSlateGames = 0;
+  let coveredSlateGames = 0;
+
+  for (const sport of SPORTS) {
+    let slate = { fbisEvents: [], gamesExpected: 0, slateError: null };
+    try {
+      slate = await loadFbisSlateForMatching(queryGames, env, { sport, date: today });
+    } catch (err) {
+      coverage.push({
+        sport,
+        expected: 0,
+        covered: 0,
+        missingEventIds: [],
+        slateError: String(err?.message || err),
+      });
+      continue;
+    }
+
+    const ids = [...new Set((slate.fbisEvents || [])
+      .map((g) => String(g?.id || g?.gameId || g?.eventId || "").trim())
+      .filter(Boolean))];
+    const expected = ids.length;
+    expectedSlateGames += expected;
+
+    if (!runId || !expected) {
+      coverage.push({
+        sport,
+        expected,
+        covered: 0,
+        missingEventIds: ids,
+        slateError: slate.slateError || null,
+      });
+      continue;
+    }
+
+    let coveredIds = [];
+    try {
+      const placeholders = ids.map(() => "?").join(",");
+      const res = await env.DB.prepare(
+        `SELECT DISTINCT fbis_event_id
+         FROM shadow_market_observations
+         WHERE run_id = ?
+           AND fbis_event_id IN (${placeholders})`
+      ).bind(runId, ...ids).all();
+      coveredIds = (res?.results || []).map((r) => String(r.fbis_event_id || "")).filter(Boolean);
+    } catch {
+      coveredIds = [];
+    }
+
+    const coveredSet = new Set(coveredIds);
+    const missingEventIds = ids.filter((id) => !coveredSet.has(id));
+    const covered = expected - missingEventIds.length;
+    coveredSlateGames += covered;
+    coverage.push({
+      sport,
+      expected,
+      covered,
+      missingEventIds,
+      slateError: slate.slateError || null,
+    });
+  }
+
+  return { expectedSlateGames, coveredSlateGames, coverage };
+}
+
 export async function onRequestGet(context) {
   const db = context?.env?.DB;
   if (!db?.prepare) {
@@ -89,6 +179,7 @@ export async function onRequestGet(context) {
       state: "UNAVAILABLE",
       healthy: false,
       verifiedPersisted: false,
+      verifiedSlateCoverage: false,
       reason: "d1_unavailable",
       generatedAt: new Date().toISOString(),
     }, 503);
@@ -116,9 +207,12 @@ export async function onRequestGet(context) {
       persistedObservations = Number(persisted?.n || 0);
     }
 
+    const slate = await loadTodayCoverage(context.env, run?.id || null, today);
     const derived = deriveActionDailyStatus({
       run,
       persistedObservations,
+      expectedSlateGames: slate.expectedSlateGames,
+      coveredSlateGames: slate.coveredSlateGames,
       now: Date.now(),
     });
 
@@ -128,6 +222,9 @@ export async function onRequestGet(context) {
       timezone: TZ,
       day: today,
       ...derived,
+      expectedSlateGames: slate.expectedSlateGames,
+      coveredSlateGames: slate.coveredSlateGames,
+      coverage: slate.coverage,
       run: run ? {
         id: run.id,
         status: run.status,
@@ -155,6 +252,7 @@ export async function onRequestGet(context) {
       state: "UNAVAILABLE",
       healthy: false,
       verifiedPersisted: false,
+      verifiedSlateCoverage: false,
       reason: "daily_status_query_failed",
       error: String(err?.message || err),
       generatedAt: new Date().toISOString(),
