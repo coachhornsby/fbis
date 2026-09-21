@@ -112,7 +112,7 @@ export async function handleBetsGet(env, url) {
     bets: rows,
     summary: summarizeExecutedBets(rows),
     population: populationDescriptor({
-      populationType: POPULATION_TYPE.IMPORTED_HERITAGE_EXECUTION,
+      populationType: POPULATION_TYPE.UNIFIED_EXECUTION_LEDGER,
       sport: sport || "all",
       marketFamily: "mixed",
       periodFamily: "mixed",
