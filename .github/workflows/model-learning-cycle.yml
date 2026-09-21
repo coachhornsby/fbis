@@ -52,7 +52,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           out="artifacts/model-learning-cfb.json"
-          http="$(curl -sS --max-time 180 --retry 1             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$out" -w "%{http_code}"             "$BASE/api/college?job=model-train-validate&sport=cfb&referenceModelId=CFB-FBIS-v2&trigger=scheduled")"
+          http="$(curl -sS --max-time 180 --retry 1             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$out" -w "%{http_code}"             "$BASE/api/college?job=model-train-validate&sport=cfb&referenceModelId=CFB-FBIS-v2&trigger=schedule")"
           echo "CFB learning http=$http"
           cat "$out"
           test "$http" = "200"
@@ -67,7 +67,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           out="artifacts/model-learning-cbb.json"
-          http="$(curl -sS --max-time 180 --retry 1             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$out" -w "%{http_code}"             "$BASE/api/college?job=model-train-validate&sport=cbb&referenceModelId=CBB-PINNACLE-IMPLIED&trigger=scheduled")"
+          http="$(curl -sS --max-time 180 --retry 1             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$out" -w "%{http_code}"             "$BASE/api/college?job=model-train-validate&sport=cbb&referenceModelId=CBB-PINNACLE-IMPLIED&trigger=schedule")"
           echo "CBB learning http=$http"
           cat "$out"
           test "$http" = "200"
