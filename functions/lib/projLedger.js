@@ -58,7 +58,7 @@ import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult,
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED, evaluateConvictionGates } from "./convictionGate.js";
 import { reconstructTicketProbability } from "./probabilityReconstruction.js";
 import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
-import { settleExecutedBet, settlePlayerProp, matchExecutedBet, summarizeExecutedBets } from "./executedBets.js";
+import { settleExecutedBet, settlePlayerProp, executedBetClosePatch, matchExecutedBet, summarizeExecutedBets } from "./executedBets.js";
 import { fetchPlayerPropActual } from "./playerPropSettlement.js";
 import { sourceCoverage, palHealth } from "./sourceCoverage.js";
 import { palUnavailableReason, palHttpStatusToStore } from "./ballparkpal.js";
@@ -1384,6 +1384,13 @@ async function gradeExecutedBets(env, finals, opts = {}) {
     }
     if (!g) continue;
     const detail = String(g.status?.detail || "").toLowerCase();
+    if (t.gameId && !t.pinClosePrice && String(t.market||"").toUpperCase() !== "PLAYER_PROP") {
+      const oq=await queryOddsSnapshots(env,{gameId:String(t.gameId)});
+      const closePatch=executedBetClosePatch(t,oq.rows||[],g.start||t.start);
+      if(closePatch.pinClosePrice!=null || closePatch.clvStatus) {
+        jobs.push(updateExecutedBet(env,t.id,closePatch,"closing-line-capture"));
+      }
+    }
     if (g.status?.completed !== true && !/\bfinal\b|cancel|void|postpone|suspend/.test(detail)) continue;
     if (String(t.market || "").toUpperCase() === "PLAYER_PROP" && (!t.result || t.result === "OPEN")) {
       try {
