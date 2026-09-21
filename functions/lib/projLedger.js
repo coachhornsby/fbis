@@ -1402,12 +1402,27 @@ async function gradeExecutedBets(env, finals, opts = {}) {
     if (settled.result && settled.result !== "OPEN") {
       const alreadySettled = t.result && t.result !== "OPEN";
       const changed = settled.result !== t.result || Number(settled.profit) !== Number(t.profit);
-      if (changed || bindGame) {
+      const evidenceMissing = t.finalAwayScore == null || t.finalHomeScore == null || !t.settlementSource;
+      if (changed || bindGame || evidenceMissing) {
         jobs.push(
           updateExecutedBet(
             env,
             t.id,
-            { ...settled, ...(bindGame || {}) },
+            {
+              ...settled,
+              ...(bindGame || {}),
+              finalAwayScore: g.away?.score ?? g.actualAway ?? null,
+              finalHomeScore: g.home?.score ?? g.actualHome ?? null,
+              f5AwayScore: g.f5Score?.away ?? null,
+              f5HomeScore: g.f5Score?.home ?? null,
+              settlementSource: String(g.status?.detail || "").includes("durable") ? "durable-scoreboard" : "scoreboard",
+              settlementEvidence: {
+                gameId: String(g.id || t.gameId || ""),
+                status: g.status?.detail || "Final",
+                completed: g.status?.completed === true,
+                capturedAt: new Date().toISOString(),
+              },
+            },
             bindGame ? "sport-correction-settlement" : alreadySettled ? "settlement-correction" : "settlement"
           )
         );
@@ -1725,14 +1740,15 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
         errors.push(`${sport}@${date}: ${String(err?.message || err)}`);
       }
     }
-    // Default settleOnly grades OPEN executed bets only (Pages CPU). Optional
+    // Settlement also revisits already-settled tickets for this final set so factual
+    // score evidence can be backfilled without changing a correct prior result.
     // gradeResearch=1 also settles strategy tickets against the same live finals.
     if (gradeResearch) {
       await gradeStrategyAgainstFinals(env, finals, { skipDurableFinals: true });
     }
     const executedBets = await gradeExecutedBets(env, finals, {
       skipDurableFinals: true,
-      openOnly: true,
+      openOnly: false,
     });
     return {
       sport,

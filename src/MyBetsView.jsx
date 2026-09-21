@@ -252,6 +252,7 @@ export default function MyBetsView({
                     <div><small>Price</small><b>{fmtAmerican(b.executionPrice)}</b></div>
                     <div><small>Risk</small><b>${Number(b.riskAmount || 0).toFixed(2)}</b></div>
                     <div><small>P/L</small><b>{b.profit == null ? "—" : fmtSigned(b.profit, 2)}</b></div>
+                    <div><small>Actual</small><b>{actualOutcome(b)}</b></div>
                     <div><small>CLV</small><b>{formatClv(b.clv, b.clvStatus)}</b></div>
                   </div>
                   <div className="muted" style={{ marginTop: 8 }}>
@@ -303,7 +304,10 @@ export default function MyBetsView({
                     <td>{betSelectionLabel(b)}</td>
                     <td>{fmtAmerican(b.executionPrice)}</td>
                     <td>${Number(b.riskAmount || 0).toFixed(2)}</td>
-                    <td className={b.result === "WON" ? "text-green" : b.result === "LOST" ? "text-red" : "muted"}>{b.result || "OPEN"}</td>
+                    <td className={b.result === "WON" ? "text-green" : b.result === "LOST" ? "text-red" : "muted"}>
+                      {b.result || "OPEN"}
+                      {actualOutcome(b) !== "—" ? <div className="muted">{actualOutcome(b)}</div> : null}
+                    </td>
                     <td>{b.profit == null ? "—" : fmtSigned(b.profit, 2)}</td>
                     <td>
                       <div>{b.attributionLabel || "OPERATOR BET · NOT ATTRIBUTED TO FBIS"}</div>
@@ -378,6 +382,20 @@ function betSelectionLabel(bet) {
     return `${player} ${direction}${line} ${propStatLabel(bet)}`;
   }
   return `${bet.selectedTeam || bet.selectedSide || "—"}${bet.executionLine != null ? ` ${bet.executionLine}` : ""}`;
+}
+
+function actualOutcome(bet) {
+  if (String(bet.market || "").toUpperCase() === "PLAYER_PROP" && bet.propActual != null) {
+    return `${bet.propActual} ${propStatLabel(bet)}`;
+  }
+  if (bet.finalAwayScore != null && bet.finalHomeScore != null) {
+    const away = bet.awayIdentity?.abbr || bet.awayTeam || "Away";
+    const home = bet.homeIdentity?.abbr || bet.homeTeam || "Home";
+    const final = `${away} ${bet.finalAwayScore} – ${home} ${bet.finalHomeScore}`;
+    if (bet.f5AwayScore != null && bet.f5HomeScore != null) return `${final} · F5 ${bet.f5AwayScore}-${bet.f5HomeScore}`;
+    return final;
+  }
+  return "—";
 }
 
 function emptySummary() {

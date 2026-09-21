@@ -18,7 +18,7 @@ const MIGRATION_STATUS = {
 };
 
 /** Production tip expects harden migration after public/Actions billing recovery. */
-const EXPECTED_MIGRATION = "0028_executed_bet_tracker_metadata";
+const EXPECTED_MIGRATION = "0029_executed_bet_settlement_evidence";
 
 /**
  * Read-only health endpoint.

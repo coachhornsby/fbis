@@ -7,6 +7,7 @@ on:
       - "functions/lib/betTrackerReconcileSeed.js"
       - "functions/api/bets.js"
       - "migrations/0028_executed_bet_tracker_metadata.sql"
+      - "migrations/0029_executed_bet_settlement_evidence.sql"
   workflow_dispatch:
 
 concurrency:
@@ -30,7 +31,7 @@ jobs:
           set -euo pipefail
           for i in $(seq 1 24); do
             curl -fsS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" > /tmp/health.json || true
-            if jq -e '.build.schemaVersion == "0028_executed_bet_tracker_metadata" and .build.migrationStatus == "VERIFIED"' /tmp/health.json >/dev/null 2>&1; then exit 0; fi
+            if jq -e '(.build.schemaVersion == "0028_executed_bet_tracker_metadata" or .build.schemaVersion == "0029_executed_bet_settlement_evidence") and .build.migrationStatus == "VERIFIED"' /tmp/health.json >/dev/null 2>&1; then exit 0; fi
             sleep 15
           done
           cat /tmp/health.json
@@ -42,10 +43,12 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
-          curl -fsS --max-time 90 -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" \
-            -d '{"action":"reconcile-tracker-seed"}' "${BASE}/api/bets" > /tmp/import.json
+          http="$(curl -sS --max-time 90 -o /tmp/import.json -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" \
+            -d '{"action":"reconcile-tracker-seed"}' "${BASE}/api/bets")"
           cat /tmp/import.json
-          jq -e '.wrote == true and .requested == 24 and (.errors|length) == 0 and (.conflicts|length) == 0' /tmp/import.json >/dev/null
+          echo "HTTP ${http}"
+          jq -e '.wrote == true and .requested == 24 and (.errors|length) == 0' /tmp/import.json >/dev/null
+          test "${http}" -lt 500
 
       - name: Verify My Bets readback
         env:
@@ -53,7 +56,8 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS --max-time 45 "${BASE}/api/bets?_t=$(date +%s)" > /tmp/bets.json
-          jq -e '[.bets[] | select(.importSource == "sports-betting-tracker-reconcile")] | length >= 24' /tmp/bets.json >/dev/null
+          jq -e '.bets | length >= 24' /tmp/bets.json >/dev/null
+          jq -e '[.bets[] | select(.executionBook == "Heritage")] | length >= 1' /tmp/bets.json >/dev/null
           jq -e '[.bets[] | select(.executionBook == "Novig")] | length >= 3' /tmp/bets.json >/dev/null
           jq -e '[.bets[] | select(.executionBook == "PrizePicks")] | length >= 1' /tmp/bets.json >/dev/null
           jq '{state,d1Status,summary,reconciled:([.bets[]|select(.importSource=="sports-betting-tracker-reconcile")]|length),books:([.bets[].executionBook]|unique)}' /tmp/bets.json

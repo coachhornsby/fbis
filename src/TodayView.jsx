@@ -53,6 +53,34 @@ export default function TodayView({
   const unavailable = Boolean(error && !board);
   const d = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
   const sourceStatus = health?.sourceStatus?.statuses || {};
+  const [chatCopyStatus, setChatCopyStatus] = useState("");
+
+  async function copyChatGptReview() {
+    const games = shown.flatMap((group) => (group.games || []).map((game) => ({ sport: group.sport, ...game })));
+    const packet = {
+      contract: {
+        purpose: "Independent ChatGPT slate review; preserve FBIS source honesty and qualification gates.",
+        rules: [
+          "Do not treat ACTION/public betting as an independent projection.",
+          "Separate model edge, market context, data quality, and user-executed bets.",
+          "Do not use outcomes that occurred after the current decision timestamp.",
+          "Return A/B/C/no-play classifications with reasons and identify missing data explicitly.",
+          "Do not mutate FBIS model weights from a small betting sample."
+        ]
+      },
+      date, sportFilter, generatedAt: new Date().toISOString(),
+      boardHealth: board?.health || null,
+      games,
+    };
+    const prompt = `Review this FBIS slate packet as a second-pass research analyst. Compare the independent model outputs with the market, data quality, injuries/starters/weather where present, ACTION context where present, and the existing qualification state. Flag disagreements and weak-data plays. Do not invent missing inputs. Preserve the pregame snapshot for later evaluation.\n\nFBIS_SLATE_PACKET\n${JSON.stringify(packet, null, 2)}`;
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setChatCopyStatus(`Copied ${games.length} games for ChatGPT review.`);
+    } catch {
+      setChatCopyStatus("Clipboard unavailable. Use the browser's copy permission and try again.");
+    }
+  }
+
   const qualificationValue =
     sportFilter === "all" && coverage && !coverage.qualificationAuthoritative
       ? "Qualification unavailable (incomplete all-sports coverage)"
@@ -78,9 +106,11 @@ export default function TodayView({
             {onImport && (
               <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
             )}
+            <button className="header-btn" onClick={copyChatGptReview} disabled={loading || !shown.some((g) => g.games.length)}>COPY CHATGPT REVIEW</button>
             {onRetry && <button className="header-btn" onClick={() => onRetry?.()} disabled={loading}>{loading ? "Retrying…" : "Retry"}</button>}
           </div>
           <p className="muted" style={{ marginTop: 8 }}>
+            {chatCopyStatus ? `${chatCopyStatus} ` : ""}
             {attemptAt ? `Current attempt ${fmtTs(attemptAt)}. ` : ""}
             Population: scheduled and live board rows for this date/sport filter. {lastSuccessAt ? `Last successful load ${fmtTs(lastSuccessAt)}.` : "No successful load yet."}
             {stale ? " Showing last-known-good snapshot (stale)." : ""}

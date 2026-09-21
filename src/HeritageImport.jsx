@@ -12,7 +12,7 @@ import {
 } from "./lib/heritageImport.js";
 
 const FIXTURE_HINT =
-  "Upload a bet-slip photo from your phone, or paste ticket text. Heritage / NoVig / PrizePicks. Preview first — nothing is written until you confirm.";
+  "Upload a bet-slip photo from your phone, or paste ticket text. Heritage / Novig / PrizePicks / FanDuel. Preview first — nothing is written until you confirm.";
 
 const MAX_OCR_EDGE = 1800;
 
@@ -25,6 +25,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
   const [wroteMessage, setWroteMessage] = useState("");
   const [ocrMessage, setOcrMessage] = useState("");
   const [bookHint, setBookHint] = useState("");
+  const [chatGptReviewed, setChatGptReviewed] = useState(false);
   const [photoPreview, setPhotoPreview] = useState("");
   const [photoName, setPhotoName] = useState("");
   const feedbackRef = useRef(null);
@@ -135,6 +136,8 @@ export default function HeritageImport({ open, onClose, onImported }) {
         setBookHint("PrizePicks");
       } else if (/novig|to\s*pay|strikeouts?\s+thrown/i.test(extracted)) {
         setBookHint("NoVig");
+      } else if (/fan\s*duel|same game parlay|potential payout|bet id/i.test(extracted)) {
+        setBookHint("FanDuel");
       } else {
         setBookHint("");
       }
@@ -162,7 +165,14 @@ export default function HeritageImport({ open, onClose, onImported }) {
       queueMicrotask(() => feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
       return;
     }
-    const req = buildConfirmRequest({ text, tickets, edits, bookHint });
+    const advisorTickets = tickets.map((t) => ({
+      ...t,
+      trackerMetadata: {
+        ...(t.trackerMetadata || {}),
+        ...(chatGptReviewed ? { advisor: "ChatGPT", advisorReviewed: true, advisorRecordedAt: new Date().toISOString() } : {}),
+      },
+    }));
+    const req = buildConfirmRequest({ text, tickets: advisorTickets, edits, bookHint });
     if (!req.ok) {
       setError(req.error);
       setWroteMessage("");
@@ -249,7 +259,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
               if (error) setError("");
               if (wroteMessage) setWroteMessage("");
             }}
-            placeholder="Or paste Heritage / PrizePicks text here after uploading a photo."
+            placeholder="Or paste Heritage / Novig / PrizePicks / FanDuel text here after uploading a photo."
             rows={10}
           />
           <div className="today-controls" style={{ marginTop: 10 }}>
@@ -265,7 +275,12 @@ export default function HeritageImport({ open, onClose, onImported }) {
                 <option value="Heritage">Heritage</option>
                 <option value="NoVig">NoVig</option>
                 <option value="PrizePicks">PrizePicks</option>
+                <option value="FanDuel">FanDuel</option>
               </select>
+            </label>
+            <label className="muted" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <input type="checkbox" checked={chatGptReviewed} onChange={(e) => setChatGptReviewed(e.target.checked)} />
+              ChatGPT reviewed this play/card
             </label>
             <button type="button" className="header-btn header-btn-refresh" onClick={parseSlip} disabled={busy || !text.trim()}>
               {busy && !preview ? "Parsing…" : "1 · Parse & preview"}

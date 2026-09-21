@@ -470,6 +470,12 @@ async function applyManualFinal(env, payload) {
         settledReturn: settled.settledReturn,
         gradedAt: settled.gradedAt,
         voidReason: settled.voidReason || null,
+        finalAwayScore: awayScore,
+        finalHomeScore: homeScore,
+        f5AwayScore: hasF5Home ? f5AwayScore : null,
+        f5HomeScore: hasF5Home ? f5HomeScore : null,
+        settlementSource: "operator-final-score",
+        settlementEvidence: { status: "final", source: "operator-final-score", capturedAt: gradedAt },
       },
       "manual-final-score"
     );

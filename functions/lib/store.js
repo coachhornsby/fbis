@@ -2621,6 +2621,14 @@ function mapExecutedBet(r) {
     attributionLabel: r.attribution_label,
     propActual: r.prop_actual,
     propStatSource: r.prop_stat_source,
+    finalAwayScore: r.final_away_score,
+    finalHomeScore: r.final_home_score,
+    f5AwayScore: r.f5_away_score,
+    f5HomeScore: r.f5_home_score,
+    settlementSource: r.settlement_source,
+    settlementEvidence: (() => {
+      try { return r.settlement_evidence_json ? JSON.parse(r.settlement_evidence_json) : null; } catch { return null; }
+    })(),
     trackerMetadata: (() => {
       try { return r.tracker_metadata_json ? JSON.parse(r.tracker_metadata_json) : null; } catch { return null; }
     })(),
@@ -2780,7 +2788,9 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         attribution_label = ?, clv = ?, clv_status = ?,
         pin_entry_line = ?, pin_entry_price = ?, pin_entry_no_vig = ?,
         pin_close_line = ?, pin_close_price = ?, pin_close_no_vig = ?,
-        prop_actual = ?, prop_stat_source = ?
+        prop_actual = ?, prop_stat_source = ?,
+        final_away_score = ?, final_home_score = ?, f5_away_score = ?, f5_home_score = ?,
+        settlement_source = ?, settlement_evidence_json = ?
        WHERE id = ?`
     )
       .bind(
@@ -2807,6 +2817,12 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         n(mapped.pinCloseNoVig),
         n(mapped.propActual),
         n(mapped.propStatSource),
+        n(mapped.finalAwayScore),
+        n(mapped.finalHomeScore),
+        n(mapped.f5AwayScore),
+        n(mapped.f5HomeScore),
+        n(mapped.settlementSource),
+        mapped.settlementEvidence ? JSON.stringify(mapped.settlementEvidence) : null,
         id
       )
       .run();
