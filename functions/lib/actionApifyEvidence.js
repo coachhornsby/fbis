@@ -437,6 +437,24 @@ export async function loadFbisSlateForMatching(queryGamesFn, env, { sport, date,
       if (row?.id) byId.set(String(row.id), row);
     }
   }
+  // Bounded fallback for stale collection partitions: query forward from the
+  // earliest adjacent partition and filter strictly by Chicago kickoff date.
+  // This remains fail-closed on event time and avoids trusting games.date.
+  if (requestedDate && byId.size === 0) {
+    const fallback = await queryGamesFn(env, { sport, since: dates[0] });
+    if (fallback?.ok) {
+      const activeRows = filterActionMatchingWindow(fallback.rows || [], {
+        sport,
+        date: requestedDate,
+        now: clock,
+      });
+      for (const row of activeRows) {
+        if (row?.id) byId.set(String(row.id), row);
+      }
+    } else if (!lastError) {
+      lastError = fallback?.reason || "slate-unavailable";
+    }
+  }
   if (!byId.size && lastError) {
     return { fbisEvents: [], gamesExpected: null, slateError: lastError, slateDates: dates };
   }

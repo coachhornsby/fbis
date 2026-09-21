@@ -10,7 +10,7 @@ const TZ="America/Chicago", SPORTS=["mlb","nfl","nba","nhl","cfb","cbb"];
 const LEAGUE={mlb:"mlb",nfl:"nfl",nba:"nba",nhl:"nhl",cfb:"ncaaf",cbb:"ncaab"};
 const PRO=new Set(["mlb","nfl","nba","nhl"]), PROFILE="DAILY", LIFECYCLE="daily", STALE_RUNNING_MS=30*60*1000;
 const json=(b,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});
-function dbOf(env){if(!env?.DB)return null;return{exec:async(s,p=[])=>env.DB.prepare(s).bind(...p).run(),queryOne:async(s,p=[])=>(await env.DB.prepare(s).bind(...p).first())||null}}
+function dbOf(env){if(!env?.DB)return null;return{exec:async(s,p=[])=>env.DB.prepare(s).bind(...p).run(),queryOne:async(s,p=[])=>(await env.DB.prepare(s).bind(...p).first())||null,queryAll:async(s,p=[])=>(await env.DB.prepare(s).bind(...p).all()).results||[]}}
 function parts(d=new Date()){const a=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",hourCycle:"h23"}).formatToParts(d),g=t=>a.find(x=>x.type===t)?.value||"";return{y:g("year"),m:g("month"),d:g("day"),h:Number(g("hour"))}}
 function day(d=new Date()){const p=parts(d);return `${p.y}-${p.m}-${p.d}`}
 function prev(k){const [y,m,d]=k.split("-").map(Number),x=new Date(Date.UTC(y,m-1,d,12));x.setUTCDate(x.getUTCDate()-1);return x.toISOString().slice(0,10)}
@@ -21,7 +21,8 @@ async function mtd(db,now=new Date()){const ms=new Date(Date.UTC(now.getUTCFullY
 function budget(env,now=new Date()){const n=Number(env.ACTION_APIFY_HARD_MONTHLY_BUDGET_USD),base=Number.isFinite(n)&&n>0?n:15;return now.getUTCFullYear()===2026&&now.getUTCMonth()===8?Math.max(base,25):base}
 async function latest(db,t){return db.queryOne("SELECT * FROM shadow_collection_runs WHERE sport='all' AND profile=? AND lifecycle=? AND substr(started_at,1,10)=? ORDER BY started_at DESC LIMIT 1",[PROFILE,LIFECYCLE,t])}
 async function active(db,t){return db.queryOne("SELECT * FROM shadow_collection_runs WHERE sport='all' AND profile=? AND lifecycle=? AND substr(started_at,1,10)=? AND status='running_daily' ORDER BY started_at DESC LIMIT 1",[PROFILE,LIFECYCLE,t])}
-async function successful(db,t){return db.queryOne("SELECT * FROM shadow_collection_runs WHERE sport='all' AND profile=? AND lifecycle=? AND substr(started_at,1,10)=? AND status LIKE 'success%' ORDER BY started_at DESC LIMIT 1",[PROFILE,LIFECYCLE,t])}
+async function successfulRuns(db,t){const rows=await db.queryAll?.("SELECT * FROM shadow_collection_runs WHERE sport='all' AND profile=? AND lifecycle=? AND substr(started_at,1,10)=? AND status LIKE 'success%' ORDER BY started_at DESC",[PROFILE,LIFECYCLE,t]);return rows||[]}
+async function successful(db,t){const rows=await successfulRuns(db,t);return rows[0]||null}
 async function finalizeRun(db,run,{status,datasetId=null,gamesReturned=0,matched=0,unmatched=0,written=0,malformed=0,estimatedCostUsd=null,errorClass=null,errorMessage=null}){
  const finished=new Date().toISOString(),duration=Math.max(0,Date.now()-Date.parse(run.started_at));
  await db.exec(`UPDATE shadow_collection_runs SET status=?,dataset_id=COALESCE(?,dataset_id),games_returned=?,games_matched=?,games_unmatched=?,observations_written=?,malformed_rows=?,estimated_cost_usd=COALESCE(?,estimated_cost_usd),error_class=?,error_message=?,finished_at=?,duration_ms=? WHERE id=?`,[status,datasetId,gamesReturned,matched,unmatched,written,malformed,estimatedCostUsd,errorClass,errorMessage,finished,duration,run.id]);
@@ -45,11 +46,14 @@ export async function onRequestPost(context){
    if(!cfg.enabled||!cfg.configured)return json({ok:true,executed:false,status:"action_not_configured",enabled:cfg.enabled,configured:cfg.configured});
    const sl=await slate(context.env,today,yesterday),activeSports=SPORTS.filter(s=>(sl.by[s]?.today||0)>0);
    if(!activeSports.length)return json({ok:true,executed:false,status:"no_slate",today,slate:sl.by});
-   const done=await successful(db,today);
+   const doneRuns=await successfulRuns(db,today),done=doneRuns[0]||null;
    let collectionSports=[...activeSports];
    if(done){
-     let prior={};try{prior=JSON.parse(done.plan||"{}")}catch{}
-     const priorSports=new Set(prior.activeSports||[]);
+     const priorSports=new Set();
+     for(const priorRun of doneRuns){
+       let prior={};try{prior=JSON.parse(priorRun.plan||"{}")}catch{}
+       for(const s of prior.activeSports||[]) priorSports.add(s);
+     }
      collectionSports=activeSports.filter(s=>!priorSports.has(s));
      if(!collectionSports.length)return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id,today,activeSports});
    }

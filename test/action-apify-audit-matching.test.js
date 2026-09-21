@@ -268,3 +268,21 @@ test("explicit Chicago ACTION date searches adjacent storage partitions and filt
   assert.equal(slate.fbisEvents.length,1);
   assert.equal(slate.fbisEvents[0].id,"nfl-mnf");
 });
+
+
+test("explicit ACTION date falls back to bounded since-query when all storage partitions miss", async () => {
+  const calls=[];
+  const query=async (_env,opts)=>{
+    calls.push(opts);
+    if(opts.since) return {ok:true,rows:[{
+      id:"nfl-mnf-stale",sport:"nfl",date:"2026-09-16",start:"2026-09-22T00:15:00.000Z",
+      homeName:"Los Angeles Rams",awayName:"New York Giants",homeAbbr:"LAR",awayAbbr:"NYG"
+    }]};
+    return {ok:true,rows:[]};
+  };
+  const slate=await loadFbisSlateForMatching(query,{}, {sport:"nfl",date:"2026-09-21",now:new Date("2026-09-21T20:00:00Z")});
+  assert.equal(calls.length,4);
+  assert.equal(calls[3].since,"2026-09-20");
+  assert.equal(slate.gamesExpected,1);
+  assert.equal(slate.fbisEvents[0].id,"nfl-mnf-stale");
+});
