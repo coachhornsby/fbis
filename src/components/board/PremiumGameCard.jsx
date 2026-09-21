@@ -37,23 +37,28 @@ function SideBox({ title, side }) {
 }
 
 function SplitMeter({ label, icon, awayPct, homePct, away, home }) {
-  const a = awayPct ?? 0;
-  const h = homePct ?? 0;
+  const unavailable = awayPct == null || homePct == null;
+  const a = unavailable ? null : Number(awayPct);
+  const h = unavailable ? null : Number(homePct);
   return (
     <div className="pgc-meter">
       <div className="pgc-meter-lab">{icon ? `${icon} ` : ""}{label}</div>
       <div className="pgc-meter-row">
         <div className="pgc-meter-track" aria-hidden="true">
-          <div className="pgc-meter-away" style={{ width: `${a}%` }} />
-          <div className="pgc-meter-home" style={{ width: `${h}%` }} />
+          {!unavailable ? (
+            <>
+              <div className="pgc-meter-away" style={{ width: `${a}%` }} />
+              <div className="pgc-meter-home" style={{ width: `${h}%` }} />
+            </>
+          ) : null}
         </div>
       </div>
       <div className="pgc-meter-legend">
         <span>
-          <TeamLogo team={away} size={14} /> {a}%
+          <TeamLogo team={away} size={14} /> {unavailable ? "—" : `${a}%`}
         </span>
         <span>
-          <TeamLogo team={home} size={14} /> {h}%
+          <TeamLogo team={home} size={14} /> {unavailable ? "—" : `${h}%`}
         </span>
       </div>
     </div>
@@ -281,8 +286,8 @@ export default function PremiumGameCard({
           ) : (
             <div className="pgc-action-empty" aria-label="ACTION snapshot unavailable">
               <div className="pgc-meters pgc-meters-empty">
-                <SplitMeter label="TICKETS" awayPct={0} homePct={0} away={away} home={home} />
-                <SplitMeter label="MONEY" awayPct={0} homePct={0} away={away} home={home} />
+                <SplitMeter label="TICKETS" awayPct={null} homePct={null} away={away} home={home} />
+                <SplitMeter label="MONEY" awayPct={null} homePct={null} away={away} home={home} />
               </div>
               <div className="pgc-action-facts">
                 <div className="pgc-fact">
