@@ -3,6 +3,7 @@ export const POPULATION_TYPE = {
   QUALIFIED_RECOMMENDATION: "qualified_recommendation",
   STRATEGY_TICKET: "strategy_ticket",
   IMPORTED_HERITAGE_EXECUTION: "imported_heritage_execution",
+  UNIFIED_EXECUTION_LEDGER: "unified_execution_ledger",
   OPERATOR_ONLY_BET: "operator_only_bet",
 };
 

@@ -172,15 +172,15 @@ export default function MyBetsView({
       {error && <div className="panel"><div className="error">{error}</div></div>}
       <section className="panel">
         <div className="panel-header">
-          <h2>MY BETS · Sportsbook executions</h2>
+          <h2>MY BETS · Unified execution ledger</h2>
           <span className="last-updated">{loading ? "Loading…" : `${badgeLabel(state || "DEGRADED")} · ${unavailable ? "Unavailable" : `${summary.bets || 0} imported`}`}</span>
         </div>
         <div className="panel-body">
           <p className="muted">
-            Imported sportsbook slips are a separate dataset from forecasts, FBIS recommendations, qualified strategy tickets, and the unrecovered 7–0 CONVICTION cohort.
+            Executed wagers are tracked across sportsbooks, exchanges, pick'em platforms, promotions, and reconciled historical records. Financial tracking is separate from calibration eligibility.
           </p>
           <p className="muted" style={{ marginTop: 8 }}>
-            Population: imported Heritage execution ledger only (not forecast accuracy and not strategy simulation results).
+            Population: canonical D1 execution ledger. Calibration uses only records explicitly marked eligible with an immutable pregame model lock.
           </p>
           <p className="muted" style={{ marginTop: 8 }}>
             {attemptAt ? `Current attempt ${fmtTs(attemptAt)}. ` : ""}
@@ -246,6 +246,7 @@ export default function MyBetsView({
                     />
                   </div>
                   <div className="mobile-kv-grid" style={{ marginTop: 8 }}>
+                    <div><small>Book</small><b>{b.executionBook || "—"}</b></div>
                     <div><small>Market</small><b>{formatMarketPeriod(b.market, b.period)}</b></div>
                     <div><small>Side</small><b>{betSelectionLabel(b)}</b></div>
                     <div><small>Price</small><b>{fmtAmerican(b.executionPrice)}</b></div>
@@ -269,6 +270,7 @@ export default function MyBetsView({
                 <tr>
                   <th>Ticket</th>
                   <th>Matchup</th>
+                  <th>Book</th>
                   <th>Market</th>
                   <th>Side</th>
                   <th>Price</th>
@@ -296,6 +298,7 @@ export default function MyBetsView({
                         matchupText={b.matchupText}
                       />
                     </td>
+                    <td className="nowrap">{b.executionBook || "—"}</td>
                     <td className="nowrap">{formatMarketPeriod(b.market, b.period)}</td>
                     <td>{betSelectionLabel(b)}</td>
                     <td>{fmtAmerican(b.executionPrice)}</td>
@@ -309,6 +312,7 @@ export default function MyBetsView({
                     <td>
                       {formatClv(b.clv, b.clvStatus)}
                       {b.clvStatus && b.clvStatus !== "unavailable" ? <div className="muted">{b.clvStatus}</div> : null}
+                      {b.trackerMetadata?.calibrationEligibility ? <div className="muted">{b.trackerMetadata.calibrationEligibility}</div> : null}
                     </td>
                     <td>
                       {(b.result || "OPEN") === "OPEN" ? (

@@ -494,6 +494,7 @@ export function packExecutedBetRow(ticket) {
     attributionLabel: ticket.attributionLabel || attr.label || OPERATOR_ONLY,
     propActual: ticket.propActual ?? null,
     propStatSource: ticket.propStatSource || null,
+    trackerMetadata: ticket.trackerMetadata || null,
   };
 }
 

@@ -66,7 +66,10 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(m25, /canonical_probability_provenance/);
   assert.match(m25, /canonical_promotion_evidence/);
   assert.match(schemaExt, /canonical_publication_ledger/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0025_manual_completion_contracts["']/);
+  const m28 = await readFile(new URL("../migrations/0028_executed_bet_tracker_metadata.sql", import.meta.url), "utf8");
+  assert.match(m28, /0028_executed_bet_tracker_metadata/i);
+  assert.match(m28, /tracker_metadata_json/);
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0028_executed_bet_tracker_metadata["']/);
   assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /WHERE id = \?/);
 });

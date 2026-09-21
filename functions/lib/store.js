@@ -2621,6 +2621,9 @@ function mapExecutedBet(r) {
     attributionLabel: r.attribution_label,
     propActual: r.prop_actual,
     propStatSource: r.prop_stat_source,
+    trackerMetadata: (() => {
+      try { return r.tracker_metadata_json ? JSON.parse(r.tracker_metadata_json) : null; } catch { return null; }
+    })(),
   };
 }
 
@@ -2654,8 +2657,8 @@ export async function persistExecutedBet(env, row) {
         profit, graded_at, void_reason, heritage_current_line, heritage_current_price, heritage_current_at,
         pin_entry_line, pin_entry_price, pin_entry_no_vig, pin_close_line, pin_close_price, pin_close_no_vig,
         clv, clv_status, clv_method_version, attribution_label, player_name, prop_type,
-        prop_actual, prop_stat_source
-      ) VALUES (${Array(56).fill("?").join(",")})`
+        prop_actual, prop_stat_source, tracker_metadata_json
+      ) VALUES (${Array(57).fill("?").join(",")})`
     )
       .bind(
         packed.id,
@@ -2713,7 +2716,8 @@ export async function persistExecutedBet(env, row) {
         n(packed.playerName),
         n(packed.propType),
         n(packed.propActual),
-        n(packed.propStatSource)
+        n(packed.propStatSource),
+        packed.trackerMetadata ? JSON.stringify(packed.trackerMetadata) : null
       )
       .run();
     markWrite();

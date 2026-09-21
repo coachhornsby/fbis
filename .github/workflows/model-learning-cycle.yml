@@ -102,6 +102,18 @@ jobs:
           cat "$out"
           test "$http" = "200"
           jq -e '.ok == true and .job == "model-learn-analyze" and .d1.bound == true and .d1.sport == "cbb"' "$out" >/dev/null
+      - name: Evaluate executed-bet feedback population
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl -fsS --max-time 60 -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            "${BASE}/api/bet-learning" > artifacts/model-learning-executed-bets.json
+          jq -e '.ok == true and .governance.autoTrain == false and .governance.autoPromote == false' artifacts/model-learning-executed-bets.json >/dev/null
+
       - name: Build learning summary
         if: steps.gate.outputs.run == 'true'
         run: |
@@ -132,5 +144,6 @@ jobs:
           path: |
             artifacts/model-learning-*.json
             artifacts/model-findings-*.json
+            artifacts/model-learning-executed-bets.json
           if-no-files-found: error
           retention-days: 90
