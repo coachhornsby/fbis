@@ -207,7 +207,7 @@ test("artifact hash + runtime + prior + MLB uncertainty", () => {
 
 test("migration tip + compliance matrix vocabulary", async () => {
   const migration = await readFile(
-    new URL("../migrations/0025_manual_completion_contracts.sql", import.meta.url),
+    new URL("../migrations/0028_executed_bet_tracker_metadata.sql", import.meta.url),
     "utf8"
   );
   const health = await readFile(new URL("../functions/api/health.js", import.meta.url), "utf8");
@@ -217,7 +217,7 @@ test("migration tip + compliance matrix vocabulary", async () => {
     "utf8"
   );
   assert.match(migration, /canonical_publication/);
-  assert.match(health, /0025_manual_completion_contracts/);
+  assert.match(health, /0028_executed_bet_tracker_metadata/);
   assert.match(schema, /canonical_publication/);
   assert.match(doc, /IMPLEMENTED/);
   assert.match(doc, /IMPLEMENTED_SCAFFOLD/);
