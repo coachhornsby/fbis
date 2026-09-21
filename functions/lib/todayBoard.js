@@ -426,6 +426,28 @@ export async function buildTodayBoard(
         palReason: sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null,
         parlay: slate.parlay || null,
         cachedParlay: Boolean(slate.parlay?.cached || slate.parlay?.skipped),
+        // Preserve upstream model-source telemetry on the TODAY response. Previously
+        // the board could fall back to a projection and look healthy even when the
+        // subscribed/advanced data source feeding that sport was unavailable.
+        sources: {
+          ...(sport === "mlb" ? {
+            savant: slate.savant || null,
+            ballparkPal: slate.pal || null,
+            bullpen: slate.research?.mlbBullpen || null,
+          } : {}),
+          ...(sport === "cfb" ? {
+            cfbd: slate.cfb || null,
+            deep: slate.research?.cfbDeepFeed || null,
+          } : {}),
+          ...(sport === "cbb" ? {
+            cbbd: slate.cbbd || null,
+            researchBoard: slate.research?.cbbResearchBoard || null,
+          } : {}),
+          ...(sport === "nfl" ? {
+            nflverse: slate.research?.nflVerse || null,
+            baseline: slate.research?.nflBaseline || null,
+          } : {}),
+        },
       };
       sports.push({
         sport,

@@ -76,6 +76,31 @@ export default function DataHealthView() {
               ))}
             </div>
           ) : null}
+          {data.runtimeConfig ? (
+            <>
+              <h3 style={{ marginTop: "1rem" }}>Runtime ingestion</h3>
+              <div className="canonical-card-grid" style={{ marginBottom: "1rem" }}>
+                {Object.entries(data.runtimeConfig).map(([providerId, r]) => (
+                  <article key={providerId} className="canonical-card">
+                    <h3>{providerId.replaceAll("_", " ")}</h3>
+                    <p className="canonical-maturity">
+                      {!r.implemented ? "NOT WIRED" : r.configured ? "CONFIGURED" : "MISSING CREDENTIAL"}
+                    </p>
+                    <p className="canonical-meta">
+                      {r.lastSuccessAt || r.observation?.last_success_at || r.usage?.last_success_at || "No persisted success timestamp"}
+                    </p>
+                    <p className="muted small">
+                      {r.recordsReturned != null ? `returned ${r.recordsReturned} · ` : ""}
+                      {r.persisted != null ? `persisted ${r.persisted} · ` : ""}
+                      {r.observation?.max_record_count != null ? `observed ${r.observation.max_record_count} · ` : ""}
+                      {r.usage?.records_returned != null ? `API rows ${r.usage.records_returned} · ` : ""}
+                      {r.error || r.reason || r.auth || "runtime evidence available"}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : null}
           <div className="canonical-card-grid">
             {sources.map((s) => (
               <article key={s.providerId} className="canonical-card">

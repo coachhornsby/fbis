@@ -7,6 +7,20 @@ import { deriveHealthState, writeVerificationState } from "../lib/healthContract
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
 import { toDomainTodayBoard } from "../lib/fbisDomain.js";
 
+export function todayEnv(context) {
+  return {
+    PARLAY_API_KEY: context.env.PARLAY_API_KEY,
+    THEODDS_API_KEY: context.env.THEODDS_API_KEY,
+    SHARPAPI_API_KEY: context.env.SHARPAPI_API_KEY,
+    THERUNDOWN_API_KEY: context.env.THERUNDOWN_API_KEY,
+    BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
+    CFBD_API_KEY: context.env.CFBD_API_KEY,
+    CBBD_API_KEY: context.env.CBBD_API_KEY,
+    caches: caches.default,
+    DB: context.env.DB,
+  };
+}
+
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const resolved = resolveTodayDate(url.searchParams.get("date") || "");
@@ -15,16 +29,7 @@ export async function onRequestGet(context) {
   if (!resolved.ok) {
     return json({ error: resolved.error, date: resolved.date, games: [], sports: [], counts: {} }, 400);
   }
-  const env = {
-    PARLAY_API_KEY: context.env.PARLAY_API_KEY,
-    THEODDS_API_KEY: context.env.THEODDS_API_KEY,
-    SHARPAPI_API_KEY: context.env.SHARPAPI_API_KEY,
-    THERUNDOWN_API_KEY: context.env.THERUNDOWN_API_KEY,
-    BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
-    CFBD_API_KEY: context.env.CFBD_API_KEY,
-    caches: caches.default,
-    DB: context.env.DB,
-  };
+  const env = todayEnv(context);
   try {
     const board = await buildTodayBoard(resolved.date, env, { focusSport });
     const ping = await pingDb(env);
@@ -182,6 +187,35 @@ function BOARD_SPORTS_OK(board) {
   return (board.sports || []).filter((s) => !s.error).map((s) => s.sport);
 }
 
+function upstreamSourceState(raw) {
+  if (!raw) return { state: "not-reported", configured: null, records: null, asOf: null, error: null };
+  const meta = raw?.meta && typeof raw.meta === "object" ? { ...raw, ...raw.meta } : raw;
+  const configured = meta.configured ?? meta.enabled ?? null;
+  const error = meta.error || (meta.reason === "upstream-error" || meta.reason === "no-api-key" ? meta.reason : null);
+  const recordCandidates = [
+    meta.records,
+    meta.recordsReturned,
+    meta.teams,
+    meta.available,
+    meta.matched,
+    meta.n,
+  ];
+  const records = recordCandidates.map(Number).find(Number.isFinite);
+  let state = "ok";
+  if (configured === false) state = "not-configured";
+  else if (error) state = "error";
+  else if (records === 0) state = "empty";
+  return {
+    state,
+    configured: configured == null ? null : Boolean(configured),
+    records: records == null ? null : records,
+    asOf: meta.asOf || meta.lastSuccess || meta.generatedAt || null,
+    httpStatus: meta.httpStatus == null ? null : Number(meta.httpStatus),
+    source: meta.source || null,
+    error: error ? String(error) : null,
+  };
+}
+
 function buildTodaySourceStatus(board) {
   const feeds = board?.feeds || {};
   const statuses = {};
@@ -198,6 +232,9 @@ function buildTodaySourceStatus(board) {
     // needs at least one paired executable market; an empty slate is healthy.
     const marketOk = !feed?.error && (games.length === 0 || usableMarkets > 0);
     const source = feed?.cachedParlay ? "cache" : "live";
+    const upstream = Object.fromEntries(
+      Object.entries(feed?.sources || {}).map(([name, meta]) => [name, upstreamSourceState(meta)])
+    );
     statuses[sport] = {
       schedule: scheduleOk ? (games.length === 0 ? "no-games" : "ok") : "failed",
       projections: games.length === 0 ? "no-games" : projectionOk ? "ok" : "unavailable",
@@ -206,6 +243,10 @@ function buildTodaySourceStatus(board) {
       projectedGames,
       usableMarkets,
       source,
+      upstream,
+      upstreamProblems: Object.entries(upstream)
+        .filter(([, row]) => ["error", "not-configured"].includes(row.state))
+        .map(([name, row]) => ({ source: name, ...row })),
       error: feed?.error || null,
     };
     requiredChecks.push({
