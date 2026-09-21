@@ -60,7 +60,8 @@ export async function onRequestGet(context) {
           source: "d1",
           detail: schedule?.collect?.state || "unknown",
           lastSuccessAt: durable.lastScheduledCollectSuccessAt || null,
-          freshnessMs: 8 * 60 * 60 * 1000,
+          // Match production cadence: longest collect gap is ~11h.
+          freshnessMs: 12 * 60 * 60 * 1000,
         },
         {
           name: "scheduled-harvest",
@@ -68,7 +69,8 @@ export async function onRequestGet(context) {
           source: "d1",
           detail: schedule?.harvest?.state || "unknown",
           lastSuccessAt: durable.lastScheduledHarvestSuccessAt || null,
-          freshnessMs: 8 * 60 * 60 * 1000,
+          // Harvest runs at 11:20/16:20 UTC; overnight gap is ~19h.
+          freshnessMs: 20 * 60 * 60 * 1000,
         },
         ...sourceStatus.requiredChecks,
       ],
