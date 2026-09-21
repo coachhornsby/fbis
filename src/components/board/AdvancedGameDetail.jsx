@@ -288,7 +288,11 @@ function StarterCard({ side, vm }) {
         )}
         <div>
           <strong>{starter?.name || "Not available"}</strong>
-          <span>{starter ? [starter.hand ? `${starter.hand}HP` : null, starter.era != null ? `${Number(starter.era).toFixed(2)} ERA` : null].filter(Boolean).join(" · ") : "Upstream starter data unavailable"}</span>
+          <span>{starter
+            ? [starter.hand ? `${starter.hand}HP` : null, starter.era != null ? `${Number(starter.era).toFixed(2)} ERA` : null].filter(Boolean).join(" · ")
+            : vm.context?.startersLabel
+              ? "Upstream starter data unavailable"
+              : "Personnel data unavailable"}</span>
         </div>
       </div>
       {starter ? (

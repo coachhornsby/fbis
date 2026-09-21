@@ -54,6 +54,101 @@ function boolOrNull(v) {
   return Boolean(v);
 }
 
+const ACTION_CURRENT_MS = 24 * 60 * 60 * 1000;
+
+function currentActionIntel(action, nowValue = null) {
+  if (!action || typeof action !== "object") return null;
+  const observedAt =
+    action.collectedAt || action.observedAt || action.sourceObservedAt || action.scrapedAt || null;
+  const observedMs = observedAt ? Date.parse(String(observedAt)) : NaN;
+  const nowMs = Number.isFinite(Date.parse(String(nowValue || "")))
+    ? Date.parse(String(nowValue))
+    : Date.now();
+  // ACTION is current-state market intelligence. Missing/invalid timestamps and
+  // snapshots older than 24h fail closed instead of leaking into today's board.
+  if (!Number.isFinite(observedMs)) return null;
+  if (nowMs - observedMs > ACTION_CURRENT_MS) return null;
+  if (observedMs - nowMs > 5 * 60 * 1000) return null;
+  return action;
+}
+
+function canonicalOperationalMarkets(boardGame = {}) {
+  const market = boardGame.market || {};
+  const exec = market.execution || {};
+  const cons = market.consensus || {};
+  const useExec = exec.available === true;
+  const useCons = !useExec && cons.available === true;
+  if (!useExec && !useCons) return [];
+
+  const source = useExec ? exec : cons;
+  const book = useExec ? strOrNull(exec.book) : strOrNull(cons.book || cons.source);
+  const provider = useExec ? "execution_market" : "consensus_market";
+  const observedAt =
+    strOrNull(source.sourceObservedAt) ||
+    strOrNull(source.observedAt) ||
+    strOrNull(market.comparisonTimestamp) ||
+    null;
+  const rows = [];
+
+  const spread = numOrNull(source.spread);
+  const spreadPrice = numOrNull(source.spreadPrice);
+  if (spread != null || spreadPrice != null) {
+    rows.push(toDomainMarketQuote({
+      marketType: "spread",
+      side: "home",
+      line: spread,
+      price: spreadPrice,
+      book,
+      provider,
+      sourceObservedAt: observedAt,
+      provenance: "canonical_operational_market",
+    }));
+  }
+
+  const total = numOrNull(source.total);
+  const totalPrice = numOrNull(source.totalPrice);
+  if (total != null || totalPrice != null) {
+    rows.push(toDomainMarketQuote({
+      marketType: "total",
+      side: "over",
+      line: total,
+      price: totalPrice,
+      book,
+      provider,
+      sourceObservedAt: observedAt,
+      provenance: "canonical_operational_market",
+    }));
+  }
+
+  if (useExec) {
+    const homeMl = numOrNull(exec.moneyline?.home);
+    const awayMl = numOrNull(exec.moneyline?.away);
+    if (homeMl != null || awayMl != null) {
+      rows.push(
+        toDomainMarketQuote({
+          marketType: "moneyline",
+          side: "home",
+          price: homeMl,
+          book,
+          provider,
+          sourceObservedAt: observedAt,
+          provenance: "canonical_operational_market",
+        }),
+        toDomainMarketQuote({
+          marketType: "moneyline",
+          side: "away",
+          price: awayMl,
+          book,
+          provider,
+          sourceObservedAt: observedAt,
+          provenance: "canonical_operational_market",
+        }),
+      );
+    }
+  }
+  return rows;
+}
+
 export function toDomainTeam(team = {}) {
   return {
     name: strOrNull(team.name) || strOrNull(team.school) || strOrNull(team.fullName),
@@ -320,12 +415,31 @@ export function toMovementSummary(boardGame = {}) {
 export function toDomainEvent(boardGame = {}, opts = {}) {
   const decision = deriveDecisionState(boardGame);
   const sport = strOrNull(boardGame.sport) || strOrNull(opts.sport);
-  const consensusMarkets = [];
+  const canonicalMarkets = canonicalOperationalMarkets(boardGame);
+  const consensusMarkets = [...canonicalMarkets];
+  const hasMarketType = (type) => consensusMarkets.some((m) => m.marketType === type);
+
+  const currentAction = currentActionIntel(
+    boardGame.actionIntel,
+    opts.generatedAt || opts.collectedAt || null,
+  );
+  const staleAction = Boolean(boardGame.actionIntel && !currentAction);
+  const sentiment =
+    staleAction && boardGame.sentiment?.source === "ACTION_APIFY"
+      ? null
+      : boardGame.sentiment || null;
+  const publicSplitsRaw = staleAction ? null : boardGame.publicSplits || null;
+  const domainGame = {
+    ...boardGame,
+    actionIntel: currentAction,
+    sentiment,
+    publicSplits: publicSplitsRaw,
+  };
 
   const pinSpread = boardGame.pinSpread ?? boardGame.pin_spread;
   const pinSpreadHomePrice =
     boardGame.pinSpreadHomePrice ?? boardGame.pin_spread_home_price;
-  if (pinSpread != null || pinSpreadHomePrice != null) {
+  if (!hasMarketType("spread") && (pinSpread != null || pinSpreadHomePrice != null)) {
     consensusMarkets.push(
       toDomainMarketQuote({
         marketType: "spread",
@@ -339,7 +453,7 @@ export function toDomainEvent(boardGame = {}, opts = {}) {
     );
   }
   const pinTotal = boardGame.pinTotal ?? boardGame.pin_total;
-  if (pinTotal != null) {
+  if (!hasMarketType("total") && pinTotal != null) {
     consensusMarkets.push(
       toDomainMarketQuote({
         marketType: "total",
@@ -354,7 +468,7 @@ export function toDomainEvent(boardGame = {}, opts = {}) {
   }
   const pinMlHome = boardGame.pinMlHome ?? boardGame.pin_ml_home;
   const pinMlAway = boardGame.pinMlAway ?? boardGame.pin_ml_away;
-  if (pinMlHome != null || pinMlAway != null) {
+  if (!hasMarketType("moneyline") && (pinMlHome != null || pinMlAway != null)) {
     consensusMarkets.push(
       toDomainMarketQuote({
         marketType: "moneyline",
@@ -405,26 +519,27 @@ export function toDomainEvent(boardGame = {}, opts = {}) {
     },
 
     consensusMarkets,
-    movement: toMovementSummary(boardGame),
+    movement: toMovementSummary(domainGame),
     publicSplits: {
       ticketPct: numOrNull(
-        boardGame.actionIntel?.publicSplits?.ticketPct ??
-          boardGame.publicSplits?.ticketPct ??
-          boardGame.sentiment?.ticketPct ??
+        currentAction?.publicSplits?.ticketPct ??
+          publicSplitsRaw?.ticketPct ??
+          sentiment?.ticketPct ??
           boardGame.ticketPct
       ),
       moneyPct: numOrNull(
-        boardGame.actionIntel?.publicSplits?.moneyPct ??
-          boardGame.publicSplits?.moneyPct ??
-          boardGame.sentiment?.moneyPct ??
+        currentAction?.publicSplits?.moneyPct ??
+          publicSplitsRaw?.moneyPct ??
+          sentiment?.moneyPct ??
           boardGame.moneyPct
       ),
-      source: boardGame.actionIntel
+      source: currentAction
         ? "ACTION_APIFY"
-        : boardGame.sentiment?.source || boardGame.publicSplits?.source || null,
-      displayOnly: Boolean(boardGame.actionIntel?.displayOnly || boardGame.sentiment?.displayOnly),
+        : sentiment?.source || publicSplitsRaw?.source || null,
+      displayOnly: Boolean(currentAction?.displayOnly || sentiment?.displayOnly),
+      staleActionSuppressed: staleAction,
     },
-    actionIntel: boardGame.actionIntel || null,
+    actionIntel: currentAction,
 
     playerMarkets: Array.isArray(boardGame.playerMarkets)
       ? boardGame.playerMarkets.map(toDomainPlayerMarket)
