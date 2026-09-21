@@ -111,6 +111,20 @@ const pubRows = d1Query(
 );
 const hasPublishedProjections = pubRows.length > 0;
 
+const collegeRows = d1Query(
+  "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('source_observations','api_usage','team_feature_snapshots','game_feature_snapshots','model_registry','model_predictions');"
+);
+const collegeTables = new Set(collegeRows.map((r) => String(r.name || "")));
+const requiredCollegeTables = [
+  "source_observations",
+  "api_usage",
+  "team_feature_snapshots",
+  "game_feature_snapshots",
+  "model_registry",
+  "model_predictions",
+];
+const hasCollegeResearchTables = requiredCollegeTables.every((name) => collegeTables.has(name));
+
 console.log(
   JSON.stringify(
     {
@@ -118,6 +132,8 @@ console.log(
       hasQualifiedAt,
       hasExecutionPrice,
       hasPublishedProjections,
+      hasCollegeResearchTables,
+      missingCollegeResearchTables: requiredCollegeTables.filter((name) => !collegeTables.has(name)),
       migrationFiles: files.length,
     },
     null,
@@ -138,7 +154,23 @@ if (!hasQualifiedAt || !hasExecutionPrice) {
 const historical = files.slice(0, -1);
 let inserted = 0;
 for (const file of historical) {
-  if (applied.has(file)) continue;
+  // 0009 is the college ingestion storage contract. A legacy bootstrap used
+  // strategy_tickets as broad evidence and could therefore mark 0009 applied
+  // even when its tables were absent. Never infer 0009/0028 from unrelated
+  // schema objects.
+  if (
+    (file === "0009_college_research.sql" || file === "0028_college_research_tables_ensure.sql") &&
+    !hasCollegeResearchTables
+  ) {
+    console.log(`NOT marking ${file}: college research tables are incomplete; Wrangler must apply the repair migration.`);
+    continue;
+  }
+  if (applied.has(file)) {
+    if (file === "0009_college_research.sql" && !hasCollegeResearchTables) {
+      console.log("WARNING: 0009 is recorded as applied but college research tables are incomplete; 0028 repair is required.");
+    }
+    continue;
+  }
   const safe = file.replace(/'/g, "''");
   d1Exec(`INSERT OR IGNORE INTO d1_migrations (name) VALUES ('${safe}');`);
   inserted += 1;
