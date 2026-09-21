@@ -407,7 +407,19 @@ export function filterActionMatchingWindow(rows = [], { sport, date, now = new D
  */
 export async function loadFbisSlateForMatching(queryGamesFn, env, { sport, date, now } = {}) {
   const clock = now || new Date();
-  const dates = date ? [String(date)] : defaultFbisSlateDates(clock, { sport });
+  const requestedDate = date ? String(date) : null;
+  // The games table is append/partition oriented. A late-evening kickoff can be
+  // stored under an adjacent UTC/feed partition even though its Chicago board
+  // date is today. Query neighboring partitions, then let the kickoff clock be
+  // the authority for the requested board date.
+  const adjacentDates = (d) => {
+    const [y,m,day] = d.split("-").map(Number);
+    const base = new Date(Date.UTC(y,m-1,day,12));
+    return [-1,0,1].map((delta) => {
+      const x=new Date(base); x.setUTCDate(x.getUTCDate()+delta); return x.toISOString().slice(0,10);
+    });
+  };
+  const dates = requestedDate ? adjacentDates(requestedDate) : defaultFbisSlateDates(clock, { sport });
   const byId = new Map();
   let lastError = null;
   for (const d of dates) {
@@ -418,7 +430,7 @@ export async function loadFbisSlateForMatching(queryGamesFn, env, { sport, date,
     }
     const activeRows = filterActionMatchingWindow(games.rows || [], {
       sport,
-      date: date ? String(date) : null,
+      date: requestedDate,
       now: clock,
     });
     for (const row of activeRows) {
