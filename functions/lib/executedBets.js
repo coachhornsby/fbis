@@ -495,6 +495,16 @@ export function packExecutedBetRow(ticket) {
     propActual: ticket.propActual ?? null,
     propStatSource: ticket.propStatSource || null,
     trackerMetadata: ticket.trackerMetadata || null,
+    entryId: ticket.entryId || ticket.entry_id || null,
+    legIndex: ticket.legIndex ?? ticket.leg_index ?? null,
+    legCount: ticket.legCount ?? ticket.leg_count ?? null,
+    legResult: ticket.legResult || ticket.leg_result || null,
+    advisorDecision: ticket.advisorDecision || ticket.trackerMetadata?.advisorDecision || null,
+    advisorConfidence: ticket.advisorConfidence || ticket.trackerMetadata?.advisorConfidence || null,
+    advisorReason: ticket.advisorReason || ticket.trackerMetadata?.advisorReason || null,
+    advisorReviewedAt: ticket.advisorReviewedAt || ticket.trackerMetadata?.advisorRecordedAt || null,
+    advisorSnapshotHash: ticket.advisorSnapshotHash || ticket.trackerMetadata?.advisorSnapshotHash || null,
+    exceptionCode: ticket.exceptionCode || null,
   };
 }
 
