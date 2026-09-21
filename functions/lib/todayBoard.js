@@ -28,6 +28,21 @@ function withRecs(slate, weights = DEFAULT_WEIGHTS) {
 
 export { todayCT, shiftDateCT };
 
+export function boardDateCtForStart(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const by = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  if (!by.year || !by.month || !by.day) return null;
+  return `${by.year}-${by.month}-${by.day}`;
+}
+
 export function resolveTodayDate(raw, now = new Date()) {
   const today = todayCTFrom(now);
   const value = String(raw || "").trim();
@@ -386,9 +401,16 @@ export async function buildTodayBoard(
       if (slate?.parlay?.cached === false && slate?.parlay?.skipped !== true && !slate?.parlay?.error) {
         parlayNetwork += 1;
       }
+      // Some provider scoreboards return a weekly/windowed slate even when a
+      // YYYYMMDD date is requested (notably football). TODAY is explicitly a
+      // Chicago-calendar-day product, so fail closed to games that actually
+      // start on the selected CT date before recommendation/qualification.
+      const selectedDateGames = (slate.games || []).filter(
+        (g) => boardDateCtForStart(g?.start) === date
+      );
       const recSlate = withRecs({
         ...slate,
-        games: (slate.games || []).map((g) =>
+        games: selectedDateGames.map((g) =>
           hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id)))
         ),
       }, DEFAULT_WEIGHTS);
