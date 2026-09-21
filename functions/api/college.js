@@ -3,6 +3,28 @@ import { httpStatusForJob, parseJobTrigger } from "../lib/jobs.js";
 import { COLLEGE_JOBS, runCollegeJob } from "../lib/collegeJobs.js";
 import { collegeKeyHealth } from "../lib/collegeSecrets.js";
 
+export function parseCollegeJobOptions(request) {
+  const url = new URL(request.url);
+  return {
+    trigger: parseJobTrigger(request),
+    year: url.searchParams.get("year") ? Number(url.searchParams.get("year")) : undefined,
+    week: url.searchParams.get("week") ? Number(url.searchParams.get("week")) : undefined,
+    date: url.searchParams.get("date") || undefined,
+    sport: url.searchParams.get("sport") || undefined,
+    modelId: url.searchParams.get("modelId") || undefined,
+    championModelId:
+      url.searchParams.get("championModelId") ||
+      url.searchParams.get("referenceModelId") ||
+      undefined,
+    operatorApproved: url.searchParams.get("operatorApproved") === "true",
+    n: url.searchParams.get("n") ? Number(url.searchParams.get("n")) : undefined,
+    maeImproved: url.searchParams.get("maeImproved") === "true",
+    leakageOk: url.searchParams.get("leakageOk") === "true",
+    artifactOk: url.searchParams.get("artifactOk") === "true",
+    biasAbs: url.searchParams.get("biasAbs") ? Number(url.searchParams.get("biasAbs")) : undefined,
+  };
+}
+
 function envFrom(context) {
   return {
     PARLAY_API_KEY: context.env.PARLAY_API_KEY,
@@ -29,7 +51,6 @@ export async function onRequestGet(context) {
   }
   const url = new URL(context.request.url);
   const job = url.searchParams.get("job") || "college-health";
-  const trigger = parseJobTrigger(context.request);
   if (!COLLEGE_JOBS.includes(job)) {
     return new Response(JSON.stringify({ ok: false, status: "failed", error: "unknown-job", jobs: COLLEGE_JOBS }), {
       status: 400,
@@ -37,19 +58,7 @@ export async function onRequestGet(context) {
     });
   }
   try {
-    const payload = await runCollegeJob(job, envFrom(context), {
-      trigger,
-      year: url.searchParams.get("year") ? Number(url.searchParams.get("year")) : undefined,
-      week: url.searchParams.get("week") ? Number(url.searchParams.get("week")) : undefined,
-      date: url.searchParams.get("date") || undefined,
-      modelId: url.searchParams.get("modelId") || undefined,
-      operatorApproved: url.searchParams.get("operatorApproved") === "true",
-      n: url.searchParams.get("n") ? Number(url.searchParams.get("n")) : undefined,
-      maeImproved: url.searchParams.get("maeImproved") === "true",
-      leakageOk: url.searchParams.get("leakageOk") === "true",
-      artifactOk: url.searchParams.get("artifactOk") === "true",
-      biasAbs: url.searchParams.get("biasAbs") ? Number(url.searchParams.get("biasAbs")) : undefined,
-    });
+    const payload = await runCollegeJob(job, envFrom(context), parseCollegeJobOptions(context.request));
     payload.keyHealth = collegeKeyHealth(context.env);
     return new Response(JSON.stringify(payload), {
       status: httpStatusForJob(payload.status),
