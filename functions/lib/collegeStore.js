@@ -382,12 +382,12 @@ export async function insertModelLearningFinding(env, row) {
   try {
     const now = row.updatedAt || row.createdAt || new Date().toISOString();
     const res = await env.DB.prepare(
-      \`INSERT OR IGNORE INTO model_learning_findings (
+      `INSERT OR IGNORE INTO model_learning_findings (
         id, sport, model_id, finding_type, slice_key, metric,
         baseline_n, recent_n, baseline_value, recent_value, delta,
         severity, window_start, window_end, evidence_json, hypothesis,
         status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         row.id,
