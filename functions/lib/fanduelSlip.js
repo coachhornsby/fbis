@@ -52,7 +52,17 @@ function selectionOf(s,market){
 function legsOf(s){
   const lines=s.split(/\n+/).map(x=>x.trim()).filter(Boolean);
   return lines.filter(x=>/\b(over|under|moneyline|money line|spread|[+-]\d+(?:\.5)?\b)/i.test(x))
-    .slice(0,20).map((raw,index)=>({legIndex:index+1,raw}));
+    .filter(x=>!/odds|price|potential payout|wager|stake|risk/i.test(x))
+    .slice(0,20).map((raw,index)=>{
+      const prop=raw.match(/^(.+?)\s+(over|under)\s*([0-9]+(?:\.[0-9]+)?)\s+(.+)$/i);
+      if(prop) return {legIndex:index+1,raw,market:"PLAYER_PROP",playerName:prop[1].trim(),selectedTeam:prop[1].trim(),selectedSide:prop[2].toUpperCase(),executionLine:Number(prop[3]),propType:prop[4].trim().toUpperCase().replace(/[^A-Z0-9]+/g,"_")};
+      const total=raw.match(/\b(over|under)\s*([0-9]+(?:\.[0-9]+)?)/i);
+      if(total) return {legIndex:index+1,raw,market:"TOTAL",selectedSide:total[1].toUpperCase(),executionLine:Number(total[2])};
+      const spread=raw.match(/^(.+?)\s+([+-]\d+(?:\.\d+)?)/);
+      if(spread) return {legIndex:index+1,raw,market:"SPREAD",selectedTeam:spread[1].trim(),executionLine:Number(spread[2])};
+      if(/moneyline|money line|\bml\b/i.test(raw)) return {legIndex:index+1,raw,market:"ML",selectedTeam:raw.replace(/moneyline|money line|\bml\b/ig,"").trim()};
+      return {legIndex:index+1,raw,market:"UNCLASSIFIED"};
+    });
 }
 
 export async function parseFanDuelSlip(text,{dateHint}={}){
@@ -71,12 +81,22 @@ export async function parseFanDuelSlip(text,{dateHint}={}){
   if(!risk) warnings.push("missing wager amount");
   if(!market) warnings.push("market needs review");
   if(!ticketId(s)) warnings.push("FanDuel ticket ID not visible; content fingerprint used for duplicate protection");
-  const ticket={
-    externalTicketId:id,executionBook:"FanDuel",executedAt:null,timezone:"America/Chicago",date,sport:sportOf(s),
+  const common={executionBook:"FanDuel",executedAt:null,timezone:"America/Chicago",date,sport:sportOf(s),
     matchupText:teams.away&&teams.home?`${teams.away} @ ${teams.home}`:null,awayTeam:teams.away,homeTeam:teams.home,
-    market:market||"UNCLASSIFIED",period:"FULL_GAME",...sel,executionPrice:price,riskAmount:risk,toWinAmount:toWin,
-    potentialPayout:payout,currency:"USD",warnings,rawText:s,parseOk:Boolean(risk&&market),
-    trackerMetadata:{importMethod:"universal-slip",legs,contentFingerprint:digest,calibrationEligibility:"PENDING - REQUIRES IMMUTABLE MODEL MATCH"}
-  };
-  return {tickets:[ticket],n:1,totalRisk:risk,totalToWin:toWin,entryType:market==="PARLAY"?"PARLAY":"STRAIGHT"};
+    period:"FULL_GAME",currency:"USD",rawText:s,entryId:id};
+  const tickets=market==="PARLAY" && legs.length ? legs.map((leg,index)=>({
+    ...common,externalTicketId:`${id}-L${index+1}`,market:leg.market,selectedSide:leg.selectedSide||null,
+    selectedTeam:leg.selectedTeam||null,playerName:leg.playerName||null,propType:leg.propType||null,
+    executionLine:leg.executionLine??null,executionPrice:index===0?price:null,riskAmount:index===0?risk:0,
+    toWinAmount:index===0?toWin:0,potentialPayout:index===0?payout:null,legIndex:index+1,legCount:legs.length,
+    warnings:[...warnings,`FanDuel parlay leg ${index+1}/${legs.length}: ${leg.raw}`],
+    trackerMetadata:{importMethod:"universal-slip",entryId:id,entryType:"PARLAY",legIndex:index+1,legCount:legs.length,
+      cardRiskAmount:risk,cardToWinAmount:toWin,cardPotentialPayout:payout,economicsOwner:index===0,
+      contentFingerprint:digest,rawLeg:leg.raw,calibrationEligibility:"PENDING - REQUIRES IMMUTABLE MODEL MATCH"}
+  })):[{...common,externalTicketId:id,market:market||"UNCLASSIFIED",...sel,executionPrice:price,riskAmount:risk,toWinAmount:toWin,
+    potentialPayout:payout,warnings,parseOk:Boolean(risk&&market),
+    trackerMetadata:{importMethod:"universal-slip",entryId:id,entryType:"STRAIGHT",legIndex:1,legCount:1,
+      cardRiskAmount:risk,cardToWinAmount:toWin,cardPotentialPayout:payout,economicsOwner:true,
+      contentFingerprint:digest,calibrationEligibility:"PENDING - REQUIRES IMMUTABLE MODEL MATCH"}}];
+  return {tickets,n:tickets.length,totalRisk:risk,totalToWin:toWin,entryType:market==="PARLAY"?"PARLAY":"STRAIGHT",entryId:id};
 }
