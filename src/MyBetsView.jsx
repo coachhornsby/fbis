@@ -38,7 +38,8 @@ export default function MyBetsView({
   state,
   attemptAt,
 }) {
-  const [pack, setPack] = useState({ bets: external || [], summary: externalSummary || null, population: externalPopulation || null });
+  const [pack, setPack] = useState({ bets: external || [], summary: externalSummary || null, population: externalPopulation || null, exceptions: [] });
+  const [viewMode, setViewMode] = useState("exceptions");
   const [result, setResult] = useState("all");
   const [attr, setAttr] = useState("all");
   const [sport, setSport] = useState("all");
@@ -49,20 +50,22 @@ export default function MyBetsView({
 
   useEffect(() => {
     if (external) {
-      setPack({ bets: external, summary: externalSummary, population: externalPopulation || null });
+      setPack({ bets: external, summary: externalSummary, population: externalPopulation || null, exceptions: [] });
       return undefined;
     }
     const ac = new AbortController();
     fetch(`/api/bets?_t=${Date.now()}`, { signal: ac.signal })
       .then((r) => r.json())
-      .then((d) => setPack({ bets: d.bets || [], summary: d.summary, population: d.population || null }))
+      .then((d) => setPack({ bets: d.bets || [], summary: d.summary, population: d.population || null, exceptions: d.exceptions || [], exceptionSummary: d.exceptionSummary || {} }))
       .catch(() => {});
     return () => ac.abort();
   }, [external, externalSummary, externalPopulation]);
 
   const bets = pack.bets || [];
+  const exceptionIds = new Set((pack.exceptions || []).map((x)=>x.id));
   const shown = useMemo(() => {
     return bets.filter((b) => {
+      if (viewMode === "exceptions" && !exceptionIds.has(b.id)) return false;
       if (sport !== "all" && b.sport !== sport) return false;
       if (result !== "all" && (b.result || "OPEN") !== result) return false;
       if (attr !== "all" && (b.recommendationStatus || "") !== attr) return false;
@@ -74,7 +77,7 @@ export default function MyBetsView({
       if (timeOrder) return timeOrder;
       return String(a.externalTicketId || "").localeCompare(String(b.externalTicketId || ""));
     });
-  }, [bets, sport, result, attr]);
+  }, [bets, sport, result, attr, viewMode, pack.exceptions]);
   const summary = pack.summary || emptySummary();
   const unavailable = Boolean(state === "UNAVAILABLE" || error || sourceOk === false || String(sourceD1 || "").toLowerCase() === "error");
   const stat = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
@@ -188,6 +191,8 @@ export default function MyBetsView({
           </p>
           <div className="today-controls" style={{ marginTop: 10 }}>
             <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
+            <button className={viewMode === "exceptions" ? "chip active" : "chip"} onClick={() => setViewMode("exceptions")}>ACTION NEEDED ({(pack.exceptions || []).length})</button>
+            <button className={viewMode === "all" ? "chip active" : "chip"} onClick={() => setViewMode("all")}>ALL LEDGER</button>
             {onRefresh && <button className="header-btn" onClick={onRefresh}>Reload</button>}
           </div>
           <div className="status-grid" style={{ marginTop: 12 }}>
@@ -199,6 +204,7 @@ export default function MyBetsView({
             <Stat label="Risk" value={stat(summary.risk == null ? "—" : `$${Number(summary.risk).toFixed(2)}`)} />
             <Stat label="Profit" value={stat(summary.profit == null ? "—" : fmtSigned(summary.profit, 2))} />
             <Stat label="ROI" value={stat(summary.roi == null ? "—" : fmtPct(summary.roi))} />
+            <Stat label="Action needed" value={stat((pack.exceptions || []).length, 0)} />
             <Stat label="CLV N" value={stat(summary.validClvN, 0)} />
             <Stat label="Avg CLV" value={stat(summary.avgClv == null ? "—" : fmtSigned(summary.avgClv, 3))} />
           </div>
@@ -257,6 +263,7 @@ export default function MyBetsView({
                   </div>
                   <div className="muted" style={{ marginTop: 8 }}>
                     {b.attributionLabel || "OPERATOR BET · NOT ATTRIBUTED TO FBIS"} · {b.matchStatus}
+                    {b.exceptionCode ? ` · ACTION: ${b.exceptionCode}` : ""}
                   </div>
                   {(b.result || "OPEN") === "OPEN" ? (
                     <ManualScoreEditor bet={b} scores={manualScores[b.id] || {}} setScore={setScore} saveFinal={saveFinal} saving={manualSaving === b.id} />
@@ -288,7 +295,7 @@ export default function MyBetsView({
                   <tr key={b.id} className={b.result === "WON" ? "won-row" : b.result === "LOST" ? "lost-row" : ""}>
                     <td>
                       <div>{b.externalTicketId}</div>
-                      <div className="muted">{b.date}</div>
+                      <div className="muted">{b.date}{b.exceptionCode ? ` · ${b.exceptionCode}` : ""}</div>
                     </td>
                     <td>
                       <TicketMatchup
