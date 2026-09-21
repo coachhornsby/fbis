@@ -147,9 +147,12 @@ async function loadTodayCoverage(env, runId, today) {
       const res = await env.DB.prepare(
         `SELECT DISTINCT fbis_event_id
          FROM shadow_market_observations
-         WHERE run_id = ?
-           AND fbis_event_id IN (${placeholders})`
-      ).bind(runId, ...ids).all();
+         WHERE fbis_event_id IN (${placeholders})
+           AND run_id IN (
+             SELECT id FROM shadow_collection_runs
+             WHERE sport='all' AND profile=? AND lifecycle=? AND substr(started_at,1,10)=?
+           )`
+      ).bind(...ids, PROFILE, LIFECYCLE, today).all();
       coveredIds = (res?.results || []).map((r) => String(r.fbis_event_id || "")).filter(Boolean);
     } catch {
       coveredIds = [];

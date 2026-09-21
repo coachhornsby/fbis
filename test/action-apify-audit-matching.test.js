@@ -15,6 +15,7 @@ import { namesMatchStrict } from "../functions/lib/match.js";
 import {
   defaultFbisSlateDates,
   calendarDateChicago,
+  loadFbisSlateForMatching,
 } from "../functions/lib/actionApifyEvidence.js";
 
 const CFB_AUDIT = [
@@ -249,4 +250,21 @@ test("player-prop normalizer does not invent ids/prices/timestamps", () => {
   assert.equal(rows[0].underOdds, null);
   assert.equal(rows[0].observedAt, null);
   assert.equal(rows[0].identityConfidence, "HIGH"); // name present, no forced provider id
+});
+
+
+test("explicit Chicago ACTION date searches adjacent storage partitions and filters by kickoff date", async () => {
+  const calls=[];
+  const query=async (_env,{sport,date})=>{
+    calls.push(date);
+    const rows=date==="2026-09-22" ? [{
+      id:"nfl-mnf",sport:"nfl",date:"2026-09-22",start:"2026-09-22T00:15:00.000Z",
+      homeName:"Los Angeles Rams",awayName:"New York Giants",homeAbbr:"LAR",awayAbbr:"NYG"
+    }] : [];
+    return {ok:true,rows};
+  };
+  const slate=await loadFbisSlateForMatching(query,{}, {sport:"nfl",date:"2026-09-21",now:new Date("2026-09-21T17:00:00Z")});
+  assert.deepEqual(calls,["2026-09-20","2026-09-21","2026-09-22"]);
+  assert.equal(slate.fbisEvents.length,1);
+  assert.equal(slate.fbisEvents[0].id,"nfl-mnf");
 });
