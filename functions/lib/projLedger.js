@@ -1402,7 +1402,8 @@ async function gradeExecutedBets(env, finals, opts = {}) {
     if (settled.result && settled.result !== "OPEN") {
       const alreadySettled = t.result && t.result !== "OPEN";
       const changed = settled.result !== t.result || Number(settled.profit) !== Number(t.profit);
-      if (changed || bindGame) {
+      const evidenceMissing = t.finalAwayScore == null || t.finalHomeScore == null || !t.settlementSource;
+      if (changed || bindGame || evidenceMissing) {
         jobs.push(
           updateExecutedBet(
             env,
