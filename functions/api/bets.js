@@ -56,6 +56,16 @@ export async function handleBetsGet(env, url) {
     ? await queryExecutedBets(env, { date: date || undefined, sport: sport || undefined, includeRaw: false })
     : { ok: false, reason: ping.reason || "d1-unavailable", rows: [] };
   const rows = q.rows || [];
+  const entriesQ = ping.ok ? await queryExecutedBetEntries(env) : {ok:false,rows:[]};
+  const entries = entriesQ.rows || [];
+  const exceptions = rows.map((b) => {
+    let code=b.exceptionCode||null;
+    if(!code && String(b.matchStatus||"").toLowerCase()!=="matched" && (!b.result||b.result==="OPEN")) code="UNMATCHED";
+    if(!code && String(b.market||"").toUpperCase()==="PLAYER_PROP" && (!b.result||b.result==="OPEN")) code="NEEDS_STAT";
+    if(!code && (!b.result||b.result==="OPEN")) code="NEEDS_SETTLEMENT";
+    if(!code && b.duplicateStatus==="conflict") code="CONFLICT";
+    return code ? {...b,exceptionCode:code} : null;
+  }).filter(Boolean);
   const durable = await durableHealth(env);
   const schedule = scheduledHealth(durable, new Date());
   const readOk = q.ok === true;
@@ -114,6 +124,9 @@ export async function handleBetsGet(env, url) {
       checks: semantic.checks,
     },
     bets: rows,
+    entries,
+    exceptions,
+    exceptionSummary: Object.fromEntries([...new Set(exceptions.map(x=>x.exceptionCode))].map(code=>[code,exceptions.filter(x=>x.exceptionCode===code).length])),
     summary: summarizeExecutedBets(rows),
     population: populationDescriptor({
       populationType: POPULATION_TYPE.UNIFIED_EXECUTION_LEDGER,
