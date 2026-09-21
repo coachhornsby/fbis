@@ -1740,14 +1740,15 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
         errors.push(`${sport}@${date}: ${String(err?.message || err)}`);
       }
     }
-    // Default settleOnly grades OPEN executed bets only (Pages CPU). Optional
+    // Settlement also revisits already-settled tickets for this final set so factual
+    // score evidence can be backfilled without changing a correct prior result.
     // gradeResearch=1 also settles strategy tickets against the same live finals.
     if (gradeResearch) {
       await gradeStrategyAgainstFinals(env, finals, { skipDurableFinals: true });
     }
     const executedBets = await gradeExecutedBets(env, finals, {
       skipDurableFinals: true,
-      openOnly: true,
+      openOnly: false,
     });
     return {
       sport,
