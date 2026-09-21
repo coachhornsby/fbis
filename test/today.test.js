@@ -170,6 +170,7 @@ describe("TODAY cache-only and MY BET markers", () => {
     });
 
     assert.equal(board.counts.games, 1);
+    assert.equal(board.counts.bySport.nfl, 1);
     assert.equal(board.feeds.nfl.n, 1);
     assert.equal(board.games[0].id, "monday-night");
   });
