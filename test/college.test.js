@@ -20,6 +20,7 @@ import { CHAMPION_HFA as HFA_CONST } from "../functions/lib/hfa.js";
 import { STRATEGY_HC_V1 } from "../functions/lib/strategy.js";
 import { resolveTeam, resolveTeamExact } from "../functions/lib/teams.js";
 import { resetCacheMem } from "../functions/lib/cache.js";
+import { runCbbdEndpointAudit } from "../functions/lib/cbbdEndpointAudit.js";
 
 const FAKE = "test-college-key-not-real";
 
@@ -100,6 +101,53 @@ describe("canonical identity", () => {
     const cut = featureCutoffIso(start, { minutesBefore: 1 });
     assert.equal(cutoffViolated(cut, start), false);
     assert.equal(cutoffViolated("2026-08-30T20:00:00.000Z", start), true);
+  });
+});
+
+describe("CBBD capability audit", () => {
+  it("discovers GET endpoints and proves historical season rows without exposing the key", async () => {
+    resetCacheMem();
+    const spec = {
+      info: { title: "Test CBBD", version: "1.0" },
+      paths: {
+        "/games": {
+          get: {
+            operationId: "getGames",
+            parameters: [
+              { in: "query", name: "season", required: true },
+              { in: "query", name: "team", required: false },
+            ],
+          },
+        },
+      },
+    };
+    const fetchFn = async (url) => {
+      if (String(url).endsWith("/api-docs.json")) {
+        return { ok: true, status: 200, async json() { return spec; } };
+      }
+      const parsed = new URL(String(url));
+      const season = Number(parsed.searchParams.get("season"));
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return [{ id: `g-${season}`, season, homeTeam: "Duke", awayTeam: "UNC" }];
+        },
+      };
+    };
+    const env = { ...collegeDb(new Map()), CBBD_API_KEY: FAKE };
+    const audit = await runCbbdEndpointAudit(env, {
+      seasons: [2026, 2024, 2022],
+      maxRequests: 10,
+      fetchFn,
+    });
+    assert.equal(audit.ok, true);
+    assert.equal(audit.schema.getOperations, 1);
+    assert.equal(audit.summary.requestCount, 3);
+    assert.equal(audit.probes[0].years["2026"].rowCount, 1);
+    assert.equal(audit.probes[0].years["2024"].rowCount, 1);
+    assert.equal(audit.probes[0].years["2022"].rowCount, 1);
+    assert.equal(JSON.stringify(audit).includes(FAKE), false);
   });
 });
 
@@ -289,6 +337,7 @@ describe("jobs, R2, storage", () => {
     assert.ok(COLLEGE_JOBS.includes("cfb-current-refresh"));
     assert.ok(COLLEGE_JOBS.includes("cfb-qb-transfer-refresh"));
     assert.ok(COLLEGE_JOBS.includes("cfbd-endpoint-audit"));
+    assert.ok(COLLEGE_JOBS.includes("cbbd-endpoint-audit"));
     const env = collegeDb(new Map());
     const unknown = await runCollegeJob("nope", env);
     assert.equal(unknown.status, "failed");
