@@ -198,7 +198,9 @@ export async function runCbbdEndpointAudit(env = {}, opts = {}) {
   const seasons = (opts.seasons || [2026, 2024, 2022])
     .map(Number)
     .filter(Number.isFinite);
-  const maxRequests = Math.max(1, Math.min(100, Number(opts.maxRequests) || 60));
+  const maxRequests = Math.max(1, Math.min(100, Number(opts.maxRequests) || 18));
+  const operationStart = Math.max(0, Number(opts.operationStart) || 0);
+  const operationLimit = Math.max(1, Math.min(20, Number(opts.operationLimit) || 6));
   const fetchFn = opts.fetchFn || fetch;
   const configured = Boolean(collegeApiKey(env, "cbbd"));
 
@@ -215,7 +217,16 @@ export async function runCbbdEndpointAudit(env = {}, opts = {}) {
         latencyMs: schema.latencyMs,
         reason: schema.reason,
       },
-      summary: { requestCount: 0, requestCap: maxRequests },
+      summary: {
+        requestCount: 0,
+        requestCap: maxRequests,
+        operationStart,
+        operationLimit,
+        inventoryGetOperations: 0,
+        windowOperations: 0,
+        hasMore: false,
+        nextOperationStart: null,
+      },
       inventory: [],
       probes: [],
     });
@@ -244,10 +255,11 @@ export async function runCbbdEndpointAudit(env = {}, opts = {}) {
     });
   }
 
+  const probeInventory = inventory.slice(operationStart, operationStart + operationLimit);
   let requestCount = 0;
   const probes = [];
 
-  for (const entry of inventory) {
+  for (const entry of probeInventory) {
     if (requestCount >= maxRequests) {
       probes.push({ ...entry, classification: CBBD_AUDIT_CLASS.NOT_PROBED, years: {}, sampleFieldNames: [] });
       continue;
@@ -349,7 +361,15 @@ export async function runCbbdEndpointAudit(env = {}, opts = {}) {
     summary: {
       requestCount,
       requestCap: maxRequests,
+      operationStart,
+      operationLimit,
       inventoryGetOperations: inventory.length,
+      windowOperations: probeInventory.length,
+      hasMore: operationStart + probeInventory.length < inventory.length,
+      nextOperationStart:
+        operationStart + probeInventory.length < inventory.length
+          ? operationStart + probeInventory.length
+          : null,
       probedOperations: probes.filter((p) => !String(p.classification).startsWith("SKIPPED") && p.classification !== CBBD_AUDIT_CLASS.NOT_PROBED).length,
       historicalCapableOperations: inventory.filter((p) => p.historicalCapable).length,
       classifications,
