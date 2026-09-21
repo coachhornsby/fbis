@@ -305,15 +305,44 @@ jobs:
       - name: Controlled CFBD + CBBD capability audit
         if: contains(github.event.head_commit.message, '[college-capability-audit]')
         env:
-          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
-          CBBD_API_KEY: ${{ secrets.CBBD_API_KEY }}
-          COLLEGE_AUDIT_YEARS: "2026,2024,2022"
-          CBBD_AUDIT_MAX_REQUESTS: "60"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
         run: |
           set -euo pipefail
-          node scripts/college-capability-audit.mjs | tee artifacts/college-capability-audit-summary.log
-          test -s artifacts/college-capability-audit.json
-          jq -e '.ok == true' artifacts/college-capability-audit.json >/dev/null
+          mkdir -p artifacts
+
+          # Provider bearers intentionally live only in Cloudflare Pages.
+          # Exercise the deployed runtime using the operator secret.
+          cfbd_hist="artifacts/cfbd-historical-capability.json"
+          cfbd_http="$(curl -sS --max-time 240 --retry 0 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "accept: application/json" \
+            -o "$cfbd_hist" -w "%{http_code}" \
+            "${BASE}/api/college?job=cfbd-endpoint-audit&trigger=workflow_dispatch&seasons=2024,2022&week=8")"
+          echo "CFBD historical audit http=${cfbd_http}"
+          test "$cfbd_http" = "200"
+          jq -e '.ok == true and .job == "cfbd-endpoint-audit"' "$cfbd_hist" >/dev/null
+
+          cbbd_out="artifacts/cbbd-capability-audit.json"
+          cbbd_http="$(curl -sS --max-time 240 --retry 0 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "accept: application/json" \
+            -o "$cbbd_out" -w "%{http_code}" \
+            "${BASE}/api/college?job=cbbd-endpoint-audit&trigger=workflow_dispatch&seasons=2026,2024,2022&maxRequests=60")"
+          echo "CBBD capability audit http=${cbbd_http}"
+          test "$cbbd_http" = "200"
+          jq -e '.ok == true and .job == "cbbd-endpoint-audit"' "$cbbd_out" >/dev/null
+
+          jq -n \
+            --slurpfile current artifacts/cfbd-endpoint-audit.json \
+            --slurpfile historical "$cfbd_hist" \
+            --slurpfile cbbd "$cbbd_out" \
+            '{ok:true,auditedAt:(now|todateiso8601),cfbdCurrent:$current[0],cfbdHistorical:$historical[0],cbbd:$cbbd[0]}' \
+            > artifacts/college-capability-audit.json
+
+          jq -c '{cfbdHistorical:{seasons:.cfbdHistorical.d1.audit.summary.seasonsTested,resultCount:.cfbdHistorical.d1.audit.summary.resultCount,uniqueEndpoints:.cfbdHistorical.d1.audit.summary.uniqueEndpoints,classifications:.cfbdHistorical.d1.audit.summary.classifications,availableN:(.cfbdHistorical.d1.audit.summary.available|length)},cbbd:{seasons:.cbbd.d1.audit.seasonsTested,schema:.cbbd.d1.audit.schema,requestCount:.cbbd.d1.audit.summary.requestCount,inventoryGetOperations:.cbbd.d1.audit.summary.inventoryGetOperations,historicalCapableOperations:.cbbd.d1.audit.summary.historicalCapableOperations,classifications:.cbbd.d1.audit.summary.classifications,availableN:(.cbbd.d1.audit.summary.available|length),availableButEmptyN:(.cbbd.d1.audit.summary.availableButEmpty|length),notEntitledN:(.cbbd.d1.audit.summary.notEntitled|length),authFailureN:(.cbbd.d1.audit.summary.authFailure|length)}}' artifacts/college-capability-audit.json \
+            | tee artifacts/college-capability-audit-summary.log
+
           {
             echo "## Controlled CFBD + CBBD capability audit"
             echo ""
@@ -327,11 +356,11 @@ jobs:
           name: college-capability-audit-${{ env.DEPLOY_SHA }}
           path: |
             artifacts/college-capability-audit.json
-            artifacts/college-capability-audit.md
+            artifacts/cfbd-historical-capability.json
+            artifacts/cbbd-capability-audit.json
             artifacts/college-capability-audit-summary.log
           if-no-files-found: error
           retention-days: 14
-
       # NFL team_form was never seeded because freeze historically skipped NFL
       # (no independent FBIS projection) — a circular dependency. Seed form from
       # ESPN finals via /api/harvest only. Do NOT call /api/collect here — research

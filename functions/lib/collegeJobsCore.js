@@ -19,6 +19,7 @@ import CFB_REG from "../../data/models/cfb-cfbd-reg-v1.js";
 import CBB_REG from "../../data/models/cbb-reg-v1.js";
 import CFB_FBIS_V2 from "../../data/models/cfb-fbis-v2.js";
 import { runCfbdEndpointAudit, auditArtifactPayload, auditContentHash } from "./cfbdEndpointAudit.js";
+import { runCbbdEndpointAudit } from "./cbbdEndpointAudit.js";
 import { featureAvailabilityTable, markdownFeatureTable, FEATURE_CATALOG_VERSION } from "./cfbdFeatureCatalog.js";
 
 function todayCT(now = new Date()) {
@@ -42,6 +43,7 @@ export const COLLEGE_JOBS = [
   "cfb-postgame-harvest",
   "cfb-qb-transfer-refresh",
   "cfbd-endpoint-audit",
+  "cbbd-endpoint-audit",
   "cbb-reference-backfill",
   "cbb-current-refresh",
   "cbb-postgame-harvest",
@@ -364,6 +366,87 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         completedAt: payload.successful_at,
         status: payload.status,
         sport: "cfb",
+        writesAttempted: writes.writesSucceeded + writes.writesFailed,
+        writesSucceeded: writes.writesSucceeded,
+        writesFailed: writes.writesFailed,
+        env,
+      });
+      return payload;
+    }
+
+    if (job === "cbbd-endpoint-audit") {
+      const seasons = opts.seasons || [yearCbb, yearCbb - 2, yearCbb - 4];
+      const audit = await runCbbdEndpointAudit(env, {
+        seasons,
+        maxRequests: opts.maxRequests,
+        fetchFn: opts.fetchFn || fetch,
+      });
+      const contentHash = await hashPayload({
+        source: "cbbd",
+        seasons: audit.seasonsTested,
+        schema: audit.schema,
+        summary: audit.summary,
+        probes: (audit.probes || []).map((p) => ({
+          path: p.path,
+          classification: p.classification,
+          years: p.years,
+          sampleFieldNames: p.sampleFieldNames,
+        })),
+      });
+      let r2k = null;
+      if (r2Bound(env)) {
+        r2k = r2Key({
+          kind: "audit",
+          source: "cbbd",
+          sport: "cbb",
+          season: seasons[0],
+          endpoint: "endpoint-audit",
+          partition: contentHash.slice(0, 12),
+          hash: contentHash.slice(0, 12),
+          name: `cbbd-endpoint-audit-${contentHash.slice(0, 12)}.json`,
+        });
+        await putArchive(env, r2k, audit);
+      }
+      const persisted = await persistObservation(env, {
+        source: "cbbd",
+        sport: "cbb",
+        endpoint: "cbbd-endpoint-audit",
+        season: seasons[0],
+        partition: "audit",
+        data: audit.probes || [],
+        jobRunId: id,
+        status: audit.ok ? "ok" : "failed",
+      });
+      if (persisted?.ok) writes.writesSucceeded += 1;
+      else writes.writesFailed += 1;
+      assertNoSecretLeak(audit, env);
+      const payload = jobPayload({
+        ok: Boolean(audit.ok),
+        job,
+        status: audit.ok ? "success" : JOB_FAILED,
+        attemptedAt: started,
+        successfulAt: audit.ok ? new Date().toISOString() : null,
+        env,
+        writes,
+        errors: audit.ok ? [] : [audit.schema?.reason || "cbbd-audit-failed"],
+        d1: {
+          bound: hasDb(env),
+          audit: {
+            ...audit,
+            contentHash,
+            r2Key: r2k,
+            note: "Read-only capability audit. Counts and schema fields only; no bearer or bulk payload returned.",
+          },
+        },
+      });
+      await recordJob(env, {
+        id,
+        jobType: job,
+        triggerType: opts.trigger || "http",
+        startedAt: started,
+        completedAt: audit.ok ? payload.successful_at : new Date().toISOString(),
+        status: payload.status,
+        sport: "cbb",
         writesAttempted: writes.writesSucceeded + writes.writesFailed,
         writesSucceeded: writes.writesSucceeded,
         writesFailed: writes.writesFailed,

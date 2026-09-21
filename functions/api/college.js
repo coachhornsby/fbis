@@ -8,6 +8,16 @@ export function parseCollegeJobOptions(request) {
   return {
     trigger: parseJobTrigger(request),
     year: url.searchParams.get("year") ? Number(url.searchParams.get("year")) : undefined,
+    seasons: url.searchParams.get("seasons")
+      ? url.searchParams
+          .get("seasons")
+          .split(",")
+          .map((v) => Number(v.trim()))
+          .filter(Number.isFinite)
+      : undefined,
+    maxRequests: url.searchParams.get("maxRequests")
+      ? Number(url.searchParams.get("maxRequests"))
+      : undefined,
     week: url.searchParams.get("week") ? Number(url.searchParams.get("week")) : undefined,
     date: url.searchParams.get("date") || undefined,
     sport: url.searchParams.get("sport") || undefined,
