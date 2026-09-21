@@ -12,7 +12,7 @@ import {
 } from "./lib/heritageImport.js";
 
 const FIXTURE_HINT =
-  "Upload a bet-slip photo from your phone, or paste ticket text. Heritage / NoVig / PrizePicks. Preview first — nothing is written until you confirm.";
+  "Upload a bet-slip photo from your phone, or paste ticket text. Heritage / Novig / PrizePicks / FanDuel. Preview first — nothing is written until you confirm.";
 
 const MAX_OCR_EDGE = 1800;
 
@@ -135,6 +135,8 @@ export default function HeritageImport({ open, onClose, onImported }) {
         setBookHint("PrizePicks");
       } else if (/novig|to\s*pay|strikeouts?\s+thrown/i.test(extracted)) {
         setBookHint("NoVig");
+      } else if (/fan\s*duel|same game parlay|potential payout|bet id/i.test(extracted)) {
+        setBookHint("FanDuel");
       } else {
         setBookHint("");
       }
@@ -249,7 +251,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
               if (error) setError("");
               if (wroteMessage) setWroteMessage("");
             }}
-            placeholder="Or paste Heritage / PrizePicks text here after uploading a photo."
+            placeholder="Or paste Heritage / Novig / PrizePicks / FanDuel text here after uploading a photo."
             rows={10}
           />
           <div className="today-controls" style={{ marginTop: 10 }}>
@@ -265,6 +267,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
                 <option value="Heritage">Heritage</option>
                 <option value="NoVig">NoVig</option>
                 <option value="PrizePicks">PrizePicks</option>
+                <option value="FanDuel">FanDuel</option>
               </select>
             </label>
             <button type="button" className="header-btn header-btn-refresh" onClick={parseSlip} disabled={busy || !text.trim()}>
