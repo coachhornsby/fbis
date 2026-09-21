@@ -379,6 +379,8 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       const audit = await runCbbdEndpointAudit(env, {
         seasons,
         maxRequests: opts.maxRequests,
+        operationStart: opts.operationStart,
+        operationLimit: opts.operationLimit,
         fetchFn: opts.fetchFn || fetch,
       });
       const contentHash = await hashPayload({
