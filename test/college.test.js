@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { collegeApiKey, collegeKeyHealth, redactSecrets, assertNoSecretLeak, cfbdConfigured, cbbdConfigured } from "../functions/lib/collegeSecrets.js";
-import { unwrapCollegeResponse, collegePublicResult, summarizeSchema } from "../functions/lib/collegeApi.js";
+import { unwrapCollegeResponse, collegePublicResult, summarizeSchema, collegeRequest } from "../functions/lib/collegeApi.js";
 import { quotaHealth, quotaAlerts, estimateMonthlyCalls, MONTHLY_QUOTA, utcMonthKey } from "../functions/lib/quota.js";
 import { CONTRACTS, contractFor } from "../data/contracts/college-endpoints.js";
 import { identityFailClosed, miamiDisambiguation, mapSourceTeam, cutoffViolated, featureCutoffIso, AMBIGUOUS_ALONE } from "../functions/lib/collegeIdentity.js";
@@ -42,6 +42,49 @@ describe("secret non-exposure", () => {
     assert.throws(() => assertNoSecretLeak({ msg: FAKE }, { CFBD_API_KEY: FAKE }));
     const pub = collegePublicResult({ ok: true, status: 200, n: 3, path: "/ratings/sp", source: "cfbd" });
     assert.equal(JSON.stringify(pub).includes("Bearer"), false);
+  });
+});
+
+describe("ingestion persistence visibility", () => {
+  it("surfaces api_usage write failures instead of hiding them behind a successful API response", async () => {
+    const env = {
+      CFBD_API_KEY: FAKE,
+      DB: {
+        prepare() {
+          return {
+            bind() {
+              return {
+                async run() {
+                  throw new Error("no such table: api_usage");
+                },
+              };
+            },
+          };
+        },
+      },
+    };
+    const res = await collegeRequest("cfbd", "/ratings/sp", env, {
+      query: { year: 2026 },
+      skipCache: true,
+      fetchFn: async () =>
+        new Response(JSON.stringify([{ team: "A" }]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    });
+    assert.equal(res.ok, true);
+    assert.equal(res.usagePersisted, false);
+    assert.match(res.usageError || "", /api_usage-unavailable/);
+    const pub = collegePublicResult(res);
+    assert.equal(pub.usagePersisted, false);
+    assert.match(pub.usageError || "", /api_usage-unavailable/);
+  });
+
+  it("college current-refresh code counts source-observation persistence failures", () => {
+    const src = readFileSync(new URL("../functions/lib/collegeJobsCore.js", import.meta.url), "utf8");
+    assert.match(src, /observationPersisted/);
+    assert.match(src, /persistenceFailures/);
+    assert.match(src, /writes\.writesFailed \+= persistenceFailures\.length/);
   });
 });
 
