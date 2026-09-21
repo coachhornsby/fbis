@@ -158,11 +158,16 @@ function buildLineHistory(game, action, home) {
   const points = [];
   if (Array.isArray(ticks) && ticks.length) {
     for (const t of ticks) {
+      const market = String(t.market || t.marketType || t.market_type || "spread").toLowerCase();
+      const selection = String(t.selection || t.side || "home").toLowerCase();
+      const isSpread = market.includes("spread") || market === "rl" || market === "run_line" || market === "puck_line";
+      const isHome = selection === "home" || selection === "h" || selection.includes("home");
+      if (!isSpread || !isHome) continue;
       const line = num(t.line ?? t.spreadHome ?? t.spread ?? t.value);
       if (line == null) continue;
       points.push({
-        at: t.at || t.ts || t.observedAt || t.t || null,
-        label: t.label || formatTickLabel(t.at || t.ts),
+        at: t.at || t.ts || t.observedAt || t.providerTimestamp || t.collectedAt || t.t || null,
+        label: t.label || formatTickLabel(t.at || t.ts || t.providerTimestamp || t.collectedAt),
         line,
       });
     }
