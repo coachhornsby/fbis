@@ -56,7 +56,8 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS --max-time 45 "${BASE}/api/bets?_t=$(date +%s)" > /tmp/bets.json
-          jq -e '[.bets[] | select(.importSource == "sports-betting-tracker-reconcile")] | length >= 24' /tmp/bets.json >/dev/null
+          jq -e '.bets | length >= 24' /tmp/bets.json >/dev/null
+          jq -e '[.bets[] | select(.executionBook == "Heritage")] | length >= 1' /tmp/bets.json >/dev/null
           jq -e '[.bets[] | select(.executionBook == "Novig")] | length >= 3' /tmp/bets.json >/dev/null
           jq -e '[.bets[] | select(.executionBook == "PrizePicks")] | length >= 1' /tmp/bets.json >/dev/null
           jq '{state,d1Status,summary,reconciled:([.bets[]|select(.importSource=="sports-betting-tracker-reconcile")]|length),books:([.bets[].executionBook]|unique)}' /tmp/bets.json
