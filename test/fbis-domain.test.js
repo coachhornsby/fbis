@@ -105,6 +105,71 @@ test("domain movement uses canonical operational spread before reference fields"
   assert.equal(event.publicSplits.moneyPct, null);
 });
 
+test("domain event exposes canonical consensus market to Game Workstation", () => {
+  const event = toDomainEvent({
+    id: "nfl-market-1",
+    sport: "nfl",
+    away: { abbr: "NYG" },
+    home: { abbr: "LAR" },
+    projHome: 31.3,
+    projAway: 20.9,
+    market: {
+      marketAvailable: true,
+      execution: { available: false },
+      consensus: {
+        available: true,
+        source: "CONSENSUS",
+        spread: -7.5,
+        total: 48.5,
+        observedAt: "2026-09-21T04:00:00Z",
+      },
+      reference: { available: false },
+    },
+  }, { generatedAt: "2026-09-21T04:36:00Z" });
+  const spread = event.consensusMarkets.find((m) => m.marketType === "spread");
+  const total = event.consensusMarkets.find((m) => m.marketType === "total");
+  assert.equal(spread.line, -7.5);
+  assert.equal(spread.provider, "consensus_market");
+  assert.equal(total.line, 48.5);
+});
+
+test("domain event suppresses stale ACTION splits while preserving current market", () => {
+  const event = toDomainEvent({
+    id: "nfl-stale-action",
+    sport: "nfl",
+    away: { abbr: "NYG" },
+    home: { abbr: "LAR" },
+    market: {
+      marketAvailable: true,
+      execution: { available: false },
+      consensus: { available: true, source: "CONSENSUS", spread: -7.5, total: 48.5 },
+    },
+    actionIntel: {
+      collectedAt: "2026-09-18T00:50:30.725Z",
+      publicSplits: { ticketPct: 30, moneyPct: 33 },
+      movement: { openingLine: -6.5, currentLine: -7.5, movementMagnitude: 1 },
+      displayOnly: true,
+    },
+    sentiment: {
+      source: "ACTION_APIFY",
+      displayOnly: true,
+      collectedAt: "2026-09-18T00:50:30.725Z",
+      ticketPct: 30,
+      moneyPct: 33,
+      openingLine: -6.5,
+      currentLine: -7.5,
+      magnitude: 1,
+    },
+    publicSplits: { ticketPct: 30, moneyPct: 33 },
+  }, { generatedAt: "2026-09-21T04:36:00Z" });
+  assert.equal(event.actionIntel, null);
+  assert.equal(event.publicSplits.ticketPct, null);
+  assert.equal(event.publicSplits.moneyPct, null);
+  assert.equal(event.publicSplits.staleActionSuppressed, true);
+  assert.equal(event.movement.currentLine, -7.5);
+  assert.equal(event.movement.openingLine, null);
+});
+
 test("today domain board ranks only real QUALIFIED then WATCHLIST (max 5)", () => {
   const board = toDomainTodayBoard({
     date: "2026-09-13",
