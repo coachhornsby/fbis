@@ -15,6 +15,7 @@ import { namesMatchStrict } from "../functions/lib/match.js";
 import {
   defaultFbisSlateDates,
   calendarDateChicago,
+  loadFbisSlateForMatching,
 } from "../functions/lib/actionApifyEvidence.js";
 
 const CFB_AUDIT = [
