@@ -13,6 +13,7 @@ import {
 import { buildOpsTelemetry } from "../lib/opsTelemetry.js";
 import { durableHealth } from "../lib/jobs.js";
 import { readMeta } from "../lib/store.js";
+import { collegeKeyHealth } from "../lib/collegeSecrets.js";
 
 export async function onRequestGet(context) {
   const env = context.env;
@@ -126,9 +127,24 @@ export async function onRequestGet(context) {
 
   const observationBySource = Object.fromEntries((sourceObservations || []).map((r) => [String(r.source), r]));
   const usageBySource = Object.fromEntries((apiUsage || []).map((r) => [String(r.source), r]));
+  // Use the exact credential resolver used by the college API clients. CFBD and
+  // CBBD are allowed to share one bearer; health must not disagree with runtime.
+  const collegeKeys = collegeKeyHealth(env);
   const runtimeConfig = {
-    cfbd: { configured: Boolean(env?.CFBD_API_KEY), implemented: true, observation: observationBySource.cfbd || null, usage: usageBySource.cfbd || null },
-    cbbd: { configured: Boolean(env?.CBBD_API_KEY || env?.CFBD_API_KEY), implemented: true, observation: observationBySource.cbbd || null, usage: usageBySource.cbbd || null },
+    cfbd: {
+      configured: collegeKeys.cfbdConfigured,
+      implemented: true,
+      sharedAlias: collegeKeys.sharedAlias,
+      observation: observationBySource.cfbd || null,
+      usage: usageBySource.cfbd || null,
+    },
+    cbbd: {
+      configured: collegeKeys.cbbdConfigured,
+      implemented: true,
+      sharedAlias: collegeKeys.sharedAlias,
+      observation: observationBySource.cbbd || null,
+      usage: usageBySource.cbbd || null,
+    },
     kenpom_api: { configured: Boolean(env?.KENPOM_API_KEY), implemented: false, reason: "registry/model placeholder exists but no production KenPom adapter is wired" },
     ballpark_pal: {
       configured: Boolean(env?.BALLPARK_PAL_API_KEY),

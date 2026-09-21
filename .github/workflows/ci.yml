@@ -222,27 +222,44 @@ jobs:
           # deployed Worker sees the advanced-data credentials that the model
           # pipelines depend on; it does not expose secret values.
           source_tmp="$(mktemp)"
-          source_code="$(curl -sS --max-time 30 -o "$source_tmp" -w "%{http_code}" "${BASE}/api/data-health?_t=$(date +%s)")"
-          echo "smoke /api/data-health http=${source_code}"
-          test "$source_code" = "200"
-          jq -e '
-            .runtimeConfig.cfbd.implemented == true and
-            .runtimeConfig.cbbd.implemented == true and
-            .runtimeConfig.ballpark_pal.implemented == true and
-            .runtimeConfig.baseball_savant.implemented == true and
-            .runtimeConfig.nflverse.implemented == true and
-            .runtimeConfig.parlay_pinnacle.implemented == true and
-            .runtimeConfig.cfbd.configured == true and
-            .runtimeConfig.cbbd.configured == true
-          ' "$source_tmp" >/dev/null
-          jq -c '{
-            cfbd:.runtimeConfig.cfbd,
-            cbbd:.runtimeConfig.cbbd,
-            ballparkPal:.runtimeConfig.ballpark_pal,
-            parlay:.runtimeConfig.parlay_pinnacle,
-            kenpom:.runtimeConfig.kenpom_api,
-            nba:.runtimeConfig.nba_stats_licensed
-          }' "$source_tmp"
+          source_ok=0
+          for source_attempt in $(seq 1 12); do
+            source_code="$(curl -sS --max-time 30 -o "$source_tmp" -w "%{http_code}" "${BASE}/api/data-health?_t=$(date +%s)-${source_attempt}")"
+            echo "smoke /api/data-health attempt=${source_attempt}/12 http=${source_code}"
+            if [ "$source_code" = "200" ] && jq -e 'type == "object"' "$source_tmp" >/dev/null 2>&1; then
+              # Always print the non-secret state before deciding pass/fail.
+              jq -c '{
+                cfbd:.runtimeConfig.cfbd,
+                cbbd:.runtimeConfig.cbbd,
+                ballparkPal:.runtimeConfig.ballpark_pal,
+                parlay:.runtimeConfig.parlay_pinnacle,
+                savant:.runtimeConfig.baseball_savant,
+                nflverse:.runtimeConfig.nflverse,
+                kenpom:.runtimeConfig.kenpom_api,
+                nba:.runtimeConfig.nba_stats_licensed
+              }' "$source_tmp" || true
+              if jq -e '
+                .runtimeConfig.cfbd.implemented == true and
+                .runtimeConfig.cbbd.implemented == true and
+                .runtimeConfig.ballpark_pal.implemented == true and
+                .runtimeConfig.baseball_savant.implemented == true and
+                .runtimeConfig.nflverse.implemented == true and
+                .runtimeConfig.parlay_pinnacle.implemented == true and
+                .runtimeConfig.cfbd.configured == true and
+                .runtimeConfig.cbbd.configured == true
+              ' "$source_tmp" >/dev/null; then
+                source_ok=1
+                break
+              fi
+            fi
+            # Pages/Functions edge propagation can briefly mix the new health SHA
+            # with an older route instance. Retry the contract before failing closed.
+            sleep 5
+          done
+          if [ "$source_ok" -ne 1 ]; then
+            echo "Provider-ingestion contract did not converge after retries."
+            exit 1
+          fi
 
           echo "Release gate smoke passed for ${DEPLOY_SHA}"
           echo "DEPLOY PRODUCTION complete — research catch-up runs in harvest.yml, not this gate."
