@@ -25,6 +25,7 @@ export default function HeritageImport({ open, onClose, onImported }) {
   const [wroteMessage, setWroteMessage] = useState("");
   const [ocrMessage, setOcrMessage] = useState("");
   const [bookHint, setBookHint] = useState("");
+  const [chatGptReviewed, setChatGptReviewed] = useState(false);
   const [photoPreview, setPhotoPreview] = useState("");
   const [photoName, setPhotoName] = useState("");
   const feedbackRef = useRef(null);
@@ -164,7 +165,14 @@ export default function HeritageImport({ open, onClose, onImported }) {
       queueMicrotask(() => feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
       return;
     }
-    const req = buildConfirmRequest({ text, tickets, edits, bookHint });
+    const advisorTickets = tickets.map((t) => ({
+      ...t,
+      trackerMetadata: {
+        ...(t.trackerMetadata || {}),
+        ...(chatGptReviewed ? { advisor: "ChatGPT", advisorReviewed: true, advisorRecordedAt: new Date().toISOString() } : {}),
+      },
+    }));
+    const req = buildConfirmRequest({ text, tickets: advisorTickets, edits, bookHint });
     if (!req.ok) {
       setError(req.error);
       setWroteMessage("");
@@ -269,6 +277,10 @@ export default function HeritageImport({ open, onClose, onImported }) {
                 <option value="PrizePicks">PrizePicks</option>
                 <option value="FanDuel">FanDuel</option>
               </select>
+            </label>
+            <label className="muted" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <input type="checkbox" checked={chatGptReviewed} onChange={(e) => setChatGptReviewed(e.target.checked)} />
+              ChatGPT reviewed this play/card
             </label>
             <button type="button" className="header-btn header-btn-refresh" onClick={parseSlip} disabled={busy || !text.trim()}>
               {busy && !preview ? "Parsing…" : "1 · Parse & preview"}
