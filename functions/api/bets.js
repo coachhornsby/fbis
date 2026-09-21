@@ -8,6 +8,7 @@
 import { parseHeritageSlip } from "../lib/heritageSlip.js";
 import { parseNoVigSlip } from "../lib/novigSlip.js";
 import { looksLikePrizePicksSlip, parsePrizePicksSlip } from "../lib/prizePicksSlip.js";
+import { parseFanDuelSlip } from "../lib/fanduelSlip.js";
 import { todayCT } from "../lib/slateEngine.js";
 import {
   decoratePreview,
@@ -181,7 +182,11 @@ async function loadMatchContext(env, tickets) {
 
 export async function parseBetsPreview(env, text, yearHint, bookHint = "") {
   let parsed;
-  if (looksLikePrizePicksSlip(text, bookHint)) {
+  if (/fanduel/i.test(bookHint) || /\bFAN\s*DUEL\b/i.test(text)) {
+    parsed = await parseFanDuelSlip(text, {
+      dateHint: typeof yearHint === "object" ? yearHint?.date : undefined,
+    });
+  } else if (looksLikePrizePicksSlip(text, bookHint)) {
     parsed = await parsePrizePicksSlip(text, {
       dateHint: typeof yearHint === "object" ? yearHint?.date : undefined,
     });
