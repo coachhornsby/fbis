@@ -1,0 +1,59 @@
+name: Reconcile Sports Betting Tracker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/betTrackerReconcileSeed.js"
+      - "functions/api/bets.js"
+      - "migrations/0028_executed_bet_tracker_metadata.sql"
+  workflow_dispatch:
+
+concurrency:
+  group: fbis-bet-tracker-reconcile
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Require secret
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Wait for production migration
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 24); do
+            curl -fsS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" > /tmp/health.json || true
+            if jq -e '.build.schemaVersion == "0028_executed_bet_tracker_metadata" and .build.migrationStatus == "VERIFIED"' /tmp/health.json >/dev/null 2>&1; then exit 0; fi
+            sleep 15
+          done
+          cat /tmp/health.json
+          exit 1
+
+      - name: Import reconciled tracker rows
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 90 -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" \
+            -d '{"action":"reconcile-tracker-seed"}' "${BASE}/api/bets" > /tmp/import.json
+          cat /tmp/import.json
+          jq -e '.wrote == true and .requested == 24 and (.errors|length) == 0 and (.conflicts|length) == 0' /tmp/import.json >/dev/null
+
+      - name: Verify My Bets readback
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 45 "${BASE}/api/bets?_t=$(date +%s)" > /tmp/bets.json
+          jq -e '[.bets[] | select(.importSource == "sports-betting-tracker-reconcile")] | length >= 24' /tmp/bets.json >/dev/null
+          jq -e '[.bets[] | select(.executionBook == "Novig")] | length >= 3' /tmp/bets.json >/dev/null
+          jq -e '[.bets[] | select(.executionBook == "PrizePicks")] | length >= 1' /tmp/bets.json >/dev/null
+          jq '{state,d1Status,summary,reconciled:([.bets[]|select(.importSource=="sports-betting-tracker-reconcile")]|length),books:([.bets[].executionBook]|unique)}' /tmp/bets.json
