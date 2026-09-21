@@ -217,7 +217,7 @@ test("migration tip + compliance matrix vocabulary", async () => {
     "utf8"
   );
   assert.match(migration, /canonical_publication/);
-  assert.match(health, /0028_executed_bet_tracker_metadata/);
+  assert.match(health, /0029_executed_bet_settlement_evidence/);
   assert.match(schema, /canonical_publication/);
   assert.match(doc, /IMPLEMENTED/);
   assert.match(doc, /IMPLEMENTED_SCAFFOLD/);
