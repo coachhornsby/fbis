@@ -707,5 +707,6 @@ function fmtLine(n) {
   const v = Number(n);
   if (!Number.isFinite(v)) return "—";
   if (Math.abs(v) < 0.05) return "PK";
-  return v > 0 ? `+${v}` : `${v}`;
+  const rounded = Math.round(v * 10) / 10;
+  return rounded > 0 ? `+${rounded}` : `${rounded}`;
 }
