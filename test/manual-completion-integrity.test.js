@@ -207,7 +207,7 @@ test("artifact hash + runtime + prior + MLB uncertainty", () => {
 
 test("migration tip + compliance matrix vocabulary", async () => {
   const migration = await readFile(
-    new URL("../migrations/0028_executed_bet_tracker_metadata.sql", import.meta.url),
+    new URL("../migrations/0025_manual_completion_contracts.sql", import.meta.url),
     "utf8"
   );
   const health = await readFile(new URL("../functions/api/health.js", import.meta.url), "utf8");
