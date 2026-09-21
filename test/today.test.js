@@ -15,6 +15,7 @@ import { attachMyBetsToBoard } from "../functions/lib/executedBets.js";
 import { summarize } from "../src/lib/learning.js";
 import { todayFeedNote } from "../functions/lib/propConviction.js";
 import { formatMarketPeriod, formatClv } from "../src/lib/format.js";
+import { todayEnv } from "../functions/api/today.js";
 
 describe("TODAY date and grouping", () => {
   it("resolves blank date to CT today and rejects junk", () => {
@@ -68,6 +69,45 @@ describe("TODAY date and grouping", () => {
 });
 
 describe("TODAY cache-only and MY BET markers", () => {
+  it("passes both CFBD and CBBD credentials into the live TODAY board environment", () => {
+    const previousCaches = globalThis.caches;
+    globalThis.caches = { default: { name: "test-cache" } };
+    try {
+      const env = todayEnv({
+        env: {
+          CFBD_API_KEY: "cfbd-key",
+          CBBD_API_KEY: "cbbd-key",
+          BALLPARK_PAL_API_KEY: "pal-key",
+          DB: { name: "db" },
+        },
+      });
+      assert.equal(env.CFBD_API_KEY, "cfbd-key");
+      assert.equal(env.CBBD_API_KEY, "cbbd-key");
+      assert.equal(env.BALLPARK_PAL_API_KEY, "pal-key");
+      assert.equal(env.caches.name, "test-cache");
+    } finally {
+      if (previousCaches === undefined) delete globalThis.caches;
+      else globalThis.caches = previousCaches;
+    }
+  });
+
+  it("preserves upstream source telemetry on TODAY feeds", async () => {
+    const board = await buildTodayBoard("2026-11-20", {}, {
+      focusSport: "cbb",
+      buildSlateFn: async () => ({
+        sport: "cbb",
+        date: "2026-11-20",
+        games: [],
+        parlay: { cached: true, skipped: true },
+        cbbd: { configured: true, records: 364, asOf: "2026-11-20T12:00:00Z", source: "cbbd" },
+        research: { cbbResearchBoard: { available: 0 } },
+      }),
+    });
+    assert.equal(board.feeds.cbb.sources.cbbd.configured, true);
+    assert.equal(board.feeds.cbb.sources.cbbd.records, 364);
+    assert.equal(board.feeds.cbb.sources.cbbd.source, "cbbd");
+  });
+
   it("passes parlayCacheOnly and palCacheOnly into the slate builder", async () => {
     const seen = [];
     await buildTodayBoard("2026-08-27", {}, {
