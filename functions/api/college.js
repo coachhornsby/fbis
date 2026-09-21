@@ -18,6 +18,12 @@ export function parseCollegeJobOptions(request) {
     maxRequests: url.searchParams.get("maxRequests")
       ? Number(url.searchParams.get("maxRequests"))
       : undefined,
+    operationStart: url.searchParams.get("operationStart")
+      ? Number(url.searchParams.get("operationStart"))
+      : undefined,
+    operationLimit: url.searchParams.get("operationLimit")
+      ? Number(url.searchParams.get("operationLimit"))
+      : undefined,
     week: url.searchParams.get("week") ? Number(url.searchParams.get("week")) : undefined,
     date: url.searchParams.get("date") || undefined,
     sport: url.searchParams.get("sport") || undefined,
