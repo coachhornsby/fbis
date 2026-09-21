@@ -652,13 +652,16 @@
 .agd-hero-matchup { display: inline-block; margin-top: 10px; padding: 4px 16px; border-radius: 7px; background: rgba(1, 13, 26, .72); font-size: 22px; font-weight: 900; letter-spacing: .05em; }
 
 .agd-overview {
-  grid-template-columns: .83fr 1.3fr .83fr;
+  grid-template-columns: minmax(250px, .9fr) minmax(420px, 1.35fr) minmax(250px, .9fr);
   grid-template-areas:
     "away model home"
     "advantages comparison market"
     "context context action";
-  align-items: stretch;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
 }
+.agd-overview > * { min-width: 0; max-width: 100%; overflow: hidden; }
 .agd-starter-card, .agd-model-command, .agd-market-command, .agd-context-strip, .agd-action-strip {
   padding: 10px;
   border-radius: 10px;
@@ -674,7 +677,9 @@
 .agd-overview-market { grid-area: market; }
 .agd-context-strip { grid-area: context; }
 .agd-action-strip { grid-area: action; }
-.agd-starter-lead { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.agd-starter-lead { display: flex; align-items: center; gap: 10px; margin: 8px 0; min-width: 0; }
+.agd-starter-lead > div { min-width: 0; }
+.agd-starter-lead strong, .agd-starter-lead span { overflow-wrap: anywhere; }
 .agd-starter-lead > .team-logo-wrap,
 .agd-starter-lead > .team-logo-fallback,
 .agd-player-photo-wrap {
@@ -695,9 +700,9 @@
 .agd-starter-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .agd-model-command > .agd-card { margin: 0; }
 .agd-model-command .agd-proj { padding: 8px; }
-.agd-command-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.agd-command-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .agd-command-metrics > .agd-card { padding: 8px; }
-.agd-market-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.agd-market-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .agd-market-grid > :nth-child(3), .agd-market-grid > :nth-child(4) {
   border-color: rgba(255,64,100,.72);
   background: linear-gradient(135deg, rgba(255,38,81,.25), rgba(65,4,28,.52));

@@ -326,7 +326,7 @@ function buildActionPanel(game, away, home, units) {
       : null;
 
   const lineMove =
-    open != null && curr != null
+    open != null && curr != null && moveMag != null && Math.abs(moveMag) >= 0.05
       ? {
           teamAbbr: moveSide?.abbr || openSide?.abbr || null,
           fromLabel: openSide?.label || fmtLine(open),
