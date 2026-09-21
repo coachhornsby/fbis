@@ -260,7 +260,15 @@ export function toMovementSummary(boardGame = {}) {
     sentiment.openingLine ?? action.movement?.openingLine ?? boardGame.openingSpread ?? null
   );
   const currentLine = numOrNull(
-    boardGame.pinSpread ?? sentiment.currentLine ?? action.movement?.currentLine ?? boardGame.spread ?? null
+    boardGame.market?.execution?.available
+      ? boardGame.market.execution.spread
+      : boardGame.market?.consensus?.available
+        ? boardGame.market.consensus.spread
+        : boardGame.pinSpread ??
+          sentiment.currentLine ??
+          action.movement?.currentLine ??
+          boardGame.spread ??
+          null
   );
   const explicitMagnitude = numOrNull(
     sentiment.magnitude ?? action.movement?.movementMagnitude ?? boardGame.movementMagnitude
@@ -279,7 +287,13 @@ export function toMovementSummary(boardGame = {}) {
   return {
     openingLine,
     currentLine,
-    bestLine: numOrNull(boardGame.bestSpread ?? boardGame.pinSpread ?? null),
+    bestLine: numOrNull(
+      boardGame.bestSpread ??
+        (boardGame.market?.execution?.available ? boardGame.market.execution.spread : null) ??
+        (boardGame.market?.consensus?.available ? boardGame.market.consensus.spread : null) ??
+        boardGame.pinSpread ??
+        null
+    ),
     bestPrice: numOrNull(
       boardGame.bestSpreadPrice ?? boardGame.pinSpreadHomePrice ?? null
     ),
