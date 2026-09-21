@@ -1,0 +1,103 @@
+name: FBIS model learning cycle
+
+on:
+  schedule:
+    # 05:30 America/Chicago across DST; local gate prevents duplicate execution.
+    - cron: "30 10 * * 1"
+    - cron: "30 11 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: fbis-model-learning-cycle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: WEEKLY MODEL LEARNING
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Gate to Monday 05:00 America/Chicago
+        id: gate
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          dow="$(TZ=America/Chicago date +%u)"
+          hour="$(TZ=America/Chicago date +%H)"
+          if [ "$dow" = "1" ] && [ "$hour" = "05" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No-op twin UTC schedule; local dow=$dow hour=$hour"
+          fi
+
+      - name: Require research secret
+        if: steps.gate.outputs.run == 'true'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Run CFB temporal validation
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          out="artifacts/model-learning-cfb.json"
+          http="$(curl -sS --max-time 180 --retry 1             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$out" -w "%{http_code}"             "$BASE/api/college?job=model-train-validate&sport=cfb&referenceModelId=CFB-FBIS-v2&trigger=schedule")"
+          echo "CFB learning http=$http"
+          cat "$out"
+          test "$http" = "200"
+          jq -e '.ok == true and .job == "model-train-validate" and .d1.bound == true and .d1.sport == "cfb"' "$out" >/dev/null
+
+      - name: Run CBB temporal validation
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          out="artifacts/model-learning-cbb.json"
+          http="$(curl -sS --max-time 180 --retry 1             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$out" -w "%{http_code}"             "$BASE/api/college?job=model-train-validate&sport=cbb&referenceModelId=CBB-PINNACLE-IMPLIED&trigger=schedule")"
+          echo "CBB learning http=$http"
+          cat "$out"
+          test "$http" = "200"
+          jq -e '.ok == true and .job == "model-train-validate" and .d1.bound == true and .d1.sport == "cbb"' "$out" >/dev/null
+
+      - name: Build learning summary
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          {
+            echo "## FBIS weekly model learning"
+            echo ""
+            for sport in cfb cbb; do
+              file="artifacts/model-learning-${sport}.json"
+              echo "### ${sport^^}"
+              echo "- reference: $(jq -r '.d1.referenceModelId // "none"' "$file")"
+              echo "- models evaluated: $(jq -r '.d1.validation | length' "$file")"
+              echo "- paired comparisons: $(jq -r '.d1.paired | length' "$file")"
+              echo ""
+              jq -r '.d1.validation[]? | "- (.modelId): n=(.metrics.n), seasons=(.metrics.seasons), total_MAE=(.metrics.total.mae // "NA"), margin_MAE=(.metrics.margin.mae // "NA"), brier=(.metrics.probability.brier // "NA"), leakage=(.leakageOk)"' "$file"
+              echo ""
+            done
+            echo "Research only. No automatic model promotion or wager-authority change."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload learning evidence
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fbis-model-learning-${{ github.run_id }}
+          path: artifacts/model-learning-*.json
+          if-no-files-found: error
+          retention-days: 90
