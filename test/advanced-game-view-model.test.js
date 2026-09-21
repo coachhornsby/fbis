@@ -57,6 +57,16 @@ describe("buildAdvancedGameViewModel", () => {
     assert.equal(vm.probabilities.ev.available, false);
   });
 
+  it("does not relabel generic quality score as model confidence", () => {
+    const vm = buildAdvancedGameViewModel(
+      fixture({
+        quality: { score: 76 },
+        model: { projAway: 20.9, projHome: 31.3, projTotal: 52.2, projMargin: 10.4 },
+      })
+    );
+    assert.equal(vm.probabilities.confidence.available, false);
+  });
+
   it("never invents provider sharp without sharpLabel", () => {
     const vm = buildAdvancedGameViewModel(fixture());
     assert.ok(!vm.takeaways.some((t) => /ACTION sharp money detected/i.test(t.text)));
