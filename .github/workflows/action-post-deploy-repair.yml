@@ -22,6 +22,50 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: test -n "${HARVEST_SECRET:-}"
 
+      - name: Immediate ACTION recovery on currently live production
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          status_body="$(mktemp)"
+          status_code="$(curl -sS --max-time 30 -o "$status_body" -w "%{http_code}" "$BASE/api/action-daily-status" || true)"
+          state="$(jq -r '.state // "UNAVAILABLE"' "$status_body" 2>/dev/null || echo UNAVAILABLE)"
+          echo "predeploy ACTION state=$state http=$status_code"
+          cat "$status_body" || true
+          if [ "$status_code" = "200" ] && [ "$state" = "HEALTHY" ]; then
+            echo "Current production already has a successful daily ACTION run."
+            exit 0
+          fi
+
+          start_body="$(mktemp)"
+          start_code="$(curl -sS --max-time 30 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -d '{"mode":"start"}' -o "$start_body" -w "%{http_code}" \
+            "$BASE/api/action-daily-async?mode=start")"
+          echo "predeploy START http=$start_code"
+          cat "$start_body"
+          test "$start_code" = "200" -o "$start_code" = "202"
+          jq -e '.ok == true' "$start_body" >/dev/null
+
+          for attempt in $(seq 1 20); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 30 -X POST \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "content-type: application/json" \
+              -d '{"mode":"harvest"}' -o "$body" -w "%{http_code}" \
+              "$BASE/api/action-daily-async?mode=harvest")"
+            echo "predeploy HARVEST attempt=$attempt http=$code"
+            cat "$body"
+            status="$(jq -r '.status // empty' "$body" 2>/dev/null || true)"
+            if [ "$code" = "200" ] && { [ "$status" = "success_daily" ] || [ "$status" = "already_collected_today" ]; }; then exit 0; fi
+            if [ "$code" = "202" ] && [ "$status" = "actor_running" ]; then sleep 30; continue; fi
+            echo "Unexpected predeploy harvest response code=$code status=$status"
+            exit 1
+          done
+          exit 1
+
       - name: Wait for production to reach pushed SHA
         env:
           BASE: "https://fbis-myz.pages.dev"
@@ -103,3 +147,27 @@ jobs:
           cat "$body"
           test "$code" = "200"
           jq -e '.state == "HEALTHY" and .verifiedPersisted == true and .verifiedSlateCoverage == true' "$body" >/dev/null
+
+      - name: Export full persisted ACTION MLB observations
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          day="$(TZ=America/Chicago date +%F)"
+          code="$(curl -sS --max-time 60 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -o artifacts/action-mlb-${day}.json -w "%{http_code}" \
+            "$BASE/api/action-daily-data?date=${day}&sport=mlb&limit=5000")"
+          echo "ACTION MLB export http=$code"
+          test "$code" = "200"
+          jq '{ok,run,count}' artifacts/action-mlb-${day}.json
+
+      - name: Upload ACTION MLB export
+        uses: actions/upload-artifact@v4
+        with:
+          name: action-mlb-${{ github.run_id }}
+          path: artifacts/action-mlb-*.json
+          if-no-files-found: error
+          retention-days: 14
