@@ -18,6 +18,14 @@ const SCORE_UNIT = Object.freeze({
 const PUBLIC_HEAVY_TICKET_PCT = 65;
 const MONEY_GAP_PTS = 12;
 const BIG_MONEY_GAP_PTS = 25;
+const ACTION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function ageMs(ts, now = Date.now()) {
+  if (!ts) return null;
+  const parsed = Date.parse(ts);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, now - parsed);
+}
 
 export function buildGameCardViewModel(game) {
   const board = buildBoardGameViewModel(game);
@@ -185,6 +193,36 @@ function buildActionPanel(game, away, home, units) {
     intel?.publicSplits ||
     game?.sentiment ||
     null;
+  const actionCollectedAt =
+    intel?.collectedAt ||
+    intel?.observedAt ||
+    intel?.sourceObservedAt ||
+    null;
+  const actionAgeMs = ageMs(actionCollectedAt);
+  const actionStale = actionAgeMs != null && actionAgeMs > ACTION_MAX_AGE_MS;
+  if (actionStale) {
+    return {
+      available: false,
+      stale: true,
+      emptyLabel: "STALE ACTION SNAPSHOT",
+      headline: null,
+      tickets: null,
+      money: null,
+      divergence: null,
+      movement: null,
+      lineMove: null,
+      sample: null,
+      bookRange: null,
+      markets: [],
+      consensus: null,
+      poweredBy: "ACTION",
+      canQualify: false,
+      canAuthorize: false,
+      collectedAt: actionCollectedAt,
+      ageMinutes: Math.round(actionAgeMs / 60000),
+      advanced: null,
+    };
+  }
   if (!intel && !splits) {
     return {
       available: false,
@@ -492,12 +530,13 @@ function pickActionHeadline({
   marketHomeSpread,
 }) {
   const leanTeam = gap != null ? (gap > 0 ? home : away) : null;
-  const leanLine =
-    marketHomeSpread == null || leanTeam == null
+  const lineForTeam = (team) =>
+    marketHomeSpread == null || team == null
       ? null
-      : leanTeam === home
+      : team === home
         ? `${home.abbr} ${fmtLine(marketHomeSpread)}`
         : `${away.abbr} ${fmtLine(-Number(marketHomeSpread))}`;
+  const leanLine = lineForTeam(leanTeam);
 
   // Provider-supplied only — never invent FBIS "sharp".
   if (providerSharp && String(providerSharp).trim()) {
@@ -547,7 +586,7 @@ function pickActionHeadline({
       label: "PUBLIC HEAVY",
       detail: `${home.abbr} ${Math.round(ticketHome)}% TICKETS`,
       team: home,
-      lineLabel: leanLine,
+      lineLabel: lineForTeam(home),
     };
   }
   if (ticketHome != null && ticketHome <= 100 - PUBLIC_HEAVY_TICKET_PCT) {
@@ -557,7 +596,7 @@ function pickActionHeadline({
       label: "PUBLIC HEAVY",
       detail: `${away.abbr} ${Math.round(100 - ticketHome)}% TICKETS`,
       team: away,
-      lineLabel: leanLine,
+      lineLabel: lineForTeam(away),
     };
   }
   if (movement?.delta != null && Math.abs(movement.delta) >= 0.5) {
@@ -725,9 +764,13 @@ function buildMarketCopy(board) {
 }
 
 function buildFreshness(game) {
+  // Market freshness must come from a market timestamp. ACTION collection time is
+  // separate research telemetry and must never be labeled as "Lines as of".
   const ts =
-    game?.actionIntel?.collectedAt ||
     game?.market?.asOf ||
+    game?.market?.observedAt ||
+    game?.market?.execution?.sourceObservedAt ||
+    game?.market?.consensus?.sourceObservedAt ||
     game?.oddsUpdatedAt ||
     game?.updatedAt ||
     null;

@@ -81,6 +81,30 @@ test("toDomainEvent builds Event contract from today board game", () => {
   assert.equal(event.provenance.schemaVersion, "fbis-event-v1");
 });
 
+test("domain movement uses canonical operational spread before reference fields", () => {
+  const event = toDomainEvent({
+    id: "mlb-op-1",
+    sport: "mlb",
+    away: { abbr: "TOR" },
+    home: { abbr: "BAL" },
+    projHome: 3.8,
+    projAway: 4.1,
+    projMargin: -0.3,
+    pinSpread: null,
+    market: {
+      marketAvailable: true,
+      execution: { available: false },
+      consensus: { available: true, source: "CONSENSUS", spread: 1.5, total: 7.5 },
+      reference: { available: false },
+    },
+    rec: { qualified: true, pick: "TOR", market: "spread", ev: 0.06 },
+  });
+  assert.equal(event.movement.currentLine, 1.5);
+  assert.equal(event.movement.bestLine, 1.5);
+  assert.equal(event.publicSplits.ticketPct, null);
+  assert.equal(event.publicSplits.moneyPct, null);
+});
+
 test("today domain board ranks only real QUALIFIED then WATCHLIST (max 5)", () => {
   const board = toDomainTodayBoard({
     date: "2026-09-13",

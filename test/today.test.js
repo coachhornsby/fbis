@@ -16,6 +16,17 @@ import { summarize } from "../src/lib/learning.js";
 import { todayFeedNote } from "../functions/lib/propConviction.js";
 import { formatMarketPeriod, formatClv } from "../src/lib/format.js";
 import { todayEnv } from "../functions/api/today.js";
+import { finiteOrNull } from "../src/features/today/formatters.js";
+
+describe("TODAY display coercion", () => {
+  it("never turns missing values into zero", () => {
+    assert.equal(finiteOrNull(null), null);
+    assert.equal(finiteOrNull(undefined), null);
+    assert.equal(finiteOrNull(""), null);
+    assert.equal(finiteOrNull("0"), 0);
+    assert.equal(finiteOrNull(1.5), 1.5);
+  });
+});
 
 describe("TODAY date and grouping", () => {
   it("resolves blank date to CT today and rejects junk", () => {

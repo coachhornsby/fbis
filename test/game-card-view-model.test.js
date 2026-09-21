@@ -103,6 +103,53 @@ describe("buildGameCardViewModel", () => {
     assert.equal(vm.action.canAuthorize, false);
   });
 
+  it("PUBLIC HEAVY headline uses the public side's line", () => {
+    const vm = buildGameCardViewModel(
+      mlbOppositeSides({
+        sport: "nfl",
+        away: { abbr: "NYG", name: "New York Giants" },
+        home: { abbr: "LAR", name: "Los Angeles Rams" },
+        model: { projAway: 20.9, projHome: 31.3, projTotal: 52.2, projMargin: 10.4 },
+        projectionKind: "FBIS",
+        market: {
+          marketAvailable: true,
+          execution: { available: false },
+          consensus: { available: true, source: "CONSENSUS", spread: -7.5, total: 48.5 },
+        },
+        actionIntel: {
+          collectedAt: new Date().toISOString(),
+          publicSplits: { ticketPct: 30, moneyPct: 33, moneyTicketGap: 3 },
+          movement: { currentLine: -7.5 },
+          displayOnly: true,
+          canQualify: false,
+          canAuthorize: false,
+        },
+        publicSplits: { ticketPct: 30, moneyPct: 33, moneyTicketGap: 3 },
+      })
+    );
+    assert.equal(vm.action.headline.kind, "PUBLIC_HEAVY");
+    assert.equal(vm.action.headline.team.abbr, "NYG");
+    assert.equal(vm.action.headline.lineLabel, "NYG +7.5");
+    assert.equal(vm.action.headline.detail, "NYG 70% TICKETS");
+  });
+
+  it("stale ACTION snapshots are quarantined instead of shown as current", () => {
+    const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    const vm = buildGameCardViewModel(
+      mlbOppositeSides({
+        actionIntel: {
+          collectedAt: old,
+          publicSplits: { ticketPct: 30, moneyPct: 33, moneyTicketGap: 3 },
+          movement: { currentLine: -1.5 },
+        },
+        publicSplits: null,
+      })
+    );
+    assert.equal(vm.action.available, false);
+    assert.equal(vm.action.stale, true);
+    assert.match(vm.action.emptyLabel, /STALE ACTION SNAPSHOT/);
+  });
+
   it("empty ACTION collapses to no-data state", () => {
     const vm = buildGameCardViewModel(
       mlbOppositeSides({ actionIntel: null, publicSplits: null })

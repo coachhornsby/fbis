@@ -1,5 +1,11 @@
 /** Shared display helpers for Today command-center surfaces. Never invent values. */
 
+export function finiteOrNull(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function matchupLabel(event) {
   const away = event?.teams?.away?.abbr || event?.teams?.away?.name || "—";
   const home = event?.teams?.home?.abbr || event?.teams?.home?.name || "—";
