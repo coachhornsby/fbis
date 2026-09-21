@@ -311,8 +311,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
 
-          # Provider bearers intentionally live only in Cloudflare Pages.
-          # Exercise the deployed runtime using the operator secret.
+          # CFBD historical sample: representative older seasons.
           cfbd_hist="artifacts/cfbd-historical-capability.json"
           cfbd_http="$(curl -sS --max-time 240 --retry 0 \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
@@ -323,24 +322,81 @@ jobs:
           test "$cfbd_http" = "200"
           jq -e '.ok == true and .job == "cfbd-endpoint-audit"' "$cfbd_hist" >/dev/null
 
-          cbbd_out="artifacts/cbbd-capability-audit.json"
-          cbbd_http="$(curl -sS --max-time 240 --retry 0 \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "accept: application/json" \
-            -o "$cbbd_out" -w "%{http_code}" \
-            "${BASE}/api/college?job=cbbd-endpoint-audit&trigger=workflow_dispatch&seasons=2026,2024,2022&maxRequests=60")"
-          echo "CBBD capability audit http=${cbbd_http}"
-          test "$cbbd_http" = "200"
-          jq -e '.ok == true and .job == "cbbd-endpoint-audit"' "$cbbd_out" >/dev/null
+          # CBBD: keep each Worker request well below the Pages request ceiling.
+          # Walk the live OpenAPI GET inventory in 4-operation / <=12-network-request chunks.
+          start=0
+          chunk=0
+          while true; do
+            chunk_tag="$(printf "%02d" "$chunk")"
+            out="artifacts/cbbd-capability-chunk-${chunk_tag}.json"
+            http="$(curl -sS --max-time 110 --retry 0 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              -o "$out" -w "%{http_code}" \
+              "${BASE}/api/college?job=cbbd-endpoint-audit&trigger=workflow_dispatch&seasons=2026,2024,2022&maxRequests=12&operationStart=${start}&operationLimit=4")"
+            echo "CBBD chunk=${chunk} start=${start} http=${http}"
+            if [ "$http" != "200" ]; then
+              jq -c '{ok:.ok,status:.status,error:.error,errors:.errors,keyHealth:.keyHealth}' "$out" 2>/dev/null || head -c 500 "$out" || true
+              exit 1
+            fi
+            jq -e '.ok == true and .job == "cbbd-endpoint-audit"' "$out" >/dev/null
+            has_more="$(jq -r '.d1.audit.summary.hasMore // false' "$out")"
+            next_start="$(jq -r '.d1.audit.summary.nextOperationStart // empty' "$out")"
+            inv="$(jq -r '.d1.audit.summary.inventoryGetOperations // 0' "$out")"
+            win="$(jq -r '.d1.audit.summary.windowOperations // 0' "$out")"
+            req="$(jq -r '.d1.audit.summary.requestCount // 0' "$out")"
+            echo "CBBD chunk=${chunk}: inventory=${inv} window=${win} requests=${req} hasMore=${has_more} next=${next_start:-none}"
+            if [ "$has_more" != "true" ]; then
+              break
+            fi
+            test -n "$next_start"
+            start="$next_start"
+            chunk=$((chunk + 1))
+            if [ "$chunk" -ge 20 ]; then
+              echo "CBBD audit exceeded 20 chunks; fail closed."
+              exit 1
+            fi
+          done
+
+          jq -s '
+            {
+              ok: all(.[]; .ok == true),
+              chunkCount: length,
+              seasonsTested: (.[0].d1.audit.seasonsTested // []),
+              schema: (.[0].d1.audit.schema // {}),
+              summary: {
+                requestCount: (map(.d1.audit.summary.requestCount // 0) | add),
+                inventoryGetOperations: (.[0].d1.audit.summary.inventoryGetOperations // 0),
+                historicalCapableOperations: (.[0].d1.audit.summary.historicalCapableOperations // 0),
+                classifications: (reduce .[] as $c ({};
+                  reduce (($c.d1.audit.summary.classifications // {}) | to_entries[]) as $e (.;
+                    .[$e.key] = ((.[$e.key] // 0) + $e.value)))) ,
+                available: ([.[].d1.audit.summary.available[]?] | unique),
+                availableButEmpty: ([.[].d1.audit.summary.availableButEmpty[]?] | unique),
+                notEntitled: ([.[].d1.audit.summary.notEntitled[]?] | unique),
+                invalidParameters: ([.[].d1.audit.summary.invalidParameters[]?] | unique),
+                authFailure: ([.[].d1.audit.summary.authFailure[]?] | unique),
+                transientFailure: ([.[].d1.audit.summary.transientFailure[]?] | unique)
+              },
+              probes: [.[].d1.audit.probes[]?],
+              chunks: map({
+                start:.d1.audit.summary.operationStart,
+                window:.d1.audit.summary.windowOperations,
+                requests:.d1.audit.summary.requestCount,
+                classifications:.d1.audit.summary.classifications
+              })
+            }
+          ' artifacts/cbbd-capability-chunk-*.json > artifacts/cbbd-capability-audit.json
+          jq -e '.ok == true and .chunkCount > 0' artifacts/cbbd-capability-audit.json >/dev/null
 
           jq -n \
             --slurpfile current artifacts/cfbd-endpoint-audit.json \
             --slurpfile historical "$cfbd_hist" \
-            --slurpfile cbbd "$cbbd_out" \
+            --slurpfile cbbd artifacts/cbbd-capability-audit.json \
             '{ok:true,auditedAt:(now|todateiso8601),cfbdCurrent:$current[0],cfbdHistorical:$historical[0],cbbd:$cbbd[0]}' \
             > artifacts/college-capability-audit.json
 
-          jq -c '{cfbdHistorical:{seasons:.cfbdHistorical.d1.audit.summary.seasonsTested,resultCount:.cfbdHistorical.d1.audit.summary.resultCount,uniqueEndpoints:.cfbdHistorical.d1.audit.summary.uniqueEndpoints,classifications:.cfbdHistorical.d1.audit.summary.classifications,availableN:(.cfbdHistorical.d1.audit.summary.available|length)},cbbd:{seasons:.cbbd.d1.audit.seasonsTested,schema:.cbbd.d1.audit.schema,requestCount:.cbbd.d1.audit.summary.requestCount,inventoryGetOperations:.cbbd.d1.audit.summary.inventoryGetOperations,historicalCapableOperations:.cbbd.d1.audit.summary.historicalCapableOperations,classifications:.cbbd.d1.audit.summary.classifications,availableN:(.cbbd.d1.audit.summary.available|length),availableButEmptyN:(.cbbd.d1.audit.summary.availableButEmpty|length),notEntitledN:(.cbbd.d1.audit.summary.notEntitled|length),authFailureN:(.cbbd.d1.audit.summary.authFailure|length)}}' artifacts/college-capability-audit.json \
+          jq -c '{cfbdCurrent:{seasons:.cfbdCurrent.d1.audit.summary.seasonsTested,resultCount:.cfbdCurrent.d1.audit.summary.resultCount,uniqueEndpoints:.cfbdCurrent.d1.audit.summary.uniqueEndpoints,classifications:.cfbdCurrent.d1.audit.summary.classifications,availableN:(.cfbdCurrent.d1.audit.summary.available|length)},cfbdHistorical:{seasons:.cfbdHistorical.d1.audit.summary.seasonsTested,resultCount:.cfbdHistorical.d1.audit.summary.resultCount,uniqueEndpoints:.cfbdHistorical.d1.audit.summary.uniqueEndpoints,classifications:.cfbdHistorical.d1.audit.summary.classifications,availableN:(.cfbdHistorical.d1.audit.summary.available|length)},cbbd:{seasons:.cbbd.seasonsTested,schema:.cbbd.schema,chunkCount:.cbbd.chunkCount,requestCount:.cbbd.summary.requestCount,inventoryGetOperations:.cbbd.summary.inventoryGetOperations,historicalCapableOperations:.cbbd.summary.historicalCapableOperations,classifications:.cbbd.summary.classifications,availableN:(.cbbd.summary.available|length),availableButEmptyN:(.cbbd.summary.availableButEmpty|length),notEntitledN:(.cbbd.summary.notEntitled|length),authFailureN:(.cbbd.summary.authFailure|length)}}' artifacts/college-capability-audit.json \
             | tee artifacts/college-capability-audit-summary.log
 
           {
@@ -350,7 +406,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload college capability audit artifact
-        if: contains(github.event.head_commit.message, '[college-capability-audit]')
+        if: always() && contains(github.event.head_commit.message, '[college-capability-audit]')
         uses: actions/upload-artifact@v4
         with:
           name: college-capability-audit-${{ env.DEPLOY_SHA }}
@@ -358,8 +414,9 @@ jobs:
             artifacts/college-capability-audit.json
             artifacts/cfbd-historical-capability.json
             artifacts/cbbd-capability-audit.json
+            artifacts/cbbd-capability-chunk-*.json
             artifacts/college-capability-audit-summary.log
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
       # NFL team_form was never seeded because freeze historically skipped NFL
       # (no independent FBIS projection) — a circular dependency. Seed form from
