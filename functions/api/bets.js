@@ -31,6 +31,7 @@ import { authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 import { durableHealth, scheduledHealth } from "../lib/jobs.js";
 import { deriveHealthState, writeVerificationState } from "../lib/healthContract.js";
 import { populationDescriptor, POPULATION_TYPE } from "../lib/populationDescriptor.js";
+import { BET_TRACKER_RECONCILE_SEED } from "../lib/betTrackerReconcileSeed.js";
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -274,6 +275,10 @@ export async function handleBetsPost(env, request, body) {
   const auth = authorizeExecutedBetWrite(request, env);
   if (!auth.ok) {
     return { status: 401, body: unauthorizedBody() };
+  }
+  if (action === "reconcile-tracker-seed") {
+    const result = await importBets(env, BET_TRACKER_RECONCILE_SEED);
+    return { status: result.status, body: { ...result.body, seed: "sports-betting-tracker-20260919-20", requested: BET_TRACKER_RECONCILE_SEED.length } };
   }
   if (action === "import") {
     let tickets = Array.isArray(body.tickets) ? body.tickets : [];
