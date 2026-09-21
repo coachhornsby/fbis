@@ -554,13 +554,13 @@ test("default FBIS slate dates: MLB today+tomorrow; football extends through +7 
   assert.deepEqual(slate.slateDates, footballDates);
 });
 
-test("explicit date keeps single-day FBIS slate", async () => {
+test("explicit board date searches adjacent partitions but keeps one Chicago kickoff day", async () => {
   const queryGames = async (_env, opts) => ({
     ok: true,
     rows: [{ id: "only", homeName: "X", awayName: "Y", start: `${opts.date}T18:00:00Z`, sport: "nfl" }],
   });
   const slate = await loadFbisSlateForMatching(queryGames, {}, { sport: "nfl", date: "2026-09-14" });
-  assert.deepEqual(slate.slateDates, ["2026-09-14"]);
+  assert.deepEqual(slate.slateDates, ["2026-09-13", "2026-09-14", "2026-09-15"]);
   assert.equal(slate.gamesExpected, 1);
 });
 
