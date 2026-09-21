@@ -2930,3 +2930,46 @@ export async function queryAdvisorReviews(env, { date, sport } = {}) {
     const res=await env.DB.prepare(sql).bind(...binds).all(); markRead(); return {ok:true,rows:res.results||[]};
   } catch(err){markErr(err);return {ok:false,rows:[],reason:String(err?.message||err)};}
 }
+
+
+export async function reconcileExecutedBetEntries(env) {
+  const betsQ=await queryExecutedBets(env,{includeRaw:false});
+  const groups=new Map();
+  for(const b of betsQ.rows||[]){
+    if(!b.entryId) continue;
+    if(!groups.has(b.entryId)) groups.set(b.entryId,[]);
+    groups.get(b.entryId).push(b);
+  }
+  const outcomes=[];
+  for(const [entryId,legs] of groups){
+    legs.sort((a,b)=>Number(a.legIndex||0)-Number(b.legIndex||0));
+    const primary=legs.find(x=>Number(x.riskAmount)>0)||legs[0];
+    const meta=primary.trackerMetadata||{};
+    const entryType=meta.entryType|| (legs.length>1?"PARLAY":"STRAIGHT");
+    const results=legs.map(x=>String(x.legResult||x.result||"OPEN").toUpperCase());
+    const won=results.filter(x=>x==="WON").length, lost=results.filter(x=>x==="LOST").length, push=results.filter(x=>x==="PUSH"||x==="VOID").length;
+    const allTerminal=results.every(x=>["WON","LOST","PUSH","VOID"].includes(x));
+    let result="OPEN", profit=null, settledReturn=null, exceptionCode=null;
+    if(lost>0){ result="LOST"; profit=-Math.abs(Number(meta.cardRiskAmount??primary.riskAmount??0)); settledReturn=0; }
+    else if(allTerminal && push===0){ result="WON"; profit=Number(meta.cardToWinAmount??primary.toWinAmount??0); settledReturn=Number(meta.cardPotentialPayout??primary.potentialPayout??0); }
+    else if(allTerminal && push>0){
+      result="MANUAL_REVIEW"; exceptionCode="NEEDS_SETTLEMENT";
+    }
+    if(String(entryType).includes("FLEX") && allTerminal){ result="MANUAL_REVIEW"; exceptionCode="NEEDS_SETTLEMENT"; profit=null; settledReturn=null; }
+    const row={id:entryId,executionBook:primary.executionBook,entryType,executedAt:primary.executedAt,sport:primary.sport,
+      riskAmount:Number(meta.cardRiskAmount??primary.riskAmount??0),toWinAmount:Number(meta.cardToWinAmount??primary.toWinAmount??0),
+      potentialPayout:Number(meta.cardPotentialPayout??primary.potentialPayout??0),result,profit,settledReturn,legCount:legs.length,
+      legsWon:won,legsLost:lost,legsPush:push,gradedAt:allTerminal?new Date().toISOString():null,
+      fundingType:meta.fundingType||"CASH",sourceTicketId:primary.externalTicketId,
+      trackerMetadata:{...meta,exceptionCode}};
+    outcomes.push(await upsertExecutedBetEntry(env,row));
+    for(const leg of legs){
+      const legResult=String(leg.result||"OPEN").toUpperCase();
+      const legException=legResult==="OPEN" ? (String(leg.market).toUpperCase()==="PLAYER_PROP"?"NEEDS_STAT":"NEEDS_SETTLEMENT") : null;
+      if(leg.legResult!==legResult || leg.exceptionCode!==legException){
+        await updateExecutedBet(env,leg.id,{legResult,exceptionCode:legException},"entry-reconcile");
+      }
+    }
+  }
+  return {ok:outcomes.every(x=>x.ok),entries:groups.size};
+}
