@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import TeamLogo from "../../components/TeamLogo.jsx";
 import { venueAtmosphereClass, venueAtmosphereStyle } from "../../lib/venueAtmosphere.js";
-import { fmtLine, fmtNum } from "./formatters.js";
+import { finiteOrNull, fmtLine, fmtNum } from "./formatters.js";
 
 const SPORT_PILLS = [
   { id: "mlb", label: "MLB" },
@@ -61,19 +61,28 @@ function moneyInsight(moneyPct, awayAbbr, homeAbbr) {
   return "Balanced money";
 }
 
-function whyItRanks(rank, event) {
+function whyItRanks(rank, event, { moneyPct = null } = {}) {
   const codes = event?.decision?.reasonCodes || [];
-  if (codes.includes("EV_ABOVE_THRESHOLD") || codes.includes("BOARD_REC_QUALIFIED")) {
-    return "Largest model vs market disagreement with supporting money confirmation.";
+  const qualified =
+    event?.decision?.state === "QUALIFIED" ||
+    codes.includes("EV_ABOVE_THRESHOLD") ||
+    codes.includes("BOARD_REC_QUALIFIED");
+
+  if (qualified) {
+    return moneyPct == null
+      ? "Qualified by FBIS model/market rules. ACTION split data is not available for this matchup."
+      : "Qualified by FBIS model/market rules. ACTION splits are available as display-only context.";
   }
   if (codes.includes("PUBLIC_FADE_SETUP")) {
-    return "Public fade setup with model edge and money confirmation.";
+    return moneyPct == null
+      ? "Public-fade watch condition from the board; ACTION split data is currently unavailable."
+      : "Public-fade watch condition with ACTION split context available.";
   }
   if (codes.includes("LINE_MOVED_TOWARD_MODEL")) {
-    return "Line moved toward the FBIS projection with actionable edge.";
+    return "Line movement toward the FBIS projection is present on the current board.";
   }
-  if (rank === 1) return "Highest-ranked board opportunity on the current slate.";
-  return "Strong model edge with board qualification signals.";
+  if (rank === 1) return "First opportunity in the current FBIS board order.";
+  return "Current FBIS board opportunity; no extra confirmation is inferred.";
 }
 
 function lineMoveCopy(movement) {
@@ -183,28 +192,18 @@ function buildView(event, rank) {
   const decision = event?.decision || {};
   const sport = String(event?.sport || "").toLowerCase();
 
-  const proj = Number.isFinite(Number(model.projMargin)) ? Number(model.projMargin) : null;
+  const proj = finiteOrNull(model.projMargin);
   const spread = (event.consensusMarkets || []).find((m) => m.marketType === "spread");
-  const marketRaw = Number.isFinite(Number(movement.currentLine))
-    ? Number(movement.currentLine)
-    : Number.isFinite(Number(spread?.line))
-      ? Number(spread.line)
-      : null;
+  const marketRaw = finiteOrNull(movement.currentLine) ?? finiteOrNull(spread?.line);
   // currentLine is a home spread; convert to home-centric margin for comparison with projMargin.
   const marketHomeMargin = marketRaw != null ? -marketRaw : null;
   const diff =
     proj != null && marketHomeMargin != null ? Math.abs(proj - marketHomeMargin) : null;
 
-  const ticketPct = Number.isFinite(Number(movement.ticketPct))
-    ? Number(movement.ticketPct)
-    : Number.isFinite(Number(event?.publicSplits?.ticketPct))
-      ? Number(event.publicSplits.ticketPct)
-      : null;
-  const moneyPct = Number.isFinite(Number(movement.moneyPct))
-    ? Number(movement.moneyPct)
-    : Number.isFinite(Number(event?.publicSplits?.moneyPct))
-      ? Number(event.publicSplits.moneyPct)
-      : null;
+  const ticketPct =
+    finiteOrNull(movement.ticketPct) ?? finiteOrNull(event?.publicSplits?.ticketPct);
+  const moneyPct =
+    finiteOrNull(movement.moneyPct) ?? finiteOrNull(event?.publicSplits?.moneyPct);
 
   const awayAbbr = away.abbr || "AWAY";
   const homeAbbr = home.abbr || "HOME";
@@ -226,7 +225,7 @@ function buildView(event, rank) {
     ticketPct,
     moneyPct,
     insight: moneyInsight(moneyPct, awayAbbr, homeAbbr),
-    why: whyItRanks(rank, event),
+    why: whyItRanks(rank, event, { moneyPct }),
     lineMove: lineMoveCopy(movement),
     sampleSize: sampleSizeCopy(movement),
     venueClass: venueAtmosphereClass(sport),
@@ -399,7 +398,7 @@ export default function TopGameOpportunities({
             </span>
             TOP OPPORTUNITIES
           </h2>
-          <p className="top-opps-sub">Highest-ranked qualified games on the current board.</p>
+          <p className="top-opps-sub">Qualified games and near-qualified leans from the current board.</p>
         </div>
         <div className="top-opps-controls">
           <div className="top-opps-pills" role="tablist" aria-label="Sport filter">
