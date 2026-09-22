@@ -286,3 +286,22 @@ test("explicit ACTION date falls back to bounded since-query when all storage pa
   assert.equal(slate.gamesExpected,1);
   assert.equal(slate.fbisEvents[0].id,"nfl-mnf-stale");
 });
+
+
+test("implicit current ACTION slate falls back to since-query when storage partitions miss", async () => {
+  const calls=[];
+  const query=async (_env,opts)=>{
+    calls.push(opts);
+    if(opts.since) return {ok:true,rows:[{
+      id:"mlb-det-wsh-stale",sport:"mlb",date:"2026-09-21",start:"2026-09-22T22:40:00.000Z",
+      homeName:"Detroit Tigers",awayName:"Washington Nationals",homeAbbr:"DET",awayAbbr:"WSH"
+    }]};
+    return {ok:true,rows:[]};
+  };
+  const now=new Date("2026-09-22T12:45:00.000Z");
+  const slate=await loadFbisSlateForMatching(query,{}, {sport:"mlb",now});
+  assert.equal(calls.length,3);
+  assert.equal(calls[2].since,"2026-09-22");
+  assert.equal(slate.gamesExpected,1);
+  assert.equal(slate.fbisEvents[0].id,"mlb-det-wsh-stale");
+});
