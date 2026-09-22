@@ -122,9 +122,9 @@ async function fetchEndpoints(source, specs, env, year, jobRunId, sport) {
   const bundles = {};
   for (const [path, queryFn] of specs) {
     const res = source === "cbbd" ? await cbbdGet(path, env, { query: queryFn(year) }) : await cfbdGet(path, env, { query: queryFn(year) });
-    report.push(collegePublicResult(res));
+    const publicResult = collegePublicResult(res);
     bundles[path] = res.ok ? res.data : [];
-    await persistObservation(env, {
+    const observed = await persistObservation(env, {
       source,
       sport,
       endpoint: path,
@@ -134,6 +134,9 @@ async function fetchEndpoints(source, specs, env, year, jobRunId, sport) {
       jobRunId,
       status: res.ok ? "ok" : "failed",
     });
+    publicResult.observationPersisted = Boolean(observed?.ok);
+    publicResult.observationError = observed?.ok ? null : observed?.reason || "source_observation-unavailable";
+    report.push(publicResult);
   }
   return { report, bundles };
 }
@@ -310,7 +313,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         });
         await putArchive(env, r2k, artifact);
       }
-      await persistObservation(env, {
+      const auditObservation = await persistObservation(env, {
         source: "cfbd",
         sport: "cfb",
         endpoint: "cfbd-endpoint-audit",
@@ -320,6 +323,10 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         jobRunId: id,
         status: audit.summary?.configured ? "ok" : "auth-missing",
       });
+      if (!auditObservation?.ok) {
+        writes.writesFailed += 1;
+        errors.push(`cfbd endpoint audit observation persistence: ${auditObservation?.reason || "unknown-error"}`);
+      }
       const inserted = await insertCfbdEndpointAudit(env, {
         id: `${id}:cfbd-audit`,
         auditedAt: audit.summary?.auditedAt || new Date().toISOString(),
@@ -336,12 +343,19 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       if (inserted.ok) writes.writesSucceeded += 1;
       else writes.writesFailed += 1;
       assertNoSecretLeak(audit, env);
+      const auditStatus = classifyJobStatus({
+        okSports: 1,
+        failedSports: 0,
+        writesFailed: writes.writesFailed,
+        unbound: !hasDb(env),
+        requiredFailed: false,
+      });
       const payload = jobPayload({
-        ok: true,
+        ok: auditStatus === "success",
         job,
-        status: "success",
+        status: auditStatus,
         attemptedAt: started,
-        successfulAt: new Date().toISOString(),
+        successfulAt: auditStatus === "success" ? new Date().toISOString() : null,
         env,
         writes,
         d1: {
@@ -655,11 +669,26 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
     errors.push(String(err?.message || err));
   }
 
-  const failed = report.filter((r) => r && r.ok === false).length;
+  const apiFailures = report.filter((r) => r && r.ok === false).length;
+  const persistenceFailures = report.filter(
+    (r) => r && (r.usagePersisted === false || r.observationPersisted === false)
+  );
+  if (persistenceFailures.length) {
+    writes.writesFailed += persistenceFailures.length;
+    errors.push(
+      ...persistenceFailures.map((r) => {
+        const parts = [
+          r.usagePersisted === false ? r.usageError || "api-usage-not-persisted" : null,
+          r.observationPersisted === false ? r.observationError || "source-observation-not-persisted" : null,
+        ].filter(Boolean);
+        return `${r.source || "college"} ${r.path || "unknown-endpoint"} persistence: ${parts.join(" | ")}`;
+      })
+    );
+  }
   const status = classifyJobStatus({
-    okSports: failed === report.length && report.length ? 0 : 1,
-    failedSports: failed && failed === report.length ? 1 : 0,
-    writesFailed: 0,
+    okSports: report.length > apiFailures ? 1 : 0,
+    failedSports: apiFailures,
+    writesFailed: writes.writesFailed,
     unbound: !hasDb(env),
     requiredFailed: errors.length > 0 && !report.length,
   });

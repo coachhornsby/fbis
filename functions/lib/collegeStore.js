@@ -40,8 +40,9 @@ export async function recordApiUsage(env, row) {
       )
       .run();
     return { ok: true };
-  } catch {
-    return { ok: false, reason: "api_usage-unavailable" };
+  } catch (err) {
+    const message = String(err?.message || err || "api_usage-unavailable").slice(0, 240);
+    return { ok: false, reason: `api_usage-unavailable: ${message}` };
   }
 }
 

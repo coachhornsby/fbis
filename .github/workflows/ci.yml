@@ -45,6 +45,37 @@ jobs:
       - name: Build app
         run: npm run build
 
+      - name: Probe production source health
+        continue-on-error: true
+        env:
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp)"
+          code="$(curl -sS --max-time 30 -o "$tmp" -w "%{http_code}" "${BASE}/api/data-health?_t=$(date +%s)")"
+          echo "data_health_http=${code}"
+          if [ "$code" != "200" ]; then
+            head -c 500 "$tmp" || true
+            exit 1
+          fi
+          jq -c '
+            (.runtimeConfig // {})
+            | to_entries
+            | map({
+                source: .key,
+                configured: (if .value.configured then "YES" else "NO" end),
+                implemented: (if .value.implemented then "YES" else "NO" end),
+                lastSuccessAt: (.value.lastSuccessAt // .value.observation.last_success_at // .value.usage.last_success_at // null),
+                recordsReturned: (.value.recordsReturned // .value.usage.records_returned // null),
+                persisted: (.value.persisted // null),
+                error: (.value.error // .value.reason // null)
+              })
+          ' "$tmp"
+          echo "source_observations:"
+          jq -c '(.sourceObservations // []) | map({source,last_retrieved_at,last_success_at,ok_observations,failed_observations,max_record_count})' "$tmp"
+          echo "api_usage:"
+          jq -c '(.apiUsage // []) | map({source,last_attempt_at,last_success_at,ok_calls,failed_calls,records_returned})' "$tmp"
+
   deploy-production:
     name: DEPLOY PRODUCTION
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}

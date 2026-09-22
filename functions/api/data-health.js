@@ -26,6 +26,7 @@ export async function onRequestGet(context) {
   let sourceObservations = [];
   let apiUsage = [];
   let runtimeMeta = {};
+  const ingestionQueryErrors = {};
   try {
     if (env?.DB) {
       d1Meta =
@@ -44,38 +45,44 @@ export async function onRequestGet(context) {
             .all()
             .catch(() => ({ results: [] }))
         ).results || [];
-      sourceObservations =
-        (
-          await env.DB.prepare(
-            `SELECT source,
-                    MAX(retrieved_at) AS last_retrieved_at,
-                    MAX(CASE WHEN status = 'ok' THEN retrieved_at END) AS last_success_at,
-                    SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END) AS ok_observations,
-                    SUM(CASE WHEN status != 'ok' THEN 1 ELSE 0 END) AS failed_observations,
-                    MAX(record_count) AS max_record_count
-               FROM source_observations
-              GROUP BY source
-              ORDER BY source`
-          )
-            .all()
-            .catch(() => ({ results: [] }))
-        ).results || [];
-      apiUsage =
-        (
-          await env.DB.prepare(
-            `SELECT source,
-                    MAX(captured_at) AS last_attempt_at,
-                    MAX(CASE WHEN ok = 1 THEN captured_at END) AS last_success_at,
-                    SUM(CASE WHEN ok = 1 THEN 1 ELSE 0 END) AS ok_calls,
-                    SUM(CASE WHEN ok = 0 THEN 1 ELSE 0 END) AS failed_calls,
-                    SUM(records_returned) AS records_returned
-               FROM api_usage
-              GROUP BY source
-              ORDER BY source`
-          )
-            .all()
-            .catch(() => ({ results: [] }))
-        ).results || [];
+      try {
+        sourceObservations =
+          (
+            await env.DB.prepare(
+              `SELECT source,
+                      MAX(retrieved_at) AS last_retrieved_at,
+                      MAX(CASE WHEN status = 'ok' THEN retrieved_at END) AS last_success_at,
+                      SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END) AS ok_observations,
+                      SUM(CASE WHEN status != 'ok' THEN 1 ELSE 0 END) AS failed_observations,
+                      MAX(record_count) AS max_record_count
+                 FROM source_observations
+                GROUP BY source
+                ORDER BY source`
+            ).all()
+          ).results || [];
+      } catch (err) {
+        sourceObservations = [];
+        ingestionQueryErrors.sourceObservations = String(err?.message || err || "source_observations-query-failed").slice(0, 240);
+      }
+      try {
+        apiUsage =
+          (
+            await env.DB.prepare(
+              `SELECT source,
+                      MAX(captured_at) AS last_attempt_at,
+                      MAX(CASE WHEN ok = 1 THEN captured_at END) AS last_success_at,
+                      SUM(CASE WHEN ok = 1 THEN 1 ELSE 0 END) AS ok_calls,
+                      SUM(CASE WHEN ok = 0 THEN 1 ELSE 0 END) AS failed_calls,
+                      SUM(records_returned) AS records_returned
+                 FROM api_usage
+                GROUP BY source
+                ORDER BY source`
+            ).all()
+          ).results || [];
+      } catch (err) {
+        apiUsage = [];
+        ingestionQueryErrors.apiUsage = String(err?.message || err || "api_usage-query-failed").slice(0, 240);
+      }
       runtimeMeta = await readMeta(env).catch(() => ({}));
     }
   } catch {
@@ -187,6 +194,13 @@ export async function onRequestGet(context) {
     },
     providerHealth,
     runtimeConfig,
+    ingestionEvidence: {
+      sourceObservationsQueryOk: !ingestionQueryErrors.sourceObservations,
+      apiUsageQueryOk: !ingestionQueryErrors.apiUsage,
+      sourceObservationSources: sourceObservations.length,
+      apiUsageSources: apiUsage.length,
+      errors: ingestionQueryErrors,
+    },
     sourceObservations,
     apiUsage,
     governanceMeta: d1Meta,
