@@ -438,9 +438,12 @@ export async function loadFbisSlateForMatching(queryGamesFn, env, { sport, date,
     }
   }
   // Bounded fallback for stale collection partitions: query forward from the
-  // earliest adjacent partition and filter strictly by Chicago kickoff date.
-  // This remains fail-closed on event time and avoids trusting games.date.
-  if (requestedDate && byId.size === 0) {
+  // earliest queried partition whenever the date-partition probes found no
+  // active games. This must also run for implicit "current slate" requests:
+  // scheduled health/catch-up calls omit date, and stale append partitions can
+  // otherwise make a live slate look empty (expectedSlateGames=0), suppressing
+  // paid ACTION collection even while the board itself has games.
+  if (byId.size === 0) {
     const fallback = await queryGamesFn(env, { sport, since: dates[0] });
     if (fallback?.ok) {
       const activeRows = filterActionMatchingWindow(fallback.rows || [], {
