@@ -18,6 +18,7 @@ import {
   selectSeriesSnapshot,
 } from "../functions/lib/actionObservationSeries.js";
 import { assertNotPureMarketSource } from "../functions/lib/canonical/index.js";
+import { actionShadowObservationKey } from "../functions/lib/actionApifyObservationStore.js";
 
 function memorySeriesDb() {
   const observations = new Map();
@@ -339,4 +340,23 @@ test("persist rejects rows that attempt to set qualify/authorize flags", async (
     () => persistActionObservationSeries(db, [{ ...row, canQualify: 1 }]),
     /action_firewall_violation|can_qualify/
   );
+});
+
+
+test("daily parent observation identity is stable across harvest retries", () => {
+  const row = {
+    actionGameId: "act_123",
+    league: "mlb",
+    startTime: "2026-09-23T23:10:00Z",
+    period: "event",
+    sourceObservedAt: "2026-09-23T15:00:00Z",
+    rawPayloadHash: "payload-abc",
+  };
+  const a = actionShadowObservationKey(row, { runId: "daily_20260923_x" });
+  const b = actionShadowObservationKey({ ...row, scrapedAt: "2026-09-23T16:00:00Z" }, { runId: "daily_20260923_x" });
+  const differentRun = actionShadowObservationKey(row, { runId: "daily_20260924_y" });
+  const changedPayload = actionShadowObservationKey({ ...row, rawPayloadHash: "payload-def" }, { runId: "daily_20260923_x" });
+  assert.equal(a, b);
+  assert.notEqual(a, differentRun);
+  assert.notEqual(a, changedPayload);
 });
