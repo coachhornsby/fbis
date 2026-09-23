@@ -154,6 +154,27 @@ export async function loadDurableCandidateHealth(env, db, {
   };
 }
 
+function dedupeHistoricalShadowObservations(rows = []) {
+  const byLogical = new Map();
+  for (const row of rows || []) {
+    const key = [
+      row?.run_id || "",
+      row?.action_game_id || "",
+      row?.period || "event",
+      row?.source_observed_at || "",
+      row?.raw_payload_hash || "",
+    ].join("|");
+    // Keep the earliest persisted copy. Retry duplicates are analytically
+    // identical and must never inflate sample size or provider scorecards.
+    if (!byLogical.has(key)) byLogical.set(key, row);
+  }
+  return {
+    rows: [...byLogical.values()],
+    rawCount: (rows || []).length,
+    duplicateRowsExcluded: Math.max(0, (rows || []).length - byLogical.size),
+  };
+}
+
 /**
  * Championship scorecard from persisted D1 evidence (no live incumbent spend).
  */
@@ -204,7 +225,9 @@ export async function loadPersistedChampionshipScorecard(db, {
   const ambiguous = runs.reduce((s, r) => s + Number(r.ambiguous_events ?? 0), 0);
   const fbisExpected = runs.reduce((s, r) => s + Number(r.fbis_events_expected ?? r.games_expected ?? 0), 0);
 
-  const actionRows = observations.map((o) => ({
+  const observationAudit = dedupeHistoricalShadowObservations(observations);
+  const uniqueObservations = observationAudit.rows;
+  const actionRows = uniqueObservations.map((o) => ({
     actionGameId: o.action_game_id,
     homeTeam: o.home_team,
     awayTeam: o.away_team,
@@ -285,7 +308,9 @@ export async function loadPersistedChampionshipScorecard(db, {
     window,
     sport: sport || "all",
     sampleRuns,
-    observations: observations.length,
+    observations: uniqueObservations.length,
+    rawObservations: observationAudit.rawCount,
+    duplicateObservationRowsExcluded: observationAudit.duplicateRowsExcluded,
     denominators: {
       fbisEventsExpected: fbisExpected,
       actionEventsReturned: returned,
