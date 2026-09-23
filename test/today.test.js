@@ -175,7 +175,7 @@ describe("TODAY cache-only and MY BET markers", () => {
     assert.equal(board.games[0].id, "monday-night");
   });
 
-  it("requests live feeds for the focused today sport only", async () => {
+  it("keeps the focused today sport cache-only; board reads never collect live", async () => {
     const seen = [];
     await buildTodayBoard("2026-08-27", {}, {
       focusSport: "mlb",
@@ -186,8 +186,8 @@ describe("TODAY cache-only and MY BET markers", () => {
     });
     assert.equal(seen.length, 1);
     const mlb = seen.find((s) => s.sport === "mlb");
-    assert.equal(mlb.cache, false);
-    assert.equal(mlb.pal, false);
+    assert.equal(mlb.cache, true);
+    assert.equal(mlb.pal, true);
   });
 
   it("marks all-sports qualification incomplete when any sport feed fails", async () => {
