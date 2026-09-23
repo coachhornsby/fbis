@@ -559,23 +559,13 @@ jobs:
           if [ "$collect_state" = "missed" ] || [ "$collect_ok" = "false" ] || [ "$collect_state" = "delayed" ]; then need_collect=1; fi
           if [ "$harvest_state" = "missed" ] || [ "$harvest_ok" = "false" ] || [ "$harvest_stale" = "true" ]; then need_harvest=1; fi
           if [ "$action_enabled" = "true" ]; then
-            for sport in mlb cfb nfl; do
-              ah="$(mktemp)"
-              ap="$(mktemp)"
-              acode="$(curl -sS --max-time 30 -o "$ah" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/action-apify-collect?mode=health&sport=${sport}&lifecycle=pregame&profile=BASE")"
-              pcode="$(curl -sS --max-time 30 -o "$ap" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/action-apify-collect?mode=plan&sport=${sport}&lifecycle=pregame&profile=BASE")"
-              last_success="$(jq -r '.actionApify.lastSuccessAt // empty' "$ah" 2>/dev/null)"
-              expected="$(jq -r '.expectedSlateGames // .plan.gamesExpected // 0' "$ap" 2>/dev/null)"
-              fresh=0
-              if [ -n "$last_success" ]; then
-                ts="$(date -u -d "$last_success" +%s 2>/dev/null || echo 0)"
-                now="$(date -u +%s)"
-                age="$((now - ts))"
-                if [ "$age" -le 21600 ]; then fresh=1; fi
-              fi
-              echo "ACTION health sport=${sport} health_http=${acode} plan_http=${pcode} expected=${expected} fresh=${fresh} lastSuccess=${last_success:-none}"
-              if [ "$acode" != "200" ] || [ "$pcode" != "200" ] || { [ "$expected" -gt 0 ] && [ "$fresh" -ne 1 ]; }; then need_action=1; fi
-            done
+            abody="$(mktemp)"
+            acode="$(curl -sS --max-time 30 -o "$abody" -w '%{http_code}' "${BASE}/api/action-daily-status")"
+            action_state="$(jq -r '.state // "UNAVAILABLE"' "$abody" 2>/dev/null || echo UNAVAILABLE)"
+            action_expected="$(jq -r '.expectedSlateGames // 0' "$abody" 2>/dev/null || echo 0)"
+            action_covered="$(jq -r '.coveredSlateGames // 0' "$abody" 2>/dev/null || echo 0)"
+            echo "ACTION daily health http=${acode} state=${action_state} expected=${action_expected} covered=${action_covered}"
+            if [ "$acode" != "200" ] || { [ "$action_expected" -gt 0 ] && [ "$action_state" != "HEALTHY" ]; }; then need_action=1; fi
           fi
           if [ "$need_collect" -eq 0 ] && [ "$need_harvest" -eq 0 ] && [ "$need_action" -eq 0 ]; then
             echo "No catch-up required. collect=${collect_state} harvest=${harvest_state} harvest_ok=${harvest_ok} harvest_stale=${harvest_stale}"
@@ -629,26 +619,44 @@ jobs:
             done
           fi
           action_failed=0
-          if [ "$need_action" -eq 1 ] || [ "$need_collect" -eq 1 ]; then
-            echo "Recovering stale ACTION board intelligence"
-            for sport in mlb cfb nfl; do
-              body="$(mktemp)"
-              set +e
-              code="$(curl -sS --max-time 420 -o "$body" -w '%{http_code}' \
-                -X POST \
-                -H "x-harvest-secret: ${HARVEST_SECRET}" \
-                -H "content-type: application/json" \
-                -H "accept: application/json" \
-                -d "{\"execute\":\"1\",\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"BASE\"}" \
-                "${BASE}/api/action-apify-collect?execute=1&sport=${sport}&lifecycle=pregame&profile=BASE")"
-              curl_ec=$?
-              set -e
-              echo "action-recovery ${sport} curl_ec=${curl_ec} http=${code:-000}"
-              jq -c '{ok,status,gamesReturned,gamesMatched,gamesUnmatched,observationsWritten,expectedSlateGames}' "$body" 2>/dev/null || true
-              if [ "$curl_ec" -ne 0 ] || [ "$code" != "200" ] || [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" != "true" ]; then
+          if [ "$need_action" -eq 1 ]; then
+            echo "Recovering canonical daily ACTION ingestion (no per-sport paid runs)"
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 30 -o "$body" -w '%{http_code}' \
+              -X POST \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "content-type: application/json" \
+              -d '{"mode":"start"}' \
+              "${BASE}/api/action-daily-async?mode=start")"
+            cat "$body" || true
+            if [ "$code" != "200" ] && [ "$code" != "202" ]; then action_failed=1; fi
+            if [ "$action_failed" -eq 0 ]; then
+              action_done=0
+              for attempt in $(seq 1 40); do
+                hbody="$(mktemp)"
+                set +e
+                hcode="$(curl -sS --max-time 45 -o "$hbody" -w '%{http_code}' \
+                  -X POST \
+                  -H "x-harvest-secret: ${HARVEST_SECRET}" \
+                  -H "content-type: application/json" \
+                  -d '{"mode":"harvest"}' \
+                  "${BASE}/api/action-daily-async?mode=harvest")"
+                hec=$?
+                set -e
+                hstatus="$(jq -r '.status // empty' "$hbody" 2>/dev/null || true)"
+                echo "action-daily-recovery attempt=${attempt} curl_ec=${hec} http=${hcode:-000} status=${hstatus}"
+                jq -c '{ok,status,completedRows,remainingRows,gamesReturned,eligibleRows}' "$hbody" 2>/dev/null || true
+                if [ "$hec" -eq 0 ] && [ "$hcode" = "200" ] && { [ "$hstatus" = "success_daily" ] || [ "$hstatus" = "already_collected_today" ]; }; then
+                  action_done=1
+                  break
+                fi
+                if [ "$hec" -eq 0 ] && [ "$hcode" = "202" ] && [ "$hstatus" = "harvest_partial" ]; then sleep 3; continue; fi
+                if { [ "$hec" -eq 0 ] && [ "$hcode" = "202" ] && [ "$hstatus" = "actor_running" ]; } || [ "$hec" -eq 28 ]; then sleep 30; continue; fi
                 action_failed=1
-              fi
-            done
+                break
+              done
+              if [ "$action_done" -ne 1 ]; then action_failed=1; fi
+            fi
           fi
           harvest_failed=0
           if [ "$need_harvest" -eq 1 ]; then
