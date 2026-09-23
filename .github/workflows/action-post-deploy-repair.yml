@@ -90,8 +90,13 @@ jobs:
             cat "$body" || true
             status="$(jq -r '.status // empty' "$body" 2>/dev/null || true)"
             if [ "$curl_ec" -eq 0 ] && [ "$code" = "200" ] && { [ "$status" = "success_daily" ] || [ "$status" = "already_collected_today" ]; }; then exit 0; fi
+            if [ "$curl_ec" -eq 0 ] && [ "$code" = "202" ] && [ "$status" = "harvest_partial" ]; then
+              echo "ACTION harvest chunk persisted; resuming."
+              sleep 3
+              continue
+            fi
             if { [ "$curl_ec" -eq 0 ] && [ "$code" = "202" ] && [ "$status" = "actor_running" ]; } || [ "$curl_ec" -eq 28 ]; then
-              echo "ACTION harvest still running/transient timeout; retrying."
+              echo "ACTION Actor still running/transient timeout; retrying."
               sleep 30
               continue
             fi
@@ -110,6 +115,30 @@ jobs:
           cat "$body"
           test "$code" = "200"
           jq -e '.state == "HEALTHY" and .verifiedPersisted == true and .verifiedSlateCoverage == true' "$body" >/dev/null
+
+      - name: Verify ACTION reaches the user-facing board
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+        run: |
+          set -euo pipefail
+          day="$(TZ=America/Chicago date +%F)"
+          found=0
+          for sport in mlb nfl cfb nba nhl cbb; do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 45 -o "$body" -w "%{http_code}" "$BASE/api/today?date=${day}&sport=${sport}&_t=$(date +%s)")"
+            echo "board-action-check sport=${sport} http=${code}"
+            test "$code" = "200"
+            games="$(jq -r '.counts.games // 0' "$body")"
+            attached="$(jq -r '.actionIntel.attached // 0' "$body")"
+            echo "board-action-check sport=${sport} games=${games} attached=${attached}"
+            if [ "$games" -gt 0 ]; then
+              found=1
+              test "$attached" -gt 0
+            fi
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "No current games to validate ACTION board attachment."
+          fi
 
       - name: Export full persisted ACTION MLB observations
         env:

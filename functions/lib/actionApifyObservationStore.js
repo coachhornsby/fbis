@@ -10,6 +10,7 @@ import {
   ACTION_APIFY_SCHEMA_VERSION,
 } from "./actionApifyShadow.js";
 import { MATCH_CONFIDENCE } from "./actionApifyCandidateConfig.js";
+import { sha256Hex } from "./sha256Hex.js";
 import {
   expandBookObservations,
   expandPlayerPropObservations,
@@ -18,6 +19,31 @@ import {
 } from "./actionObservationSeries.js";
 
 const ELIGIBLE = new Set([MATCH_CONFIDENCE.EXACT, MATCH_CONFIDENCE.HIGH]);
+
+function stablePayloadIdentity(row = {}) {
+  if (row.rawPayloadHash) return String(row.rawPayloadHash);
+  return sha256Hex(JSON.stringify({
+    actionGameId: row.actionGameId || row.gameId || null,
+    league: row.league || row.sport || null,
+    startTime: row.startTime || null,
+    period: row.period || "event",
+    consensus: row.consensus || null,
+    publicBetting: row.publicBetting || null,
+    books: row.books || null,
+    lineMovement: row.lineMovement || null,
+    playerProps: row.playerProps || null,
+  }));
+}
+
+export function actionShadowObservationKey(row = {}, ctx = {}) {
+  const runId = String(ctx.runId || "");
+  const actionGameId = String(row.actionGameId || row.gameId || "");
+  const period = String(row.period || "event");
+  const sourceObservedAt = String(row.observedAt || row.sourceObservedAt || "");
+  const payloadHash = stablePayloadIdentity(row);
+  return sha256Hex(["action_shadow_v2", runId, actionGameId, period, sourceObservedAt, payloadHash].join("|"));
+}
+
 
 export async function ensureShadowProviderRun(db, { runId, plan, startedAt, finishedAt, status = "SUCCEEDED" }) {
   if (!db?.exec) return;
@@ -66,8 +92,9 @@ export async function ensureShadowProviderRun(db, { runId, plan, startedAt, fini
 export async function persistFullMarketObservation(db, row, ctx = {}) {
   if (!db?.exec) return { observationId: null, books: 0, splits: 0, movement: 0, props: 0, skipped: true };
 
-  const observationId = ctx.observationId || `smo_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
   const runId = ctx.runId;
+  const logicalKey = actionShadowObservationKey(row, ctx);
+  const observationId = ctx.observationId || `smo_${logicalKey.slice(0, 20)}`;
   const now = ctx.collectedAt || new Date().toISOString();
   const actionGameId = String(row.actionGameId || row.gameId || "");
   const match = ctx.match || {};
@@ -78,6 +105,37 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
       : null;
   const sourceObservedAt = row.observedAt || row.sourceObservedAt || null;
   const scrapedAt = row.scrapedAt || null;
+  const payloadIdentity = stablePayloadIdentity(row);
+
+  // Harvest requests are intentionally resumable. A timeout/retry must not
+  // duplicate a parent observation or its children. Check both the new
+  // deterministic id and the historical logical identity so partially-written
+  // runs created before this fix are also recognized.
+  if (typeof db.queryOne === "function") {
+    const existing = await db.queryOne(
+      `SELECT id FROM shadow_market_observations
+       WHERE run_id = ? AND action_game_id = ?
+         AND COALESCE(period, 'event') = ?
+         AND COALESCE(source_observed_at, '') = ?
+         AND COALESCE(raw_payload_hash, '') = ?
+       LIMIT 1`,
+      [runId, actionGameId, row.period || "event", sourceObservedAt || "", payloadIdentity]
+    );
+    if (existing?.id) {
+      return {
+        observationId: existing.id,
+        books: 0,
+        splits: 0,
+        movement: 0,
+        props: 0,
+        fbisEventId,
+        confidence,
+        series: { inserted: 0, ignored: 0, pointers: 0 },
+        skipped: true,
+        idempotentReplay: true,
+      };
+    }
+  }
   const profile = String(ctx.profile || "BASE").toUpperCase();
   const persistMovement =
     profile === "MOVEMENT" ||
@@ -90,7 +148,7 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
     Boolean(ctx.persistProps);
 
   await db.exec(
-    `INSERT INTO shadow_market_observations (
+    `INSERT OR IGNORE INTO shadow_market_observations (
       id, run_id, provider, source_class, action_game_id, league, season, season_type, week,
       home_team, away_team, home_abbr, away_abbr, start_time, status, is_live, period, period_label,
       scraped_at, received_at, observed_at, source_url, raw_payload_hash, schema_version,
@@ -105,7 +163,7 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
       row.homeAbbr || null, row.awayAbbr || null, row.startTime || null, row.status || null,
       row.isLive ? 1 : 0, row.period || "event", row.periodLabel || null,
       scrapedAt, now, sourceObservedAt, row.sourceUrl || null,
-      row.rawPayloadHash || "", row.schemaVersion || ACTION_APIFY_SCHEMA_VERSION,
+      payloadIdentity, row.schemaVersion || ACTION_APIFY_SCHEMA_VERSION,
       JSON.stringify(row.consensus || null),
       JSON.stringify(row.publicBetting || null),
       JSON.stringify(row.marketQuality || null),

@@ -117,6 +117,8 @@ async function loadTodayCoverage(env, runId, today) {
       coverage.push({
         sport,
         expected: 0,
+        rawExpectedAliases: 0,
+        collapsedAliases: 0,
         covered: 0,
         missingEventIds: [],
         slateError: String(err?.message || err),
@@ -134,6 +136,8 @@ async function loadTodayCoverage(env, runId, today) {
       coverage.push({
         sport,
         expected,
+        rawExpectedAliases: Number(slate.rawSlateAliases ?? expected),
+        collapsedAliases: Number(slate.collapsedAliases || 0),
         covered: 0,
         missingEventIds: ids,
         slateError: slate.slateError || null,
@@ -165,6 +169,8 @@ async function loadTodayCoverage(env, runId, today) {
     coverage.push({
       sport,
       expected,
+      rawExpectedAliases: Number(slate.rawSlateAliases ?? expected),
+      collapsedAliases: Number(slate.collapsedAliases || 0),
       covered,
       missingEventIds,
       slateError: slate.slateError || null,
@@ -172,6 +178,54 @@ async function loadTodayCoverage(env, runId, today) {
   }
 
   return { expectedSlateGames, coveredSlateGames, coverage };
+}
+
+async function loadIntegrityAudit(db) {
+  const duplicate = await db.prepare(
+    `SELECT COUNT(*) AS duplicate_groups, COALESCE(SUM(n - 1), 0) AS duplicate_rows
+     FROM (
+       SELECT run_id, action_game_id, COALESCE(period, 'event') AS period_key,
+              COALESCE(source_observed_at, '') AS source_key,
+              COALESCE(raw_payload_hash, '') AS payload_key,
+              COUNT(*) AS n
+       FROM shadow_market_observations
+       WHERE provider = 'ACTION_APIFY'
+       GROUP BY run_id, action_game_id, period_key, source_key, payload_key
+       HAVING COUNT(*) > 1
+     )`
+  ).first();
+
+  const stranded = await db.prepare(
+    `SELECT COUNT(*) AS n
+     FROM (
+       SELECT r.id
+       FROM shadow_collection_runs r
+       JOIN shadow_market_observations o ON o.run_id = r.id
+       WHERE r.provider = 'ACTION_APIFY'
+         AND (r.status = 'running_daily' OR r.status LIKE 'failed%')
+       GROUP BY r.id
+     )`
+  ).first();
+
+  const counterMismatch = await db.prepare(
+    `SELECT COUNT(*) AS n
+     FROM (
+       SELECT r.id, COALESCE(r.observations_written, 0) AS counter_n, COUNT(o.id) AS actual_n
+       FROM shadow_collection_runs r
+       LEFT JOIN shadow_market_observations o ON o.run_id = r.id
+       WHERE r.provider = 'ACTION_APIFY'
+       GROUP BY r.id
+       HAVING actual_n > 0 AND actual_n != counter_n
+     )`
+  ).first();
+
+  return {
+    duplicateLogicalGroups: Number(duplicate?.duplicate_groups || 0),
+    duplicateLogicalRows: Number(duplicate?.duplicate_rows || 0),
+    strandedRunsWithPersistedRows: Number(stranded?.n || 0),
+    runCounterMismatchCount: Number(counterMismatch?.n || 0),
+    destructiveRepairApplied: false,
+  };
 }
 
 export async function onRequestGet(context) {
@@ -211,6 +265,7 @@ export async function onRequestGet(context) {
     }
 
     const slate = await loadTodayCoverage(context.env, run?.id || null, today);
+    const integrity = await loadIntegrityAudit(db);
     const derived = deriveActionDailyStatus({
       run,
       persistedObservations,
@@ -228,6 +283,7 @@ export async function onRequestGet(context) {
       expectedSlateGames: slate.expectedSlateGames,
       coveredSlateGames: slate.coveredSlateGames,
       coverage: slate.coverage,
+      integrity,
       run: run ? {
         id: run.id,
         status: run.status,

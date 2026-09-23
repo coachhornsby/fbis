@@ -96,8 +96,13 @@ jobs:
             cat "$body" || true
             status="$(jq -r '.status // empty' "$body" 2>/dev/null || true)"
             if [ "$curl_ec" -eq 0 ] && [ "$http" = "200" ] && { [ "$status" = "success_daily" ] || [ "$status" = "already_collected_today" ]; }; then exit 0; fi
+            if [ "$curl_ec" -eq 0 ] && [ "$http" = "202" ] && [ "$status" = "harvest_partial" ]; then
+              echo "ACTION harvest persisted a bounded chunk; resuming remaining rows."
+              sleep 3
+              continue
+            fi
             if { [ "$curl_ec" -eq 0 ] && [ "$http" = "202" ] && [ "$status" = "actor_running" ]; } || [ "$curl_ec" -eq 28 ]; then
-              echo "ACTION harvest still running/transient timeout; retrying."
+              echo "ACTION Actor still running/transient timeout; retrying."
               sleep 30
               continue
             fi

@@ -403,6 +403,66 @@ export function filterActionMatchingWindow(rows = [], { sport, date, now = new D
 }
 
 /**
+ * Collapse duplicate storage aliases for the same physical event.
+ *
+ * The games store can contain both a provider/ESPN id and synthetic board ids
+ * for the same matchup. ACTION collection and coverage denominators operate on
+ * physical games, not storage aliases. Kickoff minute remains part of the key
+ * so doubleheaders remain distinct events.
+ */
+function normalizedEventTeam(row, side) {
+  const abbr = row?.[`${side}Abbr`] || row?.[side]?.abbr;
+  if (abbr) return String(abbr).toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const name = row?.[`${side}Name`] || row?.[side]?.name || row?.[side];
+  return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+export function actionPhysicalEventKey(row, sport = "") {
+  const startMs = Date.parse(row?.start || row?.startTime || "");
+  if (!Number.isFinite(startMs)) return null;
+  const kickoffMinute = new Date(Math.floor(startMs / 60000) * 60000).toISOString();
+  const home = normalizedEventTeam(row, "home");
+  const away = normalizedEventTeam(row, "away");
+  if (!home || !away) return null;
+  return [String(sport || row?.sport || "").toLowerCase(), away, home, kickoffMinute].join("|");
+}
+
+function canonicalEventPreference(row) {
+  const id = String(row?.id || "");
+  const numeric = /^\d+$/.test(id) ? 2 : 0;
+  const syntheticPenalty = /_b\d+(?:_|$)/i.test(id) ? -1 : 0;
+  return numeric + syntheticPenalty;
+}
+
+export function dedupeActionPhysicalEvents(rows = [], sport = "") {
+  const byPhysical = new Map();
+  const aliases = new Map();
+  for (const row of rows || []) {
+    if (!row?.id) continue;
+    const key = actionPhysicalEventKey(row, sport) || `id|${row.id}`;
+    const prior = byPhysical.get(key);
+    if (!prior || canonicalEventPreference(row) > canonicalEventPreference(prior)) {
+      if (prior?.id) {
+        const list = aliases.get(String(row.id)) || [];
+        list.push(String(prior.id), ...(aliases.get(String(prior.id)) || []));
+        aliases.set(String(row.id), [...new Set(list)]);
+      }
+      byPhysical.set(key, row);
+    } else {
+      const list = aliases.get(String(prior.id)) || [];
+      list.push(String(row.id));
+      aliases.set(String(prior.id), [...new Set(list)]);
+    }
+  }
+  return {
+    rows: [...byPhysical.values()],
+    aliases,
+    rawCount: (rows || []).length,
+    physicalCount: byPhysical.size,
+  };
+}
+
+/**
  * Load FBIS games for Action matching. Never returns an undated season dump.
  */
 export async function loadFbisSlateForMatching(queryGamesFn, env, { sport, date, now } = {}) {
@@ -461,6 +521,15 @@ export async function loadFbisSlateForMatching(queryGamesFn, env, { sport, date,
   if (!byId.size && lastError) {
     return { fbisEvents: [], gamesExpected: null, slateError: lastError, slateDates: dates };
   }
-  const fbisEvents = mapGamesToFbisEvents([...byId.values()]);
-  return { fbisEvents, gamesExpected: fbisEvents.length, slateError: null, slateDates: dates };
+  const physical = dedupeActionPhysicalEvents([...byId.values()], sport);
+  const fbisEvents = mapGamesToFbisEvents(physical.rows);
+  return {
+    fbisEvents,
+    gamesExpected: fbisEvents.length,
+    rawSlateAliases: physical.rawCount,
+    collapsedAliases: Math.max(0, physical.rawCount - physical.physicalCount),
+    eventAliases: Object.fromEntries(physical.aliases),
+    slateError: null,
+    slateDates: dates,
+  };
 }

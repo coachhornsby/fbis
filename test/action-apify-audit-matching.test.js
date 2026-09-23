@@ -16,6 +16,7 @@ import {
   defaultFbisSlateDates,
   calendarDateChicago,
   loadFbisSlateForMatching,
+  dedupeActionPhysicalEvents,
 } from "../functions/lib/actionApifyEvidence.js";
 
 const CFB_AUDIT = [
@@ -304,4 +305,45 @@ test("implicit current ACTION slate falls back to since-query when storage parti
   assert.equal(calls[2].since,"2026-09-22");
   assert.equal(slate.gamesExpected,1);
   assert.equal(slate.fbisEvents[0].id,"mlb-det-wsh-stale");
+});
+
+
+test("ACTION slate collapses storage aliases but preserves doubleheaders", async () => {
+  const rows = [
+    {
+      id: "823494", sport: "mlb", date: "2026-09-22", start: "2026-09-22T22:35:00.000Z",
+      homeName: "Baltimore Orioles", awayName: "Toronto Blue Jays", homeAbbr: "BAL", awayAbbr: "TOR",
+    },
+    {
+      id: "mlb_bluejays_orioles_2026-09-22_b3", sport: "mlb", date: "2026-09-22", start: "2026-09-22T22:35:00.000Z",
+      homeName: "Baltimore Orioles", awayName: "Toronto Blue Jays", homeAbbr: "BAL", awayAbbr: "TOR",
+    },
+    {
+      id: "mlb_rays_yankees_2026-09-22_b3_g1", sport: "mlb", date: "2026-09-22", start: "2026-09-22T17:05:00.000Z",
+      homeName: "New York Yankees", awayName: "Tampa Bay Rays", homeAbbr: "NYY", awayAbbr: "TB",
+    },
+    {
+      id: "mlb_rays_yankees_2026-09-22_b3_g2", sport: "mlb", date: "2026-09-22", start: "2026-09-22T23:05:00.000Z",
+      homeName: "New York Yankees", awayName: "Tampa Bay Rays", homeAbbr: "NYY", awayAbbr: "TB",
+    },
+  ];
+  const direct = dedupeActionPhysicalEvents(rows, "mlb");
+  assert.equal(direct.rawCount, 4);
+  assert.equal(direct.physicalCount, 3);
+  assert.ok(direct.rows.some((x) => x.id === "823494"));
+  assert.equal(direct.rows.some((x) => x.id === "mlb_bluejays_orioles_2026-09-22_b3"), false);
+
+  const query = async (_env, { date }) => ({
+    ok: true,
+    rows: date === "2026-09-22" ? rows : [],
+  });
+  const slate = await loadFbisSlateForMatching(query, {}, {
+    sport: "mlb",
+    date: "2026-09-22",
+    now: new Date("2026-09-22T12:00:00.000Z"),
+  });
+  assert.equal(slate.gamesExpected, 3);
+  assert.equal(slate.rawSlateAliases, 4);
+  assert.equal(slate.collapsedAliases, 1);
+  assert.equal(slate.fbisEvents.filter((x) => /rays_yankees/.test(x.id)).length, 2);
 });
