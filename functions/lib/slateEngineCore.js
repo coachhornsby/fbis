@@ -1447,10 +1447,12 @@ export async function buildSlate(sport, date, env = {}) {
   const cfg = SPORTS[id];
   const day = date || todayCT();
   let games = Array.isArray(env.prefetchedGames) ? env.prefetchedGames.slice() : [];
+  let scheduleResolved = games.length > 0;
 
   if (id === "mlb") {
     try {
       games = await fetchMlbStats(day);
+      scheduleResolved = true;
     } catch {
       games = [];
     }
@@ -1463,10 +1465,12 @@ export async function buildSlate(sport, date, env = {}) {
         const game = mapEvent(id, ev);
         return { ...game, model: projectGame(id, game) };
       });
+      scheduleResolved = true;
     } catch (err) {
       if (!games.length) {
         if (id === "cfb" && env.CFBD_API_KEY) {
           games = await fetchCfbdGamesForDate(day, env.CFBD_API_KEY);
+          scheduleResolved = true;
         }
         // Parlay can still fill the board.
         if (!games.length && !env.PARLAY_API_KEY) throw err;
@@ -1480,9 +1484,13 @@ export async function buildSlate(sport, date, env = {}) {
     games = await enrichCfbVenuesFromEspn(games, day);
   }
 
+  // If an authoritative schedule source successfully says the slate is empty,
+  // never spend provider quota or wait on live odds just to prove "no games".
+  // Live odds remain allowed as a schedule fallback only when schedule discovery failed.
+  const noGameScheduleResolved = scheduleResolved && games.length === 0;
   const parlay = await fetchParlayOdds(id, env.PARLAY_API_KEY, env.caches, {
     date: day,
-    cacheOnly: Boolean(env.parlayCacheOnly),
+    cacheOnly: Boolean(env.parlayCacheOnly) || noGameScheduleResolved,
     backupApiKey: env.THEODDS_API_KEY,
     sharpApiKey: env.SHARPAPI_API_KEY,
     theRundownApiKey: env.THERUNDOWN_API_KEY,

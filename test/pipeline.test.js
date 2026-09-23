@@ -746,7 +746,23 @@ describe("collect and harvest fail honestly", () => {
     assert.ok(out.errors.some((e) => /ESPN/.test(e)));
   });
 
-  it("fails a full collect when Parlay errors", async () => {
+  it("fails a full collect when Parlay errors on a non-empty slate", async () => {
+    const out = await collectBoards(
+      { DB: pipelineDb().DB },
+      {
+        odds: "full",
+        buildSlateFn: async (sport, date) => emptySlate(sport, date, {
+          games: [{ id: `${sport}-1`, sport, start: `${date}T18:00:00Z` }],
+          parlay: { error: "credits" },
+        }),
+      }
+    );
+    assert.notEqual(out.status, "success");
+    assert.equal(out.ok, false);
+    assert.ok(out.errors.some((e) => /Parlay/.test(e)));
+  });
+
+  it("does not fail full collection for a provider error on an authoritative empty slate", async () => {
     const out = await collectBoards(
       { DB: pipelineDb().DB },
       {
@@ -754,9 +770,8 @@ describe("collect and harvest fail honestly", () => {
         buildSlateFn: async (sport, date) => emptySlate(sport, date, { parlay: { error: "credits" } }),
       }
     );
-    assert.notEqual(out.status, "success");
-    assert.equal(out.ok, false);
-    assert.ok(out.errors.some((e) => /Parlay/.test(e)));
+    assert.equal(out.status, "success");
+    assert.equal(out.ok, true);
   });
 
   it("fails when D1 is unbound", async () => {
