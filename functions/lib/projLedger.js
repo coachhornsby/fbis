@@ -2252,7 +2252,7 @@ export async function collectBoards(env = {}, { odds = "cache", trigger = "http"
           parlayCacheOnly: odds !== "full" || healthMode,
           palCacheOnly: !shouldFetchPalNetwork(sport, day, date, { healthMode, dayOffset }),
         });
-        if (!healthMode && odds === "full" && slate?.parlay?.error) {
+        if (!healthMode && odds === "full" && (slate?.games?.length || 0) > 0 && slate?.parlay?.error) {
           throw new Error(`Parlay full collect failed: ${slate.parlay.error}`);
         }
         let frozen = { counts: emptyWriteCounts(), failReasons: [] };
