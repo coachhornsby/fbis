@@ -16,6 +16,23 @@ describe("ACTION daily status contract", () => {
     assert.equal(out.verifiedPersisted, true);
   });
 
+  it("keeps a completed one-run-per-day snapshot healthy when the live slate gains a late game", () => {
+    const out = deriveActionDailyStatus({
+      run: { status: "success_daily", started_at: "2026-09-20T12:00:00Z" },
+      persistedObservations: 84,
+      expectedSlateGames: 17,
+      coveredSlateGames: 16,
+      verificationExpectedSlateGames: 16,
+      verificationCoveredSlateGames: 16,
+      now,
+    });
+    assert.equal(out.state, "HEALTHY");
+    assert.equal(out.verifiedSlateCoverage, true);
+    assert.equal(out.currentSlateFullyCovered, false);
+    assert.equal(out.lateSlateDriftGames, 1);
+    assert.equal(out.reason, "daily_run_verified_with_late_slate_drift");
+  });
+
   it("degrades a successful actor run with zero persisted observations", () => {
     const out = deriveActionDailyStatus({
       run: { status: "success_daily", started_at: "2026-09-20T12:00:00Z" },
