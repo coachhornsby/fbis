@@ -347,3 +347,22 @@ test("ACTION slate collapses storage aliases but preserves doubleheaders", async
   assert.equal(slate.collapsedAliases, 1);
   assert.equal(slate.fbisEvents.filter((x) => /rays_yankees/.test(x.id)).length, 2);
 });
+
+
+test("ACTION physical dedupe collapses stale synthetic kickoff alias against one provider id", () => {
+  const rows = [
+    {
+      id: "823410", sport: "mlb", start: "2026-09-23T22:40:00.000Z",
+      homeName: "Detroit Tigers", awayName: "Washington Nationals", homeAbbr: "DET", awayAbbr: "WSH",
+    },
+    {
+      id: "mlb_nationals_tigers_2026-09-23_b2", sport: "mlb", start: "2026-09-23T23:10:00.000Z",
+      homeName: "Detroit Tigers", awayName: "Washington Nationals", homeAbbr: "DET", awayAbbr: "WSH",
+    },
+  ];
+  const out = dedupeActionPhysicalEvents(rows, "mlb");
+  assert.equal(out.rawCount, 2);
+  assert.equal(out.physicalCount, 1);
+  assert.equal(out.rows[0].id, "823410");
+  assert.deepEqual(out.aliases.get("823410"), ["mlb_nationals_tigers_2026-09-23_b2"]);
+});

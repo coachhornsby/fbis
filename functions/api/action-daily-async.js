@@ -32,6 +32,30 @@ async function finalizeRun(db,run,{status,datasetId=null,gamesReturned=0,matched
  const finished=new Date().toISOString(),duration=Math.max(0,Date.now()-Date.parse(run.started_at));
  await db.exec(`UPDATE shadow_collection_runs SET status=?,dataset_id=COALESCE(?,dataset_id),games_returned=?,games_matched=?,games_unmatched=?,observations_written=?,malformed_rows=?,estimated_cost_usd=COALESCE(?,estimated_cost_usd),error_class=?,error_message=?,finished_at=?,duration_ms=? WHERE id=?`,[status,datasetId,gamesReturned,matched,unmatched,written,malformed,estimatedCostUsd,errorClass,errorMessage,finished,duration,run.id]);
 }
+async function upsertCostLedger(db,cost){
+ await db.exec(`INSERT INTO shadow_cost_ledger(id,run_id,plan,sport,profile,cost_basis,run_start_usd,scoreboard_usd,row_usd,movement_usd,player_props_usd,game_props_usd,detail_usd,weather_usd,injuries_usd,standings_usd,futures_usd,estimated_total_usd,actual_total_usd,delta_usd,games_returned,features_json,created_at)
+ VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+ ON CONFLICT(id) DO UPDATE SET
+   cost_basis=excluded.cost_basis,
+   run_start_usd=excluded.run_start_usd,
+   scoreboard_usd=excluded.scoreboard_usd,
+   row_usd=excluded.row_usd,
+   movement_usd=excluded.movement_usd,
+   player_props_usd=excluded.player_props_usd,
+   game_props_usd=excluded.game_props_usd,
+   detail_usd=excluded.detail_usd,
+   weather_usd=excluded.weather_usd,
+   injuries_usd=excluded.injuries_usd,
+   standings_usd=excluded.standings_usd,
+   futures_usd=excluded.futures_usd,
+   estimated_total_usd=excluded.estimated_total_usd,
+   actual_total_usd=COALESCE(excluded.actual_total_usd,shadow_cost_ledger.actual_total_usd),
+   delta_usd=COALESCE(excluded.delta_usd,shadow_cost_ledger.delta_usd),
+   games_returned=excluded.games_returned,
+   features_json=excluded.features_json`,[
+   cost.id,cost.run_id,cost.plan,cost.sport,cost.profile,cost.cost_basis,cost.run_start_usd,cost.scoreboard_usd,cost.row_usd,cost.movement_usd,cost.player_props_usd,cost.game_props_usd,cost.detail_usd,cost.weather_usd,cost.injuries_usd,cost.standings_usd,cost.futures_usd,cost.estimated_total_usd,cost.actual_total_usd,cost.delta_usd,cost.games_returned,cost.features_json,cost.created_at
+ ]);
+}
 export async function onRequestPost(context){
  const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(),401);
  const url=new URL(context.request.url);let body={};try{body=await context.request.json()}catch{}const mode=String(url.searchParams.get("mode")||body.mode||"start").toLowerCase();
@@ -68,7 +92,11 @@ export async function onRequestPost(context){
    const actorPath=encodeURIComponent(ACTION_APIFY_ACTOR_ID),res=await fetch(`https://api.apify.com/v2/acts/${actorPath}/runs?waitForFinish=0`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify(input)});
    if(!res.ok)return json({ok:false,status:"apify_start_http",http:res.status},502);const j=await res.json(),a=j.data||j,runId=`daily_${today.replaceAll("-","")}_${crypto.randomUUID().replace(/-/g,"").slice(0,10)}`,started=new Date().toISOString(),plan=JSON.stringify({input,activeSports:collectionSports,fullActiveSports:activeSports,leagues,requestedRows:requested,estimatedCostUsd:estimate,today,yesterday});
    await db.exec(`INSERT INTO shadow_collection_runs(id,provider,mode,plan,profile,sport,lifecycle,status,enabled,apify_run_id,dataset_id,requested_max_items,estimated_cost_usd,cost_basis,started_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[runId,"ACTION_APIFY","shadow",plan,PROFILE,"all",LIFECYCLE,"running_daily",1,a.id||null,a.defaultDatasetId||null,input.maxItems,estimate,"ESTIMATED",started,started]);
-   return json({ok:true,executed:true,status:"started_daily",runId,apifyRunId:a.id||null,datasetId:a.defaultDatasetId||null,today,estimatedCostUsd:estimate},202);
+   // Reserve the estimated paid-run cost immediately after the Actor starts.
+   // A failed/timed-out harvest must still count against the monthly budget.
+   const reservation=buildCostLedgerEntry({runId,plan:cfg.plan,sport:"all",profile:PROFILE,input,gamesReturned:input.maxItems,createdAt:started});
+   await upsertCostLedger(db,reservation);
+   return json({ok:true,executed:true,status:"started_daily",runId,apifyRunId:a.id||null,datasetId:a.defaultDatasetId||null,today,estimatedCostUsd:estimate,costReservedUsd:reservation.estimated_total_usd},202);
  }
  if(mode!=="harvest")return json({ok:false,status:"invalid_mode"},400);
  const run=await active(db,today);if(!run){const done=await successful(db,today);if(done)return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id});const old=await latest(db,today);return json({ok:true,executed:false,status:old?"nothing_active_to_harvest":"nothing_to_harvest",lastStatus:old?.status||null,today});}
@@ -157,6 +185,6 @@ export async function onRequestPost(context){
 
  const estimated=estimateActorCostUsd(input,{gamesReturned:norm.rows.length}),cost=buildCostLedgerEntry({runId:run.id,plan:cfg.plan,sport:"all",profile:PROFILE,input,gamesReturned:norm.rows.length,createdAt:run.started_at});
  await finalizeRun(db,run,{status:"success_daily",datasetId,gamesReturned:norm.rows.length,matched,unmatched,written:eligible.length,malformed:norm.malformed,estimatedCostUsd:estimated});
- try{await db.exec(`INSERT OR IGNORE INTO shadow_cost_ledger(id,run_id,plan,sport,profile,cost_basis,run_start_usd,scoreboard_usd,row_usd,movement_usd,player_props_usd,game_props_usd,detail_usd,weather_usd,injuries_usd,standings_usd,futures_usd,estimated_total_usd,actual_total_usd,delta_usd,games_returned,features_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[cost.id,cost.run_id,cost.plan,cost.sport,cost.profile,cost.cost_basis,cost.run_start_usd,cost.scoreboard_usd,cost.row_usd,cost.movement_usd,cost.player_props_usd,cost.game_props_usd,cost.detail_usd,cost.weather_usd,cost.injuries_usd,cost.standings_usd,cost.futures_usd,cost.estimated_total_usd,cost.actual_total_usd,cost.delta_usd,cost.games_returned,cost.features_json,cost.created_at])}catch{}
+ try{await upsertCostLedger(db,cost)}catch{}
  return json({ok:true,executed:true,status:"success_daily",runId:run.id,apifyRunId:run.apify_run_id,datasetId,gamesReturned:norm.rows.length,eligibleRows:eligible.length,matched,unmatched,observationsWritten:eligible.length,todayRows,closeRows,propsWrittenThisBatch:propsBatch,estimatedCostUsd:estimated,collapsedDatasetDuplicates:Math.max(0,norm.rows.length-eligible.length)},200);
 }
