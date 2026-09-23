@@ -4,13 +4,18 @@ import { loadFbisSlateForMatching } from "../lib/actionApifyEvidence.js";
 import { buildCostLedgerEntry, matchEventWithConfidence } from "../lib/actionApifyCandidate.js";
 import { buildActorInput, estimateActorCostUsd, fitMaxItemsToUsdBudget, normalizeActionDataset, ACTION_APIFY_ACTOR_ID } from "../lib/actionApifyShadow.js";
 import { readCandidateConfig } from "../lib/actionApifyCandidateConfig.js";
-import { ensureShadowProviderRun, persistFullMarketObservation } from "../lib/actionApifyObservationStore.js";
+import { actionShadowObservationKey, ensureShadowProviderRun, persistFullMarketObservation } from "../lib/actionApifyObservationStore.js";
 
 const TZ="America/Chicago", SPORTS=["mlb","nfl","nba","nhl","cfb","cbb"];
 const LEAGUE={mlb:"mlb",nfl:"nfl",nba:"nba",nhl:"nhl",cfb:"ncaaf",cbb:"ncaab"};
 const PRO=new Set(["mlb","nfl","nba","nhl"]), PROFILE="DAILY", LIFECYCLE="daily", STALE_RUNNING_MS=30*60*1000;
 const json=(b,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});
-function dbOf(env){if(!env?.DB)return null;return{exec:async(s,p=[])=>env.DB.prepare(s).bind(...p).run(),queryOne:async(s,p=[])=>(await env.DB.prepare(s).bind(...p).first())||null,queryAll:async(s,p=[])=>(await env.DB.prepare(s).bind(...p).all()).results||[]}}
+function dbOf(env){if(!env?.DB)return null;return{
+ exec:async(s,p=[])=>env.DB.prepare(s).bind(...p).run(),
+ queryOne:async(s,p=[])=>(await env.DB.prepare(s).bind(...p).first())||null,
+ queryAll:async(s,p=[])=>(await env.DB.prepare(s).bind(...p).all()).results||[],
+ batch:async(stmts=[])=>stmts.length?env.DB.batch(stmts.map(({sql,params=[]})=>env.DB.prepare(sql).bind(...params))):[]
+}}
 function parts(d=new Date()){const a=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",hourCycle:"h23"}).formatToParts(d),g=t=>a.find(x=>x.type===t)?.value||"";return{y:g("year"),m:g("month"),d:g("day"),h:Number(g("hour"))}}
 function day(d=new Date()){const p=parts(d);return `${p.y}-${p.m}-${p.d}`}
 function prev(k){const [y,m,d]=k.split("-").map(Number),x=new Date(Date.UTC(y,m-1,d,12));x.setUTCDate(x.getUTCDate()-1);return x.toISOString().slice(0,10)}
@@ -35,13 +40,11 @@ export async function onRequestPost(context){
    let running=await active(db,today);
    if(running){
      const startedMs=Date.parse(String(running.started_at||"")),stale=!Number.isFinite(startedMs)||(Date.now()-startedMs)>STALE_RUNNING_MS;
-     if(!stale)return json({ok:true,executed:false,status:"actor_running",runId:running.id,apifyRunId:running.apify_run_id,datasetId:running.dataset_id,today},202);
-     const token=String(context.env.APIFY_TOKEN||context.env.APIFY_API_TOKEN||"").trim();
-     if(token&&running.apify_run_id){
-       try{await fetch(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(running.apify_run_id)}/abort`,{method:"POST",headers:{Authorization:`Bearer ${token}`}})}catch{}
-     }
-     await finalizeRun(db,running,{status:"failed_daily",errorClass:"stale_daily_replaced",errorMessage:"daily Actor exceeded 30-minute running window and was replaced"});
-     running=null;
+     // One paid run per local day is a hard cost invariant. A stale local run
+     // may simply mean the Actor succeeded while serverless persistence timed
+     // out. Never abort/replace it from START; HARVEST is resumable and is the
+     // only path allowed to reconcile the existing paid run.
+     return json({ok:true,executed:false,status:"actor_running",stale,harvestRequired:true,runId:running.id,apifyRunId:running.apify_run_id,datasetId:running.dataset_id,today},202);
    }
    if(!cfg.enabled||!cfg.configured)return json({ok:true,executed:false,status:"action_not_configured",enabled:cfg.enabled,configured:cfg.configured});
    const sl=await slate(context.env,today,yesterday),activeSports=SPORTS.filter(s=>(sl.by[s]?.today||0)>0);
@@ -76,12 +79,84 @@ export async function onRequestPost(context){
  if(status!=="SUCCEEDED"&&status!=="SUCCEEDED_WITH_WARNINGS"){await finalizeRun(db,run,{status:"failed_daily",errorClass:"daily_actor_failure",errorMessage:`apify-run-${status||"unknown"}`});return json({ok:false,executed:true,status:"failed_daily",runId:run.id,apifyRunId:run.apify_run_id,actorStatus:status},502)}
  const datasetId=ar.defaultDatasetId||run.dataset_id;if(!datasetId){await finalizeRun(db,run,{status:"failed_daily",errorClass:"missing_dataset_id",errorMessage:"Apify succeeded without a dataset id"});return json({ok:false,status:"missing_dataset_id",runId:run.id},502)}
  const dr=await fetch(`https://api.apify.com/v2/datasets/${encodeURIComponent(datasetId)}/items?format=json&clean=true`,{headers:{Authorization:`Bearer ${token}`}});if(!dr.ok)return json({ok:false,status:"apify_dataset_http",http:dr.status},502);
- const items=await dr.json(),norm=normalizeActionDataset(Array.isArray(items)?items:[],{runId:run.apify_run_id,receivedAt:new Date().toISOString(),scrapedAt:ar.finishedAt||new Date().toISOString()}),sl=await slate(context.env,today,yesterday);let matched=0,unmatched=0,written=0,todayRows=0,closeRows=0,props=0;
+ const stableCollectedAt=ar.finishedAt||run.started_at||new Date().toISOString();
+ const items=await dr.json();
+ const norm=normalizeActionDataset(Array.isArray(items)?items:[],{runId:run.apify_run_id,receivedAt:stableCollectedAt,scrapedAt:stableCollectedAt});
+ const sl=await slate(context.env,today,yesterday);
  const parsed=JSON.parse(run.plan||"{}"),input=parsed.input||{};
- await ensureShadowProviderRun(db,{runId:run.id,plan:{apifyRunId:run.apify_run_id,datasetId,input,profile:PROFILE,gamesReturned:norm.rows.length,malformedRows:norm.malformed,estimatedCostUsd:run.estimated_cost_usd},startedAt:run.started_at,finishedAt:new Date().toISOString(),status});
- for(const row of norm.rows){const rd=rowDay(row.startTime);if(rd!==today&&rd!==yesterday)continue;const sp=sport(row.league);if(!SPORTS.includes(sp))continue;const match=matchEventWithConfidence(row,sl.all);match.comparisonEligible?matched++:unmatched++;const close=rd===yesterday&&Boolean(row.result?.isFinal||/final|complete/i.test(String(row.status||""))),isToday=rd===today;if(isToday)todayRows++;if(close)closeRows++;const pr=await persistFullMarketObservation(db,row,{runId:run.id,sport:sp,profile:PROFILE,lifecycle:close?"postgame":"daily_open",temporalClass:close?"evaluation_close":"pregame_observation",snapshotType:close?"CLOSE":"OPEN",match,collectedAt:new Date().toISOString(),persistMovement:true,persistProps:isToday&&PRO.has(sp)});written++;props+=Number(pr?.props||0)}
+ await ensureShadowProviderRun(db,{runId:run.id,plan:{apifyRunId:run.apify_run_id,datasetId,input,profile:PROFILE,gamesReturned:norm.rows.length,malformedRows:norm.malformed,estimatedCostUsd:run.estimated_cost_usd},startedAt:run.started_at,finishedAt:ar.finishedAt||stableCollectedAt,status});
+
+ // Normalize to the subset this daily run is allowed to persist, then collapse
+ // exact retry duplicates by deterministic logical observation key.
+ const unique=new Map();
+ for(const row of norm.rows){
+   const rd=rowDay(row.startTime);if(rd!==today&&rd!==yesterday)continue;
+   const sp=sport(row.league);if(!SPORTS.includes(sp))continue;
+   const key=actionShadowObservationKey(row,{runId:run.id});
+   if(!unique.has(key))unique.set(key,{row,rd,sp,key});
+ }
+ const eligible=[...unique.values()];
+
+ // Read existing progress once. This recognizes both deterministic v2 rows and
+ // rows partially written by the pre-fix random-id implementation.
+ const persisted=await db.queryAll(
+   `SELECT action_game_id, period, source_observed_at, raw_payload_hash
+      FROM shadow_market_observations WHERE run_id=?`,
+   [run.id]
+ );
+ const existing=new Set((persisted||[]).map(x=>actionShadowObservationKey({
+   actionGameId:x.action_game_id,
+   period:x.period||"event",
+   sourceObservedAt:x.source_observed_at||null,
+   rawPayloadHash:x.raw_payload_hash||null,
+ },{runId:run.id})));
+ const pending=eligible.filter(x=>!existing.has(x.key));
+ const configuredBatch=Number(context.env.ACTION_APIFY_HARVEST_BATCH_ROWS||4);
+ const batchSize=Math.max(1,Math.min(12,Number.isFinite(configuredBatch)?Math.floor(configuredBatch):4));
+ const batch=pending.slice(0,batchSize);
+
+ let batchWritten=0,propsBatch=0;
+ for(const item of batch){
+   const {row,rd,sp}=item;
+   const match=matchEventWithConfidence(row,sl.all);
+   const close=rd===yesterday&&Boolean(row.result?.isFinal||/final|complete/i.test(String(row.status||"")));
+   const isToday=rd===today;
+   const pr=await persistFullMarketObservation(db,row,{
+     runId:run.id,sport:sp,profile:PROFILE,
+     lifecycle:close?"postgame":"daily_open",
+     temporalClass:close?"evaluation_close":"pregame_observation",
+     snapshotType:close?"CLOSE":"OPEN",
+     match,collectedAt:stableCollectedAt,persistMovement:true,persistProps:isToday&&PRO.has(sp)
+   });
+   if(!pr?.skipped)batchWritten++;
+   propsBatch+=Number(pr?.props||0);
+ }
+
+ // Recompute dataset-level counters from the immutable normalized dataset so
+ // finalization is independent of how many HTTP chunks were required.
+ let matched=0,unmatched=0,todayRows=0,closeRows=0;
+ for(const item of eligible){
+   const match=matchEventWithConfidence(item.row,sl.all);
+   match.comparisonEligible?matched++:unmatched++;
+   if(item.rd===today)todayRows++;
+   if(item.rd===yesterday&&Boolean(item.row.result?.isFinal||/final|complete/i.test(String(item.row.status||""))))closeRows++;
+ }
+ const completedBefore=eligible.length-pending.length;
+ const completedNow=completedBefore+batch.length;
+ const remaining=Math.max(0,eligible.length-completedNow);
+
+ if(remaining>0){
+   return json({
+     ok:true,executed:true,status:"harvest_partial",
+     runId:run.id,apifyRunId:run.apify_run_id,datasetId,
+     actorStatus:status,gamesReturned:norm.rows.length,eligibleRows:eligible.length,
+     completedRows:completedNow,remainingRows:remaining,batchSize,batchWritten,propsWritten:propsBatch,
+     collapsedDatasetDuplicates:Math.max(0,norm.rows.length-eligible.length)
+   },202);
+ }
+
  const estimated=estimateActorCostUsd(input,{gamesReturned:norm.rows.length}),cost=buildCostLedgerEntry({runId:run.id,plan:cfg.plan,sport:"all",profile:PROFILE,input,gamesReturned:norm.rows.length,createdAt:run.started_at});
- await finalizeRun(db,run,{status:"success_daily",datasetId,gamesReturned:norm.rows.length,matched,unmatched,written,malformed:norm.malformed,estimatedCostUsd:estimated});
+ await finalizeRun(db,run,{status:"success_daily",datasetId,gamesReturned:norm.rows.length,matched,unmatched,written:eligible.length,malformed:norm.malformed,estimatedCostUsd:estimated});
  try{await db.exec(`INSERT OR IGNORE INTO shadow_cost_ledger(id,run_id,plan,sport,profile,cost_basis,run_start_usd,scoreboard_usd,row_usd,movement_usd,player_props_usd,game_props_usd,detail_usd,weather_usd,injuries_usd,standings_usd,futures_usd,estimated_total_usd,actual_total_usd,delta_usd,games_returned,features_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[cost.id,cost.run_id,cost.plan,cost.sport,cost.profile,cost.cost_basis,cost.run_start_usd,cost.scoreboard_usd,cost.row_usd,cost.movement_usd,cost.player_props_usd,cost.game_props_usd,cost.detail_usd,cost.weather_usd,cost.injuries_usd,cost.standings_usd,cost.futures_usd,cost.estimated_total_usd,cost.actual_total_usd,cost.delta_usd,cost.games_returned,cost.features_json,cost.created_at])}catch{}
- return json({ok:true,executed:true,status:"success_daily",runId:run.id,apifyRunId:run.apify_run_id,datasetId,gamesReturned:norm.rows.length,matched,unmatched,observationsWritten:written,todayRows,closeRows,propsWritten:props,estimatedCostUsd:estimated},200);
+ return json({ok:true,executed:true,status:"success_daily",runId:run.id,apifyRunId:run.apify_run_id,datasetId,gamesReturned:norm.rows.length,eligibleRows:eligible.length,matched,unmatched,observationsWritten:eligible.length,todayRows,closeRows,propsWrittenThisBatch:propsBatch,estimatedCostUsd:estimated,collapsedDatasetDuplicates:Math.max(0,norm.rows.length-eligible.length)},200);
 }
