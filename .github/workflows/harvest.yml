@@ -680,6 +680,7 @@ jobs:
               [.pipeline.settleTargets // []
                 | .[]
                 | select((.openExecutedBets // 0) > 0 or (.openStrategyTickets // 0) > 0)
+                | select(.sport == "mlb" or .sport == "cfb" or .sport == "nfl" or .sport == "nba" or .sport == "cbb")
                 | "\(.sport):\(.date)"]
               | .[0:14]
               | .[]
