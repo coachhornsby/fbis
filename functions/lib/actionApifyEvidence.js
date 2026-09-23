@@ -434,31 +434,142 @@ function canonicalEventPreference(row) {
   return numeric + syntheticPenalty;
 }
 
+function matchupDayKey(row, sport = "") {
+  const startMs = Date.parse(row?.start || row?.startTime || "");
+  if (!Number.isFinite(startMs)) return null;
+  const home = normalizedEventTeam(row, "home");
+  const away = normalizedEventTeam(row, "away");
+  if (!home || !away) return null;
+  return [
+    String(sport || row?.sport || "").toLowerCase(),
+    away,
+    home,
+    calendarDateChicago(new Date(startMs)),
+  ].join("|");
+}
+
+function explicitGameNumber(row) {
+  const id = String(row?.id || "");
+  const m = id.match(/(?:^|[_-])g(?:ame)?([1-9])(?:[_-]|$)/i);
+  return m ? Number(m[1]) : null;
+}
+
+function chooseCanonical(rows = []) {
+  return [...rows].sort((a, b) => canonicalEventPreference(b) - canonicalEventPreference(a))[0] || null;
+}
+
+function addAliases(aliases, canonical, rows) {
+  if (!canonical?.id) return;
+  const id = String(canonical.id);
+  const list = aliases.get(id) || [];
+  for (const row of rows || []) {
+    if (row?.id && String(row.id) !== id) list.push(String(row.id));
+  }
+  aliases.set(id, [...new Set(list)]);
+}
+
 export function dedupeActionPhysicalEvents(rows = [], sport = "") {
-  const byPhysical = new Map();
-  const aliases = new Map();
+  const groups = new Map();
   for (const row of rows || []) {
     if (!row?.id) continue;
-    const key = actionPhysicalEventKey(row, sport) || `id|${row.id}`;
-    const prior = byPhysical.get(key);
-    if (!prior || canonicalEventPreference(row) > canonicalEventPreference(prior)) {
-      if (prior?.id) {
-        const list = aliases.get(String(row.id)) || [];
-        list.push(String(prior.id), ...(aliases.get(String(prior.id)) || []));
-        aliases.set(String(row.id), [...new Set(list)]);
+    const key = matchupDayKey(row, sport) || `id|${row.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+
+  const canonicalRows = [];
+  const aliases = new Map();
+
+  for (const group of groups.values()) {
+    if (group.length <= 1) {
+      canonicalRows.push(...group);
+      continue;
+    }
+
+    const numeric = group.filter((row) => /^\d+$/.test(String(row?.id || "")));
+    if (numeric.length === 1) {
+      // One provider/ESPN event plus one-or-more board aliases is one physical
+      // game even when a stale synthetic alias retained an older kickoff time.
+      canonicalRows.push(numeric[0]);
+      addAliases(aliases, numeric[0], group);
+      continue;
+    }
+
+    if (numeric.length > 1) {
+      // Multiple provider ids for the same matchup/day represent distinct
+      // physical events (e.g. an MLB doubleheader). Keep each provider event
+      // and attach synthetic aliases to the nearest kickoff.
+      canonicalRows.push(...numeric);
+      const nonNumeric = group.filter((row) => !/^\d+$/.test(String(row?.id || "")));
+      for (const alias of nonNumeric) {
+        const at = Date.parse(alias?.start || alias?.startTime || "");
+        let nearest = numeric[0];
+        let best = Infinity;
+        for (const candidate of numeric) {
+          const ct = Date.parse(candidate?.start || candidate?.startTime || "");
+          const dist = Number.isFinite(at) && Number.isFinite(ct) ? Math.abs(at - ct) : Infinity;
+          if (dist < best) {
+            nearest = candidate;
+            best = dist;
+          }
+        }
+        addAliases(aliases, nearest, [alias]);
       }
-      byPhysical.set(key, row);
-    } else {
-      const list = aliases.get(String(prior.id)) || [];
-      list.push(String(row.id));
-      aliases.set(String(prior.id), [...new Set(list)]);
+      continue;
+    }
+
+    // Synthetic-only boards: preserve explicit G1/G2 identities. Otherwise
+    // cluster by kickoff with a 3-hour separation so duplicate bN aliases
+    // collapse while true doubleheaders remain distinct.
+    const tagged = new Map();
+    const untagged = [];
+    for (const row of group) {
+      const n = explicitGameNumber(row);
+      if (n == null) untagged.push(row);
+      else {
+        if (!tagged.has(n)) tagged.set(n, []);
+        tagged.get(n).push(row);
+      }
+    }
+    for (const bucket of tagged.values()) {
+      const canonical = chooseCanonical(bucket);
+      if (canonical) {
+        canonicalRows.push(canonical);
+        addAliases(aliases, canonical, bucket);
+      }
+    }
+
+    if (untagged.length) {
+      const sorted = [...untagged].sort(
+        (a, b) => Date.parse(a?.start || a?.startTime || "") - Date.parse(b?.start || b?.startTime || "")
+      );
+      const clusters = [];
+      for (const row of sorted) {
+        const at = Date.parse(row?.start || row?.startTime || "");
+        const current = clusters[clusters.length - 1];
+        const last = current?.[current.length - 1];
+        const lastAt = Date.parse(last?.start || last?.startTime || "");
+        if (!current || !Number.isFinite(at) || !Number.isFinite(lastAt) || at - lastAt >= 3 * 60 * 60 * 1000) {
+          clusters.push([row]);
+        } else {
+          current.push(row);
+        }
+      }
+      for (const bucket of clusters) {
+        const canonical = chooseCanonical(bucket);
+        if (canonical) {
+          canonicalRows.push(canonical);
+          addAliases(aliases, canonical, bucket);
+        }
+      }
     }
   }
+
   return {
-    rows: [...byPhysical.values()],
+    rows: canonicalRows,
     aliases,
     rawCount: (rows || []).length,
-    physicalCount: byPhysical.size,
+    physicalCount: canonicalRows.length,
   };
 }
 
