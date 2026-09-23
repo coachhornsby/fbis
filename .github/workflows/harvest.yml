@@ -320,14 +320,9 @@ jobs:
     name: ACTION MARKET INTELLIGENCE
     runs-on: ubuntu-latest
     needs: [determine-mode, verify-deployment]
-    # Parallel to incumbent collect. A provider failure is isolated from the
-    # core collector but remains a visible failed job for operator recovery.
+    # ACTION has exactly one paid daily orchestration path. Research collect may
+    # request/resume that daily run, but never launches per-sport paid Actors.
     if: needs.verify-deployment.outputs.outcome == 'match' && contains(fromJSON('["collect-full","collect-cache","action-only","all"]'), needs.determine-mode.outputs.mode)
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        sport: [cfb, mlb, nfl, nba, cbb]
     steps:
       - name: Assert production SHA unchanged
         env:
@@ -335,80 +330,82 @@ jobs:
           PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
         run: |
           set -euo pipefail
-          test "${#PRODUCTION_SHA}" -eq 40
           tmp="$(mktemp)"
-          code="$(curl -sS --max-time 20 -o "$tmp" -w "%{http_code}" "${BASE}/api/health?_t=$(date +%s)")"
+          code="$(curl -sS --max-time 20 -o "$tmp" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)")"
           live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$tmp" | tr 'A-F' 'a-f')"
           expected="$(echo "$PRODUCTION_SHA" | tr 'A-F' 'a-f')"
-          echo "mid-run SHA check http=${code} expected=${expected} live=${live}"
-          if [ "$code" != "200" ] || [ "${#live}" -ne 40 ] || [ "$live" != "$expected" ]; then
-            echo "Production SHA unavailable/changed — skip ACTION write (fail soft)."
-            exit 1
-          fi
-      - name: Collect ACTION market snapshots (shadow-governed)
+          test "$code" = "200"
+          test "$live" = "$expected"
+
+      - name: Inspect or start canonical daily ACTION run
+        id: action_start
         env:
           BASE: "https://fbis-myz.pages.dev"
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          SPORT: ${{ matrix.sport }}
-          PRODUCTION_SHA: ${{ needs.verify-deployment.outputs.production_sha }}
         run: |
           set -euo pipefail
-          echo "ACTION market-intel sport=${SPORT} production_sha=${PRODUCTION_SHA}"
-          echo "role=market_intelligence governance=shadow inProductionRouter=false canQualify=false"
-          if [ -z "${HARVEST_SECRET:-}" ]; then
-            echo "HARVEST_SECRET missing — cannot collect ACTION."
-            exit 1
-          fi
-          plan="$(mktemp)"
-          code="$(curl -sS --max-time 60 -o "$plan" -w "%{http_code}" \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "accept: application/json" \
-            "${BASE}/api/action-apify-collect?mode=plan&sport=${SPORT}&lifecycle=pregame&profile=BASE")"
-          echo "plan_http=${code}"
-          jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?)' "$plan" || cat "$plan"
-          test "$code" = "200"
-          allowed="$(jq -r '.safety.allowed // .safety.ok // true' "$plan")"
-          estimate="$(jq -r '(.plan.estimatedCostUsd // .budget.estimatedNextRunUsd // 0)' "$plan")"
-          echo "safety_allowed=${allowed} estimate=${estimate}"
-          if [ "$allowed" = "false" ]; then
-            echo "Plan safety blocked — no ACTION spend."
+          test -n "${HARVEST_SECRET:-}"
+          state_body="$(mktemp)"
+          state_code="$(curl -sS --max-time 30 -o "$state_body" -w "%{http_code}" "$BASE/api/action-daily-status")"
+          cat "$state_body"
+          test "$state_code" = "200"
+          state="$(jq -r '.state // "UNAVAILABLE"' "$state_body")"
+          expected="$(jq -r '.expectedSlateGames // 0' "$state_body")"
+          if [ "$state" = "HEALTHY" ] || [ "$expected" = "0" ]; then
+            echo "skip_harvest=1" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          python3 - <<PY
-          est = float("${estimate}" or 0)
-          # Soft cap aligns with board fit budget (~$0.95) with headroom for slate spikes.
-          # Collect API now slate-sizes + fits under ACTION_APIFY_BOARD_SOFT_CAP_USD.
-          if est > 2.0:
-              raise SystemExit(f"estimate {est} exceeds soft cap 2.0")
-          print(f"estimate_ok={est}")
-          PY
           body="$(mktemp)"
-          code="$(curl -sS --max-time 300 -o "$body" -w "%{http_code}" \
-            -X POST \
-            -H "x-harvest-secret: ${HARVEST_SECRET}" \
-            -H "content-type: application/json" \
-            -H "accept: application/json" \
-            -d "{\"execute\":\"1\",\"sport\":\"${SPORT}\",\"lifecycle\":\"pregame\",\"profile\":\"BASE\"}" \
-            "${BASE}/api/action-apify-collect?execute=1&sport=${SPORT}&lifecycle=pregame&profile=BASE")"
-          echo "exec_http=${code}"
-          jq 'del(.. | .token?, .authorization?, .apifyToken?, .APIFY_TOKEN?, .rows?)' "$body" || cat "$body"
-          test "$code" = "200"
+          code="$(curl -sS --max-time 30 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d '{"mode":"start"}' -o "$body" -w "%{http_code}"             "$BASE/api/action-daily-async?mode=start")"
+          cat "$body"
+          test "$code" = "200" -o "$code" = "202"
           jq -e '.ok == true' "$body" >/dev/null
-          mkdir -p artifacts
-          dump="artifacts/action-${SPORT}-${GITHUB_RUN_ID}.json"
-          dump_code="$(curl -sS --max-time 60 -o "$dump" -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json" "${BASE}/api/action-apify-collect?mode=observations&sport=${SPORT}&lifecycle=pregame&profile=BASE&limit=5000")"
-          echo "dump_http=${dump_code} path=${dump}"
-          test "$dump_code" = "200"
-          jq -e '.ok == true' "$dump" >/dev/null
+          echo "skip_harvest=0" >> "$GITHUB_OUTPUT"
 
-      - name: Upload ACTION persisted data
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: action-market-data-${{ github.run_id }}-${{ matrix.sport }}
-          path: artifacts/action-*.json
-          if-no-files-found: warn
-          retention-days: 14
+      - name: Resume canonical daily ACTION harvest
+        if: steps.action_start.outputs.skip_harvest != '1'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 40); do
+            body="$(mktemp)"
+            set +e
+            code="$(curl -sS --max-time 45 -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               -d '{"mode":"harvest"}' -o "$body" -w "%{http_code}"               "$BASE/api/action-daily-async?mode=harvest")"
+            curl_ec=$?
+            set -e
+            cat "$body" || true
+            status="$(jq -r '.status // empty' "$body" 2>/dev/null || true)"
+            if [ "$curl_ec" -eq 0 ] && [ "$code" = "200" ] && { [ "$status" = "success_daily" ] || [ "$status" = "already_collected_today" ]; }; then
+              exit 0
+            fi
+            if [ "$curl_ec" -eq 0 ] && [ "$code" = "202" ] && [ "$status" = "harvest_partial" ]; then
+              sleep 3
+              continue
+            fi
+            if { [ "$curl_ec" -eq 0 ] && [ "$code" = "202" ] && [ "$status" = "actor_running" ]; } || [ "$curl_ec" -eq 28 ]; then
+              sleep 30
+              continue
+            fi
+            echo "Canonical ACTION harvest failed code=$code status=$status"
+            exit 1
+          done
+          echo "Canonical ACTION harvest did not reach terminal state."
+          exit 1
+
+      - name: Verify ACTION persisted coverage
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 30 -o "$body" -w "%{http_code}" "$BASE/api/action-daily-status")"
+          cat "$body"
+          test "$code" = "200"
+          expected="$(jq -r '.expectedSlateGames // 0' "$body")"
+          if [ "$expected" = "0" ]; then exit 0; fi
+          jq -e '.state == "HEALTHY" and .verifiedPersisted == true and .verifiedSlateCoverage == true' "$body" >/dev/null
 
   harvest:
     name: RESEARCH HARVEST
