@@ -10,11 +10,9 @@ name: FBIS research pipeline
 # NFL publish proof is soft-fail evidence only (COLLECT can succeed while PUBLICATION_PROOF fails).
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/harvest.yml"
-      - "functions/api/action-apify-collect.js"
+  # Research/provider jobs are scheduled or explicitly dispatched only.
+  # A source-code push must never infer a paid collection mode from wall-clock
+  # time while the new production SHA is still deploying.
   schedule:
     - cron: "0 13,16 * * *"
     - cron: "0 0,2,18,20,22 * * *"
