@@ -380,11 +380,14 @@ export async function buildTodayBoard(
   };
   for (const sport of sportsToLoad) {
     try {
-      const liveFocus = focusSport && focusSport !== "all" && focusSport === sport;
+      const focused = focusSport && focusSport !== "all" && focusSport === sport;
+      // The customer-facing board is a read path, never a collection path.
+      // A focused tab must not burn quota or block on live provider/network I/O.
+      // Scheduled /api/collect jobs own live provider refreshes and D1/cache writes.
       const slate = await builder(sport, date, {
         ...env,
-        parlayCacheOnly: !liveFocus,
-        palCacheOnly: !liveFocus,
+        parlayCacheOnly: true,
+        palCacheOnly: true,
       });
       let bySnapshot = new Map();
       let byMarketOdds = new Map();
@@ -443,7 +446,8 @@ export async function buildTodayBoard(
         ok: true,
         n: rows.length,
         error: null,
-        liveFocus,
+        liveFocus: false,
+        focused,
         pal: slate.pal || null,
         palReason: sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null,
         parlay: slate.parlay || null,
@@ -546,7 +550,7 @@ export async function buildTodayBoard(
     feeds,
     empty,
     parlay: {
-      cacheOnly: focusSport === "all",
+      cacheOnly: true,
       focusSport: focusSport || "all",
       extraFullOddsRequests: parlayNetwork,
     },
