@@ -23,6 +23,8 @@ export function deriveActionDailyStatus({
   persistedObservations = 0,
   expectedSlateGames = 0,
   coveredSlateGames = 0,
+  verificationExpectedSlateGames = null,
+  verificationCoveredSlateGames = null,
   now = Date.now(),
 } = {}) {
   if (!run) {
@@ -39,8 +41,15 @@ export function deriveActionDailyStatus({
   const startedMs = Date.parse(String(run.started_at || ""));
   const ageMs = Number.isFinite(startedMs) ? Math.max(0, now - startedMs) : null;
   const persisted = Math.max(0, Number(persistedObservations || 0));
-  const expected = Math.max(0, Number(expectedSlateGames || 0));
-  const covered = Math.max(0, Number(coveredSlateGames || 0));
+  const currentExpected = Math.max(0, Number(expectedSlateGames || 0));
+  const currentCovered = Math.max(0, Number(coveredSlateGames || 0));
+  const expected = verificationExpectedSlateGames == null
+    ? currentExpected
+    : Math.max(0, Number(verificationExpectedSlateGames || 0));
+  const covered = verificationCoveredSlateGames == null
+    ? currentCovered
+    : Math.max(0, Number(verificationCoveredSlateGames || 0));
+  const lateSlateDriftGames = Math.max(0, currentExpected - expected);
 
   if (status === "running_daily") {
     const stale = ageMs == null || ageMs > STALE_RUNNING_MS;
@@ -64,11 +73,17 @@ export function deriveActionDailyStatus({
       verifiedPersisted,
       verifiedSlateCoverage,
       reason: healthy
-        ? "daily_run_persisted_and_slate_covered"
+        ? lateSlateDriftGames > 0
+          ? "daily_run_verified_with_late_slate_drift"
+          : "daily_run_persisted_and_slate_covered"
         : !verifiedPersisted
           ? "success_without_persisted_observations"
           : "success_without_full_slate_coverage",
       ageMs,
+      verificationExpectedSlateGames: expected,
+      verificationCoveredSlateGames: covered,
+      lateSlateDriftGames,
+      currentSlateFullyCovered: currentExpected === 0 ? verifiedPersisted : currentCovered >= currentExpected,
     };
   }
 
@@ -180,6 +195,48 @@ async function loadTodayCoverage(env, runId, today) {
   return { expectedSlateGames, coveredSlateGames, coverage };
 }
 
+async function loadRunVerificationCoverage(db, run) {
+  if (!run?.id) return null;
+  let plan = {};
+  try { plan = JSON.parse(run.plan || "{}"); } catch { plan = {}; }
+  const planned = plan?.plannedTodayFbisEventIds && typeof plan.plannedTodayFbisEventIds === "object"
+    ? [...new Set(Object.values(plan.plannedTodayFbisEventIds).flat().map((id) => String(id || "").trim()).filter(Boolean))]
+    : [];
+
+  if (planned.length) {
+    const placeholders = planned.map(() => "?").join(",");
+    const res = await db.prepare(
+      `SELECT DISTINCT fbis_event_id
+       FROM shadow_market_observations
+       WHERE run_id = ? AND fbis_event_id IN (${placeholders})`
+    ).bind(run.id, ...planned).all();
+    const covered = new Set((res?.results || []).map((r) => String(r.fbis_event_id || "")).filter(Boolean));
+    return {
+      source: "frozen-run-slate",
+      expected: planned.length,
+      covered: planned.filter((id) => covered.has(id)).length,
+      missingEventIds: planned.filter((id) => !covered.has(id)),
+    };
+  }
+
+  // Backward compatibility for runs created before frozen slate ids existed.
+  // Successful run counters prove what the paid Actor actually returned,
+  // matched and persisted; a later schedule addition is drift, not retroactive
+  // failure of the completed one-run-per-day collection.
+  const returned = Math.max(0, Number(run.games_returned || 0));
+  const matched = Math.max(0, Number(run.games_matched || 0));
+  const written = Math.max(0, Number(run.observations_written || 0));
+  if (String(run.status || "").startsWith("success") && returned > 0 && matched >= returned && written >= returned) {
+    return {
+      source: "legacy-run-counters",
+      expected: returned,
+      covered: returned,
+      missingEventIds: [],
+    };
+  }
+  return null;
+}
+
 async function loadIntegrityAudit(db) {
   const duplicate = await db.prepare(
     `SELECT COUNT(*) AS duplicate_groups, COALESCE(SUM(n - 1), 0) AS duplicate_rows
@@ -249,7 +306,7 @@ export async function onRequestGet(context) {
         id, status, apify_run_id, dataset_id, requested_max_items,
         games_returned, games_matched, games_unmatched, observations_written,
         malformed_rows, estimated_cost_usd, actual_cost_usd, error_class,
-        error_message, started_at, finished_at, duration_ms
+        error_message, plan, started_at, finished_at, duration_ms
        FROM shadow_collection_runs
        WHERE sport='all' AND profile=? AND lifecycle=? AND substr(started_at,1,10)=?
        ORDER BY started_at DESC
@@ -265,12 +322,15 @@ export async function onRequestGet(context) {
     }
 
     const slate = await loadTodayCoverage(context.env, run?.id || null, today);
+    const verificationCoverage = await loadRunVerificationCoverage(db, run);
     const integrity = await loadIntegrityAudit(db);
     const derived = deriveActionDailyStatus({
       run,
       persistedObservations,
       expectedSlateGames: slate.expectedSlateGames,
       coveredSlateGames: slate.coveredSlateGames,
+      verificationExpectedSlateGames: verificationCoverage?.expected ?? null,
+      verificationCoveredSlateGames: verificationCoverage?.covered ?? null,
       now: Date.now(),
     });
 
@@ -283,6 +343,7 @@ export async function onRequestGet(context) {
       expectedSlateGames: slate.expectedSlateGames,
       coveredSlateGames: slate.coveredSlateGames,
       coverage: slate.coverage,
+      verificationCoverage,
       integrity,
       run: run ? {
         id: run.id,
