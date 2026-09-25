@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  promoteMlbResearchToBoard,
   promoteNflResearchToBoard,
   promoteCbbResearchToBoard,
   modelMarketDisagreement,
@@ -20,6 +21,31 @@ import {
 import { productProjectionCard } from "../functions/lib/productProjection.js";
 
 describe("live research projection launch", () => {
+  it("promotes MLB deep research onto the board without wager authority", () => {
+    const { games, meta } = promoteMlbResearchToBoard([
+      {
+        id: "mlb-1",
+        sport: "mlb",
+        home: { abbr: "HOU", name: "Astros" },
+        away: { abbr: "SEA", name: "Mariners" },
+        odds: { pinSpread: -1.5, pinTotal: 8.5 },
+        mlbDeepShadow: { ok: true, home: 4.6, away: 3.8, version: "v1" },
+      },
+    ]);
+    const g = games[0];
+    assert.equal(meta.promoted, 1);
+    assert.equal(g.projectionKind, "FBIS");
+    assert.equal(g.projectionMaturity, "RESEARCH");
+    assert.equal(g.canQualify, false);
+    assert.equal(g.publicationStatus, "RESEARCH_PUBLISHABLE");
+    assert.equal(g.projHomeScore, 4.6);
+    assert.equal(g.projAwayScore, 3.8);
+    assert.equal(g.model?.recipe?.engine, "MLB-DEEP-v1");
+    const qi = qualificationIntegrity("mlb", g);
+    assert.equal(qi.ok, false);
+    assert.match(String(qi.code || qi.reasonCode || qi.reason), /research|wager|authority|no-wager/i);
+  });
+
   it("promotes NFL form research onto the board without wager authority", () => {
     const { games, meta } = promoteNflResearchToBoard([
       {
