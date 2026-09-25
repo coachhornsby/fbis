@@ -320,7 +320,8 @@ jobs:
     needs: [determine-mode, verify-deployment]
     # ACTION has exactly one paid daily orchestration path. Research collect may
     # request/resume that daily run, but never launches per-sport paid Actors.
-    if: needs.verify-deployment.outputs.outcome == 'match' && contains(fromJSON('["collect-full","collect-cache","action-only","all"]'), needs.determine-mode.outputs.mode)
+    # ACTION/Apify administratively paused. Keep this job hard-disabled until explicitly restored.
+    if: ${{ false }}
     steps:
       - name: Assert production SHA unchanged
         env:
