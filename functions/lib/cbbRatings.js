@@ -122,6 +122,28 @@ export function cbbTorvikRatingsV1(game, ratings = {}, opts = {}) {
   };
 }
 
+export function cbbKenpomRatingsV1(game, ratings = {}, opts = {}) {
+  const base = cbbRatingsV1(game, ratings, opts);
+  if (!base.ok) {
+    return {
+      ...base,
+      modelId: "CBB-KENPOM-RATINGS-v1",
+      ...COLLEGE_MODELS["CBB-KENPOM-RATINGS-v1"],
+      source: "kenpom",
+      available: false,
+      featuresOk: false,
+    };
+  }
+  return {
+    ...base,
+    modelId: "CBB-KENPOM-RATINGS-v1",
+    ...COLLEGE_MODELS["CBB-KENPOM-RATINGS-v1"],
+    source: "kenpom",
+    available: true,
+    featuresOk: true,
+  };
+}
+
 /** The rejected old-repo total — kept only so tests prove we do not use it. */
 export function rejectedOldCbbTotal(homeOe, awayOe, homeTempo, awayTempo) {
   const avgTempo = (Number(homeTempo) + Number(awayTempo)) / 2;
@@ -217,10 +239,10 @@ export function torvikUnavailable() {
 
 export function kenpomAbsent() {
   return {
-    modelId: "CBB-KENPOM-SHADOW",
-    ...COLLEGE_MODELS["CBB-KENPOM-SHADOW"],
+    modelId: "CBB-KENPOM-RATINGS-v1",
+    ...COLLEGE_MODELS["CBB-KENPOM-RATINGS-v1"],
     ok: false,
-    reason: "kenpom-not-required-and-not-loaded",
+    reason: "kenpom-not-configured-or-unavailable",
     available: false,
     featuresOk: false,
   };
@@ -234,6 +256,9 @@ export function projectCbbChallengers(game, ctx = {}) {
   const torvik = ctx.torvik?.modelId
     ? ctx.torvik
     : cbbTorvikRatingsV1(game, ctx.torvikRatings || {});
+  const kenpom = ctx.kenpom?.modelId
+    ? ctx.kenpom
+    : cbbKenpomRatingsV1(game, ctx.kenpomRatings || {});
   const matchup = cbbMatchupV1(game, { ...ratingsIn, ...ctx.four });
   const poss = expectedPossessions(ratingsIn.homeTempo, ratingsIn.awayTempo) || CBB_NATIONAL_TEMPO;
   const reg = cbbRegV1(game, {
@@ -252,7 +277,7 @@ export function projectCbbChallengers(game, ctx = {}) {
     independent: false,
   };
   const ensemble = independentEnsemble(
-    [league, ratings.ok ? ratings : null, torvik.ok ? torvik : null, matchup.ok ? matchup : null, reg.ok ? reg : null],
+    [league, ratings.ok ? ratings : null, torvik.ok ? torvik : null, kenpom.ok ? kenpom : null, matchup.ok ? matchup : null, reg.ok ? reg : null],
     "CBB-ENSEMBLE-v1"
   );
   const shrunk = cbbMarketShrunk(ratings.ok ? ratings : league, pin);
@@ -260,12 +285,12 @@ export function projectCbbChallengers(game, ctx = {}) {
     "CBB-LEAGUE-BASELINE": attachMc(league, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }),
     "CBB-CBBD-RATINGS-v1": ratings.ok ? attachMc(ratings, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : ratings,
     "CBB-TORVIK-RATINGS-v1": torvik.ok ? attachMc(torvik, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : torvik,
+    "CBB-KENPOM-RATINGS-v1": kenpom.ok ? attachMc(kenpom, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : kenpom,
     "CBB-MATCHUP-v1": matchup.ok ? attachMc(matchup, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : matchup,
     "CBB-REG-v1": reg.ok ? attachMc(reg, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : reg,
     "CBB-ENSEMBLE-v1": ensemble.ok ? attachMc(ensemble, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : ensemble,
     "CBB-MARKET-SHRUNK-v1": shrunk,
     "CBB-PINNACLE-IMPLIED": pinModel,
-    "CBB-KENPOM-SHADOW": kenpomAbsent(),
   };
   for (const [id, proj] of Object.entries(models)) {
     models[id] = {
