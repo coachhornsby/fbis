@@ -63,6 +63,25 @@ jobs:
           test "$http" = "200"
           jq -e '.ok == true' "$body" >/dev/null
 
+      - name: Wait for FBIS feature digest deployment
+        env:
+          BASE: https://fbis-myz.pages.dev
+          EXPECTED_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 50); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null | tr 'A-F' 'a-f')"
+            expected="$(echo "$EXPECTED_SHA" | tr 'A-F' 'a-f')"
+            echo "feature-deploy attempt=$attempt http=$code live=$live expected=$expected"
+            if [ "$code" = "200" ] && [ "$live" = "$expected" ]; then exit 0; fi
+            sleep 12
+          done
+          echo "FBIS production did not reach feature-digest SHA."
+          exit 1
+
       - name: Validate selective candidate gate
         id: selector
         if: always()
