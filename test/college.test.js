@@ -428,8 +428,8 @@ describe("KenPom CBB adapter", () => {
     const rows = normalizeKenpomFanmatchRows(payload);
     assert.equal(rows.length, 1);
     assert.equal(rows[0].comparisonOnly, true);
-    assert.equal(rows[0].homeMargin, 6.4);
-    assert.equal(rows[0].total, 141.2);
+    assert.ok(Math.abs(rows[0].homeMargin - 6.4) < 1e-9);
+    assert.ok(Math.abs(rows[0].total - 141.2) < 1e-9);
     assert.equal(rows[0].homeWinProbability, 0.715);
 
     const fetchFn = async (url, opts = {}) => {
