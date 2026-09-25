@@ -66,6 +66,12 @@ export function parseCfbDeepPpaRow(row = {}) {
     rushEpa: pick(row, ["offense.rushing", "offense.rush", "offense.rushingPpa", "offense.rushingEPA", "rushingPpa", "rushingEPA"]),
     passEpaAllowed: pick(row, ["defense.passing", "defense.pass", "defense.passingPpa", "defense.passingEPA", "passingPpaAllowed", "passingEPAAllowed"]),
     rushEpaAllowed: pick(row, ["defense.rushing", "defense.rush", "defense.rushingPpa", "defense.rushingEPA", "rushingPpaAllowed", "rushingEPAAllowed"]),
+    // Some CFBD team-PPA payloads include these dimensions directly. Preserve
+    // them here; the advanced endpoint can overwrite/extend them when available.
+    successRate: pick(row, ["offense.successRate", "offense.success", "successRate"]),
+    successRateAllowed: pick(row, ["defense.successRate", "defense.success", "successRateAllowed"]),
+    explosiveRate: pick(row, ["offense.explosiveness", "offense.explosiveRate", "explosiveness", "explosiveRate"]),
+    explosiveRateAllowed: pick(row, ["defense.explosiveness", "defense.explosiveRate", "explosivenessAllowed", "explosiveRateAllowed"]),
   };
 }
 
