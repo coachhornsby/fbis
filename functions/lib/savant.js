@@ -211,6 +211,10 @@ export async function fetchSavantSlate(games, cfCache) {
       },
       projHomeScore: proj.home,
       projAwayScore: proj.away,
+      // This score is produced only from the independent Savant/MLB Stats
+      // run model above. Mark it explicitly so product/sheet layers do not
+      // mistake it for a market-implied score.
+      projectionKind: "FBIS",
     };
   });
 
