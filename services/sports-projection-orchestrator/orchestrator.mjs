@@ -482,7 +482,7 @@ const LLM_GATE_THRESHOLDS = Object.freeze({
   nfl:{side:2.0,total:3.0},
   cbb:{side:2.5,total:3.5},
 });
-const LLM_GATE_SPORTS = Object.freeze(['mlb','cfb','nfl','cbb']);
+const LLM_GATE_SPORTS = Object.freeze(['mlb','cfb']);
 
 function finiteNumber(v){
   const n=Number(v);
@@ -520,6 +520,9 @@ function gateCandidate(game,sport,clock=Date.now()){
   if(sport==='mlb' && /^mlb_/i.test(eventId)) return {selected:false,reason:'synthetic_alias'};
   if(String(game.gameState?.state||'SCHEDULED').toUpperCase()!=='SCHEDULED') return {selected:false,reason:'not_scheduled'};
   if(game.projection?.independent!==true) return {selected:false,reason:'no_independent_projection'};
+  if(game.llmFeatures?.independentInputsOnly!==true || Number(game.llmFeatures?.featureCount||0)<4){
+    return {selected:false,reason:'insufficient_market_blind_features'};
+  }
   const quality=finiteNumber(game.quality?.score);
   if(quality==null || quality<CFG.llmMinQuality) return {selected:false,reason:'quality_below_gate',quality};
   const flags=Array.isArray(game.quality?.flags)?game.quality.flags.map(String):[];
@@ -557,35 +560,31 @@ function snapshotFromCandidate(game,sport,boardGeneratedAt){
   const generatedAt=String(boardGeneratedAt||now());
   const away=String(game.away?.name||game.away?.abbr||'Away');
   const home=String(game.home?.name||game.home?.abbr||'Home');
-  const teamFeatures={
-    source:'FBIS_PREMODEL_SELECTION',
-    sport,
-    model_name:game.model?.name||null,
-    model_engine:game.model?.engine||null,
-    model_maturity:game.model?.maturity||null,
-    model_version:game.modelVersion||null,
-    neutral_site:Boolean(game.neutral),
-    fbis_projected_away:finiteNumber(game.projection?.away),
-    fbis_projected_home:finiteNumber(game.projection?.home),
-    fbis_projected_margin:finiteNumber(game.projection?.margin),
-    fbis_projected_total:finiteNumber(game.projection?.total),
-    quality_score:finiteNumber(game.quality?.score),
-    quality_state:game.quality?.state||null,
-    quality_flags:Array.isArray(game.quality?.flags)?game.quality.flags:[]
-  };
-  const stable=JSON.stringify({eventId,sport,start:game.start,generatedAt,teamFeatures});
+  const features=structuredClone(game.llmFeatures||{});
+  if(features.independentInputsOnly!==true) throw new Error('Market-blind feature digest missing');
+  // Hard guard: the LLM snapshot must never carry the pre-screen's FBIS output
+  // or sportsbook/reference market fields. The pre-screen may see them; GPT
+  // and Gemini may not.
+  const serialized=JSON.stringify(features);
+  if(/project(ed|ion)|market|spread|moneyline|odds|totalGap|sideGap/i.test(serialized)){
+    throw new Error('Selector feature digest contains forbidden projection/market keys');
+  }
+  const stable=JSON.stringify({eventId,sport,start:game.start,generatedAt,features});
   const snapshotId='AUTO-'+sha256(stable).slice(0,24);
+  const homeStarter=String(features?.home?.starter||features?.home?.qb?.starterName||'');
+  const awayStarter=String(features?.away?.starter||features?.away?.qb?.starterName||'');
+  const sources=Array.isArray(features.sources)?features.sources.join('|'):'FBIS_MARKET_BLIND_FEATURES';
   return {
     'Snapshot ID':snapshotId,'Event ID':eventId,'Sport':sport.toUpperCase(),
     'Matchup':away+' @ '+home,'Event Start':String(game.start||''),
     'Generated At':generatedAt,'Data Timestamp':generatedAt,
-    'Schema Version':'fbis-select-v1','Snapshot Hash':sha256(stable),
+    'Schema Version':'fbis-select-v2','Snapshot Hash':sha256(stable),
     'Locked?':'YES','Market Included?':'NO',
-    'Home Team':home,'Away Team':away,'Home Starter':'','Away Starter':'',
+    'Home Team':home,'Away Team':away,'Home Starter':homeStarter,'Away Starter':awayStarter,
     'Lineup Status':'','Injury Status':'','Rest/Travel':'','Weather/Environment':'',
-    'Team Features JSON':JSON.stringify(teamFeatures),'Player Features JSON':'{}',
-    'Data Sources':'FBIS_PROJECTION_BOARD_PREMODEL','Missing Inputs':'',
-    'Notes':'AUTO_SELECTED_MARKET_GAP_GATE'
+    'Team Features JSON':JSON.stringify(features),'Player Features JSON':'{}',
+    'Data Sources':sources,'Missing Inputs':'',
+    'Notes':'AUTO_SELECTED_MARKET_GAP_GATE;SCREEN_DATA_NOT_IN_PROMPT'
   };
 }
 function snapshotRow(s){ return HEADERS.snapshots.map(h=>s[h]??''); }
