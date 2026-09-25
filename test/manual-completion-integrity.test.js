@@ -200,7 +200,7 @@ test("artifact hash + runtime + prior + MLB uncertainty", () => {
       .sort(),
     ["CFB-FBIS-v2", "MLB-SAVANT-RPG-SP"].sort()
   );
-  const action = listSources().find((s) => s.providerId === "action_apify");
+  const action = listSources({ activeOnly: false }).find((s) => s.providerId === "action_apify");
   assert.equal(action.inPureModel, false);
   assert.equal(action.domain, "market");
 });
