@@ -659,6 +659,91 @@ export function buildCfbFeatureCatalog({
   return trimFeatureOutput(Object.fromEntries(finalRows.map((r) => [r.espnId ? `id:${r.espnId}` : `school:${String(r.school).toLowerCase()}`, r])));
 }
 
+export async function loadCfbCurrentForm(env = {}, { fetchFn = fetch, now = Date.now() } = {}) {
+  const asOf = new Date(now).toISOString();
+  const season = cfbSeasonYear(new Date(now));
+  const empty = { season, asOf, form: new Map(), meta: cfbdPublicMeta({ configured: false, records: 0, year: season, asOf, source: "cfbd-current-form" }) };
+  if (!cfbdConfigured(env)) return empty;
+
+  const cacheKey = `cfb-current-form-v2-${season}`;
+  const cached = await readCache(cacheKey, env.caches, FEATURE_TTL_MS);
+  if (cached?.rows && cached?.meta) {
+    return { season, asOf: cached.asOf || asOf, form: new Map(cached.rows), meta: cfbdPublicMeta(cached.meta) };
+  }
+
+  const res = await cfbdRequest(CFBD_BASE, "/games", env, {
+    query: { year: season, seasonType: "regular" },
+    fetchFn,
+  });
+
+  const buckets = new Map();
+  const add = (school, pf, pa, kickoff) => {
+    const name = String(school || "").trim();
+    const pointsFor = num(pf);
+    const pointsAgainst = num(pa);
+    if (!name || pointsFor == null || pointsAgainst == null) return;
+    const ts = Date.parse(String(kickoff || ""));
+    if (Number.isFinite(ts) && ts >= now) return;
+    const key = name.toLowerCase();
+    const cur = buckets.get(key) || { school: name, games: 0, pointsFor: 0, pointsAgainst: 0, lastGameAt: null };
+    cur.games += 1;
+    cur.pointsFor += pointsFor;
+    cur.pointsAgainst += pointsAgainst;
+    if (!cur.lastGameAt || (Number.isFinite(ts) && ts > Date.parse(cur.lastGameAt))) cur.lastGameAt = kickoff || null;
+    buckets.set(key, cur);
+  };
+
+  for (const row of res.data || []) {
+    const status = String(row.status || row.gameStatus || "").toLowerCase();
+    const completed =
+      row.completed === true ||
+      row.isCompleted === true ||
+      ["completed","complete","final"].includes(status) ||
+      (num(row.homePoints ?? row.homeScore) != null && num(row.awayPoints ?? row.awayScore) != null);
+    if (!completed) continue;
+    const kickoff = row.startDate || row.start_date || row.startTime || row.kickoff || null;
+    const home = row.homeTeam || row.home || row.home_team;
+    const away = row.awayTeam || row.away || row.away_team;
+    const hp = row.homePoints ?? row.homeScore ?? row.home_points;
+    const ap = row.awayPoints ?? row.awayScore ?? row.away_points;
+    add(home, hp, ap, kickoff);
+    add(away, ap, hp, kickoff);
+  }
+
+  const form = new Map();
+  for (const rec of buckets.values()) {
+    const resolved = resolveTeamExact("cfb", { name: rec.school, school: rec.school });
+    const row = {
+      games: rec.games,
+      pointsFor: rec.pointsFor,
+      pointsAgainst: rec.pointsAgainst,
+      source: "CFBD:/games",
+      asOf,
+      lastGameAt: rec.lastGameAt,
+    };
+    form.set(`name:${rec.school.toLowerCase()}`, row);
+    if (resolved?.espnId != null) form.set(`id:${String(resolved.espnId)}`, row);
+    if (resolved?.abbr) form.set(`abbr:${String(resolved.abbr).toUpperCase()}`, row);
+    if (resolved?.school) form.set(`name:${String(resolved.school).toLowerCase()}`, row);
+  }
+
+  const meta = cfbdPublicMeta({
+    configured: true,
+    records: buckets.size,
+    asOf,
+    year: season,
+    source: "cfbd:/games:completed-current-season",
+    fallback: false,
+    httpStatus: res.status || 0,
+    endpoints: [{ path: "/games", status: res.status, n: res.n || 0, ok: res.ok }],
+    error: res.ok ? null : res.reason || "cfbd-current-form-failed",
+    limitation: "Only completed games strictly before collection time are included; no market data enters form.",
+  });
+  const payload = { season, asOf, rows: [...form.entries()], meta };
+  await writeCache(cacheKey, payload, env.caches, res.ok ? FEATURE_TTL_MS : ERR_TTL_MS);
+  return { season, asOf, form, meta };
+}
+
 export async function loadCfbFeatureFeeds(env = {}, { fetchFn = fetch, now = Date.now() } = {}) {
   const asOf = new Date(now).toISOString();
   const season = cfbSeasonYear(new Date(now));
