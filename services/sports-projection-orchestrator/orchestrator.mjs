@@ -422,7 +422,15 @@ export async function runSnapshot(snapshot,{persist=true,runId=uuid(),queueMeta=
   if(!gpt.ok || !gem.ok){
     const errors=[gpt.error,gem.error].filter(Boolean).join(' | ');
     const err=new Error(errors||'Provider failure');
-    err.providerResults={openai:{ok:gpt.ok,status:gpt.status,error:gpt.error},gemini:{ok:gem.ok,status:gem.status,error:gem.error}};
+    const safeProviderDetail=(r)=>({
+      type:r?.obj?.error?.type || r?.obj?.error?.status || null,
+      code:r?.obj?.error?.code ?? null,
+      message:String(r?.obj?.error?.message || r?.error || '').slice(0,800)
+    });
+    err.providerResults={
+      openai:{ok:gpt.ok,status:gpt.status,error:gpt.error,detail:safeProviderDetail(gpt)},
+      gemini:{ok:gem.ok,status:gem.status,error:gem.error,detail:safeProviderDetail(gem)}
+    };
     throw err;
   }
   const g=gpt.projection,m=gem.projection;
