@@ -899,7 +899,7 @@ async function persistQbTransferSeason(env, { season, portalRows = [], qbStatRow
 
 const FREEZE_MODELS = {
   cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1", "CFB-FBIS-v2"],
-  cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1", "CBB-TORVIK-RATINGS-v1", "CBB-ENSEMBLE-v1", "CBB-FBIS-PURE"],
+  cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1", "CBB-TORVIK-RATINGS-v1", "CBB-KENPOM-RATINGS-v1", "CBB-ENSEMBLE-v1", "CBB-FBIS-PURE"],
   nfl: ["NFL-TEAM-FORM-v0", "NFL-FBIS-PURE"],
 };
 
