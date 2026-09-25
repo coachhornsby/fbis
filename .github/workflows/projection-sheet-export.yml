@@ -1,0 +1,48 @@
+name: Projection sheet export
+
+on:
+  push:
+    paths:
+      - ".github/workflows/projection-sheet-export.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Export live projection slates
+        env:
+          BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          export_one () {
+            sport="$1"; date="$2"
+            tmp="$(mktemp)"
+            code="$(curl -sS --max-time 120 -o "$tmp" -w "%{http_code}" "$BASE/api/projections?sport=${sport}&date=${date}")"
+            test "$code" = "200"
+            jq -c --arg sport "$sport" --arg date "$date" '{
+              marker:"SHEET_EXPORT",sport:$sport,date:$date,generatedAt:.generatedAt,
+              games:[.games[]|{
+                id,start,away:.away.abbr,home:.home.abbr,neutral,
+                modelName:.model.name,engine:.model.engine,maturity:.model.maturity,
+                modelVersion:.modelVersion,
+                independent:.projection.independent,
+                awayProj:.projection.away,homeProj:.projection.home,
+                margin:.projection.margin,total:.projection.total,
+                marketSpread:.market.spread,marketTotal:.market.total,marketSource:.market.source,
+                qualityScore:.quality.score,qualityState:.quality.state,flags:.quality.flags,
+                unavailableReason:.projection.unavailableReason
+              }]
+            }' "$tmp"
+          }
+          export_one cfb 2026-09-25
+          export_one cfb 2026-09-26
+          export_one nfl 2026-09-27
+          export_one mlb 2026-09-25
+          export_one mlb 2026-09-26
+          export_one mlb 2026-09-27
