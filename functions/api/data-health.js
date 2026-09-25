@@ -145,7 +145,7 @@ export async function onRequestGet(context) {
       observation: observationBySource.cbbd || null,
       usage: usageBySource.cbbd || null,
     },
-    kenpom_api: { configured: Boolean(env?.KENPOM_API_KEY), implemented: false, reason: "registry/model placeholder exists but no production KenPom adapter is wired" },
+    kenpom_api: { configured: Boolean(env?.KENPOM_API_KEY), implemented: true, observation: observationBySource.kenpom || null, usage: usageBySource.kenpom || null },
     ballpark_pal: {
       configured: Boolean(env?.BALLPARK_PAL_API_KEY),
       implemented: true,
