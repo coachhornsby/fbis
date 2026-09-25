@@ -29,6 +29,7 @@ jobs:
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
       - name: Validate model providers
+        id: models
         continue-on-error: true
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
@@ -47,7 +48,9 @@ jobs:
           jq -e '.persisted == false' "$body" >/dev/null
 
       - name: Validate Sheets credential state
+        id: sheets
         if: always()
+        continue-on-error: true
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
           ORCH_URL: https://sports-projection-orchestrator.onrender.com
@@ -59,3 +62,14 @@ jobs:
           echo "HTTP=$http"
           cat "$body"
           test "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+
+      - name: Final validation gate
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "models_outcome=${{ steps.models.outcome }}"
+          echo "sheets_outcome=${{ steps.sheets.outcome }}"
+          test "${{ steps.models.outcome }}" = "success"
+          test "${{ steps.sheets.outcome }}" = "success"
