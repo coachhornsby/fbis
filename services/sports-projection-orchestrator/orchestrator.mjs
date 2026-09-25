@@ -243,7 +243,10 @@ function usageRow(provider, runId, eventId, model, calledAt, status, usage, late
   const output=Number(usage.output_tokens ?? usage.candidatesTokenCount ?? 0);
   const reasoning=Number(usage.output_tokens_details?.reasoning_tokens ?? usage.thoughtsTokenCount ?? 0);
   const total=Number(usage.total_tokens ?? usage.totalTokenCount ?? (input+output));
-  return [uuid(),runId,eventId,provider,model,calledAt,status,input,cached,output,reasoning,total,usageCost(provider,input,output),latency,retry,success?'YES':'NO',errorClass||'',notes];
+  // OpenAI output_tokens already includes reasoning tokens. Gemini exposes
+  // candidatesTokenCount and thoughtsTokenCount separately, and Google bills both.
+  const billableOutput = provider==='GEMINI' ? output + reasoning : output;
+  return [uuid(),runId,eventId,provider,model,calledAt,status,input,cached,output,reasoning,total,usageCost(provider,input,billableOutput),latency,retry,success?'YES':'NO',errorClass||'',notes];
 }
 async function callOpenAI(runId,eventId,snapshotId,prompt,dataTimestamp){
   const key=process.env.OPENAI_API_KEY;
