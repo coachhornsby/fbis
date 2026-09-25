@@ -201,10 +201,11 @@ export function lookupTorvikRating(catalog, team) {
   );
 }
 
-export function mergeCbbCatalogs(cbbd = {}, torvik = {}) {
+export function mergeCbbCatalogs(cbbd = {}, torvik = {}, kenpom = {}) {
   const ids = new Set([
     ...Object.keys(cbbd.byCanonicalId || {}),
     ...Object.keys(torvik.byCanonicalId || {}),
+    ...Object.keys(kenpom.byCanonicalId || {}),
   ]);
   const byCanonicalId = {};
   const byEspnId = {};
@@ -213,10 +214,11 @@ export function mergeCbbCatalogs(cbbd = {}, torvik = {}) {
   for (const id of ids) {
     const primary = cbbd.byCanonicalId?.[id] || null;
     const secondary = torvik.byCanonicalId?.[id] || null;
+    const tertiary = kenpom.byCanonicalId?.[id] || null;
     const row = {
       ...(primary || {}),
       canonicalId: id,
-      sourceCoverage: { cbbd: Boolean(primary), torvik: Boolean(secondary) },
+      sourceCoverage: { cbbd: Boolean(primary), torvik: Boolean(secondary), kenpom: Boolean(tertiary) },
       torvik: secondary
         ? {
             adjOe: secondary.adjOe,
@@ -238,10 +240,39 @@ export function mergeCbbCatalogs(cbbd = {}, torvik = {}) {
             threePtPctD: secondary.threePtPctD,
           }
         : null,
+      kenpom: tertiary
+        ? {
+            adjEm: tertiary.adjEm,
+            adjOe: tertiary.adjOe,
+            adjDe: tertiary.adjDe,
+            tempo: tertiary.tempo,
+            luck: tertiary.luck,
+            sos: tertiary.sos,
+            sosO: tertiary.sosO,
+            sosD: tertiary.sosD,
+            ncSos: tertiary.ncSos,
+            aplOff: tertiary.aplOff,
+            aplDef: tertiary.aplDef,
+            efgPct: tertiary.efgPct,
+            efgPctD: tertiary.efgPctD,
+            tovRate: tertiary.tovRate,
+            tovRateD: tertiary.tovRateD,
+            orbRate: tertiary.orbRate,
+            drbRate: tertiary.drbRate,
+            ftr: tertiary.ftr,
+            ftrD: tertiary.ftrD,
+            threePtPct: tertiary.threePtPct,
+            twoPtPct: tertiary.twoPtPct,
+            ftPct: tertiary.ftPct,
+            oppThreePtPct: tertiary.oppThreePtPct,
+            oppTwoPtPct: tertiary.oppTwoPtPct,
+            oppFtPct: tertiary.oppFtPct,
+          }
+        : null,
     };
     byCanonicalId[id] = row;
-    const espnId = primary?.espnId || secondary?.espnId;
-    const school = primary?.school || secondary?.school || secondary?.team;
+    const espnId = primary?.espnId || secondary?.espnId || tertiary?.espnId;
+    const school = primary?.school || secondary?.school || tertiary?.school || secondary?.team || tertiary?.team;
     if (espnId) byEspnId[String(espnId)] = row;
     if (school) bySchool[String(school).toLowerCase()] = row;
   }
@@ -251,11 +282,12 @@ export function mergeCbbCatalogs(cbbd = {}, torvik = {}) {
     byEspnId,
     bySchool,
     matched: ids.size,
-    unmatched: Number(cbbd.unmatched || 0) + Number(torvik.unmatched || 0),
+    unmatched: Number(cbbd.unmatched || 0) + Number(torvik.unmatched || 0) + Number(kenpom.unmatched || 0),
     n: ids.size,
     sourceCoverage: {
       cbbdTeams: Object.keys(cbbd.byCanonicalId || {}).length,
       torvikTeams: Object.keys(torvik.byCanonicalId || {}).length,
+      kenpomTeams: Object.keys(kenpom.byCanonicalId || {}).length,
       mergedTeams: ids.size,
     },
   };
