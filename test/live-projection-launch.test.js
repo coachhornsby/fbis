@@ -40,7 +40,7 @@ describe("live research projection launch", () => {
     assert.equal(g.publicationStatus, "RESEARCH_PUBLISHABLE");
     assert.equal(g.projHomeScore, 4.6);
     assert.equal(g.projAwayScore, 3.8);
-    assert.equal(g.model?.recipe?.engine, "MLB-DEEP-v1");
+    assert.equal(g.model?.recipe?.engine, "MLB-RUN-ALLOC-v1");
     const qi = qualificationIntegrity("mlb", g);
     assert.equal(qi.ok, false);
     assert.match(String(qi.code || qi.reasonCode || qi.reason), /research|wager|authority|no-wager/i);
