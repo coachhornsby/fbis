@@ -11,7 +11,7 @@ import { cfbLeagueBaseline, cfbRatingsV1, cfbRegV1, independentEnsemble, pinnacl
 import { projectCfbMatchup } from "../functions/lib/cfbModel.js";
 import { cbbRatingsV1, cbbTorvikRatingsV1, cbbKenpomRatingsV1, cbbLeagueBaseline, rejectedOldCbbTotal, expectedPossessions, expectedEfficiency, projectCbbChallengers, torvikUnavailable, kenpomAbsent, cbbMarketShrunk, CBB_NATIONAL_EFF } from "../functions/lib/cbbRatings.js";
 import { normalizeTorvikTeamRows, normalizeTorvikFourFactorRows, loadTorvikCbbCatalog, torvikEndingSeason } from "../functions/lib/torvikCbb.js";
-import { normalizeKenpomRatingRows, normalizeKenpomFourFactorRows, loadKenpomCbbCatalog, kenpomEndingSeason } from "../functions/lib/kenpomCbb.js";
+import { normalizeKenpomRatingRows, normalizeKenpomFourFactorRows, normalizeKenpomFanmatchRows, loadKenpomCbbCatalog, loadKenpomFanmatch, kenpomEndingSeason } from "../functions/lib/kenpomCbb.js";
 import { r2Bound, r2Key, R2_SETUP } from "../functions/lib/r2Archive.js";
 import { warnLevel, metricUnavailable } from "../functions/lib/storageBudget.js";
 import { insertModelPrediction, gradeModelPrediction, insertGameFeatureSnapshot } from "../functions/lib/collegeStore.js";
@@ -408,6 +408,47 @@ describe("KenPom CBB adapter", () => {
     assert.equal(catalog.rows.length, 301);
     assert.equal(catalog.rows[0].efgPct, 0.58);
     assert.equal(JSON.stringify(catalog).includes(FAKE), false);
+  });
+
+  it("keeps FanMatch comparison-only and out of the CBB ensemble", async () => {
+    const payload = [{
+      Season: 2026,
+      GameID: 999,
+      DateOfGame: "2026-01-15",
+      Visitor: "Kansas",
+      Home: "Houston",
+      VisitorRank: 12,
+      HomeRank: 2,
+      VisitorPred: 67.4,
+      HomePred: 73.8,
+      HomeWP: 71.5,
+      PredTempo: 65.2,
+      ThrillScore: 54.0,
+    }];
+    const rows = normalizeKenpomFanmatchRows(payload);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].comparisonOnly, true);
+    assert.equal(rows[0].homeMargin, 6.4);
+    assert.equal(rows[0].total, 141.2);
+    assert.equal(rows[0].homeWinProbability, 0.715);
+
+    const fetchFn = async (url, opts = {}) => {
+      assert.equal(new URL(String(url)).searchParams.get("endpoint"), "fanmatch");
+      assert.equal(new URL(String(url)).searchParams.get("d"), "2026-01-15");
+      assert.match(String(opts.headers?.Authorization || ""), /^Bearer /);
+      return { ok: true, status: 200, async json() { return payload; } };
+    };
+    const fan = await loadKenpomFanmatch({ KENPOM_API_KEY: FAKE }, { date: "2026-01-15", fetchFn });
+    assert.equal(fan.ok, true);
+    assert.equal(fan.n, 1);
+    assert.equal(fan.comparisonOnly, true);
+    assert.equal(JSON.stringify(fan).includes(FAKE), false);
+
+    const game = { home: { canonicalId: "cbb-150" }, away: { canonicalId: "cbb-87" }, neutralSite: false };
+    const ratings = { homeAdjOe: 121, homeAdjDe: 92, homeTempo: 67, awayAdjOe: 109, awayAdjDe: 101, awayTempo: 69 };
+    const models = projectCbbChallengers(game, { ratings, kenpomRatings: ratings });
+    assert.equal(models["CBB-KENPOM-FANMATCH-BENCHMARK"], undefined);
+    assert.equal(models["CBB-ENSEMBLE-v1"].members.includes("CBB-KENPOM-FANMATCH-BENCHMARK"), false);
   });
 
   it("produces an independent KenPom ratings projection", () => {
