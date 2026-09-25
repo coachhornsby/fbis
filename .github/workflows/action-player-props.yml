@@ -1,25 +1,13 @@
-name: ACTION pro player props (manual fallback)
+name: ACTION pro player props — PAUSED
 
-# Scheduled prop polling is retired. Player props are collected by the single
-# 07:00 America/Chicago ACTION daily snapshot. Keep this only for operator-led
-# diagnostics; it must never spend automatically.
 on:
   workflow_dispatch:
-
-concurrency:
-  group: action-pro-player-props-manual
-  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  explain:
-    name: MANUAL FALLBACK ONLY
+  paused:
     runs-on: ubuntu-latest
     steps:
-      - name: Explain retired schedule
-        run: |
-          echo "Scheduled player-prop polling is disabled."
-          echo "Production ACTION collection is handled by action-daily-snapshot.yml at 07:00 America/Chicago."
-          echo "Use /api/action-daily-snapshot?execute=1&manual=1 for an explicit operator test if necessary."
+      - run: echo "ACTION/Apify is paused. No player-prop collector call will run."
