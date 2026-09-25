@@ -160,7 +160,17 @@ export async function onRequestGet(context) {
     nflverse: { configured: true, implemented: true, auth: "public" },
     nba_stats_licensed: { configured: false, implemented: false, reason: "production feed remains provider/license blocked" },
     parlay_pinnacle: { configured: Boolean(env?.PARLAY_API_KEY), implemented: true },
-    action_apify: { configured: Boolean(env?.APIFY_TOKEN), implemented: true, enabled: false, paused: true, reason: "administratively paused 2026-09-25" },
+    action_apify: {
+      configured: Boolean(env?.APIFY_TOKEN),
+      implemented: true,
+      enabled: Boolean(env?.APIFY_TOKEN) && String(env?.ACTION_APIFY_ENABLED || "true").toLowerCase() !== "false",
+      paused: false,
+      plan: env?.ACTION_APIFY_PLAN || null,
+      monthlyBudgetUsd: env?.ACTION_APIFY_MONTHLY_BUDGET_USD ? Number(env.ACTION_APIFY_MONTHLY_BUDGET_USD) : null,
+      reason: Boolean(env?.APIFY_TOKEN)
+        ? "daily shadow collection restored; runtime/billing state is reported by /api/action-daily-status"
+        : "APIFY_TOKEN missing",
+    },
   };
 
   const payload = {
