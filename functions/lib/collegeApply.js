@@ -9,7 +9,8 @@ import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatingsSafe.js";
 import { readCache, writeCache } from "./cache.js";
 import { mapSourceTeam } from "./collegeIdentity.js";
 import { MODEL_VERSION } from "./weights.js";
-import { loadTorvikCbbCatalog, lookupTorvikRating } from "./torvikCbb.js";\nimport { loadKenpomCbbCatalog, lookupKenpomRating } from "./kenpomCbb.js";
+import { loadTorvikCbbCatalog, lookupTorvikRating } from "./torvikCbb.js";
+import { loadKenpomCbbCatalog, lookupKenpomRating } from "./kenpomCbb.js";
 
 const CATALOG_TTL = 6 * 60 * 60 * 1000;
 
