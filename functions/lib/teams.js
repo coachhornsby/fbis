@@ -18,6 +18,7 @@ const EXTRA_ALIASES = {
   cfb: {
     62: ["Hawaii", "Hawaii Rainbow Warriors"],
     193: ["Miami Ohio", "Miami (OH)", "Miami-Ohio", "Miami of Ohio"],
+    2026: ["Appalachian State", "Appalachian State Mountaineers"],
     2390: ["Miami Florida", "Miami (FL)", "Miami-Florida", "The U"],
   },
 };

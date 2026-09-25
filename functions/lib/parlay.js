@@ -354,7 +354,25 @@ function applyOdds(game, p) {
   };
 }
 
-export function mergeParlay(games, parlayEvents, sport) {
+function chicagoDateForIso(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+/**
+ * Merge market data onto the authoritative schedule. When slateDay is supplied,
+ * unmatched provider events may only become stubs if their kickoff is on that
+ * Chicago calendar date. This prevents a date-agnostic odds cache from leaking
+ * Friday games onto Saturday's college board.
+ */
+export function mergeParlay(games, parlayEvents, sport, slateDay = null) {
   const leftover = [...(parlayEvents || [])];
   const merged = games.map((g) => {
     const hit = matchParlay(g, leftover);
@@ -365,6 +383,10 @@ export function mergeParlay(games, parlayEvents, sport) {
   });
 
   for (const p of leftover) {
+    if (slateDay) {
+      const eventDay = chicagoDateForIso(p.commence);
+      if (!eventDay || eventDay !== slateDay) continue;
+    }
     const stub = {
       id: p.parlayId,
       sport,

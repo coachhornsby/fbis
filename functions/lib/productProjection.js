@@ -3,6 +3,7 @@ import { recommendBundle, pinMarkets } from "./slateEngine.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 
 function finite(v) {
+  if (v == null || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
@@ -188,8 +189,19 @@ function quality(game = {}) {
   const baseScore = finite(game.quality?.score ?? game.cfb?.dataQuality);
   const v2Completeness = finite(game.cfbFbisV2?.dataCompleteness);
   const v2Score = v2Completeness == null ? null : Math.round(v2Completeness * 100);
-  const score = game.cfbFbisV2?.ok && v2Score != null
-    ? Math.max(baseScore ?? 0, v2Score)
+  const deepHome = game.cfbDeepInput?.home || {};
+  const deepAway = game.cfbDeepInput?.away || {};
+  const hasCurrentForm = (row) =>
+    finite(row.gamesPlayed) != null &&
+    finite(row.gamesPlayed) >= 1 &&
+    finite(row.currentPointsForPerGame) != null &&
+    finite(row.currentPointsAgainstPerGame) != null;
+  const formSides = Number(hasCurrentForm(deepHome)) + Number(hasCurrentForm(deepAway));
+  // A game with valid completed-game form on both sides is not "Q0" simply
+  // because an FCS opponent lacks CFBD's FBS-only advanced table.
+  const currentFormFloor = formSides === 2 ? 40 : formSides === 1 ? 20 : 0;
+  const score = game.cfbFbisV2?.ok
+    ? Math.max(baseScore ?? 0, v2Score ?? 0, currentFormFloor)
     : baseScore;
   return {
     score,

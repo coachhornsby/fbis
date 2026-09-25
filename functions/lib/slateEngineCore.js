@@ -1514,7 +1514,7 @@ export async function buildSlate(sport, date, env = {}) {
       try { await setMeta(env, k, v); } catch { /* best-effort */ }
     }
   }
-  games = mergeParlay(games, parlay.events, id);
+  games = mergeParlay(games, parlay.events, id, day);
   games = games.map((g) => attachMarketLabels(enrichGameTeams(id, g)));
 
   // Free Kalshi public API for winner sentiment (independent of Parlay credits).

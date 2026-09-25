@@ -1,4 +1,5 @@
 name: CFB Saturday Data Audit
+# Regression proof: App State alias + date-scoped odds stubs + partial-form quality.
 
 on:
   push:
