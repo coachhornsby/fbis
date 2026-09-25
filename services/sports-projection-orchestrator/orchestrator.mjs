@@ -507,6 +507,33 @@ export async function validateSheetsAccess(){
   const res=await sheets.get(q(CFG.sheets.config)+'!A1:B5');
   return {ok:true,range:res.range,rowCount:(res.values||[]).length};
 }
+export async function validateKenpom(){
+  const key=String(process.env.KENPOM_API_KEY||'').trim();
+  if(!key) return {ok:false,configured:false,reason:'KENPOM_API_KEY missing'};
+  const season=Number(process.env.KENPOM_SEASON||2026);
+  const url=new URL('https://kenpom.com/api.php');
+  url.searchParams.set('endpoint','ratings');
+  url.searchParams.set('y',String(season));
+  const started=Date.now();
+  const res=await fetchRetry(url.toString(),{
+    headers:{authorization:'Bearer '+key,accept:'application/json','user-agent':'Sports-Projection-Orchestrator/1.0'}
+  });
+  let payload=null;
+  try{ payload=await res.json(); }catch{}
+  const rows=Array.isArray(payload)?payload:[];
+  const dataThrough=rows.find(x=>x?.DataThrough)?.DataThrough||null;
+  return {
+    ok:res.ok && rows.length>=300,
+    configured:true,
+    httpStatus:res.status,
+    season,
+    rowCount:rows.length,
+    dataThrough,
+    latencyMs:Date.now()-started,
+    schemaSample:rows[0]?Object.keys(rows[0]).slice(0,12):[],
+    error:res.ok?(rows.length>=300?null:'row-count-below-300'):'HTTP '+res.status
+  };
+}
 export function healthSummary(){
   let googleCredential=false,googleCredentialParseError='';
   try{ googleCredential=sheets.available(); }catch(e){googleCredentialParseError=e.message;}
@@ -516,6 +543,7 @@ export function healthSummary(){
     credentials:{
       openai:!!process.env.OPENAI_API_KEY,
       gemini:!!process.env.GEMINI_API_KEY,
+      kenpom:!!process.env.KENPOM_API_KEY,
       googleSheets:googleCredential,
       googleCredentialParseError
     },
