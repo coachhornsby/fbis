@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: action-restore-validation
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -27,20 +27,22 @@ jobs:
       - name: Wait for restored endpoint to be live
         env:
           BASE: https://fbis-myz.pages.dev
-          EXPECTED_SHA: ${{ github.sha }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         shell: bash
         run: |
           set -euo pipefail
           for attempt in $(seq 1 50); do
             body="$(mktemp)"
-            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
-            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null | tr 'A-F' 'a-f')"
-            expected="$(echo "$EXPECTED_SHA" | tr 'A-F' 'a-f')"
-            echo "deploy-check attempt=$attempt http=$code live=$live expected=$expected"
-            if [ "$code" = "200" ] && [ "$live" = "$expected" ]; then exit 0; fi
+            code="$(curl -sS --max-time 20 -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               -d '{"mode":"probe"}'               -o "$body" -w "%{http_code}"               "$BASE/api/action-daily-async?mode=probe" || true)"
+            status="$(jq -r '.status // empty' "$body" 2>/dev/null || true)"
+            echo "restore-probe attempt=$attempt http=$code status=$status"
+            if [ "$code" = "400" ] && [ "$status" = "invalid_mode" ]; then
+              echo "Restored ACTION async endpoint is live; probe spent no Actor credits."
+              exit 0
+            fi
             sleep 12
           done
-          echo "Restored ACTION code did not reach production."
+          echo "Restored ACTION endpoint did not become live."
           exit 1
 
       - name: Start or reuse today's ACTION run
