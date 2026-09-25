@@ -1,0 +1,141 @@
+name: CFB Rich Data Validation
+
+on:
+  push:
+    paths:
+      - ".github/workflows/cfb-rich-data-validation.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate-project:
+    name: VERIFY CFBD THEN REPROJECT FRIDAY CFB
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Verify paid CFBD features are actually on the live board
+        env:
+          BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          board="$(mktemp)"
+          curl -fsSL --max-time 120 "${BASE}/api/projections?sport=cfb&date=2026-09-25&_t=$(date +%s)" -o "$board"
+          jq -e '.ok == true and .modelVersion == "CFB-FBIS-v2"' "$board" >/dev/null
+
+          for id in 401862779 401862778 401858468 401858461 401858234; do
+            row="$(jq -c --arg id "$id" '.games[] | select((.id|tostring)==$id)' "$board")"
+            test -n "$row"
+            echo "$row" | jq -c '{
+              id,
+              matchup:((.away.abbr // .away.name)+" @ "+(.home.abbr // .home.name)),
+              modelVersion,
+              projection,
+              quality,
+              featureVersion:.llmFeatures.version,
+              featureCount:.llmFeatures.featureCount,
+              homeGames:.llmFeatures.home.gamesPlayed,
+              awayGames:.llmFeatures.away.gamesPlayed,
+              homePF:.llmFeatures.home.currentPointsForPerGame,
+              awayPF:.llmFeatures.away.currentPointsForPerGame,
+              homePpa:.llmFeatures.home.offensePpa,
+              awayPpa:.llmFeatures.away.offensePpa,
+              homePass:.llmFeatures.home.passEpa,
+              awayPass:.llmFeatures.away.passEpa,
+              homeSuccess:.llmFeatures.home.successRate,
+              awaySuccess:.llmFeatures.away.successRate,
+              homeHavoc:.llmFeatures.home.havocRate,
+              awayHavoc:.llmFeatures.away.havocRate,
+              homeLineYards:.llmFeatures.home.lineYards,
+              awayLineYards:.llmFeatures.away.lineYards,
+              homeFinishing:.llmFeatures.home.pointsPerOpportunity,
+              awayFinishing:.llmFeatures.away.pointsPerOpportunity
+            }'
+            echo "$row" | jq -e '
+              .llmFeatures.version == "llm-features-v2-cfbd" and
+              .llmFeatures.independentInputsOnly == true and
+              (.llmFeatures.featureCount >= 12) and
+              (.llmFeatures.home.gamesPlayed >= 1) and
+              (.llmFeatures.away.gamesPlayed >= 1) and
+              (.llmFeatures.home.currentPointsForPerGame != null) and
+              (.llmFeatures.away.currentPointsForPerGame != null) and
+              (
+                (.llmFeatures.home.passEpa != null) or
+                (.llmFeatures.home.rushEpa != null) or
+                (.llmFeatures.home.successRate != null)
+              ) and
+              (
+                (.llmFeatures.away.passEpa != null) or
+                (.llmFeatures.away.rushEpa != null) or
+                (.llmFeatures.away.successRate != null)
+              )
+            ' >/dev/null
+          done
+
+      - name: Reproject all Friday CFB games with rich market-blind CFBD snapshots
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+          FBIS_URL: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          board="$(mktemp)"
+          curl -fsSL --max-time 120 "${FBIS_URL}/api/projections?sport=cfb&date=2026-09-25&_t=$(date +%s)" -o "$board"
+
+          for id in 401862779 401862778 401858468 401858461 401858234; do
+            game="$(jq -c --arg id "$id" '.games[] | select((.id|tostring)==$id)' "$board")"
+            snap="$(echo "$game" | jq -c --arg id "$id" '
+              {
+                "Snapshot ID": ("CFB-RICH-" + $id + "-20260925-v2"),
+                "Event ID": $id,
+                "Sport": "CFB",
+                "Matchup": (((.away.name // .away.abbr // "Away")|tostring) + " @ " + ((.home.name // .home.abbr // "Home")|tostring)),
+                "Event Start": (.start // ""),
+                "Generated At": (now | todateiso8601),
+                "Data Timestamp": (.generatedAt // ""),
+                "Schema Version": "cfb-rich-cfbd-v2",
+                "Snapshot Hash": ("CFB-RICH-" + $id + "-20260925-v2"),
+                "Locked?": "YES",
+                "Market Included?": "NO",
+                "Home Team": (.home.name // .home.abbr // "Home"),
+                "Away Team": (.away.name // .away.abbr // "Away"),
+                "Home Starter": "",
+                "Away Starter": "",
+                "Lineup Status": "",
+                "Injury Status": "",
+                "Rest/Travel": "",
+                "Weather/Environment": "",
+                "Team Features JSON": (.llmFeatures | tojson),
+                "Player Features JSON": "{}",
+                "Data Sources": ((.llmFeatures.sources // ["CFBD"]) | join("|")),
+                "Missing Inputs": "",
+                "Notes": "USER_REQUESTED_CFB_RICH_CFBD;WAGER_AUTH_GATED"
+              }')"
+            # Independent-snapshot guard: no sportsbook/market/native-projection fields.
+            echo "$snap" | jq -e '."Market Included?" == "NO"' >/dev/null
+            echo "$snap" | jq -r '."Team Features JSON"' | grep -Eiv '"spread"|"moneyline"|"odds"|"projected"|"market"' >/dev/null
+
+            payload="$(jq -cn --argjson snapshot "$snap" '{snapshot:$snapshot,persist:true,persistFeatureSnapshot:true}')"
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 180 -X POST               -H "Authorization: Bearer ${OIDC_TOKEN}"               -H "content-type: application/json"               -d "$payload"               -o "$body" -w "%{http_code}"               "${ORCH_URL}/api/run-snapshot")"
+            echo "EVENT=$id HTTP=$http"
+            jq -c '{eventId,snapshotId,openai:{status:.openai.status,score:[.openai.projection.game.away_projected_score,.openai.projection.game.home_projected_score],total:.openai.projection.game.projected_total},gemini:{status:.gemini.status,score:[.gemini.projection.game.away_projected_score,.gemini.projection.game.home_projected_score],total:.gemini.projection.game.projected_total},consensus,disagreement,persisted}' "$body"
+            test "$http" = "200"
+            jq -e '.openai.status == 200 and .gemini.status == 200 and .persisted == true' "$body" >/dev/null
+          done
