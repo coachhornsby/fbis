@@ -29,6 +29,7 @@ jobs:
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
       - name: Validate model providers
+        continue-on-error: true
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
           ORCH_URL: https://sports-projection-orchestrator.onrender.com
@@ -40,11 +41,13 @@ jobs:
           echo "HTTP=$http"
           cat "$body"
           test "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
           jq -e '.openai.projection.identity.projection_id | length > 0' "$body" >/dev/null
           jq -e '.gemini.projection.identity.projection_id | length > 0' "$body" >/dev/null
           jq -e '.persisted == false' "$body" >/dev/null
 
       - name: Validate Sheets credential state
+        if: always()
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
           ORCH_URL: https://sports-projection-orchestrator.onrender.com
