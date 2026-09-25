@@ -100,6 +100,28 @@ export function cbbRatingsV1(game, ratings = {}, { nationalEff = CBB_NATIONAL_EF
   };
 }
 
+export function cbbTorvikRatingsV1(game, ratings = {}, opts = {}) {
+  const base = cbbRatingsV1(game, ratings, opts);
+  if (!base.ok) {
+    return {
+      ...base,
+      modelId: "CBB-TORVIK-RATINGS-v1",
+      ...COLLEGE_MODELS["CBB-TORVIK-RATINGS-v1"],
+      source: "torvik",
+      available: false,
+      featuresOk: false,
+    };
+  }
+  return {
+    ...base,
+    modelId: "CBB-TORVIK-RATINGS-v1",
+    ...COLLEGE_MODELS["CBB-TORVIK-RATINGS-v1"],
+    source: "torvik",
+    available: true,
+    featuresOk: true,
+  };
+}
+
 /** The rejected old-repo total — kept only so tests prove we do not use it. */
 export function rejectedOldCbbTotal(homeOe, awayOe, homeTempo, awayTempo) {
   const avgTempo = (Number(homeTempo) + Number(awayTempo)) / 2;
@@ -209,6 +231,9 @@ export function projectCbbChallengers(game, ctx = {}) {
   const ratingsIn = ctx.ratings || {};
   const league = cbbLeagueBaseline(game);
   const ratings = cbbRatingsV1(game, ratingsIn);
+  const torvik = ctx.torvik?.modelId
+    ? ctx.torvik
+    : cbbTorvikRatingsV1(game, ctx.torvikRatings || {});
   const matchup = cbbMatchupV1(game, { ...ratingsIn, ...ctx.four });
   const poss = expectedPossessions(ratingsIn.homeTempo, ratingsIn.awayTempo) || CBB_NATIONAL_TEMPO;
   const reg = cbbRegV1(game, {
@@ -227,14 +252,14 @@ export function projectCbbChallengers(game, ctx = {}) {
     independent: false,
   };
   const ensemble = independentEnsemble(
-    [league, ratings.ok ? ratings : null, matchup.ok ? matchup : null, reg.ok ? reg : null],
+    [league, ratings.ok ? ratings : null, torvik.ok ? torvik : null, matchup.ok ? matchup : null, reg.ok ? reg : null],
     "CBB-ENSEMBLE-v1"
   );
   const shrunk = cbbMarketShrunk(ratings.ok ? ratings : league, pin);
   const models = {
     "CBB-LEAGUE-BASELINE": attachMc(league, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }),
     "CBB-CBBD-RATINGS-v1": ratings.ok ? attachMc(ratings, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : ratings,
-    "CBB-TORVIK-RATINGS-v1": ctx.torvik || torvikUnavailable(),
+    "CBB-TORVIK-RATINGS-v1": torvik.ok ? attachMc(torvik, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : torvik,
     "CBB-MATCHUP-v1": matchup.ok ? attachMc(matchup, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : matchup,
     "CBB-REG-v1": reg.ok ? attachMc(reg, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : reg,
     "CBB-ENSEMBLE-v1": ensemble.ok ? attachMc(ensemble, { sigmaMargin: CBB_MARGIN_SIGMA, sigmaTotal: CBB_TOTAL_SIGMA }) : ensemble,
