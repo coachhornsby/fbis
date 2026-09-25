@@ -1,4 +1,5 @@
 import { buildSlate, resolveSlateDate, shiftDateCT, todayCT } from "../lib/slateEngine.js";
+import { productProjectionCard } from "../lib/productProjection.js";
 
 const SPORTS = new Set(["cfb","nfl","mlb"]);
 
@@ -42,43 +43,71 @@ function dedupe(games = []) {
 }
 
 function row(game, sport) {
-  const projHome = Number(game?.model?.projHome ?? game?.projHome ?? game?.projHomeScore);
-  const projAway = Number(game?.model?.projAway ?? game?.projAway ?? game?.projAwayScore);
-  const independent = (game?.projectionKind === "FBIS" || game?.model?.projectionKind === "FBIS") &&
-    Number.isFinite(projHome) && Number.isFinite(projAway);
-  const modelId = game?.researchProjection?.modelId || game?.projectionEngine ||
+  const card = productProjectionCard(game, sport, { tier: "public" });
+  const projHome = Number(card?.projection?.home);
+  const projAway = Number(card?.projection?.away);
+  const independent = card?.projection?.independent === true && Number.isFinite(projHome) && Number.isFinite(projAway);
+  const modelId = card?.modelVersion || game?.researchProjection?.modelId || game?.projectionEngine ||
     (sport === "cfb" ? "CFB-FBIS-v2" : sport === "nfl" ? "NFL-FBIS-PURE" : "FBIS-MLB");
-  const maturity = String(game?.projectionMaturity || game?.model?.maturity ||
+  const maturity = String(card?.model?.maturity || game?.projectionMaturity ||
     (sport === "nfl" ? "RESEARCH" : "PRODUCTION")).toUpperCase();
-  const sourcePrimary = sport === "cfb" ? "CFBD" : sport === "nfl" ? "nflverse + team form" : "MLB Stats / Savant";
-  const sourceSecondary = sport === "cfb" ? "context / roster / weather" : sport === "nfl" ? "ESPN context" : "starter / bullpen context";
-  const state = independent ? (maturity === "RESEARCH" ? "RESEARCH" : "PROJECTION") : "NO MODEL";
+  const sourcePrimary = sport === "cfb" ? "CFBD" : sport === "nfl" ? "nflverse / team form" : "MLB Stats / Savant";
+  const sourceSecondary = sport === "cfb" ? "roster / weather / context" : sport === "nfl" ? "ESPN / QB / context" : "starter / bullpen / context";
+  const marketSpread = card?.market?.spread;
+  const marketTotal = card?.market?.total;
+  const nativeMargin = independent ? projHome - projAway : null;
+  const sideDiff = independent && marketSpread != null
+    ? Math.round((nativeMargin + Number(marketSpread)) * 10) / 10
+    : "";
+  const nativeTotal = independent ? projAway + projHome : null;
+  const totalDiff = independent && marketTotal != null
+    ? Math.round((nativeTotal - Number(marketTotal)) * 10) / 10
+    : "";
+  const qScore = card?.quality?.score;
+  const qState = card?.quality?.state;
+  const flags = Array.isArray(card?.quality?.flags) ? card.quality.flags : [];
+  const starterHold = sport === "mlb" && flags.some((x) => /missing_(home|away)_sp/i.test(String(x)));
+  const state = independent
+    ? starterHold
+      ? "HOLD — STARTER"
+      : maturity === "RESEARCH"
+        ? "RESEARCH"
+        : "PROJECTION"
+    : "NO MODEL";
+  const qualityText = [
+    qScore != null ? `Q${qScore}` : null,
+    qState || null,
+    starterHold ? "STARTER HOLD" : null,
+  ].filter(Boolean).join(" · ");
   return [
-    String(game?.id || ""),
-    dateCt(game?.start),
-    timeCt(game?.start),
-    game?.away?.abbr || game?.away?.name || "",
-    game?.home?.abbr || game?.home?.name || "",
-    game?.neutralSite ? "NEUTRAL" : (game?.venue || ""),
+    String(card?.id || game?.id || ""),
+    dateCt(card?.start || game?.start),
+    timeCt(card?.start || game?.start),
+    card?.away?.abbr || game?.away?.abbr || game?.away?.name || "",
+    card?.home?.abbr || game?.home?.abbr || game?.home?.name || "",
+    card?.neutral ? "NEUTRAL" : (game?.venue || ""),
     sourcePrimary,
     "LIVE",
     sourceSecondary,
     "LIVE",
-    game?.researchProjection?.informationCutoff || game?.cfb?.priorAsOf || "",
+    game?.researchProjection?.informationCutoff || game?.cfb?.priorAsOf || new Date().toISOString(),
     game?.researchProjection?.featureSnapshotId || "",
     independent ? "NATIVE LOCKED" : "NO",
     modelId,
     independent ? projAway : "",
     independent ? projHome : "",
-    "","","","","","",
-    independent ? Math.round((projAway + projHome) * 1000) / 1000 : "",
     "","","","",
-    maturity,
+    "","",
+    independent ? Math.round(nativeTotal * 10) / 10 : "",
+    marketSpread ?? "",
+    marketTotal ?? "",
+    sideDiff,
+    totalDiff,
+    qualityText || maturity,
     state,
-    independent ? (maturity === "RESEARCH" ? "Independent research projection; no wager authority" : "Independent FBIS production projection") : "Independent projection unavailable"
+    flags.join(", ") || (independent ? (maturity === "RESEARCH" ? "Independent research projection; no wager authority" : "Independent FBIS projection") : "Independent projection unavailable")
   ];
 }
-
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const sport = String(url.searchParams.get("sport") || "").toLowerCase();
