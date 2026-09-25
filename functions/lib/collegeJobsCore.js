@@ -21,7 +21,7 @@ import CFB_FBIS_V2 from "../../data/models/cfb-fbis-v2.js";
 import { runCfbdEndpointAudit, auditArtifactPayload, auditContentHash } from "./cfbdEndpointAudit.js";
 import { runCbbdEndpointAudit } from "./cbbdEndpointAudit.js";
 import { featureAvailabilityTable, markdownFeatureTable, FEATURE_CATALOG_VERSION } from "./cfbdFeatureCatalog.js";
-import { loadTorvikCbbCatalog, mergeCbbCatalogs } from "./torvikCbb.js";
+import { loadTorvikCbbCatalog, mergeCbbCatalogs } from "./torvikCbb.js";\nimport { loadKenpomCbbCatalog } from "./kenpomCbb.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -637,10 +637,16 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         }
 
         const cbbdCatalog = indexCbbdAdjusted(fetched.bundles["/ratings/adjusted"] || []);
-        const torvik = await loadTorvikCbbCatalog(env, {
-          cbbSeason: y,
-          fetchFn: opts.fetchFn || fetch,
-        });
+        const [torvik, kenpom] = await Promise.all([
+          loadTorvikCbbCatalog(env, {
+            cbbSeason: y,
+            fetchFn: opts.fetchFn || fetch,
+          }),
+          loadKenpomCbbCatalog(env, {
+            cbbSeason: y,
+            fetchFn: opts.fetchFn || fetch,
+          }),
+        ]);
         report.push({
           ok: Boolean(torvik.ok),
           status: torvik.ratingsHttpStatus || torvik.httpStatus || 0,
@@ -649,6 +655,15 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           source: "torvik",
           cacheHit: Boolean(torvik.cacheHit),
           reason: torvik.ok ? null : torvik.error || "torvik-unavailable",
+        });
+        report.push({
+          ok: Boolean(kenpom.ok),
+          status: kenpom.ratingsHttpStatus || kenpom.httpStatus || 0,
+          n: kenpom.n || 0,
+          path: "api.php?endpoint=ratings+four-factors",
+          source: "kenpom",
+          cacheHit: Boolean(kenpom.cacheHit),
+          reason: kenpom.ok ? null : kenpom.error || "kenpom-unavailable",
         });
         await persistObservation(env, {
           source: "torvik",
@@ -660,8 +675,18 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           jobRunId: id,
           status: torvik.ok ? "ok" : "failed",
         });
+        await persistObservation(env, {
+          source: "kenpom",
+          sport: "cbb",
+          endpoint: "ratings+four-factors",
+          season: y,
+          partition: "season",
+          data: kenpom.rows || [],
+          jobRunId: id,
+          status: kenpom.ok ? "ok" : "failed",
+        });
 
-        const merged = mergeCbbCatalogs(cbbdCatalog, torvik);
+        const merged = mergeCbbCatalogs(cbbdCatalog, torvik, kenpom);
         gamesDiscovered += merged.n;
         writes.writesSucceeded += await persistTeamFeatures(
           env,
@@ -669,7 +694,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           y,
           merged,
           id,
-          { featureVersion: "cbb-features-v2-cbbd-torvik" }
+          { featureVersion: "cbb-features-v3-cbbd-torvik-kenpom" }
         );
       }
     }
