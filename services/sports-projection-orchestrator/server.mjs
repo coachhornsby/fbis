@@ -1,6 +1,6 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
-import {healthSummary,validateModels,validateSheetsAccess,processQueue,runSnapshot} from './orchestrator.mjs';
+import {healthSummary,validateModels,validateSheetsAccess,validateKenpom,processQueue,runSnapshot} from './orchestrator.mjs';
 
 const port=Number(process.env.PORT||10000);
 const token=process.env.ORCH_CONTROL_TOKEN||'';
@@ -90,6 +90,7 @@ const server=http.createServer(async(req,res)=>{
     const auth=await authorization(req);
     if(!auth) return json(res,401,{error:'unauthorized'});
     if(req.method==='GET'&&url.pathname==='/api/validate/sheets') return json(res,200,await validateSheetsAccess());
+    if(req.method==='GET'&&url.pathname==='/api/validate/kenpom') return json(res,200,await validateKenpom());
     if(req.method==='POST'&&url.pathname==='/api/validate/models') return json(res,200,await validateModels());
     if(req.method==='POST'&&url.pathname==='/api/process-queue') return json(res,200,{auth:auth.type,...(await processQueueFailClosed())});
     if(req.method==='POST'&&url.pathname==='/api/run-snapshot'){
