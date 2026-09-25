@@ -103,7 +103,7 @@ jobs:
       production_sha: ${{ steps.verify.outputs.production_sha }}
       fail_closed: ${{ steps.verify.outputs.fail_closed }}
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
@@ -181,7 +181,7 @@ jobs:
       matrix:
         sport: [mlb, nba, nfl, cfb, cbb]
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7.0.1
       - name: Assert production SHA unchanged
         env:
           BASE: "https://fbis-myz.pages.dev"
@@ -492,7 +492,7 @@ jobs:
     needs: [determine-mode, verify-deployment]
     if: needs.determine-mode.outputs.mode == 'health' && needs.verify-deployment.outputs.outcome == 'match'
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7.0.1
       - name: Assert production SHA unchanged
         env:
           BASE: "https://fbis-myz.pages.dev"

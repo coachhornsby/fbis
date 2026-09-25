@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
@@ -61,7 +61,7 @@ jobs:
       DEPLOY_SHA: ${{ github.sha }}
     steps:
       - name: Checkout exact production SHA
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ env.DEPLOY_SHA }}
 
