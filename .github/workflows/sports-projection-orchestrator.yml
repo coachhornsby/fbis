@@ -31,6 +31,20 @@ jobs:
           test -n "$token"
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
+      - name: Select high-signal games for LLM review
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             -d '{}'             -o "$body" -w "%{http_code}"             "${ORCH_URL}/api/select-candidates")"
+          echo "SELECT HTTP=$http"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+
       - name: Process Render queue
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
