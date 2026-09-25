@@ -17,7 +17,7 @@ export const COLLEGE_JOBS = [...core.COLLEGE_JOBS, "model-learn-analyze"];
 const SCORE_FAMILIES = new Set(["baseline", "ratings", "reg", "ensemble", "matchup"]);
 const FREEZE_MODELS = {
   cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1", "CFB-PINNACLE-IMPLIED", "CFB-FBIS-v2"],
-  cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1", "CBB-PINNACLE-IMPLIED", "CBB-FBIS-PURE"],
+  cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1", "CBB-TORVIK-RATINGS-v1", "CBB-KENPOM-RATINGS-v1", "CBB-ENSEMBLE-v1", "CBB-PINNACLE-IMPLIED", "CBB-FBIS-PURE"],
   nfl: ["NFL-TEAM-FORM-v0", "NFL-FBIS-PURE"],
 };
 
