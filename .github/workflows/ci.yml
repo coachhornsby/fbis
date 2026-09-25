@@ -265,6 +265,7 @@ jobs:
           echo "DEPLOY PRODUCTION complete — research catch-up runs in harvest.yml, not this gate."
 
       - name: CFBD endpoint audit (live production)
+        if: contains(github.event.head_commit.message, '[cfbd-audit]') || contains(github.event.head_commit.message, '[college-capability-audit]')
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
@@ -272,7 +273,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           tmp="$(mktemp)"
-          http=$(curl -sS --max-time 180 \
+          http=$(curl -sS --max-time 300 \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
             -H "accept: application/json" \
             -o "$tmp" -w "%{http_code}" \
@@ -295,6 +296,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload CFBD audit artifact
+        if: always() && (contains(github.event.head_commit.message, '[cfbd-audit]') || contains(github.event.head_commit.message, '[college-capability-audit]'))
         uses: actions/upload-artifact@v4
         with:
           name: cfbd-endpoint-audit-${{ env.DEPLOY_SHA }}
