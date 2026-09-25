@@ -215,7 +215,7 @@ export const SOURCE_REGISTRY = Object.freeze([
     commercialStatus: COMMERCIAL_STATUS.COMMERCIAL_USE_REVIEW_REQUIRED,
     priority: 10,
     fallbackPriority: null,
-    active: true,
+    active: false,
     enabled: false,
     paused: true,
     notes: "ADMINISTRATIVELY PAUSED 2026-09-25. Registered for audit/history only; no scheduled or manual collector execution.",
