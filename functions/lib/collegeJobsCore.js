@@ -21,6 +21,7 @@ import CFB_FBIS_V2 from "../../data/models/cfb-fbis-v2.js";
 import { runCfbdEndpointAudit, auditArtifactPayload, auditContentHash } from "./cfbdEndpointAudit.js";
 import { runCbbdEndpointAudit } from "./cbbdEndpointAudit.js";
 import { featureAvailabilityTable, markdownFeatureTable, FEATURE_CATALOG_VERSION } from "./cfbdFeatureCatalog.js";
+import { loadTorvikCbbCatalog, mergeCbbCatalogs } from "./torvikCbb.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -197,22 +198,33 @@ export async function seedRegistry(env) {
   await insertModelArtifact(env, { id: CFB_FBIS_V2.id, modelId: CFB_FBIS_V2.modelId, schema: CFB_FBIS_V2.expectedUnits, coefficients: CFB_FBIS_V2.coefficients, trainingCutoff: CFB_FBIS_V2.trainingCutoff, trainingHash: CFB_FBIS_V2.trainingHash, sourceVersions: CFB_FBIS_V2.sourceVersions, expectedUnits: CFB_FBIS_V2.expectedUnits });
 }
 
-async function persistTeamFeatures(env, sport, season, catalog, jobRunId) {
+async function persistTeamFeatures(
+  env,
+  sport,
+  season,
+  catalog,
+  jobRunId,
+  { featureVersion = `${sport}-features-v1` } = {}
+) {
   let n = 0;
   const entries = Object.entries(catalog.byCanonicalId || catalog.byEspnId || {});
-  for (const [key, row] of entries.slice(0, 200)) {
+  for (const [key, row] of entries.slice(0, 400)) {
     const asOf = new Date().toISOString();
     const hash = await hashPayload(row);
-    const id = `${sport}:${key}:${season}:${hash.slice(0, 12)}`;
+    const id = `${sport}:${key}:${season}:${featureVersion}:${hash.slice(0, 12)}`;
     const res = await insertTeamFeatureSnapshot(env, {
       id,
       sport,
       teamId: row.canonicalId || key,
       season,
       asOf,
-      featureVersion: `${sport}-features-v1`,
+      featureVersion,
       features: row,
-      missingness: { tempo: row.tempo == null, talent: row.talent == null },
+      missingness: {
+        tempo: row.tempo == null,
+        talent: sport === "cfb" ? row.talent == null : undefined,
+        torvik: sport === "cbb" ? row.torvik == null : undefined,
+      },
       contentHash: hash,
       jobRunId,
     });
@@ -619,13 +631,46 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         const fetched = await fetchEndpoints("cbbd", specs, env, y, id, "cbb");
         report.push(...fetched.report);
         const teams = fetched.bundles["/teams"] || [];
-        for (const t of (teams || []).slice(0, 200)) {
+        for (const t of (teams || []).slice(0, 400)) {
           const mapped = mapSourceTeam("cbb", t, y);
           if (mapped.ok) await upsertTeamSeasonIdentity(env, mapped);
         }
-        const catalog = indexCbbdAdjusted(fetched.bundles["/ratings/adjusted"] || []);
-        gamesDiscovered += catalog.n;
-        writes.writesSucceeded += await persistTeamFeatures(env, "cbb", y, catalog, id);
+
+        const cbbdCatalog = indexCbbdAdjusted(fetched.bundles["/ratings/adjusted"] || []);
+        const torvik = await loadTorvikCbbCatalog(env, {
+          cbbSeason: y,
+          fetchFn: opts.fetchFn || fetch,
+        });
+        report.push({
+          ok: Boolean(torvik.ok),
+          status: torvik.ratingsHttpStatus || torvik.httpStatus || 0,
+          n: torvik.n || 0,
+          path: "team_results.csv+fffinal.csv",
+          source: "torvik",
+          cacheHit: Boolean(torvik.cacheHit),
+          reason: torvik.ok ? null : torvik.error || "torvik-unavailable",
+        });
+        await persistObservation(env, {
+          source: "torvik",
+          sport: "cbb",
+          endpoint: "team_results.csv+fffinal.csv",
+          season: y,
+          partition: "season",
+          data: torvik.rows || [],
+          jobRunId: id,
+          status: torvik.ok ? "ok" : "failed",
+        });
+
+        const merged = mergeCbbCatalogs(cbbdCatalog, torvik);
+        gamesDiscovered += merged.n;
+        writes.writesSucceeded += await persistTeamFeatures(
+          env,
+          "cbb",
+          y,
+          merged,
+          id,
+          { featureVersion: "cbb-features-v2-cbbd-torvik" }
+        );
       }
     }
 
@@ -829,7 +874,7 @@ async function persistQbTransferSeason(env, { season, portalRows = [], qbStatRow
 
 const FREEZE_MODELS = {
   cfb: ["CFB-LEAGUE-BASELINE", "CFB-CFBD-RATINGS-v1", "CFB-CFBD-REG-v1", "CFB-CFBD-ENSEMBLE-v1", "CFB-FBIS-v2"],
-  cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1", "CBB-FBIS-PURE"],
+  cbb: ["CBB-LEAGUE-BASELINE", "CBB-CBBD-RATINGS-v1", "CBB-TORVIK-RATINGS-v1", "CBB-ENSEMBLE-v1", "CBB-FBIS-PURE"],
   nfl: ["NFL-TEAM-FORM-v0", "NFL-FBIS-PURE"],
 };
 
