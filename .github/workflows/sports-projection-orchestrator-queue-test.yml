@@ -1,0 +1,45 @@
+name: Sports Projection Orchestrator Queue Validation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/sports-projection-orchestrator-queue-test.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  queue-test:
+    name: PROCESS CONTROLLED ORCHESTRATOR QUEUE
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          body="$(curl -fsSL             -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}"             "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Process controlled queue item
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+          EXPECTED_RUN_ID: VALIDATION-QUEUE-RUN-20260925-001
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 180             -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             -o "$body" -w "%{http_code}"             "${ORCH_URL}/api/process-queue")"
+          echo "HTTP=$http"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.status == "EXECUTED"' "$body" >/dev/null
+          jq -e --arg id "$EXPECTED_RUN_ID" '.results[] | select(.runId == $id and .status == "COMPLETE")' "$body" >/dev/null
