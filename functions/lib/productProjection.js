@@ -185,12 +185,20 @@ function decision(game, sport) {
 }
 
 function quality(game = {}) {
+  const baseScore = finite(game.quality?.score ?? game.cfb?.dataQuality);
+  const v2Completeness = finite(game.cfbFbisV2?.dataCompleteness);
+  const v2Score = v2Completeness == null ? null : Math.round(v2Completeness * 100);
+  const score = game.cfbFbisV2?.ok && v2Score != null
+    ? Math.max(baseScore ?? 0, v2Score)
+    : baseScore;
   return {
-    score: finite(game.quality?.score ?? game.cfb?.dataQuality),
-    state: game.cfb?.projectionState || game.projectionState || null,
+    score,
+    state: game.cfbFbisV2?.ok
+      ? (game.cfbFbisV2?.provisional ? "PROVISIONAL" : "COMPLETE")
+      : game.cfb?.projectionState || game.projectionState || null,
     flags: Array.isArray(game.quality?.flags) ? game.quality.flags.slice(0, 12) : [],
-    sigmaMargin: finite(game.cfb?.sigmaMargin ?? game.model?.sigmaMargin),
-    sigmaTotal: finite(game.cfb?.sigmaTotal ?? game.model?.sigmaTotal),
+    sigmaMargin: finite(game.cfbFbisV2?.sigmaMargin ?? game.cfb?.sigmaMargin ?? game.model?.sigmaMargin),
+    sigmaTotal: finite(game.cfbFbisV2?.sigmaTotal ?? game.cfb?.sigmaTotal ?? game.model?.sigmaTotal),
   };
 }
 
