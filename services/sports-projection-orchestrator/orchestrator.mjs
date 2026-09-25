@@ -605,13 +605,16 @@ export async function selectCandidates({dryRun=false}={}){
   if(capacity<=0) return {ok:true,status:'DAILY_CAP_REACHED',selected:0,usedToday,dailyCap:CFG.llmMaxGamesPerDay,candidates:[],at:now()};
 
   const dates=[0,1,2].map(d=>shiftDateKey(today,d));
-  const boards=[];
+  const boardJobs=[];
   for(const sport of LLM_GATE_SPORTS){
     for(const date of dates){
-      try{ boards.push(await fetchProjectionBoard(sport,date)); }
-      catch(e){ boards.push({ok:false,sport,date,error:String(e.message||e),games:[]}); }
+      boardJobs.push(
+        fetchProjectionBoard(sport,date)
+          .catch(e=>({ok:false,sport,date,error:String(e.message||e),games:[]}))
+      );
     }
   }
+  const boards=await Promise.all(boardJobs);
   const seen=new Set();
   const candidates=[];
   for(const board of boards){
