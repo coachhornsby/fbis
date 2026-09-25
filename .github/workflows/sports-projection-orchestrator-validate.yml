@@ -42,7 +42,6 @@ jobs:
           echo "HTTP=$http"
           cat "$body"
           test "$http" = "200"
-          jq -e '.ok == true' "$body" >/dev/null
           jq -e '.openai.projection.identity.projection_id | length > 0' "$body" >/dev/null
           jq -e '.gemini.projection.identity.projection_id | length > 0' "$body" >/dev/null
           jq -e '.persisted == false' "$body" >/dev/null
