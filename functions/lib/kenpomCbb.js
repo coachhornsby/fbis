@@ -54,6 +54,60 @@ export function normalizeKenpomRatingRows(rows = []) {
   })).filter((row) => row.team && row.adjOe != null && row.adjDe != null);
 }
 
+export function normalizeKenpomFanmatchRows(rows = []) {
+  return (rows || []).map((row) => {
+    const homePred = num(row.HomePred ?? row.homePred);
+    const awayPred = num(row.VisitorPred ?? row.visitorPred ?? row.AwayPred ?? row.awayPred);
+    const rawWp = num(row.HomeWP ?? row.homeWP ?? row.homeWinProbability);
+    return {
+      season: num(row.Season ?? row.season),
+      gameId: row.GameID ?? row.gameId ?? null,
+      date: row.DateOfGame ?? row.date ?? null,
+      awayTeam: row.Visitor ?? row.visitor ?? row.Away ?? row.away ?? null,
+      homeTeam: row.Home ?? row.home ?? null,
+      awayRank: num(row.VisitorRank ?? row.visitorRank),
+      homeRank: num(row.HomeRank ?? row.homeRank),
+      awayPred,
+      homePred,
+      homeMargin: homePred != null && awayPred != null ? homePred - awayPred : null,
+      total: homePred != null && awayPred != null ? homePred + awayPred : null,
+      homeWinProbability: rawWp == null ? null : (rawWp > 1 ? rawWp / 100 : rawWp),
+      predTempo: num(row.PredTempo ?? row.predTempo),
+      thrillScore: num(row.ThrillScore ?? row.thrillScore),
+      source: "kenpom-fanmatch",
+      comparisonOnly: true,
+    };
+  }).filter((row) => row.date && row.awayTeam && row.homeTeam && row.homePred != null && row.awayPred != null);
+}
+
+export async function loadKenpomFanmatch(env = {}, { date, fetchFn = fetch } = {}) {
+  const key = String(env?.KENPOM_API_KEY || "").trim();
+  if (!key) return { ok: false, configured: false, date, rows: [], n: 0, error: "no-api-key", comparisonOnly: true };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) {
+    return { ok: false, configured: true, date, rows: [], n: 0, error: "invalid-date", comparisonOnly: true };
+  }
+  const url = new URL(BASE);
+  url.searchParams.set("endpoint", "fanmatch");
+  url.searchParams.set("d", String(date));
+  try {
+    const res = await fetchFn(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+        "User-Agent": "FBIS-CBB/2.0",
+      },
+    });
+    let body = null;
+    try { body = await res.json(); } catch {}
+    if (!res.ok) return { ok: false, configured: true, date, rows: [], n: 0, httpStatus: res.status, error: `HTTP ${res.status}`, comparisonOnly: true };
+    if (!Array.isArray(body)) return { ok: false, configured: true, date, rows: [], n: 0, httpStatus: res.status, error: "unexpected-payload", comparisonOnly: true };
+    const rows = normalizeKenpomFanmatchRows(body);
+    return { ok: true, configured: true, date, rows, n: rows.length, httpStatus: res.status, comparisonOnly: true, source: "kenpom-fanmatch" };
+  } catch (err) {
+    return { ok: false, configured: true, date, rows: [], n: 0, httpStatus: 0, error: String(err?.message || err), comparisonOnly: true };
+  }
+}
+
 export function normalizeKenpomFourFactorRows(rows = []) {
   return (rows || []).map((row) => ({
     team: row.TeamName ?? row.team ?? row.teamName ?? null,
