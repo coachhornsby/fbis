@@ -1,0 +1,59 @@
+name: Sports Projection Orchestrator
+
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: sports-projection-orchestrator-hourly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  process:
+    name: PROCESS PROJECTION QUEUE
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          body="$(curl -fsSL             -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}"             "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Process Render queue
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 180 --retry 2 --retry-all-errors             -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             -o "$body" -w "%{http_code}"             "${ORCH_URL}/api/process-queue")"
+          echo "HTTP=$http"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          status="$(jq -r '.status // empty' "$body")"
+          case "$status" in
+            EXECUTED)
+              echo "Projection queue processed."
+              ;;
+            BLOCKED_FAIL_CLOSED)
+              echo "Orchestrator is live but runtime credentials are incomplete; no projection was released."
+              ;;
+            *)
+              echo "Unexpected orchestrator status=$status"
+              exit 1
+              ;;
+          esac
