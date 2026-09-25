@@ -1,0 +1,84 @@
+name: CFB Saturday Data Audit
+
+on:
+  push:
+    paths:
+      - ".github/workflows/cfb-saturday-data-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Wait for this SHA to be live
+        env:
+          BASE: https://fbis-myz.pages.dev
+          EXPECTED: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null | tr 'A-F' 'a-f')"
+            exp="$(echo "$EXPECTED" | tr 'A-F' 'a-f')"
+            echo "attempt=$i http=$code live=$live expected=$exp"
+            if [ "$code" = "200" ] && [ "$live" = "$exp" ]; then exit 0; fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Audit all Saturday CFB current form and CFBD coverage
+        env:
+          BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 180 -o "$body" -w "%{http_code}" "$BASE/api/projections?sport=cfb&date=2026-09-26&_t=$(date +%s)")"
+          test "$code" = "200"
+          jq -e '.ok == true and .modelVersion == "CFB-FBIS-v2"' "$body" >/dev/null
+
+          jq -c '
+            [.games[] as $g |
+              [
+                {id:$g.id, matchup:(($g.away.abbr// $g.away.name)+" @ "+($g.home.abbr//$g.home.name)), side:"away", team:($g.away.name//$g.away.abbr), f:$g.llmFeatures.away, q:$g.quality},
+                {id:$g.id, matchup:(($g.away.abbr// $g.away.name)+" @ "+($g.home.abbr//$g.home.name)), side:"home", team:($g.home.name//$g.home.abbr), f:$g.llmFeatures.home, q:$g.quality}
+              ][]
+            ] as $s |
+            {
+              games:(.games|length),
+              teamSides:($s|length),
+              featureVersionOk:([.games[]|select(.llmFeatures.version=="llm-features-v2-cfbd")]|length),
+              currentFormSides:([$s[]|select((.f.gamesPlayed//0)>=1 and .f.currentPointsForPerGame!=null and .f.currentPointsAgainstPerGame!=null)]|length),
+              gamesPlayedDistribution:($s|group_by(.f.gamesPlayed//0)|map({games:(.[0].f.gamesPlayed//0),sides:length})),
+              sidesWith3Plus:([$s[]|select((.f.gamesPlayed//0)>=3)]|length),
+              sidesWith4Plus:([$s[]|select((.f.gamesPlayed//0)>=4)]|length),
+              advancedSides:([$s[]|select(.f.passEpa!=null or .f.rushEpa!=null or .f.successRate!=null or .f.havocRate!=null)]|length),
+              fullRichSides:([$s[]|select(
+                .f.offensePpa!=null and
+                .f.passEpa!=null and
+                .f.rushEpa!=null and
+                .f.successRate!=null and
+                .f.explosiveRate!=null and
+                .f.havocRate!=null and
+                .f.lineYards!=null and
+                .f.pointsPerOpportunity!=null
+              )]|length),
+              nonzeroQualityGames:([.games[]|select((.quality.score//0)>0)]|length),
+              missingCurrentForm:[$s[]|select((.f.gamesPlayed//0)<1 or .f.currentPointsForPerGame==null or .f.currentPointsAgainstPerGame==null)|{id,matchup,side,team,gamesPlayed:.f.gamesPlayed}],
+              missingAdvanced:[$s[]|select(.f.passEpa==null and .f.rushEpa==null and .f.successRate==null and .f.havocRate==null)|{id,matchup,side,team,gamesPlayed:.f.gamesPlayed}],
+              sample3Plus:[$s[]|select((.f.gamesPlayed//0)>=3)|{team,gamesPlayed:.f.gamesPlayed,pf:.f.currentPointsForPerGame,pa:.f.currentPointsAgainstPerGame,ppa:.f.offensePpa,success:.f.successRate,havoc:.f.havocRate,lineYards:.f.lineYards,finishing:.f.pointsPerOpportunity}]|.[0:20]
+            }' "$body" | tee audit.json
+
+          jq -e '
+            .games > 0 and
+            .featureVersionOk == .games and
+            .currentFormSides == .teamSides and
+            .sidesWith3Plus > 0 and
+            .nonzeroQualityGames == .games
+          ' audit.json >/dev/null
