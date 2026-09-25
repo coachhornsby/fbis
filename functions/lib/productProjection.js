@@ -43,19 +43,39 @@ function modelIdentity(sport, game = {}) {
   if (sport === "cfb") {
     const h = game.cfb?.homeEst || {};
     const a = game.cfb?.awayEst || {};
-    const side = (est, tm) => {
+    const hd = game.cfbDeepInput?.home || {};
+    const ad = game.cfbDeepInput?.away || {};
+    const side = (est, deep, tm) => {
       const raw = est.featureVector?.raw || {};
       const comp = est.featureVector?.components || {};
       return {
         team: tm?.school || tm?.fullName || tm?.name || tm?.abbr || null,
         rank: finite(est.rank),
-        gamesPlayed: finite(est.n),
+        gamesPlayed: finite(deep.gamesPlayed ?? est.n),
         priorOffense: finite(est.priorOff),
         priorDefense: finite(est.priorDef),
-        currentPointsForPerGame: finite(est.currentOff),
-        currentPointsAgainstPerGame: finite(est.currentDef),
+        currentPointsForPerGame: finite(deep.currentPointsForPerGame ?? est.currentOff),
+        currentPointsAgainstPerGame: finite(deep.currentPointsAgainstPerGame ?? est.currentDef),
         teamSpecificPrior: Boolean(est.teamSpecificPrior),
         currentSeasonFormSource: est.currentOff != null ? "CFBD_COMPLETED_GAMES_OR_HARVEST" : null,
+        offensePpa: finite(deep.offensePpa),
+        defensePpa: finite(deep.defensePpa),
+        passEpa: finite(deep.passEpa),
+        rushEpa: finite(deep.rushEpa),
+        passEpaAllowed: finite(deep.passEpaAllowed),
+        rushEpaAllowed: finite(deep.rushEpaAllowed),
+        successRate: finite(deep.successRate),
+        successRateAllowed: finite(deep.successRateAllowed),
+        explosiveRate: finite(deep.explosiveRate),
+        explosiveRateAllowed: finite(deep.explosiveRateAllowed),
+        havocRate: finite(deep.havocRate),
+        havocAllowed: finite(deep.havocAllowed),
+        lineYards: finite(deep.lineYards),
+        lineYardsAllowed: finite(deep.lineYardsAllowed),
+        stuffRate: finite(deep.stuffRate),
+        pointsPerOpportunity: finite(deep.pointsPerOpportunity),
+        pointsPerOpportunityAllowed: finite(deep.pointsPerOpportunityAllowed),
+        pacePlays: finite(deep.pacePlays),
         epaNet: finite(raw.epaNet),
         transferNet: finite(raw.transferNet),
         transferStarDelta: finite(raw.transferStarDelta),
@@ -82,10 +102,13 @@ function modelIdentity(sport, game = {}) {
         missing: Array.isArray(est.featureVector?.missing) ? est.featureVector.missing : [],
       };
     };
-    const home = side(h, game.home);
-    const away = side(a, game.away);
+    const home = side(h, hd, game.home);
+    const away = side(a, ad, game.away);
     const numeric = (obj) => [
       obj.gamesPlayed,obj.priorOffense,obj.priorDefense,obj.currentPointsForPerGame,obj.currentPointsAgainstPerGame,
+      obj.offensePpa,obj.defensePpa,obj.passEpa,obj.rushEpa,obj.passEpaAllowed,obj.rushEpaAllowed,
+      obj.successRate,obj.successRateAllowed,obj.explosiveRate,obj.explosiveRateAllowed,obj.havocRate,obj.havocAllowed,
+      obj.lineYards,obj.lineYardsAllowed,obj.stuffRate,obj.pointsPerOpportunity,obj.pointsPerOpportunityAllowed,obj.pacePlays,
       obj.epaNet,obj.transferNet,obj.transferStarDelta,obj.returningPct,obj.talent,obj.coachTenure,
       obj.qbPriorPpa,obj.qbPriorSuccessRate,obj.qbPriorYpa,obj.qbPriorGamesStarted,obj.qbStarterClass,
       obj.normalizedSignals?.epa,obj.normalizedSignals?.transfer,obj.normalizedSignals?.qb,
