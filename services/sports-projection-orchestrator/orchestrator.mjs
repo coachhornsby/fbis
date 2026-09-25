@@ -278,7 +278,7 @@ async function callGemini(runId,eventId,snapshotId,prompt,dataTimestamp){
   const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(CFG.geminiModel)+':generateContent';
   const body={
     contents:[{role:'user',parts:[{text:'Independent sports projection engine. Market-blind. JSON only.\n'+prompt}]}],
-    generationConfig:{responseFormat:{text:{mimeType:'application/json',schema:projectionSchema}}}
+    generationConfig:{responseFormat:{text:{mimeType:'APPLICATION_JSON',schema:projectionSchema}}}
   };
   const res=await fetchRetry(url,{
     method:'POST',
