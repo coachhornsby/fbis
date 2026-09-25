@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".github/workflows/action-restore-validation.yml"
+      - "functions/api/action-daily-async.js"
 
 concurrency:
   group: action-restore-validation
