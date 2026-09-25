@@ -297,7 +297,7 @@ jobs:
 
       - name: Upload CFBD audit artifact
         if: always() && (contains(github.event.head_commit.message, '[cfbd-audit]') || contains(github.event.head_commit.message, '[college-capability-audit]'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cfbd-endpoint-audit-${{ env.DEPLOY_SHA }}
           path: artifacts/
@@ -409,7 +409,7 @@ jobs:
 
       - name: Upload college capability audit artifact
         if: always() && contains(github.event.head_commit.message, '[college-capability-audit]')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: college-capability-audit-${{ env.DEPLOY_SHA }}
           path: |
@@ -503,7 +503,7 @@ jobs:
 
       - name: Upload NFL form-backfill artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nfl-form-backfill-${{ env.DEPLOY_SHA }}
           path: artifacts/nfl-form-backfill-*.json

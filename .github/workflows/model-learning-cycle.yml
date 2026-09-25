@@ -138,7 +138,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload learning evidence
         if: steps.gate.outputs.run == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fbis-model-learning-${{ github.run_id }}
           path: |
