@@ -352,7 +352,19 @@ async function appendConsensus(eventId,snap,g,m,ghash,mhash,c){
     0.5,0.5,c.consensus.homeWin,c.consensus.total,c.consensus.homeKs,'50/50 experimental benchmark',
     'EXPERIMENTAL','NO',now(),'','OPENAI_LOCK='+ghash+';GEMINI_LOCK='+mhash
   ];
-  await sheets.append(q(CFG.sheets.consensus)+'!A:AJ',[row]);
+  // Model Consensus contains prefilled defaults in lower columns. Sheets append
+  // therefore treats the entire 3,000-row template as occupied and writes at row
+  // 3001+. Place consensus deterministically using Event ID in column A instead.
+  const res=await sheets.get(q(CFG.sheets.consensus)+'!A2:A3000');
+  const vals=res.values||[];
+  const existing=vals.findIndex(r=>String(r?.[0]||'')===String(eventId));
+  const blank=vals.findIndex(r=>!String(r?.[0]||'').trim());
+  let targetRow;
+  if(existing>=0) targetRow=existing+2;
+  else if(blank>=0) targetRow=blank+2;
+  else targetRow=vals.length+2;
+  if(targetRow>3000) throw new Error('Model Consensus capacity exhausted');
+  await sheets.update(q(CFG.sheets.consensus)+'!A'+targetRow+':AJ'+targetRow,[row]);
 }
 async function appendDisagreements(eventId,snap,g,m,c){
   const rows=[];
