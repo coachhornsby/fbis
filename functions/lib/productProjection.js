@@ -194,6 +194,81 @@ function quality(game = {}) {
   };
 }
 
+function llmFeatureDigest(game = {}, sport = "") {
+  if (sport === "mlb") {
+    const homeRpg = finite(game.savant?.homeRpg);
+    const awayRpg = finite(game.savant?.awayRpg);
+    const homeSpEra = finite(game.savant?.homeSpEra);
+    const awaySpEra = finite(game.savant?.awaySpEra);
+    const values = [homeRpg, awayRpg, homeSpEra, awaySpEra].filter((v) => v != null);
+    return {
+      version: "llm-features-v1",
+      independentInputsOnly: true,
+      featureCount: values.length,
+      sources: ["MLB_STATS", "BASEBALL_SAVANT"],
+      neutralSite: Boolean(game.neutralSite),
+      home: {
+        team: game.home?.fullName || game.home?.name || game.home?.abbr || null,
+        runsPerGame: homeRpg,
+        starter: game.homeSp?.name || null,
+        starterEraEquivalent: homeSpEra,
+      },
+      away: {
+        team: game.away?.fullName || game.away?.name || game.away?.abbr || null,
+        runsPerGame: awayRpg,
+        starter: game.awaySp?.name || null,
+        starterEraEquivalent: awaySpEra,
+      },
+    };
+  }
+  if (sport === "cfb") {
+    const h = game.cfb?.homeEst || {};
+    const a = game.cfb?.awayEst || {};
+    const fields = [
+      h.priorOff,h.priorDef,h.currentOff,h.currentDef,
+      a.priorOff,a.priorDef,a.currentOff,a.currentDef
+    ].map(finite).filter((v) => v != null);
+    return {
+      version: "llm-features-v1",
+      independentInputsOnly: true,
+      featureCount: fields.length,
+      sources: ["CFBD", "ESPN"],
+      neutralSite: Boolean(game.neutralSite),
+      home: {
+        team: game.home?.school || game.home?.fullName || game.home?.name || game.home?.abbr || null,
+        rank: finite(h.rank),
+        gamesPlayed: finite(h.n),
+        priorOffense: finite(h.priorOff),
+        priorDefense: finite(h.priorDef),
+        currentPointsForPerGame: finite(h.currentOff),
+        currentPointsAgainstPerGame: finite(h.currentDef),
+        teamSpecificPrior: Boolean(h.teamSpecificPrior),
+        qb: h.featureVector?.qb || null,
+        missing: Array.isArray(h.featureVector?.missing) ? h.featureVector.missing : [],
+      },
+      away: {
+        team: game.away?.school || game.away?.fullName || game.away?.name || game.away?.abbr || null,
+        rank: finite(a.rank),
+        gamesPlayed: finite(a.n),
+        priorOffense: finite(a.priorOff),
+        priorDefense: finite(a.priorDef),
+        currentPointsForPerGame: finite(a.currentOff),
+        currentPointsAgainstPerGame: finite(a.currentDef),
+        teamSpecificPrior: Boolean(a.teamSpecificPrior),
+        qb: a.featureVector?.qb || null,
+        missing: Array.isArray(a.featureVector?.missing) ? a.featureVector.missing : [],
+      },
+    };
+  }
+  return {
+    version: "llm-features-v1",
+    independentInputsOnly: true,
+    featureCount: 0,
+    sources: [],
+    unsupported: true,
+  };
+}
+
 export function productProjectionCard(game, sport, { tier = "public" } = {}) {
   const proj = projection(game);
   const pin = market(game);
@@ -219,6 +294,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
       blockReason: d.blockReason,
     },
     quality: quality(game),
+    llmFeatures: llmFeatureDigest(game, sport),
   };
   if (tier === "pro") {
     card.intelligence = {
