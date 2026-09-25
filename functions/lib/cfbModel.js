@@ -33,7 +33,7 @@ import { loadTeamForm, loadHfaRatings } from "./store.js";
 import { pCoverHome, pGreater } from "./metrics.js";
 import { buildShadowHfa, championHfaForGame } from "./hfa.js";
 import { CFB_PRIOR_VERSION, freezePrior, hasTeamSpecificPrior, priorForTeam } from "./cfbPrior.js";
-import { buildCfbFeatureCatalog, cfbdPublicMeta, loadCfbFeatureFeeds, loadCfbPrior, loadCfbBettingLines } from "./cfbd.js";
+import { buildCfbFeatureCatalog, cfbdPublicMeta, loadCfbCurrentForm, loadCfbFeatureFeeds, loadCfbPrior, loadCfbBettingLines } from "./cfbd.js";
 import { cfbSlateDiagnostics } from "./cfbDiagnostics.js";
 import { resolveTeamExact } from "./teams.js";
 
@@ -707,9 +707,20 @@ export async function applyCfbModel(games, env = {}) {
     rankings = { byTeam: new Map(), poll: null, error: String(err?.message || err) };
   }
   const season = cfbSeasonYear();
-  const form = await loadTeamForm(env, "cfb", season);
-  const priorBundle = await loadCfbPrior(env);
-  const featureBundle = await loadCfbFeatureFeeds(env);
+  const [storedForm, cfbdCurrentForm, priorBundle, featureBundle] = await Promise.all([
+    loadTeamForm(env, "cfb", season),
+    loadCfbCurrentForm(env),
+    loadCfbPrior(env),
+    loadCfbFeatureFeeds(env),
+  ]);
+  // CFBD is the authoritative paid current-season game record for CFB form.
+  // Keep harvested team_form as a fallback, but prefer whichever observation
+  // has the larger completed-game sample for each canonical key.
+  const form = new Map(storedForm instanceof Map ? storedForm : []);
+  for (const [key,row] of cfbdCurrentForm.form || []) {
+    const cur=form.get(key);
+    if (!cur || Number(row?.games||0) >= Number(cur?.games||0)) form.set(key,row);
+  }
   const weeks = [...new Set((games || []).map((g) => Number(g.week)).filter((n) => Number.isFinite(n)))];
   const linesBundle = await loadCfbBettingLines(env, { year: season, weeks: weeks.length ? weeks : undefined });
   const qbSignals = await loadQbSignals(games || [], season, env.caches);
@@ -791,6 +802,7 @@ export async function applyCfbModel(games, env = {}) {
       constants: CFB_CONSTANTS,
       priorVersion: priorBundle.version || CFB_PRIOR_VERSION,
       cfbd: cfbdPublicMeta(priorBundle.meta),
+      cfbCurrentForm: cfbdPublicMeta(cfbdCurrentForm.meta),
       cfbFeatures: cfbdPublicMeta(featureBundle.meta),
       cfbLines: cfbdPublicMeta(linesBundle.meta),
       diagnostics,
