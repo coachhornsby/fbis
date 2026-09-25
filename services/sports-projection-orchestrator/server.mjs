@@ -98,7 +98,7 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='POST'&&url.pathname==='/api/process-queue') return json(res,200,{auth:auth.type,...(await processQueueFailClosed())});
     if(req.method==='POST'&&url.pathname==='/api/run-snapshot'){
       const payload=await body(req);
-      return json(res,200,await runSnapshot(payload.snapshot||payload,{persist:payload.persist!==false}));
+      return json(res,200,await runSnapshot(payload.snapshot||payload,{persist:payload.persist!==false,persistFeatureSnapshot:payload.persistFeatureSnapshot===true}));
     }
     return json(res,404,{error:'not found'});
   }catch(e){
