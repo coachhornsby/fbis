@@ -12,7 +12,7 @@ export const CFG = Object.freeze({
   llmSelectionEnabled: String(process.env.LLM_SELECTION_ENABLED || 'true').toLowerCase() !== 'false',
   llmMaxGamesPerDay: Number(process.env.LLM_MAX_GAMES_PER_DAY || 8),
   llmMaxPerScan: Number(process.env.LLM_MAX_PER_SCAN || 5),
-  llmMinQuality: Number(process.env.LLM_MIN_QUALITY || 88),
+  llmMinQuality: Number(process.env.LLM_MIN_QUALITY || 76),
   llmMinMinutesToStart: Number(process.env.LLM_MIN_MINUTES_TO_START || 60),
   llmHorizonHours: Number(process.env.LLM_HORIZON_HOURS || 36),
   thresholds: {
@@ -514,12 +514,17 @@ function gateCandidate(game,sport,clock=Date.now()){
   const threshold=LLM_GATE_THRESHOLDS[sport];
   if(!threshold) return {selected:false,reason:'unsupported_sport'};
   if(!game || !game.id) return {selected:false,reason:'missing_event_id'};
+  const eventId=String(game.id);
+  // Synthetic MLB fallback aliases can duplicate the official numeric event.
+  // Do not spend LLM calls on the fallback copy.
+  if(sport==='mlb' && /^mlb_/i.test(eventId)) return {selected:false,reason:'synthetic_alias'};
   if(String(game.gameState?.state||'SCHEDULED').toUpperCase()!=='SCHEDULED') return {selected:false,reason:'not_scheduled'};
   if(game.projection?.independent!==true) return {selected:false,reason:'no_independent_projection'};
   const quality=finiteNumber(game.quality?.score);
   if(quality==null || quality<CFG.llmMinQuality) return {selected:false,reason:'quality_below_gate',quality};
   const flags=Array.isArray(game.quality?.flags)?game.quality.flags.map(String):[];
   if(flags.includes('pinnacle_implied_score')) return {selected:false,reason:'market_derived_projection',quality};
+  if(flags.includes('market_unresolved')) return {selected:false,reason:'market_unresolved',quality};
   const startMs=Date.parse(String(game.start||''));
   if(!Number.isFinite(startMs)) return {selected:false,reason:'invalid_start',quality};
   const minutesToStart=(startMs-clock)/60000;
@@ -529,10 +534,14 @@ function gateCandidate(game,sport,clock=Date.now()){
   const total=finiteNumber(game.projection?.total);
   const spread=finiteNumber(game.market?.spread);
   const marketTotal=finiteNumber(game.market?.total);
+  // Zero totals are provider placeholders, never a real total. A zero spread
+  // is only usable when the market object says it is complete (true pick'em).
+  const spreadUsable=spread!=null && (Math.abs(spread)>1e-9 || game.market?.complete===true);
+  const totalUsable=marketTotal!=null && marketTotal>0;
   // FBIS margin is home-away. Market spread is the home handicap, so the
   // market-implied home margin is -spread.
-  const sideGap=margin!=null&&spread!=null?Math.abs(margin+spread):null;
-  const totalGap=total!=null&&marketTotal!=null?Math.abs(total-marketTotal):null;
+  const sideGap=margin!=null&&spreadUsable?Math.abs(margin+spread):null;
+  const totalGap=total!=null&&totalUsable?Math.abs(total-marketTotal):null;
   const sidePass=sideGap!=null&&sideGap>=threshold.side;
   const totalPass=totalGap!=null&&totalGap>=threshold.total;
   if(!sidePass&&!totalPass) return {selected:false,reason:'edge_below_gate',quality,sideGap,totalGap,minutesToStart};
