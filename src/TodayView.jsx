@@ -54,6 +54,23 @@ export default function TodayView({
   const d = (v, fallback = "—") => valueOrUnavailable(unavailable, v, fallback);
   const sourceStatus = health?.sourceStatus?.statuses || {};
   const [chatCopyStatus, setChatCopyStatus] = useState("");
+  const [advisorReviews, setAdvisorReviews] = useState([]);
+  const [advisorBusy, setAdvisorBusy] = useState(false);
+
+  async function runChatGptReview() {
+    const games = shown.flatMap((group) => (group.games || []).map((game) => ({ sport: group.sport, date, ...game })));
+    if(!games.length)return;
+    setAdvisorBusy(true); setChatCopyStatus("Running ChatGPT review…");
+    try{
+      const res=await fetch("/api/advisor",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({games})});
+      const data=await res.json();
+      if(!res.ok||!data.ok)throw new Error(data.error||`HTTP ${res.status}`);
+      setAdvisorReviews(data.reviews||[]);
+      setChatCopyStatus(`ChatGPT review frozen for ${(data.reviews||[]).length} games · ${data.model||""}`);
+    }catch(err){
+      setChatCopyStatus(`Advisor unavailable: ${String(err.message||err)}. Use COPY CHATGPT REVIEW as fallback.`);
+    }finally{setAdvisorBusy(false);}
+  }
 
   async function copyChatGptReview() {
     const games = shown.flatMap((group) => (group.games || []).map((game) => ({ sport: group.sport, ...game })));
@@ -106,7 +123,8 @@ export default function TodayView({
             {onImport && (
               <button className="header-btn header-btn-refresh" onClick={onImport}>IMPORT BET SLIP</button>
             )}
-            <button className="header-btn" onClick={copyChatGptReview} disabled={loading || !shown.some((g) => g.games.length)}>COPY CHATGPT REVIEW</button>
+            <button className="header-btn header-btn-refresh" onClick={runChatGptReview} disabled={loading || advisorBusy || !shown.some((g) => g.games.length)}>{advisorBusy ? "REVIEWING…" : "RUN CHATGPT REVIEW"}</button>
+            <button className="header-btn" onClick={copyChatGptReview} disabled={loading || !shown.some((g) => g.games.length)}>COPY FALLBACK</button>
             {onRetry && <button className="header-btn" onClick={() => onRetry?.()} disabled={loading}>{loading ? "Retrying…" : "Retry"}</button>}
           </div>
           <p className="muted" style={{ marginTop: 8 }}>
@@ -169,6 +187,17 @@ export default function TodayView({
           </details>
         </div>
       </section>
+
+      {advisorReviews.length > 0 && (
+        <section className="panel panel-board" aria-label="ChatGPT advisor review">
+          <div className="panel-header"><h2>CHATGPT REVIEW · FROZEN</h2><span className="last-updated">{advisorReviews.length} games</span></div>
+          <div className="panel-body table-scroll">
+            <table className="fbis-table"><thead><tr><th>Game</th><th>Class</th><th>Confidence</th><th>Reason</th><th>Frozen</th></tr></thead>
+              <tbody>{advisorReviews.map((r)=><tr key={r.id}><td>{r.gameId}</td><td><b>{r.decision}</b></td><td>{r.confidence}</td><td>{r.reason}</td><td className="muted">{fmtTs(r.reviewedAt)}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <TodayCommandCenter
         board={board}

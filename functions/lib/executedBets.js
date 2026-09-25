@@ -223,6 +223,23 @@ export function attachPinnacleClv(ticket, snapshots, start) {
   };
 }
 
+export function executedBetClosePatch(ticket, snapshots, gameStart = null) {
+  if (String(ticket.market || "").toUpperCase() === "PLAYER_PROP") {
+    return { clvStatus: ticket.clvStatus || "prop-close-unavailable" };
+  }
+  const side=String(ticket.selectedSide||"").toUpperCase();
+  if(!["HOME","AWAY","OVER","UNDER"].includes(side)) return {clvStatus:"missing-side"};
+  const picked=selectClose(snapshots,{start:gameStart||ticket.start,market:ticket.market,period:periodOf(ticket.market),side,entryLine:ticket.executionLine});
+  if(!picked.close) return {clvStatus:picked.reason||"missing-close"};
+  const close=picked.close;
+  let clv=null,status="close-captured";
+  if(ticket.pinEntryNoVig!=null && close.noVig!=null && picked.sameLine){
+    clv=probabilityClv(Number(ticket.pinEntryNoVig),Number(close.noVig)); status="valid";
+  } else if(!picked.sameLine) status="line-mismatch";
+  else if(ticket.pinEntryNoVig==null) status="missing-entry-benchmark";
+  return {pinCloseLine:close.line,pinClosePrice:close.price,pinCloseNoVig:close.noVig,clv,clvStatus:status,clvMethodVersion:HERITAGE_CLV_METHOD};
+}
+
 export function settleExecutedBet(ticket, game) {
   if (!game) return { result: ticket.result || "OPEN", profit: ticket.profit ?? null, settledReturn: null, gradedAt: null };
   const detail = String(game.status?.detail || game.gameStatus || "").toLowerCase();
@@ -495,6 +512,16 @@ export function packExecutedBetRow(ticket) {
     propActual: ticket.propActual ?? null,
     propStatSource: ticket.propStatSource || null,
     trackerMetadata: ticket.trackerMetadata || null,
+    entryId: ticket.entryId || ticket.entry_id || null,
+    legIndex: ticket.legIndex ?? ticket.leg_index ?? null,
+    legCount: ticket.legCount ?? ticket.leg_count ?? null,
+    legResult: ticket.legResult || ticket.leg_result || null,
+    advisorDecision: ticket.advisorDecision || ticket.trackerMetadata?.advisorDecision || null,
+    advisorConfidence: ticket.advisorConfidence || ticket.trackerMetadata?.advisorConfidence || null,
+    advisorReason: ticket.advisorReason || ticket.trackerMetadata?.advisorReason || null,
+    advisorReviewedAt: ticket.advisorReviewedAt || ticket.trackerMetadata?.advisorRecordedAt || null,
+    advisorSnapshotHash: ticket.advisorSnapshotHash || ticket.trackerMetadata?.advisorSnapshotHash || null,
+    exceptionCode: ticket.exceptionCode || null,
   };
 }
 

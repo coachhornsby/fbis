@@ -462,6 +462,17 @@ export async function parsePrizePicksSlip(text, { dateHint } = {}) {
       entryId,
       legIndex: idx + 1,
       legCount: legs.length,
+      trackerMetadata: {
+        entryId,
+        entryType: entry.entryType,
+        entryLabel: entry.label,
+        legIndex: idx + 1,
+        legCount: legs.length,
+        cardRiskAmount: stake.riskAmount,
+        cardToWinAmount: stake.toWinAmount,
+        cardPotentialPayout: stake.potentialPayout,
+        economicsOwner: isPrimary,
+      },
       propLabel: leg.propLabel,
       clvStatus: "unavailable",
       warnings: [

@@ -119,6 +119,7 @@ export default function TrackView({ report, error, loading, stale, lastSuccessAt
       <StrategyPanel sectionId="results-scoreboard" reloadKey={`${lastSuccessAt || ""}:${attemptAt || ""}`} />
 
       <HeritageExecutedPanel summary={report?.executedBets?.summary} unavailable={unavailable} />
+      <AdvisorAnalyticsPanel reloadKey={`${lastSuccessAt || ""}:${attemptAt || ""}`} />
 
       <section id="ops-health" className="panel">
         <div className="panel-header">
@@ -1203,6 +1204,31 @@ function ConvictionScoreboard({ rows }) {
   );
 }
 
+function AdvisorAnalyticsPanel({reloadKey=""}) {
+  const [data,setData]=useState(null);
+  useEffect(()=>{const ac=new AbortController();fetch(`/api/bets?_t=${Date.now()}`,{signal:ac.signal}).then(r=>r.json()).then(setData).catch(()=>{});return()=>ac.abort();},[reloadKey]);
+  const bets=data?.bets||[];
+  const summarize=(rows)=>{
+    const decided=rows.filter(x=>["WON","LOST"].includes(x.result)); const wins=decided.filter(x=>x.result==="WON").length;
+    const profit=rows.map(x=>x.profit).filter(x=>Number.isFinite(Number(x))).reduce((a,b)=>a+Number(b),0);
+    const risk=rows.filter(x=>["WON","LOST","PUSH","VOID"].includes(x.result)).reduce((a,b)=>a+(Number(b.riskAmount)||0),0);
+    const clv=rows.map(x=>Number(x.clv)).filter(Number.isFinite);
+    return {n:rows.length,decided:decided.length,record:decided.length?`${wins}-${decided.length-wins}`:"—",hit:decided.length?wins/decided.length:null,
+      profit,risk,roi:risk?profit/risk:null,clvN:clv.length,avgClv:clv.length?clv.reduce((a,b)=>a+b,0)/clv.length:null};
+  };
+  const advisor=bets.filter(x=>x.advisorDecision || x.trackerMetadata?.advisorReviewed);
+  const model=bets.filter(x=>!x.advisorDecision && (x.matchedPredictionId||x.modelVersionAtEntry||x.recommendationStatus==="QUALIFIED"));
+  const a=summarize(advisor),m=summarize(model);
+  const entries=data?.entries||[];
+  return <section className="panel" id="advisor-analytics"><div className="panel-header"><h2>Advisor vs model</h2><span className="last-updated">frozen pre-execution cohorts</span></div>
+    <div className="panel-body">
+      <p className="muted">ChatGPT rows count only when a frozen advisor review existed before execution. Model-only rows require FBIS attribution and no advisor freeze. Small samples are descriptive only.</p>
+      <div className="table-scroll"><table className="fbis-table"><thead><tr><th>Cohort</th><th>N</th><th>Record</th><th>Hit</th><th>Profit</th><th>ROI</th><th>CLV N</th><th>Avg CLV</th></tr></thead>
+      <tbody>{[["ChatGPT-reviewed",a],["FBIS model-only",m]].map(([label,x])=><tr key={label}><td><b>{label}</b></td><td>{x.n}</td><td>{x.record}</td><td>{x.hit==null?"—":fmtPct(x.hit)}</td><td>{fmtSigned(x.profit,2)}</td><td>{x.roi==null?"—":fmtPct(x.roi)}</td><td>{x.clvN}</td><td>{x.avgClv==null?"—":fmtSigned(x.avgClv,3)}</td></tr>)}</tbody></table></div>
+      <div className="status-grid" style={{marginTop:12}}><Stat label="Parent cards / parlays" value={entries.length}/><Stat label="Exception queue" value={data?.exceptions?.length??0}/><Stat label="CLV coverage" value={bets.length?fmtPct(bets.filter(x=>x.clv!=null).length/bets.length):"—"}/></div>
+    </div></section>;
+}
+
 function HeritageExecutedPanel({ summary, unavailable }) {
   const bySport = summary?.bySport && typeof summary.bySport === "object" ? summary.bySport : {};
   const sportRows = Object.keys(bySport)
@@ -1212,14 +1238,14 @@ function HeritageExecutedPanel({ summary, unavailable }) {
   return (
     <section id="your-picks" className="panel">
       <div className="panel-header">
-        <h2>Your picks (Heritage)</h2>
+        <h2>Your picks · unified ledger</h2>
         <span className="last-updated">
           {unavailable ? "Unavailable" : `${summary?.bets ?? 0} tickets`}
         </span>
       </div>
       <div className="panel-body">
         <p className="muted" style={{ marginBottom: 10 }}>
-          Your confirmed Heritage tickets — separate from FBIS-HC-v1 conviction.
+          Confirmed executions across connected/imported platforms — separate from research-only FBIS strategy results.
         </p>
         {unavailable ? (
           <p className="error">Executed-bet summary unavailable until SYS recovers.</p>
