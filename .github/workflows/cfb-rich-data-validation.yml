@@ -73,18 +73,25 @@ jobs:
               (.llmFeatures.home.gamesPlayed >= 1) and
               (.llmFeatures.away.gamesPlayed >= 1) and
               (.llmFeatures.home.currentPointsForPerGame != null) and
-              (.llmFeatures.away.currentPointsForPerGame != null) and
-              (
-                (.llmFeatures.home.passEpa != null) or
-                (.llmFeatures.home.rushEpa != null) or
-                (.llmFeatures.home.successRate != null)
-              ) and
-              (
-                (.llmFeatures.away.passEpa != null) or
-                (.llmFeatures.away.rushEpa != null) or
-                (.llmFeatures.away.successRate != null)
-              )
+              (.llmFeatures.away.currentPointsForPerGame != null)
             ' >/dev/null
+            # FBS-v-FBS games must carry advanced CFBD matchup dimensions.
+            # Howard is FCS and CFBD does not expose the same advanced team-PPA
+            # coverage; retain current completed-game form but mark it partial.
+            if [ "$id" != "401858468" ]; then
+              echo "$row" | jq -e '
+                (
+                  (.llmFeatures.home.passEpa != null) or
+                  (.llmFeatures.home.rushEpa != null) or
+                  (.llmFeatures.home.successRate != null)
+                ) and
+                (
+                  (.llmFeatures.away.passEpa != null) or
+                  (.llmFeatures.away.rushEpa != null) or
+                  (.llmFeatures.away.successRate != null)
+                )
+              ' >/dev/null
+            fi
           done
 
       - name: Reproject all Friday CFB games with rich market-blind CFBD snapshots
