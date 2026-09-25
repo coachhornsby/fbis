@@ -50,6 +50,7 @@ function envFrom(context) {
     BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
     CFBD_API_KEY: context.env.CFBD_API_KEY,
     CBBD_API_KEY: context.env.CBBD_API_KEY,
+    KENPOM_API_KEY: context.env.KENPOM_API_KEY,
     caches: caches.default,
     DB: context.env.DB,
     ARCHIVE: context.env.ARCHIVE,
