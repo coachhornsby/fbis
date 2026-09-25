@@ -17,6 +17,7 @@ import {
   CBB_PURE_CHALLENGER_VERSION,
 } from "./cbbPureChallenger.js";
 import { NFL_SHADOW_ID } from "./nflModel.js";
+import { MLB_DEEP_ID } from "./mlbDeepModel.js";
 import { lookupCbbdRating } from "./cbbRatingsSafe.js";
 import {
   buildProbabilityProvenance,
@@ -198,6 +199,49 @@ function stampResearchBoard(game, {
     challengers: {
       ...(game.challengers || {}),
       [modelId]: challengerRow,
+    },
+  };
+}
+
+/** MLB research board — independent deep run-allocation shadow promoted for display/grade only. */
+export function promoteMlbResearchToBoard(games = []) {
+  let promoted = 0;
+  let skipped = 0;
+  const next = (games || []).map((game) => {
+    if (game.sport && game.sport !== "mlb") return game;
+    const deep = game.mlbDeepShadow || game.challengers?.[MLB_DEEP_ID];
+    const scores = scoresFrom(deep);
+    if (!deep?.ok || !scores) {
+      skipped += 1;
+      return {
+        ...game,
+        pureProjectionAvailable: false,
+        projectionDisplayLabel: "NO INDEPENDENT FBIS PROJECTION",
+        publicationStatus: "NOT_PUBLISHABLE",
+        bettingAuthority: "NOT_ELIGIBLE",
+        qualificationBlocked: true,
+        canQualify: false,
+      };
+    }
+    promoted += 1;
+    return stampResearchBoard(game, {
+      modelId: MLB_DEEP_ID,
+      modelVersion: deep.version || "v1",
+      scores,
+      displayLabel: "FBIS MLB RESEARCH PROJECTION",
+      underlying: "Savant + starter/offense + bullpen/context",
+      researchNote: "Independent MLB deep run-allocation projection. Research only; no wager authority.",
+    });
+  });
+  return {
+    games: next,
+    meta: {
+      modelId: MLB_DEEP_ID,
+      promoted,
+      skipped,
+      canQualify: false,
+      canAuthorize: false,
+      publication: "RESEARCH_PUBLISHABLE",
     },
   };
 }
