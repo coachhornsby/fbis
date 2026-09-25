@@ -9,8 +9,9 @@ import { identityFailClosed, miamiDisambiguation, mapSourceTeam, cutoffViolated,
 import { COLLEGE_MODELS, failClosedShadow, evaluatePromotion, shadowCannotQualify, PROMOTION_CRITERIA, CHAMPION_HFA, unavailableMetric } from "../functions/lib/collegeModels.js";
 import { cfbLeagueBaseline, cfbRatingsV1, cfbRegV1, independentEnsemble, pinnacleImplied, projectCfbChallengers, attachMc } from "../functions/lib/cfbRatings.js";
 import { projectCfbMatchup } from "../functions/lib/cfbModel.js";
-import { cbbRatingsV1, cbbTorvikRatingsV1, cbbLeagueBaseline, rejectedOldCbbTotal, expectedPossessions, expectedEfficiency, projectCbbChallengers, torvikUnavailable, kenpomAbsent, cbbMarketShrunk, CBB_NATIONAL_EFF } from "../functions/lib/cbbRatings.js";
+import { cbbRatingsV1, cbbTorvikRatingsV1, cbbKenpomRatingsV1, cbbLeagueBaseline, rejectedOldCbbTotal, expectedPossessions, expectedEfficiency, projectCbbChallengers, torvikUnavailable, kenpomAbsent, cbbMarketShrunk, CBB_NATIONAL_EFF } from "../functions/lib/cbbRatings.js";
 import { normalizeTorvikTeamRows, normalizeTorvikFourFactorRows, loadTorvikCbbCatalog, torvikEndingSeason } from "../functions/lib/torvikCbb.js";
+import { normalizeKenpomRatingRows, normalizeKenpomFourFactorRows, loadKenpomCbbCatalog, kenpomEndingSeason } from "../functions/lib/kenpomCbb.js";
 import { r2Bound, r2Key, R2_SETUP } from "../functions/lib/r2Archive.js";
 import { warnLevel, metricUnavailable } from "../functions/lib/storageBudget.js";
 import { insertModelPrediction, gradeModelPrediction, insertGameFeatureSnapshot } from "../functions/lib/collegeStore.js";
@@ -360,6 +361,73 @@ describe("Torvik CBB adapter", () => {
   });
 });
 
+describe("KenPom CBB adapter", () => {
+  it("normalizes authenticated ratings and four factors without exposing the key", async () => {
+    assert.equal(kenpomEndingSeason(2025), 2026);
+    const ratingsPayload = Array.from({ length: 301 }, (_, i) => ({
+      TeamName: i === 0 ? "Houston" : `Team ${i}`,
+      ConfShort: "B12",
+      AdjEM: 20 - i / 100,
+      AdjOE: 120 - i / 100,
+      AdjDE: 95 + i / 100,
+      AdjTempo: 66 + (i % 4),
+      Luck: 0.02,
+      SOS: 5.1,
+      DataThrough: "2026-01-15",
+    }));
+    const fourPayload = [{
+      TeamName: "Houston",
+      eFG_Pct: 58.0,
+      TO_Pct: 14.0,
+      OR_Pct: 37.0,
+      FT_Rate: 31.0,
+      DeFG_Pct: 44.0,
+      DTO_Pct: 24.0,
+      DOR_Pct: 73.0,
+      DFT_Rate: 20.0,
+      AdjOE: 120,
+      AdjDE: 95,
+      AdjTempo: 66,
+      DataThrough: "2026-01-15",
+    }];
+    assert.equal(normalizeKenpomRatingRows(ratingsPayload)[0].adjOe, 120);
+    assert.equal(normalizeKenpomFourFactorRows(fourPayload)[0].efgPct, 0.58);
+    const fetchFn = async (url, opts = {}) => {
+      assert.match(String(opts.headers?.Authorization || ""), /^Bearer /);
+      const endpoint = new URL(String(url)).searchParams.get("endpoint");
+      return {
+        ok: true,
+        status: 200,
+        async json() { return endpoint === "four-factors" ? fourPayload : ratingsPayload; },
+      };
+    };
+    const env = { KENPOM_API_KEY: FAKE };
+    const catalog = await loadKenpomCbbCatalog(env, { cbbSeason: 2025, fetchFn });
+    assert.equal(catalog.ok, true);
+    assert.equal(catalog.kenpomSeason, 2026);
+    assert.equal(catalog.rows.length, 301);
+    assert.equal(catalog.rows[0].efgPct, 0.58);
+    assert.equal(JSON.stringify(catalog).includes(FAKE), false);
+  });
+
+  it("produces an independent KenPom ratings projection", () => {
+    const game = { home: { canonicalId: "cbb-150" }, away: { canonicalId: "cbb-87" }, neutralSite: false };
+    const ratings = {
+      homeAdjOe: 121,
+      homeAdjDe: 92,
+      homeTempo: 67,
+      awayAdjOe: 109,
+      awayAdjDe: 101,
+      awayTempo: 69,
+    };
+    const p = cbbKenpomRatingsV1(game, ratings);
+    assert.equal(p.ok, true);
+    assert.equal(p.modelId, "CBB-KENPOM-RATINGS-v1");
+    assert.equal(p.marketInformed, false);
+    assert.equal(p.canQualify, false);
+  });
+});
+
 describe("CBB formulas", () => {
   const game = { home: { canonicalId: "cbb-150" }, away: { canonicalId: "cbb-87" }, neutralSite: false };
   const ratings = { homeAdjOe: 118, homeAdjDe: 92, homeTempo: 70, awayAdjOe: 104, awayAdjDe: 110, awayTempo: 66 };
@@ -387,7 +455,7 @@ describe("CBB formulas", () => {
     assert.equal(kenpomAbsent().available, false);
     const models = projectCbbChallengers(game, { ratings });
     assert.equal(models["CBB-TORVIK-RATINGS-v1"].available, false);
-    assert.equal(models["CBB-KENPOM-SHADOW"].available, false);
+    assert.equal(models["CBB-KENPOM-RATINGS-v1"].available, false);
     assert.equal(models["CBB-CBBD-RATINGS-v1"].canQualify, false);
   });
 
