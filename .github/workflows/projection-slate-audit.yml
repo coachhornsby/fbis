@@ -1,0 +1,73 @@
+name: Projection slate audit
+
+on:
+  push:
+    paths:
+      - ".github/workflows/projection-slate-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for audited SHA to be live
+        env:
+          BASE: https://fbis-myz.pages.dev
+          EXPECTED: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 40); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null | tr 'A-F' 'a-f')"
+            exp="$(echo "$EXPECTED" | tr 'A-F' 'a-f')"
+            echo "attempt=$i http=$code live=$live expected=$exp"
+            if [ "$code" = "200" ] && [ "$live" = "$exp" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "Expected production SHA did not become live"
+          exit 1
+
+      - name: Audit projection slates
+        env:
+          BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          : > artifacts/projection-slate-audit.ndjson
+          check () {
+            sport="$1"; date="$2"
+            body="artifacts/${sport}-${date}.json"
+            code="$(curl -sS --max-time 120 -o "$body" -w "%{http_code}" "$BASE/api/projections?sport=${sport}&date=${date}")"
+            echo "=== ${sport} ${date} HTTP ${code} ==="
+            if [ "$code" != "200" ]; then
+              cat "$body"
+              jq -nc --arg sport "$sport" --arg date "$date" --arg http "$code" '{sport:$sport,date:$date,http:$http,ok:false}' >> artifacts/projection-slate-audit.ndjson
+              return 0
+            fi
+            jq -c '{
+              sport:.sport,date:.date,ok:.ok,
+              games:(.games|length),
+              independent:([.games[]|select(.projection.independent==true)]|length),
+              noModel:([.games[]|select(.projection.independent!=true)]|length),
+              samples:[.games[]|{id,start,away:.away.abbr,home:.home.abbr,model:.model.name,engine:.model.engine,maturity:.model.maturity,independent:.projection.independent,awayProj:.projection.away,homeProj:.projection.home,total:.projection.total,reason:.projection.unavailableReason}]|.[0:5]
+            }' "$body" | tee -a artifacts/projection-slate-audit.ndjson
+          }
+          check mlb 2026-09-25
+          check mlb 2026-09-26
+          check mlb 2026-09-27
+          check cfb 2026-09-25
+          check cfb 2026-09-26
+          check nfl 2026-09-27
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: projection-slate-audit
+          path: artifacts/
+          retention-days: 3
