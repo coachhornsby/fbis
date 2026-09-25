@@ -79,6 +79,9 @@ jobs:
           cat "$body"
           test "$http" = "200"
           jq -e '.ok == true' "$body" >/dev/null
+          jq -e '.selected <= 5' "$body" >/dev/null
+          jq -e '.eligible >= .selected' "$body" >/dev/null
+          jq -e '.dailyCap == 8' "$body" >/dev/null
 
       - name: Final validation gate
         if: always()
