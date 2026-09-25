@@ -8,6 +8,7 @@ import {
   buildCfbFeatureCatalog,
   mergePriorCatalog,
   loadCfbFeatureFeeds,
+  loadCfbCurrentForm,
   loadCfbPrior,
   eloToPower,
   CFBD_ELO_CENTER,
@@ -250,6 +251,31 @@ describe("CFBD public meta", () => {
     assert.equal(dump.includes(FAKE_KEY), false);
     assert.equal(dump.includes("Bearer"), false);
     assert.equal(dump.includes("CFBD_API_KEY"), false);
+  });
+});
+
+describe("CFBD current-season form", () => {
+  it("uses completed current-season games and excludes future/unplayed rows", async () => {
+    resetCacheMem();
+    const now = Date.parse("2026-09-25T18:00:00.000Z");
+    const fetchFn = jsonFetch({
+      "/games": [
+        { status: "completed", startDate: "2026-09-05T23:00:00.000Z", homeTeam: "Ohio State", awayTeam: "Michigan", homePoints: 35, awayPoints: 21 },
+        { status: "completed", startDate: "2026-09-12T23:00:00.000Z", homeTeam: "Ohio State", awayTeam: "Penn State", homePoints: 28, awayPoints: 24 },
+        { status: "scheduled", startDate: "2026-09-26T23:00:00.000Z", homeTeam: "Ohio State", awayTeam: "Oregon", homePoints: null, awayPoints: null },
+      ],
+    });
+    const loaded = await loadCfbCurrentForm({ CFBD_API_KEY: FAKE_KEY }, { fetchFn, now });
+    const osu = loaded.form.get("id:194") || loaded.form.get("name:ohio state");
+    assert.ok(osu);
+    assert.equal(osu.games, 2);
+    assert.equal(osu.pointsFor, 63);
+    assert.equal(osu.pointsAgainst, 45);
+    assert.equal(loaded.meta.configured, true);
+    assert.equal(loaded.meta.source, "cfbd:/games:completed-current-season");
+    const dump = JSON.stringify({ meta: loaded.meta, rows: [...loaded.form.entries()] });
+    assert.equal(dump.includes(FAKE_KEY), false);
+    assert.equal(dump.includes("Bearer"), false);
   });
 });
 
