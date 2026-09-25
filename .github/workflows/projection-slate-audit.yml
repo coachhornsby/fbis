@@ -66,7 +66,7 @@ jobs:
           check cfb 2026-09-26
           check nfl 2026-09-27
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: projection-slate-audit
           path: artifacts/
