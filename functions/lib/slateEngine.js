@@ -16,7 +16,7 @@ import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
 import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
-import { promoteNflResearchToBoard, promoteCbbResearchToBoard } from "./researchBoardPromote.js";
+import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearchToBoard } from "./researchBoardPromote.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
 import {
@@ -50,10 +50,16 @@ export async function buildSlate(sport, date, env = {}) {
     }));
     const enriched = attachMlbBullpenContext(slate.games || [], bullpen);
     const deep = attachMlbDeepShadow(enriched);
+    const research = promoteMlbResearchToBoard(deep.games);
     next = {
       ...slate,
-      games: deep.games,
-      research: { ...(slate.research || {}), mlbBullpen: bullpen.meta, mlbDeep: deep.meta },
+      games: research.games,
+      research: {
+        ...(slate.research || {}),
+        mlbBullpen: bullpen.meta,
+        mlbDeep: deep.meta,
+        mlbResearchBoard: research.meta,
+      },
     };
   } else if (id === "cfb") {
     const feed = await loadCfbDeepFeatures(env).catch((err) => ({
