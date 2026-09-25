@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { collegeApiKey, collegeKeyHealth, redactSecrets, assertNoSecretLeak, cfbdConfigured, cbbdConfigured } from "../functions/lib/collegeSecrets.js";
+import { collegeApiKey, collegeKeyHealth, redactSecrets, assertNoSecretLeak, cfbdConfigured, cbbdConfigured, kenpomApiKey, kenpomConfigured } from "../functions/lib/collegeSecrets.js";
 import { unwrapCollegeResponse, collegePublicResult, summarizeSchema } from "../functions/lib/collegeApi.js";
 import { quotaHealth, quotaAlerts, estimateMonthlyCalls, MONTHLY_QUOTA, utcMonthKey } from "../functions/lib/quota.js";
 import { CONTRACTS, contractFor } from "../data/contracts/college-endpoints.js";
@@ -9,8 +9,9 @@ import { identityFailClosed, miamiDisambiguation, mapSourceTeam, cutoffViolated,
 import { COLLEGE_MODELS, failClosedShadow, evaluatePromotion, shadowCannotQualify, PROMOTION_CRITERIA, CHAMPION_HFA, unavailableMetric } from "../functions/lib/collegeModels.js";
 import { cfbLeagueBaseline, cfbRatingsV1, cfbRegV1, independentEnsemble, pinnacleImplied, projectCfbChallengers, attachMc } from "../functions/lib/cfbRatings.js";
 import { projectCfbMatchup } from "../functions/lib/cfbModel.js";
-import { cbbRatingsV1, cbbTorvikRatingsV1, cbbLeagueBaseline, rejectedOldCbbTotal, expectedPossessions, expectedEfficiency, projectCbbChallengers, torvikUnavailable, kenpomAbsent, cbbMarketShrunk, CBB_NATIONAL_EFF } from "../functions/lib/cbbRatings.js";
+import { cbbRatingsV1, cbbTorvikRatingsV1, cbbKenPomRatingsV1, cbbLeagueBaseline, rejectedOldCbbTotal, expectedPossessions, expectedEfficiency, projectCbbChallengers, torvikUnavailable, kenpomAbsent, cbbMarketShrunk, CBB_NATIONAL_EFF } from "../functions/lib/cbbRatings.js";
 import { normalizeTorvikTeamRows, normalizeTorvikFourFactorRows, loadTorvikCbbCatalog, torvikEndingSeason } from "../functions/lib/torvikCbb.js";
+import { normalizeKenPomRatings, normalizeKenPomFourFactors, normalizeKenPomMisc, loadKenPomCbbCatalog, kenpomEndingSeason } from "../functions/lib/kenpomCbb.js";
 import { r2Bound, r2Key, R2_SETUP } from "../functions/lib/r2Archive.js";
 import { warnLevel, metricUnavailable } from "../functions/lib/storageBudget.js";
 import { insertModelPrediction, gradeModelPrediction, insertGameFeatureSnapshot } from "../functions/lib/collegeStore.js";
@@ -44,6 +45,19 @@ describe("secret non-exposure", () => {
     assert.throws(() => assertNoSecretLeak({ msg: FAKE }, { CFBD_API_KEY: FAKE }));
     const pub = collegePublicResult({ ok: true, status: 200, n: 3, path: "/ratings/sp", source: "cfbd" });
     assert.equal(JSON.stringify(pub).includes("Bearer"), false);
+  });
+});
+
+describe("KenPom secret handling", () => {
+  it("keeps the KenPom bearer out of health and redacted payloads", () => {
+    const env = { KENPOM_API_KEY: FAKE };
+    assert.equal(kenpomApiKey(env), FAKE);
+    assert.equal(kenpomConfigured(env), true);
+    const health = collegeKeyHealth(env);
+    assert.equal(health.kenpomConfigured, true);
+    assert.equal(JSON.stringify(health).includes(FAKE), false);
+    assert.equal(redactSecrets("KENPOM_API_KEY=" + FAKE).includes(FAKE), false);
+    assert.throws(() => assertNoSecretLeak({ msg: FAKE }, env));
   });
 });
 
@@ -356,6 +370,56 @@ describe("Torvik CBB adapter", () => {
     assert.equal(models["CBB-TORVIK-RATINGS-v1"].ok, true);
     assert.equal(models["CBB-TORVIK-RATINGS-v1"].marketInformed, false);
     assert.equal(models["CBB-TORVIK-RATINGS-v1"].canQualify, false);
+    assert.equal(models["CBB-ENSEMBLE-v1"].ok, true);
+  });
+});
+
+describe("KenPom CBB adapter", () => {
+  it("uses ending-year season labels and normalizes ratings/four factors/misc stats", async () => {
+    assert.equal(kenpomEndingSeason(2025), 2026);
+    const ratings = [{
+      TeamName:"Houston", TeamID:123, ConfShort:"B12", AdjEM:30.1, AdjOE:121.4, AdjDE:91.3,
+      AdjTempo:65.8, Luck:0.02, SOS:8.4, SOSO:6.1, SOSD:10.7, NCSOS:2.4, APL_Off:18.2, APL_Def:19.1
+    }];
+    const four = [{
+      TeamName:"Houston", eFG_Pct:58.0, TO_Pct:12.0, OR_Pct:40.0, FT_Rate:35.0,
+      DeFG_Pct:43.0, DTO_Pct:25.0, DOR_Pct:75.0, DFT_Rate:20.0, AdjOE:121.4, AdjDE:91.3, AdjTempo:65.8
+    }];
+    const misc = [{
+      TeamName:"Houston", FG3Pct:39.0, FG2Pct:65.0, FTPct:78.0, OppFG3Pct:30.0, OppFG2Pct:45.0, OppFTPct:71.0
+    }];
+    assert.equal(normalizeKenPomRatings(ratings)[0].luck, 0.02);
+    assert.equal(normalizeKenPomFourFactors(four)[0].efgPct, 0.58);
+    assert.equal(normalizeKenPomMisc(misc)[0].threePtPct, 0.39);
+
+    const fetchFn = async (url, options) => {
+      assert.match(String(options?.headers?.Authorization || ""), /^Bearer /);
+      const endpoint = new URL(url).searchParams.get("endpoint");
+      const body = endpoint === "ratings" ? ratings : endpoint === "four-factors" ? four : misc;
+      return { ok:true, status:200, async json(){ return body; } };
+    };
+    const catalog = await loadKenPomCbbCatalog({ KENPOM_API_KEY: FAKE }, { cbbSeason:2025, fetchFn });
+    assert.equal(catalog.ok, true);
+    assert.equal(catalog.kenpomSeason, 2026);
+    assert.equal(catalog.rows[0].adjOe, 121.4);
+    assert.equal(catalog.rows[0].efgPct, 0.58);
+    assert.equal(catalog.rows[0].threePtPct, 0.39);
+  });
+
+  it("creates a market-blind KenPom projection and includes it in the ensemble", () => {
+    const game = { home:{canonicalId:"cbb-150"}, away:{canonicalId:"cbb-87"}, neutralSite:false };
+    const kenpomRatings = {
+      homeAdjOe:120, homeAdjDe:93, homeTempo:67,
+      awayAdjOe:109, awayAdjDe:101, awayTempo:70
+    };
+    const direct = cbbKenPomRatingsV1(game, kenpomRatings);
+    assert.equal(direct.ok, true);
+    assert.equal(direct.modelId, "CBB-KENPOM-SHADOW");
+    assert.equal(direct.source, "kenpom");
+    const models = projectCbbChallengers(game, { ratings:kenpomRatings, kenpomRatings });
+    assert.equal(models["CBB-KENPOM-SHADOW"].ok, true);
+    assert.equal(models["CBB-KENPOM-SHADOW"].marketInformed, false);
+    assert.equal(models["CBB-KENPOM-SHADOW"].canQualify, false);
     assert.equal(models["CBB-ENSEMBLE-v1"].ok, true);
   });
 });
