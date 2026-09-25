@@ -9,7 +9,8 @@ import { identityFailClosed, miamiDisambiguation, mapSourceTeam, cutoffViolated,
 import { COLLEGE_MODELS, failClosedShadow, evaluatePromotion, shadowCannotQualify, PROMOTION_CRITERIA, CHAMPION_HFA, unavailableMetric } from "../functions/lib/collegeModels.js";
 import { cfbLeagueBaseline, cfbRatingsV1, cfbRegV1, independentEnsemble, pinnacleImplied, projectCfbChallengers, attachMc } from "../functions/lib/cfbRatings.js";
 import { projectCfbMatchup } from "../functions/lib/cfbModel.js";
-import { cbbRatingsV1, cbbLeagueBaseline, rejectedOldCbbTotal, expectedPossessions, expectedEfficiency, projectCbbChallengers, torvikUnavailable, kenpomAbsent, cbbMarketShrunk, CBB_NATIONAL_EFF } from "../functions/lib/cbbRatings.js";
+import { cbbRatingsV1, cbbTorvikRatingsV1, cbbLeagueBaseline, rejectedOldCbbTotal, expectedPossessions, expectedEfficiency, projectCbbChallengers, torvikUnavailable, kenpomAbsent, cbbMarketShrunk, CBB_NATIONAL_EFF } from "../functions/lib/cbbRatings.js";
+import { normalizeTorvikTeamRows, normalizeTorvikFourFactorRows, loadTorvikCbbCatalog, torvikEndingSeason } from "../functions/lib/torvikCbb.js";
 import { r2Bound, r2Key, R2_SETUP } from "../functions/lib/r2Archive.js";
 import { warnLevel, metricUnavailable } from "../functions/lib/storageBudget.js";
 import { insertModelPrediction, gradeModelPrediction, insertGameFeatureSnapshot } from "../functions/lib/collegeStore.js";
@@ -294,6 +295,68 @@ describe("CFB PRIOR_ONLY recommendation gate", () => {
     assert.equal(bundle.lean?.pick, "Toledo");
     assert.equal(bundle.lean?.tag, "LEAN");
     assert.match(bundle.lean?.reason || "", /PRIOR_ONLY/);
+  });
+});
+
+describe("Torvik CBB adapter", () => {
+  it("maps CBBD season start to Torvik ending year and parses ratings/four factors", async () => {
+    assert.equal(torvikEndingSeason(2025), 2026);
+    const ratingsCsv = [
+      "Team,Conf,G,AdjOE,AdjDE,Barthag,Adj T.,WAB",
+      "Houston,B12,34,121.4,88.6,0.96,65.8,6.1",
+      "Kansas,B12,34,117.2,94.1,0.90,69.2,4.8",
+    ].join("\n");
+    const ffHeader = ["TeamName","eFG%","Rk","eFG% Def","Rk","FTR","Rk","FTR Def","Rk","OR%","Rk","DR%","Rk","TO%","Rk","TO% Def.","Rk","3P%","Rk","3pD%","Rk","2p%","Rk","2p%D","Rk"].join(",");
+    const ffCsv = [
+      ffHeader,
+      "Houston,58.0,1,43.0,1,35.0,1,20.0,1,40.0,1,75.0,1,12.0,1,25.0,1,39.0,1,30.0,1,65.0,1,45.0,1",
+    ].join("\n");
+
+    const ratings = normalizeTorvikTeamRows(ratingsCsv);
+    const four = normalizeTorvikFourFactorRows(ffCsv);
+    assert.equal(ratings.length, 2);
+    assert.equal(ratings[0].adjOe, 121.4);
+    assert.equal(ratings[0].tempo, 65.8);
+    assert.equal(four.length, 1);
+    assert.equal(four[0].efgPct, 0.58);
+    assert.equal(four[0].orbRate, 0.4);
+
+    const fetchFn = async (url) => ({
+      ok: true,
+      status: 200,
+      async text() {
+        return String(url).includes("fffinal") ? ffCsv : ratingsCsv;
+      },
+    });
+    const catalog = await loadTorvikCbbCatalog({}, { cbbSeason: 2025, fetchFn });
+    assert.equal(catalog.ok, true);
+    assert.equal(catalog.torvikSeason, 2026);
+    assert.equal(catalog.rows.length, 2);
+    assert.equal(catalog.rows[0].efgPct, 0.58);
+  });
+
+  it("produces an independent Torvik projection and includes it in the CBB ensemble", () => {
+    const game = { home: { canonicalId: "cbb-150" }, away: { canonicalId: "cbb-87" }, neutralSite: false };
+    const torvikRatings = {
+      homeAdjOe: 119,
+      homeAdjDe: 93,
+      homeTempo: 67,
+      awayAdjOe: 108,
+      awayAdjDe: 101,
+      awayTempo: 70,
+    };
+    const direct = cbbTorvikRatingsV1(game, torvikRatings);
+    assert.equal(direct.ok, true);
+    assert.equal(direct.modelId, "CBB-TORVIK-RATINGS-v1");
+    assert.equal(direct.source, "torvik");
+    const models = projectCbbChallengers(game, {
+      ratings: torvikRatings,
+      torvikRatings,
+    });
+    assert.equal(models["CBB-TORVIK-RATINGS-v1"].ok, true);
+    assert.equal(models["CBB-TORVIK-RATINGS-v1"].marketInformed, false);
+    assert.equal(models["CBB-TORVIK-RATINGS-v1"].canQualify, false);
+    assert.equal(models["CBB-ENSEMBLE-v1"].ok, true);
   });
 });
 
