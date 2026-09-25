@@ -21,7 +21,8 @@ import CFB_FBIS_V2 from "../../data/models/cfb-fbis-v2.js";
 import { runCfbdEndpointAudit, auditArtifactPayload, auditContentHash } from "./cfbdEndpointAudit.js";
 import { runCbbdEndpointAudit } from "./cbbdEndpointAudit.js";
 import { featureAvailabilityTable, markdownFeatureTable, FEATURE_CATALOG_VERSION } from "./cfbdFeatureCatalog.js";
-import { loadTorvikCbbCatalog, mergeCbbCatalogs } from "./torvikCbb.js";\nimport { loadKenpomCbbCatalog } from "./kenpomCbb.js";
+import { loadTorvikCbbCatalog, mergeCbbCatalogs } from "./torvikCbb.js";
+import { loadKenpomCbbCatalog } from "./kenpomCbb.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
