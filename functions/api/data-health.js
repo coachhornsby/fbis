@@ -160,7 +160,7 @@ export async function onRequestGet(context) {
     nflverse: { configured: true, implemented: true, auth: "public" },
     nba_stats_licensed: { configured: false, implemented: false, reason: "production feed remains provider/license blocked" },
     parlay_pinnacle: { configured: Boolean(env?.PARLAY_API_KEY), implemented: true },
-    action_apify: { configured: Boolean(env?.APIFY_TOKEN), implemented: true },
+    action_apify: { configured: Boolean(env?.APIFY_TOKEN), implemented: true, enabled: false, paused: true, reason: "administratively paused 2026-09-25" },
   };
 
   const payload = {
