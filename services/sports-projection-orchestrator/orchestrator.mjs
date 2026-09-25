@@ -530,6 +530,14 @@ function gateCandidate(game,sport,clock=Date.now()){
   if(game.llmFeatures?.independentInputsOnly!==true || Number(game.llmFeatures?.featureCount||0)<4){
     return {selected:false,reason:'insufficient_market_blind_features'};
   }
+  if(sport==='cfb'){
+    if(game.llmFeatures?.version!=='llm-features-v2-cfbd' || Number(game.llmFeatures?.featureCount||0)<12){
+      return {selected:false,reason:'rich_cfbd_features_required'};
+    }
+    const hg=Number(game.llmFeatures?.home?.gamesPlayed||0);
+    const ag=Number(game.llmFeatures?.away?.gamesPlayed||0);
+    if(hg<1 || ag<1) return {selected:false,reason:'current_cfbd_form_required',homeGames:hg,awayGames:ag};
+  }
   const quality=finiteNumber(game.quality?.score);
   if(quality==null || quality<CFG.llmMinQuality) return {selected:false,reason:'quality_below_gate',quality};
   const flags=Array.isArray(game.quality?.flags)?game.quality.flags.map(String):[];
