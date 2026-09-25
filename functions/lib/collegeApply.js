@@ -9,6 +9,7 @@ import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatingsSafe.js";
 import { readCache, writeCache } from "./cache.js";
 import { mapSourceTeam } from "./collegeIdentity.js";
 import { MODEL_VERSION } from "./weights.js";
+import { loadTorvikCbbCatalog, lookupTorvikRating } from "./torvikCbb.js";
 
 const CATALOG_TTL = 6 * 60 * 60 * 1000;
 
@@ -63,16 +64,68 @@ export async function attachCfbChallengers(games, env = {}) {
 }
 
 export async function attachCbbChallengers(games, env = {}) {
-  const catalog = await loadCbbdCatalog(env);
+  const season = cbbSeasonYear();
+  const [catalog, torvikCatalog] = await Promise.all([
+    loadCbbdCatalog(env),
+    loadTorvikCbbCatalog(env, { cbbSeason: season }),
+  ]);
   return {
     games: (games || []).map((game) => {
       if (game.sport && game.sport !== "cbb") return game;
       const home = lookupCbbdRating(catalog, game.home);
       const away = lookupCbbdRating(catalog, game.away);
-      const challengers = projectCbbChallengers(game, { ratings: { homeAdjOe: home?.adjOe, homeAdjDe: home?.adjDe, homeTempo: home?.tempo, awayAdjOe: away?.adjOe, awayAdjDe: away?.adjDe, awayTempo: away?.tempo } });
-      return { ...game, challengers, championModel: MODEL_VERSION, cbbCatalogCoverage: { matched: catalog.matched, unmatched: catalog.unmatched }, researchProvenance: { ratingsAsOf: catalog.asOf || null, ratingsSeason: catalog.year || null, source: "cbbd-adjusted" } };
+      const homeTorvik = lookupTorvikRating(torvikCatalog, game.home);
+      const awayTorvik = lookupTorvikRating(torvikCatalog, game.away);
+      const ratings = {
+        homeAdjOe: home?.adjOe,
+        homeAdjDe: home?.adjDe,
+        homeTempo: home?.tempo,
+        awayAdjOe: away?.adjOe,
+        awayAdjDe: away?.adjDe,
+        awayTempo: away?.tempo,
+      };
+      const torvikRatings = {
+        homeAdjOe: homeTorvik?.adjOe,
+        homeAdjDe: homeTorvik?.adjDe,
+        homeTempo: homeTorvik?.tempo,
+        awayAdjOe: awayTorvik?.adjOe,
+        awayAdjDe: awayTorvik?.adjDe,
+        awayTempo: awayTorvik?.tempo,
+      };
+      const four = {
+        ...ratings,
+        homeEfg: homeTorvik?.efgPct,
+        awayEfgDef: awayTorvik?.efgPctD,
+        awayTov: awayTorvik?.tovRate,
+        homeTov: homeTorvik?.tovRate,
+        homeOrb: homeTorvik?.orbRate,
+        awayOrb: awayTorvik?.orbRate,
+        homeFtRate: homeTorvik?.ftr,
+        awayFtRate: awayTorvik?.ftr,
+      };
+      const challengers = projectCbbChallengers(game, { ratings, torvikRatings, four });
+      return {
+        ...game,
+        challengers,
+        championModel: MODEL_VERSION,
+        cbbCatalogCoverage: {
+          cbbdMatched: catalog.matched,
+          cbbdUnmatched: catalog.unmatched,
+          torvikMatched: torvikCatalog.matched || 0,
+          torvikUnmatched: torvikCatalog.unmatched || 0,
+        },
+        researchProvenance: {
+          ratingsAsOf: catalog.asOf || null,
+          ratingsSeason: catalog.year || null,
+          source: "cbbd-adjusted+torvik",
+          torvikAsOf: torvikCatalog.asOf || null,
+          torvikSeason: torvikCatalog.torvikSeason || null,
+          torvikAvailable: Boolean(torvikCatalog.ok),
+        },
+      };
     }),
     catalog,
+    torvikCatalog,
   };
 }
 
