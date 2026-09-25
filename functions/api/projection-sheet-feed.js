@@ -108,11 +108,17 @@ export async function onRequestGet(context) {
     const date = shiftDateCT(resolved.date,i);
     try {
       const slate = await buildSlate(sport,date,env);
-      games.push(...(slate.games || []));
+      const onDate = (slate.games || []).filter((g) => dateCt(g?.start) === date);
+      games.push(...onDate);
     } catch {}
   }
 
   const rows = dedupe(games)
+    .filter((g) => {
+      const away = String(g?.away?.abbr || "").trim();
+      const home = String(g?.home?.abbr || "").trim();
+      return away && home && away !== "—" && home !== "—";
+    })
     .sort((a,b)=>String(a.start||"").localeCompare(String(b.start||"")))
     .map(g=>row(g,sport));
   const body = rows.map(r=>r.map(csvCell).join(",")).join("\n");
