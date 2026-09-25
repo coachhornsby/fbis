@@ -8,6 +8,13 @@ export const CFG = Object.freeze({
   openaiModel: process.env.OPENAI_MODEL || 'gpt-5.6-sol',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
   maxRuns: Number(process.env.MAX_RUNS_PER_INVOCATION || 5),
+  fbisBaseUrl: process.env.FBIS_BASE_URL || 'https://fbis-myz.pages.dev',
+  llmSelectionEnabled: String(process.env.LLM_SELECTION_ENABLED || 'true').toLowerCase() !== 'false',
+  llmMaxGamesPerDay: Number(process.env.LLM_MAX_GAMES_PER_DAY || 8),
+  llmMaxPerScan: Number(process.env.LLM_MAX_PER_SCAN || 5),
+  llmMinQuality: Number(process.env.LLM_MIN_QUALITY || 88),
+  llmMinMinutesToStart: Number(process.env.LLM_MIN_MINUTES_TO_START || 60),
+  llmHorizonHours: Number(process.env.LLM_HORIZON_HOURS || 36),
   thresholds: {
     winProbPp: Number(process.env.WIN_PROB_DELTA_PP || 4),
     total: Number(process.env.TOTAL_DELTA || 0.75),
@@ -468,6 +475,188 @@ export async function runSnapshot(snapshot,{persist=true,runId=uuid(),queueMeta=
   };
 }
 
+
+const LLM_GATE_THRESHOLDS = Object.freeze({
+  mlb:{side:0.75,total:0.75},
+  cfb:{side:2.5,total:3.0},
+  nfl:{side:2.0,total:3.0},
+  cbb:{side:2.5,total:3.5},
+});
+const LLM_GATE_SPORTS = Object.freeze(['mlb','cfb','nfl','cbb']);
+
+function finiteNumber(v){
+  const n=Number(v);
+  return Number.isFinite(n)?n:null;
+}
+function dateKeyCT(d=new Date()){
+  const p=new Intl.DateTimeFormat('en-US',{
+    timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'
+  }).formatToParts(d);
+  const get=t=>p.find(x=>x.type===t)?.value||'';
+  return get('year')+'-'+get('month')+'-'+get('day');
+}
+function shiftDateKey(key,days){
+  const [y,m,d]=String(key).split('-').map(Number);
+  const x=new Date(Date.UTC(y,m-1,d,12));
+  x.setUTCDate(x.getUTCDate()+days);
+  return x.toISOString().slice(0,10);
+}
+async function fetchProjectionBoard(sport,date){
+  const base=String(CFG.fbisBaseUrl||'').replace(/\/+$/,'');
+  const url=base+'/api/projections?sport='+encodeURIComponent(sport)+'&date='+encodeURIComponent(date);
+  const res=await fetchRetry(url,{headers:{'user-agent':'sports-projection-orchestrator-selector'}},2);
+  const raw=await res.text();
+  let obj={}; try{obj=JSON.parse(raw);}catch{}
+  if(!res.ok || obj?.ok!==true) return {ok:false,status:res.status,error:obj?.error||raw.slice(0,300),sport,date,games:[]};
+  return {ok:true,status:res.status,sport,date,generatedAt:obj.generatedAt||now(),games:Array.isArray(obj.games)?obj.games:[]};
+}
+function gateCandidate(game,sport,clock=Date.now()){
+  const threshold=LLM_GATE_THRESHOLDS[sport];
+  if(!threshold) return {selected:false,reason:'unsupported_sport'};
+  if(!game || !game.id) return {selected:false,reason:'missing_event_id'};
+  if(String(game.gameState?.state||'SCHEDULED').toUpperCase()!=='SCHEDULED') return {selected:false,reason:'not_scheduled'};
+  if(game.projection?.independent!==true) return {selected:false,reason:'no_independent_projection'};
+  const quality=finiteNumber(game.quality?.score);
+  if(quality==null || quality<CFG.llmMinQuality) return {selected:false,reason:'quality_below_gate',quality};
+  const flags=Array.isArray(game.quality?.flags)?game.quality.flags.map(String):[];
+  if(flags.includes('pinnacle_implied_score')) return {selected:false,reason:'market_derived_projection',quality};
+  const startMs=Date.parse(String(game.start||''));
+  if(!Number.isFinite(startMs)) return {selected:false,reason:'invalid_start',quality};
+  const minutesToStart=(startMs-clock)/60000;
+  if(minutesToStart<CFG.llmMinMinutesToStart) return {selected:false,reason:'too_close_or_started',quality,minutesToStart};
+  if(minutesToStart>CFG.llmHorizonHours*60) return {selected:false,reason:'outside_horizon',quality,minutesToStart};
+  const margin=finiteNumber(game.projection?.margin);
+  const total=finiteNumber(game.projection?.total);
+  const spread=finiteNumber(game.market?.spread);
+  const marketTotal=finiteNumber(game.market?.total);
+  // FBIS margin is home-away. Market spread is the home handicap, so the
+  // market-implied home margin is -spread.
+  const sideGap=margin!=null&&spread!=null?Math.abs(margin+spread):null;
+  const totalGap=total!=null&&marketTotal!=null?Math.abs(total-marketTotal):null;
+  const sidePass=sideGap!=null&&sideGap>=threshold.side;
+  const totalPass=totalGap!=null&&totalGap>=threshold.total;
+  if(!sidePass&&!totalPass) return {selected:false,reason:'edge_below_gate',quality,sideGap,totalGap,minutesToStart};
+  const strength=Math.max(sideGap==null?0:sideGap/threshold.side,totalGap==null?0:totalGap/threshold.total);
+  return {
+    selected:true,quality,sideGap,totalGap,minutesToStart,
+    strength,reason:sidePass&&totalPass?'SIDE+TOTAL':sidePass?'SIDE':'TOTAL',
+    threshold
+  };
+}
+function snapshotFromCandidate(game,sport,boardGeneratedAt){
+  const eventId=String(game.id);
+  const generatedAt=String(boardGeneratedAt||now());
+  const away=String(game.away?.name||game.away?.abbr||'Away');
+  const home=String(game.home?.name||game.home?.abbr||'Home');
+  const teamFeatures={
+    source:'FBIS_PREMODEL_SELECTION',
+    sport,
+    model_name:game.model?.name||null,
+    model_engine:game.model?.engine||null,
+    model_maturity:game.model?.maturity||null,
+    model_version:game.modelVersion||null,
+    neutral_site:Boolean(game.neutral),
+    fbis_projected_away:finiteNumber(game.projection?.away),
+    fbis_projected_home:finiteNumber(game.projection?.home),
+    fbis_projected_margin:finiteNumber(game.projection?.margin),
+    fbis_projected_total:finiteNumber(game.projection?.total),
+    quality_score:finiteNumber(game.quality?.score),
+    quality_state:game.quality?.state||null,
+    quality_flags:Array.isArray(game.quality?.flags)?game.quality.flags:[]
+  };
+  const stable=JSON.stringify({eventId,sport,start:game.start,generatedAt,teamFeatures});
+  const snapshotId='AUTO-'+sha256(stable).slice(0,24);
+  return {
+    'Snapshot ID':snapshotId,'Event ID':eventId,'Sport':sport.toUpperCase(),
+    'Matchup':away+' @ '+home,'Event Start':String(game.start||''),
+    'Generated At':generatedAt,'Data Timestamp':generatedAt,
+    'Schema Version':'fbis-select-v1','Snapshot Hash':sha256(stable),
+    'Locked?':'YES','Market Included?':'NO',
+    'Home Team':home,'Away Team':away,'Home Starter':'','Away Starter':'',
+    'Lineup Status':'','Injury Status':'','Rest/Travel':'','Weather/Environment':'',
+    'Team Features JSON':JSON.stringify(teamFeatures),'Player Features JSON':'{}',
+    'Data Sources':'FBIS_PROJECTION_BOARD_PREMODEL','Missing Inputs':'',
+    'Notes':'AUTO_SELECTED_MARKET_GAP_GATE'
+  };
+}
+function snapshotRow(s){ return HEADERS.snapshots.map(h=>s[h]??''); }
+
+export async function selectCandidates({dryRun=false}={}){
+  if(!CFG.llmSelectionEnabled) return {ok:true,status:'SELECTION_DISABLED',selected:0,candidates:[],at:now()};
+  if(!sheets.available()) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON required for LLM candidate selection');
+  const [qres,sres]=await Promise.all([
+    sheets.get(q(CFG.sheets.queue)+'!A1:Y3000'),
+    sheets.get(q(CFG.sheets.snapshots)+'!A1:X5000')
+  ]);
+  const queueRows=rowsToObjects(qres.values||[],HEADERS.queue);
+  const snapshotRows=rowsToObjects(sres.values||[],HEADERS.snapshots);
+  const existingEvents=new Set(queueRows
+    .filter(r=>['QUEUED','RUNNING','COMPLETE'].includes(String(r.obj['Run Status']).toUpperCase()))
+    .map(r=>String(r.obj['Event ID']||'')).filter(Boolean));
+  const today=dateKeyCT();
+  const usedToday=queueRows.filter(r=>{
+    const st=String(r.obj['Run Status']||'').toUpperCase();
+    if(!['QUEUED','RUNNING','COMPLETE'].includes(st)) return false;
+    const ms=Date.parse(String(r.obj['Event Start']||''));
+    return Number.isFinite(ms)&&dateKeyCT(new Date(ms))===today;
+  }).length;
+  const dailyCapacity=Math.max(0,Math.floor(CFG.llmMaxGamesPerDay)-usedToday);
+  const capacity=Math.min(Math.max(0,Math.floor(CFG.llmMaxPerScan)),dailyCapacity);
+  if(capacity<=0) return {ok:true,status:'DAILY_CAP_REACHED',selected:0,usedToday,dailyCap:CFG.llmMaxGamesPerDay,candidates:[],at:now()};
+
+  const dates=[0,1,2].map(d=>shiftDateKey(today,d));
+  const boards=[];
+  for(const sport of LLM_GATE_SPORTS){
+    for(const date of dates){
+      try{ boards.push(await fetchProjectionBoard(sport,date)); }
+      catch(e){ boards.push({ok:false,sport,date,error:String(e.message||e),games:[]}); }
+    }
+  }
+  const seen=new Set();
+  const candidates=[];
+  for(const board of boards){
+    if(!board.ok) continue;
+    for(const game of board.games){
+      const eventId=String(game?.id||'');
+      if(!eventId||seen.has(eventId)||existingEvents.has(eventId)) continue;
+      seen.add(eventId);
+      const gate=gateCandidate(game,board.sport);
+      if(!gate.selected) continue;
+      candidates.push({eventId,sport:board.sport,game,gate,generatedAt:board.generatedAt});
+    }
+  }
+  candidates.sort((a,b)=>b.gate.strength-a.gate.strength || b.gate.quality-a.gate.quality);
+  const selected=candidates.slice(0,capacity);
+  if(dryRun){
+    return {ok:true,status:'DRY_RUN',selected:selected.length,eligible:candidates.length,usedToday,dailyCap:CFG.llmMaxGamesPerDay,
+      candidates:selected.map(x=>({eventId:x.eventId,sport:x.sport,start:x.game.start,matchup:(x.game.away?.abbr||x.game.away?.name)+' @ '+(x.game.home?.abbr||x.game.home?.name),quality:x.gate.quality,sideGap:x.gate.sideGap,totalGap:x.gate.totalGap,reason:x.gate.reason,strength:x.gate.strength})),
+      boards:boards.map(b=>({sport:b.sport,date:b.date,ok:b.ok,status:b.status,error:b.error||null,games:b.games?.length||0})),at:now()};
+  }
+  let written=0;
+  const created=[];
+  for(const item of selected){
+    const snap=snapshotFromCandidate(item.game,item.sport,item.generatedAt);
+    if(snapshotRows.some(r=>String(r.obj['Snapshot ID'])===snap['Snapshot ID'])) continue;
+    const runId='AUTO-'+sha256(item.eventId+'|'+snap['Snapshot ID']).slice(0,24);
+    const gateNote='SELECTIVE_LLM_GATE;reason='+item.gate.reason+
+      ';quality='+item.gate.quality+
+      ';side_gap='+(item.gate.sideGap==null?'NA':item.gate.sideGap.toFixed(3))+
+      ';total_gap='+(item.gate.totalGap==null?'NA':item.gate.totalGap.toFixed(3));
+    const queueRow=[
+      runId,item.eventId,item.sport.toUpperCase(),snap.Matchup,snap['Event Start'],snap['Snapshot ID'],now(),
+      'QUEUED','PENDING','PENDING','','','','','','','NO','NO','BLOCKED',0,'',now(),now(),'FBIS_SELECTIVE_GATE',gateNote
+    ];
+    await sheets.append(q(CFG.sheets.snapshots)+'!A:X',[snapshotRow(snap)]);
+    await sheets.append(q(CFG.sheets.queue)+'!A:Y',[queueRow]);
+    existingEvents.add(item.eventId);
+    written++;
+    created.push({runId,eventId:item.eventId,snapshotId:snap['Snapshot ID'],sport:item.sport,start:snap['Event Start'],quality:item.gate.quality,sideGap:item.gate.sideGap,totalGap:item.gate.totalGap,reason:item.gate.reason});
+  }
+  return {ok:true,status:'SELECTED',selected:written,eligible:candidates.length,usedToday,dailyCap:CFG.llmMaxGamesPerDay,candidates:created,
+    boards:boards.map(b=>({sport:b.sport,date:b.date,ok:b.ok,status:b.status,error:b.error||null,games:b.games?.length||0})),at:now()};
+}
+
+
 export async function processQueue(){
   if(!sheets.available()) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON required for scheduled queue processing');
   const qres=await sheets.get(q(CFG.sheets.queue)+'!A1:Y3000');
@@ -546,6 +735,8 @@ export function healthSummary(){
       googleCredentialParseError
     },
     spreadsheetId:CFG.spreadsheetId,
-    failMode:'FAIL_CLOSED',marketBlind:true,consensusCanQualify:false,time:now()
+    failMode:'FAIL_CLOSED',marketBlind:true,consensusCanQualify:false,
+    selection:{enabled:CFG.llmSelectionEnabled,maxGamesPerDay:CFG.llmMaxGamesPerDay,maxPerScan:CFG.llmMaxPerScan,minQuality:CFG.llmMinQuality,horizonHours:CFG.llmHorizonHours,minMinutesToStart:CFG.llmMinMinutesToStart},
+    time:now()
   };
 }
