@@ -22,7 +22,7 @@ import { runCfbdEndpointAudit, auditArtifactPayload, auditContentHash } from "./
 import { runCbbdEndpointAudit } from "./cbbdEndpointAudit.js";
 import { featureAvailabilityTable, markdownFeatureTable, FEATURE_CATALOG_VERSION } from "./cfbdFeatureCatalog.js";
 import { loadTorvikCbbCatalog, mergeCbbCatalogs } from "./torvikCbb.js";
-import { loadKenpomCbbCatalog } from "./kenpomCbb.js";
+import { loadKenpomCbbCatalog, loadKenpomFanmatch } from "./kenpomCbb.js";
 
 function todayCT(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -86,6 +86,79 @@ const CBB_BACKFILL_EXTRA = [
   ["/ratings/elo", (y) => ({ year: y })],
   ["/games", (y) => ({ season: y })],
 ];
+
+function cbbTeamKey(v) {
+  return String(v || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function cbbGameNames(game = {}) {
+  return {
+    home: game.homeTeam ?? game.home_team ?? game.home?.school ?? game.home?.name ?? game.home,
+    away: game.awayTeam ?? game.away_team ?? game.away?.school ?? game.away?.name ?? game.away,
+  };
+}
+
+function matchFanmatchToCbbGame(row, games = []) {
+  const h = cbbTeamKey(row.homeTeam);
+  const a = cbbTeamKey(row.awayTeam);
+  return (games || []).find((game) => {
+    const names = cbbGameNames(game);
+    return cbbTeamKey(names.home) === h && cbbTeamKey(names.away) === a;
+  }) || null;
+}
+
+async function persistKenpomFanmatchBenchmarks(env, fanmatch, games, jobRunId) {
+  let inserted = 0;
+  let already = 0;
+  let unmatched = 0;
+  for (const row of fanmatch?.rows || []) {
+    const game = matchFanmatchToCbbGame(row, games);
+    const gameId = game?.id ?? game?.gameId ?? game?.game_id ?? null;
+    if (!gameId) {
+      unmatched += 1;
+      continue;
+    }
+    const contentHash = await hashPayload({
+      source: "kenpom-fanmatch",
+      date: row.date,
+      gameId: row.gameId,
+      home: row.homeTeam,
+      away: row.awayTeam,
+      homePred: row.homePred,
+      awayPred: row.awayPred,
+      homeWinProbability: row.homeWinProbability,
+      predTempo: row.predTempo,
+    });
+    const res = await insertModelPrediction(env, {
+      id: `cbb:${String(gameId)}:CBB-KENPOM-FANMATCH-BENCHMARK:${row.date}`,
+      sport: "cbb",
+      gameId: String(gameId),
+      modelId: "CBB-KENPOM-FANMATCH-BENCHMARK",
+      modelVersion: "v1",
+      role: "benchmark",
+      featureSnapshotId: null,
+      projHome: row.homePred,
+      projAway: row.awayPred,
+      projMargin: row.homeMargin,
+      projTotal: row.total,
+      pHomeWin: row.homeWinProbability,
+      sigmaMargin: null,
+      sigmaTotal: null,
+      marketInformed: false,
+      canQualify: false,
+      frozenAt: new Date().toISOString(),
+      contentHash,
+      jobRunId,
+    });
+    inserted += Number(res?.inserted || 0);
+    already += Number(res?.already || 0);
+  }
+  return { inserted, already, unmatched, matched: Math.max(0, Number(fanmatch?.n || 0) - unmatched) };
+}
 
 function slimRows(rows, keep) {
   return (rows || []).slice(0, 500).map((r) => {
@@ -191,7 +264,7 @@ export async function seedRegistry(env) {
       artifactId: m.id === "CFB-CFBD-REG-v1" ? CFB_REG.id : m.id === "CBB-REG-v1" ? CBB_REG.id : null,
       criteria: PROMOTION_CRITERIA,
       createdAt: now,
-      status: "shadow",
+      status: m.role === "benchmark" ? "benchmark" : "shadow",
     });
   }
   await insertModelArtifact(env, { id: CFB_REG.id, modelId: CFB_REG.modelId, schema: CFB_REG.expectedUnits, coefficients: CFB_REG.coefficients, trainingCutoff: CFB_REG.trainingCutoff, trainingHash: CFB_REG.trainingHash, sourceVersions: CFB_REG.sourceVersions, expectedUnits: CFB_REG.expectedUnits });
@@ -687,6 +760,41 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           status: kenpom.ok ? "ok" : "failed",
         });
 
+        if (job === "cbb-current-refresh") {
+          const fanmatchDate = opts.date || todayCT();
+          const [fanmatch, gamesToday] = await Promise.all([
+            loadKenpomFanmatch(env, { date: fanmatchDate, fetchFn: opts.fetchFn || fetch }),
+            cbbdGet("/games", env, { query: { season: y, startDateRange: fanmatchDate, endDateRange: fanmatchDate } }),
+          ]);
+          const benchmark = fanmatch.ok && gamesToday.ok
+            ? await persistKenpomFanmatchBenchmarks(env, fanmatch, gamesToday.data || [], id)
+            : { inserted: 0, already: 0, unmatched: fanmatch.n || 0, matched: 0 };
+          writes.writesSucceeded += benchmark.inserted;
+          report.push({
+            ok: true,
+            available: Boolean(fanmatch.ok),
+            required: false,
+            benchmarkOnly: true,
+            status: fanmatch.httpStatus || 0,
+            n: fanmatch.n || 0,
+            matched: benchmark.matched,
+            unmatched: benchmark.unmatched,
+            path: "api.php?endpoint=fanmatch",
+            source: "kenpom-fanmatch",
+            reason: fanmatch.ok ? null : fanmatch.error || "fanmatch-unavailable",
+          });
+          await persistObservation(env, {
+            source: "kenpom-fanmatch",
+            sport: "cbb",
+            endpoint: "fanmatch",
+            season: y,
+            partition: fanmatchDate,
+            data: fanmatch.rows || [],
+            jobRunId: id,
+            status: fanmatch.ok ? "ok" : "failed",
+          });
+        }
+
         const merged = mergeCbbCatalogs(cbbdCatalog, torvik, kenpom);
         gamesDiscovered += merged.n;
         writes.writesSucceeded += await persistTeamFeatures(
@@ -709,7 +817,37 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
       report.push(collegePublicResult(res));
       const finals = (res.data || []).filter((g) => (g.homePoints ?? g.home_points ?? g.homeScore) != null);
       gamesDiscovered = finals.length;
-      const existing = await queryModelPredictions(env, { sport, ungraded: true, limit: 80 });
+      if (sport === "cbb") {
+        const fanmatch = await loadKenpomFanmatch(env, { date, fetchFn: opts.fetchFn || fetch });
+        const benchmark = fanmatch.ok
+          ? await persistKenpomFanmatchBenchmarks(env, fanmatch, finals, id)
+          : { inserted: 0, already: 0, unmatched: fanmatch.n || 0, matched: 0 };
+        writes.writesSucceeded += benchmark.inserted;
+        report.push({
+          ok: true,
+          available: Boolean(fanmatch.ok),
+          required: false,
+          benchmarkOnly: true,
+          status: fanmatch.httpStatus || 0,
+          n: fanmatch.n || 0,
+          matched: benchmark.matched,
+          unmatched: benchmark.unmatched,
+          path: "api.php?endpoint=fanmatch",
+          source: "kenpom-fanmatch",
+          reason: fanmatch.ok ? null : fanmatch.error || "fanmatch-unavailable",
+        });
+        await persistObservation(env, {
+          source: "kenpom-fanmatch",
+          sport: "cbb",
+          endpoint: "fanmatch",
+          season: yearCbb,
+          partition: date,
+          data: fanmatch.rows || [],
+          jobRunId: id,
+          status: fanmatch.ok ? "ok" : "failed",
+        });
+      }
+      const existing = await queryModelPredictions(env, { sport, ungraded: true, limit: 200 });
       for (const pred of existing) {
         const g = finals.find((x) => String(x.id || x.gameId) === String(pred.game_id));
         if (!g) continue;
