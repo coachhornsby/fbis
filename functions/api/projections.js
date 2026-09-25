@@ -12,7 +12,7 @@ export async function onRequestGet(context) {
   const access = authorizeProductTier(context.request, context.env, tier);
   if (!access.ok) return json({ ok: false, error: access.reason }, access.reason === "unsupported-tier" ? 400 : 403, { tier: "pro", maxAge: 0 });
   const rawDate = url.searchParams.get("date") || "";
-  const window = sport === "cfb" || sport === "cbb" ? { maxPast: 7, maxFuture: 14 } : { maxPast: 2, maxFuture: 1 };
+  const window = sport === "cfb" || sport === "cbb" ? { maxPast: 7, maxFuture: 14 } : { maxPast: 2, maxFuture: 3 };
   const resolved = resolveSlateDate(rawDate, window);
   if (rawDate && !resolved.ok) return json({ ok: false, error: resolved.error }, 400, { tier: access.tier, maxAge: 10 });
 
