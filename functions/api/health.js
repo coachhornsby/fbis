@@ -44,7 +44,9 @@ export async function onRequestGet(context) {
     THERUNDOWN_API_KEY: context.env.THERUNDOWN_API_KEY,
     // Presence only for Action candidate health — token value never returned.
     APIFY_TOKEN: context.env.APIFY_TOKEN,
-    ACTION_APIFY_ENABLED: context.env.ACTION_APIFY_ENABLED,
+    // Administratively paused: health/watchdog must not treat retained APIFY_TOKEN
+    // or historical configuration as an active source.
+    ACTION_APIFY_ENABLED: "false",
     ACTION_APIFY_PLAN: context.env.ACTION_APIFY_PLAN,
   };
   try {
