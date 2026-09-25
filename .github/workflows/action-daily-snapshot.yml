@@ -1,13 +1,114 @@
-name: ACTION daily market snapshot — PAUSED
+name: ACTION daily market snapshot
 
 on:
+  schedule:
+    # GitHub cron can arrive late. Run both DST anchors and let the API's
+    # daily idempotency prevent a second paid Actor run.
+    - cron: "0 12 * * *"
+    - cron: "0 13 * * *"
   workflow_dispatch:
+
+concurrency:
+  group: action-daily-snapshot
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  paused:
+  collect:
+    name: ACTION DAILY SNAPSHOT
     runs-on: ubuntu-latest
     steps:
-      - run: echo "ACTION/Apify is paused. No paid Actor call will run."
+      - name: Require operator secret
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Start or resume daily ACTION run
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 30 --retry 0 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -d '{"mode":"start"}' -o "$body" -w "%{http_code}" \
+            "${BASE}/api/action-daily-async?mode=start")"
+          echo "START http=${http}"
+          cat "$body"
+          test "$http" = "202" -o "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          status="$(jq -r '.status // empty' "$body")"
+          case "$status" in
+            started_daily|actor_running) ;;
+            already_collected_today) echo "ACTION already persisted today."; exit 0 ;;
+            no_slate) echo "No active slate."; exit 0 ;;
+            *) echo "Unexpected START status=$status"; exit 1 ;;
+          esac
+
+      - name: Harvest same ACTION run
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            body="$(mktemp)"
+            set +e
+            http="$(curl -sS --max-time 45 --retry 0 -X POST \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "content-type: application/json" \
+              -d '{"mode":"harvest"}' -o "$body" -w "%{http_code}" \
+              "${BASE}/api/action-daily-async?mode=harvest")"
+            curl_ec=$?
+            set -e
+            echo "HARVEST attempt=${attempt} http=${http} curl_ec=${curl_ec}"
+            cat "$body" || true
+            status="$(jq -r '.status // empty' "$body" 2>/dev/null || true)"
+            if [ "$curl_ec" -eq 0 ] && [ "$http" = "200" ] && { [ "$status" = "success_daily" ] || [ "$status" = "already_collected_today" ]; }; then exit 0; fi
+            if [ "$curl_ec" -eq 0 ] && [ "$http" = "202" ] && [ "$status" = "harvest_partial" ]; then
+              echo "ACTION harvest persisted a bounded chunk; resuming remaining rows."
+              sleep 3
+              continue
+            fi
+            if { [ "$curl_ec" -eq 0 ] && [ "$http" = "202" ] && [ "$status" = "actor_running" ]; } || [ "$curl_ec" -eq 28 ]; then
+              echo "ACTION Actor still running/transient timeout; retrying."
+              sleep 30
+              continue
+            fi
+            if [ "$http" = "200" ] && [ "$status" = "nothing_to_harvest" ]; then exit 0; fi
+            echo "Unexpected HARVEST status=$status http=$http"
+            exit 1
+          done
+          echo "ACTION run did not finish inside harvest window; no second paid run was started."
+          exit 1
+
+      - name: Verify D1 persisted ACTION state and slate coverage
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 30 --retry 0 -o "$body" -w "%{http_code}" \
+              "$BASE/api/action-daily-status")"
+            echo "VERIFY attempt=${attempt} http=${http}"
+            cat "$body"
+            if [ "$http" != "200" ]; then sleep 15; continue; fi
+            jq -e . "$body" >/dev/null
+            state="$(jq -r '.state // empty' "$body")"
+            verified="$(jq -r '.verifiedPersisted // false' "$body")"
+            covered="$(jq -r '.verifiedSlateCoverage // false' "$body")"
+            if [ "$state" = "HEALTHY" ] && [ "$verified" = "true" ] && [ "$covered" = "true" ]; then
+              echo "ACTION daily D1 readback and slate coverage verified."
+              exit 0
+            fi
+            if [ "$state" = "RUNNING" ]; then sleep 15; continue; fi
+            echo "ACTION daily verification failed: state=$state persisted=$verified slateCoverage=$covered"
+            exit 1
+          done
+          echo "ACTION daily status endpoint did not reach verified HEALTHY state."
+          exit 1
