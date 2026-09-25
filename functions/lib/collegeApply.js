@@ -9,7 +9,7 @@ import { projectCbbChallengers, lookupCbbdRating } from "./cbbRatingsSafe.js";
 import { readCache, writeCache } from "./cache.js";
 import { mapSourceTeam } from "./collegeIdentity.js";
 import { MODEL_VERSION } from "./weights.js";
-import { loadTorvikCbbCatalog, lookupTorvikRating } from "./torvikCbb.js";
+import { loadTorvikCbbCatalog, lookupTorvikRating } from "./torvikCbb.js";\nimport { loadKenpomCbbCatalog, lookupKenpomRating } from "./kenpomCbb.js";
 
 const CATALOG_TTL = 6 * 60 * 60 * 1000;
 
@@ -65,9 +65,10 @@ export async function attachCfbChallengers(games, env = {}) {
 
 export async function attachCbbChallengers(games, env = {}) {
   const season = cbbSeasonYear();
-  const [catalog, torvikCatalog] = await Promise.all([
+  const [catalog, torvikCatalog, kenpomCatalog] = await Promise.all([
     loadCbbdCatalog(env),
     loadTorvikCbbCatalog(env, { cbbSeason: season }),
+    loadKenpomCbbCatalog(env, { cbbSeason: season }),
   ]);
   return {
     games: (games || []).map((game) => {
@@ -76,6 +77,8 @@ export async function attachCbbChallengers(games, env = {}) {
       const away = lookupCbbdRating(catalog, game.away);
       const homeTorvik = lookupTorvikRating(torvikCatalog, game.home);
       const awayTorvik = lookupTorvikRating(torvikCatalog, game.away);
+      const homeKenpom = lookupKenpomRating(kenpomCatalog, game.home);
+      const awayKenpom = lookupKenpomRating(kenpomCatalog, game.away);
       const ratings = {
         homeAdjOe: home?.adjOe,
         homeAdjDe: home?.adjDe,
@@ -92,18 +95,26 @@ export async function attachCbbChallengers(games, env = {}) {
         awayAdjDe: awayTorvik?.adjDe,
         awayTempo: awayTorvik?.tempo,
       };
+      const kenpomRatings = {
+        homeAdjOe: homeKenpom?.adjOe,
+        homeAdjDe: homeKenpom?.adjDe,
+        homeTempo: homeKenpom?.tempo,
+        awayAdjOe: awayKenpom?.adjOe,
+        awayAdjDe: awayKenpom?.adjDe,
+        awayTempo: awayKenpom?.tempo,
+      };
       const four = {
         ...ratings,
-        homeEfg: homeTorvik?.efgPct,
-        awayEfgDef: awayTorvik?.efgPctD,
-        awayTov: awayTorvik?.tovRate,
-        homeTov: homeTorvik?.tovRate,
-        homeOrb: homeTorvik?.orbRate,
-        awayOrb: awayTorvik?.orbRate,
-        homeFtRate: homeTorvik?.ftr,
-        awayFtRate: awayTorvik?.ftr,
+        homeEfg: homeTorvik?.efgPct ?? homeKenpom?.efgPct,
+        awayEfgDef: awayTorvik?.efgPctD ?? awayKenpom?.efgPctD,
+        awayTov: awayTorvik?.tovRate ?? awayKenpom?.tovRate,
+        homeTov: homeTorvik?.tovRate ?? homeKenpom?.tovRate,
+        homeOrb: homeTorvik?.orbRate ?? homeKenpom?.orbRate,
+        awayOrb: awayTorvik?.orbRate ?? awayKenpom?.orbRate,
+        homeFtRate: homeTorvik?.ftr ?? homeKenpom?.ftr,
+        awayFtRate: awayTorvik?.ftr ?? awayKenpom?.ftr,
       };
-      const challengers = projectCbbChallengers(game, { ratings, torvikRatings, four });
+      const challengers = projectCbbChallengers(game, { ratings, torvikRatings, kenpomRatings, four });
       return {
         ...game,
         challengers,
@@ -113,19 +124,26 @@ export async function attachCbbChallengers(games, env = {}) {
           cbbdUnmatched: catalog.unmatched,
           torvikMatched: torvikCatalog.matched || 0,
           torvikUnmatched: torvikCatalog.unmatched || 0,
+          kenpomMatched: kenpomCatalog.matched || 0,
+          kenpomUnmatched: kenpomCatalog.unmatched || 0,
         },
         researchProvenance: {
           ratingsAsOf: catalog.asOf || null,
           ratingsSeason: catalog.year || null,
-          source: "cbbd-adjusted+torvik",
+          source: "cbbd-adjusted+torvik+kenpom",
           torvikAsOf: torvikCatalog.asOf || null,
           torvikSeason: torvikCatalog.torvikSeason || null,
           torvikAvailable: Boolean(torvikCatalog.ok),
+          kenpomAsOf: kenpomCatalog.asOf || null,
+          kenpomSeason: kenpomCatalog.kenpomSeason || null,
+          kenpomDataThrough: kenpomCatalog.dataThrough || null,
+          kenpomAvailable: Boolean(kenpomCatalog.ok),
         },
       };
     }),
     catalog,
     torvikCatalog,
+    kenpomCatalog,
   };
 }
 
