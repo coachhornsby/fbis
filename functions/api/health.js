@@ -44,9 +44,9 @@ export async function onRequestGet(context) {
     THERUNDOWN_API_KEY: context.env.THERUNDOWN_API_KEY,
     // Presence only for Action candidate health — token value never returned.
     APIFY_TOKEN: context.env.APIFY_TOKEN,
-    // Administratively paused: health/watchdog must not treat retained APIFY_TOKEN
-    // or historical configuration as an active source.
-    ACTION_APIFY_ENABLED: "false",
+    // Reflect the actual restored runtime setting. ACTION remains shadow-only;
+    // enabling collection never promotes it into odds authority or wager authorization.
+    ACTION_APIFY_ENABLED: context.env.ACTION_APIFY_ENABLED,
     ACTION_APIFY_PLAN: context.env.ACTION_APIFY_PLAN,
   };
   try {
