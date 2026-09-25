@@ -27,6 +27,38 @@ test("public projection board exposes product data but not private operator payl
   for (const key of FORBIDDEN_PRODUCT_KEYS) assert.equal(dump.includes(`\"${key}\"`), false, key);
 });
 
+test("CFB LLM digest exposes paid CFBD signals but no market/projection fields", () => {
+  const out = productProjectionBoard({
+    sport: "cfb",
+    games: [{
+      id:"cfb-rich-1", sport:"cfb", projectionKind:"FBIS",
+      home:{ name:"Ohio State", school:"Ohio State", espnId:"194" },
+      away:{ name:"Michigan", school:"Michigan", espnId:"130" },
+      model:{ projectionKind:"FBIS", projHome:31, projAway:24, projMargin:7, projTotal:55 },
+      cfb:{
+        projectionState:"COMPLETE", dataQuality:84,
+        homeEst:{ priorOff:38, priorDef:17, currentOff:33, currentDef:20, n:3, teamSpecificPrior:true, featureVector:{ raw:{ epaNet:0.31, transferNet:2, returningPct:61, talent:960, coachTenure:6, qbPriorPpa:0.28, qbPriorYpa:8.4, qbPriorGamesStarted:12 }, components:{ epa:0.62, transfer:0.2, qb:0.4, coaching:0.6, returning:0.3, talent:0.8 }, source:{ epa:"cfbd" }, missing:[] } },
+        awayEst:{ priorOff:31, priorDef:20, currentOff:27, currentDef:22, n:3, teamSpecificPrior:true, featureVector:{ raw:{ epaNet:0.12, transferNet:-1, returningPct:54, talent:910, coachTenure:2 }, components:{ epa:0.24, transfer:-0.1, coaching:0.1, returning:-0.05, talent:0.3 }, source:{ epa:"cfbd" }, missing:["qb_missing"] } },
+      },
+      cfbDeepInput:{
+        home:{ gamesPlayed:3, currentPointsForPerGame:33, currentPointsAgainstPerGame:20, offensePpa:0.30, defensePpa:-0.10, passEpa:0.34, rushEpa:0.21, passEpaAllowed:-0.12, rushEpaAllowed:-0.08, successRate:0.49, successRateAllowed:0.34, explosiveRate:1.25, explosiveRateAllowed:0.82, havocRate:0.19, havocAllowed:0.11, lineYards:3.4, lineYardsAllowed:2.4, stuffRate:0.22, pointsPerOpportunity:4.8, pointsPerOpportunityAllowed:2.9, pacePlays:72 },
+        away:{ gamesPlayed:3, currentPointsForPerGame:27, currentPointsAgainstPerGame:22, offensePpa:0.14, defensePpa:-0.05, passEpa:0.12, rushEpa:0.18, passEpaAllowed:-0.06, rushEpaAllowed:-0.03, successRate:0.42, successRateAllowed:0.39, explosiveRate:1.02, explosiveRateAllowed:0.94, havocRate:0.15, havocAllowed:0.13, lineYards:3.0, lineYardsAllowed:2.8, stuffRate:0.18, pointsPerOpportunity:3.7, pointsPerOpportunityAllowed:3.4, pacePlays:66 },
+      },
+      odds:{ spread:-7.5, total:55.5, pinHomeMl:-300, pinAwayMl:240 },
+      quality:{ score:84, flags:[] },
+    }],
+  });
+  const features=out.games[0].llmFeatures;
+  assert.equal(features.version,"llm-features-v2-cfbd");
+  assert.equal(features.independentInputsOnly,true);
+  assert.ok(features.featureCount >= 20);
+  assert.equal(features.home.passEpa,0.34);
+  assert.equal(features.home.havocRate,0.19);
+  assert.equal(features.home.currentPointsForPerGame,33);
+  const dump=JSON.stringify(features);
+  assert.doesNotMatch(dump, /"spread"|"odds"|"market"|"projectedScore"|"projHome"|"projAway"/i);
+});
+
 test("MLB exposes Ballpark Pal as a separate cross-check without overwriting FBIS", () => {
   const out = productProjectionBoard({
     sport: "mlb",
