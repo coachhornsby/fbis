@@ -1,0 +1,84 @@
+name: CFB Research Projection Run
+
+on:
+  push:
+    paths:
+      - ".github/workflows/cfb-research-projections.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  project:
+    name: PROJECT FRIDAY CFB RESEARCH SLATE
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch CFB board and run requested games
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+          FBIS_URL: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          board="$(mktemp)"
+          curl -fsSL --max-time 90 "${FBIS_URL}/api/projections?sport=cfb&date=2026-09-25&_t=$(date +%s)" -o "$board"
+          jq -e '.ok == true' "$board" >/dev/null
+
+          for id in 401862779 401862778 401858468 401858461 401858234; do
+            game="$(jq -c --arg id "$id" '.games[] | select((.id|tostring)==$id)' "$board")"
+            test -n "$game"
+            echo "$game" | jq -e '.llmFeatures.independentInputsOnly == true and (.llmFeatures.featureCount >= 4)' >/dev/null
+
+            snap="$(echo "$game" | jq -c --arg id "$id" '
+              {
+                "Snapshot ID": ("CFB-RESEARCH-" + $id + "-20260925"),
+                "Event ID": $id,
+                "Sport": "CFB",
+                "Matchup": (((.away.name // .away.school // .away.abbr // "Away")|tostring) + " @ " + ((.home.name // .home.school // .home.abbr // "Home")|tostring)),
+                "Event Start": (.start // ""),
+                "Generated At": (now | todateiso8601),
+                "Data Timestamp": (.generatedAt // ""),
+                "Schema Version": "cfb-research-v1",
+                "Snapshot Hash": ("CFB-RESEARCH-" + $id + "-20260925"),
+                "Locked?": "YES",
+                "Market Included?": "NO",
+                "Home Team": (.home.name // .home.school // .home.abbr // "Home"),
+                "Away Team": (.away.name // .away.school // .away.abbr // "Away"),
+                "Home Starter": "",
+                "Away Starter": "",
+                "Lineup Status": "",
+                "Injury Status": "",
+                "Rest/Travel": "",
+                "Weather/Environment": "",
+                "Team Features JSON": (.llmFeatures | tojson),
+                "Player Features JSON": "{}",
+                "Data Sources": ((.llmFeatures.sources // ["CFBD"]) | join("|")),
+                "Missing Inputs": "",
+                "Notes": "USER_REQUESTED_CFB_RESEARCH;WAGER_AUTH_GATED"
+              }')"
+
+            payload="$(jq -cn --argjson snapshot "$snap" '{snapshot:$snapshot,persist:true,persistFeatureSnapshot:true}')"
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 180 -X POST               -H "Authorization: Bearer ${OIDC_TOKEN}"               -H "content-type: application/json"               -d "$payload"               -o "$body" -w "%{http_code}"               "${ORCH_URL}/api/run-snapshot")"
+            echo "EVENT=$id HTTP=$http"
+            cat "$body"
+            echo
+            test "$http" = "200"
+            jq -e '.openai.status == 200 and .gemini.status == 200 and .persisted == true' "$body" >/dev/null
+          done
