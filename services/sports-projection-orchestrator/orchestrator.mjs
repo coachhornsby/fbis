@@ -429,11 +429,18 @@ async function updateQueue(rowNumber,raw,patch){
   return row;
 }
 
-export async function runSnapshot(snapshot,{persist=true,runId=uuid(),queueMeta=null}={}){
+export async function runSnapshot(snapshot,{persist=true,runId=uuid(),queueMeta=null,persistFeatureSnapshot=false}={}){
   const eventId=String(snapshot['Event ID']||snapshot.event_id||'');
   const snapshotId=String(snapshot['Snapshot ID']||snapshot.snapshot_id||'');
   if(!eventId||!snapshotId) throw new Error('Event ID and Snapshot ID required');
   const clean=cleanSnapshot(snapshot);
+  if(persist && persistFeatureSnapshot){
+    const existing=await sheets.get(q(CFG.sheets.snapshots)+'!A2:A5000');
+    const found=(existing.values||[]).some(r=>String(r?.[0]||'')===snapshotId);
+    if(!found){
+      await sheets.append(q(CFG.sheets.snapshots)+'!A:X',[HEADERS.snapshots.map(h=>snapshot[h]??'')]);
+    }
+  }
   const prompt=buildPrompt(clean);
   const dataTimestamp=clean['Data Timestamp']||'';
   const [gpt,gem]=await Promise.all([
