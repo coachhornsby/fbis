@@ -13,6 +13,11 @@ function json(res,status,obj){
   res.writeHead(status,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(payload),'cache-control':'no-store'});
   res.end(payload);
 }
+function secretText(res,value){
+  const payload=String(value||'');
+  res.writeHead(200,{'content-type':'text/plain; charset=utf-8','content-length':Buffer.byteLength(payload),'cache-control':'no-store'});
+  res.end(payload);
+}
 function decodePart(part){
   return JSON.parse(Buffer.from(part,'base64url').toString('utf8'));
 }
@@ -91,6 +96,14 @@ const server=http.createServer(async(req,res)=>{
     if(!auth) return json(res,401,{error:'unauthorized'});
     if(req.method==='GET'&&url.pathname==='/api/validate/sheets') return json(res,200,await validateSheetsAccess());
     if(req.method==='GET'&&url.pathname==='/api/validate/kenpom') return json(res,200,await validateKenpom());
+    if(req.method==='GET'&&url.pathname==='/api/admin/export-kenpom'){
+      const workflowRef=String(auth?.claims?.workflow_ref||'');
+      const allowed=auth?.type==='github-oidc' && workflowRef.includes('/.github/workflows/kenpom-secret-sync.yml@refs/heads/main');
+      if(!allowed) return json(res,403,{error:'forbidden'});
+      const key=String(process.env.KENPOM_API_KEY||'').trim();
+      if(!key) return json(res,404,{error:'kenpom-secret-missing'});
+      return secretText(res,key);
+    }
     if(req.method==='POST'&&url.pathname==='/api/validate/models') return json(res,200,await validateModels());
     if(req.method==='POST'&&url.pathname==='/api/process-queue') return json(res,200,{auth:auth.type,...(await processQueueFailClosed())});
     if(req.method==='POST'&&url.pathname==='/api/run-snapshot'){
