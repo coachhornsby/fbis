@@ -106,7 +106,10 @@ async function fetchRetry(url, options={}, max=3){
   for(let attempt=0; attempt<max; attempt++){
     try{
       const res = await fetch(url, options);
-      if(res.status !== 429 && res.status < 500) return res;
+      // Do not hammer provider rate limits. A 429 is an explicit fail-closed
+      // signal for this invocation; the next scheduled run can retry after the window resets.
+      if(res.status === 429) return res;
+      if(res.status < 500) return res;
       last = res;
     }catch(e){ last = e; }
     await sleep(500 * (2 ** attempt));
