@@ -1,0 +1,142 @@
+name: ACTION Restore Validation
+
+on:
+  push:
+    paths:
+      - ".github/workflows/action-restore-validation.yml"
+
+concurrency:
+  group: action-restore-validation
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: ACTION START HARVEST D1 BOARD
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Require operator secret
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Wait for restored endpoint to be live
+        env:
+          BASE: https://fbis-myz.pages.dev
+          EXPECTED_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 50); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null | tr 'A-F' 'a-f')"
+            expected="$(echo "$EXPECTED_SHA" | tr 'A-F' 'a-f')"
+            echo "deploy-check attempt=$attempt http=$code live=$live expected=$expected"
+            if [ "$code" = "200" ] && [ "$live" = "$expected" ]; then exit 0; fi
+            sleep 12
+          done
+          echo "Restored ACTION code did not reach production."
+          exit 1
+
+      - name: Start or reuse today's ACTION run
+        id: start
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 45 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d '{"mode":"start"}'             -o "$body" -w "%{http_code}"             "$BASE/api/action-daily-async?mode=start")"
+          echo "START http=$http"
+          cat "$body"
+          test "$http" = "200" -o "$http" = "202"
+          jq -e '.ok == true' "$body" >/dev/null
+          status="$(jq -r '.status // empty' "$body")"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          case "$status" in
+            started_daily|actor_running|already_collected_today) ;;
+            no_slate) echo "no_slate=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Unexpected ACTION start status=$status"; exit 1 ;;
+          esac
+
+      - name: Harvest same paid run
+        if: steps.start.outputs.no_slate != 'true' && steps.start.outputs.status != 'already_collected_today'
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            body="$(mktemp)"
+            set +e
+            http="$(curl -sS --max-time 45 -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               -d '{"mode":"harvest"}'               -o "$body" -w "%{http_code}"               "$BASE/api/action-daily-async?mode=harvest")"
+            ec=$?
+            set -e
+            echo "HARVEST attempt=$attempt http=$http ec=$ec"
+            cat "$body" || true
+            status="$(jq -r '.status // empty' "$body" 2>/dev/null || true)"
+            if [ "$ec" -eq 0 ] && [ "$http" = "200" ] && { [ "$status" = "success_daily" ] || [ "$status" = "already_collected_today" ] || [ "$status" = "nothing_to_harvest" ]; }; then exit 0; fi
+            if [ "$ec" -eq 0 ] && [ "$http" = "202" ] && { [ "$status" = "harvest_partial" ] || [ "$status" = "actor_running" ]; }; then
+              sleep 5
+              continue
+            fi
+            if [ "$ec" -eq 28 ]; then sleep 10; continue; fi
+            echo "Unexpected harvest state=$status"
+            exit 1
+          done
+          echo "ACTION harvest did not finish in controlled window."
+          exit 1
+
+      - name: Verify D1 state
+        if: steps.start.outputs.no_slate != 'true'
+        env:
+          BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 45 -o "$body" -w "%{http_code}" "$BASE/api/action-daily-status?_t=$(date +%s)")"
+          echo "STATUS http=$http"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          jq -e '.run == null or .run.persistedObservations >= 0' "$body" >/dev/null
+          state="$(jq -r '.state // empty' "$body")"
+          case "$state" in
+            HEALTHY) exit 0 ;;
+            DEGRADED)
+              echo "ACTION persisted but slate coverage is degraded; board test will identify attachment gap."
+              exit 0 ;;
+            *) echo "ACTION D1 state=$state"; exit 1 ;;
+          esac
+
+      - name: Verify ACTION board attachment
+        if: steps.start.outputs.no_slate != 'true'
+        env:
+          BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          day="$(TZ=America/Chicago date +%F)"
+          games_total=0
+          attached_total=0
+          for sport in mlb nfl cfb cbb; do
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 60 -o "$body" -w "%{http_code}" "$BASE/api/today?date=$day&sport=$sport&_t=$(date +%s)")"
+            echo "BOARD sport=$sport http=$http"
+            test "$http" = "200"
+            games="$(jq -r '.counts.games // 0' "$body")"
+            attached="$(jq -r '.actionIntel.attached // 0' "$body")"
+            echo "BOARD sport=$sport games=$games attached=$attached"
+            games_total=$((games_total + games))
+            attached_total=$((attached_total + attached))
+          done
+          echo "BOARD TOTAL games=$games_total attached=$attached_total"
+          if [ "$games_total" -gt 0 ]; then test "$attached_total" -gt 0; fi
