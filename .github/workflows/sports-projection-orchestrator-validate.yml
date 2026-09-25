@@ -1,0 +1,58 @@
+name: Sports Projection Orchestrator Validation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/sports-projection-orchestrator-validate.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate:
+    name: VALIDATE RENDER ORCHESTRATOR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          body="$(curl -fsSL             -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}"             "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Validate model providers
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             -o "$body" -w "%{http_code}"             "${ORCH_URL}/api/validate/models")"
+          echo "HTTP=$http"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.openai.projection.identity.projection_id | length > 0' "$body" >/dev/null
+          jq -e '.gemini.projection.identity.projection_id | length > 0' "$body" >/dev/null
+          jq -e '.persisted == false' "$body" >/dev/null
+
+      - name: Validate Sheets credential state
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 60             -H "Authorization: Bearer ${OIDC_TOKEN}"             -o "$body" -w "%{http_code}"             "${ORCH_URL}/api/validate/sheets")"
+          echo "HTTP=$http"
+          cat "$body"
+          test "$http" = "200"
