@@ -45,7 +45,13 @@ const seasons = (process.env.CFB_CALIBRATE_SEASONS || "2022,2023,2024,2025")
   .filter(Number.isFinite);
 const skipFetch = process.env.CFB_FINAL_SKIP_REBUILD !== "0";
 const forceRebuild = process.env.CFB_FINAL_FORCE_REBUILD === "1";
-const env = { CFBD_API_KEY: process.env.CFBD_API_KEY || "" };
+const proxyBase = String(process.env.CFBD_REFIT_PROXY_BASE || "").replace(/\/$/,"");
+const proxySecret = String(process.env.CFBD_REFIT_PROXY_SECRET || "");
+const env = {
+  // collegeRequest checks that a key is configured before invoking fetchFn.
+  // In proxy mode the real key stays inside the production Worker.
+  CFBD_API_KEY: process.env.CFBD_API_KEY || (proxyBase && proxySecret ? "proxy-via-fbis" : "")
+};
 
 const FOLDS = [
   { id: "fold1", trainSeasons: [2022], testSeason: 2023 },
@@ -119,7 +125,7 @@ async function cachedGet(path, query = {}) {
   const key = sha256({ path, query });
   const fp = `${CACHE_DIR}/${key}.json`;
   if (existsSync(fp)) return JSON.parse(readFileSync(fp, "utf8"));
-  const res = await cfbdGet(path, env, { query });
+  const res = await cfbdGet(path, env, { query, fetchFn: diskCachedFetch });
   const payload = {
     ok: res.ok,
     status: res.status,
@@ -147,7 +153,20 @@ async function diskCachedFetch(url, init = {}) {
       headers: { "content-type": "application/json" },
     });
   }
-  const res = await fetch(url, init);
+  let target = String(url);
+  let requestInit = { ...init };
+  if (proxyBase && proxySecret) {
+    const upstream = new URL(String(url));
+    const proxied = new URL(`${proxyBase}/api/cfbd-refit-export`);
+    proxied.searchParams.set("endpoint", upstream.pathname);
+    for (const [k,v] of upstream.searchParams.entries()) proxied.searchParams.set(k,v);
+    target = proxied.toString();
+    requestInit = {
+      method: "GET",
+      headers: { "x-harvest-secret": proxySecret, "accept": "application/json" }
+    };
+  }
+  const res = await fetch(target, requestInit);
   const text = await res.text();
   let body;
   try {
@@ -290,20 +309,31 @@ function toDesignRow(game, record) {
 }
 
 async function buildDesignRows() {
-  if (!env.CFBD_API_KEY) throw new Error("CFBD_API_KEY required to build design rows");
-  if (!existsSync(SNAPSHOT_PATH)) throw new Error(`missing snapshot summaries: ${SNAPSHOT_PATH}`);
+  if (!env.CFBD_API_KEY) {
+    throw new Error("CFBD access required: set CFBD_API_KEY or CFBD_REFIT_PROXY_BASE + CFBD_REFIT_PROXY_SECRET");
+  }
 
-  const snaps = JSON.parse(readFileSync(SNAPSHOT_PATH, "utf8"));
-  const passIds = new Set(
-    (Array.isArray(snaps) ? snaps : [])
-      .filter((s) => s.provenancePass)
-      .map((s) => String(s.game_id))
-  );
+  let passIds = null;
+  if (existsSync(SNAPSHOT_PATH)) {
+    const snaps = JSON.parse(readFileSync(SNAPSHOT_PATH, "utf8"));
+    passIds = new Set(
+      (Array.isArray(snaps) ? snaps : [])
+        .filter((x) => x.provenancePass)
+        .map((x) => String(x.game_id))
+    );
+  } else {
+    console.error(JSON.stringify({
+      phase:"provenance-mode",
+      mode:"inline-strict",
+      note:"snapshot summary absent; require prior-season provenance + temporal feature gate per game"
+    }));
+  }
+
   const rows = [];
 
   for (const season of seasons) {
     const priorSeason = season - 1;
-    console.error(JSON.stringify({ phase: "season-start", season, priorSeason, passIds: passIds.size }));
+    console.error(JSON.stringify({ phase: "season-start", season, priorSeason, passIds: passIds ? passIds.size : null }));
 
     const priorBundle = await fetchSeasonFeatureBundle(env, priorSeason, {
       week: null,
@@ -341,7 +371,7 @@ async function buildDesignRows() {
     let used = 0;
     for (const g of games) {
       const gid = String(g.id);
-      if (!passIds.has(gid)) continue;
+      if (passIds && !passIds.has(gid)) continue;
       const kickoff = g.startDate || g.start_date;
       if (!kickoff) continue;
 
@@ -363,6 +393,21 @@ async function buildDesignRows() {
         mode: "historical",
       });
       if (!record?.temporalOk) continue;
+
+      // When a separately audited snapshot allowlist is unavailable, fail closed
+      // on the same core provenance invariant: both teams must have an explicit
+      // prior-season freeze with usable offense/defense power.
+      if (!passIds) {
+        const key = (v) => String(v || "").toLowerCase().replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim();
+        const hp = priorCatalog.bySchool?.[key(record.home_team)] || null;
+        const ap = priorCatalog.bySchool?.[key(record.away_team)] || null;
+        const priorOk = (p) =>
+          p &&
+          Number(p.sourceSeason) === Number(priorSeason) &&
+          Number.isFinite(Number(p.priorOff)) &&
+          Number.isFinite(Number(p.priorDef));
+        if (!priorOk(hp) || !priorOk(ap)) continue;
+      }
 
       const line = linesByGame.get(gid);
       if (line) {

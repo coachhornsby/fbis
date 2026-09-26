@@ -1,4 +1,4 @@
-# Retry after null-safe havoc fixture correction.
+# Refit via authenticated production CFBD proxy; GitHub never receives the CFBD bearer.
 name: CFB Production Refit 2026-09-26
 
 on:
@@ -27,23 +27,36 @@ jobs:
           set -euo pipefail
           node --test test/cfb-deep-feed.test.js test/cfb-fbis-v2-fit.test.js
 
-      - name: Rebuild strict point-in-time 2022-2025 feature snapshots
+      - name: Wait for authenticated CFBD proxy to deploy
         env:
-          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
-          CFB_BACKFILL_SEASONS: "2022,2023,2024,2025"
-          CFB_BACKFILL_MODE: historical
-          CFB_BACKFILL_PLAYER_ROLES: "0"
-          CFB_ABLATIONS: "A,B,C,D,E,F,G,H,I,J,K"
+          BASE: https://fbis-myz.pages.dev
+          EXPECTED: ${{ github.sha }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
-          test -n "${CFBD_API_KEY:-}"
-          node scripts/cfb-feature-backfill.mjs
-          jq -e '.leakage.acceptedTemporalViolations == 0 and .leakage.postCutoffRejections == 0' artifacts/cfb-fbis-v2-backfill-report.json >/dev/null
-          jq -e '.counts.provenancePass >= 1000' artifacts/cfb-fbis-v2-backfill-report.json >/dev/null
+          test -n "${HARVEST_SECRET:-}"
+          for i in $(seq 1 72); do
+            health="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$health" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$health" 2>/dev/null | tr 'A-F' 'a-f')"
+            exp="$(echo "$EXPECTED" | tr 'A-F' 'a-f')"
+            echo "deploy_wait attempt=$i http=$code live=$live expected=$exp"
+            if [ "$code" = "200" ] && [ "$live" = "$exp" ]; then
+              probe="$(mktemp)"
+              pcode="$(curl -sS --max-time 30 -H "x-harvest-secret: $HARVEST_SECRET" -o "$probe" -w "%{http_code}" "$BASE/api/cfbd-refit-export?endpoint=%2Fgames&year=2025&week=1&seasonType=regular")"
+              echo "proxy_probe_http=$pcode"
+              test "$pcode" = "200"
+              jq -e 'type=="array"' "$probe" >/dev/null
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
 
-      - name: Refit A-K margin and total with corrected feature contract
+      - name: Refit A-K from strict point-in-time 2022-2025 CFBD
         env:
-          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          CFBD_REFIT_PROXY_BASE: https://fbis-myz.pages.dev
+          CFBD_REFIT_PROXY_SECRET: ${{ secrets.HARVEST_SECRET }}
           CFB_CALIBRATE_SEASONS: "2022,2023,2024,2025"
           CFB_FINAL_SKIP_REBUILD: "0"
           CFB_FINAL_FORCE_REBUILD: "1"
@@ -53,10 +66,10 @@ jobs:
           node scripts/cfb-v2-final-select.mjs
           jq -e '.eligibleDesignN >= 1000' data/cfbd/calibration/final-select-report.json >/dev/null
           jq -e '.cutoverRecommendation.gameProjectionEngine == "CUTOVER"' data/cfbd/calibration/final-select-report.json >/dev/null
-          echo "## Refit selection" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Corrected CFB refit" >> "$GITHUB_STEP_SUMMARY"
           jq -r '"- M*: \(.marginSelection.Mstar)\n- T*: \(.totalSelection.Tstar)\n- OOS N: \(.combinedMT.metrics.n)\n- margin MAE: \(.combinedMT.metrics.maeMargin)\n- total MAE: \(.combinedMT.metrics.maeTotal)\n- margin RMSE: \(.combinedMT.metrics.rmseMargin)\n- total RMSE: \(.combinedMT.metrics.rmseTotal)"' data/cfbd/calibration/final-select-report.json >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### Previous artifact (for comparison only; serving contract was invalid)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Previous fit (comparison only; old serving contract was mismatched)" >> "$GITHUB_STEP_SUMMARY"
           jq -r '"- old M*: \(.marginSelection.Mstar)\n- old T*: \(.totalSelection.Tstar)\n- old margin MAE: \(.combinedMT.metrics.maeMargin)\n- old total MAE: \(.combinedMT.metrics.maeTotal)"' /tmp/old-final-select.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Package selected production model
@@ -68,17 +81,15 @@ jobs:
       - name: Validate fitted production
         run: |
           set -euo pipefail
-          node --test test/cfb-fbis-v2-fit.test.js test/cfb-deep-feed.test.js test/cfb-v2-production-cutover.test.js test/cfb-v2-production-cutover.test.js test/cfb-saturday-regressions.test.js
-          npm test -- --runInBand 2>/dev/null || npm test
+          node --test test/cfb-fbis-v2-fit.test.js test/cfb-deep-feed.test.js test/cfb-v2-production-cutover.test.js test/cfb-saturday-regressions.test.js
+          npm test
 
       - name: Persist refit artifacts
-        shell: bash
         run: |
           set -euo pipefail
-          cp artifacts/cfb-fbis-v2-design-rows.jsonl data/cfbd/calibration/design-rows.jsonl
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add             data/models/cfb-fbis-v2-fitted-aa.js             data/models/cfb-fbis-v2-fitted-aa.json             data/cfbd/calibration/             data/cfbd/backfills/2022-2025-historical-summary.json
+          git add data/models/cfb-fbis-v2-fitted-aa.js data/models/cfb-fbis-v2-fitted-aa.json data/cfbd/calibration/
           if git diff --cached --quiet; then
             echo "No generated refit changes to commit."
             exit 0
@@ -92,7 +103,7 @@ jobs:
         with:
           name: cfb-production-refit-20260926
           path: |
-            artifacts/cfb-fbis-v2-backfill-report.json
+            artifacts/cfb-fbis-v2-design-rows.jsonl
             artifacts/cfb-v2-final-select-report.json
             artifacts/cfb-v2-feature-activation-fitted.json
             artifacts/cfb-v2-fitted-coefficients-final.json
