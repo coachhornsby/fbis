@@ -1,0 +1,48 @@
+name: CFB Today Live Run
+
+on:
+  push:
+    paths:
+      - ".github/workflows/cfb-today-live-run.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Pull live refitted CFB slate
+        env:
+          BASE: https://fbis-myz.pages.dev
+          DAY: "2026-09-26"
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 180 -o "$body" -w "%{http_code}" "$BASE/api/projections?sport=cfb&date=$DAY&_t=$(date +%s)")"
+          echo "HTTP=$http"
+          test "$http" = "200"
+          jq -e '.ok==true and .modelVersion=="CFB-FBIS-v2"' "$body" >/dev/null
+          echo "=== META ==="
+          jq -c '{ok,modelVersion,generatedAt,count:(.games|length)}' "$body"
+          echo "=== GAMES ==="
+          jq -c '.games[] | {
+            id,
+            start,
+            away:(.away.name // .away.school // .away.abbr),
+            home:(.home.name // .home.school // .home.abbr),
+            projAway:(.projection.away // .projection.projAway // .projAwayScore),
+            projHome:(.projection.home // .projection.projHome // .projHomeScore),
+            projMargin:(.projection.margin // .projection.projMargin),
+            projTotal:(.projection.total // .projection.projTotal),
+            homeWinProb:(.projection.pHomeWin // .projection.homeWinProb),
+            quality:(.quality.score // null),
+            qualityState:(.quality.state // null),
+            marketSpread:(.odds.spread // null),
+            marketTotal:(.odds.total // null),
+            homeMl:(.odds.pinHomeMl // .odds.homeMl // null),
+            awayMl:(.odds.pinAwayMl // .odds.awayMl // null),
+            projectionArchitecture:(.projectionArchitecture // null)
+          }' "$body"
