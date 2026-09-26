@@ -1,3 +1,4 @@
+# Retry after null-safe havoc fixture correction.
 name: CFB Production Refit 2026-09-26
 
 on:
