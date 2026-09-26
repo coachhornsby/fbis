@@ -4,9 +4,9 @@
  * canQualify / canAuthorize remain false.
  */
 export default {
-  "id": "cfb-fbis-v2-fitted-aa",
+  "id": "cfb-fbis-v2-fitted-production",
   "modelId": "CFB-FBIS-v2",
-  "version": "v2-fitted-aa",
+  "version": "v2-fitted-a-a-contract2",
   "role": "production-projection",
   "projectionEnabled": true,
   "canQualify": false,
@@ -21,48 +21,53 @@ export default {
     2023,
     2024
   ],
+  "featureContract": "ppa-derived-base-v2",
   "sourceArtifacts": {
     "fittedCoefficientsFinal": "data/cfbd/calibration/fitted-coefficients-final.json",
-    "fittedCoefficientsFinalSha256": "72c9e935dafc9e1cd0a4e0e2655d21238367bd90b9af143f5cdd51e2b722cabc",
-    "designRows": "data/cfbd/calibration/design-rows.jsonl",
-    "designRowsSha256": "b853ffa5d817d32811a5ac2744e80348e05e8956d4522f898cc65f2fa804aed5"
+    "fittedCoefficientsFinalSha256": "479cbc06e6408f2cd72e2850e631be7070848d518c68b78e488413f1a180239d",
+    "designRows": "artifacts/cfb-fbis-v2-design-rows.jsonl",
+    "designRowsSha256": "8e180e498e0d1ba15a3527834655153749e94a29555b470ad46b74892db2ff4c"
   },
-  "notes": "Production projection package. Intercept/beta copied verbatim from fitted-coefficients-final.json fold3 A. means/stds recomputed from fold3 train design rows for predictRidge. Qualification and wager authorization remain disabled.",
+  "notes": "Target-specific production package generated from strict point-in-time 2022-2025 refit. Market excluded from score generation. Qualification remains disabled.",
   "margin": {
     "features": [
       "base"
     ],
-    "intercept": 6.23883079847909,
+    "intercept": 5.881256656017041,
     "beta": [
-      11.297120671037304
+      12.521909937077329
     ],
     "means": [
-      2.250952946768063
+      2.3889164004259857
     ],
     "stds": [
-      12.480211693177752
+      12.354255152160444
     ],
     "lambda": 0.3,
-    "sigma": 18.115563438905387,
-    "scalerN": 4208
+    "sigma": 16.918309137619065,
+    "scalerN": [
+      3756
+    ]
   },
   "total": {
     "features": [
       "base_total"
     ],
-    "intercept": 53.486929657794676,
+    "intercept": 53.13099041533531,
     "beta": [
-      1.6061006944769152
+      3.0803449207393965
     ],
     "means": [
-      49.680104763672524
+      58.14163205537761
     ],
     "stds": [
-      16.132506007467093
+      9.51180470395462
     ],
     "lambda": 300,
-    "scalerN": 3854
+    "scalerN": [
+      3756
+    ]
   },
-  "trainN": 4208,
+  "trainN": 3756,
   "testN": 1559
 };

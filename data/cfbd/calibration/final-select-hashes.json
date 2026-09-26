@@ -1,11 +1,10 @@
 {
-  "designRows": "b853ffa5d817d32811a5ac2744e80348e05e8956d4522f898cc65f2fa804aed5",
-  "report": "5bde1cd8d104b96d7ed310fa2576e58a0acd4789621299638fb25b7bc921d909",
-  "activation": "dc7484e1e11db027f80383391b5d3c361bb44034861134f8cdc2d478d4d31834",
-  "coefficients": "62fd8a2a6caf78f8c5fc1c3a8ae1208ac2239fc08f9d6eb7548936cc41fc3d28",
-  "coverage": "f6fa37106dd772be21bc319136b72fc55eaec58a01b918af475e45bbd53ea45a",
-  "designRowsPrev5306": "4d1b0c2f3e20d42731cef000924a5ad31ce9e0d8ff619ad2ad35a39028f1cb7e",
-  "coverageRepair": "e14c6d0d6c7e922a312f21dd85363fb7273773515526b25b284b40dc3c623f4b",
-  "finalReport": "5bde1cd8d104b96d7ed310fa2576e58a0acd4789621299638fb25b7bc921d909",
-  "coefficientsFinal": "72c9e935dafc9e1cd0a4e0e2655d21238367bd90b9af143f5cdd51e2b722cabc"
+  "designRows": "bce83d5c209828ceb07c0460a53f0d6828ba4978bde2cf4419d66ea91a12cb47",
+  "report": "5a22d6706b5d0fe99590a092d8a36cf4999c58c2a6ccba6389aa004b0b283d92",
+  "activation": "32c83ab8d88b24661f5e64470b4aaa24e79e4f90f8def0450ea3b434ac350602",
+  "coefficients": "cadcfd99ab1a688376aa12e31e0b8154e29ed01d4eddc34b80db65aa9c0a0f5f",
+  "coverage": null,
+  "designRowsPrev5306": null,
+  "coverageRepair": null,
+  "finalReport": "8368d2edf91351055e69e1e881e63d9422eff728cc0cfb768dfbdd73b084484f"
 }
