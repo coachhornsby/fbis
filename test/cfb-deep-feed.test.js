@@ -20,8 +20,8 @@ test("CFBD deep feed carries current form and matchup features into CFB-FBIS-v2"
       { team:"Michigan", offense:{ overall:0.14, passing:0.12, rushing:0.18 }, defense:{ overall:-0.05, passing:-0.06, rushing:-0.03 } },
     ]);
     if (path === "/stats/season/advanced") return response([
-      { team:"Ohio State", offense:{ successRate:0.49, explosiveness:1.25, lineYards:3.4, pointsPerOpportunity:4.8, plays:140 }, defense:{ successRate:0.34, explosiveness:0.82, havoc:{total:0.19}, lineYards:2.4, stuffRate:0.22, pointsPerOpportunity:2.9 } },
-      { team:"Michigan", offense:{ successRate:0.42, explosiveness:1.02, lineYards:3.0, pointsPerOpportunity:3.7, plays:132 }, defense:{ successRate:0.39, explosiveness:0.94, havoc:{total:0.15}, lineYards:2.8, stuffRate:0.18, pointsPerOpportunity:3.4 } },
+      { team:"Ohio State", offense:{ successRate:0.49, explosiveness:1.25, havoc:{total:0.11}, lineYards:3.4, pointsPerOpportunity:4.8, plays:140 }, defense:{ successRate:0.34, explosiveness:0.82, havoc:{total:0.19}, lineYards:2.4, stuffRate:0.22, pointsPerOpportunity:2.9 } },
+      { team:"Michigan", offense:{ successRate:0.42, explosiveness:1.02, havoc:{total:0.13}, lineYards:3.0, pointsPerOpportunity:3.7, plays:132 }, defense:{ successRate:0.39, explosiveness:0.94, havoc:{total:0.15}, lineYards:2.8, stuffRate:0.18, pointsPerOpportunity:3.4 } },
     ]);
     if (path === "/games") return response([
       { status:"completed", startDate:"2026-09-05T23:00:00.000Z", homeTeam:"Ohio State", awayTeam:"Michigan", homePoints:35, awayPoints:21 },
