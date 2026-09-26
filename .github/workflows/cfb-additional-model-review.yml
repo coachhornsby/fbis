@@ -1,0 +1,70 @@
+name: CFB Additional Model Review
+
+on:
+  push:
+    paths:
+      - ".github/workflows/cfb-additional-model-review.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Get OIDC
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'; [[ "$url" == *'?'* ]] && sep='&'
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Review selected CFB games
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+          FBIS_URL: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          board="$(mktemp)"
+          curl -fsSL --max-time 180 "${FBIS_URL}/api/projections?sport=cfb&date=2026-09-26&_t=$(date +%s)" -o "$board"
+          for id in 401858464 401858466 401858463 401858240 401856816; do
+            game="$(jq -c --arg id "$id" '.games[] | select((.id|tostring)==$id)' "$board")"
+            test -n "$game"
+            echo "$game" | jq -e '.llmFeatures.independentInputsOnly==true and (.llmFeatures.featureCount>=12)' >/dev/null
+            snap="$(echo "$game" | jq -c --arg id "$id" '{
+              "Snapshot ID":("CFB-ADD-"+$id+"-20260926"),
+              "Event ID":$id,
+              "Sport":"CFB",
+              "Matchup":(((.away.name//.away.abbr)|tostring)+" @ "+((.home.name//.home.abbr)|tostring)),
+              "Event Start":(.start//""),
+              "Generated At":(now|todateiso8601),
+              "Data Timestamp":(.generatedAt//""),
+              "Schema Version":"cfb-additional-v1",
+              "Snapshot Hash":("CFB-ADD-"+$id+"-20260926"),
+              "Locked?":"YES",
+              "Market Included?":"NO",
+              "Home Team":(.home.name//.home.abbr),
+              "Away Team":(.away.name//.away.abbr),
+              "Home Starter":"","Away Starter":"","Lineup Status":"","Injury Status":"","Rest/Travel":"","Weather/Environment":"",
+              "Team Features JSON":(.llmFeatures|tojson),
+              "Player Features JSON":"{}",
+              "Data Sources":((.llmFeatures.sources//["CFBD"])|join("|")),
+              "Missing Inputs":"",
+              "Notes":"ADDITIONAL_MARKET_BLIND_CFB_REVIEW"
+            }')"
+            payload="$(jq -cn --argjson snapshot "$snap" '{snapshot:$snapshot,persist:true,persistFeatureSnapshot:true}')"
+            out="$(mktemp)"
+            code="$(curl -sS --max-time 180 -X POST -H "Authorization: Bearer ${OIDC_TOKEN}" -H "content-type: application/json" -d "$payload" -o "$out" -w "%{http_code}" "${ORCH_URL}/api/run-snapshot")"
+            echo "EVENT=$id HTTP=$code"
+            jq -c '{eventId,openai:{status:.openai.status,away:.openai.projection.game.away_projected_score,home:.openai.projection.game.home_projected_score,total:.openai.projection.game.projected_total},gemini:{status:.gemini.status,away:.gemini.projection.game.away_projected_score,home:.gemini.projection.game.home_projected_score,total:.gemini.projection.game.projected_total},consensus,disagreement,persisted}' "$out"
+            test "$code" = "200"
+          done
