@@ -384,7 +384,7 @@ for (const season of seasons) {
       advGameRows: advRows,
       qbRows,
       usageRows,
-      playerGameRows: [],
+      playerGameRows,
       coreByTeam,
       collectionTimestamp: asOf,
       mode,

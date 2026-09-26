@@ -102,6 +102,7 @@ function sleep(ms) {
 }
 
 function num(v) {
+  if (v == null || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
@@ -254,7 +255,8 @@ function toDesignRow(game, record) {
       context: (num(d.HFA) || 0) + (num(d.WEATHER_CONTEXT) || 0),
     },
     totalFeatures: {
-      base_total: sideSum(home.off ?? home.priorOff, away.off ?? away.priorOff),
+      // Exact same semantic feature used at serving time.
+      base_total: num(d.BASE_TOTAL),
       pass_total: sideSum(home.passEpa, away.passEpa),
       rush_total: sideSum(home.rushEpa, away.rushEpa),
       success_total: sideSum(home.successRate, away.successRate),

@@ -184,10 +184,23 @@ export async function loadCfbDeepFeatures(env = {}, { fetchFn = fetch, now = Dat
       gamesPlayed: g,
       currentPointsForPerGame: g ? rec.pointsFor / g : null,
       currentPointsAgainstPerGame: g ? rec.pointsAgainst / g : null,
-      // CFB-FBIS-v2 sideFeatures consumes off/def as current scoring form.
-      off: g ? rec.pointsFor / g : null,
-      def: g ? rec.pointsAgainst / g : null,
+      // Keep raw scoring form for diagnostics/LLM context only. The fitted
+      // projection base uses PPA-derived current strength, matching training.
       sourceForm: "cfbd:/games",
+    });
+  }
+
+  // /stats/season/advanced offense.plays is cumulative. Convert it to
+  // the same per-game pace normalization used by historical rolling features.
+  for (const row of Object.values(index.bySchool)) {
+    const gamesPlayed = Math.max(0, Number(row.gamesPlayed) || 0);
+    const cumulativePlays = num(row.pacePlays);
+    if (!gamesPlayed || cumulativePlays == null) continue;
+    const playsPerGame = cumulativePlays / gamesPlayed;
+    put(index, row.school, {
+      pacePlaysPerGame: playsPerGame,
+      paceNorm: (playsPerGame - 70) / 15,
+      sourcePace: "cfbd:/stats/season/advanced",
     });
   }
 

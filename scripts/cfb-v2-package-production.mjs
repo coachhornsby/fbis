@@ -1,76 +1,74 @@
 #!/usr/bin/env node
 /**
- * Package CFB-FBIS-v2 production A/A ridge apply artifact.
- *
- * Does NOT refit or alter selected intercept/beta values from
- * data/cfbd/calibration/fitted-coefficients-final.json.
- *
- * Only adds train-fold means/stds required by predictRidge, computed from
- * the same design rows + fold3 train seasons used in final selection.
- *
- * canQualify / wagerAuthorization remain false.
+ * Package the selected CFB-FBIS-v2 production ridge artifact.
+ * Selection is target-specific (M* and T*) and comes from the temporally valid
+ * final-select report. Qualification and wager authorization remain disabled.
  */
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { mean, variance } from "../functions/lib/cfbFbisV2Fit.js";
 
 const FINAL_COEF = "data/cfbd/calibration/fitted-coefficients-final.json";
-const DESIGN = "data/cfbd/calibration/design-rows.jsonl";
+const DESIGN = existsSync("artifacts/cfb-fbis-v2-design-rows.jsonl")
+  ? "artifacts/cfb-fbis-v2-design-rows.jsonl"
+  : "data/cfbd/calibration/design-rows.jsonl";
 const OUT_JS = "data/models/cfb-fbis-v2-fitted-aa.js";
 const OUT_JSON = "data/models/cfb-fbis-v2-fitted-aa.json";
-
 const TRAIN_SEASONS = new Set([2022, 2023, 2024]); // fold3
 
 function sha256(buf) {
   return createHash("sha256").update(buf).digest("hex");
 }
-
 function loadDesignRows(path) {
-  return readFileSync(path, "utf8")
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => JSON.parse(line));
+  return readFileSync(path, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
 }
-
 function scaler(values) {
   const finite = values.filter((v) => Number.isFinite(v));
   const m = mean(finite);
-  const s = Math.sqrt(variance(finite)) || 0;
-  return { mean: m, std: s, n: finite.length };
+  const sd = Math.sqrt(variance(finite)) || 0;
+  return { mean: m, std: sd, n: finite.length };
+}
+function scalers(rows, namespace, names) {
+  return names.map((name) => scaler(rows.map((r) => r?.[namespace]?.[name])));
 }
 
 const finalCoef = JSON.parse(readFileSync(FINAL_COEF, "utf8"));
-if (finalCoef.Mstar !== "A" || finalCoef.Tstar !== "A") {
-  throw new Error(`Expected Mstar=A Tstar=A, got ${finalCoef.Mstar}/${finalCoef.Tstar}`);
+const Mstar = String(finalCoef.Mstar || "");
+const Tstar = String(finalCoef.Tstar || "");
+const fold3 = finalCoef.coefByFold?.fold3;
+const marginCoef = fold3?.[Mstar]?.margin;
+const totalCoef = fold3?.[Tstar]?.total;
+if (!Mstar || !Tstar || !marginCoef?.beta || !totalCoef?.beta) {
+  throw new Error(`Missing selected fold3 coefficients M*=${Mstar} T*=${Tstar}`);
 }
-const fold3A = finalCoef.coefByFold?.fold3?.A;
-if (!fold3A?.margin?.beta || !fold3A?.total?.beta) {
-  throw new Error("Missing fold3 A margin/total coefficients");
+const marginNames = marginCoef.features || [];
+const totalNames = totalCoef.features || [];
+if (marginNames.length !== marginCoef.beta.length || totalNames.length !== totalCoef.beta.length) {
+  throw new Error("Selected feature/beta lengths do not match");
 }
 
 const rows = loadDesignRows(DESIGN).filter((r) => TRAIN_SEASONS.has(Number(r.season)));
-const marginBase = rows.map((r) => r.marginFeatures?.base);
-const totalBase = rows.map((r) => r.totalFeatures?.base_total);
-const marginScaler = scaler(marginBase);
-const totalScaler = scaler(totalBase);
-
+if (!rows.length) throw new Error(`No fold3 training rows in ${DESIGN}`);
+const marginScalers = scalers(rows, "marginFeatures", marginNames);
+const totalScalers = scalers(rows, "totalFeatures", totalNames);
 const coefSha = sha256(readFileSync(FINAL_COEF));
 const designSha = sha256(readFileSync(DESIGN));
 
 const packageJson = {
-  id: "cfb-fbis-v2-fitted-aa",
+  id: "cfb-fbis-v2-fitted-production",
   modelId: "CFB-FBIS-v2",
-  version: "v2-fitted-aa",
+  version: `v2-fitted-${Mstar.toLowerCase()}-${Tstar.toLowerCase()}-contract2`,
   role: "production-projection",
   projectionEnabled: true,
   canQualify: false,
   canAuthorize: false,
   wagerAuthorization: false,
   promote: false,
-  Mstar: "A",
-  Tstar: "A",
+  Mstar,
+  Tstar,
   productionFold: "fold3",
   trainSeasons: [2022, 2023, 2024],
+  featureContract: "ppa-derived-base-v2",
   sourceArtifacts: {
     fittedCoefficientsFinal: FINAL_COEF,
     fittedCoefficientsFinalSha256: coefSha,
@@ -78,35 +76,35 @@ const packageJson = {
     designRowsSha256: designSha,
   },
   notes:
-    "Production projection package. Intercept/beta copied verbatim from fitted-coefficients-final.json fold3 A. means/stds recomputed from fold3 train design rows for predictRidge. Qualification and wager authorization remain disabled.",
+    "Target-specific production package generated from strict point-in-time 2022-2025 refit. Market excluded from score generation. Qualification remains disabled.",
   margin: {
-    features: fold3A.margin.features,
-    intercept: fold3A.margin.intercept,
-    beta: fold3A.margin.beta,
-    means: [marginScaler.mean],
-    stds: [marginScaler.std],
-    lambda: fold3A.lambdaMargin,
-    sigma: fold3A.sigmaMargin,
-    scalerN: marginScaler.n,
+    features: marginNames,
+    intercept: marginCoef.intercept,
+    beta: marginCoef.beta,
+    means: marginScalers.map((x) => x.mean),
+    stds: marginScalers.map((x) => x.std),
+    lambda: fold3[Mstar].lambdaMargin,
+    sigma: fold3[Mstar].sigmaMargin,
+    scalerN: marginScalers.map((x) => x.n),
   },
   total: {
-    features: fold3A.total.features,
-    intercept: fold3A.total.intercept,
-    beta: fold3A.total.beta,
-    means: [totalScaler.mean],
-    stds: [totalScaler.std],
-    lambda: fold3A.lambdaTotal,
-    scalerN: totalScaler.n,
+    features: totalNames,
+    intercept: totalCoef.intercept,
+    beta: totalCoef.beta,
+    means: totalScalers.map((x) => x.mean),
+    stds: totalScalers.map((x) => x.std),
+    lambda: fold3[Tstar].lambdaTotal,
+    scalerN: totalScalers.map((x) => x.n),
   },
-  trainN: fold3A.trainN,
-  testN: fold3A.testN,
+  trainN: Math.min(fold3[Mstar].trainN || Infinity, fold3[Tstar].trainN || Infinity),
+  testN: Math.min(fold3[Mstar].testN || Infinity, fold3[Tstar].testN || Infinity),
 };
 
 writeFileSync(OUT_JSON, `${JSON.stringify(packageJson, null, 2)}\n`);
 writeFileSync(
   OUT_JS,
   `/**
- * CFB-FBIS-v2 production projection package (fitted M*=A / T*=A).
+ * CFB-FBIS-v2 production projection package (fitted M*=${Mstar} / T*=${Tstar}).
  * Generated by scripts/cfb-v2-package-production.mjs — do not hand-edit betas.
  * canQualify / canAuthorize remain false.
  */
@@ -114,19 +112,8 @@ export default ${JSON.stringify(packageJson, null, 2)};
 `
 );
 
-console.log(
-  JSON.stringify(
-    {
-      wrote: [OUT_JS, OUT_JSON],
-      Mstar: packageJson.Mstar,
-      Tstar: packageJson.Tstar,
-      canQualify: packageJson.canQualify,
-      coefSha,
-      designSha,
-      marginScaler,
-      totalScaler,
-    },
-    null,
-    2
-  )
-);
+console.log(JSON.stringify({
+  wrote:[OUT_JS,OUT_JSON], Mstar,Tstar,canQualify:false,coefSha,designSha,
+  marginFeatures:marginNames,totalFeatures:totalNames,
+  marginScalers,totalScalers
+},null,2));

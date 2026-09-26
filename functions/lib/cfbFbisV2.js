@@ -33,6 +33,7 @@ export const ABLATION_MASKS = {
 const DEFAULT_COEF = CFB_FBIS_V2_ARTIFACT.coefficients;
 
 function num(v) {
+  if (v == null || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
@@ -223,27 +224,51 @@ export function projectCfbFbisV2(game = {}, { ablation = "K", coefficients = DEF
     return v == null ? null : national + v * 40;
   };
 
+  // Training/serving contract: when overall PPA is available, current
+  // strength is PPA-derived on both historical and live paths. Raw scoring PPG
+  // is diagnostic and only a fallback when PPA is genuinely unavailable.
+  const homeCurrentOff =
+    ppaToPoints(homeIn.offensePpa) ??
+    homeIn.offensePpaPoints ??
+    homeIn.off ??
+    ppaToPoints(homeIn.passEpa);
+  const homeCurrentDef =
+    ppaToPoints(homeIn.defensePpa) ??
+    homeIn.defensePpaPoints ??
+    homeIn.def ??
+    ppaToPoints(homeIn.passEpaAllowed);
+  const awayCurrentOff =
+    ppaToPoints(awayIn.offensePpa) ??
+    awayIn.offensePpaPoints ??
+    awayIn.off ??
+    ppaToPoints(awayIn.passEpa);
+  const awayCurrentDef =
+    ppaToPoints(awayIn.defensePpa) ??
+    awayIn.defensePpaPoints ??
+    awayIn.def ??
+    ppaToPoints(awayIn.passEpaAllowed);
+
   const homeOff = blendPriorCurrent(
-    homeIn.priorOff ?? homeIn.spOffense ?? ppaToPoints(homeIn.offensePpa ?? homeIn.passEpa),
-    homeIn.off ?? homeIn.offensePpaPoints ?? ppaToPoints(homeIn.offensePpa ?? homeIn.passEpa),
+    homeIn.priorOff ?? homeIn.spOffense ?? homeCurrentOff,
+    homeCurrentOff,
     homeGames,
     shrinkK
   );
   const homeDef = blendPriorCurrent(
-    homeIn.priorDef ?? homeIn.spDefense ?? ppaToPoints(homeIn.defensePpa ?? homeIn.passEpaAllowed),
-    homeIn.def ?? homeIn.defensePpaPoints ?? ppaToPoints(homeIn.defensePpa ?? homeIn.passEpaAllowed),
+    homeIn.priorDef ?? homeIn.spDefense ?? homeCurrentDef,
+    homeCurrentDef,
     homeGames,
     shrinkK
   );
   const awayOff = blendPriorCurrent(
-    awayIn.priorOff ?? awayIn.spOffense ?? ppaToPoints(awayIn.offensePpa ?? awayIn.passEpa),
-    awayIn.off ?? awayIn.offensePpaPoints ?? ppaToPoints(awayIn.offensePpa ?? awayIn.passEpa),
+    awayIn.priorOff ?? awayIn.spOffense ?? awayCurrentOff,
+    awayCurrentOff,
     awayGames,
     shrinkK
   );
   const awayDef = blendPriorCurrent(
-    awayIn.priorDef ?? awayIn.spDefense ?? ppaToPoints(awayIn.defensePpa ?? awayIn.passEpaAllowed),
-    awayIn.def ?? awayIn.defensePpaPoints ?? ppaToPoints(awayIn.defensePpa ?? awayIn.passEpaAllowed),
+    awayIn.priorDef ?? awayIn.spDefense ?? awayCurrentDef,
+    awayCurrentDef,
     awayGames,
     shrinkK
   );
@@ -263,6 +288,7 @@ export function projectCfbFbisV2(game = {}, { ablation = "K", coefficients = DEF
   const baseHome = homeOff.value + (awayDef.value - national);
   const baseAway = awayOff.value + (homeDef.value - national);
   const baseMargin = baseHome - baseAway;
+  const baseTotal = baseHome + baseAway;
 
   const pass = zDiff(homeIn.passEpa ?? homeIn.ppaOffensePassing, awayIn.passEpaAllowed ?? awayIn.ppaDefensePassing, coefficients.scales.pass);
   const rush = zDiff(homeIn.rushEpa ?? homeIn.ppaOffenseRushing, awayIn.rushEpaAllowed ?? awayIn.ppaDefenseRushing, coefficients.scales.rush);
@@ -371,6 +397,7 @@ export function projectCfbFbisV2(game = {}, { ablation = "K", coefficients = DEF
   const provisional = homeFcs.provisional || awayFcs.provisional || unc.uncertainty_state === "HIGH";
   const decomposition = {
     BASE_POWER: rawComponents.base,
+    BASE_TOTAL: round2(baseTotal),
     PASS_MATCHUP: rawComponents.pass,
     RUSH_MATCHUP: rawComponents.rush,
     SUCCESS: rawComponents.success,
@@ -489,7 +516,7 @@ function sideSum(a, b) {
  * Intercept/beta are verbatim from fitted-coefficients-final.json fold3 A.
  * canQualify / canAuthorize stay false.
  */
-export function applyFittedAaProjection(provisional, game = {}, fitted = CFB_FBIS_V2_FITTED_AA) {
+export function applyFittedProjection(provisional, game = {}, fitted = CFB_FBIS_V2_FITTED_AA) {
   if (!provisional?.ok) {
     return {
       ...provisional,
@@ -506,14 +533,47 @@ export function applyFittedAaProjection(provisional, game = {}, fitted = CFB_FBI
   const homeIn = sideFeatures(game, "home");
   const awayIn = sideFeatures(game, "away");
   const d = provisional.decomposition || {};
-  const marginFeatures = {
+
+  const marginFeatureMap = {
     base: num(d.BASE_POWER),
+    pass: num(d.PASS_MATCHUP),
+    rush: num(d.RUSH_MATCHUP),
+    success: num(d.SUCCESS),
+    explosiveness: num(d.EXPLOSIVENESS),
+    havoc: num(d.HAVOC),
+    trenches: num(d.TRENCHES),
+    finishing: num(d.FINISHING_DRIVES),
+    qb: num(d.QB),
+    pace: num(d.PACE),
+    context: sideSum(d.HFA, d.WEATHER_CONTEXT),
   };
-  const totalFeatures = {
-    base_total: sideSum(homeIn.off ?? homeIn.priorOff, awayIn.off ?? awayIn.priorOff),
+  const totalFeatureMap = {
+    base_total: num(d.BASE_TOTAL),
+    pass_total: sideSum(homeIn.passEpa, awayIn.passEpa),
+    rush_total: sideSum(homeIn.rushEpa, awayIn.rushEpa),
+    success_total: sideSum(homeIn.successRate, awayIn.successRate),
+    explosiveness_total: sideSum(
+      homeIn.explosiveRate ?? homeIn.explosiveness,
+      awayIn.explosiveRate ?? awayIn.explosiveness
+    ),
+    havoc_total: sideSum(homeIn.havocRate, awayIn.havocRate),
+    trenches_total: sideSum(homeIn.lineYards, awayIn.lineYards),
+    finishing_total: sideSum(homeIn.pointsPerOpportunity, awayIn.pointsPerOpportunity),
+    qb_total: sideSum(homeIn.qbPpa, awayIn.qbPpa),
+    pace_total: sideSum(homeIn.paceNorm, awayIn.paceNorm),
+    context_total: num(d.WEATHER_CONTEXT),
   };
 
-  if (!Number.isFinite(marginFeatures.base)) {
+  const marginNames = Array.isArray(fitted?.margin?.features) && fitted.margin.features.length
+    ? fitted.margin.features
+    : ["base"];
+  const totalNames = Array.isArray(fitted?.total?.features) && fitted.total.features.length
+    ? fitted.total.features
+    : ["base_total"];
+  const marginX = marginNames.map((name) => marginFeatureMap[name] ?? null);
+  const totalX = totalNames.map((name) => totalFeatureMap[name] ?? null);
+
+  if (!Number.isFinite(marginFeatureMap.base) || !Number.isFinite(totalFeatureMap.base_total)) {
     return {
       ...provisional,
       ok: false,
@@ -537,11 +597,8 @@ export function applyFittedAaProjection(provisional, game = {}, fitted = CFB_FBI
     stds: fitted.total.stds,
   };
 
-  const predMargin = predictRidge(marginModel, [[marginFeatures.base]])[0];
-  const predTotal = predictRidge(totalModel, [[
-    Number.isFinite(totalFeatures.base_total) ? totalFeatures.base_total : fitted.total.means[0],
-  ]])[0];
-
+  const predMargin = predictRidge(marginModel, [marginX])[0];
+  const predTotal = predictRidge(totalModel, [totalX])[0];
   if (!Number.isFinite(predMargin) || !Number.isFinite(predTotal)) {
     return {
       ...provisional,
@@ -563,7 +620,7 @@ export function applyFittedAaProjection(provisional, game = {}, fitted = CFB_FBI
   return {
     ...provisional,
     modelId: CFB_FBIS_V2_ID,
-    version: fitted.version || "v2-fitted-aa",
+    version: fitted.version || "v2-fitted-production",
     ok: true,
     home,
     away,
@@ -585,16 +642,17 @@ export function applyFittedAaProjection(provisional, game = {}, fitted = CFB_FBI
     canAuthorize: false,
     Mstar: fitted.Mstar,
     Tstar: fitted.Tstar,
-    ablation: "A",
+    ablation: `M:${fitted.Mstar}+T:${fitted.Tstar}`,
     fittedApplied: true,
     productionFold: fitted.productionFold || "fold3",
-    marginFeatures,
-    totalFeatures,
+    marginFeatures: Object.fromEntries(marginNames.map((name, i) => [name, marginX[i]])),
+    totalFeatures: Object.fromEntries(totalNames.map((name, i) => [name, totalX[i]])),
     provenance: {
       ...(provisional.provenance || {}),
       fittedArtifactId: fitted.id,
       fittedCoefficientsSha256: fitted.sourceArtifacts?.fittedCoefficientsFinalSha256 || null,
       coherentScores: true,
+      trainingServingContract: "ppa-derived-base-v2",
       championOverwritable: true,
       marketUsed: false,
     },
@@ -613,9 +671,12 @@ export function applyFittedAaProjection(provisional, game = {}, fitted = CFB_FBI
   };
 }
 
+// Backward-compatible export name; implementation is no longer A/A-specific.
+export const applyFittedAaProjection = applyFittedProjection;
+
 export function projectCfbFbisV2Production(game = {}, opts = {}) {
   const provisional = projectCfbFbisV2(game, { ...opts, ablation: opts.ablation || "K" });
-  return applyFittedAaProjection(provisional, game, opts.fitted || CFB_FBIS_V2_FITTED_AA);
+  return applyFittedProjection(provisional, game, opts.fitted || CFB_FBIS_V2_FITTED_AA);
 }
 
 export function attachCfbFbisV2(games = [], opts = {}) {

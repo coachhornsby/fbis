@@ -743,6 +743,10 @@ export function assembleGameFeatures({
     off: offB.value,
     def: defB.value,
     gamesPlayed: roll.gamesPlayed,
+    // Preserve the raw rolling overall PPA so training and live serving can
+    // construct the same opponent-facing base-power feature.
+    offensePpa: roll.offensePpa,
+    defensePpa: roll.defensePpa,
     passEpa: roll.passEpa,
     rushEpa: roll.rushEpa,
     passEpaAllowed: roll.passEpaAllowed,
