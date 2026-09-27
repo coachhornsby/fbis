@@ -2626,6 +2626,16 @@ function mapExecutedBet(r) {
     f5AwayScore: r.f5_away_score,
     f5HomeScore: r.f5_home_score,
     settlementSource: r.settlement_source,
+    entryId: r.entry_id,
+    legIndex: r.leg_index,
+    legCount: r.leg_count,
+    legResult: r.leg_result,
+    advisorDecision: r.advisor_decision,
+    advisorConfidence: r.advisor_confidence,
+    advisorReason: r.advisor_reason,
+    advisorReviewedAt: r.advisor_reviewed_at,
+    advisorSnapshotHash: r.advisor_snapshot_hash,
+    exceptionCode: r.exception_code,
     settlementEvidence: (() => {
       try { return r.settlement_evidence_json ? JSON.parse(r.settlement_evidence_json) : null; } catch { return null; }
     })(),
@@ -2665,8 +2675,10 @@ export async function persistExecutedBet(env, row) {
         profit, graded_at, void_reason, heritage_current_line, heritage_current_price, heritage_current_at,
         pin_entry_line, pin_entry_price, pin_entry_no_vig, pin_close_line, pin_close_price, pin_close_no_vig,
         clv, clv_status, clv_method_version, attribution_label, player_name, prop_type,
-        prop_actual, prop_stat_source, tracker_metadata_json
-      ) VALUES (${Array(57).fill("?").join(",")})`
+        prop_actual, prop_stat_source, tracker_metadata_json,
+        entry_id, leg_index, leg_count, leg_result,
+        advisor_decision, advisor_confidence, advisor_reason, advisor_reviewed_at, advisor_snapshot_hash, exception_code
+      ) VALUES (${Array(67).fill("?").join(",")})`
     )
       .bind(
         packed.id,
@@ -2725,7 +2737,10 @@ export async function persistExecutedBet(env, row) {
         n(packed.propType),
         n(packed.propActual),
         n(packed.propStatSource),
-        packed.trackerMetadata ? JSON.stringify(packed.trackerMetadata) : null
+        packed.trackerMetadata ? JSON.stringify(packed.trackerMetadata) : null,
+        n(packed.entryId), n(packed.legIndex), n(packed.legCount), n(packed.legResult),
+        n(packed.advisorDecision), n(packed.advisorConfidence), n(packed.advisorReason),
+        n(packed.advisorReviewedAt), n(packed.advisorSnapshotHash), n(packed.exceptionCode)
       )
       .run();
     markWrite();
@@ -2790,7 +2805,10 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         pin_close_line = ?, pin_close_price = ?, pin_close_no_vig = ?,
         prop_actual = ?, prop_stat_source = ?,
         final_away_score = ?, final_home_score = ?, f5_away_score = ?, f5_home_score = ?,
-        settlement_source = ?, settlement_evidence_json = ?
+        settlement_source = ?, settlement_evidence_json = ?,
+        entry_id = ?, leg_index = ?, leg_count = ?, leg_result = ?,
+        advisor_decision = ?, advisor_confidence = ?, advisor_reason = ?, advisor_reviewed_at = ?,
+        advisor_snapshot_hash = ?, exception_code = ?
        WHERE id = ?`
     )
       .bind(
@@ -2823,6 +2841,9 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         n(mapped.f5HomeScore),
         n(mapped.settlementSource),
         mapped.settlementEvidence ? JSON.stringify(mapped.settlementEvidence) : null,
+        n(mapped.entryId), n(mapped.legIndex), n(mapped.legCount), n(mapped.legResult),
+        n(mapped.advisorDecision), n(mapped.advisorConfidence), n(mapped.advisorReason),
+        n(mapped.advisorReviewedAt), n(mapped.advisorSnapshotHash), n(mapped.exceptionCode),
         id
       )
       .run();
@@ -2847,4 +2868,108 @@ export async function appendExecutedBetAudit(env, { betId, action, detail }) {
   } catch (err) {
     return { ok: false, reason: String(err?.message || err) };
   }
+}
+
+
+export async function upsertExecutedBetEntry(env, row = {}) {
+  markBound(env);
+  if (!hasDb(env) || !row.id) return { ok: false, reason: "unbound-or-no-id" };
+  const now = new Date().toISOString();
+  try {
+    await env.DB.prepare(`INSERT INTO executed_bet_entries (
+      id, execution_book, entry_type, executed_at, sport, risk_amount, to_win_amount, potential_payout,
+      result, settled_return, profit, leg_count, legs_won, legs_lost, legs_push, graded_at,
+      funding_type, source_ticket_id, tracker_metadata_json, created_at, updated_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET
+      result=excluded.result, settled_return=excluded.settled_return, profit=excluded.profit,
+      legs_won=excluded.legs_won, legs_lost=excluded.legs_lost, legs_push=excluded.legs_push,
+      graded_at=excluded.graded_at, tracker_metadata_json=excluded.tracker_metadata_json, updated_at=excluded.updated_at`)
+      .bind(row.id, row.executionBook || "Unknown", n(row.entryType), n(row.executedAt), n(row.sport),
+        n(row.riskAmount), n(row.toWinAmount), n(row.potentialPayout), row.result || "OPEN",
+        n(row.settledReturn), n(row.profit), Number(row.legCount || 1), Number(row.legsWon || 0),
+        Number(row.legsLost || 0), Number(row.legsPush || 0), n(row.gradedAt),
+        row.fundingType || "CASH", n(row.sourceTicketId),
+        row.trackerMetadata ? JSON.stringify(row.trackerMetadata) : null, now, now).run();
+    markWrite(); return { ok: true };
+  } catch (err) { markErr(err); return { ok:false, reason:String(err?.message||err) }; }
+}
+
+export async function queryExecutedBetEntries(env) {
+  markBound(env);
+  if (!hasDb(env)) return { ok:false, rows:[] };
+  try {
+    const res=await env.DB.prepare("SELECT * FROM executed_bet_entries ORDER BY executed_at DESC").all();
+    markRead(); return { ok:true, rows:res.results||[] };
+  } catch(err){ markErr(err); return {ok:false,rows:[],reason:String(err?.message||err)}; }
+}
+
+export async function persistAdvisorReview(env, row = {}) {
+  markBound(env);
+  if (!hasDb(env) || !row.id || !row.gameId || !row.snapshotHash) return {ok:false,reason:"missing-advisor-key"};
+  try {
+    await env.DB.prepare(`INSERT INTO advisor_reviews
+      (id, game_id, sport, date, decision, confidence, reason, model_version, snapshot_hash, snapshot_json, reviewed_at, provider, model)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(game_id, snapshot_hash) DO UPDATE SET
+      decision=excluded.decision, confidence=excluded.confidence, reason=excluded.reason,
+      reviewed_at=excluded.reviewed_at, provider=excluded.provider, model=excluded.model`)
+      .bind(row.id,String(row.gameId),row.sport,row.date,row.decision,n(row.confidence),n(row.reason),
+        n(row.modelVersion),row.snapshotHash,JSON.stringify(row.snapshot||{}),row.reviewedAt||new Date().toISOString(),
+        row.provider||"openai",n(row.model)).run();
+    markWrite(); return {ok:true};
+  } catch(err){ markErr(err); return {ok:false,reason:String(err?.message||err)}; }
+}
+
+export async function queryAdvisorReviews(env, { date, sport } = {}) {
+  markBound(env); if(!hasDb(env)) return {ok:false,rows:[]};
+  try {
+    let sql="SELECT * FROM advisor_reviews WHERE 1=1"; const binds=[];
+    if(date){sql+=" AND date = ?";binds.push(date);} if(sport&&sport!=="all"){sql+=" AND sport = ?";binds.push(sport);}
+    sql+=" ORDER BY reviewed_at DESC";
+    const res=await env.DB.prepare(sql).bind(...binds).all(); markRead(); return {ok:true,rows:res.results||[]};
+  } catch(err){markErr(err);return {ok:false,rows:[],reason:String(err?.message||err)};}
+}
+
+
+export async function reconcileExecutedBetEntries(env) {
+  const betsQ=await queryExecutedBets(env,{includeRaw:false});
+  const groups=new Map();
+  for(const b of betsQ.rows||[]){
+    if(!b.entryId) continue;
+    if(!groups.has(b.entryId)) groups.set(b.entryId,[]);
+    groups.get(b.entryId).push(b);
+  }
+  const outcomes=[];
+  for(const [entryId,legs] of groups){
+    legs.sort((a,b)=>Number(a.legIndex||0)-Number(b.legIndex||0));
+    const primary=legs.find(x=>Number(x.riskAmount)>0)||legs[0];
+    const meta=primary.trackerMetadata||{};
+    const entryType=meta.entryType|| (legs.length>1?"PARLAY":"STRAIGHT");
+    const results=legs.map(x=>String(x.legResult||x.result||"OPEN").toUpperCase());
+    const won=results.filter(x=>x==="WON").length, lost=results.filter(x=>x==="LOST").length, push=results.filter(x=>x==="PUSH"||x==="VOID").length;
+    const allTerminal=results.every(x=>["WON","LOST","PUSH","VOID"].includes(x));
+    let result="OPEN", profit=null, settledReturn=null, exceptionCode=null;
+    if(lost>0){ result="LOST"; profit=-Math.abs(Number(meta.cardRiskAmount??primary.riskAmount??0)); settledReturn=0; }
+    else if(allTerminal && push===0){ result="WON"; profit=Number(meta.cardToWinAmount??primary.toWinAmount??0); settledReturn=Number(meta.cardPotentialPayout??primary.potentialPayout??0); }
+    else if(allTerminal && push>0){
+      result="MANUAL_REVIEW"; exceptionCode="NEEDS_SETTLEMENT";
+    }
+    if(String(entryType).includes("FLEX") && allTerminal){ result="MANUAL_REVIEW"; exceptionCode="NEEDS_SETTLEMENT"; profit=null; settledReturn=null; }
+    const row={id:entryId,executionBook:primary.executionBook,entryType,executedAt:primary.executedAt,sport:primary.sport,
+      riskAmount:Number(meta.cardRiskAmount??primary.riskAmount??0),toWinAmount:Number(meta.cardToWinAmount??primary.toWinAmount??0),
+      potentialPayout:Number(meta.cardPotentialPayout??primary.potentialPayout??0),result,profit,settledReturn,legCount:legs.length,
+      legsWon:won,legsLost:lost,legsPush:push,gradedAt:allTerminal?new Date().toISOString():null,
+      fundingType:meta.fundingType||"CASH",sourceTicketId:primary.externalTicketId,
+      trackerMetadata:{...meta,exceptionCode}};
+    outcomes.push(await upsertExecutedBetEntry(env,row));
+    for(const leg of legs){
+      const legResult=String(leg.result||"OPEN").toUpperCase();
+      const legException=legResult==="OPEN" ? (String(leg.market).toUpperCase()==="PLAYER_PROP"?"NEEDS_STAT":"NEEDS_SETTLEMENT") : null;
+      if(leg.legResult!==legResult || leg.exceptionCode!==legException){
+        await updateExecutedBet(env,leg.id,{legResult,exceptionCode:legException},"entry-reconcile");
+      }
+    }
+  }
+  return {ok:outcomes.every(x=>x.ok),entries:groups.size};
 }

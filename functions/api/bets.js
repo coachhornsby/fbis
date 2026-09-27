@@ -27,6 +27,10 @@ import {
   queryOddsSnapshots,
   hasDb,
   pingDb,
+  upsertExecutedBetEntry,
+  queryExecutedBetEntries,
+  reconcileExecutedBetEntries,
+  queryAdvisorReviews,
 } from "../lib/store.js";
 import { authorizeExecutedBetWrite, unauthorizedBody } from "../lib/auth.js";
 import { durableHealth, scheduledHealth } from "../lib/jobs.js";
@@ -53,6 +57,16 @@ export async function handleBetsGet(env, url) {
     ? await queryExecutedBets(env, { date: date || undefined, sport: sport || undefined, includeRaw: false })
     : { ok: false, reason: ping.reason || "d1-unavailable", rows: [] };
   const rows = q.rows || [];
+  const entriesQ = ping.ok ? await queryExecutedBetEntries(env) : {ok:false,rows:[]};
+  const entries = entriesQ.rows || [];
+  const exceptions = rows.map((b) => {
+    let code=b.exceptionCode||null;
+    if(!code && String(b.matchStatus||"").toLowerCase()!=="matched" && (!b.result||b.result==="OPEN")) code="UNMATCHED";
+    if(!code && String(b.market||"").toUpperCase()==="PLAYER_PROP" && (!b.result||b.result==="OPEN")) code="NEEDS_STAT";
+    if(!code && (!b.result||b.result==="OPEN")) code="NEEDS_SETTLEMENT";
+    if(!code && b.duplicateStatus==="conflict") code="CONFLICT";
+    return code ? {...b,exceptionCode:code} : null;
+  }).filter(Boolean);
   const durable = await durableHealth(env);
   const schedule = scheduledHealth(durable, new Date());
   const readOk = q.ok === true;
@@ -111,6 +125,9 @@ export async function handleBetsGet(env, url) {
       checks: semantic.checks,
     },
     bets: rows,
+    entries,
+    exceptions,
+    exceptionSummary: Object.fromEntries([...new Set(exceptions.map(x=>x.exceptionCode))].map(code=>[code,exceptions.filter(x=>x.exceptionCode===code).length])),
     summary: summarizeExecutedBets(rows),
     population: populationDescriptor({
       populationType: POPULATION_TYPE.UNIFIED_EXECUTION_LEDGER,
@@ -293,8 +310,35 @@ export async function handleBetsPost(env, request, body) {
       tickets = preview.tickets || [];
     }
     if (!tickets.length) return { status: 400, body: { ok: false, error: "no tickets to import", wrote: false } };
+    const advisorQ=await queryAdvisorReviews(env,{});
+    const advisorByGame=new Map();
+    for(const a of advisorQ.rows||[]){if(!advisorByGame.has(String(a.game_id)))advisorByGame.set(String(a.game_id),a);}
+    tickets=tickets.map(t=>{
+      const a=advisorByGame.get(String(t.gameId||"")); if(!a)return t;
+      const exec=Date.parse(t.executedAt||""), reviewed=Date.parse(a.reviewed_at||"");
+      if(!Number.isFinite(exec)||!Number.isFinite(reviewed)||reviewed>exec)return t;
+      return {...t,advisorDecision:a.decision,advisorConfidence:a.confidence,advisorReason:a.reason,
+        advisorReviewedAt:a.reviewed_at,advisorSnapshotHash:a.snapshot_hash,
+        trackerMetadata:{...(t.trackerMetadata||{}),advisor:"ChatGPT",advisorReviewed:true,advisorDecision:a.decision,
+          advisorConfidence:a.confidence,advisorReason:a.reason,advisorRecordedAt:a.reviewed_at,advisorSnapshotHash:a.snapshot_hash}};
+    });
     const result = await importBets(env, tickets);
-    return { status: result.status, body: result.body };
+    const byEntry = new Map();
+    for (const t of tickets) {
+      const entryId=t.entryId || t.trackerMetadata?.entryId;
+      if(!entryId) continue;
+      if(!byEntry.has(entryId)) byEntry.set(entryId,[]);
+      byEntry.get(entryId).push(t);
+    }
+    for(const [entryId,legs] of byEntry){
+      const primary=legs.find(x=>Number(x.riskAmount)>0)||legs[0]; const meta=primary.trackerMetadata||{};
+      await upsertExecutedBetEntry(env,{id:entryId,executionBook:primary.executionBook,entryType:meta.entryType||body.entryType||"MULTI_LEG",
+        executedAt:primary.executedAt,sport:primary.sport,riskAmount:meta.cardRiskAmount??primary.riskAmount,
+        toWinAmount:meta.cardToWinAmount??primary.toWinAmount,potentialPayout:meta.cardPotentialPayout??primary.potentialPayout,
+        legCount:legs.length,sourceTicketId:primary.externalTicketId,trackerMetadata:meta});
+    }
+    await reconcileExecutedBetEntries(env);
+    return { status: result.status, body: {...result.body, entries: byEntry.size} };
   }
   if (action === "grade-player-prop") {
     if (!hasDb(env)) return { status: 503, body: { ok: false, error: "D1 unbound" } };
@@ -323,7 +367,8 @@ export async function handleBetsPost(env, request, body) {
       propActual: actual,
       propStatSource: "operator-entered",
     };
-    const res = await updateExecutedBet(env, body.id, patch, "manual-player-prop-stat");
+    const res = await updateExecutedBet(env, body.id, {...patch, legResult:settlement.result, exceptionCode:null}, "manual-player-prop-stat");
+    await reconcileExecutedBetEntries(env);
     return { status: res.ok ? 200 : 400, body: { ok: res.ok, error: res.reason || null, result: settlement.result, actual } };
   }
   if (action === "correct") {
