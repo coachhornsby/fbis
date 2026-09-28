@@ -57,6 +57,18 @@ export const SPORTS = {
     minEv: 0.03,
     maxProb: 0.72,
   },
+  nhl: {
+    id: "nhl",
+    label: "NHL",
+    name: "NHL",
+    espn: "hockey/nhl",
+    k: 1.6,
+    totalK: 2.4,
+    minSpreadEdge: 0.5,
+    minMlEdge: 0.03,
+    minEv: 0.03,
+    maxProb: 0.72,
+  },
   nfl: {
     id: "nfl",
     label: "NFL",
@@ -83,7 +95,7 @@ export const SPORTS = {
   },
 };
 
-export const BOARD_SPORTS = ["mlb", "nba", "nfl", "cfb", "cbb"];
+export const BOARD_SPORTS = ["mlb", "nba", "nhl", "nfl", "cfb", "cbb"];
 
 export function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -309,7 +321,7 @@ export function projectGame(sport, game) {
         ? cfbSpreadProb(projMargin, game.odds.spread, game.cfb.sigmaMargin)
         : null,
     heuristicTotalProb: true,
-    projectionKind: game.projectionKind || (sport === "nfl" ? "PINNACLE_IMPLIED" : sport === "cfb" ? "FBIS" : null),
+    projectionKind: game.projectionKind || (sport === "cfb" ? "FBIS" : ["nfl", "nba", "nhl", "cbb"].includes(sport) ? "PINNACLE_IMPLIED" : null),
     projectionState: game.cfb?.projectionState || game.projectionState || null,
   };
   model.recipe = projectionRecipe(sport, game, model);
