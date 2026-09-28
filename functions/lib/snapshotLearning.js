@@ -177,7 +177,7 @@ function clamp01(v) {
   return Math.max(0.001, Math.min(0.999, Number(v)));
 }
 
-function weeklyTrainingArtifact(modelRows = [], { sport, modelId } = {}) {
+export function weeklyTrainingArtifact(modelRows = [], { sport, modelId } = {}) {
   const rows = modelRows
     .map(toModelLabRow)
     .filter((row) =>
