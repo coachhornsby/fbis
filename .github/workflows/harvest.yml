@@ -179,7 +179,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        sport: [mlb, nba, nfl, cfb, cbb]
+        sport: [mlb, nba, nhl, nfl, cfb, cbb]
     steps:
       - uses: actions/checkout@v4.2.2
       - name: Assert production SHA unchanged
@@ -415,7 +415,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        sport: [cfb, mlb, nba, nfl, cbb]
+        sport: [cfb, mlb, nba, nhl, nfl, cbb]
         dayOffset: [0, 1, 2, 3, 4, 5]
     steps:
       - name: Assert production SHA unchanged
