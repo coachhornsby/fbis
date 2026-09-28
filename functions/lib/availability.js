@@ -271,6 +271,7 @@ export function buildGameAvailabilityImpact(game, rows=[], {sport, nowMs=Date.no
 
 export function applyAvailabilityAdjustment(game, sport){
   const impact=game?.availabilityImpact;
+  if(game?.availabilityAdjustmentApplied) return game;
   if(!impact?.configured || !["nfl","cfb"].includes(String(sport).toLowerCase())) return game;
   const adjustPair=(home,away)=>{
     if(!Number.isFinite(Number(home)) || !Number.isFinite(Number(away))) return null;
@@ -281,10 +282,27 @@ export function applyAvailabilityAdjustment(game, sport){
   const direct=adjustPair(game.projHomeScore,game.projAwayScore);
   const research=adjustPair(game.researchProjection?.home,game.researchProjection?.away);
   const next={...game};
+  let applied=false;
   if(direct){
     next.projHomeScore=direct.home;
     next.projAwayScore=direct.away;
     next.availabilityAdjustedProjection=direct;
+    if(game.cfb){
+      next.cfb={
+        ...game.cfb,
+        rawHome:game.cfb.home,
+        rawAway:game.cfb.away,
+        rawTotal:game.cfb.total,
+        rawMargin:game.cfb.margin,
+        home:direct.home,
+        away:direct.away,
+        total:direct.total,
+        margin:direct.margin,
+        availabilityImpact:impact,
+        flags:[...new Set([...(game.cfb.flags||[]),"availability_adjusted"])],
+      };
+    }
+    applied=true;
   }
   if(research){
     next.researchProjection={
@@ -296,8 +314,11 @@ export function applyAvailabilityAdjustment(game, sport){
       total:research.total,
       margin:research.margin,
       availabilityAdjusted:true,
+      availabilityImpact:impact,
     };
+    applied=true;
   }
+  if(applied) next.availabilityAdjustmentApplied=true;
   return next;
 }
 
