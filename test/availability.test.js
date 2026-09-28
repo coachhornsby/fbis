@@ -98,3 +98,24 @@ test("Two Deep adapter flattens common nested availability payloads without hard
   assert.equal(rows[0].sport,"nfl");
   assert.equal(rows[0].teamKey,"chi");
 });
+
+
+test("stale weekly designations do not keep moving projections unless status is persistent", () => {
+  const game = {
+    home: { abbr: "CHI", name: "Chicago Bears" },
+    away: { abbr: "PHI", name: "Philadelphia Eagles" },
+  };
+  const nowMs = Date.parse("2026-09-28T18:00:00Z");
+  const old = "2026-09-25T00:00:00Z";
+  const staleOut = buildGameAvailabilityImpact(game, [{
+    source:"twodeep", team_key:"chi", player_name:"QB One", position:"QB",
+    depth_rank:1, status:"OUT", source_updated_at:old, observed_at:"2026-09-28T17:00:00Z"
+  }], { sport:"nfl", nowMs });
+  assert.equal(staleOut.homeScoreAdjustment, 0);
+
+  const staleIr = buildGameAvailabilityImpact(game, [{
+    source:"twodeep", team_key:"chi", player_name:"QB One", position:"QB",
+    depth_rank:1, status:"IR", source_updated_at:old, observed_at:"2026-09-28T17:00:00Z"
+  }], { sport:"nfl", nowMs });
+  assert.ok(staleIr.homeScoreAdjustment < 0);
+});
