@@ -94,6 +94,16 @@ const HEADERS = {
   snapshots:["Snapshot ID","Event ID","Sport","Matchup","Event Start","Generated At","Data Timestamp","Schema Version","Snapshot Hash","Locked?","Market Included?","Home Team","Away Team","Home Starter","Away Starter","Lineup Status","Injury Status","Rest/Travel","Weather/Environment","Team Features JSON","Player Features JSON","Data Sources","Missing Inputs","Notes"]
 };
 
+const ALL_PROJECTION_HEADERS = [
+  "Event ID","Sport","Game Date","Event Start","Matchup","Away Team","Home Team",
+  "Away Projection","Home Projection","Projected Total","Home Margin","Home Win Prob",
+  "Model","Engine","Model Version","Maturity","Projection Kind","Independent?",
+  "Quality Score","Quality State","Quality Flags","Market Spread","Market Total",
+  "Market Home ML","Market Away ML","Market Source","Generated At","Last Synced At",
+  "Game State","Actual Away","Actual Home","Actual Total","Actual Margin",
+  "Total Error","Margin Error","Learning Status"
+];
+
 const now = () => new Date().toISOString();
 const uuid = () => crypto.randomUUID();
 const sha256 = x => crypto.createHash('sha256').update(String(x)).digest('hex');
