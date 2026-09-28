@@ -34,6 +34,7 @@ export const CFG = Object.freeze({
     consensus: 'Model Consensus',
     disagreements: 'Model Disagreements',
     dashboard: 'Daily Projections',
+    allProjections: 'All Projections',
     snapshots: 'Feature Snapshots',
     usage: 'AI API Usage',
   }
