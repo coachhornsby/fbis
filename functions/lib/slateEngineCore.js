@@ -1480,7 +1480,7 @@ export async function buildSlate(sport, date, env = {}) {
       scheduleResolved = true;
     } catch (err) {
       if (!games.length) {
-        if (id === "cfb" && env.CFBD_API_KEY) {
+        if (id === "cfb" && env.CFBD_API_KEY && env.cfbdScheduleFallback !== false) {
           games = await fetchCfbdGamesForDate(day, env.CFBD_API_KEY);
           scheduleResolved = true;
         }
