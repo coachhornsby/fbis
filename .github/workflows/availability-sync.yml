@@ -1,0 +1,47 @@
+name: Availability sync
+
+on:
+  schedule:
+    - cron: "37 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: fbis-availability-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: TWO DEEP / AVAILABILITY
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Require harvest secret
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Sync licensed availability feed
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          out="$(mktemp)"
+          http="$(curl -sS --max-time 120 --retry 1             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$out" -w "%{http_code}"             "${BASE}/api/availability-sync")"
+          echo "availability-sync http=${http}"
+          cat "$out"
+          test "$http" = "200"
+          jq -e '.ok == true and (.status == "SUCCESS" or .status == "CONFIGURATION_PENDING")' "$out" >/dev/null
+          {
+            echo "## Availability sync"
+            echo "- status: $(jq -r '.status' "$out")"
+            echo "- configured: $(jq -r '.configured' "$out")"
+            echo "- fetched: $(jq -r '.fetched // 0' "$out")"
+            echo "- normalized: $(jq -r '.normalized // 0' "$out")"
+            echo "- inserted: $(jq -r '.inserted // 0' "$out")"
+            echo "- already: $(jq -r '.already // 0' "$out")"
+            echo "- reason: $(jq -r '.reason // "none"' "$out")"
+          } >> "$GITHUB_STEP_SUMMARY"
