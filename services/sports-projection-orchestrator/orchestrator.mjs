@@ -34,6 +34,7 @@ export const CFG = Object.freeze({
     consensus: 'Model Consensus',
     disagreements: 'Model Disagreements',
     dashboard: 'Daily Projections',
+    allProjections: 'All Projections',
     snapshots: 'Feature Snapshots',
     usage: 'AI API Usage',
   }
@@ -92,6 +93,16 @@ const HEADERS = {
   queue:["Run ID","Event ID","Sport","Matchup","Event Start","Feature Snapshot ID","Snapshot Locked At","Run Status","GPT Status","Gemini Status","GPT Projection ID","Gemini Projection ID","GPT Started At","GPT Completed At","Gemini Started At","Gemini Completed At","Both Locked?","Consensus Ready?","Market Release Status","Attempt","Last Error","Created At","Updated At","Requested By","Notes"],
   snapshots:["Snapshot ID","Event ID","Sport","Matchup","Event Start","Generated At","Data Timestamp","Schema Version","Snapshot Hash","Locked?","Market Included?","Home Team","Away Team","Home Starter","Away Starter","Lineup Status","Injury Status","Rest/Travel","Weather/Environment","Team Features JSON","Player Features JSON","Data Sources","Missing Inputs","Notes"]
 };
+
+const ALL_PROJECTION_HEADERS = [
+  "Event ID","Sport","Game Date","Event Start","Matchup","Away Team","Home Team",
+  "Away Projection","Home Projection","Projected Total","Home Margin","Home Win Prob",
+  "Model","Engine","Model Version","Maturity","Projection Kind","Independent?",
+  "Quality Score","Quality State","Quality Flags","Market Spread","Market Total",
+  "Market Home ML","Market Away ML","Market Source","Generated At","Last Synced At",
+  "Game State","Actual Away","Actual Home","Actual Total","Actual Margin",
+  "Total Error","Margin Error","Learning Status"
+];
 
 const now = () => new Date().toISOString();
 const uuid = () => crypto.randomUUID();
@@ -606,6 +617,76 @@ function snapshotFromCandidate(game,sport,boardGeneratedAt){
 }
 function snapshotRow(s){ return HEADERS.snapshots.map(h=>s[h]??''); }
 
+function projectionSheetKey(sport,eventId){
+  return String(sport||'').toLowerCase()+'|'+String(eventId||'');
+}
+
+function allProjectionRow(board,game){
+  const proj=game?.projection||{};
+  const model=game?.model||{};
+  const market=game?.market||{};
+  const quality=game?.quality||{};
+  const state=game?.gameState||{};
+  const actualAway=finiteNumber(state?.currentScore?.away);
+  const actualHome=finiteNumber(state?.currentScore?.home);
+  const actualTotal=actualAway!=null&&actualHome!=null?actualAway+actualHome:null;
+  const actualMargin=actualAway!=null&&actualHome!=null?actualHome-actualAway:null;
+  const projectedTotal=finiteNumber(proj.total);
+  const projectedMargin=finiteNumber(proj.margin);
+  const matchup=(game?.away?.name||game?.away?.abbr||'Away')+' @ '+(game?.home?.name||game?.home?.abbr||'Home');
+  const start=String(game?.start||'');
+  return [
+    String(game?.id||''),String(board?.sport||'').toUpperCase(),start?start.slice(0,10):String(board?.date||''),start,
+    matchup,game?.away?.name||game?.away?.abbr||'',game?.home?.name||game?.home?.abbr||'',
+    finiteNumber(proj.away),finiteNumber(proj.home),projectedTotal,projectedMargin,finiteNumber(proj.pHome),
+    model.name||'',model.engine||'',game?.modelVersion||'',model.maturity||proj.maturity||'',proj.kind||'',
+    proj.independent===true?'YES':'NO',finiteNumber(quality.score),quality.state||'',
+    Array.isArray(quality.flags)?quality.flags.join('|'):'',finiteNumber(market.spread),finiteNumber(market.total),
+    finiteNumber(market.homeMl),finiteNumber(market.awayMl),market.source||'',board?.generatedAt||'',now(),
+    state.state||'SCHEDULED',actualAway,actualHome,actualTotal,actualMargin,
+    actualTotal!=null&&projectedTotal!=null?projectedTotal-actualTotal:null,
+    actualMargin!=null&&projectedMargin!=null?projectedMargin-actualMargin:null,
+    'ALL-GAME LEARNING POPULATION'
+  ].map(v=>v==null?'':v);
+}
+
+async function syncAllProjectionBoards(boards){
+  const range=q(CFG.sheets.allProjections)+'!A1:AJ3000';
+  const res=await sheets.get(range);
+  const existing=res.values||[];
+  const rows=[ALL_PROJECTION_HEADERS,...existing.slice(1)];
+  const index=new Map();
+  for(let i=1;i<rows.length;i++){
+    const eventId=String(rows[i]?.[0]||'').trim();
+    const sport=String(rows[i]?.[1]||'').trim().toLowerCase();
+    if(eventId&&sport) index.set(projectionSheetKey(sport,eventId),i);
+  }
+  let written=0;
+  const seen=new Set();
+  for(const board of boards||[]){
+    if(!board?.ok) continue;
+    for(const game of board.games||[]){
+      const eventId=String(game?.id||'');
+      if(!eventId) continue;
+      const key=projectionSheetKey(board.sport,eventId);
+      if(seen.has(key)) continue;
+      seen.add(key);
+      const row=allProjectionRow(board,game);
+      const at=index.get(key);
+      if(at==null){
+        index.set(key,rows.length);
+        rows.push(row);
+      }else{
+        rows[at]=row;
+      }
+      written++;
+    }
+  }
+  if(rows.length>3000) throw new Error('All Projections capacity exhausted');
+  await sheets.update(q(CFG.sheets.allProjections)+'!A1:AJ'+rows.length,rows);
+  return {ok:true,written,boards:(boards||[]).filter(b=>b?.ok).length,at:now()};
+}
+
 export async function selectCandidates({dryRun=false}={}){
   if(!CFG.llmSelectionEnabled) return {ok:true,status:'SELECTION_DISABLED',selected:0,candidates:[],at:now()};
   if(!sheets.available()) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON required for LLM candidate selection');
@@ -627,7 +708,6 @@ export async function selectCandidates({dryRun=false}={}){
   }).length;
   const dailyCapacity=Math.max(0,Math.floor(CFG.llmMaxGamesPerDay)-usedToday);
   const capacity=Math.min(Math.max(0,Math.floor(CFG.llmMaxPerScan)),dailyCapacity);
-  if(capacity<=0) return {ok:true,status:'DAILY_CAP_REACHED',selected:0,usedToday,dailyCap:CFG.llmMaxGamesPerDay,candidates:[],at:now()};
 
   const dates=[0,1,2].map(d=>shiftDateKey(today,d));
   const boardJobs=[];
@@ -640,6 +720,14 @@ export async function selectCandidates({dryRun=false}={}){
     }
   }
   const boards=await Promise.all(boardJobs);
+  const projectionSheetSync=dryRun
+    ? {ok:true,written:0,boards:boards.filter(b=>b?.ok).length,dryRun:true,at:now()}
+    : await syncAllProjectionBoards(boards);
+  if(capacity<=0) return {
+    ok:true,status:'DAILY_CAP_REACHED',selected:0,eligible:0,usedToday,dailyCap:CFG.llmMaxGamesPerDay,
+    candidates:[],projectionSheetSync,
+    boards:boards.map(b=>({sport:b.sport,date:b.date,ok:b.ok,status:b.status,error:b.error||null,games:b.games?.length||0})),at:now()
+  };
   const seen=new Set();
   const candidates=[];
   for(const board of boards){
@@ -750,33 +838,6 @@ export async function validateSheetsAccess(){
   const res=await sheets.get(q(CFG.sheets.config)+'!A1:B5');
   return {ok:true,range:res.range,rowCount:(res.values||[]).length};
 }
-export async function validateKenpom(){
-  const key=String(process.env.KENPOM_API_KEY||'').trim();
-  if(!key) return {ok:false,configured:false,reason:'KENPOM_API_KEY missing'};
-  const season=Number(process.env.KENPOM_SEASON||2026);
-  const url=new URL('https://kenpom.com/api.php');
-  url.searchParams.set('endpoint','ratings');
-  url.searchParams.set('y',String(season));
-  const started=Date.now();
-  const res=await fetchRetry(url.toString(),{
-    headers:{authorization:'Bearer '+key,accept:'application/json','user-agent':'Sports-Projection-Orchestrator/1.0'}
-  });
-  let payload=null;
-  try{ payload=await res.json(); }catch{}
-  const rows=Array.isArray(payload)?payload:[];
-  const dataThrough=rows.find(x=>x?.DataThrough)?.DataThrough||null;
-  return {
-    ok:res.ok && rows.length>=300,
-    configured:true,
-    httpStatus:res.status,
-    season,
-    rowCount:rows.length,
-    dataThrough,
-    latencyMs:Date.now()-started,
-    schemaSample:rows[0]?Object.keys(rows[0]).slice(0,12):[],
-    error:res.ok?(rows.length>=300?null:'row-count-below-300'):'HTTP '+res.status
-  };
-}
 export function healthSummary(){
   let googleCredential=false,googleCredentialParseError='';
   try{ googleCredential=sheets.available(); }catch(e){googleCredentialParseError=e.message;}
@@ -786,7 +847,6 @@ export function healthSummary(){
     credentials:{
       openai:!!process.env.OPENAI_API_KEY,
       gemini:!!process.env.GEMINI_API_KEY,
-      kenpom:!!process.env.KENPOM_API_KEY,
       googleSheets:googleCredential,
       googleCredentialParseError
     },
