@@ -30,7 +30,7 @@ import {
 export * from "./slateEngineCore.js";
 export { pinMarkets } from "./pricing.js";
 
-const INDEPENDENT_SCORE_REQUIRED = new Set(["cbb", "nba", "nfl"]);
+const INDEPENDENT_SCORE_REQUIRED = new Set(["cbb", "nba", "nhl", "nfl"]);
 const CRITICAL_QUALITY_FLAGS = new Set(["pinnacle_implied_score", "market_unresolved"]);
 const MLB_STARTER_FLAGS = new Set(["missing_home_sp", "missing_away_sp"]);
 

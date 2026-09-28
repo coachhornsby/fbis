@@ -113,9 +113,13 @@ export const RECIPE_GUIDE = {
     engine: "Pinnacle line-implied",
     body: "Home = total/2 − home spread/2. Away = total/2 + home spread/2. That is the market’s implied score until an independent NBA sim is wired. Win-prob blends Pinnacle no-vig, ESPN, score (line-implied margin), and W-L form.",
   },
+  nhl: {
+    engine: "Market-implied benchmark / research",
+    body: "NHL is enrolled in the same frozen-snapshot and grading loop. Until an independent NHL score model is present, line-implied scores are benchmark context only and cannot qualify or authorize wagers.",
+  },
   nfl: {
-    engine: "Pinnacle implied score (no independent FBIS NFL model)",
-    body: "PINNACLE IMPLIED SCORE is total/2 ± spread/2. That is market context, not an independent FBIS projection. Circular market-derived scores cannot qualify. Identity/logos use the canonical NFL registry.",
+    engine: "NFL-FBIS-PURE / research-v0-form",
+    body: "Independent NFL team-form/QB/context research projection. It is frozen and graded for learning, but remains research-only with no wager authority until promotion criteria are met.",
   },
   cfb: {
     engine: "CFB prior-v2-cfbd + season evidence",
@@ -133,7 +137,7 @@ export function windowStart(days, sport = "mlb") {
     const today = todayCT();
     const y = Number(today.slice(0, 4));
     const m = Number(today.slice(5, 7));
-    if (sport === "nba" || sport === "cbb") return m >= 10 ? `${y}-10-01` : `${y - 1}-10-01`;
+    if (sport === "nba" || sport === "cbb" || sport === "nhl") return m >= 10 ? `${y}-10-01` : `${y - 1}-10-01`;
     if (sport === "nfl" || sport === "cfb") return m >= 8 ? `${y}-08-01` : `${y - 1}-08-01`;
     return m >= 3 ? `${y}-03-01` : `${y - 1}-03-01`;
   }
@@ -444,7 +448,7 @@ function seasonOf(date, sport) {
   const y = Number(String(date).slice(0, 4));
   const m = Number(String(date).slice(5, 7));
   if (sport === "cfb" || sport === "nfl") return m >= 8 ? String(y) : String(y - 1);
-  if (sport === "nba" || sport === "cbb") return m >= 10 ? String(y) : String(y - 1);
+  if (sport === "nba" || sport === "cbb" || sport === "nhl") return m >= 10 ? String(y) : String(y - 1);
   return String(y);
 }
 
@@ -453,6 +457,11 @@ function formSeasonForSport(sport, date) {
   if (sport === "nfl") return Number(nflSeasonYear(date));
   if (sport === "cfb") return Number(cfbSeasonYear(date));
   const y = Number(String(date).slice(0, 4));
+  const m = Number(String(date).slice(5, 7));
+  if (sport === "nba" || sport === "cbb" || sport === "nhl") {
+    if (!Number.isFinite(y) || !Number.isFinite(m)) return Number(nflSeasonYear(date));
+    return m >= 10 ? y : y - 1;
+  }
   return Number.isFinite(y) ? y : Number(nflSeasonYear(date));
 }
 

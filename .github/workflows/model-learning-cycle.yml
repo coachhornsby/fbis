@@ -102,6 +102,34 @@ jobs:
           cat "$out"
           test "$http" = "200"
           jq -e '.ok == true and .job == "model-learn-analyze" and .d1.bound == true and .d1.sport == "cbb"' "$out" >/dev/null
+
+      - name: Learn from canonical frozen projections across all sports
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          for sport in mlb nfl cfb cbb nba nhl; do
+            out="artifacts/model-learning-core-${sport}.json"
+            http="$(curl -sS --max-time 180 --retry 1 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              -o "$out" -w "%{http_code}" \
+              "$BASE/api/model-learning?sport=${sport}&recentN=50")"
+            echo "${sport^^} canonical learning http=$http"
+            cat "$out"
+            test "$http" = "200"
+            jq -e --arg sport "$sport" '
+              .ok == true and
+              .sport == $sport and
+              .source == "prediction_snapshots" and
+              .governance.autoTrain == false and
+              .governance.autoPromote == false
+            ' "$out" >/dev/null
+          done
+
       - name: Evaluate executed-bet feedback population
         if: steps.gate.outputs.run == 'true'
         env:
@@ -121,20 +149,32 @@ jobs:
           {
             echo "## FBIS weekly model learning"
             echo ""
+            echo "### Canonical production/research snapshots"
+            for sport in mlb nfl cfb cbb nba nhl; do
+              file="artifacts/model-learning-core-${sport}.json"
+              echo "#### ${sport^^}"
+              echo "- source rows: $(jq -r '.queriedRows' "$file")"
+              echo "- canonical graded games: $(jq -r '.canonicalRows' "$file")"
+              echo "- models evaluated: $(jq -r '.models | length' "$file")"
+              echo "- findings: $(jq -r '.findings | length' "$file")"
+              echo "- no data: $(jq -r '.noData' "$file")"
+              jq -r '.models[]? | "- \(.modelId): n=\(.n), total_MAE=\(.metrics.total.mae // "NA"), margin_MAE=\(.metrics.margin.mae // "NA"), brier=\(.metrics.probability.brier // "NA"), market_informed=\(.marketInformed), promotion_eligible=\(.promotionEligible)"' "$file"
+              jq -r '.findings[]? | "  - [\(.severity)] \(.modelId) \(.findingType) \(.sliceKey) \(.metric): baseline=\(.baselineValue) recent=\(.recentValue) delta=\(.delta)"' "$file"
+              echo ""
+            done
+            echo "### College challenger validation"
             for sport in cfb cbb; do
               file="artifacts/model-learning-${sport}.json"
               findings="artifacts/model-findings-${sport}.json"
-              echo "### ${sport^^}"
+              echo "#### ${sport^^}"
               echo "- reference: $(jq -r '.d1.referenceModelId // "none"' "$file")"
               echo "- models evaluated: $(jq -r '.d1.validation | length' "$file")"
               echo "- paired comparisons: $(jq -r '.d1.paired | length' "$file")"
               echo "- learning findings: $(jq -r '.d1.findings | length' "$findings")"
-              echo ""
               jq -r '.d1.validation[]? | "- \(.modelId): n=\(.metrics.n), seasons=\(.metrics.seasons), total_MAE=\(.metrics.total.mae // "NA"), margin_MAE=\(.metrics.margin.mae // "NA"), brier=\(.metrics.probability.brier // "NA"), leakage=\(.leakageOk)"' "$file"
-              jq -r '.d1.findings[]? | "  - [\(.severity)] \(.modelId) \(.findingType) \(.sliceKey) \(.metric): baseline=\(.baselineValue) recent=\(.recentValue) delta=\(.delta)"' "$findings"
               echo ""
             done
-            echo "Research only. Findings persist as OPEN hypotheses. No automatic model promotion or wager-authority change."
+            echo "Learning evidence updates automatically. No automatic model promotion or wager-authority change."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload learning evidence
         if: steps.gate.outputs.run == 'true'
