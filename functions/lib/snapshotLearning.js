@@ -163,6 +163,126 @@ function timingSummary(rows = []) {
   };
 }
 
+function mean(values = []) {
+  const xs = values.filter(Number.isFinite);
+  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+}
+
+function absMean(values = []) {
+  const xs = values.filter(Number.isFinite);
+  return xs.length ? xs.reduce((a, b) => a + Math.abs(b), 0) / xs.length : null;
+}
+
+function clamp01(v) {
+  return Math.max(0.001, Math.min(0.999, Number(v)));
+}
+
+function weeklyTrainingArtifact(modelRows = [], { sport, modelId } = {}) {
+  const rows = modelRows
+    .map(toModelLabRow)
+    .filter((row) =>
+      Number.isFinite(row.proj_home) &&
+      Number.isFinite(row.proj_away) &&
+      Number.isFinite(row.actual_home) &&
+      Number.isFinite(row.actual_away)
+    )
+    .slice()
+    .sort((a, b) => String(a.frozen_at || "").localeCompare(String(b.frozen_at || "")));
+
+  if (rows.length < 30) {
+    return {
+      status: "INSUFFICIENT_DATA",
+      sport,
+      modelId,
+      n: rows.length,
+      minimumN: 30,
+      targets: {},
+    };
+  }
+
+  const holdoutN = Math.max(10, Math.min(50, Math.floor(rows.length * 0.2)));
+  const train = rows.slice(0, rows.length - holdoutN);
+  const holdout = rows.slice(rows.length - holdoutN);
+
+  const rowValues = (row) => {
+    const actualMargin = row.actual_home - row.actual_away;
+    const actualTotal = row.actual_home + row.actual_away;
+    const marginError = row.proj_margin - actualMargin;
+    const totalError = row.proj_total - actualTotal;
+    const y = row.actual_home === row.actual_away ? null : row.actual_home > row.actual_away ? 1 : 0;
+    const p = Number.isFinite(row.p_home_win) ? row.p_home_win : null;
+    return { actualMargin, actualTotal, marginError, totalError, y, p };
+  };
+
+  const trainVals = train.map(rowValues);
+  const marginOffset = -(mean(trainVals.map((x) => x.marginError)) ?? 0);
+  const totalOffset = -(mean(trainVals.map((x) => x.totalError)) ?? 0);
+  const probTrain = trainVals.filter((x) => x.y != null && x.p != null);
+  const probabilityOffset = probTrain.length
+    ? -(mean(probTrain.map((x) => x.p - x.y)) ?? 0)
+    : null;
+
+  const validation = holdout.map((row) => {
+    const v = rowValues(row);
+    return {
+      ...v,
+      calibratedMarginError: v.marginError + marginOffset,
+      calibratedTotalError: v.totalError + totalOffset,
+      rawBrier: v.y != null && v.p != null ? (v.p - v.y) ** 2 : null,
+      calibratedBrier:
+        v.y != null && v.p != null && probabilityOffset != null
+          ? (clamp01(v.p + probabilityOffset) - v.y) ** 2
+          : null,
+    };
+  });
+
+  const probValidation = validation.filter((x) => x.rawBrier != null);
+
+  return {
+    status: "TRAINED",
+    sport,
+    modelId,
+    n: rows.length,
+    trainN: train.length,
+    holdoutN: holdout.length,
+    trainUntil: train.at(-1)?.frozen_at || null,
+    validateFrom: holdout[0]?.frozen_at || null,
+    validateUntil: holdout.at(-1)?.frozen_at || null,
+    targets: {
+      margin: {
+        correction: marginOffset,
+        trainBiasBefore: mean(trainVals.map((x) => x.marginError)),
+        holdoutMaeBefore: absMean(validation.map((x) => x.marginError)),
+        holdoutMaeAfter: absMean(validation.map((x) => x.calibratedMarginError)),
+        holdoutBiasBefore: mean(validation.map((x) => x.marginError)),
+        holdoutBiasAfter: mean(validation.map((x) => x.calibratedMarginError)),
+      },
+      total: {
+        correction: totalOffset,
+        trainBiasBefore: mean(trainVals.map((x) => x.totalError)),
+        holdoutMaeBefore: absMean(validation.map((x) => x.totalError)),
+        holdoutMaeAfter: absMean(validation.map((x) => x.calibratedTotalError)),
+        holdoutBiasBefore: mean(validation.map((x) => x.totalError)),
+        holdoutBiasAfter: mean(validation.map((x) => x.calibratedTotalError)),
+      },
+      homeWinProbability: {
+        correction: probabilityOffset,
+        trainN: probTrain.length,
+        holdoutN: probValidation.length,
+        holdoutBrierBefore: mean(probValidation.map((x) => x.rawBrier)),
+        holdoutBrierAfter: mean(probValidation.map((x) => x.calibratedBrier)),
+      },
+    },
+    note:
+      "Weekly sport/model-specific calibration challenger. Margin, total, and win probability are trained independently. No cross-sport pooling and no automatic production promotion.",
+  };
+}
+
+function weeklyTrainingId(sport, modelId, artifact) {
+  const day = String(artifact?.validateUntil || artifact?.trainUntil || "undated").slice(0, 10);
+  return `weekly-autotrain:${safeId(sport, 12)}:${safeId(modelId, 72)}:${day}`;
+}
+
 function learningFindingId(sport, modelId, finding) {
   const day = String(finding?.windowEnd || "undated").slice(0, 10);
   return [
@@ -232,6 +352,29 @@ export async function runSnapshotLearning(env, { sport, recentN = 50 } = {}) {
       modelId,
       recentN,
     });
+    const training = weeklyTrainingArtifact(modelRows, { sport: id, modelId });
+    if (training.status === "TRAINED") {
+      const trained = await insertValidationRun(env, {
+        id: weeklyTrainingId(id, modelId, training),
+        modelId,
+        method: "weekly-auto-train-calibration-v1",
+        trainUntil: training.trainUntil,
+        validateFrom: training.validateFrom,
+        validateUntil: training.validateUntil,
+        n: training.n,
+        metrics: {
+          source: "prediction_snapshots",
+          autoTrain: true,
+          separatedBySport: true,
+          separatedTargets: ["margin", "total", "homeWinProbability"],
+          artifact: training,
+        },
+        leakageOk: timing.leakageOk,
+      });
+      if (!trained.ok) {
+        errors.push(`${modelId}:autotrain:${trained.reason || "write-failed"}`);
+      }
+    }
 
     const ordered = modelRows
       .slice()
@@ -291,6 +434,7 @@ export async function runSnapshotLearning(env, { sport, recentN = 50 } = {}) {
       marketInformed,
       promotionEligible: !marketInformed && timing.leakageOk,
       timing,
+      training,
       findingCount: findings.length,
       inserted,
       already,
@@ -319,11 +463,13 @@ export async function runSnapshotLearning(env, { sport, recentN = 50 } = {}) {
     findings: persistedFindings,
     errors,
     governance: {
-      autoTrain: false,
+      autoTrain: true,
+      autoTrainCadence: "MONDAY_05:30_AMERICA_CHICAGO",
+      autoTrainScope: "SPORT_AND_MODEL_SEPARATED; MARGIN_TOTAL_PROBABILITY_SEPARATED",
       autoPromote: false,
       autoWagerAuthority: false,
       note:
-        "Learning evidence updates automatically from graded frozen projections. Production mutation remains gated by out-of-sample validation and explicit promotion.",
+        "Weekly calibration challengers train automatically from graded frozen projections. Sports and projection targets never pool. Production promotion and wager authority remain separately gated.",
     },
     generatedAt: new Date().toISOString(),
   };
