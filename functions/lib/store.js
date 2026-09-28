@@ -2848,3 +2848,124 @@ export async function appendExecutedBetAudit(env, { betId, action, detail }) {
     return { ok: false, reason: String(err?.message || err) };
   }
 }
+
+
+export async function persistAvailabilityObservations(env, rows = []) {
+  markBound(env);
+  if (!hasDb(env)) {
+    return { ok: false, reason: "unbound", inserted: 0, already: 0, failed: rows.length || 1 };
+  }
+  const sql = `INSERT OR IGNORE INTO player_availability_observations (
+    id, source, sport, team_key, team_name, player_id, player_name,
+    position, position_group, depth_rank, status, practice_status, injury_detail,
+    game_id, opponent_key, effective_from, source_updated_at, observed_at,
+    source_url, raw_json, created_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+  const valid = (rows || []).filter((row) =>
+    row?.id && row?.source && row?.sport && row?.teamKey && row?.playerName && row?.status && row?.observedAt
+  );
+  let inserted = 0;
+  let already = 0;
+  let failed = 0;
+  const reasons = [];
+
+  const bindRow = (row) => [
+    row.id,
+    row.source,
+    String(row.sport).toLowerCase(),
+    row.teamKey,
+    n(row.teamName),
+    n(row.playerId),
+    row.playerName,
+    n(row.position),
+    n(row.positionGroup),
+    n(row.depthRank),
+    row.status,
+    n(row.practiceStatus),
+    n(row.injuryDetail),
+    n(row.gameId),
+    n(row.opponentKey),
+    n(row.effectiveFrom),
+    n(row.sourceUpdatedAt),
+    row.observedAt,
+    n(row.sourceUrl),
+    n(row.rawJson),
+    row.createdAt || new Date().toISOString(),
+  ];
+
+  if (typeof env.DB.batch === "function" && valid.length) {
+    try {
+      for (let i = 0; i < valid.length; i += 75) {
+        const chunk = valid.slice(i, i + 75).map((row) => env.DB.prepare(sql).bind(...bindRow(row)));
+        const results = await env.DB.batch(chunk);
+        for (const res of results || []) {
+          if ((Number(res?.meta?.changes) || 0) > 0) inserted += 1;
+          else already += 1;
+        }
+      }
+      markWrite();
+      return { ok: true, inserted, already, failed: 0 };
+    } catch (err) {
+      markErr(err);
+      return {
+        ok: false,
+        inserted,
+        already,
+        failed: Math.max(0, valid.length - inserted - already),
+        reason: String(err?.message || err),
+      };
+    }
+  }
+
+  for (const row of valid) {
+    try {
+      const res = await env.DB.prepare(sql).bind(...bindRow(row)).run();
+      if ((Number(res?.meta?.changes) || 0) > 0) inserted += 1;
+      else already += 1;
+      markWrite();
+    } catch (err) {
+      failed += 1;
+      reasons.push(String(err?.message || err));
+      markErr(err);
+    }
+  }
+  return { ok: failed === 0, inserted, already, failed, reason: [...new Set(reasons)].join("; ") || null };
+}
+
+export async function queryAvailabilityObservations(
+  env,
+  { sport, since, teamKeys = [], gameId = null, limit = 2500 } = {}
+) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
+  try {
+    let sql = "SELECT * FROM player_availability_observations WHERE 1=1";
+    const binds = [];
+    if (sport && sport !== "all") {
+      sql += " AND sport = ?";
+      binds.push(String(sport).toLowerCase());
+    }
+    if (since) {
+      sql += " AND observed_at >= ?";
+      binds.push(String(since));
+    }
+    if (gameId) {
+      sql += " AND game_id = ?";
+      binds.push(String(gameId));
+    }
+    const keys = [...new Set((teamKeys || []).map((x) => String(x || "").trim()).filter(Boolean))];
+    if (keys.length) {
+      sql += ` AND team_key IN (${keys.map(() => "?").join(",")})`;
+      binds.push(...keys);
+    }
+    sql += " ORDER BY observed_at DESC LIMIT ?";
+    binds.push(Math.max(1, Math.min(5000, Number(limit) || 2500)));
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    markRead();
+    return { ok: true, rows: res?.results || [] };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), rows: [] };
+  }
+}

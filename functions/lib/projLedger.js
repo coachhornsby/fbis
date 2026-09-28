@@ -271,7 +271,13 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     pScore: model.layers?.score ?? null,
     pForm: model.layers?.form ?? null,
     pPal: model.layers?.pal ?? null,
-    layers: { ...(model.layers || {}) },
+    layers: {
+      ...(model.layers || {}),
+      availability: game.availabilityImpact || null,
+      weather: game.weather || null,
+      weatherImpact: game.weatherImpact || null,
+    },
+    availability: game.availabilityImpact || null,
     weights: w,
     pinHomeMl: snap.pinHomeMl,
     pinAwayMl: snap.pinAwayMl,
@@ -284,6 +290,9 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
     dataQuality: game.quality?.score ?? null,
     qualityFlags: [...new Set([
       ...(game.quality?.flags || []),
+      ...(game.availabilityImpact?.configured ? ["availability_checked"] : []),
+      ...(game.availabilityImpact?.criticalUnresolved ? ["critical_availability_unresolved"] : []),
+      ...(game.availabilityImpact?.configured && game.availabilityImpact?.stale ? ["availability_stale"] : []),
       ...(palHome == null && palAway == null ? ["missing_pal"] : []),
       ...(game.odds?.pinTotal == null && game.odds?.pinOverPrice == null ? ["missing_pin_total"] : []),
       ...(game.odds?.pinSpread == null && game.odds?.pinSpreadHomePrice == null ? ["missing_pin_spread"] : []),
@@ -352,8 +361,17 @@ export function freezeFromGame(date, game, weights = DEFAULT_WEIGHTS) {
           priorVersion: game.cfb.priorVersion,
           shadowHfa: game.cfb.shadowHfa || null,
           venue: game.cfb.venue || null,
+          availability: game.availabilityImpact || null,
+          weather: game.weather || null,
+          weatherImpact: game.weatherImpact || null,
         }
-      : null,
+      : game.availabilityImpact || game.weatherImpact
+        ? {
+            availability: game.availabilityImpact || null,
+            weather: game.weather || null,
+            weatherImpact: game.weatherImpact || null,
+          }
+        : null,
     gameStatus: gameOutcome(game),
     espnIdHome: game.home?.espnId || null,
     espnIdAway: game.away?.espnId || null,
