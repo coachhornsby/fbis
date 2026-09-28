@@ -153,12 +153,13 @@ function timingSummary(rows = []) {
     startKnown += 1;
     if (frozen == null || frozen > start) postStart += 1;
   }
+  const missingStart = rows.length - startKnown;
   return {
     n: rows.length,
     startKnown,
-    missingStart: rows.length - startKnown,
+    missingStart,
     postStart,
-    leakageOk: postStart === 0,
+    leakageOk: postStart === 0 && missingStart === 0,
   };
 }
 
