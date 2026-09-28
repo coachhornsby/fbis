@@ -158,6 +158,16 @@ export async function onRequestGet(context) {
     },
     baseball_savant: { configured: true, implemented: true, auth: "public" },
     nflverse: { configured: true, implemented: true, auth: "public" },
+    twodeep_availability: {
+      configured: Boolean(env?.TWODEEP_API_TOKEN),
+      implemented: true,
+      ingestReady: true,
+      fetchAdapterReady: false,
+      scope: ["nfl","cfb"],
+      reason: Boolean(env?.TWODEEP_API_TOKEN)
+        ? "credential present; licensed endpoint/schema mapping still requires provider documentation"
+        : "licensed API access pending; normalized availability ingest is deployed and ready",
+    },
     nba_stats_licensed: { configured: false, implemented: false, reason: "production feed remains provider/license blocked" },
     parlay_pinnacle: { configured: Boolean(env?.PARLAY_API_KEY), implemented: true },
     action_apify: {
