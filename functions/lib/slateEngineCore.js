@@ -15,7 +15,7 @@ import { SHADOW_BLOCK_REASONS } from "./collegeModels.js";
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED } from "./convictionGate.js";
 import { canonicalProbabilityFields } from "./probability.js";
 import { attachWeather, parseVenueLocation } from "./weather.js";
-import { attachAvailability, applyAvailabilityAdjustment } from "./availability.js";
+import { attachAvailability } from "./availability.js";
 import { enrichGamesVenues } from "./venues.js";
 import { attachKalshiSentiment } from "./kalshi.js";
 import { setMeta } from "./store.js";
@@ -1573,10 +1573,6 @@ export async function buildSlate(sport, date, env = {}) {
     games = attached.games;
     cbbd = { ...cbbd, catalog: { matched: attached.catalog?.matched, unmatched: attached.catalog?.unmatched, n: attached.catalog?.n, error: attached.catalog?.error } };
   }
-
-  // Apply bounded availability adjustment after sport-specific models have
-  // populated independent score fields. CFB also records this inside its model.
-  games = games.map((game) => applyAvailabilityAdjustment(game, id));
 
   games = games.map((game) => {
     const pin = pinMarkets(game);
