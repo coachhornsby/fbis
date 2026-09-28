@@ -43,7 +43,7 @@ test("game availability impact is team-specific and bounded", () => {
       depth_rank:1, status:"OUT", observed_at:"2026-09-28T18:00:00Z"
     },
     {
-      source:"twodeep", team_key:"phi", player_name:"CB One", position:"CB",
+      source:"twodeep", team_key:"chi", player_name:"CB One", position:"CB",
       depth_rank:1, status:"OUT", observed_at:"2026-09-28T18:00:00Z"
     },
   ];
