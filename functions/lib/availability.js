@@ -67,6 +67,49 @@ export function normalizeAvailabilityStatus(value){
   return raw.replace(/\s+/g,"_");
 }
 
+function availabilityId(parts=[]){
+  return parts.map((v)=>clean(v).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")).filter(Boolean).join(":").slice(0,220);
+}
+
+export function normalizeAvailabilityRecord(raw={}, {source="manual", observedAt=null}={}){
+  const sport=clean(raw.sport).toLowerCase();
+  const teamKey=clean(raw.teamKey ?? raw.team_key ?? raw.teamAbbr ?? raw.team_abbr ?? raw.teamId ?? raw.team_id).toLowerCase();
+  const playerName=clean(raw.playerName ?? raw.player_name ?? raw.name);
+  const playerId=clean(raw.playerId ?? raw.player_id ?? raw.athleteId ?? raw.athlete_id) || null;
+  const sourceUpdatedAt=clean(raw.sourceUpdatedAt ?? raw.source_updated_at ?? raw.updatedAt ?? raw.updated_at) || null;
+  const seen=clean(observedAt ?? raw.observedAt ?? raw.observed_at) || new Date().toISOString();
+  const status=normalizeAvailabilityStatus(raw.status ?? raw.availability ?? raw.designation ?? raw.injuryStatus ?? raw.injury_status);
+  if(!sport || !teamKey || !playerName || !status) return null;
+  const position=normalizePosition(raw.position ?? raw.pos ?? raw.positionAbbr ?? raw.position_abbr);
+  const depthRank=finite(raw.depthRank ?? raw.depth_rank ?? raw.string ?? raw.rank);
+  const id=clean(raw.id) || availabilityId([
+    source,sport,teamKey,playerId||playerName,status,sourceUpdatedAt||seen,
+  ]);
+  return {
+    id,
+    source:clean(source||raw.source||"manual").toLowerCase(),
+    sport,
+    teamKey,
+    teamName:clean(raw.teamName ?? raw.team_name) || null,
+    playerId,
+    playerName,
+    position,
+    positionGroup:normalizePosition(raw.positionGroup ?? raw.position_group ?? position),
+    depthRank,
+    status,
+    practiceStatus:clean(raw.practiceStatus ?? raw.practice_status ?? raw.practice) || null,
+    injuryDetail:clean(raw.injuryDetail ?? raw.injury_detail ?? raw.injury ?? raw.note) || null,
+    gameId:clean(raw.gameId ?? raw.game_id) || null,
+    opponentKey:clean(raw.opponentKey ?? raw.opponent_key ?? raw.opponent) || null,
+    effectiveFrom:clean(raw.effectiveFrom ?? raw.effective_from) || null,
+    sourceUpdatedAt,
+    observedAt:seen,
+    sourceUrl:clean(raw.sourceUrl ?? raw.source_url ?? raw.url) || null,
+    rawJson:JSON.stringify(raw),
+    createdAt:new Date().toISOString(),
+  };
+}
+
 export function normalizePosition(value){
   const raw=cleanUpper(value).replace(/\s+/g,"");
   if(!raw) return "UNK";
