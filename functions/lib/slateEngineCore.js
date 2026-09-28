@@ -15,6 +15,7 @@ import { SHADOW_BLOCK_REASONS } from "./collegeModels.js";
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED } from "./convictionGate.js";
 import { canonicalProbabilityFields } from "./probability.js";
 import { attachWeather, parseVenueLocation } from "./weather.js";
+import { attachAvailability, applyAvailabilityAdjustment } from "./availability.js";
 import { enrichGamesVenues } from "./venues.js";
 import { attachKalshiSentiment } from "./kalshi.js";
 import { setMeta } from "./store.js";
@@ -1540,6 +1541,11 @@ export async function buildSlate(sport, date, env = {}) {
   // Closed roofs / indoor venues skip outdoor weather impact on projections.
   games = await attachWeather(games, env.caches);
 
+  // Persisted licensed/official player availability context. Two Deep is the
+  // preferred NFL/CFB source once licensed API access is installed.
+  const availability = await attachAvailability(games, id, env);
+  games = availability.games || games;
+
   let pal = { games: [], meta: { enabled: false } };
   let savant = { meta: { enabled: false } };
   let cfb = { meta: { enabled: false } };
@@ -1562,6 +1568,10 @@ export async function buildSlate(sport, date, env = {}) {
     cbbd = { ...cbbd, catalog: { matched: attached.catalog?.matched, unmatched: attached.catalog?.unmatched, n: attached.catalog?.n, error: attached.catalog?.error } };
   }
 
+  // Apply bounded availability adjustment after sport-specific models have
+  // populated independent score fields. CFB also records this inside its model.
+  games = games.map((game) => applyAvailabilityAdjustment(game, id));
+
   games = games.map((game) => {
     const pin = pinMarkets(game);
     const model = projectGame(id, { ...game, pin });
@@ -1582,6 +1592,7 @@ export async function buildSlate(sport, date, env = {}) {
     parlay: parlay.meta || { enabled: false },
     kalshi: kalshi.meta || { enabled: false },
     weather: { source: "open-meteo", free: true },
+    availability: availability.meta || { configured: false },
     pal: palSlateView(pal),
     savant: savant.meta || { enabled: false },
     cfb: cfb.meta || { enabled: false },
