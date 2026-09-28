@@ -720,6 +720,14 @@ export async function selectCandidates({dryRun=false}={}){
     }
   }
   const boards=await Promise.all(boardJobs);
+  const projectionSheetSync=dryRun
+    ? {ok:true,written:0,boards:boards.filter(b=>b?.ok).length,dryRun:true,at:now()}
+    : await syncAllProjectionBoards(boards);
+  if(capacity<=0) return {
+    ok:true,status:'DAILY_CAP_REACHED',selected:0,eligible:0,usedToday,dailyCap:CFG.llmMaxGamesPerDay,
+    candidates:[],projectionSheetSync,
+    boards:boards.map(b=>({sport:b.sport,date:b.date,ok:b.ok,status:b.status,error:b.error||null,games:b.games?.length||0})),at:now()
+  };
   const seen=new Set();
   const candidates=[];
   for(const board of boards){
