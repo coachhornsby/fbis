@@ -71,3 +71,17 @@ test("research ops and projection export enumerate all six sports without paused
   assert.match(harvest, /today - 14 days/);
   assert.match(sheetExport, /TZ=America\/Chicago date \+%F/);
 });
+
+
+test("paused ACTION workflows stay manual-only", async () => {
+  for (const rel of [
+    "../.github/workflows/action-daily-watchdog.yml",
+    "../.github/workflows/action-daily-snapshot.yml",
+    "../.github/workflows/action-restore-validation.yml",
+  ]) {
+    const body = await readFile(new URL(rel, import.meta.url), "utf8");
+    assert.match(body, /PAUSED/);
+    assert.match(body, /workflow_dispatch/);
+    assert.doesNotMatch(body, /\bschedule\s*:/);
+  }
+});
