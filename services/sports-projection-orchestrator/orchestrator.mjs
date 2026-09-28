@@ -488,8 +488,10 @@ const LLM_GATE_THRESHOLDS = Object.freeze({
   cfb:{side:2.5,total:3.0},
   nfl:{side:2.0,total:3.0},
   cbb:{side:2.5,total:3.5},
+  nba:{side:3.0,total:4.0},
+  nhl:{side:0.5,total:0.75},
 });
-const LLM_GATE_SPORTS = Object.freeze(['mlb','cfb']);
+const LLM_GATE_SPORTS = Object.freeze(['mlb','cfb','nfl','cbb','nba','nhl']);
 
 function finiteNumber(v){
   const n=Number(v);
