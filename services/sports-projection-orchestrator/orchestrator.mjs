@@ -708,7 +708,6 @@ export async function selectCandidates({dryRun=false}={}){
   }).length;
   const dailyCapacity=Math.max(0,Math.floor(CFG.llmMaxGamesPerDay)-usedToday);
   const capacity=Math.min(Math.max(0,Math.floor(CFG.llmMaxPerScan)),dailyCapacity);
-  if(capacity<=0) return {ok:true,status:'DAILY_CAP_REACHED',selected:0,usedToday,dailyCap:CFG.llmMaxGamesPerDay,candidates:[],at:now()};
 
   const dates=[0,1,2].map(d=>shiftDateKey(today,d));
   const boardJobs=[];
