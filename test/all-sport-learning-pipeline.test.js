@@ -85,3 +85,15 @@ test("paused ACTION workflows stay manual-only", async () => {
     assert.doesNotMatch(body, /\bschedule\s*:/);
   }
 });
+
+
+test("orchestrator mirrors every fetched board projection to the operator sheet before LLM gating", async () => {
+  const orchestrator = await readFile(
+    new URL("../services/sports-projection-orchestrator/orchestrator.mjs", import.meta.url),
+    "utf8"
+  );
+  assert.match(orchestrator, /allProjections:\s*'All Projections'/);
+  assert.match(orchestrator, /async function syncAllProjectionBoards/);
+  assert.match(orchestrator, /const projectionSheetSync=.*syncAllProjectionBoards\(boards\)/s);
+  assert.match(orchestrator, /ALL-GAME LEARNING POPULATION/);
+});
