@@ -1,9 +1,6 @@
 name: Projection slate audit
 
 on:
-  push:
-    paths:
-      - ".github/workflows/projection-slate-audit.yml"
   workflow_dispatch:
 
 permissions:
