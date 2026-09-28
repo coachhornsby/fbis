@@ -2,9 +2,7 @@
 name: CFB Rich Data Validation
 
 on:
-  push:
-    paths:
-      - ".github/workflows/cfb-rich-data-validation.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
