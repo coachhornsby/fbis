@@ -191,8 +191,10 @@ function teamAvailabilityImpact(rows=[], {sport, nowMs=Date.now()}={}){
     const weight=statusFactor(status);
     const position=normalizePosition(row.position_group || row.position);
     const rank=finite(row.depth_rank);
-    const points=round2(playerBasePoints(position,sport)*depthFactor(rank)*weight);
-    const fr=freshness(row.observed_at,nowMs);
+    const fr=freshness(row.source_updated_at || row.observed_at,nowMs);
+    const persistentStatus=["IR","PUP","NFI","SUSPENDED"].includes(status);
+    const effectiveWeight=fr.stale && !persistentStatus ? 0 : weight;
+    const points=round2(playerBasePoints(position,sport)*depthFactor(rank)*effectiveWeight);
     if(freshest==null || (fr.ageHours!=null && fr.ageHours<freshest)) freshest=fr.ageHours;
     if(points>0){
       if(DEFENSE_POSITIONS.has(position)) defensePenalty+=points;
@@ -379,7 +381,7 @@ export async function attachAvailability(games=[], sport, env={}){
     ...availabilityTeamKeys(g.home),
     ...availabilityTeamKeys(g.away),
   ]))];
-  const since=new Date(Date.now()-7*24*3600000).toISOString();
+  const since=new Date(Date.now()-30*24*3600000).toISOString();
   const queried=await queryAvailabilityObservations(env,{sport:id,since,teamKeys,limit:3000});
   const rows=queried.ok ? queried.rows : [];
   const next=(games||[]).map((game)=>{
