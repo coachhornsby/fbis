@@ -617,6 +617,76 @@ function snapshotFromCandidate(game,sport,boardGeneratedAt){
 }
 function snapshotRow(s){ return HEADERS.snapshots.map(h=>s[h]??''); }
 
+function projectionSheetKey(sport,eventId){
+  return String(sport||'').toLowerCase()+'|'+String(eventId||'');
+}
+
+function allProjectionRow(board,game){
+  const proj=game?.projection||{};
+  const model=game?.model||{};
+  const market=game?.market||{};
+  const quality=game?.quality||{};
+  const state=game?.gameState||{};
+  const actualAway=finiteNumber(state?.currentScore?.away);
+  const actualHome=finiteNumber(state?.currentScore?.home);
+  const actualTotal=actualAway!=null&&actualHome!=null?actualAway+actualHome:null;
+  const actualMargin=actualAway!=null&&actualHome!=null?actualHome-actualAway:null;
+  const projectedTotal=finiteNumber(proj.total);
+  const projectedMargin=finiteNumber(proj.margin);
+  const matchup=(game?.away?.name||game?.away?.abbr||'Away')+' @ '+(game?.home?.name||game?.home?.abbr||'Home');
+  const start=String(game?.start||'');
+  return [
+    String(game?.id||''),String(board?.sport||'').toUpperCase(),start?start.slice(0,10):String(board?.date||''),start,
+    matchup,game?.away?.name||game?.away?.abbr||'',game?.home?.name||game?.home?.abbr||'',
+    finiteNumber(proj.away),finiteNumber(proj.home),projectedTotal,projectedMargin,finiteNumber(proj.pHome),
+    model.name||'',model.engine||'',game?.modelVersion||'',model.maturity||proj.maturity||'',proj.kind||'',
+    proj.independent===true?'YES':'NO',finiteNumber(quality.score),quality.state||'',
+    Array.isArray(quality.flags)?quality.flags.join('|'):'',finiteNumber(market.spread),finiteNumber(market.total),
+    finiteNumber(market.homeMl),finiteNumber(market.awayMl),market.source||'',board?.generatedAt||'',now(),
+    state.state||'SCHEDULED',actualAway,actualHome,actualTotal,actualMargin,
+    actualTotal!=null&&projectedTotal!=null?projectedTotal-actualTotal:null,
+    actualMargin!=null&&projectedMargin!=null?projectedMargin-actualMargin:null,
+    'ALL-GAME LEARNING POPULATION'
+  ].map(v=>v==null?'':v);
+}
+
+async function syncAllProjectionBoards(boards){
+  const range=q(CFG.sheets.allProjections)+'!A1:AJ3000';
+  const res=await sheets.get(range);
+  const existing=res.values||[];
+  const rows=[ALL_PROJECTION_HEADERS,...existing.slice(1)];
+  const index=new Map();
+  for(let i=1;i<rows.length;i++){
+    const eventId=String(rows[i]?.[0]||'').trim();
+    const sport=String(rows[i]?.[1]||'').trim().toLowerCase();
+    if(eventId&&sport) index.set(projectionSheetKey(sport,eventId),i);
+  }
+  let written=0;
+  const seen=new Set();
+  for(const board of boards||[]){
+    if(!board?.ok) continue;
+    for(const game of board.games||[]){
+      const eventId=String(game?.id||'');
+      if(!eventId) continue;
+      const key=projectionSheetKey(board.sport,eventId);
+      if(seen.has(key)) continue;
+      seen.add(key);
+      const row=allProjectionRow(board,game);
+      const at=index.get(key);
+      if(at==null){
+        index.set(key,rows.length);
+        rows.push(row);
+      }else{
+        rows[at]=row;
+      }
+      written++;
+    }
+  }
+  if(rows.length>3000) throw new Error('All Projections capacity exhausted');
+  await sheets.update(q(CFG.sheets.allProjections)+'!A1:AJ'+rows.length,rows);
+  return {ok:true,written,boards:(boards||[]).filter(b=>b?.ok).length,at:now()};
+}
+
 export async function selectCandidates({dryRun=false}={}){
   if(!CFG.llmSelectionEnabled) return {ok:true,status:'SELECTION_DISABLED',selected:0,candidates:[],at:now()};
   if(!sheets.available()) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON required for LLM candidate selection');
