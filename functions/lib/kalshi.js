@@ -140,7 +140,7 @@ function sentimentForGame(game, eventMarkets) {
 export async function attachKalshiSentiment(games = [], sport, caches = null, { replace = false } = {}) {
   const series = KALSHI_SERIES[String(sport || "").toLowerCase()];
   if (!series || !games.length) {
-    return { games, meta: { enabled: Boolean(series), series: series || null, matched: 0, skipped: !series } };
+    return { games, meta: { enabled: Boolean(series), series: series || null, matched: 0, skipped: !series, provider: series ? "kalshi-direct" : null } };
   }
 
   let payload;
@@ -149,7 +149,7 @@ export async function attachKalshiSentiment(games = [], sport, caches = null, { 
   } catch (err) {
     return {
       games,
-      meta: { enabled: true, series, matched: 0, error: String(err?.message || err) },
+      meta: { enabled: true, series, matched: 0, error: String(err?.message || err), provider: "kalshi-direct", free: true },
     };
   }
 
@@ -163,6 +163,8 @@ export async function attachKalshiSentiment(games = [], sport, caches = null, { 
         empty: true,
         error: payload.error || null,
         asOf: payload.asOf || null,
+        provider: "kalshi-direct",
+        free: true,
       },
     };
   }
