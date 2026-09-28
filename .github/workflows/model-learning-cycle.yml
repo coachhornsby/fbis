@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Gate to Monday 05:00 America/Chicago
+      - name: Gate to Monday 05:30 America/Chicago
         id: gate
         run: |
           set -euo pipefail
@@ -125,7 +125,7 @@ jobs:
               .ok == true and
               .sport == $sport and
               .source == "prediction_snapshots" and
-              .governance.autoTrain == false and
+              .governance.autoTrain == true and
               .governance.autoPromote == false
             ' "$out" >/dev/null
           done
@@ -158,7 +158,8 @@ jobs:
               echo "- models evaluated: $(jq -r '.models | length' "$file")"
               echo "- findings: $(jq -r '.findings | length' "$file")"
               echo "- no data: $(jq -r '.noData' "$file")"
-              jq -r '.models[]? | "- \(.modelId): n=\(.n), total_MAE=\(.metrics.total.mae // "NA"), margin_MAE=\(.metrics.margin.mae // "NA"), brier=\(.metrics.probability.brier // "NA"), market_informed=\(.marketInformed), promotion_eligible=\(.promotionEligible)"' "$file"
+              echo "- auto-train: $(jq -r '.governance.autoTrain' "$file")"
+              jq -r '.models[]? | "- \(.modelId): n=\(.n), total_MAE=\(.metrics.total.mae // "NA"), margin_MAE=\(.metrics.margin.mae // "NA"), brier=\(.metrics.probability.brier // "NA"), train_status=\(.training.status // "NA"), market_informed=\(.marketInformed), promotion_eligible=\(.promotionEligible)"' "$file"
               jq -r '.findings[]? | "  - [\(.severity)] \(.modelId) \(.findingType) \(.sliceKey) \(.metric): baseline=\(.baselineValue) recent=\(.recentValue) delta=\(.delta)"' "$file"
               echo ""
             done
@@ -174,7 +175,7 @@ jobs:
               jq -r '.d1.validation[]? | "- \(.modelId): n=\(.metrics.n), seasons=\(.metrics.seasons), total_MAE=\(.metrics.total.mae // "NA"), margin_MAE=\(.metrics.margin.mae // "NA"), brier=\(.metrics.probability.brier // "NA"), leakage=\(.leakageOk)"' "$file"
               echo ""
             done
-            echo "Learning evidence updates automatically. No automatic model promotion or wager-authority change."
+            echo "Weekly auto-training runs independently by sport/model and separately for margin, total, and win probability. No automatic model promotion or wager-authority change."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload learning evidence
         if: steps.gate.outputs.run == 'true'
