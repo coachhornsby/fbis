@@ -31,6 +31,7 @@ export async function onRequestGet(context) {
     caches: caches.default,
     parlayCacheOnly: true,
     palCacheOnly: true,
+    cfbdScheduleFallback: false,
   };
   try {
     const slate = await buildSlate(sport, resolved.date, env);
