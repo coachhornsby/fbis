@@ -19,6 +19,7 @@ import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearchToBoard } from "./researchBoardPromote.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
+import { applyAvailabilityAdjustment } from "./availability.js";
 import {
   marketImpliedAuthority,
   deriveBoardDecision,
@@ -115,6 +116,16 @@ export async function buildSlate(sport, date, env = {}) {
       ...slate,
       games: research.games,
       research: { ...(slate.research || {}), cbbResearchBoard: research.meta },
+    };
+  }
+
+  // Availability adjustment is applied only after the sport's final board model
+  // has been selected/promoted, so it cannot be overwritten by research-board
+  // promotion. This remains bounded and fully captured in the frozen snapshot.
+  if (Array.isArray(next.games) && ["nfl","cfb"].includes(id)) {
+    next = {
+      ...next,
+      games: next.games.map((game) => applyAvailabilityAdjustment(game, id)),
     };
   }
 
