@@ -22,11 +22,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p artifacts
+          out="artifacts/projection-sheet-export.ndjson"
+          : > "$out"
+
           export_one () {
             sport="$1"; date="$2"
             tmp="$(mktemp)"
             code="$(curl -sS --max-time 120 -o "$tmp" -w "%{http_code}" "$BASE/api/projections?sport=${sport}&date=${date}")"
-            test "$code" = "200"
+            echo "projection-export sport=${sport} date=${date} http=${code}"
+            if [ "$code" != "200" ]; then
+              echo "Projection endpoint failed for ${sport} ${date}:"
+              cat "$tmp" || true
+              return 1
+            fi
+            if ! jq -e '.ok == true and (.games | type == "array")' "$tmp" >/dev/null; then
+              echo "Projection endpoint returned an invalid contract for ${sport} ${date}:"
+              cat "$tmp" || true
+              return 1
+            fi
             jq -c --arg sport "$sport" --arg date "$date" '{
               marker:"SHEET_EXPORT",sport:$sport,date:$date,generatedAt:.generatedAt,
               games:[.games[]|{
@@ -40,11 +54,38 @@ jobs:
                 qualityScore:.quality.score,qualityState:.quality.state,flags:.quality.flags,
                 unavailableReason:.projection.unavailableReason
               }]
-            }' "$tmp"
+            }' "$tmp" | tee -a "$out"
           }
-          export_one cfb 2026-09-25
-          export_one cfb 2026-09-26
-          export_one nfl 2026-09-27
-          export_one mlb 2026-09-25
-          export_one mlb 2026-09-26
-          export_one mlb 2026-09-27
+
+          # This job exports live/current slates. Hard-coded historical dates
+          # eventually age outside the product API window and create false-red
+          # hourly failures. Resolve dates from America/Chicago each run instead.
+          today="$(TZ=America/Chicago date +%F)"
+          dates=(
+            "$today"
+            "$(TZ=America/Chicago date -d "$today + 1 day" +%F)"
+            "$(TZ=America/Chicago date -d "$today + 2 days" +%F)"
+          )
+
+          failed=0
+          for sport in mlb nfl cfb cbb nba nhl; do
+            for date in "${dates[@]}"; do
+              if ! export_one "$sport" "$date"; then
+                failed=1
+              fi
+            done
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            echo "One or more live projection exports failed."
+            exit 1
+          fi
+
+      - name: Upload projection export evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: projection-sheet-export-${{ github.run_id }}
+          path: artifacts/projection-sheet-export.ndjson
+          if-no-files-found: warn
+          retention-days: 14
