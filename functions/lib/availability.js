@@ -287,6 +287,20 @@ export function applyAvailabilityAdjustment(game, sport){
     next.projHomeScore=direct.home;
     next.projAwayScore=direct.away;
     next.availabilityAdjustedProjection=direct;
+    if(game.model && game.model.projectionKind==="FBIS"){
+      next.model={
+        ...game.model,
+        rawProjHome:game.model.projHome,
+        rawProjAway:game.model.projAway,
+        rawProjTotal:game.model.projTotal,
+        rawProjMargin:game.model.projMargin,
+        projHome:direct.home,
+        projAway:direct.away,
+        projTotal:direct.total,
+        projMargin:direct.margin,
+        availabilityImpact:impact,
+      };
+    }
     if(game.cfb){
       next.cfb={
         ...game.cfb,
@@ -300,6 +314,20 @@ export function applyAvailabilityAdjustment(game, sport){
         margin:direct.margin,
         availabilityImpact:impact,
         flags:[...new Set([...(game.cfb.flags||[]),"availability_adjusted"])],
+      };
+    }
+    if(game.cfbFbisV2?.ok){
+      next.cfbFbisV2={
+        ...game.cfbFbisV2,
+        rawHome:game.cfbFbisV2.home,
+        rawAway:game.cfbFbisV2.away,
+        rawTotal:game.cfbFbisV2.total,
+        rawMargin:game.cfbFbisV2.margin,
+        home:direct.home,
+        away:direct.away,
+        total:direct.total,
+        margin:direct.margin,
+        availabilityImpact:impact,
       };
     }
     applied=true;
@@ -316,6 +344,23 @@ export function applyAvailabilityAdjustment(game, sport){
       availabilityAdjusted:true,
       availabilityImpact:impact,
     };
+    if(game.model?.projectionKind==="FBIS"){
+      next.model={
+        ...next.model,
+        rawProjHome:game.model.projHome,
+        rawProjAway:game.model.projAway,
+        rawProjTotal:game.model.projTotal,
+        rawProjMargin:game.model.projMargin,
+        projHome:research.home,
+        projAway:research.away,
+        projTotal:research.total,
+        projMargin:research.margin,
+        availabilityImpact:impact,
+      };
+    }
+    next.projHomeScore=research.home;
+    next.projAwayScore=research.away;
+    next.availabilityAdjustedProjection=research;
     applied=true;
   }
   if(applied) next.availabilityAdjustmentApplied=true;
