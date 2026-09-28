@@ -214,6 +214,57 @@ function quality(game = {}) {
   };
 }
 
+function gameConditions(game = {}) {
+  const availability = game.availabilityImpact || null;
+  const weather = game.weather || null;
+  const weatherImpact = game.weatherImpact || null;
+  const slimPlayers = (side) => (availability?.[side]?.players || [])
+    .filter((p) => Number(p?.impactPoints || 0) > 0 || ["OUT","IR","DOUBTFUL","QUESTIONABLE","SUSPENDED"].includes(String(p?.status || "").toUpperCase()))
+    .slice(0, 12)
+    .map((p) => ({
+      name: p.name || null,
+      position: p.position || null,
+      depthRank: p.depthRank ?? null,
+      status: p.status || null,
+      practiceStatus: p.practiceStatus || null,
+      injury: p.injury || null,
+      impactPoints: finite(p.impactPoints),
+      source: p.source || null,
+      observedAt: p.observedAt || null,
+      stale: Boolean(p.stale),
+    }));
+  return {
+    weather: weather ? {
+      source: weather.source || "open-meteo",
+      indoor: Boolean(weather.indoor),
+      summary: weather.summary || weather.condition || weather.description || null,
+      temperature: finite(weather.temperature),
+      windSpeed: finite(weather.windSpeed),
+      precipProbability: finite(weather.precipProbability),
+      totalFactor: finite(weatherImpact?.footballTotalFactor ?? weatherImpact?.runFactor),
+    } : null,
+    availability: availability ? {
+      source: availability.source || null,
+      configured: Boolean(availability.configured),
+      stale: Boolean(availability.stale),
+      criticalUnresolved: Boolean(availability.criticalUnresolved),
+      homeScoreAdjustment: finite(availability.homeScoreAdjustment),
+      awayScoreAdjustment: finite(availability.awayScoreAdjustment),
+      marginAdjustment: finite(availability.marginAdjustment),
+      totalAdjustment: finite(availability.totalAdjustment),
+      home: {
+        impactedCount: availability.home?.impactedCount || 0,
+        players: slimPlayers("home"),
+      },
+      away: {
+        impactedCount: availability.away?.impactedCount || 0,
+        players: slimPlayers("away"),
+      },
+      methodology: availability.methodology || null,
+    } : null,
+  };
+}
+
 function llmFeatureDigest(game = {}, sport = "") {
   if (sport === "mlb") {
     const homeRpg = finite(game.savant?.homeRpg);
@@ -327,6 +378,9 @@ function llmFeatureDigest(game = {}, sport = "") {
       away,
       context: {
         weatherAdjusted: Boolean(game.cfb?.constants?.weatherTotalFactor && game.cfb.constants.weatherTotalFactor !== 1),
+        availabilityAdjusted: Boolean(game.availabilityAdjustmentApplied),
+        availability: gameConditions(game).availability,
+        weather: gameConditions(game).weather,
         dataQuality: finite(game.cfb?.dataQuality),
         state: game.cfb?.projectionState || null,
       },
@@ -366,6 +420,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
       blockReason: d.blockReason,
     },
     quality: quality(game),
+    conditions: gameConditions(game),
     llmFeatures: llmFeatureDigest(game, sport),
   };
   if (tier === "pro") {
