@@ -34,3 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_availability_sport_player_time
 
 CREATE INDEX IF NOT EXISTS idx_availability_game
   ON player_availability_observations (game_id, observed_at DESC);
+
+
+INSERT OR IGNORE INTO schema_migrations (id, applied_at)
+VALUES ('0030_player_availability', datetime('now'));
