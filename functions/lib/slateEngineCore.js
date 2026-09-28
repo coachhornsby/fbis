@@ -1366,6 +1366,12 @@ export function dataQuality(sport, game) {
       flags.push("reference_market_missing_spread");
     }
   }
+  if (game.availabilityImpact?.configured) {
+    flags.push("availability_checked");
+    if (game.availabilityImpact.stale) flags.push("availability_stale");
+    if (game.availabilityImpact.criticalUnresolved) flags.push("critical_availability_unresolved");
+    if (game.availabilityAdjustmentApplied) flags.push("availability_adjusted");
+  }
   if (sport === "cfb" && Array.isArray(game.cfb?.flags)) {
     for (const f of game.cfb.flags) flags.push(f);
     if (game.cfb.projectionState === "LEAGUE_AVERAGE_ONLY") {
