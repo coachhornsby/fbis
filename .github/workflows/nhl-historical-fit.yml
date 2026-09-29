@@ -6,7 +6,6 @@ on:
       - "feature/nhl-fbis-v1-five-layer-20260929"
     paths:
       - "scripts/nhl-historical-fit.mjs"
-      - "functions/lib/nhlFbisV1.js"
       - "data/models/nhl-fbis-v1.js"
       - ".github/workflows/nhl-historical-fit.yml"
   workflow_dispatch:
