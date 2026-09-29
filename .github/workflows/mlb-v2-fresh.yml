@@ -1,0 +1,54 @@
+name: MLB v2 fresh production test
+on:
+  push:
+    branches: [ops/mlb-v2-fresh-2026-09-29]
+    paths: [".github/workflows/mlb-v2-fresh.yml"]
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch live Cloudflare slate and recompute MLB-FBIS-v2
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { attachMlbDeepShadow } from "./functions/lib/mlbDeepModel.js";
+          const url="https://fbis-myz.pages.dev/api/slate?sport=mlb&date=2026-09-29&_t="+Date.now();
+          const res=await fetch(url,{headers:{accept:"application/json"}});
+          if(!res.ok) throw new Error("production slate http="+res.status);
+          const slate=await res.json();
+          const enriched=(slate.games||[]).map((g)=>{
+            const park=g.bpp?.park||{};
+            const matchup=g.bpp?.matchup||{};
+            return {...g,mlbContext:{
+              ...(g.mlbContext||{}),
+              palParkRunFactor:Number.isFinite(Number(park.runsPct))?1+Number(park.runsPct)/100:null,
+              palParkHrFactor:Number.isFinite(Number(park.hrPct))?1+Number(park.hrPct)/100:null,
+              palLineupsOfficial:g.bpp?.lineupsOfficial===true,
+              homePalRcVsTypical:matchup.vsAwaySp?.rcVs??null,
+              homePalMatchupN:matchup.vsAwaySp?.n??null,
+              awayPalRcVsTypical:matchup.vsHomeSp?.rcVs??null,
+              awayPalMatchupN:matchup.vsHomeSp?.n??null,
+              palAsOf:g.bpp?.asOf??null,
+              palRequestId:g.bpp?.requestId??null,
+            }};
+          });
+          const games=attachMlbDeepShadow(enriched);
+          console.log("META "+JSON.stringify({date:slate.date,count:games.length,pal:slate.pal}));
+          for(const g of games){
+            const v2=g.mlbDeepShadow||g.challengers?.["MLB-FBIS-v2"]||null;
+            console.log("MLBV2ROW "+JSON.stringify({
+              id:g.id,start:g.start,away:g.away?.abbr,home:g.home?.abbr,
+              champion:{away:g.projAwayScore,home:g.projHomeScore,total:(Number(g.projAwayScore)+Number(g.projHomeScore))},
+              v2,
+              pal:g.bpp?{away:g.bpp.awayRuns,home:g.bpp.homeRuns,pHome:g.bpp.pHome,park:g.bpp.park,lineupsOfficial:g.bpp.lineupsOfficial,matchup:g.bpp.matchup,asOf:g.bpp.asOf}:null
+            }));
+          }
+          NODE
