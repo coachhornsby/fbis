@@ -18,6 +18,7 @@ import {
 } from "./cbbPureChallenger.js";
 import { NFL_SHADOW_ID } from "./nflModel.js";
 import { MLB_DEEP_ID } from "./mlbDeepModel.js";
+import { NHL_RESEARCH_MODEL_ID, NHL_RESEARCH_MODEL_VERSION } from "./nhlResearchModel.js";
 import { lookupCbbdRating } from "./cbbRatingsSafe.js";
 import {
   buildProbabilityProvenance,
@@ -430,6 +431,51 @@ export function promoteCbbResearchToBoard(games = [], catalog = null) {
     games: next,
     meta: {
       modelId: CBB_PURE_CHALLENGER_ID,
+      promoted,
+      skipped,
+      canQualify: false,
+      canAuthorize: false,
+      publication: "RESEARCH_PUBLISHABLE",
+    },
+  };
+}
+
+
+/** NHL research board — independent team scoring/defense prior, research only. */
+export function promoteNhlResearchToBoard(games = []) {
+  let promoted = 0;
+  let skipped = 0;
+  const next = (games || []).map((game) => {
+    if (game.sport && game.sport !== "nhl") return game;
+    const proj = game.nhlResearch || game.challengers?.[NHL_RESEARCH_MODEL_ID];
+    const scores = scoresFrom(proj);
+    if (!proj?.ok || !scores) {
+      skipped += 1;
+      return {
+        ...game,
+        pureProjectionAvailable: false,
+        projectionDisplayLabel: "NO INDEPENDENT FBIS PROJECTION",
+        publicationStatus: "NOT_PUBLISHABLE",
+        bettingAuthority: "NOT_ELIGIBLE",
+        qualificationBlocked: true,
+        canQualify: false,
+      };
+    }
+    promoted += 1;
+    return stampResearchBoard(game, {
+      modelId: NHL_RESEARCH_MODEL_ID,
+      modelVersion: proj.modelVersion || NHL_RESEARCH_MODEL_VERSION,
+      scores,
+      displayLabel: "FBIS NHL RESEARCH PROJECTION",
+      underlying: "NHL team scoring/defense prior",
+      researchNote: proj.note || "Independent NHL research projection. No wager authority.",
+    });
+  });
+  return {
+    games: next,
+    meta: {
+      modelId: NHL_RESEARCH_MODEL_ID,
+      modelVersion: NHL_RESEARCH_MODEL_VERSION,
       promoted,
       skipped,
       canQualify: false,
