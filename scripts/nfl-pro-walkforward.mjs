@@ -157,6 +157,7 @@ for(const season of seasons){
   const games=schedule.filter(g=>num(g.season)===season&&String(g.game_type)==="REG"&&num(g.home_score)!=null&&num(g.away_score)!=null);
   const prior=bundles[season-1], current=bundles[season];
   const priorForm=formRows(schedule,season-1);
+  const weekCache=new Map();
   for(const g of games){
     const week=num(g.week); if(week==null) continue;
     if(!weekCache.has(week)){
