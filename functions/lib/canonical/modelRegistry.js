@@ -242,10 +242,10 @@ export const MODEL_REGISTRY = Object.freeze([
     modelId: "NHL-FBIS-PURE",
     sport: "nhl",
     family: MODEL_FAMILY.PURE,
-    displayName: "NHL FBIS Pure (feasibility)",
-    maturity: MODEL_MATURITY.INSUFFICIENT_DATA,
+    displayName: "NHL FBIS Pure research-v0-team-prior",
+    maturity: MODEL_MATURITY.RESEARCH,
     role: "challenger",
-    artifactRef: "functions/lib/nhlResearchArchitecture.js",
+    artifactRef: "functions/lib/nhlResearchModel.js",
     coefficientsLocked: false,
     calibrationLocked: false,
     canQualify: false,
@@ -253,7 +253,7 @@ export const MODEL_REGISTRY = Object.freeze([
     marketInformed: false,
     independent: true,
     preservesIncumbent: true,
-    notes: "PROVIDER_OR_LICENSE_BLOCKED for production feed. Research contracts + goalie-first opportunity implemented.",
+    notes: "Live independent opening-season team-prior baseline. RESEARCH only: no qualification or wager authority. Goalie, 5v5 xG, and special-teams layers remain unvalidated.",
   },
 ]);
 
