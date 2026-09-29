@@ -1,0 +1,51 @@
+name: Learning dashboard live probe
+
+on:
+  push:
+    branches:
+      - "probe/learning-dashboard-20260928"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch D1 learning report and sync Sheets
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$(mktemp)"
+          result="$(mktemp)"
+          http="$(curl -sS --max-time 180             -H "x-harvest-secret: ${HARVEST_SECRET}"             -o "$report" -w "%{http_code}"             "${FBIS_BASE}/api/learning-report?since=2026-01-01&limit=5000")"
+          echo "report_http=${http}"
+          cat "$report"
+          test "$http" = "200"
+          jq -e '.ok == true and .source == "prediction_snapshots"' "$report" >/dev/null
+
+          sync_http="$(curl -sS --max-time 180             -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             --data-binary @"$report"             -o "$result" -w "%{http_code}"             "${ORCH_URL}/api/sync-learning-dashboard")"
+          echo "sync_http=${sync_http}"
+          cat "$result"
+          test "$sync_http" = "200"
+          jq -e '.ok == true' "$result" >/dev/null
