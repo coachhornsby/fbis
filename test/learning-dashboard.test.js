@@ -167,7 +167,8 @@ test("trusted final-score ingress is authenticated and feeds full snapshot gradi
   assert.match(workflow, /fetch-final-scoreboard\.mjs/);
   assert.match(script, /fetchResultsForReconcile/);
   assert.match(script, /preferCfbd:false/);
-  assert.match(script, /primary\+cfbfastR/);
+  assert.match(script, /espn-groups-80-81-35/);
+  assert.match(script, /cfbfastR/);
 });
 
 
@@ -211,7 +212,8 @@ test("snapshot reconciliation uses a unique near-exact start to distinguish MLB 
 test("runner final fetch merges primary and public college scoreboards", async () => {
   const script = await readFile(new URL("../scripts/fetch-final-scoreboard.mjs", import.meta.url), "utf8");
   assert.match(script, /function mergeFinals/);
-  assert.match(script, /primary\+cfbfastR/);
+  assert.match(script, /espn-groups-80-81-35/);
+  assert.match(script, /cfbfastR/);
   assert.match(script, /preferCfbd:false/);
 });
 

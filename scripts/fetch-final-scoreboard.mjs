@@ -73,6 +73,48 @@ async function nflverseFinals(day){
       source:"nflverse/nfldata",
     }));
 }
+async function espnCfbGroupedFinals(day){
+  const stamp=String(day).replace(/-/g,"");
+  const groups=["80","81","35"];
+  const out=[];
+  for(const group of groups){
+    try{
+      const url=`https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=${stamp}&limit=500&groups=${group}`;
+      const json=JSON.parse(await fetchText(url));
+      for(const ev of json.events||[]){
+        const comp=ev?.competitions?.[0];
+        const competitors=comp?.competitors||[];
+        const home=competitors.find(x=>x.homeAway==="home");
+        const away=competitors.find(x=>x.homeAway==="away");
+        const hs=finite(home?.score), as=finite(away?.score);
+        const completed=ev?.status?.type?.completed===true || comp?.status?.type?.completed===true || /final/i.test(String(ev?.status?.type?.detail||comp?.status?.type?.detail||""));
+        if(!home||!away||!completed||hs==null||as==null) continue;
+        out.push({
+          id:String(ev.id||comp?.id||""),
+          sport:"cfb",
+          date:day,
+          start:ev.date||comp?.date||null,
+          home:{
+            name:home.team?.location||home.team?.shortDisplayName||home.team?.displayName||"Home",
+            abbr:home.team?.abbreviation||null,
+            score:hs
+          },
+          away:{
+            name:away.team?.location||away.team?.shortDisplayName||away.team?.displayName||"Away",
+            abbr:away.team?.abbreviation||null,
+            score:as
+          },
+          status:{completed:true,state:"post",detail:"Final"},
+          source:`espn-group-${group}`,
+        });
+      }
+    }catch(err){
+      console.error("ESPN_CFB_GROUP_FALLBACK_ERROR",group,String(err?.message||err));
+    }
+  }
+  return out;
+}
+
 async function cfbfastFinals(day){
   const year=String(day).slice(0,4);
   const rows=parseCsv(await fetchText(`${CFBFAST_SCHEDULES_BASE}/cfb_schedules_${year}.csv`));
@@ -131,13 +173,26 @@ async function trustedResults(){
 
   if(sport==="cfb"){
     let publicRows=[];
+    let groupedRows=[];
     try{
       publicRows=await cfbfastFinals(date);
     }catch(err){
       console.error("CFBFAST_FALLBACK_ERROR",String(err?.message||err));
     }
-    const rows=mergeFinals(primary,publicRows);
-    if(rows.length) return {rows,source:primary.length&&publicRows.length?"primary+cfbfastR":"sportsdataverse/cfbfastR-data"};
+    try{
+      groupedRows=await espnCfbGroupedFinals(date);
+    }catch(err){
+      console.error("ESPN_CFB_GROUPS_FALLBACK_ERROR",String(err?.message||err));
+    }
+    const rows=mergeFinals(primary,publicRows,groupedRows);
+    if(rows.length) {
+      const sources=[
+        primary.length?"primary":null,
+        publicRows.length?"cfbfastR":null,
+        groupedRows.length?"espn-groups-80-81-35":null,
+      ].filter(Boolean).join("+");
+      return {rows,source:sources||"cfb-trusted-finals"};
+    }
   }
 
   if(primary.length) return {rows:primary,source:"primary-scoreboard"};

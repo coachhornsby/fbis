@@ -75,6 +75,8 @@ const ACTION_NAME_FLUFF = new Set([
 
 export function normName(s) {
   return String(s || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[''`´ʻʼ]/g, "")
     .replace(/[.]/g, "")
