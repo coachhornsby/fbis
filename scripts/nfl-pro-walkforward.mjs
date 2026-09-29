@@ -79,7 +79,8 @@ function pbpFeatures(team,prior,current,n){
     lineYards:blend(po.lineYards,co.lineYards,n), lineYardsAllowed:blend(pd.lineYards,cd.lineYards,n)
   };
 }
-\nfunction blend(p,c,n){
+
+function blend(p,c,n){
   p=num(p); c=num(c);
   if(p==null) return c; if(c==null) return p;
   const w=Math.max(0,n||0)/(Math.max(0,n||0)+PRIOR_GAMES);
