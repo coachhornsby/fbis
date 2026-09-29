@@ -166,7 +166,8 @@ test("trusted final-score ingress is authenticated and feeds full snapshot gradi
   assert.match(workflow, /api\/final-grade/);
   assert.match(workflow, /fetch-final-scoreboard\.mjs/);
   assert.match(script, /fetchResultsForReconcile/);
-  assert.match(script, /preferCfbd:sport==="cfb"/);
+  assert.match(script, /preferCfbd:false/);
+  assert.match(script, /primary\+cfbfastR/);
 });
 
 
