@@ -14,6 +14,8 @@ import { NHL_FBIS_V1_ARTIFACT } from "../data/models/nhl-fbis-v1.js";
 describe("NHL-FBIS-v1 five-layer research model", () => {
   const artifact = {
     trained: true,
+    goaliePriorWeights: {"20232024":0.15,"20242025":0.25,"20252026":0.60},
+    goaliePriorPolicy: "season-specific GSAx/game, workload-shrunk within season, then 60/25/15 recency blend",
     artifactVersion: "test-fit",
     league: {
       fiveVFiveXgPerTeamGame: 2.35,
@@ -26,8 +28,20 @@ describe("NHL-FBIS-v1 five-layer research model", () => {
       FLA: { xGF5v5PerGame: 2.51, xGA5v5PerGame: 2.28 },
     },
     goalies: {
-      g1: { regressedImpactGoalsPerGame: 0.15 },
-      g2: { regressedImpactGoalsPerGame: 0.08 },
+      g1: {
+        regressedImpactGoalsPerGame: 0.15,
+        history: {
+          "20232024": { games:40, gsax:2, gsaxPerGame:0.05, workloadShrink:0.7692, regressedImpactGoalsPerGame:0.0385, priorWeight:0.15 },
+          "20242025": { games:45, gsax:4.5, gsaxPerGame:0.10, workloadShrink:0.7895, regressedImpactGoalsPerGame:0.0789, priorWeight:0.25 },
+          "20252026": { games:52, gsax:10.4, gsaxPerGame:0.20, workloadShrink:0.8125, regressedImpactGoalsPerGame:0.1625, priorWeight:0.60 }
+        }
+      },
+      g2: {
+        regressedImpactGoalsPerGame: 0.08,
+        history: {
+          "20252026": { games:48, gsax:4.8, gsaxPerGame:0.10, workloadShrink:0.80, regressedImpactGoalsPerGame:0.08, priorWeight:0.60 }
+        }
+      },
     },
     expectedGoalieByTeam: {
       CAR: { goalieId: "g1", games: 52, impactGoalsPerGame: 0.15 },
@@ -66,9 +80,26 @@ describe("NHL-FBIS-v1 five-layer research model", () => {
     assert.equal(NHL_FBIS_V1_ARTIFACT.trained, true);
     assert.equal(NHL_FBIS_V1_ARTIFACT.gamesParsed, 3936);
     assert.equal(NHL_FBIS_V1_ARTIFACT.failedGames, 0);
+    assert.equal(NHL_FBIS_V1_ARTIFACT.goaliePriorWeights?.["20252026"], 0.60);
+    assert.equal(NHL_FBIS_V1_ARTIFACT.goaliePriorWeights?.["20242025"], 0.25);
+    assert.equal(NHL_FBIS_V1_ARTIFACT.goaliePriorWeights?.["20232024"], 0.15);
     assert.ok(NHL_FBIS_V1_ARTIFACT.xg.validationShots > 80000);
     assert.ok(NHL_FBIS_V1_ARTIFACT.xg.validationBrier < 0.07);
     assert.ok(Object.keys(NHL_FBIS_V1_ARTIFACT.goalies || {}).length >= 100);
+  });
+
+  it("makes 2025-26 the dominant goalie prior season and exposes the weighting", () => {
+    assert.deepEqual(artifact.goaliePriorWeights, {
+      "20232024": 0.15,
+      "20242025": 0.25,
+      "20252026": 0.60,
+    });
+    const p = projectNhlV1Game(game, ctx);
+    assert.equal(p.ok, true);
+    assert.equal(p.layers.goalie.home.latestSeason, "20252026");
+    assert.equal(p.layers.goalie.away.latestSeason, "20252026");
+    assert.equal(p.layers.fiveVFiveXg.goaliePriorWeights["20252026"], 0.60);
+    assert.match(p.layers.fiveVFiveXg.goaliePriorPolicy, /60\/25\/15/);
   });
 
   it("combines all five independent layers", () => {
