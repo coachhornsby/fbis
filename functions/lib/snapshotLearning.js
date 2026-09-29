@@ -105,6 +105,7 @@ export function selectCanonicalLearningSnapshots(rows = []) {
   let rejectedUngraded = 0;
 
   for (const row of rows || []) {
+    if (String(row?.projectionState || "").toUpperCase() === "LEARNING_EXCLUDED") continue;
     if (!gradedScoreRow(row)) {
       rejectedUngraded += 1;
       continue;

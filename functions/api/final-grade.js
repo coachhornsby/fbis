@@ -1,6 +1,6 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { gradeSnapshotPopulationAgainstFinals } from "../lib/projLedger.js";
-import { gradeSnapshotsForGame } from "../lib/store.js";
+import { excludeSnapshotsForGame, gradeSnapshotsForGame } from "../lib/store.js";
 
 const SPORTS = new Set(["mlb","nfl","cfb","cbb","nba","nhl"]);
 
@@ -61,6 +61,39 @@ export async function onRequestPost(context){
     const date=String(body?.date||"").slice(0,10);
     if(!SPORTS.has(sport)) return json({ok:false,error:"unsupported-sport"},400);
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ok:false,error:"invalid-date"},400);
+    const exclusionsRaw=Array.isArray(body?.exclusions)?body.exclusions:null;
+    if(exclusionsRaw){
+      if(exclusionsRaw.length>50) return json({ok:false,error:"too-many-exclusions"},400);
+      let excluded=0;
+      let failed=0;
+      const failedGameIds=[];
+      for(const row of exclusionsRaw){
+        const gameId=String(row?.gameId||"").trim();
+        const reason=String(row?.reason||"INVALID_HISTORICAL_SNAPSHOT").trim();
+        if(!gameId){
+          failed+=1;
+          failedGameIds.push(gameId);
+          continue;
+        }
+        const res=await excludeSnapshotsForGame(context.env,{gameId,reason,excludedAt:new Date().toISOString()});
+        if(res?.ok) excluded+=1;
+        else {
+          failed+=1;
+          failedGameIds.push(gameId);
+        }
+      }
+      return json({
+        ok:failed===0,
+        mode:"learning-exclusions",
+        sport,
+        date,
+        excluded,
+        failed,
+        failedGameIds,
+        at:new Date().toISOString(),
+      },failed===0?200:503);
+    }
+
     const directRaw=Array.isArray(body?.grades)?body.grades:null;
     if(directRaw){
       if(directRaw.length>25) return json({ok:false,error:"too-many-grades"},400);

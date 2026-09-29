@@ -700,6 +700,41 @@ export async function gradeSnapshotsForGame(env, { gameId, actualHome, actualAwa
   }
 }
 
+
+export async function excludeSnapshotsForGame(env, { gameId, reason = "INVALID_HISTORICAL_SNAPSHOT", excludedAt = null } = {}) {
+  markBound(env);
+  if (!hasDb(env) || !gameId) return { ok: false, reason: "unbound" };
+  const at = excludedAt || new Date().toISOString();
+  const flag = `learning_excluded:${String(reason || "invalid_historical_snapshot").toLowerCase()}`;
+  try {
+    await env.DB.prepare(
+      `UPDATE prediction_snapshots
+       SET projection_state = 'LEARNING_EXCLUDED',
+           projection_flags = CASE
+             WHEN projection_flags IS NULL OR projection_flags = '' THEN ?
+             WHEN instr(lower(projection_flags), 'learning_excluded:') > 0 THEN projection_flags
+             ELSE projection_flags || '|' || ?
+           END,
+           graded_at = COALESCE(graded_at, ?)
+       WHERE game_id = ? AND actual_home IS NULL AND actual_away IS NULL`
+    )
+      .bind(flag, flag, n(at), String(gameId))
+      .run();
+    await env.DB.prepare(
+      `UPDATE predictions
+       SET projection_state = 'LEARNING_EXCLUDED'
+       WHERE game_id = ? AND actual_home IS NULL AND actual_away IS NULL`
+    )
+      .bind(String(gameId))
+      .run();
+    markWrite();
+    return { ok: true, gameId: String(gameId), state: "LEARNING_EXCLUDED", reason: String(reason || "") };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
 export async function persistGame(env, game, date) {
   markBound(env);
   if (!hasDb(env) || !game?.id) return { ok: false, reason: "unbound" };

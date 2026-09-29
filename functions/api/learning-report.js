@@ -159,6 +159,7 @@ export async function onRequestGet(context){
           ) AS snapshot_count
         FROM prediction_snapshots
         WHERE date >= ?
+          AND COALESCE(projection_state,'') != 'LEARNING_EXCLUDED'
           AND (
             ${startExpr} IS NULL OR
             frozen_at <= ${startExpr}
@@ -174,6 +175,7 @@ export async function onRequestGet(context){
         `SELECT sport,COUNT(*) AS snapshot_rows
            FROM prediction_snapshots
           WHERE date >= ?
+            AND COALESCE(projection_state,'') != 'LEARNING_EXCLUDED'
           GROUP BY sport`,
         [since]
       ),
@@ -234,6 +236,7 @@ export async function onRequestGet(context){
         `SELECT sport,COUNT(*) AS n
            FROM prediction_snapshots
           WHERE date >= ?
+            AND COALESCE(projection_state,'') != 'LEARNING_EXCLUDED'
             AND ${startExpr} IS NOT NULL
             AND frozen_at > ${startExpr}
           GROUP BY sport`,
