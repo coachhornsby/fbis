@@ -44,7 +44,14 @@ jobs:
                   [ -n "$id" ] || continue
                   code="$(curl -sS --max-time 60 -o response.json -w "%{http_code}" -X DELETE -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "$api/pages/projects/$project/deployments/$id?force=true")"
                   echo "delete deployment $project/$id http=$code"
-                  if [ "$code" = "200" ] || [ "$code" = "404" ]; then deleted=$((deleted+1)); else cat response.json; exit 1; fi
+                  if [ "$code" = "200" ] || [ "$code" = "404" ]; then
+                    deleted=$((deleted+1))
+                  elif [ "$code" = "400" ] && grep -q "active production deployment" response.json; then
+                    echo "preserve active production deployment $project/$id until project deletion"
+                  else
+                    cat response.json
+                    exit 1
+                  fi
                 done <<<"$ids"
                 [ "$deleted" -gt 0 ] || break
               done
