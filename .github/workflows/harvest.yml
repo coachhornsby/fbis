@@ -252,6 +252,15 @@ jobs:
               st="$(jq -r '.status // ""' "$tmp")"
               ok="$(jq -r '.ok == true' "$tmp")"
               body_err="$(jq -r '(.errors // []) | join(" | ")' "$tmp")"
+              if [ "$SPORT" = "cfb" ] && [ "$TRIGGER" = "schedule" ] && echo "$body_err" | grep -qiE 'CFBD.*429|rate.?limit'; then
+                echo "cfb scheduled collect soft-degraded: upstream CFBD rate limit; retaining persisted CFB data and stopping retries"
+                {
+                  echo "## CFB research collect degraded"
+                  echo "- reason: upstream CFBD rate limit"
+                  echo "- action: retained existing persisted CFB data; skipped repeated provider retries"
+                } >> "$GITHUB_STEP_SUMMARY"
+                return 0
+              fi
               retryable="false"
               if [ "$http" = "429" ] || [ "$http" = "500" ] || [ "$http" = "502" ] || [ "$http" = "503" ] || [ "$http" = "504" ]; then retryable="true"; fi
               if [ "$st" = "failed" ] && echo "$body_err" | grep -qiE "429|503|502|504|timeout|temporar|rate|overloaded"; then retryable="true"; fi
@@ -616,8 +625,18 @@ jobs:
                 sleep $((attempt * 8))
               done
               if [ "$ok_collect" != "1" ]; then
-                echo "collect-recovery ${sport} failed after retries (continuing so harvest catch-up can still run)"
-                collect_failed=1
+                rate_limited="$(jq -r '[.errors[]? | tostring] | any(test("CFBD.*429|rate.?limit"; "i"))' "$body" 2>/dev/null || echo false)"
+                if [ "$sport" = "cfb" ] && [ "$rate_limited" = "true" ]; then
+                  echo "collect-recovery cfb soft-degraded: upstream CFBD rate limit; retaining persisted CFB data"
+                  {
+                    echo "## CFB watchdog collect degraded"
+                    echo "- reason: upstream CFBD rate limit"
+                    echo "- action: retained existing persisted CFB data; watchdog continues"
+                  } >> "$GITHUB_STEP_SUMMARY"
+                else
+                  echo "collect-recovery ${sport} failed after retries (continuing so harvest catch-up can still run)"
+                  collect_failed=1
+                fi
               fi
             done
           fi
