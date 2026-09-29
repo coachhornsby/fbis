@@ -273,8 +273,7 @@ function aggregate(shots,games,w,seasons){
   const goaliePriorWeights={};
   const explicit=[0.15,0.25,0.60];
   for(let i=0;i<seasons.length;i++){
-    const fromEnd=seasons.length-1-i;
-    goaliePriorWeights[seasons[i]]=explicit[fromEnd] ?? 0;
+    goaliePriorWeights[seasons[i]]=explicit[i] ?? 0;
   }
 
   for(const [id,g] of goalie){
