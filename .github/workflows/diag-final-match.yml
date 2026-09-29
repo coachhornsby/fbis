@@ -1,0 +1,36 @@
+name: Diagnose final reconciliation
+
+on:
+  push:
+    branches:
+      - diag/final-match-20260928
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: main
+
+      - name: Diagnose CFB 2026-09-03 unmatched snapshot
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/report.json"
+          payload="$RUNNER_TEMP/finals.json"
+          curl -fsS --max-time 180             -H "x-harvest-secret: ${HARVEST_SECRET}"             "${FBIS_BASE}/api/learning-report?since=2026-01-01&limit=5000" > "$report"
+
+          echo "=== SNAPSHOT ==="
+          jq -c '.audit[]? | select(.gameId=="5b80acf126c47505910a51fd6e463436") | {gameId,sport,date,start,matchup,modelId,projectionKind,learningStatus}' "$report"
+
+          node scripts/fetch-final-scoreboard.mjs cfb 2026-09-03 > "$payload"
+
+          echo "=== FINALS ==="
+          jq -c '.finals[] | {id,start,away:(.away.name // .away.abbr // .away),home:(.home.name // .home.abbr // .home),awayScore:(.away.score // .awayScore),homeScore:(.home.score // .homeScore),status}' "$payload"
