@@ -155,7 +155,7 @@ for(const season of seasons){
       away:{...combinedFeatures(away,prior.teamFull,prior.qbFull,curTeam,curQb),...pbpFeatures(away,prior.pbpFull,curPbp,curTeam.offense[away]?.games||0)}
     }};
     const pro=projectNflProV2(game);
-    const curForm=formRows(schedule,season,week);
+
     const form=projectNflFormV0(game,{homePrior:priorForm.get(home),awayPrior:priorForm.get(away),homeCurrent:curForm.get(home),awayCurrent:curForm.get(away)});
     if(!pro.ok||!form.ok) continue;
     const actualHome=num(g.home_score), actualAway=num(g.away_score);
