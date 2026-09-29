@@ -62,6 +62,7 @@ export async function onRequestPost(context){
     if(!SPORTS.has(sport)) return json({ok:false,error:"unsupported-sport"},400);
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ok:false,error:"invalid-date"},400);
     const exclusionsRaw=Array.isArray(body?.exclusions)?body.exclusions:null;
+    const forceExclude=body?.forceExclude===true;
     if(exclusionsRaw){
       if(exclusionsRaw.length>50) return json({ok:false,error:"too-many-exclusions"},400);
       let excluded=0;
@@ -75,7 +76,7 @@ export async function onRequestPost(context){
           failedGameIds.push(gameId);
           continue;
         }
-        const res=await excludeSnapshotsForGame(context.env,{gameId,reason,excludedAt:new Date().toISOString()});
+        const res=await excludeSnapshotsForGame(context.env,{gameId,reason,excludedAt:new Date().toISOString(),forceExclude});
         if(res?.ok) excluded+=1;
         else {
           failed+=1;

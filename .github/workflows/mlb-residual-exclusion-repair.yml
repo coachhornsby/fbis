@@ -1,0 +1,28 @@
+name: MLB residual exclusion repair
+on:
+  push:
+    branches: [fix/mlb-residual-exclusions-2026-09-29]
+    paths: [".github/workflows/mlb-residual-exclusion-repair.yml"]
+permissions:
+  contents: read
+jobs:
+  exclude:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exclude three unreconcilable corrupted historical ids
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: |
+          cat > payload.json <<'JSON'
+          {"sport":"mlb","date":"2026-09-29","forceExclude":true,"exclusions":[
+            {"gameId":"mlb_orioles_yankees_2026-09-25_b2_g1","reason":"HISTORICAL_FINAL_UNRECONCILABLE"},
+            {"gameId":"mlb_orioles_yankees_2026-09-25_b3","reason":"HISTORICAL_FINAL_UNRECONCILABLE"},
+            {"gameId":"8de9b042f012427963c0af26a353216a","reason":"HISTORICAL_FINAL_UNRECONCILABLE"}
+          ]}
+          JSON
+          http="$(curl -sS --max-time 120 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" --data-binary @payload.json -o response.json -w "%{http_code}" "${BASE}/api/final-grade")"
+          cat response.json
+          test "$http" = "200"
+          jq -e '.ok==true and .excluded==3 and .failed==0' response.json >/dev/null
