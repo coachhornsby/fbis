@@ -101,10 +101,10 @@ export const MODEL_REGISTRY = Object.freeze([
     notes: "Incumbent independent MLB scores. Qualify still requires Pin two-way + integrity gates.",
   },
   {
-    modelId: "MLB-RUN-ALLOC-v1",
+    modelId: "MLB-FBIS-v2",
     sport: "mlb",
     family: MODEL_FAMILY.PURE,
-    displayName: "MLB Run Allocation v1",
+    displayName: "MLB FBIS v2 Pal-feature challenger",
     maturity: MODEL_MATURITY.RESEARCH,
     role: "challenger",
     artifactRef: null,
@@ -115,7 +115,7 @@ export const MODEL_REGISTRY = Object.freeze([
     marketInformed: false,
     independent: true,
     preservesIncumbent: true,
-    notes: "Shadow run-allocation challenger — cannot silently replace Savant path.",
+    notes: "Research shadow: Savant/starter/bullpen plus PIT Pal park/matchup/lineup features. Pal final scores and probabilities remain external benchmarks and never enter FBIS score.",
   },
   {
     modelId: "CBB-FBIS-PURE",
