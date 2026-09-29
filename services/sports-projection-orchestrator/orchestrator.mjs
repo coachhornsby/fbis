@@ -35,6 +35,8 @@ export const CFG = Object.freeze({
     disagreements: 'Model Disagreements',
     dashboard: 'Daily Projections',
     allProjections: 'All Projections',
+    modelLearning: 'Model Learning',
+    projectionAudit: 'Projection Audit',
     snapshots: 'Feature Snapshots',
     usage: 'AI API Usage',
   }
@@ -102,6 +104,26 @@ const ALL_PROJECTION_HEADERS = [
   "Market Home ML","Market Away ML","Market Source","Generated At","Last Synced At",
   "Game State","Actual Away","Actual Home","Actual Total","Actual Margin",
   "Total Error","Margin Error","Learning Status"
+];
+
+const MODEL_LEARNING_HEADERS = [
+  "Sport","Model ID","Projected Games","Graded Games","Awaiting Finals",
+  "Margin MAE","Margin Bias","Total MAE","Total Bias","Brier","Winner Hit %",
+  "Training Status","Train N","Holdout N","Margin Correction",
+  "Margin Holdout MAE Before","Margin Holdout MAE After","Total Correction",
+  "Total Holdout MAE Before","Total Holdout MAE After","Win Prob Correction",
+  "Brier Before","Brier After","Open Findings","Market Informed?",
+  "Last Frozen At","Last Graded At","Last Trained At","Leakage OK?",
+  "Training Source","Synced At"
+];
+
+const PROJECTION_AUDIT_HEADERS = [
+  "Game ID","Sport","Date","Event Start","Matchup","Model ID","Model Version","Engine",
+  "Checkpoint","Snapshots Stored","Frozen At","Projected Away","Projected Home",
+  "Projected Total","Projected Margin","Home Win Prob","Actual Away","Actual Home",
+  "Actual Total","Actual Margin","Total Error","Margin Error","Winner Correct?",
+  "Graded At","Projection Kind","Market Informed?","Data Quality","Projection Flags",
+  "Weather","Availability / Injuries","Learning Status","Synced At"
 ];
 
 const now = () => new Date().toISOString();
@@ -195,6 +217,9 @@ class SheetsClient {
     return this.req('/values/' + encodeURIComponent(range) + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',{
       method:'POST', body:JSON.stringify({range,majorDimension:'ROWS',values})
     });
+  }
+  async clear(range){
+    return this.req('/values/' + encodeURIComponent(range) + ':clear',{method:'POST',body:'{}'});
   }
 }
 
@@ -648,6 +673,134 @@ function allProjectionRow(board,game){
     actualMargin!=null&&projectedMargin!=null?projectedMargin-actualMargin:null,
     'ALL-GAME LEARNING POPULATION'
   ].map(v=>v==null?'':v);
+}
+
+function modelLearningRow(model, syncedAt){
+  const metrics=model?.metrics||{};
+  const margin=metrics.margin||{};
+  const total=metrics.total||{};
+  const probability=metrics.probability||{};
+  const actual=model?.lastTraining?.artifact||null;
+  const preview=model?.currentTrainingPreview||{};
+  const training=actual||preview||{};
+  const targets=training.targets||{};
+  const marginTarget=targets.margin||{};
+  const totalTarget=targets.total||{};
+  const probTarget=targets.homeWinProbability||{};
+  return [
+    model?.sport||'',model?.modelId||'',model?.projectedGames??0,model?.gradedGames??0,model?.awaitingFinals??0,
+    finiteNumber(margin.mae),finiteNumber(margin.bias),finiteNumber(total.mae),finiteNumber(total.bias),
+    finiteNumber(probability.brier),finiteNumber(probability.winnerHit),
+    actual?'TRAINED':(preview?.status||'NO_DATA'),training.trainN??'',training.holdoutN??'',
+    finiteNumber(marginTarget.correction),finiteNumber(marginTarget.holdoutMaeBefore),finiteNumber(marginTarget.holdoutMaeAfter),
+    finiteNumber(totalTarget.correction),finiteNumber(totalTarget.holdoutMaeBefore),finiteNumber(totalTarget.holdoutMaeAfter),
+    finiteNumber(probTarget.correction),finiteNumber(probTarget.holdoutBrierBefore),finiteNumber(probTarget.holdoutBrierAfter),
+    model?.openFindings??0,model?.marketInformed?'YES':'NO',model?.lastFrozenAt||'',model?.lastGradedAt||'',
+    model?.lastTraining?.createdAt||'',model?.lastTraining?.leakageOk==null?'':(model.lastTraining.leakageOk?'YES':'NO'),
+    model?.lastTraining?.source||'prediction_snapshots',syncedAt
+  ].map(v=>v==null?'':v);
+}
+
+function projectionAuditRow(row,syncedAt){
+  return [
+    row?.gameId||'',row?.sport||'',row?.date||'',row?.start||'',row?.matchup||'',row?.modelId||'',
+    row?.modelVersion||'',row?.engine||'',row?.checkpoint||'',row?.snapshotCount??1,row?.frozenAt||'',
+    finiteNumber(row?.projAway),finiteNumber(row?.projHome),finiteNumber(row?.projTotal),finiteNumber(row?.projMargin),
+    finiteNumber(row?.pHome),finiteNumber(row?.actualAway),finiteNumber(row?.actualHome),finiteNumber(row?.actualTotal),
+    finiteNumber(row?.actualMargin),finiteNumber(row?.totalError),finiteNumber(row?.marginError),
+    row?.winnerCorrect==null?'':(row.winnerCorrect?'YES':'NO'),row?.gradedAt||'',row?.projectionKind||'',
+    row?.marketInformed?'YES':'NO',finiteNumber(row?.dataQuality),row?.projectionFlags||'',row?.weather||'',
+    row?.availability||'',row?.learningStatus||'',syncedAt
+  ].map(v=>v==null?'':v);
+}
+
+function auditMatchScore(audit, sheetRow){
+  let score=0;
+  const engine=String(sheetRow?.[13]||'').toLowerCase();
+  const version=String(sheetRow?.[14]||'').toLowerCase();
+  const model=String(sheetRow?.[12]||'').toLowerCase();
+  const aEngine=String(audit?.engine||'').toLowerCase();
+  const aVersion=String(audit?.modelVersion||'').toLowerCase();
+  const aModel=String(audit?.modelId||'').toLowerCase();
+  if(engine && (aEngine===engine || aModel.includes(engine))) score+=4;
+  if(version && (aVersion===version || aModel.includes(version))) score+=4;
+  if(model && aModel.includes(model.replace(/\s+/g,'-'))) score+=1;
+  if(audit?.gradedAt) score+=0.5;
+  return score;
+}
+
+export async function syncLearningDashboard(report={}){
+  if(!sheets.available()) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON required for learning dashboard sync');
+  if(!report || report.source!=='prediction_snapshots' || !Array.isArray(report.sports) || !Array.isArray(report.audit)){
+    throw new Error('Invalid learning-report payload');
+  }
+  const syncedAt=now();
+  const modelRows=[];
+  for(const sport of report.sports||[]){
+    for(const model of sport.models||[]) modelRows.push(modelLearningRow(model,syncedAt));
+  }
+  modelRows.sort((a,b)=>String(a[0]).localeCompare(String(b[0]))||String(a[1]).localeCompare(String(b[1])));
+  const auditRows=(report.audit||[]).map(row=>projectionAuditRow(row,syncedAt));
+
+  await sheets.clear(q(CFG.sheets.modelLearning)+'!A1:AE500');
+  await sheets.update(q(CFG.sheets.modelLearning)+'!A1:AE'+Math.max(1,modelRows.length+1),[
+    MODEL_LEARNING_HEADERS,
+    ...modelRows
+  ]);
+  await sheets.clear(q(CFG.sheets.projectionAudit)+'!A1:AF10000');
+  await sheets.update(q(CFG.sheets.projectionAudit)+'!A1:AF'+Math.max(1,auditRows.length+1),[
+    PROJECTION_AUDIT_HEADERS,
+    ...auditRows
+  ]);
+
+  const allRange=q(CFG.sheets.allProjections)+'!A1:AJ3000';
+  const existing=await sheets.get(allRange);
+  const allRows=existing.values||[];
+  const byGame=new Map();
+  for(const audit of report.audit||[]){
+    const key=projectionSheetKey(audit.sport,audit.gameId);
+    if(!byGame.has(key)) byGame.set(key,[]);
+    byGame.get(key).push(audit);
+  }
+  let reconciled=0;
+  let awaiting=0;
+  for(let i=1;i<allRows.length;i++){
+    const row=allRows[i];
+    const key=projectionSheetKey(row?.[1],row?.[0]);
+    const candidates=byGame.get(key)||[];
+    if(!candidates.length) continue;
+    candidates.sort((a,b)=>auditMatchScore(b,row)-auditMatchScore(a,row)||String(b.frozenAt||'').localeCompare(String(a.frozenAt||'')));
+    const audit=candidates[0];
+    row[27]=syncedAt;
+    if(audit.actualAway!=null && audit.actualHome!=null){
+      row[28]='FINAL';
+      row[29]=audit.actualAway;
+      row[30]=audit.actualHome;
+      row[31]=audit.actualTotal;
+      row[32]=audit.actualMargin;
+      row[33]=audit.totalError;
+      row[34]=audit.marginError;
+      row[35]='GRADED / INCLUDED';
+      reconciled++;
+    }else{
+      row[35]='AWAITING FINAL';
+      awaiting++;
+    }
+  }
+  if(allRows.length){
+    await sheets.update(q(CFG.sheets.allProjections)+'!A1:AJ'+allRows.length,allRows);
+  }
+
+  return {
+    ok:true,
+    modelRows:modelRows.length,
+    auditRows:auditRows.length,
+    allProjectionFinalsReconciled:reconciled,
+    allProjectionAwaitingFinals:awaiting,
+    sourceTotals:report.totals||null,
+    reportGeneratedAt:report.generatedAt||null,
+    syncedAt
+  };
 }
 
 async function syncAllProjectionBoards(boards){
