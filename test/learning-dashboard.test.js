@@ -128,3 +128,29 @@ test("daily results path grades the full immutable projection population", async
   assert.match(ledger, /snapshotFinalsGraded/);
   assert.match(workflow, /settleOnly=1&gradeResearch=1/);
 });
+
+
+test("trusted final-score ingress grades immutable projection population", async () => {
+  const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
+  assert.match(api, /authorizeHarvest/);
+  assert.match(api, /gradeSnapshotPopulationAgainstFinals/);
+  assert.match(api, /too-many-finals/);
+  assert.match(api, /trusted-scoreboard-push/);
+});
+
+test("daily grading has a GitHub-runner scoreboard fallback for all six sports", async () => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/daily-results-grade.yml", import.meta.url),
+    "utf8"
+  );
+  const script = await readFile(
+    new URL("../scripts/fetch-final-scoreboard.mjs", import.meta.url),
+    "utf8"
+  );
+  assert.match(workflow, /actions\/checkout@v4\.2\.2/);
+  assert.match(workflow, /fetch-final-scoreboard\.mjs/);
+  assert.match(workflow, /\/api\/final-grade/);
+  assert.match(workflow, /for sport in mlb nfl nba nhl cfb cbb/);
+  assert.match(script, /fetchResultsForReconcile/);
+  assert.match(script, /github-runner-scoreboard/);
+});
