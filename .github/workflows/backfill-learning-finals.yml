@@ -166,7 +166,6 @@ jobs:
             else
               fail=$((fail+1))
             fi
-fi
           done < "$targets_file"
           echo "backfill calls ok=$ok fail=$fail matched=$matched unmatched=$unmatched"
           {
