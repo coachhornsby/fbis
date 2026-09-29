@@ -360,7 +360,7 @@ function aggregate(shots,games,w,seasons){
       latestSeason:latest,
       latestSeasonGames,
       latestSeasonTeam:latestTeam,
-      latestSeasonTeamShots,
+      latestSeasonTeamShots:latestTeamShots,
       regressedImpactGoalsPerGame:round(priorImpact,4)
     };
 
