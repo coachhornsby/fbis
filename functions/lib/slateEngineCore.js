@@ -877,6 +877,86 @@ export function mapEvent(sport, event) {
   return attachMarketLabels(enrichGameTeams(sport, mapped));
 }
 
+async function fetchNhlOfficialSchedule(day) {
+  const url = `https://api-web.nhle.com/v1/schedule/${day}`;
+  const json = await fetchJsonGuarded(url, {
+    circuitKey: "nhl-official-schedule",
+    label: "NHL official schedule",
+    retries: 1,
+    timeoutMs: 9000,
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; FBIS/1.0)",
+      Accept: "application/json,text/plain,*/*",
+    },
+    shapeCheck: (body) => Array.isArray(body?.gameWeek),
+  });
+  const target = (json?.gameWeek || []).find((row) => String(row?.date || "").slice(0, 10) === day);
+  return (target?.games || []).map((g) => {
+    const home = g?.homeTeam || {};
+    const away = g?.awayTeam || {};
+    const state = String(g?.gameState || "").toUpperCase();
+    const completed = ["FINAL", "OFF"].includes(state);
+    const live = ["LIVE", "CRIT"].includes(state);
+    const team = (raw, fallback) => ({
+      name:
+        raw?.placeName?.default ||
+        raw?.commonName?.default ||
+        raw?.name?.default ||
+        raw?.abbrev ||
+        fallback,
+      abbr: String(raw?.abbrev || "—").toUpperCase(),
+      logo: raw?.logo || "",
+      score: num(raw?.score),
+      rank: null,
+      record: "",
+      espnId: null,
+      nhlId: raw?.id != null ? String(raw.id) : null,
+      location: raw?.placeName?.default || null,
+      shortDisplayName: raw?.commonName?.default || raw?.abbrev || null,
+      slug: null,
+    });
+    return {
+      id: String(g?.id || ""),
+      sport: "nhl",
+      start: g?.startTimeUTC || null,
+      status: {
+        state: completed ? "post" : live ? "in" : "pre",
+        detail: completed ? "Final" : live ? "Live" : "Scheduled",
+        completed,
+        live,
+      },
+      home: team(home, "Home"),
+      away: team(away, "Away"),
+      odds: {
+        spread: null,
+        total: null,
+        homeMl: null,
+        awayMl: null,
+        details: "",
+        book: EXECUTION_BOOK,
+      },
+      espnHomeWinPct: null,
+      projHomeScore: null,
+      projAwayScore: null,
+      marketProjHome: null,
+      marketProjAway: null,
+      projectionKind: "UNAVAILABLE",
+      venue: g?.venue?.default || "",
+      venueId: null,
+      venueCity: home?.placeName?.default || "",
+      venueState: "",
+      venueIndoor: true,
+      venueLat: null,
+      venueLon: null,
+      venueRoof: "Indoor",
+      broadcast: "",
+      notes: [],
+      neutralSite: false,
+      source: "nhl-official-schedule",
+    };
+  });
+}
+
 export async function fetchEspnScoreboard(sport, date) {
   const cfg = SPORTS[sport] || SPORTS.cbb;
   const stamp = dateStamp(date);
@@ -1486,6 +1566,14 @@ export async function buildSlate(sport, date, env = {}) {
       });
       scheduleResolved = true;
     } catch (err) {
+      if (!games.length && id === "nhl") {
+        try {
+          games = await fetchNhlOfficialSchedule(day);
+          scheduleResolved = true;
+        } catch {
+          // Keep provider fallback behavior below.
+        }
+      }
       if (!games.length) {
         if (id === "cfb" && env.CFBD_API_KEY && env.cfbdScheduleFallback !== false) {
           games = await fetchCfbdGamesForDate(day, env.CFBD_API_KEY);

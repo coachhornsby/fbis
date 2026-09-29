@@ -40,8 +40,17 @@ function statUrl(seasonId) {
   return `${NHL_STATS_BASE}?isAggregate=false&isGame=false&start=0&limit=100&cayenneExp=${exp}`;
 }
 
-function rowAbbr(row = {}) {
-  return String(
+function normTeamName(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function rowAbbr(row = {}, teamLookup = null) {
+  const direct = String(
     row.teamAbbrev ||
     row.teamAbbreviation ||
     row.teamTriCode ||
@@ -49,18 +58,22 @@ function rowAbbr(row = {}) {
     row.rawTricode ||
     ""
   ).trim().toUpperCase();
+  if (direct) return direct;
+  const byId = row.teamId != null ? teamLookup?.byId?.get(String(row.teamId)) : null;
+  if (byId) return byId;
+  return teamLookup?.byName?.get(normTeamName(row.teamFullName || row.teamName || row.team)) || "";
 }
 
-function normalizeRow(row = {}) {
+function normalizeRow(row = {}, teamLookup = null) {
   const gp = finite(row.gamesPlayed);
   const gf = finite(row.goalsFor);
   const ga = finite(row.goalsAgainst);
   const gfpg = finite(row.goalsForPerGame) ?? (gp && gf != null ? gf / gp : null);
   const gapg = finite(row.goalsAgainstPerGame) ?? (gp && ga != null ? ga / gp : null);
-  if (!rowAbbr(row) || !gp || gfpg == null || gapg == null) return null;
+  if (!rowAbbr(row, teamLookup) || !gp || gfpg == null || gapg == null) return null;
   return {
-    abbr: rowAbbr(row),
-    team: row.teamFullName || row.teamName || row.team || rowAbbr(row),
+    abbr: rowAbbr(row, teamLookup),
+    team: row.teamFullName || row.teamName || row.team || rowAbbr(row, teamLookup),
     gamesPlayed: gp,
     goalsForPerGame: gfpg,
     goalsAgainstPerGame: gapg,
@@ -84,8 +97,21 @@ async function fetchJson(url, fetcher = fetch) {
 
 export async function loadNhlResearchPrior(date, { fetcher = fetch } = {}) {
   const ids = seasonIds(date);
-  const json = await fetchJson(statUrl(ids.prior), fetcher);
-  const rows = (json?.data || []).map(normalizeRow).filter(Boolean);
+  const [json, teamJson] = await Promise.all([
+    fetchJson(statUrl(ids.prior), fetcher),
+    fetchJson("https://api.nhle.com/stats/rest/en/team?limit=-1", fetcher),
+  ]);
+  const byId = new Map();
+  const byName = new Map();
+  for (const team of teamJson?.data || []) {
+    const abbr = String(team.rawTricode || team.triCode || "").trim().toUpperCase();
+    if (!abbr) continue;
+    if (team.id != null) byId.set(String(team.id), abbr);
+    const full = normTeamName(team.fullName);
+    if (full) byName.set(full, abbr);
+  }
+  const teamLookup = { byId, byName };
+  const rows = (json?.data || []).map((row) => normalizeRow(row, teamLookup)).filter(Boolean);
   const byAbbr = Object.fromEntries(rows.map((r) => [r.abbr, r]));
   const leagueAvgGoals = rows.length
     ? rows.reduce((s, r) => s + r.goalsForPerGame, 0) / rows.length

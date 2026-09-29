@@ -175,8 +175,10 @@ export function enrichTeam(sport, raw = {}) {
   if (!hit) {
     const malformed = isMalformedAbbr(raw.abbr);
     const abbr = malformed ? "—" : String(raw.abbr || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const invented = malformed || looksInventedAbbr(raw.name, abbr);
-    const hasProviderId = raw.espnId != null && String(raw.espnId) !== "";
+    const hasProviderId =
+      (raw.espnId != null && String(raw.espnId) !== "") ||
+      (raw.nhlId != null && String(raw.nhlId) !== "");
+    const invented = malformed || (!hasProviderId && looksInventedAbbr(raw.name, abbr));
     return {
       ...raw,
       canonicalId: null,
