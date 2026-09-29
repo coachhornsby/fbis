@@ -84,26 +84,41 @@ jobs:
           ok=0
           fail=0
           matched=0
-          unmatched=0
           for sport in mlb nfl nba nhl cfb cbb; do
             payload="$(mktemp)"
-            response="$(mktemp)"
             if node scripts/fetch-final-scoreboard.mjs "$sport" "$yesterday" > "$payload"; then
               fetch_n="$(jq -r '.fetched // 0' "$payload")"
               final_n="$(jq -r '.completed // 0' "$payload")"
-              http="$(curl -sS --max-time 120 --retry 1 --retry-delay 2                 -X POST                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -H "content-type: application/json"                 --data-binary @"$payload"                 -o "$response" -w "%{http_code}"                 "${BASE}/api/final-grade")"
-              if [ "$http" = "200" ] && jq -e '.ok == true' "$response" >/dev/null 2>&1; then
+              if [ "$final_n" -eq 0 ]; then
+                echo "grade-push sport=${sport} fetched=${fetch_n} finals=0"
                 ok=$((ok+1))
-                m="$(jq -r '.matched // 0' "$response")"
-                u="$(jq -r '.unmatched // 0' "$response")"
-                matched=$((matched+m))
-                unmatched=$((unmatched+u))
-                echo "grade-push sport=${sport} fetched=${fetch_n} finals=${final_n} matched=${m} unmatched=${u}"
-              else
-                fail=$((fail+1))
-                echo "grade-push FAILED sport=${sport} http=${http:-000}"
-                cat "$response" || true
+                continue
               fi
+              # Bound each request so a large Saturday CFB slate cannot exceed
+              # the Cloudflare Worker CPU budget while updating all checkpoints.
+              chunk=20
+              offset=0
+              sport_ok=1
+              while [ "$offset" -lt "$final_n" ]; do
+                chunk_payload="$(mktemp)"
+                response="$(mktemp)"
+                jq --argjson start "$offset" --argjson size "$chunk"                   '.finals = .finals[$start:($start+$size)]' "$payload" > "$chunk_payload"
+                http="$(curl -sS --max-time 120 --retry 1 --retry-delay 2                   -X POST                   -H "x-harvest-secret: ${HARVEST_SECRET}"                   -H "content-type: application/json"                   --data-binary @"$chunk_payload"                   -o "$response" -w "%{http_code}"                   "${BASE}/api/final-grade")"
+                if [ "$http" = "200" ] && jq -e '.ok == true' "$response" >/dev/null 2>&1; then
+                  m="$(jq -r '.matched // 0' "$response")"
+                  matched=$((matched+m))
+                  echo "grade-push sport=${sport} offset=${offset} matched=${m}"
+                else
+                  sport_ok=0
+                  fail=$((fail+1))
+                  echo "grade-push FAILED sport=${sport} offset=${offset} http=${http:-000}"
+                  cat "$response" || true
+                  echo
+                fi
+                offset=$((offset+chunk))
+              done
+              if [ "$sport_ok" -eq 1 ]; then ok=$((ok+1)); fi
+              echo "grade-push sport=${sport} fetched=${fetch_n} finals=${final_n}"
             else
               fail=$((fail+1))
               echo "runner scoreboard FAILED sport=${sport}"
@@ -112,9 +127,8 @@ jobs:
           {
             echo "## All-projection final grading"
             echo "- successful sports: $ok"
-            echo "- failed sports: $fail"
+            echo "- failed chunks/fetches: $fail"
             echo "- snapshot game ids graded: $matched"
-            echo "- unresolved snapshot game ids: $unmatched"
           } >> "$GITHUB_STEP_SUMMARY"
           # One provider failure must not block other sports. Existing health and
           # the next scheduled run retain the unresolved evidence.

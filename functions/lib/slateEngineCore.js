@@ -877,13 +877,16 @@ export function mapEvent(sport, event) {
   return attachMarketLabels(enrichGameTeams(sport, mapped));
 }
 
-export async function fetchEspnScoreboard(sport, date) {
+export async function fetchEspnScoreboard(sport, date, opts = {}) {
   const cfg = SPORTS[sport] || SPORTS.cbb;
   const stamp = dateStamp(date);
-  const url = `https://site.api.espn.com/apis/site/v2/sports/${cfg.espn}/scoreboard?dates=${stamp}&limit=300`;
+  const group = opts?.group != null ? String(opts.group) : "";
+  const groupQuery = group ? `&groups=${encodeURIComponent(group)}` : "";
+  const groupTag = group ? `:${group}` : "";
+  const url = `https://site.api.espn.com/apis/site/v2/sports/${cfg.espn}/scoreboard?dates=${stamp}&limit=300${groupQuery}`;
   try {
     return await fetchJsonGuarded(url, {
-      circuitKey: `espn-site:${sport}`,
+      circuitKey: `espn-site:${sport}${groupTag}`,
       label: `ESPN ${cfg.label}`,
       retries: 1,
       timeoutMs: 9000,
@@ -901,9 +904,9 @@ export async function fetchEspnScoreboard(sport, date) {
     if (sport !== "cfb") throw err;
   }
   // CFB-specific fallback: site.api is intermittently geo/edge-blocked; cdn endpoint stays public.
-  const fallback = `https://cdn.espn.com/core/college-football/scoreboard?xhr=1&dates=${stamp}&limit=300`;
+  const fallback = `https://cdn.espn.com/core/college-football/scoreboard?xhr=1&dates=${stamp}&limit=300${groupQuery}`;
   const json = await fetchJsonGuarded(fallback, {
-    circuitKey: "espn-cfb-cdn",
+    circuitKey: `espn-cfb-cdn${groupTag}`,
     label: `ESPN ${cfg.label}`,
     retries: 1,
     timeoutMs: 9000,
@@ -1315,28 +1318,56 @@ export async function fetchResults(sport, date) {
 
 export async function fetchResultsForReconcile(sport, date, opts = {}) {
   const day = date || todayCT();
-  const preferCfbd = opts.preferCfbd === true || opts.cfbdFirst === true;
-  if (preferCfbd && sport === "cfb" && opts.cfbdApiKey) {
-    try {
-      const games = await fetchCfbdGamesForDate(day, opts.cfbdApiKey);
-      if (games.length) return games.map(slimFinal);
-    } catch {
-      /* fall through to ESPN, then CFBD-on-error below */
-    }
-  }
-  try {
-    return await fetchResults(sport, day);
-  } catch (err) {
-    if (sport === "cfb" && opts.cfbdApiKey) {
+
+  if (sport === "cfb") {
+    // ESPN defaults to a featured/top-25 slice. Results reconciliation must cover
+    // the full Division I population because frozen CFB projections also contain
+    // FCS opponents/games. Groups 80 and 81 are ESPN's FBS and FCS scoreboards.
+    // CFBD is unioned when configured; duplicate game identities are harmless and
+    // the downstream resolver fails closed on conflicting same-day scores.
+    const rows = [];
+    const errors = [];
+    for (const group of ["80", "81"]) {
       try {
-        const games = await fetchCfbdGamesForDate(day, opts.cfbdApiKey);
-        return games.map(slimFinal);
-      } catch (cfbdErr) {
-        throw new Error(`${String(err?.message || err)}; CFBD fallback: ${String(cfbdErr?.message || cfbdErr)}`);
+        const json = await fetchEspnScoreboard("cfb", day, { group });
+        for (const ev of json.events || []) rows.push(slimFinal(mapEvent("cfb", ev)));
+      } catch (err) {
+        errors.push(`ESPN group ${group}: ${String(err?.message || err)}`);
       }
     }
-    throw err;
+    if (opts.cfbdApiKey) {
+      try {
+        const games = await fetchCfbdGamesForDate(day, opts.cfbdApiKey);
+        for (const g of games || []) rows.push(slimFinal(g));
+      } catch (err) {
+        errors.push(`CFBD: ${String(err?.message || err)}`);
+      }
+    }
+    if (!rows.length) {
+      try {
+        return await fetchResults("cfb", day);
+      } catch (err) {
+        const detail = [...errors, String(err?.message || err)].filter(Boolean).join("; ");
+        throw new Error(detail || "CFB results unavailable");
+      }
+    }
+    const seen = new Set();
+    return rows.filter((g) => {
+      const key = [
+        String(g.id || ""),
+        String(g.start || ""),
+        String(g.away?.name || g.away?.abbr || "").toLowerCase(),
+        String(g.home?.name || g.home?.abbr || "").toLowerCase(),
+        String(g.away?.score ?? ""),
+        String(g.home?.score ?? ""),
+      ].join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
+
+  return fetchResults(sport, day);
 }
 
 export function dataQuality(sport, game) {
