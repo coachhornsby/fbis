@@ -123,14 +123,22 @@ export async function onRequestGet(context){
       WHEN COALESCE(model_version,'') != '' THEN model_version
       ELSE upper(sport) || '-SNAPSHOT'
     END`;
-    const marketExpr=`CASE WHEN
-      upper(COALESCE(projection_kind,'')) LIKE '%PINNACLE_IMPLIED%' OR
-      upper(COALESCE(projection_kind,'')) LIKE '%MARKET_IMPLIED%' OR
-      upper(COALESCE(engine,'')) LIKE '%PINNACLE%' OR
-      upper(COALESCE(engine,'')) LIKE '%MARKET_IMPLIED%' OR
-      lower(COALESCE(projection_flags,'')) LIKE '%pinnacle_implied_score%' OR
-      lower(COALESCE(projection_flags,'')) LIKE '%market_implied%'
-      THEN 1 ELSE 0 END`;
+    const marketExpr=`CASE
+      WHEN upper(COALESCE(projection_kind,'')) = 'FBIS'
+       AND COALESCE(engine,'') != ''
+       AND upper(COALESCE(engine,'')) NOT LIKE '%PINNACLE%'
+       AND upper(COALESCE(engine,'')) NOT LIKE '%MARKET_IMPLIED%'
+       AND upper(COALESCE(engine,'')) NOT LIKE '%BOARD_LINE_IMPLIED%'
+        THEN 0
+      WHEN
+        upper(COALESCE(projection_kind,'')) LIKE '%PINNACLE_IMPLIED%' OR
+        upper(COALESCE(projection_kind,'')) LIKE '%MARKET_IMPLIED%' OR
+        upper(COALESCE(engine,'')) LIKE '%PINNACLE%' OR
+        upper(COALESCE(engine,'')) LIKE '%MARKET_IMPLIED%' OR
+        lower(COALESCE(projection_flags,'')) LIKE '%pinnacle_implied_score%' OR
+        lower(COALESCE(projection_flags,'')) LIKE '%market_implied%'
+        THEN 1
+      ELSE 0 END`;
 
     const baseCte=`
       WITH eligible AS (

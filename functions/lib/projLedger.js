@@ -612,6 +612,170 @@ function matchFinal(row, finals) {
   );
 }
 
+function finalCompletedWithScore(final) {
+  const home = Number(final?.home?.score ?? final?.actualHome);
+  const away = Number(final?.away?.score ?? final?.actualAway);
+  const completed =
+    final?.status?.completed === true ||
+    String(final?.status?.state || "").toLowerCase() === "post" ||
+    /final/i.test(String(final?.status?.detail || ""));
+  return completed && Number.isFinite(home) && Number.isFinite(away);
+}
+
+function snapshotLocalDate(row) {
+  const start = row?.start ? dateCT(row.start) : null;
+  return start || String(row?.date || "").slice(0, 10) || null;
+}
+
+function finalLocalDate(final) {
+  const start = final?.start ? dateCT(final.start) : null;
+  return start || String(final?.date || "").slice(0, 10) || null;
+}
+
+function snapshotMatchRef(row = {}) {
+  const parsed = splitMatchupLabel(row.matchup);
+  return {
+    id: row.gameId || row.id || null,
+    sport: row.sport || null,
+    date: snapshotLocalDate(row),
+    homeName: row.homeName || row.homeAbbr || parsed.home || null,
+    homeAbbr: row.homeAbbr || null,
+    awayName: row.awayName || row.awayAbbr || parsed.away || null,
+    awayAbbr: row.awayAbbr || null,
+  };
+}
+
+/**
+ * Resolve a scoreboard final to an immutable projection snapshot.
+ *
+ * Exact provider/game ids win. Synthetic ids are reconciled only when the
+ * Central-time game date and both canonical teams agree. Ambiguous same-day
+ * matchups (for example a baseball doubleheader) fail closed unless all
+ * candidates have the same score.
+ */
+export function resolveFinalForSnapshot(row, finals = []) {
+  const snap = snapshotMatchRef(row);
+  const candidates = (finals || []).filter(finalCompletedWithScore).filter((f) => {
+    if (!snap.sport || !f?.sport) return true;
+    return String(f.sport).toLowerCase() === String(snap.sport).toLowerCase();
+  });
+  if (!candidates.length) return null;
+
+  const exact = snap.id
+    ? candidates.find((f) => String(f.id) === String(snap.id))
+    : null;
+  if (exact) {
+    const sd = snap.date;
+    const fd = finalLocalDate(exact);
+    if (!sd || !fd || sd === fd) return exact;
+  }
+
+  const byTeams = candidates.filter((f) => {
+    const sd = snap.date;
+    const fd = finalLocalDate(f);
+    if (!sd || !fd || sd !== fd) return false;
+    const homeOk = sameTeam(
+      snap.sport,
+      snap.homeName,
+      snap.homeAbbr,
+      f.home?.name,
+      f.home?.abbr
+    );
+    const awayOk = sameTeam(
+      snap.sport,
+      snap.awayName,
+      snap.awayAbbr,
+      f.away?.name,
+      f.away?.abbr
+    );
+    return homeOk && awayOk;
+  });
+  if (!byTeams.length) return null;
+  if (byTeams.length === 1) return byTeams[0];
+
+  const first = byTeams[0];
+  const h = Number(first.home?.score ?? first.actualHome);
+  const a = Number(first.away?.score ?? first.actualAway);
+  const sameScore = byTeams.every(
+    (f) =>
+      Number(f.home?.score ?? f.actualHome) === h &&
+      Number(f.away?.score ?? f.actualAway) === a
+  );
+  return sameScore ? first : null;
+}
+
+/**
+ * Attach finals to every immutable projection row for the matched game id.
+ * This is intentionally independent of the cache ledger so synthetic board ids
+ * and old checkpoints cannot fall out of the learning population.
+ */
+export async function gradeSnapshotPopulationAgainstFinals(
+  env,
+  { sport, date, finals = [], gradedAt = null } = {}
+) {
+  const id = String(sport || "").toLowerCase();
+  const day = String(date || "").slice(0, 10);
+  if (!id || !day) {
+    return { ok: false, reason: "sport-and-date-required", candidates: 0, matched: 0, unmatched: 0, failed: 0 };
+  }
+  const since = shiftDateCT(day, -1);
+  const until = shiftDateCT(day, 1);
+  const q = await querySnapshots(env, { sport: id, since, until });
+  if (!q.ok) {
+    return { ok: false, reason: q.reason || "snapshot-query-failed", candidates: 0, matched: 0, unmatched: 0, failed: 0 };
+  }
+
+  const byGame = new Map();
+  for (const row of q.rows || []) {
+    if (row.actualHome != null && row.actualAway != null) continue;
+    if (snapshotLocalDate(row) !== day) continue;
+    const gameId = String(row.gameId || row.id || "");
+    if (!gameId || byGame.has(gameId)) continue;
+    byGame.set(gameId, row);
+  }
+
+  let matched = 0;
+  let unmatched = 0;
+  let failed = 0;
+  const matchedGameIds = [];
+  const unmatchedGameIds = [];
+  for (const [gameId, row] of byGame.entries()) {
+    const final = resolveFinalForSnapshot(row, finals);
+    if (!final) {
+      unmatched += 1;
+      unmatchedGameIds.push(gameId);
+      continue;
+    }
+    const actualHome = Number(final.home?.score ?? final.actualHome);
+    const actualAway = Number(final.away?.score ?? final.actualAway);
+    const res = await gradeSnapshotsForGame(env, {
+      gameId,
+      actualHome,
+      actualAway,
+      f5ActualHome: final.f5Score?.complete ? final.f5Score.home : null,
+      f5ActualAway: final.f5Score?.complete ? final.f5Score.away : null,
+      gradedAt: gradedAt || new Date().toISOString(),
+    });
+    if (res?.ok) {
+      matched += 1;
+      matchedGameIds.push(gameId);
+    } else {
+      failed += 1;
+    }
+  }
+  return {
+    ok: failed === 0,
+    sport: id,
+    date: day,
+    candidates: byGame.size,
+    matched,
+    unmatched,
+    failed,
+    matchedGameIds,
+    unmatchedGameIds: unmatchedGameIds.slice(0, 25),
+  };
+}
+
 function parseTicketMatchup(matchup = "") {
   const parts = String(matchup || "").split("@");
   if (parts.length !== 2) return { away: null, home: null };
@@ -1767,6 +1931,25 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
         errors.push(`${sport}@${date}: ${String(err?.message || err)}`);
       }
     }
+    // Grade the entire immutable projection population, not only tickets or
+    // cache-ledger rows. This resolves synthetic board ids by date + canonical
+    // teams and updates every checkpoint/model version under the matched game id.
+    const snapshotGrading = [];
+    for (const date of dates) {
+      const dateFinals = finals.filter((g) => String(g.date || "").slice(0, 10) === date);
+      snapshotGrading.push(
+        await gradeSnapshotPopulationAgainstFinals(env, {
+          sport,
+          date,
+          finals: dateFinals,
+          gradedAt: new Date().toISOString(),
+        })
+      );
+    }
+    const snapshotFinalsGraded = snapshotGrading.reduce((n, row) => n + Number(row?.matched || 0), 0);
+    const snapshotFinalsFailed = snapshotGrading.reduce((n, row) => n + Number(row?.failed || 0), 0);
+    const snapshotFinalsUnmatched = snapshotGrading.reduce((n, row) => n + Number(row?.unmatched || 0), 0);
+
     // Settlement also revisits already-settled tickets for this final set so factual
     // score evidence can be backfilled without changing a correct prior result.
     // gradeResearch=1 also settles strategy tickets against the same live finals.
@@ -1801,8 +1984,10 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
         f5Score: g.f5Score,
       })),
       finalsDiscovered: finals.length,
-      finalsGraded: 0,
-      finalsFailed: 0,
+      finalsGraded: snapshotFinalsGraded,
+      finalsFailed: snapshotFinalsFailed,
+      snapshotFinalsUnmatched,
+      snapshotGrading,
       jobCounts: emptyWriteCounts(),
       errors,
       executedBets,
@@ -1833,6 +2018,18 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
       gradedAt: cached.harvestedAt || cached.generatedAt,
     }));
     await Promise.all(durableFinalWrites);
+    const cachedSnapshotGrading = [];
+    for (const date of dates) {
+      const dateFinals = (cached.finals || []).filter((g) => String(g.date || "").slice(0, 10) === date);
+      cachedSnapshotGrading.push(
+        await gradeSnapshotPopulationAgainstFinals(env, {
+          sport,
+          date,
+          finals: dateFinals,
+          gradedAt: cached.harvestedAt || cached.generatedAt || new Date().toISOString(),
+        })
+      );
+    }
     await gradeStrategyAgainstFinals(env, cached.finals);
     const executedBets = await gradeExecutedBets(env, cached.finals);
     const replay = {
@@ -1842,6 +2039,9 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
       dates,
       errors,
       executedBets,
+      snapshotGrading: cachedSnapshotGrading,
+      snapshotFinalsGraded: cachedSnapshotGrading.reduce((n, row) => n + Number(row?.matched || 0), 0),
+      snapshotFinalsUnmatched: cachedSnapshotGrading.reduce((n, row) => n + Number(row?.unmatched || 0), 0),
       db: await dbPayload(env),
     };
     replay.archive = await archiveHarvestReport(env, replay);
@@ -1902,6 +2102,25 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   }
   const writeResults = await Promise.all(writes);
   for (const res of writeResults) tallyPersist(counts, res);
+
+  // Reconcile every immutable projection row against the same scoreboard finals.
+  // Normal harvest may already grade cache-ledger ids; this second pass is
+  // idempotent and catches synthetic ids/model checkpoints outside that cache.
+  const snapshotGrading = [];
+  for (const date of dates) {
+    const dateFinals = finals.filter((g) => String(g.date || "").slice(0, 10) === date);
+    snapshotGrading.push(
+      await gradeSnapshotPopulationAgainstFinals(env, {
+        sport,
+        date,
+        finals: dateFinals,
+        gradedAt: new Date().toISOString(),
+      })
+    );
+  }
+  const snapshotFinalsGraded = snapshotGrading.reduce((n, row) => n + Number(row?.matched || 0), 0);
+  const snapshotFinalsUnmatched = snapshotGrading.reduce((n, row) => n + Number(row?.unmatched || 0), 0);
+  const snapshotFinalsFailed = snapshotGrading.reduce((n, row) => n + Number(row?.failed || 0), 0);
 
   // Always write team_form from completed scoreboard finals — even when the
   // game was never frozen (historical NFL circular dependency).
@@ -1964,6 +2183,10 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     finalsDiscovered: finals.filter((g) => g.status?.completed).length,
     finalsGraded,
     finalsFailed,
+    snapshotFinalsGraded,
+    snapshotFinalsUnmatched,
+    snapshotFinalsFailed,
+    snapshotGrading,
     jobCounts: counts,
     errors,
     executedBets,

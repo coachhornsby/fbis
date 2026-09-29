@@ -530,6 +530,7 @@ const LLM_GATE_THRESHOLDS = Object.freeze({
 const LLM_GATE_SPORTS = Object.freeze(['mlb','cfb','nfl','cbb','nba','nhl']);
 
 function finiteNumber(v){
+  if(v==null || v==="") return null;
   const n=Number(v);
   return Number.isFinite(n)?n:null;
 }

@@ -66,3 +66,65 @@ test("learning report treats training and finding tables as optional evidence", 
   assert.match(api, /optionalRows\(db,[\s\S]*FROM model_validation_runs/);
   assert.match(api, /optionalRows\(db,[\s\S]*FROM model_learning_findings/);
 });
+
+
+test("snapshot final reconciliation matches synthetic ids by CT date and canonical teams", async () => {
+  const { resolveFinalForSnapshot } = await import("../functions/lib/projLedger.js");
+  const row = {
+    gameId: "ncaaf_appalachianstate_ncstatewolfpack_2026-09-26_b3",
+    sport: "cfb",
+    // Historical storage date drifted to UTC day, while kickoff is Sep 26 CT.
+    date: "2026-09-27",
+    start: "2026-09-26T23:30:00Z",
+    matchup: "Appalachian State @ NC State",
+    awayName: "Appalachian State",
+    homeName: "NC State",
+  };
+  const final = {
+    id: "401999999",
+    sport: "cfb",
+    date: "2026-09-26",
+    start: "2026-09-26T23:30:00Z",
+    away: { name: "Appalachian State Mountaineers", abbr: "APP", score: 17 },
+    home: { name: "NC State Wolfpack", abbr: "NCSU", score: 31 },
+    status: { completed: true, detail: "Final" },
+  };
+  const hit = resolveFinalForSnapshot(row, [final]);
+  assert.equal(hit?.id, final.id);
+});
+
+test("snapshot final reconciliation fails closed on ambiguous same-day doubleheaders", async () => {
+  const { resolveFinalForSnapshot } = await import("../functions/lib/projLedger.js");
+  const row = {
+    gameId: "synthetic-series-game",
+    sport: "mlb",
+    date: "2026-09-29",
+    start: "2026-09-29T18:00:00Z",
+    matchup: "Philadelphia Phillies @ Atlanta Braves",
+    awayName: "Philadelphia Phillies",
+    homeName: "Atlanta Braves",
+  };
+  const finals = [
+    {
+      id: "a", sport: "mlb", date: "2026-09-29", start: "2026-09-29T17:00:00Z",
+      away: { name: "Philadelphia Phillies", abbr: "PHI", score: 3 },
+      home: { name: "Atlanta Braves", abbr: "ATL", score: 4 },
+      status: { completed: true, detail: "Final" },
+    },
+    {
+      id: "b", sport: "mlb", date: "2026-09-29", start: "2026-09-29T23:00:00Z",
+      away: { name: "Philadelphia Phillies", abbr: "PHI", score: 6 },
+      home: { name: "Atlanta Braves", abbr: "ATL", score: 2 },
+      status: { completed: true, detail: "Final" },
+    },
+  ];
+  assert.equal(resolveFinalForSnapshot(row, finals), null);
+});
+
+test("daily results path grades the full immutable projection population", async () => {
+  const ledger = await readFile(new URL("../functions/lib/projLedger.js", import.meta.url), "utf8");
+  const workflow = await readFile(new URL("../.github/workflows/daily-results-grade.yml", import.meta.url), "utf8");
+  assert.match(ledger, /gradeSnapshotPopulationAgainstFinals/);
+  assert.match(ledger, /snapshotFinalsGraded/);
+  assert.match(workflow, /settleOnly=1&gradeResearch=1/);
+});
