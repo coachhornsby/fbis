@@ -32,11 +32,14 @@ jobs:
             unmatched="$(jq -r '.unmatchedGameIds|length' "$plan")"
             total_candidates=$((total_candidates+candidates)); total_grades=$((total_grades+grades)); total_unmatched=$((total_unmatched+unmatched))
             if [ "$grades" -gt 0 ]; then
-              jq '{sport,date,source,grades,forceCorrect:true}' "$plan" > payload.json
-              http="$(curl -sS --max-time 120 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" --data-binary @payload.json -o response.json -w "%{http_code}" "${BASE}/api/final-grade")"
-              echo "REPAIR date=$d candidates=$candidates grades=$grades unmatched=$unmatched http=$http response=$(jq -c '{ok,mode,matched,failed}' response.json)"
-              test "$http" = "200"
-              jq -e '.ok==true and .failed==0' response.json >/dev/null
+              batches=$(( (grades + 24) / 25 ))
+              for ((b=0; b<batches; b++)); do
+                jq --argjson start "$((b*25))" '{sport,date,source,grades:(.grades[$start:($start+25)]),forceCorrect:true}' "$plan" > payload.json
+                http="$(curl -sS --max-time 120 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" --data-binary @payload.json -o response.json -w "%{http_code}" "${BASE}/api/final-grade")"
+                echo "REPAIR date=$d batch=$((b+1))/$batches candidates=$candidates grades=$grades unmatched=$unmatched http=$http response=$(jq -c '{ok,mode,matched,failed}' response.json)"
+                test "$http" = "200"
+                jq -e '.ok==true and .failed==0' response.json >/dev/null
+              done
             else
               echo "REPAIR date=$d candidates=$candidates grades=0 unmatched=$unmatched"
             fi
