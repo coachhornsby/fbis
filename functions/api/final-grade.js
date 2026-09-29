@@ -1,5 +1,6 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { gradeSnapshotPopulationAgainstFinals } from "../lib/projLedger.js";
+import { gradeSnapshotsForGame } from "../lib/store.js";
 
 const SPORTS = new Set(["mlb","nfl","cfb","cbb","nba","nhl"]);
 
@@ -60,6 +61,47 @@ export async function onRequestPost(context){
     const date=String(body?.date||"").slice(0,10);
     if(!SPORTS.has(sport)) return json({ok:false,error:"unsupported-sport"},400);
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ok:false,error:"invalid-date"},400);
+    const directRaw=Array.isArray(body?.grades)?body.grades:null;
+    if(directRaw){
+      if(directRaw.length>25) return json({ok:false,error:"too-many-grades"},400);
+      const grades=directRaw.map((row)=>({
+        gameId:String(row?.gameId||"").trim(),
+        actualHome:finiteScore(row?.actualHome),
+        actualAway:finiteScore(row?.actualAway),
+        f5ActualHome:finiteScore(row?.f5ActualHome),
+        f5ActualAway:finiteScore(row?.f5ActualAway),
+      }));
+      if(grades.some((g)=>!g.gameId||g.actualHome==null||g.actualAway==null)){
+        return json({ok:false,error:"invalid-direct-grade"},400);
+      }
+      let matched=0;
+      let failed=0;
+      const failedGameIds=[];
+      for(const g of grades){
+        const res=await gradeSnapshotsForGame(context.env,{
+          ...g,
+          gradedAt:new Date().toISOString(),
+        });
+        if(res?.ok) matched+=1;
+        else {
+          failed+=1;
+          failedGameIds.push(g.gameId);
+        }
+      }
+      return json({
+        ok:failed===0,
+        mode:"direct-verified-grades",
+        source:String(body?.source||"trusted-scoreboard-reconciled-runner"),
+        sport,
+        date,
+        accepted:grades.length,
+        matched,
+        failed,
+        failedGameIds,
+        at:new Date().toISOString(),
+      },failed===0?200:503);
+    }
+
     const raw=Array.isArray(body?.finals)?body.finals:[];
     if(raw.length>400) return json({ok:false,error:"too-many-finals"},400);
     const finals=raw.map((row)=>normalizeFinal(row,sport,date)).filter(Boolean);
