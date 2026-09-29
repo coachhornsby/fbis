@@ -1,8 +1,6 @@
 name: Sports Projection Orchestrator
 
 on:
-  schedule:
-    - cron: "7 * * * *"
   workflow_dispatch:
 
 concurrency:
@@ -34,7 +32,7 @@ jobs:
       - name: Select high-signal games for LLM review
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
-          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
         shell: bash
         run: |
           set -euo pipefail
@@ -49,7 +47,7 @@ jobs:
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
           FBIS_BASE: https://fbis-myz.pages.dev
         shell: bash
         run: |
@@ -79,10 +77,10 @@ jobs:
             echo "- All Projections finals reconciled: $(jq -r '.allProjectionFinalsReconciled' "$sync_body")"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Process Render queue
+      - name: Process Cloudflare queue
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
-          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
         shell: bash
         run: |
           set -euo pipefail
@@ -98,7 +96,7 @@ jobs:
               echo "Projection queue processed."
               ;;
             BLOCKED_FAIL_CLOSED)
-              echo "Orchestrator is live but runtime credentials are incomplete; no projection was released."
+              echo "Cloudflare orchestrator is live but runtime credentials are incomplete; no projection was released."
               ;;
             *)
               echo "Unexpected orchestrator status=$status"
