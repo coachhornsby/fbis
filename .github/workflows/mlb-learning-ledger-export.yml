@@ -1,0 +1,21 @@
+name: MLB learning ledger export
+on:
+  push:
+    branches: [ops/mlb-history-sheet-sync-2026-09-29]
+    paths: [".github/workflows/mlb-learning-ledger-export.yml"]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Export authoritative MLB learning ledger
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 180 -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/learning-report?since=2026-01-01&limit=5000" > report.json
+          jq -c '.sports[] | select(.sport=="MLB") | {snapshotRows,canonicalProjections,gradedProjections,awaitingFinals,rejectedPostStart,models}' report.json
+          jq -c '.audit[] | select(.sport=="MLB") | ["MLBROW",.gameId,.date,.start,.matchup,.projAway,.projHome,.projTotal,.projMargin,.pHome,.modelId,.modelVersion,.engine,.frozenAt,.actualAway,.actualHome,.actualTotal,.actualMargin,.totalError,.marginError,.winnerCorrect,.gradedAt,.projectionKind,.marketInformed,.dataQuality,.projectionFlags,.learningStatus] | @tsv' report.json | sed 's/^"//;s/"$//;s/\\t/\t/g; s/\\r//g; s/\\n/ /g; s/\\\"/"/g'
