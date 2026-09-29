@@ -1,0 +1,17 @@
+name: NHL card 2026-09-29
+on:
+  push:
+    branches: [research/nhl-card-2026-09-29]
+    paths:
+      - "scripts/nhl-card-2026-09-29.mjs"
+      - ".github/workflows/nhl-card-2026-09-29.yml"
+jobs:
+  card:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/nhl-card-2026-09-29.mjs
