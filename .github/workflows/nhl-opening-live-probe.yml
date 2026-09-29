@@ -1,4 +1,4 @@
-name: NHL opening live probe
+name: NHL opening live probe\n# production revalidation after official NHL fallback
 
 on:
   push:
