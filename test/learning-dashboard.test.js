@@ -152,7 +152,8 @@ test("daily grading has a GitHub-runner scoreboard fallback for all six sports",
   assert.match(workflow, /\/api\/final-grade/);
   assert.match(workflow, /for sport in mlb nfl nba nhl cfb cbb/);
   assert.match(script, /fetchResultsForReconcile/);
-  assert.match(script, /github-runner-scoreboard/);
+  assert.match(script, /nflverse\/nfldata/);
+  assert.match(script, /sportsdataverse\/cfbfastR-data/);
 });
 
 
@@ -166,4 +167,13 @@ test("trusted final-score ingress is authenticated and feeds full snapshot gradi
   assert.match(workflow, /fetch-final-scoreboard\.mjs/);
   assert.match(script, /fetchResultsForReconcile/);
   assert.match(script, /preferCfbd:sport==="cfb"/);
+});
+
+
+test("historical final grading tolerates bounded board-date drift and new freezes use kickoff date", async () => {
+  const ledger = await readFile(new URL("../functions/lib/projLedger.js", import.meta.url), "utf8");
+  assert.match(ledger, /shiftDateCT\(day, -7\)/);
+  assert.match(ledger, /shiftDateCT\(day, 7\)/);
+  assert.match(ledger, /const canonicalDate = dateCT\(game\.start\) \|\| slate\.date/);
+  assert.match(ledger, /const storageDate = existing\?\.date \|\| canonicalDate/);
 });
