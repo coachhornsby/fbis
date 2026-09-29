@@ -61,10 +61,17 @@ export function snapshotMarketInformed(row = {}) {
   const flags = Array.isArray(row.projectionFlags)
     ? row.projectionFlags
     : String(row.projectionFlags || "").split(/[|,]/).filter(Boolean);
+  const engineMarketInformed =
+    /PINNACLE|MARKET[-_ ]?IMPLIED|BOARD[-_ ]?LINE[-_ ]?IMPLIED/.test(engine);
+  // A final independent FBIS engine can inherit an upstream diagnostic flag
+  // such as pinnacle_implied_score from the raw scoreboard shell. Once the
+  // promoted projection is explicitly FBIS and the selected engine itself is
+  // independent, that stale diagnostic must not reclassify the model.
+  if (kind === "FBIS" && engine && !engineMarketInformed) return false;
   return (
     kind.includes("PINNACLE_IMPLIED") ||
     kind.includes("MARKET_IMPLIED") ||
-    /PINNACLE|MARKET[-_ ]?IMPLIED|BOARD[-_ ]?LINE[-_ ]?IMPLIED/.test(engine) ||
+    engineMarketInformed ||
     flags.some((f) => /pinnacle_implied_score|market_implied/i.test(String(f)))
   );
 }
