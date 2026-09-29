@@ -1,11 +1,11 @@
-name: NFL PRO strict walk-forward
+name: NFL PRO v2 strict walk-forward
 on:
   push:
     branches: [research/nfl-pro-strict-walkforward]
     paths:
       - "scripts/nfl-pro-walkforward.mjs"
       - ".github/workflows/nfl-pro-walkforward.yml"
-      - "functions/lib/nflProModel.js"
+      - "functions/lib/nflProModel.js"\n      - "functions/lib/nflProV2.js"
       - "functions/lib/nflModel.js"
       - "functions/lib/nflVerseFeed.js"
       - "functions/lib/nflResearchGrade.js"
