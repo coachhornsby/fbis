@@ -20,6 +20,9 @@ jobs:
     name: RESULTS 07:20 CT
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout grading code
+        uses: actions/checkout@v4.2.2
+
       - name: Gate to 07:20 America/Chicago
         id: gate
         run: |
@@ -66,3 +69,52 @@ jobs:
             # Results are free and isolated by sport. One failed league must not
             # prevent the others from settling.
           done
+
+      - name: Push trusted scoreboard finals into all-projection grader
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          COLLEGE_DATA_API_KEY: ${{ secrets.COLLEGE_DATA_API_KEY }}
+        shell: bash
+        run: |
+          set -u
+          yesterday="$(TZ=America/Chicago date -d 'yesterday' +%F)"
+          ok=0
+          fail=0
+          matched=0
+          unmatched=0
+          for sport in mlb nfl nba nhl cfb cbb; do
+            payload="$(mktemp)"
+            response="$(mktemp)"
+            if node scripts/fetch-final-scoreboard.mjs "$sport" "$yesterday" > "$payload"; then
+              fetch_n="$(jq -r '.fetched // 0' "$payload")"
+              final_n="$(jq -r '.completed // 0' "$payload")"
+              http="$(curl -sS --max-time 120 --retry 1 --retry-delay 2                 -X POST                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -H "content-type: application/json"                 --data-binary @"$payload"                 -o "$response" -w "%{http_code}"                 "${BASE}/api/final-grade")"
+              if [ "$http" = "200" ] && jq -e '.ok == true' "$response" >/dev/null 2>&1; then
+                ok=$((ok+1))
+                m="$(jq -r '.matched // 0' "$response")"
+                u="$(jq -r '.unmatched // 0' "$response")"
+                matched=$((matched+m))
+                unmatched=$((unmatched+u))
+                echo "grade-push sport=${sport} fetched=${fetch_n} finals=${final_n} matched=${m} unmatched=${u}"
+              else
+                fail=$((fail+1))
+                echo "grade-push FAILED sport=${sport} http=${http:-000}"
+                cat "$response" || true
+              fi
+            else
+              fail=$((fail+1))
+              echo "runner scoreboard FAILED sport=${sport}"
+            fi
+          done
+          {
+            echo "## All-projection final grading"
+            echo "- successful sports: $ok"
+            echo "- failed sports: $fail"
+            echo "- snapshot game ids graded: $matched"
+            echo "- unresolved snapshot game ids: $unmatched"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # One provider failure must not block other sports. Existing health and
+          # the next scheduled run retain the unresolved evidence.
