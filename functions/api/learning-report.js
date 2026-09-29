@@ -94,6 +94,14 @@ async function allRows(db,sql,binds=[]){
   return res?.results||[];
 }
 
+async function allRowsSafe(db,sql,binds=[]){
+  try{
+    return await allRows(db,sql,binds);
+  }catch{
+    return [];
+  }
+}
+
 export async function onRequestGet(context){
   const auth=authorizeHarvest(context.request,context.env);
   if(!auth.ok) return json(unauthorizedBody(),401);
@@ -200,13 +208,13 @@ export async function onRequestGet(context){
         LIMIT ?`,
         [since,auditLimit]
       ),
-      allRows(db,
+      allRowsSafe(db,
         `SELECT model_id,method,train_until,validate_from,validate_until,n,metrics_json,leakage_ok,created_at
            FROM model_validation_runs
           WHERE method='weekly-auto-train-calibration-v1'
           ORDER BY created_at DESC`
       ),
-      allRows(db,
+      allRowsSafe(db,
         `SELECT sport,model_id,COUNT(*) AS open_findings
            FROM model_learning_findings
           WHERE status='OPEN'
