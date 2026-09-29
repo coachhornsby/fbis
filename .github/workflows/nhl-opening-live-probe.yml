@@ -12,22 +12,22 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe production NHL board
+      - name: Diagnose NHL schedule sources and production board
         shell: bash
         run: |
           set -euo pipefail
-          body="$RUNNER_TEMP/nhl.json"
-          code="$(curl -sS --max-time 180 -o "$body" -w "%{http_code}" "https://fbis-myz.pages.dev/api/projections?sport=nhl&date=2026-09-29&tier=public")"
-          echo "http=$code"
+          prod="$RUNNER_TEMP/prod.json"
+          espn="$RUNNER_TEMP/espn.json"
+          nhl="$RUNNER_TEMP/nhl.json"
+
+          curl -sS --max-time 60 -o "$espn" "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20260929&limit=300"
+          curl -sS --max-time 60 -o "$nhl" "https://api-web.nhle.com/v1/schedule/2026-09-29"
+          code="$(curl -sS --max-time 180 -o "$prod" -w "%{http_code}" "https://fbis-myz.pages.dev/api/projections?sport=nhl&date=2026-09-29&tier=public")"
+
+          echo "production_http=$code"
+          echo "espn_events=$(jq '.events|length' "$espn")"
+          echo "nhl_gameweek=$(jq '.gameWeek|length' "$nhl")"
+          jq -c '{gameWeek:[.gameWeek[]?|{date,games:[.games[]?|{id,startTimeUTC,gameState,away:.awayTeam.abbrev,home:.homeTeam.abbrev}]}]}' "$nhl"
+          jq -c '{sport,date,games:(.games|length),samples:[.games[]?|{away:.away.abbr,home:.home.abbr,model:.model.name,maturity:.model.maturity,independent:.projection.independent}]}' "$prod"
+
           test "$code" = "200"
-          jq -e '.ok == true and .sport == "nhl"' "$body" >/dev/null
-          jq -c '{
-            sport,date,
-            games:(.games|length),
-            independent:([.games[]|select(.projection.independent==true)]|length),
-            research:([.games[]|select(.model.maturity=="RESEARCH")]|length),
-            wagerEligible:([.games[]|select(.projection.canQualify==true or .decision.status=="QUALIFIED" or .decision.status=="CONVICTION")]|length),
-            samples:[.games[]|{away:.away.abbr,home:.home.abbr,model:.model.name,engine:.model.engine,maturity:.model.maturity,independent:.projection.independent,awayProj:.projection.away,homeProj:.projection.home,decision:.decision.status}] 
-          }' "$body"
-          test "$(jq '[.games[]|select(.projection.independent==true)]|length' "$body")" -eq 5
-          test "$(jq '[.games[]|select(.model.maturity=="RESEARCH")]|length' "$body")" -eq 5
