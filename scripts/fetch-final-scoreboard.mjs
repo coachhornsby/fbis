@@ -13,7 +13,7 @@ if(!supported.has(sport) || !/^\d{4}-\d{2}-\d{2}$/.test(date)){
 
 const cfbdApiKey=process.env.CFBD_API_KEY||process.env.COLLEGE_DATA_API_KEY||"";
 const NFLVERSE_GAMES="https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv";
-const CFBFAST_SCHEDULES="https://raw.githubusercontent.com/sportsdataverse/cfbfastR-data/main/schedules/csv/cfb_schedules_2026.csv";
+const CFBFAST_SCHEDULES_BASE="https://raw.githubusercontent.com/sportsdataverse/cfbfastR-data/main/schedules/csv";
 
 function finite(v){
   if(v==null || v==="") return null;
@@ -52,7 +52,8 @@ async function nflverseFinals(day){
     }));
 }
 async function cfbfastFinals(day){
-  const rows=parseCsv(await fetchText(CFBFAST_SCHEDULES));
+  const year=String(day).slice(0,4);
+  const rows=parseCsv(await fetchText(`${CFBFAST_SCHEDULES_BASE}/cfb_schedules_${year}.csv`));
   return rows.filter(r=>{
       const start=r.start_date||r.game_date||"";
       return ctDate(start)===day || String(start).slice(0,10)===day;
