@@ -1,0 +1,31 @@
+name: NHL v1 live probe
+
+on:
+  push:
+    branches:
+      - "probe/nhl-v1-live-20260929"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe live NHL slate
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/nhl.json"
+          http="$(curl -sS --max-time 90 -o "$out" -w "%{http_code}" 'https://fbis-myz.pages.dev/api/slate?sport=nhl&date=2026-09-29')"
+          echo "http=$http"
+          test "$http" = "200"
+          jq -e '.sport=="nhl" and (.games|length)>0' "$out" >/dev/null
+          echo "modelVersion=$(jq -r '.modelVersion // ""' "$out")"
+          echo "games=$(jq -r '.games|length' "$out")"
+          echo "fiveLayer=$(jq -c '.research.nhlFiveLayer // {}' "$out")"
+          jq -c '.games[] | {id,start,matchup:((.away.abbr//.away.name)+" @ "+(.home.abbr//.home.name)),projectionKind,projectionMaturity,canQualify,canAuthorizeWager,projHome:(.model.projHome//.projHomeScore),projAway:(.model.projAway//.projAwayScore),nhlV1:{ok:.nhlV1.ok,modelId:.nhlV1.modelId,modelVersion:.nhlV1.modelVersion,home:.nhlV1.home,away:.nhlV1.away,total:.nhlV1.total,marketInformed:.nhlV1.marketInformed,canQualify:.nhlV1.canQualify,artifact:.nhlV1.layers.fiveVFiveXg.artifactVersion}}' "$out"
+          jq -e '.modelVersion|contains("NHL-FBIS-v1")' "$out" >/dev/null
+          jq -e '.research.nhlFiveLayer.artifactTrained==true' "$out" >/dev/null
+          jq -e '[.games[] | select(.nhlV1.ok==true)] | length == (.games|length)' "$out" >/dev/null
+          jq -e '[.games[] | select(.projectionMaturity=="RESEARCH" and .canQualify==false)] | length == (.games|length)' "$out" >/dev/null
