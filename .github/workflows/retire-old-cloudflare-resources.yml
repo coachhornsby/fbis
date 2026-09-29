@@ -1,0 +1,57 @@
+name: Retire old Cloudflare resources
+on:
+  push:
+    branches: [ops/cloudflare-retire-old-resources]
+    paths: [".github/workflows/retire-old-cloudflare-resources.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  retire:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Verify replacement orchestrator is healthy
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 30 -o "$body" -w "%{http_code}" "https://fbis-orchestrator.coachhornsby.workers.dev/health?_t=$(date +%s)")"
+          echo "orchestrator http=$code"
+          test "$code" = "200"
+          jq -e '.platform=="cloudflare-workers" and .cronEnabled==true and .credentials.openai==true and .credentials.gemini==true and .credentials.googleSheets==true' "$body" >/dev/null
+
+      - name: Delete obsolete Pages projects
+        shell: bash
+        run: |
+          set -euo pipefail
+          for project in cougarsdefense dubbaseball; do
+            code="$(curl -sS --max-time 60 -o response.json -w "%{http_code}"               -X DELETE               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/$project")"
+            echo "delete pages $project http=$code"
+            if [ "$code" != "200" ] && [ "$code" != "404" ]; then cat response.json; exit 1; fi
+          done
+
+      - name: Delete obsolete playbook Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -sS --max-time 60 -o response.json -w "%{http_code}"             -X DELETE             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/playbook-app")"
+          echo "delete worker playbook-app http=$code"
+          if [ "$code" != "200" ] && [ "$code" != "404" ]; then cat response.json; exit 1; fi
+
+      - name: Verify only active resources remain
+        shell: bash
+        run: |
+          set -euo pipefail
+          pages="$(curl -fsSL -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects")"
+          echo "$pages" | jq -c '[.result[].name]'
+          test "$(echo "$pages" | jq '[.result[] | select(.name=="fbis")] | length')" = "1"
+          test "$(echo "$pages" | jq '[.result[] | select(.name=="cougarsdefense" or .name=="dubbaseball")] | length')" = "0"
+
+          workers="$(curl -fsSL -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts")"
+          echo "$workers" | jq -c '[.result[].id]'
+          test "$(echo "$workers" | jq '[.result[] | select(.id=="fbis-orchestrator")] | length')" = "1"
+          test "$(echo "$workers" | jq '[.result[] | select(.id=="playbook-app")] | length')" = "0"
