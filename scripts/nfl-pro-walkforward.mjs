@@ -22,6 +22,17 @@ async function csv(url){
   return parseCsv(await res.text());
 }
 
+function splitLine(line){
+  const out=[]; let cur=""; let quoted=false;
+  for(let i=0;i<line.length;i++){const ch=line[i]; if(ch==='"'){if(quoted&&line[i+1]==='"'){cur+='"';i++;}else quoted=!quoted;}else if(ch===","&&!quoted){out.push(cur);cur="";}else cur+=ch;} out.push(cur); return out;
+}
+function parsePbp(text){
+  const lines=String(text).replace(/^\uFEFF/,"").split(/\r?\n/).filter(Boolean);
+  if(lines.length<2) return [];
+  const h=splitLine(lines[0]); const wanted=["season_type","play","no_play","posteam","defteam","pass_attempt","sack","rush_attempt","epa","down","yards_gained","qb_hit","week"];
+  const idx=Object.fromEntries(wanted.map(k=>[k,h.indexOf(k)]));
+  return lines.slice(1).map(line=>{const cells=splitLine(line);const r={};for(const k of wanted)r[k]=idx[k]>=0?(cells[idx[k]]??""):"";return r;});
+}
 async function gzCsv(url){
   const res=await fetch(url,{headers:{"User-Agent":"FBIS-walkforward/2.0",Accept:"application/gzip,*/*"}});
   if(!res.ok) throw new Error(`fetch ${res.status}: ${url}`);
