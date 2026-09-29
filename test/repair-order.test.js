@@ -220,7 +220,7 @@ test("harvest catch-up window covers stale OPEN college tickets", () => {
 
 test("deep shadow models remain non-qualifying", async () => {
   const { COLLEGE_MODELS } = await import("../functions/lib/collegeModels.js");
-  for (const id of ["MLB-RUN-ALLOC-v1", "CFB-MATCHUP-v2", "NFL-PRO-v1"]) {
+  for (const id of ["MLB-FBIS-v2", "CFB-MATCHUP-v2", "NFL-PRO-v1"]) {
     assert.equal(COLLEGE_MODELS[id].role, "shadow");
     assert.equal(COLLEGE_MODELS[id].canQualify, false);
   }

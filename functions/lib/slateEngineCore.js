@@ -340,7 +340,7 @@ export function projectionRecipe(sport, game, model) {
   if (sport === "mlb") {
     const sv = game.savant || {};
     const hasPal = game.bpp?.homeRuns != null && game.bpp?.awayRuns != null;
-    engine = hasPal ? "Savant + Ballpark Pal" : sv.source === "Savant" ? "Baseball Savant" : sv.source ? "MLB Stats" : "MLB form";
+    engine = sv.source === "Savant" ? "Baseball Savant" : sv.source ? "MLB Stats" : "MLB form";
     const homePitcher = game.homeSp?.last || game.homeSp?.name || "TBD SP";
     const awayPitcher = game.awaySp?.last || game.awaySp?.name || "TBD SP";
     steps.push(
