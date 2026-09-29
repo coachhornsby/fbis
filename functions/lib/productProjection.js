@@ -62,6 +62,18 @@ function modelIdentity(sport, game = {}) {
       canQualify: false,
     };
   }
+  if (sport === "nhl") {
+    return {
+      name: research ? "FBIS NHL Research" : "FBIS NHL",
+      engine: research
+        ? game.researchProjection?.modelId || "NHL-FBIS-PURE"
+        : "Independent production model pending validation",
+      independent: Boolean(independentFbis),
+      state: game.projectionState || game.projectionMaturity || null,
+      maturity: research ? "RESEARCH" : "PENDING",
+      canQualify: false,
+    };
+  }
   if (sport === "nfl") {
     return {
       name: research ? "FBIS NFL Research" : "FBIS NFL",
