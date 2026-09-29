@@ -18,6 +18,7 @@ import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearchToBoard, promoteNhlResearchToBoard } from "./researchBoardPromote.js";
 import { loadNhlResearchPrior, attachNhlResearch } from "./nhlResearchModel.js";
+import { loadNhlV1Context, attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
@@ -109,20 +110,36 @@ export async function buildSlate(sport, date, env = {}) {
       },
     };
   } else if (id === "nhl") {
-    const prior = await loadNhlResearchPrior(slate.date || date).catch((err) => ({
-      ok: false,
-      source: "NHL_STATS_TEAM_SUMMARY",
-      error: String(err?.message || err),
-      byAbbr: {},
-      canQualify: false,
-      canAuthorize: false,
-    }));
-    const attached = attachNhlResearch(slate.games || [], prior);
-    const research = promoteNhlResearchToBoard(attached.games);
+    const [prior, v1Context] = await Promise.all([
+      loadNhlResearchPrior(slate.date || date).catch((err) => ({
+        ok: false,
+        source: "NHL_STATS_TEAM_SUMMARY",
+        error: String(err?.message || err),
+        byAbbr: {},
+        canQualify: false,
+        canAuthorize: false,
+      })),
+      loadNhlV1Context(slate.date || date, slate.games || []).catch((err) => ({
+        ok: false,
+        error: String(err?.message || err),
+        teams: {},
+        priorGoalies: [],
+        currentGoalies: [],
+        schedule: [],
+        artifact: null,
+        canQualify: false,
+        canAuthorize: false,
+      })),
+    ]);
+    const baseline = attachNhlResearch(slate.games || [], prior);
+    const fiveLayer = attachNhlV1(baseline.games, v1Context);
+    const research = promoteNhlResearchToBoard(fiveLayer.games);
     next = {
       ...slate,
       games: research.games,
-      modelVersion: "NHL-FBIS-PURE@research-v0-team-prior",
+      modelVersion: fiveLayer.meta.projected > 0
+        ? `${NHL_FBIS_V1_ID}@${NHL_FBIS_V1_VERSION}`
+        : "NHL-FBIS-PURE@research-v0-team-prior",
       research: {
         ...(slate.research || {}),
         nhlPrior: {
@@ -135,7 +152,12 @@ export async function buildSlate(sport, date, env = {}) {
           canAuthorize: false,
           error: prior.error || null,
         },
-        nhlResearch: attached.meta,
+        nhlResearch: baseline.meta,
+        nhlFiveLayer: {
+          ...fiveLayer.meta,
+          contextOk: Boolean(v1Context.ok),
+          contextError: v1Context.error || null,
+        },
         nhlResearchBoard: research.meta,
       },
     };
