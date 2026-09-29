@@ -44,6 +44,11 @@ test("market-implied benchmarks are identified and never confused with independe
     projectionKind: "FBIS",
     engine: "NFL-FBIS-PURE",
   }), false);
+  assert.equal(snapshotMarketInformed({
+    projectionKind: "FBIS",
+    engine: "NFL-FBIS-PURE",
+    projectionFlags: ["pinnacle_implied_score", "execution_market_unlisted"],
+  }), false);
 });
 
 test("snapshot adapter preserves score, result, probability and versioned model identity", () => {
