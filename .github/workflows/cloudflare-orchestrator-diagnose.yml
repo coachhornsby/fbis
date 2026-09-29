@@ -1,0 +1,45 @@
+name: Diagnose Cloudflare orchestrator
+on:
+  push:
+    branches: [infra/cloudflare-consolidation]
+    paths: [".github/workflows/cloudflare-orchestrator-diagnose.yml"]
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'; [[ "$url" == *'?'* ]] && sep='&'
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: Probe routes
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          for spec in "GET /health" "GET /api/validate/sheets" "POST /api/select-candidates"; do
+            method="${spec%% *}"; path="${spec#* }"
+            out="$(mktemp)"
+            args=(-sS --max-time 60 -o "$out" -w "%{http_code}" -X "$method")
+            if [ "$path" != "/health" ]; then
+              args+=(-H "Authorization: Bearer ${OIDC_TOKEN}")
+            fi
+            if [ "$method" = "POST" ]; then
+              args+=(-H "content-type: application/json" -d '{"dryRun":true}')
+            fi
+            code="$(curl "${args[@]}" "${ORCH_URL}${path}")"
+            echo "$method $path http=$code"
+            cat "$out"
+            echo
+          done
