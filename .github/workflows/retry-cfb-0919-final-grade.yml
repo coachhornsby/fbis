@@ -1,0 +1,64 @@
+name: Retry CFB Sep 19 final grading
+
+on:
+  push:
+    branches:
+      - "ops/retry-cfb-0919-final-grade-20260929"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Fetch Sep 19 CFB finals and grade
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          COLLEGE_DATA_API_KEY: ${{ secrets.COLLEGE_DATA_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload="$RUNNER_TEMP/cfb-0919.json"
+          response="$RUNNER_TEMP/grade.json"
+          node scripts/fetch-final-scoreboard.mjs cfb 2026-09-19 > "$payload"
+          jq -c '{source,completed}' "$payload"
+          http="$(curl -sS --max-time 180 --retry 3 --retry-delay 5 --retry-all-errors             -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             --data-binary @"$payload"             -o "$response" -w "%{http_code}"             "${FBIS_BASE}/api/final-grade")"
+          echo "grade-http=$http"
+          cat "$response"
+          test "$http" = "200"
+          jq -e '.ok == true' "$response" >/dev/null
+          {
+            echo "## CFB 2026-09-19 final-grade retry"
+            echo "- finals fetched: $(jq -r '.completed // 0' "$payload")"
+            echo "- matched snapshot game ids: $(jq -r '.matched // 0' "$response")"
+            echo "- unmatched snapshot game ids: $(jq -r '.unmatched // 0' "$response")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Refresh Sheet
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/report.json"
+          sync="$RUNNER_TEMP/sync.json"
+          http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -H "x-harvest-secret: ${HARVEST_SECRET}"             -o "$report" -w "%{http_code}"             "${FBIS_BASE}/api/learning-report?since=2026-01-01&limit=5000")"
+          test "$http" = "200"
+
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'; if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          oidc="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}"             "${url}${sep}audience=sports-projection-orchestrator" | jq -r '.value // empty')"
+          test -n "$oidc"
+          sync_http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -X POST             -H "Authorization: Bearer ${oidc}"             -H "content-type: application/json"             --data-binary @"$report"             -o "$sync" -w "%{http_code}"             "${ORCH_URL}/api/sync-learning-dashboard")"
+          echo "sync-http=$sync_http"
+          cat "$sync"
+          test "$sync_http" = "200"
