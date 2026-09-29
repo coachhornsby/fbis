@@ -1,0 +1,30 @@
+name: Cloudflare consolidation audit
+on:
+  push:
+    branches: [infra/cloudflare-consolidation]
+    paths: [".github/workflows/cloudflare-consolidation-audit.yml"]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: List Cloudflare secret names and Pages projects
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID}"
+          echo "=== FBIS Pages secret names ==="
+          npx --yes wrangler@4 pages secret list --project-name fbis | sed -E 's/[[:space:]]+$//'
+          echo "=== Pages projects ==="
+          curl -fsSL -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects"             | jq -c '.result[] | {name,subdomain,production_branch,created_on}'
+          echo "=== Workers ==="
+          curl -fsSL -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts"             | jq -c '.result[]? | {id,created_on,modified_on}'

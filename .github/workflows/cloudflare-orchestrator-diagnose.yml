@@ -1,0 +1,97 @@
+name: Diagnose Cloudflare orchestrator
+on:
+  push:
+    branches: [infra/cloudflare-consolidation]
+    paths: [".github/workflows/cloudflare-orchestrator-diagnose.yml"]
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'; [[ "$url" == *'?'* ]] && sep='&'
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: Probe routes
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          for spec in "GET /health" "GET /api/validate/sheets" "POST /api/select-candidates"; do
+            method="${spec%% *}"; path="${spec#* }"
+            out="$(mktemp)"
+            args=(-sS --max-time 60 -o "$out" -w "%{http_code}" -X "$method")
+            if [ "$path" != "/health" ]; then
+              args+=(-H "Authorization: Bearer ${OIDC_TOKEN}")
+            fi
+            if [ "$method" = "POST" ]; then
+              args+=(-H "content-type: application/json" -d '{"dryRun":true}')
+            fi
+            code="$(curl "${args[@]}" "${ORCH_URL}${path}")"
+            echo "$method $path http=$code"
+            cat "$out"
+            echo
+          done
+
+      - name: Validate model providers on Cloudflare
+        id: models
+        continue-on-error: true
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$(mktemp)"
+          code="$(curl -sS --max-time 180 -o "$out" -w "%{http_code}" -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json" -d '{}'             "${ORCH_URL}/api/validate/models")"
+          echo "models http=$code"
+          jq -c '{persisted,openai:{ok:.openai.ok,status:.openai.status,error:.openai.error,projectionId:(.openai.projection.identity.projection_id//null)},gemini:{ok:.gemini.ok,status:.gemini.status,error:.gemini.error,projectionId:(.gemini.projection.identity.projection_id//null)}}' "$out"
+          test "$code" = "200"
+          jq -e '.persisted==false and (.openai.status==200) and (.gemini.status==200) and ((.openai.projection.identity.projection_id//"")|length>0) and ((.gemini.projection.identity.projection_id//"")|length>0)' "$out" >/dev/null
+          echo "OpenAI and Gemini validation passed."
+
+      - name: Validate learning dashboard write on Cloudflare
+        id: learning
+        if: always()
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+          FBIS_BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}"
+          report="$(mktemp)"
+          sync="$(mktemp)"
+          code="$(curl -sS --max-time 180 -o "$report" -w "%{http_code}"             -H "x-harvest-secret: ${HARVEST_SECRET}"             "${FBIS_BASE}/api/learning-report?since=2026-01-01&limit=5000")"
+          echo "learning report http=$code"
+          test "$code" = "200"
+          jq -e '.ok==true and .source=="prediction_snapshots"' "$report" >/dev/null
+          code="$(curl -sS --max-time 180 -o "$sync" -w "%{http_code}" -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             --data-binary @"$report"             "${ORCH_URL}/api/sync-learning-dashboard")"
+          echo "learning sync http=$code"
+          test "$code" = "200"
+          jq -e '.ok==true and (.modelRows>=0) and (.auditRows>=0)' "$sync" >/dev/null
+          echo "Learning dashboard write passed."
+
+      - name: Final Cloudflare validation gate
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "models=${{ steps.models.outcome }}"
+          echo "learning=${{ steps.learning.outcome }}"
+          test "${{ steps.models.outcome }}" = "success"
+          test "${{ steps.learning.outcome }}" = "success"

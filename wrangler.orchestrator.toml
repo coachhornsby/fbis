@@ -1,0 +1,34 @@
+name = "fbis-orchestrator"
+main = "workers/sports-projection-orchestrator-worker.mjs"
+compatibility_date = "2026-09-29"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[observability]
+enabled = true
+
+[triggers]
+crons = ["7 * * * *"]
+
+[vars]
+SPREADSHEET_ID = "1B1IVONVvmP50JPCqb64fzEsSaTv6AuHQ04YqEzBhjAo"
+ORCHESTRATOR_VERSION = "AI-ORCH-v0.4-cloudflare"
+PROJECTION_PROTOCOL = "MULTISPORT-PROJ-v0.2"
+PROJECTION_SCHEMA_VERSION = "projection-v0.3"
+OPENAI_MODEL = "gpt-5.6-sol"
+GEMINI_MODEL = "gemini-3.8-flash"
+MAX_RUNS_PER_INVOCATION = "5"
+FBIS_BASE_URL = "https://fbis-myz.pages.dev"
+LLM_SELECTION_ENABLED = "true"
+LLM_MAX_GAMES_PER_DAY = "8"
+LLM_MAX_PER_SCAN = "5"
+LLM_MIN_QUALITY = "76"
+LLM_MIN_MINUTES_TO_START = "60"
+LLM_HORIZON_HOURS = "36"
+WIN_PROB_DELTA_PP = "4"
+TOTAL_DELTA = "0.75"
+SP_IP_DELTA = "0.5"
+SP_K_DELTA = "0.75"
+GITHUB_OIDC_AUDIENCE = "sports-projection-orchestrator"
+GITHUB_OIDC_REPOSITORY = "coachhornsby/fbis"
+ORCH_CRON_ENABLED = "true"
