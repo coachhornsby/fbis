@@ -40,8 +40,9 @@ jobs:
               palRequestId:g.bpp?.requestId??null,
             }};
           });
-          const games=attachMlbDeepShadow(enriched);
-          console.log("META "+JSON.stringify({date:slate.date,count:games.length,pal:slate.pal}));
+          const attached=attachMlbDeepShadow(enriched);
+          const games=attached.games||[];
+          console.log("META "+JSON.stringify({date:slate.date,count:games.length,pal:slate.pal,research:attached.meta}));
           for(const g of games){
             const v2=g.mlbDeepShadow||g.challengers?.["MLB-FBIS-v2"]||null;
             console.log("MLBV2ROW "+JSON.stringify({
