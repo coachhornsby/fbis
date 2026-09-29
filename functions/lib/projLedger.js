@@ -693,6 +693,25 @@ export function resolveFinalForSnapshot(row, finals = []) {
   if (!byTeams.length) return null;
   if (byTeams.length === 1) return byTeams[0];
 
+  // Same-team same-day doubleheaders are valid in MLB. When the immutable
+  // snapshot and a scoreboard final have nearly the same scheduled start,
+  // use that unique time match. Never infer across a wide gap or a tie.
+  const snapStart = Date.parse(String(row?.start || ""));
+  if (Number.isFinite(snapStart)) {
+    const ranked = byTeams
+      .map((f) => ({ f, ms: Date.parse(String(f?.start || "")) }))
+      .filter((x) => Number.isFinite(x.ms))
+      .map((x) => ({ ...x, gap: Math.abs(x.ms - snapStart) }))
+      .sort((a, b) => a.gap - b.gap);
+    if (
+      ranked.length &&
+      ranked[0].gap <= 30 * 60 * 1000 &&
+      (ranked.length === 1 || ranked[1].gap - ranked[0].gap >= 10 * 60 * 1000)
+    ) {
+      return ranked[0].f;
+    }
+  }
+
   const first = byTeams[0];
   const h = Number(first.home?.score ?? first.actualHome);
   const a = Number(first.away?.score ?? first.actualAway);
