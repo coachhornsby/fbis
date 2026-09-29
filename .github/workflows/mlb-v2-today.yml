@@ -1,0 +1,51 @@
+name: MLB v2 today
+on:
+  push:
+    branches: [ops/mlb-v2-today-2026-09-29]
+    paths: [".github/workflows/mlb-v2-today.yml"]
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run Sep 29 MLB champion and challenger
+        env:
+          BALLPARK_PAL_API_KEY: ${{ secrets.BALLPARK_PAL_API_KEY }}
+          PARLAY_API_KEY: ${{ secrets.PARLAY_API_KEY }}
+          THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
+          SHARPAPI_API_KEY: ${{ secrets.SHARPAPI_API_KEY }}
+          THERUNDOWN_API_KEY: ${{ secrets.THERUNDOWN_API_KEY }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { buildSlate } from "./functions/lib/slateEngine.js";
+          const slate = await buildSlate("mlb","2026-09-29",{
+            BALLPARK_PAL_API_KEY: process.env.BALLPARK_PAL_API_KEY,
+            PARLAY_API_KEY: process.env.PARLAY_API_KEY,
+            THEODDS_API_KEY: process.env.THEODDS_API_KEY,
+            SHARPAPI_API_KEY: process.env.SHARPAPI_API_KEY,
+            THERUNDOWN_API_KEY: process.env.THERUNDOWN_API_KEY,
+            caches: null,
+            DB: null,
+            palCacheOnly: false,
+            parlayCacheOnly: false
+          });
+          console.log("META "+JSON.stringify({date:slate.date,count:slate.games?.length,pal:slate.pal,savant:slate.savant,research:slate.research}));
+          for (const g of slate.games || []) {
+            const v2=g.mlbDeepShadow || g.challengers?.["MLB-FBIS-v2"] || null;
+            console.log("MLBV2ROW "+JSON.stringify({
+              id:g.id,start:g.start,away:g.away?.abbr,home:g.home?.abbr,
+              awayName:g.away?.name,homeName:g.home?.name,
+              starterAway:g.awaySp?.name||g.awaySp?.last||null,starterHome:g.homeSp?.name||g.homeSp?.last||null,
+              champion:{away:g.projAwayScore,home:g.projHomeScore,total:(g.projAwayScore!=null&&g.projHomeScore!=null)?g.projAwayScore+g.projHomeScore:null},
+              v2,
+              pal:g.bpp?{away:g.bpp.awayRuns,home:g.bpp.homeRuns,pHome:g.bpp.pHome,park:g.bpp.park,lineupsOfficial:g.bpp.lineupsOfficial,matchup:g.bpp.matchup,asOf:g.bpp.asOf}:null
+            }));
+          }
+          NODE
