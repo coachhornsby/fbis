@@ -83,6 +83,11 @@ describe("NHL-FBIS-v1 five-layer research model", () => {
     assert.equal(NHL_FBIS_V1_ARTIFACT.goaliePriorWeights?.["20252026"], 0.60);
     assert.equal(NHL_FBIS_V1_ARTIFACT.goaliePriorWeights?.["20242025"], 0.25);
     assert.equal(NHL_FBIS_V1_ARTIFACT.goaliePriorWeights?.["20232024"], 0.15);
+    const withLatest = Object.values(NHL_FBIS_V1_ARTIFACT.goalies || {}).find((g) => g?.history?.["20252026"]);
+    assert.ok(withLatest, "expected at least one goalie with 2025-26 history");
+    assert.equal(withLatest.history["20252026"].priorWeight, 0.60);
+    if (withLatest.history["20242025"]) assert.equal(withLatest.history["20242025"].priorWeight, 0.25);
+    if (withLatest.history["20232024"]) assert.equal(withLatest.history["20232024"].priorWeight, 0.15);
     assert.ok(NHL_FBIS_V1_ARTIFACT.xg.validationShots > 80000);
     assert.ok(NHL_FBIS_V1_ARTIFACT.xg.validationBrier < 0.07);
     assert.ok(Object.keys(NHL_FBIS_V1_ARTIFACT.goalies || {}).length >= 100);
