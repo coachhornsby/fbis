@@ -94,6 +94,16 @@ async function allRows(db,sql,binds=[]){
   return res?.results||[];
 }
 
+async function optionalRows(db,sql,binds=[]){
+  try{
+    return await allRows(db,sql,binds);
+  }catch(err){
+    const msg=String(err?.message||err);
+    if(/no such table/i.test(msg)) return [];
+    throw err;
+  }
+}
+
 export async function onRequestGet(context){
   const auth=authorizeHarvest(context.request,context.env);
   if(!auth.ok) return json(unauthorizedBody(),401);
@@ -200,13 +210,13 @@ export async function onRequestGet(context){
         LIMIT ?`,
         [since,auditLimit]
       ),
-      allRows(db,
+      optionalRows(db,
         `SELECT model_id,method,train_until,validate_from,validate_until,n,metrics_json,leakage_ok,created_at
            FROM model_validation_runs
           WHERE method='weekly-auto-train-calibration-v1'
           ORDER BY created_at DESC`
       ),
-      allRows(db,
+      optionalRows(db,
         `SELECT sport,model_id,COUNT(*) AS open_findings
            FROM model_learning_findings
           WHERE status='OPEN'
@@ -350,7 +360,7 @@ export async function onRequestGet(context){
       auditTruncated:audit.length>=auditLimit,
       errors:[],
       generatedAt:new Date().toISOString(),
-      note:"D1 prediction_snapshots is authoritative. Every immutable snapshot remains stored. Projection Audit exposes the latest valid pregame projection per game/model and Snapshots Stored shows how many immutable checkpoints exist for that game/model.",
+      note:"D1 prediction_snapshots is authoritative. Every immutable snapshot remains stored. Projection Audit exposes the latest valid pregame projection per game/model and Snapshots Stored shows how many immutable checkpoints exist for that game/model. Optional training/finding tables degrade to empty evidence instead of blocking projection/final-score visibility.",
     });
   }catch(err){
     return json({ok:false,status:"failed",source:"prediction_snapshots",error:String(err?.message||err),generatedAt:new Date().toISOString()},503);
