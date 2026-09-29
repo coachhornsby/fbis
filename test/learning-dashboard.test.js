@@ -48,3 +48,21 @@ test("render server exposes only authenticated learning dashboard sync", async (
   assert.ok(routeIndex > authIndex);
   assert.match(server, /syncLearningDashboard/);
 });
+
+
+test("production D1 explicitly ensures weekly model validation storage", async () => {
+  const migration = await readFile(
+    new URL("../migrations/0031_model_validation_runs_ensure.sql", import.meta.url),
+    "utf8"
+  );
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS model_validation_runs/);
+  assert.match(migration, /0031_model_validation_runs_ensure/);
+});
+
+test("learning report treats training and finding tables as optional evidence", async () => {
+  const api = await readFile(new URL("../functions/api/learning-report.js", import.meta.url), "utf8");
+  assert.match(api, /async function optionalRows/);
+  assert.match(api, /no such table/);
+  assert.match(api, /optionalRows\(db,[\s\S]*FROM model_validation_runs/);
+  assert.match(api, /optionalRows\(db,[\s\S]*FROM model_learning_findings/);
+});
