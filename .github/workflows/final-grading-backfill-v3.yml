@@ -1,0 +1,130 @@
+name: Final grading backfill v3
+
+on:
+  push:
+    branches:
+      - "ops/final-grading-backfill-v3-20260929"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout production code
+        uses: actions/checkout@v4.2.2
+
+      - name: Build past-due unresolved targets
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="$RUNNER_TEMP/before.json"
+          http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -H "x-harvest-secret: ${HARVEST_SECRET}"             -o "$before" -w "%{http_code}"             "${FBIS_BASE}/api/learning-report?since=2026-01-01&limit=5000")"
+          test "$http" = "200"
+          jq -e '.ok == true and .source=="prediction_snapshots"' "$before" >/dev/null
+          targets="$RUNNER_TEMP/targets.tsv"
+          now_epoch="$(date +%s)"
+          jq -r '.audit[] | select(.learningStatus=="AWAITING FINAL") | [(.sport|ascii_downcase),(.date//""),(.start//"")] | @tsv' "$before"           | while IFS=$'\t' read -r sport stored_date start; do
+              [ -n "$sport" ] || continue
+              game_date="$stored_date"
+              if [ -n "$start" ]; then
+                start_epoch="$(date -d "$start" +%s 2>/dev/null || echo 0)"
+                if [ "$start_epoch" -gt 0 ] && [ "$start_epoch" -gt "$now_epoch" ]; then continue; fi
+                ct_date="$(TZ=America/Chicago date -d "$start" +%F 2>/dev/null || true)"
+                if [ -n "$ct_date" ]; then game_date="$ct_date"; fi
+              fi
+              if [[ "$game_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+                printf '%s\t%s\n' "$sport" "$game_date"
+              fi
+            done | sort -u > "$targets"
+          echo "target-count=$(wc -l < "$targets")"
+          cat "$targets"
+          echo "targets_file=$targets" >> "$GITHUB_ENV"
+
+      - name: Backfill finals through authenticated production ingress
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          COLLEGE_DATA_API_KEY: ${{ secrets.COLLEGE_DATA_API_KEY }}
+        shell: bash
+        run: |
+          set -u
+          calls=0; ok=0; fail=0; fetched=0; accepted=0; matched=0; unmatched=0
+          while IFS=$'\t' read -r sport date; do
+            [ -n "$sport" ] || continue
+            calls=$((calls+1))
+            payload="$(mktemp)"
+            response="$(mktemp)"
+            if node scripts/fetch-final-scoreboard.mjs "$sport" "$date" > "$payload"; then
+              source="$(jq -r '.source // "unknown"' "$payload")"
+              n="$(jq -r '.completed // 0' "$payload")"
+              fetched=$((fetched+n))
+              http="$(curl -sS --max-time 180 --retry 1 --retry-delay 3                 -X POST                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -H "content-type: application/json"                 --data-binary @"$payload"                 -o "$response" -w "%{http_code}"                 "${FBIS_BASE}/api/final-grade")"
+              if [ "$http" = "200" ] && jq -e '.ok == true' "$response" >/dev/null 2>&1; then
+                ok=$((ok+1))
+                a="$(jq -r '.accepted // 0' "$response")"
+                m="$(jq -r '.matched // 0' "$response")"
+                u="$(jq -r '.unmatched // 0' "$response")"
+                accepted=$((accepted+a)); matched=$((matched+m)); unmatched=$((unmatched+u))
+                echo "GRADE_OK sport=${sport} date=${date} source=${source} finals=${n} accepted=${a} matched=${m} unmatched=${u}"
+              else
+                fail=$((fail+1))
+                echo "GRADE_FAIL sport=${sport} date=${date} source=${source} http=${http:-000}"
+                head -c 700 "$response" || true; echo
+              fi
+            else
+              fail=$((fail+1))
+              echo "FETCH_FAIL sport=${sport} date=${date}"
+            fi
+          done < "$targets_file"
+          echo "calls=$calls ok=$ok fail=$fail fetched=$fetched accepted=$accepted matched=$matched unmatched=$unmatched"
+          {
+            echo "## Final grading backfill v3"
+            echo "- target sport/dates: $calls"
+            echo "- successful: $ok"
+            echo "- failed: $fail"
+            echo "- public finals fetched: $fetched"
+            echo "- finals accepted: $accepted"
+            echo "- snapshot game ids graded: $matched"
+            echo "- snapshot game ids unresolved: $unmatched"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Refresh learning report and Sheet
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          after="$RUNNER_TEMP/after.json"
+          sync="$RUNNER_TEMP/sync.json"
+          report_http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -H "x-harvest-secret: ${HARVEST_SECRET}"             -o "$after" -w "%{http_code}"             "${FBIS_BASE}/api/learning-report?since=2026-01-01&limit=5000")"
+          test "$report_http" = "200"
+          jq -e '.ok == true and .source=="prediction_snapshots"' "$after" >/dev/null
+
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'; if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          oidc_body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}"             "${url}${sep}audience=sports-projection-orchestrator")"
+          oidc_token="$(jq -r '.value // empty' <<<"$oidc_body")"
+          test -n "$oidc_token"
+
+          sync_http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -X POST             -H "Authorization: Bearer ${oidc_token}"             -H "content-type: application/json"             --data-binary @"$after"             -o "$sync" -w "%{http_code}"             "${ORCH_URL}/api/sync-learning-dashboard")"
+          echo "dashboard-sync-http=$sync_http"
+          cat "$sync"
+          test "$sync_http" = "200"
+          jq -e '.ok == true' "$sync" >/dev/null
+          {
+            echo "## Learning population after v3"
+            echo "- canonical projections: $(jq -r '.totals.canonicalProjections // 0' "$after")"
+            echo "- graded canonical projections: $(jq -r '.totals.gradedProjections // 0' "$after")"
+            echo "- awaiting finals: $(jq -r '.totals.awaitingFinals // 0' "$after")"
+            echo "- all-projection finals reconciled: $(jq -r '.allProjectionFinalsReconciled // 0' "$sync")"
+          } >> "$GITHUB_STEP_SUMMARY"
