@@ -9,6 +9,7 @@ import {
 import { promoteNhlResearchToBoard } from "../functions/lib/researchBoardPromote.js";
 import { qualificationIntegrity } from "../functions/lib/slateEngine.js";
 import { getModel } from "../functions/lib/canonical/modelRegistry.js";
+import { NHL_FBIS_V1_ARTIFACT } from "../data/models/nhl-fbis-v1.js";
 
 describe("NHL-FBIS-v1 five-layer research model", () => {
   const artifact = {
@@ -60,6 +61,15 @@ describe("NHL-FBIS-v1 five-layer research model", () => {
     away: { abbr: "FLA", name: "Florida Panthers" },
     odds: { total: 6.0, spread: -1.5 },
   };
+
+  it("ships the fitted three-season historical artifact", () => {
+    assert.equal(NHL_FBIS_V1_ARTIFACT.trained, true);
+    assert.equal(NHL_FBIS_V1_ARTIFACT.gamesParsed, 3936);
+    assert.equal(NHL_FBIS_V1_ARTIFACT.failedGames, 0);
+    assert.ok(NHL_FBIS_V1_ARTIFACT.xg.validationShots > 80000);
+    assert.ok(NHL_FBIS_V1_ARTIFACT.xg.validationBrier < 0.07);
+    assert.ok(Object.keys(NHL_FBIS_V1_ARTIFACT.goalies || {}).length >= 100);
+  });
 
   it("combines all five independent layers", () => {
     const p = projectNhlV1Game(game, ctx);
