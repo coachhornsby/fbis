@@ -226,6 +226,17 @@ test("historical final grading uses a lightweight unresolved snapshot read", asy
   assert.match(ledger, /queryFinalSnapshotCandidates\(env/);
 });
 
+test("invalid historical snapshots can be explicitly excluded from learning", async () => {
+  const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
+  const store = await readFile(new URL("../functions/lib/store.js", import.meta.url), "utf8");
+  const report = await readFile(new URL("../functions/api/learning-report.js", import.meta.url), "utf8");
+  const learning = await readFile(new URL("../functions/lib/snapshotLearning.js", import.meta.url), "utf8");
+  assert.match(api, /learning-exclusions/);
+  assert.match(store, /LEARNING_EXCLUDED/);
+  assert.match(report, /COALESCE\(projection_state,''\) != 'LEARNING_EXCLUDED'/);
+  assert.match(learning, /projectionState.*LEARNING_EXCLUDED/);
+});
+
 test("historical backfill can post pre-reconciled verified grades without rescanning D1", async () => {
   const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
   const planner = await readFile(new URL("../scripts/build-final-grade-plan.mjs", import.meta.url), "utf8");
