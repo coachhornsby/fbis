@@ -5,7 +5,8 @@ import { projectNflFormV0 } from "../functions/lib/nflModel.js";
 import { gradeResearchScoreProjection } from "../functions/lib/nflResearchGrade.js";
 
 const RELEASE="https://github.com/nflverse/nflverse-data/releases/download";
-const SCHEDULES="https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv";\nconst PBP_RELEASE=`${RELEASE}/pbp`;
+const SCHEDULES="https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv";
+const PBP_RELEASE=`${RELEASE}/pbp`;
 const PRIOR_GAMES=8;
 const seasons=(process.env.NFL_WF_SEASONS||"2022,2023,2024,2025").split(",").map(Number);
 const outPath=process.env.NFL_WF_OUT||"artifacts/nfl-pro-walkforward.json";
