@@ -177,3 +177,46 @@ test("historical final grading tolerates bounded board-date drift and new freeze
   assert.match(ledger, /const canonicalDate = dateCT\(game\.start\) \|\| slate\.date/);
   assert.match(ledger, /const storageDate = existing\?\.date \|\| canonicalDate/);
 });
+
+
+test("snapshot reconciliation uses a unique near-exact start to distinguish MLB doubleheaders", async () => {
+  const { resolveFinalForSnapshot } = await import("../functions/lib/projLedger.js");
+  const row = {
+    gameId: "synthetic-doubleheader-g2",
+    sport: "mlb",
+    date: "2026-09-25",
+    start: "2026-09-25T23:05:00Z",
+    matchup: "Baltimore @ New York",
+    awayName: "Baltimore Orioles",
+    homeName: "New York Yankees",
+  };
+  const finals = [
+    {
+      id: "g1", sport: "mlb", date: "2026-09-25", start: "2026-09-25T20:05:00Z",
+      away: { name: "Baltimore Orioles", abbr: "BAL", score: 2 },
+      home: { name: "New York Yankees", abbr: "NYY", score: 5 },
+      status: { completed: true, detail: "Final" },
+    },
+    {
+      id: "g2", sport: "mlb", date: "2026-09-25", start: "2026-09-25T23:05:00Z",
+      away: { name: "Baltimore Orioles", abbr: "BAL", score: 4 },
+      home: { name: "New York Yankees", abbr: "NYY", score: 3 },
+      status: { completed: true, detail: "Final" },
+    },
+  ];
+  assert.equal(resolveFinalForSnapshot(row, finals)?.id, "g2");
+});
+
+test("runner final fetch merges primary and public college scoreboards", async () => {
+  const script = await readFile(new URL("../scripts/fetch-final-scoreboard.mjs", import.meta.url), "utf8");
+  assert.match(script, /function mergeFinals/);
+  assert.match(script, /primary\+cfbfastR/);
+  assert.match(script, /preferCfbd:false/);
+});
+
+test("final-grade ingress rejects absent scores instead of coercing null to zero", async () => {
+  const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
+  assert.match(api, /function finiteScore/);
+  assert.match(api, /v==null \|\| v===""\) return null/);
+  assert.match(api, /homeScore==null \|\| awayScore==null/);
+});
