@@ -66,15 +66,21 @@ async function fetchJson(url,fetcher=fetch){
   if(!res.ok) throw new Error(`NHL_V1_HTTP_${res.status}`);
   return res.json();
 }
-function teamAbbr(row={}){
-  return String(row.teamAbbrev||row.teamAbbreviation||row.rawTricode||row.triCode||"").trim().toUpperCase();
+function normTeamName(value){
+  return String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 }
-function normalizeSummary(row={}){
+function teamAbbr(row={},lookup=null){
+  const direct=String(row.teamAbbrev||row.teamAbbreviation||row.rawTricode||row.triCode||"").trim().toUpperCase();
+  if(direct) return direct;
+  if(row.teamId!=null && lookup?.byId?.has(String(row.teamId))) return lookup.byId.get(String(row.teamId));
+  return lookup?.byName?.get(normTeamName(row.teamFullName||row.teamName||row.team))||"";
+}
+function normalizeSummary(row={},lookup=null){
   const gp=finite(row.gamesPlayed)||0;
   const gf=finite(row.goalsFor);
   const ga=finite(row.goalsAgainst);
   return {
-    abbr:teamAbbr(row),
+    abbr:teamAbbr(row,lookup),
     games:gp,
     gfpg:finite(row.goalsForPerGame)??(gp&&gf!=null?gf/gp:null),
     gapg:finite(row.goalsAgainstPerGame)??(gp&&ga!=null?ga/gp:null),
@@ -84,10 +90,10 @@ function normalizeSummary(row={}){
     shotsAgainst:finite(row.shotsAgainstPerGame)
   };
 }
-function specialTeamsMap(rows=[],kind){
+function specialTeamsMap(rows=[],kind,lookup=null){
   const out={};
   for(const row of rows||[]){
-    const abbr=teamAbbr(row);
+    const abbr=teamAbbr(row,lookup);
     if(!abbr) continue;
     const value=kind==="pp"
       ? pct(row.powerPlayPct ?? row.ppPct ?? row.powerPlayPctg)
@@ -136,8 +142,8 @@ function scheduleGames(json){
       out.push({
         id:String(g.id||""),
         start:g.startTimeUTC||null,
-        home:String(g.homeTeam?.abbrev||"").toUpperCase(),
-        away:String(g.awayTeam?.abbrev||"").toUpperCase(),
+        home:String(g.homeTeam?.abbrev?.default??g.homeTeam?.abbrev??"").toUpperCase(),
+        away:String(g.awayTeam?.abbrev?.default??g.awayTeam?.abbrev??"").toUpperCase(),
         state:String(g.gameState||"")
       });
     }
@@ -250,7 +256,8 @@ function distribution(home,away,totalLine=null,homeSpread=null){
 
 export async function loadNhlV1Context(date,games=[],{fetcher=fetch}={}){
   const ids=seasonIds(date);
-  const [priorTeams,currentTeams,priorGoalies,currentGoalies,priorPp,currentPp,priorPk,currentPk,s1,s2]=await Promise.all([
+  const [teamCatalog,priorTeams,currentTeams,priorGoalies,currentGoalies,priorPp,currentPp,priorPk,currentPk,s1,s2]=await Promise.all([
+    fetchJson(`${STATS}/team?limit=-1`,fetcher),
     fetchJson(statUrl("team/summary",ids.prior),fetcher),
     fetchJson(statUrl("team/summary",ids.current),fetcher).catch(()=>({data:[]})),
     fetchJson(statUrl("goalie/summary",ids.prior),fetcher),
@@ -262,12 +269,20 @@ export async function loadNhlV1Context(date,games=[],{fetcher=fetch}={}){
     fetchJson(`${WEB}/schedule/${date}`,fetcher).catch(()=>({gameWeek:[]})),
     fetchJson(`${WEB}/schedule/${new Date(Date.parse(date+"T12:00:00Z")-7*86400000).toISOString().slice(0,10)}`,fetcher).catch(()=>({gameWeek:[]}))
   ]);
-  const priorMap=Object.fromEntries((priorTeams.data||[]).map(normalizeSummary).filter(r=>r.abbr).map(r=>[r.abbr,r]));
-  const currentMap=Object.fromEntries((currentTeams.data||[]).map(normalizeSummary).filter(r=>r.abbr).map(r=>[r.abbr,r]));
-  const priorPpMap=specialTeamsMap(priorPp.data||[],"pp");
-  const currentPpMap=specialTeamsMap(currentPp.data||[],"pp");
-  const priorPkMap=specialTeamsMap(priorPk.data||[],"pk");
-  const currentPkMap=specialTeamsMap(currentPk.data||[],"pk");
+  const byId=new Map(),byName=new Map();
+  for(const row of teamCatalog.data||[]){
+    const abbr=String(row.rawTricode||row.triCode||"").trim().toUpperCase();
+    if(!abbr) continue;
+    if(row.id!=null) byId.set(String(row.id),abbr);
+    if(row.fullName) byName.set(normTeamName(row.fullName),abbr);
+  }
+  const lookup={byId,byName};
+  const priorMap=Object.fromEntries((priorTeams.data||[]).map(r=>normalizeSummary(r,lookup)).filter(r=>r.abbr).map(r=>[r.abbr,r]));
+  const currentMap=Object.fromEntries((currentTeams.data||[]).map(r=>normalizeSummary(r,lookup)).filter(r=>r.abbr).map(r=>[r.abbr,r]));
+  const priorPpMap=specialTeamsMap(priorPp.data||[],"pp",lookup);
+  const currentPpMap=specialTeamsMap(currentPp.data||[],"pp",lookup);
+  const priorPkMap=specialTeamsMap(priorPk.data||[],"pk",lookup);
+  const currentPkMap=specialTeamsMap(currentPk.data||[],"pk",lookup);
   for(const [abbr,row] of Object.entries(priorMap)){
     if(row.pp==null && priorPpMap[abbr]!=null) row.pp=priorPpMap[abbr];
     if(row.pk==null && priorPkMap[abbr]!=null) row.pk=priorPkMap[abbr];
