@@ -100,6 +100,9 @@ CREATE TABLE IF NOT EXISTS prediction_snapshots (
   f5_actual_home REAL,
   f5_actual_away REAL,
   graded_at TEXT,
+  learning_terminal_state TEXT,
+  learning_exclusion_reason TEXT,
+  learning_terminal_at TEXT,
   deployment_commit TEXT
 );
 
