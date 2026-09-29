@@ -31,10 +31,11 @@ const report = JSON.parse(await readFile(reportPath, "utf8"));
 const scoreboard = JSON.parse(await readFile(scoreboardPath, "utf8"));
 const finals = Array.isArray(scoreboard?.finals) ? scoreboard.finals : [];
 const audit = Array.isArray(report?.audit) ? report.audit : [];
+const forceRepair = process.env.FORCE_REPAIR === "1";
 
 const byGame = new Map();
 for (const row of audit) {
-  if (String(row?.learningStatus || "").toUpperCase() !== "AWAITING FINAL") continue;
+  if (!forceRepair && String(row?.learningStatus || "").toUpperCase() !== "AWAITING FINAL") continue;
   if (String(row?.sport || "").toLowerCase() !== sport) continue;
   const gameDate = row?.start ? ctDate(row.start) : String(row?.date || "").slice(0, 10);
   if (gameDate !== date) continue;
@@ -74,5 +75,6 @@ process.stdout.write(JSON.stringify({
   candidates: byGame.size,
   grades,
   unmatchedGameIds,
+  forceRepair,
   generatedAt: new Date().toISOString(),
 }));

@@ -1,0 +1,48 @@
+name: MLB historical grade repair
+on:
+  push:
+    branches: [fix/mlb-historical-grade-repair-2026-09-29]
+    paths: [".github/workflows/mlb-historical-grade-repair.yml"]
+permissions:
+  contents: read
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconcile every archived MLB projection date to trusted finals
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FORCE_REPAIR: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 180 -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/learning-report?since=2026-08-26&limit=5000" > report.json
+          total_candidates=0; total_grades=0; total_unmatched=0
+          d=2026-08-26
+          while [ "$d" != "2026-09-29" ]; do
+            scoreboard="scoreboard-${d}.json"
+            plan="plan-${d}.json"
+            node scripts/fetch-final-scoreboard.mjs mlb "$d" > "$scoreboard"
+            FORCE_REPAIR=1 node scripts/build-final-grade-plan.mjs report.json "$scoreboard" mlb "$d" > "$plan"
+            candidates="$(jq -r '.candidates' "$plan")"
+            grades="$(jq -r '.grades|length' "$plan")"
+            unmatched="$(jq -r '.unmatchedGameIds|length' "$plan")"
+            total_candidates=$((total_candidates+candidates)); total_grades=$((total_grades+grades)); total_unmatched=$((total_unmatched+unmatched))
+            if [ "$grades" -gt 0 ]; then
+              batches=$(( (grades + 24) / 25 ))
+              for ((b=0; b<batches; b++)); do
+                jq --argjson start "$((b*25))" '{sport,date,source,grades:(.grades[$start:($start+25)]),forceCorrect:true}' "$plan" > payload.json
+                http="$(curl -sS --max-time 120 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" --data-binary @payload.json -o response.json -w "%{http_code}" "${BASE}/api/final-grade")"
+                echo "REPAIR date=$d batch=$((b+1))/$batches candidates=$candidates grades=$grades unmatched=$unmatched http=$http response=$(jq -c '{ok,mode,matched,failed}' response.json)"
+                test "$http" = "200"
+                jq -e '.ok==true and .failed==0' response.json >/dev/null
+              done
+            else
+              echo "REPAIR date=$d candidates=$candidates grades=0 unmatched=$unmatched"
+            fi
+            d="$(date -u -d "$d + 1 day" +%F)"
+          done
+          echo "REPAIR_SUMMARY candidates=$total_candidates grades=$total_grades unmatched=$total_unmatched"

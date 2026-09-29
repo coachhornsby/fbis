@@ -95,6 +95,7 @@ export async function onRequestPost(context){
     }
 
     const directRaw=Array.isArray(body?.grades)?body.grades:null;
+    const forceCorrect=body?.forceCorrect===true;
     if(directRaw){
       if(directRaw.length>25) return json({ok:false,error:"too-many-grades"},400);
       const grades=directRaw.map((row)=>({
@@ -114,6 +115,7 @@ export async function onRequestPost(context){
         const res=await gradeSnapshotsForGame(context.env,{
           ...g,
           gradedAt:new Date().toISOString(),
+          forceCorrect,
         });
         if(res?.ok) matched+=1;
         else {
@@ -123,7 +125,7 @@ export async function onRequestPost(context){
       }
       return json({
         ok:failed===0,
-        mode:"direct-verified-grades",
+        mode:forceCorrect?"direct-corrected-grades":"direct-verified-grades",
         source:String(body?.source||"trusted-scoreboard-reconciled-runner"),
         sport,
         date,
