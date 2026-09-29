@@ -1,0 +1,28 @@
+name: NHL prior live probe
+on:
+  push:
+    branches: [probe/nhl-prior-live-20260929]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Validate official NHL prior
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { loadNhlResearchPrior, projectNhlResearchGame } from "./functions/lib/nhlResearchModel.js";
+          const prior=await loadNhlResearchPrior("2026-09-29");
+          console.log(JSON.stringify({
+            ok:prior.ok,seasonId:prior.seasonId,teams:prior.teams,
+            leagueAvgGoals:prior.leagueAvgGoals,
+            hasCAR:Boolean(prior.byAbbr?.CAR),hasFLA:Boolean(prior.byAbbr?.FLA),
+            hasNYR:Boolean(prior.byAbbr?.NYR),hasVGK:Boolean(prior.byAbbr?.VGK)
+          }));
+          if(!prior.ok || prior.teams < 30) process.exit(1);
+          const p=projectNhlResearchGame({home:{abbr:"CAR"},away:{abbr:"FLA"}},prior);
+          console.log(JSON.stringify({game:"FLA@CAR",projection:p}));
+          if(!p.ok || p.canQualify !== false || p.marketInformed !== false) process.exit(1);
+          NODE
