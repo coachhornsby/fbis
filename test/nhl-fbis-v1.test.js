@@ -97,6 +97,14 @@ describe("NHL-FBIS-v1 five-layer research model", () => {
     assert.equal(reg?.canQualify, false);
   });
 
+  it("loads official power-play and penalty-kill reports for the special-teams layer", async () => {
+    const src = await readFile(new URL("../functions/lib/nhlFbisV1.js", import.meta.url), "utf8");
+    assert.match(src, /team\/powerplay/);
+    assert.match(src, /team\/penaltykill/);
+    assert.match(src, /goalie\/summary/);
+    assert.match(src, /schedule\//);
+  });
+
   it("historical fitter uses official NHL schedules and play by play without market inputs", async () => {
     const src = await readFile(new URL("../scripts/nhl-historical-fit.mjs", import.meta.url), "utf8");
     assert.match(src, /api-web\.nhle\.com\/v1/);
