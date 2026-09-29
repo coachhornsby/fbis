@@ -51,7 +51,29 @@ export async function buildSlate(sport, date, env = {}) {
     const bullpen = await loadMlbBullpenContext(slate.games || [], env).catch((err) => ({
       byTeamId: {}, meta: { source: "MLB Stats relief split", teams: 0, available: 0, error: String(err?.message || err), marketInformed: false },
     }));
-    const enriched = attachMlbBullpenContext(slate.games || [], bullpen);
+    const enriched = attachMlbBullpenContext(slate.games || [], bullpen).map((game) => {
+      const pal = game.bpp || {};
+      const parkRunsPct = Number(pal.park?.runsPct);
+      const parkHrPct = Number(pal.park?.hrPct);
+      // Pal matchup is expressed from the offense perspective vs the opposing starter.
+      const homeVsAwaySp = pal.matchup?.vsAwaySp || null;
+      const awayVsHomeSp = pal.matchup?.vsHomeSp || null;
+      return {
+        ...game,
+        mlbContext: {
+          ...(game.mlbContext || {}),
+          palParkRunFactor: Number.isFinite(parkRunsPct) ? 1 + parkRunsPct / 100 : null,
+          palParkHrFactor: Number.isFinite(parkHrPct) ? 1 + parkHrPct / 100 : null,
+          palLineupsOfficial: pal.lineupsOfficial === true,
+          homePalRcVsTypical: homeVsAwaySp?.rcVs ?? null,
+          homePalMatchupN: homeVsAwaySp?.n ?? null,
+          awayPalRcVsTypical: awayVsHomeSp?.rcVs ?? null,
+          awayPalMatchupN: awayVsHomeSp?.n ?? null,
+          palAsOf: pal.asOf || null,
+          palRequestId: pal.requestId || null,
+        },
+      };
+    });
     const deep = attachMlbDeepShadow(enriched);
     const research = promoteMlbResearchToBoard(deep.games);
     next = {
