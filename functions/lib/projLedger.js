@@ -738,23 +738,39 @@ export async function gradeSnapshotPopulationAgainstFinals(
   if (!id || !day) {
     return { ok: false, reason: "sport-and-date-required", candidates: 0, matched: 0, unmatched: 0, failed: 0 };
   }
-  // Historical board snapshots were sometimes stored under the requested
-  // board date rather than the actual kickoff date. Search a bounded week on
-  // either side, then filter by the immutable event start below.
-  const since = shiftDateCT(day, -7);
-  const until = shiftDateCT(day, 7);
-  const q = await querySnapshots(env, { sport: id, since, until });
+  // Large CFB Saturdays can contain hundreds of immutable rows. Query the
+  // stored target date first so D1 does not scan a 15-day window on every
+  // grading request. Historical rows that were stored under a neighboring
+  // requested board date are recovered only after the exact-date population
+  // has been exhausted.
+  const unresolvedByGame = (rows = []) => {
+    const map = new Map();
+    for (const row of rows) {
+      if (row.actualHome != null && row.actualAway != null) continue;
+      if (snapshotLocalDate(row) !== day) continue;
+      const gameId = String(row.gameId || row.id || "");
+      if (!gameId || map.has(gameId)) continue;
+      map.set(gameId, row);
+    }
+    return map;
+  };
+
+  let queryWindow = "exact-date";
+  let q = await querySnapshots(env, { sport: id, since: day, until: day });
   if (!q.ok) {
     return { ok: false, reason: q.reason || "snapshot-query-failed", candidates: 0, matched: 0, unmatched: 0, failed: 0 };
   }
 
-  const byGame = new Map();
-  for (const row of q.rows || []) {
-    if (row.actualHome != null && row.actualAway != null) continue;
-    if (snapshotLocalDate(row) !== day) continue;
-    const gameId = String(row.gameId || row.id || "");
-    if (!gameId || byGame.has(gameId)) continue;
-    byGame.set(gameId, row);
+  let byGame = unresolvedByGame(q.rows || []);
+  if (byGame.size === 0) {
+    queryWindow = "neighbor-fallback";
+    const since = shiftDateCT(day, -7);
+    const until = shiftDateCT(day, 7);
+    q = await querySnapshots(env, { sport: id, since, until });
+    if (!q.ok) {
+      return { ok: false, reason: q.reason || "snapshot-query-failed", candidates: 0, matched: 0, unmatched: 0, failed: 0 };
+    }
+    byGame = unresolvedByGame(q.rows || []);
   }
 
   let matched = 0;
@@ -801,6 +817,7 @@ export async function gradeSnapshotPopulationAgainstFinals(
     sport: id,
     date: day,
     candidates: byGame.size,
+    queryWindow,
     matched,
     unmatched,
     failed,
