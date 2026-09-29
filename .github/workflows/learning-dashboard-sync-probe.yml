@@ -1,0 +1,68 @@
+name: Learning dashboard sync probe
+
+on:
+  push:
+    branches:
+      - "probe/learning-dashboard-sync-20260928"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          body="$(curl -fsSL             -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}"             "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch authoritative learning report
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          report="$RUNNER_TEMP/learning-report.json"
+          http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$report" -w "%{http_code}"             "${FBIS_BASE}/api/learning-report?since=2026-01-01&limit=5000")"
+          echo "LEARNING REPORT HTTP=$http"
+          cat "$report"
+          test "$http" = "200"
+          jq -e '.ok == true and .source == "prediction_snapshots"' "$report" >/dev/null
+          echo "report=$report" >> "$GITHUB_ENV"
+
+      - name: Sync report to Google Sheets
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/sync-result.json"
+          http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             --data-binary @"$report"             -o "$body" -w "%{http_code}"             "${ORCH_URL}/api/sync-learning-dashboard")"
+          echo "LEARNING SHEET SYNC HTTP=$http"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          {
+            echo "## Learning dashboard sync probe"
+            echo "- source snapshots: $(jq -r '.sourceTotals.snapshotRows // 0' "$body")"
+            echo "- canonical projections: $(jq -r '.sourceTotals.canonicalProjections // 0' "$body")"
+            echo "- graded: $(jq -r '.sourceTotals.gradedProjections // 0' "$body")"
+            echo "- awaiting finals: $(jq -r '.sourceTotals.awaitingFinals // 0' "$body")"
+            echo "- model rows: $(jq -r '.modelRows // 0' "$body")"
+            echo "- audit rows: $(jq -r '.auditRows // 0' "$body")"
+            echo "- reconciled finals: $(jq -r '.allProjectionFinalsReconciled // 0' "$body")"
+          } >> "$GITHUB_STEP_SUMMARY"
