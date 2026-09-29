@@ -47,6 +47,8 @@ jobs:
           done
 
       - name: Validate model providers on Cloudflare
+        id: models
+        continue-on-error: true
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
           ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
@@ -56,11 +58,14 @@ jobs:
           out="$(mktemp)"
           code="$(curl -sS --max-time 180 -o "$out" -w "%{http_code}" -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json" -d '{}'             "${ORCH_URL}/api/validate/models")"
           echo "models http=$code"
+          jq -c '{persisted,openai:{ok:.openai.ok,status:.openai.status,error:.openai.error,projectionId:(.openai.projection.identity.projection_id//null)},gemini:{ok:.gemini.ok,status:.gemini.status,error:.gemini.error,projectionId:(.gemini.projection.identity.projection_id//null)}}' "$out"
           test "$code" = "200"
           jq -e '.openai.ok==true and .gemini.ok==true and .persisted==false' "$out" >/dev/null
           echo "OpenAI and Gemini validation passed."
 
       - name: Validate learning dashboard write on Cloudflare
+        id: learning
+        if: always()
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
           ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
@@ -80,3 +85,13 @@ jobs:
           test "$code" = "200"
           jq -e '.ok==true and (.modelRows>=0) and (.auditRows>=0)' "$sync" >/dev/null
           echo "Learning dashboard write passed."
+
+      - name: Final Cloudflare validation gate
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "models=${{ steps.models.outcome }}"
+          echo "learning=${{ steps.learning.outcome }}"
+          test "${{ steps.models.outcome }}" = "success"
+          test "${{ steps.learning.outcome }}" = "success"
