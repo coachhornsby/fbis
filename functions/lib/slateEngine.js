@@ -16,7 +16,8 @@ import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
 import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
-import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearchToBoard } from "./researchBoardPromote.js";
+import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearchToBoard, promoteNhlResearchToBoard } from "./researchBoardPromote.js";
+import { loadNhlResearchPrior, attachNhlResearch } from "./nhlResearchModel.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
@@ -105,6 +106,37 @@ export async function buildSlate(sport, date, env = {}) {
         nflVerse: verse.meta,
         nflPro: pro.meta,
         nflResearchBoard: research.meta,
+      },
+    };
+  } else if (id === "nhl") {
+    const prior = await loadNhlResearchPrior(slate.date || date).catch((err) => ({
+      ok: false,
+      source: "NHL_STATS_TEAM_SUMMARY",
+      error: String(err?.message || err),
+      byAbbr: {},
+      canQualify: false,
+      canAuthorize: false,
+    }));
+    const attached = attachNhlResearch(slate.games || [], prior);
+    const research = promoteNhlResearchToBoard(attached.games);
+    next = {
+      ...slate,
+      games: research.games,
+      modelVersion: "NHL-FBIS-PURE@research-v0-team-prior",
+      research: {
+        ...(slate.research || {}),
+        nhlPrior: {
+          ok: Boolean(prior.ok),
+          source: prior.source || "NHL_STATS_TEAM_SUMMARY",
+          seasonId: prior.seasonId || null,
+          teams: prior.teams || 0,
+          marketInformed: false,
+          canQualify: false,
+          canAuthorize: false,
+          error: prior.error || null,
+        },
+        nhlResearch: attached.meta,
+        nhlResearchBoard: research.meta,
       },
     };
   } else if (id === "cbb") {
