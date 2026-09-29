@@ -45,6 +45,40 @@ jobs:
           test "$http" = "200"
           jq -e '.ok == true' "$body" >/dev/null
 
+      - name: Sync all-game learning evidence to Google Sheets
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          ORCH_URL: https://sports-projection-orchestrator.onrender.com
+          FBIS_BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          report="$(mktemp)"
+          sync_body="$(mktemp)"
+          report_http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$report" -w "%{http_code}"             "${FBIS_BASE}/api/learning-report?since=2026-01-01&limit=5000")"
+          echo "LEARNING REPORT HTTP=$report_http"
+          test "$report_http" = "200"
+          jq -e '.ok == true and .source == "prediction_snapshots"' "$report" >/dev/null
+
+          sync_http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             --data-binary @"$report"             -o "$sync_body" -w "%{http_code}"             "${ORCH_URL}/api/sync-learning-dashboard")"
+          echo "LEARNING SHEET SYNC HTTP=$sync_http"
+          cat "$sync_body"
+          test "$sync_http" = "200"
+          jq -e '.ok == true and (.modelRows >= 0) and (.auditRows >= 0)' "$sync_body" >/dev/null
+
+          {
+            echo "## Learning dashboard sync"
+            echo "- D1 snapshots: $(jq -r '.totals.snapshotRows' "$report")"
+            echo "- canonical projections: $(jq -r '.totals.canonicalProjections' "$report")"
+            echo "- graded: $(jq -r '.totals.gradedProjections' "$report")"
+            echo "- awaiting finals: $(jq -r '.totals.awaitingFinals' "$report")"
+            echo "- model summary rows: $(jq -r '.modelRows' "$sync_body")"
+            echo "- audit rows: $(jq -r '.auditRows' "$sync_body")"
+            echo "- All Projections finals reconciled: $(jq -r '.allProjectionFinalsReconciled' "$sync_body")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Process Render queue
         env:
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
