@@ -17,6 +17,13 @@ export const NFL_CONSTANTS = {
   priorGames: 8,
   marginSigma: 13.5,
   totalSigma: 12.5,
+  marginCalibration: {
+    slope: 0.5,
+    intercept: 0,
+    basis: "chronological prospective holdout through 2026-09-29",
+    holdoutRawMae: 9.07,
+    holdoutCalibratedMae: 7.76,
+  },
 };
 
 function num(v) {
@@ -90,16 +97,27 @@ export function projectNflFormV0(game, { homePrior = null, awayPrior = null, hom
   const awayOff = blend(awayOffPrior, ac?.off, ac?.games || 0);
   const awayDef = blend(awayDefPrior, ac?.def, ac?.games || 0);
   const hfa = game?.neutralSite ? 0 : NFL_CONSTANTS.hfa;
-  let home = round1(homeOff + (awayDef - NFL_CONSTANTS.leaguePpg) + hfa / 2);
-  let away = round1(awayOff + (homeDef - NFL_CONSTANTS.leaguePpg) - hfa / 2);
-  const wx = applyScoreWeatherFactor(home, away, game?.weatherImpact?.footballTotalFactor ?? 1);
-  home = wx.home;
-  away = wx.away;
+  let rawHome = round1(homeOff + (awayDef - NFL_CONSTANTS.leaguePpg) + hfa / 2);
+  let rawAway = round1(awayOff + (homeDef - NFL_CONSTANTS.leaguePpg) - hfa / 2);
+  const wx = applyScoreWeatherFactor(rawHome, rawAway, game?.weatherImpact?.footballTotalFactor ?? 1);
+  rawHome = wx.home;
+  rawAway = wx.away;
+  const rawMargin = rawHome - rawAway;
+  const total = round1(rawHome + rawAway);
+  const calibratedMargin = NFL_CONSTANTS.marginCalibration.intercept +
+    NFL_CONSTANTS.marginCalibration.slope * rawMargin;
+  // Preserve the independently projected scoring environment; calibrate only
+  // the side separation. Chronological holdout improved margin MAE while total
+  // recalibration did not, so totals remain untouched.
+  let home = round1(total / 2 + calibratedMargin / 2);
+  let away = round1(total / 2 - calibratedMargin / 2);
+  // Keep score sum exactly aligned with the untouched total after rounding.
+  const drift = round1(total - (home + away));
+  if (drift !== 0) home = round1(home + drift);
   const margin = round1(home - away);
-  const total = round1(home + away);
   return {
     modelId: NFL_SHADOW_ID,
-    version: "v0",
+    version: "v0.1-margin-calibrated",
     role: "shadow",
     family: "baseline",
     ok: true,
@@ -116,6 +134,10 @@ export function projectNflFormV0(game, { homePrior = null, awayPrior = null, hom
     featuresOk: true,
     provenance: {
       prior: "previous-season harvested team scoring form",
+      rawHome,
+      rawAway,
+      rawMargin: round1(rawMargin),
+      marginCalibration: NFL_CONSTANTS.marginCalibration,
       current: "current-season harvested team scoring form",
       marketUsed: false,
       hfa,
