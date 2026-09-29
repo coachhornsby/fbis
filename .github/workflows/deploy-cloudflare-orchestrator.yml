@@ -1,0 +1,53 @@
+name: Deploy Cloudflare Orchestrator
+on:
+  push:
+    branches: [main]
+    paths:
+      - "workers/sports-projection-orchestrator-worker.mjs"
+      - "services/sports-projection-orchestrator/orchestrator.mjs"
+      - "wrangler.orchestrator.toml"
+      - ".github/workflows/deploy-cloudflare-orchestrator.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-cloudflare-orchestrator
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Deploy orchestrator worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID}"
+          npx --yes wrangler@4 deploy --config wrangler.orchestrator.toml
+      - name: Verify worker health
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://fbis-orchestrator.coachhornsby.workers.dev/health"
+          for i in $(seq 1 20); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 30 -o "$body" -w "%{http_code}" "$url?_t=$(date +%s)" || true)"
+            if [ "$code" = "200" ] && jq -e '.platform=="cloudflare-workers" and .cronEnabled==true and .credentials.openai==true and .credentials.gemini==true and .credentials.googleSheets==true' "$body" >/dev/null 2>&1; then
+              echo "Cloudflare orchestrator healthy."
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "Cloudflare orchestrator failed post-deploy health gate."
+          exit 1
