@@ -22,18 +22,23 @@ jobs:
         run: |
           set -euo pipefail
           prod="$RUNNER_TEMP/prod.json"
+          preview="$RUNNER_TEMP/preview.json"
+          hdr="$RUNNER_TEMP/prod.headers"
           espn="$RUNNER_TEMP/espn.json"
           nhl="$RUNNER_TEMP/nhl.json"
 
           curl -sS --max-time 60 -o "$espn" "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20260929&limit=300"
           curl -sS --max-time 60 -o "$nhl" "https://api-web.nhle.com/v1/schedule/2026-09-29"
-          code="$(curl -sS --max-time 180 -o "$prod" -w "%{http_code}" "https://fbis-myz.pages.dev/api/projections?sport=nhl&date=2026-09-29&tier=public&_t=$(date +%s)")"
+          code="$(curl -sS --max-time 180 -H "Cache-Control: no-cache" -D "$hdr" -o "$prod" -w "%{http_code}" "https://fbis-myz.pages.dev/api/projections?sport=nhl&date=2026-09-29&tier=public&_t=$(date +%s)")"
+          preview_code="$(curl -sS --max-time 180 -o "$preview" -w "%{http_code}" "https://4d49a7a9.fbis-myz.pages.dev/api/projections?sport=nhl&date=2026-09-29&tier=public&_t=$(date +%s)")"
 
-          echo "production_http=$code"
+          echo "production_http=$code preview_http=$preview_code"
+          grep -iE '^(cf-cache-status|age|cache-control|etag|cf-ray):' "$hdr" || true
           echo "espn_events=$(jq '.events|length' "$espn")"
           echo "nhl_gameweek=$(jq '.gameWeek|length' "$nhl")"
           jq -c '{gameWeek:[.gameWeek[]?|{date,games:[.games[]?|{id,startTimeUTC,gameState,away:.awayTeam.abbrev,home:.homeTeam.abbrev}]}]}' "$nhl"
-          jq -c '{sport,date,games:(.games|length),samples:[.games[]?|{away:.away.abbr,home:.home.abbr,model:.model.name,maturity:.model.maturity,independent:.projection.independent}]}' "$prod"
+          jq -c '{surface:"alias",sport,date,generatedAt,games:(.games|length),samples:[.games[]?|{away:.away.abbr,home:.home.abbr,model:.model.name,maturity:.model.maturity,independent:.projection.independent}]}' "$prod"
+          jq -c '{surface:"preview",sport,date,generatedAt,games:(.games|length),samples:[.games[]?|{away:.away.abbr,home:.home.abbr,model:.model.name,maturity:.model.maturity,independent:.projection.independent}]}' "$preview"
 
           test "$code" = "200"
           test "$(jq '.games|length' "$prod")" -eq 5
