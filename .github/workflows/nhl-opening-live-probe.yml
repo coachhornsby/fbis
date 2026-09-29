@@ -1,0 +1,33 @@
+name: NHL opening live probe
+
+on:
+  push:
+    branches:
+      - probe/nhl-opening-live-20260929
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe production NHL board
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/nhl.json"
+          code="$(curl -sS --max-time 180 -o "$body" -w "%{http_code}" "https://fbis-myz.pages.dev/api/projections?sport=nhl&date=2026-09-29&tier=public")"
+          echo "http=$code"
+          test "$code" = "200"
+          jq -e '.ok == true and .sport == "nhl"' "$body" >/dev/null
+          jq -c '{
+            sport,date,
+            games:(.games|length),
+            independent:([.games[]|select(.projection.independent==true)]|length),
+            research:([.games[]|select(.model.maturity=="RESEARCH")]|length),
+            wagerEligible:([.games[]|select(.projection.canQualify==true or .decision.status=="QUALIFIED" or .decision.status=="CONVICTION")]|length),
+            samples:[.games[]|{away:.away.abbr,home:.home.abbr,model:.model.name,engine:.model.engine,maturity:.model.maturity,independent:.projection.independent,awayProj:.projection.away,homeProj:.projection.home,decision:.decision.status}] 
+          }' "$body"
+          test "$(jq '[.games[]|select(.projection.independent==true)]|length' "$body")" -eq 5
+          test "$(jq '[.games[]|select(.model.maturity=="RESEARCH")]|length' "$body")" -eq 5
