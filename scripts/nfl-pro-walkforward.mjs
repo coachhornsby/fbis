@@ -141,12 +141,14 @@ for(const season of seasons){
   const priorForm=formRows(schedule,season-1);
   for(const g of games){
     const week=num(g.week); if(week==null) continue;
-    const currentTeamRows=current.team.filter(r=>String(r.season_type||"REG").toUpperCase()==="REG"&&num(r.week)<week);
-    const currentPlayerRows=current.player.filter(r=>String(r.season_type||"REG").toUpperCase()==="REG"&&num(r.week)<week);
-    if(currentTeamRows.some(r=>num(r.week)>=week)||currentPlayerRows.some(r=>num(r.week)>=week)) throw new Error(`PIT leakage detected season=${season} week=${week}`);
-    const currentPbpRows=current.pbp.filter(r=>String(r.season_type||"REG").toUpperCase()==="REG"&&num(r.week)<week);
-    if(currentPbpRows.some(r=>num(r.week)>=week)) throw new Error(`PIT PBP leakage detected season=${season} week=${week}`);
-    const curTeam=aggregateTeamWeeks(currentTeamRows), curQb=aggregateQbWeeks(currentPlayerRows), curPbp=aggregatePbp(currentPbpRows);
+    if(!weekCache.has(week)){
+      const currentTeamRows=current.team.filter(r=>String(r.season_type||"REG").toUpperCase()==="REG"&&num(r.week)<week);
+      const currentPlayerRows=current.player.filter(r=>String(r.season_type||"REG").toUpperCase()==="REG"&&num(r.week)<week);
+      const currentPbpRows=current.pbp.filter(r=>String(r.season_type||"REG").toUpperCase()==="REG"&&num(r.week)<week);
+      if(currentTeamRows.some(r=>num(r.week)>=week)||currentPlayerRows.some(r=>num(r.week)>=week)||currentPbpRows.some(r=>num(r.week)>=week)) throw new Error(`PIT leakage detected season=${season} week=${week}`);
+      weekCache.set(week,{curTeam:aggregateTeamWeeks(currentTeamRows),curQb:aggregateQbWeeks(currentPlayerRows),curPbp:aggregatePbp(currentPbpRows),curForm:formRows(schedule,season,week)});
+    }
+    const {curTeam,curQb,curPbp,curForm}=weekCache.get(week);
     const home=canon(g.home_team), away=canon(g.away_team);
     const game={sport:"nfl",neutralSite:String(g.location||"").toLowerCase()==="neutral",home:{abbr:home},away:{abbr:away},nflFeatures:{
       home:{...combinedFeatures(home,prior.teamFull,prior.qbFull,curTeam,curQb),...pbpFeatures(home,prior.pbpFull,curPbp,curTeam.offense[home]?.games||0)},
