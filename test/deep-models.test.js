@@ -15,7 +15,13 @@ test("MLB deep challenger allocates starter and bullpen run prevention without m
       awayBullpenEra: 4.4,
       homePlatoonWoba: 0.334,
       awayPlatoonWoba: 0.309,
-      parkFactor: 1.04,
+      palParkRunFactor: 1.04,
+      palParkHrFactor: 1.08,
+      palLineupsOfficial: true,
+      homePalRcVsTypical: 25,
+      homePalMatchupN: 9,
+      awayPalRcVsTypical: -20,
+      awayPalMatchupN: 8,
       weatherRunFactor: 1.02,
       homeDefenseRunsSaved: 10,
       awayDefenseRunsSaved: -8,
@@ -29,7 +35,12 @@ test("MLB deep challenger allocates starter and bullpen run prevention without m
   assert.ok(Number.isFinite(p.home));
   assert.ok(Number.isFinite(p.away));
   assert.ok(p.decomposition.home.bullpenShare > 0);
-  assert.equal(p.provenance.ballparkPalRole, "external-cross-check-only");
+  assert.equal(p.provenance.ballparkPalRole, "features-plus-external-challenger");
+  assert.equal(p.provenance.palFinalProjectionUsed, false);
+  assert.equal(p.provenance.palWinProbabilityUsed, false);
+  assert.equal(p.provenance.palFeatureInputs.lineupsOfficial, true);
+  assert.ok(p.decomposition.home.palMatchupFactor > 1);
+  assert.ok(p.decomposition.away.palMatchupFactor < 1);
 });
 
 test("MLB deep challenger fails closed when team offense or starters are unresolved", () => {
