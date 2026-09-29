@@ -217,6 +217,14 @@ test("runner final fetch merges primary and public college scoreboards", async (
   assert.match(script, /preferCfbd:false/);
 });
 
+test("historical final grading queries exact stored date before wide fallback", async () => {
+  const ledger = await readFile(new URL("../functions/lib/projLedger.js", import.meta.url), "utf8");
+  assert.match(ledger, /since: day, until: day/);
+  assert.match(ledger, /queryWindow = "exact-date"/);
+  assert.match(ledger, /queryWindow = "neighbor-fallback"/);
+  assert.match(ledger, /if \(byGame\.size === 0\)/);
+});
+
 test("final-grade ingress supports bounded write batches for large historical slates", async () => {
   const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
   const ledger = await readFile(new URL("../functions/lib/projLedger.js", import.meta.url), "utf8");
