@@ -17,6 +17,7 @@ import {
   CBB_PURE_CHALLENGER_VERSION,
 } from "./cbbPureChallenger.js";
 import { NFL_SHADOW_ID } from "./nflModel.js";
+import { NFL_PRO_ID } from "./nflProModel.js";
 import { MLB_DEEP_ID } from "./mlbDeepModel.js";
 import { NHL_RESEARCH_MODEL_ID, NHL_RESEARCH_MODEL_VERSION } from "./nhlResearchModel.js";
 import { NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
@@ -248,18 +249,37 @@ export function promoteMlbResearchToBoard(games = []) {
   };
 }
 
-/** NFL research board — form-v0 baseline under NFL-FBIS-PURE. */
+/** NFL research board — NFL-PRO-v1 primary when EPA/QB evidence is available; calibrated form fallback otherwise. */
 export function promoteNflResearchToBoard(games = []) {
   let promoted = 0;
+  let proPrimary = 0;
+  let formFallback = 0;
   let skipped = 0;
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "nfl") return game;
+
+    const pro = game.nflProShadow || game.challengers?.[NFL_PRO_ID];
+    const proScores = scoresFrom(pro);
+    if (pro?.ok && proScores) {
+      promoted += 1;
+      proPrimary += 1;
+      return stampResearchBoard(game, {
+        modelId: NFL_PRO_ID,
+        modelVersion: pro.version || "v1",
+        scores: proScores,
+        displayLabel: "FBIS NFL-PRO-v1 RESEARCH PROJECTION",
+        underlying: "opponent-adjusted EPA + QB + matchup + special teams + context",
+        researchNote:
+          "NFL-PRO-v1 is the research-board primary when core EPA/QB evidence is available. Research only; wager qualification remains blocked pending true walk-forward validation.",
+      });
+    }
+
     const shadow = game.nflShadow || game.challengers?.[NFL_SHADOW_ID];
     let proj = null;
     let version = "research-v0.1-form-calibrated";
     let underlying = NFL_SHADOW_ID;
     let note =
-      "Independent team-scoring-form research baseline with holdout-tested margin shrinkage. Not a validated NFL betting model.";
+      "Calibrated independent team-scoring-form fallback used only when NFL-PRO-v1 core EPA/QB evidence is unavailable.";
 
     if (shadow?.ok && shadow.home != null && shadow.away != null) {
       proj = shadow;
@@ -296,56 +316,33 @@ export function promoteNflResearchToBoard(games = []) {
     }
 
     promoted += 1;
-    // Keep research-v0-form as the board primary. Attach PBP v1 as a parallel challenger only.
-    const stamped = stampResearchBoard(game, {
+    formFallback += 1;
+    return stampResearchBoard(game, {
       modelId: NFL_PURE_CHALLENGER_ID,
       modelVersion: version,
       scores,
-      displayLabel: "FBIS RESEARCH PROJECTION",
+      displayLabel: "FBIS RESEARCH PROJECTION · FORM FALLBACK",
       underlying,
       researchNote: note,
     });
-    // Parallel challenger slot — never overwrites the v0 board stamp / freeze recipe.
-    const pbp = projectNflPureChallenger(game, {});
-    const pbpScores = scoresFrom(pbp);
-    if (pbp?.ok && pbpScores) {
-      stamped.challengers = {
-        ...(stamped.challengers || {}),
-        [`${NFL_PURE_CHALLENGER_ID}@${NFL_PURE_CHALLENGER_V1_VERSION}`]: {
-          home: pbpScores.home,
-          away: pbpScores.away,
-          margin: pbpScores.margin,
-          total: pbpScores.total,
-          ok: true,
-          modelId: NFL_PURE_CHALLENGER_ID,
-          version: NFL_PURE_CHALLENGER_V1_VERSION,
-          role: "research-challenger",
-          family: "pure-pbp",
-          independent: true,
-          marketInformed: false,
-          canQualify: false,
-          canAuthorize: false,
-          maturity: "RESEARCH",
-          projectionKind: "FBIS",
-          status: "CHALLENGER_ONLY_NOT_BOARD_DEFAULT",
-        },
-      };
-    }
-    return stamped;
   });
   return {
     games: next,
     meta: {
-      modelId: NFL_PURE_CHALLENGER_ID,
+      modelId: NFL_PRO_ID,
       promoted,
+      proPrimary,
+      formFallback,
       skipped,
       canQualify: false,
       canAuthorize: false,
       publication: "RESEARCH_PUBLISHABLE",
-      parallelChallenger: NFL_PURE_CHALLENGER_V1_VERSION,
+      promotionState: "RESEARCH_BOARD_PRIMARY_WHEN_AVAILABLE",
+      validationRequiredForWagerAuthority: true,
     },
   };
 }
+
 
 /** CBB research board — possessions × PPP when CBBD ratings exist. */
 export function promoteCbbResearchToBoard(games = [], catalog = null) {
