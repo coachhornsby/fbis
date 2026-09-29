@@ -9,6 +9,8 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
     steps:
       - name: Get GitHub OIDC token
         id: oidc
@@ -43,3 +45,38 @@ jobs:
             cat "$out"
             echo
           done
+
+      - name: Validate model providers on Cloudflare
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$(mktemp)"
+          code="$(curl -sS --max-time 180 -o "$out" -w "%{http_code}" -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json" -d '{}'             "${ORCH_URL}/api/validate/models")"
+          echo "models http=$code"
+          test "$code" = "200"
+          jq -e '.openai.ok==true and .gemini.ok==true and .persisted==false' "$out" >/dev/null
+          echo "OpenAI and Gemini validation passed."
+
+      - name: Validate learning dashboard write on Cloudflare
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+          FBIS_BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}"
+          report="$(mktemp)"
+          sync="$(mktemp)"
+          code="$(curl -sS --max-time 180 -o "$report" -w "%{http_code}"             -H "x-harvest-secret: ${HARVEST_SECRET}"             "${FBIS_BASE}/api/learning-report?since=2026-01-01&limit=5000")"
+          echo "learning report http=$code"
+          test "$code" = "200"
+          jq -e '.ok==true and .source=="prediction_snapshots"' "$report" >/dev/null
+          code="$(curl -sS --max-time 180 -o "$sync" -w "%{http_code}" -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             --data-binary @"$report"             "${ORCH_URL}/api/sync-learning-dashboard")"
+          echo "learning sync http=$code"
+          test "$code" = "200"
+          jq -e '.ok==true and (.modelRows>=0) and (.auditRows>=0)' "$sync" >/dev/null
+          echo "Learning dashboard write passed."
