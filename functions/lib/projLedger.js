@@ -1931,6 +1931,25 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
         errors.push(`${sport}@${date}: ${String(err?.message || err)}`);
       }
     }
+    // Grade the entire immutable projection population, not only tickets or
+    // cache-ledger rows. This resolves synthetic board ids by date + canonical
+    // teams and updates every checkpoint/model version under the matched game id.
+    const snapshotGrading = [];
+    for (const date of dates) {
+      const dateFinals = finals.filter((g) => String(g.date || "").slice(0, 10) === date);
+      snapshotGrading.push(
+        await gradeSnapshotPopulationAgainstFinals(env, {
+          sport,
+          date,
+          finals: dateFinals,
+          gradedAt: new Date().toISOString(),
+        })
+      );
+    }
+    const snapshotFinalsGraded = snapshotGrading.reduce((n, row) => n + Number(row?.matched || 0), 0);
+    const snapshotFinalsFailed = snapshotGrading.reduce((n, row) => n + Number(row?.failed || 0), 0);
+    const snapshotFinalsUnmatched = snapshotGrading.reduce((n, row) => n + Number(row?.unmatched || 0), 0);
+
     // Settlement also revisits already-settled tickets for this final set so factual
     // score evidence can be backfilled without changing a correct prior result.
     // gradeResearch=1 also settles strategy tickets against the same live finals.
@@ -1965,8 +1984,10 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
         f5Score: g.f5Score,
       })),
       finalsDiscovered: finals.length,
-      finalsGraded: 0,
-      finalsFailed: 0,
+      finalsGraded: snapshotFinalsGraded,
+      finalsFailed: snapshotFinalsFailed,
+      snapshotFinalsUnmatched,
+      snapshotGrading,
       jobCounts: emptyWriteCounts(),
       errors,
       executedBets,
@@ -1997,6 +2018,18 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
       gradedAt: cached.harvestedAt || cached.generatedAt,
     }));
     await Promise.all(durableFinalWrites);
+    const cachedSnapshotGrading = [];
+    for (const date of dates) {
+      const dateFinals = (cached.finals || []).filter((g) => String(g.date || "").slice(0, 10) === date);
+      cachedSnapshotGrading.push(
+        await gradeSnapshotPopulationAgainstFinals(env, {
+          sport,
+          date,
+          finals: dateFinals,
+          gradedAt: cached.harvestedAt || cached.generatedAt || new Date().toISOString(),
+        })
+      );
+    }
     await gradeStrategyAgainstFinals(env, cached.finals);
     const executedBets = await gradeExecutedBets(env, cached.finals);
     const replay = {
@@ -2006,6 +2039,9 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
       dates,
       errors,
       executedBets,
+      snapshotGrading: cachedSnapshotGrading,
+      snapshotFinalsGraded: cachedSnapshotGrading.reduce((n, row) => n + Number(row?.matched || 0), 0),
+      snapshotFinalsUnmatched: cachedSnapshotGrading.reduce((n, row) => n + Number(row?.unmatched || 0), 0),
       db: await dbPayload(env),
     };
     replay.archive = await archiveHarvestReport(env, replay);
@@ -2066,6 +2102,25 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
   }
   const writeResults = await Promise.all(writes);
   for (const res of writeResults) tallyPersist(counts, res);
+
+  // Reconcile every immutable projection row against the same scoreboard finals.
+  // Normal harvest may already grade cache-ledger ids; this second pass is
+  // idempotent and catches synthetic ids/model checkpoints outside that cache.
+  const snapshotGrading = [];
+  for (const date of dates) {
+    const dateFinals = finals.filter((g) => String(g.date || "").slice(0, 10) === date);
+    snapshotGrading.push(
+      await gradeSnapshotPopulationAgainstFinals(env, {
+        sport,
+        date,
+        finals: dateFinals,
+        gradedAt: new Date().toISOString(),
+      })
+    );
+  }
+  const snapshotFinalsGraded = snapshotGrading.reduce((n, row) => n + Number(row?.matched || 0), 0);
+  const snapshotFinalsUnmatched = snapshotGrading.reduce((n, row) => n + Number(row?.unmatched || 0), 0);
+  const snapshotFinalsFailed = snapshotGrading.reduce((n, row) => n + Number(row?.failed || 0), 0);
 
   // Always write team_form from completed scoreboard finals — even when the
   // game was never frozen (historical NFL circular dependency).
@@ -2128,6 +2183,10 @@ export async function harvestSport(sport, days, env = {}, opts = {}) {
     finalsDiscovered: finals.filter((g) => g.status?.completed).length,
     finalsGraded,
     finalsFailed,
+    snapshotFinalsGraded,
+    snapshotFinalsUnmatched,
+    snapshotFinalsFailed,
+    snapshotGrading,
     jobCounts: counts,
     errors,
     executedBets,
