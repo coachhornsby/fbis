@@ -1,0 +1,40 @@
+name: Ballpark Pal source audit
+on:
+  push:
+    branches: [fix/ballpark-pal-secret-path]
+    paths: [".github/workflows/ballpark-pal-source-audit.yml"]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check GitHub and Cloudflare secret presence and production Pal source
+        env:
+          BALLPARK_PAL_API_KEY: ${{ secrets.BALLPARK_PAL_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${BALLPARK_PAL_API_KEY}" ]; then echo "GH_BALLPARK_PAL_SECRET=present"; else echo "GH_BALLPARK_PAL_SECRET=missing"; fi
+          if [ -n "${CLOUDFLARE_API_TOKEN}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            npx --yes wrangler@4 pages secret list --project-name fbis > cf-secrets.txt
+            if grep -q 'BALLPARK_PAL_API_KEY' cf-secrets.txt; then echo "CF_BALLPARK_PAL_SECRET=present"; else echo "CF_BALLPARK_PAL_SECRET=missing"; fi
+          else
+            echo "CF_SECRET_AUDIT=credentials-missing"
+          fi
+          tmp="$(mktemp)"
+          code="$(curl -sS --max-time 60 -o "$tmp" -w "%{http_code}" "https://fbis-myz.pages.dev/api/projections?sport=mlb&date=2026-09-29&_t=$(date +%s)")"
+          echo "PROD_HTTP=$code"
+          test "$code" = "200"
+          jq -c '{date:.date,pal:(.sources.ballparkPal // .pal // .feeds?.mlb?.sources?.ballparkPal // null),games:(.games|length)}' "$tmp" || cat "$tmp"
+          slate="$(mktemp)"
+          scode="$(curl -sS --max-time 60 -o "$slate" -w "%{http_code}" "https://fbis-myz.pages.dev/api/slate?sport=mlb&date=2026-09-29&_t=$(date +%s)")"
+          echo "SLATE_HTTP=$scode"
+          test "$scode" = "200"
+          jq -c '{pal:.pal,gamePal:[.games[]|{id,bpp:(.bpp//null)}]}' "$slate"
