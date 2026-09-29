@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 test("learning report is backed by prediction_snapshots for all six sports", async () => {
   const api = await readFile(new URL("../functions/api/learning-report.js", import.meta.url), "utf8");
-  assert.match(api, /querySnapshots/);
+  assert.match(api, /prediction_snapshots/);
   assert.match(api, /LEARNING_SPORTS/);
   assert.match(api, /snapshotRows/);
   assert.match(api, /canonicalProjections/);
