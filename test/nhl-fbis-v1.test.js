@@ -78,6 +78,7 @@ describe("NHL-FBIS-v1 five-layer research model", () => {
 
   it("ships the fitted three-season historical artifact", () => {
     assert.equal(NHL_FBIS_V1_ARTIFACT.trained, true);
+    assert.equal(NHL_FBIS_V1_ARTIFACT.artifactVersion, "research-v1.1-historical-xg-goalie-recency");
     assert.equal(NHL_FBIS_V1_ARTIFACT.gamesParsed, 3936);
     assert.equal(NHL_FBIS_V1_ARTIFACT.failedGames, 0);
     assert.equal(NHL_FBIS_V1_ARTIFACT.goaliePriorWeights?.["20252026"], 0.60);
