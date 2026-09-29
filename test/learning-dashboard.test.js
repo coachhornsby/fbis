@@ -167,3 +167,18 @@ test("trusted final-score ingress is authenticated and feeds full snapshot gradi
   assert.match(script, /fetchResultsForReconcile/);
   assert.match(script, /preferCfbd:sport==="cfb"/);
 });
+
+
+test("CFB results reconciliation requests both FBS and FCS ESPN groups", async () => {
+  const core = await readFile(new URL("../functions/lib/slateEngineCore.js", import.meta.url), "utf8");
+  assert.match(core, /for \(const group of \["80", "81"\]\)/);
+  assert.match(core, /groups=\$\{encodeURIComponent\(group\)\}/);
+  assert.match(core, /full Division I population/);
+});
+
+test("daily final grading chunks large scoreboards under Worker CPU limits", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/daily-results-grade.yml", import.meta.url), "utf8");
+  assert.match(workflow, /chunk=20/);
+  assert.match(workflow, /\.finals = \.finals\[\$start:\(\$start\+\$size\)\]/);
+  assert.match(workflow, /\/api\/final-grade/);
+});
