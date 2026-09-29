@@ -39,7 +39,7 @@ async function gzCsv(url){
   const ab=await res.arrayBuffer();
   const ds=new DecompressionStream("gzip");
   const text=await new Response(new Blob([ab]).stream().pipeThrough(ds)).text();
-  return parseCsv(text);
+  return parsePbp(text);
 }
 function lineYards(y){
   y=num(y); if(y==null) return null;
