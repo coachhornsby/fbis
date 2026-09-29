@@ -664,7 +664,7 @@ export async function queryOddsSnapshots(env, { gameId, sport, since, until } = 
   }
 }
 
-export async function gradeSnapshotsForGame(env, { gameId, actualHome, actualAway, f5ActualHome = null, f5ActualAway = null, gradedAt }) {
+export async function gradeSnapshotsForGame(env, { gameId, actualHome, actualAway, f5ActualHome = null, f5ActualAway = null, gradedAt, forceCorrect = false }) {
   markBound(env);
   if (!hasDb(env) || !gameId) return { ok: false, reason: "unbound" };
   if (actualHome == null) return { ok: false, reason: "no-final" };
@@ -672,25 +672,25 @@ export async function gradeSnapshotsForGame(env, { gameId, actualHome, actualAwa
   try {
     await env.DB.prepare(
       `UPDATE prediction_snapshots
-       SET actual_home = COALESCE(actual_home, ?),
-           actual_away = COALESCE(actual_away, ?),
-           f5_actual_home = COALESCE(f5_actual_home, ?),
-           f5_actual_away = COALESCE(f5_actual_away, ?),
-           graded_at = COALESCE(graded_at, ?)
+       SET actual_home = CASE WHEN ? = 1 THEN ? ELSE COALESCE(actual_home, ?) END,
+           actual_away = CASE WHEN ? = 1 THEN ? ELSE COALESCE(actual_away, ?) END,
+           f5_actual_home = CASE WHEN ? = 1 THEN ? ELSE COALESCE(f5_actual_home, ?) END,
+           f5_actual_away = CASE WHEN ? = 1 THEN ? ELSE COALESCE(f5_actual_away, ?) END,
+           graded_at = CASE WHEN ? = 1 THEN ? ELSE COALESCE(graded_at, ?) END
        WHERE game_id = ?`
     )
-      .bind(n(actualHome), n(actualAway), n(f5ActualHome), n(f5ActualAway), n(at), String(gameId))
+      .bind(forceCorrect?1:0,n(actualHome),n(actualHome),forceCorrect?1:0,n(actualAway),n(actualAway),forceCorrect?1:0,n(f5ActualHome),n(f5ActualHome),forceCorrect?1:0,n(f5ActualAway),n(f5ActualAway),forceCorrect?1:0,n(at),n(at),String(gameId))
       .run();
     await env.DB.prepare(
       `UPDATE predictions
-       SET actual_home = COALESCE(actual_home, ?),
-           actual_away = COALESCE(actual_away, ?),
-           f5_actual_home = COALESCE(f5_actual_home, ?),
-           f5_actual_away = COALESCE(f5_actual_away, ?),
-           graded_at = COALESCE(graded_at, ?)
+       SET actual_home = CASE WHEN ? = 1 THEN ? ELSE COALESCE(actual_home, ?) END,
+           actual_away = CASE WHEN ? = 1 THEN ? ELSE COALESCE(actual_away, ?) END,
+           f5_actual_home = CASE WHEN ? = 1 THEN ? ELSE COALESCE(f5_actual_home, ?) END,
+           f5_actual_away = CASE WHEN ? = 1 THEN ? ELSE COALESCE(f5_actual_away, ?) END,
+           graded_at = CASE WHEN ? = 1 THEN ? ELSE COALESCE(graded_at, ?) END
        WHERE game_id = ?`
     )
-      .bind(n(actualHome), n(actualAway), n(f5ActualHome), n(f5ActualAway), n(at), String(gameId))
+      .bind(forceCorrect?1:0,n(actualHome),n(actualHome),forceCorrect?1:0,n(actualAway),n(actualAway),forceCorrect?1:0,n(f5ActualHome),n(f5ActualHome),forceCorrect?1:0,n(f5ActualAway),n(f5ActualAway),forceCorrect?1:0,n(at),n(at),String(gameId))
       .run();
     markWrite();
     return { ok: true };
