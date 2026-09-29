@@ -24,12 +24,27 @@ jobs:
           test "$code" = "200"
           jq -e '.platform=="cloudflare-workers" and .cronEnabled==true and .credentials.openai==true and .credentials.gemini==true and .credentials.googleSheets==true' "$body" >/dev/null
 
-      - name: Delete obsolete Pages projects
+      - name: Delete obsolete Pages deployments and projects
         shell: bash
         run: |
           set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}"
           for project in cougarsdefense dubbaseball; do
-            code="$(curl -sS --max-time 60 -o response.json -w "%{http_code}"               -X DELETE               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/$project")"
+            echo "retiring pages project $project"
+            while true; do
+              list="$(curl -fsSL -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "$api/pages/projects/$project/deployments?per_page=100" || true)"
+              ids="$(jq -r '.result[]?.id // empty' <<<"$list")"
+              [ -n "$ids" ] || break
+              deleted=0
+              while IFS= read -r id; do
+                [ -n "$id" ] || continue
+                code="$(curl -sS --max-time 60 -o response.json -w "%{http_code}" -X DELETE -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "$api/pages/projects/$project/deployments/$id")"
+                echo "delete deployment $project/$id http=$code"
+                if [ "$code" = "200" ] || [ "$code" = "404" ]; then deleted=$((deleted+1)); else cat response.json; exit 1; fi
+              done <<<"$ids"
+              [ "$deleted" -gt 0 ] || break
+            done
+            code="$(curl -sS --max-time 60 -o response.json -w "%{http_code}" -X DELETE -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "$api/pages/projects/$project")"
             echo "delete pages $project http=$code"
             if [ "$code" != "200" ] && [ "$code" != "404" ]; then cat response.json; exit 1; fi
           done
@@ -38,7 +53,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          code="$(curl -sS --max-time 60 -o response.json -w "%{http_code}"             -X DELETE             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/playbook-app")"
+          code="$(curl -sS --max-time 60 -o response.json -w "%{http_code}" -X DELETE -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/playbook-app")"
           echo "delete worker playbook-app http=$code"
           if [ "$code" != "200" ] && [ "$code" != "404" ]; then cat response.json; exit 1; fi
 
@@ -46,12 +61,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pages="$(curl -fsSL -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects")"
+          pages="$(curl -fsSL -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects")"
           echo "$pages" | jq -c '[.result[].name]'
           test "$(echo "$pages" | jq '[.result[] | select(.name=="fbis")] | length')" = "1"
           test "$(echo "$pages" | jq '[.result[] | select(.name=="cougarsdefense" or .name=="dubbaseball")] | length')" = "0"
-
-          workers="$(curl -fsSL -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts")"
+          workers="$(curl -fsSL -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts")"
           echo "$workers" | jq -c '[.result[].id]'
           test "$(echo "$workers" | jq '[.result[] | select(.id=="fbis-orchestrator")] | length')" = "1"
           test "$(echo "$workers" | jq '[.result[] | select(.id=="playbook-app")] | length')" = "0"
