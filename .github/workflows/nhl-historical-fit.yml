@@ -1,0 +1,71 @@
+name: NHL historical model fit
+
+on:
+  push:
+    branches:
+      - "feature/nhl-fbis-v1-five-layer-20260929"
+    paths:
+      - "scripts/nhl-historical-fit.mjs"
+      - "data/models/nhl-fbis-v1.js"
+      - ".github/workflows/nhl-historical-fit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fit:
+    if: "${{ github.event_name == 'workflow_dispatch' || github.event.head_commit.message != 'data: fit NHL historical xG and goalie priors' }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+
+      - name: Fit NHL xG and goalie priors
+        run: |
+          set -euo pipefail
+          node scripts/nhl-historical-fit.mjs \
+            --seasons=20232024,20242025,20252026 \
+            --concurrency=12 \
+            --out=data/models/nhl-fbis-v1.js
+
+      - name: Verify fitted artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '"trained": true' data/models/nhl-fbis-v1.js
+          grep -q '"validationShots":' data/models/nhl-fbis-v1.js
+          grep -q '"expectedGoalieByTeam":' data/models/nhl-fbis-v1.js
+          node --check data/models/nhl-fbis-v1.js
+          node --test test/nhl-fbis-v1.test.js
+
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-fbis-v1-historical-fit
+          path: data/models/nhl-fbis-v1.js
+          retention-days: 30
+
+      - name: Commit fitted artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp data/models/nhl-fbis-v1.js "$RUNNER_TEMP/nhl-fbis-v1.js"
+          git fetch origin "${{ github.ref_name }}"
+          git reset --hard "origin/${{ github.ref_name }}"
+          cp "$RUNNER_TEMP/nhl-fbis-v1.js" data/models/nhl-fbis-v1.js
+          if git diff --quiet -- data/models/nhl-fbis-v1.js; then
+            echo "artifact unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/models/nhl-fbis-v1.js
+          git commit -m "data: fit NHL historical xG and goalie priors"
+          git push origin HEAD:${{ github.ref_name }}

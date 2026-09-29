@@ -66,7 +66,7 @@ function modelIdentity(sport, game = {}) {
     return {
       name: research ? "FBIS NHL Research" : "FBIS NHL",
       engine: research
-        ? game.researchProjection?.modelId || "NHL-FBIS-PURE"
+        ? game.researchProjection?.modelId || game.nhlV1?.modelId || "NHL-FBIS-v1"
         : "Independent production model pending validation",
       independent: Boolean(independentFbis),
       state: game.projectionState || game.projectionMaturity || null,
