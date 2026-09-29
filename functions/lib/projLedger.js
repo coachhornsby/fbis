@@ -718,8 +718,11 @@ export async function gradeSnapshotPopulationAgainstFinals(
   if (!id || !day) {
     return { ok: false, reason: "sport-and-date-required", candidates: 0, matched: 0, unmatched: 0, failed: 0 };
   }
-  const since = shiftDateCT(day, -1);
-  const until = shiftDateCT(day, 1);
+  // Historical board snapshots were sometimes stored under the requested
+  // board date rather than the actual kickoff date. Search a bounded week on
+  // either side, then filter by the immutable event start below.
+  const since = shiftDateCT(day, -7);
+  const until = shiftDateCT(day, 7);
   const q = await querySnapshots(env, { sport: id, since, until });
   if (!q.ok) {
     return { ok: false, reason: q.reason || "snapshot-query-failed", candidates: 0, matched: 0, unmatched: 0, failed: 0 };
@@ -1191,13 +1194,19 @@ export async function freezeSlate(slate, env = {}) {
   let changed = false;
   const writes = [];
   for (const game of slate.games) {
-    const k = rowKey(slate.date, game.id);
+    const canonicalDate = dateCT(game.start) || slate.date;
+    const canonicalKey = rowKey(canonicalDate, game.id);
+    const legacyEntry = Object.entries(ledger.games || {}).find(
+      ([, row]) => String(row?.id || "") === String(game.id)
+    );
+    const k = ledger.games[canonicalKey] ? canonicalKey : (legacyEntry?.[0] || canonicalKey);
     const existing = ledger.games[k];
+    const storageDate = existing?.date || canonicalDate;
     const liveOrFinal = Boolean(game.status?.live || game.status?.completed);
 
     if (!existing && !liveOrFinal) {
-      writes.push(persistGame(env, game, slate.date));
-      const frozen = freezeFromGame(slate.date, game);
+      writes.push(persistGame(env, game, storageDate));
+      const frozen = freezeFromGame(storageDate, game);
       if (frozen) {
         const first = { ...frozen, checkpoint: "FIRST_AVAILABLE" };
         const cps = { FIRST_AVAILABLE: first };
@@ -1206,16 +1215,16 @@ export async function freezeSlate(slate, env = {}) {
         ledger.games[k] = frozen;
         changed = true;
         writes.push((async () => {
-          await persistFrozen(env, frozen, game, slate.date);
-          await persistCheckpoint(env, first, game, slate.date);
+          await persistFrozen(env, frozen, game, storageDate);
+          await persistCheckpoint(env, first, game, storageDate);
           if (frozen.checkpoint !== "FIRST_AVAILABLE") {
-            await persistCheckpoint(env, frozen, game, slate.date);
+            await persistCheckpoint(env, frozen, game, storageDate);
           }
           return persistMatchingRec(env, slate, game, frozen);
         })());
         writes.push(persistGameChallengers(env, game, slate.sport));
         if (slate.sport === "mlb") {
-          writes.push(persistMlbMarketProjections(env, palMarketRowsFromGame(slate.date, game, frozen)));
+          writes.push(persistMlbMarketProjections(env, palMarketRowsFromGame(storageDate, game, frozen)));
         }
       }
       continue;
@@ -1223,10 +1232,10 @@ export async function freezeSlate(slate, env = {}) {
 
     if (existing && !liveOrFinal) {
       let next = appendSnapshot(existing, game);
-      const packed = freezeFromGame(slate.date, game);
+      const packed = freezeFromGame(storageDate, game);
       if (packed) {
         if (slate.sport === "mlb") {
-          writes.push(persistMlbMarketProjections(env, palMarketRowsFromGame(slate.date, game, packed)));
+          writes.push(persistMlbMarketProjections(env, palMarketRowsFromGame(storageDate, game, packed)));
         }
         const cps = { ...(next.checkpoints || {}) };
         const version = packed.modelVersion || "unknown";
@@ -1240,20 +1249,20 @@ export async function freezeSlate(slate, env = {}) {
         );
         if (!hasVersionedFirst) {
           cps[firstKey] = { ...packed, checkpoint: "FIRST_AVAILABLE" };
-          writes.push(persistCheckpoint(env, cps[firstKey], game, slate.date));
+          writes.push(persistCheckpoint(env, cps[firstKey], game, storageDate));
           changed = true;
         }
         if (!hasVersionedCheckpoint) {
           cps[checkpointKey] = { ...packed };
           next = { ...next, checkpoints: cps, checkpoint: packed.checkpoint };
           writes.push((async () => {
-            await persistCheckpoint(env, cps[checkpointKey], game, slate.date);
+            await persistCheckpoint(env, cps[checkpointKey], game, storageDate);
             return persistMatchingRec(env, slate, game, packed);
           })());
           writes.push(persistGameChallengers(env, game, slate.sport));
           changed = true;
         }
-        const canon = pickCanonical(Object.values(cps).map((c) => ({ ...c, id: next.id, date: next.date })))[0];
+        const canon = pickCanonical(Object.values(cps).map((cp) => ({ ...cp, id: next.id, date: next.date })))[0];
         if (canon && materiallyChanged(next, canon)) {
           next = {
             ...next,
@@ -1266,13 +1275,13 @@ export async function freezeSlate(slate, env = {}) {
             actualTotal: next.actualTotal,
             gradedAt: next.gradedAt,
           };
-          writes.push(persistFrozen(env, next, game, slate.date));
+          writes.push(persistFrozen(env, next, game, storageDate));
           changed = true;
         }
       }
       if (next !== existing) {
         ledger.games[k] = next;
-        writes.push(persistSnap(env, next, slate.date, game));
+        writes.push(persistSnap(env, next, storageDate, game));
       }
     }
 
@@ -1280,9 +1289,9 @@ export async function freezeSlate(slate, env = {}) {
       const graded = applyFinal(appendSnapshot(existing, game), game);
       ledger.games[k] = graded;
       changed = true;
-      writes.push(persistFrozen(env, graded, game, slate.date));
+      writes.push(persistFrozen(env, graded, game, storageDate));
       for (const cp of Object.values(graded.checkpoints || {})) {
-        writes.push(persistCheckpoint(env, { ...graded, ...cp, id: graded.id, date: graded.date }, game, slate.date));
+        writes.push(persistCheckpoint(env, { ...graded, ...cp, id: graded.id, date: graded.date }, game, storageDate));
       }
       writes.push(gradeGameChallengers(env, game, slate.sport));
     }
