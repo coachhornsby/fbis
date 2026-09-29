@@ -154,3 +154,16 @@ test("daily grading has a GitHub-runner scoreboard fallback for all six sports",
   assert.match(script, /fetchResultsForReconcile/);
   assert.match(script, /github-runner-scoreboard/);
 });
+
+
+test("trusted final-score ingress is authenticated and feeds full snapshot grading", async () => {
+  const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
+  const workflow = await readFile(new URL("../.github/workflows/daily-results-grade.yml", import.meta.url), "utf8");
+  const script = await readFile(new URL("../scripts/fetch-final-scoreboard.mjs", import.meta.url), "utf8");
+  assert.match(api, /authorizeHarvest/);
+  assert.match(api, /gradeSnapshotPopulationAgainstFinals/);
+  assert.match(workflow, /api\/final-grade/);
+  assert.match(workflow, /fetch-final-scoreboard\.mjs/);
+  assert.match(script, /fetchResultsForReconcile/);
+  assert.match(script, /preferCfbd:sport==="cfb"/);
+});
