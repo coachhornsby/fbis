@@ -1007,6 +1007,33 @@ function mapHeritageSnapshotRow(r) {
   };
 }
 
+export async function queryFinalSnapshotCandidates(env, { sport, since, until } = {}) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };
+  try {
+    let sql = `SELECT game_id, sport, date, matchup, checkpoint, model_version, frozen_at,
+      layers_json, pal_json, actual_home, actual_away
+      FROM prediction_snapshots
+      WHERE date >= ? AND actual_home IS NULL AND actual_away IS NULL`;
+    const binds = [since || "2000-01-01"];
+    if (until) {
+      sql += " AND date <= ?";
+      binds.push(until);
+    }
+    if (sport && sport !== "all") {
+      sql += " AND sport = ?";
+      binds.push(sport);
+    }
+    sql += " ORDER BY date DESC";
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    markRead();
+    return { ok: true, rows: (res.results || []).map(mapSnapshotRow) };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err), rows: [] };
+  }
+}
+
 export async function querySnapshots(env, { sport, since, until, version, checkpoint, lite = false } = {}) {
   markBound(env);
   if (!hasDb(env)) return { ok: false, reason: "unbound", rows: [] };

@@ -217,6 +217,15 @@ test("runner final fetch merges primary and public college scoreboards", async (
   assert.match(script, /preferCfbd:false/);
 });
 
+test("historical final grading uses a lightweight unresolved snapshot read", async () => {
+  const store = await readFile(new URL("../functions/lib/store.js", import.meta.url), "utf8");
+  const ledger = await readFile(new URL("../functions/lib/projLedger.js", import.meta.url), "utf8");
+  assert.match(store, /queryFinalSnapshotCandidates/);
+  assert.match(store, /game_id, sport, date, matchup, checkpoint, model_version, frozen_at/);
+  assert.match(store, /actual_home IS NULL AND actual_away IS NULL/);
+  assert.match(ledger, /queryFinalSnapshotCandidates\(env/);
+});
+
 test("final-grade ingress supports bounded write batches for large historical slates", async () => {
   const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
   const ledger = await readFile(new URL("../functions/lib/projLedger.js", import.meta.url), "utf8");
