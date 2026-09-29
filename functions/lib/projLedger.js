@@ -5,6 +5,7 @@
 
 import { readCache, writeCache } from "./cache.js";
 import { namesMatch } from "./parlay.js";
+import { normName } from "./match.js";
 import { BOARD_SPORTS, SPORTS, lastNDatesCT, todayCT, shiftDateCT, fetchResultsForReconcile, blendWinProb, buildSlate, recommendBundle } from "./slateEngine.js";
 import { collegeApiKey } from "./collegeSecrets.js";
 import { DEFAULT_WEIGHTS, MODEL_VERSION } from "./weights.js";
@@ -804,12 +805,32 @@ function parseTicketMatchup(matchup = "") {
   return { away: parts[0].trim(), home: parts[1].trim() };
 }
 
+const CFB_FINAL_ALIAS_GROUPS = [
+  ["albany", "ualbany", "ualbany great danes"],
+  ["southeast louisiana", "southeastern louisiana", "se louisiana"],
+];
+
+function explicitFinalAliasMatch(sport, a, b) {
+  if (String(sport || "").toLowerCase() !== "cfb") return false;
+  const na = normName(a);
+  const nb = normName(b);
+  if (!na || !nb) return false;
+  return CFB_FINAL_ALIAS_GROUPS.some((group) => {
+    const normalized = group.map(normName);
+    return normalized.includes(na) && normalized.includes(nb);
+  });
+}
+
 function sameTeam(sport, aName, aAbbr, bName, bAbbr) {
   if (
     namesMatch(aName, bName) ||
     namesMatch(aName, bAbbr) ||
     namesMatch(aAbbr, bName) ||
-    namesMatch(aAbbr, bAbbr)
+    namesMatch(aAbbr, bAbbr) ||
+    explicitFinalAliasMatch(sport, aName, bName) ||
+    explicitFinalAliasMatch(sport, aName, bAbbr) ||
+    explicitFinalAliasMatch(sport, aAbbr, bName) ||
+    explicitFinalAliasMatch(sport, aAbbr, bAbbr)
   ) return true;
   const a = resolveTeam(sport || "mlb", { name: aName, abbr: aAbbr, fullName: aName, school: aName });
   const b = resolveTeam(sport || "mlb", { name: bName, abbr: bAbbr, fullName: bName, school: bName });
