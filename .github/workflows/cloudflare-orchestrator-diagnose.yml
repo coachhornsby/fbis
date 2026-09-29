@@ -60,7 +60,7 @@ jobs:
           echo "models http=$code"
           jq -c '{persisted,openai:{ok:.openai.ok,status:.openai.status,error:.openai.error,projectionId:(.openai.projection.identity.projection_id//null)},gemini:{ok:.gemini.ok,status:.gemini.status,error:.gemini.error,projectionId:(.gemini.projection.identity.projection_id//null)}}' "$out"
           test "$code" = "200"
-          jq -e '.openai.ok==true and .gemini.ok==true and .persisted==false' "$out" >/dev/null
+          jq -e '.persisted==false and (.openai.status==200) and (.gemini.status==200) and ((.openai.projection.identity.projection_id//"")|length>0) and ((.gemini.projection.identity.projection_id//"")|length>0)' "$out" >/dev/null
           echo "OpenAI and Gemini validation passed."
 
       - name: Validate learning dashboard write on Cloudflare
