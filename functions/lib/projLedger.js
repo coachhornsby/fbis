@@ -108,7 +108,7 @@ const KEEP_DAYS = 21;
 
 export const RECIPE_GUIDE = {
   mlb: {
-    engine: "Baseball Savant (Pal overlay when keyed)",
+    engine: "Baseball Savant champion + Ballpark Pal external benchmark",
     body: "Two independent MLB models. Proprietary: Savant RPG × starter ERA-eq × 1.04 home, clamped 2.3–7.2. Ballpark Pal: simulated runs and Pal win probability as a separate layer — Pal never overwrites Savant and is never a sportsbook price. Scheduled collection writes checkpoints to D1 even if the board is closed.",
   },
   nba: {
