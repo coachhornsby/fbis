@@ -63,11 +63,16 @@ export async function onRequestPost(context){
     const raw=Array.isArray(body?.finals)?body.finals:[];
     if(raw.length>400) return json({ok:false,error:"too-many-finals"},400);
     const finals=raw.map((row)=>normalizeFinal(row,sport,date)).filter(Boolean);
+    const requestedBatch=Number(body?.batchLimit);
+    const batchLimit=Number.isFinite(requestedBatch)
+      ? Math.max(1,Math.min(25,Math.trunc(requestedBatch)))
+      : null;
     const result=await gradeSnapshotPopulationAgainstFinals(context.env,{
       sport,
       date,
       finals,
       gradedAt:new Date().toISOString(),
+      maxWrites:batchLimit,
     });
     return json({
       ok:result.ok,

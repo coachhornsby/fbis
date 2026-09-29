@@ -217,6 +217,16 @@ test("runner final fetch merges primary and public college scoreboards", async (
   assert.match(script, /preferCfbd:false/);
 });
 
+test("final-grade ingress supports bounded write batches for large historical slates", async () => {
+  const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
+  const ledger = await readFile(new URL("../functions/lib/projLedger.js", import.meta.url), "utf8");
+  assert.match(api, /batchLimit/);
+  assert.match(api, /maxWrites:batchLimit/);
+  assert.match(ledger, /writeCap/);
+  assert.match(ledger, /truncated/);
+  assert.match(ledger, /writeAttempts/);
+});
+
 test("final-grade ingress rejects absent scores instead of coercing null to zero", async () => {
   const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
   assert.match(api, /function finiteScore/);

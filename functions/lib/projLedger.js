@@ -731,7 +731,7 @@ export function resolveFinalForSnapshot(row, finals = []) {
  */
 export async function gradeSnapshotPopulationAgainstFinals(
   env,
-  { sport, date, finals = [], gradedAt = null } = {}
+  { sport, date, finals = [], gradedAt = null, maxWrites = null } = {}
 ) {
   const id = String(sport || "").toLowerCase();
   const day = String(date || "").slice(0, 10);
@@ -760,6 +760,11 @@ export async function gradeSnapshotPopulationAgainstFinals(
   let matched = 0;
   let unmatched = 0;
   let failed = 0;
+  let writeAttempts = 0;
+  let truncated = false;
+  const writeCap = Number.isFinite(Number(maxWrites))
+    ? Math.max(1, Math.min(25, Math.trunc(Number(maxWrites))))
+    : null;
   const matchedGameIds = [];
   const unmatchedGameIds = [];
   for (const [gameId, row] of byGame.entries()) {
@@ -769,6 +774,11 @@ export async function gradeSnapshotPopulationAgainstFinals(
       unmatchedGameIds.push(gameId);
       continue;
     }
+    if (writeCap != null && writeAttempts >= writeCap) {
+      truncated = true;
+      break;
+    }
+    writeAttempts += 1;
     const actualHome = Number(final.home?.score ?? final.actualHome);
     const actualAway = Number(final.away?.score ?? final.actualAway);
     const res = await gradeSnapshotsForGame(env, {
@@ -794,6 +804,9 @@ export async function gradeSnapshotPopulationAgainstFinals(
     matched,
     unmatched,
     failed,
+    writeAttempts,
+    writeCap,
+    truncated,
     matchedGameIds,
     unmatchedGameIds: unmatchedGameIds.slice(0, 25),
   };
