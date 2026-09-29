@@ -664,6 +664,34 @@ export async function queryOddsSnapshots(env, { gameId, sport, since, until } = 
   }
 }
 
+export async function excludeSnapshotsFromLearning(env, { gameId, state, reason, terminalAt = null } = {}) {
+  markBound(env);
+  if (!hasDb(env) || !gameId) return { ok: false, reason: "unbound" };
+  const terminalState = String(state || "").trim().toUpperCase();
+  const why = String(reason || "").trim();
+  if (!["CANCELLED","INVALID_SOURCE"].includes(terminalState) || !why) {
+    return { ok: false, reason: "invalid-terminal-disposition" };
+  }
+  try {
+    const res = await env.DB.prepare(
+      `UPDATE prediction_snapshots
+       SET learning_terminal_state = COALESCE(learning_terminal_state, ?),
+           learning_exclusion_reason = COALESCE(learning_exclusion_reason, ?),
+           learning_terminal_at = COALESCE(learning_terminal_at, ?)
+       WHERE game_id = ?
+         AND actual_home IS NULL
+         AND actual_away IS NULL`
+    )
+      .bind(terminalState, why, terminalAt || new Date().toISOString(), String(gameId))
+      .run();
+    markWrite();
+    return { ok: true, changes: Number(res?.meta?.changes || 0) };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
 export async function gradeSnapshotsForGame(env, { gameId, actualHome, actualAway, f5ActualHome = null, f5ActualAway = null, gradedAt }) {
   markBound(env);
   if (!hasDb(env) || !gameId) return { ok: false, reason: "unbound" };
