@@ -22,7 +22,7 @@ jobs:
 
           curl -sS --max-time 60 -o "$espn" "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20260929&limit=300"
           curl -sS --max-time 60 -o "$nhl" "https://api-web.nhle.com/v1/schedule/2026-09-29"
-          code="$(curl -sS --max-time 180 -o "$prod" -w "%{http_code}" "https://fbis-myz.pages.dev/api/projections?sport=nhl&date=2026-09-29&tier=public")"
+          code="$(curl -sS --max-time 180 -o "$prod" -w "%{http_code}" "https://fbis-myz.pages.dev/api/projections?sport=nhl&date=2026-09-29&tier=public&_t=$(date +%s)")"
 
           echo "production_http=$code"
           echo "espn_events=$(jq '.events|length' "$espn")"
@@ -31,3 +31,6 @@ jobs:
           jq -c '{sport,date,games:(.games|length),samples:[.games[]?|{away:.away.abbr,home:.home.abbr,model:.model.name,maturity:.model.maturity,independent:.projection.independent}]}' "$prod"
 
           test "$code" = "200"
+          test "$(jq '.games|length' "$prod")" -eq 5
+          test "$(jq '[.games[]|select(.projection.independent==true)]|length' "$prod")" -eq 5
+          test "$(jq '[.games[]|select(.model.maturity=="RESEARCH")]|length' "$prod")" -eq 5
