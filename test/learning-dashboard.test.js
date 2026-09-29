@@ -226,6 +226,17 @@ test("historical final grading uses a lightweight unresolved snapshot read", asy
   assert.match(ledger, /queryFinalSnapshotCandidates\(env/);
 });
 
+test("historical backfill can post pre-reconciled verified grades without rescanning D1", async () => {
+  const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
+  const planner = await readFile(new URL("../scripts/build-final-grade-plan.mjs", import.meta.url), "utf8");
+  assert.match(api, /direct-verified-grades/);
+  assert.match(api, /gradeSnapshotsForGame/);
+  assert.match(api, /invalid-direct-grade/);
+  assert.match(planner, /resolveFinalForSnapshot/);
+  assert.match(planner, /AWAITING FINAL/);
+  assert.match(planner, /unmatchedGameIds/);
+});
+
 test("final-grade ingress supports bounded write batches for large historical slates", async () => {
   const api = await readFile(new URL("../functions/api/final-grade.js", import.meta.url), "utf8");
   const ledger = await readFile(new URL("../functions/lib/projLedger.js", import.meta.url), "utf8");
