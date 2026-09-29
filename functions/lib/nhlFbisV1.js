@@ -16,7 +16,7 @@
 import { NHL_FBIS_V1_ARTIFACT } from "../../data/models/nhl-fbis-v1.js";
 
 export const NHL_FBIS_V1_ID = "NHL-FBIS-v1";
-export const NHL_FBIS_V1_VERSION = "research-v1-five-layer";
+export const NHL_FBIS_V1_VERSION = "research-v1.1-five-layer-goalie-recency";
 
 const STATS = "https://api.nhle.com/stats/rest/en";
 const WEB = "https://api-web.nhle.com/v1";
@@ -190,33 +190,75 @@ function situationalAdjustment(ctx,oppCtx,isHome){
 }
 function selectGoalie(team,currentGoalies,priorGoalies,artifact){
   const candidates=[];
-  for(const g of currentGoalies||[]) if(g.teams.includes(team)&&g.starts>0) candidates.push({...g,source:"CURRENT",score:g.starts*10+g.games});
-  for(const g of priorGoalies||[]) if(g.teams.includes(team)) candidates.push({...g,source:"PRIOR",score:g.starts});
+  for(const g of currentGoalies||[]){
+    if(g.teams.includes(team)&&g.starts>0){
+      candidates.push({...g,source:"CURRENT",score:100000+g.starts*100+g.games});
+    }
+  }
+  for(const g of priorGoalies||[]){
+    if(g.teams.includes(team)){
+      candidates.push({...g,source:"PRIOR_2025_26",score:g.starts*100+g.games});
+    }
+  }
   candidates.sort((a,b)=>b.score-a.score);
   const g=candidates[0]||null;
+
   if(!g){
     const fallback=artifact?.expectedGoalieByTeam?.[team];
-    if(!fallback) return {goalieId:null,status:"UNKNOWN",impactGoals:0,reliability:0};
+    if(!fallback) return {
+      goalieId:null,
+      status:"UNKNOWN",
+      impactGoals:0,
+      reliability:0,
+      priorWeights:artifact?.goaliePriorWeights||null
+    };
+    const learned=artifact?.goalies?.[String(fallback.goalieId)]||null;
+    const latest=learned?.history?.["20252026"]||null;
     return {
       goalieId:String(fallback.goalieId),
       status:"EXPECTED_STARTER_PRIOR",
-      impactGoals:finite(fallback.impactGoalsPerGame)||0,
-      reliability:0.50,
-      source:"HISTORICAL_PBP"
+      impactGoals:finite(fallback.impactGoalsPerGame)||finite(learned?.regressedImpactGoalsPerGame)||0,
+      reliability:0.58,
+      source:"HISTORICAL_PBP_2025_26_DOMINANT",
+      priorWeights:artifact?.goaliePriorWeights||learned?.priorWeights||null,
+      latestSeason:"20252026",
+      latestSeasonGames:finite(latest?.games)||finite(fallback.games)||0,
+      latestSeasonGsax:finite(latest?.gsax),
+      latestSeasonRegressedImpact:finite(latest?.regressedImpactGoalsPerGame),
+      historicalPriorImpact:finite(learned?.regressedImpactGoalsPerGame)||0
     };
   }
-  const learned=artifact?.goalies?.[g.id];
+
+  const learned=artifact?.goalies?.[g.id]||null;
+  const latest=learned?.history?.["20252026"]||null;
   const impact=finite(learned?.regressedImpactGoalsPerGame)||0;
+  const currentStarts=g.source==="CURRENT"?(finite(g.starts)||0):0;
+  const currentSelectionConfidence=g.source==="CURRENT"
+    ? clamp(currentStarts/(currentStarts+4),0.55,0.92)
+    : 0.62;
+
   return {
     goalieId:g.id,
     name:g.name,
     status:g.source==="CURRENT"?"EXPECTED_STARTER_CURRENT":"EXPECTED_STARTER_PRIOR",
     impactGoals:impact,
-    reliability:g.source==="CURRENT"?0.72:0.55,
+    reliability:currentSelectionConfidence,
     savePct:g.savePct,
     games:g.games,
     starts:g.starts,
-    source:g.source
+    source:g.source,
+    priorWeights:artifact?.goaliePriorWeights||learned?.priorWeights||null,
+    latestSeason:"20252026",
+    latestSeasonGames:finite(latest?.games)||0,
+    latestSeasonGsax:finite(latest?.gsax),
+    latestSeasonGsaxPerGame:finite(latest?.gsaxPerGame),
+    latestSeasonWorkloadShrink:finite(latest?.workloadShrink),
+    latestSeasonRegressedImpact:finite(latest?.regressedImpactGoalsPerGame),
+    historicalPriorImpact:impact,
+    currentSeasonStarts:currentStarts,
+    currentSeasonUsedForSelection:g.source==="CURRENT",
+    currentSeasonPerformanceBlendActive:false,
+    note:"Goalie impact is the workload-shrunk 60/25/15 historical GSAx prior; current-season starts identify the likely starter until a current-season xG goalie sample is available."
   };
 }
 function poissonPmf(lambda,k){
@@ -379,7 +421,9 @@ export function projectNhlV1Game(game,ctx){
         home:round(xg5Home??baselineHome,3),
         away:round(xg5Away??baselineAway,3),
         artifactTrained:Boolean(artifact.trained),
-        artifactVersion:artifact.artifactVersion||null
+        artifactVersion:artifact.artifactVersion||null,
+        goaliePriorWeights:artifact.goaliePriorWeights||null,
+        goaliePriorPolicy:artifact.goaliePriorPolicy||null
       },
       specialTeams:{
         homeAdjustment:round(stHome,3),

@@ -203,6 +203,9 @@ function aggregate(shots,games,w,seasons){
   const goalie=new Map();
   const goalieGames=new Map();
   const goalieTeams=new Map();
+  const goalieSeason=new Map();
+  const goalieSeasonGames=new Map();
+  const goalieSeasonTeams=new Map();
   let totalXg=0,totalGoals5=0;
   for(const g of games){
     if(!g) continue;
@@ -225,6 +228,13 @@ function aggregate(shots,games,w,seasons){
       addSet(goalieGames,s.goalieId,s.gameId);
       const tk=`${s.goalieId}|${s.goalieTeam}`;
       goalieTeams.set(tk,(goalieTeams.get(tk)||0)+1);
+
+      const sk=`${s.season}|${s.goalieId}`;
+      if(!goalieSeason.has(sk)) goalieSeason.set(sk,{xga:0,ga:0,shots:0});
+      const sg=goalieSeason.get(sk);sg.xga+=p;sg.ga+=s.y;sg.shots+=1;
+      addSet(goalieSeasonGames,sk,s.gameId);
+      const stk=`${s.season}|${s.goalieId}|${s.goalieTeam}`;
+      goalieSeasonTeams.set(stk,(goalieSeasonTeams.get(stk)||0)+1);
     }
   }
   const recencyWeights=seasons.map((_,i)=>Math.exp((i-(seasons.length-1))*0.9));
@@ -260,25 +270,111 @@ function aggregate(shots,games,w,seasons){
   for(const s of shots) if(s.season===latest){latestXg+=clamp(sigmoid(dot(w,s.x)),0.001,0.95);latestGoals+=s.y;latestShots++;}
   const goalies={};
   const expectedGoalieByTeam={};
+  const goaliePriorWeights={};
+  const explicit=[0.15,0.25,0.60];
+  for(let i=0;i<seasons.length;i++){
+    goaliePriorWeights[seasons[i]]=explicit[i] ?? 0;
+  }
+
   for(const [id,g] of goalie){
     const gp=goalieGames.get(id)?.size||0;
     if(!gp) continue;
-    let team=null,best=0;
-    for(const [key,n] of goalieTeams){
-      if(!key.startsWith(id+"|")) continue;
-      if(n>best){best=n;team=key.split("|")[1];}
+
+    const history={};
+    let weightedImpact=0;
+    let usedWeight=0;
+    let latestTeam=null;
+    let latestTeamShots=0;
+    let latestSeasonGames=0;
+
+    for(const season of seasons){
+      const sk=`${season}|${id}`;
+      const sg=goalieSeason.get(sk);
+      const sgp=goalieSeasonGames.get(sk)?.size||0;
+      if(!sg || !sgp) continue;
+
+      let seasonTeam=null;
+      let seasonTeamShots=0;
+      for(const [key,n] of goalieSeasonTeams){
+        if(!key.startsWith(`${season}|${id}|`)) continue;
+        if(n>seasonTeamShots){
+          seasonTeamShots=n;
+          seasonTeam=key.split("|")[2]||null;
+        }
+      }
+
+      const raw=(sg.xga-sg.ga)/sgp;
+      const workloadShrink=sgp/(sgp+12);
+      const regressed=clamp(raw*workloadShrink,-0.35,0.35);
+      const weight=Number(goaliePriorWeights[season]||0);
+      weightedImpact+=weight*regressed;
+      usedWeight+=weight;
+
+      history[season]={
+        team:seasonTeam,
+        games:sgp,
+        shots:sg.shots,
+        xGA:round(sg.xga,3),
+        goalsAgainst:sg.ga,
+        gsax:round(sg.xga-sg.ga,3),
+        gsaxPerGame:round(raw,4),
+        workloadShrink:round(workloadShrink,4),
+        regressedImpactGoalsPerGame:round(regressed,4),
+        priorWeight:round(weight,4)
+      };
+
+      if(season===latest){
+        latestTeam=seasonTeam;
+        latestTeamShots=seasonTeamShots;
+        latestSeasonGames=sgp;
+      }
     }
+
+    const priorImpact=usedWeight>0
+      ? clamp(weightedImpact/usedWeight,-0.35,0.35)
+      : 0;
+
+    let team=latestTeam;
+    if(!team){
+      let best=0;
+      for(const [key,n] of goalieTeams){
+        if(!key.startsWith(id+"|")) continue;
+        if(n>best){best=n;team=key.split("|")[1];}
+      }
+    }
+
     const raw=(g.xga-g.ga)/gp;
-    const shrink=gp/(gp+15);
-    const impact=clamp(raw*shrink,-0.35,0.35);
     goalies[id]={
-      goalieId:id,team,games:gp,shots:g.shots,xGA:round(g.xga,3),goalsAgainst:g.ga,
-      gsax:round(g.xga-g.ga,3),gsaxPerGame:round(raw,4),
-      regressedImpactGoalsPerGame:round(impact,4)
+      goalieId:id,
+      team,
+      games:gp,
+      shots:g.shots,
+      xGA:round(g.xga,3),
+      goalsAgainst:g.ga,
+      gsax:round(g.xga-g.ga,3),
+      gsaxPerGame:round(raw,4),
+      history,
+      priorWeights:goaliePriorWeights,
+      priorWeightUsed:round(usedWeight,4),
+      latestSeason:latest,
+      latestSeasonGames,
+      latestSeasonTeam:latestTeam,
+      latestSeasonTeamShots:latestTeamShots,
+      regressedImpactGoalsPerGame:round(priorImpact,4)
     };
-    if(team){
-      const cur=expectedGoalieByTeam[team];
-      if(!cur || gp>cur.games) expectedGoalieByTeam[team]={goalieId:id,games:gp,impactGoalsPerGame:round(impact,4),status:"EXPECTED_STARTER_PRIOR"};
+
+    if(latestTeam){
+      const cur=expectedGoalieByTeam[latestTeam];
+      if(!cur || latestSeasonGames>cur.games){
+        expectedGoalieByTeam[latestTeam]={
+          goalieId:id,
+          games:latestSeasonGames,
+          impactGoalsPerGame:round(priorImpact,4),
+          status:"EXPECTED_STARTER_PRIOR",
+          sourceSeason:latest,
+          priorWeights:goaliePriorWeights
+        };
+      }
     }
   }
   return {
@@ -338,7 +434,7 @@ console.log("validation",validation);
 const finalWeights=fitLogistic(shots,{epochs:6,lr:0.014,initial:wValidation});
 const agg=aggregate(shots,games,finalWeights,seasons);
 const artifact={
-  artifactVersion:"research-v1-historical-xg-goalie",
+  artifactVersion:"research-v1.1-historical-xg-goalie-recency",
   generatedAt:new Date().toISOString(),
   trained:true,
   marketInformed:false,
@@ -359,6 +455,8 @@ const artifact={
   },
   league:agg.league,
   teams:agg.teams,
+  goaliePriorWeights:{"20232024":0.15,"20242025":0.25,"20252026":0.60},
+  goaliePriorPolicy:"season-specific GSAx/game, workload-shrunk within season, then 60/25/15 recency blend",
   goalies:agg.goalies,
   expectedGoalieByTeam:agg.expectedGoalieByTeam
 };
