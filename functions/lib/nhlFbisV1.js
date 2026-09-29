@@ -78,11 +78,23 @@ function normalizeSummary(row={}){
     games:gp,
     gfpg:finite(row.goalsForPerGame)??(gp&&gf!=null?gf/gp:null),
     gapg:finite(row.goalsAgainstPerGame)??(gp&&ga!=null?ga/gp:null),
-    pp:pct(row.powerPlayPct),
-    pk:pct(row.penaltyKillPct),
+    pp:pct(row.powerPlayPct ?? row.ppPct ?? row.powerPlayPctg),
+    pk:pct(row.penaltyKillPct ?? row.pkPct ?? row.penaltyKillPctg),
     shotsFor:finite(row.shotsForPerGame),
     shotsAgainst:finite(row.shotsAgainstPerGame)
   };
+}
+function specialTeamsMap(rows=[],kind){
+  const out={};
+  for(const row of rows||[]){
+    const abbr=teamAbbr(row);
+    if(!abbr) continue;
+    const value=kind==="pp"
+      ? pct(row.powerPlayPct ?? row.ppPct ?? row.powerPlayPctg)
+      : pct(row.penaltyKillPct ?? row.pkPct ?? row.penaltyKillPctg);
+    if(value!=null) out[abbr]=value;
+  }
+  return out;
 }
 function blendSummary(prior,current){
   if(!prior&&!current) return null;
@@ -238,16 +250,32 @@ function distribution(home,away,totalLine=null,homeSpread=null){
 
 export async function loadNhlV1Context(date,games=[],{fetcher=fetch}={}){
   const ids=seasonIds(date);
-  const [priorTeams,currentTeams,priorGoalies,currentGoalies,s1,s2]=await Promise.all([
+  const [priorTeams,currentTeams,priorGoalies,currentGoalies,priorPp,currentPp,priorPk,currentPk,s1,s2]=await Promise.all([
     fetchJson(statUrl("team/summary",ids.prior),fetcher),
     fetchJson(statUrl("team/summary",ids.current),fetcher).catch(()=>({data:[]})),
     fetchJson(statUrl("goalie/summary",ids.prior),fetcher),
     fetchJson(statUrl("goalie/summary",ids.current),fetcher).catch(()=>({data:[]})),
+    fetchJson(statUrl("team/powerplay",ids.prior),fetcher).catch(()=>({data:[]})),
+    fetchJson(statUrl("team/powerplay",ids.current),fetcher).catch(()=>({data:[]})),
+    fetchJson(statUrl("team/penaltykill",ids.prior),fetcher).catch(()=>({data:[]})),
+    fetchJson(statUrl("team/penaltykill",ids.current),fetcher).catch(()=>({data:[]})),
     fetchJson(`${WEB}/schedule/${date}`,fetcher).catch(()=>({gameWeek:[]})),
     fetchJson(`${WEB}/schedule/${new Date(Date.parse(date+"T12:00:00Z")-7*86400000).toISOString().slice(0,10)}`,fetcher).catch(()=>({gameWeek:[]}))
   ]);
   const priorMap=Object.fromEntries((priorTeams.data||[]).map(normalizeSummary).filter(r=>r.abbr).map(r=>[r.abbr,r]));
   const currentMap=Object.fromEntries((currentTeams.data||[]).map(normalizeSummary).filter(r=>r.abbr).map(r=>[r.abbr,r]));
+  const priorPpMap=specialTeamsMap(priorPp.data||[],"pp");
+  const currentPpMap=specialTeamsMap(currentPp.data||[],"pp");
+  const priorPkMap=specialTeamsMap(priorPk.data||[],"pk");
+  const currentPkMap=specialTeamsMap(currentPk.data||[],"pk");
+  for(const [abbr,row] of Object.entries(priorMap)){
+    if(row.pp==null && priorPpMap[abbr]!=null) row.pp=priorPpMap[abbr];
+    if(row.pk==null && priorPkMap[abbr]!=null) row.pk=priorPkMap[abbr];
+  }
+  for(const [abbr,row] of Object.entries(currentMap)){
+    if(row.pp==null && currentPpMap[abbr]!=null) row.pp=currentPpMap[abbr];
+    if(row.pk==null && currentPkMap[abbr]!=null) row.pk=currentPkMap[abbr];
+  }
   const teams={};
   for(const abbr of new Set([...Object.keys(priorMap),...Object.keys(currentMap)])) teams[abbr]=blendSummary(priorMap[abbr],currentMap[abbr]);
   const schedule=[...new Map([...scheduleGames(s2),...scheduleGames(s1)].map(g=>[g.id,g])).values()];
