@@ -256,20 +256,25 @@ export function promoteNflResearchToBoard(games = []) {
     if (game.sport && game.sport !== "nfl") return game;
     const shadow = game.nflShadow || game.challengers?.[NFL_SHADOW_ID];
     let proj = null;
-    let version = "research-v0-form";
+    let version = "research-v0.1-form-calibrated";
     let underlying = NFL_SHADOW_ID;
     let note =
-      "Independent team-scoring-form research baseline. Not a validated NFL betting model.";
+      "Independent team-scoring-form research baseline with holdout-tested margin shrinkage. Not a validated NFL betting model.";
 
     if (shadow?.ok && shadow.home != null && shadow.away != null) {
       proj = shadow;
+      version = shadow.version === "v0.1-margin-calibrated"
+        ? "research-v0.1-form-calibrated"
+        : "research-v0-form";
     } else {
       const pure = projectNflPureChallenger(game, {});
       const scores = scoresFrom(pure);
       if (pure?.ok && scores) {
         proj = { ...pure, ...scores };
         version = String(pure.modelVersion || "").includes("form")
-          ? "research-v0-form"
+          ? (String(pure.modelVersion || "").includes("v0.1")
+              ? "research-v0.1-form-calibrated"
+              : "research-v0-form")
           : String(pure.modelVersion || "research-v0");
         underlying = pure.underlyingShadowId || null;
         note = pure.note || note;
