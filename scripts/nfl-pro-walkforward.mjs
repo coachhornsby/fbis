@@ -127,11 +127,12 @@ function summarize(rows,key){
 const schedule=await csv(SCHEDULES);
 const bundles={};
 for(const y of new Set(seasons.flatMap(y=>[y-1,y]))){
-  const [team,player]=await Promise.all([
+  const [team,player,pbp]=await Promise.all([
     csv(`${RELEASE}/stats_team/stats_team_week_${y}.csv`),
-    csv(`${RELEASE}/stats_player/stats_player_week_${y}.csv`)
+    csv(`${RELEASE}/stats_player/stats_player_week_${y}.csv`),
+    gzCsv(`${PBP_RELEASE}/play_by_play_${y}.csv.gz`)
   ]);
-  bundles[y]={team,player,teamFull:aggregateTeamWeeks(team),qbFull:aggregateQbWeeks(player)};
+  bundles[y]={team,player,pbp,teamFull:aggregateTeamWeeks(team),qbFull:aggregateQbWeeks(player),pbpFull:aggregatePbp(pbp)};
 }
 const rows=[];
 for(const season of seasons){
@@ -148,8 +149,8 @@ for(const season of seasons){
     const curTeam=aggregateTeamWeeks(currentTeamRows), curQb=aggregateQbWeeks(currentPlayerRows), curPbp=aggregatePbp(currentPbpRows);
     const home=canon(g.home_team), away=canon(g.away_team);
     const game={sport:"nfl",neutralSite:String(g.location||"").toLowerCase()==="neutral",home:{abbr:home},away:{abbr:away},nflFeatures:{
-      home:combinedFeatures(home,prior.teamFull,prior.qbFull,curTeam,curQb),
-      away:combinedFeatures(away,prior.teamFull,prior.qbFull,curTeam,curQb)
+      home:{...combinedFeatures(home,prior.teamFull,prior.qbFull,curTeam,curQb),...pbpFeatures(home,prior.pbpFull,curPbp,curTeam.offense[home]?.games||0)},
+      away:{...combinedFeatures(away,prior.teamFull,prior.qbFull,curTeam,curQb),...pbpFeatures(away,prior.pbpFull,curPbp,curTeam.offense[away]?.games||0)}
     }};
     const pro=projectNflProV2(game);
     const curForm=formRows(schedule,season,week);
