@@ -172,7 +172,8 @@ jobs:
           call() {
             local job="$1"
             local extra="${2:-}"
-            local attempt http curl_ec tmp body_snip ok classification
+            local allow_rate_limit="${3:-false}"
+            local attempt http curl_ec tmp body_snip ok classification rate_limited
             echo "college job=${job}"
             for attempt in 1 2 3 4; do
               tmp="$(mktemp)"
@@ -188,6 +189,7 @@ jobs:
               if [ "$curl_ec" -eq 0 ] && jq -e . "$tmp" >/dev/null 2>&1; then
                 jq -c '{http: $http, ok: .ok, job: .job, status: .status, errors: (.errors // []), d1: (.d1.bound // false)}' --arg http "$http" "$tmp" || true
                 ok=$(jq -r '(.ok == true) and (.status == "success")' "$tmp" 2>/dev/null || echo false)
+                rate_limited=$(jq -r '[.errors[]? | tostring] | any(test("(CFBD|CBBD) 429|rate.?limit"; "i"))' "$tmp" 2>/dev/null || echo false)
                 if [ "$http" = "200" ] && [ "$ok" = "true" ]; then
                   echo "college job success job=${job} attempt=${attempt}"
                   # Persist audit artifact for download when present
@@ -201,6 +203,16 @@ jobs:
                     echo "" >> "$GITHUB_STEP_SUMMARY"
                     jq -r '.d1.audit.featureTableMarkdown // "_feature table unavailable_"' "$tmp" >> "$GITHUB_STEP_SUMMARY" || true
                   fi
+                  return 0
+                fi
+                if [ "$allow_rate_limit" = "true" ] && [ "$rate_limited" = "true" ]; then
+                  echo "college job soft-degraded job=${job}: upstream provider rate limited; retaining last-known persisted data and stopping retries"
+                  {
+                    echo "## College research degraded"
+                    echo "- job: ${job}"
+                    echo "- reason: upstream provider rate limit"
+                    echo "- action: retained last-known persisted data; skipped repeated quota-burning retries"
+                  } >> "$GITHUB_STEP_SUMMARY"
                   return 0
                 fi
               else
@@ -243,10 +255,10 @@ jobs:
             call model-train-validate "${EXTRA}"
           elif [ "$EVENT_NAME" = "schedule" ]; then
             # Keep sequential for CFBD quota; each call has its own bounded retries.
-            call cfb-current-refresh
-            call cbb-current-refresh
-            call cfb-postgame-harvest
-            call cbb-postgame-harvest
+            call cfb-current-refresh "" true
+            call cbb-current-refresh "" true
+            call cfb-postgame-harvest "" true
+            call cbb-postgame-harvest "" true
             call college-health
           else
             call "$JOB" "${EXTRA}"
