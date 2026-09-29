@@ -82,12 +82,14 @@ jobs:
           fail=0
           matched=0
           unmatched=0
+
           while IFS=$'\t' read -r sport date; do
             [ -n "$sport" ] || continue
-            payload="$(mktemp)"
+            scoreboard="$(mktemp)"
             plan="$(mktemp)"
+
             set +e
-            node scripts/fetch-final-scoreboard.mjs "$sport" "$date" > "$payload"
+            node scripts/fetch-final-scoreboard.mjs "$sport" "$date" > "$scoreboard"
             fetch_ec=$?
             set -e
             if [ "$fetch_ec" -ne 0 ]; then
@@ -96,75 +98,48 @@ jobs:
               continue
             fi
 
-            accepted="$(jq -r '.finals | length' "$payload")"
-            if [ "$accepted" -eq 0 ]; then
-              echo "SKIP ${sport} ${date}: no completed finals returned"
+            node scripts/build-final-grade-plan.mjs "$report" "$scoreboard" "$sport" "$date" > "$plan"
+            candidates="$(jq -r '.candidates // 0' "$plan")"
+            grades="$(jq -r '.grades | length' "$plan")"
+            u="$(jq -r '.unmatchedGameIds | length' "$plan")"
+            unmatched=$((unmatched+u))
+
+            echo "PLAN ${sport} ${date}: candidates=${candidates} verified_grades=${grades} unmatched=${u}"
+            if [ "$u" -gt 0 ]; then
+              echo "UNMATCHED ${sport} ${date}: $(jq -c '.unmatchedGameIds' "$plan")"
+            fi
+
+            if [ "$grades" -eq 0 ]; then
+              ok=$((ok+1))
               continue
             fi
 
-            set +e
-            node scripts/build-final-grade-plan.mjs "$report" "$payload" "$sport" "$date" > "$plan"
-            plan_ec=$?
-            set -e
-            if [ "$plan_ec" -ne 0 ] || ! jq -e '.ok == true' "$plan" >/dev/null 2>&1; then
-              fail=$((fail+1))
-              echo "FAIL ${sport} ${date}: runner reconciliation failed"
-              cat "$plan" || true
-              continue
-            fi
-
-            grade_count="$(jq -r '.grades | length' "$plan")"
-            date_unmatched="$(jq -r '.unmatchedGameIds | length' "$plan")"
-            date_matched=0
+            chunk_dir="$(mktemp -d)"
+            jq -c '.grades | _nwise(25)' "$plan" | split -l 1 - "$chunk_dir/chunk-"
             date_failed=0
-            offset=0
+            date_matched=0
+            for chunk in "$chunk_dir"/chunk-*; do
+              [ -s "$chunk" ] || continue
+              req="$(mktemp)"
+              res="$(mktemp)"
+              jq -n                 --arg sport "$sport"                 --arg date "$date"                 --arg source "trusted-scoreboard-reconciled-runner"                 --slurpfile grades "$chunk"                 '{sport:$sport,date:$date,source:$source,grades:$grades[0]}' > "$req"
 
-            while [ "$offset" -lt "$grade_count" ]; do
-              request="$(mktemp)"
-              result="$(mktemp)"
-              jq --argjson start "$offset" --argjson lim 5                 '{sport:.sport,date:.date,source:.source,grades:(.grades[$start:($start+$lim)])}'                 "$plan" > "$request"
+              http="$(curl -sS --max-time 180 --retry 2 --retry-all-errors                 -X POST                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -H "content-type: application/json"                 --data-binary @"$req"                 -o "$res" -w "%{http_code}"                 "${FBIS_BASE}/api/final-grade")"
 
-              http="000"
-              ec=0
-              for attempt in 1 2 3 4; do
-                set +e
-                http="$(curl -sS --max-time 90 --retry 0                   -X POST                   -H "x-harvest-secret: ${HARVEST_SECRET}"                   -H "content-type: application/json"                   --data-binary @"$request"                   -o "$result" -w "%{http_code}"                   "${FBIS_BASE}/api/final-grade")"
-                ec=$?
-                set -e
-                if [ "$ec" -eq 0 ] && [ "$http" = "200" ] && jq -e '.ok == true and .mode=="direct-verified-grades"' "$result" >/dev/null 2>&1; then
-                  break
-                fi
-                if [ "$attempt" -lt 4 ]; then
-                  echo "retry direct-grade ${sport} ${date} offset=${offset} attempt=${attempt}/4 http=${http}"
-                  sleep $((attempt * 4))
-                fi
-              done
-
-              if [ "$ec" -ne 0 ] || [ "$http" != "200" ] || ! jq -e '.ok == true and .mode=="direct-verified-grades"' "$result" >/dev/null 2>&1; then
+              if [ "$http" != "200" ] || ! jq -e '.ok == true and .mode=="direct-verified-grades"' "$res" >/dev/null 2>&1; then
+                echo "FAIL ${sport} ${date}: direct grade http=${http}"
+                cat "$res" || true
                 date_failed=1
-                echo "FAIL ${sport} ${date}: direct-grade offset=${offset} curl=${ec} http=${http:-000}"
-                cat "$result" || true
-                echo
                 break
               fi
-
-              batch_matched="$(jq -r '.matched // 0' "$result")"
-              date_matched=$((date_matched+batch_matched))
-              echo "DIRECT ${sport} ${date}: offset=${offset} matched=${batch_matched}"
-              offset=$((offset+5))
+              m="$(jq -r '.matched // 0' "$res")"
+              date_matched=$((date_matched+m))
             done
 
             if [ "$date_failed" -eq 0 ]; then
               ok=$((ok+1))
               matched=$((matched+date_matched))
-              unmatched=$((unmatched+date_unmatched))
-              echo "OK ${sport} ${date}: finals=${accepted} reconciled=${grade_count} graded=${date_matched} unmatched=${date_unmatched}"
-              if [ "$date_unmatched" -gt 0 ]; then
-                echo "UNMATCHED ${sport} ${date}: $(jq -c '.unmatchedGameIds // []' "$plan")"
-                while IFS= read -r gid; do
-                  jq -c --arg gid "$gid" '.audit[]? | select(.gameId==$gid) | {gameId,sport,date,start,matchup,modelId}' "$report" || true
-                done < <(jq -r '.unmatchedGameIds[]?' "$plan")
-              fi
+              echo "OK ${sport} ${date}: directly graded=${date_matched} unmatched=${u}"
             else
               fail=$((fail+1))
             fi
@@ -172,11 +147,11 @@ jobs:
 
           echo "backfill calls ok=$ok fail=$fail matched=$matched unmatched=$unmatched"
           {
-            echo "## All-projection final backfill"
+            echo "## Runner-reconciled final backfill"
             echo "- successful sport/date calls: $ok"
             echo "- failed sport/date calls: $fail"
-            echo "- snapshot game ids graded: $matched"
-            echo "- unresolved snapshot game ids on queried dates: $unmatched"
+            echo "- verified game ids graded: $matched"
+            echo "- residual unmatched game ids: $unmatched"
           } >> "$GITHUB_STEP_SUMMARY"
           test "$fail" = "0"
 
