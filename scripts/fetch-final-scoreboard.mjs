@@ -13,7 +13,7 @@ const cfbdApiKey=process.env.CFBD_API_KEY||process.env.COLLEGE_DATA_API_KEY||"";
 try{
   const rows=await fetchResultsForReconcile(sport,date,{
     cfbdApiKey,
-    preferCfbd:false,
+    preferCfbd:sport==="cfb" && Boolean(cfbdApiKey),
   });
   const finals=(rows||[]).filter((g)=>
     g?.status?.completed===true &&
