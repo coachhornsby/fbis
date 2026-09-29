@@ -27,5 +27,5 @@ jobs:
           jq -c '.games[] | {id,start,matchup:((.away.abbr//.away.name)+" @ "+(.home.abbr//.home.name)),projectionKind,projectionMaturity,canQualify,canAuthorizeWager,projHome:(.model.projHome//.projHomeScore),projAway:(.model.projAway//.projAwayScore),nhlV1:{ok:.nhlV1.ok,modelId:.nhlV1.modelId,modelVersion:.nhlV1.modelVersion,home:.nhlV1.home,away:.nhlV1.away,total:.nhlV1.total,marketInformed:.nhlV1.marketInformed,canQualify:.nhlV1.canQualify,artifact:.nhlV1.layers.fiveVFiveXg.artifactVersion}}' "$out"
           jq -e '.modelVersion|contains("NHL-FBIS-v1")' "$out" >/dev/null
           jq -e '.research.nhlFiveLayer.artifactTrained==true' "$out" >/dev/null
-          jq -e '[.games[] | select(.nhlV1.ok==true)] | length == (.games|length)' "$out" >/dev/null
-          jq -e '[.games[] | select(.projectionMaturity=="RESEARCH" and .canQualify==false)] | length == (.games|length)' "$out" >/dev/null
+          jq -e '(.games|length) as $n | ([.games[] | select(.nhlV1.ok==true)] | length) == $n' "$out" >/dev/null
+          jq -e '(.games|length) as $n | ([.games[] | select(.projectionMaturity=="RESEARCH" and .canQualify==false and .canAuthorizeWager==false)] | length) == $n' "$out" >/dev/null
