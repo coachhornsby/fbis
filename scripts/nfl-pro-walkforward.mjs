@@ -127,12 +127,19 @@ function summarize(rows,key){
 const schedule=await csv(SCHEDULES);
 const bundles={};
 for(const y of new Set(seasons.flatMap(y=>[y-1,y]))){
-  const [team,player,pbp]=await Promise.all([
+  const [team,player]=await Promise.all([
     csv(`${RELEASE}/stats_team/stats_team_week_${y}.csv`),
-    csv(`${RELEASE}/stats_player/stats_player_week_${y}.csv`),
-    gzCsv(`${PBP_RELEASE}/play_by_play_${y}.csv.gz`)
+    csv(`${RELEASE}/stats_player/stats_player_week_${y}.csv`)
   ]);
-  bundles[y]={team,player,pbp,teamFull:aggregateTeamWeeks(team),qbFull:aggregateQbWeeks(player),pbpFull:aggregatePbp(pbp)};
+  const pbp=await gzCsv(`${PBP_RELEASE}/play_by_play_${y}.csv.gz`);
+  const pbpFull=aggregatePbp(pbp);
+  const pbpByWeek=new Map();
+  for(let w=1;w<=19;w++){
+    const admissible=pbp.filter(r=>String(r.season_type||"REG").toUpperCase()==="REG"&&num(r.week)<w);
+    if(admissible.some(r=>num(r.week)>=w)) throw new Error(`PIT PBP precompute leakage season=${y} week=${w}`);
+    pbpByWeek.set(w,aggregatePbp(admissible));
+  }
+  bundles[y]={team,player,teamFull:aggregateTeamWeeks(team),qbFull:aggregateQbWeeks(player),pbpFull,pbpByWeek};
 }
 const rows=[];
 for(const season of seasons){
@@ -144,9 +151,9 @@ for(const season of seasons){
     if(!weekCache.has(week)){
       const currentTeamRows=current.team.filter(r=>String(r.season_type||"REG").toUpperCase()==="REG"&&num(r.week)<week);
       const currentPlayerRows=current.player.filter(r=>String(r.season_type||"REG").toUpperCase()==="REG"&&num(r.week)<week);
-      const currentPbpRows=current.pbp.filter(r=>String(r.season_type||"REG").toUpperCase()==="REG"&&num(r.week)<week);
-      if(currentTeamRows.some(r=>num(r.week)>=week)||currentPlayerRows.some(r=>num(r.week)>=week)||currentPbpRows.some(r=>num(r.week)>=week)) throw new Error(`PIT leakage detected season=${season} week=${week}`);
-      weekCache.set(week,{curTeam:aggregateTeamWeeks(currentTeamRows),curQb:aggregateQbWeeks(currentPlayerRows),curPbp:aggregatePbp(currentPbpRows),curForm:formRows(schedule,season,week)});
+      if(currentTeamRows.some(r=>num(r.week)>=week)||currentPlayerRows.some(r=>num(r.week)>=week)) throw new Error(`PIT leakage detected season=${season} week=${week}`);
+      const curPbp=current.pbpByWeek.get(week);
+      weekCache.set(week,{curTeam:aggregateTeamWeeks(currentTeamRows),curQb:aggregateQbWeeks(currentPlayerRows),curPbp,curForm:formRows(schedule,season,week)});
     }
     const {curTeam,curQb,curPbp,curForm}=weekCache.get(week);
     const home=canon(g.home_team), away=canon(g.away_team);
