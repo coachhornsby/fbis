@@ -36,6 +36,28 @@ function teamName(sportId,abbr,fallback){
   const hit=resolveTeam(sportId,{abbr,name:fallback});
   return hit?.displayName||hit?.school||fallback||abbr||"";
 }
+function finalKey(g){
+  const id=String(g?.id||"").trim();
+  if(id) return "id:"+id;
+  const away=String(g?.away?.abbr||g?.away?.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const home=String(g?.home?.abbr||g?.home?.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const start=String(g?.start||g?.date||"");
+  const as=finite(g?.away?.score), hs=finite(g?.home?.score);
+  return `g:${away}@${home}|${start}|${as}|${hs}`;
+}
+function mergeFinals(...lists){
+  const out=[];
+  const seen=new Set();
+  for(const list of lists){
+    for(const g of list||[]){
+      const k=finalKey(g);
+      if(seen.has(k)) continue;
+      seen.add(k);
+      out.push(g);
+    }
+  }
+  return out;
+}
 async function nflverseFinals(day){
   const rows=parseCsv(await fetchText(NFLVERSE_GAMES));
   return rows.filter(r=>String(r.gameday||"").slice(0,10)===day)
@@ -72,34 +94,55 @@ async function cfbfastFinals(day){
     }));
 }
 
+async function primaryFinals(){
+  const rows=await fetchResultsForReconcile(sport,date,{
+    cfbdApiKey,
+    // On GitHub-hosted runners ESPN can cover FCS/secondary games that CFBD
+    // schedules may omit. Keep CFBD as the automatic fallback on ESPN failure.
+    preferCfbd:false,
+  });
+  return (rows||[]).filter((g)=>
+    g?.status?.completed===true &&
+    finite(g?.home?.score)!=null &&
+    finite(g?.away?.score)!=null
+  ).map((g)=>({...g,date,sport:g.sport||sport}));
+}
+
 async function trustedResults(){
+  let primary=[];
+  let primaryError=null;
+  try{
+    primary=await primaryFinals();
+  }catch(err){
+    primaryError=String(err?.message||err);
+    console.error("PRIMARY_SCOREBOARD_ERROR",primaryError);
+  }
+
   if(sport==="nfl"){
+    let publicRows=[];
     try{
-      const rows=await nflverseFinals(date);
-      if(rows.length) return {rows,source:"nflverse/nfldata"};
+      publicRows=await nflverseFinals(date);
     }catch(err){
       console.error("NFLVERSE_FALLBACK_ERROR",String(err?.message||err));
     }
+    const rows=mergeFinals(primary,publicRows);
+    if(rows.length) return {rows,source:primary.length&&publicRows.length?"primary+nflverse":"nflverse/nfldata"};
   }
+
   if(sport==="cfb"){
+    let publicRows=[];
     try{
-      const rows=await cfbfastFinals(date);
-      if(rows.length) return {rows,source:"sportsdataverse/cfbfastR-data"};
+      publicRows=await cfbfastFinals(date);
     }catch(err){
       console.error("CFBFAST_FALLBACK_ERROR",String(err?.message||err));
     }
+    const rows=mergeFinals(primary,publicRows);
+    if(rows.length) return {rows,source:primary.length&&publicRows.length?"primary+cfbfastR":"sportsdataverse/cfbfastR-data"};
   }
 
-  const rows=await fetchResultsForReconcile(sport,date,{
-    cfbdApiKey,
-    preferCfbd:sport==="cfb" && Boolean(cfbdApiKey),
-  });
-  const finals=(rows||[]).filter((g)=>
-    g?.status?.completed===true &&
-    Number.isFinite(Number(g?.home?.score)) &&
-    Number.isFinite(Number(g?.away?.score))
-  ).map((g)=>({...g,date,sport:g.sport||sport}));
-  return {rows:finals,source:"primary-scoreboard"};
+  if(primary.length) return {rows:primary,source:"primary-scoreboard"};
+  if(primaryError) throw new Error(primaryError);
+  return {rows:[],source:"primary-scoreboard"};
 }
 
 try{
