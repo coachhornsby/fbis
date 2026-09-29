@@ -31,6 +31,58 @@ jobs:
           test -n "$token"
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
+      - name: Apply verified historical residual disposition
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+
+          grades="$RUNNER_TEMP/verified-grades.json"
+          cat > "$grades" <<'JSON'
+          {
+            "sport":"all",
+            "date":"historical",
+            "source":"verified-official-results-20260929",
+            "grades":[
+              {"gameId":"ncaaf_arizonastatesundevils_kansasjayhawks_2026-09-19_b2","actualHome":24,"actualAway":17},
+              {"gameId":"ncaaf_houstoncougars_texastechredraiders_2026-09-19_b3","actualHome":28,"actualAway":26},
+              {"gameId":"498b584346a36a484675a05925cf04ab","actualHome":27,"actualAway":24},
+              {"gameId":"mlb_orioles_yankees_2026-09-25_b2_g1","actualHome":2,"actualAway":10},
+              {"gameId":"mlb_orioles_yankees_2026-09-25_b3","actualHome":6,"actualAway":3}
+            ]
+          }
+          JSON
+
+          exclusions="$RUNNER_TEMP/verified-exclusions.json"
+          cat > "$exclusions" <<'JSON'
+          {
+            "sport":"all",
+            "date":"historical",
+            "exclusions":[
+              {"gameId":"67d8db7cdda7b7a7b0864efc56e1296d","reason":"INVALID_MATCHUP_CHARLOTTE_MISSISSIPPI_STATE"},
+              {"gameId":"920238db2d9eb17f89d93e105828d491","reason":"INVALID_MATCHUP_SOUTHERN_UTAH_MINNESOTA"},
+              {"gameId":"459dc3c4c5b21cfb74dd42f19c65bbd0","reason":"INVALID_MATCHUP_TENNESSEE_MEMPHIS"},
+              {"gameId":"b436e7db5c3fe48ab010cb64bbe54750","reason":"INVALID_MATCHUP_SAN_DIEGO_STATE_MINNESOTA"},
+              {"gameId":"83d32f1602fdebfb4245c634e9f4f58a","reason":"INVALID_MATCHUP_TENNESSEE_AUSTIN_PEAY"},
+              {"gameId":"824785","reason":"POSTPONED_DUPLICATE_PROVIDER_ID_TORONTO_BALTIMORE"},
+              {"gameId":"mlb_bluejays_orioles_2026-09-22_b3","reason":"POSTPONED_TORONTO_BALTIMORE_2026_09_22"},
+              {"gameId":"823490","reason":"CANCELED_BALTIMORE_NEW_YORK_2026_09_27"}
+            ]
+          }
+          JSON
+
+          for payload in "$grades" "$exclusions"; do
+            out="$(mktemp)"
+            http="$(curl -sS --max-time 90               -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               --data-binary @"$payload"               -o "$out" -w "%{http_code}"               "${FBIS_BASE}/api/final-grade")"
+            cat "$out"
+            echo
+            test "$http" = "200"
+            jq -e '.ok == true' "$out" >/dev/null
+          done
+
       - name: Build unresolved sport/date target list
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
