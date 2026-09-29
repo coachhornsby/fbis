@@ -1,0 +1,23 @@
+name: Diagnose post-backfill residuals
+on:
+  push:
+    branches: [diag/post-backfill-residuals-20260929]
+permissions:
+  contents: read
+jobs:
+  residuals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch learning report residuals
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/report.json"
+          curl -fsS --max-time 180 -H "x-harvest-secret: ${HARVEST_SECRET}"             "${FBIS_BASE}/api/learning-report?since=2026-01-01&limit=5000" > "$report"
+          echo "=== TOTALS ==="
+          jq -c '.totals' "$report"
+          echo "=== ALL AWAITING FINAL ==="
+          jq -c '.audit[] | select(.learningStatus=="AWAITING FINAL") | {gameId,sport,date,start,matchup,modelId,projectionKind}' "$report"
