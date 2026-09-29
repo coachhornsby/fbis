@@ -1,6 +1,6 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
-import {healthSummary,validateModels,validateSheetsAccess,validateKenpom,selectCandidates,processQueue,runSnapshot} from './orchestrator.mjs';
+import {healthSummary,validateModels,validateSheetsAccess,validateKenpom,selectCandidates,processQueue,runSnapshot,syncLearningDashboard} from './orchestrator.mjs';
 
 const port=Number(process.env.PORT||10000);
 const token=process.env.ORCH_CONTROL_TOKEN||'';
@@ -71,7 +71,7 @@ async function authorization(req){
 }
 async function body(req){
   let s='';
-  for await(const chunk of req){ s+=chunk; if(s.length>2_000_000) throw new Error('body too large'); }
+  for await(const chunk of req){ s+=chunk; if(s.length>8_000_000) throw new Error('body too large'); }
   return s?JSON.parse(s):{};
 }
 async function processQueueFailClosed(){
@@ -97,6 +97,11 @@ const server=http.createServer(async(req,res)=>{
       return json(res,200,{auth:auth.type,...(await selectCandidates({dryRun:payload.dryRun===true}))});
     }
     if(req.method==='POST'&&url.pathname==='/api/process-queue') return json(res,200,{auth:auth.type,...(await processQueueFailClosed())});
+    if(req.method==='POST'&&url.pathname==='/api/sync-learning-dashboard'){
+      const payload=await body(req);
+      const report=payload?.report||payload;
+      return json(res,200,{auth:auth.type,...(await syncLearningDashboard(report))});
+    }
     if(req.method==='POST'&&url.pathname==='/api/run-snapshot'){
       const payload=await body(req);
       return json(res,200,await runSnapshot(payload.snapshot||payload,{persist:payload.persist!==false,persistFeatureSnapshot:payload.persistFeatureSnapshot===true}));
