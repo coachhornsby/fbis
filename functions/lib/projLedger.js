@@ -718,8 +718,11 @@ export async function gradeSnapshotPopulationAgainstFinals(
   if (!id || !day) {
     return { ok: false, reason: "sport-and-date-required", candidates: 0, matched: 0, unmatched: 0, failed: 0 };
   }
-  const since = shiftDateCT(day, -1);
-  const until = shiftDateCT(day, 1);
+  // Historical board snapshots were sometimes stored under the requested
+  // board date rather than the actual kickoff date. Search a bounded week on
+  // either side, then filter by the immutable event start below.
+  const since = shiftDateCT(day, -7);
+  const until = shiftDateCT(day, 7);
   const q = await querySnapshots(env, { sport: id, since, until });
   if (!q.ok) {
     return { ok: false, reason: q.reason || "snapshot-query-failed", candidates: 0, matched: 0, unmatched: 0, failed: 0 };
