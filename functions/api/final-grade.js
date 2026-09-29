@@ -13,16 +13,22 @@ function json(data,status=200){
   });
 }
 
+function finiteScore(v){
+  if(v==null || v==="") return null;
+  const n=Number(v);
+  return Number.isFinite(n)?n:null;
+}
+
 function normalizeFinal(row={},sport,date){
-  const homeScore=Number(row?.home?.score ?? row?.actualHome);
-  const awayScore=Number(row?.away?.score ?? row?.actualAway);
+  const homeScore=finiteScore(row?.home?.score ?? row?.actualHome);
+  const awayScore=finiteScore(row?.away?.score ?? row?.actualAway);
   const completed =
     row?.status?.completed===true ||
     String(row?.status?.state||"").toLowerCase()==="post" ||
     /final/i.test(String(row?.status?.detail||""));
   const homeName=String(row?.home?.name||row?.homeName||"").trim();
   const awayName=String(row?.away?.name||row?.awayName||"").trim();
-  if(!completed || !Number.isFinite(homeScore) || !Number.isFinite(awayScore) || !homeName || !awayName) return null;
+  if(!completed || homeScore==null || awayScore==null || !homeName || !awayName) return null;
   return {
     id:String(row?.id||row?.gameId||""),
     sport,
