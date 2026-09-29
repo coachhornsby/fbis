@@ -1,46 +1,59 @@
 import crypto from 'node:crypto';
 
-export const CFG = Object.freeze({
-  spreadsheetId: process.env.SPREADSHEET_ID || '1B1IVONVvmP50JPCqb64fzEsSaTv6AuHQ04YqEzBhjAo',
-  version: process.env.ORCHESTRATOR_VERSION || 'AI-ORCH-v0.3-render',
-  protocol: process.env.PROJECTION_PROTOCOL || 'MULTISPORT-PROJ-v0.2',
-  schemaVersion: process.env.PROJECTION_SCHEMA_VERSION || 'projection-v0.3',
-  openaiModel: process.env.OPENAI_MODEL || 'gpt-5.6-sol',
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
-  maxRuns: Number(process.env.MAX_RUNS_PER_INVOCATION || 5),
-  fbisBaseUrl: process.env.FBIS_BASE_URL || 'https://fbis-myz.pages.dev',
-  llmSelectionEnabled: String(process.env.LLM_SELECTION_ENABLED || 'true').toLowerCase() !== 'false',
-  llmMaxGamesPerDay: Number(process.env.LLM_MAX_GAMES_PER_DAY || 8),
-  llmMaxPerScan: Number(process.env.LLM_MAX_PER_SCAN || 5),
-  llmMinQuality: Number(process.env.LLM_MIN_QUALITY || 76),
-  llmMinMinutesToStart: Number(process.env.LLM_MIN_MINUTES_TO_START || 60),
-  llmHorizonHours: Number(process.env.LLM_HORIZON_HOURS || 36),
-  thresholds: {
-    winProbPp: Number(process.env.WIN_PROB_DELTA_PP || 4),
-    total: Number(process.env.TOTAL_DELTA || 0.75),
-    spIp: Number(process.env.SP_IP_DELTA || 0.5),
-    spK: Number(process.env.SP_K_DELTA || 0.75),
-  },
-  prices: {
-    openaiInput: Number(process.env.OPENAI_INPUT_PER_M || 4),
-    openaiOutput: Number(process.env.OPENAI_OUTPUT_PER_M || 20),
-    geminiInput: Number(process.env.GEMINI_INPUT_PER_M || 0.75),
-    geminiOutput: Number(process.env.GEMINI_OUTPUT_PER_M || 3.75),
-  },
-  sheets: {
-    config: 'AI Orchestrator Config',
-    queue: 'AI Run Queue',
-    raw: 'AI Raw Payloads',
-    consensus: 'Model Consensus',
-    disagreements: 'Model Disagreements',
-    dashboard: 'Daily Projections',
-    allProjections: 'All Projections',
-    modelLearning: 'Model Learning',
-    projectionAudit: 'Projection Audit',
-    snapshots: 'Feature Snapshots',
-    usage: 'AI API Usage',
-  }
-});
+let runtimeEnv = process.env;
+
+function buildCfg(env = runtimeEnv){
+  return Object.freeze({
+    spreadsheetId: env.SPREADSHEET_ID || '1B1IVONVvmP50JPCqb64fzEsSaTv6AuHQ04YqEzBhjAo',
+    version: env.ORCHESTRATOR_VERSION || 'AI-ORCH-v0.4-cloudflare',
+    protocol: env.PROJECTION_PROTOCOL || 'MULTISPORT-PROJ-v0.2',
+    schemaVersion: env.PROJECTION_SCHEMA_VERSION || 'projection-v0.3',
+    openaiModel: env.OPENAI_MODEL || 'gpt-5.6-sol',
+    geminiModel: env.GEMINI_MODEL || 'gemini-3.8-flash',
+    maxRuns: Number(env.MAX_RUNS_PER_INVOCATION || 5),
+    fbisBaseUrl: env.FBIS_BASE_URL || 'https://fbis-myz.pages.dev',
+    llmSelectionEnabled: String(env.LLM_SELECTION_ENABLED || 'true').toLowerCase() !== 'false',
+    llmMaxGamesPerDay: Number(env.LLM_MAX_GAMES_PER_DAY || 8),
+    llmMaxPerScan: Number(env.LLM_MAX_PER_SCAN || 5),
+    llmMinQuality: Number(env.LLM_MIN_QUALITY || 76),
+    llmMinMinutesToStart: Number(env.LLM_MIN_MINUTES_TO_START || 60),
+    llmHorizonHours: Number(env.LLM_HORIZON_HOURS || 36),
+    thresholds: {
+      winProbPp: Number(env.WIN_PROB_DELTA_PP || 4),
+      total: Number(env.TOTAL_DELTA || 0.75),
+      spIp: Number(env.SP_IP_DELTA || 0.5),
+      spK: Number(env.SP_K_DELTA || 0.75),
+    },
+    prices: {
+      openaiInput: Number(env.OPENAI_INPUT_PER_M || 4),
+      openaiOutput: Number(env.OPENAI_OUTPUT_PER_M || 20),
+      geminiInput: Number(env.GEMINI_INPUT_PER_M || 0.75),
+      geminiOutput: Number(env.GEMINI_OUTPUT_PER_M || 3.75),
+    },
+    sheets: {
+      config: 'AI Orchestrator Config',
+      queue: 'AI Run Queue',
+      raw: 'AI Raw Payloads',
+      consensus: 'Model Consensus',
+      disagreements: 'Model Disagreements',
+      dashboard: 'Daily Projections',
+      allProjections: 'All Projections',
+      modelLearning: 'Model Learning',
+      projectionAudit: 'Projection Audit',
+      snapshots: 'Feature Snapshots',
+      usage: 'AI API Usage',
+    }
+  });
+}
+
+export let CFG = buildCfg(runtimeEnv);
+
+export function configureRuntime(env = {}){
+  runtimeEnv = {...process.env, ...env};
+  CFG = buildCfg(runtimeEnv);
+  sheets.refresh();
+  return CFG;
+}
 
 const projectionSchema = {
   type: 'object',
@@ -134,7 +147,7 @@ const b64url = input => Buffer.from(input).toString('base64url');
 const q = name => "'" + String(name).replaceAll("'","''") + "'";
 
 function parseCredential(){
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const raw = runtimeEnv.GOOGLE_SERVICE_ACCOUNT_JSON;
   if(!raw) return null;
   try { return JSON.parse(raw); } catch {}
   try { return JSON.parse(Buffer.from(raw,'base64').toString('utf8')); } catch {}
@@ -160,6 +173,11 @@ async function fetchRetry(url, options={}, max=3){
 
 class SheetsClient {
   constructor(){
+    this.cred = parseCredential();
+    this.token = null;
+    this.tokenExp = 0;
+  }
+  refresh(){
     this.cred = parseCredential();
     this.token = null;
     this.tokenExp = 0;
@@ -292,7 +310,7 @@ function usageRow(provider, runId, eventId, model, calledAt, status, usage, late
   return [uuid(),runId,eventId,provider,model,calledAt,status,input,cached,output,reasoning,total,usageCost(provider,input,billableOutput),latency,retry,success?'YES':'NO',errorClass||'',notes];
 }
 async function callOpenAI(runId,eventId,snapshotId,prompt,dataTimestamp){
-  const key=process.env.OPENAI_API_KEY;
+  const key=runtimeEnv.OPENAI_API_KEY;
   if(!key) throw new Error('OPENAI_API_KEY missing');
   const started=Date.now(), calledAt=now();
   const body={
@@ -321,7 +339,7 @@ async function callOpenAI(runId,eventId,snapshotId,prompt,dataTimestamp){
   }catch(e){ return {ok:false,status:res.status,raw,obj,usage,error:'OpenAI parse/schema: '+e.message}; }
 }
 async function callGemini(runId,eventId,snapshotId,prompt,dataTimestamp){
-  const key=process.env.GEMINI_API_KEY;
+  const key=runtimeEnv.GEMINI_API_KEY;
   if(!key) throw new Error('GEMINI_API_KEY missing');
   const started=Date.now(), calledAt=now();
   const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(CFG.geminiModel)+':generateContent';
@@ -999,8 +1017,8 @@ export function healthSummary(){
     status:'ok',version:CFG.version,protocol:CFG.protocol,
     models:{openai:CFG.openaiModel,gemini:CFG.geminiModel},
     credentials:{
-      openai:!!process.env.OPENAI_API_KEY,
-      gemini:!!process.env.GEMINI_API_KEY,
+      openai:!!runtimeEnv.OPENAI_API_KEY,
+      gemini:!!runtimeEnv.GEMINI_API_KEY,
       googleSheets:googleCredential,
       googleCredentialParseError
     },
