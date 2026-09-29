@@ -74,6 +74,36 @@ async function body(req){
   for await(const chunk of req){ s+=chunk; if(s.length>8_000_000) throw new Error('body too large'); }
   return s?JSON.parse(s):{};
 }
+
+function encryptedMigrationBundle(publicKeyPem){
+  if(!publicKeyPem || typeof publicKeyPem!=='string') throw new Error('publicKeyPem required');
+  const names=['OPENAI_API_KEY','GEMINI_API_KEY','GOOGLE_SERVICE_ACCOUNT_JSON','ORCH_CONTROL_TOKEN'];
+  const secrets={};
+  for(const name of names){
+    const value=process.env[name];
+    if(value) secrets[name]=value;
+  }
+  const key=crypto.randomBytes(32);
+  const iv=crypto.randomBytes(12);
+  const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
+  const plaintext=Buffer.from(JSON.stringify(secrets),'utf8');
+  const ciphertext=Buffer.concat([cipher.update(plaintext),cipher.final()]);
+  const tag=cipher.getAuthTag();
+  const wrappedKey=crypto.publicEncrypt(
+    {key:publicKeyPem,oaepHash:'sha256'},
+    key
+  );
+  return {
+    ok:true,
+    algorithm:'RSA-OAEP-SHA256+AES-256-GCM',
+    present:Object.keys(secrets),
+    wrappedKey:wrappedKey.toString('base64'),
+    iv:iv.toString('base64'),
+    tag:tag.toString('base64'),
+    ciphertext:ciphertext.toString('base64'),
+    at:new Date().toISOString()
+  };
+}
 async function processQueueFailClosed(){
   const health=healthSummary();
   const missing=Object.entries(health.credentials).filter(([k,v])=>k!=='googleCredentialParseError'&&!v).map(([k])=>k);
@@ -89,6 +119,11 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='GET'&&url.pathname==='/health') return json(res,200,healthSummary());
     const auth=await authorization(req);
     if(!auth) return json(res,401,{error:'unauthorized'});
+    if(req.method==='POST'&&url.pathname==='/api/migration/export-secrets'){
+      if(auth.type!=='github-oidc') return json(res,403,{error:'github-oidc-required'});
+      const payload=await body(req);
+      return json(res,200,encryptedMigrationBundle(payload.publicKeyPem));
+    }
     if(req.method==='GET'&&url.pathname==='/api/validate/sheets') return json(res,200,await validateSheetsAccess());
     if(req.method==='GET'&&url.pathname==='/api/validate/kenpom') return json(res,200,await validateKenpom());
     if(req.method==='POST'&&url.pathname==='/api/validate/models') return json(res,200,await validateModels());
