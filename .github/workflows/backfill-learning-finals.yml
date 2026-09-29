@@ -99,16 +99,30 @@ jobs:
               echo "SKIP ${sport} ${date}: no completed finals returned"
               continue
             fi
-            set +e
-            http="$(curl -sS --max-time 180 --retry 1 --retry-delay 2 \
-              -X POST \
-              -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              -H "content-type: application/json" \
-              --data-binary @"$payload" \
-              -o "$result" -w "%{http_code}" \
-              "${FBIS_BASE}/api/final-grade")"
-            ec=$?
-            set -e
+            http="000"
+            ec=0
+            for attempt in 1 2 3 4; do
+              set +e
+              http="$(curl -sS --max-time 180 --retry 0 \
+                -X POST \
+                -H "x-harvest-secret: ${HARVEST_SECRET}" \
+                -H "content-type: application/json" \
+                --data-binary @"$payload" \
+                -o "$result" -w "%{http_code}" \
+                "${FBIS_BASE}/api/final-grade")"
+              ec=$?
+              set -e
+              if [ "$ec" -eq 0 ] && [ "$http" = "200" ] && jq -e '.ok == true' "$result" >/dev/null 2>&1; then
+                break
+              fi
+              body_snip="$(head -c 300 "$result" 2>/dev/null || true)"
+              if [ "$attempt" -lt 4 ] && { [ "$ec" -ne 0 ] || [ "$http" = "429" ] || [ "$http" = "500" ] || [ "$http" = "502" ] || [ "$http" = "503" ] || [ "$http" = "504" ] || echo "$body_snip" | grep -qiE 'error code: 1102|D1.*(busy|overload|retry)'; }; then
+                echo "retry final-grade ${sport} ${date} attempt=${attempt}/4 http=${http}"
+                sleep $((attempt * 8))
+                continue
+              fi
+              break
+            done
             if [ "$ec" -eq 0 ] && [ "$http" = "200" ] && jq -e '.ok == true' "$result" >/dev/null 2>&1; then
               ok=$((ok+1))
               m="$(jq -r '.matched // 0' "$result")"
@@ -116,6 +130,12 @@ jobs:
               matched=$((matched+m))
               unmatched=$((unmatched+u))
               echo "OK ${sport} ${date}: accepted=$(jq -r '.accepted // 0' "$result") matched=${m} unmatched=${u}"
+              if [ "$u" -gt 0 ]; then
+                echo "UNMATCHED ${sport} ${date}: $(jq -c '.unmatchedGameIds // []' "$result")"
+                while IFS= read -r gid; do
+                  jq -c --arg gid "$gid" '.audit[]? | select(.gameId==$gid) | {gameId,sport,date,start,matchup,modelId}' "$report" || true
+                done < <(jq -r '.unmatchedGameIds[]?' "$result")
+              fi
             else
               fail=$((fail+1))
               echo "FAIL ${sport} ${date}: final-grade curl=${ec} http=${http:-000}"
