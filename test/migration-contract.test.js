@@ -89,3 +89,16 @@ test("live CFBD audit artifact is checked in without secrets", async () => {
   assert.ok((audit.summary?.available || []).includes("/ratings/core"));
   assert.equal((audit.summary?.notEntitled || []).length, 0);
 });
+
+test("college research persistence repair migration is registered", async () => {
+  const m28 = await readFile(new URL("../migrations/0028_college_research_tables_ensure.sql", import.meta.url), "utf8");
+  assert.match(m28, /source_observations/);
+  assert.match(m28, /api_usage/);
+  assert.match(m28, /team_feature_snapshots/);
+  assert.match(m28, /game_feature_snapshots/);
+  assert.match(m28, /model_registry/);
+  assert.match(m28, /model_predictions/);
+  assert.match(m28, /schema_migrations[\s\S]*0028_college_research_tables_ensure/i);
+  assert.doesNotMatch(m28, /\bDROP\b/i);
+  assert.doesNotMatch(m28, /\bDELETE\b/i);
+});

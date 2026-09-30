@@ -50,7 +50,18 @@ export function collegePublicResult(res) {
     cacheHit: Boolean(res?.cacheHit),
     reason: res?.reason || null,
     records: res?.n ?? 0,
+    usagePersisted: res?.usagePersisted == null ? null : Boolean(res.usagePersisted),
+    usageError: res?.usageError || null,
   });
+}
+
+async function attachUsagePersistence(env, res, row) {
+  const usage = await recordApiUsage(env, row);
+  return {
+    ...res,
+    usagePersisted: Boolean(usage?.ok),
+    usageError: usage?.ok ? null : usage?.reason || "api_usage-unavailable",
+  };
 }
 
 /**
@@ -63,8 +74,7 @@ export async function collegeRequest(source, path, env = {}, { query, fetchFn = 
   const started = Date.now();
   if (!key) {
     const miss = { ok: false, status: 0, reason: "no-api-key", data: null, n: 0, path, source: src, cacheHit: false };
-    await recordApiUsage(env, usageRow(src, path, miss, started, query));
-    return miss;
+    return attachUsagePersistence(env, miss, usageRow(src, path, miss, started, query));
   }
   const ck = cacheKey(src, path, query);
   const ttl = ttlMs ?? (src === "cbbd" ? CBBD_TTL_MS : CFBD_TTL_MS);
@@ -72,8 +82,7 @@ export async function collegeRequest(source, path, env = {}, { query, fetchFn = 
     const cached = await readCache(ck, env.caches, ttl);
     if (cached && cached.data !== undefined) {
       const hit = { ...cached, cacheHit: true, path, source: src };
-      await recordApiUsage(env, usageRow(src, path, hit, started, query, { cacheHit: true }));
-      return hit;
+      return attachUsagePersistence(env, hit, usageRow(src, path, hit, started, query, { cacheHit: true }));
     }
   }
   const url = `${base}${path}${queryString(query)}`;
@@ -106,8 +115,7 @@ export async function collegeRequest(source, path, env = {}, { query, fetchFn = 
         cacheHit: false,
       };
       await writeCache(ck, fail, env.caches, ERR_TTL_MS);
-      await recordApiUsage(env, usageRow(src, path, fail, started, query));
-      return fail;
+      return attachUsagePersistence(env, fail, usageRow(src, path, fail, started, query));
     }
     const ok = {
       ok: true,
@@ -120,8 +128,7 @@ export async function collegeRequest(source, path, env = {}, { query, fetchFn = 
       meta: unwrapped.meta || null,
     };
     await writeCache(ck, ok, env.caches, ttl);
-    await recordApiUsage(env, usageRow(src, path, ok, started, query));
-    return ok;
+    return attachUsagePersistence(env, ok, usageRow(src, path, ok, started, query));
   } catch (err) {
     const fail = {
       ok: false,
@@ -133,8 +140,7 @@ export async function collegeRequest(source, path, env = {}, { query, fetchFn = 
       source: src,
       cacheHit: false,
     };
-    await recordApiUsage(env, usageRow(src, path, fail, started, query));
-    return fail;
+    return attachUsagePersistence(env, fail, usageRow(src, path, fail, started, query));
   }
 }
 
