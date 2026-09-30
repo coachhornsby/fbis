@@ -5,6 +5,7 @@ import {
   normalizeAvailabilityRecord,
   buildGameAvailabilityImpact,
   applyAvailabilityAdjustment,
+  buildSportAvailabilityPreflight,
 } from "../functions/lib/availability.js";
 import { extractTwoDeepAvailability } from "../functions/lib/twoDeep.js";
 
@@ -118,4 +119,35 @@ test("stale weekly designations do not keep moving projections unless status is 
     depth_rank:1, status:"IR", source_updated_at:old, observed_at:"2026-09-28T17:00:00Z"
   }], { sport:"nfl", nowMs });
   assert.ok(staleIr.homeScoreAdjustment < 0);
+});
+
+
+test("sport-specific availability preflight holds unresolved MLB starters and NHL goalies", () => {
+  const mlb = buildSportAvailabilityPreflight({
+    sport:"mlb",
+    home:{abbr:"NYY"},away:{abbr:"BOS"},
+    homeSp:{id:null},awaySp:{id:22},
+    quality:{flags:["missing_home_sp"]},
+    availabilityImpact:{configured:true,stale:false,home:{players:[]},away:{players:[]}},
+  },"mlb");
+  assert.equal(mlb.state,"HOLD");
+  assert.ok(mlb.reasons.includes("probable_starter_unresolved"));
+
+  const nhl = buildSportAvailabilityPreflight({
+    sport:"nhl",
+    home:{abbr:"TOR"},away:{abbr:"BOS"},
+    nhlV1:{layers:{goalie:{
+      home:{goalieId:"g1",status:"EXPECTED_STARTER_PRIOR"},
+      away:{goalieId:"g2",status:"EXPECTED_STARTER_CURRENT"},
+    }}},
+    availabilityImpact:{configured:true,stale:false,home:{players:[]},away:{players:[]}},
+  },"nhl");
+  assert.equal(nhl.state,"HOLD");
+  assert.ok(nhl.reasons.includes("starting_goalie_not_confirmed"));
+});
+
+test("NBA preflight fails closed when availability feed is not configured", () => {
+  const p = buildSportAvailabilityPreflight({sport:"nba",home:{},away:{}},"nba");
+  assert.equal(p.state,"BLOCKED");
+  assert.ok(p.reasons.includes("rights_cleared_injury_feed_required"));
 });
