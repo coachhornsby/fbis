@@ -225,3 +225,27 @@ test("projection cards expose snapshot stage and availability preflight", () => 
   assert.equal(card.conditions.availabilityPreflight.state,"CLEAR");
   assert.equal(card.conditions.availabilityPreflight.policy.numericalAdjustment,false);
 });
+
+
+test("Asian baseball projection cards expose league-local and CT kickoff times", () => {
+  const out = productProjectionBoard({
+    sport: "npb",
+    games: [{
+      id: "npb-time-1",
+      sport: "npb",
+      start: "2026-10-01T09:00:00.000Z",
+      projectionKind: "FBIS",
+      home: { name: "Hanshin Tigers", abbr: "HAN" },
+      away: { name: "Yomiuri Giants", abbr: "YOM" },
+      model: { projectionKind: "FBIS", projHome: 3.1, projAway: 2.6, projMargin: 0.5, projTotal: 5.7, maturity:"RESEARCH", canQualify:false },
+      npbV1: { ok:true, modelId:"NPB-FBIS-v1" },
+      quality: { score: 80, state:"COMPLETE", flags: [] }
+    }]
+  });
+  const timing = out.games[0].leagueTiming;
+  assert.equal(timing.leagueTimeZone, "Asia/Tokyo");
+  assert.equal(timing.userTimeZone, "America/Chicago");
+  assert.equal(timing.selectionRule, "NEXT_UP_BY_ABSOLUTE_KICKOFF");
+  assert.ok(timing.kickoffLeagueLocal);
+  assert.ok(timing.kickoffUserLocal);
+});
