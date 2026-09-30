@@ -8,7 +8,7 @@
  */
 
 export const KBO_FBIS_V1_ID = "KBO-FBIS-v1";
-export const KBO_FBIS_V1_VERSION = "research-v1.0-official-kbo";
+export const KBO_FBIS_V1_VERSION = "research-v1.0.1-official-kbo-orderfix";
 
 const TEAM_NAMES = Object.freeze({
   NC:"NC Dinos", DOOSAN:"Doosan Bears", KT:"KT Wiz", KIA:"KIA Tigers",
@@ -52,7 +52,11 @@ export function parseKboSchedule(html="",date=""){
 
     // KBO table rows can collapse columns differently after the first game of a date.
     const text=c.join(" ");
-    const teams=Object.keys(TEAM_NAMES).filter(k=>new RegExp(`\\b${k}\\b`,"i").test(text));
+    const teams=Object.keys(TEAM_NAMES)
+      .map(k=>({k,pos:text.toUpperCase().indexOf(k)}))
+      .filter(x=>x.pos>=0)
+      .sort((a,b)=>a.pos-b.pos)
+      .map(x=>x.k);
     if(teams.length<2) continue;
     const time=(text.match(/\b([01]?\d|2[0-3]):[0-5]\d\b/)||[])[0]||"18:30";
     const away=teams[0], home=teams[1];
