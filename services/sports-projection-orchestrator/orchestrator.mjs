@@ -665,11 +665,25 @@ function projectionSheetKey(sport,eventId){
   return String(sport||'').toLowerCase()+'|'+String(eventId||'');
 }
 
-function normalizeProjectionTeam(value){
-  return String(value||'')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g,'')
-    .trim();
+const NFL_TEAM_SUFFIXES = [
+  'cardinals','falcons','ravens','bills','panthers','bears','bengals','browns','cowboys','broncos',
+  'lions','packers','texans','colts','jaguars','chiefs','raiders','chargers','rams','dolphins',
+  'vikings','patriots','saints','giants','jets','eagles','steelers','49ers','seahawks','buccaneers',
+  'titans','commanders'
+];
+
+function normalizeProjectionTeam(value,sport=''){
+  let s=String(value||'').toLowerCase().trim();
+  if(String(sport||'').toLowerCase()==='nfl'){
+    for(const suffix of NFL_TEAM_SUFFIXES){
+      if(s===suffix) break;
+      if(s.endsWith(' '+suffix)){
+        s=s.slice(0,-(suffix.length+1)).trim();
+        break;
+      }
+    }
+  }
+  return s.replace(/[^a-z0-9]+/g,'').trim();
 }
 
 function matchupParts(matchup){
@@ -679,12 +693,17 @@ function matchupParts(matchup){
 
 function canonicalProjectionKey({sport,eventId,start,away,home,matchup,engine,modelVersion,model}={}){
   const parts=matchupParts(matchup);
-  const awayKey=normalizeProjectionTeam(away||parts.away);
-  const homeKey=normalizeProjectionTeam(home||parts.home);
+  const sportKey=String(sport||'').toLowerCase();
+  const awayKey=normalizeProjectionTeam(away||parts.away,sportKey);
+  const homeKey=normalizeProjectionTeam(home||parts.home,sportKey);
   const startMs=Date.parse(String(start||''));
-  const startKey=Number.isFinite(startMs)?new Date(startMs).toISOString().slice(0,16):'';
+  const startKey=Number.isFinite(startMs)
+    ? (sportKey==='mlb'
+        ? new Date(startMs).toISOString().slice(0,16)
+        : dateKeyCT(new Date(startMs)))
+    : '';
   const gameKey=startKey&&awayKey&&homeKey
-    ? [String(sport||'').toLowerCase(),startKey,awayKey,homeKey].join('|')
+    ? [sportKey,startKey,awayKey,homeKey].join('|')
     : projectionSheetKey(sport,eventId);
   const engineKey=normalizeProjectionTeam(engine);
   const versionKey=normalizeProjectionTeam(modelVersion);
