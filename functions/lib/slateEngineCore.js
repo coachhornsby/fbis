@@ -1748,6 +1748,7 @@ export async function buildSlate(sport, date, env = {}) {
     cbbd: id === "cbb" ? cbbd.meta || { configured: false } : undefined,
     npb: id === "npb" ? {
       source: npbContext?.source || "NPB.jp",
+      timezone: npbContext?.timezone || "Asia/Tokyo",
       modelId: npbContext?.meta?.modelId || "NPB-FBIS-v1",
       modelVersion: npbContext?.meta?.modelVersion || null,
       projected: npbContext?.meta?.projected || 0,
