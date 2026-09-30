@@ -22,7 +22,7 @@ import { loadNhlV1Context, attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } fr
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
-import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
+import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
 import {
   marketImpliedAuthority,
   deriveBoardDecision,
@@ -221,6 +221,7 @@ export async function buildSlate(sport, date, env = {}) {
   if (id === "kbo" && Array.isArray(next.games)) {
     next = {
       ...next,
+      games: attachKboPlayerProjectionResearch(next.games),
       research: {
         ...(next.research || {}),
         kboFbisV1: next.kbo || { modelId:"KBO-FBIS-v1", maturity:"RESEARCH", canQualify:false, canAuthorize:false },

@@ -92,6 +92,41 @@ function statRow({ sport, game, team, player, market, projection, sigma = null, 
   };
 }
 
+export function attachKboPlayerProjectionResearch(games = []) {
+  return (games || []).map((game) => {
+    const rows = [];
+    for (const side of ["home","away"]) {
+      const p = game.kboV1?.pitcherKs?.[side];
+      const st = game.kboV1?.starters?.[side];
+      if (!p || finite(p.projection) == null || !st?.name) continue;
+      const row = statRow({
+        sport:"kbo", game,
+        team: teamAbbr(game[side]),
+        player:{ id:st.playerId || null, name:st.name, position:"P" },
+        market:"strikeouts", projection:p.projection,
+        source:p.source || "KBO_OFFICIAL_K9_X_EXPECTED_IP_X_OPPONENT_K_RATE",
+        notes:"KBO-FBIS-v1.1 official-data starter K projection; research-only."
+      });
+      if (row) {
+        row.propGate = game.kboV1?.starterState === "OFFICIAL_KBO_STARTERS_RESOLVED" ? row.propGate : "HOLD";
+        row.gateReason = game.kboV1?.starterState === "OFFICIAL_KBO_STARTERS_RESOLVED" ? row.gateReason : "official_kbo_starter_unresolved";
+        row.eligibleForCard = row.propGate === "CLEAR";
+        rows.push(row);
+      }
+    }
+    return {
+      ...game,
+      playerProjectionRows: rows,
+      playerProjectionStatus:{
+        sport:"kbo",
+        state:rows.some(r=>r.eligibleForCard)?"ACTIVE_RESEARCH":rows.length?"HOLD_STARTER_CONFIRMATION":"PROBABLE_STARTER_UNRESOLVED",
+        model:"KBO-PLAYER-PROJ-v1",version:PRO_PLAYER_PROJECTION_VERSION,
+        independent:true,marketInformed:false,canQualify:false
+      }
+    };
+  });
+}
+
 export function attachNpbPlayerProjectionResearch(games = []) {
   return (games || []).map((game) => {
     const rows = [];
