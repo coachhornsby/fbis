@@ -40,6 +40,8 @@ jobs:
         run: npm ci
       - name: Verify schema/migrations
         run: npm run verify:migrations
+      - name: Syntax check Cloudflare Functions
+        run: find functions -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Run test suite
         run: npm test
       - name: Build app
