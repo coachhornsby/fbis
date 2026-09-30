@@ -293,6 +293,10 @@ export function normalizeBoardGame(game = {}) {
       projectionSource: p.source || null,
       modelMaturity: p.maturity || "RESEARCH",
       modelIndependent: p.independent !== false,
+      availabilityStatus: p.availabilityStatus || null,
+      propGate: p.propGate || "CLEAR",
+      gateReason: p.gateReason || null,
+      eligibleForCard: p.eligibleForCard === true,
     };
   });
 
@@ -315,8 +319,16 @@ export function normalizeBoardGame(game = {}) {
       projectionSource: p.source || null,
       modelMaturity: p.maturity || "RESEARCH",
       modelIndependent: p.independent !== false,
+      availabilityStatus: p.availabilityStatus || null,
+      propGate: p.propGate || "CLEAR",
+      gateReason: p.gateReason || null,
+      eligibleForCard: p.eligibleForCard === true,
       decisionEligible: false,
-      reasonCodes: ["FBIS_PLAYER_PROJECTION_RESEARCH_ONLY","NO_MARKET_LINE_ATTACHED"],
+      reasonCodes: [
+        "FBIS_PLAYER_PROJECTION_RESEARCH_ONLY",
+        "NO_MARKET_LINE_ATTACHED",
+        ...(p.propGate && p.propGate !== "CLEAR" ? ["AVAILABILITY_" + p.propGate] : []),
+      ],
     });
   });
 
@@ -376,8 +388,9 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
           },
           teamIdentity,
           supportedMarket,
-          surfaceStatus: pm.decisionEligible ? "WATCHLIST" : "RESEARCH",
+          surfaceStatus: pm.propGate === "BLOCKED" ? "BLOCKED" : pm.propGate === "HOLD" ? "HOLD" : pm.decisionEligible ? "WATCHLIST" : "RESEARCH",
           modelAuthorized: false,
+          eligibleForCard: pm.propGate === "CLEAR" && pm.eligibleForCard === true,
         }),
       );
     }
@@ -408,6 +421,9 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       unsupportedRows: allRows.length - supportedRows.length,
       byMarket,
       decisionEligible: rows.filter((r) => r.decisionEligible).length,
+      cardEligible: rows.filter((r) => r.eligibleForCard === true).length,
+      availabilityHold: rows.filter((r) => r.propGate === "HOLD").length,
+      availabilityBlocked: rows.filter((r) => r.propGate === "BLOCKED").length,
     },
     readiness: {
       classification: "RESEARCH_READY",
