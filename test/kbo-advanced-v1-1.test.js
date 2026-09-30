@@ -16,7 +16,7 @@ import { projectKboGame } from "../functions/lib/kboFbisV1.js";
 test("KBO official advanced team tables parse market-blind offense and pitching features", () => {
   const h1=`<table><tr><td>1</td><td>KT</td><td>.282</td><td>135</td><td>5450</td><td>4710</td><td>764</td><td>1330</td><td>224</td><td>19</td><td>108</td><td>1916</td><td>711</td><td>67</td><td>38</td></tr></table>`;
   const h2=`<table><tr><td>1</td><td>KT</td><td>.281</td><td>542</td><td>8</td><td>73</td><td>1017</td><td>95</td><td>.405</td><td>.364</td><td>.769</td><td>132</td><td>.304</td><td>.313</td></tr></table>`;
-  const p1=`<table><tr><td>4</td><td>KT</td><td>4.30</td><td>135</td><td>80</td><td>48</td><td>30</td><td>50</td><td>.625</td><td>1200 0/3</td><td>1200</td><td>1100</td><td>115</td><td>420</td><td>65</td><td>1090</td><td>650</td><td>573</td><td>1.36</td></tr></table>`;
+  const p1=`<table><tr><td>4</td><td>KT</td><td>4.30</td><td>135</td><td>80</td><td>48</td><td>30</td><td>50</td><td>.625</td><td>1200</td><td>1100</td><td>115</td><td>420</td><td>65</td><td>1090</td><td>650</td><td>573</td><td>1.36</td></tr></table>`;
   const p2=`<table><tr><td>4</td><td>KT</td><td>4.30</td><td>0</td><td>7</td><td>62</td><td>20</td><td>5289</td><td>20371</td><td>.270</td><td>190</td><td>25</td><td>47</td><td>43</td><td>25</td><td>62</td><td>1</td></tr></table>`;
   assert.equal(parseKboTeamHitterBasic1(h1)[0].runsPerGame.toFixed(2),"5.66");
   assert.equal(parseKboTeamHitterBasic2(h2)[0].ops,.769);
