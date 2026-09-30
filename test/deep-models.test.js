@@ -9,7 +9,12 @@ import { modelMeta, shadowCannotQualify } from "../functions/lib/collegeModels.j
 test("MLB deep challenger allocates starter and bullpen run prevention without market inputs", () => {
   const p = projectMlbDeep({
     sport: "mlb",
-    savant: { homeRpg: 4.9, awayRpg: 4.2, homeSpEra: 3.4, awaySpEra: 4.5 },
+    savant: {
+      homeRpg: 4.9, awayRpg: 4.2, homeSpEra: 3.4, awaySpEra: 4.5,
+      homeSpKPer9: 9.6, awaySpKPer9: 8.1,
+      homeSpInningsPerStart: 5.9, awaySpInningsPerStart: 5.2,
+      homeOpponentKRate: 0.238, awayOpponentKRate: 0.214, leagueKRate: 0.225,
+    },
     mlbContext: {
       homeBullpenEra: 3.7,
       awayBullpenEra: 4.4,
@@ -57,6 +62,13 @@ test("MLB deep challenger allocates starter and bullpen run prevention without m
   assert.equal(p.provenance.palFeatureInputs.awayStarterExpectedInnings, 5.1);
   assert.ok(p.provenance.palUsageAudit.scoreInputs.includes("HR vs typical"));
   assert.ok(p.provenance.palUsageAudit.externalCrossChecksOnly.includes("Pal team run projection"));
+  assert.ok(Number.isFinite(p.f5.home));
+  assert.ok(Number.isFinite(p.f5.away));
+  assert.ok(Number.isFinite(p.f5.total));
+  assert.ok(Number.isFinite(p.pitcherKs.home.projection));
+  assert.ok(Number.isFinite(p.pitcherKs.away.projection));
+  assert.equal(p.pitcherKs.home.independentOfPalFinalProjection, true);
+  assert.equal(p.pitcherKs.away.independentOfPalFinalProjection, true);
 });
 
 test("MLB deep challenger uses Pal starter innings as a fallback but not Pal final game predictions", () => {

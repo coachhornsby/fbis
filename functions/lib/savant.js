@@ -6,11 +6,12 @@
 import { readCache, writeCache } from "./cache.js";
 
 const TTL_MS = 30 * 60 * 1000;
-const CACHE_VER = "savant-v1";
+const CACHE_VER = "savant-v2-k-context";
 const LEAGUE_RPG = 4.45;
 const LEAGUE_ERA = 4.15;
 const LEAGUE_XWOBA = 0.32;
 const HOME_EDGE = 1.04;
+const LEAGUE_K_RATE = 0.225;
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
 
@@ -107,14 +108,17 @@ async function fetchTeamRpg(year) {
     const g = num(s.stat?.gamesPlayed) || 1;
     if (!id || runs == null) continue;
     const rpg = runs / g;
-    byId.set(id, { rpg, runs, games: g, name: s.team?.name, abbr: s.team?.abbreviation });
+    const strikeOuts = num(s.stat?.strikeOuts);
+    const plateAppearances = num(s.stat?.plateAppearances);
+    const kRate = strikeOuts != null && plateAppearances > 0 ? strikeOuts / plateAppearances : null;
+    byId.set(id, { rpg, runs, games: g, strikeOuts, plateAppearances, kRate, name: s.team?.name, abbr: s.team?.abbreviation });
     runSum += rpg;
     n += 1;
   }
   return { byId, leagueRpg: n ? runSum / n : LEAGUE_RPG };
 }
 
-async function fetchPitcherEras(ids, year) {
+async function fetchPitcherStats(ids, year) {
   const unique = [...new Set(ids.filter(Boolean).map(Number))];
   const byId = new Map();
   const chunk = 8;
@@ -127,7 +131,21 @@ async function fetchPitcherEras(ids, year) {
           if (!res.ok) return;
           const json = await res.json();
           const stat = json.stats?.[0]?.splits?.[0]?.stat || {};
-          byId.set(id, { era: num(stat.era), whip: num(stat.whip), innings: num(stat.inningsPitched) });
+          const innings = num(stat.inningsPitched);
+          const strikeOuts = num(stat.strikeOuts);
+          const gamesStarted = num(stat.gamesStarted);
+          const battersFaced = num(stat.battersFaced);
+          byId.set(id, {
+            era: num(stat.era),
+            whip: num(stat.whip),
+            innings,
+            strikeOuts,
+            gamesStarted,
+            battersFaced,
+            kPer9: innings > 0 && strikeOuts != null ? strikeOuts * 9 / innings : null,
+            kRate: battersFaced > 0 && strikeOuts != null ? strikeOuts / battersFaced : null,
+            inningsPerStart: gamesStarted > 0 && innings != null ? innings / gamesStarted : null,
+          });
         } catch {
           /* skip */
         }
@@ -175,20 +193,24 @@ export async function fetchSavantSlate(games, cfCache) {
   const teams = new Map(ctx.teams || []);
   const leagueRpg = ctx.leagueRpg || LEAGUE_RPG;
   const spIds = games.flatMap((g) => [g.homeSp?.id, g.awaySp?.id]).filter(Boolean);
-  const missing = spIds.filter((id) => !pitchers.get(Number(id))?.eraEq);
-  let eraById = new Map();
-  if (missing.length) {
-    eraById = await fetchPitcherEras(missing, year).catch(() => new Map());
-  }
+  // Pull current-season workload/K context for all probable starters. Savant remains
+  // the quality source when available; MLB Stats supplies workload and K-rate context.
+  const pitcherStats = spIds.length
+    ? await fetchPitcherStats(spIds, year).catch(() => new Map())
+    : new Map();
 
   const next = games.map((g) => {
     if (g.sport && g.sport !== "mlb") return g;
-    const homeRpg = teams.get(Number(g.home?.mlbId))?.rpg;
-    const awayRpg = teams.get(Number(g.away?.mlbId))?.rpg;
+    const homeTeamStats = teams.get(Number(g.home?.mlbId)) || {};
+    const awayTeamStats = teams.get(Number(g.away?.mlbId)) || {};
+    const homeRpg = homeTeamStats.rpg;
+    const awayRpg = awayTeamStats.rpg;
     const homeSp = pitchers.get(Number(g.homeSp?.id));
     const awaySp = pitchers.get(Number(g.awaySp?.id));
-    const homeEra = homeSp?.eraEq ?? eraById.get(Number(g.homeSp?.id))?.era;
-    const awayEra = awaySp?.eraEq ?? eraById.get(Number(g.awaySp?.id))?.era;
+    const homeSeason = pitcherStats.get(Number(g.homeSp?.id)) || {};
+    const awaySeason = pitcherStats.get(Number(g.awaySp?.id)) || {};
+    const homeEra = homeSp?.eraEq ?? homeSeason.era;
+    const awayEra = awaySp?.eraEq ?? awaySeason.era;
     const weatherFactor = Number(g.mlbContext?.weatherRunFactor);
     const park = Number.isFinite(weatherFactor) && weatherFactor > 0 ? weatherFactor : 1;
     const proj = projectMatchup({
@@ -206,8 +228,19 @@ export async function fetchSavantSlate(games, cfCache) {
         awayRpg,
         homeSpEra: homeEra ?? null,
         awaySpEra: awayEra ?? null,
+        homeSpKPer9: homeSeason.kPer9 ?? null,
+        awaySpKPer9: awaySeason.kPer9 ?? null,
+        homeSpKRate: homeSeason.kRate ?? null,
+        awaySpKRate: awaySeason.kRate ?? null,
+        homeSpInningsPerStart: homeSeason.inningsPerStart ?? null,
+        awaySpInningsPerStart: awaySeason.inningsPerStart ?? null,
+        homeSpGamesStarted: homeSeason.gamesStarted ?? null,
+        awaySpGamesStarted: awaySeason.gamesStarted ?? null,
+        homeOpponentKRate: awayTeamStats.kRate ?? null,
+        awayOpponentKRate: homeTeamStats.kRate ?? null,
+        leagueKRate: LEAGUE_K_RATE,
         weatherRunFactor: park,
-        source: homeSp || awaySp ? "Savant" : "MLB",
+        source: homeSp || awaySp ? "Savant+MLB Stats" : "MLB",
       },
       projHomeScore: proj.home,
       projAwayScore: proj.away,

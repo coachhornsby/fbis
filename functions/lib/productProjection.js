@@ -132,6 +132,69 @@ function market(game = {}) {
   };
 }
 
+function mlbSubprojections(game = {}) {
+  const deep = game.mlbDeepShadow || game.challengers?.["MLB-FBIS-v2"] || null;
+  if (!deep?.ok) return { available: false, source: "MLB-FBIS-v2.1" };
+  const f5 = deep.f5 || null;
+  const homeK = deep.pitcherKs?.home || null;
+  const awayK = deep.pitcherKs?.away || null;
+  const palF5 = game.bpp?.f5 || null;
+  const palHomeK = finite(game.bpp?.homeSp?.k);
+  const palAwayK = finite(game.bpp?.awaySp?.k);
+  const delta = (a,b) => a == null || b == null ? null : Math.round((a-b)*10)/10;
+  return {
+    available: Boolean(f5 || homeK || awayK),
+    source: "MLB-FBIS-v2.1",
+    maturity: "RESEARCH",
+    canQualify: false,
+    f5: f5 ? {
+      fbis: {
+        home: finite(f5.home),
+        away: finite(f5.away),
+        total: finite(f5.total),
+        margin: finite(f5.margin),
+      },
+      ballparkPal: palF5 ? {
+        home: finite(palF5.homeRuns),
+        away: finite(palF5.awayRuns),
+        total: finite(palF5.total),
+        homeWin: finite(palF5.homeWin),
+        awayWin: finite(palF5.awayWin),
+      } : null,
+      comparison: palF5 ? {
+        homeDelta: delta(f5.home, palF5.homeRuns),
+        awayDelta: delta(f5.away, palF5.awayRuns),
+        totalDelta: delta(f5.total, palF5.total),
+      } : null,
+    } : null,
+    pitcherKs: {
+      home: homeK ? {
+        playerId: homeK.playerId ?? null,
+        playerName: homeK.playerName ?? null,
+        team: homeK.team ?? null,
+        fbis: finite(homeK.projection),
+        ballparkPal: palHomeK,
+        delta: delta(homeK.projection, palHomeK),
+        expectedInnings: finite(homeK.expectedInnings),
+        kPer9: finite(homeK.kPer9),
+        opponentKRate: finite(homeK.opponentKRate),
+      } : null,
+      away: awayK ? {
+        playerId: awayK.playerId ?? null,
+        playerName: awayK.playerName ?? null,
+        team: awayK.team ?? null,
+        fbis: finite(awayK.projection),
+        ballparkPal: palAwayK,
+        delta: delta(awayK.projection, palAwayK),
+        expectedInnings: finite(awayK.expectedInnings),
+        kPer9: finite(awayK.kPer9),
+        opponentKRate: finite(awayK.opponentKRate),
+      } : null,
+    },
+    policy: "Ballpark Pal values are external comparisons; FBIS F5/K projections are generated separately.",
+  };
+}
+
 function ballparkPal(game = {}, proj = {}) {
   const home = finite(game.bpp?.homeRuns);
   const away = finite(game.bpp?.awayRuns);
@@ -424,6 +487,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
     projection: proj,
     market: pin,
     externalModels: sport === "mlb" ? { ballparkPal: ballparkPal(game, proj) } : undefined,
+    subprojections: sport === "mlb" ? mlbSubprojections(game) : undefined,
     decision: {
       status: d.status,
       market: tier === "pro" ? d.market : null,
