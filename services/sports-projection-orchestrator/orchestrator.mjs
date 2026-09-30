@@ -540,13 +540,14 @@ export async function runSnapshot(snapshot,{persist=true,runId=uuid(),queueMeta=
 const LLM_GATE_THRESHOLDS = Object.freeze({
   mlb:{side:0.75,total:0.75},
   npb:{side:0.65,total:0.75},
+  kbo:{side:0.80,total:1.0},
   cfb:{side:2.5,total:3.0},
   nfl:{side:2.0,total:3.0},
   cbb:{side:2.5,total:3.5},
   nba:{side:3.0,total:4.0},
   nhl:{side:0.5,total:0.75},
 });
-const LLM_GATE_SPORTS = Object.freeze(['mlb','npb','cfb','nfl','cbb','nba','nhl']);
+const LLM_GATE_SPORTS = Object.freeze(['mlb','npb','kbo','cfb','nfl','cbb','nba','nhl']);
 
 function finiteNumber(v){
   if(v==null || v==="") return null;
