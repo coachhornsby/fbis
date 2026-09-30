@@ -218,6 +218,16 @@ export async function buildSlate(sport, date, env = {}) {
     };
   }
 
+  if (id === "kbo" && Array.isArray(next.games)) {
+    next = {
+      ...next,
+      research: {
+        ...(next.research || {}),
+        kboFbisV1: next.kbo || { modelId:"KBO-FBIS-v1", maturity:"RESEARCH", canQualify:false, canAuthorize:false },
+      },
+    };
+  }
+
   if (id === "npb" && Array.isArray(next.games)) {
     next = {
       ...next,
