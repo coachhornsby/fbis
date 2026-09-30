@@ -124,6 +124,68 @@ function blendSummary(prior,current){
     currentWeight:w
   };
 }
+function skaterRows(rows=[],lookup=null){
+  return (rows||[]).map(r=>{
+    const games=finite(r.gamesPlayed)||0;
+    const goals=finite(r.goals)||0;
+    const assists=finite(r.assists)||0;
+    const points=finite(r.points)??(goals+assists);
+    const shots=finite(r.shots)||0;
+    return {
+      id:String(r.playerId||""),
+      name:r.skaterFullName||r.playerName||null,
+      position:String(r.positionCode||r.position||"").toUpperCase(),
+      team:teamAbbr(r,lookup),
+      games,
+      goalsPerGame:games?goals/games:null,
+      assistsPerGame:games?assists/games:null,
+      pointsPerGame:games?points/games:null,
+      shotsPerGame:games?shots/games:null,
+    };
+  }).filter(r=>r.id&&r.team&&r.games>0);
+}
+function blendSkaters(priorRows=[],currentRows=[]){
+  const byKey=new Map();
+  for(const p of priorRows||[]) byKey.set(p.team+"|"+p.id,{prior:p,current:null});
+  for(const p of currentRows||[]){
+    const k=p.team+"|"+p.id;
+    const row=byKey.get(k)||{prior:null,current:null};
+    row.current=p;
+    byKey.set(k,row);
+  }
+  const byTeam={};
+  for(const {prior,current} of byKey.values()){
+    const team=current?.team||prior?.team;
+    if(!team) continue;
+    const games=current?.games||0;
+    const w=clamp(games/(games+12),0,0.85);
+    const mix=(a,b)=>{
+      if(a==null) return b;
+      if(b==null) return a;
+      return a*(1-w)+b*w;
+    };
+    const row={
+      id:current?.id||prior?.id,
+      name:current?.name||prior?.name,
+      position:current?.position||prior?.position||"",
+      team,
+      games,
+      goalsPerGame:mix(prior?.goalsPerGame,current?.goalsPerGame),
+      assistsPerGame:mix(prior?.assistsPerGame,current?.assistsPerGame),
+      pointsPerGame:mix(prior?.pointsPerGame,current?.pointsPerGame),
+      shotsPerGame:mix(prior?.shotsPerGame,current?.shotsPerGame),
+      currentWeight:w,
+    };
+    if(!byTeam[team]) byTeam[team]=[];
+    byTeam[team].push(row);
+  }
+  for(const team of Object.keys(byTeam)){
+    byTeam[team]=byTeam[team]
+      .sort((a,b)=>((b.shotsPerGame||0)*0.7+(b.pointsPerGame||0)*1.5)-((a.shotsPerGame||0)*0.7+(a.pointsPerGame||0)*1.5))
+      .slice(0,14);
+  }
+  return byTeam;
+}
 function goalieRows(rows=[]){
   return rows.map(r=>({
     id:String(r.playerId||""),
@@ -298,7 +360,7 @@ function distribution(home,away,totalLine=null,homeSpread=null){
 
 export async function loadNhlV1Context(date,games=[],{fetcher=fetch}={}){
   const ids=seasonIds(date);
-  const [teamCatalog,priorTeams,currentTeams,priorGoalies,currentGoalies,priorPp,currentPp,priorPk,currentPk,s1,s2]=await Promise.all([
+  const [teamCatalog,priorTeams,currentTeams,priorGoalies,currentGoalies,priorPp,currentPp,priorPk,currentPk,priorSkaters,currentSkaters,s1,s2]=await Promise.all([
     fetchJson(`${STATS}/team?limit=-1`,fetcher),
     fetchJson(statUrl("team/summary",ids.prior),fetcher),
     fetchJson(statUrl("team/summary",ids.current),fetcher).catch(()=>({data:[]})),
@@ -308,6 +370,8 @@ export async function loadNhlV1Context(date,games=[],{fetcher=fetch}={}){
     fetchJson(statUrl("team/powerplay",ids.current),fetcher).catch(()=>({data:[]})),
     fetchJson(statUrl("team/penaltykill",ids.prior),fetcher).catch(()=>({data:[]})),
     fetchJson(statUrl("team/penaltykill",ids.current),fetcher).catch(()=>({data:[]})),
+    fetchJson(statUrl("skater/summary",ids.prior),fetcher).catch(()=>({data:[]})),
+    fetchJson(statUrl("skater/summary",ids.current),fetcher).catch(()=>({data:[]})),
     fetchJson(`${WEB}/schedule/${date}`,fetcher).catch(()=>({gameWeek:[]})),
     fetchJson(`${WEB}/schedule/${new Date(Date.parse(date+"T12:00:00Z")-7*86400000).toISOString().slice(0,10)}`,fetcher).catch(()=>({gameWeek:[]}))
   ]);
@@ -336,10 +400,15 @@ export async function loadNhlV1Context(date,games=[],{fetcher=fetch}={}){
   const teams={};
   for(const abbr of new Set([...Object.keys(priorMap),...Object.keys(currentMap)])) teams[abbr]=blendSummary(priorMap[abbr],currentMap[abbr]);
   const schedule=[...new Map([...scheduleGames(s2),...scheduleGames(s1)].map(g=>[g.id,g])).values()];
+  const skatersByTeam=blendSkaters(
+    skaterRows(priorSkaters.data||[],lookup),
+    skaterRows(currentSkaters.data||[],lookup)
+  );
   return {
     ok:Object.keys(teams).length>=20,
     ids,
     teams,
+    skatersByTeam,
     priorGoalies:goalieRows(priorGoalies.data||[]),
     currentGoalies:goalieRows(currentGoalies.data||[]),
     schedule,

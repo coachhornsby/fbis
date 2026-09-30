@@ -169,3 +169,34 @@ test("public projection page cannot request or persist PRO credentials", async (
   assert.doesNotMatch(source, /SUBSCRIBER_API_TOKEN/);
   assert.doesNotMatch(source, /localStorage|sessionStorage/);
 });
+
+
+test("product projection card exposes pro player projections without market substitution", () => {
+  const out = productProjectionBoard({
+    sport: "nfl",
+    games: [{
+      id: "nfl-props-1",
+      projectionKind: "FBIS",
+      home: { name: "Home", abbr: "HOM" },
+      away: { name: "Away", abbr: "AWY" },
+      model: { projectionKind: "FBIS", projHome: 27, projAway: 21, projMargin: 6, projTotal: 48 },
+      playerProjectionStatus: {
+        sport: "nfl", state: "ACTIVE_RESEARCH", model: "NFL-PLAYER-PROJ-v1",
+        independent: true, marketInformed: false, canQualify: false
+      },
+      playerProjectionRows: [{
+        playerId: "qb1", playerName: "QB One", team: "HOM", position: "QB",
+        market: "passing_yards", fbisProjection: 271.4, fbisSigma: 52.0,
+        source: "NFLVERSE_WEEKLY_PLAYER_PRIOR_CURRENT_BLEND",
+        maturity: "RESEARCH", independent: true, marketInformed: false, canQualify: false
+      }],
+      quality: { score: 80, flags: [] },
+    }],
+  });
+  const pp = out.games[0].playerProjections;
+  assert.equal(pp.status.state, "ACTIVE_RESEARCH");
+  assert.equal(pp.rows.length, 1);
+  assert.equal(pp.rows[0].market, "passing_yards");
+  assert.equal(pp.rows[0].fbisProjection, 271.4);
+  assert.equal(pp.rows[0].marketInformed, false);
+});

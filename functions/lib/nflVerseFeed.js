@@ -147,6 +147,114 @@ export function aggregateTeamWeeks(rows = []) {
   return { offense: finish(offense), defense: finish(defense, true) };
 }
 
+
+function mean(xs = []) {
+  const vals = xs.map(num).filter((x) => x != null);
+  return vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : null;
+}
+function sd(xs = []) {
+  const vals = xs.map(num).filter((x) => x != null);
+  if (vals.length < 2) return null;
+  const m = vals.reduce((a,b)=>a+b,0) / vals.length;
+  return Math.sqrt(vals.reduce((s,x)=>s+(x-m)**2,0) / (vals.length-1));
+}
+
+export function aggregatePlayerWeeks(rows = []) {
+  const byKey = new Map();
+  const statFields = [
+    "completions","attempts","passing_yards","passing_tds","interceptions",
+    "carries","rushing_yards","rushing_tds","targets","receptions",
+    "receiving_yards","receiving_tds"
+  ];
+  for (const row of rows) {
+    if (String(row.season_type || "REG").toUpperCase() !== "REG") continue;
+    const team = canon(row.team);
+    const id = String(row.player_id || row.player_id_name || row.player_name || "").trim();
+    if (!team || !id) continue;
+    const key = team + "|" + id;
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        id,
+        name: row.player_display_name || row.player_name || row.player_name_short || id,
+        position: String(row.position || row.position_group || "").toUpperCase(),
+        team,
+        games: 0,
+        values: Object.fromEntries(statFields.map((f)=>[f,[]])),
+      });
+    }
+    const p = byKey.get(key);
+    p.games += 1;
+    for (const f of statFields) p.values[f].push(num(row[f]) || 0);
+  }
+  const byTeam = {};
+  for (const p of byKey.values()) {
+    const out = {
+      id: p.id,
+      name: p.name,
+      position: p.position,
+      team: p.team,
+      games: p.games,
+      sd: {},
+    };
+    for (const [f, vals] of Object.entries(p.values)) {
+      out[f] = mean(vals);
+      out.sd[f] = sd(vals);
+    }
+    out.total_tds = (out.rushing_tds || 0) + (out.receiving_tds || 0);
+    const tdSeries = p.values.rushing_tds.map((x,i)=>(x||0)+(p.values.receiving_tds[i]||0));
+    out.sd.total_tds = sd(tdSeries);
+    if (!byTeam[p.team]) byTeam[p.team] = [];
+    byTeam[p.team].push(out);
+  }
+  for (const team of Object.keys(byTeam)) {
+    byTeam[team] = byTeam[team]
+      .filter((p)=>["QB","RB","WR","TE"].includes(p.position))
+      .sort((a,b)=>{
+        const va=(a.attempts||0)+(a.carries||0)+(a.targets||0);
+        const vb=(b.attempts||0)+(b.carries||0)+(b.targets||0);
+        return vb-va;
+      })
+      .slice(0,12);
+  }
+  return byTeam;
+}
+
+function blendPlayerRows(priorByTeam = {}, currentByTeam = {}) {
+  const teams = new Set([...Object.keys(priorByTeam), ...Object.keys(currentByTeam)]);
+  const out = {};
+  for (const team of teams) {
+    const priorMap = new Map((priorByTeam[team] || []).map((p)=>[p.id,p]));
+    const current = currentByTeam[team] || [];
+    const ids = new Set([...priorMap.keys(), ...current.map((p)=>p.id)]);
+    const currentMap = new Map(current.map((p)=>[p.id,p]));
+    out[team] = [...ids].map((id)=>{
+      const p = priorMap.get(id) || {};
+      const q = currentMap.get(id) || {};
+      const n = Number(q.games || 0);
+      const row = {
+        id,
+        name: q.name || p.name || id,
+        position: q.position || p.position || "",
+        team,
+        games: n,
+        source: "nflverse-weekly-player",
+        sd: {},
+      };
+      for (const f of [
+        "completions","attempts","passing_yards","passing_tds","interceptions",
+        "carries","rushing_yards","rushing_tds","targets","receptions","receiving_yards","receiving_tds","total_tds"
+      ]) {
+        row[f] = blend(p[f], q[f], n, 4);
+        row.sd[f] = blend(p.sd?.[f], q.sd?.[f], n, 4);
+      }
+      return row;
+    }).filter((p)=>["QB","RB","WR","TE"].includes(p.position))
+      .sort((a,b)=>((b.attempts||0)+(b.carries||0)+(b.targets||0))-((a.attempts||0)+(a.carries||0)+(a.targets||0)))
+      .slice(0,12);
+  }
+  return out;
+}
+
 export function aggregateQbWeeks(rows = []) {
   const byTeam = {};
   for (const row of rows) {
@@ -213,6 +321,7 @@ async function seasonBundle(year, fetchFn) {
     offense: teamAgg.offense,
     defense: teamAgg.defense,
     qb: aggregateQbWeeks(player.rows),
+    playersByTeam: aggregatePlayerWeeks(player.rows),
     rows: { team: team.rows.length, player: player.rows.length },
   };
 }
@@ -236,9 +345,11 @@ export async function loadNflVerseFeatures(env = {}, { fetchFn = fetch, now = Da
       };
     }
     const currentGames = Math.max(0, ...Object.values(current.offense).map((r) => r.games || 0));
+    const playersByTeam = blendPlayerRows(prior.playersByTeam || {}, current.playersByTeam || {});
     const payload = {
       season,
       byTeam,
+      playersByTeam,
       meta: {
         source: "nflverse",
         currentSeason: season,
@@ -257,7 +368,7 @@ export async function loadNflVerseFeatures(env = {}, { fetchFn = fetch, now = Da
     await writeCache(cacheKey, payload, env.caches, TTL_MS);
     return payload;
   } catch (err) {
-    const payload = { season, byTeam: {}, meta: { source: "nflverse", teams: 0, error: String(err?.message || err), marketInformed: false } };
+    const payload = { season, byTeam: {}, playersByTeam: {}, meta: { source: "nflverse", teams: 0, error: String(err?.message || err), marketInformed: false } };
     await writeCache(cacheKey, payload, env.caches, ERR_TTL_MS);
     return payload;
   }

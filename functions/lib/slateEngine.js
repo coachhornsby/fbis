@@ -22,6 +22,7 @@ import { loadNhlV1Context, attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } fr
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
+import { attachMlbPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
 import {
   marketImpliedAuthority,
   deriveBoardDecision,
@@ -95,9 +96,10 @@ export async function buildSlate(sport, date, env = {}) {
     });
     const deep = attachMlbDeepShadow(enriched);
     const research = promoteMlbResearchToBoard(deep.games);
+    const playerResearch = attachMlbPlayerProjectionResearch(research.games);
     next = {
       ...slate,
-      games: research.games,
+      games: playerResearch,
       research: {
         ...(slate.research || {}),
         mlbBullpen: bullpen.meta,
@@ -131,16 +133,17 @@ export async function buildSlate(sport, date, env = {}) {
   } else if (id === "nfl") {
     const baseline = await attachNflShadow(slate.games || [], env);
     const verse = await loadNflVerseFeatures(env).catch((err) => ({
-      byTeam: {}, meta: { source: "nflverse", teams: 0, error: String(err?.message || err), marketInformed: false },
+      byTeam: {}, playersByTeam: {}, meta: { source: "nflverse", teams: 0, error: String(err?.message || err), marketInformed: false },
     }));
     const enriched = attachNflVerseFeatures(baseline.games, verse);
     const pro = attachNflProShadow(enriched);
     // Research board: independent form/pure scores are displayable + freezable,
     // but never qualify or authorize.
     const research = promoteNflResearchToBoard(pro.games);
+    const playerResearch = attachNflPlayerProjectionResearch(research.games, { byTeam: verse.playersByTeam || {} });
     next = {
       ...slate,
-      games: research.games,
+      games: playerResearch,
       nfl: baseline.meta,
       research: {
         ...(slate.research || {}),
@@ -175,9 +178,10 @@ export async function buildSlate(sport, date, env = {}) {
     const baseline = attachNhlResearch(slate.games || [], prior);
     const fiveLayer = attachNhlV1(baseline.games, v1Context);
     const research = promoteNhlResearchToBoard(fiveLayer.games);
+    const playerResearch = attachNhlPlayerProjectionResearch(research.games, v1Context);
     next = {
       ...slate,
-      games: research.games,
+      games: playerResearch,
       modelVersion: fiveLayer.meta.projected > 0
         ? `${NHL_FBIS_V1_ID}@${NHL_FBIS_V1_VERSION}`
         : "NHL-FBIS-PURE@research-v0-team-prior",
@@ -211,6 +215,22 @@ export async function buildSlate(sport, date, env = {}) {
       ...slate,
       games: research.games,
       research: { ...(slate.research || {}), cbbResearchBoard: research.meta },
+    };
+  }
+
+  if (id === "nba" && Array.isArray(next.games)) {
+    next = {
+      ...next,
+      games: attachNbaPlayerProjectionBlocked(next.games),
+      research: {
+        ...(next.research || {}),
+        nbaPlayerProjection: {
+          state: "BLOCKED_RIGHTS_CLEARED_PLAYER_FEED",
+          canQualify: false,
+          canAuthorize: false,
+          marketInformed: false,
+        },
+      },
     };
   }
 
