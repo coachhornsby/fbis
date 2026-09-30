@@ -33,6 +33,16 @@ function modelIdentity(sport, game = {}) {
     (Number.isFinite(Number(game.model?.projHome ?? game.projHome ?? game.projHomeScore)) &&
       Number.isFinite(Number(game.model?.projAway ?? game.projAway ?? game.projAwayScore)));
 
+  if (sport === "kbo") {
+    return {
+      name: "FBIS KBO Research",
+      engine: game.kboV1?.modelId || "KBO-FBIS-v1",
+      independent: Boolean(independentFbis),
+      state: game.quality?.state || game.projectionState || null,
+      maturity: "RESEARCH",
+      canQualify: false,
+    };
+  }
   if (sport === "npb") {
     return {
       name: "FBIS NPB Research",
@@ -206,6 +216,21 @@ function mlbSubprojections(game = {}) {
   };
 }
 
+function kboSubprojections(game = {}) {
+  const p = game.kboV1;
+  if (!p?.ok) return { available:false, source:"KBO-FBIS-v1" };
+  return {
+    available:true,
+    source:"KBO-FBIS-v1",
+    maturity:"RESEARCH",
+    canQualify:false,
+    f5:p.f5 ? {home:finite(p.f5.home),away:finite(p.f5.away),total:finite(p.f5.total),margin:finite(p.f5.margin)} : null,
+    pitcherKs:{home:null,away:null},
+    starterState:p.starterState || "BLOCKED_OFFICIAL_PROBABLE_STARTER_FEED",
+    policy:"Independent KBO official-data research projection. Pitcher props remain blocked until starter identity is independently resolved."
+  };
+}
+
 function npbSubprojections(game = {}) {
   const p = game.npbV1;
   if (!p?.ok) return { available:false, source:"NPB-FBIS-v1" };
@@ -261,11 +286,11 @@ function ballparkPal(game = {}, proj = {}) {
 }
 
 function proPlayerProjections(game = {}, sport = "") {
-  const supported = new Set(["mlb","npb","nfl","nba","nhl"]);
+  const supported = new Set(["mlb","npb","kbo","nfl","nba","nhl"]);
   if (!supported.has(sport)) return undefined;
   const status = game.playerProjectionStatus || {
     sport,
-    state: "NOT_ATTACHED",
+    state: sport === "kbo" ? "BLOCKED_OFFICIAL_PROBABLE_STARTER_FEED" : "NOT_ATTACHED",
     model: null,
     independent: false,
     marketInformed: false,
@@ -590,7 +615,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
     projection: proj,
     market: pin,
     externalModels: sport === "mlb" ? { ballparkPal: ballparkPal(game, proj) } : undefined,
-    subprojections: sport === "mlb" ? mlbSubprojections(game) : sport === "npb" ? npbSubprojections(game) : undefined,
+    subprojections: sport === "mlb" ? mlbSubprojections(game) : sport === "npb" ? npbSubprojections(game) : sport === "kbo" ? kboSubprojections(game) : undefined,
     playerProjections: proPlayerProjections(game, sport),
     decision: {
       status: d.status,

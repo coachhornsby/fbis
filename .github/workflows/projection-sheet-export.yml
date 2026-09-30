@@ -65,7 +65,7 @@ jobs:
           )
 
           failed=0
-          for sport in mlb npb nfl cfb cbb nba nhl; do
+          for sport in mlb npb kbo nfl cfb cbb nba nhl; do
             for date in "${dates[@]}"; do
               if ! export_one "$sport" "$date"; then
                 failed=1

@@ -21,6 +21,7 @@ import { attachKalshiSentiment } from "./kalshi.js";
 import { setMeta } from "./store.js";
 import { isUnusableCachedOddsMeta } from "./marketLineage.js";
 import { loadNpbContext, attachNpbFbisV1 } from "./npbFbisV1.js";
+import { loadKboContext, attachKboFbisV1 } from "./kboFbisV1.js";
 
 export const SPORTS = {
   cbb: {
@@ -31,6 +32,18 @@ export const SPORTS = {
     k: 4.6,
     totalK: 8.5,
     minSpreadEdge: 3.0,
+    minMlEdge: 0.03,
+    minEv: 0.03,
+    maxProb: 0.72,
+  },
+  kbo: {
+    id: "kbo",
+    label: "KBO",
+    name: "Korean Baseball Organization",
+    espn: null,
+    k: 2.1,
+    totalK: 3.8,
+    minSpreadEdge: 0.45,
     minMlEdge: 0.03,
     minEv: 0.03,
     maxProb: 0.72,
@@ -109,7 +122,7 @@ export const SPORTS = {
   },
 };
 
-export const BOARD_SPORTS = ["mlb", "npb", "nba", "nhl", "nfl", "cfb", "cbb"];
+export const BOARD_SPORTS = ["mlb", "npb", "kbo", "nba", "nhl", "nfl", "cfb", "cbb"];
 
 export function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -1561,6 +1574,17 @@ export async function buildSlate(sport, date, env = {}) {
   let games = Array.isArray(env.prefetchedGames) ? env.prefetchedGames.slice() : [];
   let scheduleResolved = games.length > 0;
   let npbContext = null;
+  let kboContext = null;
+
+  if (id === "kbo") {
+    try {
+      kboContext = await loadKboContext(day);
+      games = kboContext.games || [];
+      scheduleResolved = true;
+    } catch {
+      games = [];
+    }
+  }
 
   if (id === "npb") {
     try {
@@ -1581,7 +1605,7 @@ export async function buildSlate(sport, date, env = {}) {
     }
   }
 
-  if (!games.length && id !== "npb") {
+  if (!games.length && !["npb","kbo"].includes(id)) {
     try {
       const json = await fetchEspnScoreboard(id, day);
       games = (json.events || []).map((ev) => {
@@ -1691,6 +1715,11 @@ export async function buildSlate(sport, date, env = {}) {
     games = attached.games;
     npbContext = { ...npbContext, meta: attached.meta };
   }
+  if (id === "kbo" && kboContext) {
+    const attached = attachKboFbisV1(games, kboContext);
+    games = attached.games;
+    kboContext = { ...kboContext, meta: attached.meta };
+  }
 
   games = games.map((game) => {
     const pin = pinMarkets(game);
@@ -1728,7 +1757,23 @@ export async function buildSlate(sport, date, env = {}) {
       canQualify: false,
       canAuthorize: false,
     } : undefined,
-    modelVersion: id === "npb" ? (npbContext?.meta?.modelVersion || MODEL_VERSION) : MODEL_VERSION,
+    kbo: id === "kbo" ? {
+      source: kboContext?.source || "KBO official English site",
+      timezone: kboContext?.timezone || "Asia/Seoul",
+      modelId: kboContext?.meta?.modelId || "KBO-FBIS-v1",
+      modelVersion: kboContext?.meta?.modelVersion || null,
+      projected: kboContext?.meta?.projected || 0,
+      missing: kboContext?.meta?.missing || 0,
+      maturity: "RESEARCH",
+      marketInformed: false,
+      canQualify: false,
+      canAuthorize: false,
+    } : undefined,
+    modelVersion: id === "npb"
+      ? (npbContext?.meta?.modelVersion || MODEL_VERSION)
+      : id === "kbo"
+        ? (kboContext?.meta?.modelVersion || MODEL_VERSION)
+        : MODEL_VERSION,
     games,
     ticker: games.map((g) => ({
       id: g.id,
