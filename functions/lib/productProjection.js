@@ -33,6 +33,16 @@ function modelIdentity(sport, game = {}) {
     (Number.isFinite(Number(game.model?.projHome ?? game.projHome ?? game.projHomeScore)) &&
       Number.isFinite(Number(game.model?.projAway ?? game.projAway ?? game.projAwayScore)));
 
+  if (sport === "npb") {
+    return {
+      name: "FBIS NPB Research",
+      engine: game.npbV1?.modelId || "NPB-FBIS-v1",
+      independent: Boolean(independentFbis),
+      state: game.quality?.state || game.projectionState || null,
+      maturity: "RESEARCH",
+      canQualify: false,
+    };
+  }
   if (sport === "mlb") {
     return {
       name: "FBIS MLB",
@@ -196,6 +206,26 @@ function mlbSubprojections(game = {}) {
   };
 }
 
+function npbSubprojections(game = {}) {
+  const p = game.npbV1;
+  if (!p?.ok) return { available:false, source:"NPB-FBIS-v1" };
+  const packK = (side) => {
+    const k=p.pitcherKs?.[side], st=p.starters?.[side];
+    return k ? {
+      playerId:st?.playerId || null, playerName:st?.name || null,
+      team:game?.[side]?.abbr || null, fbis:finite(k.projection),
+      expectedInnings:finite(k.expectedInnings), kPer9:finite(k.kPer9),
+      opponentKRate:finite(k.opponentKRate)
+    } : null;
+  };
+  return {
+    available:true,source:"NPB-FBIS-v1",maturity:"RESEARCH",canQualify:false,
+    f5:p.f5 ? {home:finite(p.f5.home),away:finite(p.f5.away),total:finite(p.f5.total),margin:finite(p.f5.margin)} : null,
+    pitcherKs:{home:packK("home"),away:packK("away")},
+    policy:"Independent NPB official-data research projection; no sportsbook inputs."
+  };
+}
+
 function ballparkPal(game = {}, proj = {}) {
   const home = finite(game.bpp?.homeRuns);
   const away = finite(game.bpp?.awayRuns);
@@ -231,7 +261,7 @@ function ballparkPal(game = {}, proj = {}) {
 }
 
 function proPlayerProjections(game = {}, sport = "") {
-  const supported = new Set(["mlb","nfl","nba","nhl"]);
+  const supported = new Set(["mlb","npb","nfl","nba","nhl"]);
   if (!supported.has(sport)) return undefined;
   const status = game.playerProjectionStatus || {
     sport,
@@ -560,7 +590,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
     projection: proj,
     market: pin,
     externalModels: sport === "mlb" ? { ballparkPal: ballparkPal(game, proj) } : undefined,
-    subprojections: sport === "mlb" ? mlbSubprojections(game) : undefined,
+    subprojections: sport === "mlb" ? mlbSubprojections(game) : sport === "npb" ? npbSubprojections(game) : undefined,
     playerProjections: proPlayerProjections(game, sport),
     decision: {
       status: d.status,
