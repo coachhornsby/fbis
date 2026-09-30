@@ -20,6 +20,7 @@ import { enrichGamesVenues } from "./venues.js";
 import { attachKalshiSentiment } from "./kalshi.js";
 import { setMeta } from "./store.js";
 import { isUnusableCachedOddsMeta } from "./marketLineage.js";
+import { loadNpbContext, attachNpbFbisV1 } from "./npbFbisV1.js";
 
 export const SPORTS = {
   cbb: {
@@ -30,6 +31,18 @@ export const SPORTS = {
     k: 4.6,
     totalK: 8.5,
     minSpreadEdge: 3.0,
+    minMlEdge: 0.03,
+    minEv: 0.03,
+    maxProb: 0.72,
+  },
+  npb: {
+    id: "npb",
+    label: "NPB",
+    name: "Nippon Professional Baseball",
+    espn: null,
+    k: 1.85,
+    totalK: 3.2,
+    minSpreadEdge: 0.4,
     minMlEdge: 0.03,
     minEv: 0.03,
     maxProb: 0.72,
@@ -96,7 +109,7 @@ export const SPORTS = {
   },
 };
 
-export const BOARD_SPORTS = ["mlb", "nba", "nhl", "nfl", "cfb", "cbb"];
+export const BOARD_SPORTS = ["mlb", "npb", "nba", "nhl", "nfl", "cfb", "cbb"];
 
 export function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -1547,6 +1560,17 @@ export async function buildSlate(sport, date, env = {}) {
   const day = date || todayCT();
   let games = Array.isArray(env.prefetchedGames) ? env.prefetchedGames.slice() : [];
   let scheduleResolved = games.length > 0;
+  let npbContext = null;
+
+  if (id === "npb") {
+    try {
+      npbContext = await loadNpbContext(day);
+      games = npbContext.games || [];
+      scheduleResolved = true;
+    } catch {
+      games = [];
+    }
+  }
 
   if (id === "mlb") {
     try {
@@ -1557,7 +1581,7 @@ export async function buildSlate(sport, date, env = {}) {
     }
   }
 
-  if (!games.length) {
+  if (!games.length && id !== "npb") {
     try {
       const json = await fetchEspnScoreboard(id, day);
       games = (json.events || []).map((ev) => {
@@ -1662,6 +1686,12 @@ export async function buildSlate(sport, date, env = {}) {
     cbbd = { ...cbbd, catalog: { matched: attached.catalog?.matched, unmatched: attached.catalog?.unmatched, n: attached.catalog?.n, error: attached.catalog?.error } };
   }
 
+  if (id === "npb" && npbContext) {
+    const attached = attachNpbFbisV1(games, npbContext);
+    games = attached.games;
+    npbContext = { ...npbContext, meta: attached.meta };
+  }
+
   games = games.map((game) => {
     const pin = pinMarkets(game);
     const model = projectGame(id, { ...game, pin });
@@ -1687,7 +1717,18 @@ export async function buildSlate(sport, date, env = {}) {
     savant: savant.meta || { enabled: false },
     cfb: cfb.meta || { enabled: false },
     cbbd: id === "cbb" ? cbbd.meta || { configured: false } : undefined,
-    modelVersion: MODEL_VERSION,
+    npb: id === "npb" ? {
+      source: npbContext?.source || "NPB.jp",
+      modelId: npbContext?.meta?.modelId || "NPB-FBIS-v1",
+      modelVersion: npbContext?.meta?.modelVersion || null,
+      projected: npbContext?.meta?.projected || 0,
+      missing: npbContext?.meta?.missing || 0,
+      maturity: "RESEARCH",
+      marketInformed: false,
+      canQualify: false,
+      canAuthorize: false,
+    } : undefined,
+    modelVersion: id === "npb" ? (npbContext?.meta?.modelVersion || MODEL_VERSION) : MODEL_VERSION,
     games,
     ticker: games.map((g) => ({
       id: g.id,
