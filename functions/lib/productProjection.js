@@ -632,6 +632,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
     home: team(game.home),
     neutral: Boolean(game.neutralSite),
     gameState: gameState(game),
+    leagueTiming: leagueTiming(game, sport),
     snapshot: projectionSnapshotStage(game),
     model: modelIdentity(sport, game),
     modelVersion: game.modelVersion || game.championModel || null,
