@@ -1,0 +1,30 @@
+name: NFL PRO v2 strict walk-forward
+on:
+  push:
+    branches: [research/nfl-pro-strict-walkforward]
+    paths:
+      - "scripts/nfl-pro-walkforward.mjs"
+      - ".github/workflows/nfl-pro-walkforward.yml"
+      - "functions/lib/nflProModel.js"
+      - "functions/lib/nflProV2.js"
+      - "functions/lib/nflModel.js"
+      - "functions/lib/nflVerseFeed.js"
+      - "functions/lib/nflResearchGrade.js"
+  workflow_dispatch:
+jobs:
+  walkforward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run strict PIT NFL comparison
+        env:
+          NFL_WF_SEASONS: "2022,2023,2024,2025"
+        run: node scripts/nfl-pro-walkforward.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfl-pro-walkforward
+          path: artifacts/nfl-pro-walkforward.json
