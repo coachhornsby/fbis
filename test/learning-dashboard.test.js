@@ -264,3 +264,26 @@ test("final-grade ingress rejects absent scores instead of coercing null to zero
   assert.match(api, /v==null \|\| v===""\) return null/);
   assert.match(api, /homeScore==null \|\| awayScore==null/);
 });
+
+
+test("projection sheet mirror uses canonical game/model identity and CT game dates", async () => {
+  const orchestrator = await readFile(
+    new URL("../services/sports-projection-orchestrator/orchestrator.mjs", import.meta.url),
+    "utf8"
+  );
+  assert.match(orchestrator, /function canonicalProjectionKey/);
+  assert.match(orchestrator, /start\?dateKeyCT\(new Date\(start\)\)/);
+  assert.match(orchestrator, /allProjectionBackfilled/);
+  assert.match(orchestrator, /sheetRowCanonicalKey/);
+  assert.match(orchestrator, /auditCanonicalKey/);
+  assert.match(orchestrator, /boardGameCanonicalKey/);
+});
+
+test("learning report deduplicates provider aliases and preserves market-blind FBIS identity", async () => {
+  const api = await readFile(new URL("../functions/api/learning-report.js", import.meta.url), "utf8");
+  assert.match(api, /canonicalGameExpr/);
+  assert.match(api, /PARTITION BY \$\{canonicalGameExpr\},\$\{modelExpr\}/);
+  assert.match(api, /date:dateCt\(row\.event_start\)\|\|row\.date/);
+  assert.match(api, /kind==="FBIS"/);
+  assert.match(api, /return false;/);
+});
