@@ -3,7 +3,7 @@ import { buildSlate, resolveSlateDate, shiftDateCT, todayCT } from "../lib/slate
 import { productProjectionCard } from "../lib/productProjection.js";
 import { insertPublishedProjection, listPublishedProjections, sha256Hex } from "../lib/publishedProjectionStore.js";
 
-const SPORTS = new Set(["mlb", "cfb", "cbb", "nfl"]);
+const SPORTS = new Set(["mlb", "npb", "cfb", "cbb", "nfl"]);
 
 function json(data, status = 200, cache = "no-store") {
   return new Response(JSON.stringify(data), {
