@@ -85,7 +85,7 @@ function row(game, sport) {
   const starterHold =
     (sport === "mlb" && flags.some((x) => /missing_(home|away)_sp/i.test(String(x)))) ||
     (sport === "npb" && flags.some((x) => /npb_probable_starter_unresolved/i.test(String(x)))) ||
-    (sport === "kbo" && flags.some((x) => /kbo_starter_feed_unresolved/i.test(String(x)));
+    (sport === "kbo" && flags.some((x) => /kbo_starter_feed_unresolved/i.test(String(x))));
   const state = independent
     ? starterHold
       ? "HOLD — STARTER"
