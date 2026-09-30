@@ -13,6 +13,45 @@ import { queryAvailabilityObservations } from "./store.js";
 
 export const AVAILABILITY_SPORTS = Object.freeze(["nfl","cfb","mlb","nba","nhl","cbb"]);
 
+export const SPORT_AVAILABILITY_POLICY = Object.freeze({
+  nfl: {
+    primary: "Two Deep / persisted official or licensed availability",
+    nativeChecks: ["practice status","active/inactive","depth role"],
+    numericalAdjustment: true,
+    criticalRoles: ["QB"],
+  },
+  cfb: {
+    primary: "Two Deep / persisted official or licensed availability",
+    nativeChecks: ["availability","depth role","suspension"],
+    numericalAdjustment: true,
+    criticalRoles: ["QB"],
+  },
+  mlb: {
+    primary: "Persisted availability + MLB probable starter/lineup context",
+    nativeChecks: ["probable starter","official lineup","IL/inactive status"],
+    numericalAdjustment: false,
+    criticalRoles: ["SP"],
+  },
+  nhl: {
+    primary: "Persisted availability + NHL expected/confirmed goalie context",
+    nativeChecks: ["goalie status","scratches/injuries","lineup role"],
+    numericalAdjustment: false,
+    criticalRoles: ["G"],
+  },
+  nba: {
+    primary: "Rights-cleared official injury/availability feed required",
+    nativeChecks: ["official injury report","starter/rotation role"],
+    numericalAdjustment: false,
+    criticalRoles: ["STARTER"],
+  },
+  cbb: {
+    primary: "Persisted approved availability rows",
+    nativeChecks: ["availability","starter role"],
+    numericalAdjustment: false,
+    criticalRoles: [],
+  },
+});
+
 const STATUS_WEIGHT = Object.freeze({
   OUT: 1,
   IR: 1,
@@ -397,5 +436,81 @@ export async function attachAvailability(games=[], sport, env={}){
       error:queried.ok?null:queried.reason,
       note:"Two Deep is preferred for NFL/CFB once licensed API access is installed; persisted official/licensed observations are normalized before model use.",
     },
+  };
+}
+
+
+export function buildSportAvailabilityPreflight(game = {}, sport = "") {
+  const id = String(sport || game?.sport || "").toLowerCase();
+  const policy = SPORT_AVAILABILITY_POLICY[id] || null;
+  const impact = game?.availabilityImpact || null;
+  const flags = new Set(game?.quality?.flags || []);
+  const allPlayers = [
+    ...(impact?.home?.players || []),
+    ...(impact?.away?.players || []),
+  ];
+  const blocking = allPlayers.filter((p) =>
+    ["OUT","IR","PUP","NFI","SUSPENDED"].includes(normalizeAvailabilityStatus(p.status))
+  );
+  const unresolved = allPlayers.filter((p) =>
+    ["DOUBTFUL","QUESTIONABLE","LIMITED"].includes(normalizeAvailabilityStatus(p.status))
+  );
+
+  let state = "CLEAR";
+  const reasons = [];
+
+  if (!impact?.configured) {
+    state = "UNVERIFIED";
+    reasons.push("availability_feed_unconfigured_or_empty");
+  } else if (impact?.stale) {
+    state = "STALE";
+    reasons.push("availability_data_stale");
+  }
+  if (impact?.criticalUnresolved) {
+    state = "HOLD";
+    reasons.push("critical_availability_unresolved");
+  }
+
+  if (id === "mlb") {
+    const homeSpMissing = flags.has("missing_home_sp") || !game?.homeSp?.id;
+    const awaySpMissing = flags.has("missing_away_sp") || !game?.awaySp?.id;
+    if (homeSpMissing || awaySpMissing) {
+      state = "HOLD";
+      reasons.push("probable_starter_unresolved");
+    }
+    const lineupsOfficial = game?.bpp?.lineupsOfficial === true;
+    if (!lineupsOfficial) reasons.push("official_lineup_not_confirmed");
+  }
+
+  if (id === "nhl") {
+    const homeGoalie = game?.nhlV1?.layers?.goalie?.home || null;
+    const awayGoalie = game?.nhlV1?.layers?.goalie?.away || null;
+    const unresolvedGoalie = [homeGoalie, awayGoalie].some((g) =>
+      !g?.goalieId || String(g?.status || "").includes("PRIOR") || String(g?.status || "") === "UNKNOWN"
+    );
+    if (unresolvedGoalie) {
+      if (state === "CLEAR") state = "HOLD";
+      reasons.push("starting_goalie_not_confirmed");
+    }
+  }
+
+  if (id === "nba" && !impact?.configured) {
+    state = "BLOCKED";
+    reasons.push("rights_cleared_injury_feed_required");
+  }
+
+  return {
+    sport: id,
+    state,
+    policy,
+    configured: Boolean(impact?.configured),
+    stale: Boolean(impact?.stale),
+    blockingCount: blocking.length,
+    unresolvedCount: unresolved.length,
+    blockingPlayers: blocking,
+    unresolvedPlayers: unresolved,
+    reasons: [...new Set(reasons)],
+    numericalAdjustmentApplied: Boolean(game?.availabilityAdjustmentApplied),
+    generatedAt: new Date().toISOString(),
   };
 }
