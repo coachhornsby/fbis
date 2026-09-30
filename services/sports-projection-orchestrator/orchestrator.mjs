@@ -665,6 +665,59 @@ function projectionSheetKey(sport,eventId){
   return String(sport||'').toLowerCase()+'|'+String(eventId||'');
 }
 
+function normalizeProjectionTeam(value){
+  return String(value||'')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,'')
+    .trim();
+}
+
+function matchupParts(matchup){
+  const [away='',home='']=String(matchup||'').split(/\s+@\s+/);
+  return {away,home};
+}
+
+function canonicalProjectionKey({sport,eventId,start,away,home,matchup,engine,modelVersion,model}={}){
+  const parts=matchupParts(matchup);
+  const awayKey=normalizeProjectionTeam(away||parts.away);
+  const homeKey=normalizeProjectionTeam(home||parts.home);
+  const startMs=Date.parse(String(start||''));
+  const startKey=Number.isFinite(startMs)?new Date(startMs).toISOString().slice(0,16):'';
+  const gameKey=startKey&&awayKey&&homeKey
+    ? [String(sport||'').toLowerCase(),startKey,awayKey,homeKey].join('|')
+    : projectionSheetKey(sport,eventId);
+  const modelKey=[
+    normalizeProjectionTeam(engine),
+    normalizeProjectionTeam(modelVersion),
+    normalizeProjectionTeam(model)
+  ].filter(Boolean).join('|')||'model';
+  return gameKey+'|'+modelKey;
+}
+
+function sheetRowCanonicalKey(row){
+  return canonicalProjectionKey({
+    sport:row?.[1],eventId:row?.[0],start:row?.[3],
+    away:row?.[5],home:row?.[6],
+    model:row?.[12],engine:row?.[13],modelVersion:row?.[14]
+  });
+}
+
+function auditCanonicalKey(audit){
+  return canonicalProjectionKey({
+    sport:audit?.sport,eventId:audit?.gameId,start:audit?.start,
+    matchup:audit?.matchup,engine:audit?.engine,modelVersion:audit?.modelVersion,model:audit?.modelId
+  });
+}
+
+function boardGameCanonicalKey(board,game){
+  return canonicalProjectionKey({
+    sport:board?.sport,eventId:game?.id,start:game?.start,
+    away:game?.away?.name||game?.away?.abbr,
+    home:game?.home?.name||game?.home?.abbr,
+    model:game?.model?.name,engine:game?.model?.engine,modelVersion:game?.modelVersion
+  });
+}
+
 function allProjectionRow(board,game){
   const proj=game?.projection||{};
   const model=game?.model||{};
@@ -680,7 +733,7 @@ function allProjectionRow(board,game){
   const matchup=(game?.away?.name||game?.away?.abbr||'Away')+' @ '+(game?.home?.name||game?.home?.abbr||'Home');
   const start=String(game?.start||'');
   return [
-    String(game?.id||''),String(board?.sport||'').toUpperCase(),start?start.slice(0,10):String(board?.date||''),start,
+    String(game?.id||''),String(board?.sport||'').toUpperCase(),start?dateKeyCT(new Date(start)):String(board?.date||''),start,
     matchup,game?.away?.name||game?.away?.abbr||'',game?.home?.name||game?.home?.abbr||'',
     finiteNumber(proj.away),finiteNumber(proj.home),projectedTotal,projectedMargin,finiteNumber(proj.pHome),
     model.name||'',model.engine||'',game?.modelVersion||'',model.maturity||proj.maturity||'',proj.kind||'',
@@ -691,6 +744,35 @@ function allProjectionRow(board,game){
     actualTotal!=null&&projectedTotal!=null?projectedTotal-actualTotal:null,
     actualMargin!=null&&projectedMargin!=null?projectedMargin-actualMargin:null,
     'ALL-GAME LEARNING POPULATION'
+  ].map(v=>v==null?'':v);
+}
+
+function allProjectionRowFromAudit(audit,syncedAt){
+  const projAway=finiteNumber(audit?.projAway);
+  const projHome=finiteNumber(audit?.projHome);
+  const projectedTotal=finiteNumber(audit?.projTotal);
+  const projectedMargin=finiteNumber(audit?.projMargin);
+  const actualAway=finiteNumber(audit?.actualAway);
+  const actualHome=finiteNumber(audit?.actualHome);
+  const actualTotal=finiteNumber(audit?.actualTotal);
+  const actualMargin=finiteNumber(audit?.actualMargin);
+  const start=String(audit?.start||'');
+  const parts=matchupParts(audit?.matchup);
+  const independent=String(audit?.projectionKind||'').toUpperCase()==='FBIS' && audit?.marketInformed!==true;
+  const maturity=String(audit?.sport||'').toLowerCase()==='nfl'?'RESEARCH':'';
+  return [
+    String(audit?.gameId||''),String(audit?.sport||'').toUpperCase(),
+    start?dateKeyCT(new Date(start)):String(audit?.date||''),start,
+    audit?.matchup||'',parts.away||'',parts.home||'',
+    projAway,projHome,projectedTotal,projectedMargin,finiteNumber(audit?.pHome),
+    audit?.modelId||'',audit?.engine||'',audit?.modelVersion||'',maturity,audit?.projectionKind||'',
+    independent?'YES':'NO',finiteNumber(audit?.dataQuality),'',
+    String(audit?.projectionFlags||'').replaceAll(',','|'),'','','','','D1 prediction_snapshots',
+    audit?.frozenAt||'',syncedAt,
+    actualAway!=null&&actualHome!=null?'FINAL':'SCHEDULED',
+    actualAway,actualHome,actualTotal,actualMargin,
+    finiteNumber(audit?.totalError),finiteNumber(audit?.marginError),
+    actualAway!=null&&actualHome!=null?'GRADED / INCLUDED':'AWAITING FINAL'
   ].map(v=>v==null?'':v);
 }
 
@@ -774,22 +856,47 @@ export async function syncLearningDashboard(report={}){
 
   const allRange=q(CFG.sheets.allProjections)+'!A1:AJ3000';
   const existing=await sheets.get(allRange);
-  const allRows=existing.values||[];
-  const byGame=new Map();
-  for(const audit of report.audit||[]){
-    const key=projectionSheetKey(audit.sport,audit.gameId);
-    if(!byGame.has(key)) byGame.set(key,[]);
-    byGame.get(key).push(audit);
+  const sourceRows=existing.values||[];
+  const allRows=[ALL_PROJECTION_HEADERS];
+  const index=new Map();
+
+  // Rebuild the mirror from the existing rows using canonical game+model identity.
+  // This removes provider-id aliases without touching immutable D1 snapshots.
+  for(const row of sourceRows.slice(1)){
+    const key=sheetRowCanonicalKey(row);
+    if(!key) continue;
+    const prior=index.get(key);
+    if(prior==null){
+      index.set(key,allRows.length);
+      allRows.push([...row]);
+    }else{
+      const priorGenerated=String(allRows[prior]?.[26]||'');
+      const nextGenerated=String(row?.[26]||'');
+      if(nextGenerated>priorGenerated) allRows[prior]=[...row];
+    }
   }
+
+  const byCanonical=new Map();
+  for(const audit of report.audit||[]){
+    const key=auditCanonicalKey(audit);
+    const prior=byCanonical.get(key);
+    if(!prior || String(audit?.frozenAt||'')>String(prior?.frozenAt||'')) byCanonical.set(key,audit);
+  }
+
   let reconciled=0;
   let awaiting=0;
-  for(let i=1;i<allRows.length;i++){
-    const row=allRows[i];
-    const key=projectionSheetKey(row?.[1],row?.[0]);
-    const candidates=byGame.get(key)||[];
-    if(!candidates.length) continue;
-    candidates.sort((a,b)=>auditMatchScore(b,row)-auditMatchScore(a,row)||String(b.frozenAt||'').localeCompare(String(a.frozenAt||'')));
-    const audit=candidates[0];
+  let backfilled=0;
+  for(const [key,audit] of byCanonical.entries()){
+    let at=index.get(key);
+    if(at==null){
+      at=allRows.length;
+      index.set(key,at);
+      allRows.push(allProjectionRowFromAudit(audit,syncedAt));
+      backfilled++;
+    }
+    const row=allRows[at];
+    row[2]=audit?.start?dateKeyCT(new Date(audit.start)):row[2];
+    row[3]=audit?.start||row[3];
     row[27]=syncedAt;
     if(audit.actualAway!=null && audit.actualHome!=null){
       row[28]='FINAL';
@@ -806,9 +913,10 @@ export async function syncLearningDashboard(report={}){
       awaiting++;
     }
   }
-  if(allRows.length){
-    await sheets.update(q(CFG.sheets.allProjections)+'!A1:AJ'+allRows.length,allRows);
-  }
+
+  if(allRows.length>3000) throw new Error('All Projections capacity exhausted');
+  await sheets.clear(q(CFG.sheets.allProjections)+'!A1:AJ3000');
+  await sheets.update(q(CFG.sheets.allProjections)+'!A1:AJ'+allRows.length,allRows);
 
   return {
     ok:true,
@@ -816,6 +924,8 @@ export async function syncLearningDashboard(report={}){
     auditRows:auditRows.length,
     allProjectionFinalsReconciled:reconciled,
     allProjectionAwaitingFinals:awaiting,
+    allProjectionBackfilled:backfilled,
+    allProjectionCanonicalRows:Math.max(0,allRows.length-1),
     sourceTotals:report.totals||null,
     reportGeneratedAt:report.generatedAt||null,
     syncedAt
@@ -826,21 +936,30 @@ async function syncAllProjectionBoards(boards){
   const range=q(CFG.sheets.allProjections)+'!A1:AJ3000';
   const res=await sheets.get(range);
   const existing=res.values||[];
-  const rows=[ALL_PROJECTION_HEADERS,...existing.slice(1)];
+  const rows=[ALL_PROJECTION_HEADERS];
   const index=new Map();
-  for(let i=1;i<rows.length;i++){
-    const eventId=String(rows[i]?.[0]||'').trim();
-    const sport=String(rows[i]?.[1]||'').trim().toLowerCase();
-    if(eventId&&sport) index.set(projectionSheetKey(sport,eventId),i);
+
+  for(const row of existing.slice(1)){
+    const key=sheetRowCanonicalKey(row);
+    if(!key) continue;
+    const prior=index.get(key);
+    if(prior==null){
+      index.set(key,rows.length);
+      rows.push([...row]);
+    }else{
+      const priorGenerated=String(rows[prior]?.[26]||'');
+      const nextGenerated=String(row?.[26]||'');
+      if(nextGenerated>priorGenerated) rows[prior]=[...row];
+    }
   }
+
   let written=0;
   const seen=new Set();
   for(const board of boards||[]){
     if(!board?.ok) continue;
     for(const game of board.games||[]){
-      const eventId=String(game?.id||'');
-      if(!eventId) continue;
-      const key=projectionSheetKey(board.sport,eventId);
+      if(!game?.id) continue;
+      const key=boardGameCanonicalKey(board,game);
       if(seen.has(key)) continue;
       seen.add(key);
       const row=allProjectionRow(board,game);
@@ -849,14 +968,21 @@ async function syncAllProjectionBoards(boards){
         index.set(key,rows.length);
         rows.push(row);
       }else{
+        // Preserve graded finals when a live board refreshes a completed historical row.
+        const prior=rows[at];
+        if(String(prior?.[28]||'').toUpperCase()==='FINAL' && String(row?.[28]||'').toUpperCase()!=='FINAL'){
+          row[28]=prior[28]; row[29]=prior[29]; row[30]=prior[30]; row[31]=prior[31];
+          row[32]=prior[32]; row[33]=prior[33]; row[34]=prior[34]; row[35]=prior[35];
+        }
         rows[at]=row;
       }
       written++;
     }
   }
   if(rows.length>3000) throw new Error('All Projections capacity exhausted');
+  await sheets.clear(q(CFG.sheets.allProjections)+'!A1:AJ3000');
   await sheets.update(q(CFG.sheets.allProjections)+'!A1:AJ'+rows.length,rows);
-  return {ok:true,written,boards:(boards||[]).filter(b=>b?.ok).length,at:now()};
+  return {ok:true,written,canonicalRows:Math.max(0,rows.length-1),boards:(boards||[]).filter(b=>b?.ok).length,at:now()};
 }
 
 export async function selectCandidates({dryRun=false}={}){
