@@ -1,6 +1,7 @@
 /** Subscriber/public projection contract. Never returns raw SYS, executed-bet or source payloads. */
 import { recommendBundle, pinMarkets } from "./slateEngine.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
+import { buildSportAvailabilityPreflight } from "./availability.js";
 
 function finite(v) {
   if (v == null || v === "") return null;
@@ -280,6 +281,24 @@ function proPlayerProjections(game = {}, sport = "") {
   };
 }
 
+function projectionSnapshotStage(game = {}) {
+  const startMs = Date.parse(game?.start || "");
+  const nowMs = Date.now();
+  if (!Number.isFinite(startMs)) return { stage:"CURRENT", hoursToStart:null };
+  const hoursToStart = (startMs - nowMs) / 3600000;
+  let stage = "MORNING";
+  if (hoursToStart <= 0) stage = "LIVE_OR_FINAL";
+  else if (hoursToStart <= 1.5) stage = "CLOSE";
+  else if (hoursToStart <= 4) stage = "PREGAME";
+  else if (hoursToStart <= 10) stage = "MIDDAY";
+  return {
+    stage,
+    hoursToStart: Math.round(hoursToStart * 10) / 10,
+    capturedAt: new Date(nowMs).toISOString(),
+    immutableBaselineRequired: true,
+  };
+}
+
 function gameState(game = {}) {
   const status = game.status || {};
   const state = status.live ? "LIVE" : status.completed ? "FINAL" : "SCHEDULED";
@@ -340,8 +359,9 @@ function quality(game = {}) {
   };
 }
 
-function gameConditions(game = {}) {
+function gameConditions(game = {}, sport = "") {
   const availability = game.availabilityImpact || null;
+  const availabilityPreflight = buildSportAvailabilityPreflight(game, sport || game?.sport || game?.league || "");
   const weather = game.weather || null;
   const weatherImpact = game.weatherImpact || null;
   const slimPlayers = (side) => (availability?.[side]?.players || [])
@@ -369,6 +389,7 @@ function gameConditions(game = {}) {
       precipProbability: finite(weather.precipProbability),
       totalFactor: finite(weatherImpact?.footballTotalFactor ?? weatherImpact?.runFactor),
     } : null,
+    availabilityPreflight,
     availability: availability ? {
       source: availability.source || null,
       configured: Boolean(availability.configured),
@@ -533,6 +554,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
     home: team(game.home),
     neutral: Boolean(game.neutralSite),
     gameState: gameState(game),
+    snapshot: projectionSnapshotStage(game),
     model: modelIdentity(sport, game),
     modelVersion: game.modelVersion || game.championModel || null,
     projection: proj,
@@ -548,7 +570,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
       blockReason: d.blockReason,
     },
     quality: quality(game),
-    conditions: gameConditions(game),
+    conditions: gameConditions(game, sport),
     llmFeatures: llmFeatureDigest(game, sport),
   };
   if (tier === "pro") {

@@ -5,7 +5,9 @@
  * player-prop projection state. Sportsbook lines are never used as projection inputs.
  */
 
-export const PRO_PLAYER_PROJECTION_VERSION = "research-v1";
+import { buildSportAvailabilityPreflight, normalizeAvailabilityStatus } from "./availability.js";
+
+export const PRO_PLAYER_PROJECTION_VERSION = "research-v1.1-availability-gated";
 
 function finite(v) {
   if (v == null || v === "") return null;
@@ -22,9 +24,49 @@ function scoreForTeam(game, side) {
   return side === "home" ? home : away;
 }
 
+function normName(v) {
+  return String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function playerAvailabilityGate(game = {}, sport = "", player = {}, team = null) {
+  const preflight = buildSportAvailabilityPreflight(game, sport);
+  const players = [
+    ...(game?.availabilityImpact?.home?.players || []),
+    ...(game?.availabilityImpact?.away?.players || []),
+  ];
+  const pid = player?.id != null ? String(player.id) : null;
+  const pname = normName(player?.name);
+  const match = players.find((p) => {
+    if (pid && p.playerId && String(p.playerId) === pid) return true;
+    return pname && normName(p.name) === pname;
+  }) || null;
+  const status = normalizeAvailabilityStatus(match?.status || "UNKNOWN");
+
+  if (["OUT","IR","PUP","NFI","SUSPENDED"].includes(status)) {
+    return { state:"BLOCKED", reason:"player_unavailable", status, match, preflight };
+  }
+  if (["DOUBTFUL","QUESTIONABLE","LIMITED"].includes(status)) {
+    return { state:"HOLD", reason:"player_status_unresolved", status, match, preflight };
+  }
+  if (sport === "nhl" && String(player?.position || "").toUpperCase() === "G") {
+    const goalieSide = team && String(game?.home?.abbr || "").toUpperCase() === String(team).toUpperCase() ? "home" : "away";
+    const g = game?.nhlV1?.layers?.goalie?.[goalieSide] || null;
+    if (!g?.goalieId || String(g.status || "").includes("PRIOR") || String(g.status || "") === "UNKNOWN") {
+      return { state:"HOLD", reason:"goalie_not_confirmed", status, match, preflight };
+    }
+  }
+  if (sport === "mlb" && String(player?.position || "").toUpperCase() === "P") {
+    if (preflight.reasons?.includes("probable_starter_unresolved")) {
+      return { state:"HOLD", reason:"probable_starter_unresolved", status, match, preflight };
+    }
+  }
+  return { state:"CLEAR", reason:null, status, match, preflight };
+}
+
 function statRow({ sport, game, team, player, market, projection, sigma = null, source, notes = null }) {
   const p = finite(projection);
   if (p == null) return null;
+  const gate = playerAvailabilityGate(game, sport, player, team);
   return {
     sport,
     eventId: String(game.id || ""),
@@ -41,6 +83,11 @@ function statRow({ sport, game, team, player, market, projection, sigma = null, 
     marketInformed: false,
     canQualify: false,
     canAuthorizeWager: false,
+    availabilityStatus: gate.status,
+    propGate: gate.state,
+    gateReason: gate.reason,
+    eligibleForCard: gate.state === "CLEAR",
+    availabilityPreflight: gate.preflight,
     notes,
   };
 }
@@ -69,7 +116,7 @@ export function attachMlbPlayerProjectionResearch(games = []) {
       playerProjectionRows: rows.filter(Boolean),
       playerProjectionStatus: {
         sport: "mlb",
-        state: rows.length ? "ACTIVE_RESEARCH" : "NO_ELIGIBLE_STARTER_PROJECTION",
+        state: rows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : rows.length ? "HOLD_AVAILABILITY" : "NO_ELIGIBLE_STARTER_PROJECTION",
         model: "MLB-FBIS-v2.1-PITCHER-K",
         version: PRO_PLAYER_PROJECTION_VERSION,
         independent: true,
@@ -140,7 +187,7 @@ export function attachNflPlayerProjectionResearch(games = [], playerFeed = {}) {
       playerProjectionRows: rows,
       playerProjectionStatus: {
         sport: "nfl",
-        state: rows.length ? "ACTIVE_RESEARCH" : "PLAYER_DATA_UNAVAILABLE",
+        state: rows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : rows.length ? "HOLD_AVAILABILITY" : "PLAYER_DATA_UNAVAILABLE",
         model: "NFL-PLAYER-PROJ-v1",
         version: PRO_PLAYER_PROJECTION_VERSION,
         independent: true,
@@ -214,7 +261,7 @@ export function attachNhlPlayerProjectionResearch(games = [], ctx = {}) {
       playerProjectionRows: rows,
       playerProjectionStatus: {
         sport: "nhl",
-        state: rows.length ? "ACTIVE_RESEARCH" : "PLAYER_DATA_UNAVAILABLE",
+        state: rows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : rows.length ? "HOLD_AVAILABILITY" : "PLAYER_DATA_UNAVAILABLE",
         model: "NHL-PLAYER-PROJ-v1",
         version: PRO_PLAYER_PROJECTION_VERSION,
         independent: true,
