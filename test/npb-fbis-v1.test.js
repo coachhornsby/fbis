@@ -19,6 +19,7 @@ test("NPB parsers extract official batting and pitching features", () => {
   const b=parseNpbBattingPage(batting);
   const p=parseNpbPitchingPage(pitching);
   assert.equal(b.length,1);
+  assert.equal(b[0].games,100);
   assert.equal(b[0].runs,60);
   assert.equal(p.length,1);
   assert.equal(p[0].playerId,"12345");
@@ -61,4 +62,18 @@ test("NPB model creates independent full-game, F5 and starter-K projections", ()
   assert.equal(attached.projectionKind,"FBIS");
   assert.equal(attached.model.maturity,"RESEARCH");
   assert.equal(attached.model.canQualify,false);
+});
+
+
+test("NPB schedule parser respects textual home-away order rather than team registry order", () => {
+  const html=`<table>
+    <tr><td>10/1（木）</td><td>広島 - 中日</td><td>マツダスタジアム 18:00</td><td></td><td><a href="/bis/players/901.html">先発</a> <a href="/bis/players/902.html">先発</a></td></tr>
+    <tr><td></td><td>ロッテ - 日本ハム</td><td>ZOZOマリン 18:00</td><td></td><td><a href="/bis/players/903.html">先発</a> <a href="/bis/players/904.html">先発</a></td></tr>
+  </table>`;
+  const g=parseNpbScheduleMonth(html,"2026-10-01");
+  assert.equal(g.length,2);
+  assert.equal(g[0].home.abbr,"HIR");
+  assert.equal(g[0].away.abbr,"CHU");
+  assert.equal(g[1].home.abbr,"LOT");
+  assert.equal(g[1].away.abbr,"HAM");
 });

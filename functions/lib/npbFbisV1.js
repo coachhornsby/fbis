@@ -7,7 +7,7 @@
  */
 
 export const NPB_FBIS_V1_ID = "NPB-FBIS-v1";
-export const NPB_FBIS_V1_VERSION = "research-v1.0-official-npb";
+export const NPB_FBIS_V1_VERSION = "research-v1.0.1-official-npb-datafix";
 
 const TEAM = Object.freeze({
   t:{abbr:"HAN",name:"Hanshin Tigers",ja:["阪神","阪神タイガース"],stats:"t"},
@@ -68,9 +68,9 @@ export function parseNpbBattingPage(html=""){
   for(const row of rows(html)){
     const c=row.cells;
     if(c.length<23 || !c[0] || c[0]==="Player") continue;
-    const pa=finite(c[2]), runs=finite(c[4]), hr=finite(c[8]), bb=finite(c[15]), so=finite(c[18]);
+    const games=finite(c[1]), pa=finite(c[2]), runs=finite(c[4]), hr=finite(c[8]), bb=finite(c[15]), so=finite(c[18]);
     if(pa==null) continue;
-    out.push({name:c[0].replace(/^\*|^\+/,"").trim(),pa,runs,hr,bb,so,avg:finite(c[20]),slg:finite(c[21]),obp:finite(c[22])});
+    out.push({name:c[0].replace(/^\*|^\+/,"").trim(),games,pa,runs,hr,bb,so,avg:finite(c[20]),slg:finite(c[21]),obp:finite(c[22])});
   }
   return out;
 }
@@ -95,10 +95,11 @@ export function parseNpbScheduleMonth(html="",date=""){
       active=rowNeedle===needle;
     }
     if(!active) continue;
-    const found=[];
-    for(const t of Object.values(TEAM)){
-      if(t.ja.some(a=>txt.includes(a)) && !found.includes(t)) found.push(t);
-    }
+    const found=Object.values(TEAM)
+      .map(t=>({t,pos:Math.min(...t.ja.map(a=>txt.indexOf(a)).filter(x=>x>=0))}))
+      .filter(x=>Number.isFinite(x.pos))
+      .sort((a,b)=>a.pos-b.pos)
+      .map(x=>x.t);
     if(found.length<2) continue;
     const hrefPlayers=[...row.html.matchAll(/href=["'][^"']*\/players\/(\d+)\.html["']/gi)].map(x=>x[1]);
     const time=(txt.match(/\b([01]?\d|2[0-3]):[0-5]\d\b/)||[])[0]||"18:00";
