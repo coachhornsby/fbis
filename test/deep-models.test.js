@@ -19,9 +19,17 @@ test("MLB deep challenger allocates starter and bullpen run prevention without m
       palParkHrFactor: 1.08,
       palLineupsOfficial: true,
       homePalRcVsTypical: 25,
+      homePalHrVsTypical: 18,
+      homePalKVsTypical: -12,
       homePalMatchupN: 9,
       awayPalRcVsTypical: -20,
+      awayPalHrVsTypical: -15,
+      awayPalKVsTypical: 14,
       awayPalMatchupN: 8,
+      homePalStarterExpectedInnings: 5.8,
+      awayPalStarterExpectedInnings: 5.1,
+      homePalStarterProjectedKs: 6.4,
+      awayPalStarterProjectedKs: 4.8,
       weatherRunFactor: 1.02,
       homeDefenseRunsSaved: 10,
       awayDefenseRunsSaved: -8,
@@ -41,6 +49,59 @@ test("MLB deep challenger allocates starter and bullpen run prevention without m
   assert.equal(p.provenance.palFeatureInputs.lineupsOfficial, true);
   assert.ok(p.decomposition.home.palMatchupFactor > 1);
   assert.ok(p.decomposition.away.palMatchupFactor < 1);
+  assert.ok(p.decomposition.home.palHrFactor > 1);
+  assert.ok(p.decomposition.home.palKFactor > 1);
+  assert.ok(p.decomposition.away.palHrFactor < 1);
+  assert.ok(p.decomposition.away.palKFactor < 1);
+  assert.equal(p.provenance.palFeatureInputs.homeStarterExpectedInnings, 5.8);
+  assert.equal(p.provenance.palFeatureInputs.awayStarterExpectedInnings, 5.1);
+  assert.ok(p.provenance.palUsageAudit.scoreInputs.includes("HR vs typical"));
+  assert.ok(p.provenance.palUsageAudit.externalCrossChecksOnly.includes("Pal team run projection"));
+});
+
+test("MLB deep challenger uses Pal starter innings as a fallback but not Pal final game predictions", () => {
+  const base = {
+    sport: "mlb",
+    savant: { homeRpg: 4.8, awayRpg: 4.4, homeSpEra: 3.2, awaySpEra: 4.6 },
+    mlbContext: {
+      homeBullpenEra: 3.9,
+      awayBullpenEra: 4.3,
+      palParkRunFactor: 1.02,
+      palParkHrFactor: 1.09,
+      homePalRcVsTypical: 10,
+      homePalHrVsTypical: 12,
+      homePalKVsTypical: -5,
+      homePalMatchupN: 8,
+      awayPalRcVsTypical: -8,
+      awayPalHrVsTypical: -10,
+      awayPalKVsTypical: 7,
+      awayPalMatchupN: 8,
+      homePalStarterExpectedInnings: 6.2,
+      awayPalStarterExpectedInnings: 4.7,
+      palProjectedHomeRuns: 9.9,
+      palProjectedAwayRuns: 1.1,
+      palHomeWinProbability: 0.95,
+      palF5Total: 8.5,
+    },
+  };
+  const a = projectMlbDeep(base);
+  const b = projectMlbDeep({
+    ...base,
+    mlbContext: {
+      ...base.mlbContext,
+      palProjectedHomeRuns: 1.2,
+      palProjectedAwayRuns: 8.8,
+      palHomeWinProbability: 0.05,
+      palF5Total: 2.5,
+    },
+  });
+  assert.equal(a.ok, true);
+  assert.equal(a.home, b.home);
+  assert.equal(a.away, b.away);
+  assert.equal(a.provenance.palFinalProjectionUsed, false);
+  assert.equal(a.provenance.palWinProbabilityUsed, false);
+  assert.equal(a.decomposition.away.starterShare, 6.2 / 9);
+  assert.equal(a.decomposition.home.starterShare, 4.7 / 9);
 });
 
 test("MLB deep challenger fails closed when team offense or starters are unresolved", () => {
