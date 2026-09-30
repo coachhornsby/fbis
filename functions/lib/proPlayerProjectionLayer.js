@@ -92,6 +92,34 @@ function statRow({ sport, game, team, player, market, projection, sigma = null, 
   };
 }
 
+export function attachNpbPlayerProjectionResearch(games = []) {
+  return (games || []).map((game) => {
+    const rows = [];
+    for (const side of ["home","away"]) {
+      const p = game.npbV1?.pitcherKs?.[side];
+      const st = game.npbV1?.starters?.[side];
+      if (!p || finite(p.projection) == null) continue;
+      rows.push(statRow({
+        sport:"npb", game,
+        team: teamAbbr(game[side]),
+        player:{ id:st?.playerId || null, name:st?.name || null, position:"P" },
+        market:"strikeouts", projection:p.projection,
+        source:p.source || "NPB_OFFICIAL_PITCHER_K_RATE_X_WORKLOAD_X_OPPONENT_K_RATE",
+        notes:"NPB-FBIS-v1 official-data starter K projection; research-only."
+      }));
+    }
+    return {
+      ...game,
+      playerProjectionRows:rows.filter(Boolean),
+      playerProjectionStatus:{
+        sport:"npb",state:rows.length?"ACTIVE_RESEARCH":"PROBABLE_STARTER_UNRESOLVED",
+        model:"NPB-PLAYER-PROJ-v1",version:PRO_PLAYER_PROJECTION_VERSION,
+        independent:true,marketInformed:false,canQualify:false
+      }
+    };
+  });
+}
+
 export function attachMlbPlayerProjectionResearch(games = []) {
   return (games || []).map((game) => {
     const rows = [];
