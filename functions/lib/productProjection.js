@@ -354,6 +354,29 @@ function projectionSnapshotStage(game = {}) {
   };
 }
 
+function leagueTiming(game = {}, sport = "") {
+  const start = game?.start || null;
+  if (!start) return undefined;
+  const zone = sport === "npb" ? "Asia/Tokyo" : sport === "kbo" ? "Asia/Seoul" : null;
+  if (!zone) return undefined;
+  const fmt = (timeZone) => {
+    try {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone, year:"numeric", month:"2-digit", day:"2-digit",
+        hour:"2-digit", minute:"2-digit", hour12:false
+      }).format(new Date(start));
+    } catch { return null; }
+  };
+  return {
+    kickoffUtc:start,
+    userTimeZone:"America/Chicago",
+    kickoffUserLocal:fmt("America/Chicago"),
+    leagueTimeZone:zone,
+    kickoffLeagueLocal:fmt(zone),
+    selectionRule:"NEXT_UP_BY_ABSOLUTE_KICKOFF",
+  };
+}
+
 function gameState(game = {}) {
   const status = game.status || {};
   const state = status.live ? "LIVE" : status.completed ? "FINAL" : "SCHEDULED";
