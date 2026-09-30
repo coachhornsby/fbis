@@ -13,6 +13,31 @@ test("KBO schedule parser converts KST start times to UTC and resolves teams", (
   assert.equal(games[0].away.abbr,"NC");
   assert.equal(games[0].home.abbr,"DOOSAN");
   assert.equal(games[0].start,"2026-10-01T09:30:00.000Z");
+  assert.equal(games[0].status.state,"pre");
+  assert.equal(games[0].status.completed,false);
+  assert.equal(games[0].away.score,null);
+  assert.equal(games[0].home.score,null);
+});
+
+test("KBO schedule parser never mistakes first-pitch time for a final score", () => {
+  const html=`<table>
+    <tr><td>10.01(THU)</td><td>REGULAR</td><td>18:30</td><td>NC</td><td>:</td><td>DOOSAN</td><td>JAMSIL</td></tr>
+  </table>`;
+  const [game]=parseKboSchedule(html,"2026-10-01");
+  assert.equal(game.status.state,"pre");
+  assert.equal(game.status.detail,"Scheduled");
+  assert.equal(game.away.score,null);
+  assert.equal(game.home.score,null);
+});
+
+test("KBO schedule parser accepts a separate result cell", () => {
+  const html=`<table>
+    <tr><td>09.30(WED)</td><td>REGULAR</td><td>18:30</td><td>NC</td><td>3 : 5</td><td>DOOSAN</td><td>JAMSIL</td></tr>
+  </table>`;
+  const [game]=parseKboSchedule(html,"2026-09-30");
+  assert.equal(game.status.state,"post");
+  assert.equal(game.away.score,3);
+  assert.equal(game.home.score,5);
 });
 
 test("KBO standings parser captures team run environment", () => {
@@ -40,7 +65,7 @@ test("KBO model produces market-blind full game and F5 research scores", () => {
   assert.equal(p.canQualify,false);
   assert.ok(p.total>0);
   assert.ok(p.f5.total>0);
-  assert.equal(p.starterState,"BLOCKED_OFFICIAL_PROBABLE_STARTER_FEED");
+  assert.equal(p.starterState,"PROVISIONAL_OFFICIAL_STARTER_UNRESOLVED");
   const attached=attachKboFbisV1([game],ctx).games[0];
   assert.equal(attached.projectionKind,"FBIS");
   assert.equal(attached.model.maturity,"RESEARCH");
