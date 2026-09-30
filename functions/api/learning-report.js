@@ -17,6 +17,17 @@ function finite(v){
   return Number.isFinite(n)?n:null;
 }
 
+function dateCt(iso){
+  if(!iso) return null;
+  const d=new Date(iso);
+  if(!Number.isFinite(d.getTime())) return null;
+  const parts=new Intl.DateTimeFormat("en-US",{
+    timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"
+  }).formatToParts(d);
+  const get=t=>parts.find(x=>x.type===t)?.value||"";
+  return get("year")+"-"+get("month")+"-"+get("day");
+}
+
 function safeJson(v){
   if(v==null) return null;
   if(typeof v==="object") return v;
@@ -34,6 +45,13 @@ function marketInformed(row={}){
   const kind=String(row.projection_kind||row.projectionKind||"").toUpperCase();
   const engine=String(row.engine||"").toUpperCase();
   const flags=String(row.projection_flags||row.projectionFlags||"");
+  // FBIS rows remain model projections even when reference-market diagnostics
+  // are attached after the score projection is frozen.
+  if(
+    kind==="FBIS" &&
+    engine &&
+    !/PINNACLE|MARKET[-_ ]?IMPLIED|BOARD[-_ ]?LINE[-_ ]?IMPLIED/.test(engine)
+  ) return false;
   return (
     kind.includes("PINNACLE_IMPLIED") ||
     kind.includes("MARKET_IMPLIED") ||
@@ -139,6 +157,12 @@ export async function onRequestGet(context){
         lower(COALESCE(projection_flags,'')) LIKE '%market_implied%'
         THEN 1
       ELSE 0 END`;
+    const canonicalGameExpr=`CASE
+      WHEN ${startExpr} IS NOT NULL AND COALESCE(matchup,'') != ''
+        THEN lower(COALESCE(sport,'')) || '|' || substr(${startExpr},1,16) || '|' || lower(trim(matchup))
+      ELSE lower(COALESCE(sport,'')) || '|' || COALESCE(game_id,'')
+    END`;
+
 
     const baseCte=`
       WITH eligible AS (
@@ -150,12 +174,13 @@ export async function onRequestGet(context){
           ${startExpr} AS event_start,
           ${modelExpr} AS model_id,
           ${marketExpr} AS market_informed,
+          ${canonicalGameExpr} AS canonical_game_key,
           ROW_NUMBER() OVER (
-            PARTITION BY sport,game_id,${modelExpr}
+            PARTITION BY ${canonicalGameExpr},${modelExpr}
             ORDER BY frozen_at DESC
           ) AS rn,
           COUNT(*) OVER (
-            PARTITION BY sport,game_id,${modelExpr}
+            PARTITION BY ${canonicalGameExpr},${modelExpr}
           ) AS snapshot_count
         FROM prediction_snapshots
         WHERE date >= ?
@@ -318,7 +343,7 @@ export async function onRequestGet(context){
       return {
         gameId:String(row.game_id||""),
         sport:String(row.sport||"").toUpperCase(),
-        date:row.date||null,
+        date:dateCt(row.event_start)||row.date||null,
         start:row.event_start||null,
         matchup:row.matchup||null,
         modelId:String(row.model_id||modelId(row)),
