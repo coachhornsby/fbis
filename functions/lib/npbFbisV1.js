@@ -199,7 +199,7 @@ export async function loadNpbContext(date,{fetcher=fetch}={}){
     teams[abbr]=aggregateTeam(batters,pitchers,gamesPlayed);
     pitchersByTeam[abbr]=pitchers;
   }));
-  return {ok:games.length>0,games,teams,pitchersByTeam,source:"NPB.jp",marketInformed:false,canQualify:false,canAuthorize:false};
+  return {ok:games.length>0,games,teams,pitchersByTeam,source:"NPB.jp",timezone:"Asia/Tokyo",marketInformed:false,canQualify:false,canAuthorize:false};
 }
 
 export function attachNpbFbisV1(games=[],ctx={}){
