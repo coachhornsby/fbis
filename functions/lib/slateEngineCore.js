@@ -1724,7 +1724,12 @@ export async function buildSlate(sport, date, env = {}) {
   games = games.map((game) => {
     const pin = pinMarkets(game);
     const model = projectGame(id, { ...game, pin });
-    const next = { ...game, model, pin, modelVersion: MODEL_VERSION };
+    const next = {
+      ...game,
+      model,
+      pin,
+      modelVersion: ["npb","kbo"].includes(id) && game.modelVersion ? game.modelVersion : MODEL_VERSION,
+    };
     return { ...next, quality: dataQuality(id, next) };
   });
 
