@@ -1,7 +1,7 @@
 import { buildSlate, resolveSlateDate, shiftDateCT, todayCT } from "../lib/slateEngine.js";
 import { productProjectionCard } from "../lib/productProjection.js";
 
-const SPORTS = new Set(["cfb","nfl","mlb"]);
+const SPORTS = new Set(["mlb","npb","kbo","nfl","cfb","cbb","nba","nhl"]);
 
 function csvCell(v) {
   if (v == null) return "";
@@ -51,8 +51,24 @@ function row(game, sport) {
     (sport === "cfb" ? "CFB-FBIS-v2" : sport === "nfl" ? "NFL-FBIS-PURE" : "FBIS-MLB");
   const maturity = String(card?.model?.maturity || game?.projectionMaturity ||
     (sport === "nfl" ? "RESEARCH" : "PRODUCTION")).toUpperCase();
-  const sourcePrimary = sport === "cfb" ? "CFBD" : sport === "nfl" ? "nflverse / team form" : "MLB Stats / Savant";
-  const sourceSecondary = sport === "cfb" ? "roster / weather / context" : sport === "nfl" ? "ESPN / QB / context" : "starter / bullpen / context";
+  const sourcePrimary =
+    sport === "cfb" ? "CFBD" :
+    sport === "nfl" ? "nflverse / team form" :
+    sport === "npb" ? "NPB.jp official" :
+    sport === "kbo" ? "KBO official" :
+    sport === "nhl" ? "NHL official" :
+    sport === "nba" ? "NBA schedule / model gate" :
+    sport === "cbb" ? "CBBD / college context" :
+    "MLB Stats / Savant";
+  const sourceSecondary =
+    sport === "cfb" ? "roster / weather / context" :
+    sport === "nfl" ? "ESPN / QB / context" :
+    sport === "npb" ? "starter / team offense / pitching" :
+    sport === "kbo" ? "advanced batting / pitching / GameCenter starter" :
+    sport === "nhl" ? "goalie / 5v5 / special teams / rest" :
+    sport === "nba" ? "availability / rotation gate" :
+    sport === "cbb" ? "possessions / PPP / context" :
+    "starter / bullpen / context";
   const marketSpread = card?.market?.spread;
   const marketTotal = card?.market?.total;
   const nativeMargin = independent ? projHome - projAway : null;
@@ -66,7 +82,10 @@ function row(game, sport) {
   const qScore = card?.quality?.score;
   const qState = card?.quality?.state;
   const flags = Array.isArray(card?.quality?.flags) ? card.quality.flags : [];
-  const starterHold = sport === "mlb" && flags.some((x) => /missing_(home|away)_sp/i.test(String(x)));
+  const starterHold =
+    (sport === "mlb" && flags.some((x) => /missing_(home|away)_sp/i.test(String(x)))) ||
+    (sport === "npb" && flags.some((x) => /npb_probable_starter_unresolved/i.test(String(x)))) ||
+    (sport === "kbo" && flags.some((x) => /kbo_starter_feed_unresolved/i.test(String(x)));
   const state = independent
     ? starterHold
       ? "HOLD — STARTER"
