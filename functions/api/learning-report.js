@@ -158,8 +158,10 @@ export async function onRequestGet(context){
         THEN 1
       ELSE 0 END`;
     const canonicalGameExpr=`CASE
-      WHEN ${startExpr} IS NOT NULL AND COALESCE(matchup,'') != ''
+      WHEN ${startExpr} IS NOT NULL AND COALESCE(matchup,'') != '' AND lower(COALESCE(sport,'')) = 'mlb'
         THEN lower(COALESCE(sport,'')) || '|' || substr(${startExpr},1,16) || '|' || lower(trim(matchup))
+      WHEN ${startExpr} IS NOT NULL AND COALESCE(matchup,'') != ''
+        THEN lower(COALESCE(sport,'')) || '|' || substr(${startExpr},1,10) || '|' || lower(trim(matchup))
       ELSE lower(COALESCE(sport,'')) || '|' || COALESCE(game_id,'')
     END`;
 
