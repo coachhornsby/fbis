@@ -72,3 +72,33 @@ test("NBA player layer fails closed without rights-cleared player feed", () => {
   assert.equal(g.playerProjectionStatus.state,"BLOCKED_RIGHTS_CLEARED_PLAYER_FEED");
   assert.equal(g.playerProjectionStatus.canQualify,false);
 });
+
+
+test("player prop layer blocks unavailable players and holds unresolved players", () => {
+  const feed={byTeam:{
+    KC:[
+      {id:"qb1",name:"QB One",position:"QB",passing_yards:280,attempts:35,completions:24,sd:{passing_yards:55}},
+      {id:"wr1",name:"WR One",position:"WR",receiving_yards:75,receptions:5.5,targets:8,sd:{receiving_yards:27}},
+    ],
+    LV:[]
+  }};
+  const [g]=attachNflPlayerProjectionResearch([{
+    id:"nfl-gate",
+    home:{abbr:"KC"},away:{abbr:"LV"},
+    researchProjection:{home:27,away:20},
+    availabilityImpact:{
+      configured:true,stale:false,
+      home:{players:[
+        {playerId:"qb1",name:"QB One",status:"OUT"},
+        {playerId:"wr1",name:"WR One",status:"QUESTIONABLE"},
+      ]},
+      away:{players:[]},
+    }
+  }],feed);
+  const qb=g.playerProjectionRows.find(r=>r.playerId==="qb1");
+  const wr=g.playerProjectionRows.find(r=>r.playerId==="wr1");
+  assert.equal(qb.propGate,"BLOCKED");
+  assert.equal(qb.eligibleForCard,false);
+  assert.equal(wr.propGate,"HOLD");
+  assert.equal(wr.eligibleForCard,false);
+});
