@@ -2,7 +2,7 @@ import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { productProjectionBoard } from "../lib/productProjection.js";
 import { authorizeProductTier, productResponsePolicy } from "../lib/productAccess.js";
 
-const SPORTS = new Set(["mlb", "cfb", "cbb", "nfl", "nba", "nhl"]);
+const SPORTS = new Set(["mlb", "npb", "cfb", "cbb", "nfl", "nba", "nhl"]);
 
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);

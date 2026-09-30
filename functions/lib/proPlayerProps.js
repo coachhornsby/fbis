@@ -1,6 +1,7 @@
-export const PRO_PLAYER_PROP_SPORTS = Object.freeze(["mlb", "nfl", "nba", "nhl"]);
+export const PRO_PLAYER_PROP_SPORTS = Object.freeze(["mlb", "npb", "nfl", "nba", "nhl"]);
 
 export const PRO_PLAYER_PROP_MARKETS = Object.freeze({
+  npb: ["strikeouts"],
   mlb: [
     "hits",
     "total_bases",
@@ -89,6 +90,9 @@ export const PRO_PLAYER_PROP_LABELS = Object.freeze({
 });
 
 const ALIASES = Object.freeze({
+  npb: {
+    strikeouts: "strikeouts", pitcher_strikeouts: "strikeouts", pitching_strikeouts: "strikeouts", player_strikeouts: "strikeouts",
+  },
   mlb: {
     hit: "hits",
     hits: "hits",
@@ -196,6 +200,7 @@ function cleanToken(raw) {
 export function normalizeProPropSport(raw) {
   const sport = cleanToken(raw);
   if (sport === "baseball" || sport === "major_league_baseball") return "mlb";
+  if (sport === "nippon_professional_baseball" || sport === "japanese_baseball") return "npb";
   if (sport === "football" || sport === "national_football_league") return "nfl";
   if (sport === "basketball" || sport === "national_basketball_association") return "nba";
   if (sport === "hockey" || sport === "national_hockey_league") return "nhl";
