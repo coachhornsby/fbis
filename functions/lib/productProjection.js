@@ -359,9 +359,9 @@ function quality(game = {}) {
   };
 }
 
-function gameConditions(game = {}) {
+function gameConditions(game = {}, sport = "") {
   const availability = game.availabilityImpact || null;
-  const availabilityPreflight = buildSportAvailabilityPreflight(game, game?.sport || game?.league || "");
+  const availabilityPreflight = buildSportAvailabilityPreflight(game, sport || game?.sport || game?.league || "");
   const weather = game.weather || null;
   const weatherImpact = game.weatherImpact || null;
   const slimPlayers = (side) => (availability?.[side]?.players || [])
@@ -570,7 +570,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
       blockReason: d.blockReason,
     },
     quality: quality(game),
-    conditions: gameConditions(game),
+    conditions: gameConditions(game, sport),
     llmFeatures: llmFeatureDigest(game, sport),
   };
   if (tier === "pro") {
