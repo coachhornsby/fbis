@@ -686,11 +686,10 @@ function canonicalProjectionKey({sport,eventId,start,away,home,matchup,engine,mo
   const gameKey=startKey&&awayKey&&homeKey
     ? [String(sport||'').toLowerCase(),startKey,awayKey,homeKey].join('|')
     : projectionSheetKey(sport,eventId);
-  const modelKey=[
-    normalizeProjectionTeam(engine),
-    normalizeProjectionTeam(modelVersion),
-    normalizeProjectionTeam(model)
-  ].filter(Boolean).join('|')||'model';
+  const engineKey=normalizeProjectionTeam(engine);
+  const versionKey=normalizeProjectionTeam(modelVersion);
+  const modelKey=[engineKey,versionKey].filter(Boolean).join('|')||
+    normalizeProjectionTeam(model)||'model';
   return gameKey+'|'+modelKey;
 }
 
