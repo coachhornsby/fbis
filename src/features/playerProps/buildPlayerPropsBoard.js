@@ -230,12 +230,11 @@ export function formatMarketLabel(canonicalOrRaw) {
  * Same adapter used by Today command center — never invents eligibility.
  */
 export function normalizeBoardGame(game = {}) {
-  if (Array.isArray(game.playerMarkets) && game.playerMarkets.length) return game;
-  const convictions = game.propConvictions || [];
-  if (!convictions.length) return game;
-  return {
-    ...game,
-    playerMarkets: convictions.map((c) => ({
+  const projections = Array.isArray(game.playerProjectionRows) ? game.playerProjectionRows : [];
+  let markets = Array.isArray(game.playerMarkets) ? [...game.playerMarkets] : [];
+
+  if (!markets.length && (game.propConvictions || []).length) {
+    markets = (game.propConvictions || []).map((c) => ({
       playerName: c.playerName,
       team: c.team,
       position: c.position,
@@ -262,7 +261,68 @@ export function normalizeBoardGame(game = {}) {
       edge: c.ev ?? c.edge ?? null,
       decisionEligible: false,
       reasonCodes: ["PROP_CONVICTION_RESEARCH_ONLY"],
-    })),
+    }));
+  }
+
+  const sameName = (a,b) => {
+    const clean=(v)=>String(v||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+    return clean(a) && clean(a)===clean(b);
+  };
+  const sameProjection = (m,p) => {
+    const market =
+      canonicalizeProPlayerPropMarket(game.sport, m.marketCanonical || m.market) ||
+      m.marketCanonical ||
+      null;
+    if (market !== p.market) return false;
+    if (m.providerPlayerId && p.playerId && String(m.providerPlayerId) === String(p.playerId)) return true;
+    if (m.fbisPlayerId && p.playerId && String(m.fbisPlayerId) === String(p.playerId)) return true;
+    return sameName(m.playerName,p.playerName) &&
+      (!m.team || !p.team || String(m.team).toUpperCase()===String(p.team).toUpperCase());
+  };
+
+  const matched = new Set();
+  const playerMarkets = markets.map((m)=>{
+    const idx=projections.findIndex((p)=>sameProjection(m,p));
+    if(idx<0) return m;
+    matched.add(idx);
+    const p=projections[idx];
+    return {
+      ...m,
+      fbisProjection: p.fbisProjection ?? m.fbisProjection ?? null,
+      fbisSigma: p.fbisSigma ?? m.fbisSigma ?? null,
+      projectionSource: p.source || null,
+      modelMaturity: p.maturity || "RESEARCH",
+      modelIndependent: p.independent !== false,
+    };
+  });
+
+  projections.forEach((p,idx)=>{
+    if(matched.has(idx)) return;
+    playerMarkets.push({
+      providerPlayerId: p.playerId || null,
+      fbisPlayerId: p.playerId || null,
+      playerName: p.playerName || null,
+      team: p.team || null,
+      position: p.position || null,
+      market: p.market,
+      marketCanonical: p.market,
+      line: null,
+      overOdds: null,
+      underOdds: null,
+      book: null,
+      fbisProjection: p.fbisProjection ?? null,
+      fbisSigma: p.fbisSigma ?? null,
+      projectionSource: p.source || null,
+      modelMaturity: p.maturity || "RESEARCH",
+      modelIndependent: p.independent !== false,
+      decisionEligible: false,
+      reasonCodes: ["FBIS_PLAYER_PROJECTION_RESEARCH_ONLY","NO_MARKET_LINE_ATTACHED"],
+    });
+  });
+
+  return {
+    ...game,
+    playerMarkets,
   };
 }
 
