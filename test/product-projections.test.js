@@ -66,7 +66,20 @@ test("MLB exposes Ballpark Pal as a separate cross-check without overwriting FBI
       id: "mlb-1", projectionKind: "FBIS",
       home: { name: "Home" }, away: { name: "Away" },
       model: { projectionKind: "FBIS", projHome: 4.8, projAway: 3.9, projMargin: 0.9, projTotal: 8.7, pHomeFinal: 0.61 },
-      bpp: { homeRuns: 4.4, awayRuns: 4.0, pHome: 0.56, lineupsOfficial: true, f5: { homeRuns: 2.3, awayRuns: 2.0, total: 4.3 } },
+      bpp: {
+        homeRuns: 4.4, awayRuns: 4.0, pHome: 0.56, lineupsOfficial: true,
+        homeSp: { id: 101, name: "Home Starter", k: 6.3 },
+        awaySp: { id: 202, name: "Away Starter", k: 4.9 },
+        f5: { homeRuns: 2.3, awayRuns: 2.0, total: 4.3, homeWin: 0.57, awayWin: 0.43 }
+      },
+      mlbDeepShadow: {
+        ok: true,
+        f5: { home: 2.5, away: 1.8, total: 4.3, margin: 0.7 },
+        pitcherKs: {
+          home: { playerId: 101, playerName: "Home Starter", team: "HOM", projection: 6.8, expectedInnings: 5.9, kPer9: 10.1, opponentKRate: 0.24 },
+          away: { playerId: 202, playerName: "Away Starter", team: "AWY", projection: 4.4, expectedInnings: 5.1, kPer9: 8.0, opponentKRate: 0.21 }
+        }
+      },
       quality: { score: 88, flags: [] },
     }],
   });
@@ -78,6 +91,14 @@ test("MLB exposes Ballpark Pal as a separate cross-check without overwriting FBI
   assert.equal(card.externalModels.ballparkPal.home, 4.4);
   assert.equal(card.externalModels.ballparkPal.role, "INDEPENDENT_CROSS_CHECK");
   assert.equal(card.externalModels.ballparkPal.comparison.agreement, "AGREE");
+  assert.equal(card.subprojections.available, true);
+  assert.equal(card.subprojections.f5.fbis.total, 4.3);
+  assert.equal(card.subprojections.f5.ballparkPal.total, 4.3);
+  assert.equal(card.subprojections.pitcherKs.home.fbis, 6.8);
+  assert.equal(card.subprojections.pitcherKs.home.ballparkPal, 6.3);
+  assert.equal(card.subprojections.pitcherKs.home.delta, 0.5);
+  assert.equal(card.subprojections.pitcherKs.away.fbis, 4.4);
+  assert.equal(card.subprojections.pitcherKs.away.ballparkPal, 4.9);
 });
 
 test("live games expose live score but explicitly preserve pregame projection lifecycle", () => {
