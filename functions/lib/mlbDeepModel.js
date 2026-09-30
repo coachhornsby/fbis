@@ -11,6 +11,7 @@ import { pGreater } from "./metrics.js";
 import { clamp, coverageSummary, finite, round1 } from "./deepModelCommon.js";
 
 export const MLB_DEEP_ID = "MLB-FBIS-v2";
+export const MLB_DEEP_VERSION = "research-v2.1-pal-features";
 export const MLB_DEEP_CONSTANTS = {
   leagueRpg: 4.45,
   leagueEra: 4.15,
@@ -49,8 +50,18 @@ function defenseFactor(runsSaved) {
   return clamp(1 - rs / 700, 0.94, 1.06);
 }
 
+function palParkFactor(ctx = {}) {
+  const run = finite(ctx.palParkRunFactor ?? ctx.parkFactor) ?? 1;
+  const hr = finite(ctx.palParkHrFactor);
+  if (hr == null) return run;
+  // Park run factor already contains much of the HR environment. Use only the
+  // HR-vs-run residual as a small incremental feature to avoid double counting.
+  const residual = clamp(hr - run, -0.25, 0.25);
+  return clamp(run * (1 + residual * 0.12), 0.78, 1.28);
+}
+
 function environmentFactor(ctx = {}) {
-  const park = finite(ctx.palParkRunFactor ?? ctx.parkFactor) ?? 1;
+  const park = palParkFactor(ctx);
   const weather = finite(ctx.weatherRunFactor) ?? 1;
   const umpire = finite(ctx.umpireRunFactor) ?? 1;
   return clamp(park * weather * umpire, 0.78, 1.28);
@@ -61,12 +72,26 @@ function offenseRpg(teamRpg) {
   return n ?? MLB_DEEP_CONSTANTS.leagueRpg;
 }
 
-function palMatchupFactor(rcVsTypical, n) {
+function palMatchupComponents(rcVsTypical, hrVsTypical, kVsTypical, n) {
   const rc = finite(rcVsTypical);
+  const hr = finite(hrVsTypical);
+  const k = finite(kVsTypical);
   const sample = finite(n);
-  if (rc == null || sample == null || sample < 3) return 1;
-  // Research-only bounded feature. ±100 vs-typical maps to ±8%; never ingest Pal final score/probability.
-  return clamp(1 + (rc / 100) * 0.08, 0.92, 1.08);
+  if (sample == null || sample < 3 || (rc == null && hr == null && k == null)) {
+    return { factor: 1, rcFactor: 1, hrFactor: 1, kFactor: 1, reliability: 0 };
+  }
+  const reliability = clamp(sample / 10, 0.30, 1);
+  const rcAdj = rc == null ? 0 : clamp((rc / 100) * 0.06 * reliability, -0.06, 0.06);
+  const hrAdj = hr == null ? 0 : clamp((hr / 100) * 0.025 * reliability, -0.025, 0.025);
+  // Higher K-vs-typical is adverse to the offense, so its sign is inverted.
+  const kAdj = k == null ? 0 : clamp(-(k / 100) * 0.025 * reliability, -0.025, 0.025);
+  return {
+    factor: clamp(1 + rcAdj + hrAdj + kAdj, 0.90, 1.10),
+    rcFactor: 1 + rcAdj,
+    hrFactor: 1 + hrAdj,
+    kFactor: 1 + kAdj,
+    reliability,
+  };
 }
 
 export function projectMlbDeep(game = {}) {
@@ -79,7 +104,7 @@ export function projectMlbDeep(game = {}) {
   if (homeRpg == null || awayRpg == null || homeSpEra == null || awaySpEra == null) {
     return {
       modelId: MLB_DEEP_ID,
-      version: "research-v2",
+      version: MLB_DEEP_VERSION,
       role: "shadow",
       family: "run-allocation",
       ok: false,
@@ -92,15 +117,29 @@ export function projectMlbDeep(game = {}) {
 
   const homeBpEra = finite(ctx.homeBullpenEra);
   const awayBpEra = finite(ctx.awayBullpenEra);
-  const homePitch = pitcherBlend(homeSpEra, homeBpEra ?? MLB_DEEP_CONSTANTS.leagueEra, ctx.homeStarterExpectedInnings);
-  const awayPitch = pitcherBlend(awaySpEra, awayBpEra ?? MLB_DEEP_CONSTANTS.leagueEra, ctx.awayStarterExpectedInnings);
+  const homeStarterInnings = finite(ctx.homeStarterExpectedInnings) ?? finite(ctx.homePalStarterExpectedInnings);
+  const awayStarterInnings = finite(ctx.awayStarterExpectedInnings) ?? finite(ctx.awayPalStarterExpectedInnings);
+  const homePitch = pitcherBlend(homeSpEra, homeBpEra ?? MLB_DEEP_CONSTANTS.leagueEra, homeStarterInnings);
+  const awayPitch = pitcherBlend(awaySpEra, awayBpEra ?? MLB_DEEP_CONSTANTS.leagueEra, awayStarterInnings);
   const env = environmentFactor(ctx);
   const homePlatoon = factorFromWoba(ctx.homePlatoonWoba ?? ctx.homeLineupWoba);
   const awayPlatoon = factorFromWoba(ctx.awayPlatoonWoba ?? ctx.awayLineupWoba);
   const homeDefenseOpp = defenseFactor(ctx.awayDefenseRunsSaved);
   const awayDefenseOpp = defenseFactor(ctx.homeDefenseRunsSaved);
-  const homePalMatchup = palMatchupFactor(ctx.homePalRcVsTypical, ctx.homePalMatchupN);
-  const awayPalMatchup = palMatchupFactor(ctx.awayPalRcVsTypical, ctx.awayPalMatchupN);
+  const homePal = palMatchupComponents(
+    ctx.homePalRcVsTypical,
+    ctx.homePalHrVsTypical,
+    ctx.homePalKVsTypical,
+    ctx.homePalMatchupN
+  );
+  const awayPal = palMatchupComponents(
+    ctx.awayPalRcVsTypical,
+    ctx.awayPalHrVsTypical,
+    ctx.awayPalKVsTypical,
+    ctx.awayPalMatchupN
+  );
+  const homePalMatchup = homePal.factor;
+  const awayPalMatchup = awayPal.factor;
 
   const home = round1(clamp(
     offenseRpg(homeRpg) * awayPitch.factor * homePlatoon * homeDefenseOpp * homePalMatchup * env * MLB_DEEP_CONSTANTS.homeEdge,
@@ -129,7 +168,7 @@ export function projectMlbDeep(game = {}) {
 
   return {
     modelId: MLB_DEEP_ID,
-    version: "research-v2",
+    version: MLB_DEEP_VERSION,
     role: "shadow",
     family: "run-allocation",
     ok: true,
@@ -157,7 +196,13 @@ export function projectMlbDeep(game = {}) {
         defenseFactor: homeDefenseOpp,
         environmentFactor: env,
         palMatchupFactor: homePalMatchup,
+        palRcFactor: homePal.rcFactor,
+        palHrFactor: homePal.hrFactor,
+        palKFactor: homePal.kFactor,
+        palReliability: homePal.reliability,
         palRcVsTypical: finite(ctx.homePalRcVsTypical),
+        palHrVsTypical: finite(ctx.homePalHrVsTypical),
+        palKVsTypical: finite(ctx.homePalKVsTypical),
         palMatchupN: finite(ctx.homePalMatchupN),
         homeEdge: MLB_DEEP_CONSTANTS.homeEdge,
       },
@@ -172,7 +217,13 @@ export function projectMlbDeep(game = {}) {
         defenseFactor: awayDefenseOpp,
         environmentFactor: env,
         palMatchupFactor: awayPalMatchup,
+        palRcFactor: awayPal.rcFactor,
+        palHrFactor: awayPal.hrFactor,
+        palKFactor: awayPal.kFactor,
+        palReliability: awayPal.reliability,
         palRcVsTypical: finite(ctx.awayPalRcVsTypical),
+        palHrVsTypical: finite(ctx.awayPalHrVsTypical),
+        palKVsTypical: finite(ctx.awayPalKVsTypical),
         palMatchupN: finite(ctx.awayPalMatchupN),
         homeEdge: 1,
       },
@@ -189,6 +240,28 @@ export function projectMlbDeep(game = {}) {
         lineupsOfficial: ctx.palLineupsOfficial === true,
         homeRcVsTypical: finite(ctx.homePalRcVsTypical),
         awayRcVsTypical: finite(ctx.awayPalRcVsTypical),
+        homeHrVsTypical: finite(ctx.homePalHrVsTypical),
+        awayHrVsTypical: finite(ctx.awayPalHrVsTypical),
+        homeKVsTypical: finite(ctx.homePalKVsTypical),
+        awayKVsTypical: finite(ctx.awayPalKVsTypical),
+        homeStarterExpectedInnings: finite(ctx.homePalStarterExpectedInnings),
+        awayStarterExpectedInnings: finite(ctx.awayPalStarterExpectedInnings),
+        homeStarterProjectedKs: finite(ctx.homePalStarterProjectedKs),
+        awayStarterProjectedKs: finite(ctx.awayPalStarterProjectedKs),
+      },
+      palUsageAudit: {
+        scoreInputs: [
+          "park run factor",
+          "bounded park HR residual",
+          "runs-created vs typical",
+          "HR vs typical",
+          "K vs typical",
+          "starter expected innings fallback",
+        ],
+        qualityContext: ["official lineup flag", "matchup sample size", "as-of/request lineage"],
+        externalCrossChecksOnly: ["Pal team run projection", "Pal win probability", "Pal F5 score/win projection", "Pal team-total probabilities"],
+        propOnly: ["Pal player prop probabilities", "starter projected strikeouts"],
+        prohibitedAsFbisScoreInputs: ["Pal final game score", "Pal final win probability", "Pal probabilities as sportsbook prices"],
       },
       genericFallbacks: [
         ...(homeBpEra == null || awayBpEra == null ? ["league-average-bullpen-era"] : []),
@@ -220,7 +293,7 @@ export function attachMlbDeepShadow(games = []) {
       available,
       games: next.length,
       qualificationAllowed: false,
-      note: "Run-allocation challenger. Ballpark Pal remains a separate external model and Pinnacle remains market benchmark.",
+      note: "Run-allocation challenger. Uses bounded Pal feature-level signals while Pal final scores/probabilities remain external cross-checks; Pinnacle remains the market benchmark.",
     },
   };
 }
