@@ -49,6 +49,8 @@ jobs:
                 margin:.projection.margin,total:.projection.total,
                 marketSpread:.market.spread,marketTotal:.market.total,marketSource:.market.source,
                 qualityScore:.quality.score,qualityState:.quality.state,flags:.quality.flags,
+                gameState:.gameState,snapshot:.snapshot,leagueTiming:.leagueTiming,
+                subprojections:.subprojections,playerProjections:.playerProjections,
                 unavailableReason:.projection.unavailableReason
               }]
             }' "$tmp" | tee -a "$out"

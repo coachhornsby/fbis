@@ -62,7 +62,15 @@ export function parseKboSchedule(html="",date=""){
     if(teams.length<2) continue;
     const time=(text.match(/\b([01]?\d|2[0-3]):[0-5]\d\b/)||[])[0]||"18:30";
     const away=teams[0], home=teams[1];
-    const score=text.match(/\b(\d{1,2})\s*:\s*(\d{1,2})\b/);
+    // Never interpret the scheduled first-pitch time (e.g. 18:30) as a baseball score.
+    // KBO result rows expose the score in a separate cell; exclude the time cell and
+    // only accept a score-shaped cell that is distinct from the scheduled time.
+    const scoreCell=c.find((x)=>{
+      const s=String(x||"").trim();
+      if(!/^\d{1,2}\s*:\s*\d{1,2}$/.test(s)) return false;
+      return s.replace(/\s+/g,"")!==String(time).replace(/\s+/g,"");
+    })||null;
+    const score=scoreCell?scoreCell.match(/^(\d{1,2})\s*:\s*(\d{1,2})$/):null;
     const venue=c.find(x=>/JAMSIL|DAEGU|SUWON|GWANGJU|MUNHAK|SAJIK|CHANGWON|DAEJEON|GOCHEOK/i.test(String(x)))||"";
     out.push({
       id:`KBO-${String(date).replaceAll("-","")}-${away}-${home}`,
