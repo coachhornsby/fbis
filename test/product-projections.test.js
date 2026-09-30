@@ -200,3 +200,28 @@ test("product projection card exposes pro player projections without market subs
   assert.equal(pp.rows[0].fbisProjection, 271.4);
   assert.equal(pp.rows[0].marketInformed, false);
 });
+
+
+test("projection cards expose snapshot stage and availability preflight", () => {
+  const out = productProjectionBoard({
+    sport:"mlb",
+    games:[{
+      id:"mlb-preflight",
+      start:new Date(Date.now()+3*3600000).toISOString(),
+      sport:"mlb",
+      projectionKind:"FBIS",
+      home:{name:"Home",abbr:"HOM"},
+      away:{name:"Away",abbr:"AWY"},
+      homeSp:{id:11,name:"Home SP"},
+      awaySp:{id:22,name:"Away SP"},
+      bpp:{lineupsOfficial:true},
+      availabilityImpact:{configured:true,stale:false,home:{players:[]},away:{players:[]}},
+      model:{projectionKind:"FBIS",projHome:4.5,projAway:4.0,projMargin:0.5,projTotal:8.5},
+      quality:{score:80,flags:[]},
+    }]
+  });
+  const card=out.games[0];
+  assert.equal(card.snapshot.stage,"PREGAME");
+  assert.equal(card.conditions.availabilityPreflight.state,"CLEAR");
+  assert.equal(card.conditions.availabilityPreflight.policy.numericalAdjustment,false);
+});
