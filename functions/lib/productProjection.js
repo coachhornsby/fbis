@@ -225,9 +225,21 @@ function kboSubprojections(game = {}) {
     maturity:"RESEARCH",
     canQualify:false,
     f5:p.f5 ? {home:finite(p.f5.home),away:finite(p.f5.away),total:finite(p.f5.total),margin:finite(p.f5.margin)} : null,
-    pitcherKs:{home:null,away:null},
-    starterState:p.starterState || "BLOCKED_OFFICIAL_PROBABLE_STARTER_FEED",
-    policy:"Independent KBO official-data research projection. Pitcher props remain blocked until starter identity is independently resolved."
+    pitcherKs:{
+      home:p.pitcherKs?.home ? {
+        playerId:p.starters?.home?.playerId || null,playerName:p.starters?.home?.name || null,team:game?.home?.abbr || null,
+        fbis:finite(p.pitcherKs.home.projection),expectedInnings:finite(p.pitcherKs.home.expectedInnings),
+        kPer9:finite(p.pitcherKs.home.kPer9),opponentKRate:finite(p.pitcherKs.home.opponentKRate)
+      } : null,
+      away:p.pitcherKs?.away ? {
+        playerId:p.starters?.away?.playerId || null,playerName:p.starters?.away?.name || null,team:game?.away?.abbr || null,
+        fbis:finite(p.pitcherKs.away.projection),expectedInnings:finite(p.pitcherKs.away.expectedInnings),
+        kPer9:finite(p.pitcherKs.away.kPer9),opponentKRate:finite(p.pitcherKs.away.opponentKRate)
+      } : null
+    },
+    starterState:p.starterState || "PROVISIONAL_OFFICIAL_STARTER_UNRESOLVED",
+    advanced:p.advanced || null,
+    policy:"Independent KBO official-data advanced research projection. Starter K projections activate only when official KBO starter identity resolves."
   };
 }
 
@@ -290,7 +302,7 @@ function proPlayerProjections(game = {}, sport = "") {
   if (!supported.has(sport)) return undefined;
   const status = game.playerProjectionStatus || {
     sport,
-    state: sport === "kbo" ? "BLOCKED_OFFICIAL_PROBABLE_STARTER_FEED" : "NOT_ATTACHED",
+    state: sport === "kbo" ? "PROBABLE_STARTER_UNRESOLVED" : "NOT_ATTACHED",
     model: null,
     independent: false,
     marketInformed: false,
