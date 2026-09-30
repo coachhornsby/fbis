@@ -53,11 +53,11 @@ export function parseKboTeamPitcherBasic1(html=""){
   for(const r of rowObjects(html)){
     const c=r.cells; if(c.length<19) continue;
     const team=teamKey(c[1]); if(!team) continue;
-    const innings=ip(c[10]), so=finite(c[15]), bb=finite(c[13]);
+    const innings=ip(c[9]), so=finite(c[14]), bb=finite(c[12]);
     if(innings==null) continue;
     out.push({
-      team,era:finite(c[2]),games:finite(c[3]),innings,hrAllowed:finite(c[12]),bbAllowed:bb,so,
-      whip:finite(c[18]),kPer9:so!=null&&innings>0?so*9/innings:null,bbPer9:bb!=null&&innings>0?bb*9/innings:null
+      team,era:finite(c[2]),games:finite(c[3]),innings,hrAllowed:finite(c[11]),bbAllowed:bb,so,
+      whip:finite(c[17]),kPer9:so!=null&&innings>0?so*9/innings:null,bbPer9:bb!=null&&innings>0?bb*9/innings:null
     });
   }
   return out;
