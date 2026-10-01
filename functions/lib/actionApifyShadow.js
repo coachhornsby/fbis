@@ -23,13 +23,15 @@ export const ACTION_APIFY_SCHEMA_VERSION = "action-apify-shadow-v2-zen-studio";
 export const ACTION_APIFY_FREE_MAX_ITEMS = 10;
 export const ACTION_APIFY_RESEARCH_BUDGET_USD = 1.0;
 
-/** Zen Studio listing price: conservative Basic tier = $2.50 / 1,000 returned games.
- * Higher actor tiers are cheaper, so using Basic pricing intentionally overestimates.
- * The Actor states billing is per returned game/result; optional enrichments do not
- * create separate PPE charges.
+/** Zen Studio Basic listing rates, normalized to USD per billed unit.
+ * Use the highest published base tier as the estimator so budget checks err high.
  */
 export const ACTION_APIFY_PRICING_USD = Object.freeze({
-  perResultBasic: 2.50 / 1000,
+  runStart: 4.99 / 1000,
+  game: 3.99 / 1000,
+  movementPerGame: 3.99 / 1000,
+  propsPerGame: 4.99 / 1000,
+  leagueReport: 7.99 / 1000,
 });
 
 const BOOK_ALIASES = Object.freeze({
@@ -69,20 +71,23 @@ export function clampMaxItems(maxItems, { freePlan = true } = {}) {
   return Math.min(requested, ACTION_APIFY_FREE_MAX_ITEMS);
 }
 
-/** Actor input enums (parseforge/action-network-scraper). */
-const ACTOR_GAME_STATUS = new Set(["any", "scheduled", "live", "complete", "notStarted"]);
-const ACTOR_PERIODS = new Set(["event", "firsthalf", "secondhalf", "firstquarter", "firstfiveinnings"]);
+/** Zen Studio Actor input enums. */
+const ACTOR_GAME_STATUS = new Set(["scheduled", "inprogress", "complete"]);
+const ACTOR_PERIODS = new Set(["event","firsthalf","secondhalf","firstquarter","secondquarter","thirdquarter","fourthquarter","1P","2P","3P"]);
+const ACTOR_BOOK_IDS = Object.freeze({
+  draftkings:"68", dk:"68", fanduel:"69", fd:"69", betmgm:"75", mgm:"75",
+  bet365:"79", "bet365.com":"79", betrivers:"71", caesars:"123", czr:"123",
+});
 
 /** Map shorthand / legacy labels onto valid Actor enums. */
 export function normalizeActorGameStatus(status) {
   if (status == null || status === "") return null;
-  const s = String(status).trim();
-  const key = s.toLowerCase();
-  if (ACTOR_GAME_STATUS.has(s)) return s;
-  if (key === "final" || key === "completed" || key === "finished") return "complete";
-  if (key === "notstarted" || key === "not_started" || key === "pre") return "notStarted";
-  if (ACTOR_GAME_STATUS.has(key)) return key === "notstarted" ? "notStarted" : key;
-  return s;
+  const key = String(status).trim().toLowerCase();
+  if (ACTOR_GAME_STATUS.has(key)) return key;
+  if (["final","completed","finished","post"].includes(key)) return "complete";
+  if (["notstarted","not_started","pre","upcoming"].includes(key)) return "scheduled";
+  if (["live","in_progress","in-progress"].includes(key)) return "inprogress";
+  return null;
 }
 
 export function normalizeActorPeriod(period) {
@@ -90,9 +95,7 @@ export function normalizeActorPeriod(period) {
   const p = String(period).trim();
   const key = p.toLowerCase().replace(/[_\s-]+/g, "");
   if (ACTOR_PERIODS.has(p)) return p;
-  if (key === "firstfive" || key === "f5" || key === "first5" || key === "firstfiveinnings") {
-    return "firstfiveinnings";
-  }
+  if (key === "firstfive" || key === "f5" || key === "first5" || key === "firstfiveinnings") return "event";
   if (key === "1h" || key === "firsthalf") return "firsthalf";
   if (key === "2h" || key === "secondhalf") return "secondhalf";
   if (key === "1q" || key === "firstquarter") return "firstquarter";
@@ -112,59 +115,52 @@ export function canonicalizeShadowPeriod(period) {
 
 export function buildActorInput(opts = {}) {
   const freePlan = opts.freePlan !== false;
-  const maxItems = clampMaxItems(opts.maxItems ?? opts.maxGames ?? ACTION_APIFY_FREE_MAX_ITEMS, { freePlan });
+  const maxGames = clampMaxItems(opts.maxGames ?? opts.maxItems ?? ACTION_APIFY_FREE_MAX_ITEMS, { freePlan });
   const leagues = Array.isArray(opts.leagues) && opts.leagues.length ? opts.leagues.map(String) : ["ncaaf"];
   const periods = Array.isArray(opts.periods) && opts.periods.length
-    ? opts.periods.map(normalizeActorPeriod)
+    ? opts.periods.map(normalizeActorPeriod).filter((x)=>ACTOR_PERIODS.has(x))
     : ["event"];
-  const books = Array.isArray(opts.books) && opts.books.length
-    ? opts.books.map(normalizeBookKey).filter(Boolean)
-    : ["draftkings", "fanduel", "betmgm", "caesars", "bet365"];
 
   const input = {
     leagues,
-    periods,
-    books,
-    maxItems,
+    periods: periods.length ? [...new Set(periods)] : ["event"],
+    maxGames,
+    includeExpertPicks: opts.includeExpertPicks !== false,
     includeLineMovement: Boolean(opts.includeLineMovement),
-    includePlayerProps: Boolean(opts.includePlayerProps),
-    includeGameProps: Boolean(opts.includeGameProps),
-    includeGameDetail: Boolean(opts.includeGameDetail),
-    includeWeather: Boolean(opts.includeWeather),
+    includeProps: Boolean(opts.includeProps || opts.includePlayerProps || opts.includeGameProps),
     includeInjuries: Boolean(opts.includeInjuries),
     includeStandings: Boolean(opts.includeStandings),
-    includeFutures: Boolean(opts.includeFutures),
   };
+  if (Array.isArray(opts.books) && opts.books.length) {
+    input.books = opts.books.map((b)=>ACTOR_BOOK_IDS[String(b).trim().toLowerCase()] || String(b)).filter(Boolean);
+  }
   if (opts.date) input.date = String(opts.date);
   if (opts.week != null) input.week = Number(opts.week);
   if (opts.season != null) input.season = Number(opts.season);
-  if (opts.seasonType) input.seasonType = String(opts.seasonType);
-  if (opts.gameStatus) input.gameStatus = normalizeActorGameStatus(opts.gameStatus);
-  if (opts.onlyWithOdds) input.onlyWithOdds = true;
-  // Deliberate sample selection (Actor filters — no extra PPE).
-  if (Array.isArray(opts.gameUrls) && opts.gameUrls.length) {
-    input.gameUrls = opts.gameUrls.map(String).filter(Boolean).slice(0, maxItems);
-  }
-  if (Array.isArray(opts.teams) && opts.teams.length) {
-    input.teams = opts.teams.map(String).filter(Boolean);
-  }
-  if (opts.sortBy) input.sortBy = String(opts.sortBy);
-  if (opts.minNumBets != null && Number.isFinite(Number(opts.minNumBets))) {
-    input.minNumBets = Math.max(0, Math.floor(Number(opts.minNumBets)));
-  }
-  if (opts.minSharpGap != null && Number.isFinite(Number(opts.minSharpGap))) {
-    input.minSharpGap = Math.max(0, Math.floor(Number(opts.minSharpGap)));
-  }
+  if (opts.seasonType) input.seasonType = String(opts.seasonType).toLowerCase();
+  const status=normalizeActorGameStatus(opts.gameStatus);
+  if (status) input.gameStatus = [status];
+  if (Array.isArray(opts.gameIds) && opts.gameIds.length) input.gameIds=opts.gameIds.map(String).slice(0,maxGames);
+  if (Array.isArray(opts.gameUrls) && opts.gameUrls.length) input.gameUrls=opts.gameUrls.map(String).filter(Boolean).slice(0,maxGames);
+  if (Array.isArray(opts.teams) && opts.teams.length) input.teams=opts.teams.map(String).filter(Boolean);
+  if (opts.onlyTrending === true) input.onlyTrending=true;
+  const minBets=opts.minBets ?? opts.minNumBets;
+  if (minBets != null && Number.isFinite(Number(minBets))) input.minBets=Math.max(0,Math.floor(Number(minBets)));
   return input;
 }
 
-export function estimateActorCostUsd(input = {}, { gamesReturned = null } = {}) {
-  const maxItems = clampMaxItems(input.maxItems ?? ACTION_APIFY_FREE_MAX_ITEMS, {
-    freePlan: false,
-  });
-  const games = gamesReturned == null ? maxItems : Math.max(0, Number(gamesReturned) || 0);
-  // Conservative tier-agnostic estimate at Zen Studio's highest listed per-result rate.
-  return roundUsd(games * ACTION_APIFY_PRICING_USD.perResultBasic);
+export function estimateActorCostUsd(input = {}, { gamesReturned = null, leagueReports = null } = {}) {
+  const maxGames = clampMaxItems(input.maxGames ?? ACTION_APIFY_FREE_MAX_ITEMS, { freePlan:false });
+  const games = gamesReturned == null ? maxGames : Math.max(0,Number(gamesReturned)||0);
+  const leagues = Array.isArray(input.leagues) ? input.leagues.length : 1;
+  const reports = leagueReports == null ? leagues : Math.max(0,Number(leagueReports)||0);
+  const P=ACTION_APIFY_PRICING_USD;
+  let usd=P.runStart + games*P.game;
+  if(input.includeLineMovement) usd += games*P.movementPerGame;
+  if(input.includeProps) usd += games*P.propsPerGame;
+  if(input.includeStandings) usd += reports*P.leagueReport;
+  if(input.includeInjuries) usd += reports*P.leagueReport;
+  return roundUsd(usd);
 }
 
 /** Soft harvest/board cap — keep routine BASE collects under this by default. */
