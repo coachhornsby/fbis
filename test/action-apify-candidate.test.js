@@ -127,8 +127,8 @@ test("CAPABILITY_AUDIT plan enables all four enrichments and respects maxItems",
   assert.equal(plan.input.includeWeather, false);
   assert.deepEqual(plan.input.gameUrls, ["290853", "290851", "290845", "290800"]);
   assert.equal(plan.input.onlyWithOdds, true);
-  // 4 games × $0.030 + $0.054 start + $0.01 scoreboard = $0.184
-  assert.ok(plan.estimatedCostUsd > 0.15 && plan.estimatedCostUsd < 0.2);
+  // Conservative Zen Studio Basic pricing: 4 results × $0.0025 = $0.010.
+  assert.equal(plan.estimatedCostUsd, 0.01);
 });
 
 test("capability audit summary covers BASE + enrichments without inventing observedAt", async () => {
