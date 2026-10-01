@@ -1,0 +1,38 @@
+name: CFB market qualification validation
+on:
+  push:
+    branches: ["research/cfb-market-qualification","main"]
+    paths:
+      - "scripts/cfb-market-qualification.mjs"
+      - "scripts/cfb-v2-calibrate.mjs"
+      - "data/cfbd/calibration/**"
+      - ".github/workflows/cfb-market-qualification.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: node scripts/cfb-market-qualification.mjs
+      - name: Summary
+        run: |
+          jq . artifacts/cfb-market-qualification-report.json
+          {
+            echo "## CFB-FBIS-v2 market qualification"
+            echo "- selected ablation: $(jq -r '.selectedAblation' artifacts/cfb-market-qualification-report.json)"
+            echo "- OOS sample: $(jq -r '.sampleN' artifacts/cfb-market-qualification-report.json)"
+            echo "- spread 3pt: n=$(jq -r '.spread["3"].n' artifacts/cfb-market-qualification-report.json) ROI=$(jq -r '.spread["3"].roi' artifacts/cfb-market-qualification-report.json) hit=$(jq -r '.spread["3"].hitRate' artifacts/cfb-market-qualification-report.json)"
+            echo "- spread 5pt: n=$(jq -r '.spread["5"].n' artifacts/cfb-market-qualification-report.json) ROI=$(jq -r '.spread["5"].roi' artifacts/cfb-market-qualification-report.json) hit=$(jq -r '.spread["5"].hitRate' artifacts/cfb-market-qualification-report.json)"
+            echo "- total 3pt: n=$(jq -r '.total["3"].n' artifacts/cfb-market-qualification-report.json) ROI=$(jq -r '.total["3"].roi' artifacts/cfb-market-qualification-report.json) hit=$(jq -r '.total["3"].hitRate' artifacts/cfb-market-qualification-report.json)"
+            echo "- total 5pt: n=$(jq -r '.total["5"].n' artifacts/cfb-market-qualification-report.json) ROI=$(jq -r '.total["5"].roi' artifacts/cfb-market-qualification-report.json) hit=$(jq -r '.total["5"].hitRate' artifacts/cfb-market-qualification-report.json)"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-market-qualification-${{ github.run_id }}
+          path: artifacts/cfb-market-qualification-report.json
+          retention-days: 90
