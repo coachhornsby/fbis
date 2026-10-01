@@ -16,26 +16,20 @@ import { canonicalizeFootballPropMarket } from "./actionApifyPropContract.js";
 
 export const ACTION_APIFY_PROVIDER = "ACTION_APIFY";
 export const ACTION_APIFY_SOURCE_CLASS = "SHADOW_MARKET_INTELLIGENCE";
-export const ACTION_APIFY_ACTOR_ID = "parseforge/action-network-scraper";
-export const ACTION_APIFY_SCHEMA_VERSION = "action-apify-shadow-v1";
+export const ACTION_APIFY_ACTOR_ID = "zen-studio/action-network-odds";
+export const ACTION_APIFY_SCHEMA_VERSION = "action-apify-shadow-v2-zen-studio";
 
 /** Free-plan hard caps for live research. */
 export const ACTION_APIFY_FREE_MAX_ITEMS = 10;
 export const ACTION_APIFY_RESEARCH_BUDGET_USD = 1.0;
 
-/** Pay-per-event schedule from Actor docs (Free plan list prices). */
+/** Zen Studio listing price: conservative Basic tier = $2.50 / 1,000 returned games.
+ * Higher actor tiers are cheaper, so using Basic pricing intentionally overestimates.
+ * The Actor states billing is per returned game/result; optional enrichments do not
+ * create separate PPE charges.
+ */
 export const ACTION_APIFY_PRICING_USD = Object.freeze({
-  runStart: 0.054,
-  scoreboardPerLeaguePeriod: 0.01,
-  gameRow: 0.007,
-  lineMovementPerGame: 0.006,
-  playerPropsPerGame: 0.008,
-  gamePropsPerGame: 0.004,
-  gameDetailPerGame: 0.005,
-  weatherPerLeague: 0.01,
-  injuriesPerLeague: 0.01,
-  standingsPerLeague: 0.01,
-  futuresPerRow: 0.01,
+  perResultBasic: 2.50 / 1000,
 });
 
 const BOOK_ALIASES = Object.freeze({
@@ -164,25 +158,13 @@ export function buildActorInput(opts = {}) {
   return input;
 }
 
-export function estimateActorCostUsd(input = {}, { gamesReturned = null, futuresRows = 0 } = {}) {
-  const leagues = Array.isArray(input.leagues) ? input.leagues.length : 1;
-  const periods = Array.isArray(input.periods) ? input.periods.length : 1;
-  const maxItems = clampMaxItems(input.maxItems ?? ACTION_APIFY_FREE_MAX_ITEMS);
+export function estimateActorCostUsd(input = {}, { gamesReturned = null } = {}) {
+  const maxItems = clampMaxItems(input.maxItems ?? ACTION_APIFY_FREE_MAX_ITEMS, {
+    freePlan: false,
+  });
   const games = gamesReturned == null ? maxItems : Math.max(0, Number(gamesReturned) || 0);
-
-  let usd = ACTION_APIFY_PRICING_USD.runStart;
-  usd += leagues * periods * ACTION_APIFY_PRICING_USD.scoreboardPerLeaguePeriod;
-  usd += games * ACTION_APIFY_PRICING_USD.gameRow;
-  if (input.includeLineMovement) usd += games * ACTION_APIFY_PRICING_USD.lineMovementPerGame;
-  if (input.includePlayerProps) usd += games * ACTION_APIFY_PRICING_USD.playerPropsPerGame;
-  if (input.includeGameProps) usd += games * ACTION_APIFY_PRICING_USD.gamePropsPerGame;
-  if (input.includeGameDetail) usd += games * ACTION_APIFY_PRICING_USD.gameDetailPerGame;
-  if (input.includeWeather) usd += leagues * ACTION_APIFY_PRICING_USD.weatherPerLeague;
-  if (input.includeInjuries) usd += leagues * ACTION_APIFY_PRICING_USD.injuriesPerLeague;
-  if (input.includeStandings) usd += leagues * ACTION_APIFY_PRICING_USD.standingsPerLeague;
-  if (input.includeFutures) usd += Math.max(0, Number(futuresRows) || 0) * ACTION_APIFY_PRICING_USD.futuresPerRow;
-
-  return roundUsd(usd);
+  // Conservative tier-agnostic estimate at Zen Studio's highest listed per-result rate.
+  return roundUsd(games * ACTION_APIFY_PRICING_USD.perResultBasic);
 }
 
 /** Soft harvest/board cap — keep routine BASE collects under this by default. */
