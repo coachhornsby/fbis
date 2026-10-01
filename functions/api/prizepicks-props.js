@@ -2,6 +2,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { canonicalizeProPlayerPropMarket, normalizeProPropSport } from "../lib/proPlayerProps.js";
 import { sha256Hex } from "../lib/sha256Hex.js";
 
+const TARGET_MONTHLY_USD = 22;
 const HARD_MONTHLY_CAP_USD = 25;
 const RUN_START_USD = 0.05;
 const PER_PROJECTION_USD = 0.00005;
@@ -30,8 +31,12 @@ function sportOf(row){
   if(token.includes("mlb")||token.includes("baseball")) return "mlb";
   if(token.includes("nfl")||token==="football") return "nfl";
   if(token.includes("nhl")||token.includes("hockey")) return "nhl";
-  if(token.includes("nba")) return "nba";
   if(token.includes("wnba")) return "wnba";
+  if(token.includes("nba")) return "nba";
+  if(token.includes("cfb")||token.includes("college football")) return "cfb";
+  if(token.includes("cbb")||token.includes("college basketball")) return "cbb";
+  if(token.includes("tennis")||token.includes("atp")||token.includes("wta")) return "tennis";
+  if(token.includes("soccer")||token.includes("football")) return "soccer";
   return normalizeProPropSport(raw);
 }
 function statOf(row){
@@ -101,7 +106,9 @@ export async function onRequestGet(context){
       ok:true,
       monthToDateUsd:spent.usd,
       monthStart:spent.monthStart,
+      targetMonthlyUsd:TARGET_MONTHLY_USD,
       hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD,
+      remainingToTargetUsd:Math.max(0,TARGET_MONTHLY_USD-spent.usd),
       remainingUsd:Math.max(0,HARD_MONTHLY_CAP_USD-spent.usd),
       pricing:{runStartUsd:RUN_START_USD,perProjectionUsd:PER_PROJECTION_USD},
     });

@@ -1,16 +1,20 @@
-name: PrizePicks targeted prop lines
+name: PrizePicks curated prop lines
 
 on:
   schedule:
-    # Three targeted snapshots per day. Filters are built from current FBIS
-    # player projections before the paid Actor is called.
+    # One curated daily snapshot keeps the shared ACTION + PrizePicks Apify
+    # budget inside the $22 operating target / $25 hard cap.
     - cron: "0 13 * * *"
-    - cron: "0 18 * * *"
-    - cron: "0 23 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/prizepicks-targeted-props.yml"
+      - "functions/api/prizepicks-props.js"
+      - "functions/lib/propMarketPolicy.js"
   workflow_dispatch:
 
 concurrency:
-  group: prizepicks-targeted-props
+  group: prizepicks-curated-props
   cancel-in-progress: false
 
 permissions:
@@ -19,7 +23,7 @@ permissions:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     env:
       BASE: https://fbis-myz.pages.dev
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
@@ -31,30 +35,53 @@ jobs:
           test -n "${HARVEST_SECRET:-}"
           test -n "${APIFY_TOKEN:-}"
 
+      - name: Wait for production API after code push
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            code="$(curl -sS --max-time 20 -o /tmp/budget.json -w "%{http_code}" \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              "$BASE/api/prizepicks-props?mode=budget&_t=$(date +%s)" || true)"
+            if [ "$code" = "200" ] && jq -e '.targetMonthlyUsd == 22 and .hardMonthlyCapUsd == 25' /tmp/budget.json >/dev/null 2>&1; then
+              cat /tmp/budget.json
+              exit 0
+            fi
+            echo "waiting for updated production API attempt=$i/30 http=$code"
+            sleep 10
+          done
+          exit 1
+
       - name: Shared monthly budget gate
         run: |
           set -euo pipefail
           body="$(mktemp)"
-          code="$(curl -sS --max-time 30             -H "x-harvest-secret: ${HARVEST_SECRET}"             -o "$body" -w "%{http_code}"             "$BASE/api/prizepicks-props?mode=budget")"
+          code="$(curl -sS --max-time 30 \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -o "$body" -w "%{http_code}" \
+            "$BASE/api/prizepicks-props?mode=budget&_t=$(date +%s)")"
           cat "$body"
           test "$code" = "200"
-          remaining="$(jq -r '.remainingUsd // 0' "$body")"
-          awk -v r="$remaining" 'BEGIN { if (r < 0.25) exit 1 }' || {
-            echo "Shared Apify monthly budget has < $0.25 remaining; skip paid PrizePicks pull."
+          remaining_target="$(jq -r '.remainingToTargetUsd // 0' "$body")"
+          remaining_hard="$(jq -r '.remainingUsd // 0' "$body")"
+          awk -v t="$remaining_target" -v h="$remaining_hard" 'BEGIN { if (t < 1.00 || h < 1.00) exit 1 }' || {
+            echo "Routine PrizePicks pull skipped: shared Apify budget reserve protected."
+            echo "SKIP_COLLECTION=1" >> "$GITHUB_ENV"
             exit 0
           }
 
-      - name: Build FBIS-targeted player list
+      - name: Build FBIS candidate map
+        if: env.SKIP_COLLECTION != '1'
         run: |
           set -euo pipefail
           mkdir -p artifacts
           : > artifacts/candidates.ndjson
           today="$(TZ=America/Chicago date +%F)"
           tomorrow="$(TZ=America/Chicago date -d "$today + 1 day" +%F)"
-          for sport in mlb nfl nhl; do
+          for sport in mlb nfl nhl nba wnba cfb cbb; do
             for date in "$today" "$tomorrow"; do
               tmp="$(mktemp)"
-              code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}"                 "$BASE/api/projections?sport=$sport&date=$date")"
+              code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" "$BASE/api/projections?sport=$sport&date=$date&_t=$(date +%s)" || true)"
               echo "projection candidates sport=$sport date=$date http=$code"
               if [ "$code" != "200" ]; then continue; fi
               jq --arg sport "$sport" -c '
@@ -71,66 +98,83 @@ jobs:
                   }' "$tmp" >> artifacts/candidates.ndjson || true
             done
           done
-          if [ ! -s artifacts/candidates.ndjson ]; then
-            echo "No independent FBIS player projections. No paid PrizePicks Actor call."
+          if [ -s artifacts/candidates.ndjson ]; then
+            jq -s 'unique_by([.sport,.eventId,.playerName,.market])' artifacts/candidates.ndjson > artifacts/candidates.json
+          else
             echo '[]' > artifacts/candidates.json
-            exit 0
           fi
-          jq -s 'unique_by([.sport,.eventId,.playerName,.market])' artifacts/candidates.ndjson > artifacts/candidates.json
-          jq 'length' artifacts/candidates.json
-          jq -r '.[].playerName' artifacts/candidates.json | sort -u | paste -sd, - > artifacts/player-names.txt
-          jq -r '.[].sport' artifacts/candidates.json | sort -u > artifacts/sports.txt
+          echo "FBIS candidates=$(jq 'length' artifacts/candidates.json)"
 
-      - name: Pull exact PrizePicks lines
+      - name: Pull curated PrizePicks board
+        if: env.SKIP_COLLECTION != '1'
         run: |
           set -euo pipefail
-          count="$(jq 'length' artifacts/candidates.json)"
-          if [ "$count" = "0" ]; then
-            echo '[]' > artifacts/prizepicks-rows.json
-            exit 0
-          fi
-          leagues="$(jq -R -s 'split("\n")|map(select(length>0))|map(if .=="mlb" then "MLB" elif .=="nfl" then "NFL" elif .=="nhl" then "NHL" else empty end)' artifacts/sports.txt)"
-          names="$(cat artifacts/player-names.txt)"
-          input="$(jq -n --argjson leagues "$leagues" --arg names "$names" '{
-            leagues:$leagues,
-            playerNames:$names,
+          # One Actor start per day. Actor-side filters prevent paying for the full board.
+          # Research-only sports are intentionally allowed even without an FBIS projection.
+          input="$(jq -n '{
+            leagues:["MLB","NFL","NHL","NBA","WNBA","CFB","CBB","Tennis","Soccer"],
+            statTypes:"Pitcher Strikeouts, Pitching Outs, Pass Yards, Rush Yards, Rec Yards, SOG, Goalie Saves, Points, Rebounds, Assists, 3PTM, Total Games, Total Games Won, SOT, Passes Attempted",
             oddsTiers:["standard","goblin","demon"]
           }')"
           body="$(mktemp)"
-          code="$(curl -sS --max-time 180             -X POST             -H "Authorization: Bearer ${APIFY_TOKEN}"             -H "content-type: application/json"             --data-binary "$input"             -o "$body" -w "%{http_code}"             "https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items")"
+          code="$(curl -sS --max-time 240 \
+            -X POST \
+            -H "Authorization: Bearer ${APIFY_TOKEN}" \
+            -H "content-type: application/json" \
+            --data-binary "$input" \
+            -o "$body" -w "%{http_code}" \
+            "https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items?format=json&clean=true")"
           echo "PrizePicks Actor http=$code"
           test "$code" = "200"
           jq -e 'type=="array"' "$body" >/dev/null
           cp "$body" artifacts/prizepicks-rows.json
-          echo "returned=$(jq 'length' artifacts/prizepicks-rows.json)"
+          rows="$(jq 'length' artifacts/prizepicks-rows.json)"
+          echo "returned=$rows"
+          test "$rows" -gt 0
 
-      - name: Persist PrizePicks lines
+      - name: Persist curated PrizePicks lines
+        if: env.SKIP_COLLECTION != '1'
         run: |
           set -euo pipefail
-          rows="$(jq 'length' artifacts/prizepicks-rows.json)"
-          if [ "$rows" = "0" ]; then
-            echo "No PrizePicks rows returned."
-            exit 0
-          fi
           run_id="pp_$(date -u +%Y%m%dT%H%M%SZ)_${GITHUB_RUN_ID}"
           payload="$(mktemp)"
-          jq -n             --arg runId "$run_id"             --argjson rows "$(cat artifacts/prizepicks-rows.json)"             --argjson candidates "$(cat artifacts/candidates.json)"             '{runId:$runId,rows:$rows,candidates:$candidates}' > "$payload"
+          jq -n \
+            --arg runId "$run_id" \
+            --argjson rows "$(cat artifacts/prizepicks-rows.json)" \
+            --argjson candidates "$(cat artifacts/candidates.json)" \
+            '{runId:$runId,rows:$rows,candidates:$candidates}' > "$payload"
           body="$(mktemp)"
-          code="$(curl -sS --max-time 90 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             --data-binary "@$payload"             -o "$body" -w "%{http_code}"             "$BASE/api/prizepicks-props")"
+          code="$(curl -sS --max-time 120 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            --data-binary "@$payload" \
+            -o "$body" -w "%{http_code}" \
+            "$BASE/api/prizepicks-props")"
           cat "$body"
           test "$code" = "200"
-          jq -e '.ok==true' "$body" >/dev/null
+          jq -e '.ok==true and .written>0' "$body" >/dev/null
+          cp "$body" artifacts/persist-result.json
+
+      - name: Verify live PrizePicks readback
+        if: env.SKIP_COLLECTION != '1'
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 45 "$BASE/api/prizepicks-props?limit=500&_t=$(date +%s)" > artifacts/readback.json
+          jq -e '.ok==true and .count>0 and (.rows|length)>0' artifacts/readback.json >/dev/null
           {
-            echo "## PrizePicks targeted feed"
+            echo "## PrizePicks curated feed"
             echo "- FBIS candidates: $(jq 'length' artifacts/candidates.json)"
-            echo "- PrizePicks rows returned: $(jq 'length' artifacts/prizepicks-rows.json)"
-            echo "- Rows matched to FBIS: $(jq -r '.matched' "$body")"
-            echo "- Estimated Actor cost: $$(jq -r '.estimatedCostUsd' "$body")"
+            echo "- Actor rows: $(jq 'length' artifacts/prizepicks-rows.json)"
+            echo "- Persisted: $(jq -r '.written' artifacts/persist-result.json)"
+            echo "- Matched to FBIS: $(jq -r '.matched' artifacts/persist-result.json)"
+            echo "- Estimated Actor cost: $$(jq -r '.estimatedCostUsd' artifacts/persist-result.json)"
+            echo "- Live readback rows: $(jq -r '.count' artifacts/readback.json)"
+            echo "- Sports: $(jq -r '[.rows[].sport]|unique|join(", ")' artifacts/readback.json)"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && env.SKIP_COLLECTION != '1'
         with:
-          name: prizepicks-targeted-${{ github.run_id }}
+          name: prizepicks-curated-${{ github.run_id }}
           path: artifacts/
           retention-days: 14
