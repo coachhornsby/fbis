@@ -40,17 +40,23 @@ jobs:
         if: github.event_name == 'push'
         run: |
           set -euo pipefail
-          for i in $(seq 1 30); do
+          expected="$(echo "${GITHUB_SHA}" | tr 'A-F' 'a-f')"
+          for i in $(seq 1 36); do
+            health="$(mktemp)"
+            hcode="$(curl -sS --max-time 20 -o "$health" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)-$i" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$health" 2>/dev/null | tr 'A-F' 'a-f')"
             code="$(curl -sS --max-time 20 -o /tmp/budget.json -w "%{http_code}" \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              "$BASE/api/prizepicks-props?mode=budget&_t=$(date +%s)" || true)"
-            if [ "$code" = "200" ] && jq -e '.targetMonthlyUsd == 22 and .hardMonthlyCapUsd == 25' /tmp/budget.json >/dev/null 2>&1; then
+              "$BASE/api/prizepicks-props?mode=budget&_t=$(date +%s)-$i" || true)"
+            if [ "$hcode" = "200" ] && [ "$live" = "$expected" ] && [ "$code" = "200" ] && jq -e '.targetMonthlyUsd == 22 and .hardMonthlyCapUsd == 25' /tmp/budget.json >/dev/null 2>&1; then
+              echo "production SHA ready: $live"
               cat /tmp/budget.json
               exit 0
             fi
-            echo "waiting for updated production API attempt=$i/30 http=$code"
+            echo "waiting for production SHA/API attempt=$i/36 health=$hcode live=${live:-none} expected=$expected budget=$code"
             sleep 10
           done
+          echo "PrizePicks collection blocked: production did not converge to ${GITHUB_SHA}"
           exit 1
 
       - name: Shared monthly budget gate
