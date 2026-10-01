@@ -17,14 +17,14 @@ const starterEnv = {
 
 test("fitMaxItemsToUsdBudget keeps estimate under soft board cap", () => {
   const fitted = fitMaxItemsToUsdBudget(
-    { leagues: ["nfl"], periods: ["event"], maxItems: 200 },
+    { leagues: ["nfl"], periods: ["event"], maxGames: 200 },
     ACTION_APIFY_BOARD_SOFT_CAP_USD
   );
   assert.ok(fitted.maxItems <= 200);
   assert.ok(fitted.estimatedCostUsd <= ACTION_APIFY_BOARD_SOFT_CAP_USD + 1e-9);
   assert.equal(
     estimateActorCostUsd(
-      { leagues: ["nfl"], periods: ["event"], maxItems: fitted.maxItems },
+      { leagues: ["nfl"], periods: ["event"], maxGames: fitted.maxItems },
       { gamesReturned: fitted.maxItems }
     ),
     fitted.estimatedCostUsd
@@ -35,15 +35,15 @@ test("planCandidateCollection slate-sizes under harvest soft cap", () => {
   const plan = planCandidateCollection(starterEnv, {
     sport: "nfl",
     lifecycle: "pregame",
-    maxItems: 200,
+    maxGames: 200,
     slateExpected: 17,
   });
-  assert.ok(plan.input.maxItems <= 17 + 8);
+  assert.ok(plan.input.maxGames <= 17 + 8);
   assert.ok(plan.estimatedCostUsd < 1.0);
 });
 
-test("default starter maxItems no longer uses 200 safety cap", () => {
+test("default starter maxGames no longer uses 200 safety cap", () => {
   const plan = planCandidateCollection(starterEnv, { sport: "nfl", lifecycle: "pregame" });
-  assert.ok(plan.input.maxItems <= 80);
+  assert.ok(plan.input.maxGames <= 80);
   assert.ok(plan.estimatedCostUsd < 1.0);
 });

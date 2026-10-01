@@ -147,11 +147,9 @@ export function planCandidateCollection(env, opts) {
       {
         leagues: leaguesForSport(sport),
         periods: ["event"],
-        maxItems,
+        maxGames: maxItems,
         includeLineMovement: Boolean(flags.includeLineMovement),
-        includePlayerProps: Boolean(flags.includePlayerProps),
-        includeGameProps: Boolean(flags.includeGameProps),
-        includeGameDetail: Boolean(flags.includeGameDetail),
+        includeProps: Boolean(flags.includePlayerProps || flags.includeGameProps),
       },
       fitBudget
     );
@@ -186,7 +184,7 @@ export function planCandidateCollection(env, opts) {
       profile === COLLECTION_PROFILES.CAPABILITY_AUDIT,
   });
 
-  const estimatedCostUsd = estimateActorCostUsd(input, { gamesReturned: input.maxItems });
+  const estimatedCostUsd = estimateActorCostUsd(input, { gamesReturned: input.maxGames });
 
   return {
     cfg,
@@ -583,7 +581,7 @@ export async function runCandidateCollection(env, opts) {
         circuitOpen: status === "circuit_open",
         apifyRunId: null,
         datasetId: null,
-        requestedMaxItems: plan.input.maxItems,
+        requestedMaxItems: plan.input.maxGames,
         gamesExpected: Array.isArray(opts.fbisEvents) && opts.fbisEvents.length ? opts.fbisEvents.length : null,
         gamesReturned: 0,
         gamesMatched: 0,
@@ -658,7 +656,7 @@ export async function runCandidateCollection(env, opts) {
         circuitOpen: safety.circuitOpen,
         apifyRunId: null,
         datasetId: null,
-        requestedMaxItems: plan.input.maxItems,
+        requestedMaxItems: plan.input.maxGames,
         gamesExpected: null,
         gamesReturned: 0,
         gamesMatched: 0,
@@ -725,7 +723,7 @@ export async function runCandidateCollection(env, opts) {
           shadowResult = await runActionApifyShadow(env, {
             ...plan.input,
             freePlan: plan.freePlan,
-            maxItems: plan.input.maxItems,
+            maxItems: plan.input.maxGames,
             fetchImpl: opts.fetchImpl,
             waitSecs: Math.floor(plan.cfg.maxRunDurationMs / 1000),
             testId: runId,
@@ -840,7 +838,7 @@ export async function runCandidateCollection(env, opts) {
       fbisEvents,
       actionRows: normalized,
       matchDetails,
-      requestedMaxItems: plan.input.maxItems,
+      requestedMaxItems: plan.input.maxGames,
     });
 
     const logicalCollectionKey =
@@ -948,7 +946,7 @@ export async function runCandidateCollection(env, opts) {
         circuitOpen: false,
         apifyRunId: shadowResult.runId || null,
         datasetId: shadowResult.datasetId || null,
-        requestedMaxItems: plan.input.maxItems,
+        requestedMaxItems: plan.input.maxGames,
         gamesExpected,
         gamesReturned: normalized.length,
         gamesMatched,
@@ -1043,7 +1041,7 @@ export async function runCandidateCollection(env, opts) {
       sport: plan.sport,
       lifecycle: plan.lifecycle,
       temporalClass: plan.temporalClass,
-      requestedMaxItems: plan.input.maxItems,
+      requestedMaxItems: plan.input.maxGames,
       gamesExpected,
       gamesReturned: normalized.length,
       gamesMatched,
@@ -1118,7 +1116,7 @@ function buildFailureArtifact({ runId, plan, startedAt, finishedAt, durationMs, 
       circuitOpen,
       apifyRunId: null,
       datasetId: null,
-      requestedMaxItems: plan.input.maxItems,
+      requestedMaxItems: plan.input.maxGames,
       gamesExpected: null,
       gamesReturned: 0,
       gamesMatched: 0,

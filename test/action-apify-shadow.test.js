@@ -55,34 +55,34 @@ test("Action Apify stays out of the production odds router", () => {
   assert.equal(ACTION_APIFY_ACTOR_ID, "zen-studio/action-network-odds");
 });
 
-test("free-plan maxItems hard-clamps to 10", () => {
+test("free-plan maxGames hard-clamps to 10", () => {
   assert.equal(clampMaxItems(100), ACTION_APIFY_FREE_MAX_ITEMS);
   assert.equal(clampMaxItems(3), 3);
   const input = buildActorInput({ leagues: ["ncaaf"], maxItems: 50, includeLineMovement: true });
-  assert.equal(input.maxItems, 10);
+  assert.equal(input.maxGames, 10);
   assert.deepEqual(input.leagues, ["ncaaf"]);
   assert.equal(input.includeLineMovement, true);
-  assert.equal(input.includeFutures, false);
+  assert.equal(input.includeProps, false);
 });
 
-test("Actor input enums alias final→complete and firstfive→firstfiveinnings", () => {
+test("Zen Actor input enums alias final→complete and legacy F5→event", () => {
   assert.equal(normalizeActorGameStatus("final"), "complete");
   assert.equal(normalizeActorGameStatus("complete"), "complete");
-  assert.equal(normalizeActorPeriod("firstfive"), "firstfiveinnings");
-  assert.equal(normalizeActorPeriod("firstfiveinnings"), "firstfiveinnings");
+  assert.equal(normalizeActorPeriod("firstfive"), "event");
+  assert.equal(normalizeActorPeriod("firstfiveinnings"), "event");
   assert.equal(canonicalizeShadowPeriod("firstfiveinnings"), "firstfive");
   const c = buildActorInput({ leagues: ["ncaaf"], gameStatus: "final", maxItems: 10 });
-  assert.equal(c.gameStatus, "complete");
+  assert.deepEqual(c.gameStatus, ["complete"]);
   const e = buildActorInput({ leagues: ["mlb"], periods: ["firstfive"], maxItems: 10 });
-  assert.deepEqual(e.periods, ["firstfiveinnings"]);
+  assert.deepEqual(e.periods, ["event"]);
 });
 
 test("cost accounting estimates Zen Studio per-result pricing and enforces $1 research budget", () => {
   const input = buildActorInput({ leagues: ["ncaaf"], periods: ["event"], maxItems: 10, includeLineMovement: false });
   const est = estimateActorCostUsd(input, { gamesReturned: 10 });
-  assert.equal(est, 0.025);
+  assert.equal(est, 0.045);
   const withMove = estimateActorCostUsd({ ...input, includeLineMovement: true }, { gamesReturned: 5 });
-  assert.equal(withMove, 0.013);
+  assert.equal(withMove, 0.045);
   const budget = createResearchBudget({ limitUsd: ACTION_APIFY_RESEARCH_BUDGET_USD });
   assert.equal(budget.canAfford(0.9), true);
   assert.equal(budget.record({ estimatedCostUsd: 0.9, testId: "A" }).ok, true);
@@ -91,6 +91,52 @@ test("cost accounting estimates Zen Studio per-result pricing and enforces $1 re
   assert.equal(blocked.ok, false);
   assert.equal(blocked.blocked, true);
   assert.ok(budget.spentUsd <= 1.0 + 1e-9);
+});
+
+test("current Zen nested contract normalizes consensus, splits, movement, score and result", () => {
+  const raw = {
+    gameId: 290843, league: "nfl", season: 2026, week: 1, seasonType: "reg",
+    startTime: "2026-09-10T00:20:00.000Z", status: "complete", isComplete: true,
+    homeTeam: { name: "Seattle Seahawks", abbreviation: "SEA" },
+    awayTeam: { name: "New England Patriots", abbreviation: "NE" },
+    score: { homeScore: 13, awayScore: 10 },
+    consensus: {
+      moneyline: { holdPercent: 3.2, sides: [
+        { side:"home", odds:-175, noVigProbability:0.6159, ticketPercent:82, moneyPercent:53, sharpGap:-29 },
+        { side:"away", odds:155, noVigProbability:0.3841, ticketPercent:18, moneyPercent:47, sharpGap:29 }
+      ]},
+      spread: { holdPercent:4.5, sides:[
+        {side:"home",line:-3.5,odds:-110,noVigProbability:0.5,ticketPercent:46,moneyPercent:35,sharpGap:-11},
+        {side:"away",line:3.5,odds:-110,noVigProbability:0.5,ticketPercent:54,moneyPercent:65,sharpGap:11}
+      ]},
+      total: { holdPercent:4.5, sides:[
+        {side:"over",line:44.5,odds:-108,noVigProbability:0.4957,ticketPercent:29,moneyPercent:41,sharpGap:12},
+        {side:"under",line:44.5,odds:-112,noVigProbability:0.5043,ticketPercent:71,moneyPercent:59,sharpGap:-12}
+      ]}
+    },
+    lineMovement: {
+      spread:[{side:"home",openingLine:-4.5,currentLine:-3.5,openingOdds:-107,currentOdds:-110,lineDelta:1}],
+      total:[{side:"under",openingLine:45.5,currentLine:44.5,openingOdds:-115,currentOdds:-112,lineDelta:-1}],
+      moneyline:[
+        {side:"home",openingOdds:-190,currentOdds:-175,oddsDelta:15},
+        {side:"away",openingOdds:165,currentOdds:155,oddsDelta:-10}
+      ]
+    },
+    result:{winner:"home",againstTheSpread:"away",overUnder:"under",totalLine:44.5,totalPoints:23}
+  };
+  const row=normalizeActionGameRow(raw,{receivedAt:"2026-09-10T04:00:00Z"});
+  assert.ok(row);
+  assert.equal(row.consensus.moneylineHome,-175);
+  assert.equal(row.consensus.spreadHome,-3.5);
+  assert.equal(row.consensus.total,44.5);
+  assert.equal(row.publicBetting.moneylineHome.moneyMinusTickets,-29);
+  assert.equal(row.marketQuality.noVig.moneylineHome,0.6159);
+  assert.equal(row.lineMovement.openSpreadHome,-4.5);
+  assert.equal(row.lineMovement.currentTotal,44.5);
+  assert.equal(row.result.homeScore,13);
+  assert.equal(row.result.awayScore,10);
+  assert.equal(row.result.atsResult,"away");
+  assert.equal(row.result.ouResult,"under");
 });
 
 test("scheduled games keep null results (never invent 0-0)", async () => {

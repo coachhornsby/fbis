@@ -525,21 +525,25 @@ export function buildCostLedgerEntry({
   const games = Math.max(0, Number(gamesReturned) || 0);
   const P = ACTION_APIFY_PRICING_USD;
 
-  // Zen Studio bills by returned result. Keep legacy ledger columns for schema
-  // compatibility, but allocate the full conservative estimate to row_usd.
-  const runStartUsd = 0;
+  // Zen Studio Basic tier, conservatively priced at the highest published
+  // per-unit rates. Legacy ledger columns are retained for schema compatibility.
+  const leagues = Array.isArray(input.leagues) ? input.leagues.length : 1;
+  const runStartUsd = roundUsd(P.runStart);
   const scoreboardUsd = 0;
-  const rowUsd = roundUsd(games * P.perResultBasic);
-  const movementUsd = 0;
-  const playerPropsUsd = 0;
+  const rowUsd = roundUsd(games * P.game);
+  const movementUsd = input.includeLineMovement ? roundUsd(games * P.movementPerGame) : 0;
+  const propsUsd = input.includeProps ? roundUsd(games * P.propsPerGame) : 0;
+  const playerPropsUsd = propsUsd;
   const gamePropsUsd = 0;
   const detailUsd = 0;
   const weatherUsd = 0;
-  const injuriesUsd = 0;
-  const standingsUsd = 0;
+  const injuriesUsd = input.includeInjuries ? roundUsd(leagues * P.leagueReport) : 0;
+  const standingsUsd = input.includeStandings ? roundUsd(leagues * P.leagueReport) : 0;
   const futuresUsd = 0;
 
-  const estimatedTotalUsd = rowUsd;
+  const estimatedTotalUsd = roundUsd(
+    runStartUsd + rowUsd + movementUsd + propsUsd + injuriesUsd + standingsUsd
+  );
   const actual = actualTotalUsd == null ? null : roundUsd(Number(actualTotalUsd));
   const costBasis = actual == null ? "ESTIMATED" : "ACTUAL";
 
@@ -567,10 +571,11 @@ export function buildCostLedgerEntry({
     games_returned: games,
     features_json: JSON.stringify({
       includeLineMovement: Boolean(input.includeLineMovement),
-      includePlayerProps: Boolean(input.includePlayerProps),
-      includeGameProps: Boolean(input.includeGameProps),
-      includeGameDetail: Boolean(input.includeGameDetail),
-      includeWeather: Boolean(input.includeWeather),
+      includeProps: Boolean(input.includeProps),
+      includePlayerProps: Boolean(input.includeProps),
+      includeGameProps: Boolean(input.includeProps),
+      includeGameDetail: false,
+      includeWeather: false,
       includeInjuries: Boolean(input.includeInjuries),
       includeStandings: Boolean(input.includeStandings),
       includeFutures: Boolean(input.includeFutures),

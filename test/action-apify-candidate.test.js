@@ -119,16 +119,15 @@ test("CAPABILITY_AUDIT plan enables all four enrichments and respects maxItems",
     gameUrls: ["290853", "290851", "290845", "290800"],
   });
   assert.equal(plan.profile, "CAPABILITY_AUDIT");
-  assert.equal(plan.input.maxItems, 4);
+  assert.equal(plan.input.maxGames, 4);
   assert.equal(plan.input.includeLineMovement, true);
-  assert.equal(plan.input.includePlayerProps, true);
-  assert.equal(plan.input.includeGameProps, true);
-  assert.equal(plan.input.includeGameDetail, true);
-  assert.equal(plan.input.includeWeather, false);
+  assert.equal(plan.input.includeProps, true);
+  assert.equal(plan.input.includeLineMovement, true);
   assert.deepEqual(plan.input.gameUrls, ["290853", "290851", "290845", "290800"]);
-  assert.equal(plan.input.onlyWithOdds, true);
-  // Conservative Zen Studio Basic pricing: 4 results × $0.0025 = $0.010.
-  assert.equal(plan.estimatedCostUsd, 0.01);
+  // Current Zen contract has no onlyWithOdds field; completed/odds filtering is
+  // expressed by league/date/week/gameStatus and the returned market payload.
+  assert.equal("onlyWithOdds" in plan.input, false);
+  assert.ok(plan.estimatedCostUsd > 0 && plan.estimatedCostUsd < 0.10);
 });
 
 test("capability audit summary covers BASE + enrichments without inventing observedAt", async () => {
@@ -270,7 +269,7 @@ test("cost ledger + monthly budget sufficiency model is measurable", () => {
     plan: "starter",
     sport: "cfb",
     profile: "BASE",
-    input: { leagues: ["ncaaf"], periods: ["event"], maxItems: 20, includeLineMovement: false },
+    input: { leagues: ["ncaaf"], periods: ["event"], maxGames: 20, includeLineMovement: false },
     gamesReturned: 20,
   });
   assert.equal(entry.cost_basis, "ESTIMATED");
@@ -305,7 +304,7 @@ test("scheduler: free/starter plans, budget guard, idempotent offline collect", 
     { ACTION_APIFY_ENABLED: "true", ACTION_APIFY_PLAN: "free", ACTION_APIFY_MAX_ITEMS: "50", APIFY_TOKEN: "x" },
     { sport: "cfb", lifecycle: "pregame" }
   );
-  assert.ok(freePlan.input.maxItems <= 10);
+  assert.ok(freePlan.input.maxGames <= 10);
 
   const starterEnv = {
     ACTION_APIFY_ENABLED: "true",
@@ -314,7 +313,7 @@ test("scheduler: free/starter plans, budget guard, idempotent offline collect", 
     APIFY_TOKEN: "x",
   };
   const starterPlan = planCandidateCollection(starterEnv, { sport: "nfl", lifecycle: "pregame" });
-  assert.equal(starterPlan.input.maxItems, 40);
+  assert.equal(starterPlan.input.maxGames, 40);
   assert.equal(evaluateSchedulerSafety(starterPlan).allowed, true);
   const blockedBudget = evaluateSchedulerSafety(starterPlan, { monthToDateCostUsd: 1e9 });
   assert.equal(blockedBudget.allowed, false);

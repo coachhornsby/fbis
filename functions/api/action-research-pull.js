@@ -71,6 +71,6 @@ export async function onRequestPost(context){
   const mtd=await queryMonthToDateSpendUsd(d);
   const safety=evaluateSchedulerSafety(plan,{monthToDateCostUsd:mtd.mtdUsd});
   if(!safety.allowed) return json({ok:false,executed:false,status:"blocked",blocks:safety.blocks,budget:safety,inProductionRouter:false,canQualify:false,canAuthorizeWager:false},409);
-  const result=await runCandidateCollection(researchEnv,{...opts,maxItems:plan.input.maxItems,fbisEvents:[],gamesExpected:null,db:d,monthToDateCostUsd:mtd.mtdUsd});
+  const result=await runCandidateCollection(researchEnv,{...opts,maxItems:plan.input.maxGames,fbisEvents:[],gamesExpected:null,db:d,monthToDateCostUsd:mtd.mtdUsd});
   return json({...result,rows:undefined,executed:true,inProductionRouter:false,canQualify:false,canAuthorizeWager:false},result.ok?200:502);
 }
