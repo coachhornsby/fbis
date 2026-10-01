@@ -37,15 +37,24 @@ export async function onRequestPost(context){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||end<start)return json({ok:false,error:"valid-start-end-required"},400);
   const leagues=Array.isArray(body.leagues)&&body.leagues.length?body.leagues.filter(x=>SOCCER_LEAGUES.includes(x)):SOCCER_LEAGUES;
   let finals=0,applied=0,skipped=0,failed=0;const errors=[];
-  for(const league of leagues){
-    try{
-      const games=await fetchLeague(league,start,end);
-      for(const g of games){
-        finals++;
-        const res=await applyFinalToForm(context.env,{sport:"soccer",season:soccerSeasonYear(new Date(g.date+"T12:00:00Z")),gameId:g.id,date:g.date,home:g.home,away:g.away,homeScore:g.homeScore,awayScore:g.awayScore});
-        if(res?.skipped)skipped++;else if(res?.ok)applied++;else failed++;
-      }
-    }catch(err){errors.push(`${league}: ${String(err?.message||err)}`);}
+  const supplied=Array.isArray(body.games)?body.games:null;
+  const applyGames=async(games=[])=>{
+    for(const g of games){
+      const date=String(g?.date||"").slice(0,10);
+      const hs=finite(g?.homeScore),as=finite(g?.awayScore);
+      if(!g?.id||!date||hs==null||as==null){failed++;continue;}
+      finals++;
+      const res=await applyFinalToForm(context.env,{sport:"soccer",season:soccerSeasonYear(new Date(date+"T12:00:00Z")),gameId:String(g.id),date,home:g.home||{},away:g.away||{},homeScore:hs,awayScore:as});
+      if(res?.skipped)skipped++;else if(res?.ok)applied++;else failed++;
+    }
+  };
+  if(supplied){
+    await applyGames(supplied);
+  }else{
+    for(const league of leagues){
+      try{await applyGames(await fetchLeague(league,start,end));}
+      catch(err){errors.push(`${league}: ${String(err?.message||err)}`);}
+    }
   }
-  return json({ok:errors.length===0&&failed===0,start,end,leagues,finals,applied,skipped,failed,errors});
+  return json({ok:errors.length===0&&failed===0,start,end,leagues,source:supplied?"trusted-runner-payload":"cloud-fetch",finals,applied,skipped,failed,errors});
 }
