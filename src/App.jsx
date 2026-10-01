@@ -18,6 +18,7 @@ import AppShell, { FeaturePlaceholder } from "./app/AppShell.jsx";
 import PublishView from "./features/publish/PublishView.jsx";
 import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.js";
 import PlayerPropsBoard from "./features/playerProps/PlayerPropsBoard.jsx";
+import PrizePicksMarketPanel from "./features/playerProps/PrizePicksMarketPanel.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
 import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
 import MispricesView from "./features/misprices/MispricesView.jsx";
@@ -542,6 +543,9 @@ export default function App() {
               status="BOARD-FIRST · PHASE A"
               body="Sport/model status, projection coverage, and publish tooling live here. Player props and performance remain secondary to the Board decision loop."
             />
+            {route === "props" || route === "player-props" ? (
+              <PrizePicksMarketPanel sportFilter={sportFilter === "all" ? todaySport : sportFilter} />
+            ) : null}
             {route === "props" || route === "player-props" || route === "models" ? (
               <PlayerPropsBoard
                 board={todayBoard}
