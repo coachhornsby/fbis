@@ -111,6 +111,10 @@ export const RECIPE_GUIDE = {
     engine: "Baseball Savant champion + Ballpark Pal external benchmark",
     body: "Two independent MLB models. Proprietary: Savant RPG × starter ERA-eq × 1.04 home, clamped 2.3–7.2. Ballpark Pal: simulated runs and Pal win probability as a separate layer — Pal never overwrites Savant and is never a sportsbook price. Scheduled collection writes checkpoints to D1 even if the board is closed.",
   },
+  soccer: {
+    engine: "SOCCER-FBIS-v1 research",
+    body: "Independent six-league scoreboard-derived goal-form model with Poisson 1X2 probabilities. Market/Action data is evaluation-only. Research-only until market-relative validation passes.",
+  },
   nba: {
     engine: "NBA-FBIS-FORM-v1 research",
     body: "Independent scoreboard-derived prior/current team scoring-form projection. Market-implied scores remain benchmark context only. Research-only until walk-forward and market-relative validation passes.",
@@ -482,9 +486,9 @@ function formSeasonForSport(sport, date) {
   if (sport === "cfb") return Number(cfbSeasonYear(date));
   const y = Number(String(date).slice(0, 4));
   const m = Number(String(date).slice(5, 7));
-  if (sport === "nba" || sport === "cbb" || sport === "nhl") {
+  if (sport === "nba" || sport === "cbb" || sport === "nhl" || sport === "soccer") {
     if (!Number.isFinite(y) || !Number.isFinite(m)) return Number(nflSeasonYear(date));
-    return m >= 10 ? y : y - 1;
+    return sport === "soccer" ? (m >= 7 ? y : y - 1) : (m >= 10 ? y : y - 1);
   }
   return Number.isFinite(y) ? y : Number(nflSeasonYear(date));
 }
