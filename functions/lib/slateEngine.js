@@ -25,6 +25,7 @@ import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
 import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
+import { loadWnbaPlayerContext, attachWnbaPlayerProjectionResearch } from "./wnbaPlayerProjection.js";
 import {
   marketImpliedAuthority,
   deriveBoardDecision,
@@ -261,6 +262,22 @@ export async function buildSlate(sport, date, env = {}) {
       research: {
         ...(next.research || {}),
         basketballForm: basketball.meta,
+      },
+    };
+  }
+
+  if (id === "wnba" && Array.isArray(next.games)) {
+    const wnbaCtx = await loadWnbaPlayerContext(next.games, next.date || date).catch((err) => ({
+      byTeam: {},
+      meta: { source:"ESPN_WNBA_ATHLETE_STATS", error:String(err?.message||err), marketInformed:false },
+    }));
+    const wnbaPlayers = attachWnbaPlayerProjectionResearch(next.games, wnbaCtx);
+    next = {
+      ...next,
+      games: wnbaPlayers.games,
+      research: {
+        ...(next.research || {}),
+        wnbaPlayerProjection: wnbaPlayers.meta,
       },
     };
   }

@@ -82,7 +82,7 @@ jobs:
           today="$(TZ=America/Chicago date +%F)"
           # Only sports with the current durable player-projection contract need candidate matching.
           # Research-only sports still ingest below without blocking on projection APIs.
-          for sport in mlb nfl nhl; do
+          for sport in mlb nfl nhl wnba; do
             for date in "$today"; do
               tmp="$(mktemp)"
               code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" "$BASE/api/projections?sport=$sport&date=$date&_t=$(date +%s)" || true)"
@@ -133,9 +133,9 @@ jobs:
           fi
           players_json="$(printf '%s\n' "${player_names[@]}" | jq -R . | jq -s .)"
           input="$(jq -n --argjson players "$players_json" '{
-            leagues:["MLB","NFL","NHL"],
+            leagues:["MLB","NFL","NHL","WNBA"],
             playerNames:$players,
-            statTypes:"Pitcher Strikeouts, Pitching Outs, Pass Yards, Rush Yards, Rec Yards, SOG, Goalie Saves",
+            statTypes:"Pitcher Strikeouts, Pitching Outs, Pass Yards, Rush Yards, Rec Yards, SOG, Goalie Saves, Points, Rebounds, Assists, 3PTM",
             oddsTiers:["standard","goblin","demon"]
           }')"
           echo "today=$today targetedPlayers=${#player_names[@]}"
