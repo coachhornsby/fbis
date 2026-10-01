@@ -15,6 +15,10 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: projection-sheet-export
+  cancel-in-progress: true
+
 jobs:
   export:
     runs-on: ubuntu-latest
@@ -24,8 +28,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for off in -1 0 1 2; do
-            date="$(date -u -d "$off day" +%F)"
+          for off in -1 0; do
+            date="$(TZ=America/Chicago date -d "$off day" +%F)"
             body="$(mktemp)"
             code="$(curl -sS --max-time 90 --retry 1 --retry-all-errors               -o "$body" -w "%{http_code}"               "https://fbis-myz.pages.dev/api/slate?sport=mlb&date=${date}&_t=$(date +%s)")"
             echo "pal-cache-warm date=${date} http=${code}"
