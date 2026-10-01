@@ -31,3 +31,6 @@ CREATE INDEX IF NOT EXISTS idx_prizepicks_prop_lines_event
   ON prizepicks_prop_lines(fbis_event_id, collected_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prizepicks_prop_lines_player_market
   ON prizepicks_prop_lines(player_name, canonical_market, collected_at DESC);
+
+INSERT OR IGNORE INTO schema_migrations (id, applied_at)
+VALUES ('0032_prizepicks_prop_lines', datetime('now'));
