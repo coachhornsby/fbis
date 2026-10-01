@@ -41,6 +41,7 @@ function buildCfg(env = runtimeEnv){
       modelLearning: 'Model Learning',
       projectionAudit: 'Projection Audit',
       projectionLedger: 'Projection Ledger',
+      wagerFeed: 'Wager Feed',
       mlbPitcherProjections: 'MLB Pitcher Projections',
       npbOps: 'NPB Ops',
       kboOps: 'KBO Ops',
@@ -1277,6 +1278,40 @@ async function syncAsiaOpsSheet(sport,sheetName){
   const persisted=(readback.values||[]).filter(r=>String(r?.[0]||"").trim()).length;
   if(persisted!==normalized.length) throw new Error(sport.toUpperCase()+" Ops readback mismatch wrote="+normalized.length+" read="+persisted);
   return {feedRows:rows.length,persisted};
+}
+
+export async function syncWagerFeed(inputRows=[]){
+  if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required for wager feed sync");
+  const rows=Array.isArray(inputRows)?inputRows:[];
+  const sheetRes=await sheets.get(q(CFG.sheets.wagerFeed)+"!A1:Z2000");
+  const headers=(sheetRes.values||[])[0]||[];
+  if(headers.length!==26) throw new Error("Wager Feed header contract mismatch: expected 26, got "+headers.length);
+  const keyMap={
+    "Generated At":"generatedAt","Game Date":"gameDate","Event Start":"eventStart","Sport":"sport","Matchup":"matchup",
+    "Decision":"decision","Grade":"grade","Market":"market","Pick":"pick","Side":"side","Line":"line",
+    "Qualification Book":"qualificationBook","Qualification Price":"qualificationPrice","Execution Book":"executionBook",
+    "Execution Price":"executionPrice","Model Probability":"modelProbability","Market No-Vig Probability":"marketNoVigProbability",
+    "Probability Edge (pp)":"probabilityEdgePp","Expected ROI":"expectedRoi","Execution ROI":"executionRoi",
+    "Minimum Acceptable Odds":"minimumAcceptableOdds","Suggested Units":"suggestedUnits","Model Version":"modelVersion",
+    "Checkpoint":"checkpoint","Status":"status","Reason":"reason"
+  };
+  const normalized=rows
+    .filter(r=>r&&r.sport&&r.matchup&&r.decision)
+    .sort((a,b)=>{
+      const ar=a.status==="READY"?0:1, br=b.status==="READY"?0:1;
+      return ar-br || String(a.eventStart||"").localeCompare(String(b.eventStart||"")) || String(a.sport||"").localeCompare(String(b.sport||""));
+    })
+    .slice(0,1999)
+    .map(r=>headers.map(h=>r[keyMap[h]]??""));
+  await sheets.clear(q(CFG.sheets.wagerFeed)+"!A2:Z2000");
+  if(normalized.length) await sheets.update(q(CFG.sheets.wagerFeed)+"!A2:Z"+(normalized.length+1),normalized);
+  const readback=await sheets.get(q(CFG.sheets.wagerFeed)+"!A2:Z2000");
+  const vals=readback.values||[];
+  const persisted=vals.filter(r=>String(r?.[0]||"").trim()).length;
+  if(persisted!==normalized.length) throw new Error("Wager Feed readback mismatch wrote="+normalized.length+" read="+persisted);
+  const ready=vals.filter(r=>String(r?.[24]||"")==="READY").length;
+  const shop=vals.filter(r=>String(r?.[5]||"")==="SHOP").length;
+  return {ok:true,written:normalized.length,persisted,ready,shop,syncedAt:now()};
 }
 
 export async function syncOperationalProjectionSheets(){

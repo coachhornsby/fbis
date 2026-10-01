@@ -11,6 +11,9 @@ on:
       - "functions/api/projection-sheet-feed.js"
       - "functions/api/player-projection-sheet-feed.js"
       - "functions/lib/productProjection.js"
+      - "functions/api/wager-feed.js"
+      - "services/sports-projection-orchestrator/orchestrator.mjs"
+      - "workers/sports-projection-orchestrator-worker.mjs"
 
 permissions:
   contents: read
@@ -106,6 +109,43 @@ jobs:
             exit 1
           fi
 
+      - name: Build actionable wager feed
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "Missing HARVEST_SECRET"; exit 1; }
+          mkdir -p artifacts
+          raw="artifacts/wager-feed-raw.ndjson"
+          out="artifacts/wager-feed.json"
+          : > "$raw"
+          today="$(TZ=America/Chicago date +%F)"
+          dates=(
+            "$today"
+            "$(TZ=America/Chicago date -d "$today + 1 day" +%F)"
+            "$(TZ=America/Chicago date -d "$today + 2 days" +%F)"
+          )
+          for sport in mlb npb kbo nfl cfb cbb nba nhl; do
+            for date in "${dates[@]}"; do
+              tmp="$(mktemp)"
+              code="$(curl -sS --max-time 120 --retry 1 --retry-all-errors                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -o "$tmp" -w "%{http_code}"                 "$BASE/api/wager-feed?sport=${sport}&date=${date}")"
+              echo "wager-feed sport=${sport} date=${date} http=${code}"
+              test "$code" = "200"
+              jq -e '.ok == true and (.rows | type == "array")' "$tmp" >/dev/null
+              jq -c '.' "$tmp" >> "$raw"
+            done
+          done
+          jq -s '[.[].rows[]] | unique_by([.sport,.eventStart,.market,.pick,.side,.line])' "$raw" > "$out"
+          echo "wager-feed rows=$(jq 'length' "$out") ready=$(jq '[.[]|select(.status=="READY")]|length' "$out") shop=$(jq '[.[]|select(.decision=="SHOP")]|length' "$out")"
+          {
+            echo "## Actionable wager feed"
+            echo "- Qualified candidates: $(jq 'length' "$out")"
+            echo "- READY bets: $(jq '[.[]|select(.status=="READY")]|length' "$out")"
+            echo "- SHOP candidates: $(jq '[.[]|select(.decision=="SHOP")]|length' "$out")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Persist projection feeds to Google Sheets
         id: sheet_sync
         env:
@@ -125,12 +165,24 @@ jobs:
           cat "$body"
           test "$http" = "200"
           jq -e '.ok == true and .ledger.persisted > 0 and .npb.persisted >= 0 and .kbo.persisted >= 0 and .pitchers.exactPersisted >= 0' "$body" >/dev/null
+
+          wager_payload="$(mktemp)"
+          jq -c '{rows:.}' artifacts/wager-feed.json > "$wager_payload"
+          wager_body="$(mktemp)"
+          wager_http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -X POST             -H "Authorization: Bearer ${token}"             -H "content-type: application/json"             --data-binary "@$wager_payload"             -o "$wager_body" -w "%{http_code}"             "${ORCH_URL}/api/sync-wager-feed")"
+          echo "WAGER FEED SYNC HTTP=$wager_http"
+          cat "$wager_body"
+          test "$wager_http" = "200"
+          jq -e '.ok == true and .persisted >= 0' "$wager_body" >/dev/null
           {
             echo "## Operational Google Sheet persistence"
             echo "- Projection Ledger rows: $(jq -r '.ledger.persisted' "$body")"
             echo "- Exact MLB pitcher rows: $(jq -r '.pitchers.exactPersisted' "$body")"
             echo "- NPB Ops rows: $(jq -r '.npb.persisted' "$body")"
             echo "- KBO Ops rows: $(jq -r '.kbo.persisted' "$body")"
+            echo "- Wager Feed rows: $(jq -r '.persisted' "$wager_body")"
+            echo "- Wager Feed READY: $(jq -r '.ready' "$wager_body")"
+            echo "- Wager Feed SHOP: $(jq -r '.shop' "$wager_body")"
             echo "- Synced: $(jq -r '.syncedAt' "$body")"
           } >> "$GITHUB_STEP_SUMMARY"
 
