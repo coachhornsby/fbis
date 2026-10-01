@@ -34,6 +34,7 @@ export function normalizePrizePicksProjection(row = {}) {
     projectionId: row.projection_id ?? null,
     playerId: row.player_id ?? row.player_ppid ?? null,
     playerName: row.player_name ?? row.player_full_name ?? null,
+    playerHeadshotUrl: row.player_image_url ?? row.playerImageUrl ?? row.player_image ?? row.headshot_url ?? row.headshot ?? row.photo_url ?? row.photo ?? row.player?.image_url ?? row.player?.image ?? null,
     team: row.player_team ?? null,
     position: row.player_position ?? null,
     league: row.league ?? row.player_league ?? null,

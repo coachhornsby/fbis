@@ -13,7 +13,7 @@ import {
 describe("FBIS Board-first product navigation", () => {
   it("exposes Board-first customer nav without sports as primary tabs", () => {
     const ids = CUSTOMER_NAV.map((x) => x.id);
-    assert.deepEqual(ids, ["board", "models", "model-lab", "bets", "market"]);
+    assert.deepEqual(ids, ["board", "player-props", "models", "model-lab", "bets", "market"]);
     assert.ok(!ids.includes("mlb"));
     assert.ok(!ids.includes("cfb"));
     assert.equal(ADMIN_NAV.length, 1);
@@ -40,7 +40,7 @@ describe("FBIS Board-first product navigation", () => {
     assert.equal(normalizeRoute("today"), "board");
     assert.equal(normalizeRoute("markets"), "market");
     assert.equal(normalizeRoute("research"), "model-lab");
-    assert.equal(normalizeRoute("player-props"), "models");
+    assert.equal(normalizeRoute("player-props"), "player-props");
     assert.equal(normalizeRoute("board"), "board");
   });
 
@@ -50,6 +50,7 @@ describe("FBIS Board-first product navigation", () => {
     assert.equal(routeToLegacy("market", "nfl").sport, "nfl");
     assert.equal(routeToLegacy("board").tab, "today");
     assert.equal(routeToLegacy("models").tab, "today");
+    assert.equal(routeToLegacy("player-props").tab, "today");
     assert.equal(routeToLegacy("model-lab").tab, "today");
   });
 

@@ -766,6 +766,7 @@ CREATE TABLE IF NOT EXISTS prizepicks_prop_observations (
   projection_id TEXT,
   player_id TEXT,
   player_name TEXT,
+  player_headshot_url TEXT,
   team TEXT,
   position TEXT,
   league TEXT,

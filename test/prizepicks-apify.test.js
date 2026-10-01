@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { curatedMarketsForSport, marketStatus, PROP_MARKET_STATUS } from "../functions/lib/propMarketPolicy.js";
-import { planPrizePicksRuns, estimatePrizePicksCostUsd, PRIZEPICKS_APIFY_ACTOR_ID } from "../functions/lib/prizePicksApify.js";
+import { planPrizePicksRuns, estimatePrizePicksCostUsd, normalizePrizePicksProjection, PRIZEPICKS_APIFY_ACTOR_ID } from "../functions/lib/prizePicksApify.js";
 import { evaluateSharedApifySpend, querySharedApifyMonthToDateUsd } from "../functions/lib/sharedApifyBudget.js";
 
 test("MLB acquisition is limited to Ks and pitching outs", () => {
@@ -58,4 +58,12 @@ test("shared MTD adds ACTION and dedicated PrizePicks ledgers", async () => {
   const x=await querySharedApifyMonthToDateUsd(db,{now:new Date("2026-10-01T12:00:00Z")});
   assert.equal(x.mtdUsd,21);
   assert.equal(x.runs,30);
+});
+
+test("PrizePicks normalization retains supplied player headshots", () => {
+  const row=normalizePrizePicksProjection({
+    projection_id:"p1", player_name:"Player A", player_image_url:"https://images.example/player.png",
+    league:"NBA", stat_short:"PTS", line:22.5
+  });
+  assert.equal(row.playerHeadshotUrl,"https://images.example/player.png");
 });
