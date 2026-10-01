@@ -29,8 +29,8 @@ test("historical Action research GET plans completed odds-only pull without prod
   assert.equal(body.executed,false);
   assert.equal(body.plan.input.season,2025);
   assert.equal(body.plan.input.week,4);
-  assert.equal(body.plan.input.gameStatus,"complete");
-  assert.equal(body.plan.input.onlyWithOdds,true);
+  assert.deepEqual(body.plan.input.gameStatus,["complete"]);
+  assert.equal("onlyWithOdds" in body.plan.input,false);
   assert.ok(body.plan.estimatedCostUsd <= 0.75 + 1e-9);
   assert.equal(body.inProductionRouter,false);
   assert.equal(body.canQualify,false);
