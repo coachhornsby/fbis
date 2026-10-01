@@ -40,6 +40,10 @@ function buildCfg(env = runtimeEnv){
       allProjections: 'All Projections',
       modelLearning: 'Model Learning',
       projectionAudit: 'Projection Audit',
+      projectionLedger: 'Projection Ledger',
+      mlbPitcherProjections: 'MLB Pitcher Projections',
+      npbOps: 'NPB Ops',
+      kboOps: 'KBO Ops',
       snapshots: 'Feature Snapshots',
       usage: 'AI API Usage',
     }
@@ -1127,6 +1131,163 @@ export async function processQueue(){
     }
   }
   return {processed:results.length,queuedFound:queued.length,results,at:now()};
+}
+
+
+const OPERATIONAL_SYNC_DAYS = Object.freeze([-1,0,1,2]);
+
+function parseCsvRows(text=""){
+  const rows=[]; let row=[]; let cell=""; let quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(quoted){
+      if(ch==='"' && text[i+1]==='"'){ cell+='"'; i++; }
+      else if(ch==='"') quoted=false;
+      else cell+=ch;
+    }else if(ch==='"') quoted=true;
+    else if(ch===','){ row.push(cell); cell=""; }
+    else if(ch==='\n'){ row.push(cell.replace(/\r$/,"")); rows.push(row); row=[]; cell=""; }
+    else cell+=ch;
+  }
+  if(cell.length || row.length){ row.push(cell.replace(/\r$/,"")); rows.push(row); }
+  return rows.filter(r=>r.some(v=>String(v||"").trim()));
+}
+
+async function fetchCsvFeed(path){
+  const base=String(CFG.fbisBaseUrl||"").replace(/\/+$/,"");
+  const res=await fetchRetry(base+path,{headers:{"user-agent":"fbis-sheet-persistence-sync","accept":"text/csv"}},2);
+  const text=await res.text();
+  if(!res.ok) throw new Error("projection sheet feed "+res.status+": "+text.slice(0,300));
+  return parseCsvRows(text);
+}
+
+function rowObjects(values=[]){
+  const headers=values[0]||[];
+  return values.slice(1).filter(r=>r.some(v=>String(v??"").trim())).map(r=>{
+    const out={};
+    headers.forEach((h,i)=>out[String(h||"")]=r[i]??"");
+    return out;
+  });
+}
+
+function americanMlFromProbability(p){
+  const n=Number(p);
+  if(!(n>0&&n<1)) return "";
+  return n>=0.5 ? String(Math.round(-100*n/(1-n))) : "+"+String(Math.round(100*(1-n)/n));
+}
+
+async function syncProjectionLedgerFromAudit(){
+  const auditRes=await sheets.get(q(CFG.sheets.projectionAudit)+"!A1:AF2000");
+  const audit=rowObjects(auditRes.values||[]);
+  const ledgerRes=await sheets.get(q(CFG.sheets.projectionLedger)+"!A1:AT2000");
+  const headers=(ledgerRes.values||[])[0]||[];
+  if(headers.length!==46) throw new Error("Projection Ledger header contract mismatch: expected 46, got "+headers.length);
+  const selected=audit
+    .filter(r=>r["Game ID"]&&r["Frozen At"])
+    .sort((a,b)=>String(a["Frozen At"]).localeCompare(String(b["Frozen At"])))
+    .slice(-1999);
+  const rows=selected.map(r=>{
+    const matchup=String(r["Matchup"]||"");
+    const parts=matchup.split(/\s+@\s+/);
+    const away=parts[0]||"";
+    const home=parts.slice(1).join(" @ ")||"";
+    const pHome=Number(r["Home Win Prob"]);
+    const values={
+      "Projection ID":[r["Sport"],r["Game ID"],r["Model ID"],r["Checkpoint"]].filter(Boolean).join(":"),
+      "Generated At":r["Frozen At"],
+      "Game Date":r["Date"],
+      "Sport":r["Sport"],
+      "Matchup":matchup,
+      "Team":home,
+      "Opponent":away,
+      "Feature Snapshot ID":[r["Game ID"],r["Model Version"],r["Checkpoint"]].filter(Boolean).join("|"),
+      "Feature Schema Version":"prediction_snapshots",
+      "Model Engine Version":[r["Engine"],r["Model Version"]].filter(Boolean).join(" @ "),
+      "Protocol Version":"MULTISPORT-PROJ-v0.2",
+      "Projected Runs":r["Projected Home"],
+      "Projected Opp Runs":r["Projected Away"],
+      "Projected Total":r["Projected Total"],
+      "Win Probability":Number.isFinite(pHome)?pHome:"",
+      "Fair ML":Number.isFinite(pHome)?americanMlFromProbability(pHome):"",
+      "Projection Lock Hash":[r["Game ID"],r["Model ID"],r["Frozen At"]].filter(Boolean).join("|"),
+      "Lock Status":r["Graded At"]?"LOCKED · GRADED":"LOCKED",
+      "Market Seen Before Lock?":String(r["Market Informed?"]||"").toUpperCase()==="YES"?"YES":"NO",
+      "Leakage Check":String(r["Market Informed?"]||"").toUpperCase()==="YES"?"MARKET-INFORMED MODEL":"PASS — MARKET BLIND",
+      "Drift Flag":r["Projection Flags"]||"",
+    };
+    return headers.map(h=>values[h]??"");
+  });
+  await sheets.clear(q(CFG.sheets.projectionLedger)+"!A2:AT2000");
+  if(rows.length) await sheets.update(q(CFG.sheets.projectionLedger)+"!A2:AT"+(rows.length+1),rows);
+  const readback=await sheets.get(q(CFG.sheets.projectionLedger)+"!A2:A2000");
+  const persisted=(readback.values||[]).filter(r=>String(r?.[0]||"").trim()).length;
+  if(persisted!==rows.length) throw new Error("Projection Ledger readback mismatch wrote="+rows.length+" read="+persisted);
+  return {written:rows.length,persisted};
+}
+
+async function syncPitcherProjectionSheet(){
+  const today=dateKeyCT();
+  const all=[];
+  let expectedHeaders=null;
+  for(const off of OPERATIONAL_SYNC_DAYS){
+    const date=shiftDateKey(today,off);
+    const rows=await fetchCsvFeed("/api/player-projection-sheet-feed?sport=mlb&date="+encodeURIComponent(date));
+    if(rows.length){
+      expectedHeaders=expectedHeaders||rows[0];
+      all.push(...rows.slice(1));
+    }
+  }
+  const sheetRes=await sheets.get(q(CFG.sheets.mlbPitcherProjections)+"!A1:AD2000");
+  const existing=sheetRes.values||[];
+  const headers=expectedHeaders||existing[0]||[];
+  if(headers.length!==30) throw new Error("MLB Pitcher Projections header contract mismatch: expected 30, got "+headers.length);
+  const byId=new Map();
+  for(const r of existing.slice(1)){
+    const id=String(r?.[0]||"").trim();
+    if(id&&!id.startsWith("PROV-")) byId.set(id,r);
+  }
+  for(const r of all){
+    const id=String(r?.[0]||"").trim();
+    if(id) byId.set(id,r);
+  }
+  const exact=[...byId.values()].sort((a,b)=>String(a?.[2]||"").localeCompare(String(b?.[2]||""))||String(a?.[3]||"").localeCompare(String(b?.[3]||"")));
+  const provisional=existing.slice(1).filter(r=>String(r?.[0]||"").startsWith("PROV-"));
+  const exactDates=new Set(exact.map(r=>String(r?.[2]||"")).filter(Boolean));
+  const retainedProv=provisional.filter(r=>!exactDates.has(String(r?.[2]||"")));
+  const rows=[...exact,...retainedProv].slice(-1999);
+  await sheets.clear(q(CFG.sheets.mlbPitcherProjections)+"!A2:AD2000");
+  if(rows.length) await sheets.update(q(CFG.sheets.mlbPitcherProjections)+"!A2:AD"+(rows.length+1),rows);
+  const readback=await sheets.get(q(CFG.sheets.mlbPitcherProjections)+"!A2:AD2000");
+  const vals=readback.values||[];
+  const exactPersisted=vals.filter(r=>String(r?.[0]||"").trim()&&!String(r?.[0]||"").startsWith("PROV-")).length;
+  return {feedRows:all.length,written:rows.length,exactPersisted,provisionalRetained:retainedProv.length};
+}
+
+async function syncAsiaOpsSheet(sport,sheetName){
+  const today=dateKeyCT();
+  const rows=await fetchCsvFeed("/api/projection-sheet-feed?sport="+sport+"&date="+encodeURIComponent(today)+"&days=3");
+  const normalized=rows.filter(r=>r.length&&r.some(v=>String(v||"").trim())).map(r=>{
+    const out=[...r];
+    while(out.length<30) out.push("");
+    return out.slice(0,30);
+  });
+  await sheets.clear(q(sheetName)+"!A15:AD1200");
+  if(normalized.length) await sheets.update(q(sheetName)+"!A15:AD"+(normalized.length+14),normalized);
+  const readback=await sheets.get(q(sheetName)+"!A15:A1200");
+  const persisted=(readback.values||[]).filter(r=>String(r?.[0]||"").trim()).length;
+  if(persisted!==normalized.length) throw new Error(sport.toUpperCase()+" Ops readback mismatch wrote="+normalized.length+" read="+persisted);
+  return {feedRows:rows.length,persisted};
+}
+
+export async function syncOperationalProjectionSheets(){
+  if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required for operational sheet sync");
+  const ledger=await syncProjectionLedgerFromAudit();
+  const [pitchers,npb,kbo]=await Promise.all([
+    syncPitcherProjectionSheet(),
+    syncAsiaOpsSheet("npb",CFG.sheets.npbOps),
+    syncAsiaOpsSheet("kbo",CFG.sheets.kboOps),
+  ]);
+  return {ok:true,ledger,pitchers,npb,kbo,syncedAt:now()};
 }
 
 export async function validateModels(){

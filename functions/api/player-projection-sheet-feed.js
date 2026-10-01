@@ -97,7 +97,12 @@ export async function onRequestGet(context) {
         "",
         "",
         `${sport.toUpperCase()}-K-RESEARCH`,
-        row.source||card?.subprojections?.source||"",
+        [
+          row.source||card?.subprojections?.source||"",
+          row?.externalComparison?.source && row?.externalComparison?.projection!=null
+            ? `${row.externalComparison.source} K=${row.externalComparison.projection} Δ=${row.externalComparison.deltaFbisMinusExternal}`
+            : ""
+        ].filter(Boolean).join(" · "),
         [card.id,card.modelVersion,card.snapshot?.stage||"CURRENT"].join("|"),
         [card.snapshot?.stage||"CURRENT",card?.playerProjections?.status?.state||"UNKNOWN",row.maturity||"RESEARCH"].join(" · ")
       ]);

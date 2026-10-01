@@ -9,6 +9,7 @@ import {
   processQueue,
   runSnapshot,
   syncLearningDashboard,
+  syncOperationalProjectionSheets,
 } from "../services/sports-projection-orchestrator/orchestrator.mjs";
 
 let jwksCache = { at: 0, keys: [] };
@@ -187,6 +188,9 @@ async function handleFetch(request, env) {
       const payload = await requestBody(request);
       const report = payload?.report || payload;
       return json(200, { auth: auth.type, ...(await syncLearningDashboard(report)) });
+    }
+    if (request.method === "POST" && url.pathname === "/api/sync-operational-sheets") {
+      return json(200, { auth: auth.type, ...(await syncOperationalProjectionSheets()) });
     }
     if (request.method === "POST" && url.pathname === "/api/run-snapshot") {
       const payload = await requestBody(request);

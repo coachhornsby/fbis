@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   export:
@@ -79,6 +80,34 @@ jobs:
             echo "One or more live projection exports failed."
             exit 1
           fi
+
+      - name: Persist projection feeds to Google Sheets
+        id: sheet_sync
+        env:
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          oidc_body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$oidc_body")"
+          test -n "$token"
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 180 --retry 1 --retry-all-errors             -X POST             -H "Authorization: Bearer ${token}"             -H "content-type: application/json"             -d '{}'             -o "$body" -w "%{http_code}"             "${ORCH_URL}/api/sync-operational-sheets")"
+          echo "OPERATIONAL SHEET SYNC HTTP=$http"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok == true and .ledger.persisted > 0 and .npb.persisted >= 0 and .kbo.persisted >= 0 and .pitchers.exactPersisted >= 0' "$body" >/dev/null
+          {
+            echo "## Operational Google Sheet persistence"
+            echo "- Projection Ledger rows: $(jq -r '.ledger.persisted' "$body")"
+            echo "- Exact MLB pitcher rows: $(jq -r '.pitchers.exactPersisted' "$body")"
+            echo "- NPB Ops rows: $(jq -r '.npb.persisted' "$body")"
+            echo "- KBO Ops rows: $(jq -r '.kbo.persisted' "$body")"
+            echo "- Synced: $(jq -r '.syncedAt' "$body")"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload projection export evidence
         if: always()
