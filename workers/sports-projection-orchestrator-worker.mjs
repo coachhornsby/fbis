@@ -11,6 +11,7 @@ import {
   syncLearningDashboard,
   syncOperationalProjectionSheets,
   syncWagerFeed,
+  syncBetTrackerToD1,
 } from "../services/sports-projection-orchestrator/orchestrator.mjs";
 
 let jwksCache = { at: 0, keys: [] };
@@ -198,6 +199,10 @@ async function handleFetch(request, env) {
     if (request.method === "POST" && url.pathname === "/api/sync-wager-feed") {
       const payload = await requestBody(request);
       return json(200, { auth: auth.type, ...(await syncWagerFeed(payload?.rows || [])) });
+    }
+    if (request.method === "POST" && url.pathname === "/api/sync-bet-tracker") {
+      const payload = await requestBody(request);
+      return json(200, { auth: auth.type, ...(await syncBetTrackerToD1({ since: payload?.since || "2026-09-21" })) });
     }
     if (request.method === "POST" && url.pathname === "/api/run-snapshot") {
       const payload = await requestBody(request);
