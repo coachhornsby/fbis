@@ -1,0 +1,136 @@
+name: PrizePicks targeted prop lines
+
+on:
+  schedule:
+    # Three targeted snapshots per day. Filters are built from current FBIS
+    # player projections before the paid Actor is called.
+    - cron: "0 13 * * *"
+    - cron: "0 18 * * *"
+    - cron: "0 23 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: prizepicks-targeted-props
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+    steps:
+      - name: Require credentials
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          test -n "${APIFY_TOKEN:-}"
+
+      - name: Shared monthly budget gate
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 30             -H "x-harvest-secret: ${HARVEST_SECRET}"             -o "$body" -w "%{http_code}"             "$BASE/api/prizepicks-props?mode=budget")"
+          cat "$body"
+          test "$code" = "200"
+          remaining="$(jq -r '.remainingUsd // 0' "$body")"
+          awk -v r="$remaining" 'BEGIN { if (r < 0.25) exit 1 }' || {
+            echo "Shared Apify monthly budget has < $0.25 remaining; skip paid PrizePicks pull."
+            exit 0
+          }
+
+      - name: Build FBIS-targeted player list
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          : > artifacts/candidates.ndjson
+          today="$(TZ=America/Chicago date +%F)"
+          tomorrow="$(TZ=America/Chicago date -d "$today + 1 day" +%F)"
+          for sport in mlb nfl nhl; do
+            for date in "$today" "$tomorrow"; do
+              tmp="$(mktemp)"
+              code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}"                 "$BASE/api/projections?sport=$sport&date=$date")"
+              echo "projection candidates sport=$sport date=$date http=$code"
+              if [ "$code" != "200" ]; then continue; fi
+              jq --arg sport "$sport" -c '
+                (.games // [])[] as $g
+                | (($g.playerProjections.rows // [])[])
+                | select(.playerName != null and .market != null and .fbisProjection != null)
+                | {
+                    sport:$sport,
+                    eventId:($g.id|tostring),
+                    playerName:.playerName,
+                    market:.market,
+                    fbisProjection:.fbisProjection,
+                    fbisSigma:(.fbisSigma // null)
+                  }' "$tmp" >> artifacts/candidates.ndjson || true
+            done
+          done
+          if [ ! -s artifacts/candidates.ndjson ]; then
+            echo "No independent FBIS player projections. No paid PrizePicks Actor call."
+            echo '[]' > artifacts/candidates.json
+            exit 0
+          fi
+          jq -s 'unique_by([.sport,.eventId,.playerName,.market])' artifacts/candidates.ndjson > artifacts/candidates.json
+          jq 'length' artifacts/candidates.json
+          jq -r '.[].playerName' artifacts/candidates.json | sort -u | paste -sd, - > artifacts/player-names.txt
+          jq -r '.[].sport' artifacts/candidates.json | sort -u > artifacts/sports.txt
+
+      - name: Pull exact PrizePicks lines
+        run: |
+          set -euo pipefail
+          count="$(jq 'length' artifacts/candidates.json)"
+          if [ "$count" = "0" ]; then
+            echo '[]' > artifacts/prizepicks-rows.json
+            exit 0
+          fi
+          leagues="$(jq -R -s 'split("\n")|map(select(length>0))|map(if .=="mlb" then "MLB" elif .=="nfl" then "NFL" elif .=="nhl" then "NHL" else empty end)' artifacts/sports.txt)"
+          names="$(cat artifacts/player-names.txt)"
+          input="$(jq -n --argjson leagues "$leagues" --arg names "$names" '{
+            leagues:$leagues,
+            playerNames:$names,
+            oddsTiers:["standard","goblin","demon"]
+          }')"
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 180             -X POST             -H "Authorization: Bearer ${APIFY_TOKEN}"             -H "content-type: application/json"             --data-binary "$input"             -o "$body" -w "%{http_code}"             "https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items")"
+          echo "PrizePicks Actor http=$code"
+          test "$code" = "200"
+          jq -e 'type=="array"' "$body" >/dev/null
+          cp "$body" artifacts/prizepicks-rows.json
+          echo "returned=$(jq 'length' artifacts/prizepicks-rows.json)"
+
+      - name: Persist PrizePicks lines
+        run: |
+          set -euo pipefail
+          rows="$(jq 'length' artifacts/prizepicks-rows.json)"
+          if [ "$rows" = "0" ]; then
+            echo "No PrizePicks rows returned."
+            exit 0
+          fi
+          run_id="pp_$(date -u +%Y%m%dT%H%M%SZ)_${GITHUB_RUN_ID}"
+          payload="$(mktemp)"
+          jq -n             --arg runId "$run_id"             --argjson rows "$(cat artifacts/prizepicks-rows.json)"             --argjson candidates "$(cat artifacts/candidates.json)"             '{runId:$runId,rows:$rows,candidates:$candidates}' > "$payload"
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 90 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             --data-binary "@$payload"             -o "$body" -w "%{http_code}"             "$BASE/api/prizepicks-props")"
+          cat "$body"
+          test "$code" = "200"
+          jq -e '.ok==true' "$body" >/dev/null
+          {
+            echo "## PrizePicks targeted feed"
+            echo "- FBIS candidates: $(jq 'length' artifacts/candidates.json)"
+            echo "- PrizePicks rows returned: $(jq 'length' artifacts/prizepicks-rows.json)"
+            echo "- Rows matched to FBIS: $(jq -r '.matched' "$body")"
+            echo "- Estimated Actor cost: $$(jq -r '.estimatedCostUsd' "$body")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prizepicks-targeted-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 14
