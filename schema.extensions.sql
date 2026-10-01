@@ -892,3 +892,25 @@ CREATE INDEX IF NOT EXISTS idx_prizepicks_prop_lines_event
   ON prizepicks_prop_lines(fbis_event_id, collected_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prizepicks_prop_lines_player_market
   ON prizepicks_prop_lines(player_name, canonical_market, collected_at DESC);
+
+
+-- Tennis independent research ratings (0033)
+CREATE TABLE IF NOT EXISTS tennis_ratings (
+  player_key TEXT NOT NULL,
+  tour TEXT NOT NULL,
+  player_name TEXT NOT NULL,
+  overall_rating REAL NOT NULL,
+  hard_rating REAL,
+  clay_rating REAL,
+  grass_rating REAL,
+  matches INTEGER NOT NULL DEFAULT 0,
+  hard_matches INTEGER NOT NULL DEFAULT 0,
+  clay_matches INTEGER NOT NULL DEFAULT 0,
+  grass_matches INTEGER NOT NULL DEFAULT 0,
+  last_match_date TEXT,
+  source TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (player_key, tour)
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_ratings_tour_rating
+  ON tennis_ratings (tour, overall_rating DESC);
