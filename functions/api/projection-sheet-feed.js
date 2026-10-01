@@ -158,7 +158,7 @@ export async function onRequestGet(context) {
     DB: context.env.DB,
     caches: caches.default,
     parlayCacheOnly: true,
-    palCacheOnly: false,
+    palCacheOnly: true,
   };
 
   const games = [];
