@@ -82,10 +82,11 @@ function row(game, sport) {
   const qScore = card?.quality?.score;
   const qState = card?.quality?.state;
   const flags = Array.isArray(card?.quality?.flags) ? card.quality.flags : [];
+  const playerState = String(card?.playerProjections?.status?.state || "");
   const starterHold =
     (sport === "mlb" && flags.some((x) => /missing_(home|away)_sp/i.test(String(x)))) ||
-    (sport === "npb" && flags.some((x) => /npb_probable_starter_unresolved/i.test(String(x)))) ||
-    (sport === "kbo" && flags.some((x) => /kbo_starter_feed_unresolved/i.test(String(x))));
+    (sport === "npb" && (flags.some((x) => /npb_probable_starter_unresolved/i.test(String(x))) || /STARTER_UNRESOLVED/i.test(playerState))) ||
+    (sport === "kbo" && (flags.some((x) => /kbo_starter_feed_unresolved/i.test(String(x))) || /STARTER_UNRESOLVED/i.test(playerState)));
   const state = independent
     ? starterHold
       ? "HOLD — STARTER"
@@ -157,7 +158,7 @@ export async function onRequestGet(context) {
     DB: context.env.DB,
     caches: caches.default,
     parlayCacheOnly: true,
-    palCacheOnly: true,
+    palCacheOnly: false,
   };
 
   const games = [];
