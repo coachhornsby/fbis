@@ -43,7 +43,6 @@ import { buildCapabilityAuditSummary } from "./actionApifyChampionship.js";
 import {
   acquireSchedulerLease,
   buildLogicalCollectionKey,
-  queryMonthToDateSpendUsd,
   releaseSchedulerLease,
   schedulerScopeKey,
 } from "./actionApifyDurableState.js";
@@ -53,6 +52,7 @@ import {
   persistFullMarketObservation,
 } from "./actionApifyObservationStore.js";
 import { loadPriorSchemaFingerprint } from "./actionApifyEvidence.js";
+import { querySharedApifyMonthToDateUsd } from "./sharedApifyBudget.js";
 
 const SPORT_LEAGUES = Object.freeze({
   cfb: ["ncaaf"],
@@ -556,7 +556,7 @@ export async function runCandidateCollection(env, opts) {
   const scopeKey = schedulerScopeKey(plan.sport, plan.profile, plan.lifecycle);
   let mtdUsd = Number(opts.monthToDateCostUsd);
   if (!Number.isFinite(mtdUsd)) {
-    const mtd = await queryMonthToDateSpendUsd(opts.db);
+    const mtd = await querySharedApifyMonthToDateUsd(opts.db);
     mtdUsd = mtd.mtdUsd;
   }
 
