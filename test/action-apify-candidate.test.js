@@ -127,8 +127,8 @@ test("CAPABILITY_AUDIT plan enables all four enrichments and respects maxItems",
   assert.equal(plan.input.includeWeather, false);
   assert.deepEqual(plan.input.gameUrls, ["290853", "290851", "290845", "290800"]);
   assert.equal(plan.input.onlyWithOdds, true);
-  // 4 games × $0.030 + $0.054 start + $0.01 scoreboard = $0.184
-  assert.ok(plan.estimatedCostUsd > 0.15 && plan.estimatedCostUsd < 0.2);
+  // Conservative Zen Studio Basic pricing: 4 results × $0.0025 = $0.010.
+  assert.equal(plan.estimatedCostUsd, 0.01);
 });
 
 test("capability audit summary covers BASE + enrichments without inventing observedAt", async () => {
@@ -264,7 +264,7 @@ test("idempotent observation keys distinguish duplicate vs line change", () => {
   assert.match(String(changed.kind), /line_change|change|delta/i);
 });
 
-test("cost ledger + monthly $19 sufficiency model is measurable", () => {
+test("cost ledger + monthly budget sufficiency model is measurable", () => {
   const entry = buildCostLedgerEntry({
     runId: "r1",
     plan: "starter",
@@ -282,7 +282,7 @@ test("cost ledger + monthly $19 sufficiency model is measurable", () => {
   assert.ok(a);
   assert.equal(typeof a.combined.withinStarterCredit, "boolean");
   assert.ok(a.combined.estimatedMonthlyCostUsd > 0);
-  assert.equal(a.combined.withinStarterCredit, a.combined.estimatedMonthlyCostUsd <= 19 + 1e-9);
+  assert.equal(a.combined.withinStarterCredit, a.combined.estimatedMonthlyCostUsd <= monthly.starterCreditUsd + 1e-9);
 });
 
 test("schema drift + secret redaction + failure isolation", async () => {
