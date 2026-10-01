@@ -3,7 +3,7 @@ import { DEFAULT_WEIGHTS } from "../lib/weights.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { expectedRoi, validAmericanOdds } from "../lib/pricing.js";
 
-const SUPPORTED = new Set(["mlb","npb","kbo","nfl","cfb","cbb","nba","nhl"]);
+const SUPPORTED = new Set(["mlb","npb","kbo","nfl","cfb","cbb","nba","wnba","nhl"]);
 
 function finite(v) {
   if (v == null || v === "") return null;
