@@ -676,6 +676,30 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
   return card;
 }
 
+function productBoardGames(games = [], sport = "") {
+  if (sport !== "mlb") return games;
+  const byMatchup = new Map();
+  for (const game of games) {
+    const away = String(game?.away?.abbr || game?.away?.name || "").trim().toUpperCase();
+    const home = String(game?.home?.abbr || game?.home?.name || "").trim().toUpperCase();
+    const start = String(game?.start || "");
+    const date = start ? start.slice(0, 10) : "";
+    const key = [date, away, home].join("|");
+    if (!away || !home) {
+      byMatchup.set(String(game?.id || Math.random()), game);
+      continue;
+    }
+    const score =
+      (/^\d+$/.test(String(game?.id || "")) ? 100 : 0) +
+      (game?.bpp?.homeRuns != null && game?.bpp?.awayRuns != null ? 20 : 0) +
+      (game?.homeSp?.id || game?.awaySp?.id ? 10 : 0) +
+      (game?.deepProjection?.ok ? 5 : 0);
+    const prior = byMatchup.get(key);
+    if (!prior || score > prior.score) byMatchup.set(key, { score, game });
+  }
+  return [...byMatchup.values()].map((v) => v?.game || v);
+}
+
 export function productProjectionBoard(slate = {}, { tier = "public" } = {}) {
   const sport = String(slate.sport || "").toLowerCase();
   return {
@@ -685,7 +709,7 @@ export function productProjectionBoard(slate = {}, { tier = "public" } = {}) {
     date: slate.date || null,
     generatedAt: slate.generatedAt || new Date().toISOString(),
     modelVersion: slate.modelVersion || null,
-    games: (slate.games || []).map((game) => productProjectionCard(game, sport, { tier })),
+    games: productBoardGames(slate.games || [], sport).map((game) => productProjectionCard(game, sport, { tier })),
     disclaimer: "FBIS is the proprietary projection. Ballpark Pal, when shown for MLB, is an independent cross-check and never replaces the FBIS projection. Pinnacle is the market benchmark. PASS means no qualifying FBIS wager at the frozen/current market state.",
   };
 }
