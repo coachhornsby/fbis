@@ -43,6 +43,13 @@ function playerNameOf(row){
 function playerIdOf(row){
   return s(first(row,["playerId","player_id","player.id","playerIdExternal"]));
 }
+function headshotOf(row){
+  return s(first(row,[
+    "playerImage","player_image","playerImageUrl","player_image_url","imageUrl","image_url",
+    "headshot","headshotUrl","headshot_url","photo","photoUrl","photo_url",
+    "player.image","player.imageUrl","player.image_url","player.photo","player.headshot"
+  ]));
+}
 function lineOf(row){
   return n(first(row,["line","lineScore","line_score","projection","projectionLine","value"]));
 }
@@ -140,13 +147,13 @@ export async function onRequestPost(context){
     const id=sha256Hex(JSON.stringify([runId,projectionId,sport,playerName,market,line,tierOf(raw),durationOf(raw),collectedAt]));
     await context.env.DB.prepare(
       `INSERT OR REPLACE INTO prizepicks_prop_lines(
-        id,run_id,projection_id,fbis_event_id,sport,league,player_id,player_name,team,opponent,game_id,start_time,
+        id,run_id,projection_id,fbis_event_id,sport,league,player_id,player_name,player_headshot_url,team,opponent,game_id,start_time,
         stat_type,canonical_market,line,odds_tier,duration,fbis_projection,fbis_sigma,delta_fbis_minus_line,candidate_side,
         observed_at,collected_at,raw_json
-      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).bind(
       id,runId,projectionId,s(cand?.eventId),sport,s(first(raw,["league","leagueName","league.name"])),
-      playerIdOf(raw),playerName,teamOf(raw),opponentOf(raw),gameIdOf(raw),startOf(raw),
+      playerIdOf(raw),playerName,headshotOf(raw),teamOf(raw),opponentOf(raw),gameIdOf(raw),startOf(raw),
       stat,market,line,tierOf(raw),durationOf(raw),fbisProjection,fbisSigma,delta,side,
       s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt,collectedAt,JSON.stringify(raw)
     ).run();
