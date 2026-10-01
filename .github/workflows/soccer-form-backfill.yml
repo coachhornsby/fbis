@@ -37,10 +37,17 @@ jobs:
           set -euo pipefail
           for range in "2025-08-01 2026-06-15" "2026-07-15 2026-10-01"; do
             set -- $range
+            payload="$(mktemp)"
             out="$(mktemp)"
-            code="$(curl -sS --max-time 180 --retry 1 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "{\"start\":\"$1\",\"end\":\"$2\"}"               -o "$out" -w "%{http_code}" "$BASE/api/soccer-form-backfill")"
+            node scripts/soccer-backfill-payload.mjs "$1" "$2" > "$payload"
+            games="$(jq '.games|length' "$payload")"
+            echo "soccer runner payload $1..$2 games=$games"
+            test "$games" -gt 0
+            code="$(curl -sS --max-time 180 --retry 1 --retry-all-errors \
+              -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
+              --data-binary "@$payload" -o "$out" -w "%{http_code}" "$BASE/api/soccer-form-backfill")"
             echo "soccer backfill $1..$2 http=$code"
             cat "$out"; echo
             test "$code" = "200"
-            jq -e '.ok == true and .finals > 0' "$out" >/dev/null
+            jq -e '.ok == true and .source == "trusted-runner-payload" and .finals > 0' "$out" >/dev/null
           done
