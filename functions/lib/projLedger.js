@@ -147,7 +147,8 @@ export function windowStart(days, sport = "mlb") {
     const today = todayCT();
     const y = Number(today.slice(0, 4));
     const m = Number(today.slice(5, 7));
-    if (sport === "soccer") return m >= 7 ? `${y}-07-01` : `${y - 1}-07-01`;\n    if (sport === "nba" || sport === "cbb" || sport === "nhl") return m >= 10 ? `${y}-10-01` : `${y - 1}-10-01`;
+    if (sport === "soccer") return m >= 7 ? `${y}-07-01` : `${y - 1}-07-01`;
+    if (sport === "nba" || sport === "cbb" || sport === "nhl") return m >= 10 ? `${y}-10-01` : `${y - 1}-10-01`;
     if (sport === "nfl" || sport === "cfb") return m >= 8 ? `${y}-08-01` : `${y - 1}-08-01`;
     return m >= 3 ? `${y}-03-01` : `${y - 1}-03-01`;
   }
@@ -476,7 +477,8 @@ function seasonOf(date, sport) {
   const y = Number(String(date).slice(0, 4));
   const m = Number(String(date).slice(5, 7));
   if (sport === "cfb" || sport === "nfl") return m >= 8 ? String(y) : String(y - 1);
-  if (sport === "soccer") return m >= 7 ? String(y) : String(y - 1);\n  if (sport === "nba" || sport === "cbb" || sport === "nhl") return m >= 10 ? String(y) : String(y - 1);
+  if (sport === "soccer") return m >= 7 ? String(y) : String(y - 1);
+  if (sport === "nba" || sport === "cbb" || sport === "nhl") return m >= 10 ? String(y) : String(y - 1);
   return String(y);
 }
 
