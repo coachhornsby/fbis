@@ -1415,6 +1415,14 @@ export async function fetchResults(sport, date) {
       /* ESPN fallback below */
     }
   }
+  if (id === "npb") {
+    const ctx = await loadNpbContext(day);
+    return (ctx.games || []).map(slimFinal);
+  }
+  if (id === "kbo") {
+    const ctx = await loadKboContext(day);
+    return (ctx.games || []).map(slimFinal);
+  }
   const json = await fetchEspnScoreboard(id, day);
   return (json.events || []).map((ev) => slimFinal(mapEvent(id, ev)));
 }
