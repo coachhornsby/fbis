@@ -16,6 +16,14 @@ function json(body,status=200){
 }
 function s(v){const x=String(v??"").trim();return x||null}
 function n(v){if(v==null||v==="")return null;const x=Number(v);return Number.isFinite(x)?x:null}
+function ctDate(v){
+  const raw=s(v); if(!raw) return null;
+  const d=new Date(raw); if(!Number.isFinite(d.getTime())) return raw.slice(0,10);
+  return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
+}
+function todayCt(){
+  return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+}
 function norm(v){return String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()}
 function first(obj,paths){
   for(const path of paths){
@@ -149,6 +157,14 @@ export async function onRequestPost(context){
   const candidates=Array.isArray(body.candidates)?body.candidates:[];
   const runId=s(body.runId)||`pp_${Date.now()}`;
   const collectedAt=s(body.collectedAt)||new Date().toISOString();
+  const today=todayCt();
+  const futureRows=rows.filter((row)=>ctDate(startOf(row))!==today);
+  if(futureRows.length){
+    return json({ok:false,blocked:true,error:"future_or_non_today_prizepicks_rows",todayCt:today,rowsReturned:rows.length,nonTodayRows:futureRows.length},409);
+  }
+  if(rows.length>1500){
+    return json({ok:false,blocked:true,error:"oversized_prizepicks_payload",rowsReturned:rows.length,maxRows:1500},409);
+  }
   const estimate=RUN_START_USD+rows.length*PER_PROJECTION_USD;
   const spent=await mtd(context.env.DB);
   if(spent.usd+estimate>HARD_MONTHLY_CAP_USD+1e-9){
