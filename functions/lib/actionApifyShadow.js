@@ -264,6 +264,42 @@ function teamAbbr(team) {
   return strOrNull(team.abbreviation || team.abbr);
 }
 
+function zenMarketSide(consensus, market, side) {
+  const sides = consensus?.[market]?.sides;
+  if (!Array.isArray(sides)) return null;
+  return sides.find((x) => String(x?.side || "").toLowerCase() === String(side).toLowerCase()) || null;
+}
+function zenMovementSide(rows, side) {
+  if (!Array.isArray(rows)) return null;
+  return rows.find((x) => String(x?.side || "").toLowerCase() === String(side).toLowerCase()) || null;
+}
+function zenPublicBetting(consensus) {
+  if (!consensus || typeof consensus !== "object") return null;
+  const pack=(market,side)=>{
+    const x=zenMarketSide(consensus,market,side); if(!x) return null;
+    return {
+      ticketsPercent:numOrNull(x.ticketPercent),
+      moneyPercent:numOrNull(x.moneyPercent),
+      moneyMinusTickets:numOrNull(x.sharpGap) ?? (
+        numOrNull(x.moneyPercent)!=null && numOrNull(x.ticketPercent)!=null
+          ? numOrNull(x.moneyPercent)-numOrNull(x.ticketPercent) : null
+      ),
+    };
+  };
+  const rows={
+    moneylineHome:pack("moneyline","home"),moneylineAway:pack("moneyline","away"),
+    spreadHome:pack("spread","home"),spreadAway:pack("spread","away"),
+    over:pack("total","over"),under:pack("total","under"),
+  };
+  const gaps=Object.values(rows).map(x=>Math.abs(Number(x?.moneyMinusTickets))).filter(Number.isFinite);
+  return {
+    ...rows,
+    maxMoneyTicketGap:gaps.length?Math.max(...gaps):null,
+    sharpSide:null,
+    betCount:null,
+  };
+}
+
 /**
  * Scheduled / not-started games must keep null results — never invent 0-0.
  */
@@ -273,17 +309,17 @@ export function normalizeResult(raw) {
   const isFinal = Boolean(raw.isFinal || raw.final || status === "final" || status === "complete" || status === "completed");
   if (!isFinal) return null;
 
-  const homeScore = numOrNull(raw.homeScore ?? raw.result?.homeScore ?? raw.boxscore?.homeScore);
-  const awayScore = numOrNull(raw.awayScore ?? raw.result?.awayScore ?? raw.boxscore?.awayScore);
+  const homeScore = numOrNull(raw.homeScore ?? raw.score?.homeScore ?? raw.result?.homeScore ?? raw.boxscore?.homeScore);
+  const awayScore = numOrNull(raw.awayScore ?? raw.score?.awayScore ?? raw.result?.awayScore ?? raw.boxscore?.awayScore);
   if (homeScore == null && awayScore == null && !raw.result && !raw.boxscore) return null;
 
   return {
     homeScore,
     awayScore,
-    closingSpreadHome: numOrNull(raw.result?.closingSpreadHome ?? raw.closingSpreadHome),
-    closingTotal: numOrNull(raw.result?.closingTotal ?? raw.closingTotal),
-    atsResult: strOrNull(raw.result?.atsResult ?? raw.atsResult),
-    ouResult: strOrNull(raw.result?.ouResult ?? raw.ouResult ?? raw.totalResult),
+    closingSpreadHome: numOrNull(raw.result?.closingSpreadHome ?? raw.closingSpreadHome ?? zenMovementSide(raw.lineMovement?.spread, "home")?.currentLine),
+    closingTotal: numOrNull(raw.result?.closingTotal ?? raw.closingTotal ?? raw.result?.totalLine ?? zenMovementSide(raw.lineMovement?.total, "over")?.currentLine ?? zenMovementSide(raw.lineMovement?.total, "under")?.currentLine),
+    atsResult: strOrNull(raw.result?.atsResult ?? raw.result?.againstTheSpread ?? raw.atsResult),
+    ouResult: strOrNull(raw.result?.ouResult ?? raw.result?.overUnder ?? raw.ouResult ?? raw.totalResult),
     firstHalf: raw.result?.firstHalf || raw.firstHalf || null,
     firstFive: raw.result?.firstFive || raw.firstFive || null,
     isFinal: true,
@@ -675,28 +711,37 @@ export function normalizeActionGameRow(raw, ctx = {}) {
     const awayTeam = teamName(raw.awayTeam) || strOrNull(raw.away);
     if (!homeTeam || !awayTeam) return null;
 
-    const consensusSpreadHome = numOrNull(raw.consensusSpreadHome);
-    const consensusSpreadHomeOdds = numOrNull(raw.consensusSpreadHomeOdds);
-    const consensusSpreadAwayOdds = numOrNull(raw.consensusSpreadAwayOdds);
-    const consensusMoneylineHome = numOrNull(raw.consensusMoneylineHome);
-    const consensusMoneylineAway = numOrNull(raw.consensusMoneylineAway);
-    const consensusTotal = numOrNull(raw.consensusTotal);
-    const consensusOverOdds = numOrNull(raw.consensusOverOdds);
-    const consensusUnderOdds = numOrNull(raw.consensusUnderOdds);
+    const zMlHome=zenMarketSide(raw.consensus,"moneyline","home");
+    const zMlAway=zenMarketSide(raw.consensus,"moneyline","away");
+    const zSpHome=zenMarketSide(raw.consensus,"spread","home");
+    const zSpAway=zenMarketSide(raw.consensus,"spread","away");
+    const zOver=zenMarketSide(raw.consensus,"total","over");
+    const zUnder=zenMarketSide(raw.consensus,"total","under");
+    const consensusSpreadHome = numOrNull(raw.consensusSpreadHome ?? zSpHome?.line);
+    const consensusSpreadHomeOdds = numOrNull(raw.consensusSpreadHomeOdds ?? zSpHome?.odds);
+    const consensusSpreadAway = numOrNull(raw.consensusSpreadAway ?? zSpAway?.line);
+    const consensusSpreadAwayOdds = numOrNull(raw.consensusSpreadAwayOdds ?? zSpAway?.odds);
+    const consensusMoneylineHome = numOrNull(raw.consensusMoneylineHome ?? zMlHome?.odds);
+    const consensusMoneylineAway = numOrNull(raw.consensusMoneylineAway ?? zMlAway?.odds);
+    const consensusTotal = numOrNull(raw.consensusTotal ?? zOver?.line ?? zUnder?.line);
+    const consensusOverOdds = numOrNull(raw.consensusOverOdds ?? zOver?.odds);
+    const consensusUnderOdds = numOrNull(raw.consensusUnderOdds ?? zUnder?.odds);
 
     const nvMl = noVigTwoWay(consensusMoneylineHome, consensusMoneylineAway);
     const nvSpread = noVigTwoWay(consensusSpreadHomeOdds, consensusSpreadAwayOdds);
     const nvTotal = noVigTwoWay(consensusOverOdds, consensusUnderOdds);
 
-    const publicBetting = normalizePublicBetting(raw.publicBetting);
-    const books = normalizeBooks(raw.books);
+    const publicBetting = normalizePublicBetting(raw.publicBetting) || zenPublicBetting(raw.consensus);
+    const books = normalizeBooks(raw.books || raw.booksPricing);
     const lineMovement = normalizeLineMovement(raw.lineMovement, raw.lineMovementHistory);
     const result = normalizeResult(raw);
-    const playerProps = normalizePlayerProps(raw.playerProps || raw.props);
-    const playerPropFieldInventory = inventoryPlayerPropFields(raw.playerProps || raw.props);
+    const playerProps = normalizePlayerProps(raw.playerProps || raw.props?.playerProps || raw.props);
+    const playerPropFieldInventory = inventoryPlayerPropFields(raw.playerProps || raw.props?.playerProps || raw.props);
     // Optional PPE enrichments — pass through when Actor returns them (no invention).
     const gameProps = Array.isArray(raw.gameProps)
       ? raw.gameProps
+      : Array.isArray(raw.props?.gameProps)
+        ? raw.props.gameProps
       : Array.isArray(raw.teamProps)
         ? raw.teamProps
         : Array.isArray(raw.gamePropMarkets)
@@ -759,12 +804,12 @@ export function normalizeActionGameRow(raw, ctx = {}) {
       // Never invent observedAt from scrapedAt — collection ≠ source observation.
       observedAt: null,
       collectionId: strOrNull(ctx.runId || ctx.collectionId),
-      sourceUrl: strOrNull(raw.url || raw.sourceUrl),
+      sourceUrl: strOrNull(raw.gameUrl || raw.url || raw.sourceUrl),
       rawPayloadHash: hashPayload(raw),
       consensus: {
         spreadHome: consensusSpreadHome,
         spreadHomeOdds: consensusSpreadHomeOdds,
-        spreadAway: numOrNull(raw.consensusSpreadAway),
+        spreadAway: consensusSpreadAway,
         spreadAwayOdds: consensusSpreadAwayOdds,
         moneylineHome: consensusMoneylineHome,
         moneylineAway: consensusMoneylineAway,
@@ -775,20 +820,20 @@ export function normalizeActionGameRow(raw, ctx = {}) {
       publicBetting,
       marketQuality: {
         bookCount: numOrNull(raw.bookCount) ?? books.length,
-        moneylineHoldPercent: numOrNull(raw.moneylineHoldPercent),
-        spreadHoldPercent: numOrNull(raw.spreadHoldPercent),
-        totalHoldPercent: numOrNull(raw.totalHoldPercent),
+        moneylineHoldPercent: numOrNull(raw.moneylineHoldPercent ?? raw.consensus?.moneyline?.holdPercent),
+        spreadHoldPercent: numOrNull(raw.spreadHoldPercent ?? raw.consensus?.spread?.holdPercent),
+        totalHoldPercent: numOrNull(raw.totalHoldPercent ?? raw.consensus?.total?.holdPercent),
         implied: {
           moneylineHome: numOrNull(raw.homeWinProbability) ?? americanToImpliedProb(consensusMoneylineHome),
           moneylineAway: numOrNull(raw.awayWinProbability) ?? americanToImpliedProb(consensusMoneylineAway),
         },
         noVig: {
-          moneylineHome: numOrNull(raw.homeWinProbabilityNoVig) ?? nvMl.home,
-          moneylineAway: numOrNull(raw.awayWinProbabilityNoVig) ?? nvMl.away,
-          spreadHome: nvSpread.home,
-          spreadAway: nvSpread.away,
-          over: nvTotal.home,
-          under: nvTotal.away,
+          moneylineHome: numOrNull(raw.homeWinProbabilityNoVig ?? zMlHome?.noVigProbability) ?? nvMl.home,
+          moneylineAway: numOrNull(raw.awayWinProbabilityNoVig ?? zMlAway?.noVigProbability) ?? nvMl.away,
+          spreadHome: numOrNull(zSpHome?.noVigProbability) ?? nvSpread.home,
+          spreadAway: numOrNull(zSpAway?.noVigProbability) ?? nvSpread.away,
+          over: numOrNull(zOver?.noVigProbability) ?? nvTotal.home,
+          under: numOrNull(zUnder?.noVigProbability) ?? nvTotal.away,
         },
       },
       bestOdds,
