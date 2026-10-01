@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { curatedMarketsForSport, marketStatus, PROP_MARKET_STATUS } from "../functions/lib/propMarketPolicy.js";
 import { planPrizePicksRuns, estimatePrizePicksCostUsd, normalizePrizePicksProjection, PRIZEPICKS_APIFY_ACTOR_ID } from "../functions/lib/prizePicksApify.js";
 import { evaluateSharedApifySpend, querySharedApifyMonthToDateUsd } from "../functions/lib/sharedApifyBudget.js";
-import { candidateOpponent } from "../functions/api/prizepicks-props.js";
+import { candidateOpponent, opponentOf, teamOf } from "../functions/api/prizepicks-props.js";
 
 test("MLB acquisition is limited to Ks and pitching outs", () => {
   assert.deepEqual(curatedMarketsForSport("mlb"), ["Pitcher Strikeouts","Pitching Outs"]);
@@ -74,4 +74,11 @@ test("PrizePicks matchup enrichment derives opponent from matched FBIS event", (
   assert.equal(candidateOpponent({team:"PIT",home:"PIT",away:"CLE"},"PIT"),"CLE");
   assert.equal(candidateOpponent({team:"PIT",home:"PIT",away:"CLE"},"CLE"),"PIT");
   assert.equal(candidateOpponent({team:"PIT",opponent:"CLE"},null),"CLE");
+});
+
+
+test("PrizePicks payload team and opponent normalize from player/home/away fields", () => {
+  const raw={player_team:"PIT",home_team:"CLE",away_team:"PIT"};
+  assert.equal(teamOf(raw),"PIT");
+  assert.equal(opponentOf(raw),"CLE");
 });
