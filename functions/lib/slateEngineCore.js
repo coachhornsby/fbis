@@ -84,6 +84,18 @@ export const SPORTS = {
     minEv: 0.03,
     maxProb: 0.72,
   },
+  wnba: {
+    id: "wnba",
+    label: "WNBA",
+    name: "WNBA",
+    espn: "basketball/wnba",
+    k: 9.5,
+    totalK: 12.5,
+    minSpreadEdge: 2.5,
+    minMlEdge: 0.03,
+    minEv: 0.03,
+    maxProb: 0.72,
+  },
   nhl: {
     id: "nhl",
     label: "NHL",
@@ -122,7 +134,7 @@ export const SPORTS = {
   },
 };
 
-export const BOARD_SPORTS = ["mlb", "npb", "kbo", "nba", "nhl", "nfl", "cfb", "cbb"];
+export const BOARD_SPORTS = ["mlb", "npb", "kbo", "nba", "wnba", "nhl", "nfl", "cfb", "cbb"];
 
 export function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -866,7 +878,7 @@ export function mapEvent(sport, event) {
     projAway = marketProjAway;
     projectionKind = "PINNACLE_IMPLIED";
   } else if (odds.spread != null) {
-    const base = sport === "nba" ? 112 : sport === "cbb" ? 72 : 24;
+    const base = sport === "nba" ? 112 : sport === "wnba" ? 82 : sport === "cbb" ? 72 : 24;
     projHome = base - odds.spread / 2;
     projAway = base + odds.spread / 2;
     projectionKind = "PINNACLE_IMPLIED";
