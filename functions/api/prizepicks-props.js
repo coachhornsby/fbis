@@ -156,6 +156,19 @@ export async function onRequestPost(context){
   const actual=Number.isFinite(Number(body.actualCostUsd))?Number(body.actualCostUsd):null;
   const total=actual==null?estimate:actual;
   await context.env.DB.prepare(
+    `INSERT OR REPLACE INTO shadow_collection_runs(
+      id,provider,mode,plan,profile,sport,lifecycle,status,enabled,requested_max_items,
+      games_returned,observations_written,malformed_rows,estimated_cost_usd,actual_cost_usd,cost_basis,
+      started_at,finished_at,duration_ms,created_at
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).bind(
+    runId,"PRIZEPICKS_APIFY","shadow",
+    JSON.stringify({actor:"zen-studio/prizepicks-player-props",targeted:true,candidateCount:candidates.length}),
+    "PRIZEPICKS_TARGETED","all","targeted_props","success_prizepicks",1,rows.length,
+    rows.length,written,malformed,estimate,actual,actual==null?"ESTIMATED":"ACTUAL",
+    collectedAt,collectedAt,0,collectedAt
+  ).run();
+  await context.env.DB.prepare(
     `INSERT OR REPLACE INTO shadow_cost_ledger(
       id,run_id,plan,sport,profile,cost_basis,run_start_usd,scoreboard_usd,row_usd,movement_usd,player_props_usd,
       game_props_usd,detail_usd,weather_usd,injuries_usd,standings_usd,futures_usd,estimated_total_usd,
