@@ -38,12 +38,12 @@ async function persist(DB, runId, sport, rows, estimatedCostUsd) {
     const id = `ppo_${crypto.randomUUID().replace(/-/g,"").slice(0,24)}`;
     const out = await DB.prepare(
       `INSERT OR IGNORE INTO prizepicks_prop_observations (
-        id,run_id,sport,projection_id,player_id,player_name,team,position,league,game_id,
+        id,run_id,sport,projection_id,player_id,player_name,player_headshot_url,team,position,league,game_id,
         home_team,away_team,start_time,stat,line,odds_tier,allowed_wager_types,duration,is_promo,
         source_updated_at,board_time,collected_at,payload_json
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).bind(
-      id,runId,sport,r.projectionId,r.playerId,r.playerName,r.team,r.position,r.league,r.gameId,
+      id,runId,sport,r.projectionId,r.playerId,r.playerName,r.playerHeadshotUrl,r.team,r.position,r.league,r.gameId,
       r.homeTeam,r.awayTeam,r.startTime,r.stat,r.line,r.oddsTier,r.allowedWagerTypes,r.duration,
       r.isPromo?1:0,r.updatedAt,r.boardTime,now,JSON.stringify(raw)
     ).run();
