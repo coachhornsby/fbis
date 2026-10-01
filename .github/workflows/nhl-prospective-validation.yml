@@ -1,0 +1,67 @@
+name: NHL-FBIS prospective validation
+on:
+  schedule:
+    - cron: "45 13 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nhlFbisV1.js"
+      - ".github/workflows/nhl-prospective-validation.yml"
+permissions: { contents: read }
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Read canonical graded NHL snapshots
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          out=artifacts/nhl-prospective-validation.json
+          raw="$(mktemp)"
+          http="$(curl -sS --max-time 180 --retry 1 \
+            -H "x-harvest-secret: $HARVEST_SECRET" -H "accept: application/json" \
+            -o "$raw" -w "%{http_code}" "$BASE/api/model-learning?sport=nhl&recentN=100")"
+          echo "NHL learning http=$http"
+          test "$http" = "200"
+          jq -e '.source=="prediction_snapshots"' "$raw" >/dev/null
+          jq '
+            def target: [.models[]? | select((.modelId|ascii_downcase|contains("nhl-fbis-v1")))] | .[0] // null;
+            (target) as $m |
+            {
+              generatedAt: now|todate,
+              modelId: ($m.modelId // "NHL-FBIS-v1"),
+              canonicalRows: .canonicalRows,
+              queriedRows: .queriedRows,
+              marketInformed: ($m.marketInformed // false),
+              promotionEligibleTiming: ($m.promotionEligible // false),
+              metrics: ($m.metrics // null),
+              prospectiveN: ($m.n // 0),
+              minimumProspectiveN: 100,
+              status:
+                (if ($m.n // 0) < 100 then "INSUFFICIENT_PROSPECTIVE_SAMPLE"
+                 elif ($m.marketInformed // false) then "BLOCKED_MARKET_CONTAMINATION"
+                 elif (($m.promotionEligible // false) != true) then "BLOCKED_TEMPORAL_INTEGRITY"
+                 else "READY_FOR_MARKET_RELATIVE_VALIDATION" end),
+              canQualify: false,
+              canAuthorizeWager: false,
+              note: "NHL-FBIS-v1 remains research-only. Historical full-model reconstruction is intentionally not used because current goalie/context layers cannot be reproduced PIT-safe. Promotion requires prospective OOS evidence plus separate market-relative validation."
+            }' "$raw" > "$out"
+          cat "$out"
+          {
+            echo "## NHL-FBIS-v1 prospective gate"
+            echo "- n: $(jq -r '.prospectiveN' "$out") / $(jq -r '.minimumProspectiveN' "$out")"
+            echo "- status: $(jq -r '.status' "$out")"
+            echo "- margin MAE: $(jq -r '.metrics.margin.mae // "NA"' "$out")"
+            echo "- total MAE: $(jq -r '.metrics.total.mae // "NA"' "$out")"
+            echo "- Brier: $(jq -r '.metrics.probability.brier // "NA"' "$out")"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nhl-prospective-validation-${{ github.run_id }}
+          path: artifacts/nhl-prospective-validation.json
+          retention-days: 90
