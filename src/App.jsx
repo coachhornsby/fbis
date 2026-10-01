@@ -506,7 +506,7 @@ export default function App() {
         onRouteChange={onRouteChange}
         onSportFilterChange={onSportFilterChange}
         onRefresh={() =>
-          route === "system" || tab === "sys"
+          route === "system" || route === "performance" || tab === "sys"
             ? refreshTrack()
             : route === "bets" || tab === "bets"
               ? refreshBets()
@@ -515,14 +515,14 @@ export default function App() {
                 : refreshToday()
         }
         refreshDisabled={
-          route === "system" || tab === "sys"
+          route === "system" || route === "performance" || tab === "sys"
             ? trackLoading
             : route === "market" || route === "markets" || tab === "board"
               ? loading
               : todayLoading || betsLoading
         }
         refreshLabel={
-          route === "system" || tab === "sys"
+          route === "system" || route === "performance" || tab === "sys"
             ? trackLoading
               ? "↻ …"
               : "↻ Reload"
@@ -535,14 +535,14 @@ export default function App() {
           <Ticker items={slate?.ticker || []} logged={loggedOpen} />
         ) : null}
 
-        {route === "models" || route === "player-props" || route === "publish" || route === "performance" ? (
+        {route === "models" || route === "props" || route === "player-props" || route === "publish" ? (
           <div className="canonical-models-stack">
             <FeaturePlaceholder
               title="Models"
               status="BOARD-FIRST · PHASE A"
               body="Sport/model status, projection coverage, and publish tooling live here. Player props and performance remain secondary to the Board decision loop."
             />
-            {route === "player-props" || route === "models" ? (
+            {route === "props" || route === "player-props" || route === "models" ? (
               <PlayerPropsBoard
                 board={todayBoard}
                 sportFilter={sportFilter === "all" ? todaySport : sportFilter}
@@ -562,6 +562,24 @@ export default function App() {
               />
             ) : null}
           </div>
+        ) : route === "performance" ? (
+          <TrackView
+            report={track}
+            error={trackError}
+            loading={trackLoading}
+            stale={trackStale}
+            lastSuccessAt={trackLastSuccessAt}
+            attemptAt={trackLastAttemptAt}
+            state={sysState}
+            filters={{ ...trackFilters, tab: sysTab }}
+            onFilters={(patch) => {
+              if (patch.tab) setSysTab(patch.tab);
+              const rest = { ...patch };
+              delete rest.tab;
+              if (Object.keys(rest).length) setTrackFilters((prev) => ({ ...prev, ...rest }));
+            }}
+            onRefresh={refreshTrack}
+          />
         ) : route === "model-lab" || route === "research" ? (
           <div className="canonical-research-stack">
             <ModelLabView sportFilter={sportFilter} />
