@@ -24,7 +24,12 @@ jobs:
           jq . artifacts/cfb-market-qualification-report.json
           {
             echo "## CFB-FBIS-v2 market qualification"
-            jq -r '"- selected ablation: \(.selectedAblation)","- OOS sample: \(.sampleN)","- spread 3pt: n=\(.spread[\"3\"].n) ROI=\(.spread[\"3\"].roi) hit=\(.spread[\"3\"].hitRate)","- spread 5pt: n=\(.spread[\"5\"].n) ROI=\(.spread[\"5\"].roi) hit=\(.spread[\"5\"].hitRate)","- total 3pt: n=\(.total[\"3\"].n) ROI=\(.total[\"3\"].roi) hit=\(.total[\"3\"].hitRate)","- total 5pt: n=\(.total[\"5\"].n) ROI=\(.total[\"5\"].roi) hit=\(.total[\"5\"].hitRate)"' artifacts/cfb-market-qualification-report.json
+            echo "- selected ablation: $(jq -r '.selectedAblation' artifacts/cfb-market-qualification-report.json)"
+            echo "- OOS sample: $(jq -r '.sampleN' artifacts/cfb-market-qualification-report.json)"
+            echo "- spread 3pt: n=$(jq -r '.spread["3"].n' artifacts/cfb-market-qualification-report.json) ROI=$(jq -r '.spread["3"].roi' artifacts/cfb-market-qualification-report.json) hit=$(jq -r '.spread["3"].hitRate' artifacts/cfb-market-qualification-report.json)"
+            echo "- spread 5pt: n=$(jq -r '.spread["5"].n' artifacts/cfb-market-qualification-report.json) ROI=$(jq -r '.spread["5"].roi' artifacts/cfb-market-qualification-report.json) hit=$(jq -r '.spread["5"].hitRate' artifacts/cfb-market-qualification-report.json)"
+            echo "- total 3pt: n=$(jq -r '.total["3"].n' artifacts/cfb-market-qualification-report.json) ROI=$(jq -r '.total["3"].roi' artifacts/cfb-market-qualification-report.json) hit=$(jq -r '.total["3"].hitRate' artifacts/cfb-market-qualification-report.json)"
+            echo "- total 5pt: n=$(jq -r '.total["5"].n' artifacts/cfb-market-qualification-report.json) ROI=$(jq -r '.total["5"].roi' artifacts/cfb-market-qualification-report.json) hit=$(jq -r '.total["5"].hitRate' artifacts/cfb-market-qualification-report.json)"
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
