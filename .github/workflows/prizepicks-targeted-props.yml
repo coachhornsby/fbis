@@ -114,7 +114,7 @@ jobs:
           # One Actor start per day. Actor-side filters prevent paying for the full board.
           # Research-only sports are intentionally allowed even without an FBIS projection.
           input="$(jq -n '{
-            leagues:["MLB","NFL","NHL","NBA","WNBA","CFB","CBB","Tennis","Soccer"],
+            leagues:["MLB","NFL","NHL","NBA","WNBA","CFB","College Basketball","Tennis","Soccer"],
             statTypes:"Pitcher Strikeouts, Pitching Outs, Pass Yards, Rush Yards, Rec Yards, SOG, Goalie Saves, Points, Rebounds, Assists, 3PTM, Total Games, Total Games Won, SOT, Passes Attempted",
             oddsTiers:["standard","goblin","demon"]
           }')"
