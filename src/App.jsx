@@ -536,17 +536,14 @@ export default function App() {
           <Ticker items={slate?.ticker || []} logged={loggedOpen} />
         ) : null}
 
-        {route === "models" || route === "props" || route === "player-props" || route === "publish" ? (
+        {route === "models" || route === "publish" ? (
           <div className="canonical-models-stack">
             <FeaturePlaceholder
               title="Models"
               status="BOARD-FIRST · PHASE A"
               body="Sport/model status, projection coverage, and publish tooling live here. Player props and performance remain secondary to the Board decision loop."
             />
-            {route === "models" || route === "player-props" ? (
-              <PrizePicksMarketPanel sportFilter={sportFilter === "all" ? todaySport : sportFilter} />
-            ) : null}
-            {route === "props" || route === "player-props" || route === "models" ? (
+            {route === "models" ? (
               <PlayerPropsBoard
                 board={todayBoard}
                 sportFilter={sportFilter === "all" ? todaySport : sportFilter}
@@ -565,6 +562,11 @@ export default function App() {
                 error={todayError}
               />
             ) : null}
+          </div>
+        ) : route === "player-props" ? (
+          <div className="player-props-page">
+            <PrizePicksMarketPanel sportFilter={sportFilter === "all" ? todaySport : sportFilter} />
+            <PlayerPropsBoard board={todayBoard} sportFilter={sportFilter === "all" ? todaySport : sportFilter} date={todayDate} loading={todayLoading} error={todayError} onRetry={refreshToday} />
           </div>
         ) : route === "performance" ? (
           <TrackView
