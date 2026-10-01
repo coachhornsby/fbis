@@ -141,6 +141,7 @@ export async function onRequestPost(context){
   }
   const cmap=new Map(candidates.map(c=>[candidateKey(c),c]));
   let written=0,matched=0,malformed=0;
+  const statements=[];
   for(const raw of rows){
     const sport=sportOf(raw),playerName=playerNameOf(raw),stat=statOf(raw),line=lineOf(raw);
     if(!sport||!playerName||!stat||line==null){malformed++;continue}
@@ -152,7 +153,7 @@ export async function onRequestPost(context){
     const side=delta==null||Math.abs(delta)<1e-9?null:(delta>0?"MORE":"LESS");
     const projectionId=projectionIdOf(raw);
     const id=sha256Hex(JSON.stringify([runId,projectionId,sport,playerName,market,line,tierOf(raw),durationOf(raw),collectedAt]));
-    await context.env.DB.prepare(
+    statements.push(context.env.DB.prepare(
       `INSERT OR REPLACE INTO prizepicks_prop_lines(
         id,run_id,projection_id,fbis_event_id,sport,league,player_id,player_name,player_headshot_url,team,opponent,game_id,start_time,
         stat_type,canonical_market,line,odds_tier,duration,fbis_projection,fbis_sigma,delta_fbis_minus_line,candidate_side,
@@ -163,8 +164,12 @@ export async function onRequestPost(context){
       playerIdOf(raw),playerName,headshotOf(raw),teamOf(raw),opponentOf(raw),gameIdOf(raw),startOf(raw),
       stat,market,line,tierOf(raw),durationOf(raw),fbisProjection,fbisSigma,delta,side,
       s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt,collectedAt,JSON.stringify(raw)
-    ).run();
-    written++;
+    ));
+  }
+  const BATCH_SIZE=200;
+  for(let i=0;i<statements.length;i+=BATCH_SIZE){
+    const result=await context.env.DB.batch(statements.slice(i,i+BATCH_SIZE));
+    written+=result.reduce((sum,row)=>sum+Number(row?.meta?.changes||0),0);
   }
   const costId="cost_"+runId;
   const actual=Number.isFinite(Number(body.actualCostUsd))?Number(body.actualCostUsd):null;
