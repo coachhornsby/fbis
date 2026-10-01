@@ -175,12 +175,12 @@ export function fitMaxItemsToUsdBudget(input = {}, budgetUsd = ACTION_APIFY_BOAR
   const cap = Number.isFinite(budget) && budget > 0 ? budget : ACTION_APIFY_BOARD_SOFT_CAP_USD;
   const base = { ...(input || {}) };
   let lo = 1;
-  let hi = Math.max(1, Number(base.maxItems) || 1);
+  let hi = Math.max(1, Number(base.maxGames ?? base.maxItems) || 1);
   let best = 1;
-  let bestCost = estimateActorCostUsd({ ...base, maxItems: 1 }, { gamesReturned: 1 });
+  let bestCost = estimateActorCostUsd({ ...base, maxGames: 1 }, { gamesReturned: 1 });
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
-    const cost = estimateActorCostUsd({ ...base, maxItems: mid }, { gamesReturned: mid });
+    const cost = estimateActorCostUsd({ ...base, maxGames: mid }, { gamesReturned: mid });
     if (cost <= cap + 1e-9) {
       best = mid;
       bestCost = cost;
