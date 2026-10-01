@@ -55,7 +55,7 @@ export async function onRequestGet(context) {
     SHARPAPI_API_KEY:context.env.SHARPAPI_API_KEY,
     THERUNDOWN_API_KEY:context.env.THERUNDOWN_API_KEY,
     BALLPARK_PAL_API_KEY:context.env.BALLPARK_PAL_API_KEY,
-    DB:context.env.DB,caches:caches.default,parlayCacheOnly:true,palCacheOnly:true,
+    DB:context.env.DB,caches:caches.default,parlayCacheOnly:true,palCacheOnly:false,
   };
 
   const slate=await buildSlate(sport,resolved.date,env);
