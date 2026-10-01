@@ -42,6 +42,7 @@ function buildCfg(env = runtimeEnv){
       projectionAudit: 'Projection Audit',
       projectionLedger: 'Projection Ledger',
       wagerFeed: 'Wager Feed',
+      bets: 'Bets',
       mlbPitcherProjections: 'MLB Pitcher Projections',
       npbOps: 'NPB Ops',
       kboOps: 'KBO Ops',
@@ -1278,6 +1279,108 @@ async function syncAsiaOpsSheet(sport,sheetName){
   const persisted=(readback.values||[]).filter(r=>String(r?.[0]||"").trim()).length;
   if(persisted!==normalized.length) throw new Error(sport.toUpperCase()+" Ops readback mismatch wrote="+normalized.length+" read="+persisted);
   return {feedRows:rows.length,persisted};
+}
+
+
+function trackerNumber(value){
+  if(value==null || value==="") return null;
+  const cleaned=String(value).replace(/[$,%x]/gi,"").trim();
+  const n=Number(cleaned);
+  return Number.isFinite(n)?n:null;
+}
+function trackerResult(value){
+  const s=String(value||"").trim().toUpperCase();
+  if(s==="WIN"||s==="WON") return "WON";
+  if(s==="LOSS"||s==="LOST") return "LOST";
+  if(s==="VOID") return "VOID";
+  if(s==="PUSH") return "PUSH";
+  return "OPEN";
+}
+function trackerMarket(type,book){
+  const t=String(type||"").toUpperCase();
+  const b=String(book||"").toUpperCase();
+  if(t.includes("PLAYER")||t.includes("PICK")||b==="PRIZEPICKS") return "PLAYER_PROP";
+  if(t.includes("F5") && (t.includes("RUN")||t.includes("SPREAD"))) return "F5 SPREAD";
+  if(t.includes("MONEYLINE")||t.includes("3-WAY")) return "ML";
+  if(t.includes("TOTAL")) return "TOTAL";
+  if(t.includes("SPREAD")||t.includes("RUN LINE")||t.includes("PUCK LINE")||t.includes("HANDICAP")) return "SPREAD";
+  return t||"OTHER";
+}
+function trackerTicket(row,rowNumber){
+  const date=String(row.Date||"").trim();
+  const book=String(row.Book||"").trim();
+  const sport=String(row.Sport||"").trim().toLowerCase();
+  const matchup=String(row.Matchup||"").trim();
+  const selection=String(row.Selection||"").trim();
+  const betType=String(row["Bet Type"]||"").trim();
+  const entryLine=String(row["Entry Line"]||"").trim();
+  const risk=trackerNumber(row.Risk);
+  const toWin=trackerNumber(row["To Win"]);
+  const result=trackerResult(row.Result);
+  const profit=trackerNumber(row["P/L"]);
+  const market=trackerMarket(betType,book);
+  const line=/^[+-]?\d+(?:\.\d+)?$/.test(entryLine)?Number(entryLine):null;
+  const odds=/^[+-]?\d+$/.test(String(row.Odds||"").trim())?Number(row.Odds):null;
+  const selectedSide=/^under\b/i.test(selection)?"UNDER":/^over\b/i.test(selection)?"OVER":null;
+  const [awayTeam,homeTeam]=matchup.includes(" @ ")?matchup.split(" @ ",2):[null,null];
+  const stableKey=[date,book,sport,matchup,selection,betType,entryLine,risk,toWin].join("|");
+  const externalTicketId="TRACKER-"+sha256(stableKey).slice(0,24).toUpperCase();
+  const settled=result!=="OPEN";
+  return {
+    externalTicketId,executionBook:book||"Unknown",sport,date,matchupText:matchup,
+    awayTeam,homeTeam,market,period:market.startsWith("F5 ")?"F5":"FG",
+    selectedSide,selectedTeam:selection,executionLine:line,executionPrice:odds,
+    riskAmount:risk,toWinAmount:toWin,potentialPayout:(risk!=null&&toWin!=null)?risk+toWin:null,
+    executedAt:date?date+"T12:00:00.000Z":now(),timezone:"America/Chicago",
+    importSource:"sports-betting-tracker-live-sync",matchStatus:"tracker-synced",
+    recommendationStatus:"TRACKER_SYNCED",result,profit,
+    settledReturn:result==="WON"&&risk!=null&&toWin!=null?risk+toWin:
+      (result==="LOST"?0:((result==="VOID"||result==="PUSH")?risk:null)),
+    gradedAt:settled&&date?date+"T23:59:59.000Z":null,
+    attributionLabel:"TRACKER SYNCED",clvStatus:"unavailable",
+    trackerMetadata:{
+      source:"Sports Betting Tracker",sheet:"Bets",rowNumber,
+      portfolio:String(row.Portfolio||""),notes:String(row.Notes||""),
+      confidenceGrade:String(row["Confidence Grade"]||""),
+      betRationale:String(row["Bet Rationale"]||""),
+      finalScore:String(row["Final Score"]||""),
+      calibrationEligibility:"INELIGIBLE - TRACKER SYNC UNVERIFIED",
+    }
+  };
+}
+
+export async function syncBetTrackerToD1({since="2026-09-21"}={}){
+  if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required for bet tracker sync");
+  if(!runtimeEnv.HARVEST_SECRET) throw new Error("HARVEST_SECRET required for bet tracker sync");
+  const sheetRes=await sheets.get(q(CFG.sheets.bets)+"!A1:Z1000");
+  const values=sheetRes.values||[];
+  if(!values.length) throw new Error("Bets sheet is empty");
+  const headers=values[0]||[];
+  const required=["Date","Sport","Matchup","Selection","Bet Type","Book","Risk","To Win","Result","P/L"];
+  for(const h of required) if(!headers.includes(h)) throw new Error("Bets sheet missing header: "+h);
+  const rows=rowsToObjects(values,headers)
+    .filter(r=>String(r.obj.Date||"").trim()>=since)
+    .filter(r=>String(r.obj.Book||"").trim()&&String(r.obj.Matchup||"").trim()&&String(r.obj.Selection||"").trim());
+  const tickets=rows.map(r=>trackerTicket(r.obj,r.rowNumber));
+  const base=String(CFG.fbisBaseUrl||"https://fbis-myz.pages.dev").replace(/\/$/,"");
+  const res=await fetchRetry(base+"/api/bets",{
+    method:"POST",
+    headers:{"content-type":"application/json","x-harvest-secret":runtimeEnv.HARVEST_SECRET},
+    body:JSON.stringify({action:"sync-tracker",tickets})
+  });
+  const body=await res.json().catch(()=>({}));
+  if(!res.ok||body?.ok!==true) throw new Error("FBIS bet tracker sync failed http="+res.status+" body="+JSON.stringify(body).slice(0,1200));
+  const read=await fetchRetry(base+"/api/bets?_t="+Date.now(),{headers:{accept:"application/json"}});
+  const readBody=await read.json().catch(()=>({}));
+  if(!read.ok||!Array.isArray(readBody?.bets)) throw new Error("FBIS bet readback failed http="+read.status);
+  const synced=readBody.bets.filter(b=>String(b.importSource||"")==="sports-betting-tracker-live-sync");
+  const newestDate=synced.map(b=>String(b.date||"")).sort().at(-1)||null;
+  return {
+    ok:true,sourceRows:rows.length,requested:tickets.length,
+    inserted:(body.inserted||[]).length,updated:(body.updated||[]).length,
+    skipped:(body.skipped||[]).length,newestDate,d1SyncedRows:synced.length,
+    syncedAt:now()
+  };
 }
 
 export async function syncWagerFeed(inputRows=[]){

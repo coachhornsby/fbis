@@ -269,6 +269,76 @@ export async function importBets(env, tickets) {
   };
 }
 
+
+export async function syncTrackerBets(env, tickets) {
+  if (!hasDb(env)) return { ok:false, status:503, body:{ ok:false, error:"D1 unbound" } };
+  const inserted = [];
+  const updated = [];
+  const skipped = [];
+  const conflicts = [];
+  const errors = [];
+  for (const raw of tickets || []) {
+    const packed = packExecutedBetRow(raw);
+    if (!packed.externalTicketId) {
+      errors.push({ id: packed.id, errors:["missing ticket ID"] });
+      continue;
+    }
+    const res = await persistExecutedBet(env, packed);
+    if (res.conflict) {
+      conflicts.push({ id:packed.id, externalTicketId:packed.externalTicketId, reason:res.reason });
+      continue;
+    }
+    if (!res.ok) {
+      errors.push({ id:packed.id, errors:[res.reason || "persist"] });
+      continue;
+    }
+    if (res.inserted) {
+      inserted.push({ id:packed.id, externalTicketId:packed.externalTicketId });
+      continue;
+    }
+    const existing = res.existing || null;
+    if (!existing) {
+      skipped.push({ id:packed.id, externalTicketId:packed.externalTicketId, reason:"already-present" });
+      continue;
+    }
+    const patch = {
+      result: packed.result || "OPEN",
+      profit: packed.profit,
+      settledReturn: packed.settledReturn,
+      gradedAt: packed.gradedAt,
+      voidReason: packed.voidReason,
+      matchStatus: packed.matchStatus || "tracker-synced",
+      recommendationStatus: packed.recommendationStatus || "TRACKER_SYNCED",
+      attributionLabel: packed.attributionLabel || "TRACKER SYNCED",
+      clv: packed.clv,
+      clvStatus: packed.clvStatus || "unavailable",
+    };
+    const changed = Object.entries(patch).some(([k,v]) => (existing?.[k] ?? null) !== (v ?? null));
+    if (!changed) {
+      skipped.push({ id:existing.id, externalTicketId:packed.externalTicketId, reason:"unchanged" });
+      continue;
+    }
+    const up = await updateExecutedBet(env, existing.id, patch, "sports-betting-tracker-sync");
+    if (!up.ok) {
+      errors.push({ id:existing.id, errors:[up.reason || "update"] });
+      continue;
+    }
+    updated.push({ id:existing.id, externalTicketId:packed.externalTicketId });
+  }
+  const listed = await queryExecutedBets(env, { includeRaw:false });
+  return {
+    ok: errors.length === 0 && conflicts.length === 0,
+    status: conflicts.length ? 409 : errors.length ? 400 : 200,
+    body: {
+      ok: errors.length === 0 && conflicts.length === 0,
+      wrote: inserted.length > 0 || updated.length > 0,
+      requested: Array.isArray(tickets) ? tickets.length : 0,
+      inserted, updated, skipped, conflicts, errors,
+      summary: summarizeExecutedBets(listed.rows || []),
+    },
+  };
+}
+
 export async function handleBetsPost(env, request, body) {
   const action = String(body?.action || "").toLowerCase();
   if (action === "parse" || action === "preview") {
@@ -280,6 +350,12 @@ export async function handleBetsPost(env, request, body) {
   const auth = authorizeExecutedBetWrite(request, env);
   if (!auth.ok) {
     return { status: 401, body: unauthorizedBody() };
+  }
+  if (action === "sync-tracker") {
+    const tickets = Array.isArray(body.tickets) ? body.tickets : [];
+    if (!tickets.length) return { status:400, body:{ ok:false, error:"no tracker tickets", wrote:false } };
+    const result = await syncTrackerBets(env, tickets);
+    return { status:result.status, body:result.body };
   }
   if (action === "reconcile-tracker-seed") {
     const result = await importBets(env, BET_TRACKER_RECONCILE_SEED);
