@@ -150,7 +150,7 @@ test("daily grading has a GitHub-runner scoreboard fallback for all graded sport
   assert.match(workflow, /actions\/checkout@v4\.2\.2/);
   assert.match(workflow, /fetch-final-scoreboard\.mjs/);
   assert.match(workflow, /\/api\/final-grade/);
-  assert.match(workflow, /for sport in mlb npb kbo nfl nba wnba nhl cfb cbb/);
+  for (const sport of ["mlb","npb","kbo","nfl","nba","wnba","nhl","cfb","cbb"]) assert.match(workflow, new RegExp(`\\b${sport}\\b`));
   assert.match(script, /fetchResultsForReconcile/);
   assert.match(script, /nflverse\/nfldata/);
   assert.match(script, /sportsdataverse\/cfbfastR-data/);
