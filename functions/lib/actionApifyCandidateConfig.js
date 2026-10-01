@@ -13,7 +13,8 @@ export const ACTION_APIFY_FREE_MAX_ITEMS = 10;
 /** Safety upper bound even on paid plans (never unbounded). */
 export const ACTION_APIFY_STARTER_SAFETY_CAP = 200;
 
-export const ACTION_APIFY_DEFAULT_MONTHLY_BUDGET_USD = 19;
+export const ACTION_APIFY_DEFAULT_MONTHLY_BUDGET_USD = 22;
+export const ACTION_APIFY_ABSOLUTE_MONTHLY_CAP_USD = 25;
 
 export const COLLECTION_PROFILES = Object.freeze({
   BASE: "BASE",
@@ -252,9 +253,11 @@ export function readCandidateConfig(env) {
   }
 
   const monthlyBudget = Number(e.ACTION_APIFY_MONTHLY_BUDGET_USD);
-  const budgetUsd = Number.isFinite(monthlyBudget) && monthlyBudget > 0
+  const requestedBudgetUsd = Number.isFinite(monthlyBudget) && monthlyBudget > 0
     ? monthlyBudget
     : (plan === "starter" ? ACTION_APIFY_DEFAULT_MONTHLY_BUDGET_USD : 5);
+  // Absolute owner-directed ceiling: Action/Apify may never plan above $25/month.
+  const budgetUsd = Math.min(requestedBudgetUsd, ACTION_APIFY_ABSOLUTE_MONTHLY_CAP_USD);
 
   const profileFor = (sport, fallback) => {
     const key = `ACTION_APIFY_PROFILE_${String(sport).toUpperCase()}`;
@@ -280,6 +283,11 @@ export function readCandidateConfig(env) {
       mlb: profileFor("mlb", COLLECTION_PROFILES.BASE),
       nba: profileFor("nba", COLLECTION_PROFILES.BASE),
       cbb: profileFor("cbb", COLLECTION_PROFILES.BASE),
+      nhl: profileFor("nhl", COLLECTION_PROFILES.BASE),
+      wnba: profileFor("wnba", COLLECTION_PROFILES.BASE),
+      soccer: profileFor("soccer", COLLECTION_PROFILES.BASE),
+      atp: profileFor("atp", COLLECTION_PROFILES.BASE),
+      wta: profileFor("wta", COLLECTION_PROFILES.BASE),
     },
     /** Circuit breaker: consecutive Actor failures before pause. */
     circuitBreakerThreshold: Math.max(1, Number(e.ACTION_APIFY_CIRCUIT_BREAKER) || 5),
