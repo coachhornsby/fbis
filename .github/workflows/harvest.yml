@@ -179,7 +179,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        sport: [mlb, nba, nhl, nfl, cfb, cbb]
+        sport: [mlb, nba, wnba, nhl, nfl, cfb, cbb]
     steps:
       - uses: actions/checkout@v4.2.2
       - name: Assert production SHA unchanged
@@ -424,7 +424,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        sport: [cfb, mlb, nba, nhl, nfl, cbb]
+        sport: [cfb, mlb, nba, wnba, nhl, nfl, cbb]
         dayOffset: [0, 1, 2, 3, 4, 5]
     steps:
       - name: Assert production SHA unchanged
@@ -604,7 +604,7 @@ jobs:
           collect_failed=0
           if [ "$need_collect" -eq 1 ]; then
             echo "Recovering missed/stale/delayed collect slot"
-            for sport in mlb nba nhl cfb cbb nfl; do
+            for sport in mlb nba wnba nhl cfb cbb nfl; do
               body="$(mktemp)"
               ok_collect=0
               for attempt in 1 2 3; do
@@ -709,7 +709,7 @@ jobs:
                 | .[]
                 | select(.date >= $cutoff)
                 | select((.openExecutedBets // 0) > 0 or (.openStrategyTickets // 0) > 0)
-                | select(.sport == "mlb" or .sport == "cfb" or .sport == "nfl" or .sport == "nba" or .sport == "nhl" or .sport == "cbb")
+                | select(.sport == "mlb" or .sport == "cfb" or .sport == "nfl" or .sport == "nba" or .sport == "wnba" or .sport == "nhl" or .sport == "cbb")
                 | "\(.sport):\(.date)"]
               | .[0:14]
               | .[]
@@ -717,7 +717,7 @@ jobs:
             if [ "${#TARGETS[@]}" -eq 0 ]; then
               mapfile -t TARGETS < <(for i in 0 1 2 3; do
                 day="$(TZ=America/Chicago date -d "today - $i days" +%F)"
-                for sport in mlb nba nhl cfb cbb nfl; do echo "${sport}:${day}"; done
+                for sport in mlb nba wnba nhl cfb cbb nfl; do echo "${sport}:${day}"; done
               done)
             fi
             harvest_failed=0

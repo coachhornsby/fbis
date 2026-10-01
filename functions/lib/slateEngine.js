@@ -11,6 +11,7 @@ import { attachNflShadow } from "./nflModel.js";
 import { attachNflProShadow } from "./nflProModel.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
+import { attachBasketballFormResearch } from "./basketballFormModel.js";
 import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
@@ -34,7 +35,7 @@ import {
 export * from "./slateEngineCore.js";
 export { pinMarkets } from "./pricing.js";
 
-const INDEPENDENT_SCORE_REQUIRED = new Set(["cbb", "nba", "nhl", "nfl"]);
+const INDEPENDENT_SCORE_REQUIRED = new Set(["cbb", "nba", "wnba", "nhl", "nfl"]);
 const CRITICAL_QUALITY_FLAGS = new Set(["pinnacle_implied_score", "market_unresolved"]);
 const MLB_STARTER_FLAGS = new Set(["missing_home_sp", "missing_away_sp"]);
 
@@ -236,6 +237,19 @@ export async function buildSlate(sport, date, env = {}) {
       research: {
         ...(next.research || {}),
         npbFbisV1: next.npb || { modelId:"NPB-FBIS-v1", maturity:"RESEARCH", canQualify:false, canAuthorize:false },
+      },
+    };
+  }
+
+  if (["nba","wnba"].includes(id) && Array.isArray(next.games)) {
+    const basketball = await attachBasketballFormResearch(next.games, env, id);
+    next = {
+      ...next,
+      games: basketball.games,
+      modelVersion: basketball.meta?.version || next.modelVersion,
+      research: {
+        ...(next.research || {}),
+        basketballForm: basketball.meta,
       },
     };
   }

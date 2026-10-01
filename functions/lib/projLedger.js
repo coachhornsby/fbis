@@ -112,8 +112,12 @@ export const RECIPE_GUIDE = {
     body: "Two independent MLB models. Proprietary: Savant RPG × starter ERA-eq × 1.04 home, clamped 2.3–7.2. Ballpark Pal: simulated runs and Pal win probability as a separate layer — Pal never overwrites Savant and is never a sportsbook price. Scheduled collection writes checkpoints to D1 even if the board is closed.",
   },
   nba: {
-    engine: "Pinnacle line-implied",
-    body: "Home = total/2 − home spread/2. Away = total/2 + home spread/2. That is the market’s implied score until an independent NBA sim is wired. Win-prob blends Pinnacle no-vig, ESPN, score (line-implied margin), and W-L form.",
+    engine: "NBA-FBIS-FORM-v1 research",
+    body: "Independent scoreboard-derived prior/current team scoring-form projection. Market-implied scores remain benchmark context only. Research-only until walk-forward and market-relative validation passes.",
+  },
+  wnba: {
+    engine: "WNBA-FBIS-v1 research",
+    body: "Independent scoreboard-derived prior/current team scoring-form projection. Action/sportsbook data is evaluation-only and never enters the projection. Research-only until walk-forward and market-relative validation passes.",
   },
   nhl: {
     engine: "Market-implied benchmark / research",

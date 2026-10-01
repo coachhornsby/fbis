@@ -1,0 +1,66 @@
+name: Basketball form backfill
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/basketballFormModel.js"
+      - "functions/api/basketball-form-backfill.js"
+      - "functions/lib/slateEngineCore.js"
+      - "functions/lib/slateEngine.js"
+      - ".github/workflows/basketball-form-backfill.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for production SHA
+        env:
+          BASE: https://fbis-myz.pages.dev
+          EXPECTED: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 40); do
+            live="$(curl -sS --max-time 15 "$BASE/api/health?_t=$(date +%s)" | jq -r '.deploymentCommit // .build.commitSha // empty' | tr 'A-F' 'a-f')"
+            exp="$(echo "$EXPECTED" | tr 'A-F' 'a-f')"
+            echo "deployment check $i live=$live expected=$exp"
+            [ "$live" = "$exp" ] && exit 0
+            sleep 15
+          done
+          echo "Production never reached expected SHA"
+          exit 1
+      - name: Backfill scoreboard-derived team form
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$HARVEST_SECRET"
+          run_range () {
+            sport="$1"; start="$2"; end="$3"
+            python3 - "$sport" "$start" "$end" <<'PY' > /tmp/ranges.tsv
+import sys,datetime
+sport,start,end=sys.argv[1:]
+a=datetime.date.fromisoformat(start); b=datetime.date.fromisoformat(end)
+while a<=b:
+    z=min(b,a+datetime.timedelta(days=13))
+    print(sport,a.isoformat(),z.isoformat(),sep="\t")
+    a=z+datetime.timedelta(days=1)
+PY
+            while IFS=$'\t' read -r s a b; do
+              body="$(mktemp)"
+              code="$(curl -sS --max-time 120 --retry 1 --retry-all-errors                 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"                 -d "{\"sport\":\"$s\",\"start\":\"$a\",\"end\":\"$b\"}"                 -o "$body" -w "%{http_code}" "$BASE/api/basketball-form-backfill")"
+              echo "$s $a..$b http=$code"
+              cat "$body"
+              echo
+              test "$code" = "200"
+              jq -e '.ok == true' "$body" >/dev/null
+              sleep 1
+            done < /tmp/ranges.tsv
+          }
+          run_range wnba 2025-05-16 2025-09-11
+          run_range wnba 2026-05-15 2026-09-30
+          run_range nba 2025-10-20 2026-06-22

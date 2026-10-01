@@ -1,0 +1,32 @@
+name: WNBA independent model walk-forward
+on:
+  push:
+    branches: ["feat/wnba-nba-independent-research","main"]
+    paths:
+      - "scripts/wnba-form-walkforward.mjs"
+      - "functions/lib/basketballFormModel.js"
+      - ".github/workflows/wnba-form-walkforward.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: node scripts/wnba-form-walkforward.mjs
+      - name: Summary
+        run: |
+          jq . artifacts/wnba-form-walkforward-report.json
+          {
+            echo "## WNBA-FBIS-v1 walk-forward"
+            jq -r '"- n: \(.n)","- margin MAE: \(.marginMae)","- total MAE: \(.totalMae)","- winner accuracy: \(.winnerAccuracy)","- maturity: \(.governance.maturity)"' artifacts/wnba-form-walkforward-report.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-form-walkforward-${{ github.run_id }}
+          path: artifacts/wnba-form-walkforward-*
+          retention-days: 90
