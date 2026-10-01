@@ -1,4 +1,5 @@
 name: Ballpark Pal source audit
+# Audits deployed production after projection-serving changes.
 on:
   workflow_dispatch:
   push:
