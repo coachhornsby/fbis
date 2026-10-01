@@ -95,6 +95,10 @@ jobs:
                     sport:$sport,
                     eventId:($g.id|tostring),
                     playerName:.playerName,
+                    team:(.team // null),
+                    home:($g.home.abbr // $g.home.name // null),
+                    away:($g.away.abbr // $g.away.name // null),
+                    start:($g.start // $g.startCt // null),
                     market:.market,
                     fbisProjection:.fbisProjection,
                     fbisSigma:(.fbisSigma // null)
