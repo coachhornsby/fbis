@@ -133,12 +133,14 @@ async function scheduledCycle(env) {
   const selected = await selectCandidates({ dryRun: false });
   const report = await fetchLearningReport(env);
   const learning = await syncLearningDashboard(report);
+  const operationalSheets = await syncOperationalProjectionSheets();
   const queue = await processQueue();
   return {
     ok: true,
     status: "EXECUTED",
     selected,
     learning,
+    operationalSheets,
     queue,
     at: new Date().toISOString(),
   };
