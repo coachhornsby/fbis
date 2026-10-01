@@ -5,7 +5,7 @@ import { resolveTeam } from "../functions/lib/teams.js";
 
 const sport=String(process.argv[2]||"").toLowerCase();
 const date=String(process.argv[3]||"").slice(0,10);
-const supported=new Set(["mlb","npb","kbo","nfl","cfb","cbb","nba","wnba","nhl"]);
+const supported=new Set(["mlb","npb","kbo","nfl","cfb","cbb","nba","wnba","nhl","soccer"]);
 if(!supported.has(sport) || !/^\d{4}-\d{2}-\d{2}$/.test(date)){
   console.error("usage: node scripts/fetch-final-scoreboard.mjs <sport> <YYYY-MM-DD>");
   process.exit(2);

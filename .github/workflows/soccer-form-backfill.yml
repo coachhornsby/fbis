@@ -1,0 +1,46 @@
+name: Soccer form backfill
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/soccerFbisV1.js"
+      - "functions/api/soccer-form-backfill.js"
+      - "functions/lib/slateEngineCore.js"
+      - "functions/lib/slateEngine.js"
+      - ".github/workflows/soccer-form-backfill.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Wait for production SHA
+        env:
+          BASE: https://fbis-myz.pages.dev
+          EXPECTED: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 40); do
+            live="$(curl -sS --max-time 15 "$BASE/api/health?_t=$(date +%s)" | jq -r '.deploymentCommit // .build.commitSha // empty' | tr 'A-F' 'a-f')"
+            exp="$(echo "$EXPECTED" | tr 'A-F' 'a-f')"
+            echo "deployment check $i live=$live expected=$exp"
+            [ "$live" = "$exp" ] && exit 0
+            sleep 15
+          done
+          exit 1
+      - name: Backfill prior and current soccer team form
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          for range in "2025-08-01 2026-06-15" "2026-07-15 2026-10-01"; do
+            set -- $range
+            out="$(mktemp)"
+            code="$(curl -sS --max-time 180 --retry 1 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "{\"start\":\"$1\",\"end\":\"$2\"}"               -o "$out" -w "%{http_code}" "$BASE/api/soccer-form-backfill")"
+            echo "soccer backfill $1..$2 http=$code"
+            cat "$out"; echo
+            test "$code" = "200"
+            jq -e '.ok == true and .finals > 0' "$out" >/dev/null
+          done
