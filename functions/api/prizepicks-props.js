@@ -65,13 +65,20 @@ function durationOf(row){
   return s(first(row,["duration","period","timeframe"]));
 }
 function startOf(row){
-  return s(first(row,["startTime","start_time","game.startTime","game.start_time","gameTime"]));
+  return s(first(row,["startTime","start_time","game.startTime","game.start_time","gameTime","game_start"]));
 }
-function teamOf(row){
-  return s(first(row,["team","teamAbbr","team_abbr","player.team","player.teamAbbr"]));
+export function teamOf(row){
+  return s(first(row,["team","teamAbbr","team_abbr","player_team","playerTeam","player.team","player.teamAbbr"]));
 }
-function opponentOf(row){
-  return s(first(row,["opponent","opponentAbbr","opponent_abbr","game.opponent"]));
+export function opponentOf(row){
+  const direct=s(first(row,["opponent","opponentAbbr","opponent_abbr","game.opponent"]));
+  if(direct) return direct;
+  const team=norm(teamOf(row));
+  const home=s(first(row,["home_team","homeTeam","game.home_team","game.homeTeam"]));
+  const away=s(first(row,["away_team","awayTeam","game.away_team","game.awayTeam"]));
+  if(team&&home&&team===norm(home)) return away;
+  if(team&&away&&team===norm(away)) return home;
+  return null;
 }
 function gameIdOf(row){
   return s(first(row,["gameId","game_id","game.id","eventId","event_id"]));
