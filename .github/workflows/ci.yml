@@ -230,6 +230,9 @@ jobs:
             echo "smoke ${path} http=${code}"
             test "$code" = "200"
             jq -e 'type == "object" or type == "array"' "$tmp" >/dev/null
+            if [ "$path" = "/api/health" ]; then
+              jq -c '{state,failures,staleChecks,pipeline:{failedWrites:.pipeline.failedWrites,failedHarvests:.pipeline.failedHarvests,retryOpen:.pipeline.retryOpen,schedule:.pipeline.schedule},operatorNotes}' "$tmp" || true
+            fi
           done
 
           # Provider-ingestion release gate. This is read-only and proves the

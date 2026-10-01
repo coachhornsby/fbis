@@ -1,9 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
 
 const SPORTS=["all","mlb","tennis","nba","wnba","nfl","nhl","soccer","cfb","cbb"];
+const TIER_ORDER={standard:0,goblin:1,demon:2};
 function num(v){ return Number.isFinite(Number(v)) ? Number(v).toFixed(1) : "—"; }
 function tierClass(tier=""){ return "pp-tier-"+String(tier||"standard").toLowerCase().replace(/[^a-z0-9]+/g,"-"); }
-function initials(name=""){ return String(name).split(/\\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"PP"; }
+function initials(name=""){ return String(name).split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"PP"; }
+function marketLabel(r){ return String(r.canonical_market||r.stat_type||"PROP").replaceAll("_"," "); }
+function matchupLabel(r){
+  const team=String(r.team||"").trim();
+  const opponent=String(r.opponent||"").trim();
+  if(team&&opponent) return team+" · vs "+opponent;
+  if(team) return team+" · Matchup pending";
+  return opponent ? "vs "+opponent : "Matchup pending";
+}
+function groupLatest(rows=[]){
+  const newest=new Map();
+  for(const r of rows){
+    const tier=String(r.odds_tier||"standard").toLowerCase();
+    const key=[r.sport,r.player_name,r.canonical_market||r.stat_type,r.duration||"full"].join("|");
+    if(!newest.has(key)) newest.set(key,{key,variants:new Map()});
+    const g=newest.get(key);
+    if(!g.variants.has(tier)) g.variants.set(tier,r);
+  }
+  return [...newest.values()].map(g=>{
+    const variants=[...g.variants.values()].sort((a,b)=>(TIER_ORDER[String(a.odds_tier||"standard").toLowerCase()]??9)-(TIER_ORDER[String(b.odds_tier||"standard").toLowerCase()]??9));
+    const primary=variants.find(v=>String(v.odds_tier||"standard").toLowerCase()==="standard")||variants[0];
+    return {...g,primary,variants};
+  }).slice(0,120);
+}
 
 export default function PrizePicksMarketPanel({ sportFilter = "all" }) {
   const [rows,setRows]=useState([]);
@@ -25,15 +49,7 @@ export default function PrizePicksMarketPanel({ sportFilter = "all" }) {
     return()=>{cancelled=true};
   },[localSport]);
 
-  const latest=useMemo(()=>{
-    const seen=new Set(),out=[];
-    for(const r of rows){
-      const key=[r.sport,r.player_name,r.canonical_market||r.stat_type,r.odds_tier].join("|");
-      if(seen.has(key)) continue;
-      seen.add(key); out.push(r);
-    }
-    return out.slice(0,120);
-  },[rows]);
+  const groups=useMemo(()=>groupLatest(rows),[rows]);
 
   return (
     <section className="pp-market" aria-label="PrizePicks player props">
@@ -41,25 +57,23 @@ export default function PrizePicksMarketPanel({ sportFilter = "all" }) {
         <div>
           <div className="pp-kicker">FBIS × PRIZEPICKS MARKET</div>
           <h1>PLAYER PROPS</h1>
-          <p>Curated lines only. FBIS projection first; PrizePicks is the market reference. Research markets cannot qualify until validated.</p>
+          <p>One card per player and market. Standard, Goblin and Demon variants are grouped under the same FBIS projection.</p>
         </div>
-        <div className="pp-count">{loading?"LOADING":latest.length+" LINES"}</div>
+        <div className="pp-count">{loading?"LOADING":groups.length+" MARKETS"}</div>
       </div>
       <div className="pp-sport-strip" role="group" aria-label="Player prop sport filter">
         {SPORTS.map(s=><button key={s} className={localSport===s?"active":""} onClick={()=>setLocalSport(s)}>{s.toUpperCase()}</button>)}
       </div>
       {error?<div className="pp-empty error-text">{error}</div>:null}
-      {!loading&&!error&&!latest.length?<div className="pp-empty">No curated PrizePicks observations are stored for this filter yet.</div>:null}
+      {!loading&&!error&&!groups.length?<div className="pp-empty">No curated PrizePicks observations are stored for this filter yet.</div>:null}
       <div className="pp-card-grid">
-        {latest.map((r,i)=>{
-          const market=String(r.canonical_market||r.stat_type||"PROP").replaceAll("_"," ");
-          const side=r.candidate_side||"WATCH";
-          const diff=r.delta_fbis_minus_line;
+        {groups.map((group)=>{
+          const r=group.primary;
           return (
-            <article className={"pp-card "+tierClass(r.odds_tier)} key={r.id||(String(r.projection_id)+"-"+i)}>
+            <article className={"pp-card "+tierClass(r.odds_tier)} key={group.key}>
               <div className="pp-card-top">
                 <span className="pp-sport">{String(r.sport||"").toUpperCase()}</span>
-                <span className="pp-tier">{r.odds_tier||"STANDARD"}</span>
+                <span className="pp-tier">{group.variants.length>1?group.variants.length+" LINES":String(r.odds_tier||"STANDARD").toUpperCase()}</span>
               </div>
               <div className="pp-player">
                 <div className="pp-headshot">
@@ -67,20 +81,32 @@ export default function PrizePicksMarketPanel({ sportFilter = "all" }) {
                 </div>
                 <div className="pp-player-copy">
                   <h2>{r.player_name||"Unknown player"}</h2>
-                  <div>{[r.team,r.opponent?("vs "+r.opponent):null].filter(Boolean).join(" · ")||"Matchup pending"}</div>
+                  <div>{matchupLabel(r)}</div>
                 </div>
               </div>
-              <div className="pp-market-name">{market}</div>
-              <div className="pp-line-row">
-                <div><span>PRIZEPICKS</span><strong>{r.line??"—"}</strong></div>
-                <div><span>FBIS</span><strong>{r.fbis_projection==null?"—":num(r.fbis_projection)}</strong></div>
-                <div><span>DIFF</span><strong>{diff==null?"—":((Number(diff)>0?"+":"")+num(diff))}</strong></div>
-              </div>
-              <div className={"pp-read pp-read-"+String(side).toLowerCase()}>
-                <span>FBIS READ</span><b>{side}</b>
-              </div>
+              <div className="pp-market-name">{marketLabel(r)}</div>
+              {group.variants.map((v)=>{
+                const side=v.candidate_side||"WATCH";
+                const diff=v.delta_fbis_minus_line;
+                return (
+                  <div className="pp-variant" key={v.id||v.projection_id||String(v.odds_tier)+"-"+String(v.line)}>
+                    <div className="pp-variant-label">
+                      <b>{String(v.odds_tier||"standard").toUpperCase()}</b>
+                      <span>{String(v.duration||"FULL GAME").toUpperCase()}</span>
+                    </div>
+                    <div className="pp-line-row">
+                      <div><span>PRIZEPICKS</span><strong>{v.line??"—"}</strong></div>
+                      <div><span>FBIS</span><strong>{v.fbis_projection==null?"—":num(v.fbis_projection)}</strong></div>
+                      <div><span>DIFF</span><strong>{diff==null?"—":((Number(diff)>0?"+":"")+num(diff))}</strong></div>
+                    </div>
+                    <div className={"pp-read pp-read-"+String(side).toLowerCase()}>
+                      <span>FBIS READ</span><b>{side}</b>
+                    </div>
+                  </div>
+                );
+              })}
               <div className="pp-card-foot">
-                <span>{r.duration||"FULL GAME"}</span>
+                <span>{r.opponent?"MATCHED":"MATCHUP PENDING"}</span>
                 <span>{r.collected_at?new Date(r.collected_at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"—"}</span>
               </div>
             </article>
