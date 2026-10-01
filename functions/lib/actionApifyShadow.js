@@ -443,18 +443,22 @@ function normalizeLineMovement(lm, historySource = null) {
   }
   const filtered = history.filter((h) => h.observedAt || h.line != null || h.odds != null);
   if (!summary && !filtered.length) return null;
+  const zSpreadHome=zenMovementSide(summary?.spread,"home");
+  const zTotalOver=zenMovementSide(summary?.total,"over") || zenMovementSide(summary?.total,"under");
+  const zMlHome=zenMovementSide(summary?.moneyline,"home");
+  const zMlAway=zenMovementSide(summary?.moneyline,"away");
   return {
-    openSpreadHome: numOrNull(summary?.openSpreadHome ?? summary?.openingSpreadHome),
-    openTotal: numOrNull(summary?.openTotal ?? summary?.openingTotal),
-    openMoneylineHome: numOrNull(summary?.openMoneylineHome ?? summary?.openingMoneylineHome),
-    openMoneylineAway: numOrNull(summary?.openMoneylineAway),
-    currentSpreadHome: numOrNull(summary?.currentSpreadHome ?? summary?.spreadHome),
-    currentTotal: numOrNull(summary?.currentTotal ?? summary?.total),
-    currentMoneylineHome: numOrNull(summary?.currentMoneylineHome),
-    currentMoneylineAway: numOrNull(summary?.currentMoneylineAway),
-    spreadMove: numOrNull(summary?.spreadMove),
-    totalMove: numOrNull(summary?.totalMove),
-    moneylineHomeMove: numOrNull(summary?.moneylineHomeMove),
+    openSpreadHome: numOrNull(summary?.openSpreadHome ?? summary?.openingSpreadHome ?? zSpreadHome?.openingLine),
+    openTotal: numOrNull(summary?.openTotal ?? summary?.openingTotal ?? zTotalOver?.openingLine),
+    openMoneylineHome: numOrNull(summary?.openMoneylineHome ?? summary?.openingMoneylineHome ?? zMlHome?.openingOdds),
+    openMoneylineAway: numOrNull(summary?.openMoneylineAway ?? zMlAway?.openingOdds),
+    currentSpreadHome: numOrNull(summary?.currentSpreadHome ?? summary?.spreadHome ?? zSpreadHome?.currentLine),
+    currentTotal: numOrNull(summary?.currentTotal ?? summary?.total ?? zTotalOver?.currentLine),
+    currentMoneylineHome: numOrNull(summary?.currentMoneylineHome ?? zMlHome?.currentOdds),
+    currentMoneylineAway: numOrNull(summary?.currentMoneylineAway ?? zMlAway?.currentOdds),
+    spreadMove: numOrNull(summary?.spreadMove ?? zSpreadHome?.lineDelta),
+    totalMove: numOrNull(summary?.totalMove ?? zTotalOver?.lineDelta),
+    moneylineHomeMove: numOrNull(summary?.moneylineHomeMove ?? zMlHome?.oddsDelta),
     spreadDirection: strOrNull(summary?.spreadDirection),
     totalDirection: strOrNull(summary?.totalDirection),
     history: filtered,
