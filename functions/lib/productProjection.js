@@ -678,26 +678,35 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
 
 function productBoardGames(games = [], sport = "") {
   if (sport !== "mlb") return games;
-  const byMatchup = new Map();
+  const groups = new Map();
   for (const game of games) {
     const away = String(game?.away?.abbr || game?.away?.name || "").trim().toUpperCase();
     const home = String(game?.home?.abbr || game?.home?.name || "").trim().toUpperCase();
     const start = String(game?.start || "");
     const date = start ? start.slice(0, 10) : "";
-    const key = [date, away, home].join("|");
-    if (!away || !home) {
-      byMatchup.set(String(game?.id || Math.random()), game);
+    const key = away && home ? [date, away, home].join("|") : `__raw:${String(game?.id || start || groups.size)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(game);
+  }
+  const kept = [];
+  for (const group of groups.values()) {
+    const official = group.filter((g) => /^\d+$/.test(String(g?.id || "")));
+    if (!official.length) {
+      kept.push(...group);
       continue;
     }
-    const score =
-      (/^\d+$/.test(String(game?.id || "")) ? 100 : 0) +
-      (game?.bpp?.homeRuns != null && game?.bpp?.awayRuns != null ? 20 : 0) +
-      (game?.homeSp?.id || game?.awaySp?.id ? 10 : 0) +
-      (game?.deepProjection?.ok ? 5 : 0);
-    const prior = byMatchup.get(key);
-    if (!prior || score > prior.score) byMatchup.set(key, { score, game });
+    kept.push(...official);
+    for (const game of group) {
+      if (/^\d+$/.test(String(game?.id || ""))) continue;
+      const ms = Date.parse(game?.start || "");
+      const nearOfficial = official.some((g) => {
+        const oms = Date.parse(g?.start || "");
+        return Number.isFinite(ms) && Number.isFinite(oms) && Math.abs(ms - oms) <= 90 * 60 * 1000;
+      });
+      if (!nearOfficial) kept.push(game);
+    }
   }
-  return [...byMatchup.values()].map((v) => v?.game || v);
+  return kept;
 }
 
 export function productProjectionBoard(slate = {}, { tier = "public" } = {}) {
