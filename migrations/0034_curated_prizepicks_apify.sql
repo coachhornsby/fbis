@@ -40,3 +40,5 @@ CREATE TABLE IF NOT EXISTS prizepicks_prop_observations (
 );
 CREATE INDEX IF NOT EXISTS idx_pp_props_sport_start ON prizepicks_prop_observations(sport, start_time);
 CREATE INDEX IF NOT EXISTS idx_pp_props_player_stat ON prizepicks_prop_observations(player_name, stat, collected_at);
+
+INSERT OR IGNORE INTO schema_migrations (id, applied_at) VALUES ('0034_curated_prizepicks_apify', datetime('now'));
