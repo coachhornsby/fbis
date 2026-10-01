@@ -26,6 +26,7 @@ export async function onRequestGet(context) {
   let sourceObservations = [];
   let apiUsage = [];
   let runtimeMeta = {};
+  let apifyBudget = { monthToDateUsd: 0, targetUsd: 22, hardCapUsd: 25, remainingUsd: 25, byProfile: [] };
   try {
     if (env?.DB) {
       d1Meta =
@@ -77,6 +78,38 @@ export async function onRequestGet(context) {
             .catch(() => ({ results: [] }))
         ).results || [];
       runtimeMeta = await readMeta(env).catch(() => ({}));
+      const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
+      const costRows = (
+        await env.DB.prepare(
+          `SELECT COALESCE(profile,'UNSPECIFIED') AS profile,
+                  SUM(CASE WHEN actual_total_usd IS NOT NULL THEN actual_total_usd ELSE estimated_total_usd END) AS usd,
+                  COUNT(*) AS runs
+             FROM shadow_cost_ledger
+            WHERE created_at >= ?
+            GROUP BY COALESCE(profile,'UNSPECIFIED')
+            ORDER BY usd DESC`
+        ).bind(monthStart).all().catch(() => ({ results: [] }))
+      ).results || [];
+      const direct = await env.DB.prepare(
+        `SELECT COALESCE(SUM(CASE WHEN actual_total_usd IS NOT NULL THEN actual_total_usd ELSE estimated_total_usd END),0) AS usd,
+                COUNT(*) AS runs
+           FROM apify_sports_cost_ledger
+          WHERE created_at >= ?`
+      ).bind(monthStart).first().catch(() => null);
+      const legacyUsd = costRows.reduce((sum, row) => sum + Number(row.usd || 0), 0);
+      const directUsd = Number(direct?.usd || 0);
+      const totalUsd = Math.round((legacyUsd + directUsd) * 10000) / 10000;
+      apifyBudget = {
+        monthStart,
+        monthToDateUsd: totalUsd,
+        targetUsd: 22,
+        hardCapUsd: 25,
+        remainingUsd: Math.max(0, Math.round((25 - totalUsd) * 10000) / 10000),
+        state: totalUsd >= 25 ? "STOP" : totalUsd >= 24 ? "PRIORITY_ONLY" : totalUsd >= 22 ? "THROTTLE" : "NORMAL",
+        byProfile: costRows.map((row) => ({ profile: row.profile, usd: Number(row.usd || 0), runs: Number(row.runs || 0) })),
+        directLedgerUsd: directUsd,
+        directLedgerRuns: Number(direct?.runs || 0),
+      };
     }
   } catch {
     d1Meta = [];
@@ -212,6 +245,7 @@ export async function onRequestGet(context) {
     governanceMeta: d1Meta,
     gapReport: "docs/canonical/manual-completion-matrix.md",
     ops,
+    apifyBudget,
   };
 
   return new Response(JSON.stringify(payload), {
