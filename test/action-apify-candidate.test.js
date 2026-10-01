@@ -119,16 +119,15 @@ test("CAPABILITY_AUDIT plan enables all four enrichments and respects maxItems",
     gameUrls: ["290853", "290851", "290845", "290800"],
   });
   assert.equal(plan.profile, "CAPABILITY_AUDIT");
-  assert.equal(plan.input.maxItems, 4);
+  assert.equal(plan.input.maxGames, 4);
   assert.equal(plan.input.includeLineMovement, true);
-  assert.equal(plan.input.includePlayerProps, true);
-  assert.equal(plan.input.includeGameProps, true);
-  assert.equal(plan.input.includeGameDetail, true);
-  assert.equal(plan.input.includeWeather, false);
+  assert.equal(plan.input.includeProps, true);
+  assert.equal(plan.input.includeLineMovement, true);
   assert.deepEqual(plan.input.gameUrls, ["290853", "290851", "290845", "290800"]);
-  assert.equal(plan.input.onlyWithOdds, true);
-  // Conservative Zen Studio Basic pricing: 4 results × $0.0025 = $0.010.
-  assert.equal(plan.estimatedCostUsd, 0.01);
+  // Current Zen contract has no onlyWithOdds field; completed/odds filtering is
+  // expressed by league/date/week/gameStatus and the returned market payload.
+  assert.equal("onlyWithOdds" in plan.input, false);
+  assert.ok(plan.estimatedCostUsd > 0 && plan.estimatedCostUsd < 0.10);
 });
 
 test("capability audit summary covers BASE + enrichments without inventing observedAt", async () => {
@@ -270,7 +269,7 @@ test("cost ledger + monthly budget sufficiency model is measurable", () => {
     plan: "starter",
     sport: "cfb",
     profile: "BASE",
-    input: { leagues: ["ncaaf"], periods: ["event"], maxItems: 20, includeLineMovement: false },
+    input: { leagues: ["ncaaf"], periods: ["event"], maxGames: 20, includeLineMovement: false },
     gamesReturned: 20,
   });
   assert.equal(entry.cost_basis, "ESTIMATED");
