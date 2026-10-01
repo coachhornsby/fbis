@@ -7,6 +7,7 @@
 
 export const CUSTOMER_NAV = Object.freeze([
   { id: "board", label: "BOARD", description: "Decision workstation — FBIS → Market → Diff → Decision" },
+  { id: "player-props", label: "PLAYER PROPS", description: "Curated PrizePicks lines + FBIS player projections" },
   { id: "models", label: "MODELS", description: "Sport/model status and projections" },
   { id: "model-lab", label: "MODEL LAB", description: "Validation, version comparison, prospective evidence" },
   { id: "bets", label: "MY BETS", description: "Manual wager journal and performance" },
@@ -30,6 +31,7 @@ export const SPORT_FILTERS = Object.freeze([
 /** Routes that show the sport filter bar. */
 export const SPORT_FILTER_ROUTES = Object.freeze([
   "board",
+  "player-props",
   "market",
   "models",
   "model-lab",
@@ -92,6 +94,7 @@ export function normalizeRoute(route) {
     case "research":
       return "model-lab";
     case "player-props":
+      return { tab: "today", sport: sportFilter === "all" ? "mlb" : sportFilter };
     case "publish":
     case "performance":
       return "models";
