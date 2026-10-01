@@ -676,6 +676,39 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
   return card;
 }
 
+function productBoardGames(games = [], sport = "") {
+  if (sport !== "mlb") return games;
+  const groups = new Map();
+  for (const game of games) {
+    const away = String(game?.away?.abbr || game?.away?.name || "").trim().toUpperCase();
+    const home = String(game?.home?.abbr || game?.home?.name || "").trim().toUpperCase();
+    const start = String(game?.start || "");
+    const date = start ? start.slice(0, 10) : "";
+    const key = away && home ? [date, away, home].join("|") : `__raw:${String(game?.id || start || groups.size)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(game);
+  }
+  const kept = [];
+  for (const group of groups.values()) {
+    const official = group.filter((g) => /^\d+$/.test(String(g?.id || "")));
+    if (!official.length) {
+      kept.push(...group);
+      continue;
+    }
+    kept.push(...official);
+    for (const game of group) {
+      if (/^\d+$/.test(String(game?.id || ""))) continue;
+      const ms = Date.parse(game?.start || "");
+      const nearOfficial = official.some((g) => {
+        const oms = Date.parse(g?.start || "");
+        return Number.isFinite(ms) && Number.isFinite(oms) && Math.abs(ms - oms) <= 90 * 60 * 1000;
+      });
+      if (!nearOfficial) kept.push(game);
+    }
+  }
+  return kept;
+}
+
 export function productProjectionBoard(slate = {}, { tier = "public" } = {}) {
   const sport = String(slate.sport || "").toLowerCase();
   return {
@@ -685,7 +718,7 @@ export function productProjectionBoard(slate = {}, { tier = "public" } = {}) {
     date: slate.date || null,
     generatedAt: slate.generatedAt || new Date().toISOString(),
     modelVersion: slate.modelVersion || null,
-    games: (slate.games || []).map((game) => productProjectionCard(game, sport, { tier })),
+    games: productBoardGames(slate.games || [], sport).map((game) => productProjectionCard(game, sport, { tier })),
     disclaimer: "FBIS is the proprietary projection. Ballpark Pal, when shown for MLB, is an independent cross-check and never replaces the FBIS projection. Pinnacle is the market benchmark. PASS means no qualifying FBIS wager at the frozen/current market state.",
   };
 }

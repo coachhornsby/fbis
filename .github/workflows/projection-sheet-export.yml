@@ -10,6 +10,7 @@ on:
       - ".github/workflows/projection-sheet-export.yml"
       - "functions/api/projection-sheet-feed.js"
       - "functions/api/player-projection-sheet-feed.js"
+      - "functions/lib/productProjection.js"
 
 permissions:
   contents: read

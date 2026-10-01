@@ -35,7 +35,11 @@ function dedupe(games = []) {
     const day = dateCt(g?.start);
     const key = [day,away,home].join("|");
     const independent = g?.projectionKind === "FBIS" || g?.model?.projectionKind === "FBIS";
-    const score = independent ? 10 : 0;
+    const score =
+      (independent ? 10 : 0) +
+      (/^\d+$/.test(String(g?.id || "")) ? 100 : 0) +
+      (g?.bpp?.homeRuns != null && g?.bpp?.awayRuns != null ? 20 : 0) +
+      (g?.homeSp?.id || g?.awaySp?.id ? 10 : 0);
     const prior = seen.get(key);
     if (!prior || score > prior.score) seen.set(key,{score,game:g});
   }
