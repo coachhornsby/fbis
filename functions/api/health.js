@@ -62,8 +62,10 @@ export async function onRequestGet(context) {
       reason: health.lastError || health.source || "",
     });
     const writeOk = writeVerification === "VERIFIED";
-    const collectHealthy = schedule?.collect?.state === "healthy";
-    const harvestHealthy = schedule?.harvest?.state === "healthy";
+    // GitHub scheduled workflows may start several minutes after the cron minute.
+    // "delayed" is the bounded grace-window state from pipelineSchedule.js, not a missed job.
+    const collectHealthy = ["healthy", "delayed"].includes(schedule?.collect?.state);
+    const harvestHealthy = ["healthy", "delayed"].includes(schedule?.harvest?.state);
     const schema = await schemaVersion(env, { readOk });
     const conflicts = await conflictBreakdown(env, { readOk });
     const migrationOk = schema.status === MIGRATION_STATUS.VERIFIED;
