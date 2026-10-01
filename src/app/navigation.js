@@ -94,7 +94,7 @@ export function normalizeRoute(route) {
     case "research":
       return "model-lab";
     case "player-props":
-      return { tab: "today", sport: sportFilter === "all" ? "mlb" : sportFilter };
+      return "player-props";
     case "publish":
     case "performance":
       return "models";
