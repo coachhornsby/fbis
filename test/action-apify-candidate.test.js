@@ -304,7 +304,7 @@ test("scheduler: free/starter plans, budget guard, idempotent offline collect", 
     { ACTION_APIFY_ENABLED: "true", ACTION_APIFY_PLAN: "free", ACTION_APIFY_MAX_ITEMS: "50", APIFY_TOKEN: "x" },
     { sport: "cfb", lifecycle: "pregame" }
   );
-  assert.ok(freePlan.input.maxItems <= 10);
+  assert.ok(freePlan.input.maxGames <= 10);
 
   const starterEnv = {
     ACTION_APIFY_ENABLED: "true",
@@ -313,7 +313,7 @@ test("scheduler: free/starter plans, budget guard, idempotent offline collect", 
     APIFY_TOKEN: "x",
   };
   const starterPlan = planCandidateCollection(starterEnv, { sport: "nfl", lifecycle: "pregame" });
-  assert.equal(starterPlan.input.maxItems, 40);
+  assert.equal(starterPlan.input.maxGames, 40);
   assert.equal(evaluateSchedulerSafety(starterPlan).allowed, true);
   const blockedBudget = evaluateSchedulerSafety(starterPlan, { monthToDateCostUsd: 1e9 });
   assert.equal(blockedBudget.allowed, false);
