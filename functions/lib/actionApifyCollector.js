@@ -62,6 +62,10 @@ const SPORT_LEAGUES = Object.freeze({
   nba: ["nba"],
   ncaab: ["ncaab"],
   nhl: ["nhl"],
+  wnba: ["wnba"],
+  soccer: ["soccer"],
+  atp: ["atp"],
+  wta: ["wta"],
 });
 
 /** In-memory overlap + circuit state for a single isolate (tests / single worker). */
