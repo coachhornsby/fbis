@@ -20,6 +20,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Warm Ballpark Pal cache for MLB projection window
+        shell: bash
+        run: |
+          set -euo pipefail
+          for off in -1 0 1 2; do
+            date="$(date -u -d "$off day" +%F)"
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 90 --retry 1 --retry-all-errors               -o "$body" -w "%{http_code}"               "https://fbis-myz.pages.dev/api/slate?sport=mlb&date=${date}&_t=$(date +%s)")"
+            echo "pal-cache-warm date=${date} http=${code}"
+            test "$code" = "200"
+            jq -e '.pal.enabled == true' "$body" >/dev/null
+            jq -c '{date:"'"${date}"'",pal:{cached:.pal.cached,stage:.pal.stage,recordsReturned:.pal.recordsReturned,usable:.pal.usable,matched:.pal.matched,reason:.pal.reason}}' "$body"
+          done
+
       - name: Export live projection slates
         env:
           BASE: https://fbis-myz.pages.dev
