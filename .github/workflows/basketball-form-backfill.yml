@@ -42,19 +42,21 @@ jobs:
           run_range () {
             sport="$1"; start="$2"; end="$3"
             cursor="$start"
-            while [ "$cursor" != "$(date -d "$end + 1 day" +%F)" ]; do
+            while true; do
               chunk_end="$(date -d "$cursor + 13 days" +%F)"
               if [[ "$chunk_end" > "$end" ]]; then chunk_end="$end"; fi
+              payload="$(mktemp)"
               body="$(mktemp)"
+              node scripts/basketball-backfill-payload.mjs "$sport" "$cursor" "$chunk_end" > "$payload"
+              games="$(jq '.games|length' "$payload")"
+              echo "$sport runner payload $cursor..$chunk_end games=$games"
               code="$(curl -sS --max-time 120 --retry 1 --retry-all-errors \
                 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
-                -d "{\"sport\":\"$sport\",\"start\":\"$cursor\",\"end\":\"$chunk_end\"}" \
-                -o "$body" -w "%{http_code}" "$BASE/api/basketball-form-backfill")"
+                --data-binary "@$payload" -o "$body" -w "%{http_code}" "$BASE/api/basketball-form-backfill")"
               echo "$sport $cursor..$chunk_end http=$code"
-              cat "$body"
-              echo
+              cat "$body"; echo
               test "$code" = "200"
-              jq -e '.ok == true' "$body" >/dev/null
+              jq -e '.ok == true and .source == "trusted-runner-payload"' "$body" >/dev/null
               [ "$chunk_end" = "$end" ] && break
               cursor="$(date -d "$chunk_end + 1 day" +%F)"
               sleep 1
