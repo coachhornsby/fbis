@@ -221,7 +221,7 @@ export default function App() {
     setTodayError("");
     setTodayLastAttemptAt(new Date().toISOString());
     const ac = new AbortController();
-    const timeout = setTimeout(() => ac.abort(new Error("timeout")), 20_000);
+    const timeout = setTimeout(() => ac.abort(new Error("timeout")), 60_000);
     if (signal) signal.addEventListener("abort", () => ac.abort(signal.reason), { once: true });
     try {
       const res = await fetch(`/api/today?date=${todayDate}&sport=${todaySport}&_t=${Date.now()}`, { signal: ac.signal });
