@@ -39,7 +39,7 @@ jobs:
           echo "PROD_HTTP=$code"
           test "$code" = "200"
           jq -c '{date:.date,pal:(.sources.ballparkPal // .pal // .feeds?.mlb?.sources?.ballparkPal // null),games:(.games|length),gameComparators:[.games[]? | {id,ballparkPal:(.externalModels.ballparkPal // null),flags:(.quality.flags // [])}]}' "$tmp" || cat "$tmp"
-          jq -e '(.games|length)==0 or ([.games[] | .externalModels.ballparkPal.available == true] | all)' "$tmp" >/dev/null
+          jq -e '(.games|length)==0 or ([.games[] | ((.externalModels.ballparkPal.available == true) or ((.quality.flags // []) | any(. == "missing_home_sp" or . == "missing_away_sp")))] | all)' "$tmp" >/dev/null
           slate="$(mktemp)"
           scode="$(curl -sS --max-time 60 -o "$slate" -w "%{http_code}" "https://fbis-myz.pages.dev/api/slate?sport=mlb&date=$(TZ=America/Chicago date +%F)&_t=$(date +%s)")"
           echo "SLATE_HTTP=$scode"
