@@ -1,0 +1,33 @@
+name: NFL-PRO walk-forward validation
+on:
+  push:
+    branches: ["research/nfl-pro-walkforward","main"]
+    paths:
+      - "scripts/nfl-pro-walkforward.mjs"
+      - "functions/lib/nflProModel.js"
+      - "functions/lib/nflModel.js"
+      - ".github/workflows/nfl-pro-walkforward.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: node scripts/nfl-pro-walkforward.mjs
+      - name: Summary
+        run: |
+          jq . artifacts/nfl-pro-walkforward-report.json
+          {
+            echo "## NFL-PRO-v1 true walk-forward"
+            jq -r '"- paired n: \(.sample.n)","- PRO margin MAE: \(.pro.marginMae)","- Form margin MAE: \(.base.marginMae)","- PRO total MAE: \(.pro.totalMae)","- Form total MAE: \(.base.totalMae)","- PRO winner accuracy: \(.pro.winnerAccuracy)","- Form winner accuracy: \(.base.winnerAccuracy)","- decision: \(.status)"' artifacts/nfl-pro-walkforward-report.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfl-pro-walkforward-${{ github.run_id }}
+          path: artifacts/nfl-pro-walkforward-*
+          retention-days: 90
