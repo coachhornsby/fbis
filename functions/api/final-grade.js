@@ -2,7 +2,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { gradeSnapshotPopulationAgainstFinals } from "../lib/projLedger.js";
 import { excludeSnapshotsForGame, gradeSnapshotsForGame } from "../lib/store.js";
 
-const SPORTS = new Set(["mlb","nfl","cfb","cbb","nba","nhl"]);
+const SPORTS = new Set(["mlb","npb","kbo","nfl","cfb","cbb","nba","nhl"]);
 
 function json(data,status=200){
   return new Response(JSON.stringify(data),{
