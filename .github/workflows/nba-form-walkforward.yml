@@ -1,0 +1,27 @@
+name: NBA independent model walk-forward
+on:
+  push:
+    branches: ["fix/basketball-validation","main"]
+    paths:
+      - "functions/lib/basketballFormModel.js"
+      - "scripts/nba-form-walkforward.mjs"
+      - ".github/workflows/nba-form-walkforward.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: node scripts/nba-form-walkforward.mjs
+      - run: |
+          jq . artifacts/nba-form-walkforward-report.json
+          jq -r '"## NBA-FBIS-FORM-v1 walk-forward\n- n: \(.n)\n- margin MAE: \(.marginMae)\n- total MAE: \(.totalMae)\n- winner accuracy: \(.winnerAccuracy)\n- maturity: \(.governance.maturity)"' artifacts/nba-form-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-form-walkforward-${{ github.run_id }}
+          path: artifacts/nba-form-walkforward-*
+          retention-days: 90
