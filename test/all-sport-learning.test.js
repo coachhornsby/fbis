@@ -10,7 +10,7 @@ import {
 } from "../functions/lib/snapshotLearning.js";
 
 test("all core learning sports are enrolled in snapshot learning", () => {
-  assert.deepEqual([...LEARNING_SPORTS].sort(), ["cbb","cfb","mlb","nba","nfl","nhl","wnba"].sort());
+  assert.deepEqual([...LEARNING_SPORTS].sort(), ["cbb","cfb","mlb","nba","nfl","nhl","soccer","wnba"].sort());
 });
 
 test("canonical learning snapshot keeps latest graded pregame row and rejects post-start row", () => {
