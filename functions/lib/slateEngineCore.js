@@ -96,6 +96,18 @@ export const SPORTS = {
     minEv: 0.03,
     maxProb: 0.72,
   },
+  soccer: {
+    id: "soccer",
+    label: "SOCCER",
+    name: "Soccer",
+    espn: null,
+    k: 1.2,
+    totalK: 1.8,
+    minSpreadEdge: 0.35,
+    minMlEdge: 0.04,
+    minEv: 0.04,
+    maxProb: 0.72,
+  },
   nhl: {
     id: "nhl",
     label: "NHL",
@@ -134,7 +146,7 @@ export const SPORTS = {
   },
 };
 
-export const BOARD_SPORTS = ["mlb", "npb", "kbo", "nba", "wnba", "nhl", "nfl", "cfb", "cbb"];
+export const BOARD_SPORTS = ["mlb", "npb", "kbo", "nba", "wnba", "nhl", "nfl", "cfb", "cbb", "soccer"];
 
 export function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -1427,6 +1439,10 @@ export async function fetchResults(sport, date) {
       /* ESPN fallback below */
     }
   }
+  if (id === "soccer") {
+    const games = await fetchSoccerScoreboard(day);
+    return games.map(slimFinal);
+  }
   const json = await fetchEspnScoreboard(id, day);
   return (json.events || []).map((ev) => slimFinal(mapEvent(id, ev)));
 }
@@ -1579,6 +1595,33 @@ async function enrichCfbVenuesFromEspn(games, anchorDay) {
   return mergeEspnVenueFields(games, espnGames);
 }
 
+const SOCCER_ESPN_LEAGUES = Object.freeze(["eng.1","esp.1","ger.1","ita.1","fra.1","usa.1"]);
+
+async function fetchSoccerScoreboard(date) {
+  const stamp = dateStamp(date);
+  const games = [];
+  for (const league of SOCCER_ESPN_LEAGUES) {
+    try {
+      const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${stamp}&limit=100`;
+      const json = await fetchJsonGuarded(url, {
+        circuitKey: `espn-site:soccer:${league}`,
+        label: `ESPN soccer ${league}`,
+        retries: 1,
+        timeoutMs: 9000,
+        headers: { "User-Agent":"Mozilla/5.0 FBIS/1.0", Accept:"application/json,text/plain,*/*" },
+        shapeCheck: (body) => Array.isArray(body?.events),
+      });
+      for (const ev of json.events || []) {
+        const game = mapEvent("soccer", ev);
+        games.push({ ...game, soccerLeague: league, source: `espn:${league}` });
+      }
+    } catch {}
+  }
+  const byId = new Map();
+  for (const g of games) if (!byId.has(String(g.id))) byId.set(String(g.id), g);
+  return [...byId.values()];
+}
+
 export async function buildSlate(sport, date, env = {}) {
   const id = SPORTS[sport] ? sport : "cbb";
   const cfg = SPORTS[id];
@@ -1617,7 +1660,16 @@ export async function buildSlate(sport, date, env = {}) {
     }
   }
 
-  if (!games.length && !["npb","kbo"].includes(id)) {
+  if (id === "soccer") {
+    try {
+      games = await fetchSoccerScoreboard(day);
+      scheduleResolved = true;
+    } catch {
+      games = [];
+    }
+  }
+
+  if (!games.length && !["npb","kbo","soccer"].includes(id)) {
     try {
       const json = await fetchEspnScoreboard(id, day);
       games = (json.events || []).map((ev) => {
