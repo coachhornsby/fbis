@@ -119,6 +119,10 @@ export const RECIPE_GUIDE = {
     engine: "WNBA-FBIS-v1 research",
     body: "Independent scoreboard-derived prior/current team scoring-form projection. Action/sportsbook data is evaluation-only and never enters the projection. Research-only until walk-forward and market-relative validation passes.",
   },
+  soccer: {
+    engine: "SOCCER-FBIS-v1 research",
+    body: "Independent six-league scoreboard-derived goal-form model with Poisson 1X2 probabilities. Market/Action data is evaluation-only. Research-only until market-relative validation passes.",
+  },
   nhl: {
     engine: "Market-implied benchmark / research",
     body: "NHL is enrolled in the same frozen-snapshot and grading loop. Until an independent NHL score model is present, line-implied scores are benchmark context only and cannot qualify or authorize wagers.",
@@ -143,7 +147,7 @@ export function windowStart(days, sport = "mlb") {
     const today = todayCT();
     const y = Number(today.slice(0, 4));
     const m = Number(today.slice(5, 7));
-    if (sport === "nba" || sport === "cbb" || sport === "nhl") return m >= 10 ? `${y}-10-01` : `${y - 1}-10-01`;
+    if (sport === "soccer") return m >= 7 ? `${y}-07-01` : `${y - 1}-07-01`;\n    if (sport === "nba" || sport === "cbb" || sport === "nhl") return m >= 10 ? `${y}-10-01` : `${y - 1}-10-01`;
     if (sport === "nfl" || sport === "cfb") return m >= 8 ? `${y}-08-01` : `${y - 1}-08-01`;
     return m >= 3 ? `${y}-03-01` : `${y - 1}-03-01`;
   }
@@ -472,7 +476,7 @@ function seasonOf(date, sport) {
   const y = Number(String(date).slice(0, 4));
   const m = Number(String(date).slice(5, 7));
   if (sport === "cfb" || sport === "nfl") return m >= 8 ? String(y) : String(y - 1);
-  if (sport === "nba" || sport === "cbb" || sport === "nhl") return m >= 10 ? String(y) : String(y - 1);
+  if (sport === "soccer") return m >= 7 ? String(y) : String(y - 1);\n  if (sport === "nba" || sport === "cbb" || sport === "nhl") return m >= 10 ? String(y) : String(y - 1);
   return String(y);
 }
 
