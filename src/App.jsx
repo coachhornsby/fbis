@@ -20,6 +20,7 @@ import { legacyToRoute, normalizeRoute, routeToLegacy } from "./app/navigation.j
 import PlayerPropsBoard from "./features/playerProps/PlayerPropsBoard.jsx";
 import PrizePicksMarketPanel from "./features/playerProps/PrizePicksMarketPanel.jsx";
 import ModelLabView from "./features/modelLab/ModelLabView.jsx";
+import CurrentProjectionsView from "./features/models/CurrentProjectionsView.jsx";
 import DataHealthView from "./features/dataHealth/DataHealthView.jsx";
 import MispricesView from "./features/misprices/MispricesView.jsx";
 import "./features/playerProps/playerProps.css";
@@ -221,7 +222,7 @@ export default function App() {
     setTodayError("");
     setTodayLastAttemptAt(new Date().toISOString());
     const ac = new AbortController();
-    const timeout = setTimeout(() => ac.abort(new Error("timeout")), 20_000);
+    const timeout = setTimeout(() => ac.abort(new Error("timeout")), 60_000);
     if (signal) signal.addEventListener("abort", () => ac.abort(signal.reason), { once: true });
     try {
       const res = await fetch(`/api/today?date=${todayDate}&sport=${todaySport}&_t=${Date.now()}`, { signal: ac.signal });
@@ -538,6 +539,7 @@ export default function App() {
 
         {route === "models" || route === "publish" ? (
           <div className="canonical-models-stack">
+            <CurrentProjectionsView date={todayDate} sportFilter={sportFilter} />
             <FeaturePlaceholder
               title="Models"
               status="BOARD-FIRST · PHASE A"
