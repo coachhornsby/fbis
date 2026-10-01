@@ -1,7 +1,8 @@
 name: Ballpark Pal source audit
 on:
+  workflow_dispatch:
   push:
-    branches: [fix/ballpark-pal-secret-path]
+    branches: [main]
     paths: [".github/workflows/ballpark-pal-source-audit.yml"]
 permissions:
   contents: read
@@ -29,12 +30,12 @@ jobs:
             echo "CF_SECRET_AUDIT=credentials-missing"
           fi
           tmp="$(mktemp)"
-          code="$(curl -sS --max-time 60 -o "$tmp" -w "%{http_code}" "https://fbis-myz.pages.dev/api/projections?sport=mlb&date=2026-09-29&_t=$(date +%s)")"
+          code="$(curl -sS --max-time 60 -o "$tmp" -w "%{http_code}" "https://fbis-myz.pages.dev/api/projections?sport=mlb&date=$(TZ=America/Chicago date +%F)&_t=$(date +%s)")"
           echo "PROD_HTTP=$code"
           test "$code" = "200"
           jq -c '{date:.date,pal:(.sources.ballparkPal // .pal // .feeds?.mlb?.sources?.ballparkPal // null),games:(.games|length)}' "$tmp" || cat "$tmp"
           slate="$(mktemp)"
-          scode="$(curl -sS --max-time 60 -o "$slate" -w "%{http_code}" "https://fbis-myz.pages.dev/api/slate?sport=mlb&date=2026-09-29&_t=$(date +%s)")"
+          scode="$(curl -sS --max-time 60 -o "$slate" -w "%{http_code}" "https://fbis-myz.pages.dev/api/slate?sport=mlb&date=$(TZ=America/Chicago date +%F)&_t=$(date +%s)")"
           echo "SLATE_HTTP=$scode"
           test "$scode" = "200"
           jq -c '{pal:.pal,gamePal:[.games[]|{id,bpp:(.bpp//null)}]}' "$slate"
