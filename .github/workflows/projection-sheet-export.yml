@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/projection-sheet-export.yml"
+      - "functions/api/projection-sheet-feed.js"
+      - "functions/api/player-projection-sheet-feed.js"
 
 permissions:
   contents: read
