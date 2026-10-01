@@ -59,6 +59,30 @@ export default function DataHealthView() {
               <span className="canonical-chip">NFL form rows: {data.ops.nflFormRows}</span>
             ) : null}
           </div>
+          {data.apifyBudget ? (
+            <>
+              <h3 style={{ marginTop: "1rem" }}>Paid data budget</h3>
+              <div className="canonical-card-grid" style={{ marginBottom: "1rem" }}>
+                <article className="canonical-card">
+                  <h3>ACTION + PrizePicks</h3>
+                  <p className="canonical-maturity">{data.apifyBudget.state}</p>
+                  <p className="canonical-meta">
+                    ${Number(data.apifyBudget.monthToDateUsd || 0).toFixed(2)} / ${Number(data.apifyBudget.hardCapUsd || 25).toFixed(2)}
+                  </p>
+                  <p className="muted small">
+                    Operating target ${Number(data.apifyBudget.targetUsd || 22).toFixed(2)} · remaining ${Number(data.apifyBudget.remainingUsd || 0).toFixed(2)}
+                  </p>
+                </article>
+                {(data.apifyBudget.byProfile || []).map((row) => (
+                  <article key={row.profile} className="canonical-card">
+                    <h3>{String(row.profile).replaceAll("_", " ")}</h3>
+                    <p className="canonical-maturity">${Number(row.usd || 0).toFixed(2)}</p>
+                    <p className="muted small">{row.runs || 0} run{Number(row.runs || 0) === 1 ? "" : "s"} this month</p>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : null}
           {data.ops?.bySport ? (
             <div className="canonical-card-grid" style={{ marginBottom: "1rem" }}>
               {Object.values(data.ops.bySport).map((s) => (
