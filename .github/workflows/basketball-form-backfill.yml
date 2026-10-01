@@ -41,25 +41,26 @@ jobs:
           test -n "$HARVEST_SECRET"
           run_range () {
             sport="$1"; start="$2"; end="$3"
-            python3 - "$sport" "$start" "$end" <<'PY' > /tmp/ranges.tsv
-import sys,datetime
-sport,start,end=sys.argv[1:]
-a=datetime.date.fromisoformat(start); b=datetime.date.fromisoformat(end)
-while a<=b:
-    z=min(b,a+datetime.timedelta(days=13))
-    print(sport,a.isoformat(),z.isoformat(),sep="\t")
-    a=z+datetime.timedelta(days=1)
-PY
-            while IFS=$'\t' read -r s a b; do
+            cursor="$start"
+            while true; do
+              chunk_end="$(date -d "$cursor + 13 days" +%F)"
+              if [[ "$chunk_end" > "$end" ]]; then chunk_end="$end"; fi
+              payload="$(mktemp)"
               body="$(mktemp)"
-              code="$(curl -sS --max-time 120 --retry 1 --retry-all-errors                 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"                 -d "{\"sport\":\"$s\",\"start\":\"$a\",\"end\":\"$b\"}"                 -o "$body" -w "%{http_code}" "$BASE/api/basketball-form-backfill")"
-              echo "$s $a..$b http=$code"
-              cat "$body"
-              echo
+              node scripts/basketball-backfill-payload.mjs "$sport" "$cursor" "$chunk_end" > "$payload"
+              games="$(jq '.games|length' "$payload")"
+              echo "$sport runner payload $cursor..$chunk_end games=$games"
+              code="$(curl -sS --max-time 120 --retry 1 --retry-all-errors \
+                -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
+                --data-binary "@$payload" -o "$body" -w "%{http_code}" "$BASE/api/basketball-form-backfill")"
+              echo "$sport $cursor..$chunk_end http=$code"
+              cat "$body"; echo
               test "$code" = "200"
-              jq -e '.ok == true' "$body" >/dev/null
+              jq -e '.ok == true and .source == "trusted-runner-payload"' "$body" >/dev/null
+              [ "$chunk_end" = "$end" ] && break
+              cursor="$(date -d "$chunk_end + 1 day" +%F)"
               sleep 1
-            done < /tmp/ranges.tsv
+            done
           }
           run_range wnba 2025-05-16 2025-09-11
           run_range wnba 2026-05-15 2026-09-30
