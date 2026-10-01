@@ -100,7 +100,7 @@ export function leaguesForSport(sport) {
 /**
  * Build collection plan for a sport + lifecycle without network I/O.
  * @param {Record<string, string|undefined>} env
- * @param {{ sport: string, lifecycle?: string, profile?: string, date?: string }} opts
+ * @param {{ sport: string, lifecycle?: string, profile?: string, date?: string, season?: number, week?: number, seasonType?: string, gameStatus?: string, onlyWithOdds?: boolean, maxItems?: number }} opts
  */
 export function planCandidateCollection(env, opts) {
   const cfg = readCandidateConfig(env);
@@ -170,8 +170,11 @@ export function planCandidateCollection(env, opts) {
     includeInjuries: flags.includeInjuries,
     includeStandings: flags.includeStandings,
     includeFutures: flags.includeFutures,
-    gameStatus: cadence.gameStatus,
+    gameStatus: opts.gameStatus || cadence.gameStatus,
     date: opts.date,
+    season: opts.season,
+    week: opts.week,
+    seasonType: opts.seasonType,
     // Deliberate audit sample controls (Actor-native filters; no extra PPE).
     gameUrls: opts.gameUrls,
     teams: opts.teams,
