@@ -7,11 +7,9 @@
 
 export const CUSTOMER_NAV = Object.freeze([
   { id: "board", label: "BOARD", description: "Decision workstation — FBIS → Market → Diff → Decision" },
-  { id: "props", label: "PROPS", description: "Curated PrizePicks markets and FBIS player projections" },
   { id: "models", label: "MODELS", description: "Sport/model status and projections" },
   { id: "model-lab", label: "MODEL LAB", description: "Validation, version comparison, prospective evidence" },
   { id: "bets", label: "MY BETS", description: "Manual wager journal and performance" },
-  { id: "performance", label: "PERFORMANCE", description: "Model accuracy, grading, CLV and validation results" },
   { id: "market", label: "MARKET", description: "Advanced market intelligence and price comparison" },
 ]);
 
@@ -35,9 +33,7 @@ export const SPORT_FILTER_ROUTES = Object.freeze([
   "market",
   "models",
   "model-lab",
-  "props",
   "bets",
-  "performance",
 ]);
 
 // Back-compat alias used by older shell imports.
@@ -75,7 +71,6 @@ export function routeToLegacy(route, sportFilter = "all") {
       };
     case "models":
     case "model-lab":
-    case "props":
     case "player-props":
     case "performance":
     case "publish":
@@ -97,8 +92,8 @@ export function normalizeRoute(route) {
     case "research":
       return "model-lab";
     case "player-props":
-      return "props";
     case "publish":
+    case "performance":
       return "models";
     default:
       return route || "board";

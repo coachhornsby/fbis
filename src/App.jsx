@@ -543,7 +543,7 @@ export default function App() {
               status="BOARD-FIRST · PHASE A"
               body="Sport/model status, projection coverage, and publish tooling live here. Player props and performance remain secondary to the Board decision loop."
             />
-            {route === "props" || route === "player-props" ? (
+            {route === "models" || route === "player-props" ? (
               <PrizePicksMarketPanel sportFilter={sportFilter === "all" ? todaySport : sportFilter} />
             ) : null}
             {route === "props" || route === "player-props" || route === "models" ? (
