@@ -3,7 +3,11 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [".github/workflows/ballpark-pal-source-audit.yml"]
+    paths:
+      - ".github/workflows/ballpark-pal-source-audit.yml"
+      - "functions/lib/productProjection.js"
+      - "functions/api/projections.js"
+      - "functions/api/projection-sheet-feed.js"
 permissions:
   contents: read
 jobs:
