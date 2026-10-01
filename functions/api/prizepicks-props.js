@@ -86,6 +86,14 @@ function marketFor(sport,stat){
 function candidateKey(c){
   return [String(c.sport||"").toLowerCase(),norm(c.playerName),String(c.market||"").toLowerCase()].join("|");
 }
+function candidateOpponent(cand, rawTeam){
+  if(!cand) return null;
+  const team=norm(rawTeam || cand.team);
+  const home=s(cand.home), away=s(cand.away);
+  if(team && home && team===norm(home)) return away;
+  if(team && away && team===norm(away)) return home;
+  return s(cand.opponent);
+}
 async function mtd(db){
   const now=new Date();
   const monthStart=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),1)).toISOString();
@@ -161,7 +169,7 @@ export async function onRequestPost(context){
       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).bind(
       id,runId,projectionId,s(cand?.eventId),sport,s(first(raw,["league","leagueName","league.name"])),
-      playerIdOf(raw),playerName,headshotOf(raw),teamOf(raw),opponentOf(raw),gameIdOf(raw),startOf(raw),
+      playerIdOf(raw),playerName,headshotOf(raw),s(teamOf(raw)||cand?.team),s(opponentOf(raw)||candidateOpponent(cand,teamOf(raw))),gameIdOf(raw),s(startOf(raw)||cand?.start),
       stat,market,line,tierOf(raw),durationOf(raw),fbisProjection,fbisSigma,delta,side,
       s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt,collectedAt,JSON.stringify(raw)
     ));
