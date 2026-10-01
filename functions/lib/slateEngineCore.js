@@ -1439,6 +1439,10 @@ export async function fetchResults(sport, date) {
       /* ESPN fallback below */
     }
   }
+  if (id === "soccer") {
+    const games = await fetchSoccerScoreboard(day);
+    return games.map(slimFinal);
+  }
   const json = await fetchEspnScoreboard(id, day);
   return (json.events || []).map((ev) => slimFinal(mapEvent(id, ev)));
 }
