@@ -52,7 +52,8 @@ export async function onRequestGet(context){
   const opts=optsFrom(Object.fromEntries(u.searchParams.entries()));
   if(!opts.sport) return json({ok:false,error:"sport-required"},400);
   const d=db(context.env);
-  const plan=planCandidateCollection(context.env,opts);
+  const researchEnv={...context.env,ACTION_APIFY_ENABLED:"true"};
+  const plan=planCandidateCollection(researchEnv,opts);
   const mtd=await queryMonthToDateSpendUsd(d);
   const safety=evaluateSchedulerSafety(plan,{monthToDateCostUsd:mtd.mtdUsd});
   return json({ok:true,executed:false,plan:{sport:plan.sport,profile:plan.profile,input:plan.input,estimatedCostUsd:plan.estimatedCostUsd},budget:{monthToDateCostUsd:mtd.mtdUsd,monthlyBudgetUsd:plan.cfg.monthlyBudgetUsd,remainingBudgetUsd:Math.max(0,plan.cfg.monthlyBudgetUsd-mtd.mtdUsd)},safety,inProductionRouter:false,canQualify:false,canAuthorizeWager:false});
@@ -65,10 +66,11 @@ export async function onRequestPost(context){
   const opts=optsFrom(body);
   if(!opts.sport) return json({ok:false,error:"sport-required"},400);
   const d=db(context.env);
-  const plan=planCandidateCollection(context.env,opts);
+  const researchEnv={...context.env,ACTION_APIFY_ENABLED:"true"};
+  const plan=planCandidateCollection(researchEnv,opts);
   const mtd=await queryMonthToDateSpendUsd(d);
   const safety=evaluateSchedulerSafety(plan,{monthToDateCostUsd:mtd.mtdUsd});
   if(!safety.allowed) return json({ok:false,executed:false,status:"blocked",blocks:safety.blocks,budget:safety,inProductionRouter:false,canQualify:false,canAuthorizeWager:false},409);
-  const result=await runCandidateCollection(context.env,{...opts,maxItems:plan.input.maxItems,fbisEvents:[],gamesExpected:null,db:d,monthToDateCostUsd:mtd.mtdUsd});
+  const result=await runCandidateCollection(researchEnv,{...opts,maxItems:plan.input.maxItems,fbisEvents:[],gamesExpected:null,db:d,monthToDateCostUsd:mtd.mtdUsd});
   return json({...result,rows:undefined,executed:true,inProductionRouter:false,canQualify:false,canAuthorizeWager:false},result.ok?200:502);
 }
