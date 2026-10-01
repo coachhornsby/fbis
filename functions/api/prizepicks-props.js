@@ -86,7 +86,7 @@ function marketFor(sport,stat){
 function candidateKey(c){
   return [String(c.sport||"").toLowerCase(),norm(c.playerName),String(c.market||"").toLowerCase()].join("|");
 }
-function candidateOpponent(cand, rawTeam){
+export function candidateOpponent(cand, rawTeam){
   if(!cand) return null;
   const team=norm(rawTeam || cand.team);
   const home=s(cand.home), away=s(cand.away);
