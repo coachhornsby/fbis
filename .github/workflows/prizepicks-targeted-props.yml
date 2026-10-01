@@ -78,7 +78,9 @@ jobs:
           : > artifacts/candidates.ndjson
           today="$(TZ=America/Chicago date +%F)"
           tomorrow="$(TZ=America/Chicago date -d "$today + 1 day" +%F)"
-          for sport in mlb nfl nhl nba wnba cfb cbb; do
+          # Only sports with the current durable player-projection contract need candidate matching.
+          # Research-only sports still ingest below without blocking on projection APIs.
+          for sport in mlb nfl nhl; do
             for date in "$today" "$tomorrow"; do
               tmp="$(mktemp)"
               code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" "$BASE/api/projections?sport=$sport&date=$date&_t=$(date +%s)" || true)"
@@ -112,7 +114,7 @@ jobs:
           # One Actor start per day. Actor-side filters prevent paying for the full board.
           # Research-only sports are intentionally allowed even without an FBIS projection.
           input="$(jq -n '{
-            leagues:["MLB","NFL","NHL","NBA","WNBA","CFB","CBB","Tennis","Soccer"],
+            leagues:["MLB","NFL","NHL","NBA","WNBA","CFB","College Basketball","Tennis","Soccer"],
             statTypes:"Pitcher Strikeouts, Pitching Outs, Pass Yards, Rush Yards, Rec Yards, SOG, Goalie Saves, Points, Rebounds, Assists, 3PTM, Total Games, Total Games Won, SOT, Passes Attempted",
             oddsTiers:["standard","goblin","demon"]
           }')"
