@@ -138,7 +138,7 @@ test("trusted final-score ingress grades immutable projection population", async
   assert.match(api, /trusted-scoreboard-push/);
 });
 
-test("daily grading has a GitHub-runner scoreboard fallback for all six sports", async () => {
+test("daily grading has a GitHub-runner scoreboard fallback for all graded sports", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/daily-results-grade.yml", import.meta.url),
     "utf8"
@@ -150,7 +150,7 @@ test("daily grading has a GitHub-runner scoreboard fallback for all six sports",
   assert.match(workflow, /actions\/checkout@v4\.2\.2/);
   assert.match(workflow, /fetch-final-scoreboard\.mjs/);
   assert.match(workflow, /\/api\/final-grade/);
-  assert.match(workflow, /for sport in mlb nfl nba nhl cfb cbb/);
+  for (const sport of ["mlb","npb","kbo","nfl","nba","wnba","nhl","cfb","cbb"]) assert.match(workflow, new RegExp(`\\b${sport}\\b`));
   assert.match(script, /fetchResultsForReconcile/);
   assert.match(script, /nflverse\/nfldata/);
   assert.match(script, /sportsdataverse\/cfbfastR-data/);
