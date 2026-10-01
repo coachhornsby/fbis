@@ -1,0 +1,33 @@
+name: CFB market qualification validation
+on:
+  push:
+    branches: ["research/cfb-market-qualification","main"]
+    paths:
+      - "scripts/cfb-market-qualification.mjs"
+      - "scripts/cfb-v2-calibrate.mjs"
+      - "data/cfbd/calibration/**"
+      - ".github/workflows/cfb-market-qualification.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: node scripts/cfb-market-qualification.mjs
+      - name: Summary
+        run: |
+          jq . artifacts/cfb-market-qualification-report.json
+          {
+            echo "## CFB-FBIS-v2 market qualification"
+            jq -r '"- selected ablation: \(.selectedAblation)","- OOS sample: \(.sampleN)","- spread 3pt: n=\(.spread[\"3\"].n) ROI=\(.spread[\"3\"].roi) hit=\(.spread[\"3\"].hitRate)","- spread 5pt: n=\(.spread[\"5\"].n) ROI=\(.spread[\"5\"].roi) hit=\(.spread[\"5\"].hitRate)","- total 3pt: n=\(.total[\"3\"].n) ROI=\(.total[\"3\"].roi) hit=\(.total[\"3\"].hitRate)","- total 5pt: n=\(.total[\"5\"].n) ROI=\(.total[\"5\"].roi) hit=\(.total[\"5\"].hitRate)"' artifacts/cfb-market-qualification-report.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-market-qualification-${{ github.run_id }}
+          path: artifacts/cfb-market-qualification-report.json
+          retention-days: 90
