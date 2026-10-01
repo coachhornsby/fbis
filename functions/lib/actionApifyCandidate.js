@@ -522,36 +522,24 @@ export function buildCostLedgerEntry({
   actualTotalUsd = null,
   createdAt = null,
 } = {}) {
-  const leagues = Array.isArray(input.leagues) ? input.leagues.length : 1;
-  const periods = Array.isArray(input.periods) ? input.periods.length : 1;
   const games = Math.max(0, Number(gamesReturned) || 0);
   const P = ACTION_APIFY_PRICING_USD;
 
-  const runStartUsd = P.runStart;
-  const scoreboardUsd = roundUsd(leagues * periods * P.scoreboardPerLeaguePeriod);
-  const rowUsd = roundUsd(games * P.gameRow);
-  const movementUsd = input.includeLineMovement ? roundUsd(games * P.lineMovementPerGame) : 0;
-  const playerPropsUsd = input.includePlayerProps ? roundUsd(games * P.playerPropsPerGame) : 0;
-  const gamePropsUsd = input.includeGameProps ? roundUsd(games * P.gamePropsPerGame) : 0;
-  const detailUsd = input.includeGameDetail ? roundUsd(games * P.gameDetailPerGame) : 0;
-  const weatherUsd = input.includeWeather ? roundUsd(leagues * P.weatherPerLeague) : 0;
-  const injuriesUsd = input.includeInjuries ? roundUsd(leagues * P.injuriesPerLeague) : 0;
-  const standingsUsd = input.includeStandings ? roundUsd(leagues * P.standingsPerLeague) : 0;
+  // Zen Studio bills by returned result. Keep legacy ledger columns for schema
+  // compatibility, but allocate the full conservative estimate to row_usd.
+  const runStartUsd = 0;
+  const scoreboardUsd = 0;
+  const rowUsd = roundUsd(games * P.perResultBasic);
+  const movementUsd = 0;
+  const playerPropsUsd = 0;
+  const gamePropsUsd = 0;
+  const detailUsd = 0;
+  const weatherUsd = 0;
+  const injuriesUsd = 0;
+  const standingsUsd = 0;
   const futuresUsd = 0;
 
-  const estimatedTotalUsd = roundUsd(
-    runStartUsd +
-      scoreboardUsd +
-      rowUsd +
-      movementUsd +
-      playerPropsUsd +
-      gamePropsUsd +
-      detailUsd +
-      weatherUsd +
-      injuriesUsd +
-      standingsUsd +
-      futuresUsd
-  );
+  const estimatedTotalUsd = rowUsd;
   const actual = actualTotalUsd == null ? null : roundUsd(Number(actualTotalUsd));
   const costBasis = actual == null ? "ESTIMATED" : "ACTUAL";
 
