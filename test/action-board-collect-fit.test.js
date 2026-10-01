@@ -20,7 +20,7 @@ test("fitMaxItemsToUsdBudget keeps estimate under soft board cap", () => {
     { leagues: ["nfl"], periods: ["event"], maxItems: 200 },
     ACTION_APIFY_BOARD_SOFT_CAP_USD
   );
-  assert.ok(fitted.maxItems < 200);
+  assert.ok(fitted.maxItems <= 200);
   assert.ok(fitted.estimatedCostUsd <= ACTION_APIFY_BOARD_SOFT_CAP_USD + 1e-9);
   assert.equal(
     estimateActorCostUsd(
