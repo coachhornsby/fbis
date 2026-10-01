@@ -25,6 +25,7 @@ export const LEARNING_SPORTS = Object.freeze([
   "cfb",
   "cbb",
   "nba",
+  "wnba",
   "nhl",
 ]);
 
