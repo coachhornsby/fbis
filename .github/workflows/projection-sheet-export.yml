@@ -133,7 +133,12 @@ jobs:
               code="$(curl -sS --max-time 120 --retry 1 --retry-all-errors                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -o "$tmp" -w "%{http_code}"                 "$BASE/api/wager-feed?sport=${sport}&date=${date}")"
               echo "wager-feed sport=${sport} date=${date} http=${code}"
               test "$code" = "200"
-              jq -e '.ok == true and (.rows | type == "array")' "$tmp" >/dev/null
+              if ! jq -e '.ok == true and (.rows | type == "array")' "$tmp" >/dev/null 2>&1; then
+                echo "INVALID WAGER FEED RESPONSE sport=${sport} date=${date}"
+                head -c 2000 "$tmp" || true
+                echo
+                exit 1
+              fi
               jq -c '.' "$tmp" >> "$raw"
             done
           done
@@ -191,6 +196,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: projection-sheet-export-${{ github.run_id }}
-          path: artifacts/projection-sheet-export.ndjson
+          path: |
+            artifacts/projection-sheet-export.ndjson
+            artifacts/wager-feed-raw.ndjson
+            artifacts/wager-feed.json
           if-no-files-found: warn
           retention-days: 14
