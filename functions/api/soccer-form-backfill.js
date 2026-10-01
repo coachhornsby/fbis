@@ -5,13 +5,24 @@ import { SOCCER_LEAGUES, soccerSeasonYear } from "../lib/soccerFbisV1.js";
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
 function team(c){return {name:c?.team?.displayName||c?.team?.name||"",abbr:c?.team?.abbreviation||"",espnId:c?.team?.id!=null?String(c.team.id):null};}
 function finite(v){const n=Number(v);return Number.isFinite(n)?n:null;}
+function monthsBetween(start,end){
+  const a=new Date(start+"T12:00:00Z"),b=new Date(end+"T12:00:00Z"),out=[];
+  let y=a.getUTCFullYear(),m=a.getUTCMonth()+1;
+  while(y<b.getUTCFullYear() || (y===b.getUTCFullYear()&&m<=b.getUTCMonth()+1)){
+    out.push(String(y)+String(m).padStart(2,"0")); if(m===12){y++;m=1}else m++;
+  }
+  return out;
+}
 async function fetchLeague(league,start,end){
-  const dates=`${start.replaceAll("-","")}-${end.replaceAll("-","")}`;
-  const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${dates}&limit=1000`;
-  const r=await fetch(url,{headers:{"user-agent":"FBIS-Soccer-Backfill/1.0",accept:"application/json"}});
-  if(!r.ok)throw new Error(`${league} HTTP ${r.status}`);
-  const j=await r.json();
-  return (j.events||[]).flatMap(ev=>{
+  const events=[];
+  for(const dates of monthsBetween(start,end)){
+    const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${dates}&limit=1000`;
+    const r=await fetch(url,{headers:{"user-agent":"FBIS-Soccer-Backfill/1.0",accept:"application/json"}});
+    if(!r.ok)throw new Error(`${league} ${dates} HTTP ${r.status}`);
+    const j=await r.json(); events.push(...(j.events||[]));
+  }
+  const uniq=[...new Map(events.map(x=>[String(x.id),x])).values()];
+  return uniq.flatMap(ev=>{
     const c=ev.competitions?.[0], comps=c?.competitors||[];
     const h=comps.find(x=>x.homeAway==="home"),a=comps.find(x=>x.homeAway==="away");
     const hs=finite(h?.score),as=finite(a?.score),done=ev.status?.type?.completed===true||c?.status?.type?.completed===true;
