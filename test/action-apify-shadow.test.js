@@ -52,7 +52,7 @@ test("Action Apify stays out of the production odds router", () => {
   );
   assert.equal(ACTION_APIFY_SOURCE_CLASS, "SHADOW_MARKET_INTELLIGENCE");
   assert.equal(ACTION_APIFY_PROVIDER, "ACTION_APIFY");
-  assert.match(ACTION_APIFY_ACTOR_ID, /action-network-scraper/);
+  assert.equal(ACTION_APIFY_ACTOR_ID, "zen-studio/action-network-odds");
 });
 
 test("free-plan maxItems hard-clamps to 10", () => {
@@ -77,12 +77,12 @@ test("Actor input enums alias final→complete and firstfive→firstfiveinnings"
   assert.deepEqual(e.periods, ["firstfiveinnings"]);
 });
 
-test("cost accounting estimates Actor PPE pricing and enforces $1 research budget", () => {
+test("cost accounting estimates Zen Studio per-result pricing and enforces $1 research budget", () => {
   const input = buildActorInput({ leagues: ["ncaaf"], periods: ["event"], maxItems: 10, includeLineMovement: false });
   const est = estimateActorCostUsd(input, { gamesReturned: 10 });
-  assert.ok(est > 0.13 && est < 0.14);
+  assert.equal(est, 0.025);
   const withMove = estimateActorCostUsd({ ...input, includeLineMovement: true }, { gamesReturned: 5 });
-  assert.ok(withMove > 0.12 && withMove < 0.14);
+  assert.equal(withMove, 0.013);
   const budget = createResearchBudget({ limitUsd: ACTION_APIFY_RESEARCH_BUDGET_USD });
   assert.equal(budget.canAfford(0.9), true);
   assert.equal(budget.record({ estimatedCostUsd: 0.9, testId: "A" }).ok, true);
