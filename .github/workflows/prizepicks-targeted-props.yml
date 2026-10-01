@@ -142,9 +142,9 @@ jobs:
           payload="$(mktemp)"
           jq -n \
             --arg runId "$run_id" \
-            --argjson rows "$(cat artifacts/prizepicks-rows.json)" \
-            --argjson candidates "$(cat artifacts/candidates.json)" \
-            '{runId:$runId,rows:$rows,candidates:$candidates}' > "$payload"
+            --slurpfile rows artifacts/prizepicks-rows.json \
+            --slurpfile candidates artifacts/candidates.json \
+            '{runId:$runId,rows:$rows[0],candidates:$candidates[0]}' > "$payload"
           body="$(mktemp)"
           code="$(curl -sS --max-time 120 -X POST \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
