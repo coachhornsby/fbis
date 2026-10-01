@@ -78,7 +78,9 @@ jobs:
           : > artifacts/candidates.ndjson
           today="$(TZ=America/Chicago date +%F)"
           tomorrow="$(TZ=America/Chicago date -d "$today + 1 day" +%F)"
-          for sport in mlb nfl nhl nba wnba cfb cbb; do
+          # Only sports with the current durable player-projection contract need candidate matching.
+          # Research-only sports still ingest below without blocking on projection APIs.
+          for sport in mlb nfl nhl; do
             for date in "$today" "$tomorrow"; do
               tmp="$(mktemp)"
               code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" "$BASE/api/projections?sport=$sport&date=$date&_t=$(date +%s)" || true)"
