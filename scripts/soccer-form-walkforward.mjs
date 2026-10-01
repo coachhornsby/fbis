@@ -7,12 +7,20 @@ const ranges=(league)=>EURO.has(league)
  : {prior:["2024-02-15","2024-12-15"],target:["2025-02-15","2025-12-15"]};
 const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
 function tm(c){return{id:String(c?.team?.id||""),name:c?.team?.displayName||"",abbr:c?.team?.abbreviation||""};}
+function months(start,end){
+ const a=new Date(start+"T12:00:00Z"),b=new Date(end+"T12:00:00Z"),out=[];let y=a.getUTCFullYear(),m=a.getUTCMonth()+1;
+ while(y<b.getUTCFullYear()||(y===b.getUTCFullYear()&&m<=b.getUTCMonth()+1)){out.push(String(y)+String(m).padStart(2,"0"));if(m===12){y++;m=1}else m++;}
+ return out;
+}
 async function load(league,[start,end]){
- const dates=`${start.replaceAll("-","")}-${end.replaceAll("-","")}`;
- const u=`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${dates}&limit=1000`;
- const r=await fetch(u,{headers:{"user-agent":"FBIS-Soccer-WF/1.0",accept:"application/json"}});if(!r.ok)throw new Error(`${league} ${r.status}`);
- const j=await r.json();
- return (j.events||[]).flatMap(ev=>{const c=ev.competitions?.[0],xs=c?.competitors||[],h=xs.find(x=>x.homeAway==="home"),a=xs.find(x=>x.homeAway==="away"),hs=finite(h?.score),as=finite(a?.score);
+ const events=[];
+ for(const dates of months(start,end)){
+  const u=`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${dates}&limit=1000`;
+  const r=await fetch(u,{headers:{"user-agent":"FBIS-Soccer-WF/1.0",accept:"application/json"}});if(!r.ok)throw new Error(`${league} ${dates} ${r.status}`);
+  const j=await r.json();events.push(...(j.events||[]));
+ }
+ const uniq=[...new Map(events.map(x=>[String(x.id),x])).values()];
+ return uniq.flatMap(ev=>{const c=ev.competitions?.[0],xs=c?.competitors||[],h=xs.find(x=>x.homeAway==="home"),a=xs.find(x=>x.homeAway==="away"),hs=finite(h?.score),as=finite(a?.score);
   if(!h||!a||!(ev.status?.type?.completed===true||c?.status?.type?.completed===true)||hs==null||as==null)return[];
   return[{id:String(ev.id),start:ev.date,home:tm(h),away:tm(a),homeScore:hs,awayScore:as,neutralSite:Boolean(c?.neutralSite)}];});
 }
