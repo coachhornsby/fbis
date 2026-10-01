@@ -1,4 +1,5 @@
 name: PrizePicks curated prop lines
+# payload-safe persistence
 
 on:
   schedule:
