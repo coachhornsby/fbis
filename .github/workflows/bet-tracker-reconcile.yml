@@ -1,63 +1,112 @@
-name: Reconcile Sports Betting Tracker
+name: Sync Sports Betting Tracker
 
 on:
+  schedule:
+    - cron: "27 * * * *"
   push:
     branches: [main]
     paths:
-      - "functions/lib/betTrackerReconcileSeed.js"
       - "functions/api/bets.js"
-      - "migrations/0028_executed_bet_tracker_metadata.sql"
-      - "migrations/0029_executed_bet_settlement_evidence.sql"
+      - "services/sports-projection-orchestrator/orchestrator.mjs"
+      - "workers/sports-projection-orchestrator-worker.mjs"
+      - ".github/workflows/bet-tracker-reconcile.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 concurrency:
-  group: fbis-bet-tracker-reconcile
+  group: fbis-bet-tracker-sync
   cancel-in-progress: true
 
 jobs:
-  reconcile:
+  sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
-      - name: Require secret
-        env:
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-        run: test -n "${HARVEST_SECRET:-}"
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for production migration
+      - name: Wait for FBIS production SHA
+        if: github.event_name == 'push'
         env:
-          BASE: "https://fbis-myz.pages.dev"
+          BASE: https://fbis-myz.pages.dev
+          EXPECTED_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null)"
+            echo "production wait $i/30 http=$code live=$live expected=$EXPECTED_SHA"
+            if [ "$code" = "200" ] && [ "$live" = "$EXPECTED_SHA" ]; then exit 0; fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Sync current Bets sheet into D1
+        env:
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
         run: |
           set -euo pipefail
           for i in $(seq 1 24); do
-            curl -fsS --max-time 20 "${BASE}/api/health?_t=$(date +%s)" > /tmp/health.json || true
-            if jq -e '(.build.schemaVersion == "0028_executed_bet_tracker_metadata" or .build.schemaVersion == "0029_executed_bet_settlement_evidence") and .build.migrationStatus == "VERIFIED"' /tmp/health.json >/dev/null 2>&1; then exit 0; fi
-            sleep 15
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 120 -X POST               -H "Authorization: Bearer ${OIDC_TOKEN}"               -H "content-type: application/json"               -d '{"since":"2026-09-21"}'               -o "$body" -w "%{http_code}"               "${ORCH_URL}/api/sync-bet-tracker" || true)"
+            echo "tracker sync attempt=$i/24 http=$code"
+            cat "$body" || true
+            if [ "$code" = "200" ] && jq -e '.ok == true and .requested > 0 and .d1SyncedRows > 0' "$body" >/dev/null 2>&1; then
+              cp "$body" /tmp/tracker-sync.json
+              exit 0
+            fi
+            sleep 10
           done
-          cat /tmp/health.json
           exit 1
 
-      - name: Import reconciled tracker rows
+      - name: Verify My Bets has post-9/20 tracker data
         env:
-          BASE: "https://fbis-myz.pages.dev"
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
+        shell: bash
         run: |
           set -euo pipefail
-          http="$(curl -sS --max-time 90 -o /tmp/import.json -w "%{http_code}" -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" \
-            -d '{"action":"reconcile-tracker-seed"}' "${BASE}/api/bets")"
-          cat /tmp/import.json
-          echo "HTTP ${http}"
-          jq -e '.wrote == true and .requested == 24 and (.errors|length) == 0' /tmp/import.json >/dev/null
-          test "${http}" -lt 500
+          curl -fsS --max-time 45 "$BASE/api/bets?_t=$(date +%s)" > /tmp/bets.json
+          jq -e '[.bets[] | select(.date > "2026-09-20")] | length > 0' /tmp/bets.json >/dev/null
+          jq -e '[.bets[] | select(.importSource == "sports-betting-tracker-live-sync")] | length > 0' /tmp/bets.json >/dev/null
+          jq '{
+            state,
+            total:(.bets|length),
+            postSep20:([.bets[]|select(.date>"2026-09-20")]|length),
+            liveSynced:([.bets[]|select(.importSource=="sports-betting-tracker-live-sync")]|length),
+            newestDate:([.bets[].date]|sort|last),
+            books:([.bets[].executionBook]|unique)
+          }' /tmp/bets.json
 
-      - name: Verify My Bets readback
-        env:
-          BASE: "https://fbis-myz.pages.dev"
+      - name: Summary
+        if: always()
+        shell: bash
         run: |
-          set -euo pipefail
-          curl -fsS --max-time 45 "${BASE}/api/bets?_t=$(date +%s)" > /tmp/bets.json
-          jq -e '.bets | length >= 24' /tmp/bets.json >/dev/null
-          jq -e '[.bets[] | select(.executionBook == "Heritage")] | length >= 1' /tmp/bets.json >/dev/null
-          jq -e '[.bets[] | select(.executionBook == "Novig")] | length >= 3' /tmp/bets.json >/dev/null
-          jq -e '[.bets[] | select(.executionBook == "PrizePicks")] | length >= 1' /tmp/bets.json >/dev/null
-          jq '{state,d1Status,summary,reconciled:([.bets[]|select(.importSource=="sports-betting-tracker-reconcile")]|length),books:([.bets[].executionBook]|unique)}' /tmp/bets.json
+          if [ -f /tmp/tracker-sync.json ]; then
+            {
+              echo "## Sports Betting Tracker → D1"
+              echo "- Source rows: $(jq -r '.sourceRows' /tmp/tracker-sync.json)"
+              echo "- Requested: $(jq -r '.requested' /tmp/tracker-sync.json)"
+              echo "- Inserted: $(jq -r '.inserted' /tmp/tracker-sync.json)"
+              echo "- Updated: $(jq -r '.updated' /tmp/tracker-sync.json)"
+              echo "- Unchanged: $(jq -r '.skipped' /tmp/tracker-sync.json)"
+              echo "- Newest tracker date: $(jq -r '.newestDate' /tmp/tracker-sync.json)"
+              echo "- D1 live-sync rows: $(jq -r '.d1SyncedRows' /tmp/tracker-sync.json)"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
