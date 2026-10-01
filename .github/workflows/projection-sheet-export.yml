@@ -59,7 +59,7 @@ jobs:
           today="$(TZ=America/Chicago date +%F)"
           for offset in 0 1 2; do
             day="$(TZ=America/Chicago date -d "$today - $offset day" +%F)"
-            for sport in mlb nfl nba nhl cfb cbb; do
+            for sport in mlb npb kbo nfl nba nhl cfb cbb; do
               payload="$(mktemp)"
               response="$(mktemp)"
               if node scripts/fetch-final-scoreboard.mjs "$sport" "$day" > "$payload"; then
