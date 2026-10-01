@@ -42,6 +42,59 @@ jobs:
             jq -c '{date:"'"${date}"'",pal:{cached:.pal.cached,stage:.pal.stage,recordsReturned:.pal.recordsReturned,usable:.pal.usable,matched:.pal.matched,reason:.pal.reason}}' "$body"
           done
 
+      - name: Grade recent frozen projections from free scoreboards
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+          COLLEGE_DATA_API_KEY: ${{ secrets.COLLEGE_DATA_API_KEY }}
+        shell: bash
+        run: |
+          set -u
+          test -n "${HARVEST_SECRET:-}" || { echo "Missing HARVEST_SECRET"; exit 1; }
+          ok=0
+          failed=0
+          matched=0
+          unmatched=0
+          today="$(TZ=America/Chicago date +%F)"
+          for offset in 0 1 2; do
+            day="$(TZ=America/Chicago date -d "$today - $offset day" +%F)"
+            for sport in mlb nfl nba nhl cfb cbb; do
+              payload="$(mktemp)"
+              response="$(mktemp)"
+              if node scripts/fetch-final-scoreboard.mjs "$sport" "$day" > "$payload"; then
+                finals="$(jq -r '.completed // 0' "$payload")"
+                if [ "$finals" = "0" ]; then
+                  continue
+                fi
+                http="$(curl -sS --max-time 120 --retry 1 --retry-delay 2                   -X POST                   -H "x-harvest-secret: ${HARVEST_SECRET}"                   -H "content-type: application/json"                   --data-binary "@$payload"                   -o "$response" -w "%{http_code}"                   "$BASE/api/final-grade")"
+                if [ "$http" = "200" ] && jq -e '.ok == true' "$response" >/dev/null 2>&1; then
+                  ok=$((ok+1))
+                  m="$(jq -r '.matched // 0' "$response")"
+                  u="$(jq -r '.unmatched // 0' "$response")"
+                  matched=$((matched+m))
+                  unmatched=$((unmatched+u))
+                  echo "hourly-grade sport=$sport date=$day finals=$finals matched=$m unmatched=$u"
+                else
+                  failed=$((failed+1))
+                  echo "hourly-grade FAILED sport=$sport date=$day http=$http"
+                  cat "$response" || true
+                fi
+              else
+                failed=$((failed+1))
+                echo "scoreboard fetch FAILED sport=$sport date=$day"
+              fi
+            done
+          done
+          {
+            echo "## Hourly final grading"
+            echo "- successful batches: $ok"
+            echo "- failed batches: $failed"
+            echo "- matched snapshot ids: $matched"
+            echo "- unresolved snapshot ids: $unmatched"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Fail soft by sport/date; the next hourly run retries unresolved finals.
+
       - name: Export live projection slates
         env:
           BASE: https://fbis-myz.pages.dev
