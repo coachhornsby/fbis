@@ -91,6 +91,58 @@ async function loadMetadata(db, sourceIds = []) {
   return map;
 }
 
+async function loadPrizePicksRows(db, eventIds = [], sportParam = null) {
+  const ids = [...new Set(eventIds.filter(Boolean).map(String))];
+  if (!ids.length) return [];
+  const placeholders = ids.map(() => "?").join(",");
+  const binds = sportParam ? [...ids, sportParam] : ids;
+  const sportClause = sportParam ? " AND LOWER(sport) = ?" : "";
+  const result = await db.prepare(
+    `SELECT * FROM prizepicks_prop_lines
+      WHERE fbis_event_id IN (${placeholders})
+      ${sportClause}
+      ORDER BY collected_at DESC
+      LIMIT 4000`
+  ).bind(...binds).all();
+  const newest = new Map();
+  for (const row of result?.results || []) {
+    const key = [row.fbis_event_id,row.player_name,row.canonical_market,row.odds_tier,row.duration].join("|");
+    if (newest.has(key)) continue;
+    newest.set(key,{
+      provider:"PRIZEPICKS_APIFY",
+      providerGameId:row.game_id || null,
+      fbisEventId:row.fbis_event_id || null,
+      providerPlayerId:row.player_id || null,
+      fbisPlayerId:null,
+      playerName:row.player_name || null,
+      team:row.team || null,
+      position:null,
+      sport:row.sport,
+      market:row.stat_type,
+      marketCanonical:row.canonical_market,
+      period:row.duration || "event",
+      book:"PrizePicks",
+      side:row.candidate_side || null,
+      line:num(row.line),
+      price:null,
+      overOdds:null,
+      underOdds:null,
+      sourceObservedAt:row.observed_at || null,
+      collectedAt:row.collected_at || null,
+      gameIdentityConfidence:row.fbis_event_id ? "EXACT" : "UNMATCHED",
+      playerIdentityConfidence:row.player_name ? "HIGH" : "UNMATCHED",
+      marketComplete:row.line != null,
+      decisionEligible:false,
+      reasonCodes:["PRIZEPICKS_EXECUTION_LINE","NOT_DECISION_ELIGIBLE"],
+      oddsTier:row.odds_tier || null,
+      fbisProjection:num(row.fbis_projection),
+      fbisSigma:num(row.fbis_sigma),
+      deltaFbisMinusLine:num(row.delta_fbis_minus_line),
+    });
+  }
+  return [...newest.values()];
+}
+
 function buildRows(observations, metadata) {
   // Durable series can contain many snapshots. Keep the newest quote for each
   // event/player/market/book/selection, then pair over/under into one board row.
@@ -224,7 +276,20 @@ export async function onRequestGet(context) {
       context.env.DB,
       observations.map((row) => row.source_observation_id),
     );
-    const rows = buildRows(observations, metadata);
+    const actionRows = buildRows(observations, metadata);
+    let prizePicksRows = [];
+    try {
+      prizePicksRows = await loadPrizePicksRows(context.env.DB, eventIds, sportParam);
+    } catch {
+      prizePicksRows = [];
+    }
+    const rows = [...actionRows, ...prizePicksRows].sort((a,b) => {
+      const event = String(a.fbisEventId || "").localeCompare(String(b.fbisEventId || ""));
+      if (event) return event;
+      const player = String(a.playerName || "").localeCompare(String(b.playerName || ""));
+      if (player) return player;
+      return String(a.marketCanonical || "").localeCompare(String(b.marketCanonical || ""));
+    });
 
     return json({
       ok: true,
@@ -241,6 +306,8 @@ export async function onRequestGet(context) {
         checkedEvents: eventIds.length,
         durableObservations: observations.length,
         boardRows: rows.length,
+        actionRows: actionRows.length,
+        prizePicksRows: prizePicksRows.length,
         metadataSources: new Set(observations.map((row) => row.source_observation_id).filter(Boolean)).size,
       },
     });
