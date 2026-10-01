@@ -59,7 +59,7 @@ jobs:
           today="$(TZ=America/Chicago date +%F)"
           for offset in 0 1 2; do
             day="$(TZ=America/Chicago date -d "$today - $offset day" +%F)"
-            for sport in mlb nfl nba wnba nhl cfb cbb; do
+            for sport in mlb nfl nba wnba nhl cfb cbb soccer; do
               payload="$(mktemp)"
               response="$(mktemp)"
               if node scripts/fetch-final-scoreboard.mjs "$sport" "$day" > "$payload"; then
@@ -149,7 +149,7 @@ jobs:
           )
 
           failed=0
-          for sport in mlb npb kbo nfl cfb cbb nba wnba nhl; do
+          for sport in mlb npb kbo nfl cfb cbb nba wnba nhl soccer; do
             for date in "${dates[@]}"; do
               if ! export_one "$sport" "$date"; then
                 failed=1
@@ -180,7 +180,7 @@ jobs:
             "$(TZ=America/Chicago date -d "$today + 1 day" +%F)"
             "$(TZ=America/Chicago date -d "$today + 2 days" +%F)"
           )
-          for sport in mlb npb kbo nfl cfb cbb nba wnba nhl; do
+          for sport in mlb npb kbo nfl cfb cbb nba wnba nhl soccer; do
             for date in "${dates[@]}"; do
               tmp="$(mktemp)"
               code="$(curl -sS --max-time 120 --retry 1 --retry-all-errors                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -o "$tmp" -w "%{http_code}"                 "$BASE/api/wager-feed?sport=${sport}&date=${date}")"
