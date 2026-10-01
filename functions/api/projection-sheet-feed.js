@@ -98,6 +98,12 @@ function row(game, sport) {
     qState || null,
     starterHold ? "STARTER HOLD" : null,
   ].filter(Boolean).join(" · ");
+  const pal=card?.externalModels?.ballparkPal;
+  const palNote=sport==="mlb"
+    ? pal?.available
+      ? `Ballpark Pal comparator ${pal.away}-${pal.home} (T ${pal.total}); agreement ${pal.comparison?.agreement||"NA"}`
+      : "Ballpark Pal comparator unavailable"
+    : null;
   return [
     String(card?.id || game?.id || ""),
     dateCt(card?.start || game?.start),
@@ -124,7 +130,10 @@ function row(game, sport) {
     totalDiff,
     qualityText || maturity,
     state,
-    flags.join(", ") || (independent ? (maturity === "RESEARCH" ? "Independent research projection; no wager authority" : "Independent FBIS projection") : "Independent projection unavailable")
+    [
+      flags.join(", ") || (independent ? (maturity === "RESEARCH" ? "Independent research projection; no wager authority" : "Independent FBIS projection") : "Independent projection unavailable"),
+      palNote
+    ].filter(Boolean).join(" · ")
   ];
 }
 export async function onRequestGet(context) {
