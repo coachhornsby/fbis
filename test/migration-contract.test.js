@@ -72,7 +72,7 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   const m29 = await readFile(new URL("../migrations/0029_executed_bet_settlement_evidence.sql", import.meta.url), "utf8");
   assert.match(m29, /0029_executed_bet_settlement_evidence/i);
   assert.match(m29, /final_home_score/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0037_ops_control_plane["\']/);
+  assert.match(health, /EXPECTED_MIGRATION\\s*=\\s*["\\\']0038_continuous_learning_governance["\\\']/);
   const m37 = await readFile(new URL("../migrations/0037_ops_control_plane.sql", import.meta.url), "utf8");
   assert.match(m37, /0037_ops_control_plane/i);
   assert.match(m37, /fbis_ops_components/);
@@ -80,6 +80,15 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(m37, /fbis_run_manifests/);
   assert.match(m37, /fbis_ops_invariant_checks/);
   assert.match(m37, /fbis_watchdog_metrics/);
+  const m38 = await readFile(new URL("../migrations/0038_continuous_learning_governance.sql", import.meta.url), "utf8");
+  assert.match(m38, /0038_continuous_learning_governance/i);
+  assert.match(m38, /learning_monitor_runs/);
+  assert.match(m38, /recalibration_runs/);
+  assert.match(m38, /challenger_evaluations/);
+  assert.match(m38, /bayesian_learning_state/);
+  assert.match(m38, /online_learning_shadow/);
+  assert.match(schemaExt, /learning_monitor_runs/);
+  assert.match(schemaExt, /online_learning_shadow/);
   assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /WHERE id = \?/);
 });
