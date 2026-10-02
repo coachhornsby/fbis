@@ -15,10 +15,17 @@ async function source(kind, params={}) {
   const u = new URL("/api/cbb-walkforward-source", BASE);
   u.searchParams.set("kind",kind);
   for (const [k,v] of Object.entries(params)) if(v!=null) u.searchParams.set(k,String(v));
-  const res=await fetch(u,{headers:{"x-harvest-secret":SECRET,accept:"application/json"}});
-  const body=await res.json().catch(()=>null);
-  if(!res.ok||!body?.ok) throw new Error(`${kind} failed HTTP ${res.status}: ${body?.error||"unknown"}`);
-  return body;
+  let last=null;
+  for(let attempt=1;attempt<=6;attempt++){
+    const res=await fetch(u,{headers:{"x-harvest-secret":SECRET,accept:"application/json"}});
+    const body=await res.json().catch(()=>null);
+    if(res.ok&&body?.ok)return body;
+    last={status:res.status,error:body?.error||"unknown"};
+    const rateLimited=res.status===429||String(last.error).includes("429");
+    if(!rateLimited)break;
+    await new Promise(resolve=>setTimeout(resolve,attempt*5000));
+  }
+  throw new Error(`${kind} failed HTTP ${last?.status||0}: ${last?.error||"unknown"}`);
 }
 
 const providerPriority=["pinnacle","circa","draftkings","fanduel","betmgm","caesars","betonline","consensus"];
