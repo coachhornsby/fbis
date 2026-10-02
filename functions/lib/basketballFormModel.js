@@ -63,6 +63,15 @@ export function projectBasketballForm(sport,game,{homePrior=null,awayPrior=null,
     ok:true,modelId:cfg.modelId,modelVersion:cfg.version,home,away,margin,total,
     pHomeWin:pGreater(margin,0,cfg.marginSigma),sigmaMargin:cfg.marginSigma,sigmaTotal:cfg.totalSigma,
     independent:true,marketInformed:false,maturity:"RESEARCH",canQualify:false,canAuthorize:false,
+    decomposition:{
+      home:{offense:round1(hOff),defenseAllowed:round1(hDef)},
+      away:{offense:round1(aOff),defenseAllowed:round1(aDef)},
+      matchup:{
+        homeExpected:round1((hOff+aDef)/2),
+        awayExpected:round1((aOff+hDef)/2),
+        hfa:round1(hfa),
+      },
+    },
     provenance:{source:"scoreboard-derived team_form",priorGames:cfg.priorGames,hfa,marketUsed:false,
       evidence:{homePrior:hp?.games||0,awayPrior:ap?.games||0,homeCurrent:hc?.games||0,awayCurrent:ac?.games||0}}
   };
