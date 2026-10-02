@@ -215,6 +215,7 @@ jobs:
       - name: VERIFY PRODUCTION SHA
         env:
           BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           # Pages alias cutover + Functions activation can lag past ~75s; use full budget.
           VERIFY_MAX_ATTEMPTS: "24"
         run: |
@@ -277,6 +278,28 @@ jobs:
             echo "Provider-ingestion contract did not converge after retries."
             exit 1
           fi
+
+          # Authenticated continuous-learning smoke. This exercises the deployed
+          # Tier 1-5 controller against real D1 state. Recalibration remains
+          # sample-count gated; promotion and wager authority remain disabled.
+          learning_tmp="$(mktemp)"
+          learning_code="$(curl -sS --max-time 120 -o "$learning_tmp" -w "%{http_code}" \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            "${BASE}/api/continuous-learning?sport=nfl&recentN=50&_t=$(date +%s)")"
+          echo "smoke /api/continuous-learning nfl http=${learning_code}"
+          test "$learning_code" = "200"
+          jq -e '
+            .ok == true and
+            .governance.tier1 == "MONITOR_CONTINUOUSLY" and
+            .governance.tier2 == "SAMPLE_COUNT_GATED_RECALIBRATION" and
+            .governance.tier3 == "PAIRED_BOOTSTRAP_AND_MANUAL_PROMOTION" and
+            .governance.tier4 == "BAYESIAN_SHRINKAGE_ADVISORY" and
+            .governance.tier5 == "SHADOW_ONLY" and
+            .governance.autoPromote == false and
+            .governance.autoWagerAuthority == false and
+            .governance.productionOnlineLearning == false
+          ' "$learning_tmp" >/dev/null
+          jq -c '{sport,canonicalRows,modelCount:(.models|length),tier5:.tier5.status,errors}' "$learning_tmp" || true
 
           echo "Release gate smoke passed for ${DEPLOY_SHA}"
           echo "DEPLOY PRODUCTION complete — research catch-up runs in harvest.yml, not this gate."
