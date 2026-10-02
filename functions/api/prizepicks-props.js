@@ -190,9 +190,15 @@ export async function onRequestPost(context){
   const runId=s(body.runId)||`pp_${Date.now()}`;
   const collectedAt=s(body.collectedAt)||new Date().toISOString();
   const today=todayCt();
-  const futureRows=rows.filter((row)=>ctDate(startOf(row))!==today);
-  if(futureRows.length){
-    return json({ok:false,blocked:true,error:"future_or_non_today_prizepicks_rows",todayCt:today,rowsReturned:rows.length,nonTodayRows:futureRows.length},409);
+  // A current PrizePicks board legitimately includes upcoming games. Freshness is
+  // the acquisition date, not the event start date. Reject only stale past-event
+  // contamination; future rows remain research-only until their event date.
+  const pastRows=rows.filter((row)=>{
+    const d=ctDate(startOf(row));
+    return d && d<today;
+  });
+  if(pastRows.length){
+    return json({ok:false,blocked:true,error:"stale_past_prizepicks_rows",todayCt:today,rowsReturned:rows.length,pastRows:pastRows.length},409);
   }
   const estimate=RUN_START_USD+rows.length*PER_PROJECTION_USD;
   const spent=await mtd(context.env.DB);
