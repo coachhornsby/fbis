@@ -289,49 +289,27 @@ def flatten_game_level(games, team_pre, closing):
     out["is_final"] = out["home_score"].notna() & out["away_score"].notna()
 
     # Normalize nflverse games.csv convention into a home-side betting line.
-    # games.csv spread_line is POSITIVE when the home team is favored; a home-side
-    # wager line is therefore the negative of spread_line (e.g. +3.5 -> home -3.5).
-    out["dedicated_closing_home_spread"] = out["closing_home_spread"]
-    out["dedicated_closing_total"] = out["closing_total"]
-
-    if "spread_line" in out.columns:
-        out["schedule_home_spread"] = -pd.to_numeric(out["spread_line"], errors="coerce")
-    else:
-        out["schedule_home_spread"] = np.nan
-    if "total_line" in out.columns:
-        out["schedule_total_line"] = pd.to_numeric(out["total_line"], errors="coerce")
-    else:
-        out["schedule_total_line"] = np.nan
-
-    # Canonical market benchmark: dedicated closing_lines.csv when present,
-    # otherwise nflverse games.csv historical spread/total.
-    out["closing_home_spread"] = out["dedicated_closing_home_spread"].fillna(out["schedule_home_spread"])
-    out["closing_total"] = out["dedicated_closing_total"].fillna(out["schedule_total_line"])
-    out["spread_line_source"] = np.select(
-        [out["dedicated_closing_home_spread"].notna(), out["schedule_home_spread"].notna()],
-        ["nfldata_closing_lines", "nfldata_games"],
-        default="missing"
-    )
-    out["total_line_source"] = np.select(
-        [out["dedicated_closing_total"].notna(), out["schedule_total_line"].notna()],
-        ["nfldata_closing_lines", "nfldata_games"],
-        default="missing"
-    )
-
-    # The standalone closing_lines.csv is a useful independent historical
-    # cross-check but stops after 2018 in the current public file. The maintained
-    # nflverse games.csv carries spread_line/total_line across the full sample.
-    # nflverse defines spread_line as POSITIVE when the home team is favored;
-    # convert it to a sportsbook-style home spread (favorite is negative).
+    # nflverse defines spread_line as POSITIVE when the home team is favored,
+    # so sportsbook-style home spread = -spread_line (e.g. +3.5 -> home -3.5).
     out = out.rename(columns={
         "closing_home_spread": "legacy_closing_home_spread",
         "closing_total": "legacy_closing_total",
         "closing_home_ml": "legacy_closing_home_ml",
     })
-    out["closing_home_spread"] = -pd.to_numeric(out["schedule_home_spread"], errors="coerce")
-    out["closing_total"] = pd.to_numeric(out["schedule_total_line"], errors="coerce")
+
+    out["schedule_home_spread"] = -pd.to_numeric(out.get("spread_line"), errors="coerce")
+    out["schedule_total_line"] = pd.to_numeric(out.get("total_line"), errors="coerce")
+
+    # Use nfldata games.csv as the canonical full-sample market benchmark.
+    # Retain closing_lines.csv as an independent cross-check where available.
+    out["closing_home_spread"] = out["schedule_home_spread"]
+    out["closing_total"] = out["schedule_total_line"]
     out["closing_home_ml"] = pd.to_numeric(out.get("home_moneyline"), errors="coerce")
-    out["closing_line_source"] = "nflverse_nfldata_games"
+    out["closing_line_source"] = np.where(
+        out["closing_home_spread"].notna() | out["closing_total"].notna(),
+        "nflverse_nfldata_games",
+        "missing"
+    )
     out["legacy_closing_line_source"] = np.where(
         out["legacy_closing_home_spread"].notna() | out["legacy_closing_total"].notna(),
         "nflverse_nfldata_closing_lines",
@@ -447,7 +425,7 @@ def main():
         "total_crosscheck_mean_abs_diff": total_compare_mae,
         "pregame_feature_columns": len(leakage_columns),
         "temporal_integrity": "All rolling/expanding team and QB features use shift(1); current-game results are not used in pregame features.",
-        "market_usage": "Canonical spread/total use nfldata closing_lines.csv when available, with nfldata games.csv spread_line/total_line as historical fallback. Market fields are benchmark/labels only and are not used to construct football efficiency features.",
+        "market_usage": "Canonical spread/total use nfldata games.csv for full-sample historical market coverage; nfldata closing_lines.csv is retained as an independent cross-check where available. Market fields are benchmark/labels only and are not used to construct football efficiency features.",
         "pbp_source": "nflverse/nflverse-data release tag pbp (nflfastR)",
         "games_source": GAMES_URL,
         "closing_lines_source": LINES_URL,
