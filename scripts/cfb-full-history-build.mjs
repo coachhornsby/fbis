@@ -21,10 +21,18 @@ const csv=(rows,cols)=>[cols.join(","),...rows.map(r=>cols.map(c=>{
 async function callChunk(params){
   const u=new URL("/api/cfb-history-chunk",BASE);
   for(const [k,v] of Object.entries(params)) if(v!=null) u.searchParams.set(k,String(v));
-  const res=await fetch(u,{headers:{"x-harvest-secret":SECRET,accept:"application/json"}});
-  const body=await res.json().catch(()=>({}));
-  if(!res.ok||!body.ok) throw new Error(`chunk failed ${res.status} ${u.search}: ${body.error||"unknown"}`);
-  return body;
+  let lastStatus=0,lastBody={};
+  for(let attempt=1;attempt<=5;attempt++){
+    const res=await fetch(u,{headers:{"x-harvest-secret":SECRET,accept:"application/json"}});
+    const body=await res.json().catch(()=>({}));
+    lastStatus=res.status;lastBody=body;
+    if(res.ok&&body.ok)return body;
+    const retryable=res.status===429||res.status>=500||res.status===0;
+    console.error(JSON.stringify({phase:"chunk-retry",attempt,status:res.status,error:body.error||null,params}));
+    if(!retryable||attempt===5)break;
+    await sleep(attempt*5000);
+  }
+  throw new Error(`chunk failed ${lastStatus} ${u.search}: ${lastBody.error||"unknown"} ${JSON.stringify(lastBody.failures||[])}`);
 }
 async function collegeHealth(){
   const u=new URL("/api/college",BASE);u.searchParams.set("job","college-health");u.searchParams.set("trigger","workflow_dispatch");
