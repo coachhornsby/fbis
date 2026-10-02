@@ -84,6 +84,7 @@ export async function onRequestPost(context) {
     BALLPARK_PAL_API_KEY: context.env.BALLPARK_PAL_API_KEY,
     CFBD_API_KEY: context.env.CFBD_API_KEY,
     CBBD_API_KEY: context.env.CBBD_API_KEY,
+    KENPOM_API_KEY: context.env.KENPOM_API_KEY,
     DB: context.env.DB,
     caches: caches.default,
   };
