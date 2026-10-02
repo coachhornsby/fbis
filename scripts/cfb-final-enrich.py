@@ -6,7 +6,8 @@ import pandas as pd
 
 BASE=Path("artifacts/cfb-history-v2/cfb_game_training_2004_2026.csv")
 CTX=Path("artifacts/cfb-context")
-MARKET=Path("artifacts/cfb-history-v3/cfbd_market_lines_all_providers.csv")\nLINE_ARCHIVE=Path("artifacts/cfb-line-archive/cfb_line_odds_consensus_2006_2025.csv")
+MARKET=Path("artifacts/cfb-history-v3/cfbd_market_lines_all_providers.csv")
+LINE_ARCHIVE=Path("artifacts/cfb-line-archive/cfb_line_odds_consensus_2006_2025.csv")
 OUT=Path("artifacts/cfb-final"); OUT.mkdir(parents=True,exist_ok=True)
 
 def norm_id(v):
@@ -154,7 +155,11 @@ def main():
     out["benchmark_home_spread"]=arc_spread.fillna(cf_spread).fillna(sd_spread)
     out["benchmark_total"]=arc_total.fillna(cf_total).fillna(sd_total)
     out["benchmark_spread_source"]=np.select([arc_spread.notna(),cf_spread.notna(),sd_spread.notna()],["SportsDataverse-multibook","CFBD-provider-median","SportsDataverse-ESPN-valid"],default="missing")
-    out["benchmark_total_source"]=np.select([arc_total.notna(),cf_total.notna(),sd_total.notna()],["SportsDataverse-multibook","CFBD-provider-median","SportsDataverse-ESPN-valid"],default="missing")\n    overlap=arc_spread.notna()&cf_spread.notna()\n    market_crosscheck_n=int(overlap.sum())\n    market_crosscheck_mae=float((arc_spread[overlap]-cf_spread[overlap]).abs().mean()) if market_crosscheck_n else None\n    market_crosscheck_sign=float((np.sign(arc_spread[overlap])==np.sign(cf_spread[overlap])).mean()) if market_crosscheck_n else None
+    out["benchmark_total_source"]=np.select([arc_total.notna(),cf_total.notna(),sd_total.notna()],["SportsDataverse-multibook","CFBD-provider-median","SportsDataverse-ESPN-valid"],default="missing")
+    overlap=arc_spread.notna()&cf_spread.notna()
+    market_crosscheck_n=int(overlap.sum())
+    market_crosscheck_mae=float((arc_spread[overlap]-cf_spread[overlap]).abs().mean()) if market_crosscheck_n else None
+    market_crosscheck_sign=float((np.sign(arc_spread[overlap])==np.sign(cf_spread[overlap])).mean()) if market_crosscheck_n else None
 
     out.to_csv(OUT/"cfb_training_full_enriched_2004_2026.csv",index=False)
     out.to_parquet(OUT/"cfb_training_full_enriched_2004_2026.parquet",index=False)
