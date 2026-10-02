@@ -35,6 +35,12 @@ DATASETS={
     "adv_defensive":("espn_cfb_adv_defensive","adv_defensive_{year}.parquet"),
     "adv_turnover":("espn_cfb_adv_turnover","adv_turnover_{year}.parquet"),
     "adv_drives":("espn_cfb_adv_drives","adv_drives_{year}.parquet"),
+    "adv_rushing":("espn_cfb_adv_rushing","adv_rushing_{year}.parquet"),
+    "adv_receiving":("espn_cfb_adv_receiving","adv_receiving_{year}.parquet"),
+    "adv_situational":("espn_cfb_adv_situational","adv_situational_{year}.parquet"),
+    "adv_specialists":("espn_cfb_adv_specialists","adv_specialists_{year}.parquet"),
+    "team_box":("espn_cfb_team_box","team_box_{year}.parquet"),
+    "power_index":("espn_cfb_power_index","power_index_{year}.parquet"),
 }
 
 def fetch_parquet(tag, template, year):
@@ -55,8 +61,18 @@ def num(v):
     except Exception:
         return np.nan
 
-def numeric_feature_frame(df, id_col, prefix, keep_text=()):
-    if df is None or df.empty or id_col not in df.columns or "game_id" not in df.columns:
+def resolve_id_col(df, candidates):
+    for c in candidates:
+        if c in df.columns and df[c].notna().any():
+            return c
+    return None
+
+def numeric_feature_frame(df, id_cols, prefix, keep_text=()):
+    if df is None or df.empty or "game_id" not in df.columns:
+        return pd.DataFrame(columns=["game_id","team_id"])
+    candidates=[id_cols] if isinstance(id_cols,str) else list(id_cols)
+    id_col=resolve_id_col(df,candidates)
+    if not id_col:
         return pd.DataFrame(columns=["game_id","team_id"])
     x=df.copy()
     x["game_id"]=x["game_id"].map(norm_id)
@@ -64,24 +80,56 @@ def numeric_feature_frame(df, id_col, prefix, keep_text=()):
     drop={"game_id","season","week",id_col,"team_id"}
     cols=[]
     for c in x.columns:
-        if c in drop: continue
-        if c in keep_text: continue
+        if c in drop or c in keep_text: continue
         converted=pd.to_numeric(x[c],errors="coerce")
         if converted.notna().any():
             x[c]=converted
             cols.append(c)
-    # When a table has accidental duplicate team/game rows, aggregate numeric values.
     out=x[["game_id","team_id"]+cols].groupby(["game_id","team_id"],as_index=False).mean(numeric_only=True)
     return out.rename(columns={c:f"{prefix}{c}" for c in cols})
+
+def player_unit_frame(df, id_cols, prefix):
+    if df is None or df.empty or "game_id" not in df.columns:
+        return pd.DataFrame(columns=["game_id","team_id"])
+    candidates=[id_cols] if isinstance(id_cols,str) else list(id_cols)
+    id_col=resolve_id_col(df,candidates)
+    if not id_col:
+        return pd.DataFrame(columns=["game_id","team_id"])
+    x=df.copy()
+    x["game_id"]=x["game_id"].map(norm_id)
+    x["team_id"]=x[id_col].map(norm_id)
+    numeric=[]
+    for c in x.columns:
+        if c in {"game_id","season","week",id_col,"team_id"}: continue
+        z=pd.to_numeric(x[c],errors="coerce")
+        if z.notna().any():
+            x[c]=z; numeric.append(c)
+    rows=[]
+    for (gid,tid),g in x.groupby(["game_id","team_id"]):
+        r={"game_id":gid,"team_id":tid}
+        for c in numeric:
+            vals=g[c].dropna()
+            if not len(vals): continue
+            lc=c.lower()
+            if any(t in lc for t in ["rate","pct","percent","per_play","per_opp","average","avg","epa_per","ypt","ypc","success","sr"]):
+                r[prefix+c]=float(vals.mean())
+            else:
+                r[prefix+c]=float(vals.sum())
+        r[prefix+"contributors"]=int(len(g))
+        rows.append(r)
+    return pd.DataFrame(rows)
 
 def primary_qb(df):
     if df is None or df.empty:
         return pd.DataFrame(columns=["game_id","team_id"])
     x=df.copy()
-    if "game_id" not in x.columns or "pos_team" not in x.columns:
+    if "game_id" not in x.columns:
+        return pd.DataFrame(columns=["game_id","team_id"])
+    id_col=resolve_id_col(x,["pos_team_id","pos_team","team_id"])
+    if not id_col:
         return pd.DataFrame(columns=["game_id","team_id"])
     x["game_id"]=x["game_id"].map(norm_id)
-    x["team_id"]=x["pos_team"].map(norm_id)
+    x["team_id"]=x[id_col].map(norm_id)
     if "passer_player_name" in x.columns:
         x=x[x["passer_player_name"].astype(str).str.upper().ne("TEAM")]
     att_col="Att" if "Att" in x.columns else None
@@ -93,7 +141,7 @@ def primary_qb(df):
     meta=[c for c in ["passer_player_name"] if c in x.columns]
     numeric=[]
     for c in x.columns:
-        if c in {"game_id","team_id","pos_team","season","week","_att"} or c in meta: continue
+        if c in {"game_id","team_id","pos_team","pos_team_id","season","week","_att"} or c in meta: continue
         z=pd.to_numeric(x[c],errors="coerce")
         if z.notna().any():
             x[c]=z; numeric.append(c)
@@ -222,19 +270,30 @@ def main():
                 season[name]=pd.DataFrame();urls[name]=f"ERROR:{e}"
         sched=schedule_clean(season["schedule"]) if not season["schedule"].empty else pd.DataFrame()
         bet=betting_clean(season["betting"])
-        at=numeric_feature_frame(season["adv_team"],"pos_team","off_")
-        ad=numeric_feature_frame(season["adv_defensive"],"def_pos_team","def_")
-        av=numeric_feature_frame(season["adv_turnover"],"pos_team","to_")
-        drv=numeric_feature_frame(season["adv_drives"],"pos_team","drive_")
+        at=numeric_feature_frame(season["adv_team"],["pos_team_id","pos_team","team_id"],"off_")
+        ad=numeric_feature_frame(season["adv_defensive"],["def_pos_team_id","def_pos_team","team_id"],"def_")
+        av=numeric_feature_frame(season["adv_turnover"],["pos_team_id","pos_team","team_id"],"to_")
+        drv=numeric_feature_frame(season["adv_drives"],["pos_team_id","pos_team","team_id"],"drive_")
+        sit=numeric_feature_frame(season["adv_situational"],["pos_team_id","pos_team","team_id"],"situ_")
+        team_box=numeric_feature_frame(season["team_box"],["team_id","pos_team_id","pos_team"],"box_")
+        rush=player_unit_frame(season["adv_rushing"],["pos_team_id","pos_team","team_id"],"rush_")
+        recv=player_unit_frame(season["adv_receiving"],["pos_team_id","pos_team","team_id"],"recv_")
+        spec=player_unit_frame(season["adv_specialists"],["pos_team_id","pos_team","team_id"],"st_")
         qb=primary_qb(season["adv_passing"])
         if not sched.empty:
-            tg=merge_team_tables(sched,[at,ad,av,drv,qb]);team_rows.append(tg);schedules.append(sched)
+            tg=merge_team_tables(sched,[at,ad,av,drv,sit,team_box,rush,recv,spec,qb]);team_rows.append(tg);schedules.append(sched)
         if not bet.empty:bets.append(bet)
         coverage.append({
           "season":year,"scheduleRows":len(sched),"bettingRows":len(bet),
           "advTeamRows":len(season["adv_team"]),"advPassingRows":len(season["adv_passing"]),
           "advDefensiveRows":len(season["adv_defensive"]),"advTurnoverRows":len(season["adv_turnover"]),
           "advDriveRows":len(season["adv_drives"]),
+          "advRushingRows":len(season["adv_rushing"]),
+          "advReceivingRows":len(season["adv_receiving"]),
+          "advSituationalRows":len(season["adv_situational"]),
+          "advSpecialistsRows":len(season["adv_specialists"]),
+          "teamBoxRows":len(season["team_box"]),
+          "powerIndexRows":len(season["power_index"]),
         })
         sources[str(year)]=urls
         print(json.dumps(coverage[-1]),flush=True)
@@ -274,12 +333,18 @@ def main():
       "temporalIntegrity":"All rolling football features use shift(1). Rankings/rest are game-known pregame context. Betting is benchmark/evaluation only.",
       "rawPbpAvailability":"SportsDataverse espn_cfb_pbp has season parquet assets for every season 2004-2026; advanced tables consumed here are PBP-derived to avoid duplicating >1GB raw PBP in the canonical artifact.",
       "marketPolicy":"ESPN/SportsDataverse resolved betting line is retained as benchmark only. CFBD provider-level/opening line enrichment is merged separately when available.",
+      "sourceCatalog":{
+        "rawPbp":"espn_cfb_pbp (2004-current; ~383 columns/play; audit/source-of-truth, not duplicated into compact artifact)",
+        "advanced":["adv_team","adv_passing","adv_rushing","adv_receiving","adv_defensive","adv_turnover","adv_drives","adv_situational","adv_specialists"],
+        "context":["team_box","power_index","schedules","betting"],
+        "additionalAvailableNotEmbedded":["play_participants","game_rosters","rosters","player_box","drives","linescores","team_summaries","ratings_weekly","fpi_weekly","team_talent","recruits","returning_production"]
+      }
     }
     (OUT/"cfb_bulk_qa.json").write_text(json.dumps(q,indent=2))
     if q["firstSeason"]!=START or q["lastSeason"]!=END or q["gameRows"]<10000:
         raise RuntimeError(f"bulk CFB history unexpectedly incomplete: {q}")
-    if q["gamesWithSpread"]==0 or q["pregameFeatureColumns"]==0:
-        raise RuntimeError(f"bulk CFB market/features unexpectedly empty: {q}")
+    if q["gamesWithSpread"]==0 or q["pregameFeatureColumns"]<100 or q["rawAdvancedFeatureCount"]<25:
+        raise RuntimeError(f"bulk CFB market/features unexpectedly incomplete: {q}")
     print(json.dumps(q,indent=2))
 
 if __name__=="__main__":
