@@ -145,15 +145,23 @@ export async function onRequestGet(context){
   }
   const sport=s(url.searchParams.get("sport"))?.toLowerCase()||null;
   const eventId=s(url.searchParams.get("eventId"));
+  const date=s(url.searchParams.get("date"))||todayCt();
   const limit=Math.max(1,Math.min(1000,Number(url.searchParams.get("limit")||300)));
-  const where=[],bind=[];
+  const where=["substr(start_time,1,10)=?"],bind=[date];
   if(sport){where.push("sport=?");bind.push(sport)}
   if(eventId){where.push("fbis_event_id=?");bind.push(eventId)}
-  const clause=where.length?"WHERE "+where.join(" AND "):"";
+  const clause="WHERE "+where.join(" AND ");
   const rows=(await context.env.DB.prepare(
     `SELECT * FROM prizepicks_prop_lines ${clause} ORDER BY collected_at DESC LIMIT ${limit}`
   ).bind(...bind).all())?.results||[];
-  return json({ok:true,rows,count:rows.length,source:"PRIZEPICKS_APIFY",decisionEligible:false,canQualify:false});
+  const acquisition=await context.env.DB.prepare("SELECT state,started_at,completed_at,rows_returned FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(date).first();
+  const latestCollectedAt=rows.reduce((max,row)=>String(row.collected_at||"")>max?String(row.collected_at):max,"")||null;
+  const current=Boolean(acquisition?.state==="COMPLETE");
+  return json({
+    ok:true,rows,count:rows.length,date,source:"PRIZEPICKS_APIFY",
+    decisionEligible:false,canQualify:false,
+    freshness:{current,acquisition:acquisition||null,latestCollectedAt,stale:!current}
+  });
 }
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);
