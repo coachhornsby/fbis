@@ -49,7 +49,7 @@ async function kenpomArchive(env, { date = null, endingSeason = null, preseason 
 
 async function cbbGames(env, { season, start, end } = {}) {
   const query = {
-    season: Number(season),
+    season: Number(season) + 1,
     startDateRange: start,
     endDateRange: end,
   };

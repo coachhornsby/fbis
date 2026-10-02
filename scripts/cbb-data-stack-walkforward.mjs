@@ -256,6 +256,8 @@ const bySeason=Object.fromEntries(SEASONS.map(s=>{
   }];
 }));
 
+if (!allRows.length) throw new Error("cbb-walkforward-empty-sample");
+
 const report={
   ok:true,
   generatedAt:new Date().toISOString(),
