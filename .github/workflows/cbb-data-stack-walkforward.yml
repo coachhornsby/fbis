@@ -12,7 +12,8 @@ on:
       - "scripts/cbb-data-stack-walkforward.mjs"
       - "scripts/cbb-market-edge-lab.mjs"
       - "scripts/cbb-freeze-dataset.mjs"
-      - "scripts/cbb-verify-frozen-dataset.mjs"\n      - "scripts/cbb-ge4-confirmation-v1.mjs"
+      - "scripts/cbb-verify-frozen-dataset.mjs"
+      - "scripts/cbb-ge4-confirmation-v1.mjs"
       - ".github/workflows/cbb-data-stack-walkforward.yml"
   workflow_dispatch:
     inputs:
@@ -129,7 +130,10 @@ jobs:
           node scripts/cbb-freeze-dataset.mjs artifacts/cbb-market-research-dataset.json
           node scripts/cbb-verify-frozen-dataset.mjs artifacts/frozen/$CBB_DATASET_VERSION
 
-      - name: Run >=4 confirmation test against frozen dataset\n        run: node scripts/cbb-ge4-confirmation-v1.mjs artifacts/frozen/cbb-enriched-v2026.10.02 | tee artifacts/cbb-ge4-confirmation-v1-run.log\n\n      - name: Run sub-4 CBB expansion study
+      - name: Run >=4 confirmation test against frozen dataset
+        run: node scripts/cbb-ge4-confirmation-v1.mjs artifacts/frozen/cbb-enriched-v2026.10.02 | tee artifacts/cbb-ge4-confirmation-v1-run.log
+
+      - name: Run sub-4 CBB expansion study
         run: node scripts/cbb-sub4-expansion.mjs artifacts/cbb-market-research-dataset.json | tee artifacts/cbb-sub4-expansion-run.log
 
       - name: Summarize market edge research
