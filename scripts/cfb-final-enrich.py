@@ -139,7 +139,7 @@ def main():
     if LINE_ARCHIVE.exists():
         arc=pd.read_csv(LINE_ARCHIVE,low_memory=False)
         arc["game_id"]=arc["game_id"].map(norm_id)
-        out=out.merge(arc,on="game_id",how="left")
+        out=out.merge(arc,on="game_id",how="left",suffixes=("","_archive"))
 
     sd_spread=pd.to_numeric(out.get("market_home_spread"),errors="coerce")
     sd_total=pd.to_numeric(out.get("market_total"),errors="coerce")
