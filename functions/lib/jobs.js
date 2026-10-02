@@ -3,6 +3,7 @@
  */
 
 import { MODEL_VERSION } from "./weights.js";
+import { recordRunManifest } from "./opsHealthLedger.js";
 import { hasDb, persistJobRun, queryJobHealth, setMeta } from "./store.js";
 import {
   lastExpectedCollectUtc,
@@ -159,7 +160,49 @@ export async function recordJob(env, row) {
     modelVersion: MODEL_VERSION,
   };
   const persist = await persistJobRun(env, payload);
-  return { ...payload, persistOk: persist.ok, persistReason: persist.reason || null };
+
+  const jt = String(payload.jobType || "").toLowerCase();
+  const componentId =
+    jt.includes("prizepicks") ? "zen-prizepicks" :
+    jt.includes("action") ? "zen-action-daily" :
+    jt.includes("backfill") ? "historical-backfills" :
+    jt.includes("settle") || jt.includes("grade") || jt.includes("result") ? "score-settlement" :
+    jt.includes("publish") || jt.includes("projection") ? "projection-publication" :
+    "github-schedules";
+  let manifestPersist = { ok: false, reason: "not-attempted" };
+  try {
+    manifestPersist = await recordRunManifest(env, {
+      runId: payload.id,
+      componentId,
+      triggerType: payload.triggerType,
+      expectedRange: payload.datesJson,
+      receivedItems: payload.gamesDiscovered,
+      persistedItems: payload.writesSucceeded,
+      rejectedItems: payload.writesFailed,
+      duplicateItems: payload.writesAlready,
+      startedAt: payload.startedAt,
+      finishedAt: payload.completedAt,
+      status: payload.status,
+      errorSummary: payload.errorSummary,
+      deploymentSha: payload.deploymentCommit,
+      metadata: {
+        sport: payload.sport,
+        modelVersion: payload.modelVersion,
+        finalsDiscovered: payload.finalsDiscovered,
+        finalsGraded: payload.finalsGraded,
+        finalsAwaitingRetry: payload.finalsAwaitingRetry,
+      },
+    });
+  } catch (err) {
+    manifestPersist = { ok: false, reason: String(err?.message || err) };
+  }
+  return {
+    ...payload,
+    persistOk: persist.ok,
+    persistReason: persist.reason || null,
+    manifestPersistOk: manifestPersist.ok,
+    manifestPersistReason: manifestPersist.reason || null,
+  };
 }
 
 function isScheduledTrigger(triggerType) {
