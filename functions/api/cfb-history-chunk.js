@@ -93,7 +93,7 @@ export async function onRequestGet(context){
   const year=Number(u.searchParams.get("year"));
   const weekStart=Math.max(0,Number(u.searchParams.get("weekStart")??1));
   const weekEnd=Math.min(25,Number(u.searchParams.get("weekEnd")??weekStart));
-  const seasonType=String(u.searchParams.get("seasonType")||"regular");\n  const includeStatic=u.searchParams.get("includeStatic")==="1";
+  const seasonType=String(u.searchParams.get("seasonType")||"regular");\n  const includeStatic=u.searchParams.get("includeStatic")==="1";\n  const coverageOnly=u.searchParams.get("coverageOnly")==="1";
   if(!Number.isFinite(year)||year<1900||year>2100||weekEnd<weekStart||!ALLOWED_SEASON_TYPES.has(seasonType)){
     return new Response(JSON.stringify({ok:false,error:"invalid-parameters"}),{status:400,headers:{"content-type":"application/json"}});
   }
@@ -130,7 +130,7 @@ export async function onRequestGet(context){
       ]);
       weekRows.ppa.push(...ppa);weekRows.advanced.push(...advanced);weekRows.plays.push(...plays);weekRows.drives.push(...drives);weekRows.players.push(...players);weekRows.elo.push(...elo.map(x=>({...x,sourceWeek:Math.max(1,week-1),targetWeek:week})));
     }
-    const payload={ok:true,generatedAt:new Date().toISOString(),year,weekStart,weekEnd,seasonType,includeStatic,
+    const payload={ok:true,generatedAt:new Date().toISOString(),year,weekStart,weekEnd,seasonType,includeStatic,coverageOnly,
       games,lines,ppa:compactPpa(weekRows.ppa),advanced:compactAdvanced(weekRows.advanced),
       playAggregates:aggregatePlays(weekRows.plays),driveAggregates:aggregateDrives(weekRows.drives),
       players:weekRows.players,elo:weekRows.elo,core,
