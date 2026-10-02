@@ -93,7 +93,9 @@ export async function onRequestGet(context){
   const year=Number(u.searchParams.get("year"));
   const weekStart=Math.max(0,Number(u.searchParams.get("weekStart")??1));
   const weekEnd=Math.min(25,Number(u.searchParams.get("weekEnd")??weekStart));
-  const seasonType=String(u.searchParams.get("seasonType")||"regular");\n  const includeStatic=u.searchParams.get("includeStatic")==="1";\n  const coverageOnly=u.searchParams.get("coverageOnly")==="1";
+  const seasonType=String(u.searchParams.get("seasonType")||"regular");
+  const includeStatic=u.searchParams.get("includeStatic")==="1";
+  const coverageOnly=u.searchParams.get("coverageOnly")==="1";
   if(!Number.isFinite(year)||year<1900||year>2100||weekEnd<weekStart||!ALLOWED_SEASON_TYPES.has(seasonType)){
     return new Response(JSON.stringify({ok:false,error:"invalid-parameters"}),{status:400,headers:{"content-type":"application/json"}});
   }
