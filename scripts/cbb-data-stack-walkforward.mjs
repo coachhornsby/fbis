@@ -281,7 +281,8 @@ const report={
 mkdirSync("artifacts",{recursive:true});
 writeFileSync("artifacts/cbb-data-stack-walkforward.json",JSON.stringify(report,null,2));
 writeFileSync("artifacts/cbb-data-stack-predictions.json",JSON.stringify(allRows.map(r=>({
-  id:r.id,season:r.season,date:r.date,actualHome:r.actualHome,actualAway:r.actualAway,
+  id:r.id,season:r.season,date:r.date,home:r.home,away:r.away,neutral:r.neutral,
+  actualHome:r.actualHome,actualAway:r.actualAway,
   cbbd:r.cbbd,torvik:r.torvik,kenpom:r.kenpom,cbbdTorvik:r.cbbdTorvik,cbbdKenpom:r.cbbdKenpom,fullStack:r.fullStack,
 })),null,2));
 console.log(JSON.stringify({ok:true,rows:report.rows,coverage,aggregate,fairComparison:report.fairComparison},null,2));
