@@ -1,0 +1,32 @@
+name: CBB v4 head-to-head
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/cbb-v4-headtohead.mjs"
+      - "research/cbb/kenpom-hca-2025-26.json"
+      - ".github/workflows/cbb-v4-headtohead.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: "24"}
+      - name: Run v4 comparison
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: node scripts/cbb-v4-headtohead.mjs
+      - name: Summary
+        run: |
+          jq -e '.ok == true and .rows > 0' artifacts/cbb-v4-headtohead.json >/dev/null
+          cat artifacts/cbb-v4-headtohead.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbb-v4-headtohead
+          path: artifacts/cbb-v4-headtohead.json
+          retention-days: 14
