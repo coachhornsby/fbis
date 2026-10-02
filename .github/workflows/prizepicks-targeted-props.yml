@@ -6,10 +6,13 @@ on:
     # Redundant morning trigger opportunities. The durable CT-day reservation
     # is authoritative, so later deliveries recover a missed/delayed GitHub
     # schedule event without starting a second paid PrizePicks Actor run.
-    # 08:05, 08:35, 09:05 America/Chicago while CDT is in effect.
+    # 08:05, 08:35, 09:05, 10:35 America/Chicago while CDT is in effect.
+    # The final off-peak slot is a last-chance same-day recovery if GitHub misses
+    # the primary morning events.
     - cron: "5 13 * * *"
     - cron: "35 13 * * *"
     - cron: "5 14 * * *"
+    - cron: "35 15 * * *"
   # Intentionally schedule-only in production: exactly one paid Actor pull/day.
   # Manual dispatch is retained for explicit operator recovery, but code pushes never spend Apify credit.
   workflow_dispatch:
