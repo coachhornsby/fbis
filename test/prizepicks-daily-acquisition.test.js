@@ -4,9 +4,9 @@ import fs from "node:fs";
 
 test("PrizePicks workflow has redundant guarded morning schedules and no push trigger",()=>{
   const y=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
-  assert.match(y,/cron: "5 13 \\* \\* \\*"/);
-  assert.match(y,/cron: "35 13 \\* \\* \\*"/);
-  assert.match(y,/cron: "5 14 \\* \\* \\*"/);
+  assert.match(y,/cron: "5 13 \* \* \*"/);
+  assert.match(y,/cron: "35 13 \* \* \*"/);
+  assert.match(y,/cron: "5 14 \* \* \*"/);
   assert.doesNotMatch(y,/\n\s+push:/);
   assert.match(y,/Reserve today's single paid PrizePicks acquisition/);
   assert.match(y,/Pull full PrizePicks board once/);
