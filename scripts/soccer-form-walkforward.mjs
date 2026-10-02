@@ -39,7 +39,7 @@ for(const league of SOCCER_LEAGUES){
  }
 }
 const mean=x=>x.length?x.reduce((a,b)=>a+b,0)/x.length:null;
-const report={generatedAt:new Date().toISOString(),modelId:"SOCCER-FBIS-v1",n:rows.length,marginMae:mean(rows.map(x=>x.marginAbs)),totalMae:mean(rows.map(x=>x.totalAbs)),threeWayAccuracy:rows.length?rows.filter(x=>x.outcomeCorrect).length/rows.length:null,
- leagues:Object.fromEntries(SOCCER_LEAGUES.map(l=>{const r=rows.filter(x=>x.league===l);return[l,{n:r.length,marginMae:mean(r.map(x=>x.marginAbs)),totalMae:mean(r.map(x=>x.totalAbs)),threeWayAccuracy:r.length?r.filter(x=>x.outcomeCorrect).length/r.length:null}]})),
- governance:{maturity:"RESEARCH",canQualify:false,canAuthorize:false,marketValidationRequired:true}};
+const report={generatedAt:new Date().toISOString(),modelId:"SOCCER-FBIS-v1",validation:"TRUE_WALK_FORWARD",n:rows.length,marginMae:mean(rows.map(x=>x.marginAbs)),totalMae:mean(rows.map(x=>x.totalAbs)),threeWayAccuracy:rows.length?rows.filter(x=>x.outcomeCorrect).length/rows.length:null,brier:mean(rows.map(x=>x.brier)),logLoss:mean(rows.map(x=>x.logLoss)),
+ leagues:Object.fromEntries(SOCCER_LEAGUES.map(l=>{const r=rows.filter(x=>x.league===l);return[l,{n:r.length,marginMae:mean(r.map(x=>x.marginAbs)),totalMae:mean(r.map(x=>x.totalAbs)),threeWayAccuracy:r.length?r.filter(x=>x.outcomeCorrect).length/r.length:null,brier:mean(r.map(x=>x.brier)),logLoss:mean(r.map(x=>x.logLoss))}]})),
+ governance:{maturity:"RESEARCH",canQualify:false,canAuthorize:false,marketValidationRequired:true,requirements:["true walk-forward validation","league-level sample review","probability calibration review","market/no-vig benchmark before wager authority"]}};
 fs.mkdirSync("artifacts",{recursive:true});fs.writeFileSync("artifacts/soccer-form-walkforward-report.json",JSON.stringify(report,null,2));fs.writeFileSync("artifacts/soccer-form-walkforward-rows.jsonl",rows.map(x=>JSON.stringify(x)).join("\n")+"\n");console.log(JSON.stringify(report,null,2));
