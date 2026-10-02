@@ -892,3 +892,105 @@ CREATE INDEX IF NOT EXISTS idx_prizepicks_prop_lines_event
   ON prizepicks_prop_lines(fbis_event_id, collected_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prizepicks_prop_lines_player_market
   ON prizepicks_prop_lines(player_name, canonical_market, collected_at DESC);
+
+
+-- FBIS operational control plane (migration 0037)
+CREATE TABLE IF NOT EXISTS fbis_ops_components (
+  component_id TEXT PRIMARY KEY,
+  component_name TEXT NOT NULL,
+  component_type TEXT NOT NULL,
+  sport_or_domain TEXT,
+  provider TEXT,
+  criticality TEXT NOT NULL DEFAULT 'standard',
+  expected_cadence_minutes INTEGER,
+  grace_period_minutes INTEGER,
+  stale_after_minutes INTEGER,
+  escalation_after_minutes INTEGER,
+  paid_provider INTEGER NOT NULL DEFAULT 0,
+  health_endpoint TEXT,
+  target_table TEXT,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  config_json TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS fbis_ops_health (
+  component_id TEXT PRIMARY KEY,
+  workflow_freshness_at TEXT,
+  source_freshness_at TEXT,
+  database_freshness_at TEXT,
+  published_freshness_at TEXT,
+  last_attempt_at TEXT,
+  last_success_at TEXT,
+  last_nonempty_at TEXT,
+  last_persist_at TEXT,
+  last_verified_at TEXT,
+  source_rows INTEGER,
+  rows_written INTEGER,
+  rows_visible_downstream INTEGER,
+  status TEXT NOT NULL DEFAULT 'UNKNOWN',
+  severity TEXT NOT NULL DEFAULT 'INFO',
+  incident_fingerprint TEXT,
+  consecutive_failures INTEGER NOT NULL DEFAULT 0,
+  consecutive_empty_successes INTEGER NOT NULL DEFAULT 0,
+  last_error_class TEXT,
+  last_error TEXT,
+  provider_run_id TEXT,
+  workflow_run_id TEXT,
+  deployment_sha TEXT,
+  data_date_or_range TEXT,
+  cost_or_quota_state TEXT,
+  metadata_json TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS fbis_run_manifests (
+  run_id TEXT PRIMARY KEY,
+  component_id TEXT NOT NULL,
+  workflow_run_id TEXT,
+  provider_run_id TEXT,
+  trigger_type TEXT,
+  expected_range TEXT,
+  expected_items INTEGER,
+  received_items INTEGER,
+  persisted_items INTEGER,
+  visible_items INTEGER,
+  rejected_items INTEGER,
+  duplicate_items INTEGER,
+  started_at TEXT,
+  finished_at TEXT,
+  status TEXT NOT NULL,
+  error_class TEXT,
+  error_summary TEXT,
+  deployment_sha TEXT,
+  metadata_json TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS fbis_ops_invariant_checks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  invariant_key TEXT NOT NULL,
+  component_id TEXT,
+  checked_at TEXT NOT NULL,
+  status TEXT NOT NULL,
+  expected_value TEXT,
+  actual_value TEXT,
+  detail TEXT,
+  incident_fingerprint TEXT,
+  metadata_json TEXT
+);
+CREATE TABLE IF NOT EXISTS fbis_watchdog_metrics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  incident_fingerprint TEXT NOT NULL,
+  component_id TEXT,
+  failure_class TEXT,
+  severity TEXT,
+  detected_at TEXT NOT NULL,
+  repaired_at TEXT,
+  verified_at TEXT,
+  detection_source TEXT,
+  autonomous_repair INTEGER NOT NULL DEFAULT 0,
+  owner_action_required INTEGER NOT NULL DEFAULT 0,
+  repeat_count INTEGER NOT NULL DEFAULT 1,
+  mttr_seconds INTEGER,
+  notes TEXT,
+  UNIQUE(incident_fingerprint, detected_at)
+);
