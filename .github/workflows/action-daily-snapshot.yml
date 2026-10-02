@@ -2,8 +2,13 @@ name: Zen ACTION daily full slate
 
 on:
   schedule:
-    # 07:30 America/Chicago while CDT is in effect. Staggered 30 minutes before PrizePicks.
+    # Redundant morning trigger opportunities. D1's one-paid-run-per-CT-day
+    # guard is authoritative, so later cron deliveries recover a missed/delayed
+    # GitHub schedule event without starting a second paid Zen ACTION run.
+    # 07:30, 08:00, 08:30 America/Chicago while CDT is in effect.
     - cron: "30 12 * * *"
+    - cron: "0 13 * * *"
+    - cron: "30 13 * * *"
   workflow_dispatch:
 
 concurrency:
