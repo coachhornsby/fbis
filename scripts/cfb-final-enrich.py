@@ -140,15 +140,21 @@ def main():
         arc["game_id"]=arc["game_id"].map(norm_id)
         out=out.merge(arc,on="game_id",how="left")
 
-    # Canonical benchmark: SportsDataverse resolved line first; CFBD provider consensus only fills missing.
     sd_spread=pd.to_numeric(out.get("market_home_spread"),errors="coerce")
     sd_total=pd.to_numeric(out.get("market_total"),errors="coerce")
+    available=out.get("market_game_spread_available")
+    if available is not None:
+        valid=available.fillna(False).astype(bool)
+        sd_spread=sd_spread.where(valid)
+        sd_total=sd_total.where(valid)
+    arc_spread=pd.to_numeric(out.get("sdv_archive_home_spread"),errors="coerce") if "sdv_archive_home_spread" in out else pd.Series(np.nan,index=out.index)
+    arc_total=pd.to_numeric(out.get("sdv_archive_total"),errors="coerce") if "sdv_archive_total" in out else pd.Series(np.nan,index=out.index)
     cf_spread=pd.to_numeric(out.get("cfbd_home_spread_median"),errors="coerce") if "cfbd_home_spread_median" in out else pd.Series(np.nan,index=out.index)
     cf_total=pd.to_numeric(out.get("cfbd_total_median"),errors="coerce") if "cfbd_total_median" in out else pd.Series(np.nan,index=out.index)
-    out["benchmark_home_spread"]=sd_spread.fillna(cf_spread)
-    out["benchmark_total"]=sd_total.fillna(cf_total)
-    out["benchmark_spread_source"]=np.where(sd_spread.notna(),"SportsDataverse-ESPN",np.where(cf_spread.notna(),"CFBD-provider-median","missing"))
-    out["benchmark_total_source"]=np.where(sd_total.notna(),"SportsDataverse-ESPN",np.where(cf_total.notna(),"CFBD-provider-median","missing"))
+    out["benchmark_home_spread"]=arc_spread.fillna(cf_spread).fillna(sd_spread)
+    out["benchmark_total"]=arc_total.fillna(cf_total).fillna(sd_total)
+    out["benchmark_spread_source"]=np.select([arc_spread.notna(),cf_spread.notna(),sd_spread.notna()],["SportsDataverse-multibook","CFBD-provider-median","SportsDataverse-ESPN-valid"],default="missing")
+    out["benchmark_total_source"]=np.select([arc_total.notna(),cf_total.notna(),sd_total.notna()],["SportsDataverse-multibook","CFBD-provider-median","SportsDataverse-ESPN-valid"],default="missing")
 
     out.to_csv(OUT/"cfb_training_full_enriched_2004_2026.csv",index=False)
     out.to_parquet(OUT/"cfb_training_full_enriched_2004_2026.parquet",index=False)
