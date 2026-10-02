@@ -99,6 +99,12 @@ def main():
     fbs=finals[finals.training_eligible.eq(1)] if "training_eligible" in finals else finals
     both_sp=m.dropna(subset=["cfbd_home_spread","espn_home_spread"])
     both_tot=m.dropna(subset=["cfbd_total","espn_total"])
+    disagreements=m[
+        ((m["spread_cross_source_abs_diff"]>3)&m["spread_cross_source_abs_diff"].notna()) |
+        ((m["total_cross_source_abs_diff"]>5)&m["total_cross_source_abs_diff"].notna())
+    ].copy()
+    disagreements.to_csv(OUT/"cfb_market_cross_source_disagreements.csv",index=False)
+
     by_season=[]
     for season,g in m.groupby("season"):
         by_season.append({
@@ -127,6 +133,9 @@ def main():
         "crossSourceTotalN":int(len(both_tot)),
         "crossSourceTotalMae":float(both_tot.total_cross_source_abs_diff.mean()) if len(both_tot) else None,
         "espnUnmatchedScheduleRows":int(len(unmatched)),
+        "crossSourceMaterialDisagreements":int(len(disagreements)),
+        "post2013TrainingSpreadCoveragePct":round(float(fbs[fbs.season>=2013].market_home_spread.notna().mean()*100),3) if len(fbs[fbs.season>=2013]) else 0,
+        "post2013TrainingTotalCoveragePct":round(float(fbs[fbs.season>=2013].market_total.notna().mean()*100),3) if len(fbs[fbs.season>=2013]) else 0,
         "bySeason":by_season,
         "temporalIntegrity":"Football features remain pregame-only. CFBD rolling features use only prior chronological games; CORE requires throughWeek < target week; prior ratings use prior-season freezes; Elo uses prior week. ESPN enrichment is rank/rest/QB identity plus market benchmark only.",
         "marketPolicy":"Independent model features never consume market data. Canonical benchmark prefers sanitized CFBD provider median, then valid SportsDataverse/ESPN resolved line. All CFBD provider records are retained separately.",
@@ -135,6 +144,8 @@ def main():
     if qa["duplicateGameIds"]!=0: raise RuntimeError("duplicate canonical game IDs")
     if qa["gamesWithCanonicalSpread"]==0 or qa["gamesWithCanonicalTotal"]==0: raise RuntimeError("market benchmark unexpectedly empty")
     if qa["firstSeason"]!=2000 or qa["lastSeason"]!=2026: raise RuntimeError("historical season range incomplete")
+    if qa["post2013TrainingSpreadCoveragePct"]<95 or qa["post2013TrainingTotalCoveragePct"]<95:
+        raise RuntimeError("post-2013 betting coverage below 95%; refusing incomplete market benchmark")
     print(json.dumps(qa,indent=2))
 
 if __name__=="__main__": main()
