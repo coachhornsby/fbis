@@ -34,7 +34,7 @@ for(const league of SOCCER_LEAGUES){
   const cur=agg(seen),p=projectSoccerForm(g,{homePrior:pmap.get(g.home.id),awayPrior:pmap.get(g.away.id),homeCurrent:cur.get(g.home.id),awayCurrent:cur.get(g.away.id)});
   if(p.ok){const am=g.homeScore-g.awayScore,at=g.homeScore+g.awayScore,outcome=am>0?"H":am<0?"A":"D",pick=p.pHomeWin>=p.pAwayWin&&p.pHomeWin>=p.pDraw?"H":p.pAwayWin>=p.pDraw?"A":"D";
    const probs={H:p.pHomeWin,D:p.pDraw,A:p.pAwayWin};
-   rows.push({league,id:g.id,start:g.start,projHome:p.home,projAway:p.away,pHome:p.pHomeWin,pDraw:p.pDraw,pAway:p.pAwayWin,actualHome:g.homeScore,actualAway:g.awayScore,marginAbs:Math.abs(p.margin-am),totalAbs:Math.abs(p.total-at),outcomeCorrect:pick===outcome,brier:(["H","D","A"].reduce((s,k)=>s+(probs[k]-(k===outcome?1:0))**2,0))/3,logLoss:-Math.log(Math.max(1e-12,probs[outcome]))});}
+   rows.push({league,id:g.id,start:g.start,homeTeam:g.home.name,awayTeam:g.away.name,projHome:p.home,projAway:p.away,pHome:p.pHomeWin,pDraw:p.pDraw,pAway:p.pAwayWin,actualHome:g.homeScore,actualAway:g.awayScore,marginAbs:Math.abs(p.margin-am),totalAbs:Math.abs(p.total-at),outcomeCorrect:pick===outcome,brier:(["H","D","A"].reduce((s,k)=>s+(probs[k]-(k===outcome?1:0))**2,0))/3,logLoss:-Math.log(Math.max(1e-12,probs[outcome]))});}
   seen.push(g);
  }
 }
