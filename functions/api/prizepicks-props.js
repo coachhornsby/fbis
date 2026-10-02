@@ -121,6 +121,13 @@ export async function onRequestGet(context){
   if(!context.env?.DB) return json({ok:false,error:"database unavailable",rows:[]},503);
   const url=new URL(context.request.url);
   const mode=String(url.searchParams.get("mode")||"rows").toLowerCase();
+  if(mode==="acquisition"){
+    const auth=authorizeHarvest(context.request,context.env);
+    if(!auth.ok) return json(unauthorizedBody(),401);
+    const day=todayCt();
+    const row=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(day).first();
+    return json({ok:true,ctDate:day,acquisition:row||null,alreadyStarted:!!row});
+  }
   if(mode==="budget"){
     const auth=authorizeHarvest(context.request,context.env);
     if(!auth.ok) return json(unauthorizedBody(),401);
@@ -153,6 +160,23 @@ export async function onRequestPost(context){
   if(!auth.ok) return json(unauthorizedBody(),401);
   if(!context.env?.DB) return json({ok:false,error:"database unavailable"},503);
   let body={};try{body=await context.request.json()}catch{}
+  if(String(body.operation||"").toLowerCase()==="reserve"){
+    const day=todayCt(), runId=s(body.runId)||`pp_${Date.now()}`, now=new Date().toISOString();
+    const existing=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(day).first();
+    if(existing) return json({ok:false,blocked:true,error:"ALREADY_COLLECTED_TODAY",ctDate:day,acquisition:existing},409);
+    try{
+      await context.env.DB.prepare(`INSERT INTO prizepicks_daily_acquisitions(ct_date,run_id,state,estimated_cost_usd,started_at,note) VALUES(?,?,?,?,?,?)`)
+        .bind(day,runId,"RESERVED",RUN_START_USD,now,"Reserved before paid Actor start").run();
+    }catch(e){
+      const winner=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(day).first();
+      return json({ok:false,blocked:true,error:"ALREADY_COLLECTED_TODAY",ctDate:day,acquisition:winner||null},409);
+    }
+    // Ledger the unavoidable actor-start fee at reservation time so downstream failures cannot hide spend.
+    await context.env.DB.prepare(`INSERT OR IGNORE INTO apify_sports_cost_ledger
+      (id,provider,run_id,sport,cost_basis,estimated_total_usd,actual_total_usd,rows_returned,created_at)
+      VALUES(?,?,?,?,?,?,?,?,?)`).bind("ppstart_"+day,"PRIZEPICKS_APIFY",runId,"all","ESTIMATED_START",RUN_START_USD,null,0,now).run();
+    return json({ok:true,reserved:true,ctDate:day,runId,recordedStartCostUsd:RUN_START_USD});
+  }
   const rows=Array.isArray(body.rows)?body.rows:[];
   const candidates=Array.isArray(body.candidates)?body.candidates:[];
   const runId=s(body.runId)||`pp_${Date.now()}`;
@@ -161,9 +185,6 @@ export async function onRequestPost(context){
   const futureRows=rows.filter((row)=>ctDate(startOf(row))!==today);
   if(futureRows.length){
     return json({ok:false,blocked:true,error:"future_or_non_today_prizepicks_rows",todayCt:today,rowsReturned:rows.length,nonTodayRows:futureRows.length},409);
-  }
-  if(rows.length>1500){
-    return json({ok:false,blocked:true,error:"oversized_prizepicks_payload",rowsReturned:rows.length,maxRows:1500},409);
   }
   const estimate=RUN_START_USD+rows.length*PER_PROJECTION_USD;
   const spent=await mtd(context.env.DB);
@@ -203,6 +224,8 @@ export async function onRequestPost(context){
     written+=result.reduce((sum,row)=>sum+Number(row?.meta?.changes||0),0);
   }
   const costId="cost_"+runId;
+  const acquisition=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE run_id=?").bind(runId).first();
+  if(!acquisition) return json({ok:false,blocked:true,error:"missing_daily_acquisition_reservation",runId},409);
   const actual=Number.isFinite(Number(body.actualCostUsd))?Number(body.actualCostUsd):null;
   const total=actual==null?estimate:actual;
   await context.env.DB.prepare(
@@ -218,6 +241,12 @@ export async function onRequestPost(context){
     rows.length,written,malformed,estimate,actual,actual==null?"ESTIMATED":"ACTUAL",
     collectedAt,collectedAt,0,collectedAt
   ).run();
+  await context.env.DB.prepare(
+    `UPDATE prizepicks_daily_acquisitions SET state='COMPLETE', estimated_cost_usd=?, actual_cost_usd=?, rows_returned=?, completed_at=? WHERE run_id=?`
+  ).bind(estimate,actual,rows.length,collectedAt,runId).run();
+  // Replace the reservation-only cost with the complete estimated/actual charge in the shared Apify ledger.
+  await context.env.DB.prepare(`UPDATE apify_sports_cost_ledger SET cost_basis=?, estimated_total_usd=?, actual_total_usd=?, rows_returned=? WHERE id=?`)
+    .bind(actual==null?"ESTIMATED":"ACTUAL",estimate,actual,rows.length,"ppstart_"+acquisition.ct_date).run();
   await context.env.DB.prepare(
     `INSERT OR REPLACE INTO shadow_cost_ledger(
       id,run_id,plan,sport,profile,cost_basis,run_start_usd,scoreboard_usd,row_usd,movement_usd,player_props_usd,
