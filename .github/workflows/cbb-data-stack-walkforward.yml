@@ -10,6 +10,7 @@ on:
       - "functions/lib/collegeJobsCore.js"
       - "functions/api/cbb-walkforward-source.js"
       - "scripts/cbb-data-stack-walkforward.mjs"
+      - "scripts/cbb-market-edge-lab.mjs"
       - ".github/workflows/cbb-data-stack-walkforward.yml"
   workflow_dispatch:
     inputs:
@@ -110,6 +111,32 @@ jobs:
             echo
             echo "### Three-way overlap"
             jq -r '.fairComparison.threeWayOverlap | to_entries[] | "- \(.key): n=\(.value.n), margin MAE=\(.value.marginMae), total MAE=\(.value.totalMae), winner accuracy=\(.value.winnerAccuracy)%"' "$FILE"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run market-residual edge lab
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          node scripts/cbb-market-edge-lab.mjs artifacts/cbb-data-stack-predictions.json | tee artifacts/cbb-market-edge-run.log
+
+      - name: Summarize market edge research
+        run: |
+          set -euo pipefail
+          FILE="artifacts/cbb-market-edge-lab.json"
+          jq -e '.ok == true and .joinedRows > 0' "$FILE" >/dev/null
+          {
+            echo
+            echo "## CBB market-residual research"
+            echo
+            jq -r '"- joined market games: \(.joinedRows) / source \(.sourceRows)"' "$FILE"
+            jq -r '"- spread orientation check: \(.marketAudit.spreadOrientationConsistency)"' "$FILE"
+            echo
+            echo "### Untouched holdout aggregate"
+            jq -r '.aggregateHoldout | to_entries[] | "- \(.key): n=\(.value.n), win=\(.value.winPct)%, units=\(.value.units), ROI=\(.value.roi)%, assumed price=\(.value.assumedPricePct)%"' "$FILE"
+            echo
+            echo "### Fold-selected specifications"
+            jq -r '.folds[] | "- test \(.testSeason): side=\(.side.spec.family // "none") λ=\(.side.spec.lambda // "na") threshold=\(.side.spec.threshold // "na"); total=\(.total.spec.family // "none") λ=\(.total.spec.lambda // "na") threshold=\(.total.spec.threshold // "na")"' "$FILE"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifacts

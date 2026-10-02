@@ -70,6 +70,70 @@ async function cbbGames(env, { season, start, end } = {}) {
   return { ok:true, rows, n:rows.length };
 }
 
+function firstNum(obj, keys = []) {
+  for (const key of keys) {
+    const value = key.split(".").reduce((acc, part) => acc == null ? null : acc[part], obj);
+    const n = num(value);
+    if (n != null) return n;
+  }
+  return null;
+}
+
+function firstText(obj, keys = []) {
+  for (const key of keys) {
+    const value = key.split(".").reduce((acc, part) => acc == null ? null : acc[part], obj);
+    if (value != null && String(value).trim()) return String(value).trim();
+  }
+  return null;
+}
+
+async function cbbLines(env, { season } = {}) {
+  const res = await cbbdGet("/lines", env, { query: { season: Number(season) + 1 } });
+  if (!res.ok) return { ok:false, error:res.reason || "cbbd-lines-failed", httpStatus:res.status || 0, rows:[] };
+  const rows = [];
+  for (const game of res.data || []) {
+    const gameId = String(game.id ?? game.gameId ?? game.game_id ?? "");
+    const base = {
+      gameId,
+      season: Number(game.season ?? Number(season) + 1),
+      startDate: game.startDate ?? game.start_date ?? game.date ?? null,
+      homeTeam: game.homeTeam?.school ?? game.homeTeam?.name ?? game.homeTeam ?? game.home?.school ?? game.home?.name ?? game.home_team ?? null,
+      awayTeam: game.awayTeam?.school ?? game.awayTeam?.name ?? game.awayTeam ?? game.away?.school ?? game.away?.name ?? game.away_team ?? null,
+    };
+    const lineRows = Array.isArray(game.lines) ? game.lines : Array.isArray(game.providers) ? game.providers : [game];
+    for (const line of lineRows) {
+      const provider = firstText(line, ["provider","providerName","sportsbook","book","name"]) || firstText(game, ["provider","providerName"]);
+      const spread = firstNum(line, ["spread","homeSpread","home_spread","pointSpread","point_spread"]);
+      const openingSpread = firstNum(line, ["spreadOpen","openingSpread","openSpread","opening_spread","spread_open"]);
+      const overUnder = firstNum(line, ["overUnder","over_under","total","totalPoints","total_points"]);
+      const openingOverUnder = firstNum(line, ["overUnderOpen","openingOverUnder","openOverUnder","opening_total","over_under_open"]);
+      const homeMoneyline = firstNum(line, ["homeMoneyline","homeMoneyLine","home_moneyline","home_money_line"]);
+      const awayMoneyline = firstNum(line, ["awayMoneyline","awayMoneyLine","away_moneyline","away_money_line"]);
+      const homeSpreadPrice = firstNum(line, ["homeSpreadPrice","homeSpreadOdds","home_spread_price","home_spread_odds","spreadPrice","spreadOdds"]);
+      const awaySpreadPrice = firstNum(line, ["awaySpreadPrice","awaySpreadOdds","away_spread_price","away_spread_odds"]);
+      const overPrice = firstNum(line, ["overPrice","overOdds","over_price","over_odds"]);
+      const underPrice = firstNum(line, ["underPrice","underOdds","under_price","under_odds"]);
+      if (!gameId || (spread == null && overUnder == null && openingSpread == null && openingOverUnder == null)) continue;
+      rows.push({
+        ...base,
+        provider,
+        spread,
+        openingSpread,
+        overUnder,
+        openingOverUnder,
+        homeMoneyline,
+        awayMoneyline,
+        homeSpreadPrice,
+        awaySpreadPrice,
+        overPrice,
+        underPrice,
+        sampleFields:Object.keys(line || {}).sort().slice(0,40),
+      });
+    }
+  }
+  return { ok:true, rows, n:rows.length };
+}
+
 export async function onRequestGet(context) {
   const auth = authorizeHarvest(context.request, context.env);
   if (!auth.ok) return json(unauthorizedBody(auth.reason),403);
@@ -93,5 +157,10 @@ export async function onRequestGet(context) {
     if (!Number.isFinite(season) || !start || !end) return json({ok:false,error:"season-start-end-required"},400);
     return json(await cbbGames(env,{season,start,end}));
   }
-  return json({ok:false,error:"kind-required",kinds:["games","kenpom-archive","kenpom-preseason"]},400);
+  if (kind === "lines") {
+    const season = Number(url.searchParams.get("season"));
+    if (!Number.isFinite(season)) return json({ok:false,error:"season-required"},400);
+    return json(await cbbLines(env,{season}));
+  }
+  return json({ok:false,error:"kind-required",kinds:["games","lines","kenpom-archive","kenpom-preseason"]},400);
 }
