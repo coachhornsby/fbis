@@ -106,7 +106,8 @@ def stabilize_weekly(raw):
     games[h]=games.get(h,0)+1;games[a]=games.get(a,0)+1
   # terminal states become next-season priors
  return pd.DataFrame(out)
-\ndef main():
+
+def main():
  d=pd.read_csv(DATA,low_memory=False);d=d[n(d.home_score).notna()&n(d.away_score).notna()].copy()
  d["season"]=n(d.season).astype(int);d["home_pts"]=n(d.home_score);d["away_pts"]=n(d.away_score);d["actual_margin"]=d.home_pts-d.away_pts
  # Side-specific scoring targets let offense and defense become distinct latent point ratings.
