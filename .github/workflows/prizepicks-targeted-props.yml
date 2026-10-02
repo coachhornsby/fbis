@@ -18,6 +18,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   collect:
@@ -75,8 +76,36 @@ jobs:
             exit 0
           }
 
+      - name: Recover an existing reserved acquisition without another paid Actor call
+        id: recover
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          state_json="$(mktemp)"
+          curl -fsS --max-time 30 -H "x-harvest-secret: ${HARVEST_SECRET}" "$BASE/api/prizepicks-props?mode=acquisition&_t=$(date +%s)" > "$state_json"
+          state="$(jq -r '.acquisition.state // ""' "$state_json")"
+          existing_run="$(jq -r '.acquisition.run_id // ""' "$state_json")"
+          if [ "$state" != "RESERVED" ] || [ -z "$existing_run" ]; then
+            echo "RECOVER_ARTIFACT=0" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          source_run="${existing_run##*_}"
+          artifacts_json="$(mktemp)"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${source_run}/artifacts" > "$artifacts_json"
+          artifact_id="$(jq -r --arg n "prizepicks-curated-${source_run}" '.artifacts[] | select(.name==$n) | .id' "$artifacts_json" | head -1)"
+          test -n "$artifact_id"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o /tmp/pp-recovery.zip
+          unzip -o /tmp/pp-recovery.zip -d artifacts >/dev/null
+          test -s artifacts/prizepicks-rows.json
+          test -s artifacts/candidates.json
+          echo "PP_RUN_ID=$existing_run" >> "$GITHUB_ENV"
+          echo "RECOVER_ARTIFACT=1" >> "$GITHUB_ENV"
+          echo "Recovered reserved acquisition artifact from run $source_run; no Actor call will be made."
+
       - name: Reserve today's single paid PrizePicks acquisition
-        if: env.SKIP_COLLECTION != '1'
+        if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
         run: |
           set -euo pipefail
           mkdir -p artifacts
@@ -94,7 +123,7 @@ jobs:
           jq -e '.ok==true and .reserved==true' "$body" >/dev/null
           echo "PP_RUN_ID=$run_id" >> "$GITHUB_ENV"
       - name: Build FBIS candidate map
-        if: env.SKIP_COLLECTION != '1'
+        if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
         run: |
           set -euo pipefail
           mkdir -p artifacts
@@ -134,7 +163,7 @@ jobs:
           echo "FBIS candidates=$(jq 'length' artifacts/candidates.json)"
 
       - name: Pull full PrizePicks board once
-        if: env.SKIP_COLLECTION != '1'
+        if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
         run: |
           set -euo pipefail
           input='{}'
