@@ -16,7 +16,7 @@ import {
 } from "../functions/lib/heritageSlip.js";
 import { parseNoVigSlip } from "../functions/lib/novigSlip.js";
 import { looksLikePrizePicksSlip, parsePrizePicksSlip } from "../functions/lib/prizePicksSlip.js";
-import { identityForSport } from "../functions/lib/teams.js";
+import { displayTeamIdentity, identityForSport } from "../functions/lib/teams.js";
 import {
   matchExecutedBet,
   attributeRecommendation,
@@ -210,6 +210,35 @@ describe("Heritage matching, attribution, CLV, settlement", () => {
       { id: "2", sport: "mlb", date: "2026-08-27", start: lad.executedAt, home: { name: "Atlanta Braves", abbr: "ATL" }, away: { name: "Miami Marlins", abbr: "MIA" } },
     ]);
     assert.equal(one.status, "unmatched");
+  });
+
+
+  it("treats sport as a hard boundary and never cross-matches leagues", async () => {
+    const hockeyTicket = {
+      externalTicketId: "H1",
+      date: "2026-09-30",
+      sport: "nhl",
+      awayTeam: "New York Islanders",
+      homeTeam: "Toronto Maple Leafs",
+      selectedTeam: "New York Islanders",
+      market: "ML",
+      executedAt: "2026-09-30T20:00:00Z",
+    };
+    const games = [
+      { id: "mlb-wrong", sport: "mlb", date: "2026-09-30", start: hockeyTicket.executedAt, home: { name: "Toronto Blue Jays", abbr: "TOR" }, away: { name: "New York Yankees", abbr: "NYY" } },
+      { id: "nhl-right", sport: "nhl", date: "2026-09-30", start: hockeyTicket.executedAt, home: { name: "Toronto Maple Leafs", abbr: "TOR" }, away: { name: "New York Islanders", abbr: "NYI" } },
+    ];
+    const hit = matchExecutedBet(hockeyTicket, games);
+    assert.equal(hit.status, "matched");
+    assert.equal(hit.game.id, "nhl-right");
+
+    const noHockey = matchExecutedBet(hockeyTicket, games.filter((g) => g.sport === "mlb"));
+    assert.equal(noHockey.status, "unmatched");
+
+    const rendered = displayTeamIdentity({ name: "New York Islanders", sport: "nhl", abbr: "—", logo: "" }, "New York Islanders");
+    assert.equal(rendered.name, "New York Islanders");
+    assert.equal(rendered.sport, "nhl");
+    assert.equal(rendered.canonicalId ?? null, null);
   });
 
   it("marks ambiguous when two games both fit", () => {

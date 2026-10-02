@@ -49,11 +49,15 @@ export function matchExecutedBet(ticket, games, { allowSportCorrection = true } 
 
   let list = filter(true);
   let sportCorrected = false;
-  // Heritage slips sometimes default sport to mlb while naming college teams.
-  // Allow a single exact team/date match across sports so harvest can settle.
-  if (!list.length && allowSportCorrection) {
-    list = filter(false);
-    sportCorrected = list.length > 0;
+  // Pro leagues are hard namespaces. Preserve only the legacy Heritage repair
+  // for old tickets that were incorrectly stamped MLB but are an exact CFB/CBB
+  // both-team/date match. Never correct MLB ↔ NHL/NBA/NFL or any pro ↔ pro pair.
+  if (!list.length && allowSportCorrection && ticket.sport === "mlb") {
+    const collegeOnly = filter(false).filter((g) => g.sport === "cfb" || g.sport === "cbb");
+    if (collegeOnly.length) {
+      list = collegeOnly;
+      sportCorrected = true;
+    }
   }
   const timed = list.filter((g) => kickoffProximity(ticket.executedAt, g.start, 18));
   const pool = timed.length ? timed : list;
@@ -371,26 +375,34 @@ function summarizeExecutedBetsCore(rows) {
 }
 
 export async function decoratePreview(ticket, { games = [], existing = [], snapshots = [], oddsSnapshots = [], strategyTickets = [] } = {}) {
-  const sport = String(ticket.sport || "mlb").toLowerCase();
-  const awayIdentity = ticket.awayIdentity?.sport === sport
-    ? ticket.awayIdentity
-    : identityForSport(sport, ticket.awayTeam);
-  const homeIdentity = ticket.homeIdentity?.sport === sport
-    ? ticket.homeIdentity
-    : identityForSport(sport, ticket.homeTeam);
+  const requestedSport = ticket.sport ? String(ticket.sport).toLowerCase() : null;
+  const provisionalAwayIdentity = requestedSport
+    ? (ticket.awayIdentity?.sport === requestedSport ? ticket.awayIdentity : identityForSport(requestedSport, ticket.awayTeam))
+    : (ticket.awayIdentity || { name: ticket.awayTeam, abbr: "—", logo: "", canonicalId: null, sport: null });
+  const provisionalHomeIdentity = requestedSport
+    ? (ticket.homeIdentity?.sport === requestedSport ? ticket.homeIdentity : identityForSport(requestedSport, ticket.homeTeam))
+    : (ticket.homeIdentity || { name: ticket.homeTeam, abbr: "—", logo: "", canonicalId: null, sport: null });
   const normalizedTicket = {
     ...ticket,
-    sport,
-    awayTeam: awayIdentity.canonicalId ? awayIdentity.name : ticket.awayTeam,
-    homeTeam: homeIdentity.canonicalId ? homeIdentity.name : ticket.homeTeam,
-    awayIdentity,
-    homeIdentity,
+    sport: requestedSport,
+    awayTeam: provisionalAwayIdentity.canonicalId ? provisionalAwayIdentity.name : ticket.awayTeam,
+    homeTeam: provisionalHomeIdentity.canonicalId ? provisionalHomeIdentity.name : ticket.homeTeam,
+    awayIdentity: provisionalAwayIdentity,
+    homeIdentity: provisionalHomeIdentity,
   };
   const match = matchExecutedBet(normalizedTicket, games);
   const game = match.game;
+  const sport = String(game?.sport || requestedSport || "").toLowerCase() || null;
+  const awayIdentity = sport ? identityForSport(sport, ticket.awayTeam) : provisionalAwayIdentity;
+  const homeIdentity = sport ? identityForSport(sport, ticket.homeTeam) : provisionalHomeIdentity;
   const side = resolveSelectedSide(ticket, game);
   const next = {
     ...normalizedTicket,
+    sport,
+    awayIdentity,
+    homeIdentity,
+    awayTeam: awayIdentity?.canonicalId ? awayIdentity.name : ticket.awayTeam,
+    homeTeam: homeIdentity?.canonicalId ? homeIdentity.name : ticket.homeTeam,
     gameId: game?.id ? String(game.id) : ticket.gameId || null,
     selectedSide: side || ticket.selectedSide,
     matchStatus: match.status,

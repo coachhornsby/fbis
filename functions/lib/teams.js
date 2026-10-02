@@ -249,6 +249,26 @@ export function verifiedCfbSchool(name) {
   return resolveTeam("cfb", { name })?.school || null;
 }
 
+export function identityFromNameExact(name) {
+  if (!name) return { name: null, abbr: "—", logo: "", canonicalId: null, sport: null };
+  const hits = [];
+  for (const sport of ["mlb", "nfl", "nba", "cfb", "cbb"]) {
+    const hit = resolveTeamExact(sport, { name });
+    if (hit) hits.push({ sport, hit });
+  }
+  if (hits.length !== 1) return { name, abbr: "—", logo: "", canonicalId: null, sport: null };
+  const { sport, hit } = hits[0];
+  return {
+    name: sport === "cfb" || sport === "cbb" ? hit.school : hit.displayName,
+    fullName: hit.displayName,
+    school: hit.school,
+    abbr: hit.abbr,
+    logo: hit.logo,
+    canonicalId: hit.id,
+    sport,
+  };
+}
+
 export function identityFromName(name) {
   if (!name) return { name: null, abbr: "—", logo: "", canonicalId: null, sport: null };
   for (const sport of ["mlb", "nfl", "nba", "cfb", "cbb"]) {
@@ -288,9 +308,15 @@ export function identityForSport(sport, nameOrAbbr) {
 /** Board/Bets rows store names; hydrate ESPN logos at render time. */
 export function displayTeamIdentity(identity, name) {
   if (identity?.logo) return identity;
-  const resolved = identityFromName(name);
-  if (resolved?.logo) return resolved;
-  return identity || { name: name || null, abbr: "—", logo: "" };
+  const sport = String(identity?.sport || "").toLowerCase();
+  if (sport) {
+    const resolved = identityForSport(sport, name);
+    if (resolved?.canonicalId || resolved?.logo) return resolved;
+    return { ...(identity || {}), name: identity?.name || name || null, sport, abbr: identity?.abbr || "—", logo: identity?.logo || "" };
+  }
+  const exact = identityFromNameExact(name);
+  if (exact?.canonicalId || exact?.logo) return exact;
+  return identity || { name: name || null, abbr: "—", logo: "", sport: null };
 }
 
 /** Prefer the already-resolved display name; school is city-only for MLB. */
