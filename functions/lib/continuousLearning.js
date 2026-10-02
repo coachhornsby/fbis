@@ -312,11 +312,14 @@ export function bayesianBiasState(rows = [], { sport, modelId, priorSd = 3 } = {
     const n = errors.length;
     const obsMean = mean(errors);
     const variance = sampleVariance(errors);
-    if (n < CONTINUOUS_LEARNING_POLICY.minBayesianN || obsMean == null || variance == null || variance <= 0) {
+    if (n < CONTINUOUS_LEARNING_POLICY.minBayesianN || obsMean == null || variance == null) {
       return { target, status: "INSUFFICIENT_DATA", observedN: n };
     }
     const priorVar = priorSd ** 2;
-    const obsVar = variance / n;
+    // A perfectly constant residual in a finite sample is still evidence; use a
+    // tiny variance floor so the posterior remains defined instead of dropping
+    // an otherwise eligible cohort.
+    const obsVar = Math.max(variance, 1e-6) / n;
     const posteriorVar = 1 / (1 / priorVar + 1 / obsVar);
     const posteriorMean = posteriorVar * (obsMean / obsVar);
     return {
