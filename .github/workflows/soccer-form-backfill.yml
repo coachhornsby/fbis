@@ -35,21 +35,31 @@ jobs:
         env:
           BASE: https://fbis-myz.pages.dev
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          CHUNK_SIZE: "50"
         run: |
           set -euo pipefail
           for range in "2025-08-01 2026-06-15" "2026-07-15 2026-10-01"; do
             set -- $range
             payload="$(mktemp)"
-            out="$(mktemp)"
             node scripts/soccer-backfill-payload.mjs "$1" "$2" > "$payload"
             games="$(jq '.games|length' "$payload")"
-            echo "soccer runner payload $1..$2 games=$games"
+            echo "soccer runner payload $1..$2 games=$games chunk_size=$CHUNK_SIZE"
             test "$games" -gt 0
-            code="$(curl -sS --max-time 180 --retry 1 --retry-all-errors \
-              -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
-              --data-binary "@$payload" -o "$out" -w "%{http_code}" "$BASE/api/soccer-form-backfill")"
-            echo "soccer backfill $1..$2 http=$code"
-            cat "$out"; echo
-            test "$code" = "200"
-            jq -e '.ok == true and .source == "trusted-runner-payload" and .finals > 0' "$out" >/dev/null
+
+            chunks=$(( (games + CHUNK_SIZE - 1) / CHUNK_SIZE ))
+            for ((i=0; i<chunks; i++)); do
+              offset=$(( i * CHUNK_SIZE ))
+              chunk="$(mktemp)"
+              out="$(mktemp)"
+              jq --argjson offset "$offset" --argjson size "$CHUNK_SIZE"                 '. as $root | $root + {games: $root.games[$offset:($offset + $size)]}'                 "$payload" > "$chunk"
+              chunk_games="$(jq '.games|length' "$chunk")"
+              echo "soccer backfill $1..$2 chunk=$((i+1))/$chunks games=$chunk_games"
+              code="$(curl -sS --max-time 90 --retry 2 --retry-all-errors                 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"                 --data-binary "@$chunk" -o "$out" -w "%{http_code}" "$BASE/api/soccer-form-backfill")"
+              echo "soccer backfill $1..$2 chunk=$((i+1))/$chunks http=$code"
+              cat "$out"; echo
+              test "$code" = "200"
+              jq -e '.ok == true and .source == "trusted-runner-payload" and .finals > 0 and .failed == 0' "$out" >/dev/null
+              rm -f "$chunk" "$out"
+            done
+            rm -f "$payload"
           done
