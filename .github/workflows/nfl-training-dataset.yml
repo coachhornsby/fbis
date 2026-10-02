@@ -1,0 +1,47 @@
+name: Build NFL 2015+ training dataset
+
+on:
+  push:
+    branches:
+      - research/nfl-2015plus-training-data
+    paths:
+      - scripts/build-nfl-training-dataset.py
+      - .github/workflows/nfl-training-dataset.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install data dependencies
+        run: python -m pip install --upgrade pip pandas numpy pyarrow
+
+      - name: Build leakage-safe NFL training dataset
+        run: python scripts/build-nfl-training-dataset.py
+
+      - name: Show QA report
+        run: cat artifacts/nfl/nfl_game_training_2015_2026_qa.json
+
+      - name: Upload NFL research dataset
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-game-training-2015-2026
+          path: |
+            artifacts/nfl/nfl_game_training_2015_2026.csv
+            artifacts/nfl/nfl_game_dataset_2015_2026_all_rows.csv
+            artifacts/nfl/nfl_game_training_2015_2026_qa.json
+            artifacts/nfl/README.md
+          if-no-files-found: error
+          retention-days: 30
