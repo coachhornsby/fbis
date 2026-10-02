@@ -25,8 +25,9 @@ jobs:
         run: |
           mkdir -p recovered
           gh run download 37012850005 -R coachhornsby/fbis -n cfb-full-history-v3 -D recovered
-          cp -R recovered/cfb-history-v2 .
-          cp -R recovered/cfb-context .
+          mkdir -p artifacts
+          cp -R recovered/cfb-history-v2 artifacts/
+          cp -R recovered/cfb-context artifacts/
       - name: Recover corrected CFBD market artifact
         run: |
           mkdir -p corrected-market
