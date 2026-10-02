@@ -55,18 +55,18 @@ async function cbbGames(env, { season, start, end } = {}) {
   };
   const res = await cbbdGet("/games", env, { query });
   if (!res.ok) return { ok:false, error:res.reason || "cbbd-games-failed", httpStatus:res.status || 0, rows:[] };
-  const rows = (res.data || []).filter(g=>g.status === "final" || (g.homePoints != null && g.awayPoints != null)).map(g=>({
-    id: String(g.id),
-    season: Number(g.season),
-    startDate: g.startDate,
-    neutralSite: Boolean(g.neutralSite),
-    homeTeam: g.homeTeam,
-    awayTeam: g.awayTeam,
-    homePoints: num(g.homePoints),
-    awayPoints: num(g.awayPoints),
-    homeEloStart: num(g.homeTeamEloStart),
-    awayEloStart: num(g.awayTeamEloStart),
-  })).filter(g=>g.startDate && g.homeTeam && g.awayTeam && g.homePoints != null && g.awayPoints != null);
+  const rows = (res.data || []).map(g=>({
+    id: String(g.id ?? g.gameId ?? g.game_id ?? ""),
+    season: Number(g.season ?? season),
+    startDate: g.startDate ?? g.start_date ?? g.date ?? null,
+    neutralSite: Boolean(g.neutralSite ?? g.neutral_site ?? g.neutral),
+    homeTeam: g.homeTeam?.school ?? g.homeTeam?.name ?? g.homeTeam ?? g.home?.school ?? g.home?.name ?? g.home_team ?? null,
+    awayTeam: g.awayTeam?.school ?? g.awayTeam?.name ?? g.awayTeam ?? g.away?.school ?? g.away?.name ?? g.away_team ?? null,
+    homePoints: num(g.homePoints ?? g.home_points ?? g.homeScore ?? g.home_score),
+    awayPoints: num(g.awayPoints ?? g.away_points ?? g.awayScore ?? g.away_score),
+    homeEloStart: num(g.homeTeamEloStart ?? g.home_elo_start),
+    awayEloStart: num(g.awayTeamEloStart ?? g.away_elo_start),
+  })).filter(g=>g.id && g.startDate && g.homeTeam && g.awayTeam && g.homePoints != null && g.awayPoints != null);
   return { ok:true, rows, n:rows.length };
 }
 
