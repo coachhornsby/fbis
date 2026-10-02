@@ -103,7 +103,7 @@ jobs:
           test "$http" = "200"
           jq -e '.ok == true and .job == "model-learn-analyze" and .d1.bound == true and .d1.sport == "cbb"' "$out" >/dev/null
 
-      - name: Learn from canonical frozen projections across all sports
+      - name: Run sample-gated continuous learning governance across all sports
         if: steps.gate.outputs.run == 'true'
         env:
           BASE: "https://fbis-myz.pages.dev"
@@ -117,7 +117,7 @@ jobs:
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "accept: application/json" \
               -o "$out" -w "%{http_code}" \
-              "$BASE/api/model-learning?sport=${sport}&recentN=50")"
+              "$BASE/api/continuous-learning?sport=${sport}&recentN=50")"
             echo "${sport^^} canonical learning http=$http"
             cat "$out"
             test "$http" = "200"
@@ -125,8 +125,9 @@ jobs:
               .ok == true and
               .sport == $sport and
               .source == "prediction_snapshots" and
-              .governance.autoTrain == true and
-              .governance.autoPromote == false
+              .governance.tier2 == "SAMPLE_COUNT_GATED_RECALIBRATION" and
+              .governance.autoPromote == false and
+              .governance.productionOnlineLearning == false
             ' "$out" >/dev/null
           done
 
@@ -149,18 +150,18 @@ jobs:
           {
             echo "## FBIS weekly model learning"
             echo ""
-            echo "### Canonical production/research snapshots"
+            echo "### Canonical continuous-learning governance"
             for sport in mlb nfl cfb cbb nba wnba nhl soccer; do
               file="artifacts/model-learning-core-${sport}.json"
               echo "#### ${sport^^}"
               echo "- source rows: $(jq -r '.queriedRows' "$file")"
               echo "- canonical graded games: $(jq -r '.canonicalRows' "$file")"
               echo "- models evaluated: $(jq -r '.models | length' "$file")"
-              echo "- findings: $(jq -r '.findings | length' "$file")"
-              echo "- no data: $(jq -r '.noData' "$file")"
-              echo "- auto-train: $(jq -r '.governance.autoTrain' "$file")"
-              jq -r '.models[]? | "- \(.modelId): n=\(.n), total_MAE=\(.metrics.total.mae // "NA"), margin_MAE=\(.metrics.margin.mae // "NA"), brier=\(.metrics.probability.brier // "NA"), train_status=\(.training.status // "NA"), market_informed=\(.marketInformed), promotion_eligible=\(.promotionEligible)"' "$file"
-              jq -r '.findings[]? | "  - [\(.severity)] \(.modelId) \(.findingType) \(.sliceKey) \(.metric): baseline=\(.baselineValue) recent=\(.recentValue) delta=\(.delta)"' "$file"
+              echo "- tier-1 alerts: $(jq '[.models[].monitoring.alerts[]?] | length' "$file")"
+              echo "- recalibration fits: $(jq '[.models[] | select(.recalibration.status=="FIT")] | length' "$file")"
+              echo "- manual-promotion eligible: $(jq '[.models[] | select(.recalibration.tier3.gate.passes==true)] | length' "$file")"
+              echo "- tier-5 state: $(jq -r '.tier5.status' "$file")"
+              jq -r '.models[]? | "- \(.modelId): n=\(.monitoring.observedN), brier=\(.monitoring.metrics.probability.brier // "NA"), margin_MAE=\(.monitoring.metrics.score.margin.mae // "NA"), recalibration=\(.recalibration.status // "NA")"' "$file"
               echo ""
             done
             echo "### College challenger validation"
@@ -175,7 +176,7 @@ jobs:
               jq -r '.d1.validation[]? | "- \(.modelId): n=\(.metrics.n), seasons=\(.metrics.seasons), total_MAE=\(.metrics.total.mae // "NA"), margin_MAE=\(.metrics.margin.mae // "NA"), brier=\(.metrics.probability.brier // "NA"), leakage=\(.leakageOk)"' "$file"
               echo ""
             done
-            echo "Weekly auto-training runs independently by sport/model and separately for margin, total, and win probability. No automatic model promotion or wager-authority change."
+            echo "Continuous learning is sample-count gated. Tier 5 is shadow-only. No automatic model promotion or wager-authority change."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload learning evidence
         if: steps.gate.outputs.run == 'true'
