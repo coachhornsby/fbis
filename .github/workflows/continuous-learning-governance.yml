@@ -1,0 +1,99 @@
+name: FBIS continuous learning governance
+
+on:
+  schedule:
+    # 06:10 America/Chicago across DST; local gate prevents duplicate twin-cron execution.
+    - cron: "10 11 * * *"
+    - cron: "10 12 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: fbis-continuous-learning-governance
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  govern:
+    name: TIERS 1-5 LEARNING GOVERNANCE
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Gate to 06:10 America/Chicago
+        id: gate
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hour="$(TZ=America/Chicago date +%H)"
+          if [ "$hour" = "06" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require research secret
+        if: steps.gate.outputs.run == 'true'
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Run learning governance by sport
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          for sport in mlb nfl cfb cbb nba wnba nhl soccer; do
+            out="artifacts/continuous-learning-${sport}.json"
+            http="$(curl -sS --max-time 180 --retry 1               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "accept: application/json"               -o "$out" -w "%{http_code}"               "$BASE/api/continuous-learning?sport=${sport}&recentN=50")"
+            echo "${sport^^} continuous learning http=$http"
+            cat "$out"
+            test "$http" = "200"
+            jq -e '
+              .ok == true and
+              .governance.tier1 == "MONITOR_CONTINUOUSLY" and
+              .governance.tier2 == "SAMPLE_COUNT_GATED_RECALIBRATION" and
+              .governance.tier3 == "PAIRED_BOOTSTRAP_AND_MANUAL_PROMOTION" and
+              .governance.tier4 == "BAYESIAN_SHRINKAGE_ADVISORY" and
+              .governance.tier5 == "SHADOW_ONLY" and
+              .governance.autoPromote == false and
+              .governance.autoWagerAuthority == false and
+              .governance.productionOnlineLearning == false
+            ' "$out" >/dev/null
+          done
+
+      - name: Build governance summary
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          {
+            echo "## FBIS continuous learning governance"
+            echo ""
+            for sport in mlb nfl cfb cbb nba wnba nhl soccer; do
+              file="artifacts/continuous-learning-${sport}.json"
+              echo "### ${sport^^}"
+              echo "- canonical rows: $(jq -r '.canonicalRows' "$file")"
+              echo "- models: $(jq -r '.models | length' "$file")"
+              echo "- tier-1 alerts: $(jq '[.models[].monitoring.alerts[]?] | length' "$file")"
+              echo "- recalibration fits: $(jq '[.models[] | select(.recalibration.status=="FIT")] | length' "$file")"
+              echo "- manual-promotion eligible challengers: $(jq '[.models[] | select(.recalibration.tier3.gate.passes==true)] | length' "$file")"
+              echo "- tier-5 state: $(jq -r '.tier5.status' "$file")"
+              echo ""
+            done
+            echo "**Hard controls:** no automatic promotion, no automatic wager authority, tier 5 remains shadow-only."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload governance evidence
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fbis-continuous-learning-${{ github.run_id }}
+          path: artifacts/continuous-learning-*.json
+          if-no-files-found: error
+          retention-days: 90
