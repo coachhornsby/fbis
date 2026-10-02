@@ -717,6 +717,7 @@ export function normalizeActionGameRow(raw, ctx = {}) {
 
     const zMlHome=zenMarketSide(raw.consensus,"moneyline","home");
     const zMlAway=zenMarketSide(raw.consensus,"moneyline","away");
+    const zMlDraw=zenMarketSide(raw.consensus,"moneyline","draw") || zenMarketSide(raw.consensus,"moneyline","tie");
     const zSpHome=zenMarketSide(raw.consensus,"spread","home");
     const zSpAway=zenMarketSide(raw.consensus,"spread","away");
     const zOver=zenMarketSide(raw.consensus,"total","over");
@@ -727,6 +728,7 @@ export function normalizeActionGameRow(raw, ctx = {}) {
     const consensusSpreadAwayOdds = numOrNull(raw.consensusSpreadAwayOdds ?? zSpAway?.odds);
     const consensusMoneylineHome = numOrNull(raw.consensusMoneylineHome ?? zMlHome?.odds);
     const consensusMoneylineAway = numOrNull(raw.consensusMoneylineAway ?? zMlAway?.odds);
+    const consensusMoneylineDraw = numOrNull(raw.consensusMoneylineDraw ?? raw.consensusDrawOdds ?? zMlDraw?.odds);
     const consensusTotal = numOrNull(raw.consensusTotal ?? zOver?.line ?? zUnder?.line);
     const consensusOverOdds = numOrNull(raw.consensusOverOdds ?? zOver?.odds);
     const consensusUnderOdds = numOrNull(raw.consensusUnderOdds ?? zUnder?.odds);
@@ -817,6 +819,7 @@ export function normalizeActionGameRow(raw, ctx = {}) {
         spreadAwayOdds: consensusSpreadAwayOdds,
         moneylineHome: consensusMoneylineHome,
         moneylineAway: consensusMoneylineAway,
+        moneylineDraw: consensusMoneylineDraw,
         total: consensusTotal,
         overOdds: consensusOverOdds,
         underOdds: consensusUnderOdds,
@@ -830,10 +833,12 @@ export function normalizeActionGameRow(raw, ctx = {}) {
         implied: {
           moneylineHome: numOrNull(raw.homeWinProbability) ?? americanToImpliedProb(consensusMoneylineHome),
           moneylineAway: numOrNull(raw.awayWinProbability) ?? americanToImpliedProb(consensusMoneylineAway),
+          moneylineDraw: numOrNull(raw.drawProbability) ?? americanToImpliedProb(consensusMoneylineDraw),
         },
         noVig: {
           moneylineHome: numOrNull(raw.homeWinProbabilityNoVig ?? zMlHome?.noVigProbability) ?? nvMl.home,
           moneylineAway: numOrNull(raw.awayWinProbabilityNoVig ?? zMlAway?.noVigProbability) ?? nvMl.away,
+          moneylineDraw: numOrNull(raw.drawProbabilityNoVig ?? zMlDraw?.noVigProbability),
           spreadHome: numOrNull(zSpHome?.noVigProbability) ?? nvSpread.home,
           spreadAway: numOrNull(zSpAway?.noVigProbability) ?? nvSpread.away,
           over: numOrNull(zOver?.noVigProbability) ?? nvTotal.home,
