@@ -167,6 +167,10 @@ def main():
       "pregameFeatureColumns":len(pregame),"marketColumns":len(market),
       "gamesWithBenchmarkSpread":int(out.benchmark_home_spread.notna().sum()),
       "gamesWithBenchmarkTotal":int(out.benchmark_total.notna().sum()),
+      "marketCrosscheckN":market_crosscheck_n,
+      "marketCrosscheckMae":market_crosscheck_mae,
+      "marketCrosscheckSignAgreement":market_crosscheck_sign,
+      "benchmarkSpreadSources":{str(k):int(v) for k,v in out.benchmark_spread_source.value_counts(dropna=False).to_dict().items()},
       "gamesWithWeeklyRatings":int(out[[c for c in out.columns if c.startswith("home_ctx_rating_")]].notna().any(axis=1).sum()),
       "gamesWithFpi":int(out[[c for c in out.columns if c.startswith("home_ctx_fpi_")]].notna().any(axis=1).sum()),
       "gamesWithTalent":int(out[[c for c in out.columns if c.startswith("home_ctx_talent_")]].notna().any(axis=1).sum()),
@@ -177,5 +181,9 @@ def main():
     print(json.dumps(qa,indent=2))
     if qa["duplicateGameIds"]!=0 or qa["pregameFeatureColumns"]<100:
         raise RuntimeError(f"enriched CFB dataset failed QA: {qa}")
+    if market_crosscheck_n>=500 and (market_crosscheck_sign is None or market_crosscheck_sign<0.95):
+        raise RuntimeError(f"CFB market sign crosscheck failed: {qa}")
+    if market_crosscheck_n>=500 and (market_crosscheck_mae is None or market_crosscheck_mae>3.0):
+        raise RuntimeError(f"CFB market source disagreement failed QA: {qa}")
 
 if __name__=="__main__":main()
