@@ -33,6 +33,25 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
+      - name: Wait for exact production SHA
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 36); do
+            tmp="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$tmp" -w "%{http_code}" "${BASE}/api/health?_t=$(date +%s)-${attempt}" || true)"
+            live="$(jq -r '.deploymentCommit // .deployment_sha // .commit // empty' "$tmp" 2>/dev/null || true)"
+            echo "production_sha attempt=${attempt}/36 http=${code} live=${live:-none} expected=${EXPECTED_SHA}"
+            if [ "$code" = "200" ] && [ "$live" = "$EXPECTED_SHA" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Production did not converge to expected SHA before history build."
+          exit 1
+
       - name: Build complete CFB historical research dataset through authenticated FBIS proxy
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
