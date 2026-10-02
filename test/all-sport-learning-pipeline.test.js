@@ -76,8 +76,9 @@ test("research ops and projection export enumerate all six sports without paused
 test("Zen ACTION is the only scheduled ACTION acquisition workflow", async () => {
   const daily = await readFile(new URL("../.github/workflows/action-daily-snapshot.yml", import.meta.url), "utf8");
   assert.match(daily, /Zen ACTION daily full slate/);
-  assert.match(daily, /cron:\s*"30 7 \* \* \*"/);
-  assert.match(daily, /timezone:\s*"America\/Chicago"/);
+  assert.match(daily, /cron:\s*"30 12,13,14,15,16 \* \* \*"/);
+  assert.match(daily, /cron:\s*"0 13,14,15,16 \* \* \*"/);
+  assert.doesNotMatch(daily, /timezone:/);
   assert.match(daily, /action-daily-async\?mode=start/);
 
   for (const rel of [

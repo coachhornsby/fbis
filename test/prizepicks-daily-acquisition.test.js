@@ -2,13 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-test("PrizePicks workflow has redundant guarded morning schedules and no push trigger",()=>{
+test("PrizePicks workflow has redundant guarded morning schedules and a workflow-file-only recovery trigger",()=>{
   const y=fs.readFileSync(".github/workflows/prizepicks-targeted-props.yml","utf8");
-  assert.match(y,/cron: "5 8 \* \* \*"/);
-  assert.match(y,/cron: "35 8 \* \* \*"/);
-  assert.match(y,/cron: "5 9 \* \* \*"/);
-  assert.match(y,/timezone:\s*"America\/Chicago"/);
-  assert.doesNotMatch(y,/\n\s+push:/);
+  assert.match(y,/cron: "5,35 13,14,15,16 \* \* \*"/);
+  assert.doesNotMatch(y,/timezone:/);
+  assert.match(y,/push:\s*\n\s+branches: \[main\]\s*\n\s+paths: \["\.github\/workflows\/prizepicks-targeted-props\.yml"\]/);
   assert.match(y,/Reserve today's single paid PrizePicks acquisition/);
   assert.match(y,/Pull full PrizePicks board once/);
   assert.doesNotMatch(y,/playerNames:\$players/);
