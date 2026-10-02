@@ -87,6 +87,7 @@ jobs:
         run: |
           set -euo pipefail
           export CBB_WF_SEASONS="${CBB_WF_SEASONS:-2021,2022,2023,2024,2025}"
+          mkdir -p artifacts
           node scripts/cbb-data-stack-walkforward.mjs | tee artifacts/cbb-data-stack-run.log
 
       - name: Summarize comparison
