@@ -197,22 +197,42 @@ def add_rolling(team_games):
     x=team_games.copy()
     x=x.sort_values(["team_id","game_date","game_id"]).reset_index(drop=True)
     exclude={"season","week","points_for","points_against","pregame_rank"}
-    feature_cols=[]
+    all_numeric=[]
     for c in x.columns:
         if c in {"game_id","game_date","team_id","opponent_id","side","team_name","opponent_name"} or c in exclude: continue
         if pd.api.types.is_numeric_dtype(x[c]) and x[c].notna().any():
-            feature_cols.append(c)
-    for c in feature_cols:
-        x[f"pregame_season_{c}"]=x.groupby(["team_id","season"])[c].transform(
+            all_numeric.append(c)
+
+    # Preserve every numeric advanced field in the raw team-game export, but
+    # only create rolling model inputs for football-relevant rate/efficiency
+    # metrics. This prevents thousands of redundant cumulative/stat-count
+    # columns from bloating the game-level matrix.
+    relevant_re=re.compile(
+        r"(epa|ppa|success|explos|havoc|pressure|sack|pass|rush|qbr|rating|efficien|"
+        r"yards_per|points_per|rate|pct|percent|turnover|interception|fumble|"
+        r"third|fourth|red.?zone|line.?yards|stuff|drive|pace|completion|"
+        r"expected|win_prob|special|kick|punt|field.?goal)",
+        re.I
+    )
+    rolling_features=[c for c in all_numeric if relevant_re.search(c)]
+    if len(rolling_features)<25:
+        rolling_features=all_numeric
+
+    rolled={}
+    by_team=x.groupby("team_id",sort=False)
+    by_team_season=x.groupby(["team_id","season"],sort=False)
+    for c in rolling_features:
+        rolled[f"pregame_season_{c}"]=by_team_season[c].transform(
             lambda z:z.shift(1).expanding(min_periods=1).mean()
         )
-        x[f"pregame_l5_{c}"]=x.groupby("team_id")[c].transform(
+        rolled[f"pregame_l5_{c}"]=by_team[c].transform(
             lambda z:z.shift(1).rolling(5,min_periods=1).mean()
         )
-    # Rest is pregame-safe and derived solely from dates.
-    x["pregame_rest_days"]=x.groupby("team_id")["game_date"].diff().dt.total_seconds()/86400.0
-    x["pregame_rest_days"]=x["pregame_rest_days"].clip(lower=0,upper=30)
-    return x, feature_cols
+    rolled["pregame_rest_days"]=by_team["game_date"].diff().dt.total_seconds()/86400.0
+    roll_df=pd.DataFrame(rolled,index=x.index)
+    roll_df["pregame_rest_days"]=roll_df["pregame_rest_days"].clip(lower=0,upper=30)
+    x=pd.concat([x,roll_df],axis=1)
+    return x, all_numeric, rolling_features
 
 def flatten_games(schedule, betting, team_roll):
     home=team_roll[team_roll.side=="home"].set_index("game_id")
@@ -301,7 +321,10 @@ def main():
     schedule=pd.concat(schedules,ignore_index=True) if schedules else pd.DataFrame()
     betting=pd.concat(bets,ignore_index=True) if bets else pd.DataFrame()
     team=pd.concat(team_rows,ignore_index=True) if team_rows else pd.DataFrame()
-    rolled, raw_features=add_rolling(team)
+    # Preserve full team-game advanced matrix separately from the model-ready rolling game file.
+    team.to_parquet(OUT/"cfb_team_game_advanced_2004_2026.parquet",index=False)
+    team.to_csv(OUT/"cfb_team_game_advanced_2004_2026.csv",index=False)
+    rolled, raw_features, rolling_features=add_rolling(team)
     games=flatten_games(schedule,betting,rolled)
     games=games.sort_values(["season","week","game_date","game_id"]).reset_index(drop=True)
 
@@ -327,6 +350,7 @@ def main():
       "spreadCoveragePct":round(float(games.market_home_spread.notna().mean()*100),3) if len(games) else 0,
       "totalCoveragePct":round(float(games.market_total.notna().mean()*100),3) if len(games) else 0,
       "rawAdvancedFeatureCount":len(raw_features),
+      "rollingRawFeatureCount":len(rolling_features),
       "pregameFeatureColumns":len([c for c in games.columns if c.startswith(("home_pregame_","away_pregame_","diff_pregame_","sum_pregame_"))]),
       "firstSeason":int(games.season.min()) if len(games) else None,
       "lastSeason":int(games.season.max()) if len(games) else None,
@@ -341,7 +365,8 @@ def main():
       }
     }
     (OUT/"cfb_bulk_qa.json").write_text(json.dumps(q,indent=2))
-    if q["firstSeason"]!=START or q["lastSeason"]!=END or q["gameRows"]<10000:
+    min_rows=500 if START==END else 10000
+    if q["firstSeason"]!=START or q["lastSeason"]!=END or q["gameRows"]<min_rows:
         raise RuntimeError(f"bulk CFB history unexpectedly incomplete: {q}")
     if q["gamesWithSpread"]==0 or q["pregameFeatureColumns"]<100 or q["rawAdvancedFeatureCount"]<25:
         raise RuntimeError(f"bulk CFB market/features unexpectedly incomplete: {q}")
