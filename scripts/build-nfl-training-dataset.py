@@ -192,15 +192,13 @@ def add_team_pregame_features(team_games, games):
             continue
         # Last-five across chronology (prior games only, may bridge season boundary).
         tg[f"pregame_l5_{metric}"] = (
-            tg.groupby("team", group_keys=False)[metric]
-              .apply(lambda s: s.shift(1).rolling(5, min_periods=1).mean())
-              .reset_index(level=0, drop=True)
+            tg.groupby("team")[metric]
+              .transform(lambda x: x.shift(1).rolling(5, min_periods=1).mean())
         )
         # Season-to-date only, prior games only.
         tg[f"pregame_season_{metric}"] = (
-            tg.groupby(["team","season"], group_keys=False)[metric]
-              .apply(lambda s: s.shift(1).expanding(min_periods=1).mean())
-              .reset_index(level=[0,1], drop=True)
+            tg.groupby(["team","season"])[metric]
+              .transform(lambda x: x.shift(1).expanding(min_periods=1).mean())
         )
 
     # QB rolling features by primary passer identity/name.
@@ -210,9 +208,8 @@ def add_team_pregame_features(team_games, games):
         for metric in ["qb_epa_game","qb_cpoe_game"]:
             if metric in tg.columns:
                 tg[f"pregame_qb_l5_{metric}"] = (
-                    tg.groupby("_qb_key", group_keys=False)[metric]
-                      .apply(lambda s: s.shift(1).rolling(5, min_periods=1).mean())
-                      .reset_index(level=0, drop=True)
+                    tg.groupby("_qb_key")[metric]
+                      .transform(lambda x: x.shift(1).rolling(5, min_periods=1).mean())
                 )
         tg = tg.drop(columns=["_qb_key"])
 
