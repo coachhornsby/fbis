@@ -5,6 +5,7 @@ on:
     paths:
       - "scripts/cfb-v4-walkforward.py"
       - "scripts/cfb-fpr.py"
+      - "scripts/cfb-fpr-incremental.py"
       - ".github/workflows/cfb-v4.yml"
   workflow_dispatch:
 permissions:
@@ -39,6 +40,10 @@ jobs:
       - name: Build independent FBIS Power Rating
         run: python scripts/cfb-fpr.py
       - run: python scripts/cfb-v4-walkforward.py
+      - name: Test FPR incremental value
+        run: python scripts/cfb-fpr-incremental.py
+      - name: Report FPR incremental value
+        run: jq '{overall,holdout2025_2026,incrementalPass,canQualify}' artifacts/cfb-final/fpr-incremental/report.json
       - run: jq '{modelId,sample,v4,v3,marketPairedV4,market,holdout2025_2026,beatsV3AllThree,canQualify}' artifacts/cfb-final/model-v4/report.json
       - run: jq '{spread:.betting.spread.holdout2025_2026,total:.betting.total.holdout2025_2026}' artifacts/cfb-final/model-v4/report.json
       - uses: actions/upload-artifact@v4
@@ -47,4 +52,5 @@ jobs:
           path: |
             artifacts/cfb-final/model-v4/*
             artifacts/cfb-final/fpr/*
+            artifacts/cfb-final/fpr-incremental/*
           retention-days: 90
