@@ -92,6 +92,15 @@ CREATE TABLE IF NOT EXISTS continuous_learning_meta (
   updated_at TEXT NOT NULL
 );
 
+INSERT OR IGNORE INTO fbis_ops_components
+(component_id, component_name, component_type, sport_or_domain, provider, criticality,
+ expected_cadence_minutes, grace_period_minutes, stale_after_minutes, escalation_after_minutes,
+ paid_provider, health_endpoint, target_table, config_json)
+VALUES
+('continuous-learning-governance', 'Continuous learning governance', 'learning', 'all', 'fbis', 'standard',
+ 1440, 120, 1800, 2160, 0, '/api/continuous-learning', 'learning_monitor_runs',
+ '{"sampleGated":true,"manualPromotion":true,"tier5ShadowOnly":true}');
+
 INSERT OR REPLACE INTO continuous_learning_meta (key, value, updated_at) VALUES
   ('tier1_monitoring', 'enabled', datetime('now')),
   ('tier2_recalibration', 'sample_count_gated', datetime('now')),
