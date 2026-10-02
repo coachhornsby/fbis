@@ -75,7 +75,7 @@ export async function onRequestGet(context) {
   if (!auth.ok) return json(unauthorizedBody(auth.reason),403);
   const url = new URL(context.request.url);
   const kind = String(url.searchParams.get("kind") || "");
-  const env = { KENPOM_API_KEY:context.env.KENPOM_API_KEY, CBBD_API_KEY:context.env.CBBD_API_KEY, caches:caches.default };
+  const env = { KENPOM_API_KEY:context.env.KENPOM_API_KEY, CFBD_API_KEY:context.env.CFBD_API_KEY, CBBD_API_KEY:context.env.CBBD_API_KEY, caches:caches.default };
   if (kind === "kenpom-archive") {
     const date = url.searchParams.get("date") || "";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ok:false,error:"valid-date-required"},400);
