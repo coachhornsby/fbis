@@ -1,0 +1,31 @@
+name: CFB bulk v3 smoke
+on:
+  push:
+    branches: ["research/cfb-bulk-history-v3"]
+    paths:
+      - "scripts/cfb-bulk-history-v3.py"
+      - ".github/workflows/cfb-bulk-v3-smoke.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow
+      - name: Build 2024 smoke
+        env:
+          CFB_BULK_START: "2024"
+          CFB_BULK_END: "2024"
+        run: python scripts/cfb-bulk-history-v3.py
+      - run: cat artifacts/cfb-history-v2/cfb_bulk_qa.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-bulk-v3-smoke
+          path: artifacts/cfb-history-v2/*
+          retention-days: 14

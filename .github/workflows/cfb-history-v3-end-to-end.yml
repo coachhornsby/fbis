@@ -1,0 +1,64 @@
+name: CFB full-history end-to-end v3
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cfb-full-history-v3
+  cancel-in-progress: true
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Install research dependencies
+        run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Build 2004-2026 game and advanced-event history
+        env:
+          CFB_BULK_START: "2004"
+          CFB_BULK_END: "2026"
+        run: python scripts/cfb-bulk-history-v3.py
+      - name: Build program-strength history
+        env:
+          CFB_CONTEXT_START: "2004"
+          CFB_CONTEXT_END: "2026"
+        run: python scripts/cfb-program-context.py
+      - name: Build historical market archive
+        run: python scripts/cfb-sdv-line-archive.py
+      - name: Pull all CFBD provider-line history
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+          CFB_MARKET_START: "2004"
+          CFB_MARKET_END: "2026"
+        run: node scripts/cfb-cfbd-market-enrichment.mjs
+      - name: Build canonical leakage-safe enriched dataset
+        run: python scripts/cfb-final-enrich.py
+      - name: Run true expanding-season CFB walk-forward
+        run: python scripts/cfb-v3-walkforward.py
+      - name: Evidence summary
+        run: |
+          cat artifacts/cfb-history-v2/cfb_bulk_qa.json
+          cat artifacts/cfb-context/cfb_program_context_qa.json
+          cat artifacts/cfb-line-archive/cfb_line_odds_qa.json
+          cat artifacts/cfb-history-v3/cfbd_market_qa.json
+          cat artifacts/cfb-final/cfb_final_qa.json
+          cat artifacts/cfb-final/model/cfb_v3_walkforward_report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-full-history-v3
+          path: |
+            artifacts/cfb-history-v2/*
+            artifacts/cfb-context/cfb_program_context_qa.json
+            artifacts/cfb-line-archive/*
+            artifacts/cfb-history-v3/*
+            artifacts/cfb-final/*
+          if-no-files-found: error
+          retention-days: 90
