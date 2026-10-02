@@ -154,12 +154,87 @@ function mlbFactors(game) {
   return out;
 }
 
+function basketballFactors(game) {
+  const sport = String(game?.sport || "").toLowerCase();
+  const homeAbbr = abbr(game, "home");
+  const awayAbbr = abbr(game, "away");
+  const out = [];
+
+  if (sport === "nba") {
+    const form = game?.basketballForm;
+    const d = form?.decomposition;
+    if (!form?.ok || !d?.home || !d?.away) return [];
+    const hOff = finite(d.home.offense);
+    const hDef = finite(d.home.defenseAllowed);
+    const aOff = finite(d.away.offense);
+    const aDef = finite(d.away.defenseAllowed);
+    if (hOff != null && aDef != null) out.push(factor(
+      "home-offense-defense", `${homeAbbr} scoring vs ${awayAbbr} defense`,
+      hOff > aDef ? homeAbbr : awayAbbr, round((hOff + aDef) / 2, 1),
+      `${homeAbbr} blended offense ${round(hOff,1)} PPG · ${awayAbbr} blended allowance ${round(aDef,1)} PPG`,
+      "NBA-FBIS-FORM-v1 scoreboard team form"
+    ));
+    if (aOff != null && hDef != null) out.push(factor(
+      "away-offense-defense", `${awayAbbr} scoring vs ${homeAbbr} defense`,
+      aOff > hDef ? awayAbbr : homeAbbr, round((aOff + hDef) / 2, 1),
+      `${awayAbbr} blended offense ${round(aOff,1)} PPG · ${homeAbbr} blended allowance ${round(hDef,1)} PPG`,
+      "NBA-FBIS-FORM-v1 scoreboard team form"
+    ));
+    const homeExpected = finite(d.matchup?.homeExpected);
+    const awayExpected = finite(d.matchup?.awayExpected);
+    if (homeExpected != null && awayExpected != null) out.push(factor(
+      "form-matchup", "Independent form matchup", sideFromDelta(game, homeExpected - awayExpected),
+      round(Math.abs(homeExpected - awayExpected),1),
+      `Pre-HFA scoring matchup: ${homeAbbr} ${round(homeExpected,1)} · ${awayAbbr} ${round(awayExpected,1)}`,
+      "NBA-FBIS-FORM-v1"
+    ));
+    return out;
+  }
+
+  if (sport !== "cbb") return [];
+  const ev = game?.cbbMatchupEvidence;
+  if (!ev?.home || !ev?.away) return [];
+  const h = ev.home, a = ev.away;
+  const pctDetail = (v) => finite(v) == null ? "—" : `${round(finite(v) * 100,1)}%`;
+  const numDetail = (v) => finite(v) == null ? "—" : round(v,1);
+
+  const specs = [
+    ["efficiency", "Adjusted efficiency", finite(h.adjOe) == null || finite(a.adjDe) == null || finite(a.adjOe) == null || finite(h.adjDe) == null ? null : (finite(h.adjOe)-finite(a.adjDe))-(finite(a.adjOe)-finite(h.adjDe)),
+      `${homeAbbr} O ${numDetail(h.adjOe)} vs ${awayAbbr} D ${numDetail(a.adjDe)} · ${awayAbbr} O ${numDetail(a.adjOe)} vs ${homeAbbr} D ${numDetail(h.adjDe)}`],
+    ["efg", "Effective FG%", finite(h.efgPct) == null || finite(a.efgPctD) == null || finite(a.efgPct) == null || finite(h.efgPctD) == null ? null : (finite(h.efgPct)-finite(a.efgPctD))-(finite(a.efgPct)-finite(h.efgPctD)),
+      `${homeAbbr} ${pctDetail(h.efgPct)} vs allowed ${pctDetail(a.efgPctD)} · ${awayAbbr} ${pctDetail(a.efgPct)} vs allowed ${pctDetail(h.efgPctD)}`],
+    ["three", "3-point shooting", finite(h.threePtPct) == null || finite(a.threePtPctD) == null || finite(a.threePtPct) == null || finite(h.threePtPctD) == null ? null : (finite(h.threePtPct)-finite(a.threePtPctD))-(finite(a.threePtPct)-finite(h.threePtPctD)),
+      `${homeAbbr} 3P ${pctDetail(h.threePtPct)} vs allowed ${pctDetail(a.threePtPctD)} · ${awayAbbr} 3P ${pctDetail(a.threePtPct)} vs allowed ${pctDetail(h.threePtPctD)}`],
+    ["two", "2-point shooting / rim pressure proxy", finite(h.twoPtPct) == null || finite(a.twoPtPctD) == null || finite(a.twoPtPct) == null || finite(h.twoPtPctD) == null ? null : (finite(h.twoPtPct)-finite(a.twoPtPctD))-(finite(a.twoPtPct)-finite(h.twoPtPctD)),
+      `${homeAbbr} 2P ${pctDetail(h.twoPtPct)} vs allowed ${pctDetail(a.twoPtPctD)} · ${awayAbbr} 2P ${pctDetail(a.twoPtPct)} vs allowed ${pctDetail(h.twoPtPctD)}`],
+    ["turnovers", "Turnover battle", finite(h.tovRate) == null || finite(a.tovRateD) == null || finite(a.tovRate) == null || finite(h.tovRateD) == null ? null : (finite(a.tovRate)-finite(h.tovRateD))-(finite(h.tovRate)-finite(a.tovRateD)),
+      `${homeAbbr} TO ${pctDetail(h.tovRate)} · forced by ${awayAbbr} ${pctDetail(a.tovRateD)} · ${awayAbbr} TO ${pctDetail(a.tovRate)} · forced by ${homeAbbr} ${pctDetail(h.tovRateD)}`],
+    ["rebounding", "Offensive rebounding", finite(h.orbRate) == null || finite(a.drbRate) == null || finite(a.orbRate) == null || finite(h.drbRate) == null ? null : (finite(h.orbRate)+finite(a.drbRate))-(finite(a.orbRate)+finite(h.drbRate)),
+      `${homeAbbr} ORB ${pctDetail(h.orbRate)} · ${awayAbbr} ORB ${pctDetail(a.orbRate)}`],
+    ["free-throws", "Free-throw generation", finite(h.ftr) == null || finite(a.ftrD) == null || finite(a.ftr) == null || finite(h.ftrD) == null ? null : (finite(h.ftr)-finite(a.ftrD))-(finite(a.ftr)-finite(h.ftrD)),
+      `${homeAbbr} FTR ${pctDetail(h.ftr)} vs allowed ${pctDetail(a.ftrD)} · ${awayAbbr} FTR ${pctDetail(a.ftr)} vs allowed ${pctDetail(h.ftrD)}`],
+    ["tempo", "Tempo", finite(h.tempo) == null || finite(a.tempo) == null ? null : finite(h.tempo)-finite(a.tempo),
+      `${homeAbbr} ${numDetail(h.tempo)} · ${awayAbbr} ${numDetail(a.tempo)} possessions/40`],
+  ];
+  for (const [id,label,delta,detail] of specs) {
+    if (delta == null) continue;
+    out.push(factor(id,label,sideFromDelta(game,delta),Math.abs(round(delta, id==="efficiency"||id==="tempo"?1:3)),detail,ev.source || "CBB research ratings"));
+  }
+  const matchup = game?.challengers?.["CBB-MATCHUP-v1"];
+  if (matchup?.ok && finite(matchup.matchupAdj) != null) out.unshift(factor(
+    "four-factor-adjustment", "Four-factor matchup adjustment", sideFromDelta(game, finite(matchup.matchupAdj)),
+    Math.abs(round(matchup.matchupAdj,1)), `CBB-MATCHUP-v1 adjustment: ${round(matchup.matchupAdj,1)} points`, "CBB-MATCHUP-v1"
+  ));
+  return out;
+}
+
 export function buildMatchupFactors(game = {}) {
   const explicit = game?.matchupFactors || game?.analysis?.matchupFactors || game?.model?.matchupFactors || game?.researchProjection?.matchupFactors;
   if (Array.isArray(explicit) && explicit.length) return explicit;
   const sport = String(game?.sport || "").toLowerCase();
   if (sport === "mlb") return mlbFactors(game);
   if (sport === "nfl" || sport === "cfb") return footballFactors(game);
+  if (sport === "nba" || sport === "cbb") return basketballFactors(game);
   return [];
 }
 
