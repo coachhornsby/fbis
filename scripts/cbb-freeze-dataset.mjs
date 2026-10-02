@@ -1,0 +1,11 @@
+import {readFileSync,writeFileSync,mkdirSync,existsSync} from "node:fs";import {createHash} from "node:crypto";
+const src=process.argv[2]||"artifacts/cbb-market-research-dataset.json",version=process.env.CBB_DATASET_VERSION||process.argv[3];
+if(!version||!/^cbb-enriched-v\d{4}\.\d{2}\.\d{2}(?:\.\d+)?$/.test(version))throw new Error("explicit CBB_DATASET_VERSION required, e.g. cbb-enriched-v2026.10.02");
+const raw=readFileSync(src);const rows=JSON.parse(raw);if(!Array.isArray(rows)||!rows.length)throw new Error("dataset empty");
+const hash=createHash("sha256").update(raw).digest("hex");const seasons=[...new Set(rows.map(r=>+r.season))].sort((a,b)=>a-b);const dates=rows.map(r=>r.date).filter(Boolean).sort();
+const schema=[...new Set(rows.flatMap(r=>Object.keys(r)))].sort();
+const dir="artifacts/frozen/"+version;mkdirSync(dir,{recursive:true});const data=dir+"/dataset.json",manifest=dir+"/manifest.json";
+if(existsSync(data)||existsSync(manifest))throw new Error("frozen version already exists; bump version");
+writeFileSync(data,raw);
+const m={artifactType:"FBIS_CBB_ENRICHED_HISTORICAL_DATASET",version,frozen:true,mutable:false,sha256:hash,bytes:raw.length,rowCount:rows.length,seasons,dateRange:{min:dates[0]||null,max:dates.at(-1)||null},topLevelSchema:schema,build:{commit:process.env.GITHUB_SHA||null,runId:process.env.GITHUB_RUN_ID||null,createdAt:new Date().toISOString()},sources:["CBBD historical games/lines","point-in-time KenPom archives/preseason fallback","Torvik archived snapshots where available","prior-only rolling CBBD features"],temporalIntegrity:["no future games in rolling features","point-in-time rating snapshots only","no final-season structural statistics substituted for missing historical snapshots"],governance:{researchInput:true,wagerAuthorization:false,changesRequireNewVersion:true}};
+writeFileSync(manifest,JSON.stringify(m,null,2));console.log(JSON.stringify(m,null,2));
