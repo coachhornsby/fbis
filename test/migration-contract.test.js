@@ -72,7 +72,7 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   const m29 = await readFile(new URL("../migrations/0029_executed_bet_settlement_evidence.sql", import.meta.url), "utf8");
   assert.match(m29, /0029_executed_bet_settlement_evidence/i);
   assert.match(m29, /final_home_score/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["']0029_executed_bet_settlement_evidence["']/);
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0037_ops_control_plane["\']/);
   const m37 = await readFile(new URL("../migrations/0037_ops_control_plane.sql", import.meta.url), "utf8");
   assert.match(m37, /0037_ops_control_plane/i);
   assert.match(m37, /fbis_ops_components/);
