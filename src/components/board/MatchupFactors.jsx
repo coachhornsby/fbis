@@ -22,6 +22,7 @@ function normalizeFactors(game) {
 function titleForSport(sport) {
   if (sport === "mlb") return "Pitcher & Lineup Matchups";
   if (sport === "nfl" || sport === "cfb") return "Offense vs Defense Matchups";
+  if (sport === "nba" || sport === "cbb") return "Basketball Matchup Factors";
   return "Matchup Factors";
 }
 
