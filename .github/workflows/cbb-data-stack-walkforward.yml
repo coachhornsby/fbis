@@ -1,0 +1,118 @@
+name: CBB data-stack walk-forward
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/kenpomCbb.js"
+      - "functions/lib/collegeApply.js"
+      - "functions/lib/collegeJobsCore.js"
+      - "functions/api/cbb-walkforward-source.js"
+      - "scripts/cbb-data-stack-walkforward.mjs"
+      - ".github/workflows/cbb-data-stack-walkforward.yml"
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: "CBB starting seasons"
+        type: string
+        default: "2021,2022,2023,2024,2025"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cbb-data-stack-walk-forward
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for exact production SHA
+        env:
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          BASE="https://fbis-myz.pages.dev"
+          for i in $(seq 1 50); do
+            BODY="$(curl -fsS --max-time 20 "$BASE/api/health" || true)"
+            SHA="$(printf '%s' "$BODY" | jq -r '.deploymentCommit // .build.commit // empty' 2>/dev/null || true)"
+            echo "production_sha=${SHA:-unknown} target=${TARGET_SHA}"
+            if [ "$SHA" = "$TARGET_SHA" ]; then exit 0; fi
+            sleep 15
+          done
+          echo "Production did not reach target SHA in validation window."
+          exit 1
+
+      - name: Refresh CBB source catalogs by season
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          INPUT_SEASONS: ${{ github.event.inputs.seasons }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}" || { echo "HARVEST_SECRET missing"; exit 2; }
+          SEASONS="${INPUT_SEASONS:-2021,2022,2023,2024,2025}"
+          IFS="," read -ra YRS <<< "$SEASONS"
+          for y in "${YRS[@]}"; do
+            y="$(echo "$y" | xargs)"
+            [ -n "$y" ] || continue
+            echo "refresh season=$y"
+            tmp="$(mktemp)"
+            HTTP=$(curl -sS --max-time 240 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              -o "$tmp" -w "%{http_code}" \
+              "https://fbis-myz.pages.dev/api/college?job=cbb-reference-backfill&seasons=${y}&trigger=workflow_dispatch")
+            jq -c '{ok,status,job,errors:(.errors // []),report:[.d1.report[]? | {source,path,n,ok,status,reason}]}' "$tmp" || cat "$tmp"
+            test "$HTTP" = "200"
+            jq -e '.ok == true and .status == "success"' "$tmp" >/dev/null
+            rm -f "$tmp"
+            sleep 2
+          done
+
+      - name: Run leakage-safe data-stack comparison
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          CBB_WF_SEASONS: ${{ github.event.inputs.seasons }}
+        run: |
+          set -euo pipefail
+          export CBB_WF_SEASONS="${CBB_WF_SEASONS:-2021,2022,2023,2024,2025}"
+          node scripts/cbb-data-stack-walkforward.mjs | tee artifacts/cbb-data-stack-run.log
+
+      - name: Summarize comparison
+        run: |
+          set -euo pipefail
+          FILE="artifacts/cbb-data-stack-walkforward.json"
+          jq -e . "$FILE" >/dev/null
+          {
+            echo "## CBB data-stack walk-forward"
+            echo
+            echo "### Coverage"
+            jq -r '.coverage[] | "- season \(.season): games=\(.games), KenPom=\(.kenpomMatched), Torvik=\(.torvikMatched), Torvik archive=\(.torvikArchive)"' "$FILE"
+            echo
+            echo "### Full available samples"
+            jq -r '.aggregate | to_entries[] | "- \(.key): n=\(.value.n), margin MAE=\(.value.marginMae), total MAE=\(.value.totalMae), winner accuracy=\(.value.winnerAccuracy)%"' "$FILE"
+            echo
+            echo "### Fair KenPom incremental sample"
+            jq -r '.fairComparison.kenpomIncremental | to_entries[] | "- \(.key): n=\(.value.n), margin MAE=\(.value.marginMae), total MAE=\(.value.totalMae), winner accuracy=\(.value.winnerAccuracy)%"' "$FILE"
+            echo
+            echo "### Three-way overlap"
+            jq -r '.fairComparison.threeWayOverlap | to_entries[] | "- \(.key): n=\(.value.n), margin MAE=\(.value.marginMae), total MAE=\(.value.totalMae), winner accuracy=\(.value.winnerAccuracy)%"' "$FILE"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbb-data-stack-walk-forward
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
