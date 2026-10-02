@@ -94,6 +94,20 @@ Required principles:
 
 Every sport must explicitly catalog historically unsafe endpoints/fields and the reconstruction rule, if one exists.
 
+## 4A. Frozen canonical data snapshots
+
+Large historical/provider acquisitions and expensive deterministic enrichment builds are data products, not model-test steps.
+
+Required behavior:
+- After a successful historical build, persist a versioned immutable canonical snapshot plus manifest/checksum, source coverage, schema version, build timestamp, and provenance summary.
+- Model research, calibration, ablation, backtests, and challenger tests MUST consume an existing compatible frozen snapshot by default.
+- Do not repeat paid API pulls, multi-season history downloads, or deterministic upstream enrichment merely because model code changed.
+- Rebuild upstream data only when the source data, requested coverage window, schema/data contract, provenance rules, or upstream feature-generation logic changed; or when an operator explicitly requests a refresh.
+- A model workflow must fail closed with a clear missing/incompatible-snapshot reason rather than silently launching a large acquisition.
+- Separate workflows/jobs should own (1) acquisition/canonical snapshot creation and (2) model research/validation.
+- Every model report must record the canonical snapshot ID/checksum it consumed so results are reproducible.
+- The same rule applies to MLB, NFL, CFB, CBB, NBA, WNBA, NHL, soccer, and future FBIS sports.
+
 ## 5. Validation standard
 
 Random train/test splits are prohibited for time-dependent sports forecasting.
