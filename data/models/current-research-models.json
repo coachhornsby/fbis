@@ -1,0 +1,21 @@
+{
+  "updatedAt": "2026-10-02",
+  "sports": {
+    "nfl": {
+      "currentResearchModel": "NFL-PRO-v1.1",
+      "fitArtifact": "data/models/nfl-pro-v1-1-fit.json",
+      "status": "research-evidence-pass",
+      "canQualify": false,
+      "canAuthorizeWager": false,
+      "notes": "Compact EPA/QB challenger beat the calibrated form baseline on margin MAE, total MAE, and winner accuracy in true walk-forward validation; prospective monitoring remains required."
+    },
+    "cfb": {
+      "currentResearchModel": "CFB-FBIS-v3-research",
+      "fitArtifact": "data/models/cfb-fbis-v3-research.json",
+      "status": "historical-walk-forward-complete",
+      "canQualify": false,
+      "canAuthorizeWager": false,
+      "notes": "Full-history PIT-safe Ridge research model using 2004-2026 event/context data. Market remains benchmark-only. Frozen fit trained through 2025."
+    }
+  }
+}
