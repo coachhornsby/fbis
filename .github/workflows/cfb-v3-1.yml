@@ -6,6 +6,7 @@ on:
       - "scripts/cfb-v3-1-walkforward.py"
       - "scripts/cfb-v3-1-interactions.py"
       - "scripts/cfb-v3-1-trigger.txt"
+      - "scripts/cfb-final-enrich.py"
       - ".github/workflows/cfb-v3-1.yml"
   workflow_dispatch:
 permissions:
