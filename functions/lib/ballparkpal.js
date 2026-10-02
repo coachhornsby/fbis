@@ -409,6 +409,25 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
   const vsAwaySp = pickSide(sides, awayPacked, awayAbv);
   const vsHomeSp = pickSide(sides, homePacked, homeAbv);
   const form = matchupForm(vsAwaySp, vsHomeSp);
+  // Retain individual batter-vs-starter evidence for the client analysis page.
+  // This is display context only; MLB-FBIS-v2 continues to consume the bounded
+  // lineup aggregate above, so projection math is unchanged.
+  const batterMatchups = (matchupRows || [])
+    .map((row) => ({
+      batterId: row.batterId ?? row.hitterId ?? row.playerId ?? null,
+      batterName: row.batterName ?? row.hitterName ?? row.playerName ?? null,
+      batterTeam: canonAbbr(row.batterTeam ?? row.hitterTeam ?? row.teamAbv ?? row.team) || null,
+      pitcherId: row.pitcherId ?? null,
+      pitcherName: row.pitcherName ?? null,
+      pitcherTeam: canonAbbr(row.pitcherTeam) || null,
+      hrVs: num(row.homeRunVsTypical),
+      kVs: num(row.strikeoutVsTypical),
+      rcVs: num(row.runsCreatedVsTypical),
+      homeRunProbability: num(row.homeRunProbability),
+      strikeoutProbability: num(row.strikeoutProbability),
+    }))
+    .filter((row) => row.batterName && row.pitcherId != null && (row.hrVs != null || row.kVs != null || row.rcVs != null))
+    .sort((a, b) => Math.abs(b.rcVs || 0) - Math.abs(a.rcVs || 0));
 
   const homeF5Runs = num(homeT?.runsFirstFive);
   const awayF5Runs = num(awayT?.runsFirstFive);
@@ -461,6 +480,7 @@ function packGame(bppGame, averages, park, matchupRows, teamsById) {
           runsAmt: num(park.runsAmount),
         }
       : null,
+    batterMatchups,
     matchup: {
       vsAwaySp: vsAwaySp
         ? { pitcher: vsAwaySp.pitcherName, hrVs: vsAwaySp.hrVs, kVs: vsAwaySp.kVs, rcVs: vsAwaySp.rcVs, n: vsAwaySp.n }
