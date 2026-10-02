@@ -1,0 +1,37 @@
+name: CFB market checkpoint repair
+on:
+  push:
+    branches: ["research/cfb-bulk-history-v3"]
+    paths:
+      - "scripts/cfb-market-repair-from-checkpoint.py"
+      - ".github/workflows/cfb-market-checkpoint-repair.yml"
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow
+      - name: Download successful v3 checkpoint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download 37012850005 -n cfb-full-history-v3 -D checkpoint
+      - name: Build SportsDataverse multi-book market archive
+        run: python scripts/cfb-sdv-line-archive.py
+      - name: Repair canonical market benchmark and recompute OOS comparison
+        run: python scripts/cfb-market-repair-from-checkpoint.py
+      - name: Show QA
+        run: cat artifacts/cfb-market-final/cfb_market_final_qa.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-market-final
+          path: artifacts/cfb-market-final/*
+          if-no-files-found: error
+          retention-days: 90
