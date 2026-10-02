@@ -302,12 +302,12 @@ def flatten_game_level(games, team_pre, closing):
     out["home_cover_result"] = np.select(
         [out["home_ats_margin"] > 0, out["home_ats_margin"] < 0, out["home_ats_margin"] == 0],
         ["HOME_COVER","AWAY_COVER","PUSH"],
-        default=np.nan
+        default="NA"
     )
     out["total_result"] = np.select(
         [out["total_margin_vs_close"] > 0, out["total_margin_vs_close"] < 0, out["total_margin_vs_close"] == 0],
         ["OVER","UNDER","PUSH"],
-        default=np.nan
+        default="NA"
     )
 
     # Difference features are convenient model inputs and remain pregame-only.
