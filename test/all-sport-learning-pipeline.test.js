@@ -73,10 +73,16 @@ test("research ops and projection export enumerate all six sports without paused
 });
 
 
-test("paused ACTION workflows stay manual-only", async () => {
+test("Zen ACTION is the only scheduled ACTION acquisition workflow", async () => {
+  const daily = await readFile(new URL("../.github/workflows/action-daily-snapshot.yml", import.meta.url), "utf8");
+  assert.match(daily, /Zen ACTION daily full slate/);
+  assert.match(daily, /cron:\s*"30 12 \* \* \*"/);
+  assert.match(daily, /action-daily-async\?mode=start/);
+
   for (const rel of [
     "../.github/workflows/action-daily-watchdog.yml",
-    "../.github/workflows/action-daily-snapshot.yml",
+    "../.github/workflows/action-player-props.yml",
+    "../.github/workflows/action-post-deploy-repair.yml",
     "../.github/workflows/action-restore-validation.yml",
   ]) {
     const body = await readFile(new URL(rel, import.meta.url), "utf8");
@@ -84,6 +90,10 @@ test("paused ACTION workflows stay manual-only", async () => {
     assert.match(body, /workflow_dispatch/);
     assert.doesNotMatch(body, /\bschedule\s*:/);
   }
+
+  const harvest = await readFile(new URL("../.github/workflows/harvest.yml", import.meta.url), "utf8");
+  assert.match(harvest, /ACTION_RECOVERY_ENABLED="false"/);
+  assert.match(harvest, /if:\s*\$\{\{ false \}\}/);
 });
 
 
