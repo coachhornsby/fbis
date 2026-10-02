@@ -3,9 +3,13 @@ name: PrizePicks curated prop lines
 
 on:
   schedule:
-    # One curated daily snapshot keeps the shared ACTION + PrizePicks Apify
-    # budget inside the $22 operating target / $25 hard cap.
-    - cron: "0 13 * * *"
+    # Redundant morning trigger opportunities. The durable CT-day reservation
+    # is authoritative, so later deliveries recover a missed/delayed GitHub
+    # schedule event without starting a second paid PrizePicks Actor run.
+    # 08:05, 08:35, 09:05 America/Chicago while CDT is in effect.
+    - cron: "5 13 * * *"
+    - cron: "35 13 * * *"
+    - cron: "5 14 * * *"
   # Intentionally schedule-only in production: exactly one paid Actor pull/day.
   # Manual dispatch is retained for explicit operator recovery, but code pushes never spend Apify credit.
   workflow_dispatch:
