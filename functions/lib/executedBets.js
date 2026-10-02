@@ -32,7 +32,7 @@ function bothTeams(game, awayName, homeName) {
   );
 }
 
-export function matchExecutedBet(ticket, games, { allowSportCorrection = false } = {}) {
+export function matchExecutedBet(ticket, games, { allowSportCorrection = true } = {}) {
   const filter = (requireSport) =>
     (games || []).filter((g) => {
       if (requireSport && ticket.sport && g.sport && ticket.sport !== g.sport) return false;
@@ -49,12 +49,15 @@ export function matchExecutedBet(ticket, games, { allowSportCorrection = false }
 
   let list = filter(true);
   let sportCorrected = false;
-  // Cross-sport fallback is opt-in only. A known sport is a hard boundary.
-  // Unknown-sport tickets may still match because filter(true) only enforces
-  // sport equality when ticket.sport is present.
-  if (!list.length && allowSportCorrection && !ticket.sport) {
-    list = filter(false);
-    sportCorrected = list.length > 0;
+  // Pro leagues are hard namespaces. Preserve only the legacy Heritage repair
+  // for old tickets that were incorrectly stamped MLB but are an exact CFB/CBB
+  // both-team/date match. Never correct MLB ↔ NHL/NBA/NFL or any pro ↔ pro pair.
+  if (!list.length && allowSportCorrection && ticket.sport === "mlb") {
+    const collegeOnly = filter(false).filter((g) => g.sport === "cfb" || g.sport === "cbb");
+    if (collegeOnly.length) {
+      list = collegeOnly;
+      sportCorrected = true;
+    }
   }
   const timed = list.filter((g) => kickoffProximity(ticket.executedAt, g.start, 18));
   const pool = timed.length ? timed : list;
