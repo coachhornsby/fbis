@@ -35,11 +35,15 @@ jobs:
         run: node scripts/cfb-cfbd-market-enrichment.mjs
       - run: python scripts/cfb-final-enrich.py
       - run: python scripts/cfb-v3-walkforward.py
+      - name: Build independent FBIS Power Rating
+        run: python scripts/cfb-fpr.py
       - run: python scripts/cfb-v4-walkforward.py
       - run: jq '{modelId,sample,v4,v3,marketPairedV4,market,holdout2025_2026,beatsV3AllThree,canQualify}' artifacts/cfb-final/model-v4/report.json
       - run: jq '{spread:.betting.spread.holdout2025_2026,total:.betting.total.holdout2025_2026}' artifacts/cfb-final/model-v4/report.json
       - uses: actions/upload-artifact@v4
         with:
           name: cfb-v4
-          path: artifacts/cfb-final/model-v4/*
+          path: |
+            artifacts/cfb-final/model-v4/*
+            artifacts/cfb-final/fpr/*
           retention-days: 90
