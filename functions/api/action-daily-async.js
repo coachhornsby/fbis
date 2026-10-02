@@ -2,7 +2,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { queryGames } from "../lib/store.js";
 import { loadFbisSlateForMatching } from "../lib/actionApifyEvidence.js";
 import { buildCostLedgerEntry, matchEventWithConfidence } from "../lib/actionApifyCandidate.js";
-import { buildActorInput, estimateActorCostUsd, fitMaxItemsToUsdBudget, normalizeActionDataset, ACTION_APIFY_ACTOR_ID } from "../lib/actionApifyShadow.js";
+import { buildActorInput, estimateActorCostUsd, normalizeActionDataset, ACTION_APIFY_ACTOR_ID } from "../lib/actionApifyShadow.js";
 import { readCandidateConfig } from "../lib/actionApifyCandidateConfig.js";
 import { actionShadowObservationKey, ensureShadowProviderRun, persistFullMarketObservation } from "../lib/actionApifyObservationStore.js";
 
@@ -88,7 +88,7 @@ export async function onRequestPost(context){
    const actorPath=encodeURIComponent(ACTION_APIFY_ACTOR_ID),res=await fetch(`https://api.apify.com/v2/acts/${actorPath}/runs?waitForFinish=0`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify(input)});
    const startRaw=await res.text();let startBody={};try{startBody=JSON.parse(startRaw)}catch{}
    if(!res.ok)return json({ok:false,status:"apify_start_http",http:res.status,upstream:{type:startBody?.error?.type||null,message:String(startBody?.error?.message||"").slice(0,500)}},502);const j=startBody,a=j.data||j,runId=`daily_${today.replaceAll("-","")}_${crypto.randomUUID().replace(/-/g,"").slice(0,10)}`,started=new Date().toISOString(),plan=JSON.stringify({input,activeSports:collectionSports,fullActiveSports:activeSports,leagues,requestedRows:requested,estimatedCostUsd:estimate,today,yesterday,plannedTodayFbisEventIds:Object.fromEntries(collectionSports.map(s=>[s,sl.todayIds?.[s]||[]]))});
-   await db.exec(`INSERT INTO shadow_collection_runs(id,provider,mode,plan,profile,sport,lifecycle,status,enabled,apify_run_id,dataset_id,requested_max_items,estimated_cost_usd,cost_basis,started_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[runId,"ACTION_APIFY","shadow",plan,PROFILE,"all",LIFECYCLE,"running_daily",1,a.id||null,a.defaultDatasetId||null,input.maxItems,estimate,"ESTIMATED",started,started]);
+   await db.exec(`INSERT INTO shadow_collection_runs(id,provider,mode,plan,profile,sport,lifecycle,status,enabled,apify_run_id,dataset_id,requested_max_items,estimated_cost_usd,cost_basis,started_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[runId,"ACTION_APIFY","shadow",plan,PROFILE,"all",LIFECYCLE,"running_daily",1,a.id||null,a.defaultDatasetId||null,input.maxGames,estimate,"ESTIMATED",started,started]);
    // Reserve the estimated paid-run cost immediately after the Actor starts.
    // A failed/timed-out harvest must still count against the monthly budget.
    const reservation=buildCostLedgerEntry({runId,plan:cfg.plan,sport:"all",profile:PROFILE,input,gamesReturned:input.maxItems,createdAt:started});
