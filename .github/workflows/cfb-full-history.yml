@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cfb-full-history-research
+  group: cfb-full-history-research-v3
   cancel-in-progress: true
 
 jobs:
