@@ -6,7 +6,7 @@
 import { americanProfit, americanToImplied } from "./pricing.js";
 import { EXECUTION_BOOK } from "./books.js";
 import { todayCT } from "./slateEngine.js";
-import { identityFromName } from "./teams.js";
+import { identityFromNameExact } from "./teams.js";
 
 export const HERITAGE_CLV_METHOD = "pin-novig-v1";
 export const RISK_TOLERANCE = 0.02;
@@ -296,6 +296,12 @@ export function parseHeritageTicket(block, { yearHint } = {}) {
   const current = parseCurrentLine(currentRaw, market.market);
 
   const teams = { away: listedA, home: listedB };
+  const awayIdentity = identityFromNameExact(listedA);
+  const homeIdentity = identityFromNameExact(listedB);
+  const inferredSport =
+    awayIdentity?.sport && homeIdentity?.sport && awayIdentity.sport === homeIdentity.sport
+      ? awayIdentity.sport
+      : null;
   const sel = parseSelection(selectionRaw || current.team, market.market);
   if (market.market === "ML") sel.executionLine = null;
   if (market.market === "SPREAD" && sel.executionLine == null && current.line != null) sel.executionLine = current.line;
@@ -325,14 +331,14 @@ export function parseHeritageTicket(block, { yearHint } = {}) {
     executedAt: ts.iso,
     timezone: "America/Chicago",
     date: ts.date,
-    sport: "mlb",
+    sport: inferredSport,
     sourceEventId,
     sourceUrl,
     matchupText: `${listedA} vs ${listedB}`.trim(),
     awayTeam: listedA || null,
     homeTeam: listedB || null,
-    awayIdentity: identityFromName(listedA),
-    homeIdentity: identityFromName(listedB),
+    awayIdentity,
+    homeIdentity,
     awayPitcher: parens[0] || pitcherA,
     homePitcher: parens[1] || null,
     marketOriginal: market.original,
