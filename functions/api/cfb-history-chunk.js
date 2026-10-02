@@ -3,7 +3,7 @@ import { cfbdGet } from "../lib/collegeApi.js";
 
 const ALLOWED_SEASON_TYPES=new Set(["regular","postseason"]);
 const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
-const num=(v)=>{const n=Number(v);return Number.isFinite(n)?n:null;};
+const num=(v)=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;};
 const text=(v)=>v==null?null:String(v);
 const gameId=(r)=>String(r?.gameId??r?.game_id??r?.id??"");
 const teamName=(r)=>r?.team??r?.offense??r?.school??null;
