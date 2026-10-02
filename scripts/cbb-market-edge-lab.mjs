@@ -27,12 +27,28 @@ function providerRank(v){
   const i=providerPriority.findIndex(x=>s.includes(x));
   return i<0?999:i;
 }
+function median(values){
+  const a=values.map(num).filter(v=>v!=null).sort((x,y)=>x-y);
+  if(!a.length)return null;
+  const m=Math.floor(a.length/2);
+  return a.length%2?a[m]:(a[m-1]+a[m])/2;
+}
 function chooseMarket(lines){
-  return [...lines].sort((a,b)=>{
-    const ac=(a.spread!=null?1:0)+(a.overUnder!=null?1:0)+(a.openingSpread!=null?0.2:0)+(a.openingOverUnder!=null?0.2:0);
-    const bc=(b.spread!=null?1:0)+(b.overUnder!=null?1:0)+(b.openingSpread!=null?0.2:0)+(b.openingOverUnder!=null?0.2:0);
-    return providerRank(a.provider)-providerRank(b.provider) || bc-ac;
-  })[0]||null;
+  const explicit=lines.find(x=>String(x.provider||"").toLowerCase()==="consensus");
+  if(explicit) return {...explicit, marketConstruction:"explicit-consensus", sourceBooks:lines.length};
+  const spread=median(lines.map(x=>x.spread));
+  const openingSpread=median(lines.map(x=>x.openingSpread));
+  const overUnder=median(lines.map(x=>x.overUnder));
+  const openingOverUnder=median(lines.map(x=>x.openingOverUnder));
+  if(spread==null&&overUnder==null&&openingSpread==null&&openingOverUnder==null)return null;
+  return {
+    ...lines[0],
+    provider:"MEDIAN CONSENSUS",
+    spread,openingSpread,overUnder,openingOverUnder,
+    homeSpreadPrice:null,awaySpreadPrice:null,overPrice:null,underPrice:null,
+    marketConstruction:"median-across-books",
+    sourceBooks:lines.length,
+  };
 }
 function americanProfit(odds){
   const o=num(odds);
@@ -404,7 +420,7 @@ const report={
     targetSide:"actual home margin minus market-implied home margin (equivalent to home cover margin)",
     targetTotal:"actual total minus market total",
     split:"nested walk-forward by season: earlier seasons fit, latest development season selects family/lambda/threshold, next season untouched test",
-    market:"one preferred CBBD provider per game; opening/current values retained; market never enters independent score generation",
+    market:"explicit CBBD consensus when available; otherwise median spread/total across available books per game; opening/current values retained; market never enters independent score generation",
     prices:"recorded side/total prices when exposed by CBBD; otherwise -110 only for research accounting and explicitly counted",
     note:"research-only; no wager qualification or production promotion",
   },
