@@ -272,7 +272,7 @@ def flatten_game_level(games, team_pre, closing):
     keep = [
         "game_id","season","game_type","week","gameday","weekday","gametime",
         "away_team","away_score","home_team","home_score","location","result","total",
-        "overtime","away_rest","home_rest","spread_line","total_line","roof","surface",
+        "overtime","away_rest","home_rest","away_moneyline","home_moneyline","spread_line","total_line","roof","surface",
         "temp","wind","away_qb_id","home_qb_id","away_qb_name","home_qb_name",
         "stadium","div_game"
     ]
@@ -318,6 +318,25 @@ def flatten_game_level(games, team_pre, closing):
         default="missing"
     )
 
+    # The standalone closing_lines.csv is a useful independent historical
+    # cross-check but stops after 2018 in the current public file. The maintained
+    # nflverse games.csv carries spread_line/total_line across the full sample.
+    # nflverse defines spread_line as POSITIVE when the home team is favored;
+    # convert it to a sportsbook-style home spread (favorite is negative).
+    out = out.rename(columns={
+        "closing_home_spread": "legacy_closing_home_spread",
+        "closing_total": "legacy_closing_total",
+        "closing_home_ml": "legacy_closing_home_ml",
+    })
+    out["closing_home_spread"] = -pd.to_numeric(out["schedule_home_spread"], errors="coerce")
+    out["closing_total"] = pd.to_numeric(out["schedule_total_line"], errors="coerce")
+    out["closing_home_ml"] = pd.to_numeric(out.get("home_moneyline"), errors="coerce")
+    out["closing_line_source"] = "nflverse_nfldata_games"
+    out["legacy_closing_line_source"] = np.where(
+        out["legacy_closing_home_spread"].notna() | out["legacy_closing_total"].notna(),
+        "nflverse_nfldata_closing_lines",
+        "NA"
+    )
     out["closing_spread_available"] = out["closing_home_spread"].notna().astype(int)
     out["closing_total_available"] = out["closing_total"].notna().astype(int)
 
@@ -399,18 +418,18 @@ def main():
     spread_compare_n = 0
     spread_compare_mae = None
     if "schedule_home_spread" in final.columns:
-        both = final.dropna(subset=["closing_home_spread","schedule_home_spread"])
+        both = final.dropna(subset=["legacy_closing_home_spread","closing_home_spread"])
         spread_compare_n = len(both)
         if len(both):
-            spread_compare_mae = float((both["closing_home_spread"] - both["schedule_home_spread"]).abs().mean())
+            spread_compare_mae = float((both["legacy_closing_home_spread"] - both["closing_home_spread"]).abs().mean())
 
     total_compare_n = 0
     total_compare_mae = None
     if "schedule_total_line" in final.columns:
-        both = final.dropna(subset=["closing_total","schedule_total_line"])
+        both = final.dropna(subset=["legacy_closing_total","closing_total"])
         total_compare_n = len(both)
         if len(both):
-            total_compare_mae = float((both["closing_total"] - both["schedule_total_line"]).abs().mean())
+            total_compare_mae = float((both["legacy_closing_total"] - both["closing_total"]).abs().mean())
 
     leakage_columns = [c for c in final.columns if c.startswith(("home_pregame_","away_pregame_","diff_pregame_"))]
     report = {
