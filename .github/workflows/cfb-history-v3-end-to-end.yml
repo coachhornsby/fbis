@@ -1,15 +1,5 @@
 name: CFB full-history end-to-end v3
 on:
-  push:
-    branches: ["research/cfb-bulk-history-v3"]
-    paths:
-      - "scripts/cfb-bulk-history-v3.py"
-      - "scripts/cfb-program-context.py"
-      - "scripts/cfb-sdv-line-archive.py"
-      - "scripts/cfb-cfbd-market-enrichment.mjs"
-      - "scripts/cfb-final-enrich.py"
-      - "scripts/cfb-v3-walkforward.py"
-      - ".github/workflows/cfb-history-v3-end-to-end.yml"
   workflow_dispatch:
 permissions:
   contents: read
