@@ -86,6 +86,7 @@ jobs:
           CBB_WF_SEASONS: ${{ github.event.inputs.seasons }}
         run: |
           set -euo pipefail
+          mkdir -p artifacts
           export CBB_WF_SEASONS="${CBB_WF_SEASONS:-2021,2022,2023,2024,2025}"
           node scripts/cbb-data-stack-walkforward.mjs | tee artifacts/cbb-data-stack-run.log
 
