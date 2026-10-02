@@ -226,6 +226,29 @@ export async function loadOpsControlPlane(env) {
       LIMIT 100`
   ).all();
 
+  const manifestsRes = await env.DB.prepare(
+    `SELECT run_id, component_id, expected_items, received_items, persisted_items,
+            visible_items, rejected_items, duplicate_items, status, started_at, finished_at
+       FROM fbis_run_manifests
+      ORDER BY COALESCE(finished_at, started_at, created_at) DESC
+      LIMIT 50`
+  ).all();
+  const manifestInvariants = [];
+  for (const manifest of manifestsRes?.results || []) {
+    for (const check of evaluateManifestInvariants(manifest)) {
+      manifestInvariants.push({
+        invariant_key: `manifest:${check.key}`,
+        component_id: manifest.component_id,
+        checked_at: manifest.finished_at || manifest.started_at || null,
+        status: check.ok ? "PASS" : "FAIL",
+        expected_value: check.expected == null ? null : String(check.expected),
+        actual_value: check.actual == null ? null : String(check.actual),
+        detail: check.detail,
+        run_id: manifest.run_id,
+      });
+    }
+  }
+
   const metric = await env.DB.prepare(
     `SELECT
        COUNT(*) AS incidents,
@@ -240,7 +263,7 @@ export async function loadOpsControlPlane(env) {
   return {
     bound: true,
     components,
-    invariants: invRes?.results || [],
+    invariants: [...manifestInvariants, ...(invRes?.results || [])].slice(0, 150),
     metrics: {
       incidents: Number(metric?.incidents || 0),
       autonomousRepairs: Number(metric?.autonomous_repairs || 0),
@@ -249,4 +272,53 @@ export async function loadOpsControlPlane(env) {
       proactiveDetections: Number(metric?.proactive_detections || 0),
     },
   };
+}
+
+
+export function evaluateManifestInvariants(manifest) {
+  const checks = [];
+  const status = String(manifest?.status || "").toLowerCase();
+  const expected = manifest?.expected_items == null ? null : Number(manifest.expected_items);
+  const received = manifest?.received_items == null ? null : Number(manifest.received_items);
+  const persisted = manifest?.persisted_items == null ? null : Number(manifest.persisted_items);
+  const visible = manifest?.visible_items == null ? null : Number(manifest.visible_items);
+  const rejected = manifest?.rejected_items == null ? 0 : Number(manifest.rejected_items);
+
+  if (expected != null && received != null) {
+    checks.push({
+      key: "expected-received",
+      ok: received >= expected,
+      expected,
+      actual: received,
+      detail: received >= expected ? "received meets expected population" : "received population is incomplete",
+    });
+  }
+  if (received != null && persisted != null) {
+    checks.push({
+      key: "received-persisted",
+      ok: persisted + rejected <= received && (status !== "success" || persisted + rejected === received),
+      expected: received,
+      actual: persisted + rejected,
+      detail: "persisted + rejected must reconcile to received on successful runs",
+    });
+  }
+  if (persisted != null && visible != null) {
+    checks.push({
+      key: "persisted-visible",
+      ok: visible <= persisted && (status !== "success" || persisted === 0 || visible > 0),
+      expected: persisted,
+      actual: visible,
+      detail: "downstream visibility cannot exceed persistence; successful non-empty runs must expose data",
+    });
+  }
+  if (status === "success" && received != null) {
+    checks.push({
+      key: "success-nonempty",
+      ok: received === 0 ? expected === 0 : persisted == null || persisted > 0 || rejected === received,
+      expected: "meaningful persisted/rejected accounting",
+      actual: `received=${received},persisted=${persisted},rejected=${rejected}`,
+      detail: "green workflow cannot hide an unexplained zero-persist result",
+    });
+  }
+  return checks;
 }
