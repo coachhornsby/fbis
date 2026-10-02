@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-OOS=Path("artifacts/cfb-final/model/cfb_v3_oos_predictions.csv")
-DATA=Path("artifacts/cfb-final/cfb_training_full_enriched_2004_2026.csv")
+OOS=Path("artifacts/cfb-market-final/cfb_v3_oos_predictions_with_canonical_market.csv")
+DATA=Path("artifacts/cfb-market-final/cfb_market_benchmark_2004_2026.csv")
 OUT=Path("artifacts/cfb-market-weakness"); OUT.mkdir(parents=True,exist_ok=True)
 DISCOVERY_END=2024; MIN_DISCOVERY=150; MIN_HOLDOUT=40; BOOT=2000
 RNG=np.random.default_rng(20261002)
