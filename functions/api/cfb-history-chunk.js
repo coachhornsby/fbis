@@ -11,10 +11,22 @@ const teamName=(r)=>r?.team??r?.offense??r?.school??null;
 function envFrom(context){
   return {CFBD_API_KEY:context.env.CFBD_API_KEY,caches:caches.default,DB:context.env.DB};
 }
-async function get(path,env,query){
-  const r=await cfbdGet(path,env,{query,skipCache:true});
-  await sleep(30);
-  return r.ok?(Array.isArray(r.data)?r.data:(r.data?[r.data]:[])):[];
+async function get(path,env,query,{required=false,diagnostics=null}={}){
+  let last=null;
+  for(let attempt=1;attempt<=4;attempt++){
+    const r=await cfbdGet(path,env,{query,skipCache:true});
+    last=r;
+    if(r.ok){
+      await sleep(60);
+      return Array.isArray(r.data)?r.data:(r.data?[r.data]:[]);
+    }
+    const retryable=Number(r.status)===429||Number(r.status)>=500||Number(r.status)===0;
+    diagnostics?.push({path,query,status:r.status??0,reason:r.reason||null,attempt,retryable});
+    if(!retryable) break;
+    await sleep(300*attempt);
+  }
+  if(required) throw new Error(`CFBD required endpoint failed: ${path} status=${last?.status??0} reason=${last?.reason||"unknown"}`);
+  return [];
 }
 function mean(xs){const a=xs.filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}
 function add(map,key,seed){if(!map.has(key))map.set(key,seed());return map.get(key);}
@@ -101,43 +113,43 @@ export async function onRequestGet(context){
   }
   const env=envFrom(context);
   try{
-    const [allGames,allLines]=await Promise.all([
-      get("/games",env,{year,seasonType}),
-      get("/lines",env,{year,seasonType}),
-    ]);
-    const [core,sp,fpi,srs,talent,returning,recruiting,weather]=includeStatic
-      ? await Promise.all([
-          get("/ratings/core",env,{year}),
-          get("/ratings/sp",env,{year:year-1}),
-          get("/ratings/fpi",env,{year:year-1}),
-          get("/ratings/srs/expanded",env,{year:year-1}),
-          get("/talent",env,{year}),
-          get("/player/returning",env,{year}),
-          get("/recruiting/teams",env,{year:year-1}),
-          get("/games/weather",env,{year,seasonType}),
-        ])
-      : [[],[],[],[],[],[],[],[]];
+    const providerDiagnostics=[];
+    const allGames=await get("/games",env,{year,seasonType},{required:true,diagnostics:providerDiagnostics});
+    const allLines=(coverageOnly||includeStatic)
+      ? await get("/lines",env,{year,seasonType},{diagnostics:providerDiagnostics})
+      : [];
+    let core=[],sp=[],fpi=[],srs=[],talent=[],returning=[],recruiting=[],weather=[];
+    if(includeStatic){
+      core=await get("/ratings/core",env,{year},{diagnostics:providerDiagnostics});
+      sp=await get("/ratings/sp",env,{year:year-1},{diagnostics:providerDiagnostics});
+      fpi=await get("/ratings/fpi",env,{year:year-1},{diagnostics:providerDiagnostics});
+      srs=await get("/ratings/srs/expanded",env,{year:year-1},{diagnostics:providerDiagnostics});
+      talent=await get("/talent",env,{year},{diagnostics:providerDiagnostics});
+      returning=await get("/player/returning",env,{year},{diagnostics:providerDiagnostics});
+      recruiting=await get("/recruiting/teams",env,{year:year-1},{diagnostics:providerDiagnostics});
+      weather=await get("/games/weather",env,{year,seasonType},{diagnostics:providerDiagnostics});
+    }
     const games=compactGames(allGames).filter(g=>Number(g.week)>=weekStart&&Number(g.week)<=weekEnd);
     const ids=new Set(games.map(g=>g.gameId));
     const lines=flattenLines(allLines).filter(x=>ids.has(x.gameId));
     const weekRows={ppa:[],advanced:[],plays:[],drives:[],players:[],elo:[]};
-    for(let week=weekStart;week<=weekEnd;week++){
-      const [ppa,advanced,plays,drives,players,elo]=await Promise.all([
-        get("/ppa/games",env,{year,week,seasonType}),
-        get("/stats/game/advanced",env,{year,week,seasonType}),
-        get("/plays",env,{year,week,seasonType,classification:"fbs"}),
-        get("/drives",env,{year,week,seasonType}),
-        get("/games/players",env,{year,week,seasonType}),
-        get("/ratings/elo",env,{year,week:Math.max(1,week-1),seasonType:"regular"}),
-      ]);
-      weekRows.ppa.push(...ppa);weekRows.advanced.push(...advanced);weekRows.plays.push(...plays);weekRows.drives.push(...drives);weekRows.players.push(...players);weekRows.elo.push(...elo.map(x=>({...x,sourceWeek:Math.max(1,week-1),targetWeek:week})));
+    if(!coverageOnly){
+      for(let week=weekStart;week<=weekEnd;week++){
+        const ppa=await get("/ppa/games",env,{year,week,seasonType},{diagnostics:providerDiagnostics});
+        const advanced=await get("/stats/game/advanced",env,{year,week,seasonType},{diagnostics:providerDiagnostics});
+        const plays=await get("/plays",env,{year,week,seasonType,classification:"fbs"},{diagnostics:providerDiagnostics});
+        const drives=await get("/drives",env,{year,week,seasonType},{diagnostics:providerDiagnostics});
+        const players=await get("/games/players",env,{year,week,seasonType},{diagnostics:providerDiagnostics});
+        const elo=await get("/ratings/elo",env,{year,week:Math.max(1,week-1),seasonType:"regular"},{diagnostics:providerDiagnostics});
+        weekRows.ppa.push(...ppa);weekRows.advanced.push(...advanced);weekRows.plays.push(...plays);weekRows.drives.push(...drives);weekRows.players.push(...players);weekRows.elo.push(...elo.map(x=>({...x,sourceWeek:Math.max(1,week-1),targetWeek:week})));
+      }
     }
     const payload={ok:true,generatedAt:new Date().toISOString(),year,weekStart,weekEnd,seasonType,includeStatic,coverageOnly,
       games,lines,ppa:compactPpa(weekRows.ppa),advanced:compactAdvanced(weekRows.advanced),
       playAggregates:aggregatePlays(weekRows.plays),driveAggregates:aggregateDrives(weekRows.drives),
       players:weekRows.players,elo:weekRows.elo,core,
-      prior:{sp,fpi,srs,recruiting},preseason:{talent,returning},weather,
-      counts:{games:games.length,lines:lines.length,ppa:weekRows.ppa.length,advanced:weekRows.advanced.length,plays:weekRows.plays.length,drives:weekRows.drives.length,players:weekRows.players.length,elo:weekRows.elo.length,core:core.length,priorSp:sp.length,priorFpi:fpi.length,priorSrs:srs.length,talent:talent.length,returning:returning.length,recruiting:recruiting.length,weather:weather.length}};
+      prior:{sp,fpi,srs,recruiting},preseason:{talent,returning},weather,providerDiagnostics,
+      counts:{games:games.length,lines:lines.length,ppa:weekRows.ppa.length,advanced:weekRows.advanced.length,plays:weekRows.plays.length,drives:weekRows.drives.length,players:weekRows.players.length,elo:weekRows.elo.length,core:core.length,priorSp:sp.length,priorFpi:fpi.length,priorSrs:srs.length,talent:talent.length,returning:returning.length,recruiting:recruiting.length,weather:weather.length,providerFailures:providerDiagnostics.length}};
     return new Response(JSON.stringify(payload),{status:200,headers:{"content-type":"application/json","cache-control":"no-store"}});
   }catch(err){
     return new Response(JSON.stringify({ok:false,error:String(err?.message||err),year,weekStart,weekEnd,seasonType}),{status:502,headers:{"content-type":"application/json"}});
