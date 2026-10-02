@@ -60,7 +60,53 @@ def neutralize(x,season):
  z=pd.Series(x,index=season.index,dtype=float)
  return z-z.groupby(season).transform("mean")
 
-def main():
+
+def stabilize_weekly(raw):
+ """Convert game-state estimates into stable point-in-time team power ratings.
+
+ Uses only information available before each game. A team's new raw football-state
+ estimate is shrunk toward its own prior rating and an opponent-adjusted result
+ residual from completed earlier games. No polls, market lines, or external ratings.
+ """
+ state={}; out=[]
+ raw=raw.sort_values(["season","week","game_id"]).copy()
+ for season,sg in raw.groupby("season",sort=True):
+  # Carry prior-season terminal strength with heavy regression to average.
+  prev={k:v for k,v in state.items()}
+  state={}
+  games={}
+  for week,wg in sg.groupby("week",sort=True):
+   # Snapshot ratings BEFORE this week's games.
+   for _,r in wg.iterrows():
+    for side in ("home","away"):
+     tid=r[f"{side}_id"]; rawf=float(r[f"{side}_fpr"])
+     old=state.get(tid)
+     if old is None:
+      prior=.45*prev.get(tid,0.0)
+      rating=.55*rawf+.45*prior
+      gp=0
+     else:
+      gp=games.get(tid,0)
+      # More early-season shrinkage; latest feature state cannot whipsaw rating.
+      wraw=min(.28,.14+.025*gp)
+      rating=(1-wraw)*old+wraw*rawf
+     r[f"{side}_stable_fpr"]=rating
+     r[f"{side}_games_prior"]=gp
+   out.append(r.copy())
+   # Update after completed games using opponent-adjusted neutral result residual.
+   for _,r in wg.iterrows():
+    h,a=r.home_id,r.away_id
+    hr=state.get(h,float(r.home_stable_fpr)); ar=state.get(a,float(r.away_stable_fpr))
+    # conservative HFA only for result-residual update, never poll/market derived
+    neutral_result=float(r.actual_margin)-2.5
+    expected=hr-ar
+    resid=np.clip(neutral_result-expected,-28,28)
+    k=.10
+    state[h]=hr+k*resid/2; state[a]=ar-k*resid/2
+    games[h]=games.get(h,0)+1;games[a]=games.get(a,0)+1
+  # terminal states become next-season priors
+ return pd.DataFrame(out)
+\ndef main():
  d=pd.read_csv(DATA,low_memory=False);d=d[n(d.home_score).notna()&n(d.away_score).notna()].copy()
  d["season"]=n(d.season).astype(int);d["home_pts"]=n(d.home_score);d["away_pts"]=n(d.away_score);d["actual_margin"]=d.home_pts-d.away_pts
  # Side-specific scoring targets let offense and defense become distinct latent point ratings.
@@ -106,11 +152,11 @@ def main():
  a=g[["season","week","game_id","away_id","away_team","away_fpr_o","away_fpr_d","away_fpr"]].rename(columns={"away_id":"team_id","away_team":"team","away_fpr_o":"fpr_o","away_fpr_d":"fpr_d","away_fpr":"fpr"})
  weekly=pd.concat([h,a],ignore_index=True).sort_values(["season","week","team"])
  weekly.to_csv(OUT/"weekly-fpr.csv",index=False);g.to_csv(OUT/"game-fpr.csv",index=False)
- report={"system":"FBIS Power Rating","version":"FPR-v1-research","marketInformed":False,"canQualify":False,
-  "units":"neutral-field points versus average team; offense and defense centered on historical scoring baseline",
+ report={"system":"FBIS Power Rating","version":"FPR-v2-research","marketInformed":False,"canQualify":False,
+  "units":"stable neutral-field points versus average team; raw football-state offense/defense plus prior shrinkage, smoothing and opponent-adjusted result updates",
   "externalRatingTargetsExcluded":["FPI","SP+","SRS","Elo","CORE","polls","betting market"],
   "overall":overall,"holdout2025_2026":holdm,"folds":folds,
-  "governance":"Every rating for a game is generated from models trained only on earlier seasons and shifted pregame football state. Market/external ratings are benchmarks only."}
+  "governance":"Every rating is point-in-time. Base models train only on earlier seasons; stability updates use only prior team state and completed earlier-game opponent-adjusted results. Polls, market and external ratings are excluded."}
  (OUT/"report.json").write_text(json.dumps(report,indent=2))
  print(json.dumps({k:v for k,v in report.items() if k!="folds"},indent=2))
 if __name__=="__main__":main()
