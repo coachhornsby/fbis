@@ -788,3 +788,19 @@ CREATE TABLE IF NOT EXISTS prizepicks_prop_observations (
 );
 CREATE INDEX IF NOT EXISTS idx_pp_props_sport_start ON prizepicks_prop_observations(sport, start_time);
 CREATE INDEX IF NOT EXISTS idx_pp_props_player_stat ON prizepicks_prop_observations(player_name, stat, collected_at);
+
+
+CREATE TABLE IF NOT EXISTS prizepicks_daily_acquisitions (
+  ct_date TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  state TEXT NOT NULL,
+  actor TEXT NOT NULL DEFAULT 'zen-studio/prizepicks-player-props',
+  estimated_cost_usd REAL NOT NULL DEFAULT 0,
+  actual_cost_usd REAL,
+  rows_returned INTEGER,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  note TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pp_daily_acq_state
+  ON prizepicks_daily_acquisitions(state, started_at);
