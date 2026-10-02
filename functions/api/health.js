@@ -8,6 +8,7 @@ import { actionApifyCandidateHealth } from "../lib/actionApifyCollector.js";
 import { loadDurableCandidateHealth } from "../lib/actionApifyEvidence.js";
 import { decorateActionMarketHealth } from "../lib/actionMarketIntelligence.js";
 import { buildOpsTelemetry } from "../lib/opsTelemetry.js";
+import { loadOpsControlPlane } from "../lib/opsHealthLedger.js";
 // Action/Apify is live market intelligence, shadow-governed — never drives global DOWN.
 
 const MIGRATION_STATUS = {
@@ -18,7 +19,7 @@ const MIGRATION_STATUS = {
 };
 
 /** Production tip expects harden migration after public/Actions billing recovery. */
-const EXPECTED_MIGRATION = "0029_executed_bet_settlement_evidence";
+const EXPECTED_MIGRATION = "0037_ops_control_plane";
 
 /**
  * Read-only health endpoint.
@@ -243,6 +244,13 @@ export async function onRequestGet(context) {
           lastHarvestSuccessAt: health.lastHarvestSuccessAt || null,
           lastScheduledHarvestSuccessAt: health.lastScheduledHarvestSuccessAt || null,
         }).catch(() => null),
+        opsControlPlane: await loadOpsControlPlane(env).catch((err) => ({
+          bound: Boolean(env.DB),
+          error: String(err?.message || err),
+          components: [],
+          invariants: [],
+          metrics: {},
+        })),
         checks: derived.checks,
         failures: derived.failures,
         staleChecks: derived.staleChecks,
