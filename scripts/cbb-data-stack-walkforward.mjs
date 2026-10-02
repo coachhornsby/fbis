@@ -4,7 +4,7 @@ import { mapSourceTeam } from "../functions/lib/collegeIdentity.js";
 
 const BASE = process.env.FBIS_BASE || "https://fbis-myz.pages.dev";
 const SECRET = process.env.HARVEST_SECRET || "";
-const SEASONS = String(process.env.CBB_WF_SEASONS || "2021,2022,2023,2024,2025")
+const SEASONS = String(process.env.CBB_WF_SEASONS || "2018,2019,2020,2021,2022,2023,2024,2025")
   .split(",").map(Number).filter(Number.isFinite);
 const LEAGUE_PPG = 72;
 const PRIOR_GAMES = 5;
