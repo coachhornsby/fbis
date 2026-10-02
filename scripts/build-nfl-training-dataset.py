@@ -227,10 +227,10 @@ def build_closing(lines, games):
     ghome["game_id"] = ghome["game_id"].astype(str)
 
     sp = lines[lines["type"] == "SPREAD"].merge(
-        ghome, left_on="alt_game_id", right_on="game_id", how="inner"
+        ghome, left_on="alt_game_id", right_on="game_id", how="inner", suffixes=("_legacy", "_canonical")
     )
-    sp_home = sp[sp["side_norm"] == sp["home_team"]][["game_id","line_num"]].drop_duplicates("game_id")
-    sp_home = sp_home.rename(columns={"line_num":"closing_home_spread"})
+    sp_home = sp[sp["side_norm"] == sp["home_team"]][["alt_game_id","line_num"]].drop_duplicates("alt_game_id")
+    sp_home = sp_home.rename(columns={"alt_game_id":"game_id","line_num":"closing_home_spread"})
 
     tot = lines[(lines["type"] == "TOTAL") & (lines["side"].astype(str).str.lower() == "over")][
         ["alt_game_id","line_num"]
@@ -238,10 +238,10 @@ def build_closing(lines, games):
     tot = tot.rename(columns={"alt_game_id":"game_id","line_num":"closing_total"})
 
     ml = lines[lines["type"] == "MONEYLINE"].merge(
-        ghome, left_on="alt_game_id", right_on="game_id", how="inner"
+        ghome, left_on="alt_game_id", right_on="game_id", how="inner", suffixes=("_legacy", "_canonical")
     )
-    ml_home = ml[ml["side_norm"] == ml["home_team"]][["game_id","odds_num"]].drop_duplicates("game_id")
-    ml_home = ml_home.rename(columns={"odds_num":"closing_home_ml"})
+    ml_home = ml[ml["side_norm"] == ml["home_team"]][["alt_game_id","odds_num"]].drop_duplicates("alt_game_id")
+    ml_home = ml_home.rename(columns={"alt_game_id":"game_id","odds_num":"closing_home_ml"})
 
     out = sp_home.merge(tot, on="game_id", how="outer").merge(ml_home, on="game_id", how="outer")
     return out
