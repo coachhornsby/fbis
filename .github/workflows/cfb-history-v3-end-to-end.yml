@@ -36,7 +36,7 @@ jobs:
           CFB_CONTEXT_START: "2004"
           CFB_CONTEXT_END: "2026"
         run: python scripts/cfb-program-context.py
-      - name: Pull all CFBD provider-line history
+      - name: Build historical market archive\n        run: python scripts/cfb-sdv-line-archive.py\n      - name: Pull all CFBD provider-line history
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           FBIS_BASE: https://fbis-myz.pages.dev
