@@ -6,5 +6,19 @@ const xs=rows.map(r=>candidate(r)).filter(Boolean);
 function sum(a){let w=0,l=0,p=0,u=0;for(const x of a){if(x.result>0){w++;u+=priceProfit(true,x.price)}else if(x.result<0){l++;u--}else p++}const d=w+l;return{n:a.length,w,l,p,winPct:d?+(100*w/d).toFixed(2):null,units:+u.toFixed(3),roi:a.length?+(100*u/a.length).toFixed(2):null}}
 const defs=[["base",x=>true],["dog",x=>x.dog],["favorite",x=>!x.dog],["neutral",x=>x.neutral],["nonneutral",x=>!x.neutral],["edge6",x=>abs(x.k)>=6],["edge8",x=>abs(x.k)>=8],["cbbd2",x=>abs(x.c)>=2],["cbbd3",x=>abs(x.c)>=3],["modelsWithin2",x=>abs(x.k-x.c)<=2],["modelsWithin1",x=>abs(x.k-x.c)<=1],["dogEdge6",x=>x.dog&&abs(x.k)>=6],["dogCbbd2",x=>x.dog&&abs(x.c)>=2],["dogModelsWithin2",x=>x.dog&&abs(x.k-x.c)<=2],["priorAtsNonnegative",x=>x.form!=null&&x.form>=0],["dogPriorAtsNonnegative",x=>x.dog&&x.form!=null&&x.form>=0]];
 const rules=defs.map(([name,fn])=>({name,discovery2018_22:sum(xs.filter(x=>x.season<=2022&&fn(x))),validation2023_24:sum(xs.filter(x=>[2023,2024].includes(x.season)&&fn(x))),confirmation2025:sum(xs.filter(x=>x.season===2025&&fn(x)))}));
-const report={ok:true,id:"CBB-GE4-CONFIRMATION-v1",dataset:{version:m.version,sha256:m.sha256,rowCount:m.rowCount},candidateRule:"KenPom model-market side disagreement >=4 points; CBBD agrees on side; abs market spread <20",selectionPolicy:"Compare simple rejection/confirmation layers. 2018-22 discovery; 2023-24 validation; 2025 confirmation only. No production qualification.",baseline:{discovery2018_22:sum(xs.filter(x=>x.season<=2022)),validation2023_24:sum(xs.filter(x=>[2023,2024].includes(x.season)),confirmation2025:sum(xs.filter(x=>x.season===2025)))},rules,governance:{researchOnly:true,canQualify:false,wagerAuthorization:false,frozenInputRequired:true}};
+const baseline={
+  discovery2018_22:sum(xs.filter(x=>x.season<=2022)),
+  validation2023_24:sum(xs.filter(x=>[2023,2024].includes(x.season))),
+  confirmation2025:sum(xs.filter(x=>x.season===2025)),
+};
+const report={
+  ok:true,
+  id:"CBB-GE4-CONFIRMATION-v1",
+  dataset:{version:m.version,sha256:m.sha256,rowCount:m.rowCount},
+  candidateRule:"KenPom model-market side disagreement >=4 points; CBBD agrees on side; abs market spread <20",
+  selectionPolicy:"Compare simple rejection/confirmation layers. 2018-22 discovery; 2023-24 validation; 2025 confirmation only. No production qualification.",
+  baseline,
+  rules,
+  governance:{researchOnly:true,canQualify:false,wagerAuthorization:false,frozenInputRequired:true},
+};
 mkdirSync("artifacts",{recursive:true});writeFileSync("artifacts/cbb-ge4-confirmation-v1.json",JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
