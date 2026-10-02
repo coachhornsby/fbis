@@ -6,7 +6,7 @@ const sourcePath = process.argv[2] || "artifacts/cbb-data-stack-predictions.json
 if (!SECRET) throw new Error("HARVEST_SECRET required");
 
 const rows0 = JSON.parse(readFileSync(sourcePath,"utf8"));
-const num = v => { const n=Number(v); return Number.isFinite(n)?n:null; };
+const num = v => { if(v==null||v==="") return null; const n=Number(v); return Number.isFinite(n)?n:null; };
 const round = (v,d=3) => v==null?null:Number(Number(v).toFixed(d));
 const mean = a => a.length ? a.reduce((s,x)=>s+x,0)/a.length : null;
 const abs = Math.abs;
