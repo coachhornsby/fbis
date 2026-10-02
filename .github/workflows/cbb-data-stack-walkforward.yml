@@ -10,7 +10,7 @@ on:
       - "functions/lib/collegeJobsCore.js"
       - "functions/api/cbb-walkforward-source.js"
       - "scripts/cbb-data-stack-walkforward.mjs"
-      - "scripts/cbb-market-edge-lab.mjs"
+      - "scripts/cbb-market-edge-lab.mjs"\n      - "scripts/cbb-freeze-dataset.mjs"\n      - "scripts/cbb-verify-frozen-dataset.mjs"
       - ".github/workflows/cbb-data-stack-walkforward.yml"
   workflow_dispatch:
     inputs:
@@ -120,7 +120,7 @@ jobs:
           set -euo pipefail
           node scripts/cbb-market-edge-lab.mjs artifacts/cbb-data-stack-predictions.json | tee artifacts/cbb-market-edge-run.log
 
-      - name: Run sub-4 CBB expansion study
+      - name: Freeze enriched historical dataset\n        env:\n          CBB_DATASET_VERSION: cbb-enriched-v2026.10.02\n        run: |\n          node scripts/cbb-freeze-dataset.mjs artifacts/cbb-market-research-dataset.json\n          node scripts/cbb-verify-frozen-dataset.mjs artifacts/frozen/$CBB_DATASET_VERSION\n\n      - name: Run sub-4 CBB expansion study
         run: node scripts/cbb-sub4-expansion.mjs artifacts/cbb-market-research-dataset.json | tee artifacts/cbb-sub4-expansion-run.log
 
       - name: Summarize market edge research
@@ -148,4 +148,4 @@ jobs:
           name: cbb-data-stack-walk-forward
           path: artifacts/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
