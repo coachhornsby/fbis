@@ -17,6 +17,15 @@ jobs:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
         with: {node-version: "24"}
+      - name: Download validated walk-forward predictions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/source
+          RUN_ID=$(gh run list --workflow "CBB data-stack walk-forward" --branch main --status success --limit 10 --json databaseId --jq '.[0].databaseId')
+          test -n "$RUN_ID"
+          gh run download "$RUN_ID" -n cbb-data-stack-walk-forward -D artifacts/source
+          test -s artifacts/source/cbb-data-stack-predictions.json
       - name: Run v4 comparison
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
