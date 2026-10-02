@@ -1,31 +1,54 @@
-name: CFB full-history coverage audit
+name: CFB full-history research dataset
 on:
   push:
-    branches: ["research/cfb-full-history-20261002"]
+    branches: ["main"]
     paths:
-      - "scripts/cfb-history-coverage.mjs"
+      - "functions/api/cfb-history-chunk.js"
+      - "scripts/cfb-full-history-build.mjs"
       - ".github/workflows/cfb-full-history.yml"
   workflow_dispatch:
+    inputs:
+      startSeason:
+        description: Earliest season to probe
+        required: false
+        default: "2000"
+      endSeason:
+        description: Latest season to probe
+        required: false
+        default: "2026"
+
 permissions:
   contents: read
+
+concurrency:
+  group: cfb-full-history-research
+  cancel-in-progress: false
+
 jobs:
-  coverage:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
-      - name: Audit CFBD historical coverage
+      - name: Build complete CFB historical research dataset through authenticated FBIS proxy
         env:
-          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
-          CFB_HISTORY_START: "2000"
-          CFB_HISTORY_END: "2026"
-        run: node scripts/cfb-history-coverage.mjs
-      - run: cat artifacts/cfb-history/coverage-summary.json
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+          CFB_HISTORY_START: ${{ github.event.inputs.startSeason || '2000' }}
+          CFB_HISTORY_END: ${{ github.event.inputs.endSeason || '2026' }}
+          CFB_HISTORY_CHUNK_WEEKS: "4"
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET missing"; exit 2; }
+          node scripts/cfb-full-history-build.mjs
+      - name: QA summary
+        run: cat artifacts/cfb-history/cfb_history_qa.json
       - uses: actions/upload-artifact@v4
         with:
-          name: cfb-full-history-coverage
+          name: cfb-full-history-${{ github.run_id }}
           path: artifacts/cfb-history/*
+          if-no-files-found: error
           retention-days: 90
