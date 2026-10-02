@@ -7,7 +7,7 @@ test("PrizePicks workflow has redundant guarded morning schedules and no push tr
   assert.match(y,/cron: "5 8 \* \* \*"/);
   assert.match(y,/cron: "35 8 \* \* \*"/);
   assert.match(y,/cron: "5 9 \* \* \*"/);
-  assert.match(y,/timezone:\s*"America\\/Chicago"/);
+  assert.match(y,/timezone:\s*"America\/Chicago"/);
   assert.doesNotMatch(y,/\n\s+push:/);
   assert.match(y,/Reserve today's single paid PrizePicks acquisition/);
   assert.match(y,/Pull full PrizePicks board once/);
