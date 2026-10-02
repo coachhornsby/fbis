@@ -1,0 +1,54 @@
+name: CBB PRO weight optimization
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/cbb-pro-weight-optimization.mjs"
+      - ".github/workflows/cbb-pro-weight-optimization.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "24"
+      - name: Download latest valid CBB walk-forward predictions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/source
+          RUN_ID=$(gh run list --workflow "CBB data-stack walk-forward" --branch main --status success --limit 10 --json databaseId,headSha --jq '.[0].databaseId')
+          test -n "$RUN_ID"
+          gh run download "$RUN_ID" -n cbb-data-stack-walk-forward -D artifacts/source
+          test -s artifacts/source/cbb-data-stack-predictions.json
+      - name: Run expanding-window weight optimization
+        run: node scripts/cbb-pro-weight-optimization.mjs artifacts/source/cbb-data-stack-predictions.json
+      - name: Summarize
+        run: |
+          set -euo pipefail
+          FILE=artifacts/cbb-pro-weight-optimization.json
+          jq -e '.ok == true and .holdout.rows > 0' "$FILE" >/dev/null
+          {
+            echo "## CBB-PRO weight optimization"
+            echo
+            jq -r '"- holdout rows: \(.holdout.rows)\n- folds: \(.holdout.folds)"' "$FILE"
+            echo
+            jq -r '.holdout.metrics | to_entries[] | "- \(.key): n=\(.value.n), margin MAE=\(.value.marginMae), total MAE=\(.value.totalMae), winner accuracy=\(.value.winnerAccuracy)%"' "$FILE"
+            echo
+            echo "### Selected weights by fold"
+            jq -r '.folds[] | "- test \(.testSeason): CBBD=\(.weights.cbbd), Torvik=\(.weights.torvik), KenPom=\(.weights.kenpom); train objective=\(.trainObjective)"' "$FILE"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbb-pro-weight-optimization
+          path: artifacts/cbb-pro-weight-optimization.json
+          retention-days: 14
