@@ -700,7 +700,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
 
     if (job === "cbb-reference-backfill" || job === "cbb-current-refresh") {
       const specs = job === "cbb-reference-backfill" ? [...CBB_REFRESH_ENDPOINTS, ...CBB_BACKFILL_EXTRA] : CBB_REFRESH_ENDPOINTS;
-      const years = job === "cbb-reference-backfill" ? (opts.years || [yearCbb - 1, yearCbb]) : [yearCbb];
+      const years = job === "cbb-reference-backfill" ? (opts.seasons || opts.years || [yearCbb - 1, yearCbb]) : [yearCbb];
       for (const y of years) {
         const fetched = await fetchEndpoints("cbbd", specs, env, y, id, "cbb");
         report.push(...fetched.report);
@@ -734,7 +734,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
           ok: Boolean(kenpom.ok),
           status: kenpom.ratingsHttpStatus || kenpom.httpStatus || 0,
           n: kenpom.n || 0,
-          path: "api.php?endpoint=ratings+four-factors",
+          path: "api.php?endpoint=ratings+four-factors+pointdist+height+misc-stats",
           source: "kenpom",
           cacheHit: Boolean(kenpom.cacheHit),
           reason: kenpom.ok ? null : kenpom.error || "kenpom-unavailable",
@@ -752,7 +752,7 @@ export async function runCollegeJob(job, env = {}, opts = {}) {
         await persistObservation(env, {
           source: "kenpom",
           sport: "cbb",
-          endpoint: "ratings+four-factors",
+          endpoint: "ratings+four-factors+pointdist+height+misc-stats",
           season: y,
           partition: "season",
           data: kenpom.rows || [],
