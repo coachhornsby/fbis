@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "functions/lib/kenpomCbb.js"
+      - "functions/lib/torvikCbb.js"
       - "functions/lib/collegeApply.js"
       - "functions/lib/collegeJobsCore.js"
       - "functions/api/cbb-walkforward-source.js"
