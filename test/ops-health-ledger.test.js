@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { deriveFreshnessState } from "../functions/lib/opsHealthLedger.js";
+import { deriveFreshnessState, evaluateManifestInvariants } from "../functions/lib/opsHealthLedger.js";
 
 test("ops freshness uses per-component thresholds", () => {
   const component = {
@@ -41,4 +41,32 @@ test("ops freshness separates layered freshness and uses newest verified layer",
   );
   assert.equal(out.latestAt, "2026-10-01T10:50:00.000Z");
   assert.equal(out.state, "HEALTHY");
+});
+
+
+test("manifest invariants reject green zero-persist and partial accounting", () => {
+  const checks = evaluateManifestInvariants({
+    status: "success",
+    expected_items: 10,
+    received_items: 10,
+    persisted_items: 0,
+    rejected_items: 0,
+    visible_items: 0,
+  });
+  const byKey = Object.fromEntries(checks.map((c) => [c.key, c]));
+  assert.equal(byKey["expected-received"].ok, true);
+  assert.equal(byKey["received-persisted"].ok, false);
+  assert.equal(byKey["success-nonempty"].ok, false);
+});
+
+test("manifest invariants pass a fully reconciled run", () => {
+  const checks = evaluateManifestInvariants({
+    status: "success",
+    expected_items: 10,
+    received_items: 10,
+    persisted_items: 9,
+    rejected_items: 1,
+    visible_items: 9,
+  });
+  assert.equal(checks.every((c) => c.ok), true);
 });
