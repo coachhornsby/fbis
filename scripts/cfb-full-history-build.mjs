@@ -10,7 +10,7 @@ if(!SECRET){console.error("HARVEST_SECRET missing");process.exit(2);}
 mkdirSync("artifacts/cfb-history",{recursive:true});
 
 const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
-const num=(v)=>{const n=Number(v);return Number.isFinite(n)?n:null;};
+const num=(v)=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;};
 const key=(s)=>String(s||"").trim().toLowerCase();
 const safe=(s)=>String(s??"").replaceAll('"','""');
 const csv=(rows,cols)=>[cols.join(","),...rows.map(r=>cols.map(c=>{
