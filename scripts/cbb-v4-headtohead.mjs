@@ -3,7 +3,9 @@ import {cbbRatingsV1} from "../functions/lib/cbbRatings.js";
 import {mapSourceTeam} from "../functions/lib/collegeIdentity.js";
 const BASE=process.env.FBIS_BASE||"https://fbis-myz.pages.dev", SECRET=process.env.HARVEST_SECRET||"", SEASON=2022;
 if(!SECRET)throw new Error("HARVEST_SECRET required");
-const hcaRaw=JSON.parse(readFileSync("research/cbb/kenpom-hca-2025-26.json","utf8"));\nconst priorRows=JSON.parse(readFileSync(process.env.PRIOR_PREDICTIONS||"artifacts/source/cbb-data-stack-predictions.json","utf8"));\nconst priorById=new Map(priorRows.map(r=>[String(r.id),r]));
+const hcaRaw=JSON.parse(readFileSync("research/cbb/kenpom-hca-2025-26.json","utf8"));
+const priorRows=JSON.parse(readFileSync(process.env.PRIOR_PREDICTIONS||"artifacts/source/cbb-data-stack-predictions.json","utf8"));
+const priorById=new Map(priorRows.map(r=>[String(r.id),r]));
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null}, round=(n,d=3)=>Number(Number(n).toFixed(d));
 const keyName=v=>String(v||"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim();
 function ck(name,season=SEASON){const m=mapSourceTeam("cbb",{team:name,school:name},season);return m.ok?m.canonicalId:`name:${keyName(name)}`}
