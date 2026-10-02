@@ -131,7 +131,10 @@ jobs:
           node scripts/cbb-verify-frozen-dataset.mjs artifacts/frozen/$CBB_DATASET_VERSION
 
       - name: Run >=4 confirmation test against frozen dataset
-        run: node scripts/cbb-ge4-confirmation-v1.mjs artifacts/frozen/cbb-enriched-v2026.10.02 | tee artifacts/cbb-ge4-confirmation-v1-run.log
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cbb-ge4-confirmation-v1.mjs artifacts/frozen/cbb-enriched-v2026.10.02 | tee artifacts/cbb-ge4-confirmation-v1-run.log
 
       - name: Run sub-4 CBB expansion study
         run: node scripts/cbb-sub4-expansion.mjs artifacts/cbb-market-research-dataset.json | tee artifacts/cbb-sub4-expansion-run.log
