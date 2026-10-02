@@ -2,18 +2,13 @@ name: Zen ACTION daily full slate
 
 on:
   schedule:
-    # Redundant Chicago-local trigger opportunities. D1's one-paid-run-per-CT-day
-    # guard is authoritative, so later cron deliveries recover a missed/delayed
-    # GitHub schedule event without starting a second paid Zen ACTION run.
-    # The final off-peak slot is a last-chance same-day recovery.
-    - cron: "30 7 * * *"
-      timezone: "America/Chicago"
-    - cron: "0 8 * * *"
-      timezone: "America/Chicago"
-    - cron: "30 8 * * *"
-      timezone: "America/Chicago"
-    - cron: "30 10 * * *"
-      timezone: "America/Chicago"
+    # GitHub cron is UTC. Fire redundant windows covering 07:30-10:30 Chicago
+    # across both CDT/CST; the job itself gates to the intended CT hours.
+    - cron: "30 12,13,14,15,16 * * *"
+    - cron: "0 13,14,15,16 * * *"
+  push:
+    branches: [main]
+    paths: [".github/workflows/action-daily-snapshot.yml"]
   workflow_dispatch:
 
 concurrency:
@@ -25,6 +20,7 @@ permissions:
 
 jobs:
   collect:
+    if: github.event_name != 'schedule' || ((github.event.schedule == '30 12,13,14,15,16 * * *') || (github.event.schedule == '0 13,14,15,16 * * *'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
