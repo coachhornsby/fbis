@@ -17,7 +17,7 @@ on:
       seasons:
         description: "CBB starting seasons"
         type: string
-        default: "2021,2022,2023,2024,2025"
+        default: "2018,2019,2020,2021,2022,2023,2024,2025"
 
 permissions:
   contents: read
@@ -62,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}" || { echo "HARVEST_SECRET missing"; exit 2; }
-          SEASONS="${INPUT_SEASONS:-2021,2022,2023,2024,2025}"
+          SEASONS="${INPUT_SEASONS:-2018,2019,2020,2021,2022,2023,2024,2025}"
           IFS="," read -ra YRS <<< "$SEASONS"
           for y in "${YRS[@]}"; do
             y="$(echo "$y" | xargs)"
@@ -88,7 +88,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          export CBB_WF_SEASONS="${CBB_WF_SEASONS:-2021,2022,2023,2024,2025}"
+          export CBB_WF_SEASONS="${CBB_WF_SEASONS:-2018,2019,2020,2021,2022,2023,2024,2025}"
           mkdir -p artifacts
           node scripts/cbb-data-stack-walkforward.mjs | tee artifacts/cbb-data-stack-run.log
 
