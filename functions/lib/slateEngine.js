@@ -24,6 +24,7 @@ import { loadNhlV1Context, attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } fr
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
+import { attachMatchupFactors } from "./matchupFactors.js";
 import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
 import { loadWnbaPlayerContext, attachWnbaPlayerProjectionResearch } from "./wnbaPlayerProjection.js";
 import {
@@ -306,6 +307,12 @@ export async function buildSlate(sport, date, env = {}) {
       ...next,
       games: next.games.map((game) => applyAvailabilityAdjustment(game, id)),
     };
+  }
+
+  // Publish sport-specific, source-backed analysis factors after the final
+  // projection/decomposition has been selected. Presentation only.
+  if (Array.isArray(next.games)) {
+    next = { ...next, games: attachMatchupFactors(next.games) };
   }
 
   // ACTION market intelligence — display on every board sport; never odds authority.
