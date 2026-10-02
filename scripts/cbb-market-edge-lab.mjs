@@ -322,6 +322,35 @@ function frozenHypothesis(rows, name) {
   return {name,overall:summarizeBets(bets),bySeason,byProvider};
 }
 
+function selectiveDisagreementV1(rows){
+  const bets=[];
+  for(const r of rows){
+    const kp=signedEdge(r.kenpom,r.market,"side");
+    const cb=signedEdge(r.cbbd,r.market,"side");
+    const spread=num(r.market.spread);
+    if(kp==null||cb==null||spread==null||r.sideResidual==null) continue;
+    if(abs(kp)<4||abs(spread)>=20||Math.sign(kp)!==Math.sign(cb)) continue;
+    const sign=Math.sign(kp),price=priceFor(r,"side",sign);
+    bets.push({...betResult(sign,r.sideResidual,price),price,season:r.season,edge:kp,cbbdEdge:cb,spread});
+  }
+  const bySeason={};
+  for(const season of seasons) bySeason[season]=summarizeBets(bets.filter(b=>Number(b.season)===Number(season)));
+  const confirm=bets.filter(b=>Number(b.season)>=2023);
+  const finalHoldout=bets.filter(b=>Number(b.season)===2025);
+  return {
+    id:"CBB-SELECTIVE-DISAGREEMENT-v1",
+    frozenRule:"KenPom side edge >=4; CBBD rolling independent projection agrees on side; abs(market spread) <20",
+    discoverySeasons:[2021,2022],
+    confirmationSeasons:[2023,2024],
+    finalUntouchedSeason:2025,
+    overall:summarizeBets(bets),
+    bySeason,
+    confirmation:summarizeBets(confirm),
+    finalHoldout:summarizeBets(finalHoldout),
+    governance:{researchOnly:true,canQualify:false,wagerAuthorization:false,noFurtherTuningOn2025:true},
+  };
+}
+
 function candidateRules(rows,kind){
   const models=["kenpom","cbbd","fullStack"];
   const out=[];
@@ -383,6 +412,7 @@ const report={
   marketAudit:{moneylineOrientationN:orientN,spreadOrientationConsistency:round(orientationConsistency,3)},
   folds,
   aggregateHoldout:{side:aggregateFold("side"),total:aggregateFold("total")},
+  selectiveDisagreementV1:selectiveDisagreementV1(joined),
   frozenHypotheses:[
     frozenHypothesis(joined,"kenpom-dog-gap6-spread-under20"),
     frozenHypothesis(joined,"kenpom-total-gap4-market120-135"),
@@ -401,4 +431,4 @@ writeFileSync("artifacts/cbb-market-research-dataset.json",JSON.stringify(joined
   cbbd:r.cbbd,torvik:r.torvik,kenpom:r.kenpom,fullStack:r.fullStack,
   roll:r.roll,features:r.features,sideResidual:r.sideResidual,totalResidual:r.totalResidual,
 })),null,2));
-console.log(JSON.stringify({ok:true,sourceRows:report.sourceRows,joinedRows:report.joinedRows,seasons,coverage,marketAudit:report.marketAudit,folds:folds.map(f=>({testSeason:f.testSeason,side:f.side?.test,total:f.total?.test,specSide:f.side?.spec,specTotal:f.total?.spec})),aggregateHoldout:report.aggregateHoldout,topSideRules:report.exploratoryRules.side.slice(0,5),frozenHypotheses:report.frozenHypotheses,topTotalRules:report.exploratoryRules.total.slice(0,8)},null,2));
+console.log(JSON.stringify({ok:true,sourceRows:report.sourceRows,joinedRows:report.joinedRows,seasons,coverage,marketAudit:report.marketAudit,folds:folds.map(f=>({testSeason:f.testSeason,side:f.side?.test,total:f.total?.test,specSide:f.side?.spec,specTotal:f.total?.spec})),aggregateHoldout:report.aggregateHoldout,selectiveDisagreementV1:report.selectiveDisagreementV1,topSideRules:report.exploratoryRules.side.slice(0,5),frozenHypotheses:report.frozenHypotheses,topTotalRules:report.exploratoryRules.total.slice(0,8)},null,2));
