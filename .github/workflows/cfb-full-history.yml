@@ -1,54 +1,43 @@
 name: CFB full-history research dataset
 on:
   push:
-    branches: ["main"]
+    branches: ["research/cfb-bulk-history-v2"]
     paths:
-      - "functions/api/cfb-history-chunk.js"
-      - "scripts/cfb-full-history-build.mjs"
+      - "scripts/cfb-bulk-history.py"
+      - "scripts/cfb-cfbd-market-enrichment.mjs"
+      - "scripts/cfb-merge-provider-lines.py"
+      - "scripts/cfb-compact-walkforward.py"
       - ".github/workflows/cfb-full-history.yml"
   workflow_dispatch:
-    inputs:
-      startSeason:
-        description: Earliest season to probe
-        required: false
-        default: "2000"
-      endSeason:
-        description: Latest season to probe
-        required: false
-        default: "2026"
-
 permissions:
   contents: read
-
 concurrency:
   group: cfb-full-history-research
   cancel-in-progress: false
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
-      - name: Build complete CFB historical research dataset through authenticated FBIS proxy
+      - name: Install research dependencies
+        run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Build SportsDataverse 2004-2026 canonical CFB history
         env:
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          FBIS_BASE: https://fbis-myz.pages.dev
-          CFB_HISTORY_START: ${{ github.event.inputs.startSeason || '2000' }}
-          CFB_HISTORY_END: ${{ github.event.inputs.endSeason || '2026' }}
-          CFB_HISTORY_CHUNK_WEEKS: "4"
-        run: |
-          set -euo pipefail
-          test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET missing"; exit 2; }
-          node scripts/cfb-full-history-build.mjs
+          CFB_BULK_START: "2004"
+          CFB_BULK_END: "2026"
+        run: python scripts/cfb-bulk-history.py
       - name: QA summary
-        run: cat artifacts/cfb-history/cfb_history_qa.json
+        run: cat artifacts/cfb-history-v2/cfb_bulk_qa.json
       - uses: actions/upload-artifact@v4
         with:
-          name: cfb-full-history-${{ github.run_id }}
-          path: artifacts/cfb-history/*
+          name: cfb-full-history-v2-${{ github.run_id }}
+          path: artifacts/cfb-history-v2/*
           if-no-files-found: error
           retention-days: 90
