@@ -49,6 +49,8 @@ export function normalizeKenpomRatingRows(rows = []) {
     sos: num(row.SOS ?? row.sos),
     sosO: num(row.SOSO ?? row.sosO),
     sosD: num(row.SOSD ?? row.sosD),
+    aplOff: num(row.APL_Off ?? row.aplOff),
+    aplDef: num(row.APL_Def ?? row.aplDef),
     dataThrough: row.DataThrough ?? row.dataThrough ?? null,
     source: "kenpom",
   })).filter((row) => row.team && row.adjOe != null && row.adjDe != null);
@@ -122,6 +124,62 @@ export function normalizeKenpomFourFactorRows(rows = []) {
     adjOe: num(row.AdjOE ?? row.adjOE ?? row.adjOe),
     adjDe: num(row.AdjDE ?? row.adjDE ?? row.adjDe),
     tempo: num(row.AdjTempo ?? row.adjTempo ?? row.Tempo ?? row.tempo),
+    dataThrough: row.DataThrough ?? row.dataThrough ?? null,
+  })).filter((row) => row.team);
+}
+
+
+export function normalizeKenpomPointDistRows(rows = []) {
+  return (rows || []).map((row) => ({
+    team: row.TeamName ?? row.team ?? row.teamName ?? null,
+    pointsFromFt: pct(row.OffFt ?? row.offFt),
+    pointsFrom2: pct(row.OffFg2 ?? row.offFg2),
+    pointsFrom3: pct(row.OffFg3 ?? row.offFg3),
+    pointsAllowedFt: pct(row.DefFt ?? row.defFt),
+    pointsAllowed2: pct(row.DefFg2 ?? row.defFg2),
+    pointsAllowed3: pct(row.DefFg3 ?? row.defFg3),
+    dataThrough: row.DataThrough ?? row.dataThrough ?? null,
+  })).filter((row) => row.team);
+}
+
+export function normalizeKenpomHeightRows(rows = []) {
+  return (rows || []).map((row) => ({
+    team: row.TeamName ?? row.team ?? row.teamName ?? null,
+    avgHeight: num(row.AvgHgt ?? row.avgHgt),
+    effectiveHeight: num(row.HgtEff ?? row.hgtEff),
+    height5: num(row.Hgt5 ?? row.hgt5),
+    height4: num(row.Hgt4 ?? row.hgt4),
+    height3: num(row.Hgt3 ?? row.hgt3),
+    height2: num(row.Hgt2 ?? row.hgt2),
+    height1: num(row.Hgt1 ?? row.hgt1),
+    experience: num(row.Exp ?? row.exp),
+    bench: num(row.Bench ?? row.bench),
+    continuity: num(row.Continuity ?? row.continuity),
+    dataThrough: row.DataThrough ?? row.dataThrough ?? null,
+  })).filter((row) => row.team);
+}
+
+export function normalizeKenpomMiscRows(rows = []) {
+  return (rows || []).map((row) => ({
+    team: row.TeamName ?? row.team ?? row.teamName ?? null,
+    threePtPct: pct(row.FG3Pct ?? row.fg3Pct),
+    twoPtPct: pct(row.FG2Pct ?? row.fg2Pct),
+    ftPct: pct(row.FTPct ?? row.ftPct),
+    blockPct: pct(row.BlockPct ?? row.blockPct),
+    stealRate: pct(row.StlRate ?? row.stlRate),
+    nonStealTurnoverRate: pct(row.NSTRate ?? row.nsTRate),
+    assistRate: pct(row.ARate ?? row.aRate),
+    threePtAttemptRate: pct(row.F3GRate ?? row.f3gRate),
+    avg2PtAttemptDistance: num(row.Avg2PADist ?? row.avg2PADist),
+    oppThreePtPct: pct(row.OppFG3Pct ?? row.oppFG3Pct),
+    oppTwoPtPct: pct(row.OppFG2Pct ?? row.oppFG2Pct),
+    oppFtPct: pct(row.OppFTPct ?? row.oppFtPct),
+    oppBlockPct: pct(row.OppBlockPct ?? row.oppBlockPct),
+    oppStealRate: pct(row.OppStlRate ?? row.oppStlRate),
+    oppNonStealTurnoverRate: pct(row.OppNSTRate ?? row.oppNSTRate),
+    oppAssistRate: pct(row.OppARate ?? row.oppARate),
+    oppThreePtAttemptRate: pct(row.OppF3GRate ?? row.oppF3GRate),
+    oppAvg2PtAttemptDistance: num(row.OppAvg2PADist ?? row.oppAvg2PADist),
     dataThrough: row.DataThrough ?? row.dataThrough ?? null,
   })).filter((row) => row.team);
 }
@@ -214,13 +272,16 @@ export async function loadKenpomCbbCatalog(env = {}, { cbbSeason, fetchFn = fetc
     };
   }
 
-  const cacheKey = `kenpom-cbb-v1-${endingSeason}`;
+  const cacheKey = `kenpom-cbb-v2-${endingSeason}`;
   const cached = await readCache(cacheKey, env.caches, TTL_MS);
   if (cached?.byCanonicalId) return { ...cached, cacheHit: true };
 
-  const [ratingsRes, fourRes] = await Promise.all([
+  const [ratingsRes, fourRes, pointDistRes, heightRes, miscRes] = await Promise.all([
     fetchEndpoint("ratings", endingSeason, env, fetchFn),
     fetchEndpoint("four-factors", endingSeason, env, fetchFn),
+    fetchEndpoint("pointdist", endingSeason, env, fetchFn),
+    fetchEndpoint("height", endingSeason, env, fetchFn),
+    fetchEndpoint("misc-stats", endingSeason, env, fetchFn),
   ]);
   if (!ratingsRes.ok) {
     const fail = {
@@ -245,8 +306,20 @@ export async function loadKenpomCbbCatalog(env = {}, { cbbSeason, fetchFn = fetc
 
   const ratings = normalizeKenpomRatingRows(ratingsRes.data);
   const four = fourRes.ok ? normalizeKenpomFourFactorRows(fourRes.data) : [];
+  const pointDist = pointDistRes.ok ? normalizeKenpomPointDistRows(pointDistRes.data) : [];
+  const height = heightRes.ok ? normalizeKenpomHeightRows(heightRes.data) : [];
+  const misc = miscRes.ok ? normalizeKenpomMiscRows(miscRes.data) : [];
   const fourByTeam = new Map(four.map((row) => [teamKey(row.team), row]));
-  const rows = ratings.map((row) => ({ ...row, ...(fourByTeam.get(teamKey(row.team)) || {}) }));
+  const pointDistByTeam = new Map(pointDist.map((row) => [teamKey(row.team), row]));
+  const heightByTeam = new Map(height.map((row) => [teamKey(row.team), row]));
+  const miscByTeam = new Map(misc.map((row) => [teamKey(row.team), row]));
+  const rows = ratings.map((row) => ({
+    ...row,
+    ...(fourByTeam.get(teamKey(row.team)) || {}),
+    ...(pointDistByTeam.get(teamKey(row.team)) || {}),
+    ...(heightByTeam.get(teamKey(row.team)) || {}),
+    ...(miscByTeam.get(teamKey(row.team)) || {}),
+  }));
   const index = indexKenpomRows(rows, seasonStart);
   const dataThrough = rows.map((r) => r.dataThrough).find(Boolean) || null;
   const out = {
@@ -260,7 +333,20 @@ export async function loadKenpomCbbCatalog(env = {}, { cbbSeason, fetchFn = fetc
     asOf: new Date().toISOString(),
     ratingsHttpStatus: ratingsRes.status,
     fourFactorHttpStatus: fourRes.status || 0,
+    pointDistHttpStatus: pointDistRes.status || 0,
+    heightHttpStatus: heightRes.status || 0,
+    miscHttpStatus: miscRes.status || 0,
     fourFactorAvailable: four.length > 0,
+    pointDistAvailable: pointDist.length > 0,
+    heightAvailable: height.length > 0,
+    miscAvailable: misc.length > 0,
+    featureFamilies: {
+      ratings: ratings.length,
+      fourFactors: four.length,
+      pointDistribution: pointDist.length,
+      heightExperienceContinuity: height.length,
+      miscStats: misc.length,
+    },
     source: "kenpom-api",
     cacheHit: false,
   };
