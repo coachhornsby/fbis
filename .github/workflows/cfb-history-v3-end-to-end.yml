@@ -5,7 +5,8 @@ on:
     paths:
       - "scripts/cfb-bulk-history-v3.py"
       - "scripts/cfb-program-context.py"
-      - "scripts/cfb-sdv-line-archive.py"\n      - "scripts/cfb-cfbd-market-enrichment.mjs"
+      - "scripts/cfb-sdv-line-archive.py"
+      - "scripts/cfb-cfbd-market-enrichment.mjs"
       - "scripts/cfb-final-enrich.py"
       - "scripts/cfb-v3-walkforward.py"
       - ".github/workflows/cfb-history-v3-end-to-end.yml"
@@ -36,7 +37,9 @@ jobs:
           CFB_CONTEXT_START: "2004"
           CFB_CONTEXT_END: "2026"
         run: python scripts/cfb-program-context.py
-      - name: Build historical market archive\n        run: python scripts/cfb-sdv-line-archive.py\n      - name: Pull all CFBD provider-line history
+      - name: Build historical market archive
+        run: python scripts/cfb-sdv-line-archive.py
+      - name: Pull all CFBD provider-line history
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           FBIS_BASE: https://fbis-myz.pages.dev
@@ -51,7 +54,8 @@ jobs:
         run: |
           cat artifacts/cfb-history-v2/cfb_bulk_qa.json
           cat artifacts/cfb-context/cfb_program_context_qa.json
-          cat artifacts/cfb-line-archive/cfb_line_odds_qa.json\n          cat artifacts/cfb-history-v3/cfbd_market_qa.json
+          cat artifacts/cfb-line-archive/cfb_line_odds_qa.json
+          cat artifacts/cfb-history-v3/cfbd_market_qa.json
           cat artifacts/cfb-final/cfb_final_qa.json
           cat artifacts/cfb-final/model/cfb_v3_walkforward_report.json
       - uses: actions/upload-artifact@v4
@@ -60,7 +64,8 @@ jobs:
           path: |
             artifacts/cfb-history-v2/*
             artifacts/cfb-context/cfb_program_context_qa.json
-            artifacts/cfb-line-archive/*\n            artifacts/cfb-history-v3/*
+            artifacts/cfb-line-archive/*
+            artifacts/cfb-history-v3/*
             artifacts/cfb-final/*
           if-no-files-found: error
           retention-days: 90
