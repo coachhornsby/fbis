@@ -24,7 +24,7 @@ permissions:
 
 concurrency:
   group: cbb-data-stack-walk-forward
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   validate:
