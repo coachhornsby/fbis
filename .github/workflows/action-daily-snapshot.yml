@@ -1,13 +1,93 @@
-name: ACTION daily market snapshot — PAUSED
+name: Zen ACTION daily full slate
 
 on:
+  schedule:
+    # 07:30 America/Chicago while CDT is in effect. Staggered 30 minutes before PrizePicks.
+    - cron: "30 12 * * *"
   workflow_dispatch:
+
+concurrency:
+  group: zen-action-daily-full-slate
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  paused:
+  collect:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
     steps:
-      - run: echo "ACTION/Apify is administratively paused. No daily snapshot or paid collector call will run."
+      - name: Require credentials
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+
+      - name: Start or resume canonical Zen ACTION acquisition
+        id: start
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 45 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -d '{"mode":"start"}' \
+            -o "$body" -w "%{http_code}" \
+            "$BASE/api/action-daily-async?mode=start")"
+          cat "$body"
+          test "$code" = "200" -o "$code" = "202"
+          jq -e '.ok == true' "$body" >/dev/null
+          status="$(jq -r '.status // ""' "$body")"
+          case "$status" in
+            already_collected_today|no_slate|monthly_budget_blocked|action_not_configured)
+              echo "skip_harvest=1" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "skip_harvest=0" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Harvest the same paid Zen ACTION run
+        if: steps.start.outputs.skip_harvest != '1'
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 50); do
+            body="$(mktemp)"
+            set +e
+            code="$(curl -sS --max-time 60 -X POST \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "content-type: application/json" \
+              -d '{"mode":"harvest"}' \
+              -o "$body" -w "%{http_code}" \
+              "$BASE/api/action-daily-async?mode=harvest")"
+            ec=$?
+            set -e
+            status="$(jq -r '.status // ""' "$body" 2>/dev/null || true)"
+            echo "attempt=$attempt curl_ec=$ec http=$code status=$status"
+            jq -c '{ok,status,runId,apifyRunId,gamesReturned,eligibleRows,completedRows,remainingRows,estimatedCostUsd}' "$body" 2>/dev/null || cat "$body"
+
+            if [ "$ec" -eq 0 ] && [ "$code" = "200" ] && { [ "$status" = "success_daily" ] || [ "$status" = "already_collected_today" ]; }; then
+              exit 0
+            fi
+            if [ "$ec" -eq 0 ] && [ "$code" = "202" ] && { [ "$status" = "actor_running" ] || [ "$status" = "harvest_partial" ]; }; then
+              sleep 15
+              continue
+            fi
+            echo "Zen ACTION harvest failed."
+            exit 1
+          done
+          echo "Zen ACTION harvest timed out waiting for the existing run; no replacement Actor was started."
+          exit 1
+
+      - name: Verify persisted daily snapshot
+        if: always()
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 45 -o "$body" -w "%{http_code}" "$BASE/api/action-daily-status?_t=$(date +%s)")"
+          cat "$body"
+          test "$code" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
