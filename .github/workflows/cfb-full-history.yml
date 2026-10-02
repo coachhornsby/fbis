@@ -5,11 +5,13 @@ on:
     paths:
       - "functions/api/cfb-history-chunk.js"
       - "scripts/cfb-full-history-build.mjs"
+      - "scripts/cfb-bulk-history.py"
+      - "scripts/cfb-merge-history.py"
       - ".github/workflows/cfb-full-history.yml"
   workflow_dispatch:
     inputs:
       startSeason:
-        description: Earliest season to probe
+        description: Earliest CFBD season to probe
         required: false
         default: "2000"
       endSeason:
@@ -33,6 +35,12 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install research dependencies
+        run: python -m pip install --upgrade pip pandas numpy pyarrow
+
       - name: Wait for exact production SHA
         env:
           EXPECTED_SHA: ${{ github.sha }}
@@ -52,7 +60,7 @@ jobs:
           echo "Production did not converge to expected SHA before history build."
           exit 1
 
-      - name: Build complete CFB historical research dataset through authenticated FBIS proxy
+      - name: Build CFBD 2000-2026 history and all-provider market lines
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           FBIS_BASE: https://fbis-myz.pages.dev
@@ -63,11 +71,31 @@ jobs:
           set -euo pipefail
           test -n "${HARVEST_SECRET}" || { echo "HARVEST_SECRET missing"; exit 2; }
           node scripts/cfb-full-history-build.mjs
-      - name: QA summary
-        run: cat artifacts/cfb-history/cfb_history_qa.json
+
+      - name: Build SportsDataverse/ESPN 2004-2026 enrichment
+        env:
+          CFB_BULK_START: "2004"
+          CFB_BULK_END: "2026"
+        run: python scripts/cfb-bulk-history.py
+
+      - name: Merge canonical CFB history
+        run: python scripts/cfb-merge-history.py
+
+      - name: QA summaries
+        run: |
+          echo "=== CFBD ==="
+          cat artifacts/cfb-history/cfb_history_qa.json
+          echo "=== SportsDataverse ==="
+          cat artifacts/cfb-history-v2/cfb_bulk_qa.json
+          echo "=== Master ==="
+          cat artifacts/cfb-master/cfb_master_qa.json
+
       - uses: actions/upload-artifact@v4
         with:
-          name: cfb-full-history-${{ github.run_id }}
-          path: artifacts/cfb-history/*
+          name: cfb-complete-history-${{ github.run_id }}
+          path: |
+            artifacts/cfb-history/*
+            artifacts/cfb-history-v2/*
+            artifacts/cfb-master/*
           if-no-files-found: error
           retention-days: 90
