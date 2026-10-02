@@ -10,7 +10,7 @@ import { COLLEGE_MODELS, failClosedShadow, evaluatePromotion, shadowCannotQualif
 import { cfbLeagueBaseline, cfbRatingsV1, cfbRegV1, independentEnsemble, pinnacleImplied, projectCfbChallengers, attachMc } from "../functions/lib/cfbRatings.js";
 import { projectCfbMatchup } from "../functions/lib/cfbModel.js";
 import { cbbRatingsV1, cbbTorvikRatingsV1, cbbKenpomRatingsV1, cbbLeagueBaseline, rejectedOldCbbTotal, expectedPossessions, expectedEfficiency, projectCbbChallengers, torvikUnavailable, kenpomAbsent, cbbMarketShrunk, CBB_NATIONAL_EFF } from "../functions/lib/cbbRatings.js";
-import { normalizeTorvikTeamRows, normalizeTorvikFourFactorRows, loadTorvikCbbCatalog, torvikEndingSeason } from "../functions/lib/torvikCbb.js";
+import { normalizeTorvikTeamRows, normalizeTorvikFourFactorRows, loadTorvikCbbCatalog, torvikEndingSeason, mergeCbbCatalogs } from "../functions/lib/torvikCbb.js";
 import { normalizeKenpomRatingRows, normalizeKenpomFourFactorRows, normalizeKenpomFanmatchRows, loadKenpomCbbCatalog, loadKenpomFanmatch, kenpomEndingSeason } from "../functions/lib/kenpomCbb.js";
 import { r2Bound, r2Key, R2_SETUP } from "../functions/lib/r2Archive.js";
 import { warnLevel, metricUnavailable } from "../functions/lib/storageBudget.js";
@@ -466,6 +466,19 @@ describe("KenPom CBB adapter", () => {
     assert.equal(p.modelId, "CBB-KENPOM-RATINGS-v1");
     assert.equal(p.marketInformed, false);
     assert.equal(p.canQualify, false);
+  });
+});
+
+describe("CBB source merge", () => {
+  it("retains KenPom as a first-class merged feature family", () => {
+    const cbbd = { byCanonicalId: { "cbb-1": { canonicalId: "cbb-1", school: "Alpha", espnId: "1", adjOe: 110 } }, unmatched: 0 };
+    const torvik = { byCanonicalId: { "cbb-1": { canonicalId: "cbb-1", school: "Alpha", adjOe: 112, adjDe: 98, tempo: 69 } }, unmatched: 0 };
+    const kenpom = { byCanonicalId: { "cbb-1": { canonicalId: "cbb-1", school: "Alpha", adjEm: 18, adjOe: 115, adjDe: 97, tempo: 68, luck: 0.03 } }, unmatched: 0 };
+    const merged = mergeCbbCatalogs(cbbd, torvik, kenpom);
+    assert.equal(merged.sourceCoverage.kenpomTeams, 1);
+    assert.equal(merged.byCanonicalId["cbb-1"].sourceCoverage.kenpom, true);
+    assert.equal(merged.byCanonicalId["cbb-1"].kenpom.adjOe, 115);
+    assert.equal(merged.byCanonicalId["cbb-1"].kenpom.adjEm, 18);
   });
 });
 
