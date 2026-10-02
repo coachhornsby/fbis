@@ -1,0 +1,32 @@
+name: NFL-PRO-v1.1 compact walk-forward
+on:
+  push:
+    branches: ["research/nfl-pro-v1-1"]
+    paths:
+      - "scripts/build-nfl-training-dataset.py"
+      - "scripts/nfl-pro-v1-1-walkforward.py"
+      - ".github/workflows/nfl-pro-v1-1.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Rebuild leakage-safe NFL dataset
+        run: python scripts/build-nfl-training-dataset.py
+      - name: Run nested walk-forward NFL-PRO-v1.1 validation
+        run: python scripts/nfl-pro-v1-1-walkforward.py
+      - name: Summary
+        run: jq . artifacts/nfl-pro-v1-1/report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfl-pro-v1-1
+          path: artifacts/nfl-pro-v1-1/*
+          retention-days: 90
