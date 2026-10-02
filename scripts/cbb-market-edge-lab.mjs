@@ -275,6 +275,35 @@ function directStrategy(rows,kind,modelKey,threshold=0,band=null){
   }
   return summarizeBets(bets);
 }
+function frozenHypothesis(rows, name) {
+  const bets=[];
+  for (const r of rows) {
+    const kpSide=signedEdge(r.kenpom,r.market,"side");
+    const sideActual=r.sideResidual;
+    const spread=num(r.market.spread);
+    if (name==="kenpom-dog-gap6-spread-under20") {
+      if (kpSide==null||sideActual==null||spread==null||Math.abs(kpSide)<6||Math.abs(spread)>=20) continue;
+      const selectedHome=kpSide>0;
+      const selectedDog=(selectedHome&&spread>0)||(!selectedHome&&spread<0);
+      if(!selectedDog) continue;
+      const sign=Math.sign(kpSide),price=priceFor(r,"side",sign);
+      bets.push({...betResult(sign,sideActual,price),price,season:r.season,provider:r.market.provider||"unknown"});
+    } else if (name==="kenpom-total-gap4-market120-135") {
+      const kpTotal=signedEdge(r.kenpom,r.market,"total");
+      const totalActual=r.totalResidual;
+      const totalLine=num(r.market.overUnder);
+      if(kpTotal==null||totalActual==null||totalLine==null||Math.abs(kpTotal)<4||totalLine<120||totalLine>135)continue;
+      const sign=Math.sign(kpTotal),price=priceFor(r,"total",sign);
+      bets.push({...betResult(sign,totalActual,price),price,season:r.season,provider:r.market.provider||"unknown"});
+    }
+  }
+  const bySeason={};
+  for(const season of [...new Set(bets.map(b=>Number(b.season)))].sort((a,b)=>a-b)) bySeason[season]=summarizeBets(bets.filter(b=>Number(b.season)===season));
+  const byProvider={};
+  for(const provider of [...new Set(bets.map(b=>b.provider))].sort()) byProvider[provider]=summarizeBets(bets.filter(b=>b.provider===provider));
+  return {name,overall:summarizeBets(bets),bySeason,byProvider};
+}
+
 function candidateRules(rows,kind){
   const models=["kenpom","cbbd","fullStack"];
   const out=[];
@@ -336,6 +365,10 @@ const report={
   marketAudit:{moneylineOrientationN:orientN,spreadOrientationConsistency:round(orientationConsistency,3)},
   folds,
   aggregateHoldout:{side:aggregateFold("side"),total:aggregateFold("total")},
+  frozenHypotheses:[
+    frozenHypothesis(joined,"kenpom-dog-gap6-spread-under20"),
+    frozenHypothesis(joined,"kenpom-total-gap4-market120-135"),
+  ],
   exploratoryRules:{
     side:candidateRules(joined,"side").slice(0,20),
     total:candidateRules(joined,"total").slice(0,30),
@@ -350,4 +383,4 @@ writeFileSync("artifacts/cbb-market-research-dataset.json",JSON.stringify(joined
   cbbd:r.cbbd,torvik:r.torvik,kenpom:r.kenpom,fullStack:r.fullStack,
   roll:r.roll,features:r.features,sideResidual:r.sideResidual,totalResidual:r.totalResidual,
 })),null,2));
-console.log(JSON.stringify({ok:true,sourceRows:report.sourceRows,joinedRows:report.joinedRows,seasons,coverage,marketAudit:report.marketAudit,folds:folds.map(f=>({testSeason:f.testSeason,side:f.side?.test,total:f.total?.test,specSide:f.side?.spec,specTotal:f.total?.spec})),aggregateHoldout:report.aggregateHoldout,topSideRules:report.exploratoryRules.side.slice(0,5),topTotalRules:report.exploratoryRules.total.slice(0,8)},null,2));
+console.log(JSON.stringify({ok:true,sourceRows:report.sourceRows,joinedRows:report.joinedRows,seasons,coverage,marketAudit:report.marketAudit,folds:folds.map(f=>({testSeason:f.testSeason,side:f.side?.test,total:f.total?.test,specSide:f.side?.spec,specTotal:f.total?.spec})),aggregateHoldout:report.aggregateHoldout,topSideRules:report.exploratoryRules.side.slice(0,5),frozenHypotheses:report.frozenHypotheses,topTotalRules:report.exploratoryRules.total.slice(0,8)},null,2));
