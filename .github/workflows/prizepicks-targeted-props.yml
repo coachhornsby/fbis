@@ -3,20 +3,13 @@ name: PrizePicks curated prop lines
 
 on:
   schedule:
-    # Redundant Chicago-local trigger opportunities. The durable CT-day reservation
-    # is authoritative, so later deliveries recover a missed/delayed GitHub
-    # schedule event without starting a second paid PrizePicks Actor run.
-    # The final off-peak slot is a last-chance same-day recovery.
-    - cron: "5 8 * * *"
-      timezone: "America/Chicago"
-    - cron: "35 8 * * *"
-      timezone: "America/Chicago"
-    - cron: "5 9 * * *"
-      timezone: "America/Chicago"
-    - cron: "35 10 * * *"
-      timezone: "America/Chicago"
-  # Intentionally schedule-only in production: exactly one paid Actor pull/day.
-  # Manual dispatch is retained for explicit operator recovery, but code pushes never spend Apify credit.
+    # GitHub cron is UTC. Redundant delivery windows cover 08:05-10:35 Chicago
+    # across CDT/CST. The durable CT-day reservation remains the spend authority.
+    - cron: "5,35 13,14,15,16 * * *"
+  push:
+    branches: [main]
+    paths: [".github/workflows/prizepicks-targeted-props.yml"]
+  # Manual dispatch is retained for explicit operator recovery.
   workflow_dispatch:
 
 concurrency:
