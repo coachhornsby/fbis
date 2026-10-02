@@ -6,7 +6,7 @@ import pandas as pd
 
 BASE=Path("artifacts/cfb-history-v2/cfb_game_training_2004_2026.csv")
 CTX=Path("artifacts/cfb-context")
-MARKET=Path("artifacts/cfb-history-v3/cfbd_market_lines_all_providers.csv")
+MARKET=Path("artifacts/cfb-history-v3/cfbd_market_lines_all_providers.csv")\nLINE_ARCHIVE=Path("artifacts/cfb-line-archive/cfb_line_odds_consensus_2006_2025.csv")
 OUT=Path("artifacts/cfb-final"); OUT.mkdir(parents=True,exist_ok=True)
 
 def norm_id(v):
