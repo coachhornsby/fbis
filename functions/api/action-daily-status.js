@@ -5,7 +5,7 @@ const TZ = "America/Chicago";
 const PROFILE = "DAILY";
 const LIFECYCLE = "daily";
 const STALE_RUNNING_MS = 30 * 60 * 1000;
-const SPORTS = Object.freeze(["mlb", "nfl", "nba", "nhl", "cfb", "cbb"]);
+const SPORTS = Object.freeze(["mlb", "nfl", "nba", "wnba", "nhl", "cfb", "cbb", "soccer", "atp", "wta", "ufc", "boxing"]);
 
 function localDay(d = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
