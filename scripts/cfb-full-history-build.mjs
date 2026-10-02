@@ -171,8 +171,11 @@ const coverage={};
 const allGames=[];const allLines=[];const chunks=[];const staticBySeason=new Map();
 for(let year=START;year<=END;year++){
   const cov=await callChunk({year,weekStart:0,weekEnd:25,seasonType:"regular",includeStatic:1,coverageOnly:1});
-  coverage[year]={regular:cov.counts};
+  coverage[year]={regular:cov.counts,providerDiagnostics:cov.providerDiagnostics||[]};
   allGames.push(...cov.games);allLines.push(...cov.lines);staticBySeason.set(year,cov);
+  if(year>=2022 && cov.counts.games===0){
+    throw new Error(`Recent CFB season ${year} returned zero games; refusing incomplete history artifact`);
+  }
   const probe=await callChunk({year,weekStart:1,weekEnd:1,seasonType:"regular",includeStatic:0,coverageOnly:0});
   coverage[year].probe=probe.counts;
   const rich=(probe.counts.ppa||probe.counts.advanced||probe.counts.plays||probe.counts.drives||probe.counts.players)>0;
@@ -268,4 +271,8 @@ const qa={
   marketPolicy:"All provider records retained separately. Canonical benchmark uses median of available CFBD providers per game; spread is CFBD home-team spread. Opening lines are retained separately."
 };
 writeFileSync("artifacts/cfb-history/cfb_history_qa.json",JSON.stringify(qa,null,2));
+const recentMarket=rows.filter(r=>Number(r.season)>=2022&&(r.market_home_spread_median!=null||r.market_total_median!=null)).length;
+const recentRich=rows.filter(r=>Number(r.season)>=2022&&Object.keys(r).some(k=>k.startsWith("home_pregame_")&&r[k]!=null)).length;
+if(recentMarket===0) throw new Error("Recent CFB market coverage is zero; refusing incomplete history artifact");
+if(recentRich===0) throw new Error("Recent CFB rich-feature coverage is zero; refusing incomplete history artifact");
 console.log(JSON.stringify(qa,null,2));
