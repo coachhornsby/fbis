@@ -73,6 +73,24 @@ jobs:
             exit 0
           }
 
+      - name: Reserve today's single paid PrizePicks acquisition
+        if: env.SKIP_COLLECTION != '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          run_id="pp_$(TZ=America/Chicago date +%Y%m%d)_${GITHUB_RUN_ID}"
+          body="$(mktemp)"
+          payload="$(jq -nc --arg runId "$run_id" '{operation:"reserve",runId:$runId}')"
+          code="$(curl -sS --max-time 30 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" --data-binary "$payload" -o "$body" -w "%{http_code}" "$BASE/api/prizepicks-props")"
+          cat "$body"
+          if [ "$code" = "409" ] && jq -e '.error=="ALREADY_COLLECTED_TODAY"' "$body" >/dev/null 2>&1; then
+            echo "PrizePicks already acquired/reserved today; no paid Actor call will be made."
+            echo "SKIP_COLLECTION=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          test "$code" = "200"
+          jq -e '.ok==true and .reserved==true' "$body" >/dev/null
+          echo "PP_RUN_ID=$run_id" >> "$GITHUB_ENV"
       - name: Build FBIS candidate map
         if: env.SKIP_COLLECTION != '1'
         run: |
@@ -113,66 +131,25 @@ jobs:
           fi
           echo "FBIS candidates=$(jq 'length' artifacts/candidates.json)"
 
-      - name: Pull curated PrizePicks board
+      - name: Pull full PrizePicks board once
         if: env.SKIP_COLLECTION != '1'
         run: |
           set -euo pipefail
-          # One paid Actor start per day. Request ONLY today's FBIS candidate players.
-          # This prevents weekend/future-board leakage and avoids paying for thousands of irrelevant props.
-          today="$(TZ=America/Chicago date +%F)"
-          mapfile -t player_names < <(jq -r --arg today "$today" '
-            .[]
-            | select((.start // "") | startswith($today))
-            | .playerName
-            | select(. != null and . != "")
-          ' artifacts/candidates.json | sort -u)
-          if [ "${#player_names[@]}" -eq 0 ]; then
-            echo "No same-day FBIS candidate players; skipping paid PrizePicks Actor pull."
-            echo "SKIP_COLLECTION=1" >> "$GITHUB_ENV"
-            exit 0
-          fi
-          players_json="$(printf '%s\n' "${player_names[@]}" | jq -R . | jq -s .)"
-          input="$(jq -n --argjson players "$players_json" '{
-            leagues:["MLB","NFL","NHL","WNBA"],
-            playerNames:$players,
-            statTypes:"Pitcher Strikeouts, Pitching Outs, Pass Yards, Rush Yards, Rec Yards, SOG, Goalie Saves, Points, Rebounds, Assists, 3PTM",
-            oddsTiers:["standard","goblin","demon"]
-          }')"
-          echo "today=$today targetedPlayers=${#player_names[@]}"
+          input='{}'
           body="$(mktemp)"
-          code="$(curl -sS --max-time 240 \
-            -X POST \
-            -H "Authorization: Bearer ${APIFY_TOKEN}" \
-            -H "content-type: application/json" \
-            --data-binary "$input" \
-            -o "$body" -w "%{http_code}" \
-            "https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items?format=json&clean=true")"
+          code="$(curl -sS --max-time 240 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary "$input" -o "$body" -w "%{http_code}" "https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items?format=json&clean=true")"
           echo "PrizePicks Actor http=$code"
           case "$code" in 200|201) ;; *) echo "unexpected PrizePicks Actor HTTP $code"; cat "$body"; exit 1 ;; esac
           jq -e 'type=="array"' "$body" >/dev/null
           cp "$body" artifacts/prizepicks-rows.json
           rows="$(jq 'length' artifacts/prizepicks-rows.json)"
-          echo "returned=$rows"
+          echo "full-board returned=$rows"
           test "$rows" -gt 0
-          # Fail closed if the upstream actor ever ignores our targeting contract.
-          if [ "$rows" -gt 1500 ]; then
-            echo "Refusing oversized PrizePicks payload: $rows rows (max 1500)."
-            exit 1
-          fi
-          # Enforce today-only again after retrieval; never persist future/weekend events.
-          jq --arg today "$today" '[.[] | select(
-            ((.startTime // .start_time // .game.startTime // .game.start_time // .gameTime // .game_start // "") | tostring | startswith($today))
-          )]' artifacts/prizepicks-rows.json > artifacts/prizepicks-today.json
-          mv artifacts/prizepicks-today.json artifacts/prizepicks-rows.json
-          today_rows="$(jq 'length' artifacts/prizepicks-rows.json)"
-          echo "today-only returned=$today_rows"
-          test "$today_rows" -gt 0
-
       - name: Persist curated PrizePicks lines
         if: env.SKIP_COLLECTION != '1'
         run: |
           set -euo pipefail
-          run_id="pp_$(date -u +%Y%m%dT%H%M%SZ)_${GITHUB_RUN_ID}"
+          run_id="${PP_RUN_ID:?daily acquisition reservation missing}"
           payload="$(mktemp)"
           jq -n \
             --arg runId "$run_id" \
