@@ -120,6 +120,9 @@ jobs:
           set -euo pipefail
           node scripts/cbb-market-edge-lab.mjs artifacts/cbb-data-stack-predictions.json | tee artifacts/cbb-market-edge-run.log
 
+      - name: Run sub-4 CBB expansion study
+        run: node scripts/cbb-sub4-expansion.mjs artifacts/cbb-market-research-dataset.json | tee artifacts/cbb-sub4-expansion-run.log
+
       - name: Summarize market edge research
         run: |
           set -euo pipefail
