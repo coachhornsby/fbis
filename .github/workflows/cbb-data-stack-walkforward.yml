@@ -136,7 +136,7 @@ jobs:
           set -euo pipefail
           node scripts/cbb-ge4-confirmation-v1.mjs artifacts/frozen/cbb-enriched-v2026.10.02 | tee artifacts/cbb-ge4-confirmation-v1-run.log
 
-      - name: Run sub-4 CBB expansion study
+      - name: Run combined CBB tier test\n        shell: bash\n        run: |\n          set -euo pipefail\n          node scripts/cbb-combined-tiers-v1.mjs artifacts/frozen/cbb-enriched-v2026.10.02 | tee artifacts/cbb-combined-tiers-v1-run.log\n\n      - name: Run sub-4 CBB expansion study
         run: node scripts/cbb-sub4-expansion.mjs artifacts/cbb-market-research-dataset.json | tee artifacts/cbb-sub4-expansion-run.log
 
       - name: Summarize market edge research
