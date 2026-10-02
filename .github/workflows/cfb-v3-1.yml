@@ -5,6 +5,7 @@ on:
     paths:
       - "scripts/cfb-v3-1-walkforward.py"
       - "scripts/cfb-v3-1-interactions.py"
+      - "scripts/cfb-v3-1-trigger.txt"
       - ".github/workflows/cfb-v3-1.yml"
   workflow_dispatch:
 permissions:
