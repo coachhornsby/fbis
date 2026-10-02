@@ -210,28 +210,29 @@ export default function TodayView({
         <div className="panel panel-board"><div className="empty">{empty.message || "No games scheduled."}</div></div>
       )}
 
-      {shown.map((group) => (
-        <section className="panel panel-board" key={group.sport}>
-          <div className="panel-header">
-            <h2>{group.label} · {group.games.length}{group.n != null && group.n !== group.games.length ? ` / ${group.n}` : ""}</h2>
-          </div>
-          <div className="panel-body" style={{ padding: 0 }}>
-            {group.error && <div className="empty">Feed failure: {group.error}</div>}
-            {!group.error && !group.games.length && <div className="empty">No games in this filter for {group.label}.</div>}
-            {group.sport === "mlb" && counts.mlbPropWatch && !counts.mlbPropWatch.convictions ? (
-              <div className="muted" style={{ padding: "10px 14px 0" }}>{propWatchEmptyCopy(counts.mlbPropWatch)}</div>
-            ) : null}
-            {group.games.length > 0 && (
-              <div className="board-well table-scroll decision-board-well">
-                <DecisionBoard
-                  games={group.games}
-                  renderDetail={(g) => <GameDetails g={g} />}
-                />
-              </div>
-            )}
-          </div>
-        </section>
-      ))}
+      <section className="panel panel-board">
+        <div className="panel-header">
+          <h2>{sportFilter === "all" ? "ALL SPORTS" : String(SPORTS[sportFilter]?.label || sportFilter).toUpperCase()} · {shown.reduce((n, group) => n + group.games.length, 0)}</h2>
+          <span className="last-updated">Ranked by FBIS confidence</span>
+        </div>
+        <div className="panel-body" style={{ padding: 0 }}>
+          {shown.some((group) => group.error) ? (
+            <div className="empty">
+              {shown.filter((group) => group.error).map((group) => `${group.label}: ${group.error}`).join(" · ")}
+            </div>
+          ) : null}
+          {shown.reduce((n, group) => n + group.games.length, 0) === 0 ? (
+            <div className="empty">No games in this filter.</div>
+          ) : (
+            <div className="board-well decision-board-well">
+              <DecisionBoard
+                games={shown.flatMap((group) => group.games)}
+                renderDetail={(g) => <GameDetails g={g} />}
+              />
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
