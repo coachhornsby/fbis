@@ -19,7 +19,7 @@ function dbOf(env){if(!env?.DB)return null;return{
 function parts(d=new Date()){const a=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",hourCycle:"h23"}).formatToParts(d),g=t=>a.find(x=>x.type===t)?.value||"";return{y:g("year"),m:g("month"),d:g("day"),h:Number(g("hour"))}}
 function day(d=new Date()){const p=parts(d);return `${p.y}-${p.m}-${p.d}`}
 function prev(k){const [y,m,d]=k.split("-").map(Number),x=new Date(Date.UTC(y,m-1,d,12));x.setUTCDate(x.getUTCDate()-1);return x.toISOString().slice(0,10)}
-function sport(league){const k=String(league||"").toLowerCase();return k==="ncaaf"?"cfb":k==="ncaab"?"cbb":k}
+function sport(league){const k=String(league||"").toLowerCase();if(k==="ncaaf")return "cfb";if(k==="ncaab")return "cbb";if(["epl","laliga","bundesliga","seriea","ligue1","mls"].includes(k))return "soccer";return k}
 function rowDay(t){const ms=Date.parse(String(t||""));return Number.isFinite(ms)?day(new Date(ms)):null}
 async function slate(env,t,y){const all=[],by={},todayIds={};for(const s of SPORTS){let a={fbisEvents:[]},b={fbisEvents:[]};try{a=await loadFbisSlateForMatching(queryGames,env,{sport:s,date:t})}catch{}try{b=await loadFbisSlateForMatching(queryGames,env,{sport:s,date:y})}catch{}const x=a.fbisEvents||[],z=b.fbisEvents||[];todayIds[s]=[...new Set(x.map(g=>String(g?.id||"")).filter(Boolean))];by[s]={today:x.length,yesterday:z.length};all.push(...x,...z)}return{all,by,todayIds}}
 async function mtd(db,now=new Date()){const ms=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),1)).toISOString();const r=await db.queryOne("SELECT COALESCE(SUM(CASE WHEN actual_total_usd IS NOT NULL THEN actual_total_usd ELSE estimated_total_usd END),0) usd FROM shadow_cost_ledger WHERE created_at >= ?",[ms]);return Number(r?.usd||0)}
@@ -70,23 +70,19 @@ export async function onRequestPost(context){
      // only path allowed to reconcile the existing paid run.
      return json({ok:true,executed:false,status:"actor_running",stale,harvestRequired:true,runId:running.id,apifyRunId:running.apify_run_id,datasetId:running.dataset_id,today},202);
    }
-   if(!cfg.enabled||!cfg.configured)return json({ok:true,executed:false,status:"action_not_configured",enabled:cfg.enabled,configured:cfg.configured});
-   const sl=await slate(context.env,today,yesterday),activeSports=SPORTS.filter(s=>(sl.by[s]?.today||0)>0);
-   if(!activeSports.length)return json({ok:true,executed:false,status:"no_slate",today,slate:sl.by});
+   if(!cfg.configured)return json({ok:true,executed:false,status:"action_not_configured",enabled:true,configured:false,actor:ACTION_APIFY_ACTOR_ID});
+   const sl=await slate(context.env,today,yesterday),activeSports=[...SPORTS];
    const doneRuns=await successfulRuns(db,today),done=doneRuns[0]||null;
-   let collectionSports=[...activeSports];
-   if(done){
-     const priorSports=new Set();
-     for(const priorRun of doneRuns){
-       let prior={};try{prior=JSON.parse(priorRun.plan||"{}")}catch{}
-       for(const s of prior.activeSports||[]) priorSports.add(s);
-     }
-     collectionSports=activeSports.filter(s=>!priorSports.has(s));
-     if(!collectionSports.length)return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id,today,activeSports});
-   }
-   const leagues=collectionSports.map(s=>LEAGUE[s]);
-   const requested=Math.max(1,Math.min(200,sl.all.filter(g=>collectionSports.includes(sport(g?.league||g?.sport))).length+8)),per=Number(context.env.ACTION_APIFY_DAILY_RUN_BUDGET_USD||1),fit=cfg.plan==="starter"?fitMaxItemsToUsdBudget({leagues,periods:["event"],maxItems:requested,freePlan:false,includeLineMovement:true,includePlayerProps:false,gameStatus:"scheduled",onlyWithOdds:true},per):{maxItems:Math.min(10,requested)};
-   const input=buildActorInput({leagues,periods:["event"],maxItems:fit.maxItems,freePlan:cfg.plan==="free",includeLineMovement:true,includePlayerProps:false,gameStatus:"scheduled",onlyWithOdds:true}),estimate=estimateActorCostUsd(input),spent=await mtd(db,now),cap=budget(context.env,now);
+   // Hard cost invariant: exactly one paid full-slate ACTION acquisition per CT day.
+   // A newly appearing game/sport never triggers a second board pull; later refreshes
+   // must use the separate targeted-candidate path.
+   if(done)return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id,today,activeSports,actor:ACTION_APIFY_ACTOR_ID});
+   const collectionSports=[...activeSports],leagues=collectionSports.map(s=>LEAGUE[s]);
+   const requestedRaw=Number(context.env.ACTION_APIFY_DAILY_MAX_GAMES||300);
+   const requested=Math.max(1,Math.min(500,Number.isFinite(requestedRaw)?Math.floor(requestedRaw):300));
+   // Zen base game payload already includes consensus, books, splits/sharp gap and
+   // opening-vs-current movement. Keep paid full movement history / props / reports off.
+   const input=buildActorInput({leagues,periods:["event"],maxGames:requested,freePlan:false,includeLineMovement:false,includeProps:false,includeInjuries:false,includeStandings:false,gameStatus:"scheduled"}),estimate=estimateActorCostUsd(input),spent=await mtd(db,now),cap=budget(context.env,now);
    if(spent+estimate>cap+1e-9)return json({ok:true,executed:false,status:"monthly_budget_blocked",monthToDateUsd:spent,estimatedNextRunUsd:estimate,monthlyBudgetUsd:cap});
    const token=String(context.env.APIFY_TOKEN||context.env.APIFY_API_TOKEN||"").trim();if(!token)return json({ok:false,status:"apify_not_configured"},503);
    const actorPath=encodeURIComponent(ACTION_APIFY_ACTOR_ID),res=await fetch(`https://api.apify.com/v2/acts/${actorPath}/runs?waitForFinish=0`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify(input)});
