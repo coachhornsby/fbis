@@ -26,7 +26,7 @@ jobs:
       SOCCER_MARKET_BENCHMARK_MIN_MATCHED: "250"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Require Apify token
