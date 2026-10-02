@@ -20,7 +20,7 @@ jobs:
       - run: python scripts/build-nfl-training-dataset.py
       - run: python scripts/nfl-pro-v1-1-walkforward.py
       - run: python scripts/nfl-pro-v2-walkforward.py
-      - run: jq '{modelId,sample,featureCounts,v2,v11,marketPairedV2,market,deltasVsV11,deltasVsMarket,beatsV11AllThree,knownGap}' artifacts/nfl-pro-v2/report.json
+      - run: python scripts/nfl-pro-v2-interactions.py\n      - run: jq '{modelId,sample,featureCounts,v2,v11,marketPairedV2,market,deltasVsV11,deltasVsMarket,beatsV11AllThree,knownGap}' artifacts/nfl-pro-v2/report.json\n      - run: jq '{modelId,predeclaredInteraction,verifiedCount,verified,canQualify}' artifacts/nfl-pro-v2/interactions.json
       - uses: actions/upload-artifact@v4
         with:
           name: nfl-pro-v2
