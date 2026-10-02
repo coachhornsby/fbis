@@ -4,6 +4,7 @@ on:
     branches: ["research/cfb-v4-football-ensemble"]
     paths:
       - "scripts/cfb-v4-walkforward.py"
+      - "scripts/cfb-fpr.py"
       - ".github/workflows/cfb-v4.yml"
   workflow_dispatch:
 permissions:
