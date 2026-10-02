@@ -30,10 +30,18 @@ function norm(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").t
 function parsedHomeSpread(row){
   const spread=Number(row.spread);
   if(!Number.isFinite(spread))return null;
+  // CFBD /lines already expresses spread from the home team's perspective.
+  return spread;
+}
+function spreadSemanticCheck(row){
+  const spread=Number(row.spread);
+  if(!Number.isFinite(spread))return null;
   const fmt=norm(row.formattedSpread),h=norm(row.homeTeam),a=norm(row.awayTeam);
-  if(fmt&&h&&fmt.includes(h))return spread;
-  if(fmt&&a&&fmt.includes(a))return -spread;
-  return null;
+  if(!fmt||(!h&&!a))return null;
+  const namesHome=Boolean(h&&fmt.includes(h));
+  const namesAway=Boolean(a&&fmt.includes(a));
+  if(namesHome===namesAway)return null;
+  return namesHome ? spread<=0 : spread>=0;
 }
 const rows=[];
 for(let year=START;year<=END;year++){
@@ -44,7 +52,7 @@ for(let year=START;year<=END;year++){
         season:year,season_type:seasonType,game_id:l.gameId,provider:l.provider,
         home_team:l.homeTeam,away_team:l.awayTeam,
         raw_spread:l.spread,home_spread:parsedHomeSpread(l),
-        formatted_spread:l.formattedSpread,
+        formatted_spread:l.formattedSpread,spread_semantic_ok:spreadSemanticCheck(l),
         total:l.overUnder,opening_spread:l.openingSpread,opening_total:l.openingOverUnder,
         home_moneyline:l.homeMoneyline,away_moneyline:l.awayMoneyline
       });
@@ -56,7 +64,7 @@ for(let year=START;year<=END;year++){
 const uniq=new Map();
 for(const r of rows)uniq.set([r.game_id,r.provider,r.raw_spread,r.total,r.opening_spread,r.opening_total,r.home_moneyline,r.away_moneyline].join("|"),r);
 const out=[...uniq.values()];
-const cols=["season","season_type","game_id","provider","home_team","away_team","raw_spread","home_spread","formatted_spread","total","opening_spread","opening_total","home_moneyline","away_moneyline"];
+const cols=["season","season_type","game_id","provider","home_team","away_team","raw_spread","home_spread","formatted_spread","spread_semantic_ok","total","opening_spread","opening_total","home_moneyline","away_moneyline"];
 writeFileSync("artifacts/cfb-history-v3/cfbd_market_lines_all_providers.csv",csv(out,cols));
 const q={
   generatedAt:new Date().toISOString(),seasons:[START,END],providerRows:out.length,
