@@ -59,19 +59,37 @@ function avgLast(arr,n=5){const a=(arr||[]).slice(-n);return a.length?mean(a):0;
 function pushTrim(map,k,v,max=12){if(!map.has(k))map.set(k,[]);const a=map.get(k);a.push(v);while(a.length>max)a.shift();}
 
 const seasons=[...new Set(rows0.map(r=>Number(r.season)).filter(Number.isFinite))].sort((a,b)=>a-b);
+
+function lineWindows(season) {
+  const months=[[season,11],[season,12],[season+1,1],[season+1,2],[season+1,3],[season+1,4]];
+  return months.map(([y,m])=>{
+    const start=`${y}-${String(m).padStart(2,"0")}-01T00:00:00Z`;
+    const nextM=m===12?1:m+1, nextY=m===12?y+1:y;
+    const end=new Date(Date.UTC(nextY,nextM-1,1)-1).toISOString();
+    return {start,end};
+  });
+}
+
 const linesByGame=new Map();
 const providerCounts={};
 const coverage=[];
 for(const season of seasons){
-  const res=await source("lines",{season});
-  let selected=0;
+  let lineRows=0;
   const grouped=new Map();
-  for(const line of res.rows||[]){
-    const id=String(line.gameId||"");
-    if(!id)continue;
-    if(!grouped.has(id))grouped.set(id,[]);
-    grouped.get(id).push(line);
+  const windowCoverage=[];
+  for(const w of lineWindows(season)){
+    const res=await source("lines",{season,start:w.start,end:w.end});
+    lineRows+=Number(res.n||0);
+    windowCoverage.push({start:w.start,end:w.end,lineRows:Number(res.n||0)});
+    for(const line of res.rows||[]){
+      const id=String(line.gameId||"");
+      if(!id)continue;
+      if(!grouped.has(id))grouped.set(id,[]);
+      const signature=[line.provider,line.spread,line.overUnder,line.openingSpread,line.openingOverUnder].join("|");
+      if(!grouped.get(id).some(x=>[x.provider,x.spread,x.overUnder,x.openingSpread,x.openingOverUnder].join("|")===signature)) grouped.get(id).push(line);
+    }
   }
+  let selected=0;
   for(const [id,ls] of grouped){
     const m=chooseMarket(ls);
     if(!m)continue;
@@ -80,7 +98,7 @@ for(const season of seasons){
     const p=m.provider||"unknown";
     providerCounts[p]=(providerCounts[p]||0)+1;
   }
-  coverage.push({season,lineRows:res.n||0,gamesWithMarket:selected});
+  coverage.push({season,lineRows,gamesWithMarket:selected,windowCoverage});
 }
 
 const joined=rows0.map(r=>{

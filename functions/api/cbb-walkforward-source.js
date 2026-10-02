@@ -87,8 +87,11 @@ function firstText(obj, keys = []) {
   return null;
 }
 
-async function cbbLines(env, { season } = {}) {
-  const res = await cbbdGet("/lines", env, { query: { season: Number(season) + 1 } });
+async function cbbLines(env, { season, start = null, end = null } = {}) {
+  const query = { season: Number(season) + 1 };
+  if (start) query.startDateRange = start;
+  if (end) query.endDateRange = end;
+  const res = await cbbdGet("/lines", env, { query });
   if (!res.ok) return { ok:false, error:res.reason || "cbbd-lines-failed", httpStatus:res.status || 0, rows:[] };
   const rows = [];
   for (const game of res.data || []) {
@@ -159,8 +162,10 @@ export async function onRequestGet(context) {
   }
   if (kind === "lines") {
     const season = Number(url.searchParams.get("season"));
+    const start = url.searchParams.get("start");
+    const end = url.searchParams.get("end");
     if (!Number.isFinite(season)) return json({ok:false,error:"season-required"},400);
-    return json(await cbbLines(env,{season}));
+    return json(await cbbLines(env,{season,start,end}));
   }
   return json({ok:false,error:"kind-required",kinds:["games","lines","kenpom-archive","kenpom-preseason"]},400);
 }
