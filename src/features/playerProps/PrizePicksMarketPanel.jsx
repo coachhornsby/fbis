@@ -33,17 +33,19 @@ export default function PrizePicksMarketPanel({ sportFilter = "all" }) {
   const [rows,setRows]=useState([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
+  const [freshness,setFreshness]=useState(null);
   const [localSport,setLocalSport]=useState(String(sportFilter||"all").toLowerCase());
   useEffect(()=>setLocalSport(String(sportFilter||"all").toLowerCase()),[sportFilter]);
 
   useEffect(()=>{
     let cancelled=false;
     setLoading(true); setError("");
-    const q=new URLSearchParams({limit:"500"});
+    const date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    const q=new URLSearchParams({limit:"500",date});
     if(localSport!=="all") q.set("sport",localSport);
     fetch("/api/prizepicks-props?"+q.toString(),{credentials:"same-origin"})
       .then(async res=>{const j=await res.json().catch(()=>({}));if(!res.ok||j?.ok===false)throw new Error(j?.error||("HTTP "+res.status));return j})
-      .then(j=>{if(!cancelled)setRows(Array.isArray(j.rows)?j.rows:[])})
+      .then(j=>{if(!cancelled){setRows(Array.isArray(j.rows)?j.rows:[]);setFreshness(j.freshness||null)}})
       .catch(e=>{if(!cancelled){setRows([]);setError(String(e?.message||e))}})
       .finally(()=>{if(!cancelled)setLoading(false)});
     return()=>{cancelled=true};
@@ -64,6 +66,7 @@ export default function PrizePicksMarketPanel({ sportFilter = "all" }) {
       <div className="pp-sport-strip" role="group" aria-label="Player prop sport filter">
         {SPORTS.map(s=><button key={s} className={localSport===s?"active":""} onClick={()=>setLocalSport(s)}>{s.toUpperCase()}</button>)}
       </div>
+      {freshness?.stale?<div className="pp-empty error-text">Today's PrizePicks acquisition has not completed. Stale prior-day props are hidden.</div>:null}
       {error?<div className="pp-empty error-text">{error}</div>:null}
       {!loading&&!error&&!groups.length?<div className="pp-empty">No curated PrizePicks observations are stored for this filter yet.</div>:null}
       <div className="pp-card-grid">
