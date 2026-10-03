@@ -26,7 +26,7 @@ START=int(os.getenv("CFB_BULK_START","2004"))
 END=int(os.getenv("CFB_BULK_END","2026"))
 BASE="https://github.com/sportsdataverse/sportsdataverse-data/releases/download"
 OUT=Path("artifacts/cfb-history-v2"); OUT.mkdir(parents=True,exist_ok=True)
-CFBD_CONF=Path("artifacts/cfb-conference/cfb_game_conferences_2004_2026.csv")
+SDV_CONF=Path("artifacts/cfb-conference/cfb_team_season_conference_espn_2004_2026.csv")
 
 DATASETS={
     "schedule":("espn_cfb_schedules","cfb_schedule_{year}.parquet"),
@@ -314,16 +314,17 @@ def main():
                 season[name]=pd.DataFrame();urls[name]=f"ERROR:{e}"
         sched=schedule_clean(season["schedule"]) if not season["schedule"].empty else pd.DataFrame()
         if not sched.empty:
-            enrich=conf[conf["season"].eq(year)].copy()
-            keep=[x for x in ["game_id","home_conference","away_conference","home_classification","away_classification","neutral_site","conference_game","venue","venue_id","start_date"] if x in enrich.columns]
-            enrich=enrich[keep]
-            sched=sched.merge(enrich,on="game_id",how="left",suffixes=("","_cfbd"))
-            for col in ["home_conference","away_conference","home_classification","away_classification","neutral_site","conference_game","venue","venue_id","start_date"]:
-                alt=col+"_cfbd"
-                if alt in sched.columns:
-                    if col in sched.columns: sched[col]=sched[col].combine_first(sched[alt])
-                    else: sched[col]=sched[alt]
-                    sched=sched.drop(columns=[alt])
+            yr=conf[conf["season"].eq(year)].copy()
+            cmap=yr.set_index("team_id").to_dict("index")
+            def add_membership(side):
+                ids=sched[f"{side}_id"].map(norm_id)
+                sched[f"{side}_conference"]=ids.map(lambda z:(cmap.get(z) or {}).get("conference_name") or (cmap.get(z) or {}).get("conference_id"))
+                sched[f"{side}_conference_id"]=ids.map(lambda z:(cmap.get(z) or {}).get("conference_id"))
+                sched[f"{side}_conference_abbreviation"]=ids.map(lambda z:(cmap.get(z) or {}).get("conference_abbreviation"))
+                sched[f"{side}_classification"]=ids.map(lambda z:(cmap.get(z) or {}).get("classification"))
+                sched[f"{side}_conference_sources_agree"]=ids.map(lambda z:(cmap.get(z) or {}).get("sources_agree"))
+                sched[f"{side}_conference_source"]=ids.map(lambda z:(cmap.get(z) or {}).get("source"))
+            add_membership("home"); add_membership("away")
         bet=betting_clean(season["betting"])
         at=numeric_feature_frame(season["adv_team"],["pos_team_id","pos_team","team_id"],"off_")
         ad=numeric_feature_frame(season["adv_defensive"],["def_pos_team_id","def_pos_team","team_id"],"def_")
@@ -359,6 +360,7 @@ def main():
           "gameRosterRows":len(season["game_rosters"]),"linescoreRows":len(season["linescores"]),
           "teamSummaryRows":len(season["team_summaries"]),
           "gamesWithBothConferences":int((sched["home_conference"].notna() & sched["away_conference"].notna()).sum()) if len(sched) and "home_conference" in sched and "away_conference" in sched else 0,
+          "conferenceMembershipSource":"SportsDataverse cfb_groups",
         })
         sources[str(year)]=urls
         print(json.dumps(coverage[-1]),flush=True)
