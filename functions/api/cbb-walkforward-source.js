@@ -137,6 +137,48 @@ async function cbbLines(env, { season, start = null, end = null } = {}) {
   return { ok:true, rows, n:rows.length };
 }
 
+async function cbbGameTeams(env, { season, start = null, end = null } = {}) {
+  const query = { season: Number(season) + 1 };
+  if (start) query.startDateRange = start;
+  if (end) query.endDateRange = end;
+  const res = await cbbdGet("/games/teams", env, { query });
+  if (!res.ok) return { ok:false, error:res.reason || "cbbd-game-teams-failed", httpStatus:res.status || 0, rows:[] };
+  const rows = (res.data || []).map((r) => {
+    const s = r.teamStats ?? r.team_stats ?? {};
+    const o = r.opponentStats ?? r.opponent_stats ?? {};
+    const fg = s.fieldGoals ?? s.field_goals ?? {};
+    const two = s.twoPointFieldGoals ?? s.two_point_field_goals ?? {};
+    const three = s.threePointFieldGoals ?? s.three_point_field_goals ?? {};
+    const ft = s.freeThrows ?? s.free_throws ?? {};
+    const reb = s.rebounds ?? {};
+    const ff = s.fourFactors ?? s.four_factors ?? {};
+    const offReb = num(reb.offensive);
+    const oppDefReb = num((o.rebounds ?? {}).defensive);
+    return {
+      gameId:String(r.gameId ?? r.game_id ?? ""),
+      season:num(r.season),
+      startDate:r.startDate ?? r.start_date ?? null,
+      team:r.team ?? null,
+      opponent:r.opponent ?? null,
+      neutralSite:Boolean(r.neutralSite ?? r.neutral_site),
+      isHome:Boolean(r.isHome ?? r.is_home),
+      pace:num(r.pace),
+      possessions:num(s.possessions),
+      fgm:num(fg.made), fga:num(fg.attempted),
+      twoMade:num(two.made), twoAtt:num(two.attempted),
+      threeMade:num(three.made), threeAtt:num(three.attempted),
+      ftm:num(ft.made), fta:num(ft.attempted),
+      orb:offReb, drb:num(reb.defensive),
+      turnovers:num((s.turnovers ?? {}).total),
+      efgPct:num(ff.effectiveFieldGoalPct ?? ff.effective_field_goal_pct),
+      orbRate:num(ff.offensiveReboundPct ?? ff.offensive_rebound_pct) ?? (offReb != null && oppDefReb != null && offReb + oppDefReb > 0 ? 100 * offReb / (offReb + oppDefReb) : null),
+      tovRate:num(ff.turnoverRatio ?? ff.turnover_ratio),
+      ftr:num(ff.freeThrowRate ?? ff.free_throw_rate),
+    };
+  }).filter(r=>r.gameId && r.startDate && r.team);
+  return {ok:true,rows,n:rows.length};
+}
+
 export async function onRequestGet(context) {
   const auth = authorizeHarvest(context.request, context.env);
   if (!auth.ok) return json(unauthorizedBody(auth.reason),403);
@@ -160,6 +202,13 @@ export async function onRequestGet(context) {
     if (!Number.isFinite(season) || !start || !end) return json({ok:false,error:"season-start-end-required"},400);
     return json(await cbbGames(env,{season,start,end}));
   }
+  if (kind === "game-teams") {
+    const season = Number(url.searchParams.get("season"));
+    const start = url.searchParams.get("start");
+    const end = url.searchParams.get("end");
+    if (!Number.isFinite(season)) return json({ok:false,error:"season-required"},400);
+    return json(await cbbGameTeams(env,{season,start,end}));
+  }
   if (kind === "lines") {
     const season = Number(url.searchParams.get("season"));
     const start = url.searchParams.get("start");
@@ -167,5 +216,5 @@ export async function onRequestGet(context) {
     if (!Number.isFinite(season)) return json({ok:false,error:"season-required"},400);
     return json(await cbbLines(env,{season,start,end}));
   }
-  return json({ok:false,error:"kind-required",kinds:["games","lines","kenpom-archive","kenpom-preseason"]},400);
+  return json({ok:false,error:"kind-required",kinds:["games","game-teams","lines","kenpom-archive","kenpom-preseason"]},400);
 }
