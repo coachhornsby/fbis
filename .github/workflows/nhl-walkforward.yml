@@ -50,12 +50,12 @@ jobs:
           git fetch origin "${{ github.ref_name }}"
           git reset --hard "origin/${{ github.ref_name }}"
           cp "$RUNNER_TEMP/nhl-fbis-v1-validation.json" data/models/nhl-fbis-v1-validation.json
-          if git diff --quiet -- data/models/nhl-fbis-v1-validation.json; then
+          git add data/models/nhl-fbis-v1-validation.json
+          if git diff --cached --quiet -- data/models/nhl-fbis-v1-validation.json; then
             echo "validation artifact unchanged"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/models/nhl-fbis-v1-validation.json
           git commit -m "data: add NHL point-in-time walk-forward validation"
           git push origin HEAD:"${{ github.ref_name }}"
