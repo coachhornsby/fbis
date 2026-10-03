@@ -1,0 +1,21 @@
+name: CFB pipeline static preflight
+on:
+  push:
+    branches: ["research/cfb-v5-context-engine"]
+    paths:
+      - ".github/workflows/cfb-static-preflight.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile CFB pipeline
+        run: |
+          python -m py_compile             scripts/cfb-conference-history.py             scripts/cfb-bulk-history-v3.py             scripts/cfb-program-context.py             scripts/cfb-final-enrich.py             scripts/cfb-provenance-catalog.py             scripts/fbis-freeze-snapshot.py             scripts/fbis-verify-snapshot.py             scripts/fbis-publish-r2.py             scripts/cfb-v3-walkforward.py             scripts/cfb-v4-walkforward.py             scripts/cfb-v5-context.py             scripts/cfb-v5-walkforward.py
