@@ -14,19 +14,26 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: cfb-v5-context-research
+  cancel-in-progress: true
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn boto3
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Preflight Cloudflare archive credentials
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
       - name: Build historical conference dimension from SportsDataverse
         env:
           CFB_CONF_START: "2004"
@@ -61,13 +68,8 @@ jobs:
       - name: Publish immutable warehouse to Cloudflare R2
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          test -n "$CLOUDFLARE_ACCOUNT_ID"
-          test -n "$R2_ACCESS_KEY_ID"
-          test -n "$R2_SECRET_ACCESS_KEY"
-          python scripts/fbis-publish-r2.py artifacts/cfb-warehouse/manifest.json
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python scripts/fbis-publish-r2.py artifacts/cfb-warehouse/manifest.json
       - uses: actions/upload-artifact@v4
         with:
           name: cfb-canonical-snapshot
