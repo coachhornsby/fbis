@@ -26,6 +26,7 @@ START=int(os.getenv("CFB_BULK_START","2004"))
 END=int(os.getenv("CFB_BULK_END","2026"))
 BASE="https://github.com/sportsdataverse/sportsdataverse-data/releases/download"
 OUT=Path("artifacts/cfb-history-v2"); OUT.mkdir(parents=True,exist_ok=True)
+CFBD_CONF=Path("artifacts/cfb-conference/cfb_game_conferences_2004_2026.csv")
 
 DATASETS={
     "schedule":("espn_cfb_schedules","cfb_schedule_{year}.parquet"),
@@ -297,6 +298,10 @@ def flatten_games(schedule, betting, team_roll):
     return pd.DataFrame(rows)
 
 def main():
+    conf=pd.read_csv(CFBD_CONF,low_memory=False) if CFBD_CONF.exists() else pd.DataFrame()
+    if conf.empty: raise RuntimeError("missing CFBD historical conference dimension")
+    conf["game_id"]=conf["game_id"].map(norm_id)
+    conf=conf.drop_duplicates("game_id")
     schedules=[]; bets=[]; team_rows=[]; coverage=[]; sources={}
     for year in range(START,END+1):
         season={}
@@ -308,6 +313,17 @@ def main():
             except Exception as e:
                 season[name]=pd.DataFrame();urls[name]=f"ERROR:{e}"
         sched=schedule_clean(season["schedule"]) if not season["schedule"].empty else pd.DataFrame()
+        if not sched.empty:
+            enrich=conf[conf["season"].eq(year)].copy()
+            keep=[x for x in ["game_id","home_conference","away_conference","home_classification","away_classification","neutral_site","conference_game","venue","venue_id","start_date"] if x in enrich.columns]
+            enrich=enrich[keep]
+            sched=sched.merge(enrich,on="game_id",how="left",suffixes=("","_cfbd"))
+            for col in ["home_conference","away_conference","home_classification","away_classification","neutral_site","conference_game","venue","venue_id","start_date"]:
+                alt=col+"_cfbd"
+                if alt in sched.columns:
+                    if col in sched.columns: sched[col]=sched[col].combine_first(sched[alt])
+                    else: sched[col]=sched[alt]
+                    sched=sched.drop(columns=[alt])
         bet=betting_clean(season["betting"])
         at=numeric_feature_frame(season["adv_team"],["pos_team_id","pos_team","team_id"],"off_")
         ad=numeric_feature_frame(season["adv_defensive"],["def_pos_team_id","def_pos_team","team_id"],"def_")
@@ -342,6 +358,7 @@ def main():
           "playerBoxRows":len(season["player_box"]),"rosterRows":len(season["rosters"]),
           "gameRosterRows":len(season["game_rosters"]),"linescoreRows":len(season["linescores"]),
           "teamSummaryRows":len(season["team_summaries"]),
+          "gamesWithBothConferences":int((sched["home_conference"].notna() & sched["away_conference"].notna()).sum()) if len(sched) and "home_conference" in sched and "away_conference" in sched else 0,
         })
         sources[str(year)]=urls
         print(json.dumps(coverage[-1]),flush=True)
@@ -384,6 +401,7 @@ def main():
       "lastSeason":int(games.season.max()) if len(games) else None,
       "gamesWithHomeConference":int(games["home_conference"].notna().sum()) if "home_conference" in games else 0,
       "gamesWithAwayConference":int(games["away_conference"].notna().sum()) if "away_conference" in games else 0,
+      "conferenceCoveragePct":round(float((games["home_conference"].notna() & games["away_conference"].notna()).mean()*100),3) if len(games) and "home_conference" in games and "away_conference" in games else 0,
       "temporalIntegrity":"All rolling football features use shift(1). Rankings/rest are game-known pregame context. Betting is benchmark/evaluation only.",
       "rawPbpAvailability":"SportsDataverse espn_cfb_pbp is retained losslessly by season in the canonical research warehouse when available; compact model matrices remain derived artifacts.",
       "marketPolicy":"ESPN/SportsDataverse resolved betting line is retained as benchmark only. CFBD provider-level/opening line enrichment is merged separately when available.",
@@ -403,6 +421,8 @@ def main():
     if q["gamesWithHomeConference"]==0 or q["gamesWithAwayConference"]==0:
         conf_like=[z for z in schedule.columns if "conf" in z.lower()]
         raise RuntimeError(f"CFB schedule lacks usable home/away conference membership; conference-like columns={conf_like}")
+    if q["conferenceCoveragePct"]<95:
+        raise RuntimeError(f"CFB historical conference coverage below 95%: {q['conferenceCoveragePct']}")
     print(json.dumps(q,indent=2))
 
 if __name__=="__main__":
