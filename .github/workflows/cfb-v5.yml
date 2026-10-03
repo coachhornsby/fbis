@@ -25,7 +25,7 @@ jobs:
         env: {CFB_CONTEXT_START: "2004", CFB_CONTEXT_END: "2026"}
         run: python scripts/cfb-program-context.py
       - run: python scripts/cfb-final-enrich.py
-      - name: Build v5 context and conference power
+      - run: python scripts/cfb-v3-walkforward.py\n      - run: python scripts/cfb-v4-walkforward.py\n      - name: Build v5 context and conference power
         run: python scripts/cfb-v5-context.py
       - name: Run v5 walk-forward
         run: python scripts/cfb-v5-walkforward.py
@@ -34,5 +34,5 @@ jobs:
           name: cfb-v5
           path: |
             artifacts/cfb-final/v5-context/*
-            artifacts/cfb-final/model-v5/*
+            artifacts/cfb-final/model-v5/*\n            artifacts/cfb-final/model-v4/*
           retention-days: 90
