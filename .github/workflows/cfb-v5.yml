@@ -5,6 +5,10 @@ on:
     paths:
       - "scripts/cfb-v5-context.py"
       - "scripts/cfb-v5-walkforward.py"
+      - "scripts/cfb-bulk-history-v3.py"
+      - "scripts/cfb-provenance-catalog.py"
+      - "scripts/fbis-freeze-snapshot.py"
+      - "scripts/fbis-publish-r2.py"
       - ".github/workflows/cfb-v5.yml"
   workflow_dispatch:
 permissions:
@@ -18,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn boto3
       - name: Build CFB game history
         env:
           CFB_BULK_START: "2004"
@@ -30,18 +34,37 @@ jobs:
           CFB_CONTEXT_END: "2026"
         run: python scripts/cfb-program-context.py
       - run: python scripts/cfb-final-enrich.py
-      - name: Freeze and publish canonical input before model tests
+      - name: Build provenance and temporal catalog
+        run: python scripts/cfb-provenance-catalog.py
+      - name: Freeze canonical research warehouse before model tests
         run: |
           V="CFB-2004-2026-${GITHUB_SHA::12}"
-          python scripts/fbis-freeze-snapshot.py --sport CFB --version "$V" --out artifacts/cfb-final/manifest.json artifacts/cfb-final/cfb_training_full_enriched_2004_2026.csv artifacts/cfb-final/cfb_final_qa.json
+          mkdir -p artifacts/cfb-warehouse
+          cp -a artifacts/cfb-history-v2 artifacts/cfb-warehouse/history
+          cp -a artifacts/cfb-context artifacts/cfb-warehouse/program-context
+          cp artifacts/cfb-final/cfb_training_full_enriched_2004_2026.csv artifacts/cfb-warehouse/
+          cp artifacts/cfb-final/cfb_training_full_enriched_2004_2026.parquet artifacts/cfb-warehouse/
+          cp artifacts/cfb-final/cfb_final_qa.json artifacts/cfb-warehouse/
+          cp artifacts/cfb-final/provenance-catalog.json artifacts/cfb-warehouse/
+          python scripts/fbis-freeze-snapshot.py --sport CFB --version "$V" --out artifacts/cfb-warehouse/manifest.json --root artifacts/cfb-warehouse
+          python scripts/fbis-verify-snapshot.py artifacts/cfb-warehouse/manifest.json
+      - name: Publish immutable warehouse to Cloudflare R2
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$R2_ACCESS_KEY_ID"
+          test -n "$R2_SECRET_ACCESS_KEY"
+          python scripts/fbis-publish-r2.py artifacts/cfb-warehouse/manifest.json
       - uses: actions/upload-artifact@v4
         with:
           name: cfb-canonical-snapshot
           path: |
-            artifacts/cfb-final/cfb_training_full_enriched_2004_2026.csv
-            artifacts/cfb-final/cfb_training_full_enriched_2004_2026.parquet
-            artifacts/cfb-final/cfb_final_qa.json
-            artifacts/cfb-final/manifest.json
+            artifacts/cfb-warehouse/manifest.json
+            artifacts/cfb-warehouse/cfb_final_qa.json
+            artifacts/cfb-warehouse/provenance-catalog.json
           retention-days: 90
       - run: python scripts/cfb-v3-walkforward.py
       - run: python scripts/cfb-v4-walkforward.py
