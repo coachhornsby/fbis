@@ -298,10 +298,11 @@ def flatten_games(schedule, betting, team_roll):
     return pd.DataFrame(rows)
 
 def main():
-    conf=pd.read_csv(CFBD_CONF,low_memory=False) if CFBD_CONF.exists() else pd.DataFrame()
-    if conf.empty: raise RuntimeError("missing CFBD historical conference dimension")
-    conf["game_id"]=conf["game_id"].map(norm_id)
-    conf=conf.drop_duplicates("game_id")
+    conf=pd.read_csv(SDV_CONF,low_memory=False) if SDV_CONF.exists() else pd.DataFrame()
+    if conf.empty: raise RuntimeError("missing SportsDataverse team-season conference dimension")
+    conf["team_id"]=conf["team_id"].map(norm_id)
+    conf["season"]=pd.to_numeric(conf["season"],errors="coerce").astype("Int64")
+    conf=conf.drop_duplicates(["season","team_id"])
     schedules=[]; bets=[]; team_rows=[]; coverage=[]; sources={}
     for year in range(START,END+1):
         season={}
