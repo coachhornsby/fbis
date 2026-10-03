@@ -1,0 +1,63 @@
+name: MLB pitcher K today
+on:
+  push:
+    branches: [research/mlb-pitcher-k-v1]
+    paths:
+      - "functions/lib/mlbPitcherKModel.js"
+      - "test/mlb-pitcher-k-model.test.js"
+      - ".github/workflows/mlb-pitcher-k-today.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  project:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Unit tests
+        run: node --test test/mlb-pitcher-k-model.test.js
+      - name: Live Sep 29 pitcher K projections
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { projectPitcherK } from "./functions/lib/mlbPitcherKModel.js";
+          const slateRes=await fetch("https://fbis-myz.pages.dev/api/slate?sport=mlb&date=2026-09-29&_t="+Date.now());
+          if(!slateRes.ok) throw new Error("slate http "+slateRes.status);
+          const slate=await slateRes.json();
+          async function seasonStats(id){
+            const u=`https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=season&group=pitching&season=2026`;
+            const r=await fetch(u);
+            if(!r.ok) return null;
+            const j=await r.json();
+            const s=j?.stats?.[0]?.splits?.[0]?.stat||null;
+            if(!s) return null;
+            const ip=Number(s.inningsPitched), k=Number(s.strikeOuts);
+            return {ip,k,k9:(Number.isFinite(ip)&&ip>0&&Number.isFinite(k))?k*9/ip:null};
+          }
+          const rows=[];
+          for(const g of slate.games||[]){
+            const b=g.bpp;
+            if(!b) continue;
+            const specs=[
+              {sp:b.awaySp,team:g.away?.abbr,opp:g.home?.abbr,mu:b.matchup?.vsAwaySp},
+              {sp:b.homeSp,team:g.home?.abbr,opp:g.away?.abbr,mu:b.matchup?.vsHomeSp},
+            ];
+            for(const x of specs){
+              if(!x.sp?.id) continue;
+              const season=await seasonStats(x.sp.id);
+              const p=projectPitcherK({
+                pitcherId:x.sp.id,pitcherName:x.sp.name,team:x.team,opponent:x.opp,
+                seasonK9:season?.k9,seasonIp:season?.ip,
+                expectedInnings:x.sp.innings,expectedInningsSource:"ballpark-pal",
+                palKVs:x.mu?.kVs,palMatchupN:x.mu?.n,lineupsOfficial:b.lineupsOfficial,
+              });
+              rows.push({game:`${g.away?.abbr}@${g.home?.abbr}`,fbis:p,palBenchmark:{projectedKs:x.sp.k,expectedInnings:x.sp.innings,kVs:x.mu?.kVs,n:x.mu?.n,lineupsOfficial:b.lineupsOfficial},season});
+            }
+          }
+          console.log("KMETA "+JSON.stringify({pal:slate.pal,count:rows.length}));
+          for(const row of rows) console.log("KROW "+JSON.stringify(row));
+          NODE
