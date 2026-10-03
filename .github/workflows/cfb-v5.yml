@@ -1,0 +1,38 @@
+name: CFB v5 context research
+on:
+  push:
+    branches: ["research/cfb-v5-context-engine"]
+    paths:
+      - "scripts/cfb-v5-context.py"
+      - "scripts/cfb-v5-walkforward.py"
+      - ".github/workflows/cfb-v5.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Build CFB game history
+        env: {CFB_BULK_START: "2004", CFB_BULK_END: "2026"}
+        run: python scripts/cfb-bulk-history-v3.py
+      - name: Build program context
+        env: {CFB_CONTEXT_START: "2004", CFB_CONTEXT_END: "2026"}
+        run: python scripts/cfb-program-context.py
+      - run: python scripts/cfb-final-enrich.py
+      - name: Build v5 context and conference power
+        run: python scripts/cfb-v5-context.py
+      - name: Run v5 walk-forward
+        run: python scripts/cfb-v5-walkforward.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-v5
+          path: |
+            artifacts/cfb-final/v5-context/*
+            artifacts/cfb-final/model-v5/*
+          retention-days: 90
