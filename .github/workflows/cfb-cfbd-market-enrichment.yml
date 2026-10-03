@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-node@v4.1.0
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Pull all available CFBD provider lines 2004-2026
