@@ -5,10 +5,8 @@ on:
     - cron: "20 13 * * *"
   workflow_dispatch:
   push:
-    branches:
-      - "feature/nhl-end-to-end-20261003"
+    branches: [main]
     paths:
-      - ".github/nhl-run/source-audit"
       - "scripts/nhl-source-audit.mjs"
       - "functions/lib/nhlDataSources.js"
       - ".github/workflows/nhl-source-audit.yml"
