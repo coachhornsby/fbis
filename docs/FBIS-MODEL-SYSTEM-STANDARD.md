@@ -107,6 +107,10 @@ Required behavior:
 - Separate workflows/jobs should own (1) acquisition/canonical snapshot creation and (2) model research/validation.
 - Every model report must record the canonical snapshot ID/checksum it consumed so results are reproducible.
 - The same rule applies to MLB, NFL, CFB, CBB, NBA, WNBA, NHL, soccer, and future FBIS sports.
+- Frozen does not mean season-static. During an active season, each sport MUST publish append-only weekly/incremental snapshot versions that preserve prior historical rows, ingest newly available games/context, recompute only the causally affected rolling/enrichment tail where practical, rerun QA/provenance checks, and issue a new manifest/checksum.
+- Never mutate an already published snapshot in place. A weekly refresh creates a new snapshot ID/version and retains lineage to its parent snapshot.
+- Research and production reports MUST pin the exact snapshot version used. Historical backtests remain reproducible against their original snapshot even after later weekly refreshes.
+- Weekly refresh jobs and model-validation jobs are separate concerns: refresh may create a new canonical snapshot; validation may only consume a compatible frozen snapshot and must not trigger acquisition implicitly.
 
 ## 5. Validation standard
 
