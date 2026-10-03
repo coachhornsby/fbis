@@ -66,7 +66,9 @@ jobs:
       - name: Test structural confirmation
         env: {CBB_SNAPSHOT_VERSION: "cbb-structural-historical-v2026.10.03-r${{ github.run_id }}"}
         run: node scripts/cbb-structural-confirmation-v1.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-structural-confirmation-v1-run.log
-      - name: Test CBB-PRO totals promotion\n        run: node scripts/cbb-pro-total-v1-promotion.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-pro-total-v1-promotion-run.log\n      - uses: actions/upload-artifact@v4
+      - name: Test CBB-PRO totals promotion
+        run: node scripts/cbb-pro-total-v1-promotion.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-pro-total-v1-promotion-run.log
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: cbb-structural-snapshot-${{ github.run_id }}
