@@ -44,13 +44,28 @@ DATASETS={
     "power_index":("espn_cfb_power_index","power_index_{year}.parquet"),
     # Lossless research warehouse tables. These are retained even when not
     # currently flattened into the compact model matrix.
-    "pbp":("espn_cfb_pbp","cfb_pbp_{year}.parquet"),
+    "pbp":("espn_cfb_pbp","play_by_play_{year}.parquet"),
     "drives_raw":("espn_cfb_drives","drives_{year}.parquet"),
     "player_box":("espn_cfb_player_box","player_box_{year}.parquet"),
-    "rosters":("espn_cfb_rosters","rosters_{year}.parquet"),
+    "rosters":("espn_cfb_rosters","cfb_rosters_{year}.parquet"),
     "game_rosters":("espn_cfb_game_rosters","game_rosters_{year}.parquet"),
     "linescores":("espn_cfb_linescores","linescores_{year}.parquet"),
-    "team_summaries":("espn_cfb_team_summaries","team_summaries_{year}.parquet"),
+    "team_summaries":("espn_cfb_team_summaries","cfb_team_summaries_{year}.parquet"),
+    "play_participants":("espn_cfb_play_participants","play_participants_{year}.parquet"),
+    "injuries":("espn_cfb_injuries","injuries_{year}.parquet"),
+    "adv_defensive_players":("espn_cfb_adv_defensive_players","adv_defensive_players_{year}.parquet"),
+    "adv_player_usage":("espn_cfb_adv_player_usage","adv_player_usage_{year}.parquet"),
+    "adv_st_team":("espn_cfb_adv_st_team","adv_st_team_{year}.parquet"),
+    "adv_st_kickers":("espn_cfb_adv_st_kickers","adv_st_kickers_{year}.parquet"),
+    "adv_st_punters":("espn_cfb_adv_st_punters","adv_st_punters_{year}.parquet"),
+    "adv_st_returners":("espn_cfb_adv_st_returners","adv_st_returners_{year}.parquet"),
+    "adv_st_blocks":("espn_cfb_adv_st_blocks","adv_st_blocks_{year}.parquet"),
+    "adv_tackles":("espn_cfb_adv_tackles","adv_tackles_{year}.parquet"),
+    "adv_position_group_tackles":("espn_cfb_adv_position_group_tackles","adv_position_group_tackles_{year}.parquet"),
+    "adv_position_group_usage":("espn_cfb_adv_position_group_usage","adv_position_group_usage_{year}.parquet"),
+    "adv_team_gamelog":("espn_cfb_adv_team_gamelog","adv_team_gamelog_{year}.parquet"),
+    "adv_team_usage":("espn_cfb_adv_team_usage","adv_team_usage_{year}.parquet"),
+    "adv_drive_scripting":("espn_cfb_adv_drive_scripting","adv_drive_scripting_{year}.parquet"),
 }
 
 def fetch_parquet(tag, template, year):
@@ -362,6 +377,7 @@ def main():
           "teamSummaryRows":len(season["team_summaries"]),
           "gamesWithBothConferences":int((sched["home_conference"].notna() & sched["away_conference"].notna()).sum()) if len(sched) and "home_conference" in sched and "away_conference" in sched else 0,
           "conferenceMembershipSource":"SportsDataverse cfb_groups",
+          "sourceRows":{k:int(len(v)) for k,v in season.items()},
         })
         sources[str(year)]=urls
         print(json.dumps(coverage[-1]),flush=True)
