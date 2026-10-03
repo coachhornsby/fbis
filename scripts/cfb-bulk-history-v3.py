@@ -151,6 +151,16 @@ def primary_qb(df):
 def schedule_clean(df):
     x=df.copy()
     x["game_id"]=x["game_id"].map(norm_id)
+    # Normalize season-specific conference membership from schedule metadata.
+    # These fields are descriptive team identity/context, not market inputs.
+    aliases={
+      "home_conference":["home_conference","home_conference_name","home_conf","home_team_conference","home_team_conference_name","home_conference_abbreviation","home_team_conference_abbreviation"],
+      "away_conference":["away_conference","away_conference_name","away_conf","away_team_conference","away_team_conference_name","away_conference_abbreviation","away_team_conference_abbreviation"],
+    }
+    for target,cands in aliases.items():
+        if target in x.columns and x[target].notna().any(): continue
+        src=next((z for z in cands if z in x.columns and x[z].notna().any()),None)
+        if src: x[target]=x[src]
     for c in ["home_id","away_id"]:
         if c in x.columns:x[c]=x[c].map(norm_id)
     if "game_date" in x.columns:
@@ -354,6 +364,8 @@ def main():
       "pregameFeatureColumns":len([c for c in games.columns if c.startswith(("home_pregame_","away_pregame_","diff_pregame_","sum_pregame_"))]),
       "firstSeason":int(games.season.min()) if len(games) else None,
       "lastSeason":int(games.season.max()) if len(games) else None,
+      "gamesWithHomeConference":int(games["home_conference"].notna().sum()) if "home_conference" in games else 0,
+      "gamesWithAwayConference":int(games["away_conference"].notna().sum()) if "away_conference" in games else 0,
       "temporalIntegrity":"All rolling football features use shift(1). Rankings/rest are game-known pregame context. Betting is benchmark/evaluation only.",
       "rawPbpAvailability":"SportsDataverse espn_cfb_pbp has season parquet assets for every season 2004-2026; advanced tables consumed here are PBP-derived to avoid duplicating >1GB raw PBP in the canonical artifact.",
       "marketPolicy":"ESPN/SportsDataverse resolved betting line is retained as benchmark only. CFBD provider-level/opening line enrichment is merged separately when available.",
@@ -370,6 +382,9 @@ def main():
         raise RuntimeError(f"bulk CFB history unexpectedly incomplete: {q}")
     if q["gamesWithSpread"]==0 or q["pregameFeatureColumns"]<100 or q["rawAdvancedFeatureCount"]<25:
         raise RuntimeError(f"bulk CFB market/features unexpectedly incomplete: {q}")
+    if q["gamesWithHomeConference"]==0 or q["gamesWithAwayConference"]==0:
+        conf_like=[z for z in schedule.columns if "conf" in z.lower()]
+        raise RuntimeError(f"CFB schedule lacks usable home/away conference membership; conference-like columns={conf_like}")
     print(json.dumps(q,indent=2))
 
 if __name__=="__main__":
