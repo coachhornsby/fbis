@@ -20,7 +20,8 @@ from sklearn.metrics import mean_absolute_error,accuracy_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-DATA=Path("artifacts/cfb-final/v5-context/cfb_v5_context.csv")\nV4=Path("artifacts/cfb-final/model-v4/oos-predictions.csv")
+DATA=Path("artifacts/cfb-final/v5-context/cfb_v5_context.csv")
+V4=Path("artifacts/cfb-final/model-v4/oos-predictions.csv")
 V3=Path("artifacts/cfb-final/model/cfb_v3_oos_predictions.csv")
 OUT=Path("artifacts/cfb-final/model-v5");OUT.mkdir(parents=True,exist_ok=True)
 RIDGE_ALPHAS=[10,30,100,300]
