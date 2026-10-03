@@ -30,6 +30,19 @@ jobs:
           CFB_CONTEXT_END: "2026"
         run: python scripts/cfb-program-context.py
       - run: python scripts/cfb-final-enrich.py
+      - name: Freeze and publish canonical input before model tests
+        run: |
+          V="CFB-2004-2026-${GITHUB_SHA::12}"
+          python scripts/fbis-freeze-snapshot.py --sport CFB --version "$V" --out artifacts/cfb-final/manifest.json artifacts/cfb-final/cfb_training_full_enriched_2004_2026.csv artifacts/cfb-final/cfb_final_qa.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-canonical-snapshot
+          path: |
+            artifacts/cfb-final/cfb_training_full_enriched_2004_2026.csv
+            artifacts/cfb-final/cfb_training_full_enriched_2004_2026.parquet
+            artifacts/cfb-final/cfb_final_qa.json
+            artifacts/cfb-final/manifest.json
+          retention-days: 90
       - run: python scripts/cfb-v3-walkforward.py
       - run: python scripts/cfb-v4-walkforward.py
       - name: Build v5 context and conference power
