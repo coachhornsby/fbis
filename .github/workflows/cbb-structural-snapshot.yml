@@ -11,6 +11,8 @@ on:
       - "scripts/cbb-structural-confirmation-v1.mjs"
       - ".github/workflows/cbb-structural-snapshot.yml"
   workflow_dispatch:
+  schedule:
+    - cron: "17 12 * * 1"
 permissions:
   contents: read
 concurrency:
@@ -49,7 +51,6 @@ jobs:
           set -euo pipefail
           node scripts/cbb-verify-frozen-dataset.mjs artifacts/base/frozen/cbb-enriched-v2026.10.02
       - name: Build pregame structural snapshots
-        env: {HARVEST_SECRET: "${{ secrets.HARVEST_SECRET }}"}
         run: |
           set -euo pipefail
           node scripts/cbb-build-structural-snapshots.mjs artifacts/base/frozen/cbb-enriched-v2026.10.02/dataset.json | tee artifacts/cbb-structural-build-run.log
