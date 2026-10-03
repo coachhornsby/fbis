@@ -1,0 +1,72 @@
+name: CBB structural snapshot lifecycle
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/cbb-walkforward-source.js"
+      - "functions/api/cbb-snapshot-archive.js"
+      - "scripts/cbb-build-structural-snapshots.mjs"
+      - "scripts/cbb-qa-structural-snapshot.mjs"
+      - "scripts/cbb-publish-structural-snapshot.mjs"
+      - "scripts/cbb-structural-confirmation-v1.mjs"
+      - ".github/workflows/cbb-structural-snapshot.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cbb-structural-snapshot
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: "22", cache: "npm"}
+      - run: npm ci
+      - name: Wait for exact production SHA
+        env: {TARGET_SHA: "${{ github.sha }}"}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 50); do
+            BODY="$(curl -fsS --max-time 20 https://fbis-myz.pages.dev/api/health || true)"
+            SHA="$(printf '%s' "$BODY" | jq -r '.deploymentCommit // .build.commit // empty' 2>/dev/null || true)"
+            [ "$SHA" = "$TARGET_SHA" ] && exit 0
+            sleep 15
+          done
+          exit 1
+      - name: Download pinned historical base
+        uses: actions/download-artifact@v4
+        with:
+          name: cbb-data-stack-walk-forward
+          github-token: "${{ github.token }}"
+          repository: coachhornsby/fbis
+          run-id: 37070655870
+          path: artifacts/base
+      - name: Verify pinned base
+        run: |
+          set -euo pipefail
+          node scripts/cbb-verify-frozen-dataset.mjs artifacts/base/frozen/cbb-enriched-v2026.10.02
+      - name: Build pregame structural snapshots
+        env: {HARVEST_SECRET: "${{ secrets.HARVEST_SECRET }}"}
+        run: |
+          set -euo pipefail
+          node scripts/cbb-build-structural-snapshots.mjs artifacts/base/frozen/cbb-enriched-v2026.10.02/dataset.json | tee artifacts/cbb-structural-build-run.log
+      - name: QA structural snapshot
+        run: node scripts/cbb-qa-structural-snapshot.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-structural-qa-run.log
+      - name: Publish immutable structural snapshot
+        env:
+          HARVEST_SECRET: "${{ secrets.HARVEST_SECRET }}"
+          CBB_SNAPSHOT_VERSION: "cbb-structural-historical-v2026.10.03-r${{ github.run_id }}"
+        run: node scripts/cbb-publish-structural-snapshot.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-structural-publish-run.log
+      - name: Test structural confirmation
+        env: {CBB_SNAPSHOT_VERSION: "cbb-structural-historical-v2026.10.03-r${{ github.run_id }}"}
+        run: node scripts/cbb-structural-confirmation-v1.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-structural-confirmation-v1-run.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cbb-structural-snapshot-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 90
