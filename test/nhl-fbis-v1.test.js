@@ -10,6 +10,7 @@ import { promoteNhlResearchToBoard } from "../functions/lib/researchBoardPromote
 import { qualificationIntegrity } from "../functions/lib/slateEngine.js";
 import { getModel } from "../functions/lib/canonical/modelRegistry.js";
 import { NHL_FBIS_V1_ARTIFACT } from "../data/models/nhl-fbis-v1.js";
+import { NHL_DATA_SOURCE_POLICY, classifyNhlArchiveFreshness, buildNhlSourceLineage } from "../functions/lib/nhlDataSources.js";
 
 describe("NHL-FBIS-v1 five-layer research model", () => {
   const artifact = {
@@ -150,6 +151,38 @@ describe("NHL-FBIS-v1 five-layer research model", () => {
     assert.match(src, /team\/penaltykill/);
     assert.match(src, /goalie\/summary/);
     assert.match(src, /schedule\//);
+  });
+
+  it("pins official NHL APIs as live primary and SportsDataverse fastRhockey as historical archive", () => {
+    assert.equal(NHL_DATA_SOURCE_POLICY.livePrimary.id, "NHL_OFFICIAL_API");
+    assert.equal(NHL_DATA_SOURCE_POLICY.livePrimary.requestTimeAllowed, true);
+    assert.equal(NHL_DATA_SOURCE_POLICY.historicalArchive.id, "SPORTSDATAVERSE_FASTRHOCKEY");
+    assert.equal(NHL_DATA_SOURCE_POLICY.historicalArchive.requestTimeAllowed, false);
+    assert.ok(NHL_DATA_SOURCE_POLICY.historicalArchive.releaseTags.includes("nhl_pbp_full"));
+    assert.ok(NHL_DATA_SOURCE_POLICY.historicalArchive.releaseTags.includes("nhl_team_boxscores"));
+  });
+
+  it("fails archive freshness closed during the active season without contaminating live projections", () => {
+    const stale = classifyNhlArchiveFreshness("2026-07-23T00:00:00Z", "2026-10-03T12:00:00Z");
+    assert.equal(stale.status, "STALE");
+    const lineage = buildNhlSourceLineage({
+      asOf: "2026-10-03T12:00:00Z",
+      artifactGeneratedAt: "2026-09-29T13:13:18Z",
+      sportsDataverseUpdatedAt: "2026-07-23T00:00:00Z",
+    });
+    assert.equal(lineage.livePrimary.status, "ACTIVE");
+    assert.equal(lineage.historicalArchive.status, "DEGRADED_STALE");
+    assert.equal(lineage.marketInputsUsedForProjection, false);
+  });
+
+  it("ships point-in-time walk-forward and source-audit workflows", async () => {
+    const wf = await readFile(new URL("../scripts/nhl-walkforward.mjs", import.meta.url), "utf8");
+    assert.match(wf, /pointInTime:true/);
+    assert.match(wf, /priorSeasonOnlyTraining:true/);
+    assert.doesNotMatch(wf, /pinnacle|sportsbook|odds.*price/i);
+    const audit = await readFile(new URL("../scripts/nhl-source-audit.mjs", import.meta.url), "utf8");
+    assert.match(audit, /sportsdataverse\/sportsdataverse-data/);
+    assert.match(audit, /api-web\.nhle\.com/);
   });
 
   it("historical fitter uses official NHL schedules and play by play without market inputs", async () => {
