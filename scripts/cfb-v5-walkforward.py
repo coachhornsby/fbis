@@ -20,7 +20,7 @@ from sklearn.metrics import mean_absolute_error,accuracy_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-DATA=Path("artifacts/cfb-final/cfb_training_full_enriched_2004_2026.csv")
+DATA=Path("artifacts/cfb-final/v5-context/cfb_v5_context.csv")\nV4=Path("artifacts/cfb-final/model-v4/oos-predictions.csv")
 V3=Path("artifacts/cfb-final/model/cfb_v3_oos_predictions.csv")
 OUT=Path("artifacts/cfb-final/model-v5");OUT.mkdir(parents=True,exist_ok=True)
 RIDGE_ALPHAS=[10,30,100,300]
@@ -169,20 +169,28 @@ def main():
   ms=tune(tr,mf,"actual_margin");ts=tune(tr,tf,"actual_total")
   pm=fit_predict(tr,te,mf,"actual_margin",ms);pt=fit_predict(tr,te,tf,"actual_total",ts)
   rows.append(pd.DataFrame({"season":season,"game_id":te.game_id,"actual_margin":te.actual_margin,"actual_total":te.actual_total,
-   "v4_margin":pm,"v4_total":pt,"market_margin":-num(te.benchmark_home_spread),"market_total":num(te.benchmark_total)}))
+   "v5_margin":pm,"v5_total":pt,"market_margin":-num(te.benchmark_home_spread),"market_total":num(te.benchmark_total)}))
   folds.append({"season":season,"trainN":len(tr),"testN":len(te),"marginFeatures":mf,"totalFeatures":tf,"marginModel":str(ms),"totalModel":str(ts)})
  p=pd.concat(rows,ignore_index=True)
  old=pd.read_csv(V3).rename(columns={"model_margin":"v3_margin","model_total":"v3_total"})
  p=p.merge(old[["game_id","v3_margin","v3_total"]],on="game_id",how="inner")
- m4=metrics(p,p.v4_margin,p.v4_total);m3=metrics(p,p.v3_margin,p.v3_total)
- mk=p.dropna(subset=["market_margin","market_total"]);market=metrics(mk,mk.market_margin,mk.market_total);m4mk=metrics(mk,mk.v4_margin,mk.v4_total)
- hold=p[p.season>=2025];h4=metrics(hold,hold.v4_margin,hold.v4_total);h3=metrics(hold,hold.v3_margin,hold.v3_total)
+ m4=metrics(p,p.v5_margin,p.v5_total);m3=metrics(p,p.v3_margin,p.v3_total)
+ mk=p.dropna(subset=["market_margin","market_total"]);market=metrics(mk,mk.market_margin,mk.market_total);m4mk=metrics(mk,mk.v5_margin,mk.v5_total)
+ hold=p[p.season>=2025];h4=metrics(hold,hold.v5_margin,hold.v5_total);h3=metrics(hold,hold.v3_margin,hold.v3_total)
+ # Paired head-to-head against the frozen v4 OOS predictions when available.
+ v4cmp=None
+ if V4.exists():
+  q=pd.read_csv(V4)[["game_id","v4_margin","v4_total"]]
+  z=p.merge(q,on="game_id",how="inner")
+  zh=z[z.season>=2025]
+  v4cmp={"n":len(z),"v5":metrics(z,z.v5_margin,z.v5_total),"v4":metrics(z,z.v4_margin,z.v4_total),
+         "holdout2025_2026":{"v5":metrics(zh,zh.v5_margin,zh.v5_total),"v4":metrics(zh,zh.v4_margin,zh.v4_total)}}
  report={"modelId":"CFB-FBIS-v5-research","role":"research","marketInformed":False,"canQualify":False,
   "design":"v5 football-specific opponent/SOS/conference/HFA/pace/environment context + broad shifted advanced state + matchup interactions + train-fold-selected Ridge/HistGradientBoosting ensemble",
   "sample":{"n":len(p),"startSeason":int(p.season.min()),"endSeason":int(p.season.max())},
   "v5":m4,"v3":m3,"marketPairedV5":m4mk,"market":market,"holdout2025_2026":{"v5":h4,"v3":h3},
   "beatsV3AllThree":bool(m4["marginMae"]<m3["marginMae"] and m4["totalMae"]<m3["totalMae"] and m4["winnerAccuracy"]>m3["winnerAccuracy"]),
-  "betting":betting(p),"folds":folds,
+  "betting":betting(p,prefix="v5"),"v4HeadToHead":v4cmp,"folds":folds,
   "governance":"Research only. Market excluded from feature construction, selection, tuning and fit. Betting lines exposed only after frozen OOS predictions."}
  (OUT/"report.json").write_text(json.dumps(report,indent=2));p.to_csv(OUT/"oos-predictions.csv",index=False)
  print(json.dumps({k:v for k,v in report.items() if k not in ["folds","betting"]},indent=2))
