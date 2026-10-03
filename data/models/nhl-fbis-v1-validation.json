@@ -1,16 +1,33 @@
 {
   "modelId": "NHL-FBIS-v1",
   "validationVersion": "walkforward-v1-core",
-  "generatedAt": "2026-10-03T15:38:28.716Z",
+  "generatedAt": "2026-10-03T15:46:49.862Z",
   "marketInformed": false,
   "pointInTime": true,
   "source": "NHL_OFFICIAL_API",
   "sportsDataverseRole": "HISTORICAL_ARCHIVE_AUDIT",
-  "note": "Historical walk-forward validates the independent scoring/xG core using only prior seasons plus games already played in each target season. Live goalie, special-teams, lineup, and market-relative layers remain gated by prospective OOS validation.",
+  "note": "Historical walk-forward validates the independent scoring/xG core using only prior seasons plus games already played in each target season. Live goalie, special-teams, and confirmed-lineup layers remain gated by prospective OOS validation.",
   "seasons": [
     "20232024",
     "20242025",
     "20252026"
+  ],
+  "featureOrder": [
+    "intercept",
+    "distance50",
+    "angle90",
+    "distanceSq2500",
+    "angleSq8100",
+    "rebound",
+    "reboundDistance50",
+    "wrist",
+    "snap",
+    "slap",
+    "backhand",
+    "tip",
+    "deflected",
+    "wrap",
+    "poke"
   ],
   "fetchErrors": [],
   "folds": [
@@ -71,9 +88,5 @@
     "historicalCoreValidated": true,
     "fullModelPromotionEligible": false,
     "reason": "Prospective validation is still required for goalie, special-teams, lineup, and market-relative calibration."
-  },
-  "evidence": {
-    "workflowRunId": 37133864899,
-    "workflowConclusion": "success"
   }
 }
