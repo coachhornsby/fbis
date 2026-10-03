@@ -62,49 +62,53 @@ def neutralize(x,season):
 
 
 def stabilize_weekly(raw):
- """Convert game-state estimates into stable point-in-time team power ratings.
+ """Convert raw game-state estimates into leakage-safe weekly team ratings.
 
- Uses only information available before each game. A team's new raw football-state
- estimate is shrunk toward its own prior rating and an opponent-adjusted result
- residual from completed earlier games. No polls, market lines, or external ratings.
+ All games in a season/week are rated from one immutable pre-week state snapshot.
+ Completed games update state only after every game in that week has been published.
  """
  state={}; out=[]
  raw=raw.sort_values(["season","week","game_id"]).copy()
  for season,sg in raw.groupby("season",sort=True):
-  # Carry prior-season terminal strength with heavy regression to average.
-  prev={k:v for k,v in state.items()}
-  state={}
-  games={}
+  prev=dict(state); state={}; games={}
   for week,wg in sg.groupby("week",sort=True):
-   # Snapshot ratings BEFORE this week's games.
+   week_ratings={}
+   published=[]
+   # Build every team's pre-week rating before using any result from this week.
    for _,r in wg.iterrows():
+    rr=r.copy()
     for side in ("home","away"):
-     tid=r[f"{side}_id"]; rawf=float(r[f"{side}_fpr"])
-     old=state.get(tid)
-     if old is None:
-      prior=.45*prev.get(tid,0.0)
-      rating=.55*rawf+.45*prior
-      gp=0
-     else:
+     tid=rr[f"{side}_id"]; rawf=float(rr[f"{side}_fpr"])
+     if tid not in week_ratings:
+      old=state.get(tid)
       gp=games.get(tid,0)
-      # More early-season shrinkage; latest feature state cannot whipsaw rating.
-      wraw=min(.28,.14+.025*gp)
-      rating=(1-wraw)*old+wraw*rawf
-     r[f"{side}_stable_fpr"]=rating
-     r[f"{side}_games_prior"]=gp
-   out.append(r.copy())
-   # Update after completed games using opponent-adjusted neutral result residual.
-   for _,r in wg.iterrows():
-    h,a=r.home_id,r.away_id
-    hr=state.get(h,float(r.home_stable_fpr)); ar=state.get(a,float(r.away_stable_fpr))
-    # conservative HFA only for result-residual update, never poll/market derived
-    neutral_result=float(r.actual_margin)-2.5
-    expected=hr-ar
-    resid=np.clip(neutral_result-expected,-28,28)
+      if old is None:
+       prior=.45*prev.get(tid,0.0)
+       rating=.55*rawf+.45*prior
+      else:
+       wraw=min(.28,.14+.025*gp)
+       rating=(1-wraw)*old+wraw*rawf
+      week_ratings[tid]=float(rating)
+     rr[f"{side}_stable_fpr"]=week_ratings[tid]
+     rr[f"{side}_games_prior"]=games.get(tid,0)
+    published.append(rr)
+    out.append(rr.copy())
+   # Only now may completed games affect the state used by later weeks.
+   next_state=dict(state)
+   for rr in published:
+    h,a=rr.home_id,rr.away_id
+    hr=week_ratings[h]; ar=week_ratings[a]
+    neutral_result=float(rr.actual_margin)-2.5
+    resid=float(np.clip(neutral_result-(hr-ar),-28,28))
     k=.10
-    state[h]=hr+k*resid/2; state[a]=ar-k*resid/2
-    games[h]=games.get(h,0)+1;games[a]=games.get(a,0)+1
-  # terminal states become next-season priors
+    next_state[h]=hr+k*resid/2
+    next_state[a]=ar-k*resid/2
+    games[h]=games.get(h,0)+1
+    games[a]=games.get(a,0)+1
+   # Teams with a bye retain their previous state.
+   for tid,val in state.items():
+    next_state.setdefault(tid,val)
+   state=next_state
  return pd.DataFrame(out)
 
 def main():
