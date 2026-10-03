@@ -44,3 +44,13 @@ Published snapshots are immutable. Weekly refresh:
 
 ## Research rule
 Model workflows consume a pinned compatible snapshot and may create arbitrary model matrices from it. They may not trigger historical acquisition. Market data remains available for evaluation but is excluded from independent feature selection, tuning and fitting.
+
+
+## Historical conference membership authority
+Canonical team-season conference membership comes from the public SportsDataverse `cfb_groups` release:
+- `cfb_team_group_seasons.parquet` — team, season, subdivision, conference, division, source, source-agreement and notes.
+- `cfb_group_seasons.parquet` — season-specific conference names, abbreviations and parent groups.
+
+FBIS joins ESPN-covered teams by `season + ESPN team_id`. Membership is never inferred from the current alignment and never backfilled backward. CFBD game-level conference fields may be used as an independent validation source when quota permits, but the canonical build MUST NOT depend on live CFBD calls for conference affiliation.
+
+If an ESPN schedule team-season cannot be resolved from the public membership table, the build records the gap and fails the conference-coverage gate rather than guessing.
