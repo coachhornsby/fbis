@@ -398,7 +398,9 @@ def main():
     games["training_eligible"]=(final_mask & (games["season"]<END)).astype(int)
 
     games.to_csv(OUT/"cfb_game_training_2004_2026.csv",index=False)
+    games.to_parquet(OUT/"cfb_game_training_2004_2026.parquet",index=False)
     betting.to_csv(OUT/"cfb_betting_resolved_2004_2026.csv",index=False)
+    betting.to_parquet(OUT/"cfb_betting_resolved_2004_2026.parquet",index=False)
     pd.DataFrame(coverage).to_csv(OUT/"cfb_bulk_coverage.csv",index=False)
     (OUT/"cfb_bulk_sources.json").write_text(json.dumps(sources,indent=2))
 
