@@ -1,0 +1,32 @@
+name: NFL PRO v2 research
+on:
+  push:
+    branches: ["research/nfl-pro-v2-cfb-v3-1"]
+    paths:
+      - "scripts/nfl-pro-v2-walkforward.py"
+      - "scripts/nfl-pro-v2-interactions.py"
+      - ".github/workflows/nfl-pro-v2.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - run: python scripts/build-nfl-training-dataset.py
+      - run: python scripts/nfl-pro-v1-1-walkforward.py
+      - run: python scripts/nfl-pro-v2-walkforward.py
+      - run: python scripts/nfl-pro-v2-interactions.py
+      - run: jq '{modelId,sample,featureCounts,v2,v11,marketPairedV2,market,deltasVsV11,deltasVsMarket,beatsV11AllThree,knownGap}' artifacts/nfl-pro-v2/report.json
+      - run: jq '{modelId,predeclaredInteraction,verifiedCount,verified,canQualify}' artifacts/nfl-pro-v2/interactions.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfl-pro-v2
+          path: artifacts/nfl-pro-v2/*
+          retention-days: 90

@@ -1,0 +1,49 @@
+name: CFB v3.1 research
+on:
+  push:
+    branches: ["research/nfl-pro-v2-cfb-v3-1"]
+    paths:
+      - "scripts/cfb-v3-1-walkforward.py"
+      - "scripts/cfb-v3-1-interactions.py"
+      - "scripts/cfb-v3-1-trigger.txt"
+      - "scripts/cfb-final-enrich.py"
+      - ".github/workflows/cfb-v3-1.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: "22"}
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Build CFB game history
+        env: {CFB_BULK_START: "2004", CFB_BULK_END: "2026"}
+        run: python scripts/cfb-bulk-history-v3.py
+      - name: Build program context
+        env: {CFB_CONTEXT_START: "2004", CFB_CONTEXT_END: "2026"}
+        run: python scripts/cfb-program-context.py
+      - run: python scripts/cfb-sdv-line-archive.py
+      - name: Pull CFBD provider market history
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+          CFB_MARKET_START: "2004"
+          CFB_MARKET_END: "2026"
+        run: node scripts/cfb-cfbd-market-enrichment.mjs
+      - run: python scripts/cfb-final-enrich.py
+      - run: python scripts/cfb-v3-walkforward.py
+      - run: python scripts/cfb-v3-1-walkforward.py
+      - run: python scripts/cfb-v3-1-interactions.py
+      - run: jq '{modelId,sample,v31,v3,marketPairedV31,market,deltasVsV3,deltasVsMarket,beatsV3AllThree,canQualify}' artifacts/cfb-final/model-v3-1/report.json
+      - run: jq '{modelId,predeclaredInteraction,verifiedCount,verified,canQualify}' artifacts/cfb-final/model-v3-1/interactions.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-v3-1
+          path: artifacts/cfb-final/model-v3-1/*
+          retention-days: 90
