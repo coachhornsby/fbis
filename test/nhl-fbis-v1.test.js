@@ -181,7 +181,8 @@ describe("NHL-FBIS-v1 five-layer research model", () => {
     assert.match(wf, /priorSeasonOnlyTraining:true/);
     assert.doesNotMatch(wf, /pinnacle|sportsbook|odds.*price/i);
     const audit = await readFile(new URL("../scripts/nhl-source-audit.mjs", import.meta.url), "utf8");
-    assert.match(audit, /sportsdataverse\/sportsdataverse-data/);
+    const sources = await readFile(new URL("../functions/lib/nhlDataSources.js", import.meta.url), "utf8");
+    assert.match(sources, /sportsdataverse\/sportsdataverse-data/);
     assert.match(audit, /api-web\.nhle\.com/);
   });
 
