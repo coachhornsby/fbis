@@ -15,6 +15,10 @@ on:
       - "scripts/cbb-verify-frozen-dataset.mjs"
       - "scripts/cbb-ge4-confirmation-v1.mjs"
       - "scripts/cbb-structural-confirmation-v1.mjs"
+      - "scripts/cbb-build-structural-snapshots.mjs"
+      - "scripts/cbb-qa-structural-snapshot.mjs"
+      - "scripts/cbb-publish-structural-snapshot.mjs"
+      - "functions/api/cbb-snapshot-archive.js"
       - ".github/workflows/cbb-data-stack-walkforward.yml"
   workflow_dispatch:
     inputs:
@@ -131,6 +135,26 @@ jobs:
           node scripts/cbb-freeze-dataset.mjs artifacts/cbb-market-research-dataset.json
           node scripts/cbb-verify-frozen-dataset.mjs artifacts/frozen/$CBB_DATASET_VERSION
 
+      - name: Build pregame structural snapshots
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          node scripts/cbb-build-structural-snapshots.mjs artifacts/cbb-market-research-dataset.json | tee artifacts/cbb-structural-build-run.log
+
+      - name: QA structural snapshot
+        run: |
+          set -euo pipefail
+          node scripts/cbb-qa-structural-snapshot.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-structural-qa-run.log
+
+      - name: Publish immutable structural snapshot
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          CBB_SNAPSHOT_VERSION: cbb-structural-historical-v2026.10.03-r${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          node scripts/cbb-publish-structural-snapshot.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-structural-publish-run.log
+
       - name: Run >=4 confirmation test against frozen dataset
         shell: bash
         run: |
@@ -141,7 +165,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/cbb-structural-confirmation-v1.mjs artifacts/frozen/cbb-enriched-v2026.10.02 | tee artifacts/cbb-structural-confirmation-v1-run.log
+          CBB_SNAPSHOT_VERSION="cbb-structural-historical-v2026.10.03-r${{ github.run_id }}" node scripts/cbb-structural-confirmation-v1.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-structural-confirmation-v1-run.log
 
       - name: Run combined CBB tier test
         shell: bash
