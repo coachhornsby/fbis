@@ -59,10 +59,13 @@ jobs:
           cp -a artifacts/cfb-history-v2 artifacts/cfb-warehouse/history
           cp -a artifacts/cfb-context artifacts/cfb-warehouse/program-context
           cp -a artifacts/cfb-conference artifacts/cfb-warehouse/conference
-          cp artifacts/cfb-final/cfb_training_full_enriched_2004_2026.csv artifacts/cfb-warehouse/
+          # Canonical warehouse stores Parquet for large model matrices; CSV is a derived convenience only.
           cp artifacts/cfb-final/cfb_training_full_enriched_2004_2026.parquet artifacts/cfb-warehouse/
           cp artifacts/cfb-final/cfb_final_qa.json artifacts/cfb-warehouse/
           cp artifacts/cfb-final/provenance-catalog.json artifacts/cfb-warehouse/
+          rm -f artifacts/cfb-warehouse/history/cfb_game_training_2004_2026.csv
+          rm -f artifacts/cfb-warehouse/history/cfb_team_game_advanced_2004_2026.csv
+          rm -f artifacts/cfb-warehouse/history/cfb_betting_resolved_2004_2026.csv
           python scripts/fbis-freeze-snapshot.py --sport CFB --version "$V" --out artifacts/cfb-warehouse/manifest.json --root artifacts/cfb-warehouse
           python scripts/fbis-verify-snapshot.py artifacts/cfb-warehouse/manifest.json
       - name: Publish immutable warehouse to Cloudflare R2
