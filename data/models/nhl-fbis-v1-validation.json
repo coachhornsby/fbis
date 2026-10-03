@@ -1,0 +1,79 @@
+{
+  "modelId": "NHL-FBIS-v1",
+  "validationVersion": "walkforward-v1-core",
+  "generatedAt": "2026-10-03T15:38:28.716Z",
+  "marketInformed": false,
+  "pointInTime": true,
+  "source": "NHL_OFFICIAL_API",
+  "sportsDataverseRole": "HISTORICAL_ARCHIVE_AUDIT",
+  "note": "Historical walk-forward validates the independent scoring/xG core using only prior seasons plus games already played in each target season. Live goalie, special-teams, lineup, and market-relative layers remain gated by prospective OOS validation.",
+  "seasons": [
+    "20232024",
+    "20242025",
+    "20252026"
+  ],
+  "fetchErrors": [],
+  "folds": [
+    {
+      "targetSeason": "20242025",
+      "trainSeasons": [
+        "20232024"
+      ],
+      "trainingGames": 1312,
+      "trainingShots": 89366,
+      "metrics": {
+        "n": 1312,
+        "marginMae": 2.1971,
+        "totalMae": 1.8973,
+        "homeGoalsMae": 1.4085,
+        "awayGoalsMae": 1.3881,
+        "winnerAccuracy": 0.5953,
+        "brier": 0.23903
+      }
+    },
+    {
+      "targetSeason": "20252026",
+      "trainSeasons": [
+        "20232024",
+        "20242025"
+      ],
+      "trainingGames": 2624,
+      "trainingShots": 178528,
+      "metrics": {
+        "n": 1312,
+        "marginMae": 2.1672,
+        "totalMae": 1.8445,
+        "homeGoalsMae": 1.4093,
+        "awayGoalsMae": 1.3411,
+        "winnerAccuracy": 0.5366,
+        "brier": 0.24568
+      }
+    }
+  ],
+  "aggregate": {
+    "n": 2624,
+    "marginMae": 2.1821,
+    "totalMae": 1.8709,
+    "homeGoalsMae": 1.4089,
+    "awayGoalsMae": 1.3646,
+    "winnerAccuracy": 0.5659,
+    "brier": 0.24236
+  },
+  "sampleGames": 2624,
+  "integrity": {
+    "noMarketInputs": true,
+    "priorSeasonOnlyTraining": true,
+    "currentSeasonOnlyPastGames": true,
+    "minimumGamesMet": true,
+    "fetchErrors": 0
+  },
+  "promotion": {
+    "historicalCoreValidated": true,
+    "fullModelPromotionEligible": false,
+    "reason": "Prospective validation is still required for goalie, special-teams, lineup, and market-relative calibration."
+  },
+  "evidence": {
+    "workflowRunId": 37133864899,
+    "workflowConclusion": "success"
+  }
+}
