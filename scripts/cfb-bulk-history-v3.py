@@ -41,6 +41,15 @@ DATASETS={
     "adv_specialists":("espn_cfb_adv_specialists","adv_specialists_{year}.parquet"),
     "team_box":("espn_cfb_team_box","team_box_{year}.parquet"),
     "power_index":("espn_cfb_power_index","power_index_{year}.parquet"),
+    # Lossless research warehouse tables. These are retained even when not
+    # currently flattened into the compact model matrix.
+    "pbp":("espn_cfb_pbp","cfb_pbp_{year}.parquet"),
+    "drives_raw":("espn_cfb_drives","drives_{year}.parquet"),
+    "player_box":("espn_cfb_player_box","player_box_{year}.parquet"),
+    "rosters":("espn_cfb_rosters","rosters_{year}.parquet"),
+    "game_rosters":("espn_cfb_game_rosters","game_rosters_{year}.parquet"),
+    "linescores":("espn_cfb_linescores","linescores_{year}.parquet"),
+    "team_summaries":("espn_cfb_team_summaries","team_summaries_{year}.parquet"),
 }
 
 def fetch_parquet(tag, template, year):
@@ -313,6 +322,11 @@ def main():
         if not sched.empty:
             tg=merge_team_tables(sched,[at,ad,av,drv,sit,team_box,rush,recv,spec,qb]);team_rows.append(tg);schedules.append(sched)
         if not bet.empty:bets.append(bet)
+        # Preserve every successfully acquired source table losslessly by season.
+        raw_dir=OUT/"raw"/str(year); raw_dir.mkdir(parents=True,exist_ok=True)
+        for source_name,source_df in season.items():
+            if source_df is not None and not source_df.empty:
+                source_df.to_parquet(raw_dir/f"{source_name}.parquet",index=False)
         coverage.append({
           "season":year,"scheduleRows":len(sched),"bettingRows":len(bet),
           "advTeamRows":len(season["adv_team"]),"advPassingRows":len(season["adv_passing"]),
@@ -324,6 +338,10 @@ def main():
           "advSpecialistsRows":len(season["adv_specialists"]),
           "teamBoxRows":len(season["team_box"]),
           "powerIndexRows":len(season["power_index"]),
+          "pbpRows":len(season["pbp"]),"drivesRawRows":len(season["drives_raw"]),
+          "playerBoxRows":len(season["player_box"]),"rosterRows":len(season["rosters"]),
+          "gameRosterRows":len(season["game_rosters"]),"linescoreRows":len(season["linescores"]),
+          "teamSummaryRows":len(season["team_summaries"]),
         })
         sources[str(year)]=urls
         print(json.dumps(coverage[-1]),flush=True)
@@ -367,7 +385,7 @@ def main():
       "gamesWithHomeConference":int(games["home_conference"].notna().sum()) if "home_conference" in games else 0,
       "gamesWithAwayConference":int(games["away_conference"].notna().sum()) if "away_conference" in games else 0,
       "temporalIntegrity":"All rolling football features use shift(1). Rankings/rest are game-known pregame context. Betting is benchmark/evaluation only.",
-      "rawPbpAvailability":"SportsDataverse espn_cfb_pbp has season parquet assets for every season 2004-2026; advanced tables consumed here are PBP-derived to avoid duplicating >1GB raw PBP in the canonical artifact.",
+      "rawPbpAvailability":"SportsDataverse espn_cfb_pbp is retained losslessly by season in the canonical research warehouse when available; compact model matrices remain derived artifacts.",
       "marketPolicy":"ESPN/SportsDataverse resolved betting line is retained as benchmark only. CFBD provider-level/opening line enrichment is merged separately when available.",
       "sourceCatalog":{
         "rawPbp":"espn_cfb_pbp (2004-current; ~383 columns/play; audit/source-of-truth, not duplicated into compact artifact)",
