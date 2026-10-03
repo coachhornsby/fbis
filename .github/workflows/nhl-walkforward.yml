@@ -1,0 +1,61 @@
+name: NHL walk-forward validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/nhl-walkforward.mjs"
+      - ".github/workflows/nhl-walkforward.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+      - name: Run point-in-time NHL walk-forward
+        run: |
+          set -euo pipefail
+          node scripts/nhl-walkforward.mjs \
+            --seasons=20232024,20242025,20252026 \
+            --concurrency=12 \
+            --out=data/models/nhl-fbis-v1-validation.json
+      - name: Verify validation artifact
+        run: |
+          set -euo pipefail
+          jq -e '.pointInTime == true' data/models/nhl-fbis-v1-validation.json >/dev/null
+          jq -e '.marketInformed == false' data/models/nhl-fbis-v1-validation.json >/dev/null
+          jq -e '.integrity.minimumGamesMet == true' data/models/nhl-fbis-v1-validation.json >/dev/null
+          jq -e '.integrity.fetchErrors == 0' data/models/nhl-fbis-v1-validation.json >/dev/null
+          jq '.aggregate' data/models/nhl-fbis-v1-validation.json
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-walkforward-${{ github.run_id }}
+          path: data/models/nhl-fbis-v1-validation.json
+          retention-days: 90
+      - name: Commit validation artifact
+        run: |
+          set -euo pipefail
+          cp data/models/nhl-fbis-v1-validation.json "$RUNNER_TEMP/nhl-fbis-v1-validation.json"
+          git fetch origin "${{ github.ref_name }}"
+          git reset --hard "origin/${{ github.ref_name }}"
+          cp "$RUNNER_TEMP/nhl-fbis-v1-validation.json" data/models/nhl-fbis-v1-validation.json
+          git add data/models/nhl-fbis-v1-validation.json
+          if git diff --cached --quiet -- data/models/nhl-fbis-v1-validation.json; then
+            echo "validation artifact unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "data: add NHL point-in-time walk-forward validation"
+          git push origin HEAD:"${{ github.ref_name }}"

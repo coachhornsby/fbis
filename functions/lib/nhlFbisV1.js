@@ -14,9 +14,10 @@
  */
 
 import { NHL_FBIS_V1_ARTIFACT } from "../../data/models/nhl-fbis-v1.js";
+import { buildNhlSourceLineage } from "./nhlDataSources.js";
 
 export const NHL_FBIS_V1_ID = "NHL-FBIS-v1";
-export const NHL_FBIS_V1_VERSION = "research-v1.1-five-layer-goalie-recency";
+export const NHL_FBIS_V1_VERSION = "research-v1.2-five-layer-source-lineage";
 
 const STATS = "https://api.nhle.com/stats/rest/en";
 const WEB = "https://api-web.nhle.com/v1";
@@ -358,7 +359,7 @@ function distribution(home,away,totalLine=null,homeSpread=null){
   };
 }
 
-export async function loadNhlV1Context(date,games=[],{fetcher=fetch}={}){
+export async function loadNhlV1Context(date,games=[],{fetcher=fetch,sportsDataverseUpdatedAt=null}={}){
   const ids=seasonIds(date);
   const [teamCatalog,priorTeams,currentTeams,priorGoalies,currentGoalies,priorPp,currentPp,priorPk,currentPk,priorSkaters,currentSkaters,s1,s2]=await Promise.all([
     fetchJson(`${STATS}/team?limit=-1`,fetcher),
@@ -413,6 +414,11 @@ export async function loadNhlV1Context(date,games=[],{fetcher=fetch}={}){
     currentGoalies:goalieRows(currentGoalies.data||[]),
     schedule,
     artifact:NHL_FBIS_V1_ARTIFACT,
+    sourceLineage:buildNhlSourceLineage({
+      asOf:new Date().toISOString(),
+      artifactGeneratedAt:NHL_FBIS_V1_ARTIFACT?.generatedAt||null,
+      sportsDataverseUpdatedAt
+    }),
     marketInformed:false,
     canQualify:false,
     canAuthorize:false
@@ -485,6 +491,7 @@ export function projectNhlV1Game(game,ctx){
     margin:round(homeGoals-awayGoals,2),
     total:round(homeGoals+awayGoals,2),
     probability:dist,
+    dataLineage:ctx?.sourceLineage||buildNhlSourceLineage({artifactGeneratedAt:artifact?.generatedAt||null}),
     layers:{
       fiveVFiveXg:{
         home:round(xg5Home??baselineHome,3),
@@ -546,6 +553,7 @@ export function attachNhlV1(games=[],ctx=null){
       projected,missing,
       artifactVersion:ctx?.artifact?.artifactVersion||null,
       artifactTrained:Boolean(ctx?.artifact?.trained),
+      dataLineage:ctx?.sourceLineage||null,
       canQualify:false,
       canAuthorize:false,
       independent:true,
