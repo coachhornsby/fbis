@@ -5,6 +5,9 @@ on:
     paths:
       - "scripts/cfb-v5-context.py"
       - "scripts/cfb-v5-walkforward.py"
+      - "scripts/cfb-fpr.py"
+      - "scripts/cfb-fpr-v5-incremental.py"
+      - "scripts/cfb-current-rankings.py"
       - "scripts/cfb-bulk-history-v3.py"
       - "scripts/cfb-provenance-catalog.py"
       - "scripts/cfb-conference-history.py"
@@ -87,6 +90,12 @@ jobs:
         run: python scripts/cfb-v5-context.py
       - name: Run v5 walk-forward
         run: python scripts/cfb-v5-walkforward.py
+      - name: Build stabilized FPR-v2
+        run: python scripts/cfb-fpr.py
+      - name: Test FPR incremental value over v5
+        run: python scripts/cfb-fpr-v5-incremental.py
+      - name: Emit current FPR and conference rankings
+        run: python scripts/cfb-current-rankings.py
       - uses: actions/upload-artifact@v4
         with:
           name: cfb-v5
@@ -94,4 +103,7 @@ jobs:
             artifacts/cfb-final/v5-context/*
             artifacts/cfb-final/model-v5/*
             artifacts/cfb-final/model-v4/*
+            artifacts/cfb-final/fpr/*
+            artifacts/cfb-final/fpr-incremental/*
+            artifacts/cfb-final/rankings/*
           retention-days: 90
