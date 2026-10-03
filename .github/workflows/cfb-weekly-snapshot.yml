@@ -1,0 +1,36 @@
+name: CFB weekly canonical snapshot
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 11 * * 1"
+permissions:
+  contents: read
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Refresh canonical CFB data
+        env:
+          CFB_BULK_START: "2004"
+          CFB_BULK_END: "2026"
+          CFB_CONTEXT_START: "2004"
+          CFB_CONTEXT_END: "2026"
+        run: |
+          python scripts/cfb-bulk-history-v3.py
+          python scripts/cfb-program-context.py
+          python scripts/cfb-final-enrich.py
+      - name: Freeze canonical snapshot
+        run: |
+          V="CFB-$(date -u +%Y%m%d)-${GITHUB_SHA::12}"
+          python scripts/fbis-freeze-snapshot.py --sport CFB --version "$V" --out artifacts/cfb-final/manifest.json artifacts/cfb-final/cfb_training_full_enriched_2004_2026.csv artifacts/cfb-final/cfb_final_qa.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-canonical-snapshot
+          path: artifacts/cfb-final/
+          retention-days: 90
