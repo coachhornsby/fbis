@@ -1,0 +1,47 @@
+{
+  "id": "CBB-PRO-v1",
+  "version": "v1.0.0",
+  "sport": "cbb",
+  "role": "production-projection",
+  "productionProjection": true,
+  "side": {
+    "primary": "CBB-KENPOM-RATINGS-v1",
+    "confirmation": "CBB-CBBD-RATINGS-v1",
+    "minAbsKenpomMarketEdge": 4,
+    "requireSameSideCbbd": true,
+    "maxAbsMarketSpread": 20,
+    "retainedTags": [
+      "CBBD_CONFIRM_GE2",
+      "CBBD_CONFIRM_GE3",
+      "KENPOM_EDGE_GE6",
+      "MODELS_WITHIN_2",
+      "MODELS_WITHIN_1",
+      "NEUTRAL_SITE",
+      "UNDERDOG"
+    ],
+    "canQualify": true,
+    "canAuthorizeWager": false
+  },
+  "total": {
+    "projection": "0.50*KenPomTotal + 0.50*CBBDTotal",
+    "marketTotalRange": [
+      145,
+      155
+    ],
+    "minAbsEdge": 4,
+    "researchOnly": true,
+    "canQualify": false,
+    "canAuthorizeWager": false
+  },
+  "frozenResearchInput": {
+    "version": "cbb-enriched-v2026.10.02",
+    "sha256": "10d2e1af07ac31d6b6174b9cda37eb63aa8785a9050cfede0c8c1ccce52933f9",
+    "rows": 43076
+  },
+  "governance": {
+    "sub4Rejected": true,
+    "sideAndTotalIndependent": true,
+    "automaticWagerAuthorization": false,
+    "subsetTagsDoNotAlterBaseGate": true
+  }
+}
