@@ -253,7 +253,7 @@ export const MODEL_REGISTRY = Object.freeze([
     marketInformed: false,
     independent: true,
     preservesIncumbent: true,
-    notes: "Five-layer independent NHL research model: historical 5v5 xG, regressed goalie value, special teams, rest/travel/home ice, and probabilistic scoring. Qualification remains disabled pending prospective calibration.",
+    notes: "Five-layer independent NHL research model: historical 5v5 xG, regressed goalie value, special teams, rest/travel/home ice, and probabilistic scoring. Point-in-time historical core validated across 2,624 games; qualification remains disabled pending prospective OOS and market-relative calibration.",
   },
   {
     modelId: "NHL-FBIS-PURE",
