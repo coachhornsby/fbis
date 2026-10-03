@@ -3,10 +3,10 @@ name: NHL walk-forward validation
 on:
   workflow_dispatch:
   push:
-    branches:
-      - "feature/nhl-end-to-end-20261003"
+    branches: [main]
     paths:
-      - ".github/nhl-run/walkforward"
+      - "scripts/nhl-walkforward.mjs"
+      - ".github/workflows/nhl-walkforward.yml"
 
 permissions:
   contents: write
