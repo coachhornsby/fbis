@@ -70,7 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/cbb-pro-total-v1-promotion.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-pro-total-v1-promotion-run.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: cbb-structural-snapshot-${{ github.run_id }}

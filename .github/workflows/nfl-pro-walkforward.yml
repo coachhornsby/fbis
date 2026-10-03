@@ -26,7 +26,7 @@ jobs:
             echo "## NFL-PRO-v1 true walk-forward"
             jq -r '"- paired n: \(.sample.n)","- PRO margin MAE: \(.pro.marginMae)","- Form margin MAE: \(.base.marginMae)","- PRO total MAE: \(.pro.totalMae)","- Form total MAE: \(.base.totalMae)","- PRO winner accuracy: \(.pro.winnerAccuracy)","- Form winner accuracy: \(.base.winnerAccuracy)","- decision: \(.status)"' artifacts/nfl-pro-walkforward-report.json
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: nfl-pro-walkforward-${{ github.run_id }}
           path: artifacts/nfl-pro-walkforward-*

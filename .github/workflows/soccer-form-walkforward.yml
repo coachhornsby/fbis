@@ -17,7 +17,7 @@ jobs:
       - run: |
           jq . artifacts/soccer-form-walkforward-report.json
           jq -r '"## Soccer-FBIS-v1 walk-forward\n- n: \(.n)\n- margin MAE: \(.marginMae)\n- total MAE: \(.totalMae)\n- 3-way accuracy: \(.threeWayAccuracy)"' artifacts/soccer-form-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: soccer-form-walkforward-${{ github.run_id }}
           path: artifacts/soccer-form-walkforward-*
