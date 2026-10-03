@@ -55,7 +55,9 @@ jobs:
           set -euo pipefail
           node scripts/cbb-build-structural-snapshots.mjs artifacts/base/frozen/cbb-enriched-v2026.10.02/dataset.json | tee artifacts/cbb-structural-build-run.log
       - name: QA structural snapshot
-        run: |\n          set -euo pipefail\n          node scripts/cbb-qa-structural-snapshot.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-structural-qa-run.log
+        run: |
+          set -euo pipefail
+          node scripts/cbb-qa-structural-snapshot.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-structural-qa-run.log
       - name: Publish immutable structural snapshot
         env:
           HARVEST_SECRET: "${{ secrets.HARVEST_SECRET }}"
