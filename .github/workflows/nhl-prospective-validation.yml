@@ -14,6 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Verify historical core validation
+        run: |
+          set -euo pipefail
+          test -f data/models/nhl-fbis-v1-validation.json
+          jq -e '.pointInTime == true' data/models/nhl-fbis-v1-validation.json >/dev/null
+          jq -e '.promotion.historicalCoreValidated == true' data/models/nhl-fbis-v1-validation.json >/dev/null
+          jq -e '.integrity.noMarketInputs == true' data/models/nhl-fbis-v1-validation.json >/dev/null
+
       - name: Read canonical graded NHL snapshots
         env:
           BASE: https://fbis-myz.pages.dev
@@ -29,7 +37,7 @@ jobs:
           echo "NHL learning http=$http"
           test "$http" = "200"
           jq -e '.source=="prediction_snapshots"' "$raw" >/dev/null
-          jq '
+          jq --slurpfile hist data/models/nhl-fbis-v1-validation.json '
             def target: [.models[]? | select((.modelId|ascii_downcase|contains("nhl-fbis-v1")))] | .[0] // null;
             (target) as $m |
             {
@@ -42,9 +50,12 @@ jobs:
               metrics: ($m.metrics // null),
               prospectiveN: ($m.n // 0),
               minimumProspectiveN: 100,
+              historicalCore: ($hist[0].aggregate // null),
+              historicalCoreValidated: ($hist[0].promotion.historicalCoreValidated // false),
               status:
                 (if ($m.n // 0) < 100 then "INSUFFICIENT_PROSPECTIVE_SAMPLE"
                  elif ($m.marketInformed // false) then "BLOCKED_MARKET_CONTAMINATION"
+                 elif (($hist[0].promotion.historicalCoreValidated // false) != true) then "BLOCKED_HISTORICAL_CORE"
                  elif (($m.promotionEligible // false) != true) then "BLOCKED_TEMPORAL_INTEGRITY"
                  else "READY_FOR_MARKET_RELATIVE_VALIDATION" end),
               canQualify: false,
@@ -54,6 +65,9 @@ jobs:
           cat "$out"
           {
             echo "## NHL-FBIS-v1 prospective gate"
+            echo "- historical core: $(jq -r '.historicalCoreValidated' "$out")"
+            echo "- historical margin MAE: $(jq -r '.historicalCore.marginMae // "NA"' "$out")"
+            echo "- historical total MAE: $(jq -r '.historicalCore.totalMae // "NA"' "$out")"
             echo "- n: $(jq -r '.prospectiveN' "$out") / $(jq -r '.minimumProspectiveN' "$out")"
             echo "- status: $(jq -r '.status' "$out")"
             echo "- margin MAE: $(jq -r '.metrics.margin.mae // "NA"' "$out")"
