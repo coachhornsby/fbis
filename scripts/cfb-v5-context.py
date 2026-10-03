@@ -78,6 +78,7 @@ def main():
   "conferenceMethod":"point-in-time cross-conference HFA-neutralized margin with sequential shrinkage; updates after weekly snapshot",
   "opponentMethod":"point-in-time opponent rating with prior-game-only sequential updates",
   "hfaMethod":"explicit 2.5 national baseline; neutral site 0; hierarchical venue HFA remains challenger until venue sample supports it",
-  "personnelState":"UNKNOWN until timestamped roster/injury source is connected","rows":len(out)}
+  "personnelState":"UNKNOWN until timestamped roster/injury source is connected",
+  "qbState":"UNKNOWN; current-game primary passer explicitly excluded as postgame-derived","rows":len(out)}
  (OUT/"report.json").write_text(json.dumps(report,indent=2));print(rank.to_string(index=False));print(json.dumps(report,indent=2))
 if __name__=="__main__":main()
