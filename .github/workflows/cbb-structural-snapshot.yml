@@ -8,7 +8,7 @@ on:
       - "scripts/cbb-build-structural-snapshots.mjs"
       - "scripts/cbb-qa-structural-snapshot.mjs"
       - "scripts/cbb-publish-structural-snapshot.mjs"
-      - "scripts/cbb-structural-confirmation-v1.mjs"
+      - "scripts/cbb-structural-confirmation-v1.mjs"\n      - "scripts/cbb-pro-total-v1-promotion.mjs"
       - ".github/workflows/cbb-structural-snapshot.yml"
   workflow_dispatch:
   schedule:
