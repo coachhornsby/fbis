@@ -141,6 +141,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     pureProjectionAvailable: game.pureProjectionAvailable ?? null,
     canQualify: game.canQualify !== false && !game.qualificationBlocked,
     projectionRecipe: game.model?.recipe || null,
+    cbbPro: game.cbbPro || null,
     cfbDetail: game.cfb ? {
       hfa: game.cfb.hfa, sigmaMargin: game.cfb.sigmaMargin, sigmaTotal: game.cfb.sigmaTotal,
       maturity: game.cfb.maturity, dataQuality: game.cfb.dataQuality, flags: game.cfb.flags || [], priorVersion: game.cfb.priorVersion,
