@@ -22,6 +22,7 @@ import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearc
 import { loadNhlResearchPrior, attachNhlResearch } from "./nhlResearchModel.js";
 import { loadNhlV1Context, attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
+import { attachCbbPro } from "./cbbProModel.js";
 import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
 import { attachMatchupFactors } from "./matchupFactors.js";
@@ -211,14 +212,12 @@ export async function buildSlate(sport, date, env = {}) {
       },
     };
   } else if (id === "cbb") {
-    // Core already attached CBBD challengers + market-implied board scores.
-    // Promote possessions×PPP research onto the board; strip market masquerade.
-    const catalog = await loadCbbdCatalog(env).catch(() => null);
-    const research = promoteCbbResearchToBoard(slate.games || [], catalog);
+    const pro = attachCbbPro(slate.games || []);
     next = {
       ...slate,
-      games: research.games,
-      research: { ...(slate.research || {}), cbbResearchBoard: research.meta },
+      games: pro.games,
+      modelVersion: pro.meta.version,
+      research: { ...(slate.research || {}), cbbPro: pro.meta },
     };
   }
 
