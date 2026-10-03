@@ -143,6 +143,23 @@ def main():
   else:cur["fpr_projected_margin"]=cur.fpr_neutral_margin
   calibrated.append(cur)
  g=pd.concat(calibrated,ignore_index=True)
+ # Apply the point-in-time stabilization layer before publishing or validating FPR-v2.
+ # Preserve raw model state for diagnostics; all v2 overall ratings/margins use stable state.
+ g=stabilize_weekly(g)
+ g["raw_fpr_neutral_margin"]=g["fpr_neutral_margin"]
+ g["home_fpr"]=g["home_stable_fpr"]
+ g["away_fpr"]=g["away_stable_fpr"]
+ g["fpr_neutral_margin"]=g["home_fpr"]-g["away_fpr"]
+ # Recalibrate the stabilized differential using prior seasons only.
+ stable_cal=[]
+ for season in sorted(g.season.unique()):
+  hist=g[g.season<season];cur=g[g.season==season].copy()
+  if len(hist)>=1000:
+   m=Ridge(alpha=30).fit(hist[["fpr_neutral_margin"]],hist.actual_margin)
+   cur["fpr_projected_margin"]=m.predict(cur[["fpr_neutral_margin"]])
+  else:cur["fpr_projected_margin"]=cur.fpr_neutral_margin
+  stable_cal.append(cur)
+ g=pd.concat(stable_cal,ignore_index=True)
  overall={"n":len(g),"marginMae":float(mean_absolute_error(g.actual_margin,g.fpr_projected_margin)),
           "winnerAccuracy":float(accuracy_score(g.actual_margin>0,g.fpr_projected_margin>0))}
  hold=g[g.season>=2025]
