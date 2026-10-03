@@ -25,7 +25,7 @@ jobs:
       SOCCER_MARKET_BENCHMARK_MAX_GAMES: "30"
       SOCCER_MARKET_BENCHMARK_MIN_MATCHED: "250"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
