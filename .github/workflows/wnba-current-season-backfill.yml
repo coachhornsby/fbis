@@ -1,0 +1,76 @@
+name: WNBA 2026 current-state backfill
+
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+
+concurrency:
+  group: wnba-current-season-backfill
+  cancel-in-progress: false
+
+jobs:
+  chunks:
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk:
+          - { id: "2026-05", start: "2026-05-01", end: "2026-05-31" }
+          - { id: "2026-06", start: "2026-06-01", end: "2026-06-30" }
+          - { id: "2026-07", start: "2026-07-01", end: "2026-07-31" }
+          - { id: "2026-08", start: "2026-08-01", end: "2026-08-31" }
+          - { id: "2026-09", start: "2026-09-01", end: "2026-09-30" }
+          - { id: "2026-10", start: "2026-10-01", end: "2026-10-04" }
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - run: node scripts/wnba-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl allowEmpty=1
+      - run: node scripts/wnba-pbp-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl
+      - run: |
+          node scripts/wnba-lineup-stints-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-lineup-stints-${{ matrix.chunk.id }}.jsonl             effects=artifacts/wnba-lineup-effects-${{ matrix.chunk.id }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-current-${{ matrix.chunk.id }}-${{ github.run_id }}
+          path: artifacts/wnba-*
+          retention-days: 30
+
+  merge:
+    needs: chunks
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wnba-current-*-${{ github.run_id }}
+          path: artifacts/chunks
+      - run: |
+          node scripts/wnba-merge-canonical.mjs artifacts/chunks artifacts/wnba-canonical.jsonl
+          mkdir -p artifacts/stints
+          find artifacts/chunks -name 'wnba-lineup-stints-*.jsonl' -type f -exec cp {} artifacts/stints/ \;
+          node scripts/wnba-merge-lineup-stints.mjs artifacts/stints artifacts/wnba-lineup-stints.jsonl
+          node scripts/wnba-lineup-effects-build.mjs artifacts/wnba-lineup-stints.jsonl artifacts/wnba-lineup-effects.json
+      - name: Persist current state to R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-canonical.jsonl" --file artifacts/wnba-canonical.jsonl --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-lineup-stints.jsonl" --file artifacts/wnba-lineup-stints.jsonl --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-lineup-effects.json" --file artifacts/wnba-lineup-effects.json --remote
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-current-state-${{ github.run_id }}
+          path: |
+            artifacts/wnba-canonical.jsonl
+            artifacts/wnba-lineup-stints.jsonl
+            artifacts/wnba-lineup-effects.json
+          retention-days: 60
+# exact-rerun-after-ot-fix: 2026-10-04

@@ -227,7 +227,7 @@ const ALIASES = Object.freeze({
     points: "points", player_points: "points",
     rebounds: "rebounds", player_rebounds: "rebounds",
     assists: "assists", player_assists: "assists",
-    three_pointers_made: "three_pointers_made", threes_made: "three_pointers_made", made_threes: "three_pointers_made", "3_pt_made": "three_pointers_made", "3pt_made": "three_pointers_made",
+    three_pointers_made: "three_pointers_made", threes_made: "three_pointers_made", made_threes: "three_pointers_made", "3_pointers_made": "three_pointers_made", "3_pt_made": "three_pointers_made", "3pt_made": "three_pointers_made",
     points_rebounds_assists: "points_rebounds_assists", pra: "points_rebounds_assists", pts_rebs_asts: "points_rebounds_assists",
     points_rebounds: "points_rebounds", points_assists: "points_assists", rebounds_assists: "rebounds_assists",
     steals: "steals", blocks: "blocks", turnovers: "turnovers",

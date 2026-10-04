@@ -1,0 +1,101 @@
+name: WNBA player impact research
+
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+
+concurrency:
+  group: wnba-player-impact-research
+  cancel-in-progress: false
+
+jobs:
+  chunks:
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk:
+          - { id: "2024-05", start: "2024-05-14", end: "2024-05-31" }
+          - { id: "2024-06", start: "2024-06-01", end: "2024-06-30" }
+          - { id: "2024-07", start: "2024-07-01", end: "2024-07-31" }
+          - { id: "2024-08", start: "2024-08-01", end: "2024-08-31" }
+          - { id: "2024-09", start: "2024-09-01", end: "2024-09-30" }
+          - { id: "2024-10", start: "2024-10-01", end: "2024-10-20" }
+          - { id: "2025-05", start: "2025-05-16", end: "2025-05-31" }
+          - { id: "2025-06", start: "2025-06-01", end: "2025-06-30" }
+          - { id: "2025-07", start: "2025-07-01", end: "2025-07-31" }
+          - { id: "2025-08", start: "2025-08-01", end: "2025-08-31" }
+          - { id: "2025-09", start: "2025-09-01", end: "2025-09-30" }
+          - { id: "2025-10", start: "2025-10-01", end: "2025-10-17" }
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - name: Build canonical game/player boxes
+        run: node scripts/wnba-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl
+      - name: Build PBP
+        run: node scripts/wnba-pbp-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl
+      - name: Reconstruct lineups
+        run: |
+          node scripts/wnba-lineup-stints-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-lineup-stints-${{ matrix.chunk.id }}.jsonl             effects=artifacts/wnba-lineup-effects-${{ matrix.chunk.id }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-impact-${{ matrix.chunk.id }}-${{ github.run_id }}
+          path: artifacts/wnba-*
+          retention-days: 30
+
+  fit:
+    needs: chunks
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wnba-impact-*-${{ github.run_id }}
+          path: artifacts/chunks
+      - name: Merge research artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/merged
+          find artifacts/chunks -name 'wnba-canonical-*.jsonl' -type f -print0 | sort -z | xargs -0 cat > artifacts/merged/wnba-canonical.jsonl
+          find artifacts/chunks -name 'wnba-lineup-stints-*.jsonl' -type f -print0 | sort -z | xargs -0 cat > artifacts/merged/wnba-lineup-stints.jsonl
+          node - <<'NODE'
+          const fs=require('fs'),path=require('path'),files=[];
+          const walk=p=>{for(const n of fs.readdirSync(p)){const f=path.join(p,n),s=fs.statSync(f);if(s.isDirectory())walk(f);else if(/^wnba-lineup-effects-.*\.json$/.test(n))files.push(f)}};
+          walk('artifacts/chunks');
+          const effects=[];for(const f of files){const j=JSON.parse(fs.readFileSync(f));effects.push(...(j.effects||[]))}
+          fs.writeFileSync('artifacts/merged/wnba-lineup-effects.json',JSON.stringify({generatedAt:new Date().toISOString(),effects},null,2));
+          NODE
+      - name: Fit WNBA player impact
+        run: |
+          node scripts/wnba-player-impact-fit.mjs             games=artifacts/merged/wnba-canonical.jsonl             stints=artifacts/merged/wnba-lineup-stints.jsonl             out=artifacts/merged/wnba-player-impact-v1.json
+      - name: Chronological walk-forward
+        run: |
+          node scripts/wnba-player-impact-walkforward.mjs             games=artifacts/merged/wnba-canonical.jsonl             stints=artifacts/merged/wnba-lineup-stints.jsonl             out=artifacts/merged/wnba-player-impact-walkforward.json             rows=artifacts/merged/wnba-player-impact-walkforward-rows.jsonl
+          cat artifacts/merged/wnba-player-impact-walkforward.json
+      - name: Freeze immutable research snapshot and current research alias
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          IMM="research/wnba/player-impact/v1/run-${GITHUB_RUN_ID}"
+          CUR="models/wnba/player-impact/research-current"
+          for f in wnba-canonical.jsonl wnba-lineup-stints.jsonl wnba-lineup-effects.json wnba-player-impact-v1.json wnba-player-impact-walkforward.json wnba-player-impact-walkforward-rows.jsonl; do
+            npx wrangler r2 object put "fbis-archive/${IMM}/${f}" --file "artifacts/merged/${f}" --remote
+            npx wrangler r2 object put "fbis-archive/${CUR}/${f}" --file "artifacts/merged/${f}" --remote
+          done
+          printf '{"runId":%s,"immutablePrefix":"%s","updatedAt":"%s"}\n' "$GITHUB_RUN_ID" "$IMM" "$(date -u +%FT%TZ)" > artifacts/merged/pointer.json
+          npx wrangler r2 object put "fbis-archive/${CUR}/pointer.json" --file artifacts/merged/pointer.json --remote
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-player-impact-v1-${{ github.run_id }}
+          path: artifacts/merged/
+          retention-days: 90
