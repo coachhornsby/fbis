@@ -46,6 +46,15 @@ export function decomposeWnbaProjection(game={}){
   add("home_matchup_ortg",home.matchupOrtg,"pts_per_100");
   add("away_matchup_ortg",away.matchupOrtg,"pts_per_100");
   add("home_field",d.hfa,"points",1,game.neutralSite?"Neutral site":"WNBA home-court adjustment");
+  if(game.availabilityImpact?.configured){
+    add(
+      "availability_context",
+      Number(game.availabilityImpact?.home?.impactedCount||0)-Number(game.availabilityImpact?.away?.impactedCount||0),
+      "impacted_player_count_diff",
+      game.availabilityImpact?.stale?0.25:0.8,
+      "Context only unless a WNBA-specific minutes/usage reflow is validated; never a fixed-point injury penalty."
+    );
+  }
   return {
     modelId:p.modelId||"WNBA-FBIS-v2",
     modelVersion:p.modelVersion||game.modelVersion||null,
@@ -57,6 +66,16 @@ export function decomposeWnbaProjection(game={}){
     sigmaTotal:finite(p.sigmaTotal)??12.1,
     pHomeWin:finite(p.pHomeWin??game.model?.pHomeFinal??game.model?.pHome),
     factors,
+    featureCoverage:{
+      possessions:"ACTIVE",
+      teamEfficiency:"ACTIVE",
+      pace:"ACTIVE",
+      availability:game.availabilityImpact?.configured?(game.availabilityImpact?.stale?"STALE":"ACTIVE"):"UNVERIFIED",
+      shotProfile:game.wnbaShotProfile?"ACTIVE":"NOT_IN_PRODUCTION",
+      lineupRotation:game.wnbaLineupContext?"ACTIVE":"NOT_IN_PRODUCTION",
+      restTravel:game.wnbaRestTravel?"ACTIVE":"NOT_IN_PRODUCTION",
+    },
+    availability:game.availabilityImpact||null,
     independent:true,
     marketInformed:false,
   };
