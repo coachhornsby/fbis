@@ -137,7 +137,7 @@ async function atpOfficialHeadshot(name){
   const res=await fetch(searchUrl,{headers:{"user-agent":"Mozilla/5.0","accept":"text/html"}});
   if(!res.ok) return null;
   const html=await res.text();
-  const needle=norm(lookupName);
+  const needle=norm(name);
   const candidates=[];
   const re=/href=["']([^"']*\/en\/players\/([^/"']+)\/([a-z0-9]{4,})\/(?:overview|bio|player-stats|rankings-breakdown)[^"']*)["']/ig;
   let m;
@@ -298,7 +298,7 @@ async function wikipediaPlayerImage(lookupName){
   if(!res.ok) return null;
   const body=await res.json().catch(()=>({}));
   const pages=Object.values(body?.query?.pages||{});
-  const needle=norm(name);
+  const needle=norm(lookupName);
   const ranked=pages
     .filter(p=>p?.thumbnail?.source)
     .map(p=>({p,score:norm(p.title)===needle?100:(norm(p.title).includes(needle)||needle.includes(norm(p.title))?80:0)}))
