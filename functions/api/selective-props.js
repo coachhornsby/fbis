@@ -52,10 +52,51 @@ function normalizedRows(rows = []) {
     propGate: row.prop_gate,
     eligibleForCard: row.eligible_for_card == null ? undefined : Boolean(row.eligible_for_card),
     featureEvidence: row.feature_evidence_json ? JSON.parse(row.feature_evidence_json) : null,
+    targetRole: (row.feature_evidence_json ? JSON.parse(row.feature_evidence_json) : null)?.targetRoleName || null,
+    market: row.canonical_market || row.stat_type || null,
+    statType: row.canonical_market || row.stat_type || null,
     modelSource: row.model_source,
     modelVersion: row.model_version,
   }));
 }
+
+function is49ersTargetRole(row = {}) {
+  if (String(row.sport || "").toLowerCase() !== "nfl") return false;
+  const team = String(row.team || "").trim().toUpperCase();
+  const role = String(row.targetRole || row.featureEvidence?.targetRoleName || "").trim().toUpperCase();
+  return (team === "SF" || team === "SFO") && ["QB1","RB1","WR1","WR2","TE1"].includes(role);
+}
+
+function nflDisplayGroupKey(row = {}) {
+  return [
+    String(row.sport || "").toLowerCase(),
+    String(row.playerName || row.player_name || "").toLowerCase(),
+    String(row.market || row.canonical_market || row.statType || row.stat_type || "").toLowerCase(),
+    String(row.duration || "full").toLowerCase(),
+  ].join("|");
+}
+
+function applyNflDisplayPolicy(rows = []) {
+  const ranked = rankAllProjected(rows);
+  const groups = new Map();
+  for (const row of ranked) {
+    if (String(row.sport || "").toLowerCase() !== "nfl") continue;
+    const key = nflDisplayGroupKey(row);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+  const allowed = new Set();
+  for (const [key, variants] of groups.entries()) {
+    const standard = variants.find((r) => String(r.odds_tier || "standard").toLowerCase() === "standard");
+    const primary = standard || variants[0];
+    if (is49ersTargetRole(primary) || Number(primary?.confidenceStars || 0) >= 4) allowed.add(key);
+  }
+  return ranked.filter((row) => {
+    if (String(row.sport || "").toLowerCase() !== "nfl") return true;
+    return allowed.has(nflDisplayGroupKey(row));
+  });
+}
+
 export function groupKey(row = {}) {
   return [
     String(row.sport || "").toLowerCase(),
@@ -133,18 +174,20 @@ export async function onRequestGet(context) {
   let policy;
 
   if (mode === "sport") {
-    selected = rankAllProjected(candidates);
+    selected = sport === "nfl" ? applyNflDisplayPolicy(candidates) : rankAllProjected(candidates);
     policy = {
-      view: "SPORT_ALL_PROJECTED",
+      view: sport === "nfl" ? "NFL_4STAR_PLUS_WITH_49ERS_EXCEPTION" : "SPORT_ALL_PROJECTED",
       cap: null,
-      minStars: 1,
+      minStars: sport === "nfl" ? 4 : 1,
       concentrationLimits: false,
       lineRole: "comparison-only",
       tiers: ["standard","goblin","demon"],
-      note: "Every current Standard, Goblin and Demon line with a valid FBIS projection is shown for the selected sport, sorted by stars then edge strength.",
+      note: sport === "nfl"
+        ? "NFL groups are listed only when the Standard line is 4-star or 5-star, except all 49ers QB1/RB1/WR1/WR2/TE1 projections remain visible. Alternate Goblin/Demon rows are returned only as variants for those visible groups."
+        : "Every current Standard, Goblin and Demon line with a valid FBIS projection is shown for the selected sport, sorted by stars then edge strength.",
     };
   } else {
-    const allRanked = rankAllProjected(candidates);
+    const allRanked = applyNflDisplayPolicy(candidates);
     const strongest = [...strongestByGroup(allRanked).values()]
       .sort((a, b) =>
         (b.confidenceStars - a.confidenceStars) ||
