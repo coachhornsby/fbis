@@ -1,0 +1,151 @@
+name: CBB possession and lineup v1
+
+on:
+  pull_request:
+    paths:
+      - "functions/lib/cbbPossessionModel.js"
+      - "scripts/cbb-possession-history-v1.mjs"
+      - "scripts/cbb-possession-fit-v1.mjs"
+      - "test/cbb-possession-model.test.js"
+      - ".github/workflows/cbb-possession-v1.yml"
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/cbbPossessionModel.js"
+      - "scripts/cbb-possession-history-v1.mjs"
+      - "scripts/cbb-possession-fit-v1.mjs"
+      - "test/cbb-possession-model.test.js"
+      - ".github/workflows/cbb-possession-v1.yml"
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: "Starting seasons to rebuild"
+        type: string
+        default: "2018,2019,2020,2021,2022,2023,2024,2025"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: cbb-possession-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Syntax and reconstruction tests
+        run: |
+          set -euo pipefail
+          node --check functions/lib/cbbPossessionModel.js
+          node --check scripts/cbb-possession-history-v1.mjs
+          node --check scripts/cbb-possession-fit-v1.mjs
+          node --test test/cbb-possession-model.test.js
+
+  season:
+    if: github.event_name != 'pull_request'
+    needs: unit
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        season: [2018,2019,2020,2021,2022,2023,2024,2025]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Build leakage-safe possession/lineup season
+        env:
+          FBIS_SEASON: "${{ matrix.season }}"
+          INPUT_SEASONS: "${{ github.event.inputs.seasons }}"
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_SEASONS:-}" ]; then
+            case ",${INPUT_SEASONS}," in
+              *,"${FBIS_SEASON},"*) ;;
+              *) echo "season ${FBIS_SEASON} not requested"; exit 0 ;;
+            esac
+          fi
+          mkdir -p artifacts
+          node scripts/cbb-possession-history-v1.mjs "${FBIS_SEASON}" | tee "artifacts/cbb-possession-history-${FBIS_SEASON}.log"
+          jq -e '.ok == true and .counts.games > 0 and .counts.pbpRows > 0' "artifacts/cbb-possession-history-${FBIS_SEASON}.json" >/dev/null
+      - uses: actions/upload-artifact@v4
+        if: hashFiles('artifacts/cbb-possession-history-*.json') != ''
+        with:
+          name: cbb-possession-history-${{ matrix.season }}-${{ github.run_id }}
+          path: |
+            artifacts/cbb-possession-history-${{ matrix.season }}.json
+            artifacts/cbb-possession-history-${{ matrix.season }}.log
+          retention-days: 90
+
+  aggregate:
+    if: github.event_name != 'pull_request'
+    needs: season
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Download season histories
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cbb-possession-history-*-${{ github.run_id }}
+          path: artifacts/parts
+          merge-multiple: true
+      - name: Download frozen CBB v2 baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: cbb-fbis-native-v1-aggregate-37181214791
+          github-token: "${{ github.token }}"
+          repository: coachhornsby/fbis
+          run-id: 37181214791
+          path: artifacts/frozen
+      - name: Require complete default history
+        if: github.event_name == 'push' || github.event.inputs.seasons == '' || github.event.inputs.seasons == '2018,2019,2020,2021,2022,2023,2024,2025'
+        run: |
+          set -euo pipefail
+          count=$(find artifacts/parts -name 'cbb-possession-history-20*.json' | wc -l)
+          echo "season artifacts=${count}"
+          test "${count}" -eq 8
+      - name: Fit walk-forward challengers
+        run: |
+          set -euo pipefail
+          node scripts/cbb-possession-fit-v1.mjs             artifacts/parts             artifacts/frozen/cbb-fbis-native-v2-predictions.json             artifacts/frozen/cbb-fbis-v2-fit.json             | tee artifacts/cbb-possession-v1-fit.log
+          jq -e '.ok == true and .id == "CBB-POSSESSION-v1-WALKFORWARD"' artifacts/cbb-possession-v1-fit.json >/dev/null
+      - name: Summarize QA and predictive value
+        run: |
+          set -euo pipefail
+          {
+            echo "## CBB-POSSESSION-v1"
+            echo
+            echo "### Reconstruction QA"
+            for f in artifacts/parts/cbb-possession-history-20*.json; do
+              jq -r '"- "+(.season|tostring)+": games="+(.counts.games|tostring)+", lineup reliable="+((100*.qa.lineupReliableRate)|tostring)+"%, lineup coverage="+((100*.qa.meanLineupCoverage)|tostring)+"%, substitution resolution="+((100*.qa.meanSubResolution)|tostring)+"%"' "$f"
+            done
+            echo
+            echo "### Walk-forward"
+            jq -r '.families | to_entries[] as $f | $f.value | to_entries[] | "- "+$f.key+" "+.key+": validation gain="+(.value.validation.gain|tostring)+", 2025 gain="+(.value.confirmation.gain|tostring)+", promote="+(.value.promote|tostring)' artifacts/cbb-possession-v1-fit.json
+            echo
+            jq -r '"Recommended margin family: "+(.recommendation.margin // "none")+", total family: "+(.recommendation.total // "none")' artifacts/cbb-possession-v1-fit.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbb-possession-v1-${{ github.run_id }}
+          path: |
+            artifacts/cbb-possession-v1-fit.json
+            artifacts/cbb-possession-v1-fit.log
+            artifacts/parts/cbb-possession-history-20*.json
+          retention-days: 90
