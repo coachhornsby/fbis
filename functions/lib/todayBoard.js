@@ -434,7 +434,6 @@ export async function buildTodayBoard(
       let bySnapshot = new Map();
       let byMarketOdds = new Map();
       let byMarketHistory = new Map();
-      let byMarketHistory = new Map();
       if (env.DB) {
         const snapQ = await querySnaps(env, { sport, since: date, until: date, checkpoint: "LATEST" });
         if (snapQ?.ok && Array.isArray(snapQ.rows) && snapQ.rows.length) {
@@ -443,7 +442,6 @@ export async function buildTodayBoard(
         const oddsQ = await queryOdds(env, { sport, since: date, until: date });
         if (oddsQ?.ok && Array.isArray(oddsQ.rows) && oddsQ.rows.length) {
           byMarketOdds = buildMarketOddsByGame(oddsQ.rows);
-          byMarketHistory = buildMarketLineHistoryByGame(oddsQ.rows);
           byMarketHistory = buildMarketLineHistoryByGame(oddsQ.rows);
         }
       }
@@ -489,7 +487,6 @@ export async function buildTodayBoard(
       }
 
       if (sport === "nhl") slateGames = slateGames.map((g)=>({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
-      if (sport === "nhl") slateGames = slateGames.map((g)=>({...g,nhlWagerV1:evaluateNhlGameWagers(g,NHL_WAGER_CONFIDENCE_V1.game)}));
       const rows = slateGames.map((g) => toBoardGame(g, sport, now));
       feeds[sport] = {
         ok: true,
