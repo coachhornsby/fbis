@@ -320,7 +320,7 @@ export const SOURCE_REGISTRY = Object.freeze([
     priority: 2,
     fallbackPriority: null,
     active: true,
-    notes: "EDGE tracking is incremental: speed/bursts, distance, shot speed/location, zone time, player context and goalie EDGE. Modern feed also supplies shifts/scratches/goalie-game context; existing official NHL game-feed facts dedupe to NHL lineage."
+    notes: "EDGE tracking is incremental: speed/bursts, distance, shot speed/location, zone time, player context and goalie EDGE. Modern feed also supplies shifts/scratches/goalie-game context; existing official NHL game-feed facts dedupe to NHL lineage.",
     inPureModel: true,
     inMarketLayer: false,
   },
