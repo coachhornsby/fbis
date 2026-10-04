@@ -23,6 +23,8 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: 24
+      - name: Syntax check
+        run: node --check scripts/nhl-deployment-v1-fit.mjs
       - name: Download completed-season PIT deployment data
         run: |
           set -euo pipefail
