@@ -85,6 +85,14 @@ function actionSplitLabel(split, away, home) {
   return `${away.abbr || "AWAY"} ${Math.round(awayPct)}%`;
 }
 
+function matchupSignalLabel(signal, away, home) {
+  if (!signal?.available) return { text: "—", tone: "neutral" };
+  const n = Number(signal.adjustment);
+  if (!Number.isFinite(n) || Math.abs(n) < 0.15) return { text: "EVEN", tone: "neutral" };
+  const team = n > 0 ? home : away;
+  return { text: team?.abbr || (n > 0 ? "HOME" : "AWAY"), tone: n > 0 ? "home" : "away" };
+}
+
 function actionMoveLabel(action, away, home) {
   const open = Number(action?.movement?.open);
   const current = Number(action?.movement?.current);
@@ -114,6 +122,19 @@ export default function CompactGameCard({ game, onOpen }) {
   const action = vm.action || {};
   const isNfl = String(vm.sport || game?.sport || "").toLowerCase() === "nfl";
   const edge = bestEdge(vm);
+  const matchup = isNfl ? game?.nflGameMatchup : null;
+  const matchupSignals = Array.isArray(matchup?.signals) ? matchup.signals : [];
+  const matchupById = Object.fromEntries(matchupSignals.map((s) => [s.id, s]));
+  const matchupItems = [
+    ["pressure", "PRESSURE"],
+    ["run", "RUN"],
+    ["coverageRoute", "COVERAGE"],
+    ["explosive", "EXPLOSIVE"],
+    ["earlyDown", "EARLY DOWN"],
+  ].map(([id, label]) => ({ id, label, ...matchupSignalLabel(matchupById[id], away, home) }));
+  const baselineMargin = Number(matchup?.baseline?.margin);
+  const finalMargin = Number(matchup?.final?.margin);
+  const matchupAdj = Number(matchup?.adjustment?.margin);
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -185,6 +206,29 @@ export default function CompactGameCard({ game, onOpen }) {
           <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : edge.type}</small>
         </aside>
       </div>
+
+      {isNfl && matchup?.ok ? (
+        <section className="cgc-matchup-read" aria-label="FBIS individual game matchup analysis">
+          <div className="cgc-matchup-read-head">
+            <div><span>GAME MATCHUP</span><strong>{matchup?.adjustment?.evidenceQualified ? "EVIDENCE QUALIFIED" : "ANALYSIS ONLY"}</strong></div>
+            <b>{matchup?.coverage ? `${matchup.coverage.available}/${matchup.coverage.total} SIGNALS` : "—"}</b>
+          </div>
+          <div className="cgc-matchup-pills">
+            {matchupItems.map((item) => (
+              <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
+                <span>{item.label}</span><strong>{item.text}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="cgc-matchup-adjustment">
+            <span>BASELINE <b>{Number.isFinite(baselineMargin) ? `${baselineMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(baselineMargin))}` : "—"}</b></span>
+            <i>→</i>
+            <span>ADJ <b>{Number.isFinite(matchupAdj) ? `${matchupAdj > 0 ? "+" : ""}${fmt(matchupAdj)}` : "0"}</b></span>
+            <i>→</i>
+            <span>GAME READ <b>{Number.isFinite(finalMargin) ? `${finalMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(finalMargin))}` : "—"}</b></span>
+          </div>
+        </section>
+      ) : null}
 
       <div className="cgc-market-strip" aria-label="FBIS and market comparison">
         <div className="cgc-market-item">
