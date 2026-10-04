@@ -117,6 +117,8 @@ async function loadPrizePicksRows(db, eventIds = [], sportParam = null) {
       playerName:row.player_name || null,
       team:row.team || null,
       position:null,
+      imageUrl:row.player_headshot_url || null,
+      imageSource:row.player_headshot_url ? "PRIZEPICKS_FEED" : null,
       sport:row.sport,
       market:row.stat_type,
       marketCanonical:row.canonical_market,
