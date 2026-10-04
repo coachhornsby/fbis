@@ -39,13 +39,12 @@ function clockSeconds(v){
   if(m)return Number(m[1]||0)*3600+Number(m[2])*60+Number(m[3]);
   const mm=String(v).match(/^(\d+):(\d+)$/);return mm?Number(mm[1])*60+Number(mm[2]):null;
 }
-function shiftDuration(r){
-  const d=clockSeconds(pick(r,["duration","shift_duration","duration_seconds","durationSeconds"]));if(d!=null)return d;
-  const a=clockSeconds(pick(r,["start_time","startTime","start"])),b=clockSeconds(pick(r,["end_time","endTime","end"]));
-  return a!=null&&b!=null&&b>=a?b-a:null;
+function idsList(v){
+  return String(v??"").split(",").map(x=>x.trim()).filter(x=>x&&x!=="0"&&x.toLowerCase()!=="none").map(x=>x.replace(/\.0$/,""));
 }
 const gameId=r=>id(r,["game_id","gameId","id_game"]);
 const playerId=r=>id(r,["player_id","playerId","id_player","nhl_id","id"]);
+const teamId=r=>id(r,["team_id","teamId","id_team"]);
 const team=r=>String(pick(r,["team_abbr","teamAbbrev","team","team_abbreviation","teamAbbreviation","team_tri_code","teamTriCode"])||"").toUpperCase();
 const gameDate=r=>{const v=pick(r,["game_date","gameDate","date","game_date_time","start_time_utc"]);const t=Date.parse(v||"");return Number.isFinite(t)?t:null};
 const shots=r=>num(pick(r,["sog","shots","shots_on_goal","shotsOnGoal"]));
@@ -94,25 +93,55 @@ async function loadYear(y){
 }
 const datasets=await Promise.all(years.map(loadYear));
 const shiftByGamePlayer=new Map(),scratchByGame=new Map(),rosterByGame=new Map(),actualByGamePlayer=new Map(),gameMeta=new Map();
+const teamAbbrByGameTeamId=new Map();
 
 for(const d of datasets){
-  for(const r of d.shifts){
-    const g=gameId(r),p=playerId(r);if(!g||!p)continue;const k=g+"|"+p,cur=shiftByGamePlayer.get(k)||{seconds:0,shifts:0};
-    const sec=shiftDuration(r);if(sec!=null&&sec>=0&&sec<=300)cur.seconds+=sec;cur.shifts++;shiftByGamePlayer.set(k,cur);
+  for(const r of d.box){
+    const g=gameId(r),p=playerId(r),tm=team(r),tid=teamId(r),s=shots(r);if(!g||!p||!tm||s==null)continue;
+    if(tid)teamAbbrByGameTeamId.set(g+"|"+tid,tm);
+    actualByGamePlayer.set(g+"|"+p,{playerId:p,team:tm,teamId:tid,position:position(r),shots:s,goals:goals(r)||0,toi:toi(r),season:d.y,date:gameDate(r)});
+    if(!gameMeta.has(g))gameMeta.set(g,{g,t:gameDate(r)??Number(g),year:d.y});
   }
+}
+for(const d of datasets){
   for(const r of d.scratches){
     const g=gameId(r),p=playerId(r);if(!g||!p)continue;if(!scratchByGame.has(g))scratchByGame.set(g,new Set());scratchByGame.get(g).add(p);
   }
   for(const r of d.rosters){
-    const g=gameId(r),p=playerId(r),tm=team(r);if(!g||!p||!tm)continue;
+    const g=gameId(r),p=playerId(r),tid=teamId(r),tm=team(r)||teamAbbrByGameTeamId.get(g+"|"+tid)||"";
+    if(!g||!p||!tm)continue;
     if(!rosterByGame.has(g))rosterByGame.set(g,[]);
-    rosterByGame.get(g).push({playerId:p,team:tm,position:position(r),date:gameDate(r),season:d.y});
+    rosterByGame.get(g).push({playerId:p,team:tm,teamId:tid,position:position(r),date:gameDate(r),season:d.y});
     if(!gameMeta.has(g))gameMeta.set(g,{g,t:gameDate(r)??Number(g),year:d.y});
   }
-  for(const r of d.box){
-    const g=gameId(r),p=playerId(r),tm=team(r),s=shots(r);if(!g||!p||!tm||s==null)continue;
-    actualByGamePlayer.set(g+"|"+p,{playerId:p,team:tm,position:position(r),shots:s,goals:goals(r)||0,toi:toi(r),season:d.y,date:gameDate(r)});
-    if(!gameMeta.has(g))gameMeta.set(g,{g,t:gameDate(r)??Number(g),year:d.y});
+}
+
+// Released SportsDataverse shifts are CHANGE events. Reconstruct player TOI
+// from ids_on / ids_off and event game_seconds; never use the target game's
+// reconstructed TOI until after its prediction has been frozen.
+for(const d of datasets){
+  const byGameTeam=new Map();
+  for(const r of d.shifts){
+    const g=gameId(r),tm=String(pick(r,["event_team_abbr","team_abbrev","teamAbbrev"])||"").toUpperCase();
+    const sec=num(pick(r,["game_seconds","gameSeconds","start_game_seconds"]));
+    if(!g||!tm||sec==null)continue;
+    const k=g+"|"+tm;if(!byGameTeam.has(k))byGameTeam.set(k,[]);
+    byGameTeam.get(k).push({sec,on:idsList(pick(r,["ids_on","idsOn"])),off:idsList(pick(r,["ids_off","idsOff"]))});
+  }
+  for(const [k,events] of byGameTeam){
+    events.sort((a,b)=>a.sec-b.sec);
+    const g=k.split("|")[0],active=new Map(),totals=new Map();
+    let maxSec=events.length?events[events.length-1].sec:3600;
+    if(maxSec<3600)maxSec=3600;
+    for(const e of events){
+      for(const pid of e.off){
+        const st=active.get(pid);if(st!=null&&e.sec>=st)totals.set(pid,(totals.get(pid)||0)+(e.sec-st));
+        active.delete(pid);
+      }
+      for(const pid of e.on)if(!active.has(pid))active.set(pid,e.sec);
+    }
+    for(const [pid,st] of active)if(maxSec>=st)totals.set(pid,(totals.get(pid)||0)+(maxSec-st));
+    for(const [pid,seconds] of totals)if(seconds>0)shiftByGamePlayer.set(g+"|"+pid,{seconds,shifts:null});
   }
 }
 const games=[...gameMeta.values()].sort((a,b)=>a.t-b.t||a.g.localeCompare(b.g));
@@ -204,7 +233,7 @@ const report={
   counts:{
     rosterRows:datasets.reduce((s,d)=>s+d.rosters.length,0),boxRows:datasets.reduce((s,d)=>s+d.box.length,0),
     shiftRows:datasets.reduce((s,d)=>s+d.shifts.length,0),scratchRows:datasets.reduce((s,d)=>s+d.scratches.length,0),
-    shiftPlayerGames:shiftByGamePlayer.size,propPredictions:final.props.length,gamePredictions:final.gameRows.length
+    shiftPlayerGames:shiftByGamePlayer.size,rosterGames:rosterByGame.size,actualPlayerGames:actualByGamePlayer.size,propPredictions:final.props.length,gamePredictions:final.gameRows.length
   },
   playerProps:{bySeason:propBySeason,promote:Boolean(pVal.maeGain>0&&pConf.maeGain>0)},
   gameProjection:{bySeason:gameBySeason,promote:Boolean(gVal.marginGain>0&&gVal.totalGain>=0&&gVal.winnerGain>=0&&gConf.marginGain>0&&gConf.totalGain>=0&&gConf.winnerGain>=0)},
