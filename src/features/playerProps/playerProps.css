@@ -496,3 +496,744 @@
 .props-star-1{color:var(--muted,#d0d8e2);background:rgba(255,255,255,.04);border-color:#3a5570}
 .props-workspace-confidence{display:flex;justify-content:center;align-items:center;gap:8px;font-size:.72rem;font-weight:700;color:var(--muted,#d0d8e2)}
 .today-prop-stars{white-space:nowrap;font-weight:800;color:#f5d76e}
+
+
+/* ──────────────────────────────────────────────────────────────────────────
+   FBIS PLAYER PROPS — PREMIUM EXPERIENCE
+   Visual target: high-end mobile prop board with strong hierarchy, real
+   headshots, gold confidence, and model-vs-market metrics.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.player-props-page {
+  --pp-bg: #030916;
+  --pp-panel: #081426;
+  --pp-panel-2: #0b1b31;
+  --pp-card: #0a172a;
+  --pp-card-low: #07111f;
+  --pp-blue: #1495ff;
+  --pp-blue-soft: #60b8ff;
+  --pp-cyan: #32c8ff;
+  --pp-green: #50f0a0;
+  --pp-red: #ff5b70;
+  --pp-gold: #ffc944;
+  --pp-gold-soft: #ffe28b;
+  --pp-text: #f7f9ff;
+  --pp-muted: #9eabc1;
+  --pp-border: rgba(112, 145, 195, .28);
+  --pp-shadow: 0 24px 60px rgba(0, 0, 0, .42);
+  gap: 0;
+  margin: -10px -10px 0;
+  padding: 0 10px 34px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(15, 111, 255, .12), transparent 28%),
+    radial-gradient(circle at 90% 14%, rgba(73, 47, 196, .10), transparent 30%),
+    linear-gradient(180deg, #030814 0%, #020610 100%);
+  min-height: calc(100vh - 90px);
+}
+
+.pp-market.pp-premium-page {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  color: var(--pp-text);
+}
+
+.pp-premium-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px 6px 18px;
+}
+
+.pp-premium-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.pp-premium-mark {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  width: 35px;
+  height: 35px;
+  padding: 5px 3px;
+}
+
+.pp-premium-mark span {
+  display: block;
+  width: 8px;
+  border-radius: 3px 3px 2px 2px;
+  background: linear-gradient(180deg, #55d8ff 0%, #0c7aff 100%);
+  box-shadow: 0 0 16px rgba(20, 149, 255, .42);
+}
+
+.pp-premium-mark span:nth-child(1) { height: 14px; }
+.pp-premium-mark span:nth-child(2) { height: 23px; }
+.pp-premium-mark span:nth-child(3) { height: 31px; }
+
+.pp-premium-brandline {
+  font-size: 30px;
+  line-height: .95;
+  font-weight: 950;
+  font-style: italic;
+  letter-spacing: -1.5px;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(64, 166, 255, .16);
+}
+
+.pp-premium-brand h1 {
+  margin: 5px 0 0;
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 850;
+  letter-spacing: -.3px;
+  color: var(--pp-text);
+}
+
+.pp-premium-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border: 1px solid rgba(80, 240, 160, .45);
+  border-radius: 999px;
+  color: var(--pp-green);
+  background: rgba(25, 196, 112, .08);
+  box-shadow: inset 0 0 18px rgba(80, 240, 160, .035);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .8px;
+}
+
+.pp-premium-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pp-green);
+  box-shadow: 0 0 10px rgba(80, 240, 160, .8);
+}
+
+.pp-sport-strip.pp-premium-tabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 5px;
+  margin: 0 4px 25px;
+  background: rgba(6, 16, 33, .92);
+  border: 1px solid rgba(87, 121, 176, .28);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025), 0 12px 30px rgba(0,0,0,.16);
+}
+
+.pp-sport-strip.pp-premium-tabs::-webkit-scrollbar { display: none; }
+
+.pp-sport-strip.pp-premium-tabs button {
+  flex: 0 0 auto;
+  min-width: 78px;
+  min-height: 43px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  color: #aab7cd;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .25px;
+  cursor: pointer;
+  transition: transform .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+
+.pp-sport-strip.pp-premium-tabs button:hover {
+  color: #fff;
+  background: rgba(255,255,255,.035);
+}
+
+.pp-sport-strip.pp-premium-tabs button.active {
+  color: #fff;
+  background: linear-gradient(135deg, #116dff 0%, #19a8ff 100%);
+  box-shadow:
+    0 7px 20px rgba(20, 149, 255, .34),
+    inset 0 1px 0 rgba(255,255,255,.25);
+}
+
+.pp-premium-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+  padding: 0 7px 18px;
+}
+
+.pp-premium-section-head h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -1.2px;
+}
+
+.pp-premium-section-head p {
+  margin: 8px 0 0;
+  color: var(--pp-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.pp-count.pp-premium-count {
+  white-space: nowrap;
+  border: 1px solid rgba(20, 149, 255, .35);
+  color: #d9ecff;
+  background: rgba(12, 73, 143, .16);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .7px;
+}
+
+.pp-card-grid.pp-premium-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding: 0 4px 26px;
+}
+
+.pp-card.pp-premium-card {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(30, 139, 255, .58);
+  border-radius: 23px;
+  background:
+    linear-gradient(180deg, rgba(13, 38, 72, .98), rgba(6, 17, 34, .99));
+  box-shadow:
+    0 0 0 1px rgba(20, 149, 255, .11),
+    0 18px 40px rgba(0,0,0,.34),
+    0 0 32px rgba(14, 101, 230, .065);
+  min-width: 0;
+  isolation: isolate;
+}
+
+.pp-card.pp-premium-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: auto;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 78% 0%, rgba(36, 142, 255, .18), transparent 34%),
+    radial-gradient(circle at 8% 20%, rgba(97, 64, 208, .12), transparent 32%);
+}
+
+.pp-card.pp-premium-card.sport-cfb {
+  border-color: rgba(216, 65, 86, .56);
+  box-shadow: 0 18px 40px rgba(0,0,0,.34), 0 0 28px rgba(190, 36, 65, .08);
+}
+.pp-card.pp-premium-card.sport-cbb { border-color: rgba(38, 143, 255, .62); }
+.pp-card.pp-premium-card.sport-tennis { border-color: rgba(139, 100, 255, .62); }
+.pp-card.pp-premium-card.sport-mlb { border-color: rgba(40, 152, 255, .62); }
+.pp-card.pp-premium-card.sport-nfl { border-color: rgba(121, 91, 245, .62); }
+.pp-card.pp-premium-card.sport-nhl { border-color: rgba(66, 200, 255, .56); }
+
+.pp-card-visual {
+  position: relative;
+  height: 214px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(27, 127, 255, .22), transparent 58%),
+    linear-gradient(180deg, #102a4e 0%, #0b203c 100%);
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+
+.sport-cfb .pp-card-visual {
+  background: radial-gradient(circle at 50% 0%, rgba(220, 47, 72, .26), transparent 58%), linear-gradient(180deg, #3b1220, #191421);
+}
+.sport-cbb .pp-card-visual {
+  background: radial-gradient(circle at 50% 0%, rgba(36, 135, 255, .24), transparent 58%), linear-gradient(180deg, #10264d, #101b32);
+}
+.sport-tennis .pp-card-visual {
+  background: radial-gradient(circle at 50% 0%, rgba(126, 83, 255, .27), transparent 58%), linear-gradient(180deg, #211548, #101a32);
+}
+.sport-nfl .pp-card-visual {
+  background: radial-gradient(circle at 50% 0%, rgba(99, 77, 222, .25), transparent 58%), linear-gradient(180deg, #18224b, #10192e);
+}
+
+.pp-watermark {
+  position: absolute;
+  left: 18px;
+  top: 35px;
+  max-width: 48%;
+  color: rgba(255,255,255,.11);
+  font-size: clamp(44px, 7vw, 78px);
+  line-height: .9;
+  font-weight: 950;
+  letter-spacing: -4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.pp-premium-headshot {
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  transform: translateX(-50%);
+  width: 74%;
+  height: 95%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  overflow: visible;
+  z-index: 2;
+}
+
+.pp-premium-headshot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 16px 20px rgba(0,0,0,.35));
+}
+
+.pp-premium-headshot > span {
+  align-items: center;
+  justify-content: center;
+  width: 130px;
+  height: 130px;
+  margin-bottom: 26px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.16);
+  color: #fff;
+  background: linear-gradient(145deg, #1767c8, #1c2746);
+  font-size: 34px;
+  font-weight: 950;
+  box-shadow: 0 16px 30px rgba(0,0,0,.34);
+}
+
+.pp-premium-stars {
+  position: absolute;
+  z-index: 5;
+  top: 15px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 999px;
+  color: var(--pp-gold);
+  background: rgba(5, 12, 25, .70);
+  border: 1px solid rgba(255, 206, 72, .25);
+  box-shadow: 0 6px 18px rgba(0,0,0,.22);
+  backdrop-filter: blur(7px);
+}
+
+.pp-star-icons {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.pp-star-icons .filled {
+  color: var(--pp-gold);
+  text-shadow: 0 0 10px rgba(255, 201, 68, .34);
+}
+
+.pp-star-icons .empty {
+  color: rgba(255,255,255,.26);
+}
+
+.pp-premium-stars b {
+  font-size: 12px;
+  color: var(--pp-gold-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-team-pill {
+  position: absolute;
+  z-index: 6;
+  bottom: -1px;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 80%;
+  min-height: 32px;
+  padding: 0 15px;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 197, 255, .72);
+  background: linear-gradient(180deg, #0d6cad, #0b4d86);
+  color: #fff;
+  box-shadow: 0 5px 16px rgba(0,0,0,.28);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .65px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sport-cfb .pp-team-pill {
+  background: linear-gradient(180deg, #c92d4c, #7d1830);
+  border-color: rgba(255, 104, 130, .8);
+}
+.sport-nfl .pp-team-pill,
+.sport-tennis .pp-team-pill {
+  background: linear-gradient(180deg, #6f4be6, #44249a);
+  border-color: rgba(177, 141, 255, .82);
+}
+
+.pp-card-body {
+  padding: 28px 15px 14px;
+}
+
+.pp-player-title {
+  text-align: center;
+}
+
+.pp-player-title h3 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(20px, 2.6vw, 28px);
+  line-height: 1.08;
+  font-weight: 950;
+  letter-spacing: -.55px;
+}
+
+.pp-player-title p {
+  margin: 6px 0 0;
+  color: var(--pp-muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.pp-player-title p b {
+  color: #dce9fb;
+  font-weight: 800;
+}
+
+.pp-player-title p em {
+  color: #8897ae;
+  font-style: normal;
+}
+
+.pp-market-name.pp-premium-market-name {
+  margin: 14px 0 13px;
+  padding: 0;
+  border: 0;
+  text-align: center;
+  text-transform: none;
+  color: #fff;
+  font-size: clamp(22px, 3vw, 31px);
+  line-height: 1.05;
+  font-weight: 950;
+  letter-spacing: -.65px;
+}
+
+.pp-variant.pp-premium-variant {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pp-line-row.pp-premium-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(102, 136, 183, .33);
+  border-radius: 15px;
+  background: rgba(3, 12, 26, .62);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.018);
+}
+
+.pp-line-row.pp-premium-metrics > div {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 11px 5px 12px;
+  text-align: center;
+}
+
+.pp-line-row.pp-premium-metrics > div + div::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background: rgba(120, 146, 184, .28);
+}
+
+.pp-line-row.pp-premium-metrics span {
+  display: block;
+  color: #98a8c0;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: .65px;
+}
+
+.pp-line-row.pp-premium-metrics strong {
+  display: block;
+  margin-top: 7px;
+  color: #fff;
+  font-size: clamp(21px, 3vw, 29px);
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -.4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-line-row.pp-premium-metrics .fbis-metric strong {
+  color: var(--pp-green);
+  text-shadow: 0 0 15px rgba(80, 240, 160, .12);
+}
+
+.pp-read.pp-premium-read {
+  display: grid;
+  grid-template-columns: 1.2fr .9fr;
+  align-items: stretch;
+  margin: 9px 0 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(3, 17, 26, .76);
+  border: 1px solid rgba(80, 240, 160, .75);
+  box-shadow:
+    inset 0 0 22px rgba(80, 240, 160, .065),
+    0 0 18px rgba(80, 240, 160, .08);
+}
+
+.pp-premium-read.pp-read-less {
+  border-color: rgba(255, 91, 112, .72);
+  box-shadow:
+    inset 0 0 22px rgba(255, 91, 112, .055),
+    0 0 18px rgba(255, 91, 112, .07);
+}
+
+.pp-read-side,
+.pp-edge-value {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pp-read-side {
+  gap: 8px;
+}
+
+.pp-edge-value {
+  gap: 7px;
+  border-left: 1px solid rgba(80, 240, 160, .28);
+}
+
+.pp-read-less .pp-edge-value {
+  border-left-color: rgba(255, 91, 112, .25);
+}
+
+.pp-read-arrow {
+  color: var(--pp-green);
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.pp-read-less .pp-read-arrow { color: var(--pp-red); }
+
+.pp-read.pp-premium-read .pp-read-side b {
+  color: var(--pp-green);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: .7px;
+}
+
+.pp-read.pp-premium-read.pp-read-less .pp-read-side b {
+  color: var(--pp-red);
+}
+
+.pp-edge-value span {
+  color: #8392a9;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .7px;
+}
+
+.pp-edge-value strong {
+  color: #e8fff4;
+  font-size: 15px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-read-less .pp-edge-value strong { color: #ffe4e8; }
+
+.pp-card-foot.pp-premium-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.055);
+  color: #6f8098;
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+.pp-card-foot.pp-premium-foot span:first-child {
+  max-width: 62%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pp-empty.pp-premium-empty,
+.pp-premium-page > .pp-empty {
+  margin: 0 4px 18px;
+  padding: 32px 18px;
+  border: 1px dashed rgba(92, 127, 176, .32);
+  border-radius: 18px;
+  background: rgba(5, 16, 34, .68);
+  color: var(--pp-muted);
+}
+
+@media (max-width: 760px) {
+  .player-props-page {
+    margin: -10px -10px 0;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .pp-premium-header {
+    padding: 20px 4px 14px;
+  }
+
+  .pp-premium-brandline { font-size: 27px; }
+  .pp-premium-brand h1 { font-size: 15px; }
+
+  .pp-sport-strip.pp-premium-tabs {
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 21px;
+    border-radius: 15px;
+  }
+
+  .pp-sport-strip.pp-premium-tabs button {
+    min-width: 72px;
+    min-height: 42px;
+    padding: 0 14px;
+    font-size: 11px;
+  }
+
+  .pp-premium-section-head {
+    align-items: center;
+    padding: 0 4px 15px;
+  }
+
+  .pp-premium-section-head h2 {
+    font-size: 29px;
+  }
+
+  .pp-premium-section-head p {
+    font-size: 11px;
+    max-width: 245px;
+  }
+
+  .pp-count.pp-premium-count {
+    padding: 7px 9px;
+    font-size: 9px;
+  }
+
+  .pp-card-grid.pp-premium-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 0 0 24px;
+  }
+
+  .pp-card-visual {
+    height: 225px;
+  }
+
+  .pp-premium-headshot {
+    width: 68%;
+    max-width: 300px;
+  }
+
+  .pp-player-title h3 {
+    font-size: 25px;
+  }
+
+  .pp-market-name.pp-premium-market-name {
+    font-size: 27px;
+    margin-top: 15px;
+  }
+
+  .pp-star-icons {
+    font-size: 15px;
+  }
+
+  .pp-premium-stars b {
+    font-size: 12px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1050px) {
+  .pp-card-grid.pp-premium-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+
+@media (min-width: 1051px) {
+  .pp-card-grid.pp-premium-grid {
+    grid-template-columns: repeat(3, minmax(0,1fr));
+  }
+}
+
+@media (max-width: 390px) {
+  .pp-premium-header {
+    padding-top: 17px;
+  }
+
+  .pp-premium-brandline { font-size: 24px; }
+  .pp-premium-brand h1 { font-size: 14px; }
+
+  .pp-premium-live {
+    font-size: 9px;
+    padding: 6px 8px;
+  }
+
+  .pp-card-visual {
+    height: 208px;
+  }
+
+  .pp-premium-stars {
+    top: 12px;
+    right: 12px;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .pp-star-icons { font-size: 13px; }
+
+  .pp-player-title h3 { font-size: 23px; }
+  .pp-market-name.pp-premium-market-name { font-size: 25px; }
+
+  .pp-line-row.pp-premium-metrics strong {
+    font-size: 23px;
+  }
+}
