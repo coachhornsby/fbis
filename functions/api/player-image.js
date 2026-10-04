@@ -42,6 +42,20 @@ function norm(v){
     .toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
 }
 
+const TENNIS_NAME_ALIASES = Object.freeze({
+  "medjedovic": "Hamad Medjedovic",
+  "butvilas": "Edas Butvilas",
+  "duckworth": "James Duckworth",
+  "kasnikowski": "Maks Kasnikowski",
+  "kecmanovic": "Miomir Kecmanovic",
+  "gaubas": "Vilius Gaubas",
+});
+
+function canonicalTennisName(name){
+  const key=norm(name);
+  return TENNIS_NAME_ALIASES[key] || String(name||"").trim();
+}
+
 function slugify(v){
   return String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
     .toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
@@ -322,15 +336,17 @@ export async function onRequestGet(context){
   }
 
   if(String(sport||"").toLowerCase()==="tennis"){
-    const atpImage=await atpOfficialHeadshot(name).catch(()=>null);
+    const tennisName=canonicalTennisName(name);
+
+    const atpImage=await atpOfficialHeadshot(tennisName).catch(()=>null);
     if(atpImage){
-      const out=await candidateResponse(atpImage,{name,sport,source:"ATP_OFFICIAL"},mode);
+      const out=await candidateResponse(atpImage,{name:tennisName,sport,source:"ATP_OFFICIAL"},mode);
       if(out) return out;
     }
 
-    const wtaImage=await wtaOfficialHeadshot(name).catch(()=>null);
+    const wtaImage=await wtaOfficialHeadshot(tennisName).catch(()=>null);
     if(wtaImage){
-      const out=await candidateResponse(wtaImage,{name,sport,source:"WTA_OFFICIAL"},mode);
+      const out=await candidateResponse(wtaImage,{name:tennisName,sport,source:"WTA_OFFICIAL"},mode);
       if(out) return out;
     }
   }
