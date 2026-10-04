@@ -1,0 +1,136 @@
+{
+  "generatedAt": "2026-10-04T23:33:23.439Z",
+  "model": "MLB-FBIS-v2.3-PITCH-ZONE",
+  "validation": "historical-lineup-confirmed-replay-v1",
+  "temporalIntegrity": {
+    "leakageOk": true,
+    "lookbackDays": 90,
+    "rule": "All Statcast/profile and season-to-date inputs ended the calendar day before each target game; actual starting lineups represent the lineup-confirmed pregame checkpoint."
+  },
+  "population": {
+    "games": 58,
+    "teamScores": 116,
+    "pitcherStarts": 115,
+    "coverage": 1,
+    "startDate": "2026-06-01",
+    "endDate": "2026-09-30"
+  },
+  "f5": {
+    "baseline": {
+      "teamRunMae": 1.5962,
+      "marginMae": 2.1839,
+      "totalMae": 2.37,
+      "winnerAccuracy": 0.6154,
+      "totalBias": -0.1121
+    },
+    "pitchZone": {
+      "teamRunMae": 1.5884,
+      "marginMae": 2.182,
+      "totalMae": 2.367,
+      "winnerAccuracy": 0.6346,
+      "totalBias": -0.2362
+    },
+    "delta": {
+      "teamRunMae": -0.0078,
+      "marginMae": -0.0019,
+      "totalMae": -0.003,
+      "winnerAccuracy": 0.0192
+    },
+    "pairedAbsErrorCi95": {
+      "teamRun": {
+        "lo": -0.0196,
+        "hi": 0.004
+      },
+      "margin": {
+        "lo": -0.0101,
+        "hi": 0.0063
+      },
+      "total": {
+        "lo": -0.0362,
+        "hi": 0.0302
+      }
+    }
+  },
+  "pitcherStrikeouts": {
+    "fullSample": {
+      "baseline": {
+        "mae": 1.8866,
+        "rmse": 2.4471,
+        "bias": 0.9058,
+        "withinOne": 0.3478
+      },
+      "pitchZoneRaw": {
+        "mae": 1.9517,
+        "rmse": 2.5572,
+        "bias": 1.1271,
+        "withinOne": 0.3304
+      }
+    },
+    "chronologicalCalibration": {
+      "method": "60-20-20",
+      "train": {
+        "n": 69,
+        "from": "2026-06-01",
+        "through": "2026-08-11"
+      },
+      "validation": {
+        "n": 23,
+        "from": "2026-08-11",
+        "through": "2026-09-05"
+      },
+      "test": {
+        "n": 23,
+        "from": "2026-09-05",
+        "through": "2026-09-25"
+      },
+      "selected": {
+        "baselineWeight": 0.04,
+        "pitchZoneWeight": 0.96,
+        "kOffset": -0.7936,
+        "validationMae": 1.6132
+      },
+      "finalTest": {
+        "baselineRaw": {
+          "mae": 1.833,
+          "rmse": 2.3347,
+          "bias": 0.9769,
+          "withinOne": 0.3913
+        },
+        "pitchZoneRaw": {
+          "mae": 1.9298,
+          "rmse": 2.3936,
+          "bias": 1.2035,
+          "withinOne": 0.3043
+        },
+        "baselineBiasCorrected": {
+          "mae": 1.7658,
+          "rmse": 2.1275,
+          "bias": 0.1719,
+          "withinOne": 0.2609
+        },
+        "calibratedBlend": {
+          "mae": 1.7175,
+          "rmse": 2.1073,
+          "bias": 0.4008,
+          "withinOne": 0.3043
+        }
+      }
+    }
+  },
+  "promotionGate": {
+    "minGames": true,
+    "minPitcherStarts": true,
+    "replayCoverage": true,
+    "leakageOk": true,
+    "f5TeamRunNonInferior": true,
+    "f5MarginImproves": true,
+    "pitcherKImproves": true,
+    "promoteResearch": true
+  },
+  "artifact": {
+    "workflowRunId": 37244063155,
+    "artifactId": 11317967913,
+    "sha256": "4686601d8fdb9821330aab9bce0828dc99ae514554dab4e3b2210630dcdd8e00"
+  },
+  "limitation": "Historical executable Heritage F5 and pitcher-prop prices were not reconstructed, so this validates projection signal and calibration, not betting ROI or CLV."
+}
