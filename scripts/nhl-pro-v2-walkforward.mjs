@@ -495,9 +495,18 @@ const report={
   subsets:subsetReport(all),
   gamePredictions:all.map(r=>({
     id:r.id,season:r.season,date:r.date,home:r.home,away:r.away,
+    actualHomeGoals:r.ah,actualAwayGoals:r.aa,
     projHome:round(r.v2.h,4),projAway:round(r.v2.a,4),homeWinProb:round(r.v2.p,5),
     homeRestDays:r.ctx?.homeRestDays??null,awayRestDays:r.ctx?.awayRestDays??null,
-    homeB2B:Boolean(r.ctx?.homeB2B),awayB2B:Boolean(r.ctx?.awayB2B)
+    restDiff:r.ctx?.restDiff??null,
+    homeB2B:Boolean(r.ctx?.homeB2B),awayB2B:Boolean(r.ctx?.awayB2B),
+    eloDiff:r.ctx?.eloDiff??null,
+    xgHome:r.ctx?.xgHome??null,xgAway:r.ctx?.xgAway??null,
+    specialTeamsHome:r.ctx?.specialTeamsHome??null,specialTeamsAway:r.ctx?.specialTeamsAway??null,
+    pressureHome:r.ctx?.pressureHome??null,pressureAway:r.ctx?.pressureAway??null,
+    finishHome:r.ctx?.finishHome??null,finishAway:r.ctx?.finishAway??null,
+    goalieVsHome:r.ctx?.goalieVsHome??null,goalieVsAway:r.ctx?.goalieVsAway??null,
+    shotVolumeHome:r.ctx?.shotVolumeHome??null,shotVolumeAway:r.ctx?.shotVolumeAway??null
   })),
   promotion:{
     historicalPromotionEligible:promote,
