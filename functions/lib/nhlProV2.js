@@ -14,6 +14,8 @@ export const NHL_PRO_V2_VERSION = "research-v2.0-event-chain-gbdt";
 
 const WEB="https://api-web.nhle.com/v1";
 const STATS="https://api.nhle.com/stats/rest/en";
+const EDGE_CACHE=new Map();
+const EDGE_CACHE_MS=15*60*1000;
 
 function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
@@ -55,12 +57,18 @@ async function teamCatalog(fetcher){
 async function loadEdgeForSlate(games,fetcher){
   const ids=await teamCatalog(fetcher).catch(()=>({}));
   const teams=[...new Set((games||[]).flatMap(g=>[String(g?.home?.abbr||"").toUpperCase(),String(g?.away?.abbr||"").toUpperCase()]).filter(Boolean))];
+  const now=Date.now();
   const entries=await Promise.all(teams.map(async abbr=>{
+    const cached=EDGE_CACHE.get(abbr);
+    if(cached&&now-cached.at<EDGE_CACHE_MS)return [abbr,cached.value];
     const id=ids[abbr];if(!id)return [abbr,{available:false,error:"team-id-missing"}];
+    let value;
     try{
       const zone=await fetchJson(`${WEB}/edge/team-zone-time-details/${id}/now`,fetcher);
-      return [abbr,{...edgeZone(zone),teamId:id,source:"NHL_EDGE"}];
-    }catch(err){return [abbr,{available:false,teamId:id,error:String(err?.message||err),source:"NHL_EDGE"}];}
+      value={...edgeZone(zone),teamId:id,source:"NHL_EDGE"};
+    }catch(err){value={available:false,teamId:id,error:String(err?.message||err),source:"NHL_EDGE"};}
+    EDGE_CACHE.set(abbr,{at:now,value});
+    return [abbr,value];
   }));
   return Object.fromEntries(entries);
 }
