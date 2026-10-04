@@ -343,3 +343,96 @@
     font-size:13px !important;
   }
 }
+
+
+/* Models confidence row: isolate stars from generic span/card styling. */
+.model-game-head-right .model-card-stars {
+  display:inline-flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:2px !important;
+  width:auto !important;
+  min-width:0 !important;
+  height:auto !important;
+  min-height:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  filter:none !important;
+  overflow:visible !important;
+  white-space:nowrap !important;
+  line-height:1 !important;
+  letter-spacing:0 !important;
+}
+
+.model-game-head-right .model-card-stars > span {
+  display:inline-block !important;
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+  height:auto !important;
+  min-height:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  outline:0 !important;
+  font-size:18px !important;
+  line-height:1 !important;
+}
+
+.model-game-head-right .model-card-stars > span.filled {
+  color:#ffd23f !important;
+  text-shadow:
+    0 0 5px rgba(255,210,63,.92),
+    0 0 12px rgba(255,190,30,.48) !important;
+}
+
+.model-game-head-right .model-card-stars > span.empty {
+  color:rgba(255,222,128,.24) !important;
+  text-shadow:none !important;
+}
+
+.model-game-card.model-five-star {
+  border-color:#ffd23f !important;
+  box-shadow:
+    0 0 0 1px rgba(255,210,63,.58),
+    0 0 10px rgba(255,204,55,.70),
+    0 0 24px rgba(255,184,0,.38),
+    0 16px 34px rgba(0,0,0,.34) !important;
+}
+
+.model-game-card.model-five-star::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,236,151,.68),
+    inset 0 0 18px rgba(255,199,45,.07);
+}
+
+.model-game-card.model-five-star .model-card-stars > span.filled {
+  color:#ffe36b !important;
+  text-shadow:
+    0 0 6px rgba(255,229,112,1),
+    0 0 14px rgba(255,198,35,.84),
+    0 0 25px rgba(255,170,0,.46) !important;
+}
+
+@media(max-width:640px){
+  .model-game-head-right .model-card-stars {
+    gap:1px !important;
+  }
+  .model-game-head-right .model-card-stars > span {
+    font-size:17px !important;
+  }
+}
