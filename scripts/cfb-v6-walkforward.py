@@ -177,7 +177,7 @@ def main():
  p=p.merge(old[["game_id","v3_margin","v3_total"]],on="game_id",how="inner")
  m4=metrics(p,p.v6_margin,p.v6_total);m3=metrics(p,p.v3_margin,p.v3_total)
  mk=p.dropna(subset=["market_margin","market_total"]);market=metrics(mk,mk.market_margin,mk.market_total);m4mk=metrics(mk,mk.v6_margin,mk.v6_total)
- hold=p[p.season>=2025];h4=metrics(hold,hold.v6_margin,hold.v6_total);h3=metrics(hold,hold.v3_margin,hold.v3_total)
+ hold=p[p.season>=2025];h4=metrics(hold,hold.v6_margin,hold.v6_total)
  # Paired head-to-head against the frozen v5 OOS predictions when available.
  v5cmp=None
  if V4.exists():
