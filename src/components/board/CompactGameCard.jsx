@@ -20,8 +20,26 @@ function edgeLabel(kind, vm) {
   }
   const d = Number(cmp.sideDiff);
   if (!Number.isFinite(d)) return "—";
-  const fbis = cmp.fbisSide?.abbr || "EDGE";
-  return `${fbis} ${Math.abs(d).toFixed(1)}`;
+  const modelSide = cmp.fbisSide;
+  const marketSide = cmp.marketSide;
+  let edge = modelSide?.abbr || "EDGE";
+  if (modelSide?.teamKey && marketSide?.teamKey) {
+    if (modelSide.teamKey === marketSide.teamKey) {
+      const modelLine = Number(modelSide.line);
+      const marketLine = Number(marketSide.line);
+      if (Number.isFinite(modelLine) && Number.isFinite(marketLine)) {
+        const favoriteGetsValue = modelLine < marketLine;
+        if (!favoriteGetsValue) {
+          edge = modelSide.teamKey === "home"
+            ? (vm.away?.abbr || "AWAY")
+            : (vm.home?.abbr || "HOME");
+        }
+      }
+    } else {
+      edge = modelSide?.abbr || edge;
+    }
+  }
+  return `${edge} ${Math.abs(d).toFixed(1)}`;
 }
 
 export default function CompactGameCard({ game, onOpen }) {
