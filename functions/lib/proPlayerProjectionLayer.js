@@ -196,10 +196,26 @@ function nflEnvironmentFactor(game, side) {
   return pts == null ? 1 : clamp(pts / 22.5, 0.78, 1.25);
 }
 
+function nflMatchupFactors(game, side) {
+  const oppSide = side === "home" ? "away" : "home";
+  const defense = game.nflFeatures?.[oppSide] || {};
+  const passAllowed = finite(defense.passEpaAllowed);
+  const rushAllowed = finite(defense.rushEpaAllowed);
+  const pressure = finite(defense.pressureRate);
+  return {
+    pass: clamp(1 + (passAllowed == null ? 0 : passAllowed * 0.22) - (pressure == null ? 0 : (pressure - 0.30) * 0.12), 0.88, 1.12),
+    rush: clamp(1 + (rushAllowed == null ? 0 : rushAllowed * 0.24), 0.88, 1.12),
+    pressure: pressure == null ? null : pressure,
+    passEpaAllowed: passAllowed,
+    rushEpaAllowed: rushAllowed,
+  };
+}
+
 function nflRowsForSide(game, side, playerFeed = {}) {
   const team = teamAbbr(game[side]);
   const players = playerFeed.byTeam?.[team] || [];
   const factor = nflEnvironmentFactor(game, side);
+  const matchup = nflMatchupFactors(game, side);
   const out = [];
   for (const p of players) {
     const position = String(p.position || "").toUpperCase();
@@ -236,16 +252,16 @@ function nflRowsForSide(game, side, playerFeed = {}) {
       0.90, 1.12
     );
     const map = [
-      ["passing_yards", p.passing_yards, p.sd?.passing_yards, passingEff],
-      ["passing_attempts", p.attempts, p.sd?.attempts, 1],
-      ["completions", p.completions, p.sd?.completions, clamp(passingEff, 0.95, 1.05)],
-      ["passing_touchdowns", p.passing_tds, p.sd?.passing_tds, clamp(passingEff, 0.94, 1.08)],
-      ["interceptions", p.interceptions, p.sd?.interceptions, 1],
-      ["rushing_yards", p.rushing_yards, p.sd?.rushing_yards, rushEff],
-      ["rushing_attempts", p.carries, p.sd?.carries, 1],
-      ["receiving_yards", p.receiving_yards, p.sd?.receiving_yards, recEff],
-      ["receptions", p.receptions, p.sd?.receptions, clamp(recEff, 0.95, 1.05)],
-      ["touchdowns", p.total_tds, p.sd?.total_tds, 1],
+      ["passing_yards", p.passing_yards, p.sd?.passing_yards, passingEff * matchup.pass],
+      ["passing_attempts", p.attempts, p.sd?.attempts, clamp(0.96 + matchup.pass * 0.04, 0.96, 1.04)],
+      ["completions", p.completions, p.sd?.completions, clamp(passingEff * matchup.pass, 0.90, 1.10)],
+      ["passing_touchdowns", p.passing_tds, p.sd?.passing_tds, clamp(passingEff * matchup.pass, 0.88, 1.12)],
+      ["interceptions", p.interceptions, p.sd?.interceptions, clamp(2 - matchup.pass, 0.90, 1.10)],
+      ["rushing_yards", p.rushing_yards, p.sd?.rushing_yards, rushEff * matchup.rush],
+      ["rushing_attempts", p.carries, p.sd?.carries, clamp(0.96 + matchup.rush * 0.04, 0.96, 1.04)],
+      ["receiving_yards", p.receiving_yards, p.sd?.receiving_yards, recEff * matchup.pass],
+      ["receptions", p.receptions, p.sd?.receptions, clamp(recEff * matchup.pass, 0.90, 1.10)],
+      ["touchdowns", p.total_tds, p.sd?.total_tds, position === "RB" ? matchup.rush : matchup.pass],
     ];
     for (const [market, base, rawSigma, efficiencyFactor] of map) {
       if (finite(base) == null) continue;
@@ -261,17 +277,28 @@ function nflRowsForSide(game, side, playerFeed = {}) {
         market,
         projection,
         sigma,
-        source: "NFLVERSE_WEEKLY_PLUS_NGS_SNAP_V2",
-        notes: "Pregame player baseline adjusted by FBIS team environment, snap-role reliability, and capped Next Gen efficiency. No PrizePicks or sportsbook line is a projection input.",
+        source: "NFLVERSE_WEEKLY_PLUS_NGS_SNAP_MATCHUP_V3",
+        notes: "Pregame player baseline adjusted by FBIS team environment, opponent pass/rush/pressure matchup, snap-role reliability, and capped Next Gen efficiency. No PrizePicks or sportsbook line is a projection input.",
       });
       if (!row) continue;
       row.roleConfidence = round1(roleConfidence);
       row.snapShare = snapShare == null ? null : round1(snapShare);
       row.environmentFactor = round1(environmentFactor);
       row.snapVolumeFactor = round1(snapVolumeFactor);
+      row.matchupFactor = round1(
+        market.startsWith("rushing") ? matchup.rush :
+        market === "touchdowns" && position === "RB" ? matchup.rush :
+        matchup.pass
+      );
+      row.opponentMatchup = {
+        passEpaAllowed: matchup.passEpaAllowed,
+        rushEpaAllowed: matchup.rushEpaAllowed,
+        pressureRate: matchup.pressure,
+      };
       row.featureEvidence = {
         nextGen: Boolean(p.ngs && Object.values(p.ngs).some((v)=>finite(v)!=null)),
         snapShare: snapShare != null,
+        opponentMatchup: matchup.passEpaAllowed != null || matchup.rushEpaAllowed != null || matchup.pressure != null,
         trackingGames: Number(p.trackingGames || 0),
         snapGames: Number(p.snapGames || 0),
       };
