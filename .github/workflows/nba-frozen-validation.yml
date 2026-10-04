@@ -1,0 +1,40 @@
+name: NBA frozen snapshot validation
+on:
+  push:
+    branches: ["research/nba-fbis-v1"]
+    paths:
+      - "functions/lib/nbaModel.js"
+      - "functions/lib/nbaPlayerPropModel.js"
+      - "scripts/nba-holdout-validate.mjs"
+      - "research/nba/frozen-snapshot.json"
+      - ".github/workflows/nba-frozen-validation.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Download frozen canonical artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ARTIFACT_ID=$(node -p "require('./research/nba/frozen-snapshot.json').github.artifactId")
+          curl -L --fail-with-body             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip"             -o /tmp/nba-frozen.zip
+          mkdir -p artifacts
+          unzip -q /tmp/nba-frozen.zip -d artifacts
+      - name: Verify frozen artifact digest contract
+        run: |
+          test -s artifacts/nba-fbis-v1-rows.jsonl
+          test -s artifacts/nba-player-prop-rows.jsonl
+          node scripts/nba-holdout-validate.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-holdout-validation-${{ github.run_id }}
+          path: artifacts/nba-holdout-validation.json
+          retention-days: 90
