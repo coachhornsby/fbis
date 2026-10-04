@@ -63,5 +63,24 @@
       "bet_count"
     ],
     "forbidLeakage": true
+  },
+  "decisionArchitecture": {
+    "mode": "GAME_LEVEL_POINT_IN_TIME_EV",
+    "historicalBucketsDirectBet": false,
+    "requiresActualOfferedLine": true,
+    "requiresActualPrice": true,
+    "closeAsDecisionInput": false,
+    "confidenceRequiresMonotonicCalibration": true,
+    "stakeUnitsRequireValidatedPolicy": true
+  },
+  "actionPolicy": {
+    "role": "WAGER_INTELLIGENCE_ONLY",
+    "dedicatedNbaPaidRun": false,
+    "sharedDailyFullSlateRun": true,
+    "maxSuccessfulPaidRunsPerChicagoDay": 1,
+    "pureFeatureAllowed": false,
+    "directQualificationAllowed": false,
+    "wagerAuthorizationAllowed": false,
+    "immutableObservationSeries": true
   }
 }
