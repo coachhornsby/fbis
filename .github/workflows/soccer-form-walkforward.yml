@@ -1,8 +1,8 @@
 name: Soccer-FBIS walk-forward
 on:
   push:
-    branches: ["feat/soccer-fbis-research","main"]
-    paths: ["functions/lib/soccerFbisV1.js","scripts/soccer-form-walkforward.mjs",".github/workflows/soccer-form-walkforward.yml"]
+    branches: ["feat/soccer-fbis-v1-system","main"]
+    paths: ["functions/lib/soccerFbisV1.js","scripts/soccer-form-walkforward.mjs","test/soccer-fbis.test.js",".github/workflows/soccer-form-walkforward.yml"]
   workflow_dispatch:
 permissions: { contents: read }
 jobs:
@@ -16,7 +16,7 @@ jobs:
       - run: node scripts/soccer-form-walkforward.mjs
       - run: |
           jq . artifacts/soccer-form-walkforward-report.json
-          jq -r '"## Soccer-FBIS-v1 walk-forward\n- n: \(.n)\n- margin MAE: \(.marginMae)\n- total MAE: \(.totalMae)\n- 3-way accuracy: \(.threeWayAccuracy)"' artifacts/soccer-form-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
+          jq -r '"## Soccer-FBIS-v1 walk-forward\n- n: \(.n)\n- margin MAE: \(.marginMae)\n- total MAE: \(.totalMae)\n- 3-way accuracy: \(.threeWayAccuracy)\n- Brier: \(.brier)\n- log loss: \(.logLoss)\n- calibration ECE: \(.calibration.ece)"' artifacts/soccer-form-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: soccer-form-walkforward-${{ github.run_id }}
