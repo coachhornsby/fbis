@@ -117,8 +117,8 @@ async function loadPrizePicksRows(db, eventIds = [], sportParam = null) {
       playerName:row.player_name || null,
       team:row.team || null,
       position:null,
-      imageUrl:row.player_headshot_url || null,
-      imageSource:row.player_headshot_url ? "PRIZEPICKS_FEED" : null,
+      imageUrl:cleanHeadshotUrl(row.player_headshot_url),
+      imageSource:cleanHeadshotUrl(row.player_headshot_url) ? "PRIZEPICKS_FEED" : null,
       sport:row.sport,
       market:row.stat_type,
       marketCanonical:row.canonical_market,
@@ -225,6 +225,13 @@ function buildRows(observations, metadata) {
     if (player) return player;
     return String(a.marketCanonical || "").localeCompare(String(b.marketCanonical || ""));
   });
+}
+
+function cleanHeadshotUrl(url){
+  const u=String(url||"").trim();
+  if(!u) return null;
+  if(/\/images\/teams\//i.test(u)) return null;
+  return /^https?:\/\//i.test(u) ? u : null;
 }
 
 export async function onRequestGet(context) {
