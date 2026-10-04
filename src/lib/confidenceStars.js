@@ -82,6 +82,19 @@ function nflCompositeStars(game, vm, q) {
   const coverage = numericQuality(pro?.coverage?.share);
   if (!pro?.ok || !Number.isFinite(coverage)) return null;
 
+  // Core football evidence carries most of projection-confidence. Optional
+  // enrichment must not punish the same game twice through both raw coverage
+  // and coverage-inflated sigma.
+  const present = new Set(pro?.coverage?.available || []);
+  const coverageWeights = {
+    teamEpa: 0.18, quarterback: 0.18, passMatchup: 0.12, rushMatchup: 0.10,
+    success: 0.08, earlyDown: 0.08, explosives: 0.07, pressure: 0.07,
+    nextGenTracking: 0.04, trenches: 0.03, specialTeams: 0.025, context: 0.025,
+  };
+  const weightedCoverage = Object.entries(coverageWeights)
+    .reduce((sum, [key, weight]) => sum + (present.has(key) ? weight : 0), 0);
+  const coreCoverage = Math.max(0, Math.min(1, Array.isArray(pro?.coverage?.available) ? weightedCoverage : coverage));
+
   const quality = Number.isFinite(q) ? Math.max(0, Math.min(1, q / 100)) : 0.65;
   const proHome = numericQuality(pro?.home ?? pro?.projectedHome);
   const proAway = numericQuality(pro?.away ?? pro?.projectedAway);
@@ -108,15 +121,11 @@ function nflCompositeStars(game, vm, q) {
 
   const sigmaMargin = numericQuality(pro?.sigmaMargin);
   const sigmaTotal = numericQuality(pro?.sigmaTotal);
+  // Sigma already expands when feature coverage is incomplete. Use it as a
+  // modest calibration term rather than a second full missing-data penalty.
   const uncertaintySignal =
     Number.isFinite(sigmaMargin) && Number.isFinite(sigmaTotal)
-      ? Math.max(
-          0,
-          Math.min(
-            1,
-            1 - (((sigmaMargin - 13.8) / 7) * 0.6 + ((sigmaTotal - 12.8) / 7) * 0.4)
-          )
-        )
+      ? Math.max(0, Math.min(1, 1 - (((sigmaMargin - 13.8) / 10) * 0.6 + ((sigmaTotal - 12.8) / 10) * 0.4)))
       : 0.55;
 
   const availabilityPenalty =
@@ -131,9 +140,9 @@ function nflCompositeStars(game, vm, q) {
       0,
       Math.min(
         1,
-        0.35 * Math.max(0, Math.min(1, coverage)) +
+        0.40 * coreCoverage +
           0.25 * quality +
-          0.20 * uncertaintySignal +
+          0.15 * uncertaintySignal +
           0.20 * edgeSignal -
           availabilityPenalty
       )
