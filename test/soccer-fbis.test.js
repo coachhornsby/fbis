@@ -7,6 +7,7 @@ import {
   soccerSeasonYear,
   SOCCER_FBIS_ID,
   SOCCER_LEAGUES,
+  soccerConfidencePick,
 } from "../functions/lib/soccerFbisV1.js";
 import { SPORTS, BOARD_SPORTS } from "../functions/lib/slateEngineCore.js";
 
@@ -93,4 +94,45 @@ test("canonical model exposes coherent soccer market probabilities",()=>{
   assert.ok(Math.abs(p.homeAsian["0"].win+p.homeAsian["0"].push+p.homeAsian["0"].loss-1)<1e-8);
   assert.equal(p.uncertainty.pointInTime,true);
   assert.equal(p.diagnostics.restAdjustmentApplied,false);
+});
+
+
+test("soccer confidence policy produces bounded star ratings and a canonical pick",()=>{
+  const p={
+    ok:true,
+    pHomeWin:0.64,
+    pDraw:0.21,
+    pAwayWin:0.15,
+    uncertainty:{level:"LOW",homeHistoryGames:22,awayHistoryGames:24},
+  };
+  const pick=soccerConfidencePick({
+    soccerLeague:"eng.1",
+    home:{name:"Home FC"},
+    away:{name:"Away FC"},
+  },p);
+  assert.equal(pick.available,true);
+  assert.equal(pick.market,"1X2");
+  assert.equal(pick.side,"HOME");
+  assert.equal(pick.pick,"Home FC");
+  assert.ok(pick.stars>=4&&pick.stars<=5);
+  assert.equal(pick.qualification,"RESEARCH_ONLY");
+  assert.equal(pick.authorized,false);
+});
+
+test("soccer confidence caps sparse and legacy evidence",()=>{
+  const sparse=soccerConfidencePick({
+    soccerLeague:"eng.1",home:{name:"H"},away:{name:"A"}
+  },{
+    ok:true,pHomeWin:0.75,pDraw:0.15,pAwayWin:0.10,
+    uncertainty:{level:"HIGH",homeHistoryGames:3,awayHistoryGames:4},
+  });
+  assert.ok(sparse.stars<=2);
+
+  const legacy=soccerConfidencePick({
+    soccerLeague:"eng.1",home:{name:"H"},away:{name:"A"}
+  },{
+    ok:true,pHomeWin:0.80,pDraw:0.12,pAwayWin:0.08,
+    uncertainty:{level:"LOW",homeHistoryGames:30,awayHistoryGames:30,legacyTeamFormFallback:true},
+  });
+  assert.ok(legacy.stars<=2);
 });
