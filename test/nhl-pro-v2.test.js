@@ -6,6 +6,7 @@ import {
   NHL_PRO_V2_VERSION,
   projectNhlProV2Game,
   attachNhlProV2,
+  loadNhlProV2Context,
 } from "../functions/lib/nhlProV2.js";
 import { promoteNhlResearchToBoard } from "../functions/lib/researchBoardPromote.js";
 import { getModel } from "../functions/lib/canonical/modelRegistry.js";
@@ -136,4 +137,19 @@ test("trained NHL-PRO-v2 artifact carries the validated research-promotion gate"
   assert.ok(NHL_PRO_V2_ARTIFACT.validation.challenger.marginMae < NHL_PRO_V2_ARTIFACT.validation.incumbent.marginMae);
   assert.ok(NHL_PRO_V2_ARTIFACT.validation.challenger.totalMae < NHL_PRO_V2_ARTIFACT.validation.incumbent.totalMae);
   assert.ok(NHL_PRO_V2_ARTIFACT.validation.challenger.brier < NHL_PRO_V2_ARTIFACT.validation.incumbent.brier);
+});
+
+test("live NHL context fails open to trained priors instead of hanging the board",async()=>{
+  const rejectingFetcher=async()=>{ throw new Error("UPSTREAM_UNAVAILABLE"); };
+  const games=[{id:"timeout-fallback-test",sport:"nhl",home:{abbr:"BOS"},away:{abbr:"WPG"},start:"2026-10-11T00:00:00Z"}];
+  const first=await loadNhlProV2Context("2026-10-10",games,{fetcher:rejectingFetcher});
+  assert.equal(first.ok,true);
+  assert.equal(first.degraded,true);
+  assert.equal(first.base.degraded,true);
+  assert.equal(first.base.fallbackReason,"LIVE_NHL_CONTEXT_UNAVAILABLE");
+  assert.ok(Object.keys(first.base.teams).length>=20);
+  assert.equal(first.canAuthorize,false);
+  const second=await loadNhlProV2Context("2026-10-10",games,{fetcher:rejectingFetcher});
+  assert.equal(second.ok,true);
+  assert.equal(second.cacheHit,true);
 });

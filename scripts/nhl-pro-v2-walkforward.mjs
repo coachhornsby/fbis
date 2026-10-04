@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const API = "https://api-web.nhle.com/v1";
 const DEFAULT_SEASONS = ["20232024","20242025","20252026"];
@@ -33,6 +33,7 @@ const seasons=String(arg("seasons",DEFAULT_SEASONS.join(","))).split(",").map(s=
 const outPath=arg("out","data/models/nhl-pro-v2-validation.json");
 const concurrency=Math.max(2,Math.min(24,Number(arg("concurrency","12"))||12));
 const maxGamesPerSeason=Math.max(0,Number(arg("max-games-per-season","0"))||0);
+const cacheDir=arg("cache-dir",".cache/nhl-pro-v2");
 
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
 function round(v,n=5){const p=10**n;return Math.round(Number(v)*p)/p;}
@@ -58,6 +59,17 @@ async function fetchJson(url,attempts=5){
     }catch(err){last=err;if(i<attempts)await sleep(i*650);}
   }
   throw last;
+}
+async function fetchGamePbp(gameId){
+  const dir=`${cacheDir}/pbp`;
+  const path=`${dir}/${gameId}.json`;
+  try{
+    return JSON.parse(await readFile(path,"utf8"));
+  }catch{}
+  const json=await fetchJson(`${API}/gamecenter/${gameId}/play-by-play`);
+  await mkdir(dir,{recursive:true});
+  await writeFile(path,JSON.stringify(json),"utf8");
+  return json;
 }
 async function collectSchedule(season){
   const {start,end}=seasonRange(season);
@@ -360,7 +372,7 @@ const gamesBySeason={},shotsBySeason={},shotsByGameBySeason={},fetchErrors=[];
 for(const season of seasons){
   const games=await collectSchedule(season);gamesBySeason[season]=games;console.log("schedule",season,games.length);
   const parsed=await mapLimit(games,concurrency,async g=>{
-    try{return {gameId:g.id,shots:parsePbp(g,await fetchJson(`${API}/gamecenter/${g.id}/play-by-play`))};}
+    try{return {gameId:g.id,shots:parsePbp(g,await fetchGamePbp(g.id))};}
     catch(err){return {gameId:g.id,shots:[],error:String(err?.message||err)};}
   });
   const map=new Map();for(const p of parsed){map.set(p.gameId,p.shots||[]);if(p.error)fetchErrors.push({season,gameId:p.gameId,error:p.error});}

@@ -15,16 +15,43 @@ export const NHL_PRO_V2_VERSION = "research-v2.0-event-chain-gbdt";
 const WEB="https://api-web.nhle.com/v1";
 const STATS="https://api.nhle.com/stats/rest/en";
 const EDGE_CACHE=new Map();
+const CONTEXT_CACHE=new Map();
+const CONTEXT_INFLIGHT=new Map();
 const EDGE_CACHE_MS=15*60*1000;
+const CONTEXT_CACHE_MS=5*60*1000;
+const LIVE_FETCH_TIMEOUT_MS=4500;
+const EDGE_FETCH_TIMEOUT_MS=1800;
+const EDGE_TOTAL_BUDGET_MS=4000;
 
 function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
 function round(v,n=3){const p=10**n;return Math.round(Number(v)*p)/p;}
 function sigmoid(z){return z>=0?1/(1+Math.exp(-z)):Math.exp(z)/(1+Math.exp(z));}
+function timeoutFetcher(fetcher=fetch,timeoutMs=LIVE_FETCH_TIMEOUT_MS){
+  return async (url,options={})=>{
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort("nhl-pro-v2-timeout"),timeoutMs);
+    const upstream=options?.signal;
+    const onAbort=()=>controller.abort(upstream?.reason||"upstream-abort");
+    if(upstream?.addEventListener) upstream.addEventListener("abort",onAbort,{once:true});
+    try{
+      return await fetcher(url,{...options,signal:controller.signal});
+    } finally {
+      clearTimeout(timer);
+      if(upstream?.removeEventListener) upstream.removeEventListener("abort",onAbort);
+    }
+  };
+}
 async function fetchJson(url,fetcher=fetch){
   const res=await fetcher(url,{headers:{accept:"application/json","user-agent":"FBIS-NHL-PRO-v2/1.0"}});
   if(!res.ok)throw new Error(`NHL_PRO_V2_HTTP_${res.status}`);
   return res.json();
+}
+function withBudget(promise,ms,fallback){
+  return Promise.race([
+    promise,
+    new Promise(resolve=>setTimeout(()=>resolve(fallback),ms)),
+  ]);
 }
 function flattenEdge(raw){
   if(!raw)return [];
@@ -131,17 +158,77 @@ function restDays(team,start,schedule=[]){
   if(!prior)return 4;
   return Math.max(0,(target-Date.parse(prior.start))/86400000-1);
 }
+function fallbackBaseFromArtifact(){
+  const teams={};
+  for(const [abbr,row] of Object.entries(NHL_PRO_V2_ARTIFACT?.teams||{})){
+    teams[abbr]={
+      abbr,
+      games:0,
+      gfpg:finite(row?.gfpg)??finite(NHL_PRO_V2_ARTIFACT?.league?.goals)??3.05,
+      gapg:finite(row?.gapg)??finite(NHL_PRO_V2_ARTIFACT?.league?.goals)??3.05,
+      pp:null,pk:null,
+      shotsFor:finite(row?.shotsFor),
+      shotsAgainst:finite(row?.shotsAgainst),
+      currentWeight:0,
+    };
+  }
+  return {
+    ok:Object.keys(teams).length>=20,
+    degraded:true,
+    fallbackReason:"LIVE_NHL_CONTEXT_UNAVAILABLE",
+    teams,
+    skatersByTeam:{},
+    priorGoalies:[],
+    currentGoalies:[],
+    schedule:[],
+    artifact:null,
+    marketInformed:false,
+    canQualify:false,
+    canAuthorize:false,
+  };
+}
+function contextKey(date,games=[]){
+  const ids=(games||[]).map(g=>String(g?.id||`${g?.away?.abbr||""}@${g?.home?.abbr||""}`)).sort();
+  return `${date}|${ids.join(",")}`;
+}
 
 export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDataverseUpdatedAt=null}={}){
-  const base=await loadNhlV1Context(date,games,{fetcher,sportsDataverseUpdatedAt});
-  const edge=await loadEdgeForSlate(games,fetcher).catch(err=>({__error:String(err?.message||err)}));
-  return {
-    ok:Boolean(base?.ok),
-    base,edge,
-    artifact:NHL_PRO_V2_ARTIFACT,
-    sourceLineage:buildNhlSourceLineage({asOf:new Date().toISOString(),artifactGeneratedAt:NHL_PRO_V2_ARTIFACT?.generatedAt||null,sportsDataverseUpdatedAt}),
-    marketInformed:false,canQualify:false,canAuthorize:false
-  };
+  const key=contextKey(date,games),now=Date.now();
+  const cached=CONTEXT_CACHE.get(key);
+  if(cached&&now-cached.at<CONTEXT_CACHE_MS)return {...cached.value,cacheHit:true};
+  if(CONTEXT_INFLIGHT.has(key))return CONTEXT_INFLIGHT.get(key);
+
+  const task=(async()=>{
+    const started=Date.now();
+    const liveFetcher=timeoutFetcher(fetcher,LIVE_FETCH_TIMEOUT_MS);
+    const edgeFetcher=timeoutFetcher(fetcher,EDGE_FETCH_TIMEOUT_MS);
+    const [baseResult,edge]=await Promise.all([
+      loadNhlV1Context(date,games,{fetcher:liveFetcher,sportsDataverseUpdatedAt})
+        .then(base=>({base,error:null}))
+        .catch(err=>({base:fallbackBaseFromArtifact(),error:String(err?.message||err)})),
+      withBudget(
+        loadEdgeForSlate(games,edgeFetcher).catch(err=>({__error:String(err?.message||err)})),
+        EDGE_TOTAL_BUDGET_MS,
+        {__timeout:true,__error:"NHL_EDGE_BUDGET_EXCEEDED"}
+      ),
+    ]);
+    const value={
+      ok:Boolean(baseResult.base?.ok),
+      base:baseResult.base,
+      edge,
+      artifact:NHL_PRO_V2_ARTIFACT,
+      degraded:Boolean(baseResult.base?.degraded||edge?.__timeout||edge?.__error),
+      liveContextError:baseResult.error,
+      timingMs:Date.now()-started,
+      cacheHit:false,
+      sourceLineage:buildNhlSourceLineage({asOf:new Date().toISOString(),artifactGeneratedAt:NHL_PRO_V2_ARTIFACT?.generatedAt||null,sportsDataverseUpdatedAt}),
+      marketInformed:false,canQualify:false,canAuthorize:false
+    };
+    CONTEXT_CACHE.set(key,{at:Date.now(),value});
+    return value;
+  })();
+  CONTEXT_INFLIGHT.set(key,task);
+  try{return await task;}finally{CONTEXT_INFLIGHT.delete(key);}
 }
 
 export function projectNhlProV2Game(game,ctx){

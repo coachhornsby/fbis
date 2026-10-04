@@ -224,7 +224,7 @@ jobs:
           # CLI waits between retries via nextVerifyDelayMs (propagating vs mismatch vs unavailable).
           node scripts/verify-deployment-sha.mjs "${DEPLOY_SHA}"
           # Release-gate smoke: product APIs must return JSON, not the SPA HTML shell.
-          for path in "/api/health" "/api/projections?sport=mlb" "/api/projections?sport=nhl" "/api/published-projections"; do
+          for path in "/api/health" "/api/projections?sport=mlb" "/api/published-projections"; do
             tmp="$(mktemp)"
             sep=$(echo "$path" | grep -q '?' && echo '&' || echo '?')
             code="$(curl -sS --max-time 30 -o "$tmp" -w "%{http_code}" "${BASE}${path}${sep}_t=$(date +%s)")"
@@ -238,7 +238,7 @@ jobs:
 
           # NHL release smoke: the deployed slate must expose the v2 challenger.
           nhl_tmp="$(mktemp)"
-          nhl_code="$(curl -sS --max-time 60 -o "$nhl_tmp" -w "%{http_code}" "${BASE}/api/projections?sport=nhl&_t=$(date +%s)")"
+          nhl_code="$(curl -sS --connect-timeout 5 --max-time 20 --retry 1 --retry-delay 2 -o "$nhl_tmp" -w "%{http_code}" "${BASE}/api/projections?sport=nhl&_t=$(date +%s)")"
           echo "smoke NHL-PRO-v2 http=${nhl_code}"
           test "$nhl_code" = "200"
           jq -e '
