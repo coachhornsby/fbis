@@ -16,6 +16,27 @@ function isRealHeadshot(url){
   return /^https?:\/\//i.test(u);
 }
 
+async function candidateResponse(imageUrl,meta,mode){
+  if(!isRealHeadshot(imageUrl)) return null;
+  if(mode!=="image") return json({ok:true,found:true,...meta,imageUrl});
+  try{
+    const upstream=await fetch(imageUrl,{headers:{accept:"image/*","user-agent":"FBIS/1.0"}});
+    if(!upstream.ok) return null;
+    const type=upstream.headers.get("content-type")||"";
+    if(!type.toLowerCase().startsWith("image/")) return null;
+    return new Response(upstream.body,{
+      status:200,
+      headers:{
+        "content-type":type,
+        "cache-control":"public, max-age=86400, stale-while-revalidate=604800",
+        "access-control-allow-origin":"*",
+      },
+    });
+  }catch{
+    return null;
+  }
+}
+
 function norm(v){
   return String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
     .toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
@@ -145,6 +166,7 @@ export async function onRequestGet(context){
   const url=new URL(context.request.url);
   const name=String(url.searchParams.get("name")||"").trim();
   const sport=String(url.searchParams.get("sport")||"").toLowerCase();
+  const mode=String(url.searchParams.get("mode")||"json").toLowerCase();
   if(!name) return json({ok:false,error:"name required"},400);
   let exact=await context.env.DB.prepare(
     `SELECT player_name,player_headshot_url,sport,collected_at
@@ -168,25 +190,42 @@ export async function onRequestGet(context){
     exact=rows.find(r=>norm(r.player_name)===needle)||null;
   }
   if(exact && isRealHeadshot(exact.player_headshot_url)) {
-    return json({ok:true,found:true,name:exact.player_name,sport:exact.sport,imageUrl:exact.player_headshot_url,source:"PRIZEPICKS_FEED"});
+    const out=await candidateResponse(exact.player_headshot_url,{name:exact.player_name,sport:exact.sport,source:"PRIZEPICKS_FEED"},mode);
+    if(out) return out;
   }
 
   if(String(sport||"").toLowerCase()==="mlb"){
     const mlbImage=await mlbPlayerHeadshot(name).catch(()=>null);
-    if(mlbImage) return json({ok:true,found:true,name,sport,imageUrl:mlbImage,source:"MLB_HEADSHOT"});
+    if(mlbImage){
+      const out=await candidateResponse(mlbImage,{name,sport,source:"MLB_HEADSHOT"},mode);
+      if(out) return out;
+    }
   }
 
   const espnImage=await espnPlayerHeadshot(name,sport).catch(()=>null);
-  if(espnImage) return json({ok:true,found:true,name,sport,imageUrl:espnImage,source:"ESPN_HEADSHOT"});
+  if(espnImage){
+    const out=await candidateResponse(espnImage,{name,sport,source:"ESPN_HEADSHOT"},mode);
+    if(out) return out;
+  }
 
   const prizeImage=await prizePicksResearchImage(name,sport).catch(()=>null);
-  if(prizeImage) return json({ok:true,found:true,name,sport,imageUrl:prizeImage,source:"PRIZEPICKS_RESEARCH"});
+  if(prizeImage){
+    const out=await candidateResponse(prizeImage,{name,sport,source:"PRIZEPICKS_RESEARCH"},mode);
+    if(out) return out;
+  }
 
   const wikidataImage=await wikidataPlayerImage(name,sport).catch(()=>null);
-  if(wikidataImage) return json({ok:true,found:true,name,sport,imageUrl:wikidataImage,source:"WIKIDATA"});
+  if(wikidataImage){
+    const out=await candidateResponse(wikidataImage,{name,sport,source:"WIKIDATA"},mode);
+    if(out) return out;
+  }
 
   const wikiImage=await wikipediaPlayerImage(name).catch(()=>null);
-  if(wikiImage) return json({ok:true,found:true,name,sport,imageUrl:wikiImage,source:"WIKIPEDIA"});
+  if(wikiImage){
+    const out=await candidateResponse(wikiImage,{name,sport,source:"WIKIPEDIA"},mode);
+    if(out) return out;
+  }
 
+  if(mode==="image") return new Response(null,{status:404,headers:{"cache-control":"no-store"}});
   return json({ok:true,found:false,name,sport});
 }
