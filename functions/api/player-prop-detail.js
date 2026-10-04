@@ -38,12 +38,21 @@ async function nflDetail(context,{name,team,opponent,market,line}){
   let feed=await loadNflVerseFeatures(context.env||{},{forceNetwork:false});
   let p=nflPlayer(feed,name,team);
   const field=NFL_MARKET_FIELD[market]||null;
-  if(field && (!p || !Array.isArray(p.recentGames) || !p.recentGames.length)){
-    const live=await loadNflVerseFeatures(context.env||{},{forceNetwork:true});
-    const livePlayer=nflPlayer(live,name,team);
-    if(livePlayer){ feed=live; p=livePlayer; }
-  }
-  if(!p||!field) return null;
+  // Never make a user-facing detail request rebuild the entire nflverse season.
+  // The board's archived snapshot is the latency-safe runtime source. If that
+  // snapshot cannot resolve this player/market, return an explicit unavailable
+  // state immediately instead of leaving the UI waiting on a large network fanout.
+  if(!p||!field) return {
+    unavailable:true,
+    reason:!field?"unsupported-market":"player-history-not-in-runtime-snapshot",
+    source:feed?.meta?.runtimeSource||"nflverse-snapshot",
+    sourceLabel:"nflverse runtime snapshot",
+    last5:[],
+    season:null,
+    role:null,
+    matchup:null,
+    advanced:null,
+  };
   const last5=(p.recentGames||[]).slice(0,5).map(g=>({
     season:g.season??null,week:g.week??null,opponent:g.opponent||null,
     value:gameStat(g,field),hit:line==null?null:gameStat(g,field)>Number(line),
