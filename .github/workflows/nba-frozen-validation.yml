@@ -1,7 +1,7 @@
 name: NBA frozen snapshot validation
 on:
   push:
-    branches: ["research/nba-fbis-v1"]
+    branches: ["research/nba-decision-v2"]
     paths:
       - "functions/lib/nbaModel.js"
       - "functions/lib/nbaPlayerPropModel.js"
