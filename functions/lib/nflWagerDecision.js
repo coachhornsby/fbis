@@ -281,7 +281,7 @@ function candidate({
   if(ev!=null&&ev<=0)reasons.push("non-positive-ev");
   if(!calibrationState.ok)reasons.push(calibrationState.reason);
   if(game.availabilityImpact?.criticalUnresolved)reasons.push("critical-availability-unresolved");
-  if(game.availabilityImpact?.stale)reasons.push("availability-stale");
+  if(game.availabilityImpact?.configured && game.availabilityImpact?.stale)reasons.push("availability-stale");
   if(!projection.coverage||Number(projection.coverage.share||0)<0.55)reasons.push("projection-coverage-low");
 
   const evGate=ev!=null&&ev>=Number(calibration?.minEv??0.025);
