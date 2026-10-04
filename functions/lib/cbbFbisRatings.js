@@ -8,6 +8,7 @@ import { cbbdGet, cbbSeasonYear } from "./collegeApi.js";
 import { readCache, writeCache } from "./cache.js";
 import { mapSourceTeam } from "./collegeIdentity.js";
 import { buildIndependentHca, hcaForTeam, FBIS_CBB_HISTORICAL_GLOBAL_HCA } from "./cbbFbisHca.js";
+import { conferenceForTeamSeason } from "./cbbConferenceMembership.js";
 
 export const FBIS_CBB_MODEL_ID = "FBIS-CBB-RATINGS-v2";
 export const FBIS_CBB_MODEL_VERSION = "v2.0.0";
@@ -97,7 +98,7 @@ export function normalizeFbisCbbGameTeamRows(rows = [], seasonStart = null) {
       season:Number(row.season ?? seasonStart),
       team, opponent,
       teamId:mapped.ok ? mapped.canonicalId : "name:" + key(team),
-      conference:conferenceOf(row),
+      conference:conferenceOf(row) || conferenceForTeamSeason(team, seasonStart),
       neutral:Boolean(row.neutralSite ?? row.neutral_site ?? row.neutral),
       isHome:Boolean(row.isHome ?? row.is_home ?? String(row.homeAway || row.home_away || "").toLowerCase()==="home"),
       ...stats,
@@ -130,6 +131,8 @@ function pairObservations(rows, asOf) {
         twoPtPct:r.twoAtt ? 100*r.twoMade/r.twoAtt : null,
         threePtPct:r.threeAtt ? 100*r.threeMade/r.threeAtt : null,
         orbRate:r.orbRate ?? ((r.orb != null && opp.drb != null && r.orb+opp.drb>0) ? 100*r.orb/(r.orb+opp.drb) : null),
+        drbRate:(r.drb != null && opp.orb != null && r.drb+opp.orb>0) ? 100*r.drb/(r.drb+opp.orb) : null,
+        orbRateD:opp.orbRate ?? ((opp.orb != null && r.drb != null && opp.orb+r.drb>0) ? 100*opp.orb/(opp.orb+r.drb) : null),
         tovRate:r.tovRate,ftr:r.ftr,efgPctD:opp.efgPct,
         twoPtPctD:opp.twoAtt ? 100*opp.twoMade/opp.twoAtt : null,
         threePtPctD:opp.threeAtt ? 100*opp.threeMade/opp.threeAtt : null,
@@ -216,7 +219,7 @@ export function buildFbisCbbRatings(rows = [], {
     const paceSd=weightedSd(paceResiduals,g=>g.paceResidual,r.pacePressure);
     r.paceControl=paceSd==null?0.35:clamp(1-paceSd/12,0.1,0.9);
     r.conferenceStrength=r.conference&&conferences[r.conference]?conferences[r.conference].net:null;
-    for(const f of ["efgPct","twoPtPct","threePtPct","orbRate","tovRate","ftr","efgPctD","twoPtPctD","threePtPctD","tovRateD","ftrD"]){
+    for(const f of ["efgPct","twoPtPct","threePtPct","orbRate","drbRate","orbRateD","tovRate","ftr","efgPctD","twoPtPctD","threePtPctD","tovRateD","ftrD"]){
       const vals=games.filter(g=>Number.isFinite(g[f]));
       r[f]=vals.length?weightedMean(vals,g=>g[f],0,0):null;
     }
@@ -232,7 +235,10 @@ export function buildFbisCbbRatings(rows = [], {
   }
 
   const hcaCatalog=buildIndependentHca(obs,ratings,{nationalEff,nationalTempo,historicalGlobalHca:globalHca});
-  for(const [id,r] of ratings) r.hca=hcaForTeam(hcaCatalog,id);
+  for(const [id,r] of ratings) {
+    r.hca=hcaForTeam(hcaCatalog,id);
+    r.hcaGames=hcaCatalog?.teams?.[id]?.games ?? 0;
+  }
 
   return {ok:ratings.size>0,modelId:FBIS_CBB_MODEL_ID,modelVersion:FBIS_CBB_MODEL_VERSION,asOf,season,
     methodology:{independent:true,marketInformed:false,kenpomInput:false,torvikInput:false,
@@ -252,9 +258,12 @@ export function lookupFbisCbbRating(catalog, team) {
   return catalog.byTeamId?.[id] || catalog.byTeam?.[key(team?.school||team?.name||team)] || null;
 }
 function matchupScore(home,away){
+  const orebAllowed=away.drbRate!=null ? 100-away.drbRate : away.orbRateD;
   return {efg:(home.efgPct!=null&&away.efgPctD!=null)?home.efgPct-away.efgPctD:null,
     twoPt:(home.twoPtPct!=null&&away.twoPtPctD!=null)?home.twoPtPct-away.twoPtPctD:null,
     threePt:(home.threePtPct!=null&&away.threePtPctD!=null)?home.threePtPct-away.threePtPctD:null,
+    orebVsDrb:(home.orbRate!=null&&orebAllowed!=null)?home.orbRate-orebAllowed:null,
+    drbRate:away.drbRate!=null?away.drbRate:null,
     turnover:(home.tovRate!=null&&away.tovRateD!=null)?away.tovRateD-home.tovRate:null,
     ftr:(home.ftr!=null&&away.ftrD!=null)?home.ftr-away.ftrD:null};
 }
@@ -290,7 +299,7 @@ export function projectFbisCbbGame(game, home, away, {
 }
 
 export async function loadFbisCbbCatalog(env={}, {season=cbbSeasonYear(), asOf=new Date().toISOString(), fetchFn=fetch}={}) {
-  const cacheKey="fbis-cbb-native-v1-"+season+"-"+String(asOf).slice(0,13);
+  const cacheKey="fbis-cbb-native-v2-"+season+"-"+String(asOf).slice(0,13);
   const cached=await readCache(cacheKey,env.caches,CACHE_TTL);
   if(cached?.ok&&cached?.byTeamId)return{...cached,cacheHit:true};
   const res=await cbbdGet("/games/teams",env,{query:{season:Number(season)+1},fetchFn});
