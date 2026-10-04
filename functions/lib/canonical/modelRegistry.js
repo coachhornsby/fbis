@@ -253,7 +253,7 @@ export const MODEL_REGISTRY = Object.freeze([
     marketInformed: false,
     independent: true,
     preservesIncumbent: true,
-    notes: "Event-chain gradient-boosted xG, empirical-Bayes shooter finishing and goalie GSAx, personnel, special teams, NHL EDGE tracking overlay, and bivariate score distribution. Board promotion requires strict PIT superiority to NHL-FBIS-v1; wager authority remains disabled.",
+    notes: "Event-chain gradient-boosted xG, empirical-Bayes shooter finishing and goalie GSAx, personnel, special teams, NHL EDGE tracking overlay, and bivariate score distribution. Strict 2,624-game PIT historical gate passed for margin, total, and Brier; research-board promotion enabled. Prospective OOS and market-relative validation still required; wager authority remains disabled.",
   },
   {
     modelId: "NHL-FBIS-v1",
