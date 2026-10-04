@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { propProjectionStars } from "./buildPlayerPropsBoard.js";
+import TrackedPropCards from "./TrackedPropCards.jsx";
 
 const SPORTS=["top25","nfl","mlb","cfb","cbb","tennis","nba","wnba","nhl","soccer"];
 const TIER_ORDER={standard:0,goblin:1,demon:2};
@@ -331,6 +332,8 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
           </button>
         ))}
       </nav>
+
+      <TrackedPropCards sportFilter={localSport === "top25" ? "all" : localSport} />
 
       <div className="pp-premium-section-head">
         <div>
