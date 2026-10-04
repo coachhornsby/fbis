@@ -1,0 +1,133 @@
+name: NHL full model + prop validation
+
+on:
+  schedule:
+    - cron: "45 12 * * 1"
+  push:
+    branches: [main, "feature/nhl-full-subset-props-validation-20261003"]
+    paths:
+      - "scripts/nhl-pro-v2-walkforward.mjs"
+      - "scripts/nhl-player-pro-v2-backtest.mjs"
+      - "functions/lib/nhlPlayerProV2.js"
+      - "functions/lib/nhlPropConfidence.js"
+      - "functions/lib/proPlayerProjectionLayer.js"
+      - "src/features/playerProps/buildPlayerPropsBoard.js"
+      - "test/nhl-prop-confidence.test.js"
+      - "package.json"
+      - ".github/workflows/nhl-full-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nhl-full-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Restore NHL game PBP cache
+        uses: actions/cache@v4.2.0
+        with:
+          path: .cache/nhl-pro-v2
+          key: nhl-pro-v2-pbp-full-v1-${{ runner.os }}-${{ hashFiles('scripts/nhl-pro-v2-walkforward.mjs') }}
+          restore-keys: |
+            nhl-pro-v2-pbp-v1-${{ runner.os }}-
+            nhl-pro-v2-pbp-full-v1-${{ runner.os }}-
+      - name: Restore NHL player boxscore cache
+        uses: actions/cache@v4.2.0
+        with:
+          path: .cache/nhl-player-pro-v2
+          key: nhl-player-pro-v2-box-v1-${{ runner.os }}
+          restore-keys: |
+            nhl-player-pro-v2-box-v1-${{ runner.os }}
+      - name: Full repository tests
+        run: npm test
+      - name: NHL-PRO-v2 full PIT + all game subsets
+        run: |
+          set -euo pipefail
+          node scripts/nhl-pro-v2-walkforward.mjs \
+            --seasons=20232024,20242025,20252026 \
+            --concurrency=8 \
+            --cache-dir=.cache/nhl-pro-v2 \
+            --out=data/models/nhl-pro-v2-validation.json
+      - name: Verify game subset coverage
+        run: |
+          set -euo pipefail
+          jq -e '.integrity.fetchErrors == 0 and .integrity.sampleGames >= 2600' data/models/nhl-pro-v2-validation.json >/dev/null
+          jq -e '.promotion.historicalPromotionEligible == true' data/models/nhl-pro-v2-validation.json >/dev/null
+          jq -e '.subsets.bySeason and .subsets.byMonth and .subsets.bySeasonPhase and .subsets.byFavoriteSide and .subsets.byConfidence and .subsets.byProjectedTotal and .subsets.byProjectedMargin and .subsets.byRestEdge and .subsets.byBackToBack and .subsets.byPressureEdge and .subsets.byGoalieMatchupEdge and .subsets.byHomeTeam and .subsets.byAwayTeam and .subsets.calibration' data/models/nhl-pro-v2-validation.json >/dev/null
+          jq -e '(.gamePredictions|length) >= 2600' data/models/nhl-pro-v2-validation.json >/dev/null
+          jq '{aggregate,subsetKeys:(.subsets|keys),gamePredictions:(.gamePredictions|length)}' data/models/nhl-pro-v2-validation.json
+      - name: NHL-PLAYER-PRO-v2 full PIT prop backtest
+        run: |
+          set -euo pipefail
+          node scripts/nhl-player-pro-v2-backtest.mjs \
+            --seasons=20232024,20242025,20252026 \
+            --concurrency=8 \
+            --cache-dir=.cache/nhl-player-pro-v2 \
+            --game-validation=data/models/nhl-pro-v2-validation.json \
+            --out=data/models/nhl-player-pro-v2-validation.json \
+            --artifact-out=data/models/nhl-player-pro-v2.js
+      - name: Verify prop subset coverage and integrity
+        run: |
+          set -euo pipefail
+          jq -e '.integrity.fetchErrors == 0' data/models/nhl-player-pro-v2-validation.json >/dev/null
+          jq -e '.aggregate.rows >= 100000 and .aggregate.lineTests >= 200000' data/models/nhl-player-pro-v2-validation.json >/dev/null
+          jq -e '.subsets.byMarket.shots_on_goal and .subsets.byMarket.goals and .subsets.byMarket.assists and .subsets.byMarket.points and .subsets.byMarket.saves' data/models/nhl-player-pro-v2-validation.json >/dev/null
+          jq -e '.subsets.bySeason and .subsets.byHomeAway and .subsets.byPosition and .subsets.byRoleTier and .subsets.byPriorSample and .subsets.byCurrentSample and .subsets.bySeasonPhase and .subsets.byRest and .subsets.byProjectionTier and .subsets.byTeam and .bySyntheticLine and .byModelEdge' data/models/nhl-player-pro-v2-validation.json >/dev/null
+          node --check data/models/nhl-player-pro-v2.js
+          node --test test/nhl-player-pro-v2.test.js
+          jq '{aggregate,markets:.subsets.byMarket,edgeBuckets:.byModelEdge,limitations}' data/models/nhl-player-pro-v2-validation.json
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-full-validation-${{ github.run_id }}
+          path: |
+            data/models/nhl-pro-v2-validation.json
+            data/models/nhl-player-pro-v2-validation.json
+            data/models/nhl-player-pro-v2.js
+          retention-days: 90
+      - name: Persist validation outputs to branch
+        run: |
+          set -euo pipefail
+          cp data/models/nhl-pro-v2-validation.json "$RUNNER_TEMP/nhl-pro-v2-validation.json"
+          cp data/models/nhl-player-pro-v2-validation.json "$RUNNER_TEMP/nhl-player-pro-v2-validation.json"
+          cp data/models/nhl-player-pro-v2.js "$RUNNER_TEMP/nhl-player-pro-v2.js"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "${{ github.ref_name }}"
+          git reset --hard "origin/${{ github.ref_name }}"
+          jq -S 'del(.generatedAt)' data/models/nhl-pro-v2-validation.json > "$RUNNER_TEMP/old-game.norm" 2>/dev/null || true
+          jq -S 'del(.generatedAt)' "$RUNNER_TEMP/nhl-pro-v2-validation.json" > "$RUNNER_TEMP/new-game.norm"
+          jq -S 'del(.generatedAt)' data/models/nhl-player-pro-v2-validation.json > "$RUNNER_TEMP/old-player.norm" 2>/dev/null || true
+          jq -S 'del(.generatedAt)' "$RUNNER_TEMP/nhl-player-pro-v2-validation.json" > "$RUNNER_TEMP/new-player.norm"
+          sed -E 's/"generatedAt": "[^"]+"/"generatedAt": "<stable>"/' data/models/nhl-player-pro-v2.js > "$RUNNER_TEMP/old-artifact.norm" 2>/dev/null || true
+          sed -E 's/"generatedAt": "[^"]+"/"generatedAt": "<stable>"/' "$RUNNER_TEMP/nhl-player-pro-v2.js" > "$RUNNER_TEMP/new-artifact.norm"
+          if cmp -s "$RUNNER_TEMP/old-game.norm" "$RUNNER_TEMP/new-game.norm" \
+            && cmp -s "$RUNNER_TEMP/old-player.norm" "$RUNNER_TEMP/new-player.norm" \
+            && cmp -s "$RUNNER_TEMP/old-artifact.norm" "$RUNNER_TEMP/new-artifact.norm"; then
+            echo "validation outputs unchanged apart from generatedAt"
+            exit 0
+          fi
+          cp "$RUNNER_TEMP/nhl-pro-v2-validation.json" data/models/nhl-pro-v2-validation.json
+          cp "$RUNNER_TEMP/nhl-player-pro-v2-validation.json" data/models/nhl-player-pro-v2-validation.json
+          cp "$RUNNER_TEMP/nhl-player-pro-v2.js" data/models/nhl-player-pro-v2.js
+          git add data/models/nhl-pro-v2-validation.json data/models/nhl-player-pro-v2-validation.json data/models/nhl-player-pro-v2.js
+          if git diff --cached --quiet; then
+            echo "validation outputs unchanged"
+            exit 0
+          fi
+          git commit -m "data: persist full NHL v2 game and prop validation"
+          git push origin HEAD:"${{ github.ref_name }}"
