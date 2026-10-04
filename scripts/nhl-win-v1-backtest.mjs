@@ -236,6 +236,45 @@ function fitStumps(X,y,{trees=70,lr=0.06,minLeaf=60}={}){
   }
   return {base,model,predict:x=>{let z=base;for(const s of model)z+=x[s.j]<=s.th?s.lv:s.rv;return clamp(sigmoid(z),0.02,0.98);}};
 }
+function decisionAccuracy(rows,probKey,threshold=.5){
+  let hit=0;for(const r of rows)hit+=((Number(r[probKey])>=threshold)===(r.y===1))?1:0;
+  return hit/Math.max(1,rows.length);
+}
+function fitDecisionThreshold(rows,probKey){
+  let best={threshold:.5,accuracy:decisionAccuracy(rows,probKey,.5)};
+  for(let t=.35;t<=.65001;t+=.0025){
+    const accuracy=decisionAccuracy(rows,probKey,t);
+    if(accuracy>best.accuracy+1e-12||(Math.abs(accuracy-best.accuracy)<1e-12&&Math.abs(t-.5)<Math.abs(best.threshold-.5)))best={threshold:t,accuracy};
+  }
+  return best;
+}
+function situationalDecisionScore(r){
+  return logit(r.current)
+    +0.42*(Number(r.xgHome||0)-Number(r.xgAway||0))
+    +0.24*(Number(r.goalieVsHome||0)-Number(r.goalieVsAway||0))
+    +0.10*Number(r.restDiff||0)
+    -0.10*(r.homeB2B?1:0)+0.10*(r.awayB2B?1:0)
+    -0.035*Number(r.travelDiff||0)/1000
+    -0.025*Number(r.tzShiftHome||0)+0.025*Number(r.tzShiftAway||0)
+    +0.055*Number(r.returnHome||0)-0.035*Number(r.awayRoadContinuation||0)
+    +0.04*Number(r.arenaResidual||0);
+}
+function fitSituationalDecisionThreshold(rows){
+  for(const r of rows)r.situationalDecision=situationalDecisionScore(r);
+  const vals=rows.map(r=>r.situationalDecision).sort((a,b)=>a-b),lo=vals[Math.floor(vals.length*.25)],hi=vals[Math.floor(vals.length*.75)];
+  let best={threshold:0,accuracy:0};
+  for(let s=0;s<=160;s++){
+    const t=lo+(hi-lo)*s/160;let hit=0;
+    for(const r of rows)hit+=((r.situationalDecision>=t)===(r.y===1))?1:0;
+    const accuracy=hit/rows.length;
+    if(accuracy>best.accuracy+1e-12||(Math.abs(accuracy-best.accuracy)<1e-12&&Math.abs(t)<Math.abs(best.threshold)))best={threshold:t,accuracy};
+  }
+  return best;
+}
+function decisionMetrics(rows,pickFn){
+  let hit=0;for(const r of rows)hit+=(Boolean(pickFn(r))===(r.y===1))?1:0;
+  return {n:rows.length,accuracy:round(hit/rows.length,4)};
+}
 function metrics(rows,predKey){
   let hit=0,brier=0,ll=0;
   for(const r of rows){const p=clamp(Number(r[predKey]),1e-6,1-1e-6);hit+=(p>=.5)===(r.y===1)?1:0;brier+=(p-r.y)**2;ll+=-(r.y*Math.log(p)+(1-r.y)*Math.log(1-p));}
@@ -317,6 +356,18 @@ for(const r of [...train,...test]){
 const candidates={current:"current",scoreOnly:"score",logistic:"logistic",boosted:"boosted",stack:"stack",cvLogistic:"cvLogistic",currentBoostCal:"currentBoostCal",cvLogisticCal:"cvLogisticCal"};
 const trainMetrics=Object.fromEntries(Object.entries(candidates).map(([k,v])=>[k,metrics(train,v)]));
 const testMetrics=Object.fromEntries(Object.entries(candidates).map(([k,v])=>[k,metrics(test,v)]));
+const currentThreshold=fitDecisionThreshold(train,"current");
+const cvThreshold=fitDecisionThreshold(train,"cvLogistic");
+const situationalThreshold=fitSituationalDecisionThreshold(train);
+for(const r of test)r.situationalDecision=situationalDecisionScore(r);
+const decisionHeads={
+  currentAt50:{train:decisionMetrics(train,r=>r.current>=.5),test:decisionMetrics(test,r=>r.current>=.5),threshold:.5},
+  currentTrainThreshold:{train:decisionMetrics(train,r=>r.current>=currentThreshold.threshold),test:decisionMetrics(test,r=>r.current>=currentThreshold.threshold),threshold:round(currentThreshold.threshold,4)},
+  cvLogisticTrainThreshold:{train:decisionMetrics(train,r=>r.cvLogistic>=cvThreshold.threshold),test:decisionMetrics(test,r=>r.cvLogistic>=cvThreshold.threshold),threshold:round(cvThreshold.threshold,4)},
+  situationalResidual:{train:decisionMetrics(train,r=>r.situationalDecision>=situationalThreshold.threshold),test:decisionMetrics(test,r=>r.situationalDecision>=situationalThreshold.threshold),threshold:round(situationalThreshold.threshold,6)}
+};
+const selectedDecision=Object.entries(decisionHeads).sort((a,b)=>b[1].train.accuracy-a[1].train.accuracy)[0][0];
+const selectedDecisionTest=decisionHeads[selectedDecision].test;
 const rank=Object.entries(testMetrics).sort((a,b)=>{
   const aa=a[1],bb=b[1];
   const ac=bb.accuracy-aa.accuracy;if(Math.abs(ac)>.0001)return ac;
@@ -361,6 +412,13 @@ const report={
   arenaContext:{source:"static arena/city coordinates + IANA time zones; historical home-arena residual learned from prior season only",arenas:Object.keys(ARENA).length},
   development:{cvLogistic:{featureSet:cvLogistic.name,lambda:cvLogistic.lambda,cv:cvLogistic.cv},currentBoostWeight:blendCB.w,currentBoostTemperature:tempCB.t,cvLogisticTemperature:tempCV.t},
   trainMetrics,testMetrics,
+  decisionHead:{
+    selected:selectedDecision,
+    selectedBy:"training-season accuracy only; untouched OOS season used once for final evaluation",
+    candidates:decisionHeads,
+    oosAccuracyDelta:round(selectedDecisionTest.accuracy-testMetrics.current.accuracy,4),
+    probabilitySource:"NHL-PRO-v2 calibrated win probability remains unchanged"
+  },
   selected:winner,
   selectedMetrics:best,
   incumbentMetrics:current,
