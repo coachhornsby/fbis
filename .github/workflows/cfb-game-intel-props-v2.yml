@@ -6,7 +6,10 @@ on:
     paths:
       - 'functions/lib/cfbGameWagerIntelligence.js'
       - 'functions/lib/cfbPropConfidence.js'
+      - 'functions/lib/cfbPlayerPropMoney.js'
+      - 'migrations/0041_cfb_player_prop_signals_v2.sql'
       - 'test/cfb-game-intel-props-v2.test.js'
+      - 'test/cfb-player-prop-money-v2.test.js'
       - 'docs/CFB-*'
 jobs:
   contract-tests:
@@ -16,4 +19,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
-      - run: node --test test/cfb-game-intel-props-v2.test.js
+      - run: node --test test/cfb-game-intel-props-v2.test.js test/cfb-player-prop-money-v2.test.js
