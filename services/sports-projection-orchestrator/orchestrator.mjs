@@ -1326,8 +1326,9 @@ function trackerTicket(row,rowNumber){
   const [awayTeam,homeTeam]=matchupParts;
   const stableKey=[date,book,sport,matchup,selection,betType,entryLine,risk,toWin].join("|");
   const trackerId="TRACKER-"+sha256(stableKey).slice(0,24).toUpperCase();
-  const explicitTicketId=String(row["Heritage Ticket ID"]||"").trim();
-  const externalTicketId=explicitTicketId||trackerId;
+  // Keep the deterministic tracker ID as the D1 primary external key. Switching
+  // historical rows to Heritage ticket IDs would duplicate already-synced bets.
+  const externalTicketId=trackerId;
   const placedAt=String(row["Placed At"]||"").trim();
   const executedAt=placedAt
     ? placedAt.replace(" CT","").replace(" ","T")+":00-05:00"
