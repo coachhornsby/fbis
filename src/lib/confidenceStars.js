@@ -64,6 +64,36 @@ function cfbStateStars(game, vm) {
   return CFB_STATE_STARS[state] ?? null;
 }
 
+function nflCompositeStars(game, vm, q) {
+  if (String(vm?.sport || game?.sport || "").toLowerCase() !== "nfl") return null;
+  const pro = game?.nflProShadow || game?.challengers?.["NFL-PRO-v1"];
+  const coverage = numericQuality(pro?.coverage?.share);
+  if (!pro?.ok || !Number.isFinite(coverage)) return null;
+
+  // NFL card stars are a display-confidence signal, not wager authorization.
+  // Blend source/model coverage, operational data quality, and the strongest
+  // model-vs-market disagreement so a slate does not collapse to one generic
+  // star tier merely because every game has the same market-quality score.
+  const quality = Number.isFinite(q) ? Math.max(0, Math.min(1, q / 100)) : 0.65;
+  const spread = Math.abs(Number(vm?.comparison?.spreadDelta));
+  const total = Math.abs(Number(vm?.comparison?.totalDelta));
+  const edgeSignal = Math.max(
+    Number.isFinite(spread) ? Math.min(1, spread / 7) : 0,
+    Number.isFinite(total) ? Math.min(1, total / 10) : 0
+  );
+  const score = 100 * (
+    0.45 * Math.max(0, Math.min(1, coverage)) +
+    0.35 * quality +
+    0.20 * edgeSignal
+  );
+
+  if (score >= 75) return 5;
+  if (score >= 60) return 4;
+  if (score >= 45) return 3;
+  if (score >= 30) return 2;
+  return 1;
+}
+
 /**
  * Projection-confidence stars.
  *
@@ -83,6 +113,7 @@ export function confidenceStars(game) {
   const q = numericQuality(vm.quality?.score);
 
   let stars = cfbStateStars(game, vm);
+  if (stars == null) stars = nflCompositeStars(game, vm, q);
   if (stars == null) stars = starsFromQuality(q);
   if (stars == null) stars = TIER_FALLBACK[tier] || 2;
 
