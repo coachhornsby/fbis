@@ -212,5 +212,6 @@ export async function onRequestPost(context){
  const estimated=estimateActorCostUsd(input,{gamesReturned:norm.rows.length}),cost=buildCostLedgerEntry({runId:run.id,plan:cfg.plan,sport:"all",profile:PROFILE,input,gamesReturned:norm.rows.length,createdAt:run.started_at});
  await finalizeRun(db,run,{status:"success_daily",datasetId,gamesReturned:norm.rows.length,matched,unmatched,written:eligible.length,malformed:norm.malformed,estimatedCostUsd:estimated});
  try{await upsertCostLedger(db,cost)}catch{}
- return json({ok:true,executed:true,status:"success_daily",runId:run.id,apifyRunId:run.apify_run_id,datasetId,gamesReturned:norm.rows.length,eligibleRows:eligible.length,matched,unmatched,observationsWritten:eligible.length,todayRows,closeRows,propsWrittenThisBatch:propsBatch,estimatedCostUsd:estimated,collapsedDatasetDuplicates:Math.max(0,norm.rows.length-eligible.length)},200);
+ const canonical=await db.queryOne("SELECT COUNT(*) n FROM action_market_book_observations WHERE run_id=?",[run.id]);
+ return json({ok:true,executed:true,status:"success_daily",runId:run.id,apifyRunId:run.apify_run_id,datasetId,gamesReturned:norm.rows.length,eligibleRows:eligible.length,matched,unmatched,observationsWritten:eligible.length,canonicalSeriesRows:Number(canonical?.n||0),recoveryReplay,todayRows,closeRows,propsWrittenThisBatch:propsBatch,estimatedCostUsd:estimated,collapsedDatasetDuplicates:Math.max(0,norm.rows.length-eligible.length)},200);
 }
