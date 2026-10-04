@@ -10,7 +10,7 @@
 import { pGreater } from "./metrics.js";
 import { clamp, coverageSummary, finite, round1, weightedPresent } from "./deepModelCommon.js";
 
-export const NFL_PRO_ID = "NFL-PRO-v1.2";
+export const NFL_PRO_ID = "NFL-PRO-v1";
 export const NFL_PRO_CONSTANTS = {
   leaguePpg: 22.5,
   hfa: 1.5,
