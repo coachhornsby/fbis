@@ -8,6 +8,7 @@ import { evaluateNhlGameWagers } from "./nhlWagerV1.js";
 import { classifyBoardStatus, kickoffCt, noPlayReason, isPreStartStatus, isLiveStatus } from "./gameStatus.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { palUnavailableReason } from "./ballparkpal.js";
+import { canonicalConfidenceStars } from "./projectionConfidence.js";
 import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
 import { querySnapshots, queryOddsSnapshots } from "./store.js";
 import {
@@ -104,6 +105,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
   return {
     id: String(game.id),
     sport,
+    confidenceStars: canonicalConfidenceStars({ ...game, sport }),
     sportLabel: SPORTS[sport]?.label || sport.toUpperCase(),
     start: game.start || null,
     startCt: kickoffCt(game.start),
