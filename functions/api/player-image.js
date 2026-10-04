@@ -60,6 +60,59 @@ function walkObjects(value,out=[]){
 }
 
 
+
+function htmlImageMeta(html){
+  const text=String(html||"");
+  const patterns=[
+    /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+    /<meta[^>]+name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image(?::src)?["']/i
+  ];
+  for(const re of patterns){
+    const m=text.match(re);
+    if(m?.[1]&&/^https?:\/\//i.test(m[1])) return m[1].replace(/&amp;/g,"&");
+  }
+  return null;
+}
+
+async function nflOfficialHeadshot(name){
+  const slug=slugify(name);
+  if(!slug) return null;
+  const url="https://www.nfl.com/players/"+encodeURIComponent(slug)+"/";
+  const res=await fetch(url,{headers:{"user-agent":"Mozilla/5.0","accept":"text/html"}});
+  if(!res.ok) return null;
+  const html=await res.text();
+  const meta=htmlImageMeta(html);
+  if(meta) return meta;
+  const candidates=[...html.matchAll(/https?:\\?\/\\?\/[^"'<> ]+(?:headshot|player)[^"'<> ]+\.(?:png|jpg|jpeg|webp)/ig)]
+    .map(m=>m[0].replace(/\\\//g,"/"));
+  return candidates[0]||null;
+}
+
+async function wtaOfficialHeadshot(name){
+  const q="https://api.wtatennis.com/tennis/players?name="+encodeURIComponent(name)+"&page=0&pageSize=20";
+  const res=await fetch(q,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
+  if(!res.ok) return null;
+  const body=await res.json().catch(()=>({}));
+  const rows=Array.isArray(body?.content)?body.content:Array.isArray(body)?body:[];
+  const needle=norm(name);
+  const player=rows.find(p=>norm(p?.fullName||p?.name||"")===needle)
+    || rows.find(p=>norm(p?.fullName||p?.name||"").includes(needle)||needle.includes(norm(p?.fullName||p?.name||"")))
+    || null;
+  const id=player?.id||player?.playerId||null;
+  const full=player?.fullName||player?.name||name;
+  if(!id) return null;
+  const page="https://www.wtatennis.com/players/"+encodeURIComponent(String(id))+"/"+slugify(full);
+  const pr=await fetch(page,{headers:{"user-agent":"Mozilla/5.0","accept":"text/html"}});
+  if(!pr.ok) return null;
+  const html=await pr.text();
+  const meta=htmlImageMeta(html);
+  if(meta&&/wtatennis|photoresources/i.test(meta)) return meta;
+  const photo=html.match(/https:\/\/photoresources\.wtatennis\.com\/[^"'<> ]+\.(?:jpg|jpeg|png|webp)(?:\?[^"'<> ]*)?/i);
+  return photo?.[0]?.replace(/&amp;/g,"&")||null;
+}
+
 async function mlbPlayerHeadshot(name){
   const search="https://statsapi.mlb.com/api/v1/people/search?active=true&sportIds=1&names="+encodeURIComponent(name);
   const res=await fetch(search,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
@@ -198,6 +251,22 @@ export async function onRequestGet(context){
     const mlbImage=await mlbPlayerHeadshot(name).catch(()=>null);
     if(mlbImage){
       const out=await candidateResponse(mlbImage,{name,sport,source:"MLB_HEADSHOT"},mode);
+      if(out) return out;
+    }
+  }
+
+  if(String(sport||"").toLowerCase()==="nfl"){
+    const nflImage=await nflOfficialHeadshot(name).catch(()=>null);
+    if(nflImage){
+      const out=await candidateResponse(nflImage,{name,sport,source:"NFL_OFFICIAL"},mode);
+      if(out) return out;
+    }
+  }
+
+  if(String(sport||"").toLowerCase()==="tennis"){
+    const wtaImage=await wtaOfficialHeadshot(name).catch(()=>null);
+    if(wtaImage){
+      const out=await candidateResponse(wtaImage,{name,sport,source:"WTA_OFFICIAL"},mode);
       if(out) return out;
     }
   }
