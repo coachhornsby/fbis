@@ -12,12 +12,9 @@ function Stars({ value = 1 }) {
   const safe = Math.max(1, Math.min(5, Number(value) || 1));
   return (
     <span className="cgc-star-row" aria-label={`${safe} of 5 confidence stars`}>
-      <span aria-hidden="true">
-        {Array.from({ length: 5 }, (_, i) => (
-          <span key={i} className={i < safe ? "filled" : "empty"}>★</span>
-        ))}
-      </span>
-      <b>{safe}/5</b>
+      {Array.from({ length: 5 }, (_, i) => (
+        <span key={i} className={i < safe ? "filled" : "empty"} aria-hidden="true">★</span>
+      ))}
     </span>
   );
 }
@@ -83,7 +80,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
   return (
     <article
-      className="cgc pgc"
+      className={"cgc pgc"+(stars===5?" cgc-five-star":"")}
       data-game-id={vm.id || game?.id || ""}
       data-sport={vm.sport || ""}
       tabIndex={0}
