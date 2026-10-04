@@ -1,6 +1,6 @@
 import { pGreater } from "./metrics.js";
 export const NBA_PROP_MODEL_ID="NBA-PLAYER-PROP-v1";
-export const NBA_PROP_MODEL_VERSION="research-v1";
+export const NBA_PROP_MODEL_VERSION="research-v1-impact";
 const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const round1=v=>Math.round(Number(v)*10)/10;
