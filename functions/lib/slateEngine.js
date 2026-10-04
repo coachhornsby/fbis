@@ -155,7 +155,7 @@ export async function buildSlate(sport, date, env = {}) {
     // Research board: independent form/pure scores are displayable + freezable,
     // but never qualify or authorize.
     const research = promoteNflResearchToBoard(pro.games);
-    const playerResearch = attachNflPlayerProjectionResearch(research.games, { byTeam: verse.playersByTeam || {} });
+    const playerResearch = attachNflPlayerProjectionResearch(research.games, { byTeam: verse.playersByTeam || {}, leaguePositionDefense: verse.leaguePositionDefense || {} });
     next = {
       ...slate,
       games: playerResearch,
