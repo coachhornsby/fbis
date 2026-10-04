@@ -189,7 +189,7 @@ def main():
  report={"modelId":"CFB-FBIS-v6-research","role":"research","marketInformed":False,"canQualify":False,
   "design":"v6 hierarchical cross-season team/conference priors + shrunk team HFA + safe QB continuity when available + broad shifted advanced state + matchup interactions + train-fold-selected Ridge/HistGradientBoosting ensemble",
   "sample":{"n":len(p),"startSeason":int(p.season.min()),"endSeason":int(p.season.max())},
-  "v6":m4,"v3":m3,"marketPairedV6":m4mk,"market":market,"holdout2025_2026":{"v6":h4,"v3":h3},
+  "v6":m4,"marketPairedV6":m4mk,"market":market,"holdout2025_2026":{"v6":h4},
   "beatsV3AllThree":bool(m4["marginMae"]<m3["marginMae"] and m4["totalMae"]<m3["totalMae"] and m4["winnerAccuracy"]>m3["winnerAccuracy"]),
   "betting":betting(p,prefix="v6"),"v5HeadToHead":v5cmp,"folds":folds,
   "governance":"Research only. Market excluded from feature construction, selection, tuning and fit. Betting lines exposed only after frozen OOS predictions."}
