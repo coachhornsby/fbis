@@ -192,7 +192,9 @@ export async function onRequestPost(context){
   if(!auth.ok) return json(unauthorizedBody(),401);
   if(!context.env?.DB) return json({ok:false,error:"database unavailable"},503);
   let body={};try{body=await context.request.json()}catch{}
-  if(String(body.operation||"").toLowerCase()==="reserve"){
+  const operation=String(body.operation||"").toLowerCase();
+  const supplementalNfl=operation==="supplemental_nfl";
+  if(operation==="reserve"){
     const day=todayCt(), runId=s(body.runId)||`pp_${Date.now()}`, now=new Date().toISOString();
     const existing=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(day).first();
     if(existing) return json({ok:false,blocked:true,error:"ALREADY_COLLECTED_TODAY",ctDate:day,acquisition:existing},409);
@@ -323,7 +325,11 @@ export async function onRequestPost(context){
   }
   const costId="cost_"+runId;
   const acquisition=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE run_id=?").bind(runId).first();
-  if(!acquisition) return json({ok:false,blocked:true,error:"missing_daily_acquisition_reservation",runId},409);
+  if(!acquisition && !supplementalNfl) return json({ok:false,blocked:true,error:"missing_daily_acquisition_reservation",runId},409);
+  if(supplementalNfl){
+    const nonNfl=rows.filter((row)=>sportOf(row)!=="nfl");
+    if(nonNfl.length) return json({ok:false,blocked:true,error:"supplemental_nfl_contains_non_nfl_rows",runId,rowsReturned:rows.length,nonNflRows:nonNfl.length},409);
+  }
   const actual=Number.isFinite(Number(body.actualCostUsd))?Number(body.actualCostUsd):null;
   const total=actual==null?estimate:actual;
   await context.env.DB.prepare(
@@ -339,12 +345,23 @@ export async function onRequestPost(context){
     rows.length,written,malformed,estimate,actual,actual==null?"ESTIMATED":"ACTUAL",
     collectedAt,collectedAt,0,collectedAt
   ).run();
-  await context.env.DB.prepare(
-    `UPDATE prizepicks_daily_acquisitions SET state='COMPLETE', estimated_cost_usd=?, actual_cost_usd=?, rows_returned=?, completed_at=? WHERE run_id=?`
-  ).bind(estimate,actual,rows.length,collectedAt,runId).run();
-  // Replace the reservation-only cost with the complete estimated/actual charge in the shared Apify ledger.
-  await context.env.DB.prepare(`UPDATE apify_sports_cost_ledger SET cost_basis=?, estimated_total_usd=?, actual_total_usd=?, rows_returned=? WHERE id=?`)
-    .bind(actual==null?"ESTIMATED":"ACTUAL",estimate,actual,rows.length,"ppstart_"+acquisition.ct_date).run();
+  if(acquisition){
+    await context.env.DB.prepare(
+      `UPDATE prizepicks_daily_acquisitions SET state='COMPLETE', estimated_cost_usd=?, actual_cost_usd=?, rows_returned=?, completed_at=? WHERE run_id=?`
+    ).bind(estimate,actual,rows.length,collectedAt,runId).run();
+    // Replace the reservation-only cost with the complete estimated/actual charge in the shared Apify ledger.
+    await context.env.DB.prepare(`UPDATE apify_sports_cost_ledger SET cost_basis=?, estimated_total_usd=?, actual_total_usd=?, rows_returned=? WHERE id=?`)
+      .bind(actual==null?"ESTIMATED":"ACTUAL",estimate,actual,rows.length,"ppstart_"+acquisition.ct_date).run();
+  }else if(supplementalNfl){
+    await context.env.DB.prepare(`
+      INSERT OR REPLACE INTO apify_sports_cost_ledger
+      (id,provider,run_id,sport,cost_basis,estimated_total_usd,actual_total_usd,rows_returned,created_at)
+      VALUES(?,?,?,?,?,?,?,?,?)
+    `).bind(
+      "ppsupp_"+runId,"PRIZEPICKS_APIFY",runId,"nfl",
+      actual==null?"ESTIMATED":"ACTUAL",estimate,actual,rows.length,collectedAt
+    ).run();
+  }
   await context.env.DB.prepare(
     `INSERT OR REPLACE INTO shadow_cost_ledger(
       id,run_id,plan,sport,profile,cost_basis,run_start_usd,scoreboard_usd,row_usd,movement_usd,player_props_usd,
