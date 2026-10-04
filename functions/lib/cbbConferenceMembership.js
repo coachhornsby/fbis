@@ -48,16 +48,18 @@ for(const [season,team,conference] of ROWS){
   if(!bySeason.has(season))bySeason.set(season,new Map());
   for(const v of variants(team))bySeason.get(season).set(v,conference);
 }
-export function conferenceForTeamSeason(team,season){
-  const m=bySeason.get(Number(season)); if(!m)return null;
+export function conferenceForTeamSeason(team,seasonStart){
+  // Kaggle/NCAA Season is the tournament/end year; FBIS season is the fall start year.
+  const sourceSeason=Number(seasonStart)+1;
+  const m=bySeason.get(sourceSeason); if(!m)return null;
   for(const v of variants(team)){if(m.has(v))return m.get(v)}
   return null;
 }
-export function conferenceCoverageForTeams(teams,season){
+export function conferenceCoverageForTeams(teams,seasonStart){
   let matched=0; const missing=[];
   for(const team of new Set(teams.filter(Boolean))){
-    const conference=conferenceForTeamSeason(team,season);
+    const conference=conferenceForTeamSeason(team,seasonStart);
     if(conference)matched++; else missing.push(team);
   }
-  return {season:Number(season),teams:new Set(teams.filter(Boolean)).size,matched,coveragePct:teams.length?100*matched/new Set(teams.filter(Boolean)).size:0,missing};
+  return {seasonStart:Number(seasonStart),sourceSeason:Number(seasonStart)+1,teams:new Set(teams.filter(Boolean)).size,matched,coveragePct:teams.length?100*matched/new Set(teams.filter(Boolean)).size:0,missing};
 }
