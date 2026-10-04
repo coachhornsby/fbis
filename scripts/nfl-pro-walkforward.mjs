@@ -105,6 +105,7 @@ function summarize(rows,prefix){
 fs.mkdirSync("artifacts",{recursive:true});
 const games=await csv(GAMES_URL);
 const outputs=[];
+const gameInputs=[];
 const coverageDiag={games:0,teamSides:0,ngsCpoe:0,rushYoe:0,separation:0,yacOe:0,snapShare:0};
 for(const season of seasons){
   const [priorTeam,currentTeam,priorPlayer,currentPlayer,ngsPassing,ngsRushing,ngsReceiving,priorSnaps,currentSnaps]=await Promise.all([
@@ -145,6 +146,7 @@ coverageDiag.games++;
       homePrior:priorForm.get(home),awayPrior:priorForm.get(away),homeCurrent:currentForm.get(home),awayCurrent:currentForm.get(away)
     });
     const actualMargin=hs-as, actualTotal=hs+as, homeWon=hs>as;
+    gameInputs.push({season,week,gameId:g.game_id,modelGame,actualMargin,actualTotal,homeWon});
     outputs.push({
       season,week,gameId:g.game_id,home,away,actualHome:hs,actualAway:as,
       proOk:Boolean(pro.ok),v2Ok:Boolean(v2.ok),baseOk:Boolean(base.ok),
@@ -162,11 +164,27 @@ coverageDiag.games++;
     });
   }
 }
+function evalWeights(weights,rows){
+  const scored=rows.map(r=>{const p=projectNflProV2(r.modelGame,{weights});return{ok:p.ok,marginAbs:p.ok?Math.abs(p.margin-r.actualMargin):null,totalAbs:p.ok?Math.abs(p.total-r.actualTotal):null,winner:p.ok?((p.margin>0)===r.homeWon):false};}).filter(x=>x.ok);
+  return{n:scored.length,marginMae:score(scored,"marginAbs"),totalMae:score(scored,"totalAbs"),winnerAccuracy:scored.length?scored.filter(x=>x.winner).length/scored.length:null};
+}
+const grid=[0,0.25,0.5,0.75,1,1.25];
+const weightSearch=[];
+for(const pressure of grid)for(const run of grid)for(const coverageRoute of grid){
+  const weights={pressure,run,coverageRoute,availability:1};
+  const train=gameInputs.filter(r=>r.season===2024),test=gameInputs.filter(r=>r.season===2025);
+  const tr=evalWeights(weights,train),te=evalWeights(weights,test);
+  weightSearch.push({weights,train:tr,test:te,objective:(tr.marginMae??99)+(tr.totalMae??99)});
+}
+weightSearch.sort((a,b)=>a.objective-b.objective);
+const selected=weightSearch[0];
+const selectedHoldout=selected?.test||null;
 const paired=outputs.filter(r=>r.proOk&&r.v2Ok&&r.baseOk);
 const pro=summarize(paired,"pro"), v2=summarize(paired,"v2"), base=summarize(paired,"base");
 const decision={
   sample:{seasons,n:paired.length},
   featureCoverage:coverageDiag,
+  weightCalibration:{method:"2024 grid-search training only; 2025 untouched holdout",grid,selected,top5:weightSearch.slice(0,5)},
   pro,v2,base,
   deltas:{
     v2VsV1:{marginMae:v2.marginMae-pro.marginMae,totalMae:v2.totalMae-pro.totalMae,winnerAccuracy:v2.winnerAccuracy-pro.winnerAccuracy},
