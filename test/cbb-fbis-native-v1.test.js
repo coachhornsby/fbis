@@ -108,3 +108,12 @@ test("CBB money ticket validator enforces prospective dislocation contract",()=>
  assert.equal(bad.ok,false);
  assert.ok(bad.errors.includes("side_dislocation"));
 });
+
+
+test("CBB money validator freezes one ticket identity per game",()=>{
+ const base={strategyId:CBB_MONEY_STRATEGY_V1.id,sport:"cbb",gameId:"g-freeze",market:"SPREAD",line:-3,edge:11,qualifiedAt:"2026-11-01T18:00:00Z",modelVersion:"CBB-MONEY-SELECTOR-v1",role:"prospective",qualified:false,benchmarkPrice:-110};
+ const home=validateCbbMoneyTicket({...base,side:"HOME"});
+ const away=validateCbbMoneyTicket({...base,side:"AWAY",line:3,edge:-11});
+ assert.equal(home.ok,true); assert.equal(away.ok,true);
+ assert.equal(home.ticket.id,away.ticket.id);
+});
