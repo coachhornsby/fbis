@@ -216,6 +216,15 @@ export async function loadCbbPlayerContext(env = {}, asOf = new Date()) {
         assists: mean(last3.map((x) => x.assists)),
         threesMade: mean(last3.map((x) => x.threesMade)),
       },
+      role: {
+        startsRecent,
+        lastGameMinutes: last5[0]?.minutes ?? null,
+        lastGameDnp: Boolean(last5[0]?.didNotPlay),
+        minuteStability: (() => {
+          const x = std(last5.map((v) => v.minutes));
+          return x == null ? null : Math.max(0, Math.min(1, 1 - x / 18));
+        })(),
+      },
     };
     for (const k of keys) {
       if (!byTeam[k]) byTeam[k] = [];
