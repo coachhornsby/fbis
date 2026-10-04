@@ -37,6 +37,7 @@ import { applyAvailabilityAdjustment } from "./availability.js";
 import { attachMatchupFactors } from "./matchupFactors.js";
 import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
 import { loadWnbaPlayerContext, attachWnbaPlayerProjectionResearch } from "./wnbaPlayerProjection.js";
+import { loadWnbaImpactContext, attachWnbaImpactShadows } from "./wnbaPlayerImpactShadow.js";
 import { attachWnbaV2Research } from "./wnbaFbisV2.js";
 import { buildWnbaGameDecisions, WNBA_WAGER_DECISION_VERSION } from "./wnbaWagerDecision.js";
 import {
@@ -353,12 +354,22 @@ export async function buildSlate(sport, date, env = {}) {
       meta: { source:"ESPN_WNBA_ATHLETE_STATS", error:String(err?.message||err), marketInformed:false },
     }));
     const wnbaPlayers = attachWnbaPlayerProjectionResearch(next.games, wnbaCtx);
+    const impactCtx = await loadWnbaImpactContext(env.DB || null);
+    const impactShadow = attachWnbaImpactShadows(wnbaPlayers.games, impactCtx);
     next = {
       ...next,
-      games: wnbaPlayers.games,
+      games: impactShadow.games,
       research: {
         ...(next.research || {}),
         wnbaPlayerProjection: wnbaPlayers.meta,
+        wnbaPlayerImpact: {
+          ...impactShadow.meta,
+          context: impactCtx.meta,
+          incumbentPlayerModel: "WNBA-PLAYER-PROJ-v2",
+          challenger: "WNBA-PLAYER-PROP-IMPACT-v1",
+          incumbentGameModel: "WNBA-FBIS-v2",
+          gameChallenger: "WNBA-FBIS-IMPACT-v1",
+        },
       },
     };
   }
