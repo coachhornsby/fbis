@@ -10,7 +10,11 @@ if(!SECRET)throw new Error("HARVEST_SECRET required");
 const benchmark=JSON.parse(readFileSync(benchmarkPath,"utf8"));
 const marketRows=JSON.parse(readFileSync(marketPath,"utf8"));
 const marketById=new Map(marketRows.map(r=>[String(r.id),r]));
-const seasons=[2018,2019,2020,2021,2022,2023,2024,2025];
+const defaultSeasons=[2018,2019,2020,2021,2022,2023,2024,2025];
+const seasons=String(process.env.FBIS_SEASONS||"").trim()
+  ? String(process.env.FBIS_SEASONS).split(",").map(Number).filter(Number.isFinite)
+  : defaultSeasons;
+const suffix=seasons.length===1 ? "-"+seasons[0] : "";
 const num=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const round=(v,d=3)=>v==null?null:Number(Number(v).toFixed(d));
 const key=v=>String(v||"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim();
@@ -109,4 +113,4 @@ const report={ok:true,id:"FBIS-CBB-RATINGS-v1-WALKFORWARD",generatedAt:new Date(
   disagreement,marketTests,
   promotion:{totalPass:Boolean(compare(validation).totalMaeAdvantage>0&&compare(confirmation).totalMaeAdvantage>0),marginPass:Boolean(compare(validation).marginMaeAdvantage>0&&compare(confirmation).marginMaeAdvantage>0),requiresOperatorApproval:true,canAuthorizeWager:false},
   rows:out.length};
-mkdirSync("artifacts",{recursive:true});writeFileSync("artifacts/cbb-fbis-native-v1-walkforward.json",JSON.stringify(report,null,2));writeFileSync("artifacts/cbb-fbis-native-v1-predictions.json",JSON.stringify(out));console.log(JSON.stringify(report,null,2));
+mkdirSync("artifacts",{recursive:true});writeFileSync("artifacts/cbb-fbis-native-v1-walkforward"+suffix+".json",JSON.stringify(report,null,2));writeFileSync("artifacts/cbb-fbis-native-v1-predictions"+suffix+".json",JSON.stringify(out));console.log(JSON.stringify(report,null,2));
