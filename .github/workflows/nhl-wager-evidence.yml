@@ -1,0 +1,65 @@
+name: NHL wager evidence snapshots
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nhl-wager-evidence
+  cancel-in-progress: false
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      TZ: America/Chicago
+    steps:
+      - name: Decide cadence
+        id: gate
+        run: |
+          set -euo pipefail
+          h="$(date +%H)"
+          d="$(date +%F)"
+          y="$(date -d 'yesterday' +%F)"
+          capture=0
+          settle=0
+          case "$h" in
+            08|11|14|15|16|17|18|19|20|21|22|23) capture=1 ;;
+          esac
+          [ "$h" = "04" ] && settle=1 || true
+          echo "capture=$capture" >> "$GITHUB_OUTPUT"
+          echo "settle=$settle" >> "$GITHUB_OUTPUT"
+          echo "date=$d" >> "$GITHUB_OUTPUT"
+          echo "yesterday=$y" >> "$GITHUB_OUTPUT"
+
+      - name: Capture immutable NHL research decisions
+        if: steps.gate.outputs.capture == '1'
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 90 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" -d "{\"mode\":\"capture\",\"date\":\"${{ steps.gate.outputs.date }}\"}" -o "$body" -w "%{http_code}" "$BASE/api/nhl-wager-research")"
+          cat "$body"
+          test "$code" = "200"
+          jq -e '.ok == true and .authority == false and .staking == false' "$body" >/dev/null
+
+      - name: Settle prior-day NHL evidence
+        if: steps.gate.outputs.settle == '1'
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 120 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" -d "{\"mode\":\"settle\",\"date\":\"${{ steps.gate.outputs.yesterday }}\"}" -o "$body" -w "%{http_code}" "$BASE/api/nhl-wager-research")"
+          cat "$body"
+          test "$code" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+
+      - name: Read calibration state
+        if: always()
+        run: |
+          curl -fsS --max-time 45 "$BASE/api/nhl-wager-research" | jq -c '{ok,counts,calibration}'

@@ -12,6 +12,7 @@ import {
   rateNhlGoalieSavesConfidence,
   rateNhlShotsOnGoalConfidence,
 } from "../../../functions/lib/nhlPropConfidence.js";
+import { evaluateNhlPropWagerV1 } from "../../../functions/lib/nhlWagerV1.js";
 
 /**
  * All player-prop markets currently supported on FBIS product surfaces.
@@ -453,6 +454,8 @@ export function normalizeBoardGame(game = {}) {
       validationStatus:p.validationStatus||null,
       lineValidationStatus,
       shotEnvironment:p.shotEnvironment||null,
+      trackingAdvisory:p.trackingAdvisory||null,
+      matchupTrackingAdvisory:p.matchupTrackingAdvisory||null,
       propGate: lineValidated ? (p.propGate || "CLEAR") : "HOLD",
       gateReason: lineValidated ? (p.gateReason || null) : "prop_line_not_validated_vs_baseline",
       decisionEligible: p.decisionEligible === true && lineValidated,
@@ -484,6 +487,8 @@ export function normalizeBoardGame(game = {}) {
       roleConfidence: p.roleConfidence ?? null,
       snapShare: p.snapShare ?? null,
       featureEvidence: p.featureEvidence ?? null,
+      trackingAdvisory: p.trackingAdvisory || null,
+      matchupTrackingAdvisory: p.matchupTrackingAdvisory || null,
       propGate: p.propGate || "CLEAR",
       gateReason: p.gateReason || null,
       eligibleForCard: p.eligibleForCard === true,
@@ -538,8 +543,7 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
         canonical && (PRO_PLAYER_PROP_MARKETS[sport] || []).includes(canonical),
       );
       const teamIdentity = resolvePlayerTeamIdentity(event, pm.team);
-      allRows.push(
-        withFbisPropAnalytics({
+      const analyzed = withFbisPropAnalytics({
           ...pm,
           marketCanonical: canonical,
           eventId: event.id,
@@ -555,8 +559,8 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
           surfaceStatus: pm.propGate === "BLOCKED" ? "BLOCKED" : pm.propGate === "HOLD" ? "HOLD" : pm.decisionEligible ? "QUALIFIED" : "RESEARCH",
           modelAuthorized: pm.modelAuthorized === true || (sport === "wnba" && pm.decisionEligible === true),
           eligibleForCard: pm.propGate === "CLEAR" && pm.eligibleForCard === true,
-        }),
-      );
+        });
+      allRows.push(sport === "nhl" ? {...analyzed, nhlWagerV1:evaluateNhlPropWagerV1(analyzed)} : analyzed);
     }
   }
 
