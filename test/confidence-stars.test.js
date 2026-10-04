@@ -111,13 +111,13 @@ describe("board confidence stars", () => {
     assert.equal(confidenceStars(leagueAvg), 1);
   });
 
-  it("caps research projections at three stars", () => {
+  it("does not cap research-only projections below their projection confidence", () => {
     const g = game("research", 98, {
       projectionMaturity: "RESEARCH",
       publicationStatus: "RESEARCH_PUBLISHABLE",
       researchProjection: { projAway: 21, projHome: 27 },
     });
-    assert.equal(confidenceStars(g), 3);
+    assert.equal(confidenceStars(g), 5);
   });
 
   it("sorts the board by stars across sports", () => {
