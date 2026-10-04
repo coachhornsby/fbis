@@ -71,11 +71,9 @@ def build_game_position_allowed(df):
         rows.append(d)
     return pd.DataFrame(rows)
 
-def defense_factor(def_hist, league_hist, defense, pos, field, season, week, strength):
-    if strength<=0:return 1.0
+def defense_ratio(def_hist, defense, pos, field, season, week):
     dh=def_hist[(def_hist.defense==defense)&(def_hist.position==pos)&(((def_hist.season==season)&(def_hist.week<week))|(def_hist.season<season))]
-    lh=league_hist[(league_hist.position==pos)&(((league_hist.season==season)&(league_hist.week<week))|(league_hist.season<season))]
-    # emphasize current season, stabilize with prior season
+    lh=def_hist[(def_hist.position==pos)&(((def_hist.season==season)&(def_hist.week<week))|(def_hist.season<season))]
     dcur=dh[dh.season==season][field].mean()
     dprev=dh[dh.season==season-1][field].mean()
     lcur=lh[lh.season==season][field].mean()
@@ -87,7 +85,9 @@ def defense_factor(def_hist, league_hist, defense, pos, field, season, week, str
     da=blend([(dcur,dw),(dprev,1-dw)])
     la=blend([(lcur,lw),(lprev,1-lw)])
     if not np.isfinite(da) or not np.isfinite(la) or la<=0:return 1.0
-    ratio=da/la
+    return float(da/la)
+
+def factor_from_ratio(ratio,strength):
     return float(np.clip(1+(ratio-1)*strength,*CAPS))
 
 def main():
@@ -154,10 +154,11 @@ def main():
             recent=weighted_recent(hist,field)
             season_avg=pd.to_numeric(cur[field],errors="coerce").mean()
             prior_avg=pd.to_numeric(prev[field],errors="coerce").mean()
+            ratio=defense_ratio(allowed,canon(r.opponent_team),pos,field,season,week)
             for rw,sw,pw,ms in configs:
                 base=blend([(recent,rw),(season_avg,sw),(prior_avg,pw)])
                 if not np.isfinite(base):continue
-                mf=defense_factor(allowed,allowed,canon(r.opponent_team),pos,field,season,week,ms)
+                mf=factor_from_ratio(ratio,ms)
                 pred=base*mf
                 records.append({
                     "season":season,"week":week,"team":team,"opponent":canon(r.opponent_team),
