@@ -1,0 +1,67 @@
+{
+  "modelId": "NBA-FBIS-v1",
+  "sport": "NBA",
+  "state": "VALIDATION",
+  "canQualify": true,
+  "wagerAuthorization": false,
+  "objective": {
+    "primary": "positive_clv_and_roi_after_vig",
+    "secondary": [
+      "margin_mae",
+      "total_mae",
+      "probability_calibration"
+    ]
+  },
+  "marketPolicy": {
+    "marketAsFeature": false,
+    "marketUses": [
+      "evaluation",
+      "edge_calculation",
+      "calibration_diagnostics",
+      "wager_qualification"
+    ]
+  },
+  "dataTiers": {
+    "productionSafeCandidates": [
+      "espn_schedule_results",
+      "espn_box_scores",
+      "espn_play_by_play",
+      "espn_shot_coordinates_where_available",
+      "approved_official_availability",
+      "derived_rest_travel_features"
+    ],
+    "researchOnlyLicenseReview": [
+      "nba_stats_lineups",
+      "nba_stats_tracking",
+      "nba_stats_advanced_team_player",
+      "nba_stats_possessions",
+      "nba_stats_shot_dashboards"
+    ]
+  },
+  "engines": [
+    "possessions",
+    "efficiency",
+    "availability",
+    "schedule_fatigue",
+    "home_court",
+    "uncertainty"
+  ],
+  "validation": {
+    "method": "true_walk_forward",
+    "requiredMetrics": [
+      "margin_mae",
+      "total_mae",
+      "rmse",
+      "winner_accuracy",
+      "brier_score",
+      "log_loss",
+      "calibration_error",
+      "clv",
+      "roi_after_vig",
+      "units",
+      "max_drawdown",
+      "bet_count"
+    ],
+    "forbidLeakage": true
+  }
+}
