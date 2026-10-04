@@ -21,6 +21,7 @@ import { NFL_PRO_ID } from "./nflProModel.js";
 import { MLB_DEEP_ID } from "./mlbDeepModel.js";
 import { NHL_RESEARCH_MODEL_ID, NHL_RESEARCH_MODEL_VERSION } from "./nhlResearchModel.js";
 import { NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
+import { NHL_PRO_V2_ID, NHL_PRO_V2_VERSION } from "./nhlProV2.js";
 import { lookupCbbdRating } from "./cbbRatingsSafe.js";
 import {
   buildProbabilityProvenance,
@@ -444,13 +445,18 @@ export function promoteCbbResearchToBoard(games = [], catalog = null) {
 }
 
 
-/** NHL research board — independent team scoring/defense prior, research only. */
+/** NHL research board — incumbent v1 plus validated v2 challenger, research only. */
 export function promoteNhlResearchToBoard(games = []) {
   let promoted = 0;
   let skipped = 0;
+  let v2Promoted = 0;
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "nhl") return game;
-    const proj = game.nhlV1 || game.challengers?.[NHL_FBIS_V1_ID] || game.nhlResearch || game.challengers?.[NHL_RESEARCH_MODEL_ID];
+    const v2 = game.nhlProV2 || game.challengers?.[NHL_PRO_V2_ID] || null;
+    const v2Eligible = Boolean(v2?.ok && v2?.promotion?.historicalPromotionEligible);
+    const proj = v2Eligible
+      ? v2
+      : game.nhlV1 || game.challengers?.[NHL_FBIS_V1_ID] || game.nhlResearch || game.challengers?.[NHL_RESEARCH_MODEL_ID];
     const scores = scoresFrom(proj);
     if (!proj?.ok || !scores) {
       skipped += 1;
@@ -465,21 +471,28 @@ export function promoteNhlResearchToBoard(games = []) {
       };
     }
     promoted += 1;
+    if (v2Eligible) v2Promoted += 1;
     return stampResearchBoard(game, {
       modelId: proj.modelId || NHL_FBIS_V1_ID,
       modelVersion: proj.modelVersion || NHL_FBIS_V1_VERSION,
       scores,
-      displayLabel: "FBIS NHL FIVE-LAYER RESEARCH",
-      underlying: proj.modelId === NHL_FBIS_V1_ID ? "5v5 xG + goalie + special teams + situation + distribution" : "NHL team scoring/defense prior",
+      displayLabel: v2Eligible ? "FBIS NHL PRO v2 RESEARCH" : "FBIS NHL FIVE-LAYER RESEARCH",
+      underlying: v2Eligible
+        ? "event-chain boosted xG + personnel + goalie GSAx + special teams + EDGE + bivariate distribution"
+        : proj.modelId === NHL_FBIS_V1_ID
+          ? "5v5 xG + goalie + special teams + situation + distribution"
+          : "NHL team scoring/defense prior",
       researchNote: proj.note || "Independent NHL research projection. No wager authority.",
     });
   });
+  const useV2 = v2Promoted > 0;
   return {
     games: next,
     meta: {
-      modelId: next.some((g) => g?.nhlV1?.ok) ? NHL_FBIS_V1_ID : NHL_RESEARCH_MODEL_ID,
-      modelVersion: next.some((g) => g?.nhlV1?.ok) ? NHL_FBIS_V1_VERSION : NHL_RESEARCH_MODEL_VERSION,
+      modelId: useV2 ? NHL_PRO_V2_ID : next.some((g) => g?.nhlV1?.ok) ? NHL_FBIS_V1_ID : NHL_RESEARCH_MODEL_ID,
+      modelVersion: useV2 ? NHL_PRO_V2_VERSION : next.some((g) => g?.nhlV1?.ok) ? NHL_FBIS_V1_VERSION : NHL_RESEARCH_MODEL_VERSION,
       promoted,
+      v2Promoted,
       skipped,
       canQualify: false,
       canAuthorize: false,
