@@ -38,3 +38,16 @@ test("ACTION daily collector retains exact one paid full-slate run rule",()=>{
   assert.match(s,/includeProps:false/);
   assert.match(s,/includeInjuries:false/);
 });
+
+
+test("NBA generated remote D1 SQL never emits BEGIN or COMMIT wrappers",()=>{
+  for(const path of [
+    "scripts/nba-shadow-project.mjs",
+    "scripts/nba-game-decision-evaluate.mjs",
+    "scripts/nba-market-evaluate.mjs"
+  ]){
+    const s=fs.readFileSync(path,"utf8");
+    assert.equal(s.includes('["BEGIN;"'),false,path);
+    assert.equal(s.includes('"COMMIT;"'),false,path);
+  }
+});
