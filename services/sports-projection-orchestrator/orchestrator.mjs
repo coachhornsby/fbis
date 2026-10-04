@@ -43,6 +43,7 @@ function buildCfg(env = runtimeEnv){
       projectionLedger: 'Projection Ledger',
       wagerFeed: 'Wager Feed',
       bets: 'Bets',
+      playerPropsLedger: 'Player Props Ledger',
       mlbPitcherProjections: 'MLB Pitcher Projections',
       npbOps: 'NPB Ops',
       kboOps: 'KBO Ops',
@@ -1544,6 +1545,82 @@ export async function validateModels(){
   };
   return runSnapshot(snap,{persist:false,runId:'VALIDATION-'+uuid()});
 }
+
+const PLAYER_PROP_LEDGER_HEADERS = [
+  "Leg ID","Card ID","Date","Sport","Book","Entry Type","Card Risk","Card To Win",
+  "Player","Team","Matchup","Market","Side","Entry Line","FBIS Projection","FBIS Sigma","Projection Edge",
+  "Model Version","Model Source","Source Line ID","Projection Observed At","Recorded At CT","Event ID","Provider Game ID",
+  "Role Confidence","Snap Share","Prop Gate","Calibration Eligibility","Live Stat at Capture","Official Actual",
+  "Projection Error","Absolute Error","Squared Error","Result","Hit","Push","Closing Line","Line CLV","Stat Source","Graded At","Notes"
+];
+
+function a1Column(index){
+  let n=Number(index)+1,out="";
+  while(n>0){ const r=(n-1)%26; out=String.fromCharCode(65+r)+out; n=Math.floor((n-1)/26); }
+  return out;
+}
+
+export async function syncPlayerPropLearningToSheet(){
+  if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required for player prop learning sync");
+  const base=String(CFG.fbisBaseUrl||"https://fbis-myz.pages.dev").replace(/\/$/,"");
+  const res=await fetchRetry(base+"/api/player-prop-learning?_t="+Date.now(),{headers:{accept:"application/json"}},2);
+  const body=await res.json().catch(()=>({}));
+  if(!res.ok||body?.ok!==true||!Array.isArray(body?.legs)) {
+    throw new Error("FBIS player prop learning readback failed http="+res.status);
+  }
+  const cards=new Map((body.cards||[]).map(c=>[String(c.card_id||""),c]));
+  const rows=(body.legs||[]).map((leg)=>{
+    const card=cards.get(String(leg.card_id||""))||{};
+    return [
+      leg.leg_id||"",leg.card_id||"",card.date||"",String(leg.sport||"").toUpperCase(),card.book||"",
+      card.entry_type||"",card.risk??"",card.to_win??"",leg.player_name||"",leg.team||"",leg.matchup||"",
+      leg.market||"",leg.side||"",leg.entry_line??"",leg.fbis_projection??"",leg.fbis_sigma??"",leg.projection_edge??"",
+      leg.model_version||"",leg.model_source||"",leg.source_line_id||"",leg.projection_observed_at||"",
+      card.captured_at||"",leg.event_id||"",leg.provider_game_id||"",leg.role_confidence??"",leg.snap_share??"",
+      leg.prop_gate||"",leg.calibration_eligibility||"",leg.live_actual??"",leg.actual??"",leg.projection_error??"",
+      leg.absolute_error??"",leg.squared_error??"",leg.result||"",leg.hit??"",leg.push??"",leg.closing_line??"",
+      leg.line_clv??"",leg.stat_source||"",leg.graded_at||"",leg.notes||""
+    ];
+  });
+  const range=q(CFG.sheets.playerPropsLedger)+"!A1:AO3000";
+  await sheets.clear(range);
+  await sheets.update(q(CFG.sheets.playerPropsLedger)+"!A1:AO"+String(rows.length+1),[PLAYER_PROP_LEDGER_HEADERS,...rows]);
+
+  let cardRowsUpdated=0;
+  const tracker=await sheets.get(q(CFG.sheets.bets)+"!A1:AM1000");
+  const values=tracker.values||[];
+  if(values.length){
+    const headers=values[0]||[];
+    const provenanceIdx=headers.indexOf("Projection Provenance ID");
+    const resultIdx=headers.indexOf("Result");
+    const plIdx=headers.indexOf("P/L");
+    if(provenanceIdx>=0&&resultIdx>=0&&plIdx>=0){
+      for(let i=1;i<values.length;i++){
+        const row=values[i]||[];
+        const card=cards.get(String(row[provenanceIdx]||""));
+        if(!card||String(card.status||"").toUpperCase()!=="SETTLED") continue;
+        const resultMap={WON:"Win",LOST:"Loss",PUSH:"Push",ADJUSTED:"Adjusted"};
+        const result=resultMap[String(card.result||"").toUpperCase()]||String(card.result||"");
+        const pl=card.profit==null?"":Number(card.profit);
+        const start=Math.min(resultIdx,plIdx),end=Math.max(resultIdx,plIdx);
+        const next=[];
+        for(let j=start;j<=end;j++) next.push(j===resultIdx?result:j===plIdx?pl:(row[j]??""));
+        await sheets.update(q(CFG.sheets.bets)+"!"+a1Column(start)+String(i+1)+":"+a1Column(end)+String(i+1),[next]);
+        cardRowsUpdated++;
+      }
+    }
+  }
+  return {
+    ok:true,
+    sheet:CFG.sheets.playerPropsLedger,
+    legsSynced:rows.length,
+    cards:(body.cards||[]).length,
+    gradedLegs:Number(body.summary?.gradedLegs||0),
+    cardRowsUpdated,
+    syncedAt:now()
+  };
+}
+
 export async function validateSheetsAccess(){
   if(!sheets.available()) return {ok:false,reason:'GOOGLE_SERVICE_ACCOUNT_JSON missing'};
   const res=await sheets.get(q(CFG.sheets.config)+'!A1:B5');
