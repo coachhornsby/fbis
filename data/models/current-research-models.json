@@ -24,6 +24,15 @@
       "canQualify": false,
       "canAuthorizeWager": false,
       "notes": "Point-in-time league-aware Dixon-Coles research engine covering EPL, La Liga, Bundesliga, Serie A, Ligue 1, MLS and NWSL. Market is benchmark-only; no wager authority until walk-forward, market and prospective gates pass."
+    },
+    "nba": {
+      "currentResearchModel": "NBA-FBIS-v1",
+      "fitArtifact": "data/models/nba-fbis-v1-fit.json",
+      "propResearchModel": "NBA-PLAYER-PROP-v1",
+      "status": "game-level-prospective-qualification-enabled",
+      "canQualify": true,
+      "canAuthorizeWager": false,
+      "notes": "Independent NBA score/margin/total/possession distribution feeds a strict point-in-time game-level wager decision engine. Offered line/juice, ordinary market trajectory and ACTION intelligence are separate post-projection layers. ACTION is shadow market intelligence only and cannot directly qualify or authorize. Confidence is provisional until empirical monotonicity passes; stake units remain withheld until staking validation."
     }
   }
 }
