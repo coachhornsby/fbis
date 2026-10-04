@@ -23,6 +23,25 @@ export const SOCCER_LEAGUES = Object.freeze([
 ]);
 
 const CALENDAR_YEAR_LEAGUES = new Set(["usa.1", "usa.nwsl"]);
+
+export const SOCCER_LEAGUE_VALIDATION = Object.freeze({
+  "eng.1": Object.freeze({ n: 1123, accuracy: 0.5040071238, brier: 0.1996687912, logLoss: 1.0047076603, ece: 0.0232395625 }),
+  "esp.1": Object.freeze({ n: 1141, accuracy: 0.5100788782, brier: 0.1972587228, logLoss: 0.9920503580, ece: 0.0155195154 }),
+  "ger.1": Object.freeze({ n: 888, accuracy: 0.5067567568, brier: 0.1998216362, logLoss: 1.0065489863, ece: 0.0296027061 }),
+  "ita.1": Object.freeze({ n: 1125, accuracy: 0.536, brier: 0.1981004665, logLoss: 0.9950833201, ece: 0.0130182383 }),
+  "fra.1": Object.freeze({ n: 896, accuracy: 0.5100446429, brier: 0.2019506833, logLoss: 1.0118765903, ece: 0.0142179222 }),
+  "usa.1": Object.freeze({ n: 1927, accuracy: 0.4525168656, brier: 0.2143441017, logLoss: 1.0677410552, ece: 0.0187936886 }),
+  "usa.nwsl": Object.freeze({ n: 659, accuracy: 0.4977238240, brier: 0.2085226617, logLoss: 1.0419063929, ece: 0.0117741748 }),
+});
+
+const SOCCER_CONFIDENCE_POLICY = Object.freeze({
+  version: "soccer-stars-v1",
+  thresholds: Object.freeze({ five: 82, four: 70, three: 56, two: 42 }),
+  highUncertaintyCap: 2,
+  mediumUncertaintyCap: 4,
+  legacyFallbackCap: 2,
+});
+
 const CFG = Object.freeze({
   fallbackLeagueGoals: 1.42,
   fallbackHomeGoalAdj: 0.18,
@@ -355,6 +374,106 @@ export function projectSoccerFromHistory(game = {}, history = [], options = {}) 
   };
 }
 
+
+export function soccerConfidencePick(game = {}, projection = null) {
+  const p = projection || game.soccerFbis || game.researchProjection || null;
+  if (!p?.ok) {
+    return {
+      available: false,
+      stars: 1,
+      score: 0,
+      pick: null,
+      market: "1X2",
+      qualification: "NO_MODEL",
+      authorized: false,
+      policyVersion: SOCCER_CONFIDENCE_POLICY.version,
+    };
+  }
+
+  const probs = [
+    { side: "HOME", p: Number(p.pHomeWin), label: game.home?.name || game.home?.abbr || "Home" },
+    { side: "DRAW", p: Number(p.pDraw), label: "Draw" },
+    { side: "AWAY", p: Number(p.pAwayWin), label: game.away?.name || game.away?.abbr || "Away" },
+  ].filter((x) => Number.isFinite(x.p));
+
+  if (probs.length !== 3) {
+    return {
+      available: false,
+      stars: 1,
+      score: 0,
+      pick: null,
+      market: "1X2",
+      qualification: "DATA_INCOMPLETE",
+      authorized: false,
+      policyVersion: SOCCER_CONFIDENCE_POLICY.version,
+    };
+  }
+
+  probs.sort((a, b) => b.p - a.p);
+  const best = probs[0];
+  const second = probs[1];
+  const league = String(game.soccerLeague || game.league || "");
+  const validation = SOCCER_LEAGUE_VALIDATION[league] || null;
+  const uncertainty = String(p.uncertainty?.level || "HIGH").toUpperCase();
+  const minTeamGames = Math.min(
+    Number(p.uncertainty?.homeHistoryGames || 0),
+    Number(p.uncertainty?.awayHistoryGames || 0)
+  );
+
+  const topStrength = clamp((best.p - 1 / 3) / 0.35, 0, 1);
+  const separation = clamp((best.p - second.p) / 0.25, 0, 1);
+  const dataDepth = clamp(minTeamGames / 20, 0, 1);
+  const reliability = validation
+    ? clamp(1 - Number(validation.ece || 0) / 0.08, 0, 1)
+    : 0.5;
+
+  let score = 100 * (
+    0.35 * topStrength +
+    0.25 * separation +
+    0.20 * dataDepth +
+    0.20 * reliability
+  );
+  score = round(score, 1);
+
+  let stars = score >= SOCCER_CONFIDENCE_POLICY.thresholds.five ? 5
+    : score >= SOCCER_CONFIDENCE_POLICY.thresholds.four ? 4
+      : score >= SOCCER_CONFIDENCE_POLICY.thresholds.three ? 3
+        : score >= SOCCER_CONFIDENCE_POLICY.thresholds.two ? 2
+          : 1;
+
+  if (uncertainty === "HIGH") stars = Math.min(stars, SOCCER_CONFIDENCE_POLICY.highUncertaintyCap);
+  if (uncertainty === "MEDIUM") stars = Math.min(stars, SOCCER_CONFIDENCE_POLICY.mediumUncertaintyCap);
+  if (p.uncertainty?.legacyTeamFormFallback) stars = Math.min(stars, SOCCER_CONFIDENCE_POLICY.legacyFallbackCap);
+
+  return {
+    available: true,
+    market: "1X2",
+    side: best.side,
+    pick: best.label,
+    modelProbability: round(best.p, 4),
+    secondProbability: round(second.p, 4),
+    probabilityGap: round(best.p - second.p, 4),
+    stars,
+    score,
+    uncertainty,
+    league,
+    validationN: validation?.n || 0,
+    validationAccuracy: validation?.accuracy ?? null,
+    validationBrier: validation?.brier ?? null,
+    validationEce: validation?.ece ?? null,
+    qualification: "RESEARCH_ONLY",
+    authorized: false,
+    canQualify: false,
+    policyVersion: SOCCER_CONFIDENCE_POLICY.version,
+    reasonCodes: [
+      "MODEL_PROJECTION_CONFIDENCE",
+      uncertainty === "HIGH" ? "HIGH_UNCERTAINTY_CAP" : null,
+      p.uncertainty?.legacyTeamFormFallback ? "LEGACY_FORM_FALLBACK_CAP" : null,
+      league === "usa.1" ? "MLS_LOWER_HISTORICAL_ACCURACY" : null,
+    ].filter(Boolean),
+  };
+}
+
 export function soccerSeasonYear(date = new Date(), league = null) {
   const d = date instanceof Date ? date : new Date(date);
   const y = d.getUTCFullYear();
@@ -429,10 +548,12 @@ function startDateDaysBefore(date, days) {
 }
 
 function attachProjection(game, p) {
+  const confidence = soccerConfidencePick(game, p);
   if (!p.ok) {
     return {
       ...game,
       soccerFbis: p,
+      soccerConfidence: confidence,
       pureProjectionAvailable: false,
       qualificationBlocked: true,
       canQualify: false,
@@ -442,6 +563,8 @@ function attachProjection(game, p) {
   return {
     ...game,
     soccerFbis: p,
+    soccerConfidence: confidence,
+    confidencePick: confidence,
     projHomeScore: p.home,
     projAwayScore: p.away,
     projectionKind: "FBIS",
@@ -474,6 +597,9 @@ function attachProjection(game, p) {
       canAuthorize: false,
       canShowCalibratedEv: false,
       uncertainty: p.uncertainty,
+      confidenceStars: confidence.stars,
+      confidenceScore: confidence.score,
+      confidencePick: confidence,
       recipe: {
         engine: SOCCER_FBIS_ID,
         version: SOCCER_FBIS_VERSION,
@@ -502,6 +628,7 @@ function attachProjection(game, p) {
       pBttsYes: p.pBttsYes,
       totals: p.totals,
       uncertainty: p.uncertainty,
+      confidencePick: confidence,
       note: "Independent point-in-time soccer projection. Market data excluded.",
       canQualify: false,
       canAuthorize: false,
