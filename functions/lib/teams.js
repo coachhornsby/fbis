@@ -11,9 +11,11 @@ import cfb from "../../data/teams/cfb.js";
 import cbb from "../../data/teams/cbb.js";
 import nhl from "../../data/teams/nhl.js";
 import wnba from "../../data/teams/wnba.js";
+import npb from "../../data/teams/npb.js";
+import kbo from "../../data/teams/kbo.js";
 import { namesMatch, nameLookupKeys } from "./match.js";
 
-export const TEAMS_BY_SPORT = { nfl, mlb, nba, cfb, cbb, nhl, wnba };
+export const TEAMS_BY_SPORT = { nfl, mlb, nba, cfb, cbb, nhl, wnba, npb, kbo };
 
 /** Verified source aliases not present on the ESPN short-name row. */
 const EXTRA_ALIASES = {
@@ -256,7 +258,7 @@ export function verifiedCfbSchool(name) {
 export function identityFromNameExact(name) {
   if (!name) return { name: null, abbr: "—", logo: "", canonicalId: null, sport: null };
   const hits = [];
-  for (const sport of ["mlb", "nfl", "nba", "wnba", "nhl", "cfb", "cbb"]) {
+  for (const sport of ["mlb", "nfl", "nba", "wnba", "nhl", "npb", "kbo", "cfb", "cbb"]) {
     const hit = resolveTeamExact(sport, { name });
     if (hit) hits.push({ sport, hit });
   }
