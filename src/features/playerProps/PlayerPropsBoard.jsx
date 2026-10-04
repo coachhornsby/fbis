@@ -10,6 +10,7 @@ import {
   sortPropsByConviction,
 } from "./buildPlayerPropsBoard.js";
 import PlayerWorkspace from "./PlayerWorkspace.jsx";
+import TrackedPropCards from "./TrackedPropCards.jsx";
 
 const TIER_LABELS = Object.freeze({
   CONVICTION: "Conviction",
@@ -250,6 +251,8 @@ export default function PlayerPropsBoard({
 
       {error ? <div className="error">{error}</div> : null}
       {durableError ? <div className="error">ACTION props: {durableError}</div> : null}
+
+      <TrackedPropCards sportFilter={sportFilter} />
 
       <div className="props-filters" role="toolbar" aria-label="Filter props">
         <button
