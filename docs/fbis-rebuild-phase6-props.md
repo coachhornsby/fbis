@@ -41,3 +41,21 @@ Unsupported novelty markets remain countable but opt-in via “FBIS-supported ma
 ## Next
 
 Phase 7 — My Bets / Performance (strict population separation; units only).
+
+
+## Selective prop rebuild — v2
+
+The prop portfolio now favors **selectivity over card volume**.
+
+Changes:
+
+- NFL player projections incorporate capped Next Gen efficiency signals and snap-share workload evidence.
+- Availability gates remain fail-closed.
+- High-confidence ratings require empirical player/market dispersion when the sport supports it.
+- Weak role confidence caps a prop at two stars.
+- HOLD/BLOCKED or explicitly ineligible rows cannot surface as conviction.
+- Default publication floor is three stars.
+- Default diversification is two props per event and one prop per player.
+- PrizePicks lines remain comparison targets only; they are never fed into the independent projection.
+
+The system should be judged on frozen-line out-of-sample hit rate, closing-line movement, calibration by standardized edge, and realized units by market. A larger daily card is not a success metric.
