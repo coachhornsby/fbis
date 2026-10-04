@@ -139,7 +139,7 @@ jobs:
               if [ "$code" != "200" ]; then continue; fi
               jq --arg sport "$sport" -c '
                 (.games // [])[] as $g
-                | (($g.playerProjections.rows // [])[])
+                | (($g.playerProjectionRows // $g.playerProjections.rows // [])[])
                 | select(.playerName != null and .market != null and .fbisProjection != null)
                 | {
                     sport:$sport,
@@ -151,7 +151,12 @@ jobs:
                     start:($g.start // $g.startCt // null),
                     market:.market,
                     fbisProjection:.fbisProjection,
-                    fbisSigma:(.fbisSigma // null)
+                    fbisSigma:(.fbisSigma // null),
+                    dataQuality:(.dataQuality // null),
+                    roleConfidence:(.roleConfidence // null),
+                    projectedMinutes:(.projectedMinutes // null),
+                    modelId:(.source // $g.playerProjectionStatus.model // null),
+                    modelVersion:(.modelVersion // $g.playerProjectionStatus.version // null)
                   }' "$tmp" >> artifacts/candidates.ndjson || true
             done
           done
