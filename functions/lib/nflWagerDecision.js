@@ -66,20 +66,24 @@ function pickExecution(game={}){
   const book=x.book||offer.book||game.odds?.softSource||null;
 
   const homeSpreadPrice=finite(
-    x.spreadHomePrice??x.homeSpreadPrice??x.spreadPrice?.home??offer.spreadHomePrice??
+    x.spreadHomePrice??x.homeSpreadPrice??x.spreadPrice?.home??x.spreadPrice??
+    x.offers?.spread?.price??offer.spreadHomePrice??
+    game.odds?.heritageSpreadHomePrice??game.odds?.softSpreadHomePrice??
     game.odds?.spreadHomeOdds??game.odds?.homeSpreadOdds
   );
   const awaySpreadPrice=finite(
     x.spreadAwayPrice??x.awaySpreadPrice??x.spreadPrice?.away??offer.spreadAwayPrice??
+    game.odds?.heritageSpreadAwayPrice??game.odds?.softSpreadAwayPrice??
     game.odds?.spreadAwayOdds??game.odds?.awaySpreadOdds
   );
   const overPrice=finite(
-    x.overPrice??x.totalOverPrice??x.totalPrice?.over??offer.overPrice??
-    game.odds?.overOdds
+    x.overPrice??x.totalOverPrice??x.totalPrice?.over??x.totalPrice??
+    x.offers?.total?.price??offer.overPrice??
+    game.odds?.heritageOverPrice??game.odds?.softOverPrice??game.odds?.overOdds
   );
   const underPrice=finite(
     x.underPrice??x.totalUnderPrice??x.totalPrice?.under??offer.underPrice??
-    game.odds?.underOdds
+    game.odds?.heritageUnderPrice??game.odds?.softUnderPrice??game.odds?.underOdds
   );
 
   const actionable=Boolean(
