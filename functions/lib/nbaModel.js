@@ -113,7 +113,7 @@ export function projectNbaGame(game,{homeHistory=[],awayHistory=[],homePrior={},
     expectedPossessions:round1(expectedPoss),
     pHomeWin:pGreater(calibrated.margin,0,sigmaMargin),
     sigmaMargin:round1(sigmaMargin),sigmaTotal:round1(sigmaTotal),
-    independent:true,marketInformed:false,maturity:"VALIDATION",canQualify:false,canAuthorize:false,
+    independent:true,marketInformed:false,maturity:"VALIDATION",canQualify:true,canAuthorize:false,
     decomposition:{
       home:h,away:a,homeRest:hr,awayRest:ar,homeAvailability:ha,awayAvailability:aa,hca,
       raw:{home:round1(rawHome),away:round1(rawAway),margin:round1(rawMargin),total:round1(rawTotal)},
