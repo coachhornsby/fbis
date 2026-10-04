@@ -242,9 +242,10 @@ jobs:
           echo "smoke NHL-PRO-v2 http=${nhl_code}"
           test "$nhl_code" = "200"
           jq -e '
-            [.. | objects |
-              select((.nhlProV2?.modelId? == "NHL-PRO-v2") or (.modelId? == "NHL-PRO-v2"))
-            ] | length > 0
+            (.games // []) as $games |
+            if ($games | length) == 0 then true
+            else [$games[] | select(.model.engine == "NHL-PRO-v2")] | length > 0
+            end
           ' "$nhl_tmp" >/dev/null
 
           # Provider-ingestion release gate. This is read-only and proves the
