@@ -493,6 +493,12 @@ const report={
   folds:folds.map(({rows,...x})=>x),
   aggregate:{incumbent:aggregateV1,challenger:aggregateV2,comparison:aggregateComparison},
   subsets:subsetReport(all),
+  gamePredictions:all.map(r=>({
+    id:r.id,season:r.season,date:r.date,home:r.home,away:r.away,
+    projHome:round(r.v2.h,4),projAway:round(r.v2.a,4),homeWinProb:round(r.v2.p,5),
+    homeRestDays:r.ctx?.homeRestDays??null,awayRestDays:r.ctx?.awayRestDays??null,
+    homeB2B:Boolean(r.ctx?.homeB2B),awayB2B:Boolean(r.ctx?.awayB2B)
+  })),
   promotion:{
     historicalPromotionEligible:promote,
     promotedToResearchBoard:promote,
