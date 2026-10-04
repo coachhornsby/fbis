@@ -1,4 +1,5 @@
 import { loadNflVerseFeatures } from "../lib/nflVerseFeed.js";
+import { loadEspnLastFive } from "../lib/playerPropHistory.js";
 
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
@@ -54,7 +55,7 @@ async function nflDetail(context,{name,team,opponent,market,line}){
     advanced:null,
   };
   const last5=(p.recentGames||[]).slice(0,5).map(g=>({
-    season:g.season??null,week:g.week??null,opponent:g.opponent||null,
+    season:g.season??null,week:g.week??null,date:g.date||null,opponent:g.opponent||null,
     value:gameStat(g,field),hit:line==null?null:gameStat(g,field)>Number(line),
   }));
   const position=String(p.position||"").toUpperCase();
@@ -106,6 +107,18 @@ function mlbValue(stats,market){
   if(market==="total_bases")return n(s.totalBases);
   if(market==="hits_runs_rbis"){
     const h=n(s.hits)||0,r=n(s.runs)||0,rbi=n(s.rbi)||0; return h+r+rbi;
+  }
+  if(market==="home_runs")return n(s.homeRuns);
+  if(market==="doubles")return n(s.doubles);
+  if(market==="triples")return n(s.triples);
+  if(market==="walks")return n(s.baseOnBalls);
+  if(market==="stolen_bases")return n(s.stolenBases);
+  if(market==="plate_appearances")return n(s.plateAppearances);
+  if(market==="batters_faced")return n(s.battersFaced);
+  if(market==="pitches_thrown")return n(s.numberOfPitches ?? s.pitchesThrown);
+  if(market==="singles"){
+    const h=n(s.hits),d=n(s.doubles)||0,t=n(s.triples)||0,hr=n(s.homeRuns)||0;
+    return h==null?null:Math.max(0,h-d-t-hr);
   }
   return null;
 }
@@ -166,8 +179,21 @@ export async function onRequestGet(context){
   if(!sport||!name||!market)return json({ok:false,error:"sport, name and market required"},400);
   try{
     let detail=null;
-    if(sport==="nfl")detail=await nflDetail(context,{name,team,opponent,market,line});
-    else if(sport==="mlb")detail=await mlbDetail({name,market,line});
+    if(sport==="nfl"){
+      detail=await nflDetail(context,{name,team,opponent,market,line});
+      if(detail?.unavailable) {
+        const fallback=await loadEspnLastFive({sport,name,team,market,line});
+        if(fallback && !fallback.unavailable) detail=fallback;
+      }
+    } else if(sport==="mlb") {
+      detail=await mlbDetail({name,market,line});
+      if(!detail || !detail.last5?.some(x=>x.value!=null)) {
+        const fallback=await loadEspnLastFive({sport,name,team,market,line});
+        if(fallback && !fallback.unavailable) detail=fallback;
+      }
+    } else {
+      detail=await loadEspnLastFive({sport,name,team,market,line});
+    }
     const cal=await calibration(context.env?.DB,sport,market,modelVersion);
     return json({ok:true,sport,name,market,line,detail,calibration:cal||null});
   }catch(error){
