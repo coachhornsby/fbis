@@ -49,6 +49,8 @@ function projectedTeamPoints(game, side) {
   );
 }
 function projectedPossessions(game) {
+  const direct = finite(game?.projectedPossessions ?? game?.possessions);
+  if (direct != null) return clamp(direct, 58, 82);
   const homeTempo = finite(game?.cbbFbisRatings?.home?.tempo ?? game?.cbbMatchupEvidence?.home?.tempo);
   const awayTempo = finite(game?.cbbFbisRatings?.away?.tempo ?? game?.cbbMatchupEvidence?.away?.tempo);
   const avg = weighted([[homeTempo, 1], [awayTempo, 1]]);
@@ -140,9 +142,7 @@ export function projectCbbPlayerProps(game = {}, players = [], { side = null } =
 
     const baselinePace = finite(p?.recent?.pace) ?? 69;
     const paceFactor = clamp(poss / Math.max(baselinePace, 1), 0.88, 1.12);
-    const teamScoringFactor = teamPts == null
-      ? 1
-      : clamp(teamPts / Math.max(1, weighted([[72, 0.55], [(finite(p.pointsPerGame) || 0) * 5, 0.45]]) || 72), 0.86, 1.16);
+    const teamScoringFactor = teamPts == null ? 1 : clamp(teamPts / 72, 0.86, 1.16);
     const q = quality(p);
 
     let pts = blendPerGame(p, "points", p.pointsPer40, minutes);
