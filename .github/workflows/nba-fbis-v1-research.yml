@@ -15,7 +15,10 @@ on:
     paths:
       - "functions/lib/nbaModel.js"
       - "functions/lib/nbaPlayerPropModel.js"
+      - "scripts/nba-*.mjs"
       - "test/nba-fbis-v1.test.js"
+      - "migrations/0039_nba_research_models.sql"
+      - "schema.extensions.sql"
       - ".github/workflows/nba-fbis-v1-research.yml"
 permissions: { contents: read }
 jobs:
@@ -26,6 +29,24 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
       - run: node --test test/nba-fbis-v1.test.js
+
+  source-smoke:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: node scripts/nba-canonical-build.mjs start=2026-03-01 end=2026-03-10
+      - run: node scripts/nba-fbis-v1-walkforward.mjs artifacts/nba-canonical.jsonl
+      - run: node scripts/nba-player-prop-walkforward.mjs artifacts/nba-canonical.jsonl
+      - run: |
+          test -s artifacts/nba-canonical.jsonl
+          jq -e '.rows > 0' artifacts/nba-canonical-manifest.json
+          jq . artifacts/nba-fbis-v1-walkforward.json
+          jq . artifacts/nba-player-prop-walkforward.json
+
   historical:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
