@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { projectNbaGame, estimatePossessions } from "../functions/lib/nbaModel.js";
+import { projectNbaGame, estimatePossessions, calibrateNbaProjection } from "../functions/lib/nbaModel.js";
 import { projectNbaPlayer, compareNbaProp } from "../functions/lib/nbaPlayerPropModel.js";
 
 const hist=(pf,pa)=>Array.from({length:12},(_,i)=>({date:`2026-01-${String(i+1).padStart(2,"0")}`,pointsFor:pf+i%4,pointsAgainst:pa+i%3,fga:88,orb:10,tov:13,fta:22}));
@@ -22,4 +22,18 @@ test("prop model projects minutes then stats without line input",()=>{
   assert.equal(p.ok,true); assert.equal(p.marketInformed,false); assert.ok(p.minutes>30); assert.ok(p.markets.points.projection>20);
   const a=compareNbaProp(p,"points",24.5),b=compareNbaProp(p,"points",30.5);
   assert.equal(a.fbisProjection,b.fbisProjection); assert.ok(a.probabilityOver>b.probabilityOver); assert.equal(a.decisionEligible,false);
+});
+
+
+test("NBA calibration preserves independence and reconstructs team scores",()=>{
+  const raw={ok:true,margin:5,total:225,sigmaMargin:12,sigmaTotal:16,marketInformed:false,canQualify:false,canAuthorize:false};
+  const fit={id:"fit",version:"research-v1.1-calibrated",trainingCutoff:"2025-06-22",calibration:{margin:{intercept:-1,slope:1.2,sigma:14},total:{intercept:-20,slope:1.1,sigma:18}}};
+  const p=calibrateNbaProjection(raw,fit);
+  assert.equal(p.modelVersion,"research-v1.1-calibrated");
+  assert.equal(p.marketInformed,false);
+  assert.equal(p.margin,5);
+  assert.equal(p.total,227.5);
+  assert.equal(Number((p.home+p.away).toFixed(1)),p.total);
+  assert.equal(Number((p.home-p.away).toFixed(1)),p.margin);
+  assert.equal(p.calibration.marketUsed,false);
 });
