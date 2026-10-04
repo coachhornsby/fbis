@@ -120,7 +120,9 @@ export default function CompactGameCard({ game, onOpen }) {
   const proj = vm.projection || {};
   const market = vm.market || {};
   const action = vm.action || {};
-  const sportId = String(vm.sport || game?.sport || "").toLowerCase();\n  const isNfl = sportId === "nfl";\n  const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
+  const sportId = String(vm.sport || game?.sport || "").toLowerCase();
+  const isNfl = sportId === "nfl";
+  const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const edge = bestEdge(vm);
   const matchup = isNfl ? game?.nflGameMatchup : null;
   const genericFactors = !isNfl && Array.isArray(game?.matchupFactors) ? game.matchupFactors.slice(0, 5) : [];
