@@ -1803,3 +1803,24 @@
  .fbis-shell-main.route-board .db-game-page .matchup-factors-nfl .matchup-factor:last-child{grid-column:1/-1}
  .fbis-shell-main.route-board .matchup-factors-summary{justify-content:flex-start;flex-wrap:wrap}
 }
+
+
+/* Approved mobile NFL card hierarchy + crisp vector confidence stars. */
+.fbis-shell-main.route-board .cgc-star-row{gap:3px!important;filter:none!important;text-shadow:none!important}
+.fbis-shell-main.route-board .cgc-star-row>svg{display:block!important;width:17px!important;height:17px!important;flex:0 0 17px!important;filter:none!important;shape-rendering:geometricPrecision}
+.fbis-shell-main.route-board .cgc-star-row>svg path{stroke-width:.55;stroke-linejoin:round}
+.fbis-shell-main.route-board .cgc-star-row>svg.filled path{fill:#ffd23f;stroke:#ffe27a}
+.fbis-shell-main.route-board .cgc-star-row>svg.empty path{fill:#273a50;stroke:#3a5169}
+.fbis-shell-main.route-board .cgc.cgc-five-star .cgc-star-row>svg.filled{filter:none!important}
+.fbis-shell-main.route-board .cgc-final-score{display:flex;align-items:center;justify-content:center;gap:9px;padding:8px 10px;border:1px solid rgba(87,191,255,.34);border-radius:10px;background:rgba(5,30,51,.8)}
+.fbis-shell-main.route-board .cgc-final-score>span{color:#76c9ff;font-size:8px;font-weight:950;letter-spacing:.08em}
+.fbis-shell-main.route-board .cgc-final-score>strong{color:#fff;font-size:16px;font-weight:950}
+.fbis-shell-main.route-board .cgc-final-score>strong b{color:#a9dfff}
+.fbis-shell-main.route-board .cgc-final-score>strong i{color:#6888a5;font-style:normal;margin:0 3px}
+.fbis-shell-main.route-board .cgc-final-score>small{color:#8198b1;font-size:7px}
+.fbis-shell-main.route-board .cgc[data-sport="nfl"] .cgc-matchup-read{order:initial}
+@media(max-width:560px){
+ .fbis-shell-main.route-board .cgc-star-row>svg{width:16px!important;height:16px!important;flex-basis:16px!important}
+ .fbis-shell-main.route-board .cgc-final-score{flex-wrap:wrap}
+ .fbis-shell-main.route-board .cgc-final-score>small{flex-basis:100%;text-align:center}
+}
