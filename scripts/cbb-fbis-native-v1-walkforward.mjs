@@ -30,13 +30,27 @@ async function loadBox(season){
 }
 async function source(kind,params={}){
   const u=new URL("/api/cbb-walkforward-source",BASE);u.searchParams.set("kind",kind);for(const[k,v]of Object.entries(params))u.searchParams.set(k,String(v));
-  const res=await fetch(u,{headers:{"x-harvest-secret":SECRET,accept:"application/json"}});const body=await res.json().catch(()=>null);
-  if(!res.ok||!body?.ok)throw new Error(kind+" "+res.status+" "+(body?.error||"unknown"));return body;
+  let last=null;
+  for(let attempt=1;attempt<=7;attempt++){
+    const res=await fetch(u,{headers:{"x-harvest-secret":SECRET,accept:"application/json"}});
+    const body=await res.json().catch(()=>null);
+    if(res.ok&&body?.ok)return body;
+    last={status:res.status,error:body?.error||"unknown"};
+    const limited=res.status===429||String(last.error).includes("429");
+    if(!limited)break;
+    await new Promise(resolve=>setTimeout(resolve,Math.min(30000,attempt*5000)));
+  }
+  throw new Error(kind+" "+(last?.status||0)+" "+(last?.error||"unknown"));
 }
 async function conferenceMap(season){
-  const r=await source("team-meta",{season});const m=new Map();
-  for(const x of r.rows||[])if(x.team&&x.conference)m.set(key(x.team),x.conference);
-  return m;
+  try{
+    const r=await source("team-meta",{season});const m=new Map();
+    for(const x of r.rows||[])if(x.team&&x.conference)m.set(key(x.team),x.conference);
+    return {map:m,available:true,error:null};
+  }catch(err){
+    console.warn("conference metadata unavailable season="+season+" error="+String(err?.message||err));
+    return {map:new Map(),available:false,error:String(err?.message||err)};
+  }
 }
 function teamRef(name,season){const m=mapSourceTeam("cbb",{team:name,school:name},season);return m.ok?{canonicalId:m.canonicalId,school:m.school,name:m.school}:{school:name,name}}
 function metrics(rows,which){
@@ -59,7 +73,8 @@ function betStats(rows,kind,threshold,directionMode="fbis"){
 
 const out=[],coverage=[];
 for(const season of seasons){
-  const [box0,conf]=await Promise.all([loadBox(season),conferenceMap(season)]);
+  const [box0,confMeta]=await Promise.all([loadBox(season),conferenceMap(season)]);
+  const conf=confMeta.map;
   const box=box0.map(r=>({...r,conference:conf.get(key(r.team))||null}));
   const normalized=normalizeFbisCbbGameTeamRows(box,season);
   const targets=benchmark.filter(r=>Number(r.season)===season&&r.kenpom).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -77,7 +92,7 @@ for(const season of seasons){
         awayRating:away?{games:away.games,sos:away.sos,nonConferenceSos:away.nonConferenceSos,conference:away.conference,conferenceStrength:away.conferenceStrength,reliability:away.reliability}:null});
     }
   }
-  coverage.push({season,boxRows:normalized.length,conferenceTeams:conf.size,benchmarkRows:targets.length,projected});
+  coverage.push({season,boxRows:normalized.length,conferenceTeams:conf.size,conferenceMetadataAvailable:confMeta.available,conferenceMetadataError:confMeta.error,benchmarkRows:targets.length,projected});
   console.log("season",season,"projected",projected,"of",targets.length);
 }
 
