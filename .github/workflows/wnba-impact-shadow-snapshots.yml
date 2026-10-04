@@ -2,6 +2,14 @@ name: WNBA impact shadow snapshots
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/wnba-impact-shadow.js"
+      - "functions/lib/wnbaPlayerImpactShadow.js"
+      - "functions/lib/slateEngine.js"
+      - "migrations/0049_wnba_player_impact.sql"
+      - ".github/workflows/wnba-impact-shadow-snapshots.yml"
   schedule:
     - cron: "25 14,19,23 * * *"
 
