@@ -13,6 +13,7 @@ import {
   syncWagerFeed,
   syncBetTrackerToD1,
   syncSettledBetsToTracker,
+  syncPlayerPropLearningToSheet,
 } from "../services/sports-projection-orchestrator/orchestrator.mjs";
 
 let jwksCache = { at: 0, keys: [] };
@@ -207,6 +208,9 @@ async function handleFetch(request, env) {
     }
     if (request.method === "POST" && url.pathname === "/api/sync-settled-bets-sheet") {
       return json(200, { auth: auth.type, ...(await syncSettledBetsToTracker()) });
+    }
+    if (request.method === "POST" && url.pathname === "/api/sync-player-prop-learning-sheet") {
+      return json(200, { auth: auth.type, ...(await syncPlayerPropLearningToSheet()) });
     }
     if (request.method === "POST" && url.pathname === "/api/run-snapshot") {
       const payload = await requestBody(request);
