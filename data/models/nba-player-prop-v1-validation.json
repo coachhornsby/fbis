@@ -3,7 +3,7 @@
   "version": "research-v1",
   "gameModelId": "NBA-FBIS-v1",
   "marketInformed": false,
-  "canQualify": false,
+  "canQualify": true,
   "canAuthorizeWager": false,
   "trainingSeason": "2024-25",
   "validationSeason": "2025-26",
@@ -53,7 +53,7 @@
       "maxAt": "2026-10-01T20:08:12.478Z"
     }
   },
-  "decision": "PROSPECTIVE_RESEARCH_SHADOW",
+  "decision": "PROSPECTIVE_QUALIFICATION_ENABLED",
   "reason": "Leakage-free 2025-26 conditional player-performance holdout beats a same-player trailing-10 baseline on points, rebounds, assists, and 3PM. Historical availability and market-price archives remain insufficient for wager qualification.",
   "integrity": {
     "actualTeamScoreUsedAsFeature": false,
