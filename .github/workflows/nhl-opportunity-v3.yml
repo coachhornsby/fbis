@@ -1,0 +1,83 @@
+name: NHL opportunity v3 validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nhlPlayerTrackingV3.js"
+      - "functions/lib/nhlProV2.js"
+      - "functions/lib/slateEngine.js"
+      - "scripts/nhl-opportunity-v3-backtest.mjs"
+      - "test/nhl-player-tracking-v3.test.js"
+      - ".github/workflows/nhl-opportunity-v3.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nhl-opportunity-v3-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: |
+          node --check functions/lib/nhlPlayerTrackingV3.js
+          node --check scripts/nhl-opportunity-v3-backtest.mjs
+          node --test test/nhl-player-tracking-v3.test.js
+          node --test test/nhl-player-pro-v2.test.js
+          node --test test/nhl-pro-v2.test.js
+
+  historical:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+      - name: Download SportsDataverse PIT opportunity datasets
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/nhl-opportunity
+          for y in 2025 2026; do
+            curl -fL --retry 4 --retry-delay 2               "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_skater_boxscores/skater_box_${y}.csv"               -o "artifacts/nhl-opportunity/skater_box_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2               "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_shifts/shifts_${y}.csv"               -o "artifacts/nhl-opportunity/shifts_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2               "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_scratches/scratches_${y}.csv"               -o "artifacts/nhl-opportunity/scratches_${y}.csv"
+          done
+      - name: Run walk-forward opportunity test
+        run: |
+          node scripts/nhl-opportunity-v3-backtest.mjs             artifacts/nhl-opportunity             artifacts/nhl-opportunity-v3-validation.json             2025,2026 | tee artifacts/nhl-opportunity-v3-validation.log
+          jq -e '.integrity.weightSelectedOnTrainOnly == true and .integrity.testYearUntouchedForSelection == true' artifacts/nhl-opportunity-v3-validation.json >/dev/null
+          jq -e '.promotion.edgeHistoricalEligible == false' artifacts/nhl-opportunity-v3-validation.json >/dev/null
+      - name: Summary
+        run: |
+          R=artifacts/nhl-opportunity-v3-validation.json
+          {
+            echo "## NHL opportunity v3"
+            jq -r '"- props train MAE gain: \(.playerProps.train.maeGain)"' "$R"
+            jq -r '"- props OOS MAE gain: \(.playerProps.test.maeGain)"' "$R"
+            jq -r '"- game OOS margin gain: \(.gameProjection.test.marginGain)"' "$R"
+            jq -r '"- game OOS total gain: \(.gameProjection.test.totalGain)"' "$R"
+            jq -r '"- game OOS winner gain: \(.gameProjection.test.winnerGain)"' "$R"
+            jq -r '"- player opportunity eligible: \(.promotion.playerOpportunityHistoricalEligible)"' "$R"
+            jq -r '"- game opportunity eligible: \(.promotion.gameOpportunityHistoricalEligible)"' "$R"
+            jq -r '"- EDGE remains prospective-only: \(.promotion.edgeHistoricalEligible == false)"' "$R"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nhl-opportunity-v3-${{ github.run_id }}
+          path: |
+            artifacts/nhl-opportunity-v3-validation.json
+            artifacts/nhl-opportunity-v3-validation.log
+          retention-days: 90
