@@ -136,7 +136,7 @@ jobs:
             echo
             echo "### Reconstruction QA"
             for f in artifacts/parts/cbb-possession-history-20*.json; do
-              jq -r '"- "+(.season|tostring)+": games="+(.counts.games|tostring)+", lineup reliable="+((100*.qa.lineupReliableRate)|tostring)+"%, lineup coverage="+((100*.qa.meanLineupCoverage)|tostring)+"%, sub-deviation games="+(.qa.gamesWithSubDeviation|tostring)' "$f"
+              jq -r '"- "+(.season|tostring)+": games="+(.counts.games|tostring)+", lineup reliable="+((100*.qa.lineupReliableRate)|tostring)+"%, validated lineup coverage="+((100*.qa.meanValidatedLineupCoverage)|tostring)+"%, sub-deviation diagnostic games="+(.qa.gamesWithSubDeviation|tostring)' "$f"
             done
             echo
             echo "### Walk-forward"
