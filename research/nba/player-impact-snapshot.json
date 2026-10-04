@@ -1,0 +1,38 @@
+{
+  "snapshotId": "nba-player-impact-v1-research-2026-10-04",
+  "sourceRunId": 37235449669,
+  "sourceArtifactId": 11315940105,
+  "sourceArtifactSha256": "450f5af8a4acbf8e5b81c8d4495dd3c3e964980fae9adce0ea789f7c3b4c4dfc",
+  "games": 2721,
+  "lineupStints": 58810,
+  "walkforwardRows": 221364,
+  "decision": "RETAIN_RESEARCH",
+  "markets": {
+    "points": {
+      "n": 55341,
+      "baselineMae": 4.645732820151503,
+      "impactMae": 4.648564355541184
+    },
+    "rebounds": {
+      "n": 55341,
+      "baselineMae": 1.9158797275076709,
+      "impactMae": 1.9160839160839491
+    },
+    "assists": {
+      "n": 55341,
+      "baselineMae": 1.349411828481586,
+      "impactMae": 1.349538316980161
+    },
+    "three_pointers_made": {
+      "n": 55341,
+      "baselineMae": 0.8917457219782362,
+      "impactMae": 0.892004119911053
+    }
+  },
+  "directImpactProjectionPromoted": false,
+  "roleRedistributionStatus": "prospective-shadow-only",
+  "r2": {
+    "bucket": "fbis-archive",
+    "prefix": "research/nba/player-impact/v1/run-37235449669"
+  }
+}
