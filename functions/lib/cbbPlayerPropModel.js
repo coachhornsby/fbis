@@ -11,6 +11,7 @@
  * PrizePicks/sportsbook lines are never model inputs.
  */
 import { playersForCbbGame } from "./cbbPlayerFeed.js";
+import { projectCbbPlayerPropV2, CBB_PLAYER_PROP_MODEL_V2_ID, CBB_PLAYER_PROP_PROMOTED_MARKETS } from "./cbbPlayerValidated.js";
 
 export const CBB_PLAYER_PROP_MODEL_ID = "CBB-PLAYER-PROP-v1";
 export const CBB_PLAYER_PROP_MARKETS = Object.freeze([
@@ -155,20 +156,25 @@ export function projectCbbPlayerProps(game = {}, players = [], { side = null } =
     if (ast != null) ast *= paceFactor * factors.assists * Math.sqrt(teamScoringFactor);
     if (thr != null) thr *= paceFactor * factors.threes * Math.sqrt(teamScoringFactor);
 
-    if (pts != null) rows.push(row(p, "points", pts, sigma(p, "points", pts, 2.6, 0.30), q));
-    if (reb != null) rows.push(row(p, "rebounds", reb, sigma(p, "rebounds", reb, 1.7, 0.34), q));
-    if (ast != null) rows.push(row(p, "assists", ast, sigma(p, "assists", ast, 1.25, 0.38), q));
-    if (thr != null) rows.push(row(p, "three_pointers_made", thr, sigma(p, "threesMade", thr, 0.85, 0.45), q));
-
-    if (pts != null && reb != null && ast != null) {
-      const pra = pts + reb + ast;
-      const sPts = sigma(p, "points", pts, 2.6, 0.30);
-      const sReb = sigma(p, "rebounds", reb, 1.7, 0.34);
-      const sAst = sigma(p, "assists", ast, 1.25, 0.38);
-      // Positive same-player stat covariance makes simple RSS too optimistic.
-      const praSigma = Math.sqrt(sPts ** 2 + sReb ** 2 + sAst ** 2 + 0.30 * (sPts*sReb + sPts*sAst + sReb*sAst));
-      rows.push(row(p, "points_rebounds_assists", pra, praSigma, q));
+    const v2Context={possessions:poss,teamScore:teamPts??72,home:side==="home"};
+    for(const market of CBB_PLAYER_PROP_PROMOTED_MARKETS){
+      const v2=projectCbbPlayerPropV2(p,market,v2Context);
+      if(!v2.ok)continue;
+      rows.push(row(p,market,v2.projection,v2.sigma,q,{
+        source:CBB_PLAYER_PROP_MODEL_V2_ID,
+        modelVersion:"v2.0.0",
+        baselineProjection:v2.baseline,
+        residualCorrection:v2.correction,
+        validationStatus:v2.validationStatus,
+        validatedPredictive:true,
+        canQualify:false,
+      }));
     }
+    // 3PM failed the v2 MAE promotion gate. Retain v1 as research-only.
+    if (thr != null) rows.push(row(p, "three_pointers_made", thr, sigma(p, "threesMade", thr, 0.85, 0.45), q,{
+      validationStatus:"HOLD_FAILED_V2_MAE_GATE",
+      validatedPredictive:false,
+    }));
   }
 
   return {
@@ -198,7 +204,7 @@ export function attachCbbPlayerProps(games = [], context = {}) {
     return {
       ...game,
       cbbPlayerProps: {
-        modelId: CBB_PLAYER_PROP_MODEL_ID,
+        modelId: CBB_PLAYER_PROP_MODEL_V2_ID,
         ok: rows.length > 0,
         independent: true,
         marketInformed: false,
@@ -208,7 +214,7 @@ export function attachCbbPlayerProps(games = [], context = {}) {
       playerProjectionStatus: {
         sport: "cbb",
         state: rows.length ? "ACTIVE_RESEARCH" : "NO_MODELABLE_PLAYER_PROPS",
-        model: CBB_PLAYER_PROP_MODEL_ID,
+        model: CBB_PLAYER_PROP_MODEL_V2_ID,
         independent: true,
         marketInformed: false,
         canQualify: false,

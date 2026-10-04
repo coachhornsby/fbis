@@ -1,0 +1,76 @@
+name: CBB player prop settlement
+
+on:
+  schedule:
+    - cron: "25 13 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/cbb-player-prop-signals.js"
+      - "functions/lib/cbbPlayerPropMoney.js"
+      - "migrations/0040_cbb_player_prop_signals.sql"
+      - ".github/workflows/cbb-player-prop-settlement.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cbb-player-prop-settlement
+  cancel-in-progress: true
+
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Require secret
+        run: test -n "${HARVEST_SECRET:-}"
+      - name: Wait for production SHA after push
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          expected="$(echo "${GITHUB_SHA}" | tr 'A-F' 'a-f')"
+          for i in $(seq 1 50); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)-$i" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null | tr 'A-F' 'a-f')"
+            if [ "$code" = "200" ] && [ "$live" = "$expected" ]; then
+              echo "production SHA ready: $live"
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
+      - name: Settle previous two CT dates
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          for days in 1 2; do
+            day="$(TZ=America/Chicago date -d "$days day ago" +%F)"
+            body="artifacts/settle-$day.json"
+            code="$(curl -sS --max-time 90 -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               --data-binary "{"mode":"settle","date":"$day"}"               -o "$body" -w "%{http_code}"               "$BASE/api/cbb-player-prop-signals")"
+            cat "$body"
+            test "$code" = "200"
+            jq -e '.ok==true' "$body" >/dev/null
+          done
+      - name: Read prospective learning summary
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 45 "$BASE/api/cbb-player-prop-signals?limit=50&_t=$(date +%s)" > artifacts/summary.json
+          jq -e '.ok==true' artifacts/summary.json >/dev/null
+          {
+            echo "## CBB player prop prospective learning"
+            echo "- Recent signals: $(jq -r '.count' artifacts/summary.json)"
+            echo "- Settled cohorts:"
+            jq -r '.summary[]? | "  - \(.market) \(.edge_band): n=\(.n), W=\(.wins), L=\(.losses), hitRate=\((.hitRate//0)*100|round/100)%, avg line CLV=\(.avg_line_clv // "n/a")"' artifacts/summary.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cbb-player-prop-settlement-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 30

@@ -6,11 +6,17 @@ on:
     paths:
       - "functions/lib/cbbPlayerFeed.js"
       - "functions/lib/cbbPlayerGameModel.js"
+      - "functions/lib/cbbPlayerValidatedModels.js"
+      - "functions/lib/cbbPlayerValidated.js"
+      - "functions/lib/cbbPlayerPropMoney.js"
       - "functions/lib/cbbPlayerPropModel.js"
       - "functions/lib/slateEngine.js"
       - "scripts/cbb-player-history-v1.mjs"
       - "scripts/cbb-player-game-fit-v1.mjs"
       - "scripts/cbb-player-prop-fit-v2.mjs"
+      - "functions/api/cbb-player-prop-signals.js"
+      - "functions/api/prizepicks-props.js"
+      - "migrations/0040_cbb_player_prop_signals.sql"
       - "test/cbb-fbis-native-v1.test.js"
       - ".github/workflows/cbb-player-system-v2.yml"
   workflow_dispatch:
@@ -37,6 +43,11 @@ jobs:
       - name: Unit tests
         run: |
           node --check functions/lib/cbbPlayerGameModel.js
+          node --check functions/lib/cbbPlayerValidatedModels.js
+          node --check functions/lib/cbbPlayerValidated.js
+          node --check functions/lib/cbbPlayerPropMoney.js
+          node --check functions/api/cbb-player-prop-signals.js
+          node --check functions/api/prizepicks-props.js
           node --check scripts/cbb-player-history-v1.mjs
           node --check scripts/cbb-player-game-fit-v1.mjs
           node --check scripts/cbb-player-prop-fit-v2.mjs
