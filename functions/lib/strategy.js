@@ -33,6 +33,24 @@ export const PROVENANCE = {
   CONFLICTING: "conflicting",
 };
 
+export const CBB_MONEY_STRATEGY_V1 = {
+  id: "CBB-MONEY-v1",
+  name: "CBB money-first prospective selector",
+  version: 1,
+  status: "PROSPECTIVE_CHALLENGER",
+  sport: "cbb",
+  rules: {
+    sideDislocationMin: 10,
+    sideModel: "FBIS-CBB-v2-MARGIN",
+    selectorModel: "CBB-MONEY-SELECTOR-v1",
+    requireTrueClv: true,
+    requirePositiveProspectiveRoi: true,
+    automaticWagerAuthorization: false,
+  },
+  notes:
+    "Separate prospective cohort. Threshold was identified after historical subset inspection; 2026-27 forward tracking is required. Entry and close must be captured from real market snapshots before promotion.",
+};
+
 export const STRATEGY_HC_V1 = {
   id: "FBIS-HC-v1",
   name: "High-conviction qualified",
