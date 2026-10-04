@@ -15,6 +15,10 @@ test("native CBB ratings are independent and include SOS/conference strength",()
  const c=buildFbisCbbRatings(rows,{asOf:"2025-11-10T00:00:00Z",season:2025,iterations:8});
  assert.equal(c.ok,true);
  assert.equal(c.methodology.kenpomInput,false);
+ assert.equal(c.methodology.dynamicNationalEnvironment,true);
+ assert.equal(c.hcaModel.independent,true);
+ assert.equal(c.hcaModel.kenpomInput,false);
+ assert.equal(c.hcaModel.marketInformed,false);
  assert.equal(c.methodology.torvikInput,false);
  assert.equal(c.methodology.marketInformed,false);
  const a=c.byTeamId.A,b=c.byTeamId.B;
@@ -27,6 +31,9 @@ test("native CBB ratings are independent and include SOS/conference strength",()
  assert.ok(Number.isFinite(a.sosD));
  assert.ok(Number.isFinite(a.nonConferenceSos));
  assert.ok(Number.isFinite(a.conferenceStrength));
+ assert.ok(Number.isFinite(a.pacePressure));
+ assert.ok(Number.isFinite(a.paceControl));
+ assert.ok(Number.isFinite(a.hca));
  assert.ok(c.conferences.X);
  assert.ok(c.conferences.Y);
 });
@@ -42,5 +49,7 @@ test("projection exposes independent score and schedule decomposition",()=>{
  assert.ok(Number.isFinite(p.total));
  assert.ok(Number.isFinite(p.margin));
  assert.ok(Number.isFinite(p.possessions));
+ assert.ok(Number.isFinite(p.basePossessions));
+ assert.ok(Number.isFinite(p.paceAdjustment));
  assert.ok(p.schedule.home);
 });
