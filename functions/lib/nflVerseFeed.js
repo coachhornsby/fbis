@@ -18,7 +18,7 @@ const PRIOR_GAMES = 8;
 const PLAYER_PRIOR_GAMES = 4;
 const RELEASE = "https://github.com/nflverse/nflverse-data/releases/download";
 const SNAPSHOT_KEY = "nfl/features/latest.json";
-const SNAPSHOT_SCHEMA = "nflverse-features-v2";
+const SNAPSHOT_SCHEMA = "nflverse-features-v3";
 
 const ABBR = {
   JAC:"JAX",JAX:"JAX",LA:"LAR",LAR:"LAR",LV:"LV",OAK:"LV",
@@ -376,7 +376,7 @@ async function readArchivedSnapshot(env={}, season, now){
 }
 
 export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now(),forceNetwork=false}={}){
-  const season=seasonYear(new Date(now)),cacheKey=`nflverse-features-v2-${season}`,cached=await readCache(cacheKey,env.caches,TTL_MS);if(cached?.meta)return cached;
+  const season=seasonYear(new Date(now)),cacheKey=`nflverse-features-v3-${season}`,cached=await readCache(cacheKey,env.caches,TTL_MS);if(cached?.meta)return cached;
   if(!forceNetwork){
     const archived=await readArchivedSnapshot(env,season,now);
     if(archived){
@@ -421,7 +421,7 @@ export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now()
       }
     }
     const currentGames=Math.max(0,...Object.values(current.offense).map(r=>r.games||0)),playersByTeam=blendPlayerRows(prior.playersByTeam||{},current.playersByTeam||{});
-    const payload={season,byTeam,playersByTeam,leaguePositionDefense,meta:{source:"nflverse+ngs",snapshotSchema:"nflverse-features-v3",builtAt:new Date(now).toISOString(),runtimeSource:"offline-builder",currentSeason:season,priorSeason:season-1,teams:Object.keys(byTeam).length,currentGames,currentRows:current.rows,priorRows:prior.rows,currentStatus:{team:current.teamStatus,player:current.playerStatus,snaps:current.snapStatus},priorStatus:{team:prior.teamStatus,player:prior.playerStatus,snaps:prior.snapStatus},ngsStatus:{passing:ngsPassing.status,rushing:ngsRushing.status,receiving:ngsReceiving.status},priorWeightGames:PRIOR_GAMES,playerPriorWeightGames:PLAYER_PRIOR_GAMES,recentGameWeights:[0.35,0.25,0.18,0.13,0.09],projectionBlend:{recent5:0.65,currentSeason:0.25,priorSeason:0.10},marketInformed:false,featureFamilies:["team_epa","qb_epa_cpoe","nextgen_passing","nextgen_rushing","nextgen_receiving","snap_share","last5_player_form","position_defense_allowed"],limitation:"Depth-chart and in-week participation remain separate availability inputs; runtime never uses sportsbook lines as features."}};
+    const payload={season,byTeam,playersByTeam,leaguePositionDefense,meta:{source:"nflverse+ngs",snapshotSchema:SNAPSHOT_SCHEMA,builtAt:new Date(now).toISOString(),runtimeSource:"offline-builder",currentSeason:season,priorSeason:season-1,teams:Object.keys(byTeam).length,currentGames,currentRows:current.rows,priorRows:prior.rows,currentStatus:{team:current.teamStatus,player:current.playerStatus,snaps:current.snapStatus},priorStatus:{team:prior.teamStatus,player:prior.playerStatus,snaps:prior.snapStatus},ngsStatus:{passing:ngsPassing.status,rushing:ngsRushing.status,receiving:ngsReceiving.status},priorWeightGames:PRIOR_GAMES,playerPriorWeightGames:PLAYER_PRIOR_GAMES,recentGameWeights:[0.35,0.25,0.18,0.13,0.09],projectionBlend:{recent5:0.65,currentSeason:0.25,priorSeason:0.10},marketInformed:false,featureFamilies:["team_epa","qb_epa_cpoe","nextgen_passing","nextgen_rushing","nextgen_receiving","snap_share","last5_player_form","position_defense_allowed"],limitation:"Depth-chart and in-week participation remain separate availability inputs; runtime never uses sportsbook lines as features."}};
     await writeCache(cacheKey,payload,env.caches,TTL_MS);return payload;
   }catch(err){
     const payload={season,byTeam:{},playersByTeam:{},meta:{source:"nflverse+ngs",teams:0,error:String(err?.message||err),marketInformed:false}};
