@@ -42,7 +42,7 @@ jobs:
           if [ "$EVENT_NAME" = "workflow_run" ]; then
             if [ "$WORKFLOW_CONCLUSION" = "success" ] && [ "$WORKFLOW_BRANCH" = "main" ]; then
               run=true
-              mode=bootstrap
+              mode=incremental
             fi
           elif [ "$EVENT_NAME" = "schedule" ]; then
             hour="$(TZ=America/Chicago date +%H)"
