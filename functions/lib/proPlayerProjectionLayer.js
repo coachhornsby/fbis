@@ -334,6 +334,7 @@ function nflRowsForSide(game, side, playerFeed = {}) {
         positionDefense:positionDefense.available,
         recent5:recentGames>=3,
         targetRole:true,
+        targetRoleName:targetRole,
         trackingGames:Number(p.trackingGames||0),
         snapGames:Number(p.snapGames||0),
       };
