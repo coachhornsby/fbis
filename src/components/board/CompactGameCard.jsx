@@ -120,7 +120,7 @@ export default function CompactGameCard({ game, onOpen }) {
   const proj = vm.projection || {};
   const market = vm.market || {};
   const action = vm.action || {};
-  const isNfl = String(vm.sport || game?.sport || "").toLowerCase() === "nfl";
+  const sportId = String(vm.sport || game?.sport || "").toLowerCase();\n  const isNfl = sportId === "nfl";\n  const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const edge = bestEdge(vm);
   const matchup = isNfl ? game?.nflGameMatchup : null;
   const genericFactors = !isNfl && Array.isArray(game?.matchupFactors) ? game.matchupFactors.slice(0, 5) : [];
@@ -228,7 +228,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
       <div className="cgc-market-strip" aria-label="FBIS and market comparison">
         <div className="cgc-market-item">
-          <span>MARKET SPREAD</span>
+          <span>{marketSideLabel}</span>
           <strong>{market.spreadLabel || "—"}</strong>
         </div>
         <div className="cgc-market-divider" aria-hidden="true" />
