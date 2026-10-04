@@ -1777,3 +1777,29 @@
  .fbis-shell-main.route-board .cgc-matchup-pills{grid-template-columns:repeat(3,minmax(0,1fr))}
  .fbis-shell-main.route-board .cgc-matchup-adjustment{justify-content:flex-start;flex-wrap:wrap}
 }
+
+
+/* Expanded NFL page: concise decision hierarchy. Compact cards intentionally unchanged. */
+.fbis-shell-main.route-board .db-game-page .matchup-factors-nfl{padding:14px 15px}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-nfl .matchup-factors-head h2{font-size:16px}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-nfl .matchup-factors-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-nfl .matchup-factor{padding:9px;min-height:70px;justify-content:center;text-align:center}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-nfl .matchup-factor-label{font-size:8px}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-nfl .matchup-factor-edge{font-size:13px}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-nfl .matchup-factor-value{font-size:10px;color:#9eb2ca}
+.fbis-shell-main.route-board .db-game-page .matchup-factors-nfl .matchup-factor-source{display:none}
+.fbis-shell-main.route-board .matchup-factors-summary{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px;padding:8px 10px;border:1px solid rgba(65,142,205,.24);border-radius:9px;background:rgba(2,15,29,.62);color:#8299b3;font-size:8px;font-weight:850}
+.fbis-shell-main.route-board .matchup-factors-summary span{display:flex;align-items:center;gap:5px}
+.fbis-shell-main.route-board .matchup-factors-summary strong{color:#f3f8ff;font-size:11px}
+.fbis-shell-main.route-board .matchup-factors-summary i{font-style:normal;color:#4e7699}
+.fbis-shell-main.route-board .db-full-analysis-collapsed{padding:0;overflow:hidden}
+.fbis-shell-main.route-board .db-full-analysis-collapsed>summary{cursor:pointer;list-style:none;padding:13px 15px;color:#8fa8c3;font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.fbis-shell-main.route-board .db-full-analysis-collapsed>summary::-webkit-details-marker{display:none}
+.fbis-shell-main.route-board .db-full-analysis-collapsed>summary::after{content:"+";float:right;color:#6fc9ff;font-size:15px}
+.fbis-shell-main.route-board .db-full-analysis-collapsed[open]>summary::after{content:"−"}
+.fbis-shell-main.route-board .db-full-analysis-body{padding:0 12px 12px}
+@media(max-width:720px){
+ .fbis-shell-main.route-board .db-game-page .matchup-factors-nfl .matchup-factors-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .fbis-shell-main.route-board .db-game-page .matchup-factors-nfl .matchup-factor:last-child{grid-column:1/-1}
+ .fbis-shell-main.route-board .matchup-factors-summary{justify-content:flex-start;flex-wrap:wrap}
+}
