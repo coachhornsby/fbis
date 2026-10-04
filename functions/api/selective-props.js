@@ -21,7 +21,7 @@ function todayCt() {
     timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
   }).format(new Date());
 }
-function latestByCandidate(rows = []) {
+export function latestByCandidate(rows = []) {
   const seen = new Set();
   const out = [];
   for (const row of rows) {
@@ -30,6 +30,7 @@ function latestByCandidate(rows = []) {
       String(row.player_name || "").toLowerCase(),
       String(row.canonical_market || row.stat_type || "").toLowerCase(),
       String(row.duration || "full").toLowerCase(),
+      String(row.odds_tier || "standard").toLowerCase(),
     ].join("|");
     if (seen.has(key)) continue;
     seen.add(key);
@@ -47,6 +48,26 @@ function normalizedRows(rows = []) {
     fbisProjection: row.fbis_projection,
     fbisSigma: row.fbis_sigma,
   }));
+}
+export function groupKey(row = {}) {
+  return [
+    String(row.sport || "").toLowerCase(),
+    String(row.player_name || row.playerName || "").toLowerCase(),
+    String(row.canonical_market || row.stat_type || row.market || "").toLowerCase(),
+    String(row.duration || "full").toLowerCase(),
+  ].join("|");
+}
+function strongestByGroup(rows = []) {
+  const map = new Map();
+  for (const row of rows) {
+    const key = groupKey(row);
+    const prev = map.get(key);
+    if (!prev) { map.set(key, row); continue; }
+    const a = Number(row.selectionScore ?? -Infinity);
+    const b = Number(prev.selectionScore ?? -Infinity);
+    if (a > b) map.set(key, row);
+  }
+  return map;
 }
 function rankAllProjected(rows = []) {
   return rows.map((row) => {
@@ -87,7 +108,6 @@ export async function onRequestGet(context) {
     "substr(start_time,1,10)=?",
     "fbis_projection IS NOT NULL",
     "line IS NOT NULL",
-    "LOWER(COALESCE(odds_tier,'standard'))='standard'",
   ];
   const bind = [date];
   if (sport && sport !== "all") { where.push("LOWER(sport)=?"); bind.push(sport); }
@@ -113,24 +133,28 @@ export async function onRequestGet(context) {
       minStars: 1,
       concentrationLimits: false,
       lineRole: "comparison-only",
-      note: "Every current prop with a valid FBIS projection is shown for the selected sport, sorted by stars then edge strength.",
+      tiers: ["standard","goblin","demon"],
+      note: "Every current Standard, Goblin and Demon line with a valid FBIS projection is shown for the selected sport, sorted by stars then edge strength.",
     };
   } else {
-    const ranked = rankSelectiveProps(candidates, {
-      maxRows: 25,
-      minStars: 1,
-      maxPerEvent: 25,
-      maxPerPlayer: 25,
-    });
-    selected = ranked.rows.slice(0, 25);
+    const allRanked = rankAllProjected(candidates);
+    const strongest = [...strongestByGroup(allRanked).values()]
+      .sort((a, b) =>
+        (b.confidenceStars - a.confidenceStars) ||
+        ((b.standardizedEdge ?? b.relativeEdge ?? 0) - (a.standardizedEdge ?? a.relativeEdge ?? 0)) ||
+        (b.selectionScore - a.selectionScore)
+      )
+      .slice(0, 25);
+    const selectedKeys = new Set(strongest.map(groupKey));
+    selected = allRanked.filter((row) => selectedKeys.has(groupKey(row)));
     policy = {
-      ...ranked.policy,
       view: "TOP_25",
       cap: 25,
       minStars: 1,
       concentrationLimits: false,
       lineRole: "comparison-only",
-      note: "Top 25 current FBIS-vs-PrizePicks projected edges across all sports, sorted by stars then edge strength.",
+      tiers: ["standard","goblin","demon"],
+      note: "Top 25 player/market groups ranked by their strongest current PrizePicks tier edge; all available Standard, Goblin and Demon variants are returned for each selected group.",
     };
   }
 
