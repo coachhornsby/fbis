@@ -1,3 +1,4 @@
+const domains={LG:"lgtwins.com",HAN:"hanwhaeagles.co.kr",SSG:"ssglanders.com",SAM:"samsunglions.com",KT:"ktwiz.co.kr",LOT:"giantsclub.com",DOO:"doosanbears.com",NC:"ncdinos.com",KIA:"tigers.co.kr",KIW:"heroesbaseball.co.kr"};
 const teams = [
 ["LG","LG Twins","LG Twins"],
 ["HAN","Hanwha Eagles","Hanwha Eagles"],
@@ -11,6 +12,6 @@ const teams = [
 ["KIW","Kiwoom Heroes","Kiwoom Heroes"]
 ].map(([abbr,displayName,wikiTitle])=>({
   id:`kbo-${abbr.toLowerCase()}`,abbr,displayName,school:displayName,nickname:displayName.split(" ").slice(-1)[0],
-  logo:"",wikiTitle,sources:{heritage:{names:[displayName]}}
+  logo:`https://www.google.com/s2/favicons?domain=${domains[abbr]}&sz=256`,wikiTitle,sources:{heritage:{names:[displayName]}}
 }));
 export default teams;
