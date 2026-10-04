@@ -6,12 +6,14 @@ on:
     paths:
       - "functions/lib/cbbFbisRatings.js"
       - "functions/lib/cbbFbisHca.js"
+      - "functions/lib/cbbConferenceMembership.js"
       - "functions/lib/collegeApply.js"
       - "functions/lib/collegeModels.js"
       - "functions/api/cbb-walkforward-source.js"
       - "scripts/cbb-fbis-native-v1-walkforward.mjs"
       - "scripts/cbb-fbis-native-v1-aggregate.mjs"
       - "scripts/cbb-fbis-v2-fit.mjs"
+      - "scripts/cbb-hca-rankings-v1.mjs"
       - "test/cbb-fbis-native-v1.test.js"
       - ".github/workflows/cbb-fbis-native-v1.yml"
   workflow_dispatch:
@@ -124,6 +126,11 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/cbb-fbis-v2-fit.mjs artifacts/cbb-fbis-native-v2-predictions.json | tee artifacts/cbb-fbis-v2-fit.log
+      - name: Generate current FBIS HCA rankings
+        run: |
+          set -euo pipefail
+          node scripts/cbb-hca-rankings-v1.mjs artifacts/parts/cbb-fbis-native-v1-predictions-2025.json | tee artifacts/cbb-hca-rankings-v1.log
+          jq -e '.teams > 300 and .venueCoveragePct >= 85' artifacts/cbb-hca-rankings-v1.json >/dev/null
       - name: Summarize
         run: |
           F=artifacts/cbb-fbis-native-v1-walkforward.json
@@ -138,6 +145,7 @@ jobs:
             jq -r '"- residual total layer enabled: \(.total.enabled), validation gain=\(.total.evaluation.validation.gain), 2025 gain=\(.total.evaluation.confirmation.gain)"' "$FIT"
             jq -r '"- dedicated margin layer enabled: \(.margin.enabled), validation gain=\(.margin.evaluation.validation.gain), 2025 gain=\(.margin.evaluation.confirmation.gain)"' "$FIT"
             jq -r '"- market confidence layer enabled: \(.confidence.enabled), validation ROI=\(.confidence.evaluation.validation.roi)%, 2025 ROI=\(.confidence.evaluation.confirmation.roi)%"' "$FIT"
+            jq -r '"- HCA rankings: teams=\(.teams), venue coverage=\(.venueCoveragePct)%, altitude coverage=\(.altitudeCoveragePct)%"' artifacts/cbb-hca-rankings-v1.json
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
@@ -148,5 +156,8 @@ jobs:
             artifacts/cbb-fbis-native-v1-aggregate.log
             artifacts/cbb-fbis-v2-fit.json
             artifacts/cbb-fbis-v2-fit.log
+            artifacts/cbb-hca-rankings-v1.json
+            artifacts/cbb-hca-rankings-v1.csv
+            artifacts/cbb-hca-rankings-v1.log
           if-no-files-found: error
           retention-days: 90
