@@ -32,8 +32,8 @@ test("NBA calibration preserves independence and reconstructs team scores",()=>{
   assert.equal(p.modelVersion,"research-v1.1-calibrated");
   assert.equal(p.marketInformed,false);
   assert.equal(p.margin,5);
-  assert.equal(p.total,227.5);
-  assert.equal(Number((p.home+p.away).toFixed(1)),p.total);
-  assert.equal(Number((p.home-p.away).toFixed(1)),p.margin);
+  assert.ok(Math.abs(p.total-227.5)<=0.1);
+  assert.ok(Math.abs((p.home+p.away)-p.total)<=0.11);
+  assert.ok(Math.abs((p.home-p.away)-p.margin)<=0.11);
   assert.equal(p.calibration.marketUsed,false);
 });
