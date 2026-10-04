@@ -81,6 +81,29 @@ function gameTime(r){
     minute:"2-digit",
   });
 }
+function PlayerPosition({ name, sport, team }){
+  const [position,setPosition]=useState("");
+  useEffect(()=>{
+    let cancelled=false;
+    const player=String(name||"").trim();
+    const s=String(sport||"").trim().toLowerCase();
+    if(!player||!s||s==="tennis"){
+      setPosition("");
+      return ()=>{cancelled=true};
+    }
+    const q=new URLSearchParams({name:player,sport:s,team:String(team||"")});
+    fetch("/api/player-meta?"+q.toString(),{credentials:"same-origin"})
+      .then(r=>r.ok?r.json():null)
+      .then(body=>{
+        if(cancelled) return;
+        setPosition(String(body?.position||"").trim());
+      })
+      .catch(()=>{if(!cancelled)setPosition("")});
+    return()=>{cancelled=true};
+  },[name,sport,team]);
+  if(!position) return null;
+  return <span className="pp-player-position"> · {position}</span>;
+}
 function TeamWatermark({ sport, team }){
   const [logo,setLogo]=useState("");
   useEffect(()=>{
@@ -286,7 +309,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
 
               <div className="pp-card-body">
                 <div className="pp-player-title">
-                  <h3>{r.player_name||"Unknown player"}</h3>
+                  <h3>{r.player_name||"Unknown player"}<PlayerPosition name={r.player_name} sport={sport} team={team}/></h3>
                   <p>
                     {team||sport.toUpperCase()}
                     {opponent?<><span> vs </span><b>{opponent}</b></>:null}

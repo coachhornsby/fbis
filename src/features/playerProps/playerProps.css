@@ -1811,3 +1811,13 @@
     font-size:17px !important;
   }
 }
+
+
+.pp-player-position {
+  color: var(--pp-muted);
+  font-size: .62em;
+  font-weight: 850;
+  letter-spacing: .03em;
+  vertical-align: middle;
+  white-space: nowrap;
+}
