@@ -116,7 +116,7 @@ export function aggregatePlayerWeeks(rows=[]){
     const key=team+"|"+id;
     if(!byKey.has(key))byKey.set(key,{id,name:row.player_display_name||row.player_name||row.player_name_short||id,position:String(row.position||row.position_group||"").toUpperCase(),team,appearances:0,values:Object.fromEntries(fields.map(f=>[f,[]])),recentGames:[]});
     const p=byKey.get(key);p.appearances+=1;
-    const game={season:num(row.season)||0,week:num(row.week)||0,opponent:canon(row.opponent_team),stats:{}};
+    const game={season:num(row.season)||0,week:num(row.week)||0,date:row.gameday||row.game_date||row.date||null,opponent:canon(row.opponent_team),stats:{}};
     for(const f of fields){const v=num(row[f])||0;p.values[f].push(v);game.stats[f]=v;}
     game.stats.total_tds=(game.stats.rushing_tds||0)+(game.stats.receiving_tds||0);
     p.recentGames.push(game);
