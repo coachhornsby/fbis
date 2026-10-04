@@ -8,6 +8,14 @@ function json(body,status=200){
     },
   });
 }
+function isRealHeadshot(url){
+  const u=String(url||"").trim();
+  if(!u) return false;
+  // PrizePicks /images/teams/... assets are jersey-number/team tiles, not player headshots.
+  if(/\/images\/teams\//i.test(u)) return false;
+  return /^https?:\/\//i.test(u);
+}
+
 function norm(v){
   return String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
     .toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
@@ -104,7 +112,9 @@ export async function onRequestGet(context){
     const needle=norm(name);
     exact=rows.find(r=>norm(r.player_name)===needle)||null;
   }
-  if(exact) return json({ok:true,found:true,name:exact.player_name,sport:exact.sport,imageUrl:exact.player_headshot_url,source:"PRIZEPICKS_FEED"});
+  if(exact && isRealHeadshot(exact.player_headshot_url)) {
+    return json({ok:true,found:true,name:exact.player_name,sport:exact.sport,imageUrl:exact.player_headshot_url,source:"PRIZEPICKS_FEED"});
+  }
 
   const prizeImage=await prizePicksResearchImage(name,sport).catch(()=>null);
   if(prizeImage) return json({ok:true,found:true,name,sport,imageUrl:prizeImage,source:"PRIZEPICKS_RESEARCH"});
