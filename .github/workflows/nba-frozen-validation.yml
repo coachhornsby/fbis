@@ -6,6 +6,7 @@ on:
       - "functions/lib/nbaModel.js"
       - "functions/lib/nbaPlayerPropModel.js"
       - "scripts/nba-holdout-validate.mjs"
+      - "scripts/nba-player-prop-walkforward.mjs"
       - "research/nba/frozen-snapshot.json"
       - ".github/workflows/nba-frozen-validation.yml"
   workflow_dispatch:
@@ -32,7 +33,7 @@ jobs:
           BUCKET=$(node -p "require('./research/nba/frozen-snapshot.json').r2.bucket")
           PREFIX=$(node -p "require('./research/nba/frozen-snapshot.json').r2.prefix")
           mkdir -p artifacts
-          for f in nba-canonical-manifest.json nba-fbis-v1-rows.jsonl nba-player-prop-rows.jsonl SHA256SUMS; do
+          for f in nba-canonical.jsonl nba-canonical-manifest.json nba-fbis-v1-rows.jsonl SHA256SUMS; do
             npx wrangler r2 object get "${BUCKET}/${PREFIX}/${f}" --file "artifacts/${f}" --remote
           done
 
@@ -41,6 +42,7 @@ jobs:
           set -euo pipefail
           jq -e '.rows == 2721 and .quality.possessions > 0.99 and .quality.playerMinutes > 0.99 and .quality.playerThrees == 1' artifacts/nba-canonical-manifest.json
           test -s artifacts/nba-fbis-v1-rows.jsonl
+          node scripts/nba-player-prop-walkforward.mjs artifacts/nba-canonical.jsonl 2025-10-21
           test -s artifacts/nba-player-prop-rows.jsonl
           node scripts/nba-holdout-validate.mjs
 
