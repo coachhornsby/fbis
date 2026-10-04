@@ -4,6 +4,8 @@ on:
     branches: ["research/cfb-v5-context-engine"]
     paths:
       - ".github/workflows/cfb-fast-research.yml"
+      - "scripts/cfb-conference-power-v3.py"
+      - "scripts/cfb-subset-audit.py"
   workflow_dispatch:
 permissions:
   contents: read
