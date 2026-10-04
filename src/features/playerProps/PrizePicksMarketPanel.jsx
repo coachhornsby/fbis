@@ -29,7 +29,7 @@ function groupLatest(rows=[]){
   }).slice(0,120);
 }
 
-export default function PrizePicksMarketPanel({ sportFilter = "all" }) {
+export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilterChange }) {
   const [rows,setRows]=useState([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
@@ -64,7 +64,7 @@ export default function PrizePicksMarketPanel({ sportFilter = "all" }) {
         <div className="pp-count">{loading?"LOADING":groups.length+" MARKETS"}</div>
       </div>
       <div className="pp-sport-strip" role="group" aria-label="Player prop sport filter">
-        {SPORTS.map(s=><button key={s} className={localSport===s?"active":""} onClick={()=>setLocalSport(s)}>{s.toUpperCase()}</button>)}
+        {SPORTS.map(s=><button key={s} className={localSport===s?"active":""} onClick={()=>{setLocalSport(s);onSportFilterChange?.(s);}}>{s.toUpperCase()}</button>)}
       </div>
       {freshness?.stale?<div className="pp-empty error-text">Today's PrizePicks acquisition has not completed. Stale prior-day props are hidden.</div>:null}
       {error?<div className="pp-empty error-text">{error}</div>:null}
