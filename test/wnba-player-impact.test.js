@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { buildWnbaDynamicSkill, wnbaBoxImpactPrior, fitWnbaRapm, combineWnbaPlayerImpact } from "../functions/lib/wnbaPlayerImpact.js";
 import { reconstructLineupStints, attachStintOutcomes } from "../functions/lib/wnbaLineupModel.js";
 import { buildWnbaRoleRedistribution } from "../functions/lib/wnbaRoleRedistribution.js";
@@ -80,4 +81,27 @@ test("WNBA lineup reconstruction extends through overtime",()=>{
   ];
   const stints=reconstructLineupStints({plays,homeTeamId:"H",awayTeamId:"A",homePlayers:home,awayPlayers:away});
   assert.equal(stints.at(-1).endElapsed,2700);
+});
+
+
+test("WNBA impact workflows never start paid market acquisition",()=>{
+  for(const path of [
+    ".github/workflows/wnba-player-impact-live.yml",
+    ".github/workflows/wnba-impact-shadow-snapshots.yml",
+    ".github/workflows/wnba-impact-shadow-grade.yml"
+  ]){
+    const s=fs.readFileSync(path,"utf8");
+    assert.equal(s.includes("ACTION_APIFY_ACTOR_ID"),false,path);
+    assert.equal(s.includes("/api/action-daily-async"),false,path);
+    assert.equal(s.includes("zen-studio~action"),false,path);
+    assert.equal(s.includes("PRIZEPICKS_APIFY_ACTOR_ID"),false,path);
+    assert.equal(s.includes("/api/prizepicks-collect"),false,path);
+  }
+});
+
+test("WNBA impact challengers cannot qualify before prospective promotion",()=>{
+  const migration=fs.readFileSync("migrations/0049_wnba_player_impact.sql","utf8");
+  assert.match(migration,/wnba_player_prop_impact_shadow/);
+  assert.match(migration,/can_qualify INTEGER NOT NULL DEFAULT 0/);
+  assert.match(migration,/wnba_game_impact_shadow/);
 });
