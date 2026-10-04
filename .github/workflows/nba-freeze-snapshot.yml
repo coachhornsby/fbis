@@ -1,7 +1,7 @@
 name: Freeze NBA canonical snapshot
 on:
   push:
-    branches: ["research/nba-fbis-v1"]
+    branches: ["research/nba-decision-v2"]
     paths:
       - ".github/workflows/nba-freeze-snapshot.yml"
   workflow_dispatch:
