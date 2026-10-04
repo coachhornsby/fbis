@@ -150,3 +150,15 @@ describe("board confidence stars", () => {
     assert.deepEqual(sortByConfidence([three, five, four]).map((g) => g.id), ["five", "four", "three"]);
   });
 });
+
+
+it("uses soccer-specific canonical confidence stars instead of generic research fallback", () => {
+  const g = game("soccer-stars", 10, {
+    sport:"soccer",
+    projectionMaturity:"RESEARCH",
+    soccerConfidence:{stars:5,score:88,pick:"Home FC",side:"HOME"},
+    model:{projAway:0.8,projHome:2.1,projTotal:2.9,projMargin:1.3,projectionKind:"FBIS"},
+    projectionKind:"FBIS",
+  });
+  assert.equal(confidenceStars(g),5);
+});

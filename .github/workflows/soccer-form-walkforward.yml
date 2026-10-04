@@ -1,10 +1,21 @@
 name: Soccer-FBIS walk-forward
+
 on:
   push:
-    branches: ["feat/soccer-fbis-v1-system","main"]
-    paths: ["functions/lib/soccerFbisV1.js","scripts/soccer-form-walkforward.mjs","test/soccer-fbis.test.js",".github/workflows/soccer-form-walkforward.yml"]
+    branches: ["main"]
+  pull_request:
+    paths:
+      - "functions/lib/soccerFbisV1.js"
+      - "src/lib/confidenceStars.js"
+      - "scripts/soccer-form-walkforward.mjs"
+      - "test/soccer-fbis.test.js"
+      - "test/confidence-stars.test.js"
+      - ".github/workflows/soccer-form-walkforward.yml"
   workflow_dispatch:
-permissions: { contents: read }
+
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -12,11 +23,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: "22" }
+        with:
+          node-version: "22"
       - run: node scripts/soccer-form-walkforward.mjs
       - run: |
           jq . artifacts/soccer-form-walkforward-report.json
-          jq -r '"## Soccer-FBIS-v1 walk-forward\n- n: \(.n)\n- margin MAE: \(.marginMae)\n- total MAE: \(.totalMae)\n- 3-way accuracy: \(.threeWayAccuracy)\n- Brier: \(.brier)\n- log loss: \(.logLoss)\n- calibration ECE: \(.calibration.ece)"' artifacts/soccer-form-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
+          jq -r '. as $r | "## Soccer-FBIS-v1 walk-forward\n- n: \($r.n)\n- margin MAE: \($r.marginMae)\n- total MAE: \($r.totalMae)\n- 3-way accuracy: \($r.threeWayAccuracy)\n- Brier: \($r.brier)\n- log loss: \($r.logLoss)\n- calibration ECE: \($r.calibration.ece)\n\n### Confidence stars\n" + ([1,2,3,4,5] | map((. | tostring) as $s | "- " + $s + "★: n=" + (($r.starBuckets[$s].n // 0)|tostring) + ", hit=" + ((($r.starBuckets[$s].hitRate // 0)*100)|tostring) + "%") | join("\n"))' artifacts/soccer-form-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: soccer-form-walkforward-${{ github.run_id }}

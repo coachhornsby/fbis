@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { projectSoccerFromHistory, SOCCER_LEAGUES } from "../functions/lib/soccerFbisV1.js";
+import { projectSoccerFromHistory, soccerConfidencePick, SOCCER_LEAGUES } from "../functions/lib/soccerFbisV1.js";
 
 const EURO=new Set(["eng.1","esp.1","ger.1","ita.1","fra.1"]);
 const ranges=(league)=>EURO.has(league)
@@ -73,6 +73,7 @@ for(const league of SOCCER_LEAGUES){
       const pick=argmax(probs);
       const over25=at>2.5;
       const btts=g.homeScore>0&&g.awayScore>0;
+      const confidence=soccerConfidencePick(g,p);
       rows.push({
         league,id:g.id,start:g.start,homeTeam:g.home.name,awayTeam:g.away.name,
         projHome:p.home,projAway:p.away,pHome:p.pHomeWin,pDraw:p.pDraw,pAway:p.pAwayWin,
@@ -82,6 +83,10 @@ for(const league of SOCCER_LEAGUES){
         marginError:p.margin-am,totalError:p.total-at,
         marginAbs:Math.abs(p.margin-am),totalAbs:Math.abs(p.total-at),
         outcome,outcomeCorrect:pick===outcome,
+        confidenceStars:confidence.stars,
+        confidenceScore:confidence.score,
+        confidenceSide:confidence.side,
+        confidenceCorrect:(confidence.side==="HOME"&&outcome==="H")||(confidence.side==="DRAW"&&outcome==="D")||(confidence.side==="AWAY"&&outcome==="A"),
         brier:brier3(probs,outcome),logLoss:-Math.log(Math.max(1e-12,probs[outcome])),
         over25Brier:binaryBrier(p.totals["2.5"].over,over25),
         bttsBrier:binaryBrier(p.pBttsYes,btts),
@@ -109,6 +114,16 @@ function metrics(r){
     over25Brier:mean(r.map(x=>x.over25Brier)),
     bttsBrier:mean(r.map(x=>x.bttsBrier)),
     calibration:calibration(r),
+    starBuckets:Object.fromEntries([1,2,3,4,5].map(star=>{
+      const xs=r.filter(x=>x.confidenceStars===star);
+      return [String(star),{
+        n:xs.length,
+        hitRate:xs.length?xs.filter(x=>x.confidenceCorrect).length/xs.length:null,
+        avgModelProbability:mean(xs.map(x=>Math.max(Number(x.pHome),Number(x.pDraw),Number(x.pAway)))),
+        brier:mean(xs.map(x=>x.brier)),
+        logLoss:mean(xs.map(x=>x.logLoss)),
+      }];
+    })),
   };
 }
 const overall=metrics(rows);

@@ -264,6 +264,7 @@ test("soccer research product card exposes probability surfaces without wager au
       home:{name:"Home FC",espnId:"1"},
       away:{name:"Away FC",espnId:"2"},
       model:{projectionKind:"FBIS",maturity:"RESEARCH",projHome:1.7,projAway:1.1,projMargin:0.6,projTotal:2.8,pHomeFinal:0.51},
+      soccerConfidence:{stars:4,score:74.2,pick:"Home FC",side:"HOME",modelProbability:0.51,qualification:"RESEARCH_ONLY",authorized:false},
       soccerFbis:{
         ok:true,modelId:"SOCCER-FBIS-v1",modelVersion:"research-v2-dixon-coles",
         home:1.7,away:1.1,total:2.8,pHomeWin:0.51,pDraw:0.27,pAwayWin:0.22,
@@ -285,4 +286,7 @@ test("soccer research product card exposes probability surfaces without wager au
   assert.equal(card.subprojections.btts.yes,0.49);
   assert.equal(card.subprojections.canQualify,false);
   assert.equal(card.subprojections.canAuthorize,false);
+  assert.equal(card.confidence.stars,4);
+  assert.equal(card.confidence.pick,"Home FC");
+  assert.equal(card.confidence.authorized,false);
 });
