@@ -19,6 +19,9 @@ function goalieRow(id,ctx){
   if(!id)return null;
   return [...(ctx?.currentGoalies||[]),...(ctx?.priorGoalies||[])].find(g=>String(g.id)===String(id))||null;
 }
+function marketValidationStatus(market){
+  return String(NHL_PLAYER_PRO_V2_ARTIFACT?.validation?.markets?.[market]?.status||"PENDING_VALIDATION");
+}
 function playerSigma(playerId,market,fallback){
   const v=finite(NHL_PLAYER_PRO_V2_ARTIFACT?.players?.[String(playerId)]?.sigma?.[market]);
   if(v!=null)return v;
@@ -57,6 +60,7 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
         player:{id:p.id,name:p.name,position:p.position},team,market,projection,
         sigma:playerSigma(p.id,market,projection),
         source:"NHL_PLAYER_PRO_V2_SHARE_ENVIRONMENT",
+        validationStatus:marketValidationStatus(market),
         notes:"Point-in-time player rate/share model tied to NHL-PRO-v2 game environment; independent of sportsbook line."
       });
     }
@@ -73,6 +77,7 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
     rows.push({
       player:{id:goalie.goalieId,name:goalie.name||g?.name||null,position:"G"},team,market:"saves",projection,sigma,
       source:"NHL_PLAYER_PRO_V2_CONFIRMED_STARTER_SAVE_ENVIRONMENT",
+      validationStatus:marketValidationStatus("saves"),
       notes:"Starter-gated saves model using opponent shot environment, goalie save rate and NHL-PRO-v2 opponent goal expectation."
     });
   }
