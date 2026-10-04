@@ -11,6 +11,7 @@ import {
   decomposeWnbaProjection,
   deriveWnbaMarketTrajectory,
   buildWnbaGameDecisions,
+  loadWnbaOwnedOddsRows,
 } from "../functions/lib/wnbaWagerDecision.js";
 
 test("price math uses actual American odds and no market shrink",()=>{
@@ -114,4 +115,50 @@ test("full WNBA game decision evaluates all offers without needing ACTION histor
   assert.equal(packet.offers.length,6);
   assert.equal(packet.model.marketInformed,false);
   assert.ok(packet.offers.every(x=>x.marketIntelligence.available===false));
+});
+
+
+test("owned WNBA odds snapshots normalize into immutable trajectory rows",async()=>{
+  const db={
+    prepare(){
+      return {
+        bind(){
+          return {
+            async all(){
+              return {results:[
+                {market:"spread",side:"HOME",line:-2.5,price:-110,book:"Heritage",captured_at:"2026-07-01T12:00:00Z",checkpoint:"WNBA_WAGER_DECISION",rejected_post_start:0},
+                {market:"spread",side:"HOME",line:-3.5,price:-115,book:"Heritage",captured_at:"2026-07-01T15:00:00Z",checkpoint:"WNBA_WAGER_DECISION",rejected_post_start:0},
+              ]};
+            }
+          };
+        }
+      };
+    }
+  };
+  const rows=await loadWnbaOwnedOddsRows(db,"g1");
+  assert.equal(rows.length,2);
+  assert.equal(rows[0].market_type,"spread");
+  assert.equal(rows[0].selection,"home");
+  assert.equal(rows[1].american_price,-115);
+  const intel=deriveWnbaMarketTrajectory(rows,{market:"SPREAD",side:"HOME",line:-3.5,price:-115},{margin:6,total:160});
+  assert.equal(intel.opening.line,-2.5);
+  assert.equal(intel.current.line,-3.5);
+  assert.equal(intel.snapshotCount,2);
+});
+
+test("WNBA packet mirrors NFL wager architecture contract fields",async()=>{
+  const game={
+    id:"g2",sport:"wnba",start:"2026-07-02T23:00:00Z",
+    home:{abbr:"LVA"},away:{abbr:"NYL"},
+    odds:{heritageListed:true,spread:-2.5,total:160.5,heritageSpreadHomePrice:-110,heritageSpreadAwayPrice:-110,heritageOverPrice:-110,heritageUnderPrice:-110,heritageHomeMl:-145,heritageAwayMl:125},
+    wnbaV2:{modelId:"WNBA-FBIS-v2",modelVersion:"v2",home:84,away:78,margin:6,total:162,pHomeWin:.69,sigmaMargin:10,sigmaTotal:12,
+      decomposition:{leagueOrtg:102,pace:79,hfa:2.1,home:{games:14,ortg:106,drtg:99,matchupOrtg:105},away:{games:14,ortg:101,drtg:104,matchupOrtg:100}}},
+  };
+  const p=await buildWnbaGameDecisions(game,null,{minEv:.03});
+  assert.equal(p.decisionVersion,"WNBA-WAGER-v2");
+  assert.ok(Array.isArray(p.candidates));
+  assert.deepEqual(p.candidates,p.offers);
+  assert.equal(p.closeUsedAsDecisionInput,false);
+  assert.equal(p.staking.validated,false);
+  assert.equal(p.objective,"positive-expected-value-at-offered-price");
 });
