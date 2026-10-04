@@ -47,11 +47,11 @@ test("NFL v3 player projections use target role, last-five baseline and position
   assert.ok(row);
   assert.equal(row.targetRole,"WR1");
   assert.equal(row.marketInformed,false);
-  assert.equal(row.source,"NFLVERSE_LAST5_65_SEASON25_PRIOR10_NGS_POSITION_DEFENSE_V3");
+  assert.equal(row.source,"NFLVERSE_LAST5_65_SEASON20_PRIOR15_NGS_MARKET_CALIBRATED_DEFENSE_V3_1");
   assert.equal(row.featureEvidence.opponentMatchup,true);
   assert.equal(row.featureEvidence.positionDefense,true);
   assert.equal(row.featureEvidence.recent5,true);
-  assert.ok(row.opponentMatchup.positionDefenseFactor>1);
+  assert.equal(row.opponentMatchup.positionDefenseStrength,0);\n  assert.equal(row.opponentMatchup.positionDefenseFactor,1);
   assert.equal(row.line,undefined);
 });
 
@@ -103,4 +103,25 @@ test("NFL 5-star confidence requires target role, recent-five and complete match
   assert.equal(strong,5);
   assert.ok(noRecent<=2);
   assert.equal(nonTarget,1);
+});
+
+
+test("NFL v3.1 uses validated position-defense strength for QB passing yards", () => {
+  const feed={
+    byTeam:{KC:[{
+      id:"qb1",name:"QB One",position:"QB",games:5,passing_yards:250,attempts:34,completions:22,carries:3,rushing_yards:14,
+      recent5:{games:5,passing_yards:255,attempts:35,completions:23,carries:3,rushing_yards:15},
+      recentGames:[{season:2026,week:4},{season:2026,week:3},{season:2026,week:2},{season:2026,week:1}],
+      snapShare:.99,trackingGames:4,snapGames:4,ngs:{cpoe:2,avgTimeToThrow:2.7},
+      sd:{passing_yards:55,attempts:5,completions:4,rushing_yards:10,carries:2}
+    }],LV:[]},
+    leaguePositionDefense:{QB:{passing_yards:230,attempts:33,completions:21,rushing_yards:16,carries:4}}
+  };
+  const game={id:"qbg",sport:"nfl",home:{abbr:"KC"},away:{abbr:"LV"},researchProjection:{home:24,away:20},
+    nflFeatures:{home:{},away:{passEpaAllowed:0,rushEpaAllowed:0,pressureRate:.30,positionDefense:{QB:{passing_yards:276,attempts:36,completions:24,rushing_yards:16,carries:4}}}}};
+  const [g]=attachNflPlayerProjectionResearch([game],feed);
+  const row=g.playerProjectionRows.find(r=>r.playerName==="QB One"&&r.market==="passing_yards");
+  assert.ok(row);
+  assert.equal(row.opponentMatchup.positionDefenseStrength,0.65);
+  assert.ok(row.opponentMatchup.positionDefenseFactor>1);
 });
