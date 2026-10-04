@@ -2,6 +2,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { buildTodayBoard, resolveTodayDate } from "../lib/todayBoard.js";
 import { buildPlayerPropsBoard } from "../../src/features/playerProps/buildPlayerPropsBoard.js";
 import { americanProfit } from "../lib/pricing.js";
+import { runNhlConfidenceAudit } from "../lib/nhlWagerCalibration.js";
 
 const TZ="America/Chicago";
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
@@ -25,7 +26,7 @@ function gameRows(board,snapshotAt){
     for(const o of game.nhlWagerV1.offers||[]){
       if(o.americanPrice==null||o.calibratedProbability==null)continue;
       rows.push({
-        eventId:String(game.id),eventStart:game.start||null,wagerScope:"GAME",
+        eventId:String(game.id),eventStart:game.start||null,gameType:finite(game?.nhlProV2?.layers?.opportunity?.gameType??game?.gameType),wagerScope:"GAME",
         playerId:null,playerName:null,team:null,market:o.market,selection:o.selection,
         line:o.line,americanPrice:o.americanPrice,modelProbability:o.modelProbability,
         calibratedProbability:o.calibratedProbability,breakEvenProbability:o.breakEvenProbability,
@@ -47,7 +48,7 @@ function propRows(board,snapshotAt){
     const w=r.nhlWagerV1;if(!w||w.americanPrice==null||w.calibratedProbability==null)continue;
     const game=(board.games||[]).find(g=>String(g.id)===String(r.eventId));
     rows.push({
-      eventId:String(r.eventId),eventStart:game?.start||null,wagerScope:"PROP",
+      eventId:String(r.eventId),eventStart:game?.start||null,gameType:finite(game?.nhlProV2?.layers?.opportunity?.gameType??game?.gameType),wagerScope:"PROP",
       playerId:r.fbisPlayerId||r.providerPlayerId||null,playerName:r.playerName||null,team:r.team||null,
       market:w.market,selection:w.side,line:w.line,americanPrice:w.americanPrice,modelProbability:w.modelProbability,
       calibratedProbability:w.calibratedProbability,breakEvenProbability:w.breakEvenProbability,
@@ -66,12 +67,12 @@ async function persistRows(db,rows,snapshotAt){
   for(const r of rows){
     const id="nhlw_"+crypto.randomUUID().replaceAll("-","");
     await db.prepare(`INSERT INTO nhl_wager_decisions(
-      id,snapshot_at,event_id,event_start,wager_scope,player_id,player_name,team,market,selection,line,american_price,
+      id,snapshot_at,event_id,event_start,game_type,wager_scope,player_id,player_name,team,market,selection,line,american_price,
       model_probability,calibrated_probability,break_even_probability,market_no_vig_probability,probability_edge,
       expected_roi,reliability,confidence,confidence_version,confidence_status,decision,research_candidate,suggested_units,model_id,
       model_version,projection_json,disagreement_json,trajectory_json,source_snapshot_type,can_qualify,can_authorize_wager,created_at
-    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-      .bind(id,snapshotAt,r.eventId,r.eventStart,r.wagerScope,r.playerId,r.playerName,r.team,r.market,r.selection,r.line,r.americanPrice,
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .bind(id,snapshotAt,r.eventId,r.eventStart,r.gameType,r.wagerScope,r.playerId,r.playerName,r.team,r.market,r.selection,r.line,r.americanPrice,
         r.modelProbability,r.calibratedProbability,r.breakEvenProbability,r.marketNoVigProbability,r.probabilityEdge,r.expectedRoi,
         r.reliability,r.confidence,r.confidenceVersion,r.confidenceStatus,r.decision,r.researchCandidate?1:0,r.suggestedUnits,r.modelId,r.modelVersion,
         JSON.stringify(r.projection||null),JSON.stringify(r.disagreement||null),JSON.stringify(r.trajectory||null),r.sourceSnapshotType,0,0,snapshotAt).run();
@@ -166,12 +167,13 @@ async function settle(db,date,board){
   return{eligible:decisions.length,settled,voided};
 }
 async function summary(db){
-  const [counts,cal]=await Promise.all([
+  const [counts,cal,lastRun]=await Promise.all([
     db.prepare(`SELECT wager_scope,market,decision,COUNT(*) n,MIN(snapshot_at) first_at,MAX(snapshot_at) last_at
       FROM nhl_wager_decisions GROUP BY wager_scope,market,decision ORDER BY wager_scope,market,decision`).all(),
-    db.prepare("SELECT * FROM nhl_wager_confidence_calibration ORDER BY wager_scope,market,confidence_band").all()
+    db.prepare("SELECT * FROM nhl_wager_confidence_calibration ORDER BY wager_scope,market,confidence_band").all(),
+    db.prepare("SELECT * FROM nhl_wager_confidence_runs ORDER BY run_at DESC LIMIT 1").first().catch(()=>null)
   ]);
-  return{counts:counts.results||[],calibration:cal.results||[]};
+  return{counts:counts.results||[],calibration:cal.results||[],confidenceAudit:lastRun||null};
 }
 export async function onRequestGet(context){
   const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
@@ -183,6 +185,9 @@ export async function onRequestPost(context){
   let body={};try{body=await context.request.json()}catch{}
   const mode=String(body.mode||"capture").toLowerCase(),raw=String(body.date||dateCt());
   const resolved=resolveTodayDate(raw);if(!resolved.ok)return json({ok:false,error:resolved.error},400);
+  if(mode==="calibrate"){
+    const audit=await runNhlConfidenceAudit(db);return json({...audit,...await summary(db)});
+  }
   const env=envOf(context),board=await buildTodayBoard(resolved.date,env,{focusSport:"nhl"});
   if(mode==="settle"){
     const s=await settle(db,resolved.date,board);return json({ok:true,mode,date:resolved.date,...s,...await summary(db)});

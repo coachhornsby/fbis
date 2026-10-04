@@ -202,7 +202,7 @@ export async function buildSlate(sport, date, env = {}) {
     const fiveLayer = attachNhlV1(baseline.games, v1Context);
     const proV2 = attachNhlProV2(fiveLayer.games, proContext);
     const research = promoteNhlResearchToBoard(proV2.games);
-    const playerResearch = attachNhlPlayerProjectionResearch(research.games, {...v1Context, playerEdge:proContext.playerEdge||null}).map(game=>({...game,nhlWagerV1:evaluateNhlGameWagers(game)}));
+    const playerResearch = attachNhlPlayerProjectionResearch(research.games, {...v1Context, playerEdge:proContext.playerEdge||null, opportunity:proContext.opportunity||null});
     const v2Promoted = Boolean(proV2.meta.historicalPromotionEligible && proV2.meta.projected > 0);
     next = {
       ...slate,
@@ -239,6 +239,10 @@ export async function buildSlate(sport, date, env = {}) {
           playerEdgeAvailable: Number(proContext.playerEdge?.available||0),
           playerEdgeCoverage: Number(proContext.playerEdge?.coverage||0),
           playerEdgeStatus: proContext.playerEdge?.__timeout ? "TIMEOUT_ADVISORY_ONLY" : proContext.playerEdge?.__error ? "DEGRADED_ADVISORY_ONLY" : "ACTIVE_ADVISORY_ONLY",
+          opportunityRequested: Number(proContext.opportunity?.requested||0),
+          opportunityAvailable: Number(proContext.opportunity?.available||0),
+          opportunityCoverage: Number(proContext.opportunity?.coverage||0),
+          opportunityStatus: proContext.opportunity?.__timeout ? "TIMEOUT_FAIL_SOFT" : proContext.opportunity?.__error ? "DEGRADED_FAIL_SOFT" : "ACTIVE",
         },
         nhlResearchBoard: research.meta,
       },
@@ -410,6 +414,24 @@ export async function buildSlate(sport, date, env = {}) {
     } catch {
       // Fail-open.
     }
+  }
+
+  // NHL wager decisioning must run after ACTION intelligence is attached.
+  // ACTION remains downstream context only and cannot alter NHL-PRO-v2.
+  if (id === "nhl" && Array.isArray(next.games)) {
+    next = {
+      ...next,
+      games: next.games.map(game=>({...game,nhlWagerV1:evaluateNhlGameWagers(game)})),
+      nhlWagerArchitecture: {
+        version: "NHL-WAGER-v1",
+        independentProjectionMarketFree: true,
+        actionDirectQualification: false,
+        closeUsedAsDecisionInput: false,
+        confidenceValidated: false,
+        stakingValidated: false,
+        opportunityLayer: "NHL-OPPORTUNITY-v4",
+      },
+    };
   }
 
   // WNBA wagering mirrors NFL game-level decisioning: the independent
