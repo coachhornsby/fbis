@@ -1,0 +1,186 @@
+{
+  "modelId": "NHL-PRO-v2",
+  "version": "research-v2.0-event-chain-gbdt",
+  "generatedAt": "2026-10-04T00:37:32.822Z",
+  "pointInTime": true,
+  "marketInformed": false,
+  "seasons": [
+    "20232024",
+    "20242025",
+    "20252026"
+  ],
+  "featureNames": [
+    "distance",
+    "angle",
+    "rebound",
+    "seconds_since_prev",
+    "movement",
+    "lateral_movement",
+    "rush",
+    "same_team_prev",
+    "special_teams",
+    "empty_net",
+    "shot_wrist",
+    "shot_snap",
+    "shot_slap",
+    "shot_backhand",
+    "shot_tip",
+    "shot_other",
+    "prev_shot",
+    "prev_miss",
+    "prev_block",
+    "prev_turnover",
+    "is_home",
+    "distance_sq",
+    "angle_sq"
+  ],
+  "architecture": {
+    "xg": "logistic-gradient-boosted decision stumps with event-chain features",
+    "shooterTalent": "empirical-Bayes finishing multiplier",
+    "goalieTalent": "empirical-Bayes GSAx per shot",
+    "lineup": "recent shooter participation weighted finishing talent",
+    "specialTeams": "non-5v5 expected-goal rate",
+    "trackingProxy": "high-danger/rush/shot-volume rolling features; official NHL Edge is live advisory only",
+    "teamState": "prior + point-in-time current-season blend with Elo residual",
+    "scoreDistribution": "bivariate Poisson with shared scoring component",
+    "winProbability": "78% score-distribution + 22% Elo head, reliability-shrunk 14% toward 0.5"
+  },
+  "fetchErrors": [],
+  "folds": [
+    {
+      "targetSeason": "20242025",
+      "trainSeasons": [
+        "20232024"
+      ],
+      "trainingGames": 1312,
+      "trainingShots": 115446,
+      "xgTrees": 28,
+      "shooterPriors": 908,
+      "goaliePriors": 98,
+      "v1": {
+        "n": 1312,
+        "marginMae": 2.1918,
+        "totalMae": 1.9549,
+        "homeGoalsMae": 1.4401,
+        "awayGoalsMae": 1.4275,
+        "winnerAccuracy": 0.5892,
+        "brier": 0.23843
+      },
+      "v2": {
+        "n": 1312,
+        "marginMae": 2.1512,
+        "totalMae": 1.891,
+        "homeGoalsMae": 1.4082,
+        "awayGoalsMae": 1.3808,
+        "winnerAccuracy": 0.5861,
+        "brier": 0.23667
+      },
+      "comparison": {
+        "wins": {
+          "margin": true,
+          "total": true,
+          "winner": false,
+          "brier": true
+        },
+        "winCount": 3,
+        "marginDelta": -0.0406,
+        "totalDelta": -0.0639,
+        "winnerDelta": -0.0031,
+        "brierDelta": -0.00176,
+        "beatsIncumbent": true
+      }
+    },
+    {
+      "targetSeason": "20252026",
+      "trainSeasons": [
+        "20232024",
+        "20242025"
+      ],
+      "trainingGames": 2624,
+      "trainingShots": 228191,
+      "xgTrees": 28,
+      "shooterPriors": 1056,
+      "goaliePriors": 121,
+      "v1": {
+        "n": 1312,
+        "marginMae": 2.1648,
+        "totalMae": 1.8689,
+        "homeGoalsMae": 1.4387,
+        "awayGoalsMae": 1.3773,
+        "winnerAccuracy": 0.5373,
+        "brier": 0.24582
+      },
+      "v2": {
+        "n": 1312,
+        "marginMae": 2.1451,
+        "totalMae": 1.8451,
+        "homeGoalsMae": 1.4039,
+        "awayGoalsMae": 1.3481,
+        "winnerAccuracy": 0.5373,
+        "brier": 0.24567
+      },
+      "comparison": {
+        "wins": {
+          "margin": true,
+          "total": true,
+          "winner": false,
+          "brier": true
+        },
+        "winCount": 3,
+        "marginDelta": -0.0197,
+        "totalDelta": -0.0238,
+        "winnerDelta": 0,
+        "brierDelta": -0.00015,
+        "beatsIncumbent": true
+      }
+    }
+  ],
+  "aggregate": {
+    "incumbent": {
+      "n": 2624,
+      "marginMae": 2.1783,
+      "totalMae": 1.9119,
+      "homeGoalsMae": 1.4394,
+      "awayGoalsMae": 1.4024,
+      "winnerAccuracy": 0.5633,
+      "brier": 0.24213
+    },
+    "challenger": {
+      "n": 2624,
+      "marginMae": 2.1482,
+      "totalMae": 1.868,
+      "homeGoalsMae": 1.406,
+      "awayGoalsMae": 1.3645,
+      "winnerAccuracy": 0.5617,
+      "brier": 0.24117
+    },
+    "comparison": {
+      "wins": {
+        "margin": true,
+        "total": true,
+        "winner": false,
+        "brier": true
+      },
+      "winCount": 3,
+      "marginDelta": -0.0301,
+      "totalDelta": -0.0439,
+      "winnerDelta": -0.0016,
+      "brierDelta": -0.00096,
+      "beatsIncumbent": true
+    }
+  },
+  "promotion": {
+    "historicalPromotionEligible": true,
+    "promotedToResearchBoard": true,
+    "canQualify": false,
+    "canAuthorizeWager": false,
+    "reason": "NHL-PRO-v2 beat NHL-FBIS-v1 on aggregate and most-recent PIT folds; research-board promotion only."
+  },
+  "integrity": {
+    "noMarketInputs": true,
+    "priorSeasonOnlyTraining": true,
+    "currentSeasonOnlyPastGames": true,
+    "fetchErrors": 0,
+    "sampleGames": 2624
+  }
+}

@@ -20,7 +20,8 @@ import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
 import { attachCfbDeepFeatures, loadCfbDeepFeatures } from "./cfbDeepFeed.js";
 import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearchToBoard, promoteNhlResearchToBoard } from "./researchBoardPromote.js";
 import { loadNhlResearchPrior, attachNhlResearch } from "./nhlResearchModel.js";
-import { loadNhlV1Context, attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
+import { attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
+import { loadNhlProV2Context, attachNhlProV2, NHL_PRO_V2_ID, NHL_PRO_V2_VERSION } from "./nhlProV2.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { attachCbbPro } from "./cbbProModel.js";
 import { pinMarkets } from "./pricing.js";
@@ -159,7 +160,7 @@ export async function buildSlate(sport, date, env = {}) {
       },
     };
   } else if (id === "nhl") {
-    const [prior, v1Context] = await Promise.all([
+    const [prior, proContext] = await Promise.all([
       loadNhlResearchPrior(slate.date || date).catch((err) => ({
         ok: false,
         source: "NHL_STATS_TEAM_SUMMARY",
@@ -168,28 +169,40 @@ export async function buildSlate(sport, date, env = {}) {
         canQualify: false,
         canAuthorize: false,
       })),
-      loadNhlV1Context(slate.date || date, slate.games || []).catch((err) => ({
+      loadNhlProV2Context(slate.date || date, slate.games || []).catch((err) => ({
         ok: false,
         error: String(err?.message || err),
-        teams: {},
-        priorGoalies: [],
-        currentGoalies: [],
-        schedule: [],
+        base: {
+          ok: false,
+          teams: {},
+          priorGoalies: [],
+          currentGoalies: [],
+          schedule: [],
+          artifact: null,
+          canQualify: false,
+          canAuthorize: false,
+        },
+        edge: {},
         artifact: null,
         canQualify: false,
         canAuthorize: false,
       })),
     ]);
+    const v1Context = proContext.base || {};
     const baseline = attachNhlResearch(slate.games || [], prior);
     const fiveLayer = attachNhlV1(baseline.games, v1Context);
-    const research = promoteNhlResearchToBoard(fiveLayer.games);
+    const proV2 = attachNhlProV2(fiveLayer.games, proContext);
+    const research = promoteNhlResearchToBoard(proV2.games);
     const playerResearch = attachNhlPlayerProjectionResearch(research.games, v1Context);
+    const v2Promoted = Boolean(proV2.meta.historicalPromotionEligible && proV2.meta.projected > 0);
     next = {
       ...slate,
       games: playerResearch,
-      modelVersion: fiveLayer.meta.projected > 0
-        ? `${NHL_FBIS_V1_ID}@${NHL_FBIS_V1_VERSION}`
-        : "NHL-FBIS-PURE@research-v0-team-prior",
+      modelVersion: v2Promoted
+        ? `${NHL_PRO_V2_ID}@${NHL_PRO_V2_VERSION}`
+        : fiveLayer.meta.projected > 0
+          ? `${NHL_FBIS_V1_ID}@${NHL_FBIS_V1_VERSION}`
+          : "NHL-FBIS-PURE@research-v0-team-prior",
       research: {
         ...(slate.research || {}),
         nhlPrior: {
@@ -207,6 +220,12 @@ export async function buildSlate(sport, date, env = {}) {
           ...fiveLayer.meta,
           contextOk: Boolean(v1Context.ok),
           contextError: v1Context.error || null,
+        },
+        nhlProV2: {
+          ...proV2.meta,
+          contextOk: Boolean(proContext.ok),
+          contextError: proContext.error || null,
+          edgeTeams: Object.values(proContext.edge || {}).filter((x) => x?.available).length,
         },
         nhlResearchBoard: research.meta,
       },

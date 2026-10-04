@@ -32,6 +32,7 @@ jobs:
             echo "## NHL source audit" >> "$GITHUB_STEP_SUMMARY"
             echo "- overall: $(jq -r '.overall' artifacts/nhl-source-audit.json)" >> "$GITHUB_STEP_SUMMARY"
             echo "- live primary: $(jq -r '.livePrimary.status' artifacts/nhl-source-audit.json)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- NHL EDGE: $(jq -r '.livePrimary.edgeStatus // "UNKNOWN"' artifacts/nhl-source-audit.json)" >> "$GITHUB_STEP_SUMMARY"
             echo "- SportsDataverse: $(jq -r '.sportsDataverse.status' artifacts/nhl-source-audit.json)" >> "$GITHUB_STEP_SUMMARY"
             echo "- stale archive tags: $(jq -r '.sportsDataverse.staleTags | length' artifacts/nhl-source-audit.json)" >> "$GITHUB_STEP_SUMMARY"
           fi
