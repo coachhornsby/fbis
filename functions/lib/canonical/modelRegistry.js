@@ -306,6 +306,24 @@ export const MODEL_REGISTRY = Object.freeze([
     preservesIncumbent: true,
     notes: "Live independent opening-season team-prior baseline. RESEARCH only: no qualification or wager authority. Goalie, 5v5 xG, and special-teams layers remain unvalidated.",
   },
+  {
+    modelId: "SOCCER-FBIS-v1",
+    sport: "soccer",
+    family: MODEL_FAMILY.PURE,
+    displayName: "Soccer FBIS v1 Dixon-Coles research",
+    maturity: MODEL_MATURITY.RESEARCH,
+    role: "challenger",
+    artifactRef: "functions/lib/soccerFbisV1.js",
+    coefficientsLocked: false,
+    calibrationLocked: false,
+    canQualify: false,
+    canAuthorizeWager: false,
+    marketInformed: false,
+    independent: true,
+    preservesIncumbent: true,
+    notes:
+      "Point-in-time canonical results, recency-weighted league environment, shrunk home/away attack-defense rates, Dixon-Coles score distribution. 1X2/totals/BTTS/AH research only until market and prospective gates pass.",
+  },
 ]);
 
 export function getModel(modelId) {
