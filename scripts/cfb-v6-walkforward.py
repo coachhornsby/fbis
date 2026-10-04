@@ -178,7 +178,7 @@ def main():
  m4=metrics(p,p.v6_margin,p.v6_total);m3=metrics(p,p.v3_margin,p.v3_total)
  mk=p.dropna(subset=["market_margin","market_total"]);market=metrics(mk,mk.market_margin,mk.market_total);m4mk=metrics(mk,mk.v6_margin,mk.v6_total)
  hold=p[p.season>=2025];h4=metrics(hold,hold.v6_margin,hold.v6_total);h3=metrics(hold,hold.v3_margin,hold.v3_total)
- # Paired head-to-head against the frozen v4 OOS predictions when available.
+ # Paired head-to-head against the frozen v5 OOS predictions when available.
  v5cmp=None
  if V4.exists():
   q=pd.read_csv(V4)[["game_id","v5_margin","v5_total"]]
@@ -187,11 +187,11 @@ def main():
   v5cmp={"n":len(z),"v6":metrics(z,z.v6_margin,z.v6_total),"v5":metrics(z,z.v5_margin,z.v5_total),
          "holdout2025_2026":{"v6":metrics(zh,zh.v6_margin,zh.v6_total),"v5":metrics(zh,zh.v5_margin,zh.v5_total)}}
  report={"modelId":"CFB-FBIS-v6-research","role":"research","marketInformed":False,"canQualify":False,
-  "design":"v5 football-specific opponent/SOS/conference/HFA/pace/environment context + broad shifted advanced state + matchup interactions + train-fold-selected Ridge/HistGradientBoosting ensemble",
+  "design":"v6 hierarchical cross-season team/conference priors + shrunk team HFA + safe QB continuity when available + broad shifted advanced state + matchup interactions + train-fold-selected Ridge/HistGradientBoosting ensemble",
   "sample":{"n":len(p),"startSeason":int(p.season.min()),"endSeason":int(p.season.max())},
-  "v5":m4,"v3":m3,"marketPairedV5":m4mk,"market":market,"holdout2025_2026":{"v5":h4,"v3":h3},
+  "v6":m4,"v3":m3,"marketPairedV6":m4mk,"market":market,"holdout2025_2026":{"v6":h4,"v3":h3},
   "beatsV3AllThree":bool(m4["marginMae"]<m3["marginMae"] and m4["totalMae"]<m3["totalMae"] and m4["winnerAccuracy"]>m3["winnerAccuracy"]),
-  "betting":betting(p,prefix="v5"),"v5HeadToHead":v5cmp,"folds":folds,
+  "betting":betting(p,prefix="v6"),"v5HeadToHead":v5cmp,"folds":folds,
   "governance":"Research only. Market excluded from feature construction, selection, tuning and fit. Betting lines exposed only after frozen OOS predictions."}
  (OUT/"report.json").write_text(json.dumps(report,indent=2));p.to_csv(OUT/"oos-predictions.csv",index=False)
  print(json.dumps({k:v for k,v in report.items() if k not in ["folds","betting"]},indent=2))
