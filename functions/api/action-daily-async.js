@@ -102,18 +102,28 @@ export async function onRequestPost(context){
    await upsertCostLedger(db,reservation);
    return json({ok:true,executed:true,status:"started_daily",runId,apifyRunId:a.id||null,datasetId:a.defaultDatasetId||null,today,estimatedCostUsd:estimate,costReservedUsd:reservation.estimated_total_usd},202);
  }
- if(mode!=="harvest")return json({ok:false,status:"invalid_mode"},400);
- let run=await active(db,today),recoveryReplay=false;
- if(!run){
-   const done=await successful(db,today);
-   if(done){
-     const parent=await db.queryOne("SELECT COUNT(*) n FROM shadow_market_observations WHERE run_id=?",[done.id]);
-     const series=await db.queryOne("SELECT COUNT(*) n FROM action_market_book_observations WHERE run_id=?",[done.id]);
-     if(Number(parent?.n||0)>0&&Number(series?.n||0)===0){run=done;recoveryReplay=true;}
-     else return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id});
-   } else {
-     const old=await latest(db,today);
-     return json({ok:true,executed:false,status:old?"nothing_active_to_harvest":"nothing_to_harvest",lastStatus:old?.status||null,today});
+ if(mode!=="harvest"&&mode!=="recover")return json({ok:false,status:"invalid_mode"},400);
+ let run=null,recoveryReplay=false;
+ if(mode==="recover"){
+   const recoveryRunId=String(body.runId||url.searchParams.get("runId")||"").trim();
+   if(!recoveryRunId)return json({ok:false,status:"recovery_run_id_required"},400);
+   run=await db.queryOne("SELECT * FROM shadow_collection_runs WHERE id=? AND provider='ACTION_APIFY' LIMIT 1",[recoveryRunId]);
+   if(!run)return json({ok:false,status:"recovery_run_not_found",runId:recoveryRunId},404);
+   if(!String(run.status||"").startsWith("success"))return json({ok:false,status:"recovery_run_not_successful",runId:recoveryRunId,runStatus:run.status},409);
+   recoveryReplay=true;
+ } else {
+   run=await active(db,today);
+   if(!run){
+     const done=await successful(db,today);
+     if(done){
+       const parent=await db.queryOne("SELECT COUNT(*) n FROM shadow_market_observations WHERE run_id=?",[done.id]);
+       const series=await db.queryOne("SELECT COUNT(*) n FROM action_market_book_observations WHERE run_id=?",[done.id]);
+       if(Number(parent?.n||0)>0&&Number(series?.n||0)===0){run=done;recoveryReplay=true;}
+       else return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id});
+     } else {
+       const old=await latest(db,today);
+       return json({ok:true,executed:false,status:old?"nothing_active_to_harvest":"nothing_to_harvest",lastStatus:old?.status||null,today});
+     }
    }
  }
  if(!run.apify_run_id)return json({ok:false,status:"missing_apify_run_id",runId:run.id},500);
