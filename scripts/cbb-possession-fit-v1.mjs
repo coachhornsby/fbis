@@ -14,15 +14,21 @@ function canonicalTeam(v,season){
   const m=mapSourceTeam("cbb",{team:v,school:v},season);
   return m?.ok&&m.canonicalId?String(m.canonicalId):normTeam(v);
 }
+function normalizedDate(v){
+  const s=String(v||"").trim().slice(0,10);
+  const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m)return m[3]+"-"+String(m[1]).padStart(2,"0")+"-"+String(m[2]).padStart(2,"0");
+  return s;
+}
 function matchupKey(season,date,home,away){
-  return [Number(season),String(date||"").slice(0,10),canonicalTeam(home,season),canonicalTeam(away,season)].join("|");
+  return [Number(season),normalizedDate(date),canonicalTeam(home,season),canonicalTeam(away,season)].join("|");
 }
 const predByMatchup=new Map();
 for(const r of predictions){
   const k=matchupKey(r.season,r.date,r.home,r.away);
   if(!predByMatchup.has(k))predByMatchup.set(k,r);
 }
-let joinedById=0,joinedByMatchup=0,unmatched=0;
+let joinedById=0,joinedByMatchup=0,unmatched=0;const unmatchedSamples=[];
 
 const n=v=>{const x=Number(v);return Number.isFinite(x)?x:null};
 const round=(v,d=4)=>v==null?null:Number(Number(v).toFixed(d));
@@ -91,7 +97,7 @@ function buildSamples(){
       if(p)joinedById++;
       else{
         p=predByMatchup.get(matchupKey(pack.season,g.date,g.homeTeamName,g.awayTeamName));
-        if(p)joinedByMatchup++; else unmatched++;
+        if(p)joinedByMatchup++; else{unmatched++;if(unmatchedSamples.length<20)unmatchedSamples.push(matchupKey(pack.season,g.date,g.homeTeamName,g.awayTeamName));}
       }
       if(p){
         const hs=state.get(String(g.homeTeamId))||null,as=state.get(String(g.awayTeamId))||null;
@@ -185,7 +191,7 @@ function metrics(rs,kind,m,family){
 }
 
 const report={
-  ok:rows.length>0,id:"CBB-POSSESSION-v1-WALKFORWARD",generatedAt:new Date().toISOString(),rows:rows.length,join:{joinedById,joinedByMatchup,unmatched},
+  ok:rows.length>0,id:"CBB-POSSESSION-v1-WALKFORWARD",generatedAt:new Date().toISOString(),rows:rows.length,join:{joinedById,joinedByMatchup,unmatched,unmatchedSamples},
   methodology:{
     featureTiming:"Each target game uses only exponentially weighted prior completed games for each team.",
     discovery:"2018-22",validation:"2023-24",confirmation:"2025",
