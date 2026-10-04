@@ -25,6 +25,7 @@ import { loadNhlProV2Context, attachNhlProV2, NHL_PRO_V2_ID, NHL_PRO_V2_VERSION 
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { attachCbbPro } from "./cbbProModel.js";
 import { loadCbbPlayerContext } from "./cbbPlayerFeed.js";
+import { attachCbbPlayerGameResearch } from "./cbbPlayerGameModel.js";
 import { attachCbbPlayerProps } from "./cbbPlayerPropModel.js";
 import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
@@ -244,7 +245,8 @@ export async function buildSlate(sport, date, env = {}) {
         error: String(err?.message || err),
       },
     }));
-    const players = attachCbbPlayerProps(pro.games, playerContext);
+    const playerGame = attachCbbPlayerGameResearch(pro.games, playerContext);
+    const players = attachCbbPlayerProps(playerGame.games, playerContext);
     next = {
       ...slate,
       games: players.games,
@@ -252,6 +254,7 @@ export async function buildSlate(sport, date, env = {}) {
       research: {
         ...(slate.research || {}),
         cbbPro: pro.meta,
+        cbbPlayerGame: playerGame.meta,
         cbbPlayerProps: players.meta,
       },
     };
