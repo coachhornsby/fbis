@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS nba_wager_decisions (
   projection_uncertainty REAL,
   matchup_reliability REAL,
   data_quality REAL,
+  data_freshness_minutes REAL,
   historical_factor_reliability REAL,
   market_confirmation TEXT,
   fbis_confidence REAL,
