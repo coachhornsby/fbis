@@ -1,6 +1,11 @@
 name: SportsDataverse incremental acquisition audit
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/sdv-incremental-acquisition.py"
+      - ".github/workflows/sdv-incremental-audit.yml"
   schedule:
     - cron: "35 11 * * *"
 permissions:
