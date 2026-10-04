@@ -59,6 +59,7 @@ function playerRows(summary){
           name,
           teamId:String(team.id||""),
           team:team.abbreviation||team.displayName||"",
+          position:a.athlete?.position?.abbreviation||a.athlete?.position?.name||null,
           minutes:num(["MIN","minutes"]),
           points:num(["PTS","points"]),
           rebounds:num(["REB","rebounds"]),
