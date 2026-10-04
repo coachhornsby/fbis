@@ -1,0 +1,40 @@
+name: CBB prop learning settlement
+
+on:
+  schedule:
+    # Covers early-morning CT across CDT/CST; calls are idempotent.
+    - cron: "30 9,10,11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cbb-prop-learning-settlement
+  cancel-in-progress: false
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Require harvest credential
+        run: test -n "${HARVEST_SECRET:-}"
+      - name: Grade completed CBB prop signals
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 120 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -o "$body" -w "%{http_code}"             "$BASE/api/cbb-prop-grade?limit=1000")"
+          cat "$body"
+          test "$code" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          {
+            echo "## CBB prop learning settlement"
+            echo "- Open considered: $(jq -r '.open // 0' "$body")"
+            echo "- Graded: $(jq -r '.graded // 0' "$body")"
+            echo "- Unmatched: $(jq -r '.unmatched // 0' "$body")"
+            echo "- W-L-P: $(jq -r '[(.wins // 0),(.losses // 0),(.pushes // 0)]|join("-")' "$body")"
+          } >> "$GITHUB_STEP_SUMMARY"
