@@ -279,6 +279,37 @@ function modelReason(row,detail){
   if(side==="WATCH") bits.push("Model and line are effectively even.");
   return bits;
 }
+function advancedMetricRows(detail,row){
+  const a=detail?.advanced||{};
+  const market=String(row?.canonical_market||row?.stat_type||"").toLowerCase();
+  const out=[];
+  const add=(label,value,formatter=fmtStat)=>{
+    if(value==null||!Number.isFinite(Number(value))) return;
+    out.push({label,value:formatter(value)});
+  };
+  if(market.startsWith("passing")||market==="completions"||market==="interceptions"){
+    add("CPOE",a.cpoe,(v)=>Number(v).toFixed(1));
+    add("Time to Throw",a.avgTimeToThrow,(v)=>Number(v).toFixed(2)+"s");
+    add("Aggressiveness",a.aggressiveness,(v)=>Number(v).toFixed(1)+"%");
+    add("Passer Rating",a.passerRating,(v)=>Number(v).toFixed(1));
+  } else if(market.startsWith("rushing")){
+    add("RYOE / Att",a.ryoePerAtt,(v)=>Number(v).toFixed(2));
+    add("Rush Efficiency",a.rushEfficiency,(v)=>Number(v).toFixed(2));
+    add("Time to LOS",a.avgTimeToLos,(v)=>Number(v).toFixed(2)+"s");
+  } else if(market.startsWith("receiv")||market==="receptions"||market==="rec_targets"){
+    add("Separation",a.avgSeparation,(v)=>Number(v).toFixed(2)+" yd");
+    add("Cushion",a.avgCushion,(v)=>Number(v).toFixed(2)+" yd");
+    add("Air Yards",a.avgIntendedAirYards,(v)=>Number(v).toFixed(1));
+    add("YAC Over Exp",a.yacOverExpected,(v)=>Number(v).toFixed(2));
+    add("Catch %",a.catchPct,(v)=>pct(v));
+  }
+  if(detail?.role?.snapShare!=null) out.push({label:"Snap Share",value:pct(detail.role.snapShare)});
+  if(detail?.matchup?.matchupFactor!=null){
+    out.push({label:"Matchup vs Avg",value:(((Number(detail.matchup.matchupFactor)-1)*100)>=0?"+":"")+((Number(detail.matchup.matchupFactor)-1)*100).toFixed(0)+"%"});
+  }
+  return out.slice(0,6);
+}
+
 function PropAnalytics({ row, open, onToggle }){
   const [state,setState]=useState({loading:false,error:"",body:null});
   useEffect(()=>{
@@ -378,6 +409,19 @@ function PropAnalytics({ row, open, onToggle }){
               <div>
                 <span>MATCHUP</span>
                 <b>{detail.matchup.matchupFactor==null?"—":((Number(detail.matchup.matchupFactor)-1)*100).toFixed(0)+"%"}</b>
+              </div>
+            </div>
+          ):null}
+          {advancedMetricRows(detail,row).length?(
+            <div className="pp-advanced-block">
+              <div className="pp-analytics-label">ADVANCED STATS</div>
+              <div className="pp-advanced-grid">
+                {advancedMetricRows(detail,row).map((m)=>(
+                  <div key={m.label}>
+                    <span>{m.label}</span>
+                    <b>{m.value}</b>
+                  </div>
+                ))}
               </div>
             </div>
           ):null}
