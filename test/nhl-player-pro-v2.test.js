@@ -6,6 +6,7 @@ import { normalizeBoardGame } from "../src/features/playerProps/buildPlayerProps
 import { NHL_PLAYER_PRO_V2_ARTIFACT } from "../data/models/nhl-player-pro-v2.js";
 import { getModel } from "../functions/lib/canonical/modelRegistry.js";
 import { normalizeNhlPlayerEdge, aggregateNhlTrackingMatchup } from "../functions/lib/nhlPlayerTrackingV3.js";
+import { buildNhlOpportunityGame, opportunityForPlayer } from "../functions/lib/nhlOpportunityV4.js";
 
 function fixture(){
   const game={
@@ -159,4 +160,48 @@ test("NHL tracking matchup is advisory and does not alter v2 projections",()=>{
   const b=nhlPlayerProV2RowsForSide(game,"home",enriched).map(r=>[r.player.id,r.market,r.projection]);
   assert.deepEqual(a,b);
   assert.ok(nhlPlayerProV2RowsForSide(game,"home",enriched).some(r=>r.trackingAdvisory));
+});
+
+
+test("NHL opportunity v4 removes scratches and redistributes role to active players",()=>{
+  const {game,ctx}=fixture();
+  ctx.skatersByTeam.BOS[0].toiPerGame=1200;
+  ctx.skatersByTeam.BOS[0].powerPlayToiPerGame=210;
+  ctx.skatersByTeam.BOS[1].toiPerGame=1050;
+  ctx.skatersByTeam.BOS[1].powerPlayToiPerGame=150;
+  ctx.schedule=[{id:"2026029999",home:"BOS",away:"WPG",start:game.start}];
+  const pbp={rosterSpots:[
+    {playerId:"1",firstName:{default:"A"},lastName:{default:"One"},positionCode:"C"},
+    {playerId:"2",firstName:{default:"B"},lastName:{default:"Two"},positionCode:"L"},
+    {playerId:"3",firstName:{default:"C"},lastName:{default:"Three"},positionCode:"D"},
+    {playerId:"4",firstName:{default:"D"},lastName:{default:"Four"},positionCode:"C"},
+    {playerId:"5",firstName:{default:"E"},lastName:{default:"Five"},positionCode:"D"},
+  ]};
+  const box={boxscore:{scratches:{homeTeam:[{playerId:"1"}],awayTeam:[]}}};
+  const opp=buildNhlOpportunityGame(game,ctx,{pbp,box});
+  assert.equal(opp.available,true);
+  assert.equal(opp.home.scratched[0].playerId,"1");
+  const inherited=opportunityForPlayer(opp,"home","2");
+  assert.equal(inherited.scratched,false);
+  assert.ok(inherited.toiMultiplier>1);
+  assert.ok(inherited.shotMultiplier>1);
+  const scratch=opportunityForPlayer(opp,"home","1");
+  assert.equal(scratch.scratched,true);
+});
+
+test("NHL player projection excludes confirmed scratches and increases an inheritor",()=>{
+  const {game,ctx}=fixture();
+  ctx.schedule=[{id:"2026029999",home:"BOS",away:"WPG",start:game.start}];
+  const baseRows=nhlPlayerProV2RowsForSide(game,"home",ctx);
+  const baseB=baseRows.find(r=>r.player.id==="2"&&r.market==="shots_on_goal");
+  const opp=buildNhlOpportunityGame(game,ctx,{
+    pbp:{rosterSpots:[{playerId:"1"},{playerId:"2"},{playerId:"3"},{playerId:"4"},{playerId:"5"}]},
+    box:{boxscore:{scratches:{homeTeam:[{playerId:"1"}],awayTeam:[]}}}
+  });
+  const enriched={...ctx,opportunity:{byGame:{[game.id]:opp}}};
+  const rows=nhlPlayerProV2RowsForSide(game,"home",enriched);
+  assert.equal(rows.some(r=>r.player.id==="1"),false);
+  const boosted=rows.find(r=>r.player.id==="2"&&r.market==="shots_on_goal");
+  assert.ok(boosted.projection>baseB.projection);
+  assert.ok(boosted.opportunityAdjustment);
 });
