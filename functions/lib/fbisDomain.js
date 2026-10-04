@@ -256,10 +256,16 @@ export function toDomainPlayerMarket(row = {}) {
     playerIdentityConfidence,
 
     marketComplete: Boolean(row.marketComplete),
-    decisionEligible: false,
+    decisionEligible: row.decisionEligible === true,
+    modelAuthorized: row.modelAuthorized === true,
+    eligibleForCard: row.eligibleForCard === true,
+    propGate: strOrNull(row.propGate),
+    gateReason: strOrNull(row.gateReason),
     reasonCodes: Array.isArray(row.reasonCodes)
       ? row.reasonCodes.map(String)
-      : ["NOT_DECISION_ELIGIBLE"],
+      : row.decisionEligible === true
+        ? []
+        : ["NOT_DECISION_ELIGIBLE"],
 
     // FBIS research analytics — pass through only; never invent.
     fbisProjection: numOrNull(
