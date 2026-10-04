@@ -131,6 +131,35 @@ describe("TODAY cache-only and MY BET markers", () => {
     assert.ok(seen.every((s) => s.cache === true && s.pal === true));
   });
 
+  it("preserves NFL-PRO matchup factors and coverage on TODAY board rows", async () => {
+    const board = await buildTodayBoard("2026-10-04", {}, {
+      focusSport: "nfl",
+      buildSlateFn: async () => ({
+        sport: "nfl",
+        date: "2026-10-04",
+        games: [{
+          id: "nfl-matchup-proof",
+          sport: "nfl",
+          start: "2026-10-04T17:00:00Z",
+          home: { name: "Houston Texans", abbr: "HOU" },
+          away: { name: "Dallas Cowboys", abbr: "DAL" },
+          status: { detail: "Scheduled" },
+          odds: {},
+          model: { projHome: 21, projAway: 25, projTotal: 46, projMargin: -4, projectionKind: "FBIS" },
+          projectionKind: "FBIS",
+          projectionMaturity: "RESEARCH",
+          nflProShadow: { ok: true, coverage: { share: 0.64 }, decomposition: { home: {}, away: {} } },
+          matchupFactors: [{ id: "pass", label: "Pass offense vs pass defense", edge: "DAL", value: 1.2 }],
+        }],
+        parlay: { cached: true, skipped: true },
+      }),
+    });
+    assert.equal(board.games.length, 1);
+    assert.equal(board.games[0].matchupFactors.length, 1);
+    assert.equal(board.games[0].matchupFactors[0].id, "pass");
+    assert.equal(board.games[0].nflProShadow.coverage.share, 0.64);
+  });
+
   it("keeps TODAY population on the selected Chicago date even when provider returns a weekly slate", async () => {
     assert.equal(boardDateCtForStart("2026-09-22T00:15:00Z"), "2026-09-21");
     assert.equal(boardDateCtForStart("2026-09-22T20:00:00Z"), "2026-09-22");
