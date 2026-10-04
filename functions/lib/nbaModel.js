@@ -133,3 +133,36 @@ export function scheduleContext(games=[],target,index,side){
   const in6=prev3.filter(g=>start-Date.parse(g.start||g.date)<=6*86400000).length>=3;
   return {daysRest,threeInFour:in4,fourInSix:in6};
 }
+
+
+export function calibrateNbaProjection(raw, fit = {}) {
+  if (!raw?.ok) return raw;
+  const marginCfg = fit?.calibration?.margin || {};
+  const totalCfg = fit?.calibration?.total || {};
+  const mi = finite(marginCfg.intercept) ?? 0;
+  const ms = finite(marginCfg.slope) ?? 1;
+  const ti = finite(totalCfg.intercept) ?? 0;
+  const ts = finite(totalCfg.slope) ?? 1;
+  const margin = mi + ms * Number(raw.margin);
+  const total = ti + ts * Number(raw.total);
+  const home = (total + margin) / 2;
+  const away = (total - margin) / 2;
+  const sigmaMargin = finite(marginCfg.sigma) ?? raw.sigmaMargin;
+  const sigmaTotal = finite(totalCfg.sigma) ?? raw.sigmaTotal;
+  return {
+    ...raw,
+    modelVersion: fit?.version || raw.modelVersion,
+    home: round1(home),
+    away: round1(away),
+    margin: round1(margin),
+    total: round1(total),
+    pHomeWin: pGreater(margin, 0, sigmaMargin),
+    sigmaMargin: round1(sigmaMargin),
+    sigmaTotal: round1(sigmaTotal),
+    calibration: {
+      source: fit?.id || fit?.modelId || "NBA-FBIS-v1-fit",
+      trainingCutoff: fit?.trainingCutoff || null,
+      marketUsed: false,
+    },
+  };
+}
