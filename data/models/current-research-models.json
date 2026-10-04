@@ -24,10 +24,10 @@
       "gameArtifact": "data/models/nba-fbis-v1-fit.json",
       "gameValidation": "data/models/nba-fbis-v1-validation.json",
       "propValidation": "data/models/nba-player-prop-v1-validation.json",
-      "status": "prospective-shadow-approved",
-      "canQualify": false,
+      "status": "prospective-qualification-enabled",
+      "canQualify": true,
       "canAuthorizeWager": false,
-      "notes": "Calibrated game model beat NBA-FBIS-FORM-v1 on untouched 2025-26 margin MAE, total MAE, and winner accuracy. Player model beat a simple trailing-mean baseline on points/rebounds/assists/3PM. Historical NBA market archive is too shallow for CLV/ROI qualification, so both remain non-wagering prospective shadow research."
+      "notes": "NBA-FBIS-v1.1 and NBA-PLAYER-PROP-v1 are eligible for qualification through prospective market gates. Qualification is data-driven from pre-tip price integrity, edge/probability thresholds, CLV/settlement evidence and availability checks. Wager authorization remains separate and disabled."
     }
   }
 }
