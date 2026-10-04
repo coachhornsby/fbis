@@ -6,6 +6,7 @@
  */
 
 import { buildSportAvailabilityPreflight, normalizeAvailabilityStatus } from "./availability.js";
+import { nhlPlayerProV2RowsForSide, NHL_PLAYER_PRO_V2_ID, NHL_PLAYER_PRO_V2_VERSION } from "./nhlPlayerProV2.js";
 
 export const PRO_PLAYER_PROJECTION_VERSION = "research-v1.1-availability-gated";
 
@@ -50,7 +51,7 @@ function playerAvailabilityGate(game = {}, sport = "", player = {}, team = null)
   }
   if (sport === "nhl" && String(player?.position || "").toUpperCase() === "G") {
     const goalieSide = team && String(game?.home?.abbr || "").toUpperCase() === String(team).toUpperCase() ? "home" : "away";
-    const g = game?.nhlV1?.layers?.goalie?.[goalieSide] || null;
+    const g = game?.nhlProV2?.layers?.goalie?.[goalieSide] || game?.nhlV1?.layers?.goalie?.[goalieSide] || null;
     if (!g?.goalieId || String(g.status || "").includes("PRIOR") || String(g.status || "") === "UNKNOWN") {
       return { state:"HOLD", reason:"goalie_not_confirmed", status, match, preflight };
     }
@@ -262,55 +263,32 @@ export function attachNflPlayerProjectionResearch(games = [], playerFeed = {}) {
 }
 
 function nhlRowsForSide(game, side, ctx = {}) {
-  const team = teamAbbr(game[side]);
-  const skaters = ctx.skatersByTeam?.[team] || [];
-  const projectedGoals = scoreForTeam(game, side);
-  const teamBase = finite(ctx.teams?.[team]?.gfpg);
-  const scoringFactor = projectedGoals != null && teamBase != null && teamBase > 0
-    ? clamp(projectedGoals / teamBase, 0.78, 1.25)
-    : 1;
-  const rows = [];
-  for (const p of skaters.slice(0, 12)) {
-    for (const [market, value] of [
-      ["shots_on_goal", p.shotsPerGame],
-      ["points", p.pointsPerGame],
-      ["goals", p.goalsPerGame],
-      ["assists", p.assistsPerGame],
-    ]) {
-      if (finite(value) == null) continue;
-      rows.push(statRow({
-        sport: "nhl",
-        game,
-        team,
-        player: p,
-        market,
-        projection: Number(value) * scoringFactor,
-        source: "NHL_STATS_SKATER_PRIOR_CURRENT_BLEND",
-        notes: "Season/prior per-game rate adjusted by FBIS team-goal environment; no sportsbook line input.",
-      }));
-    }
-  }
-
-  const goalie = game.nhlV1?.layers?.goalie?.[side] || null;
-  if (goalie?.goalieId) {
-    const opponentSide = side === "home" ? "away" : "home";
-    const opp = teamAbbr(game[opponentSide]);
-    const oppShots = finite(ctx.teams?.[opp]?.shotsFor);
-    const savePct = finite(goalie.savePct);
-    if (oppShots != null && savePct != null) {
-      rows.push(statRow({
-        sport: "nhl",
-        game,
-        team,
-        player: { id: goalie.goalieId, name: goalie.name, position: "G" },
-        market: "saves",
-        projection: oppShots * savePct,
-        source: "NHL_STATS_EXPECTED_STARTER_X_OPPONENT_SHOTS",
-        notes: "Expected starter only; goalie uncertainty remains a research flag.",
-      }));
-    }
-  }
-  return rows.filter(Boolean);
+  return nhlPlayerProV2RowsForSide(game, side, ctx).map((p)=>{
+    const row=statRow({
+      sport:"nhl",
+      game,
+      team:p.team,
+      player:p.player,
+      market:p.market,
+      projection:p.projection,
+      sigma:p.sigma,
+      source:p.source,
+      notes:p.notes,
+    });
+    if(!row)return null;
+    const validationStatus=p.validationStatus||"PENDING_VALIDATION";
+    const modelValidated=validationStatus==="PROMOTE_RESEARCH";
+    return {
+      ...row,
+      validationStatus,
+      validatedLines:p.validatedLines||{},
+      shotEnvironment:p.shotEnvironment||null,
+      modelValidated,
+      propGate:modelValidated?row.propGate:"HOLD",
+      gateReason:modelValidated?row.gateReason:"market_not_validated_vs_baseline",
+      eligibleForCard:modelValidated&&row.propGate==="CLEAR",
+    };
+  }).filter(Boolean);
 }
 
 export function attachNhlPlayerProjectionResearch(games = [], ctx = {}) {
@@ -325,8 +303,8 @@ export function attachNhlPlayerProjectionResearch(games = [], ctx = {}) {
       playerProjectionStatus: {
         sport: "nhl",
         state: rows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : rows.length ? "HOLD_AVAILABILITY" : "PLAYER_DATA_UNAVAILABLE",
-        model: "NHL-PLAYER-PROJ-v1",
-        version: PRO_PLAYER_PROJECTION_VERSION,
+        model: NHL_PLAYER_PRO_V2_ID,
+        version: NHL_PLAYER_PRO_V2_VERSION,
         independent: true,
         marketInformed: false,
         canQualify: false,
