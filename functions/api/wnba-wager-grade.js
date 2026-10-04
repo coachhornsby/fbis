@@ -46,19 +46,35 @@ function selectionFor(decision){
 }
 async function closingQuote(db,decision){
   if(!db?.prepare)return null;
+  const market=String(decision.market||"").toUpperCase()==="MONEYLINE"?"ml":String(decision.market||"").toLowerCase();
   try{
-    return await db.prepare(
-      `SELECT line,american_price,provider_timestamp,collected_at,snapshot_type
+    const owned=await db.prepare(
+      `SELECT line,price AS american_price,captured_at AS provider_timestamp,captured_at,
+              checkpoint AS snapshot_type,'FBIS_ODDS_SNAPSHOTS' AS source
+         FROM odds_snapshots
+        WHERE sport='wnba' AND game_id=?
+          AND lower(market)=lower(?) AND lower(side)=lower(?)
+          AND captured_at<? AND COALESCE(rejected_post_start,0)=0
+          AND price IS NOT NULL
+        ORDER BY captured_at DESC
+        LIMIT 1`
+    ).bind(decision.event_id,market,selectionFor(decision),decision.event_start).first();
+    if(owned)return owned;
+  }catch{}
+  try{
+    const action=await db.prepare(
+      `SELECT line,american_price,provider_timestamp,collected_at,snapshot_type,'ACTION_APIFY' AS source
          FROM action_market_book_observations
         WHERE sport='wnba'
           AND canonical_event_id=?
           AND lower(market_type)=lower(?)
           AND lower(selection)=lower(?)
-          AND collected_at<=?
+          AND collected_at<?
         ORDER BY CASE WHEN snapshot_type='FINAL_PREGAME' THEN 0 WHEN snapshot_type='CLOSE' THEN 1 ELSE 2 END,
                  collected_at DESC
         LIMIT 1`
     ).bind(decision.event_id,decision.market,selectionFor(decision),decision.event_start).first();
+    return action||null;
   }catch{return null;}
 }
 function directionalClvLine(decision,closeLine){
@@ -118,7 +134,7 @@ export async function onRequestPost(context){
           d.id,eventId,score.home,score.away,score.margin,score.total,g.result,g.win,g.push,
           finite(close?.line),finite(close?.american_price),directionalClvLine(d,close?.line),
           clvPrice(d,close?.american_price),settledAt,
-          JSON.stringify({finalSource:"ESPN_WNBA_SUMMARY",closeSource:close?"ACTION_LAST_PREGAME":"UNAVAILABLE",closeObservedAt:close?.provider_timestamp||close?.collected_at||null,closeSnapshotType:close?.snapshot_type||null})
+          JSON.stringify({finalSource:"ESPN_WNBA_SUMMARY",closeSource:close?.source||"UNAVAILABLE",closeObservedAt:close?.provider_timestamp||close?.collected_at||null,closeSnapshotType:close?.snapshot_type||null})
         ).run();
         graded++;
         if(g.result==="WIN")wins++;
