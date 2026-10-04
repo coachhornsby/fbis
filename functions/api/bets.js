@@ -302,6 +302,10 @@ export async function syncTrackerBets(env, tickets) {
       continue;
     }
     const patch = {
+      matchupText: packed.matchupText,
+      awayTeam: packed.awayTeam,
+      homeTeam: packed.homeTeam,
+      trackerMetadata: packed.trackerMetadata,
       result: packed.result || "OPEN",
       profit: packed.profit,
       settledReturn: packed.settledReturn,
