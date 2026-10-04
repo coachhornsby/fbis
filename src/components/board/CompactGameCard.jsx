@@ -120,9 +120,12 @@ export default function CompactGameCard({ game, onOpen }) {
   const proj = vm.projection || {};
   const market = vm.market || {};
   const action = vm.action || {};
-  const isNfl = String(vm.sport || game?.sport || "").toLowerCase() === "nfl";
+  const sportId = String(vm.sport || game?.sport || "").toLowerCase();
+  const isNfl = sportId === "nfl";
+  const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const edge = bestEdge(vm);
   const matchup = isNfl ? game?.nflGameMatchup : null;
+  const genericFactors = !isNfl && Array.isArray(game?.matchupFactors) ? game.matchupFactors.slice(0, 5) : [];
   const matchupSignals = Array.isArray(matchup?.signals) ? matchup.signals : [];
   const matchupById = Object.fromEntries(matchupSignals.map((s) => [s.id, s]));
   const matchupItems = [
@@ -132,6 +135,12 @@ export default function CompactGameCard({ game, onOpen }) {
     ["explosive", "EXPLOSIVE"],
     ["earlyDown", "EARLY DOWN"],
   ].map(([id, label]) => ({ id, label, ...matchupSignalLabel(matchupById[id], away, home) }));
+  const genericMatchupItems = genericFactors.map((factor, i) => {
+    const edge = String(factor?.edge || factor?.advantage || factor?.team || "EVEN").toUpperCase();
+    const homeHit = edge === String(home.abbr || "").toUpperCase();
+    const awayHit = edge === String(away.abbr || "").toUpperCase();
+    return { id: factor?.id || `factor-${i}`, label: String(factor?.label || factor?.name || "MATCHUP").toUpperCase(), text: homeHit ? home.abbr : awayHit ? away.abbr : edge || "EVEN", tone: homeHit ? "home" : awayHit ? "away" : "neutral" };
+  });
   const baselineMargin = Number(matchup?.baseline?.margin);
   const finalMargin = Number(matchup?.final?.margin);
   const matchupAdj = Number(matchup?.adjustment?.margin);
@@ -221,7 +230,7 @@ export default function CompactGameCard({ game, onOpen }) {
 
       <div className="cgc-market-strip" aria-label="FBIS and market comparison">
         <div className="cgc-market-item">
-          <span>MARKET SPREAD</span>
+          <span>{marketSideLabel}</span>
           <strong>{market.spreadLabel || "—"}</strong>
         </div>
         <div className="cgc-market-divider" aria-hidden="true" />
@@ -276,6 +285,20 @@ export default function CompactGameCard({ game, onOpen }) {
             <span>ADJ <b>{Number.isFinite(matchupAdj) ? `${matchupAdj > 0 ? "+" : ""}${fmt(matchupAdj)}` : "0"}</b></span>
             <i>→</i>
             <span>GAME READ <b>{Number.isFinite(finalMargin) ? `${finalMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(finalMargin))}` : "—"}</b></span>
+          </div>
+        </section>
+      ) : genericMatchupItems.length ? (
+        <section className="cgc-matchup-read" aria-label="FBIS matchup analysis">
+          <div className="cgc-matchup-read-head">
+            <div><span>GAME MATCHUP</span><strong>FBIS ANALYSIS</strong></div>
+            <b>{genericMatchupItems.length} SIGNALS</b>
+          </div>
+          <div className="cgc-matchup-pills">
+            {genericMatchupItems.map((item) => (
+              <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
+                <span>{item.label}</span><strong>{item.text}</strong>
+              </div>
+            ))}
           </div>
         </section>
       ) : null}
