@@ -105,6 +105,7 @@ function summarize(rows,prefix){
 fs.mkdirSync("artifacts",{recursive:true});
 const games=await csv(GAMES_URL);
 const outputs=[];
+const coverageDiag={games:0,teamSides:0,ngsCpoe:0,rushYoe:0,separation:0,yacOe:0,snapShare:0};
 for(const season of seasons){
   const [priorTeam,currentTeam,priorPlayer,currentPlayer,ngsPassing,ngsRushing,ngsReceiving,priorSnaps,currentSnaps]=await Promise.all([
     csv(`${RELEASE}/stats_team/stats_team_week_${season-1}.csv`),
@@ -128,6 +129,15 @@ for(const season of seasons){
     const tracking=trackingFeatures(priorNgs,currentNgs,priorSnaps,currentSnaps,week);
     const features=blendedFeatures(priorTeam,priorPlayer,currentTeam,currentPlayer,week,tracking);
     const modelGame={neutralSite:String(g.location||"").toLowerCase()==="neutral",nflFeatures:{home:features[home]||{},away:features[away]||{}}};
+coverageDiag.games++;
+    for(const x of [features[home]||{},features[away]||{}]){
+      coverageDiag.teamSides++;
+      if(num(x.qbNgsCpoe)!=null)coverageDiag.ngsCpoe++;
+      if(num(x.rushYoePerAtt)!=null)coverageDiag.rushYoe++;
+      if(num(x.receivingSeparation)!=null)coverageDiag.separation++;
+      if(num(x.receivingYacOe)!=null)coverageDiag.yacOe++;
+      if(num(x.snapShare)!=null)coverageDiag.snapShare++;
+    }
     const pro=projectNflProV1(modelGame);
     const v2=projectNflProV2(modelGame);
     const currentForm=formRows(games,season,week);
@@ -156,6 +166,7 @@ const paired=outputs.filter(r=>r.proOk&&r.v2Ok&&r.baseOk);
 const pro=summarize(paired,"pro"), v2=summarize(paired,"v2"), base=summarize(paired,"base");
 const decision={
   sample:{seasons,n:paired.length},
+  featureCoverage:coverageDiag,
   pro,v2,base,
   deltas:{
     v2VsV1:{marginMae:v2.marginMae-pro.marginMae,totalMae:v2.totalMae-pro.totalMae,winnerAccuracy:v2.winnerAccuracy-pro.winnerAccuracy},
