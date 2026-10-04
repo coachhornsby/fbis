@@ -52,7 +52,14 @@ export default function DecisionBoard({ games = [], renderDetail }) {
         <button type="button" className="db-back-btn" onClick={() => setSelected(null)}>← Back to Board</button>
         <PremiumGameCard game={selected} />
         <MatchupFactors game={selected} />
-        {typeof renderDetail === "function" ? <div className="db-full-analysis">{renderDetail(selected)}</div> : null}
+        {typeof renderDetail === "function" ? (
+          String(selected?.sport || "").toLowerCase() === "nfl" ? (
+            <details className="db-full-analysis db-full-analysis-collapsed">
+              <summary>Advanced data & legacy diagnostics</summary>
+              <div className="db-full-analysis-body">{renderDetail(selected)}</div>
+            </details>
+          ) : <div className="db-full-analysis">{renderDetail(selected)}</div>
+        ) : null}
       </div>
     );
   }
