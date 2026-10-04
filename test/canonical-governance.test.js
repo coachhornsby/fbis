@@ -166,3 +166,15 @@ test("SportsDataverse catalog adds only incremental families", () => {
   assert.ok(nfl.some((r) => r.family === "next_gen_stats" && r.decision === "ADD"));
   assert.ok(nfl.some((r) => r.family === "nflverse" && r.decision === "SKIP_DUPLICATE"));
 });
+
+test("incremental SportsDataverse providers are registered without market authority", () => {
+  const report = buildSourceRegistryReport();
+  for (const id of ["sdv_nfl_ngs","sdv_ncaa","sdv_wnba_stats","sdv_nhl_edge","sdv_soccer_espn"]) {
+    const s = report.sources.find((x) => x.providerId === id);
+    assert.ok(s, id + " missing");
+    assert.equal(s.domain, "sports");
+    assert.equal(s.inMarketLayer, false);
+    assert.equal(s.inPureModel, true);
+    assert.equal(s.commercialStatus, COMMERCIAL_STATUS.RESEARCH_ONLY);
+  }
+});
