@@ -32,6 +32,9 @@ const playerGameCoverage=rows.length?playerGames/rows.length:0;
 if(rows.length&&playerGameCoverage<0.90){
   throw new Error(`WNBA canonical merge quality fail: player game coverage ${playerGameCoverage}`);
 }
+if(rows.length>=25&&uniquePlayers<50){
+  throw new Error(`WNBA canonical merge quality fail: only ${uniquePlayers} unique players across ${rows.length} games`);
+}
 fs.mkdirSync(path.dirname(out),{recursive:true});
 fs.writeFileSync(out,rows.map(JSON.stringify).join("\n")+(rows.length?"\n":""));
 console.log(JSON.stringify({ok:true,files:files.length,rows:rows.length,playerRows:playerRows.length,uniquePlayers,playerGameCoverage,out},null,2));
