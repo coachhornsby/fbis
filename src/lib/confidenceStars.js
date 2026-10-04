@@ -93,7 +93,7 @@ function nflCompositeStars(game, vm, q) {
   };
   const weightedCoverage = Object.entries(coverageWeights)
     .reduce((sum, [key, weight]) => sum + (present.has(key) ? weight : 0), 0);
-  const coreCoverage = Math.max(0, Math.min(1, weightedCoverage));
+  const coreCoverage = Math.max(0, Math.min(1, Array.isArray(pro?.coverage?.available) ? weightedCoverage : coverage));
 
   const quality = Number.isFinite(q) ? Math.max(0, Math.min(1, q / 100)) : 0.65;
   const proHome = numericQuality(pro?.home ?? pro?.projectedHome);
