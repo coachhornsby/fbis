@@ -246,6 +246,9 @@ export function rankPropConviction(row = {}) {
 
 export function sortPropsByConviction(rows = []) {
   return [...(rows || [])].sort((a, b) => {
+    const aStars=Number(a?.confidenceStars),bStars=Number(b?.confidenceStars);
+    const aStarScore=Number.isFinite(aStars)?aStars:0,bStarScore=Number.isFinite(bStars)?bStars:0;
+    if(bStarScore!==aStarScore)return bStarScore-aStarScore;
     const sa = Number(a?.convictionScore);
     const sb = Number(b?.convictionScore);
     const aScore = Number.isFinite(sa) ? sa : -1;
