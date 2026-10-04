@@ -9,6 +9,7 @@
 import * as core from "./slateEngineCore.js";
 import { attachNflShadow } from "./nflModel.js";
 import { attachNflProShadow } from "./nflProModel.js";
+import { attachNflGameMatchups } from "./nflGameMatchup.js";
 import { attachNflWagerDecisions } from "./nflWagerDecision.js";
 import { NFL_WAGER_CONFIDENCE_V1 } from "../../data/models/nfl-wager-confidence-v1.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
@@ -152,9 +153,10 @@ export async function buildSlate(sport, date, env = {}) {
     }));
     const enriched = attachNflVerseFeatures(baseline.games, verse);
     const pro = attachNflProShadow(enriched);
+    const gameMatchups = attachNflGameMatchups(pro.games);
     // Research board: independent form/pure scores are displayable + freezable,
     // but never qualify or authorize.
-    const research = promoteNflResearchToBoard(pro.games);
+    const research = promoteNflResearchToBoard(gameMatchups.games);
     const playerResearch = attachNflPlayerProjectionResearch(research.games, { byTeam: verse.playersByTeam || {}, leaguePositionDefense: verse.leaguePositionDefense || {} });
     next = {
       ...slate,
@@ -165,6 +167,7 @@ export async function buildSlate(sport, date, env = {}) {
         nflBaseline: baseline.meta,
         nflVerse: verse.meta,
         nflPro: pro.meta,
+        nflGameMatchup: gameMatchups.meta,
         nflResearchBoard: research.meta,
       },
     };
