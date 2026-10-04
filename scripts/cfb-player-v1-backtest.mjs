@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { cfbdGet } from "../functions/lib/collegeApi.js";
 import { flattenGamesPlayersResponse, identifyGamePlayerRoles } from "../functions/lib/cfbPlayerIdentity.js";
 import { projectCfbPlayerV1, flattenCfbPlayerProjectionRows } from "../functions/lib/cfbPlayerModel.js";
@@ -79,7 +79,7 @@ function metrics(rows){
   return {n:rows.length,mae:mean(ae),rmse:Math.sqrt(mean(sq)),bias:mean(errs),medianAbsError:qtile(ae,.5),p90AbsError:qtile(ae,.9),within1Sigma:inside/rows.length};
 }
 
-const designText=await (await fetch("https://raw.githubusercontent.com/coachhornsby/fbis/main/data/cfbd/calibration/design-rows.jsonl")).text();
+const designText=readFileSync("data/cfbd/calibration/design-rows.jsonl","utf8");
 const design=designText.trim().split(/\n+/).map(JSON.parse).filter(r=>seasons.includes(Number(r.season))&&Number(r.week)<=MAX_WEEK);
 const dmap=new Map(design.map(r=>[String(r.gameId),r]));
 const out=[]; const seasonStats=[];
