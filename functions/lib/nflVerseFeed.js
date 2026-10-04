@@ -17,6 +17,8 @@ const ERR_TTL_MS = 20 * 60 * 1000;
 const PRIOR_GAMES = 8;
 const PLAYER_PRIOR_GAMES = 4;
 const RELEASE = "https://github.com/nflverse/nflverse-data/releases/download";
+const SNAPSHOT_KEY = "nfl/features/latest.json";
+const SNAPSHOT_SCHEMA = "nflverse-features-v2";
 
 const ABBR = {
   JAC:"JAX",JAX:"JAX",LA:"LAR",LAR:"LAR",LV:"LV",OAK:"LV",
@@ -48,7 +50,14 @@ export function parseCsv(text=""){
   return lines.slice(1).map(line=>{const cells=splitCsvLine(line);return Object.fromEntries(headers.map((h,i)=>[h,cells[i]??""]));});
 }
 async function fetchCsv(url,fetchFn=fetch){
-  const res=await fetchFn(url,{headers:{Accept:"text/csv,application/gzip,*/*","User-Agent":"FBIS/2.0"}});
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort("source-timeout"), 25000);
+  let res;
+  try {
+    res=await fetchFn(url,{headers:{Accept:"text/csv,application/gzip,*/*","User-Agent":"FBIS/2.0"},signal:controller.signal});
+  } finally {
+    clearTimeout(timer);
+  }
   if(!res.ok)return{ok:false,status:res.status,rows:[],url};
   let text;
   if (/\.gz(?:$|\?)/i.test(url)) {
@@ -272,8 +281,52 @@ async function seasonBundle(year,fetchFn,ngsAll){
   return{year,teamStatus:team.status,playerStatus:player.status,snapStatus:snaps.status,offense:teamAgg.offense,defense:teamAgg.defense,qb:aggregateQbWeeks(player.rows),tracking:ngs.teamFeatures,playersByTeam:enrichPlayers(aggregatePlayerWeeks(player.rows),ngs.byTeam,snapByTeam),rows:{team:team.rows.length,player:player.rows.length,snaps:snaps.rows.length}};
 }
 
-export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now()}={}){
+async function readArchivedSnapshot(env={}, season, now){
+  if(!env.ARCHIVE?.get) return null;
+  try{
+    const obj=await env.ARCHIVE.get(SNAPSHOT_KEY);
+    if(!obj) return null;
+    const payload=JSON.parse(await obj.text());
+    if(!payload?.meta || !payload?.byTeam || !payload?.playersByTeam) return null;
+    const builtAt=Date.parse(payload.meta.builtAt||payload.meta.createdAt||"");
+    const ageMs=Number.isFinite(builtAt)?Math.max(0,now-builtAt):null;
+    return {
+      ...payload,
+      meta:{
+        ...payload.meta,
+        snapshotKey:SNAPSHOT_KEY,
+        snapshotSchema:payload.meta.snapshotSchema||SNAPSHOT_SCHEMA,
+        runtimeSource:"r2-precomputed",
+        snapshotAgeHours:ageMs==null?null:Math.round((ageMs/3600000)*10)/10,
+        stale:ageMs!=null?ageMs>36*3600000:false,
+        requestedSeason:season,
+      },
+    };
+  }catch{return null;}
+}
+
+export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now(),forceNetwork=false}={}){
   const season=seasonYear(new Date(now)),cacheKey=`nflverse-features-v2-${season}`,cached=await readCache(cacheKey,env.caches,TTL_MS);if(cached?.meta)return cached;
+  if(!forceNetwork){
+    const archived=await readArchivedSnapshot(env,season,now);
+    if(archived){
+      await writeCache(cacheKey,archived,env.caches,TTL_MS);
+      return archived;
+    }
+    return {
+      season,
+      byTeam:{},
+      playersByTeam:{},
+      meta:{
+        source:"nflverse+ngs",
+        teams:0,
+        marketInformed:false,
+        runtimeSource:"snapshot-missing",
+        runtimeNetworkDisabled:true,
+        error:"NFL feature snapshot unavailable; live request fanout disabled to protect board latency.",
+      },
+    };
+  }
   try{
     const [ngsPassing,ngsRushing,ngsReceiving]=await Promise.all([fetchCsv(ngsUrl("passing"),fetchFn),fetchCsv(ngsUrl("rushing"),fetchFn),fetchCsv(ngsUrl("receiving"),fetchFn)]);
     const ngsAll={passing:ngsPassing.rows,rushing:ngsRushing.rows,receiving:ngsReceiving.rows};
@@ -282,7 +335,7 @@ export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now()
     const byTeam={};
     for(const team of teams)byTeam[team]={...combineTeam({...(prior.offense[team]||{}),...(prior.defense[team]||{})},{...(current.offense[team]||{}),...(current.defense[team]||{})}),...combineQb(prior.qb[team]||{},current.qb[team]||{}),...combineTracking(prior.tracking[team]||{},current.tracking[team]||{})};
     const currentGames=Math.max(0,...Object.values(current.offense).map(r=>r.games||0)),playersByTeam=blendPlayerRows(prior.playersByTeam||{},current.playersByTeam||{});
-    const payload={season,byTeam,playersByTeam,meta:{source:"nflverse+ngs",currentSeason:season,priorSeason:season-1,teams:Object.keys(byTeam).length,currentGames,currentRows:current.rows,priorRows:prior.rows,currentStatus:{team:current.teamStatus,player:current.playerStatus,snaps:current.snapStatus},priorStatus:{team:prior.teamStatus,player:prior.playerStatus,snaps:prior.snapStatus},ngsStatus:{passing:ngsPassing.status,rushing:ngsRushing.status,receiving:ngsReceiving.status},priorWeightGames:PRIOR_GAMES,playerPriorWeightGames:PLAYER_PRIOR_GAMES,marketInformed:false,featureFamilies:["team_epa","qb_epa_cpoe","nextgen_passing","nextgen_rushing","nextgen_receiving","snap_share"],limitation:"Depth-chart and in-week participation remain separate availability inputs; runtime never uses sportsbook lines as features."}};
+    const payload={season,byTeam,playersByTeam,meta:{source:"nflverse+ngs",snapshotSchema:SNAPSHOT_SCHEMA,builtAt:new Date(now).toISOString(),runtimeSource:"offline-builder",currentSeason:season,priorSeason:season-1,teams:Object.keys(byTeam).length,currentGames,currentRows:current.rows,priorRows:prior.rows,currentStatus:{team:current.teamStatus,player:current.playerStatus,snaps:current.snapStatus},priorStatus:{team:prior.teamStatus,player:prior.playerStatus,snaps:prior.snapStatus},ngsStatus:{passing:ngsPassing.status,rushing:ngsRushing.status,receiving:ngsReceiving.status},priorWeightGames:PRIOR_GAMES,playerPriorWeightGames:PLAYER_PRIOR_GAMES,marketInformed:false,featureFamilies:["team_epa","qb_epa_cpoe","nextgen_passing","nextgen_rushing","nextgen_receiving","snap_share"],limitation:"Depth-chart and in-week participation remain separate availability inputs; runtime never uses sportsbook lines as features."}};
     await writeCache(cacheKey,payload,env.caches,TTL_MS);return payload;
   }catch(err){
     const payload={season,byTeam:{},playersByTeam:{},meta:{source:"nflverse+ngs",teams:0,error:String(err?.message||err),marketInformed:false}};
