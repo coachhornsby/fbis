@@ -13,7 +13,7 @@ function Stars({ value = 1 }) {
   return (
     <span className="cgc-star-row" aria-label={`${safe} of 5 confidence stars`}>
       {Array.from({ length: 5 }, (_, i) => (
-        <span key={i} className={i < safe ? "filled" : "empty"} aria-hidden="true">★</span>
+        <svg key={i} className={i < safe ? "filled" : "empty"} viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>
       ))}
     </span>
   );
