@@ -24,6 +24,8 @@ import { attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js
 import { loadNhlProV2Context, attachNhlProV2, NHL_PRO_V2_ID, NHL_PRO_V2_VERSION } from "./nhlProV2.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { attachCbbPro } from "./cbbProModel.js";
+import { loadCbbPlayerContext } from "./cbbPlayerFeed.js";
+import { attachCbbPlayerProps } from "./cbbPlayerPropModel.js";
 import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
 import { attachMatchupFactors } from "./matchupFactors.js";
@@ -232,11 +234,25 @@ export async function buildSlate(sport, date, env = {}) {
     };
   } else if (id === "cbb") {
     const pro = attachCbbPro(slate.games || []);
+    const playerContext = await loadCbbPlayerContext(env, slate.date || date).catch((err) => ({
+      ok: false,
+      byTeam: {},
+      meta: {
+        source: "CBBD /stats/player/season + /games/players",
+        marketInformed: false,
+        error: String(err?.message || err),
+      },
+    }));
+    const players = attachCbbPlayerProps(pro.games, playerContext);
     next = {
       ...slate,
-      games: pro.games,
+      games: players.games,
       modelVersion: pro.meta.version,
-      research: { ...(slate.research || {}), cbbPro: pro.meta },
+      research: {
+        ...(slate.research || {}),
+        cbbPro: pro.meta,
+        cbbPlayerProps: players.meta,
+      },
     };
   }
 
