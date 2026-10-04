@@ -1,0 +1,29 @@
+{
+  "snapshotId": "nba-espn-2024-10-22_2026-06-21-v1.1",
+  "sport": "nba",
+  "source": "ESPN_PUBLIC",
+  "sourceVersion": "canonical-v1.1",
+  "start": "2024-10-22",
+  "end": "2026-06-21",
+  "rows": 2721,
+  "quality": {
+    "possessions": 0.9974274163910327,
+    "playerMinutes": 0.9976693913395933,
+    "playerThrees": 1
+  },
+  "github": {
+    "workflowRunId": 37186207435,
+    "artifactId": 11296764335,
+    "artifactName": "nba-fbis-v1-research-37186207435",
+    "artifactSha256": "9f26cb0dc9fa9adcd6402658ded270a4bddfda39785bd6582dd18e74b710fc2a"
+  },
+  "immutable": true,
+  "marketInformed": false,
+  "notes": "Corrected canonical snapshot after null-coercion and ESPN made-attempted parsing repair. Durably frozen in Cloudflare R2. Model fitting/ablation must read this snapshot and must not reacquire source data unless the upstream data contract changes.",
+  "r2": {
+    "bucket": "fbis-archive",
+    "prefix": "canonical/espn/nba/2024-10-22_2026-06-21/fbis-v1/run-37186207435",
+    "verified": true,
+    "freezeWorkflowRunId": 37186802766
+  }
+}
