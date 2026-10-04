@@ -1,4 +1,9 @@
 const ESPN_TEAM_ENDPOINTS = {
+  nfl: ["nfl"],
+  mlb: ["mlb"],
+  nba: ["nba"],
+  cfb: ["college-football"],
+  cbb: ["mens-college-basketball"],
   soccer: [
     "eng.1","eng.2","esp.1","esp.2","ger.1","ger.2","ita.1","ita.2","fra.1","fra.2","usa.1","mex.1",
     "uefa.champions","uefa.europa","uefa.europa.conf","eng.fa","eng.league_cup",
@@ -90,9 +95,16 @@ async function wikipediaTeamLogo(sport,name){
 }
 
 async function espnTeams(sport,league){
-  const path=sport==="nhl"
-    ? "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams?limit=100"
-    : `https://site.api.espn.com/apis/site/v2/sports/soccer/${encodeURIComponent(league)}/teams?limit=200`;
+  const sportPath = {
+    nfl: "football",
+    mlb: "baseball",
+    nba: "basketball",
+    cfb: "football",
+    cbb: "basketball",
+    nhl: "hockey",
+    soccer: "soccer",
+  }[sport] || sport;
+  const path=`https://site.api.espn.com/apis/site/v2/sports/${encodeURIComponent(sportPath)}/${encodeURIComponent(league)}/teams?limit=400`;
   const res=await fetch(path,{headers:{accept:"application/json"}});
   if(!res.ok) return [];
   const body=await res.json().catch(()=>({}));

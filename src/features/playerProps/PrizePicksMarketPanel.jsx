@@ -80,6 +80,36 @@ function gameTime(r){
     minute:"2-digit",
   });
 }
+function TeamWatermark({ sport, team }){
+  const [logo,setLogo]=useState("");
+  useEffect(()=>{
+    let cancelled=false;
+    const s=String(sport||"").toLowerCase();
+    const t=String(team||"").trim();
+    if(!s||!t||s==="tennis"){
+      setLogo("");
+      return ()=>{cancelled=true};
+    }
+    const q=new URLSearchParams({sport:s,name:t});
+    fetch("/api/team-logo?"+q.toString(),{credentials:"same-origin"})
+      .then(r=>r.ok?r.json():null)
+      .then(body=>{
+        if(cancelled) return;
+        const u=body?.found?String(body?.team?.logo||""):"";
+        setLogo(/^https?:\/\//i.test(u)?u:"");
+      })
+      .catch(()=>{if(!cancelled)setLogo("")});
+    return()=>{cancelled=true};
+  },[sport,team]);
+
+  if(!logo) return null;
+  return (
+    <div className="pp-team-watermark" aria-hidden="true">
+      <img src={logo} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"/>
+    </div>
+  );
+}
+
 function groupLatest(rows=[]){
   const newest=new Map();
   for(const r of rows){
@@ -229,7 +259,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
           return (
             <article className={"pp-card pp-premium-card sport-"+sport} key={group.key}>
               <div className="pp-card-visual">
-                <div className="pp-watermark" aria-hidden="true">{team||sport.toUpperCase()}</div>
+                <TeamWatermark sport={sport} team={team}/>
                 <StarRating stars={stars}/>
 
                 <div className="pp-premium-headshot">
