@@ -11,6 +11,7 @@ import { mapSourceTeam } from "./collegeIdentity.js";
 import { MODEL_VERSION } from "./weights.js";
 import { loadTorvikCbbCatalog, lookupTorvikRating } from "./torvikCbb.js";
 import { loadKenpomCbbCatalog, lookupKenpomRating } from "./kenpomCbb.js";
+import { loadFbisCbbCatalog, lookupFbisCbbRating, projectFbisCbbGame, FBIS_CBB_MODEL_ID } from "./cbbFbisRatings.js";
 
 const CATALOG_TTL = 6 * 60 * 60 * 1000;
 
@@ -66,10 +67,11 @@ export async function attachCfbChallengers(games, env = {}) {
 
 export async function attachCbbChallengers(games, env = {}) {
   const season = cbbSeasonYear();
-  const [catalog, torvikCatalog, kenpomCatalog] = await Promise.all([
+  const [catalog, torvikCatalog, kenpomCatalog, fbisCatalog] = await Promise.all([
     loadCbbdCatalog(env),
     loadTorvikCbbCatalog(env, { cbbSeason: season }),
     loadKenpomCbbCatalog(env, { cbbSeason: season }),
+    loadFbisCbbCatalog(env, { season }),
   ]);
   return {
     games: (games || []).map((game) => {
@@ -80,6 +82,8 @@ export async function attachCbbChallengers(games, env = {}) {
       const awayTorvik = lookupTorvikRating(torvikCatalog, game.away);
       const homeKenpom = lookupKenpomRating(kenpomCatalog, game.home);
       const awayKenpom = lookupKenpomRating(kenpomCatalog, game.away);
+      const homeFbis = lookupFbisCbbRating(fbisCatalog, game.home);
+      const awayFbis = lookupFbisCbbRating(fbisCatalog, game.away);
       const ratings = {
         homeAdjOe: home?.adjOe,
         homeAdjDe: home?.adjDe,
@@ -116,12 +120,20 @@ export async function attachCbbChallengers(games, env = {}) {
         awayFtRate: awayTorvik?.ftr ?? awayKenpom?.ftr,
       };
       const challengers = projectCbbChallengers(game, { ratings, torvikRatings, kenpomRatings, four });
+      challengers[FBIS_CBB_MODEL_ID] = projectFbisCbbGame(game, homeFbis, awayFbis);
       return {
         ...game,
         challengers,
         championModel: MODEL_VERSION,
         // Retain verified basketball matchup evidence for client analysis.
         // Projection/qualification logic remains in the challenger layer.
+        cbbFbisNative: challengers[FBIS_CBB_MODEL_ID],
+        cbbFbisRatings: {
+          home: homeFbis ? {adjOe:homeFbis.adjOe,adjDe:homeFbis.adjDe,tempo:homeFbis.tempo,net:homeFbis.net,sos:homeFbis.sos,sosO:homeFbis.sosO,sosD:homeFbis.sosD,nonConferenceSos:homeFbis.nonConferenceSos,conference:homeFbis.conference,conferenceStrength:homeFbis.conferenceStrength,reliability:homeFbis.reliability,hca:homeFbis.hca} : null,
+          away: awayFbis ? {adjOe:awayFbis.adjOe,adjDe:awayFbis.adjDe,tempo:awayFbis.tempo,net:awayFbis.net,sos:awayFbis.sos,sosO:awayFbis.sosO,sosD:awayFbis.sosD,nonConferenceSos:awayFbis.nonConferenceSos,conference:awayFbis.conference,conferenceStrength:awayFbis.conferenceStrength,reliability:awayFbis.reliability,hca:awayFbis.hca} : null,
+          independent: true,
+          source: "FBIS prior-completed CBBD game-team box scores",
+        },
         cbbMatchupEvidence: {
           home: {
             adjOe: home?.adjOe,
@@ -202,6 +214,7 @@ export async function attachCbbChallengers(games, env = {}) {
           torvikUnmatched: torvikCatalog.unmatched || 0,
           kenpomMatched: kenpomCatalog.matched || 0,
           kenpomUnmatched: kenpomCatalog.unmatched || 0,
+          fbisTeams: Object.keys(fbisCatalog.byTeamId || {}).length,
         },
         researchProvenance: {
           ratingsAsOf: catalog.asOf || null,
@@ -214,12 +227,17 @@ export async function attachCbbChallengers(games, env = {}) {
           kenpomSeason: kenpomCatalog.kenpomSeason || null,
           kenpomDataThrough: kenpomCatalog.dataThrough || null,
           kenpomAvailable: Boolean(kenpomCatalog.ok),
+          fbisAsOf: fbisCatalog.asOf || null,
+          fbisAvailable: Boolean(fbisCatalog.ok),
+          fbisSource: fbisCatalog.source || null,
+          fbisIndependent: true,
         },
       };
     }),
     catalog,
     torvikCatalog,
     kenpomCatalog,
+    fbisCatalog,
   };
 }
 
