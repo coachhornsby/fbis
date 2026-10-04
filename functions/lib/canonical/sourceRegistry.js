@@ -312,7 +312,7 @@ export const SOURCE_REGISTRY = Object.freeze([
     name: "SportsDataverse NHL EDGE + modern game feed",
     sports: ["nhl"],
     domain: "sports",
-    dataFamilies: ["edge_tracking", "skating_speed", "shot_speed", "zone_time", "distance", "pbp", "shifts", "goalies"],
+    dataFamilies: ["edge_tracking", "skating_speed", "speed_bursts", "skating_distance", "shot_speed", "shot_location", "zone_time", "player_game_context", "pbp", "boxscores", "shifts", "scratches", "goalie_game", "goalie_edge"],
     endpointOrFeed: "sportsdataverse.nhl / NHL EDGE + api-web.nhle.com",
     cadence: "daily in season",
     historicalCoverage: "modern NHL feed / EDGE coverage",
@@ -320,7 +320,7 @@ export const SOURCE_REGISTRY = Object.freeze([
     priority: 2,
     fallbackPriority: null,
     active: true,
-    notes: "EDGE tracking is incremental; existing official NHL game-feed facts dedupe to NHL lineage.",
+    notes: "EDGE tracking is incremental: speed/bursts, distance, shot speed/location, zone time, player context and goalie EDGE. Modern feed also supplies shifts/scratches/goalie-game context; existing official NHL game-feed facts dedupe to NHL lineage."
     inPureModel: true,
     inMarketLayer: false,
   },
