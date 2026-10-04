@@ -244,6 +244,29 @@ function marketDefenseField(market){
   };
   return map[market]||null;
 }
+function marketStatField(market){
+  const map={
+    passing_yards:"passing_yards",passing_attempts:"attempts",completions:"completions",passing_touchdowns:"passing_tds",interceptions:"interceptions",
+    rushing_yards:"rushing_yards",rushing_attempts:"carries",
+    receiving_yards:"receiving_yards",receptions:"receptions",touchdowns:"total_tds"
+  };
+  return map[market]||null;
+}
+function calibratedPlayerBase(p,market){
+  const field=marketStatField(market);
+  if(!field)return finite(p?.[market]);
+  const recent=finite(p?.recent5?.[field]);
+  const season=finite(p?.seasonAvg?.[field]);
+  const prior=finite(p?.priorAvg?.[field]);
+  const w=market==="passing_attempts"
+    ? {recent:0.70,season:0.15,prior:0.15}
+    : {recent:0.65,season:0.20,prior:0.15};
+  let n=0,d=0;
+  for(const [v,weight] of [[recent,w.recent],[season,w.season],[prior,w.prior]]){
+    if(v==null||weight<=0)continue;n+=v*weight;d+=weight;
+  }
+  return {value:d>0?n/d:finite(p?.[field]),weights:w,field};
+}
 
 function positionalDefenseStrength(position,market){
   const pos=String(position||"").toUpperCase();
@@ -324,23 +347,25 @@ function nflRowsForSide(game, side, playerFeed = {}) {
       ["touchdowns", p.total_tds, p.sd?.total_tds, position === "RB" ? matchup.rush : matchup.pass],
     ];
     for (const [market, base, rawSigma, efficiencyFactor] of map) {
-      if (finite(base) == null) continue;
+      const calibrated=calibratedPlayerBase(p,market);
+      const baseValue=finite(calibrated?.value ?? base);
+      if (baseValue == null) continue;
       const positionDefense=positionalDefenseFactor(game,side,position,market,playerFeed);
-      const projection = Number(base) * volumeFactor * Number(efficiencyFactor || 1) * positionDefense.factor;
+      const projection = Number(baseValue) * volumeFactor * Number(efficiencyFactor || 1) * positionDefense.factor;
       if (projection <= 0.05) continue;
       const sigmaBase = finite(rawSigma);
       const sigma = sigmaBase == null ? null : sigmaBase * (1 + (1 - roleConfidence) * 0.30);
       const row = statRow({
         sport:"nfl",game,team,player:p,market,projection,sigma,
-        source:"NFLVERSE_ADAPTIVE_LAST5_85_TO_65_PRIOR15_NGS_MARKET_CALIBRATED_DEFENSE_V3_2",
-        notes:"Target-role NFL projection: adaptive weighted last-five blend (85% early, 75% midseason, 65% mature-season floor) with 15% prior-season stabilization; adjusted by snap role, Next Gen efficiency, team environment, market-calibrated opponent allowance, and pass/rush EPA. Market lines are excluded from projection inputs.",
+        source:"NFLVERSE_LAST5_65_FLOOR_MARKET_CALIBRATED_NGS_DEFENSE_V3_2",
+        notes:"Target-role NFL projection: validated 65% last-five floor with 20% current-season and 15% prior-season stabilization; QB passing attempts use validated 70/15/15. Adjusted by snap role, Next Gen efficiency, team environment, market-calibrated opponent allowance, and pass/rush EPA. Market lines are excluded from projection inputs.",
       });
       if (!row) continue;
       row.targetRole=targetRole;
       row.roleConfidence=round1(roleConfidence);
       row.snapShare=snapShare==null?null:round1(snapShare);
       row.recent5=p.recent5||null;
-      row.formBlend=p.formBlend||null;
+      row.formBlend=calibrated?.weights||p.formBlend||null;
       row.recent5Games=recentGames;
       row.seasonAverage=p.seasonAvg||null;
       row.priorAverage=p.priorAvg||null;
