@@ -67,9 +67,48 @@ describe("board confidence stars", () => {
     assert.equal(confidenceStars(game("q54", 54, qualified)), 1);
   });
 
-  it("keeps hard governance blocks at one star regardless of quality", () => {
-    const g = game("blocked", 98, { quality: { score: 98, state: "DQ", flags: [] } });
+  it("keeps explicit data disqualifications at one star regardless of quality", () => {
+    const g = game("blocked", 98, { dqState: "DQ" });
     assert.equal(confidenceStars(g), 1);
+  });
+
+  it("does not treat a normal quality state as a data disqualification", () => {
+    const g = game("ready-state", 84, { quality: { score: 84, state: "READY", flags: [] } });
+    assert.equal(confidenceStars(g), 4);
+  });
+
+  it("does not collapse wager-blocked CFB projections to one star", () => {
+    const g = game("cfb-blocked-complete", 0, {
+      sport: "cfb",
+      projectionState: "COMPLETE",
+      cfb: { projectionState: "COMPLETE", bettingAllowed: false, dataQuality: 0 },
+      qualificationBlocked: true,
+    });
+    assert.equal(confidenceStars(g), 4);
+  });
+
+  it("uses CFB projection state as the primary confidence signal", () => {
+    const partial = game("cfb-partial", 0, {
+      sport: "cfb",
+      projectionState: "PARTIAL",
+      cfb: { projectionState: "PARTIAL", bettingAllowed: false, dataQuality: 0 },
+      qualificationBlocked: true,
+    });
+    const prior = game("cfb-prior", 0, {
+      sport: "cfb",
+      projectionState: "PRIOR_ONLY",
+      cfb: { projectionState: "PRIOR_ONLY", bettingAllowed: false, dataQuality: 0 },
+      qualificationBlocked: true,
+    });
+    const leagueAvg = game("cfb-league", 0, {
+      sport: "cfb",
+      projectionState: "LEAGUE_AVERAGE_ONLY",
+      cfb: { projectionState: "LEAGUE_AVERAGE_ONLY", bettingAllowed: false, dataQuality: 0 },
+      qualificationBlocked: true,
+    });
+    assert.equal(confidenceStars(partial), 3);
+    assert.equal(confidenceStars(prior), 2);
+    assert.equal(confidenceStars(leagueAvg), 1);
   });
 
   it("caps research projections at three stars", () => {

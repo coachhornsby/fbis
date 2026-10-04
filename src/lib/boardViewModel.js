@@ -167,7 +167,7 @@ export function buildDecisionPresentation(game) {
     (market.marketRole === "EXECUTION_MARKET" &&
       game?.market?.execution?.freshness === "STALE")
   );
-  const dqState = game?.quality?.state || game?.dqState || null;
+  const dqState = game?.dqState ?? game?.quality?.dqState ?? null;
 
   const evPct =
     decision.evPct ?? (decision.ev != null ? Number(decision.ev) * 100 : null);
