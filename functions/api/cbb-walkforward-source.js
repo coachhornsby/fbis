@@ -137,6 +137,18 @@ async function cbbLines(env, { season, start = null, end = null } = {}) {
   return { ok:true, rows, n:rows.length };
 }
 
+
+async function cbbTeamMeta(env, { season } = {}) {
+  const query = { year: Number(season) + 1 };
+  const res = await cbbdGet("/ratings/adjusted", env, { query });
+  if (!res.ok) return { ok:false, error:res.reason || "cbbd-team-meta-failed", httpStatus:res.status || 0, rows:[] };
+  const rows = (res.data || []).map(r => ({
+    team: r.team?.school ?? r.team?.name ?? r.team ?? r.school ?? r.name ?? null,
+    conference: r.conference?.abbreviation ?? r.conference?.name ?? r.conference ?? r.conf ?? null,
+  })).filter(r => r.team);
+  return { ok:true, rows, n:rows.length };
+}
+
 async function cbbGameTeams(env, { season, start = null, end = null } = {}) {
   const query = { season: Number(season) + 1 };
   if (start) query.startDateRange = start;
@@ -209,6 +221,11 @@ export async function onRequestGet(context) {
     if (!Number.isFinite(season)) return json({ok:false,error:"season-required"},400);
     return json(await cbbGameTeams(env,{season,start,end}));
   }
+  if (kind === "team-meta") {
+    const season = Number(url.searchParams.get("season"));
+    if (!Number.isFinite(season)) return json({ok:false,error:"season-required"},400);
+    return json(await cbbTeamMeta(env,{season}));
+  }
   if (kind === "lines") {
     const season = Number(url.searchParams.get("season"));
     const start = url.searchParams.get("start");
@@ -216,5 +233,5 @@ export async function onRequestGet(context) {
     if (!Number.isFinite(season)) return json({ok:false,error:"season-required"},400);
     return json(await cbbLines(env,{season,start,end}));
   }
-  return json({ok:false,error:"kind-required",kinds:["games","game-teams","lines","kenpom-archive","kenpom-preseason"]},400);
+  return json({ok:false,error:"kind-required",kinds:["games","game-teams","team-meta","lines","kenpom-archive","kenpom-preseason"]},400);
 }
