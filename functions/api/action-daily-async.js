@@ -21,6 +21,16 @@ function day(d=new Date()){const p=parts(d);return `${p.y}-${p.m}-${p.d}`}
 function prev(k){const [y,m,d]=k.split("-").map(Number),x=new Date(Date.UTC(y,m-1,d,12));x.setUTCDate(x.getUTCDate()-1);return x.toISOString().slice(0,10)}
 function sport(league){const k=String(league||"").toLowerCase();if(k==="ncaaf")return "cfb";if(k==="ncaab")return "cbb";if(["epl","laliga","bundesliga","seriea","ligue1","mls"].includes(k))return "soccer";return k}
 function rowDay(t){const ms=Date.parse(String(t||""));return Number.isFinite(ms)?day(new Date(ms)):null}
+function rawArchiveKey(source,date,runId){const [y,m,d]=String(date||"").split("-");return `raw/${source}/${y}/${m}/${d}/${runId}.json`}
+async function archiveRawPull(env,{source,date,runId,rows,meta={}}){
+ const bucket=env?.ARCHIVE;if(!bucket)throw new Error("archive-binding-missing");
+ const key=rawArchiveKey(source,date,runId);
+ if(!await bucket.head(key)){
+   const archivedAt=new Date().toISOString(),payload=JSON.stringify({schemaVersion:1,source,date,runId,archivedAt,meta,rows});
+   await bucket.put(key,payload,{httpMetadata:{contentType:"application/json; charset=utf-8"},customMetadata:{source:String(source),date:String(date),runId:String(runId),immutable:"true",archivedAt}});
+ }
+ return key;
+}
 async function slate(env,t,y){const all=[],by={},todayIds={};for(const s of SPORTS){let a={fbisEvents:[]},b={fbisEvents:[]};try{a=await loadFbisSlateForMatching(queryGames,env,{sport:s,date:t})}catch{}try{b=await loadFbisSlateForMatching(queryGames,env,{sport:s,date:y})}catch{}const x=a.fbisEvents||[],z=b.fbisEvents||[];todayIds[s]=[...new Set(x.map(g=>String(g?.id||"")).filter(Boolean))];by[s]={today:x.length,yesterday:z.length};all.push(...x,...z)}return{all,by,todayIds}}
 async function mtd(db,now=new Date()){const ms=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),1)).toISOString();const r=await db.queryOne("SELECT COALESCE(SUM(CASE WHEN actual_total_usd IS NOT NULL THEN actual_total_usd ELSE estimated_total_usd END),0) usd FROM shadow_cost_ledger WHERE created_at >= ?",[ms]);return Number(r?.usd||0)}
 function budget(env,now=new Date()){const n=Number(env.ACTION_APIFY_HARD_MONTHLY_BUDGET_USD),base=Number.isFinite(n)&&n>0?n:15;return now.getUTCFullYear()===2026&&now.getUTCMonth()===8?Math.max(base,25):base}
@@ -135,6 +145,12 @@ export async function onRequestPost(context){
  const dr=await fetch(`https://api.apify.com/v2/datasets/${encodeURIComponent(datasetId)}/items?format=json&clean=true`,{headers:{Authorization:`Bearer ${token}`}});if(!dr.ok)return json({ok:false,status:"apify_dataset_http",http:dr.status},502);
  const stableCollectedAt=ar.finishedAt||run.started_at||new Date().toISOString();
  const items=await dr.json();
+ let archiveKey=null;
+ try{
+   archiveKey=await archiveRawPull(context.env,{source:"action",date:today,runId:run.id,rows:Array.isArray(items)?items:[],meta:{apifyRunId:run.apify_run_id,datasetId,stableCollectedAt}});
+ }catch(e){
+   return json({ok:false,status:"raw_archive_failed",runId:run.id,apifyRunId:run.apify_run_id,datasetId,message:String(e?.message||e).slice(0,300)},503);
+ }
  const norm=normalizeActionDataset(Array.isArray(items)?items:[],{runId:run.apify_run_id,receivedAt:stableCollectedAt,scrapedAt:stableCollectedAt});
  const sl=await slate(context.env,today,yesterday);
  const parsed=JSON.parse(run.plan||"{}"),input=parsed.input||{};
@@ -205,7 +221,7 @@ export async function onRequestPost(context){
      runId:run.id,apifyRunId:run.apify_run_id,datasetId,
      actorStatus:status,gamesReturned:norm.rows.length,eligibleRows:eligible.length,
      completedRows:completedNow,remainingRows:remaining,batchSize,batchWritten,propsWritten:propsBatch,
-     collapsedDatasetDuplicates:Math.max(0,norm.rows.length-eligible.length)
+     collapsedDatasetDuplicates:Math.max(0,norm.rows.length-eligible.length),archiveKey
    },202);
  }
 
@@ -213,5 +229,5 @@ export async function onRequestPost(context){
  await finalizeRun(db,run,{status:"success_daily",datasetId,gamesReturned:norm.rows.length,matched,unmatched,written:eligible.length,malformed:norm.malformed,estimatedCostUsd:estimated});
  try{await upsertCostLedger(db,cost)}catch{}
  const canonical=await db.queryOne("SELECT COUNT(*) n FROM action_market_book_observations WHERE run_id=?",[run.id]);
- return json({ok:true,executed:true,status:"success_daily",runId:run.id,apifyRunId:run.apify_run_id,datasetId,gamesReturned:norm.rows.length,eligibleRows:eligible.length,matched,unmatched,observationsWritten:eligible.length,canonicalSeriesRows:Number(canonical?.n||0),recoveryReplay,todayRows,closeRows,propsWrittenThisBatch:propsBatch,estimatedCostUsd:estimated,collapsedDatasetDuplicates:Math.max(0,norm.rows.length-eligible.length)},200);
+ return json({ok:true,executed:true,status:"success_daily",runId:run.id,apifyRunId:run.apify_run_id,datasetId,gamesReturned:norm.rows.length,eligibleRows:eligible.length,matched,unmatched,observationsWritten:eligible.length,canonicalSeriesRows:Number(canonical?.n||0),recoveryReplay,todayRows,closeRows,propsWrittenThisBatch:propsBatch,estimatedCostUsd:estimated,collapsedDatasetDuplicates:Math.max(0,norm.rows.length-eligible.length),archiveKey},200);
 }
