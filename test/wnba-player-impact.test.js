@@ -69,3 +69,15 @@ test("combined WNBA impact does not require proprietary external metrics",()=>{
   assert.equal(x.ok,true);
   assert.equal(x.governance.proprietaryMetricRequired,false);
 });
+
+
+test("WNBA lineup reconstruction extends through overtime",()=>{
+  const home=Array.from({length:5},(_,i)=>({id:`H${i+1}`,name:`H ${i+1}`,starter:1}));
+  const away=Array.from({length:5},(_,i)=>({id:`A${i+1}`,name:`A ${i+1}`,starter:1}));
+  const plays=[
+    {id:"1",period:{number:1},clock:{displayValue:"10:00"},type:{text:"Jump Ball"},team:{id:"H"},text:"start"},
+    {id:"2",period:{number:5},clock:{displayValue:"0:10"},type:{text:"Made Shot"},team:{id:"H"},text:"made shot",scoringPlay:true,scoreValue:2}
+  ];
+  const stints=reconstructLineupStints({plays,homeTeamId:"H",awayTeamId:"A",homePlayers:home,awayPlayers:away});
+  assert.equal(stints.at(-1).endElapsed,2700);
+});
