@@ -1,6 +1,13 @@
 name: NHL full model + prop validation
 
 on:
+  pull_request:
+    paths:
+      - "scripts/nhl-player-pro-v2-backtest.mjs"
+      - "functions/lib/nhlPropConfidence.js"
+      - "src/features/playerProps/buildPlayerPropsBoard.js"
+      - "test/nhl-prop-confidence.test.js"
+      - ".github/workflows/nhl-full-validation.yml"
   schedule:
     - cron: "45 12 * * 1"
   push:
