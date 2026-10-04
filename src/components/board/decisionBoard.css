@@ -1870,3 +1870,10 @@
  .fbis-shell-main.route-board .cgc-final-score{flex-wrap:nowrap!important}
  .fbis-shell-main.route-board .cgc-final-score>small{flex-basis:auto!important;text-align:left!important}
 }
+
+
+/* Board card team logos: +25% from the approved compact-card size (46px -> 57.5px). */
+.fbis-shell-main.route-board .cgc-logo .team-logo{
+  width:57.5px!important;
+  height:57.5px!important;
+}
