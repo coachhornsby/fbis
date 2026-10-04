@@ -9,6 +9,8 @@ on:
       - "scripts/wnba-canonical-build.mjs"
       - "scripts/wnba-merge-canonical.mjs"
       - "migrations/0049_wnba_player_impact.sql"
+      - "scripts/wnba-merge-lineup-stints.mjs"
+      - "scripts/wnba-lineup-effects-build.mjs"
       - "research/wnba/player-impact-snapshot.json"
       - "functions/lib/wnbaPlayerImpactShadow.js"
   workflow_dispatch:
@@ -47,19 +49,30 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          mkdir -p artifacts/frozen artifacts/current artifacts/daily artifacts/merge
+          mkdir -p artifacts/frozen artifacts/current artifacts/daily artifacts/merge artifacts/stints artifacts/combined
           CUR="models/wnba/player-impact/research-current"
           npx wrangler r2 object get "fbis-archive/${CUR}/wnba-canonical.jsonl" --file artifacts/frozen/wnba-canonical.jsonl --remote || : > artifacts/frozen/wnba-canonical.jsonl
           npx wrangler r2 object get "fbis-archive/${CUR}/wnba-player-impact-v1.json" --file artifacts/frozen/wnba-player-impact-v1.json --remote || echo '{"players":{}}' > artifacts/frozen/wnba-player-impact-v1.json
           npx wrangler r2 object get "fbis-archive/${CUR}/wnba-lineup-effects.json" --file artifacts/frozen/wnba-lineup-effects.json --remote || echo '{"effects":[]}' > artifacts/frozen/wnba-lineup-effects.json
           npx wrangler r2 object get "fbis-archive/canonical/espn/wnba/current/wnba-canonical.jsonl" --file artifacts/current/previous.jsonl --remote || : > artifacts/current/previous.jsonl
+          npx wrangler r2 object get "fbis-archive/canonical/espn/wnba/current/wnba-lineup-stints.jsonl" --file artifacts/current/previous-stints.jsonl --remote || : > artifacts/current/previous-stints.jsonl
+          npx wrangler r2 object get "fbis-archive/${CUR}/wnba-lineup-stints.jsonl" --file artifacts/frozen/wnba-lineup-stints.jsonl --remote || : > artifacts/frozen/wnba-lineup-stints.jsonl
 
       - name: Increment latest completed date only
         run: |
           node scripts/wnba-canonical-build.mjs start="$WNBA_YESTERDAY" end="$WNBA_YESTERDAY" out=artifacts/daily/wnba-daily.jsonl allowEmpty=1
+          node scripts/wnba-pbp-canonical-build.mjs start="$WNBA_YESTERDAY" end="$WNBA_YESTERDAY" out=artifacts/daily/wnba-daily-pbp.jsonl
+          node scripts/wnba-lineup-stints-build.mjs             games=artifacts/daily/wnba-daily.jsonl             pbp=artifacts/daily/wnba-daily-pbp.jsonl             out=artifacts/daily/wnba-daily-stints.jsonl             effects=artifacts/daily/wnba-daily-effects.json
           cp artifacts/current/previous.jsonl artifacts/merge/previous.jsonl
           cp artifacts/daily/wnba-daily.jsonl artifacts/merge/daily.jsonl
           node scripts/wnba-merge-canonical.mjs artifacts/merge artifacts/current/wnba-canonical.jsonl
+          cp artifacts/current/previous-stints.jsonl artifacts/stints/previous.jsonl
+          cp artifacts/daily/wnba-daily-stints.jsonl artifacts/stints/daily.jsonl
+          node scripts/wnba-merge-lineup-stints.mjs artifacts/stints artifacts/current/wnba-lineup-stints.jsonl
+          cp artifacts/frozen/wnba-lineup-stints.jsonl artifacts/combined/historical.jsonl
+          cp artifacts/current/wnba-lineup-stints.jsonl artifacts/combined/current.jsonl
+          node scripts/wnba-merge-lineup-stints.mjs artifacts/combined artifacts/current/wnba-all-lineup-stints.jsonl
+          node scripts/wnba-lineup-effects-build.mjs artifacts/current/wnba-all-lineup-stints.jsonl artifacts/current/wnba-lineup-effects.json
 
       - name: Persist current-season canonical state
         env:
@@ -67,6 +80,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-canonical.jsonl" --file artifacts/current/wnba-canonical.jsonl --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-lineup-stints.jsonl" --file artifacts/current/wnba-lineup-stints.jsonl --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-lineup-effects.json" --file artifacts/current/wnba-lineup-effects.json --remote
 
       - name: Load point-in-time WNBA availability
         env:
