@@ -142,6 +142,10 @@ function skaterRows(rows=[],lookup=null){
       assistsPerGame:games?assists/games:null,
       pointsPerGame:games?points/games:null,
       shotsPerGame:games?shots/games:null,
+      toiPerGame:clockSeconds(r.timeOnIcePerGame),
+      ppPointsPerGame:games?(finite(r.ppPoints)||0)/games:null,
+      ppGoalsPerGame:games?(finite(r.ppGoals)||0)/games:null,
+      powerPlayToiPerGame:clockSeconds(r.powerPlayTimeOnIcePerGame),
     };
   }).filter(r=>r.id&&r.team&&r.games>0);
 }
@@ -175,6 +179,10 @@ function blendSkaters(priorRows=[],currentRows=[]){
       assistsPerGame:mix(prior?.assistsPerGame,current?.assistsPerGame),
       pointsPerGame:mix(prior?.pointsPerGame,current?.pointsPerGame),
       shotsPerGame:mix(prior?.shotsPerGame,current?.shotsPerGame),
+      toiPerGame:mix(prior?.toiPerGame,current?.toiPerGame),
+      ppPointsPerGame:mix(prior?.ppPointsPerGame,current?.ppPointsPerGame),
+      ppGoalsPerGame:mix(prior?.ppGoalsPerGame,current?.ppGoalsPerGame),
+      powerPlayToiPerGame:mix(prior?.powerPlayToiPerGame,current?.powerPlayToiPerGame),
       currentWeight:w,
     };
     if(!byTeam[team]) byTeam[team]=[];
