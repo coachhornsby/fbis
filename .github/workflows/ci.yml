@@ -18,6 +18,7 @@ on:
       - "SECURITY.md"
       - ".github/dependabot.yml"
       - "data/models/nhl-pro-v2-validation.json"
+      - "data/models/nhl-player-pro-v2-validation.json"
 
 permissions:
   contents: read
