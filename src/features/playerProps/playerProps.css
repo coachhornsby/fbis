@@ -1396,3 +1396,27 @@
     font-size: 23px;
   }
 }
+
+
+/* Prevent sport/team pill from being clipped below the player image. */
+@media (max-width: 760px) {
+  .pp-team-pill {
+    bottom: 10px;
+    transform: translateX(-50%);
+    z-index: 8;
+  }
+
+  .pp-premium-headshot {
+    bottom: 0;
+  }
+
+  .pp-card-body {
+    padding-top: 15px;
+  }
+}
+
+@media (max-width: 390px) {
+  .pp-team-pill {
+    bottom: 8px;
+  }
+}
