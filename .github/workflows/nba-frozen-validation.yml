@@ -1,0 +1,58 @@
+name: NBA frozen snapshot validation
+on:
+  push:
+    branches: ["research/nba-fbis-v1"]
+    paths:
+      - "functions/lib/nbaModel.js"
+      - "functions/lib/nbaPlayerPropModel.js"
+      - "scripts/nba-holdout-validate.mjs"
+      - "scripts/nba-player-prop-walkforward.mjs"
+      - "research/nba/frozen-snapshot.json"
+      - ".github/workflows/nba-frozen-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+
+      - name: Download frozen snapshot from R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          BUCKET=$(node -p "require('./research/nba/frozen-snapshot.json').r2.bucket")
+          PREFIX=$(node -p "require('./research/nba/frozen-snapshot.json').r2.prefix")
+          mkdir -p artifacts
+          for f in nba-canonical.jsonl nba-canonical-manifest.json nba-fbis-v1-rows.jsonl SHA256SUMS; do
+            npx wrangler r2 object get "${BUCKET}/${PREFIX}/${f}" --file "artifacts/${f}" --remote
+          done
+
+      - name: Verify snapshot contract and run untouched holdout
+        run: |
+          set -euo pipefail
+          jq -e '.rows == 2721 and .quality.possessions > 0.99 and .quality.playerMinutes > 0.99 and .quality.playerThrees == 1' artifacts/nba-canonical-manifest.json
+          test -s artifacts/nba-fbis-v1-rows.jsonl
+          node scripts/nba-player-prop-walkforward.mjs artifacts/nba-canonical.jsonl 2025-10-21
+          test -s artifacts/nba-player-prop-rows.jsonl
+          node scripts/nba-holdout-validate.mjs
+
+      - name: Publish summary
+        run: |
+          jq . artifacts/nba-holdout-validation.json
+          jq -r '"## NBA frozen holdout\n- game n: \(.game.holdout.n)\n- margin MAE: \(.game.holdout.marginMae) vs baseline \(.game.benchmarkHoldout.marginMae)\n- total MAE: \(.game.holdout.totalMae) vs baseline \(.game.benchmarkHoldout.totalMae)\n- winner accuracy: \(.game.holdout.winnerAccuracy) vs baseline \(.game.benchmarkHoldout.winnerAccuracy)\n- state: \(.governance.maturity)"' artifacts/nba-holdout-validation.json >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-holdout-validation-${{ github.run_id }}
+          path: artifacts/nba-holdout-validation.json
+          retention-days: 90
