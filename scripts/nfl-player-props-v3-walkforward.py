@@ -5,8 +5,8 @@ from urllib.request import Request, urlopen
 import pandas as pd
 import numpy as np
 
-START=2023
-EVAL_START=2024
+START=2024
+EVAL_START=2025
 END=2026
 OUT=Path("artifacts/nfl-player-props-v3")
 OUT.mkdir(parents=True,exist_ok=True)
