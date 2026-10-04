@@ -225,3 +225,64 @@ Until then:
 - state = RESEARCH
 - canQualify = false
 - wagerAuthorization = false
+
+
+## Game-level wagering architecture
+
+The wagering layer does not bet historical buckets. It evaluates each offered NBA wager at a specific decision timestamp.
+
+Decision sequence:
+
+1. Freeze the independent NBA-FBIS-v1 projection and uncertainty distribution.
+2. Preserve the projection decomposition explaining the model's margin/total view.
+3. Join only market observations that existed at or before the decision timestamp.
+4. Require an actual offered line and actual American price before calculating break-even probability or EV.
+5. Derive ordinary market trajectory from immutable sportsbook snapshots: open/current movement, velocity, persistence/reversal, and FBIS edge expansion/decay.
+6. Join ACTION only as a separate Wager Intelligence layer.
+7. Estimate model probability, break-even probability, EV, uncertainty, matchup reliability, data quality/freshness, historical analogue reliability, market confirmation/opposition, and FBIS Confidence.
+8. Produce BET/PASS for the individual offered wager.
+9. Closing information is joined only after the fact for CLV and grading.
+10. Stake units remain null until a staking policy is prospectively validated.
+
+Historical subsets are evidence for calibration/reliability only. They never directly generate a wager.
+
+### ACTION acquisition and authority rules
+
+NBA does not receive a dedicated ACTION paid pull.
+
+FBIS uses the existing shared daily ACTION acquisition contract:
+
+- exactly one successful paid full-slate ACTION acquisition per Chicago day;
+- the run covers the active MLB/NFL/NBA/NHL/CFB/CBB slate;
+- START never replaces an existing paid Actor run;
+- HARVEST resumes the same run until persistence completes;
+- monthly/daily spend guards, shared Apify cap, leases, cooldowns, and circuit rules remain authoritative;
+- the base daily payload keeps paid movement history, props, injuries, and standings disabled;
+- ACTION observations are append-only and snapshot labels are derived without rewriting observations.
+
+ACTION may supply market context such as opening/current information, ticket %, money %, money-ticket divergence, and provider market movement. FBIS may locally derive confirmation/opposition, reverse-line movement, or steam-like behavior from those observations.
+
+ACTION is never:
+- a PURE NBA model feature;
+- a direct wager qualifier;
+- wager authorization;
+- a reason to start another paid collection.
+
+If ACTION is missing or stale, the NBA model still exists. The decision record notes the missing Wager Intelligence context and relies on executable sportsbook market data for price/EV.
+
+### Confidence governance
+
+FBIS Confidence is provisional until graded prospective decisions demonstrate monotonicity.
+
+A confidence calibration requires at least 50 graded decisions and at least three populated confidence bands. The calibration checks win rate, ROI, and CLV behavior by confidence band. If higher confidence does not generally correspond to better outcomes, confidence remains invalid for staking and is recalibrated.
+
+Primary wagering validation metrics are:
+- units;
+- ROI;
+- CLV;
+- probability calibration;
+- max drawdown;
+- stability through time;
+- confidence monotonicity.
+
+Projection MAE remains a diagnostic, not the wagering objective.
