@@ -245,16 +245,39 @@ function marketDefenseField(market){
   return map[market]||null;
 }
 
+function positionalDefenseStrength(position,market){
+  const pos=String(position||"").toUpperCase();
+  if(pos==="QB"){
+    if(market==="passing_yards"||market==="passing_attempts")return 0.65;
+    if(market==="completions")return 0.45;
+    if(market==="rushing_attempts")return 0.25;
+    return 0;
+  }
+  if(pos==="RB"){
+    if(market==="receiving_yards")return 0.65;
+    if(market==="receptions")return 0.25;
+    return 0;
+  }
+  if(pos==="TE"){
+    if(market==="receptions")return 0.25;
+    return 0;
+  }
+  // WR receiving production and all remaining rushing markets were more accurate
+  // without a position-allowance multiplier in the 2025-2026 walk-forward.
+  return 0;
+}
+
 function positionalDefenseFactor(game,side,position,market,playerFeed={}){
   const oppSide=side==="home"?"away":"home";
   const defense=game.nflFeatures?.[oppSide]?.positionDefense?.[position]||{};
   const league=playerFeed.leaguePositionDefense?.[position]||{};
   const field=marketDefenseField(market);
-  if(!field)return{factor:1,available:false,allowed:null,league:null};
+  const strength=positionalDefenseStrength(position,market);
+  if(!field)return{factor:1,available:false,allowed:null,league:null,strength};
   const allowed=finite(defense[field]),avg=finite(league[field]);
-  if(allowed==null||avg==null||avg<=0)return{factor:1,available:false,allowed,league:avg};
+  if(allowed==null||avg==null||avg<=0)return{factor:1,available:false,allowed,league:avg,strength};
   const ratio=allowed/avg;
-  return{factor:clamp(1+(ratio-1)*0.45,0.86,1.14),available:true,allowed,league:avg};
+  return{factor:clamp(1+(ratio-1)*strength,0.86,1.14),available:true,allowed,league:avg,strength};
 }
 
 function nflRowsForSide(game, side, playerFeed = {}) {
@@ -309,8 +332,8 @@ function nflRowsForSide(game, side, playerFeed = {}) {
       const sigma = sigmaBase == null ? null : sigmaBase * (1 + (1 - roleConfidence) * 0.30);
       const row = statRow({
         sport:"nfl",game,team,player:p,market,projection,sigma,
-        source:"NFLVERSE_LAST5_65_SEASON25_PRIOR10_NGS_POSITION_DEFENSE_V3",
-        notes:"Target-role NFL projection: 65% weighted last-five appearances, 25% current-season rate, 10% prior-season stabilizer; adjusted by snap role, Next Gen efficiency, team environment, position/stat-specific opponent allowance, and pass/rush EPA. Market lines are excluded from projection inputs.",
+        source:"NFLVERSE_LAST5_65_SEASON20_PRIOR15_NGS_MARKET_CALIBRATED_DEFENSE_V3_1",
+        notes:"Target-role NFL projection: 65% weighted last-five appearances, 20% current-season rate, 15% prior-season stabilizer; adjusted by snap role, Next Gen efficiency, team environment, market-calibrated opponent allowance, and pass/rush EPA. Market lines are excluded from projection inputs.",
       });
       if (!row) continue;
       row.targetRole=targetRole;
@@ -325,7 +348,7 @@ function nflRowsForSide(game, side, playerFeed = {}) {
       row.matchupFactor=round1(positionDefense.factor * (market.startsWith("rushing")?matchup.rush:market==="touchdowns"&&position==="RB"?matchup.rush:matchup.pass));
       row.opponentMatchup={
         passEpaAllowed:matchup.passEpaAllowed,rushEpaAllowed:matchup.rushEpaAllowed,pressureRate:matchup.pressure,
-        position,market,allowed:positionDefense.allowed,leagueAllowed:positionDefense.league,positionDefenseFactor:round1(positionDefense.factor),
+        position,market,allowed:positionDefense.allowed,leagueAllowed:positionDefense.league,positionDefenseFactor:round1(positionDefense.factor),positionDefenseStrength:positionDefense.strength,
       };
       row.featureEvidence={
         nextGen:Boolean(p.ngs&&Object.values(p.ngs).some(v=>finite(v)!=null)),
