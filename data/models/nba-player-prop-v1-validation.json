@@ -1,0 +1,54 @@
+{
+  "modelId": "NBA-PLAYER-PROP-v1",
+  "version": "research-v1",
+  "gameModelId": "NBA-FBIS-v1",
+  "marketInformed": false,
+  "canQualify": false,
+  "canAuthorizeWager": false,
+  "trainingSeason": "2024-25",
+  "validationSeason": "2025-26",
+  "frozenSnapshotSha256": "9f26cb0dc9fa9adcd6402658ded270a4bddfda39785bd6582dd18e74b710fc2a",
+  "holdout": {
+    "points": {
+      "n": 30024,
+      "mae": 4.5632960298427925,
+      "bias": -0.09890754063415934,
+      "naiveTrailingMeanMae": 4.7141126648945395
+    },
+    "rebounds": {
+      "n": 30024,
+      "mae": 1.9047528643751666,
+      "bias": -0.008849586997069015,
+      "naiveTrailingMeanMae": 1.9458636397760098
+    },
+    "assists": {
+      "n": 30024,
+      "mae": 1.3378796962430055,
+      "bias": -0.019068078870237145,
+      "naiveTrailingMeanMae": 1.372156031788326
+    },
+    "three_pointers_made": {
+      "n": 30024,
+      "mae": 0.8764388489208633,
+      "bias": -0.01197042366107114,
+      "naiveTrailingMeanMae": 0.8974497782726201
+    }
+  },
+  "affineCalibrationDecision": "REJECTED",
+  "affineCalibrationReason": "Affine calibration worsened holdout MAE in every tested market.",
+  "marketArchive": {
+    "historicalClvBacktestAvailable": false,
+    "nbaOddsSnapshots": {
+      "n": 36,
+      "minAt": "2026-10-02T15:58:13.934Z",
+      "maxAt": "2026-10-04T07:39:30.857Z"
+    },
+    "nbaPrizePicksLines": {
+      "n": 273,
+      "minAt": "2026-10-01T19:33:35.432Z",
+      "maxAt": "2026-10-01T20:08:12.478Z"
+    }
+  },
+  "decision": "PROSPECTIVE_RESEARCH_SHADOW",
+  "reason": "Raw player model beats a simple 10-game trailing-mean baseline on all four validated markets, but historical price/line coverage is insufficient for CLV/ROI claims."
+}
