@@ -161,6 +161,56 @@ function fitLogistic(X,y,{lambda=0.08,lr=0.035,epochs=900}={}){
   }
   return {w,predict:x=>{let z=w[0];for(let j=0;j<p;j++)z+=w[j+1]*x[j];return clamp(sigmoid(z),0.02,0.98);}};
 }
+function evaluateXY(model,X,y){
+  let hit=0,brier=0,ll=0;
+  for(let i=0;i<X.length;i++){
+    const p=clamp(model.predict(X[i]),1e-6,1-1e-6);
+    hit+=(p>=.5)===(y[i]===1)?1:0;brier+=(p-y[i])**2;ll+=-(y[i]*Math.log(p)+(1-y[i])*Math.log(1-p));
+  }
+  return {accuracy:hit/X.length,brier:brier/X.length,logLoss:ll/X.length};
+}
+function fitCvLogistic(Xraw,y,featureSets){
+  const lambdas=[0.08,0.15,0.3,0.6,1.0,1.8];
+  let best=null;
+  const n=Xraw.length;
+  for(const [name,idx] of Object.entries(featureSets)){
+    for(const lambda of lambdas){
+      const foldScores=[];
+      for(const [trainEnd,valEnd] of [[Math.floor(n*.40),Math.floor(n*.60)],[Math.floor(n*.60),Math.floor(n*.80)],[Math.floor(n*.80),n]]){
+        const xr=Xraw.slice(0,trainEnd).map(x=>idx.map(j=>x[j])),yr=y.slice(0,trainEnd);
+        const xv=Xraw.slice(trainEnd,valEnd).map(x=>idx.map(j=>x[j])),yv=y.slice(trainEnd,valEnd);
+        const sc=standardizer(xr),m=fitLogistic(xr.map(sc.apply),yr,{lambda,lr:.03,epochs:750});
+        const met=evaluateXY(m,xv.map(sc.apply),yv);
+        const score=met.logLoss+0.50*met.brier-0.10*met.accuracy;
+        foldScores.push({...met,score});
+      }
+      const avg=k=>foldScores.reduce((s,x)=>s+x[k],0)/foldScores.length;
+      const candidate={name,idx,lambda,cv:{accuracy:avg("accuracy"),brier:avg("brier"),logLoss:avg("logLoss"),score:avg("score")}};
+      if(!best||candidate.cv.score<best.cv.score)best=candidate;
+    }
+  }
+  const xf=Xraw.map(x=>best.idx.map(j=>x[j])),scaler=standardizer(xf),model=fitLogistic(xf.map(scaler.apply),y,{lambda:best.lambda,lr:.03,epochs:900});
+  return {...best,scaler,model};
+}
+function temperature(p,t){return clamp(sigmoid(logit(p)*t),.02,.98);}
+function bestTemperature(rows,key){
+  let best={t:1,loss:Infinity};
+  for(let t=.35;t<=1.8001;t+=.05){
+    let ll=0;
+    for(const r of rows){const p=temperature(r[key],t);ll+=-(r.y*Math.log(p)+(1-r.y)*Math.log(1-p));}
+    ll/=rows.length;if(ll<best.loss)best={t,loss:ll};
+  }
+  return best;
+}
+function bestBlend(rows,a,b){
+  let best={w:0,loss:Infinity};
+  for(let w=0;w<=1.0001;w+=.05){
+    let ll=0;
+    for(const r of rows){const p=clamp(w*r[a]+(1-w)*r[b],1e-6,1-1e-6);ll+=-(r.y*Math.log(p)+(1-r.y)*Math.log(1-p));}
+    ll/=rows.length;if(ll<best.loss)best={w,loss:ll};
+  }
+  return best;
+}
 function fitStumps(X,y,{trees=70,lr=0.06,minLeaf=60}={}){
   const base=logit(y.reduce((a,b)=>a+b,0)/y.length),pred=Array(X.length).fill(base),model=[];
   const p=X[0].length;
@@ -229,8 +279,21 @@ const XtrainRaw=train.map(r=>vector(r,arenaRes)),XtestRaw=test.map(r=>vector(r,a
 const scaler=standardizer(XtrainRaw),Xtrain=XtrainRaw.map(scaler.apply),Xtest=XtestRaw.map(scaler.apply);
 const ytrain=train.map(r=>r.y);
 const logistic=fitLogistic(Xtrain,ytrain),boost=fitStumps(Xtrain,ytrain);
-for(let i=0;i<train.length;i++){train[i].logistic=logistic.predict(Xtrain[i]);train[i].boosted=boost.predict(Xtrain[i]);}
-for(let i=0;i<test.length;i++){test[i].logistic=logistic.predict(Xtest[i]);test[i].boosted=boost.predict(Xtest[i]);}
+const fidx=Object.fromEntries(FEATURES.map((f,i)=>[f,i]));
+const cvSets={
+  CORE:["baseLogit","goalMargin","eloDiff","xgDiff","goalieDiff","restDiff","homeB2B","awayB2B"].map(x=>fidx[x]),
+  SITUATIONAL:["baseLogit","goalMargin","eloDiff","xgDiff","goalieDiff","restDiff","homeB2B","awayB2B","travelHomeK","travelAwayK","travelDiffK","tzShiftHome","tzShiftAway","returnHome","awayRoadContinuation","altitudeK","arenaResidual"].map(x=>fidx[x]),
+  FULL:FEATURES.map((_,i)=>i)
+};
+const cvLogistic=fitCvLogistic(XtrainRaw,ytrain,cvSets);
+for(let i=0;i<train.length;i++){
+  train[i].logistic=logistic.predict(Xtrain[i]);train[i].boosted=boost.predict(Xtrain[i]);
+  train[i].cvLogistic=cvLogistic.model.predict(cvLogistic.scaler.apply(cvLogistic.idx.map(j=>XtrainRaw[i][j])));
+}
+for(let i=0;i<test.length;i++){
+  test[i].logistic=logistic.predict(Xtest[i]);test[i].boosted=boost.predict(Xtest[i]);
+  test[i].cvLogistic=cvLogistic.model.predict(cvLogistic.scaler.apply(cvLogistic.idx.map(j=>XtestRaw[i][j])));
+}
 
 let bestW=0,bestLoss=Infinity;
 for(let w=0;w<=1.0001;w+=.05){
@@ -243,7 +306,15 @@ for(const r of [...train,...test]){
   r.score=Number(r.scoreProb);
   r.stack=clamp(bestW*r.logistic+(1-bestW)*r.boosted,.02,.98);
 }
-const candidates={current:"current",scoreOnly:"score",logistic:"logistic",boosted:"boosted",stack:"stack"};
+const blendCB=bestBlend(train,"current","boosted");
+for(const r of [...train,...test])r.currentBoost=clamp(blendCB.w*r.current+(1-blendCB.w)*r.boosted,.02,.98);
+const tempCB=bestTemperature(train,"currentBoost");
+const tempCV=bestTemperature(train,"cvLogistic");
+for(const r of [...train,...test]){
+  r.currentBoostCal=temperature(r.currentBoost,tempCB.t);
+  r.cvLogisticCal=temperature(r.cvLogistic,tempCV.t);
+}
+const candidates={current:"current",scoreOnly:"score",logistic:"logistic",boosted:"boosted",stack:"stack",cvLogistic:"cvLogistic",currentBoostCal:"currentBoostCal",cvLogisticCal:"cvLogisticCal"};
 const trainMetrics=Object.fromEntries(Object.entries(candidates).map(([k,v])=>[k,metrics(train,v)]));
 const testMetrics=Object.fromEntries(Object.entries(candidates).map(([k,v])=>[k,metrics(test,v)]));
 const rank=Object.entries(testMetrics).sort((a,b)=>{
@@ -266,9 +337,12 @@ const report={
     boosted:"gradient-boosted residual decision stumps",
     stack:`train-selected blend: ${round(bestW,2)} logistic / ${round(1-bestW,2)} boosted`,
     situational:"rest, B2B, travel miles, time-zone shifts, return-home/road continuation, arena residual, altitude, rolling team strength",
+    cvLogistic:`${cvLogistic.name} feature set; lambda=${cvLogistic.lambda}; expanding-window train-season CV`,
+    calibratedBlend:`current/boosted blend w=${round(blendCB.w,2)} current; temperature=${round(tempCB.t,2)}`,
   },
   features:FEATURES,
   arenaContext:{source:"static arena/city coordinates + IANA time zones; historical home-arena residual learned from prior season only",arenas:Object.keys(ARENA).length},
+  development:{cvLogistic:{featureSet:cvLogistic.name,lambda:cvLogistic.lambda,cv:cvLogistic.cv},currentBoostWeight:blendCB.w,currentBoostTemperature:tempCB.t,cvLogisticTemperature:tempCV.t},
   trainMetrics,testMetrics,
   selected:winner,
   selectedMetrics:best,
