@@ -2,44 +2,34 @@ import TeamLogo from "../TeamLogo.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 
-function line(v) {
+function fmt(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return "—";
-  if (Math.abs(n) < 0.05) return "PK";
-  const x = Math.round(n * 10) / 10;
-  return x > 0 ? `+${x}` : String(x);
+  return (Math.round(n * 10) / 10).toFixed(Math.abs(n % 1) > 0.001 ? 1 : 0);
 }
 
-function edgeLabel(kind, vm) {
+function bestEdge(vm) {
   const cmp = vm.comparison || {};
-  if (kind === "total") {
-    const d = Number(cmp.totalDiff);
-    if (!Number.isFinite(d)) return "—";
-    if (Math.abs(d) < 0.05) return "EVEN";
-    return `${d > 0 ? "OVER" : "UNDER"} ${Math.abs(d).toFixed(1)}`;
+  const spread = Number(cmp.sideDiff);
+  const total = Number(cmp.totalDiff);
+  const spreadAbs = Number.isFinite(spread) ? Math.abs(spread) : -1;
+  const totalAbs = Number.isFinite(total) ? Math.abs(total) : -1;
+
+  if (spreadAbs < 0 && totalAbs < 0) {
+    return { value: "—", detail: "NO EDGE", type: "EDGE" };
   }
-  const d = Number(cmp.sideDiff);
-  if (!Number.isFinite(d)) return "—";
-  const modelSide = cmp.fbisSide;
-  const marketSide = cmp.marketSide;
-  let edge = modelSide?.abbr || "EDGE";
-  if (modelSide?.teamKey && marketSide?.teamKey) {
-    if (modelSide.teamKey === marketSide.teamKey) {
-      const modelLine = Number(modelSide.line);
-      const marketLine = Number(marketSide.line);
-      if (Number.isFinite(modelLine) && Number.isFinite(marketLine)) {
-        const favoriteGetsValue = modelLine < marketLine;
-        if (!favoriteGetsValue) {
-          edge = modelSide.teamKey === "home"
-            ? (vm.away?.abbr || "AWAY")
-            : (vm.home?.abbr || "HOME");
-        }
-      }
-    } else {
-      edge = modelSide?.abbr || edge;
-    }
+  if (spreadAbs >= totalAbs) {
+    return {
+      value: `+${fmt(spreadAbs)}`,
+      detail: cmp.fbisSide?.label || "SPREAD",
+      type: "SPREAD",
+    };
   }
-  return `${edge} ${Math.abs(d).toFixed(1)}`;
+  return {
+    value: `${total > 0 ? "+" : ""}${fmt(total)}`,
+    detail: total > 0 ? "OVER" : total < 0 ? "UNDER" : "TOTAL",
+    type: "TOTAL",
+  };
 }
 
 export default function CompactGameCard({ game, onOpen }) {
@@ -47,9 +37,8 @@ export default function CompactGameCard({ game, onOpen }) {
   const stars = confidenceStars(game);
   const away = vm.away || {};
   const home = vm.home || {};
-  const cmp = vm.comparison || {};
   const proj = vm.projection || {};
-  const market = vm.market || {};
+  const edge = bestEdge(vm);
 
   return (
     <article
@@ -68,53 +57,52 @@ export default function CompactGameCard({ game, onOpen }) {
       aria-label={`Open ${away.abbr || "away"} at ${home.abbr || "home"} analysis`}
     >
       <header className="cgc-head">
-        <span className="cgc-meta">{String(vm.sport || "").toUpperCase()} · {vm.timing?.timeLine || "—"}</span>
-        <span className="cgc-stars" aria-label={`${stars} of 5 confidence stars`}>
-          {"★".repeat(stars)}<span>{"☆".repeat(5 - stars)}</span>
+        <div className="cgc-head-left">
+          <span className="cgc-sport-pill">{String(vm.sport || "").toUpperCase()}</span>
+          <span className="cgc-time">{vm.timing?.timeLine || "—"}</span>
+        </div>
+        <span className="cgc-rating" aria-label={`${stars} of 5 confidence stars`}>
+          <span aria-hidden="true">★</span> {stars}
         </span>
       </header>
 
-      <div className="cgc-matchup">
-        <div className="cgc-team">
-          <TeamLogo team={away} size={46} />
-          <strong>{away.abbr || "—"}</strong>
+      <div className="cgc-main">
+        <div className="cgc-matchup">
+          <div className="cgc-team-block">
+            <TeamLogo team={away} size={66} className="cgc-logo" />
+            <strong className="cgc-abbr">{away.abbr || "—"}</strong>
+            <strong className="cgc-proj">{proj.available ? (proj.away ?? "—") : "—"}</strong>
+            <span>PROJ. SCORE</span>
+          </div>
+
+          <span className="cgc-vs">VS</span>
+
+          <div className="cgc-team-block">
+            <TeamLogo team={home} size={66} className="cgc-logo" />
+            <strong className="cgc-abbr">{home.abbr || "—"}</strong>
+            <strong className="cgc-proj">{proj.available ? (proj.home ?? "—") : "—"}</strong>
+            <span>PROJ. SCORE</span>
+          </div>
         </div>
-        <span className="cgc-at">@</span>
-        <div className="cgc-team">
-          <TeamLogo team={home} size={46} />
-          <strong>{home.abbr || "—"}</strong>
-        </div>
+
+        <aside className="cgc-best-edge">
+          <span>BEST EDGE</span>
+          <strong>{edge.value}</strong>
+          <b>{edge.detail}</b>
+          <small>{edge.type}</small>
+        </aside>
       </div>
 
-      <div className="cgc-score">
-        <span>FBIS PROJECTED</span>
-        <strong>{proj.available ? `${away.abbr} ${proj.away ?? "—"} · ${home.abbr} ${proj.home ?? "—"}` : "NO FBIS PROJECTION"}</strong>
-      </div>
-
-      <div className="cgc-market-table" role="table" aria-label="FBIS versus market">
-        <div className="cgc-market-row cgc-market-head" role="row">
-          <span />
-          <span>FBIS</span>
-          <span>MARKET</span>
-          <span>EDGE</span>
+      <footer className="cgc-footer">
+        <div className="cgc-footer-metric">
+          <strong>{stars}/5</strong>
+          <span>CONFIDENCE</span>
         </div>
-        <div className="cgc-market-row" role="row">
-          <strong>SPREAD</strong>
-          <span>{cmp.fbisSide?.label || "—"}</span>
-          <span>{cmp.marketSide?.label || market.spreadLabel || "—"}</span>
-          <b>{edgeLabel("spread", vm)}</b>
+        <div className="cgc-footer-metric">
+          <strong>{proj.total ?? "—"}</strong>
+          <span>PROJ. TOTAL</span>
         </div>
-        <div className="cgc-market-row" role="row">
-          <strong>TOTAL</strong>
-          <span>{proj.total ?? cmp.fbisTotal ?? "—"}</span>
-          <span>{market.total ?? cmp.marketTotal ?? "—"}</span>
-          <b>{edgeLabel("total", vm)}</b>
-        </div>
-      </div>
-
-      <footer className="cgc-foot">
-        <span className={vm.freshness?.stale ? "is-stale" : ""}>{vm.status?.label || "—"}{vm.footer?.asOfLabel ? ` · ${vm.footer.asOfLabel}` : ""}</span>
-        <span className="cgc-open">Open Analysis →</span>
+        <span className="cgc-view">VIEW <b>→</b></span>
       </footer>
     </article>
   );
