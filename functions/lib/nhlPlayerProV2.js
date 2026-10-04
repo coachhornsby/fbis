@@ -1,5 +1,6 @@
 import { NHL_PLAYER_PRO_V2_ARTIFACT } from "../../data/models/nhl-player-pro-v2.js";
 import { playerTrackingFor } from "./nhlPlayerTrackingV3.js";
+import { opportunityForGame, opportunityForPlayer } from "./nhlOpportunityV4.js";
 
 export const NHL_PLAYER_PRO_V2_ID="NHL-PLAYER-PRO-v2";
 export const NHL_PLAYER_PRO_V2_VERSION="research-v2.0-share-environment";
@@ -56,13 +57,19 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
   const shotSum=rates.reduce((s,x)=>s+x.shots,0)||1,goalSum=rates.reduce((s,x)=>s+x.goals,0)||1,assistSum=rates.reduce((s,x)=>s+x.assists,0)||1;
   const rest=sideRest(game,side),restFactor=rest!=null&&rest<0.6?0.96:rest!=null&&rest>2.5?1.01:1;
   const rows=[];
+  const opportunity=opportunityForGame(ctx,game?.id);
+  const oppSide=opportunity?.[side]||null;
   for(const x of rates){
-    const p=x.p,shareShots=teamShots*(x.shots/shotSum);
-    const sog=clamp((0.55*x.shots+0.45*shareShots)*restFactor,0.15,7.5);
+    const p=x.p,role=opportunityForPlayer(opportunity,side,p.id);
+    if(role?.scratched)continue;
+    const shareShots=teamShots*(x.shots/shotSum);
+    const roleShot=finite(role?.shotMultiplier)??1,rolePoint=finite(role?.pointMultiplier)??1,roleToi=finite(role?.toiMultiplier)??1,rolePp=finite(role?.ppMultiplier)??1;
+    const deploymentFactor=clamp(.62*roleToi+.38*rolePp,.82,1.28);
+    const sog=clamp((0.55*x.shots+0.45*shareShots)*restFactor*roleShot*deploymentFactor,0.15,7.5);
     const learned=NHL_PLAYER_PRO_V2_ARTIFACT?.players?.[String(p.id)]||{};
     const shootPct=clamp(finite(learned.shootingPct)??(x.goals/Math.max(0.35,x.shots)),0.025,0.28);
-    const goals=clamp((0.55*(sog*shootPct)+0.45*(teamGoals*(x.goals/goalSum)))*restFactor,0.015,1.4);
-    const assists=clamp((0.55*x.assists+0.45*(teamGoals*1.65*(x.assists/assistSum)))*restFactor,0.02,1.8);
+    const goals=clamp((0.55*(sog*shootPct)+0.45*(teamGoals*(x.goals/goalSum)))*restFactor*rolePoint,0.015,1.4);
+    const assists=clamp((0.55*x.assists+0.45*(teamGoals*1.65*(x.assists/assistSum)))*restFactor*rolePoint*deploymentFactor,0.02,1.8);
     const points=clamp(goals+assists,0.04,2.5);
     for(const [market,projection] of [["shots_on_goal",sog],["goals",goals],["assists",assists],["points",points]]){
       rows.push({
@@ -79,8 +86,9 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
           playerShotShare:x.shots/shotSum,
         }:null,
         trackingAdvisory:playerTrackingFor(ctx,p.id),
+        opportunityAdjustment:role?{...role,teamScratchCount:oppSide?.scratched?.length||0,source:opportunity?.source||null}:null,
         matchupTrackingAdvisory:game?.nhlProV2?.layers?.tracking?.player?.[side]||null,
-        notes:"Point-in-time player rate/share model tied to NHL-PRO-v2 game environment; independent of sportsbook line. Live player EDGE is attached as advisory only until prospective validation clears it."
+        notes:"Point-in-time player rate/share model tied to NHL-PRO-v2. Official gamecenter scratches remove unavailable players; vacated TOI/PP/shot/point opportunity is redistributed to active teammates. Market prices remain outside the projection."
       });
     }
   }
