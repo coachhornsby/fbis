@@ -1,0 +1,66 @@
+name: CBB money selector v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/cbb-money-selector-v1.mjs"
+      - "functions/lib/cbbMoneySelector.js"
+      - "functions/lib/cbbFbisV2Margin.js"
+      - "functions/lib/strategy.js"
+      - ".github/workflows/cbb-money-selector-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cbb-money-selector-v1
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Unit tests
+        run: node --test test/cbb-fbis-native-v1.test.js
+      - name: Download definitive frozen CBB v2 aggregate
+        uses: actions/download-artifact@v4
+        with:
+          name: cbb-fbis-native-v1-aggregate-37181214791
+          github-token: "${{ github.token }}"
+          repository: coachhornsby/fbis
+          run-id: 37181214791
+          path: artifacts/frozen
+      - name: Fit money-first selector on frozen predictions
+        run: |
+          set -euo pipefail
+          node scripts/cbb-money-selector-v1.mjs             artifacts/frozen/cbb-fbis-native-v2-predictions.json             artifacts/frozen/cbb-fbis-v2-fit.json             | tee artifacts/cbb-money-selector-v1.log
+      - name: Validate governance and summarize
+        run: |
+          set -euo pipefail
+          F=artifacts/cbb-money-selector-v1.json
+          jq -e '.id == "CBB-MONEY-SELECTOR-v1"' "$F" >/dev/null
+          jq -e '.automaticWagerAuthorization == false' "$F" >/dev/null
+          jq -e '.governance.requires2026_27ProspectiveConfirmation == true' "$F" >/dev/null
+          {
+            echo "## CBB money selector v1"
+            jq -r '"- side direct selector threshold: \(.models.side.thresholdSelection.threshold), discovery OOF ROI=\(.models.side.thresholdSelection.roi)%, validation ROI=\(.models.side.validation.roi)%, 2025 secondary ROI=\(.models.side.secondary2025.roi)%"' "$F"
+            jq -r '"- total direct selector threshold: \(.models.total.thresholdSelection.threshold), discovery OOF ROI=\(.models.total.thresholdSelection.roi)%, validation ROI=\(.models.total.validation.roi)%, 2025 secondary ROI=\(.models.total.secondary2025.roi)%"' "$F"
+            jq -r '"- frozen >=10 side dislocation: validation n=\(.sideDislocation.validation.n), ROI=\(.sideDislocation.validation.roi)%, 2025 secondary n=\(.sideDislocation.secondary2025.n), ROI=\(.sideDislocation.secondary2025.roi)%"' "$F"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbb-money-selector-v1-${{ github.run_id }}
+          path: |
+            artifacts/cbb-money-selector-v1.json
+            artifacts/cbb-money-selector-v1.log
+          if-no-files-found: error
+          retention-days: 90

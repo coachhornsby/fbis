@@ -8,7 +8,9 @@ const round=(v,d=4)=>v==null?null:Number(Number(v).toFixed(d));
 
 function predictFrozen(m,r){
   if(!m)return null;
-  const vals=m.features.map(p=>featureValue(r,p));
+  // Frozen FBIS residual models use only direct row paths. Do not call the
+  // money-selector feature resolver here or corrected() recurses.
+  const vals=m.features.map(p=>n(get(r,p))??0);
   let y=m.intercept;
   for(let j=0;j<vals.length;j++)y+=m.beta[j]*(vals[j]-m.means[j])/m.sds[j];
   return y;

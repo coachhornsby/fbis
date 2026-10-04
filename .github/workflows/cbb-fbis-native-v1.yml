@@ -14,7 +14,6 @@ on:
       - "scripts/cbb-fbis-native-v1-aggregate.mjs"
       - "scripts/cbb-fbis-v2-fit.mjs"
       - "scripts/cbb-hca-rankings-v1.mjs"
-      - "scripts/cbb-money-selector-v1.mjs"
       - "test/cbb-fbis-native-v1.test.js"
       - ".github/workflows/cbb-fbis-native-v1.yml"
   workflow_dispatch:
