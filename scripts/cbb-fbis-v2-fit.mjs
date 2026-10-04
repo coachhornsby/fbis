@@ -5,6 +5,8 @@ const n=v=>{const x=Number(v);return Number.isFinite(x)?x:null};
 const get=(o,p)=>p.split(".").reduce((a,k)=>a==null?null:a[k],o);
 const totalFeatures=["fbis.possessions","fbis.paceAdjustment","fbis.homeEff","fbis.awayEff","fbis.reliability","fbis.hca",
 "fbis.matchup.home.efg","fbis.matchup.away.efg","fbis.matchup.home.twoPt","fbis.matchup.away.twoPt","fbis.matchup.home.threePt","fbis.matchup.away.threePt",
+"fbis.matchup.home.orebVsDrb","fbis.matchup.away.orebVsDrb","fbis.matchup.home.drbRate","fbis.matchup.away.drbRate",
+"fbis.matchup.home.orebVsDrb","fbis.matchup.away.orebVsDrb","fbis.matchup.home.drbRate","fbis.matchup.away.drbRate",
 "fbis.matchup.home.turnover","fbis.matchup.away.turnover","fbis.matchup.home.ftr","fbis.matchup.away.ftr",
 "fbis.schedule.home.sos","fbis.schedule.away.sos","fbis.schedule.home.conferenceStrength","fbis.schedule.away.conferenceStrength"];
 const marginFeatures=["fbis.possessions","fbis.paceAdjustment","fbis.reliability","fbis.hca",
@@ -12,9 +14,28 @@ const marginFeatures=["fbis.possessions","fbis.paceAdjustment","fbis.reliability
 "fbis.matchup.home.turnover","fbis.matchup.away.turnover","fbis.matchup.home.ftr","fbis.matchup.away.ftr",
 "fbis.schedule.home.sos","fbis.schedule.away.sos","fbis.schedule.home.conferenceStrength","fbis.schedule.away.conferenceStrength"];
 const confidenceFeatures=["market.overUnder","market.openingOverUnder","market.sourceBooks","fbis.total","kenpom.total","fbis.reliability","fbis.hca","fbis.possessions","fbis.paceAdjustment",
-"fbis.schedule.home.sos","fbis.schedule.away.sos","fbis.matchup.home.efg","fbis.matchup.away.efg"];
+"fbis.schedule.home.sos","fbis.schedule.away.sos","fbis.schedule.home.conferenceStrength","fbis.schedule.away.conferenceStrength",
+"fbis.matchup.home.efg","fbis.matchup.away.efg","fbis.matchup.home.orebVsDrb","fbis.matchup.away.orebVsDrb",
+"derived.fbisMarketEdge","derived.kenpomMarketEdge","derived.fbisKenpomGap","derived.absFbisKenpomGap","derived.lineMove","derived.absLineMove","derived.sosGap","derived.confStrengthGap"];
 
-function vec(r,features){return features.map(p=>n(get(r,p))??0)}
+function featureValue(r,p){
+ if(!p.startsWith("derived.")) return n(get(r,p))??0;
+ const market=n(r.market?.overUnder),open=n(r.market?.openingOverUnder),fbis=n(r.fbis?.total),kp=n(r.kenpom?.total);
+ const hs=n(r.fbis?.schedule?.home?.sos)??0,as=n(r.fbis?.schedule?.away?.sos)??0;
+ const hc=n(r.fbis?.schedule?.home?.conferenceStrength)??0,ac=n(r.fbis?.schedule?.away?.conferenceStrength)??0;
+ switch(p){
+  case "derived.fbisMarketEdge": return market!=null&&fbis!=null?fbis-market:0;
+  case "derived.kenpomMarketEdge": return market!=null&&kp!=null?kp-market:0;
+  case "derived.fbisKenpomGap": return fbis!=null&&kp!=null?fbis-kp:0;
+  case "derived.absFbisKenpomGap": return fbis!=null&&kp!=null?Math.abs(fbis-kp):0;
+  case "derived.lineMove": return market!=null&&open!=null?market-open:0;
+  case "derived.absLineMove": return market!=null&&open!=null?Math.abs(market-open):0;
+  case "derived.sosGap": return hs-as;
+  case "derived.confStrengthGap": return hc-ac;
+  default:return 0;
+ }
+}
+function vec(r,features){return features.map(p=>featureValue(r,p))}
 function solve(A,b){const m=A.map((r,i)=>[...r,b[i]]),N=m.length;for(let i=0;i<N;i++){let p=i;for(let j=i+1;j<N;j++)if(Math.abs(m[j][i])>Math.abs(m[p][i]))p=j;[m[i],m[p]]=[m[p],m[i]];const d=m[i][i]||1e-12;for(let k=i;k<=N;k++)m[i][k]/=d;for(let j=0;j<N;j++){if(j===i)continue;const q=m[j][i];for(let k=i;k<=N;k++)m[j][k]-=q*m[i][k]}}return m.map(r=>r[N])}
 function fitRidge(rs,features,target,lambda){
  const X=rs.map(r=>vec(r,features)),y=rs.map(target),p=features.length;
@@ -54,12 +75,24 @@ const marketRows=discovery.filter(r=>n(r.market?.overUnder)!=null);
 const confTarget=r=>Math.abs((r.actualHome+r.actualAway)-r.market.overUnder)-Math.abs((r.actualHome+r.actualAway)-r.fbis.total);
 const confidenceModel=selectModel(marketRows,confidenceFeatures,confTarget,confTarget);
 function betEval(rs){
- let nBet=0,w=0,l=0,push=0,u=0;for(const r of rs){const line=n(r.market?.overUnder);if(line==null)continue;const score=predict(confidenceModel,r),edge=r.fbis.total-line;if(score<=0||Math.abs(edge)<2)continue;const result=(r.actualHome+r.actualAway)-line;nBet++;if(result===0){push++;continue}if(Math.sign(result)===Math.sign(edge)){w++;u+=100/110}else{l++;u-=1}}
- return {n:nBet,w,l,push,winPct:w+l?round(100*w/(w+l),2):null,units:round(u,3),roi:nBet?round(100*u/nBet,2):null};
+ let nBet=0,w=0,l=0,push=0,u=0,lineMoveSum=0,lineMoveN=0;
+ for(const r of rs){
+  const line=n(r.market?.overUnder);if(line==null)continue;
+  const score=predict(confidenceModel,r),edge=r.fbis.total-line;
+  if(score<=0||Math.abs(edge)<2)continue;
+  const direction=Math.sign(edge),result=(r.actualHome+r.actualAway)-line;nBet++;
+  const open=n(r.market?.openingOverUnder);
+  if(open!=null){lineMoveSum+=direction*(line-open);lineMoveN++}
+  if(result===0){push++;continue}
+  if(Math.sign(result)===direction){w++;u+=100/110}else{l++;u-=1}
+ }
+ return {n:nBet,w,l,push,winPct:w+l?round(100*w/(w+l),2):null,units:round(u,3),roi:nBet?round(100*u/nBet,2):null,
+  openerToFinalMovementTowardBet:lineMoveN?round(lineMoveSum/lineMoveN,3):null,lineMoveN,
+  clvCertified:false,clvNote:"Historical retained final/current line is not timestamp-certified close; movement metric is a directional opener-to-final proxy only."};
 }
 const confidenceEval={validation:betEval(validation),confirmation:betEval(confirmation)};
-const totalEnabled=totalEval.validation.gain>0&&totalEval.confirmation.gain>0;
-const marginEnabled=marginEval.validation.gain>0&&marginEval.confirmation.gain>0;
+const totalEnabled=totalEval.validation.gain>0&&totalEval.confirmation.gain>0&&totalEval.validation.vsKenpom>0&&totalEval.confirmation.vsKenpom>0;
+const marginEnabled=marginEval.validation.gain>0&&marginEval.confirmation.gain>0&&marginEval.validation.vsKenpom>0&&marginEval.confirmation.vsKenpom>0;
 const confidenceEnabled=confidenceEval.validation.n>=100&&confidenceEval.confirmation.n>=100&&confidenceEval.validation.roi>0&&confidenceEval.confirmation.roi>0;
 const clean=m=>({features:m.features,means:m.means.map(x=>round(x,8)),sds:m.sds.map(x=>round(x,8)),beta:m.beta.map(x=>round(x,8)),intercept:round(m.intercept,8),lambda:m.lambda});
 const report={id:"FBIS-CBB-v2-FIT",generatedAt:new Date().toISOString(),training:"2018-22 only; LOSO lambda selection",total:{enabled:totalEnabled,model:clean(totalModel),evaluation:totalEval},margin:{enabled:marginEnabled,model:clean(marginModel),evaluation:marginEval},confidence:{enabled:confidenceEnabled,model:clean(confidenceModel),evaluation:confidenceEval},governance:{validation:"2023-24",confirmation:"2025",kenpomBenchmarkOnly:true,marketExcludedFromBaseProjection:true,automaticWagerAuthorization:false}};
