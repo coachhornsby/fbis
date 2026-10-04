@@ -158,6 +158,34 @@ describe("NFL board canonical projection resolver", () => {
     assert.equal(boardShowsFairProbability(g), false);
   });
 
+  it("prefers current NFL-PRO over stale form research scores", () => {
+    const game = nflResearchGame({
+      researchProjection: {
+        modelId: "NFL-FBIS-PURE",
+        modelVersion: "research-v0-form",
+        away: 21.0,
+        home: 24.0,
+        maturity: "RESEARCH",
+      },
+      nflProShadow: {
+        ok: true,
+        independent: true,
+        marketInformed: false,
+        modelId: "NFL-PRO-v1",
+        version: "v1.2",
+        away: 28.7,
+        home: 23.5,
+        margin: -5.2,
+        total: 52.2,
+      },
+    });
+    const proj = resolveBoardProjection(game);
+    assert.equal(proj.away, 28.7);
+    assert.equal(proj.home, 23.5);
+    assert.equal(proj.margin, -5.2);
+    assert.equal(proj.total, 52.2);
+  });
+
   it("market-only NFL still reports unavailable FBIS projection", () => {
     const game = {
       id: "mkt",

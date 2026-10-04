@@ -19,25 +19,54 @@ function Stars({ value = 1 }) {
   );
 }
 
+function lineLabel(team, line) {
+  const n = Number(line);
+  if (!team || !Number.isFinite(n)) return "SPREAD";
+  if (Math.abs(n) < 0.05) return `${team.abbr || "PICK"} PK`;
+  return `${team.abbr || "TEAM"} ${n > 0 ? "+" : ""}${fmt(n)}`;
+}
+
 function bestEdge(vm) {
   const cmp = vm.comparison || {};
-  const spread = Number(cmp.sideDiff);
+  const spreadAbs = Number(cmp.sideDiff);
+  const spreadSigned = Number(cmp.sideSignedDiff);
   const total = Number(cmp.totalDiff);
-  const spreadAbs = Number.isFinite(spread) ? Math.abs(spread) : -1;
   const totalAbs = Number.isFinite(total) ? Math.abs(total) : -1;
+  const spreadMagnitude = Number.isFinite(spreadAbs) ? Math.abs(spreadAbs) : -1;
 
-  if (spreadAbs < 0 && totalAbs < 0) {
+  if (spreadMagnitude < 0 && totalAbs < 0) {
     return { value: "—", detail: "NO EDGE", type: "EDGE", team: null, total: false };
   }
-  if (spreadAbs >= totalAbs) {
+
+  if (spreadMagnitude >= totalAbs) {
+    const marketHomeSpread = Number(vm.market?.spread);
+    const away = vm.away || {};
+    const home = vm.home || {};
+    let team = null;
+    let offeredLine = null;
+
+    // signed gap = fair home spread - market home spread.
+    // Positive => market is too favorable to the away team.
+    // Negative => market is too favorable to the home team.
+    if (Number.isFinite(spreadSigned) && Number.isFinite(marketHomeSpread)) {
+      if (spreadSigned > 0) {
+        team = away;
+        offeredLine = -marketHomeSpread;
+      } else if (spreadSigned < 0) {
+        team = home;
+        offeredLine = marketHomeSpread;
+      }
+    }
+
     return {
-      value: `+${fmt(spreadAbs)}`,
-      detail: cmp.fbisSide?.label || "SPREAD",
+      value: `+${fmt(spreadMagnitude)}`,
+      detail: lineLabel(team, offeredLine),
       type: "SPREAD",
-      team: cmp.fbisSide?.team || null,
+      team,
       total: false,
     };
   }
+
   return {
     value: `${total > 0 ? "+" : ""}${fmt(total)}`,
     detail: total > 0 ? "OVER" : total < 0 ? "UNDER" : "TOTAL",
@@ -56,10 +85,22 @@ function actionSplitLabel(split, away, home) {
   return `${away.abbr || "AWAY"} ${Math.round(awayPct)}%`;
 }
 
-function actionMoveLabel(action) {
+function actionMoveLabel(action, away, home) {
+  const open = Number(action?.movement?.open);
+  const current = Number(action?.movement?.current);
+  if (Number.isFinite(open) && Number.isFinite(current) && Math.abs(current - open) < 0.05) {
+    const team = current < 0 ? home : away;
+    const teamLine = current < 0 ? current : -current;
+    return `NO MOVE · ${lineLabel(team, teamLine)}`;
+  }
   if (action?.lineMove?.label) return action.lineMove.label;
   if (action?.movement?.label) return action.movement.label;
-  if (action?.consensus?.spreadHome != null) return `CURRENT ${fmt(action.consensus.spreadHome)}`;
+  if (action?.consensus?.spreadHome != null) {
+    const s = Number(action.consensus.spreadHome);
+    const team = s < 0 ? home : away;
+    const teamLine = s < 0 ? s : -s;
+    return `CURRENT · ${lineLabel(team, teamLine)}`;
+  }
   return "NO MOVE YET";
 }
 
@@ -178,14 +219,16 @@ export default function CompactGameCard({ game, onOpen }) {
           </div>
           <div className="cgc-action-item cgc-action-move">
             <span>LINE MOVE</span>
-            <strong>{actionMoveLabel(action)}</strong>
+            <strong>{actionMoveLabel(action, away, home)}</strong>
           </div>
         </div>
       ) : null}
 
       <footer className="cgc-footer">
         <div className="cgc-footer-metric">
-          <strong>{game?.modelVersion || vm?.projection?.modelId || "FBIS"}</strong>
+          <strong>{vm?.projection?.modelId && vm?.projection?.modelVersion
+            ? `${vm.projection.modelId} · ${vm.projection.modelVersion}`
+            : vm?.projection?.modelId || game?.modelVersion || "FBIS"}</strong>
           <span>MODEL</span>
         </div>
         <div className="cgc-footer-metric">

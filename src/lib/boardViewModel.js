@@ -242,6 +242,7 @@ export function buildBoardGameViewModel(game) {
   }
 
   const resolved = resolveBoardProjection(game);
+  const sport = String(game.sport || "").toLowerCase();
   const projection = fbisProjection(game);
   const market = marketLines(game);
   const deltas = marketDeltas(game);
@@ -302,8 +303,14 @@ export function buildBoardGameViewModel(game) {
       headlineLabel:
         projection.headlineLabel || (projection.research ? "FBIS RESEARCH" : "FBIS"),
       research: Boolean(projection.research),
-      modelVersion: game.modelVersion || game.model?.version || null,
-      modelId: game.modelId || game.model?.id || null,
+      modelVersion:
+        sport === "nfl" && game.nflProShadow?.ok
+          ? game.nflProShadow.version || "v1.2"
+          : game.modelVersion || game.model?.version || null,
+      modelId:
+        sport === "nfl" && game.nflProShadow?.ok
+          ? game.nflProShadow.modelId || "NFL-PRO-v1"
+          : game.modelId || game.model?.id || null,
       kind: resolved.displayKind || resolved.kind || null,
       state: resolved.state || null,
     },
@@ -324,6 +331,7 @@ export function buildBoardGameViewModel(game) {
     comparison: {
       label: decision.disagreementLabel,
       spreadDelta: deltas.spreadDelta == null ? null : round1(deltas.spreadDelta),
+      spreadSignedDelta: deltas.spreadDelta == null ? null : round1(deltas.spreadDelta),
       totalDelta: deltas.totalDelta == null ? null : round1(deltas.totalDelta),
       hasDiff: deltas.spreadDelta != null || deltas.totalDelta != null,
     },

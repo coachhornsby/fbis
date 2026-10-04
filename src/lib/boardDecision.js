@@ -106,6 +106,26 @@ export function resolveIndependentScores(game) {
   if (game.pureProjectionAvailable === false) return null;
   if (game.cfb?.projectionState === "LEAGUE_AVERAGE_ONLY") return null;
 
+  // NFL Board must use the current independent NFL-PRO packet when present.
+  // This avoids stale form-fallback metadata/scores surviving alongside a newer
+  // NFL-PRO projection on the same game object.
+  const sport = String(game.sport || "").toLowerCase();
+  const nflPro = game.nflProShadow;
+  if (
+    sport === "nfl" &&
+    nflPro?.ok &&
+    nflPro?.independent === true &&
+    nflPro?.marketInformed !== true
+  ) {
+    const fromNflPro = pairScores(
+      nflPro.away ?? nflPro.projectedAway,
+      nflPro.home ?? nflPro.projectedHome
+    );
+    if (fromNflPro) {
+      return { ...fromNflPro, source: "nflProShadow", fromResearch: true };
+    }
+  }
+
   const rp = game.researchProjection;
   if (rp && typeof rp === "object") {
     const fromResearch = pairScores(
@@ -148,7 +168,6 @@ export function resolveIndependentScores(game) {
 
   if (MARKET_IMPLIED_KINDS.has(kind)) return null;
 
-  const sport = String(game.sport || "").toLowerCase();
   if (sport === "nfl") return null;
 
   if (modelPair) return { ...modelPair, source: "model", fromResearch: false };
@@ -172,8 +191,13 @@ export function resolveBoardProjection(game) {
     // Prefer explicit board margin/total when present; otherwise derive and round to 1dp.
     const derivedMargin = Math.round((home - away) * 10) / 10;
     const derivedTotal = Math.round((away + home) * 10) / 10;
-    const explicitMargin = finiteScore(game?.model?.projMargin ?? game?.projMargin);
-    const explicitTotal = finiteScore(game?.model?.projTotal ?? game?.projTotal);
+    const fromNflPro = independent.source === "nflProShadow";
+    const explicitMargin = fromNflPro
+      ? finiteScore(game?.nflProShadow?.margin)
+      : finiteScore(game?.model?.projMargin ?? game?.projMargin);
+    const explicitTotal = fromNflPro
+      ? finiteScore(game?.nflProShadow?.total)
+      : finiteScore(game?.model?.projTotal ?? game?.projTotal);
     const margin = explicitMargin != null ? explicitMargin : derivedMargin;
     const total = explicitTotal != null ? explicitTotal : derivedTotal;
     const research = Boolean(independent.fromResearch || isResearchProjection(game));

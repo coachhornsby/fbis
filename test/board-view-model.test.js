@@ -54,6 +54,38 @@ describe("Board game view-model", () => {
     assert.equal(vm.projection.home, 30.7);
   });
 
+  it("preserves signed spread disagreement and current NFL-PRO identity", () => {
+    const vm = buildBoardGameViewModel(researchNflGame({
+      nflProShadow: {
+        ok: true,
+        independent: true,
+        marketInformed: false,
+        modelId: "NFL-PRO-v1",
+        version: "v1.2",
+        away: 28.7,
+        home: 23.5,
+      },
+      market: {
+        marketAvailable: true,
+        execution: {
+          available: true,
+          book: "Heritage",
+          spread: -2.5,
+          total: 51.5,
+          moneyline: { home: -130, away: 110 },
+        },
+        consensus: { available: false },
+        reference: { available: false },
+      },
+    }));
+    assert.equal(vm.projection.away, 28.7);
+    assert.equal(vm.projection.home, 23.5);
+    assert.equal(vm.projection.modelId, "NFL-PRO-v1");
+    assert.equal(vm.projection.modelVersion, "v1.2");
+    assert.equal(vm.comparison.spreadDelta, 7.7);
+    assert.equal(vm.comparison.spreadSignedDelta, 7.7);
+  });
+
   it("one execution offer → EXECUTION OFFER, not BEST AVAILABLE", () => {
     const vm = buildBoardGameViewModel(researchNflGame());
     assert.equal(vm.market.available, true);
