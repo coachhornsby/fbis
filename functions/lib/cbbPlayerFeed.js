@@ -62,10 +62,22 @@ function seasonPlayer(row = {}) {
     reboundsPerGame: (n(row.rebounds?.total) || 0) / gpDen,
     assistsPerGame: (n(row.assists) || 0) / gpDen,
     threesMadePerGame: (n(row.threePointFieldGoals?.made) || 0) / gpDen,
+    fieldGoalAttemptsPerGame: (n(row.fieldGoals?.attempted) || 0) / gpDen,
+    freeThrowAttemptsPerGame: (n(row.freeThrows?.attempted) || 0) / gpDen,
+    offensiveReboundsPerGame: (n(row.rebounds?.offensive) || 0) / gpDen,
+    defensiveReboundsPerGame: (n(row.rebounds?.defensive) || 0) / gpDen,
+    turnoversPerGame: (n(row.turnovers) || 0) / gpDen,
+    stealsPerGame: (n(row.steals) || 0) / gpDen,
+    blocksPerGame: (n(row.blocks) || 0) / gpDen,
     pointsPer40: (n(row.points) || 0) * 40 / minDen,
     reboundsPer40: (n(row.rebounds?.total) || 0) * 40 / minDen,
     assistsPer40: (n(row.assists) || 0) * 40 / minDen,
     threesMadePer40: (n(row.threePointFieldGoals?.made) || 0) * 40 / minDen,
+    fieldGoalAttemptsPer40: (n(row.fieldGoals?.attempted) || 0) * 40 / minDen,
+    freeThrowAttemptsPer40: (n(row.freeThrows?.attempted) || 0) * 40 / minDen,
+    offensiveReboundsPer40: (n(row.rebounds?.offensive) || 0) * 40 / minDen,
+    defensiveReboundsPer40: (n(row.rebounds?.defensive) || 0) * 40 / minDen,
+    turnoversPer40: (n(row.turnovers) || 0) * 40 / minDen,
     usage: n(row.usage),
     offensiveRating: n(row.offensiveRating),
     trueShootingPct: n(row.trueShootingPct),
@@ -93,8 +105,16 @@ function recentRows(gameRows = []) {
         rebounds: n(p.rebounds?.total),
         assists: n(p.assists),
         threesMade: n(p.threePointFieldGoals?.made),
+        fieldGoalAttempts: n(p.fieldGoals?.attempted),
+        freeThrowAttempts: n(p.freeThrows?.attempted),
+        offensiveRebounds: n(p.rebounds?.offensive),
+        defensiveRebounds: n(p.rebounds?.defensive),
+        turnovers: n(p.turnovers),
+        steals: n(p.steals),
+        blocks: n(p.blocks),
         usage: n(p.usage),
         starter: p.starter === true,
+        didNotPlay: p.didNotPlay === true || p.did_not_play === true,
       });
     }
   }
@@ -175,10 +195,20 @@ export async function loadCbbPlayerContext(env = {}, asOf = new Date()) {
         pace: mean(last5.map((x) => x.pace)),
       },
       volatility: {
+        minutes: std(last5.map((x) => x.minutes)),
         points: std(last5.map((x) => x.points)),
         rebounds: std(last5.map((x) => x.rebounds)),
         assists: std(last5.map((x) => x.assists)),
         threesMade: std(last5.map((x) => x.threesMade)),
+      },
+      role: {
+        startsRecent,
+        lastGameMinutes: last5[0]?.minutes ?? null,
+        lastGameDnp: Boolean(last5[0]?.didNotPlay),
+        minuteStability: (() => {
+          const sd = std(last5.map((x) => x.minutes));
+          return sd == null ? null : Math.max(0, Math.min(1, 1 - sd / 18));
+        })(),
       },
       trend: {
         points: mean(last3.map((x) => x.points)),
