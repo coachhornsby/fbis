@@ -269,6 +269,8 @@ test("player props rows attach team logo from event sides", () => {
             marketCanonical: "passing_yards",
             line: 249.5,
             overOdds: -110,
+            fbisProjection: 265.0,
+            fbisSigma: 40,
           },
         ],
       },
