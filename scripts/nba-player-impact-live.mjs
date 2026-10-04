@@ -22,7 +22,9 @@ const currentGames=readJsonl(current);
 const histArtifact=readJson(historicalImpact)||{players:{}};
 const lineupArtifact=readJson(lineupFile)||{effects:[]};
 const availRaw=readJson(availabilityFile);
-const availability=Array.isArray(availRaw)?availRaw:(availRaw?.results||availRaw?.result?.flatMap?.(x=>x.results||[])||[]);
+const availability=Array.isArray(availRaw)
+  ? (availRaw.every(x=>Array.isArray(x?.results)) ? availRaw.flatMap(x=>x.results||[]) : availRaw)
+  : (Array.isArray(availRaw?.results) ? availRaw.results : Array.isArray(availRaw?.result) ? availRaw.result.flatMap(x=>x?.results||[]) : []);
 const hist=new Map(),latest=new Map();
 for(const g of games)for(const p of g.players||[]){
   const id=String(p.id||p.name||"");if(!id)continue;
