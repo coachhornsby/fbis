@@ -78,7 +78,7 @@ jobs:
             | unique_by([.eventId,.playerName,.market])
           ' "$tmp" > artifacts/candidates.json
           echo "NFL candidates=$(jq 'length' artifacts/candidates.json)"
-          test "$(jq 'length' artifacts/candidates.json)" -gt 0
+          # Continue even if the projection candidate API is temporarily empty; raw NFL lines are still valuable and will be persisted.
 
       - name: Pull NFL PrizePicks board
         run: |
