@@ -50,3 +50,32 @@ export async function onRequestGet(context){
     }))
   });
 }
+
+
+export async function onRequestPut(context){
+  const auth=authorizeHarvest(context.request,context.env);
+  if(!auth.ok)return json(unauthorizedBody(auth.reason),403);
+  const bucket=context.env?.ARCHIVE;
+  if(!bucket)return json({ok:false,error:"archive-binding-missing"},500);
+
+  const url=new URL(context.request.url);
+  const source=safe(url.searchParams.get("source"));
+  const parts=dateParts(url.searchParams.get("date"));
+  const runId=String(url.searchParams.get("runId")||"").replace(/[^a-zA-Z0-9._-]/g,"");
+  if(!["action","prizepicks"].includes(source))return json({ok:false,error:"source-must-be-action-or-prizepicks"},400);
+  if(!parts)return json({ok:false,error:"date-must-be-yyyy-mm-dd"},400);
+  if(!runId)return json({ok:false,error:"runId-required"},400);
+
+  const key=`raw/${source}/${parts.y}/${parts.m}/${parts.d}/${runId}.json`;
+  const existing=await bucket.head(key);
+  if(existing)return json({ok:true,alreadyArchived:true,key,source,date:parts.date,runId,size:existing.size});
+
+  const bytes=await context.request.arrayBuffer();
+  if(!bytes.byteLength)return json({ok:false,error:"empty-body"},400);
+  const archivedAt=new Date().toISOString();
+  await bucket.put(key,bytes,{
+    httpMetadata:{contentType:context.request.headers.get("content-type")||"application/json; charset=utf-8"},
+    customMetadata:{source,date:parts.date,runId,immutable:"true",archivedAt}
+  });
+  return json({ok:true,archived:true,key,source,date:parts.date,runId,bytes:bytes.byteLength},201);
+}
