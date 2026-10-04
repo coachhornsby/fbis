@@ -119,7 +119,7 @@ export function buildNhlOpportunityGame(game,base,{pbp=null,box=null}={}){
   return {
     available:Boolean(roster.length||scratches.size),
     modelId:NHL_OPPORTUNITY_V4_ID,version:NHL_OPPORTUNITY_V4_VERSION,
-    officialGameId:String(official.id),source:"NHL_OFFICIAL_GAMECENTER",
+    officialGameId:String(official.id),gameType:finite(official.gameType),source:"NHL_OFFICIAL_GAMECENTER",
     rosterCount:roster.length,scratchCount:scratches.size,
     home:{team:home,...homeR},away:{team:away,...awayR},
     marketInformed:false,researchOnly:true,canQualify:false,canAuthorizeWager:false
