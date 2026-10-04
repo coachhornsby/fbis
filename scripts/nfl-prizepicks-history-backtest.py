@@ -381,6 +381,33 @@ def summarize(j):
         market_z[m]={}
         for z in [.5,.75,1.0,1.25,1.5]:
             market_z[m][str(z)]=pack(g[g.abs_z>=z])
+
+    def wilson_lower(hits,n,z=1.96):
+        if not n:return 0.0
+        p=hits/n
+        den=1+(z*z)/n
+        center=p+(z*z)/(2*n)
+        adj=z*math.sqrt((p*(1-p)+(z*z)/(4*n))/n)
+        return (center-adj)/den
+
+    segments=[]
+    for zcut in [0,.5,.75,1.0,1.25,1.5]:
+        base=graded if zcut==0 else graded[graded.abs_z>=zcut]
+        for (market,role,side),g in base.groupby(["market","target_role","model_side"]):
+            n=len(g)
+            if n<10:continue
+            hits=int(g.hit.sum())
+            segments.append({
+                "zMin":zcut,"market":market,"role":role,"side":side,
+                "n":int(n),"hits":hits,"hitRate":float(g.hit.mean()),
+                "wilsonLower95":float(wilson_lower(hits,n)),
+                "meanAbsEdge":float(g.abs_edge.mean()),
+                "meanAbsZ":float(g.abs_z.mean()) if g.abs_z.notna().any() else None,
+            })
+    qualified=[x for x in segments if x["n"]>=20]
+    top=sorted(qualified,key=lambda x:(x["wilsonLower95"],x["n"]),reverse=True)[:25]
+    bottom=sorted(qualified,key=lambda x:(x["wilsonLower95"],-x["n"]))[:25]
+
     return {
         "overall":pack(graded),
         "markets":markets,
@@ -388,6 +415,8 @@ def summarize(j):
         "roles":roles,
         "zThresholds":zcuts,
         "marketZThresholds":market_z,
+        "segmentLeaderboardMinN20":top,
+        "segmentBottomMinN20":bottom,
     }
 
 def main():
