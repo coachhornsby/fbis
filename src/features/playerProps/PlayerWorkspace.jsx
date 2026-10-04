@@ -75,6 +75,12 @@ export default function PlayerWorkspace({ player, onClose }) {
                   <span className="props-card-line">{fmtPropLine(m.line)}</span>
                   <span className="props-card-market">{label}</span>
                 </div>
+                <div className="props-workspace-confidence">
+                  <span className={`props-star-badge props-star-${m.confidenceStars || 1}`}>
+                    {"⭐".repeat(Math.max(1, Math.min(5, Number(m.confidenceStars) || 1)))}
+                  </span>
+                  <span>{m.confidenceSide || "WATCH"} · {m.confidenceTier || "WATCH"}</span>
+                </div>
                 <div className="props-fbis-panel">
                   <div className="props-fbis-metric">
                     <span className="props-fbis-label">FBIS proj</span>
