@@ -1,0 +1,29 @@
+{
+  "id": "nba-fbis-player-impact-v1-research",
+  "modelId": "NBA-FBIS-PLAYER-IMPACT-v1",
+  "version": "research-v1",
+  "role": "player-impact-context",
+  "primaryBenchmark": "EPM",
+  "secondaryBenchmarks": [
+    "DARKO",
+    "RAPM",
+    "VORP",
+    "WS48"
+  ],
+  "marketInformed": false,
+  "proprietaryMetricRequired": false,
+  "canQualify": false,
+  "canAuthorizeWager": false,
+  "components": [
+    "dynamic_skill_decay",
+    "spm_style_box_prior",
+    "regularized_adjusted_plus_minus",
+    "raw_on_off_diagnostic",
+    "five_man_lineups",
+    "trio_lineups",
+    "player_pairs",
+    "role_redistribution"
+  ],
+  "promotionGate": "incremental_true_walk_forward_value_vs_NBA-PLAYER-PROP-v1_baseline",
+  "availabilityRedistributionGate": "prospective_point_in_time_only_until_historical_availability_is_sufficient"
+}
