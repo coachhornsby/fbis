@@ -52,9 +52,9 @@ test("unconfirmed goalie or unvalidated line is always one star",()=>{
   }
 });
 
-test("non-saves NHL props are capped below five stars until equivalent subset evidence exists",()=>{
+test("NHL props without dedicated subset evidence remain capped below five stars",()=>{
   const r=rateGenericNhlPropConfidence({
-    market:"shots_on_goal",projection:4.2,line:2.5,leanProbability:.85,
+    market:"goals",projection:1.2,line:0.5,leanProbability:.85,
     validationStatus:"PROMOTE_RESEARCH",lineValidationStatus:"PROMOTE_RESEARCH",eligibleForCard:true,
   });
   assert.equal(r.stars,4);
@@ -120,4 +120,21 @@ test("unvalidated SOG line or model is held at one star",()=>{
     assert.equal(r.stars,1);
     assert.equal(r.researchCandidate,false);
   }
+});
+
+test("player props board exposes SOG-specific star grade and direction",()=>{
+  const row=withFbisPropAnalytics({
+    sport:"nhl",market:"shots_on_goal",marketCanonical:"shots_on_goal",
+    fbisProjection:4.6,fbisSigma:1.4,line:2.5,
+    validationStatus:"PROMOTE_RESEARCH",lineValidationStatus:"PROMOTE_RESEARCH",
+    propGate:"CLEAR",eligibleForCard:true,
+    shotEnvironment:{
+      teamShotsFor:31,opponentShotsAgainst:31,projectedTeamShots:31,
+      playerShotRate:3.1,playerShotShare:.09,
+    },
+  });
+  assert.equal(row.confidenceStars,5);
+  assert.equal(row.confidenceSide,"OVER");
+  assert.equal(row.confidenceTier,"ELITE");
+  assert.equal(row.confidenceVersion,"nhl-sog-stars-v1");
 });
