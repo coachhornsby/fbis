@@ -1,10 +1,5 @@
 name: NFL PrizePicks historical backtest
 on:
-  push:
-    branches: ["nfl-prizepicks-history-backtest"]
-    paths:
-      - "scripts/nfl-prizepicks-history-backtest.py"
-      - ".github/workflows/nfl-prizepicks-history-backtest.yml"
   workflow_dispatch:
 permissions:
   contents: read
