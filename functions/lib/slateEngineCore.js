@@ -20,8 +20,8 @@ import { enrichGamesVenues } from "./venues.js";
 import { attachKalshiSentiment } from "./kalshi.js";
 import { setMeta } from "./store.js";
 import { isUnusableCachedOddsMeta } from "./marketLineage.js";
-import { loadNpbContext, attachNpbFbisV1 } from "./npbFbisV1.js";
-import { loadKboContext, attachKboFbisV1 } from "./kboFbisV1.js";
+import { loadNpbV2Context, attachNpbFbisV2 } from "./npbFbisV2.js";
+import { loadKboV2Context, attachKboFbisV2 } from "./kboFbisV2.js";
 
 export const SPORTS = {
   cbb: {
@@ -1633,7 +1633,7 @@ export async function buildSlate(sport, date, env = {}) {
 
   if (id === "kbo") {
     try {
-      kboContext = await loadKboContext(day);
+      kboContext = await loadKboV2Context(day);
       games = kboContext.games || [];
       scheduleResolved = true;
     } catch {
@@ -1643,7 +1643,7 @@ export async function buildSlate(sport, date, env = {}) {
 
   if (id === "npb") {
     try {
-      npbContext = await loadNpbContext(day);
+      npbContext = await loadNpbV2Context(day);
       games = npbContext.games || [];
       scheduleResolved = true;
     } catch {
@@ -1775,12 +1775,12 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "npb" && npbContext) {
-    const attached = attachNpbFbisV1(games, npbContext);
+    const attached = attachNpbFbisV2(games, npbContext);
     games = attached.games;
     npbContext = { ...npbContext, meta: attached.meta };
   }
   if (id === "kbo" && kboContext) {
-    const attached = attachKboFbisV1(games, kboContext);
+    const attached = attachKboFbisV2(games, kboContext);
     games = attached.games;
     kboContext = { ...kboContext, meta: attached.meta };
   }
@@ -1818,7 +1818,7 @@ export async function buildSlate(sport, date, env = {}) {
     npb: id === "npb" ? {
       source: npbContext?.source || "NPB.jp",
       timezone: npbContext?.timezone || "Asia/Tokyo",
-      modelId: npbContext?.meta?.modelId || "NPB-FBIS-v1",
+      modelId: npbContext?.meta?.modelId || "NPB-FBIS-v2",
       modelVersion: npbContext?.meta?.modelVersion || null,
       projected: npbContext?.meta?.projected || 0,
       missing: npbContext?.meta?.missing || 0,
@@ -1830,7 +1830,7 @@ export async function buildSlate(sport, date, env = {}) {
     kbo: id === "kbo" ? {
       source: kboContext?.source || "KBO official English site",
       timezone: kboContext?.timezone || "Asia/Seoul",
-      modelId: kboContext?.meta?.modelId || "KBO-FBIS-v1",
+      modelId: kboContext?.meta?.modelId || "KBO-FBIS-v2",
       modelVersion: kboContext?.meta?.modelVersion || null,
       projected: kboContext?.meta?.projected || 0,
       missing: kboContext?.meta?.missing || 0,
