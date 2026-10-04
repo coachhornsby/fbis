@@ -2,19 +2,6 @@ name: NBA player impact research
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["research/nba-player-impact-v1", main]
-    paths:
-      - "functions/lib/nbaPlayerImpact.js"
-      - "functions/lib/nbaLineupModel.js"
-      - "functions/lib/nbaRoleRedistribution.js"
-      - "scripts/nba-pbp-canonical-build.mjs"
-      - "scripts/nba-lineup-stints-build.mjs"
-      - "scripts/nba-player-impact-fit.mjs"
-      - "scripts/nba-player-impact-walkforward.mjs"
-      - "test/nba-player-impact.test.js"
-      - ".github/workflows/nba-player-impact-research.yml"
-
 permissions:
   contents: read
 
