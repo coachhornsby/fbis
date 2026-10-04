@@ -1908,3 +1908,112 @@ details.board-ops[open] > summary { color: var(--text); border-bottom: 1px solid
 .proj-implied.market-benchmark strong {
   font-variant-numeric: tabular-nums;
 }
+
+
+/* === Premium visual system for all app surfaces except Player Props === */
+.fbis-shell-main:not(.route-player-props) .main-content {
+  width:min(1500px,100%);
+  margin:0 auto;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.fbis-shell-main:not(.route-player-props) .panel {
+  border:1px solid rgba(65,142,208,.34);
+  border-radius:18px;
+  background:
+    radial-gradient(700px 220px at 20% -40%,rgba(17,127,255,.12),transparent 65%),
+    linear-gradient(180deg,rgba(7,24,44,.96),rgba(3,15,29,.96));
+  box-shadow:0 14px 34px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.03);
+  overflow:hidden;
+}
+.fbis-shell-main:not(.route-player-props) .panel-header {
+  min-height:52px;
+  padding:12px 16px;
+  border-bottom:1px solid rgba(82,148,207,.22);
+  background:linear-gradient(90deg,rgba(9,37,66,.82),rgba(4,20,38,.58));
+}
+.fbis-shell-main:not(.route-player-props) .panel-header h2,
+.fbis-shell-main:not(.route-player-props) .panel-title {
+  color:#f8fbff;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:.015em;
+  text-transform:none;
+}
+.fbis-shell-main:not(.route-player-props) .panel-body { padding:14px 16px; }
+.fbis-shell-main:not(.route-player-props) .muted,
+.fbis-shell-main:not(.route-player-props) .last-updated { color:#91a6c1; }
+.fbis-shell-main:not(.route-player-props) .header-btn,
+.fbis-shell-main:not(.route-player-props) .chip,
+.fbis-shell-main:not(.route-player-props) button:not(.db-expand-btn):not(.agd-tab) {
+  border-radius:10px;
+}
+.fbis-shell-main:not(.route-player-props) .chip {
+  padding:7px 11px;
+  border:1px solid rgba(86,146,205,.28);
+  background:rgba(7,23,43,.78);
+  color:#aabbd0;
+  font-size:10px;
+  font-weight:800;
+}
+.fbis-shell-main:not(.route-player-props) .chip.active {
+  color:#fff;
+  border-color:#159dff;
+  background:linear-gradient(180deg,#177fdc,#0a5db7);
+  box-shadow:0 0 14px rgba(20,133,255,.28);
+}
+.fbis-shell-main:not(.route-player-props) input,
+.fbis-shell-main:not(.route-player-props) select,
+.fbis-shell-main:not(.route-player-props) textarea {
+  color:#f6f9fd;
+  background:#07182c;
+  border:1px solid rgba(80,148,208,.34);
+  border-radius:10px;
+  padding:8px 10px;
+}
+.fbis-shell-main:not(.route-player-props) table {
+  border-collapse:separate;
+  border-spacing:0;
+}
+.fbis-shell-main:not(.route-player-props) th {
+  color:#8da8c7;
+  font-size:10px;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  background:rgba(7,27,48,.82);
+}
+.fbis-shell-main:not(.route-player-props) td {
+  border-bottom:1px solid rgba(78,131,183,.13);
+}
+.fbis-shell-main:not(.route-player-props) tr:hover td { background:rgba(18,67,109,.16); }
+.fbis-shell-main:not(.route-player-props) .status-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+  gap:9px;
+}
+.fbis-shell-main:not(.route-player-props) .stat,
+.fbis-shell-main:not(.route-player-props) .status-card,
+.fbis-shell-main:not(.route-player-props) .mobile-card {
+  border:1px solid rgba(74,140,201,.26);
+  border-radius:13px;
+  background:linear-gradient(180deg,rgba(10,31,55,.86),rgba(5,20,36,.86));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+.fbis-shell-main:not(.route-player-props) .empty {
+  padding:18px;
+  color:#91a6c1;
+  border:1px dashed rgba(76,143,204,.28);
+  border-radius:14px;
+  background:rgba(4,17,32,.5);
+}
+.fbis-shell-main:not(.route-player-props) details {
+  border-radius:13px;
+}
+.fbis-shell-main:not(.route-player-props) summary { color:#b9c9db; }
+@media(max-width:760px){
+  .fbis-shell-main:not(.route-player-props) .panel { border-radius:15px; }
+  .fbis-shell-main:not(.route-player-props) .panel-header { padding:11px 12px; }
+  .fbis-shell-main:not(.route-player-props) .panel-body { padding:12px; }
+}
