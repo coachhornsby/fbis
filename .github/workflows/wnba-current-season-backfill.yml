@@ -80,3 +80,4 @@ jobs:
             artifacts/wnba-lineup-stints.jsonl
             artifacts/wnba-lineup-effects.json
           retention-days: 60
+# exact-rerun-after-ot-fix: 2026-10-04
