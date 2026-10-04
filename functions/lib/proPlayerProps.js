@@ -298,6 +298,18 @@ export function canonicalizeProPlayerPropMarket(sportRaw, marketRaw) {
   const token = cleanToken(marketRaw)
     .replace(/^core_bet_type_\d+_/, "")
     .replace(/^player_/, "");
+
+  // NFL derivative/composite PrizePicks stats must never inherit a base-stat
+  // projection merely because their label ends in "Pass Yards", etc.
+  if (sport === "nfl" && (
+    /^halves_with_/.test(token) ||
+    /^quarters_with_/.test(token) ||
+    /^drives_with_/.test(token) ||
+    /^longest_/.test(token) ||
+    /^first_/.test(token) ||
+    /_with_\d+_/.test(token)
+  )) return null;
+
   const aliases = ALIASES[sport] || {};
   if (aliases[token]) return aliases[token];
 
