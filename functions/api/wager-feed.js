@@ -33,6 +33,64 @@ function checkpoint(start) {
   return "MORNING";
 }
 
+
+async function loadWnbaDecisionFeed(db,date){
+  if(!db?.prepare)return [];
+  try{
+    const res=await db.prepare(
+      `WITH ranked AS (
+         SELECT *,ROW_NUMBER() OVER (
+           PARTITION BY event_id,market,side
+           ORDER BY captured_at DESC
+         ) rn
+         FROM wnba_wager_decisions
+         WHERE date(event_start,'-5 hours')=?
+       )
+       SELECT * FROM ranked WHERE rn=1
+       ORDER BY event_start,event_id,market,side`
+    ).bind(date).all();
+    return res?.results||[];
+  }catch{return [];}
+}
+
+function wnbaFeedRow(r){
+  const edge=finite(r.probability_edge);
+  const conf=finite(r.confidence);
+  return {
+    generatedAt:r.captured_at,
+    gameDate:r.event_start?String(r.event_start).slice(0,10):null,
+    eventStart:r.event_start,
+    sport:"WNBA",
+    matchup:r.event_id,
+    decision:r.decision,
+    grade:conf==null?"UNRATED":`CONFIDENCE_${Math.round(conf)}`,
+    market:r.market,
+    pick:`${r.side}${r.line==null?"":` ${r.line>0?"+":""}${r.line}`}`,
+    side:r.side,
+    line:finite(r.line),
+    qualificationBook:r.sportsbook,
+    qualificationPrice:finite(r.american_price),
+    executionBook:r.sportsbook,
+    executionPrice:finite(r.american_price),
+    modelProbability:finite(r.model_probability),
+    marketNoVigProbability:finite(r.break_even_probability),
+    probabilityEdgePp:edge==null?null:edge*100,
+    expectedRoi:finite(r.expected_value),
+    executionRoi:finite(r.expected_value),
+    minimumAcceptableOdds:null,
+    suggestedUnits:finite(r.stake_units)??0,
+    confidence:conf,
+    confidenceCalibrationState:r.confidence_calibration_state,
+    confidenceCalibrationN:Number(r.confidence_calibration_n)||0,
+    checkpoint:checkpoint(r.event_start),
+    status:r.decision==="BET"?"READY":"PASS",
+    reason:r.decision==="BET"
+      ?"WNBA game-level decision engine: positive EV at offered price"
+      :"WNBA game-level decision engine: offer did not clear EV/evidence gates",
+    decisionArchitecture:"WNBA-WAGER-DECISION-v1",
+  };
+}
+
 function matchup(game = {}) {
   const away = game?.away?.abbr || game?.away?.name || "AWAY";
   const home = game?.home?.abbr || game?.home?.name || "HOME";
@@ -86,6 +144,25 @@ export async function onRequestGet(context) {
   };
 
   try {
+    if (sport === "wnba") {
+      const persisted = await loadWnbaDecisionFeed(context.env.DB, resolved.date);
+      if (persisted.length) {
+        const rows = persisted.map(wnbaFeedRow);
+        return json({
+          ok:true,
+          sport,
+          date:resolved.date,
+          generatedAt:rows[0]?.generatedAt || new Date().toISOString(),
+          minEv:finite(SPORTS.wnba?.minEv) ?? 0.03,
+          rows,
+          actionable:rows.filter(r=>r.decision==="BET").length,
+          shop:0,
+          architecture:"WNBA-WAGER-DECISION-v1",
+          source:"immutable_wnba_wager_decisions",
+        });
+      }
+    }
+
     const slate = await buildSlate(sport, resolved.date, env);
     const generatedAt = new Date().toISOString();
     const cfg = SPORTS[sport] || {};
