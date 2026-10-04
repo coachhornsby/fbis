@@ -189,7 +189,10 @@ def main():
   tc=football_candidates(d,"total")+[c for c in d if c.startswith(("ix_match__","ix_total__"))]
   mf=select(tr,mc,"actual_margin");tf=select(tr,tc,"actual_total")
   ms=tune(tr,mf,"actual_margin");ts=tune(tr,tf,"actual_total")
-  pm0=fit_predict(tr,te,mf,"actual_margin",ms);pt0=fit_predict(tr,te,tf,"actual_total",ts)\n  pms=fit_structural(tr,te,"actual_margin","margin");pts=fit_structural(tr,te,"actual_total","total")\n  # Fixed structural weight makes QB/trench causally consequential; no holdout tuning.\n  pm=.80*pm0+.20*pms;pt=.85*pt0+.15*pts
+  pm0=fit_predict(tr,te,mf,"actual_margin",ms);pt0=fit_predict(tr,te,tf,"actual_total",ts)
+  pms=fit_structural(tr,te,"actual_margin","margin");pts=fit_structural(tr,te,"actual_total","total")
+  # Fixed structural weight makes QB/trench causally consequential; no holdout tuning.
+  pm=.80*pm0+.20*pms;pt=.85*pt0+.15*pts
   rows.append(pd.DataFrame({"season":season,"game_id":te.game_id,"actual_margin":te.actual_margin,"actual_total":te.actual_total,
    "v6_margin":pm,"v6_total":pt,"market_margin":-num(te.benchmark_home_spread),"market_total":num(te.benchmark_total)}))
   folds.append({"season":season,"trainN":len(tr),"testN":len(te),"marginFeatures":mf,"totalFeatures":tf,"marginModel":str(ms),"totalModel":str(ts)})
