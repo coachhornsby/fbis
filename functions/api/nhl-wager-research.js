@@ -2,6 +2,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { buildTodayBoard, resolveTodayDate } from "../lib/todayBoard.js";
 import { buildPlayerPropsBoard } from "../../src/features/playerProps/buildPlayerPropsBoard.js";
 import { americanProfit } from "../lib/pricing.js";
+import { persistOddsSnapshot } from "../lib/store.js";
 
 const TZ="America/Chicago";
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
@@ -18,6 +19,40 @@ function checkpoint(start,snapshotAt){
   const a=Date.parse(start||""),b=Date.parse(snapshotAt||"");if(!Number.isFinite(a)||!Number.isFinite(b))return"CURRENT";
   const h=(a-b)/3600000;if(h>24)return"OPEN";if(h>4)return"CURRENT";if(h>1.5)return"DECISION";if(h>=0)return"FINAL_PREGAME";return"CLOSE";
 }
+export function exactMarketSnapshotRows(board,snapshotAt,date){
+  const out=[];
+  for(const game of board?.games||[]){
+    if(String(game?.sport||"").toLowerCase()!=="nhl"||!game?.nhlWagerV1?.ok)continue;
+    const start=game.start||null,startMs=Date.parse(start||""),snapMs=Date.parse(snapshotAt||"");
+    if(Number.isFinite(startMs)&&Number.isFinite(snapMs)&&snapMs>=startMs)continue;
+    const book=String(game?.odds?.pinBook||game?.odds?.book||game?.odds?.source||"CANONICAL_BOARD");
+    for(const o of game.nhlWagerV1.offers||[]){
+      const price=finite(o.americanPrice),implied=finite(o.breakEvenProbability),noVig=finite(o.marketNoVigProbability);
+      if(price==null||implied==null||noVig==null)continue;
+      const m=String(o.market||"").toLowerCase();
+      const market=m==="moneyline"?"ml":m==="spread"?"spread":m==="total"?"total":m;
+      const selection=String(o.selection||"").toUpperCase();
+      if(!["ML","SPREAD","TOTAL"].includes(market.toUpperCase())||!["HOME","AWAY","OVER","UNDER"].includes(selection))continue;
+      out.push({
+        gameId:String(game.id),sport:"nhl",date:String(date||""),
+        book,market,side:selection,line:finite(o.line),price,
+        implied,noVig,capturedAt:snapshotAt,period:"fg",
+        eventId:String(game.id),gameStart:start,checkpoint:checkpoint(start,snapshotAt),
+        rejectedPostStart:false,paired:true,
+      });
+    }
+  }
+  return out;
+}
+async function persistExactMarketSnapshots(env,rows){
+  let written=0,failed=0;
+  for(const row of rows){
+    const r=await persistOddsSnapshot(env,row);
+    if(r?.ok)written++;else failed++;
+  }
+  return {rows:rows.length,written,failed};
+}
+
 function gameRows(board,snapshotAt){
   const rows=[];
   for(const game of board.games||[]){
@@ -188,9 +223,12 @@ export async function onRequestPost(context){
     const s=await settle(db,resolved.date,board);return json({ok:true,mode,date:resolved.date,...s,...await summary(db)});
   }
   if(mode!=="capture")return json({ok:false,error:"invalid_mode"},400);
-  const snapshotAt=new Date().toISOString(),rows=[...gameRows(board,snapshotAt),...propRows(board,snapshotAt)];
+  const snapshotAt=new Date().toISOString();
+  const marketSnapshots=exactMarketSnapshotRows(board,snapshotAt,resolved.date);
+  const marketSnapshotWrite=await persistExactMarketSnapshots(env,marketSnapshots);
+  const rows=[...gameRows(board,snapshotAt),...propRows(board,snapshotAt)];
   const written=await persistRows(db,rows,snapshotAt);
-  return json({ok:true,mode,date:resolved.date,snapshotAt,rows:rows.length,written,
+  return json({ok:true,mode,date:resolved.date,snapshotAt,rows:rows.length,written,marketSnapshotWrite,
     researchCandidates:rows.filter(r=>r.researchCandidate).length,researchBets:rows.filter(r=>r.decision==="BET").length,gameRows:rows.filter(r=>r.wagerScope==="GAME").length,
     propRows:rows.filter(r=>r.wagerScope==="PROP").length,authority:false,staking:false});
 }
