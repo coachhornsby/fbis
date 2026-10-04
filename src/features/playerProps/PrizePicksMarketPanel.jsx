@@ -149,9 +149,22 @@ function groupLatest(rows=[]){
       (TIER_ORDER[String(a.odds_tier||"standard").toLowerCase()]??9)-
       (TIER_ORDER[String(b.odds_tier||"standard").toLowerCase()]??9)
     );
-    const primary=variants.find(v=>String(v.odds_tier||"standard").toLowerCase()==="standard")||variants[0];
+    const primary=[...variants].sort((a,b)=>{
+      const byStars=(rowStars(b)||0)-(rowStars(a)||0);
+      if(byStars) return byStars;
+      const bz=Math.abs(Number(b.standardized_edge ?? b.selection_score ?? b.delta_fbis_minus_line ?? 0));
+      const az=Math.abs(Number(a.standardized_edge ?? a.selection_score ?? a.delta_fbis_minus_line ?? 0));
+      return bz-az;
+    })[0]||variants[0];
     return {...g,primary,variants};
   });
+}
+
+function tierLabel(row={}){
+  const tier=String(row.odds_tier||"standard").toLowerCase();
+  if(tier==="goblin") return "GOBLIN";
+  if(tier==="demon") return "DEMON";
+  return "STANDARD";
 }
 
 function StarRating({ stars=1 }){
@@ -323,7 +336,13 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
                   const side=sideFor(v);
                   const diff=v.delta_fbis_minus_line ?? (Number(v.fbis_projection)-Number(v.line));
                   return (
-                    <div className="pp-variant pp-premium-variant" key={v.id||v.projection_id||String(v.odds_tier)+"-"+String(v.line)}>
+                    <div className={"pp-variant pp-premium-variant pp-tier-"+String(v.odds_tier||"standard").toLowerCase()} key={v.id||v.projection_id||String(v.odds_tier)+"-"+String(v.line)}>
+                      <div className="pp-tier-head">
+                        <span>{tierLabel(v)}</span>
+                        <span className="pp-tier-stars" aria-label={(rowStars(v)||1)+" out of 5 stars"}>
+                          {Array.from({length:5},(_,i)=><span key={i} className={i<(rowStars(v)||1)?"filled":"empty"}>★</span>)}
+                        </span>
+                      </div>
                       <div className="pp-line-row pp-premium-metrics">
                         <div>
                           <span>PP LINE</span>
