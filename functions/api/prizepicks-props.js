@@ -224,6 +224,11 @@ export async function onRequestPost(context){
     const side=delta==null||Math.abs(delta)<1e-9?null:(delta>0?"MORE":"LESS");
     const projectionId=projectionIdOf(raw);
     const id=sha256Hex(JSON.stringify([runId,projectionId,sport,playerName,market,line,tierOf(raw),durationOf(raw),collectedAt]));
+    const observedAt=s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt;
+    const eventId=s(cand?.eventId);
+    const team=s(teamOf(raw)||cand?.team);
+    const opponent=s(opponentOf(raw)||candidateOpponent(cand,teamOf(raw)));
+    const startTime=s(startOf(raw)||cand?.start);
     statements.push(context.env.DB.prepare(
       `INSERT OR REPLACE INTO prizepicks_prop_lines(
         id,run_id,projection_id,fbis_event_id,sport,league,player_id,player_name,player_headshot_url,team,opponent,game_id,start_time,
@@ -231,11 +236,27 @@ export async function onRequestPost(context){
         observed_at,collected_at,raw_json
       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).bind(
-      id,runId,projectionId,s(cand?.eventId),sport,s(first(raw,["league","leagueName","league.name"])),
-      playerIdOf(raw),playerName,headshotOf(raw),s(teamOf(raw)||cand?.team),s(opponentOf(raw)||candidateOpponent(cand,teamOf(raw))),gameIdOf(raw),s(startOf(raw)||cand?.start),
+      id,runId,projectionId,eventId,sport,s(first(raw,["league","leagueName","league.name"])),
+      playerIdOf(raw),playerName,headshotOf(raw),team,opponent,gameIdOf(raw),startTime,
       stat,market,line,tierOf(raw),durationOf(raw),fbisProjection,fbisSigma,delta,side,
-      s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt,collectedAt,JSON.stringify(raw)
+      observedAt,collectedAt,JSON.stringify(raw)
     ));
+    if(sport==="cbb"&&cand&&fbisProjection!=null&&side&&market){
+      const z=fbisSigma!=null&&fbisSigma>0?delta/fbisSigma:null;
+      const signalId=sha256Hex(JSON.stringify(["CBB-PROP-LEARNING-v1",eventId||gameIdOf(raw),norm(playerName),market]));
+      statements.push(context.env.DB.prepare(
+        `INSERT OR IGNORE INTO cbb_prop_learning_signals(
+          id,source,sport,fbis_event_id,game_id,player_id,player_name,team,opponent,start_time,market,side,
+          signal_line,signal_projection,signal_sigma,signal_edge,signal_z,data_quality,role_confidence,projected_minutes,
+          model_id,model_version,signal_observed_at,payload_json
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ).bind(
+        signalId,"PRIZEPICKS","cbb",eventId,gameIdOf(raw),playerIdOf(raw),playerName,team,opponent,startTime,market,side,
+        line,fbisProjection,fbisSigma,delta,z,n(cand?.dataQuality),n(cand?.roleConfidence),n(cand?.projectedMinutes),
+        s(cand?.modelId),s(cand?.modelVersion),observedAt,
+        JSON.stringify({runId,projectionId,oddsTier:tierOf(raw),duration:durationOf(raw),candidate:cand})
+      ));
+    }
   }
   const BATCH_SIZE=200;
   for(let i=0;i<statements.length;i+=BATCH_SIZE){
