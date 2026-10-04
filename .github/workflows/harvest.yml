@@ -302,6 +302,20 @@ jobs:
             call_api "/api/collect?odds=${odds}&sport=${SPORT}"
           fi
 
+          # Freeze a point-in-time NFL wager decision after every NFL odds refresh.
+          if [ "$SPORT" = "nfl" ]; then
+            decision_body="$(mktemp)"
+            decision_code="$(curl -sS --max-time 90 -X POST \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              -o "$decision_body" -w "%{http_code}" \
+              "${BASE}/api/nfl-wager-snapshot?_t=$(date +%s)")"
+            echo "nfl_wager_snapshot http=${decision_code}"
+            jq -c '{ok,date,games,decisionGames,candidates,pricedCandidates,inserted,bets,passes,confidenceValidated,blockers}' "$decision_body" || true
+            test "$decision_code" = "200"
+            jq -e '.ok == true' "$decision_body" >/dev/null
+          fi
+
           # NFL research live-ops proof: board FBIS count + one published ledger row.
           # Soft evidence only — must never fail the collect matrix job.
           if [ "$SPORT" = "nfl" ]; then
