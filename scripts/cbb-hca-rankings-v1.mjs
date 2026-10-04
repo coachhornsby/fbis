@@ -1,25 +1,33 @@
-import {readFileSync,writeFileSync,mkdirSync} from "node:fs";
+import {writeFileSync,mkdirSync} from "node:fs";
+import {buildFbisCbbRatings,normalizeFbisCbbGameTeamRows} from "../functions/lib/cbbFbisRatings.js";
+import {conferenceForTeamSeason} from "../functions/lib/cbbConferenceMembership.js";
 
-const predictionsPath=process.argv[2]||"artifacts/cbb-fbis-native-v1-predictions.json";
-const rows=JSON.parse(readFileSync(predictionsPath,"utf8"));
-const ARENAS_URL="https://raw.githubusercontent.com/dilernia/NCAA/master/ncaa_arenas_full.csv";
-const ALTITUDE_URL="https://api.open-meteo.com/v1/elevation";
-
+const SEASON_START=2025;
+const AS_OF="2026-05-15T00:00:00Z";
+const BOX_URL="https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_mens_college_basketball_team_boxscores/team_box_2026.csv";
+const CURRENT_ARENAS_URL="https://en.wikipedia.org/wiki/List_of_NCAA_Division_I_basketball_arenas";
+const LEGACY_ARENAS_URL="https://raw.githubusercontent.com/dilernia/NCAA/master/ncaa_arenas_full.csv";
+const ELEVATION_URL="https://api.open-meteo.com/v1/elevation";
+const GEOCODE_URL="https://geocoding-api.open-meteo.com/v1/search";
 const num=v=>{const x=Number(v);return Number.isFinite(x)?x:null};
-const norm=v=>String(v||"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim()
-  .replace(/\buniversity\b/g,"").replace(/\bst\.?\b/g,"state").replace(/\s+/g," ").trim();
 
 const alias={
- "uconn":"connecticut","umass":"massachusetts","miami fl":"miami florida","miami oh":"miami ohio",
- "nc state":"north carolina state","unc":"north carolina","usc":"southern california",
- "loyola chicago":"loyola chicago","saint marys":"st marys","st marys ca":"st marys",
- "cal state bakersfield":"csu bakersfield","cal state fullerton":"cal state fullerton",
- "ut rio grande valley":"utrgv","middle tennessee":"middle tennessee",
- "florida atlantic":"fau","houston christian":"houston baptist",
- "texas arlington":"ut arlington","ut arlington":"ut arlington",
- "texas san antonio":"utsa","ut san antonio":"utsa","east tennessee state":"east tennessee state",
- "college of charleston":"college of charleston","charleston":"college of charleston"
+ "uconn":"connecticut","umass":"massachusetts","usc":"southern california","miami fl":"miami florida",
+ "miami ohio":"miami oh","nc state":"north carolina state","unc":"north carolina",
+ "utrgv":"texas rio grande valley","ut rio grande valley":"texas rio grande valley","utsa":"texas san antonio",
+ "ut san antonio":"texas san antonio","ut arlington":"texas arlington","fau":"florida atlantic",
+ "fiu":"florida international","uic":"illinois chicago","siu edwardsville":"siue",
+ "saint marys":"st marys","st marys ca":"st marys","san jose state":"san jose state",
+ "east texas a and m":"texas a and m commerce","texas a and m commerce":"texas a and m commerce",
+ "mcneese state":"mcneese","mcneese":"mcneese","sam houston state":"sam houston",
+ "tarleton state":"tarleton","tarleton":"tarleton","hawaii":"hawaii",
+ "milwaukee":"milwaukee","wisconsin milwaukee":"milwaukee","green bay":"green bay",
+ "wisconsin green bay":"green bay","pennsylvania":"penn","st johns":"st johns",
+ "saint johns":"st johns","mount st marys":"mount st marys","mt st marys":"mount st marys"
 };
+const norm=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
+ .replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim()
+ .replace(/\bsaint\b/g,"st");
 const canon=v=>alias[norm(v)]||norm(v);
 
 function parseCsv(text){
@@ -32,77 +40,126 @@ function parseCsv(text){
  }
  return out;
 }
-
-function collectLatest(){
- const latest=new Map();
- for(const r of rows){
-  const date=String(r.date||"");
-  for(const side of ["home","away"]){
-   const school=r[side],rating=r[side+"Rating"];
-   if(!school||!rating||!Number.isFinite(num(rating.hca)))continue;
-   const k=canon(school),prev=latest.get(k);
-   if(!prev||date>prev.date)latest.set(k,{school,date,conference:rating.conference||null,hcaPpg:num(rating.hca),hcaGames:num(rating.hcaGames)||0,reliability:num(rating.reliability)});
-  }
- }
- return latest;
+function decodeHtml(s){
+ return String(s||"").replace(/<sup[\s\S]*?<\/sup>/gi,"")
+  .replace(/<style[\s\S]*?<\/style>/gi,"").replace(/<script[\s\S]*?<\/script>/gi,"")
+  .replace(/<[^>]+>/g," ").replace(/&nbsp;|&#160;/g," ").replace(/&amp;/g,"&")
+  .replace(/&quot;/g,'"').replace(/&#0?39;|&apos;/g,"'").replace(/&ndash;/g,"–").replace(/&mdash;/g,"—")
+  .replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Number(n))).replace(/\s+/g," ").trim();
 }
-
-async function elevations(points){
- const result=new Map();
+function parseCurrentArenas(html){
+ const m=String(html).match(/<table[^>]*class="[^"]*wikitable[^"]*sortable[^"]*"[^>]*>[\s\S]*?<\/table>/i);
+ if(!m)return[];
+ const rows=[];
+ for(const tr of m[0].matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)){
+  const cells=[...tr[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(x=>decodeHtml(x[1]));
+  if(cells.length<8)continue;
+  let team=cells[4];if(/\bwomen\b/i.test(team))continue;team=team.replace(/\s+men$/i,"").trim();
+  const capacity=num(String(cells[6]).replace(/[^0-9.]/g,""));
+  if(!team||!cells[1]||capacity==null)continue;
+  rows.push({arena:cells[1],city:cells[2],state:cells[3],team,conference:cells[5],capacity});
+ }
+ return rows;
+}
+async function loadBox(){
+ const res=await fetch(BOX_URL,{redirect:"follow"});if(!res.ok)throw new Error("SportsDataverse box source "+res.status);
+ const raw=parseCsv(await res.text()),rows=[];
+ for(const x of raw){
+  const n=k=>num(x[k]),fgm=n("field_goals_made"),fga=n("field_goals_attempted"),tpm=n("three_point_field_goals_made"),tpa=n("three_point_field_goals_attempted"),
+   ftm=n("free_throws_made"),fta=n("free_throws_attempted"),orb=n("offensive_rebounds"),drb=n("defensive_rebounds"),tov=n("turnovers")??n("total_turnovers")??n("team_turnovers");
+  const team=x.team_location||x.team_display_name,opponent=x.opponent_team_location||x.opponent_team_display_name;
+  rows.push({gameId:String(x.game_id||""),startDate:x.game_date_time||x.game_date,season:SEASON_START,team,opponent,
+   conference:conferenceForTeamSeason(team,SEASON_START),isHome:x.team_home_away==="home",neutral:false,
+   fgm,fga,threeMade:tpm,threeAtt:tpa,ftm,fta,orb,drb,turnovers:tov,possessions:fga!=null&&orb!=null&&tov!=null&&fta!=null?fga-orb+tov+.475*fta:null});
+ }
+ return normalizeFbisCbbGameTeamRows(rows,SEASON_START);
+}
+async function legacyArenas(){
+ const res=await fetch(LEGACY_ARENAS_URL);if(!res.ok)return[];
+ return parseCsv(await res.text());
+}
+async function currentArenas(){
+ try{
+  const res=await fetch(CURRENT_ARENAS_URL,{headers:{"user-agent":"FBIS research venue metadata/1.0"}});
+  if(!res.ok)throw new Error("HTTP "+res.status);
+  const rows=parseCurrentArenas(await res.text());
+  if(rows.length<300)throw new Error("only "+rows.length+" current arena rows parsed");
+  return rows;
+ }catch(err){console.warn("current arena source failed",String(err?.message||err));return[]}
+}
+async function elevationFor(points){
+ const out=new Map();
  for(let i=0;i<points.length;i+=75){
-  const batch=points.slice(i,i+75),lats=batch.map(x=>x.lat).join(","),lons=batch.map(x=>x.lng).join(",");
-  try{
-   const res=await fetch(ALTITUDE_URL+"?latitude="+encodeURIComponent(lats)+"&longitude="+encodeURIComponent(lons));
-   if(!res.ok)throw new Error("HTTP "+res.status);
-   const body=await res.json(),vals=Array.isArray(body.elevation)?body.elevation:[body.elevation];
-   batch.forEach((p,j)=>{const m=num(vals[j]);if(m!=null)result.set(p.key,m)});
-  }catch(err){console.warn("elevation batch failed",i,String(err?.message||err))}
+  const b=points.slice(i,i+75);
+  const res=await fetch(ELEVATION_URL+"?latitude="+encodeURIComponent(b.map(x=>x.lat).join(","))+"&longitude="+encodeURIComponent(b.map(x=>x.lng).join(","))).catch(()=>null);
+  if(!res?.ok)continue;const body=await res.json();const vals=Array.isArray(body.elevation)?body.elevation:[body.elevation];
+  b.forEach((p,j)=>{const v=num(vals[j]);if(v!=null)out.set(p.key,v)});
  }
- return result;
+ return out;
+}
+async function geocode(city,state){
+ try{
+  const q=city+" "+state;
+  const res=await fetch(GEOCODE_URL+"?name="+encodeURIComponent(q)+"&count=5&language=en&format=json&countryCode=US");
+  if(!res.ok)return null;const body=await res.json();const x=(body.results||[])[0];if(!x)return null;
+  return {lat:num(x.latitude),lng:num(x.longitude),elevation:num(x.elevation)};
+ }catch{return null}
 }
 
-const latest=collectLatest();
-const arenaRes=await fetch(ARENAS_URL);if(!arenaRes.ok)throw new Error("arena source HTTP "+arenaRes.status);
-const arenaRows=parseCsv(await arenaRes.text());
-const arenaMap=new Map();
-for(const a of arenaRows){
- const k=canon(a.team);if(!arenaMap.has(k))arenaMap.set(k,a);
+const box=await loadBox();
+const catalog=buildFbisCbbRatings(box,{asOf:AS_OF,season:SEASON_START,iterations:24});
+const ratingByKey=new Map();
+for(const r of Object.values(catalog.byTeamId||{})){
+ if(!conferenceForTeamSeason(r.team,SEASON_START))continue;
+ ratingByKey.set(canon(r.team),r);
 }
-const matched=[];
-for(const [key,rec] of latest){
- let arena=arenaMap.get(key);
- if(!arena){
-  // Unique containment fallback for source naming variants.
-  const hits=arenaRows.filter(a=>canon(a.team).includes(key)||key.includes(canon(a.team)));
-  if(hits.length===1)arena=hits[0];
- }
- matched.push({key,rec,arena:arena||null});
+
+const [current,legacy]=await Promise.all([currentArenas(),legacyArenas()]);
+const legacyByKey=new Map(legacy.map(v=>[canon(v.team),v]));
+const currentByKey=new Map();
+for(const v of current){const k=canon(v.team);if(!currentByKey.has(k))currentByKey.set(k,v)}
+// If the current web table cannot be parsed, fall back to the legacy directory.
+if(!currentByKey.size)for(const v of legacy)currentByKey.set(canon(v.team),{team:v.team,arena:v.arena,city:v.city,state:v.state,conference:v.conference,capacity:num(v.capacity)});
+
+const allKeys=new Set([...currentByKey.keys(),...ratingByKey.keys()]);
+const coordinatePoints=[],baseRows=[];
+for(const k of allKeys){
+ const venue=currentByKey.get(k)||null,rating=ratingByKey.get(k)||null;
+ // Keep only current D-I venues or teams confirmed as 2025-26 D-I.
+ if(!venue&&!rating)continue;
+ const old=legacyByKey.get(k)||null;
+ let lat=num(old?.lat),lng=num(old?.lng),coordBasis=old?"legacy venue coordinate":null;
+ baseRows.push({key:k,venue,rating,lat,lng,coordBasis});
+ if(lat!=null&&lng!=null)coordinatePoints.push({key:k,lat,lng});
 }
-const points=matched.filter(x=>x.arena&&num(x.arena.lat)!=null&&num(x.arena.lng)!=null)
- .map(x=>({key:x.key,lat:num(x.arena.lat),lng:num(x.arena.lng)}));
-const elev=await elevations(points);
-let data=matched.map(x=>({
- school:x.rec.school,
- arena:x.arena?.arena||null,
- capacity:num(x.arena?.capacity),
- altitudeFt:elev.has(x.key)?Math.round(elev.get(x.key)*3.28084):null,
- hcaPpg:Number(x.rec.hcaPpg.toFixed(3)),
- hcaGames:x.rec.hcaGames,
- conference:x.rec.conference,
- reliability:x.rec.reliability,
- dataThrough:x.rec.date,
- venueSource:x.arena?"dilernia/NCAA ncaa_arenas_full.csv":null,
- altitudeSource:elev.has(x.key)?"Open-Meteo Elevation API at arena coordinates":null
-}));
-data.sort((a,b)=>b.hcaPpg-a.hcaPpg||a.school.localeCompare(b.school));
-data=data.map((r,i)=>({rank:i+1,...r}));
-const venueCoverage=data.length?100*data.filter(x=>x.arena&&x.capacity!=null).length/data.length:0;
-const altitudeCoverage=data.length?100*data.filter(x=>x.altitudeFt!=null).length/data.length:0;
-const report={id:"FBIS-CBB-HCA-RANKINGS-v1",generatedAt:new Date().toISOString(),model:"FBIS-CBB-HCA-v1",independent:true,kenpomInput:false,teams:data.length,venueCoveragePct:Number(venueCoverage.toFixed(2)),altitudeCoveragePct:Number(altitudeCoverage.toFixed(2)),data};
-mkdirSync("artifacts",{recursive:true});
-writeFileSync("artifacts/cbb-hca-rankings-v1.json",JSON.stringify(report,null,2));
+const elevations=await elevationFor(coordinatePoints);
+for(const x of baseRows){
+ if(elevations.has(x.key))continue;
+ const venue=x.venue;if(!venue?.city)continue;
+ const g=await geocode(venue.city,venue.state);
+ if(g?.elevation!=null){elevations.set(x.key,g.elevation);x.coordBasis="current arena city geocode"}
+ else if(g?.lat!=null&&g?.lng!=null){const one=await elevationFor([{key:x.key,lat:g.lat,lng:g.lng}]);if(one.has(x.key)){elevations.set(x.key,one.get(x.key));x.coordBasis="current arena city geocode"}}
+}
+const globalHca=num(catalog?.national?.globalHca)??4.4096;
+let data=baseRows.map(x=>{
+ const r=x.rating,v=x.venue;
+ const hca=num(r?.hca)??globalHca,hcaGames=num(r?.hcaGames)??0;
+ return {
+  school:r?.team||v?.team||x.key,arena:v?.arena||null,capacity:num(v?.capacity),altitudeFt:elevations.has(x.key)?Math.round(elevations.get(x.key)*3.28084):null,
+  hcaPpg:Number(hca.toFixed(3)),hcaGames,conference:r?.conference||v?.conference||null,reliability:num(r?.reliability)??0,
+  hcaBasis:hcaGames>0?"team residual + hierarchical shrinkage":"FBIS global prior (no team home sample)",
+  dataThrough:hcaGames>0?"2026-04-06":"2026-27 preseason prior",venueSource:v?"Wikipedia current NCAA D-I arena table":null,
+  altitudeSource:elevations.has(x.key)?"Open-Meteo elevation at venue/city coordinates":null,coordinateBasis:x.coordBasis
+ };
+});
+data.sort((a,b)=>b.hcaPpg-a.hcaPpg||a.school.localeCompare(b.school));data=data.map((r,i)=>({rank:i+1,...r}));
+const report={id:"FBIS-CBB-HCA-RANKINGS-v2",generatedAt:new Date().toISOString(),model:"FBIS-CBB-HCA-v1",independent:true,kenpomInput:false,
+ seasonBaseline:"2025-26 end-of-season / 2026-27 preseason",globalHcaPpg:Number(globalHca.toFixed(3)),teams:data.length,
+ venueCoveragePct:Number((100*data.filter(x=>x.arena&&x.capacity!=null).length/Math.max(1,data.length)).toFixed(2)),
+ altitudeCoveragePct:Number((100*data.filter(x=>x.altitudeFt!=null).length/Math.max(1,data.length)).toFixed(2)),data};
+mkdirSync("artifacts",{recursive:true});writeFileSync("artifacts/cbb-hca-rankings-v1.json",JSON.stringify(report,null,2));
 const esc=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
-const header=["Rank","School","Arena","Capacity","Altitude (ft)","FBIS HCA PPG","HCA Home Games","Conference","Reliability","Data Through","Venue Source","Altitude Source"];
-const csv=[header.map(esc).join(","),...data.map(r=>[r.rank,r.school,r.arena,r.capacity,r.altitudeFt,r.hcaPpg,r.hcaGames,r.conference,r.reliability,r.dataThrough,r.venueSource,r.altitudeSource].map(esc).join(","))].join("\n");
+const header=["Rank","School","Arena","Capacity","Altitude (ft)","FBIS HCA PPG","HCA Home Games","Conference","Reliability","HCA Basis","Data Through","Altitude Basis"];
+const csv=[header.map(esc).join(","),...data.map(r=>[r.rank,r.school,r.arena,r.capacity,r.altitudeFt,r.hcaPpg,r.hcaGames,r.conference,r.reliability,r.hcaBasis,r.dataThrough,r.coordinateBasis].map(esc).join(","))].join("\n");
 writeFileSync("artifacts/cbb-hca-rankings-v1.csv",csv);
-console.log(JSON.stringify({teams:data.length,venueCoveragePct:report.venueCoveragePct,altitudeCoveragePct:report.altitudeCoveragePct,top10:data.slice(0,10)},null,2));
+console.log(JSON.stringify({teams:data.length,venueCoveragePct:report.venueCoveragePct,altitudeCoveragePct:report.altitudeCoveragePct,globalHcaPpg:report.globalHcaPpg,top10:data.slice(0,10),missingVenue:data.filter(x=>!x.arena).slice(0,30).map(x=>x.school)},null,2));
