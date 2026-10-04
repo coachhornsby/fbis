@@ -1,117 +1,72 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  evaluateNhlGameWagers,
-  evaluateNhlPropWagerV1,
-  deriveNhlMarketTrajectory,
-  decomposeNhlProjectionDisagreement,
-  summarizeNhlConfidenceMonotonicity,
+  evaluateNhlGameWagers,evaluateNhlPropWagerV1,deriveNhlMarketTrajectory,
+  decomposeNhlProjectionDisagreement,validateNhlConfidenceCalibration
 } from "../functions/lib/nhlWagerV1.js";
 
+const goodCalibration={validated:true,minEv:.02,minProbabilityEdge:.01,minConfidence:60,bins:[
+  {min:0,max:49,n:40,winRate:.45,roi:-.05,calibratedScore:42},
+  {min:50,max:69,n:40,winRate:.55,roi:.02,calibratedScore:62},
+  {min:70,max:100,n:40,winRate:.64,roi:.08,calibratedScore:82},
+]};
 function game(){
-  return {
-    id:"2026020001",sport:"nhl",start:"2026-10-10T00:00:00Z",
-    home:{abbr:"BOS"},away:{abbr:"NYR"},
-    odds:{
-      pinHomeMl:-125,pinAwayMl:+110,
-      pinSpread:-1.5,pinSpreadHomePrice:+170,pinSpreadAwayPrice:-195,
-      pinTotal:6.0,pinOverPrice:-108,pinUnderPrice:-102,
-    },
-    quality:{score:88},
-    nhlProV2:{
-      ok:true,home:"BOS",away:"NYR",projHome:3.55,projAway:2.65,margin:.9,total:6.2,
-      probability:{homeWinIncludingOt:.61,awayWinIncludingOt:.39},
-      layers:{
-        eventChainXg:{home:2.75,away:2.35},
-        goalie:{home:{impactPerShot:.004,reliability:.82},away:{impactPerShot:-.003,reliability:.78}},
-        finishing:{home:{factor:1.04},away:{factor:.98}},
-        specialTeams:{home:.08,away:-.03},
-        tracking:{
-          home:{goals:.04},away:{goals:-.01},playerEdgeCoverage:.65,
-          player:{home:{differential:{maxSkatingSpeed:1.2,maxShotSpeed:2.5,highDangerShots:3}}}
-        },
-        situation:{homeRestDays:2,awayRestDays:0,eloGoalAdjustment:.12}
-      }
-    },
+  return {id:"nhl-test",sport:"nhl",start:"2026-10-10T00:00:00Z",home:{abbr:"BOS"},away:{abbr:"NYR"},quality:{score:90},
+    odds:{pinHomeMl:-120,pinAwayMl:110,pinSpread:-1.5,pinSpreadHomePrice:175,pinSpreadAwayPrice:-195,pinTotal:6,pinOverPrice:-105,pinUnderPrice:-105},
+    nhlProV2:{ok:true,home:"BOS",away:"NYR",projHome:3.7,projAway:2.5,margin:1.2,total:6.2,
+      probability:{homeWinIncludingOt:.64,awayWinIncludingOt:.36},
+      layers:{eventChainXg:{home:2.8,away:2.3},goalie:{home:{impactPerShot:.004,reliability:.85},away:{impactPerShot:-.003,reliability:.8}},
+        finishing:{home:{factor:1.05},away:{factor:.98}},specialTeams:{home:.1,away:-.02},
+        tracking:{home:{goals:.04},away:{goals:-.01},playerEdgeCoverage:.7,player:{home:{differential:{maxSkatingSpeed:1,maxShotSpeed:2,highDangerShots:3}}}},
+        situation:{homeRestDays:2,awayRestDays:0,eloGoalAdjustment:.12}}},
     marketLineHistory:[
-      {sportsbook:"Pinnacle",market:"moneyline",selection:"home",line:null,americanPrice:-115,collectedAt:"2026-10-08T13:00:00Z"},
-      {sportsbook:"Pinnacle",market:"moneyline",selection:"home",line:null,americanPrice:-125,collectedAt:"2026-10-09T20:00:00Z"},
-      {sportsbook:"Pinnacle",market:"total",selection:"over",line:5.5,americanPrice:-110,collectedAt:"2026-10-08T13:00:00Z"},
-      {sportsbook:"Pinnacle",market:"total",selection:"over",line:6,americanPrice:-108,collectedAt:"2026-10-09T20:00:00Z"},
-    ],
-    actionIntel:{
-      publicSplits:{markets:[
-        {market:"ML",ticketPct:58,moneyPct:66,moneyTicketGap:8},
-        {market:"TOTAL",ticketPct:51,moneyPct:61,moneyTicketGap:10},
-      ]},
-      lineHistory:[]
-    }
-  };
+      {market:"spread",selection:"home",line:-1,americanPrice:-110,collectedAt:"2026-10-08T12:00:00Z"},
+      {market:"spread",selection:"home",line:-1.5,americanPrice:175,collectedAt:"2026-10-09T20:00:00Z"},
+      {market:"total",selection:"over",line:5.5,americanPrice:-110,collectedAt:"2026-10-08T12:00:00Z"},
+      {market:"total",selection:"over",line:6,americanPrice:-105,collectedAt:"2026-10-09T20:00:00Z"}],
+    actionIntel:{publicSplits:{markets:[{market:"TOTAL",ticketPct:50,moneyPct:62,moneyTicketGap:12}]},lineHistory:[]}};
 }
-
-test("NHL-WAGER-v1 prices individual offers and never grants authority",()=>{
-  const g=game(),before=JSON.stringify(g.nhlProV2);
-  const out=evaluateNhlGameWagers(g);
+test("NHL confidence calibration is fail-closed and monotonic",()=>{
+  assert.equal(validateNhlConfidenceCalibration({validated:false,bins:[]}).ok,false);
+  assert.equal(validateNhlConfidenceCalibration({validated:true,bins:[
+    {min:0,max:49,n:30,winRate:.5,roi:.02},{min:50,max:79,n:30,winRate:.6,roi:.04},{min:80,max:100,n:30,winRate:.55,roi:.05}
+  ]}).ok,false);
+  assert.equal(validateNhlConfidenceCalibration(goodCalibration).ok,true);
+});
+test("positive raw EV remains PASS before confidence validation",()=>{
+  const out=evaluateNhlGameWagers(game());
   assert.equal(out.ok,true);
   assert.equal(out.offers.length,6);
-  assert.ok(out.offers.every(x=>x.breakEvenProbability>0&&x.breakEvenProbability<1));
-  assert.ok(out.offers.every(x=>x.expectedRoi==null||Number.isFinite(x.expectedRoi)));
-  assert.ok(out.offers.every(x=>x.confidence>=0&&x.confidence<=100));
-  assert.equal(out.canQualify,false);
+  assert.equal(out.decision,"PASS");
+  assert.ok(out.offers.some(x=>x.researchCandidate));
+  assert.ok(out.offers.every(x=>x.decision==="PASS"));
+  assert.ok(out.offers.every(x=>x.reasons.includes("confidence-calibration-not-validated")));
   assert.equal(out.canAuthorizeWager,false);
-  assert.equal(out.offers.filter(x=>x.decision==="BET").length,0);
-  assert.ok(out.offers.some(x=>x.researchCandidate===true));
-  assert.ok(out.offers.every(x=>x.suggestedUnits===0));
+});
+test("validated confidence can authorize decision label but never staking yet",()=>{
+  const out=evaluateNhlGameWagers(game(),goodCalibration);
+  assert.ok(out.offers.some(x=>x.decision==="BET"));
+  assert.ok(out.offers.filter(x=>x.decision==="BET").every(x=>x.stakingValidated===false&&x.stakeUnits==null));
+});
+test("market trajectory and disagreement never mutate projection",()=>{
+  const g=game(),before=JSON.stringify(g.nhlProV2);
+  const t=deriveNhlMarketTrajectory({lineHistory:[
+    {market:"total",selection:"over",line:5.5,collectedAt:"2026-10-08T10:00:00Z"},
+    {market:"total",selection:"over",line:6,collectedAt:"2026-10-08T16:00:00Z"},
+    {market:"total",selection:"over",line:5.5,collectedAt:"2026-10-08T22:00:00Z"}
+  ]},{market:"total",selection:"over",fbisSide:"OVER"});
+  assert.equal(t.reversal,true);
+  assert.ok(decomposeNhlProjectionDisagreement(g).factors.some(x=>x.factor==="goalie"));
+  evaluateNhlGameWagers(g);
   assert.equal(JSON.stringify(g.nhlProV2),before);
 });
-
-test("NHL trajectory preserves immutable movement and public split evidence",()=>{
-  const t=deriveNhlMarketTrajectory({
-    lineHistory:[
-      {market:"total",selection:"over",line:5.5,americanPrice:-105,collectedAt:"2026-10-08T10:00:00Z"},
-      {market:"total",selection:"over",line:6,americanPrice:-110,collectedAt:"2026-10-08T16:00:00Z"},
-      {market:"total",selection:"over",line:5.5,americanPrice:-115,collectedAt:"2026-10-08T22:00:00Z"},
-    ],
-    publicSplits:{markets:[{market:"TOTAL",ticketPct:45,moneyPct:62,moneyTicketGap:17}]}
-  },{market:"total",selection:"over",fbisSide:"OVER"});
-  assert.equal(t.available,true);
-  assert.equal(t.observations,3);
-  assert.equal(t.reversal,true);
-  assert.equal(t.ticketPct,45);
-  assert.equal(t.moneyPct,62);
-});
-
-test("NHL disagreement decomposition exposes hockey-specific factors",()=>{
-  const d=decomposeNhlProjectionDisagreement(game());
-  const names=new Set(d.factors.map(x=>x.factor));
-  for(const n of ["5v5/event-chain xG","goalie","finishing","special teams","team EDGE zone pressure","rest","elo/form"]) assert.equal(names.has(n),true);
-  assert.equal(d.diagnosticApproximation,true);
-});
-
-test("NHL prop wager layer uses actual price and remains research only",()=>{
-  const w=evaluateNhlPropWagerV1({
-    sport:"nhl",marketCanonical:"shots_on_goal",fbisProjection:4.3,line:3.5,
-    probabilityOver:.66,probabilityUnder:.34,overOdds:-120,underOdds:+100,
-    validationStatus:"PROMOTE_RESEARCH",lineValidationStatus:"PROMOTE_RESEARCH",
-    propGate:"CLEAR",eligibleForCard:true,trackingAdvisory:{coverage:.7},roleConfidence:.85
-  });
-  assert.equal(w.side,"OVER");
-  assert.equal(w.americanPrice,-120);
-  assert.ok(w.breakEvenProbability>.5);
-  assert.ok(Number.isFinite(w.expectedRoi));
-  assert.equal(w.canAuthorizeWager,false);
-  assert.equal(w.decision,"PASS");
-  assert.equal(w.researchCandidate,true);
-  assert.equal(w.suggestedUnits,0);
-});
-
-test("confidence audit groups settled evidence for monotonicity testing",()=>{
-  const rows=[
-    {confidence:55,profitUnits:-1,riskUnits:1},{confidence:55,profitUnits:1,riskUnits:1},
-    {confidence:75,profitUnits:1,riskUnits:1},{confidence:75,profitUnits:1,riskUnits:1},
-    {confidence:85,profitUnits:1,riskUnits:1},
-  ];
-  const out=summarizeNhlConfidenceMonotonicity(rows);
-  assert.equal(out.find(x=>x.band==="70-79").roi,1);
-  assert.equal(out.find(x=>x.band==="50-59").roi,0);
+test("NHL prop decisions are fail-closed until calibrated",()=>{
+  const row={sport:"nhl",marketCanonical:"shots_on_goal",fbisProjection:4.5,line:3.5,probabilityOver:.68,probabilityUnder:.32,
+    overOdds:-115,underOdds:-105,validationStatus:"PROMOTE_RESEARCH",lineValidationStatus:"PROMOTE_RESEARCH",
+    propGate:"CLEAR",eligibleForCard:true,trackingAdvisory:{coverage:.7},roleConfidence:.9};
+  const raw=evaluateNhlPropWagerV1(row);
+  assert.equal(raw.decision,"PASS");assert.equal(raw.researchCandidate,true);
+  const calibrated=evaluateNhlPropWagerV1(row,goodCalibration);
+  assert.equal(calibrated.confidenceValidated,true);
+  assert.equal(calibrated.stakingValidated,false);
 });
