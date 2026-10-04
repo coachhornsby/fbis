@@ -8,7 +8,7 @@
 import { buildSportAvailabilityPreflight, normalizeAvailabilityStatus } from "./availability.js";
 import { nhlPlayerProV2RowsForSide, NHL_PLAYER_PRO_V2_ID, NHL_PLAYER_PRO_V2_VERSION } from "./nhlPlayerProV2.js";
 
-export const PRO_PLAYER_PROJECTION_VERSION = "research-v1.1-availability-gated";
+export const PRO_PLAYER_PROJECTION_VERSION = "research-v2-tracking-usage-gated";
 
 function finite(v) {
   if (v == null || v === "") return null;
@@ -203,38 +203,76 @@ function nflRowsForSide(game, side, playerFeed = {}) {
   const out = [];
   for (const p of players) {
     const position = String(p.position || "").toUpperCase();
+    const snapShare = finite(p.snapShare);
+    const roleConfidence = snapShare == null
+      ? clamp((Number(p.games || 0) + 2) / 8, 0.35, 0.82)
+      : clamp((snapShare - 0.25) / 0.65, 0.2, 1);
     const volumeFactor = position === "QB"
       ? clamp(0.96 + (factor - 1) * 0.45, 0.84, 1.12)
       : position === "RB"
         ? clamp(1 + (factor - 1) * 0.35, 0.82, 1.16)
         : clamp(1 + (factor - 1) * 0.55, 0.82, 1.18);
+    const ngs = p.ngs || {};
+    const passingEff = clamp(
+      1 +
+        (finite(ngs.cpoe) == null ? 0 : Number(ngs.cpoe) * 0.006) +
+        (finite(ngs.avgTimeToThrow) == null ? 0 : (2.75 - Number(ngs.avgTimeToThrow)) * 0.025),
+      0.92, 1.08
+    );
+    const rushEff = clamp(
+      1 + (finite(ngs.ryoePerAtt) == null ? 0 : Number(ngs.ryoePerAtt) * 0.045),
+      0.90, 1.11
+    );
+    const recEff = clamp(
+      1 +
+        (finite(ngs.avgSeparation) == null ? 0 : (Number(ngs.avgSeparation) - 2.9) * 0.035) +
+        (finite(ngs.yacOverExpected) == null ? 0 : Number(ngs.yacOverExpected) * 0.025),
+      0.90, 1.12
+    );
     const map = [
-      ["passing_yards", p.passing_yards, p.sd?.passing_yards],
-      ["passing_attempts", p.attempts, p.sd?.attempts],
-      ["completions", p.completions, p.sd?.completions],
-      ["passing_touchdowns", p.passing_tds, p.sd?.passing_tds],
-      ["interceptions", p.interceptions, p.sd?.interceptions],
-      ["rushing_yards", p.rushing_yards, p.sd?.rushing_yards],
-      ["rushing_attempts", p.carries, p.sd?.carries],
-      ["receiving_yards", p.receiving_yards, p.sd?.receiving_yards],
-      ["receptions", p.receptions, p.sd?.receptions],
-      ["touchdowns", p.total_tds, p.sd?.total_tds],
+      ["passing_yards", p.passing_yards, p.sd?.passing_yards, passingEff],
+      ["passing_attempts", p.attempts, p.sd?.attempts, 1],
+      ["completions", p.completions, p.sd?.completions, clamp(passingEff, 0.95, 1.05)],
+      ["passing_touchdowns", p.passing_tds, p.sd?.passing_tds, clamp(passingEff, 0.94, 1.08)],
+      ["interceptions", p.interceptions, p.sd?.interceptions, 1],
+      ["rushing_yards", p.rushing_yards, p.sd?.rushing_yards, rushEff],
+      ["rushing_attempts", p.carries, p.sd?.carries, 1],
+      ["receiving_yards", p.receiving_yards, p.sd?.receiving_yards, recEff],
+      ["receptions", p.receptions, p.sd?.receptions, clamp(recEff, 0.95, 1.05)],
+      ["touchdowns", p.total_tds, p.sd?.total_tds, 1],
     ];
-    for (const [market, base, sd] of map) {
+    for (const [market, base, rawSigma, efficiencyFactor] of map) {
       if (finite(base) == null) continue;
-      const projection = Number(base) * volumeFactor;
+      const projection = Number(base) * volumeFactor * Number(efficiencyFactor || 1);
       if (projection <= 0.05) continue;
-      out.push(statRow({
+      const sigmaBase = finite(rawSigma);
+      const sigma = sigmaBase == null ? null : sigmaBase * (1 + (1 - roleConfidence) * 0.35);
+      const row = statRow({
         sport: "nfl",
         game,
         team,
         player: p,
         market,
         projection,
-        sigma: sd,
-        source: "NFLVERSE_WEEKLY_PLAYER_PRIOR_CURRENT_BLEND",
-        notes: "Player per-game baseline adjusted only by FBIS team scoring environment; no sportsbook line input.",
-      }));
+        sigma,
+        source: "NFLVERSE_WEEKLY_PLUS_NGS_SNAP_V2",
+        notes: "Pregame player baseline adjusted by FBIS team environment, snap-role reliability, and capped Next Gen efficiency. No PrizePicks or sportsbook line is a projection input.",
+      });
+      if (!row) continue;
+      row.roleConfidence = round1(roleConfidence);
+      row.snapShare = snapShare == null ? null : round1(snapShare);
+      row.featureEvidence = {
+        nextGen: Boolean(p.ngs && Object.values(p.ngs).some((v)=>finite(v)!=null)),
+        snapShare: snapShare != null,
+        trackingGames: Number(p.trackingGames || 0),
+        snapGames: Number(p.snapGames || 0),
+      };
+      if (roleConfidence < 0.45 && row.propGate === "CLEAR") {
+        row.propGate = "HOLD";
+        row.gateReason = "low_role_confidence";
+        row.eligibleForCard = false;
+      }
+      out.push(row);
     }
   }
   return out.filter(Boolean);
@@ -252,7 +290,7 @@ export function attachNflPlayerProjectionResearch(games = [], playerFeed = {}) {
       playerProjectionStatus: {
         sport: "nfl",
         state: rows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : rows.length ? "HOLD_AVAILABILITY" : "PLAYER_DATA_UNAVAILABLE",
-        model: "NFL-PLAYER-PROJ-v1",
+        model: "NFL-PLAYER-PROJ-v2",
         version: PRO_PLAYER_PROJECTION_VERSION,
         independent: true,
         marketInformed: false,
