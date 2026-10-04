@@ -20,16 +20,31 @@ function espnTeamId(team={}){
   const m=String(team.canonicalId||team.id||"").match(/^[a-z]+-(\d+)$/i);
   return m?m[1]:null;
 }
+function cleanStatName(v){
+  return String(v||"").replace(/([a-z])([A-Z])/g,"$1 $2").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+}
 function statValue(stats=[],aliases=[]){
-  const wanted=new Set(aliases.map(norm));
+  const wanted=new Set(aliases.map(cleanStatName));
   for(const s of stats||[]){
-    const k=norm(s?.name||s?.displayName||s?.abbreviation||s?.label);
+    const k=cleanStatName(s?.name||s?.displayName||s?.abbreviation||s?.label);
+    const txt=String(s?.displayValue??"").trim();
+    const parts=txt.split("-").map(finite);
     if(wanted.has(k)){
       const direct=finite(s?.value);
       if(direct!=null)return direct;
-      const txt=String(s?.displayValue??"").trim();
       const first=finite(txt.split("-")[0]);
       if(first!=null)return first;
+    }
+    if((wanted.has("field goal attempts")||wanted.has("field goals attempted")||wanted.has("fga")) &&
+       k.includes("field goals made")&&k.includes("field goals attempted")&&parts[1]!=null) return parts[1];
+    if((wanted.has("free throw attempts")||wanted.has("free throws attempted")||wanted.has("fta")) &&
+       k.includes("free throws made")&&k.includes("free throws attempted")&&parts[1]!=null) return parts[1];
+    if((wanted.has("offensive rebounds")||wanted.has("off rebounds")||wanted.has("oreb")) &&
+       (k==="offensive rebounds"||k==="rebounds offensive")){
+      const v=finite(s?.value??txt); if(v!=null)return v;
+    }
+    if((wanted.has("turnovers")||wanted.has("to"))&&k==="turnovers"){
+      const v=finite(s?.value??txt); if(v!=null)return v;
     }
   }
   return null;
