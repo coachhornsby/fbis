@@ -332,14 +332,15 @@ function nflRowsForSide(game, side, playerFeed = {}) {
       const sigma = sigmaBase == null ? null : sigmaBase * (1 + (1 - roleConfidence) * 0.30);
       const row = statRow({
         sport:"nfl",game,team,player:p,market,projection,sigma,
-        source:"NFLVERSE_LAST5_65_SEASON20_PRIOR15_NGS_MARKET_CALIBRATED_DEFENSE_V3_1",
-        notes:"Target-role NFL projection: 65% weighted last-five appearances, 20% current-season rate, 15% prior-season stabilizer; adjusted by snap role, Next Gen efficiency, team environment, market-calibrated opponent allowance, and pass/rush EPA. Market lines are excluded from projection inputs.",
+        source:"NFLVERSE_ADAPTIVE_LAST5_85_TO_65_PRIOR15_NGS_MARKET_CALIBRATED_DEFENSE_V3_2",
+        notes:"Target-role NFL projection: adaptive weighted last-five blend (85% early, 75% midseason, 65% mature-season floor) with 15% prior-season stabilization; adjusted by snap role, Next Gen efficiency, team environment, market-calibrated opponent allowance, and pass/rush EPA. Market lines are excluded from projection inputs.",
       });
       if (!row) continue;
       row.targetRole=targetRole;
       row.roleConfidence=round1(roleConfidence);
       row.snapShare=snapShare==null?null:round1(snapShare);
       row.recent5=p.recent5||null;
+      row.formBlend=p.formBlend||null;
       row.recent5Games=recentGames;
       row.seasonAverage=p.seasonAvg||null;
       row.priorAverage=p.priorAvg||null;
