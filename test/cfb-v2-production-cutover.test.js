@@ -86,6 +86,8 @@ describe("CFB-FBIS-v2 fitted production cutover",()=>{
     assert.equal(games[0].modelVersion,CFB_FBIS_V2_ID);
     assert.equal(games[0].qualificationBlocked,true);
     assert.equal(games[0].cfb.bettingAllowed,false);
+    assert.equal(games[0].cfb.projectionState,"COMPLETE");
+    assert.equal(games[0].cfb.dataQuality,projection.dataQuality ?? projection.dataCompleteness ?? null);
     assert.deepEqual(games[0].projectionArchitecture,{Mstar:FITTED.Mstar,Tstar:FITTED.Tstar});
   });
 });
