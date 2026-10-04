@@ -35,9 +35,14 @@ function gameStat(game,field){
   return v==null?null:v;
 }
 async function nflDetail(context,{name,team,opponent,market,line}){
-  const feed=await loadNflVerseFeatures(context.env||{},{forceNetwork:false});
-  const p=nflPlayer(feed,name,team);
+  let feed=await loadNflVerseFeatures(context.env||{},{forceNetwork:false});
+  let p=nflPlayer(feed,name,team);
   const field=NFL_MARKET_FIELD[market]||null;
+  if(field && (!p || !Array.isArray(p.recentGames) || !p.recentGames.length)){
+    const live=await loadNflVerseFeatures(context.env||{},{forceNetwork:true});
+    const livePlayer=nflPlayer(live,name,team);
+    if(livePlayer){ feed=live; p=livePlayer; }
+  }
   if(!p||!field) return null;
   const last5=(p.recentGames||[]).slice(0,5).map(g=>({
     season:g.season??null,week:g.week??null,opponent:g.opponent||null,
