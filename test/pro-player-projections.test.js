@@ -7,6 +7,7 @@ import {
   attachNhlPlayerProjectionResearch,
   attachNbaPlayerProjectionBlocked,
 } from "../functions/lib/proPlayerProjectionLayer.js";
+import { aggregateNextGen, aggregateSnapCounts } from "../functions/lib/nflVerseFeed.js";
 
 test("MLB player layer exposes independent pitcher K projection", () => {
   const [g] = attachMlbPlayerProjectionResearch([{
@@ -101,4 +102,43 @@ test("player prop layer blocks unavailable players and holds unresolved players"
   assert.equal(qb.eligibleForCard,false);
   assert.equal(wr.propGate,"HOLD");
   assert.equal(wr.eligibleForCard,false);
+});
+
+
+test("NFL Next Gen aggregator extracts passing, rushing, receiving tracking signals", () => {
+  const out = aggregateNextGen({
+    passing:[{season:2026,week:1,team_abbr:"KC",player_gsis_id:"qb1",player_display_name:"QB One",attempts:30,avg_time_to_throw:2.5,aggressiveness:12,completion_percentage_above_expectation:4.2}],
+    rushing:[{season:2026,week:1,team_abbr:"KC",player_gsis_id:"rb1",player_display_name:"RB One",attempts:15,rush_yards_over_expected_per_att:0.8,efficiency:3.2}],
+    receiving:[{season:2026,week:1,team_abbr:"KC",player_gsis_id:"wr1",player_display_name:"WR One",targets:8,avg_separation:3.4,avg_yac:5.8,avg_expected_yac:4.6}],
+  },2026);
+  assert.equal(out.teamFeatures.KC.qbNgsCpoe,4.2);
+  assert.equal(out.teamFeatures.KC.rushYoePerAtt,0.8);
+  assert.equal(out.teamFeatures.KC.receivingSeparation,3.4);
+  assert.ok(out.teamFeatures.KC.receivingYacOe > 1);
+});
+
+test("NFL snap aggregator converts percentage fields to role share", () => {
+  const out = aggregateSnapCounts([
+    {season:2026,week:1,team:"KC",player_id:"wr1",player:"WR One",offense_pct:82,offense_snaps:55},
+    {season:2026,week:2,team:"KC",player_id:"wr1",player:"WR One",offense_pct:78,offense_snaps:52},
+  ],2026);
+  assert.equal(out.KC[0].snapShare,0.8);
+  assert.equal(out.KC[0].games,2);
+});
+
+test("NFL player v2 uses snap-role and NGS evidence without market-line input", () => {
+  const feed={byTeam:{
+    KC:[{id:"wr1",name:"WR One",position:"WR",games:4,receiving_yards:70,receptions:5,targets:8,snapShare:0.82,
+      ngs:{avgSeparation:3.5,yacOverExpected:1.1},sd:{receiving_yards:25}}],
+    LV:[]
+  }};
+  const [g]=attachNflPlayerProjectionResearch([{id:"nfl-v2",home:{abbr:"KC"},away:{abbr:"LV"},researchProjection:{home:27,away:20}}],feed);
+  const row=g.playerProjectionRows.find(r=>r.playerName==="WR One"&&r.market==="receiving_yards");
+  assert.ok(row);
+  assert.equal(row.source,"NFLVERSE_WEEKLY_PLUS_NGS_SNAP_V2");
+  assert.equal(row.marketInformed,false);
+  assert.ok(row.fbisProjection > 70);
+  assert.ok(row.roleConfidence > 0.8);
+  assert.equal(row.featureEvidence.nextGen,true);
+  assert.equal(row.featureEvidence.snapShare,true);
 });
