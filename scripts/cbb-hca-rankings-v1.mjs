@@ -31,7 +31,8 @@ const alias={
 const norm=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
  .replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim()
  .replace(/\bsaint\b/g,"st");
-const canon=v=>alias[norm(v)]||norm(v);\nconst VENUE_OVERRIDES=Object.freeze({
+const canon=v=>alias[norm(v)]||norm(v);
+const VENUE_OVERRIDES=Object.freeze({
  "mcneese":{arena:"Townsley Law Arena",capacity:4242,altitudeFt:13},
  "miami":{arena:"Watsco Center",capacity:7972,altitudeFt:23},
  "sam houston":{arena:"Bernard Johnson Coliseum",capacity:6100,altitudeFt:427},
