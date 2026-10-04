@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { normalizeEspnPlay, parseSubstitution } from "../functions/lib/nbaLineupModel.js";
+import { normalizeEspnPlay, parseSubstitution } from "../functions/lib/wnbaLineupModel.js";
 
 const args=Object.fromEntries(process.argv.slice(2).map(x=>x.split("=")));
 const start=args.start||"2025-05-16",end=args.end||start;
