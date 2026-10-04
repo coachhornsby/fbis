@@ -1,7 +1,7 @@
 export const NHL_WIN_V1_ARTIFACT = Object.freeze({
   "modelId": "NHL-WIN-v1",
   "version": "research-v1.0-situational-ensemble",
-  "generatedAt": "2026-10-04T05:58:09.823Z",
+  "generatedAt": "2026-10-04T06:02:27.324Z",
   "selected": "currentBoostCal",
   "features": [
     "baseLogit",
