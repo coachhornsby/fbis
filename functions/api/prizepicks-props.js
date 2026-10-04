@@ -56,12 +56,17 @@ function playerNameOf(row){
 function playerIdOf(row){
   return s(first(row,["playerId","player_id","player.id","playerIdExternal"]));
 }
+function isRealPlayerHeadshot(url){
+  const u=String(url||"").trim();
+  return /^https?:\/\//i.test(u) && !/\/images\/teams\//i.test(u);
+}
 function headshotOf(row){
-  return s(first(row,[
+  const image=s(first(row,[
     "playerImage","player_image","playerImageUrl","player_image_url","imageUrl","image_url",
     "headshot","headshotUrl","headshot_url","photo","photoUrl","photo_url",
     "player.image","player.imageUrl","player.image_url","player.photo","player.headshot"
   ]));
+  return isRealPlayerHeadshot(image) ? image : null;
 }
 function lineOf(row){
   return n(first(row,["line","lineScore","line_score","projection","projectionLine","value"]));
