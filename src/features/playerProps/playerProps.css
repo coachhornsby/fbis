@@ -1821,3 +1821,48 @@
   vertical-align: middle;
   white-space: nowrap;
 }
+
+
+/* Refine team mark: keep the large watermark feel, but anchor it upper-left. */
+.pp-team-watermark {
+  left: 6px !important;
+  top: 6px !important;
+  width: 112px !important;
+  height: 112px !important;
+  transform: none !important;
+  opacity: .22 !important;
+  z-index: 1 !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+.pp-team-watermark img {
+  width: 112px !important;
+  height: 112px !important;
+  max-width: 112px !important;
+  max-height: 112px !important;
+  object-fit: contain !important;
+  filter:
+    saturate(.85)
+    drop-shadow(0 0 16px rgba(255,255,255,.06)) !important;
+}
+
+.pp-premium-headshot {
+  z-index: 3 !important;
+}
+
+@media (max-width:760px) {
+  .pp-team-watermark {
+    left: 4px !important;
+    top: 4px !important;
+    width: 100px !important;
+    height: 100px !important;
+    opacity: .22 !important;
+  }
+  .pp-team-watermark img {
+    width: 100px !important;
+    height: 100px !important;
+    max-width: 100px !important;
+    max-height: 100px !important;
+  }
+}
