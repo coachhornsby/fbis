@@ -14,6 +14,7 @@ import {
   nhlPropConfidenceLineValidated,
 } from "../../../functions/lib/nhlPropConfidence.js";
 import { evaluateNhlPropWagerV1 } from "../../../functions/lib/nhlWagerV1.js";
+import { selectivePropStars } from "../../../functions/lib/selectivePropEdge.js";
 
 /**
  * All player-prop markets currently supported on FBIS product surfaces.
@@ -196,7 +197,13 @@ export function withFbisPropAnalytics(row = {}) {
     }
   }
 
-  let stars = propProjectionStars(ranked) ?? 1;
+  let stars = String(ranked.sport || "").toLowerCase() === "nfl"
+    ? (selectivePropStars({
+        ...ranked,
+        market: ranked.marketCanonical || ranked.market,
+        targetRole: ranked.targetRole || ranked.featureEvidence?.targetRoleName || null,
+      }) ?? 1)
+    : (propProjectionStars(ranked) ?? 1);
   const roleConfidence = ranked.roleConfidence == null ? null : Number(ranked.roleConfidence);
   if (Number.isFinite(roleConfidence) && roleConfidence < 0.6) stars = Math.min(stars, 2);
   if (ranked.propGate && ranked.propGate !== "CLEAR") stars = Math.min(stars, 2);
@@ -451,6 +458,7 @@ export function normalizeBoardGame(game = {}) {
       availabilityStatus: p.availabilityStatus || null,
       roleConfidence: p.roleConfidence ?? null,
       snapShare: p.snapShare ?? null,
+      targetRole: p.targetRole || p.featureEvidence?.targetRoleName || null,
       featureEvidence: p.featureEvidence ?? null,
       validationStatus:p.validationStatus||null,
       lineValidationStatus,
@@ -487,6 +495,7 @@ export function normalizeBoardGame(game = {}) {
       availabilityStatus: p.availabilityStatus || null,
       roleConfidence: p.roleConfidence ?? null,
       snapShare: p.snapShare ?? null,
+      targetRole: p.targetRole || p.featureEvidence?.targetRoleName || null,
       featureEvidence: p.featureEvidence ?? null,
       trackingAdvisory: p.trackingAdvisory || null,
       matchupTrackingAdvisory: p.matchupTrackingAdvisory || null,
@@ -513,6 +522,23 @@ export function normalizeBoardGame(game = {}) {
  * Player props are intentionally limited to MLB/NFL/NBA/NHL.
  * Never invents rows, prices, or decision eligibility.
  */
+const NFL_TARGET_ROLES = new Set(["QB1","RB1","WR1","WR2","TE1"]);
+
+function is49ersRoleProjection(row = {}) {
+  if (String(row.sport || "").toLowerCase() !== "nfl") return false;
+  const team = String(row.teamIdentity?.abbr || row.team || "").trim().toUpperCase();
+  const teamName = String(row.teamIdentity?.name || row.team || "").trim().toLowerCase();
+  const is49ers = team === "SF" || team === "SFO" || teamName.includes("san francisco") || teamName.includes("49ers");
+  const role = String(row.targetRole || row.featureEvidence?.targetRoleName || "").trim().toUpperCase();
+  return is49ers && NFL_TARGET_ROLES.has(role);
+}
+
+function nflBoardVisible(row = {}) {
+  if (String(row.sport || "").toLowerCase() !== "nfl") return true;
+  if (is49ersRoleProjection(row)) return true;
+  return Number(row.confidenceStars || 0) >= 4;
+}
+
 export function buildPlayerPropsBoard(board = {}, opts = {}) {
   const sportFilter = opts.sportFilter || "all";
   const rawGames = Array.isArray(board?.games)
@@ -572,18 +598,31 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
     }
   }
 
-  // Product contract: no market-only cards. A visible prop must have both
-  // an independent FBIS projection and a comparable market line.
-  const projectedRows = allRows.filter(
+  // General product contract: visible props need an FBIS projection and a
+  // comparable market line. Exception: all 49ers target-role model
+  // projections remain visible even when no PrizePicks line is attached.
+  const projectionRows = allRows.filter(
     (r) =>
       r.fbisProjection != null &&
-      Number.isFinite(Number(r.fbisProjection)) &&
-      r.line != null &&
-      Number.isFinite(Number(r.line)),
+      Number.isFinite(Number(r.fbisProjection)),
   );
-  const supportedRows = projectedRows.filter((r) => r.supportedMarket);
-  const scoped = opts.supportedOnly === false ? projectedRows : supportedRows;
-  const rows = sortPropsByConviction(scoped);
+  const projectedRows = projectionRows.filter(
+    (r) =>
+      (r.line != null && Number.isFinite(Number(r.line))) ||
+      is49ersRoleProjection(r),
+  );
+  const supportedRows = projectedRows.filter((r) => r.supportedMarket || is49ersRoleProjection(r));
+  const scopedBase = opts.supportedOnly === false ? projectedRows : supportedRows;
+  const scoped = scopedBase.filter(nflBoardVisible);
+  const rows = sortPropsByConviction(scoped).map((r) => ({
+    ...r,
+    displayMode: is49ersRoleProjection(r) && Number(r.confidenceStars || 0) < 4
+      ? "TEAM_PROJECTION"
+      : "QUALIFIED_EDGE",
+    recommendationEligible: String(r.sport || "").toLowerCase() !== "nfl"
+      ? r.eligibleForCard === true
+      : Number(r.confidenceStars || 0) >= 4 && r.eligibleForCard === true,
+  }));
   const rankedAllRows = sortPropsByConviction(projectedRows);
 
   return {
@@ -597,7 +636,13 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       eventsWithProps: new Set(rows.map((r) => r.eventId).filter(Boolean)).size,
       supportedRows: supportedRows.length,
       unsupportedRows: projectedRows.length - supportedRows.length,
-      hiddenWithoutProjection: allRows.length - projectedRows.length,
+      hiddenWithoutProjection: allRows.length - projectionRows.length,
+      hiddenNflBelowFourStars: scopedBase.filter((r) =>
+        String(r.sport || "").toLowerCase() === "nfl" &&
+        !is49ersRoleProjection(r) &&
+        Number(r.confidenceStars || 0) < 4
+      ).length,
+      visible49ersRoleProjections: rows.filter(is49ersRoleProjection).length,
       byMarket,
       decisionEligible: rows.filter((r) => r.decisionEligible).length,
       cardEligible: rows.filter((r) => r.eligibleForCard === true).length,
@@ -612,7 +657,13 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
         ? "Authorized player-prop rows may be used for card construction; model and market evidence remain visible."
         : "Player props remain research-only for sports/markets without authority.",
     },
-    schemaVersion: "fbis-player-props-board-v2",
+    policy: {
+      nflMinimumStars: 4,
+      nflBelowFourHidden: true,
+      fortyNinersTargetRolesAlwaysVisible: ["QB1","RB1","WR1","WR2","TE1"],
+      fortyNinersLowStarRowsInformationalOnly: true,
+    },
+    schemaVersion: "fbis-player-props-board-v2.1",
   };
 }
 
