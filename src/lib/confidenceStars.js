@@ -120,7 +120,10 @@ function nflCompositeStars(game, vm, q) {
       : 0.55;
 
   const availabilityPenalty =
-    game?.availabilityImpact?.criticalUnresolved || game?.availabilityImpact?.stale ? 0.12 : 0;
+    game?.availabilityImpact?.criticalUnresolved ||
+    (game?.availabilityImpact?.configured && game?.availabilityImpact?.stale)
+      ? 0.12
+      : 0;
 
   const score =
     100 *
