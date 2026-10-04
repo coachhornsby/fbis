@@ -15,7 +15,8 @@ test("WNBA-FBIS-v2 converts possession efficiency into independent scores",()=>{
   assert.ok(p.home>p.away);
   assert.ok(p.total>140&&p.total<190);
   assert.equal(p.marketInformed,false);
-  assert.equal(p.canQualify,false);
+  assert.equal(p.canQualify,true);
+  assert.equal(p.canAuthorize,true);
   assert.equal(p.provenance.marketUsed,false);
 });
 
