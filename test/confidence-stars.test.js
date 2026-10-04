@@ -67,6 +67,29 @@ describe("board confidence stars", () => {
     assert.equal(confidenceStars(game("q54", 54, qualified)), 1);
   });
 
+  it("uses NFL-PRO coverage plus model-market disagreement instead of generic quality alone", () => {
+    const strong = game("nfl-strong", 76, {
+      model: { projAway: 20, projHome: 30, projTotal: 50, projMargin: 10 },
+      nflProShadow: { ok: true, coverage: { share: 0.36 } },
+      market: {
+        marketAvailable: true,
+        executionActionable: true,
+        execution: { available: true, actionable: true, spread: -3, total: 49 },
+      },
+    });
+    const modest = game("nfl-modest", 76, {
+      model: { projAway: 22, projHome: 26, projTotal: 48, projMargin: 4 },
+      nflProShadow: { ok: true, coverage: { share: 0.36 } },
+      market: {
+        marketAvailable: true,
+        executionActionable: true,
+        execution: { available: true, actionable: true, spread: -3, total: 48 },
+      },
+    });
+    assert.ok(confidenceStars(strong) > confidenceStars(modest));
+    assert.equal(confidenceStars(strong), 4);
+  });
+
   it("keeps explicit data disqualifications at one star regardless of quality", () => {
     const g = game("blocked", 98, { dqState: "DQ" });
     assert.equal(confidenceStars(g), 1);
