@@ -208,6 +208,10 @@ export function confidenceStars(game) {
 
 export function sortByConfidence(games = []) {
   return [...games].sort((a, b) => {
+    // Completed games stay visible for review, but never crowd out actionable/live games.
+    const finalA = buildBoardGameViewModel(a).event?.final ? 1 : 0;
+    const finalB = buildBoardGameViewModel(b).event?.final ? 1 : 0;
+    if (finalA !== finalB) return finalA - finalB;
     const starDiff = confidenceStars(b) - confidenceStars(a);
     if (starDiff) return starDiff;
 

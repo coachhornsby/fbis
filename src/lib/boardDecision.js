@@ -396,6 +396,9 @@ export function decisionSortKey(game) {
 
 export function sortBoardGames(games = []) {
   return [...games].sort((a, b) => {
+    const finalA = Boolean(a?.status?.completed || a?.status === "final" || a?.status === "completed");
+    const finalB = Boolean(b?.status?.completed || b?.status === "final" || b?.status === "completed");
+    if (finalA !== finalB) return Number(finalA) - Number(finalB);
     const da = decisionSortKey(a);
     const db = decisionSortKey(b);
     if (da !== db) return da - db;
