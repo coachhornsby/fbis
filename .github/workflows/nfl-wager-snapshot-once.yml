@@ -1,0 +1,32 @@
+name: One-shot NFL wager snapshot 2026-10-04
+
+on:
+  push:
+    branches: ["ops/run-nfl-decision-snapshot-20261004"]
+    paths: [".github/workflows/nfl-wager-snapshot-once.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Snapshot current NFL wager decisions
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 120 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "accept: application/json" \
+            -o "$body" -w "%{http_code}" \
+            "$BASE/api/nfl-wager-snapshot?_t=$(date +%s)")"
+          cat "$body"
+          test "$code" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          jq -e '.decisionGames > 0 and .pricedCandidates > 0' "$body" >/dev/null
