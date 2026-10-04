@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/nfl-prop-enrich-once.yml"
+      - "functions/api/nfl-prop-enrich.js"
+      - "functions/api/selective-props.js"
+      - "functions/lib/selectivePropEdge.js"
+      - "migrations/0046_nfl_prop_evidence.sql"
 
 permissions:
   contents: read
