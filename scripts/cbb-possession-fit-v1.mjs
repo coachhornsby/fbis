@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
+import { mapSourceTeam } from "../functions/lib/collegeIdentity.js";
 
 const dir=process.argv[2]||"artifacts/parts";
 const predPath=process.argv[3]||"artifacts/frozen/cbb-fbis-native-v2-predictions.json";
@@ -8,6 +9,20 @@ const packs=files.map(f=>JSON.parse(readFileSync(dir+"/"+f,"utf8")));
 const predictions=JSON.parse(readFileSync(predPath,"utf8"));
 const frozen=JSON.parse(readFileSync(fitPath,"utf8"));
 const predById=new Map(predictions.map(r=>[String(r.id),r]));
+const normTeam=v=>String(v||"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
+function canonicalTeam(v,season){
+  const m=mapSourceTeam("cbb",{team:v,school:v},season);
+  return m?.ok&&m.canonicalId?String(m.canonicalId):normTeam(v);
+}
+function matchupKey(season,date,home,away){
+  return [Number(season),String(date||"").slice(0,10),canonicalTeam(home,season),canonicalTeam(away,season)].join("|");
+}
+const predByMatchup=new Map();
+for(const r of predictions){
+  const k=matchupKey(r.season,r.date,r.home,r.away);
+  if(!predByMatchup.has(k))predByMatchup.set(k,r);
+}
+let joinedById=0,joinedByMatchup=0,unmatched=0;
 
 const n=v=>{const x=Number(v);return Number.isFinite(x)?x:null};
 const round=(v,d=4)=>v==null?null:Number(Number(v).toFixed(d));
@@ -72,7 +87,12 @@ function buildSamples(){
     const state=new Map();
     const games=(pack.games||[]).filter(g=>g.ok!==false&&g.gameId).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
     for(const g of games){
-      const p=predById.get(String(g.gameId));
+      let p=predById.get(String(g.gameId));
+      if(p)joinedById++;
+      else{
+        p=predByMatchup.get(matchupKey(pack.season,g.date,g.homeTeamName,g.awayTeamName));
+        if(p)joinedByMatchup++; else unmatched++;
+      }
       if(p){
         const hs=state.get(String(g.homeTeamId))||null,as=state.get(String(g.awayTeamId))||null;
         out.push({
@@ -165,7 +185,7 @@ function metrics(rs,kind,m,family){
 }
 
 const report={
-  ok:true,id:"CBB-POSSESSION-v1-WALKFORWARD",generatedAt:new Date().toISOString(),rows:rows.length,
+  ok:rows.length>0,id:"CBB-POSSESSION-v1-WALKFORWARD",generatedAt:new Date().toISOString(),rows:rows.length,join:{joinedById,joinedByMatchup,unmatched},
   methodology:{
     featureTiming:"Each target game uses only exponentially weighted prior completed games for each team.",
     discovery:"2018-22",validation:"2023-24",confirmation:"2025",

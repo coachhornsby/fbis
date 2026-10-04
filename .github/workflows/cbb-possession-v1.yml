@@ -127,7 +127,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/cbb-possession-fit-v1.mjs             artifacts/parts             artifacts/frozen/cbb-fbis-native-v2-predictions.json             artifacts/frozen/cbb-fbis-v2-fit.json             | tee artifacts/cbb-possession-v1-fit.log
-          jq -e '.ok == true and .id == "CBB-POSSESSION-v1-WALKFORWARD"' artifacts/cbb-possession-v1-fit.json >/dev/null
+          jq -e '.ok == true and .id == "CBB-POSSESSION-v1-WALKFORWARD" and .rows > 0 and ((.join.joinedById + .join.joinedByMatchup) == .rows)' artifacts/cbb-possession-v1-fit.json >/dev/null
       - name: Summarize QA and predictive value
         run: |
           set -euo pipefail
@@ -140,6 +140,7 @@ jobs:
             done
             echo
             echo "### Walk-forward"
+            jq -r '"- matched rows="+(.rows|tostring)+", by id="+(.join.joinedById|tostring)+", by canonical matchup="+(.join.joinedByMatchup|tostring)+", unmatched source games="+(.join.unmatched|tostring)' artifacts/cbb-possession-v1-fit.json
             jq -r '.families | to_entries[] as $f | $f.value | to_entries[] | "- "+$f.key+" "+.key+": validation gain="+(.value.validation.gain|tostring)+", 2025 gain="+(.value.confirmation.gain|tostring)+", promote="+(.value.promote|tostring)' artifacts/cbb-possession-v1-fit.json
             echo
             jq -r '"Recommended margin family: "+(.recommendation.margin // "none")+", total family: "+(.recommendation.total // "none")' artifacts/cbb-possession-v1-fit.json
