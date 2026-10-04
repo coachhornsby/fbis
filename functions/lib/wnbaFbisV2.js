@@ -8,7 +8,7 @@
 import { pGreater } from "./metrics.js";
 
 export const WNBA_FBIS_V2_ID="WNBA-FBIS-v2";
-export const WNBA_FBIS_V2_VERSION="research-v2-possession";
+export const WNBA_FBIS_V2_VERSION="v2-possession-open-authority";
 
 const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -154,7 +154,7 @@ export function projectWnbaV2(game,ctx={}){
     ok:true,modelId:WNBA_FBIS_V2_ID,modelVersion:WNBA_FBIS_V2_VERSION,
     home:round1(home),away:round1(away),margin:round1(margin),total:round1(total),
     pHomeWin:pGreater(margin,0,10.2),sigmaMargin:10.2,sigmaTotal:12.1,
-    independent:true,marketInformed:false,maturity:"RESEARCH",canQualify:false,canAuthorize:false,
+    independent:true,marketInformed:false,maturity:"ACTIVE",canQualify:true,canAuthorize:true,
     decomposition:{
       pace:round1(pace),leagueOrtg:round1(league.ortg),
       home:{games:h.games,ortg:round1(h.ortg),drtg:round1(h.drtg),pace:round1(h.pace),matchupOrtg:round1(hEff)},
@@ -177,17 +177,17 @@ export async function attachWnbaV2Research(games=[],env={},date=null){
     const marketProjAway=priorKind.includes("IMPLIED")?(game.projAwayScore??game.model?.projAway??null):(game.marketProjAway??game.model?.marketProjAway??null);
     return {
       ...game,wnbaV2:p,projHomeScore:p.home,projAwayScore:p.away,marketProjHome,marketProjAway,
-      projectionKind:"FBIS",projectionEngine:WNBA_FBIS_V2_ID,projectionMaturity:"RESEARCH",
-      projectionDisplayLabel:"WNBA FBIS V2 RESEARCH PROJECTION",pureProjectionAvailable:true,
-      qualificationBlocked:true,canQualify:false,canAuthorizeWager:false,publicationStatus:"RESEARCH_PUBLISHABLE",
-      bettingAuthority:"NOT_ELIGIBLE",modelVersion:WNBA_FBIS_V2_VERSION,
+      projectionKind:"FBIS",projectionEngine:WNBA_FBIS_V2_ID,projectionMaturity:"ACTIVE",
+      projectionDisplayLabel:"WNBA FBIS V2 PROJECTION",pureProjectionAvailable:true,
+      qualificationBlocked:false,canQualify:true,canAuthorizeWager:true,bettingAllowed:true,publicationStatus:"PUBLISHABLE",
+      bettingAuthority:"ELIGIBLE",modelVersion:WNBA_FBIS_V2_VERSION,
       model:{...(game.model||{}),projHome:p.home,projAway:p.away,projMargin:p.margin,projTotal:p.total,pHomeFinal:p.pHomeWin,pHome:p.pHomeWin,
-        projectionKind:"FBIS",marketProjHome,marketProjAway,maturity:"RESEARCH",canQualify:false,canAuthorize:false,canShowCalibratedEv:false,
-        recipe:{engine:WNBA_FBIS_V2_ID,version:WNBA_FBIS_V2_VERSION,family:"research",steps:["recent completed box-score possessions","recency-weighted ORtg/DRtg/pace with shrinkage","opponent efficiency matchup","Research only until market validation"]}},
-      researchProjection:{modelId:WNBA_FBIS_V2_ID,modelVersion:WNBA_FBIS_V2_VERSION,maturity:"RESEARCH",home:p.home,away:p.away,margin:p.margin,total:p.total,
-        note:"Independent possession/efficiency WNBA projection. No market input.",canQualify:false,canAuthorize:false},
+        projectionKind:"FBIS",marketProjHome,marketProjAway,maturity:"ACTIVE",canQualify:true,canAuthorize:true,canShowCalibratedEv:true,
+        recipe:{engine:WNBA_FBIS_V2_ID,version:WNBA_FBIS_V2_VERSION,family:"production",steps:["recent completed box-score possessions","recency-weighted ORtg/DRtg/pace with shrinkage","opponent efficiency matchup","normal FBIS market qualification gates"]}},
+      researchProjection:{modelId:WNBA_FBIS_V2_ID,modelVersion:WNBA_FBIS_V2_VERSION,maturity:"ACTIVE",home:p.home,away:p.away,margin:p.margin,total:p.total,
+        note:"Independent possession/efficiency WNBA projection. No market input. Normal FBIS integrity gates apply.",canQualify:true,canAuthorize:true},
       challengers:{...(game.challengers||{}),[WNBA_FBIS_V2_ID]:p},
     };
   });
-  return {games:next,meta:{modelId:WNBA_FBIS_V2_ID,version:WNBA_FBIS_V2_VERSION,projected,missing,context:ctx.meta,league:ctx.league,independent:true,marketInformed:false,canQualify:false,canAuthorize:false,maturity:"RESEARCH"}};
+  return {games:next,meta:{modelId:WNBA_FBIS_V2_ID,version:WNBA_FBIS_V2_VERSION,projected,missing,context:ctx.meta,league:ctx.league,independent:true,marketInformed:false,canQualify:true,canAuthorize:true,maturity:"ACTIVE"}};
 }
