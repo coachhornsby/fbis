@@ -16,12 +16,13 @@ function statusMinutesFactor(status){
   const s=String(status||"AVAILABLE").toUpperCase();
   if(s==="OUT")return 0;if(s==="DOUBTFUL")return .25;if(s==="QUESTIONABLE")return .72;if(s==="PROBABLE")return .94;return 1;
 }
-export function projectNbaPlayer(player,{history=[],teamProjection=null,teamBaseline=114.5,gamePossessions=99.5,teamBaselinePossessions=99.5,status="AVAILABLE"}={}){
+export function projectNbaPlayer(player,{history=[],teamProjection=null,teamBaseline=114.5,gamePossessions=99.5,teamBaselinePossessions=99.5,status="AVAILABLE",impactContext=null,roleContext=null,lineupContext=null}={}){
   const rows=(history||[]).filter(r=>finite(r.minutes)!=null&&finite(r.minutes)>0);
   if(!player?.id&&!player?.name)return {ok:false,reason:"player-identity-missing"};
   if(!rows.length)return {ok:false,reason:"player-history-missing",playerId:player.id||null,playerName:player.name||null};
   const recentMin=weighted(rows,"minutes"),starts=weighted(rows,"starter");
-  const minutes=clamp((recentMin??24)*(0.94+0.06*(starts??0))*statusMinutesFactor(status),0,40);
+  const baseMinutes=(recentMin??24)*(0.94+0.06*(starts??0))*statusMinutesFactor(status);
+  const minutes=clamp(baseMinutes+(finite(roleContext?.minutesDelta)||0),0,40);
   const envScore=teamProjection==null?1:clamp(teamProjection/teamBaseline,.86,1.16);
   const envPace=clamp(gamePossessions/teamBaselinePossessions,.90,1.10);
   const markets={};
@@ -34,6 +35,14 @@ export function projectNbaPlayer(player,{history=[],teamProjection=null,teamBase
     let projection=perMin*minutes;
     if(market==="points"||market==="three_pointers_made")projection*=.55*envScore+.45*envPace;
     else projection*=.25*envScore+.75*envPace;
+    const roleMultiplier=market==="points"?(finite(roleContext?.pointsMultiplier)??1):
+      market==="rebounds"?(finite(roleContext?.reboundsMultiplier)??1):
+      market==="assists"?(finite(roleContext?.assistsMultiplier)??1):
+      market==="three_pointers_made"?(finite(roleContext?.threesMultiplier)??1):1;
+    const lineupMultiplier=finite(lineupContext?.multiplier)??1;
+    const impactOff=finite(impactContext?.offense);
+    const impactEfficiency=impactOff==null?1:clamp(1+impactOff/300,.96,1.05);
+    projection*=roleMultiplier*lineupMultiplier*impactEfficiency;
     const empirical=sampleSd(rows,key);
     const sigma=clamp((empirical??priorSigma)*(rows.length/(rows.length+8))+priorSigma*(8/(rows.length+8)),priorSigma*.7,priorSigma*1.8);
     markets[market]={projection:round1(projection),sigma:round1(sigma)};
@@ -45,7 +54,13 @@ export function projectNbaPlayer(player,{history=[],teamProjection=null,teamBase
   }
   return {ok:true,modelId:NBA_PROP_MODEL_ID,modelVersion:NBA_PROP_MODEL_VERSION,playerId:player.id||null,playerName:player.name||null,
     minutes:round1(minutes),status,markets,independent:true,marketInformed:false,maturity:"RESEARCH",canQualify:true,canAuthorize:false,
-    provenance:{games:rows.length,marketUsed:false}};
+    provenance:{
+      games:rows.length,marketUsed:false,
+      impactModel:impactContext?.modelId||null,
+      impactVersion:impactContext?.version||null,
+      roleContext:roleContext||null,
+      lineupContext:lineupContext||null
+    }};
 }
 export function compareNbaProp(projection,market,line){
   const p=projection?.markets?.[market]; if(!p||finite(line)==null)return {ok:false,reason:"projection-or-line-missing"};
