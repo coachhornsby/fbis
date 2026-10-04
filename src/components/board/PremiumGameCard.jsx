@@ -154,6 +154,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           </section>
         </>
       ) : (
+        <>
       <section className="pgc-market-grid">
         <MarketCell
           title="SPREAD"
@@ -199,8 +200,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <div className="pgc-info-row"><span>Status</span><strong>{vm.status?.label || "—"}</strong></div>
         </div>
       </section>
-
-
+        </>
       )}
       <footer className="pgc-footer pgc-featured-footer">
         <span>{vm.footer?.marketSourceLabel || "Market Source: —"}</span>
