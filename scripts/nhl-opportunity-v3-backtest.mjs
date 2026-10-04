@@ -45,11 +45,11 @@ function idsList(v){
 const gameId=r=>id(r,["game_id","gameId","id_game"]);
 const playerId=r=>id(r,["player_id","playerId","id_player","nhl_id","id"]);
 const teamId=r=>id(r,["team_id","teamId","id_team"]);
-const team=r=>String(pick(r,["team_abbr","teamAbbrev","team","team_abbreviation","teamAbbreviation","team_tri_code","teamTriCode"])||"").toUpperCase();
+const team=r=>String(r?.team_abbrev??r?.teamAbbrev??r?.team_abbreviation??r?.teamAbbreviation??r?.team_tri_code??r?.teamTriCode??"").toUpperCase();
 const gameDate=r=>{const v=pick(r,["game_date","gameDate","date","game_date_time","start_time_utc"]);const t=Date.parse(v||"");return Number.isFinite(t)?t:null};
-const shots=r=>num(pick(r,["sog","shots","shots_on_goal","shotsOnGoal"]));
+const shots=r=>num(r?.shots_on_goal??r?.shotsOnGoal??r?.sog??r?.shots);
 const goals=r=>num(pick(r,["goals"]));
-const position=r=>String(pick(r,["position","position_code","positionCode","pos"])||"").toUpperCase();
+const position=r=>String(r?.position??r?.position_code??r?.positionCode??r?.pos??"").toUpperCase();
 const toi=r=>clockSeconds(pick(r,["toi","time_on_ice","timeOnIce","toi_seconds"]));
 
 function blankPlayer(){return{gp:0,shots:0,goals:0,toi:0,team:null,position:null,recentShots:[],recentToi:[]};}
@@ -122,7 +122,7 @@ for(const d of datasets){
 for(const d of datasets){
   const byGameTeam=new Map();
   for(const r of d.shifts){
-    const g=gameId(r),tm=String(pick(r,["event_team_abbr","team_abbrev","teamAbbrev"])||"").toUpperCase();
+    const g=gameId(r),tm=String(r?.event_team??r?.event_team_abbr??r?.team_abbrev??r?.teamAbbrev??"").toUpperCase();
     const sec=num(pick(r,["game_seconds","gameSeconds","start_game_seconds"]));
     if(!g||!tm||sec==null)continue;
     const k=g+"|"+tm;if(!byGameTeam.has(k))byGameTeam.set(k,[]);
@@ -232,7 +232,7 @@ const report={
   selected:{playerOpportunityWeight:best.weight,goalShotWeight:bestGame.goalShotWeight,selectionSeason:discovery},
   diagnostics:{
     firstBoxRaw:datasets[0]?.box?.[0]||null,
-    firstBoxParsed:datasets[0]?.box?.[0]?{gameId:gameId(datasets[0].box[0]),playerId:playerId(datasets[0].box[0]),team:team(datasets[0].box[0]),shots:shots(datasets[0].box[0]),toi:toi(datasets[0].box[0])}:null,
+    firstBoxParsed:datasets[0]?.box?.[0]?{gameId:gameId(datasets[0].box[0]),playerId:playerId(datasets[0].box[0]),team:team(datasets[0].box[0]),directTeam:datasets[0].box[0].team_abbrev,shots:shots(datasets[0].box[0]),toi:toi(datasets[0].box[0])}:null,
     firstShiftRaw:datasets[0]?.shifts?.[0]||null,
     firstShiftParsed:datasets[0]?.shifts?.[0]?{gameId:gameId(datasets[0].shifts[0]),team:String(pick(datasets[0].shifts[0],["event_team","event_team_abbr"])||""),sec:num(pick(datasets[0].shifts[0],["game_seconds"])),on:idsList(pick(datasets[0].shifts[0],["ids_on"]))}:null
   },
