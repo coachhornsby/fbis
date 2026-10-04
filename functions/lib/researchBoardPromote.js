@@ -34,12 +34,15 @@ function round1(v) {
 
 function scoresFrom(proj) {
   if (!proj) return null;
-  const home = Number(
-    proj.home ?? proj.projectedHome ?? proj.contract?.projectedHome ?? proj.projHome
-  );
-  const away = Number(
-    proj.away ?? proj.projectedAway ?? proj.contract?.projectedAway ?? proj.projAway
-  );
+  const firstFinite = (...values) => {
+    for (const value of values) {
+      const n = Number(value);
+      if (Number.isFinite(n)) return n;
+    }
+    return null;
+  };
+  const home = firstFinite(proj.home, proj.projectedHome, proj.contract?.projectedHome, proj.projHome);
+  const away = firstFinite(proj.away, proj.projectedAway, proj.contract?.projectedAway, proj.projAway);
   if (!Number.isFinite(home) || !Number.isFinite(away)) return null;
   return {
     home: round1(home),
