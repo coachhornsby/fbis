@@ -82,7 +82,9 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
   const cardKey = `${vm.sport || ""}:${vm.id || game?.id}`;
-  const isNfl = String(vm.sport || game?.sport || "").toLowerCase() === "nfl";
+  const sportId = String(vm.sport || game?.sport || "").toLowerCase();
+  const isNfl = sportId === "nfl";
+  const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
   const finalAway = game?.away?.score ?? away?.score ?? null;
   const finalHome = game?.home?.score ?? home?.score ?? null;
@@ -139,69 +141,19 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </div>
       </section>
 
-      {isNfl ? (
-        <>
-          <section className="pgc-nfl-market" aria-label="Projected game totals and market">
-            <div><span>MARKET SPREAD</span><strong>{market.spreadLabel || cmp.marketSide?.label || "—"}</strong></div>
-            <div><span>FBIS TOTAL</span><strong>{proj.total ?? "—"}</strong></div>
-            <div><span>MARKET TOTAL</span><strong>{market.total ?? "—"}</strong></div>
-          </section>
-          <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION public betting">
-            <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "PUBLIC BETTING" : action.emptyLabel || "NO SNAPSHOT")}</span></div>
-            <div><span>TICKETS</span><strong>{splitLabel(action.tickets, away, home)}</strong></div>
-            <div><span>MONEY</span><strong>{splitLabel(action.money, away, home)}</strong></div>
-            <div><span>LINE MOVE</span><strong>{action.lineMove?.label || action.movement?.label || "NO MOVE"}</strong></div>
-          </section>
-        </>
-      ) : (
-        <>
-      <section className="pgc-market-grid">
-        <MarketCell
-          title="SPREAD"
-          value={cmp.fbisSide?.label || proj.spreadLabel || "—"}
-          model={cmp.fbisSide?.label || proj.spreadLabel || "—"}
-          market={cmp.marketSide?.label || market.spreadLabel || "—"}
-          edge={Number.isFinite(Number(cmp.sideDiff)) ? `EDGE +${num(Math.abs(Number(cmp.sideDiff)))}` : null}
-        />
-        <MarketCell
-          title="TOTAL"
-          value={proj.total ?? "—"}
-          model={proj.total ?? "—"}
-          market={market.total ?? "—"}
-          edge={Number.isFinite(Number(cmp.totalDiff)) ? `EDGE ${signed(cmp.totalDiff)}` : null}
-        />
-        <MarketCell
-          title="MONEYLINE"
-          value={market.awayMl != null ? `${away.abbr} ${signed(market.awayMl)}` : market.homeMl != null ? `${home.abbr} ${signed(market.homeMl)}` : "—"}
-          model="—"
-          market={market.awayMl != null ? `${away.abbr} ${signed(market.awayMl)} · ${home.abbr} ${signed(market.homeMl)}` : "—"}
-        />
+      <section className="pgc-nfl-market" aria-label="FBIS and market summary">
+        <div><span>{marketSideLabel}</span><strong>{market.spreadLabel || cmp.marketSide?.label || "—"}</strong></div>
+        <div><span>FBIS TOTAL</span><strong>{proj.total ?? "—"}</strong></div>
+        <div><span>MARKET TOTAL</span><strong>{market.total ?? "—"}</strong></div>
       </section>
-
-      <section className="pgc-info-grid">
-        <div className="pgc-info-card">
-          <h3>▥ Model vs Market</h3>
-          <div className="pgc-info-row"><span>Side Diff</span><strong>{cmp.sideDiffLabel || "—"}</strong></div>
-          <div className="pgc-info-row"><span>Total Diff</span><strong>{cmp.totalDiffLabel || "—"}</strong></div>
-          <div className="pgc-info-row"><span>Relationship</span><strong>{cmp.sideRelationshipLabel || "—"}</strong></div>
-        </div>
-
-        <div className="pgc-info-card">
-          <h3>◎ Action Intel</h3>
-          <div className="pgc-info-row"><span>Tickets</span><strong>{action.tickets?.label || "—"}</strong></div>
-          <div className="pgc-info-row"><span>Money</span><strong>{action.money?.label || "—"}</strong></div>
-          <div className="pgc-info-row"><span>Line Move</span><strong>{action.lineMove?.label || "—"}</strong></div>
-        </div>
-
-        <div className="pgc-info-card">
-          <h3>☁ Game Environment</h3>
-          <div className="pgc-info-row"><span>Venue</span><strong>{ctx.venueName || ctx.venueLabel || "—"}</strong></div>
-          <div className="pgc-info-row"><span>Weather</span><strong>{ctx.weatherLine || "—"}</strong></div>
-          <div className="pgc-info-row"><span>Status</span><strong>{vm.status?.label || "—"}</strong></div>
-        </div>
-      </section>
-        </>
-      )}
+      {(action.available || isNfl) ? (
+        <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
+          <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</span></div>
+          <div><span>TICKETS</span><strong>{splitLabel(action.tickets, away, home)}</strong></div>
+          <div><span>MONEY</span><strong>{splitLabel(action.money, away, home)}</strong></div>
+          <div><span>LINE MOVE</span><strong>{action.lineMove?.label || action.movement?.label || "NO MOVE"}</strong></div>
+        </section>
+      ) : null}
       <footer className="pgc-footer pgc-featured-footer">
         <span>{vm.footer?.marketSourceLabel || "Market Source: —"}</span>
         {typeof onToggle === "function" ? (
