@@ -305,6 +305,8 @@ export async function syncTrackerBets(env, tickets) {
       matchupText: packed.matchupText,
       awayTeam: packed.awayTeam,
       homeTeam: packed.homeTeam,
+      selectedSide: packed.selectedSide,
+      selectedTeam: packed.selectedTeam,
       trackerMetadata: packed.trackerMetadata,
       result: packed.result || "OPEN",
       profit: packed.profit,
