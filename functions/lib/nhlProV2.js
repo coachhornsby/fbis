@@ -167,6 +167,17 @@ export function projectNhlProV2Game(game,ctx){
 
   homeGoals=clamp(homeGoals,1.45,5.25);awayGoals=clamp(awayGoals,1.45,5.25);
   const probability=bivariateDistribution(homeGoals,awayGoals,finite(game?.odds?.total),finite(game?.odds?.spread));
+  const rawScoreWin=probability.homeWinIncludingOt;
+  const priorHomeElo=finite(hprior.elo)??1500,priorAwayElo=finite(aprior.elo)??1500;
+  const hGames=finite(hs.games)||0,aGames=finite(as.games)||0;
+  const homeFormElo=priorHomeElo+clamp(((finite(hs.gfpg)||leagueGoals)-(finite(hs.gapg)||leagueGoals))*Math.min(hGames,20)*4,-120,120);
+  const awayFormElo=priorAwayElo+clamp(((finite(as.gfpg)||leagueGoals)-(finite(as.gapg)||leagueGoals))*Math.min(aGames,20)*4,-120,120);
+  const eloProb=1/(1+10**(-((homeFormElo-awayFormElo)+35)/400));
+  const calibratedHomeWin=clamp(0.5+0.86*((0.78*rawScoreWin+0.22*eloProb)-0.5),0.04,0.96);
+  probability.rawHomeWinIncludingOt=rawScoreWin;
+  probability.eloHead=round(eloProb,4);
+  probability.homeWinIncludingOt=round(calibratedHomeWin,4);
+  probability.awayWinIncludingOt=round(1-calibratedHomeWin,4);
   return {
     ok:true,modelId:NHL_PRO_V2_ID,modelVersion:NHL_PRO_V2_VERSION,home,away,
     projHome:round(homeGoals,2),projAway:round(awayGoals,2),margin:round(homeGoals-awayGoals,2),total:round(homeGoals+awayGoals,2),
@@ -177,7 +188,7 @@ export function projectNhlProV2Game(game,ctx){
       goalie:{home:hg,away:ag},
       specialTeams:{home:round(hst-leagueSt,3),away:round(ast-leagueSt,3)},
       tracking:{home:he,away:ae,source:"NHL_EDGE_ZONE_TIME_OPTIONAL"},
-      distribution:{family:"BIVARIATE_POISSON",shared:probability.sharedComponent}
+      distribution:{family:"BIVARIATE_POISSON",shared:probability.sharedComponent,winHead:"78% score + 22% latent strength; 14% reliability shrink"}
     },
     dataLineage:ctx?.sourceLineage||null,marketInformed:false,independent:true,
     canQualify:false,canAuthorizeWager:false,
