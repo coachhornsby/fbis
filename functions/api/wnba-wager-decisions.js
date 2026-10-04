@@ -1,6 +1,7 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { buildWnbaGameDecisions } from "../lib/wnbaWagerDecision.js";
+import { persistOddsSnapshot } from "../lib/store.js";
 
 function json(body,status=200){
   return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"private, no-store, max-age=0"}});
@@ -159,6 +160,30 @@ export async function onRequestPost(context){
       for(const decision of packet.offers||[]){
         const p=await persistDecision(context.env.DB,packet,decision,capturedAt);
         if(p.inserted)inserted++;
+        const marketKey=decision.market==="MONEYLINE"?"ml":String(decision.market||"").toLowerCase();
+        const started=Date.parse(packet.start||"");
+        const capturedMs=Date.parse(capturedAt);
+        if(Number.isFinite(started)&&Number.isFinite(capturedMs)&&capturedMs<started&&decision.price!=null){
+          await persistOddsSnapshot(context.env,{
+            gameId:packet.gameId,
+            sport:"wnba",
+            date:resolved.date,
+            book:decision.sportsbook||"Market",
+            market:marketKey,
+            period:"fg",
+            side:decision.side,
+            line:decision.line,
+            price:decision.price,
+            implied:decision.breakEvenProbability,
+            noVig:null,
+            capturedAt,
+            eventId:packet.gameId,
+            gameStart:packet.start||null,
+            checkpoint:"WNBA_WAGER_DECISION",
+            rejectedPostStart:false,
+            paired:false,
+          });
+        }
       }
     }
     return json({
