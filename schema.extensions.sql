@@ -1277,7 +1277,7 @@ CREATE TABLE IF NOT EXISTS nba_wager_decisions (
   offered_line REAL, offered_price REAL,
   model_probability REAL, break_even_probability REAL, probability_edge REAL, expected_value REAL,
   projection_uncertainty REAL, matchup_reliability REAL, data_quality REAL,
-  historical_factor_reliability REAL, market_confirmation TEXT,
+  data_freshness_minutes REAL, historical_factor_reliability REAL, market_confirmation TEXT,
   fbis_confidence REAL, confidence_status TEXT,
   confidence_decision_eligible INTEGER NOT NULL DEFAULT 0,
   decision TEXT NOT NULL, qualification_eligible INTEGER NOT NULL DEFAULT 0,
