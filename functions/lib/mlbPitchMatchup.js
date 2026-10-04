@@ -81,7 +81,9 @@ function whiff(row = {}) {
   return /swinging_strike/.test(String(row.description || "").toLowerCase());
 }
 function batted(row = {}) {
-  return row.type === "X" || row.launch_speed != null || row.estimated_woba_using_speedangle != null;
+  return row.type === "X" ||
+    finite(row.launch_speed) != null ||
+    finite(row.estimated_woba_using_speedangle) != null;
 }
 function strikeoutEvent(row = {}) {
   const e = String(row.events || "").toLowerCase();
@@ -173,12 +175,17 @@ function profileBucket(profile,family,zone){
 }
 function dynamicDifficulty(pitcherBucket,batterBucket){
   if(!pitcherBucket||!batterBucket)return 0;
-  const velo=((finite(pitcherBucket.velocity)-finite(batterBucket.velocity))||0)/3;
-  const spin=((finite(pitcherBucket.spin)-finite(batterBucket.spin))||0)/350;
-  const pm=Math.hypot(finite(pitcherBucket.pfxX)||0,finite(pitcherBucket.pfxZ)||0);
-  const bm=Math.hypot(finite(batterBucket.pfxX)||0,finite(batterBucket.pfxZ)||0);
-  const move=(pm-bm)/0.35;
-  const ext=((finite(pitcherBucket.extension)-finite(batterBucket.extension))||0)/1.2;
+  const pv=finite(pitcherBucket.velocity), bv=finite(batterBucket.velocity);
+  const ps=finite(pitcherBucket.spin), bs=finite(batterBucket.spin);
+  const pfx=finite(pitcherBucket.pfxX), pfz=finite(pitcherBucket.pfxZ);
+  const bfx=finite(batterBucket.pfxX), bfz=finite(batterBucket.pfxZ);
+  const pe=finite(pitcherBucket.extension), be=finite(batterBucket.extension);
+  const velo=pv!=null&&bv!=null?(pv-bv)/3:0;
+  const spin=ps!=null&&bs!=null?(ps-bs)/350:0;
+  const move=pfx!=null&&pfz!=null&&bfx!=null&&bfz!=null
+    ? (Math.hypot(pfx,pfz)-Math.hypot(bfx,bfz))/0.35
+    : 0;
+  const ext=pe!=null&&be!=null?(pe-be)/1.2:0;
   return clamp(velo*0.35+spin*0.20+move*0.30+ext*0.15,-2,2);
 }
 
