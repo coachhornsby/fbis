@@ -6,6 +6,9 @@ on:
     paths:
       - "scripts/nhl-pro-v2-walkforward.mjs"
       - "scripts/nhl-win-v1-backtest.mjs"
+      - "functions/lib/nhlWinV1.js"
+      - "functions/lib/nhlProV2.js"
+      - "test/nhl-pro-v2.test.js"
       - ".github/workflows/nhl-win-v1-validation.yml"
   workflow_dispatch:
 
@@ -30,6 +33,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Full repository tests
+        run: npm test
+      - name: Production build
+        run: npm run build
       - name: Restore NHL game PBP cache
         uses: actions/cache@v4.2.0
         with:
@@ -48,7 +55,10 @@ jobs:
         run: |
           jq -e '.integrity.noMarketInputs == true and .integrity.nTrain >= 1200 and .integrity.nTest >= 1200' data/models/nhl-win-v1-validation.json >/dev/null
           jq -e '.testMetrics.current and .testMetrics.logistic and .testMetrics.boosted and .testMetrics.stack' data/models/nhl-win-v1-validation.json >/dev/null
+          jq -e '.decisionHead.selected == "cvLogisticTrainThreshold" and .decisionHead.oosAccuracyDelta > 0' data/models/nhl-win-v1-validation.json >/dev/null
           node --check data/models/nhl-win-v1.js
+          node --check functions/lib/nhlWinV1.js
+          node --test test/nhl-pro-v2.test.js
           jq '{selected,incumbentMetrics,selectedMetrics,delta,promotion,subsets,calibration}' data/models/nhl-win-v1-validation.json
       - uses: actions/upload-artifact@v4.6.2
         with:
