@@ -1,0 +1,45 @@
+name: MLB pitch-zone historical validation
+on:
+  push:
+    branches: [research/mlb-pitch-zone-validation-2026-10-04]
+    paths:
+      - "scripts/mlb-pitch-zone-historical-validation.mjs"
+      - ".github/workflows/mlb-pitch-zone-historical-validation.yml"
+      - "functions/lib/mlbPitchMatchup.js"
+      - "functions/lib/mlbPitchMatchupFeed.js"
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run temporally clean historical replay
+        env:
+          SEASON: "2026"
+          START_DATE: "2026-06-01"
+          END_DATE: "2026-09-30"
+          MAX_GAMES: "48"
+          DATE_STEP: "4"
+          GAMES_PER_DATE: "2"
+          OUT: "research/mlb/pitch-zone-validation.json"
+        run: node scripts/mlb-pitch-zone-historical-validation.mjs | tee validation-summary.json
+      - name: Show validation summary
+        run: |
+          echo "=== VALIDATION SUMMARY ==="
+          cat validation-summary.json
+          echo "=== PROMOTION GATE ==="
+          jq '.promotionGate' research/mlb/pitch-zone-validation.json
+      - name: Upload validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlb-pitch-zone-historical-validation
+          path: research/mlb/pitch-zone-validation.json
+          retention-days: 30
