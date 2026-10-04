@@ -2621,3 +2621,87 @@
   .pp-market-name.pp-premium-market-name { font-size:13px !important; }
   .pp-line-row.pp-premium-metrics strong { font-size:14px !important; }
 }
+
+
+/* Expanded prop evidence */
+.pp-advanced-block {
+  padding:12px;
+  border:1px solid rgba(98,139,194,.24);
+  border-radius:12px;
+  background:rgba(3,12,26,.62);
+}
+.pp-advanced-grid {
+  margin-top:8px;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:10px;
+}
+.pp-advanced-grid > div {
+  min-width:0;
+  padding:9px 6px;
+  text-align:center;
+}
+.pp-advanced-grid > div + div {
+  border-left:1px solid rgba(255,255,255,.06);
+}
+.pp-advanced-grid span {
+  display:block;
+  color:#7187a2;
+  font-size:7px;
+  font-weight:900;
+  letter-spacing:.06em;
+}
+.pp-advanced-grid b {
+  display:block;
+  margin-top:4px;
+  color:#f7f9ff;
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Team watermark: +20% and centered behind player image */
+.pp-card-visual .pp-team-watermark {
+  left:50% !important;
+  top:50% !important;
+  width:240px !important;
+  height:240px !important;
+  transform:translate(-50%,-50%) !important;
+  opacity:.17 !important;
+}
+.pp-card-visual .pp-team-watermark img {
+  width:240px !important;
+  height:240px !important;
+  max-width:240px !important;
+  max-height:240px !important;
+  object-fit:contain !important;
+}
+@media (max-width:760px) {
+  .pp-card-visual .pp-team-watermark {
+    left:50% !important;
+    top:50% !important;
+    width:142px !important;
+    height:142px !important;
+    transform:translate(-50%,-50%) !important;
+  }
+  .pp-card-visual .pp-team-watermark img {
+    width:142px !important;
+    height:142px !important;
+    max-width:142px !important;
+    max-height:142px !important;
+  }
+  .pp-card.pp-expanded .pp-team-watermark {
+    width:204px !important;
+    height:204px !important;
+  }
+  .pp-card.pp-expanded .pp-team-watermark img {
+    width:204px !important;
+    height:204px !important;
+    max-width:204px !important;
+    max-height:204px !important;
+  }
+  .pp-advanced-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
