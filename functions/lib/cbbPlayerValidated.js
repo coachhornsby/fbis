@@ -3,7 +3,7 @@ import { CBB_PLAYER_GAME_MARGIN_MODEL, CBB_PLAYER_PROP_MODELS } from "./cbbPlaye
 
 export const CBB_PLAYER_GAME_MODEL_ID="CBB-PLAYER-GAME-v1";
 export const CBB_PLAYER_PROP_MODEL_V2_ID="CBB-PLAYER-PROP-v2";
-export const CBB_PLAYER_PROP_PROMOTED_MARKETS=Object.freeze(Object.keys(CBB_PLAYER_PROP_MODELS));
+export const CBB_PLAYER_PROP_PROMOTED_MARKETS=Object.freeze(["points","rebounds","assists","points_rebounds_assists"]);
 
 const n=v=>{if(v==null||v==="")return null;const x=Number(v);return Number.isFinite(x)?x:null};
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
@@ -102,10 +102,10 @@ export function applyCbbPlayerMarginV1(game={}){
     canQualify:false,
     canAuthorizeWager:false,
     evidence:{
-      validationGain:0.034,
-      confirmation2025Gain:0.0553,
-      eligibleValidationGain:0.0374,
-      eligibleConfirmation2025Gain:0.061,
+      validationGain:0.0436,
+      confirmation2025Gain:0.0486,
+      eligibleValidationGain:0.0481,
+      eligibleConfirmation2025Gain:0.0536,
       totalPromoted:false,
       marginPromoted:true,
     },
