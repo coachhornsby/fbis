@@ -234,7 +234,7 @@ function aggregatePrior(games,shotsByGame,xgModel,talent){
   for(const g of games){
     const hs=teamMapGet(map,g.home),as=teamMapGet(map,g.away);
     const stats=gameShotStats(g,shotsByGame.get(g.id)||[],xgModel,talent);
-    applyGame(hs,as,g,stats[g.home],stats[g.away],false);
+    applyGame(hs,as,g,stats[g.home],stats[g.away],true);
   }
   return map;
 }
@@ -280,7 +280,7 @@ function forecastV2(game,prior,current,talent,league){
   const finishA=(playerFinishing(ac.gp?ac:ap,talent)-1)*0.75;
   const goalieVsH=-expectedGoalieImpact(ac.gp?ac:ap,talent)*30;
   const goalieVsA=-expectedGoalieImpact(hc.gp?hc:hp,talent)*30;
-  const eloH=(hc.elo||hp.elo||1500),eloA=(ac.elo||ap.elo||1500);
+  const eloH=hc.gp?(hc.elo||1500):(hp.elo||1500),eloA=ac.gp?(ac.elo||1500):(ap.elo||1500);
   const eloAdj=clamp((eloH-eloA)*0.0011,-0.28,0.28);
 
   let home=0.30*baseH+0.50*xgH+0.20*(xgH+(stH-lst))+volumeH+pressureH+finishH+goalieVsH+0.12+eloAdj/2;
