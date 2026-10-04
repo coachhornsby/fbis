@@ -4,6 +4,7 @@
  */
 
 import { BOARD_SPORTS, SPORTS, todayCT, shiftDateCT, buildSlate, recommendBundle } from "./slateEngine.js";
+import { evaluateNhlGameWagers } from "./nhlWagerV1.js";
 import { classifyBoardStatus, kickoffCt, noPlayReason, isPreStartStatus, isLiveStatus } from "./gameStatus.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { palUnavailableReason } from "./ballparkpal.js";
@@ -228,6 +229,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     sentiment: game.sentiment || game.odds?.sentiment || null,
     // ACTION Apify market intel — display/research only (never odds authority).
     actionIntel: game.actionIntel || null,
+    nhlWagerV1: sport === "nhl" ? (game.nhlWagerV1 || evaluateNhlGameWagers(game)) : null,
     publicSplits: game.publicSplits || game.actionIntel?.publicSplits || null,
     weather: game.weather || game.cfb?.weather || null,
     park: game.bpp?.park || null,
@@ -457,6 +459,7 @@ export async function buildTodayBoard(
         }
       }
 
+      if (sport === "nhl") slateGames = slateGames.map((g)=>({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
       const rows = slateGames.map((g) => toBoardGame(g, sport, now));
       feeds[sport] = {
         ok: true,
