@@ -1,6 +1,7 @@
 import {readFileSync,mkdirSync,writeFileSync} from "node:fs";
 import {buildFbisCbbRatings,projectFbisCbbGame,normalizeFbisCbbGameTeamRows,lookupFbisCbbRating} from "../functions/lib/cbbFbisRatings.js";
 import {mapSourceTeam} from "../functions/lib/collegeIdentity.js";
+import {conferenceForTeamSeason, conferenceCoverageForTeams} from "../functions/lib/cbbConferenceMembership.js";
 
 const BASE=process.env.FBIS_BASE||"https://fbis-myz.pages.dev";
 const SECRET=process.env.HARVEST_SECRET||"";
@@ -28,7 +29,7 @@ async function loadBox(season){
   for(const x of raw){
     const n=k=>num(x[k]),fgm=n("field_goals_made"),fga=n("field_goals_attempted"),tpm=n("three_point_field_goals_made"),tpa=n("three_point_field_goals_attempted"),ftm=n("free_throws_made"),fta=n("free_throws_attempted"),orb=n("offensive_rebounds"),drb=n("defensive_rebounds"),tov=n("turnovers")??n("total_turnovers")??n("team_turnovers");
     rows.push({gameId:String(x.game_id||""),startDate:x.game_date_time||x.game_date,season,team:x.team_location||x.team_display_name,opponent:x.opponent_team_location||x.opponent_team_display_name,
-      conference:x.team_conference_abbreviation||x.team_conference_name||x.team_conference||x.conference_abbreviation||x.conference_name||x.conference||null,
+      conference:conferenceForTeamSeason(x.team_location||x.team_display_name,season),
       isHome:x.team_home_away==="home",neutral:false,fgm,fga,threeMade:tpm,threeAtt:tpa,ftm,fta,orb,drb,turnovers:tov,possessions:fga!=null&&orb!=null&&tov!=null&&fta!=null?fga-orb+tov+.475*fta:null});
   }
   return rows;
@@ -79,10 +80,9 @@ function betStats(rows,kind,threshold,directionMode="fbis"){
 const out=[],coverage=[];
 for(const season of seasons){
   const box0=await loadBox(season);
-  const rawConf=new Map(box0.filter(r=>r.conference).map(r=>[key(r.team),r.conference]));
-  const confMeta=rawConf.size>=100 ? {map:rawConf,available:true,error:null,source:"sportsdataverse-box"} : await conferenceMap(season);
-  const conf=confMeta.map;
-  const box=box0.map(r=>({...r,conference:r.conference||conf.get(key(r.team))||null}));
+  const box=box0.map(r=>({...r,conference:r.conference||conferenceForTeamSeason(r.team,season)}));
+  const confCoverage=conferenceCoverageForTeams(box.map(r=>r.team),season);
+  if(confCoverage.coveragePct<90) throw new Error(`conference coverage below 90% for ${season}: ${confCoverage.coveragePct.toFixed(1)}%; missing=${confCoverage.missing.slice(0,20).join("|")}`);
   const normalized=normalizeFbisCbbGameTeamRows(box,season);
   const targets=benchmark.filter(r=>Number(r.season)===season&&r.kenpom).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
   const byDate=new Map();for(const r of targets){if(!byDate.has(r.date))byDate.set(r.date,[]);byDate.get(r.date).push(r)}
@@ -95,11 +95,11 @@ for(const season of seasons){
       projected++;
       const mr=marketById.get(String(r.id));
       out.push({id:r.id,season,date:r.date,home:r.home,away:r.away,neutral:r.neutral,actualHome:r.actualHome,actualAway:r.actualAway,fbis,kenpom:r.kenpom,
-        market:mr?.market||null,homeRating:home?{games:home.games,sos:home.sos,nonConferenceSos:home.nonConferenceSos,conference:home.conference,conferenceStrength:home.conferenceStrength,reliability:home.reliability}:null,
-        awayRating:away?{games:away.games,sos:away.sos,nonConferenceSos:away.nonConferenceSos,conference:away.conference,conferenceStrength:away.conferenceStrength,reliability:away.reliability}:null});
+        market:mr?.market||null,homeRating:home?{games:home.games,sos:home.sos,sosO:home.sosO,sosD:home.sosD,nonConferenceSos:home.nonConferenceSos,conference:home.conference,conferenceStrength:home.conferenceStrength,reliability:home.reliability,hca:home.hca,hcaGames:home.hcaGames}:null,
+        awayRating:away?{games:away.games,sos:away.sos,sosO:away.sosO,sosD:away.sosD,nonConferenceSos:away.nonConferenceSos,conference:away.conference,conferenceStrength:away.conferenceStrength,reliability:away.reliability,hca:away.hca,hcaGames:away.hcaGames}:null});
     }
   }
-  coverage.push({season,boxRows:normalized.length,conferenceTeams:conf.size,conferenceMetadataAvailable:confMeta.available,conferenceMetadataError:confMeta.error,conferenceMetadataSource:confMeta.source||"cbbd-fallback",benchmarkRows:targets.length,projected});
+  coverage.push({season,boxRows:normalized.length,conferenceTeams:confCoverage.matched,conferenceCoveragePct:Number(confCoverage.coveragePct.toFixed(2)),conferenceMetadataAvailable:true,conferenceMetadataError:null,conferenceMetadataSource:"NCAA-KAGGLE-MTEAMCONFERENCES-2026",benchmarkRows:targets.length,projected});
   console.log("season",season,"projected",projected,"of",targets.length);
 }
 
@@ -111,7 +111,7 @@ for(const[lo,hi,name]of bands){const rs=out.filter(r=>{const d=Math.abs(r.fbis.t
 const marketTests={};
 for(const t of [2,3,4,5,6])marketTests["totalEdge"+t]={all:betStats(out,"total",t),validation:betStats(validation,"total",t),confirmation:betStats(confirmation,"total",t),disagreeConfirmation:betStats(confirmation,"total",t,"disagree")};
 const report={ok:true,id:"FBIS-CBB-RATINGS-v1-WALKFORWARD",generatedAt:new Date().toISOString(),coverage,
-  methodology:{independent:true,marketInformed:false,kenpomInput:false,torvikInput:false,cutoff:"ratings use prior completed games only; game date excluded",development:"2018-22",validation:"2023-24",confirmation:"2025",conference:"CBBD identity metadata only; no external conference strength ratings",priceAssumption:"-110 for historical market accounting"},
+  methodology:{independent:true,marketInformed:false,kenpomInput:false,torvikInput:false,cutoff:"ratings use prior completed games only; game date excluded",development:"2018-22",validation:"2023-24",confirmation:"2025",conference:"season-aware NCAA/Kaggle membership metadata; no external conference strength ratings",priceAssumption:"-110 for historical market accounting"},
   samples:{all:compare(out),discovery:compare(discovery),validation:compare(validation),confirmation:compare(confirmation)},bySeason:Object.fromEntries(seasons.map(s=>[s,compare(out.filter(r=>r.season===s))])),
   disagreement,marketTests,
   promotion:{totalPass:Boolean(compare(validation).totalMaeAdvantage>0&&compare(confirmation).totalMaeAdvantage>0),marginPass:Boolean(compare(validation).marginMaeAdvantage>0&&compare(confirmation).marginMaeAdvantage>0),requiresOperatorApproval:true,canAuthorizeWager:false},
