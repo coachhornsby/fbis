@@ -18,9 +18,9 @@ PBP_URL = "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_
 GAMES_URL = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
 LINES_URL = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/closing_lines.csv"
 NGS_URLS = {
-    "passing": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_passing.csv",
-    "rushing": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_rushing.csv",
-    "receiving": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.csv",
+    "passing": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_passing.csv.gz",
+    "rushing": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_rushing.csv.gz",
+    "receiving": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.csv.gz",
 }
 
 TEAM_ALIASES = {
