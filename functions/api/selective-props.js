@@ -56,6 +56,17 @@ function normalizedRows(rows = []) {
     modelVersion: row.model_version,
   }));
 }
+
+export function selectiveCandidateRows(rows = [], sport = null) {
+  const normalized = normalizedRows(rows);
+  return String(sport || "").toLowerCase() === "nfl"
+    ? normalized.filter((row) =>
+        String(row.odds_tier || "standard").toLowerCase() === "standard" &&
+        String(row.duration || "full").toLowerCase() === "full"
+      )
+    : normalized;
+}
+
 export function groupKey(row = {}) {
   return [
     String(row.sport || "").toLowerCase(),
@@ -127,7 +138,11 @@ export async function onRequestGet(context) {
     " ORDER BY collected_at DESC LIMIT 5000";
 
   const rows = (await context.env.DB.prepare(sql).bind(...bind).all())?.results || [];
-  const candidates = normalizedRows(rows);
+  // NFL confidence is calibrated against the normal full-game stat contract.
+  // Goblin/Demon variants have different payout economics and cannot share the
+  // same star scale. They remain available on the general Player Props surface,
+  // but selective NFL cards use Standard lines only.
+  const candidates = selectiveCandidateRows(rows, sport);
 
   let selected;
   let policy;
@@ -140,8 +155,10 @@ export async function onRequestGet(context) {
       minStars: 1,
       concentrationLimits: false,
       lineRole: "comparison-only",
-      tiers: ["standard","goblin","demon"],
-      note: "Every current Standard, Goblin and Demon line with a valid FBIS projection is shown for the selected sport, sorted by stars then edge strength.",
+      tiers: sport === "nfl" ? ["standard"] : ["standard","goblin","demon"],
+      note: sport === "nfl"
+        ? "NFL selective confidence uses current Standard full-game lines only; Goblin/Demon variants are excluded from star/card ranking because payout economics differ."
+        : "Every current Standard, Goblin and Demon line with a valid FBIS projection is shown for the selected sport, sorted by stars then edge strength.",
     };
   } else {
     const allRanked = rankAllProjected(candidates);
@@ -160,8 +177,10 @@ export async function onRequestGet(context) {
       minStars: 1,
       concentrationLimits: false,
       lineRole: "comparison-only",
-      tiers: ["standard","goblin","demon"],
-      note: "Top 25 player/market groups ranked by their strongest current PrizePicks tier edge; all available Standard, Goblin and Demon variants are returned for each selected group.",
+      tiers: sport === "nfl" ? ["standard"] : ["standard","goblin","demon"],
+      note: sport === "nfl"
+        ? "NFL Top 25 ranks current Standard full-game lines only."
+        : "Top 25 player/market groups ranked by their strongest current PrizePicks tier edge; all available Standard, Goblin and Demon variants are returned for each selected group.",
     };
   }
 
