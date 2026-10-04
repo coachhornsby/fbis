@@ -103,7 +103,15 @@ export function aggregateNcaaCbbGame(rows=[]){
     if(evs.some(r=>b(r.is_transition)))off.transitionPoss++;
     const hs0=n(p0.home_score)??0,as0=n(p0.away_score)??0;
     const plast=evs[evs.length-1],hs1=n(plast.home_score)??hs0,as1=n(plast.away_score)??as0;
-    const pts=Math.max(0,possTeamId===homeId?hs1-hs0:as1-as0);
+    const scoreDelta=Math.max(0,possTeamId===homeId?hs1-hs0:as1-as0);
+    const eventPoints=evs.reduce((sum,r)=>{
+      const eventTeam=key(r.event_team_espn_team_id||r.event_team_ncaa_team_id||r.event_team);
+      if(eventTeam!==possTeamId||!made(r))return sum;
+      if(isFt(r))return sum+1;
+      const sv=n(r.shot_value);
+      return sum+(sv===3?3:sv===2?2:0);
+    },0);
+    const pts=Math.max(scoreDelta,eventPoints);
     off.pointsFor+=pts; def.pointsAgainst+=pts;
 
     const homeLine=ids(p0,"home"),awayLine=ids(p0,"away");
