@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import TeamLogo from "../../components/TeamLogo.jsx";
+import { confidenceStars } from "../../lib/confidenceStars.js";
 
 const CORE = ["cfb","nfl","nhl"];
 function shift(date,days){ const [y,m,d]=String(date).split("-").map(Number); const x=new Date(Date.UTC(y,m-1,d)); x.setUTCDate(x.getUTCDate()+days); return x.toISOString().slice(0,10); }
 function datesFor(sport,date){ if(sport==="cfb") return [date,shift(date,1),shift(date,2)]; if(sport==="nfl") return [date,shift(date,1),shift(date,2),shift(date,3)]; return [date]; }
 function score(v){ return v==null?"—":Number(v).toFixed(1); }
 function kickoff(iso){ if(!iso)return "—"; return new Date(iso).toLocaleString("en-US",{timeZone:"America/Chicago",weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }
+function StarRow({stars=1}){
+  const safe=Math.max(1,Math.min(5,Number(stars)||1));
+  return <span className="model-card-stars" aria-label={safe+" out of 5 stars"}>
+    {Array.from({length:5},(_,i)=><span key={i} className={i<safe?"filled":"empty"}>★</span>)}
+  </span>;
+}
 
 export default function CurrentProjectionsView({date,sportFilter="all"}){
   const sports=useMemo(()=>CORE.includes(sportFilter)?[sportFilter]:CORE,[sportFilter]);
@@ -60,21 +67,58 @@ export default function CurrentProjectionsView({date,sportFilter="all"}){
         <div className="current-projection-grid">
           {group.rows.map(g=>{
             const p=g.projection||{}, m=g.market||{}, unavailable=p.home==null||p.away==null;
-            return <article className="current-projection-card" key={group.sport+":"+g.id}>
-              <div className="current-projection-card-head">
-                <span>{kickoff(g.start)}</span>
-                <span className={"canonical-chip "+(unavailable?"":"canonical-chip-ok")}>{unavailable?"UNAVAILABLE":String(g.model?.maturity||p.maturity||"PROJECTION")}</span>
+            const stars=confidenceStars(g);
+            const awayName=g.away?.fullName||g.away?.name||g.away?.abbr||"AWAY";
+            const homeName=g.home?.fullName||g.home?.name||g.home?.abbr||"HOME";
+            return <article className="current-projection-card model-game-card" key={group.sport+":"+g.id}>
+              <div className="current-projection-card-head model-game-card-head">
+                <div>
+                  <span className="model-game-kick">{kickoff(g.start)}</span>
+                  <span className="model-game-sport">{group.sport.toUpperCase()}</span>
+                </div>
+                <div className="model-game-head-right">
+                  <StarRow stars={stars}/>
+                  <span className={"canonical-chip "+(unavailable?"":"canonical-chip-ok")}>
+                    {unavailable?"UNAVAILABLE":String(g.model?.maturity||p.maturity||"PROJECTION")}
+                  </span>
+                </div>
               </div>
-              <div className="current-projection-matchup">
-                <div><TeamLogo team={g.away} size={34}/><b>{g.away?.abbr||g.away?.name||"AWAY"}</b><strong>{score(p.away)}</strong></div>
-                <div><TeamLogo team={g.home} size={34}/><b>{g.home?.abbr||g.home?.name||"HOME"}</b><strong>{score(p.home)}</strong></div>
+
+              <div className="current-projection-matchup model-game-matchup">
+                <div className="model-game-team">
+                  <TeamLogo team={g.away} size={56}/>
+                  <div className="model-game-team-copy">
+                    <b>{g.away?.abbr||"AWAY"}</b>
+                    <span>{awayName}</span>
+                  </div>
+                  <div className="model-game-score">
+                    <strong>{score(p.away)}</strong>
+                    <small>FBIS</small>
+                  </div>
+                </div>
+                <div className="model-game-team">
+                  <TeamLogo team={g.home} size={56}/>
+                  <div className="model-game-team-copy">
+                    <b>{g.home?.abbr||"HOME"}</b>
+                    <span>{homeName}</span>
+                  </div>
+                  <div className="model-game-score">
+                    <strong>{score(p.home)}</strong>
+                    <small>FBIS</small>
+                  </div>
+                </div>
               </div>
-              <div className="current-projection-meta">
-                <span>FBIS TOTAL <b>{score(p.total)}</b></span>
-                <span>MARKET <b>{m.spread==null?"—":m.spread}</b></span>
-                <span>TOTAL <b>{m.total==null?"—":m.total}</b></span>
+
+              <div className="current-projection-meta model-game-metrics">
+                <span><em>FBIS TOTAL</em><b>{score(p.total)}</b></span>
+                <span><em>MARKET SPREAD</em><b>{m.spread==null?"—":m.spread}</b></span>
+                <span><em>MARKET TOTAL</em><b>{m.total==null?"—":m.total}</b></span>
               </div>
-              <div className="muted small">{g.model?.engine||g.model?.name||"FBIS"} · Q{g.quality?.score??"—"}</div>
+
+              <div className="model-game-foot">
+                <span>{g.model?.engine||g.model?.name||"FBIS"}</span>
+                <span>QUALITY <b>{g.quality?.score??"—"}</b></span>
+              </div>
             </article>;
           })}
         </div>
