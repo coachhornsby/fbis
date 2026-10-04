@@ -68,6 +68,38 @@ describe("board confidence stars", () => {
     assert.equal(confidenceStars(game("q54", 54, qualified)), 1);
   });
 
+  it("uses current NFL-PRO scores rather than stale fallback model scores", () => {
+    const common = {
+      nflProShadow: {
+        ok: true,
+        coverage: { share: 0.70 },
+        sigmaMargin: 14.2,
+        sigmaTotal: 13.4,
+        home: 23.5,
+        away: 28.7,
+      },
+      market: {
+        marketAvailable: true,
+        executionActionable: true,
+        execution: { available: true, actionable: true, spread: -2.5, total: 51.5 },
+      },
+    };
+    const staleSame = {
+      model: { projAway: 24, projHome: 27, projTotal: 51, projMargin: 3 },
+      ...common,
+    };
+    const weakGap = {
+      model: { projAway: 24, projHome: 27, projTotal: 51, projMargin: 3 },
+      ...common,
+      nflProShadow: {
+        ...common.nflProShadow,
+        home: 26,
+        away: 24,
+      },
+    };
+    assert.ok(confidenceStars(staleSame) > confidenceStars(weakGap));
+  });
+
   it("uses NFL-PRO coverage plus model-market disagreement instead of generic quality alone", () => {
     const strong = game("nfl-strong", 76, {
       model: { projAway: 20, projHome: 30, projTotal: 50, projMargin: 10 },
