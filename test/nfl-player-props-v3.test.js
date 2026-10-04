@@ -125,3 +125,67 @@ test("NFL v3.1 uses validated position-defense strength for QB passing yards", (
   assert.equal(row.opponentMatchup.positionDefenseStrength,0.65);
   assert.ok(row.opponentMatchup.positionDefenseFactor>1);
 });
+
+
+test("NFL historical calibration caps weak market-role-direction combinations", () => {
+  const wr1ReceptionsLess = selectivePropStars({
+    sport:"nfl",market:"receptions",targetRole:"WR1",
+    fbisProjection:4.0,line:6.5,fbisSigma:1.5,
+    roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:evidence("WR1")
+  });
+  const te1RecYardsMore = selectivePropStars({
+    sport:"nfl",market:"receiving_yards",targetRole:"TE1",
+    fbisProjection:64,line:39.5,fbisSigma:12,
+    roleConfidence:.90,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:evidence("TE1")
+  });
+  assert.equal(wr1ReceptionsLess,1);
+  assert.equal(te1RecYardsMore,1);
+});
+
+test("NFL historical calibration allows strongest validated five-star segments", () => {
+  const wr2RecLess = selectivePropStars({
+    sport:"nfl",market:"receptions",targetRole:"WR2",
+    fbisProjection:3.2,line:5.5,fbisSigma:1.4,
+    roleConfidence:.90,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:evidence("WR2")
+  });
+  const qbCompLess = selectivePropStars({
+    sport:"nfl",market:"completions",targetRole:"QB1",
+    fbisProjection:18.0,line:23.5,fbisSigma:7.0,
+    roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:evidence("QB1")
+  });
+  assert.equal(wr2RecLess,5);
+  assert.equal(qbCompLess,5);
+});
+
+test("NFL market calibration requires edge floor before high-star authorization", () => {
+  const lowZ = selectivePropStars({
+    sport:"nfl",market:"passing_yards",targetRole:"QB1",
+    fbisProjection:238,line:250.5,fbisSigma:40,
+    roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:evidence("QB1")
+  });
+  const highZ = selectivePropStars({
+    sport:"nfl",market:"passing_yards",targetRole:"QB1",
+    fbisProjection:220,line:250.5,fbisSigma:40,
+    roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:evidence("QB1")
+  });
+  assert.ok(lowZ <= 2);
+  assert.ok(highZ <= 4);
+});
+
+test("NFL ranker blocks historically weak one-star segments from published card", () => {
+  const out=rankSelectiveProps([
+    {sport:"nfl",market:"receptions",targetRole:"WR1",eventId:"g1",playerName:"WR One",
+      fbisProjection:3,line:6.5,fbisSigma:1.2,roleConfidence:.9,dataQuality:.9,
+      propGate:"CLEAR",eligibleForCard:true,featureEvidence:evidence("WR1")},
+    {sport:"nfl",market:"receptions",targetRole:"WR2",eventId:"g2",playerName:"WR Two",
+      fbisProjection:3,line:5.5,fbisSigma:1.2,roleConfidence:.9,dataQuality:.9,
+      propGate:"CLEAR",eligibleForCard:true,featureEvidence:evidence("WR2")},
+  ],{minStars:3,minHitProbability:.50});
+  assert.deepEqual(out.rows.map(r=>r.playerName),["WR Two"]);
+});

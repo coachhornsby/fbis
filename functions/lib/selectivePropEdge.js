@@ -33,6 +33,92 @@ export function estimatedPropHitProbability(row = {}) {
 
 const RELIABLE_SIGMA_SPORTS = new Set(["nfl","mlb","nhl","wnba","nba","cfb","cbb","tennis"]);
 
+const NFL_PROP_CALIBRATION_V1 = {
+  // Historical PrizePicks line validation, Dec 2025-Oct 2026.
+  // Conservative caps: 5★ reserved for the clearest replicated segment.
+  completions: {
+    QB1: {
+      LESS: { minZ: 0.50, maxStars: 5, minRole: 0.80, tag: "QB1_COMPLETIONS_LESS" },
+      MORE: { minZ: 0.00, maxStars: 4, minRole: 0.80, tag: "QB1_COMPLETIONS_MORE" },
+    },
+  },
+  passing_attempts: {
+    QB1: {
+      LESS: { minZ: 0.00, maxStars: 4, minRole: 0.80, tag: "QB1_PASS_ATTEMPTS_LESS" },
+      MORE: { minZ: 0.00, maxStars: 3, minRole: 0.80, tag: "QB1_PASS_ATTEMPTS_MORE" },
+    },
+  },
+  passing_yards: {
+    QB1: {
+      LESS: { minZ: 0.50, maxStars: 4, minRole: 0.80, tag: "QB1_PASS_YARDS_LESS" },
+      MORE: { minZ: 0.00, maxStars: 2, minRole: 0.80, tag: "QB1_PASS_YARDS_MORE" },
+    },
+  },
+  rushing_yards: {
+    RB1: {
+      LESS: { minZ: 0.00, maxStars: 4, minRole: 0.75, tag: "RB1_RUSH_YARDS_LESS" },
+      MORE: { minZ: 0.00, maxStars: 2, minRole: 0.75, tag: "RB1_RUSH_YARDS_MORE" },
+    },
+  },
+  rushing_attempts: {
+    RB1: {
+      LESS: { minZ: 0.00, maxStars: 3, minRole: 0.75, tag: "RB1_RUSH_ATTEMPTS_LESS" },
+      MORE: { minZ: 0.00, maxStars: 3, minRole: 0.75, tag: "RB1_RUSH_ATTEMPTS_MORE" },
+    },
+  },
+  receiving_yards: {
+    WR2: {
+      MORE: { minZ: 0.50, maxStars: 4, minRole: 0.75, tag: "WR2_REC_YARDS_MORE" },
+      LESS: { minZ: 0.00, maxStars: 3, minRole: 0.75, tag: "WR2_REC_YARDS_LESS" },
+    },
+    TE1: {
+      LESS: { minZ: 0.00, maxStars: 4, minRole: 0.75, tag: "TE1_REC_YARDS_LESS" },
+      MORE: { minZ: 0.00, maxStars: 1, minRole: 0.75, tag: "TE1_REC_YARDS_MORE_BLOCK" },
+    },
+    WR1: {
+      MORE: { minZ: 0.50, maxStars: 3, minRole: 0.80, tag: "WR1_REC_YARDS_MORE" },
+      LESS: { minZ: 0.00, maxStars: 2, minRole: 0.80, tag: "WR1_REC_YARDS_LESS" },
+    },
+  },
+  receptions: {
+    WR2: {
+      LESS: { minZ: 0.00, maxStars: 5, minRole: 0.75, tag: "WR2_RECEPTIONS_LESS" },
+      MORE: { minZ: 0.00, maxStars: 2, minRole: 0.75, tag: "WR2_RECEPTIONS_MORE" },
+    },
+    WR1: {
+      LESS: { minZ: 0.00, maxStars: 1, minRole: 0.80, tag: "WR1_RECEPTIONS_LESS_BLOCK" },
+      MORE: { minZ: 0.00, maxStars: 2, minRole: 0.80, tag: "WR1_RECEPTIONS_MORE" },
+    },
+    TE1: {
+      LESS: { minZ: 0.00, maxStars: 2, minRole: 0.75, tag: "TE1_RECEPTIONS_LESS" },
+      MORE: { minZ: 0.00, maxStars: 1, minRole: 0.75, tag: "TE1_RECEPTIONS_MORE_BLOCK" },
+    },
+  },
+};
+
+function nflCalibrationState(row = {}, standardizedEdge = null) {
+  if (sportKey(row) !== "nfl") return null;
+  const market = String(row.market || row.statType || "").trim().toLowerCase();
+  const role = String(row.targetRole || row.featureEvidence?.targetRoleName || "").trim().toUpperCase();
+  const projection = finite(row.fbisProjection ?? row.projection);
+  const line = finite(row.line ?? row.marketLine);
+  const side = projection != null && line != null ? (projection > line ? "MORE" : projection < line ? "LESS" : null) : null;
+  const policy = NFL_PROP_CALIBRATION_V1?.[market]?.[role]?.[side] || null;
+  if (!policy) return {
+    market, role, side, policy:null, allowed:false, maxStars:2, reason:"unvalidated_market_role_side"
+  };
+  const roleConfidence = finite(row.roleConfidence ?? row.role_confidence);
+  const z = standardizedEdge == null ? null : Math.abs(Number(standardizedEdge));
+  if (roleConfidence == null || roleConfidence < policy.minRole) {
+    return { market, role, side, policy, allowed:false, maxStars:2, reason:"calibration_role_floor" };
+  }
+  if (policy.minZ > 0 && (z == null || z < policy.minZ)) {
+    return { market, role, side, policy, allowed:false, maxStars:2, reason:"calibration_edge_floor" };
+  }
+  return { market, role, side, policy, allowed:true, maxStars:policy.maxStars, reason:null };
+}
+
+
 function sportKey(row = {}) {
   return String(row.sport || row.league || "").trim().toLowerCase();
 }
@@ -98,7 +184,9 @@ export function selectivePropStars(row = {}) {
     stars = Math.min(stars, 2);
   }
 
-  // NFL v3 is fail-closed around role + recent-form + matchup evidence.
+  // NFL v3 is fail-closed around role + recent-form + matchup evidence,
+  // then capped by market/role/direction behavior observed against historical
+  // PrizePicks lines.
   if (evidence.sport === "nfl") {
     if (role == null) stars = Math.min(stars, 2);
     if (!feature.targetRole) stars = Math.min(stars, 1);
@@ -106,6 +194,11 @@ export function selectivePropStars(row = {}) {
     if (!feature.positionDefense) stars = Math.min(stars, 3);
     if (!feature.snapShare) stars = Math.min(stars, 3);
     if (stars >= 5 && (role == null || role < 0.80 || !feature.nextGen || !feature.opponentMatchup)) stars = 4;
+
+    const z = sigma != null && sigma > 0 ? delta / sigma : null;
+    const calibration = nflCalibrationState(row, z);
+    if (!calibration?.allowed) stars = Math.min(stars, calibration?.maxStars ?? 2);
+    else stars = Math.min(stars, calibration.maxStars);
   }
   return stars;
 }
@@ -140,6 +233,7 @@ export function rankSelectiveProps(rows = [], opts = {}) {
     );
     const quality = qRaw == null ? inferredQuality : clamp(qRaw > 1 ? qRaw / 100 : qRaw, 0, 1);
     const evidence = evidenceState(row);
+    const nflCalibration = evidence.sport === "nfl" ? nflCalibrationState(row, z) : null;
     return {
       ...row,
       fbisProjection: projection,
@@ -150,6 +244,7 @@ export function rankSelectiveProps(rows = [], opts = {}) {
       standardizedEdge: z,
       estimatedHitProbability: hitProbability,
       evidenceState: evidence,
+      nflCalibration,
       selectionScore:
         stars * 100 +
         (z ?? 0) * 15 +
@@ -165,6 +260,8 @@ export function rankSelectiveProps(rows = [], opts = {}) {
     if (row.evidenceState?.sport === "nfl") {
       if (row.evidenceState?.role == null || row.evidenceState.role < minRoleConfidence) return false;
       if (!row.featureEvidence?.targetRole || !row.featureEvidence?.recent5) return false;
+      if (!row.nflCalibration?.allowed && row.confidenceStars >= 3) return false;
+      if (row.nflCalibration?.policy?.maxStars === 1) return false;
     }
     return true;
   }).sort((a, b) => b.selectionScore - a.selectionScore);
@@ -194,6 +291,7 @@ export function rankSelectiveProps(rows = [], opts = {}) {
       minRoleConfidence,
       quotaBySport: false,
       fillWeakQuota: false,
+      nflMarketCalibration: "NFL_PRIZEPICKS_CALIBRATION_V1",
     },
   };
 }
