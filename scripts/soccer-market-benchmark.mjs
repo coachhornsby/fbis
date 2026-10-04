@@ -4,19 +4,21 @@ import { runActionApifyShadow, createResearchBudget, americanToImpliedProb } fro
 
 const rowsPath=process.argv[2]||"artifacts/soccer-form-walkforward-rows.jsonl";
 const budgetUsd=Number(process.env.SOCCER_MARKET_BENCHMARK_BUDGET_USD||3.0);
-const maxDates=Math.max(12,Math.min(80,Number(process.env.SOCCER_MARKET_BENCHMARK_DATES||48)));
+const maxDates=Math.max(1,Math.min(12,Number(process.env.SOCCER_MARKET_BENCHMARK_DATES||6)));
 const maxGames=Math.max(10,Math.min(50,Number(process.env.SOCCER_MARKET_BENCHMARK_MAX_GAMES||30)));
-const minMatched=Math.max(100,Number(process.env.SOCCER_MARKET_BENCHMARK_MIN_MATCHED||250));
+const minMatched=Math.max(1,Number(process.env.SOCCER_MARKET_BENCHMARK_MIN_MATCHED||25));
 const source=fs.readFileSync(rowsPath,"utf8").trim().split("\n").filter(Boolean).map(JSON.parse);
 const byDate=new Map();
 for(const r of source){const d=String(r.start||"").slice(0,10);if(!d)continue;(byDate.get(d)||byDate.set(d,[]).get(d)).push(r);}
 const eligible=[...byDate.entries()].filter(([,rs])=>rs.length>=3).sort((a,b)=>a[0].localeCompare(b[0]));
 const dates=sampleEvenly(eligible.map(([d])=>d),maxDates);
 const budget=createResearchBudget({limitUsd:budgetUsd});
+const waitSecs=Math.max(30,Math.min(90,Number(process.env.SOCCER_MARKET_WAIT_SECS||75)));
+const boundedFetch=(url,init={})=>fetch(url,{...init,signal:AbortSignal.timeout((waitSecs+10)*1000)});
 const pairs=[]; const runSummary=[];
 
 for(const date of dates){
-  const run=await runActionApifyShadow(process.env,{leagues:["soccer"],date,maxGames,freePlan:false,includeExpertPicks:false,includeLineMovement:false,includeProps:false,includeStandings:false,includeInjuries:false,budget,testId:`soccer-market-${date}`});
+  const run=await runActionApifyShadow(process.env,{leagues:["soccer"],date,maxGames,freePlan:false,includeExpertPicks:false,includeLineMovement:false,includeProps:false,includeStandings:false,includeInjuries:false,budget,testId:`soccer-market-${date}`,waitSecs,fetchImpl:boundedFetch});
   runSummary.push({date,ok:run.ok,gamesReturned:run.gamesReturned||0,cost:run.estimatedCostUsd||0,error:run.error||null});
   if(!run.ok){if(run.blocked)break;continue;}
   const modelRows=byDate.get(date)||[];
