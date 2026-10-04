@@ -64,6 +64,42 @@ CREATE TABLE IF NOT EXISTS nba_player_impact_benchmarks (
 CREATE INDEX IF NOT EXISTS idx_nba_impact_benchmark
   ON nba_player_impact_benchmarks(metric,as_of,player_id);
 
+
+
+CREATE TABLE IF NOT EXISTS nba_player_prop_impact_shadow (
+  id TEXT PRIMARY KEY,
+  game_id TEXT NOT NULL,
+  player_id TEXT,
+  player_name TEXT NOT NULL,
+  team TEXT,
+  market_type TEXT NOT NULL,
+  baseline_projection REAL,
+  impact_projection REAL,
+  sigma REAL,
+  projected_minutes REAL,
+  feature_cutoff_timestamp TEXT NOT NULL,
+  availability_status TEXT,
+  availability_verified INTEGER NOT NULL DEFAULT 0,
+  context_json TEXT,
+  entry_line REAL,
+  entry_observed_at TEXT,
+  close_line REAL,
+  close_observed_at TEXT,
+  actual_value REAL,
+  baseline_abs_error REAL,
+  impact_abs_error REAL,
+  baseline_side TEXT,
+  impact_side TEXT,
+  impact_probability REAL,
+  line_clv REAL,
+  graded_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_prop_impact_shadow_game
+  ON nba_player_prop_impact_shadow(game_id,player_id,market_type);
+CREATE INDEX IF NOT EXISTS idx_nba_prop_impact_shadow_grade
+  ON nba_player_prop_impact_shadow(graded_at,feature_cutoff_timestamp);
+
 CREATE TABLE IF NOT EXISTS nba_player_impact_validation (
   id TEXT PRIMARY KEY,
   model_id TEXT NOT NULL,
