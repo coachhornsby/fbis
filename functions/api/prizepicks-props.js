@@ -1,6 +1,7 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { canonicalizeProPlayerPropMarket, normalizeProPropSport } from "../lib/proPlayerProps.js";
 import { sha256Hex } from "../lib/sha256Hex.js";
+import { buildCbbPlayerPropSignal } from "../lib/cbbPlayerPropMoney.js";
 
 const TARGET_MONTHLY_USD = 22;
 const HARD_MONTHLY_CAP_USD = 25;
@@ -210,8 +211,9 @@ export async function onRequestPost(context){
     return json({ok:false,blocked:true,error:"monthly_budget_cap",monthToDateUsd:spent.usd,estimatedRunUsd:estimate,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD},409);
   }
   const cmap=new Map(candidates.map(c=>[candidateKey(c),c]));
-  let written=0,matched=0,malformed=0;
+  let written=0,matched=0,malformed=0,signalsCreated=0;
   const statements=[];
+  const signalStatements=[];
   for(const raw of rows){
     const sport=sportOf(raw),playerName=playerNameOf(raw),stat=statOf(raw),line=lineOf(raw);
     if(!sport||!playerName||!stat||line==null){malformed++;continue}
@@ -235,11 +237,42 @@ export async function onRequestPost(context){
       stat,market,line,tierOf(raw),durationOf(raw),fbisProjection,fbisSigma,delta,side,
       s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt,collectedAt,JSON.stringify(raw)
     ));
+    if(sport==="cbb"&&cand?.validatedPredictive===true){
+      const signal=buildCbbPlayerPropSignal(cand,{
+        projectionId,
+        playerId:playerIdOf(raw),
+        playerName,
+        team:s(teamOf(raw)||cand?.team),
+        canonicalMarket:market,
+        line,
+        oddsTier:tierOf(raw),
+        collectedAt,
+        startTime:s(startOf(raw)||cand?.start),
+        fbisEventId:s(cand?.eventId),
+      });
+      if(signal.ok){
+        signalStatements.push(context.env.DB.prepare(
+          `INSERT OR IGNORE INTO cbb_player_prop_signals(
+            id,fbis_event_id,projection_id,player_id,player_name,team,market,side,
+            signal_line,signal_projection,signal_sigma,z_edge,edge_band,signal_at,start_time,
+            model_version,data_quality,projected_minutes,odds_tier,source,created_at,updated_at
+          ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+        ).bind(
+          signal.id,signal.fbisEventId,signal.projectionId,signal.playerId,signal.playerName,signal.team,signal.market,signal.side,
+          signal.signalLine,signal.signalProjection,signal.signalSigma,signal.zEdge,signal.edgeBand,signal.signalAt,signal.startTime,
+          signal.modelVersion,signal.dataQuality,signal.projectedMinutes,signal.oddsTier,"PRIZEPICKS_APIFY",collectedAt,collectedAt
+        ));
+      }
+    }
   }
   const BATCH_SIZE=200;
   for(let i=0;i<statements.length;i+=BATCH_SIZE){
     const result=await context.env.DB.batch(statements.slice(i,i+BATCH_SIZE));
     written+=result.reduce((sum,row)=>sum+Number(row?.meta?.changes||0),0);
+  }
+  for(let i=0;i<signalStatements.length;i+=BATCH_SIZE){
+    const result=await context.env.DB.batch(signalStatements.slice(i,i+BATCH_SIZE));
+    signalsCreated+=result.reduce((sum,row)=>sum+Number(row?.meta?.changes||0),0);
   }
   const costId="cost_"+runId;
   const acquisition=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE run_id=?").bind(runId).first();
@@ -276,5 +309,5 @@ export async function onRequestPost(context){
     RUN_START_USD,0,rows.length*PER_PROJECTION_USD,0,0,0,0,0,0,0,0,estimate,actual,actual==null?null:actual-estimate,
     rows.length,JSON.stringify({actor:"zen-studio/prizepicks-player-props",candidateCount:candidates.length,targeted:true}),collectedAt
   ).run();
-  return json({ok:true,runId,rowsReturned:rows.length,written,matched,malformed,estimatedCostUsd:estimate,recordedCostUsd:total,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD});
+  return json({ok:true,runId,rowsReturned:rows.length,written,matched,malformed,cbbPlayerPropSignalsCreated:signalsCreated,estimatedCostUsd:estimate,recordedCostUsd:total,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD});
 }
