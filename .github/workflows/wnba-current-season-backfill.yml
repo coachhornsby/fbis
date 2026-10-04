@@ -2,11 +2,6 @@ name: WNBA 2026 current-state backfill
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["research/wnba-player-impact-v1"]
-    paths:
-      - ".github/workflows/wnba-current-season-backfill.yml"
-      - "scripts/wnba-merge-canonical.mjs"
 permissions:
   contents: read
 
