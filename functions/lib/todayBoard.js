@@ -230,6 +230,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     // ACTION Apify market intel — display/research only (never odds authority).
     actionIntel: game.actionIntel || null,
     nhlWagerV1: sport === "nhl" ? (game.nhlWagerV1 || evaluateNhlGameWagers(game)) : null,
+    marketLineHistory: sport === "nhl" ? (game.marketLineHistory || []) : null,
     publicSplits: game.publicSplits || game.actionIntel?.publicSplits || null,
     weather: game.weather || game.cfb?.weather || null,
     park: game.bpp?.park || null,
@@ -360,6 +361,28 @@ function buildMarketOddsByGame(rows = []) {
   return by;
 }
 
+function buildMarketLineHistoryByGame(rows = []) {
+  const by = new Map();
+  for (const row of rows || []) {
+    if (!row || row.period !== "fg" || row.rejectedPostStart) continue;
+    const id = String(row.gameId || "");
+    if (!id) continue;
+    if (!by.has(id)) by.set(id, []);
+    by.get(id).push({
+      sportsbook: row.book || null,
+      market: String(row.market || "").toLowerCase(),
+      selection: String(row.side || "").toLowerCase(),
+      line: row.line == null ? null : Number(row.line),
+      americanPrice: row.price == null ? null : Number(row.price),
+      collectedAt: row.capturedAt || null,
+      checkpoint: row.checkpoint || null,
+      source: "ODDS_SNAPSHOT",
+    });
+  }
+  for (const rows of by.values()) rows.sort((a,b)=>String(a.collectedAt||"").localeCompare(String(b.collectedAt||"")));
+  return by;
+}
+
 function hydrateOddsFromMarketRows(game, pack) {
   if (!pack) return game;
   const odds = { ...(game.odds || {}) };
@@ -409,6 +432,7 @@ export async function buildTodayBoard(
       });
       let bySnapshot = new Map();
       let byMarketOdds = new Map();
+      let byMarketHistory = new Map();
       if (env.DB) {
         const snapQ = await querySnaps(env, { sport, since: date, until: date, checkpoint: "LATEST" });
         if (snapQ?.ok && Array.isArray(snapQ.rows) && snapQ.rows.length) {
@@ -417,6 +441,7 @@ export async function buildTodayBoard(
         const oddsQ = await queryOdds(env, { sport, since: date, until: date });
         if (oddsQ?.ok && Array.isArray(oddsQ.rows) && oddsQ.rows.length) {
           byMarketOdds = buildMarketOddsByGame(oddsQ.rows);
+          byMarketHistory = buildMarketLineHistoryByGame(oddsQ.rows);
         }
       }
       if (slate?.parlay?.cached === false && slate?.parlay?.skipped !== true && !slate?.parlay?.error) {
@@ -431,9 +456,10 @@ export async function buildTodayBoard(
       );
       const recSlate = withRecs({
         ...slate,
-        games: selectedDateGames.map((g) =>
-          hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id)))
-        ),
+        games: selectedDateGames.map((g) => ({
+          ...hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id))),
+          marketLineHistory: byMarketHistory.get(String(g.id)) || [],
+        })),
       }, DEFAULT_WEIGHTS);
       const palReason = sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null;
 
