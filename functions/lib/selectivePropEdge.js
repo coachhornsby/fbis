@@ -11,6 +11,30 @@ function finite(v) {
 }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+const RELIABLE_SIGMA_SPORTS = new Set(["nfl","mlb","nhl","wnba","nba","cfb","cbb","tennis"]);
+
+function sportKey(row = {}) {
+  return String(row.sport || row.league || "").trim().toLowerCase();
+}
+
+function evidenceState(row = {}) {
+  const sport = sportKey(row);
+  const sigma = finite(row.fbisSigma ?? row.sigma);
+  const role = finite(row.roleConfidence ?? row.role_confidence);
+  const gate = String(row.propGate || row.gate || "").toUpperCase();
+  const eligible = row.eligibleForCard;
+  const feature = row.featureEvidence || {};
+  const hasTracking = Boolean(feature.nextGen || feature.tracking || feature.snapShare);
+  return {
+    sport,
+    sigmaReady: sigma != null && sigma > 0,
+    role,
+    gate,
+    eligible,
+    hasTracking,
+  };
+}
+
 export function selectivePropStars(row = {}) {
   const projection = finite(row.fbisProjection ?? row.projection);
   const line = finite(row.line ?? row.marketLine);
@@ -28,23 +52,36 @@ export function selectivePropStars(row = {}) {
   else edgeScore = delta / Math.max(Math.abs(line), 1) * 5;
 
   const adjusted = edgeScore * (0.55 + 0.45 * quality);
-  let stars = adjusted >= 1.0 ? 5
-    : adjusted >= 0.72 ? 4
-      : adjusted >= 0.48 ? 3
-        : adjusted >= 0.25 ? 2
+  let stars = adjusted >= 1.10 ? 5
+    : adjusted >= 0.80 ? 4
+      : adjusted >= 0.55 ? 3
+        : adjusted >= 0.30 ? 2
           : 1;
 
-  if (quality < 0.45) stars = Math.min(stars, 2);
-  if (role != null && role < 0.5) stars = Math.min(stars, 2);
+  const evidence = evidenceState(row);
+  if (quality < 0.55) stars = Math.min(stars, 2);
+  if (role != null && role < 0.60) stars = Math.min(stars, 2);
   if (uncertainty === "HIGH") stars = Math.min(stars, 2);
+  if (["BLOCKED","HOLD"].includes(evidence.gate) || evidence.eligible === false) stars = Math.min(stars, 1);
+
+  // High-confidence prop ratings require an empirical dispersion estimate.
+  // This prevents raw point gaps on volatile markets from being mislabeled as
+  // conviction simply because the market line is numerically small.
+  if (RELIABLE_SIGMA_SPORTS.has(evidence.sport) && !evidence.sigmaReady) {
+    stars = Math.min(stars, 2);
+  }
+
+  // NFL tracking/snap evidence is additive, not mandatory, but a missing role
+  // signal caps the rating until the player's workload is better established.
+  if (evidence.sport === "nfl" && role == null) stars = Math.min(stars, 3);
   return stars;
 }
 
 export function rankSelectiveProps(rows = [], opts = {}) {
   const maxRows = clamp(Number(opts.maxRows ?? 20), 1, 50);
-  const minStars = clamp(Number(opts.minStars ?? 2), 1, 5);
-  const maxPerEvent = clamp(Number(opts.maxPerEvent ?? 3), 1, 10);
-  const maxPerPlayer = clamp(Number(opts.maxPerPlayer ?? 2), 1, 5);
+  const minStars = clamp(Number(opts.minStars ?? 3), 1, 5);
+  const maxPerEvent = clamp(Number(opts.maxPerEvent ?? 2), 1, 10);
+  const maxPerPlayer = clamp(Number(opts.maxPerPlayer ?? 1), 1, 5);
 
   const ranked = (rows || []).map((row) => {
     const projection = finite(row.fbisProjection ?? row.projection);
@@ -64,7 +101,8 @@ export function rankSelectiveProps(rows = [], opts = {}) {
       candidateSide: delta > 0 ? "MORE" : delta < 0 ? "LESS" : null,
       confidenceStars: stars,
       standardizedEdge: z,
-      selectionScore: stars * 100 + (z ?? Math.abs(delta) / Math.max(Math.abs(line), 1) * 5) * 10 + quality * 5,
+      evidenceState: evidenceState(row),
+      selectionScore: stars * 100 + (z ?? 0) * 15 + quality * 5 + (finite(row.roleConfidence ?? row.role_confidence) ?? 0) * 3,
     };
   }).filter((row) => row && row.candidateSide && row.confidenceStars >= minStars)
     .sort((a, b) => b.selectionScore - a.selectionScore);
