@@ -3,14 +3,11 @@ name: NHL-PRO-v2 model fit
 on:
   workflow_dispatch:
   push:
-    branches:
-      - "feature/nhl-pro-v2-20261003"
-      - main
+    branches: [main]
     paths:
       - "data/models/nhl-pro-v2-validation.json"
       - "scripts/nhl-pro-v2-fit.mjs"
       - ".github/workflows/nhl-pro-v2-fit.yml"
-      - ".github/nhl-v2-fit-run"
 
 permissions:
   contents: write
