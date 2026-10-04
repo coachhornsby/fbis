@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-02",
+  "updatedAt": "2026-10-04",
   "sports": {
     "nfl": {
       "currentResearchModel": "NFL-PRO-v1.1",
@@ -16,6 +16,16 @@
       "canQualify": false,
       "canAuthorizeWager": false,
       "notes": "Full-history PIT-safe Ridge research model using 2004-2026 event/context data. Market remains benchmark-only. Frozen fit trained through 2025."
+    },
+    "nba": {
+      "currentResearchModel": "NBA-FBIS-v1",
+      "propResearchModel": "NBA-PLAYER-PROP-v1",
+      "gameArtifact": "data/models/nba-fbis-v1.json",
+      "propArtifact": "data/models/nba-player-prop-v1.json",
+      "status": "historical-validation-running",
+      "canQualify": false,
+      "canAuthorizeWager": false,
+      "notes": "Independent possession/efficiency game challenger plus minutes-first player prop research model. NBA-FBIS-FORM-v1 retained as game benchmark; production rights for NBA Stats/lineup redistribution remain gated."
     }
   }
 }
