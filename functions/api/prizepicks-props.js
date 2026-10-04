@@ -2,6 +2,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { canonicalizeProPlayerPropMarket, normalizeProPropSport } from "../lib/proPlayerProps.js";
 import { sha256Hex } from "../lib/sha256Hex.js";
 import { buildCbbPlayerPropSignal } from "../lib/cbbPlayerPropMoney.js";
+import { buildCfbPropSignal } from "../lib/cfbPlayerPropMoney.js";
 
 const TARGET_MONTHLY_USD = 22;
 const HARD_MONTHLY_CAP_USD = 25;
@@ -211,7 +212,7 @@ export async function onRequestPost(context){
     return json({ok:false,blocked:true,error:"monthly_budget_cap",monthToDateUsd:spent.usd,estimatedRunUsd:estimate,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD},409);
   }
   const cmap=new Map(candidates.map(c=>[candidateKey(c),c]));
-  let written=0,matched=0,malformed=0,signalsCreated=0;
+  let written=0,matched=0,malformed=0,signalsCreated=0,cfbSignalsCreated=0;
   const statements=[];
   const signalStatements=[];
   for(const raw of rows){
@@ -237,6 +238,22 @@ export async function onRequestPost(context){
       stat,market,line,tierOf(raw),durationOf(raw),fbisProjection,fbisSigma,delta,side,
       s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt,collectedAt,JSON.stringify(raw)
     ));
+    if(sport==="cfb"&&cand&&fbisProjection!=null&&fbisSigma!=null){
+      const signal=buildCfbPropSignal({...cand,fbisProjection,fbisSigma},{
+        fbisEventId:s(cand?.eventId),playerId:playerIdOf(raw),playerName,canonicalMarket:market,line,collectedAt
+      });
+      if(signal.ok){
+        signalStatements.push(context.env.DB.prepare(
+          `INSERT OR IGNORE INTO cfb_player_prop_signals_v2(
+            id,event_id,player_id,player_name,market,side,signal_line,signal_projection,signal_sigma,z_edge,
+            confidence_score,confidence_stars,signal_at,model_id,created_at
+          ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+        ).bind(signal.id,signal.eventId,signal.playerId,signal.playerName,signal.market,signal.side,
+          signal.signalLine,signal.signalProjection,signal.signalSigma,signal.zEdge,
+          signal.confidenceScore,signal.confidenceStars,signal.signalAt,signal.modelId,collectedAt));
+        cfbSignalsCreated++;
+      }
+    }
     if(sport==="cbb"&&cand?.validatedPredictive===true){
       const signal=buildCbbPlayerPropSignal(cand,{
         projectionId,
@@ -309,5 +326,5 @@ export async function onRequestPost(context){
     RUN_START_USD,0,rows.length*PER_PROJECTION_USD,0,0,0,0,0,0,0,0,estimate,actual,actual==null?null:actual-estimate,
     rows.length,JSON.stringify({actor:"zen-studio/prizepicks-player-props",candidateCount:candidates.length,targeted:true}),collectedAt
   ).run();
-  return json({ok:true,runId,rowsReturned:rows.length,written,matched,malformed,cbbPlayerPropSignalsCreated:signalsCreated,estimatedCostUsd:estimate,recordedCostUsd:total,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD});
+  return json({ok:true,runId,rowsReturned:rows.length,written,matched,malformed,cbbPlayerPropSignalsCreated:signalsCreated,cfbPlayerPropSignalsPrepared:cfbSignalsCreated,estimatedCostUsd:estimate,recordedCostUsd:total,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD});
 }
