@@ -243,7 +243,8 @@ function soccerSubprojections(game = {}) {
     homeAsian: p.homeAsian || null,
     uncertainty: p.uncertainty || null,
     diagnostics: p.diagnostics || null,
-    policy: "Independent soccer research probabilities. No calibrated EV or wager authority.",
+    confidencePick: game.soccerConfidence || game.confidencePick || p.confidencePick || null,
+    policy: "Independent soccer research probabilities. Stars measure model confidence; they do not grant wager authority.",
   };
 }
 
@@ -694,6 +695,9 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
     quality: quality(game),
     conditions: gameConditions(game, sport),
     llmFeatures: llmFeatureDigest(game, sport),
+    confidence: sport === "soccer"
+      ? (game.soccerConfidence || game.confidencePick || game.soccerFbis?.confidencePick || null)
+      : undefined,
   };
   if (tier === "pro") {
     card.intelligence = {
