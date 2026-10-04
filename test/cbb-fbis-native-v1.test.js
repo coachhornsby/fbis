@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {buildFbisCbbRatings,projectFbisCbbGame,FBIS_CBB_MODEL_ID} from "../functions/lib/cbbFbisRatings.js";
+import {conferenceForTeamSeason} from "../functions/lib/cbbConferenceMembership.js";
 
 const rows=[
  {gameId:"1",startDate:"2025-11-01T18:00:00Z",team:"A",opponent:"B",teamId:"A",conference:"X",isHome:true,points:80,poss:70,fgm:30,fga:60,threeMade:10,threeAtt:25,ftm:10,fta:14,orb:8,drb:22,tov:10},
@@ -52,4 +53,20 @@ test("projection exposes independent score and schedule decomposition",()=>{
  assert.ok(Number.isFinite(p.basePossessions));
  assert.ok(Number.isFinite(p.paceAdjustment));
  assert.ok(p.schedule.home);
+});
+
+
+test("season-aware conference membership is independent and current",()=>{
+ assert.equal(conferenceForTeamSeason("Houston",2025),"big_12");
+ assert.equal(conferenceForTeamSeason("UConn",2025),"big_east");
+ assert.equal(conferenceForTeamSeason("Texas",2025),"sec");
+ assert.equal(conferenceForTeamSeason("USC",2025),"big_ten");
+});
+
+test("projection exposes OREB-DRB matchup interaction",()=>{
+ const c=buildFbisCbbRatings(rows,{asOf:"2025-11-10T00:00:00Z",season:2025,iterations:8});
+ const p=projectFbisCbbGame({neutral:false},c.byTeamId.A,c.byTeamId.B);
+ assert.ok(Object.prototype.hasOwnProperty.call(p.matchup.home,"orebVsDrb"));
+ assert.ok(Object.prototype.hasOwnProperty.call(p.matchup.away,"orebVsDrb"));
+ assert.ok(Object.prototype.hasOwnProperty.call(p.matchup.home,"drbRate"));
 });
