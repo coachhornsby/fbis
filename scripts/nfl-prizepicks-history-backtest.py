@@ -346,6 +346,10 @@ def join_and_grade(lines,projections):
     keys=["season","week","team","player_key","field"]
     j=m.merge(projections,on=keys,how="inner",suffixes=("_pp","_model"))
     if j.empty:return j
+    if "market_pp" in j.columns:
+        j["market"]=j["market_pp"]
+    elif "market_model" in j.columns:
+        j["market"]=j["market_model"]
     j["edge"]=j.projection-j.line
     j["model_side"]=np.where(j.edge>0,"MORE",np.where(j.edge<0,"LESS","PASS"))
     j["result_side"]=np.where(j.actual>j.line,"MORE",np.where(j.actual<j.line,"LESS","PUSH"))
