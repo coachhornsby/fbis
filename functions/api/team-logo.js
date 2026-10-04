@@ -1,6 +1,6 @@
 const ESPN_TEAM_ENDPOINTS = {
   soccer: [
-    "eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","mex.1",
+    "eng.1","eng.2","esp.1","esp.2","ger.1","ger.2","ita.1","ita.2","fra.1","fra.2","usa.1","mex.1",
     "uefa.champions","uefa.europa","uefa.europa.conf","eng.fa","eng.league_cup",
     "arg.1","bra.1","ned.1","por.1","sco.1","bel.1","tur.1",
     "eng.w.1","usa.nwsl","uefa.wchampions"
