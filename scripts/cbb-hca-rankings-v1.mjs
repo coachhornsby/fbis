@@ -31,7 +31,39 @@ const alias={
 const norm=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
  .replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim()
  .replace(/\bsaint\b/g,"st");
-const canon=v=>alias[norm(v)]||norm(v);
+const canon=v=>alias[norm(v)]||norm(v);\nconst VENUE_OVERRIDES=Object.freeze({
+ "mcneese":{arena:"Townsley Law Arena",capacity:4242,altitudeFt:13},
+ "miami":{arena:"Watsco Center",capacity:7972,altitudeFt:23},
+ "sam houston":{arena:"Bernard Johnson Coliseum",capacity:6100,altitudeFt:427},
+ "north carolina":{arena:"Dean Smith Center",capacity:21750,altitudeFt:389},
+ "cal state northridge":{arena:"Premier America Credit Union Arena",capacity:2300,altitudeFt:889},
+ "siu edwardsville":{arena:"Vadalabene Center",capacity:4000,altitudeFt:549},
+ "hawai i":{arena:"Stan Sheriff Center",capacity:10300,altitudeFt:23},
+ "boston university":{arena:"Case Gym",capacity:1800,altitudeFt:18},
+ "mercyhurst":{arena:"Mercyhurst Athletic Center",capacity:1100,altitudeFt:728},
+ "sacramento state":{arena:"Hornet Pavilion",capacity:3000,altitudeFt:35},
+ "texas a and m corpus christi":{arena:"American Bank Center",capacity:8000,altitudeFt:14},
+ "siena":{arena:"MVP Arena",capacity:15229,altitudeFt:43},
+ "cal state fullerton":{arena:"Titan Gym",capacity:4000,altitudeFt:249},
+ "nc state":{arena:"Lenovo Center",capacity:19500,altitudeFt:432},
+ "maryland eastern shore":{arena:"Hytche Athletic Center",capacity:5500,altitudeFt:17},
+ "bradley":{arena:"Carver Arena",capacity:11433,altitudeFt:531},
+ "american university":{arena:"Bender Arena",capacity:4500,altitudeFt:344},
+ "mount st mary s":{arena:"Knott Arena",capacity:3500,altitudeFt:516},
+ "idaho state":{arena:"ICCU Dome",capacity:8000,altitudeFt:4560},
+ "new haven":{arena:"Jeffery P. Hazell Athletics Center",capacity:900,altitudeFt:105},
+ "milwaukee":{arena:"UW–Milwaukee Panther Arena",capacity:10783,altitudeFt:593},
+ "providence":{arena:"Amica Mutual Pavilion",capacity:12400,altitudeFt:16},
+ "central connecticut":{arena:"William H. Detrick Gymnasium",capacity:2654,altitudeFt:145},
+ "south carolina upstate":{arena:"G. B. Hodge Center",capacity:878,altitudeFt:864},
+ "iu indianapolis":{arena:"James T. Morris Arena",capacity:4500,altitudeFt:736},
+ "ul monroe":{arena:"Fant–Ewing Coliseum",capacity:7085,altitudeFt:81},
+ "east texas a and m":{arena:"The Field House",capacity:3055,altitudeFt:558},
+ "evansville":{arena:"Ford Center",capacity:10000,altitudeFt:385},
+ "northeastern":{arena:"Cabot Center",capacity:1800,altitudeFt:20},
+ "kansas city":{arena:"Municipal Auditorium",capacity:7316,altitudeFt:900}
+});
+
 
 function parseCsv(text){
  const lines=String(text).trim().split(/\r?\n/),out=[];let head=null;
@@ -129,10 +161,11 @@ const coordinatePoints=[],baseRows=[];
 for(const k of allKeys){
  const rating=ratingByKey.get(k)||null;
  if(!rating)continue;
- const venue=currentByKey.get(k)||null;
+ const override=VENUE_OVERRIDES[k]||null;
+ const venue=override?{team:rating.team,arena:override.arena,city:null,state:null,conference:rating.conference,capacity:override.capacity,_override:true}:currentByKey.get(k)||null;
  const old=legacyByKey.get(k)||null;
  let lat=num(old?.lat),lng=num(old?.lng),coordBasis=old?"legacy venue coordinate":null;
- baseRows.push({key:k,venue,rating,lat,lng,coordBasis});
+ baseRows.push({key:k,venue,rating,lat,lng,coordBasis,override});
  if(lat!=null&&lng!=null)coordinatePoints.push({key:k,lat,lng});
 }
 const elevations=await elevationFor(coordinatePoints);
@@ -147,16 +180,17 @@ const globalHca=num(catalog?.national?.globalHca)??4.4096;
 let data=baseRows.map(x=>{
  const r=x.rating,v=x.venue;
  const hca=num(r.hca)??globalHca,hcaGames=num(r.hcaGames)??0;
+ const altitudeFt=x.override?.altitudeFt??(elevations.has(x.key)?Math.round(elevations.get(x.key)*3.28084):null);
  return {
-  school:r.team,arena:v?.arena||null,capacity:num(v?.capacity),altitudeFt:elevations.has(x.key)?Math.round(elevations.get(x.key)*3.28084):null,
+  school:r.team,arena:v?.arena||null,capacity:num(v?.capacity),altitudeFt,
   hcaPpg:Number(hca.toFixed(3)),hcaGames,conference:r?.conference||v?.conference||null,reliability:num(r?.reliability)??0,
   hcaBasis:hcaGames>0?"team residual + hierarchical shrinkage":"FBIS global prior (no team home sample)",
-  dataThrough:hcaGames>0?"2026-04-06":"2026-27 preseason prior",venueSource:v?"Wikipedia current NCAA D-I arena table":null,
-  altitudeSource:elevations.has(x.key)?"Open-Meteo elevation at venue/city coordinates":null,coordinateBasis:x.coordBasis
+  dataThrough:hcaGames>0?"2026-04-06":"2026-27 preseason prior",venueSource:x.override?"FBIS verified 2026-27 venue override":(v?"Wikipedia current NCAA D-I arena table":null),
+  altitudeSource:x.override?.altitudeFt!=null?"FBIS verified venue/campus elevation":(elevations.has(x.key)?"Open-Meteo elevation at venue/city coordinates":null),coordinateBasis:x.override?"verified override":x.coordBasis
  };
 });
 data.sort((a,b)=>b.hcaPpg-a.hcaPpg||a.school.localeCompare(b.school));data=data.map((r,i)=>({rank:i+1,...r}));
-const report={id:"FBIS-CBB-HCA-RANKINGS-v2",generatedAt:new Date().toISOString(),model:"FBIS-CBB-HCA-v1",independent:true,kenpomInput:false,
+const report={id:"FBIS-CBB-HCA-RANKINGS-v2",generatedAt:new Date().toISOString(),model:"FBIS-CBB-HCA-v1",independent:true,kenpomInput:false,venueOverrides:Object.keys(VENUE_OVERRIDES).length,
  seasonBaseline:"2025-26 end-of-season / 2026-27 preseason",globalHcaPpg:Number(globalHca.toFixed(3)),teams:data.length,
  venueCoveragePct:Number((100*data.filter(x=>x.arena&&x.capacity!=null).length/Math.max(1,data.length)).toFixed(2)),
  altitudeCoveragePct:Number((100*data.filter(x=>x.altitudeFt!=null).length/Math.max(1,data.length)).toFixed(2)),data};
