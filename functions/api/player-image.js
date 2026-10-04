@@ -11,8 +11,9 @@ function json(body,status=200){
 function isRealHeadshot(url){
   const u=String(url||"").trim();
   if(!u) return false;
-  // PrizePicks /images/teams/... assets are jersey-number/team tiles, not player headshots.
+  // Reject known team/league/generic art; cards should show a real player or initials.
   if(/\/images\/teams\//i.test(u)) return false;
+  if(/(?:nfl|nba|mlb|nhl)[-_ ]?(?:logo|shield)|\/logos?\//i.test(u)) return false;
   return /^https?:\/\//i.test(u);
 }
 
@@ -136,7 +137,7 @@ async function atpOfficialHeadshot(name){
   const res=await fetch(searchUrl,{headers:{"user-agent":"Mozilla/5.0","accept":"text/html"}});
   if(!res.ok) return null;
   const html=await res.text();
-  const needle=norm(name);
+  const needle=norm(lookupName);
   const candidates=[];
   const re=/href=["']([^"']*\/en\/players\/([^/"']+)\/([a-z0-9]{4,})\/(?:overview|bio|player-stats|rankings-breakdown)[^"']*)["']/ig;
   let m;
@@ -349,8 +350,13 @@ export async function onRequestGet(context){
   }
 
   if(String(sport||"").toLowerCase()==="nfl"){
+    const espnNflImage=await espnPlayerHeadshot(name,"nfl").catch(()=>null);
+    if(espnNflImage){
+      const out=await candidateResponse(espnNflImage,{name,sport,source:"ESPN_HEADSHOT"},mode);
+      if(out) return out;
+    }
     const nflImage=await nflOfficialHeadshot(name).catch(()=>null);
-    if(nflImage){
+    if(nflImage && /headshot|player|static/i.test(nflImage)){
       const out=await candidateResponse(nflImage,{name,sport,source:"NFL_OFFICIAL"},mode);
       if(out) return out;
     }
