@@ -1,6 +1,7 @@
 import {readFileSync,mkdirSync,writeFileSync} from "node:fs";
 import {buildFbisCbbRatings,projectFbisCbbGame,normalizeFbisCbbGameTeamRows,lookupFbisCbbRating} from "../functions/lib/cbbFbisRatings.js";
 import {mapSourceTeam} from "../functions/lib/collegeIdentity.js";
+import {conferenceForTeamSeason, conferenceCoverageForTeams} from "../functions/lib/cbbConferenceMembership.js";
 
 const BASE=process.env.FBIS_BASE||"https://fbis-myz.pages.dev";
 const SECRET=process.env.HARVEST_SECRET||"";
@@ -28,7 +29,7 @@ async function loadBox(season){
   for(const x of raw){
     const n=k=>num(x[k]),fgm=n("field_goals_made"),fga=n("field_goals_attempted"),tpm=n("three_point_field_goals_made"),tpa=n("three_point_field_goals_attempted"),ftm=n("free_throws_made"),fta=n("free_throws_attempted"),orb=n("offensive_rebounds"),drb=n("defensive_rebounds"),tov=n("turnovers")??n("total_turnovers")??n("team_turnovers");
     rows.push({gameId:String(x.game_id||""),startDate:x.game_date_time||x.game_date,season,team:x.team_location||x.team_display_name,opponent:x.opponent_team_location||x.opponent_team_display_name,
-      conference:x.team_conference_abbreviation||x.team_conference_name||x.team_conference||x.conference_abbreviation||x.conference_name||x.conference||null,
+      conference:conferenceForTeamSeason(x.team_location||x.team_display_name,season),
       isHome:x.team_home_away==="home",neutral:false,fgm,fga,threeMade:tpm,threeAtt:tpa,ftm,fta,orb,drb,turnovers:tov,possessions:fga!=null&&orb!=null&&tov!=null&&fta!=null?fga-orb+tov+.475*fta:null});
   }
   return rows;
