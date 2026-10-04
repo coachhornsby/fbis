@@ -1,0 +1,56 @@
+name: Freeze NBA canonical snapshot
+on:
+  push:
+    branches: ["research/nba-decision-v2"]
+    paths:
+      - ".github/workflows/nba-freeze-snapshot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - name: Download frozen validation artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nba-fbis-v1-research-37186207435
+          path: frozen
+          repository: coachhornsby/fbis
+          run-id: 37186207435
+          github-token: ${{ github.token }}
+      - name: Verify frozen artifact contents
+        run: |
+          set -euo pipefail
+          test -s frozen/nba-canonical.jsonl
+          test -s frozen/nba-canonical-manifest.json
+          test -s frozen/nba-fbis-v1-rows.jsonl
+          test -s frozen/nba-player-prop-rows.jsonl
+          sha256sum frozen/nba-canonical.jsonl frozen/nba-canonical-manifest.json > frozen/SHA256SUMS
+      - name: Upload immutable NBA research snapshot to R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          prefix="canonical/espn/nba/2024-10-22_2026-06-21/fbis-v1/run-37186207435"
+          for f in frozen/nba-canonical.jsonl frozen/nba-canonical-manifest.json frozen/nba-fbis-v1-rows.jsonl frozen/nba-fbis-v1-walkforward.json frozen/nba-player-prop-rows.jsonl frozen/nba-player-prop-walkforward.json frozen/SHA256SUMS; do
+            npx wrangler r2 object put "fbis-archive/${prefix}/$(basename "$f")" --file "$f" --remote
+          done
+          echo "R2_PREFIX=${prefix}" >> "$GITHUB_ENV"
+      - name: Verify R2 manifest
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler r2 object get "fbis-archive/${R2_PREFIX}/nba-canonical-manifest.json" --file /tmp/nba-manifest.json --remote
+          jq -e '.rows == 2721 and .quality.possessions > 0.99 and .quality.playerThrees == 1' /tmp/nba-manifest.json

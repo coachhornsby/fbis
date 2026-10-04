@@ -1,0 +1,33 @@
+{
+  "fullWalkForward": {
+    "n": 2613,
+    "marginMae": 11.764485265977807,
+    "totalMae": 15.185878300803665,
+    "winnerAccuracy": 0.6704936854190585,
+    "benchmarkMarginMae": 11.98545732874092,
+    "benchmarkTotalMae": 15.386375813241463,
+    "benchmarkWinnerAccuracy": 0.6391121316494451
+  },
+  "holdout": {
+    "n": 1322,
+    "marginMaeRaw": 11.898714069591547,
+    "marginMaeCalibrated": 11.581915492744491,
+    "marginMaeBenchmark": 12.285552193645982,
+    "totalMaeRaw": 15.281164901664164,
+    "totalMaeCalibrated": 15.223449863475913,
+    "totalMaeBenchmark": 15.51308623298033,
+    "winnerAccuracyRaw": 0.6747352496217852,
+    "winnerAccuracyCalibrated": 0.6754916792738276,
+    "winnerAccuracyBenchmark": 0.6376701966717095,
+    "brier": 0.20869898246470667,
+    "logLoss": 0.6050875601388725,
+    "expectedCalibrationError": 0.02178741757800531
+  },
+  "governance": {
+    "maturity": "VALIDATION",
+    "automaticPromotion": false,
+    "canQualify": true,
+    "canAuthorizeWager": false,
+    "nextGate": "prospective_market_qualification_and_clv_roi_tracking"
+  }
+}

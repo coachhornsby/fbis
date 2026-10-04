@@ -1,0 +1,50 @@
+name: NBA canonical chunked rebuild
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  acquire:
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk:
+          - { id: "2024a", start: "2024-10-22", end: "2025-01-31" }
+          - { id: "2025a", start: "2025-02-01", end: "2025-06-22" }
+          - { id: "2025b", start: "2025-10-21", end: "2026-01-31" }
+          - { id: "2026a", start: "2026-02-01", end: "2026-04-30" }
+          - { id: "2026b", start: "2026-05-01", end: "2026-06-21" }
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: node scripts/nba-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/nba-canonical-${{ matrix.chunk.id }}.jsonl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-canonical-${{ matrix.chunk.id }}-${{ github.run_id }}
+          path: artifacts/nba-canonical-${{ matrix.chunk.id }}*
+          retention-days: 90
+  merge:
+    needs: acquire
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nba-canonical-*-${{ github.run_id }}
+          path: artifacts/chunks
+      - run: node scripts/nba-merge-canonical.mjs artifacts/chunks artifacts/nba-canonical.jsonl
+      - run: |
+          node scripts/nba-fbis-v1-walkforward.mjs artifacts/nba-canonical.jsonl
+          node scripts/nba-player-prop-walkforward.mjs artifacts/nba-canonical.jsonl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-canonical-merged-${{ github.run_id }}
+          path: artifacts/nba-*
+          retention-days: 90
