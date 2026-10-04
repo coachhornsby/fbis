@@ -39,6 +39,18 @@ function modelEdge(vm) {
   return { value: "—", delta: "—", type: "EDGE" };
 }
 
+function SharpStars({ value = 1 }) {
+  const safe = Math.max(1, Math.min(5, Number(value) || 1));
+  return <span className="pgc-sharp-stars" aria-label={`${safe} of 5 confidence stars`}>
+    {Array.from({ length: 5 }, (_, i) => <svg key={i} className={i < safe ? "filled" : "empty"} viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>)}
+  </span>;
+}
+function splitLabel(split, away, home) {
+  if (!split) return "—";
+  const a=Number(split.awayPct), h=Number(split.homePct);
+  if(!Number.isFinite(a)||!Number.isFinite(h)) return "—";
+  return `${away.abbr} ${Math.round(a)}% · ${home.abbr} ${Math.round(h)}%`;
+}
 function MarketCell({ title, value, model, market, edge }) {
   return (
     <div className="pgc-market-cell">
@@ -70,6 +82,11 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
   const cardKey = `${vm.sport || ""}:${vm.id || game?.id}`;
+  const isNfl = String(vm.sport || game?.sport || "").toLowerCase() === "nfl";
+  const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
+  const finalAway = game?.away?.score ?? away?.score ?? null;
+  const finalHome = game?.home?.score ?? home?.score ?? null;
+  const hasFinalScore = isFinal && finalAway != null && finalHome != null;
 
   return (
     <article className={`pgc pgc-featured status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
@@ -81,9 +98,17 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <div className="pgc-featured-meta">
           <span>{[vm.timing?.dateLine, vm.timing?.timeLine].filter(Boolean).join(" · ") || "—"}</span>
           <span className="pgc-sport-pill">{String(vm.sport || "").toUpperCase()}</span>
-          <span className="pgc-rating">★ {stars}</span>
+          <SharpStars value={stars} />
         </div>
       </header>
+
+      {hasFinalScore ? (
+        <section className="pgc-final-score" aria-label="Final score">
+          <span>FINAL SCORE</span>
+          <strong><b>{away.abbr}</b> {finalAway} <i>–</i> {finalHome} <b>{home.abbr}</b></strong>
+          <small>Pregame FBIS projection preserved below</small>
+        </section>
+      ) : null}
 
       <section className="pgc-featured-matchup">
         <div className="pgc-featured-team">
@@ -114,6 +139,21 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </div>
       </section>
 
+      {isNfl ? (
+        <>
+          <section className="pgc-nfl-market" aria-label="Projected game totals and market">
+            <div><span>MARKET SPREAD</span><strong>{market.spreadLabel || cmp.marketSide?.label || "—"}</strong></div>
+            <div><span>FBIS TOTAL</span><strong>{proj.total ?? "—"}</strong></div>
+            <div><span>MARKET TOTAL</span><strong>{market.total ?? "—"}</strong></div>
+          </section>
+          <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION public betting">
+            <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "PUBLIC BETTING" : action.emptyLabel || "NO SNAPSHOT")}</span></div>
+            <div><span>TICKETS</span><strong>{splitLabel(action.tickets, away, home)}</strong></div>
+            <div><span>MONEY</span><strong>{splitLabel(action.money, away, home)}</strong></div>
+            <div><span>LINE MOVE</span><strong>{action.lineMove?.label || action.movement?.label || "NO MOVE"}</strong></div>
+          </section>
+        </>
+      ) : (
       <section className="pgc-market-grid">
         <MarketCell
           title="SPREAD"
@@ -160,6 +200,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </div>
       </section>
 
+
+      )}
       <footer className="pgc-footer pgc-featured-footer">
         <span>{vm.footer?.marketSourceLabel || "Market Source: —"}</span>
         {typeof onToggle === "function" ? (
