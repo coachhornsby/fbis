@@ -57,13 +57,16 @@ const markets={};
 for(const m of ["points","rebounds","assists","three_pointers_made"]){
   const rs=outRows.filter(r=>r.market===m);
   const baseAbs=rs.map(r=>Math.abs(r.baselineError)),impactAbs=rs.map(r=>Math.abs(r.impactError));
-  markets[m]={n:rs.length,baselineMae:mean(baseAbs),impactMae:mean(impactAbs),maeDelta:mean(impactAbs)-mean(baseAbs),
+  const baselineMae=mean(baseAbs),impactMae=mean(impactAbs);
+  const relativeImprovement=baselineMae?((baselineMae-impactMae)/baselineMae):null;
+  markets[m]={n:rs.length,baselineMae,impactMae,maeDelta:impactMae-baselineMae,relativeImprovement,
     baselineBias:mean(rs.map(r=>r.baselineError)),impactBias:mean(rs.map(r=>r.impactError)),
-    passed:rs.length>=500&&mean(impactAbs)<=mean(baseAbs)};
+    passed:rs.length>=500&&relativeImprovement!=null&&relativeImprovement>=0.001};
 }
 const passCount=Object.values(markets).filter(x=>x.passed).length;
 const report={generatedAt:new Date().toISOString(),modelId:"NBA-FBIS-PLAYER-IMPACT-v1",method:"chronological_walk_forward_with_periodic_rapm_refit",
   games:games.length,rows:outRows.length,markets,decision:passCount>=3?"PROMOTE_IMPACT_CONTEXT":"RETAIN_RESEARCH",
+  directSelfImpactDecision:passCount>=3?"SUPPORTED":"REJECTED_OR_NO_INCREMENTAL_VALUE",
   roleRedistributionValidation:"PROSPECTIVE_ONLY_UNTIL_TIMESTAMPED_AVAILABILITY_SAMPLE_EXISTS",
   governance:{marketUsed:false,targetGameAvailabilityUsed:false,propLinesUsed:false}};
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
