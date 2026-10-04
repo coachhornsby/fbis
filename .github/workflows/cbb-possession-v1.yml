@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "functions/lib/cbbPossessionModel.js"
+      - "functions/lib/cbbNcaaPossessionModel.js"
+      - "functions/lib/cbbNcaaPossessionModel.js"
       - "scripts/cbb-possession-history-v1.mjs"
       - "scripts/cbb-possession-fit-v1.mjs"
       - "test/cbb-possession-model.test.js"
@@ -46,6 +48,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check functions/lib/cbbPossessionModel.js
+          node --check functions/lib/cbbNcaaPossessionModel.js
           node --check scripts/cbb-possession-history-v1.mjs
           node --check scripts/cbb-possession-fit-v1.mjs
           node --test test/cbb-possession-model.test.js
