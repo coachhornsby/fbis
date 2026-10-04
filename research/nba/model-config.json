@@ -82,5 +82,33 @@
     "directQualificationAllowed": false,
     "wagerAuthorizationAllowed": false,
     "immutableObservationSeries": true
+  },
+  "playerImpact": {
+    "modelId": "NBA-FBIS-PLAYER-IMPACT-v1",
+    "primaryResearchBenchmark": "EPM",
+    "secondaryBenchmarks": [
+      "DARKO",
+      "RAPM",
+      "VORP",
+      "WS48"
+    ],
+    "productionDependencyOnExternalMetrics": false,
+    "productionComponents": [
+      "dynamic_skill_decay",
+      "spm_style_box_prior",
+      "regularized_adjusted_plus_minus",
+      "raw_on_off_diagnostic",
+      "five_man_lineups",
+      "three_man_cores",
+      "player_pairs",
+      "with_without_context",
+      "role_minutes_redistribution",
+      "usage_assist_rebound_three_opportunity_redistribution"
+    ],
+    "validation": {
+      "impactAdjustment": "true_walk_forward",
+      "injuryRedistribution": "prospective_only_until_timestamped_historical_availability_is_sufficient",
+      "promoteOnlyIfIncrementalHoldoutValue": true
+    }
   }
 }

@@ -1,7 +1,7 @@
 # NBA-FBIS-v1 Research Program
 
-Status: RESEARCH ONLY
-Production eligibility: false
+Status: VALIDATION / PROSPECTIVE QUALIFICATION
+Production wager authorization: false
 Primary objective: generate positive closing-line value (CLV) and positive ROI after vig using independent NBA game projections.
 
 ## Governing principle
@@ -157,7 +157,7 @@ A model does not qualify because of winner accuracy alone.
 
 ## Qualification gates
 
-NBA-FBIS-v1 remains canQualify=false until it passes all gates:
+NBA-FBIS-v1 is qualification-eligible, but qualification remains point-in-time and evidence-driven. The following gates govern promotion/authorization:
 
 1. Data provenance
    - all production features have approved source classifications.
@@ -220,10 +220,10 @@ Promotion requires:
 - CLV/ROI report
 - explicit canQualify=true governance change
 
-Until then:
+Current governance:
 - model_id = NBA-FBIS-v1
-- state = RESEARCH
-- canQualify = false
+- state = VALIDATION
+- canQualify = true
 - wagerAuthorization = false
 
 
@@ -286,3 +286,35 @@ Primary wagering validation metrics are:
 - confidence monotonicity.
 
 Projection MAE remains a diagnostic, not the wagering objective.
+
+
+## Player impact and lineup architecture
+
+NBA-PLAYER-PROP-v1 consumes a separate FBIS-native player-impact layer: NBA-FBIS-PLAYER-IMPACT-v1.
+
+Primary research benchmark:
+- EPM.
+
+Secondary research benchmarks:
+- DARKO.
+- RAPM.
+- VORP.
+- WS/48.
+
+External published metrics are benchmark-only and are never required production inputs.
+
+Production-safe player-impact construction:
+- exponentially decayed dynamic skill estimates by stat;
+- SPM-style box-score prior;
+- regularized adjusted plus/minus from approved PBP-derived lineup stints;
+- raw on/off diagnostic;
+- regularized five-man lineup effects;
+- three-man core effects;
+- player-pair effects;
+- with/without teammate context;
+- expected minutes redistribution;
+- usage, assist, rebound and three-point opportunity redistribution.
+
+The FBIS impact layer is inspired by the methodology class used by modern predictive impact metrics, but it does not reproduce or relabel proprietary EPM/DARKO formulas.
+
+Impact-context promotion requires incremental true walk-forward value against the existing prop baseline. Injury-driven redistribution remains prospective-only until timestamped historical availability is sufficient to backtest without target-game leakage.

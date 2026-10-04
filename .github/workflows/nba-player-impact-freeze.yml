@@ -1,0 +1,65 @@
+name: NBA player impact freeze
+
+on:
+  push:
+    branches: ["research/nba-player-impact-v1"]
+    paths:
+      - "research/nba/player-impact-snapshot.json"
+      - ".github/workflows/nba-player-impact-freeze.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+
+      - name: Download pinned successful research artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifact_id=$(node -p "require('./research/nba/player-impact-snapshot.json').sourceArtifactId")
+          curl -L --fail-with-body             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip"             -o /tmp/nba-impact.zip
+          mkdir -p artifacts/frozen
+          unzip -q /tmp/nba-impact.zip -d artifacts/frozen
+          test -s artifacts/frozen/nba-player-impact-v1.json
+          test -s artifacts/frozen/nba-player-impact-walkforward.json
+          test -s artifacts/frozen/nba-lineup-effects.json
+          test -s artifacts/frozen/nba-lineup-stints.jsonl
+
+      - name: Verify pinned research result
+        run: |
+          set -euo pipefail
+          test "$(jq -r '.decision' artifacts/frozen/nba-player-impact-walkforward.json)" = "RETAIN_RESEARCH"
+          test "$(jq -r '.rows' artifacts/frozen/nba-player-impact-walkforward.json)" = "221364"
+          test "$(jq -r '.stints' artifacts/frozen/nba-player-impact-v1.json)" = "58810"
+
+      - name: Freeze to Cloudflare R2 research storage
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          PREFIX=$(node -p "require('./research/nba/player-impact-snapshot.json').r2.prefix")
+          for f in nba-player-impact-v1.json nba-player-impact-walkforward.json nba-player-impact-walkforward-rows.jsonl nba-lineup-effects.json nba-lineup-stints.jsonl; do
+            npx wrangler r2 object put "fbis-archive/${PREFIX}/${f}" --file "artifacts/frozen/${f}" --remote
+          done
+
+      - name: Verify R2 read-back
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          PREFIX=$(node -p "require('./research/nba/player-impact-snapshot.json').r2.prefix")
+          npx wrangler r2 object get "fbis-archive/${PREFIX}/nba-player-impact-walkforward.json" --file /tmp/walkforward.json --remote
+          test "$(jq -r '.decision' /tmp/walkforward.json)" = "RETAIN_RESEARCH"
