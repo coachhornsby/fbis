@@ -1,11 +1,16 @@
 name: NHL full model + prop validation
 
 on:
+  schedule:
+    - cron: "45 12 * * 1"
   push:
-    branches:
-      - "feature/nhl-full-subset-props-validation-20261003"
+    branches: [main]
     paths:
-      - ".github/nhl-full-validation-run"
+      - "scripts/nhl-pro-v2-walkforward.mjs"
+      - "scripts/nhl-player-pro-v2-backtest.mjs"
+      - "functions/lib/nhlPlayerProV2.js"
+      - "functions/lib/proPlayerProjectionLayer.js"
+      - "src/features/playerProps/buildPlayerPropsBoard.js"
       - ".github/workflows/nhl-full-validation.yml"
   workflow_dispatch:
 
@@ -19,7 +24,7 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4.2.2
         with:
@@ -101,6 +106,18 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin "${{ github.ref_name }}"
           git reset --hard "origin/${{ github.ref_name }}"
+          jq -S 'del(.generatedAt)' data/models/nhl-pro-v2-validation.json > "$RUNNER_TEMP/old-game.norm" 2>/dev/null || true
+          jq -S 'del(.generatedAt)' "$RUNNER_TEMP/nhl-pro-v2-validation.json" > "$RUNNER_TEMP/new-game.norm"
+          jq -S 'del(.generatedAt)' data/models/nhl-player-pro-v2-validation.json > "$RUNNER_TEMP/old-player.norm" 2>/dev/null || true
+          jq -S 'del(.generatedAt)' "$RUNNER_TEMP/nhl-player-pro-v2-validation.json" > "$RUNNER_TEMP/new-player.norm"
+          sed -E 's/"generatedAt": "[^"]+"/"generatedAt": "<stable>"/' data/models/nhl-player-pro-v2.js > "$RUNNER_TEMP/old-artifact.norm" 2>/dev/null || true
+          sed -E 's/"generatedAt": "[^"]+"/"generatedAt": "<stable>"/' "$RUNNER_TEMP/nhl-player-pro-v2.js" > "$RUNNER_TEMP/new-artifact.norm"
+          if cmp -s "$RUNNER_TEMP/old-game.norm" "$RUNNER_TEMP/new-game.norm" \
+            && cmp -s "$RUNNER_TEMP/old-player.norm" "$RUNNER_TEMP/new-player.norm" \
+            && cmp -s "$RUNNER_TEMP/old-artifact.norm" "$RUNNER_TEMP/new-artifact.norm"; then
+            echo "validation outputs unchanged apart from generatedAt"
+            exit 0
+          fi
           cp "$RUNNER_TEMP/nhl-pro-v2-validation.json" data/models/nhl-pro-v2-validation.json
           cp "$RUNNER_TEMP/nhl-player-pro-v2-validation.json" data/models/nhl-player-pro-v2-validation.json
           cp "$RUNNER_TEMP/nhl-player-pro-v2.js" data/models/nhl-player-pro-v2.js
