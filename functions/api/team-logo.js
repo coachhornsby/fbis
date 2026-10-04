@@ -8,6 +8,30 @@ const ESPN_TEAM_ENDPOINTS = {
   nhl: ["nhl"],
 };
 
+const WIKI_TEAM_TITLES = {
+  npb: {
+    "hanshin":"Hanshin Tigers","hanshin tigers":"Hanshin Tigers",
+    "yokohama dena":"Yokohama DeNA BayStars","yokohama dena baystars":"Yokohama DeNA BayStars","dena":"Yokohama DeNA BayStars",
+    "yomiuri":"Yomiuri Giants","yomiuri giants":"Yomiuri Giants","giants":"Yomiuri Giants",
+    "chunichi":"Chunichi Dragons","chunichi dragons":"Chunichi Dragons",
+    "hiroshima":"Hiroshima Toyo Carp","hiroshima carp":"Hiroshima Toyo Carp","hiroshima toyo carp":"Hiroshima Toyo Carp",
+    "yakult":"Tokyo Yakult Swallows","tokyo yakult":"Tokyo Yakult Swallows","tokyo yakult swallows":"Tokyo Yakult Swallows",
+    "softbank":"Fukuoka SoftBank Hawks","fukuoka softbank":"Fukuoka SoftBank Hawks","fukuoka softbank hawks":"Fukuoka SoftBank Hawks",
+    "nippon ham":"Hokkaido Nippon-Ham Fighters","nippon ham fighters":"Hokkaido Nippon-Ham Fighters","hokkaido nippon ham fighters":"Hokkaido Nippon-Ham Fighters",
+    "orix":"Orix Buffaloes","orix buffaloes":"Orix Buffaloes",
+    "rakuten":"Tohoku Rakuten Golden Eagles","rakuten golden eagles":"Tohoku Rakuten Golden Eagles","tohoku rakuten golden eagles":"Tohoku Rakuten Golden Eagles",
+    "seibu":"Saitama Seibu Lions","seibu lions":"Saitama Seibu Lions","saitama seibu lions":"Saitama Seibu Lions",
+    "chiba lotte":"Chiba Lotte Marines","lotte marines":"Chiba Lotte Marines","chiba lotte marines":"Chiba Lotte Marines"
+  },
+  kbo: {
+    "lg":"LG Twins","lg twins":"LG Twins","hanwha":"Hanwha Eagles","hanwha eagles":"Hanwha Eagles",
+    "ssg":"SSG Landers","ssg landers":"SSG Landers","samsung":"Samsung Lions","samsung lions":"Samsung Lions",
+    "kt":"KT Wiz","kt wiz":"KT Wiz","lotte":"Lotte Giants","lotte giants":"Lotte Giants",
+    "doosan":"Doosan Bears","doosan bears":"Doosan Bears","nc":"NC Dinos","nc dinos":"NC Dinos",
+    "kia":"Kia Tigers","kia tigers":"Kia Tigers","kiwoom":"Kiwoom Heroes","kiwoom heroes":"Kiwoom Heroes"
+  }
+};
+
 function json(body,status=200){
   return new Response(JSON.stringify(body),{
     status,
@@ -51,6 +75,20 @@ function scoreMatch(query,team={}){
   return best;
 }
 
+
+async function wikipediaTeamLogo(sport,name){
+  const map=WIKI_TEAM_TITLES[sport]||{};
+  const title=map[norm(name)]||name;
+  const endpoint="https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&piprop=thumbnail&pithumbsize=256&redirects=1&titles="+encodeURIComponent(title);
+  const res=await fetch(endpoint,{headers:{accept:"application/json"}});
+  if(!res.ok) return null;
+  const body=await res.json().catch(()=>({}));
+  const pages=Object.values(body?.query?.pages||{});
+  const page=pages.find(p=>p?.thumbnail?.source)||null;
+  if(!page) return null;
+  return {name:page.title||title,abbr:null,logo:page.thumbnail.source,wikipediaTitle:page.title||title};
+}
+
 async function espnTeams(sport,league){
   const path=sport==="nhl"
     ? "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams?limit=100"
@@ -65,7 +103,12 @@ export async function onRequestGet(context){
   const url=new URL(context.request.url);
   const sport=String(url.searchParams.get("sport")||"").toLowerCase();
   const name=String(url.searchParams.get("name")||"").trim();
-  if(!name||!ESPN_TEAM_ENDPOINTS[sport]) return json({ok:false,error:"unsupported team lookup"},400);
+  if(!name) return json({ok:false,error:"name required"},400);
+  if(sport==="npb"||sport==="kbo"){
+    const team=await wikipediaTeamLogo(sport,name).catch(()=>null);
+    return team ? json({ok:true,found:true,sport,team}) : json({ok:true,found:false,sport,name});
+  }
+  if(!ESPN_TEAM_ENDPOINTS[sport]) return json({ok:false,error:"unsupported team lookup"},400);
 
   let best=null,bestScore=0,bestLeague=null;
   for(const league of ESPN_TEAM_ENDPOINTS[sport]){
