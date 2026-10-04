@@ -7,6 +7,11 @@ on:
       - "functions/lib/cbbPlayerFeed.js"
       - "functions/lib/cbbPlayerGameModel.js"
       - "functions/lib/cbbPlayerPropModel.js"
+      - "functions/lib/cbbPlayerPropV2.js"
+      - "functions/lib/cbbPlayerMarginV1.js"
+      - "functions/api/cbb-prop-grade.js"
+      - "functions/api/prizepicks-props.js"
+      - "migrations/0040_cbb_prop_learning.sql"
       - "functions/lib/slateEngine.js"
       - "scripts/cbb-player-history-v1.mjs"
       - "scripts/cbb-player-game-fit-v1.mjs"
@@ -37,6 +42,9 @@ jobs:
       - name: Unit tests
         run: |
           node --check functions/lib/cbbPlayerGameModel.js
+          node --check functions/lib/cbbPlayerPropV2.js
+          node --check functions/lib/cbbPlayerMarginV1.js
+          node --check functions/api/cbb-prop-grade.js
           node --check scripts/cbb-player-history-v1.mjs
           node --check scripts/cbb-player-game-fit-v1.mjs
           node --check scripts/cbb-player-prop-fit-v2.mjs
