@@ -1606,3 +1606,106 @@
     width: 138px !important;
   }
 }
+
+
+/* FINAL Player Props hero correction.
+   Center player; keep larger team logo left; confidence floats with gold glow,
+   no dark pill/background. */
+.pp-premium-headshot {
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 56% !important;
+  max-width: 240px !important;
+}
+
+.pp-team-watermark {
+  left: 1% !important;
+  top: 50% !important;
+  width: 43% !important;
+  height: 84% !important;
+  transform: translateY(-50%) !important;
+  opacity: .18 !important;
+}
+
+.pp-team-watermark img {
+  width: 130% !important;
+  height: 130% !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.pp-premium-stars {
+  top: 13px !important;
+  right: 14px !important;
+  left: auto !important;
+  width: auto !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  padding: 4px 2px !important;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.pp-star-icons {
+  display: inline-flex !important;
+  grid-template-columns: none !important;
+  gap: 2px !important;
+  font-size: 18px !important;
+  filter: drop-shadow(0 0 7px rgba(255, 199, 45, .58));
+}
+
+.pp-star-icons > span {
+  width: auto !important;
+}
+
+.pp-star-icons .filled {
+  color: #ffd23f !important;
+  text-shadow:
+    0 0 5px rgba(255, 210, 63, .95),
+    0 0 12px rgba(255, 190, 30, .70),
+    0 0 22px rgba(255, 166, 0, .38) !important;
+}
+
+.pp-star-icons .empty {
+  color: rgba(255, 220, 115, .28) !important;
+  text-shadow: 0 0 5px rgba(255, 201, 60, .12) !important;
+}
+
+.pp-premium-stars b {
+  display: inline-block !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border-left: 0 !important;
+  color: #ffe38a !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  text-shadow:
+    0 0 7px rgba(255, 202, 48, .65),
+    0 0 15px rgba(255, 178, 0, .30) !important;
+}
+
+@media (max-width:760px) {
+  .pp-premium-headshot {
+    left: 50% !important;
+    width: 55% !important;
+    max-width: 220px !important;
+  }
+  .pp-team-watermark {
+    left: 0 !important;
+    width: 44% !important;
+  }
+  .pp-premium-stars {
+    top: 11px !important;
+    right: 12px !important;
+    padding: 3px 1px !important;
+  }
+  .pp-star-icons { font-size: 17px !important; }
+  .pp-premium-stars b { font-size: 12px !important; }
+}

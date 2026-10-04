@@ -8,6 +8,20 @@ function fmt(v) {
   return (Math.round(n * 10) / 10).toFixed(Math.abs(n % 1) > 0.001 ? 1 : 0);
 }
 
+function Stars({ value = 1 }) {
+  const safe = Math.max(1, Math.min(5, Number(value) || 1));
+  return (
+    <span className="cgc-star-row" aria-label={`${safe} of 5 confidence stars`}>
+      <span aria-hidden="true">
+        {Array.from({ length: 5 }, (_, i) => (
+          <span key={i} className={i < safe ? "filled" : "empty"}>★</span>
+        ))}
+      </span>
+      <b>{safe}/5</b>
+    </span>
+  );
+}
+
 function bestEdge(vm) {
   const cmp = vm.comparison || {};
   const spread = Number(cmp.sideDiff);
@@ -66,9 +80,12 @@ export default function CompactGameCard({ game, onOpen }) {
           <span className="cgc-sport-pill">{String(vm.sport || "").toUpperCase()}</span>
           <span className="cgc-time">{vm.timing?.timeLine || "—"}</span>
         </div>
-        <span className="cgc-rating" aria-label={`${stars} of 5 confidence stars`}>
-          <span aria-hidden="true">★</span> {stars}
-        </span>
+        <div className="cgc-head-right">
+          <Stars value={stars} />
+          <span className={`cgc-status cgc-status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
+            {vm.status?.label || "FBIS"}
+          </span>
+        </div>
       </header>
 
       <div className="cgc-main">
@@ -76,8 +93,9 @@ export default function CompactGameCard({ game, onOpen }) {
           <div className="cgc-team-block">
             <TeamLogo team={away} size={66} className="cgc-logo" />
             <strong className="cgc-abbr">{away.abbr || "—"}</strong>
+            <span className="cgc-team-name">{away.fullName || away.name || away.abbr || "—"}</span>
             <strong className="cgc-proj">{proj.available ? (proj.away ?? "—") : "—"}</strong>
-            <span>PROJ. SCORE</span>
+            <span>FBIS SCORE</span>
           </div>
 
           <span className="cgc-vs">VS</span>
@@ -85,8 +103,9 @@ export default function CompactGameCard({ game, onOpen }) {
           <div className="cgc-team-block">
             <TeamLogo team={home} size={66} className="cgc-logo" />
             <strong className="cgc-abbr">{home.abbr || "—"}</strong>
+            <span className="cgc-team-name">{home.fullName || home.name || home.abbr || "—"}</span>
             <strong className="cgc-proj">{proj.available ? (proj.home ?? "—") : "—"}</strong>
-            <span>PROJ. SCORE</span>
+            <span>FBIS SCORE</span>
           </div>
         </div>
 
@@ -105,10 +124,15 @@ export default function CompactGameCard({ game, onOpen }) {
         </aside>
       </div>
 
-      <div className="cgc-market-strip" aria-label="Current market lines">
+      <div className="cgc-market-strip" aria-label="FBIS and market comparison">
         <div className="cgc-market-item">
           <span>MARKET SPREAD</span>
           <strong>{market.spreadLabel || "—"}</strong>
+        </div>
+        <div className="cgc-market-divider" aria-hidden="true" />
+        <div className="cgc-market-item cgc-market-item-fbis">
+          <span>FBIS TOTAL</span>
+          <strong>{proj.total ?? "—"}</strong>
         </div>
         <div className="cgc-market-divider" aria-hidden="true" />
         <div className="cgc-market-item">
@@ -119,12 +143,12 @@ export default function CompactGameCard({ game, onOpen }) {
 
       <footer className="cgc-footer">
         <div className="cgc-footer-metric">
-          <strong>{stars}/5</strong>
-          <span>CONFIDENCE</span>
+          <strong>{game?.modelVersion || vm?.projection?.modelId || "FBIS"}</strong>
+          <span>MODEL</span>
         </div>
         <div className="cgc-footer-metric">
-          <strong>{proj.total ?? "—"}</strong>
-          <span>PROJ. TOTAL</span>
+          <strong>{vm.comparison?.sideDiffLabel || vm.comparison?.totalDiffLabel || "—"}</strong>
+          <span>MODEL / MARKET GAP</span>
         </div>
         <span className="cgc-view">VIEW <b>→</b></span>
       </footer>
