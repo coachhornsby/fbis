@@ -10,7 +10,7 @@
 import { pGreater } from "./metrics.js";
 import { clamp, coverageSummary, finite, round1, weightedPresent } from "./deepModelCommon.js";
 
-export const NFL_PRO_ID = "NFL-PRO-v1";
+export const NFL_PRO_ID = "NFL-PRO-v1.2";
 export const NFL_PRO_CONSTANTS = {
   leaguePpg: 22.5,
   hfa: 1.5,
@@ -58,19 +58,39 @@ function teamPower(f = {}) {
 function qbValue(f = {}) {
   const epa = n(f, "qbEpa", "qbEpaPerDropback", "dropbackEpa");
   const cpoe = n(f, "qbCpoe", "cpoe");
+  const ngsCpoe = n(f, "qbNgsCpoe");
+  const timeToThrow = n(f, "qbTimeToThrow");
+  const aggressiveness = n(f, "qbAggressiveness");
   const pressureEpa = n(f, "qbPressureEpa", "pressureEpa");
   const sack = n(f, "qbSackRate", "sackRate");
   const scramble = n(f, "qbScrambleEpa", "scrambleEpa");
   const prior = n(f, "qbPrior", "qbPriorValue");
+  const cpoeSignal = cpoe != null && ngsCpoe != null ? (cpoe * 0.65 + ngsCpoe * 0.35) : (cpoe ?? ngsCpoe);
   const value = weightedPresent([
-    { value: epa == null ? null : epa * 8, weight: 0.44 },
-    { value: cpoe == null ? null : cpoe * 0.22, weight: 0.16 },
-    { value: pressureEpa == null ? null : pressureEpa * 5, weight: 0.14 },
-    { value: sack == null ? null : -(sack - 0.07) * 16, weight: 0.10 },
-    { value: scramble == null ? null : scramble * 3, weight: 0.06 },
+    { value: epa == null ? null : epa * 8, weight: 0.39 },
+    { value: cpoeSignal == null ? null : cpoeSignal * 0.22, weight: 0.17 },
+    { value: pressureEpa == null ? null : pressureEpa * 5, weight: 0.12 },
+    { value: sack == null ? null : -(sack - 0.07) * 16, weight: 0.09 },
+    { value: scramble == null ? null : scramble * 3, weight: 0.05 },
+    { value: timeToThrow == null ? null : -(timeToThrow - 2.75) * 1.2, weight: 0.05 },
+    { value: aggressiveness == null ? null : -(aggressiveness - 15) * 0.04, weight: 0.03 },
     { value: prior, weight: 0.10 },
   ]);
-  return { value: value == null ? null : clamp(value, -5, 5), inputs: { epa, cpoe, pressureEpa, sack, scramble, prior } };
+  return { value: value == null ? null : clamp(value, -5, 5), inputs: { epa, cpoe, ngsCpoe, cpoeSignal, timeToThrow, aggressiveness, pressureEpa, sack, scramble, prior } };
+}
+
+function trackingValue(f = {}) {
+  const rushYoe = n(f, "rushYoePerAtt");
+  const rushEfficiency = n(f, "rushEfficiency");
+  const separation = n(f, "receivingSeparation");
+  const yacOe = n(f, "receivingYacOe");
+  const value = weightedPresent([
+    { value: rushYoe == null ? null : clamp(rushYoe * 0.55, -1.4, 1.4), weight: 0.30 },
+    { value: rushEfficiency == null ? null : clamp(-(rushEfficiency - 3.5) * 0.18, -1.0, 1.0), weight: 0.15 },
+    { value: separation == null ? null : clamp((separation - 2.9) * 0.9, -1.4, 1.4), weight: 0.30 },
+    { value: yacOe == null ? null : clamp(yacOe * 0.45, -1.4, 1.4), weight: 0.25 },
+  ]);
+  return { value: value == null ? null : clamp(value, -1.6, 1.6), inputs: { rushYoe, rushEfficiency, separation, yacOe } };
 }
 
 function matchup(off = {}, def = {}) {
@@ -125,7 +145,7 @@ export function projectNflProV1(game = {}) {
   if (hp.value == null || ap.value == null || hq.value == null || aq.value == null) {
     return {
       modelId: NFL_PRO_ID,
-      version: "v1",
+      version: "v1.2",
       role: "shadow",
       family: "professional-football",
       ok: false,
@@ -140,12 +160,14 @@ export function projectNflProV1(game = {}) {
   const am = matchup(awayF, homeF);
   const hst = specialTeams(homeF);
   const ast = specialTeams(awayF);
+  const htrack = trackingValue(homeF);
+  const atrack = trackingValue(awayF);
   const hc = context(game, homeF);
   const ac = context(game, awayF);
   const hfa = game.neutralSite ? 0 : NFL_PRO_CONSTANTS.hfa;
 
-  const home = round1(clamp(NFL_PRO_CONSTANTS.leaguePpg + hp.value + hm.total + hq.value * 0.55 + (hst ?? 0) + hc + hfa / 2, 8, 42));
-  const away = round1(clamp(NFL_PRO_CONSTANTS.leaguePpg + ap.value + am.total + aq.value * 0.55 + (ast ?? 0) + ac - hfa / 2, 8, 42));
+  const home = round1(clamp(NFL_PRO_CONSTANTS.leaguePpg + hp.value + hm.total + hq.value * 0.55 + (htrack.value ?? 0) + (hst ?? 0) + hc + hfa / 2, 8, 42));
+  const away = round1(clamp(NFL_PRO_CONSTANTS.leaguePpg + ap.value + am.total + aq.value * 0.55 + (atrack.value ?? 0) + (ast ?? 0) + ac - hfa / 2, 8, 42));
   const margin = round1(home - away);
   const total = round1(home + away);
   const coverage = coverageSummary({
@@ -159,13 +181,14 @@ export function projectNflProV1(game = {}) {
     pressure: hm.pressure != null && am.pressure != null,
     trenches: hm.trenches != null && am.trenches != null,
     specialTeams: hst != null && ast != null,
+    nextGenTracking: htrack.value != null && atrack.value != null,
     context: Object.keys(homeF).some((k) => /rest|travel|weather|altitude|timeZone/i.test(k)) || Object.keys(awayF).some((k) => /rest|travel|weather|altitude|timeZone/i.test(k)),
   });
   const uncertaintyMultiplier = 1 + (1 - coverage.share) * 0.28;
 
   return {
     modelId: NFL_PRO_ID,
-    version: "v1",
+    version: "v1.2",
     role: "shadow",
     family: "professional-football",
     ok: true,
@@ -182,8 +205,8 @@ export function projectNflProV1(game = {}) {
     coverage,
     decomposition: {
       baseLeaguePpg: NFL_PRO_CONSTANTS.leaguePpg,
-      home: { teamPower: hp.value, matchup: hm, qb: hq, specialTeams: hst, context: hc, hfa: hfa / 2 },
-      away: { teamPower: ap.value, matchup: am, qb: aq, specialTeams: ast, context: ac, hfa: -hfa / 2 },
+      home: { teamPower: hp.value, matchup: hm, qb: hq, tracking: htrack, specialTeams: hst, context: hc, hfa: hfa / 2 },
+      away: { teamPower: ap.value, matchup: am, qb: aq, tracking: atrack, specialTeams: ast, context: ac, hfa: -hfa / 2 },
     },
     provenance: {
       marketUsed: false,
@@ -227,7 +250,7 @@ export function attachNflProShadow(games = []) {
       available,
       games: next.length,
       qualificationAllowed: false,
-      note: "NFL professional-football challenger. Production NFL remains blocked until this or a successor earns promotion through frozen rolling OOS evidence.",
+      note: "NFL-PRO-v1.2 adds capped Next Gen passing/rushing/receiving signals. It remains research-only until leakage-safe walk-forward evidence beats the prior model and market benchmarks.",
     },
   };
 }
