@@ -92,12 +92,18 @@ function buildComparison(board, away, home, units) {
     sideRelationship = "PARTIAL";
   }
 
+  const spreadSignedDelta =
+    board.comparison?.spreadSignedDelta != null
+      ? Number(board.comparison.spreadSignedDelta)
+      : board.comparison?.spreadDelta != null
+        ? Number(board.comparison.spreadDelta)
+        : fbisHomeSpread != null && marketHomeSpread != null
+          ? Number(fbisHomeSpread) - Number(marketHomeSpread)
+          : null;
   const spreadDelta =
-    board.comparison?.spreadDelta != null
-      ? Math.abs(Number(board.comparison.spreadDelta))
-      : fbisHomeSpread != null && marketHomeSpread != null
-        ? Math.abs(Number(fbisHomeSpread) - Number(marketHomeSpread))
-        : null;
+    spreadSignedDelta == null || Number.isNaN(spreadSignedDelta)
+      ? null
+      : Math.abs(spreadSignedDelta);
 
   const totalDelta =
     board.comparison?.totalDelta != null
@@ -116,6 +122,7 @@ function buildComparison(board, away, home, units) {
   return {
     label: board.comparison?.label || "MODEL vs MARKET",
     sideDiff: spreadDelta,
+    sideSignedDiff: spreadSignedDelta,
     sideDiffLabel:
       spreadDelta == null ? null : `${round1(spreadDelta)} ${units.shortUnit}`,
     sideRelationship,
