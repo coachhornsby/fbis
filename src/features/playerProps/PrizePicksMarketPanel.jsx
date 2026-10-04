@@ -244,11 +244,166 @@ function StarRating({ stars=1 }){
   );
 }
 
+function fmtStat(v){
+  if(v==null||!Number.isFinite(Number(v))) return "—";
+  const n=Number(v);
+  return Math.abs(n)>=100?Math.round(n).toString():Number(n.toFixed(1)).toString();
+}
+function pct(v){
+  if(v==null||!Number.isFinite(Number(v))) return "—";
+  const n=Number(v);
+  return Math.round((n<=1?n*100:n))+"%";
+}
+function trendClass(value,line){
+  if(value==null||line==null) return "";
+  return Number(value)>Number(line)?"over":"under";
+}
+function modelReason(row,detail){
+  const side=sideFor(row);
+  const projection=Number(row?.fbis_projection);
+  const line=Number(row?.line);
+  const edge=projection-line;
+  const bits=[];
+  if(Number.isFinite(edge)) bits.push("FBIS projects "+num(projection)+" vs "+String(line)+" ("+signed(edge)+").");
+  const l5=detail?.season?.recent5Average;
+  if(Number.isFinite(Number(l5))) bits.push("Last-5 average: "+fmtStat(l5)+".");
+  const season=detail?.season?.average;
+  if(Number.isFinite(Number(season))) bits.push("Season average: "+fmtStat(season)+".");
+  const mf=detail?.matchup?.matchupFactor;
+  if(Number.isFinite(Number(mf))){
+    const d=(Number(mf)-1)*100;
+    bits.push("Opponent allows "+Math.abs(d).toFixed(0)+"% "+(d>=0?"more":"less")+" than league average to this position/stat.");
+  }
+  if(detail?.role?.snapShare!=null) bits.push("Snap share: "+pct(detail.role.snapShare)+".");
+  if(row?.featureEvidence?.targetRoleName) bits.push("Role: "+row.featureEvidence.targetRoleName+".");
+  if(side==="WATCH") bits.push("Model and line are effectively even.");
+  return bits;
+}
+function PropAnalytics({ row, open, onToggle }){
+  const [state,setState]=useState({loading:false,error:"",body:null});
+  useEffect(()=>{
+    if(!open||state.body||state.loading) return;
+    let cancelled=false;
+    const q=new URLSearchParams({
+      sport:String(row?.sport||""),
+      name:String(row?.player_name||""),
+      team:String(row?.team||""),
+      opponent:String(row?.opponent||""),
+      market:String(row?.canonical_market||row?.stat_type||""),
+      line:String(row?.line??""),
+      modelVersion:String(row?.model_version||""),
+    });
+    setState({loading:true,error:"",body:null});
+    fetch("/api/player-prop-detail?"+q.toString(),{credentials:"same-origin"})
+      .then(async res=>{
+        const body=await res.json().catch(()=>({}));
+        if(!res.ok||body?.ok===false) throw new Error(body?.error||("HTTP "+res.status));
+        return body;
+      })
+      .then(body=>{if(!cancelled)setState({loading:false,error:"",body});})
+      .catch(err=>{if(!cancelled)setState({loading:false,error:String(err?.message||err),body:null});});
+    return()=>{cancelled=true};
+  },[open,row,state.body,state.loading]);
+
+  const detail=state.body?.detail||null;
+  const calibration=state.body?.calibration||null;
+  const reasons=modelReason(row,detail);
+  return (
+    <div className={"pp-analytics"+(open?" open":"")}>
+      <button type="button" className="pp-analytics-toggle" onClick={onToggle} aria-expanded={open}>
+        <span>{open?"Hide analytics":"Why FBIS likes it"}</span>
+        <span aria-hidden="true">{open?"⌃":"⌄"}</span>
+      </button>
+      {open?(
+        <div className="pp-analytics-body">
+          {state.loading?<div className="pp-analytics-loading">Loading player history…</div>:null}
+          {state.error?<div className="pp-analytics-loading">Analytics unavailable: {state.error}</div>:null}
+          {reasons.length?(
+            <div className="pp-why-card">
+              <div className="pp-analytics-label">FBIS READ</div>
+              <ul>{reasons.map((x,i)=><li key={i}>{x}</li>)}</ul>
+            </div>
+          ):null}
+          {detail?.last5?.length?(
+            <div className="pp-history-block">
+              <div className="pp-history-head">
+                <div>
+                  <div className="pp-analytics-label">LAST 5</div>
+                  <strong>{marketLabel(row)}</strong>
+                </div>
+                <div className="pp-history-summary">
+                  <span>L5 AVG</span><b>{fmtStat(detail?.season?.recent5Average ?? (detail.last5.reduce((s,g)=>s+(Number(g.value)||0),0)/detail.last5.length))}</b>
+                </div>
+              </div>
+              <div className="pp-history-bars">
+                {detail.last5.map((g,i)=>{
+                  const value=Number(g.value);
+                  const line=Number(row.line);
+                  const max=Math.max(line*1.55,...detail.last5.map(x=>Number(x.value)||0),1);
+                  const height=Math.max(8,Math.min(100,(value/max)*100));
+                  return (
+                    <div className="pp-history-game" key={i}>
+                      <div className="pp-history-bar-wrap">
+                        <div className={"pp-history-bar "+trendClass(value,line)} style={{height:height+"%"}}></div>
+                        <div className="pp-history-line" style={{bottom:Math.min(95,(line/max)*100)+"%"}}></div>
+                      </div>
+                      <b>{fmtStat(value)}</b>
+                      <span>{g.opponent?("vs "+g.opponent):("G"+(i+1))}</span>
+                      <small>{g.week?("W"+g.week):g.date||""}</small>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="pp-history-legend"><span></span> PrizePicks line {row.line}</div>
+            </div>
+          ):null}
+          {detail?.season?(
+            <div className="pp-season-grid">
+              <div><span>SEASON AVG</span><b>{fmtStat(detail.season.average)}</b></div>
+              <div><span>GAMES</span><b>{fmtStat(detail.season.games)}</b></div>
+              <div><span>FBIS PROJ</span><b>{fmtStat(row.fbis_projection)}</b></div>
+              <div><span>PP LINE</span><b>{fmtStat(row.line)}</b></div>
+            </div>
+          ):null}
+          {detail?.matchup?.opponentAllowed!=null?(
+            <div className="pp-matchup-grid">
+              <div>
+                <span>OPP ALLOWED</span>
+                <b>{fmtStat(detail.matchup.opponentAllowed)}</b>
+              </div>
+              <div>
+                <span>LEAGUE AVG</span>
+                <b>{fmtStat(detail.matchup.leagueAverageAllowed)}</b>
+              </div>
+              <div>
+                <span>MATCHUP</span>
+                <b>{detail.matchup.matchupFactor==null?"—":((Number(detail.matchup.matchupFactor)-1)*100).toFixed(0)+"%"}</b>
+              </div>
+            </div>
+          ):null}
+          {calibration?(
+            <div className="pp-calibration-row">
+              <span>Model history</span>
+              <b>{Number(calibration.decisions||0)} decisions · {pct(calibration.hit_rate)} hit · MAE {fmtStat(calibration.mae)}</b>
+            </div>
+          ):null}
+          {!state.loading&&!state.error&&!detail?(
+            <div className="pp-analytics-loading">
+              Last-5 game logs are not wired for this sport/market yet. FBIS projection evidence remains shown above.
+            </div>
+          ):null}
+        </div>
+      ):null}
+    </div>
+  );
+}
+
 export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilterChange }){
   const [rows,setRows]=useState([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
   const [freshness,setFreshness]=useState(null);
+  const [expandedKey,setExpandedKey]=useState("");
   const [localSport,setLocalSport]=useState(
     String(sportFilter||"top25").toLowerCase()==="all"?"top25":String(sportFilter||"top25").toLowerCase()
   );
@@ -363,7 +518,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
           const time=gameTime(r);
 
           return (
-            <article className={"pp-card pp-premium-card sport-"+sport+(stars===5?" pp-five-star":"")} key={group.key}>
+            <article className={"pp-card pp-premium-card sport-"+sport+(stars===5?" pp-five-star":"")+(expandedKey===group.key?" pp-expanded":"")} key={group.key}>
               <div className="pp-card-visual">
                 <TeamWatermark sport={sport} team={team}/>
                 <StarRating stars={stars}/>
@@ -410,6 +565,11 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
                     timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"
                   }):"—"}</span>
                 </div>
+                <PropAnalytics
+                  row={r}
+                  open={expandedKey===group.key}
+                  onToggle={()=>setExpandedKey((k)=>k===group.key?"":group.key)}
+                />
               </div>
             </article>
           );
