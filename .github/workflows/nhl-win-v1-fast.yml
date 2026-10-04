@@ -1,0 +1,48 @@
+name: NHL WIN-v1 fast validation
+
+on:
+  push:
+    branches: [main, "feature/nhl-win-v1-final2-20261004"]
+    paths:
+      - "data/models/nhl-win-v1-validation.json"
+      - "data/models/nhl-win-v1.js"
+      - "functions/lib/nhlWinV1.js"
+      - "functions/lib/nhlProV2.js"
+      - "functions/lib/canonical/modelRegistry.js"
+      - "test/nhl-pro-v2.test.js"
+      - ".github/workflows/nhl-win-v1-fast.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nhl-win-v1-fast-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Verify frozen WIN-v1 evidence
+        run: |
+          set -euo pipefail
+          jq -e '.integrity.noMarketInputs == true and .integrity.nTrain >= 1200 and .integrity.nTest >= 1200' data/models/nhl-win-v1-validation.json >/dev/null
+          jq -e '.decisionHead.selected == "cvLogisticTrainThreshold" and .decisionHead.oosAccuracyDelta > 0' data/models/nhl-win-v1-validation.json >/dev/null
+          jq -e '.decisionHead.candidates.cvLogisticTrainThreshold.test.accuracy > .decisionHead.candidates.currentAt50.test.accuracy' data/models/nhl-win-v1-validation.json >/dev/null
+          node --check data/models/nhl-win-v1.js
+          node --check functions/lib/nhlWinV1.js
+          node --check functions/lib/nhlProV2.js
+      - name: NHL runtime tests
+        run: node --test test/nhl-pro-v2.test.js
+      - name: Full repository tests
+        run: npm test
+      - name: Production build
+        run: npm run build
