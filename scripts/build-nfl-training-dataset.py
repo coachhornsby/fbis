@@ -17,6 +17,11 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 PBP_URL = "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_{season}.parquet"
 GAMES_URL = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
 LINES_URL = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/closing_lines.csv"
+NGS_URLS = {
+    "passing": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_passing.csv",
+    "rushing": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_rushing.csv",
+    "receiving": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.csv",
+}
 
 TEAM_ALIASES = {
     "JAC": "JAX",
@@ -216,6 +221,138 @@ def add_team_pregame_features(team_games, games):
     return tg
 
 
+
+def first_col(df, names):
+    for name in names:
+        if name in df.columns:
+            return name
+    return None
+
+
+def weighted_mean(g, value_col, weight_col=None):
+    if value_col is None or value_col not in g.columns:
+        return np.nan
+    v = pd.to_numeric(g[value_col], errors="coerce")
+    if weight_col and weight_col in g.columns:
+        w = pd.to_numeric(g[weight_col], errors="coerce").fillna(0)
+        ok = v.notna() & (w > 0)
+        if ok.any() and w[ok].sum() > 0:
+            return float(np.average(v[ok], weights=w[ok]))
+    return float(v.mean()) if v.notna().any() else np.nan
+
+
+def build_ngs_pregame_features(games):
+    """Build team-level lagged NGS features. Current game/week never enters its own row."""
+    pieces = []
+    for stat_type, url in NGS_URLS.items():
+        try:
+            raw = read_csv_url(url)
+        except Exception as exc:
+            print(f"NGS {stat_type} unavailable: {exc}", flush=True)
+            continue
+        season_col = first_col(raw, ["season", "season_year", "seasonYear"])
+        week_col = first_col(raw, ["week", "week_number", "weekNumber"])
+        team_col = first_col(raw, ["team_abbr", "team", "teamAbbr", "club_code"])
+        if season_col is None or week_col is None or team_col is None:
+            print(f"NGS {stat_type}: missing season/week/team columns", flush=True)
+            continue
+        raw = raw.copy()
+        raw["season"] = pd.to_numeric(raw[season_col], errors="coerce")
+        raw["week"] = pd.to_numeric(raw[week_col], errors="coerce")
+        raw["team"] = raw[team_col].map(norm_team)
+        raw = raw[(raw["season"] >= START_SEASON) & (raw["season"] <= END_SEASON)]
+        rows = []
+        for (season, week, team), g in raw.groupby(["season", "week", "team"], dropna=True):
+            row = {"season": int(season), "week": int(week), "team": team}
+            if stat_type == "passing":
+                row["ngs_qb_cpoe"] = weighted_mean(
+                    g,
+                    first_col(g, ["completion_percentage_above_expectation", "completionPercentageAboveExpectation", "cpoe"]),
+                    first_col(g, ["attempts", "pass_attempts"]),
+                )
+                row["ngs_time_to_throw"] = weighted_mean(
+                    g,
+                    first_col(g, ["avg_time_to_throw", "avgTimeToThrow"]),
+                    first_col(g, ["attempts", "pass_attempts"]),
+                )
+                row["ngs_aggressiveness"] = weighted_mean(
+                    g,
+                    first_col(g, ["aggressiveness"]),
+                    first_col(g, ["attempts", "pass_attempts"]),
+                )
+            elif stat_type == "rushing":
+                row["ngs_ryoe_per_att"] = weighted_mean(
+                    g,
+                    first_col(g, ["rush_yards_over_expected_per_att", "rushYardsOverExpectedPerAtt", "ryoe_per_att"]),
+                    first_col(g, ["attempts", "carries", "rush_attempts"]),
+                )
+                row["ngs_rush_efficiency"] = weighted_mean(
+                    g,
+                    first_col(g, ["efficiency", "rush_efficiency"]),
+                    first_col(g, ["attempts", "carries", "rush_attempts"]),
+                )
+            else:
+                yac = first_col(g, ["avg_yac", "avgYac"])
+                exp = first_col(g, ["avg_expected_yac", "avgExpectedYac"])
+                yac_oe = first_col(g, ["avg_yac_above_expectation", "avgYacAboveExpectation"])
+                row["ngs_separation"] = weighted_mean(
+                    g, first_col(g, ["avg_separation", "avgSeparation"]), first_col(g, ["targets"])
+                )
+                if yac_oe:
+                    row["ngs_yac_oe"] = weighted_mean(g, yac_oe, first_col(g, ["targets"]))
+                elif yac and exp:
+                    tmp = g.copy()
+                    tmp["_yac_oe"] = pd.to_numeric(tmp[yac], errors="coerce") - pd.to_numeric(tmp[exp], errors="coerce")
+                    row["ngs_yac_oe"] = weighted_mean(tmp, "_yac_oe", first_col(tmp, ["targets"]))
+                else:
+                    row["ngs_yac_oe"] = np.nan
+            rows.append(row)
+        if rows:
+            pieces.append(pd.DataFrame(rows))
+
+    if not pieces:
+        return pd.DataFrame(columns=["game_id"])
+
+    team_week = None
+    for piece in pieces:
+        team_week = piece if team_week is None else team_week.merge(piece, on=["season", "week", "team"], how="outer")
+
+    metrics = [c for c in team_week.columns if c.startswith("ngs_")]
+    team_week = team_week.sort_values(["team", "season", "week"]).reset_index(drop=True)
+    for metric in metrics:
+        team_week[f"pregame_l5_{metric}"] = (
+            team_week.groupby("team")[metric]
+            .transform(lambda x: x.shift(1).rolling(5, min_periods=1).mean())
+        )
+        team_week[f"pregame_season_{metric}"] = (
+            team_week.groupby(["team", "season"])[metric]
+            .transform(lambda x: x.shift(1).expanding(min_periods=1).mean())
+        )
+
+    keep = ["season", "week", "team"] + [c for c in team_week.columns if c.startswith("pregame_")]
+    team_week = team_week[keep]
+
+    home = games[["game_id", "season", "week", "home_team"]].merge(
+        team_week, left_on=["season", "week", "home_team"], right_on=["season", "week", "team"], how="left"
+    ).drop(columns=["team"])
+    home = home.rename(columns={c: f"home_{c}" for c in home.columns if c.startswith("pregame_")})
+
+    away = games[["game_id", "season", "week", "away_team"]].merge(
+        team_week, left_on=["season", "week", "away_team"], right_on=["season", "week", "team"], how="left"
+    ).drop(columns=["team"])
+    away = away.rename(columns={c: f"away_{c}" for c in away.columns if c.startswith("pregame_")})
+
+    out = home[["game_id"] + [c for c in home.columns if c.startswith("home_pregame_")]].merge(
+        away[["game_id"] + [c for c in away.columns if c.startswith("away_pregame_")]],
+        on="game_id", how="outer"
+    )
+    for metric in [c.replace("home_", "") for c in out.columns if c.startswith("home_pregame_")]:
+        hc, ac = f"home_{metric}", f"away_{metric}"
+        if hc in out.columns and ac in out.columns:
+            out[f"diff_{metric}"] = out[hc] - out[ac]
+    return out
+
+
 def build_closing(lines, games):
     lines = lines.copy()
     lines["alt_game_id"] = lines["alt_game_id"].astype(str)
@@ -247,7 +384,7 @@ def build_closing(lines, games):
     return out
 
 
-def flatten_game_level(games, team_pre, closing):
+def flatten_game_level(games, team_pre, closing, ngs_pregame=None):
     metrics = [
         c for c in team_pre.columns
         if c.startswith("pregame_")
@@ -281,6 +418,8 @@ def flatten_game_level(games, team_pre, closing):
     out = out.merge(home.drop(columns=["home_team"]), on="game_id", how="left")
     out = out.merge(away.drop(columns=["away_team"]), on="game_id", how="left")
     out = out.merge(closing, on="game_id", how="left")
+    if ngs_pregame is not None and len(ngs_pregame):
+        out = out.merge(ngs_pregame, on="game_id", how="left")
 
     out["away_score"] = pd.to_numeric(out["away_score"], errors="coerce")
     out["home_score"] = pd.to_numeric(out["home_score"], errors="coerce")
@@ -375,8 +514,10 @@ def main():
 
     lines = read_csv_url(LINES_URL)
     closing = build_closing(lines, games)
+    print("Building lagged Next Gen Stats features", flush=True)
+    ngs_pregame = build_ngs_pregame_features(games)
 
-    full = flatten_game_level(games, team_pre, closing)
+    full = flatten_game_level(games, team_pre, closing, ngs_pregame)
     full = full.sort_values(["season","week","gameday","game_id"]).reset_index(drop=True)
     final = full[full["is_final"]].copy()
 
@@ -424,9 +565,11 @@ def main():
         "total_crosscheck_rows": total_compare_n,
         "total_crosscheck_mean_abs_diff": total_compare_mae,
         "pregame_feature_columns": len(leakage_columns),
+        "ngs_pregame_feature_columns": len([c for c in final.columns if "pregame_" in c and "ngs_" in c]),
         "temporal_integrity": "All rolling/expanding team and QB features use shift(1); current-game results are not used in pregame features.",
         "market_usage": "Canonical spread/total use nfldata games.csv for full-sample historical market coverage; nfldata closing_lines.csv is retained as an independent cross-check where available. Market fields are benchmark/labels only and are not used to construct football efficiency features.",
         "pbp_source": "nflverse/nflverse-data release tag pbp (nflfastR)",
+        "ngs_source": NGS_URLS,
         "games_source": GAMES_URL,
         "closing_lines_source": LINES_URL,
     }
