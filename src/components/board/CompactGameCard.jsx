@@ -50,6 +50,22 @@ function bestEdge(vm) {
   };
 }
 
+function actionSplitLabel(split, away, home) {
+  if (!split) return "—";
+  const awayPct = Number(split.awayPct);
+  const homePct = Number(split.homePct);
+  if (!Number.isFinite(awayPct) || !Number.isFinite(homePct)) return "—";
+  if (homePct >= awayPct) return `${home.abbr || "HOME"} ${Math.round(homePct)}%`;
+  return `${away.abbr || "AWAY"} ${Math.round(awayPct)}%`;
+}
+
+function actionMoveLabel(action) {
+  if (action?.lineMove?.label) return action.lineMove.label;
+  if (action?.movement?.label) return action.movement.label;
+  if (action?.consensus?.spreadHome != null) return `CURRENT ${fmt(action.consensus.spreadHome)}`;
+  return "NO MOVE YET";
+}
+
 export default function CompactGameCard({ game, onOpen }) {
   const vm = buildGameCardViewModel(game);
   const stars = confidenceStars(game);
@@ -57,6 +73,8 @@ export default function CompactGameCard({ game, onOpen }) {
   const home = vm.home || {};
   const proj = vm.projection || {};
   const market = vm.market || {};
+  const action = vm.action || {};
+  const isNfl = String(vm.sport || game?.sport || "").toLowerCase() === "nfl";
   const edge = bestEdge(vm);
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
@@ -146,6 +164,27 @@ export default function CompactGameCard({ game, onOpen }) {
           <strong>{market.total ?? "—"}</strong>
         </div>
       </div>
+
+      {isNfl ? (
+        <div className={`cgc-action-strip${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
+          <div className="cgc-action-brand">
+            <span>ACTION</span>
+            <strong>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</strong>
+          </div>
+          <div className="cgc-action-item">
+            <span>TICKETS</span>
+            <strong>{actionSplitLabel(action.tickets, away, home)}</strong>
+          </div>
+          <div className="cgc-action-item">
+            <span>MONEY</span>
+            <strong>{actionSplitLabel(action.money, away, home)}</strong>
+          </div>
+          <div className="cgc-action-item cgc-action-move">
+            <span>LINE MOVE</span>
+            <strong>{actionMoveLabel(action)}</strong>
+          </div>
+        </div>
+      ) : null}
 
       <footer className="cgc-footer">
         <div className="cgc-footer-metric">
