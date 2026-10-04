@@ -178,13 +178,22 @@ export async function buildWnbaGameDecisions(game={},db=null,{minEv=0.03,calibra
   const decisions=[];
   for(const offer of offers){
     const intelligence=deriveWnbaMarketTrajectory(actionRows,offer,distribution);
-    const cal=typeof calibrationLookup==="function"?await calibrationLookup({game,offer,distribution,intelligence,evidence}):null;
-    decisions.push(decisionFromOffer({
+    let decision=decisionFromOffer({
       offer,distribution,intelligence,evidence,minEv,
-      calibratedConfidence:cal?.confidence??null,
-      confidenceCalibrationN:cal?.n??0,
       stakeRulesValidated:false,
-    }));
+    });
+    const cal=typeof calibrationLookup==="function"
+      ?await calibrationLookup({game,offer,distribution,intelligence,evidence,decision})
+      :null;
+    if(cal?.confidence!=null&&Number(cal?.n)>=30){
+      decision=decisionFromOffer({
+        offer,distribution,intelligence,evidence,minEv,
+        calibratedConfidence:cal.confidence,
+        confidenceCalibrationN:cal.n,
+        stakeRulesValidated:false,
+      });
+    }
+    decisions.push(decision);
   }
   return {
     ok:true,gameId:String(game.id||""),sport:"wnba",start:game.start||null,
