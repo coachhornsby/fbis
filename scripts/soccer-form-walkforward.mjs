@@ -19,8 +19,16 @@ async function load(league,[start,end]){
   const events=[];
   for(const dates of months(start,end)){
     const u=`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${dates}&limit=1000`;
-    const r=await fetch(u,{headers:{"user-agent":"FBIS-Soccer-WF/2.0",accept:"application/json"}});
-    if(!r.ok)throw new Error(`${league} ${dates} ${r.status}`);
+    let r=null,lastErr=null;
+    for(let attempt=1;attempt<=3;attempt++){
+      try{
+        r=await fetch(u,{headers:{"user-agent":"FBIS-Soccer-WF/2.0",accept:"application/json"},signal:AbortSignal.timeout(12000)});
+        if(r.ok)break;
+        lastErr=new Error(`${league} ${dates} HTTP ${r.status}`);
+      }catch(err){lastErr=err;}
+      if(attempt<3)await new Promise(resolve=>setTimeout(resolve,attempt*1000));
+    }
+    if(!r?.ok)throw lastErr||new Error(`${league} ${dates} fetch failed`);
     const j=await r.json();events.push(...(j.events||[]));
   }
   const uniq=[...new Map(events.map(x=>[String(x.id),x])).values()];

@@ -1,106 +1,121 @@
 name: Soccer canonical history ingest
 
 on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   schedule:
     - cron: "15 10 * * *"
     - cron: "15 11 * * *"
-  push:
-    branches: [main]
-    paths:
-      - "functions/lib/soccerFbisV1.js"
-      - "functions/api/soccer-form-backfill.js"
-      - "functions/lib/store.js"
-      - "functions/lib/slateEngineCore.js"
-      - "migrations/0039_soccer_canonical.sql"
-      - "scripts/soccer-backfill-payload.mjs"
-      - ".github/workflows/soccer-form-backfill.yml"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "incremental or bootstrap"
+        required: false
+        default: "incremental"
 
-permissions: { contents: read }
+permissions:
+  contents: read
 
 concurrency:
   group: soccer-canonical-history
   cancel-in-progress: false
 
 jobs:
-  backfill:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+      mode: ${{ steps.gate.outputs.mode }}
     steps:
-      - name: Gate scheduled run to 05:00 America/Chicago
-        id: gate
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          hour="$(TZ=America/Chicago date +%H)"
-          if [ "$hour" = "05" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Checkout repository
-        if: steps.gate.outputs.run == 'true'
-        uses: actions/checkout@v4
-
-      - name: Wait for production SHA
-        if: steps.gate.outputs.run == 'true' && github.event_name == 'push'
+      - id: gate
         env:
-          BASE: https://fbis-myz.pages.dev
-          EXPECTED: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          INPUT_MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
-          for i in $(seq 1 50); do
-            live="$(curl -sS --max-time 15 "$BASE/api/health?_t=$(date +%s)" | jq -r '.deploymentCommit // .build.commitSha // empty' | tr 'A-F' 'a-f')"
-            exp="$(echo "$EXPECTED" | tr 'A-F' 'a-f')"
-            echo "deployment check $i live=$live expected=$exp"
-            [ "$live" = "$exp" ] && exit 0
-            sleep 15
-          done
-          exit 1
+          run=false
+          mode=incremental
 
-      - name: Build and post canonical soccer chunks
-        if: steps.gate.outputs.run == 'true'
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            if [ "$WORKFLOW_CONCLUSION" = "success" ] && [ "$WORKFLOW_BRANCH" = "main" ]; then
+              run=true
+              mode=incremental
+            fi
+          elif [ "$EVENT_NAME" = "schedule" ]; then
+            hour="$(TZ=America/Chicago date +%H)"
+            [ "$hour" = "05" ] && run=true
+            mode=incremental
+          else
+            run=true
+            mode="${INPUT_MODE:-incremental}"
+          fi
+
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
+  ingest:
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        league: ["eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","usa.nwsl"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+
+      - name: Ingest bounded monthly chunks
         env:
           BASE: https://fbis-myz.pages.dev
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          CHUNK_SIZE: "50"
-          EVENT_NAME: ${{ github.event_name }}
+          LEAGUE: ${{ matrix.league }}
+          MODE: ${{ needs.plan.outputs.mode }}
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
+
           today="$(TZ=America/Chicago date +%F)"
-
-          post_range () {
-            start="$1"; end="$2"; leagues="$3"
-            payload="$(mktemp)"
-            node scripts/soccer-backfill-payload.mjs "$start" "$end" "$leagues" > "$payload"
-            games="$(jq '.games|length' "$payload")"
-            echo "soccer payload $start..$end leagues=$leagues games=$games"
-            if [ "$games" -eq 0 ]; then rm -f "$payload"; return 0; fi
-            chunks=$(( (games + CHUNK_SIZE - 1) / CHUNK_SIZE ))
-            for ((i=0; i<chunks; i++)); do
-              offset=$(( i * CHUNK_SIZE ))
-              chunk="$(mktemp)"; out="$(mktemp)"
-              jq --argjson offset "$offset" --argjson size "$CHUNK_SIZE"                 '. as $root | $root + {games: $root.games[$offset:($offset + $size)]}'                 "$payload" > "$chunk"
-              code="$(curl -sS --max-time 90 --retry 2 --retry-all-errors                 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"                 --data-binary "@$chunk" -o "$out" -w "%{http_code}" "$BASE/api/soccer-form-backfill")"
-              cat "$out"; echo
-              test "$code" = "200"
-              jq -e '.ok == true and .source == "trusted-runner-payload" and .canonicalApplied > 0 and .failed == 0' "$out" >/dev/null
-              rm -f "$chunk" "$out"
-            done
-            rm -f "$payload"
-          }
-
-          if [ "$EVENT_NAME" = "schedule" ]; then
-            start="$(TZ=America/Chicago date -d '4 days ago' +%F)"
-            post_range "$start" "$today" "eng.1,esp.1,ger.1,ita.1,fra.1,usa.1,usa.nwsl"
+          if [ "$MODE" = "bootstrap" ]; then
+            case "$LEAGUE" in
+              usa.1|usa.nwsl) start="2025-02-01" ;;
+              *) start="2025-08-01" ;;
+            esac
           else
-            post_range "2025-08-01" "2026-06-15" "eng.1,esp.1,ger.1,ita.1,fra.1"
-            post_range "2026-07-15" "$today" "eng.1,esp.1,ger.1,ita.1,fra.1"
-            post_range "2025-02-01" "2025-12-31" "usa.1,usa.nwsl"
-            post_range "2026-02-01" "$today" "usa.1,usa.nwsl"
+            start="$(TZ=America/Chicago date -d '4 days ago' +%F)"
           fi
+
+          cursor="$start"
+          while [ "$cursor" < "$today" ] || [ "$cursor" = "$today" ]; do
+            month_end="$(date -u -d "$cursor +1 month -1 day" +%F)"
+            if [ "$month_end" > "$today" ]; then month_end="$today"; fi
+
+            payload="$(mktemp)"
+            node scripts/soccer-backfill-payload.mjs "$cursor" "$month_end" "$LEAGUE" > "$payload"
+            games="$(jq '.games|length' "$payload")"
+            echo "league=$LEAGUE range=$cursor..$month_end games=$games"
+
+            if [ "$games" -gt 0 ]; then
+              offset=0
+              while [ "$offset" -lt "$games" ]; do
+                chunk="$(mktemp)"; out="$(mktemp)"
+                jq --argjson offset "$offset" '. as $r | $r + {games: $r.games[$offset:($offset+25)]}' "$payload" > "$chunk"
+                code="$(curl -sS --connect-timeout 5 --max-time 25 --retry 2 --retry-delay 2 --retry-all-errors                   -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"                   --data-binary "@$chunk" -o "$out" -w "%{http_code}" "$BASE/api/soccer-form-backfill")"
+                cat "$out"; echo
+                test "$code" = "200"
+                jq -e '.ok == true and .failed == 0' "$out" >/dev/null
+                offset=$((offset+25))
+                rm -f "$chunk" "$out"
+              done
+            fi
+
+            rm -f "$payload"
+            [ "$month_end" = "$today" ] && break
+            cursor="$(date -u -d "$month_end +1 day" +%F)"
+          done
