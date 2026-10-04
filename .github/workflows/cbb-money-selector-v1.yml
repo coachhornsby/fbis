@@ -8,6 +8,7 @@ on:
       - "functions/lib/cbbMoneySelector.js"
       - "functions/lib/cbbFbisV2Margin.js"
       - "functions/lib/strategy.js"
+      - "functions/lib/projLedger.js"
       - ".github/workflows/cbb-money-selector-v1.yml"
   workflow_dispatch:
 
@@ -30,7 +31,9 @@ jobs:
           cache: "npm"
       - run: npm ci
       - name: Unit tests
-        run: node --test test/cbb-fbis-native-v1.test.js
+        run: |
+          node --check functions/lib/projLedger.js
+          node --test test/cbb-fbis-native-v1.test.js
       - name: Download definitive frozen CBB v2 aggregate
         uses: actions/download-artifact@v4
         with:
