@@ -11,6 +11,7 @@
  * PrizePicks/sportsbook lines are never model inputs.
  */
 import { playersForCbbGame } from "./cbbPlayerFeed.js";
+import { projectCbbPlayerPropV2, CBB_PLAYER_PROP_V2_ID, CBB_PLAYER_PROP_V2_VERSION, CBB_PLAYER_PROP_V2_MARKETS } from "./cbbPlayerPropV2.js";
 
 export const CBB_PLAYER_PROP_MODEL_ID = "CBB-PLAYER-PROP-v1";
 export const CBB_PLAYER_PROP_MARKETS = Object.freeze([
@@ -190,15 +191,47 @@ export function attachCbbPlayerProps(games = [], context = {}) {
     const bySide = playersForCbbGame(game, context);
     const home = projectCbbPlayerProps(game, bySide.home, { side: "home" });
     const away = projectCbbPlayerProps(game, bySide.away, { side: "away" });
+    const playerIndex=new Map();
+    for(const [side,list] of [["home",bySide.home],["away",bySide.away]]){
+      for(const p of list||[]){
+        const key=String(p.id??p.name??"").toLowerCase();
+        if(key)playerIndex.set(key,{player:p,side});
+        const nameKey=String(p.name||"").toLowerCase();
+        if(nameKey)playerIndex.set(nameKey,{player:p,side});
+      }
+    }
+    const promoted=new Set(CBB_PLAYER_PROP_V2_MARKETS);
     const rows = [...home.rows, ...away.rows]
       // Focus model on players with meaningful roles. Do not manufacture full-roster coverage.
-      .filter((r) => (r.projectedMinutes || 0) >= 16 && (r.dataQuality || 0) >= 0.45);
+      .filter((r) => (r.projectedMinutes || 0) >= 16 && (r.dataQuality || 0) >= 0.45)
+      .map((r)=>{
+        if(!promoted.has(r.market))return{...r,modelVersion:"v1.0.0",validationStatus:"V1_FALLBACK_3PM"};
+        const hit=playerIndex.get(String(r.playerId??"").toLowerCase())||playerIndex.get(String(r.playerName||"").toLowerCase());
+        if(!hit)return r;
+        const teamScore=hit.side==="home"
+          ? finite(game?.cbbFbisNative?.home ?? game?.challengers?.["FBIS-CBB-RATINGS-v2"]?.home ?? game?.challengers?.["FBIS-CBB-RATINGS-v1"]?.home)
+          : finite(game?.cbbFbisNative?.away ?? game?.challengers?.["FBIS-CBB-RATINGS-v2"]?.away ?? game?.challengers?.["FBIS-CBB-RATINGS-v1"]?.away);
+        const possessions=finite(game?.cbbFbisNative?.possessions ?? game?.challengers?.["FBIS-CBB-RATINGS-v2"]?.possessions ?? game?.challengers?.["FBIS-CBB-RATINGS-v1"]?.possessions);
+        const v2=projectCbbPlayerPropV2(hit.player,r.market,{possessions,teamScore,home:hit.side==="home"});
+        if(!v2.ok)return r;
+        return{
+          ...r,
+          fbisProjection:v2.projection,
+          fbisSigma:v2.sigma,
+          source:CBB_PLAYER_PROP_V2_ID,
+          modelVersion:CBB_PLAYER_PROP_V2_VERSION,
+          maturity:"VALIDATED_PROJECTION_RESEARCH_MARKET",
+          projectionValidation:{...v2.evidence,baseProjection:v2.baseProjection,residual:v2.residual},
+          canQualify:false,
+          canAuthorizeWager:false,
+        };
+      });
     if (rows.length) projectedGames += 1;
     projectedRows += rows.length;
     return {
       ...game,
       cbbPlayerProps: {
-        modelId: CBB_PLAYER_PROP_MODEL_ID,
+        modelId: CBB_PLAYER_PROP_V2_ID,
         ok: rows.length > 0,
         independent: true,
         marketInformed: false,
@@ -208,7 +241,8 @@ export function attachCbbPlayerProps(games = [], context = {}) {
       playerProjectionStatus: {
         sport: "cbb",
         state: rows.length ? "ACTIVE_RESEARCH" : "NO_MODELABLE_PLAYER_PROPS",
-        model: CBB_PLAYER_PROP_MODEL_ID,
+        model: CBB_PLAYER_PROP_V2_ID,
+        version: CBB_PLAYER_PROP_V2_VERSION,
         independent: true,
         marketInformed: false,
         canQualify: false,
@@ -218,8 +252,11 @@ export function attachCbbPlayerProps(games = [], context = {}) {
   return {
     games: out,
     meta: {
-      modelId: CBB_PLAYER_PROP_MODEL_ID,
+      modelId: CBB_PLAYER_PROP_V2_ID,
+      modelVersion: CBB_PLAYER_PROP_V2_VERSION,
       markets: CBB_PLAYER_PROP_MARKETS,
+      promotedMarkets: CBB_PLAYER_PROP_V2_MARKETS,
+      fallbackMarkets: ["three_pointers_made"],
       games: out.length,
       projectedGames,
       projectedRows,
