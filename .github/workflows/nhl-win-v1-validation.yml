@@ -2,7 +2,7 @@ name: NHL WIN-v1 validation
 
 on:
   push:
-    branches: [main, "feature/nhl-win-finalize-timeout-safe-20261004"]
+    branches: [main]
     paths:
       - "data/models/nhl-win-v1-validation.json"
       - "data/models/nhl-win-v1.js"
