@@ -112,3 +112,4 @@ jobs:
             artifacts/wnba-player-impact-live.json
             artifacts/current/wnba-canonical.jsonl
           retention-days: 30
+# repaired-current-state-smoke: 2026-10-04
