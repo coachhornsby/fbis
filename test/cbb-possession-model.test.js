@@ -61,6 +61,7 @@ test("membership evidence reverses ambiguous participant ordering safely",()=>{
 
 import {
   aggregateNcaaCbbGame,
+  aggregateNcaaValidatedLineups,
   cbbNcaaPossessionFeatures,
 } from "../functions/lib/cbbNcaaPossessionModel.js";
 
@@ -116,4 +117,32 @@ test("ESPN reconstruction cannot certify lineups without substitution evidence",
   const out=reconstructCbbGame(rows,{H:["H1","H2","H3","H4","H5"],A:["A1","A2","A3","A4","A5"]});
   assert.equal(out.qa.subEvents,0);
   assert.equal(out.lineupReliable,false);
+});
+
+
+test("validated NCAA lineup stints aggregate 2-5 man efficiency and shot profiles",()=>{
+  const baseLineup={
+    contest_id:"c1",location_type:"Home",team:"Home",opponent:"Away",
+    player_1:"H1",player_2:"H2",player_3:"H3",player_4:"H4",player_5:"H5",
+    poss:"10",opp_poss:"10",pts:"12",opp_pts:"9",fga:"9",fgm:"5",tpa:"3",tpm:"2",
+    rima:"4",rimm:"3",mida:"2",midm:"0",fta:"2",orb:"2",drb:"6",to:"1",ast:"4",
+  };
+  const rows=[
+    baseLineup,
+    {...baseLineup,location_type:"Away",team:"Away",opponent:"Home",
+      player_1:"A1",player_2:"A2",player_3:"A3",player_4:"A4",player_5:"A5",
+      poss:"10",opp_poss:"10",pts:"9",opp_pts:"12",fga:"8",fgm:"4",tpa:"2",tpm:"1",
+      rima:"3",rimm:"2",mida:"3",midm:"1"},
+  ];
+  const out=aggregateNcaaValidatedLineups(rows);
+  assert.equal(out.home.rows,1);
+  assert.equal(out.away.rows,1);
+  assert.equal(out.home.topFiveLineups.length,1);
+  assert.equal(out.home.topFour.length,5);
+  assert.equal(out.home.topThree.length,10);
+  assert.equal(out.home.topTwo.length,10);
+  assert.equal(out.home.topFiveLineups[0].offensiveRating,120);
+  assert.equal(out.home.topFiveLineups[0].defensiveRating,90);
+  assert.equal(out.home.topFiveLineups[0].netRating,30);
+  assert.equal(out.home.topFiveLineups[0].rimRate,4/9);
 });
