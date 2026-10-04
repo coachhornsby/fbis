@@ -27,6 +27,26 @@ function posOf(o){
     o?.positionAbbreviation||o?.positionName||""
   ).trim()||null;
 }
+async function espnNflRosterPosition(name,team){
+  const t=String(team||"").trim().toLowerCase();
+  if(!t) return null;
+  const url="https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/"+encodeURIComponent(t)+"/roster";
+  const res=await fetch(url,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
+  if(!res.ok) return null;
+  const body=await res.json().catch(()=>({}));
+  const needle=norm(name);
+  const athletes=[];
+  for(const group of body?.athletes||[]){
+    for(const a of group?.items||[]) athletes.push(a);
+  }
+  const hit=athletes.find(a=>norm(a?.fullName||a?.displayName||a?.name||"")===needle)
+    || athletes.find(a=>{
+      const n=norm(a?.fullName||a?.displayName||a?.name||"");
+      return n && (n.includes(needle)||needle.includes(n));
+    })
+    || null;
+  return posOf(hit);
+}
 async function espnPosition(name,sport,team){
   const map={
     nfl:{searchSport:"football",league:"nfl"},
@@ -82,7 +102,11 @@ export async function onRequestGet(context){
   if(!name) return json({ok:false,error:"name required"},400);
   if(sport==="tennis") return json({ok:true,position:null});
   try{
-    const position=sport==="mlb" ? await mlbPosition(name) : await espnPosition(name,sport,team);
+    const position=sport==="mlb"
+      ? await mlbPosition(name)
+      : sport==="nfl"
+        ? (await espnNflRosterPosition(name,team)) || (await espnPosition(name,sport,team))
+        : await espnPosition(name,sport,team);
     return json({ok:true,position:position||null});
   }catch{
     return json({ok:true,position:null});
