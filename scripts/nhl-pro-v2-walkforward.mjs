@@ -291,7 +291,8 @@ function forecastV2(game,prior,current,talent,league){
   if(hdays!=null&&hdays<1.6)home-=0.10;if(adays!=null&&adays<1.6)away-=0.10;
   if(hdays!=null&&adays!=null){const rd=clamp((hdays-adays)*0.018,-0.07,0.07);home+=rd;away-=rd;}
 
-  return {home:clamp(home,1.45,5.25),away:clamp(away,1.45,5.25)};
+  const eloProb=1/(1+10**(-((eloH-eloA)+35)/400));
+  return {home:clamp(home,1.45,5.25),away:clamp(away,1.45,5.25),eloProb:clamp(eloProb,0.05,0.95)};
 }
 function leagueRates(games,shotsByGame,model,talent){
   let goals=0,xg=0,stxg=0,shots=0,hd=0,rush=0;
@@ -376,7 +377,10 @@ for(let idx=1;idx<seasons.length;idx++){
   const targetMap=shotsByGameBySeason[target];
   for(const g of gamesBySeason[target]){
     const v2f=forecastV2(g,prior,currentV2,talent,league),v1f=v1Forecast(g,prior,currentV1,league);
-    const v2p=bivarHomeWin(v2f.home,v2f.away),v1p=bivarHomeWin(v1f.home,v1f.away);
+    const v1p=bivarHomeWin(v1f.home,v1f.away);
+    const v2ScoreProb=bivarHomeWin(v2f.home,v2f.away);
+    const v2Ensemble=0.78*v2ScoreProb+0.22*v2f.eloProb;
+    const v2p=clamp(0.5+0.86*(v2Ensemble-0.5),0.04,0.96);
     rows.push({id:g.id,ah:g.homeGoals,aa:g.awayGoals,v2:{h:v2f.home,a:v2f.away,p:v2p},v1:{h:v1f.home,a:v1f.away,p:v1p}});
     const stats=gameShotStats(g,targetMap.get(g.id)||[],xgModel,talent);
     applyGame(teamMapGet(currentV2,g.home),teamMapGet(currentV2,g.away),g,stats[g.home],stats[g.away],true);
@@ -400,7 +404,8 @@ const report={
     specialTeams:"non-5v5 expected-goal rate",
     trackingProxy:"high-danger/rush/shot-volume rolling features; official NHL Edge is live advisory only",
     teamState:"prior + point-in-time current-season blend with Elo residual",
-    scoreDistribution:"bivariate Poisson with shared scoring component"
+    scoreDistribution:"bivariate Poisson with shared scoring component",
+    winProbability:"78% score-distribution + 22% Elo head, reliability-shrunk 14% toward 0.5"
   },
   fetchErrors,
   folds:folds.map(({rows,...x})=>x),
