@@ -110,3 +110,5 @@ jobs:
               echo "- D1 live-sync rows: $(jq -r '.d1SyncedRows' /tmp/tracker-sync.json)"
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+# Manual sync trigger: 2026-10-03 card
