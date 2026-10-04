@@ -138,7 +138,6 @@ function StarRating({ stars=1 }){
       <span className="pp-star-icons" aria-hidden="true">
         {Array.from({length:5},(_,i)=><span key={i} className={i<safe?"filled":"empty"}>★</span>)}
       </span>
-      <b>{safe}/5</b>
     </div>
   );
 }
