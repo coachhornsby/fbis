@@ -155,12 +155,35 @@ jobs:
                   }' "$tmp" >> artifacts/candidates.ndjson || true
             done
           done
+          # NBA qualification candidates come from the validated D1 shadow model rather than
+          # the legacy board path, so we reuse today's paid PrizePicks pull without a second Actor run.
+          nba_tmp="$(mktemp)"
+          nba_code="$(curl -sS --max-time 45 -o "$nba_tmp" -w "%{http_code}" "$BASE/api/nba-shadow-props?_t=$(date +%s)" || true)"
+          echo "NBA shadow candidates http=$nba_code"
+          if [ "$nba_code" = "200" ]; then
+            jq -c '
+              (.rows // [])[]
+              | select(.playerName != null and .market != null and .fbisProjection != null and .canQualify == true)
+              | {
+                  sport:"nba",
+                  eventId:(.eventId|tostring),
+                  playerName:.playerName,
+                  team:(.team // null),
+                  home:null,
+                  away:null,
+                  start:(.start // null),
+                  market:.market,
+                  fbisProjection:.fbisProjection,
+                  fbisSigma:(.fbisSigma // null)
+                }' "$nba_tmp" >> artifacts/candidates.ndjson || true
+          fi
           if [ -s artifacts/candidates.ndjson ]; then
             jq -s 'unique_by([.sport,.eventId,.playerName,.market])' artifacts/candidates.ndjson > artifacts/candidates.json
           else
             echo '[]' > artifacts/candidates.json
           fi
           echo "FBIS candidates=$(jq 'length' artifacts/candidates.json)"
+          echo "NBA candidates=$(jq '[.[]|select(.sport=="nba")]|length' artifacts/candidates.json)"
 
       - name: Pull full PrizePicks board once
         if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
