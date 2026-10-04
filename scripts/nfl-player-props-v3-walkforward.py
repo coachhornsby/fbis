@@ -138,6 +138,7 @@ def main():
         roles[(int(season),int(week),team)]={pid:(pos,rank) for pid,pos,rank in picks}
 
     eval_rows=df[df.season>=EVAL_START].sort_values(["season","week","team","_pid"])
+    ratio_cache={}
     for _,r in eval_rows.iterrows():
         season,week,team=int(r.season),int(r.week),r.team
         target=roles.get((season,week,team),{})
@@ -154,7 +155,10 @@ def main():
             recent=weighted_recent(hist,field)
             season_avg=pd.to_numeric(cur[field],errors="coerce").mean()
             prior_avg=pd.to_numeric(prev[field],errors="coerce").mean()
-            ratio=defense_ratio(allowed,canon(r.opponent_team),pos,field,season,week)
+            rk=(season,week,canon(r.opponent_team),pos,field)
+            if rk not in ratio_cache:
+                ratio_cache[rk]=defense_ratio(allowed,canon(r.opponent_team),pos,field,season,week)
+            ratio=ratio_cache[rk]
             for rw,sw,pw,ms in configs:
                 base=blend([(recent,rw),(season_avg,sw),(prior_avg,pw)])
                 if not np.isfinite(base):continue
