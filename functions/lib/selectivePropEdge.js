@@ -61,7 +61,16 @@ export function selectivePropStars(row = {}) {
 
   const sigma = finite(row.fbisSigma ?? row.sigma);
   const qRaw = finite(row.dataQuality ?? row.data_quality);
-  const quality = qRaw == null ? 0.7 : clamp(qRaw > 1 ? qRaw / 100 : qRaw, 0, 1);
+  const feature = row.featureEvidence || {};
+  const inferredQuality = clamp(
+    0.55 +
+      (feature.nextGen || feature.tracking ? 0.15 : 0) +
+      (feature.snapShare ? 0.15 : 0) +
+      (feature.opponentMatchup ? 0.15 : 0),
+    0,
+    1
+  );
+  const quality = qRaw == null ? inferredQuality : clamp(qRaw > 1 ? qRaw / 100 : qRaw, 0, 1);
   const role = finite(row.roleConfidence ?? row.role_confidence);
   const uncertainty = String(row.uncertaintyState ?? row.uncertainty_state ?? "").toUpperCase();
   const delta = Math.abs(projection - line);
@@ -113,7 +122,16 @@ export function rankSelectiveProps(rows = [], opts = {}) {
     const hitProbability = estimatedPropHitProbability(row);
     const roleConfidence = finite(row.roleConfidence ?? row.role_confidence);
     const qRaw = finite(row.dataQuality ?? row.data_quality);
-    const quality = qRaw == null ? 0.7 : clamp(qRaw > 1 ? qRaw / 100 : qRaw, 0, 1);
+    const feature = row.featureEvidence || {};
+    const inferredQuality = clamp(
+      0.55 +
+        (feature.nextGen || feature.tracking ? 0.15 : 0) +
+        (feature.snapShare ? 0.15 : 0) +
+        (feature.opponentMatchup ? 0.15 : 0),
+      0,
+      1
+    );
+    const quality = qRaw == null ? inferredQuality : clamp(qRaw > 1 ? qRaw / 100 : qRaw, 0, 1);
     const evidence = evidenceState(row);
     return {
       ...row,
