@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "17 */3 * * *"
   push:
-    branches: ["rebuild/nfl-props-edge-v2", "fix/nfl-no-runtime-timeouts"]
+    branches: ["main", "rebuild/nfl-props-edge-v2", "fix/nfl-no-runtime-timeouts"]
     paths:
       - "functions/lib/nflVerseFeed.js"
       - "functions/api/nfl-feature-snapshot.js"
@@ -33,6 +33,25 @@ jobs:
           node-version: "22"
       - name: Build NFL feature snapshot off request path
         run: node scripts/nfl-build-feature-snapshot.mjs
+      - name: Wait for production API on main
+        if: github.ref_name == 'main'
+        run: |
+          set -euo pipefail
+          expected="$(echo "$GITHUB_SHA" | tr 'A-F' 'a-f')"
+          for i in $(seq 1 36); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)-$i" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null | tr 'A-F' 'a-f')"
+            if [ "$code" = "200" ] && [ "$live" = "$expected" ]; then
+              echo "production ready: $live"
+              exit 0
+            fi
+            echo "waiting for production SHA attempt=$i live=${live:-none} expected=$expected"
+            sleep 10
+          done
+          echo "production did not converge to $GITHUB_SHA"
+          exit 1
+
       - name: Publish snapshot to R2
         if: github.ref_name == 'main' || github.event_name == 'workflow_dispatch'
         run: |
