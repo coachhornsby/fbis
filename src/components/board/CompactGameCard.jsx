@@ -175,7 +175,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <span className="cgc-time">{vm.timing?.timeLine || "—"}</span>
         </div>
         <div className="cgc-head-right">
-          <Stars value={stars} />
+          <span className="cgc-star-rating" aria-label={`${stars} of 5 confidence stars`}><b>{stars}</b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg></span>
           <span className={`cgc-status cgc-status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
             {vm.status?.label || "FBIS"}
           </span>
@@ -186,7 +186,7 @@ export default function CompactGameCard({ game, onOpen }) {
         <section className="cgc-final-score" aria-label="Final score">
           <span>FINAL SCORE</span>
           <strong><b>{away.abbr}</b> {finalAway} <i>–</i> {finalHome} <b>{home.abbr}</b></strong>
-          <small>FBIS projection remains shown below for forecast comparison</small>
+          <small>vs FBIS {proj.available ? `${proj.away ?? "—"}–${proj.home ?? "—"}` : "projection"}</small>
         </section>
       ) : null}
 
@@ -269,11 +269,11 @@ export default function CompactGameCard({ game, onOpen }) {
       {isNfl && matchup?.ok ? (
         <section className="cgc-matchup-read" aria-label="FBIS individual game matchup analysis">
           <div className="cgc-matchup-read-head">
-            <div><span>GAME MATCHUP</span><strong>{matchup?.adjustment?.evidenceQualified ? "EVIDENCE QUALIFIED" : "ANALYSIS ONLY"}</strong></div>
-            <b>{matchup?.coverage ? `${matchup.coverage.available}/${matchup.coverage.total} SIGNALS` : "—"}</b>
+            <div><span>GAME MATCHUP</span><strong>{matchup?.adjustment?.evidenceQualified ? "QUALIFIED" : "READ"}</strong></div>
+            <b>{matchup?.coverage ? `${matchup.coverage.available}/${matchup.coverage.total}` : "—"}</b>
           </div>
           <div className="cgc-matchup-pills">
-            {matchupItems.map((item) => (
+            {matchupItems.filter((item) => item.text !== "—").map((item) => (
               <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
                 <span>{item.label}</span><strong>{item.text}</strong>
               </div>
