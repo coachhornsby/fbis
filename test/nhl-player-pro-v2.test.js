@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { nhlPlayerProV2RowsForSide, NHL_PLAYER_PRO_V2_ID } from "../functions/lib/nhlPlayerProV2.js";
 import { attachNhlPlayerProjectionResearch } from "../functions/lib/proPlayerProjectionLayer.js";
 import { normalizeBoardGame } from "../src/features/playerProps/buildPlayerPropsBoard.js";
+import { NHL_PLAYER_PRO_V2_ARTIFACT } from "../data/models/nhl-player-pro-v2.js";
+import { getModel } from "../functions/lib/canonical/modelRegistry.js";
 
 function fixture(){
   const game={
@@ -100,4 +102,28 @@ test("NHL prop card eligibility is line-specific when a validation grid exists",
   assert.equal(hold.lineValidationStatus,"HOLD_RESEARCH");
   assert.equal(hold.eligibleForCard,false);
   assert.equal(hold.gateReason,"prop_line_not_validated_vs_baseline");
+});
+
+test("persisted NHL player-pro artifact enforces validated markets and lines",()=>{
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.trained,true);
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.training.games,3936);
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.training.boxscoreErrors,0);
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.validation.markets.shots_on_goal.status,"PROMOTE_RESEARCH");
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.validation.markets.saves.status,"PROMOTE_RESEARCH");
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.validation.markets.goals.status,"HOLD_RESEARCH");
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.validation.markets.points.status,"HOLD_RESEARCH");
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.validation.lines["shots_on_goal:2.5"].status,"PROMOTE_RESEARCH");
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.validation.lines["shots_on_goal:0.5"].status,"WATCH_RESEARCH");
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.validation.lines["saves:25.5"].status,"PROMOTE_RESEARCH");
+  assert.equal(NHL_PLAYER_PRO_V2_ARTIFACT.validation.lines["saves:28.5"].status,"WATCH_RESEARCH");
+});
+
+test("NHL-PLAYER-PRO-v2 registry remains independent research with no wager authority",()=>{
+  const model=getModel("NHL-PLAYER-PRO-v2");
+  assert.ok(model);
+  assert.equal(model.family,"PLAYER");
+  assert.equal(model.marketInformed,false);
+  assert.equal(model.independent,true);
+  assert.equal(model.canQualify,false);
+  assert.equal(model.canAuthorizeWager,false);
 });
