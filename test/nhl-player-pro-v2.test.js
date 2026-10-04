@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { nhlPlayerProV2RowsForSide, NHL_PLAYER_PRO_V2_ID } from "../functions/lib/nhlPlayerProV2.js";
 import { attachNhlPlayerProjectionResearch } from "../functions/lib/proPlayerProjectionLayer.js";
+import { normalizeBoardGame } from "../src/features/playerProps/buildPlayerPropsBoard.js";
 
 function fixture(){
   const game={
@@ -75,4 +76,28 @@ test("back-to-back rest suppresses skater volume without changing market inputs"
   const b2bGame={...game,nhlProV2:{...game.nhlProV2,layers:{...game.nhlProV2.layers,situation:{homeRestDays:0,awayRestDays:2}}}};
   const b2b=nhlPlayerProV2RowsForSide(b2bGame,"home",ctx).find(r=>r.player.id==="3"&&r.market==="shots_on_goal");
   assert.ok(b2b.projection<rested.projection);
+});
+
+test("NHL prop card eligibility is line-specific when a validation grid exists",()=>{
+  const game=normalizeBoardGame({
+    sport:"nhl",
+    playerProjectionRows:[{
+      playerId:"1",playerName:"A",team:"BOS",position:"C",market:"shots_on_goal",
+      fbisProjection:3.1,fbisSigma:1.2,source:"NHL_PLAYER_PRO_V2_SHARE_ENVIRONMENT",
+      maturity:"RESEARCH",independent:true,availabilityStatus:"ACTIVE",propGate:"CLEAR",
+      eligibleForCard:true,validationStatus:"PROMOTE_RESEARCH",
+      validatedLines:{"2.5":"PROMOTE_RESEARCH","5.5":"HOLD_RESEARCH"}
+    }],
+    playerMarkets:[
+      {playerName:"A",team:"BOS",market:"shots_on_goal",marketCanonical:"shots_on_goal",line:2.5,book:"Heritage"},
+      {playerName:"A",team:"BOS",market:"shots_on_goal",marketCanonical:"shots_on_goal",line:5.5,book:"Heritage"}
+    ]
+  });
+  const good=game.playerMarkets.find(x=>x.line===2.5);
+  const hold=game.playerMarkets.find(x=>x.line===5.5);
+  assert.equal(good.lineValidationStatus,"PROMOTE_RESEARCH");
+  assert.equal(good.eligibleForCard,true);
+  assert.equal(hold.lineValidationStatus,"HOLD_RESEARCH");
+  assert.equal(hold.eligibleForCard,false);
+  assert.equal(hold.gateReason,"prop_line_not_validated_vs_baseline");
 });
