@@ -381,6 +381,7 @@ const savesAudit={
   bySeasonPhase:savesGroups(savesLineRows,r=>r.seasonPhase,200),
   byStars:savesGroups(savesStarRows,r=>`${r.stars} STAR`,100),
   byStarsDirection:savesGroups(savesStarRows,r=>`${r.stars} STAR|${r.direction}`,80),
+  byStarsCoreLines:savesGroups(savesStarRows.filter(r=>r.line>=20.5&&r.line<=32.5),r=>`${r.stars} STAR`,80),
   sportsbookStyle:{
     weakOffenseStrongDefenseUnder:savesGroups(
       savesLineRows.filter(r=>r.oppShotQuartile==="Q1"&&r.defenseSuppressionQuartile==="Q4"&&r.direction==="UNDER"),
