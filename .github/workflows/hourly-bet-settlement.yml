@@ -58,6 +58,25 @@ jobs:
           echo "settlement_calls_ok=$ok" >> "$GITHUB_ENV"
           echo "settlement_calls_failed=$fail" >> "$GITHUB_ENV"
 
+      - name: Grade tracked NFL player props from official box scores
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 120 -X POST \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            -d '{"action":"auto-settle-nfl"}' \
+            -o "$body" -w "%{http_code}" \
+            "${BASE}/api/player-prop-learning")"
+          cat "$body"
+          test "$http" = "200" -o "$http" = "207"
+          jq -e '.ok == true or (.errors|type=="array")' "$body" >/dev/null
+          cp "$body" /tmp/player-prop-grade.json
+
       - name: Get GitHub OIDC token
         id: oidc
         shell: bash
@@ -84,6 +103,24 @@ jobs:
           test "$http" = "200"
           jq -e '.ok == true' "$body" >/dev/null
           cp "$body" /tmp/settlement-sheet-sync.json
+
+      - name: Sync player prop projection/results ledger to Google Sheets
+        env:
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 120 -X POST \
+            -H "Authorization: Bearer ${OIDC_TOKEN}" \
+            -H "content-type: application/json" \
+            -d '{}' -o "$body" -w "%{http_code}" \
+            "${ORCH_URL}/api/sync-player-prop-learning-sheet")"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          cp "$body" /tmp/player-prop-sheet-sync.json
 
       - name: Re-sync tracker into D1
         env:
@@ -124,6 +161,12 @@ jobs:
             echo "- scoreboard calls failed: ${settlement_calls_failed:-0}"
             if [ -f /tmp/settlement-sheet-sync.json ]; then
               echo "- tracker rows updated from D1: $(jq -r '.updated // 0' /tmp/settlement-sheet-sync.json)"
+            fi
+            if [ -f /tmp/player-prop-grade.json ]; then
+              echo "- player prop legs settled: $(jq -r '.settled | length // 0' /tmp/player-prop-grade.json)"
+            fi
+            if [ -f /tmp/player-prop-sheet-sync.json ]; then
+              echo "- player prop ledger rows synced: $(jq -r '.legsSynced // 0' /tmp/player-prop-sheet-sync.json)"
             fi
             if [ -f /tmp/tracker-d1-sync.json ]; then
               echo "- D1 rows synced from tracker: $(jq -r '.d1SyncedRows // 0' /tmp/tracker-d1-sync.json)"
