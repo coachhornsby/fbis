@@ -1,4 +1,5 @@
 import { NHL_PLAYER_PRO_V2_ARTIFACT } from "../../data/models/nhl-player-pro-v2.js";
+import { playerTrackingFor } from "./nhlPlayerTrackingV3.js";
 
 export const NHL_PLAYER_PRO_V2_ID="NHL-PLAYER-PRO-v2";
 export const NHL_PLAYER_PRO_V2_VERSION="research-v2.0-share-environment";
@@ -77,7 +78,9 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
           playerShotRate:x.shots,
           playerShotShare:x.shots/shotSum,
         }:null,
-        notes:"Point-in-time player rate/share model tied to NHL-PRO-v2 game environment; independent of sportsbook line."
+        trackingAdvisory:playerTrackingFor(ctx,p.id),
+        matchupTrackingAdvisory:game?.nhlProV2?.layers?.tracking?.player?.[side]||null,
+        notes:"Point-in-time player rate/share model tied to NHL-PRO-v2 game environment; independent of sportsbook line. Live player EDGE is attached as advisory only until prospective validation clears it."
       });
     }
   }
@@ -98,6 +101,7 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
       validationStatus:marketValidationStatus("saves"),
       validatedLines:validatedLines("saves"),
       shotEnvironment:{opponentShotsFor:oppSf,teamShotsAgainst:teamSa,projectedShotsFaced:oppShots},
+      matchupTrackingAdvisory:game?.nhlProV2?.layers?.tracking?.player?.[side]||null,
       notes:"Starter-gated saves model using opponent shot generation + team shot suppression, goalie save rate, and NHL-PRO-v2 opponent goal expectation."
     });
   }
