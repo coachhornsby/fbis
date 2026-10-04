@@ -29,7 +29,7 @@ function groupLatest(rows=[]){
     const variants=[...g.variants.values()].sort((a,b)=>(TIER_ORDER[String(a.odds_tier||"standard").toLowerCase()]??9)-(TIER_ORDER[String(b.odds_tier||"standard").toLowerCase()]??9));
     const primary=variants.find(v=>String(v.odds_tier||"standard").toLowerCase()==="standard")||variants[0];
     return {...g,primary,variants};
-  }).slice(0,120);
+  });
 }
 
 export default function PrizePicksMarketPanel({ sportFilter = "top25", onSportFilterChange }) {
@@ -59,9 +59,13 @@ export default function PrizePicksMarketPanel({ sportFilter = "top25", onSportFi
   },[localSport]);
 
   const groups=useMemo(
-    ()=>groupLatest(rows).sort(
-      (a,b)=>(rowStars(b.primary)||0)-(rowStars(a.primary)||0)
-    ),
+    ()=>groupLatest(rows).sort((a,b)=>{
+      const byStars=(rowStars(b.primary)||0)-(rowStars(a.primary)||0);
+      if(byStars) return byStars;
+      const bz=Math.abs(Number(b.primary?.standardized_edge ?? b.primary?.selection_score ?? 0));
+      const az=Math.abs(Number(a.primary?.standardized_edge ?? a.primary?.selection_score ?? 0));
+      return bz-az;
+    }),
     [rows]
   );
 
