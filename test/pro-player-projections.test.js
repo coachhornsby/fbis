@@ -8,6 +8,8 @@ import {
   attachNbaPlayerProjectionBlocked,
 } from "../functions/lib/proPlayerProjectionLayer.js";
 import { aggregateNextGen, aggregateSnapCounts } from "../functions/lib/nflVerseFeed.js";
+import { selectivePropStars, rankSelectiveProps } from "../functions/lib/selectivePropEdge.js";
+import { aggregateNextGen, aggregateSnapCounts } from "../functions/lib/nflVerseFeed.js";
 
 test("MLB player layer exposes independent pitcher K projection", () => {
   const [g] = attachMlbPlayerProjectionResearch([{
@@ -141,4 +143,70 @@ test("NFL player v2 uses snap-role and NGS evidence without market-line input", 
   assert.ok(row.roleConfidence > 0.8);
   assert.equal(row.featureEvidence.nextGen,true);
   assert.equal(row.featureEvidence.snapShare,true);
+});
+
+
+test("NFL v2 player layer uses snap share and Next Gen efficiency without market input", () => {
+  const feed={byTeam:{
+    KC:[{
+      id:"wr1",name:"WR One",position:"WR",receiving_yards:70,receptions:5.2,targets:8,
+      snapShare:0.90,trackingGames:5,snapGames:5,
+      ngs:{avgSeparation:3.5,yacOverExpected:1.2},
+      sd:{receiving_yards:24,receptions:1.8}
+    }],
+    LV:[]
+  }};
+  const [g]=attachNflPlayerProjectionResearch([{
+    id:"nfl-v2",home:{abbr:"KC"},away:{abbr:"LV"},researchProjection:{home:27,away:20}
+  }],feed);
+  const rec=g.playerProjectionRows.find(r=>r.market==="receiving_yards");
+  assert.ok(rec);
+  assert.equal(g.playerProjectionStatus.model,"NFL-PLAYER-PROJ-v2");
+  assert.equal(rec.marketInformed,false);
+  assert.equal(rec.featureEvidence.nextGen,true);
+  assert.equal(rec.featureEvidence.snapShare,true);
+  assert.ok(rec.snapVolumeFactor > 1);
+  assert.ok(rec.fbisProjection > 70);
+});
+
+test("NFL v2 prop selection fails closed on weak role or missing sigma", () => {
+  const weak={
+    sport:"nfl",playerName:"WR Weak",eventId:"e1",fbisProjection:78,line:65,
+    fbisSigma:20,roleConfidence:0.4,dataQuality:0.9,propGate:"CLEAR",eligibleForCard:true
+  };
+  assert.ok(selectivePropStars(weak) <= 2);
+
+  const noSigma={
+    sport:"nfl",playerName:"WR NoSigma",eventId:"e2",fbisProjection:82,line:65,
+    roleConfidence:0.9,dataQuality:0.9,propGate:"CLEAR",eligibleForCard:true
+  };
+  assert.ok(selectivePropStars(noSigma) <= 2);
+
+  const strong={
+    sport:"nfl",playerName:"WR Strong",eventId:"e3",fbisProjection:86,line:65,
+    fbisSigma:18,roleConfidence:0.9,dataQuality:0.9,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:{nextGen:true,snapShare:true}
+  };
+  assert.ok(selectivePropStars(strong) >= 4);
+  const ranked=rankSelectiveProps([weak,noSigma,strong]);
+  assert.equal(ranked.rows.length,1);
+  assert.equal(ranked.rows[0].playerName,"WR Strong");
+  assert.equal(ranked.policy.minStars,3);
+});
+
+test("nflverse v2 aggregates Next Gen and snap-share evidence", () => {
+  const ngs=aggregateNextGen({
+    passing:[{season:2026,week:1,team_abbr:"KC",player_gsis_id:"qb1",player_display_name:"QB One",avg_time_to_throw:"2.6",completion_percentage_above_expectation:"4.2",aggressiveness:"12"}],
+    rushing:[{season:2026,week:1,team_abbr:"KC",player_gsis_id:"rb1",player_display_name:"RB One",rush_yards_over_expected_per_att:"0.7",efficiency:"3.2"}],
+    receiving:[{season:2026,week:1,team_abbr:"KC",player_gsis_id:"wr1",player_display_name:"WR One",avg_separation:"3.4",avg_yac_above_expectation:"1.1"}],
+  },2026);
+  assert.equal(ngs.teamFeatures.KC.qbTimeToThrow,2.6);
+  assert.equal(ngs.teamFeatures.KC.rushYoePerAtt,0.7);
+  assert.equal(ngs.teamFeatures.KC.receivingSeparation,3.4);
+
+  const snaps=aggregateSnapCounts([
+    {season:2026,week:1,team:"KC",player_id:"wr1",player:"WR One",offense_pct:"90"},
+    {season:2026,week:2,team:"KC",player_id:"wr1",player:"WR One",offense_pct:"80"},
+  ],2026);
+  assert.equal(Number(snaps.KC[0].snapShare.toFixed(2)),0.85);
 });
