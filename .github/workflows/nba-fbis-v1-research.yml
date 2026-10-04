@@ -11,7 +11,7 @@ on:
         required: true
         default: "2026-06-21"
   push:
-    branches: ["research/nba-fbis-v1"]
+    branches: ["research/nba-decision-v2"]
     paths:
       - "functions/lib/nbaModel.js"
       - "functions/lib/nbaPlayerPropModel.js"
