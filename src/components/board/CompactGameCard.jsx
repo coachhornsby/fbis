@@ -135,6 +135,10 @@ export default function CompactGameCard({ game, onOpen }) {
   const baselineMargin = Number(matchup?.baseline?.margin);
   const finalMargin = Number(matchup?.final?.margin);
   const matchupAdj = Number(matchup?.adjustment?.margin);
+  const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
+  const finalAway = game?.away?.score ?? away?.score ?? null;
+  const finalHome = game?.home?.score ?? home?.score ?? null;
+  const hasFinalScore = isFinal && finalAway != null && finalHome != null;
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -168,6 +172,14 @@ export default function CompactGameCard({ game, onOpen }) {
           </span>
         </div>
       </header>
+
+      {hasFinalScore ? (
+        <section className="cgc-final-score" aria-label="Final score">
+          <span>FINAL SCORE</span>
+          <strong><b>{away.abbr}</b> {finalAway} <i>–</i> {finalHome} <b>{home.abbr}</b></strong>
+          <small>FBIS projection remains shown below for forecast comparison</small>
+        </section>
+      ) : null}
 
       <div className="cgc-main">
         <div className="cgc-matchup">
@@ -207,29 +219,6 @@ export default function CompactGameCard({ game, onOpen }) {
         </aside>
       </div>
 
-      {isNfl && matchup?.ok ? (
-        <section className="cgc-matchup-read" aria-label="FBIS individual game matchup analysis">
-          <div className="cgc-matchup-read-head">
-            <div><span>GAME MATCHUP</span><strong>{matchup?.adjustment?.evidenceQualified ? "EVIDENCE QUALIFIED" : "ANALYSIS ONLY"}</strong></div>
-            <b>{matchup?.coverage ? `${matchup.coverage.available}/${matchup.coverage.total} SIGNALS` : "—"}</b>
-          </div>
-          <div className="cgc-matchup-pills">
-            {matchupItems.map((item) => (
-              <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
-                <span>{item.label}</span><strong>{item.text}</strong>
-              </div>
-            ))}
-          </div>
-          <div className="cgc-matchup-adjustment">
-            <span>BASELINE <b>{Number.isFinite(baselineMargin) ? `${baselineMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(baselineMargin))}` : "—"}</b></span>
-            <i>→</i>
-            <span>ADJ <b>{Number.isFinite(matchupAdj) ? `${matchupAdj > 0 ? "+" : ""}${fmt(matchupAdj)}` : "0"}</b></span>
-            <i>→</i>
-            <span>GAME READ <b>{Number.isFinite(finalMargin) ? `${finalMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(finalMargin))}` : "—"}</b></span>
-          </div>
-        </section>
-      ) : null}
-
       <div className="cgc-market-strip" aria-label="FBIS and market comparison">
         <div className="cgc-market-item">
           <span>MARKET SPREAD</span>
@@ -267,6 +256,30 @@ export default function CompactGameCard({ game, onOpen }) {
           </div>
         </div>
       ) : null}
+
+      {isNfl && matchup?.ok ? (
+        <section className="cgc-matchup-read" aria-label="FBIS individual game matchup analysis">
+          <div className="cgc-matchup-read-head">
+            <div><span>GAME MATCHUP</span><strong>{matchup?.adjustment?.evidenceQualified ? "EVIDENCE QUALIFIED" : "ANALYSIS ONLY"}</strong></div>
+            <b>{matchup?.coverage ? `${matchup.coverage.available}/${matchup.coverage.total} SIGNALS` : "—"}</b>
+          </div>
+          <div className="cgc-matchup-pills">
+            {matchupItems.map((item) => (
+              <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
+                <span>{item.label}</span><strong>{item.text}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="cgc-matchup-adjustment">
+            <span>BASELINE <b>{Number.isFinite(baselineMargin) ? `${baselineMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(baselineMargin))}` : "—"}</b></span>
+            <i>→</i>
+            <span>ADJ <b>{Number.isFinite(matchupAdj) ? `${matchupAdj > 0 ? "+" : ""}${fmt(matchupAdj)}` : "0"}</b></span>
+            <i>→</i>
+            <span>GAME READ <b>{Number.isFinite(finalMargin) ? `${finalMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(finalMargin))}` : "—"}</b></span>
+          </div>
+        </section>
+      ) : null}
+
 
       <footer className="cgc-footer">
         <div className="cgc-footer-metric">
