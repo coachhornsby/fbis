@@ -58,8 +58,8 @@ jobs:
           npx wrangler r2 object get "fbis-archive/${PREFIX}/nba-canonical.jsonl" --file artifacts/frozen/nba-canonical.jsonl --remote
           npx wrangler r2 object get "fbis-archive/canonical/espn/nba/2026-27/current/nba-canonical.jsonl" --file artifacts/current/previous.jsonl --remote || true
           test -f artifacts/current/previous.jsonl || : > artifacts/current/previous.jsonl
-          npx wrangler r2 object get "fbis-archive/models/nba/player-impact/v1/nba-player-impact-v1.json" --file artifacts/frozen/nba-player-impact-v1.json --remote || true
-          npx wrangler r2 object get "fbis-archive/models/nba/player-impact/v1/nba-lineup-effects.json" --file artifacts/frozen/nba-lineup-effects.json --remote || true
+          npx wrangler r2 object get "fbis-archive/research/nba/player-impact/v1/latest/nba-player-impact-v1.json" --file artifacts/frozen/nba-player-impact-v1.json --remote || true
+          npx wrangler r2 object get "fbis-archive/research/nba/player-impact/v1/latest/nba-lineup-effects.json" --file artifacts/frozen/nba-lineup-effects.json --remote || true
           test -f artifacts/frozen/nba-player-impact-v1.json || echo '{"players":{}}' > artifacts/frozen/nba-player-impact-v1.json
           test -f artifacts/frozen/nba-lineup-effects.json || echo '{"effects":[]}' > artifacts/frozen/nba-lineup-effects.json
 
