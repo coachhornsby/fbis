@@ -79,27 +79,19 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
   if(goalie?.goalieId){
     const g=goalieRow(goalie.goalieId,ctx),learned=NHL_PLAYER_PRO_V2_ARTIFACT?.goalies?.[String(goalie.goalieId)]||{};
     const savePct=clamp(finite(g?.savePct)??finite(learned.savePct)??0.905,0.84,0.95);
-    const leagueShots=30;
-    const oppSf=finite(oppCtx.shotsFor)??leagueShots;
-    const teamSa=finite(teamCtx.shotsAgainst)??leagueShots;
-    const oppAttackIndex=clamp(oppSf/leagueShots,0.65,1.40);
-    const defenseAllowIndex=clamp(teamSa/leagueShots,0.65,1.40);
-    const interactionShots=leagueShots*Math.pow(oppAttackIndex,0.58)*Math.pow(defenseAllowIndex,0.42);
-    const gameScript=clamp((teamGoals-oppGoals)*0.45,-1.5,1.5);
-    const goalieTeamRest=sideRest(game,side),oppRest=sideRest(game,side==="home"?"away":"home");
-    const restAdj=(oppRest!=null&&oppRest<0.6?-0.65:oppRest!=null&&oppRest>2.5?0.20:0)+(goalieTeamRest!=null&&goalieTeamRest<0.6?0.45:0);
-    const oppShots=clamp(interactionShots+gameScript+restAdj,18,44);
-    const saveRateSaves=oppShots*savePct;
-    const scoringEnvironmentSaves=Math.max(8,oppShots-clamp(oppGoals,0.8,6.0));
-    const projection=clamp(0.55*saveRateSaves+0.45*scoringEnvironmentSaves,8,42);
+    const oppSf=finite(oppCtx.shotsFor)??30;
+    const teamSa=finite(teamCtx.shotsAgainst)??30;
+    const oppShots=clamp((oppSf+teamSa)/2,20,42);
+    const baseline=oppShots*savePct;
+    const projection=clamp(0.60*baseline+0.40*Math.max(8,oppShots-oppGoals),10,40);
     const sigma=clamp(finite(learned.sigmaSaves)??Math.sqrt(Math.max(4,projection)),2.5,9);
     rows.push({
       player:{id:goalie.goalieId,name:goalie.name||g?.name||null,position:"G"},team,market:"saves",projection,sigma,
       source:"NHL_PLAYER_PRO_V2_CONFIRMED_STARTER_SAVE_ENVIRONMENT",
       validationStatus:marketValidationStatus("saves"),
       validatedLines:validatedLines("saves"),
-      shotEnvironment:{opponentShotsFor:oppSf,teamShotsAgainst:teamSa,opponentAttackIndex:oppAttackIndex,defenseAllowIndex,projectedShotsFaced:oppShots},
-      notes:"Starter-gated saves model using multiplicative opponent shot generation × team shot suppression, goalie save rate, rest/game script, and NHL-PRO-v2 opponent goal expectation."
+      shotEnvironment:{opponentShotsFor:oppSf,teamShotsAgainst:teamSa,projectedShotsFaced:oppShots},
+      notes:"Starter-gated saves model using opponent shot generation + team shot suppression, goalie save rate, and NHL-PRO-v2 opponent goal expectation."
     });
   }
   return rows;
