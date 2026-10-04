@@ -51,7 +51,7 @@ function playerAvailabilityGate(game = {}, sport = "", player = {}, team = null)
   }
   if (sport === "nhl" && String(player?.position || "").toUpperCase() === "G") {
     const goalieSide = team && String(game?.home?.abbr || "").toUpperCase() === String(team).toUpperCase() ? "home" : "away";
-    const g = game?.nhlV1?.layers?.goalie?.[goalieSide] || null;
+    const g = game?.nhlProV2?.layers?.goalie?.[goalieSide] || game?.nhlV1?.layers?.goalie?.[goalieSide] || null;
     if (!g?.goalieId || String(g.status || "").includes("PRIOR") || String(g.status || "") === "UNKNOWN") {
       return { state:"HOLD", reason:"goalie_not_confirmed", status, match, preflight };
     }
@@ -263,17 +263,30 @@ export function attachNflPlayerProjectionResearch(games = [], playerFeed = {}) {
 }
 
 function nhlRowsForSide(game, side, ctx = {}) {
-  return nhlPlayerProV2RowsForSide(game, side, ctx).map((p)=>statRow({
-    sport:"nhl",
-    game,
-    team:p.team,
-    player:p.player,
-    market:p.market,
-    projection:p.projection,
-    sigma:p.sigma,
-    source:p.source,
-    notes:p.notes,
-  })).filter(Boolean);
+  return nhlPlayerProV2RowsForSide(game, side, ctx).map((p)=>{
+    const row=statRow({
+      sport:"nhl",
+      game,
+      team:p.team,
+      player:p.player,
+      market:p.market,
+      projection:p.projection,
+      sigma:p.sigma,
+      source:p.source,
+      notes:p.notes,
+    });
+    if(!row)return null;
+    const validationStatus=p.validationStatus||"PENDING_VALIDATION";
+    const modelValidated=validationStatus==="PROMOTE_RESEARCH";
+    return {
+      ...row,
+      validationStatus,
+      modelValidated,
+      propGate:modelValidated?row.propGate:"HOLD",
+      gateReason:modelValidated?row.gateReason:"market_not_validated_vs_baseline",
+      eligibleForCard:modelValidated&&row.propGate==="CLEAR",
+    };
+  }).filter(Boolean);
 }
 
 export function attachNhlPlayerProjectionResearch(games = [], ctx = {}) {
