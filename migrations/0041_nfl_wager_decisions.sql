@@ -57,3 +57,7 @@ CREATE TABLE IF NOT EXISTS nfl_wager_outcomes (
 
 CREATE INDEX IF NOT EXISTS idx_nfl_wager_outcomes_event
   ON nfl_wager_outcomes(event_id, settled_at);
+
+
+INSERT OR IGNORE INTO schema_migrations (id, applied_at)
+VALUES ('0041_nfl_wager_decisions', datetime('now'));
