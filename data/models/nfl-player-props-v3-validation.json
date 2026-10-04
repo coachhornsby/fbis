@@ -1,0 +1,59 @@
+{
+  "modelId": "NFL-PLAYER-PROJ-v3.1",
+  "validatedAt": "2026-10-04",
+  "window": {"startSeason": 2025, "endSeason": 2026, "priorSeasonSource": 2024},
+  "design": "incremental leakage-safe weekly walk-forward; QB1/RB1/WR1/WR2/TE1 statistical roles frozen before each week",
+  "sample": {"predictionsPerConfig": 7762, "uniquePlayers": 253, "roleSlots": 3520, "statisticalRoleActualHitRate": 0.7465909091},
+  "grid": {
+    "recentWeights": [0.65,0.70,0.75,0.80,0.85,0.90],
+    "priorWeights": [0.05,0.10,0.15],
+    "positionDefenseStrengths": [0.0,0.25,0.45,0.65],
+    "validConfigs": 68
+  },
+  "bestGlobal": {
+    "recentWeight": 0.65,
+    "currentSeasonWeight": 0.20,
+    "priorSeasonWeight": 0.15,
+    "positionDefenseStrength": 0.25,
+    "mae": 14.9287578874,
+    "rmse": 28.5245500884,
+    "bias": 1.1150680582,
+    "equalMarketNmae": 0.3779443101
+  },
+  "priorProduction": {
+    "recentWeight": 0.65,
+    "currentSeasonWeight": 0.25,
+    "priorSeasonWeight": 0.10,
+    "positionDefenseStrength": 0.45,
+    "mae": 14.9932072688,
+    "rmse": 28.7024207666,
+    "bias": 1.2014169976,
+    "equalMarketNmae": 0.3800135488
+  },
+  "marketCalibration": {
+    "passing_attempts": {"recent":0.70,"season":0.15,"prior":0.15,"positionDefenseStrength":0.65,"mae":6.9997837532},
+    "passing_yards": {"recent":0.65,"season":0.20,"prior":0.15,"positionDefenseStrength":0.65,"mae":62.6103883890},
+    "completions": {"recent":0.65,"season":0.20,"prior":0.15,"positionDefenseStrength":0.45,"mae":5.0276173178},
+    "rushing_attempts_all": {"recent":0.65,"season":0.20,"prior":0.15,"positionDefenseStrength":0.0,"mae":3.1289815285},
+    "rushing_yards_all": {"recent":0.65,"season":0.20,"prior":0.15,"positionDefenseStrength":0.0,"mae":21.0066478931},
+    "receiving_yards_all": {"recent":0.65,"season":0.20,"prior":0.15,"positionDefenseStrength":0.0,"mae":23.7901904622},
+    "receptions_all": {"recent":0.65,"season":0.20,"prior":0.15,"positionDefenseStrength":0.0,"mae":1.7416314218},
+    "qb_rushing_attempts": {"positionDefenseStrength":0.25},
+    "rb_receiving_yards": {"positionDefenseStrength":0.65},
+    "rb_receptions": {"positionDefenseStrength":0.25},
+    "te_receptions": {"positionDefenseStrength":0.25}
+  },
+  "current2026Challenger": {
+    "recentWeight": 0.85,
+    "currentSeasonWeight": 0.0,
+    "priorSeasonWeight": 0.15,
+    "positionDefenseStrength": 0.0,
+    "n": 1193,
+    "mae": 15.3733141182,
+    "status": "challenger_only_small_current_season_slice"
+  },
+  "limitations": [
+    "No historical PrizePicks line was used, so this validates projection-number accuracy rather than pick'em ROI.",
+    "Historical statistical role identification hit the actual weekly player in 74.66% of role slots; production live availability/depth-chart gates are required."
+  ]
+}
