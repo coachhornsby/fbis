@@ -142,3 +142,26 @@ jobs:
             echo "- pushes: $(jq -r '.pushes // 0' "$body")"
             echo "- unmatched: $(jq -r '.unmatched // 0' "$body")"
           } >> "$GITHUB_STEP_SUMMARY"
+
+
+      - name: Grade WNBA game wager decisions and CLV
+        if: steps.gate.outputs.run == 'true'
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          yesterday="$(TZ=America/Chicago date -d 'yesterday' +%F)"
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 120 --retry 1 --retry-delay 3             -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             --data-binary "$(jq -nc --arg date "$yesterday" '{date:$date}')"             -o "$body" -w "%{http_code}"             "${BASE}/api/wnba-wager-grade")"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok==true' "$body" >/dev/null
+          {
+            echo "## WNBA game wager grading"
+            echo "- candidates: $(jq -r '.candidates // 0' "$body")"
+            echo "- graded: $(jq -r '.graded // 0' "$body")"
+            echo "- wins: $(jq -r '.wins // 0' "$body")"
+            echo "- losses: $(jq -r '.losses // 0' "$body")"
+            echo "- pushes: $(jq -r '.pushes // 0' "$body")"
+          } >> "$GITHUB_STEP_SUMMARY"

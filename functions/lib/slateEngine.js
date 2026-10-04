@@ -37,6 +37,7 @@ import { attachMatchupFactors } from "./matchupFactors.js";
 import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
 import { loadWnbaPlayerContext, attachWnbaPlayerProjectionResearch } from "./wnbaPlayerProjection.js";
 import { attachWnbaV2Research } from "./wnbaFbisV2.js";
+import { buildWnbaGameDecisions, WNBA_WAGER_DECISION_VERSION } from "./wnbaWagerDecision.js";
 import {
   marketImpliedAuthority,
   deriveBoardDecision,
@@ -409,6 +410,35 @@ export async function buildSlate(sport, date, env = {}) {
     } catch {
       // Fail-open.
     }
+  }
+
+  // WNBA wagering mirrors NFL game-level decisioning: the independent
+  // projection stays market-free; actual offer/price and ACTION context are
+  // downstream inputs. Closing information is evaluation-only.
+  if (id === "wnba" && Array.isArray(next.games)) {
+    const wagerGames = [];
+    for (const game of next.games) {
+      let packet;
+      try {
+        packet = await buildWnbaGameDecisions(game, env.DB || null, { minEv: 0.03 });
+      } catch (err) {
+        packet = { ok:false, gameId:String(game?.id||""), reason:String(err?.message||err), offers:[], candidates:[] };
+      }
+      wagerGames.push({ ...game, wnbaWagerDecision: packet });
+    }
+    next = {
+      ...next,
+      games: wagerGames,
+      wnbaWagerArchitecture: {
+        version: WNBA_WAGER_DECISION_VERSION,
+        independentProjectionMarketFree: true,
+        actionDirectQualification: false,
+        closeUsedAsDecisionInput: false,
+        confidenceValidated: wagerGames.some(g => g.wnbaWagerDecision?.confidenceValidated === true),
+        stakingValidated: false,
+        objective: "positive-expected-value-at-offered-price",
+      },
+    };
   }
 
   // NFL wager decisioning is downstream of the independent projection and the
