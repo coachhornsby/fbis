@@ -107,6 +107,16 @@ function modelIdentity(sport, game = {}) {
       canQualify: false,
     };
   }
+  if (sport === "soccer") {
+    return {
+      name: "FBIS Soccer Research",
+      engine: game.researchProjection?.modelId || game.soccerFbis?.modelId || "SOCCER-FBIS-v1",
+      independent: Boolean(independentFbis),
+      state: game.projectionState || game.projectionMaturity || null,
+      maturity: "RESEARCH",
+      canQualify: false,
+    };
+  }
   return { name: "FBIS", engine: null, independent: false, state: null };
 }
 
