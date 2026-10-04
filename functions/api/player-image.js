@@ -30,6 +30,36 @@ async function prizePicksResearchImage(name,sport){
   return image && /^https?:\/\//i.test(image) ? image : null;
 }
 
+
+async function wikidataPlayerImage(name,sport){
+  const searchUrl="https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&origin=*&language=en&limit=8&search="+encodeURIComponent(name);
+  const res=await fetch(searchUrl,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
+  if(!res.ok) return null;
+  const body=await res.json().catch(()=>({}));
+  const wanted=String(sport||"").toLowerCase();
+  const candidates=(body?.search||[]).filter(x=>{
+    const d=String(x?.description||"").toLowerCase();
+    if(wanted==="tennis") return d.includes("tennis");
+    if(["nfl","cfb"].includes(wanted)) return d.includes("football");
+    if(["mlb","npb","kbo"].includes(wanted)) return d.includes("baseball");
+    if(["nba","wnba"].includes(wanted)) return d.includes("basketball");
+    if(wanted==="nhl") return d.includes("hockey");
+    if(wanted==="soccer") return d.includes("football")||d.includes("soccer");
+    return true;
+  });
+  for(const hit of candidates.slice(0,4)){
+    const entUrl="https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=claims&ids="+encodeURIComponent(hit.id);
+    const er=await fetch(entUrl,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
+    if(!er.ok) continue;
+    const eb=await er.json().catch(()=>({}));
+    const file=eb?.entities?.[hit.id]?.claims?.P18?.[0]?.mainsnak?.datavalue?.value||null;
+    if(file){
+      return "https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file)+"?width=320";
+    }
+  }
+  return null;
+}
+
 async function wikipediaPlayerImage(name){
   const endpoint="https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=0&gsrlimit=5&gsrsearch="+
     encodeURIComponent('intitle:"'+name+'"')+
@@ -78,6 +108,9 @@ export async function onRequestGet(context){
 
   const prizeImage=await prizePicksResearchImage(name,sport).catch(()=>null);
   if(prizeImage) return json({ok:true,found:true,name,sport,imageUrl:prizeImage,source:"PRIZEPICKS_RESEARCH"});
+
+  const wikidataImage=await wikidataPlayerImage(name,sport).catch(()=>null);
+  if(wikidataImage) return json({ok:true,found:true,name,sport,imageUrl:wikidataImage,source:"WIKIDATA"});
 
   const wikiImage=await wikipediaPlayerImage(name).catch(()=>null);
   if(wikiImage) return json({ok:true,found:true,name,sport,imageUrl:wikiImage,source:"WIKIPEDIA"});
