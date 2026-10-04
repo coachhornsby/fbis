@@ -22,7 +22,6 @@ from sklearn.preprocessing import StandardScaler
 
 DATA=Path("artifacts/cfb-final/v6-context/cfb_v6_context.csv")
 V4=Path("artifacts/cfb-final/model-v5/oos-predictions.csv")
-V3=Path("artifacts/cfb-final/model/cfb_v3_oos_predictions.csv")
 OUT=Path("artifacts/cfb-final/model-v6");OUT.mkdir(parents=True,exist_ok=True)
 RIDGE_ALPHAS=[10,30,100,300]
 GB_L2=[1.0,3.0,10.0]
@@ -173,9 +172,7 @@ def main():
    "v6_margin":pm,"v6_total":pt,"market_margin":-num(te.benchmark_home_spread),"market_total":num(te.benchmark_total)}))
   folds.append({"season":season,"trainN":len(tr),"testN":len(te),"marginFeatures":mf,"totalFeatures":tf,"marginModel":str(ms),"totalModel":str(ts)})
  p=pd.concat(rows,ignore_index=True)
- old=pd.read_csv(V3).rename(columns={"model_margin":"v3_margin","model_total":"v3_total"})
- p=p.merge(old[["game_id","v3_margin","v3_total"]],on="game_id",how="inner")
- m4=metrics(p,p.v6_margin,p.v6_total);m3=metrics(p,p.v3_margin,p.v3_total)
+ m4=metrics(p,p.v6_margin,p.v6_total)
  mk=p.dropna(subset=["market_margin","market_total"]);market=metrics(mk,mk.market_margin,mk.market_total);m4mk=metrics(mk,mk.v6_margin,mk.v6_total)
  hold=p[p.season>=2025];h4=metrics(hold,hold.v6_margin,hold.v6_total)
  # Paired head-to-head against the frozen v5 OOS predictions when available.
@@ -190,7 +187,6 @@ def main():
   "design":"v6 hierarchical cross-season team/conference priors + shrunk team HFA + safe QB continuity when available + broad shifted advanced state + matchup interactions + train-fold-selected Ridge/HistGradientBoosting ensemble",
   "sample":{"n":len(p),"startSeason":int(p.season.min()),"endSeason":int(p.season.max())},
   "v6":m4,"marketPairedV6":m4mk,"market":market,"holdout2025_2026":{"v6":h4},
-  "beatsV3AllThree":bool(m4["marginMae"]<m3["marginMae"] and m4["totalMae"]<m3["totalMae"] and m4["winnerAccuracy"]>m3["winnerAccuracy"]),
   "betting":betting(p,prefix="v6"),"v5HeadToHead":v5cmp,"folds":folds,
   "governance":"Research only. Market excluded from feature construction, selection, tuning and fit. Betting lines exposed only after frozen OOS predictions."}
  (OUT/"report.json").write_text(json.dumps(report,indent=2));p.to_csv(OUT/"oos-predictions.csv",index=False)
