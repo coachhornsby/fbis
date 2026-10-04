@@ -242,6 +242,7 @@ export function buildBoardGameViewModel(game) {
   }
 
   const resolved = resolveBoardProjection(game);
+  const sport = String(game.sport || "").toLowerCase();
   const projection = fbisProjection(game);
   const market = marketLines(game);
   const deltas = marketDeltas(game);
