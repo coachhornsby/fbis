@@ -207,11 +207,17 @@ function nflRowsForSide(game, side, playerFeed = {}) {
     const roleConfidence = snapShare == null
       ? (Number(p.games || 0) > 0 ? clamp((Number(p.games || 0) + 2) / 8, 0.45, 0.82) : 0.65)
       : clamp((snapShare - 0.25) / 0.65, 0.2, 1);
-    const volumeFactor = position === "QB"
+    const environmentFactor = position === "QB"
       ? clamp(0.96 + (factor - 1) * 0.45, 0.84, 1.12)
       : position === "RB"
         ? clamp(1 + (factor - 1) * 0.35, 0.82, 1.16)
         : clamp(1 + (factor - 1) * 0.55, 0.82, 1.18);
+    const snapVolumeFactor = snapShare == null
+      ? 1
+      : position === "QB"
+        ? clamp(0.96 + (snapShare - 0.90) * 0.20, 0.92, 1.03)
+        : clamp(0.82 + snapShare * 0.28, 0.82, 1.10);
+    const volumeFactor = environmentFactor * snapVolumeFactor;
     const ngs = p.ngs || {};
     const passingEff = clamp(
       1 +
@@ -261,6 +267,8 @@ function nflRowsForSide(game, side, playerFeed = {}) {
       if (!row) continue;
       row.roleConfidence = round1(roleConfidence);
       row.snapShare = snapShare == null ? null : round1(snapShare);
+      row.environmentFactor = round1(environmentFactor);
+      row.snapVolumeFactor = round1(snapVolumeFactor);
       row.featureEvidence = {
         nextGen: Boolean(p.ngs && Object.values(p.ngs).some((v)=>finite(v)!=null)),
         snapShare: snapShare != null,
