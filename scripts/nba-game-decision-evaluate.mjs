@@ -220,5 +220,5 @@ const report={
 };
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
 fs.writeFileSync(out,JSON.stringify(report,null,2)+"\n");
-fs.writeFileSync(sqlOut,["BEGIN;",...decisions.map(sqlRow),"COMMIT;"].join("\n")+"\n");
+fs.writeFileSync(sqlOut,decisions.map(sqlRow).join("\n")+"\n");
 console.log(JSON.stringify({ok:true,n:decisions.length,betN:bet.length,gradedN:graded.length,units,roiPct:report.roiPct,positiveClvRate,confidence:report.confidenceCalibration},null,2));

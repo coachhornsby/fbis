@@ -111,5 +111,5 @@ const payload={date,checkpoint,createdAt,gameModel:"NBA-FBIS-v1",gameVersion:fit
   governance:{maturity:"VALIDATION",canQualify:true,canAuthorize:false,marketUsedAsFeature:false}};
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
 fs.writeFileSync(out,JSON.stringify(payload,null,2)+"\n");
-fs.writeFileSync(sqlOut,["BEGIN;",...games.map(insertGame),...props.map(insertProp),"COMMIT;"].join("\n")+"\n");
+fs.writeFileSync(sqlOut,[...games.map(insertGame),...props.map(insertProp)].join("\n")+"\n");
 console.log(JSON.stringify({ok:true,date,checkpoint,games:games.length,props:props.length,out,sqlOut},null,2));
