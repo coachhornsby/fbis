@@ -70,6 +70,13 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
         source:"NHL_PLAYER_PRO_V2_SHARE_ENVIRONMENT",
         validationStatus:marketValidationStatus(market),
         validatedLines:validatedLines(market),
+        shotEnvironment:market==="shots_on_goal"?{
+          teamShotsFor:finite(teamCtx.shotsFor)??30,
+          opponentShotsAgainst:finite(oppCtx.shotsAgainst)??30,
+          projectedTeamShots:teamShots,
+          playerShotRate:x.shots,
+          playerShotShare:x.shots/shotSum,
+        }:null,
         notes:"Point-in-time player rate/share model tied to NHL-PRO-v2 game environment; independent of sportsbook line."
       });
     }

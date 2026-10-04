@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "45 12 * * 1"
   push:
-    branches: [main, "feature/nhl-player-props-stars-20261004"]
+    branches: [main]
     paths:
       - "scripts/nhl-pro-v2-walkforward.mjs"
       - "scripts/nhl-player-pro-v2-backtest.mjs"

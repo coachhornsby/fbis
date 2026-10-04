@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { rateNhlGoalieSavesConfidence } from "../functions/lib/nhlPropConfidence.js";
+import { rateNhlGoalieSavesConfidence, rateNhlShotsOnGoalConfidence } from "../functions/lib/nhlPropConfidence.js";
 
 const API="https://api-web.nhle.com/v1";
 function arg(name,fallback=null){const p=process.argv.find(x=>x.startsWith(`--${name}=`));return p?p.split("=").slice(1).join("="):fallback;}
@@ -200,6 +200,9 @@ function lineGapBucket(g){
 function savesLineBucket(line){
   return line<=22.5?"20.5-22.5":line<=26.5?"23.5-26.5":line<=30.5?"27.5-30.5":"31.5+";
 }
+function sogLineBucket(line){
+  return line<=1.5?"0.5-1.5":line<=2.5?"2.5":line<=3.5?"3.5":"4.5+";
+}
 function savesBetStats(rows){
   if(!rows.length)return null;
   let hit=0,brier=0;
@@ -288,7 +291,10 @@ for(let idx=1;idx<seasons.length;idx++){
           rows.push({season:target,date:String(g.start||"").slice(0,10),gameId:g.id,team,opp,home:side==="home",position:x.pos,playerId:p.id,playerName:p.name,
             market,actual:actual[market],baseline:base[market],v2:pred[market],sigma,baselineSigma:sigma,
             priorGp:histGp,currentGp:curGp,restDays:rest,b2b:rest<0.6,seasonPhase:phase(gi,targetGames.length),roleTier:roleRank,
-            projectedTeamGoals:teamGoals,projectedTeamShots:teamShots,lines:marketLines(market)});
+            projectedTeamGoals:teamGoals,projectedTeamShots:teamShots,
+            teamShotsFor:sf,opponentShotsAgainst:oppSa,playerShotRate:x.shots,playerShotShare:x.shots/shotSum,
+            recentShotRate:x.cr?.recent?.shots?.length?mean(x.cr.recent.shots):null,
+            lines:marketLines(market)});
         }
       }
 
@@ -332,6 +338,81 @@ for(const r of allRows)for(const line of r.lines||[]){
 }
 const byLine=lineGroups(lineRows,r=>`${r.market}:${r.line}`,100);
 const byEdge=lineGroups(lineRows,r=>r.edge<0.05?"<5%":r.edge<0.10?"5-9.9%":r.edge<0.15?"10-14.9%":r.edge<0.20?"15-19.9%":"20%+",200);
+
+const sogRows=allRows.filter(r=>r.market==="shots_on_goal");
+const sogCuts={
+  teamShotsFor:quantileCuts(sogRows.map(r=>r.teamShotsFor)),
+  opponentShotsAgainst:quantileCuts(sogRows.map(r=>r.opponentShotsAgainst)),
+  projectedTeamShots:quantileCuts(sogRows.map(r=>r.projectedTeamShots)),
+  playerShotRate:quantileCuts(sogRows.map(r=>r.playerShotRate)),
+  playerShotShare:quantileCuts(sogRows.map(r=>r.playerShotShare)),
+  priorGames:quantileCuts(sogRows.map(r=>r.priorGp)),
+};
+const sogLineRows=lineRows.filter(r=>r.market==="shots_on_goal").map(r=>({
+  ...r,
+  direction:r.v2>r.line?"OVER":"UNDER",
+  gap:r.v2-r.line,
+  gapBucket:lineGapBucket(r.v2-r.line),
+  lineBucket:sogLineBucket(r.line),
+  teamAttackQuartile:quartile(r.teamShotsFor,sogCuts.teamShotsFor),
+  opponentAllowanceQuartile:quartile(r.opponentShotsAgainst,sogCuts.opponentShotsAgainst),
+  projectedTeamShotsQuartile:quartile(r.projectedTeamShots,sogCuts.projectedTeamShots),
+  playerShotRateQuartile:quartile(r.playerShotRate,sogCuts.playerShotRate),
+  playerShotShareQuartile:quartile(r.playerShotShare,sogCuts.playerShotShare),
+  priorSampleQuartile:quartile(r.priorGp,sogCuts.priorGames),
+}));
+const sogStarRows=sogLineRows.map(r=>{
+  const rated=rateNhlShotsOnGoalConfidence({
+    projection:r.v2,line:r.line,
+    teamShotsFor:r.teamShotsFor,
+    opponentShotsAgainst:r.opponentShotsAgainst,
+    projectedTeamShots:r.projectedTeamShots,
+    playerShotRate:r.playerShotRate,
+    playerShotShare:r.playerShotShare,
+    lineValidated:true,
+    modelValidated:true,
+    cuts:sogCuts,
+  });
+  return {...r,stars:rated.stars,starTier:rated.tier,starSide:rated.side};
+});
+const sogAudit={
+  cuts:sogCuts,
+  byLine:savesGroups(sogLineRows,r=>r.line,250),
+  byLineBucket:savesGroups(sogLineRows,r=>r.lineBucket,500),
+  byDirection:savesGroups(sogLineRows,r=>r.direction,500),
+  byGap:savesGroups(sogLineRows,r=>r.gapBucket,500),
+  byDirectionGap:savesGroups(sogLineRows,r=>`${r.direction}|${r.gapBucket}`,250),
+  byTeamAttackQuartile:savesGroups(sogLineRows,r=>r.teamAttackQuartile,500),
+  byOpponentAllowanceQuartile:savesGroups(sogLineRows,r=>r.opponentAllowanceQuartile,500),
+  byAttackDefenseMatrix:savesGroups(sogLineRows,r=>`${r.teamAttackQuartile}|${r.opponentAllowanceQuartile}`,300),
+  byProjectedTeamShotsQuartile:savesGroups(sogLineRows,r=>r.projectedTeamShotsQuartile,500),
+  byPlayerShotRateQuartile:savesGroups(sogLineRows,r=>r.playerShotRateQuartile,500),
+  byPlayerShotShareQuartile:savesGroups(sogLineRows,r=>r.playerShotShareQuartile,500),
+  byRoleTier:savesGroups(sogLineRows,r=>r.roleTier,500),
+  byPosition:savesGroups(sogLineRows,r=>r.position,500),
+  byHomeAway:savesGroups(sogLineRows,r=>r.home?"HOME":"AWAY",500),
+  byRest:savesGroups(sogLineRows,r=>r.b2b?"B2B":r.restDays>=2.5?"2PLUS_REST":"NORMAL_REST",500),
+  bySeasonPhase:savesGroups(sogLineRows,r=>r.seasonPhase,500),
+  byPriorSampleQuartile:savesGroups(sogLineRows,r=>r.priorSampleQuartile,500),
+  byStars:savesGroups(sogStarRows,r=>`${r.stars} STAR`,250),
+  byStarsDirection:savesGroups(sogStarRows,r=>`${r.stars} STAR|${r.direction}`,150),
+  byStarsCoreLines:savesGroups(sogStarRows.filter(r=>r.line>=1.5&&r.line<=4.5),r=>`${r.stars} STAR`,150),
+  byStarsCoreLinesDirection:savesGroups(sogStarRows.filter(r=>r.line>=1.5&&r.line<=4.5),r=>`${r.stars} STAR|${r.direction}`,100),
+  sportsbookStyle:{
+    highVolumeGoodMatchupOver:savesGroups(
+      sogLineRows.filter(r=>r.playerShotRateQuartile==="Q4"&&r.opponentAllowanceQuartile==="Q4"&&r.direction==="OVER"),
+      r=>r.gapBucket,100
+    ),
+    lowVolumeToughMatchupUnder:savesGroups(
+      sogLineRows.filter(r=>r.playerShotRateQuartile==="Q1"&&r.opponentAllowanceQuartile==="Q1"&&r.direction==="UNDER"),
+      r=>r.gapBucket,100
+    ),
+    overByLineAndGap:savesGroups(sogLineRows.filter(r=>r.direction==="OVER"),r=>`${r.lineBucket}|${r.gapBucket}`,150),
+    underByLineAndGap:savesGroups(sogLineRows.filter(r=>r.direction==="UNDER"),r=>`${r.lineBucket}|${r.gapBucket}`,150),
+    top6OverByGap:savesGroups(sogLineRows.filter(r=>r.roleTier==="TOP6"&&r.direction==="OVER"),r=>r.gapBucket,150),
+    defenseOverByGap:savesGroups(sogLineRows.filter(r=>r.position==="D"&&r.direction==="OVER"),r=>r.gapBucket,150)
+  }
+};
 
 const savesRows=allRows.filter(r=>r.market==="saves");
 const savesCuts={
@@ -427,7 +508,7 @@ const report={
   conditionalOnActive:true,conditionalOnConfirmedStarter:true,marketInformed:false,
   integrity:{priorSeasonsOnlyTraining:true,currentSeasonOnlyPastGames:true,usesSameGameBoxscoreOnlyForParticipationSet:true,fetchErrors:errors.length,targetSeasons:seasons.slice(1)},
   aggregate:{projection:propMetrics(allRows),threshold:thresholdMetrics(allRows),rows:allRows.length,lineTests:lineRows.length},
-  folds,marketValidation,lineValidation,subsets:subset,bySyntheticLine:byLine,byModelEdge:byEdge,savesAudit,
+  folds,marketValidation,lineValidation,subsets:subset,bySyntheticLine:byLine,byModelEdge:byEdge,sogAudit,savesAudit,
   limitations:[
     "Historical prop validation is conditional on the player being active in the game; same-game boxscore participation is used only to define the active set, never as a performance input.",
     "Goalie save validation is conditional on the actual primary goalie (>=30 minutes); live use remains gated on starter confirmation.",
