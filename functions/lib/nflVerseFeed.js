@@ -48,13 +48,22 @@ export function parseCsv(text=""){
   return lines.slice(1).map(line=>{const cells=splitCsvLine(line);return Object.fromEntries(headers.map((h,i)=>[h,cells[i]??""]));});
 }
 async function fetchCsv(url,fetchFn=fetch){
-  const res=await fetchFn(url,{headers:{Accept:"text/csv,*/*","User-Agent":"FBIS/2.0"}});
+  const res=await fetchFn(url,{headers:{Accept:"text/csv,application/gzip,*/*","User-Agent":"FBIS/2.0"}});
   if(!res.ok)return{ok:false,status:res.status,rows:[],url};
-  return{ok:true,status:res.status,rows:parseCsv(await res.text()),url};
+  let text;
+  if (/\.gz(?:$|\?)/i.test(url)) {
+    if (typeof DecompressionStream === "undefined" || !res.body) {
+      return {ok:false,status:415,rows:[],url,error:"gzip_decompression_unavailable"};
+    }
+    text = await new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).text();
+  } else {
+    text = await res.text();
+  }
+  return{ok:true,status:res.status,rows:parseCsv(text),url};
 }
 function teamUrl(y){return `${RELEASE}/stats_team/stats_team_week_${y}.csv`;}
 function playerUrl(y){return `${RELEASE}/stats_player/stats_player_week_${y}.csv`;}
-function ngsUrl(type){return `${RELEASE}/nextgen_stats/ngs_${type}.csv`;}
+function ngsUrl(type){return `${RELEASE}/nextgen_stats/ngs_${type}.csv.gz`;}
 function snapUrl(y){return `${RELEASE}/snap_counts/snap_counts_${y}.csv`;}
 
 function mean(xs=[]){const v=xs.map(num).filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
