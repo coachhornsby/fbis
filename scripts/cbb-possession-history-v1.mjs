@@ -2,12 +2,20 @@ import { createInterface } from "node:readline";
 import { Readable } from "node:stream";
 import { createGunzip } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { aggregateNcaaCbbGame, cbbNcaaPossessionFeatures, CBB_NCAA_POSSESSION_MODEL_ID, CBB_NCAA_POSSESSION_MODEL_VERSION } from "../functions/lib/cbbNcaaPossessionModel.js";
+import {
+  aggregateNcaaCbbGame,
+  aggregateNcaaValidatedLineups,
+  cbbNcaaPossessionFeatures,
+  CBB_NCAA_POSSESSION_MODEL_ID,
+  CBB_NCAA_POSSESSION_MODEL_VERSION,
+} from "../functions/lib/cbbNcaaPossessionModel.js";
 
 const seasonStart=Number(process.env.FBIS_SEASON||process.argv[2]);
 if(!Number.isFinite(seasonStart))throw new Error("FBIS_SEASON or starting season arg required");
 const endingYear=seasonStart+1;
-const URL="https://github.com/sportsdataverse/sportsdataverse-data/releases/download/ncaa_mbb_pbp/ncaa_mbb_pbp_"+endingYear+".csv.gz";
+const BASE="https://github.com/sportsdataverse/sportsdataverse-data/releases/download";
+const PBP_URL=BASE+"/ncaa_mbb_pbp/ncaa_mbb_pbp_"+endingYear+".csv.gz";
+const LINEUP_URL=BASE+"/ncaa_mbb_lineups/ncaa_mbb_lineups_"+endingYear+".csv.gz";
 
 function parseCsvLine(line){
   const out=[];let cur="",q=false;
@@ -15,6 +23,7 @@ function parseCsvLine(line){
 }
 function rowFrom(h,c){const r={};for(let i=0;i<h.length;i++)r[h[i]]=c[i]??"";return r;}
 const n=v=>{if(v==null||v==="")return null;const x=Number(v);return Number.isFinite(x)?x:null};
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 
 async function streamGzipCsv(url,onRow){
   const res=await fetch(url,{headers:{"User-Agent":"FBIS-CBB-NCAA-POSSESSION-v1/1.0"},redirect:"follow"});
@@ -27,12 +36,12 @@ async function streamGzipCsv(url,onRow){
     lineNo++;if(!line)continue;
     const cols=parseCsvLine(line);
     if(!header){header=cols.map(x=>x.trim());continue;}
-    if(cols.length!==header.length)throw new Error("CSV column mismatch line="+lineNo+" expected="+header.length+" got="+cols.length);
+    if(cols.length!==header.length)throw new Error("CSV column mismatch line="+lineNo+" expected="+header.length+" got="+cols.length+" url="+url);
     await onRow(rowFrom(header,cols),lineNo);
   }
   return{header,lineNo};
 }
-function compactTeam(s={}){
+function compactTeam(s={},validated=null){
   return {
     possessions:s.possessions??0,pointsFor:s.pointsFor??0,pointsAgainst:s.pointsAgainst??0,
     offensiveRating:s.offensiveRating??null,defensiveRating:s.defensiveRating??null,netRating:s.netRating??null,
@@ -40,9 +49,35 @@ function compactTeam(s={}){
     threePointRate:s.threePointRate??null,rimRate:s.rimRate??null,rimFgPct:s.rimFgPct??null,midRate:s.midRate??null,midFgPct:s.midFgPct??null,
     transitionRate:s.transitionRate??null,earlyEfgPct:s.earlyEfgPct??null,middleEfgPct:s.middleEfgPct??null,lateEfgPct:s.lateEfgPct??null,
     earlyTovPct:s.earlyTovPct??null,middleTovPct:s.middleTovPct??null,lateTovPct:s.lateTovPct??null,
-    topFiveLineups:(s.topFiveLineups||[]).slice(0,8),
+    validatedLineupPossessions:validated?.possessions??0,
+    validatedLineupDefensivePossessions:validated?.defensivePossessions??0,
+    topTwo:(validated?.topTwo||[]).slice(0,12),
+    topThree:(validated?.topThree||[]).slice(0,12),
+    topFour:(validated?.topFour||[]).slice(0,12),
+    topFiveLineups:(validated?.topFiveLineups||[]).slice(0,12),
   };
 }
+
+// The lineup release is generated from parser-validated GOOD stints only.
+// Build one compact validated lineup summary per NCAA contest before reading PBP.
+const lineupByContest=new Map();
+let lineupCurrent=null,lineupRows=[],lineupRowCount=0,lineupRepeated=0;const lineupSeen=new Set();
+function processLineupRows(rows){
+  if(!rows.length)return;
+  const contest=String(rows[0].contest_id||"");if(!contest)return;
+  if(lineupSeen.has(contest)){lineupRepeated++;return;}
+  lineupSeen.add(contest);
+  lineupByContest.set(contest,aggregateNcaaValidatedLineups(rows));
+}
+await streamGzipCsv(LINEUP_URL,(r)=>{
+  lineupRowCount++;
+  const contest=String(r.contest_id||"");if(!contest)return;
+  if(lineupCurrent==null)lineupCurrent=contest;
+  if(contest!==lineupCurrent){processLineupRows(lineupRows);lineupRows=[];lineupCurrent=contest;}
+  lineupRows.push(r);
+});
+processLineupRows(lineupRows);
+if(lineupRepeated>0)throw new Error("NCAA lineup rows were not contiguous; repeated contests="+lineupRepeated);
 
 const games=[];let currentKey=null,currentRows=[],pbpRows=0,repeatedGames=0;const seen=new Set();
 function processGame(rows){
@@ -53,18 +88,28 @@ function processGame(rows){
   if(seen.has(gameKey)){repeatedGames++;return;}
   seen.add(gameKey);
   if(!out.ok){games.push({gameId:gameKey,ok:false,reason:out.reason||"aggregate-failed"});return;}
-  const h=compactTeam(out.teams[out.homeTeamId]),a=compactTeam(out.teams[out.awayTeamId]);
+  const validated=lineupByContest.get(String(out.contestId))||null;
+  const hv=validated?.home||null,av=validated?.away||null;
+  const h=compactTeam(out.teams[out.homeTeamId],hv),a=compactTeam(out.teams[out.awayTeamId],av);
+  const homeCoverage=h.possessions?clamp((hv?.possessions||0)/h.possessions,0,1):0;
+  const awayCoverage=a.possessions?clamp((av?.possessions||0)/a.possessions,0,1):0;
+  const validatedLineupCoverage=Math.min(homeCoverage,awayCoverage);
+  const lineupReliable=Boolean(hv?.rows&&av?.rows&&validatedLineupCoverage>=0.80);
   const last=rows[rows.length-1];
   games.push({
     gameId:String(out.gameId),contestId:out.contestId,season:seasonStart,endingYear,
     date:String(rows[0].game_date||"").slice(0,10),
     homeTeamId:out.homeTeamId,awayTeamId:out.awayTeamId,homeTeamName:out.homeTeamName,awayTeamName:out.awayTeamName,
     homeScore:n(last.home_score),awayScore:n(last.away_score),
-    lineupReliable:out.lineupReliable,qa:out.qa,features:cbbNcaaPossessionFeatures(out),home:h,away:a,
+    lineupReliable,
+    qa:{...out.qa,validatedLineupCoverage,homeValidatedLineupCoverage:homeCoverage,awayValidatedLineupCoverage:awayCoverage,
+      validatedLineupRows:(hv?.rows||0)+(av?.rows||0)},
+    features:{...cbbNcaaPossessionFeatures(out),validatedLineupCoverage},
+    home:h,away:a,
   });
 }
 
-await streamGzipCsv(URL,(r)=>{
+await streamGzipCsv(PBP_URL,(r)=>{
   pbpRows++;
   const gid=String(r.espn_game_id||r.contest_id||"");
   if(!gid)return;
@@ -78,14 +123,19 @@ if(repeatedGames>0)throw new Error("NCAA PBP game rows were not contiguous; repe
 const valid=games.filter(g=>g.ok!==false),reliable=valid.filter(g=>g.lineupReliable);
 const avg=xs=>{const a=xs.map(Number).filter(Number.isFinite);return a.length?a.reduce((s,x)=>s+x,0)/a.length:null};
 const report={
-  ok:true,id:"CBB-POSSESSION-HISTORY-v2-NCAA",modelId:CBB_NCAA_POSSESSION_MODEL_ID,modelVersion:CBB_NCAA_POSSESSION_MODEL_VERSION,
-  season:seasonStart,endingYear,source:{name:"SportsDataverse ncaa_mbb_pbp / stats.ncaa.org",url:URL,marketInformed:false},
-  counts:{pbpRows,games:valid.length,lineupReliableGames:reliable.length,repeatedGames},
-  qa:{lineupReliableRate:valid.length?reliable.length/valid.length:null,meanLineupCoverage:avg(valid.map(g=>g.qa?.lineupCoverage)),gamesWithSubDeviation:valid.filter(g=>(g.qa?.subDeviate||0)>0).length,maxSubDeviation:Math.max(0,...valid.map(g=>g.qa?.subDeviate||0))},
-  governance:{independent:true,canQualify:false,canAuthorizeWager:false,espnStarterReconstructionDisabled:true},
+  ok:true,id:"CBB-POSSESSION-HISTORY-v3-NCAA-VALIDATED-LINEUPS",modelId:CBB_NCAA_POSSESSION_MODEL_ID,modelVersion:CBB_NCAA_POSSESSION_MODEL_VERSION,
+  season:seasonStart,endingYear,
+  source:{pbp:"SportsDataverse ncaa_mbb_pbp / stats.ncaa.org",lineups:"SportsDataverse ncaa_mbb_lineups good-stints-only",pbpUrl:PBP_URL,lineupUrl:LINEUP_URL,marketInformed:false},
+  counts:{pbpRows,lineupRows:lineupRowCount,lineupContests:lineupByContest.size,games:valid.length,lineupReliableGames:reliable.length,repeatedGames,lineupRepeated},
+  qa:{lineupReliableRate:valid.length?reliable.length/valid.length:null,
+    meanValidatedLineupCoverage:avg(valid.map(g=>g.qa?.validatedLineupCoverage)),
+    p90ValidatedLineupCoverage:(()=>{const x=valid.map(g=>n(g.qa?.validatedLineupCoverage)).filter(v=>v!=null).sort((a,b)=>a-b);return x.length?x[Math.floor(.9*(x.length-1))]:null;})(),
+    gamesWithSubDeviation:valid.filter(g=>(g.qa?.subDeviate||0)>0).length,
+    maxSubDeviation:Math.max(0,...valid.map(g=>g.qa?.subDeviate||0))},
+  governance:{independent:true,canQualify:false,canAuthorizeWager:false,espnStarterReconstructionDisabled:true,validatedLineupsOnly:true},
   games,
 };
 mkdirSync("artifacts",{recursive:true});
 const path="artifacts/cbb-possession-history-"+seasonStart+".json";
 writeFileSync(path,JSON.stringify(report));
-console.log(JSON.stringify({ok:true,path,season:seasonStart,endingYear,counts:report.counts,qa:report.qa,source:report.source.name},null,2));
+console.log(JSON.stringify({ok:true,path,season:seasonStart,endingYear,counts:report.counts,qa:report.qa,source:report.source},null,2));

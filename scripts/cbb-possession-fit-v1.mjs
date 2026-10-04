@@ -44,12 +44,12 @@ function sideSnapshot(side,g){
   };
 }
 function ewmaUpdate(st,obs,qa={},alpha=.28){
-  if(!st)st={games:0,values:{},qa:{lineupCoverage:null,cleanLineup:null}};
+  if(!st)st={games:0,values:{},qa:{validatedLineupCoverage:null}};
   st.games++;
-  const qvals={lineupCoverage:n(qa?.lineupCoverage),cleanLineup:n(qa?.subDeviate)==null?null:(n(qa?.subDeviate)===0?1:0)};
-  for(const k of ["lineupCoverage","cleanLineup"]){
-    const x=n(qvals[k]); if(x==null)continue;
-    const old=n(st.qa[k]); st.qa[k]=old==null?x:alpha*x+(1-alpha)*old;
+  const coverage=n(qa?.validatedLineupCoverage);
+  if(coverage!=null){
+    const old=n(st.qa.validatedLineupCoverage);
+    st.qa.validatedLineupCoverage=old==null?coverage:alpha*coverage+(1-alpha)*old;
   }
   for(const k of [...POS_KEYS,...LINEUP_KEYS]){
     const x=n(obs[k]);if(x==null)continue;
@@ -80,8 +80,8 @@ function buildSamples(){
           actualHome:p.actualHome,actualAway:p.actualAway,fbis:p.fbis,kenpom:p.kenpom,market:p.market,
           homeGames:hs?.games||0,awayGames:as?.games||0,
           priorQa:{
-            homeLineupCoverage:n(hs?.qa?.lineupCoverage),awayLineupCoverage:n(as?.qa?.lineupCoverage),
-            homeCleanLineup:n(hs?.qa?.cleanLineup),awayCleanLineup:n(as?.qa?.cleanLineup),
+            homeValidatedLineupCoverage:n(hs?.qa?.validatedLineupCoverage),
+            awayValidatedLineupCoverage:n(as?.qa?.validatedLineupCoverage),
           },
           possessionFeatures:featurePair(hs,as,POS_KEYS),
           lineupFeatures:featurePair(hs,as,LINEUP_KEYS),
@@ -104,8 +104,7 @@ function eligible(r,family){
   if((r.homeGames||0)<5||(r.awayGames||0)<5)return false;
   if(family==="lineup"||family==="full"){
     const q=r.priorQa||{};
-    return (n(q.homeLineupCoverage)??0)>=.80&&(n(q.awayLineupCoverage)??0)>=.80&&
-      (n(q.homeCleanLineup)??0)>=.80&&(n(q.awayCleanLineup)??0)>=.80;
+    return (n(q.homeValidatedLineupCoverage)??0)>=.80&&(n(q.awayValidatedLineupCoverage)??0)>=.80;
   }
   return true;
 }
@@ -171,7 +170,7 @@ const report={
     featureTiming:"Each target game uses only exponentially weighted prior completed games for each team.",
     discovery:"2018-22",validation:"2023-24",confirmation:"2025",
     marketInformed:false,
-    lineupGate:"lineup/full families require each team's prior-game EWMA NCAA lineup coverage >=80% and clean-substitution-game rate >=80%.",
+    lineupGate:"lineup/full families require each team's prior-game EWMA coverage from NCAA parser-validated good stints >=80%.",
   },
   families:{},
   promotion:{requiresOperatorApproval:true,automaticProduction:false},

@@ -173,3 +173,61 @@ export function cbbNcaaPossessionFeatures(result){
   out.subDeviate=result.qa.subDeviate;
   return out;
 }
+
+
+function lineupStatEmpty(){
+  return {possessions:0,defensivePossessions:0,pointsFor:0,pointsAgainst:0,fga:0,fgm:0,threePa:0,threePm:0,rimA:0,rimM:0,midA:0,midM:0,fta:0,orb:0,drb:0,turnovers:0,assists:0};
+}
+function addLineupStat(s,row){
+  s.possessions+=n(row.poss)||0;s.defensivePossessions+=n(row.opp_poss)||0;
+  s.pointsFor+=n(row.pts)||0;s.pointsAgainst+=n(row.opp_pts)||0;
+  s.fga+=n(row.fga)||0;s.fgm+=n(row.fgm)||0;s.threePa+=n(row.tpa)||0;s.threePm+=n(row.tpm)||0;
+  s.rimA+=n(row.rima)||0;s.rimM+=n(row.rimm)||0;s.midA+=n(row.mida)||0;s.midM+=n(row.midm)||0;
+  s.fta+=n(row.fta)||0;s.orb+=n(row.orb)||0;s.drb+=n(row.drb)||0;s.turnovers+=n(row.to)||0;s.assists+=n(row.ast)||0;
+}
+function finishLineupStat(s){
+  const offPoss=s.possessions||0,defPoss=s.defensivePossessions||0;
+  return {...s,
+    offensiveRating:offPoss?100*s.pointsFor/offPoss:null,
+    defensiveRating:defPoss?100*s.pointsAgainst/defPoss:null,
+    netRating:offPoss&&defPoss?(100*s.pointsFor/offPoss)-(100*s.pointsAgainst/defPoss):null,
+    efgPct:s.fga?(s.fgm+.5*s.threePm)/s.fga:null,
+    threePointRate:s.fga?s.threePa/s.fga:null,
+    rimRate:s.fga?s.rimA/s.fga:null,rimFgPct:s.rimA?s.rimM/s.rimA:null,
+    midRate:s.fga?s.midA/s.fga:null,midFgPct:s.midA?s.midM/s.midA:null,
+    tovPct:offPoss?s.turnovers/offPoss:null,ftr:s.fga?s.fta/s.fga:null,
+  };
+}
+function lineupPlayers(row){
+  return [row.player_1,row.player_2,row.player_3,row.player_4,row.player_5].map(key).filter(Boolean).sort();
+}
+
+/**
+ * Aggregate SportsDataverse ncaa_mbb_lineups rows. That release contains only
+ * parser-validated good stints; incomplete/bad stints are omitted upstream.
+ */
+export function aggregateNcaaValidatedLineups(rows=[]){
+  const sides={home:{overall:lineupStatEmpty(),combos:new Map(),rows:0},away:{overall:lineupStatEmpty(),combos:new Map(),rows:0}};
+  for(const row of rows){
+    const loc=String(row.location_type||"").toLowerCase();
+    const side=loc.startsWith("h")?"home":loc.startsWith("a")?"away":null;
+    if(!side)continue;
+    const players=lineupPlayers(row); if(players.length!==5)continue;
+    const bucket=sides[side];bucket.rows++;addLineupStat(bucket.overall,row);
+    for(let z=2;z<=5;z++)for(const group of combos(players,z)){
+      const k=z+":"+group.join("-");
+      let s=bucket.combos.get(k);
+      if(!s){s={size:z,players:group,...lineupStatEmpty()};bucket.combos.set(k,s);}
+      addLineupStat(s,row);
+    }
+  }
+  const finish=(bucket)=>{
+    const combinations=[...bucket.combos.values()].map(finishLineupStat).sort((a,b)=>b.possessions-a.possessions);
+    return {...finishLineupStat(bucket.overall),rows:bucket.rows,combinations,
+      topTwo:combinations.filter(x=>x.size===2).slice(0,12),
+      topThree:combinations.filter(x=>x.size===3).slice(0,12),
+      topFour:combinations.filter(x=>x.size===4).slice(0,12),
+      topFiveLineups:combinations.filter(x=>x.size===5).slice(0,12)};
+  };
+  return {home:finish(sides.home),away:finish(sides.away)};
+}
