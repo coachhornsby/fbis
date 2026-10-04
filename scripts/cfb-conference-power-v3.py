@@ -8,7 +8,7 @@ cross-conference games after the entire week's snapshot has been emitted.
 from pathlib import Path
 import json
 import numpy as np, pandas as pd
-SRC=Path("artifacts/cfb-final/cfb_training_full_enriched_2004_2026.csv")
+SRC=Path("artifacts/cfb-final/v5-context/cfb_v5_context.csv")
 OUT=Path("artifacts/cfb-final/conference-power");OUT.mkdir(parents=True,exist_ok=True)
 
 def n(x): return pd.to_numeric(x,errors="coerce")
