@@ -2013,3 +2013,54 @@
       0 16px 34px rgba(0,0,0,.34) !important;
   }
 }
+
+
+/* PrizePicks tier variants: Standard / Goblin / Demon all remain visible. */
+.pp-tier-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:10px 0 6px;
+  padding:0 2px;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+
+.pp-tier-head > span:first-child {
+  color:#c7d5e7;
+}
+
+.pp-tier-goblin .pp-tier-head > span:first-child {
+  color:#68ffad;
+  text-shadow:0 0 8px rgba(0,245,118,.16);
+}
+
+.pp-tier-demon .pp-tier-head > span:first-child {
+  color:#ff718b;
+  text-shadow:0 0 8px rgba(243,33,76,.16);
+}
+
+.pp-tier-stars {
+  display:inline-flex;
+  align-items:center;
+  gap:1px;
+  line-height:1;
+  font-size:11px;
+}
+
+.pp-tier-stars .filled {
+  color:#ffd23f;
+  text-shadow:0 0 5px rgba(255,210,63,.52);
+}
+
+.pp-tier-stars .empty {
+  color:rgba(255,222,128,.22);
+}
+
+.pp-premium-variant + .pp-premium-variant {
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.07);
+}
