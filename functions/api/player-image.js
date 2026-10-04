@@ -227,7 +227,7 @@ async function espnPlayerHeadshot(name,sport){
   return "https://a.espncdn.com/i/headshots/"+cfg.cdn+"/players/full/"+id+".png";
 }
 
-async function prizePicksResearchImage(name,sport){
+async function prizePicksResearchImage(lookupName,sport){
   if(!sport) return null;
   const page=`https://www.prizepicks.com/research/${encodeURIComponent(sport)}/players/${encodeURIComponent(slugify(name))}`;
   const res=await fetch(page,{headers:{"user-agent":"Mozilla/5.0","accept":"text/html"}});
@@ -240,7 +240,7 @@ async function prizePicksResearchImage(name,sport){
 }
 
 
-async function wikidataPlayerImage(name,sport){
+async function wikidataPlayerImage(lookupName,sport){
   const searchUrl="https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&origin=*&language=en&limit=8&search="+encodeURIComponent(name);
   const res=await fetch(searchUrl,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
   if(!res.ok) return null;
@@ -269,7 +269,7 @@ async function wikidataPlayerImage(name,sport){
   return null;
 }
 
-async function wikipediaPlayerImage(name){
+async function wikipediaPlayerImage(lookupName){
   const endpoint="https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=0&gsrlimit=5&gsrsearch="+
     encodeURIComponent('intitle:"'+name+'"')+
     "&prop=pageimages|info&piprop=thumbnail&pithumbsize=320&inprop=url";
@@ -293,6 +293,7 @@ export async function onRequestGet(context){
   const sport=String(url.searchParams.get("sport")||"").toLowerCase();
   const mode=String(url.searchParams.get("mode")||"json").toLowerCase();
   if(!name) return json({ok:false,error:"name required"},400);
+  const lookupName = sport==="tennis" ? canonicalTennisName(name) : name;
   let exact=await context.env.DB.prepare(
     `SELECT player_name,player_headshot_url,sport,collected_at
        FROM prizepicks_prop_lines
@@ -301,7 +302,7 @@ export async function onRequestGet(context){
         AND (?='' OR LOWER(sport)=?)
       ORDER BY collected_at DESC
       LIMIT 1`
-  ).bind(name,sport,sport).first();
+  ).bind(lookupName,sport,sport).first();
   if(!exact){
     const rows=(await context.env.DB.prepare(
       `SELECT player_name,player_headshot_url,sport,collected_at
@@ -311,7 +312,7 @@ export async function onRequestGet(context){
         ORDER BY collected_at DESC
         LIMIT 1500`
     ).bind(sport,sport).all())?.results||[];
-    const needle=norm(name);
+    const needle=norm(lookupName);
     exact=rows.find(r=>norm(r.player_name)===needle)||null;
   }
   if(exact && isRealHeadshot(exact.player_headshot_url)) {
@@ -336,7 +337,7 @@ export async function onRequestGet(context){
   }
 
   if(String(sport||"").toLowerCase()==="tennis"){
-    const tennisName=canonicalTennisName(name);
+    const tennisName=lookupName;
 
     const atpImage=await atpOfficialHeadshot(tennisName).catch(()=>null);
     if(atpImage){
@@ -357,19 +358,19 @@ export async function onRequestGet(context){
     if(out) return out;
   }
 
-  const prizeImage=await prizePicksResearchImage(name,sport).catch(()=>null);
+  const prizeImage=await prizePicksResearchImage(lookupName,sport).catch(()=>null);
   if(prizeImage){
     const out=await candidateResponse(prizeImage,{name,sport,source:"PRIZEPICKS_RESEARCH"},mode);
     if(out) return out;
   }
 
-  const wikidataImage=await wikidataPlayerImage(name,sport).catch(()=>null);
+  const wikidataImage=await wikidataPlayerImage(lookupName,sport).catch(()=>null);
   if(wikidataImage){
     const out=await candidateResponse(wikidataImage,{name,sport,source:"WIKIDATA"},mode);
     if(out) return out;
   }
 
-  const wikiImage=await wikipediaPlayerImage(name).catch(()=>null);
+  const wikiImage=await wikipediaPlayerImage(lookupName).catch(()=>null);
   if(wikiImage){
     const out=await candidateResponse(wikiImage,{name,sport,source:"WIKIPEDIA"},mode);
     if(out) return out;
