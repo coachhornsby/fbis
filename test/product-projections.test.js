@@ -249,3 +249,40 @@ test("Asian baseball projection cards expose league-local and CT kickoff times",
   assert.ok(timing.kickoffLeagueLocal);
   assert.ok(timing.kickoffUserLocal);
 });
+
+
+test("soccer research product card exposes probability surfaces without wager authority", () => {
+  const out = productProjectionBoard({
+    sport: "soccer",
+    date: "2026-10-04",
+    games: [{
+      id:"soc-1",
+      start:"2026-10-04T18:00:00Z",
+      projectionKind:"FBIS",
+      projectionMaturity:"RESEARCH",
+      canQualify:false,
+      home:{name:"Home FC",espnId:"1"},
+      away:{name:"Away FC",espnId:"2"},
+      model:{projectionKind:"FBIS",maturity:"RESEARCH",projHome:1.7,projAway:1.1,projMargin:0.6,projTotal:2.8,pHomeFinal:0.51},
+      soccerFbis:{
+        ok:true,modelId:"SOCCER-FBIS-v1",modelVersion:"research-v2-dixon-coles",
+        home:1.7,away:1.1,total:2.8,pHomeWin:0.51,pDraw:0.27,pAwayWin:0.22,
+        pBttsYes:0.49,pBttsNo:0.51,
+        totals:{"2.5":{over:0.54,under:0.46}},
+        homeAsian:{"0":{win:0.51,push:0.27,loss:0.22}},
+        uncertainty:{level:"MEDIUM"},
+      },
+      researchProjection:{modelId:"SOCCER-FBIS-v1"},
+    }],
+  },{tier:"public"});
+  const card=out.games[0];
+  assert.equal(card.model.engine,"SOCCER-FBIS-v1");
+  assert.equal(card.model.maturity,"RESEARCH");
+  assert.equal(card.projection.pHome,null);
+  assert.equal(card.subprojections.available,true);
+  assert.equal(card.subprojections.oneXTwo.home,0.51);
+  assert.equal(card.subprojections.oneXTwo.draw,0.27);
+  assert.equal(card.subprojections.btts.yes,0.49);
+  assert.equal(card.subprojections.canQualify,false);
+  assert.equal(card.subprojections.canAuthorize,false);
+});

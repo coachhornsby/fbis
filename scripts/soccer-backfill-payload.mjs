@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const start=String(process.argv[2]||"");
 const end=String(process.argv[3]||"");
-const leagues=(process.argv[4]||"eng.1,esp.1,ger.1,ita.1,fra.1,usa.1").split(",").filter(Boolean);
+const leagues=(process.argv[4]||"eng.1,esp.1,ger.1,ita.1,fra.1,usa.1,usa.nwsl").split(",").filter(Boolean);
 if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||end<start){
   console.error("usage: node scripts/soccer-backfill-payload.mjs <start> <end> [leagueCsv]");
   process.exit(2);
@@ -34,7 +34,7 @@ for(const league of leagues){
     const done=ev.status?.type?.completed===true||c?.status?.type?.completed===true;
     const date=String(ev.date||"").slice(0,10);
     if(!h||!a||!done||hs==null||as==null||date<start||date>end) continue;
-    games.push({id:String(ev.id),date,league,home:team(h),away:team(a),homeScore:hs,awayScore:as});
+    games.push({id:String(ev.id),eventId:String(ev.id),date,startTime:ev.date||null,league,home:team(h),away:team(a),homeScore:hs,awayScore:as,source:`espn:${league}`});
   }
 }
 process.stdout.write(JSON.stringify({start,end,leagues,games}));

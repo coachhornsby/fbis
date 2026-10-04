@@ -1595,7 +1595,7 @@ async function enrichCfbVenuesFromEspn(games, anchorDay) {
   return mergeEspnVenueFields(games, espnGames);
 }
 
-const SOCCER_ESPN_LEAGUES = Object.freeze(["eng.1","esp.1","ger.1","ita.1","fra.1","usa.1"]);
+const SOCCER_ESPN_LEAGUES = Object.freeze(["eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","usa.nwsl"]);
 
 async function fetchSoccerScoreboard(date) {
   const stamp = dateStamp(date);
