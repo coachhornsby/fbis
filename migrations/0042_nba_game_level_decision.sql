@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS nba_wager_decisions (
   decomposition_json TEXT,
   market_trajectory_json TEXT,
   action_intelligence_json TEXT,
+  historical_context_json TEXT,
   safeguards_json TEXT,
   reasons_json TEXT,
   actual_home REAL,
