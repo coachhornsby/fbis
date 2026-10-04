@@ -83,8 +83,24 @@ function nflCompositeStars(game, vm, q) {
   if (!pro?.ok || !Number.isFinite(coverage)) return null;
 
   const quality = Number.isFinite(q) ? Math.max(0, Math.min(1, q / 100)) : 0.65;
-  const spread = Math.abs(Number(vm?.comparison?.spreadDelta));
-  const total = Math.abs(Number(vm?.comparison?.totalDelta));
+  const proHome = numericQuality(pro?.home ?? pro?.projectedHome);
+  const proAway = numericQuality(pro?.away ?? pro?.projectedAway);
+  const fairHomeSpread =
+    Number.isFinite(proHome) && Number.isFinite(proAway) ? -(proHome - proAway) : NaN;
+  const proTotal =
+    Number.isFinite(proHome) && Number.isFinite(proAway) ? proHome + proAway : NaN;
+  const marketSpread = numericQuality(vm?.market?.spread);
+  const marketTotal = numericQuality(vm?.market?.total);
+  const spread = Math.abs(
+    Number.isFinite(fairHomeSpread) && Number.isFinite(marketSpread)
+      ? fairHomeSpread - marketSpread
+      : NaN
+  );
+  const total = Math.abs(
+    Number.isFinite(proTotal) && Number.isFinite(marketTotal)
+      ? proTotal - marketTotal
+      : NaN
+  );
   const edgeSignal = Math.max(
     Number.isFinite(spread) ? Math.min(1, spread / 7) : 0,
     Number.isFinite(total) ? Math.min(1, total / 10) : 0
@@ -121,8 +137,8 @@ function nflCompositeStars(game, vm, q) {
     );
 
   if (score >= 78) return 5;
-  if (score >= 64) return 4;
-  if (score >= 50) return 3;
+  if (score >= 60) return 4;
+  if (score >= 48) return 3;
   if (score >= 36) return 2;
   return 1;
 }
