@@ -121,6 +121,16 @@ function edgeAdjustment(team,opp,edge){
   if(oppDef!=null)delta+=(oppDef-(1-2*league))*0.35;
   return {goals:clamp(delta,-0.10,0.10),available:true};
 }
+function restDays(team,start,schedule=[]){
+  const target=Date.parse(start||"");
+  if(!Number.isFinite(target))return null;
+  const prior=(schedule||[])
+    .filter(g=>g.home===team||g.away===team)
+    .filter(g=>Number.isFinite(Date.parse(g.start))&&Date.parse(g.start)<target)
+    .sort((a,b)=>Date.parse(b.start)-Date.parse(a.start))[0];
+  if(!prior)return 4;
+  return Math.max(0,(target-Date.parse(prior.start))/86400000-1);
+}
 
 export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDataverseUpdatedAt=null}={}){
   const base=await loadNhlV1Context(date,games,{fetcher,sportsDataverseUpdatedAt});
@@ -155,14 +165,21 @@ export function projectNhlProV2Game(game,ctx){
   const ast=baseTeamRate(away,artifact,"stxgf",finite(artifact?.league?.specialTeamsXg)||0.70);
   const hsht=baseTeamRate(home,artifact,"shotsFor",finite(artifact?.league?.shots)||30);
   const asht=baseTeamRate(away,artifact,"shotsFor",finite(artifact?.league?.shots)||30);
+  const hhd=baseTeamRate(home,artifact,"highDangerFor",finite(artifact?.league?.highDanger)||8);
+  const ahd=baseTeamRate(away,artifact,"highDangerFor",finite(artifact?.league?.highDanger)||8);
+  const hrush=baseTeamRate(home,artifact,"rushFor",finite(artifact?.league?.rush)||4);
+  const arush=baseTeamRate(away,artifact,"rushFor",finite(artifact?.league?.rush)||4);
   const leagueShots=finite(artifact?.league?.shots)||30;
+  const leagueHd=finite(artifact?.league?.highDanger)||8;
+  const leagueRush=finite(artifact?.league?.rush)||4;
 
   const baselineH=(hgf+aga)/2,baselineA=(agf+hga)/2;
   const xgH=(hxgf+axga)/2,xgA=(axgf+hxga)/2;
   const leagueSt=finite(artifact?.league?.specialTeamsXg)||0.70;
   let homeGoals=0.30*baselineH+0.50*xgH+0.20*(xgH+(hst-leagueSt));
   let awayGoals=0.30*baselineA+0.50*xgA+0.20*(xgA+(ast-leagueSt));
-  homeGoals+=(hsht-leagueShots)*0.012;awayGoals+=(asht-leagueShots)*0.012;
+  homeGoals+=(hsht-leagueShots)*0.018+(hhd-leagueHd)*0.014+(hrush-leagueRush)*0.018;
+  awayGoals+=(asht-leagueShots)*0.018+(ahd-leagueHd)*0.014+(arush-leagueRush)*0.018;
 
   const hShoot=shooterFactor(home,base,artifact),aShoot=shooterFactor(away,base,artifact);
   homeGoals+=(hShoot.factor-1)*0.70;awayGoals+=(aShoot.factor-1)*0.70;
@@ -171,15 +188,20 @@ export function projectNhlProV2Game(game,ctx){
 
   const he=edgeAdjustment(home,away,ctx.edge),ae=edgeAdjustment(away,home,ctx.edge);
   homeGoals+=he.goals;awayGoals+=ae.goals;
-  homeGoals+=0.12;
-
-  homeGoals=clamp(homeGoals,1.45,5.25);awayGoals=clamp(awayGoals,1.45,5.25);
-  const probability=bivariateDistribution(homeGoals,awayGoals,finite(game?.odds?.total),finite(game?.odds?.spread));
-  const rawScoreWin=probability.homeWinIncludingOt;
   const priorHomeElo=finite(hprior.elo)??1500,priorAwayElo=finite(aprior.elo)??1500;
   const hGames=finite(hs.games)||0,aGames=finite(as.games)||0;
   const homeFormElo=priorHomeElo+clamp(((finite(hs.gfpg)||leagueGoals)-(finite(hs.gapg)||leagueGoals))*Math.min(hGames,20)*4,-120,120);
   const awayFormElo=priorAwayElo+clamp(((finite(as.gfpg)||leagueGoals)-(finite(as.gapg)||leagueGoals))*Math.min(aGames,20)*4,-120,120);
+  const eloGoalAdj=clamp((homeFormElo-awayFormElo)*0.0011,-0.28,0.28);
+  homeGoals+=0.12+eloGoalAdj/2;awayGoals-=eloGoalAdj/2;
+  const hRest=restDays(home,game?.start,base?.schedule),aRest=restDays(away,game?.start,base?.schedule);
+  if(hRest!=null&&hRest<0.6)homeGoals-=0.10;
+  if(aRest!=null&&aRest<0.6)awayGoals-=0.10;
+  if(hRest!=null&&aRest!=null){const rd=clamp((hRest-aRest)*0.018,-0.07,0.07);homeGoals+=rd;awayGoals-=rd;}
+
+  homeGoals=clamp(homeGoals,1.45,5.25);awayGoals=clamp(awayGoals,1.45,5.25);
+  const probability=bivariateDistribution(homeGoals,awayGoals,finite(game?.odds?.total),finite(game?.odds?.spread));
+  const rawScoreWin=probability.homeWinIncludingOt;
   const eloProb=1/(1+10**(-((homeFormElo-awayFormElo)+35)/400));
   const calibratedHomeWin=clamp(0.5+0.86*((0.78*rawScoreWin+0.22*eloProb)-0.5),0.04,0.96);
   probability.rawHomeWinIncludingOt=rawScoreWin;
@@ -195,7 +217,8 @@ export function projectNhlProV2Game(game,ctx){
       finishing:{home:hShoot,away:aShoot},
       goalie:{home:hg,away:ag},
       specialTeams:{home:round(hst-leagueSt,3),away:round(ast-leagueSt,3)},
-      tracking:{home:he,away:ae,source:"NHL_EDGE_ZONE_TIME_OPTIONAL"},
+      tracking:{home:he,away:ae,source:"NHL_EDGE_ZONE_TIME_OPTIONAL",historicalProxy:{homeHighDanger:round(hhd,2),awayHighDanger:round(ahd,2),homeRush:round(hrush,2),awayRush:round(arush,2)}},
+      situation:{homeRestDays:hRest,awayRestDays:aRest,eloGoalAdjustment:round(eloGoalAdj,3)},
       distribution:{family:"BIVARIATE_POISSON",shared:probability.sharedComponent,winHead:"78% score + 22% latent strength; 14% reliability shrink"}
     },
     dataLineage:ctx?.sourceLineage||null,marketInformed:false,independent:true,
