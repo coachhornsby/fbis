@@ -3037,3 +3037,135 @@ export async function queryAvailabilityObservations(
     return { ok: false, reason: String(err?.message || err), rows: [] };
   }
 }
+
+
+/**
+ * Canonical independent soccer match history.
+ * Market/odds data is deliberately excluded from this table.
+ */
+export async function persistSoccerMatch(env, match = {}) {
+  markBound(env);
+  if (!hasDb(env)) return { ok: false, reason: "unbound" };
+  const league = String(match.league || "").trim();
+  const eventId = String(match.eventId || match.id || "").trim();
+  const date = String(match.matchDate || match.date || "").slice(0, 10);
+  const season = Number(match.season);
+  if (!league || !eventId || !date || !Number.isFinite(season) || !match.home || !match.away) {
+    return { ok: false, reason: "invalid-soccer-match" };
+  }
+  const homeScore = Number(match.homeScore);
+  const awayScore = Number(match.awayScore);
+  if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore)) {
+    return { ok: false, reason: "invalid-soccer-score" };
+  }
+  const now = new Date().toISOString();
+  const homeKey = formKey(match.home);
+  const awayKey = formKey(match.away);
+  const n = (v) => {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : null;
+  };
+  try {
+    await env.DB.prepare(
+      `INSERT INTO soccer_matches (
+        id, event_id, league, season, start_time, match_date, status,
+        home_team_key, home_team_id, home_team_name,
+        away_team_key, away_team_id, away_team_name,
+        home_score, away_score,
+        home_shots, away_shots, home_shots_on_target, away_shots_on_target,
+        home_possession, away_possession, home_corners, away_corners,
+        source, source_observed_at, provenance_json, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(league, event_id) DO UPDATE SET
+        season = excluded.season,
+        start_time = COALESCE(excluded.start_time, soccer_matches.start_time),
+        match_date = excluded.match_date,
+        status = excluded.status,
+        home_team_key = excluded.home_team_key,
+        home_team_id = COALESCE(excluded.home_team_id, soccer_matches.home_team_id),
+        home_team_name = COALESCE(excluded.home_team_name, soccer_matches.home_team_name),
+        away_team_key = excluded.away_team_key,
+        away_team_id = COALESCE(excluded.away_team_id, soccer_matches.away_team_id),
+        away_team_name = COALESCE(excluded.away_team_name, soccer_matches.away_team_name),
+        home_score = excluded.home_score,
+        away_score = excluded.away_score,
+        home_shots = COALESCE(excluded.home_shots, soccer_matches.home_shots),
+        away_shots = COALESCE(excluded.away_shots, soccer_matches.away_shots),
+        home_shots_on_target = COALESCE(excluded.home_shots_on_target, soccer_matches.home_shots_on_target),
+        away_shots_on_target = COALESCE(excluded.away_shots_on_target, soccer_matches.away_shots_on_target),
+        home_possession = COALESCE(excluded.home_possession, soccer_matches.home_possession),
+        away_possession = COALESCE(excluded.away_possession, soccer_matches.away_possession),
+        home_corners = COALESCE(excluded.home_corners, soccer_matches.home_corners),
+        away_corners = COALESCE(excluded.away_corners, soccer_matches.away_corners),
+        source = excluded.source,
+        source_observed_at = COALESCE(excluded.source_observed_at, soccer_matches.source_observed_at),
+        provenance_json = COALESCE(excluded.provenance_json, soccer_matches.provenance_json),
+        updated_at = excluded.updated_at`
+    ).bind(
+      `${league}:${eventId}`, eventId, league, season,
+      match.startTime || null, date, match.status || "FINAL",
+      homeKey, match.home?.espnId != null ? String(match.home.espnId) : null, match.home?.name || null,
+      awayKey, match.away?.espnId != null ? String(match.away.espnId) : null, match.away?.name || null,
+      homeScore, awayScore,
+      n(match.homeShots), n(match.awayShots), n(match.homeShotsOnTarget), n(match.awayShotsOnTarget),
+      n(match.homePossession), n(match.awayPossession), n(match.homeCorners), n(match.awayCorners),
+      match.source || "espn", match.sourceObservedAt || null,
+      match.provenance ? JSON.stringify(match.provenance) : null,
+      now, now
+    ).run();
+    markWrite();
+    return { ok: true, id: `${league}:${eventId}` };
+  } catch (err) {
+    markErr(err);
+    return { ok: false, reason: String(err?.message || err) };
+  }
+}
+
+export async function loadSoccerMatchHistory(env, { league, season = null, startDate = null, beforeDate = null } = {}) {
+  markBound(env);
+  if (!hasDb(env) || !league) return [];
+  try {
+    let sql = `SELECT * FROM soccer_matches WHERE league = ? AND status = 'FINAL'`;
+    const binds = [String(league)];
+    if (Number.isFinite(Number(season))) {
+      sql += " AND season = ?";
+      binds.push(Number(season));
+    }
+    if (startDate) {
+      sql += " AND match_date >= ?";
+      binds.push(String(startDate).slice(0, 10));
+    }
+    if (beforeDate) {
+      sql += " AND match_date < ?";
+      binds.push(String(beforeDate).slice(0, 10));
+    }
+    sql += " ORDER BY match_date ASC, event_id ASC";
+    const res = await env.DB.prepare(sql).bind(...binds).all();
+    markRead();
+    return (res.results || []).map((r) => ({
+      id: r.event_id,
+      eventId: r.event_id,
+      league: r.league,
+      season: Number(r.season),
+      start: r.start_time || (r.match_date ? `${r.match_date}T12:00:00Z` : null),
+      date: r.match_date,
+      home: { espnId: r.home_team_id, name: r.home_team_name, teamKey: r.home_team_key },
+      away: { espnId: r.away_team_id, name: r.away_team_name, teamKey: r.away_team_key },
+      homeScore: Number(r.home_score),
+      awayScore: Number(r.away_score),
+      homeShots: r.home_shots == null ? null : Number(r.home_shots),
+      awayShots: r.away_shots == null ? null : Number(r.away_shots),
+      homeShotsOnTarget: r.home_shots_on_target == null ? null : Number(r.home_shots_on_target),
+      awayShotsOnTarget: r.away_shots_on_target == null ? null : Number(r.away_shots_on_target),
+      homePossession: r.home_possession == null ? null : Number(r.home_possession),
+      awayPossession: r.away_possession == null ? null : Number(r.away_possession),
+      homeCorners: r.home_corners == null ? null : Number(r.home_corners),
+      awayCorners: r.away_corners == null ? null : Number(r.away_corners),
+      source: r.source,
+      sourceObservedAt: r.source_observed_at,
+    }));
+  } catch (err) {
+    markErr(err);
+    return [];
+  }
+}
