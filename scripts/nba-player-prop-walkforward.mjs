@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import { projectNbaPlayer } from "../functions/lib/nbaPlayerPropModel.js";
-const file=process.argv[2]||"artifacts/nba-canonical.jsonl";\nconst finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
+const file=process.argv[2]||"artifacts/nba-canonical.jsonl";
+const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const games=fs.readFileSync(file,"utf8").trim().split("\n").filter(Boolean).map(JSON.parse).sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
 const hist=new Map(),out=[];const mean=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
 for(const g of games){
