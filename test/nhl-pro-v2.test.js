@@ -153,3 +153,35 @@ test("live NHL context fails open to trained priors instead of hanging the board
   assert.equal(second.ok,true);
   assert.equal(second.cacheHit,true);
 });
+
+test("NHL-PRO-v2 exposes a whole-number most-likely score and situational winner head",()=>{
+  const x=ctx(false);
+  x.base.schedule=[
+    {id:"prior-bos",start:"2026-10-08T00:00:00Z",home:"NYR",away:"BOS"},
+    {id:"prior-wpg",start:"2026-10-08T00:00:00Z",home:"WPG",away:"MIN"},
+  ];
+  const p=projectNhlProV2Game(game,x);
+  assert.equal(p.ok,true);
+  assert.ok(Number.isInteger(p.projectedScore.home));
+  assert.ok(Number.isInteger(p.projectedScore.away));
+  assert.ok(p.projectedScore.probability>0);
+  assert.equal(p.winnerHead.ok,true);
+  assert.ok(["BOS","WPG"].includes(p.projectedWinner));
+  assert.equal(p.winnerHead.probabilitySource,"NHL-PRO-v2");
+  assert.equal(p.winnerHead.calibratedHomeWinProbability,p.probability.homeWinIncludingOt);
+  assert.ok(Number.isFinite(p.winnerHead.situational.homeTravelMiles));
+  assert.ok(Number.isFinite(p.winnerHead.situational.awayTravelMiles));
+  assert.equal(p.winnerHead.canAuthorizeWager,false);
+});
+
+test("winner direction remains independent of sportsbook moneyline prices",()=>{
+  const x=ctx(false);
+  x.base.schedule=[
+    {id:"prior-bos",start:"2026-10-08T00:00:00Z",home:"NYR",away:"BOS"},
+    {id:"prior-wpg",start:"2026-10-08T00:00:00Z",home:"WPG",away:"MIN"},
+  ];
+  const a=projectNhlProV2Game({...game,odds:{...game.odds,homeML:-105,awayML:-105}},x);
+  const b=projectNhlProV2Game({...game,odds:{...game.odds,homeML:-300,awayML:240}},x);
+  assert.equal(a.projectedWinner,b.projectedWinner);
+  assert.equal(a.winnerHead.classifierScore,b.winnerHead.classifierScore);
+});
