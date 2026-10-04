@@ -1,8 +1,8 @@
 {
   "modelId": "NBA-FBIS-v1",
   "sport": "NBA",
-  "state": "RESEARCH",
-  "canQualify": false,
+  "state": "VALIDATION",
+  "canQualify": true,
   "wagerAuthorization": false,
   "objective": {
     "primary": "positive_clv_and_roi_after_vig",
