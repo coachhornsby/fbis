@@ -11,7 +11,7 @@
 
 import { queryAvailabilityObservations } from "./store.js";
 
-export const AVAILABILITY_SPORTS = Object.freeze(["nfl","cfb","mlb","nba","nhl","cbb"]);
+export const AVAILABILITY_SPORTS = Object.freeze(["nfl","cfb","mlb","nba","wnba","nhl","cbb"]);
 
 export const SPORT_AVAILABILITY_POLICY = Object.freeze({
   nfl: {
@@ -41,6 +41,12 @@ export const SPORT_AVAILABILITY_POLICY = Object.freeze({
   nba: {
     primary: "Rights-cleared official injury/availability feed required",
     nativeChecks: ["official injury report","starter/rotation role"],
+    numericalAdjustment: false,
+    criticalRoles: ["STARTER"],
+  },
+  wnba: {
+    primary: "Persisted approved WNBA availability observations",
+    nativeChecks: ["availability","starter/rotation role","minutes restriction"],
     numericalAdjustment: false,
     criticalRoles: ["STARTER"],
   },
