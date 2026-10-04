@@ -126,6 +126,8 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/cbb-fbis-v2-fit.mjs artifacts/cbb-fbis-native-v2-predictions.json | tee artifacts/cbb-fbis-v2-fit.log
+      - name: Syntax check HCA rankings generator
+        run: node --check scripts/cbb-hca-rankings-v1.mjs
       - name: Generate current FBIS HCA rankings
         run: |
           set -euo pipefail
