@@ -225,6 +225,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     palF5Away: game.bpp?.f5?.awayRuns ?? null,
     palF5HomeWin: game.bpp?.f5?.homeWin ?? null,
     palF5AwayWin: game.bpp?.f5?.awayWin ?? null,
+    fbisF5: game.mlbDeepShadow?.f5 || game.challengers?.["MLB-FBIS-v2"]?.f5 || null,
+    f5MarketEvaluation: game.mlbDeepShadow?.f5?.market || game.challengers?.["MLB-FBIS-v2"]?.f5?.market || null,
     f5Book: game.odds?.f5 || null,
     sportsbookProps: [],
     sportsbookPropCount: sportsbookProps.length,

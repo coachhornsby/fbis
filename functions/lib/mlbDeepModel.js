@@ -9,9 +9,10 @@
 
 import { pGreater } from "./metrics.js";
 import { clamp, coverageSummary, finite, round1 } from "./deepModelCommon.js";
+import { evaluateMlbF5Market, f5MoneylineProbabilities } from "./mlbF5.js";
 
 export const MLB_DEEP_ID = "MLB-FBIS-v2";
-export const MLB_DEEP_VERSION = "research-v2.1-pal-features";
+export const MLB_DEEP_VERSION = "research-v2.2-f5-market";
 export const MLB_DEEP_CONSTANTS = {
   leagueRpg: 4.45,
   leagueEra: 4.15,
@@ -202,15 +203,28 @@ export function projectMlbDeep(game = {}) {
     0.5,
     6.5
   ));
+  const f5Moneyline = f5MoneylineProbabilities(f5Home, f5Away);
   const f5 = {
     home: f5Home,
     away: f5Away,
     total: round1(f5Home + f5Away),
     margin: round1(f5Home - f5Away),
+    probabilities: f5Moneyline ? {
+      homeWin: f5Moneyline.home.win,
+      awayWin: f5Moneyline.away.win,
+      tie: f5Moneyline.home.push,
+      homeConditional: f5Moneyline.home.conditionalWin,
+      awayConditional: f5Moneyline.away.conditionalWin,
+    } : null,
     source: "FBIS_F5_RUN_ALLOCATION",
     marketInformed: false,
     canQualify: false,
   };
+  f5.market = evaluateMlbF5Market({
+    projection: f5,
+    market: game.odds?.f5 || null,
+    lineupsOfficial: ctx.palLineupsOfficial,
+  });
 
   const pitcherKs = {
     home: pitcherKProjection({
@@ -329,7 +343,7 @@ export function projectMlbDeep(game = {}) {
         homeStarterProjectedKs: finite(ctx.homePalStarterProjectedKs),
         awayStarterProjectedKs: finite(ctx.awayPalStarterProjectedKs),
       },
-      f5Policy: "FBIS first-five projection is calculated independently from run-allocation inputs; Pal F5 is comparison-only.",
+      f5Policy: "FBIS first-five projection is calculated independently from run-allocation inputs; sportsbook F5 is comparison-only and never feeds score projection; Pal F5 remains an external cross-check.",
       pitcherKPolicy: "FBIS pitcher K projection uses MLB Stats K/9, starter workload and opponent team K rate; Pal projected Ks are comparison-only.",
       palUsageAudit: {
         scoreInputs: [
