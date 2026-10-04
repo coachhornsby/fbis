@@ -191,8 +191,13 @@ export function resolveBoardProjection(game) {
     // Prefer explicit board margin/total when present; otherwise derive and round to 1dp.
     const derivedMargin = Math.round((home - away) * 10) / 10;
     const derivedTotal = Math.round((away + home) * 10) / 10;
-    const explicitMargin = finiteScore(game?.model?.projMargin ?? game?.projMargin);
-    const explicitTotal = finiteScore(game?.model?.projTotal ?? game?.projTotal);
+    const fromNflPro = independent.source === "nflProShadow";
+    const explicitMargin = fromNflPro
+      ? finiteScore(game?.nflProShadow?.margin)
+      : finiteScore(game?.model?.projMargin ?? game?.projMargin);
+    const explicitTotal = fromNflPro
+      ? finiteScore(game?.nflProShadow?.total)
+      : finiteScore(game?.model?.projTotal ?? game?.projTotal);
     const margin = explicitMargin != null ? explicitMargin : derivedMargin;
     const total = explicitTotal != null ? explicitTotal : derivedTotal;
     const research = Boolean(independent.fromResearch || isResearchProjection(game));
