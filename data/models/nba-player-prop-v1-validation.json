@@ -1,0 +1,66 @@
+{
+  "modelId": "NBA-PLAYER-PROP-v1",
+  "version": "research-v1",
+  "gameModelId": "NBA-FBIS-v1",
+  "marketInformed": false,
+  "canQualify": true,
+  "canAuthorizeWager": false,
+  "trainingSeason": "2024-25",
+  "validationSeason": "2025-26",
+  "frozenSnapshotSha256": "9f26cb0dc9fa9adcd6402658ded270a4bddfda39785bd6582dd18e74b710fc2a",
+  "holdout": {
+    "points": {
+      "n": 28441,
+      "mae": 4.585035687915352,
+      "bias": -0.14614113427798087,
+      "trailing10BaselineMae": 4.676795557832639,
+      "maeAdvantageVsTrailing10": 0.09175986991728724
+    },
+    "rebounds": {
+      "n": 28441,
+      "mae": 1.8903589887837562,
+      "bias": -0.026859111845575098,
+      "trailing10BaselineMae": 1.9323494809360346,
+      "maeAdvantageVsTrailing10": 0.04199049215227846
+    },
+    "assists": {
+      "n": 28441,
+      "mae": 1.3390844203790078,
+      "bias": -0.028223339545023013,
+      "trailing10BaselineMae": 1.364150109137076,
+      "maeAdvantageVsTrailing10": 0.02506568875806825
+    },
+    "three_pointers_made": {
+      "n": 28441,
+      "mae": 0.8836749762666427,
+      "bias": -0.015787067965261282,
+      "trailing10BaselineMae": 0.8985755669073718,
+      "maeAdvantageVsTrailing10": 0.014900590640729128
+    }
+  },
+  "affineCalibrationDecision": "REJECTED",
+  "affineCalibrationReason": "Affine calibration worsened holdout MAE in every tested market.",
+  "marketArchive": {
+    "historicalClvBacktestAvailable": false,
+    "nbaOddsSnapshots": {
+      "n": 36,
+      "minAt": "2026-10-02T15:58:13.934Z",
+      "maxAt": "2026-10-04T07:39:30.857Z"
+    },
+    "nbaPrizePicksLines": {
+      "n": 273,
+      "minAt": "2026-10-01T19:33:35.432Z",
+      "maxAt": "2026-10-01T20:08:12.478Z"
+    }
+  },
+  "decision": "PROSPECTIVE_QUALIFICATION_ENABLED",
+  "reason": "Leakage-free 2025-26 conditional player-performance holdout beats a same-player trailing-10 baseline on points, rebounds, assists, and 3PM. Historical availability and market-price archives remain insufficient for wager qualification.",
+  "integrity": {
+    "actualTeamScoreUsedAsFeature": false,
+    "actualPossessionsUsedAsFeature": false,
+    "propLinesUsedAsFeatures": false,
+    "targetGameStatsUsedAsFeatures": false,
+    "historicalAvailabilityReconstructed": false,
+    "evaluationCondition": "target player appeared in target-game box score"
+  }
+}
