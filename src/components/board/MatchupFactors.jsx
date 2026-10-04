@@ -27,17 +27,38 @@ function titleForSport(sport) {
 }
 
 export default function MatchupFactors({ game }) {
-  const factors = normalizeFactors(game);
+  const legacyFactors = normalizeFactors(game);
   const sport = String(game?.sport || "").toLowerCase();
+  const matchup = sport === "nfl" ? game?.nflGameMatchup : null;
+  const matchupSignals = Array.isArray(matchup?.signals) ? matchup.signals : [];
+  const factors = matchupSignals.length
+    ? matchupSignals.map((s) => ({
+        id: s.id,
+        label: s.label,
+        edge: !s.available ? "UNAVAILABLE" : Math.abs(Number(s.adjustment) || 0) < 0.15 ? "EVEN" : Number(s.adjustment) > 0 ? game?.home?.abbr : game?.away?.abbr,
+        value: s.available ? (Number(s.adjustment) > 0 ? "+" : "") + Number(s.adjustment || 0).toFixed(1) : null,
+        detail: null,
+        source: "GAME MATCHUP ENGINE",
+      }))
+    : legacyFactors;
   return (
-    <section className="matchup-factors" aria-label="Matchup factors">
+    <section className={`matchup-factors${sport === "nfl" ? " matchup-factors-nfl" : ""}`} aria-label="Matchup factors">
       <div className="matchup-factors-head">
         <div>
           <span className="matchup-factors-kicker">FBIS ANALYSIS</span>
-          <h2>{titleForSport(sport)}</h2>
+          <h2>{sport === "nfl" ? "Why FBIS Sees This Game This Way" : titleForSport(sport)}</h2>
         </div>
-        <span className="matchup-factors-count">{factors.length ? `${factors.length} published` : "Awaiting model factors"}</span>
+        <span className="matchup-factors-count">{sport === "nfl" && matchup?.coverage ? `${matchup.coverage.available}/${matchup.coverage.total} signals · ${matchup.adjustment?.evidenceQualified ? "qualified" : "analysis only"}` : factors.length ? `${factors.length} published` : "Awaiting model factors"}</span>
       </div>
+      {sport === "nfl" && matchup?.ok ? (
+        <div className="matchup-factors-summary">
+          <span>BASELINE <strong>{matchup.baseline?.margin > 0 ? game?.home?.abbr : game?.away?.abbr} {Math.abs(Number(matchup.baseline?.margin || 0)).toFixed(1)}</strong></span>
+          <i>→</i>
+          <span>MATCHUP ADJ <strong>{Number(matchup.adjustment?.margin || 0) > 0 ? "+" : ""}{Number(matchup.adjustment?.margin || 0).toFixed(1)}</strong></span>
+          <i>→</i>
+          <span>GAME READ <strong>{matchup.final?.margin > 0 ? game?.home?.abbr : game?.away?.abbr} {Math.abs(Number(matchup.final?.margin || 0)).toFixed(1)}</strong></span>
+        </div>
+      ) : null}
       {factors.length ? (
         <div className="matchup-factors-grid">
           {factors.map((factor) => (
