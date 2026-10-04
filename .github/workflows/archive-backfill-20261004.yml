@@ -29,13 +29,19 @@ jobs:
           test -n "${HARVEST_SECRET:-}"
           test -n "${APIFY_TOKEN:-}"
 
-      - name: Wait for archive API
+      - name: Wait for exact production deployment
         run: |
           set -euo pipefail
-          for i in $(seq 1 36); do
-            code="$(curl -sS --max-time 20 -H "x-harvest-secret: ${HARVEST_SECRET}" -o /tmp/archive.json -w "%{http_code}"               "${BASE}/api/source-archive?source=prizepicks&date=2026-10-04&_t=$(date +%s)-$i" || true)"
-            if [ "$code" = "200" ]; then cat /tmp/archive.json; exit 0; fi
-            echo "waiting for archive API attempt=$i/36 http=$code"
+          expected="$(echo "${GITHUB_SHA}" | tr 'A-F' 'a-f')"
+          for i in $(seq 1 48); do
+            health="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$health" -w "%{http_code}" "${BASE}/api/health?_t=$(date +%s)-$i" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$health" 2>/dev/null | tr 'A-F' 'a-f')"
+            if [ "$code" = "200" ] && [ "$live" = "$expected" ]; then
+              echo "production SHA ready: $live"
+              exit 0
+            fi
+            echo "waiting for production SHA attempt=$i/48 http=$code live=${live:-none} expected=$expected"
             sleep 10
           done
           exit 1
