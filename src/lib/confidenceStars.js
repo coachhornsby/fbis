@@ -64,6 +64,18 @@ function cfbStateStars(game, vm) {
   return CFB_STATE_STARS[state] ?? null;
 }
 
+function soccerCompositeStars(game, vm) {
+  if (String(vm?.sport || game?.sport || "").toLowerCase() !== "soccer") return null;
+  const explicit = numericQuality(
+    game?.soccerConfidence?.stars ??
+    game?.confidencePick?.stars ??
+    game?.soccerFbis?.confidencePick?.stars ??
+    game?.model?.confidenceStars
+  );
+  if (!Number.isFinite(explicit)) return null;
+  return Math.max(1, Math.min(5, Math.round(explicit)));
+}
+
 function nflCompositeStars(game, vm, q) {
   if (String(vm?.sport || game?.sport || "").toLowerCase() !== "nfl") return null;
   const pro = game?.nflProShadow || game?.challengers?.["NFL-PRO-v1"];
@@ -113,6 +125,7 @@ export function confidenceStars(game) {
   const q = numericQuality(vm.quality?.score);
 
   let stars = cfbStateStars(game, vm);
+  if (stars == null) stars = soccerCompositeStars(game, vm);
   if (stars == null) stars = nflCompositeStars(game, vm, q);
   if (stars == null) stars = starsFromQuality(q);
   if (stars == null) stars = TIER_FALLBACK[tier] || 2;
