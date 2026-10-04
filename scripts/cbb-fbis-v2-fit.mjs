@@ -6,11 +6,11 @@ const get=(o,p)=>p.split(".").reduce((a,k)=>a==null?null:a[k],o);
 const totalFeatures=["fbis.possessions","fbis.paceAdjustment","fbis.homeEff","fbis.awayEff","fbis.reliability","fbis.hca",
 "fbis.matchup.home.efg","fbis.matchup.away.efg","fbis.matchup.home.twoPt","fbis.matchup.away.twoPt","fbis.matchup.home.threePt","fbis.matchup.away.threePt",
 "fbis.matchup.home.orebVsDrb","fbis.matchup.away.orebVsDrb","fbis.matchup.home.drbRate","fbis.matchup.away.drbRate",
-"fbis.matchup.home.orebVsDrb","fbis.matchup.away.orebVsDrb","fbis.matchup.home.drbRate","fbis.matchup.away.drbRate",
 "fbis.matchup.home.turnover","fbis.matchup.away.turnover","fbis.matchup.home.ftr","fbis.matchup.away.ftr",
 "fbis.schedule.home.sos","fbis.schedule.away.sos","fbis.schedule.home.conferenceStrength","fbis.schedule.away.conferenceStrength"];
 const marginFeatures=["fbis.possessions","fbis.paceAdjustment","fbis.reliability","fbis.hca",
 "fbis.matchup.home.efg","fbis.matchup.away.efg","fbis.matchup.home.twoPt","fbis.matchup.away.twoPt","fbis.matchup.home.threePt","fbis.matchup.away.threePt",
+"fbis.matchup.home.orebVsDrb","fbis.matchup.away.orebVsDrb","fbis.matchup.home.drbRate","fbis.matchup.away.drbRate",
 "fbis.matchup.home.turnover","fbis.matchup.away.turnover","fbis.matchup.home.ftr","fbis.matchup.away.ftr",
 "fbis.schedule.home.sos","fbis.schedule.away.sos","fbis.schedule.home.conferenceStrength","fbis.schedule.away.conferenceStrength"];
 const confidenceFeatures=["market.overUnder","market.openingOverUnder","market.sourceBooks","fbis.total","kenpom.total","fbis.reliability","fbis.hca","fbis.possessions","fbis.paceAdjustment",
