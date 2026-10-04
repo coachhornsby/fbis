@@ -226,6 +226,9 @@ export function buildNbaWagerDecision({
   }
   const breakEven=americanBreakEven(price),ev=expectedValue(prob,price);
   const trajectory=deriveNbaMarketTrajectory(trajectoryRows,{marketType,side,projectionValue:projValue,decisionAt});
+  const freshnessMinutes=trajectory?.current?.observedAt
+    ? Math.max(0,(Date.parse(decisionAt)-Date.parse(trajectory.current.observedAt))/60000)
+    : null;
   const action=summarizeActionForDecision(actionRows,{decisionAt,marketType,side,fbisDirection});
   const marketConfirmation=action.available?action.confirmation:(trajectory.confirmsFbis===true?"CONFIRMS_FBIS":trajectory.confirmsFbis===false?"OPPOSES_FBIS":"NEUTRAL");
   const confidence=evaluateNbaConfidence({modelProbability:prob,ev,sigma,matchupReliability,dataQuality,historicalReliability,marketConfirmation,calibration:confidenceCalibration});
@@ -236,6 +239,7 @@ export function buildNbaWagerDecision({
   if(ev==null||ev<qualificationPolicy.minEv)reasons.push("ev_below_gate");
   if(matchupReliability<qualificationPolicy.minReliability)reasons.push("matchup_reliability_below_gate");
   if(sigma!=null&&sigma>qualificationPolicy.maxSigma)reasons.push("uncertainty_above_gate");
+  if(freshnessMinutes!=null&&freshnessMinutes>180)reasons.push("market_snapshot_stale");
   if(offer?.preTip===false)reasons.push("post_tip_offer");
   if(offer?.pairedMarket===false)reasons.push("unpaired_market");
   const bet=reasons.length===0;
@@ -252,6 +256,7 @@ export function buildNbaWagerDecision({
     projectionUncertainty:sigma,
     matchupReliability:round(matchupReliability,4),
     dataQuality:round(dataQuality,4),
+    dataFreshnessMinutes:round(freshnessMinutes,2),
     historicalFactorReliability:round(historicalReliability,4),
     marketTrajectory:trajectory,
     actionIntelligence:action,
