@@ -375,7 +375,7 @@ function PlayerHeadshot({ name, sport, size = 36 }) {
       height={size}
       loading="lazy"
       onError={() => setFailed(true)}
-      style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",objectPosition:"center top",background:"rgba(255,255,255,.08)"}}
+      style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",objectPosition:"50% 18%",background:"rgba(255,255,255,.08)"}}
     />
   ) : (
     <span className="team-logo-fallback team-logo-plate" style={{width:size,height:size,fontSize:Math.max(9,size*.28)}}>
@@ -401,7 +401,7 @@ function TennisParticipants({ bet, compact = false }) {
     <div style={{display:"grid",gap:6}}>
       {names.map((name) => (
         <div key={name} style={{display:"flex",alignItems:"center",gap:9}}>
-          <PlayerHeadshot name={name} sport="tennis" size={compact ? 28 : 38} />
+          <PlayerHeadshot name={name} sport="tennis" size={compact ? 32 : 44} />
           <span style={{fontWeight:700}}>{name}</span>
         </div>
       ))}
@@ -416,7 +416,7 @@ function PlayerPropParticipants({ bet, compact = false }) {
     <div style={{display:"grid",gap:6}}>
       {names.map((name) => (
         <div key={name} style={{display:"flex",alignItems:"center",gap:9}}>
-          <PlayerHeadshot name={name} sport={bet.sport} size={compact ? 28 : 38} />
+          <PlayerHeadshot name={name} sport={bet.sport} size={compact ? 32 : 44} />
           <span style={{fontWeight:700}}>{name}</span>
         </div>
       ))}
