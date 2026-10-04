@@ -217,6 +217,24 @@ function savesGroups(rows,keyFn,minN=50){
   const m=new Map();for(const r of rows){const k=String(keyFn(r)??"UNKNOWN");if(!m.has(k))m.set(k,[]);m.get(k).push(r);}
   return Object.fromEntries([...m.entries()].filter(([,v])=>v.length>=minN).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>[k,savesBetStats(v)]));
 }
+function starValidation(rows,{coreFilter=null,minN=100}={}){
+  const seasons=[...new Set(rows.map(r=>r.season).filter(Boolean))].sort();
+  const summarize=(xs)=>{
+    const byStars=savesGroups(xs,r=>`${r.stars} STAR`,minN);
+    const ordered=[1,2,3,4,5].map(star=>({star,...(byStars[`${star} STAR`]||{})})).filter(x=>x.n);
+    let monotonic=ordered.length===5,prev=-Infinity;
+    for(const x of ordered){if(x.accuracy+1e-12<prev)monotonic=false;prev=x.accuracy;}
+    return {byStars,monotonic,starsPresent:ordered.map(x=>x.star),n:ordered.reduce((s,x)=>s+x.n,0)};
+  };
+  const aggregate=summarize(rows);
+  const core=coreFilter?summarize(rows.filter(coreFilter)):null;
+  const bySeason=Object.fromEntries(seasons.map(season=>{
+    const xs=rows.filter(r=>r.season===season);
+    return [season,{all:summarize(xs),core:coreFilter?summarize(xs.filter(coreFilter)):null}];
+  }));
+  const allSeasonsMonotonic=Object.values(bySeason).every(x=>x.all.monotonic&&(!x.core||x.core.monotonic));
+  return {aggregate,core,bySeason,allSeasonsMonotonic,validated:Boolean(aggregate.monotonic&&(!core||core.monotonic)&&allSeasonsMonotonic)};
+}
 function halfPoints(lo,hi){const out=[];for(let x=lo;x<=hi;x+=1)out.push(x+0.5);return out;}
 function marketLines(m){
   return m==="shots_on_goal"?halfPoints(0,6)
@@ -476,6 +494,10 @@ const savesAudit={
     overByLineAndGap:savesGroups(savesLineRows.filter(r=>r.direction==="OVER"),r=>`${r.lineBucket}|${r.gapBucket}`,60)
   }
 };
+const confidenceValidation={
+  shots_on_goal:starValidation(sogStarRows,{coreFilter:r=>r.line>=1.5&&r.line<=4.5,minN:100}),
+  saves:starValidation(savesStarRows,{coreFilter:r=>r.line>=20.5&&r.line<=32.5,minN:80}),
+};
 const lineValidation=Object.fromEntries(Object.entries(byLine).map(([key,v])=>{
   const t=v.threshold||{};
   const status=t.brierDelta<0&&t.accuracyDelta>=0?"PROMOTE_RESEARCH":t.brierDelta<0?"WATCH_RESEARCH":"HOLD_RESEARCH";
@@ -508,7 +530,7 @@ const report={
   conditionalOnActive:true,conditionalOnConfirmedStarter:true,marketInformed:false,
   integrity:{priorSeasonsOnlyTraining:true,currentSeasonOnlyPastGames:true,usesSameGameBoxscoreOnlyForParticipationSet:true,fetchErrors:errors.length,targetSeasons:seasons.slice(1)},
   aggregate:{projection:propMetrics(allRows),threshold:thresholdMetrics(allRows),rows:allRows.length,lineTests:lineRows.length},
-  folds,marketValidation,lineValidation,subsets:subset,bySyntheticLine:byLine,byModelEdge:byEdge,sogAudit,savesAudit,
+  folds,marketValidation,lineValidation,confidenceValidation,subsets:subset,bySyntheticLine:byLine,byModelEdge:byEdge,sogAudit,savesAudit,
   limitations:[
     "Historical prop validation is conditional on the player being active in the game; same-game boxscore participation is used only to define the active set, never as a performance input.",
     "Goalie save validation is conditional on the actual primary goalie (>=30 minutes); live use remains gated on starter confirmation.",
@@ -517,7 +539,7 @@ const report={
 };
 const artifact={modelId:"NHL-PLAYER-PRO-v2",version:"research-v2.0-share-environment",generatedAt:new Date().toISOString(),trained:true,marketInformed:false,
   training:{seasons,games:seasons.reduce((n,s)=>n+(gamesBySeason[s]?.length||0),0),boxscoreErrors:errors.length},
-  players:artifactPlayers,goalies:artifactGoalies,validation:{aggregate:report.aggregate,folds:report.folds,markets:report.marketValidation,lines:report.lineValidation},
+  players:artifactPlayers,goalies:artifactGoalies,validation:{aggregate:report.aggregate,folds:report.folds,markets:report.marketValidation,lines:report.lineValidation,confidence:report.confidenceValidation},
   canQualify:false,canAuthorizeWager:false};
 await mkdir(outPath.split("/").slice(0,-1).join("/")||".",{recursive:true});
 await writeFile(outPath,JSON.stringify(report,null,2)+"\n","utf8");

@@ -1,6 +1,13 @@
 name: NHL full model + prop validation
 
 on:
+  pull_request:
+    paths:
+      - "scripts/nhl-player-pro-v2-backtest.mjs"
+      - "functions/lib/nhlPropConfidence.js"
+      - "src/features/playerProps/buildPlayerPropsBoard.js"
+      - "test/nhl-prop-confidence.test.js"
+      - ".github/workflows/nhl-full-validation.yml"
   schedule:
     - cron: "45 12 * * 1"
   push:
@@ -32,7 +39,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
         with:
-          ref: ${{ github.ref_name }}
           fetch-depth: 0
       - uses: actions/setup-node@v4.1.0
         with:
@@ -89,9 +95,12 @@ jobs:
           jq -e '.aggregate.rows >= 100000 and .aggregate.lineTests >= 200000' data/models/nhl-player-pro-v2-validation.json >/dev/null
           jq -e '.subsets.byMarket.shots_on_goal and .subsets.byMarket.goals and .subsets.byMarket.assists and .subsets.byMarket.points and .subsets.byMarket.saves' data/models/nhl-player-pro-v2-validation.json >/dev/null
           jq -e '.subsets.bySeason and .subsets.byHomeAway and .subsets.byPosition and .subsets.byRoleTier and .subsets.byPriorSample and .subsets.byCurrentSample and .subsets.bySeasonPhase and .subsets.byRest and .subsets.byProjectionTier and .subsets.byTeam and .bySyntheticLine and .byModelEdge' data/models/nhl-player-pro-v2-validation.json >/dev/null
+          jq -e '.confidenceValidation.shots_on_goal.validated == true and .confidenceValidation.shots_on_goal.allSeasonsMonotonic == true' data/models/nhl-player-pro-v2-validation.json >/dev/null
+          jq -e '.confidenceValidation.saves.validated == true and .confidenceValidation.saves.allSeasonsMonotonic == true' data/models/nhl-player-pro-v2-validation.json >/dev/null
+          jq -e '(.confidenceValidation.shots_on_goal.bySeason | length) >= 2 and (.confidenceValidation.saves.bySeason | length) >= 2' data/models/nhl-player-pro-v2-validation.json >/dev/null
           node --check data/models/nhl-player-pro-v2.js
           node --test test/nhl-player-pro-v2.test.js
-          jq '{aggregate,markets:.subsets.byMarket,edgeBuckets:.byModelEdge,limitations}' data/models/nhl-player-pro-v2-validation.json
+          jq '{aggregate,markets:.subsets.byMarket,confidenceValidation,edgeBuckets:.byModelEdge,limitations}' data/models/nhl-player-pro-v2-validation.json
       - uses: actions/upload-artifact@v4.6.2
         with:
           name: nhl-full-validation-${{ github.run_id }}
@@ -101,6 +110,7 @@ jobs:
             data/models/nhl-player-pro-v2.js
           retention-days: 90
       - name: Persist validation outputs to branch
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           cp data/models/nhl-pro-v2-validation.json "$RUNNER_TEMP/nhl-pro-v2-validation.json"

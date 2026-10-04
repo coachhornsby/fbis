@@ -11,6 +11,7 @@ import {
   rateGenericNhlPropConfidence,
   rateNhlGoalieSavesConfidence,
   rateNhlShotsOnGoalConfidence,
+  nhlPropConfidenceLineValidated,
 } from "../../../functions/lib/nhlPropConfidence.js";
 import { evaluateNhlPropWagerV1 } from "../../../functions/lib/nhlWagerV1.js";
 
@@ -127,7 +128,7 @@ export function withFbisPropAnalytics(row = {}) {
         teamShotsAgainst: env.teamShotsAgainst,
         projectedShotsFaced: env.projectedShotsFaced,
         starterConfirmed: ranked.propGate === "CLEAR",
-        lineValidated: !ranked.lineValidationStatus || ranked.lineValidationStatus === "PROMOTE_RESEARCH",
+        lineValidated: nhlPropConfidenceLineValidated("saves",ranked.line),
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
       return {
@@ -154,7 +155,7 @@ export function withFbisPropAnalytics(row = {}) {
         projectedTeamShots: env.projectedTeamShots,
         playerShotRate: env.playerShotRate,
         playerShotShare: env.playerShotShare,
-        lineValidated: !ranked.lineValidationStatus || ranked.lineValidationStatus === "PROMOTE_RESEARCH",
+        lineValidated: nhlPropConfidenceLineValidated("shots_on_goal",ranked.line),
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
       return {
