@@ -1464,3 +1464,145 @@
     max-height: 150px;
   }
 }
+
+
+/* Player Props hero-art refinement:
+   - team logo is a larger left-side background mark
+   - player portrait sits slightly right of center
+   - confidence badge uses fixed geometry and cannot stretch/overlap */
+.pp-team-watermark {
+  inset: auto !important;
+  left: 4% !important;
+  top: 50% !important;
+  width: 38% !important;
+  height: 78% !important;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  opacity: .17 !important;
+  z-index: 1;
+}
+
+.pp-team-watermark img {
+  width: 130% !important;
+  height: 130% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain;
+  object-position: center;
+  filter:
+    saturate(.85)
+    drop-shadow(0 0 18px rgba(255,255,255,.06));
+}
+
+.pp-premium-headshot {
+  left: 58% !important;
+  width: 58% !important;
+  max-width: 265px;
+  transform: translateX(-50%) !important;
+  z-index: 3 !important;
+}
+
+.pp-premium-stars {
+  top: 11px !important;
+  right: 11px !important;
+  left: auto !important;
+  width: 154px !important;
+  max-width: calc(100% - 22px);
+  min-height: 38px;
+  box-sizing: border-box;
+  padding: 0 10px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+  white-space: nowrap;
+  background: rgba(4, 10, 22, .90) !important;
+  border: 1px solid rgba(255, 201, 68, .42) !important;
+  box-shadow:
+    0 8px 20px rgba(0,0,0,.34),
+    inset 0 1px 0 rgba(255,255,255,.04) !important;
+  backdrop-filter: blur(10px);
+}
+
+.pp-star-icons {
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: 0 !important;
+  min-width: 0;
+  font-size: 13px !important;
+  line-height: 1;
+}
+
+.pp-star-icons > span {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.pp-premium-stars b {
+  display: block;
+  min-width: 26px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255,255,255,.12);
+  color: var(--pp-gold-soft) !important;
+  font-size: 12px !important;
+  line-height: 38px;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .pp-team-watermark {
+    left: 1% !important;
+    width: 43% !important;
+    height: 84% !important;
+    opacity: .18 !important;
+  }
+
+  .pp-team-watermark img {
+    width: 130% !important;
+    height: 130% !important;
+  }
+
+  .pp-premium-headshot {
+    left: 59% !important;
+    width: 57% !important;
+    max-width: 225px;
+  }
+
+  .pp-premium-stars {
+    width: 146px !important;
+    min-height: 36px;
+    padding: 0 9px !important;
+  }
+
+  .pp-star-icons {
+    font-size: 12px !important;
+  }
+
+  .pp-premium-stars b {
+    line-height: 36px;
+    font-size: 11px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .pp-team-watermark {
+    left: 0 !important;
+    width: 42% !important;
+  }
+
+  .pp-premium-headshot {
+    left: 60% !important;
+    width: 56% !important;
+    max-width: 205px;
+  }
+
+  .pp-premium-stars {
+    width: 138px !important;
+  }
+}
