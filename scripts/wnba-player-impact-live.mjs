@@ -17,8 +17,12 @@ const readJson=p=>{if(!fs.existsSync(p)||!fs.statSync(p).size)return null;try{re
 const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const q=v=>v==null?"NULL":"'"+String(v).replaceAll("'","''")+"'";
 const num=v=>{const n=finite(v);return n==null?"NULL":String(n)};
-const games=[...new Map([...readJsonl(frozen),...readJsonl(current)].map(g=>[String(g.id),g])).values()].sort((a,b)=>Date.parse(a.start||a.date)-Date.parse(b.start||b.date));
+const frozenGames=readJsonl(frozen);
 const currentGames=readJsonl(current);
+const games=[...new Map([...frozenGames,...currentGames].map(g=>[String(g.id),g])).values()].sort((a,b)=>Date.parse(a.start||a.date)-Date.parse(b.start||b.date));
+const playerIds=gs=>new Set(gs.flatMap(g=>g.players||[]).map(p=>String(p.id||p.name||"")).filter(Boolean));
+const frozenPlayerIds=playerIds(frozenGames),currentPlayerIds=playerIds(currentGames),unionPlayerIds=playerIds(games);
+const newCurrentPlayerIds=[...currentPlayerIds].filter(id=>!frozenPlayerIds.has(id));
 const histArtifact=readJson(historicalImpact)||{players:{}};
 const lineupArtifact=readJson(lineupFile)||{effects:[]};
 const rawAvail=readJson(availabilityFile);
@@ -77,4 +81,14 @@ const payload={asOf,modelId:"WNBA-FBIS-PLAYER-IMPACT-v1",players:impacts,roleCon
  governance:{marketUsed:false,availabilityPointInTime:true,proprietaryMetricRequired:false,productionEligible:false}};
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
 fs.writeFileSync(out,JSON.stringify(payload,null,2)+"\n");fs.writeFileSync(sqlOut,sql.join("\n")+"\n");
-console.log(JSON.stringify({ok:true,players:Object.keys(impacts).length,roles:Object.keys(roles).length,verified:Object.values(roles).filter(x=>x.availabilityVerified).length},null,2));
+console.log(JSON.stringify({
+  ok:true,
+  players:Object.keys(impacts).length,
+  roles:Object.keys(roles).length,
+  verified:Object.values(roles).filter(x=>x.availabilityVerified).length,
+  coverage:{
+    frozenGames:frozenGames.length,currentGames:currentGames.length,
+    frozenUniquePlayers:frozenPlayerIds.size,currentUniquePlayers:currentPlayerIds.size,
+    unionUniquePlayers:unionPlayerIds.size,newCurrentPlayers:newCurrentPlayerIds.length
+  }
+},null,2));
