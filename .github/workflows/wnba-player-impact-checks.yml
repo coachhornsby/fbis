@@ -1,0 +1,25 @@
+name: WNBA player impact checks
+on:
+  push:
+    branches: ["research/wnba-player-impact-v1", main]
+    paths:
+      - "functions/lib/wnbaPlayerImpact.js"
+      - "functions/lib/wnbaLineupModel.js"
+      - "functions/lib/wnbaRoleRedistribution.js"
+      - "functions/lib/wnbaPlayerImpactShadow.js"
+      - "functions/lib/slateEngine.js"
+      - "test/wnba-player-impact.test.js"
+      - ".github/workflows/wnba-player-impact-checks.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - run: node --test test/wnba-player-impact.test.js test/wnba-player-projections.test.js test/wnba-fbis-v2.test.js test/wnba-wager-decision.test.js test/wnba-wager-validation.test.js
