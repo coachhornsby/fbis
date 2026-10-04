@@ -59,6 +59,13 @@ export async function onRequest(context){
     "SELECT id,player_name,canonical_market,stat_type,line FROM prizepicks_prop_lines WHERE lower(sport)='nfl' AND substr(start_time,1,10)=?"
   ).bind(resolved.date).all())?.results||[];
 
+  // Fail closed: erase prior model enrichment for this slate before attaching the
+  // current target-role model. A player who lost QB1/RB1/WR1/WR2/TE1 status
+  // must never retain a stale projection from an earlier run.
+  await context.env.DB.prepare(
+    "UPDATE prizepicks_prop_lines SET fbis_projection=NULL,fbis_sigma=NULL,delta_fbis_minus_line=NULL,candidate_side=NULL,role_confidence=NULL,snap_share=NULL,prop_gate=NULL,eligible_for_card=NULL,feature_evidence_json=NULL,model_source=NULL,model_version=NULL WHERE lower(sport)='nfl' AND substr(start_time,1,10)=?"
+  ).bind(resolved.date).run();
+
   const statements=[];
   let matched=0;
   for(const row of rows){
