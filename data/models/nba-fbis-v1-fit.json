@@ -1,0 +1,51 @@
+{
+  "modelId": "NBA-FBIS-v1",
+  "version": "research-v1.1-calibrated",
+  "role": "challenger",
+  "marketInformed": false,
+  "canQualify": true,
+  "canAuthorizeWager": false,
+  "trainingSeason": "2024-25",
+  "trainingCutoff": "2025-06-22",
+  "validationSeason": "2025-26",
+  "frozenSnapshot": {
+    "artifact": "nba-fbis-v1-research-37186207435",
+    "artifactId": 11296764335,
+    "sha256": "9f26cb0dc9fa9adcd6402658ded270a4bddfda39785bd6582dd18e74b710fc2a",
+    "sourceRows": 2721,
+    "quality": {
+      "possessions": 0.9974274163910327,
+      "playerMinutes": 0.9976693913395933,
+      "playerThrees": 1
+    }
+  },
+  "calibration": {
+    "margin": {
+      "intercept": -2.346397438207965,
+      "slope": 1.9725275799694693,
+      "sigma": 14.51007089537082
+    },
+    "total": {
+      "intercept": -166.38760767288522,
+      "slope": 1.727311893111435,
+      "sigma": 18.51465868687852
+    }
+  },
+  "holdout": {
+    "n": 1322,
+    "marginMaeRaw": 11.898714069591547,
+    "marginMaeCalibrated": 11.581915492744491,
+    "marginMaeBenchmark": 12.285552193645982,
+    "totalMaeRaw": 15.281164901664164,
+    "totalMaeCalibrated": 15.223449863475913,
+    "totalMaeBenchmark": 15.51308623298033,
+    "winnerAccuracyRaw": 0.6747352496217852,
+    "winnerAccuracyCalibrated": 0.6754916792738276,
+    "winnerAccuracyBenchmark": 0.6376701966717095,
+    "brier": 0.20869898246470667,
+    "logLoss": 0.6050875601388725,
+    "expectedCalibrationError": 0.02178741757800531
+  },
+  "decision": "PROMOTE_TO_PROSPECTIVE_SHADOW",
+  "reason": "Locked calibration beats NBA-FBIS-FORM-v1 on paired untouched 2025-26 margin MAE, total MAE, and winner accuracy. Market/CLV evidence remains insufficient for qualification."
+}
