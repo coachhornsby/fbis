@@ -4,6 +4,7 @@ import {
   evaluateNhlGameWagers,evaluateNhlPropWagerV1,deriveNhlMarketTrajectory,
   decomposeNhlProjectionDisagreement,validateNhlConfidenceCalibration
 } from "../functions/lib/nhlWagerV1.js";
+import { exactMarketSnapshotRows } from "../functions/api/nhl-wager-research.js";
 
 const goodCalibration={validated:true,minEv:.02,minProbabilityEdge:.01,minConfidence:60,bins:[
   {min:0,max:49,n:40,winRate:.45,roi:-.05,calibratedScore:42},
@@ -69,4 +70,27 @@ test("NHL prop decisions are fail-closed until calibrated",()=>{
   const calibrated=evaluateNhlPropWagerV1(row,goodCalibration);
   assert.equal(calibrated.confidenceValidated,true);
   assert.equal(calibrated.stakingValidated,false);
+});
+
+test("NHL evidence capture emits six exact paired price snapshots and rejects post-start capture",()=>{
+  const g=game();
+  g.odds.pinBook="Pinnacle";
+  g.nhlWagerV1=evaluateNhlGameWagers(g);
+  const rows=exactMarketSnapshotRows({games:[g]},"2026-10-09T20:00:00Z","2026-10-09");
+  assert.equal(rows.length,6);
+  assert.ok(rows.every(r=>Number.isFinite(r.price)&&Number.isFinite(r.implied)&&Number.isFinite(r.noVig)));
+  assert.equal(rows.filter(r=>r.market==="ml").length,2);
+  assert.equal(rows.filter(r=>r.market==="spread").length,2);
+  assert.equal(rows.filter(r=>r.market==="total").length,2);
+  assert.ok(rows.every(r=>r.paired===true&&r.rejectedPostStart===false&&r.book==="Pinnacle"));
+  assert.equal(exactMarketSnapshotRows({games:[g]},"2026-10-10T01:00:00Z","2026-10-10").length,0);
+});
+
+test("NHL exact price snapshots fail closed when a two-way market is incomplete",()=>{
+  const g=game();
+  g.odds.pinAwayMl=null;
+  g.nhlWagerV1=evaluateNhlGameWagers(g);
+  const rows=exactMarketSnapshotRows({games:[g]},"2026-10-09T20:00:00Z","2026-10-09");
+  assert.equal(rows.some(r=>r.market==="ml"),false);
+  assert.equal(rows.length,4);
 });
