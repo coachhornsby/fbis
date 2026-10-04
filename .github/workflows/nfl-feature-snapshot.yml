@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "17 */3 * * *"
   push:
-    branches: ["rebuild/nfl-props-edge-v2"]
+    branches: ["rebuild/nfl-props-edge-v2", "fix/nfl-no-runtime-timeouts"]
     paths:
       - "functions/lib/nflVerseFeed.js"
       - "functions/api/nfl-feature-snapshot.js"
