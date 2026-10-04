@@ -9,6 +9,8 @@
 import * as core from "./slateEngineCore.js";
 import { attachNflShadow } from "./nflModel.js";
 import { attachNflProShadow } from "./nflProModel.js";
+import { attachNflWagerDecisions } from "./nflWagerDecision.js";
+import { NFL_WAGER_CONFIDENCE_V1 } from "../../data/models/nfl-wager-confidence-v1.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachBasketballFormResearch } from "./basketballFormModel.js";
@@ -405,6 +407,39 @@ export async function buildSlate(sport, date, env = {}) {
       };
     } catch {
       // Fail-open.
+    }
+  }
+
+  // NFL wager decisioning is downstream of the independent projection and the
+  // executable market. ACTION may inform confidence context but never enters
+  // the projection and can never create a wager by itself.
+  if (id === "nfl" && Array.isArray(next.games)) {
+    next = {
+      ...next,
+      games: attachNflWagerDecisions(next.games, NFL_WAGER_CONFIDENCE_V1),
+      nflWagerArchitecture: {
+        version: "NFL-WAGER-v2",
+        independentProjectionMarketFree: true,
+        confidenceValidated: Boolean(NFL_WAGER_CONFIDENCE_V1.validated),
+        stakingValidated: false,
+        actionDirectQualification: false,
+        closeUsedAsDecisionInput: false,
+      },
+    };
+    if (env.DB) {
+      try {
+        const { persistNflWagerDecisionSnapshots } = await import("./nflWagerDecisionStore.js");
+        const persisted = await persistNflWagerDecisionSnapshots(env.DB, next.games);
+        next.nflWagerArchitecture = {
+          ...next.nflWagerArchitecture,
+          decisionSnapshotsPersisted: persisted.inserted || 0,
+        };
+      } catch {
+        next.nflWagerArchitecture = {
+          ...next.nflWagerArchitecture,
+          decisionSnapshotsPersisted: 0,
+        };
+      }
     }
   }
 

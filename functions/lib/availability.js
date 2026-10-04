@@ -371,6 +371,30 @@ export function applyAvailabilityAdjustment(game, sport){
         availabilityImpact:impact,
       };
     }
+    if(String(sport).toLowerCase()==="nfl" && game.nflProShadow?.ok){
+      const nfl=adjustPair(game.nflProShadow.home,game.nflProShadow.away);
+      if(nfl){
+        next.nflProShadow={
+          ...game.nflProShadow,
+          rawHome:game.nflProShadow.home,
+          rawAway:game.nflProShadow.away,
+          rawTotal:game.nflProShadow.total,
+          rawMargin:game.nflProShadow.margin,
+          home:nfl.home,
+          away:nfl.away,
+          total:nfl.total,
+          margin:nfl.margin,
+          availabilityImpact:impact,
+          availabilityAdjusted:true,
+        };
+        if(next.challengers?.["NFL-PRO-v1"]){
+          next.challengers={
+            ...next.challengers,
+            "NFL-PRO-v1":next.nflProShadow,
+          };
+        }
+      }
+    }
     applied=true;
   }
   if(research){
