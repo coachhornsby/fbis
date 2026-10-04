@@ -12,7 +12,7 @@ import { clamp, coverageSummary, finite, round1 } from "./deepModelCommon.js";
 import { evaluateMlbF5Market, f5MoneylineProbabilities } from "./mlbF5.js";
 
 export const MLB_DEEP_ID = "MLB-FBIS-v2";
-export const MLB_DEEP_VERSION = "research-v2.3-pitch-zone";
+export const MLB_DEEP_VERSION = "research-v2.4-pitch-zone-k-calibrated";
 export const MLB_DEEP_CONSTANTS = {
   leagueRpg: 4.45,
   leagueEra: 4.15,
@@ -22,6 +22,19 @@ export const MLB_DEEP_CONSTANTS = {
   marginSigma: 2.9,
   totalSigma: 3.6,
 };
+
+export const MLB_PITCH_ZONE_K_CALIBRATION = Object.freeze({
+  baselineWeight: 0.04,
+  pitchZoneWeight: 0.96,
+  offset: -0.7936,
+  validationMethod: "chronological-60-20-20",
+  validationStarts: 115,
+  finalTestStarts: 23,
+  finalTestBaselineMae: 1.8330,
+  finalTestBiasCorrectedBaselineMae: 1.7658,
+  finalTestCalibratedBlendMae: 1.7175,
+  validationAsOf: "2026-10-04",
+});
 
 function factorFromEra(era) {
   const n = finite(era);
@@ -63,12 +76,29 @@ function pitcherKProjection({ kPer9, inningsPerStart, expectedInnings, opponentK
     3,
     7.5
   );
+  const opp = finite(opponentKRate);
+  const lg = finite(leagueKRate) ?? 0.225;
+  const opponentFactor = opp != null && lg > 0 ? clamp(opp / lg, 0.78, 1.22) : 1;
+  const baselineProjection = k9 == null ? null : clamp((k9 / 9) * ip * opponentFactor, 1.0, 12.5);
   const detailedKRate = finite(pitchMatchup?.lineupKRate);
   const bfPerIp = finite(battersFacedPerInning);
+
   if (detailedKRate != null && bfPerIp != null) {
     const bf = clamp(bfPerIp * ip, 12, 36);
+    const rawPitchZoneProjection = clamp(detailedKRate * bf, 1.0, 12.5);
+    const calibratedProjection = baselineProjection == null
+      ? clamp(rawPitchZoneProjection + MLB_PITCH_ZONE_K_CALIBRATION.offset, 1.0, 12.5)
+      : clamp(
+          baselineProjection * MLB_PITCH_ZONE_K_CALIBRATION.baselineWeight +
+          rawPitchZoneProjection * MLB_PITCH_ZONE_K_CALIBRATION.pitchZoneWeight +
+          MLB_PITCH_ZONE_K_CALIBRATION.offset,
+          1.0,
+          12.5
+        );
     return {
-      projection: round1(clamp(detailedKRate * bf, 1.0, 12.5)),
+      projection: round1(calibratedProjection),
+      rawPitchZoneProjection: round1(rawPitchZoneProjection),
+      baselineProjection: baselineProjection == null ? null : round1(baselineProjection),
       sigma: round1(Math.sqrt(Math.max(0.25, bf * detailedKRate * (1 - detailedKRate)))),
       kPer9: k9 == null ? null : round1(k9),
       expectedInnings: round1(ip),
@@ -79,17 +109,15 @@ function pitcherKProjection({ kPer9, inningsPerStart, expectedInnings, opponentK
       matchupWhiffRate: finite(pitchMatchup?.whiffPerSwing),
       matchupContactRate: finite(pitchMatchup?.contactPerSwing),
       matchupDynamicDifficulty: finite(pitchMatchup?.dynamicDifficulty),
-      source: "STATCAST_PITCH_SHAPE_X_HITTER_ZONE_X_WORKLOAD",
+      source: "STATCAST_PITCH_SHAPE_X_HITTER_ZONE_X_WORKLOAD_CALIBRATED_V1",
       independentOfPalFinalProjection: true,
-      calibrationState: pitchMatchup?.calibrationState || "RESEARCH_UNVALIDATED",
+      calibrationState: "HISTORICALLY_VALIDATED_2026_HOLDOUT",
+      calibration: MLB_PITCH_ZONE_K_CALIBRATION,
     };
   }
-  if (k9 == null) return null;
-  const opp = finite(opponentKRate);
-  const lg = finite(leagueKRate) ?? 0.225;
-  const opponentFactor = opp != null && lg > 0 ? clamp(opp / lg, 0.78, 1.22) : 1;
+  if (baselineProjection == null) return null;
   return {
-    projection: round1(clamp((k9 / 9) * ip * opponentFactor, 1.0, 12.5)),
+    projection: round1(baselineProjection),
     kPer9: round1(k9),
     expectedInnings: round1(ip),
     opponentKRate: opp,
@@ -395,7 +423,7 @@ export function projectMlbDeep(game = {}) {
         awayStarterProjectedKs: finite(ctx.awayPalStarterProjectedKs),
       },
       f5Policy: "FBIS first-five projection is independent of market prices. When Statcast pitch-shape x hitter-zone coverage is available it adjusts the starter component of F5 run allocation; Ballpark Pal aggregate matchup is fallback. Sportsbook F5 and Pal final F5 remain comparison-only.",
-      pitcherKPolicy: "FBIS pitcher K projection prefers Statcast pitch-shape x hitter contact-zone matchup K-rate times expected batters faced/workload; MLB Stats K/9 x opponent team K-rate is fallback only. Pal projected Ks are comparison-only.",
+      pitcherKPolicy: "FBIS pitcher K projection uses the historically validated 2026 holdout calibration: 96% Statcast pitch-shape x hitter-zone projection + 4% MLB Stats baseline - 0.7936 Ks. MLB Stats K/9 x opponent team K-rate remains fallback when detailed matchup coverage is unavailable. Pal projected Ks are comparison-only.",
       palUsageAudit: {
         scoreInputs: [
           "park run factor",

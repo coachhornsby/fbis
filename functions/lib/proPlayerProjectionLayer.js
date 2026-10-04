@@ -172,7 +172,7 @@ export function attachMlbPlayerProjectionResearch(games = []) {
         projection: p.projection,
         sigma: p.sigma ?? null,
         source: p.source || "MLB_STATS_STARTER_K_RATE_X_WORKLOAD_X_OPPONENT_K_RATE_FALLBACK",
-        notes: p.source === "STATCAST_PITCH_SHAPE_X_HITTER_ZONE_X_WORKLOAD"
+        notes: String(p.source || "").startsWith("STATCAST_PITCH_SHAPE_X_HITTER_ZONE_X_WORKLOAD")
           ? "Primary MLB K projection uses Statcast pitcher arsenal/shape versus hitter contact zones, expected batters faced and workload. Ballpark Pal starter K remains external comparison."
           : "Fallback MLB K projection uses season K/9, workload and opponent team K rate. Ballpark Pal starter K remains external comparison.",
       }));
@@ -183,7 +183,7 @@ export function attachMlbPlayerProjectionResearch(games = []) {
       playerProjectionStatus: {
         sport: "mlb",
         state: rows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : rows.length ? "HOLD_AVAILABILITY" : "NO_ELIGIBLE_STARTER_PROJECTION",
-        model: "MLB-FBIS-v2.3-PITCH-ZONE-K",
+        model: "MLB-FBIS-v2.4-PITCH-ZONE-K-CALIBRATED",
         version: PRO_PLAYER_PROJECTION_VERSION,
         independent: true,
         marketInformed: false,
