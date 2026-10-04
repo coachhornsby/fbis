@@ -1,0 +1,31 @@
+name: CFB v6 frozen loss audit
+on:
+  push:
+    branches: ["research/cfb-v5-context-engine"]
+    paths: ["scripts/cfb-v6-loss-audit.py",".github/workflows/cfb-v6-loss-audit.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install pandas numpy
+      - name: Restore frozen base v6 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cfb-v6
+          path: artifacts/cfb-audit
+          github-token: ${{ github.token }}
+          run-id: 37179014409
+      - name: Audit frozen OOS losses
+        run: python scripts/cfb-v6-loss-audit.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-v6-loss-audit
+          path: artifacts/cfb-final/v6-loss-audit/*
+          retention-days: 90
