@@ -23,7 +23,22 @@ function canonicalTeam(name){
  const mapped=mapSourceTeam("cbb",{team:name,school:name},seasonStart);
  return mapped?.ok ? String(mapped.canonicalId) : "name:"+norm(name);
 }
-function gameJoinKey(date,home,away){return [dateKey(date),canonicalTeam(home),canonicalTeam(away)].join("|")}
+function pairKeys(home,away){
+ const direct=[norm(home),norm(away)].join("|");
+ const canonical=[canonicalTeam(home),canonicalTeam(away)].join("|");
+ return [...new Set([direct,canonical])].filter(Boolean);
+}
+function dayOffset(date,offset){const d=new Date(String(date).slice(0,10)+"T12:00:00Z");if(!Number.isFinite(d.getTime()))return null;d.setUTCDate(d.getUTCDate()+offset);return d.toISOString().slice(0,10)}
+function predictionCandidates(index,date,home,away){
+ const out=[];
+ for(const pair of pairKeys(home,away)){
+   for(const off of [0,-1,1]){
+     const d=dayOffset(date,off); if(!d)continue;
+     for(const p of index.get(d+"|"+pair)||[]) out.push(p);
+   }
+ }
+ return [...new Map(out.map(x=>[String(x.id),x])).values()];
+}
 function playerKey(r){return String(r.athlete_id||r.athlete_display_name||"")}
 function teamKey(r){return String(r.team_id||r.team_location||r.team_name||"")}
 function blankPlayer(r){return{playerId:playerKey(r),name:r.athlete_display_name||null,team:r.team_location||r.team_name||null,position:r.athlete_position_abbreviation||r.athlete_position_name||null,games:0,starts:0,minutes:0,points:0,rebounds:0,assists:0,threes:0,fga:0,fta:0,oreb:0,dreb:0,tov:0,fgm:0,tpm:0,last5:[],lastDate:null,lastDnp:false}}
@@ -57,9 +72,11 @@ const predAll=JSON.parse(await (await import("node:fs/promises")).readFile(predP
 const preds=predAll.filter(r=>Number(r.season)===seasonStart),byId=new Map(preds.map(r=>[String(r.id),r]));
 const byJoinKey=new Map();
 for(const p of preds){
-  const key=gameJoinKey(p.date,p.home,p.away);
-  if(!byJoinKey.has(key))byJoinKey.set(key,[]);
-  byJoinKey.get(key).push(p);
+  for(const pair of pairKeys(p.home,p.away)){
+    const key=dateKey(p.date)+"|"+pair;
+    if(!byJoinKey.has(key))byJoinKey.set(key,[]);
+    byJoinKey.get(key).push(p);
+  }
 }
 const res=await fetch(URL,{redirect:"follow"});if(!res.ok)throw new Error("player box HTTP "+res.status+" "+URL);
 const raw=parseCsv(await res.text());
@@ -74,9 +91,13 @@ for(const g of games){
  let target=byId.get(g.id)||null;
  if(target) idMatches++;
  if(!target&&homeName&&awayName){
-   const key=gameJoinKey(g.date,homeName,awayName),hits=byJoinKey.get(key)||[];
+   const hits=predictionCandidates(byJoinKey,g.date,homeName,awayName);
    if(hits.length===1){target=hits[0];canonicalMatches++}
-   else if(hits.length>1)ambiguousMatches++;
+   else if(hits.length>1){
+     const exact=hits.filter(p=>dateKey(p.date)===dateKey(g.date));
+     if(exact.length===1){target=exact[0];canonicalMatches++}
+     else ambiguousMatches++;
+   }
  }
  const homeId=homeRow?teamKey(homeRow):null,awayId=awayRow?teamKey(awayRow):null;
  if(target&&homeId&&awayId){
