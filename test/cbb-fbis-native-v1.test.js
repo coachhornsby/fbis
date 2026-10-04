@@ -4,6 +4,8 @@ import {buildFbisCbbRatings,projectFbisCbbGame,FBIS_CBB_MODEL_ID} from "../funct
 import {conferenceForTeamSeason} from "../functions/lib/cbbConferenceMembership.js";
 import {buildCbbMoneyResearch,SIDE_DISLOCATION_THRESHOLD} from "../functions/lib/cbbMoneySelector.js";
 import {buildCbbTeamPlayerState,cbbPlayerGameFeatures} from "../functions/lib/cbbPlayerGameModel.js";
+import {projectCbbPlayerPropV2,CBB_PLAYER_PROP_PROMOTED_MARKETS} from "../functions/lib/cbbPlayerValidated.js";
+import {buildCbbPlayerPropSignal,gradeCbbPlayerPropSignal,CBB_PLAYER_PROP_TRACK_Z} from "../functions/lib/cbbPlayerPropMoney.js";
 import {validateCbbMoneyTicket,CBB_MONEY_STRATEGY_V1} from "../functions/lib/strategy.js";
 
 const rows=[
@@ -131,4 +133,32 @@ test("player-game layer builds independent rotation features",()=>{
  const a=buildCbbTeamPlayerState(players),b=buildCbbTeamPlayerState(players.map((p,i)=>({...p,pointsPer40:p.pointsPer40-1,projectedMinutes:p.projectedMinutes-1})));
  assert.equal(a.ok,true);assert.ok(a.projectedMinutes>190);assert.ok(a.pointsProxy>0);
  const f=cbbPlayerGameFeatures(a,b);assert.ok(Number.isFinite(f.pointsProxyDiff));assert.ok(Number.isFinite(f.roleConfidenceSum));
+});
+
+
+test("validated player prop v2 only promotes proven markets",()=>{
+ const p={
+  projectedMinutes:30,minutesPerGame:29,roleConfidence:.9,sampleSize:15,
+  pointsPerGame:14,reboundsPerGame:6,assistsPerGame:3,threesMadePerGame:1.5,
+  pointsPer40:18,reboundsPer40:7.5,assistsPer40:4,threesMadePer40:1.8,
+  fieldGoalAttemptsPer40:13,freeThrowAttemptsPer40:4,offensiveReboundsPer40:2,defensiveReboundsPer40:5,turnoversPer40:2.2,
+  recent:{points:15,rebounds:6.5,assists:3.2,threesMade:1.6},
+  trend:{points:16,rebounds:7,assists:3.5,threesMade:1.7},
+  volatility:{points:5,rebounds:2.2,assists:1.4,threesMade:1},
+  role:{minuteStability:.85,lastGameDnp:false}
+ };
+ assert.deepEqual(CBB_PLAYER_PROP_PROMOTED_MARKETS,["points","rebounds","assists","points_rebounds_assists"]);
+ const pts=projectCbbPlayerPropV2(p,"points",{possessions:70,teamScore:74,home:true});
+ assert.equal(pts.ok,true);assert.ok(Number.isFinite(pts.projection));assert.ok(pts.sigma>0);
+ assert.equal(projectCbbPlayerPropV2(p,"three_pointers_made",{possessions:70,teamScore:74,home:true}).ok,false);
+});
+
+test("player prop money signals freeze standardized edge and grade line CLV",()=>{
+ const sig=buildCbbPlayerPropSignal(
+  {eventId:"g1",playerName:"Player A",team:"A",market:"points",fbisProjection:18,fbisSigma:5,modelVersion:"CBB-PLAYER-PROP-v2",validatedPredictive:true},
+  {line:15,projectionId:"pp1",collectedAt:"2026-11-01T12:00:00Z",startTime:"2026-11-01T20:00:00Z"}
+ );
+ assert.equal(sig.ok,true);assert.equal(sig.side,"MORE");assert.ok(Math.abs(sig.zEdge)>=CBB_PLAYER_PROP_TRACK_Z);
+ const graded=gradeCbbPlayerPropSignal({side:sig.side,signalLine:sig.signalLine},20,16.5,"2026-11-01T19:30:00Z");
+ assert.equal(graded.ok,true);assert.equal(graded.result,"WIN");assert.equal(graded.lineClv,1.5);
 });
