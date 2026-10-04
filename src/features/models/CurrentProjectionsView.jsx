@@ -70,7 +70,7 @@ export default function CurrentProjectionsView({date,sportFilter="all"}){
             const stars=confidenceStars(g);
             const awayName=g.away?.fullName||g.away?.name||g.away?.abbr||"AWAY";
             const homeName=g.home?.fullName||g.home?.name||g.home?.abbr||"HOME";
-            return <article className="current-projection-card model-game-card" key={group.sport+":"+g.id}>
+            return <article className={"current-projection-card model-game-card"+(stars===5?" model-five-star":"")} key={group.sport+":"+g.id}>
               <div className="current-projection-card-head model-game-card-head">
                 <div>
                   <span className="model-game-kick">{kickoff(g.start)}</span>
