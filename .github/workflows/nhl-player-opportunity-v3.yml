@@ -1,0 +1,98 @@
+name: NHL player opportunity v3
+
+on:
+  pull_request:
+    paths:
+      - "functions/lib/nhlPlayerTrackingV3.js"
+      - "functions/lib/nhlPlayerProV2.js"
+      - "functions/lib/nhlProV2.js"
+      - "functions/lib/proPlayerProjectionLayer.js"
+      - "functions/lib/slateEngine.js"
+      - "scripts/nhl-opportunity-v3-backtest.mjs"
+      - "test/nhl-player-pro-v2.test.js"
+      - ".github/workflows/nhl-player-opportunity-v3.yml"
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nhlPlayerTrackingV3.js"
+      - "functions/lib/nhlPlayerProV2.js"
+      - "functions/lib/nhlProV2.js"
+      - "functions/lib/proPlayerProjectionLayer.js"
+      - "functions/lib/slateEngine.js"
+      - "scripts/nhl-opportunity-v3-backtest.mjs"
+      - "test/nhl-player-pro-v2.test.js"
+      - ".github/workflows/nhl-player-opportunity-v3.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nhl-player-opportunity-v3-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Syntax and focused tests
+        run: |
+          node --check functions/lib/nhlPlayerTrackingV3.js
+          node --check functions/lib/nhlPlayerProV2.js
+          node --check functions/lib/nhlProV2.js
+          node --check scripts/nhl-opportunity-v3-backtest.mjs
+          node --test test/nhl-player-pro-v2.test.js
+      - name: Full test suite
+        run: npm test
+      - name: Production build
+        run: npm run build
+
+  historical-opportunity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+      - name: Download completed-season PIT datasets
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/nhl-opportunity
+          for y in 2024 2025 2026; do
+            curl -fL --retry 4 --retry-delay 2               "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_skater_boxscores/skater_box_${y}.csv"               -o "artifacts/nhl-opportunity/skater_box_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2               "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_shifts/shifts_${y}.csv"               -o "artifacts/nhl-opportunity/shifts_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2               "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_scratches/scratches_${y}.csv"               -o "artifacts/nhl-opportunity/scratches_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2               "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_game_rosters/game_rosters_${y}.csv"               -o "artifacts/nhl-opportunity/game_rosters_${y}.csv"
+          done
+      - name: Run leakage-safe shifts/scratches validation
+        run: |
+          node --max-old-space-size=6144 scripts/nhl-opportunity-v3-backtest.mjs             artifacts/nhl-opportunity             artifacts/nhl-opportunity-v3-validation.json             2024,2025,2026 | tee artifacts/nhl-opportunity-v3.log
+          jq -e '.integrity.sameGameShiftUsedAsInput == false and .integrity.sameGameBoxUsedAsInput == false and .integrity.current2027ExcludedFromPromotion == true' artifacts/nhl-opportunity-v3-validation.json >/dev/null
+          jq -e '.seasonMap.discovery == 2024 and .seasonMap.validation == 2025 and .seasonMap.confirmation == 2026' artifacts/nhl-opportunity-v3-validation.json >/dev/null
+      - name: Summary
+        run: |
+          R=artifacts/nhl-opportunity-v3-validation.json
+          {
+            echo "## NHL opportunity v3"
+            jq -r '"- props validation MAE gain: \(.playerProps.bySeason[\"2025\"].maeGain)"' "$R"
+            jq -r '"- props confirmation MAE gain: \(.playerProps.bySeason[\"2026\"].maeGain)"' "$R"
+            jq -r '"- game validation margin/total/winner gains: \(.gameProjection.bySeason[\"2025\"].marginGain) / \(.gameProjection.bySeason[\"2025\"].totalGain) / \(.gameProjection.bySeason[\"2025\"].winnerGain)"' "$R"
+            jq -r '"- game confirmation margin/total/winner gains: \(.gameProjection.bySeason[\"2026\"].marginGain) / \(.gameProjection.bySeason[\"2026\"].totalGain) / \(.gameProjection.bySeason[\"2026\"].winnerGain)"' "$R"
+            jq -r '"- promote player opportunity: \(.promotion.playerOpportunityHistoricalEligible)"' "$R"
+            jq -r '"- promote game opportunity: \(.promotion.gameOpportunityHistoricalEligible)"' "$R"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nhl-player-opportunity-v3-${{ github.run_id }}
+          path: |
+            artifacts/nhl-opportunity-v3-validation.json
+            artifacts/nhl-opportunity-v3.log
+          retention-days: 90
