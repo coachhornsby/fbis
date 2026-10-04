@@ -11,6 +11,7 @@ import { mapSourceTeam } from "./collegeIdentity.js";
 import { MODEL_VERSION } from "./weights.js";
 import { loadTorvikCbbCatalog, lookupTorvikRating } from "./torvikCbb.js";
 import { loadKenpomCbbCatalog, lookupKenpomRating } from "./kenpomCbb.js";
+import { buildCbbMoneyResearch } from "./cbbMoneySelector.js";
 import { loadFbisCbbCatalog, lookupFbisCbbRating, projectFbisCbbGame, FBIS_CBB_MODEL_ID } from "./cbbFbisRatings.js";
 
 const CATALOG_TTL = 6 * 60 * 60 * 1000;
@@ -128,6 +129,7 @@ export async function attachCbbChallengers(games, env = {}) {
         // Retain verified basketball matchup evidence for client analysis.
         // Projection/qualification logic remains in the challenger layer.
         cbbFbisNative: challengers[FBIS_CBB_MODEL_ID],
+        cbbMoneyResearch: buildCbbMoneyResearch({...game, challengers, cbbFbisNative: challengers[FBIS_CBB_MODEL_ID]}),
         cbbFbisRatings: {
           home: homeFbis ? {adjOe:homeFbis.adjOe,adjDe:homeFbis.adjDe,tempo:homeFbis.tempo,net:homeFbis.net,sos:homeFbis.sos,sosO:homeFbis.sosO,sosD:homeFbis.sosD,nonConferenceSos:homeFbis.nonConferenceSos,conference:homeFbis.conference,conferenceStrength:homeFbis.conferenceStrength,reliability:homeFbis.reliability,hca:homeFbis.hca} : null,
           away: awayFbis ? {adjOe:awayFbis.adjOe,adjDe:awayFbis.adjDe,tempo:awayFbis.tempo,net:awayFbis.net,sos:awayFbis.sos,sosO:awayFbis.sosO,sosD:awayFbis.sosD,nonConferenceSos:awayFbis.nonConferenceSos,conference:awayFbis.conference,conferenceStrength:awayFbis.conferenceStrength,reliability:awayFbis.reliability,hca:awayFbis.hca} : null,
