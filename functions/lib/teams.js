@@ -10,9 +10,10 @@ import nba from "../../data/teams/nba.js";
 import cfb from "../../data/teams/cfb.js";
 import cbb from "../../data/teams/cbb.js";
 import nhl from "../../data/teams/nhl.js";
+import wnba from "../../data/teams/wnba.js";
 import { namesMatch, nameLookupKeys } from "./match.js";
 
-export const TEAMS_BY_SPORT = { nfl, mlb, nba, cfb, cbb, nhl };
+export const TEAMS_BY_SPORT = { nfl, mlb, nba, cfb, cbb, nhl, wnba };
 
 /** Verified source aliases not present on the ESPN short-name row. */
 const EXTRA_ALIASES = {
@@ -89,6 +90,7 @@ export function espnLogoUrl(sport, espnId, abbr) {
   if (sport === "nba" && a) return `https://a.espncdn.com/i/teamlogos/nba/500/${a}.png`;
   if (sport === "mlb" && a) return `https://a.espncdn.com/i/teamlogos/mlb/500/${a}.png`;
   if (sport === "nhl" && a) return `https://a.espncdn.com/i/teamlogos/nhl/500/${a}.png`;
+  if (sport === "wnba" && a) return `https://a.espncdn.com/i/teamlogos/wnba/500/${a}.png`;
   return "";
 }
 
@@ -254,7 +256,7 @@ export function verifiedCfbSchool(name) {
 export function identityFromNameExact(name) {
   if (!name) return { name: null, abbr: "—", logo: "", canonicalId: null, sport: null };
   const hits = [];
-  for (const sport of ["mlb", "nfl", "nba", "nhl", "cfb", "cbb"]) {
+  for (const sport of ["mlb", "nfl", "nba", "wnba", "nhl", "cfb", "cbb"]) {
     const hit = resolveTeamExact(sport, { name });
     if (hit) hits.push({ sport, hit });
   }
