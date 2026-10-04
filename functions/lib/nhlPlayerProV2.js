@@ -98,7 +98,7 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
       source:"NHL_PLAYER_PRO_V2_CONFIRMED_STARTER_SAVE_ENVIRONMENT",
       validationStatus:marketValidationStatus("saves"),
       validatedLines:validatedLines("saves"),
-      shotEnvironment:{opponentShotsFor:oppSf,teamShotsAgainst:teamSa,opponentAttackIndex,defenseAllowIndex,projectedShotsFaced:oppShots},
+      shotEnvironment:{opponentShotsFor:oppSf,teamShotsAgainst:teamSa,opponentAttackIndex:oppAttackIndex,defenseAllowIndex,projectedShotsFaced:oppShots},
       notes:"Starter-gated saves model using multiplicative opponent shot generation × team shot suppression, goalie save rate, rest/game script, and NHL-PRO-v2 opponent goal expectation."
     });
   }
