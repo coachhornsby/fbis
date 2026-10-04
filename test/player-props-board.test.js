@@ -9,7 +9,6 @@ import {
   sortPropsByConviction,
   groupPlayerPropRows,
   normalizeBoardGame,
-  propProjectionStars,
 } from "../src/features/playerProps/buildPlayerPropsBoard.js";
 
 test("supported FBIS player markets cover pro football and MLB core markets", () => {
@@ -55,8 +54,6 @@ test("player props board never invents decision eligibility or model authority",
             overOdds: -110,
             underOdds: -105,
             book: "draftkings",
-            fbisProjection: 262.4,
-            fbisSigma: 42,
             decisionEligible: true,
           },
         ],
@@ -98,7 +95,7 @@ test("college player props are excluded from the product board", () => {
   assert.equal(board.allRows.length, 0);
 });
 
-test("player prop board hides market rows without an FBIS projection", () => {
+test("MLB core markets remain visible without an FBIS projection", () => {
   const board = buildPlayerPropsBoard({
     games: [
       {
@@ -124,9 +121,10 @@ test("player prop board hides market rows without an FBIS projection", () => {
       },
     ],
   });
-  assert.equal(board.rows.length, 0);
-  assert.equal(board.allRows.length, 0);
-  assert.equal(board.counts.hiddenWithoutProjection, 1);
+  assert.equal(board.rows.length, 1);
+  assert.equal(board.rows[0].marketCanonical, "total_bases");
+  assert.equal(board.rows[0].fbisProjection, null);
+  assert.equal(board.rows[0].convictionTier, "NONE");
 });
 
 test("unsupported novelty markets are excluded by default but counted", () => {
@@ -143,14 +141,12 @@ test("unsupported novelty markets are excluded by default but counted", () => {
             marketCanonical: "receiving_yards",
             line: 72.5,
             overOdds: -115,
-            fbisProjection: 78.0,
           },
           {
             playerName: "Star WR",
             marketCanonical: "first_touchdown",
             line: 0.5,
             overOdds: 500,
-            fbisProjection: 0.15,
           },
         ],
       },
@@ -170,8 +166,8 @@ test("unsupported novelty markets are excluded by default but counted", () => {
           id: "nfl-1",
           sport: "nfl",
           playerMarkets: [
-            { playerName: "A", marketCanonical: "receiving_yards", line: 1, fbisProjection: 1.2 },
-            { playerName: "A", marketCanonical: "first_touchdown", line: 0.5, fbisProjection: 0.2 },
+            { playerName: "A", marketCanonical: "receiving_yards", line: 1 },
+            { playerName: "A", marketCanonical: "first_touchdown", line: 0.5 },
           ],
         },
       ],
@@ -206,8 +202,6 @@ test("propConvictions normalize into research-only player markets", () => {
         line: 68.5,
         price: -110,
         book: "fanduel",
-        projection: 74.0,
-        sigma: 12,
       },
     ],
   });
@@ -269,8 +263,6 @@ test("player props rows attach team logo from event sides", () => {
             marketCanonical: "passing_yards",
             line: 249.5,
             overOdds: -110,
-            fbisProjection: 265.0,
-            fbisSigma: 40,
           },
         ],
       },
@@ -331,40 +323,4 @@ test("rankPropConviction stays null when FBIS has no read", () => {
   assert.equal(rank.convictionScore, -1);
   assert.equal(rank.convictionTier, "NONE");
   assert.equal(rank.convictionLean, null);
-});
-
-
-test("propProjectionStars uses sigma-normalized FBIS-vs-line distance when available", () => {
-  assert.equal(propProjectionStars({ fbisProjection: 105, line: 100, fbisSigma: 20 }), 2);
-  assert.equal(propProjectionStars({ fbisProjection: 113, line: 100, fbisSigma: 20 }), 4);
-  assert.equal(propProjectionStars({ fbisProjection: 120, line: 100, fbisSigma: 20 }), 5);
-});
-
-test("propProjectionStars falls back to relative FBIS-vs-line distance", () => {
-  assert.equal(propProjectionStars({ fbis_projection: 102, line: 100 }), 1);
-  assert.equal(propProjectionStars({ fbis_projection: 108, line: 100 }), 3);
-  assert.equal(propProjectionStars({ fbis_projection: 111, line: 100 }), 4);
-  assert.equal(propProjectionStars({ fbis_projection: 116, line: 100 }), 5);
-  assert.equal(propProjectionStars({ fbis_projection: null, line: 100 }), null);
-});
-
-test("projected prop rows carry a projection star rating", () => {
-  const board = buildPlayerPropsBoard({
-    games: [{
-      id: "nfl-stars",
-      sport: "nfl",
-      away: { abbr: "KC" },
-      home: { abbr: "BUF" },
-      playerMarkets: [{
-        playerName: "QB1",
-        team: "BUF",
-        marketCanonical: "passing_yards",
-        line: 250,
-        fbisProjection: 280,
-        fbisSigma: 40,
-      }],
-    }],
-  });
-  assert.equal(board.rows.length, 1);
-  assert.equal(board.rows[0].projectionStars, 4);
 });
