@@ -1,0 +1,35 @@
+name: WNBA v2 market walk-forward proof
+
+on:
+  push:
+    branches: ["feat/wnba-v2-proof"]
+    paths:
+      - "scripts/wnba-v2-market-walkforward.mjs"
+      - "functions/lib/wnbaFbisV2.js"
+      - ".github/workflows/wnba-v2-market-walkforward.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: node scripts/wnba-v2-market-walkforward.mjs
+      - name: Summary
+        run: |
+          jq . artifacts/wnba-v2-market-walkforward-report.json
+          {
+            echo "## WNBA-FBIS-v2 market walk-forward"
+            jq -r '"- games: \(.games)","- margin MAE: \(.marginMae)","- total MAE: \(.totalMae)","- spread market n: \(.marketCoverage.spread)","- total market n: \(.marketCoverage.total)","- model vs market margin MAE: \(.versusMarket.spread.modelMarginMae) vs \(.versusMarket.spread.marketMarginMae)","- model vs market total MAE: \(.versusMarket.total.modelTotalMae) vs \(.versusMarket.total.marketTotalMae)"' artifacts/wnba-v2-market-walkforward-report.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-v2-market-walkforward-${{ github.run_id }}
+          path: artifacts/wnba-v2-market-walkforward-*
+          retention-days: 90
