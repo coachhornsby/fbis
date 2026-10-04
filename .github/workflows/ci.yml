@@ -17,6 +17,7 @@ on:
       - "LICENSE*"
       - "SECURITY.md"
       - ".github/dependabot.yml"
+      - "data/models/nhl-pro-v2-validation.json"
 
 permissions:
   contents: read
