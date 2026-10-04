@@ -1709,3 +1709,105 @@
   .pp-star-icons { font-size: 17px !important; }
   .pp-premium-stars b { font-size: 12px !important; }
 }
+
+
+/* Player Props visual correction v2: corner logo + contiguous stars. */
+.pp-team-watermark {
+  position:absolute !important;
+  z-index:4 !important;
+  left:14px !important;
+  top:14px !important;
+  width:74px !important;
+  height:74px !important;
+  transform:none !important;
+  opacity:1 !important;
+  display:flex !important;
+  align-items:flex-start !important;
+  justify-content:flex-start !important;
+  pointer-events:none !important;
+}
+.pp-team-watermark img {
+  display:block !important;
+  width:74px !important;
+  height:74px !important;
+  max-width:74px !important;
+  max-height:74px !important;
+  object-fit:contain !important;
+  filter:drop-shadow(0 6px 10px rgba(0,0,0,.42)) !important;
+}
+.pp-premium-headshot {
+  left:50% !important;
+  transform:translateX(-50%) !important;
+}
+.pp-premium-stars {
+  position:absolute !important;
+  z-index:6 !important;
+  top:16px !important;
+  right:16px !important;
+  left:auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  height:auto !important;
+  min-height:0 !important;
+  padding:0 !important;
+  margin:0 !important;
+  display:block !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+  overflow:visible !important;
+}
+.pp-star-icons {
+  display:inline-flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:2px !important;
+  font-size:18px !important;
+  line-height:1 !important;
+  letter-spacing:0 !important;
+  white-space:nowrap !important;
+  filter:drop-shadow(0 0 6px rgba(255,199,45,.48)) !important;
+}
+.pp-star-icons > span {
+  display:inline-block !important;
+  width:auto !important;
+  min-width:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  flex:0 0 auto !important;
+}
+.pp-star-icons .filled {
+  color:#ffd23f !important;
+  text-shadow:0 0 5px rgba(255,210,63,.95),0 0 12px rgba(255,190,30,.7) !important;
+}
+.pp-star-icons .empty {
+  color:rgba(255,220,115,.28) !important;
+  text-shadow:none !important;
+}
+.pp-premium-stars b { display:none !important; }
+
+@media (max-width:760px) {
+  .pp-team-watermark {
+    left:12px !important;
+    top:12px !important;
+    width:64px !important;
+    height:64px !important;
+  }
+  .pp-team-watermark img {
+    width:64px !important;
+    height:64px !important;
+    max-width:64px !important;
+    max-height:64px !important;
+  }
+  .pp-premium-stars {
+    top:14px !important;
+    right:12px !important;
+  }
+  .pp-star-icons {
+    gap:1px !important;
+    font-size:17px !important;
+  }
+}
