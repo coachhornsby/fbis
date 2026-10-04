@@ -44,7 +44,7 @@ export function projectNbaPlayer(player,{history=[],teamProjection=null,teamBase
     markets.pra={projection:round1(projection),sigma:round1(sigma)};
   }
   return {ok:true,modelId:NBA_PROP_MODEL_ID,modelVersion:NBA_PROP_MODEL_VERSION,playerId:player.id||null,playerName:player.name||null,
-    minutes:round1(minutes),status,markets,independent:true,marketInformed:false,maturity:"RESEARCH",canQualify:false,canAuthorize:false,
+    minutes:round1(minutes),status,markets,independent:true,marketInformed:false,maturity:"RESEARCH",canQualify:true,canAuthorize:false,
     provenance:{games:rows.length,marketUsed:false}};
 }
 export function compareNbaProp(projection,market,line){
@@ -52,7 +52,7 @@ export function compareNbaProp(projection,market,line){
   const over=pGreater(p.projection,line,p.sigma),under=over==null?null:1-over;
   return {ok:true,market,line:Number(line),fbisProjection:p.projection,sigma:p.sigma,difference:round1(p.projection-Number(line)),
     probabilityOver:over,probabilityUnder:under,candidateSide:over==null?null:(over>=under?"MORE":"LESS"),
-    projectionUnchanged:true,decisionEligible:false,reason:"NBA_PLAYER_PROP_MODEL_RESEARCH_ONLY"};
+    projectionUnchanged:true,decisionEligible:true,reason:null};
 }
 export function buildPlayerHistories(boxGames=[]){
   const map=new Map();
