@@ -1,7 +1,7 @@
 {
   "modelId": "NHL-PLAYER-PRO-v2",
   "version": "research-v2.0-share-environment",
-  "generatedAt": "2026-10-04T05:09:47.768Z",
+  "generatedAt": "2026-10-04T05:14:13.438Z",
   "conditionalOnActive": true,
   "conditionalOnConfirmedStarter": true,
   "marketInformed": false,
@@ -3606,6 +3606,164 @@
         "n": 164332,
         "accuracy": 0.8483,
         "brier": 0.10506
+      }
+    },
+    "byStars": {
+      "1 STAR": {
+        "n": 94456,
+        "accuracy": 0.5859,
+        "brier": 0.23519
+      },
+      "2 STAR": {
+        "n": 94033,
+        "accuracy": 0.7067,
+        "brier": 0.20278
+      },
+      "3 STAR": {
+        "n": 72265,
+        "accuracy": 0.8239,
+        "brier": 0.14254
+      },
+      "4 STAR": {
+        "n": 60635,
+        "accuracy": 0.8795,
+        "brier": 0.10326
+      },
+      "5 STAR": {
+        "n": 339803,
+        "accuracy": 0.978,
+        "brier": 0.02087
+      }
+    },
+    "byStarsDirection": {
+      "1 STAR|OVER": {
+        "n": 45879,
+        "accuracy": 0.5076,
+        "brier": 0.24785
+      },
+      "1 STAR|UNDER": {
+        "n": 48577,
+        "accuracy": 0.66,
+        "brier": 0.22324
+      },
+      "2 STAR|OVER": {
+        "n": 48154,
+        "accuracy": 0.6514,
+        "brier": 0.22609
+      },
+      "2 STAR|UNDER": {
+        "n": 45879,
+        "accuracy": 0.7648,
+        "brier": 0.17831
+      },
+      "3 STAR|OVER": {
+        "n": 25312,
+        "accuracy": 0.7752,
+        "brier": 0.17338
+      },
+      "3 STAR|UNDER": {
+        "n": 46953,
+        "accuracy": 0.8502,
+        "brier": 0.12591
+      },
+      "4 STAR|OVER": {
+        "n": 19491,
+        "accuracy": 0.8339,
+        "brier": 0.13522
+      },
+      "4 STAR|UNDER": {
+        "n": 41144,
+        "accuracy": 0.9011,
+        "brier": 0.08812
+      },
+      "5 STAR|OVER": {
+        "n": 12278,
+        "accuracy": 0.9206,
+        "brier": 0.07253
+      },
+      "5 STAR|UNDER": {
+        "n": 327525,
+        "accuracy": 0.9801,
+        "brier": 0.01894
+      }
+    },
+    "byStarsCoreLines": {
+      "1 STAR": {
+        "n": 76607,
+        "accuracy": 0.5942,
+        "brier": 0.23267
+      },
+      "2 STAR": {
+        "n": 62206,
+        "accuracy": 0.7255,
+        "brier": 0.19354
+      },
+      "3 STAR": {
+        "n": 51260,
+        "accuracy": 0.8375,
+        "brier": 0.13314
+      },
+      "4 STAR": {
+        "n": 46554,
+        "accuracy": 0.8821,
+        "brier": 0.10045
+      },
+      "5 STAR": {
+        "n": 141197,
+        "accuracy": 0.9684,
+        "brier": 0.02991
+      }
+    },
+    "byStarsCoreLinesDirection": {
+      "1 STAR|OVER": {
+        "n": 28453,
+        "accuracy": 0.482,
+        "brier": 0.24887
+      },
+      "1 STAR|UNDER": {
+        "n": 48154,
+        "accuracy": 0.6605,
+        "brier": 0.22309
+      },
+      "2 STAR|OVER": {
+        "n": 16350,
+        "accuracy": 0.6153,
+        "brier": 0.23622
+      },
+      "2 STAR|UNDER": {
+        "n": 45856,
+        "accuracy": 0.7648,
+        "brier": 0.17832
+      },
+      "3 STAR|OVER": {
+        "n": 4631,
+        "accuracy": 0.7063,
+        "brier": 0.20861
+      },
+      "3 STAR|UNDER": {
+        "n": 46629,
+        "accuracy": 0.8506,
+        "brier": 0.12564
+      },
+      "4 STAR|OVER": {
+        "n": 6355,
+        "accuracy": 0.7548,
+        "brier": 0.18406
+      },
+      "4 STAR|UNDER": {
+        "n": 40199,
+        "accuracy": 0.9023,
+        "brier": 0.08723
+      },
+      "5 STAR|OVER": {
+        "n": 1292,
+        "accuracy": 0.8506,
+        "brier": 0.12842
+      },
+      "5 STAR|UNDER": {
+        "n": 139905,
+        "accuracy": 0.9695,
+        "brier": 0.029
       }
     },
     "sportsbookStyle": {
