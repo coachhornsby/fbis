@@ -1,7 +1,7 @@
 export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
   "modelId": "NHL-PLAYER-PRO-v2",
   "version": "research-v2.0-share-environment",
-  "generatedAt": "2026-10-04T01:45:38.446Z",
+  "generatedAt": "2026-10-04T01:49:48.571Z",
   "trained": true,
   "marketInformed": false,
   "training": {
@@ -18278,16 +18278,16 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
         "maeDelta": -0.0015
       },
       "threshold": {
-        "n": 876329,
-        "accuracy": 0.8292,
-        "baselineAccuracy": 0.8288,
-        "brier": 0.12263,
-        "baselineBrier": 0.12291,
-        "accuracyDelta": 0.0004,
-        "brierDelta": -0.00027
+        "n": 1642421,
+        "accuracy": 0.8778,
+        "baselineAccuracy": 0.8776,
+        "brier": 0.08814,
+        "baselineBrier": 0.08832,
+        "accuracyDelta": 0.0002,
+        "brierDelta": -0.00018
       },
       "rows": 383069,
-      "lineTests": 876329
+      "lineTests": 1642421
     },
     "folds": [
       {
@@ -18306,13 +18306,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0042
             },
             "threshold": {
-              "n": 188900,
-              "accuracy": 0.8264,
-              "baselineAccuracy": 0.8251,
-              "brier": 0.12178,
-              "baselineBrier": 0.12241,
-              "accuracyDelta": 0.0013,
-              "brierDelta": -0.00063
+              "n": 330575,
+              "accuracy": 0.8595,
+              "baselineAccuracy": 0.8588,
+              "brier": 0.09867,
+              "baselineBrier": 0.09909,
+              "accuracyDelta": 0.0007,
+              "brierDelta": -0.00042
             }
           },
           "goals": {
@@ -18327,11 +18327,11 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": 0.001
             },
             "threshold": {
-              "n": 47225,
-              "accuracy": 0.8504,
-              "baselineAccuracy": 0.8504,
-              "brier": 0.11956,
-              "baselineBrier": 0.11957,
+              "n": 94450,
+              "accuracy": 0.9171,
+              "baselineAccuracy": 0.9171,
+              "brier": 0.06765,
+              "baselineBrier": 0.06765,
               "accuracyDelta": 0,
               "brierDelta": -0.00001
             }
@@ -18348,13 +18348,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": 0
             },
             "threshold": {
-              "n": 94450,
-              "accuracy": 0.8634,
-              "baselineAccuracy": 0.8634,
-              "brier": 0.10304,
-              "baselineBrier": 0.10298,
+              "n": 141675,
+              "accuracy": 0.9072,
+              "baselineAccuracy": 0.9072,
+              "brier": 0.07041,
+              "baselineBrier": 0.07037,
               "accuracyDelta": 0,
-              "brierDelta": 0.00006
+              "brierDelta": 0.00004
             }
           },
           "points": {
@@ -18369,13 +18369,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": 0.0013
             },
             "threshold": {
-              "n": 94450,
-              "accuracy": 0.8028,
-              "baselineAccuracy": 0.8026,
-              "brier": 0.13781,
-              "baselineBrier": 0.13768,
-              "accuracyDelta": 0.0003,
-              "brierDelta": 0.00013
+              "n": 188900,
+              "accuracy": 0.8963,
+              "baselineAccuracy": 0.8962,
+              "brier": 0.07381,
+              "baselineBrier": 0.07374,
+              "accuracyDelta": 0.0001,
+              "brierDelta": 0.00007
             }
           },
           "saves": {
@@ -18390,13 +18390,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0206
             },
             "threshold": {
-              "n": 13105,
-              "accuracy": 0.7393,
-              "baselineAccuracy": 0.7384,
-              "brier": 0.17876,
-              "baselineBrier": 0.17917,
-              "accuracyDelta": 0.0008,
-              "brierDelta": -0.00041
+              "n": 65525,
+              "accuracy": 0.8021,
+              "baselineAccuracy": 0.8018,
+              "brier": 0.14224,
+              "baselineBrier": 0.1425,
+              "accuracyDelta": 0.0004,
+              "brierDelta": -0.00026
             }
           }
         }
@@ -18417,13 +18417,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0065
             },
             "threshold": {
-              "n": 188924,
-              "accuracy": 0.8296,
-              "baselineAccuracy": 0.8291,
-              "brier": 0.11954,
-              "baselineBrier": 0.12012,
-              "accuracyDelta": 0.0005,
-              "brierDelta": -0.00058
+              "n": 330617,
+              "accuracy": 0.8602,
+              "baselineAccuracy": 0.86,
+              "brier": 0.09776,
+              "baselineBrier": 0.09816,
+              "accuracyDelta": 0.0002,
+              "brierDelta": -0.00041
             }
           },
           "goals": {
@@ -18438,13 +18438,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0001
             },
             "threshold": {
-              "n": 47231,
-              "accuracy": 0.848,
-              "baselineAccuracy": 0.8479,
-              "brier": 0.12135,
-              "baselineBrier": 0.12144,
+              "n": 94462,
+              "accuracy": 0.9153,
+              "baselineAccuracy": 0.9153,
+              "brier": 0.06904,
+              "baselineBrier": 0.06909,
               "accuracyDelta": 0,
-              "brierDelta": -0.00009
+              "brierDelta": -0.00005
             }
           },
           "assists": {
@@ -18459,13 +18459,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0014
             },
             "threshold": {
-              "n": 94462,
-              "accuracy": 0.86,
-              "baselineAccuracy": 0.8597,
-              "brier": 0.105,
-              "baselineBrier": 0.10505,
-              "accuracyDelta": 0.0003,
-              "brierDelta": -0.00005
+              "n": 141693,
+              "accuracy": 0.9047,
+              "baselineAccuracy": 0.9045,
+              "brier": 0.07191,
+              "baselineBrier": 0.07194,
+              "accuracyDelta": 0.0002,
+              "brierDelta": -0.00003
             }
           },
           "points": {
@@ -18480,13 +18480,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0004
             },
             "threshold": {
-              "n": 94462,
-              "accuracy": 0.7994,
-              "baselineAccuracy": 0.7999,
-              "brier": 0.1397,
-              "baselineBrier": 0.13977,
-              "accuracyDelta": -0.0006,
-              "brierDelta": -0.00007
+              "n": 188924,
+              "accuracy": 0.894,
+              "baselineAccuracy": 0.8943,
+              "brier": 0.07526,
+              "baselineBrier": 0.0753,
+              "accuracyDelta": -0.0003,
+              "brierDelta": -0.00003
             }
           },
           "saves": {
@@ -18501,13 +18501,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0135
             },
             "threshold": {
-              "n": 13120,
-              "accuracy": 0.746,
-              "baselineAccuracy": 0.746,
-              "brier": 0.17508,
-              "baselineBrier": 0.17536,
-              "accuracyDelta": 0,
-              "brierDelta": -0.00027
+              "n": 65600,
+              "accuracy": 0.8011,
+              "baselineAccuracy": 0.8008,
+              "brier": 0.14127,
+              "baselineBrier": 0.14142,
+              "accuracyDelta": 0.0003,
+              "brierDelta": -0.00015
             }
           }
         }
@@ -18527,13 +18527,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
           "maeDelta": -0.0054
         },
         "aggregateThreshold": {
-          "n": 377824,
-          "accuracy": 0.828,
-          "baselineAccuracy": 0.8271,
-          "brier": 0.12066,
-          "baselineBrier": 0.12127,
-          "accuracyDelta": 0.0009,
-          "brierDelta": -0.00061
+          "n": 661192,
+          "accuracy": 0.8599,
+          "baselineAccuracy": 0.8594,
+          "brier": 0.09821,
+          "baselineBrier": 0.09863,
+          "accuracyDelta": 0.0005,
+          "brierDelta": -0.00041
         },
         "folds": [
           {
@@ -18549,13 +18549,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0042
             },
             "threshold": {
-              "n": 188900,
-              "accuracy": 0.8264,
-              "baselineAccuracy": 0.8251,
-              "brier": 0.12178,
-              "baselineBrier": 0.12241,
-              "accuracyDelta": 0.0013,
-              "brierDelta": -0.00063
+              "n": 330575,
+              "accuracy": 0.8595,
+              "baselineAccuracy": 0.8588,
+              "brier": 0.09867,
+              "baselineBrier": 0.09909,
+              "accuracyDelta": 0.0007,
+              "brierDelta": -0.00042
             }
           },
           {
@@ -18571,13 +18571,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0065
             },
             "threshold": {
-              "n": 188924,
-              "accuracy": 0.8296,
-              "baselineAccuracy": 0.8291,
-              "brier": 0.11954,
-              "baselineBrier": 0.12012,
-              "accuracyDelta": 0.0005,
-              "brierDelta": -0.00058
+              "n": 330617,
+              "accuracy": 0.8602,
+              "baselineAccuracy": 0.86,
+              "brier": 0.09776,
+              "baselineBrier": 0.09816,
+              "accuracyDelta": 0.0002,
+              "brierDelta": -0.00041
             }
           }
         ]
@@ -18595,13 +18595,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
           "maeDelta": 0.0005
         },
         "aggregateThreshold": {
-          "n": 94456,
-          "accuracy": 0.8492,
-          "baselineAccuracy": 0.8492,
-          "brier": 0.12046,
-          "baselineBrier": 0.12051,
+          "n": 188912,
+          "accuracy": 0.9162,
+          "baselineAccuracy": 0.9162,
+          "brier": 0.06835,
+          "baselineBrier": 0.06837,
           "accuracyDelta": 0,
-          "brierDelta": -0.00005
+          "brierDelta": -0.00003
         },
         "folds": [
           {
@@ -18617,11 +18617,11 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": 0.001
             },
             "threshold": {
-              "n": 47225,
-              "accuracy": 0.8504,
-              "baselineAccuracy": 0.8504,
-              "brier": 0.11956,
-              "baselineBrier": 0.11957,
+              "n": 94450,
+              "accuracy": 0.9171,
+              "baselineAccuracy": 0.9171,
+              "brier": 0.06765,
+              "baselineBrier": 0.06765,
               "accuracyDelta": 0,
               "brierDelta": -0.00001
             }
@@ -18639,13 +18639,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0001
             },
             "threshold": {
-              "n": 47231,
-              "accuracy": 0.848,
-              "baselineAccuracy": 0.8479,
-              "brier": 0.12135,
-              "baselineBrier": 0.12144,
+              "n": 94462,
+              "accuracy": 0.9153,
+              "baselineAccuracy": 0.9153,
+              "brier": 0.06904,
+              "baselineBrier": 0.06909,
               "accuracyDelta": 0,
-              "brierDelta": -0.00009
+              "brierDelta": -0.00005
             }
           }
         ]
@@ -18663,11 +18663,11 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
           "maeDelta": -0.0007
         },
         "aggregateThreshold": {
-          "n": 188912,
-          "accuracy": 0.8617,
-          "baselineAccuracy": 0.8616,
-          "brier": 0.10402,
-          "baselineBrier": 0.10401,
+          "n": 283368,
+          "accuracy": 0.906,
+          "baselineAccuracy": 0.9059,
+          "brier": 0.07116,
+          "baselineBrier": 0.07116,
           "accuracyDelta": 0.0001,
           "brierDelta": 0
         },
@@ -18685,13 +18685,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": 0
             },
             "threshold": {
-              "n": 94450,
-              "accuracy": 0.8634,
-              "baselineAccuracy": 0.8634,
-              "brier": 0.10304,
-              "baselineBrier": 0.10298,
+              "n": 141675,
+              "accuracy": 0.9072,
+              "baselineAccuracy": 0.9072,
+              "brier": 0.07041,
+              "baselineBrier": 0.07037,
               "accuracyDelta": 0,
-              "brierDelta": 0.00006
+              "brierDelta": 0.00004
             }
           },
           {
@@ -18707,13 +18707,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0014
             },
             "threshold": {
-              "n": 94462,
-              "accuracy": 0.86,
-              "baselineAccuracy": 0.8597,
-              "brier": 0.105,
-              "baselineBrier": 0.10505,
-              "accuracyDelta": 0.0003,
-              "brierDelta": -0.00005
+              "n": 141693,
+              "accuracy": 0.9047,
+              "baselineAccuracy": 0.9045,
+              "brier": 0.07191,
+              "baselineBrier": 0.07194,
+              "accuracyDelta": 0.0002,
+              "brierDelta": -0.00003
             }
           }
         ]
@@ -18731,13 +18731,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
           "maeDelta": 0.0004
         },
         "aggregateThreshold": {
-          "n": 188912,
-          "accuracy": 0.8011,
-          "baselineAccuracy": 0.8012,
-          "brier": 0.13876,
-          "baselineBrier": 0.13872,
+          "n": 377824,
+          "accuracy": 0.8951,
+          "baselineAccuracy": 0.8952,
+          "brier": 0.07454,
+          "baselineBrier": 0.07452,
           "accuracyDelta": -0.0001,
-          "brierDelta": 0.00003
+          "brierDelta": 0.00002
         },
         "folds": [
           {
@@ -18753,13 +18753,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": 0.0013
             },
             "threshold": {
-              "n": 94450,
-              "accuracy": 0.8028,
-              "baselineAccuracy": 0.8026,
-              "brier": 0.13781,
-              "baselineBrier": 0.13768,
-              "accuracyDelta": 0.0003,
-              "brierDelta": 0.00013
+              "n": 188900,
+              "accuracy": 0.8963,
+              "baselineAccuracy": 0.8962,
+              "brier": 0.07381,
+              "baselineBrier": 0.07374,
+              "accuracyDelta": 0.0001,
+              "brierDelta": 0.00007
             }
           },
           {
@@ -18775,13 +18775,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0004
             },
             "threshold": {
-              "n": 94462,
-              "accuracy": 0.7994,
-              "baselineAccuracy": 0.7999,
-              "brier": 0.1397,
-              "baselineBrier": 0.13977,
-              "accuracyDelta": -0.0006,
-              "brierDelta": -0.00007
+              "n": 188924,
+              "accuracy": 0.894,
+              "baselineAccuracy": 0.8943,
+              "brier": 0.07526,
+              "baselineBrier": 0.0753,
+              "accuracyDelta": -0.0003,
+              "brierDelta": -0.00003
             }
           }
         ]
@@ -18799,13 +18799,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
           "maeDelta": -0.0171
         },
         "aggregateThreshold": {
-          "n": 26225,
-          "accuracy": 0.7427,
-          "baselineAccuracy": 0.7422,
-          "brier": 0.17692,
-          "baselineBrier": 0.17726,
-          "accuracyDelta": 0.0004,
-          "brierDelta": -0.00034
+          "n": 131125,
+          "accuracy": 0.8016,
+          "baselineAccuracy": 0.8013,
+          "brier": 0.14175,
+          "baselineBrier": 0.14196,
+          "accuracyDelta": 0.0003,
+          "brierDelta": -0.0002
         },
         "folds": [
           {
@@ -18821,13 +18821,13 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0206
             },
             "threshold": {
-              "n": 13105,
-              "accuracy": 0.7393,
-              "baselineAccuracy": 0.7384,
-              "brier": 0.17876,
-              "baselineBrier": 0.17917,
-              "accuracyDelta": 0.0008,
-              "brierDelta": -0.00041
+              "n": 65525,
+              "accuracy": 0.8021,
+              "baselineAccuracy": 0.8018,
+              "brier": 0.14224,
+              "baselineBrier": 0.1425,
+              "accuracyDelta": 0.0004,
+              "brierDelta": -0.00026
             }
           },
           {
@@ -18843,16 +18843,428 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
               "maeDelta": -0.0135
             },
             "threshold": {
-              "n": 13120,
-              "accuracy": 0.746,
-              "baselineAccuracy": 0.746,
-              "brier": 0.17508,
-              "baselineBrier": 0.17536,
-              "accuracyDelta": 0,
-              "brierDelta": -0.00027
+              "n": 65600,
+              "accuracy": 0.8011,
+              "baselineAccuracy": 0.8008,
+              "brier": 0.14127,
+              "baselineBrier": 0.14142,
+              "accuracyDelta": 0.0003,
+              "brierDelta": -0.00015
             }
           }
         ]
+      }
+    },
+    "lines": {
+      "assists:0.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.7641,
+        "baselineAccuracy": 0.7638,
+        "brier": 0.17057,
+        "baselineBrier": 0.17056,
+        "accuracyDelta": 0.0003,
+        "brierDelta": 0.00001
+      },
+      "assists:1.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.9593,
+        "baselineAccuracy": 0.9593,
+        "brier": 0.03747,
+        "baselineBrier": 0.03747,
+        "accuracyDelta": 0,
+        "brierDelta": 0
+      },
+      "assists:2.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.9944,
+        "baselineAccuracy": 0.9944,
+        "brier": 0.00545,
+        "baselineBrier": 0.00545,
+        "accuracyDelta": 0,
+        "brierDelta": 0
+      },
+      "goals:0.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.8492,
+        "baselineAccuracy": 0.8492,
+        "brier": 0.12046,
+        "baselineBrier": 0.12051,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00005
+      },
+      "goals:1.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.9833,
+        "baselineAccuracy": 0.9833,
+        "brier": 0.01624,
+        "baselineBrier": 0.01624,
+        "accuracyDelta": 0,
+        "brierDelta": 0
+      },
+      "points:0.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.69,
+        "baselineAccuracy": 0.6901,
+        "brier": 0.20378,
+        "baselineBrier": 0.20372,
+        "accuracyDelta": -0.0002,
+        "brierDelta": 0.00007
+      },
+      "points:1.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.9122,
+        "baselineAccuracy": 0.9123,
+        "brier": 0.07373,
+        "baselineBrier": 0.07373,
+        "accuracyDelta": -0.0001,
+        "brierDelta": 0
+      },
+      "points:2.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.9813,
+        "baselineAccuracy": 0.9813,
+        "brier": 0.01771,
+        "baselineBrier": 0.01771,
+        "accuracyDelta": 0,
+        "brierDelta": 0
+      },
+      "points:3.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.997,
+        "baselineAccuracy": 0.997,
+        "brier": 0.00293,
+        "baselineBrier": 0.00292,
+        "accuracyDelta": 0,
+        "brierDelta": 0
+      },
+      "saves:15.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.923,
+        "baselineAccuracy": 0.923,
+        "brier": 0.07399,
+        "baselineBrier": 0.07366,
+        "accuracyDelta": 0,
+        "brierDelta": 0.00033
+      },
+      "saves:16.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.8965,
+        "baselineAccuracy": 0.8965,
+        "brier": 0.09525,
+        "baselineBrier": 0.09489,
+        "accuracyDelta": 0,
+        "brierDelta": 0.00037
+      },
+      "saves:17.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.8614,
+        "baselineAccuracy": 0.8614,
+        "brier": 0.11999,
+        "baselineBrier": 0.11958,
+        "accuracyDelta": 0,
+        "brierDelta": 0.0004
+      },
+      "saves:18.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.8233,
+        "baselineAccuracy": 0.8233,
+        "brier": 0.14418,
+        "baselineBrier": 0.14375,
+        "accuracyDelta": 0,
+        "brierDelta": 0.00042
+      },
+      "saves:19.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.7788,
+        "baselineAccuracy": 0.7788,
+        "brier": 0.16846,
+        "baselineBrier": 0.16795,
+        "accuracyDelta": 0,
+        "brierDelta": 0.00051
+      },
+      "saves:20.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.7291,
+        "baselineAccuracy": 0.7291,
+        "brier": 0.19251,
+        "baselineBrier": 0.19208,
+        "accuracyDelta": 0,
+        "brierDelta": 0.00043
+      },
+      "saves:21.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.669,
+        "baselineAccuracy": 0.6692,
+        "brier": 0.2151,
+        "baselineBrier": 0.21484,
+        "accuracyDelta": -0.0002,
+        "brierDelta": 0.00026
+      },
+      "saves:22.5": {
+        "status": "HOLD_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.6177,
+        "baselineAccuracy": 0.6179,
+        "brier": 0.22987,
+        "baselineBrier": 0.22974,
+        "accuracyDelta": -0.0002,
+        "brierDelta": 0.00012
+      },
+      "saves:23.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.5775,
+        "baselineAccuracy": 0.5745,
+        "brier": 0.2396,
+        "baselineBrier": 0.2397,
+        "accuracyDelta": 0.0031,
+        "brierDelta": -0.0001
+      },
+      "saves:24.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.5674,
+        "baselineAccuracy": 0.5664,
+        "brier": 0.24344,
+        "baselineBrier": 0.24371,
+        "accuracyDelta": 0.001,
+        "brierDelta": -0.00027
+      },
+      "saves:25.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.5922,
+        "baselineAccuracy": 0.5874,
+        "brier": 0.24037,
+        "baselineBrier": 0.24076,
+        "accuracyDelta": 0.0048,
+        "brierDelta": -0.00039
+      },
+      "saves:26.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.6328,
+        "baselineAccuracy": 0.6328,
+        "brier": 0.2318,
+        "baselineBrier": 0.23226,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00047
+      },
+      "saves:27.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.6782,
+        "baselineAccuracy": 0.6768,
+        "brier": 0.21791,
+        "baselineBrier": 0.21854,
+        "accuracyDelta": 0.0013,
+        "brierDelta": -0.00063
+      },
+      "saves:28.5": {
+        "status": "WATCH_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.726,
+        "baselineAccuracy": 0.7279,
+        "brier": 0.20018,
+        "baselineBrier": 0.20088,
+        "accuracyDelta": -0.0019,
+        "brierDelta": -0.0007
+      },
+      "saves:29.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.7714,
+        "baselineAccuracy": 0.7712,
+        "brier": 0.17942,
+        "baselineBrier": 0.18014,
+        "accuracyDelta": 0.0002,
+        "brierDelta": -0.00072
+      },
+      "saves:30.5": {
+        "status": "WATCH_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.812,
+        "baselineAccuracy": 0.8122,
+        "brier": 0.15719,
+        "baselineBrier": 0.1579,
+        "accuracyDelta": -0.0002,
+        "brierDelta": -0.00071
+      },
+      "saves:31.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.8456,
+        "baselineAccuracy": 0.8456,
+        "brier": 0.13567,
+        "baselineBrier": 0.13634,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00067
+      },
+      "saves:32.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.8805,
+        "baselineAccuracy": 0.8805,
+        "brier": 0.11167,
+        "baselineBrier": 0.11236,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00069
+      },
+      "saves:33.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.9056,
+        "baselineAccuracy": 0.9056,
+        "brier": 0.09159,
+        "baselineBrier": 0.09219,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00061
+      },
+      "saves:34.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.9266,
+        "baselineAccuracy": 0.9266,
+        "brier": 0.07355,
+        "baselineBrier": 0.07408,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00054
+      },
+      "saves:35.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.9426,
+        "baselineAccuracy": 0.9426,
+        "brier": 0.05868,
+        "baselineBrier": 0.05913,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00045
+      },
+      "saves:36.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.9571,
+        "baselineAccuracy": 0.9571,
+        "brier": 0.04482,
+        "baselineBrier": 0.04518,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00036
+      },
+      "saves:37.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.9666,
+        "baselineAccuracy": 0.9666,
+        "brier": 0.03504,
+        "baselineBrier": 0.0353,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00027
+      },
+      "saves:38.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.9762,
+        "baselineAccuracy": 0.9762,
+        "brier": 0.02548,
+        "baselineBrier": 0.02568,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00021
+      },
+      "saves:39.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 5245,
+        "accuracy": 0.9832,
+        "baselineAccuracy": 0.9832,
+        "brier": 0.01815,
+        "baselineBrier": 0.0183,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00015
+      },
+      "shots_on_goal:0.5": {
+        "status": "WATCH_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.7332,
+        "baselineAccuracy": 0.7335,
+        "brier": 0.18029,
+        "baselineBrier": 0.18065,
+        "accuracyDelta": -0.0003,
+        "brierDelta": -0.00036
+      },
+      "shots_on_goal:1.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.6691,
+        "baselineAccuracy": 0.6679,
+        "brier": 0.21265,
+        "baselineBrier": 0.21346,
+        "accuracyDelta": 0.0012,
+        "brierDelta": -0.00081
+      },
+      "shots_on_goal:2.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.7906,
+        "baselineAccuracy": 0.7894,
+        "brier": 0.14804,
+        "baselineBrier": 0.14886,
+        "accuracyDelta": 0.0012,
+        "brierDelta": -0.00082
+      },
+      "shots_on_goal:3.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.8976,
+        "baselineAccuracy": 0.8966,
+        "brier": 0.08194,
+        "baselineBrier": 0.08252,
+        "accuracyDelta": 0.001,
+        "brierDelta": -0.00057
+      },
+      "shots_on_goal:4.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.9546,
+        "baselineAccuracy": 0.9544,
+        "brier": 0.04,
+        "baselineBrier": 0.04024,
+        "accuracyDelta": 0.0002,
+        "brierDelta": -0.00024
+      },
+      "shots_on_goal:5.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.9814,
+        "baselineAccuracy": 0.9814,
+        "brier": 0.01737,
+        "baselineBrier": 0.01744,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00007
+      },
+      "shots_on_goal:6.5": {
+        "status": "PROMOTE_RESEARCH",
+        "n": 94456,
+        "accuracy": 0.9926,
+        "baselineAccuracy": 0.9926,
+        "brier": 0.00719,
+        "baselineBrier": 0.00721,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00002
       }
     }
   },
