@@ -191,6 +191,15 @@ export async function onRequestGet(context) {
     },
     baseball_savant: { configured: true, implemented: true, auth: "public" },
     nflverse: { configured: true, implemented: true, auth: "public" },
+    sportsdataverse_incremental: {
+      configured: true,
+      implemented: true,
+      auth: "public",
+      mode: "research-canonical",
+      duplicatePolicy: "upstream-lineage-dedup",
+      providers: ["sdv_nfl_ngs","sdv_ncaa","sdv_wnba_stats","sdv_nhl_edge","sdv_soccer_espn"],
+      modelActivation: "walk-forward-validation-required",
+    },
     twodeep_availability: {
       configured: Boolean(env?.TWODEEP_API_TOKEN),
       implemented: true,
