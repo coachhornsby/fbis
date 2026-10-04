@@ -210,6 +210,6 @@ export function impactAvailabilityPoints(impact,status="AVAILABLE"){
   const minutes=finite(impact?.skill?.minutes)||28;
   const full=clamp(net*minutes/48,-7,7);
   const s=String(status||"AVAILABLE").toUpperCase();
-  const miss=s==="OUT"?1:s==="DOUBTFUL"?.8:s==="QUESTIONABLE"?.45:s==="PROBABLE"?.12:0;
+  const miss=s==="OUT"?1:s==="DOUBTFUL"?0.8:s==="QUESTIONABLE"?0.45:s==="PROBABLE"?0.12:0;
   return round(full*miss);
 }
