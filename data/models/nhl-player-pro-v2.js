@@ -1,7 +1,7 @@
 export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
   "modelId": "NHL-PLAYER-PRO-v2",
   "version": "research-v2.0-share-environment",
-  "generatedAt": "2026-10-04T01:42:24.930Z",
+  "generatedAt": "2026-10-04T01:45:38.446Z",
   "trained": true,
   "marketInformed": false,
   "training": {
@@ -18512,7 +18512,349 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
           }
         }
       }
-    ]
+    ],
+    "markets": {
+      "shots_on_goal": {
+        "status": "PROMOTE_RESEARCH",
+        "aggregateProjection": {
+          "n": 94456,
+          "mae": 1.0297,
+          "rmse": 1.3265,
+          "bias": 0.0487,
+          "baselineMae": 1.035,
+          "baselineRmse": 1.3322,
+          "baselineBias": 0.0644,
+          "maeDelta": -0.0054
+        },
+        "aggregateThreshold": {
+          "n": 377824,
+          "accuracy": 0.828,
+          "baselineAccuracy": 0.8271,
+          "brier": 0.12066,
+          "baselineBrier": 0.12127,
+          "accuracyDelta": 0.0009,
+          "brierDelta": -0.00061
+        },
+        "folds": [
+          {
+            "season": "20242025",
+            "projection": {
+              "n": 47225,
+              "mae": 1.0348,
+              "rmse": 1.3312,
+              "bias": 0.0554,
+              "baselineMae": 1.039,
+              "baselineRmse": 1.3373,
+              "baselineBias": 0.0579,
+              "maeDelta": -0.0042
+            },
+            "threshold": {
+              "n": 188900,
+              "accuracy": 0.8264,
+              "baselineAccuracy": 0.8251,
+              "brier": 0.12178,
+              "baselineBrier": 0.12241,
+              "accuracyDelta": 0.0013,
+              "brierDelta": -0.00063
+            }
+          },
+          {
+            "season": "20252026",
+            "projection": {
+              "n": 47231,
+              "mae": 1.0245,
+              "rmse": 1.3218,
+              "bias": 0.042,
+              "baselineMae": 1.031,
+              "baselineRmse": 1.327,
+              "baselineBias": 0.0709,
+              "maeDelta": -0.0065
+            },
+            "threshold": {
+              "n": 188924,
+              "accuracy": 0.8296,
+              "baselineAccuracy": 0.8291,
+              "brier": 0.11954,
+              "baselineBrier": 0.12012,
+              "accuracyDelta": 0.0005,
+              "brierDelta": -0.00058
+            }
+          }
+        ]
+      },
+      "goals": {
+        "status": "HOLD_RESEARCH",
+        "aggregateProjection": {
+          "n": 94456,
+          "mae": 0.2673,
+          "rmse": 0.4134,
+          "bias": 0.0035,
+          "baselineMae": 0.2668,
+          "baselineRmse": 0.4135,
+          "baselineBias": 0.0031,
+          "maeDelta": 0.0005
+        },
+        "aggregateThreshold": {
+          "n": 94456,
+          "accuracy": 0.8492,
+          "baselineAccuracy": 0.8492,
+          "brier": 0.12046,
+          "baselineBrier": 0.12051,
+          "accuracyDelta": 0,
+          "brierDelta": -0.00005
+        },
+        "folds": [
+          {
+            "season": "20242025",
+            "projection": {
+              "n": 47225,
+              "mae": 0.2652,
+              "rmse": 0.4096,
+              "bias": 0.0045,
+              "baselineMae": 0.2641,
+              "baselineRmse": 0.4097,
+              "baselineBias": 0.0031,
+              "maeDelta": 0.001
+            },
+            "threshold": {
+              "n": 47225,
+              "accuracy": 0.8504,
+              "baselineAccuracy": 0.8504,
+              "brier": 0.11956,
+              "baselineBrier": 0.11957,
+              "accuracyDelta": 0,
+              "brierDelta": -0.00001
+            }
+          },
+          {
+            "season": "20252026",
+            "projection": {
+              "n": 47231,
+              "mae": 0.2694,
+              "rmse": 0.4171,
+              "bias": 0.0025,
+              "baselineMae": 0.2695,
+              "baselineRmse": 0.4173,
+              "baselineBias": 0.0031,
+              "maeDelta": -0.0001
+            },
+            "threshold": {
+              "n": 47231,
+              "accuracy": 0.848,
+              "baselineAccuracy": 0.8479,
+              "brier": 0.12135,
+              "baselineBrier": 0.12144,
+              "accuracyDelta": 0,
+              "brierDelta": -0.00009
+            }
+          }
+        ]
+      },
+      "assists": {
+        "status": "WATCH_RESEARCH",
+        "aggregateProjection": {
+          "n": 94456,
+          "mae": 0.3987,
+          "rmse": 0.5369,
+          "bias": 0.002,
+          "baselineMae": 0.3993,
+          "baselineRmse": 0.5369,
+          "baselineBias": 0.0045,
+          "maeDelta": -0.0007
+        },
+        "aggregateThreshold": {
+          "n": 188912,
+          "accuracy": 0.8617,
+          "baselineAccuracy": 0.8616,
+          "brier": 0.10402,
+          "baselineBrier": 0.10401,
+          "accuracyDelta": 0.0001,
+          "brierDelta": 0
+        },
+        "folds": [
+          {
+            "season": "20242025",
+            "projection": {
+              "n": 47225,
+              "mae": 0.3957,
+              "rmse": 0.533,
+              "bias": 0.0035,
+              "baselineMae": 0.3957,
+              "baselineRmse": 0.5328,
+              "baselineBias": 0.0042,
+              "maeDelta": 0
+            },
+            "threshold": {
+              "n": 94450,
+              "accuracy": 0.8634,
+              "baselineAccuracy": 0.8634,
+              "brier": 0.10304,
+              "baselineBrier": 0.10298,
+              "accuracyDelta": 0,
+              "brierDelta": 0.00006
+            }
+          },
+          {
+            "season": "20252026",
+            "projection": {
+              "n": 47231,
+              "mae": 0.4017,
+              "rmse": 0.5408,
+              "bias": 0.0005,
+              "baselineMae": 0.403,
+              "baselineRmse": 0.5409,
+              "baselineBias": 0.0047,
+              "maeDelta": -0.0014
+            },
+            "threshold": {
+              "n": 94462,
+              "accuracy": 0.86,
+              "baselineAccuracy": 0.8597,
+              "brier": 0.105,
+              "baselineBrier": 0.10505,
+              "accuracyDelta": 0.0003,
+              "brierDelta": -0.00005
+            }
+          }
+        ]
+      },
+      "points": {
+        "status": "HOLD_RESEARCH",
+        "aggregateProjection": {
+          "n": 94456,
+          "mae": 0.5236,
+          "rmse": 0.6741,
+          "bias": 0.0055,
+          "baselineMae": 0.5232,
+          "baselineRmse": 0.674,
+          "baselineBias": 0.0077,
+          "maeDelta": 0.0004
+        },
+        "aggregateThreshold": {
+          "n": 188912,
+          "accuracy": 0.8011,
+          "baselineAccuracy": 0.8012,
+          "brier": 0.13876,
+          "baselineBrier": 0.13872,
+          "accuracyDelta": -0.0001,
+          "brierDelta": 0.00003
+        },
+        "folds": [
+          {
+            "season": "20242025",
+            "projection": {
+              "n": 47225,
+              "mae": 0.5204,
+              "rmse": 0.6683,
+              "bias": 0.008,
+              "baselineMae": 0.5191,
+              "baselineRmse": 0.668,
+              "baselineBias": 0.0075,
+              "maeDelta": 0.0013
+            },
+            "threshold": {
+              "n": 94450,
+              "accuracy": 0.8028,
+              "baselineAccuracy": 0.8026,
+              "brier": 0.13781,
+              "baselineBrier": 0.13768,
+              "accuracyDelta": 0.0003,
+              "brierDelta": 0.00013
+            }
+          },
+          {
+            "season": "20252026",
+            "projection": {
+              "n": 47231,
+              "mae": 0.5269,
+              "rmse": 0.6799,
+              "bias": 0.0031,
+              "baselineMae": 0.5273,
+              "baselineRmse": 0.68,
+              "baselineBias": 0.008,
+              "maeDelta": -0.0004
+            },
+            "threshold": {
+              "n": 94462,
+              "accuracy": 0.7994,
+              "baselineAccuracy": 0.7999,
+              "brier": 0.1397,
+              "baselineBrier": 0.13977,
+              "accuracyDelta": -0.0006,
+              "brierDelta": -0.00007
+            }
+          }
+        ]
+      },
+      "saves": {
+        "status": "PROMOTE_RESEARCH",
+        "aggregateProjection": {
+          "n": 5245,
+          "mae": 5.2594,
+          "rmse": 6.5781,
+          "bias": 1.2174,
+          "baselineMae": 5.2764,
+          "baselineRmse": 6.5951,
+          "baselineBias": 1.326,
+          "maeDelta": -0.0171
+        },
+        "aggregateThreshold": {
+          "n": 26225,
+          "accuracy": 0.7427,
+          "baselineAccuracy": 0.7422,
+          "brier": 0.17692,
+          "baselineBrier": 0.17726,
+          "accuracyDelta": 0.0004,
+          "brierDelta": -0.00034
+        },
+        "folds": [
+          {
+            "season": "20242025",
+            "projection": {
+              "n": 2621,
+              "mae": 5.253,
+              "rmse": 6.6135,
+              "bias": 1.3404,
+              "baselineMae": 5.2736,
+              "baselineRmse": 6.6329,
+              "baselineBias": 1.4418,
+              "maeDelta": -0.0206
+            },
+            "threshold": {
+              "n": 13105,
+              "accuracy": 0.7393,
+              "baselineAccuracy": 0.7384,
+              "brier": 0.17876,
+              "baselineBrier": 0.17917,
+              "accuracyDelta": 0.0008,
+              "brierDelta": -0.00041
+            }
+          },
+          {
+            "season": "20252026",
+            "projection": {
+              "n": 2624,
+              "mae": 5.2658,
+              "rmse": 6.5426,
+              "bias": 1.0945,
+              "baselineMae": 5.2793,
+              "baselineRmse": 6.5572,
+              "baselineBias": 1.2103,
+              "maeDelta": -0.0135
+            },
+            "threshold": {
+              "n": 13120,
+              "accuracy": 0.746,
+              "baselineAccuracy": 0.746,
+              "brier": 0.17508,
+              "baselineBrier": 0.17536,
+              "accuracyDelta": 0,
+              "brierDelta": -0.00027
+            }
+          }
+        ]
+      }
+    }
   },
   "canQualify": false,
   "canAuthorizeWager": false
