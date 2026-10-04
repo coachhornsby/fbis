@@ -1,9 +1,12 @@
 name: NHL-PRO-v2 research validation
 
 on:
+  schedule:
+    - cron: "15 11 * * 1"
   push:
     branches:
       - "feature/nhl-pro-v2-20261003"
+      - main
     paths:
       - ".github/nhl-v2-run"
       - "scripts/nhl-pro-v2-walkforward.mjs"
@@ -45,3 +48,24 @@ jobs:
           name: nhl-pro-v2-validation-${{ github.run_id }}
           path: data/models/nhl-pro-v2-validation.json
           retention-days: 90
+
+      - name: Persist validation artifact
+        run: |
+          set -euo pipefail
+          cp data/models/nhl-pro-v2-validation.json "$RUNNER_TEMP/nhl-pro-v2-validation.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin "${{ github.ref_name }}"
+            git reset --hard "origin/${{ github.ref_name }}"
+            cp "$RUNNER_TEMP/nhl-pro-v2-validation.json" data/models/nhl-pro-v2-validation.json
+            git add data/models/nhl-pro-v2-validation.json
+            if git diff --cached --quiet -- data/models/nhl-pro-v2-validation.json; then
+              echo "validation artifact unchanged"
+              exit 0
+            fi
+            git commit -m "data: update NHL-PRO-v2 walk-forward validation"
+            if git push origin HEAD:"${{ github.ref_name }}"; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          exit 1
