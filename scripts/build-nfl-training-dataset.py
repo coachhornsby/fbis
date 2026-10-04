@@ -260,7 +260,17 @@ def build_ngs_pregame_features(games):
         raw["season"] = pd.to_numeric(raw[season_col], errors="coerce")
         raw["week"] = pd.to_numeric(raw[week_col], errors="coerce")
         raw["team"] = raw[team_col].map(norm_team)
-        raw = raw[(raw["season"] >= START_SEASON) & (raw["season"] <= END_SEASON)]
+        # nflverse NGS uses week=0 for the full regular-season summary.
+        # It is future information for every in-season game and must never enter
+        # a pregame walk-forward feature.
+        raw = raw[
+            (raw["season"] >= START_SEASON)
+            & (raw["season"] <= END_SEASON)
+            & (raw["week"] > 0)
+        ]
+        season_type_col = first_col(raw, ["season_type", "seasonType"])
+        if season_type_col:
+            raw = raw[raw[season_type_col].astype(str).str.upper().eq("REG")]
         rows = []
         for (season, week, team), g in raw.groupby(["season", "week", "team"], dropna=True):
             row = {"season": int(season), "week": int(week), "team": team}
