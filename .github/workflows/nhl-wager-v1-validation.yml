@@ -1,0 +1,63 @@
+name: NHL WAGER-v1 validation
+
+on:
+  pull_request:
+    paths:
+      - "functions/lib/nhlWagerV1.js"
+      - "functions/lib/slateEngine.js"
+      - "functions/lib/todayBoard.js"
+      - "src/features/playerProps/buildPlayerPropsBoard.js"
+      - "functions/api/nhl-wager-research.js"
+      - "migrations/0041_nhl_wager_research.sql"
+      - "test/nhl-wager-v1.test.js"
+      - ".github/workflows/nhl-wager-v1-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nhlWagerV1.js"
+      - "functions/lib/slateEngine.js"
+      - "functions/lib/todayBoard.js"
+      - "src/features/playerProps/buildPlayerPropsBoard.js"
+      - "functions/api/nhl-wager-research.js"
+      - "migrations/0041_nhl_wager_research.sql"
+      - "test/nhl-wager-v1.test.js"
+      - ".github/workflows/nhl-wager-v1-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nhl-wager-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: |
+          node --check functions/lib/nhlWagerV1.js
+          node --check functions/api/nhl-wager-research.js
+      - name: NHL wager focused tests
+        run: |
+          node --test test/nhl-wager-v1.test.js
+          node --test test/nhl-player-pro-v2.test.js
+          node --test test/nhl-pro-v2.test.js
+      - name: Migration smoke
+        run: |
+          db="$(mktemp)"
+          sqlite3 "$db" "CREATE TABLE schema_migrations(id TEXT PRIMARY KEY,applied_at TEXT);"
+          sqlite3 "$db" < migrations/0041_nhl_wager_research.sql
+          sqlite3 "$db" "SELECT name FROM sqlite_master WHERE name IN ('nhl_wager_decisions','nhl_wager_settlements','nhl_wager_confidence_calibration') ORDER BY name;"
+      - name: Full repository tests
+        run: npm test
+      - name: Production build
+        run: npm run build
