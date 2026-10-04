@@ -77,7 +77,7 @@ for(const d of datasets){
     for(const e of events){accrue(e.sec);for(const p of e.off)active.delete(p);for(const p of e.on)active.add(p);}
     accrue(Math.max(3600,last));
     for(const [p,sec] of tot)shiftGame.set(g+"|"+p,sec);
-    pairGame.set(k,pairs);
+    const gp=pairGame.get(g)||new Map();for(const [pk,pv] of pairs)gp.set(pk,(gp.get(pk)||0)+pv);pairGame.set(g,gp);
   }
 }
 const games=[...meta.values()].sort((a,b)=>a.t-b.t||a.g.localeCompare(b.g));
@@ -93,13 +93,13 @@ function rowFeatures(r,p,teamPlayers,scratchSet,state,pairState){
   const season=p.toi/p.gp,recent=mean(p.recentToi)||season,stab=sd(p.recentToi);
   const ranked=teamPlayers.map(x=>({p:x.p,v:baseToi(state.get(x.p))??0})).sort((a,b)=>b.v-a.v);
   const rank=Math.max(0,ranked.findIndex(x=>x.p===r.p));const roleRank=ranked.length>1?rank/(ranked.length-1):0;
-  let samePosScratchToi=0,allScratchToi=0,samePosScratchCount=0,scratchCount=0,overlap=0,overlapDen=0;
+  let samePosScratchToi=0,allScratchToi=0,samePosScratchCount=0,scratchCount=0,overlap=0;
   for(const sid of scratchSet){
     const sp=state.get(sid);if(!sp||sp.team!==r.team)continue;const st=baseToi(sp);if(st==null)continue;
     scratchCount++;allScratchToi+=st;if((sp.pos==="D")===(r.pos==="D")){samePosScratchCount++;samePosScratchToi+=st;}
-    const sec=pairState.get(pairKey(r.p,sid))||0;overlap+=sec;overlapDen+=Math.max(1,p.toi);
+    const sec=pairState.get(pairKey(r.p,sid))||0;overlap+=sec;
   }
-  const sr=rate60(p)??0,defense=r.pos==="D"?1:0,overlapShare=overlapDen?clamp(overlap/overlapDen,0,1):0;
+  const sr=rate60(p)??0,defense=r.pos==="D"?1:0,overlapShare=clamp(overlap/Math.max(1,p.toi),0,1);
   return [bt,recent,season,stab,roleRank,samePosScratchToi,allScratchToi,samePosScratchCount,scratchCount,overlapShare,sr,defense,bt*samePosScratchToi/1000,roleRank*scratchCount];
 }
 function makeRows(){
@@ -115,9 +115,7 @@ function makeRows(){
     }
     for(const r of roster){const a=actual.get(gm.g+"|"+r.p);if(!a)continue;let p=state.get(r.p);if(!p){p=blank();state.set(r.p,p);}
       const sec=shiftGame.get(gm.g+"|"+r.p)??a.toi;p.gp++;p.team=r.team;p.pos=r.pos||a.pos||p.pos;p.shots+=a.shots;if(sec!=null&&sec>0){p.toi+=sec;push(p.recentToi,sec);}push(p.recentShots,a.shots);}
-    for(const r of roster.map(x=>x.team).filter((v,i,a)=>a.indexOf(v)===i)){
-      const pairs=pairGame.get(gm.g+"|"+r);if(!pairs)continue;for(const [k,v] of pairs)pairState.set(k,(pairState.get(k)||0)+v);
-    }
+    const pairs=pairGame.get(gm.g);if(pairs)for(const [k,v] of pairs)pairState.set(k,(pairState.get(k)||0)+v);
   }
   return rows;
 }
@@ -141,9 +139,9 @@ function fit(train,lambda){
   for(let j=1;j<d;j++)A[j][j]+=lambda;
   const w=solve(A,b);return{predict:r=>clamp(w[0]+sc.x(r.x).reduce((s,v,j)=>s+v*w[j+1],0),180,2100),w,sc,lambda};
 }
-function metrics(rs,model){
+function metrics(rs,model,sogBlend=1){
   if(!rs.length)return{n:0};let tae=0,btae=0,sae=0,bsae=0,se=0,bse=0;
-  for(const r of rs){const pt=model.predict(r),bs=r.baseToi,ps=(r.shotRate60??0)*(pt/3600),base=r.baseSog??0;
+  for(const r of rs){const pt=model.predict(r),bs=r.baseToi,base=r.baseSog??0,toiSog=(r.shotRate60??0)*(pt/3600),ps=base+sogBlend*(toiSog-base);
     tae+=Math.abs(pt-r.y);btae+=Math.abs(bs-r.y);sae+=Math.abs(ps-r.actualSog);bsae+=Math.abs(base-r.actualSog);se+=(pt-r.y)**2;bse+=(bs-r.y)**2;}
   return{n:rs.length,baselineToiMae:round(btae/rs.length),modelToiMae:round(tae/rs.length),toiMaeGain:round((btae-tae)/rs.length),
     baselineSogMae:round(bsae/rs.length),modelSogMae:round(sae/rs.length),sogMaeGain:round((bsae-sae)/rs.length),
@@ -151,15 +149,20 @@ function metrics(rs,model){
 }
 const disc=rows.filter(r=>r.season===discovery),cut=Math.floor(disc.length*.7),fitRows=disc.slice(0,cut),tune=disc.slice(cut);
 let best=null;for(const lambda of [0,.01,.1,1,10,100,500]){const m=fit(fitRows,lambda),met=metrics(tune,m);if(!best||met.modelToiMae<best.met.modelToiMae)best={lambda,met};}
-const model=fit(disc,best.lambda);
-const bySeason=Object.fromEntries(years.map(y=>[y,metrics(rows.filter(r=>r.season===y),model)]));
+const prelim=fit(fitRows,best.lambda);
+let bestSog={weight:0,mae:Infinity};
+for(const weight of [0,.05,.10,.15,.20,.25,.35,.50,.75,1]){
+  const m=metrics(tune,prelim,weight);if(m.modelSogMae<bestSog.mae)bestSog={weight,mae:m.modelSogMae};
+}
+const model=fit(disc,best.lambda),sogBlend=bestSog.weight;
+const bySeason=Object.fromEntries(years.map(y=>[y,metrics(rows.filter(r=>r.season===y),model,sogBlend)]));
 const val=bySeason[validation],conf=bySeason[confirmation];
 const eligible=val.toiMaeGain>0&&conf.toiMaeGain>0&&val.sogMaeGain>0&&conf.sogMaeGain>0;
-const artifact={modelId:"NHL-DEPLOY-v1",version:"research-v1.0-ridge-role-network",featureNames:FEATURE_NAMES,lambda:best.lambda,
+const artifact={modelId:"NHL-DEPLOY-v1",version:"research-v1.1-ridge-role-network",featureNames:FEATURE_NAMES,lambda:best.lambda,sogBlend,
   mean:model.sc.mu.map(x=>round(x,8)),sd:model.sc.sig.map(x=>round(x,8)),weights:model.w.map(x=>round(x,8)),validated:eligible};
 const report={modelId:"NHL-DEPLOY-v1",version:artifact.version,generatedAt:new Date().toISOString(),marketInformed:false,pointInTime:true,
-  architecture:"Ridge deployment model using prior workload, recent workload/stability, role rank, position, same-position scratches, total scratch burden, historical co-shift overlap with scratched teammates, shot-rate/60 and interactions.",
-  seasonMap:{discovery,validation,confirmation},selection:{lambda:best.lambda,tuneMetrics:best.met},counts:{rows:rows.length,discovery:disc.length},
+  architecture:"Ridge deployment model using prior workload, recent workload/stability, role rank, position, same-position scratches, total scratch burden, historical co-shift overlap with scratched teammates, shot-rate/60 and interactions; downstream SOG adjustment weight selected on discovery only.",
+  seasonMap:{discovery,validation,confirmation},selection:{lambda:best.lambda,sogBlend,tuneMetrics:best.met},counts:{rows:rows.length,discovery:disc.length},
   bySeason,promotion:{historicalEligible:eligible,canAlterPlayerProjection:false,canAlterGameProjection:false,canQualify:false,canAuthorizeWager:false},
   integrity:{targetGameToiUsedAsOutcomeOnly:true,targetGameShotsUsedAsOutcomeOnly:true,targetGameScratchesPregame:true,priorShiftNetworkOnly:true,lambdaSelectedOnDiscoveryOnly:true,validationAndConfirmationUntouchedForSelection:true},
   artifact};
