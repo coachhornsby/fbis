@@ -1559,3 +1559,36 @@ FROM wnba_wager_decisions d
 JOIN wnba_wager_results r ON r.decision_id=d.id
 WHERE d.decision='BET'
 GROUP BY d.market,d.side,CAST(d.confidence / 10 AS INTEGER) * 10;
+
+
+-- Generic player-prop projection -> actual -> calibration loop (0047).
+CREATE TABLE IF NOT EXISTS player_prop_cards (
+  card_id TEXT PRIMARY KEY, date TEXT NOT NULL, sport TEXT NOT NULL, book TEXT NOT NULL,
+  entry_type TEXT NOT NULL, risk REAL, to_win REAL, status TEXT NOT NULL DEFAULT 'OPEN',
+  result TEXT, profit REAL, captured_at TEXT NOT NULL, settled_at TEXT, notes TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS player_prop_legs (
+  leg_id TEXT PRIMARY KEY, card_id TEXT NOT NULL, sport TEXT NOT NULL, event_id TEXT,
+  provider_game_id TEXT, player_name TEXT NOT NULL, team TEXT, matchup TEXT, market TEXT NOT NULL,
+  side TEXT NOT NULL, entry_line REAL NOT NULL, fbis_projection REAL, fbis_sigma REAL,
+  projection_edge REAL, model_version TEXT, model_source TEXT, source_line_id TEXT,
+  projection_observed_at TEXT, projection_locked_at TEXT, role_confidence REAL, snap_share REAL,
+  prop_gate TEXT, calibration_eligibility TEXT NOT NULL DEFAULT 'PENDING', live_actual REAL,
+  actual REAL, projection_error REAL, absolute_error REAL, squared_error REAL,
+  result TEXT NOT NULL DEFAULT 'OPEN', hit INTEGER, push INTEGER NOT NULL DEFAULT 0,
+  closing_line REAL, line_clv REAL, stat_source TEXT, graded_at TEXT, notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY(card_id) REFERENCES player_prop_cards(card_id)
+);
+CREATE INDEX IF NOT EXISTS idx_player_prop_legs_open ON player_prop_legs(sport, result, event_id);
+CREATE INDEX IF NOT EXISTS idx_player_prop_legs_model ON player_prop_legs(sport, market, model_version, graded_at);
+CREATE INDEX IF NOT EXISTS idx_player_prop_legs_card ON player_prop_legs(card_id);
+CREATE VIEW IF NOT EXISTS player_prop_calibration AS
+SELECT sport,market,side,model_version,COUNT(*) graded,
+ SUM(CASE WHEN push=0 THEN 1 ELSE 0 END) decisions,SUM(CASE WHEN hit=1 THEN 1 ELSE 0 END) wins,
+ CASE WHEN SUM(CASE WHEN push=0 THEN 1 ELSE 0 END)>0 THEN 1.0*SUM(CASE WHEN hit=1 THEN 1 ELSE 0 END)/SUM(CASE WHEN push=0 THEN 1 ELSE 0 END) ELSE NULL END hit_rate,
+ AVG(projection_error) projection_bias,AVG(absolute_error) mae,SQRT(AVG(squared_error)) rmse,
+ AVG(projection_edge) avg_projection_edge,AVG(line_clv) avg_line_clv
+FROM player_prop_legs WHERE actual IS NOT NULL AND calibration_eligibility LIKE 'ELIGIBLE%'
+GROUP BY sport,market,side,model_version;
