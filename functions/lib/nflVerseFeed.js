@@ -311,7 +311,15 @@ function blendPlayerRows(priorByTeam={},currentByTeam={}){
       for(const f of ["completions","attempts","passing_yards","passing_tds","interceptions","carries","rushing_yards","rushing_tds","targets","receptions","receiving_yards","receiving_tds","total_tds"]){
         const recent=recentWeightedMean(recentGames,f);
         row.recent5[f]=recent;
-        row[f]=weightedParts([[recent,0.65],[q[f],0.20],[p[f],0.15]]);
+        // Walk-forward calibration: 2026 early-season rows favored heavier
+        // last-five recency. Keep 65% as the floor as the season matures.
+        const blendWeights=n<=5
+          ? {recent:0.85,season:0.00,prior:0.15}
+          : n<=9
+            ? {recent:0.75,season:0.10,prior:0.15}
+            : {recent:0.65,season:0.20,prior:0.15};
+        row[f]=weightedParts([[recent,blendWeights.recent],[q[f],blendWeights.season],[p[f],blendWeights.prior]]);
+        row.formBlend=blendWeights;
         const recentSd=sd(recentGames.map(g=>g?.stats?.[f]));
         const histSd=blend(p.sd?.[f],q.sd?.[f],n,PLAYER_PRIOR_GAMES);
         row.sd[f]=weightedParts([[recentSd,0.60],[histSd,0.40]]) ?? histSd ?? recentSd;
