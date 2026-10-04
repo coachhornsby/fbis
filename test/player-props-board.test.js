@@ -415,3 +415,24 @@ test("WNBA authorized props keep the full generic 1-5 star range and card author
   assert.equal(board.readiness.modelAuthorized,true);
   assert.equal(board.readiness.decisionEligible,true);
 });
+
+
+test("domain adapter preserves authorized WNBA prop flags", () => {
+  const game = normalizeBoardGame({
+    id:"wnba-domain", sport:"wnba",
+    playerProjectionRows:[{
+      playerId:"p1", playerName:"Guard", team:"LVA", market:"points",
+      fbisProjection:24, fbisSigma:4, decisionEligible:true, eligibleForCard:true,
+      canAuthorizeWager:true, propGate:"CLEAR", maturity:"ACTIVE",
+    }],
+    playerMarkets:[{
+      providerPlayerId:"p1", playerName:"Guard", team:"LVA",
+      marketCanonical:"points", line:20.5,
+    }],
+  });
+  const board = buildPlayerPropsBoard({games:[game]});
+  assert.equal(board.rows[0].decisionEligible,true);
+  assert.equal(board.rows[0].modelAuthorized,true);
+  assert.equal(board.rows[0].eligibleForCard,true);
+  assert.equal(board.rows[0].propGate,"CLEAR");
+});
