@@ -32,20 +32,20 @@
     }
   },
   "holdout": {
-    "n": 1387,
-    "marginMaeRaw": 11.818096611391493,
-    "marginMaeCalibrated": 11.546735819238927,
-    "marginMaeBenchmark": 12.188175919250181,
-    "totalMaeRaw": 15.342393655371305,
-    "totalMaeCalibrated": 15.31369078328944,
-    "totalMaeBenchmark": 15.57404470079308,
-    "winnerAccuracyRaw": 0.6712328767123288,
-    "winnerAccuracyCalibrated": 0.6741167988464312,
-    "winnerAccuracyBenchmark": 0.6337418889689979,
-    "brier": 0.2100459539893383,
-    "logLoss": 0.6082422833768184,
-    "expectedCalibrationError": 0.02184141263546628
+    "n": 1322,
+    "marginMaeRaw": 11.898714069591547,
+    "marginMaeCalibrated": 11.581915492744491,
+    "marginMaeBenchmark": 12.285552193645982,
+    "totalMaeRaw": 15.281164901664164,
+    "totalMaeCalibrated": 15.223449863475913,
+    "totalMaeBenchmark": 15.51308623298033,
+    "winnerAccuracyRaw": 0.6747352496217852,
+    "winnerAccuracyCalibrated": 0.6754916792738276,
+    "winnerAccuracyBenchmark": 0.6376701966717095,
+    "brier": 0.20869898246470667,
+    "logLoss": 0.6050875601388725,
+    "expectedCalibrationError": 0.02178741757800531
   },
   "decision": "PROMOTE_TO_PROSPECTIVE_SHADOW",
-  "reason": "Calibrated independent model beats NBA-FBIS-FORM-v1 on untouched 2025-26 margin MAE, total MAE, and winner accuracy. Market/CLV evidence remains insufficient for qualification."
+  "reason": "Locked calibration beats NBA-FBIS-FORM-v1 on paired untouched 2025-26 margin MAE, total MAE, and winner accuracy. Market/CLV evidence remains insufficient for qualification."
 }
