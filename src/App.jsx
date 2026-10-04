@@ -97,6 +97,7 @@ export default function App() {
   const [tab, setTab] = useState(initial.tab);
   const [route, setRoute] = useState(normalizeRoute(initial.route || "board"));
   const [sportFilter, setSportFilter] = useState(initial.sportFilter || "all");
+  const [playerPropsSport, setPlayerPropsSport] = useState(initial.sportFilter || "all");
   const [todayDate, setTodayDate] = useState(initial.date);
   const [todayBoard, setTodayBoard] = useState(null);
   const [todayError, setTodayError] = useState("");
@@ -567,8 +568,20 @@ export default function App() {
           </div>
         ) : route === "player-props" ? (
           <div className="player-props-page">
-            <PrizePicksMarketPanel sportFilter={sportFilter === "all" ? todaySport : sportFilter} />
-            <PlayerPropsBoard board={todayBoard} sportFilter={sportFilter === "all" ? todaySport : sportFilter} date={todayDate} loading={todayLoading} error={todayError} onRetry={refreshToday} />
+            <PrizePicksMarketPanel
+              sportFilter={playerPropsSport}
+              onSportFilterChange={setPlayerPropsSport}
+            />
+            {["all", "mlb", "nfl", "nba", "nhl"].includes(playerPropsSport) ? (
+              <PlayerPropsBoard
+                board={todayBoard}
+                sportFilter={playerPropsSport}
+                date={todayDate}
+                loading={todayLoading}
+                error={todayError}
+                onRetry={refreshToday}
+              />
+            ) : null}
           </div>
         ) : route === "performance" ? (
           <TrackView
