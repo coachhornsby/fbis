@@ -24,6 +24,7 @@ const CONTEXT_CACHE_MS=5*60*1000;
 const LIVE_FETCH_TIMEOUT_MS=4500;
 const EDGE_FETCH_TIMEOUT_MS=1800;
 const EDGE_TOTAL_BUDGET_MS=4000;
+const PLAYER_EDGE_TOTAL_BUDGET_MS=1800;
 
 function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
@@ -290,7 +291,7 @@ export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDat
     ]);
     const playerEdge=await withBudget(
       loadNhlPlayerEdgeSnapshot(baseResult.base,games,{fetcher:edgeFetcher}).catch(err=>({__error:String(err?.message||err),byPlayer:{},coverage:0,available:0,requested:0,researchOnly:true})),
-      EDGE_TOTAL_BUDGET_MS,
+      PLAYER_EDGE_TOTAL_BUDGET_MS,
       {__timeout:true,__error:"NHL_PLAYER_EDGE_BUDGET_EXCEEDED",byPlayer:{},coverage:0,available:0,requested:0,researchOnly:true}
     );
     const value={
@@ -299,7 +300,8 @@ export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDat
       edge,
       playerEdge,
       artifact:NHL_PRO_V2_ARTIFACT,
-      degraded:Boolean(baseResult.base?.degraded||edge?.__timeout||edge?.__error||playerEdge?.__timeout||playerEdge?.__error),
+      degraded:Boolean(baseResult.base?.degraded||edge?.__timeout||edge?.__error),
+      advisoryDegraded:Boolean(playerEdge?.__timeout||playerEdge?.__error),
       liveContextError:baseResult.error,
       timingMs:Date.now()-started,
       cacheHit:false,
