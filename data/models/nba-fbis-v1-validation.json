@@ -26,8 +26,8 @@
   "governance": {
     "maturity": "VALIDATION",
     "automaticPromotion": false,
-    "canQualify": false,
+    "canQualify": true,
     "canAuthorizeWager": false,
-    "nextGate": "prospective_market_shadow_with_clv_and_roi"
+    "nextGate": "prospective_market_qualification_and_clv_roi_tracking"
   }
 }
