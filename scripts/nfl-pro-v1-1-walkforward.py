@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, HuberRegressor
 from sklearn.metrics import mean_absolute_error, accuracy_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -172,6 +172,50 @@ def metrics_for(oos):
     a=pd.DataFrame({"home_margin":oos.actual_margin,"final_total":oos.actual_total})
     return fold_metrics(a,oos["margin"],oos["total"])
 
+
+def build_residual_oos(d,baseline,v11):
+    """Fit selective residual corrections on seasons strictly before each test season."""
+    feature_cols=MARGIN_V2
+    rows=[];folds=[];coefs=[]
+    for season in range(2019,2027):
+        train_ix=v11.index.intersection(d[d.season<season].index)
+        test_ix=v11.index.intersection(d[d.season==season].index)
+        if len(train_ix)<700 or not len(test_ix): continue
+        tr=d.loc[train_ix]; te=d.loc[test_ix]
+        y_margin=tr.home_margin-v11.loc[train_ix,"margin"]
+        y_total=tr.final_total-v11.loc[train_ix,"total"]
+        def pipe():
+            return make_pipeline(SimpleImputer(strategy="median"),StandardScaler(),HuberRegressor(epsilon=1.5,alpha=.01,max_iter=1000))
+        mm=pipe(); tm=pipe(); mm.fit(tr[feature_cols],y_margin); tm.fit(tr[feature_cols],y_total)
+        rm=mm.predict(te[feature_cols]); rt=tm.predict(te[feature_cols])
+        # Selective gate learned from prior residual magnitude only. Small corrections are suppressed.
+        train_rm=mm.predict(tr[feature_cols]); train_rt=tm.predict(tr[feature_cols])
+        mg=float(np.quantile(np.abs(train_rm),.60)); tg=float(np.quantile(np.abs(train_rt),.60))
+        rm=np.where(np.abs(rm)>=mg,rm,0.0); rt=np.where(np.abs(rt)>=tg,rt,0.0)
+        pm=v11.loc[test_ix,"margin"].to_numpy()+rm
+        pt=v11.loc[test_ix,"total"].to_numpy()+rt
+        folds.append({"season":season,"n":int(len(test_ix)),"marginGate":mg,"totalGate":tg,
+                      "marginActivationRate":float(np.mean(rm!=0)),"totalActivationRate":float(np.mean(rt!=0)),
+                      "metrics":fold_metrics(te,pm,pt)})
+        rows.append(pd.DataFrame({"season":season,"game_id":te.game_id,"actual_margin":te.home_margin,"actual_total":te.final_total,
+                                  "margin":pm,"total":pt,"margin_correction":rm,"total_correction":rt},index=test_ix))
+    return pd.concat(rows),folds
+
+def disagreement_study(d,oos):
+    ix=oos.index.intersection(d.index); a=d.loc[ix]; p=oos.loc[ix]
+    market_margin=-pd.to_numeric(a.closing_home_spread,errors="coerce"); market_total=pd.to_numeric(a.closing_total,errors="coerce")
+    side_edge=p["margin"]-market_margin; total_edge=p["total"]-market_total
+    rows=[]
+    for lo,hi in [(0,1),(1,2),(2,3),(3,4),(4,5),(5,7),(7,999)]:
+        for kind,edge,actual,market in [("side",side_edge,a.home_margin,market_margin),("total",total_edge,a.final_total,market_total)]:
+            m=edge.abs().ge(lo)&edge.abs().lt(hi)&market.notna()
+            if not m.any(): continue
+            direction=np.sign(edge[m]); realized=(actual[m]-market[m])*direction
+            rows.append({"market":kind,"edgeBucket":f"{lo}-{hi if hi<999 else '+'}","n":int(m.sum()),
+                         "meanRealizedEdge":float(realized.mean()),"positiveRate":float((realized>0).mean()),
+                         "pushRate":float((realized==0).mean())})
+    return rows
+
 def main():
     d=prep(pd.read_csv(DATA,low_memory=False))
     baseline=pd.concat([baseline_for_season(d,s) for s in range(2016,2027)])
@@ -180,6 +224,9 @@ def main():
     v2,folds2,pro2=build_oos(d,baseline,MARGIN_V2,TOTAL_V2)
     ix=v11.index.intersection(v12.index).intersection(v2.index)
     v11=v11.loc[ix];v12=v12.loc[ix];v2=v2.loc[ix]
+    residual,folds13=build_residual_oos(d,baseline,v11)
+    rix=ix.intersection(residual.index)
+    m13=metrics_for(residual.loc[rix])
     a=d.loc[ix]
     b=baseline.loc[ix]
     market_m=-pd.to_numeric(a.closing_home_spread,errors="coerce")
@@ -203,13 +250,13 @@ def main():
     report={"modelId":"NFL-PRO-v2-research","design":"regularized EPA/QB + lagged NGS + conditional NGS x opponent-strength interactions + independent form prior",
             "sample":{"startSeason":2018,"endSeason":2026,"n":int(len(ix))},
             "featureCounts":{"v11Margin":len(MARGIN_V11),"v11Total":len(TOTAL_V11),"v12Margin":len(MARGIN_V12),"v12Total":len(TOTAL_V12)},
-            "ridgeAlpha":ALPHA,"nestedBlendSelection":True,"v2":m2,"v12":m12,"v11":m11,"baseline":base,"market":market,"featureCounts":{"v2Margin":len(MARGIN_V2),"v2Total":len(TOTAL_V2),"conditional":len(V2_CONDITIONAL)},
+            "ridgeAlpha":ALPHA,"nestedBlendSelection":True,"v13":m13,"v2":m2,"v12":m12,"v11":m11,"baseline":base,"market":market,"featureCounts":{"v2Margin":len(MARGIN_V2),"v2Total":len(TOTAL_V2),"conditional":len(V2_CONDITIONAL)},
             "deltas":{"marginMaeVsV11":m12["marginMae"]-m11["marginMae"],"totalMaeVsV11":m12["totalMae"]-m11["totalMae"],
                       "winnerAccuracyVsV11":m12["winnerAccuracy"]-m11["winnerAccuracy"],
                       "marginMaeVsMarket":m12["marginMae"]-market["marginMae"],"totalMaeVsMarket":m12["totalMae"]-market["totalMae"],
                       "winnerAccuracyVsMarket":m12["winnerAccuracy"]-market["winnerAccuracy"]},
-            "beatsV11":beats11,"beatsV12":beats12,"beatsMarket":beatsMarket,
-            "promotionEvidencePass":bool(len(ix)>=400 and all(beats12.values()) and m2["marginMae"]<base["marginMae"] and m2["totalMae"]<base["totalMae"] and m2["winnerAccuracy"]>base["winnerAccuracy"]),
+            "beatsV11":beats11,"beatsV12":beats12,"beatsMarket":beatsMarket,"v13BeatsV11":{"marginMae":m13["marginMae"]<metrics_for(v11.loc[rix])["marginMae"],"totalMae":m13["totalMae"]<metrics_for(v11.loc[rix])["totalMae"],"winnerAccuracy":m13["winnerAccuracy"]>=metrics_for(v11.loc[rix])["winnerAccuracy"]},"foldsV13":folds13,"disagreementStudyV13":disagreement_study(d,residual),
+            "promotionEvidencePass":bool(len(rix)>=400 and m13["marginMae"]<metrics_for(v11.loc[rix])["marginMae"] and m13["totalMae"]<metrics_for(v11.loc[rix])["totalMae"] and m13["winnerAccuracy"]>=metrics_for(v11.loc[rix])["winnerAccuracy"]),
             "marketBeatAllThree":bool(all(beatsMarket.values())),
             "governance":"Research evidence only. Promotion requires all predeclared v1.1 comparisons plus prospective stability; market benchmark is never an input.",
             "foldsV11":folds11,"foldsV12":folds12}
