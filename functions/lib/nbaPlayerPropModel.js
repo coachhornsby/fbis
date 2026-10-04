@@ -40,9 +40,10 @@ export function projectNbaPlayer(player,{history=[],teamProjection=null,teamBase
       market==="assists"?(finite(roleContext?.assistsMultiplier)??1):
       market==="three_pointers_made"?(finite(roleContext?.threesMultiplier)??1):1;
     const lineupMultiplier=finite(lineupContext?.multiplier)??1;
-    const impactOff=finite(impactContext?.offense);
-    const impactEfficiency=impactOff==null?1:clamp(1+impactOff/300,.96,1.05);
-    projection*=roleMultiplier*lineupMultiplier*impactEfficiency;
+    // Player impact is contextual, not a direct self-stat multiplier. Direct multiplication
+    // duplicated information already present in the player's per-minute production and failed
+    // walk-forward validation. Impact enters through role/lineup/availability context instead.
+    projection*=roleMultiplier*lineupMultiplier;
     const empirical=sampleSd(rows,key);
     const sigma=clamp((empirical??priorSigma)*(rows.length/(rows.length+8))+priorSigma*(8/(rows.length+8)),priorSigma*.7,priorSigma*1.8);
     markets[market]={projection:round1(projection),sigma:round1(sigma)};
