@@ -66,6 +66,9 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const market = vm.market || {};
   const edge = modelEdge(vm);
   const stars = confidenceStars(game);
+  const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
+    ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
+    : null;
   const cardKey = `${vm.sport || ""}:${vm.id || game?.id}`;
 
   return (
@@ -95,9 +98,9 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
 
         <div className="pgc-featured-center">
           <span className="pgc-vs">VS</span>
-          <small>Model Edge</small>
-          <strong>{edge.value}</strong>
-          <span className="pgc-edge-delta">{edge.delta} {edge.type}</span>
+          <small>{soccerPick ? "Confidence Pick" : "Model Edge"}</small>
+          <strong>{soccerPick ? soccerPick.pick || "—" : edge.value}</strong>
+          <span className="pgc-edge-delta">{soccerPick ? `${soccerPick.stars || stars}★ · 1X2` : `${edge.delta} ${edge.type}`}</span>
         </div>
 
         <div className="pgc-featured-team pgc-featured-team-home">

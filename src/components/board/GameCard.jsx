@@ -70,6 +70,9 @@ export default function GameCard({
   const venueLabel = safeDisplayString(game.venue, "");
   const statusDetail = safeDisplayString(game.status?.detail || game.status, "");
   const venueClass = venueAtmosphereClass(game?.sport);
+  const soccerPick = String(game?.sport || "").toLowerCase() === "soccer"
+    ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
+    : null;
 
   const toggleDetails = () => onToggle?.(game.id);
 
@@ -313,6 +316,11 @@ export default function GameCard({
 
       <div className="gc-decision-row">
         <DecisionBadge tier={decision.tier} label={decision.label} pick={decision.pick} />
+        {soccerPick ? (
+          <span className="gc-decision-market">
+            MODEL PICK: {soccerPick.pick || "—"} · {soccerPick.stars || 1}★ · RESEARCH
+          </span>
+        ) : null}
         {decision.mispriceState ? (
           <span className="gc-misprice-state muted">{String(decision.mispriceState).replace(/_/g, " ")}</span>
         ) : null}

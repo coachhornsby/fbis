@@ -58,6 +58,10 @@ export default function CompactGameCard({ game, onOpen }) {
   const proj = vm.projection || {};
   const market = vm.market || {};
   const edge = bestEdge(vm);
+  const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
+    ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
+    : null;
+  const soccerPickTeam = soccerPick?.side === "HOME" ? home : soccerPick?.side === "AWAY" ? away : null;
 
   return (
     <article
@@ -109,18 +113,20 @@ export default function CompactGameCard({ game, onOpen }) {
           </div>
         </div>
 
-        <aside className={`cgc-best-edge${edge.total ? " is-total" : " is-side"}`}>
-          <span>BEST EDGE</span>
+        <aside className={`cgc-best-edge${soccerPick ? " is-side" : edge.total ? " is-total" : " is-side"}`}>
+          <span>{soccerPick ? "CONFIDENCE PICK" : "BEST EDGE"}</span>
           <div className="cgc-edge-identity">
-            {edge.team ? (
+            {soccerPick ? (
+              soccerPickTeam ? <TeamLogo team={soccerPickTeam} size={42} className="cgc-edge-logo" /> : <div className="cgc-total-mark">DRAW</div>
+            ) : edge.team ? (
               <TeamLogo team={edge.team} size={42} className="cgc-edge-logo" />
             ) : edge.total ? (
               <div className="cgc-total-mark">TOTAL</div>
             ) : null}
           </div>
-          <strong>{edge.value}</strong>
-          <b>{edge.detail}</b>
-          <small>{edge.type}</small>
+          <strong>{soccerPick ? `${soccerPick.stars || stars}★` : edge.value}</strong>
+          <b>{soccerPick ? soccerPick.pick || "—" : edge.detail}</b>
+          <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : edge.type}</small>
         </aside>
       </div>
 
