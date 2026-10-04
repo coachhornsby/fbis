@@ -7,6 +7,8 @@
  * game-market line enters this layer.
  */
 import { playersForCbbGame } from "./cbbPlayerFeed.js";
+import { fbisCbbV2MarginCorrection } from "./cbbFbisV2Margin.js";
+import { cbbPlayerMarginCorrection } from "./cbbPlayerMarginV1.js";
 
 export const CBB_PLAYER_GAME_MODEL_ID = "CBB-PLAYER-GAME-v1";
 export const CBB_PLAYER_GAME_VERSION = "v1.0.0";
@@ -62,8 +64,9 @@ export function buildCbbTeamPlayerState(players=[]){
   const recentDnpMinutes=rot.reduce((s,p)=>s+(p?.role?.lastGameDnp?p._minutes:0),0);
   const starterShare=rot.reduce((s,p)=>s+((n(p?.role?.startsRecent)||0)>=3?p._minutes:0),0)/minTotal;
   const experiencedMinutes=rot.reduce((s,p)=>s+Math.min(1,(n(p.sampleSize)||0)/8)*p._minutes,0)/minTotal;
-  const efg=weighted(rot.map(p=>[p.effectiveFieldGoalPct,p._minutes]));
-  const ts=weighted(rot.map(p=>[p.trueShootingPct,p._minutes]));
+  const pct100=v=>{const x=n(v);return x==null?null:(Math.abs(x)<=2?x*100:x)};
+  const efg=weighted(rot.map(p=>[pct100(p.effectiveFieldGoalPct),p._minutes]));
+  const ts=weighted(rot.map(p=>[pct100(p.trueShootingPct),p._minutes]));
   const offRating=weighted(rot.map(p=>[p.offensiveRating,p._minutes]));
   return {
     ok:true,
@@ -111,6 +114,13 @@ export function attachCbbPlayerGameResearch(games=[],context={}){
     const away=buildCbbTeamPlayerState(bySide.away);
     const ok=Boolean(home.ok&&away.ok);
     if(ok)available++;
+    const features=ok?cbbPlayerGameFeatures(home,away):{};
+    const baseFbis=game?.cbbFbisNative||game?.challengers?.["FBIS-CBB-RATINGS-v2"]||game?.challengers?.["FBIS-CBB-RATINGS-v1"]||null;
+    const baseMargin=fbisCbbV2MarginCorrection(baseFbis);
+    const playerCorrection=ok?cbbPlayerMarginCorrection(features,home,away):{ok:false,reason:"missing-player-state",correction:0};
+    const playerAdjustedMargin=baseMargin.ok&&playerCorrection.ok
+      ? Number((baseMargin.margin+playerCorrection.correction).toFixed(2))
+      : null;
     return {
       ...game,
       cbbPlayerGame:{
@@ -119,8 +129,14 @@ export function attachCbbPlayerGameResearch(games=[],context={}){
         ok,
         independent:true,
         marketInformed:false,
-        home,away,
-        features:ok?cbbPlayerGameFeatures(home,away):{},
+        home,away,features,
+        playerMargin:{
+          ...playerCorrection,
+          baseCorrectedMargin:baseMargin.ok?Number(baseMargin.margin.toFixed(2)):null,
+          playerAdjustedMargin,
+          totalAdjusted:false,
+          moneySelectorApplied:false,
+        },
         canQualify:false,
         canAuthorizeWager:false,
       }
