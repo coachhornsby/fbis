@@ -23,7 +23,7 @@ concurrency:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - name: Capture WNBA impact challengers
         env:
@@ -33,7 +33,16 @@ jobs:
           set -euo pipefail
           date_ct="$(TZ=America/Chicago date +%F)"
           body="$(mktemp)"
-          http="$(curl -sS --max-time 90 --retry 1 --retry-delay 3             -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json"             --data-binary "$(jq -nc --arg date "$date_ct" '{date:$date}')"             -o "$body" -w "%{http_code}" "${BASE}/api/wnba-impact-shadow")"
+          http=""
+          for attempt in 1 2 3 4 5 6; do
+            http="$(curl -sS --max-time 90 --retry 1 --retry-delay 3               -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               --data-binary "$(jq -nc --arg date "$date_ct" '{date:$date}')"               -o "$body" -w "%{http_code}"               "${BASE}/api/wnba-impact-shadow" || true)"
+            if [ "$http" = "200" ] && jq -e '.ok==true' "$body" >/dev/null 2>&1; then
+              break
+            fi
+            echo "attempt=$attempt http=$http; waiting for Cloudflare deployment"
+            cat "$body" || true
+            sleep 30
+          done
           cat "$body"
           test "$http" = "200"
           jq -e '.ok==true' "$body" >/dev/null
