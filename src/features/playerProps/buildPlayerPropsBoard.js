@@ -24,6 +24,43 @@ export const FBIS_PLAYER_MARKETS = Object.freeze([
 export const MARKET_LABELS = Object.freeze({ ...PRO_PLAYER_PROP_LABELS });
 
 /**
+ * Generic 1–5 star projection confidence from FBIS projection vs market line.
+ * Sport-specific validated graders (for example NHL goalie saves) remain authoritative.
+ */
+export function propProjectionStars(row = {}) {
+  const projectionRaw = row.fbisProjection ?? row.fbis_projection ?? row.projection ?? null;
+  const lineRaw = row.line ?? null;
+  if (
+    projectionRaw == null ||
+    lineRaw == null ||
+    !Number.isFinite(Number(projectionRaw)) ||
+    !Number.isFinite(Number(lineRaw))
+  ) return null;
+
+  const projection = Number(projectionRaw);
+  const line = Number(lineRaw);
+  const delta = Math.abs(projection - line);
+  const sigmaRaw = row.fbisSigma ?? row.fbis_sigma ?? row.sigma ?? null;
+  const sigma = sigmaRaw == null || sigmaRaw === "" ? NaN : Number(sigmaRaw);
+
+  if (Number.isFinite(sigma) && sigma > 0) {
+    const z = delta / sigma;
+    if (z >= 0.90) return 5;
+    if (z >= 0.65) return 4;
+    if (z >= 0.40) return 3;
+    if (z >= 0.20) return 2;
+    return 1;
+  }
+
+  const relativeGap = delta / Math.max(Math.abs(line), 1);
+  if (relativeGap >= 0.15) return 5;
+  if (relativeGap >= 0.10) return 4;
+  if (relativeGap >= 0.06) return 3;
+  if (relativeGap >= 0.03) return 2;
+  return 1;
+}
+
+/**
  * Attach FBIS projection analytics when upstream provided them.
  * May derive over/under probability from projection + sigma + line only —
  * never invents a projection or price.
@@ -129,17 +166,8 @@ export function withFbisPropAnalytics(row = {}) {
     }
   }
 
-  const genericScore = Number(ranked.leanProbability);
-  const stars = Number.isFinite(genericScore)
-    ? genericScore >= 0.75 ? 5
-      : genericScore >= 0.68 ? 4
-      : genericScore >= 0.60 ? 3
-      : genericScore >= 0.54 ? 2
-      : 1
-    : ranked.convictionTier === "CONVICTION" ? 4
-      : ranked.convictionTier === "STRONG" ? 3
-      : ranked.convictionTier === "LEAN" ? 2
-      : 1;
+  const stars = propProjectionStars(ranked) ?? 1;
+  const hasSigma = Number.isFinite(Number(ranked.fbisSigma)) && Number(ranked.fbisSigma) > 0;
   return {
     ...ranked,
     confidenceStars: stars,
@@ -147,9 +175,13 @@ export function withFbisPropAnalytics(row = {}) {
     confidenceTier: stars >= 5 ? "ELITE" : stars === 4 ? "PREMIUM" : stars === 3 ? "STRONG" : stars === 2 ? "LEAN" : "WATCH",
     confidenceSide: ranked.convictionLean || null,
     confidenceGap: ranked.projectionDelta,
-    confidenceReasons: ["generic_probability_conviction_scale"],
+    confidenceReasons: [
+      hasSigma
+        ? "fbis_projection_vs_prizepicks_line_sigma"
+        : "fbis_projection_vs_prizepicks_line_relative_gap",
+    ],
     confidenceResearchCandidate: stars >= 3,
-    confidenceVersion: "fbis-generic-stars-v1",
+    confidenceVersion: "fbis-prop-gap-stars-v1",
   };
 }
 
@@ -493,10 +525,19 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
     }
   }
 
-  const supportedRows = allRows.filter((r) => r.supportedMarket);
-  const scoped = opts.supportedOnly === false ? allRows : supportedRows;
+  // Product contract: no market-only cards. A visible prop must have both
+  // an independent FBIS projection and a comparable market line.
+  const projectedRows = allRows.filter(
+    (r) =>
+      r.fbisProjection != null &&
+      Number.isFinite(Number(r.fbisProjection)) &&
+      r.line != null &&
+      Number.isFinite(Number(r.line)),
+  );
+  const supportedRows = projectedRows.filter((r) => r.supportedMarket);
+  const scoped = opts.supportedOnly === false ? projectedRows : supportedRows;
   const rows = sortPropsByConviction(scoped);
-  const rankedAllRows = sortPropsByConviction(allRows);
+  const rankedAllRows = sortPropsByConviction(projectedRows);
 
   return {
     date: domain.date,
@@ -508,7 +549,8 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       rows: rows.length,
       eventsWithProps: new Set(rows.map((r) => r.eventId).filter(Boolean)).size,
       supportedRows: supportedRows.length,
-      unsupportedRows: allRows.length - supportedRows.length,
+      unsupportedRows: projectedRows.length - supportedRows.length,
+      hiddenWithoutProjection: allRows.length - projectedRows.length,
       byMarket,
       decisionEligible: rows.filter((r) => r.decisionEligible).length,
       cardEligible: rows.filter((r) => r.eligibleForCard === true).length,
