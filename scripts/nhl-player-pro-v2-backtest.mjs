@@ -263,27 +263,13 @@ for(let idx=1;idx<seasons.length;idx++){
         const gp=priorState.goalies.get(starter.id),gc=current.goalies.get(starter.id);
         const priorSave=gp?.shotsAgainst?gp.saves/gp.shotsAgainst:leagueSave,currentSave=gc?.shotsAgainst?gc.saves/gc.shotsAgainst:priorSave;
         const w=gc?.starts?clamp(gc.starts/(gc.starts+10),0,0.85):0,savePct=clamp(priorSave*(1-w)+currentSave*w,0.84,0.95);
-        const leagueShots=30;
-        const oppSf=teamRate(oppPrior,oppCur,"sf",leagueShots);
-        const teamSa=teamRate(teamPrior,teamCur,"sa",leagueShots);
-        const oppAttackIndex=clamp(oppSf/leagueShots,0.65,1.40);
-        const defenseAllowIndex=clamp(teamSa/leagueShots,0.65,1.40);
-        const interactionShots=leagueShots*Math.pow(oppAttackIndex,0.58)*Math.pow(defenseAllowIndex,0.42);
-        const gameScript=clamp((teamGoals-oppGoals)*0.45,-1.5,1.5);
-        const oppRest=side==="home"?awayRest:homeRest;
-        const goalieTeamRest=side==="home"?homeRest:awayRest;
-        const restAdj=(oppRest<0.6?-0.65:oppRest>2.5?0.20:0)+(goalieTeamRest<0.6?0.45:0);
-        const oppShots=clamp(interactionShots+gameScript+restAdj,18,44);
-        const expectedGoalsAgainst=clamp(oppGoals,0.8,6.0);
-        const saveRateSaves=oppShots*savePct;
-        const scoringEnvironmentSaves=Math.max(8,oppShots-expectedGoalsAgainst);
-        const baseline=((oppSf+teamSa)/2)*savePct;
-        const v2=clamp(0.55*saveRateSaves+0.45*scoringEnvironmentSaves,8,42);
+        const oppSf=teamRate(oppPrior,oppCur,"sf",30),teamSa=teamRate(teamPrior,teamCur,"sa",30),oppShots=clamp((oppSf+teamSa)/2,20,42);
+        const baseline=oppShots*savePct,v2=clamp(0.60*baseline+0.40*Math.max(8,oppShots-oppGoals),10,40);
         const sigma=playerSigma(gp,gc,"saves",v2),rest=side==="home"?homeRest:awayRest;
         rows.push({season:target,date:String(g.start||"").slice(0,10),gameId:g.id,team,opp,home:side==="home",position:"G",playerId:starter.id,playerName:starter.name,
           market:"saves",actual:starter.saves,baseline,v2,sigma,baselineSigma:sigma,priorGp:gp?.starts||0,currentGp:gc?.starts||0,
           restDays:rest,b2b:rest<0.6,seasonPhase:phase(gi,targetGames.length),roleTier:"STARTER",projectedTeamGoals:teamGoals,projectedTeamShots:oppShots,
-          opponentShotsFor:oppSf,teamShotsAgainst:teamSa,opponentAttackIndex:oppAttackIndex,defenseAllowIndex,lines:marketLines("saves")});
+          opponentShotsFor:oppSf,teamShotsAgainst:teamSa,lines:marketLines("saves")});
       }
     }
     applyBox(g,parsed,current);
