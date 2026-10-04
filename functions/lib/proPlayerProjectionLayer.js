@@ -282,6 +282,7 @@ function nhlRowsForSide(game, side, ctx = {}) {
       ...row,
       validationStatus,
       validatedLines:p.validatedLines||{},
+      shotEnvironment:p.shotEnvironment||null,
       modelValidated,
       propGate:modelValidated?row.propGate:"HOLD",
       gateReason:modelValidated?row.gateReason:"market_not_validated_vs_baseline",
