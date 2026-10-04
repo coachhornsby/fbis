@@ -39,12 +39,12 @@ jobs:
           echo "date=$d" >> "$GITHUB_OUTPUT"
           echo "yesterday=$y" >> "$GITHUB_OUTPUT"
 
-      - name: Capture immutable research decisions
+      - name: Capture immutable NHL research decisions
         if: steps.gate.outputs.capture == '1'
         run: |
           set -euo pipefail
           body="$(mktemp)"
-          code="$(curl -sS --max-time 90 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d "{\"mode\":\"capture\",\"date\":\"${{ steps.gate.outputs.date }}\"}"             -o "$body" -w "%{http_code}"             "$BASE/api/nhl-wager-research")"
+          code="$(curl -sS --max-time 90 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" -d "{\"mode\":\"capture\",\"date\":\"${{ steps.gate.outputs.date }}\"}" -o "$body" -w "%{http_code}" "$BASE/api/nhl-wager-research")"
           cat "$body"
           test "$code" = "200"
           jq -e '.ok == true and .authority == false and .staking == false' "$body" >/dev/null
@@ -54,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           body="$(mktemp)"
-          code="$(curl -sS --max-time 120 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d "{\"mode\":\"settle\",\"date\":\"${{ steps.gate.outputs.yesterday }}\"}"             -o "$body" -w "%{http_code}"             "$BASE/api/nhl-wager-research")"
+          code="$(curl -sS --max-time 120 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" -d "{\"mode\":\"settle\",\"date\":\"${{ steps.gate.outputs.yesterday }}\"}" -o "$body" -w "%{http_code}" "$BASE/api/nhl-wager-research")"
           cat "$body"
           test "$code" = "200"
           jq -e '.ok == true' "$body" >/dev/null
