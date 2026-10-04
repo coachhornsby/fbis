@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {buildFbisCbbRatings,projectFbisCbbGame,FBIS_CBB_MODEL_ID} from "../functions/lib/cbbFbisRatings.js";
 import {conferenceForTeamSeason} from "../functions/lib/cbbConferenceMembership.js";
+import {buildCbbMoneyResearch,SIDE_DISLOCATION_THRESHOLD} from "../functions/lib/cbbMoneySelector.js";
 
 const rows=[
  {gameId:"1",startDate:"2025-11-01T18:00:00Z",team:"A",opponent:"B",teamId:"A",conference:"X",isHome:true,points:80,poss:70,fgm:30,fga:60,threeMade:10,threeAtt:25,ftm:10,fta:14,orb:8,drb:22,tov:10},
@@ -71,4 +72,19 @@ test("projection exposes OREB-DRB matchup interaction",()=>{
  assert.ok(Object.prototype.hasOwnProperty.call(p.matchup.home,"orebVsDrb"));
  assert.ok(Object.prototype.hasOwnProperty.call(p.matchup.away,"orebVsDrb"));
  assert.ok(Object.prototype.hasOwnProperty.call(p.matchup.home,"drbRate"));
+});
+
+
+test("money-first side dislocation is prospective and fail-closed",()=>{
+ const fbis={
+  ok:true,margin:15,possessions:70,paceAdjustment:0,reliability:.6,hca:4,
+  matchup:{home:{efg:1,twoPt:1,threePt:1,orebVsDrb:1,drbRate:72,turnover:1,ftr:1},away:{efg:0,twoPt:0,threePt:0,orebVsDrb:0,drbRate:72,turnover:0,ftr:0}},
+  schedule:{home:{sos:2,conferenceStrength:3},away:{sos:0,conferenceStrength:1}}
+ };
+ const game={sport:"cbb",home:{school:"A"},away:{school:"B"},odds:{spread:2},cbbFbisNative:fbis,challengers:{"FBIS-CBB-RATINGS-v2":fbis}};
+ const m=buildCbbMoneyResearch(game);
+ assert.equal(SIDE_DISLOCATION_THRESHOLD,10);
+ assert.equal(m.sideDislocation.authority.canAuthorizeWager,false);
+ assert.equal(m.sideDislocation.authority.canQualify,false);
+ assert.equal(m.governance.noAutoWager,true);
 });
