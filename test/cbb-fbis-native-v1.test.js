@@ -57,9 +57,9 @@ test("projection exposes independent score and schedule decomposition",()=>{
 
 
 test("season-aware conference membership is independent and current",()=>{
- assert.equal(conferenceForTeamSeason("Houston",2025),"big_12");
+ assert.equal(conferenceForTeamSeason("Houston",2025),"big_twelve");
  assert.equal(conferenceForTeamSeason("UConn",2025),"big_east");
- assert.equal(conferenceForTeamSeason("Texas",2023),"big_12");
+ assert.equal(conferenceForTeamSeason("Texas",2023),"big_twelve");
  assert.equal(conferenceForTeamSeason("Texas",2024),"sec");
  assert.equal(conferenceForTeamSeason("USC",2023),"pac_twelve");
  assert.equal(conferenceForTeamSeason("USC",2024),"big_ten");
