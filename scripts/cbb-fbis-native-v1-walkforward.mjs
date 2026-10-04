@@ -81,7 +81,8 @@ const out=[],coverage=[];
 for(const season of seasons){
   const box0=await loadBox(season);
   const box=box0.map(r=>({...r,conference:r.conference||conferenceForTeamSeason(r.team,season)}));
-  const confCoverage=conferenceCoverageForTeams(box.map(r=>r.team),season);
+  const d1Teams=[...new Set(box.map(r=>r.team).filter(team=>mapSourceTeam("cbb",{team,school:team},season).ok))];
+  const confCoverage=conferenceCoverageForTeams(d1Teams,season);
   if(confCoverage.coveragePct<90) throw new Error(`conference coverage below 90% for ${season}: ${confCoverage.coveragePct.toFixed(1)}%; missing=${confCoverage.missing.slice(0,20).join("|")}`);
   const normalized=normalizeFbisCbbGameTeamRows(box,season);
   const targets=benchmark.filter(r=>Number(r.season)===season&&r.kenpom).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
