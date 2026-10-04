@@ -73,59 +73,6 @@ function edgeZone(raw){
   const avg=finite(preferred.offensiveZoneLeagueAvg??preferred.offensive_zone_league_avg);
   return {offensiveZonePct:off,defensiveZonePct:def,leagueAvg:avg,available:off!=null||def!=null};
 }
-
-function numericEdgeFields(raw,patterns=[]){
-  const out={};
-  const seen=new Set();
-  function walk(v,path="",depth=0){
-    if(v==null||depth>5)return;
-    if(Array.isArray(v)){for(let i=0;i<Math.min(v.length,12);i++)walk(v[i],path,depth+1);return;}
-    if(typeof v!=="object")return;
-    for(const [k,val] of Object.entries(v)){
-      const key=String(k),full=path?path+"."+key:key;
-      if(val&&typeof val==="object"){walk(val,full,depth+1);continue;}
-      const n=finite(val);
-      if(n==null)continue;
-      const hit=patterns.find(p=>p.re.test(key)||p.re.test(full));
-      if(hit&&!seen.has(hit.name)){out[hit.name]=n;seen.add(hit.name);}
-    }
-  }
-  walk(raw);
-  return out;
-}
-function edgeExpandedSummary(kind,raw){
-  const patterns={
-    skatingSpeed:[
-      {name:"maxSpeed",re:/max.*speed|speed.*max/i},
-      {name:"bursts22Plus",re:/22.*burst|burst.*22/i},
-      {name:"bursts20Plus",re:/20.*burst|burst.*20/i},
-    ],
-    skatingDistance:[
-      {name:"totalDistance",re:/distance.*total|total.*distance/i},
-      {name:"distancePer60",re:/distance.*per.?60|per.?60.*distance/i},
-      {name:"maxGameDistance",re:/distance.*max.*game|max.*game.*distance/i},
-    ],
-    shotSpeed:[
-      {name:"maxShotSpeed",re:/max.*shot.*speed|shot.*speed.*max/i},
-      {name:"avgShotSpeed",re:/avg.*shot.*speed|average.*shot.*speed/i},
-      {name:"shots90Plus",re:/90.*shot|shot.*90/i},
-    ],
-    shotLocation:[
-      {name:"highDangerShots",re:/high.*danger.*shot|shot.*high.*danger/i},
-      {name:"slotShots",re:/slot.*shot|shot.*slot/i},
-      {name:"innerSlotShots",re:/inner.*slot.*shot|shot.*inner.*slot/i},
-    ],
-    detail:[
-      {name:"gamesPlayed",re:/games.*played|game.*count/i},
-      {name:"rank",re:/overall.*rank|league.*rank|rank$/i},
-    ],
-  };
-  return {available:Boolean(raw),metrics:numericEdgeFields(raw,patterns[kind]||[])};
-}
-async function optionalEdge(url,fetcher){
-  try{return {ok:true,data:await fetchJson(url,fetcher)};}
-  catch(err){return {ok:false,error:String(err?.message||err)};}
-}
 async function teamCatalog(fetcher){
   const j=await fetchJson(`${STATS}/team?limit=-1`,fetcher);
   const out={};
@@ -145,25 +92,9 @@ async function loadEdgeForSlate(games,fetcher){
     const id=ids[abbr];if(!id)return [abbr,{available:false,error:"team-id-missing"}];
     let value;
     try{
-      const [zoneR,detailR,speedR,distanceR,shotSpeedR,shotLocationR]=await Promise.all([
-        optionalEdge(`${WEB}/edge/team-zone-time-details/${id}/now`,fetcher),
-        optionalEdge(`${WEB}/edge/team-detail/${id}/now`,fetcher),
-        optionalEdge(`${WEB}/edge/team-skating-speed-detail/${id}/now`,fetcher),
-        optionalEdge(`${WEB}/edge/team-skating-distance-detail/${id}/now`,fetcher),
-        optionalEdge(`${WEB}/edge/team-shot-speed-detail/${id}/now`,fetcher),
-        optionalEdge(`${WEB}/edge/team-shot-location-detail/${id}/now`,fetcher),
-      ]);
-      const zone=edgeZone(zoneR.ok?zoneR.data:null);
-      const expanded={
-        detail:edgeExpandedSummary("detail",detailR.ok?detailR.data:null),
-        skatingSpeed:edgeExpandedSummary("skatingSpeed",speedR.ok?speedR.data:null),
-        skatingDistance:edgeExpandedSummary("skatingDistance",distanceR.ok?distanceR.data:null),
-        shotSpeed:edgeExpandedSummary("shotSpeed",shotSpeedR.ok?shotSpeedR.data:null),
-        shotLocation:edgeExpandedSummary("shotLocation",shotLocationR.ok?shotLocationR.data:null),
-      };
-      const availableFamilies=["detail","skatingSpeed","skatingDistance","shotSpeed","shotLocation"].filter(k=>expanded[k]?.available);
-      value={...zone,available:Boolean(zone.available||availableFamilies.length),teamId:id,source:"NHL_EDGE",expanded:{...expanded,availableFamilies,coverage:availableFamilies.length/5,researchOnly:true}};
-    }catch(err){value={available:false,teamId:id,error:String(err?.message||err),source:"NHL_EDGE",expanded:{availableFamilies:[],coverage:0,researchOnly:true}};}
+      const zone=await fetchJson(`${WEB}/edge/team-zone-time-details/${id}/now`,fetcher);
+      value={...edgeZone(zone),teamId:id,source:"NHL_EDGE"};
+    }catch(err){value={available:false,teamId:id,error:String(err?.message||err),source:"NHL_EDGE"};}
     EDGE_CACHE.set(abbr,{at:now,value});
     return [abbr,value];
   }));
@@ -396,14 +327,14 @@ export function projectNhlProV2Game(game,ctx){
       finishing:{home:hShoot,away:aShoot},
       goalie:{home:hg,away:ag},
       specialTeams:{home:round(hst-leagueSt,3),away:round(ast-leagueSt,3)},
-      tracking:{home:he,away:ae,source:"NHL_EDGE_EXPANDED_OPTIONAL",expanded:{home:ctx?.edge?.[home]?.expanded||null,away:ctx?.edge?.[away]?.expanded||null,activation:"RESEARCH_ADVISORY_ONLY"},historicalProxy:{homeHighDanger:round(hhd,2),awayHighDanger:round(ahd,2),homeRush:round(hrush,2),awayRush:round(arush,2)}},
+      tracking:{home:he,away:ae,source:"NHL_EDGE_ZONE_TIME_OPTIONAL",historicalProxy:{homeHighDanger:round(hhd,2),awayHighDanger:round(ahd,2),homeRush:round(hrush,2),awayRush:round(arush,2)}},
       situation:{homeRestDays:hRest,awayRestDays:aRest,eloGoalAdjustment:round(eloGoalAdj,3),winnerSituational:winnerHead?.situational||null},
       distribution:{family:"BIVARIATE_POISSON",shared:probability.sharedComponent,winHead:"NHL-PRO-v2 calibrated probability + NHL-WIN-v1 directional pick",mostLikelyScore:probability.mostLikelyScore}
     },
     dataLineage:ctx?.sourceLineage||null,marketInformed:false,independent:true,
     canQualify:false,canAuthorizeWager:false,
     promotion:artifact?.promotion||null,
-    note:"NHL-PRO-v2 independent research challenger: event-chain boosted xG, shooter finishing, goalie GSAx, special teams, timeout-safe NHL EDGE zone-time plus expanded speed/distance/shot tracking advisory, and bivariate scoring."
+    note:"NHL-PRO-v2 independent research challenger: event-chain boosted xG, shooter finishing, goalie GSAx, special teams, optional NHL EDGE zone-time, and bivariate scoring."
   };
 }
 export function attachNhlProV2(games=[],ctx=null){
