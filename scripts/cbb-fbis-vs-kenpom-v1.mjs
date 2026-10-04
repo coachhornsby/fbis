@@ -1,0 +1,18 @@
+import {readFileSync,mkdirSync,writeFileSync} from "node:fs";
+const rows=JSON.parse(readFileSync(process.argv[2],"utf8"));
+const marketRows=JSON.parse(readFileSync(process.argv[3],"utf8"));
+const market=new Map(marketRows.map(r=>[String(r.id),r]));
+const round=(n,d=3)=>n==null?null:Number(Number(n).toFixed(d));
+const pred=(r,w)=>{const s=[["cbbd",w.cbbd],["torvik",w.torvik],["kenpom",w.kenpom]].filter(([k,x])=>x>0&&r[k]);if(!s.length)return null;const sw=s.reduce((a,[,x])=>a+x,0),home=s.reduce((a,[k,x])=>a+r[k].home*x,0)/sw,away=s.reduce((a,[k,x])=>a+r[k].away*x,0)/sw;return{home,away,margin:home-away,total:home+away}};
+function metrics(rs,w){let n=0,me=0,te=0,win=0;for(const r of rs){const p=pred(r,w);if(!p)continue;const am=r.actualHome-r.actualAway,at=r.actualHome+r.actualAway;n++;me+=Math.abs(p.margin-am);te+=Math.abs(p.total-at);win+=(p.margin>0)===(am>0)}return n?{n,marginMae:me/n,totalMae:te/n,winnerAccuracy:100*win/n}:null}
+const score=m=>m.marginMae+.35*m.totalMae-.03*m.winnerAccuracy;
+const grid=[];for(let c=0;c<=20;c++)for(let t=0;t<=20-c;t++){const k=20-c-t;grid.push({cbbd:c/20,torvik:t/20,kenpom:k/20})}
+function select(train){let best=null;for(const w of grid){const req=train.filter(r=>(w.torvik===0||r.torvik)&&(w.kenpom===0||r.kenpom));if(req.length<1000)continue;const m=metrics(req,w),o=score(m);if(!best||o<best.o)best={o,w,m}}return best}
+const seasons=[...new Set(rows.map(r=>+r.season))].sort((a,b)=>a-b),tests=[],folds=[];
+for(let i=1;i<seasons.length;i++){const s=seasons[i],train=rows.filter(r=>seasons.slice(0,i).includes(+r.season)),test=rows.filter(r=>+r.season===s&&r.kenpom),best=select(train);if(!best)continue;folds.push({testSeason:s,weights:best.w});for(const r of test){const f=pred(r,best.w),kp=r.kenpom;if(!f||!kp)continue;const mr=market.get(String(r.id));tests.push({season:s,fbisTotal:f.total,kpTotal:kp.total,actualTotal:r.actualHome+r.actualAway,fbisMargin:f.margin,kpMargin:kp.margin,actualMargin:r.actualHome-r.actualAway,marketTotal:mr?.market?.overUnder??null})}}
+function sum(a,kind="total"){if(!a.length)return{n:0};const fk=kind==="total"?"fbisTotal":"fbisMargin",kk=kind==="total"?"kpTotal":"kpMargin",ak=kind==="total"?"actualTotal":"actualMargin";let fe=0,ke=0,fw=0,kw=0,t=0;for(const x of a){const f=Math.abs(x[fk]-x[ak]),k=Math.abs(x[kk]-x[ak]);fe+=f;ke+=k;if(f<k)fw++;else if(k<f)kw++;else t++}return{n:a.length,fbisMae:round(fe/a.length),kenpomMae:round(ke/a.length),maeAdvantage:round((ke-fe)/a.length),fbisCloserPct:round(100*fw/a.length,2),kenpomCloserPct:round(100*kw/a.length,2),tiesPct:round(100*t/a.length,2)}}
+const bands=[[0,1,"0-1"],[1,2,"1-2"],[2,3,"2-3"],[3,4,"3-4"],[4,6,"4-6"],[6,8,"6-8"],[8,1e9,"8+"]];
+const report={id:"CBB-FBIS-v-KENPOM-EDGE-v1",folds,overall:{total:sum(tests),margin:sum(tests,"margin")},bySeason:{},totalBands:{},recent2024_25:{overall:sum(tests.filter(x=>[2024,2025].includes(x.season))),bands:{}},governance:{expandingWindow:true,researchOnly:true,noFutureSeasonWeightLeakage:true}};
+for(const s of seasons)report.bySeason[s]={total:sum(tests.filter(x=>x.season===s)),margin:sum(tests.filter(x=>x.season===s),"margin")};
+for(const [lo,hi,nm] of bands){report.totalBands[nm]=sum(tests.filter(x=>Math.abs(x.fbisTotal-x.kpTotal)>=lo&&Math.abs(x.fbisTotal-x.kpTotal)<hi));report.recent2024_25.bands[nm]=sum(tests.filter(x=>[2024,2025].includes(x.season)&&Math.abs(x.fbisTotal-x.kpTotal)>=lo&&Math.abs(x.fbisTotal-x.kpTotal)<hi))}
+mkdirSync("artifacts",{recursive:true});writeFileSync("artifacts/cbb-fbis-vs-kenpom-v1.json",JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
