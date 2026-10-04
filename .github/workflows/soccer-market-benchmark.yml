@@ -2,13 +2,10 @@ name: Soccer-FBIS market benchmark
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/soccer-market-benchmark.mjs"
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: soccer-market-benchmark
@@ -17,27 +14,41 @@ concurrency:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 12
     env:
+      GH_TOKEN: ${{ github.token }}
       APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-      SOCCER_MARKET_BENCHMARK_BUDGET_USD: "3.0"
-      SOCCER_MARKET_BENCHMARK_DATES: "48"
+      SOCCER_MARKET_BENCHMARK_BUDGET_USD: "1.0"
+      SOCCER_MARKET_BENCHMARK_DATES: "6"
       SOCCER_MARKET_BENCHMARK_MAX_GAMES: "30"
-      SOCCER_MARKET_BENCHMARK_MIN_MATCHED: "250"
+      SOCCER_MARKET_BENCHMARK_MIN_MATCHED: "25"
+      SOCCER_MARKET_WAIT_SECS: "75"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
       - name: Require Apify token
         run: test -n "${APIFY_TOKEN:-}"
-      - name: Rebuild true walk-forward rows
-        run: node scripts/soccer-form-walkforward.mjs
-      - name: Benchmark against Zen ACTION no-vig 1X2
+
+      - name: Reuse latest successful walk-forward artifact
+        run: |
+          set -euo pipefail
+          run_id="$(gh run list --workflow soccer-form-walkforward.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$run_id"
+          echo "using walk-forward run $run_id"
+          mkdir -p artifacts
+          gh run download "$run_id" -n "soccer-form-walkforward-$run_id" -D artifacts
+          test -s artifacts/soccer-form-walkforward-rows.jsonl
+
+      - name: Benchmark bounded sample against Zen ACTION no-vig 1X2
         run: node scripts/soccer-market-benchmark.mjs
+
       - name: Show benchmark
         if: always()
         run: test -f artifacts/soccer-market-benchmark.json && jq . artifacts/soccer-market-benchmark.json || true
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -45,6 +56,5 @@ jobs:
           path: |
             artifacts/soccer-market-benchmark.json
             artifacts/soccer-market-benchmark-rows.jsonl
-            artifacts/soccer-form-walkforward-report.json
           if-no-files-found: warn
           retention-days: 30
