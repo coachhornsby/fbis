@@ -78,8 +78,18 @@ export function deriveNbaMarketTrajectory(rows=[],{marketType,side,projectionVal
   }
   let confirmsFbis=null,edgeExpansion=null;
   const proj=finite(projectionValue);
-  if(proj!=null&&open.line!=null&&current.line!=null){
-    const openEdge=proj-open.line,currentEdge=proj-current.line;
+  const marketTarget=(row)=>{
+    const ln=finite(row?.line);
+    if(ln==null)return null;
+    if(String(marketType||"").toLowerCase()==="spread"){
+      return String(side||"").toUpperCase()==="HOME" ? -ln : ln;
+    }
+    if(String(marketType||"").toLowerCase()==="total") return ln;
+    return null;
+  };
+  const openTarget=marketTarget(open),currentTarget=marketTarget(current);
+  if(proj!=null&&openTarget!=null&&currentTarget!=null){
+    const openEdge=proj-openTarget,currentEdge=proj-currentTarget;
     edgeExpansion=round(Math.abs(currentEdge)-Math.abs(openEdge),3);
     confirmsFbis=Math.abs(currentEdge)<Math.abs(openEdge);
   }
