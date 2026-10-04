@@ -173,7 +173,7 @@ for(const p of projections){
         decisionTimestamp:cutoff,marketType:market,side,offeredLine:finite(offer.line),offeredPrice:price,
         modelProbability:decision.modelProbability,breakEvenProbability:decision.breakEvenProbability,probabilityEdge:decision.probabilityEdge,
         expectedValue:decision.expectedValue,projectionUncertainty:decision.projectionUncertainty,
-        matchupReliability:decision.matchupReliability,dataQuality:decision.dataQuality,historicalFactorReliability:decision.historicalFactorReliability,
+        matchupReliability:decision.matchupReliability,dataQuality:decision.dataQuality,dataFreshnessMinutes:decision.dataFreshnessMinutes,historicalFactorReliability:decision.historicalFactorReliability,
         marketConfirmation:decision.marketConfirmation,fbisConfidence:decision.confidence.score,confidenceStatus:decision.confidence.status,
         confidenceDecisionEligible:decision.confidence.decisionEligible,decision:decision.decision,qualificationEligible:decision.qualificationEligible,
         stakeUnits:decision.stakeUnits,stakeStatus:decision.stakeStatus,
@@ -191,13 +191,13 @@ function sqlRow(r){
   return `INSERT OR REPLACE INTO nba_wager_decisions (
     id,projection_id,game_id,model_id,model_version,decision_timestamp,market_type,side,offered_line,offered_price,
     model_probability,break_even_probability,probability_edge,expected_value,projection_uncertainty,matchup_reliability,data_quality,
-    historical_factor_reliability,market_confirmation,fbis_confidence,confidence_status,confidence_decision_eligible,decision,
+    data_freshness_minutes,historical_factor_reliability,market_confirmation,fbis_confidence,confidence_status,confidence_decision_eligible,decision,
     qualification_eligible,stake_units,stake_status,decomposition_json,market_trajectory_json,action_intelligence_json,historical_context_json,
     safeguards_json,reasons_json,actual_home,actual_away,close_line,close_price,clv_line,clv_probability,result,profit_units,graded_at,created_at
   ) VALUES (
     ${q(r.id)},${q(r.projectionId)},${q(r.gameId)},${q(r.modelId)},${q(r.modelVersion)},${q(r.decisionTimestamp)},${q(r.marketType)},${q(r.side)},
     ${num(r.offeredLine)},${num(r.offeredPrice)},${num(r.modelProbability)},${num(r.breakEvenProbability)},${num(r.probabilityEdge)},${num(r.expectedValue)},
-    ${num(r.projectionUncertainty)},${num(r.matchupReliability)},${num(r.dataQuality)},${num(r.historicalFactorReliability)},${q(r.marketConfirmation)},
+    ${num(r.projectionUncertainty)},${num(r.matchupReliability)},${num(r.dataQuality)},${num(r.dataFreshnessMinutes)},${num(r.historicalFactorReliability)},${q(r.marketConfirmation)},
     ${num(r.fbisConfidence)},${q(r.confidenceStatus)},${r.confidenceDecisionEligible?1:0},${q(r.decision)},${r.qualificationEligible?1:0},
     ${num(r.stakeUnits)},${q(r.stakeStatus)},${q(JSON.stringify(r.decomposition))},${q(JSON.stringify(r.marketTrajectory))},
     ${q(JSON.stringify(r.actionIntelligence))},${q(JSON.stringify(r.historicalContext))},${q(JSON.stringify(r.safeguards))},${q(JSON.stringify(r.reasons))},
