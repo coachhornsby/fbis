@@ -1,0 +1,57 @@
+name: Recover ACTION canonical series 2026-10-02
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/action-series-recovery-20261002.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      EXPECTED_SHA: ${{ github.sha }}
+      RUN_ID: daily_20261002_476b1983f6
+    steps:
+      - name: Require credentials
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+
+      - name: Wait for exact production SHA
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 36); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null)"
+            echo "production wait $i/36 http=$code live=$live expected=$EXPECTED_SHA"
+            if [ "$code" = "200" ] && [ "$live" = "$EXPECTED_SHA" ]; then exit 0; fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Replay existing paid dataset into canonical series
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 90 -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               -d "{\"mode\":\"recover\",\"runId\":\"${RUN_ID}\"}"               -o "$body" -w "%{http_code}"               "$BASE/api/action-daily-async?mode=recover")"
+            cat "$body"
+            status="$(jq -r '.status // ""' "$body")"
+            if [ "$code" = "200" ] && [ "$status" = "success_daily" ]; then
+              jq -e '.recoveryReplay == true and .canonicalSeriesRows > 0' "$body" >/dev/null
+              exit 0
+            fi
+            if [ "$code" = "202" ] && [ "$status" = "harvest_partial" ]; then
+              sleep 5
+              continue
+            fi
+            exit 1
+          done
+          exit 1
