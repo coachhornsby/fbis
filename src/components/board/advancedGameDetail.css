@@ -756,3 +756,46 @@
   .agd-command-metrics, .agd-context-grid, .agd-action-snapshot { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .agd-market-grid { grid-template-columns: 1fr; }
 }
+
+
+
+/* === Advanced game details visual polish === */
+.fbis-shell-main.route-board .agd {
+  border-radius:20px;
+  border-color:rgba(42,148,225,.48);
+  background:linear-gradient(180deg,rgba(4,19,36,.98),rgba(2,12,24,.98));
+  box-shadow:0 18px 42px rgba(0,0,0,.38);
+}
+.fbis-shell-main.route-board .agd-header {
+  background:linear-gradient(90deg,rgba(8,37,65,.92),rgba(3,19,36,.92));
+}
+.fbis-shell-main.route-board .agd-tab {
+  border-radius:10px;
+}
+.fbis-shell-main.route-board .agd-tab.is-active {
+  background:linear-gradient(180deg,#168cff,#075fc2);
+  border-color:#2aa6ff;
+}
+.fbis-shell-main.route-board .agd-card,
+.fbis-shell-main.route-board .agd-takeaways,
+.fbis-shell-main.route-board .agd-center,
+.fbis-shell-main.route-board .agd-starter-card,
+.fbis-shell-main.route-board .agd-model-command,
+.fbis-shell-main.route-board .agd-market-command,
+.fbis-shell-main.route-board .agd-context-strip,
+.fbis-shell-main.route-board .agd-action-strip {
+  border-radius:14px;
+  border-color:rgba(58,140,205,.28);
+  background:linear-gradient(180deg,rgba(8,30,51,.88),rgba(4,19,35,.88));
+}
+.fbis-shell-main.route-board .agd-section-title,
+.fbis-shell-main.route-board .agd-card-title {
+  color:#63d6ff;
+  font-size:12px;
+  text-transform:none;
+}
+.fbis-shell-main.route-board .agd-kv {
+  border-radius:10px;
+  background:rgba(2,14,28,.64);
+}
+
