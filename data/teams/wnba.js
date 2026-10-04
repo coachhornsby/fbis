@@ -9,7 +9,7 @@ const teams = [
   displayName,
   school: displayName,
   nickname: displayName.split(" ").slice(-1)[0],
-  logo: `https://a.espncdn.com/i/teamlogos/wnba/500/${abbr.toLowerCase()}.png`,
+  logo: abbr === "LVA"\n    ? "https://a.espncdn.com/i/teamlogos/wnba/500/lv.png"\n    : `https://a.espncdn.com/i/teamlogos/wnba/500/${abbr.toLowerCase()}.png`,
   sources: { espn: { abbr, name: displayName }, heritage: { names: [displayName] } },
 }));
 export default teams;
