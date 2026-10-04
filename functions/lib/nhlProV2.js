@@ -8,6 +8,7 @@
 import { NHL_PRO_V2_ARTIFACT } from "../../data/models/nhl-pro-v2.js";
 import { loadNhlV1Context } from "./nhlFbisV1.js";
 import { buildNhlSourceLineage } from "./nhlDataSources.js";
+import { projectNhlWinnerV1 } from "./nhlWinV1.js";
 
 export const NHL_PRO_V2_ID = "NHL-PRO-v2";
 export const NHL_PRO_V2_VERSION = "research-v2.0-event-chain-gbdt";
@@ -122,18 +123,23 @@ function poisson(lambda,k){let p=Math.exp(-lambda);for(let i=1;i<=k;i++)p*=lambd
 function bivariateDistribution(home,away,totalLine=null,homeSpread=null){
   const shared=Math.min(0.32,0.10*Math.min(home,away)),lh=Math.max(0.05,home-shared),la=Math.max(0.05,away-shared);
   let homeReg=0,awayReg=0,tie=0,over=0,under=0,push=0,homeCover=0,totalMass=0;
+  const scoreMass=new Map();
   for(let x=0;x<=11;x++)for(let y=0;y<=11;y++)for(let z=0;z<=5;z++){
     const p=poisson(lh,x)*poisson(la,y)*poisson(shared,z),h=x+z,a=y+z;totalMass+=p;
+    scoreMass.set(`${h}-${a}`,(scoreMass.get(`${h}-${a}`)||0)+p);
     if(h>a)homeReg+=p;else if(a>h)awayReg+=p;else tie+=p;
     if(totalLine!=null){const t=h+a;if(t>totalLine)over+=p;else if(t<totalLine)under+=p;else push+=p;}
     if(homeSpread!=null&&h+homeSpread>a)homeCover+=p;
   }
   const norm=v=>totalMass?v/totalMass:v,otHome=1/(1+Math.exp(-(home-away)/0.65));
   const hw=norm(homeReg)+norm(tie)*otHome;
+  const mode=[...scoreMass.entries()].sort((a,b)=>b[1]-a[1])[0]||["0-0",0];
+  const [modeHome,modeAway]=mode[0].split("-").map(Number);
   return {homeRegWin:round(norm(homeReg),4),awayRegWin:round(norm(awayReg),4),regulationTie:round(norm(tie),4),
     homeWinIncludingOt:round(hw,4),awayWinIncludingOt:round(1-hw,4),
     over:totalLine==null?null:round(norm(over),4),under:totalLine==null?null:round(norm(under),4),push:totalLine==null?null:round(norm(push),4),
-    homeCover:homeSpread==null?null:round(norm(homeCover),4),sharedComponent:round(shared,3)};
+    homeCover:homeSpread==null?null:round(norm(homeCover),4),sharedComponent:round(shared,3),
+    mostLikelyScore:{home:modeHome,away:modeAway,probability:round(norm(mode[1]),4)}};
 }
 function baseTeamRate(team,artifact,key,fallback){
   const v=finite(artifact?.teams?.[team]?.[key]);return v==null?fallback:v;
@@ -295,18 +301,35 @@ export function projectNhlProV2Game(game,ctx){
   probability.eloHead=round(eloProb,4);
   probability.homeWinIncludingOt=round(calibratedHomeWin,4);
   probability.awayWinIncludingOt=round(1-calibratedHomeWin,4);
+  const winnerHead=projectNhlWinnerV1({
+    game,
+    projection:{
+      home,away,projHome:homeGoals,projAway:awayGoals,probability,
+      layers:{situation:{homeRestDays:hRest,awayRestDays:aRest}}
+    },
+    base,
+    signals:{
+      eloDiff:homeFormElo-awayFormElo,
+      xgHome:xgH,xgAway:xgA,
+      goalieVsHome:-ag.impactPerShot*30,
+      goalieVsAway:-hg.impactPerShot*30
+    }
+  });
   return {
     ok:true,modelId:NHL_PRO_V2_ID,modelVersion:NHL_PRO_V2_VERSION,home,away,
     projHome:round(homeGoals,2),projAway:round(awayGoals,2),margin:round(homeGoals-awayGoals,2),total:round(homeGoals+awayGoals,2),
+    projectedScore:probability.mostLikelyScore,
+    projectedWinner:winnerHead?.ok?winnerHead.pick:(calibratedHomeWin>=0.5?home:away),
     probability,
+    winnerHead,
     layers:{
       eventChainXg:{home:round(xgH,3),away:round(xgA,3),trained:Boolean(artifact?.trained),trees:artifact?.xgModel?.trees?.length||0},
       finishing:{home:hShoot,away:aShoot},
       goalie:{home:hg,away:ag},
       specialTeams:{home:round(hst-leagueSt,3),away:round(ast-leagueSt,3)},
       tracking:{home:he,away:ae,source:"NHL_EDGE_ZONE_TIME_OPTIONAL",historicalProxy:{homeHighDanger:round(hhd,2),awayHighDanger:round(ahd,2),homeRush:round(hrush,2),awayRush:round(arush,2)}},
-      situation:{homeRestDays:hRest,awayRestDays:aRest,eloGoalAdjustment:round(eloGoalAdj,3)},
-      distribution:{family:"BIVARIATE_POISSON",shared:probability.sharedComponent,winHead:"78% score + 22% latent strength; 14% reliability shrink"}
+      situation:{homeRestDays:hRest,awayRestDays:aRest,eloGoalAdjustment:round(eloGoalAdj,3),winnerSituational:winnerHead?.situational||null},
+      distribution:{family:"BIVARIATE_POISSON",shared:probability.sharedComponent,winHead:"NHL-PRO-v2 calibrated probability + NHL-WIN-v1 directional pick",mostLikelyScore:probability.mostLikelyScore}
     },
     dataLineage:ctx?.sourceLineage||null,marketInformed:false,independent:true,
     canQualify:false,canAuthorizeWager:false,

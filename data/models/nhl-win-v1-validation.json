@@ -1,0 +1,712 @@
+{
+  "modelId": "NHL-WIN-v1",
+  "version": "research-v1.0-situational-ensemble",
+  "generatedAt": "2026-10-04T06:02:27.324Z",
+  "pointInTime": true,
+  "marketInformed": false,
+  "trainSeason": "20242025",
+  "testSeason": "20252026",
+  "architecture": {
+    "base": "NHL-PRO-v2 score distribution + Elo-informed current probability",
+    "logistic": "regularized logistic classifier",
+    "boosted": "gradient-boosted residual decision stumps",
+    "stack": "train-selected blend: 1 logistic / 0 boosted",
+    "situational": "rest, B2B, travel miles, time-zone shifts, return-home/road continuation, arena residual, altitude, rolling team strength",
+    "cvLogistic": "SITUATIONAL feature set; lambda=0.08; expanding-window train-season CV",
+    "calibratedBlend": "current/boosted blend w=0.4 current; temperature=1.75"
+  },
+  "features": [
+    "baseLogit",
+    "scoreLogit",
+    "goalMargin",
+    "eloDiff",
+    "xgDiff",
+    "specialTeamsDiff",
+    "pressureDiff",
+    "finishDiff",
+    "goalieDiff",
+    "shotVolumeDiff",
+    "restDiff",
+    "homeB2B",
+    "awayB2B",
+    "travelHomeK",
+    "travelAwayK",
+    "travelDiffK",
+    "tzShiftHome",
+    "tzShiftAway",
+    "returnHome",
+    "awayRoadContinuation",
+    "altitudeK",
+    "altitudeChangeHomeK",
+    "altitudeChangeAwayK",
+    "arenaResidual",
+    "rollingStrengthDiff"
+  ],
+  "arenaContext": {
+    "source": "static arena/city coordinates + IANA time zones; historical home-arena residual learned from prior season only",
+    "arenas": 33
+  },
+  "development": {
+    "cvLogistic": {
+      "featureSet": "SITUATIONAL",
+      "lambda": 0.08,
+      "cv": {
+        "accuracy": 0.6154713184144582,
+        "brier": 0.22859512390486567,
+        "logLoss": 0.6490722253583842,
+        "score": 0.7018226554693712
+      }
+    },
+    "currentBoostWeight": 0.39999999999999997,
+    "currentBoostTemperature": 1.7500000000000009,
+    "cvLogisticTemperature": 1.2000000000000004
+  },
+  "trainMetrics": {
+    "current": {
+      "n": 1312,
+      "accuracy": 0.5861,
+      "brier": 0.23667,
+      "logLoss": 0.66574
+    },
+    "scoreOnly": {
+      "n": 1312,
+      "accuracy": 0.5823,
+      "brier": 0.23612,
+      "logLoss": 0.66435
+    },
+    "logistic": {
+      "n": 1312,
+      "accuracy": 0.6212,
+      "brier": 0.22655,
+      "logLoss": 0.64449
+    },
+    "boosted": {
+      "n": 1312,
+      "accuracy": 0.6098,
+      "brier": 0.23537,
+      "logLoss": 0.6634
+    },
+    "stack": {
+      "n": 1312,
+      "accuracy": 0.6212,
+      "brier": 0.22655,
+      "logLoss": 0.64449
+    },
+    "cvLogistic": {
+      "n": 1312,
+      "accuracy": 0.6189,
+      "brier": 0.22707,
+      "logLoss": 0.64565
+    },
+    "currentBoostCal": {
+      "n": 1312,
+      "accuracy": 0.6128,
+      "brier": 0.2315,
+      "logLoss": 0.65499
+    },
+    "cvLogisticCal": {
+      "n": 1312,
+      "accuracy": 0.6189,
+      "brier": 0.22656,
+      "logLoss": 0.64453
+    }
+  },
+  "testMetrics": {
+    "current": {
+      "n": 1312,
+      "accuracy": 0.5373,
+      "brier": 0.24567,
+      "logLoss": 0.68425
+    },
+    "scoreOnly": {
+      "n": 1312,
+      "accuracy": 0.5343,
+      "brier": 0.2471,
+      "logLoss": 0.68721
+    },
+    "logistic": {
+      "n": 1312,
+      "accuracy": 0.5457,
+      "brier": 0.25096,
+      "logLoss": 0.69582
+    },
+    "boosted": {
+      "n": 1312,
+      "accuracy": 0.5473,
+      "brier": 0.24752,
+      "logLoss": 0.68813
+    },
+    "stack": {
+      "n": 1312,
+      "accuracy": 0.5457,
+      "brier": 0.25096,
+      "logLoss": 0.69582
+    },
+    "cvLogistic": {
+      "n": 1312,
+      "accuracy": 0.5511,
+      "brier": 0.25004,
+      "logLoss": 0.69389
+    },
+    "currentBoostCal": {
+      "n": 1312,
+      "accuracy": 0.5556,
+      "brier": 0.24974,
+      "logLoss": 0.6932
+    },
+    "cvLogisticCal": {
+      "n": 1312,
+      "accuracy": 0.5511,
+      "brier": 0.25353,
+      "logLoss": 0.70212
+    }
+  },
+  "decisionHead": {
+    "selected": "cvLogisticTrainThreshold",
+    "selectedBy": "training-season accuracy only; untouched OOS season used once for final evaluation",
+    "candidates": {
+      "currentAt50": {
+        "train": {
+          "n": 1312,
+          "accuracy": 0.5861
+        },
+        "test": {
+          "n": 1312,
+          "accuracy": 0.5373
+        },
+        "threshold": 0.5
+      },
+      "currentTrainThreshold": {
+        "train": {
+          "n": 1312,
+          "accuracy": 0.5938
+        },
+        "test": {
+          "n": 1312,
+          "accuracy": 0.5412
+        },
+        "threshold": 0.51
+      },
+      "cvLogisticTrainThreshold": {
+        "train": {
+          "n": 1312,
+          "accuracy": 0.6349
+        },
+        "test": {
+          "n": 1312,
+          "accuracy": 0.5488
+        },
+        "threshold": 0.52
+      },
+      "situationalResidual": {
+        "train": {
+          "n": 1312,
+          "accuracy": 0.5953
+        },
+        "test": {
+          "n": 1312,
+          "accuracy": 0.5419
+        },
+        "threshold": -0.181998
+      }
+    },
+    "oosAccuracyDelta": 0.0115,
+    "probabilitySource": "NHL-PRO-v2 calibrated win probability remains unchanged"
+  },
+  "selected": "currentBoostCal",
+  "selectedMetrics": {
+    "n": 1312,
+    "accuracy": 0.5556,
+    "brier": 0.24974,
+    "logLoss": 0.6932
+  },
+  "incumbentMetrics": {
+    "n": 1312,
+    "accuracy": 0.5373,
+    "brier": 0.24567,
+    "logLoss": 0.68425
+  },
+  "delta": {
+    "accuracy": 0.0183,
+    "brier": 0.00407,
+    "logLoss": 0.00895
+  },
+  "calibration": {
+    "current": [
+      {
+        "band": "50-55%",
+        "n": 591,
+        "meanConfidence": 0.5236,
+        "accuracy": 0.5025,
+        "gap": 0.021
+      },
+      {
+        "band": "55-60%",
+        "n": 423,
+        "meanConfidence": 0.5737,
+        "accuracy": 0.5059,
+        "gap": 0.0678
+      },
+      {
+        "band": "60-65%",
+        "n": 207,
+        "meanConfidence": 0.6212,
+        "accuracy": 0.6039,
+        "gap": 0.0173
+      },
+      {
+        "band": "65-70%",
+        "n": 69,
+        "meanConfidence": 0.6673,
+        "accuracy": 0.7681,
+        "gap": -0.1008
+      },
+      {
+        "band": "70-80%",
+        "n": 22,
+        "meanConfidence": 0.7157,
+        "accuracy": 0.7273,
+        "gap": -0.0115
+      }
+    ],
+    "selected": [
+      {
+        "band": "50-55%",
+        "n": 457,
+        "meanConfidence": 0.5252,
+        "accuracy": 0.5427,
+        "gap": -0.0175
+      },
+      {
+        "band": "55-60%",
+        "n": 322,
+        "meanConfidence": 0.5721,
+        "accuracy": 0.5342,
+        "gap": 0.0379
+      },
+      {
+        "band": "60-65%",
+        "n": 197,
+        "meanConfidence": 0.6183,
+        "accuracy": 0.5279,
+        "gap": 0.0903
+      },
+      {
+        "band": "65-70%",
+        "n": 83,
+        "meanConfidence": 0.6694,
+        "accuracy": 0.5181,
+        "gap": 0.1513
+      },
+      {
+        "band": "70-80%",
+        "n": 252,
+        "meanConfidence": 0.73,
+        "accuracy": 0.6389,
+        "gap": 0.0911
+      }
+    ]
+  },
+  "incumbentSelective": {
+    "confidence_55plus": {
+      "n": 721,
+      "accuracy": 0.5659,
+      "brier": 0.24195,
+      "logLoss": 0.6766,
+      "coverage": 0.5495
+    },
+    "confidence_60plus": {
+      "n": 298,
+      "accuracy": 0.651,
+      "brier": 0.22456,
+      "logLoss": 0.64101,
+      "coverage": 0.2271
+    },
+    "confidence_63plus": {
+      "n": 178,
+      "accuracy": 0.6742,
+      "brier": 0.21793,
+      "logLoss": 0.62725,
+      "coverage": 0.1357
+    },
+    "confidence_65plus": {
+      "n": 91,
+      "accuracy": 0.7582,
+      "brier": 0.19103,
+      "logLoss": 0.57136,
+      "coverage": 0.0694
+    },
+    "confidence_68plus": {
+      "n": 40,
+      "accuracy": 0.725,
+      "brier": 0.19959,
+      "logLoss": 0.58859,
+      "coverage": 0.0305
+    },
+    "confidence_70plus": {
+      "n": 22,
+      "accuracy": 0.7273,
+      "brier": 0.19783,
+      "logLoss": 0.58455,
+      "coverage": 0.0168
+    },
+    "margin_0.25plus": {
+      "n": 760,
+      "accuracy": 0.5658,
+      "brier": 0.24201,
+      "logLoss": 0.67674,
+      "coverage": 0.5793
+    },
+    "margin_0.5plus": {
+      "n": 357,
+      "accuracy": 0.6303,
+      "brier": 0.22967,
+      "logLoss": 0.6515,
+      "coverage": 0.2721
+    },
+    "margin_0.75plus": {
+      "n": 144,
+      "accuracy": 0.6875,
+      "brier": 0.21333,
+      "logLoss": 0.61763,
+      "coverage": 0.1098
+    },
+    "margin_1plus": {
+      "n": 44,
+      "accuracy": 0.7727,
+      "brier": 0.18302,
+      "logLoss": 0.55401,
+      "coverage": 0.0335
+    },
+    "margin_1.25plus": {
+      "n": 14,
+      "accuracy": 0.7143,
+      "brier": 0.2006,
+      "logLoss": 0.58939,
+      "coverage": 0.0107
+    },
+    "confidence_60plus_margin_0.5plus": {
+      "n": 288,
+      "accuracy": 0.6458,
+      "brier": 0.2255,
+      "logLoss": 0.64291,
+      "coverage": 0.2195
+    },
+    "confidence_60plus_margin_0.75plus": {
+      "n": 144,
+      "accuracy": 0.6875,
+      "brier": 0.21333,
+      "logLoss": 0.61763,
+      "coverage": 0.1098
+    },
+    "confidence_63plus_margin_0.75plus": {
+      "n": 128,
+      "accuracy": 0.6797,
+      "brier": 0.21469,
+      "logLoss": 0.6203,
+      "coverage": 0.0976
+    },
+    "confidence_65plus_margin_0.75plus": {
+      "n": 89,
+      "accuracy": 0.7528,
+      "brier": 0.19259,
+      "logLoss": 0.57457,
+      "coverage": 0.0678
+    },
+    "confidence_65plus_margin_1plus": {
+      "n": 43,
+      "accuracy": 0.7674,
+      "brier": 0.18438,
+      "logLoss": 0.55678,
+      "coverage": 0.0328
+    }
+  },
+  "selectedSelective": {
+    "confidence_55plus": {
+      "n": 855,
+      "accuracy": 0.5626,
+      "brier": 0.24988,
+      "logLoss": 0.69377,
+      "coverage": 0.6517
+    },
+    "confidence_60plus": {
+      "n": 533,
+      "accuracy": 0.5797,
+      "brier": 0.24946,
+      "logLoss": 0.69344,
+      "coverage": 0.4063
+    },
+    "confidence_63plus": {
+      "n": 391,
+      "accuracy": 0.5934,
+      "brier": 0.24823,
+      "logLoss": 0.69135,
+      "coverage": 0.298
+    },
+    "confidence_65plus": {
+      "n": 336,
+      "accuracy": 0.6101,
+      "brier": 0.24472,
+      "logLoss": 0.68439,
+      "coverage": 0.2561
+    },
+    "confidence_68plus": {
+      "n": 286,
+      "accuracy": 0.6259,
+      "brier": 0.24054,
+      "logLoss": 0.67597,
+      "coverage": 0.218
+    },
+    "confidence_70plus": {
+      "n": 253,
+      "accuracy": 0.6403,
+      "brier": 0.23557,
+      "logLoss": 0.66563,
+      "coverage": 0.1928
+    },
+    "margin_0.25plus": {
+      "n": 760,
+      "accuracy": 0.5816,
+      "brier": 0.24831,
+      "logLoss": 0.69069,
+      "coverage": 0.5793
+    },
+    "margin_0.5plus": {
+      "n": 357,
+      "accuracy": 0.6331,
+      "brier": 0.23653,
+      "logLoss": 0.66688,
+      "coverage": 0.2721
+    },
+    "margin_0.75plus": {
+      "n": 144,
+      "accuracy": 0.6875,
+      "brier": 0.21121,
+      "logLoss": 0.61315,
+      "coverage": 0.1098
+    },
+    "margin_1plus": {
+      "n": 44,
+      "accuracy": 0.7727,
+      "brier": 0.18337,
+      "logLoss": 0.55485,
+      "coverage": 0.0335
+    },
+    "margin_1.25plus": {
+      "n": 14,
+      "accuracy": 0.7143,
+      "brier": 0.21778,
+      "logLoss": 0.63145,
+      "coverage": 0.0107
+    },
+    "confidence_60plus_margin_0.5plus": {
+      "n": 284,
+      "accuracy": 0.6338,
+      "brier": 0.23562,
+      "logLoss": 0.66529,
+      "coverage": 0.2165
+    },
+    "confidence_60plus_margin_0.75plus": {
+      "n": 124,
+      "accuracy": 0.6935,
+      "brier": 0.20871,
+      "logLoss": 0.60784,
+      "coverage": 0.0945
+    },
+    "confidence_63plus_margin_0.75plus": {
+      "n": 112,
+      "accuracy": 0.7321,
+      "brier": 0.19898,
+      "logLoss": 0.58789,
+      "coverage": 0.0854
+    },
+    "confidence_65plus_margin_0.75plus": {
+      "n": 107,
+      "accuracy": 0.7196,
+      "brier": 0.20217,
+      "logLoss": 0.59439,
+      "coverage": 0.0816
+    },
+    "confidence_65plus_margin_1plus": {
+      "n": 37,
+      "accuracy": 0.7838,
+      "brier": 0.17785,
+      "logLoss": 0.54326,
+      "coverage": 0.0282
+    }
+  },
+  "subsets": {
+    "byProjectedMargin": {
+      "1.25+": {
+        "n": 14,
+        "accuracy": 0.7143,
+        "brier": 0.21778,
+        "logLoss": 0.63145
+      },
+      "0.25-0.74": {
+        "n": 616,
+        "accuracy": 0.5568,
+        "brier": 0.25698,
+        "logLoss": 0.70881
+      },
+      "<0.25": {
+        "n": 552,
+        "accuracy": 0.5199,
+        "brier": 0.25171,
+        "logLoss": 0.69666
+      },
+      "0.75-1.24": {
+        "n": 130,
+        "accuracy": 0.6846,
+        "brier": 0.21051,
+        "logLoss": 0.61118
+      }
+    },
+    "byConfidence": {
+      "70+": {
+        "n": 253,
+        "accuracy": 0.6403,
+        "brier": 0.23557,
+        "logLoss": 0.66563
+      },
+      "65-69.9": {
+        "n": 83,
+        "accuracy": 0.5181,
+        "brier": 0.27262,
+        "logLoss": 0.74157
+      },
+      "55-59.9": {
+        "n": 322,
+        "accuracy": 0.5342,
+        "brier": 0.25056,
+        "logLoss": 0.69433
+      },
+      "60-64.9": {
+        "n": 197,
+        "accuracy": 0.5279,
+        "brier": 0.25756,
+        "logLoss": 0.70887
+      },
+      "50-54.9": {
+        "n": 457,
+        "accuracy": 0.5427,
+        "brier": 0.24949,
+        "logLoss": 0.69213
+      }
+    },
+    "byHomeAwayFavorite": {
+      "HOME_FAVORITE": {
+        "n": 986,
+        "accuracy": 0.5517,
+        "brier": 0.25155,
+        "logLoss": 0.69707
+      },
+      "AWAY_FAVORITE": {
+        "n": 326,
+        "accuracy": 0.5675,
+        "brier": 0.24427,
+        "logLoss": 0.68151
+      }
+    },
+    "byTravelEdge": {
+      "TRAVEL_NEUTRAL": {
+        "n": 649,
+        "accuracy": 0.5686,
+        "brier": 0.2504,
+        "logLoss": 0.69471
+      },
+      "HOME_TRAVEL_EDGE": {
+        "n": 496,
+        "accuracy": 0.5423,
+        "brier": 0.24916,
+        "logLoss": 0.69179
+      },
+      "AWAY_TRAVEL_EDGE": {
+        "n": 167,
+        "accuracy": 0.5449,
+        "brier": 0.24891,
+        "logLoss": 0.69151
+      }
+    },
+    "byRestEdge": {
+      "REST_NEUTRAL": {
+        "n": 1170,
+        "accuracy": 0.5504,
+        "brier": 0.25035,
+        "logLoss": 0.69436
+      },
+      "AWAY_REST_EDGE": {
+        "n": 43,
+        "accuracy": 0.5116,
+        "brier": 0.24857,
+        "logLoss": 0.69097
+      },
+      "HOME_REST_EDGE": {
+        "n": 99,
+        "accuracy": 0.6364,
+        "brier": 0.24302,
+        "logLoss": 0.6805
+      }
+    },
+    "byAltitude": {
+      "LOW_ALTITUDE": {
+        "n": 1107,
+        "accuracy": 0.551,
+        "brier": 0.25119,
+        "logLoss": 0.69629
+      },
+      "MID_ALTITUDE": {
+        "n": 123,
+        "accuracy": 0.561,
+        "brier": 0.2455,
+        "logLoss": 0.6829
+      },
+      "HIGH_ALTITUDE": {
+        "n": 82,
+        "accuracy": 0.6098,
+        "brier": 0.23661,
+        "logLoss": 0.66698
+      }
+    }
+  },
+  "coefficients": {
+    "baseLogit": 0.178076,
+    "scoreLogit": 0.181888,
+    "goalMargin": 0.168165,
+    "eloDiff": -0.020416,
+    "xgDiff": 0.217091,
+    "specialTeamsDiff": 0.491836,
+    "pressureDiff": 1.039989,
+    "finishDiff": -0.698255,
+    "goalieDiff": 0.447542,
+    "shotVolumeDiff": 0.107033,
+    "restDiff": 0.000425,
+    "homeB2B": -0.210997,
+    "awayB2B": 0.228027,
+    "travelHomeK": -0.036985,
+    "travelAwayK": -0.006977,
+    "travelDiffK": -0.01608,
+    "tzShiftHome": 0.001303,
+    "tzShiftAway": -0.050075,
+    "returnHome": 0.123313,
+    "awayRoadContinuation": 0.066085,
+    "altitudeK": -0.066624,
+    "altitudeChangeHomeK": 0.12733,
+    "altitudeChangeAwayK": 0.172119,
+    "arenaResidual": 6.69786,
+    "rollingStrengthDiff": -0.134363
+  },
+  "promotion": {
+    "historicalPromotionEligible": false,
+    "canQualify": false,
+    "canAuthorizeWager": false,
+    "reason": "No candidate beat current winner head on all three OOS gates."
+  },
+  "integrity": {
+    "noMarketInputs": true,
+    "trainSeasonOnlyForHead": true,
+    "testSeasonUntouchedUntilEvaluation": true,
+    "nTrain": 1312,
+    "nTest": 1312
+  }
+}
