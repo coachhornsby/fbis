@@ -41,9 +41,13 @@ function sideSnapshot(side,g){
     topLineupNetRating:n(top?.netRating),
   };
 }
-function ewmaUpdate(st,obs,alpha=.28){
-  if(!st)st={games:0,values:{}};
+function ewmaUpdate(st,obs,qa={},alpha=.28){
+  if(!st)st={games:0,values:{},qa:{lineupCoverage:null,subResolution:null}};
   st.games++;
+  for(const k of ["lineupCoverage","subResolution"]){
+    const x=n(qa?.[k]); if(x==null)continue;
+    const old=n(st.qa[k]); st.qa[k]=old==null?x:alpha*x+(1-alpha)*old;
+  }
   for(const k of [...POS_KEYS,...LINEUP_KEYS]){
     const x=n(obs[k]);if(x==null)continue;
     const old=n(st.values[k]);st.values[k]=old==null?x:alpha*x+(1-alpha)*old;
@@ -72,14 +76,16 @@ function buildSamples(){
           id:String(g.gameId),season:Number(pack.season),date:g.date,
           actualHome:p.actualHome,actualAway:p.actualAway,fbis:p.fbis,kenpom:p.kenpom,market:p.market,
           homeGames:hs?.games||0,awayGames:as?.games||0,
-          lineupReliable:Boolean(g.lineupReliable),
+          priorQa:{
+            homeLineupCoverage:n(hs?.qa?.lineupCoverage),awayLineupCoverage:n(as?.qa?.lineupCoverage),
+            homeSubResolution:n(hs?.qa?.subResolution),awaySubResolution:n(as?.qa?.subResolution),
+          },
           possessionFeatures:featurePair(hs,as,POS_KEYS),
           lineupFeatures:featurePair(hs,as,LINEUP_KEYS),
-          qa:g.qa||{},
         });
       }
-      state.set(String(g.homeTeamId),ewmaUpdate(state.get(String(g.homeTeamId)),sideSnapshot("home",g)));
-      state.set(String(g.awayTeamId),ewmaUpdate(state.get(String(g.awayTeamId)),sideSnapshot("away",g)));
+      state.set(String(g.homeTeamId),ewmaUpdate(state.get(String(g.homeTeamId)),sideSnapshot("home",g),g.qa));
+      state.set(String(g.awayTeamId),ewmaUpdate(state.get(String(g.awayTeamId)),sideSnapshot("away",g),g.qa));
     }
   }
   return out;
@@ -94,7 +100,9 @@ const FAMILIES={
 function eligible(r,family){
   if((r.homeGames||0)<5||(r.awayGames||0)<5)return false;
   if(family==="lineup"||family==="full"){
-    return (n(r.qa?.lineupCoverage)??0)>=.70&&(n(r.qa?.subResolution)??0)>=.70;
+    const q=r.priorQa||{};
+    return (n(q.homeLineupCoverage)??0)>=.70&&(n(q.awayLineupCoverage)??0)>=.70&&
+      (n(q.homeSubResolution)??0)>=.70&&(n(q.awaySubResolution)??0)>=.70;
   }
   return true;
 }
@@ -160,7 +168,7 @@ const report={
     featureTiming:"Each target game uses only exponentially weighted prior completed games for each team.",
     discovery:"2018-22",validation:"2023-24",confirmation:"2025",
     marketInformed:false,
-    lineupGate:"lineup/full families require target-game reconstruction QA >=70% lineup coverage and substitution resolution; features themselves remain prior-only.",
+    lineupGate:"lineup/full families require each team's prior-game EWMA reconstruction QA >=70% lineup coverage and substitution resolution.",
   },
   families:{},
   promotion:{requiresOperatorApproval:true,automaticProduction:false},
