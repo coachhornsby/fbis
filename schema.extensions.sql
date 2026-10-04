@@ -1062,7 +1062,9 @@ CREATE TABLE IF NOT EXISTS nba_game_projections (
   projected_home REAL, projected_away REAL, projected_margin REAL, projected_total REAL,
   expected_possessions REAL, p_home_win REAL, sigma_margin REAL, sigma_total REAL,
   maturity TEXT NOT NULL DEFAULT 'RESEARCH', can_qualify INTEGER NOT NULL DEFAULT 0,
-  can_authorize INTEGER NOT NULL DEFAULT 0, provenance_json TEXT, created_at TEXT NOT NULL
+  can_authorize INTEGER NOT NULL DEFAULT 0, provenance_json TEXT, created_at TEXT NOT NULL,
+  actual_home REAL, actual_away REAL, graded_at TEXT,
+  market_at_projection_json TEXT, close_market_json TEXT, market_joined_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_nba_game_proj_game ON nba_game_projections(game_id, created_at DESC);
 
@@ -1079,7 +1081,8 @@ CREATE TABLE IF NOT EXISTS nba_player_prop_projections (
   availability_status TEXT, model_id TEXT NOT NULL, model_version TEXT,
   feature_cutoff_timestamp TEXT NOT NULL, maturity TEXT NOT NULL DEFAULT 'RESEARCH',
   can_qualify INTEGER NOT NULL DEFAULT 0, can_authorize INTEGER NOT NULL DEFAULT 0,
-  provenance_json TEXT, created_at TEXT NOT NULL
+  provenance_json TEXT, created_at TEXT NOT NULL,
+  actual_value REAL, graded_at TEXT, availability_verified INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_nba_prop_proj_game ON nba_player_prop_projections(game_id, player_name, market_type);
 
@@ -1091,3 +1094,9 @@ CREATE TABLE IF NOT EXISTS nba_prop_comparisons (
   decision_eligible INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_nba_prop_cmp_game ON nba_prop_comparisons(game_id, player_name, market_type, observed_at DESC);
+
+-- NBA prospective shadow indexes (migration 0040).
+CREATE INDEX IF NOT EXISTS idx_nba_game_proj_ungraded
+  ON nba_game_projections (game_id, graded_at, feature_cutoff_timestamp);
+CREATE INDEX IF NOT EXISTS idx_nba_prop_proj_ungraded
+  ON nba_player_prop_projections (game_id, graded_at, player_id, market_type);
