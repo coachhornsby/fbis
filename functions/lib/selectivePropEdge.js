@@ -98,8 +98,15 @@ export function selectivePropStars(row = {}) {
     stars = Math.min(stars, 2);
   }
 
-  // NFL workload is especially role-sensitive.
-  if (evidence.sport === "nfl" && role == null) stars = Math.min(stars, 3);
+  // NFL v3 is fail-closed around role + recent-form + matchup evidence.
+  if (evidence.sport === "nfl") {
+    if (role == null) stars = Math.min(stars, 2);
+    if (!feature.targetRole) stars = Math.min(stars, 1);
+    if (!feature.recent5) stars = Math.min(stars, 2);
+    if (!feature.positionDefense) stars = Math.min(stars, 3);
+    if (!feature.snapShare) stars = Math.min(stars, 3);
+    if (stars >= 5 && (role == null || role < 0.80 || !feature.nextGen || !feature.opponentMatchup)) stars = 4;
+  }
   return stars;
 }
 
@@ -155,7 +162,10 @@ export function rankSelectiveProps(rows = [], opts = {}) {
     if (row.evidenceState?.gate === "BLOCKED" || row.evidenceState?.gate === "HOLD") return false;
     if (row.evidenceState?.eligible === false) return false;
     if (row.estimatedHitProbability != null && row.estimatedHitProbability < minHitProbability) return false;
-    if (row.evidenceState?.sport === "nfl" && row.evidenceState?.role != null && row.evidenceState.role < minRoleConfidence) return false;
+    if (row.evidenceState?.sport === "nfl") {
+      if (row.evidenceState?.role == null || row.evidenceState.role < minRoleConfidence) return false;
+      if (!row.featureEvidence?.targetRole || !row.featureEvidence?.recent5) return false;
+    }
     return true;
   }).sort((a, b) => b.selectionScore - a.selectionScore);
 

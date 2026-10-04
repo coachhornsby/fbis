@@ -106,6 +106,9 @@ async function loadPrizePicksRows(db, eventIds = [], sportParam = null) {
   ).bind(...binds).all();
   const newest = new Map();
   for (const row of result?.results || []) {
+    // NFL board is intentionally limited to model-matched QB1/RB1/WR1/WR2/TE1 rows.
+    // Unmatched PrizePicks players (backups, WR3+, RB2+, TE2+) do not reach the board.
+    if (String(row.sport || "").toLowerCase() === "nfl" && num(row.fbis_projection) == null) continue;
     const key = [row.fbis_event_id,row.player_name,row.canonical_market,row.odds_tier,row.duration].join("|");
     if (newest.has(key)) continue;
     newest.set(key,{
@@ -140,6 +143,14 @@ async function loadPrizePicksRows(db, eventIds = [], sportParam = null) {
       fbisProjection:num(row.fbis_projection),
       fbisSigma:num(row.fbis_sigma),
       deltaFbisMinusLine:num(row.delta_fbis_minus_line),
+      roleConfidence:num(row.role_confidence),
+      snapShare:num(row.snap_share),
+      propGate:str(row.prop_gate),
+      eligibleForCard:row.eligible_for_card == null ? null : Number(row.eligible_for_card) === 1,
+      featureEvidence:safeJson(row.feature_evidence_json) || null,
+      modelSource:str(row.model_source),
+      modelVersion:str(row.model_version),
+      targetRole:(safeJson(row.feature_evidence_json) || {})?.targetRoleName || null,
     });
   }
   return [...newest.values()];
