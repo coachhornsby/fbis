@@ -17,4 +17,4 @@ methodology:{partitionedBySeason:true,independent:true,marketInformed:false,kenp
 samples:{all:compare(rows),discovery:compare(discovery),validation:compare(validation),confirmation:compare(confirmation)},
 bySeason:Object.fromEntries(seasons.map(s=>[s,compare(rows.filter(r=>Number(r.season)===s))])),disagreement,marketTests,
 promotion:{totalPass:Boolean(compare(validation).totalMaeAdvantage>0&&compare(confirmation).totalMaeAdvantage>0),marginPass:Boolean(compare(validation).marginMaeAdvantage>0&&compare(confirmation).marginMaeAdvantage>0),requiresOperatorApproval:true,canAuthorizeWager:false}};
-mkdirSync("artifacts",{recursive:true});writeFileSync("artifacts/cbb-fbis-native-v1-walkforward.json",JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
+mkdirSync("artifacts",{recursive:true});writeFileSync("artifacts/cbb-fbis-native-v1-walkforward.json",JSON.stringify(report,null,2));writeFileSync("artifacts/cbb-fbis-native-v2-predictions.json",JSON.stringify(rows));console.log(JSON.stringify(report,null,2));
