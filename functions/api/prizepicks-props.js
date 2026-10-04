@@ -25,6 +25,24 @@ function ctDate(v){
 function todayCt(){
   return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 }
+function rawArchiveKey(source,date,runId){
+  const [y,m,d]=String(date||"").split("-");
+  return `raw/${source}/${y}/${m}/${d}/${runId}.json`;
+}
+async function archiveRawPull(env,{source,date,runId,rows,meta={}}){
+  const bucket=env?.ARCHIVE;
+  if(!bucket) throw new Error("archive-binding-missing");
+  const key=rawArchiveKey(source,date,runId);
+  if(!await bucket.head(key)){
+    const archivedAt=new Date().toISOString();
+    const payload=JSON.stringify({schemaVersion:1,source,date,runId,archivedAt,meta,rows});
+    await bucket.put(key,payload,{
+      httpMetadata:{contentType:"application/json; charset=utf-8"},
+      customMetadata:{source:String(source),date:String(date),runId:String(runId),immutable:"true",archivedAt}
+    });
+  }
+  return key;
+}
 function norm(v){return String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()}
 function first(obj,paths){
   for(const path of paths){
@@ -195,6 +213,18 @@ export async function onRequestPost(context){
   const runId=s(body.runId)||`pp_${Date.now()}`;
   const collectedAt=s(body.collectedAt)||new Date().toISOString();
   const today=todayCt();
+  let archiveKey=null;
+  try{
+    archiveKey=await archiveRawPull(context.env,{
+      source:"prizepicks",
+      date:today,
+      runId,
+      rows,
+      meta:{actor:"zen-studio/prizepicks-player-props",candidateCount:candidates.length,collectedAt}
+    });
+  }catch(e){
+    return json({ok:false,error:"raw_archive_failed",runId,message:String(e?.message||e).slice(0,300)},503);
+  }
   // A current PrizePicks board legitimately includes upcoming games. Freshness is
   // the acquisition date, not the event start date. Reject only stale past-event
   // contamination; future rows remain research-only until their event date.
@@ -309,5 +339,5 @@ export async function onRequestPost(context){
     RUN_START_USD,0,rows.length*PER_PROJECTION_USD,0,0,0,0,0,0,0,0,estimate,actual,actual==null?null:actual-estimate,
     rows.length,JSON.stringify({actor:"zen-studio/prizepicks-player-props",candidateCount:candidates.length,targeted:true}),collectedAt
   ).run();
-  return json({ok:true,runId,rowsReturned:rows.length,written,matched,malformed,cbbPlayerPropSignalsCreated:signalsCreated,estimatedCostUsd:estimate,recordedCostUsd:total,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD});
+  return json({ok:true,runId,rowsReturned:rows.length,written,matched,malformed,cbbPlayerPropSignalsCreated:signalsCreated,estimatedCostUsd:estimate,recordedCostUsd:total,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD,archiveKey});
 }
