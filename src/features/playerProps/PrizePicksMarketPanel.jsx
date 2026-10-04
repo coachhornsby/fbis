@@ -24,6 +24,7 @@ function resolvedHeadshot(row={}){
   const q=new URLSearchParams({
     name:String(row.player_name||""),
     sport:String(row.sport||""),
+    team:String(row.team||""),
     mode:"image",
   });
   return "/api/player-image?"+q.toString();

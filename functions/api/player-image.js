@@ -91,6 +91,29 @@ function htmlImageMeta(html){
   return null;
 }
 
+async function espnNflRosterHeadshot(name,team){
+  const t=String(team||"").trim().toLowerCase();
+  if(!t) return null;
+  const url="https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/"+encodeURIComponent(t)+"/roster";
+  const res=await fetch(url,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
+  if(!res.ok) return null;
+  const body=await res.json().catch(()=>({}));
+  const needle=norm(name);
+  const athletes=[];
+  for(const group of body?.athletes||[]){
+    for(const a of group?.items||[]) athletes.push(a);
+  }
+  const hit=athletes.find(a=>norm(a?.fullName||a?.displayName||a?.name||"")===needle)
+    || athletes.find(a=>{
+      const n=norm(a?.fullName||a?.displayName||a?.name||"");
+      return n && (n.includes(needle)||needle.includes(n));
+    })
+    || null;
+  const image=hit?.headshot?.href||hit?.headshot||null;
+  if(!image||!/^https?:\/\//i.test(String(image))) return null;
+  return String(image);
+}
+
 async function nflOfficialHeadshot(name){
   const slug=slugify(name);
   if(!slug) return null;
@@ -312,6 +335,7 @@ export async function onRequestGet(context){
   const url=new URL(context.request.url);
   const name=String(url.searchParams.get("name")||"").trim();
   const sport=String(url.searchParams.get("sport")||"").toLowerCase();
+  const team=String(url.searchParams.get("team")||"").trim();
   const mode=String(url.searchParams.get("mode")||"json").toLowerCase();
   if(!name) return json({ok:false,error:"name required"},400);
   const lookupName = sport==="tennis" ? canonicalTennisName(name) : name;
@@ -350,14 +374,21 @@ export async function onRequestGet(context){
   }
 
   if(String(sport||"").toLowerCase()==="nfl"){
-    const espnNflImage=await espnPlayerHeadshot(name,"nfl").catch(()=>null);
-    if(espnNflImage){
-      const out=await candidateResponse(espnNflImage,{name,sport,source:"ESPN_HEADSHOT"},mode);
+    const rosterImage=await espnNflRosterHeadshot(name,team).catch(()=>null);
+    if(rosterImage){
+      const out=await candidateResponse(rosterImage,{name,sport,team,source:"ESPN_TEAM_ROSTER"},mode);
       if(out) return out;
     }
     const nflImage=await nflOfficialHeadshot(name).catch(()=>null);
     if(nflImage && /headshot|player|static/i.test(nflImage)){
-      const out=await candidateResponse(nflImage,{name,sport,source:"NFL_OFFICIAL"},mode);
+      const out=await candidateResponse(nflImage,{name,sport,team,source:"NFL_OFFICIAL"},mode);
+      if(out) return out;
+    }
+    // Broad ESPN search is deliberately last for NFL because search results
+    // can contain league/team entities whose images are not player headshots.
+    const espnNflImage=await espnPlayerHeadshot(name,"nfl").catch(()=>null);
+    if(espnNflImage && /\/headshots\/nfl\/players\/full\//i.test(espnNflImage)){
+      const out=await candidateResponse(espnNflImage,{name,sport,team,source:"ESPN_HEADSHOT_SEARCH"},mode);
       if(out) return out;
     }
   }
