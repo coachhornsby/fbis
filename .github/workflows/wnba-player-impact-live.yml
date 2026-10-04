@@ -9,6 +9,8 @@ on:
       - "scripts/wnba-canonical-build.mjs"
       - "scripts/wnba-merge-canonical.mjs"
       - "migrations/0049_wnba_player_impact.sql"
+      - "research/wnba/player-impact-snapshot.json"
+      - "functions/lib/wnbaPlayerImpactShadow.js"
   workflow_dispatch:
   schedule:
     - cron: "10 14,19,23 * * *"
