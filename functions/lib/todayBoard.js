@@ -212,6 +212,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     // UI falsely report \"Awaiting model factors\" even when NFL-PRO-v1 had produced them.
     matchupFactors: Array.isArray(game.matchupFactors) ? game.matchupFactors : [],
     nflProShadow: sport === "nfl" && game.nflProShadow ? game.nflProShadow : null,
+    nflWagerDecision: sport === "nfl" && game.nflWagerDecision ? game.nflWagerDecision : null,
     palMatched: Boolean(game.bpp),
     palHome: game.bpp?.homeRuns ?? game.model?.palHome ?? null,
     palAway: game.bpp?.awayRuns ?? game.model?.palAway ?? null,
