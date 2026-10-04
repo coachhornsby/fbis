@@ -281,6 +281,16 @@ export function toDomainPlayerMarket(row = {}) {
     probability: numOrNull(row.probability),
     edge: numOrNull(row.edge ?? row.ev),
     projectionSide: strOrNull(row.projectionSide ?? row.sideLean ?? row.leanSide),
+
+    // NFL role-calibration evidence must survive the board-domain adapter so
+    // display policy can distinguish QB1/RB1/WR1/WR2/TE1 and apply the
+    // historical PrizePicks star gates.
+    targetRole: strOrNull(row.targetRole ?? row.featureEvidence?.targetRoleName),
+    roleConfidence: numOrNull(row.roleConfidence),
+    snapShare: numOrNull(row.snapShare),
+    featureEvidence: row.featureEvidence && typeof row.featureEvidence === "object"
+      ? row.featureEvidence
+      : null,
   };
 }
 
