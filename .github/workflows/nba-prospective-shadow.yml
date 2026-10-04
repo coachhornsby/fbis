@@ -1,6 +1,15 @@
 name: NBA prospective shadow
 on:
   workflow_dispatch:
+  push:
+    branches: ["research/nba-fbis-v1"]
+    paths:
+      - "functions/lib/nbaModel.js"
+      - "functions/lib/nbaPlayerPropModel.js"
+      - "scripts/nba-shadow-project.mjs"
+      - "scripts/nba-canonical-build.mjs"
+      - "scripts/nba-merge-canonical.mjs"
+      - ".github/workflows/nba-prospective-shadow.yml"
   schedule:
     - cron: "20 16,22 * * *"
 
