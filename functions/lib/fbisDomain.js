@@ -256,14 +256,14 @@ export function toDomainPlayerMarket(row = {}) {
     playerIdentityConfidence,
 
     marketComplete: Boolean(row.marketComplete),
-    decisionEligible: row.decisionEligible === true,
+    decisionEligible: row.modelAuthorized === true && row.decisionEligible === true,
     modelAuthorized: row.modelAuthorized === true,
-    eligibleForCard: row.eligibleForCard === true,
+    eligibleForCard: row.modelAuthorized === true && row.eligibleForCard === true,
     propGate: strOrNull(row.propGate),
     gateReason: strOrNull(row.gateReason),
     reasonCodes: Array.isArray(row.reasonCodes)
       ? row.reasonCodes.map(String)
-      : row.decisionEligible === true
+      : row.modelAuthorized === true && row.decisionEligible === true
         ? []
         : ["NOT_DECISION_ELIGIBLE"],
 
