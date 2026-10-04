@@ -88,7 +88,7 @@ for(const ev of board.events||[]){
   const gameRow={id:`${date}:${gameId}:${checkpoint}:${p.modelVersion}`,gameId,tipoff:ev.date||null,featureCutoff:createdAt,
     createdAt,checkpoint,modelVersion:p.modelVersion,homeTeam:h.team?.abbreviation||h.team?.displayName,awayTeam:a.team?.abbreviation||a.team?.displayName,
     home:p.home,away:p.away,margin:p.margin,total:p.total,expectedPossessions:p.expectedPossessions,pHomeWin:p.pHomeWin,
-    sigmaMargin:p.sigmaMargin,sigmaTotal:p.sigmaTotal,provenance:{checkpoint,independent:true,marketUsed:false,historyRows:{home:hh.length,away:ah.length},fit:fit.version}};
+    sigmaMargin:p.sigmaMargin,sigmaTotal:p.sigmaTotal,provenance:{checkpoint,independent:true,marketUsed:false,historyRows:{home:hh.length,away:ah.length},fit:fit.version,decomposition:p.decomposition}};
   games.push(gameRow);
 
   for(const [teamId,teamAbbr,sideScore] of [[homeId,h.team?.abbreviation||"",p.home],[awayId,a.team?.abbreviation||"",p.away]]){
