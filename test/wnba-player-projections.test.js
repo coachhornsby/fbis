@@ -10,9 +10,9 @@ test("WNBA player engine emits independent research projections for curated mark
   },meta:{source:"TEST"}};
   const out=attachWnbaPlayerProjectionResearch(games,ctx);
   assert.equal(out.games.length,1);
-  assert.equal(out.games[0].playerProjectionRows.length,8);
-  assert.deepEqual([...new Set(out.games[0].playerProjectionRows.map(x=>x.market))].sort(),["assists","points","rebounds","three_pointers_made"]);
-  assert.ok(out.games[0].playerProjectionRows.every(x=>x.independent===true&&x.marketInformed===false&&x.canQualify===false));
+  assert.equal(out.games[0].playerProjectionRows.length,16);
+  assert.deepEqual([...new Set(out.games[0].playerProjectionRows.map(x=>x.market))].sort(),["assists","points","points_assists","points_rebounds","points_rebounds_assists","rebounds","rebounds_assists","three_pointers_made"]);
+  assert.ok(out.games[0].playerProjectionRows.every(x=>x.independent===true&&x.marketInformed===false&&x.canQualify===false&&Number.isFinite(x.fbisSigma)));
   assert.ok(out.games[0].playerProjectionRows.every(x=>x.eligibleForCard===false&&x.propGate==="RESEARCH_VALIDATION_REQUIRED"));
 });
 
