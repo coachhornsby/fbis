@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { rateNhlGoalieSavesConfidence } from "../functions/lib/nhlPropConfidence.js";
+import { rateNhlGoalieSavesConfidence, rateNhlShotsOnGoalConfidence } from "../functions/lib/nhlPropConfidence.js";
 
 const API="https://api-web.nhle.com/v1";
 function arg(name,fallback=null){const p=process.argv.find(x=>x.startsWith(`--${name}=`));return p?p.split("=").slice(1).join("="):fallback;}
@@ -361,6 +361,20 @@ const sogLineRows=lineRows.filter(r=>r.market==="shots_on_goal").map(r=>({
   playerShotShareQuartile:quartile(r.playerShotShare,sogCuts.playerShotShare),
   priorSampleQuartile:quartile(r.priorGp,sogCuts.priorGames),
 }));
+const sogStarRows=sogLineRows.map(r=>{
+  const rated=rateNhlShotsOnGoalConfidence({
+    projection:r.v2,line:r.line,
+    teamShotsFor:r.teamShotsFor,
+    opponentShotsAgainst:r.opponentShotsAgainst,
+    projectedTeamShots:r.projectedTeamShots,
+    playerShotRate:r.playerShotRate,
+    playerShotShare:r.playerShotShare,
+    lineValidated:true,
+    modelValidated:true,
+    cuts:sogCuts,
+  });
+  return {...r,stars:rated.stars,starTier:rated.tier,starSide:rated.side};
+});
 const sogAudit={
   cuts:sogCuts,
   byLine:savesGroups(sogLineRows,r=>r.line,250),
@@ -380,6 +394,10 @@ const sogAudit={
   byRest:savesGroups(sogLineRows,r=>r.b2b?"B2B":r.restDays>=2.5?"2PLUS_REST":"NORMAL_REST",500),
   bySeasonPhase:savesGroups(sogLineRows,r=>r.seasonPhase,500),
   byPriorSampleQuartile:savesGroups(sogLineRows,r=>r.priorSampleQuartile,500),
+  byStars:savesGroups(sogStarRows,r=>`${r.stars} STAR`,250),
+  byStarsDirection:savesGroups(sogStarRows,r=>`${r.stars} STAR|${r.direction}`,150),
+  byStarsCoreLines:savesGroups(sogStarRows.filter(r=>r.line>=1.5&&r.line<=4.5),r=>`${r.stars} STAR`,150),
+  byStarsCoreLinesDirection:savesGroups(sogStarRows.filter(r=>r.line>=1.5&&r.line<=4.5),r=>`${r.stars} STAR|${r.direction}`,100),
   sportsbookStyle:{
     highVolumeGoodMatchupOver:savesGroups(
       sogLineRows.filter(r=>r.playerShotRateQuartile==="Q4"&&r.opponentAllowanceQuartile==="Q4"&&r.direction==="OVER"),
