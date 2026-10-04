@@ -151,34 +151,48 @@ function ngsSeason(row){return pickNum(row,"season","season_year","seasonYear");
 function ngsWeek(row){return pickNum(row,"week","week_number","weekNumber");}
 function ngsName(row){return pick(row,"player_display_name","player_name","playerName")||ngsPlayerKey(row);}
 
+function pushMetric(p,key,value,weight=null){
+  const v=num(value); if(v==null)return;
+  const w=num(weight);
+  const arr=p.ngsSeries[key]||(p.ngsSeries[key]=[]);
+  arr.push({value:v,weight:w!=null&&w>0?w:1});
+}
+function finishMetric(p,key){
+  const arr=p.ngsSeries?.[key]||[]; if(!arr.length)return null;
+  const total=arr.reduce((s,x)=>s+x.weight,0);
+  return total>0?arr.reduce((s,x)=>s+x.value*x.weight,0)/total:mean(arr.map(x=>x.value));
+}
 export function aggregateNextGen(rowsByType={},season=null){
   const players=new Map();
   const teamRows={};
   for(const [type,rows] of Object.entries(rowsByType||{})){
     for(const row of rows||[]){
       if(season!=null&&ngsSeason(row)!=null&&ngsSeason(row)!==Number(season))continue;
-      const team=ngsTeam(row),id=ngsPlayerKey(row);if(!team||!id)continue;
-      const key=team+"|"+id,p=players.get(key)||{id,name:ngsName(row),team,position:type==="passing"?"QB":type==="rushing"?"RB":"WR",ngs:{},games:new Set()};
-      const week=ngsWeek(row);if(week!=null)p.games.add(week);
+      const team=ngsTeam(row),id=ngsPlayerKey(row),week=ngsWeek(row);
+      // week=0 is the full-season summary in nflverse NGS; using it during
+      // the season would leak future games and double count weekly evidence.
+      if(!team||!id||week==null||week<=0)continue;
+      const key=team+"|"+id,p=players.get(key)||{id,name:ngsName(row),team,position:type==="passing"?"QB":type==="rushing"?"RB":"WR",ngs:{},ngsSeries:{},games:new Set()};
+      p.games.add(week);
       if(type==="passing"){
-        p.ngs.avgTimeToThrow=pickNum(row,"avg_time_to_throw","avgTimeToThrow");
-        p.ngs.aggressiveness=pickNum(row,"aggressiveness");
-        p.ngs.cpoe=pickNum(row,"completion_percentage_above_expectation","completionPercentageAboveExpectation","cpoe");
-        p.ngs.passerRating=pickNum(row,"passer_rating","passerRating");
-        p.ngs.attempts=pickNum(row,"attempts","pass_attempts");
+        const attempts=pickNum(row,"attempts","pass_attempts");
+        pushMetric(p,"avgTimeToThrow",pickNum(row,"avg_time_to_throw","avgTimeToThrow"),attempts);
+        pushMetric(p,"aggressiveness",pickNum(row,"aggressiveness"),attempts);
+        pushMetric(p,"cpoe",pickNum(row,"completion_percentage_above_expectation","completionPercentageAboveExpectation","cpoe"),attempts);
+        pushMetric(p,"passerRating",pickNum(row,"passer_rating","passerRating"),attempts);
       }else if(type==="rushing"){
-        p.ngs.ryoePerAtt=pickNum(row,"rush_yards_over_expected_per_att","rushYardsOverExpectedPerAtt","ryoe_per_att");
-        p.ngs.rushEfficiency=pickNum(row,"efficiency","rush_efficiency");
-        p.ngs.avgTimeToLos=pickNum(row,"avg_time_to_los","avgTimeToLos");
-        p.ngs.carries=pickNum(row,"attempts","carries","rush_attempts");
+        const carries=pickNum(row,"attempts","carries","rush_attempts");
+        pushMetric(p,"ryoePerAtt",pickNum(row,"rush_yards_over_expected_per_att","rushYardsOverExpectedPerAtt","ryoe_per_att"),carries);
+        pushMetric(p,"rushEfficiency",pickNum(row,"efficiency","rush_efficiency"),carries);
+        pushMetric(p,"avgTimeToLos",pickNum(row,"avg_time_to_los","avgTimeToLos"),carries);
       }else{
-        p.ngs.avgSeparation=pickNum(row,"avg_separation","avgSeparation");
-        p.ngs.avgCushion=pickNum(row,"avg_cushion","avgCushion");
-        p.ngs.avgIntendedAirYards=pickNum(row,"avg_intended_air_yards","avgIntendedAirYards");
+        const targets=pickNum(row,"targets");
+        pushMetric(p,"avgSeparation",pickNum(row,"avg_separation","avgSeparation"),targets);
+        pushMetric(p,"avgCushion",pickNum(row,"avg_cushion","avgCushion"),targets);
+        pushMetric(p,"avgIntendedAirYards",pickNum(row,"avg_intended_air_yards","avgIntendedAirYards"),targets);
         const ay=pickNum(row,"avg_yac","avgYac"),ey=pickNum(row,"avg_expected_yac","avgExpectedYac");
-        p.ngs.yacOverExpected=pickNum(row,"avg_yac_above_expectation","avgYacAboveExpectation") ?? (ay!=null&&ey!=null?ay-ey:null);
-        p.ngs.catchPct=pickNum(row,"catch_percentage","catchPercentage");
-        p.ngs.targets=pickNum(row,"targets");
+        pushMetric(p,"yacOverExpected",pickNum(row,"avg_yac_above_expectation","avgYacAboveExpectation") ?? (ay!=null&&ey!=null?ay-ey:null),targets);
+        pushMetric(p,"catchPct",pickNum(row,"catch_percentage","catchPercentage"),targets);
       }
       players.set(key,p);
       (teamRows[team]||(teamRows[team]=[])).push(p);
@@ -187,6 +201,10 @@ export function aggregateNextGen(rowsByType={},season=null){
   const byTeam={};
   for(const p of players.values()){
     p.games=p.games.size;
+    for(const key of ["avgTimeToThrow","aggressiveness","cpoe","passerRating","ryoePerAtt","rushEfficiency","avgTimeToLos","avgSeparation","avgCushion","avgIntendedAirYards","yacOverExpected","catchPct"]){
+      p.ngs[key]=finishMetric(p,key);
+    }
+    delete p.ngsSeries;
     (byTeam[p.team]||(byTeam[p.team]=[])).push(p);
   }
   const teamFeatures={};
