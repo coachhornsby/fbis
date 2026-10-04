@@ -31,7 +31,7 @@ export default function TeamLogo({
   const abbr = remote?.abbr || resolved.abbr;
   const sport = String(team?.sport || "").toLowerCase();
   const baseUrl = resolved.url;
-  const url = !failed ? (baseUrl || remote?.logo || null) : null;
+  const url = remote?.logo || (!failed ? baseUrl : null);
   const plate = tone === "dark" || tone === "auto";
 
   useEffect(() => {
