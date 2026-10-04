@@ -125,7 +125,7 @@ const rows=makeRows(),discovery=years[0],validation=years[1],confirmation=years[
 
 function standardizer(xs){
   const d=xs[0].length,mu=[],sig=[];for(let j=0;j<d;j++){const a=xs.map(x=>x[j]);mu[j]=mean(a);sig[j]=sd(a)||1;}
-  return{x=>x.map((v,j)=>(v-mu[j])/sig[j]),mu,sig};
+  return{x:(x)=>x.map((v,j)=>(v-mu[j])/sig[j]),mu,sig};
 }
 function solve(A,b){
   const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
