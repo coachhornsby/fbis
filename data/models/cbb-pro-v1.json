@@ -1,6 +1,6 @@
 {
   "id": "CBB-PRO-v1",
-  "version": "v1.0.0",
+  "version": "v1.1.0",
   "sport": "cbb",
   "role": "production-projection",
   "productionProjection": true,
@@ -23,15 +23,27 @@
     "canAuthorizeWager": false
   },
   "total": {
-    "projection": "0.50*KenPomTotal + 0.50*CBBDTotal",
-    "marketTotalRange": [
-      145,
-      155
-    ],
-    "minAbsEdge": 4,
-    "researchOnly": true,
+    "projection": "FBIS-CBB-v2-TOTAL residual correction on independent FBIS-CBB-RATINGS-v2 total",
+    "training": "2018-22 only; leave-one-season-out lambda selection",
+    "validation": {
+      "season": "2023-24",
+      "n": 8971,
+      "correctedMae": 13.5092,
+      "kenpomMae": 13.5758,
+      "vsKenpom": 0.0666
+    },
+    "confirmation": {
+      "season": "2025",
+      "n": 4531,
+      "correctedMae": 14.4553,
+      "kenpomMae": 14.8974,
+      "vsKenpom": 0.4421
+    },
+    "productionProjection": true,
+    "researchOnly": false,
     "canQualify": false,
-    "canAuthorizeWager": false
+    "canAuthorizeWager": false,
+    "qualificationReason": "Market-confidence layer failed validation; total is predictive projection only."
   },
   "frozenResearchInput": {
     "version": "cbb-enriched-v2026.10.02",
