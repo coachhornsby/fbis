@@ -93,7 +93,9 @@ export function reconstructLineupStints({
     if(outId){const i=lineup.indexOf(outId);if(i>=0)lineup.splice(i,1)}
     if(inn&&!lineup.includes(inn)&&lineup.length<5)lineup.push(inn);
   }
-  emit(2400,"END_REGULATION");
+  const maxPeriod=Math.max(4,...normalized.map(p=>Number(p.period||0)).filter(Number.isFinite));
+  const gameEnd=2400+Math.max(0,maxPeriod-4)*300;
+  emit(gameEnd,maxPeriod>4?"END_OVERTIME":"END_REGULATION");
   return out;
 }
 
