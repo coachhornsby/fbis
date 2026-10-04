@@ -12,6 +12,10 @@ on:
       - "functions/lib/nhlPropConfidence.js"
       - "functions/lib/proPlayerProjectionLayer.js"
       - "src/features/playerProps/buildPlayerPropsBoard.js"
+      - "src/features/playerProps/PlayerPropsBoard.jsx"
+      - "src/features/playerProps/PlayerWorkspace.jsx"
+      - "src/features/playerProps/playerProps.css"
+      - "src/features/today/TopPlayerProps.jsx"
       - "test/nhl-prop-confidence.test.js"
       - "package.json"
       - ".github/workflows/nhl-full-validation.yml"
@@ -55,6 +59,8 @@ jobs:
             nhl-player-pro-v2-box-v1-${{ runner.os }}
       - name: Full repository tests
         run: npm test
+      - name: Production build
+        run: npm run build
       - name: NHL-PRO-v2 full PIT + all game subsets
         run: |
           set -euo pipefail
