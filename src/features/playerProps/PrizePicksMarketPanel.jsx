@@ -149,13 +149,8 @@ function groupLatest(rows=[]){
       (TIER_ORDER[String(a.odds_tier||"standard").toLowerCase()]??9)-
       (TIER_ORDER[String(b.odds_tier||"standard").toLowerCase()]??9)
     );
-    const primary=[...variants].sort((a,b)=>{
-      const byStars=(rowStars(b)||0)-(rowStars(a)||0);
-      if(byStars) return byStars;
-      const bz=Math.abs(Number(b.standardized_edge ?? b.selection_score ?? b.delta_fbis_minus_line ?? 0));
-      const az=Math.abs(Number(a.standardized_edge ?? a.selection_score ?? a.delta_fbis_minus_line ?? 0));
-      return bz-az;
-    })[0]||variants[0];
+    const standard=variants.find((v)=>String(v.odds_tier||"standard").toLowerCase()==="standard");
+    const primary=standard||variants[0];
     return {...g,primary,variants};
   });
 }
@@ -165,6 +160,76 @@ function tierLabel(row={}){
   if(tier==="goblin") return "GOBLIN";
   if(tier==="demon") return "DEMON";
   return "STANDARD";
+}
+
+
+function VariantMetrics({ group }){
+  const variants=group?.variants||[];
+  const defaultTier=String(group?.primary?.odds_tier||"standard").toLowerCase();
+  const [tier,setTier]=useState(defaultTier);
+  const active=variants.find((v)=>String(v.odds_tier||"standard").toLowerCase()===tier)
+    || group?.primary
+    || variants[0];
+  if(!active) return null;
+  const side=sideFor(active);
+  const diff=active.delta_fbis_minus_line ?? (Number(active.fbis_projection)-Number(active.line));
+  const hasAlternates=variants.length>1;
+
+  return (
+    <div className="pp-variant-shell">
+      <div className="pp-tier-control-row">
+        <span className={"pp-active-tier pp-active-tier-"+String(active.odds_tier||"standard").toLowerCase()}>
+          {tierLabel(active)}
+        </span>
+        {hasAlternates ? (
+          <label className="pp-tier-select-wrap">
+            <span>Line type</span>
+            <select
+              className="pp-tier-select"
+              value={String(active.odds_tier||"standard").toLowerCase()}
+              onChange={(e)=>setTier(e.target.value)}
+              aria-label="PrizePicks line type"
+            >
+              {variants.map((v)=>(
+                <option
+                  key={v.id||v.projection_id||String(v.odds_tier)+"-"+String(v.line)}
+                  value={String(v.odds_tier||"standard").toLowerCase()}
+                >
+                  {tierLabel(v)} · {v.line??"—"}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+
+      <div className="pp-line-row pp-premium-metrics">
+        <div>
+          <span>PP LINE</span>
+          <strong>{active.line??"—"}</strong>
+        </div>
+        <div className="fbis-metric">
+          <span>FBIS</span>
+          <strong>{active.fbis_projection==null?"—":num(active.fbis_projection)}</strong>
+        </div>
+        <div>
+          <span>HIT %</span>
+          <strong>{formatHit(active)}</strong>
+        </div>
+      </div>
+
+      <div className={"pp-read pp-premium-read pp-read-"+String(side).toLowerCase()}>
+        <div className="pp-read-side">
+          <span className="pp-read-arrow" aria-hidden="true">{side==="LESS"?"↓":"↑"}</span>
+          <b>{side}</b>
+        </div>
+        <div className="pp-edge-value">
+          <span>EDGE</span>
+          <strong>{signed(diff)}</strong>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function StarRating({ stars=1 }){
@@ -236,7 +301,9 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
   const title=localSport==="top25"?"Top 25":localSport.toUpperCase();
   const subtitle=localSport==="top25"
     ?"Best projected FBIS player-prop edges today"
-    :"Every "+localSport.toUpperCase()+" prop with a valid FBIS projection";
+    :localSport==="nfl"
+      ?"Only 4★+ NFL Standard-line edges, plus all 49ers QB1/RB1/WR1/WR2/TE1 projections"
+      :"Every "+localSport.toUpperCase()+" prop with a valid FBIS projection";
 
   return (
     <section className="pp-market pp-premium-page" aria-label="FBIS player props">
@@ -332,45 +399,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
 
                 <div className="pp-market-name pp-premium-market-name">{marketLabel(r)}</div>
 
-                {group.variants.filter((v)=>rowStars(v)!=null).map((v)=>{
-                  const side=sideFor(v);
-                  const diff=v.delta_fbis_minus_line ?? (Number(v.fbis_projection)-Number(v.line));
-                  return (
-                    <div className={"pp-variant pp-premium-variant pp-tier-"+String(v.odds_tier||"standard").toLowerCase()} key={v.id||v.projection_id||String(v.odds_tier)+"-"+String(v.line)}>
-                      <div className="pp-tier-head">
-                        <span>{tierLabel(v)}</span>
-                        <span className="pp-tier-stars" aria-label={(rowStars(v)||1)+" out of 5 stars"}>
-                          {Array.from({length:5},(_,i)=><span key={i} className={i<(rowStars(v)||1)?"filled":"empty"}>★</span>)}
-                        </span>
-                      </div>
-                      <div className="pp-line-row pp-premium-metrics">
-                        <div>
-                          <span>PP LINE</span>
-                          <strong>{v.line??"—"}</strong>
-                        </div>
-                        <div className="fbis-metric">
-                          <span>FBIS</span>
-                          <strong>{v.fbis_projection==null?"—":num(v.fbis_projection)}</strong>
-                        </div>
-                        <div>
-                          <span>HIT %</span>
-                          <strong>{formatHit(v)}</strong>
-                        </div>
-                      </div>
-
-                      <div className={"pp-read pp-premium-read pp-read-"+String(side).toLowerCase()}>
-                        <div className="pp-read-side">
-                          <span className="pp-read-arrow" aria-hidden="true">{side==="LESS"?"↓":"↑"}</span>
-                          <b>{side}</b>
-                        </div>
-                        <div className="pp-edge-value">
-                          <span>EDGE</span>
-                          <strong>{signed(diff)}</strong>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                <VariantMetrics group={group}/>
 
                 <div className="pp-card-foot pp-premium-foot">
                   <span>{matchupLabel(r)}</span>
