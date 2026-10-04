@@ -76,7 +76,14 @@ export async function onRequestPost(context){
    // Hard cost invariant: exactly one paid full-slate ACTION acquisition per CT day.
    // A newly appearing game/sport never triggers a second board pull; later refreshes
    // must use the separate targeted-candidate path.
-   if(done)return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id,today,activeSports,actor:ACTION_APIFY_ACTOR_ID});
+   if(done){
+     const parent=await db.queryOne("SELECT COUNT(*) n FROM shadow_market_observations WHERE run_id=?",[done.id]);
+     const series=await db.queryOne("SELECT COUNT(*) n FROM action_market_book_observations WHERE run_id=?",[done.id]);
+     if(Number(parent?.n||0)>0&&Number(series?.n||0)===0){
+       return json({ok:true,executed:false,status:"recovery_required",harvestRequired:true,runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id,today,activeSports,actor:ACTION_APIFY_ACTOR_ID},202);
+     }
+     return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id,today,activeSports,actor:ACTION_APIFY_ACTOR_ID});
+   }
    const collectionSports=[...activeSports],leagues=collectionSports.map(s=>LEAGUE[s]);
    const requestedRaw=Number(context.env.ACTION_APIFY_DAILY_MAX_GAMES||300);
    const requested=Math.max(1,Math.min(500,Number.isFinite(requestedRaw)?Math.floor(requestedRaw):300));
@@ -96,7 +103,19 @@ export async function onRequestPost(context){
    return json({ok:true,executed:true,status:"started_daily",runId,apifyRunId:a.id||null,datasetId:a.defaultDatasetId||null,today,estimatedCostUsd:estimate,costReservedUsd:reservation.estimated_total_usd},202);
  }
  if(mode!=="harvest")return json({ok:false,status:"invalid_mode"},400);
- const run=await active(db,today);if(!run){const done=await successful(db,today);if(done)return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id});const old=await latest(db,today);return json({ok:true,executed:false,status:old?"nothing_active_to_harvest":"nothing_to_harvest",lastStatus:old?.status||null,today});}
+ let run=await active(db,today),recoveryReplay=false;
+ if(!run){
+   const done=await successful(db,today);
+   if(done){
+     const parent=await db.queryOne("SELECT COUNT(*) n FROM shadow_market_observations WHERE run_id=?",[done.id]);
+     const series=await db.queryOne("SELECT COUNT(*) n FROM action_market_book_observations WHERE run_id=?",[done.id]);
+     if(Number(parent?.n||0)>0&&Number(series?.n||0)===0){run=done;recoveryReplay=true;}
+     else return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id});
+   } else {
+     const old=await latest(db,today);
+     return json({ok:true,executed:false,status:old?"nothing_active_to_harvest":"nothing_to_harvest",lastStatus:old?.status||null,today});
+   }
+ }
  if(!run.apify_run_id)return json({ok:false,status:"missing_apify_run_id",runId:run.id},500);
  const token=String(context.env.APIFY_TOKEN||context.env.APIFY_API_TOKEN||"").trim();if(!token)return json({ok:false,status:"apify_not_configured"},503);
  const rr=await fetch(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(run.apify_run_id)}`,{headers:{Authorization:`Bearer ${token}`}});if(!rr.ok)return json({ok:false,status:"apify_poll_http",http:rr.status},502);const rj=await rr.json(),ar=rj.data||rj,status=String(ar.status||"");
@@ -135,7 +154,7 @@ export async function onRequestPost(context){
    sourceObservedAt:x.source_observed_at||null,
    rawPayloadHash:x.raw_payload_hash||null,
  },{runId:run.id})));
- const pending=eligible.filter(x=>!existing.has(x.key));
+ const pending=recoveryReplay?eligible:eligible.filter(x=>!existing.has(x.key));
  const configuredBatch=Number(context.env.ACTION_APIFY_HARVEST_BATCH_ROWS||4);
  const batchSize=Math.max(1,Math.min(12,Number.isFinite(configuredBatch)?Math.floor(configuredBatch):4));
  const batch=pending.slice(0,batchSize);
