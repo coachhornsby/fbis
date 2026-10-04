@@ -15,7 +15,8 @@ export function confidenceStars(game) {
   const vm = buildBoardGameViewModel(game);
   const tier = String(vm.decision?.tier || "").toUpperCase();
   const qualification = String(vm.decision?.qualification || "").toUpperCase();
-  const q = Number(vm.quality?.score);
+  const rawQuality = vm.quality?.score;
+  const q = rawQuality == null || rawQuality === "" ? NaN : Number(rawQuality);
   let stars = Number.isFinite(q)
     ? q >= 90 ? 5 : q >= 80 ? 4 : q >= 68 ? 3 : q >= 55 ? 2 : 1
     : (TIER_FALLBACK[tier] || 2);
@@ -37,8 +38,10 @@ export function sortByConfidence(games = []) {
   return [...games].sort((a, b) => {
     const starDiff = confidenceStars(b) - confidenceStars(a);
     if (starDiff) return starDiff;
-    const qa = Number(buildBoardGameViewModel(a).quality?.score);
-    const qb = Number(buildBoardGameViewModel(b).quality?.score);
+    const rawQa = buildBoardGameViewModel(a).quality?.score;
+    const rawQb = buildBoardGameViewModel(b).quality?.score;
+    const qa = rawQa == null || rawQa === "" ? NaN : Number(rawQa);
+    const qb = rawQb == null || rawQb === "" ? NaN : Number(rawQb);
     if (Number.isFinite(qa) || Number.isFinite(qb)) {
       const qualityDiff = (Number.isFinite(qb) ? qb : -1) - (Number.isFinite(qa) ? qa : -1);
       if (qualityDiff) return qualityDiff;

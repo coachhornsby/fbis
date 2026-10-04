@@ -28,6 +28,50 @@ describe("board confidence stars", () => {
     assert.equal(confidenceStars(g), 5);
   });
 
+  it("does not coerce missing quality to zero and falls back to decision tier", () => {
+    const g = game("missing-quality", null, {
+      quality: { score: null, flags: [] },
+      rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 },
+    });
+    assert.equal(confidenceStars(g), 4);
+  });
+
+  it("accepts canonical snake_case data_quality when nested quality is absent", () => {
+    const g = game("snake-quality", null, {
+      quality: undefined,
+      data_quality: 84,
+      rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 },
+    });
+    assert.equal(confidenceStars(g), 4);
+  });
+
+  it("accepts sport-specific CFB dataQuality when nested quality is absent", () => {
+    const g = game("cfb-quality", null, {
+      sport: "cfb",
+      quality: undefined,
+      cfb: { dataQuality: 88, bettingAllowed: true },
+      rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 },
+    });
+    assert.equal(confidenceStars(g), 4);
+  });
+
+  it("uses the documented quality thresholds exactly", () => {
+    const qualified = { rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 } };
+    assert.equal(confidenceStars(game("q90", 90, qualified)), 5);
+    assert.equal(confidenceStars(game("q89", 89, qualified)), 4);
+    assert.equal(confidenceStars(game("q80", 80, qualified)), 4);
+    assert.equal(confidenceStars(game("q79", 79, qualified)), 3);
+    assert.equal(confidenceStars(game("q68", 68, qualified)), 3);
+    assert.equal(confidenceStars(game("q67", 67, qualified)), 2);
+    assert.equal(confidenceStars(game("q55", 55, qualified)), 2);
+    assert.equal(confidenceStars(game("q54", 54, qualified)), 1);
+  });
+
+  it("keeps hard governance blocks at one star regardless of quality", () => {
+    const g = game("blocked", 98, { quality: { score: 98, state: "DQ", flags: [] } });
+    assert.equal(confidenceStars(g), 1);
+  });
+
   it("caps research projections at three stars", () => {
     const g = game("research", 98, {
       projectionMaturity: "RESEARCH",
