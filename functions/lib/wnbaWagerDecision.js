@@ -3,7 +3,7 @@ import { decisionFromOffer } from "./wagerDecisionEngine.js";
 const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
-export const WNBA_WAGER_DECISION_VERSION="WNBA-WAGER-DECISION-v1";
+export const WNBA_WAGER_DECISION_VERSION="WNBA-WAGER-v2";
 
 export function buildWnbaOffers(game={}){
   const o=game.odds||{};
@@ -155,6 +155,31 @@ export function deriveWnbaMarketTrajectory(rows=[],offer={},distribution={}){
   };
 }
 
+export async function loadWnbaOwnedOddsRows(db,eventId,{limit=240}={}){
+  if(!db?.prepare||!eventId)return [];
+  try{
+    const res=await db.prepare(
+      `SELECT market,side,line,price,book,captured_at,checkpoint,rejected_post_start
+         FROM odds_snapshots
+        WHERE sport='wnba' AND game_id=? AND COALESCE(rejected_post_start,0)=0
+          AND price IS NOT NULL
+        ORDER BY captured_at ASC
+        LIMIT ?`
+    ).bind(String(eventId),Math.max(1,Math.min(500,Number(limit)||240))).all();
+    return (res?.results||[]).map(r=>({
+      market_type:String(r.market||"").toLowerCase()==="ml"?"moneyline":String(r.market||"").toLowerCase(),
+      selection:String(r.side||"").toLowerCase(),
+      line:r.line,
+      american_price:r.price,
+      sportsbook:r.book,
+      provider_timestamp:r.captured_at,
+      collected_at:r.captured_at,
+      snapshot_type:r.checkpoint||"CURRENT",
+      source:"FBIS_ODDS_SNAPSHOTS",
+    }));
+  }catch{return [];}
+}
+
 export async function loadWnbaActionRows(db,eventId,{limit=120}={}){
   if(!db?.prepare||!eventId)return [];
   try{
@@ -168,6 +193,23 @@ export async function loadWnbaActionRows(db,eventId,{limit=120}={}){
     ).bind(String(eventId),Math.max(1,Math.min(240,Number(limit)||120))).all();
     return res?.results||[];
   }catch{return [];}
+}
+
+function overlayActionContext(intelligence,actionRows=[],offer={}){
+  const relevant=(actionRows||[]).filter(r=>selectedObservation(r,offer))
+    .sort((a,b)=>Date.parse(a.collected_at||a.provider_timestamp||0)-Date.parse(b.collected_at||b.provider_timestamp||0));
+  const latest=relevant.at(-1)||null;
+  if(!latest)return {...intelligence,actionOverlayAvailable:false};
+  const ticketPct=finite(latest.public_ticket_pct),moneyPct=finite(latest.public_money_pct);
+  return {
+    ...intelligence,
+    actionOverlayAvailable:true,
+    ticketPct:ticketPct??intelligence.ticketPct,
+    moneyPct:moneyPct??intelligence.moneyPct,
+    moneyMinusTicket:ticketPct==null||moneyPct==null?intelligence.moneyMinusTicket:moneyPct-ticketPct,
+    actionObservedAt:latest.provider_timestamp||latest.collected_at||null,
+    actionSportsbook:latest.sportsbook||null,
+  };
 }
 
 export function wnbaEvidence(game={},projection={}){
@@ -192,11 +234,20 @@ export async function buildWnbaGameDecisions(game={},db=null,{minEv=0.03,calibra
   const distribution=decomposeWnbaProjection(game);
   if(distribution.margin==null||distribution.total==null)return {gameId:game.id,ok:false,reason:"independent_projection_missing",offers:[]};
   const offers=buildWnbaOffers(game);
-  const actionRows=await loadWnbaActionRows(db,game.id);
+  const [ownedRows,actionRows]=await Promise.all([
+    loadWnbaOwnedOddsRows(db,game.id),
+    loadWnbaActionRows(db,game.id),
+  ]);
   const evidence=wnbaEvidence(game,distribution);
   const decisions=[];
   for(const offer of offers){
-    const intelligence=deriveWnbaMarketTrajectory(actionRows,offer,distribution);
+    const trajectoryRows=ownedRows.length?ownedRows:actionRows;
+    let intelligence=deriveWnbaMarketTrajectory(trajectoryRows,offer,distribution);
+    intelligence={
+      ...intelligence,
+      lineSource:ownedRows.length?"FBIS_ODDS_SNAPSHOTS":actionRows.length?"ACTION_APIFY":"CURRENT_OFFER_ONLY",
+    };
+    intelligence=overlayActionContext(intelligence,actionRows,offer);
     let decision=decisionFromOffer({
       offer,distribution,intelligence,evidence,minEv,
       stakeRulesValidated:false,
@@ -214,11 +265,19 @@ export async function buildWnbaGameDecisions(game={},db=null,{minEv=0.03,calibra
     }
     decisions.push(decision);
   }
+  const ranked=decisions.slice().sort((a,b)=>(b.expectedValue??-9)-(a.expectedValue??-9));
+  const bestBet=ranked.find(x=>x.decision==="BET")||ranked[0]||null;
   return {
     ok:true,gameId:String(game.id||""),sport:"wnba",start:game.start||null,
     matchup:`${game.away?.abbr||game.away?.name||"AWAY"} @ ${game.home?.abbr||game.home?.name||"HOME"}`,
-    model:distribution,offers:decisions,
+    model:distribution,offers:ranked,candidates:ranked,
     decisionVersion:WNBA_WAGER_DECISION_VERSION,
-    bestBet:decisions.filter(x=>x.decision==="BET").sort((a,b)=>(b.expectedValue??-9)-(a.expectedValue??-9))[0]||null,
+    bestBet,bestWager:bestBet,
+    decision:bestBet?.decision||"PASS",
+    confidenceScore:bestBet?.confidence??null,
+    confidenceValidated:bestBet?.confidenceCalibrationState==="EMPIRICAL",
+    staking:{validated:false,units:null,reason:"staking-rules-not-validated"},
+    closeUsedAsDecisionInput:false,
+    objective:"positive-expected-value-at-offered-price",
   };
 }
