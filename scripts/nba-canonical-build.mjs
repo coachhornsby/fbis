@@ -4,6 +4,7 @@ import fs from "node:fs";
 const args=Object.fromEntries(process.argv.slice(2).map(x=>x.split("=")));
 const start=args.start||"2025-10-21", end=args.end||"2026-06-21";
 const out=args.out||"artifacts/nba-canonical.jsonl";
+const allowEmpty=String(args.allowEmpty||"0")==="1";
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
@@ -162,9 +163,12 @@ const threeCoverage=players.length?players.filter(x=>finite(x.threes)!=null).len
 const quality={possessions:possCoverage,playerMinutes:minutesCoverage,playerThrees:threeCoverage};
 console.log(JSON.stringify({quality},null,2));
 
-if(possCoverage<0.90) throw new Error(`NBA canonical quality fail: possession coverage ${possCoverage}`);
-if(minutesCoverage<0.90) throw new Error(`NBA canonical quality fail: minutes coverage ${minutesCoverage}`);
-if(threeCoverage<0.90) throw new Error(`NBA canonical quality fail: 3PM coverage ${threeCoverage}`);
+if(!rows.length && !allowEmpty) throw new Error("NBA canonical quality fail: no completed games");
+if(rows.length){
+  if(possCoverage<0.90) throw new Error(`NBA canonical quality fail: possession coverage ${possCoverage}`);
+  if(minutesCoverage<0.90) throw new Error(`NBA canonical quality fail: minutes coverage ${minutesCoverage}`);
+  if(threeCoverage<0.90) throw new Error(`NBA canonical quality fail: 3PM coverage ${threeCoverage}`);
+}
 
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
 fs.writeFileSync(out,rows.map(x=>JSON.stringify(x)).join("\n")+"\n");
