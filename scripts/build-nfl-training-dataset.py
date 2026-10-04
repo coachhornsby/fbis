@@ -42,7 +42,9 @@ def norm_team(x):
 def read_csv_url(url):
     req = Request(url, headers={"User-Agent": "FBIS-nfl-research/1.0"})
     with urlopen(req, timeout=120) as r:
-        return pd.read_csv(io.BytesIO(r.read()), low_memory=False)
+        payload = io.BytesIO(r.read())
+        compression = "gzip" if str(url).lower().endswith(".gz") else "infer"
+        return pd.read_csv(payload, low_memory=False, compression=compression)
 
 
 def read_parquet_url(url):
