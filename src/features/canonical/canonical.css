@@ -133,3 +133,213 @@
   border-color:rgba(72,136,194,.18);
 }
 
+
+
+/* === Premium Models tab game cards === */
+.model-game-card {
+  min-height: 300px;
+  padding: 15px !important;
+  border-radius: 18px !important;
+  border-color: rgba(41,145,230,.48) !important;
+  background:
+    radial-gradient(420px 180px at 12% -10%, rgba(21,132,255,.16), transparent 64%),
+    linear-gradient(180deg,rgba(8,30,54,.98),rgba(4,17,31,.98)) !important;
+  box-shadow:
+    0 16px 34px rgba(0,0,0,.34),
+    inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+
+.model-game-card-head {
+  align-items: flex-start !important;
+  margin-bottom: 14px !important;
+}
+
+.model-game-card-head > div:first-child {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.model-game-kick {
+  color:#d9e6f5;
+  font-size:11px;
+  font-weight:850;
+}
+
+.model-game-sport {
+  color:#52c9ff;
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.08em;
+}
+
+.model-game-head-right {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:5px;
+}
+
+.model-card-stars {
+  display:inline-flex;
+  gap:1px;
+  font-size:14px;
+  line-height:1;
+  filter:drop-shadow(0 0 6px rgba(255,203,52,.35));
+}
+
+.model-card-stars .filled {
+  color:#ffd23f;
+  text-shadow:0 0 7px rgba(255,199,45,.42);
+}
+
+.model-card-stars .empty {
+  color:rgba(255,222,122,.25);
+}
+
+.model-game-matchup {
+  gap:10px !important;
+}
+
+.model-game-team {
+  display:grid !important;
+  grid-template-columns:58px minmax(0,1fr) auto !important;
+  gap:10px !important;
+  align-items:center !important;
+  min-height:72px;
+  padding:9px 10px;
+  border:1px solid rgba(73,132,191,.18);
+  border-radius:13px;
+  background:rgba(3,14,28,.52);
+}
+
+.model-game-team-copy {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+
+.model-game-team-copy b {
+  color:#fff;
+  font-size:15px;
+  font-weight:950;
+  letter-spacing:.03em;
+}
+
+.model-game-team-copy span {
+  color:#8fa3bc;
+  font-size:9px;
+  line-height:1.2;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.model-game-score {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:2px;
+}
+
+.model-game-score strong {
+  color:#fff !important;
+  font-size:30px !important;
+  line-height:1 !important;
+  font-weight:950;
+  text-shadow:0 0 15px rgba(84,177,255,.14);
+}
+
+.model-game-score small {
+  color:#58d1ff;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+
+.model-game-metrics {
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:0 !important;
+  margin:12px 0 10px !important;
+  padding:0 !important;
+  overflow:hidden;
+  border:1px solid rgba(70,137,199,.24) !important;
+  border-radius:13px;
+  background:rgba(2,13,26,.72);
+}
+
+.model-game-metrics > span {
+  min-width:0;
+  padding:10px 7px;
+  text-align:center;
+}
+
+.model-game-metrics > span + span {
+  border-left:1px solid rgba(70,137,199,.18);
+}
+
+.model-game-metrics em {
+  display:block;
+  color:#8297b1;
+  font-size:8px;
+  font-style:normal;
+  font-weight:850;
+  letter-spacing:.055em;
+}
+
+.model-game-metrics b {
+  display:block !important;
+  margin-top:5px !important;
+  color:#fff !important;
+  font-size:14px !important;
+  font-weight:950 !important;
+  white-space:nowrap;
+}
+
+.model-game-metrics > span:first-child b {
+  color:#55efad !important;
+  text-shadow:0 0 10px rgba(52,238,166,.14);
+}
+
+.model-game-foot {
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding-top:8px;
+  border-top:1px solid rgba(72,136,194,.14);
+  color:#71859e;
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.04em;
+}
+
+.model-game-foot b {
+  color:#dbe8f7;
+}
+
+@media(max-width:640px){
+  .model-game-card {
+    min-height: 286px;
+    padding:13px !important;
+  }
+
+  .model-game-team {
+    grid-template-columns:52px minmax(0,1fr) auto !important;
+    padding:8px;
+  }
+
+  .model-game-team .team-logo {
+    width:50px !important;
+    height:50px !important;
+  }
+
+  .model-game-score strong {
+    font-size:27px !important;
+  }
+
+  .model-game-metrics b {
+    font-size:13px !important;
+  }
+}
