@@ -12,7 +12,7 @@ import { clamp, coverageSummary, finite, round1 } from "./deepModelCommon.js";
 import { evaluateMlbF5Market, f5MoneylineProbabilities } from "./mlbF5.js";
 
 export const MLB_DEEP_ID = "MLB-FBIS-v2";
-export const MLB_DEEP_VERSION = "research-v2.2-f5-market";
+export const MLB_DEEP_VERSION = "research-v2.3-pitch-zone";
 export const MLB_DEEP_CONSTANTS = {
   leagueRpg: 4.45,
   leagueEra: 4.15,
@@ -56,14 +56,36 @@ function firstFivePitchFactor(starterEra, bullpenEra, starterInnings) {
   };
 }
 
-function pitcherKProjection({ kPer9, inningsPerStart, expectedInnings, opponentKRate, leagueKRate }) {
+function pitcherKProjection({ kPer9, inningsPerStart, expectedInnings, opponentKRate, leagueKRate, battersFacedPerInning, pitchMatchup }) {
   const k9 = finite(kPer9);
-  if (k9 == null) return null;
   const ip = clamp(
     finite(expectedInnings) ?? finite(inningsPerStart) ?? MLB_DEEP_CONSTANTS.expectedStarterInnings,
     3,
     7.5
   );
+  const detailedKRate = finite(pitchMatchup?.lineupKRate);
+  const bfPerIp = finite(battersFacedPerInning);
+  if (detailedKRate != null && bfPerIp != null) {
+    const bf = clamp(bfPerIp * ip, 12, 36);
+    const projection = clamp(detailedKRate * bf, 1.0, 12.5);
+    return {
+      projection: round1(projection),
+      sigma: round1(Math.sqrt(Math.max(0.25, bf * detailedKRate * (1 - detailedKRate)))),
+      kPer9: k9 == null ? null : round1(k9),
+      expectedInnings: round1(ip),
+      battersFacedPerInning: Math.round(bfPerIp * 100) / 100,
+      expectedBattersFaced: round1(bf),
+      lineupKRate: Math.round(detailedKRate * 1000) / 1000,
+      matchupCoverage: finite(pitchMatchup?.coverage),
+      matchupWhiffRate: finite(pitchMatchup?.whiffPerSwing),
+      matchupContactRate: finite(pitchMatchup?.contactPerSwing),
+      matchupDynamicDifficulty: finite(pitchMatchup?.dynamicDifficulty),
+      source: "STATCAST_PITCH_SHAPE_X_HITTER_ZONE_X_WORKLOAD",
+      independentOfPalFinalProjection: true,
+      calibrationState: pitchMatchup?.calibrationState || "RESEARCH_UNVALIDATED",
+    };
+  }
+  if (k9 == null) return null;
   const opp = finite(opponentKRate);
   const lg = finite(leagueKRate) ?? 0.225;
   const opponentFactor = opp != null && lg > 0 ? clamp(opp / lg, 0.78, 1.22) : 1;
@@ -74,7 +96,7 @@ function pitcherKProjection({ kPer9, inningsPerStart, expectedInnings, opponentK
     opponentKRate: opp,
     leagueKRate: lg,
     opponentFactor: Math.round(opponentFactor * 1000) / 1000,
-    source: "MLB_STATS_STARTER_K_RATE_X_WORKLOAD_X_OPPONENT_K_RATE",
+    source: "MLB_STATS_STARTER_K_RATE_X_WORKLOAD_X_OPPONENT_K_RATE_FALLBACK",
     independentOfPalFinalProjection: true,
   };
 }
@@ -177,14 +199,25 @@ export function projectMlbDeep(game = {}) {
   );
   const homePalMatchup = homePal.factor;
   const awayPalMatchup = awayPal.factor;
+  const pitchMatchup = game.mlbPitchMatchup || {};
+  const homeDetailed = pitchMatchup.homeOffense || null;
+  const awayDetailed = pitchMatchup.awayOffense || null;
+  const homeStarterRunFactor = finite(homeDetailed?.runFactor);
+  const awayStarterRunFactor = finite(awayDetailed?.runFactor);
+  const homeMatchupFactor = homeStarterRunFactor != null
+    ? clamp(1 + (homeStarterRunFactor - 1) * awayPitch.starterShare, 0.92, 1.08)
+    : homePalMatchup;
+  const awayMatchupFactor = awayStarterRunFactor != null
+    ? clamp(1 + (awayStarterRunFactor - 1) * homePitch.starterShare, 0.92, 1.08)
+    : awayPalMatchup;
 
   const home = round1(clamp(
-    offenseRpg(homeRpg) * awayPitch.factor * homePlatoon * homeDefenseOpp * homePalMatchup * env * MLB_DEEP_CONSTANTS.homeEdge,
+    offenseRpg(homeRpg) * awayPitch.factor * homePlatoon * homeDefenseOpp * homeMatchupFactor * env * MLB_DEEP_CONSTANTS.homeEdge,
     1.4,
     8.5
   ));
   const away = round1(clamp(
-    offenseRpg(awayRpg) * homePitch.factor * awayPlatoon * awayDefenseOpp * awayPalMatchup * env,
+    offenseRpg(awayRpg) * homePitch.factor * awayPlatoon * awayDefenseOpp * awayMatchupFactor * env,
     1.4,
     8.5
   ));
@@ -193,13 +226,19 @@ export function projectMlbDeep(game = {}) {
 
   const homeF5Pitch = firstFivePitchFactor(homeSpEra, homeBpEra ?? MLB_DEEP_CONSTANTS.leagueEra, homeInternalStarterInnings);
   const awayF5Pitch = firstFivePitchFactor(awaySpEra, awayBpEra ?? MLB_DEEP_CONSTANTS.leagueEra, awayInternalStarterInnings);
+  const homeF5MatchupFactor = homeStarterRunFactor != null
+    ? clamp(1 + (homeStarterRunFactor - 1) * (awayF5Pitch.starterInningsF5 / 5), 0.90, 1.10)
+    : homePalMatchup;
+  const awayF5MatchupFactor = awayStarterRunFactor != null
+    ? clamp(1 + (awayStarterRunFactor - 1) * (homeF5Pitch.starterInningsF5 / 5), 0.90, 1.10)
+    : awayPalMatchup;
   const f5Home = round1(clamp(
-    offenseRpg(homeRpg) * (5 / 9) * awayF5Pitch.factor * homePlatoon * homeDefenseOpp * homePalMatchup * env * MLB_DEEP_CONSTANTS.homeEdge,
+    offenseRpg(homeRpg) * (5 / 9) * awayF5Pitch.factor * homePlatoon * homeDefenseOpp * homeF5MatchupFactor * env * MLB_DEEP_CONSTANTS.homeEdge,
     0.5,
     6.5
   ));
   const f5Away = round1(clamp(
-    offenseRpg(awayRpg) * (5 / 9) * homeF5Pitch.factor * awayPlatoon * awayDefenseOpp * awayPalMatchup * env,
+    offenseRpg(awayRpg) * (5 / 9) * homeF5Pitch.factor * awayPlatoon * awayDefenseOpp * awayF5MatchupFactor * env,
     0.5,
     6.5
   ));
@@ -233,6 +272,8 @@ export function projectMlbDeep(game = {}) {
       expectedInnings: finite(ctx.homeStarterExpectedInnings),
       opponentKRate: sv.homeOpponentKRate,
       leagueKRate: sv.leagueKRate,
+      battersFacedPerInning: sv.homeSpBattersFacedPerInning,
+      pitchMatchup: awayDetailed,
     }),
     away: pitcherKProjection({
       kPer9: sv.awaySpKPer9,
@@ -240,6 +281,8 @@ export function projectMlbDeep(game = {}) {
       expectedInnings: finite(ctx.awayStarterExpectedInnings),
       opponentKRate: sv.awayOpponentKRate,
       leagueKRate: sv.leagueKRate,
+      battersFacedPerInning: sv.awaySpBattersFacedPerInning,
+      pitchMatchup: homeDetailed,
     }),
   };
   const coverage = coverageSummary({
@@ -252,6 +295,7 @@ export function projectMlbDeep(game = {}) {
     defense: finite(ctx.homeDefenseRunsSaved) != null && finite(ctx.awayDefenseRunsSaved) != null,
     umpire: finite(ctx.umpireRunFactor) != null,
     palMatchup: finite(ctx.homePalRcVsTypical) != null && finite(ctx.awayPalRcVsTypical) != null,
+    pitchShapeZoneMatchup: Boolean(homeDetailed || awayDetailed),
     officialLineups: ctx.palLineupsOfficial === true,
   });
 
@@ -289,6 +333,10 @@ export function projectMlbDeep(game = {}) {
         platoonFactor: homePlatoon,
         defenseFactor: homeDefenseOpp,
         environmentFactor: env,
+        matchupFactor: homeMatchupFactor,
+        matchupSource: homeDetailed ? "STATCAST_PITCH_SHAPE_X_HITTER_ZONE" : "BALLPARK_PAL_AGGREGATE_FALLBACK",
+        detailedStarterRunFactor: homeStarterRunFactor,
+        detailedMatchup: homeDetailed,
         palMatchupFactor: homePalMatchup,
         palRcFactor: homePal.rcFactor,
         palHrFactor: homePal.hrFactor,
@@ -310,6 +358,10 @@ export function projectMlbDeep(game = {}) {
         platoonFactor: awayPlatoon,
         defenseFactor: awayDefenseOpp,
         environmentFactor: env,
+        matchupFactor: awayMatchupFactor,
+        matchupSource: awayDetailed ? "STATCAST_PITCH_SHAPE_X_HITTER_ZONE" : "BALLPARK_PAL_AGGREGATE_FALLBACK",
+        detailedStarterRunFactor: awayStarterRunFactor,
+        detailedMatchup: awayDetailed,
         palMatchupFactor: awayPalMatchup,
         palRcFactor: awayPal.rcFactor,
         palHrFactor: awayPal.hrFactor,
@@ -343,8 +395,8 @@ export function projectMlbDeep(game = {}) {
         homeStarterProjectedKs: finite(ctx.homePalStarterProjectedKs),
         awayStarterProjectedKs: finite(ctx.awayPalStarterProjectedKs),
       },
-      f5Policy: "FBIS first-five projection is calculated independently from run-allocation inputs; sportsbook F5 is comparison-only and never feeds score projection; Pal F5 remains an external cross-check.",
-      pitcherKPolicy: "FBIS pitcher K projection uses MLB Stats K/9, starter workload and opponent team K rate; Pal projected Ks are comparison-only.",
+      f5Policy: "FBIS first-five projection is independent of market prices. When Statcast pitch-shape x hitter-zone coverage is available it adjusts the starter component of F5 run allocation; Ballpark Pal aggregate matchup is fallback. Sportsbook F5 and Pal final F5 remain comparison-only.",
+      pitcherKPolicy: "FBIS pitcher K projection prefers Statcast pitch-shape x hitter contact-zone matchup K-rate times expected batters faced/workload; MLB Stats K/9 x opponent team K-rate is fallback only. Pal projected Ks are comparison-only.",
       palUsageAudit: {
         scoreInputs: [
           "park run factor",
