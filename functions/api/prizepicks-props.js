@@ -100,7 +100,6 @@ function projectionIdOf(row){
   return s(first(row,["projectionId","projection_id","id"]));
 }
 function marketFor(sport,stat){
-  if(sport==="wnba") return norm(stat).replace(/ /g,"_");
   return canonicalizeProPlayerPropMarket(sport,stat) || norm(stat).replace(/ /g,"_") || null;
 }
 function candidateKey(c){
