@@ -10,6 +10,7 @@ import {
 import {
   rateGenericNhlPropConfidence,
   rateNhlGoalieSavesConfidence,
+  rateNhlShotsOnGoalConfidence,
 } from "../../../functions/lib/nhlPropConfidence.js";
 
 /**
@@ -125,6 +126,33 @@ export function withFbisPropAnalytics(row = {}) {
         teamShotsAgainst: env.teamShotsAgainst,
         projectedShotsFaced: env.projectedShotsFaced,
         starterConfirmed: ranked.propGate === "CLEAR",
+        lineValidated: !ranked.lineValidationStatus || ranked.lineValidationStatus === "PROMOTE_RESEARCH",
+        modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
+      });
+      return {
+        ...ranked,
+        confidenceStars: stars.stars,
+        confidenceLabel: stars.label,
+        confidenceTier: stars.tier,
+        confidenceSide: stars.side,
+        confidenceGap: stars.gap,
+        confidenceReasons: stars.reasons,
+        confidenceResearchCandidate: stars.researchCandidate,
+        confidenceVersion: stars.confidenceVersion,
+        confidenceEnvironment: stars.environment,
+      };
+    }
+
+    if (String(ranked.marketCanonical || ranked.market || "") === "shots_on_goal") {
+      const env = ranked.shotEnvironment || {};
+      const stars = rateNhlShotsOnGoalConfidence({
+        projection: ranked.fbisProjection,
+        line: ranked.line,
+        teamShotsFor: env.teamShotsFor,
+        opponentShotsAgainst: env.opponentShotsAgainst,
+        projectedTeamShots: env.projectedTeamShots,
+        playerShotRate: env.playerShotRate,
+        playerShotShare: env.playerShotShare,
         lineValidated: !ranked.lineValidationStatus || ranked.lineValidationStatus === "PROMOTE_RESEARCH",
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
