@@ -8,6 +8,7 @@ import {
   f5TotalProbabilities,
   noVigPair,
 } from "../functions/lib/mlbF5.js";
+import { summarizeParlayEvent } from "../functions/lib/parlay.js";
 
 test("symmetric F5 means produce symmetric moneyline probabilities and tie mass", () => {
   const p = f5MoneylineProbabilities(2.2, 2.2);
@@ -68,4 +69,39 @@ test("market evaluator fails closed when no F5 quote exists", () => {
   assert.equal(result.available, false);
   assert.equal(result.reason, "F5_MARKET_UNAVAILABLE");
   assert.equal(result.canQualify, false);
+});
+
+
+test("Parlay normalizer reads current first-five market keys", () => {
+  const event = summarizeParlayEvent({
+    id: "evt-1",
+    home_team: "Houston Astros",
+    away_team: "Seattle Mariners",
+    commence_time: "2026-10-05T00:10:00Z",
+    bookmakers: [{
+      key: "fanduel",
+      title: "FanDuel",
+      markets: [
+        { key: "h2h_1st_5_innings", outcomes: [
+          { name: "Houston Astros", price: -120 },
+          { name: "Seattle Mariners", price: 102 },
+        ] },
+        { key: "spreads_1st_5_innings", outcomes: [
+          { name: "Houston Astros", point: -0.5, price: 105 },
+          { name: "Seattle Mariners", point: 0.5, price: -125 },
+        ] },
+        { key: "totals_1st_5_innings", outcomes: [
+          { name: "Over", point: 4.5, price: -108 },
+          { name: "Under", point: 4.5, price: -112 },
+        ] },
+      ],
+    }],
+  }, "mlb");
+  assert.equal(event.f5.homeMl, -120);
+  assert.equal(event.f5.awayMl, 102);
+  assert.equal(event.f5.spread, -0.5);
+  assert.equal(event.f5.spreadHomePrice, 105);
+  assert.equal(event.f5.total, 4.5);
+  assert.equal(event.f5.overPrice, -108);
+  assert.equal(event.f5.underPrice, -112);
 });
