@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import { parseCsv, aggregateTeamWeeks, aggregateQbWeeks } from "../functions/lib/nflVerseFeed.js";
 import { projectNflProV1 } from "../functions/lib/nflProModel.js";
+import { projectNflProV2 } from "../functions/lib/nflProV2Model.js";
 import { projectNflFormV0 } from "../functions/lib/nflModel.js";
 
 const RELEASE="https://github.com/nflverse/nflverse-data/releases/download";
@@ -90,7 +91,9 @@ for(const season of seasons){
     if(!Number.isFinite(week)||hs==null||as==null) continue;
     const home=canon(g.home_team),away=canon(g.away_team);
     const features=blendedFeatures(priorTeam,priorPlayer,currentTeam,currentPlayer,week);
-    const pro=projectNflProV1({neutralSite:String(g.location||"").toLowerCase()==="neutral",nflFeatures:{home:features[home]||{},away:features[away]||{}}});
+    const modelGame={neutralSite:String(g.location||"").toLowerCase()==="neutral",nflFeatures:{home:features[home]||{},away:features[away]||{}}};
+    const pro=projectNflProV1(modelGame);
+    const v2=projectNflProV2(modelGame);
     const currentForm=formRows(games,season,week);
     const base=projectNflFormV0({neutralSite:String(g.location||"").toLowerCase()==="neutral"},{
       homePrior:priorForm.get(home),awayPrior:priorForm.get(away),homeCurrent:currentForm.get(home),awayCurrent:currentForm.get(away)
@@ -98,36 +101,45 @@ for(const season of seasons){
     const actualMargin=hs-as, actualTotal=hs+as, homeWon=hs>as;
     outputs.push({
       season,week,gameId:g.game_id,home,away,actualHome:hs,actualAway:as,
-      proOk:Boolean(pro.ok),baseOk:Boolean(base.ok),
-      proHome:pro.home??null,proAway:pro.away??null,baseHome:base.home??null,baseAway:base.away??null,
+      proOk:Boolean(pro.ok),v2Ok:Boolean(v2.ok),baseOk:Boolean(base.ok),
+      proHome:pro.home??null,proAway:pro.away??null,v2Home:v2.home??null,v2Away:v2.away??null,baseHome:base.home??null,baseAway:base.away??null,
       proMarginAbs:pro.ok?Math.abs(pro.margin-actualMargin):null,
       proTotalAbs:pro.ok?Math.abs(pro.total-actualTotal):null,
       proWinnerCorrect:pro.ok?((pro.margin>0)===homeWon):false,
+      v2MarginAbs:v2.ok?Math.abs(v2.margin-actualMargin):null,
+      v2TotalAbs:v2.ok?Math.abs(v2.total-actualTotal):null,
+      v2WinnerCorrect:v2.ok?((v2.margin>0)===homeWon):false,
+      v2Coverage:v2.advancedCoverage?.share??null,
       baseMarginAbs:base.ok?Math.abs(base.margin-actualMargin):null,
       baseTotalAbs:base.ok?Math.abs(base.total-actualTotal):null,
       baseWinnerCorrect:base.ok?((base.margin>0)===homeWon):false,
     });
   }
 }
-const paired=outputs.filter(r=>r.proOk&&r.baseOk);
-const pro=summarize(paired,"pro"), base=summarize(paired,"base");
+const paired=outputs.filter(r=>r.proOk&&r.v2Ok&&r.baseOk);
+const pro=summarize(paired,"pro"), v2=summarize(paired,"v2"), base=summarize(paired,"base");
 const decision={
   sample:{seasons,n:paired.length},
-  pro,base,
+  pro,v2,base,
   deltas:{
-    marginMae:pro.marginMae-base.marginMae,
-    totalMae:pro.totalMae-base.totalMae,
-    winnerAccuracy:pro.winnerAccuracy-base.winnerAccuracy,
+    v2VsV1:{marginMae:v2.marginMae-pro.marginMae,totalMae:v2.totalMae-pro.totalMae,winnerAccuracy:v2.winnerAccuracy-pro.winnerAccuracy},
+    v2VsForm:{marginMae:v2.marginMae-base.marginMae,totalMae:v2.totalMae-base.totalMae,winnerAccuracy:v2.winnerAccuracy-base.winnerAccuracy},
+  },
+  beatsV1:{
+    marginMae:v2.marginMae<pro.marginMae,
+    totalMae:v2.totalMae<pro.totalMae,
+    winnerAccuracy:v2.winnerAccuracy>pro.winnerAccuracy,
   },
   beatsBaseline:{
-    marginMae:pro.marginMae<base.marginMae,
-    totalMae:pro.totalMae<base.totalMae,
-    winnerAccuracy:pro.winnerAccuracy>base.winnerAccuracy,
+    marginMae:v2.marginMae<base.marginMae,
+    totalMae:v2.totalMae<base.totalMae,
+    winnerAccuracy:v2.winnerAccuracy>base.winnerAccuracy,
   },
 };
-decision.promoteCandidate=paired.length>=400&&Object.values(decision.beatsBaseline).every(Boolean);
+decision.promoteCandidate=paired.length>=400&&Object.values(decision.beatsV1).every(Boolean)&&Object.values(decision.beatsBaseline).every(Boolean);
 decision.status=decision.promoteCandidate?"PROMOTION_EVIDENCE_PASS":"RESEARCH_HOLD";
-decision.rule="NFL-PRO-v1 must beat calibrated form baseline on paired walk-forward margin MAE, total MAE, and winner accuracy with n>=400.";
+decision.rule="NFL-PRO-v2 must beat NFL-PRO-v1 and calibrated form baseline on paired walk-forward margin MAE, total MAE, and winner accuracy with n>=400. Historical test only uses feature families available point-in-time in this harness; absent NGS/availability families remain missing.";
+decision.featureCaveat="This run validates v2 on the PIT team/QB feature contract currently reconstructed by the walk-forward harness. NGS tracking, snaps and historical availability are not claimed unless separately reconstructed point-in-time.";
 fs.writeFileSync("artifacts/nfl-pro-walkforward-rows.jsonl",paired.map(x=>JSON.stringify(x)).join("\n")+"\n");
 fs.writeFileSync("artifacts/nfl-pro-walkforward-report.json",JSON.stringify(decision,null,2));
 console.log(JSON.stringify(decision,null,2));
