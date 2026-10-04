@@ -26,6 +26,8 @@ export const PRO_PLAYER_PROP_MARKETS = Object.freeze({
     "points",
     "rebounds",
     "assists",
+    "three_pointers_made",
+    "points_rebounds_assists",
   ],
   tennis: [
     "total_games",
@@ -167,6 +169,13 @@ const ALIASES = Object.freeze({
     player_rebounds: "rebounds",
     assists: "assists",
     player_assists: "assists",
+    three_pointers_made: "three_pointers_made",
+    threes_made: "three_pointers_made",
+    made_threes: "three_pointers_made",
+    "3_pointers_made": "three_pointers_made",
+    points_rebounds_assists: "points_rebounds_assists",
+    pra: "points_rebounds_assists",
+    pts_rebs_asts: "points_rebounds_assists",
   },
   tennis: {
     total_games: "total_games",

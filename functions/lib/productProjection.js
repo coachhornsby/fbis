@@ -298,7 +298,7 @@ function ballparkPal(game = {}, proj = {}) {
 }
 
 function proPlayerProjections(game = {}, sport = "") {
-  const supported = new Set(["mlb","npb","kbo","cfb","nfl","nba","nhl"]);
+  const supported = new Set(["mlb","npb","kbo","cfb","cbb","nfl","nba","nhl"]);
   if (!supported.has(sport)) return undefined;
   const status = game.playerProjectionStatus || {
     sport,
