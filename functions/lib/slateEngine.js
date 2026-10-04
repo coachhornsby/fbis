@@ -26,6 +26,7 @@ import { loadCbbdCatalog } from "./collegeApply.js";
 import { attachCbbPro } from "./cbbProModel.js";
 import { loadCbbPlayerContext } from "./cbbPlayerFeed.js";
 import { attachCbbPlayerGameResearch } from "./cbbPlayerGameModel.js";
+import { applyCbbPlayerMarginV1 } from "./cbbPlayerValidated.js";
 import { attachCbbPlayerProps } from "./cbbPlayerPropModel.js";
 import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
@@ -246,7 +247,11 @@ export async function buildSlate(sport, date, env = {}) {
       },
     }));
     const playerGame = attachCbbPlayerGameResearch(pro.games, playerContext);
-    const players = attachCbbPlayerProps(playerGame.games, playerContext);
+    const withPlayerMargin = playerGame.games.map(game=>({
+      ...game,
+      cbbPlayerAdjustedMargin: applyCbbPlayerMarginV1(game),
+    }));
+    const players = attachCbbPlayerProps(withPlayerMargin, playerContext);
     next = {
       ...slate,
       games: players.games,
