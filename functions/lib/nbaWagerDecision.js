@@ -15,28 +15,43 @@ export function decomposeNbaDisagreement(projection={}){
   const d=projection.decomposition||{};
   const home=d.home||{},away=d.away||{};
   const factors=[];
-  const push=(factor,homeValue,awayValue,impact,source="MODEL_COMPONENT",direct=true)=>{
-    factors.push({factor,homeValue:finite(homeValue),awayValue:finite(awayValue),estimatedMarginImpact:round(impact,3),source,directModelContribution:direct});
+  const poss=finite(projection.expectedPossessions)||99.5;
+  const push=(factor,homeValue,awayValue,marginImpact,totalImpact,source="MODEL_COMPONENT",direct=true)=>{
+    factors.push({
+      factor,
+      homeValue:finite(homeValue),
+      awayValue:finite(awayValue),
+      estimatedMarginImpact:round(marginImpact,3),
+      estimatedTotalImpact:round(totalImpact,3),
+      source,
+      directModelContribution:direct
+    });
   };
   const league=114.5;
-  const homeOff=(finite(home.off)-league)*0.56;
-  const awayDef=(finite(away.def)-league)*0.44;
-  const awayOff=(finite(away.off)-league)*0.56;
-  const homeDef=(finite(home.def)-league)*0.44;
-  push("offensive_efficiency",home.off,away.off,(homeOff-awayOff)*(finite(projection.expectedPossessions)||99.5)/100);
-  push("defensive_efficiency",home.def,away.def,(awayDef-homeDef)*(finite(projection.expectedPossessions)||99.5)/100);
-  push("pace",home.pace,away.pace,0,"MODEL_COMPONENT",true);
-  push("rest_fatigue",d.homeRest?.pts,d.awayRest?.pts,(finite(d.homeRest?.pts)||0)-(finite(d.awayRest?.pts)||0));
-  push("availability",d.homeAvailability?.points,d.awayAvailability?.points,(finite(d.homeAvailability?.points)||0)-(finite(d.awayAvailability?.points)||0));
-  push("home_court",finite(d.hca),0,finite(d.hca)||0);
-  // Context diagnostics currently carried in team state but not assigned standalone coefficients.
+  const hOff=((finite(home.off)??league)-league)*0.56*poss/100;
+  const aOff=((finite(away.off)??league)-league)*0.56*poss/100;
+  const oppDefHome=((finite(away.def)??league)-league)*0.44*poss/100;
+  const oppDefAway=((finite(home.def)??league)-league)*0.44*poss/100;
+  push("offensive_efficiency",home.off,away.off,hOff-aOff,hOff+aOff);
+  push("defensive_efficiency",home.def,away.def,oppDefHome-oppDefAway,oppDefHome+oppDefAway);
+  const avgEff=league+
+    ((((finite(home.off)??league)-league)+((finite(away.off)??league)-league))/2)*.56+
+    ((((finite(home.def)??league)-league)+((finite(away.def)??league)-league))/2)*.44;
+  const paceTotal=((poss-99.5)*2*avgEff)/100;
+  push("pace",home.pace,away.pace,0,paceTotal);
+  const hr=finite(d.homeRest?.pts)||0,ar=finite(d.awayRest?.pts)||0;
+  push("rest_fatigue",d.homeRest?.pts,d.awayRest?.pts,hr-ar,hr+ar);
+  const ha=finite(d.homeAvailability?.points)||0,aa=finite(d.awayAvailability?.points)||0;
+  push("availability",d.homeAvailability?.points,d.awayAvailability?.points,ha-aa,ha+aa);
+  push("home_court",finite(d.hca),0,finite(d.hca)||0,0);
   for(const [factor,key] of [["effective_fg","efg"],["turnover_rate","tov"],["offensive_rebound_rate","orb"],["free_throw_rate","ftr"]]){
-    if(finite(home[key])!=null||finite(away[key])!=null)push(factor,home[key],away[key],null,"CONTEXT_DIAGNOSTIC",false);
+    if(finite(home[key])!=null||finite(away[key])!=null)push(factor,home[key],away[key],null,null,"CONTEXT_DIAGNOSTIC",false);
   }
   return {
     factors,
-    directEstimatedImpact:round(factors.filter(x=>x.directModelContribution&&x.estimatedMarginImpact!=null).reduce((s,x)=>s+x.estimatedMarginImpact,0),3),
-    note:"Only direct model contributions are assigned impact. Context diagnostics are shown without invented coefficients."
+    directEstimatedMarginImpact:round(factors.filter(x=>x.directModelContribution&&x.estimatedMarginImpact!=null).reduce((s,x)=>s+x.estimatedMarginImpact,0),3),
+    directEstimatedTotalImpact:round(factors.filter(x=>x.directModelContribution&&x.estimatedTotalImpact!=null).reduce((s,x)=>s+x.estimatedTotalImpact,0),3),
+    note:"Only factors with explicit model coefficients receive numeric impact. Context diagnostics are displayed without invented weights."
   };
 }
 
@@ -101,8 +116,10 @@ export function deriveNbaMarketTrajectory(rows=[],{marketType,side,projectionVal
 
 export function summarizeActionForDecision(rows=[],{decisionAt=null,marketType=null,side=null,fbisDirection=null}={}){
   const cutoff=decisionAt?Date.parse(decisionAt):Infinity;
+  const alias=v=>{const s=String(v||"").toLowerCase();return s==="ml"?"moneyline":s;};
+  const wanted=alias(marketType);
   const xs=(rows||[])
-    .filter(r=>!marketType||String(r.market_type||r.marketType||"").toLowerCase()===String(marketType).toLowerCase())
+    .filter(r=>!marketType||alias(r.market_type||r.marketType||"")===wanted)
     .filter(r=>!side||String(r.selection||r.side||"").toUpperCase()===String(side).toUpperCase())
     .filter(r=>Date.parse(r.provider_timestamp||r.collected_at||r.observedAt||0)<=cutoff)
     .sort((a,b)=>Date.parse(a.provider_timestamp||a.collected_at)-Date.parse(b.provider_timestamp||b.collected_at));
@@ -112,19 +129,35 @@ export function summarizeActionForDecision(rows=[],{decisionAt=null,marketType=n
   const divergence=ticket!=null&&money!=null?money-ticket:null;
   const open=xs.find(x=>String(x.snapshot_type||"").toUpperCase()==="OPEN")||xs[0];
   const movement=(finite(latest.line)!=null&&finite(open.line)!=null)?finite(latest.line)-finite(open.line):null;
-  let confirmation="NEUTRAL";
-  if(fbisDirection&&movement!=null&&movement!==0){
-    const toward=(fbisDirection==="HOME_OR_OVER"&&movement>0)||(fbisDirection==="AWAY_OR_UNDER"&&movement<0);
-    confirmation=toward?"CONFIRMS_FBIS":"OPPOSES_FBIS";
+  const m=alias(marketType),selected=String(side||"").toUpperCase();
+  let moveTowardSelected=null;
+  if(movement!=null&&movement!==0){
+    if(m==="spread") moveTowardSelected=selected==="HOME"?movement<0:selected==="AWAY"?movement>0:null;
+    if(m==="total") moveTowardSelected=selected==="OVER"?movement>0:selected==="UNDER"?movement<0:null;
   }
+  let modelPrefersSelected=null;
+  if(fbisDirection){
+    modelPrefersSelected=(fbisDirection==="HOME_OR_OVER"&&["HOME","OVER"].includes(selected))||
+      (fbisDirection==="AWAY_OR_UNDER"&&["AWAY","UNDER"].includes(selected));
+  }
+  let confirmation="NEUTRAL";
+  if(moveTowardSelected!=null&&modelPrefersSelected!=null){
+    confirmation=(moveTowardSelected===modelPrefersSelected)?"CONFIRMS_FBIS":"OPPOSES_FBIS";
+  }
+  const publicOnSelected=ticket!=null?ticket>50:null;
+  const reverseLineMovement=publicOnSelected===true&&moveTowardSelected===false;
+  const derivedSteamLike=movement!=null&&Math.abs(movement)>=1&&
+    ((divergence!=null&&Math.abs(divergence)>=10)||finite(latest.tracked_volume)!=null);
   return {
     available:true,role:"market_intelligence",canDirectlyQualify:false,canAuthorize:false,
     snapshotCount:xs.length,latestAt:latest.provider_timestamp||latest.collected_at,
     ticketPct:ticket,moneyPct:money,moneyMinusTicketPct:round(divergence,3),
     openingLine:finite(open.line),currentLine:finite(latest.line),lineMove:round(movement,3),
+    reverseLineMovement,
+    derivedSteamLike,
     confirmation,
     providerSharpLabel:null,
-    note:"ACTION is informational only. Provider sharp labels are not promoted to FBIS truth."
+    note:"ACTION is informational only. Reverse-line and steam-like flags are locally derived; provider sharp labels are not promoted to FBIS truth."
   };
 }
 
