@@ -1,0 +1,131 @@
+name: Hourly bet settlement
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hourly-bet-settlement.yml"
+      - "functions/lib/projLedger.js"
+      - "functions/lib/executedBets.js"
+      - "services/sports-projection-orchestrator/orchestrator.mjs"
+      - "workers/sports-projection-orchestrator-worker.mjs"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: hourly-bet-settlement
+  cancel-in-progress: true
+
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Settle completed games from trusted scoreboards
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        shell: bash
+        run: |
+          set -u
+          today="$(TZ=America/Chicago date +%F)"
+          yesterday="$(TZ=America/Chicago date -d 'yesterday' +%F)"
+          ok=0
+          fail=0
+          for day in "$yesterday" "$today"; do
+            for sport in mlb nfl cfb cbb nba wnba nhl soccer npb kbo; do
+              body="$(mktemp)"
+              set +e
+              http="$(curl -sS --max-time 120 --retry 1 --retry-delay 3                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -H "accept: application/json"                 -o "$body" -w "%{http_code}"                 "${BASE}/api/harvest?date=${day}&sport=${sport}&settleOnly=1&gradeResearch=1&trigger=schedule&scheduledSlot=hourly-bet-settlement")"
+              ec=$?
+              set -e
+              if [ "$ec" = "0" ] && [ "${http:-000}" = "200" ]; then
+                ok=$((ok+1))
+                jq -c '{sport,status,finalsSeen,settled,graded}' "$body" 2>/dev/null || true
+              else
+                fail=$((fail+1))
+                echo "settlement source failed day=${day} sport=${sport} curl_ec=${ec} http=${http:-000}"
+                head -c 300 "$body" || true
+                echo
+              fi
+            done
+          done
+          echo "settlement_calls_ok=$ok" >> "$GITHUB_ENV"
+          echo "settlement_calls_failed=$fail" >> "$GITHUB_ENV"
+
+      - name: Get GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          sep='?'
+          if [[ "$url" == *'?'* ]]; then sep='&'; fi
+          body="$(curl -fsSL -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${url}${sep}audience=sports-projection-orchestrator")"
+          token="$(jq -r '.value // empty' <<<"$body")"
+          test -n "$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Push D1 settlements back to Sports Betting Tracker
+        env:
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 120 -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             -d '{}' -o "$body" -w "%{http_code}"             "${ORCH_URL}/api/sync-settled-bets-sheet")"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          cp "$body" /tmp/settlement-sheet-sync.json
+
+      - name: Re-sync tracker into D1
+        env:
+          ORCH_URL: https://fbis-orchestrator.coachhornsby.workers.dev
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 120 -X POST             -H "Authorization: Bearer ${OIDC_TOKEN}"             -H "content-type: application/json"             -d '{"since":"2026-09-15"}' -o "$body" -w "%{http_code}"             "${ORCH_URL}/api/sync-bet-tracker")"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          cp "$body" /tmp/tracker-d1-sync.json
+
+      - name: Verify no stale pre-today open tracker bets
+        env:
+          BASE: https://fbis-myz.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          today="$(TZ=America/Chicago date +%F)"
+          curl -fsS --max-time 45 "${BASE}/api/bets?_t=$(date +%s)" > /tmp/bets.json
+          jq --arg today "$today" '{
+            total:(.bets|length),
+            openPreToday:([.bets[]|select((.date//"") < $today and ((.result//"OPEN")=="OPEN"))]|length),
+            manualReviewPreToday:([.bets[]|select((.date//"") < $today and (.result=="MANUAL_REVIEW"))]|length),
+            newestDate:([.bets[].date]|sort|last)
+          }' /tmp/bets.json
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Hourly bet settlement"
+            echo "- scoreboard calls ok: ${settlement_calls_ok:-0}"
+            echo "- scoreboard calls failed: ${settlement_calls_failed:-0}"
+            if [ -f /tmp/settlement-sheet-sync.json ]; then
+              echo "- tracker rows updated from D1: $(jq -r '.updated // 0' /tmp/settlement-sheet-sync.json)"
+            fi
+            if [ -f /tmp/tracker-d1-sync.json ]; then
+              echo "- D1 rows synced from tracker: $(jq -r '.d1SyncedRows // 0' /tmp/tracker-d1-sync.json)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
