@@ -101,12 +101,9 @@ export function confidenceStars(game) {
     if (tier === "CONVICTION") stars = 5;
   }
 
-  // Governance labels do not determine confidence. Keep only modest visual
-  // caps where the model itself is research/provisional, not because wagering
-  // is disabled.
-  if (vm.authority?.research || qualification === "RESEARCH_ONLY") {
-    stars = Math.min(stars, 3);
-  }
+  // Governance labels do not determine projection confidence. Research-only,
+  // blocked, or non-authorized status stays in badges/authority fields and
+  // must not cap the star rating.
 
   return Math.max(1, Math.min(5, stars));
 }
