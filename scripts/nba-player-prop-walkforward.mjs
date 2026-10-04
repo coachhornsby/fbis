@@ -73,12 +73,17 @@ for(const g of games){
       ]){
         const pr=proj.markets[market],actual=finite(p[keyStat]);
         if(!pr||actual==null)continue;
+        const priorVals=prior.slice(-10).map(r=>finite(r[keyStat])).filter(v=>v!=null);
+        const baselineProjection=priorVals.length?mean(priorVals):null;
         out.push({
           gameId:g.id,date:g.date,playerId:p.id,playerName:p.name,teamId:p.teamId,
           market,projection:pr.projection,sigma:pr.sigma,projectedMinutes:proj.minutes,
           gameModelId:gameProjection.modelId,gameModelVersion:gameProjection.modelVersion,
           projectedTeamScore:projectedTeam,projectedPossessions:gameProjection.expectedPossessions,
+          baselineProjection,
           actual,error:pr.projection-actual,absError:Math.abs(pr.projection-actual),
+          baselineError:baselineProjection==null?null:baselineProjection-actual,
+          baselineAbsError:baselineProjection==null?null:Math.abs(baselineProjection-actual),
           featureCutoff:g.start,marketInformed:false
         });
       }
@@ -98,7 +103,15 @@ for(const g of games){
 const markets={};
 for(const m of ["points","rebounds","assists","three_pointers_made"]){
   const r=out.filter(x=>x.market===m);
-  markets[m]={n:r.length,mae:mean(r.map(x=>x.absError)),bias:mean(r.map(x=>x.error))};
+  const rb=r.filter(x=>x.baselineAbsError!=null);
+  markets[m]={
+    n:r.length,
+    mae:mean(r.map(x=>x.absError)),
+    bias:mean(r.map(x=>x.error)),
+    baselineN:rb.length,
+    trailing10BaselineMae:mean(rb.map(x=>x.baselineAbsError)),
+    maeAdvantageVsTrailing10:mean(rb.map(x=>x.baselineAbsError))-mean(r.map(x=>x.absError))
+  };
 }
 const report={
   generatedAt:new Date().toISOString(),
