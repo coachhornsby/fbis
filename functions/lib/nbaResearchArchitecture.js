@@ -8,8 +8,8 @@
 import { MODEL_FAMILY, MODEL_MATURITY, COMMERCIAL_STATUS } from "./canonical/maturityStates.js";
 import { marketImpliedAuthority } from "./canonical/decisionAuthority.js";
 
-export const NBA_PURE_CHALLENGER_ID = "NBA-FBIS-PURE";
-export const NBA_PURE_CHALLENGER_VERSION = "research-v0";
+export const NBA_PURE_CHALLENGER_ID = "NBA-FBIS-v1";
+export const NBA_PURE_CHALLENGER_VERSION = "research-v1";
 
 export const NBA_AVAILABILITY_STATUS = Object.freeze({
   ACTIVE: "ACTIVE",
@@ -24,11 +24,11 @@ export const NBA_SUPPORTED_PROPS = Object.freeze([
   "points",
   "rebounds",
   "assists",
-  "threes",
-  "pra",
-  "pa",
-  "pr",
-  "ra",
+  "three_pointers_made",
+  "points_rebounds_assists",
+  "points_assists",
+  "points_rebounds",
+  "rebounds_assists",
 ]);
 
 /** Exact components that require a rights-cleared production feed. */
@@ -42,8 +42,8 @@ export const NBA_PROVIDER_BLOCKED = Object.freeze([
 export const NBA_BUILDABLE = Object.freeze([
   {
     requirement: "player_opportunity_contract",
-    status: "IMPLEMENTED_SCAFFOLD",
-    module: "buildNbaPlayerOpportunity",
+    status: "IMPLEMENTED",
+    module: "functions/lib/nbaPlayerPropModel.js",
   },
   {
     requirement: "availability_state_enum",
@@ -62,13 +62,13 @@ export const NBA_BUILDABLE = Object.freeze([
   },
   {
     requirement: "team_score_distribution_model",
-    status: "IMPLEMENTATION_PENDING",
-    module: null,
+    status: "IMPLEMENTED_RESEARCH",
+    module: "functions/lib/nbaModel.js",
   },
   {
     requirement: "expected_possessions_ppp_model",
-    status: "IMPLEMENTATION_PENDING",
-    module: null,
+    status: "IMPLEMENTED_RESEARCH",
+    module: "functions/lib/nbaModel.js",
   },
   {
     requirement: "combination_prop_covariance",
@@ -88,10 +88,10 @@ export const NBA_BUILDABLE = Object.freeze([
 ]);
 
 export const NBA_PROVIDER_STATUS = Object.freeze({
-  implementation: "PROVIDER_OR_LICENSE_BLOCKED",
+  implementation: "RESEARCH_IMPLEMENTED_PRODUCTION_PROVIDER_BLOCKED",
   blockedComponents: NBA_PROVIDER_BLOCKED,
   buildableComponents: NBA_BUILDABLE,
-  maturity: MODEL_MATURITY.INSUFFICIENT_DATA,
+  maturity: MODEL_MATURITY.RESEARCH,
   canQualify: false,
   canAuthorizeWager: false,
   missingDependency:
@@ -112,7 +112,7 @@ export const NBA_PROVIDER_STATUS = Object.freeze({
   availabilityStates: NBA_AVAILABILITY_STATUS,
   expectedMinutesFirstClass: true,
   combinationPropsCovarianceAware: true,
-  note: "Provider block does not excuse unfinished provider-independent model/grade/publication work",
+  note: "Research game and player-prop models are implemented on approved public-data paths. Production use of NBA Stats/official lineup redistribution remains rights-gated.",
 });
 
 export function nbaComponentAudit() {
