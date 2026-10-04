@@ -2,6 +2,10 @@ name: WNBA player impact research
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["research/wnba-player-impact-v1"]
+    paths:
+      - ".github/workflows/wnba-player-impact-research.yml"
 permissions:
   contents: read
 
