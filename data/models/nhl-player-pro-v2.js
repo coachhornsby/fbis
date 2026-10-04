@@ -1,7 +1,7 @@
 export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
   "modelId": "NHL-PLAYER-PRO-v2",
   "version": "research-v2.0-share-environment",
-  "generatedAt": "2026-10-04T05:14:13.525Z",
+  "generatedAt": "2026-10-04T09:27:39.829Z",
   "trained": true,
   "marketInformed": false,
   "training": {
@@ -19265,6 +19265,484 @@ export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
         "baselineBrier": 0.00721,
         "accuracyDelta": 0,
         "brierDelta": -0.00002
+      }
+    },
+    "confidence": {
+      "shots_on_goal": {
+        "aggregate": {
+          "byStars": {
+            "1 STAR": {
+              "n": 94456,
+              "accuracy": 0.5859,
+              "brier": 0.23519
+            },
+            "2 STAR": {
+              "n": 94033,
+              "accuracy": 0.7067,
+              "brier": 0.20278
+            },
+            "3 STAR": {
+              "n": 72265,
+              "accuracy": 0.8239,
+              "brier": 0.14254
+            },
+            "4 STAR": {
+              "n": 60635,
+              "accuracy": 0.8795,
+              "brier": 0.10326
+            },
+            "5 STAR": {
+              "n": 339803,
+              "accuracy": 0.978,
+              "brier": 0.02087
+            }
+          },
+          "monotonic": true,
+          "starsPresent": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "n": 661192
+        },
+        "core": {
+          "byStars": {
+            "1 STAR": {
+              "n": 76607,
+              "accuracy": 0.5942,
+              "brier": 0.23267
+            },
+            "2 STAR": {
+              "n": 62206,
+              "accuracy": 0.7255,
+              "brier": 0.19354
+            },
+            "3 STAR": {
+              "n": 51260,
+              "accuracy": 0.8375,
+              "brier": 0.13314
+            },
+            "4 STAR": {
+              "n": 46554,
+              "accuracy": 0.8821,
+              "brier": 0.10045
+            },
+            "5 STAR": {
+              "n": 141197,
+              "accuracy": 0.9684,
+              "brier": 0.02991
+            }
+          },
+          "monotonic": true,
+          "starsPresent": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "n": 377824
+        },
+        "bySeason": {
+          "20242025": {
+            "all": {
+              "byStars": {
+                "1 STAR": {
+                  "n": 47225,
+                  "accuracy": 0.5873,
+                  "brier": 0.23465
+                },
+                "2 STAR": {
+                  "n": 46985,
+                  "accuracy": 0.7032,
+                  "brier": 0.20443
+                },
+                "3 STAR": {
+                  "n": 36435,
+                  "accuracy": 0.8269,
+                  "brier": 0.14071
+                },
+                "4 STAR": {
+                  "n": 31437,
+                  "accuracy": 0.8765,
+                  "brier": 0.10495
+                },
+                "5 STAR": {
+                  "n": 168493,
+                  "accuracy": 0.978,
+                  "brier": 0.0208
+                }
+              },
+              "monotonic": true,
+              "starsPresent": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "n": 330575
+            },
+            "core": {
+              "byStars": {
+                "1 STAR": {
+                  "n": 38803,
+                  "accuracy": 0.5948,
+                  "brier": 0.23243
+                },
+                "2 STAR": {
+                  "n": 31159,
+                  "accuracy": 0.721,
+                  "brier": 0.19551
+                },
+                "3 STAR": {
+                  "n": 25638,
+                  "accuracy": 0.8428,
+                  "brier": 0.12982
+                },
+                "4 STAR": {
+                  "n": 24331,
+                  "accuracy": 0.8776,
+                  "brier": 0.10318
+                },
+                "5 STAR": {
+                  "n": 68969,
+                  "accuracy": 0.9685,
+                  "brier": 0.02979
+                }
+              },
+              "monotonic": true,
+              "starsPresent": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "n": 188900
+            }
+          },
+          "20252026": {
+            "all": {
+              "byStars": {
+                "1 STAR": {
+                  "n": 47231,
+                  "accuracy": 0.5846,
+                  "brier": 0.23573
+                },
+                "2 STAR": {
+                  "n": 47048,
+                  "accuracy": 0.7103,
+                  "brier": 0.20113
+                },
+                "3 STAR": {
+                  "n": 35830,
+                  "accuracy": 0.8208,
+                  "brier": 0.14441
+                },
+                "4 STAR": {
+                  "n": 29198,
+                  "accuracy": 0.8828,
+                  "brier": 0.10145
+                },
+                "5 STAR": {
+                  "n": 171310,
+                  "accuracy": 0.9779,
+                  "brier": 0.02095
+                }
+              },
+              "monotonic": true,
+              "starsPresent": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "n": 330617
+            },
+            "core": {
+              "byStars": {
+                "1 STAR": {
+                  "n": 37804,
+                  "accuracy": 0.5936,
+                  "brier": 0.23291
+                },
+                "2 STAR": {
+                  "n": 31047,
+                  "accuracy": 0.73,
+                  "brier": 0.19156
+                },
+                "3 STAR": {
+                  "n": 25622,
+                  "accuracy": 0.8323,
+                  "brier": 0.13646
+                },
+                "4 STAR": {
+                  "n": 22223,
+                  "accuracy": 0.8871,
+                  "brier": 0.09746
+                },
+                "5 STAR": {
+                  "n": 72228,
+                  "accuracy": 0.9683,
+                  "brier": 0.03003
+                }
+              },
+              "monotonic": true,
+              "starsPresent": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "n": 188924
+            }
+          }
+        },
+        "allSeasonsMonotonic": true,
+        "validated": true
+      },
+      "saves": {
+        "aggregate": {
+          "byStars": {
+            "1 STAR": {
+              "n": 15735,
+              "accuracy": 0.5209,
+              "brier": 0.24763
+            },
+            "2 STAR": {
+              "n": 10490,
+              "accuracy": 0.6201,
+              "brier": 0.23669
+            },
+            "3 STAR": {
+              "n": 9211,
+              "accuracy": 0.662,
+              "brier": 0.22498
+            },
+            "4 STAR": {
+              "n": 68453,
+              "accuracy": 0.8652,
+              "brier": 0.11391
+            },
+            "5 STAR": {
+              "n": 27236,
+              "accuracy": 0.9074,
+              "brier": 0.08586
+            }
+          },
+          "monotonic": true,
+          "starsPresent": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "n": 131125
+        },
+        "core": {
+          "byStars": {
+            "1 STAR": {
+              "n": 15735,
+              "accuracy": 0.5209,
+              "brier": 0.24763
+            },
+            "2 STAR": {
+              "n": 10478,
+              "accuracy": 0.6202,
+              "brier": 0.23668
+            },
+            "3 STAR": {
+              "n": 9076,
+              "accuracy": 0.6639,
+              "brier": 0.22443
+            },
+            "4 STAR": {
+              "n": 21073,
+              "accuracy": 0.7894,
+              "brier": 0.16952
+            },
+            "5 STAR": {
+              "n": 11823,
+              "accuracy": 0.8456,
+              "brier": 0.13734
+            }
+          },
+          "monotonic": true,
+          "starsPresent": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "n": 68185
+        },
+        "bySeason": {
+          "20242025": {
+            "all": {
+              "byStars": {
+                "1 STAR": {
+                  "n": 7863,
+                  "accuracy": 0.5189,
+                  "brier": 0.24747
+                },
+                "2 STAR": {
+                  "n": 5242,
+                  "accuracy": 0.6236,
+                  "brier": 0.23613
+                },
+                "3 STAR": {
+                  "n": 4807,
+                  "accuracy": 0.6736,
+                  "brier": 0.22209
+                },
+                "4 STAR": {
+                  "n": 34565,
+                  "accuracy": 0.8722,
+                  "brier": 0.10977
+                },
+                "5 STAR": {
+                  "n": 13048,
+                  "accuracy": 0.8899,
+                  "brier": 0.09767
+                }
+              },
+              "monotonic": true,
+              "starsPresent": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "n": 65525
+            },
+            "core": {
+              "byStars": {
+                "1 STAR": {
+                  "n": 7863,
+                  "accuracy": 0.5189,
+                  "brier": 0.24747
+                },
+                "2 STAR": {
+                  "n": 5241,
+                  "accuracy": 0.6235,
+                  "brier": 0.23614
+                },
+                "3 STAR": {
+                  "n": 4791,
+                  "accuracy": 0.674,
+                  "brier": 0.22201
+                },
+                "4 STAR": {
+                  "n": 10605,
+                  "accuracy": 0.7944,
+                  "brier": 0.16738
+                },
+                "5 STAR": {
+                  "n": 5573,
+                  "accuracy": 0.8195,
+                  "brier": 0.15175
+                }
+              },
+              "monotonic": true,
+              "starsPresent": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "n": 34073
+            }
+          },
+          "20252026": {
+            "all": {
+              "byStars": {
+                "1 STAR": {
+                  "n": 7872,
+                  "accuracy": 0.5229,
+                  "brier": 0.24778
+                },
+                "2 STAR": {
+                  "n": 5248,
+                  "accuracy": 0.6166,
+                  "brier": 0.23725
+                },
+                "3 STAR": {
+                  "n": 4404,
+                  "accuracy": 0.6494,
+                  "brier": 0.22813
+                },
+                "4 STAR": {
+                  "n": 33888,
+                  "accuracy": 0.858,
+                  "brier": 0.11813
+                },
+                "5 STAR": {
+                  "n": 14188,
+                  "accuracy": 0.9235,
+                  "brier": 0.075
+                }
+              },
+              "monotonic": true,
+              "starsPresent": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "n": 65600
+            },
+            "core": {
+              "byStars": {
+                "1 STAR": {
+                  "n": 7872,
+                  "accuracy": 0.5229,
+                  "brier": 0.24778
+                },
+                "2 STAR": {
+                  "n": 5237,
+                  "accuracy": 0.6168,
+                  "brier": 0.23721
+                },
+                "3 STAR": {
+                  "n": 4285,
+                  "accuracy": 0.6527,
+                  "brier": 0.22713
+                },
+                "4 STAR": {
+                  "n": 10468,
+                  "accuracy": 0.7844,
+                  "brier": 0.17168
+                },
+                "5 STAR": {
+                  "n": 6250,
+                  "accuracy": 0.8688,
+                  "brier": 0.1245
+                }
+              },
+              "monotonic": true,
+              "starsPresent": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "n": 34112
+            }
+          }
+        },
+        "allSeasonsMonotonic": true,
+        "validated": true
       }
     }
   },
