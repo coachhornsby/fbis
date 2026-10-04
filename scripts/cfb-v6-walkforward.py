@@ -104,6 +104,28 @@ def add_matchups(d):
   for b in sum_ctx[:6]:d["ix_total__"+a+"__X__"+b]=num(d[a])*num(d[b])
  return d
 
+def structural_features(d):
+ """Dedicated pregame QB/trench submodel outputs; market-free and fold-fit downstream."""
+ d=d.copy()
+ # Structural outputs are deliberately compact so they cannot be diluted by the broad state matrix.
+ for side,opp in [("home","away"),("away","home")]:
+  qb=num(d.get(f"v6_qbt_{side}_qb_opp_adj",np.nan))
+  pr=num(d.get(f"v6_qbt_{side}_dl_pass",np.nan)); opr=num(d.get(f"v6_qbt_{opp}_dl_pass",np.nan))
+  run=num(d.get(f"v6_qbt_{side}_ol_run",np.nan)); front=num(d.get(f"v6_qbt_{opp}_dl_run",np.nan))
+  d[f"struct_{side}_pass"]=qb-opr
+  d[f"struct_{side}_run"]=run-front
+ d["struct_margin_pass"]=d.struct_home_pass-d.struct_away_pass
+ d["struct_margin_run"]=d.struct_home_run-d.struct_away_run
+ d["struct_total_pass"]=d.struct_home_pass+d.struct_away_pass
+ d["struct_total_run"]=d.struct_home_run+d.struct_away_run
+ return d
+
+def fit_structural(train,test,target,kind):
+ fs=["struct_margin_pass","struct_margin_run"] if kind=="margin" else ["struct_total_pass","struct_total_run"]
+ # Dedicated unit model trained only on prior seasons; its OOS output is then structurally blended.
+ m=make_pipeline(SimpleImputer(strategy="median"),StandardScaler(),Ridge(alpha=30)).fit(train[fs],num(train[target]))
+ return m.predict(test[fs])
+
 def ridge(train,features,target,alpha):
  return make_pipeline(SimpleImputer(strategy="median"),StandardScaler(),Ridge(alpha=alpha)).fit(train[features],num(train[target]))
 
@@ -158,7 +180,7 @@ def betting(p,prefix="v4"):
 def main():
  d=pd.read_csv(DATA,low_memory=False);d=d[num(d.home_score).notna()&num(d.away_score).notna()].copy()
  d["season"]=num(d.season).astype(int);d["actual_margin"]=num(d.home_margin);d["actual_total"]=num(d.final_total)
- d=add_matchups(d)
+ d=add_matchups(d);d=structural_features(d)
  rows=[];folds=[]
  for season in range(2010,2027):
   tr=d[d.season<season];te=d[d.season==season]
@@ -167,7 +189,7 @@ def main():
   tc=football_candidates(d,"total")+[c for c in d if c.startswith(("ix_match__","ix_total__"))]
   mf=select(tr,mc,"actual_margin");tf=select(tr,tc,"actual_total")
   ms=tune(tr,mf,"actual_margin");ts=tune(tr,tf,"actual_total")
-  pm=fit_predict(tr,te,mf,"actual_margin",ms);pt=fit_predict(tr,te,tf,"actual_total",ts)
+  pm0=fit_predict(tr,te,mf,"actual_margin",ms);pt0=fit_predict(tr,te,tf,"actual_total",ts)\n  pms=fit_structural(tr,te,"actual_margin","margin");pts=fit_structural(tr,te,"actual_total","total")\n  # Fixed structural weight makes QB/trench causally consequential; no holdout tuning.\n  pm=.80*pm0+.20*pms;pt=.85*pt0+.15*pts
   rows.append(pd.DataFrame({"season":season,"game_id":te.game_id,"actual_margin":te.actual_margin,"actual_total":te.actual_total,
    "v6_margin":pm,"v6_total":pt,"market_margin":-num(te.benchmark_home_spread),"market_total":num(te.benchmark_total)}))
   folds.append({"season":season,"trainN":len(tr),"testN":len(te),"marginFeatures":mf,"totalFeatures":tf,"marginModel":str(ms),"totalModel":str(ts)})
@@ -183,8 +205,8 @@ def main():
   zh=z[z.season>=2025]
   v5cmp={"n":len(z),"v6":metrics(z,z.v6_margin,z.v6_total),"v5":metrics(z,z.v5_margin,z.v5_total),
          "holdout2025_2026":{"v6":metrics(zh,zh.v6_margin,zh.v6_total),"v5":metrics(zh,zh.v5_margin,zh.v5_total)}}
- report={"modelId":"CFB-FBIS-v6-QBT-research","role":"research","marketInformed":False,"canQualify":False,
-  "design":"v6 control plus reserved opponent-adjusted QB/pass-protection/pass-rush and OL-run/DL-run matchup family; market-independent train-fold-selected Ridge/HistGradientBoosting ensemble",
+ report={"modelId":"CFB-FBIS-v6-STRUCT-QBT-research","role":"research","marketInformed":False,"canQualify":False,
+  "design":"v6 control plus dedicated opponent-adjusted QB/trench structural submodel; structural OOS outputs receive fixed predeclared 20% margin / 15% total weight, market-independent",
   "sample":{"n":len(p),"startSeason":int(p.season.min()),"endSeason":int(p.season.max())},
   "v6":m4,"marketPairedV6":m4mk,"market":market,"holdout2025_2026":{"v6":h4},
   "betting":betting(p,prefix="v6"),"v5HeadToHead":v5cmp,"folds":folds,
