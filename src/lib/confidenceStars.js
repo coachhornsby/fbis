@@ -115,6 +115,11 @@ function nflCompositeStars(game, vm, q) {
  * projection.
  */
 export function confidenceStars(game) {
+  const canonical = numericQuality(game?.confidenceStars ?? game?.displayConfidenceStars);
+  if (Number.isFinite(canonical) && canonical >= 1 && canonical <= 5) {
+    return Math.max(1, Math.min(5, Math.round(canonical)));
+  }
+
   const vm = buildBoardGameViewModel(game);
 
   if (!vm.projection?.available) return 1;
