@@ -1824,3 +1824,49 @@
  .fbis-shell-main.route-board .cgc-final-score{flex-wrap:wrap}
  .fbis-shell-main.route-board .cgc-final-score>small{flex-basis:100%;text-align:center}
 }
+
+
+/* Mobile card correction: approved decision-card presentation. */
+.fbis-shell-main.route-board .cgc-star-rating{
+  display:inline-flex!important;align-items:center!important;gap:4px!important;
+  width:auto!important;height:auto!important;padding:0!important;border:0!important;
+  background:transparent!important;box-shadow:none!important;color:#ffd23f!important;
+}
+.fbis-shell-main.route-board .cgc-star-rating b{font-size:12px!important;line-height:1!important;color:#ffe078!important;font-weight:950!important}
+.fbis-shell-main.route-board .cgc-star-rating svg{display:block!important;width:16px!important;height:16px!important;overflow:visible!important}
+.fbis-shell-main.route-board .cgc-star-rating svg path{fill:#ffd23f!important;stroke:#ffe58a!important;stroke-width:.55!important;stroke-linejoin:round!important}
+.fbis-shell-main.route-board .cgc{min-height:0!important;gap:9px!important;padding:12px!important;border-radius:15px!important}
+.fbis-shell-main.route-board .cgc-head-right{flex-direction:row!important;align-items:center!important;gap:8px!important}
+.fbis-shell-main.route-board .cgc-main{grid-template-columns:minmax(0,1fr) 92px!important;gap:8px!important}
+.fbis-shell-main.route-board .cgc-matchup{grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr)!important;gap:5px!important}
+.fbis-shell-main.route-board .cgc-logo .team-logo{width:46px!important;height:46px!important}
+.fbis-shell-main.route-board .cgc-team-name{min-height:0!important;max-width:105px!important;font-size:8px!important}
+.fbis-shell-main.route-board .cgc-proj{font-size:25px!important}
+.fbis-shell-main.route-board .cgc-best-edge{min-height:112px!important;padding:9px 6px!important;border-radius:11px!important}
+.fbis-shell-main.route-board .cgc-best-edge>strong{font-size:24px!important}
+.fbis-shell-main.route-board .cgc-market-strip{min-height:48px!important;border-radius:10px!important}
+.fbis-shell-main.route-board .cgc-market-item{padding:7px 4px!important}
+.fbis-shell-main.route-board .cgc-market-item strong{margin-top:3px!important;font-size:12px!important}
+.fbis-shell-main.route-board .cgc-action-strip{grid-template-columns:.9fr 1fr 1fr 1.35fr!important;border-radius:10px!important}
+.fbis-shell-main.route-board .cgc-action-brand,.fbis-shell-main.route-board .cgc-action-item{padding:6px 7px!important}
+.fbis-shell-main.route-board .cgc-action-brand>strong,.fbis-shell-main.route-board .cgc-action-item>strong{margin-top:3px!important;font-size:9px!important}
+.fbis-shell-main.route-board .cgc-matchup-read{gap:5px!important;padding:7px 8px!important;border-radius:10px!important}
+.fbis-shell-main.route-board .cgc-matchup-read-head strong{font-size:8px!important}
+.fbis-shell-main.route-board .cgc-matchup-pills{display:flex!important;gap:5px!important;flex-wrap:nowrap!important}
+.fbis-shell-main.route-board .cgc-matchup-pill{flex:1 1 0!important;padding:5px 3px!important;border:0!important;background:rgba(5,14,25,.42)!important}
+.fbis-shell-main.route-board .cgc-matchup-pill span{font-size:7px!important}.fbis-shell-main.route-board .cgc-matchup-pill strong{font-size:10px!important}
+.fbis-shell-main.route-board .cgc-matchup-adjustment{gap:5px!important;padding-top:0!important;font-size:7px!important}
+.fbis-shell-main.route-board .cgc-matchup-adjustment b{font-size:9px!important}
+.fbis-shell-main.route-board .cgc-final-score{padding:6px 8px!important;border-radius:9px!important}
+.fbis-shell-main.route-board .cgc-final-score>strong{font-size:14px!important}.fbis-shell-main.route-board .cgc-final-score>small{font-size:7px!important}
+.fbis-shell-main.route-board .cgc-footer{padding-top:7px!important;gap:6px!important}.fbis-shell-main.route-board .cgc-view{min-width:64px!important;min-height:32px!important;border-radius:9px!important}
+@media(max-width:560px){
+ .fbis-shell-main.route-board .cgc{padding:10px!important;gap:8px!important}
+ .fbis-shell-main.route-board .cgc-action-strip{grid-template-columns:.8fr 1fr 1fr 1.4fr!important}
+ .fbis-shell-main.route-board .cgc-action-brand,.fbis-shell-main.route-board .cgc-action-item{padding:5px 4px!important}
+ .fbis-shell-main.route-board .cgc-action-brand>strong,.fbis-shell-main.route-board .cgc-action-item>strong{font-size:8px!important}
+ .fbis-shell-main.route-board .cgc-matchup-pills{overflow:hidden!important}
+ .fbis-shell-main.route-board .cgc-matchup-adjustment{justify-content:center!important;flex-wrap:nowrap!important}
+ .fbis-shell-main.route-board .cgc-final-score{flex-wrap:nowrap!important}
+ .fbis-shell-main.route-board .cgc-final-score>small{flex-basis:auto!important;text-align:left!important}
+}
