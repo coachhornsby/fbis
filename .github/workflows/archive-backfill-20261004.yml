@@ -1,0 +1,77 @@
+name: Archive raw Zen pulls 2026-10-04
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/archive-backfill-20261004.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+      PP_ARTIFACT_ID: "11294396352"
+      PP_RUN_ID: "pp_20261004_37178846320"
+      ACTION_RUN_ID: "daily_20261004_b4f12d11bf"
+      ACTION_DATASET_ID: "k2R3TTA7gg2BGUrtq"
+    steps:
+      - name: Require credentials
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          test -n "${APIFY_TOKEN:-}"
+
+      - name: Wait for archive API
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 36); do
+            code="$(curl -sS --max-time 20 -H "x-harvest-secret: ${HARVEST_SECRET}" -o /tmp/archive.json -w "%{http_code}"               "${BASE}/api/source-archive?source=prizepicks&date=2026-10-04&_t=$(date +%s)-$i" || true)"
+            if [ "$code" = "200" ]; then cat /tmp/archive.json; exit 0; fi
+            echo "waiting for archive API attempt=$i/36 http=$code"
+            sleep 10
+          done
+          exit 1
+
+      - name: Download today's PrizePicks artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pp
+          curl -fsSL             -H "Authorization: Bearer ${GH_TOKEN}"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${PP_ARTIFACT_ID}/zip"             -o /tmp/pp.zip
+          unzip -o /tmp/pp.zip -d /tmp/pp >/dev/null
+          test -s /tmp/pp/prizepicks-rows.json
+          echo "PrizePicks raw rows: $(jq 'length' /tmp/pp/prizepicks-rows.json)"
+
+      - name: Archive today's PrizePicks pull in R2
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 120 -X PUT             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             --data-binary @/tmp/pp/prizepicks-rows.json             "${BASE}/api/source-archive?source=prizepicks&date=2026-10-04&runId=${PP_RUN_ID}"
+
+      - name: Fetch today's ACTION raw dataset
+        run: |
+          set -euo pipefail
+          curl -fsSL --max-time 120             -H "Authorization: Bearer ${APIFY_TOKEN}"             "https://api.apify.com/v2/datasets/${ACTION_DATASET_ID}/items?format=json&clean=true"             -o /tmp/action-rows.json
+          jq -e 'type=="array" and length>0' /tmp/action-rows.json >/dev/null
+          echo "ACTION raw rows: $(jq 'length' /tmp/action-rows.json)"
+
+      - name: Archive today's ACTION pull in R2
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 120 -X PUT             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             --data-binary @/tmp/action-rows.json             "${BASE}/api/source-archive?source=action&date=2026-10-04&runId=${ACTION_RUN_ID}"
+
+      - name: Verify both archives
+        run: |
+          set -euo pipefail
+          for source in prizepicks action; do
+            curl -fsS --max-time 30               -H "x-harvest-secret: ${HARVEST_SECRET}"               "${BASE}/api/source-archive?source=${source}&date=2026-10-04&_t=$(date +%s)"               | tee "/tmp/${source}-archive.json"
+            jq -e '.ok==true and .count>0' "/tmp/${source}-archive.json" >/dev/null
+          done
