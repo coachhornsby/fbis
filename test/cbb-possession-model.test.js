@@ -58,3 +58,62 @@ test("membership evidence reverses ambiguous participant ordering safely",()=>{
   assert.equal(out.qa.subResolved,1);
   assert.ok(out.teams.H.combinations.some(x=>x.size===5 && x.players.includes("H6")));
 });
+
+import {
+  aggregateNcaaCbbGame,
+  cbbNcaaPossessionFeatures,
+} from "../functions/lib/cbbNcaaPossessionModel.js";
+
+test("NCAA enriched PBP aggregates possessions, lineups, shot profile and QA",()=>{
+  const common={
+    contest_id:"c1",espn_game_id:"e1",game_date:"2025-01-10",
+    home:"Home",away:"Away",
+    home_ncaa_team_id:"NH",away_ncaa_team_id:"NA",
+    home_espn_team_id:"H",away_espn_team_id:"A",
+    sub_deviate:"0",
+    home_1_player_id:"H1",home_2_player_id:"H2",home_3_player_id:"H3",home_4_player_id:"H4",
+    away_1_player_id:"A1",away_2_player_id:"A2",away_3_player_id:"A3",away_4_player_id:"A4",away_5_player_id:"A5",
+  };
+  const rows=[
+    {...common,period:"1",poss_num:"1",poss_team:"Home",poss_team_espn_team_id:"H",
+      home_5_player_id:"H5",game_seconds:"10",home_score:"2",away_score:"0",
+      event_team:"Home",event_team_espn_team_id:"H",event_type:"SHOT",event_description:"H1 made layup",
+      event_result:"made",shot_value:"2",is_paint:"true",is_transition:"true"},
+    {...common,period:"1",poss_num:"2",poss_team:"Away",poss_team_espn_team_id:"A",
+      home_5_player_id:"H6",game_seconds:"24",home_score:"2",away_score:"0",
+      event_team:"Away",event_team_espn_team_id:"A",event_type:"TURNOVER",event_description:"A1 bad pass turnover"},
+    {...common,period:"1",poss_num:"3",poss_team:"Home",poss_team_espn_team_id:"H",
+      home_5_player_id:"H6",game_seconds:"35",home_score:"5",away_score:"0",
+      event_team:"Home",event_team_espn_team_id:"H",event_type:"SHOT",event_description:"H2 made three point jumper",
+      event_result:"made",shot_value:"3",is_transition:"false"},
+  ];
+  const out=aggregateNcaaCbbGame(rows);
+  assert.equal(out.ok,true);
+  assert.equal(out.lineupReliable,true);
+  assert.equal(out.qa.lineupCoverage,1);
+  assert.equal(out.qa.subDeviate,0);
+  assert.equal(out.teams.H.possessions,2);
+  assert.equal(out.teams.A.possessions,1);
+  assert.equal(out.teams.H.pointsFor,5);
+  assert.equal(out.teams.H.fga,2);
+  assert.equal(out.teams.H.fgm,2);
+  assert.equal(out.teams.H.threePa,1);
+  assert.equal(out.teams.H.rimA,1);
+  assert.equal(out.teams.H.transitionPoss,1);
+  assert.ok(out.teams.H.topFiveLineups.some(x=>x.players.includes("H5")));
+  assert.ok(out.teams.H.topFiveLineups.some(x=>x.players.includes("H6")));
+  const f=cbbNcaaPossessionFeatures(out);
+  assert.equal(f.lineupCoverage,1);
+  assert.ok(Object.hasOwn(f,"rimRateDiff"));
+  assert.ok(Object.hasOwn(f,"transitionRateDiff"));
+});
+
+test("ESPN reconstruction cannot certify lineups without substitution evidence",()=>{
+  const rows=[
+    {...base,sequence_number:1,period_number:1,clock_display_value:"20:00",team_id:"H",type_text:"Jump Shot",text:"H1 missed jumper",shooting_play:true,home_score:0,away_score:0},
+    {...base,sequence_number:2,period_number:1,clock_display_value:"19:58",team_id:"A",type_text:"Defensive Rebound",text:"A1 defensive rebound",home_score:0,away_score:0},
+  ];
+  const out=reconstructCbbGame(rows,{H:["H1","H2","H3","H4","H5"],A:["A1","A2","A3","A4","A5"]});
+  assert.equal(out.qa.subEvents,0);
+  assert.equal(out.lineupReliable,false);
+});
