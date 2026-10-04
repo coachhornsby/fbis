@@ -85,9 +85,36 @@ function betEval(rs,kind,m,threshold){
   }
   return{n:bets,w,l,push,winPct:w+l?round(100*w/(w+l),2):null,units:round(u,3),roi:bets?round(100*u/bets,2):null,moveTowardBet:moveN?round(move/moveN,3):null,moveN};
 }
-function chooseThreshold(train,kind,m){
-  const candidates=[1,1.5,2,2.5,3,4,5,6,8,10];let best=null;
-  for(const t of candidates){const e=betEval(train,kind,m,t);if(e.n<300)continue;const score=(e.roi??-999)-Math.max(0,400-e.n)*0.01;if(!best||score>best.score)best={threshold:t,score,...e}}
+function oofPredictions(train,kind,lambda){
+  activeKind=kind;
+  const seasons=[2018,2019,2020,2021,2022],out=[];
+  for(const s of seasons){
+    const tr=train.filter(r=>r.season!==s),te=train.filter(r=>r.season===s);
+    if(!tr.length||!te.length)continue;
+    const m=fitRidge(tr,r=>target(r,kind),lambda);
+    for(const r of te)out.push({r,pred:predict(m,r)});
+  }
+  return out;
+}
+function betEvalPreds(predRows,kind,threshold){
+  activeKind=kind;let bets=0,w=0,l=0,push=0,u=0;
+  for(const {r,pred} of predRows){
+    if(Math.abs(pred)<threshold)continue;
+    const actual=target(r,kind),dir=Math.sign(pred);bets++;
+    if(actual===0){push++;continue}
+    if(Math.sign(actual)===dir){w++;u+=100/110}else{l++;u-=1}
+  }
+  return{n:bets,w,l,push,winPct:w+l?round(100*w/(w+l),2):null,units:round(u,3),roi:bets?round(100*u/bets,2):null};
+}
+function chooseThreshold(train,kind,lambda){
+  const candidates=[1,1.5,2,2.5,3,4,5,6,8,10],oof=oofPredictions(train,kind,lambda);let best=null;
+  for(const t of candidates){
+    const e=betEvalPreds(oof,kind,t);
+    if(e.n<300)continue;
+    const score=(e.roi??-999)-Math.max(0,400-e.n)*0.01;
+    if(!best||score>best.score)best={threshold:t,score,...e,selection:"2018-22 leave-one-season-out"};
+  }
+  if(!best)best={threshold:10,score:null,...betEvalPreds(oof,kind,10),selection:"fallback-10"};
   return best;
 }
 function monotonic(rs,kind,m){
@@ -96,7 +123,7 @@ function monotonic(rs,kind,m){
 const discovery=rows.filter(r=>r.season<=2022),validation=rows.filter(r=>r.season===2023||r.season===2024),secondary=rows.filter(r=>r.season===2025);
 const out={id:"CBB-MONEY-SELECTOR-v1",generatedAt:new Date().toISOString(),training:"2018-22 only",validation:"2023-24",secondary:"2025 (not untouched; previously inspected)",automaticWagerAuthorization:false,models:{}};
 for(const kind of ["side","total"]){
-  activeKind=kind;const tr=eligible(discovery,kind),best=selectLambda(tr,kind),m=fitRidge(tr,r=>target(r,kind),best.lambda),th=chooseThreshold(tr,kind,m);
+  activeKind=kind;const tr=eligible(discovery,kind),best=selectLambda(tr,kind),th=chooseThreshold(tr,kind,best.lambda),m=fitRidge(tr,r=>target(r,kind),best.lambda);
   out.models[kind]={lambdaSelection:best,thresholdSelection:th,model:{features:m.features,means:m.means.map(x=>round(x,8)),sds:m.sds.map(x=>round(x,8)),beta:m.beta.map(x=>round(x,8)),intercept:round(m.intercept,8),lambda:m.lambda},
     discovery:betEval(discovery,kind,m,th.threshold),validation:betEval(validation,kind,m,th.threshold),secondary2025:betEval(secondary,kind,m,th.threshold),
     monotonic:{discovery:monotonic(discovery,kind,m),validation:monotonic(validation,kind,m),secondary2025:monotonic(secondary,kind,m)}};
@@ -110,5 +137,5 @@ function dislocationEval(rs){
 }
 sideDislocation.discovery=dislocationEval(discovery);sideDislocation.validation=dislocationEval(validation);sideDislocation.secondary2025=dislocationEval(secondary);
 out.sideDislocation=sideDislocation;
-out.governance={sideDislocationStatus:"prospective-challenger",thresholdFrozenNow:true,thresholdSelectedPostHocPreviously:true,requires2026_27ProspectiveConfirmation:true,trueClvRequired:true,positiveClvAndRoiRequiredForPromotion:true};
+out.governance={sideDislocationStatus:"prospective-challenger",thresholdFrozenNow:true,thresholdSelectedPostHocPreviously:true,directSelectorThresholdsSelectedWith2018_22LOSO:true,requires2026_27ProspectiveConfirmation:true,trueClvRequired:true,positiveClvAndRoiRequiredForPromotion:true,no2025ClaimsAsUntouched:true};
 mkdirSync("artifacts",{recursive:true});writeFileSync("artifacts/cbb-money-selector-v1.json",JSON.stringify(out,null,2));console.log(JSON.stringify(out,null,2));
