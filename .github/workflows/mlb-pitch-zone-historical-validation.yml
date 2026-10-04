@@ -26,7 +26,7 @@ jobs:
           SEASON: "2026"
           START_DATE: "2026-06-01"
           END_DATE: "2026-09-30"
-          MAX_GAMES: "48"
+          MAX_GAMES: "64"
           DATE_STEP: "4"
           GAMES_PER_DATE: "2"
           OUT: "research/mlb/pitch-zone-validation.json"
