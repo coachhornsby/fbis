@@ -21,7 +21,7 @@ function todayCt() {
     timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
   }).format(new Date());
 }
-function latestByCandidate(rows = []) {
+export function latestByCandidate(rows = []) {
   const seen = new Set();
   const out = [];
   for (const row of rows) {
@@ -49,7 +49,7 @@ function normalizedRows(rows = []) {
     fbisSigma: row.fbis_sigma,
   }));
 }
-function groupKey(row = {}) {
+export function groupKey(row = {}) {
   return [
     String(row.sport || "").toLowerCase(),
     String(row.player_name || row.playerName || "").toLowerCase(),
