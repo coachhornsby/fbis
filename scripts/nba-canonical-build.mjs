@@ -63,14 +63,18 @@ function playerRows(summary){
           points:num(["PTS","points"]),
           rebounds:num(["REB","rebounds"]),
           offensiveRebounds:num(["OREB","offensive rebounds"]),
+          defensiveRebounds:num(["DREB","defensive rebounds"]),
           assists:num(["AST","assists"]),
           turnovers:num(["TO","turnovers"]),
+          steals:num(["STL","steals"]),
+          blocks:num(["BLK","blocks"]),
+          fouls:num(["PF","fouls","personal fouls"]),
           fgm:fg.made,fga:fg.attempted,
           threes:tp.made,tpa:tp.attempted,
           ftm:ft.made,fta:ft.attempted,
           starter:a.starter?1:0
         };
-        const hasGameStats=[row.minutes,row.points,row.rebounds,row.assists,row.fga,row.fta,row.turnovers].some(v=>finite(v)!=null);
+        const hasGameStats=[row.minutes,row.points,row.rebounds,row.assists,row.fga,row.fta,row.turnovers,row.steals,row.blocks].some(v=>finite(v)!=null);
         if(hasGameStats) out.push(row);
       }
     }
