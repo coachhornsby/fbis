@@ -1,0 +1,37 @@
+name: CFB v7 rating challenger
+on:
+  push:
+    branches: ["research/cfb-v5-context-engine"]
+    paths: ["scripts/cfb-v7-ratings.py",".github/workflows/cfb-v7.yml"]
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  v7:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install pandas numpy scikit-learn
+      - name: Restore established v5 context
+        uses: actions/download-artifact@v4
+        with:
+          name: cfb-v5
+          path: artifacts/cfb-final
+          github-token: ${{ github.token }}
+          run-id: 37152541163
+      - name: Restore frozen base v6 control
+        uses: actions/download-artifact@v4
+        with:
+          name: cfb-v6
+          path: artifacts/cfb-control
+          github-token: ${{ github.token }}
+          run-id: 37179014409
+      - name: Run v7 sequential rating walk-forward
+        run: python scripts/cfb-v7-ratings.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-v7
+          path: artifacts/cfb-final/model-v7/*
+          retention-days: 90
