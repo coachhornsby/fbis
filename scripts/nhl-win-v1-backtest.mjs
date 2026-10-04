@@ -327,6 +327,23 @@ const winner=rank[0][0],winnerKey=candidates[winner];
 const current=testMetrics.current,best=testMetrics[winner];
 const promoted=winner!=="current"&&best.accuracy>current.accuracy&&best.brier<current.brier&&best.logLoss<current.logLoss;
 const coeffs=Object.fromEntries(FEATURES.map((f,i)=>[f,round(logistic.w[i+1]/scaler.sd[i],6)]));
+function selectiveAudit(rows,key){
+  const out={};
+  for(const t of [.55,.60,.625,.65,.675,.70]){
+    const rr=rows.filter(r=>Math.max(r[key],1-r[key])>=t);
+    out[`confidence_${Math.round(t*100)}plus`]={...metrics(rr,key),coverage:round(rr.length/rows.length,4)};
+  }
+  for(const m of [.25,.5,.75,1,1.25]){
+    const rr=rows.filter(r=>Math.abs(r.projHome-r.projAway)>=m);
+    out[`margin_${m}plus`]={...metrics(rr,key),coverage:round(rr.length/rows.length,4)};
+  }
+  for(const [t,m] of [[.60,.5],[.60,.75],[.625,.75],[.65,.75],[.65,1]]){
+    const rr=rows.filter(r=>Math.max(r[key],1-r[key])>=t&&Math.abs(r.projHome-r.projAway)>=m);
+    out[`confidence_${Math.round(t*100)}plus_margin_${m}plus`]={...metrics(rr,key),coverage:round(rr.length/rows.length,4)};
+  }
+  return out;
+}
+
 const report={
   modelId:"NHL-WIN-v1",version:"research-v1.0-situational-ensemble",generatedAt:new Date().toISOString(),
   pointInTime:true,marketInformed:false,
@@ -349,6 +366,8 @@ const report={
   incumbentMetrics:current,
   delta:{accuracy:round(best.accuracy-current.accuracy,4),brier:round(best.brier-current.brier,5),logLoss:round(best.logLoss-current.logLoss,5)},
   calibration:{current:calibration(test,"current"),selected:calibration(test,winnerKey)},
+  incumbentSelective:selectiveAudit(test,"current"),
+  selectedSelective:selectiveAudit(test,winnerKey),
   subsets:subset(test,winnerKey),
   coefficients:coeffs,
   promotion:{historicalPromotionEligible:promoted,canQualify:false,canAuthorizeWager:false,reason:promoted?"Selected winner head beat current head on OOS accuracy, Brier, and log loss.":"No candidate beat current winner head on all three OOS gates."},
