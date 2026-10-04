@@ -57,7 +57,7 @@ def main():
   prior={k:dict(v) for k,v in state.items()}
  pd.DataFrame(game_rows).to_csv(OUT/"game-conference-power.csv",index=False)
  h=pd.DataFrame(hist);h.to_csv(OUT/"conference-history.csv",index=False)
- latest=h[(h.season==h.season.max()) & (h.week==h[h.season==h.season.max()].week.max())].copy()
+ latest=h[(h.season==h.season.max()) & (h.week==h[h.season==h.season.max()].week.max()) & (h.crossConferenceGames>0)].copy()
  latest=latest.sort_values("power",ascending=False).reset_index(drop=True);latest.insert(0,"rank",range(1,len(latest)+1))
  latest.to_csv(OUT/"conference-rankings.csv",index=False)
  report={"version":"CFB-CONF-v3-research","method":"prior-season terminal conference strength regressed 40% toward zero, then pre-week snapshot and post-week cross-conference HFA-neutralized residual updates","marketInformed":False,"sameWeekLeakage":False,"season":int(latest.season.max()),"week":float(latest.week.max())}
