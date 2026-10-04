@@ -42,6 +42,7 @@ export default function CompactGameCard({ game, onOpen }) {
   const away = vm.away || {};
   const home = vm.home || {};
   const proj = vm.projection || {};
+  const market = vm.market || {};
   const edge = bestEdge(vm);
 
   return (
@@ -102,6 +103,18 @@ export default function CompactGameCard({ game, onOpen }) {
           <b>{edge.detail}</b>
           <small>{edge.type}</small>
         </aside>
+      </div>
+
+      <div className="cgc-market-strip" aria-label="Current market lines">
+        <div className="cgc-market-item">
+          <span>MARKET SPREAD</span>
+          <strong>{market.spreadLabel || "—"}</strong>
+        </div>
+        <div className="cgc-market-divider" aria-hidden="true" />
+        <div className="cgc-market-item">
+          <span>MARKET TOTAL</span>
+          <strong>{market.total ?? "—"}</strong>
+        </div>
       </div>
 
       <footer className="cgc-footer">
