@@ -68,6 +68,12 @@ jobs:
           for attempt in 1 2 3; do
             git fetch origin "${{ github.ref_name }}"
             git reset --hard "origin/${{ github.ref_name }}"
+            sed -E 's/"generatedAt": "[^"]+"/"generatedAt": "<stable>"/' data/models/nhl-pro-v2.js > "$RUNNER_TEMP/old-fit.norm"
+            sed -E 's/"generatedAt": "[^"]+"/"generatedAt": "<stable>"/' "$RUNNER_TEMP/nhl-pro-v2.js" > "$RUNNER_TEMP/new-fit.norm"
+            if cmp -s "$RUNNER_TEMP/old-fit.norm" "$RUNNER_TEMP/new-fit.norm"; then
+              echo "fitted artifact unchanged apart from generatedAt"
+              exit 0
+            fi
             cp "$RUNNER_TEMP/nhl-pro-v2.js" data/models/nhl-pro-v2.js
             git add data/models/nhl-pro-v2.js
             if git diff --cached --quiet -- data/models/nhl-pro-v2.js; then
