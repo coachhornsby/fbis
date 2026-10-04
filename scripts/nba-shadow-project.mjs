@@ -71,11 +71,14 @@ function insertGame(r){
 function insertProp(r){
   return `INSERT OR IGNORE INTO nba_player_prop_projections (id,game_id,player_id,player_name,team,market_type,projection,sigma,projected_minutes,availability_status,model_id,model_version,feature_cutoff_timestamp,maturity,can_qualify,can_authorize,provenance_json,created_at,availability_verified) VALUES (${q(r.id)},${q(r.gameId)},${q(r.playerId)},${q(r.playerName)},${q(r.team)},${q(r.market)},${num(r.projection)},${num(r.sigma)},${num(r.minutes)},${q(r.availabilityStatus||"UNKNOWN")},'NBA-PLAYER-PROP-v1','research-v1-impact',${q(r.featureCutoff)},'VALIDATION',1,0,${q(JSON.stringify(r.provenance))},${q(r.createdAt)},${r.availabilityVerified?1:0});`;
 }
+function insertImpactProp(r){
+  return `INSERT OR REPLACE INTO nba_player_prop_impact_shadow (id,game_id,player_id,player_name,team,market_type,baseline_projection,impact_projection,sigma,projected_minutes,feature_cutoff_timestamp,availability_status,availability_verified,context_json,created_at) VALUES (${q(r.id)},${q(r.gameId)},${q(r.playerId)},${q(r.playerName)},${q(r.team)},${q(r.market)},${num(r.baselineProjection)},${num(r.impactProjection)},${num(r.sigma)},${num(r.minutes)},${q(r.featureCutoff)},${q(r.availabilityStatus||"UNKNOWN")},${r.availabilityVerified?1:0},${q(JSON.stringify(r.context||{}))},${q(r.createdAt)});`;
+}
 
 const teamHist=teamRows(all);
 const currentPlayers=playerRows(current);
 const board=await fetchBoard();
-const createdAt=new Date().toISOString(),games=[],props=[];
+const createdAt=new Date().toISOString(),games=[],props=[],impactProps=[];
 for(const ev of board.events||[]){
   const comp=ev.competitions?.[0],cs=comp?.competitors||[];
   const h=cs.find(x=>x.homeAway==="home"),a=cs.find(x=>x.homeAway==="away");
@@ -103,27 +106,41 @@ for(const ev of board.events||[]){
       const liveRole=impactPayload?.roleContexts?.[playerId]||null;
       const selfAvailability=(liveRole?.unavailable||[]).find(x=>String(x.playerId)===String(playerId));
       const availabilityStatus=selfAvailability?.status||"UNKNOWN";
-      const pp=projectNbaPlayer({id:playerId,name:latest.name},{
+      const availabilityVerified=Boolean(liveRole?.availabilityVerified);
+      const baseline=projectNbaPlayer({id:playerId,name:latest.name},{
+        history:hist,teamProjection:sideScore,gamePossessions:p.expectedPossessions,status:availabilityStatus
+      });
+      const impactShadow=projectNbaPlayer({id:playerId,name:latest.name},{
         history:hist,teamProjection:sideScore,gamePossessions:p.expectedPossessions,status:availabilityStatus,
         impactContext,
         roleContext:liveRole?.role||null,
         lineupContext:liveRole?.lineup||null
       });
-      if(!pp.ok)continue;
-      for(const [market,m] of Object.entries(pp.markets||{})){
-        props.push({id:`${date}:${gameId}:${checkpoint}:${playerId}:${market}`,gameId,playerId,playerName:latest.name,team:teamAbbr,market,
-          projection:m.projection,sigma:m.sigma,minutes:pp.minutes,featureCutoff:createdAt,createdAt,
-          availabilityStatus,availabilityVerified:Boolean(liveRole?.availabilityVerified),
+      if(!baseline.ok)continue;
+      for(const [market,m] of Object.entries(baseline.markets||{})){
+        const rowId=`${date}:${gameId}:${checkpoint}:${playerId}:${market}`;
+        props.push({id:rowId,gameId,playerId,playerName:latest.name,team:teamAbbr,market,
+          projection:m.projection,sigma:m.sigma,minutes:baseline.minutes,featureCutoff:createdAt,createdAt,
+          availabilityStatus,availabilityVerified,
           provenance:{checkpoint,currentSeasonGames:hist.length,independent:true,marketUsed:false,gameModelVersion:p.modelVersion,
-            playerImpactModel:impactContext?.modelId||null,playerImpactVersion:impactContext?.version||null,
-            roleContext:liveRole?.role||null,lineupContext:liveRole?.lineup||null}});
+            impactApplied:false,impactResearchAvailable:Boolean(impactContext)}});
+        const im=impactShadow?.markets?.[market];
+        if(im){
+          impactProps.push({id:rowId+":impact",gameId,playerId,playerName:latest.name,team:teamAbbr,market,
+            baselineProjection:m.projection,impactProjection:im.projection,sigma:im.sigma,minutes:impactShadow.minutes,
+            featureCutoff:createdAt,createdAt,availabilityStatus,availabilityVerified,
+            context:{checkpoint,currentSeasonGames:hist.length,playerImpactModel:impactContext?.modelId||null,
+              playerImpactVersion:impactContext?.version||null,playerImpactNet:impactContext?.net??null,
+              roleContext:liveRole?.role||null,lineupContext:liveRole?.lineup||null,qualificationEligible:false}});
+        }
       }
     }
   }
 }
-const payload={date,checkpoint,createdAt,gameModel:"NBA-FBIS-v1",gameVersion:fit.version,propModel:"NBA-PLAYER-PROP-v1",games,props,
-  governance:{maturity:"VALIDATION",canQualify:true,canAuthorize:false,marketUsedAsFeature:false}};
+const payload={date,checkpoint,createdAt,gameModel:"NBA-FBIS-v1",gameVersion:fit.version,propModel:"NBA-PLAYER-PROP-v1",games,props,impactProps,
+  governance:{maturity:"VALIDATION",canQualify:true,canAuthorize:false,marketUsedAsFeature:false,
+    impactShadowQualification:false,impactShadowReason:"prospective_incremental_validation_required"}};
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
 fs.writeFileSync(out,JSON.stringify(payload,null,2)+"\n");
-fs.writeFileSync(sqlOut,[...games.map(insertGame),...props.map(insertProp)].join("\n")+"\n");
-console.log(JSON.stringify({ok:true,date,checkpoint,games:games.length,props:props.length,out,sqlOut},null,2));
+fs.writeFileSync(sqlOut,[...games.map(insertGame),...props.map(insertProp),...impactProps.map(insertImpactProp)].join("\n")+"\n");
+console.log(JSON.stringify({ok:true,date,checkpoint,games:games.length,props:props.length,impactProps:impactProps.length,out,sqlOut},null,2));
