@@ -1,0 +1,72 @@
+name: NHL-PRO-v2 model fit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "feature/nhl-pro-v2-20261003"
+      - main
+    paths:
+      - "data/models/nhl-pro-v2-validation.json"
+      - "scripts/nhl-pro-v2-fit.mjs"
+      - ".github/workflows/nhl-pro-v2-fit.yml"
+      - ".github/nhl-v2-fit-run"
+
+permissions:
+  contents: write
+
+jobs:
+  fit:
+    if: "${{ github.event_name == 'workflow_dispatch' || github.event.head_commit.message != 'data: fit NHL-PRO-v2 artifact' }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+      - name: Fit NHL-PRO-v2 artifact
+        run: |
+          set -euo pipefail
+          node scripts/nhl-pro-v2-fit.mjs \
+            --seasons=20232024,20242025,20252026 \
+            --concurrency=12 \
+            --out=data/models/nhl-pro-v2.js
+      - name: Verify artifact and model contract
+        run: |
+          set -euo pipefail
+          grep -q '"trained": true' data/models/nhl-pro-v2.js
+          grep -q '"xgModel":' data/models/nhl-pro-v2.js
+          grep -q '"shooters":' data/models/nhl-pro-v2.js
+          grep -q '"goalies":' data/models/nhl-pro-v2.js
+          node --check data/models/nhl-pro-v2.js
+          node --check functions/lib/nhlProV2.js
+          node --test test/nhl-pro-v2.test.js
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-pro-v2-fit-${{ github.run_id }}
+          path: data/models/nhl-pro-v2.js
+          retention-days: 90
+      - name: Persist fitted artifact
+        run: |
+          set -euo pipefail
+          cp data/models/nhl-pro-v2.js "$RUNNER_TEMP/nhl-pro-v2.js"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin "${{ github.ref_name }}"
+            git reset --hard "origin/${{ github.ref_name }}"
+            cp "$RUNNER_TEMP/nhl-pro-v2.js" data/models/nhl-pro-v2.js
+            git add data/models/nhl-pro-v2.js
+            if git diff --cached --quiet -- data/models/nhl-pro-v2.js; then
+              echo "artifact unchanged"
+              exit 0
+            fi
+            git commit -m "data: fit NHL-PRO-v2 artifact"
+            if git push origin HEAD:"${{ github.ref_name }}"; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          exit 1
