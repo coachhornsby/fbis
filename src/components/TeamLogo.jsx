@@ -37,7 +37,7 @@ export default function TeamLogo({
   useEffect(() => {
     setFailed(false);
     setRemote(null);
-    if (baseUrl || !name || !["soccer","nhl"].includes(sport)) return;
+    if ((baseUrl && !failed) || !name || !["soccer","nhl"].includes(sport)) return;
     const key = sport + "|" + String(name).toLowerCase();
     const cached = REMOTE_LOGO_CACHE.get(key);
     if (cached?.value) {
@@ -58,7 +58,7 @@ export default function TeamLogo({
       });
     REMOTE_LOGO_CACHE.set(key, { promise });
     promise.then((value) => value && setRemote(value)).catch(() => {});
-  }, [baseUrl, name, sport]);
+  }, [baseUrl, failed, name, sport]);
 
   if (!url) {
     return (
