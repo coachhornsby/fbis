@@ -47,3 +47,98 @@ export function applyWnbaGameImpactShadow(game,{homeAdjustment=0,awayAdjustment=
     independent:true,marketInformed:false,canQualify:false,canAuthorize:false
   };
 }
+
+
+function parseJson(v){if(v&&typeof v==="object")return v;try{return JSON.parse(v||"{}")}catch{return{}}}
+
+export async function loadWnbaImpactContext(db){
+  if(!db?.prepare)return {players:{},roles:{},meta:{available:false,reason:"db_unavailable"}};
+  try{
+    const [impactRes,roleRes]=await Promise.all([
+      db.prepare(`
+        WITH ranked AS (
+          SELECT *,ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY as_of DESC) rn
+          FROM wnba_player_impact_snapshots
+        )
+        SELECT * FROM ranked WHERE rn=1
+      `).all(),
+      db.prepare(`
+        WITH ranked AS (
+          SELECT *,ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY feature_cutoff_timestamp DESC) rn
+          FROM wnba_player_role_contexts
+        )
+        SELECT * FROM ranked WHERE rn=1
+      `).all()
+    ]);
+    const players={},roles={};
+    for(const r of impactRes?.results||[]){
+      players[String(r.player_id)]={
+        modelId:r.model_id,version:r.model_version,playerId:String(r.player_id),name:r.player_name,teamId:r.team_id,position:r.position,
+        offense:finite(r.offense_impact),defense:finite(r.defense_impact),net:finite(r.net_impact),
+        rapm:r.rapm_net==null?null:{net:finite(r.rapm_net)},
+        diagnostics:{bpmStyle:finite(r.bpm_style),vorpStylePerGame:finite(r.vorp_style),ws48Style:finite(r.ws48_style)},
+        skill:parseJson(r.dynamic_skill_json)
+      };
+    }
+    for(const r of roleRes?.results||[]){
+      const x=parseJson(r.context_json);
+      roles[String(r.player_id)]={
+        role:{
+          minutesDelta:finite(r.minutes_delta),usageMultiplier:finite(r.usage_multiplier),pointsMultiplier:finite(r.points_multiplier),
+          reboundsMultiplier:finite(r.rebounds_multiplier),assistsMultiplier:finite(r.assists_multiplier),threesMultiplier:finite(r.threes_multiplier),
+          unavailableCount:Number(r.unavailable_count||0)
+        },
+        lineup:{multiplier:finite(r.lineup_multiplier)??1},
+        availabilityVerified:Number(r.availability_verified||0)===1,
+        unavailable:x.unavailable||[]
+      };
+    }
+    return {players,roles,meta:{available:true,players:Object.keys(players).length,roles:Object.keys(roles).length}};
+  }catch(err){
+    return {players:{},roles:{},meta:{available:false,error:String(err?.message||err)}};
+  }
+}
+
+function teamAbbr(team={}){return String(team.abbr||team.shortName||team.name||"").toUpperCase();}
+function statusWeight(s){const x=String(s||"").toUpperCase();return x==="OUT"?1:x==="DOUBTFUL"?0.8:x==="QUESTIONABLE"?0.45:x==="PROBABLE"?0.12:0}
+
+export function attachWnbaImpactShadows(games=[],ctx={players:{},roles:{}}){
+  let propRows=0,gameRows=0,verified=0;
+  const next=(games||[]).map(game=>{
+    const rows=(game.playerProjectionRows||[]).map(row=>{
+      const impact=ctx.players?.[String(row.playerId)]||null;
+      const rc=ctx.roles?.[String(row.playerId)]||null;
+      const out=applyWnbaPropImpactShadow(row,{
+        impact,role:rc?.role||null,lineup:rc?.lineup||null,availabilityVerified:Boolean(rc?.availabilityVerified)
+      });
+      if(out.impactShadow)propRows++;
+      if(out.impactShadow?.availabilityVerified)verified++;
+      return out;
+    });
+    const teamAdj={};
+    for(const side of ["home","away"]){
+      const abbr=teamAbbr(game[side]);
+      let adjustment=0,teamVerified=false;
+      const teamPlayers=Object.values(ctx.players||{}).filter(p=>String(p.teamId||"")===String(game?.[side]?.espnId||String(game?.[side]?.id||"").replace(/^wnba-/,""))||String(p.team||"").toUpperCase()===abbr);
+      const unavailable=new Map();
+      for(const p of teamPlayers){
+        const rc=ctx.roles?.[String(p.playerId)]||{};
+        for(const u of rc.unavailable||[])unavailable.set(String(u.playerId),u);
+        if(rc.availabilityVerified)teamVerified=true;
+      }
+      for(const [pid,u] of unavailable){
+        const p=ctx.players?.[pid];if(!p)continue;
+        const mins=finite(p.skill?.minutes)||26;
+        adjustment-=clamp((finite(p.net)||0)*mins/40*statusWeight(u.status)*.55,-6,6);
+      }
+      teamAdj[side]={adjustment,verified:teamVerified};
+    }
+    const gShadow=applyWnbaGameImpactShadow(game,{
+      homeAdjustment:teamAdj.home.adjustment,awayAdjustment:teamAdj.away.adjustment,
+      availabilityVerified:teamAdj.home.verified||teamAdj.away.verified
+    });
+    if(gShadow)gameRows++;
+    return {...game,playerProjectionRows:rows,wnbaImpactGameShadow:gShadow};
+  });
+  return {games:next,meta:{modelId:WNBA_PROP_IMPACT_CHALLENGER_ID,propRows,gameRows,availabilityVerifiedRows:verified,canQualify:false,canAuthorize:false,marketInformed:false}};
+}
