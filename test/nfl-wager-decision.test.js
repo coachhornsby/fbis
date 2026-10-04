@@ -125,3 +125,10 @@ test("missing actual price blocks betting instead of assuming -110",()=>{
   assert.ok(out.candidates.every(c=>c.americanPrice==null));
   assert.ok(out.candidates.every(c=>c.reasons.includes("actual-price-missing")));
 });
+
+
+test("unconfigured availability is not mislabeled stale",()=>{
+  const g=game({availabilityImpact:{configured:false,criticalUnresolved:false,stale:true,homeScoreAdjustment:0,awayScoreAdjustment:0}});
+  const out=evaluateNflGameWagers(g,{validated:false,bins:[],minEv:.01,minProbabilityEdge:.01,minConfidence:1});
+  assert.ok(out.candidates.every(c=>!c.reasons.includes("availability-stale")));
+});
