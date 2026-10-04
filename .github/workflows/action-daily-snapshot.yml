@@ -123,3 +123,5 @@ jobs:
           echo "NFL wager decision snapshot endpoint did not become healthy."
           exit 1
 # operator-trigger: 2026-10-04 daily Zen recovery
+
+# decision-loop-kick: 2026-10-04
