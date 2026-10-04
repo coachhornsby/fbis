@@ -239,6 +239,8 @@ export default function MyBetsView({
                   <div style={{ marginTop: 6 }}>
                     {String(b.market || "").toUpperCase() === "PLAYER_PROP" ? (
                       <PlayerPropParticipants bet={b} />
+                    ) : String(b.sport || "").toLowerCase() === "tennis" ? (
+                      <TennisParticipants bet={b} />
                     ) : (
                       <TicketMatchup
                         awayIdentity={b.awayIdentity}
@@ -298,6 +300,8 @@ export default function MyBetsView({
                     <td>
                       {String(b.market || "").toUpperCase() === "PLAYER_PROP" ? (
                         <PlayerPropParticipants bet={b} compact />
+                      ) : String(b.sport || "").toLowerCase() === "tennis" ? (
+                        <TennisParticipants bet={b} compact />
                       ) : (
                         <TicketMatchup
                           awayIdentity={b.awayIdentity}
@@ -349,13 +353,12 @@ export default function MyBetsView({
 const PLAYER_IMAGE_CACHE = new Map();
 
 function propPlayerNames(bet) {
-  if (bet?.playerName) return [String(bet.playerName).trim()].filter(Boolean);
-  const raw = String(bet?.selectedTeam || bet?.selectedSide || "");
+  const raw = String(bet?.playerName || bet?.selectedTeam || bet?.selectedSide || "");
   return raw.split("/").map((part) => {
     const clean = part.trim();
     const match = clean.match(/^(.+?)\s+(?:(?:M|L|O|U|Over|Under)\s*)?-?\d+(?:\.\d+)?\b/i);
     return (match?.[1] || "").trim();
-  }).filter(Boolean).slice(0, 6);
+  }).filter(Boolean).slice(0, 8);
 }
 
 function PlayerHeadshot({ name, sport, size = 36 }) {
@@ -395,6 +398,31 @@ function PlayerHeadshot({ name, sport, size = 36 }) {
     <span className="team-logo-fallback team-logo-plate" style={{width:size,height:size,fontSize:Math.max(9,size*.28)}}>
       {String(name||"?").split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()}
     </span>
+  );
+}
+
+
+function TennisParticipants({ bet, compact = false }) {
+  let a = String(bet?.awayTeam || "").trim();
+  let b = String(bet?.homeTeam || "").trim();
+  if ((!a || !b) && bet?.matchupText) {
+    const parts = String(bet.matchupText).split(/\s+(?:@|vs\.?|v)\s+/i);
+    if (parts.length === 2) {
+      a = a || parts[0].trim();
+      b = b || parts[1].trim();
+    }
+  }
+  const names = [a,b].filter(Boolean);
+  if (!names.length) return <div className="muted">{bet?.matchupText || "Tennis"}</div>;
+  return (
+    <div style={{display:"grid",gap:6}}>
+      {names.map((name) => (
+        <div key={name} style={{display:"flex",alignItems:"center",gap:9}}>
+          <PlayerHeadshot name={name} sport="tennis" size={compact ? 28 : 38} />
+          <span style={{fontWeight:700}}>{name}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
