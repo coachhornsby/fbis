@@ -387,15 +387,52 @@ test("WNBA PrizePicks props use the common star system with canonical 3PT mappin
   assert.equal(board.rows[0].confidenceSide,"MORE");
 });
 
-test("WNBA research validation gate caps generic prop stars at two", () => {
-  const row = withFbisPropAnalytics({
-    sport:"wnba",
-    marketCanonical:"points",
-    line:20.5,
-    fbisProjection:28,
-    fbisSigma:4,
-    propGate:"RESEARCH_VALIDATION_REQUIRED",
+test("WNBA authorized props keep the full generic 1-5 star range and card authority", () => {
+  const board = buildPlayerPropsBoard({
+    games:[{
+      id:"wnba-open",sport:"wnba",away:{abbr:"IND"},home:{abbr:"LVA"},
+      playerMarkets:[{
+        playerName:"Star",
+        team:"LVA",
+        marketCanonical:"points",
+        line:20.5,
+        fbisProjection:28,
+        fbisSigma:4,
+        propGate:"CLEAR",
+        decisionEligible:true,
+        eligibleForCard:true,
+        modelAuthorized:true,
+      }],
+    }],
   });
-  assert.equal(row.confidenceStars,2);
-  assert.equal(row.confidenceSide,"MORE");
+  assert.equal(board.rows.length,1);
+  assert.equal(board.rows[0].confidenceStars,5);
+  assert.equal(board.rows[0].confidenceSide,"MORE");
+  assert.equal(board.rows[0].decisionEligible,true);
+  assert.equal(board.rows[0].eligibleForCard,true);
+  assert.equal(board.rows[0].modelAuthorized,true);
+  assert.equal(board.readiness.classification,"ACTIVE");
+  assert.equal(board.readiness.modelAuthorized,true);
+  assert.equal(board.readiness.decisionEligible,true);
+});
+
+
+test("domain adapter preserves authorized WNBA prop flags", () => {
+  const game = normalizeBoardGame({
+    id:"wnba-domain", sport:"wnba",
+    playerProjectionRows:[{
+      playerId:"p1", playerName:"Guard", team:"LVA", market:"points",
+      fbisProjection:24, fbisSigma:4, decisionEligible:true, eligibleForCard:true,
+      canAuthorizeWager:true, propGate:"CLEAR", maturity:"ACTIVE",
+    }],
+    playerMarkets:[{
+      providerPlayerId:"p1", playerName:"Guard", team:"LVA",
+      marketCanonical:"points", line:20.5,
+    }],
+  });
+  const board = buildPlayerPropsBoard({games:[game]});
+  assert.equal(board.rows[0].decisionEligible,true);
+  assert.equal(board.rows[0].modelAuthorized,true);
+  assert.equal(board.rows[0].eligibleForCard,true);
+  assert.equal(board.rows[0].propGate,"CLEAR");
 });
