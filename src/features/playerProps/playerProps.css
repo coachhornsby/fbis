@@ -2305,11 +2305,16 @@
   background:#4e77a5;
 }
 .pp-history-bar.over {
-  background:linear-gradient(180deg,#68f7aa,#1cbf70);
-  box-shadow:0 0 10px rgba(80,240,160,.16);
+  background:#39ff88;
+  box-shadow:0 0 12px rgba(57,255,136,.62),0 0 3px rgba(57,255,136,.9);
 }
 .pp-history-bar.under {
-  background:linear-gradient(180deg,#ff788b,#d8455b);
+  background:#ff315f;
+  box-shadow:0 0 12px rgba(255,49,95,.55),0 0 3px rgba(255,49,95,.88);
+}
+.pp-history-bar.push {
+  background:#ffd84a;
+  box-shadow:0 0 10px rgba(255,216,74,.42);
 }
 .pp-history-line {
   position:absolute;
@@ -2705,3 +2710,5 @@
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
 }
+
+.pp-analytics-unavailable{padding:11px 12px;border:1px solid rgba(255,94,120,.32);border-radius:12px;background:rgba(47,10,22,.38);color:#ff9bad;font-size:9px;line-height:1.45}
