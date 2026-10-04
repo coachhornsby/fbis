@@ -183,8 +183,8 @@ def main():
   zh=z[z.season>=2025]
   v5cmp={"n":len(z),"v6":metrics(z,z.v6_margin,z.v6_total),"v5":metrics(z,z.v5_margin,z.v5_total),
          "holdout2025_2026":{"v6":metrics(zh,zh.v6_margin,zh.v6_total),"v5":metrics(zh,zh.v5_margin,zh.v5_total)}}
- report={"modelId":"CFB-FBIS-v6-research","role":"research","marketInformed":False,"canQualify":False,
-  "design":"v6 hierarchical cross-season team/conference priors + shrunk team HFA + safe QB continuity when available + broad shifted advanced state + matchup interactions + train-fold-selected Ridge/HistGradientBoosting ensemble",
+ report={"modelId":"CFB-FBIS-v6-QBT-research","role":"research","marketInformed":False,"canQualify":False,
+  "design":"v6 control plus reserved opponent-adjusted QB/pass-protection/pass-rush and OL-run/DL-run matchup family; market-independent train-fold-selected Ridge/HistGradientBoosting ensemble",
   "sample":{"n":len(p),"startSeason":int(p.season.min()),"endSeason":int(p.season.max())},
   "v6":m4,"marketPairedV6":m4mk,"market":market,"holdout2025_2026":{"v6":h4},
   "betting":betting(p,prefix="v6"),"v5HeadToHead":v5cmp,"folds":folds,
