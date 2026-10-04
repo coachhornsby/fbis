@@ -7,6 +7,10 @@ import {
   canonicalizeProPlayerPropMarket,
   normalizeProPropSport,
 } from "../../../functions/lib/proPlayerProps.js";
+import {
+  rateGenericNhlPropConfidence,
+  rateNhlGoalieSavesConfidence,
+} from "../../../functions/lib/nhlPropConfidence.js";
 
 /**
  * All player-prop markets currently supported on FBIS product surfaces.
@@ -18,48 +22,6 @@ export const FBIS_PLAYER_MARKETS = Object.freeze([
 
 /** Human-readable labels — never show snake_case in the product UI. */
 export const MARKET_LABELS = Object.freeze({ ...PRO_PLAYER_PROP_LABELS });
-
-/**
- * 1-5 star FBIS player-prop confidence from the distance between the
- * independent FBIS projection and the PrizePicks line.
- *
- * Prefer sigma-normalized distance when model uncertainty is available.
- * Fall back to relative line distance when sigma is unavailable. This rating
- * is projection-vs-market confidence only; it does not authorize a wager.
- */
-export function propProjectionStars(row = {}) {
-  const projectionRaw = row.fbisProjection ?? row.fbis_projection ?? row.projection ?? null;
-  const lineRaw = row.line ?? null;
-  if (
-    projectionRaw == null ||
-    lineRaw == null ||
-    !Number.isFinite(Number(projectionRaw)) ||
-    !Number.isFinite(Number(lineRaw))
-  ) return null;
-
-  const projection = Number(projectionRaw);
-  const line = Number(lineRaw);
-  const delta = Math.abs(projection - line);
-  const sigmaRaw = row.fbisSigma ?? row.fbis_sigma ?? row.sigma ?? null;
-  const sigma = sigmaRaw == null || sigmaRaw === "" ? NaN : Number(sigmaRaw);
-
-  if (Number.isFinite(sigma) && sigma > 0) {
-    const z = delta / sigma;
-    if (z >= 0.90) return 5;
-    if (z >= 0.65) return 4;
-    if (z >= 0.40) return 3;
-    if (z >= 0.20) return 2;
-    return 1;
-  }
-
-  const denom = Math.max(Math.abs(line), 1);
-  const relativeGap = delta / denom;
-  if (relativeGap >= 0.15) return 5;
-  if (relativeGap >= 0.10) return 4;
-  if (relativeGap >= 0.06) return 3;
-  if (relativeGap >= 0.03) return 2;
-  return 1;
-}
 
 /**
  * Attach FBIS projection analytics when upstream provided them.
@@ -111,10 +73,83 @@ export function withFbisPropAnalytics(row = {}) {
     edge: finiteOrNull(edge),
     projectionDelta,
   };
-  return {
+  const ranked = {
     ...enriched,
-    projectionStars: propProjectionStars(enriched),
     ...rankPropConviction(enriched),
+  };
+
+  if (String(ranked.sport || "").toLowerCase() === "nhl") {
+    if (String(ranked.marketCanonical || ranked.market || "") === "saves") {
+      const env = ranked.shotEnvironment || {};
+      const stars = rateNhlGoalieSavesConfidence({
+        projection: ranked.fbisProjection,
+        line: ranked.line,
+        opponentShotsFor: env.opponentShotsFor,
+        teamShotsAgainst: env.teamShotsAgainst,
+        projectedShotsFaced: env.projectedShotsFaced,
+        starterConfirmed: ranked.propGate === "CLEAR",
+        lineValidated: !ranked.lineValidationStatus || ranked.lineValidationStatus === "PROMOTE_RESEARCH",
+        modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
+      });
+      return {
+        ...ranked,
+        confidenceStars: stars.stars,
+        confidenceLabel: stars.label,
+        confidenceTier: stars.tier,
+        confidenceSide: stars.side,
+        confidenceGap: stars.gap,
+        confidenceReasons: stars.reasons,
+        confidenceResearchCandidate: stars.researchCandidate,
+        confidenceVersion: stars.confidenceVersion,
+        confidenceEnvironment: stars.environment,
+      };
+    }
+
+    const genericStars = rateGenericNhlPropConfidence({
+      market: ranked.marketCanonical || ranked.market,
+      projection: ranked.fbisProjection,
+      line: ranked.line,
+      leanProbability: ranked.leanProbability,
+      validationStatus: ranked.validationStatus,
+      lineValidationStatus: ranked.lineValidationStatus,
+      eligibleForCard: ranked.eligibleForCard,
+    });
+    if (genericStars) {
+      return {
+        ...ranked,
+        confidenceStars: genericStars.stars,
+        confidenceLabel: genericStars.label,
+        confidenceTier: genericStars.tier,
+        confidenceSide: ranked.convictionLean || null,
+        confidenceGap: ranked.projectionDelta,
+        confidenceReasons: genericStars.reasons,
+        confidenceResearchCandidate: genericStars.researchCandidate,
+        confidenceVersion: genericStars.confidenceVersion,
+      };
+    }
+  }
+
+  const genericScore = Number(ranked.leanProbability);
+  const stars = Number.isFinite(genericScore)
+    ? genericScore >= 0.75 ? 5
+      : genericScore >= 0.68 ? 4
+      : genericScore >= 0.60 ? 3
+      : genericScore >= 0.54 ? 2
+      : 1
+    : ranked.convictionTier === "CONVICTION" ? 4
+      : ranked.convictionTier === "STRONG" ? 3
+      : ranked.convictionTier === "LEAN" ? 2
+      : 1;
+  return {
+    ...ranked,
+    confidenceStars: stars,
+    confidenceLabel: `${stars} STAR`,
+    confidenceTier: stars >= 5 ? "ELITE" : stars === 4 ? "PREMIUM" : stars === 3 ? "STRONG" : stars === 2 ? "LEAN" : "WATCH",
+    confidenceSide: ranked.convictionLean || null,
+    confidenceGap: ranked.projectionDelta,
+    confidenceReasons: ["generic_probability_conviction_scale"],
+    confidenceResearchCandidate: stars >= 3,
+    confidenceVersion: "fbis-generic-stars-v1",
   };
 }
 
@@ -211,6 +246,9 @@ export function rankPropConviction(row = {}) {
 
 export function sortPropsByConviction(rows = []) {
   return [...(rows || [])].sort((a, b) => {
+    const aStars=Number(a?.confidenceStars),bStars=Number(b?.confidenceStars);
+    const aStarScore=Number.isFinite(aStars)?aStars:0,bStarScore=Number.isFinite(bStars)?bStars:0;
+    if(bStarScore!==aStarScore)return bStarScore-aStarScore;
     const sa = Number(a?.convictionScore);
     const sb = Number(b?.convictionScore);
     const aScore = Number.isFinite(sa) ? sa : -1;
@@ -329,6 +367,12 @@ export function normalizeBoardGame(game = {}) {
     if(idx<0) return m;
     matched.add(idx);
     const p=projections[idx];
+    const validatedLines=p.validatedLines&&typeof p.validatedLines==="object"?p.validatedLines:{};
+    const hasLineGrid=Object.keys(validatedLines).length>0;
+    const lineNumber=Number(m.line);
+    const lineKey=Number.isFinite(lineNumber)?String(lineNumber):null;
+    const lineValidationStatus=lineKey?validatedLines[lineKey]||"UNVALIDATED_LINE":null;
+    const lineValidated=!hasLineGrid||lineValidationStatus==="PROMOTE_RESEARCH";
     return {
       ...m,
       fbisProjection: p.fbisProjection ?? m.fbisProjection ?? null,
@@ -337,9 +381,12 @@ export function normalizeBoardGame(game = {}) {
       modelMaturity: p.maturity || "RESEARCH",
       modelIndependent: p.independent !== false,
       availabilityStatus: p.availabilityStatus || null,
-      propGate: p.propGate || "CLEAR",
-      gateReason: p.gateReason || null,
-      eligibleForCard: p.eligibleForCard === true,
+      validationStatus:p.validationStatus||null,
+      lineValidationStatus,
+      shotEnvironment:p.shotEnvironment||null,
+      propGate: lineValidated ? (p.propGate || "CLEAR") : "HOLD",
+      gateReason: lineValidated ? (p.gateReason || null) : "prop_line_not_validated_vs_baseline",
+      eligibleForCard: p.eligibleForCard === true && lineValidated,
     };
   });
 
@@ -446,17 +493,10 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
     }
   }
 
-  const projectedRows = allRows.filter(
-    (r) =>
-      r.fbisProjection != null &&
-      Number.isFinite(Number(r.fbisProjection)) &&
-      r.line != null &&
-      Number.isFinite(Number(r.line)),
-  );
-  const supportedRows = projectedRows.filter((r) => r.supportedMarket);
-  const scoped = opts.supportedOnly === false ? projectedRows : supportedRows;
+  const supportedRows = allRows.filter((r) => r.supportedMarket);
+  const scoped = opts.supportedOnly === false ? allRows : supportedRows;
   const rows = sortPropsByConviction(scoped);
-  const rankedAllRows = sortPropsByConviction(projectedRows);
+  const rankedAllRows = sortPropsByConviction(allRows);
 
   return {
     date: domain.date,
@@ -468,8 +508,7 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       rows: rows.length,
       eventsWithProps: new Set(rows.map((r) => r.eventId).filter(Boolean)).size,
       supportedRows: supportedRows.length,
-      unsupportedRows: projectedRows.length - supportedRows.length,
-      hiddenWithoutProjection: allRows.length - projectedRows.length,
+      unsupportedRows: allRows.length - supportedRows.length,
       byMarket,
       decisionEligible: rows.filter((r) => r.decisionEligible).length,
       cardEligible: rows.filter((r) => r.eligibleForCard === true).length,
