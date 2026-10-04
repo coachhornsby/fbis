@@ -37,7 +37,7 @@ export default function TeamLogo({
   useEffect(() => {
     setFailed(false);
     setRemote(null);
-    if ((baseUrl && !failed) || !name || !["soccer","nhl"].includes(sport)) return;
+    if ((baseUrl && !failed) || !name || !["soccer","nhl","npb","kbo"].includes(sport)) return;
     const key = sport + "|" + String(name).toLowerCase();
     const cached = REMOTE_LOGO_CACHE.get(key);
     if (cached?.value) {
