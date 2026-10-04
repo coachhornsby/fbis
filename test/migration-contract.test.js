@@ -72,7 +72,7 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   const m29 = await readFile(new URL("../migrations/0029_executed_bet_settlement_evidence.sql", import.meta.url), "utf8");
   assert.match(m29, /0029_executed_bet_settlement_evidence/i);
   assert.match(m29, /final_home_score/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0038_continuous_learning_governance["\']/);
+  assert.match(health, /EXPECTED_MIGRATION\\s*=\\s*["\\']0039_soccer_canonical["\\']/);
   const m37 = await readFile(new URL("../migrations/0037_ops_control_plane.sql", import.meta.url), "utf8");
   assert.match(m37, /0037_ops_control_plane/i);
   assert.match(m37, /fbis_ops_components/);
@@ -89,6 +89,10 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(m38, /online_learning_shadow/);
   assert.match(schemaExt, /learning_monitor_runs/);
   assert.match(schemaExt, /online_learning_shadow/);
+  const m39 = await readFile(new URL("../migrations/0039_soccer_canonical.sql", import.meta.url), "utf8");
+  assert.match(m39, /0039_soccer_canonical/i);
+  assert.match(m39, /soccer_matches/);
+  assert.match(schemaExt, /soccer_matches/);
   assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /WHERE id = \?/);
 });
