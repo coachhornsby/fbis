@@ -258,7 +258,10 @@ export function reconstructCbbGame(rows = [], starters = {}) {
     const hs = e.homeScore ?? pointsAtStart.home;
     const as = e.awayScore ?? pointsAtStart.away;
     const rawPts = offense === home ? hs-pointsAtStart.home : as-pointsAtStart.away;
-    const pts = clamp(Number.isFinite(rawPts)?rawPts:0,0,8);
+    // If the first observable offensive event is the made basket itself, ESPN's
+    // score field is already post-event. Recover the scoring value explicitly.
+    const fallbackPts = reason === "made-field-goal" ? (num(e.scoreValue) ?? (isThree(e)?3:2)) : 0;
+    const pts = clamp(Number.isFinite(rawPts) && rawPts > 0 ? rawPts : fallbackPts,0,8);
     const offLineup = lineupArray(lineups.get(offense) || new Set());
     const defLineup = lineupArray(lineups.get(defense) || new Set());
     const p = {
