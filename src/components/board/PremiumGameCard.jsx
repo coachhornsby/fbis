@@ -1,407 +1,179 @@
 import TeamLogo from "../TeamLogo.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
-import { venueAtmosphereClass, venueAtmosphereStyle } from "../../lib/venueAtmosphere.js";
+import { confidenceStars } from "../../lib/confidenceStars.js";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
 import "./premiumGameCard.css";
 
-function StatusPill({ status }) {
-  if (!status?.label) return null;
-  const tone = String(status.tone || status.key || "neutral").toLowerCase();
-  return (
-    <span className={`pgc-status pgc-status-${tone}`}>
-      {tone === "qualified" ? "✓ " : ""}
-      {status.label}
-    </span>
-  );
+function num(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  const x = Math.round(n * 10) / 10;
+  return Number.isInteger(x) ? String(x) : x.toFixed(1);
 }
 
-function SideBox({ title, side }) {
-  if (!side) {
-    return (
-      <div className="pgc-side-box">
-        <span className="pgc-side-box-title">{title}</span>
-        <span className="pgc-empty-inline">—</span>
-      </div>
-    );
+function signed(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  const x = Math.round(n * 10) / 10;
+  return `${x > 0 ? "+" : ""}${Number.isInteger(x) ? x : x.toFixed(1)}`;
+}
+
+function modelEdge(vm) {
+  const cmp = vm.comparison || {};
+  const spread = Number(cmp.sideDiff);
+  const total = Number(cmp.totalDiff);
+  if (Number.isFinite(spread) && (!Number.isFinite(total) || Math.abs(spread) >= Math.abs(total))) {
+    return {
+      value: cmp.fbisSide?.label || signed(spread),
+      delta: `+${num(Math.abs(spread))}`,
+      type: "SPREAD",
+    };
   }
-  const team = side.team || null;
+  if (Number.isFinite(total)) {
+    return {
+      value: `${total > 0 ? "OVER" : total < 0 ? "UNDER" : "TOTAL"} ${vm.market?.total ?? "—"}`,
+      delta: signed(total),
+      type: "TOTAL",
+    };
+  }
+  return { value: "—", delta: "—", type: "EDGE" };
+}
+
+function MarketCell({ title, value, model, market, edge }) {
   return (
-    <div className="pgc-side-box">
-      <span className="pgc-side-box-title">{title}</span>
-      <div className="pgc-side-box-body">
-        {team ? <TeamLogo team={team} size={20} /> : null}
-        <span>{side.label || side.abbr || "—"}</span>
+    <div className="pgc-market-cell">
+      <span className="pgc-market-label">{title}</span>
+      <strong>{value}</strong>
+      <div className="pgc-market-lines">
+        <span>Model: {model}</span>
+        <span>Market: {market}</span>
       </div>
+      {edge ? <em>{edge}</em> : null}
     </div>
   );
 }
 
-function SplitMeter({ label, icon, awayPct, homePct, away, home }) {
-  const unavailable = awayPct == null || homePct == null;
-  const a = unavailable ? null : Number(awayPct);
-  const h = unavailable ? null : Number(homePct);
-  return (
-    <div className="pgc-meter">
-      <div className="pgc-meter-lab">{icon ? `${icon} ` : ""}{label}</div>
-      <div className="pgc-meter-row">
-        <div className="pgc-meter-track" aria-hidden="true">
-          {!unavailable ? (
-            <>
-              <div className="pgc-meter-away" style={{ width: `${a}%` }} />
-              <div className="pgc-meter-home" style={{ width: `${h}%` }} />
-            </>
-          ) : null}
-        </div>
-      </div>
-      <div className="pgc-meter-legend">
-        <span>
-          <TeamLogo team={away} size={14} /> {unavailable ? "—" : `${a}%`}
-        </span>
-        <span>
-          <TeamLogo team={home} size={14} /> {unavailable ? "—" : `${h}%`}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Premium sports-dashboard game card — mockup-faithful, sport-specific units/copy.
- * Presentation only — no authority / model mutation.
- */
-export default function PremiumGameCard({
-  game,
-  open = false,
-  onToggle,
-  renderDetail = null,
-}) {
+export default function PremiumGameCard({ game, open = false, onToggle, renderDetail = null }) {
   const vm = buildGameCardViewModel(game);
   if (!vm?.id && !game?.id) return null;
 
-  const sport = vm.sport || game?.sport;
-  const venueClass = venueAtmosphereClass(sport);
-  const venueStyle = venueAtmosphereStyle(game);
-  const cardKey = `${sport || ""}:${vm.id || game?.id}`;
-  const units = vm.units || {};
-  const away = vm.away;
-  const home = vm.home;
+  const away = vm.away || {};
+  const home = vm.home || {};
+  const proj = vm.projection || {};
   const cmp = vm.comparison || {};
   const action = vm.action || {};
   const ctx = vm.context || {};
-  const footer = vm.footer || {};
-
-  const handleToggle = () => onToggle?.(cardKey);
+  const market = vm.market || {};
+  const edge = modelEdge(vm);
+  const stars = confidenceStars(game);
+  const cardKey = `${vm.sport || ""}:${vm.id || game?.id}`;
 
   return (
-    <article
-      className={`pgc${venueClass ? ` ${venueClass}` : ""} status-${String(vm.status?.tone || "neutral").toLowerCase()}${open ? " pgc-open" : ""}`}
-      data-sport={sport || ""}
-      data-game-id={vm.id || game?.id || ""}
-      style={venueStyle}
-    >
-      <div className="pgc-top">
-        <div className="pgc-top-left">
-          {vm.event?.live ? <span className="pgc-live-dot" aria-hidden="true" /> : null}
-          <span className="pgc-time">{gameDateTime(vm.timing)}</span>
-          <span className="pgc-sport-pill">{String(sport || "").toUpperCase() || "—"}</span>
+    <article className={`pgc pgc-featured status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
+      <header className="pgc-featured-head">
+        <div className="pgc-featured-title">
+          <span aria-hidden="true">🏆</span>
+          <strong>Featured Matchup</strong>
         </div>
-        <StatusPill status={vm.status} />
-      </div>
+        <div className="pgc-featured-meta">
+          <span>{[vm.timing?.dateLine, vm.timing?.timeLine].filter(Boolean).join(" · ") || "—"}</span>
+          <span className="pgc-sport-pill">{String(vm.sport || "").toUpperCase()}</span>
+          <span className="pgc-rating">★ {stars}</span>
+        </div>
+      </header>
 
-      <section className="pgc-hero" aria-label="Matchup">
-        <div className="pgc-hero-team pgc-hero-away">
-          <TeamLogo team={away} size={96} className="pgc-hero-logo" />
-          <div className="pgc-hero-id">
-            <span className="pgc-hero-abbr">{away?.abbr || "—"}</span>
-            <span className="pgc-hero-name">{nickname(away)}</span>
-            {away?.record ? <span className="pgc-hero-record">({away.record})</span> : null}
-          </div>
-          <div className="pgc-hero-proj">
-            <span className="pgc-hero-score">
-              {vm.projection?.available ? (vm.projection.away ?? "—") : "—"}
-            </span>
-            <span className="pgc-hero-proj-lab">{units.projectedLabel || "FBIS PROJECTED"}</span>
+      <section className="pgc-featured-matchup">
+        <div className="pgc-featured-team">
+          <TeamLogo team={away} size={82} className="pgc-featured-logo" />
+          <div>
+            <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
+            {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
+            <b className="pgc-featured-score">{proj.available ? (proj.away ?? "—") : "—"}</b>
+            <small>PROJ. SCORE</small>
           </div>
         </div>
 
-        <div className="pgc-hero-mid">
-          {ctx.venueLabel ? <div className="pgc-hero-venue">{ctx.venueLabel}</div> : null}
-          <div className="pgc-vs">VS</div>
-          {ctx.weatherLine ? <div className="pgc-weather">{ctx.weatherLine}</div> : null}
-          {vm.projection?.research ? (
-            <div className="pgc-research-tag">RESEARCH PROJECTION</div>
-          ) : null}
-          {!vm.projection?.available ? (
-            <div className="pgc-no-fbis">NO FBIS PROJECTION</div>
-          ) : null}
+        <div className="pgc-featured-center">
+          <span className="pgc-vs">VS</span>
+          <small>Model Edge</small>
+          <strong>{edge.value}</strong>
+          <span className="pgc-edge-delta">{edge.delta} {edge.type}</span>
         </div>
 
-        <div className="pgc-hero-team pgc-hero-home">
-          <TeamLogo team={home} size={96} className="pgc-hero-logo" />
-          <div className="pgc-hero-id">
-            <span className="pgc-hero-abbr">{home?.abbr || "—"}</span>
-            <span className="pgc-hero-name">{nickname(home)}</span>
-            {home?.record ? <span className="pgc-hero-record">({home.record})</span> : null}
-          </div>
-          <div className="pgc-hero-proj">
-            <span className="pgc-hero-score">
-              {vm.projection?.available ? (vm.projection.home ?? "—") : "—"}
-            </span>
-            <span className="pgc-hero-proj-lab">{units.projectedLabel || "FBIS PROJECTED"}</span>
+        <div className="pgc-featured-team pgc-featured-team-home">
+          <TeamLogo team={home} size={82} className="pgc-featured-logo" />
+          <div>
+            <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
+            {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
+            <b className="pgc-featured-score">{proj.available ? (proj.home ?? "—") : "—"}</b>
+            <small>PROJ. SCORE</small>
           </div>
         </div>
       </section>
 
-      <section className="pgc-panels">
-        <div className="pgc-panel pgc-panel-model">
-          <h3 className="pgc-panel-title"><span>📊 MODEL vs MARKET</span></h3>
+      <section className="pgc-market-grid">
+        <MarketCell
+          title="SPREAD"
+          value={cmp.fbisSide?.label || proj.spreadLabel || "—"}
+          model={cmp.fbisSide?.label || proj.spreadLabel || "—"}
+          market={cmp.marketSide?.label || market.spreadLabel || "—"}
+          edge={Number.isFinite(Number(cmp.sideDiff)) ? `EDGE +${num(Math.abs(Number(cmp.sideDiff)))}` : null}
+        />
+        <MarketCell
+          title="TOTAL"
+          value={proj.total ?? "—"}
+          model={proj.total ?? "—"}
+          market={market.total ?? "—"}
+          edge={Number.isFinite(Number(cmp.totalDiff)) ? `EDGE ${signed(cmp.totalDiff)}` : null}
+        />
+        <MarketCell
+          title="MONEYLINE"
+          value={market.awayMl != null ? `${away.abbr} ${signed(market.awayMl)}` : market.homeMl != null ? `${home.abbr} ${signed(market.homeMl)}` : "—"}
+          model="—"
+          market={market.awayMl != null ? `${away.abbr} ${signed(market.awayMl)} · ${home.abbr} ${signed(market.homeMl)}` : "—"}
+        />
+      </section>
 
-          <div className="pgc-diff-cell">
-            <span className="pgc-diff-lab">⚔ SIDE DIFF</span>
-            <span className="pgc-diff-val">{cmp.sideDiffLabel || "—"}</span>
-            {cmp.sideRelationshipLabel ? (
-              <span
-                className={`pgc-pill ${
-                  cmp.sideRelationship === "OPPOSITE_SIDES" ? "warn" : "ok"
-                }`}
-              >
-                {cmp.sideRelationshipLabel}
-              </span>
-            ) : null}
-            <div className="pgc-side-compare">
-              <SideBox title="FBIS" side={cmp.fbisSide} />
-              <SideBox title="MARKET" side={cmp.marketSide} />
-            </div>
-          </div>
-
-          <div className="pgc-diff-cell">
-            <span className="pgc-diff-lab">📊 TOTAL DIFF</span>
-            <span className="pgc-diff-val">{cmp.totalDiffLabel || "—"}</span>
-            {cmp.totalDirectionLabel ? (
-              <span
-                className={`pgc-pill ${
-                  cmp.totalDirection === "FBIS_HIGHER"
-                    ? "up"
-                    : cmp.totalDirection === "FBIS_LOWER"
-                      ? "down"
-                      : "ok"
-                }`}
-              >
-                {cmp.totalDirection === "FBIS_HIGHER" ? "↑ " : ""}
-                {cmp.totalDirectionLabel}
-              </span>
-            ) : null}
-            <div className="pgc-total-compare">
-              <div className="pgc-mini-box">
-                <span>FBIS</span>
-                <strong>{cmp.fbisTotal ?? "—"}</strong>
-              </div>
-              <div className="pgc-mini-box">
-                <span>MARKET</span>
-                <strong>{cmp.marketTotal ?? "—"}</strong>
-              </div>
-            </div>
-          </div>
+      <section className="pgc-info-grid">
+        <div className="pgc-info-card">
+          <h3>▥ Model vs Market</h3>
+          <div className="pgc-info-row"><span>Side Diff</span><strong>{cmp.sideDiffLabel || "—"}</strong></div>
+          <div className="pgc-info-row"><span>Total Diff</span><strong>{cmp.totalDiffLabel || "—"}</strong></div>
+          <div className="pgc-info-row"><span>Relationship</span><strong>{cmp.sideRelationshipLabel || "—"}</strong></div>
         </div>
 
-        <div className="pgc-panel pgc-panel-action">
-          <h3 className="pgc-panel-title">
-            <span>🔥 ACTION INTEL</span>
-            <span className="pgc-powered">Powered by ACTION</span>
-          </h3>
-
-          {action.available ? (
-            <>
-              {action.headline ? (
-                <div className="pgc-signal">
-                  <div className="pgc-signal-top">
-                    <span>{action.headline.icon || "◎"}</span>
-                    <span>{action.headline.label}</span>
-                  </div>
-                  <div className="pgc-signal-body">
-                    {action.headline.team ? (
-                      <TeamLogo team={action.headline.team} size={28} />
-                    ) : null}
-                    <div>
-                      {action.headline.lineLabel ? (
-                        <div className="pgc-signal-line">{action.headline.lineLabel}</div>
-                      ) : null}
-                      {action.headline.detail ? (
-                        <div className="pgc-signal-detail">{action.headline.detail}</div>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {action.tickets || action.money ? (
-                <div className="pgc-meters">
-                  {action.tickets ? (
-                    <SplitMeter
-                      label="TICKETS"
-                      icon="🎟"
-                      awayPct={action.tickets.awayPct}
-                      homePct={action.tickets.homePct}
-                      away={away}
-                      home={home}
-                    />
-                  ) : null}
-                  {action.money ? (
-                    <SplitMeter
-                      label="MONEY"
-                      icon="💰"
-                      awayPct={action.money.awayPct}
-                      homePct={action.money.homePct}
-                      away={away}
-                      home={home}
-                    />
-                  ) : null}
-                </div>
-              ) : null}
-
-              <div className="pgc-action-facts">
-                {action.lineMove?.label ? (
-                  <div className="pgc-fact">
-                    <span>LINE MOVE</span>
-                    <strong>{action.lineMove.label}</strong>
-                  </div>
-                ) : null}
-                {action.sample?.label ? (
-                  <div className="pgc-fact">
-                    <span>SAMPLE SIZE</span>
-                    <strong>
-                      {action.sample.label}
-                      {action.sample.count != null ? " tracked bets" : ""}
-                    </strong>
-                  </div>
-                ) : null}
-                {action.bookRange?.label ? (
-                  <div className="pgc-fact">
-                    <span>BOOK RANGE</span>
-                    <strong>{action.bookRange.label}</strong>
-                  </div>
-                ) : null}
-              </div>
-            </>
-          ) : (
-            <div className="pgc-action-empty" aria-label="ACTION snapshot unavailable">
-              <div className="pgc-meters pgc-meters-empty">
-                <SplitMeter label="TICKETS" awayPct={null} homePct={null} away={away} home={home} />
-                <SplitMeter label="MONEY" awayPct={null} homePct={null} away={away} home={home} />
-              </div>
-              <div className="pgc-action-facts">
-                <div className="pgc-fact">
-                  <span>📈 LINE MOVE</span>
-                  <strong>—</strong>
-                </div>
-                <div className="pgc-fact">
-                  <span>👥 SAMPLE SIZE</span>
-                  <strong>—</strong>
-                </div>
-                <div className="pgc-fact">
-                  <span>📚 BOOK RANGE</span>
-                  <strong>—</strong>
-                </div>
-              </div>
-              <p className="pgc-empty">
-                {action.emptyLabel || "NO ACTION SNAPSHOT YET"}
-              </p>
-            </div>
-          )}
+        <div className="pgc-info-card">
+          <h3>◎ Action Intel</h3>
+          <div className="pgc-info-row"><span>Tickets</span><strong>{action.tickets?.label || "—"}</strong></div>
+          <div className="pgc-info-row"><span>Money</span><strong>{action.money?.label || "—"}</strong></div>
+          <div className="pgc-info-row"><span>Line Move</span><strong>{action.lineMove?.label || "—"}</strong></div>
         </div>
 
-        <div className="pgc-panel pgc-panel-info">
-          <h3 className="pgc-panel-title"><span>📋 GAME INFO</span></h3>
-
-          {ctx.startersLabel && (ctx.starters?.away || ctx.starters?.home) ? (
-            <div className="pgc-info-block">
-              <div className="pgc-info-lab">⚾ {ctx.startersLabel}</div>
-              {["away", "home"].map((side) => {
-                const s = ctx.starters?.[side];
-                if (!s) return null;
-                return (
-                  <div key={side} className="pgc-starter">
-                    <TeamLogo team={s.team || (side === "away" ? away : home)} size={20} />
-                    <div>
-                      <strong>{s.name}</strong>
-                      <span>
-                        {[
-                          s.hand ? `${s.hand}HP` : null,
-                          s.era != null ? `${Number(s.era).toFixed(2)} ERA` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ") || "—"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {ctx.venueLabel ? (
-            <div className="pgc-info-row">
-              <strong>🏟 {ctx.venueName || ctx.venueLabel}</strong>
-              {ctx.venueCity ? <span>{ctx.venueCity}</span> : null}
-            </div>
-          ) : null}
-
-          {ctx.weatherLine ? (
-            <div className="pgc-info-row">
-              <strong>🌤 {ctx.weatherLine}</strong>
-              {ctx.weather?.windLabel ? <span>{ctx.weather.windLabel}</span> : null}
-            </div>
-          ) : null}
-
-          {!ctx.starters?.away && !ctx.starters?.home && !ctx.venueLabel && !ctx.weatherLine ? (
-            <p className="pgc-empty">No game context yet.</p>
-          ) : null}
+        <div className="pgc-info-card">
+          <h3>☁ Game Environment</h3>
+          <div className="pgc-info-row"><span>Venue</span><strong>{ctx.venueName || ctx.venueLabel || "—"}</strong></div>
+          <div className="pgc-info-row"><span>Weather</span><strong>{ctx.weatherLine || "—"}</strong></div>
+          <div className="pgc-info-row"><span>Status</span><strong>{vm.status?.label || "—"}</strong></div>
         </div>
       </section>
 
-      <footer className="pgc-footer">
-        <span className="pgc-foot-src">{footer.marketSourceLabel || "Market Source: —"}</span>
-        <span className={`pgc-foot-fresh${footer.stale ? " is-stale" : ""}`}>
-          {footer.asOfLabel || ""}
-        </span>
+      <footer className="pgc-footer pgc-featured-footer">
+        <span>{vm.footer?.marketSourceLabel || "Market Source: —"}</span>
         {typeof onToggle === "function" ? (
-          <button type="button" className="pgc-details-btn" onClick={handleToggle}>
+          <button type="button" className="pgc-details-btn" onClick={() => onToggle(cardKey)}>
             {open ? "Hide Details" : "View Details"} →
           </button>
         ) : (
-          <span className="pgc-details-btn" aria-hidden="true">
-            View Details →
-          </span>
+          <span className="pgc-status-note">{vm.status?.label || "—"}</span>
         )}
       </footer>
 
       {open ? (
         <div className="pgc-advanced">
-          <AdvancedGameDetail game={game} onClose={handleToggle} />
-          {typeof renderDetail === "function" ? (
-            <div className="pgc-detail">{renderDetail(game)}</div>
-          ) : null}
+          <AdvancedGameDetail game={game} onClose={() => onToggle?.(cardKey)} />
+          {typeof renderDetail === "function" ? <div className="pgc-detail">{renderDetail(game)}</div> : null}
         </div>
       ) : null}
     </article>
   );
-}
-function nickname(team) {
-  if (!team) return "—";
-  const full = String(team.fullName || team.displayName || "").trim();
-  const short = String(team.name || "").trim();
-  if (short && (!full || full.toUpperCase().endsWith(short.toUpperCase()))) {
-    return short.toUpperCase();
-  }
-  if (full) {
-    const parts = full.split(/\s+/);
-    return (parts.length > 1 ? parts.slice(1).join(" ") : full).toUpperCase();
-  }
-  return String(team.abbr || "—").toUpperCase();
-}
-
-function gameDateTime(timing) {
-  const date = timing?.dateLine && timing.dateLine !== "—" ? timing.dateLine : null;
-  const time = timing?.timeLine && timing.timeLine !== "—" ? timing.timeLine : null;
-  return [date, time].filter(Boolean).join(" · ") || "—";
 }
