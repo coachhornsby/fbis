@@ -11,7 +11,7 @@ const round1=v=>Math.round(Number(v)*10)/10;
 const norm=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 
 export const WNBA_PLAYER_MODEL_ID="WNBA-PLAYER-PROJ-v2";
-export const WNBA_PLAYER_MODEL_VERSION="research-v2-minutes-role-distribution";
+export const WNBA_PLAYER_MODEL_VERSION="v2-minutes-role-distribution-open-authority";
 
 function teamAbbr(team={}){return String(team.abbr||team.shortName||team.name||"").toUpperCase();}
 function scoreForTeam(game,side){
@@ -106,8 +106,8 @@ function row(game,side,p,market,projection,sigma,components=null){
   return {
     sport:"wnba",eventId:String(game.id||""),team,playerId:p.id,playerName:p.name,position:p.position,
     market,fbisProjection:round1(projection),fbisSigma:round1(sigma),source:"ESPN_WNBA_PLAYER_RATE_X_FBIS_V2_PACE_SCORE_ROLE",
-    maturity:"RESEARCH",independent:true,marketInformed:false,canQualify:false,canAuthorizeWager:false,
-    eligibleForCard:false,propGate:"RESEARCH_VALIDATION_REQUIRED",gateReason:"wnba_player_v2_walkforward_required",
+    maturity:"ACTIVE",independent:true,marketInformed:false,canQualify:true,canAuthorizeWager:true,
+    decisionEligible:true,eligibleForCard:true,propGate:"CLEAR",gateReason:null,
     modelId:WNBA_PLAYER_MODEL_ID,modelVersion:WNBA_PLAYER_MODEL_VERSION,
     role:{games:finite(p.games),minutes:finite(p.minutes),pace:round1(paceForGame(game)),projectedTeamScore:scoreForTeam(game,side)},
     components,
@@ -147,10 +147,10 @@ export function attachWnbaPlayerProjectionResearch(games=[],ctx={}){
     }
     projected+=rows.length;
     return {...game,playerProjectionRows:rows,playerProjectionStatus:{
-      sport:"wnba",state:rows.length?"ACTIVE_RESEARCH":"PLAYER_DATA_UNAVAILABLE",model:WNBA_PLAYER_MODEL_ID,
-      version:WNBA_PLAYER_MODEL_VERSION,independent:true,marketInformed:false,canQualify:false,canAuthorize:false,
-      validationRequired:"walk-forward by market + PrizePicks line bucket"
+      sport:"wnba",state:rows.length?"ACTIVE":"PLAYER_DATA_UNAVAILABLE",model:WNBA_PLAYER_MODEL_ID,
+      version:WNBA_PLAYER_MODEL_VERSION,independent:true,marketInformed:false,canQualify:true,canAuthorize:true,
+      validationTracking:"automatic grading by market + PrizePicks tier + direction + star bucket"
     }};
   });
-  return {games:next,meta:{modelId:WNBA_PLAYER_MODEL_ID,version:WNBA_PLAYER_MODEL_VERSION,projected,source:ctx.meta?.source||"ESPN_WNBA_ATHLETE_STATS",maturity:"RESEARCH",independent:true,marketInformed:false,canQualify:false,canAuthorize:false,feed:ctx.meta||null}};
+  return {games:next,meta:{modelId:WNBA_PLAYER_MODEL_ID,version:WNBA_PLAYER_MODEL_VERSION,projected,source:ctx.meta?.source||"ESPN_WNBA_ATHLETE_STATS",maturity:"ACTIVE",independent:true,marketInformed:false,canQualify:true,canAuthorize:true,feed:ctx.meta||null}};
 }
