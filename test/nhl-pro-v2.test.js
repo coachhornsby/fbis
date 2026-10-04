@@ -1,0 +1,125 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import {
+  NHL_PRO_V2_ID,
+  NHL_PRO_V2_VERSION,
+  projectNhlProV2Game,
+  attachNhlProV2,
+} from "../functions/lib/nhlProV2.js";
+import { promoteNhlResearchToBoard } from "../functions/lib/researchBoardPromote.js";
+import { getModel } from "../functions/lib/canonical/modelRegistry.js";
+
+function ctx(promoted=false){
+  return {
+    ok:true,
+    edge:{
+      BOS:{available:true,offensiveZonePct:0.35,defensiveZonePct:0.31,leagueAvg:0.333},
+      WPG:{available:true,offensiveZonePct:0.32,defensiveZonePct:0.35,leagueAvg:0.333},
+    },
+    artifact:{
+      trained:true,
+      artifactVersion:"test-v2",
+      league:{goals:3.05,xg:2.35,specialTeamsXg:0.7,shots:30},
+      teams:{
+        BOS:{gfpg:3.2,gapg:2.8,xgf:2.50,xga:2.20,stxgf:0.75,shotsFor:31},
+        WPG:{gfpg:3.0,gapg:3.1,xgf:2.25,xga:2.55,stxgf:0.66,shotsFor:29},
+      },
+      shooters:{
+        "1":{factor:1.10},"2":{factor:1.04},"3":{factor:0.96},"4":{factor:1.00},
+      },
+      goalies:{
+        "10":{impactPerShot:0.006},"20":{impactPerShot:-0.004},
+      },
+      xgModel:{trees:[{feature:0,threshold:0.5,left:0.1,right:-0.05}]},
+      promotion:{historicalPromotionEligible:promoted,promotedToResearchBoard:promoted},
+    },
+    base:{
+      ok:true,
+      teams:{
+        BOS:{games:10,gfpg:3.3,gapg:2.7},
+        WPG:{games:10,gfpg:2.9,gapg:3.2},
+      },
+      skatersByTeam:{
+        BOS:[
+          {id:"1",shotsPerGame:4,pointsPerGame:1.1},
+          {id:"2",shotsPerGame:3,pointsPerGame:0.8},
+        ],
+        WPG:[
+          {id:"3",shotsPerGame:3.5,pointsPerGame:0.7},
+          {id:"4",shotsPerGame:2.7,pointsPerGame:0.6},
+        ],
+      },
+      currentGoalies:[
+        {id:"10",name:"BOS G",teams:["BOS"],starts:8},
+        {id:"20",name:"WPG G",teams:["WPG"],starts:9},
+      ],
+      priorGoalies:[],
+    },
+    sourceLineage:{livePrimary:{id:"NHL_OFFICIAL_API"}},
+    marketInformed:false,canQualify:false,canAuthorize:false,
+  };
+}
+const game={sport:"nhl",start:"2026-10-10T00:00:00Z",home:{abbr:"BOS"},away:{abbr:"WPG"},odds:{total:6.5,spread:-1.5}};
+
+test("NHL-PRO-v2 emits independent score and probability layers",()=>{
+  const p=projectNhlProV2Game(game,ctx(false));
+  assert.equal(p.ok,true);
+  assert.equal(p.modelId,NHL_PRO_V2_ID);
+  assert.equal(p.modelVersion,NHL_PRO_V2_VERSION);
+  assert.ok(Number.isFinite(p.projHome));
+  assert.ok(Number.isFinite(p.projAway));
+  assert.ok(p.probability.homeWinIncludingOt>0&&p.probability.homeWinIncludingOt<1);
+  assert.equal(p.layers.distribution.family,"BIVARIATE_POISSON");
+  assert.equal(p.layers.tracking.source,"NHL_EDGE_ZONE_TIME_OPTIONAL");
+  assert.equal(p.marketInformed,false);
+  assert.equal(p.canQualify,false);
+  assert.equal(p.canAuthorizeWager,false);
+});
+
+test("market price changes do not change NHL-PRO-v2 fair score or ML probability",()=>{
+  const a=projectNhlProV2Game({...game,odds:{...game.odds,homeML:-105,awayML:-105}},ctx(false));
+  const b=projectNhlProV2Game({...game,odds:{...game.odds,homeML:-250,awayML:210}},ctx(false));
+  assert.equal(a.projHome,b.projHome);
+  assert.equal(a.projAway,b.projAway);
+  assert.equal(a.probability.homeWinIncludingOt,b.probability.homeWinIncludingOt);
+});
+
+test("v2 attaches as challenger but cannot displace v1 without historical gate",()=>{
+  const baseGame={...game,nhlV1:{ok:true,modelId:"NHL-FBIS-v1",modelVersion:"v1",projHome:3.0,projAway:2.8,note:"v1"}};
+  const attached=attachNhlProV2([baseGame],ctx(false)).games;
+  assert.equal(attached[0].challengers[NHL_PRO_V2_ID].ok,true);
+  const board=promoteNhlResearchToBoard(attached);
+  assert.equal(board.meta.modelId,"NHL-FBIS-v1");
+  assert.equal(board.meta.v2Promoted,0);
+});
+
+test("v2 may become the research-board model only after strict historical promotion",()=>{
+  const baseGame={...game,nhlV1:{ok:true,modelId:"NHL-FBIS-v1",modelVersion:"v1",projHome:3.0,projAway:2.8,note:"v1"}};
+  const attached=attachNhlProV2([baseGame],ctx(true)).games;
+  const board=promoteNhlResearchToBoard(attached);
+  assert.equal(board.meta.modelId,NHL_PRO_V2_ID);
+  assert.equal(board.meta.v2Promoted,1);
+  assert.equal(board.games[0].model.modelId,NHL_PRO_V2_ID);
+  assert.equal(board.games[0].canQualify,false);
+});
+
+test("NHL-PRO-v2 is registered as independent research with no wager authority",()=>{
+  const m=getModel(NHL_PRO_V2_ID);
+  assert.ok(m);
+  assert.equal(m.sport,"nhl");
+  assert.equal(m.marketInformed,false);
+  assert.equal(m.independent,true);
+  assert.equal(m.canQualify,false);
+  assert.equal(m.canAuthorizeWager,false);
+});
+
+test("v2 walk-forward declares PIT/no-market integrity and explicit incumbent comparison",async()=>{
+  const src=await readFile(new URL("../scripts/nhl-pro-v2-walkforward.mjs",import.meta.url),"utf8");
+  assert.match(src,/pointInTime:true/);
+  assert.match(src,/noMarketInputs:true/);
+  assert.match(src,/priorSeasonOnlyTraining:true/);
+  assert.match(src,/currentSeasonOnlyPastGames:true/);
+  assert.match(src,/beatsIncumbent/);
+  assert.doesNotMatch(src,/pinnacle|heritage|sportsbook|closingLine/i);
+});
