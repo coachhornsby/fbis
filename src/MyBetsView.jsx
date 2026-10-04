@@ -362,36 +362,19 @@ function propPlayerNames(bet) {
 }
 
 function PlayerHeadshot({ name, sport, size = 36 }) {
-  const [imageUrl, setImageUrl] = useState(() => PLAYER_IMAGE_CACHE.get(String(sport)+"|"+String(name)) || null);
-  useEffect(() => {
-    if (!name) return;
-    const key = String(sport)+"|"+String(name);
-    if (PLAYER_IMAGE_CACHE.has(key)) {
-      setImageUrl(PLAYER_IMAGE_CACHE.get(key));
-      return;
-    }
-    let cancelled = false;
-    fetch(`/api/player-image?name=${encodeURIComponent(name)}&sport=${encodeURIComponent(sport || "")}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((body) => {
-        const url = body?.found ? body.imageUrl : null;
-        PLAYER_IMAGE_CACHE.set(key, url);
-        if (!cancelled) setImageUrl(url);
-      })
-      .catch(() => {
-        PLAYER_IMAGE_CACHE.set(key, null);
-        if (!cancelled) setImageUrl(null);
-      });
-    return () => { cancelled = true; };
-  }, [name, sport]);
-  return imageUrl ? (
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [name, sport]);
+  const src = name
+    ? `/api/player-image?mode=image&v=3&name=${encodeURIComponent(name)}&sport=${encodeURIComponent(sport || "")}`
+    : null;
+  return src && !failed ? (
     <img
-      src={imageUrl}
+      src={src}
       alt={name}
       width={size}
       height={size}
       loading="lazy"
-      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
       style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",objectPosition:"center top",background:"rgba(255,255,255,.08)"}}
     />
   ) : (
