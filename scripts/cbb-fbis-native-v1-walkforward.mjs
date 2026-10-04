@@ -95,8 +95,8 @@ for(const season of seasons){
       projected++;
       const mr=marketById.get(String(r.id));
       out.push({id:r.id,season,date:r.date,home:r.home,away:r.away,neutral:r.neutral,actualHome:r.actualHome,actualAway:r.actualAway,fbis,kenpom:r.kenpom,
-        market:mr?.market||null,homeRating:home?{games:home.games,sos:home.sos,nonConferenceSos:home.nonConferenceSos,conference:home.conference,conferenceStrength:home.conferenceStrength,reliability:home.reliability}:null,
-        awayRating:away?{games:away.games,sos:away.sos,nonConferenceSos:away.nonConferenceSos,conference:away.conference,conferenceStrength:away.conferenceStrength,reliability:away.reliability}:null});
+        market:mr?.market||null,homeRating:home?{games:home.games,sos:home.sos,sosO:home.sosO,sosD:home.sosD,nonConferenceSos:home.nonConferenceSos,conference:home.conference,conferenceStrength:home.conferenceStrength,reliability:home.reliability,hca:home.hca,hcaGames:home.hcaGames}:null,
+        awayRating:away?{games:away.games,sos:away.sos,sosO:away.sosO,sosD:away.sosD,nonConferenceSos:away.nonConferenceSos,conference:away.conference,conferenceStrength:away.conferenceStrength,reliability:away.reliability,hca:away.hca,hcaGames:away.hcaGames}:null});
     }
   }
   coverage.push({season,boxRows:normalized.length,conferenceTeams:confCoverage.matched,conferenceCoveragePct:Number(confCoverage.coveragePct.toFixed(2)),conferenceMetadataAvailable:true,conferenceMetadataError:null,conferenceMetadataSource:"NCAA-KAGGLE-MTEAMCONFERENCES-2026",benchmarkRows:targets.length,projected});
