@@ -19,5 +19,11 @@
   },
   "immutable": true,
   "marketInformed": false,
-  "notes": "Corrected canonical snapshot after null-coercion and ESPN made-attempted parsing repair. Use for model fitting/ablation; do not reacquire unless upstream data contract changes."
+  "notes": "Corrected canonical snapshot after null-coercion and ESPN made-attempted parsing repair. Durably frozen in Cloudflare R2. Model fitting/ablation must read this snapshot and must not reacquire source data unless the upstream data contract changes.",
+  "r2": {
+    "bucket": "fbis-archive",
+    "prefix": "canonical/espn/nba/2024-10-22_2026-06-21/fbis-v1/run-37186207435",
+    "verified": true,
+    "freezeWorkflowRunId": 37186802766
+  }
 }
