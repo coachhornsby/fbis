@@ -52,7 +52,7 @@ export async function loadNhlCalibrationRows(db){
         ORDER BY d.snapshot_at DESC
       ) rn
     FROM nhl_wager_decisions d JOIN nhl_wager_settlements s ON s.decision_id=d.id
-    WHERE d.research_candidate=1
+    WHERE d.research_candidate=1 AND d.game_type=2
   )
   SELECT * FROM ranked WHERE rn=1 ORDER BY settled_at,event_id,market,selection`).all();
   return q.results||[];
