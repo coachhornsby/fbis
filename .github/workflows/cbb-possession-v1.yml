@@ -5,7 +5,6 @@ on:
     paths:
       - "functions/lib/cbbPossessionModel.js"
       - "functions/lib/cbbNcaaPossessionModel.js"
-      - "functions/lib/cbbNcaaPossessionModel.js"
       - "scripts/cbb-possession-history-v1.mjs"
       - "scripts/cbb-possession-fit-v1.mjs"
       - "test/cbb-possession-model.test.js"
@@ -14,6 +13,7 @@ on:
     branches: [main]
     paths:
       - "functions/lib/cbbPossessionModel.js"
+      - "functions/lib/cbbNcaaPossessionModel.js"
       - "scripts/cbb-possession-history-v1.mjs"
       - "scripts/cbb-possession-fit-v1.mjs"
       - "test/cbb-possession-model.test.js"
@@ -136,7 +136,7 @@ jobs:
             echo
             echo "### Reconstruction QA"
             for f in artifacts/parts/cbb-possession-history-20*.json; do
-              jq -r '"- "+(.season|tostring)+": games="+(.counts.games|tostring)+", lineup reliable="+((100*.qa.lineupReliableRate)|tostring)+"%, lineup coverage="+((100*.qa.meanLineupCoverage)|tostring)+"%, substitution resolution="+((100*.qa.meanSubResolution)|tostring)+"%"' "$f"
+              jq -r '"- "+(.season|tostring)+": games="+(.counts.games|tostring)+", lineup reliable="+((100*.qa.lineupReliableRate)|tostring)+"%, lineup coverage="+((100*.qa.meanLineupCoverage)|tostring)+"%, sub-deviation games="+(.qa.gamesWithSubDeviation|tostring)' "$f"
             done
             echo
             echo "### Walk-forward"
