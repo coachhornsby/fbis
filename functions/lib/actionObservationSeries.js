@@ -547,7 +547,18 @@ export async function persistActionObservationSeries(db, observations = []) {
         obs.schemaVersion, obs.runId, obs.sourceObservationId, obs.createdAt,
       ],
     }));
-    const insertResults = await db.batch(insertStatements);
+    // Keep D1 batches bounded. A single ACTION game can expand into
+    // hundreds of per-book quotes; sending them as one batch can exceed D1's
+    // request limits and previously disappeared behind the parent's non-fatal
+    // series guard.
+    const batchChunk = async (statements, size = 50) => {
+      const results = [];
+      for (let i = 0; i < statements.length; i += size) {
+        results.push(...await db.batch(statements.slice(i, i + size)));
+      }
+      return results;
+    };
+    const insertResults = await batchChunk(insertStatements);
     inserted = insertResults.reduce(
       (sum, result) => sum + (Number(result?.meta?.changes ?? result?.changes ?? 0) > 0 ? 1 : 0),
       0
@@ -571,7 +582,7 @@ export async function persistActionObservationSeries(db, observations = []) {
           obs.collectedAt, obs.eventStartTime,
         ],
       }));
-    if (pointerStatements.length) await db.batch(pointerStatements);
+    if (pointerStatements.length) await batchChunk(pointerStatements);
     pointers = pointerStatements.length;
     return { inserted, ignored, pointers, provider: ACTION_APIFY_PROVIDER };
   }
