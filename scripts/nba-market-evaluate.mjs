@@ -226,5 +226,5 @@ const stateSql=`INSERT OR REPLACE INTO nba_qualification_state (model_id,can_qua
 const report={evaluatedAt,policy:NBA_QUALIFICATION_POLICY,game:{n:gameEvaluations.length,qualified:qg.length,graded:graded.length,positiveClvRate:posClv,roiUnits,roiPct,rows:gameEvaluations},props:{n:propEvaluations.length,qualified:propEvaluations.filter(r=>r.qualified).length,graded:propEvaluations.filter(r=>r.result).length,rows:propEvaluations},qualificationState:state};
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
 fs.writeFileSync(out,JSON.stringify(report,null,2)+"\n");
-fs.writeFileSync(sqlOut,["BEGIN;",...gameEvaluations.map(gameSql),...propEvaluations.map(propSql),stateSql,"COMMIT;"].join("\n")+"\n");
+fs.writeFileSync(sqlOut,[...gameEvaluations.map(gameSql),...propEvaluations.map(propSql),stateSql].join("\n")+"\n");
 console.log(JSON.stringify({ok:true,gameN:gameEvaluations.length,gameQualified:qg.length,gameGraded:graded.length,propN:propEvaluations.length,propQualified:propEvaluations.filter(r=>r.qualified).length,propGraded:propEvaluations.filter(r=>r.result).length,state},null,2));
