@@ -71,8 +71,8 @@ test("NHL player prop layer publishes v2 identity and stays research-only",()=>{
 
 test("back-to-back rest suppresses skater volume without changing market inputs",()=>{
   const {game,ctx}=fixture();
-  const rested=nhlPlayerProV2RowsForSide(game,"home",ctx).find(r=>r.player.id==="1"&&r.market==="shots_on_goal");
+  const rested=nhlPlayerProV2RowsForSide(game,"home",ctx).find(r=>r.player.id==="3"&&r.market==="shots_on_goal");
   const b2bGame={...game,nhlProV2:{...game.nhlProV2,layers:{...game.nhlProV2.layers,situation:{homeRestDays:0,awayRestDays:2}}}};
-  const b2b=nhlPlayerProV2RowsForSide(b2bGame,"home",ctx).find(r=>r.player.id==="1"&&r.market==="shots_on_goal");
+  const b2b=nhlPlayerProV2RowsForSide(b2bGame,"home",ctx).find(r=>r.player.id==="3"&&r.market==="shots_on_goal");
   assert.ok(b2b.projection<rested.projection);
 });
