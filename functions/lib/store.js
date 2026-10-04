@@ -2845,7 +2845,7 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
     await env.DB.prepare(
       `UPDATE executed_bets SET
         game_id = ?, matchup_text = ?, away_team = ?, home_team = ?,
-        selected_side = ?, match_status = ?, match_confidence = ?,
+        selected_side = ?, selected_team = ?, match_status = ?, match_confidence = ?,
         result = ?, profit = ?, settled_return = ?, graded_at = ?, void_reason = ?,
         matched_prediction_id = ?, matched_strategy_ticket_id = ?, recommendation_status = ?,
         attribution_label = ?, clv = ?, clv_status = ?,
@@ -2862,6 +2862,7 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         n(mapped.awayTeam),
         n(mapped.homeTeam),
         n(mapped.selectedSide),
+        n(mapped.selectedTeam),
         n(mapped.matchStatus),
         n(mapped.matchConfidence),
         n(mapped.result),
