@@ -280,7 +280,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
           const time=gameTime(r);
 
           return (
-            <article className={"pp-card pp-premium-card sport-"+sport} key={group.key}>
+            <article className={"pp-card pp-premium-card sport-"+sport+(stars===5?" pp-five-star":"")} key={group.key}>
               <div className="pp-card-visual">
                 <TeamWatermark sport={sport} team={team}/>
                 <StarRating stars={stars}/>
