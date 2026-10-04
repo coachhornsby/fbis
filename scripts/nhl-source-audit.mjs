@@ -30,6 +30,8 @@ const report = {
     status: "UNKNOWN",
     scheduleGames: 0,
     teamCount: 0,
+    edgeStatus: "UNKNOWN",
+    edgeRows: 0,
     errors: [],
   },
   sportsDataverse: {
@@ -53,6 +55,16 @@ try {
   report.livePrimary.scheduleGames = scheduleGames;
   report.livePrimary.teamCount = teamCount;
   report.livePrimary.status = Array.isArray(schedule?.gameWeek) && teamCount >= 30 ? "HEALTHY" : "DEGRADED";
+  try {
+    const edge = await json("https://api-web.nhle.com/v1/edge/team-zone-time-details/10/now");
+    const arrays = Object.values(edge || {}).filter(Array.isArray);
+    const edgeRows = arrays.reduce((n, rows) => n + rows.length, 0);
+    report.livePrimary.edgeRows = edgeRows;
+    report.livePrimary.edgeStatus = edge && typeof edge === "object" ? "HEALTHY" : "DEGRADED";
+  } catch (edgeErr) {
+    report.livePrimary.edgeStatus = "DEGRADED";
+    report.livePrimary.errors.push("NHL_EDGE: " + String(edgeErr?.message || edgeErr));
+  }
 } catch (err) {
   report.livePrimary.status = "FAILED";
   report.livePrimary.errors.push(String(err?.message || err));
@@ -88,7 +100,9 @@ report.sportsDataverse.status = report.sportsDataverse.errors.length
       : "DEGRADED";
 
 report.overall = report.livePrimary.status === "HEALTHY"
-  ? (report.sportsDataverse.status === "HEALTHY" ? "HEALTHY" : "LIVE_HEALTHY_ARCHIVE_DEGRADED")
+  ? (report.sportsDataverse.status === "HEALTHY"
+      ? (report.livePrimary.edgeStatus === "HEALTHY" ? "HEALTHY" : "LIVE_HEALTHY_EDGE_DEGRADED")
+      : (report.livePrimary.edgeStatus === "HEALTHY" ? "LIVE_HEALTHY_ARCHIVE_DEGRADED" : "LIVE_HEALTHY_EDGE_AND_ARCHIVE_DEGRADED"))
   : "FAILED_LIVE_PRIMARY";
 
 await mkdir(out.split("/").slice(0, -1).join("/") || ".", { recursive: true });
