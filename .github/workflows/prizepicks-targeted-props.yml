@@ -151,7 +151,13 @@ jobs:
                     start:($g.start // $g.startCt // null),
                     market:.market,
                     fbisProjection:.fbisProjection,
-                    fbisSigma:(.fbisSigma // null)
+                    fbisSigma:(.fbisSigma // null),
+                    modelVersion:(.modelVersion // .source // null),
+                    validationStatus:(.validationStatus // null),
+                    validatedPredictive:(.validatedPredictive // false),
+                    dataQuality:(.dataQuality // null),
+                    projectedMinutes:(.projectedMinutes // null),
+                    playerId:(.playerId // null)
                   }' "$tmp" >> artifacts/candidates.ndjson || true
             done
           done
