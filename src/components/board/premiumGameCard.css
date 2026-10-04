@@ -746,3 +746,62 @@
   .pgc-footer { grid-template-columns: 1fr auto; }
   .pgc-foot-fresh { display: none; }
 }
+
+
+
+/* === Board featured game refinement === */
+.fbis-shell-main.route-board .pgc {
+  border-radius:20px;
+  padding:15px;
+  gap:12px;
+  border-color:rgba(36,148,232,.56);
+  background:
+    radial-gradient(900px 280px at 50% -20%,rgba(25,121,255,.18),transparent 68%),
+    linear-gradient(180deg,rgba(5,22,42,.97),rgba(2,13,27,.98));
+  box-shadow:0 0 26px rgba(0,133,255,.10),0 18px 40px rgba(0,0,0,.4);
+}
+.fbis-shell-main.route-board .pgc.status-research {
+  border-color:rgba(139,88,255,.68);
+  box-shadow:0 0 24px rgba(136,78,255,.12),0 18px 40px rgba(0,0,0,.4);
+}
+.fbis-shell-main.route-board .pgc.status-qualified {
+  border-color:rgba(0,240,145,.72);
+  box-shadow:0 0 24px rgba(0,245,145,.14),0 18px 40px rgba(0,0,0,.4);
+}
+.fbis-shell-main.route-board .pgc-top {
+  padding:2px 2px 4px;
+}
+.fbis-shell-main.route-board .pgc-sport-pill,
+.fbis-shell-main.route-board .pgc-status {
+  border-radius:10px;
+}
+.fbis-shell-main.route-board .pgc-hero {
+  border:1px solid rgba(58,135,198,.22);
+  border-radius:15px;
+  padding:14px 18px;
+  background:rgba(3,16,31,.48);
+}
+.fbis-shell-main.route-board .pgc-hero-score {
+  font-size:42px;
+}
+.fbis-shell-main.route-board .pgc-bars {
+  border-radius:13px;
+}
+.fbis-shell-main.route-board .pgc-panels { gap:10px; }
+.fbis-shell-main.route-board .pgc-panel {
+  border-radius:13px;
+  background:linear-gradient(180deg,rgba(7,28,49,.88),rgba(4,18,34,.88));
+}
+.fbis-shell-main.route-board .pgc-panel-model { border-color:rgba(39,147,230,.44); }
+.fbis-shell-main.route-board .pgc-panel-action { border-color:rgba(0,237,143,.42); }
+.fbis-shell-main.route-board .pgc-details-btn {
+  border-radius:10px;
+  border-color:rgba(67,146,211,.34);
+  background:rgba(8,27,49,.78);
+}
+@media(max-width:760px){
+  .fbis-shell-main.route-board .pgc { padding:11px; border-radius:16px; }
+  .fbis-shell-main.route-board .pgc-hero { grid-template-columns:1fr auto 1fr; padding:12px 8px; }
+  .fbis-shell-main.route-board .pgc-hero-score { font-size:30px; }
+}
+
