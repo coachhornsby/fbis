@@ -1420,3 +1420,47 @@
     bottom: 8px;
   }
 }
+
+
+/* Real team-logo watermark behind Player Props headshots. */
+.pp-team-watermark {
+  position: absolute;
+  inset: 8px 18% 2px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: .115;
+  filter: grayscale(.15) saturate(.8);
+}
+
+.pp-team-watermark img {
+  width: 100%;
+  height: 100%;
+  max-width: 245px;
+  max-height: 180px;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 0 20px rgba(255,255,255,.08));
+}
+
+.pp-premium-headshot {
+  z-index: 2;
+}
+
+.pp-premium-stars,
+.pp-team-pill {
+  z-index: 6;
+}
+
+@media (max-width:760px) {
+  .pp-team-watermark {
+    inset: 10px 20% 8px;
+    opacity: .13;
+  }
+
+  .pp-team-watermark img {
+    max-width: 205px;
+    max-height: 150px;
+  }
+}
