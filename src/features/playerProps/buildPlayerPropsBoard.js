@@ -197,11 +197,12 @@ export function withFbisPropAnalytics(row = {}) {
     }
   }
 
-  let stars = String(ranked.sport || "").toLowerCase() === "nfl"
+  const nflTargetRole = ranked.targetRole || ranked.featureEvidence?.targetRoleName || null;
+  let stars = String(ranked.sport || "").toLowerCase() === "nfl" && nflTargetRole
     ? (selectivePropStars({
         ...ranked,
         market: ranked.marketCanonical || ranked.market,
-        targetRole: ranked.targetRole || ranked.featureEvidence?.targetRoleName || null,
+        targetRole: nflTargetRole,
       }) ?? 1)
     : (propProjectionStars(ranked) ?? 1);
   const roleConfidence = ranked.roleConfidence == null ? null : Number(ranked.roleConfidence);
@@ -613,7 +614,9 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
   );
   const supportedRows = projectedRows.filter((r) => r.supportedMarket || is49ersRoleProjection(r));
   const scopedBase = opts.supportedOnly === false ? projectedRows : supportedRows;
-  const scoped = scopedBase.filter(nflBoardVisible);
+  const scoped = opts.enforceNflDisplayPolicy === true
+    ? scopedBase.filter(nflBoardVisible)
+    : scopedBase;
   const rows = sortPropsByConviction(scoped).map((r) => ({
     ...r,
     displayMode: is49ersRoleProjection(r) && Number(r.confidenceStars || 0) < 4
@@ -637,11 +640,13 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       supportedRows: supportedRows.length,
       unsupportedRows: projectedRows.length - supportedRows.length,
       hiddenWithoutProjection: allRows.length - projectionRows.length,
-      hiddenNflBelowFourStars: scopedBase.filter((r) =>
-        String(r.sport || "").toLowerCase() === "nfl" &&
-        !is49ersRoleProjection(r) &&
-        Number(r.confidenceStars || 0) < 4
-      ).length,
+      hiddenNflBelowFourStars: opts.enforceNflDisplayPolicy === true
+        ? scopedBase.filter((r) =>
+            String(r.sport || "").toLowerCase() === "nfl" &&
+            !is49ersRoleProjection(r) &&
+            Number(r.confidenceStars || 0) < 4
+          ).length
+        : 0,
       visible49ersRoleProjections: rows.filter(is49ersRoleProjection).length,
       byMarket,
       decisionEligible: rows.filter((r) => r.decisionEligible).length,
