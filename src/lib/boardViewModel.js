@@ -331,6 +331,7 @@ export function buildBoardGameViewModel(game) {
     comparison: {
       label: decision.disagreementLabel,
       spreadDelta: deltas.spreadDelta == null ? null : round1(deltas.spreadDelta),
+      spreadSignedDelta: deltas.spreadDelta == null ? null : round1(deltas.spreadDelta),
       totalDelta: deltas.totalDelta == null ? null : round1(deltas.totalDelta),
       hasDiff: deltas.spreadDelta != null || deltas.totalDelta != null,
     },
