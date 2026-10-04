@@ -1,0 +1,3915 @@
+{
+  "modelId": "NHL-PLAYER-PRO-v2",
+  "version": "research-v2.0-share-environment",
+  "generatedAt": "2026-10-04T04:24:06.233Z",
+  "conditionalOnActive": true,
+  "conditionalOnConfirmedStarter": true,
+  "marketInformed": false,
+  "integrity": {
+    "priorSeasonsOnlyTraining": true,
+    "currentSeasonOnlyPastGames": true,
+    "usesSameGameBoxscoreOnlyForParticipationSet": true,
+    "fetchErrors": 0,
+    "targetSeasons": [
+      "20242025",
+      "20252026"
+    ]
+  },
+  "aggregate": {
+    "projection": {
+      "n": 383069,
+      "mae": 0.6192,
+      "rmse": 1.1188,
+      "bias": 0.0314,
+      "baselineMae": 0.6207,
+      "baselineRmse": 1.1218,
+      "baselineBias": 0.0378,
+      "maeDelta": -0.0015
+    },
+    "threshold": {
+      "n": 1642421,
+      "accuracy": 0.8778,
+      "baselineAccuracy": 0.8776,
+      "brier": 0.08814,
+      "baselineBrier": 0.08832,
+      "accuracyDelta": 0.0002,
+      "brierDelta": -0.00018
+    },
+    "rows": 383069,
+    "lineTests": 1642421
+  },
+  "folds": [
+    {
+      "season": "20242025",
+      "n": 191521,
+      "markets": {
+        "shots_on_goal": {
+          "projection": {
+            "n": 47225,
+            "mae": 1.0348,
+            "rmse": 1.3312,
+            "bias": 0.0554,
+            "baselineMae": 1.039,
+            "baselineRmse": 1.3373,
+            "baselineBias": 0.0579,
+            "maeDelta": -0.0042
+          },
+          "threshold": {
+            "n": 330575,
+            "accuracy": 0.8595,
+            "baselineAccuracy": 0.8588,
+            "brier": 0.09867,
+            "baselineBrier": 0.09909,
+            "accuracyDelta": 0.0007,
+            "brierDelta": -0.00042
+          }
+        },
+        "goals": {
+          "projection": {
+            "n": 47225,
+            "mae": 0.2652,
+            "rmse": 0.4096,
+            "bias": 0.0045,
+            "baselineMae": 0.2641,
+            "baselineRmse": 0.4097,
+            "baselineBias": 0.0031,
+            "maeDelta": 0.001
+          },
+          "threshold": {
+            "n": 94450,
+            "accuracy": 0.9171,
+            "baselineAccuracy": 0.9171,
+            "brier": 0.06765,
+            "baselineBrier": 0.06765,
+            "accuracyDelta": 0,
+            "brierDelta": -0.00001
+          }
+        },
+        "assists": {
+          "projection": {
+            "n": 47225,
+            "mae": 0.3957,
+            "rmse": 0.533,
+            "bias": 0.0035,
+            "baselineMae": 0.3957,
+            "baselineRmse": 0.5328,
+            "baselineBias": 0.0042,
+            "maeDelta": 0
+          },
+          "threshold": {
+            "n": 141675,
+            "accuracy": 0.9072,
+            "baselineAccuracy": 0.9072,
+            "brier": 0.07041,
+            "baselineBrier": 0.07037,
+            "accuracyDelta": 0,
+            "brierDelta": 0.00004
+          }
+        },
+        "points": {
+          "projection": {
+            "n": 47225,
+            "mae": 0.5204,
+            "rmse": 0.6683,
+            "bias": 0.008,
+            "baselineMae": 0.5191,
+            "baselineRmse": 0.668,
+            "baselineBias": 0.0075,
+            "maeDelta": 0.0013
+          },
+          "threshold": {
+            "n": 188900,
+            "accuracy": 0.8963,
+            "baselineAccuracy": 0.8962,
+            "brier": 0.07381,
+            "baselineBrier": 0.07374,
+            "accuracyDelta": 0.0001,
+            "brierDelta": 0.00007
+          }
+        },
+        "saves": {
+          "projection": {
+            "n": 2621,
+            "mae": 5.253,
+            "rmse": 6.6135,
+            "bias": 1.3404,
+            "baselineMae": 5.2736,
+            "baselineRmse": 6.6329,
+            "baselineBias": 1.4418,
+            "maeDelta": -0.0206
+          },
+          "threshold": {
+            "n": 65525,
+            "accuracy": 0.8021,
+            "baselineAccuracy": 0.8018,
+            "brier": 0.14224,
+            "baselineBrier": 0.1425,
+            "accuracyDelta": 0.0004,
+            "brierDelta": -0.00026
+          }
+        }
+      }
+    },
+    {
+      "season": "20252026",
+      "n": 191548,
+      "markets": {
+        "shots_on_goal": {
+          "projection": {
+            "n": 47231,
+            "mae": 1.0245,
+            "rmse": 1.3218,
+            "bias": 0.042,
+            "baselineMae": 1.031,
+            "baselineRmse": 1.327,
+            "baselineBias": 0.0709,
+            "maeDelta": -0.0065
+          },
+          "threshold": {
+            "n": 330617,
+            "accuracy": 0.8602,
+            "baselineAccuracy": 0.86,
+            "brier": 0.09776,
+            "baselineBrier": 0.09816,
+            "accuracyDelta": 0.0002,
+            "brierDelta": -0.00041
+          }
+        },
+        "goals": {
+          "projection": {
+            "n": 47231,
+            "mae": 0.2694,
+            "rmse": 0.4171,
+            "bias": 0.0025,
+            "baselineMae": 0.2695,
+            "baselineRmse": 0.4173,
+            "baselineBias": 0.0031,
+            "maeDelta": -0.0001
+          },
+          "threshold": {
+            "n": 94462,
+            "accuracy": 0.9153,
+            "baselineAccuracy": 0.9153,
+            "brier": 0.06904,
+            "baselineBrier": 0.06909,
+            "accuracyDelta": 0,
+            "brierDelta": -0.00005
+          }
+        },
+        "assists": {
+          "projection": {
+            "n": 47231,
+            "mae": 0.4017,
+            "rmse": 0.5408,
+            "bias": 0.0005,
+            "baselineMae": 0.403,
+            "baselineRmse": 0.5409,
+            "baselineBias": 0.0047,
+            "maeDelta": -0.0014
+          },
+          "threshold": {
+            "n": 141693,
+            "accuracy": 0.9047,
+            "baselineAccuracy": 0.9045,
+            "brier": 0.07191,
+            "baselineBrier": 0.07194,
+            "accuracyDelta": 0.0002,
+            "brierDelta": -0.00003
+          }
+        },
+        "points": {
+          "projection": {
+            "n": 47231,
+            "mae": 0.5269,
+            "rmse": 0.6799,
+            "bias": 0.0031,
+            "baselineMae": 0.5273,
+            "baselineRmse": 0.68,
+            "baselineBias": 0.008,
+            "maeDelta": -0.0004
+          },
+          "threshold": {
+            "n": 188924,
+            "accuracy": 0.894,
+            "baselineAccuracy": 0.8943,
+            "brier": 0.07526,
+            "baselineBrier": 0.0753,
+            "accuracyDelta": -0.0003,
+            "brierDelta": -0.00003
+          }
+        },
+        "saves": {
+          "projection": {
+            "n": 2624,
+            "mae": 5.2658,
+            "rmse": 6.5426,
+            "bias": 1.0945,
+            "baselineMae": 5.2793,
+            "baselineRmse": 6.5572,
+            "baselineBias": 1.2103,
+            "maeDelta": -0.0135
+          },
+          "threshold": {
+            "n": 65600,
+            "accuracy": 0.8011,
+            "baselineAccuracy": 0.8008,
+            "brier": 0.14127,
+            "baselineBrier": 0.14142,
+            "accuracyDelta": 0.0003,
+            "brierDelta": -0.00015
+          }
+        }
+      }
+    }
+  ],
+  "marketValidation": {
+    "shots_on_goal": {
+      "status": "PROMOTE_RESEARCH",
+      "aggregateProjection": {
+        "n": 94456,
+        "mae": 1.0297,
+        "rmse": 1.3265,
+        "bias": 0.0487,
+        "baselineMae": 1.035,
+        "baselineRmse": 1.3322,
+        "baselineBias": 0.0644,
+        "maeDelta": -0.0054
+      },
+      "aggregateThreshold": {
+        "n": 661192,
+        "accuracy": 0.8599,
+        "baselineAccuracy": 0.8594,
+        "brier": 0.09821,
+        "baselineBrier": 0.09863,
+        "accuracyDelta": 0.0005,
+        "brierDelta": -0.00041
+      },
+      "folds": [
+        {
+          "season": "20242025",
+          "projection": {
+            "n": 47225,
+            "mae": 1.0348,
+            "rmse": 1.3312,
+            "bias": 0.0554,
+            "baselineMae": 1.039,
+            "baselineRmse": 1.3373,
+            "baselineBias": 0.0579,
+            "maeDelta": -0.0042
+          },
+          "threshold": {
+            "n": 330575,
+            "accuracy": 0.8595,
+            "baselineAccuracy": 0.8588,
+            "brier": 0.09867,
+            "baselineBrier": 0.09909,
+            "accuracyDelta": 0.0007,
+            "brierDelta": -0.00042
+          }
+        },
+        {
+          "season": "20252026",
+          "projection": {
+            "n": 47231,
+            "mae": 1.0245,
+            "rmse": 1.3218,
+            "bias": 0.042,
+            "baselineMae": 1.031,
+            "baselineRmse": 1.327,
+            "baselineBias": 0.0709,
+            "maeDelta": -0.0065
+          },
+          "threshold": {
+            "n": 330617,
+            "accuracy": 0.8602,
+            "baselineAccuracy": 0.86,
+            "brier": 0.09776,
+            "baselineBrier": 0.09816,
+            "accuracyDelta": 0.0002,
+            "brierDelta": -0.00041
+          }
+        }
+      ]
+    },
+    "goals": {
+      "status": "HOLD_RESEARCH",
+      "aggregateProjection": {
+        "n": 94456,
+        "mae": 0.2673,
+        "rmse": 0.4134,
+        "bias": 0.0035,
+        "baselineMae": 0.2668,
+        "baselineRmse": 0.4135,
+        "baselineBias": 0.0031,
+        "maeDelta": 0.0005
+      },
+      "aggregateThreshold": {
+        "n": 188912,
+        "accuracy": 0.9162,
+        "baselineAccuracy": 0.9162,
+        "brier": 0.06835,
+        "baselineBrier": 0.06837,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00003
+      },
+      "folds": [
+        {
+          "season": "20242025",
+          "projection": {
+            "n": 47225,
+            "mae": 0.2652,
+            "rmse": 0.4096,
+            "bias": 0.0045,
+            "baselineMae": 0.2641,
+            "baselineRmse": 0.4097,
+            "baselineBias": 0.0031,
+            "maeDelta": 0.001
+          },
+          "threshold": {
+            "n": 94450,
+            "accuracy": 0.9171,
+            "baselineAccuracy": 0.9171,
+            "brier": 0.06765,
+            "baselineBrier": 0.06765,
+            "accuracyDelta": 0,
+            "brierDelta": -0.00001
+          }
+        },
+        {
+          "season": "20252026",
+          "projection": {
+            "n": 47231,
+            "mae": 0.2694,
+            "rmse": 0.4171,
+            "bias": 0.0025,
+            "baselineMae": 0.2695,
+            "baselineRmse": 0.4173,
+            "baselineBias": 0.0031,
+            "maeDelta": -0.0001
+          },
+          "threshold": {
+            "n": 94462,
+            "accuracy": 0.9153,
+            "baselineAccuracy": 0.9153,
+            "brier": 0.06904,
+            "baselineBrier": 0.06909,
+            "accuracyDelta": 0,
+            "brierDelta": -0.00005
+          }
+        }
+      ]
+    },
+    "assists": {
+      "status": "WATCH_RESEARCH",
+      "aggregateProjection": {
+        "n": 94456,
+        "mae": 0.3987,
+        "rmse": 0.5369,
+        "bias": 0.002,
+        "baselineMae": 0.3993,
+        "baselineRmse": 0.5369,
+        "baselineBias": 0.0045,
+        "maeDelta": -0.0007
+      },
+      "aggregateThreshold": {
+        "n": 283368,
+        "accuracy": 0.906,
+        "baselineAccuracy": 0.9059,
+        "brier": 0.07116,
+        "baselineBrier": 0.07116,
+        "accuracyDelta": 0.0001,
+        "brierDelta": 0
+      },
+      "folds": [
+        {
+          "season": "20242025",
+          "projection": {
+            "n": 47225,
+            "mae": 0.3957,
+            "rmse": 0.533,
+            "bias": 0.0035,
+            "baselineMae": 0.3957,
+            "baselineRmse": 0.5328,
+            "baselineBias": 0.0042,
+            "maeDelta": 0
+          },
+          "threshold": {
+            "n": 141675,
+            "accuracy": 0.9072,
+            "baselineAccuracy": 0.9072,
+            "brier": 0.07041,
+            "baselineBrier": 0.07037,
+            "accuracyDelta": 0,
+            "brierDelta": 0.00004
+          }
+        },
+        {
+          "season": "20252026",
+          "projection": {
+            "n": 47231,
+            "mae": 0.4017,
+            "rmse": 0.5408,
+            "bias": 0.0005,
+            "baselineMae": 0.403,
+            "baselineRmse": 0.5409,
+            "baselineBias": 0.0047,
+            "maeDelta": -0.0014
+          },
+          "threshold": {
+            "n": 141693,
+            "accuracy": 0.9047,
+            "baselineAccuracy": 0.9045,
+            "brier": 0.07191,
+            "baselineBrier": 0.07194,
+            "accuracyDelta": 0.0002,
+            "brierDelta": -0.00003
+          }
+        }
+      ]
+    },
+    "points": {
+      "status": "HOLD_RESEARCH",
+      "aggregateProjection": {
+        "n": 94456,
+        "mae": 0.5236,
+        "rmse": 0.6741,
+        "bias": 0.0055,
+        "baselineMae": 0.5232,
+        "baselineRmse": 0.674,
+        "baselineBias": 0.0077,
+        "maeDelta": 0.0004
+      },
+      "aggregateThreshold": {
+        "n": 377824,
+        "accuracy": 0.8951,
+        "baselineAccuracy": 0.8952,
+        "brier": 0.07454,
+        "baselineBrier": 0.07452,
+        "accuracyDelta": -0.0001,
+        "brierDelta": 0.00002
+      },
+      "folds": [
+        {
+          "season": "20242025",
+          "projection": {
+            "n": 47225,
+            "mae": 0.5204,
+            "rmse": 0.6683,
+            "bias": 0.008,
+            "baselineMae": 0.5191,
+            "baselineRmse": 0.668,
+            "baselineBias": 0.0075,
+            "maeDelta": 0.0013
+          },
+          "threshold": {
+            "n": 188900,
+            "accuracy": 0.8963,
+            "baselineAccuracy": 0.8962,
+            "brier": 0.07381,
+            "baselineBrier": 0.07374,
+            "accuracyDelta": 0.0001,
+            "brierDelta": 0.00007
+          }
+        },
+        {
+          "season": "20252026",
+          "projection": {
+            "n": 47231,
+            "mae": 0.5269,
+            "rmse": 0.6799,
+            "bias": 0.0031,
+            "baselineMae": 0.5273,
+            "baselineRmse": 0.68,
+            "baselineBias": 0.008,
+            "maeDelta": -0.0004
+          },
+          "threshold": {
+            "n": 188924,
+            "accuracy": 0.894,
+            "baselineAccuracy": 0.8943,
+            "brier": 0.07526,
+            "baselineBrier": 0.0753,
+            "accuracyDelta": -0.0003,
+            "brierDelta": -0.00003
+          }
+        }
+      ]
+    },
+    "saves": {
+      "status": "PROMOTE_RESEARCH",
+      "aggregateProjection": {
+        "n": 5245,
+        "mae": 5.2594,
+        "rmse": 6.5781,
+        "bias": 1.2174,
+        "baselineMae": 5.2764,
+        "baselineRmse": 6.5951,
+        "baselineBias": 1.326,
+        "maeDelta": -0.0171
+      },
+      "aggregateThreshold": {
+        "n": 131125,
+        "accuracy": 0.8016,
+        "baselineAccuracy": 0.8013,
+        "brier": 0.14175,
+        "baselineBrier": 0.14196,
+        "accuracyDelta": 0.0003,
+        "brierDelta": -0.0002
+      },
+      "folds": [
+        {
+          "season": "20242025",
+          "projection": {
+            "n": 2621,
+            "mae": 5.253,
+            "rmse": 6.6135,
+            "bias": 1.3404,
+            "baselineMae": 5.2736,
+            "baselineRmse": 6.6329,
+            "baselineBias": 1.4418,
+            "maeDelta": -0.0206
+          },
+          "threshold": {
+            "n": 65525,
+            "accuracy": 0.8021,
+            "baselineAccuracy": 0.8018,
+            "brier": 0.14224,
+            "baselineBrier": 0.1425,
+            "accuracyDelta": 0.0004,
+            "brierDelta": -0.00026
+          }
+        },
+        {
+          "season": "20252026",
+          "projection": {
+            "n": 2624,
+            "mae": 5.2658,
+            "rmse": 6.5426,
+            "bias": 1.0945,
+            "baselineMae": 5.2793,
+            "baselineRmse": 6.5572,
+            "baselineBias": 1.2103,
+            "maeDelta": -0.0135
+          },
+          "threshold": {
+            "n": 65600,
+            "accuracy": 0.8011,
+            "baselineAccuracy": 0.8008,
+            "brier": 0.14127,
+            "baselineBrier": 0.14142,
+            "accuracyDelta": 0.0003,
+            "brierDelta": -0.00015
+          }
+        }
+      ]
+    }
+  },
+  "lineValidation": {
+    "assists:0.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.7641,
+      "baselineAccuracy": 0.7638,
+      "brier": 0.17057,
+      "baselineBrier": 0.17056,
+      "accuracyDelta": 0.0003,
+      "brierDelta": 0.00001
+    },
+    "assists:1.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.9593,
+      "baselineAccuracy": 0.9593,
+      "brier": 0.03747,
+      "baselineBrier": 0.03747,
+      "accuracyDelta": 0,
+      "brierDelta": 0
+    },
+    "assists:2.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.9944,
+      "baselineAccuracy": 0.9944,
+      "brier": 0.00545,
+      "baselineBrier": 0.00545,
+      "accuracyDelta": 0,
+      "brierDelta": 0
+    },
+    "goals:0.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.8492,
+      "baselineAccuracy": 0.8492,
+      "brier": 0.12046,
+      "baselineBrier": 0.12051,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00005
+    },
+    "goals:1.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.9833,
+      "baselineAccuracy": 0.9833,
+      "brier": 0.01624,
+      "baselineBrier": 0.01624,
+      "accuracyDelta": 0,
+      "brierDelta": 0
+    },
+    "points:0.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.69,
+      "baselineAccuracy": 0.6901,
+      "brier": 0.20378,
+      "baselineBrier": 0.20372,
+      "accuracyDelta": -0.0002,
+      "brierDelta": 0.00007
+    },
+    "points:1.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.9122,
+      "baselineAccuracy": 0.9123,
+      "brier": 0.07373,
+      "baselineBrier": 0.07373,
+      "accuracyDelta": -0.0001,
+      "brierDelta": 0
+    },
+    "points:2.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.9813,
+      "baselineAccuracy": 0.9813,
+      "brier": 0.01771,
+      "baselineBrier": 0.01771,
+      "accuracyDelta": 0,
+      "brierDelta": 0
+    },
+    "points:3.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.997,
+      "baselineAccuracy": 0.997,
+      "brier": 0.00293,
+      "baselineBrier": 0.00292,
+      "accuracyDelta": 0,
+      "brierDelta": 0
+    },
+    "saves:15.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.923,
+      "baselineAccuracy": 0.923,
+      "brier": 0.07399,
+      "baselineBrier": 0.07366,
+      "accuracyDelta": 0,
+      "brierDelta": 0.00033
+    },
+    "saves:16.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.8965,
+      "baselineAccuracy": 0.8965,
+      "brier": 0.09525,
+      "baselineBrier": 0.09489,
+      "accuracyDelta": 0,
+      "brierDelta": 0.00037
+    },
+    "saves:17.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.8614,
+      "baselineAccuracy": 0.8614,
+      "brier": 0.11999,
+      "baselineBrier": 0.11958,
+      "accuracyDelta": 0,
+      "brierDelta": 0.0004
+    },
+    "saves:18.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.8233,
+      "baselineAccuracy": 0.8233,
+      "brier": 0.14418,
+      "baselineBrier": 0.14375,
+      "accuracyDelta": 0,
+      "brierDelta": 0.00042
+    },
+    "saves:19.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.7788,
+      "baselineAccuracy": 0.7788,
+      "brier": 0.16846,
+      "baselineBrier": 0.16795,
+      "accuracyDelta": 0,
+      "brierDelta": 0.00051
+    },
+    "saves:20.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.7291,
+      "baselineAccuracy": 0.7291,
+      "brier": 0.19251,
+      "baselineBrier": 0.19208,
+      "accuracyDelta": 0,
+      "brierDelta": 0.00043
+    },
+    "saves:21.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.669,
+      "baselineAccuracy": 0.6692,
+      "brier": 0.2151,
+      "baselineBrier": 0.21484,
+      "accuracyDelta": -0.0002,
+      "brierDelta": 0.00026
+    },
+    "saves:22.5": {
+      "status": "HOLD_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.6177,
+      "baselineAccuracy": 0.6179,
+      "brier": 0.22987,
+      "baselineBrier": 0.22974,
+      "accuracyDelta": -0.0002,
+      "brierDelta": 0.00012
+    },
+    "saves:23.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.5775,
+      "baselineAccuracy": 0.5745,
+      "brier": 0.2396,
+      "baselineBrier": 0.2397,
+      "accuracyDelta": 0.0031,
+      "brierDelta": -0.0001
+    },
+    "saves:24.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.5674,
+      "baselineAccuracy": 0.5664,
+      "brier": 0.24344,
+      "baselineBrier": 0.24371,
+      "accuracyDelta": 0.001,
+      "brierDelta": -0.00027
+    },
+    "saves:25.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.5922,
+      "baselineAccuracy": 0.5874,
+      "brier": 0.24037,
+      "baselineBrier": 0.24076,
+      "accuracyDelta": 0.0048,
+      "brierDelta": -0.00039
+    },
+    "saves:26.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.6328,
+      "baselineAccuracy": 0.6328,
+      "brier": 0.2318,
+      "baselineBrier": 0.23226,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00047
+    },
+    "saves:27.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.6782,
+      "baselineAccuracy": 0.6768,
+      "brier": 0.21791,
+      "baselineBrier": 0.21854,
+      "accuracyDelta": 0.0013,
+      "brierDelta": -0.00063
+    },
+    "saves:28.5": {
+      "status": "WATCH_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.726,
+      "baselineAccuracy": 0.7279,
+      "brier": 0.20018,
+      "baselineBrier": 0.20088,
+      "accuracyDelta": -0.0019,
+      "brierDelta": -0.0007
+    },
+    "saves:29.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.7714,
+      "baselineAccuracy": 0.7712,
+      "brier": 0.17942,
+      "baselineBrier": 0.18014,
+      "accuracyDelta": 0.0002,
+      "brierDelta": -0.00072
+    },
+    "saves:30.5": {
+      "status": "WATCH_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.812,
+      "baselineAccuracy": 0.8122,
+      "brier": 0.15719,
+      "baselineBrier": 0.1579,
+      "accuracyDelta": -0.0002,
+      "brierDelta": -0.00071
+    },
+    "saves:31.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.8456,
+      "baselineAccuracy": 0.8456,
+      "brier": 0.13567,
+      "baselineBrier": 0.13634,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00067
+    },
+    "saves:32.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.8805,
+      "baselineAccuracy": 0.8805,
+      "brier": 0.11167,
+      "baselineBrier": 0.11236,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00069
+    },
+    "saves:33.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.9056,
+      "baselineAccuracy": 0.9056,
+      "brier": 0.09159,
+      "baselineBrier": 0.09219,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00061
+    },
+    "saves:34.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.9266,
+      "baselineAccuracy": 0.9266,
+      "brier": 0.07355,
+      "baselineBrier": 0.07408,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00054
+    },
+    "saves:35.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.9426,
+      "baselineAccuracy": 0.9426,
+      "brier": 0.05868,
+      "baselineBrier": 0.05913,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00045
+    },
+    "saves:36.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.9571,
+      "baselineAccuracy": 0.9571,
+      "brier": 0.04482,
+      "baselineBrier": 0.04518,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00036
+    },
+    "saves:37.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.9666,
+      "baselineAccuracy": 0.9666,
+      "brier": 0.03504,
+      "baselineBrier": 0.0353,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00027
+    },
+    "saves:38.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.9762,
+      "baselineAccuracy": 0.9762,
+      "brier": 0.02548,
+      "baselineBrier": 0.02568,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00021
+    },
+    "saves:39.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 5245,
+      "accuracy": 0.9832,
+      "baselineAccuracy": 0.9832,
+      "brier": 0.01815,
+      "baselineBrier": 0.0183,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00015
+    },
+    "shots_on_goal:0.5": {
+      "status": "WATCH_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.7332,
+      "baselineAccuracy": 0.7335,
+      "brier": 0.18029,
+      "baselineBrier": 0.18065,
+      "accuracyDelta": -0.0003,
+      "brierDelta": -0.00036
+    },
+    "shots_on_goal:1.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.6691,
+      "baselineAccuracy": 0.6679,
+      "brier": 0.21265,
+      "baselineBrier": 0.21346,
+      "accuracyDelta": 0.0012,
+      "brierDelta": -0.00081
+    },
+    "shots_on_goal:2.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.7906,
+      "baselineAccuracy": 0.7894,
+      "brier": 0.14804,
+      "baselineBrier": 0.14886,
+      "accuracyDelta": 0.0012,
+      "brierDelta": -0.00082
+    },
+    "shots_on_goal:3.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.8976,
+      "baselineAccuracy": 0.8966,
+      "brier": 0.08194,
+      "baselineBrier": 0.08252,
+      "accuracyDelta": 0.001,
+      "brierDelta": -0.00057
+    },
+    "shots_on_goal:4.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.9546,
+      "baselineAccuracy": 0.9544,
+      "brier": 0.04,
+      "baselineBrier": 0.04024,
+      "accuracyDelta": 0.0002,
+      "brierDelta": -0.00024
+    },
+    "shots_on_goal:5.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.9814,
+      "baselineAccuracy": 0.9814,
+      "brier": 0.01737,
+      "baselineBrier": 0.01744,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00007
+    },
+    "shots_on_goal:6.5": {
+      "status": "PROMOTE_RESEARCH",
+      "n": 94456,
+      "accuracy": 0.9926,
+      "baselineAccuracy": 0.9926,
+      "brier": 0.00719,
+      "baselineBrier": 0.00721,
+      "accuracyDelta": 0,
+      "brierDelta": -0.00002
+    }
+  },
+  "subsets": {
+    "byMarket": {
+      "assists": {
+        "projection": {
+          "n": 94456,
+          "mae": 0.3987,
+          "rmse": 0.5369,
+          "bias": 0.002,
+          "baselineMae": 0.3993,
+          "baselineRmse": 0.5369,
+          "baselineBias": 0.0045,
+          "maeDelta": -0.0007
+        },
+        "threshold": {
+          "n": 283368,
+          "accuracy": 0.906,
+          "baselineAccuracy": 0.9059,
+          "brier": 0.07116,
+          "baselineBrier": 0.07116,
+          "accuracyDelta": 0.0001,
+          "brierDelta": 0
+        }
+      },
+      "goals": {
+        "projection": {
+          "n": 94456,
+          "mae": 0.2673,
+          "rmse": 0.4134,
+          "bias": 0.0035,
+          "baselineMae": 0.2668,
+          "baselineRmse": 0.4135,
+          "baselineBias": 0.0031,
+          "maeDelta": 0.0005
+        },
+        "threshold": {
+          "n": 188912,
+          "accuracy": 0.9162,
+          "baselineAccuracy": 0.9162,
+          "brier": 0.06835,
+          "baselineBrier": 0.06837,
+          "accuracyDelta": 0,
+          "brierDelta": -0.00003
+        }
+      },
+      "points": {
+        "projection": {
+          "n": 94456,
+          "mae": 0.5236,
+          "rmse": 0.6741,
+          "bias": 0.0055,
+          "baselineMae": 0.5232,
+          "baselineRmse": 0.674,
+          "baselineBias": 0.0077,
+          "maeDelta": 0.0004
+        },
+        "threshold": {
+          "n": 377824,
+          "accuracy": 0.8951,
+          "baselineAccuracy": 0.8952,
+          "brier": 0.07454,
+          "baselineBrier": 0.07452,
+          "accuracyDelta": -0.0001,
+          "brierDelta": 0.00002
+        }
+      },
+      "saves": {
+        "projection": {
+          "n": 5245,
+          "mae": 5.2594,
+          "rmse": 6.5781,
+          "bias": 1.2174,
+          "baselineMae": 5.2764,
+          "baselineRmse": 6.5951,
+          "baselineBias": 1.326,
+          "maeDelta": -0.0171
+        },
+        "threshold": {
+          "n": 131125,
+          "accuracy": 0.8016,
+          "baselineAccuracy": 0.8013,
+          "brier": 0.14175,
+          "baselineBrier": 0.14196,
+          "accuracyDelta": 0.0003,
+          "brierDelta": -0.0002
+        }
+      },
+      "shots_on_goal": {
+        "projection": {
+          "n": 94456,
+          "mae": 1.0297,
+          "rmse": 1.3265,
+          "bias": 0.0487,
+          "baselineMae": 1.035,
+          "baselineRmse": 1.3322,
+          "baselineBias": 0.0644,
+          "maeDelta": -0.0054
+        },
+        "threshold": {
+          "n": 661192,
+          "accuracy": 0.8599,
+          "baselineAccuracy": 0.8594,
+          "brier": 0.09821,
+          "baselineBrier": 0.09863,
+          "accuracyDelta": 0.0005,
+          "brierDelta": -0.00041
+        }
+      }
+    },
+    "bySeason": {
+      "20242025": {
+        "projection": {
+          "n": 191521,
+          "mae": 0.6183,
+          "rmse": 1.1212,
+          "bias": 0.0359,
+          "baselineMae": 0.6191,
+          "baselineRmse": 1.1245,
+          "baselineBias": 0.0377,
+          "maeDelta": -0.0007
+        },
+        "threshold": {
+          "n": 821125,
+          "accuracy": 0.8783,
+          "baselineAccuracy": 0.8779,
+          "brier": 0.08798,
+          "baselineBrier": 0.08815,
+          "accuracyDelta": 0.0003,
+          "brierDelta": -0.00017
+        }
+      },
+      "20252026": {
+        "projection": {
+          "n": 191548,
+          "mae": 0.6201,
+          "rmse": 1.1163,
+          "bias": 0.0269,
+          "baselineMae": 0.6224,
+          "baselineRmse": 1.1191,
+          "baselineBias": 0.038,
+          "maeDelta": -0.0022
+        },
+        "threshold": {
+          "n": 821296,
+          "accuracy": 0.8773,
+          "baselineAccuracy": 0.8772,
+          "brier": 0.0883,
+          "baselineBrier": 0.08849,
+          "accuracyDelta": 0.0001,
+          "brierDelta": -0.00019
+        }
+      }
+    },
+    "byHomeAway": {
+      "AWAY": {
+        "projection": {
+          "n": 191538,
+          "mae": 0.6126,
+          "rmse": 1.1076,
+          "bias": 0.0385,
+          "baselineMae": 0.6117,
+          "baselineRmse": 1.1098,
+          "baselineBias": 0.0339,
+          "maeDelta": 0.0009
+        },
+        "threshold": {
+          "n": 821214,
+          "accuracy": 0.8799,
+          "baselineAccuracy": 0.8798,
+          "brier": 0.08689,
+          "baselineBrier": 0.08698,
+          "accuracyDelta": 0.0001,
+          "brierDelta": -0.00009
+        }
+      },
+      "HOME": {
+        "projection": {
+          "n": 191531,
+          "mae": 0.6259,
+          "rmse": 1.1298,
+          "bias": 0.0243,
+          "baselineMae": 0.6298,
+          "baselineRmse": 1.1336,
+          "baselineBias": 0.0418,
+          "maeDelta": -0.0039
+        },
+        "threshold": {
+          "n": 821207,
+          "accuracy": 0.8756,
+          "baselineAccuracy": 0.8753,
+          "brier": 0.08939,
+          "baselineBrier": 0.08966,
+          "accuracyDelta": 0.0003,
+          "brierDelta": -0.00028
+        }
+      }
+    },
+    "byPosition": {
+      "D": {
+        "projection": {
+          "n": 126984,
+          "mae": 0.4721,
+          "rmse": 0.723,
+          "bias": 0.01,
+          "baselineMae": 0.4732,
+          "baselineRmse": 0.7249,
+          "baselineBias": 0.0138,
+          "maeDelta": -0.001
+        },
+        "threshold": {
+          "n": 507936,
+          "accuracy": 0.9033,
+          "baselineAccuracy": 0.9031,
+          "brier": 0.07051,
+          "baselineBrier": 0.07066,
+          "accuracyDelta": 0.0002,
+          "brierDelta": -0.00015
+        }
+      },
+      "F": {
+        "projection": {
+          "n": 250840,
+          "mae": 0.5967,
+          "rmse": 0.8614,
+          "bias": 0.0174,
+          "baselineMae": 0.5981,
+          "baselineRmse": 0.8639,
+          "baselineBias": 0.023,
+          "maeDelta": -0.0014
+        },
+        "threshold": {
+          "n": 1003360,
+          "accuracy": 0.8748,
+          "baselineAccuracy": 0.8746,
+          "brier": 0.09006,
+          "baselineBrier": 0.09025,
+          "accuracyDelta": 0.0002,
+          "brierDelta": -0.0002
+        }
+      },
+      "G": {
+        "projection": {
+          "n": 5245,
+          "mae": 5.2594,
+          "rmse": 6.5781,
+          "bias": 1.2174,
+          "baselineMae": 5.2764,
+          "baselineRmse": 6.5951,
+          "baselineBias": 1.326,
+          "maeDelta": -0.0171
+        },
+        "threshold": {
+          "n": 131125,
+          "accuracy": 0.8016,
+          "baselineAccuracy": 0.8013,
+          "brier": 0.14175,
+          "baselineBrier": 0.14196,
+          "accuracyDelta": 0.0003,
+          "brierDelta": -0.0002
+        }
+      }
+    },
+    "byRoleTier": {
+      "DEPTH": {
+        "projection": {
+          "n": 125920,
+          "mae": 0.4721,
+          "rmse": 0.7228,
+          "bias": 0.0094,
+          "baselineMae": 0.4732,
+          "baselineRmse": 0.7248,
+          "baselineBias": 0.0133,
+          "maeDelta": -0.0011
+        },
+        "threshold": {
+          "n": 503680,
+          "accuracy": 0.9033,
+          "baselineAccuracy": 0.9031,
+          "brier": 0.07053,
+          "baselineBrier": 0.07068,
+          "accuracyDelta": 0.0002,
+          "brierDelta": -0.00016
+        }
+      },
+      "MIDDLE6": {
+        "projection": {
+          "n": 125952,
+          "mae": 0.5998,
+          "rmse": 0.8681,
+          "bias": 0.0167,
+          "baselineMae": 0.601,
+          "baselineRmse": 0.8703,
+          "baselineBias": 0.0219,
+          "maeDelta": -0.0012
+        },
+        "threshold": {
+          "n": 503808,
+          "accuracy": 0.8738,
+          "baselineAccuracy": 0.8736,
+          "brier": 0.0906,
+          "baselineBrier": 0.09077,
+          "accuracyDelta": 0.0002,
+          "brierDelta": -0.00017
+        }
+      },
+      "STARTER": {
+        "projection": {
+          "n": 5245,
+          "mae": 5.2594,
+          "rmse": 6.5781,
+          "bias": 1.2174,
+          "baselineMae": 5.2764,
+          "baselineRmse": 6.5951,
+          "baselineBias": 1.326,
+          "maeDelta": -0.0171
+        },
+        "threshold": {
+          "n": 131125,
+          "accuracy": 0.8016,
+          "baselineAccuracy": 0.8013,
+          "brier": 0.14175,
+          "baselineBrier": 0.14196,
+          "accuracyDelta": 0.0003,
+          "brierDelta": -0.0002
+        }
+      },
+      "TOP6": {
+        "projection": {
+          "n": 125952,
+          "mae": 0.5925,
+          "rmse": 0.8537,
+          "bias": 0.0187,
+          "baselineMae": 0.594,
+          "baselineRmse": 0.8564,
+          "baselineBias": 0.0246,
+          "maeDelta": -0.0016
+        },
+        "threshold": {
+          "n": 503808,
+          "accuracy": 0.876,
+          "baselineAccuracy": 0.8758,
+          "brier": 0.08934,
+          "baselineBrier": 0.08955,
+          "accuracyDelta": 0.0002,
+          "brierDelta": -0.00021
+        }
+      }
+    },
+    "byPriorSample": {
+      "<10": {
+        "projection": {
+          "n": 38333,
+          "mae": 0.5366,
+          "rmse": 1.0022,
+          "bias": 0.0568,
+          "baselineMae": 0.5373,
+          "baselineRmse": 1.0028,
+          "baselineBias": 0.0633,
+          "maeDelta": -0.0007
+        },
+        "threshold": {
+          "n": 162425,
+          "accuracy": 0.8996,
+          "baselineAccuracy": 0.8992,
+          "brier": 0.07456,
+          "baselineBrier": 0.0746,
+          "accuracyDelta": 0.0004,
+          "brierDelta": -0.00004
+        }
+      },
+      "10-29": {
+        "projection": {
+          "n": 19002,
+          "mae": 0.6626,
+          "rmse": 1.5078,
+          "bias": 0.0809,
+          "baselineMae": 0.6635,
+          "baselineRmse": 1.5122,
+          "baselineBias": 0.086,
+          "maeDelta": -0.0009
+        },
+        "threshold": {
+          "n": 94194,
+          "accuracy": 0.8878,
+          "baselineAccuracy": 0.8875,
+          "brier": 0.0828,
+          "baselineBrier": 0.08292,
+          "accuracyDelta": 0.0003,
+          "brierDelta": -0.00012
+        }
+      },
+      "30-59": {
+        "projection": {
+          "n": 42158,
+          "mae": 0.7316,
+          "rmse": 1.7046,
+          "bias": 0.081,
+          "baselineMae": 0.7335,
+          "baselineRmse": 1.7096,
+          "baselineBias": 0.0881,
+          "maeDelta": -0.0019
+        },
+        "threshold": {
+          "n": 216050,
+          "accuracy": 0.8773,
+          "baselineAccuracy": 0.8771,
+          "brier": 0.08884,
+          "baselineBrier": 0.08905,
+          "accuracyDelta": 0.0002,
+          "brierDelta": -0.00021
+        }
+      },
+      "60+": {
+        "projection": {
+          "n": 283576,
+          "mae": 0.6108,
+          "rmse": 0.9852,
+          "bias": 0.0173,
+          "baselineMae": 0.6124,
+          "baselineRmse": 0.988,
+          "baselineBias": 0.0237,
+          "maeDelta": -0.0016
+        },
+        "threshold": {
+          "n": 1169752,
+          "accuracy": 0.874,
+          "baselineAccuracy": 0.8738,
+          "brier": 0.09033,
+          "baselineBrier": 0.09053,
+          "accuracyDelta": 0.0002,
+          "brierDelta": -0.0002
+        }
+      }
+    },
+    "byCurrentSample": {
+      "<10": {
+        "projection": {
+          "n": 68177,
+          "mae": 0.6431,
+          "rmse": 1.2886,
+          "bias": 0.0633,
+          "baselineMae": 0.6449,
+          "baselineRmse": 1.2924,
+          "baselineBias": 0.0714,
+          "maeDelta": -0.0017
+        },
+        "threshold": {
+          "n": 305909,
+          "accuracy": 0.8797,
+          "baselineAccuracy": 0.8791,
+          "brier": 0.0874,
+          "baselineBrier": 0.08759,
+          "accuracyDelta": 0.0006,
+          "brierDelta": -0.00019
+        }
+      },
+      "10-29": {
+        "projection": {
+          "n": 115686,
+          "mae": 0.6326,
+          "rmse": 1.2227,
+          "bias": 0.0426,
+          "baselineMae": 0.6344,
+          "baselineRmse": 1.2263,
+          "baselineBias": 0.0476,
+          "maeDelta": -0.0018
+        },
+        "threshold": {
+          "n": 511674,
+          "accuracy": 0.8789,
+          "baselineAccuracy": 0.8787,
+          "brier": 0.08759,
+          "baselineBrier": 0.08784,
+          "accuracyDelta": 0.0001,
+          "brierDelta": -0.00025
+        }
+      },
+      "30-59": {
+        "projection": {
+          "n": 139823,
+          "mae": 0.6076,
+          "rmse": 1.0364,
+          "bias": 0.0168,
+          "baselineMae": 0.6091,
+          "baselineRmse": 1.0391,
+          "baselineBias": 0.0238,
+          "maeDelta": -0.0015
+        },
+        "threshold": {
+          "n": 587159,
+          "accuracy": 0.8774,
+          "baselineAccuracy": 0.8772,
+          "brier": 0.08829,
+          "baselineBrier": 0.08845,
+          "accuracyDelta": 0.0002,
+          "brierDelta": -0.00016
+        }
+      },
+      "60+": {
+        "projection": {
+          "n": 59383,
+          "mae": 0.593,
+          "rmse": 0.8519,
+          "bias": 0.0074,
+          "baselineMae": 0.5936,
+          "baselineRmse": 0.8533,
+          "baselineBias": 0.0132,
+          "maeDelta": -0.0006
+        },
+        "threshold": {
+          "n": 237679,
+          "accuracy": 0.8739,
+          "baselineAccuracy": 0.8739,
+          "brier": 0.08992,
+          "baselineBrier": 0.08999,
+          "accuracyDelta": 0,
+          "brierDelta": -0.00007
+        }
+      }
+    },
+    "bySeasonPhase": {
+      "EARLY": {
+        "projection": {
+          "n": 127891,
+          "mae": 0.6234,
+          "rmse": 1.1271,
+          "bias": 0.0368,
+          "baselineMae": 0.6255,
+          "baselineRmse": 1.1311,
+          "baselineBias": 0.0424,
+          "maeDelta": -0.0021
+        },
+        "threshold": {
+          "n": 548335,
+          "accuracy": 0.8771,
+          "baselineAccuracy": 0.8766,
+          "brier": 0.08877,
+          "baselineBrier": 0.08905,
+          "accuracyDelta": 0.0005,
+          "brierDelta": -0.00029
+        }
+      },
+      "LATE": {
+        "projection": {
+          "n": 127579,
+          "mae": 0.6169,
+          "rmse": 1.1159,
+          "bias": 0.0278,
+          "baselineMae": 0.618,
+          "baselineRmse": 1.1184,
+          "baselineBias": 0.0357,
+          "maeDelta": -0.0011
+        },
+        "threshold": {
+          "n": 547003,
+          "accuracy": 0.8779,
+          "baselineAccuracy": 0.8778,
+          "brier": 0.08777,
+          "baselineBrier": 0.08787,
+          "accuracyDelta": 0.0001,
+          "brierDelta": -0.0001
+        }
+      },
+      "MIDDLE": {
+        "projection": {
+          "n": 127599,
+          "mae": 0.6174,
+          "rmse": 1.1132,
+          "bias": 0.0296,
+          "baselineMae": 0.6186,
+          "baselineRmse": 1.1158,
+          "baselineBias": 0.0353,
+          "maeDelta": -0.0012
+        },
+        "threshold": {
+          "n": 547083,
+          "accuracy": 0.8783,
+          "baselineAccuracy": 0.8782,
+          "brier": 0.08788,
+          "baselineBrier": 0.08804,
+          "accuracyDelta": 0.0001,
+          "brierDelta": -0.00015
+        }
+      }
+    },
+    "byRest": {
+      "2PLUS_REST": {
+        "projection": {
+          "n": 97232,
+          "mae": 0.6238,
+          "rmse": 1.134,
+          "bias": 0.0365,
+          "baselineMae": 0.6263,
+          "baselineRmse": 1.1383,
+          "baselineBias": 0.0454,
+          "maeDelta": -0.0025
+        },
+        "threshold": {
+          "n": 416900,
+          "accuracy": 0.8771,
+          "baselineAccuracy": 0.8765,
+          "brier": 0.0886,
+          "baselineBrier": 0.08889,
+          "accuracyDelta": 0.0006,
+          "brierDelta": -0.00029
+        }
+      },
+      "NORMAL_REST": {
+        "projection": {
+          "n": 285837,
+          "mae": 0.6177,
+          "rmse": 1.1135,
+          "bias": 0.0297,
+          "baselineMae": 0.6188,
+          "baselineRmse": 1.1161,
+          "baselineBias": 0.0352,
+          "maeDelta": -0.0011
+        },
+        "threshold": {
+          "n": 1225521,
+          "accuracy": 0.878,
+          "baselineAccuracy": 0.8779,
+          "brier": 0.08798,
+          "baselineBrier": 0.08813,
+          "accuracyDelta": 0.0001,
+          "brierDelta": -0.00014
+        }
+      }
+    },
+    "byProjectionTier": {
+      "assists:HIGH": {
+        "projection": {
+          "n": 2141,
+          "mae": 0.7134,
+          "rmse": 0.8927,
+          "bias": 0.0626,
+          "baselineMae": 0.7122,
+          "baselineRmse": 0.891,
+          "baselineBias": 0.0696,
+          "maeDelta": 0.0012
+        },
+        "threshold": {
+          "n": 6423,
+          "accuracy": 0.77,
+          "baselineAccuracy": 0.771,
+          "brier": 0.14979,
+          "baselineBrier": 0.1495,
+          "accuracyDelta": -0.0009,
+          "brierDelta": 0.00029
+        }
+      },
+      "assists:LOW": {
+        "projection": {
+          "n": 67635,
+          "mae": 0.324,
+          "rmse": 0.4593,
+          "bias": -0.0077,
+          "baselineMae": 0.3247,
+          "baselineRmse": 0.4593,
+          "baselineBias": -0.0061,
+          "maeDelta": -0.0007
+        },
+        "threshold": {
+          "n": 202905,
+          "accuracy": 0.9315,
+          "baselineAccuracy": 0.9315,
+          "brier": 0.05658,
+          "baselineBrier": 0.05657,
+          "accuracyDelta": 0,
+          "brierDelta": 0.00001
+        }
+      },
+      "assists:MID": {
+        "projection": {
+          "n": 24665,
+          "mae": 0.576,
+          "rmse": 0.6751,
+          "bias": 0.0233,
+          "baselineMae": 0.5766,
+          "baselineRmse": 0.6753,
+          "baselineBias": 0.0277,
+          "maeDelta": -0.0006
+        },
+        "threshold": {
+          "n": 73995,
+          "accuracy": 0.8476,
+          "baselineAccuracy": 0.8472,
+          "brier": 0.10429,
+          "baselineBrier": 0.10432,
+          "accuracyDelta": 0.0004,
+          "brierDelta": -0.00003
+        }
+      },
+      "goals:LOW": {
+        "projection": {
+          "n": 84223,
+          "mae": 0.2346,
+          "rmse": 0.3822,
+          "bias": -0.0032,
+          "baselineMae": 0.2342,
+          "baselineRmse": 0.3823,
+          "baselineBias": -0.0036,
+          "maeDelta": 0.0005
+        },
+        "threshold": {
+          "n": 168446,
+          "accuracy": 0.9292,
+          "baselineAccuracy": 0.9292,
+          "brier": 0.06017,
+          "baselineBrier": 0.06019,
+          "accuracyDelta": 0,
+          "brierDelta": -0.00003
+        }
+      },
+      "goals:MID": {
+        "projection": {
+          "n": 10210,
+          "mae": 0.5356,
+          "rmse": 0.6118,
+          "bias": 0.058,
+          "baselineMae": 0.5352,
+          "baselineRmse": 0.612,
+          "baselineBias": 0.0573,
+          "maeDelta": 0.0004
+        },
+        "threshold": {
+          "n": 20420,
+          "accuracy": 0.8095,
+          "baselineAccuracy": 0.8094,
+          "brier": 0.13559,
+          "baselineBrier": 0.13563,
+          "accuracyDelta": 0,
+          "brierDelta": -0.00004
+        }
+      },
+      "points:ELITE": {
+        "projection": {
+          "n": 1449,
+          "mae": 0.8944,
+          "rmse": 1.0909,
+          "bias": 0.0739,
+          "baselineMae": 0.8888,
+          "baselineRmse": 1.0865,
+          "baselineBias": 0.0796,
+          "maeDelta": 0.0055
+        },
+        "threshold": {
+          "n": 5796,
+          "accuracy": 0.7964,
+          "baselineAccuracy": 0.7981,
+          "brier": 0.14353,
+          "baselineBrier": 0.14288,
+          "accuracyDelta": -0.0017,
+          "brierDelta": 0.00065
+        }
+      },
+      "points:HIGH": {
+        "projection": {
+          "n": 12766,
+          "mae": 0.7259,
+          "rmse": 0.926,
+          "bias": 0.0168,
+          "baselineMae": 0.7268,
+          "baselineRmse": 0.9263,
+          "baselineBias": 0.0232,
+          "maeDelta": -0.0009
+        },
+        "threshold": {
+          "n": 51064,
+          "accuracy": 0.8245,
+          "baselineAccuracy": 0.8244,
+          "brier": 0.12014,
+          "baselineBrier": 0.12016,
+          "accuracyDelta": 0.0001,
+          "brierDelta": -0.00003
+        }
+      },
+      "points:LOW": {
+        "projection": {
+          "n": 40699,
+          "mae": 0.3739,
+          "rmse": 0.5009,
+          "bias": -0.0083,
+          "baselineMae": 0.3729,
+          "baselineRmse": 0.5009,
+          "baselineBias": -0.0095,
+          "maeDelta": 0.001
+        },
+        "threshold": {
+          "n": 162796,
+          "accuracy": 0.939,
+          "baselineAccuracy": 0.939,
+          "brier": 0.04915,
+          "baselineBrier": 0.04915,
+          "accuracyDelta": 0,
+          "brierDelta": 0
+        }
+      },
+      "points:MID": {
+        "projection": {
+          "n": 39542,
+          "mae": 0.5989,
+          "rmse": 0.712,
+          "bias": 0.0136,
+          "baselineMae": 0.5988,
+          "baselineRmse": 0.7119,
+          "baselineBias": 0.0178,
+          "maeDelta": 0.0001
+        },
+        "threshold": {
+          "n": 158168,
+          "accuracy": 0.8764,
+          "baselineAccuracy": 0.8766,
+          "brier": 0.08342,
+          "baselineBrier": 0.08339,
+          "accuracyDelta": -0.0001,
+          "brierDelta": 0.00002
+        }
+      },
+      "saves:HIGH": {
+        "projection": {
+          "n": 985,
+          "mae": 5.5079,
+          "rmse": 7.0117,
+          "bias": 0.574,
+          "baselineMae": 5.5313,
+          "baselineRmse": 7.0329,
+          "baselineBias": 0.7448,
+          "maeDelta": -0.0235
+        },
+        "threshold": {
+          "n": 24625,
+          "accuracy": 0.7908,
+          "baselineAccuracy": 0.7909,
+          "brier": 0.14936,
+          "baselineBrier": 0.14953,
+          "accuracyDelta": 0,
+          "brierDelta": -0.00017
+        }
+      },
+      "saves:MID": {
+        "projection": {
+          "n": 4259,
+          "mae": 5.2028,
+          "rmse": 6.4745,
+          "bias": 1.3668,
+          "baselineMae": 5.2184,
+          "baselineRmse": 6.4904,
+          "baselineBias": 1.4611,
+          "maeDelta": -0.0155
+        },
+        "threshold": {
+          "n": 106475,
+          "accuracy": 0.8041,
+          "baselineAccuracy": 0.8037,
+          "brier": 0.14001,
+          "baselineBrier": 0.14022,
+          "accuracyDelta": 0.0004,
+          "brierDelta": -0.00021
+        }
+      },
+      "shots_on_goal:ELITE": {
+        "projection": {
+          "n": 347,
+          "mae": 1.7731,
+          "rmse": 2.1807,
+          "bias": 0.3941,
+          "baselineMae": 1.7788,
+          "baselineRmse": 2.1858,
+          "baselineBias": 0.4237,
+          "maeDelta": -0.0057
+        },
+        "threshold": {
+          "n": 2429,
+          "accuracy": 0.7732,
+          "baselineAccuracy": 0.7666,
+          "brier": 0.15747,
+          "baselineBrier": 0.15738,
+          "accuracyDelta": 0.0066,
+          "brierDelta": 0.00009
+        }
+      },
+      "shots_on_goal:HIGH": {
+        "projection": {
+          "n": 6665,
+          "mae": 1.4708,
+          "rmse": 1.8528,
+          "bias": 0.1304,
+          "baselineMae": 1.4976,
+          "baselineRmse": 1.8727,
+          "baselineBias": 0.1812,
+          "maeDelta": -0.0267
+        },
+        "threshold": {
+          "n": 46655,
+          "accuracy": 0.7982,
+          "baselineAccuracy": 0.7963,
+          "brier": 0.14099,
+          "baselineBrier": 0.14271,
+          "accuracyDelta": 0.0019,
+          "brierDelta": -0.00172
+        }
+      },
+      "shots_on_goal:LOW": {
+        "projection": {
+          "n": 49653,
+          "mae": 0.8507,
+          "rmse": 1.0837,
+          "bias": 0.0318,
+          "baselineMae": 0.8534,
+          "baselineRmse": 1.086,
+          "baselineBias": 0.0386,
+          "maeDelta": -0.0027
+        },
+        "threshold": {
+          "n": 347571,
+          "accuracy": 0.8857,
+          "baselineAccuracy": 0.8857,
+          "brier": 0.08016,
+          "baselineBrier": 0.08035,
+          "accuracyDelta": 0.0001,
+          "brierDelta": -0.00019
+        }
+      },
+      "shots_on_goal:MID": {
+        "projection": {
+          "n": 37791,
+          "mae": 1.1802,
+          "rmse": 1.4852,
+          "bias": 0.0533,
+          "baselineMae": 1.1852,
+          "baselineRmse": 1.4913,
+          "baselineBias": 0.0744,
+          "maeDelta": -0.005
+        },
+        "threshold": {
+          "n": 264537,
+          "accuracy": 0.8376,
+          "baselineAccuracy": 0.8369,
+          "brier": 0.11384,
+          "baselineBrier": 0.11432,
+          "accuracyDelta": 0.0007,
+          "brierDelta": -0.00048
+        }
+      }
+    },
+    "byTeam": {
+      "ANA": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6312,
+          "rmse": 1.1788,
+          "bias": 0.0087,
+          "baselineMae": 0.6419,
+          "baselineRmse": 1.1827,
+          "baselineBias": 0.0576,
+          "maeDelta": -0.0108
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.875,
+          "baselineAccuracy": 0.8739,
+          "brier": 0.08978,
+          "baselineBrier": 0.09028,
+          "accuracyDelta": 0.0011,
+          "brierDelta": -0.0005
+        }
+      },
+      "BOS": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6111,
+          "rmse": 1.1168,
+          "bias": 0.0233,
+          "baselineMae": 0.6094,
+          "baselineRmse": 1.1175,
+          "baselineBias": 0.0156,
+          "maeDelta": 0.0018
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8804,
+          "baselineAccuracy": 0.8799,
+          "brier": 0.0867,
+          "baselineBrier": 0.0868,
+          "accuracyDelta": 0.0005,
+          "brierDelta": -0.0001
+        }
+      },
+      "BUF": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6232,
+          "rmse": 1.0793,
+          "bias": 0.0055,
+          "baselineMae": 0.6209,
+          "baselineRmse": 1.0803,
+          "baselineBias": -0.0024,
+          "maeDelta": 0.0023
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8748,
+          "baselineAccuracy": 0.875,
+          "brier": 0.09001,
+          "baselineBrier": 0.09001,
+          "accuracyDelta": -0.0002,
+          "brierDelta": 0
+        }
+      },
+      "CAR": {
+        "projection": {
+          "n": 11968,
+          "mae": 0.6637,
+          "rmse": 1.1571,
+          "bias": 0.0357,
+          "baselineMae": 0.665,
+          "baselineRmse": 1.1593,
+          "baselineBias": 0.0468,
+          "maeDelta": -0.0013
+        },
+        "threshold": {
+          "n": 51316,
+          "accuracy": 0.8686,
+          "baselineAccuracy": 0.8681,
+          "brier": 0.09497,
+          "baselineBrier": 0.09512,
+          "accuracyDelta": 0.0004,
+          "brierDelta": -0.00014
+        }
+      },
+      "CBJ": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6311,
+          "rmse": 1.098,
+          "bias": 0.0194,
+          "baselineMae": 0.6298,
+          "baselineRmse": 1.1005,
+          "baselineBias": 0.0185,
+          "maeDelta": 0.0013
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8749,
+          "baselineAccuracy": 0.8759,
+          "brier": 0.0902,
+          "baselineBrier": 0.09028,
+          "accuracyDelta": -0.0011,
+          "brierDelta": -0.00008
+        }
+      },
+      "CGY": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.5977,
+          "rmse": 1.0624,
+          "bias": 0.0228,
+          "baselineMae": 0.6056,
+          "baselineRmse": 1.0685,
+          "baselineBias": 0.0657,
+          "maeDelta": -0.008
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8832,
+          "baselineAccuracy": 0.8822,
+          "brier": 0.08496,
+          "baselineBrier": 0.08553,
+          "accuracyDelta": 0.001,
+          "brierDelta": -0.00057
+        }
+      },
+      "CHI": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6017,
+          "rmse": 1.1543,
+          "bias": 0.0302,
+          "baselineMae": 0.6078,
+          "baselineRmse": 1.1586,
+          "baselineBias": 0.0477,
+          "maeDelta": -0.0061
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.884,
+          "baselineAccuracy": 0.8833,
+          "brier": 0.08451,
+          "baselineBrier": 0.08495,
+          "accuracyDelta": 0.0007,
+          "brierDelta": -0.00044
+        }
+      },
+      "COL": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6569,
+          "rmse": 1.1491,
+          "bias": 0.0332,
+          "baselineMae": 0.6569,
+          "baselineRmse": 1.1536,
+          "baselineBias": 0.0308,
+          "maeDelta": 0
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8694,
+          "baselineAccuracy": 0.8691,
+          "brier": 0.09405,
+          "baselineBrier": 0.09417,
+          "accuracyDelta": 0.0003,
+          "brierDelta": -0.00011
+        }
+      },
+      "DAL": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6255,
+          "rmse": 1.1212,
+          "bias": 0.0292,
+          "baselineMae": 0.6194,
+          "baselineRmse": 1.1212,
+          "baselineBias": 0.0035,
+          "maeDelta": 0.0061
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.875,
+          "baselineAccuracy": 0.8756,
+          "brier": 0.08959,
+          "baselineBrier": 0.08939,
+          "accuracyDelta": -0.0006,
+          "brierDelta": 0.0002
+        }
+      },
+      "DET": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6124,
+          "rmse": 1.1634,
+          "bias": 0.0488,
+          "baselineMae": 0.6135,
+          "baselineRmse": 1.168,
+          "baselineBias": 0.0567,
+          "maeDelta": -0.0011
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8805,
+          "baselineAccuracy": 0.8803,
+          "brier": 0.08638,
+          "baselineBrier": 0.08656,
+          "accuracyDelta": 0.0002,
+          "brierDelta": -0.00018
+        }
+      },
+      "EDM": {
+        "projection": {
+          "n": 11952,
+          "mae": 0.6277,
+          "rmse": 1.1307,
+          "bias": 0.0267,
+          "baselineMae": 0.6287,
+          "baselineRmse": 1.1328,
+          "baselineBias": 0.0312,
+          "maeDelta": -0.001
+        },
+        "threshold": {
+          "n": 51252,
+          "accuracy": 0.8753,
+          "baselineAccuracy": 0.8752,
+          "brier": 0.08945,
+          "baselineBrier": 0.08952,
+          "accuracyDelta": 0.0002,
+          "brierDelta": -0.00007
+        }
+      },
+      "FLA": {
+        "projection": {
+          "n": 11968,
+          "mae": 0.6156,
+          "rmse": 1.1139,
+          "bias": 0.0383,
+          "baselineMae": 0.6135,
+          "baselineRmse": 1.1157,
+          "baselineBias": 0.0321,
+          "maeDelta": 0.0021
+        },
+        "threshold": {
+          "n": 51316,
+          "accuracy": 0.8788,
+          "baselineAccuracy": 0.8788,
+          "brier": 0.08783,
+          "baselineBrier": 0.08793,
+          "accuracyDelta": 0,
+          "brierDelta": -0.0001
+        }
+      },
+      "LAK": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6093,
+          "rmse": 1.061,
+          "bias": 0.0476,
+          "baselineMae": 0.6178,
+          "baselineRmse": 1.0687,
+          "baselineBias": 0.0812,
+          "maeDelta": -0.0085
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8813,
+          "baselineAccuracy": 0.8806,
+          "brier": 0.08614,
+          "baselineBrier": 0.08677,
+          "accuracyDelta": 0.0007,
+          "brierDelta": -0.00062
+        }
+      },
+      "MIN": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6059,
+          "rmse": 1.0988,
+          "bias": 0.0139,
+          "baselineMae": 0.6099,
+          "baselineRmse": 1.1019,
+          "baselineBias": 0.0291,
+          "maeDelta": -0.004
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8799,
+          "baselineAccuracy": 0.8792,
+          "brier": 0.08644,
+          "baselineBrier": 0.08677,
+          "accuracyDelta": 0.0006,
+          "brierDelta": -0.00033
+        }
+      },
+      "MTL": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6149,
+          "rmse": 1.1254,
+          "bias": 0.0302,
+          "baselineMae": 0.6129,
+          "baselineRmse": 1.1272,
+          "baselineBias": 0.0135,
+          "maeDelta": 0.0021
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8785,
+          "baselineAccuracy": 0.8781,
+          "brier": 0.08742,
+          "baselineBrier": 0.08744,
+          "accuracyDelta": 0.0004,
+          "brierDelta": -0.00003
+        }
+      },
+      "NJD": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6152,
+          "rmse": 1.1187,
+          "bias": 0.0499,
+          "baselineMae": 0.6179,
+          "baselineRmse": 1.1231,
+          "baselineBias": 0.0654,
+          "maeDelta": -0.0028
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8797,
+          "baselineAccuracy": 0.8791,
+          "brier": 0.08627,
+          "baselineBrier": 0.08662,
+          "accuracyDelta": 0.0006,
+          "brierDelta": -0.00035
+        }
+      },
+      "NSH": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.611,
+          "rmse": 1.1215,
+          "bias": 0.0421,
+          "baselineMae": 0.6263,
+          "baselineRmse": 1.1319,
+          "baselineBias": 0.101,
+          "maeDelta": -0.0154
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8806,
+          "baselineAccuracy": 0.8794,
+          "brier": 0.08666,
+          "baselineBrier": 0.08777,
+          "accuracyDelta": 0.0012,
+          "brierDelta": -0.00111
+        }
+      },
+      "NYI": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6094,
+          "rmse": 1.1195,
+          "bias": 0.0387,
+          "baselineMae": 0.6165,
+          "baselineRmse": 1.125,
+          "baselineBias": 0.0724,
+          "maeDelta": -0.0071
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8809,
+          "baselineAccuracy": 0.8799,
+          "brier": 0.08579,
+          "baselineBrier": 0.08623,
+          "accuracyDelta": 0.001,
+          "brierDelta": -0.00044
+        }
+      },
+      "NYR": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6285,
+          "rmse": 1.1885,
+          "bias": 0.0356,
+          "baselineMae": 0.6311,
+          "baselineRmse": 1.1915,
+          "baselineBias": 0.0452,
+          "maeDelta": -0.0025
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8758,
+          "baselineAccuracy": 0.8755,
+          "brier": 0.08936,
+          "baselineBrier": 0.08952,
+          "accuracyDelta": 0.0003,
+          "brierDelta": -0.00016
+        }
+      },
+      "OTT": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6342,
+          "rmse": 1.167,
+          "bias": 0.0391,
+          "baselineMae": 0.634,
+          "baselineRmse": 1.1664,
+          "baselineBias": 0.0404,
+          "maeDelta": 0.0002
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8738,
+          "baselineAccuracy": 0.8739,
+          "brier": 0.09027,
+          "baselineBrier": 0.09031,
+          "accuracyDelta": 0,
+          "brierDelta": -0.00004
+        }
+      },
+      "PHI": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6176,
+          "rmse": 1.0871,
+          "bias": 0.0532,
+          "baselineMae": 0.6158,
+          "baselineRmse": 1.0886,
+          "baselineBias": 0.0493,
+          "maeDelta": 0.0017
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.88,
+          "baselineAccuracy": 0.8799,
+          "brier": 0.08705,
+          "baselineBrier": 0.08701,
+          "accuracyDelta": 0,
+          "brierDelta": 0.00005
+        }
+      },
+      "PIT": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6321,
+          "rmse": 1.1413,
+          "bias": 0.0171,
+          "baselineMae": 0.6346,
+          "baselineRmse": 1.1454,
+          "baselineBias": 0.0253,
+          "maeDelta": -0.0025
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8727,
+          "baselineAccuracy": 0.8722,
+          "brier": 0.0911,
+          "baselineBrier": 0.09138,
+          "accuracyDelta": 0.0005,
+          "brierDelta": -0.00028
+        }
+      },
+      "SEA": {
+        "projection": {
+          "n": 11971,
+          "mae": 0.5953,
+          "rmse": 1.0322,
+          "bias": 0.0299,
+          "baselineMae": 0.598,
+          "baselineRmse": 1.0335,
+          "baselineBias": 0.0468,
+          "maeDelta": -0.0027
+        },
+        "threshold": {
+          "n": 51307,
+          "accuracy": 0.8835,
+          "baselineAccuracy": 0.8831,
+          "brier": 0.0843,
+          "baselineBrier": 0.08433,
+          "accuracyDelta": 0.0005,
+          "brierDelta": -0.00003
+        }
+      },
+      "SJS": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.5969,
+          "rmse": 1.2031,
+          "bias": 0.0203,
+          "baselineMae": 0.6023,
+          "baselineRmse": 1.2094,
+          "baselineBias": 0.0407,
+          "maeDelta": -0.0054
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8828,
+          "baselineAccuracy": 0.8822,
+          "brier": 0.08473,
+          "baselineBrier": 0.08505,
+          "accuracyDelta": 0.0006,
+          "brierDelta": -0.00032
+        }
+      },
+      "STL": {
+        "projection": {
+          "n": 11971,
+          "mae": 0.6016,
+          "rmse": 1.102,
+          "bias": 0.0345,
+          "baselineMae": 0.604,
+          "baselineRmse": 1.103,
+          "baselineBias": 0.0452,
+          "maeDelta": -0.0024
+        },
+        "threshold": {
+          "n": 51307,
+          "accuracy": 0.8815,
+          "baselineAccuracy": 0.882,
+          "brier": 0.08584,
+          "baselineBrier": 0.08587,
+          "accuracyDelta": -0.0005,
+          "brierDelta": -0.00003
+        }
+      },
+      "TBL": {
+        "projection": {
+          "n": 11971,
+          "mae": 0.6336,
+          "rmse": 1.1042,
+          "bias": 0.0142,
+          "baselineMae": 0.6305,
+          "baselineRmse": 1.1092,
+          "baselineBias": -0.0164,
+          "maeDelta": 0.0031
+        },
+        "threshold": {
+          "n": 51307,
+          "accuracy": 0.8714,
+          "baselineAccuracy": 0.8716,
+          "brier": 0.09124,
+          "baselineBrier": 0.09147,
+          "accuracyDelta": -0.0002,
+          "brierDelta": -0.00023
+        }
+      },
+      "TOR": {
+        "projection": {
+          "n": 11968,
+          "mae": 0.6129,
+          "rmse": 1.0822,
+          "bias": 0.0284,
+          "baselineMae": 0.607,
+          "baselineRmse": 1.0798,
+          "baselineBias": 0.0063,
+          "maeDelta": 0.0059
+        },
+        "threshold": {
+          "n": 51316,
+          "accuracy": 0.8788,
+          "baselineAccuracy": 0.8796,
+          "brier": 0.08741,
+          "baselineBrier": 0.08719,
+          "accuracyDelta": -0.0008,
+          "brierDelta": 0.00021
+        }
+      },
+      "UTA": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6143,
+          "rmse": 1.0962,
+          "bias": 0.0261,
+          "baselineMae": 0.619,
+          "baselineRmse": 1.0987,
+          "baselineBias": 0.0497,
+          "maeDelta": -0.0047
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8782,
+          "baselineAccuracy": 0.8788,
+          "brier": 0.08759,
+          "baselineBrier": 0.0877,
+          "accuracyDelta": -0.0005,
+          "brierDelta": -0.00011
+        }
+      },
+      "VAN": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6069,
+          "rmse": 1.1197,
+          "bias": 0.0522,
+          "baselineMae": 0.6023,
+          "baselineRmse": 1.1195,
+          "baselineBias": 0.0403,
+          "maeDelta": 0.0046
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8822,
+          "baselineAccuracy": 0.8827,
+          "brier": 0.08508,
+          "baselineBrier": 0.08485,
+          "accuracyDelta": -0.0005,
+          "brierDelta": 0.00023
+        }
+      },
+      "VGK": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6361,
+          "rmse": 1.1116,
+          "bias": 0.0459,
+          "baselineMae": 0.636,
+          "baselineRmse": 1.1152,
+          "baselineBias": 0.0396,
+          "maeDelta": 0.0001
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.873,
+          "baselineAccuracy": 0.8727,
+          "brier": 0.09109,
+          "baselineBrier": 0.09126,
+          "accuracyDelta": 0.0003,
+          "brierDelta": -0.00017
+        }
+      },
+      "WPG": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6047,
+          "rmse": 1.0563,
+          "bias": 0.0441,
+          "baselineMae": 0.5991,
+          "baselineRmse": 1.0581,
+          "baselineBias": 0.0185,
+          "maeDelta": 0.0056
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8816,
+          "baselineAccuracy": 0.8814,
+          "brier": 0.08666,
+          "baselineBrier": 0.08652,
+          "accuracyDelta": 0.0002,
+          "brierDelta": 0.00014
+        }
+      },
+      "WSH": {
+        "projection": {
+          "n": 11972,
+          "mae": 0.6371,
+          "rmse": 1.1174,
+          "bias": 0.0201,
+          "baselineMae": 0.6357,
+          "baselineRmse": 1.1205,
+          "baselineBias": 0.0124,
+          "maeDelta": 0.0014
+        },
+        "threshold": {
+          "n": 51332,
+          "accuracy": 0.8722,
+          "baselineAccuracy": 0.8722,
+          "brier": 0.09162,
+          "baselineBrier": 0.0917,
+          "accuracyDelta": 0,
+          "brierDelta": -0.00008
+        }
+      }
+    }
+  },
+  "bySyntheticLine": {
+    "assists:0.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.7641,
+        "baselineAccuracy": 0.7638,
+        "brier": 0.17057,
+        "baselineBrier": 0.17056,
+        "accuracyDelta": 0.0003,
+        "brierDelta": 0.00001
+      }
+    },
+    "assists:1.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.9593,
+        "baselineAccuracy": 0.9593,
+        "brier": 0.03747,
+        "baselineBrier": 0.03747,
+        "accuracyDelta": 0,
+        "brierDelta": 0
+      }
+    },
+    "assists:2.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.9944,
+        "baselineAccuracy": 0.9944,
+        "brier": 0.00545,
+        "baselineBrier": 0.00545,
+        "accuracyDelta": 0,
+        "brierDelta": 0
+      }
+    },
+    "goals:0.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.8492,
+        "baselineAccuracy": 0.8492,
+        "brier": 0.12046,
+        "baselineBrier": 0.12051,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00005
+      }
+    },
+    "goals:1.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.9833,
+        "baselineAccuracy": 0.9833,
+        "brier": 0.01624,
+        "baselineBrier": 0.01624,
+        "accuracyDelta": 0,
+        "brierDelta": 0
+      }
+    },
+    "points:0.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.69,
+        "baselineAccuracy": 0.6901,
+        "brier": 0.20378,
+        "baselineBrier": 0.20372,
+        "accuracyDelta": -0.0002,
+        "brierDelta": 0.00007
+      }
+    },
+    "points:1.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.9122,
+        "baselineAccuracy": 0.9123,
+        "brier": 0.07373,
+        "baselineBrier": 0.07373,
+        "accuracyDelta": -0.0001,
+        "brierDelta": 0
+      }
+    },
+    "points:2.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.9813,
+        "baselineAccuracy": 0.9813,
+        "brier": 0.01771,
+        "baselineBrier": 0.01771,
+        "accuracyDelta": 0,
+        "brierDelta": 0
+      }
+    },
+    "points:3.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.997,
+        "baselineAccuracy": 0.997,
+        "brier": 0.00293,
+        "baselineBrier": 0.00292,
+        "accuracyDelta": 0,
+        "brierDelta": 0
+      }
+    },
+    "saves:15.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.923,
+        "baselineAccuracy": 0.923,
+        "brier": 0.07399,
+        "baselineBrier": 0.07366,
+        "accuracyDelta": 0,
+        "brierDelta": 0.00033
+      }
+    },
+    "saves:16.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.8965,
+        "baselineAccuracy": 0.8965,
+        "brier": 0.09525,
+        "baselineBrier": 0.09489,
+        "accuracyDelta": 0,
+        "brierDelta": 0.00037
+      }
+    },
+    "saves:17.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.8614,
+        "baselineAccuracy": 0.8614,
+        "brier": 0.11999,
+        "baselineBrier": 0.11958,
+        "accuracyDelta": 0,
+        "brierDelta": 0.0004
+      }
+    },
+    "saves:18.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.8233,
+        "baselineAccuracy": 0.8233,
+        "brier": 0.14418,
+        "baselineBrier": 0.14375,
+        "accuracyDelta": 0,
+        "brierDelta": 0.00042
+      }
+    },
+    "saves:19.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.7788,
+        "baselineAccuracy": 0.7788,
+        "brier": 0.16846,
+        "baselineBrier": 0.16795,
+        "accuracyDelta": 0,
+        "brierDelta": 0.00051
+      }
+    },
+    "saves:20.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.7291,
+        "baselineAccuracy": 0.7291,
+        "brier": 0.19251,
+        "baselineBrier": 0.19208,
+        "accuracyDelta": 0,
+        "brierDelta": 0.00043
+      }
+    },
+    "saves:21.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.669,
+        "baselineAccuracy": 0.6692,
+        "brier": 0.2151,
+        "baselineBrier": 0.21484,
+        "accuracyDelta": -0.0002,
+        "brierDelta": 0.00026
+      }
+    },
+    "saves:22.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.6177,
+        "baselineAccuracy": 0.6179,
+        "brier": 0.22987,
+        "baselineBrier": 0.22974,
+        "accuracyDelta": -0.0002,
+        "brierDelta": 0.00012
+      }
+    },
+    "saves:23.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.5775,
+        "baselineAccuracy": 0.5745,
+        "brier": 0.2396,
+        "baselineBrier": 0.2397,
+        "accuracyDelta": 0.0031,
+        "brierDelta": -0.0001
+      }
+    },
+    "saves:24.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.5674,
+        "baselineAccuracy": 0.5664,
+        "brier": 0.24344,
+        "baselineBrier": 0.24371,
+        "accuracyDelta": 0.001,
+        "brierDelta": -0.00027
+      }
+    },
+    "saves:25.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.5922,
+        "baselineAccuracy": 0.5874,
+        "brier": 0.24037,
+        "baselineBrier": 0.24076,
+        "accuracyDelta": 0.0048,
+        "brierDelta": -0.00039
+      }
+    },
+    "saves:26.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.6328,
+        "baselineAccuracy": 0.6328,
+        "brier": 0.2318,
+        "baselineBrier": 0.23226,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00047
+      }
+    },
+    "saves:27.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.6782,
+        "baselineAccuracy": 0.6768,
+        "brier": 0.21791,
+        "baselineBrier": 0.21854,
+        "accuracyDelta": 0.0013,
+        "brierDelta": -0.00063
+      }
+    },
+    "saves:28.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.726,
+        "baselineAccuracy": 0.7279,
+        "brier": 0.20018,
+        "baselineBrier": 0.20088,
+        "accuracyDelta": -0.0019,
+        "brierDelta": -0.0007
+      }
+    },
+    "saves:29.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.7714,
+        "baselineAccuracy": 0.7712,
+        "brier": 0.17942,
+        "baselineBrier": 0.18014,
+        "accuracyDelta": 0.0002,
+        "brierDelta": -0.00072
+      }
+    },
+    "saves:30.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.812,
+        "baselineAccuracy": 0.8122,
+        "brier": 0.15719,
+        "baselineBrier": 0.1579,
+        "accuracyDelta": -0.0002,
+        "brierDelta": -0.00071
+      }
+    },
+    "saves:31.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.8456,
+        "baselineAccuracy": 0.8456,
+        "brier": 0.13567,
+        "baselineBrier": 0.13634,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00067
+      }
+    },
+    "saves:32.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.8805,
+        "baselineAccuracy": 0.8805,
+        "brier": 0.11167,
+        "baselineBrier": 0.11236,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00069
+      }
+    },
+    "saves:33.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.9056,
+        "baselineAccuracy": 0.9056,
+        "brier": 0.09159,
+        "baselineBrier": 0.09219,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00061
+      }
+    },
+    "saves:34.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.9266,
+        "baselineAccuracy": 0.9266,
+        "brier": 0.07355,
+        "baselineBrier": 0.07408,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00054
+      }
+    },
+    "saves:35.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.9426,
+        "baselineAccuracy": 0.9426,
+        "brier": 0.05868,
+        "baselineBrier": 0.05913,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00045
+      }
+    },
+    "saves:36.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.9571,
+        "baselineAccuracy": 0.9571,
+        "brier": 0.04482,
+        "baselineBrier": 0.04518,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00036
+      }
+    },
+    "saves:37.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.9666,
+        "baselineAccuracy": 0.9666,
+        "brier": 0.03504,
+        "baselineBrier": 0.0353,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00027
+      }
+    },
+    "saves:38.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.9762,
+        "baselineAccuracy": 0.9762,
+        "brier": 0.02548,
+        "baselineBrier": 0.02568,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00021
+      }
+    },
+    "saves:39.5": {
+      "threshold": {
+        "n": 5245,
+        "accuracy": 0.9832,
+        "baselineAccuracy": 0.9832,
+        "brier": 0.01815,
+        "baselineBrier": 0.0183,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00015
+      }
+    },
+    "shots_on_goal:0.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.7332,
+        "baselineAccuracy": 0.7335,
+        "brier": 0.18029,
+        "baselineBrier": 0.18065,
+        "accuracyDelta": -0.0003,
+        "brierDelta": -0.00036
+      }
+    },
+    "shots_on_goal:1.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.6691,
+        "baselineAccuracy": 0.6679,
+        "brier": 0.21265,
+        "baselineBrier": 0.21346,
+        "accuracyDelta": 0.0012,
+        "brierDelta": -0.00081
+      }
+    },
+    "shots_on_goal:2.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.7906,
+        "baselineAccuracy": 0.7894,
+        "brier": 0.14804,
+        "baselineBrier": 0.14886,
+        "accuracyDelta": 0.0012,
+        "brierDelta": -0.00082
+      }
+    },
+    "shots_on_goal:3.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.8976,
+        "baselineAccuracy": 0.8966,
+        "brier": 0.08194,
+        "baselineBrier": 0.08252,
+        "accuracyDelta": 0.001,
+        "brierDelta": -0.00057
+      }
+    },
+    "shots_on_goal:4.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.9546,
+        "baselineAccuracy": 0.9544,
+        "brier": 0.04,
+        "baselineBrier": 0.04024,
+        "accuracyDelta": 0.0002,
+        "brierDelta": -0.00024
+      }
+    },
+    "shots_on_goal:5.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.9814,
+        "baselineAccuracy": 0.9814,
+        "brier": 0.01737,
+        "baselineBrier": 0.01744,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00007
+      }
+    },
+    "shots_on_goal:6.5": {
+      "threshold": {
+        "n": 94456,
+        "accuracy": 0.9926,
+        "baselineAccuracy": 0.9926,
+        "brier": 0.00719,
+        "baselineBrier": 0.00721,
+        "accuracyDelta": 0,
+        "brierDelta": -0.00002
+      }
+    }
+  },
+  "byModelEdge": {
+    "<5%": {
+      "threshold": {
+        "n": 55752,
+        "accuracy": 0.5282,
+        "baselineAccuracy": 0.5264,
+        "brier": 0.24899,
+        "baselineBrier": 0.24958,
+        "accuracyDelta": 0.0018,
+        "brierDelta": -0.00058
+      }
+    },
+    "10-14.9%": {
+      "threshold": {
+        "n": 68056,
+        "accuracy": 0.6373,
+        "baselineAccuracy": 0.6368,
+        "brier": 0.23108,
+        "baselineBrier": 0.23156,
+        "accuracyDelta": 0.0005,
+        "brierDelta": -0.00047
+      }
+    },
+    "15-19.9%": {
+      "threshold": {
+        "n": 78105,
+        "accuracy": 0.6889,
+        "baselineAccuracy": 0.6889,
+        "brier": 0.21427,
+        "baselineBrier": 0.21488,
+        "accuracyDelta": 0,
+        "brierDelta": -0.0006
+      }
+    },
+    "20%+": {
+      "threshold": {
+        "n": 1379779,
+        "accuracy": 0.9273,
+        "baselineAccuracy": 0.9273,
+        "brier": 0.06064,
+        "baselineBrier": 0.06074,
+        "accuracyDelta": 0,
+        "brierDelta": -0.0001
+      }
+    },
+    "5-9.9%": {
+      "threshold": {
+        "n": 60729,
+        "accuracy": 0.5844,
+        "baselineAccuracy": 0.581,
+        "brier": 0.24282,
+        "baselineBrier": 0.24358,
+        "accuracyDelta": 0.0035,
+        "brierDelta": -0.00077
+      }
+    }
+  },
+  "savesAudit": {
+    "cuts": {
+      "opponentShotsFor": {
+        "q25": 27.475609756097562,
+        "q50": 28.823461091753774,
+        "q75": 30.024390243902438
+      },
+      "teamShotsAgainst": {
+        "q25": 27.463795731707318,
+        "q50": 28.842788971367973,
+        "q75": 29.802397684993803
+      },
+      "projectedShotsFaced": {
+        "q25": 27.857723577235774,
+        "q50": 28.75160462130937,
+        "q75": 29.716084684138767
+      },
+      "priorStarts": {
+        "q25": 30,
+        "q50": 48,
+        "q75": 71
+      }
+    },
+    "byLine": {
+      "15.5": {
+        "n": 5245,
+        "accuracy": 0.923,
+        "brier": 0.07399
+      },
+      "16.5": {
+        "n": 5245,
+        "accuracy": 0.8965,
+        "brier": 0.09525
+      },
+      "17.5": {
+        "n": 5245,
+        "accuracy": 0.8614,
+        "brier": 0.11999
+      },
+      "18.5": {
+        "n": 5245,
+        "accuracy": 0.8233,
+        "brier": 0.14418
+      },
+      "19.5": {
+        "n": 5245,
+        "accuracy": 0.7788,
+        "brier": 0.16846
+      },
+      "20.5": {
+        "n": 5245,
+        "accuracy": 0.7291,
+        "brier": 0.19251
+      },
+      "21.5": {
+        "n": 5245,
+        "accuracy": 0.6692,
+        "brier": 0.2151
+      },
+      "22.5": {
+        "n": 5245,
+        "accuracy": 0.6135,
+        "brier": 0.22987
+      },
+      "23.5": {
+        "n": 5245,
+        "accuracy": 0.5642,
+        "brier": 0.2396
+      },
+      "24.5": {
+        "n": 5245,
+        "accuracy": 0.5455,
+        "brier": 0.24344
+      },
+      "25.5": {
+        "n": 5245,
+        "accuracy": 0.5704,
+        "brier": 0.24037
+      },
+      "26.5": {
+        "n": 5245,
+        "accuracy": 0.6255,
+        "brier": 0.2318
+      },
+      "27.5": {
+        "n": 5245,
+        "accuracy": 0.6744,
+        "brier": 0.21791
+      },
+      "28.5": {
+        "n": 5245,
+        "accuracy": 0.7279,
+        "brier": 0.20018
+      },
+      "29.5": {
+        "n": 5245,
+        "accuracy": 0.7704,
+        "brier": 0.17942
+      },
+      "30.5": {
+        "n": 5245,
+        "accuracy": 0.812,
+        "brier": 0.15719
+      },
+      "31.5": {
+        "n": 5245,
+        "accuracy": 0.8456,
+        "brier": 0.13567
+      },
+      "32.5": {
+        "n": 5245,
+        "accuracy": 0.8805,
+        "brier": 0.11167
+      },
+      "33.5": {
+        "n": 5245,
+        "accuracy": 0.9056,
+        "brier": 0.09159
+      },
+      "34.5": {
+        "n": 5245,
+        "accuracy": 0.9266,
+        "brier": 0.07355
+      },
+      "35.5": {
+        "n": 5245,
+        "accuracy": 0.9426,
+        "brier": 0.05868
+      },
+      "36.5": {
+        "n": 5245,
+        "accuracy": 0.9571,
+        "brier": 0.04482
+      },
+      "37.5": {
+        "n": 5245,
+        "accuracy": 0.9666,
+        "brier": 0.03504
+      },
+      "38.5": {
+        "n": 5245,
+        "accuracy": 0.9762,
+        "brier": 0.02548
+      },
+      "39.5": {
+        "n": 5245,
+        "accuracy": 0.9832,
+        "brier": 0.01815
+      }
+    },
+    "byLineBucket": {
+      "20.5-22.5": {
+        "n": 41960,
+        "accuracy": 0.7868,
+        "brier": 0.15492
+      },
+      "23.5-26.5": {
+        "n": 20980,
+        "accuracy": 0.5764,
+        "brier": 0.2388
+      },
+      "27.5-30.5": {
+        "n": 20980,
+        "accuracy": 0.7462,
+        "brier": 0.18867
+      },
+      "31.5+": {
+        "n": 47205,
+        "accuracy": 0.9316,
+        "brier": 0.06607
+      }
+    },
+    "byDirection": {
+      "OVER": {
+        "n": 56984,
+        "accuracy": 0.7183,
+        "brier": 0.1785
+      },
+      "UNDER": {
+        "n": 74141,
+        "accuracy": 0.8606,
+        "brier": 0.11351
+      }
+    },
+    "byGap": {
+      "<1": {
+        "n": 10490,
+        "accuracy": 0.5296,
+        "brier": 0.24565
+      },
+      "1-1.99": {
+        "n": 10490,
+        "accuracy": 0.5895,
+        "brier": 0.23924
+      },
+      "2-2.99": {
+        "n": 10490,
+        "accuracy": 0.6444,
+        "brier": 0.22747
+      },
+      "3-3.99": {
+        "n": 10490,
+        "accuracy": 0.6994,
+        "brier": 0.21015
+      },
+      "4+": {
+        "n": 89165,
+        "accuracy": 0.8849,
+        "brier": 0.09993
+      }
+    },
+    "byDirectionGap": {
+      "OVER|<1": {
+        "n": 5245,
+        "accuracy": 0.4406,
+        "brier": 0.24981
+      },
+      "OVER|1-1.99": {
+        "n": 5245,
+        "accuracy": 0.5035,
+        "brier": 0.25158
+      },
+      "OVER|2-2.99": {
+        "n": 5245,
+        "accuracy": 0.5647,
+        "brier": 0.24647
+      },
+      "OVER|3-3.99": {
+        "n": 5245,
+        "accuracy": 0.6271,
+        "brier": 0.23422
+      },
+      "OVER|4+": {
+        "n": 36004,
+        "accuracy": 0.8258,
+        "brier": 0.13945
+      },
+      "UNDER|<1": {
+        "n": 5245,
+        "accuracy": 0.6185,
+        "brier": 0.24149
+      },
+      "UNDER|1-1.99": {
+        "n": 5245,
+        "accuracy": 0.6755,
+        "brier": 0.2269
+      },
+      "UNDER|2-2.99": {
+        "n": 5245,
+        "accuracy": 0.7241,
+        "brier": 0.20847
+      },
+      "UNDER|3-3.99": {
+        "n": 5245,
+        "accuracy": 0.7718,
+        "brier": 0.18609
+      },
+      "UNDER|4+": {
+        "n": 53161,
+        "accuracy": 0.9249,
+        "brier": 0.07317
+      }
+    },
+    "byOpponentShotQuartile": {
+      "Q1": {
+        "n": 32800,
+        "accuracy": 0.8035,
+        "brier": 0.13688
+      },
+      "Q2": {
+        "n": 32775,
+        "accuracy": 0.8,
+        "brier": 0.14159
+      },
+      "Q3": {
+        "n": 32775,
+        "accuracy": 0.8013,
+        "brier": 0.14069
+      },
+      "Q4": {
+        "n": 32775,
+        "accuracy": 0.7902,
+        "brier": 0.14786
+      }
+    },
+    "byDefenseSuppressionQuartile": {
+      "Q1": {
+        "n": 32775,
+        "accuracy": 0.7905,
+        "brier": 0.14763
+      },
+      "Q2": {
+        "n": 32775,
+        "accuracy": 0.7993,
+        "brier": 0.14275
+      },
+      "Q3": {
+        "n": 32775,
+        "accuracy": 0.7962,
+        "brier": 0.14297
+      },
+      "Q4": {
+        "n": 32800,
+        "accuracy": 0.8091,
+        "brier": 0.13367
+      }
+    },
+    "byOffenseDefenseMatrix": {
+      "Q1|Q1": {
+        "n": 7275,
+        "accuracy": 0.8,
+        "brier": 0.14119
+      },
+      "Q1|Q2": {
+        "n": 8500,
+        "accuracy": 0.8021,
+        "brier": 0.14059
+      },
+      "Q1|Q3": {
+        "n": 8425,
+        "accuracy": 0.8043,
+        "brier": 0.13567
+      },
+      "Q1|Q4": {
+        "n": 8600,
+        "accuracy": 0.8072,
+        "brier": 0.13077
+      },
+      "Q2|Q1": {
+        "n": 7675,
+        "accuracy": 0.7857,
+        "brier": 0.15085
+      },
+      "Q2|Q2": {
+        "n": 8125,
+        "accuracy": 0.8066,
+        "brier": 0.13877
+      },
+      "Q2|Q3": {
+        "n": 8000,
+        "accuracy": 0.7897,
+        "brier": 0.14699
+      },
+      "Q2|Q4": {
+        "n": 8975,
+        "accuracy": 0.8154,
+        "brier": 0.13139
+      },
+      "Q3|Q1": {
+        "n": 7800,
+        "accuracy": 0.794,
+        "brier": 0.14512
+      },
+      "Q3|Q2": {
+        "n": 7800,
+        "accuracy": 0.7931,
+        "brier": 0.14528
+      },
+      "Q3|Q3": {
+        "n": 8500,
+        "accuracy": 0.8021,
+        "brier": 0.14074
+      },
+      "Q3|Q4": {
+        "n": 8675,
+        "accuracy": 0.8146,
+        "brier": 0.13253
+      },
+      "Q4|Q1": {
+        "n": 10025,
+        "accuracy": 0.7847,
+        "brier": 0.15179
+      },
+      "Q4|Q2": {
+        "n": 8350,
+        "accuracy": 0.795,
+        "brier": 0.14647
+      },
+      "Q4|Q3": {
+        "n": 7850,
+        "accuracy": 0.7875,
+        "brier": 0.14913
+      },
+      "Q4|Q4": {
+        "n": 6550,
+        "accuracy": 0.7956,
+        "brier": 0.14211
+      }
+    },
+    "byProjectedShotsFacedQuartile": {
+      "Q1": {
+        "n": 32800,
+        "accuracy": 0.8076,
+        "brier": 0.13393
+      },
+      "Q2": {
+        "n": 32775,
+        "accuracy": 0.8019,
+        "brier": 0.14018
+      },
+      "Q3": {
+        "n": 32775,
+        "accuracy": 0.7973,
+        "brier": 0.14307
+      },
+      "Q4": {
+        "n": 32775,
+        "accuracy": 0.7883,
+        "brier": 0.14985
+      }
+    },
+    "byStarterExperienceQuartile": {
+      "Q1": {
+        "n": 33050,
+        "accuracy": 0.8016,
+        "brier": 0.14068
+      },
+      "Q2": {
+        "n": 32700,
+        "accuracy": 0.7952,
+        "brier": 0.14299
+      },
+      "Q3": {
+        "n": 33600,
+        "accuracy": 0.797,
+        "brier": 0.14379
+      },
+      "Q4": {
+        "n": 31775,
+        "accuracy": 0.8013,
+        "brier": 0.13945
+      }
+    },
+    "byHomeAway": {
+      "AWAY": {
+        "n": 65550,
+        "accuracy": 0.8001,
+        "brier": 0.14199
+      },
+      "HOME": {
+        "n": 65575,
+        "accuracy": 0.7975,
+        "brier": 0.14152
+      }
+    },
+    "byRest": {
+      "2PLUS_REST": {
+        "n": 33300,
+        "accuracy": 0.7944,
+        "brier": 0.14377
+      },
+      "NORMAL_REST": {
+        "n": 97825,
+        "accuracy": 0.8002,
+        "brier": 0.14107
+      }
+    },
+    "bySeasonPhase": {
+      "EARLY": {
+        "n": 43775,
+        "accuracy": 0.7966,
+        "brier": 0.14251
+      },
+      "LATE": {
+        "n": 43675,
+        "accuracy": 0.7979,
+        "brier": 0.14162
+      },
+      "MIDDLE": {
+        "n": 43675,
+        "accuracy": 0.8018,
+        "brier": 0.14113
+      }
+    },
+    "byStars": {
+      "1 STAR": {
+        "n": 15735,
+        "accuracy": 0.5209,
+        "brier": 0.24763
+      },
+      "2 STAR": {
+        "n": 10490,
+        "accuracy": 0.6201,
+        "brier": 0.23669
+      },
+      "3 STAR": {
+        "n": 9211,
+        "accuracy": 0.662,
+        "brier": 0.22498
+      },
+      "4 STAR": {
+        "n": 68453,
+        "accuracy": 0.8652,
+        "brier": 0.11391
+      },
+      "5 STAR": {
+        "n": 27236,
+        "accuracy": 0.9074,
+        "brier": 0.08586
+      }
+    },
+    "byStarsDirection": {
+      "1 STAR|OVER": {
+        "n": 10490,
+        "accuracy": 0.4721,
+        "brier": 0.2507
+      },
+      "1 STAR|UNDER": {
+        "n": 5245,
+        "accuracy": 0.6185,
+        "brier": 0.24149
+      },
+      "2 STAR|OVER": {
+        "n": 5245,
+        "accuracy": 0.5647,
+        "brier": 0.24647
+      },
+      "2 STAR|UNDER": {
+        "n": 5245,
+        "accuracy": 0.6755,
+        "brier": 0.2269
+      },
+      "3 STAR|OVER": {
+        "n": 5245,
+        "accuracy": 0.6271,
+        "brier": 0.23422
+      },
+      "3 STAR|UNDER": {
+        "n": 3966,
+        "accuracy": 0.7083,
+        "brier": 0.21276
+      },
+      "4 STAR|OVER": {
+        "n": 24975,
+        "accuracy": 0.8119,
+        "brier": 0.14822
+      },
+      "4 STAR|UNDER": {
+        "n": 43478,
+        "accuracy": 0.8958,
+        "brier": 0.0942
+      },
+      "5 STAR|OVER": {
+        "n": 11029,
+        "accuracy": 0.8572,
+        "brier": 0.11959
+      },
+      "5 STAR|UNDER": {
+        "n": 16207,
+        "accuracy": 0.9416,
+        "brier": 0.06291
+      }
+    },
+    "byStarsCoreLines": {
+      "1 STAR": {
+        "n": 15735,
+        "accuracy": 0.5209,
+        "brier": 0.24763
+      },
+      "2 STAR": {
+        "n": 10478,
+        "accuracy": 0.6202,
+        "brier": 0.23668
+      },
+      "3 STAR": {
+        "n": 9076,
+        "accuracy": 0.6639,
+        "brier": 0.22443
+      },
+      "4 STAR": {
+        "n": 21073,
+        "accuracy": 0.7894,
+        "brier": 0.16952
+      },
+      "5 STAR": {
+        "n": 11823,
+        "accuracy": 0.8456,
+        "brier": 0.13734
+      }
+    },
+    "sportsbookStyle": {
+      "weakOffenseStrongDefenseUnder": {
+        "<1": {
+          "n": 344,
+          "accuracy": 0.7355,
+          "brier": 0.23123
+        },
+        "1-1.99": {
+          "n": 344,
+          "accuracy": 0.7849,
+          "brier": 0.20713
+        },
+        "2-2.99": {
+          "n": 344,
+          "accuracy": 0.8052,
+          "brier": 0.18699
+        },
+        "3-3.99": {
+          "n": 344,
+          "accuracy": 0.8576,
+          "brier": 0.15682
+        },
+        "4+": {
+          "n": 4245,
+          "accuracy": 0.9684,
+          "brier": 0.04244
+        }
+      },
+      "strongOffenseWeakDefenseOver": {
+        "<1": {
+          "n": 401,
+          "accuracy": 0.4713,
+          "brier": 0.24918
+        },
+        "1-1.99": {
+          "n": 401,
+          "accuracy": 0.5461,
+          "brier": 0.24748
+        },
+        "2-2.99": {
+          "n": 401,
+          "accuracy": 0.5885,
+          "brier": 0.24242
+        },
+        "3-3.99": {
+          "n": 401,
+          "accuracy": 0.6534,
+          "brier": 0.22781
+        },
+        "4+": {
+          "n": 3652,
+          "accuracy": 0.859,
+          "brier": 0.11732
+        }
+      },
+      "underByLineAndGap": {
+        "23.5-26.5|<1": {
+          "n": 3666,
+          "accuracy": 0.6348,
+          "brier": 0.2401
+        },
+        "23.5-26.5|1-1.99": {
+          "n": 2123,
+          "accuracy": 0.7065,
+          "brier": 0.22163
+        },
+        "23.5-26.5|2-2.99": {
+          "n": 727,
+          "accuracy": 0.7813,
+          "brier": 0.19475
+        },
+        "23.5-26.5|3-3.99": {
+          "n": 135,
+          "accuracy": 0.8741,
+          "brier": 0.15167
+        },
+        "27.5-30.5|<1": {
+          "n": 1567,
+          "accuracy": 0.5801,
+          "brier": 0.24473
+        },
+        "27.5-30.5|1-1.99": {
+          "n": 3101,
+          "accuracy": 0.6537,
+          "brier": 0.23064
+        },
+        "27.5-30.5|2-2.99": {
+          "n": 4392,
+          "accuracy": 0.7172,
+          "brier": 0.21007
+        },
+        "27.5-30.5|3-3.99": {
+          "n": 4538,
+          "accuracy": 0.771,
+          "brier": 0.18637
+        },
+        "27.5-30.5|4+": {
+          "n": 6663,
+          "accuracy": 0.8576,
+          "brier": 0.13691
+        },
+        "31.5+|2-2.99": {
+          "n": 126,
+          "accuracy": 0.6349,
+          "brier": 0.23174
+        },
+        "31.5+|3-3.99": {
+          "n": 572,
+          "accuracy": 0.7535,
+          "brier": 0.19198
+        },
+        "31.5+|4+": {
+          "n": 46486,
+          "accuracy": 0.9346,
+          "brier": 0.06401
+        }
+      },
+      "overByLineAndGap": {
+        "20.5-22.5|<1": {
+          "n": 135,
+          "accuracy": 0.3185,
+          "brier": 0.25127
+        },
+        "20.5-22.5|1-1.99": {
+          "n": 727,
+          "accuracy": 0.4402,
+          "brier": 0.25836
+        },
+        "20.5-22.5|2-2.99": {
+          "n": 2123,
+          "accuracy": 0.5459,
+          "brier": 0.2502
+        },
+        "20.5-22.5|3-3.99": {
+          "n": 3678,
+          "accuracy": 0.6158,
+          "brier": 0.23724
+        },
+        "20.5-22.5|4+": {
+          "n": 35285,
+          "accuracy": 0.8281,
+          "brier": 0.13807
+        },
+        "23.5-26.5|<1": {
+          "n": 4538,
+          "accuracy": 0.4396,
+          "brier": 0.24981
+        },
+        "23.5-26.5|1-1.99": {
+          "n": 4392,
+          "accuracy": 0.5116,
+          "brier": 0.25068
+        },
+        "23.5-26.5|2-2.99": {
+          "n": 3101,
+          "accuracy": 0.5785,
+          "brier": 0.24378
+        },
+        "23.5-26.5|3-3.99": {
+          "n": 1567,
+          "accuracy": 0.6535,
+          "brier": 0.22712
+        },
+        "23.5-26.5|4+": {
+          "n": 719,
+          "accuracy": 0.7093,
+          "brier": 0.20711
+        },
+        "27.5-30.5|<1": {
+          "n": 572,
+          "accuracy": 0.4773,
+          "brier": 0.24949
+        },
+        "27.5-30.5|1-1.99": {
+          "n": 126,
+          "accuracy": 0.5873,
+          "brier": 0.24387
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Historical prop validation is conditional on the player being active in the game; same-game boxscore participation is used only to define the active set, never as a performance input.",
+    "Goalie save validation is conditional on the actual primary goalie (>=30 minutes); live use remains gated on starter confirmation.",
+    "Synthetic half-point thresholds test calibration and directional accuracy, not sportsbook profitability; no historical market prices are used."
+  ]
+}
