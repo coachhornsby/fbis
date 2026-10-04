@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { resolveTeamLogo } from "../lib/resolveTeamLogo.js";
 import { displayTeamIdentity, teamDisplayName, identityForSport } from "../../functions/lib/teams.js";
 
@@ -14,6 +14,8 @@ export const LOGO_SIZES = Object.freeze({
  * Team logo with contrast plate for dark venue cards.
  * Dark ESPN marks (NYY, PSU, etc.) get a light disk so they stay readable.
  */
+const REMOTE_LOGO_CACHE = new Map();
+
 export default function TeamLogo({
   team,
   size = 22,
@@ -22,12 +24,41 @@ export default function TeamLogo({
   title,
 }) {
   const [failed, setFailed] = useState(false);
+  const [remote, setRemote] = useState(null);
   const resolved = resolveTeamLogo(team);
   const px = resolveSize(size);
   const name = resolved.name;
-  const abbr = resolved.abbr;
-  const url = !failed ? resolved.url : null;
+  const abbr = remote?.abbr || resolved.abbr;
+  const sport = String(team?.sport || "").toLowerCase();
+  const baseUrl = resolved.url;
+  const url = !failed ? (baseUrl || remote?.logo || null) : null;
   const plate = tone === "dark" || tone === "auto";
+
+  useEffect(() => {
+    setFailed(false);
+    setRemote(null);
+    if (baseUrl || !name || !["soccer","nhl"].includes(sport)) return;
+    const key = sport + "|" + String(name).toLowerCase();
+    const cached = REMOTE_LOGO_CACHE.get(key);
+    if (cached?.value) {
+      setRemote(cached.value);
+      return;
+    }
+    if (cached?.promise) {
+      cached.promise.then((value) => value && setRemote(value)).catch(() => {});
+      return;
+    }
+    const promise = fetch(`/api/team-logo?sport=${encodeURIComponent(sport)}&name=${encodeURIComponent(name)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((body) => body?.found ? body.team : null)
+      .catch(() => null)
+      .then((value) => {
+        REMOTE_LOGO_CACHE.set(key, { value });
+        return value;
+      });
+    REMOTE_LOGO_CACHE.set(key, { promise });
+    promise.then((value) => value && setRemote(value)).catch(() => {});
+  }, [baseUrl, name, sport]);
 
   if (!url) {
     return (
