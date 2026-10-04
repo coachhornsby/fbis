@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { attachNflPlayerProjectionResearch } from "../functions/lib/proPlayerProjectionLayer.js";
-import { rankSelectiveProps } from "../functions/lib/selectivePropEdge.js";
+import { rankSelectiveProps, selectivePropStars } from "../functions/lib/selectivePropEdge.js";
 
 test("NFL player projections use opponent matchup without using PrizePicks line", () => {
   const feed={byTeam:{
@@ -37,4 +37,26 @@ test("selective NFL prop portfolio rejects weak role even with a large raw gap",
     {sport:"nfl",eventId:"g2",playerName:"Weak Role",fbisProjection:95,line:70.5,fbisSigma:18,roleConfidence:.35,dataQuality:.9,propGate:"CLEAR",eligibleForCard:true,featureEvidence:{nextGen:true,snapShare:true,opponentMatchup:true}},
   ],{minStars:2,minHitProbability:.55});
   assert.deepEqual(out.rows.map(r=>r.playerName),["Strong"]);
+});
+
+
+test("NFL prop stars use role and advanced evidence instead of collapsing to 3", () => {
+  const strong = selectivePropStars({
+    sport:"nfl",fbisProjection:92,line:74.5,fbisSigma:18,
+    roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:{nextGen:true,snapShare:true,opponentMatchup:true}
+  });
+  const medium = selectivePropStars({
+    sport:"nfl",fbisProjection:82,line:74.5,fbisSigma:18,
+    roleConfidence:.72,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:{nextGen:true,snapShare:true,opponentMatchup:true}
+  });
+  const missingRole = selectivePropStars({
+    sport:"nfl",fbisProjection:92,line:74.5,fbisSigma:18,
+    propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:{nextGen:true,snapShare:true,opponentMatchup:true}
+  });
+  assert.ok(strong >= 4);
+  assert.ok(strong > medium);
+  assert.ok(missingRole <= 3);
 });

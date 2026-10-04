@@ -44,6 +44,13 @@ export async function onRequest(context){
         eventId:String(game.id||game.eventId||""),
         projection:finite(p.fbisProjection),
         sigma:finite(p.fbisSigma),
+        roleConfidence:finite(p.roleConfidence),
+        snapShare:finite(p.snapShare),
+        propGate:String(p.propGate||"CLEAR").toUpperCase(),
+        eligibleForCard:p.eligibleForCard!==false,
+        featureEvidence:p.featureEvidence||null,
+        source:p.source||null,
+        modelVersion:game.playerProjectionStatus?.version||game.playerProjectionStatus?.model||null,
       });
     }
   }
@@ -62,8 +69,13 @@ export async function onRequest(context){
     const delta=line==null?null:c.projection-line;
     const side=delta==null||Math.abs(delta)<1e-9?null:(delta>0?"MORE":"LESS");
     statements.push(context.env.DB.prepare(
-      "UPDATE prizepicks_prop_lines SET fbis_event_id=?,fbis_projection=?,fbis_sigma=?,delta_fbis_minus_line=?,candidate_side=? WHERE id=?"
-    ).bind(c.eventId||null,c.projection,c.sigma,delta,side,row.id));
+      "UPDATE prizepicks_prop_lines SET fbis_event_id=?,fbis_projection=?,fbis_sigma=?,delta_fbis_minus_line=?,candidate_side=?,role_confidence=?,snap_share=?,prop_gate=?,eligible_for_card=?,feature_evidence_json=?,model_source=?,model_version=? WHERE id=?"
+    ).bind(
+      c.eventId||null,c.projection,c.sigma,delta,side,
+      c.roleConfidence,c.snapShare,c.propGate,c.eligibleForCard?1:0,
+      c.featureEvidence?JSON.stringify(c.featureEvidence):null,
+      c.source,c.modelVersion,row.id
+    ));
     matched++;
   }
 

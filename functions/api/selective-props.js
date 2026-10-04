@@ -47,6 +47,13 @@ function normalizedRows(rows = []) {
     line: row.line,
     fbisProjection: row.fbis_projection,
     fbisSigma: row.fbis_sigma,
+    roleConfidence: row.role_confidence,
+    snapShare: row.snap_share,
+    propGate: row.prop_gate,
+    eligibleForCard: row.eligible_for_card == null ? undefined : Boolean(row.eligible_for_card),
+    featureEvidence: row.feature_evidence_json ? JSON.parse(row.feature_evidence_json) : null,
+    modelSource: row.model_source,
+    modelVersion: row.model_version,
   }));
 }
 export function groupKey(row = {}) {
@@ -115,7 +122,7 @@ export async function onRequestGet(context) {
   const sql =
     "SELECT id,run_id,projection_id,fbis_event_id,sport,league,player_id,player_name,player_headshot_url," +
     " team,opponent,game_id,start_time,stat_type,canonical_market,line,odds_tier,duration," +
-    " fbis_projection,fbis_sigma,delta_fbis_minus_line,candidate_side,observed_at,collected_at" +
+    " fbis_projection,fbis_sigma,delta_fbis_minus_line,candidate_side,role_confidence,snap_share,prop_gate,eligible_for_card,feature_evidence_json,model_source,model_version,observed_at,collected_at" +
     " FROM prizepicks_prop_lines WHERE " + where.join(" AND ") +
     " ORDER BY collected_at DESC LIMIT 5000";
 
