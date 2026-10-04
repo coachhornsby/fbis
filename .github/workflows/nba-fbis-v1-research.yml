@@ -15,8 +15,12 @@ on:
     paths:
       - "functions/lib/nbaModel.js"
       - "functions/lib/nbaPlayerPropModel.js"
+      - "functions/lib/nbaWagerDecision.js"
+      - "functions/lib/nbaQualification.js"
       - "scripts/nba-*.mjs"
       - "test/nba-fbis-v1.test.js"
+      - "test/nba-wager-decision.test.js"
+      - "test/nba-action-governance.test.js"
       - "migrations/0039_nba_research_models.sql"
       - "schema.extensions.sql"
       - ".github/workflows/nba-fbis-v1-research.yml"
@@ -31,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
-      - run: node --test test/nba-fbis-v1.test.js
+      - run: node --test test/nba-fbis-v1.test.js test/nba-wager-decision.test.js test/nba-action-governance.test.js
 
   source-smoke:
     if: github.event_name == 'push'
