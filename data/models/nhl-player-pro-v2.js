@@ -1,7 +1,7 @@
 export const NHL_PLAYER_PRO_V2_ARTIFACT = Object.freeze({
   "modelId": "NHL-PLAYER-PRO-v2",
   "version": "research-v2.0-share-environment",
-  "generatedAt": "2026-10-04T04:24:06.333Z",
+  "generatedAt": "2026-10-04T05:09:47.836Z",
   "trained": true,
   "marketInformed": false,
   "training": {
