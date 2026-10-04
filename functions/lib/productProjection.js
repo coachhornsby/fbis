@@ -2,6 +2,7 @@
 import { recommendBundle, pinMarkets } from "./slateEngine.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { buildSportAvailabilityPreflight } from "./availability.js";
+import { canonicalConfidenceStars } from "./projectionConfidence.js";
 
 function finite(v) {
   if (v == null || v === "") return null;
@@ -671,6 +672,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
   const card = {
     id: String(game.id),
     sport,
+    confidenceStars: canonicalConfidenceStars({ ...game, sport }),
     start: game.start || null,
     away: team(game.away),
     home: team(game.home),
