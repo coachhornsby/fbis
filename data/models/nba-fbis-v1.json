@@ -1,0 +1,14 @@
+{
+  "id":"nba-fbis-v1-research",
+  "modelId":"NBA-FBIS-v1",
+  "version":"research-v1",
+  "role":"challenger",
+  "marketInformed":false,
+  "canQualify":false,
+  "canAuthorizeWager":false,
+  "trainingCutoff":null,
+  "gameTargets":["home_points","away_points","margin","total","possessions","home_win_probability"],
+  "components":["opponent_adjusted_efficiency","pace","rest_fatigue","availability","home_court","uncertainty"],
+  "benchmark":"NBA-FBIS-FORM-v1",
+  "notes":"Independent NBA research challenger. Market data is evaluation-only."
+}
