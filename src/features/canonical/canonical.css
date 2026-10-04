@@ -85,3 +85,51 @@
 .current-projection-meta{margin:10px 0 8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);font-size:9px;color:var(--muted)}
 .current-projection-meta b{display:block;color:#fff;font-size:13px;margin-top:2px}
 @media(max-width:640px){.current-projection-grid{grid-template-columns:1fr}}
+
+
+
+/* === Models / Market / System premium card language === */
+.fbis-shell-main:not(.route-player-props) .canonical-research-stack { gap:16px; }
+.fbis-shell-main:not(.route-player-props) .canonical-chip-row { gap:7px; }
+.fbis-shell-main:not(.route-player-props) .canonical-chip {
+  min-height:32px;
+  padding:7px 11px;
+  border-radius:10px;
+  border-color:rgba(67,143,207,.28);
+  background:rgba(7,24,44,.76);
+  color:#b8cbe0;
+  font-weight:750;
+}
+.fbis-shell-main:not(.route-player-props) .canonical-card-grid {
+  grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
+  gap:12px;
+}
+.fbis-shell-main:not(.route-player-props) .canonical-card,
+.fbis-shell-main:not(.route-player-props) .current-projection-card {
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(47,141,214,.36);
+  border-radius:16px;
+  padding:14px;
+  background:
+    radial-gradient(420px 140px at 15% -10%,rgba(20,121,255,.11),transparent 64%),
+    linear-gradient(180deg,rgba(8,29,51,.94),rgba(4,18,34,.94));
+  box-shadow:0 12px 26px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.025);
+}
+.fbis-shell-main:not(.route-player-props) .canonical-card h3 {
+  color:#f6f9fd;
+  font-size:15px;
+  font-weight:900;
+}
+.fbis-shell-main:not(.route-player-props) .canonical-maturity {
+  color:#66d8ff;
+  font-weight:850;
+}
+.fbis-shell-main:not(.route-player-props) .current-projection-matchup strong {
+  color:#62efb0;
+  font-size:24px;
+}
+.fbis-shell-main:not(.route-player-props) .current-projection-meta {
+  border-color:rgba(72,136,194,.18);
+}
+

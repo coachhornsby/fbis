@@ -37,7 +37,7 @@ export default function AppShell({
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
-      <header className={`app-header app-shell-header fbis-shell-header${isPlayerProps ? " player-props-legacy-header" : ""}`}>
+      <header className={`app-header app-shell-header fbis-shell-header route-${route}${isPlayerProps ? " player-props-legacy-header" : ""}`}>
         <div className="shell-brand">
           <h1 className="shell-brand-mark">FBIS</h1>
           <div className="header-divider" />
@@ -97,7 +97,7 @@ export default function AppShell({
       </header>
 
       {showSportFilter ? (
-        <div className="shell-filter-bar" role="toolbar" aria-label="Sport filter">
+        <div className={`shell-filter-bar route-${route}`} role="toolbar" aria-label="Sport filter">
           <div className="shell-sport-filters" role="group" aria-label="Sports">
             {SPORT_FILTERS.map((s) => {
               const count = sportCounts?.[s.id];
@@ -125,7 +125,7 @@ export default function AppShell({
         </div>
       ) : null}
 
-      <main id="main-content" className="shell-main fbis-shell-main">
+      <main id="main-content" className={`shell-main fbis-shell-main route-${route}`}>
         {children}
       </main>
 
@@ -138,12 +138,26 @@ export default function AppShell({
             aria-current={route === item.id ? "page" : undefined}
             onClick={() => onRouteChange?.(item.id)}
           >
+            <span className="shell-mobile-nav-icon" aria-hidden="true">{mobileNavIcon(item.id)}</span>
             <span className="shell-mobile-nav-label">{item.label}</span>
           </button>
         ))}
       </nav>
     </>
   );
+}
+
+function mobileNavIcon(id) {
+  switch (id) {
+    case "board": return "▥";
+    case "player-props": return "▥";
+    case "models": return "◫";
+    case "model-lab": return "⌁";
+    case "bets": return "✓";
+    case "market": return "↗";
+    case "system": return "⚙";
+    default: return "•";
+  }
 }
 
 export function FeaturePlaceholder({ title, body, status = "BUILDING" }) {
