@@ -12,11 +12,15 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   fit:
     if: "${{ github.event_name == 'workflow_dispatch' || github.event.head_commit.message != 'data: fit NHL-PRO-v2 artifact' }}"
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4.2.2
         with:
@@ -25,12 +29,20 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: 24
+      - name: Restore NHL PBP cache
+        uses: actions/cache@v4.2.0
+        with:
+          path: .cache/nhl-pro-v2
+          key: nhl-pro-v2-pbp-v1-${{ runner.os }}-${{ hashFiles('scripts/nhl-pro-v2-walkforward.mjs', 'scripts/nhl-pro-v2-fit.mjs') }}
+          restore-keys: |
+            nhl-pro-v2-pbp-v1-${{ runner.os }}-
       - name: Fit NHL-PRO-v2 artifact
         run: |
           set -euo pipefail
           node scripts/nhl-pro-v2-fit.mjs \
             --seasons=20232024,20242025,20252026 \
-            --concurrency=12 \
+            --concurrency=8 \
+            --cache-dir=.cache/nhl-pro-v2 \
             --out=data/models/nhl-pro-v2.js
       - name: Verify artifact and model contract
         run: |
