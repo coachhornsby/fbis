@@ -22,8 +22,16 @@ for(const league of leagues){
   const events=[];
   for(const dates of monthsBetween(start,end)){
     const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${dates}&limit=1000`;
-    const r=await fetch(url,{headers:{"user-agent":"FBIS-Soccer-Backfill-Runner/1.0",accept:"application/json"}});
-    if(!r.ok) throw new Error(`${league} ${dates} HTTP ${r.status}`);
+    let r=null,lastErr=null;
+    for(let attempt=1;attempt<=3;attempt++){
+      try{
+        r=await fetch(url,{headers:{"user-agent":"FBIS-Soccer-Backfill-Runner/2.0",accept:"application/json"},signal:AbortSignal.timeout(12000)});
+        if(r.ok)break;
+        lastErr=new Error(`${league} ${dates} HTTP ${r.status}`);
+      }catch(err){lastErr=err;}
+      if(attempt<3)await new Promise(resolve=>setTimeout(resolve,attempt*1000));
+    }
+    if(!r?.ok)throw lastErr||new Error(`${league} ${dates} fetch failed`);
     const j=await r.json(); events.push(...(j.events||[]));
   }
   const uniq=[...new Map(events.map(x=>[String(x.id),x])).values()];
