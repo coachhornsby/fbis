@@ -35,6 +35,20 @@
       "notes": "Independent NBA score/margin/total/possession distribution feeds a strict point-in-time game-level wager decision engine. Offered line/juice, ordinary market trajectory and ACTION intelligence are separate post-projection layers. ACTION is shadow market intelligence only and cannot directly qualify or authorize. Confidence is provisional until empirical monotonicity passes; stake units remain withheld until staking validation. Player props now have an EPM-inspired FBIS-native impact layer: dynamic skill decay + SPM-style prior + regularized RAPM + lineup/on-off + role redistribution. EPM/DARKO/RAPM/VORP/WS48 are research benchmarks only.",
       "playerImpactModel": "NBA-FBIS-PLAYER-IMPACT-v1",
       "playerImpactBenchmark": "EPM"
+    },
+    "wnba": {
+      "currentResearchModel": "WNBA-FBIS-v2",
+      "propResearchModel": "WNBA-PLAYER-PROJ-v2",
+      "playerImpactModel": "WNBA-FBIS-PLAYER-IMPACT-v1",
+      "playerImpactBenchmark": "EPM",
+      "gameImpactChallenger": "WNBA-FBIS-IMPACT-v1",
+      "propImpactChallenger": "WNBA-PLAYER-PROP-IMPACT-v1",
+      "status": "incumbents-active-impact-challengers-prospective-shadow",
+      "canQualify": true,
+      "canAuthorizeWager": true,
+      "impactChallengerCanQualify": false,
+      "impactChallengerCanAuthorize": false,
+      "notes": "WNBA incumbents remain active. The new FBIS-native EPM-style player-impact stack uses dynamic skill decay, a WNBA-specific SPM prior, regularized RAPM, 10-minute-quarter lineup reconstruction, lineup/pair/trio effects, and point-in-time role redistribution. Historical direct self-impact multipliers did not improve four core prop MAEs and were rejected. Role/lineup/availability effects remain prospective shadow challengers until they beat incumbents on out-of-sample error, offered-line side accuracy, CLV and wagering evidence."
     }
   }
 }
