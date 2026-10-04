@@ -1,7 +1,7 @@
 {
   "modelId": "NHL-PLAYER-PRO-v2",
   "version": "research-v2.0-share-environment",
-  "generatedAt": "2026-10-04T04:13:40.635Z",
+  "generatedAt": "2026-10-04T04:24:06.233Z",
   "conditionalOnActive": true,
   "conditionalOnConfirmedStarter": true,
   "marketInformed": false,
@@ -3618,6 +3618,112 @@
         "n": 43675,
         "accuracy": 0.8018,
         "brier": 0.14113
+      }
+    },
+    "byStars": {
+      "1 STAR": {
+        "n": 15735,
+        "accuracy": 0.5209,
+        "brier": 0.24763
+      },
+      "2 STAR": {
+        "n": 10490,
+        "accuracy": 0.6201,
+        "brier": 0.23669
+      },
+      "3 STAR": {
+        "n": 9211,
+        "accuracy": 0.662,
+        "brier": 0.22498
+      },
+      "4 STAR": {
+        "n": 68453,
+        "accuracy": 0.8652,
+        "brier": 0.11391
+      },
+      "5 STAR": {
+        "n": 27236,
+        "accuracy": 0.9074,
+        "brier": 0.08586
+      }
+    },
+    "byStarsDirection": {
+      "1 STAR|OVER": {
+        "n": 10490,
+        "accuracy": 0.4721,
+        "brier": 0.2507
+      },
+      "1 STAR|UNDER": {
+        "n": 5245,
+        "accuracy": 0.6185,
+        "brier": 0.24149
+      },
+      "2 STAR|OVER": {
+        "n": 5245,
+        "accuracy": 0.5647,
+        "brier": 0.24647
+      },
+      "2 STAR|UNDER": {
+        "n": 5245,
+        "accuracy": 0.6755,
+        "brier": 0.2269
+      },
+      "3 STAR|OVER": {
+        "n": 5245,
+        "accuracy": 0.6271,
+        "brier": 0.23422
+      },
+      "3 STAR|UNDER": {
+        "n": 3966,
+        "accuracy": 0.7083,
+        "brier": 0.21276
+      },
+      "4 STAR|OVER": {
+        "n": 24975,
+        "accuracy": 0.8119,
+        "brier": 0.14822
+      },
+      "4 STAR|UNDER": {
+        "n": 43478,
+        "accuracy": 0.8958,
+        "brier": 0.0942
+      },
+      "5 STAR|OVER": {
+        "n": 11029,
+        "accuracy": 0.8572,
+        "brier": 0.11959
+      },
+      "5 STAR|UNDER": {
+        "n": 16207,
+        "accuracy": 0.9416,
+        "brier": 0.06291
+      }
+    },
+    "byStarsCoreLines": {
+      "1 STAR": {
+        "n": 15735,
+        "accuracy": 0.5209,
+        "brier": 0.24763
+      },
+      "2 STAR": {
+        "n": 10478,
+        "accuracy": 0.6202,
+        "brier": 0.23668
+      },
+      "3 STAR": {
+        "n": 9076,
+        "accuracy": 0.6639,
+        "brier": 0.22443
+      },
+      "4 STAR": {
+        "n": 21073,
+        "accuracy": 0.7894,
+        "brier": 0.16952
+      },
+      "5 STAR": {
+        "n": 11823,
+        "accuracy": 0.8456,
+        "brier": 0.13734
       }
     },
     "sportsbookStyle": {
