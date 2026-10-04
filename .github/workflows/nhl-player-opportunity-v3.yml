@@ -77,17 +77,18 @@ jobs:
           node --max-old-space-size=6144 scripts/nhl-opportunity-v3-backtest.mjs             artifacts/nhl-opportunity             artifacts/nhl-opportunity-v3-validation.json             2024,2025,2026 | tee artifacts/nhl-opportunity-v3.log
           jq -e '.integrity.sameGameShiftUsedAsInput == false and .integrity.sameGameBoxUsedAsInput == false and .integrity.current2027ExcludedFromPromotion == true' artifacts/nhl-opportunity-v3-validation.json >/dev/null
           jq -e '.seasonMap.discovery == 2024 and .seasonMap.validation == 2025 and .seasonMap.confirmation == 2026' artifacts/nhl-opportunity-v3-validation.json >/dev/null
+          jq -e '.counts.shiftPlayerGames > 10000 and .counts.rosterGames > 3000 and .counts.propPredictions > 50000 and .counts.gamePredictions > 2000' artifacts/nhl-opportunity-v3-validation.json >/dev/null
       - name: Summary
         run: |
           R=artifacts/nhl-opportunity-v3-validation.json
           {
             echo "## NHL opportunity v3"
-            jq -r '"- props validation MAE gain: \(.playerProps.bySeason[\"2025\"].maeGain)"' "$R"
-            jq -r '"- props confirmation MAE gain: \(.playerProps.bySeason[\"2026\"].maeGain)"' "$R"
-            jq -r '"- game validation margin/total/winner gains: \(.gameProjection.bySeason[\"2025\"].marginGain) / \(.gameProjection.bySeason[\"2025\"].totalGain) / \(.gameProjection.bySeason[\"2025\"].winnerGain)"' "$R"
-            jq -r '"- game confirmation margin/total/winner gains: \(.gameProjection.bySeason[\"2026\"].marginGain) / \(.gameProjection.bySeason[\"2026\"].totalGain) / \(.gameProjection.bySeason[\"2026\"].winnerGain)"' "$R"
-            jq -r '"- promote player opportunity: \(.promotion.playerOpportunityHistoricalEligible)"' "$R"
-            jq -r '"- promote game opportunity: \(.promotion.gameOpportunityHistoricalEligible)"' "$R"
+            jq -r '"- props validation MAE gain: " + (.playerProps.bySeason["2025"].maeGain|tostring)' "$R"
+            jq -r '"- props confirmation MAE gain: " + (.playerProps.bySeason["2026"].maeGain|tostring)' "$R"
+            jq -r '"- game validation margin/total/winner gains: " + (.gameProjection.bySeason["2025"].marginGain|tostring) + " / " + (.gameProjection.bySeason["2025"].totalGain|tostring) + " / " + (.gameProjection.bySeason["2025"].winnerGain|tostring)' "$R"
+            jq -r '"- game confirmation margin/total/winner gains: " + (.gameProjection.bySeason["2026"].marginGain|tostring) + " / " + (.gameProjection.bySeason["2026"].totalGain|tostring) + " / " + (.gameProjection.bySeason["2026"].winnerGain|tostring)' "$R"
+            jq -r '"- promote player opportunity: " + (.promotion.playerOpportunityHistoricalEligible|tostring)' "$R"
+            jq -r '"- promote game opportunity: " + (.promotion.gameOpportunityHistoricalEligible|tostring)' "$R"
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
