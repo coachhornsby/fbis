@@ -79,6 +79,16 @@ export function toBoardGame(game, sport, now = Date.now()) {
   const marketAvail = marketAvailabilitySummary(market);
   const qualityFlags = normalizeQualityFlags(game.quality?.flags || [], market);
   const qualityComponents = resolveMarketQualityComponents(game, market);
+  const canonicalQualityScore =
+    game.quality?.score ??
+    game.dataQuality ??
+    game.data_quality ??
+    game.model?.dataQuality ??
+    game.model?.data_quality ??
+    game.cfb?.dataQuality ??
+    game.cbb?.dataQuality ??
+    qualityComponents?.operationalScore ??
+    null;
   const rec = game.rec || null;
   const lean = game.lean || null;
   const sportsbookProps = [...(game.odds?.playerProps || [])]
@@ -161,8 +171,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     pinOverPrice: game.odds?.pinOverPrice ?? null,
     pinUnderPrice: game.odds?.pinUnderPrice ?? null,
     quality: game.quality
-      ? { ...game.quality, flags: qualityFlags, components: qualityComponents }
-      : { flags: qualityFlags, components: qualityComponents, score: qualityComponents?.operationalScore ?? null },
+      ? { ...game.quality, score: canonicalQualityScore, flags: qualityFlags, components: qualityComponents }
+      : { flags: qualityFlags, components: qualityComponents, score: canonicalQualityScore },
     market,
     marketAvailable: marketAvail.marketAvailable,
     executionMarketAvailable: marketAvail.executionMarketAvailable,
