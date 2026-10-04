@@ -138,3 +138,29 @@ test("player props board exposes SOG-specific star grade and direction",()=>{
   assert.equal(row.confidenceTier,"ELITE");
   assert.equal(row.confidenceVersion,"nhl-sog-stars-v1");
 });
+
+
+test("historically tested NHL saves line can show confidence even when wager line is HOLD",()=>{
+  const row=withFbisPropAnalytics({
+    sport:"nhl",market:"saves",marketCanonical:"saves",
+    fbisProjection:24.5,fbisSigma:5.5,line:21.5,
+    validationStatus:"PROMOTE_RESEARCH",lineValidationStatus:"HOLD_RESEARCH",
+    propGate:"CLEAR",eligibleForCard:false,
+    shotEnvironment:{opponentShotsFor:30.5,teamShotsAgainst:30.5,projectedShotsFaced:30.5},
+  });
+  assert.ok(row.confidenceStars>=2);
+  assert.notEqual(row.confidenceLabel,"1 STAR");
+  assert.equal(row.lineValidationStatus,"HOLD_RESEARCH");
+});
+
+test("untested NHL confidence line remains one star without granting false reliability",()=>{
+  const row=withFbisPropAnalytics({
+    sport:"nhl",market:"saves",marketCanonical:"saves",
+    fbisProjection:24.5,fbisSigma:5.5,line:40.5,
+    validationStatus:"PROMOTE_RESEARCH",lineValidationStatus:"PROMOTE_RESEARCH",
+    propGate:"CLEAR",eligibleForCard:true,
+    shotEnvironment:{opponentShotsFor:30.5,teamShotsAgainst:30.5,projectedShotsFaced:30.5},
+  });
+  assert.equal(row.confidenceStars,1);
+  assert.ok(row.confidenceReasons.includes("line_not_validated"));
+});
