@@ -24,6 +24,7 @@ export default function TopPlayerProps({ rows = [] }) {
                   <th>Line</th>
                   <th>Best</th>
                   <th>Matchup</th>
+                  <th>Confidence</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -51,6 +52,12 @@ export default function TopPlayerProps({ rows = [] }) {
                     </td>
                     <td className="muted">
                       {row.matchup?.away || "—"} @ {row.matchup?.home || "—"}
+                    </td>
+                    <td>
+                      <span className="today-prop-stars" title={(row.confidenceReasons || []).join(" · ")}>
+                        {"⭐".repeat(Math.max(1, Math.min(5, Number(row.confidenceStars) || 1)))}
+                        {row.confidenceSide ? <span className="muted"> · {row.confidenceSide}</span> : null}
+                      </span>
                     </td>
                     <td>
                       <DecisionChip
