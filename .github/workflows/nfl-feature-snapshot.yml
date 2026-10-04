@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "17 */3 * * *"
   push:
-    branches: ["main", "rebuild/nfl-props-edge-v2", "fix/nfl-no-runtime-timeouts"]
+    branches: ["main", "rebuild/nfl-props-edge-v2", "fix/nfl-no-runtime-timeouts", "ops/nfl-feature-snapshot-kick"]
     paths:
       - "functions/lib/nflVerseFeed.js"
       - "functions/api/nfl-feature-snapshot.js"
@@ -53,7 +53,7 @@ jobs:
           exit 1
 
       - name: Publish snapshot to R2
-        if: github.ref_name == 'main' || github.event_name == 'workflow_dispatch'
+        if: github.ref_name == 'main' || github.ref_name == 'ops/nfl-feature-snapshot-kick' || github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
