@@ -286,6 +286,12 @@ export function normalizeBoardGame(game = {}) {
     if(idx<0) return m;
     matched.add(idx);
     const p=projections[idx];
+    const validatedLines=p.validatedLines&&typeof p.validatedLines==="object"?p.validatedLines:{};
+    const hasLineGrid=Object.keys(validatedLines).length>0;
+    const lineNumber=Number(m.line);
+    const lineKey=Number.isFinite(lineNumber)?String(lineNumber):null;
+    const lineValidationStatus=lineKey?validatedLines[lineKey]||"UNVALIDATED_LINE":null;
+    const lineValidated=!hasLineGrid||lineValidationStatus==="PROMOTE_RESEARCH";
     return {
       ...m,
       fbisProjection: p.fbisProjection ?? m.fbisProjection ?? null,
@@ -294,9 +300,11 @@ export function normalizeBoardGame(game = {}) {
       modelMaturity: p.maturity || "RESEARCH",
       modelIndependent: p.independent !== false,
       availabilityStatus: p.availabilityStatus || null,
-      propGate: p.propGate || "CLEAR",
-      gateReason: p.gateReason || null,
-      eligibleForCard: p.eligibleForCard === true,
+      validationStatus:p.validationStatus||null,
+      lineValidationStatus,
+      propGate: lineValidated ? (p.propGate || "CLEAR") : "HOLD",
+      gateReason: lineValidated ? (p.gateReason || null) : "prop_line_not_validated_vs_baseline",
+      eligibleForCard: p.eligibleForCard === true && lineValidated,
     };
   });
 
