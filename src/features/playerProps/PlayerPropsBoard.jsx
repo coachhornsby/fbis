@@ -195,12 +195,13 @@ export default function PlayerPropsBoard({
         sportFilter: "all",
         date,
         supportedOnly: false,
+        enforceNflDisplayPolicy: true,
       }),
     [boardWithProps, date],
   );
 
   const filteredRows = useMemo(() => {
-    let rows = propsBoard.allRows || propsBoard.rows || [];
+    let rows = propsBoard.rows || [];
     if (sportFilter && sportFilter !== "all") {
       rows = rows.filter(
         (r) => String(r.sport || "").toLowerCase() === String(sportFilter).toLowerCase(),
