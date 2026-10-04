@@ -1,19 +1,7 @@
 name: WNBA player impact research
 
 on:
-  push:
-    branches: ["research/wnba-player-impact-v1"]
-    paths:
-      - ".github/workflows/wnba-player-impact-research.yml"
-      - "functions/lib/wnbaPlayerImpact.js"
-      - "functions/lib/wnbaLineupModel.js"
-      - "scripts/wnba-canonical-build.mjs"
-      - "scripts/wnba-pbp-canonical-build.mjs"
-      - "scripts/wnba-lineup-stints-build.mjs"
-      - "scripts/wnba-player-impact-fit.mjs"
-      - "scripts/wnba-player-impact-walkforward.mjs"
   workflow_dispatch:
-
 permissions:
   contents: read
 
