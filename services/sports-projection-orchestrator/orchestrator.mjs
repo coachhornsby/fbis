@@ -1306,12 +1306,29 @@ function trackerMarket(type,book){
   if(t.includes("SPREAD")||t.includes("RUN LINE")||t.includes("PUCK LINE")||t.includes("HANDICAP")) return "SPREAD";
   return t||"OTHER";
 }
+const TRACKER_TENNIS_NAMES=Object.freeze({
+  "medjedovic":"Hamad Medjedovic",
+  "butvilas":"Edas Butvilas",
+  "duckworth":"James Duckworth",
+  "kasnikowski":"Maks Kasnikowski",
+  "kecmanovic":"Miomir Kecmanovic",
+  "gaubas":"Vilius Gaubas",
+});
+function trackerCanonicalTennisName(value){
+  const raw=String(value||"").trim();
+  const key=raw.normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  return TRACKER_TENNIS_NAMES[key]||raw;
+}
+
 function trackerTicket(row,rowNumber){
   const date=String(row.Date||"").trim();
   const book=String(row.Book||"").trim();
   const sport=String(row.Sport||"").trim().toLowerCase();
-  const matchup=String(row.Matchup||"").trim();
+  const rawMatchup=String(row.Matchup||"").trim();
   const selection=String(row.Selection||"").trim();
+  const matchup=sport==="tennis"
+    ? rawMatchup.replace(/([^@]+?)\s+(vs|@)\s+([^@]+)$/i,(_,a,sep,b)=>trackerCanonicalTennisName(a)+" "+sep+" "+trackerCanonicalTennisName(b))
+    : rawMatchup;
   const betType=String(row["Bet Type"]||"").trim();
   const entryLine=String(row["Entry Line"]||"").trim();
   const risk=trackerNumber(row.Risk);
