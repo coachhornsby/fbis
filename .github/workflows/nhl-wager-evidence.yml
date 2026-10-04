@@ -1,17 +1,9 @@
 name: NHL wager evidence snapshots
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "functions/lib/nhlWagerV1.js"
-      - "functions/lib/nhlWagerCalibration.js"
-      - "functions/lib/nhlOpportunityV4.js"
-      - "functions/lib/nhlPlayerProV2.js"
-      - "functions/lib/nhlProV2.js"
-      - "functions/api/nhl-wager-research.js"
-      - "migrations/0043_nhl_wager_confidence_runs.sql"
-      - ".github/workflows/nhl-wager-evidence.yml"
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
@@ -25,6 +17,7 @@ concurrency:
 
 jobs:
   evidence:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -41,7 +34,7 @@ jobs:
           y="$(date -d 'yesterday' +%F)"
           capture=0
           settle=0
-          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_run" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             capture=1
           else
             case "$h" in
