@@ -84,11 +84,11 @@ describe("board confidence stars", () => {
         execution: { available: true, actionable: true, spread: -2.5, total: 51.5 },
       },
     };
-    const staleSame = {
+    const strongGap = game("current-pro-strong", 76, {
       model: { projAway: 24, projHome: 27, projTotal: 51, projMargin: 3 },
       ...common,
-    };
-    const weakGap = {
+    });
+    const weakGap = game("current-pro-weak", 76, {
       model: { projAway: 24, projHome: 27, projTotal: 51, projMargin: 3 },
       ...common,
       nflProShadow: {
@@ -96,8 +96,8 @@ describe("board confidence stars", () => {
         home: 26,
         away: 24,
       },
-    };
-    assert.ok(confidenceStars(staleSame) > confidenceStars(weakGap));
+    });
+    assert.ok(confidenceStars(strongGap) > confidenceStars(weakGap));
   });
 
   it("uses NFL-PRO coverage plus model-market disagreement instead of generic quality alone", () => {
