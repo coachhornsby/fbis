@@ -1,5 +1,6 @@
 import {
   STRATEGY_HC_V1,
+  CBB_MONEY_STRATEGY_V1,
   STRATEGY_HC_V1_SEED_TICKETS,
   packTicket,
   characterizeTickets,
@@ -7,6 +8,7 @@ import {
   canonicalSeedTickets,
   strategyReconstruction,
   validateImportedTicket,
+  validateCbbMoneyTicket,
   EXPECTED_SEED_N,
   summarizeProspectiveConvictionCohort,
   classifyProspectiveLifecycle,
@@ -219,6 +221,7 @@ export async function onRequestGet(context) {
   const dbSeed = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "seed" });
   const seed = canonicalSeedTickets(dbSeed);
   const prospectiveRaw = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id, role: "prospective" });
+  const cbbMoneyRaw = await queryStrategyTickets(env, { strategyId: CBB_MONEY_STRATEGY_V1.id, role: "prospective" });
   const correctionsQ = await queryProbabilityCorrections(env, {
     ticketIds: (prospectiveRaw || []).map((t) => t.id),
   });
@@ -227,10 +230,11 @@ export async function onRequestGet(context) {
   for (const row of corrections) {
     latestCorrection.set(String(row.originalTicketId), row);
   }
-  const gameIds = [...new Set([...seed, ...prospectiveRaw].map((t) => t.gameId).filter(Boolean))];
+  const gameIds = [...new Set([...seed, ...prospectiveRaw, ...cbbMoneyRaw].map((t) => t.gameId).filter(Boolean))];
   const gamesQ = await queryGamesByIds(env, gameIds);
   const gameById = new Map((gamesQ.rows || []).map((g) => [String(g.id), g]));
   const prospective = (prospectiveRaw || []).map((t) => presentTicketWithCanonicalMatchup(t, gameById));
+  const cbbMoney = (cbbMoneyRaw || []).map((t) => presentTicketWithCanonicalMatchup(t, gameById));
   const seedPresented = (seed || []).map((t) => presentTicketWithCanonicalMatchup(t, gameById));
   const prospectiveBySport = groupBySport(prospective);
   const integrity = strategyIntegrity(prospective);
@@ -314,6 +318,19 @@ export async function onRequestGet(context) {
       lifecycle: classifyProspectiveLifecycle(prospective),
     },
     prospectiveBySport,
+    cbbMoneyProspective: {
+      strategy: CBB_MONEY_STRATEGY_V1,
+      tickets: cbbMoney,
+      traits: characterizeTickets(cbbMoney),
+      stats: strategyStats(cbbMoney),
+      lifecycle: classifyProspectiveLifecycle(cbbMoney),
+      promotionGate: {
+        automaticWagerAuthorization: false,
+        requiresPositiveProspectiveRoi: true,
+        requiresPositiveTrueClv: true,
+        thresholdFrozen: CBB_MONEY_STRATEGY_V1.rules.sideDislocationMin,
+      },
+    },
     yesterdayConvictionCohort: {
       ...yesterdayCohort,
       tickets: (yesterdayCohort.tickets || []).map((t) => ({
@@ -401,13 +418,21 @@ export async function importStrategyTickets(env, bets) {
     return { ok: false, status: 503, body: { ok: false, error: "D1 unbound" } };
   }
   await persistStrategy(env, STRATEGY_HC_V1);
+  await persistStrategy(env, CBB_MONEY_STRATEGY_V1);
   for (const bet of bets) {
-    const checked = validateImportedTicket(bet);
+    const requestedStrategyId = bet?.strategyId || bet?.strategy_id;
+    const checked = requestedStrategyId === CBB_MONEY_STRATEGY_V1.id
+      ? validateCbbMoneyTicket(bet)
+      : validateImportedTicket(bet);
     if (!checked.ok) {
       errors.push({ gameId: bet?.gameId || bet?.game_id || null, errors: checked.errors });
       continue;
     }
-    const packed = packTicket(checked.ticket, { role: checked.role, date: checked.ticket.date });
+    const packed = packTicket(checked.ticket, {
+      role: checked.role,
+      date: checked.ticket.date,
+      strategyId: checked.ticket.strategyId || STRATEGY_HC_V1.id,
+    });
     const res = await persistStrategyTicket(env, packed);
     if (res.conflict) {
       conflicts.push({ id: packed.id, reason: res.reason });

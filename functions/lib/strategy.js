@@ -1024,6 +1024,73 @@ export function validateImportedTicket(raw) {
   return { ok: true, ticket: { ...normalized, ...assigned, provenance, benchmarkPrice: bench, executionPrice: exec, clvVersion: CLV_VERSION, benchmarkBook: BENCHMARK_BOOK, executionBook: exec != null ? EXECUTION_BOOK : null }, clientRole: roleField, role: assigned.role };
 }
 
+
+export function validateCbbMoneyTicket(raw) {
+  const errors = [];
+  if (!raw || typeof raw !== "object") return { ok: false, errors: ["ticket"] };
+  const strategyId = raw.strategyId || raw.strategy_id;
+  const sport = String(raw.sport || "").toLowerCase();
+  const gameId = raw.gameId || raw.game_id;
+  const market = String(raw.market || "").toUpperCase();
+  const side = String(raw.side || "").toUpperCase();
+  const signalAt = raw.qualifiedAt || raw.loggedAt || raw.signalAt || raw.qualificationTimestamp;
+  const modelVersion = raw.modelVersion || raw.model_version;
+  const line = finiteOrNull(raw.line ?? raw.executionLine ?? raw.execution_line);
+  const edge = finiteOrNull(raw.edge ?? raw.dislocation);
+  if (strategyId !== CBB_MONEY_STRATEGY_V1.id) errors.push("strategy_id");
+  if (sport !== "cbb") errors.push("sport");
+  if (!gameId) errors.push("game_id");
+  if (market !== "SPREAD") errors.push("market");
+  if (!new Set(["HOME","AWAY"]).has(side)) errors.push("side");
+  if (line == null) errors.push("line");
+  if (!signalAt) errors.push("signal_timestamp");
+  if (!modelVersion) errors.push("model_version");
+  if (edge == null || Math.abs(edge) < CBB_MONEY_STRATEGY_V1.rules.sideDislocationMin) errors.push("side_dislocation");
+  if (raw.role && raw.role !== "prospective") errors.push("role");
+  if (raw.qualified === true || raw.qualified === 1) errors.push("qualified_must_be_false");
+  if (errors.length) return { ok: false, errors };
+  const bench = americanPriceOrNull(raw.benchmarkPrice ?? raw.benchmark_price ?? raw.pinPrice ?? raw.pin_price);
+  const exec = americanPriceOrNull(raw.executionPrice ?? raw.execution_price);
+  return {
+    ok: true,
+    role: "prospective",
+    ticket: {
+      ...raw,
+      id: raw.id || `${CBB_MONEY_STRATEGY_V1.id}:cbb:${String(gameId)}:SPREAD:${side}:${String(signalAt).slice(0,10)}`,
+      strategyId: CBB_MONEY_STRATEGY_V1.id,
+      sport: "cbb",
+      gameId: String(gameId),
+      market: "SPREAD",
+      side,
+      line,
+      executionLine: line,
+      benchmarkLine: finiteOrNull(raw.benchmarkLine ?? raw.benchmark_line) ?? line,
+      qualifiedAt: signalAt,
+      modelVersion,
+      ev: null,
+      edge,
+      tag: raw.tag || "RESEARCH",
+      qualified: false,
+      lean: false,
+      marketComplete: true,
+      role: "prospective",
+      provenance: raw.provenance || PROVENANCE.JOURNAL,
+      benchmarkPrice: bench,
+      executionPrice: exec,
+      clvVersion: CLV_VERSION,
+      benchmarkBook: raw.benchmarkBook || raw.benchmark_book || BENCHMARK_BOOK,
+      executionBook: raw.executionBook || raw.execution_book || (exec != null ? EXECUTION_BOOK : null),
+      traitsJson: raw.traitsJson || JSON.stringify({
+        strategyClass: "prospective-market-dislocation",
+        threshold: CBB_MONEY_STRATEGY_V1.rules.sideDislocationMin,
+        noAutoWager: true,
+        requiresTrueClvForPromotion: true,
+        signalOnly: exec == null,
+      }),
+    },
+  };
+}
+
 const IDENTITY_KEYS = ["strategyId", "sport", "gameId", "market", "side", "line", "role"];
 const IMMUTABLE_KEYS = [...IDENTITY_KEYS, "qualifiedAt", "modelVersion", "ev", "tag"];
 
