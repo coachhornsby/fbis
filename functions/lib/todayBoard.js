@@ -207,6 +207,11 @@ export function toBoardGame(game, sport, now = Date.now()) {
     qualificationBlocked: Boolean(game.qualificationBlocked || (game.cfb && !game.cfb.bettingAllowed) || (game.sport === "nfl" && game.projectionKind !== "FBIS")),
     challengers: game.challengers || null,
     championModel: game.championModel || null,
+    // Preserve source-backed matchup evidence and NFL-PRO coverage on the public board DTO.
+    // The slate engine builds these before TODAY normalization; dropping them here made the
+    // UI falsely report \"Awaiting model factors\" even when NFL-PRO-v1 had produced them.
+    matchupFactors: Array.isArray(game.matchupFactors) ? game.matchupFactors : [],
+    nflProShadow: sport === "nfl" && game.nflProShadow ? game.nflProShadow : null,
     palMatched: Boolean(game.bpp),
     palHome: game.bpp?.homeRuns ?? game.model?.palHome ?? null,
     palAway: game.bpp?.awayRuns ?? game.model?.palAway ?? null,
