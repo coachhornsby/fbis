@@ -1322,16 +1322,23 @@ function trackerTicket(row,rowNumber){
   const line=/^[+-]?\d+(?:\.\d+)?$/.test(entryLine)?Number(entryLine):null;
   const odds=/^[+-]?\d+$/.test(String(row.Odds||"").trim())?Number(row.Odds):null;
   const selectedSide=/^under\b/i.test(selection)?"UNDER":/^over\b/i.test(selection)?"OVER":null;
-  const [awayTeam,homeTeam]=matchup.includes(" @ ")?matchup.split(" @ ",2):[null,null];
+  const matchupParts=matchup.includes(" @ ")?matchup.split(" @ ",2):matchup.includes(" vs ")?matchup.split(" vs ",2):[null,null];
+  const [awayTeam,homeTeam]=matchupParts;
   const stableKey=[date,book,sport,matchup,selection,betType,entryLine,risk,toWin].join("|");
-  const externalTicketId="TRACKER-"+sha256(stableKey).slice(0,24).toUpperCase();
+  const trackerId="TRACKER-"+sha256(stableKey).slice(0,24).toUpperCase();
+  const explicitTicketId=String(row["Heritage Ticket ID"]||"").trim();
+  const externalTicketId=explicitTicketId||trackerId;
+  const placedAt=String(row["Placed At"]||"").trim();
+  const executedAt=placedAt
+    ? placedAt.replace(" CT","").replace(" ","T")+":00-05:00"
+    : (date?date+"T12:00:00.000Z":now());
   const settled=result!=="OPEN";
   return {
     externalTicketId,executionBook:book||"Unknown",sport,date,matchupText:matchup,
     awayTeam,homeTeam,market,period:market.startsWith("F5 ")?"F5":"FG",
     selectedSide,selectedTeam:selection,executionLine:line,executionPrice:odds,
     riskAmount:risk,toWinAmount:toWin,potentialPayout:(risk!=null&&toWin!=null)?risk+toWin:null,
-    executedAt:date?date+"T12:00:00.000Z":now(),timezone:"America/Chicago",
+    executedAt,timezone:"America/Chicago",
     importSource:"sports-betting-tracker-live-sync",matchStatus:"tracker-synced",
     recommendationStatus:"TRACKER_SYNCED",result,profit,
     settledReturn:result==="WON"&&risk!=null&&toWin!=null?risk+toWin:
@@ -1352,7 +1359,7 @@ function trackerTicket(row,rowNumber){
 export async function syncBetTrackerToD1({since="2026-09-21"}={}){
   if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required for bet tracker sync");
   if(!runtimeEnv.HARVEST_SECRET) throw new Error("HARVEST_SECRET required for bet tracker sync");
-  const sheetRes=await sheets.get(q(CFG.sheets.bets)+"!A1:Z1000");
+  const sheetRes=await sheets.get(q(CFG.sheets.bets)+"!A1:AS1000");
   const values=sheetRes.values||[];
   if(!values.length) throw new Error("Bets sheet is empty");
   const headers=values[0]||[];
@@ -1381,6 +1388,63 @@ export async function syncBetTrackerToD1({since="2026-09-21"}={}){
     skipped:(body.skipped||[]).length,newestDate,d1SyncedRows:synced.length,
     syncedAt:now()
   };
+}
+
+
+export async function syncSettledBetsToTracker(){
+  if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required for settlement sync");
+  const base=String(CFG.fbisBaseUrl||"https://fbis-myz.pages.dev").replace(/\/$/,"");
+  const res=await fetchRetry(base+"/api/bets?_t="+Date.now(),{headers:{accept:"application/json"}},2);
+  const body=await res.json().catch(()=>({}));
+  if(!res.ok||!Array.isArray(body?.bets)) throw new Error("FBIS bets readback failed http="+res.status);
+  const terminal=new Set(["WON","LOST","PUSH","VOID"]);
+  const bets=(body.bets||[]).filter(b=>terminal.has(String(b.result||"").toUpperCase()));
+  const byExternal=new Map(bets.map(b=>[String(b.externalTicketId||""),b]));
+  const sheetRes=await sheets.get(q(CFG.sheets.bets)+"!A1:AS1000");
+  const values=sheetRes.values||[];
+  if(!values.length) throw new Error("Bets sheet is empty");
+  const headers=values[0]||[];
+  const idx=Object.fromEntries(headers.map((h,i)=>[h,i]));
+  for(const h of ["Date","Sport","Matchup","Selection","Bet Type","Book","Risk","To Win","Result","P/L"]){
+    if(idx[h]==null) throw new Error("Bets sheet missing header: "+h);
+  }
+  let updated=0;
+  const changed=[];
+  for(let i=1;i<values.length;i++){
+    const row=[...(values[i]||[])];
+    while(row.length<headers.length) row.push("");
+    const obj=Object.fromEntries(headers.map((h,j)=>[h,row[j]??""]));
+    const date=String(obj.Date||"").trim();
+    const book=String(obj.Book||"").trim();
+    const sport=String(obj.Sport||"").trim().toLowerCase();
+    const matchup=String(obj.Matchup||"").trim();
+    const selection=String(obj.Selection||"").trim();
+    const betType=String(obj["Bet Type"]||"").trim();
+    const entryLine=String(obj["Entry Line"]||"").trim();
+    const risk=trackerNumber(obj.Risk);
+    const toWin=trackerNumber(obj["To Win"]);
+    if(!date||!book||!matchup||!selection) continue;
+    const stableKey=[date,book,sport,matchup,selection,betType,entryLine,risk,toWin].join("|");
+    const trackerId="TRACKER-"+sha256(stableKey).slice(0,24).toUpperCase();
+    const explicit=String(obj["Heritage Ticket ID"]||"").trim();
+    const bet=byExternal.get(explicit)||byExternal.get(trackerId);
+    if(!bet) continue;
+    const resultMap={WON:"Win",LOST:"Loss",PUSH:"Push",VOID:"Void"};
+    const nextResult=resultMap[String(bet.result||"").toUpperCase()]||"";
+    const nextPl=bet.profit==null?"":Number(bet.profit);
+    const finalText=bet.finalAwayScore!=null&&bet.finalHomeScore!=null
+      ? String(bet.awayTeam||"Away")+" "+bet.finalAwayScore+"-"+bet.finalHomeScore+" "+String(bet.homeTeam||"Home")
+      : (bet.propActual!=null?String(bet.playerName||bet.selectedTeam||"Player")+" actual "+bet.propActual:"");
+    const same=String(obj.Result||"").trim()===nextResult && String(obj["P/L"]??"").trim()===String(nextPl);
+    if(same && (!finalText || String(obj["Final Score"]||"").trim()===finalText)) continue;
+    row[idx.Result]=nextResult;
+    row[idx["P/L"]]=nextPl;
+    if(idx["Final Score"]!=null && finalText) row[idx["Final Score"]]=finalText;
+    await sheets.update(q(CFG.sheets.bets)+"!A"+(i+1)+":AS"+(i+1),[row.slice(0,45)]);
+    updated+=1;
+    changed.push({row:i+1,externalTicketId:bet.externalTicketId,result:nextResult,profit:nextPl});
+  }
+  return {ok:true,settledRead:bets.length,updated,changed,syncedAt:now()};
 }
 
 export async function syncWagerFeed(inputRows=[]){
