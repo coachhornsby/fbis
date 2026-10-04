@@ -72,12 +72,6 @@ jobs:
             curl -fL --retry 4 --retry-delay 2               "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_scratches/scratches_${y}.csv"               -o "artifacts/nhl-opportunity/scratches_${y}.csv"
             curl -fL --retry 4 --retry-delay 2               "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_game_rosters/game_rosters_${y}.csv"               -o "artifacts/nhl-opportunity/game_rosters_${y}.csv"
           done
-      - name: Schema probe
-        run: |
-          for f in artifacts/nhl-opportunity/skater_box_2024.csv artifacts/nhl-opportunity/shifts_2024.csv artifacts/nhl-opportunity/scratches_2024.csv artifacts/nhl-opportunity/game_rosters_2024.csv; do
-            echo "=== $f ==="
-            head -n 2 "$f"
-          done
       - name: Run leakage-safe shifts/scratches validation
         run: |
           node --max-old-space-size=6144 scripts/nhl-opportunity-v3-backtest.mjs             artifacts/nhl-opportunity             artifacts/nhl-opportunity-v3-validation.json             2024,2025,2026 | tee artifacts/nhl-opportunity-v3.log
