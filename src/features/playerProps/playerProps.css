@@ -2064,3 +2064,79 @@
   padding-top:10px;
   border-top:1px solid rgba(255,255,255,.07);
 }
+
+
+/* PrizePicks alternate-line selector v3 — keep Standard as the card,
+   put Goblin/Demon behind one compact control, and never render tier stars. */
+.pp-variant-shell {
+  margin-top: 16px;
+}
+
+.pp-tier-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pp-active-tier {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  color: rgba(255,255,255,.78);
+}
+
+.pp-active-tier-goblin { color: #62e6a8; }
+.pp-active-tier-demon { color: #ff6f91; }
+
+.pp-tier-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.55);
+}
+
+.pp-tier-select {
+  appearance: auto;
+  min-width: 132px;
+  border: 1px solid rgba(137,118,255,.42);
+  border-radius: 10px;
+  background: rgba(8,18,38,.92);
+  color: #f7f8ff;
+  padding: 8px 30px 8px 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+
+.pp-tier-select:focus {
+  outline: 2px solid rgba(87,178,255,.65);
+  outline-offset: 2px;
+}
+
+/* Legacy per-tier star rows are intentionally suppressed. */
+.pp-tier-stars {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .pp-tier-control-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .pp-tier-select-wrap {
+    width: 100%;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+  .pp-tier-select {
+    min-width: 160px;
+  }
+}
