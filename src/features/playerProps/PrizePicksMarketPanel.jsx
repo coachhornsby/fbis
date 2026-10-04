@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { propProjectionStars } from "./buildPlayerPropsBoard.js";
 
-const SPORTS=["all","mlb","tennis","nba","wnba","nfl","nhl","soccer","cfb","cbb"];
+const SPORTS=["top25","mlb","tennis","nba","wnba","nfl","nhl","soccer","cfb","cbb"];
 const TIER_ORDER={standard:0,goblin:1,demon:2};
 function num(v){ return Number.isFinite(Number(v)) ? Number(v).toFixed(1) : "—"; }
 function tierClass(tier=""){ return "pp-tier-"+String(tier||"standard").toLowerCase().replace(/[^a-z0-9]+/g,"-"); }
@@ -32,20 +32,24 @@ function groupLatest(rows=[]){
   }).slice(0,120);
 }
 
-export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilterChange }) {
+export default function PrizePicksMarketPanel({ sportFilter = "top25", onSportFilterChange }) {
   const [rows,setRows]=useState([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
   const [freshness,setFreshness]=useState(null);
-  const [localSport,setLocalSport]=useState(String(sportFilter||"all").toLowerCase());
-  useEffect(()=>setLocalSport(String(sportFilter||"all").toLowerCase()),[sportFilter]);
+  const [localSport,setLocalSport]=useState(String(sportFilter||"top25").toLowerCase()==="all"?"top25":String(sportFilter||"top25").toLowerCase());
+  useEffect(()=>{
+    const next=String(sportFilter||"top25").toLowerCase();
+    setLocalSport(next==="all"?"top25":next);
+  },[sportFilter]);
 
   useEffect(()=>{
     let cancelled=false;
     setLoading(true); setError("");
     const date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-    const q=new URLSearchParams({limit:"20",date});
-    if(localSport!=="all") q.set("sport",localSport);
+    const isTop=localSport==="top25";
+    const q=new URLSearchParams({date,mode:isTop?"top25":"sport"});
+    if(!isTop) q.set("sport",localSport);
     fetch("/api/selective-props?"+q.toString(),{credentials:"same-origin"})
       .then(async res=>{const j=await res.json().catch(()=>({}));if(!res.ok||j?.ok===false)throw new Error(j?.error||("HTTP "+res.status));return j})
       .then(j=>{if(!cancelled){setRows(Array.isArray(j.rows)?j.rows:[]);setFreshness(j.freshness||null)}})
@@ -67,16 +71,20 @@ export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilt
         <div>
           <div className="pp-kicker">FBIS × PRIZEPICKS MARKET</div>
           <h1>PLAYER PROPS</h1>
-          <p>Selective daily board. FBIS publishes only its strongest model-vs-PrizePicks disagreements, capped at 20. Weak props are not added just to fill a quota.</p>
+          <p>
+            {localSport==="top25"
+              ?"Top 25 FBIS player-prop edges across all sports, ranked by stars and projection edge."
+              :"Every current "+localSport.toUpperCase()+" prop with a valid FBIS projection, ranked highest stars first."}
+          </p>
         </div>
         <div className="pp-count">{loading?"LOADING":groups.length+" MARKETS"}</div>
       </div>
       <div className="pp-sport-strip" role="group" aria-label="Player prop sport filter">
-        {SPORTS.map(s=><button key={s} className={localSport===s?"active":""} onClick={()=>{setLocalSport(s);onSportFilterChange?.(s);}}>{s.toUpperCase()}</button>)}
+        {SPORTS.map(s=><button key={s} className={localSport===s?"active":""} onClick={()=>{setLocalSport(s);onSportFilterChange?.(s);}}>{s==="top25"?"TOP 25":s.toUpperCase()}</button>)}
       </div>
       {freshness?.stale?<div className="pp-empty error-text">Today's PrizePicks acquisition has not completed. Stale prior-day props are hidden.</div>:null}
       {error?<div className="pp-empty error-text">{error}</div>:null}
-      {!loading&&!error&&!groups.length?<div className="pp-empty">No PrizePicks props with an FBIS projection are available for this filter yet.</div>:null}
+      {!loading&&!error&&!groups.length?<div className="pp-empty">No PrizePicks props with an FBIS projection are available for this tab yet.</div>:null}
       <div className="pp-card-grid">
         {groups.map((group)=>{
           const r=group.primary;
