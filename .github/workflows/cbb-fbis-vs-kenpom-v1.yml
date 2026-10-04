@@ -1,0 +1,48 @@
+name: CBB FBIS vs KenPom v1
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/cbb-fbis-vs-kenpom-v1.mjs"
+      - ".github/workflows/cbb-fbis-vs-kenpom-v1.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: "22", cache: "npm"}
+      - run: npm ci
+      - name: Download pinned CBB research artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cbb-structural-snapshot-37166703044
+          github-token: "${{ github.token }}"
+          repository: coachhornsby/fbis
+          run-id: 37166703044
+          path: artifacts/pinned
+      - name: Run FBIS vs KenPom audit
+        run: |
+          node scripts/cbb-fbis-vs-kenpom-v1.mjs             artifacts/pinned/base/cbb-data-stack-predictions.json             artifacts/pinned/base/cbb-market-research-dataset.json             | tee artifacts/cbb-fbis-vs-kenpom-v1-run.log
+      - name: Summary
+        run: |
+          F=artifacts/cbb-fbis-vs-kenpom-v1.json
+          {
+            echo "## CBB FBIS vs KenPom v1"
+            jq -r '"- overall total MAE: FBIS=\(.overall.total.fbisMae), KenPom=\(.overall.total.kenpomMae), advantage=\(.overall.total.maeAdvantage)"' "$F"
+            jq -r '"- 2025 total MAE: FBIS=\(.bySeason["2025"].total.fbisMae), KenPom=\(.bySeason["2025"].total.kenpomMae), advantage=\(.bySeason["2025"].total.maeAdvantage)"' "$F"
+            echo
+            echo "### Recent disagreement bands"
+            jq -r '.recent2024_25.bands | to_entries[] | "- \(.key): n=\(.value.n), FBIS MAE=\(.value.fbisMae), KenPom MAE=\(.value.kenpomMae), advantage=\(.value.maeAdvantage)"' "$F"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbb-fbis-vs-kenpom-v1-${{ github.run_id }}
+          path: |
+            artifacts/cbb-fbis-vs-kenpom-v1.json
+            artifacts/cbb-fbis-vs-kenpom-v1-run.log
+          retention-days: 90
