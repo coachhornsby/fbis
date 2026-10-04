@@ -2844,7 +2844,8 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
     const mapped = { ...mapExecutedBet(existing), ...patch };
     await env.DB.prepare(
       `UPDATE executed_bets SET
-        game_id = ?, selected_side = ?, match_status = ?, match_confidence = ?,
+        game_id = ?, matchup_text = ?, away_team = ?, home_team = ?,
+        selected_side = ?, match_status = ?, match_confidence = ?,
         result = ?, profit = ?, settled_return = ?, graded_at = ?, void_reason = ?,
         matched_prediction_id = ?, matched_strategy_ticket_id = ?, recommendation_status = ?,
         attribution_label = ?, clv = ?, clv_status = ?,
@@ -2852,11 +2853,14 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         pin_close_line = ?, pin_close_price = ?, pin_close_no_vig = ?,
         prop_actual = ?, prop_stat_source = ?,
         final_away_score = ?, final_home_score = ?, f5_away_score = ?, f5_home_score = ?,
-        settlement_source = ?, settlement_evidence_json = ?
+        settlement_source = ?, settlement_evidence_json = ?, tracker_metadata_json = ?
        WHERE id = ?`
     )
       .bind(
         n(mapped.gameId),
+        n(mapped.matchupText),
+        n(mapped.awayTeam),
+        n(mapped.homeTeam),
         n(mapped.selectedSide),
         n(mapped.matchStatus),
         n(mapped.matchConfidence),
@@ -2885,6 +2889,7 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         n(mapped.f5HomeScore),
         n(mapped.settlementSource),
         mapped.settlementEvidence ? JSON.stringify(mapped.settlementEvidence) : null,
+        mapped.trackerMetadata ? JSON.stringify(mapped.trackerMetadata) : null,
         id
       )
       .run();
