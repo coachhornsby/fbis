@@ -53,7 +53,7 @@ function familyMap(game,h,a){
     context:[h,a].some(x=>Object.keys(x).some(k=>/rest|travel|weather|altitude|timeZone/i.test(k))),
   };
 }
-export function projectNflProV2(game={}){
+export function projectNflProV2(game={},options={}){
   const base=projectNflProV1(game);
   if(!base.ok)return {...base,modelId:NFL_PRO_V2_ID,version:"v2.0",role:"shadow",canQualify:false};
   const h=side(game,"home"),a=side(game,"away");
@@ -61,8 +61,9 @@ export function projectNflProV2(game={}){
   const hr=runInteraction(h,a),ar=runInteraction(a,h);
   const hc=coverageRouteInteraction(h,a),ac=coverageRouteInteraction(a,h);
   const ha=availabilityValue(game,"home"),aa=availabilityValue(game,"away");
-  const homeAdj=(hp??0)+(hr??0)+(hc??0)+(ha??0);
-  const awayAdj=(ap??0)+(ar??0)+(ac??0)+(aa??0);
+  const w={pressure:1,run:1,coverageRoute:1,availability:1,...(options.weights||{})};
+  const homeAdj=(hp??0)*w.pressure+(hr??0)*w.run+(hc??0)*w.coverageRoute+(ha??0)*w.availability;
+  const awayAdj=(ap??0)*w.pressure+(ar??0)*w.run+(ac??0)*w.coverageRoute+(aa??0)*w.availability;
   const home=round1(clamp(base.home+homeAdj,8,42)),away=round1(clamp(base.away+awayAdj,8,42));
   const margin=round1(home-away),total=round1(home+away);
   const families=familyMap(game,h,a),present=Object.values(families).filter(Boolean).length,totalFamilies=Object.keys(families).length;
@@ -76,7 +77,7 @@ export function projectNflProV2(game={}){
     ...base,modelId:NFL_PRO_V2_ID,version:"v2.0",role:"shadow",canQualify:false,
     home,away,margin,total,sigmaMargin,sigmaTotal,pHomeWin:pGreater(margin,0,sigmaMargin),
     advancedCoverage:{share:advancedCoverage,present,total:totalFamilies,families},
-    interactions:{home:{pressure:hp,run:hr,coverageRoute:hc,availability:ha},away:{pressure:ap,run:ar,coverageRoute:ac,availability:aa}},
+    interactions:{weights:w,home:{pressure:hp,run:hr,coverageRoute:hc,availability:ha},away:{pressure:ap,run:ar,coverageRoute:ac,availability:aa}},
     provenance:{...base.provenance,marketUsed:false,missingFeaturesRemainMissing:true},
     note:"Research-only v2 interaction layer; no promotion without leakage-safe walk-forward evidence."
   };
