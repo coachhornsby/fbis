@@ -135,8 +135,8 @@ export function TicketMatchup({ awayIdentity, homeIdentity, awayTeam, homeTeam, 
   const named = teamDisplayName(away) !== "—" && teamDisplayName(home) !== "—";
   return (
     <div className="team-block">
-      <TeamIdentity team={away} size={28} tone="dark" />
-      <TeamIdentity team={home} size={28} tone="dark" />
+      <TeamIdentity team={away} size={36} tone="dark" />
+      <TeamIdentity team={home} size={36} tone="dark" />
       {!named && matchupText ? <div className="muted">{matchupText}</div> : null}
     </div>
   );
