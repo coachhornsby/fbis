@@ -68,3 +68,24 @@ test("lineup matchup produces K projection from batter-by-batter zone profiles",
   assert.ok(m.lineupKRate>0&&m.lineupKRate<0.5);
   assert.equal(m.marketInformed,false);
 });
+
+
+test("empty Statcast batted-ball fields are not counted as contact",()=>{
+  const rows=[
+    pitch({description:"called_strike",type:"S",launch_speed:"",estimated_woba_using_speedangle:""}),
+    pitch({description:"hit_into_play",type:"X",events:"single",launch_speed:100,estimated_woba_using_speedangle:0.5}),
+  ];
+  const p=buildStatcastProfiles(rows,{role:"pitcher",asOf:"2026-09-21T00:00:00Z"})["1"];
+  assert.ok(p);
+  assert.ok(p.global.hardHitRate > 0.9);
+});
+
+test("missing dynamic fields do not create artificial pitch difficulty",()=>{
+  const pitcherRows=[pitch({pitcher:1,batter:90,release_speed:"",release_spin_rate:"",pfx_x:"",pfx_z:"",description:"swinging_strike",events:"strikeout"})];
+  const batterRows=[pitch({pitcher:80,batter:10,release_speed:95,release_spin_rate:2400,pfx_x:-0.4,pfx_z:1.2,description:"swinging_strike",events:"strikeout"})];
+  const pp=buildStatcastProfiles(pitcherRows,{role:"pitcher",asOf:"2026-09-21T00:00:00Z"})["1"];
+  const bp=buildStatcastProfiles(batterRows,{role:"batter",asOf:"2026-09-21T00:00:00Z"})["10"];
+  const score=scorePitcherVsBatter(pp,bp);
+  assert.ok(score);
+  assert.ok(Math.abs(score.dynamicDifficulty) < 0.1);
+});
