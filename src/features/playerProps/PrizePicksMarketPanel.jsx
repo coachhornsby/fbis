@@ -306,7 +306,7 @@ export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilt
       :"Every "+localSport.toUpperCase()+" prop with a valid FBIS projection";
 
   return (
-    <section className="pp-market pp-premium-page" aria-label="FBIS player props">
+    <section className="pp-market pp-premium-page" aria-label="FBIS player props" data-display-policy="nfl-4star-tiers-v3">
       <header className="pp-premium-header">
         <div className="pp-premium-brand">
           <div className="pp-premium-mark" aria-hidden="true">
