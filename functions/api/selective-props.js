@@ -56,6 +56,17 @@ function normalizedRows(rows = []) {
     modelVersion: row.model_version,
   }));
 }
+
+export function selectiveCandidateRows(rows = [], sport = null) {
+  const normalized = normalizedRows(rows);
+  return String(sport || "").toLowerCase() === "nfl"
+    ? normalized.filter((row) =>
+        String(row.odds_tier || "standard").toLowerCase() === "standard" &&
+        String(row.duration || "full").toLowerCase() === "full"
+      )
+    : normalized;
+}
+
 export function groupKey(row = {}) {
   return [
     String(row.sport || "").toLowerCase(),
@@ -127,18 +138,11 @@ export async function onRequestGet(context) {
     " ORDER BY collected_at DESC LIMIT 5000";
 
   const rows = (await context.env.DB.prepare(sql).bind(...bind).all())?.results || [];
-  const normalized = normalizedRows(rows);
-
   // NFL confidence is calibrated against the normal full-game stat contract.
   // Goblin/Demon variants have different payout economics and cannot share the
   // same star scale. They remain available on the general Player Props surface,
   // but selective NFL cards use Standard lines only.
-  const candidates = sport === "nfl"
-    ? normalized.filter((row) =>
-        String(row.odds_tier || "standard").toLowerCase() === "standard" &&
-        String(row.duration || "full").toLowerCase() === "full"
-      )
-    : normalized;
+  const candidates = selectiveCandidateRows(rows, sport);
 
   let selected;
   let policy;
