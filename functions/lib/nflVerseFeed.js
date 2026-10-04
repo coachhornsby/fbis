@@ -17,6 +17,8 @@ const ERR_TTL_MS = 20 * 60 * 1000;
 const PRIOR_GAMES = 8;
 const PLAYER_PRIOR_GAMES = 4;
 const RELEASE = "https://github.com/nflverse/nflverse-data/releases/download";
+const SNAPSHOT_KEY = "nfl/features/latest.json";
+const SNAPSHOT_SCHEMA = "nflverse-features-v2";
 
 const ABBR = {
   JAC:"JAX",JAX:"JAX",LA:"LAR",LAR:"LAR",LV:"LV",OAK:"LV",
@@ -48,13 +50,29 @@ export function parseCsv(text=""){
   return lines.slice(1).map(line=>{const cells=splitCsvLine(line);return Object.fromEntries(headers.map((h,i)=>[h,cells[i]??""]));});
 }
 async function fetchCsv(url,fetchFn=fetch){
-  const res=await fetchFn(url,{headers:{Accept:"text/csv,*/*","User-Agent":"FBIS/2.0"}});
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort("source-timeout"), 25000);
+  let res;
+  try {
+    res=await fetchFn(url,{headers:{Accept:"text/csv,application/gzip,*/*","User-Agent":"FBIS/2.0"},signal:controller.signal});
+  } finally {
+    clearTimeout(timer);
+  }
   if(!res.ok)return{ok:false,status:res.status,rows:[],url};
-  return{ok:true,status:res.status,rows:parseCsv(await res.text()),url};
+  let text;
+  if (/\.gz(?:$|\?)/i.test(url)) {
+    if (typeof DecompressionStream === "undefined" || !res.body) {
+      return {ok:false,status:415,rows:[],url,error:"gzip_decompression_unavailable"};
+    }
+    text = await new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).text();
+  } else {
+    text = await res.text();
+  }
+  return{ok:true,status:res.status,rows:parseCsv(text),url};
 }
 function teamUrl(y){return `${RELEASE}/stats_team/stats_team_week_${y}.csv`;}
 function playerUrl(y){return `${RELEASE}/stats_player/stats_player_week_${y}.csv`;}
-function ngsUrl(type){return `${RELEASE}/nextgen_stats/ngs_${type}.csv`;}
+function ngsUrl(type){return `${RELEASE}/nextgen_stats/ngs_${type}.csv.gz`;}
 function snapUrl(y){return `${RELEASE}/snap_counts/snap_counts_${y}.csv`;}
 
 function mean(xs=[]){const v=xs.map(num).filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
@@ -133,34 +151,48 @@ function ngsSeason(row){return pickNum(row,"season","season_year","seasonYear");
 function ngsWeek(row){return pickNum(row,"week","week_number","weekNumber");}
 function ngsName(row){return pick(row,"player_display_name","player_name","playerName")||ngsPlayerKey(row);}
 
+function pushMetric(p,key,value,weight=null){
+  const v=num(value); if(v==null)return;
+  const w=num(weight);
+  const arr=p.ngsSeries[key]||(p.ngsSeries[key]=[]);
+  arr.push({value:v,weight:w!=null&&w>0?w:1});
+}
+function finishMetric(p,key){
+  const arr=p.ngsSeries?.[key]||[]; if(!arr.length)return null;
+  const total=arr.reduce((s,x)=>s+x.weight,0);
+  return total>0?arr.reduce((s,x)=>s+x.value*x.weight,0)/total:mean(arr.map(x=>x.value));
+}
 export function aggregateNextGen(rowsByType={},season=null){
   const players=new Map();
   const teamRows={};
   for(const [type,rows] of Object.entries(rowsByType||{})){
     for(const row of rows||[]){
       if(season!=null&&ngsSeason(row)!=null&&ngsSeason(row)!==Number(season))continue;
-      const team=ngsTeam(row),id=ngsPlayerKey(row);if(!team||!id)continue;
-      const key=team+"|"+id,p=players.get(key)||{id,name:ngsName(row),team,position:type==="passing"?"QB":type==="rushing"?"RB":"WR",ngs:{},games:new Set()};
-      const week=ngsWeek(row);if(week!=null)p.games.add(week);
+      const team=ngsTeam(row),id=ngsPlayerKey(row),week=ngsWeek(row);
+      // week=0 is the full-season summary in nflverse NGS; using it during
+      // the season would leak future games and double count weekly evidence.
+      if(!team||!id||week==null||week<=0)continue;
+      const key=team+"|"+id,p=players.get(key)||{id,name:ngsName(row),team,position:type==="passing"?"QB":type==="rushing"?"RB":"WR",ngs:{},ngsSeries:{},games:new Set()};
+      p.games.add(week);
       if(type==="passing"){
-        p.ngs.avgTimeToThrow=pickNum(row,"avg_time_to_throw","avgTimeToThrow");
-        p.ngs.aggressiveness=pickNum(row,"aggressiveness");
-        p.ngs.cpoe=pickNum(row,"completion_percentage_above_expectation","completionPercentageAboveExpectation","cpoe");
-        p.ngs.passerRating=pickNum(row,"passer_rating","passerRating");
-        p.ngs.attempts=pickNum(row,"attempts","pass_attempts");
+        const attempts=pickNum(row,"attempts","pass_attempts");
+        pushMetric(p,"avgTimeToThrow",pickNum(row,"avg_time_to_throw","avgTimeToThrow"),attempts);
+        pushMetric(p,"aggressiveness",pickNum(row,"aggressiveness"),attempts);
+        pushMetric(p,"cpoe",pickNum(row,"completion_percentage_above_expectation","completionPercentageAboveExpectation","cpoe"),attempts);
+        pushMetric(p,"passerRating",pickNum(row,"passer_rating","passerRating"),attempts);
       }else if(type==="rushing"){
-        p.ngs.ryoePerAtt=pickNum(row,"rush_yards_over_expected_per_att","rushYardsOverExpectedPerAtt","ryoe_per_att");
-        p.ngs.rushEfficiency=pickNum(row,"efficiency","rush_efficiency");
-        p.ngs.avgTimeToLos=pickNum(row,"avg_time_to_los","avgTimeToLos");
-        p.ngs.carries=pickNum(row,"attempts","carries","rush_attempts");
+        const carries=pickNum(row,"attempts","carries","rush_attempts");
+        pushMetric(p,"ryoePerAtt",pickNum(row,"rush_yards_over_expected_per_att","rushYardsOverExpectedPerAtt","ryoe_per_att"),carries);
+        pushMetric(p,"rushEfficiency",pickNum(row,"efficiency","rush_efficiency"),carries);
+        pushMetric(p,"avgTimeToLos",pickNum(row,"avg_time_to_los","avgTimeToLos"),carries);
       }else{
-        p.ngs.avgSeparation=pickNum(row,"avg_separation","avgSeparation");
-        p.ngs.avgCushion=pickNum(row,"avg_cushion","avgCushion");
-        p.ngs.avgIntendedAirYards=pickNum(row,"avg_intended_air_yards","avgIntendedAirYards");
+        const targets=pickNum(row,"targets");
+        pushMetric(p,"avgSeparation",pickNum(row,"avg_separation","avgSeparation"),targets);
+        pushMetric(p,"avgCushion",pickNum(row,"avg_cushion","avgCushion"),targets);
+        pushMetric(p,"avgIntendedAirYards",pickNum(row,"avg_intended_air_yards","avgIntendedAirYards"),targets);
         const ay=pickNum(row,"avg_yac","avgYac"),ey=pickNum(row,"avg_expected_yac","avgExpectedYac");
-        p.ngs.yacOverExpected=pickNum(row,"avg_yac_above_expectation","avgYacAboveExpectation") ?? (ay!=null&&ey!=null?ay-ey:null);
-        p.ngs.catchPct=pickNum(row,"catch_percentage","catchPercentage");
-        p.ngs.targets=pickNum(row,"targets");
+        pushMetric(p,"yacOverExpected",pickNum(row,"avg_yac_above_expectation","avgYacAboveExpectation") ?? (ay!=null&&ey!=null?ay-ey:null),targets);
+        pushMetric(p,"catchPct",pickNum(row,"catch_percentage","catchPercentage"),targets);
       }
       players.set(key,p);
       (teamRows[team]||(teamRows[team]=[])).push(p);
@@ -169,6 +201,10 @@ export function aggregateNextGen(rowsByType={},season=null){
   const byTeam={};
   for(const p of players.values()){
     p.games=p.games.size;
+    for(const key of ["avgTimeToThrow","aggressiveness","cpoe","passerRating","ryoePerAtt","rushEfficiency","avgTimeToLos","avgSeparation","avgCushion","avgIntendedAirYards","yacOverExpected","catchPct"]){
+      p.ngs[key]=finishMetric(p,key);
+    }
+    delete p.ngsSeries;
     (byTeam[p.team]||(byTeam[p.team]=[])).push(p);
   }
   const teamFeatures={};
@@ -263,8 +299,52 @@ async function seasonBundle(year,fetchFn,ngsAll){
   return{year,teamStatus:team.status,playerStatus:player.status,snapStatus:snaps.status,offense:teamAgg.offense,defense:teamAgg.defense,qb:aggregateQbWeeks(player.rows),tracking:ngs.teamFeatures,playersByTeam:enrichPlayers(aggregatePlayerWeeks(player.rows),ngs.byTeam,snapByTeam),rows:{team:team.rows.length,player:player.rows.length,snaps:snaps.rows.length}};
 }
 
-export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now()}={}){
+async function readArchivedSnapshot(env={}, season, now){
+  if(!env.ARCHIVE?.get) return null;
+  try{
+    const obj=await env.ARCHIVE.get(SNAPSHOT_KEY);
+    if(!obj) return null;
+    const payload=JSON.parse(await obj.text());
+    if(!payload?.meta || !payload?.byTeam || !payload?.playersByTeam) return null;
+    const builtAt=Date.parse(payload.meta.builtAt||payload.meta.createdAt||"");
+    const ageMs=Number.isFinite(builtAt)?Math.max(0,now-builtAt):null;
+    return {
+      ...payload,
+      meta:{
+        ...payload.meta,
+        snapshotKey:SNAPSHOT_KEY,
+        snapshotSchema:payload.meta.snapshotSchema||SNAPSHOT_SCHEMA,
+        runtimeSource:"r2-precomputed",
+        snapshotAgeHours:ageMs==null?null:Math.round((ageMs/3600000)*10)/10,
+        stale:ageMs!=null?ageMs>36*3600000:false,
+        requestedSeason:season,
+      },
+    };
+  }catch{return null;}
+}
+
+export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now(),forceNetwork=false}={}){
   const season=seasonYear(new Date(now)),cacheKey=`nflverse-features-v2-${season}`,cached=await readCache(cacheKey,env.caches,TTL_MS);if(cached?.meta)return cached;
+  if(!forceNetwork){
+    const archived=await readArchivedSnapshot(env,season,now);
+    if(archived){
+      await writeCache(cacheKey,archived,env.caches,TTL_MS);
+      return archived;
+    }
+    return {
+      season,
+      byTeam:{},
+      playersByTeam:{},
+      meta:{
+        source:"nflverse+ngs",
+        teams:0,
+        marketInformed:false,
+        runtimeSource:"snapshot-missing",
+        runtimeNetworkDisabled:true,
+        error:"NFL feature snapshot unavailable; live request fanout disabled to protect board latency.",
+      },
+    };
+  }
   try{
     const [ngsPassing,ngsRushing,ngsReceiving]=await Promise.all([fetchCsv(ngsUrl("passing"),fetchFn),fetchCsv(ngsUrl("rushing"),fetchFn),fetchCsv(ngsUrl("receiving"),fetchFn)]);
     const ngsAll={passing:ngsPassing.rows,rushing:ngsRushing.rows,receiving:ngsReceiving.rows};
@@ -273,7 +353,7 @@ export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now()
     const byTeam={};
     for(const team of teams)byTeam[team]={...combineTeam({...(prior.offense[team]||{}),...(prior.defense[team]||{})},{...(current.offense[team]||{}),...(current.defense[team]||{})}),...combineQb(prior.qb[team]||{},current.qb[team]||{}),...combineTracking(prior.tracking[team]||{},current.tracking[team]||{})};
     const currentGames=Math.max(0,...Object.values(current.offense).map(r=>r.games||0)),playersByTeam=blendPlayerRows(prior.playersByTeam||{},current.playersByTeam||{});
-    const payload={season,byTeam,playersByTeam,meta:{source:"nflverse+ngs",currentSeason:season,priorSeason:season-1,teams:Object.keys(byTeam).length,currentGames,currentRows:current.rows,priorRows:prior.rows,currentStatus:{team:current.teamStatus,player:current.playerStatus,snaps:current.snapStatus},priorStatus:{team:prior.teamStatus,player:prior.playerStatus,snaps:prior.snapStatus},ngsStatus:{passing:ngsPassing.status,rushing:ngsRushing.status,receiving:ngsReceiving.status},priorWeightGames:PRIOR_GAMES,playerPriorWeightGames:PLAYER_PRIOR_GAMES,marketInformed:false,featureFamilies:["team_epa","qb_epa_cpoe","nextgen_passing","nextgen_rushing","nextgen_receiving","snap_share"],limitation:"Depth-chart and in-week participation remain separate availability inputs; runtime never uses sportsbook lines as features."}};
+    const payload={season,byTeam,playersByTeam,meta:{source:"nflverse+ngs",snapshotSchema:SNAPSHOT_SCHEMA,builtAt:new Date(now).toISOString(),runtimeSource:"offline-builder",currentSeason:season,priorSeason:season-1,teams:Object.keys(byTeam).length,currentGames,currentRows:current.rows,priorRows:prior.rows,currentStatus:{team:current.teamStatus,player:current.playerStatus,snaps:current.snapStatus},priorStatus:{team:prior.teamStatus,player:prior.playerStatus,snaps:prior.snapStatus},ngsStatus:{passing:ngsPassing.status,rushing:ngsRushing.status,receiving:ngsReceiving.status},priorWeightGames:PRIOR_GAMES,playerPriorWeightGames:PLAYER_PRIOR_GAMES,marketInformed:false,featureFamilies:["team_epa","qb_epa_cpoe","nextgen_passing","nextgen_rushing","nextgen_receiving","snap_share"],limitation:"Depth-chart and in-week participation remain separate availability inputs; runtime never uses sportsbook lines as features."}};
     await writeCache(cacheKey,payload,env.caches,TTL_MS);return payload;
   }catch(err){
     const payload={season,byTeam:{},playersByTeam:{},meta:{source:"nflverse+ngs",teams:0,error:String(err?.message||err),marketInformed:false}};
