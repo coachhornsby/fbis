@@ -323,9 +323,8 @@ export default function PlayerPropsBoard({
                     {TIER_LABELS[tier] || tier}
                     {row.convictionLean ? ` · ${row.convictionLean}` : ""}
                   </span>
-                  <span className={`props-star-badge props-star-${row.confidenceStars || 1}`} title={(row.confidenceReasons || []).join(" · ")}>
-                    {"⭐".repeat(Math.max(1, Math.min(5, Number(row.confidenceStars) || 1)))}
-                    {row.confidenceSide ? ` · ${row.confidenceSide}` : ""}
+                  <span className="props-tier-prob" aria-label={`${row.projectionStars || 1} star projection confidence`}>
+                    {"★".repeat(row.projectionStars || 1)}{"☆".repeat(5 - (row.projectionStars || 1))}
                   </span>
                 </div>
 
