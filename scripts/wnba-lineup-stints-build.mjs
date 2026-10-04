@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { reconstructLineupStints, attachStintOutcomes, aggregateLineupEffects } from "../functions/lib/nbaLineupModel.js";
+import { reconstructLineupStints, attachStintOutcomes, aggregateLineupEffects } from "../functions/lib/wnbaLineupModel.js";
 
 const args=Object.fromEntries(process.argv.slice(2).map(x=>x.split("=")));
 const gamesFile=args.games||"artifacts/wnba-canonical.jsonl";
