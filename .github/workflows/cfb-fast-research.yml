@@ -6,6 +6,7 @@ on:
       - ".github/workflows/cfb-fast-research.yml"
       - "scripts/cfb-conference-power-v3.py"
       - "scripts/cfb-subset-audit.py"
+      - "scripts/cfb-subset-robustness.py"
   workflow_dispatch:
 permissions:
   contents: read
@@ -39,10 +40,13 @@ jobs:
         run: python scripts/cfb-conference-power-v3.py
       - name: Audit OOS subsets
         run: python scripts/cfb-subset-audit.py
+      - name: Apply robustness and multiple-testing gate
+        run: python scripts/cfb-subset-robustness.py
       - uses: actions/upload-artifact@v4
         with:
           name: cfb-fast-research
           path: |
             artifacts/cfb-final/conference-power/*
             artifacts/cfb-final/subset-audit/*
+            artifacts/cfb-final/subset-audit/robustness/*
           retention-days: 90
