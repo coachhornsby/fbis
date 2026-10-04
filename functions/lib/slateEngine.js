@@ -31,6 +31,7 @@ import { applyAvailabilityAdjustment } from "./availability.js";
 import { attachMatchupFactors } from "./matchupFactors.js";
 import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
 import { loadWnbaPlayerContext, attachWnbaPlayerProjectionResearch } from "./wnbaPlayerProjection.js";
+import { attachWnbaV2Research } from "./wnbaFbisV2.js";
 import {
   marketImpliedAuthority,
   deriveBoardDecision,
@@ -302,6 +303,28 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "wnba" && Array.isArray(next.games)) {
+    try {
+      const wnbaV2 = await attachWnbaV2Research(next.games, env, next.date || date);
+      if (wnbaV2.meta?.projected > 0) {
+        next = {
+          ...next,
+          games: wnbaV2.games,
+          modelVersion: wnbaV2.meta.version || next.modelVersion,
+          research: { ...(next.research || {}), wnbaFbisV2: wnbaV2.meta },
+        };
+      } else {
+        next = {
+          ...next,
+          research: { ...(next.research || {}), wnbaFbisV2: wnbaV2.meta },
+        };
+      }
+    } catch (err) {
+      next = {
+        ...next,
+        research: { ...(next.research || {}), wnbaFbisV2: { modelId:"WNBA-FBIS-v2", state:"CONTEXT_UNAVAILABLE", error:String(err?.message||err), canQualify:false, canAuthorize:false } },
+      };
+    }
+
     const wnbaCtx = await loadWnbaPlayerContext(next.games, next.date || date).catch((err) => ({
       byTeam: {},
       meta: { source:"ESPN_WNBA_ATHLETE_STATS", error:String(err?.message||err), marketInformed:false },

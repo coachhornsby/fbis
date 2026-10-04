@@ -1,4 +1,4 @@
-export const PRO_PLAYER_PROP_SPORTS = Object.freeze(["mlb", "npb", "kbo", "cfb", "cbb", "tennis", "nfl", "nba", "nhl"]);
+export const PRO_PLAYER_PROP_SPORTS = Object.freeze(["mlb", "npb", "kbo", "cfb", "cbb", "tennis", "nfl", "nba", "wnba", "nhl"]);
 
 export const PRO_PLAYER_PROP_MARKETS = Object.freeze({
   npb: ["strikeouts"],
@@ -44,6 +44,19 @@ export const PRO_PLAYER_PROP_MARKETS = Object.freeze({
     "receiving_yards",
     "receptions",
     "touchdowns",
+  ],
+  wnba: [
+    "points",
+    "rebounds",
+    "assists",
+    "three_pointers_made",
+    "points_rebounds_assists",
+    "points_rebounds",
+    "points_assists",
+    "rebounds_assists",
+    "steals",
+    "blocks",
+    "turnovers",
   ],
   nba: [
     "points",
@@ -210,6 +223,15 @@ const ALIASES = Object.freeze({
     anytime_touchdown: "touchdowns",
     anytime_td: "touchdowns",
   },
+  wnba: {
+    points: "points", player_points: "points",
+    rebounds: "rebounds", player_rebounds: "rebounds",
+    assists: "assists", player_assists: "assists",
+    three_pointers_made: "three_pointers_made", threes_made: "three_pointers_made", made_threes: "three_pointers_made",
+    points_rebounds_assists: "points_rebounds_assists", pra: "points_rebounds_assists", pts_rebs_asts: "points_rebounds_assists",
+    points_rebounds: "points_rebounds", points_assists: "points_assists", rebounds_assists: "rebounds_assists",
+    steals: "steals", blocks: "blocks", turnovers: "turnovers",
+  },
   nba: {
     points: "points",
     player_points: "points",
@@ -260,6 +282,7 @@ export function normalizeProPropSport(raw) {
   if (sport === "college_basketball" || sport === "ncaab" || sport === "ncaa_basketball") return "cbb";
   if (sport === "atp" || sport === "wta" || sport === "tennis_atp" || sport === "tennis_wta") return "tennis";
   if (sport === "football" || sport === "national_football_league") return "nfl";
+  if (sport === "wnba" || sport === "womens_national_basketball_association" || sport === "women_s_national_basketball_association") return "wnba";
   if (sport === "basketball" || sport === "national_basketball_association") return "nba";
   if (sport === "hockey" || sport === "national_hockey_league") return "nhl";
   return PRO_PLAYER_PROP_SPORTS.includes(sport) ? sport : null;
