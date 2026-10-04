@@ -16,6 +16,20 @@ export const NHL_SOG_AUDIT_CUTS = Object.freeze({
   priorGames:{q25:59,q50:81,q75:140},
 });
 
+export const NHL_PROP_CONFIDENCE_LINE_RANGE = Object.freeze({
+  shots_on_goal:Object.freeze({min:0.5,max:6.5,step:1}),
+  saves:Object.freeze({min:15.5,max:39.5,step:1}),
+});
+
+export function nhlPropConfidenceLineValidated(market,line){
+  const cfg=NHL_PROP_CONFIDENCE_LINE_RANGE[String(market||"")];
+  const x=finite(line);
+  if(!cfg||x==null)return false;
+  if(x<cfg.min-1e-9||x>cfg.max+1e-9)return false;
+  const k=(x-cfg.min)/cfg.step;
+  return Math.abs(k-Math.round(k))<1e-9;
+}
+
 function finite(v){const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
 
