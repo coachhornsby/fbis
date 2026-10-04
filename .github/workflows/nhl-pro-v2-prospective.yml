@@ -1,0 +1,83 @@
+name: NHL-PRO-v2 prospective validation
+
+on:
+  schedule:
+    - cron: "5 14 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nhlProV2.js"
+      - "data/models/nhl-pro-v2.js"
+      - "data/models/nhl-pro-v2-validation.json"
+      - ".github/workflows/nhl-pro-v2-prospective.yml"
+
+permissions: { contents: read }
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Verify v2 historical gate
+        run: |
+          set -euo pipefail
+          test -f data/models/nhl-pro-v2-validation.json
+          jq -e '.pointInTime == true' data/models/nhl-pro-v2-validation.json >/dev/null
+          jq -e '.marketInformed == false' data/models/nhl-pro-v2-validation.json >/dev/null
+          jq -e '.promotion.historicalPromotionEligible == true' data/models/nhl-pro-v2-validation.json >/dev/null
+      - name: Read canonical graded NHL-PRO-v2 snapshots
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          out=artifacts/nhl-pro-v2-prospective.json
+          raw="$(mktemp)"
+          http="$(curl -sS --max-time 180 --retry 1 \
+            -H "x-harvest-secret: $HARVEST_SECRET" -H "accept: application/json" \
+            -o "$raw" -w "%{http_code}" "$BASE/api/model-learning?sport=nhl&recentN=200")"
+          echo "NHL-PRO-v2 learning http=$http"
+          test "$http" = "200"
+          jq -e '.source=="prediction_snapshots"' "$raw" >/dev/null
+          jq --slurpfile hist data/models/nhl-pro-v2-validation.json '
+            def target: [.models[]? | select((.modelId|ascii_downcase|contains("nhl-pro-v2")))] | .[0] // null;
+            (target) as $m |
+            {
+              generatedAt: now|todate,
+              modelId: ($m.modelId // "NHL-PRO-v2"),
+              canonicalRows: .canonicalRows,
+              queriedRows: .queriedRows,
+              marketInformed: ($m.marketInformed // false),
+              metrics: ($m.metrics // null),
+              prospectiveN: ($m.n // 0),
+              minimumProspectiveN: 100,
+              historicalComparison: ($hist[0].aggregate.comparison // null),
+              historicalPromotionEligible: ($hist[0].promotion.historicalPromotionEligible // false),
+              status:
+                (if ($hist[0].promotion.historicalPromotionEligible // false) != true then "BLOCKED_HISTORICAL_GATE"
+                 elif ($m.n // 0) < 100 then "INSUFFICIENT_PROSPECTIVE_SAMPLE"
+                 elif ($m.marketInformed // false) then "BLOCKED_MARKET_CONTAMINATION"
+                 elif (($m.promotionEligible // false) != true) then "BLOCKED_TEMPORAL_INTEGRITY"
+                 else "READY_FOR_MARKET_RELATIVE_VALIDATION" end),
+              canQualify: false,
+              canAuthorizeWager: false,
+              note: "NHL-PRO-v2 remains research-only until prospective OOS and market-relative validation clear separately."
+            }' "$raw" > "$out"
+          cat "$out"
+          {
+            echo "## NHL-PRO-v2 prospective gate"
+            echo "- historical gate: $(jq -r '.historicalPromotionEligible' "$out")"
+            echo "- n: $(jq -r '.prospectiveN' "$out") / $(jq -r '.minimumProspectiveN' "$out")"
+            echo "- status: $(jq -r '.status' "$out")"
+            echo "- margin MAE: $(jq -r '.metrics.margin.mae // "NA"' "$out")"
+            echo "- total MAE: $(jq -r '.metrics.total.mae // "NA"' "$out")"
+            echo "- Brier: $(jq -r '.metrics.probability.brier // "NA"' "$out")"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-pro-v2-prospective-${{ github.run_id }}
+          path: artifacts/nhl-pro-v2-prospective.json
+          retention-days: 90
