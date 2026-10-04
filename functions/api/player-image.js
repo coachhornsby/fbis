@@ -26,6 +26,47 @@ function slugify(v){
     .toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
 }
 
+
+function walkObjects(value,out=[]){
+  if(!value||typeof value!=="object") return out;
+  if(Array.isArray(value)){
+    for(const v of value) walkObjects(v,out);
+    return out;
+  }
+  out.push(value);
+  for(const v of Object.values(value)) walkObjects(v,out);
+  return out;
+}
+
+async function espnPlayerHeadshot(name,sport){
+  const map={
+    nfl:{searchSport:"football",league:"nfl",cdn:"nfl"},
+    cfb:{searchSport:"football",league:"college-football",cdn:"college-football"},
+    mlb:{searchSport:"baseball",league:"mlb",cdn:"mlb"},
+    nba:{searchSport:"basketball",league:"nba",cdn:"nba"},
+    wnba:{searchSport:"basketball",league:"wnba",cdn:"wnba"},
+    nhl:{searchSport:"hockey",league:"nhl",cdn:"nhl"}
+  };
+  const cfg=map[String(sport||"").toLowerCase()];
+  if(!cfg) return null;
+  const url="https://site.web.api.espn.com/apis/search/v2?limit=20&query="+encodeURIComponent(name)+"&sport="+encodeURIComponent(cfg.searchSport);
+  const res=await fetch(url,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
+  if(!res.ok) return null;
+  const body=await res.json().catch(()=>null);
+  const needle=norm(name);
+  const objs=walkObjects(body,[]);
+  const hit=objs.find(o=>{
+    const n=norm(o?.displayName||o?.fullName||o?.name||"");
+    const id=String(o?.id||o?.uid||"");
+    return n===needle && /\d+/.test(id);
+  });
+  if(!hit) return null;
+  const idMatch=String(hit.id||hit.uid||"").match(/(\d+)$/);
+  const id=idMatch?.[1]||null;
+  if(!id) return null;
+  return "https://a.espncdn.com/i/headshots/"+cfg.cdn+"/players/full/"+id+".png";
+}
+
 async function prizePicksResearchImage(name,sport){
   if(!sport) return null;
   const page=`https://www.prizepicks.com/research/${encodeURIComponent(sport)}/players/${encodeURIComponent(slugify(name))}`;
@@ -115,6 +156,9 @@ export async function onRequestGet(context){
   if(exact && isRealHeadshot(exact.player_headshot_url)) {
     return json({ok:true,found:true,name:exact.player_name,sport:exact.sport,imageUrl:exact.player_headshot_url,source:"PRIZEPICKS_FEED"});
   }
+
+  const espnImage=await espnPlayerHeadshot(name,sport).catch(()=>null);
+  if(espnImage) return json({ok:true,found:true,name,sport,imageUrl:espnImage,source:"ESPN_HEADSHOT"});
 
   const prizeImage=await prizePicksResearchImage(name,sport).catch(()=>null);
   if(prizeImage) return json({ok:true,found:true,name,sport,imageUrl:prizeImage,source:"PRIZEPICKS_RESEARCH"});
