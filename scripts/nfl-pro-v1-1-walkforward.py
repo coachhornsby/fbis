@@ -53,6 +53,11 @@ NGS_BASES=[
 MARGIN_V12=MARGIN_V11+[f"diff_{x}" for x in NGS_BASES]
 TOTAL_V12=TOTAL_V11+[f"sum_{x}" for x in NGS_BASES]
 
+# v2 conditional features: use advanced data as context/matchup interactions rather than raw point bonuses.
+V2_CONDITIONAL=["ngs_qb_cpoe_x_pass_def","ngs_ttt_x_sack_def","ngs_ryoe_x_rush_def","ngs_separation_x_pass_def","ngs_yacoe_x_pass_def"]
+MARGIN_V2=MARGIN_V12+V2_CONDITIONAL
+TOTAL_V2=TOTAL_V12+[f"abs_{x}" for x in V2_CONDITIONAL]
+
 def finite(v):
     try:
         x=float(v); return x if np.isfinite(x) else None
@@ -66,7 +71,16 @@ def prep(df):
         if hc not in d.columns: d[hc]=np.nan
         if ac not in d.columns: d[ac]=np.nan
         d[f"sum_{b}"]=pd.to_numeric(d[hc],errors="coerce")+pd.to_numeric(d[ac],errors="coerce")
-    for f in MARGIN_V12:
+    # Conditional NGS x opponent football-strength features, all pregame/lagged.
+    def diffcol(base):
+        return pd.to_numeric(d.get(f"home_{base}"),errors="coerce")-pd.to_numeric(d.get(f"away_{base}"),errors="coerce")
+    d["ngs_qb_cpoe_x_pass_def"]=diffcol("pregame_l5_ngs_qb_cpoe") * (-diffcol("pregame_l5_def_pass_epa_per_play"))
+    d["ngs_ttt_x_sack_def"]=diffcol("pregame_l5_ngs_time_to_throw") * diffcol("pregame_l5_def_sack_rate")
+    d["ngs_ryoe_x_rush_def"]=diffcol("pregame_l5_ngs_ryoe_per_att") * (-diffcol("pregame_l5_def_rush_epa_per_play"))
+    d["ngs_separation_x_pass_def"]=diffcol("pregame_l5_ngs_separation") * (-diffcol("pregame_l5_def_pass_epa_per_play"))
+    d["ngs_yacoe_x_pass_def"]=diffcol("pregame_l5_ngs_yac_oe") * (-diffcol("pregame_l5_def_pass_epa_per_play"))
+    for x in V2_CONDITIONAL:d[f"abs_{x}"]=d[x].abs()
+    for f in MARGIN_V2:
         if f not in d.columns: d[f]=np.nan
     return d
 
@@ -163,17 +177,19 @@ def main():
     baseline=pd.concat([baseline_for_season(d,s) for s in range(2016,2027)])
     v11,folds11,pro11=build_oos(d,baseline,MARGIN_V11,TOTAL_V11)
     v12,folds12,pro12=build_oos(d,baseline,MARGIN_V12,TOTAL_V12)
-    ix=v11.index.intersection(v12.index)
-    v11=v11.loc[ix];v12=v12.loc[ix]
+    v2,folds2,pro2=build_oos(d,baseline,MARGIN_V2,TOTAL_V2)
+    ix=v11.index.intersection(v12.index).intersection(v2.index)
+    v11=v11.loc[ix];v12=v12.loc[ix];v2=v2.loc[ix]
     a=d.loc[ix]
     b=baseline.loc[ix]
     market_m=-pd.to_numeric(a.closing_home_spread,errors="coerce")
     market_t=pd.to_numeric(a.closing_total,errors="coerce")
     actual=pd.DataFrame({"home_margin":a.home_margin,"final_total":a.final_total})
-    m11=metrics_for(v11);m12=metrics_for(v12)
+    m11=metrics_for(v11);m12=metrics_for(v12);m2=metrics_for(v2)
     base=fold_metrics(actual,b.base_margin,b.base_total)
     market=fold_metrics(actual,market_m,market_t)
     beats11={"marginMae":m12["marginMae"]<m11["marginMae"],"totalMae":m12["totalMae"]<m11["totalMae"],"winnerAccuracy":m12["winnerAccuracy"]>m11["winnerAccuracy"]}
+    beats12={"marginMae":m2["marginMae"]<m12["marginMae"],"totalMae":m2["totalMae"]<m12["totalMae"],"winnerAccuracy":m2["winnerAccuracy"]>m12["winnerAccuracy"]}
     beatsMarket={"marginMae":m12["marginMae"]<market["marginMae"],"totalMae":m12["totalMae"]<market["totalMae"],"winnerAccuracy":m12["winnerAccuracy"]>market["winnerAccuracy"]}
 
     tr=d[d.season<=2025]
@@ -184,23 +200,23 @@ def main():
          "margin":export_fit(mm,MARGIN_V12),"total":export_fit(tm,TOTAL_V12),"trainedThroughSeason":2025,
          "featureFamilies":["EPA","QB","NextGen passing","NextGen rushing","NextGen receiving","weather/rest"]}
 
-    report={"modelId":"NFL-PRO-v1.2","design":"regularized EPA/QB core + lagged Next Gen tracking + independent form prior",
+    report={"modelId":"NFL-PRO-v2-research","design":"regularized EPA/QB + lagged NGS + conditional NGS x opponent-strength interactions + independent form prior",
             "sample":{"startSeason":2018,"endSeason":2026,"n":int(len(ix))},
             "featureCounts":{"v11Margin":len(MARGIN_V11),"v11Total":len(TOTAL_V11),"v12Margin":len(MARGIN_V12),"v12Total":len(TOTAL_V12)},
-            "ridgeAlpha":ALPHA,"nestedBlendSelection":True,"v12":m12,"v11":m11,"baseline":base,"market":market,
+            "ridgeAlpha":ALPHA,"nestedBlendSelection":True,"v2":m2,"v12":m12,"v11":m11,"baseline":base,"market":market,"featureCounts":{"v2Margin":len(MARGIN_V2),"v2Total":len(TOTAL_V2),"conditional":len(V2_CONDITIONAL)},
             "deltas":{"marginMaeVsV11":m12["marginMae"]-m11["marginMae"],"totalMaeVsV11":m12["totalMae"]-m11["totalMae"],
                       "winnerAccuracyVsV11":m12["winnerAccuracy"]-m11["winnerAccuracy"],
                       "marginMaeVsMarket":m12["marginMae"]-market["marginMae"],"totalMaeVsMarket":m12["totalMae"]-market["totalMae"],
                       "winnerAccuracyVsMarket":m12["winnerAccuracy"]-market["winnerAccuracy"]},
-            "beatsV11":beats11,"beatsMarket":beatsMarket,
-            "promotionEvidencePass":bool(len(ix)>=400 and all(beats11.values())),
+            "beatsV11":beats11,"beatsV12":beats12,"beatsMarket":beatsMarket,
+            "promotionEvidencePass":bool(len(ix)>=400 and all(beats12.values()) and m2["marginMae"]<base["marginMae"] and m2["totalMae"]<base["totalMae"] and m2["winnerAccuracy"]>base["winnerAccuracy"]),
             "marketBeatAllThree":bool(all(beatsMarket.values())),
             "governance":"Research evidence only. Promotion requires all predeclared v1.1 comparisons plus prospective stability; market benchmark is never an input.",
             "foldsV11":folds11,"foldsV12":folds12}
     (OUT/"report.json").write_text(json.dumps(report,indent=2))
     (OUT/"frozen-fit-through-2025.json").write_text(json.dumps(fit,indent=2))
     pd.DataFrame({"season":a.season,"game_id":a.game_id,"actual_margin":a.home_margin,"actual_total":a.final_total,
-                  "v11_margin":v11["margin"],"v11_total":v11["total"],"v12_margin":v12["margin"],"v12_total":v12["total"],
+                  "v11_margin":v11["margin"],"v11_total":v11["total"],"v12_margin":v12["margin"],"v12_total":v12["total"],"v2_margin":v2["margin"],"v2_total":v2["total"],
                   "market_margin":market_m,"market_total":market_t},index=ix).to_csv(OUT/"oos-predictions.csv",index=False)
     print(json.dumps(report,indent=2))
 
