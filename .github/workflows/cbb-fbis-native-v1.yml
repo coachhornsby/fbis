@@ -14,6 +14,7 @@ on:
       - "scripts/cbb-fbis-native-v1-aggregate.mjs"
       - "scripts/cbb-fbis-v2-fit.mjs"
       - "scripts/cbb-hca-rankings-v1.mjs"
+      - "scripts/cbb-money-selector-v1.mjs"
       - "test/cbb-fbis-native-v1.test.js"
       - ".github/workflows/cbb-fbis-native-v1.yml"
   workflow_dispatch:
@@ -126,6 +127,11 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/cbb-fbis-v2-fit.mjs artifacts/cbb-fbis-native-v2-predictions.json | tee artifacts/cbb-fbis-v2-fit.log
+      - name: Fit money-first market residual selector
+        run: |
+          set -euo pipefail
+          node scripts/cbb-money-selector-v1.mjs artifacts/cbb-fbis-native-v2-predictions.json artifacts/cbb-fbis-v2-fit.json | tee artifacts/cbb-money-selector-v1.log
+          jq -e '.id == "CBB-MONEY-SELECTOR-v1" and .automaticWagerAuthorization == false' artifacts/cbb-money-selector-v1.json >/dev/null
       - name: Syntax check HCA rankings generator
         run: node --check scripts/cbb-hca-rankings-v1.mjs
       - name: Generate current FBIS HCA rankings
@@ -148,6 +154,9 @@ jobs:
             jq -r '"- dedicated margin layer enabled: \(.margin.enabled), validation gain=\(.margin.evaluation.validation.gain), 2025 gain=\(.margin.evaluation.confirmation.gain)"' "$FIT"
             jq -r '"- market confidence layer enabled: \(.confidence.enabled), validation ROI=\(.confidence.evaluation.validation.roi)%, 2025 ROI=\(.confidence.evaluation.confirmation.roi)%"' "$FIT"
             jq -r '"- HCA rankings: teams=\(.teams), venue coverage=\(.venueCoveragePct)%, altitude coverage=\(.altitudeCoveragePct)%"' artifacts/cbb-hca-rankings-v1.json
+            jq -r '"- money selector side threshold=\(.models.side.thresholdSelection.threshold), validation ROI=\(.models.side.validation.roi)%, 2025 secondary ROI=\(.models.side.secondary2025.roi)%"' artifacts/cbb-money-selector-v1.json
+            jq -r '"- frozen side dislocation >=10: validation ROI=\(.sideDislocation.validation.roi)%, 2025 secondary ROI=\(.sideDislocation.secondary2025.roi)%"' artifacts/cbb-money-selector-v1.json
+            jq -r '"- money selector total threshold=\(.models.total.thresholdSelection.threshold), validation ROI=\(.models.total.validation.roi)%, 2025 secondary ROI=\(.models.total.secondary2025.roi)%"' artifacts/cbb-money-selector-v1.json
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
@@ -161,5 +170,7 @@ jobs:
             artifacts/cbb-hca-rankings-v1.json
             artifacts/cbb-hca-rankings-v1.csv
             artifacts/cbb-hca-rankings-v1.log
+            artifacts/cbb-money-selector-v1.json
+            artifacts/cbb-money-selector-v1.log
           if-no-files-found: error
           retention-days: 90
