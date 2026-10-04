@@ -165,6 +165,21 @@ function groups(rows,keyFn,minN=100){
   const m=new Map();for(const r of rows){const k=String(keyFn(r)??"UNKNOWN");if(!m.has(k))m.set(k,[]);m.get(k).push(r);}
   return Object.fromEntries([...m.entries()].filter(([,v])=>v.length>=minN).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>[k,{projection:propMetrics(v),threshold:thresholdMetrics(v)}]));
 }
+function explodedLineMetrics(rows){
+  if(!rows.length)return null;
+  let hit=0,baseHit=0,brier=0,baseBrier=0;
+  for(const r of rows){
+    hit+=(r.p>=0.5)===Boolean(r.y)?1:0;
+    baseHit+=(r.bp>=0.5)===Boolean(r.y)?1:0;
+    brier+=(r.p-r.y)**2;baseBrier+=(r.bp-r.y)**2;
+  }
+  const n=rows.length;
+  return {n,accuracy:round(hit/n,4),baselineAccuracy:round(baseHit/n,4),brier:round(brier/n,5),baselineBrier:round(baseBrier/n,5),accuracyDelta:round((hit-baseHit)/n,4),brierDelta:round((brier-baseBrier)/n,5)};
+}
+function lineGroups(rows,keyFn,minN=100){
+  const m=new Map();for(const r of rows){const k=String(keyFn(r)??"UNKNOWN");if(!m.has(k))m.set(k,[]);m.get(k).push(r);}
+  return Object.fromEntries([...m.entries()].filter(([,v])=>v.length>=minN).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>[k,{threshold:explodedLineMetrics(v)}]));
+}
 function marketLines(m){return m==="shots_on_goal"?[1.5,2.5,3.5,4.5]:m==="goals"?[0.5]:m==="assists"?[0.5,1.5]:m==="points"?[0.5,1.5]:m==="saves"?[20.5,24.5,27.5,30.5,34.5]:[];}
 function phase(i,n){const x=i/Math.max(1,n);return x<1/3?"EARLY":x<2/3?"MIDDLE":"LATE";}
 function sampleBand(n){return n<10?"<10":n<30?"10-29":n<60?"30-59":"60+";}
@@ -272,8 +287,8 @@ for(const r of allRows)for(const line of r.lines||[]){
   const y=r.actual>line?1:0,p=r.market==="saves"?overProb(r.v2,r.sigma,line):lineProbPoisson(r.v2,line),bp=r.market==="saves"?overProb(r.baseline,r.sigma,line):lineProbPoisson(r.baseline,line);
   lineRows.push({...r,line,y,p,bp,edge:Math.abs(p-0.5)});
 }
-const byLine=groups(lineRows,r=>`${r.market}:${r.line}`,100);
-const byEdge=groups(lineRows,r=>r.edge<0.05?"<5%":r.edge<0.10?"5-9.9%":r.edge<0.15?"10-14.9%":r.edge<0.20?"15-19.9%":"20%+",200);
+const byLine=lineGroups(lineRows,r=>`${r.market}:${r.line}`,100);
+const byEdge=lineGroups(lineRows,r=>r.edge<0.05?"<5%":r.edge<0.10?"5-9.9%":r.edge<0.15?"10-14.9%":r.edge<0.20?"15-19.9%":"20%+",200);
 
 const full=buildStateFromSeasons(seasons),artifactPlayers={},artifactGoalies={};
 for(const [id,p] of full.players){
@@ -288,12 +303,20 @@ for(const [id,g] of full.goalies){
   artifactGoalies[id]={team:g.team,games:g.gp,starts:g.starts,savePct:round(g.shotsAgainst?g.saves/g.shotsAgainst:leagueSave,5),
     savesPerStart:round(g.starts?g.saves/g.starts:0,4),sigmaSaves:round(playerSigma(g,null,"saves",g.starts?g.saves/g.starts:25),4)};
 }
+const marketValidation=Object.fromEntries(["shots_on_goal","goals","assists","points","saves"].map(m=>{
+  const aggregateRows=allRows.filter(r=>r.market===m),aggP=propMetrics(aggregateRows),aggT=thresholdMetrics(aggregateRows);
+  const foldChecks=folds.map(f=>f.markets[m]).filter(Boolean);
+  const strict=aggP?.maeDelta<0&&aggT?.brierDelta<0&&aggT?.accuracyDelta>=0&&foldChecks.every(x=>x.projection?.maeDelta<=0&&x.threshold?.brierDelta<=0&&x.threshold?.accuracyDelta>=0);
+  const watch=!strict&&aggP?.maeDelta<=0&&aggT?.brierDelta<=0;
+  return [m,{status:strict?"PROMOTE_RESEARCH":watch?"WATCH_RESEARCH":"HOLD_RESEARCH",aggregateProjection:aggP,aggregateThreshold:aggT,folds:foldChecks.map((x,i)=>({season:folds[i]?.season,projection:x.projection,threshold:x.threshold}))}];
+}));
+
 const report={
   modelId:"NHL-PLAYER-PRO-v2",version:"research-v2.0-share-environment",generatedAt:new Date().toISOString(),
   conditionalOnActive:true,conditionalOnConfirmedStarter:true,marketInformed:false,
   integrity:{priorSeasonsOnlyTraining:true,currentSeasonOnlyPastGames:true,usesSameGameBoxscoreOnlyForParticipationSet:true,fetchErrors:errors.length,targetSeasons:seasons.slice(1)},
   aggregate:{projection:propMetrics(allRows),threshold:thresholdMetrics(allRows),rows:allRows.length,lineTests:lineRows.length},
-  folds,subsets:subset,bySyntheticLine:byLine,byModelEdge:byEdge,
+  folds,marketValidation,subsets:subset,bySyntheticLine:byLine,byModelEdge:byEdge,
   limitations:[
     "Historical prop validation is conditional on the player being active in the game; same-game boxscore participation is used only to define the active set, never as a performance input.",
     "Goalie save validation is conditional on the actual primary goalie (>=30 minutes); live use remains gated on starter confirmation.",
@@ -302,7 +325,7 @@ const report={
 };
 const artifact={modelId:"NHL-PLAYER-PRO-v2",version:"research-v2.0-share-environment",generatedAt:new Date().toISOString(),trained:true,marketInformed:false,
   training:{seasons,games:seasons.reduce((n,s)=>n+(gamesBySeason[s]?.length||0),0),boxscoreErrors:errors.length},
-  players:artifactPlayers,goalies:artifactGoalies,validation:{aggregate:report.aggregate,folds:report.folds},
+  players:artifactPlayers,goalies:artifactGoalies,validation:{aggregate:report.aggregate,folds:report.folds,markets:report.marketValidation},
   canQualify:false,canAuthorizeWager:false};
 await mkdir(outPath.split("/").slice(0,-1).join("/")||".",{recursive:true});
 await writeFile(outPath,JSON.stringify(report,null,2)+"\n","utf8");
