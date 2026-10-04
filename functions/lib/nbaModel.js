@@ -1,26 +1,44 @@
 import { pGreater } from "./metrics.js";
 
 export const NBA_MODEL_ID = "NBA-FBIS-v1";
-export const NBA_MODEL_VERSION = "research-v1";
-const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+export const NBA_MODEL_VERSION = "research-v1.1-calibrated";
+export const NBA_CALIBRATION = Object.freeze({
+  trainedOn: "2024-25",
+  trainingCutoff: "2025-06-22",
+  validatedOn: "2025-26",
+  snapshotArtifact: "nba-fbis-v1-research-37186207435",
+  snapshotSha256: "9f26cb0dc9fa9adcd6402658ded270a4bddfda39785bd6582dd18e74b710fc2a",
+  margin: Object.freeze({
+    intercept: -2.346397438207965,
+    slope: 1.9725275799694693,
+    sigma: 14.51007089537082,
+  }),
+  total: Object.freeze({
+    intercept: -166.38760767288522,
+    slope: 1.727311893111435,
+    sigma: 18.51465868687852,
+  }),
+});
+
+const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const round1=v=>Math.round(Number(v)*10)/10;
-const mean=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
 const weighted=(rows,key,halfLife=8)=>{
   let num=0,den=0;
   const sorted=[...(rows||[])].sort((a,b)=>Date.parse(b.date||b.start||0)-Date.parse(a.date||a.start||0));
   sorted.forEach((r,i)=>{const v=finite(r?.[key]);if(v==null)return;const w=Math.pow(.5,i/halfLife);num+=v*w;den+=w;});
   return den?num/den:null;
 };
-export function estimatePossessions(g){
+
+export function estimatePossessions(g={}){
   const fga=finite(g.fga),orb=finite(g.orb),tov=finite(g.tov),fta=finite(g.fta);
   if([fga,orb,tov,fta].some(v=>v==null)) return finite(g.possessions);
   return fga-orb+tov+0.44*fta;
 }
-export function gameRates(g){
+export function gameRates(g={}){
   const poss=estimatePossessions(g);
   const pf=finite(g.pointsFor),pa=finite(g.pointsAgainst);
-  if(!poss||pf==null||pa==null)return null;
+  if(poss==null||poss<=0||pf==null||pa==null)return null;
   return {...g,possessions:poss,offRtg:100*pf/poss,defRtg:100*pa/poss};
 }
 function priorBlend(current,prior,n,k=12){
@@ -35,11 +53,13 @@ function teamState(history=[],prior={}){
   const pace=priorBlend(weighted(rows,"possessions"),finite(prior.pace)??99.5,n,10);
   const off=priorBlend(weighted(rows,"offRtg"),finite(prior.offRtg)??114.5,n,12);
   const def=priorBlend(weighted(rows,"defRtg"),finite(prior.defRtg)??114.5,n,12);
-  const efg=weighted(rows,"efg");
-  const tov=weighted(rows,"tovPct");
-  const orb=weighted(rows,"orbPct");
-  const ftr=weighted(rows,"ftRate");
-  return {n,pace,off,def,efg,tov,orb,ftr};
+  return {
+    n,pace,off,def,
+    efg:weighted(rows,"efg"),
+    tov:weighted(rows,"tovPct"),
+    orb:weighted(rows,"orbPct"),
+    ftr:weighted(rows,"ftRate"),
+  };
 }
 function restAdjustment(ctx={}){
   const d=finite(ctx.daysRest);
@@ -63,6 +83,11 @@ function availabilityAdjustment(rows=[]){
   }
   return {points,unc};
 }
+export function applyNbaCalibration(rawMargin,rawTotal){
+  const margin=NBA_CALIBRATION.margin.intercept+NBA_CALIBRATION.margin.slope*Number(rawMargin);
+  const total=NBA_CALIBRATION.total.intercept+NBA_CALIBRATION.total.slope*Number(rawTotal);
+  return {margin,total,home:(total+margin)/2,away:(total-margin)/2};
+}
 export function projectNbaGame(game,{homeHistory=[],awayHistory=[],homePrior={},awayPrior={},homeContext={},awayContext={},homeAvailability=[],awayAvailability=[]}={}){
   const h=teamState(homeHistory,homePrior),a=teamState(awayHistory,awayPrior);
   if(!h.n&&!a.n)return {ok:false,reason:"team-history-missing",modelId:NBA_MODEL_ID};
@@ -73,21 +98,28 @@ export function projectNbaGame(game,{homeHistory=[],awayHistory=[],homePrior={},
   const hEff=league+(h.off-league)*.56+(a.def-league)*.44;
   const aEff=league+(a.off-league)*.56+(h.def-league)*.44;
   const hca=game?.neutralSite?0:2.2;
-  const home=expectedPoss/100*hEff+hca/2+hr.pts+ha.points;
-  const away=expectedPoss/100*aEff-hca/2+ar.pts+aa.points;
-  const margin=home-away,total=home+away;
-  const evidence=Math.min(1,Math.min(h.n,a.n)/16);
+  const rawHome=expectedPoss/100*hEff+hca/2+hr.pts+ha.points;
+  const rawAway=expectedPoss/100*aEff-hca/2+ar.pts+aa.points;
+  const rawMargin=rawHome-rawAway,rawTotal=rawHome+rawAway;
+  const calibrated=applyNbaCalibration(rawMargin,rawTotal);
   const availabilityUnc=ha.unc+aa.unc;
-  const sigmaMargin=clamp(13.4-1.8*evidence+availabilityUnc,11.2,17.5);
-  const sigmaTotal=clamp(17.2-1.5*evidence+availabilityUnc*.8,14.8,21.5);
+  const sigmaMargin=clamp(NBA_CALIBRATION.margin.sigma+availabilityUnc,13.5,19.5);
+  const sigmaTotal=clamp(NBA_CALIBRATION.total.sigma+availabilityUnc*.8,17.0,24.0);
   return {
     ok:true,modelId:NBA_MODEL_ID,modelVersion:NBA_MODEL_VERSION,
-    home:round1(home),away:round1(away),margin:round1(margin),total:round1(total),
-    expectedPossessions:round1(expectedPoss),pHomeWin:pGreater(margin,0,sigmaMargin),
+    home:round1(calibrated.home),away:round1(calibrated.away),
+    margin:round1(calibrated.margin),total:round1(calibrated.total),
+    rawHome:round1(rawHome),rawAway:round1(rawAway),rawMargin:round1(rawMargin),rawTotal:round1(rawTotal),
+    expectedPossessions:round1(expectedPoss),
+    pHomeWin:pGreater(calibrated.margin,0,sigmaMargin),
     sigmaMargin:round1(sigmaMargin),sigmaTotal:round1(sigmaTotal),
-    independent:true,marketInformed:false,maturity:"RESEARCH",canQualify:false,canAuthorize:false,
-    decomposition:{home:h,away:a,homeRest:hr,awayRest:ar,homeAvailability:ha,awayAvailability:aa,hca},
-    provenance:{marketUsed:false,featureCutoff:game?.featureCutoff||null}
+    independent:true,marketInformed:false,maturity:"VALIDATION",canQualify:false,canAuthorize:false,
+    decomposition:{
+      home:h,away:a,homeRest:hr,awayRest:ar,homeAvailability:ha,awayAvailability:aa,hca,
+      raw:{home:round1(rawHome),away:round1(rawAway),margin:round1(rawMargin),total:round1(rawTotal)},
+      calibration:NBA_CALIBRATION,
+    },
+    provenance:{marketUsed:false,featureCutoff:game?.featureCutoff||null,snapshotSha256:NBA_CALIBRATION.snapshotSha256}
   };
 }
 export function scheduleContext(games=[],target,index,side){
