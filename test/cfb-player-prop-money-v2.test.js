@@ -1,0 +1,3 @@
+import test from "node:test";import assert from "node:assert/strict";import {buildCfbPropSignal,gradeCfbPropSignal} from "../functions/lib/cfbPlayerPropMoney.js";
+test("freezes CFB prospective prop signal",()=>{const s=buildCfbPropSignal({eventId:"g1",playerName:"QB One",market:"passing_yards",fbisProjection:280,fbisSigma:30,confidenceScore:78,confidenceStars:4},{line:250,collectedAt:"2026-10-04T10:00:00Z"});assert.equal(s.ok,true);assert.equal(s.side,"MORE");assert.equal(s.canAuthorizeWager,false)});
+test("grades and computes directional CLV",()=>{const g=gradeCfbPropSignal({side:"MORE",signalLine:250},275,260);assert.equal(g.result,"WIN");assert.equal(g.lineClv,10)});
