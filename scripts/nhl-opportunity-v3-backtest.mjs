@@ -230,12 +230,6 @@ const report={
   sources:["SportsDataverse nhl_shifts","SportsDataverse nhl_scratches","SportsDataverse nhl_game_rosters","SportsDataverse nhl_skater_boxscores"],
   seasonMap:{discovery,validation,confirmation,currentProspective:2027,note:"2027 file represents 2026-27 and is excluded from historical promotion because the season is only about one week old."},
   selected:{playerOpportunityWeight:best.weight,goalShotWeight:bestGame.goalShotWeight,selectionSeason:discovery},
-  diagnostics:{
-    firstBoxRaw:datasets[0]?.box?.[0]||null,
-    firstBoxParsed:datasets[0]?.box?.[0]?{gameId:gameId(datasets[0].box[0]),playerId:playerId(datasets[0].box[0]),team:team(datasets[0].box[0]),directTeam:datasets[0].box[0].team_abbrev,shots:shots(datasets[0].box[0]),toi:toi(datasets[0].box[0])}:null,
-    firstShiftRaw:datasets[0]?.shifts?.[0]||null,
-    firstShiftParsed:datasets[0]?.shifts?.[0]?{gameId:gameId(datasets[0].shifts[0]),team:String(pick(datasets[0].shifts[0],["event_team","event_team_abbr"])||""),sec:num(pick(datasets[0].shifts[0],["game_seconds"])),on:idsList(pick(datasets[0].shifts[0],["ids_on"]))}:null
-  },
   counts:{
     rosterRows:datasets.reduce((s,d)=>s+d.rosters.length,0),boxRows:datasets.reduce((s,d)=>s+d.box.length,0),
     shiftRows:datasets.reduce((s,d)=>s+d.shifts.length,0),scratchRows:datasets.reduce((s,d)=>s+d.scratches.length,0),
