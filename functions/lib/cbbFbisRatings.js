@@ -8,6 +8,7 @@ import { cbbdGet, cbbSeasonYear } from "./collegeApi.js";
 import { readCache, writeCache } from "./cache.js";
 import { mapSourceTeam } from "./collegeIdentity.js";
 import { buildIndependentHca, hcaForTeam, FBIS_CBB_HISTORICAL_GLOBAL_HCA } from "./cbbFbisHca.js";
+import { conferenceForTeamSeason } from "./cbbConferenceMembership.js";
 
 export const FBIS_CBB_MODEL_ID = "FBIS-CBB-RATINGS-v2";
 export const FBIS_CBB_MODEL_VERSION = "v2.0.0";
@@ -97,7 +98,7 @@ export function normalizeFbisCbbGameTeamRows(rows = [], seasonStart = null) {
       season:Number(row.season ?? seasonStart),
       team, opponent,
       teamId:mapped.ok ? mapped.canonicalId : "name:" + key(team),
-      conference:conferenceOf(row),
+      conference:conferenceOf(row) || conferenceForTeamSeason(team, seasonStart),
       neutral:Boolean(row.neutralSite ?? row.neutral_site ?? row.neutral),
       isHome:Boolean(row.isHome ?? row.is_home ?? String(row.homeAway || row.home_away || "").toLowerCase()==="home"),
       ...stats,
@@ -298,7 +299,7 @@ export function projectFbisCbbGame(game, home, away, {
 }
 
 export async function loadFbisCbbCatalog(env={}, {season=cbbSeasonYear(), asOf=new Date().toISOString(), fetchFn=fetch}={}) {
-  const cacheKey="fbis-cbb-native-v1-"+season+"-"+String(asOf).slice(0,13);
+  const cacheKey="fbis-cbb-native-v2-"+season+"-"+String(asOf).slice(0,13);
   const cached=await readCache(cacheKey,env.caches,CACHE_TTL);
   if(cached?.ok&&cached?.byTeamId)return{...cached,cacheHit:true};
   const res=await cbbdGet("/games/teams",env,{query:{season:Number(season)+1},fetchFn});
