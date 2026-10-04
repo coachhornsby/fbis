@@ -1582,3 +1582,74 @@
     font-size:13px;
   }
 }
+
+
+/* ACTION market intelligence — always visible on NFL compact cards. */
+.fbis-shell-main.route-board .cgc-action-strip {
+  display:grid;
+  grid-template-columns:minmax(108px,1.15fr) repeat(3,minmax(0,1fr));
+  align-items:stretch;
+  gap:0;
+  overflow:hidden;
+  border:1px solid rgba(255,122,0,.32);
+  border-radius:12px;
+  background:
+    radial-gradient(240px 90px at 0% 0%, rgba(255,126,0,.12), transparent 72%),
+    rgba(16,14,11,.72);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+.fbis-shell-main.route-board .cgc-action-brand,
+.fbis-shell-main.route-board .cgc-action-item {
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-width:0;
+  padding:8px 9px;
+}
+.fbis-shell-main.route-board .cgc-action-item {
+  border-left:1px solid rgba(255,142,56,.16);
+}
+.fbis-shell-main.route-board .cgc-action-brand > span,
+.fbis-shell-main.route-board .cgc-action-item > span {
+  color:#f6a55e;
+  font-size:8px;
+  line-height:1;
+  font-weight:950;
+  letter-spacing:.07em;
+}
+.fbis-shell-main.route-board .cgc-action-brand > strong,
+.fbis-shell-main.route-board .cgc-action-item > strong {
+  margin-top:5px;
+  overflow:hidden;
+  color:#fff5e9;
+  font-size:11px;
+  line-height:1.15;
+  font-weight:900;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.fbis-shell-main.route-board .cgc-action-brand > strong {
+  color:#ffbf80;
+}
+.fbis-shell-main.route-board .cgc-action-strip.is-unavailable {
+  border-color:rgba(135,153,173,.24);
+  background:rgba(12,19,28,.62);
+}
+.fbis-shell-main.route-board .cgc-action-strip.is-unavailable .cgc-action-brand > span,
+.fbis-shell-main.route-board .cgc-action-strip.is-unavailable .cgc-action-item > span {
+  color:#7f93aa;
+}
+.fbis-shell-main.route-board .cgc-action-strip.is-unavailable strong {
+  color:#91a1b4;
+}
+@media(max-width:680px) {
+  .fbis-shell-main.route-board .cgc-action-strip {
+    grid-template-columns:1fr 1fr;
+  }
+  .fbis-shell-main.route-board .cgc-action-item {
+    border-left:1px solid rgba(255,142,56,.16);
+  }
+  .fbis-shell-main.route-board .cgc-action-move {
+    border-top:1px solid rgba(255,142,56,.12);
+  }
+}
