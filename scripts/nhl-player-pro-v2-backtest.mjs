@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { rateNhlGoalieSavesConfidence } from "../functions/lib/nhlPropConfidence.js";
 
 const API="https://api-web.nhle.com/v1";
 function arg(name,fallback=null){const p=process.argv.find(x=>x.startsWith(`--${name}=`));return p?p.split("=").slice(1).join("="):fallback;}
@@ -350,6 +351,19 @@ const savesLineRows=lineRows.filter(r=>r.market==="saves").map(r=>({
   projectedShotsFacedQuartile:quartile(r.projectedTeamShots,savesCuts.projectedShotsFaced),
   starterExperienceQuartile:quartile(r.priorGp,savesCuts.priorStarts)
 }));
+const savesStarRows=savesLineRows.map(r=>{
+  const rated=rateNhlGoalieSavesConfidence({
+    projection:r.v2,line:r.line,
+    opponentShotsFor:r.opponentShotsFor,
+    teamShotsAgainst:r.teamShotsAgainst,
+    projectedShotsFaced:r.projectedTeamShots,
+    starterConfirmed:true,
+    lineValidated:true,
+    modelValidated:true,
+    cuts:savesCuts,
+  });
+  return {...r,stars:rated.stars,starTier:rated.tier,starSide:rated.side};
+});
 const savesAudit={
   cuts:savesCuts,
   byLine:savesGroups(savesLineRows,r=>r.line,100),
@@ -365,6 +379,8 @@ const savesAudit={
   byHomeAway:savesGroups(savesLineRows,r=>r.home?"HOME":"AWAY",200),
   byRest:savesGroups(savesLineRows,r=>r.b2b?"B2B":r.restDays>=2.5?"2PLUS_REST":"NORMAL_REST",200),
   bySeasonPhase:savesGroups(savesLineRows,r=>r.seasonPhase,200),
+  byStars:savesGroups(savesStarRows,r=>`${r.stars} STAR`,100),
+  byStarsDirection:savesGroups(savesStarRows,r=>`${r.stars} STAR|${r.direction}`,80),
   sportsbookStyle:{
     weakOffenseStrongDefenseUnder:savesGroups(
       savesLineRows.filter(r=>r.oppShotQuartile==="Q1"&&r.defenseSuppressionQuartile==="Q4"&&r.direction==="UNDER"),
