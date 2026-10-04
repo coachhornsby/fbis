@@ -1,3 +1,4 @@
+const domains={HT:"hanshintigers.jp",YDB:"baystars.co.jp",YG:"giants.jp",CD:"dragons.jp",HC:"carp.co.jp",TYS:"yakult-swallows.co.jp",FSH:"softbankhawks.co.jp",HNF:"fighters.co.jp",OB:"buffaloes.co.jp",TRE:"rakuteneagles.jp",SSL:"seibulions.jp",CLM:"marines.co.jp"};
 const teams = [
 ["HT","Hanshin Tigers","Hanshin Tigers"],
 ["YDB","Yokohama DeNA BayStars","Yokohama DeNA BayStars"],
@@ -13,6 +14,6 @@ const teams = [
 ["CLM","Chiba Lotte Marines","Chiba Lotte Marines"]
 ].map(([abbr,displayName,wikiTitle])=>({
   id:`npb-${abbr.toLowerCase()}`,abbr,displayName,school:displayName,nickname:displayName.split(" ").slice(-1)[0],
-  logo:"",wikiTitle,sources:{heritage:{names:[displayName,displayName.replace("Saitama ","").replace("Chiba ",""),...({SSL:["Seibu","Seibu Lions"],CLM:["Chiba Lotte","Lotte Marines"],HNF:["Nippon Ham","Nippon-Ham Fighters"],FSH:["SoftBank","SoftBank Hawks"],TRE:["Rakuten","Rakuten Eagles"],YDB:["DeNA","Yokohama DeNA"],TYS:["Yakult","Yakult Swallows"],HC:["Hiroshima","Hiroshima Carp"],YG:["Yomiuri","Giants"],CD:["Chunichi"],HT:["Hanshin"],OB:["Orix"]}[abbr]||[])]}}
+  logo:`https://www.google.com/s2/favicons?domain=${domains[abbr]}&sz=256`,wikiTitle,sources:{heritage:{names:[displayName,displayName.replace("Saitama ","").replace("Chiba ",""),...({SSL:["Seibu","Seibu Lions"],CLM:["Chiba Lotte","Lotte Marines"],HNF:["Nippon Ham","Nippon-Ham Fighters"],FSH:["SoftBank","SoftBank Hawks"],TRE:["Rakuten","Rakuten Eagles"],YDB:["DeNA","Yokohama DeNA"],TYS:["Yakult","Yakult Swallows"],HC:["Hiroshima","Hiroshima Carp"],YG:["Yomiuri","Giants"],CD:["Chunichi"],HT:["Hanshin"],OB:["Orix"]}[abbr]||[])]}}
 }));
 export default teams;
