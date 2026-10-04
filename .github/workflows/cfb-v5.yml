@@ -8,6 +8,8 @@ on:
       - "scripts/cfb-fpr.py"
       - "scripts/cfb-fpr-v5-incremental.py"
       - "scripts/cfb-current-rankings.py"
+      - "scripts/cfb-conference-power-v3.py"
+      - "scripts/cfb-subset-audit.py"
       - "scripts/cfb-bulk-history-v3.py"
       - "scripts/cfb-provenance-catalog.py"
       - "scripts/cfb-conference-history.py"
@@ -96,6 +98,10 @@ jobs:
         run: python scripts/cfb-fpr-v5-incremental.py
       - name: Emit current FPR and conference rankings
         run: python scripts/cfb-current-rankings.py
+      - name: Build hierarchical conference power
+        run: python scripts/cfb-conference-power-v3.py
+      - name: Audit OOS subsets
+        run: python scripts/cfb-subset-audit.py
       - uses: actions/upload-artifact@v4
         with:
           name: cfb-v5
@@ -106,4 +112,6 @@ jobs:
             artifacts/cfb-final/fpr/*
             artifacts/cfb-final/fpr-incremental/*
             artifacts/cfb-final/rankings/*
+            artifacts/cfb-final/conference-power/*
+            artifacts/cfb-final/subset-audit/*
           retention-days: 90
