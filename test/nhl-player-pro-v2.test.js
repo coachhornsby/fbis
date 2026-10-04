@@ -5,6 +5,7 @@ import { attachNhlPlayerProjectionResearch } from "../functions/lib/proPlayerPro
 import { normalizeBoardGame } from "../src/features/playerProps/buildPlayerPropsBoard.js";
 import { NHL_PLAYER_PRO_V2_ARTIFACT } from "../data/models/nhl-player-pro-v2.js";
 import { getModel } from "../functions/lib/canonical/modelRegistry.js";
+import { normalizeNhlPlayerEdge, aggregateNhlTrackingMatchup } from "../functions/lib/nhlPlayerTrackingV3.js";
 
 function fixture(){
   const game={
@@ -126,4 +127,36 @@ test("NHL-PLAYER-PRO-v2 registry remains independent research with no wager auth
   assert.equal(model.independent,true);
   assert.equal(model.canQualify,false);
   assert.equal(model.canAuthorizeWager,false);
+});
+
+
+test("NHL player EDGE parser normalizes live tracking metrics without granting authority",()=>{
+  const x=normalizeNhlPlayerEdge({
+    skating:{maxSkatingSpeed:23.4,bursts22Plus:8,totalDistance:3.9},
+    shot:{maxShotSpeed:97.1,avgShotSpeed:82.6,highDangerShots:11,slotShots:17},
+    zone:{offensiveZonePct:0.381}
+  });
+  assert.equal(x.available,true);
+  assert.equal(x.maxSkatingSpeed,23.4);
+  assert.equal(x.maxShotSpeed,97.1);
+  assert.ok(x.coverage>0);
+});
+
+test("NHL tracking matchup is advisory and does not alter v2 projections",()=>{
+  const {game,ctx}=fixture();
+  const edge={
+    byPlayer:{
+      "1":{available:true,maxSkatingSpeed:23,bursts22Plus:7,maxShotSpeed:96,highDangerShots:10,slotShots:14,offensiveZonePct:.38},
+      "2":{available:true,maxSkatingSpeed:22,bursts22Plus:5,maxShotSpeed:94,highDangerShots:8,slotShots:12,offensiveZonePct:.36},
+      "4":{available:true,maxSkatingSpeed:21,bursts22Plus:4,maxShotSpeed:93,highDangerShots:7,slotShots:10,offensiveZonePct:.34}
+    }
+  };
+  const enriched={...ctx,playerEdge:edge};
+  const m=aggregateNhlTrackingMatchup("BOS","WPG",ctx,edge);
+  assert.equal(m.researchOnly,true);
+  assert.ok(m.team.coverage>0);
+  const a=nhlPlayerProV2RowsForSide(game,"home",ctx).map(r=>[r.player.id,r.market,r.projection]);
+  const b=nhlPlayerProV2RowsForSide(game,"home",enriched).map(r=>[r.player.id,r.market,r.projection]);
+  assert.deepEqual(a,b);
+  assert.ok(nhlPlayerProV2RowsForSide(game,"home",enriched).some(r=>r.trackingAdvisory));
 });
