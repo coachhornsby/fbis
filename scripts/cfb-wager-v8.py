@@ -63,8 +63,8 @@ def make_rows(d,kind):
     z["season"]=n(d.season).astype(int).values
     z["game_id"]=d.game_id.values
     z["edge"]=edge.values
-    z["push"]=push.values
-    z["win"]=win.astype(int).values
+    z["push"]=np.asarray(push)
+    z["win"]=np.asarray(win,dtype=int)
     return z.replace([np.inf,-np.inf],np.nan)
 
 def fit_predict_walkforward(z,kind):
