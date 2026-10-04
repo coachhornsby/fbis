@@ -1,8 +1,8 @@
 const teams = [
 ["ATL","Atlanta Dream"],["CHI","Chicago Sky"],["CON","Connecticut Sun"],["DAL","Dallas Wings"],
 ["GSV","Golden State Valkyries"],["IND","Indiana Fever"],["LVA","Las Vegas Aces"],["LAS","Los Angeles Sparks"],
-["MIN","Minnesota Lynx"],["NYL","New York Liberty"],["PHX","Phoenix Mercury"],["SEA","Seattle Storm"],
-["WAS","Washington Mystics"]
+["MIN","Minnesota Lynx"],["NYL","New York Liberty"],["PHX","Phoenix Mercury"],["POR","Portland Fire"],["SEA","Seattle Storm"],
+["TOR","Toronto Tempo"],["WAS","Washington Mystics"]
 ].map(([abbr,displayName]) => ({
   id: `wnba-${abbr.toLowerCase()}`,
   abbr,
