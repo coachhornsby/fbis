@@ -1,0 +1,27 @@
+name: CFB player v1 backtest
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/cfb-player-v1-backtest]
+    paths:
+      - 'scripts/cfb-player-v1-backtest.mjs'
+      - '.github/workflows/cfb-player-v1-backtest.yml'
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      CFB_PLAYER_BT_SEASONS: "2023,2024,2025"
+      CFB_PLAYER_BT_MAX_WEEK: "15"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/cfb-player-v1-backtest.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-player-v1-backtest-${{ github.run_id }}
+          path: artifacts/cfb-player-backtest/
+          retention-days: 30
