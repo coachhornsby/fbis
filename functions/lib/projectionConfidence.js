@@ -20,6 +20,12 @@ function starsFromQuality(q){
   return 1;
 }
 function hasProjection(game={}){
+  const sport=String(game?.sport||"").toLowerCase();
+  if(sport==="nfl" && game?.nflProShadow?.ok){
+    const home=num(game.nflProShadow.home ?? game.nflProShadow.projectedHome);
+    const away=num(game.nflProShadow.away ?? game.nflProShadow.projectedAway);
+    if(Number.isFinite(home)&&Number.isFinite(away)) return true;
+  }
   const home=num(game?.model?.projHome ?? game?.projHome ?? game?.projHomeScore);
   const away=num(game?.model?.projAway ?? game?.projAway ?? game?.projAwayScore);
   return Number.isFinite(home)&&Number.isFinite(away);
@@ -69,25 +75,70 @@ function nflStars(game={},q){
   const pro=game?.nflProShadow||game?.challengers?.["NFL-PRO-v1"];
   const coverage=num(pro?.coverage?.share);
   if(!pro?.ok||!Number.isFinite(coverage)) return null;
-  const quality=Number.isFinite(q)?Math.max(0,Math.min(1,q/100)):0.65;
-  const home=num(game?.model?.projHome ?? game?.projHome ?? game?.projHomeScore);
-  const away=num(game?.model?.projAway ?? game?.projAway ?? game?.projAwayScore);
+
+  // IMPORTANT: use the current NFL-PRO projection itself, never stale fallback
+  // game.model scores. Server-computed confidenceStars is authoritative in the UI,
+  // so stale scores here previously collapsed most/all of the slate to one tier.
+  const home=num(pro?.home ?? pro?.projectedHome);
+  const away=num(pro?.away ?? pro?.projectedAway);
   const margin=Number.isFinite(home)&&Number.isFinite(away)?home-away:NaN;
   const fairHomeSpread=Number.isFinite(margin)?-margin:NaN;
-  const marketSpread=num(game?.market?.execution?.spread ?? game?.market?.consensus?.spread ?? game?.market?.reference?.spread ?? game?.odds?.spread ?? game?.odds?.pinSpread);
   const total=Number.isFinite(home)&&Number.isFinite(away)?home+away:NaN;
-  const marketTotal=num(game?.market?.execution?.total ?? game?.market?.consensus?.total ?? game?.market?.reference?.total ?? game?.odds?.total ?? game?.odds?.pinTotal);
-  const spread=Math.abs(Number.isFinite(fairHomeSpread)&&Number.isFinite(marketSpread)?fairHomeSpread-marketSpread:NaN);
-  const totalDelta=Math.abs(Number.isFinite(total)&&Number.isFinite(marketTotal)?total-marketTotal:NaN);
-  const edgeSignal=Math.max(
-    Number.isFinite(spread)?Math.min(1,spread/7):0,
-    Number.isFinite(totalDelta)?Math.min(1,totalDelta/10):0
+
+  const marketSpread=num(
+    game?.market?.execution?.spread ??
+    game?.market?.consensus?.spread ??
+    game?.market?.reference?.spread ??
+    game?.odds?.spread ??
+    game?.odds?.pinSpread
   );
-  const score=100*(0.45*Math.max(0,Math.min(1,coverage))+0.35*quality+0.20*edgeSignal);
-  if(score>=75) return 5;
+  const marketTotal=num(
+    game?.market?.execution?.total ??
+    game?.market?.consensus?.total ??
+    game?.market?.reference?.total ??
+    game?.odds?.total ??
+    game?.odds?.pinTotal
+  );
+
+  const spreadGap=Math.abs(
+    Number.isFinite(fairHomeSpread)&&Number.isFinite(marketSpread)
+      ? fairHomeSpread-marketSpread
+      : NaN
+  );
+  const totalGap=Math.abs(
+    Number.isFinite(total)&&Number.isFinite(marketTotal)
+      ? total-marketTotal
+      : NaN
+  );
+
+  const quality=Number.isFinite(q)?Math.max(0,Math.min(1,q/100)):0.65;
+  const sigmaMargin=num(pro?.sigmaMargin);
+  const sigmaTotal=num(pro?.sigmaTotal);
+  const uncertaintySignal=Number.isFinite(sigmaMargin)&&Number.isFinite(sigmaTotal)
+    ? Math.max(0,Math.min(1,1-(((sigmaMargin-13.8)/7)*0.6+((sigmaTotal-12.8)/7)*0.4)))
+    : 0.55;
+  const edgeSignal=Math.max(
+    Number.isFinite(spreadGap)?Math.min(1,spreadGap/7):0,
+    Number.isFinite(totalGap)?Math.min(1,totalGap/10):0
+  );
+
+  const availabilityPenalty=
+    game?.availabilityImpact?.criticalUnresolved || game?.availabilityImpact?.stale ? 0.12 : 0;
+
+  // Projection-confidence display only. Not wager authorization and not the
+  // empirically calibrated NFL-CONFIDENCE-v1 wagering score.
+  const score=100*Math.max(0,Math.min(1,
+    0.35*Math.max(0,Math.min(1,coverage))+
+    0.25*quality+
+    0.20*uncertaintySignal+
+    0.20*edgeSignal-
+    availabilityPenalty
+  ));
+
+  if(score>=78) return 5;
   if(score>=60) return 4;
-  if(score>=45) return 3;
-  if(score>=30) return 2;
+  if(score>=48) return 3;
+  if(score>=36) return 2;
   return 1;
 }
 
