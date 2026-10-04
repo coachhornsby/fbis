@@ -2,9 +2,8 @@ name: NHL WIN-v1 validation
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feature/nhl-win-v1-travel-arena-20261004"]
     paths:
-      - "scripts/nhl-pro-v2-walkforward.mjs"
       - "scripts/nhl-win-v1-backtest.mjs"
       - "functions/lib/nhlWinV1.js"
       - "functions/lib/nhlProV2.js"
@@ -37,17 +36,6 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
-      - name: Restore NHL game PBP cache
-        uses: actions/cache@v4.2.0
-        with:
-          path: .cache/nhl-pro-v2
-          key: nhl-pro-v2-pbp-full-v1-${{ runner.os }}-${{ hashFiles('scripts/nhl-pro-v2-walkforward.mjs') }}
-          restore-keys: |
-            nhl-pro-v2-pbp-v1-${{ runner.os }}-
-            nhl-pro-v2-pbp-full-v1-${{ runner.os }}-
-      - name: Build fresh NHL-PRO-v2 PIT feature rows
-        run: |
-          node scripts/nhl-pro-v2-walkforward.mjs             --seasons=20232024,20242025,20252026             --concurrency=8             --cache-dir=.cache/nhl-pro-v2             --out=data/models/nhl-pro-v2-validation.json
       - name: Run NHL-WIN-v1 strict OOS backtest
         run: |
           node scripts/nhl-win-v1-backtest.mjs             --game-validation=data/models/nhl-pro-v2-validation.json             --out=data/models/nhl-win-v1-validation.json             --artifact-out=data/models/nhl-win-v1.js
@@ -64,7 +52,6 @@ jobs:
         with:
           name: nhl-win-v1-${{ github.run_id }}
           path: |
-            data/models/nhl-pro-v2-validation.json
             data/models/nhl-win-v1-validation.json
             data/models/nhl-win-v1.js
           retention-days: 90
@@ -72,7 +59,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/models/nhl-pro-v2-validation.json data/models/nhl-win-v1-validation.json data/models/nhl-win-v1.js
+          git add data/models/nhl-win-v1-validation.json data/models/nhl-win-v1.js
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "data: persist NHL-WIN-v1 validation"
           git push origin HEAD:"${{ github.ref_name }}"
