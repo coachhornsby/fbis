@@ -20,7 +20,7 @@ const CHAMPION_BY_SPORT = Object.freeze({
   mlb: "MLB-SAVANT-RPG-SP",
   cbb: "CBB-FBIS-PURE",
   nfl: "NFL-PRO-v1",
-  nba: "NBA-PINNACLE-IMPLIED",
+  nba: "NBA-FBIS-v1",
 });
 
 const FRESH_MS = 6 * 60 * 60 * 1000;
