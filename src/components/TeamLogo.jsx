@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { resolveTeamLogo } from "../lib/resolveTeamLogo.js";
-import { displayTeamIdentity, teamDisplayName } from "../../functions/lib/teams.js";
+import { displayTeamIdentity, teamDisplayName, identityForSport } from "../../functions/lib/teams.js";
 
 /** Named sizes for board / card hierarchy. */
 export const LOGO_SIZES = Object.freeze({
@@ -86,9 +86,21 @@ export function TeamIdentity({ team, score, size = 22, compact = false, tone = "
   );
 }
 
-export function TicketMatchup({ awayIdentity, homeIdentity, awayTeam, homeTeam, matchupText }) {
-  const away = displayTeamIdentity(awayIdentity, awayTeam);
-  const home = displayTeamIdentity(homeIdentity, homeTeam);
+export function TicketMatchup({ awayIdentity, homeIdentity, awayTeam, homeTeam, matchupText, sport }) {
+  let awayName = awayTeam;
+  let homeName = homeTeam;
+  if ((!awayName || !homeName) && matchupText) {
+    const parts = String(matchupText).split(/\s+(?:@|vs\.?|v)\s+/i);
+    if (parts.length === 2) {
+      awayName = awayName || parts[0].trim();
+      homeName = homeName || parts[1].trim();
+    }
+  }
+  const sportId = String(sport || awayIdentity?.sport || homeIdentity?.sport || "").toLowerCase();
+  const awayResolved = sportId && awayName ? identityForSport(sportId, awayName) : awayIdentity;
+  const homeResolved = sportId && homeName ? identityForSport(sportId, homeName) : homeIdentity;
+  const away = displayTeamIdentity(awayResolved || awayIdentity, awayName);
+  const home = displayTeamIdentity(homeResolved || homeIdentity, homeName);
   const named = teamDisplayName(away) !== "—" && teamDisplayName(home) !== "—";
   return (
     <div className="team-block">
