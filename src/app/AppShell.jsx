@@ -28,7 +28,8 @@ export default function AppShell({
   children,
 }) {
   const dateLabel = formatShellDate(new Date());
-  const showSportFilter = SPORT_FILTER_ROUTES.includes(route);
+  const isPlayerProps = route === "player-props";
+  const showSportFilter = !isPlayerProps && SPORT_FILTER_ROUTES.includes(route);
   const healthDegraded = healthTone === "warn" || healthTone === "bad" || freshnessState === "STALE";
 
   return (
@@ -36,7 +37,7 @@ export default function AppShell({
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
-      <header className="app-header app-shell-header fbis-shell-header">
+      <header className={`app-header app-shell-header fbis-shell-header${isPlayerProps ? " player-props-legacy-header" : ""}`}>
         <div className="shell-brand">
           <h1 className="shell-brand-mark">FBIS</h1>
           <div className="header-divider" />
