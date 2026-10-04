@@ -1748,3 +1748,32 @@
   .fbis-shell-main.route-board .cgc-star-row { gap:1px !important; }
   .fbis-shell-main.route-board .cgc-star-row > span { font-size:17px !important; }
 }
+
+
+/* NFL compact card: decision-first individual-game read. */
+.fbis-shell-main.route-board .cgc-matchup-read{
+  display:flex;flex-direction:column;gap:8px;padding:10px 11px;
+  border:1px solid rgba(82,157,222,.28);border-radius:12px;background:rgba(4,19,36,.72);
+}
+.fbis-shell-main.route-board .cgc-matchup-read-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.fbis-shell-main.route-board .cgc-matchup-read-head>div{display:flex;align-items:center;gap:8px}
+.fbis-shell-main.route-board .cgc-matchup-read-head span{color:#7fcaff;font-size:8px;font-weight:950;letter-spacing:.08em}
+.fbis-shell-main.route-board .cgc-matchup-read-head strong{color:#dcecff;font-size:9px;font-weight:900}
+.fbis-shell-main.route-board .cgc-matchup-read-head>b{color:#8ea5bf;font-size:8px;white-space:nowrap}
+.fbis-shell-main.route-board .cgc-matchup-pills{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.fbis-shell-main.route-board .cgc-matchup-pill{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;padding:6px 4px;border-radius:8px;border:1px solid rgba(108,139,172,.18);background:rgba(5,14,25,.62)}
+.fbis-shell-main.route-board .cgc-matchup-pill span{max-width:100%;overflow:hidden;text-overflow:ellipsis;color:#8097b1;font-size:7px;font-weight:900;letter-spacing:.04em;white-space:nowrap}
+.fbis-shell-main.route-board .cgc-matchup-pill strong{font-size:10px;font-weight:950}
+.fbis-shell-main.route-board .cgc-matchup-pill.tone-home strong{color:#63efb1}
+.fbis-shell-main.route-board .cgc-matchup-pill.tone-away strong{color:#ff9d85}
+.fbis-shell-main.route-board .cgc-matchup-pill.tone-neutral strong{color:#a9b8ca}
+.fbis-shell-main.route-board .cgc-matchup-adjustment{display:flex;align-items:center;justify-content:center;gap:8px;padding-top:2px;color:#8399b3;font-size:8px;font-weight:850}
+.fbis-shell-main.route-board .cgc-matchup-adjustment span{display:flex;align-items:center;gap:4px}
+.fbis-shell-main.route-board .cgc-matchup-adjustment b{color:#f3f8ff;font-size:10px}
+.fbis-shell-main.route-board .cgc-matchup-adjustment i{color:#4c7498;font-style:normal}
+.fbis-shell-main.route-board .cgc[data-sport="nfl"] .cgc-market-strip{border-color:rgba(0,226,151,.22)}
+.fbis-shell-main.route-board .cgc[data-sport="nfl"] .cgc-action-strip{margin-top:-2px}
+@media(max-width:680px){
+ .fbis-shell-main.route-board .cgc-matchup-pills{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .fbis-shell-main.route-board .cgc-matchup-adjustment{justify-content:flex-start;flex-wrap:wrap}
+}
