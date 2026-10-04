@@ -100,7 +100,8 @@ test("v2 may become the research-board model only after strict historical promot
   const board=promoteNhlResearchToBoard(attached);
   assert.equal(board.meta.modelId,NHL_PRO_V2_ID);
   assert.equal(board.meta.v2Promoted,1);
-  assert.equal(board.games[0].model.modelId,NHL_PRO_V2_ID);
+  assert.equal(board.games[0].projectionEngine,NHL_PRO_V2_ID);
+  assert.equal(board.games[0].researchProjection.modelId,NHL_PRO_V2_ID);
   assert.equal(board.games[0].canQualify,false);
 });
 
