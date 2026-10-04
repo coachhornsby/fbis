@@ -10,6 +10,21 @@ function finite(v) {
   return Number.isFinite(n) ? n : null;
 }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function erf(x) {
+  const sign = x < 0 ? -1 : 1;
+  const a = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * a);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a));
+  return sign * y;
+}
+function normalCdf(z) { return 0.5 * (1 + erf(z / Math.sqrt(2))); }
+export function estimatedPropHitProbability(row = {}) {
+  const projection = finite(row.fbisProjection ?? row.projection);
+  const line = finite(row.line ?? row.marketLine);
+  const sigma = finite(row.fbisSigma ?? row.sigma);
+  if (projection == null || line == null || sigma == null || sigma <= 0) return null;
+  return clamp(normalCdf(Math.abs(projection - line) / sigma), 0.5, 0.999);
+}
 
 const RELIABLE_SIGMA_SPORTS = new Set(["nfl","mlb","nhl","wnba","nba","cfb","cbb","tennis"]);
 
@@ -91,6 +106,8 @@ export function rankSelectiveProps(rows = [], opts = {}) {
     if (projection == null || line == null || stars == null) return null;
     const delta = projection - line;
     const z = sigma != null && sigma > 0 ? Math.abs(delta) / sigma : null;
+    const estimatedHitProbability = estimatedPropHitProbability(row);
+    const roleConfidence = finite(row.roleConfidence ?? row.role_confidence);
     const qRaw = finite(row.dataQuality ?? row.data_quality);
     const quality = qRaw == null ? 0.7 : clamp(qRaw > 1 ? qRaw / 100 : qRaw, 0, 1);
     return {
@@ -123,6 +140,6 @@ export function rankSelectiveProps(rows = [], opts = {}) {
   return {
     rows: out,
     counts: { input: (rows || []).length, modelable: ranked.length, published: out.length },
-    policy: { maxRows, minStars, maxPerEvent, maxPerPlayer, quotaBySport: false, fillWeakQuota: false },
+    policy: { maxRows, minStars, maxPerEvent, maxPerPlayer, minHitProbability, minRoleConfidence, quotaBySport: false, fillWeakQuota: false },
   };
 }
