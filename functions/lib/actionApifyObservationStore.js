@@ -122,15 +122,44 @@ export async function persistFullMarketObservation(db, row, ctx = {}) {
       [runId, actionGameId, row.period || "event", sourceObservedAt || "", payloadIdentity]
     );
     if (existing?.id) {
+      // A parent shadow row can survive a timeout that occurred before the
+      // canonical per-book series was written. Replays must therefore repair
+      // the idempotent child series instead of returning early at the parent.
+      const replayProfile = String(ctx.profile || "BASE").toUpperCase();
+      const replayPersistProps =
+        replayProfile === "PLAYER_PROPS" ||
+        replayProfile === "CAPABILITY_AUDIT" ||
+        Boolean(ctx.persistProps);
+      let series = { inserted: 0, ignored: 0, pointers: 0 };
+      try {
+        const seriesCtx = {
+          canonicalEventId: fbisEventId,
+          sport: ctx.sport || row.sport || null,
+          matchConfidence: confidence,
+          runId,
+          sourceObservationId: existing.id,
+          collectedAt: now,
+          lifecycle: ctx.lifecycle || row.temporalClass || null,
+          temporalClass: row.temporalClass || ctx.temporalClass || null,
+          snapshotType: ctx.snapshotType || null,
+        };
+        const seriesRows = [
+          ...expandBookObservations(row, seriesCtx),
+          ...(replayPersistProps ? expandPlayerPropObservations(row, seriesCtx) : []),
+        ];
+        series = await persistActionObservationSeries(db, seriesRows);
+      } catch {
+        series = { inserted: 0, ignored: 0, pointers: 0, error: true };
+      }
       return {
         observationId: existing.id,
         books: 0,
         splits: 0,
         movement: 0,
-        props: 0,
+        props: replayPersistProps && Array.isArray(row.playerProps) ? row.playerProps.length : 0,
         fbisEventId,
         confidence,
-        series: { inserted: 0, ignored: 0, pointers: 0 },
+        series,
         skipped: true,
         idempotentReplay: true,
       };
