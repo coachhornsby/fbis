@@ -237,14 +237,18 @@ export default function MyBetsView({
                   </div>
                   <div className="muted">{b.date}</div>
                   <div style={{ marginTop: 6 }}>
-                    <TicketMatchup
-                      awayIdentity={b.awayIdentity}
-                      homeIdentity={b.homeIdentity}
-                      awayTeam={b.awayTeam}
-                      homeTeam={b.homeTeam}
-                      matchupText={b.matchupText}
-                      sport={b.sport}
-                    />
+                    {String(b.market || "").toUpperCase() === "PLAYER_PROP" ? (
+                      <PlayerPropParticipants bet={b} />
+                    ) : (
+                      <TicketMatchup
+                        awayIdentity={b.awayIdentity}
+                        homeIdentity={b.homeIdentity}
+                        awayTeam={b.awayTeam}
+                        homeTeam={b.homeTeam}
+                        matchupText={b.matchupText}
+                        sport={b.sport}
+                      />
+                    )}
                   </div>
                   <div className="mobile-kv-grid" style={{ marginTop: 8 }}>
                     <div><small>Book</small><b>{b.executionBook || "—"}</b></div>
@@ -292,14 +296,18 @@ export default function MyBetsView({
                       <div className="muted">{b.date}</div>
                     </td>
                     <td>
-                      <TicketMatchup
-                        awayIdentity={b.awayIdentity}
-                        homeIdentity={b.homeIdentity}
-                        awayTeam={b.awayTeam}
-                        homeTeam={b.homeTeam}
-                        matchupText={b.matchupText}
-                        sport={b.sport}
-                      />
+                      {String(b.market || "").toUpperCase() === "PLAYER_PROP" ? (
+                        <PlayerPropParticipants bet={b} compact />
+                      ) : (
+                        <TicketMatchup
+                          awayIdentity={b.awayIdentity}
+                          homeIdentity={b.homeIdentity}
+                          awayTeam={b.awayTeam}
+                          homeTeam={b.homeTeam}
+                          matchupText={b.matchupText}
+                          sport={b.sport}
+                        />
+                      )}
                     </td>
                     <td className="nowrap">{b.executionBook || "—"}</td>
                     <td className="nowrap">{formatMarketPeriod(b.market, b.period)}</td>
@@ -333,6 +341,74 @@ export default function MyBetsView({
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+
+const PLAYER_IMAGE_CACHE = new Map();
+
+function propPlayerNames(bet) {
+  if (bet?.playerName) return [String(bet.playerName).trim()].filter(Boolean);
+  const raw = String(bet?.selectedTeam || bet?.selectedSide || "");
+  return raw.split("/").map((part) => {
+    const clean = part.trim();
+    const match = clean.match(/^(.+?)\s+(?:(?:M|L|O|U|Over|Under)\s*)?-?\d+(?:\.\d+)?\b/i);
+    return (match?.[1] || "").trim();
+  }).filter(Boolean).slice(0, 6);
+}
+
+function PlayerHeadshot({ name, sport, size = 36 }) {
+  const [imageUrl, setImageUrl] = useState(() => PLAYER_IMAGE_CACHE.get(String(sport)+"|"+String(name)) || null);
+  useEffect(() => {
+    if (!name) return;
+    const key = String(sport)+"|"+String(name);
+    if (PLAYER_IMAGE_CACHE.has(key)) {
+      setImageUrl(PLAYER_IMAGE_CACHE.get(key));
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/player-image?name=${encodeURIComponent(name)}&sport=${encodeURIComponent(sport || "")}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((body) => {
+        const url = body?.found ? body.imageUrl : null;
+        PLAYER_IMAGE_CACHE.set(key, url);
+        if (!cancelled) setImageUrl(url);
+      })
+      .catch(() => {
+        PLAYER_IMAGE_CACHE.set(key, null);
+        if (!cancelled) setImageUrl(null);
+      });
+    return () => { cancelled = true; };
+  }, [name, sport]);
+  return imageUrl ? (
+    <img
+      src={imageUrl}
+      alt={name}
+      width={size}
+      height={size}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",objectPosition:"center top",background:"rgba(255,255,255,.08)"}}
+    />
+  ) : (
+    <span className="team-logo-fallback team-logo-plate" style={{width:size,height:size,fontSize:Math.max(9,size*.28)}}>
+      {String(name||"?").split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()}
+    </span>
+  );
+}
+
+function PlayerPropParticipants({ bet, compact = false }) {
+  const names = propPlayerNames(bet);
+  if (!names.length) return <div className="muted">{bet.matchupText || "Player prop"}</div>;
+  return (
+    <div style={{display:"grid",gap:6}}>
+      {names.map((name) => (
+        <div key={name} style={{display:"flex",alignItems:"center",gap:9}}>
+          <PlayerHeadshot name={name} sport={bet.sport} size={compact ? 28 : 38} />
+          <span style={{fontWeight:700}}>{name}</span>
+        </div>
+      ))}
     </div>
   );
 }
