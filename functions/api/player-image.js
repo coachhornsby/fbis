@@ -90,6 +90,64 @@ async function nflOfficialHeadshot(name){
   return candidates[0]||null;
 }
 
+
+function decodeHtml(v){
+  return String(v||"")
+    .replace(/&amp;/g,"&").replace(/&#39;/g,"'").replace(/&quot;/g,'"')
+    .replace(/&lt;/g,"<").replace(/&gt;/g,">");
+}
+
+async function atpOfficialHeadshot(name){
+  const searchUrl="https://www.atptour.com/en/players?search="+encodeURIComponent(name);
+  const res=await fetch(searchUrl,{headers:{"user-agent":"Mozilla/5.0","accept":"text/html"}});
+  if(!res.ok) return null;
+  const html=await res.text();
+  const needle=norm(name);
+  const candidates=[];
+  const re=/href=["']([^"']*\/en\/players\/([^/"']+)\/([a-z0-9]{4,})\/(?:overview|bio|player-stats|rankings-breakdown)[^"']*)["']/ig;
+  let m;
+  while((m=re.exec(html))){
+    const href=decodeHtml(m[1]);
+    const slug=decodeHtml(m[2]);
+    const id=String(m[3]||"").toLowerCase();
+    const start=Math.max(0,m.index-500);
+    const end=Math.min(html.length,re.lastIndex+500);
+    const nearby=norm(decodeHtml(html.slice(start,end).replace(/<[^>]+>/g," ")));
+    let score=0;
+    if(norm(slug)===needle) score=100;
+    else if(norm(slug).includes(needle)||needle.includes(norm(slug))) score=92;
+    if(nearby.includes(needle)) score=Math.max(score,96);
+    if(score>0) candidates.push({id,slug,href,score});
+  }
+  candidates.sort((a,b)=>b.score-a.score);
+  const hit=candidates[0]||null;
+  if(!hit?.id) return null;
+
+  const ids=[hit.id.toUpperCase(),hit.id.toLowerCase()];
+  for(const id of ids){
+    const url="https://www.atptour.com/-/media/alias/player-headshot/"+encodeURIComponent(id);
+    try{
+      const r=await fetch(url,{headers:{accept:"image/*","user-agent":"Mozilla/5.0"}});
+      const type=r.headers.get("content-type")||"";
+      if(r.ok&&type.toLowerCase().startsWith("image/")) return url;
+    }catch{}
+  }
+
+  const profile=hit.href.startsWith("http")?hit.href:"https://www.atptour.com"+hit.href;
+  try{
+    const pr=await fetch(profile,{headers:{"user-agent":"Mozilla/5.0","accept":"text/html"}});
+    if(pr.ok){
+      const ph=await pr.text();
+      const media=[...ph.matchAll(/https?:\/\/[^"'<> ]*atptour[^"'<> ]*(?:player-headshot|headshot)[^"'<> ]*/ig)]
+        .map(x=>decodeHtml(x[0]));
+      if(media[0]) return media[0];
+      const meta=htmlImageMeta(ph);
+      if(meta&&/atptour|akamaized|cloudfront/i.test(meta)) return meta;
+    }
+  }catch{}
+  return null;
+}
+
 async function wtaOfficialHeadshot(name){
   const q="https://api.wtatennis.com/tennis/players?name="+encodeURIComponent(name)+"&page=0&pageSize=20";
   const res=await fetch(q,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
@@ -264,6 +322,12 @@ export async function onRequestGet(context){
   }
 
   if(String(sport||"").toLowerCase()==="tennis"){
+    const atpImage=await atpOfficialHeadshot(name).catch(()=>null);
+    if(atpImage){
+      const out=await candidateResponse(atpImage,{name,sport,source:"ATP_OFFICIAL"},mode);
+      if(out) return out;
+    }
+
     const wtaImage=await wtaOfficialHeadshot(name).catch(()=>null);
     if(wtaImage){
       const out=await candidateResponse(wtaImage,{name,sport,source:"WTA_OFFICIAL"},mode);
