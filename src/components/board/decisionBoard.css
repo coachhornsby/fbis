@@ -1653,3 +1653,98 @@
     border-top:1px solid rgba(255,142,56,.12);
   }
 }
+
+
+/* Board confidence cleanup — isolated from generic card/span styles. */
+.fbis-shell-main.route-board .cgc-star-row {
+  display:inline-flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:2px !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+  height:auto !important;
+  min-height:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  letter-spacing:0 !important;
+  line-height:1 !important;
+}
+
+.fbis-shell-main.route-board .cgc-star-row > span {
+  display:inline-block !important;
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+  height:auto !important;
+  min-height:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  outline:0 !important;
+  font-size:18px !important;
+  line-height:1 !important;
+  letter-spacing:0 !important;
+}
+
+.fbis-shell-main.route-board .cgc-star-row > span.filled {
+  color:#ffd23f !important;
+  text-shadow:
+    0 0 5px rgba(255,210,63,.92),
+    0 0 12px rgba(255,190,30,.48) !important;
+}
+
+.fbis-shell-main.route-board .cgc-star-row > span.empty {
+  color:rgba(255,222,128,.24) !important;
+  text-shadow:none !important;
+}
+
+.fbis-shell-main.route-board .cgc-star-row b {
+  display:none !important;
+}
+
+.fbis-shell-main.route-board .cgc.cgc-five-star {
+  border-color:#ffd23f !important;
+  box-shadow:
+    0 0 0 1px rgba(255,210,63,.62),
+    0 0 10px rgba(255,204,55,.78),
+    0 0 24px rgba(255,184,0,.44),
+    0 18px 40px rgba(0,0,0,.34) !important;
+}
+
+.fbis-shell-main.route-board .cgc.cgc-five-star::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  z-index:9;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,236,151,.72),
+    inset 0 0 18px rgba(255,199,45,.08);
+}
+
+.fbis-shell-main.route-board .cgc.cgc-five-star .cgc-star-row > span.filled {
+  color:#ffe36b !important;
+  text-shadow:
+    0 0 6px rgba(255,229,112,1),
+    0 0 14px rgba(255,198,35,.88),
+    0 0 26px rgba(255,170,0,.50) !important;
+}
+
+@media(max-width:560px){
+  .fbis-shell-main.route-board .cgc-star-row { gap:1px !important; }
+  .fbis-shell-main.route-board .cgc-star-row > span { font-size:17px !important; }
+}
