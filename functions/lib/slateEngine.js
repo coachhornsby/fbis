@@ -50,7 +50,7 @@ import {
 export * from "./slateEngineCore.js";
 export { pinMarkets } from "./pricing.js";
 
-const INDEPENDENT_SCORE_REQUIRED = new Set(["cbb", "nba", "wnba", "nhl", "nfl", "soccer"]);
+const INDEPENDENT_SCORE_REQUIRED = new Set(["cbb", "nba", "wnba", "nhl", "nfl", "soccer", "npb", "kbo"]);
 const CRITICAL_QUALITY_FLAGS = new Set(["pinnacle_implied_score", "market_unresolved"]);
 const MLB_STARTER_FLAGS = new Set(["missing_home_sp", "missing_away_sp"]);
 
@@ -286,7 +286,7 @@ export async function buildSlate(sport, date, env = {}) {
       games: attachKboPlayerProjectionResearch(next.games),
       research: {
         ...(next.research || {}),
-        kboFbisV1: next.kbo || { modelId:"KBO-FBIS-v1", maturity:"RESEARCH", canQualify:false, canAuthorize:false },
+        kboFbisV2: next.kbo || { modelId:"KBO-FBIS-v2", maturity:"RESEARCH", canQualify:false, canAuthorize:false },
       },
     };
   }
@@ -297,7 +297,7 @@ export async function buildSlate(sport, date, env = {}) {
       games: attachNpbPlayerProjectionResearch(next.games),
       research: {
         ...(next.research || {}),
-        npbFbisV1: next.npb || { modelId:"NPB-FBIS-v1", maturity:"RESEARCH", canQualify:false, canAuthorize:false },
+        npbFbisV2: next.npb || { modelId:"NPB-FBIS-v2", maturity:"RESEARCH", canQualify:false, canAuthorize:false },
       },
     };
   }
