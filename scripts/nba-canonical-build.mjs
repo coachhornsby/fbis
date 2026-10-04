@@ -53,7 +53,7 @@ function playerRows(summary){
         const ft=parseMadeAttempted(raw(["FT","free throws"]));
         const name=a.athlete?.displayName||a.displayName;
         if(!name) continue;
-        out.push({
+        const row={
           id:String(a.athlete?.id||a.id||name),
           name,
           teamId:String(team.id||""),
@@ -68,7 +68,9 @@ function playerRows(summary){
           threes:tp.made,tpa:tp.attempted,
           ftm:ft.made,fta:ft.attempted,
           starter:a.starter?1:0
-        });
+        };
+        const hasGameStats=[row.minutes,row.points,row.rebounds,row.assists,row.fga,row.fta,row.turnovers].some(v=>finite(v)!=null);
+        if(hasGameStats) out.push(row);
       }
     }
   }
@@ -158,6 +160,7 @@ const players=rows.flatMap(r=>r.players||[]);
 const minutesCoverage=players.length?players.filter(x=>finite(x.minutes)!=null).length/players.length:0;
 const threeCoverage=players.length?players.filter(x=>finite(x.threes)!=null).length/players.length:0;
 const quality={possessions:possCoverage,playerMinutes:minutesCoverage,playerThrees:threeCoverage};
+console.log(JSON.stringify({quality},null,2));
 
 if(possCoverage<0.90) throw new Error(`NBA canonical quality fail: possession coverage ${possCoverage}`);
 if(minutesCoverage<0.90) throw new Error(`NBA canonical quality fail: minutes coverage ${minutesCoverage}`);
