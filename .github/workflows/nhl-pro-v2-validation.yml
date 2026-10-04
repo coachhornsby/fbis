@@ -4,11 +4,8 @@ on:
   schedule:
     - cron: "15 11 * * 1"
   push:
-    branches:
-      - "feature/nhl-pro-v2-20261003"
-      - main
+    branches: [main]
     paths:
-      - ".github/nhl-v2-run"
       - "scripts/nhl-pro-v2-walkforward.mjs"
       - ".github/workflows/nhl-pro-v2-validation.yml"
   workflow_dispatch:
