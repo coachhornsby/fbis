@@ -1,0 +1,54 @@
+name: NFL feature snapshot
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  push:
+    branches: ["rebuild/nfl-props-edge-v2", "fix/nfl-no-runtime-timeouts"]
+    paths:
+      - "functions/lib/nflVerseFeed.js"
+      - "functions/api/nfl-feature-snapshot.js"
+      - "scripts/nfl-build-feature-snapshot.mjs"
+      - ".github/workflows/nfl-feature-snapshot.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: nfl-feature-snapshot
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Build NFL feature snapshot off request path
+        run: node scripts/nfl-build-feature-snapshot.mjs
+      - name: Publish snapshot to R2
+        if: github.ref_name == 'main' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          code="$(curl -sS --max-time 60 -o /tmp/out.json -w "%{http_code}" \
+            -X PUT \
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \
+            -H "content-type: application/json" \
+            --data-binary @artifacts/nfl-features/latest.json \
+            "${BASE}/api/nfl-feature-snapshot")"
+          cat /tmp/out.json
+          test "$code" = "201"
+          jq -e '.ok==true and .bytes>1000' /tmp/out.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nfl-feature-snapshot-${{ github.run_id }}
+          path: artifacts/nfl-features/latest.json
+          retention-days: 14
