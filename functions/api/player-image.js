@@ -111,7 +111,27 @@ function decodeHtml(v){
     .replace(/&lt;/g,"<").replace(/&gt;/g,">");
 }
 
+const ATP_HEADSHOT_IDS=Object.freeze({
+  "hamad medjedovic":"m0jf",
+  "edas butvilas":"b0mm",
+  "james duckworth":"d994",
+  "maks kasnikowski":"k0hc",
+  "miomir kecmanovic":"ki95",
+  "vilius gaubas":"g0fw",
+});
+
 async function atpOfficialHeadshot(name){
+  const directId=ATP_HEADSHOT_IDS[norm(name)]||null;
+  if(directId){
+    for(const id of [directId.toUpperCase(),directId.toLowerCase()]){
+      const url="https://www.atptour.com/-/media/alias/player-headshot/"+encodeURIComponent(id);
+      try{
+        const r=await fetch(url,{headers:{accept:"image/*","user-agent":"Mozilla/5.0"}});
+        const type=r.headers.get("content-type")||"";
+        if(r.ok&&type.toLowerCase().startsWith("image/")) return url;
+      }catch{}
+    }
+  }
   const searchUrl="https://www.atptour.com/en/players?search="+encodeURIComponent(name);
   const res=await fetch(searchUrl,{headers:{"user-agent":"Mozilla/5.0","accept":"text/html"}});
   if(!res.ok) return null;
