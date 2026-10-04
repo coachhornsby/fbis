@@ -1321,9 +1321,17 @@ function trackerTicket(row,rowNumber){
   const market=trackerMarket(betType,book);
   const line=/^[+-]?\d+(?:\.\d+)?$/.test(entryLine)?Number(entryLine):null;
   const odds=/^[+-]?\d+$/.test(String(row.Odds||"").trim())?Number(row.Odds):null;
-  const selectedSide=/^under\b/i.test(selection)?"UNDER":/^over\b/i.test(selection)?"OVER":null;
   const matchupParts=matchup.includes(" @ ")?matchup.split(" @ ",2):matchup.includes(" vs ")?matchup.split(" vs ",2):[null,null];
   const [awayTeam,homeTeam]=matchupParts;
+  const cleanSelection=market==="SPREAD"
+    ? selection.replace(/\s+[+-]?\d+(?:\.\d+)?\s*$/,"").trim()
+    : selection;
+  const normTeam=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  let selectedSide=/^under\b/i.test(selection)?"UNDER":/^over\b/i.test(selection)?"OVER":null;
+  if(!selectedSide && cleanSelection){
+    if(normTeam(cleanSelection)===normTeam(awayTeam)) selectedSide="AWAY";
+    else if(normTeam(cleanSelection)===normTeam(homeTeam)) selectedSide="HOME";
+  }
   const stableKey=[date,book,sport,matchup,selection,betType,entryLine,risk,toWin].join("|");
   const trackerId="TRACKER-"+sha256(stableKey).slice(0,24).toUpperCase();
   // Keep the deterministic tracker ID as the D1 primary external key. Switching
@@ -1337,7 +1345,7 @@ function trackerTicket(row,rowNumber){
   return {
     externalTicketId,executionBook:book||"Unknown",sport,date,matchupText:matchup,
     awayTeam,homeTeam,market,period:market.startsWith("F5 ")?"F5":"FG",
-    selectedSide,selectedTeam:selection,executionLine:line,executionPrice:odds,
+    selectedSide,selectedTeam:cleanSelection,executionLine:line,executionPrice:odds,
     riskAmount:risk,toWinAmount:toWin,potentialPayout:(risk!=null&&toWin!=null)?risk+toWin:null,
     executedAt,timezone:"America/Chicago",
     importSource:"sports-betting-tracker-live-sync",matchStatus:"tracker-synced",
