@@ -8,7 +8,7 @@
 import { buildSportAvailabilityPreflight, normalizeAvailabilityStatus } from "./availability.js";
 import { nhlPlayerProV2RowsForSide, NHL_PLAYER_PRO_V2_ID, NHL_PLAYER_PRO_V2_VERSION } from "./nhlPlayerProV2.js";
 
-export const PRO_PLAYER_PROJECTION_VERSION = "research-v3-last5-role-defense";
+export const PRO_PLAYER_PROJECTION_VERSION = "research-v3.1-calibrated-last5-role-defense";
 
 function finite(v) {
   if (v == null || v === "") return null;
@@ -385,7 +385,7 @@ export function attachNflPlayerProjectionResearch(games = [], playerFeed = {}) {
       playerProjectionStatus: {
         sport: "nfl",
         state: rows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : rows.length ? "HOLD_AVAILABILITY" : "PLAYER_DATA_UNAVAILABLE",
-        model: "NFL-PLAYER-PROJ-v3",
+        model: "NFL-PLAYER-PROJ-v3.1",
         version: PRO_PLAYER_PROJECTION_VERSION,
         independent: true,
         marketInformed: false,
