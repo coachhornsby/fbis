@@ -73,7 +73,8 @@ test("NHL-PRO-v2 emits independent score and probability layers",()=>{
   assert.ok(Number.isFinite(p.projAway));
   assert.ok(p.probability.homeWinIncludingOt>0&&p.probability.homeWinIncludingOt<1);
   assert.equal(p.layers.distribution.family,"BIVARIATE_POISSON");
-  assert.equal(p.layers.tracking.source,"NHL_EDGE_ZONE_TIME_OPTIONAL");
+  assert.equal(p.layers.tracking.source,"NHL_EDGE_EXPANDED_OPTIONAL");
+  assert.equal(p.layers.tracking.expanded.activation,"RESEARCH_ADVISORY_ONLY");
   assert.equal(p.marketInformed,false);
   assert.equal(p.canQualify,false);
   assert.equal(p.canAuthorizeWager,false);
