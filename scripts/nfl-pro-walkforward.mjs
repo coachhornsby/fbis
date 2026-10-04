@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { parseCsv, aggregateTeamWeeks, aggregateQbWeeks } from "../functions/lib/nflVerseFeed.js";
+import { parseCsv, aggregateTeamWeeks, aggregateQbWeeks, aggregateNextGen, aggregateSnapCounts } from "../functions/lib/nflVerseFeed.js";
 import { projectNflProV1 } from "../functions/lib/nflProModel.js";
 import { projectNflProV2 } from "../functions/lib/nflProV2Model.js";
 import { projectNflFormV0 } from "../functions/lib/nflModel.js";
@@ -10,9 +10,12 @@ const GAMES_URL="https://raw.githubusercontent.com/nflverse/nfldata/master/data/
 const seasons=(process.env.NFL_WF_SEASONS||"2024,2025").split(",").map(Number).filter(Number.isFinite);
 
 async function csv(url){
-  const r=await fetch(url,{headers:{"user-agent":"FBIS-NFL-WF/1.0","accept":"text/csv,*/*"}});
+  const r=await fetch(url,{headers:{"user-agent":"FBIS-NFL-WF/2.0","accept":"text/csv,application/gzip,*/*"}});
   if(!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
-  return parseCsv(await r.text());
+  const text=/\\.gz$/i.test(url)
+    ? await new Response(r.body.pipeThrough(new DecompressionStream("gzip"))).text()
+    : await r.text();
+  return parseCsv(text);
 }
 const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
 const canon=s=>({JAC:"JAX",LA:"LAR",OAK:"LV",WSH:"WAS",SD:"LAC",STL:"LAR"}[String(s||"").toUpperCase()]||String(s||"").toUpperCase());
@@ -29,7 +32,31 @@ function formRows(games, season, maxWeek){
   }
   return map;
 }
-function blendedFeatures(priorTeamRows,priorPlayerRows,currentTeamRows,currentPlayerRows,week){
+function trackingFeatures(priorNgs,currentNgs,priorSnaps,currentSnaps,week){
+  const filterWeek=rows=>rows.filter(r=>Number(r.week)>0&&Number(r.week)<week);
+  const pN=aggregateNextGen(priorNgs), cN=aggregateNextGen(Object.fromEntries(Object.entries(currentNgs).map(([k,v])=>[k,filterWeek(v)])));
+  const pS=aggregateSnapCounts(priorSnaps), cS=aggregateSnapCounts(filterWeek(currentSnaps));
+  const teams=new Set([...Object.keys(pN.teamFeatures),...Object.keys(cN.teamFeatures),...Object.keys(pS),...Object.keys(cS)]);
+  const out={};
+  const blend=(p,c,n,w=4)=>{const a=num(p),b=num(c);if(a==null)return b;if(b==null)return a;const x=(num(n)||0)/((num(n)||0)+w);return a*(1-x)+b*x;};
+  for(const t of teams){
+    const p=pN.teamFeatures[t]||{},q=cN.teamFeatures[t]||{},n=q.ngsGames||0;
+    const snapRows=cS[t]||pS[t]||[];
+    out[t]={
+      qbNgsCpoe:blend(p.qbNgsCpoe,q.qbNgsCpoe,n),
+      qbTimeToThrow:blend(p.qbTimeToThrow,q.qbTimeToThrow,n),
+      qbAggressiveness:blend(p.qbAggressiveness,q.qbAggressiveness,n),
+      rushYoePerAtt:blend(p.rushYoePerAtt,q.rushYoePerAtt,n),
+      rushEfficiency:blend(p.rushEfficiency,q.rushEfficiency,n),
+      receivingSeparation:blend(p.receivingSeparation,q.receivingSeparation,n),
+      receivingYacOe:blend(p.receivingYacOe,q.receivingYacOe,n),
+      snapShare:snapRows.length?Math.max(...snapRows.map(x=>num(x.snapShare)||0)):null,
+      offenseSnaps:snapRows.length?Math.max(...snapRows.map(x=>num(x.offenseSnaps)||0)):null,
+    };
+  }
+  return out;
+}
+function blendedFeatures(priorTeamRows,priorPlayerRows,currentTeamRows,currentPlayerRows,week,tracking={}){
   const priorT=aggregateTeamWeeks(priorTeamRows);
   const curT=aggregateTeamWeeks(currentTeamRows.filter(r=>Number(r.week)<week));
   const priorQ=aggregateQbWeeks(priorPlayerRows);
@@ -55,6 +82,7 @@ function blendedFeatures(priorTeamRows,priorPlayerRows,currentTeamRows,currentPl
       qbCpoe:blend(pq.qbCpoe,cq.qbCpoe,cq.games||0),
       qbSackRate:blend(pq.qbSackRate,cq.qbSackRate,cq.games||0),
       qbPrior:num(pq.qbEpa),
+      ...(tracking[t]||{}),
     };
   }
   return out;
@@ -78,19 +106,27 @@ fs.mkdirSync("artifacts",{recursive:true});
 const games=await csv(GAMES_URL);
 const outputs=[];
 for(const season of seasons){
-  const [priorTeam,currentTeam,priorPlayer,currentPlayer]=await Promise.all([
+  const [priorTeam,currentTeam,priorPlayer,currentPlayer,ngsPassing,ngsRushing,ngsReceiving,priorSnaps,currentSnaps]=await Promise.all([
     csv(`${RELEASE}/stats_team/stats_team_week_${season-1}.csv`),
     csv(`${RELEASE}/stats_team/stats_team_week_${season}.csv`),
     csv(`${RELEASE}/stats_player/stats_player_week_${season-1}.csv`),
     csv(`${RELEASE}/stats_player/stats_player_week_${season}.csv`),
+    csv(`${RELEASE}/nextgen_stats/ngs_passing.csv.gz`),
+    csv(`${RELEASE}/nextgen_stats/ngs_rushing.csv.gz`),
+    csv(`${RELEASE}/nextgen_stats/ngs_receiving.csv.gz`),
+    csv(`${RELEASE}/snap_counts/snap_counts_${season-1}.csv`),
+    csv(`${RELEASE}/snap_counts/snap_counts_${season}.csv`),
   ]);
+  const priorNgs={passing:ngsPassing.filter(r=>Number(r.season)===season-1),rushing:ngsRushing.filter(r=>Number(r.season)===season-1),receiving:ngsReceiving.filter(r=>Number(r.season)===season-1)};
+  const currentNgs={passing:ngsPassing.filter(r=>Number(r.season)===season),rushing:ngsRushing.filter(r=>Number(r.season)===season),receiving:ngsReceiving.filter(r=>Number(r.season)===season)};
   const priorForm=formRows(games,season-1,99);
   for(const g of games){
     if(Number(g.season)!==season||String(g.game_type)!=="REG") continue;
     const week=Number(g.week), hs=num(g.home_score), as=num(g.away_score);
     if(!Number.isFinite(week)||hs==null||as==null) continue;
     const home=canon(g.home_team),away=canon(g.away_team);
-    const features=blendedFeatures(priorTeam,priorPlayer,currentTeam,currentPlayer,week);
+    const tracking=trackingFeatures(priorNgs,currentNgs,priorSnaps,currentSnaps,week);
+    const features=blendedFeatures(priorTeam,priorPlayer,currentTeam,currentPlayer,week,tracking);
     const modelGame={neutralSite:String(g.location||"").toLowerCase()==="neutral",nflFeatures:{home:features[home]||{},away:features[away]||{}}};
     const pro=projectNflProV1(modelGame);
     const v2=projectNflProV2(modelGame);
@@ -139,7 +175,7 @@ const decision={
 decision.promoteCandidate=paired.length>=400&&Object.values(decision.beatsV1).every(Boolean)&&Object.values(decision.beatsBaseline).every(Boolean);
 decision.status=decision.promoteCandidate?"PROMOTION_EVIDENCE_PASS":"RESEARCH_HOLD";
 decision.rule="NFL-PRO-v2 must beat NFL-PRO-v1 and calibrated form baseline on paired walk-forward margin MAE, total MAE, and winner accuracy with n>=400. Historical test only uses feature families available point-in-time in this harness; absent NGS/availability families remain missing.";
-decision.featureCaveat="This run validates v2 on the PIT team/QB feature contract currently reconstructed by the walk-forward harness. NGS tracking, snaps and historical availability are not claimed unless separately reconstructed point-in-time.";
+decision.featureCaveat="This run reconstructs NGS weekly passing/rushing/receiving and snap counts strictly from weeks before each target game; week=0 season summaries are excluded. Historical availability remains excluded until a timestamp-safe source is validated.";
 fs.writeFileSync("artifacts/nfl-pro-walkforward-rows.jsonl",paired.map(x=>JSON.stringify(x)).join("\n")+"\n");
 fs.writeFileSync("artifacts/nfl-pro-walkforward-report.json",JSON.stringify(decision,null,2));
 console.log(JSON.stringify(decision,null,2));
