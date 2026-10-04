@@ -2,6 +2,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { buildTodayBoard, resolveTodayDate } from "../lib/todayBoard.js";
 import { buildPlayerPropsBoard } from "../../src/features/playerProps/buildPlayerPropsBoard.js";
 import { americanProfit } from "../lib/pricing.js";
+import { runNhlConfidenceAudit } from "../lib/nhlWagerCalibration.js";
 
 const TZ="America/Chicago";
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
@@ -166,12 +167,13 @@ async function settle(db,date,board){
   return{eligible:decisions.length,settled,voided};
 }
 async function summary(db){
-  const [counts,cal]=await Promise.all([
+  const [counts,cal,lastRun]=await Promise.all([
     db.prepare(`SELECT wager_scope,market,decision,COUNT(*) n,MIN(snapshot_at) first_at,MAX(snapshot_at) last_at
       FROM nhl_wager_decisions GROUP BY wager_scope,market,decision ORDER BY wager_scope,market,decision`).all(),
-    db.prepare("SELECT * FROM nhl_wager_confidence_calibration ORDER BY wager_scope,market,confidence_band").all()
+    db.prepare("SELECT * FROM nhl_wager_confidence_calibration ORDER BY wager_scope,market,confidence_band").all(),
+    db.prepare("SELECT * FROM nhl_wager_confidence_runs ORDER BY run_at DESC LIMIT 1").first().catch(()=>null)
   ]);
-  return{counts:counts.results||[],calibration:cal.results||[]};
+  return{counts:counts.results||[],calibration:cal.results||[],confidenceAudit:lastRun||null};
 }
 export async function onRequestGet(context){
   const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
@@ -183,6 +185,9 @@ export async function onRequestPost(context){
   let body={};try{body=await context.request.json()}catch{}
   const mode=String(body.mode||"capture").toLowerCase(),raw=String(body.date||dateCt());
   const resolved=resolveTodayDate(raw);if(!resolved.ok)return json({ok:false,error:resolved.error},400);
+  if(mode==="calibrate"){
+    const audit=await runNhlConfidenceAudit(db);return json({...audit,...await summary(db)});
+  }
   const env=envOf(context),board=await buildTodayBoard(resolved.date,env,{focusSport:"nhl"});
   if(mode==="settle"){
     const s=await settle(db,resolved.date,board);return json({ok:true,mode,date:resolved.date,...s,...await summary(db)});
