@@ -205,7 +205,7 @@ function nflRowsForSide(game, side, playerFeed = {}) {
     const position = String(p.position || "").toUpperCase();
     const snapShare = finite(p.snapShare);
     const roleConfidence = snapShare == null
-      ? clamp((Number(p.games || 0) + 2) / 8, 0.35, 0.82)
+      ? (Number(p.games || 0) > 0 ? clamp((Number(p.games || 0) + 2) / 8, 0.45, 0.82) : 0.65)
       : clamp((snapShare - 0.25) / 0.65, 0.2, 1);
     const volumeFactor = position === "QB"
       ? clamp(0.96 + (factor - 1) * 0.45, 0.84, 1.12)
