@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cbb-fbis-native-v1
+  group: cbb-fbis-native-v1-partitioned-v2
   cancel-in-progress: true
 
 jobs:
