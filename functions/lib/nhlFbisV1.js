@@ -215,7 +215,8 @@ function scheduleGames(json){
         start:g.startTimeUTC||null,
         home:String(g.homeTeam?.abbrev?.default??g.homeTeam?.abbrev??"").toUpperCase(),
         away:String(g.awayTeam?.abbrev?.default??g.awayTeam?.abbrev??"").toUpperCase(),
-        state:String(g.gameState||"")
+        state:String(g.gameState||""),
+        gameType:finite(g.gameType)
       });
     }
   }
