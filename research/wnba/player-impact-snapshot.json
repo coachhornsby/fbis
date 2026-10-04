@@ -1,10 +1,10 @@
 {
   "snapshotId": "wnba-player-impact-v1-research-2026-10-04",
-  "sourceRunId": 37238994168,
-  "sourceArtifactId": 11315834355,
-  "sourceArtifactSha256": "2308993e635490a8f6a68d908476f613d89e00aec59c296e8368466369b6ca82",
+  "sourceRunId": 37239616258,
+  "sourceArtifactId": 11316458362,
+  "sourceArtifactSha256": "0b7e8930a2b242d1a84bd3cd6793e6011463a30cb27d3eea887d9ad93ad08ffc",
   "games": 576,
-  "lineupStints": 10371,
+  "lineupStints": 10379,
   "walkforwardRows": 39852,
   "players": 218,
   "directImpactProjectionPromoted": false,
@@ -13,28 +13,28 @@
     "points": {
       "n": 9963,
       "baselineMae": 4.226360249848373,
-      "impactMae": 4.2282711246147855
+      "impactMae": 4.228271739131374
     },
     "rebounds": {
       "n": 9963,
       "baselineMae": 1.8315721789993427,
-      "impactMae": 1.8316938964048664
+      "impactMae": 1.8316940211749444
     },
     "assists": {
       "n": 9963,
       "baselineMae": 1.246474732805437,
-      "impactMae": 1.2465660694264016
+      "impactMae": 1.2465666732786218
     },
     "three_pointers_made": {
       "n": 9963,
       "baselineMae": 0.7358916276736237,
-      "impactMae": 0.736138255163598
+      "impactMae": 0.7361382331549696
     }
   },
   "roleRedistributionStatus": "prospective-shadow-only",
   "r2": {
     "bucket": "fbis-archive",
-    "immutablePrefix": "research/wnba/player-impact/v1/run-37238994168",
+    "immutablePrefix": "research/wnba/player-impact/v1/run-37239616258",
     "currentResearchAlias": "models/wnba/player-impact/research-current"
   }
 }
