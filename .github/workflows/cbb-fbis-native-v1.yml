@@ -9,6 +9,7 @@ on:
       - "functions/lib/collegeModels.js"
       - "functions/api/cbb-walkforward-source.js"
       - "scripts/cbb-fbis-native-v1-walkforward.mjs"
+      - "scripts/cbb-fbis-native-v1-aggregate.mjs"
       - "test/cbb-fbis-native-v1.test.js"
       - ".github/workflows/cbb-fbis-native-v1.yml"
   workflow_dispatch:
@@ -21,9 +22,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
+  prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
@@ -38,14 +39,31 @@ jobs:
           TARGET_SHA: "${{ github.sha }}"
         run: |
           set -euo pipefail
-          for i in $(seq 1 60); do
+          for i in $(seq 1 80); do
             BODY="$(curl -fsS --max-time 20 https://fbis-myz.pages.dev/api/health || true)"
             SHA="$(printf '%s' "$BODY" | jq -r '.deploymentCommit // .build.commit // empty' 2>/dev/null || true)"
             echo "production_sha=${SHA:-unknown} target=${TARGET_SHA}"
             [ "$SHA" = "$TARGET_SHA" ] && exit 0
-            sleep 15
+            sleep 10
           done
           exit 1
+
+  season:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        season: [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
       - name: Download pinned leakage-safe benchmark
         uses: actions/download-artifact@v4
         with:
@@ -54,31 +72,71 @@ jobs:
           repository: coachhornsby/fbis
           run-id: 37166703044
           path: artifacts/source
-      - name: Run independent 2018-2025 walk-forward
+      - name: Run season ${{ matrix.season }}
         env:
           HARVEST_SECRET: "${{ secrets.HARVEST_SECRET }}"
           FBIS_BASE: "https://fbis-myz.pages.dev"
+          FBIS_SEASONS: "${{ matrix.season }}"
         run: |
           set -euo pipefail
-          node scripts/cbb-fbis-native-v1-walkforward.mjs             artifacts/source/base/cbb-data-stack-predictions.json             artifacts/source/base/cbb-market-research-dataset.json             | tee artifacts/cbb-fbis-native-v1-run.log
+          node scripts/cbb-fbis-native-v1-walkforward.mjs             artifacts/source/base/cbb-data-stack-predictions.json             artifacts/source/base/cbb-market-research-dataset.json             | tee "artifacts/cbb-fbis-native-v1-run-${{ matrix.season }}.log"
+      - name: Validate season artifact
+        run: |
+          set -euo pipefail
+          F="artifacts/cbb-fbis-native-v1-walkforward-${{ matrix.season }}.json"
+          jq -e '.ok == true and .rows >= 0' "$F" >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbb-fbis-native-v1-season-${{ matrix.season }}-${{ github.run_id }}
+          path: |
+            artifacts/cbb-fbis-native-v1-walkforward-${{ matrix.season }}.json
+            artifacts/cbb-fbis-native-v1-predictions-${{ matrix.season }}.json
+            artifacts/cbb-fbis-native-v1-run-${{ matrix.season }}.log
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: season
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Download season artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cbb-fbis-native-v1-season-*-${{ github.run_id }}
+          path: artifacts/parts
+          merge-multiple: true
+      - name: Require all 8 season prediction files
+        run: |
+          set -euo pipefail
+          count=$(find artifacts/parts -name 'cbb-fbis-native-v1-predictions-20*.json' | wc -l)
+          echo "season prediction artifacts=$count"
+          test "$count" -eq 8
+      - name: Aggregate full walk-forward
+        run: |
+          set -euo pipefail
+          node scripts/cbb-fbis-native-v1-aggregate.mjs artifacts/parts | tee artifacts/cbb-fbis-native-v1-aggregate.log
       - name: Summarize
         run: |
           F=artifacts/cbb-fbis-native-v1-walkforward.json
           jq -e '.ok == true and .rows > 0' "$F" >/dev/null
           {
-            echo "## FBIS-CBB-RATINGS-v1"
+            echo "## FBIS-CBB-RATINGS-v1 partitioned walk-forward"
             jq -r '"- all: FBIS total MAE=\(.samples.all.fbis.totalMae), KenPom=\(.samples.all.kenpom.totalMae), advantage=\(.samples.all.totalMaeAdvantage)"' "$F"
             jq -r '"- validation 2023-24: FBIS=\(.samples.validation.fbis.totalMae), KenPom=\(.samples.validation.kenpom.totalMae), advantage=\(.samples.validation.totalMaeAdvantage)"' "$F"
             jq -r '"- confirmation 2025: FBIS=\(.samples.confirmation.fbis.totalMae), KenPom=\(.samples.confirmation.kenpom.totalMae), advantage=\(.samples.confirmation.totalMaeAdvantage)"' "$F"
             jq -r '"- total promotion screen: \(.promotion.totalPass)"' "$F"
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: cbb-fbis-native-v1-${{ github.run_id }}
+          name: cbb-fbis-native-v1-aggregate-${{ github.run_id }}
           path: |
             artifacts/cbb-fbis-native-v1-walkforward.json
-            artifacts/cbb-fbis-native-v1-predictions.json
-            artifacts/cbb-fbis-native-v1-run.log
+            artifacts/cbb-fbis-native-v1-aggregate.log
           if-no-files-found: error
           retention-days: 90
