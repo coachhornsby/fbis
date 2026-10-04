@@ -805,3 +805,264 @@
   .fbis-shell-main.route-board .pgc-hero-score { font-size:30px; }
 }
 
+
+
+/* === Approved mockup fidelity: featured matchup card === */
+.fbis-shell-main.route-board .pgc-featured {
+  padding:0;
+  gap:0;
+  border-radius:19px;
+  border:1px solid rgba(25, 146, 255, .74);
+  background:
+    radial-gradient(720px 200px at 50% -20%, rgba(32, 127, 255, .16), transparent 70%),
+    linear-gradient(180deg, rgba(6, 25, 48, .98), rgba(3, 14, 28, .98));
+  box-shadow:0 0 22px rgba(0, 135, 255, .12), 0 18px 40px rgba(0,0,0,.38);
+  overflow:hidden;
+}
+.fbis-shell-main.route-board .pgc-featured-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 14px;
+  border-bottom:1px solid rgba(56, 135, 202, .22);
+  background:linear-gradient(90deg, rgba(8, 43, 76, .72), rgba(4, 21, 40, .38));
+}
+.fbis-shell-main.route-board .pgc-featured-title {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#f8fbff;
+  font-size:17px;
+  font-weight:950;
+}
+.fbis-shell-main.route-board .pgc-featured-meta {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:9px;
+  color:#9cb1ca;
+  font-size:10px;
+  font-weight:750;
+}
+.fbis-shell-main.route-board .pgc-featured .pgc-sport-pill {
+  border-radius:999px;
+  padding:4px 10px;
+}
+.fbis-shell-main.route-board .pgc-rating {
+  color:#ffd338;
+  font-size:13px;
+  font-weight:950;
+}
+.fbis-shell-main.route-board .pgc-featured-matchup {
+  display:grid;
+  grid-template-columns:1fr minmax(150px,.55fr) 1fr;
+  gap:14px;
+  align-items:center;
+  padding:18px 20px 12px;
+}
+.fbis-shell-main.route-board .pgc-featured-team {
+  display:grid;
+  grid-template-columns:86px minmax(0,1fr);
+  gap:12px;
+  align-items:center;
+  min-width:0;
+}
+.fbis-shell-main.route-board .pgc-featured-team-home {
+  grid-template-columns:minmax(0,1fr) 86px;
+  text-align:right;
+}
+.fbis-shell-main.route-board .pgc-featured-team-home > .pgc-featured-logo { order:2; }
+.fbis-shell-main.route-board .pgc-featured-logo.team-logo-plate {
+  background:transparent;
+  border-color:transparent;
+  box-shadow:none;
+}
+.fbis-shell-main.route-board .pgc-featured-logo .team-logo {
+  width:74px !important;
+  height:74px !important;
+  object-fit:contain;
+  filter:drop-shadow(0 8px 11px rgba(0,0,0,.48));
+}
+.fbis-shell-main.route-board .pgc-featured-name {
+  display:block;
+  color:#f8fbff;
+  font-size:15px;
+  line-height:1.1;
+  font-weight:950;
+  text-transform:uppercase;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.fbis-shell-main.route-board .pgc-featured-record {
+  display:block;
+  margin-top:2px;
+  color:#9db0c7;
+  font-size:11px;
+  font-weight:750;
+}
+.fbis-shell-main.route-board .pgc-featured-score {
+  display:block;
+  margin-top:5px;
+  color:#fff;
+  font-size:31px;
+  line-height:1;
+  font-weight:950;
+}
+.fbis-shell-main.route-board .pgc-featured-team small {
+  color:#8ea5bf;
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.055em;
+}
+.fbis-shell-main.route-board .pgc-featured-center {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  gap:3px;
+}
+.fbis-shell-main.route-board .pgc-featured-center .pgc-vs {
+  color:#92a9c6;
+  font-size:24px;
+  font-weight:950;
+}
+.fbis-shell-main.route-board .pgc-featured-center small {
+  color:#8da4bd;
+  font-size:9px;
+  font-weight:800;
+}
+.fbis-shell-main.route-board .pgc-featured-center > strong {
+  color:#62f2b4;
+  font-size:19px;
+  font-weight:950;
+}
+.fbis-shell-main.route-board .pgc-edge-delta {
+  color:#74ffc6;
+  font-size:10px;
+  font-weight:900;
+}
+.fbis-shell-main.route-board .pgc-market-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;
+  padding:0 14px 12px;
+}
+.fbis-shell-main.route-board .pgc-market-cell {
+  position:relative;
+  min-width:0;
+  padding:11px 12px;
+  border:1px solid rgba(58, 136, 201, .26);
+  border-radius:12px;
+  background:rgba(3, 16, 31, .72);
+}
+.fbis-shell-main.route-board .pgc-market-label {
+  display:block;
+  color:#9ab0c9;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.05em;
+}
+.fbis-shell-main.route-board .pgc-market-cell > strong {
+  display:block;
+  margin-top:3px;
+  color:#5aefb0;
+  font-size:21px;
+  line-height:1.05;
+  font-weight:950;
+}
+.fbis-shell-main.route-board .pgc-market-lines {
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+  margin-top:5px;
+  color:#a2b4c9;
+  font-size:9px;
+}
+.fbis-shell-main.route-board .pgc-market-cell > em {
+  position:absolute;
+  right:9px;
+  top:50%;
+  transform:translateY(-50%);
+  max-width:48%;
+  padding:5px 8px;
+  border:1px solid #00e698;
+  border-radius:999px;
+  color:#75ffca;
+  background:rgba(0, 137, 82, .12);
+  font-size:9px;
+  font-style:normal;
+  font-weight:900;
+  white-space:nowrap;
+}
+.fbis-shell-main.route-board .pgc-info-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;
+  padding:0 14px 14px;
+}
+.fbis-shell-main.route-board .pgc-info-card {
+  min-width:0;
+  padding:11px 12px;
+  border:1px solid rgba(48, 139, 209, .32);
+  border-radius:13px;
+  background:linear-gradient(180deg, rgba(7, 28, 49, .86), rgba(4, 18, 34, .86));
+}
+.fbis-shell-main.route-board .pgc-info-card h3 {
+  margin:0 0 8px;
+  color:#eff7ff;
+  font-size:11px;
+  font-weight:900;
+}
+.fbis-shell-main.route-board .pgc-info-card:nth-child(2) h3 { color:#62f2b4; }
+.fbis-shell-main.route-board .pgc-info-row {
+  display:flex;
+  flex-direction:row;
+  justify-content:space-between;
+  gap:10px;
+  padding:4px 0;
+  color:#94a9c2;
+  font-size:9px;
+}
+.fbis-shell-main.route-board .pgc-info-row > span {
+  color:#8fa5be;
+  font-size:9px;
+}
+.fbis-shell-main.route-board .pgc-info-row > strong {
+  color:#f6f9fd;
+  font-size:10px;
+  text-align:right;
+}
+.fbis-shell-main.route-board .pgc-featured-footer {
+  padding:10px 14px;
+  border-top:1px solid rgba(58, 129, 191, .18);
+  background:rgba(2, 12, 24, .58);
+}
+.fbis-shell-main.route-board .pgc-status-note {
+  color:#a8b8cb;
+  font-size:10px;
+  font-weight:850;
+}
+@media(max-width:900px) {
+  .fbis-shell-main.route-board .pgc-featured-matchup { grid-template-columns:1fr .5fr 1fr; padding:15px 12px 10px; }
+  .fbis-shell-main.route-board .pgc-featured-team { grid-template-columns:64px minmax(0,1fr); gap:8px; }
+  .fbis-shell-main.route-board .pgc-featured-team-home { grid-template-columns:minmax(0,1fr) 64px; }
+  .fbis-shell-main.route-board .pgc-featured-logo .team-logo { width:58px !important; height:58px !important; }
+  .fbis-shell-main.route-board .pgc-featured-name { font-size:12px; }
+  .fbis-shell-main.route-board .pgc-featured-score { font-size:26px; }
+}
+@media(max-width:680px) {
+  .fbis-shell-main.route-board .pgc-featured-head { align-items:flex-start; }
+  .fbis-shell-main.route-board .pgc-featured-meta { gap:6px; font-size:8px; }
+  .fbis-shell-main.route-board .pgc-featured-matchup { grid-template-columns:1fr; }
+  .fbis-shell-main.route-board .pgc-featured-team,
+  .fbis-shell-main.route-board .pgc-featured-team-home {
+    grid-template-columns:62px minmax(0,1fr);
+    text-align:left;
+  }
+  .fbis-shell-main.route-board .pgc-featured-team-home > .pgc-featured-logo { order:0; }
+  .fbis-shell-main.route-board .pgc-featured-center { padding:5px 0; }
+  .fbis-shell-main.route-board .pgc-market-grid,
+  .fbis-shell-main.route-board .pgc-info-grid { grid-template-columns:1fr; }
+}
