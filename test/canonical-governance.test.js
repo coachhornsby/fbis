@@ -16,6 +16,10 @@ import {
   buildSourceRegistryReport,
   commercialBlocksPaidPublication,
   assertNotPureMarketSource,
+  resolveLineage,
+  sameLineage,
+  dedupeCanonicalObservations,
+  incrementalCatalog,
 } from "../functions/lib/canonical/index.js";
 
 test("auto-promote is hard-disabled", () => {
@@ -138,4 +142,27 @@ test("gap report exists and freezes incumbents in prose", async () => {
   assert.match(report, /Preserve all verified production incumbents|preserving verified production incumbents|Locked incumbents/i);
   assert.match(report, /COMMERCIAL_USE_REVIEW_REQUIRED/);
   assert.match(report, /DISAGREEMENT/);
+});
+
+test("SportsDataverse transports collapse to their upstream lineage", () => {
+  assert.equal(resolveLineage("sportsdataverse-nflverse"), "nflverse");
+  assert.equal(sameLineage("sportsdataverse-cfbd", "cfbd"), true);
+  assert.equal(sameLineage("oddsapiR", "theodds"), true);
+});
+
+test("canonical dedupe keeps one copy per fact/entity/cutoff/upstream lineage", () => {
+  const rows = dedupeCanonicalObservations([
+    { canonicalKey: "epa", teamId: "HOU", dataThrough: "2026-10-01", source: "nflverse", value: 0.1, completeness: 1, observedAt: "2026-10-02T01:00:00Z" },
+    { canonicalKey: "epa", teamId: "HOU", dataThrough: "2026-10-01", source: "sportsdataverse-nflverse", value: 0.1, completeness: 1, observedAt: "2026-10-02T02:00:00Z" },
+    { canonicalKey: "epa", teamId: "HOU", dataThrough: "2026-10-01", source: "espn_public", value: 0.12, completeness: 1, observedAt: "2026-10-02T02:00:00Z" },
+  ]);
+  assert.equal(rows.length, 2);
+  assert.equal(rows.filter((r) => r.lineage === "nflverse").length, 1);
+  assert.equal(rows.filter((r) => r.lineage === "espn").length, 1);
+});
+
+test("SportsDataverse catalog adds only incremental families", () => {
+  const nfl = incrementalCatalog({ sport: "nfl" });
+  assert.ok(nfl.some((r) => r.family === "next_gen_stats" && r.decision === "ADD"));
+  assert.ok(nfl.some((r) => r.family === "nflverse" && r.decision === "SKIP_DUPLICATE"));
 });

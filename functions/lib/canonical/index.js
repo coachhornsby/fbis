@@ -11,3 +11,4 @@ export * from "./publicationLedger.js";
 export * from "./runtimeVersion.js";
 export * from "./promotionEvidence.js";
 export * from "./marketRoles.js";
+export * from "./dataLineage.js";
