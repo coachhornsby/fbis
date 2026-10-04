@@ -313,17 +313,70 @@ function summarizeF5(rows){
     },
   };
 }
+function median(xs=[]){
+  const ys=xs.filter(Number.isFinite).slice().sort((a,b)=>a-b);
+  if(!ys.length)return null;
+  const m=Math.floor(ys.length/2);
+  return ys.length%2?ys[m]:(ys[m-1]+ys[m])/2;
+}
+function metricPacket(rows,predict){
+  const errs=rows.map(r=>predict(r)-r.actual);
+  return {
+    n:rows.length,
+    mae:round(mae(errs)),
+    rmse:round(rmse(errs)),
+    bias:round(mean(errs)),
+    withinOne:round(errs.filter(e=>Math.abs(e)<=1).length/(errs.length||1)),
+  };
+}
 function summarizeKs(rows){
-  const xs=rows.flatMap(r=>r.skip?[]:(r.pitcherRows||[])).filter(x=>finite(x.actual)!=null&&finite(x.baseline)!=null&&finite(x.pitchZone)!=null);
+  const xs=rows.flatMap(r=>r.skip?[]:(r.pitcherRows||[]).map(p=>({date:r.date,...p})))
+    .filter(x=>finite(x.actual)!=null&&finite(x.baseline)!=null&&finite(x.pitchZone)!=null)
+    .sort((a,b)=>String(a.date).localeCompare(String(b.date))||Number(a.id)-Number(b.id));
   const b=xs.map(x=>x.baseline-x.actual),n=xs.map(x=>x.pitchZone-x.actual);
-  const within1=(errs)=>errs.filter(e=>Math.abs(e)<=1).length/(errs.length||1);
+  const trainEnd=Math.max(1,Math.floor(xs.length*0.60));
+  const validateEnd=Math.max(trainEnd+1,Math.floor(xs.length*0.80));
+  const train=xs.slice(0,trainEnd),validation=xs.slice(trainEnd,validateEnd),test=xs.slice(validateEnd);
+  let selected={mae:Infinity,weight:0,bias:0};
+  for(let i=0;i<=100;i+=1){
+    const weight=i/100;
+    const raw=(r)=>(1-weight)*r.baseline+weight*r.pitchZone;
+    const bias=median(train.map(r=>r.actual-raw(r)))??0;
+    const packet=metricPacket(validation,r=>raw(r)+bias);
+    if(packet.mae<selected.mae)selected={mae:packet.mae,weight,bias};
+  }
+  const blend=(r)=>(1-selected.weight)*r.baseline+selected.weight*r.pitchZone+selected.bias;
+  const baseBias=median(train.map(r=>r.actual-r.baseline))??0;
+  const temporalCalibration={
+    method:"chronological-60-20-20",
+    train:{n:train.length,from:train[0]?.date||null,through:train.at(-1)?.date||null},
+    validation:{n:validation.length,from:validation[0]?.date||null,through:validation.at(-1)?.date||null},
+    test:{n:test.length,from:test[0]?.date||null,through:test.at(-1)?.date||null},
+    selected:{
+      baselineWeight:round(1-selected.weight,2),
+      pitchZoneWeight:round(selected.weight,2),
+      kOffset:round(selected.bias,4),
+      validationMae:round(selected.mae,4),
+    },
+    finalTest:{
+      baselineRaw:metricPacket(test,r=>r.baseline),
+      pitchZoneRaw:metricPacket(test,r=>r.pitchZone),
+      baselineBiasCorrected:metricPacket(test,r=>r.baseline+baseBias),
+      selectedBlend:metricPacket(test,blend),
+    },
+  };
+  temporalCalibration.finalTest.improvesVsRawBaseline=
+    temporalCalibration.finalTest.selectedBlend.mae<temporalCalibration.finalTest.baselineRaw.mae;
+  temporalCalibration.finalTest.improvesVsBiasCorrectedBaseline=
+    temporalCalibration.finalTest.selectedBlend.mae<temporalCalibration.finalTest.baselineBiasCorrected.mae;
   return {
     n:xs.length,
-    baseline:{mae:round(mae(b)),rmse:round(rmse(b)),bias:round(mean(b)),withinOne:round(within1(b))},
-    pitchZone:{mae:round(mae(n)),rmse:round(rmse(n)),bias:round(mean(n)),withinOne:round(within1(n))},
-    delta:{mae:round(mae(n)-mae(b)),rmse:round(rmse(n)-rmse(b)),withinOne:round(within1(n)-within1(b)),pitchZoneBetter:xs.filter((x,i)=>Math.abs(n[i])<Math.abs(b[i])).length},
+    baseline:metricPacket(xs,r=>r.baseline),
+    pitchZone:metricPacket(xs,r=>r.pitchZone),
+    delta:{mae:round(mae(n)-mae(b)),rmse:round(rmse(n)-rmse(b)),pitchZoneBetter:xs.filter((x,i)=>Math.abs(n[i])<Math.abs(b[i])).length},
     pairedAbsErrorCi95:pairedCi95(n.map((e,i)=>Math.abs(e)-Math.abs(b[i]))),
     avgCoverage:round(mean(xs.map(x=>finite(x.coverage)))),
+    temporalCalibration,
   };
 }
 
@@ -346,7 +399,8 @@ const gate={
   leakageOk,
   f5TeamRunNonInferior:f5.pitchZone.teamRunMae<=f5.baseline.teamRunMae*1.01,
   f5MarginImproves:f5.pitchZone.marginMae<f5.baseline.marginMae,
-  pitcherKImproves:ks.pitchZone.mae<ks.baseline.mae,
+  pitcherKImproves:ks.temporalCalibration?.finalTest?.improvesVsRawBaseline===true &&
+    ks.temporalCalibration?.finalTest?.improvesVsBiasCorrectedBaseline===true,
 };
 gate.promoteResearch=Object.values(gate).every(Boolean);
 const report={
