@@ -251,7 +251,7 @@ for(let idx=1;idx<seasons.length;idx++){
     applyBox(g,parsed,current);
   }
   const fold={season:target,n:rows.length,markets:Object.fromEntries(["shots_on_goal","goals","assists","points","saves"].map(m=>[m,{projection:propMetrics(rows.filter(r=>r.market===m)),threshold:thresholdMetrics(rows.filter(r=>r.market===m))}]))};
-  folds.push(fold);allRows.push(...rows);console.log("fold",target,fold);
+  folds.push(fold);for(const row of rows)allRows.push(row);console.log("fold",target,fold);
 }
 
 const subset={
