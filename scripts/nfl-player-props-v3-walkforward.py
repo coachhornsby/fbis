@@ -270,5 +270,5 @@ def main():
     (OUT/"report.json").write_text(json.dumps(report,indent=2))
     print(json.dumps(report,indent=2))
 
-if _player_name_key__=="__main__":
+if __name__=="__main__":
     main()
