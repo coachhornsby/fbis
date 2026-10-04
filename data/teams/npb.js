@@ -13,6 +13,6 @@ const teams = [
 ["CLM","Chiba Lotte Marines","Chiba Lotte Marines"]
 ].map(([abbr,displayName,wikiTitle])=>({
   id:`npb-${abbr.toLowerCase()}`,abbr,displayName,school:displayName,nickname:displayName.split(" ").slice(-1)[0],
-  logo:"",wikiTitle,sources:{heritage:{names:[displayName,displayName.replace("Saitama ","").replace("Chiba ","")]}}
+  logo:"",wikiTitle,sources:{heritage:{names:[displayName,displayName.replace("Saitama ","").replace("Chiba ",""),...({SSL:["Seibu","Seibu Lions"],CLM:["Chiba Lotte","Lotte Marines"],HNF:["Nippon Ham","Nippon-Ham Fighters"],FSH:["SoftBank","SoftBank Hawks"],TRE:["Rakuten","Rakuten Eagles"],YDB:["DeNA","Yokohama DeNA"],TYS:["Yakult","Yakult Swallows"],HC:["Hiroshima","Hiroshima Carp"],YG:["Yomiuri","Giants"],CD:["Chunichi"],HT:["Hanshin"],OB:["Orix"]}[abbr]||[])]}}
 }));
 export default teams;
