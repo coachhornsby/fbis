@@ -1352,6 +1352,9 @@ function trackerTicket(row,rowNumber){
       confidenceGrade:String(row["Confidence Grade"]||""),
       betRationale:String(row["Bet Rationale"]||""),
       finalScore:String(row["Final Score"]||""),
+      heritageTicketId:String(row["Heritage Ticket ID"]||"").trim(),
+      placedAt:String(row["Placed At"]||"").trim(),
+      eventStart:String(row["Event Start"]||"").trim(),
       calibrationEligibility:"INELIGIBLE - TRACKER SYNC UNVERIFIED",
     }
   };
