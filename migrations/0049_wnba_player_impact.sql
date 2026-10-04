@@ -39,6 +39,13 @@ CREATE TABLE IF NOT EXISTS wnba_player_role_contexts (
   unavailable_count INTEGER NOT NULL DEFAULT 0,
   availability_verified INTEGER NOT NULL DEFAULT 0,
   context_json TEXT,
+  actual_home REAL,
+  actual_away REAL,
+  baseline_margin_abs_error REAL,
+  impact_margin_abs_error REAL,
+  baseline_total_abs_error REAL,
+  impact_total_abs_error REAL,
+  graded_at TEXT,
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_wnba_role_player_time ON wnba_player_role_contexts(player_id,feature_cutoff_timestamp DESC);
