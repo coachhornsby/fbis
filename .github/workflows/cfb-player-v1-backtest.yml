@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
-      CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
       CFB_PLAYER_BT_SEASONS: "2023,2024,2025"
       CFB_PLAYER_BT_MAX_WEEK: "15"
     steps:
