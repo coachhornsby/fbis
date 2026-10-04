@@ -136,8 +136,8 @@ function nflStars(game={},q){
   ));
 
   if(score>=78) return 5;
-  if(score>=64) return 4;
-  if(score>=50) return 3;
+  if(score>=60) return 4;
+  if(score>=48) return 3;
   if(score>=36) return 2;
   return 1;
 }
