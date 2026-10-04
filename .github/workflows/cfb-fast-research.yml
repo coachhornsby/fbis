@@ -1,0 +1,46 @@
+name: CFB fast subset research
+on:
+  push:
+    branches: ["research/cfb-v5-context-engine"]
+    paths:
+      - ".github/workflows/cfb-fast-research.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cfb-v5-context-research
+  cancel-in-progress: true
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Restore established validated model artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cfb-v5
+          path: artifacts/cfb-final
+          github-token: ${{ github.token }}
+          run-id: 37152541163
+      - name: Verify required frozen research inputs
+        run: |
+          test -f artifacts/cfb-final/v5-context/cfb_v5_context.csv
+          test -f artifacts/cfb-final/model-v5/oos-predictions.csv
+          test -f artifacts/cfb-final/fpr/game-fpr.csv
+      - name: Build hierarchical conference power
+        run: python scripts/cfb-conference-power-v3.py
+      - name: Audit OOS subsets
+        run: python scripts/cfb-subset-audit.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-fast-research
+          path: |
+            artifacts/cfb-final/conference-power/*
+            artifacts/cfb-final/subset-audit/*
+          retention-days: 90
