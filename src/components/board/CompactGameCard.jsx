@@ -123,6 +123,7 @@ export default function CompactGameCard({ game, onOpen }) {
   const isNfl = String(vm.sport || game?.sport || "").toLowerCase() === "nfl";
   const edge = bestEdge(vm);
   const matchup = isNfl ? game?.nflGameMatchup : null;
+  const genericFactors = !isNfl && Array.isArray(game?.matchupFactors) ? game.matchupFactors.slice(0, 5) : [];
   const matchupSignals = Array.isArray(matchup?.signals) ? matchup.signals : [];
   const matchupById = Object.fromEntries(matchupSignals.map((s) => [s.id, s]));
   const matchupItems = [
@@ -132,6 +133,12 @@ export default function CompactGameCard({ game, onOpen }) {
     ["explosive", "EXPLOSIVE"],
     ["earlyDown", "EARLY DOWN"],
   ].map(([id, label]) => ({ id, label, ...matchupSignalLabel(matchupById[id], away, home) }));
+  const genericMatchupItems = genericFactors.map((factor, i) => {
+    const edge = String(factor?.edge || factor?.advantage || factor?.team || "EVEN").toUpperCase();
+    const homeHit = edge === String(home.abbr || "").toUpperCase();
+    const awayHit = edge === String(away.abbr || "").toUpperCase();
+    return { id: factor?.id || `factor-${i}`, label: String(factor?.label || factor?.name || "MATCHUP").toUpperCase(), text: homeHit ? home.abbr : awayHit ? away.abbr : edge || "EVEN", tone: homeHit ? "home" : awayHit ? "away" : "neutral" };
+  });
   const baselineMargin = Number(matchup?.baseline?.margin);
   const finalMargin = Number(matchup?.final?.margin);
   const matchupAdj = Number(matchup?.adjustment?.margin);
