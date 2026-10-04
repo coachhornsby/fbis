@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-02",
+  "updatedAt": "2026-10-04",
   "sports": {
     "nfl": {
       "currentResearchModel": "NFL-PRO-v1.1",
@@ -16,6 +16,14 @@
       "canQualify": false,
       "canAuthorizeWager": false,
       "notes": "Full-history PIT-safe Ridge research model using 2004-2026 event/context data. Market remains benchmark-only. Frozen fit trained through 2025."
+    },
+    "soccer": {
+      "currentResearchModel": "SOCCER-FBIS-v1",
+      "fitArtifact": "functions/lib/soccerFbisV1.js",
+      "status": "research-system-built-validation-required",
+      "canQualify": false,
+      "canAuthorizeWager": false,
+      "notes": "Point-in-time league-aware Dixon-Coles research engine covering EPL, La Liga, Bundesliga, Serie A, Ligue 1, MLS and NWSL. Market is benchmark-only; no wager authority until walk-forward, market and prospective gates pass."
     }
   }
 }
