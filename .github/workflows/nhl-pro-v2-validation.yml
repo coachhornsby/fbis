@@ -67,6 +67,12 @@ jobs:
           for attempt in 1 2 3; do
             git fetch origin "${{ github.ref_name }}"
             git reset --hard "origin/${{ github.ref_name }}"
+            if jq -S 'del(.generatedAt)' data/models/nhl-pro-v2-validation.json > "$RUNNER_TEMP/old-validation.norm" 2>/dev/null \
+              && jq -S 'del(.generatedAt)' "$RUNNER_TEMP/nhl-pro-v2-validation.json" > "$RUNNER_TEMP/new-validation.norm" \
+              && cmp -s "$RUNNER_TEMP/old-validation.norm" "$RUNNER_TEMP/new-validation.norm"; then
+              echo "validation artifact unchanged apart from generatedAt"
+              exit 0
+            fi
             cp "$RUNNER_TEMP/nhl-pro-v2-validation.json" data/models/nhl-pro-v2-validation.json
             git add data/models/nhl-pro-v2-validation.json
             if git diff --cached --quiet -- data/models/nhl-pro-v2-validation.json; then
