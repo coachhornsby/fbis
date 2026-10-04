@@ -1,0 +1,56 @@
+name: CFB v6 market challenge
+on:
+  push:
+    branches: ["research/cfb-v5-context-engine"]
+    paths:
+      - ".github/workflows/cfb-v6.yml"
+      - "scripts/cfb-v6-context.py"
+      - "scripts/cfb-v6-walkforward.py"
+      - "scripts/cfb-v6-market-gate.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cfb-v6-market-research
+  cancel-in-progress: true
+jobs:
+  v6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Restore established validated v5 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cfb-v5
+          path: artifacts/cfb-final
+          github-token: ${{ github.token }}
+          run-id: 37152541163
+      - name: Restore latest conference power artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cfb-fast-research
+          path: artifacts/cfb-fast
+          github-token: ${{ github.token }}
+          run-id: 37172889290
+      - name: Normalize restored conference power path
+        run: |
+          mkdir -p artifacts/cfb-final/conference-power
+          cp artifacts/cfb-fast/conference-power/game-conference-power.csv artifacts/cfb-final/conference-power/
+      - name: Build v6 causal context
+        run: python scripts/cfb-v6-context.py
+      - name: Run v6 walk-forward
+        run: python scripts/cfb-v6-walkforward.py
+      - name: Run hard paired market gate
+        run: python scripts/cfb-v6-market-gate.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-v6
+          path: |
+            artifacts/cfb-final/v6-context/*
+            artifacts/cfb-final/model-v6/*
+          retention-days: 90
