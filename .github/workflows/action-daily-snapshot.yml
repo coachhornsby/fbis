@@ -97,4 +97,29 @@ jobs:
           cat "$body"
           test "$code" = "200"
           jq -e '.ok == true' "$body" >/dev/null
+
+      - name: Snapshot NFL wager decisions after ACTION refresh
+        if: always()
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 24); do
+            body="$(mktemp)"
+            set +e
+            code="$(curl -sS --max-time 90 -X POST \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              -o "$body" -w "%{http_code}" \
+              "$BASE/api/nfl-wager-snapshot?_t=$(date +%s)-$attempt")"
+            ec=$?
+            set -e
+            echo "nfl-wager-snapshot attempt=$attempt curl_ec=$ec http=$code"
+            jq -c '{ok,date,games,decisionGames,candidates,pricedCandidates,inserted,bets,passes,confidenceValidated,blockers}' "$body" 2>/dev/null || head -c 500 "$body" || true
+            if [ "$ec" -eq 0 ] && [ "$code" = "200" ] && [ "$(jq -r '.ok == true' "$body" 2>/dev/null || echo false)" = "true" ]; then
+              jq -e '.games >= 0 and .candidates >= 0' "$body" >/dev/null
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "NFL wager decision snapshot endpoint did not become healthy."
+          exit 1
 # operator-trigger: 2026-10-04 daily Zen recovery
