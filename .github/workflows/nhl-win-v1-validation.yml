@@ -1,0 +1,68 @@
+name: NHL WIN-v1 validation
+
+on:
+  push:
+    branches: ["feature/nhl-win-v1-travel-arena-20261004"]
+    paths:
+      - "scripts/nhl-pro-v2-walkforward.mjs"
+      - "scripts/nhl-win-v1-backtest.mjs"
+      - ".github/workflows/nhl-win-v1-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nhl-win-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Restore NHL game PBP cache
+        uses: actions/cache@v4.2.0
+        with:
+          path: .cache/nhl-pro-v2
+          key: nhl-pro-v2-pbp-full-v1-${{ runner.os }}-${{ hashFiles('scripts/nhl-pro-v2-walkforward.mjs') }}
+          restore-keys: |
+            nhl-pro-v2-pbp-v1-${{ runner.os }}-
+            nhl-pro-v2-pbp-full-v1-${{ runner.os }}-
+      - name: Build fresh NHL-PRO-v2 PIT feature rows
+        run: |
+          node scripts/nhl-pro-v2-walkforward.mjs             --seasons=20232024,20242025,20252026             --concurrency=8             --cache-dir=.cache/nhl-pro-v2             --out=data/models/nhl-pro-v2-validation.json
+      - name: Run NHL-WIN-v1 strict OOS backtest
+        run: |
+          node scripts/nhl-win-v1-backtest.mjs             --game-validation=data/models/nhl-pro-v2-validation.json             --out=data/models/nhl-win-v1-validation.json             --artifact-out=data/models/nhl-win-v1.js
+      - name: Verify integrity and winner gates
+        run: |
+          jq -e '.integrity.noMarketInputs == true and .integrity.nTrain >= 1200 and .integrity.nTest >= 1200' data/models/nhl-win-v1-validation.json >/dev/null
+          jq -e '.testMetrics.current and .testMetrics.logistic and .testMetrics.boosted and .testMetrics.stack' data/models/nhl-win-v1-validation.json >/dev/null
+          node --check data/models/nhl-win-v1.js
+          jq '{selected,incumbentMetrics,selectedMetrics,delta,promotion,subsets,calibration}' data/models/nhl-win-v1-validation.json
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-win-v1-${{ github.run_id }}
+          path: |
+            data/models/nhl-pro-v2-validation.json
+            data/models/nhl-win-v1-validation.json
+            data/models/nhl-win-v1.js
+          retention-days: 90
+      - name: Persist WIN-v1 validation artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/models/nhl-pro-v2-validation.json data/models/nhl-win-v1-validation.json data/models/nhl-win-v1.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "data: persist NHL-WIN-v1 validation"
+          git push origin HEAD:"${{ github.ref_name }}"
