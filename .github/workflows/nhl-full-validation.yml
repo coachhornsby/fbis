@@ -10,6 +10,7 @@ on:
       - "scripts/nhl-player-pro-v2-backtest.mjs"
       - "functions/lib/nhlPlayerProV2.js"
       - "functions/lib/nhlPropConfidence.js"
+      - "functions/lib/canonical/modelRegistry.js"
       - "functions/lib/proPlayerProjectionLayer.js"
       - "src/features/playerProps/buildPlayerPropsBoard.js"
       - "test/nhl-prop-confidence.test.js"
