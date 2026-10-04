@@ -61,12 +61,16 @@ test("CBB model projects only players with stable game/player inputs", () => {
     projectedPossessions: 72,
     teamProjectedPoints: { DUKE: 80 },
   }, [{
-    id:"1", name:"Guard", team:"DUKE", projectedMinutes:34, teamBaselinePossessions:69,
-    teamBaselinePoints:75, pointsPer40:22, reboundsPer40:5, assistsPer40:6,
-    sampleSize:10, roleConfidence:0.9,
+    id:"1", name:"Guard", team:"DUKE", projectedMinutes:34,
+    pointsPerGame:18, reboundsPerGame:5, assistsPerGame:6, threesMadePerGame:2.4,
+    pointsPer40:22, reboundsPer40:6, assistsPer40:7, threesMadePer40:3,
+    sampleSize:10, recentGames:5, roleConfidence:0.9,
+    recent:{points:19,rebounds:5.2,assists:6.1,threesMade:2.5,pace:70},
+    trend:{points:20,rebounds:5.5,assists:6.5,threesMade:2.7},
+    volatility:{points:4.2,rebounds:2.1,assists:2.0,threesMade:1.1},
   }]);
   assert.equal(result.ok, true);
-  assert.deepEqual(result.rows.map((r)=>r.market), ["points","rebounds","assists"]);
+  assert.deepEqual(result.rows.map((r)=>r.market), ["points","rebounds","assists","three_pointers_made","points_rebounds_assists"]);
   assert.ok(result.rows.every((r)=>r.independent && !r.marketInformed));
 });
 
@@ -98,4 +102,6 @@ test("focused college and tennis aliases normalize correctly", () => {
   assert.equal(normalizeProPropSport("ATP"), "tennis");
   assert.equal(canonicalizeProPlayerPropMarket("cfb", "Pass Yards"), "passing_yards");
   assert.equal(canonicalizeProPlayerPropMarket("tennis", "Games Won"), "total_games_won");
+  assert.equal(canonicalizeProPlayerPropMarket("cbb", "3 Pointers Made"), "three_pointers_made");
+  assert.equal(canonicalizeProPlayerPropMarket("cbb", "PRA"), "points_rebounds_assists");
 });
