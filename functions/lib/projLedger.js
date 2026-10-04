@@ -9,7 +9,7 @@ import { normName } from "./match.js";
 import { BOARD_SPORTS, SPORTS, lastNDatesCT, todayCT, shiftDateCT, fetchResultsForReconcile, blendWinProb, buildSlate, recommendBundle } from "./slateEngine.js";
 import { collegeApiKey } from "./collegeSecrets.js";
 import { DEFAULT_WEIGHTS, MODEL_VERSION } from "./weights.js";
-import { brierScore, logLoss } from "./pricing.js";
+import { brierScore, logLoss, pinMarkets } from "./pricing.js";
 import {
   persistGame,
   persistOddsSnapshot,
@@ -55,10 +55,10 @@ import { median, rmse, withinBands } from "./metrics.js";
 import { cfbSeasonYear } from "./cfbModel.js";
 import { nflSeasonYear } from "./nflModel.js";
 import { backfillNflTeamForm } from "./nflFormBackfill.js";
-import { STRATEGY_HC_V1, ticketMatchesStrategy, packTicket, gradeStrategyResult, strategyStats, dateCT } from "./strategy.js";
+import { STRATEGY_HC_V1, CBB_MONEY_STRATEGY_V1, validateCbbMoneyTicket, ticketMatchesStrategy, packTicket, gradeStrategyResult, strategyStats, dateCT } from "./strategy.js";
 import { CONVICTION_PAUSE_MESSAGE, CONVICTION_QUALIFICATION_PAUSED, evaluateConvictionGates } from "./convictionGate.js";
 import { reconstructTicketProbability } from "./probabilityReconstruction.js";
-import { packPinOddsRows, isPostStart, clvTracker, closeCoverage } from "./closeCapture.js";
+import { packPinOddsRows, isPostStart, clvTracker, closeCoverage, clvForTicket } from "./closeCapture.js";
 import { settleExecutedBet, matchExecutedBet, summarizeExecutedBets } from "./executedBets.js";
 import { sourceCoverage, palHealth } from "./sourceCoverage.js";
 import { palUnavailableReason, palHttpStatusToStore } from "./ballparkpal.js";
@@ -1250,6 +1250,77 @@ function tallyPersist(counts, res) {
   return next;
 }
 
+async function persistCbbMoneySignal(env, slate, game, frozen) {
+  if (slate?.sport !== "cbb") return { ok: true, skipped: true, reason: "not-cbb" };
+  const signal = game?.cbbMoneyResearch?.sideDislocation;
+  if (!signal?.triggered) return { ok: true, skipped: true, reason: "no-cbb-money-trigger" };
+  if (slate.date < todayCT()) return { ok: true, skipped: true, reason: "past-slate-not-eligible" };
+  const canonicalGameDate = dateCT(game.start || frozen?.start);
+  if (!canonicalGameDate || canonicalGameDate !== slate.date) {
+    return { ok: true, skipped: true, reason: "canonical-game-date-mismatch" };
+  }
+  const homeSpreadRaw = game?.odds?.pinSpread ?? game?.odds?.spread;
+  const homeSpread = Number(homeSpreadRaw);
+  if (!Number.isFinite(homeSpread)) return { ok: false, reason: "missing-cbb-money-spread" };
+  const side = signal.direction;
+  if (side !== "HOME" && side !== "AWAY") return { ok: false, reason: "invalid-cbb-money-side" };
+  const line = side === "HOME" ? homeSpread : -homeSpread;
+  const pinHome = Number(game?.odds?.pinSpreadHomePrice);
+  const pinAway = Number(game?.odds?.pinSpreadAwayPrice);
+  const pinPaired = Number.isFinite(pinHome) && Math.abs(pinHome) >= 100 && Number.isFinite(pinAway) && Math.abs(pinAway) >= 100;
+  const spreadMarket = pinMarkets(game)?.spread;
+  const fallbackHome = Number(game?.odds?.softSpreadHomePrice ?? game?.odds?.spreadPrice);
+  const fallbackAway = Number(game?.odds?.softSpreadAwayPrice);
+  const benchmarkPrice = side === "HOME"
+    ? (pinPaired ? pinHome : (Number.isFinite(fallbackHome) ? fallbackHome : null))
+    : (pinPaired ? pinAway : (Number.isFinite(fallbackAway) ? fallbackAway : null));
+  const benchmarkBook = pinPaired ? "Pinnacle" : (game?.odds?.softSource || "Market");
+  const entryNoVig = pinPaired
+    ? (side === "HOME" ? spreadMarket?.noVigA : spreadMarket?.noVigB)
+    : null;
+  const raw = {
+    strategyId: CBB_MONEY_STRATEGY_V1.id,
+    sport: "cbb",
+    gameId: String(game.id),
+    matchup: frozen?.matchup || `${game.away?.abbr || game.away?.name} @ ${game.home?.abbr || game.home?.name}`,
+    market: "SPREAD",
+    side,
+    line,
+    edge: signal.dislocation,
+    qualifiedAt: frozen?.frozenAt || new Date().toISOString(),
+    modelVersion: signal.modelId || game?.cbbMoneyResearch?.modelId || "CBB-MONEY-SELECTOR-v1",
+    checkpoint: frozen?.checkpoint || null,
+    dataQuality: game?.quality?.score ?? frozen?.dataQuality ?? null,
+    role: "prospective",
+    qualified: false,
+    benchmarkPrice,
+    executionPrice: benchmarkPrice,
+    benchmarkBook,
+    executionBook: benchmarkBook,
+    entryNoVig,
+    start: game.start || frozen?.start || null,
+    sourceProjectionId: frozen?.id || game.id,
+    freezeId: frozen?.frozenAt || frozen?.id || null,
+    marketSnapshotId: frozen?.frozenAt ? `${game.id}:SPREAD:${frozen.frozenAt}` : null,
+  };
+  const checked = validateCbbMoneyTicket(raw);
+  if (!checked.ok) return { ok: false, reason: `invalid-cbb-money-ticket:${checked.errors.join("|")}` };
+  await persistStrategy(env, CBB_MONEY_STRATEGY_V1);
+  const packed = packTicket(checked.ticket, {
+    role: "prospective",
+    date: slate.date,
+    strategyId: CBB_MONEY_STRATEGY_V1.id,
+  });
+  const res = await persistStrategyTicketWithReadback(env, packed, {
+    strictConflict: false,
+    requireFreezeReadback: Boolean(frozen?.id),
+  });
+  if (res?.conflict || res?.reason === "duplicate-conflict") {
+    return { ok: true, skipped: true, already: true, kind: "cbb-money-signal", reason: "first-signal-already-frozen" };
+  }
+  return { ...res, kind: "cbb-money-signal" };
+}
+
 export async function freezeSlate(slate, env = {}) {
   const counts = emptyWriteCounts();
   if (!slate?.sport || !slate.games) return { ok: true, counts, games: 0 };
@@ -1267,6 +1338,11 @@ export async function freezeSlate(slate, env = {}) {
     const existing = ledger.games[k];
     const storageDate = existing?.date || canonicalDate;
     const liveOrFinal = Boolean(game.status?.live || game.status?.completed);
+
+    if (slate.sport === "cbb" && !liveOrFinal) {
+      const moneyFrozen = freezeFromGame(storageDate, game);
+      writes.push(persistCbbMoneySignal(env, slate, game, moneyFrozen));
+    }
 
     if (!existing && !liveOrFinal) {
       writes.push(persistGame(env, game, storageDate));
@@ -1572,7 +1648,11 @@ export async function reconstructAffectedTickets(env, tickets) {
 }
 
 async function gradeStrategyAgainstFinals(env, finals, opts = {}) {
-  const tickets = await queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id });
+  const [hcTickets, cbbMoneyTickets] = await Promise.all([
+    queryStrategyTickets(env, { strategyId: STRATEGY_HC_V1.id }),
+    queryStrategyTickets(env, { strategyId: CBB_MONEY_STRATEGY_V1.id }),
+  ]);
+  const tickets = [...(hcTickets || []), ...(cbbMoneyTickets || [])];
   const open = (tickets || []).filter((t) => !t.result || t.result === "OPEN");
   let allFinals = [...(finals || [])];
   if (!opts.skipDurableFinals) {
@@ -1592,6 +1672,14 @@ async function gradeStrategyAgainstFinals(env, finals, opts = {}) {
     allFinals = [...allFinals, ...snapshotFinals];
   }
   const nowMs = Date.now();
+  const minTicketDate = open.map((t) => t.date).filter(Boolean).sort()[0] || lastNDatesCT(8).at(-1);
+  const oddsQ = await queryOddsSnapshots(env, { since: minTicketDate });
+  const oddsByGame = new Map();
+  for (const row of oddsQ.rows || []) {
+    const key = String(row.gameId || "");
+    if (!oddsByGame.has(key)) oddsByGame.set(key, []);
+    oddsByGame.get(key).push(row);
+  }
   const jobs = [];
   for (const t of tickets) {
     if (t.result && t.result !== "OPEN") continue;
@@ -1600,8 +1688,29 @@ async function gradeStrategyAgainstFinals(env, finals, opts = {}) {
     if (!g) continue;
     if (isFutureStartTs(g.start, nowMs)) continue;
     if (g.status?.completed !== true) continue;
-    const graded = gradeStrategyResult(t, g);
-    if (graded) jobs.push(gradeStrategyTicket(env, t.id, graded));
+    const snaps = oddsByGame.get(String(t.gameId || "")) || [];
+    const clvPack = clvForTicket({ ...t, start: g.start || t.start }, snaps);
+    if (clvPack?.close) {
+      jobs.push(
+        persistStrategyTicketWithReadback(
+          env,
+          {
+            ...t,
+            closingLine: clvPack.close.line,
+            closingPrice: clvPack.close.price,
+            closingNoVig: clvPack.close.noVig,
+          },
+          { strictConflict: false }
+        )
+      );
+    }
+    const graded = gradeStrategyResult(
+      clvPack?.close
+        ? { ...t, closingLine: clvPack.close.line, closingPrice: clvPack.close.price, closingNoVig: clvPack.close.noVig }
+        : t,
+      g
+    );
+    if (graded) jobs.push(gradeStrategyTicket(env, t.id, { ...graded, clv: clvPack?.clv ?? graded.clv ?? null }));
   }
   await Promise.all(jobs);
 }

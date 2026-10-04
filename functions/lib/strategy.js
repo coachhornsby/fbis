@@ -1056,7 +1056,7 @@ export function validateCbbMoneyTicket(raw) {
     role: "prospective",
     ticket: {
       ...raw,
-      id: raw.id || `${CBB_MONEY_STRATEGY_V1.id}:cbb:${String(gameId)}:SPREAD:${side}:${String(signalAt).slice(0,10)}`,
+      id: raw.id || `${CBB_MONEY_STRATEGY_V1.id}:cbb:${String(gameId)}:SPREAD:${String(signalAt).slice(0,10)}`,
       strategyId: CBB_MONEY_STRATEGY_V1.id,
       sport: "cbb",
       gameId: String(gameId),
