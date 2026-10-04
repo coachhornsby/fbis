@@ -3,7 +3,7 @@ name: NBA prospective market evaluator
 on:
   workflow_dispatch:
   push:
-    branches: ["research/nba-fbis-v1"]
+    branches: [main, "research/nba-fbis-v1"]
     paths:
       - "scripts/nba-market-evaluate.mjs"
       - "functions/lib/nbaQualification.js"
