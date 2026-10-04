@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {buildFbisCbbRatings,projectFbisCbbGame,FBIS_CBB_MODEL_ID} from "../functions/lib/cbbFbisRatings.js";
 import {conferenceForTeamSeason} from "../functions/lib/cbbConferenceMembership.js";
 import {buildCbbMoneyResearch,SIDE_DISLOCATION_THRESHOLD} from "../functions/lib/cbbMoneySelector.js";
+import {validateCbbMoneyTicket,CBB_MONEY_STRATEGY_V1} from "../functions/lib/strategy.js";
 
 const rows=[
  {gameId:"1",startDate:"2025-11-01T18:00:00Z",team:"A",opponent:"B",teamId:"A",conference:"X",isHome:true,points:80,poss:70,fgm:30,fga:60,threeMade:10,threeAtt:25,ftm:10,fta:14,orb:8,drb:22,tov:10},
@@ -87,4 +88,23 @@ test("money-first side dislocation is prospective and fail-closed",()=>{
  assert.equal(m.sideDislocation.authority.canAuthorizeWager,false);
  assert.equal(m.sideDislocation.authority.canQualify,false);
  assert.equal(m.governance.noAutoWager,true);
+});
+
+
+test("CBB money ticket validator enforces prospective dislocation contract",()=>{
+ const good=validateCbbMoneyTicket({
+  strategyId:CBB_MONEY_STRATEGY_V1.id,sport:"cbb",gameId:"g1",market:"SPREAD",side:"HOME",
+  line:-3,edge:10.5,qualifiedAt:"2026-11-01T18:00:00Z",modelVersion:"CBB-MONEY-SELECTOR-v1",
+  role:"prospective",qualified:false,benchmarkPrice:-110
+ });
+ assert.equal(good.ok,true);
+ assert.equal(good.ticket.strategyId,CBB_MONEY_STRATEGY_V1.id);
+ assert.equal(good.ticket.qualified,false);
+ const bad=validateCbbMoneyTicket({
+  strategyId:CBB_MONEY_STRATEGY_V1.id,sport:"cbb",gameId:"g2",market:"SPREAD",side:"AWAY",
+  line:4,edge:6,qualifiedAt:"2026-11-01T18:00:00Z",modelVersion:"CBB-MONEY-SELECTOR-v1",
+  role:"prospective",qualified:false,benchmarkPrice:-110
+ });
+ assert.equal(bad.ok,false);
+ assert.ok(bad.errors.includes("side_dislocation"));
 });
