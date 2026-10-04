@@ -200,7 +200,8 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
   const tw=twoWayMarket(price,oppositePrice);
   const noVig=tw.complete?tw.noVigA:null;
   const breakEven=americanToImplied(price);
-  const trajectory=deriveNhlMarketTrajectory(game.actionIntel,{market,selection,fbisSide});
+  const combinedIntel={...(game.actionIntel||{}),lineHistory:[...(game.marketLineHistory||[]),...(game.actionIntel?.lineHistory||[])]};
+  const trajectory=deriveNhlMarketTrajectory(combinedIntel,{market,selection,fbisSide});
   const reliability=reliabilityForGame(game,trajectory);
   const calibrated=modelProbability==null?null:clamp(.5+(modelProbability-.5)*(.82+.12*reliability.score),.02,.98);
   const ev=calibrated!=null?expectedRoi(calibrated,price):null;
