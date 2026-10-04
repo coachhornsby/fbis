@@ -119,3 +119,45 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+
+/* === Shared game workspace premium styling === */
+.fbis-shell-main:not(.route-player-props) .game-workspace {
+  padding:14px;
+  border-radius:18px;
+  border-color:rgba(51,139,208,.32);
+  background:linear-gradient(180deg,rgba(7,25,45,.94),rgba(3,16,30,.94));
+  box-shadow:0 14px 32px rgba(0,0,0,.28);
+}
+.fbis-shell-main:not(.route-player-props) .game-ws-header {
+  padding-bottom:11px;
+  border-color:rgba(68,139,199,.22);
+}
+.fbis-shell-main:not(.route-player-props) .game-ws-title {
+  font-size:18px;
+  font-weight:900;
+}
+.fbis-shell-main:not(.route-player-props) .game-ws-section {
+  border-radius:14px;
+  border-color:rgba(63,139,204,.27);
+  background:linear-gradient(180deg,rgba(8,31,53,.82),rgba(5,20,36,.82));
+  padding:12px;
+}
+.fbis-shell-main:not(.route-player-props) .game-ws-section-head h3 {
+  color:#6edaff;
+  font-size:11px;
+  text-transform:none;
+}
+.fbis-shell-main:not(.route-player-props) .game-ws-metric {
+  padding:8px;
+  border:1px solid rgba(68,134,193,.18);
+  border-radius:10px;
+  background:rgba(2,14,27,.5);
+}
+.fbis-shell-main:not(.route-player-props) .game-ws-metric-value {
+  color:#f6fbff;
+  font-size:15px;
+  font-weight:850;
+}
+
