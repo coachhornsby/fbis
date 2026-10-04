@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {buildFbisCbbRatings,projectFbisCbbGame,FBIS_CBB_MODEL_ID} from "../functions/lib/cbbFbisRatings.js";
 import {conferenceForTeamSeason} from "../functions/lib/cbbConferenceMembership.js";
 import {buildCbbMoneyResearch,SIDE_DISLOCATION_THRESHOLD} from "../functions/lib/cbbMoneySelector.js";
+import {buildCbbTeamPlayerState,cbbPlayerGameFeatures} from "../functions/lib/cbbPlayerGameModel.js";
 import {validateCbbMoneyTicket,CBB_MONEY_STRATEGY_V1} from "../functions/lib/strategy.js";
 
 const rows=[
@@ -116,4 +117,18 @@ test("CBB money validator freezes one ticket identity per game",()=>{
  const away=validateCbbMoneyTicket({...base,side:"AWAY",line:3,edge:-11});
  assert.equal(home.ok,true); assert.equal(away.ok,true);
  assert.equal(home.ticket.id,away.ticket.id);
+});
+
+
+test("player-game layer builds independent rotation features",()=>{
+ const players=Array.from({length:8},(_,i)=>({
+  id:String(i+1),name:"P"+(i+1),projectedMinutes:30-i,minutesPerGame:28-i,roleConfidence:.8,sampleSize:10,
+  pointsPer40:18-i*.5,reboundsPer40:6+i*.2,assistsPer40:4,threesMadePer40:1.5,
+  fieldGoalAttemptsPer40:13,freeThrowAttemptsPer40:4,offensiveReboundsPer40:1.5,defensiveReboundsPer40:4.5,turnoversPer40:2,
+  effectiveFieldGoalPct:55,trueShootingPct:58,
+  role:{startsRecent:4,lastGameMinutes:28-i,lastGameDnp:false,minuteStability:.8}
+ }));
+ const a=buildCbbTeamPlayerState(players),b=buildCbbTeamPlayerState(players.map((p,i)=>({...p,pointsPer40:p.pointsPer40-1,projectedMinutes:p.projectedMinutes-1})));
+ assert.equal(a.ok,true);assert.ok(a.projectedMinutes>190);assert.ok(a.pointsProxy>0);
+ const f=cbbPlayerGameFeatures(a,b);assert.ok(Number.isFinite(f.pointsProxyDiff));assert.ok(Number.isFinite(f.roleConfidenceSum));
 });
