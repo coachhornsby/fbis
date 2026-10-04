@@ -1,11 +1,12 @@
 name: NFL-PRO-v1.2 NGS walk-forward
 on:
   push:
-    branches: ["research/nfl-pro-v1-1", "rebuild/nfl-props-edge-v2"]
+    branches: ["research/nfl-pro-v1-1", "rebuild/nfl-props-edge-v2", "nfl-props-v3-weight-validation"]
     paths:
       - "scripts/build-nfl-training-dataset.py"
       - "scripts/nfl-pro-v1-1-walkforward.py"
       - ".github/workflows/nfl-pro-v1-1.yml"
+      - "scripts/nfl-props-v3-weight-validation.py"
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,13 +20,30 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Run NFL props v3 weight grid
+        if: github.ref_name == 'nfl-props-v3-weight-validation'
+        run: python scripts/nfl-props-v3-weight-validation.py
+      - name: Print NFL props v3 winner
+        if: github.ref_name == 'nfl-props-v3-weight-validation'
+        run: jq '{examples,best,top10,seasonalTop5}' artifacts/nfl-props-v3-validation/report.json
+      - name: Upload NFL props v3 validation
+        if: github.ref_name == 'nfl-props-v3-weight-validation'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-props-v3-weight-validation
+          path: artifacts/nfl-props-v3-validation/*
+          retention-days: 90
       - name: Rebuild leakage-safe NFL dataset
+        if: github.ref_name != 'nfl-props-v3-weight-validation'
         run: python scripts/build-nfl-training-dataset.py
       - name: Run nested walk-forward NFL-PRO-v1.1 validation
+        if: github.ref_name != 'nfl-props-v3-weight-validation'
         run: python scripts/nfl-pro-v1-1-walkforward.py
       - name: Summary
+        if: github.ref_name != 'nfl-props-v3-weight-validation'
         run: jq . artifacts/nfl-pro-v1-2/report.json
       - uses: actions/upload-artifact@v4
+        if: github.ref_name != 'nfl-props-v3-weight-validation'
         with:
           name: nfl-pro-v1-2
           path: artifacts/nfl-pro-v1-2/*
