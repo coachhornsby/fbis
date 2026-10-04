@@ -419,7 +419,7 @@ export function projectNhlProV2Game(game,ctx){
       goalie:{home:hg,away:ag},
       specialTeams:{home:round(hst-leagueSt,3),away:round(ast-leagueSt,3)},
       tracking:{home:he,away:ae,source:"NHL_EDGE_EXPANDED_OPTIONAL",expanded:{home:ctx?.edge?.[home]?.expanded||null,away:ctx?.edge?.[away]?.expanded||null,activation:"RESEARCH_ADVISORY_ONLY"},player:playerTracking,playerEdgeCoverage:ctx?.playerEdge?.coverage??0,historicalProxy:{homeHighDanger:round(hhd,2),awayHighDanger:round(ahd,2),homeRush:round(hrush,2),awayRush:round(arush,2)}},
-      opportunity:{source:opportunity?.source||null,available:Boolean(opportunity?.available),scratchCount:opportunity?.scratchCount||0,home:opportunity?.home||null,away:opportunity?.away||null,homeGoalAdjustment:round(opportunityHome,3),awayGoalAdjustment:round(opportunityAway,3),researchOnly:true},
+      opportunity:{source:opportunity?.source||null,available:Boolean(opportunity?.available),gameType:finite(opportunity?.gameType),scratchCount:opportunity?.scratchCount||0,home:opportunity?.home||null,away:opportunity?.away||null,homeGoalAdjustment:round(opportunityHome,3),awayGoalAdjustment:round(opportunityAway,3),researchOnly:true},
       situation:{homeRestDays:hRest,awayRestDays:aRest,eloGoalAdjustment:round(eloGoalAdj,3),winnerSituational:winnerHead?.situational||null},
       distribution:{family:"BIVARIATE_POISSON",shared:probability.sharedComponent,winHead:"NHL-PRO-v2 calibrated probability + NHL-WIN-v1 directional pick",mostLikelyScore:probability.mostLikelyScore}
     },
