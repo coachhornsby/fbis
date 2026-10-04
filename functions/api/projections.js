@@ -29,6 +29,7 @@ export async function onRequestGet(context) {
     CBBD_API_KEY: context.env.CBBD_API_KEY,
     KENPOM_API_KEY: context.env.KENPOM_API_KEY,
     DB: context.env.DB,
+    ARCHIVE: context.env.ARCHIVE,
     caches: caches.default,
     parlayCacheOnly: true,
     palCacheOnly: true,
