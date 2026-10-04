@@ -1866,3 +1866,39 @@
     max-height: 100px !important;
   }
 }
+
+
+/* Requested sizing: double the large upper-left team watermark. */
+.pp-team-watermark {
+  left: -18px !important;
+  top: -18px !important;
+  width: 224px !important;
+  height: 224px !important;
+  opacity: .17 !important;
+  z-index: 1 !important;
+}
+
+.pp-team-watermark img {
+  width: 224px !important;
+  height: 224px !important;
+  max-width: 224px !important;
+  max-height: 224px !important;
+  object-fit: contain !important;
+}
+
+@media (max-width:760px) {
+  .pp-team-watermark {
+    left: -24px !important;
+    top: -20px !important;
+    width: 200px !important;
+    height: 200px !important;
+    opacity: .17 !important;
+  }
+
+  .pp-team-watermark img {
+    width: 200px !important;
+    height: 200px !important;
+    max-width: 200px !important;
+    max-height: 200px !important;
+  }
+}
