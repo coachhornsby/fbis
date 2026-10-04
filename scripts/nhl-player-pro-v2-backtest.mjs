@@ -180,6 +180,39 @@ function lineGroups(rows,keyFn,minN=100){
   const m=new Map();for(const r of rows){const k=String(keyFn(r)??"UNKNOWN");if(!m.has(k))m.set(k,[]);m.get(k).push(r);}
   return Object.fromEntries([...m.entries()].filter(([,v])=>v.length>=minN).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>[k,{threshold:explodedLineMetrics(v)}]));
 }
+
+function quantileCuts(values){
+  const a=values.filter(Number.isFinite).slice().sort((x,y)=>x-y);
+  const q=p=>a.length?a[Math.min(a.length-1,Math.max(0,Math.floor((a.length-1)*p)))]:null;
+  return {q25:q(.25),q50:q(.50),q75:q(.75)};
+}
+function quartile(v,cuts,{invert=false}={}){
+  if(!Number.isFinite(v)||!Number.isFinite(cuts?.q25))return "UNKNOWN";
+  const q=v<=cuts.q25?"Q1":v<=cuts.q50?"Q2":v<=cuts.q75?"Q3":"Q4";
+  if(!invert)return q;
+  return ({Q1:"Q4",Q2:"Q3",Q3:"Q2",Q4:"Q1"})[q];
+}
+function lineGapBucket(g){
+  const a=Math.abs(g);
+  return a<1?"<1":a<2?"1-1.99":a<3?"2-2.99":a<4?"3-3.99":"4+";
+}
+function savesLineBucket(line){
+  return line<=22.5?"20.5-22.5":line<=26.5?"23.5-26.5":line<=30.5?"27.5-30.5":"31.5+";
+}
+function savesBetStats(rows){
+  if(!rows.length)return null;
+  let hit=0,brier=0;
+  for(const r of rows){
+    const actualOver=r.y===1,callOver=r.direction==="OVER";
+    hit+=actualOver===callOver?1:0;
+    brier+=(r.p-r.y)**2;
+  }
+  return {n:rows.length,accuracy:round(hit/rows.length,4),brier:round(brier/rows.length,5)};
+}
+function savesGroups(rows,keyFn,minN=50){
+  const m=new Map();for(const r of rows){const k=String(keyFn(r)??"UNKNOWN");if(!m.has(k))m.set(k,[]);m.get(k).push(r);}
+  return Object.fromEntries([...m.entries()].filter(([,v])=>v.length>=minN).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>[k,savesBetStats(v)]));
+}
 function halfPoints(lo,hi){const out=[];for(let x=lo;x<=hi;x+=1)out.push(x+0.5);return out;}
 function marketLines(m){
   return m==="shots_on_goal"?halfPoints(0,6)
@@ -298,6 +331,53 @@ for(const r of allRows)for(const line of r.lines||[]){
 }
 const byLine=lineGroups(lineRows,r=>`${r.market}:${r.line}`,100);
 const byEdge=lineGroups(lineRows,r=>r.edge<0.05?"<5%":r.edge<0.10?"5-9.9%":r.edge<0.15?"10-14.9%":r.edge<0.20?"15-19.9%":"20%+",200);
+
+const savesRows=allRows.filter(r=>r.market==="saves");
+const savesCuts={
+  opponentShotsFor:quantileCuts(savesRows.map(r=>r.opponentShotsFor)),
+  teamShotsAgainst:quantileCuts(savesRows.map(r=>r.teamShotsAgainst)),
+  projectedShotsFaced:quantileCuts(savesRows.map(r=>r.projectedTeamShots)),
+  priorStarts:quantileCuts(savesRows.map(r=>r.priorGp))
+};
+const savesLineRows=lineRows.filter(r=>r.market==="saves").map(r=>({
+  ...r,
+  direction:r.v2>r.line?"OVER":"UNDER",
+  gap:r.v2-r.line,
+  gapBucket:lineGapBucket(r.v2-r.line),
+  lineBucket:savesLineBucket(r.line),
+  oppShotQuartile:quartile(r.opponentShotsFor,savesCuts.opponentShotsFor),
+  defenseSuppressionQuartile:quartile(r.teamShotsAgainst,savesCuts.teamShotsAgainst,{invert:true}),
+  projectedShotsFacedQuartile:quartile(r.projectedTeamShots,savesCuts.projectedShotsFaced),
+  starterExperienceQuartile:quartile(r.priorGp,savesCuts.priorStarts)
+}));
+const savesAudit={
+  cuts:savesCuts,
+  byLine:savesGroups(savesLineRows,r=>r.line,100),
+  byLineBucket:savesGroups(savesLineRows,r=>r.lineBucket,200),
+  byDirection:savesGroups(savesLineRows,r=>r.direction,200),
+  byGap:savesGroups(savesLineRows,r=>r.gapBucket,200),
+  byDirectionGap:savesGroups(savesLineRows,r=>`${r.direction}|${r.gapBucket}`,100),
+  byOpponentShotQuartile:savesGroups(savesLineRows,r=>r.oppShotQuartile,200),
+  byDefenseSuppressionQuartile:savesGroups(savesLineRows,r=>r.defenseSuppressionQuartile,200),
+  byOffenseDefenseMatrix:savesGroups(savesLineRows,r=>`${r.oppShotQuartile}|${r.defenseSuppressionQuartile}`,120),
+  byProjectedShotsFacedQuartile:savesGroups(savesLineRows,r=>r.projectedShotsFacedQuartile,200),
+  byStarterExperienceQuartile:savesGroups(savesLineRows,r=>r.starterExperienceQuartile,200),
+  byHomeAway:savesGroups(savesLineRows,r=>r.home?"HOME":"AWAY",200),
+  byRest:savesGroups(savesLineRows,r=>r.b2b?"B2B":r.restDays>=2.5?"2PLUS_REST":"NORMAL_REST",200),
+  bySeasonPhase:savesGroups(savesLineRows,r=>r.seasonPhase,200),
+  sportsbookStyle:{
+    weakOffenseStrongDefenseUnder:savesGroups(
+      savesLineRows.filter(r=>r.oppShotQuartile==="Q1"&&r.defenseSuppressionQuartile==="Q4"&&r.direction==="UNDER"),
+      r=>r.gapBucket,40
+    ),
+    strongOffenseWeakDefenseOver:savesGroups(
+      savesLineRows.filter(r=>r.oppShotQuartile==="Q4"&&r.defenseSuppressionQuartile==="Q1"&&r.direction==="OVER"),
+      r=>r.gapBucket,40
+    ),
+    underByLineAndGap:savesGroups(savesLineRows.filter(r=>r.direction==="UNDER"),r=>`${r.lineBucket}|${r.gapBucket}`,60),
+    overByLineAndGap:savesGroups(savesLineRows.filter(r=>r.direction==="OVER"),r=>`${r.lineBucket}|${r.gapBucket}`,60)
+  }
+};
 const lineValidation=Object.fromEntries(Object.entries(byLine).map(([key,v])=>{
   const t=v.threshold||{};
   const status=t.brierDelta<0&&t.accuracyDelta>=0?"PROMOTE_RESEARCH":t.brierDelta<0?"WATCH_RESEARCH":"HOLD_RESEARCH";
@@ -330,7 +410,7 @@ const report={
   conditionalOnActive:true,conditionalOnConfirmedStarter:true,marketInformed:false,
   integrity:{priorSeasonsOnlyTraining:true,currentSeasonOnlyPastGames:true,usesSameGameBoxscoreOnlyForParticipationSet:true,fetchErrors:errors.length,targetSeasons:seasons.slice(1)},
   aggregate:{projection:propMetrics(allRows),threshold:thresholdMetrics(allRows),rows:allRows.length,lineTests:lineRows.length},
-  folds,marketValidation,lineValidation,subsets:subset,bySyntheticLine:byLine,byModelEdge:byEdge,
+  folds,marketValidation,lineValidation,subsets:subset,bySyntheticLine:byLine,byModelEdge:byEdge,savesAudit,
   limitations:[
     "Historical prop validation is conditional on the player being active in the game; same-game boxscore participation is used only to define the active set, never as a performance input.",
     "Goalie save validation is conditional on the actual primary goalie (>=30 minutes); live use remains gated on starter confirmation.",
