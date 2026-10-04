@@ -249,7 +249,7 @@ async function espnPlayerHeadshot(name,sport){
 
 async function prizePicksResearchImage(lookupName,sport){
   if(!sport) return null;
-  const page=`https://www.prizepicks.com/research/${encodeURIComponent(sport)}/players/${encodeURIComponent(slugify(name))}`;
+  const page=`https://www.prizepicks.com/research/${encodeURIComponent(sport)}/players/${encodeURIComponent(slugify(lookupName))}`;
   const res=await fetch(page,{headers:{"user-agent":"Mozilla/5.0","accept":"text/html"}});
   if(!res.ok) return null;
   const html=await res.text();
@@ -261,7 +261,7 @@ async function prizePicksResearchImage(lookupName,sport){
 
 
 async function wikidataPlayerImage(lookupName,sport){
-  const searchUrl="https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&origin=*&language=en&limit=8&search="+encodeURIComponent(name);
+  const searchUrl="https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&origin=*&language=en&limit=8&search="+encodeURIComponent(lookupName);
   const res=await fetch(searchUrl,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
   if(!res.ok) return null;
   const body=await res.json().catch(()=>({}));
@@ -291,7 +291,7 @@ async function wikidataPlayerImage(lookupName,sport){
 
 async function wikipediaPlayerImage(lookupName){
   const endpoint="https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=0&gsrlimit=5&gsrsearch="+
-    encodeURIComponent('intitle:"'+name+'"')+
+    encodeURIComponent('intitle:"'+lookupName+'"')+
     "&prop=pageimages|info&piprop=thumbnail&pithumbsize=320&inprop=url";
   const res=await fetch(endpoint,{headers:{accept:"application/json"}});
   if(!res.ok) return null;
