@@ -9,7 +9,7 @@ on:
       - "scripts/cbb-qa-structural-snapshot.mjs"
       - "scripts/cbb-publish-structural-snapshot.mjs"
       - "scripts/cbb-structural-confirmation-v1.mjs"
-      - "scripts/cbb-pro-total-v1-promotion.mjs"
+      - "scripts/cbb-pro-total-v1-promotion.mjs"\n      - "scripts/cbb-total-subsets-v1.mjs"
       - ".github/workflows/cbb-structural-snapshot.yml"
   workflow_dispatch:
   schedule:
@@ -71,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/cbb-pro-total-v1-promotion.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-pro-total-v1-promotion-run.log
-      - uses: actions/upload-artifact@v4
+      - name: Test CBB totals subsets\n        run: |\n          set -euo pipefail\n          node scripts/cbb-total-subsets-v1.mjs artifacts/cbb-structural-dataset.json | tee artifacts/cbb-total-subsets-v1-run.log\n      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: cbb-structural-snapshot-${{ github.run_id }}
