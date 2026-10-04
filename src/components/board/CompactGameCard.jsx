@@ -16,19 +16,23 @@ function bestEdge(vm) {
   const totalAbs = Number.isFinite(total) ? Math.abs(total) : -1;
 
   if (spreadAbs < 0 && totalAbs < 0) {
-    return { value: "—", detail: "NO EDGE", type: "EDGE" };
+    return { value: "—", detail: "NO EDGE", type: "EDGE", team: null, total: false };
   }
   if (spreadAbs >= totalAbs) {
     return {
       value: `+${fmt(spreadAbs)}`,
       detail: cmp.fbisSide?.label || "SPREAD",
       type: "SPREAD",
+      team: cmp.fbisSide?.team || null,
+      total: false,
     };
   }
   return {
     value: `${total > 0 ? "+" : ""}${fmt(total)}`,
     detail: total > 0 ? "OVER" : total < 0 ? "UNDER" : "TOTAL",
     type: "TOTAL",
+    team: null,
+    total: true,
   };
 }
 
@@ -85,8 +89,15 @@ export default function CompactGameCard({ game, onOpen }) {
           </div>
         </div>
 
-        <aside className="cgc-best-edge">
+        <aside className={`cgc-best-edge${edge.total ? " is-total" : " is-side"}`}>
           <span>BEST EDGE</span>
+          <div className="cgc-edge-identity">
+            {edge.team ? (
+              <TeamLogo team={edge.team} size={42} className="cgc-edge-logo" />
+            ) : edge.total ? (
+              <div className="cgc-total-mark">TOTAL</div>
+            ) : null}
+          </div>
           <strong>{edge.value}</strong>
           <b>{edge.detail}</b>
           <small>{edge.type}</small>
