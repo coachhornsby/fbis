@@ -435,6 +435,18 @@ const artifact={modelId:report.modelId,version:report.version,generatedAt:report
   scaler:{mean:scaler.mean.map(x=>round(x,8)),sd:scaler.sd.map(x=>round(x,8))},
   logisticWeights:logistic.w.map(x=>round(x,8)),boosted:{base:round(boost.base,8),stumps:boost.model.map(s=>({...s,th:round(s.th,8),lv:round(s.lv,8),rv:round(s.rv,8)}))},
   stackWeight:round(bestW,4),arenaResiduals:Object.fromEntries(Object.entries(arenaRes).map(([k,v])=>[k,round(v,8)])),
+  directionalHead:{
+    selected:selectedDecision,
+    threshold:Number(decisionHeads[selectedDecision]?.threshold??0.5),
+    oosAccuracy:decisionHeads[selectedDecision]?.test?.accuracy??null,
+    incumbentOosAccuracy:testMetrics.current.accuracy,
+    probabilitySource:"NHL-PRO-v2 calibrated probability unchanged",
+    cvFeatureSet:cvLogistic.name,
+    featureIndexes:cvLogistic.idx,
+    featureNames:cvLogistic.idx.map(i=>FEATURES[i]),
+    scaler:{mean:cvLogistic.scaler.mean.map(x=>round(x,8)),sd:cvLogistic.scaler.sd.map(x=>round(x,8))},
+    weights:cvLogistic.model.w.map(x=>round(x,8))
+  },
   promotion:report.promotion};
 await mkdir(outPath.split("/").slice(0,-1).join("/")||".",{recursive:true});
 await writeFile(outPath,JSON.stringify(report,null,2)+"\n");
