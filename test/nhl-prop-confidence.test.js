@@ -5,6 +5,7 @@ import {
   rateNhlGoalieSavesConfidence,
   rateGenericNhlPropConfidence,
 } from "../functions/lib/nhlPropConfidence.js";
+import { withFbisPropAnalytics } from "../src/features/playerProps/buildPlayerPropsBoard.js";
 
 test("goalie saves confidence is asymmetric: unders earn stars sooner than overs",()=>{
   const under=rateNhlGoalieSavesConfidence({
@@ -57,4 +58,18 @@ test("non-saves NHL props are capped below five stars until equivalent subset ev
   });
   assert.equal(r.stars,4);
   assert.equal(r.tier,"PREMIUM");
+});
+
+test("player props board exposes the same NHL saves star grade",()=>{
+  const row=withFbisPropAnalytics({
+    sport:"nhl",market:"saves",marketCanonical:"saves",
+    fbisProjection:23.0,fbisSigma:5.5,line:26.5,
+    validationStatus:"PROMOTE_RESEARCH",lineValidationStatus:"PROMOTE_RESEARCH",
+    propGate:"CLEAR",eligibleForCard:true,
+    shotEnvironment:{opponentShotsFor:26.5,teamShotsAgainst:26.5,projectedShotsFaced:26.5},
+  });
+  assert.equal(row.confidenceStars,5);
+  assert.equal(row.confidenceSide,"UNDER");
+  assert.equal(row.confidenceTier,"ELITE");
+  assert.equal(row.confidenceResearchCandidate,true);
 });
