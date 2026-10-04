@@ -226,6 +226,27 @@ function mlbSubprojections(game = {}) {
   };
 }
 
+function soccerSubprojections(game = {}) {
+  const p = game.soccerFbis || game.challengers?.["SOCCER-FBIS-v1"] || null;
+  if (!p?.ok) return { available: false, source: "SOCCER-FBIS-v1", maturity: "RESEARCH", canQualify: false };
+  return {
+    available: true,
+    source: "SOCCER-FBIS-v1",
+    modelVersion: p.modelVersion || game.modelVersion || null,
+    maturity: "RESEARCH",
+    canQualify: false,
+    canAuthorize: false,
+    expectedGoals: { home: finite(p.home), away: finite(p.away), total: finite(p.total) },
+    oneXTwo: { home: finite(p.pHomeWin), draw: finite(p.pDraw), away: finite(p.pAwayWin) },
+    btts: { yes: finite(p.pBttsYes), no: finite(p.pBttsNo) },
+    totals: p.totals || null,
+    homeAsian: p.homeAsian || null,
+    uncertainty: p.uncertainty || null,
+    diagnostics: p.diagnostics || null,
+    policy: "Independent soccer research probabilities. No calibrated EV or wager authority.",
+  };
+}
+
 function kboSubprojections(game = {}) {
   const p = game.kboV1;
   if (!p?.ok) return { available:false, source:"KBO-FBIS-v1" };
@@ -661,7 +682,7 @@ export function productProjectionCard(game, sport, { tier = "public" } = {}) {
     projection: proj,
     market: pin,
     externalModels: sport === "mlb" ? { ballparkPal: ballparkPal(game, proj) } : undefined,
-    subprojections: sport === "mlb" ? mlbSubprojections(game) : sport === "npb" ? npbSubprojections(game) : sport === "kbo" ? kboSubprojections(game) : undefined,
+    subprojections: sport === "mlb" ? mlbSubprojections(game) : sport === "npb" ? npbSubprojections(game) : sport === "kbo" ? kboSubprojections(game) : sport === "soccer" ? soccerSubprojections(game) : undefined,
     playerProjections: proPlayerProjections(game, sport),
     decision: {
       status: d.status,
