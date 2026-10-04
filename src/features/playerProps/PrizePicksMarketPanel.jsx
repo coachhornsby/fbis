@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { propProjectionStars } from "./buildPlayerPropsBoard.js";
 
-const SPORTS=["top25","mlb","tennis","nba","wnba","nfl","nhl","soccer","cfb","cbb"];
+const SPORTS=["top25","nfl","mlb","cfb","cbb","tennis","nba","wnba","nhl","soccer"];
 const TIER_ORDER={standard:0,goblin:1,demon:2};
-function num(v){ return Number.isFinite(Number(v)) ? Number(v).toFixed(1) : "—"; }
-function tierClass(tier=""){ return "pp-tier-"+String(tier||"standard").toLowerCase().replace(/[^a-z0-9]+/g,"-"); }
-function initials(name=""){ return String(name).split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"PP"; }
+
+function num(v){
+  return Number.isFinite(Number(v)) ? Number(v).toFixed(1) : "—";
+}
+function signed(v){
+  if(!Number.isFinite(Number(v))) return "—";
+  const n=Number(v);
+  return (n>0?"+":"")+n.toFixed(1);
+}
+function initials(name=""){
+  return String(name).split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"PP";
+}
 function isRealHeadshot(url=""){
   const u=String(url||"").trim();
   return /^https?:\/\//i.test(u) && !/\/images\/teams\//i.test(u);
@@ -19,19 +28,62 @@ function resolvedHeadshot(row={}){
   });
   return "/api/player-image?"+q.toString();
 }
-function marketLabel(r){ return String(r.canonical_market||r.stat_type||"PROP").replaceAll("_"," "); }
-function rowStars(r){ const s=Number(r?.confidence_stars); return Number.isFinite(s)&&s>=1&&s<=5?s:propProjectionStars(r); }
+function marketLabel(r){
+  return String(r.canonical_market||r.stat_type||"PROP")
+    .replaceAll("_"," ")
+    .replace(/\b\w/g,(m)=>m.toUpperCase());
+}
+function rowStars(r){
+  const s=Number(r?.confidence_stars);
+  return Number.isFinite(s)&&s>=1&&s<=5?s:propProjectionStars(r);
+}
+function sideFor(row={}){
+  if(row.candidate_side) return String(row.candidate_side).toUpperCase();
+  const p=Number(row.fbis_projection), l=Number(row.line);
+  if(!Number.isFinite(p)||!Number.isFinite(l)) return "WATCH";
+  return p>l?"MORE":p<l?"LESS":"WATCH";
+}
+function normalCdf(x){
+  const sign=x<0?-1:1;
+  const a=Math.abs(x)/Math.sqrt(2);
+  const t=1/(1+0.3275911*a);
+  const erf=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-a*a);
+  return 0.5*(1+sign*erf);
+}
+function hitProbability(row={}){
+  const p=Number(row.fbis_projection), l=Number(row.line), s=Number(row.fbis_sigma);
+  if(!Number.isFinite(p)||!Number.isFinite(l)||!Number.isFinite(s)||s<=0) return null;
+  const z=(p-l)/s;
+  const side=sideFor(row);
+  const prob=side==="MORE"?normalCdf(z):side==="LESS"?normalCdf(-z):0.5;
+  return Math.max(0,Math.min(1,prob));
+}
+function formatHit(row={}){
+  const p=hitProbability(row);
+  return p==null?"—":Math.round(p*100)+"%";
+}
 function matchupLabel(r){
   const team=String(r.team||"").trim();
   const opponent=String(r.opponent||"").trim();
   if(team&&opponent) return team+" · vs "+opponent;
-  if(team) return team+" · Matchup pending";
+  if(team) return team;
   return opponent ? "vs "+opponent : "Matchup pending";
+}
+function gameTime(r){
+  if(!r?.start_time) return "";
+  const d=new Date(r.start_time);
+  if(!Number.isFinite(d.getTime())) return "";
+  return d.toLocaleString("en-US",{
+    timeZone:"America/Chicago",
+    weekday:"short",
+    hour:"numeric",
+    minute:"2-digit",
+  });
 }
 function groupLatest(rows=[]){
   const newest=new Map();
   for(const r of rows){
-    if (rowStars(r) == null) continue;
+    if(rowStars(r)==null) continue;
     const tier=String(r.odds_tier||"standard").toLowerCase();
     const key=[r.sport,r.player_name,r.canonical_market||r.stat_type,r.duration||"full"].join("|");
     if(!newest.has(key)) newest.set(key,{key,variants:new Map()});
@@ -39,18 +91,36 @@ function groupLatest(rows=[]){
     if(!g.variants.has(tier)) g.variants.set(tier,r);
   }
   return [...newest.values()].map(g=>{
-    const variants=[...g.variants.values()].sort((a,b)=>(TIER_ORDER[String(a.odds_tier||"standard").toLowerCase()]??9)-(TIER_ORDER[String(b.odds_tier||"standard").toLowerCase()]??9));
+    const variants=[...g.variants.values()].sort((a,b)=>
+      (TIER_ORDER[String(a.odds_tier||"standard").toLowerCase()]??9)-
+      (TIER_ORDER[String(b.odds_tier||"standard").toLowerCase()]??9)
+    );
     const primary=variants.find(v=>String(v.odds_tier||"standard").toLowerCase()==="standard")||variants[0];
     return {...g,primary,variants};
   });
 }
 
-export default function PrizePicksMarketPanel({ sportFilter = "top25", onSportFilterChange }) {
+function StarRating({ stars=1 }){
+  const safe=Math.max(1,Math.min(5,Number(stars)||1));
+  return (
+    <div className={"pp-premium-stars pp-stars-"+safe} aria-label={safe+" out of 5 stars"}>
+      <span className="pp-star-icons" aria-hidden="true">
+        {Array.from({length:5},(_,i)=><span key={i} className={i<safe?"filled":"empty"}>★</span>)}
+      </span>
+      <b>{safe}/5</b>
+    </div>
+  );
+}
+
+export default function PrizePicksMarketPanel({ sportFilter="top25", onSportFilterChange }){
   const [rows,setRows]=useState([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
   const [freshness,setFreshness]=useState(null);
-  const [localSport,setLocalSport]=useState(String(sportFilter||"top25").toLowerCase()==="all"?"top25":String(sportFilter||"top25").toLowerCase());
+  const [localSport,setLocalSport]=useState(
+    String(sportFilter||"top25").toLowerCase()==="all"?"top25":String(sportFilter||"top25").toLowerCase()
+  );
+
   useEffect(()=>{
     const next=String(sportFilter||"top25").toLowerCase();
     setLocalSport(next==="all"?"top25":next);
@@ -58,15 +128,30 @@ export default function PrizePicksMarketPanel({ sportFilter = "top25", onSportFi
 
   useEffect(()=>{
     let cancelled=false;
-    setLoading(true); setError("");
-    const date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    setLoading(true);
+    setError("");
+    const date=new Intl.DateTimeFormat("en-CA",{
+      timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"
+    }).format(new Date());
     const isTop=localSport==="top25";
     const q=new URLSearchParams({date,mode:isTop?"top25":"sport"});
     if(!isTop) q.set("sport",localSport);
     fetch("/api/selective-props?"+q.toString(),{credentials:"same-origin"})
-      .then(async res=>{const j=await res.json().catch(()=>({}));if(!res.ok||j?.ok===false)throw new Error(j?.error||("HTTP "+res.status));return j})
-      .then(j=>{if(!cancelled){setRows(Array.isArray(j.rows)?j.rows:[]);setFreshness(j.freshness||null)}})
-      .catch(e=>{if(!cancelled){setRows([]);setError(String(e?.message||e))}})
+      .then(async res=>{
+        const j=await res.json().catch(()=>({}));
+        if(!res.ok||j?.ok===false) throw new Error(j?.error||("HTTP "+res.status));
+        return j;
+      })
+      .then(j=>{
+        if(cancelled) return;
+        setRows(Array.isArray(j.rows)?j.rows:[]);
+        setFreshness(j.freshness||null);
+      })
+      .catch(e=>{
+        if(cancelled) return;
+        setRows([]);
+        setError(String(e?.message||e));
+      })
       .finally(()=>{if(!cancelled)setLoading(false)});
     return()=>{cancelled=true};
   },[localSport]);
@@ -82,88 +167,145 @@ export default function PrizePicksMarketPanel({ sportFilter = "top25", onSportFi
     [rows]
   );
 
+  const title=localSport==="top25"?"Top 25":localSport.toUpperCase();
+  const subtitle=localSport==="top25"
+    ?"Best projected FBIS player-prop edges today"
+    :"Every "+localSport.toUpperCase()+" prop with a valid FBIS projection";
+
   return (
-    <section className="pp-market" aria-label="PrizePicks player props">
-      <div className="pp-hero">
-        <div>
-          <div className="pp-kicker">FBIS × PRIZEPICKS MARKET</div>
-          <h1>PLAYER PROPS</h1>
-          <p>
-            {localSport==="top25"
-              ?"Top 25 FBIS player-prop edges across all sports, ranked by stars and projection edge."
-              :"Every current "+localSport.toUpperCase()+" prop with a valid FBIS projection, ranked highest stars first."}
-          </p>
+    <section className="pp-market pp-premium-page" aria-label="FBIS player props">
+      <header className="pp-premium-header">
+        <div className="pp-premium-brand">
+          <div className="pp-premium-mark" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <div>
+            <div className="pp-premium-brandline">FBIS</div>
+            <h1>Player Props</h1>
+          </div>
         </div>
-        <div className="pp-count">{loading?"LOADING":groups.length+" MARKETS"}</div>
+        <div className="pp-premium-live"><i></i> LIVE</div>
+      </header>
+
+      <nav className="pp-sport-strip pp-premium-tabs" aria-label="Player prop sport filter">
+        {SPORTS.map(s=>(
+          <button
+            key={s}
+            className={localSport===s?"active":""}
+            onClick={()=>{setLocalSport(s);onSportFilterChange?.(s)}}
+          >
+            {s==="top25"?"TOP 25":s.toUpperCase()}
+          </button>
+        ))}
+      </nav>
+
+      <div className="pp-premium-section-head">
+        <div>
+          <h2>{title}</h2>
+          <p>{subtitle}</p>
+        </div>
+        <div className="pp-count pp-premium-count">
+          {loading?"LOADING":groups.length+" PROPS"}
+        </div>
       </div>
-      <div className="pp-sport-strip" role="group" aria-label="Player prop sport filter">
-        {SPORTS.map(s=><button key={s} className={localSport===s?"active":""} onClick={()=>{setLocalSport(s);onSportFilterChange?.(s);}}>{s==="top25"?"TOP 25":s.toUpperCase()}</button>)}
-      </div>
-      {freshness?.stale?<div className="pp-empty error-text">Today's PrizePicks acquisition has not completed. Stale prior-day props are hidden.</div>:null}
+
+      {freshness?.stale?
+        <div className="pp-empty error-text">Today's PrizePicks acquisition has not completed. Stale prior-day props are hidden.</div>
+      :null}
       {error?<div className="pp-empty error-text">{error}</div>:null}
-      {!loading&&!error&&!groups.length?<div className="pp-empty">No PrizePicks props with an FBIS projection are available for this tab yet.</div>:null}
-      <div className="pp-card-grid">
+      {!loading&&!error&&!groups.length?
+        <div className="pp-empty pp-premium-empty">No projected props are available for this tab yet.</div>
+      :null}
+
+      <div className="pp-card-grid pp-premium-grid">
         {groups.map((group)=>{
           const r=group.primary;
           const stars=rowStars(r);
+          const sport=String(r.sport||"").toLowerCase();
+          const team=String(r.team||"").trim();
+          const opponent=String(r.opponent||"").trim();
+          const time=gameTime(r);
+
           return (
-            <article className={"pp-card "+tierClass(r.odds_tier)} key={group.key}>
-              <div className="pp-card-top">
-                <span className="pp-sport">{String(r.sport||"").toUpperCase()}</span>
-                <span className="pp-tier" aria-label={stars+" star projection confidence"}>
-                  {stars ? "★".repeat(stars)+"☆".repeat(5-stars) : ""}
-                </span>
-              </div>
-              <div className="pp-player">
-                <div className="pp-headshot">
+            <article className={"pp-card pp-premium-card sport-"+sport} key={group.key}>
+              <div className="pp-card-visual">
+                <div className="pp-watermark" aria-hidden="true">{team||sport.toUpperCase()}</div>
+                <StarRating stars={stars}/>
+
+                <div className="pp-premium-headshot">
                   <img
                     src={resolvedHeadshot(r)}
-                    alt=""
+                    alt={r.player_name?String(r.player_name):"Player"}
                     loading="lazy"
+                    decoding="async"
                     referrerPolicy="no-referrer"
                     onError={(e)=>{
                       e.currentTarget.style.display="none";
                       const fallback=e.currentTarget.nextElementSibling;
-                      if(fallback) fallback.style.display="inline-flex";
+                      if(fallback) fallback.style.display="flex";
                     }}
                   />
                   <span style={{display:"none"}}>{initials(r.player_name)}</span>
                 </div>
-                <div className="pp-player-copy">
-                  <h2>{r.player_name||"Unknown player"}</h2>
-                  <div>{matchupLabel(r)}</div>
+
+                <div className="pp-team-pill">
+                  {String(r.sport||"").toUpperCase()}
+                  {team?<><span>•</span>{team}</>:null}
                 </div>
               </div>
-              <div className="pp-market-name">{marketLabel(r)}</div>
-              {group.variants.filter((v)=>rowStars(v)!=null).map((v)=>{
-                const side=v.candidate_side||(
-                  Number(v.fbis_projection)>Number(v.line)?"MORE":
-                  Number(v.fbis_projection)<Number(v.line)?"LESS":"WATCH"
-                );
-                const diff=v.delta_fbis_minus_line ?? (Number(v.fbis_projection)-Number(v.line));
-                const variantStars=rowStars(v);
-                return (
-                  <div className="pp-variant" key={v.id||v.projection_id||String(v.odds_tier)+"-"+String(v.line)}>
-                    <div className="pp-variant-label">
-                      <b>{String(v.odds_tier||"standard").toUpperCase()}</b>
-                      <span>
-                        {String(v.duration||"FULL GAME").toUpperCase()} · {"★".repeat(variantStars)}{"☆".repeat(5-variantStars)}
-                      </span>
+
+              <div className="pp-card-body">
+                <div className="pp-player-title">
+                  <h3>{r.player_name||"Unknown player"}</h3>
+                  <p>
+                    {team||sport.toUpperCase()}
+                    {opponent?<><span> vs </span><b>{opponent}</b></>:null}
+                    {time?<><em> · {time}</em></>:null}
+                  </p>
+                </div>
+
+                <div className="pp-market-name pp-premium-market-name">{marketLabel(r)}</div>
+
+                {group.variants.filter((v)=>rowStars(v)!=null).map((v)=>{
+                  const side=sideFor(v);
+                  const diff=v.delta_fbis_minus_line ?? (Number(v.fbis_projection)-Number(v.line));
+                  return (
+                    <div className="pp-variant pp-premium-variant" key={v.id||v.projection_id||String(v.odds_tier)+"-"+String(v.line)}>
+                      <div className="pp-line-row pp-premium-metrics">
+                        <div>
+                          <span>PP LINE</span>
+                          <strong>{v.line??"—"}</strong>
+                        </div>
+                        <div className="fbis-metric">
+                          <span>FBIS</span>
+                          <strong>{v.fbis_projection==null?"—":num(v.fbis_projection)}</strong>
+                        </div>
+                        <div>
+                          <span>HIT %</span>
+                          <strong>{formatHit(v)}</strong>
+                        </div>
+                      </div>
+
+                      <div className={"pp-read pp-premium-read pp-read-"+String(side).toLowerCase()}>
+                        <div className="pp-read-side">
+                          <span className="pp-read-arrow" aria-hidden="true">{side==="LESS"?"↓":"↑"}</span>
+                          <b>{side}</b>
+                        </div>
+                        <div className="pp-edge-value">
+                          <span>EDGE</span>
+                          <strong>{signed(diff)}</strong>
+                        </div>
+                      </div>
                     </div>
-                    <div className="pp-line-row">
-                      <div><span>PRIZEPICKS</span><strong>{v.line??"—"}</strong></div>
-                      <div><span>FBIS</span><strong>{v.fbis_projection==null?"—":num(v.fbis_projection)}</strong></div>
-                      <div><span>DIFF</span><strong>{diff==null?"—":((Number(diff)>0?"+":"")+num(diff))}</strong></div>
-                    </div>
-                    <div className={"pp-read pp-read-"+String(side).toLowerCase()}>
-                      <span>FBIS READ</span><b>{side}</b>
-                    </div>
-                  </div>
-                );
-              })}
-              <div className="pp-card-foot">
-                <span>{r.opponent?"MATCHED":"MATCHUP PENDING"}</span>
-                <span>{r.collected_at?new Date(r.collected_at).toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"—"}</span>
+                  );
+                })}
+
+                <div className="pp-card-foot pp-premium-foot">
+                  <span>{matchupLabel(r)}</span>
+                  <span>{r.collected_at?new Date(r.collected_at).toLocaleString("en-US",{
+                    timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"
+                  }):"—"}</span>
+                </div>
               </div>
             </article>
           );
