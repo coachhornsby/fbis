@@ -1,0 +1,47 @@
+name: NHL-PRO-v2 research validation
+
+on:
+  push:
+    branches:
+      - "feature/nhl-pro-v2-20261003"
+    paths:
+      - ".github/nhl-v2-run"
+      - "scripts/nhl-pro-v2-walkforward.mjs"
+      - ".github/workflows/nhl-pro-v2-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+      - name: Run NHL-PRO-v2 strict walk-forward
+        run: |
+          set -euo pipefail
+          node scripts/nhl-pro-v2-walkforward.mjs \
+            --seasons=20232024,20242025,20252026 \
+            --concurrency=12 \
+            --out=data/models/nhl-pro-v2-validation.json
+      - name: Verify PIT integrity
+        run: |
+          set -euo pipefail
+          jq -e '.pointInTime == true' data/models/nhl-pro-v2-validation.json >/dev/null
+          jq -e '.marketInformed == false' data/models/nhl-pro-v2-validation.json >/dev/null
+          jq -e '.integrity.noMarketInputs == true' data/models/nhl-pro-v2-validation.json >/dev/null
+          jq -e '.integrity.fetchErrors == 0' data/models/nhl-pro-v2-validation.json >/dev/null
+          jq '.aggregate,.promotion' data/models/nhl-pro-v2-validation.json
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-pro-v2-validation-${{ github.run_id }}
+          path: data/models/nhl-pro-v2-validation.json
+          retention-days: 90
