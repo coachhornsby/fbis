@@ -1261,3 +1261,52 @@
 .fbis-shell-main.route-board .cgc-best-edge.is-side > b {
   color:#fff;
 }
+
+
+/* Always-visible market lines on compact Board cards. */
+.fbis-shell-main.route-board .cgc-market-strip {
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  gap:10px;
+  padding:9px 11px;
+  border:1px solid rgba(63, 139, 204, .24);
+  border-radius:11px;
+  background:rgba(2, 14, 28, .58);
+}
+.fbis-shell-main.route-board .cgc-market-item {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+}
+.fbis-shell-main.route-board .cgc-market-item:last-child {
+  text-align:right;
+  align-items:flex-end;
+}
+.fbis-shell-main.route-board .cgc-market-item > span {
+  color:#879db8;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.06em;
+}
+.fbis-shell-main.route-board .cgc-market-item > strong {
+  color:#f5f9ff;
+  font-size:14px;
+  line-height:1.1;
+  font-weight:950;
+  white-space:nowrap;
+}
+.fbis-shell-main.route-board .cgc-market-divider {
+  width:1px;
+  height:28px;
+  background:rgba(77, 142, 200, .24);
+}
+@media(max-width:560px) {
+  .fbis-shell-main.route-board .cgc-market-strip {
+    padding:8px 9px;
+  }
+  .fbis-shell-main.route-board .cgc-market-item > strong {
+    font-size:13px;
+  }
+}
