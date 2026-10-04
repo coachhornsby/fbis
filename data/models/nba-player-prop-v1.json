@@ -1,14 +1,33 @@
 {
-  "id":"nba-player-prop-v1-research",
-  "modelId":"NBA-PLAYER-PROP-v1",
-  "version":"research-v1",
-  "role":"qualified-candidate",
-  "marketInformed":false,
-  "canQualify":true,
-  "canAuthorizeWager":false,
-  "trainingCutoff":null,
-  "gameModelId":"NBA-FBIS-v1",
-  "markets":["points","rebounds","assists","three_pointers_made","pra"],
-  "architecture":["minutes_projection","per_minute_rate","team_scoring_environment","pace_environment","availability","distributional_sigma"],
-  "notes":"Prop lines never enter the independent projection. Research comparison only."
+  "id": "nba-player-prop-v1-research",
+  "modelId": "NBA-PLAYER-PROP-v1",
+  "version": "research-v1-impact",
+  "role": "qualified-candidate",
+  "marketInformed": false,
+  "canQualify": true,
+  "canAuthorizeWager": false,
+  "trainingCutoff": null,
+  "gameModelId": "NBA-FBIS-v1",
+  "markets": [
+    "points",
+    "rebounds",
+    "assists",
+    "three_pointers_made",
+    "pra"
+  ],
+  "architecture": [
+    "minutes_projection",
+    "dynamic_skill_profile",
+    "spm_style_player_impact_prior",
+    "regularized_rapm_context",
+    "lineup_pair_trio_context",
+    "role_minutes_redistribution",
+    "usage_assist_rebound_three_redistribution",
+    "team_scoring_environment",
+    "pace_environment",
+    "availability",
+    "distributional_sigma"
+  ],
+  "notes": "Prop lines never enter the independent projection. Player impact is FBIS-native; EPM is the primary research benchmark, with DARKO/RAPM/VORP/WS48 secondary diagnostics. Role redistribution requires point-in-time availability.",
+  "playerImpactModelId": "NBA-FBIS-PLAYER-IMPACT-v1"
 }
