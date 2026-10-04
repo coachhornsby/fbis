@@ -23,7 +23,10 @@ const alias={
  "tarleton state":"tarleton","tarleton":"tarleton","hawaii":"hawaii",
  "milwaukee":"milwaukee","wisconsin milwaukee":"milwaukee","green bay":"green bay",
  "wisconsin green bay":"green bay","pennsylvania":"penn","st johns":"st johns",
- "saint johns":"st johns","mount st marys":"mount st marys","mt st marys":"mount st marys"
+ "saint johns":"st johns","mount st marys":"mount st marys","mt st marys":"mount st marys",
+ "south florida":"usf","houston christian":"houston baptist","long island university":"long island",
+ "loyola maryland":"loyola md","se louisiana":"southeastern louisiana","cal state bakersfield":"csu bakersfield",
+ "charleston":"college of charleston","utah tech":"dixie state","seattle u":"seattle","xavier":"xaiver"
 };
 const norm=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
  .replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim()
@@ -121,12 +124,12 @@ for(const v of current){const k=canon(v.team);if(!currentByKey.has(k))currentByK
 // If the current web table cannot be parsed, fall back to the legacy directory.
 if(!currentByKey.size)for(const v of legacy)currentByKey.set(canon(v.team),{team:v.team,arena:v.arena,city:v.city,state:v.state,conference:v.conference,capacity:num(v.capacity)});
 
-const allKeys=new Set([...currentByKey.keys(),...ratingByKey.keys()]);
+const allKeys=new Set([...ratingByKey.keys()]);
 const coordinatePoints=[],baseRows=[];
 for(const k of allKeys){
- const venue=currentByKey.get(k)||null,rating=ratingByKey.get(k)||null;
- // Keep only current D-I venues or teams confirmed as 2025-26 D-I.
- if(!venue&&!rating)continue;
+ const rating=ratingByKey.get(k)||null;
+ if(!rating)continue;
+ const venue=currentByKey.get(k)||null;
  const old=legacyByKey.get(k)||null;
  let lat=num(old?.lat),lng=num(old?.lng),coordBasis=old?"legacy venue coordinate":null;
  baseRows.push({key:k,venue,rating,lat,lng,coordBasis});
@@ -143,9 +146,9 @@ for(const x of baseRows){
 const globalHca=num(catalog?.national?.globalHca)??4.4096;
 let data=baseRows.map(x=>{
  const r=x.rating,v=x.venue;
- const hca=num(r?.hca)??globalHca,hcaGames=num(r?.hcaGames)??0;
+ const hca=num(r.hca)??globalHca,hcaGames=num(r.hcaGames)??0;
  return {
-  school:r?.team||v?.team||x.key,arena:v?.arena||null,capacity:num(v?.capacity),altitudeFt:elevations.has(x.key)?Math.round(elevations.get(x.key)*3.28084):null,
+  school:r.team,arena:v?.arena||null,capacity:num(v?.capacity),altitudeFt:elevations.has(x.key)?Math.round(elevations.get(x.key)*3.28084):null,
   hcaPpg:Number(hca.toFixed(3)),hcaGames,conference:r?.conference||v?.conference||null,reliability:num(r?.reliability)??0,
   hcaBasis:hcaGames>0?"team residual + hierarchical shrinkage":"FBIS global prior (no team home sample)",
   dataThrough:hcaGames>0?"2026-04-06":"2026-27 preseason prior",venueSource:v?"Wikipedia current NCAA D-I arena table":null,
