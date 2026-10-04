@@ -1,0 +1,61 @@
+name: CBB market information v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/cbb-market-information-v1.mjs"
+      - ".github/workflows/cbb-market-information-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cbb-market-information-v1
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Download pinned CBB structural research artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cbb-structural-snapshot-37166703044
+          github-token: "${{ github.token }}"
+          repository: coachhornsby/fbis
+          run-id: 37166703044
+          path: artifacts/pinned
+      - name: Run frozen market-information study
+        run: |
+          set -euo pipefail
+          node scripts/cbb-market-information-v1.mjs artifacts/pinned/base/cbb-market-research-dataset.json | tee artifacts/cbb-market-information-v1-run.log
+      - name: Summarize
+        run: |
+          set -euo pipefail
+          F=artifacts/cbb-market-information-v1.json
+          {
+            echo "## CBB market information v1"
+            echo
+            jq -r '"- opener coverage: 2024=\(.coverage.bySeason["2024"]), 2025=\(.coverage.bySeason["2025"])"' "$F"
+            jq -r '"- final vs opener MAE improvement: 2024=\(.accuracy["2024"].improvement), 2025=\(.accuracy["2025"].improvement)"' "$F"
+            echo
+            echo "### Candidates positive in both years"
+            jq -r '.candidatesSurvivingBothYears[] as $n | "- \($n): 2024 ROI=\(.bySeason["2024"][$n].roi)% n=\(.bySeason["2024"][$n].n); 2025 ROI=\(.bySeason["2025"][$n].roi)% n=\(.bySeason["2025"][$n].n)"' "$F"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbb-market-information-v1-${{ github.run_id }}
+          path: |
+            artifacts/cbb-market-information-v1.json
+            artifacts/cbb-market-information-v1-run.log
+          if-no-files-found: error
+          retention-days: 90
