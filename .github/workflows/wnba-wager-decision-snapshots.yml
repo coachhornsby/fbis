@@ -1,0 +1,39 @@
+name: WNBA wager decision snapshots
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wnba-wager-decision-snapshots
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Capture current WNBA decision snapshot
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          date_ct="$(TZ=America/Chicago date +%F)"
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 90 --retry 1 --retry-delay 3             -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             --data-binary "$(jq -nc --arg date "$date_ct" '{date:$date}')"             -o "$body" -w "%{http_code}"             "${BASE}/api/wnba-wager-decisions")"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok==true' "$body" >/dev/null
+          {
+            echo "## WNBA wager decisions"
+            echo "- date: $(jq -r '.date' "$body")"
+            echo "- games: $(jq -r '.games // 0' "$body")"
+            echo "- offers: $(jq -r '.offers // 0' "$body")"
+            echo "- BET: $(jq -r '.bets // 0' "$body")"
+            echo "- snapshots inserted: $(jq -r '.inserted // 0' "$body")"
+          } >> "$GITHUB_STEP_SUMMARY"
