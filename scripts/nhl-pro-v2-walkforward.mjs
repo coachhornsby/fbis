@@ -304,7 +304,16 @@ function forecastV2(game,prior,current,talent,league){
   if(hdays!=null&&adays!=null){const rd=clamp((hdays-adays)*0.018,-0.07,0.07);home+=rd;away-=rd;}
 
   const eloProb=1/(1+10**(-((eloH-eloA)+35)/400));
-  return {home:clamp(home,1.45,5.25),away:clamp(away,1.45,5.25),eloProb:clamp(eloProb,0.05,0.95)};
+  return {
+    home:clamp(home,1.45,5.25),away:clamp(away,1.45,5.25),eloProb:clamp(eloProb,0.05,0.95),
+    context:{
+      homeRestDays:hdays,awayRestDays:adays,restDiff:hdays!=null&&adays!=null?hdays-adays:null,
+      homeB2B:hdays!=null&&hdays<1.6,awayB2B:adays!=null&&adays<1.6,
+      eloDiff:eloH-eloA,xgHome:xgH,xgAway:xgA,specialTeamsHome:stH,specialTeamsAway:stA,
+      pressureHome:pressureH,pressureAway:pressureA,finishHome:finishH,finishAway:finishA,
+      goalieVsHome:goalieVsH,goalieVsAway:goalieVsA,shotVolumeHome:volumeH,shotVolumeAway:volumeA
+    }
+  };
 }
 function leagueRates(games,shotsByGame,model,talent){
   let goals=0,xg=0,stxg=0,shots=0,hd=0,rush=0;
@@ -366,6 +375,62 @@ function comparison(v1,v2){
   return {wins,winCount,marginDelta:round(v2.marginMae-v1.marginMae,4),totalDelta:round(v2.totalMae-v1.totalMae,4),winnerDelta:round(v2.winnerAccuracy-v1.winnerAccuracy,4),brierDelta:round(v2.brier-v1.brier,5),
     beatsIncumbent:winCount>=3&&v2.marginMae<=v1.marginMae+0.02&&v2.totalMae<=v1.totalMae+0.02};
 }
+function metricBundle(rows){
+  if(!rows?.length)return null;
+  const v1=metrics(rows,"v1"),v2=metrics(rows,"v2");
+  return {v1,v2,comparison:comparison(v1,v2)};
+}
+function groupMetrics(rows,keyFn,{minN=25}={}){
+  const map=new Map();
+  for(const row of rows){
+    const key=String(keyFn(row)??"UNKNOWN");
+    if(!map.has(key))map.set(key,[]);
+    map.get(key).push(row);
+  }
+  return Object.fromEntries([...map.entries()]
+    .filter(([,r])=>r.length>=minN)
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([k,r])=>[k,metricBundle(r)]));
+}
+function calibration(rows,key="v2"){
+  const bins=[
+    ["0.40-0.45",0.40,0.45],["0.45-0.50",0.45,0.50],["0.50-0.55",0.50,0.55],
+    ["0.55-0.60",0.55,0.60],["0.60-0.65",0.60,0.65],["0.65-0.70",0.65,0.70],
+    ["0.70+",0.70,1.01]
+  ];
+  return bins.map(([label,lo,hi])=>{
+    const r=rows.filter(x=>x[key].p>=lo&&x[key].p<hi);
+    if(r.length<20)return null;
+    const predicted=r.reduce((s,x)=>s+x[key].p,0)/r.length;
+    const actual=r.reduce((s,x)=>s+(x.ah>x.aa?1:0),0)/r.length;
+    return {label,n:r.length,predicted:round(predicted,4),actual:round(actual,4),gap:round(predicted-actual,4)};
+  }).filter(Boolean);
+}
+function subsetReport(rows){
+  const totalBand=t=>t<5.5?"<5.5":t<6?"5.5-5.99":t<6.5?"6.0-6.49":"6.5+";
+  const marginBand=m=>m<0.25?"<0.25":m<0.75?"0.25-0.74":m<1.25?"0.75-1.24":"1.25+";
+  const confBand=p=>{const q=Math.max(p,1-p);return q<0.55?"50-54.9%":q<0.60?"55-59.9%":q<0.65?"60-64.9%":"65%+";};
+  const restBand=r=>r==null?"UNKNOWN":r>1.25?"HOME_REST_ADV":r<-1.25?"AWAY_REST_ADV":"REST_NEUTRAL";
+  const b2bBand=r=>r.ctx?.homeB2B&&r.ctx?.awayB2B?"BOTH_B2B":r.ctx?.homeB2B?"HOME_B2B":r.ctx?.awayB2B?"AWAY_B2B":"NEITHER_B2B";
+  const pressureBand=r=>{const d=(r.ctx?.pressureHome||0)-(r.ctx?.pressureAway||0);return d>0.08?"HOME_PRESSURE_EDGE":d<-0.08?"AWAY_PRESSURE_EDGE":"PRESSURE_NEUTRAL";};
+  const goalieBand=r=>{const d=(r.ctx?.goalieVsHome||0)-(r.ctx?.goalieVsAway||0);return d>0.10?"HOME_GOALIE_MATCHUP_EDGE":d<-0.10?"AWAY_GOALIE_MATCHUP_EDGE":"GOALIE_NEUTRAL";};
+  return {
+    bySeason:groupMetrics(rows,r=>r.season,{minN:100}),
+    byMonth:groupMetrics(rows,r=>String(r.date||"").slice(0,7),{minN:40}),
+    bySeasonPhase:groupMetrics(rows,r=>r.seasonGameIndex<440?"EARLY_1_3":r.seasonGameIndex<875?"MIDDLE_1_3":"LATE_1_3",{minN:100}),
+    byFavoriteSide:groupMetrics(rows,r=>r.v2.p>=0.5?"HOME_FAVORITE":"AWAY_FAVORITE",{minN:100}),
+    byConfidence:groupMetrics(rows,r=>confBand(r.v2.p),{minN:50}),
+    byProjectedTotal:groupMetrics(rows,r=>totalBand(r.v2.h+r.v2.a),{minN:50}),
+    byProjectedMargin:groupMetrics(rows,r=>marginBand(Math.abs(r.v2.h-r.v2.a)),{minN:50}),
+    byRestEdge:groupMetrics(rows,r=>restBand(r.ctx?.restDiff),{minN:50}),
+    byBackToBack:groupMetrics(rows,b2bBand,{minN:40}),
+    byPressureEdge:groupMetrics(rows,pressureBand,{minN:50}),
+    byGoalieMatchupEdge:groupMetrics(rows,goalieBand,{minN:50}),
+    byHomeTeam:groupMetrics(rows,r=>r.home,{minN:35}),
+    byAwayTeam:groupMetrics(rows,r=>r.away,{minN:35}),
+    calibration:{incumbent:calibration(rows,"v1"),challenger:calibration(rows,"v2")}
+  };
+}
 
 console.log("NHL-PRO-v2 walk-forward",seasons.join(","));
 const gamesBySeason={},shotsBySeason={},shotsByGameBySeason={},fetchErrors=[];
@@ -393,7 +458,12 @@ for(let idx=1;idx<seasons.length;idx++){
     const v2ScoreProb=bivarHomeWin(v2f.home,v2f.away);
     const v2Ensemble=0.78*v2ScoreProb+0.22*v2f.eloProb;
     const v2p=clamp(0.5+0.86*(v2Ensemble-0.5),0.04,0.96);
-    rows.push({id:g.id,ah:g.homeGoals,aa:g.awayGoals,v2:{h:v2f.home,a:v2f.away,p:v2p},v1:{h:v1f.home,a:v1f.away,p:v1p}});
+    rows.push({
+      id:g.id,season:target,date:String(g.start||"").slice(0,10),seasonGameIndex:rows.length,
+      home:g.home,away:g.away,ah:g.homeGoals,aa:g.awayGoals,
+      v2:{h:v2f.home,a:v2f.away,p:v2p},v1:{h:v1f.home,a:v1f.away,p:v1p},
+      ctx:v2f.context||{}
+    });
     const stats=gameShotStats(g,targetMap.get(g.id)||[],xgModel,talent);
     applyGame(teamMapGet(currentV2,g.home),teamMapGet(currentV2,g.away),g,stats[g.home],stats[g.away],true);
     applyGame(teamMapGet(currentV1,g.home),teamMapGet(currentV1,g.away),g,stats[g.home],stats[g.away],false);
@@ -422,6 +492,7 @@ const report={
   fetchErrors,
   folds:folds.map(({rows,...x})=>x),
   aggregate:{incumbent:aggregateV1,challenger:aggregateV2,comparison:aggregateComparison},
+  subsets:subsetReport(all),
   promotion:{
     historicalPromotionEligible:promote,
     promotedToResearchBoard:promote,
