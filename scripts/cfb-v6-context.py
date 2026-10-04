@@ -57,7 +57,32 @@ def main():
    if hq:last[h]=hq
    if aq:last[a]=aq
   out["v6_home_qb_continuity"]=hc;out["v6_away_qb_continuity"]=ac;out["v6_diff_qb_continuity"]=out.v6_home_qb_continuity-out.v6_away_qb_continuity
+ # QB/trench challenger: explicit pregame unit strength and opponent-strength adjustments.
+ def blend(side,stem):
+  a=n(out.get(f"{side}_pregame_season_{stem}",np.nan));b=n(out.get(f"{side}_pregame_l5_{stem}",np.nan));return .6*a+.4*b
+ for side,opp in [("home","away"),("away","home")]:
+  qb=blend(side,"qb_EPA_per_Play"); qpass=blend(side,"qb_pass_epa"); qsack=blend(side,"qb_sack_epa")
+  olrun=.5*blend(side,"off_line_yards_per_carry")+.5*blend(side,"off_rushing_power_rate")
+  dlpass=.5*blend(side,"def_sacks_rate")+.5*blend(side,"def_havoc_total_pass_rate")
+  dlrun=.5*blend(side,"def_TFL_rush")+.5*blend(side,"def_havoc_total_rush_rate")
+  oppdef=n(out.get(f"{opp}_ctx_rating_adj_def_epa",np.nan)); oppoff=n(out.get(f"{opp}_ctx_rating_adj_off_epa",np.nan))
+  out[f"v6_qbt_{side}_qb_core"]=.55*qb+.30*qpass+.15*qsack
+  out[f"v6_qbt_{side}_qb_opp_adj"]=out[f"v6_qbt_{side}_qb_core"]-oppdef
+  out[f"v6_qbt_{side}_ol_run"]=olrun
+  out[f"v6_qbt_{side}_dl_pass"]=dlpass
+  out[f"v6_qbt_{side}_dl_run"]=dlrun
+  out[f"v6_qbt_{side}_pass_matchup"]=out[f"v6_qbt_{side}_qb_opp_adj"]-out[f"v6_qbt_{opp}_dl_pass"] if f"v6_qbt_{opp}_dl_pass" in out else np.nan
+  out[f"v6_qbt_{side}_run_opp_adj"]=olrun-oppoff
+ # Recompute matchup columns after both sides exist.
+ out["v6_qbt_home_pass_matchup"]=out["v6_qbt_home_qb_opp_adj"]-out["v6_qbt_away_dl_pass"]
+ out["v6_qbt_away_pass_matchup"]=out["v6_qbt_away_qb_opp_adj"]-out["v6_qbt_home_dl_pass"]
+ out["v6_qbt_home_run_matchup"]=out["v6_qbt_home_ol_run"]-out["v6_qbt_away_dl_run"]
+ out["v6_qbt_away_run_matchup"]=out["v6_qbt_away_ol_run"]-out["v6_qbt_home_dl_run"]
+ out["v6_diff_qbt_pass_matchup"]=out["v6_qbt_home_pass_matchup"]-out["v6_qbt_away_pass_matchup"]
+ out["v6_diff_qbt_run_matchup"]=out["v6_qbt_home_run_matchup"]-out["v6_qbt_away_run_matchup"]
+ out["v6_sum_qbt_pass_matchup"]=out["v6_qbt_home_pass_matchup"]+out["v6_qbt_away_pass_matchup"]
+ out["v6_sum_qbt_run_matchup"]=out["v6_qbt_home_run_matchup"]+out["v6_qbt_away_run_matchup"]
  out.to_csv(OUT/"cfb_v6_context.csv",index=False)
- report={"version":"CFB-v6-context-v1","marketInformed":False,"teamPrior":"prior-season terminal team strength retained 65%, weekly immutable snapshots","conferencePower":"hierarchical pre-week conference power from CFB-CONF-v3","hfa":"team-specific home residual shrunk toward national 2.5 baseline with 8-game prior","qbPregameColumns":[hqb,aqb],"qbContinuityEnabled":bool(hqb and aqb),"injuryAvailability":"UNAVAILABLE unless timestamped pregame source exists; no postgame inference","weather":"v5 broad weather regex intentionally not promoted into v6 until semantically verified"}
+ report={"version":"CFB-v6-qbt-context-v1","marketInformed":False,"teamPrior":"prior-season terminal team strength retained 65%, weekly immutable snapshots","conferencePower":"hierarchical pre-week conference power from CFB-CONF-v3","hfa":"team-specific home residual shrunk toward national 2.5 baseline with 8-game prior","qbPregameColumns":[hqb,aqb],"qbContinuityEnabled":bool(hqb and aqb),"injuryAvailability":"UNAVAILABLE unless timestamped pregame source exists; no postgame inference","qbTrench":"pregame QB EPA/pass/sack + OL line-yards/power + DL sack/havoc/TFL composites, explicitly adjusted/matched to opponent pregame strength","weather":"v5 broad weather regex intentionally not promoted into v6 until semantically verified"}
  (OUT/"report.json").write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))
 if __name__=="__main__":main()
