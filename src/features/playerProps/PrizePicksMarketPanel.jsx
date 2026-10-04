@@ -6,6 +6,19 @@ const TIER_ORDER={standard:0,goblin:1,demon:2};
 function num(v){ return Number.isFinite(Number(v)) ? Number(v).toFixed(1) : "—"; }
 function tierClass(tier=""){ return "pp-tier-"+String(tier||"standard").toLowerCase().replace(/[^a-z0-9]+/g,"-"); }
 function initials(name=""){ return String(name).split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"PP"; }
+function isRealHeadshot(url=""){
+  const u=String(url||"").trim();
+  return /^https?:\/\//i.test(u) && !/\/images\/teams\//i.test(u);
+}
+function resolvedHeadshot(row={}){
+  if(isRealHeadshot(row.player_headshot_url)) return row.player_headshot_url;
+  const q=new URLSearchParams({
+    name:String(row.player_name||""),
+    sport:String(row.sport||""),
+    mode:"image",
+  });
+  return "/api/player-image?"+q.toString();
+}
 function marketLabel(r){ return String(r.canonical_market||r.stat_type||"PROP").replaceAll("_"," "); }
 function rowStars(r){ const s=Number(r?.confidence_stars); return Number.isFinite(s)&&s>=1&&s<=5?s:propProjectionStars(r); }
 function matchupLabel(r){
@@ -103,7 +116,18 @@ export default function PrizePicksMarketPanel({ sportFilter = "top25", onSportFi
               </div>
               <div className="pp-player">
                 <div className="pp-headshot">
-                  {r.player_headshot_url?<img src={r.player_headshot_url} alt="" loading="lazy" referrerPolicy="no-referrer" />:<span>{initials(r.player_name)}</span>}
+                  <img
+                    src={resolvedHeadshot(r)}
+                    alt=""
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    onError={(e)=>{
+                      e.currentTarget.style.display="none";
+                      const fallback=e.currentTarget.nextElementSibling;
+                      if(fallback) fallback.style.display="inline-flex";
+                    }}
+                  />
+                  <span style={{display:"none"}}>{initials(r.player_name)}</span>
                 </div>
                 <div className="pp-player-copy">
                   <h2>{r.player_name||"Unknown player"}</h2>
