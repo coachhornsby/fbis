@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { selectivePropStars, rankSelectiveProps } from "../functions/lib/selectivePropEdge.js";
+import { selectivePropStars, rankSelectiveProps, estimatedPropHitProbability } from "../functions/lib/selectivePropEdge.js";
 import { projectTennisPlayerProps } from "../functions/lib/tennisPlayerPropModel.js";
 import { projectCbbPlayerProps } from "../functions/lib/cbbPlayerPropModel.js";
 import { flattenCfbPlayerProjectionRows } from "../functions/lib/cfbPlayerModel.js";
@@ -104,4 +104,16 @@ test("focused college and tennis aliases normalize correctly", () => {
   assert.equal(canonicalizeProPlayerPropMarket("tennis", "Games Won"), "total_games_won");
   assert.equal(canonicalizeProPlayerPropMarket("cbb", "3 Pointers Made"), "three_pointers_made");
   assert.equal(canonicalizeProPlayerPropMarket("cbb", "PRA"), "points_rebounds_assists");
+});
+
+
+test("selective prop portfolio requires enough modeled hit probability and role reliability", () => {
+  assert.ok(estimatedPropHitProbability({fbisProjection:120,line:100,fbisSigma:20}) > 0.8);
+  const out=rankSelectiveProps([
+    {eventId:"g1",playerName:"Stable",fbisProjection:120,line:100,fbisSigma:20,dataQuality:0.9,roleConfidence:0.9,propGate:"CLEAR"},
+    {eventId:"g2",playerName:"Low Role",fbisProjection:130,line:100,fbisSigma:20,dataQuality:0.9,roleConfidence:0.3,propGate:"CLEAR"},
+    {eventId:"g3",playerName:"Held",fbisProjection:130,line:100,fbisSigma:20,dataQuality:0.9,roleConfidence:0.9,propGate:"HOLD"},
+  ],{minStars:2});
+  assert.deepEqual(out.rows.map(r=>r.playerName),["Stable"]);
+  assert.equal(out.policy.minHitProbability,0.56);
 });

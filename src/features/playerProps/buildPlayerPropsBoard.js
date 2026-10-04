@@ -194,7 +194,10 @@ export function withFbisPropAnalytics(row = {}) {
     }
   }
 
-  const stars = propProjectionStars(ranked) ?? 1;
+  let stars = propProjectionStars(ranked) ?? 1;
+  const roleConfidence = ranked.roleConfidence == null ? null : Number(ranked.roleConfidence);
+  if (Number.isFinite(roleConfidence) && roleConfidence < 0.6) stars = Math.min(stars, 2);
+  if (ranked.propGate && ranked.propGate !== "CLEAR") stars = Math.min(stars, 2);
   const hasSigma = Number.isFinite(Number(ranked.fbisSigma)) && Number(ranked.fbisSigma) > 0;
   return {
     ...ranked,
@@ -224,6 +227,7 @@ export function rankPropConviction(row = {}) {
   const deltaRaw = row.projectionDelta;
   const sigmaRaw = row.fbisSigma;
   const projRaw = row.fbisProjection;
+  const roleRaw = row.roleConfidence;
 
   const pOver = pOverRaw == null || pOverRaw === "" ? NaN : Number(pOverRaw);
   const pUnder = pUnderRaw == null || pUnderRaw === "" ? NaN : Number(pUnderRaw);
@@ -234,6 +238,7 @@ export function rankPropConviction(row = {}) {
   const hasEdge = Number.isFinite(edge);
   const hasDelta = Number.isFinite(delta);
   const hasProj = projRaw != null && projRaw !== "" && Number.isFinite(Number(projRaw));
+  const roleConfidence = roleRaw == null || roleRaw === "" ? null : Number(roleRaw);
 
   if (!hasProj && !hasProb && !hasEdge) {
     return {
@@ -266,11 +271,12 @@ export function rankPropConviction(row = {}) {
   const probEdge = leanProbability != null ? Math.max(0, leanProbability - 0.5) : 0;
   const zEdge = mispricingZ != null ? Math.abs(mispricingZ) : 0;
 
-  const convictionScore =
+  const reliability = Number.isFinite(roleConfidence) ? Math.max(0.35, Math.min(1, roleConfidence)) : 0.75;
+  const convictionScore = (
     probEdge * 200 +
     (absEdge != null ? absEdge * 100 : 0) +
-    zEdge * 12 +
-    (hasProj ? 0.01 : 0);
+    zEdge * 12
+  ) * reliability + (hasProj ? 0.01 : 0);
 
   let convictionTier = "WATCH";
   if (
@@ -441,6 +447,9 @@ export function normalizeBoardGame(game = {}) {
       modelMaturity: p.maturity || "RESEARCH",
       modelIndependent: p.independent !== false,
       availabilityStatus: p.availabilityStatus || null,
+      roleConfidence: p.roleConfidence ?? null,
+      snapShare: p.snapShare ?? null,
+      featureEvidence: p.featureEvidence ?? null,
       validationStatus:p.validationStatus||null,
       lineValidationStatus,
       shotEnvironment:p.shotEnvironment||null,
@@ -470,6 +479,9 @@ export function normalizeBoardGame(game = {}) {
       modelMaturity: p.maturity || "RESEARCH",
       modelIndependent: p.independent !== false,
       availabilityStatus: p.availabilityStatus || null,
+      roleConfidence: p.roleConfidence ?? null,
+      snapShare: p.snapShare ?? null,
+      featureEvidence: p.featureEvidence ?? null,
       propGate: p.propGate || "CLEAR",
       gateReason: p.gateReason || null,
       eligibleForCard: p.eligibleForCard === true,

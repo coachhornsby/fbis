@@ -11,7 +11,7 @@ test("NFL-PRO-v1 becomes research-board primary when its projection is available
     nflProShadow: {
       ok: true,
       modelId: NFL_PRO_ID,
-      version: "v1",
+      version: "v1.2",
       home: 27.4,
       away: 21.2,
       margin: 6.2,
@@ -45,4 +45,30 @@ test("NFL board falls back to calibrated form when NFL-PRO-v1 is unavailable", (
   assert.equal(out.games[0].projHomeScore, 24.5);
   assert.equal(out.games[0].projAwayScore, 21.5);
   assert.equal(out.games[0].canQualify, false);
+});
+
+
+test("NFL-PRO-v1.2 tracking signals move projections but remain market-independent", async () => {
+  const { projectNflProV1 } = await import("../functions/lib/nflProModel.js");
+  const base={
+    sport:"nfl",
+    home:{abbr:"KC"},away:{abbr:"LV"},
+    nflFeatures:{
+      home:{offenseEpa:0.10,defenseEpa:-0.05,passEpa:0.15,passEpaAllowed:-0.02,rushEpa:0.03,rushEpaAllowed:0.01,qbEpa:0.16,qbCpoe:3,qbSackRate:0.05},
+      away:{offenseEpa:-0.02,defenseEpa:0.05,passEpa:-0.01,passEpaAllowed:0.08,rushEpa:-0.02,rushEpaAllowed:0.04,qbEpa:0.02,qbCpoe:0,qbSackRate:0.08}
+    }
+  };
+  const plain=projectNflProV1(base);
+  const tracked=projectNflProV1({
+    ...base,
+    nflFeatures:{
+      home:{...base.nflFeatures.home,qbNgsCpoe:5,qbTimeToThrow:2.55,qbAggressiveness:10,rushYoePerAtt:0.8,rushEfficiency:3.0,receivingSeparation:3.5,receivingYacOe:1.2},
+      away:{...base.nflFeatures.away,qbNgsCpoe:-1,qbTimeToThrow:2.95,qbAggressiveness:19,rushYoePerAtt:-0.3,rushEfficiency:4.2,receivingSeparation:2.5,receivingYacOe:-0.6}
+    }
+  });
+  assert.equal(tracked.modelId,NFL_PRO_ID);
+  assert.equal(tracked.marketInformed,false);
+  assert.equal(tracked.version,"v1.2");
+  assert.ok(tracked.margin > plain.margin);
+  assert.equal(tracked.coverage.available.includes("nextGenTracking"),true);
 });
