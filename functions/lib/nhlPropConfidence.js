@@ -1,4 +1,10 @@
 export const NHL_SAVES_CONFIDENCE_VERSION = "nhl-saves-stars-v1";
+export const NHL_SAVES_AUDIT_CUTS = Object.freeze({
+  opponentShotsFor:{q25:27.4756097561,q50:28.8234610918,q75:30.0243902439},
+  teamShotsAgainst:{q25:27.4637957317,q50:28.8427889714,q75:29.8023976850},
+  projectedShotsFaced:{q25:27.8577235772,q50:28.7516046213,q75:29.7160846841},
+  priorStarts:{q25:30,q50:48,q75:71},
+});
 
 function finite(v){const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
@@ -7,7 +13,7 @@ export function classifyNhlSavesEnvironment({
   opponentShotsFor,
   teamShotsAgainst,
   projectedShotsFaced,
-  cuts={},
+  cuts=NHL_SAVES_AUDIT_CUTS,
 }={}){
   const opp=finite(opponentShotsFor),def=finite(teamShotsAgainst),faced=finite(projectedShotsFaced);
   const oc=cuts?.opponentShotsFor||{},dc=cuts?.teamShotsAgainst||{},fc=cuts?.projectedShotsFaced||{};
@@ -35,7 +41,7 @@ export function rateNhlGoalieSavesConfidence({
   starterConfirmed=true,
   lineValidated=true,
   modelValidated=true,
-  cuts={},
+  cuts=NHL_SAVES_AUDIT_CUTS,
 }={}){
   const p=finite(projection),l=finite(line);
   if(p==null||l==null){
