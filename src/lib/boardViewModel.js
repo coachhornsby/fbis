@@ -23,6 +23,24 @@ function round1(n) {
   return Math.round(Number(n) * 10) / 10;
 }
 
+export function resolveBoardQualityScore(game) {
+  const candidates = [
+    game?.quality?.score,
+    game?.dataQuality,
+    game?.data_quality,
+    game?.model?.dataQuality,
+    game?.model?.data_quality,
+    game?.cfb?.dataQuality,
+    game?.cbb?.dataQuality,
+  ];
+  for (const value of candidates) {
+    if (value == null || value === "") continue;
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
 function spreadTeamLabel(spread, awayAbbr, homeAbbr) {
   if (spread == null || Number.isNaN(Number(spread))) return null;
   const n = Number(spread);
@@ -330,7 +348,7 @@ export function buildBoardGameViewModel(game) {
       dqState: decision.dqState,
     },
     quality: {
-      score: game.quality?.score ?? null,
+      score: resolveBoardQualityScore(game),
       flags: game.quality?.flags || [],
       marketUnresolved: Boolean(game.marketUnresolved),
     },
