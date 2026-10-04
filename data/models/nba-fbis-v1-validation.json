@@ -1,0 +1,33 @@
+{
+  "fullWalkForward": {
+    "n": 2613,
+    "marginMae": 11.764485265977807,
+    "totalMae": 15.185878300803665,
+    "winnerAccuracy": 0.6704936854190585,
+    "benchmarkMarginMae": 11.98545732874092,
+    "benchmarkTotalMae": 15.386375813241463,
+    "benchmarkWinnerAccuracy": 0.6391121316494451
+  },
+  "holdout": {
+    "n": 1387,
+    "marginMaeRaw": 11.818096611391493,
+    "marginMaeCalibrated": 11.546735819238927,
+    "marginMaeBenchmark": 12.188175919250181,
+    "totalMaeRaw": 15.342393655371305,
+    "totalMaeCalibrated": 15.31369078328944,
+    "totalMaeBenchmark": 15.57404470079308,
+    "winnerAccuracyRaw": 0.6712328767123288,
+    "winnerAccuracyCalibrated": 0.6741167988464312,
+    "winnerAccuracyBenchmark": 0.6337418889689979,
+    "brier": 0.2100459539893383,
+    "logLoss": 0.6082422833768184,
+    "expectedCalibrationError": 0.02184141263546628
+  },
+  "governance": {
+    "maturity": "VALIDATION",
+    "automaticPromotion": false,
+    "canQualify": false,
+    "canAuthorizeWager": false,
+    "nextGate": "prospective_market_shadow_with_clv_and_roi"
+  }
+}
