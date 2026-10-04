@@ -514,49 +514,6 @@ async function fetchTheOddsJson(sportKey, params, apiKey) {
   return { events: parseEvents(raw), credits };
 }
 
-async function fetchTheOddsF5Events(sportKey, apiKey) {
-  if (!apiKey) return { events: [], error: "theodds-no-api-key", credits: { remaining: null, used: null, asOf: null } };
-  const listUrl = new URL(`https://api.the-odds-api.com/v4/sports/${sportKey}/events`);
-  listUrl.searchParams.set("apiKey", apiKey);
-  listUrl.searchParams.set("dateFormat", "iso");
-  const listRes = await fetch(String(listUrl), { headers: { Accept: "application/json" } });
-  let credits = creditMeta(listRes);
-  if (!listRes.ok) {
-    const text = await listRes.text();
-    return { events: [], error: `TheOdds events ${listRes.status}: ${text.slice(0, 180)}`, credits };
-  }
-  const listed = parseEvents(await listRes.json()).filter((ev) => ev?.id);
-  const events = [];
-  const errors = [];
-  // F5 is an additional baseball market. The Odds API exposes additional
-  // markets on the per-event endpoint, not the sport-level odds endpoint.
-  for (const event of listed.slice(0, 24)) {
-    const url = new URL(`https://api.the-odds-api.com/v4/sports/${sportKey}/events/${event.id}/odds`);
-    url.searchParams.set("apiKey", apiKey);
-    url.searchParams.set("regions", "us");
-    url.searchParams.set("markets", "h2h_1st_5_innings,spreads_1st_5_innings,totals_1st_5_innings");
-    url.searchParams.set("bookmakers", "fanduel,draftkings,betmgm,caesars,bovada");
-    url.searchParams.set("oddsFormat", "american");
-    url.searchParams.set("dateFormat", "iso");
-    const res = await fetch(String(url), { headers: { Accept: "application/json" } });
-    credits = creditMeta(res);
-    if (!res.ok) {
-      const text = await res.text();
-      errors.push(`${event.id}: ${res.status} ${text.slice(0, 80)}`);
-      continue;
-    }
-    const raw = await res.json();
-    const parsed = Array.isArray(raw) ? parseEvents(raw) : parseEvents([raw]);
-    if (parsed[0]) events.push(parsed[0]);
-  }
-  return {
-    events,
-    error: events.length ? null : errors[0] || "theodds-f5-empty",
-    errors: errors.slice(0, 3),
-    credits,
-  };
-}
-
 async function fetchPropsJson(sportKey, params, apiKey) {
   const url = new URL(`https://parlay-api.com/v1/sports/${sportKey}/props`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -1053,7 +1010,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
 
   if (baseball) {
     const f5Key = `${CACHE_VER}:f5-v2:${sportKey}`;
-    let f5Payload = await readCache(f5Key, cfCache, EMPTY_F5_TTL_MS);
+    let f5Payload = await readCache(f5Key, cfCache, EMPTY_F5_MARKET_TTL_MS);
     if (!f5Payload && apiKey && !parlayCreditLimited) {
       const fetched = await fetchPeriodMarkets(sportKey, "F5", apiKey);
       remaining = fetched.credits.remaining ?? remaining;
@@ -1065,33 +1022,6 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         error: fetched.error || null,
         source: "parlay-period",
       };
-    }
-    // If Parlay period markets are empty/unavailable (including credit limits),
-    // use The Odds API's event-specific additional-market endpoint. This runs
-    // only in the scheduled/live collection path; cache-only product reads
-    // return earlier and never fan out paid F5 requests.
-    if ((!f5Payload || f5Payload.empty) && opts.backupApiKey) {
-      const backupF5 = await fetchTheOddsF5Events(sportKey, opts.backupApiKey);
-      remaining = backupF5.credits.remaining ?? remaining;
-      used = backupF5.credits.used ?? used;
-      if (backupF5.events?.length) {
-        f5Payload = {
-          rows: [],
-          events: backupF5.events,
-          empty: false,
-          error: null,
-          source: "theodds-event-f5",
-          backupErrors: backupF5.errors || [],
-        };
-      } else if (!f5Payload) {
-        f5Payload = {
-          rows: [],
-          events: [],
-          empty: true,
-          error: backupF5.error || (parlayCreditLimited ? parlayError : null),
-          source: "f5-unavailable",
-        };
-      }
     }
     f5Payload = f5Payload || {
       rows: [],
