@@ -131,7 +131,7 @@ jobs:
           today="$(TZ=America/Chicago date +%F)"
           # Only sports with the current durable player-projection contract need candidate matching.
           # Research-only sports still ingest below without blocking on projection APIs.
-          for sport in mlb nfl nhl wnba; do
+          for sport in mlb cfb nfl nhl wnba; do
             for date in "$today"; do
               tmp="$(mktemp)"
               code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" "$BASE/api/projections?sport=$sport&date=$date&_t=$(date +%s)" || true)"

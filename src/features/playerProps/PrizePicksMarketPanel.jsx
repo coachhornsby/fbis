@@ -7,6 +7,7 @@ function num(v){ return Number.isFinite(Number(v)) ? Number(v).toFixed(1) : "—
 function tierClass(tier=""){ return "pp-tier-"+String(tier||"standard").toLowerCase().replace(/[^a-z0-9]+/g,"-"); }
 function initials(name=""){ return String(name).split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"PP"; }
 function marketLabel(r){ return String(r.canonical_market||r.stat_type||"PROP").replaceAll("_"," "); }
+function rowStars(r){ const s=Number(r?.confidence_stars); return Number.isFinite(s)&&s>=1&&s<=5?s:propProjectionStars(r); }
 function matchupLabel(r){
   const team=String(r.team||"").trim();
   const opponent=String(r.opponent||"").trim();
@@ -17,7 +18,7 @@ function matchupLabel(r){
 function groupLatest(rows=[]){
   const newest=new Map();
   for(const r of rows){
-    if (propProjectionStars(r) == null) continue;
+    if (rowStars(r) == null) continue;
     const tier=String(r.odds_tier||"standard").toLowerCase();
     const key=[r.sport,r.player_name,r.canonical_market||r.stat_type,r.duration||"full"].join("|");
     if(!newest.has(key)) newest.set(key,{key,variants:new Map()});
@@ -43,9 +44,9 @@ export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilt
     let cancelled=false;
     setLoading(true); setError("");
     const date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-    const q=new URLSearchParams({limit:"500",date});
+    const q=new URLSearchParams({limit:"20",date});
     if(localSport!=="all") q.set("sport",localSport);
-    fetch("/api/prizepicks-props?"+q.toString(),{credentials:"same-origin"})
+    fetch("/api/selective-props?"+q.toString(),{credentials:"same-origin"})
       .then(async res=>{const j=await res.json().catch(()=>({}));if(!res.ok||j?.ok===false)throw new Error(j?.error||("HTTP "+res.status));return j})
       .then(j=>{if(!cancelled){setRows(Array.isArray(j.rows)?j.rows:[]);setFreshness(j.freshness||null)}})
       .catch(e=>{if(!cancelled){setRows([]);setError(String(e?.message||e))}})
@@ -55,7 +56,7 @@ export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilt
 
   const groups=useMemo(
     ()=>groupLatest(rows).sort(
-      (a,b)=>(propProjectionStars(b.primary)||0)-(propProjectionStars(a.primary)||0)
+      (a,b)=>(rowStars(b.primary)||0)-(rowStars(a.primary)||0)
     ),
     [rows]
   );
@@ -66,7 +67,7 @@ export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilt
         <div>
           <div className="pp-kicker">FBIS × PRIZEPICKS MARKET</div>
           <h1>PLAYER PROPS</h1>
-          <p>Only props with an FBIS projection are shown. Stars rate the FBIS projection gap versus the PrizePicks line.</p>
+          <p>Selective daily board. FBIS publishes only its strongest model-vs-PrizePicks disagreements, capped at 20. Weak props are not added just to fill a quota.</p>
         </div>
         <div className="pp-count">{loading?"LOADING":groups.length+" MARKETS"}</div>
       </div>
@@ -79,7 +80,7 @@ export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilt
       <div className="pp-card-grid">
         {groups.map((group)=>{
           const r=group.primary;
-          const stars=propProjectionStars(r);
+          const stars=rowStars(r);
           return (
             <article className={"pp-card "+tierClass(r.odds_tier)} key={group.key}>
               <div className="pp-card-top">
@@ -98,13 +99,13 @@ export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilt
                 </div>
               </div>
               <div className="pp-market-name">{marketLabel(r)}</div>
-              {group.variants.filter((v)=>propProjectionStars(v)!=null).map((v)=>{
+              {group.variants.filter((v)=>rowStars(v)!=null).map((v)=>{
                 const side=v.candidate_side||(
                   Number(v.fbis_projection)>Number(v.line)?"MORE":
                   Number(v.fbis_projection)<Number(v.line)?"LESS":"WATCH"
                 );
                 const diff=v.delta_fbis_minus_line ?? (Number(v.fbis_projection)-Number(v.line));
-                const variantStars=propProjectionStars(v);
+                const variantStars=rowStars(v);
                 return (
                   <div className="pp-variant" key={v.id||v.projection_id||String(v.odds_tier)+"-"+String(v.line)}>
                     <div className="pp-variant-label">

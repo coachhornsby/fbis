@@ -555,16 +555,64 @@ export function projectCfbPlayerV1(game = {}, opts = {}) {
   };
 }
 
+export function flattenCfbPlayerProjectionRows(projection = {}) {
+  const rows = [];
+  const marketMap = {
+    passing_yards: "passing_yards",
+    rushing_yards: "rushing_yards",
+    receiving_yards: "receiving_yards",
+  };
+  for (const side of ["away", "home"]) {
+    const sideRow = projection?.players?.[side] || {};
+    for (const role of ["QB1", "RB1", "WR1"]) {
+      const bundle = sideRow?.[role] || {};
+      for (const [key, prop] of Object.entries(bundle)) {
+        if (!prop || !Number.isFinite(Number(prop.projection))) continue;
+        const canonical = marketMap[prop.market] || marketMap[key] || null;
+        if (!canonical) continue;
+        rows.push({
+          playerId: prop.player_id ?? null,
+          playerName: prop.player ?? null,
+          team: prop.team ?? null,
+          position: role.replace("1", ""),
+          market: canonical,
+          fbisProjection: Number(prop.projection),
+          fbisSigma: Number.isFinite(Number(prop.sigma)) ? Number(prop.sigma) : null,
+          source: CFB_PLAYER_V1_ID,
+          maturity: "RESEARCH",
+          independent: true,
+          marketInformed: false,
+          dataQuality: Number.isFinite(Number(prop.data_quality)) ? Number(prop.data_quality) : null,
+          uncertaintyState: prop.uncertainty_state || null,
+          roleConfidence: Number.isFinite(Number(prop.role_confidence)) ? Number(prop.role_confidence) : null,
+          sampleSize: Number.isFinite(Number(prop.sample_size)) ? Number(prop.sample_size) : null,
+        });
+      }
+    }
+  }
+  return rows;
+}
+
 export function attachCfbPlayerV1(games = [], opts = {}) {
   let available = 0;
   const next = (games || []).map((game) => {
     if (game.sport && game.sport !== "cfb") return game;
     const projection = projectCfbPlayerV1(game, opts);
     if (projection.ok) available += 1;
+    const playerProjectionRows = flattenCfbPlayerProjectionRows(projection);
     return {
       ...game,
       challengers: { ...(game.challengers || {}), [CFB_PLAYER_V1_ID]: projection },
       cfbPlayerV1: projection,
+      playerProjectionRows,
+      playerProjectionStatus: {
+        sport: "cfb",
+        state: playerProjectionRows.length ? "ACTIVE_RESEARCH" : "NO_MODELABLE_PLAYER_PROPS",
+        model: CFB_PLAYER_V1_ID,
+        independent: true,
+        marketInformed: false,
+        canQualify: false,
+      },
     };
   });
   return {

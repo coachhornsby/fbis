@@ -1,4 +1,4 @@
-export const PRO_PLAYER_PROP_SPORTS = Object.freeze(["mlb", "npb", "kbo", "nfl", "nba", "nhl"]);
+export const PRO_PLAYER_PROP_SPORTS = Object.freeze(["mlb", "npb", "kbo", "cfb", "cbb", "tennis", "nfl", "nba", "nhl"]);
 
 export const PRO_PLAYER_PROP_MARKETS = Object.freeze({
   npb: ["strikeouts"],
@@ -16,6 +16,20 @@ export const PRO_PLAYER_PROP_MARKETS = Object.freeze({
     "hits_allowed",
     "walks_allowed",
     "fantasy_score",
+  ],
+  cfb: [
+    "passing_yards",
+    "rushing_yards",
+    "receiving_yards",
+  ],
+  cbb: [
+    "points",
+    "rebounds",
+    "assists",
+  ],
+  tennis: [
+    "total_games",
+    "total_games_won",
   ],
   nfl: [
     "passing_yards",
@@ -74,6 +88,8 @@ export const PRO_PLAYER_PROP_LABELS = Object.freeze({
   receiving_yards: "Rec Yards",
   receptions: "Receptions",
   touchdowns: "Touchdowns",
+  total_games: "Total Games",
+  total_games_won: "Games Won",
   points: "Points",
   rebounds: "Rebounds",
   assists: "Assists",
@@ -134,6 +150,31 @@ const ALIASES = Object.freeze({
     bases_on_balls_allowed: "walks_allowed",
     fantasy_score: "fantasy_score",
     fantasy_points: "fantasy_score",
+  },
+  cfb: {
+    passing_yards: "passing_yards",
+    pass_yards: "passing_yards",
+    pass_yds: "passing_yards",
+    rushing_yards: "rushing_yards",
+    rush_yards: "rushing_yards",
+    receiving_yards: "receiving_yards",
+    rec_yards: "receiving_yards",
+  },
+  cbb: {
+    points: "points",
+    player_points: "points",
+    rebounds: "rebounds",
+    player_rebounds: "rebounds",
+    assists: "assists",
+    player_assists: "assists",
+  },
+  tennis: {
+    total_games: "total_games",
+    games: "total_games",
+    match_games: "total_games",
+    total_games_won: "total_games_won",
+    games_won: "total_games_won",
+    player_games_won: "total_games_won",
   },
   nfl: {
     passing_yards: "passing_yards",
@@ -206,6 +247,9 @@ export function normalizeProPropSport(raw) {
   if (sport === "baseball" || sport === "major_league_baseball") return "mlb";
   if (sport === "nippon_professional_baseball" || sport === "japanese_baseball") return "npb";
   if (sport === "korean_baseball_organization" || sport === "korean_baseball") return "kbo";
+  if (sport === "college_football" || sport === "ncaaf" || sport === "ncaa_football") return "cfb";
+  if (sport === "college_basketball" || sport === "ncaab" || sport === "ncaa_basketball") return "cbb";
+  if (sport === "atp" || sport === "wta" || sport === "tennis_atp" || sport === "tennis_wta") return "tennis";
   if (sport === "football" || sport === "national_football_league") return "nfl";
   if (sport === "basketball" || sport === "national_basketball_association") return "nba";
   if (sport === "hockey" || sport === "national_hockey_league") return "nhl";
