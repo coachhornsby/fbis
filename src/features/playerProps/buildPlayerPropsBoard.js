@@ -455,6 +455,8 @@ export function normalizeBoardGame(game = {}) {
       shotEnvironment:p.shotEnvironment||null,
       propGate: lineValidated ? (p.propGate || "CLEAR") : "HOLD",
       gateReason: lineValidated ? (p.gateReason || null) : "prop_line_not_validated_vs_baseline",
+      decisionEligible: p.decisionEligible === true && lineValidated,
+      modelAuthorized: p.canAuthorizeWager === true && lineValidated,
       eligibleForCard: p.eligibleForCard === true && lineValidated,
     };
   });
@@ -485,9 +487,9 @@ export function normalizeBoardGame(game = {}) {
       propGate: p.propGate || "CLEAR",
       gateReason: p.gateReason || null,
       eligibleForCard: p.eligibleForCard === true,
-      decisionEligible: false,
+      decisionEligible: p.decisionEligible === true,
+      modelAuthorized: p.canAuthorizeWager === true,
       reasonCodes: [
-        "FBIS_PLAYER_PROJECTION_RESEARCH_ONLY",
         "NO_MARKET_LINE_ATTACHED",
         ...(p.propGate && p.propGate !== "CLEAR" ? ["AVAILABILITY_" + p.propGate] : []),
       ],
@@ -550,8 +552,8 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
           },
           teamIdentity,
           supportedMarket,
-          surfaceStatus: pm.propGate === "BLOCKED" ? "BLOCKED" : pm.propGate === "HOLD" ? "HOLD" : pm.decisionEligible ? "WATCHLIST" : "RESEARCH",
-          modelAuthorized: false,
+          surfaceStatus: pm.propGate === "BLOCKED" ? "BLOCKED" : pm.propGate === "HOLD" ? "HOLD" : pm.decisionEligible ? "QUALIFIED" : "RESEARCH",
+          modelAuthorized: pm.modelAuthorized === true || (sport === "wnba" && pm.decisionEligible === true),
           eligibleForCard: pm.propGate === "CLEAR" && pm.eligibleForCard === true,
         }),
       );
@@ -598,10 +600,12 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       availabilityBlocked: rows.filter((r) => r.propGate === "BLOCKED").length,
     },
     readiness: {
-      classification: "RESEARCH_READY",
-      modelAuthorized: false,
-      decisionEligible: false,
-      note: "Pro player props are market-intelligence/research only until model authority is earned.",
+      classification: rows.some((r) => r.modelAuthorized === true) ? "ACTIVE" : "RESEARCH_READY",
+      modelAuthorized: rows.some((r) => r.modelAuthorized === true),
+      decisionEligible: rows.some((r) => r.decisionEligible === true),
+      note: rows.some((r) => r.modelAuthorized === true)
+        ? "Authorized player-prop rows may be used for card construction; model and market evidence remain visible."
+        : "Player props remain research-only for sports/markets without authority.",
     },
     schemaVersion: "fbis-player-props-board-v2",
   };
