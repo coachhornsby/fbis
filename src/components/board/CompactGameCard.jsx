@@ -285,6 +285,20 @@ export default function CompactGameCard({ game, onOpen }) {
             <span>GAME READ <b>{Number.isFinite(finalMargin) ? `${finalMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(finalMargin))}` : "—"}</b></span>
           </div>
         </section>
+      ) : genericMatchupItems.length ? (
+        <section className="cgc-matchup-read" aria-label="FBIS matchup analysis">
+          <div className="cgc-matchup-read-head">
+            <div><span>GAME MATCHUP</span><strong>FBIS ANALYSIS</strong></div>
+            <b>{genericMatchupItems.length} SIGNALS</b>
+          </div>
+          <div className="cgc-matchup-pills">
+            {genericMatchupItems.map((item) => (
+              <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
+                <span>{item.label}</span><strong>{item.text}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
       ) : null}
 
 
