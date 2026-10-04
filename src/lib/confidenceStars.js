@@ -94,12 +94,12 @@ function nflCompositeStars(game, vm, q) {
   const spread = Math.abs(
     Number.isFinite(fairHomeSpread) && Number.isFinite(marketSpread)
       ? fairHomeSpread - marketSpread
-      : NaN
+      : Number(vm?.comparison?.spreadDelta)
   );
   const total = Math.abs(
     Number.isFinite(proTotal) && Number.isFinite(marketTotal)
       ? proTotal - marketTotal
-      : NaN
+      : Number(vm?.comparison?.totalDelta)
   );
   const edgeSignal = Math.max(
     Number.isFinite(spread) ? Math.min(1, spread / 7) : 0,
