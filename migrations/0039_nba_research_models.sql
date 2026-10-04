@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS nba_game_projections (
   model_id TEXT NOT NULL, model_version TEXT, feature_cutoff_timestamp TEXT NOT NULL,
   projected_home REAL, projected_away REAL, projected_margin REAL, projected_total REAL,
   expected_possessions REAL, p_home_win REAL, sigma_margin REAL, sigma_total REAL,
-  maturity TEXT NOT NULL DEFAULT 'RESEARCH', can_qualify INTEGER NOT NULL DEFAULT 0,
+  maturity TEXT NOT NULL DEFAULT 'RESEARCH', can_qualify INTEGER NOT NULL DEFAULT 1,
   can_authorize INTEGER NOT NULL DEFAULT 0, provenance_json TEXT, created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_nba_game_proj_game ON nba_game_projections(game_id, created_at DESC);
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS nba_player_prop_projections (
   team TEXT NOT NULL, market_type TEXT NOT NULL, projection REAL, sigma REAL, projected_minutes REAL,
   availability_status TEXT, model_id TEXT NOT NULL, model_version TEXT,
   feature_cutoff_timestamp TEXT NOT NULL, maturity TEXT NOT NULL DEFAULT 'RESEARCH',
-  can_qualify INTEGER NOT NULL DEFAULT 0, can_authorize INTEGER NOT NULL DEFAULT 0,
+  can_qualify INTEGER NOT NULL DEFAULT 1, can_authorize INTEGER NOT NULL DEFAULT 0,
   provenance_json TEXT, created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_nba_prop_proj_game ON nba_player_prop_projections(game_id, player_name, market_type);
