@@ -360,3 +360,42 @@ test("generic projected prop rows carry FBIS-vs-line confidence stars", () => {
   assert.equal(row.confidenceVersion, "fbis-prop-gap-stars-v1");
   assert.equal(row.confidenceSide, "MORE");
 });
+
+
+test("WNBA PrizePicks props use the common star system with canonical 3PT mapping", () => {
+  const board = buildPlayerPropsBoard({
+    games: [{
+      id:"wnba-1", sport:"wnba",
+      away:{abbr:"IND"}, home:{abbr:"LVA"},
+      playerMarkets:[{
+        playerName:"Shooter",
+        team:"LVA",
+        market:"3-PT Made",
+        marketCanonical:"3_pt_made",
+        line:2.5,
+        fbisProjection:3.4,
+        fbisSigma:1.0,
+        propGate:"CLEAR",
+        eligibleForCard:true,
+      }],
+    }],
+  });
+  assert.equal(board.rows.length,1);
+  assert.equal(board.rows[0].marketCanonical,"three_pointers_made");
+  assert.equal(board.rows[0].confidenceStars,5);
+  assert.equal(board.rows[0].confidenceVersion,"fbis-prop-gap-stars-v1");
+  assert.equal(board.rows[0].confidenceSide,"MORE");
+});
+
+test("WNBA research validation gate caps generic prop stars at two", () => {
+  const row = withFbisPropAnalytics({
+    sport:"wnba",
+    marketCanonical:"points",
+    line:20.5,
+    fbisProjection:28,
+    fbisSigma:4,
+    propGate:"RESEARCH_VALIDATION_REQUIRED",
+  });
+  assert.equal(row.confidenceStars,2);
+  assert.equal(row.confidenceSide,"MORE");
+});
