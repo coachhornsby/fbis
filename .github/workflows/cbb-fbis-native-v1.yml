@@ -132,7 +132,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/cbb-hca-rankings-v1.mjs artifacts/parts/cbb-fbis-native-v1-predictions-2025.json | tee artifacts/cbb-hca-rankings-v1.log
-          jq -e '.teams > 300 and .venueCoveragePct >= 85' artifacts/cbb-hca-rankings-v1.json >/dev/null
+          jq -e '.teams == 360 and .venueCoveragePct == 100 and .altitudeCoveragePct == 100' artifacts/cbb-hca-rankings-v1.json >/dev/null
       - name: Summarize
         run: |
           F=artifacts/cbb-fbis-native-v1-walkforward.json
