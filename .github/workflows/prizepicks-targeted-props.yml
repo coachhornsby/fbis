@@ -257,3 +257,4 @@ jobs:
           name: prizepicks-curated-${{ github.run_id }}
           path: artifacts/
           retention-days: 14
+# operator-trigger: 2026-10-04 daily Zen recovery
