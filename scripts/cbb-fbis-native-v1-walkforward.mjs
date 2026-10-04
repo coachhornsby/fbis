@@ -28,6 +28,7 @@ async function loadBox(season){
   for(const x of raw){
     const n=k=>num(x[k]),fgm=n("field_goals_made"),fga=n("field_goals_attempted"),tpm=n("three_point_field_goals_made"),tpa=n("three_point_field_goals_attempted"),ftm=n("free_throws_made"),fta=n("free_throws_attempted"),orb=n("offensive_rebounds"),drb=n("defensive_rebounds"),tov=n("turnovers")??n("total_turnovers")??n("team_turnovers");
     rows.push({gameId:String(x.game_id||""),startDate:x.game_date_time||x.game_date,season,team:x.team_location||x.team_display_name,opponent:x.opponent_team_location||x.opponent_team_display_name,
+      conference:x.team_conference_abbreviation||x.team_conference_name||x.team_conference||x.conference_abbreviation||x.conference_name||x.conference||null,
       isHome:x.team_home_away==="home",neutral:false,fgm,fga,threeMade:tpm,threeAtt:tpa,ftm,fta,orb,drb,turnovers:tov,possessions:fga!=null&&orb!=null&&tov!=null&&fta!=null?fga-orb+tov+.475*fta:null});
   }
   return rows;
@@ -77,9 +78,11 @@ function betStats(rows,kind,threshold,directionMode="fbis"){
 
 const out=[],coverage=[];
 for(const season of seasons){
-  const [box0,confMeta]=await Promise.all([loadBox(season),conferenceMap(season)]);
+  const box0=await loadBox(season);
+  const rawConf=new Map(box0.filter(r=>r.conference).map(r=>[key(r.team),r.conference]));
+  const confMeta=rawConf.size>=100 ? {map:rawConf,available:true,error:null,source:"sportsdataverse-box"} : await conferenceMap(season);
   const conf=confMeta.map;
-  const box=box0.map(r=>({...r,conference:conf.get(key(r.team))||null}));
+  const box=box0.map(r=>({...r,conference:r.conference||conf.get(key(r.team))||null}));
   const normalized=normalizeFbisCbbGameTeamRows(box,season);
   const targets=benchmark.filter(r=>Number(r.season)===season&&r.kenpom).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
   const byDate=new Map();for(const r of targets){if(!byDate.has(r.date))byDate.set(r.date,[]);byDate.get(r.date).push(r)}
@@ -96,7 +99,7 @@ for(const season of seasons){
         awayRating:away?{games:away.games,sos:away.sos,nonConferenceSos:away.nonConferenceSos,conference:away.conference,conferenceStrength:away.conferenceStrength,reliability:away.reliability}:null});
     }
   }
-  coverage.push({season,boxRows:normalized.length,conferenceTeams:conf.size,conferenceMetadataAvailable:confMeta.available,conferenceMetadataError:confMeta.error,benchmarkRows:targets.length,projected});
+  coverage.push({season,boxRows:normalized.length,conferenceTeams:conf.size,conferenceMetadataAvailable:confMeta.available,conferenceMetadataError:confMeta.error,conferenceMetadataSource:confMeta.source||"cbbd-fallback",benchmarkRows:targets.length,projected});
   console.log("season",season,"projected",projected,"of",targets.length);
 }
 

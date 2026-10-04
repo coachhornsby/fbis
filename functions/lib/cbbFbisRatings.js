@@ -7,12 +7,13 @@
 import { cbbdGet, cbbSeasonYear } from "./collegeApi.js";
 import { readCache, writeCache } from "./cache.js";
 import { mapSourceTeam } from "./collegeIdentity.js";
+import { buildIndependentHca, hcaForTeam, FBIS_CBB_HISTORICAL_GLOBAL_HCA } from "./cbbFbisHca.js";
 
-export const FBIS_CBB_MODEL_ID = "FBIS-CBB-RATINGS-v1";
-export const FBIS_CBB_MODEL_VERSION = "v1.0.0";
+export const FBIS_CBB_MODEL_ID = "FBIS-CBB-RATINGS-v2";
+export const FBIS_CBB_MODEL_VERSION = "v2.0.0";
 export const FBIS_CBB_NATIONAL_EFF = 104.5;
 export const FBIS_CBB_NATIONAL_TEMPO = 68.0;
-export const FBIS_CBB_GLOBAL_HCA = 3.5;
+export const FBIS_CBB_GLOBAL_HCA = FBIS_CBB_HISTORICAL_GLOBAL_HCA;
 
 const CACHE_TTL = 2 * 60 * 60 * 1000;
 const EPS = 1e-9;
@@ -157,6 +158,10 @@ export function buildFbisCbbRatings(rows = [], {
   iterations = 24, halfLifeDays = 35, globalHca = FBIS_CBB_GLOBAL_HCA,
 } = {}) {
   const obs = pairObservations(rows, asOf).map(x => ({...x,weight:gameWeight(x,asOf,{halfLifeDays})}));
+  // Dynamic national scoring/tempo environment, shrunk to long-run priors.
+  // This prevents fixed-baseline drift across rule/scoring eras and unusual seasons.
+  nationalEff = clamp(weightedMean(obs,g=>g.rawOE,nationalEff,200),92,125);
+  nationalTempo = clamp(weightedMean(obs,g=>g.rawTempo,nationalTempo,200),58,76);
   const byTeam = new Map();
   for (const o of obs) { if (!byTeam.has(o.teamId)) byTeam.set(o.teamId, []); byTeam.get(o.teamId).push(o); }
   const ratings = new Map();
@@ -206,17 +211,16 @@ export function buildFbisCbbRatings(rows = [], {
     r.sosO=oppRatings.length?mean(oppRatings.map(x=>x.adjOe)):nationalEff;
     r.sosD=oppRatings.length?mean(oppRatings.map(x=>x.adjDe)):nationalEff;
     r.nonConferenceSos=nonConf.length?mean(nonConf.map(x=>x.adjOe-x.adjDe)):null; r.nonConferenceGames=nonConf.length;
+    const paceResiduals=games.map(g=>{const opp=ratings.get(g.opponentId);if(!opp)return null;const expected=(r.tempo*opp.tempo)/nationalTempo;return {...g,paceResidual:g.rawTempo-expected};}).filter(Boolean);
+    r.pacePressure=weightedMean(paceResiduals,g=>g.paceResidual,0,10);
+    const paceSd=weightedSd(paceResiduals,g=>g.paceResidual,r.pacePressure);
+    r.paceControl=paceSd==null?0.35:clamp(1-paceSd/12,0.1,0.9);
     r.conferenceStrength=r.conference&&conferences[r.conference]?conferences[r.conference].net:null;
     for(const f of ["efgPct","twoPtPct","threePtPct","orbRate","tovRate","ftr","efgPctD","twoPtPctD","threePtPctD","tovRateD","ftrD"]){
       const vals=games.filter(g=>Number.isFinite(g[f]));
       r[f]=vals.length?weightedMean(vals,g=>g[f],0,0):null;
     }
-    const homeGames=games.filter(g=>g.isHome&&!g.neutral);
-    const hcaResiduals=homeGames.map(g=>{const opp=ratings.get(g.opponentId);if(!opp)return null;
-      const poss=(r.tempo*opp.tempo)/nationalTempo;
-      const neutralMargin=((r.adjOe*opp.adjDe/nationalEff)-(opp.adjOe*r.adjDe/nationalEff))*poss/100;
-      return {...g,hcaResidual:g.margin-neutralMargin};}).filter(Boolean);
-    r.hca=clamp(weightedMean(hcaResiduals,g=>g.hcaResidual,globalHca,15),0,8);
+    // HCA is assigned after all team ratings are complete by the independent hierarchical HCA model.
     const adjustedGameNets=games.map(g=>{const opp=ratings.get(g.opponentId);if(!opp)return null;
       return {...g,adjNet:(g.rawOE*nationalEff/opp.adjDe)-(g.rawDE*nationalEff/opp.adjOe)};}).filter(Boolean);
     const sd=weightedSd(adjustedGameNets,g=>g.adjNet,r.net);
@@ -227,12 +231,18 @@ export function buildFbisCbbRatings(rows = [], {
     r.uncertainty={adjustedNetSd:sd,scheduleBreadth,reliability:r.reliability,lowSample:r.effectiveGames<5,weakScheduleEvidence:oppRatings.length<5};
   }
 
+  const hcaCatalog=buildIndependentHca(obs,ratings,{nationalEff,nationalTempo,historicalGlobalHca:globalHca});
+  for(const [id,r] of ratings) r.hca=hcaForTeam(hcaCatalog,id);
+
   return {ok:ratings.size>0,modelId:FBIS_CBB_MODEL_ID,modelVersion:FBIS_CBB_MODEL_VERSION,asOf,season,
     methodology:{independent:true,marketInformed:false,kenpomInput:false,torvikInput:false,
       opponentAdjustment:"iterative multiplicative AdjOE/AdjDE/AdjTempo",recencyHalfLifeDays:halfLifeDays,blowoutDownWeighting:true,
       priorGames,conferencePriorGames,scheduleStrength:"average FBIS opponent net; separate offensive/defensive and nonconference SOS",
-      conferenceStrength:"mean FBIS net rating of conference members; early-season shrink only",teamHca:"home-margin residual, shrunk to global HCA"},
-    national:{eff:nationalEff,tempo:nationalTempo,globalHca},conferences,
+      conferenceStrength:"mean FBIS net rating of conference members; early-season shrink only",
+      teamHca:"FBIS-CBB-HCA-v1 hierarchical residual model; no KenPom/Torvik/market",
+      dynamicNationalEnvironment:true,
+      paceControl:"team pace-pressure residual + imposition reliability"},
+    national:{eff:nationalEff,tempo:nationalTempo,globalHca:hcaCatalog.globalHca},hcaModel:hcaCatalog,conferences,
     byTeamId:Object.fromEntries([...ratings.entries()]),byTeam:Object.fromEntries([...ratings.values()].map(r=>[key(r.team),r])),observations:obs.length};
 }
 
@@ -252,7 +262,11 @@ export function projectFbisCbbGame(game, home, away, {
   nationalEff=FBIS_CBB_NATIONAL_EFF,nationalTempo=FBIS_CBB_NATIONAL_TEMPO,globalHca=FBIS_CBB_GLOBAL_HCA,matchupCoefficients=null,
 }={}) {
   if(!home||!away)return{ok:false,modelId:FBIS_CBB_MODEL_ID,reason:"missing-fbis-ratings"};
-  const possessions=clamp((home.tempo*away.tempo)/nationalTempo,55,82);
+  const basePossessions=(home.tempo*away.tempo)/nationalTempo;
+  const paceWeight=(Number(home.paceControl)||0)+(Number(away.paceControl)||0);
+  const paceAdjustment=paceWeight>0?
+    (((Number(home.pacePressure)||0)*(Number(home.paceControl)||0)+(Number(away.pacePressure)||0)*(Number(away.paceControl)||0))/paceWeight):0;
+  const possessions=clamp(basePossessions+clamp(paceAdjustment,-4,4),55,82);
   let homeEff=home.adjOe*away.adjDe/nationalEff, awayEff=away.adjOe*home.adjDe/nationalEff;
   const homeMatch=matchupScore(home,away),awayMatch=matchupScore(away,home);
   let matchupAdjHome=0,matchupAdjAway=0;
@@ -266,7 +280,8 @@ export function projectFbisCbbGame(game, home, away, {
   const reliability=Math.sqrt(Math.max(0,home.reliability||0)*Math.max(0,away.reliability||0));
   return {ok:true,modelId:FBIS_CBB_MODEL_ID,modelVersion:FBIS_CBB_MODEL_VERSION,independent:true,marketInformed:false,kenpomInput:false,torvikInput:false,
     home:Number(homePts.toFixed(1)),away:Number(awayPts.toFixed(1)),total:Number((homePts+awayPts).toFixed(1)),margin:Number((homePts-awayPts).toFixed(1)),
-    possessions:Number(possessions.toFixed(1)),homeEff:Number(homeEff.toFixed(2)),awayEff:Number(awayEff.toFixed(2)),hca:Number(hca.toFixed(2)),
+    possessions:Number(possessions.toFixed(1)),basePossessions:Number(basePossessions.toFixed(1)),paceAdjustment:Number(paceAdjustment.toFixed(2)),
+    homeEff:Number(homeEff.toFixed(2)),awayEff:Number(awayEff.toFixed(2)),hca:Number(hca.toFixed(2)),
     sigmaTotal:Number(clamp(16-5*reliability,10,16).toFixed(2)),sigmaMargin:Number(clamp(13-4*reliability,9,13).toFixed(2)),
     reliability:Number(reliability.toFixed(3)),
     schedule:{home:{sos:home.sos,sosO:home.sosO,sosD:home.sosD,nonConferenceSos:home.nonConferenceSos,conferenceStrength:home.conferenceStrength},

@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - "functions/lib/cbbFbisRatings.js"
+      - "functions/lib/cbbFbisHca.js"
       - "functions/lib/collegeApply.js"
       - "functions/lib/collegeModels.js"
       - "functions/api/cbb-walkforward-source.js"
       - "scripts/cbb-fbis-native-v1-walkforward.mjs"
       - "scripts/cbb-fbis-native-v1-aggregate.mjs"
+      - "scripts/cbb-fbis-v2-fit.mjs"
       - "test/cbb-fbis-native-v1.test.js"
       - ".github/workflows/cbb-fbis-native-v1.yml"
   workflow_dispatch:
@@ -118,9 +120,14 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/cbb-fbis-native-v1-aggregate.mjs artifacts/parts | tee artifacts/cbb-fbis-native-v1-aggregate.log
+      - name: Fit residual, margin and confidence layers
+        run: |
+          set -euo pipefail
+          node scripts/cbb-fbis-v2-fit.mjs artifacts/cbb-fbis-native-v2-predictions.json | tee artifacts/cbb-fbis-v2-fit.log
       - name: Summarize
         run: |
           F=artifacts/cbb-fbis-native-v1-walkforward.json
+          FIT=artifacts/cbb-fbis-v2-fit.json
           jq -e '.ok == true and .rows > 0' "$F" >/dev/null
           {
             echo "## FBIS-CBB-RATINGS-v1 partitioned walk-forward"
@@ -128,12 +135,18 @@ jobs:
             jq -r '"- validation 2023-24: FBIS=\(.samples.validation.fbis.totalMae), KenPom=\(.samples.validation.kenpom.totalMae), advantage=\(.samples.validation.totalMaeAdvantage)"' "$F"
             jq -r '"- confirmation 2025: FBIS=\(.samples.confirmation.fbis.totalMae), KenPom=\(.samples.confirmation.kenpom.totalMae), advantage=\(.samples.confirmation.totalMaeAdvantage)"' "$F"
             jq -r '"- total promotion screen: \(.promotion.totalPass)"' "$F"
+            jq -r '"- residual total layer enabled: \(.total.enabled), validation gain=\(.total.evaluation.validation.gain), 2025 gain=\(.total.evaluation.confirmation.gain)"' "$FIT"
+            jq -r '"- dedicated margin layer enabled: \(.margin.enabled), validation gain=\(.margin.evaluation.validation.gain), 2025 gain=\(.margin.evaluation.confirmation.gain)"' "$FIT"
+            jq -r '"- market confidence layer enabled: \(.confidence.enabled), validation ROI=\(.confidence.evaluation.validation.roi)%, 2025 ROI=\(.confidence.evaluation.confirmation.roi)%"' "$FIT"
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: cbb-fbis-native-v1-aggregate-${{ github.run_id }}
           path: |
             artifacts/cbb-fbis-native-v1-walkforward.json
+            artifacts/cbb-fbis-native-v2-predictions.json
             artifacts/cbb-fbis-native-v1-aggregate.log
+            artifacts/cbb-fbis-v2-fit.json
+            artifacts/cbb-fbis-v2-fit.log
           if-no-files-found: error
           retention-days: 90
