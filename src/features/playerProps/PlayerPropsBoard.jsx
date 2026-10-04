@@ -323,9 +323,9 @@ export default function PlayerPropsBoard({
                     {TIER_LABELS[tier] || tier}
                     {row.convictionLean ? ` · ${row.convictionLean}` : ""}
                   </span>
-                  {row.leanProbability != null ? (
-                    <span className="props-tier-prob">{fmtProb(row.leanProbability)}</span>
-                  ) : null}
+                  <span className="props-tier-prob" aria-label={`${row.projectionStars || 1} star projection confidence`}>
+                    {"★".repeat(row.projectionStars || 1)}{"☆".repeat(5 - (row.projectionStars || 1))}
+                  </span>
                 </div>
 
                 <button
