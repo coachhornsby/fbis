@@ -3,7 +3,7 @@
   "version": "research-v1.1-calibrated",
   "role": "challenger",
   "marketInformed": false,
-  "canQualify": false,
+  "canQualify": true,
   "canAuthorizeWager": false,
   "trainingSeason": "2024-25",
   "trainingCutoff": "2025-06-22",
