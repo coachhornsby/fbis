@@ -7,6 +7,10 @@ import {
   canonicalizeProPlayerPropMarket,
   normalizeProPropSport,
 } from "../../../functions/lib/proPlayerProps.js";
+import {
+  rateGenericNhlPropConfidence,
+  rateNhlGoalieSavesConfidence,
+} from "../../../functions/lib/nhlPropConfidence.js";
 
 /**
  * All player-prop markets currently supported on FBIS product surfaces.
@@ -69,9 +73,83 @@ export function withFbisPropAnalytics(row = {}) {
     edge: finiteOrNull(edge),
     projectionDelta,
   };
-  return {
+  const ranked = {
     ...enriched,
     ...rankPropConviction(enriched),
+  };
+
+  if (String(ranked.sport || "").toLowerCase() === "nhl") {
+    if (String(ranked.marketCanonical || ranked.market || "") === "saves") {
+      const env = ranked.shotEnvironment || {};
+      const stars = rateNhlGoalieSavesConfidence({
+        projection: ranked.fbisProjection,
+        line: ranked.line,
+        opponentShotsFor: env.opponentShotsFor,
+        teamShotsAgainst: env.teamShotsAgainst,
+        projectedShotsFaced: env.projectedShotsFaced,
+        starterConfirmed: ranked.propGate === "CLEAR",
+        lineValidated: !ranked.lineValidationStatus || ranked.lineValidationStatus === "PROMOTE_RESEARCH",
+        modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
+      });
+      return {
+        ...ranked,
+        confidenceStars: stars.stars,
+        confidenceLabel: stars.label,
+        confidenceTier: stars.tier,
+        confidenceSide: stars.side,
+        confidenceGap: stars.gap,
+        confidenceReasons: stars.reasons,
+        confidenceResearchCandidate: stars.researchCandidate,
+        confidenceVersion: stars.confidenceVersion,
+        confidenceEnvironment: stars.environment,
+      };
+    }
+
+    const genericStars = rateGenericNhlPropConfidence({
+      market: ranked.marketCanonical || ranked.market,
+      projection: ranked.fbisProjection,
+      line: ranked.line,
+      leanProbability: ranked.leanProbability,
+      validationStatus: ranked.validationStatus,
+      lineValidationStatus: ranked.lineValidationStatus,
+      eligibleForCard: ranked.eligibleForCard,
+    });
+    if (genericStars) {
+      return {
+        ...ranked,
+        confidenceStars: genericStars.stars,
+        confidenceLabel: genericStars.label,
+        confidenceTier: genericStars.tier,
+        confidenceSide: ranked.convictionLean || null,
+        confidenceGap: ranked.projectionDelta,
+        confidenceReasons: genericStars.reasons,
+        confidenceResearchCandidate: genericStars.researchCandidate,
+        confidenceVersion: genericStars.confidenceVersion,
+      };
+    }
+  }
+
+  const genericScore = Number(ranked.leanProbability);
+  const stars = Number.isFinite(genericScore)
+    ? genericScore >= 0.75 ? 5
+      : genericScore >= 0.68 ? 4
+      : genericScore >= 0.60 ? 3
+      : genericScore >= 0.54 ? 2
+      : 1
+    : ranked.convictionTier === "CONVICTION" ? 4
+      : ranked.convictionTier === "STRONG" ? 3
+      : ranked.convictionTier === "LEAN" ? 2
+      : 1;
+  return {
+    ...ranked,
+    confidenceStars: stars,
+    confidenceLabel: `${stars} STAR`,
+    confidenceTier: stars >= 5 ? "ELITE" : stars === 4 ? "PREMIUM" : stars === 3 ? "STRONG" : stars === 2 ? "LEAN" : "WATCH",
+    confidenceSide: ranked.convictionLean || null,
+    confidenceGap: ranked.projectionDelta,
+    confidenceReasons: ["generic_probability_conviction_scale"],
+    confidenceResearchCandidate: stars >= 3,
+    confidenceVersion: "fbis-generic-stars-v1",
   };
 }
 
@@ -302,6 +380,7 @@ export function normalizeBoardGame(game = {}) {
       availabilityStatus: p.availabilityStatus || null,
       validationStatus:p.validationStatus||null,
       lineValidationStatus,
+      shotEnvironment:p.shotEnvironment||null,
       propGate: lineValidated ? (p.propGate || "CLEAR") : "HOLD",
       gateReason: lineValidated ? (p.gateReason || null) : "prop_line_not_validated_vs_baseline",
       eligibleForCard: p.eligibleForCard === true && lineValidated,
