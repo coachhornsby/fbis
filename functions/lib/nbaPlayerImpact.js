@@ -145,19 +145,24 @@ export function fitRegularizedRapm(stints=[],{
     for(const p of s.awayPlayers||[])if(index.has(String(p)))x.push([index.get(String(p)),-1]);
     return {x,y:100*Number(s.pointDifferential)/Number(s.possessions),w:Number(s.possessions)};
   });
+  const rowsByPlayer=players.map(()=>[]);
+  const preds=rows.map(()=>0);
+  rows.forEach((r,ri)=>{
+    for(const [k,x] of r.x){rowsByPlayer[k].push([ri,x]);preds[ri]+=x*beta[k];}
+  });
   let used=0;
   for(let iter=0;iter<iterations;iter++){
     let maxChange=0;
     for(let j=0;j<players.length;j++){
       let num=lambda*prior[j],den=lambda;
-      for(const r of rows){
-        const xj=r.x.find(([k])=>k===j)?.[1]||0;if(!xj)continue;
-        let pred=0;for(const [k,x] of r.x)pred+=x*beta[k];
-        const partial=r.y-(pred-xj*beta[j]);
+      for(const [ri,xj] of rowsByPlayer[j]){
+        const r=rows[ri];
+        const partial=r.y-(preds[ri]-xj*beta[j]);
         num+=r.w*xj*partial;den+=r.w*xj*xj;
       }
-      const next=den?num/den:beta[j];
-      maxChange=Math.max(maxChange,Math.abs(next-beta[j]));beta[j]=next;
+      const next=den?num/den:beta[j],delta=next-beta[j];
+      if(delta!==0)for(const [ri,xj] of rowsByPlayer[j])preds[ri]+=xj*delta;
+      maxChange=Math.max(maxChange,Math.abs(delta));beta[j]=next;
     }
     used=iter+1;if(maxChange<tolerance)break;
   }
