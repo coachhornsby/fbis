@@ -69,11 +69,11 @@ export function preventionFactor(team={}, league={}){
     v=finite(v); b=finite(b); if(v==null||b==null||!scale) return;
     score += ((v-b)/scale)*w*direction; weight += Math.abs(w);
   };
-  add(team.staffEra ?? team.era, league.staffEra ?? league.era,.58,1.0,-1);
-  add(team.whip,league.whip,.20,.18,-1);
-  add(team.oppAvg,league.oppAvg,.12,.025,-1);
+  add(team.staffEra ?? team.era, league.staffEra ?? league.era,.58,1.0,1);
+  add(team.whip,league.whip,.20,.18,1);
+  add(team.oppAvg,league.oppAvg,.12,.025,1);
   const qsRate=finite(team.qs)!=null&&finite(team.games)>0 ? team.qs/team.games : null;
-  add(qsRate,league.qsRate,.10,.12,1);
+  add(qsRate,league.qsRate,.10,.12,-1);
   return clamp(1+(weight?score/weight:0)*0.10,.86,1.14);
 }
 
