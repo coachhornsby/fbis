@@ -144,6 +144,7 @@ async function fetchPitcherStats(ids, year) {
             battersFaced,
             kPer9: innings > 0 && strikeOuts != null ? strikeOuts * 9 / innings : null,
             kRate: battersFaced > 0 && strikeOuts != null ? strikeOuts / battersFaced : null,
+            battersFacedPerInning: innings > 0 && battersFaced != null ? battersFaced / innings : null,
             inningsPerStart: gamesStarted > 0 && innings != null ? innings / gamesStarted : null,
           });
         } catch {
@@ -234,6 +235,8 @@ export async function fetchSavantSlate(games, cfCache) {
         awaySpKRate: awaySeason.kRate ?? null,
         homeSpInningsPerStart: homeSeason.inningsPerStart ?? null,
         awaySpInningsPerStart: awaySeason.inningsPerStart ?? null,
+        homeSpBattersFacedPerInning: homeSeason.battersFacedPerInning ?? null,
+        awaySpBattersFacedPerInning: awaySeason.battersFacedPerInning ?? null,
         homeSpGamesStarted: homeSeason.gamesStarted ?? null,
         awaySpGamesStarted: awaySeason.gamesStarted ?? null,
         homeOpponentKRate: awayTeamStats.kRate ?? null,
