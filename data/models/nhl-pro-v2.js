@@ -1,7 +1,7 @@
 export const NHL_PRO_V2_ARTIFACT = Object.freeze({
   "modelId": "NHL-PRO-v2",
   "artifactVersion": "research-v2.0-event-chain-gbdt",
-  "generatedAt": "2026-10-04T00:40:33.561Z",
+  "generatedAt": "2026-10-04T00:46:09.111Z",
   "trained": true,
   "marketInformed": false,
   "source": "NHL_OFFICIAL_API",
