@@ -373,7 +373,7 @@ test("WNBA PrizePicks props use the common star system with canonical 3PT mappin
         market:"3-PT Made",
         marketCanonical:"3_pt_made",
         line:2.5,
-        fbisProjection:3.4,
+        fbisProjection:3.6,
         fbisSigma:1.0,
         propGate:"CLEAR",
         eligibleForCard:true,
