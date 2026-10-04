@@ -198,7 +198,7 @@ export async function buildSlate(sport, date, env = {}) {
     const fiveLayer = attachNhlV1(baseline.games, v1Context);
     const proV2 = attachNhlProV2(fiveLayer.games, proContext);
     const research = promoteNhlResearchToBoard(proV2.games);
-    const playerResearch = attachNhlPlayerProjectionResearch(research.games, v1Context);
+    const playerResearch = attachNhlPlayerProjectionResearch(research.games, {...v1Context, playerEdge:proContext.playerEdge||null});
     const v2Promoted = Boolean(proV2.meta.historicalPromotionEligible && proV2.meta.projected > 0);
     next = {
       ...slate,
@@ -231,6 +231,10 @@ export async function buildSlate(sport, date, env = {}) {
           contextOk: Boolean(proContext.ok),
           contextError: proContext.error || null,
           edgeTeams: Object.values(proContext.edge || {}).filter((x) => x?.available).length,
+          playerEdgeRequested: Number(proContext.playerEdge?.requested||0),
+          playerEdgeAvailable: Number(proContext.playerEdge?.available||0),
+          playerEdgeCoverage: Number(proContext.playerEdge?.coverage||0),
+          playerEdgeStatus: proContext.playerEdge?.__timeout ? "TIMEOUT_ADVISORY_ONLY" : proContext.playerEdge?.__error ? "DEGRADED_ADVISORY_ONLY" : "ACTIVE_ADVISORY_ONLY",
         },
         nhlResearchBoard: research.meta,
       },
