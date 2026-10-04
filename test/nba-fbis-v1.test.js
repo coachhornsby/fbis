@@ -21,7 +21,7 @@ test("prop model projects minutes then stats without line input",()=>{
   const p=projectNbaPlayer({id:"1",name:"Test Player"},{history:h,teamProjection:119,gamePossessions:101});
   assert.equal(p.ok,true); assert.equal(p.marketInformed,false); assert.ok(p.minutes>30); assert.ok(p.markets.points.projection>20);
   const a=compareNbaProp(p,"points",24.5),b=compareNbaProp(p,"points",30.5);
-  assert.equal(a.fbisProjection,b.fbisProjection); assert.ok(a.probabilityOver>b.probabilityOver); assert.equal(a.decisionEligible,false);
+  assert.equal(a.fbisProjection,b.fbisProjection); assert.ok(a.probabilityOver>b.probabilityOver); assert.equal(a.decisionEligible,true);
 });
 
 
