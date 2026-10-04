@@ -9,6 +9,7 @@ import {
 } from "../functions/lib/nhlProV2.js";
 import { promoteNhlResearchToBoard } from "../functions/lib/researchBoardPromote.js";
 import { getModel } from "../functions/lib/canonical/modelRegistry.js";
+import { NHL_PRO_V2_ARTIFACT } from "../data/models/nhl-pro-v2.js";
 
 function ctx(promoted=false){
   return {
@@ -123,4 +124,16 @@ test("v2 walk-forward declares PIT/no-market integrity and explicit incumbent co
   assert.match(src,/currentSeasonOnlyPastGames:true/);
   assert.match(src,/beatsIncumbent/);
   assert.doesNotMatch(src,/pinnacle|heritage|sportsbook|closingLine/i);
+});
+
+test("trained NHL-PRO-v2 artifact carries the validated research-promotion gate",()=>{
+  assert.equal(NHL_PRO_V2_ARTIFACT.trained,true);
+  assert.equal(NHL_PRO_V2_ARTIFACT.training.games,3936);
+  assert.ok(NHL_PRO_V2_ARTIFACT.training.shots>300000);
+  assert.equal(NHL_PRO_V2_ARTIFACT.training.fetchErrors,0);
+  assert.equal(NHL_PRO_V2_ARTIFACT.promotion.historicalPromotionEligible,true);
+  assert.equal(NHL_PRO_V2_ARTIFACT.promotion.canAuthorizeWager,false);
+  assert.ok(NHL_PRO_V2_ARTIFACT.validation.challenger.marginMae < NHL_PRO_V2_ARTIFACT.validation.incumbent.marginMae);
+  assert.ok(NHL_PRO_V2_ARTIFACT.validation.challenger.totalMae < NHL_PRO_V2_ARTIFACT.validation.incumbent.totalMae);
+  assert.ok(NHL_PRO_V2_ARTIFACT.validation.challenger.brier < NHL_PRO_V2_ARTIFACT.validation.incumbent.brier);
 });
