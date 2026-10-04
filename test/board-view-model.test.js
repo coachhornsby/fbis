@@ -82,8 +82,8 @@ describe("Board game view-model", () => {
     assert.equal(vm.projection.home, 23.5);
     assert.equal(vm.projection.modelId, "NFL-PRO-v1");
     assert.equal(vm.projection.modelVersion, "v1.2");
-    assert.equal(vm.comparison.sideDiff, 7.7);
-    assert.equal(vm.comparison.sideSignedDiff, 7.7);
+    assert.equal(vm.comparison.spreadDelta, 7.7);
+    assert.equal(vm.comparison.spreadSignedDelta, 7.7);
   });
 
   it("one execution offer → EXECUTION OFFER, not BEST AVAILABLE", () => {
