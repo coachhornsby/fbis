@@ -64,10 +64,10 @@ async function fetchBoard(){
 function q(v){return v==null?"NULL":"'"+String(v).replaceAll("'","''")+"'";}
 function num(v){const n=finite(v);return n==null?"NULL":String(n);}
 function insertGame(r){
-  return `INSERT OR IGNORE INTO nba_game_projections (id,game_id,tipoff_timestamp,model_id,model_version,feature_cutoff_timestamp,projected_home,projected_away,projected_margin,projected_total,expected_possessions,p_home_win,sigma_margin,sigma_total,maturity,can_qualify,can_authorize,provenance_json,created_at) VALUES (${q(r.id)},${q(r.gameId)},${q(r.tipoff)},${q("NBA-FBIS-v1")},${q(r.modelVersion)},${q(r.featureCutoff)},${num(r.home)},${num(r.away)},${num(r.margin)},${num(r.total)},${num(r.expectedPossessions)},${num(r.pHomeWin)},${num(r.sigmaMargin)},${num(r.sigmaTotal)},'VALIDATION',0,0,${q(JSON.stringify(r.provenance))},${q(r.createdAt)});`;
+  return `INSERT OR IGNORE INTO nba_game_projections (id,game_id,tipoff_timestamp,model_id,model_version,feature_cutoff_timestamp,projected_home,projected_away,projected_margin,projected_total,expected_possessions,p_home_win,sigma_margin,sigma_total,maturity,can_qualify,can_authorize,provenance_json,created_at) VALUES (${q(r.id)},${q(r.gameId)},${q(r.tipoff)},${q("NBA-FBIS-v1")},${q(r.modelVersion)},${q(r.featureCutoff)},${num(r.home)},${num(r.away)},${num(r.margin)},${num(r.total)},${num(r.expectedPossessions)},${num(r.pHomeWin)},${num(r.sigmaMargin)},${num(r.sigmaTotal)},'VALIDATION',1,0,${q(JSON.stringify(r.provenance))},${q(r.createdAt)});`;
 }
 function insertProp(r){
-  return `INSERT OR IGNORE INTO nba_player_prop_projections (id,game_id,player_id,player_name,team,market_type,projection,sigma,projected_minutes,availability_status,model_id,model_version,feature_cutoff_timestamp,maturity,can_qualify,can_authorize,provenance_json,created_at) VALUES (${q(r.id)},${q(r.gameId)},${q(r.playerId)},${q(r.playerName)},${q(r.team)},${q(r.market)},${num(r.projection)},${num(r.sigma)},${num(r.minutes)},'UNKNOWN','NBA-PLAYER-PROP-v1','research-v1',${q(r.featureCutoff)},'VALIDATION',0,0,${q(JSON.stringify(r.provenance))},${q(r.createdAt)});`;
+  return `INSERT OR IGNORE INTO nba_player_prop_projections (id,game_id,player_id,player_name,team,market_type,projection,sigma,projected_minutes,availability_status,model_id,model_version,feature_cutoff_timestamp,maturity,can_qualify,can_authorize,provenance_json,created_at) VALUES (${q(r.id)},${q(r.gameId)},${q(r.playerId)},${q(r.playerName)},${q(r.team)},${q(r.market)},${num(r.projection)},${num(r.sigma)},${num(r.minutes)},'UNKNOWN','NBA-PLAYER-PROP-v1','research-v1',${q(r.featureCutoff)},'VALIDATION',1,0,${q(JSON.stringify(r.provenance))},${q(r.createdAt)});`;
 }
 
 const teamHist=teamRows(all);
@@ -108,7 +108,7 @@ for(const ev of board.events||[]){
   }
 }
 const payload={date,checkpoint,createdAt,gameModel:"NBA-FBIS-v1",gameVersion:fit.version,propModel:"NBA-PLAYER-PROP-v1",games,props,
-  governance:{maturity:"VALIDATION",canQualify:false,canAuthorize:false,marketUsedAsFeature:false}};
+  governance:{maturity:"VALIDATION",canQualify:true,canAuthorize:false,marketUsedAsFeature:false}};
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
 fs.writeFileSync(out,JSON.stringify(payload,null,2)+"\n");
 fs.writeFileSync(sqlOut,["BEGIN;",...games.map(insertGame),...props.map(insertProp),"COMMIT;"].join("\n")+"\n");
