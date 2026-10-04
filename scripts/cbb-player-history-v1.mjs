@@ -1,5 +1,6 @@
 import {writeFileSync,mkdirSync} from "node:fs";
 import {buildCbbTeamPlayerState,cbbPlayerGameFeatures} from "../functions/lib/cbbPlayerGameModel.js";
+import {mapSourceTeam} from "../functions/lib/collegeIdentity.js";
 
 const seasonStart=Number(process.env.FBIS_SEASON||process.argv[2]);
 const predPath=process.argv[3]||"artifacts/frozen/cbb-fbis-native-v2-predictions.json";
@@ -16,6 +17,13 @@ function parseCsv(text){
  for(const line of lines){if(!line)continue;const a=[];let s="",q=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(q&&line[i+1]==='"'){s+='"';i++}else q=!q}else if(ch===","&&!q){a.push(s);s=""}else s+=ch}a.push(s);if(!h){h=a;continue}out.push(Object.fromEntries(h.map((k,i)=>[k,a[i]??""])))}
  return out;
 }
+const norm=v=>String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
+const dateKey=v=>String(v||"").slice(0,10);
+function canonicalTeam(name){
+ const mapped=mapSourceTeam("cbb",{team:name,school:name},seasonStart);
+ return mapped?.ok ? String(mapped.canonicalId) : "name:"+norm(name);
+}
+function gameJoinKey(date,home,away){return [dateKey(date),canonicalTeam(home),canonicalTeam(away)].join("|")}
 function playerKey(r){return String(r.athlete_id||r.athlete_display_name||"")}
 function teamKey(r){return String(r.team_id||r.team_location||r.team_name||"")}
 function blankPlayer(r){return{playerId:playerKey(r),name:r.athlete_display_name||null,team:r.team_location||r.team_name||null,position:r.athlete_position_abbreviation||r.athlete_position_name||null,games:0,starts:0,minutes:0,points:0,rebounds:0,assists:0,threes:0,fga:0,fta:0,oreb:0,dreb:0,tov:0,fgm:0,tpm:0,last5:[],lastDate:null,lastDnp:false}}
@@ -47,15 +55,29 @@ function pseudo(st){
 function statePlayers(map){return[...(map?.values?.()||[])].map(pseudo).filter(Boolean)}
 const predAll=JSON.parse(await (await import("node:fs/promises")).readFile(predPath,"utf8"));
 const preds=predAll.filter(r=>Number(r.season)===seasonStart),byId=new Map(preds.map(r=>[String(r.id),r]));
+const byJoinKey=new Map();
+for(const p of preds){
+  const key=gameJoinKey(p.date,p.home,p.away);
+  if(!byJoinKey.has(key))byJoinKey.set(key,[]);
+  byJoinKey.get(key).push(p);
+}
 const res=await fetch(URL,{redirect:"follow"});if(!res.ok)throw new Error("player box HTTP "+res.status+" "+URL);
 const raw=parseCsv(await res.text());
 const byGame=new Map();
 for(const row of raw){const gid=String(row.game_id||"");if(!gid)continue;if(!byGame.has(gid))byGame.set(gid,[]);byGame.get(gid).push(row)}
 const games=[...byGame.entries()].map(([id,rows])=>({id,rows,date:rows[0]?.game_date_time||rows[0]?.game_date||""})).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-const teams=new Map(),gameSamples=[],propSamples=[];let matched=0;
+const teams=new Map(),gameSamples=[],propSamples=[];let matched=0,idMatches=0,canonicalMatches=0,ambiguousMatches=0;
 for(const g of games){
- const target=byId.get(g.id)||null;
  const homeRow=g.rows.find(x=>String(x.home_away).toLowerCase()==="home"),awayRow=g.rows.find(x=>String(x.home_away).toLowerCase()==="away");
+ const homeName=homeRow?.team_location||homeRow?.team_name||homeRow?.team_display_name||null;
+ const awayName=awayRow?.team_location||awayRow?.team_name||awayRow?.team_display_name||null;
+ let target=byId.get(g.id)||null;
+ if(target) idMatches++;
+ if(!target&&homeName&&awayName){
+   const key=gameJoinKey(g.date,homeName,awayName),hits=byJoinKey.get(key)||[];
+   if(hits.length===1){target=hits[0];canonicalMatches++}
+   else if(hits.length>1)ambiguousMatches++;
+ }
  const homeId=homeRow?teamKey(homeRow):null,awayId=awayRow?teamKey(awayRow):null;
  if(target&&homeId&&awayId){
    const hp=statePlayers(teams.get(homeId)),ap=statePlayers(teams.get(awayId)),home=buildCbbTeamPlayerState(hp),away=buildCbbTeamPlayerState(ap),features=home.ok&&away.ok?cbbPlayerGameFeatures(home,away):{};
@@ -69,5 +91,5 @@ for(const g of games){
  }
  for(const row of g.rows){const tid=teamKey(row),pk=playerKey(row);if(!tid||!pk)continue;if(!teams.has(tid))teams.set(tid,new Map());const tm=teams.get(tid);if(!tm.has(pk))tm.set(pk,blankPlayer(row));updatePlayer(tm.get(pk),row)}
 }
-const out={ok:true,season:seasonStart,source:URL,playerRows:raw.length,gamesInSource:games.length,targetGames:preds.length,matchedGames:matched,gameSamples,propSamples};
-mkdirSync("artifacts",{recursive:true});writeFileSync("artifacts/cbb-player-history-"+seasonStart+".json",JSON.stringify(out));console.log(JSON.stringify({season:seasonStart,playerRows:raw.length,targetGames:preds.length,matchedGames:matched,gameSamples:gameSamples.length,propSamples:propSamples.length},null,2));
+const out={ok:true,season:seasonStart,source:URL,playerRows:raw.length,gamesInSource:games.length,targetGames:preds.length,matchedGames:matched,idMatches,canonicalMatches,ambiguousMatches,gameSamples,propSamples};
+mkdirSync("artifacts",{recursive:true});writeFileSync("artifacts/cbb-player-history-"+seasonStart+".json",JSON.stringify(out));console.log(JSON.stringify({season:seasonStart,playerRows:raw.length,targetGames:preds.length,matchedGames:matched,idMatches,canonicalMatches,ambiguousMatches,gameSamples:gameSamples.length,propSamples:propSamples.length},null,2));
