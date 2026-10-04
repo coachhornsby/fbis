@@ -1338,9 +1338,10 @@ function trackerTicket(row,rowNumber){
   // historical rows to Heritage ticket IDs would duplicate already-synced bets.
   const externalTicketId=trackerId;
   const placedAt=String(row["Placed At"]||"").trim();
-  const executedAt=placedAt
-    ? placedAt.replace(" CT","").replace(" ","T")+":00-05:00"
-    : (date?date+"T12:00:00.000Z":now());
+  // Synthetic TRACKER-* IDs predate the Placed At enrichment. Keep executedAt
+  // deterministic for a stable external identity; preserve the real placed time
+  // in tracker metadata instead of mutating an immutable execution field.
+  const executedAt=date?date+"T12:00:00.000Z":now();
   const settled=result!=="OPEN";
   return {
     externalTicketId,executionBook:book||"Unknown",sport,date,matchupText:matchup,
