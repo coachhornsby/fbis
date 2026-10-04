@@ -1,0 +1,44 @@
+name: NHL WAGER-v1 validation
+on:
+  pull_request:
+    paths:
+      - "data/models/nhl-wager-confidence-v1.js"
+      - "functions/lib/nhlWagerV1.js"
+      - "functions/lib/slateEngine.js"
+      - "functions/lib/todayBoard.js"
+      - "src/features/playerProps/buildPlayerPropsBoard.js"
+      - "functions/api/nhl-wager-research.js"
+      - "migrations/0042_nhl_wager_research.sql"
+      - "test/nhl-wager-v1.test.js"
+      - ".github/workflows/nhl-wager-v1-validation.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nhl-wager-v1-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: 24, cache: npm}
+      - run: npm ci
+      - run: |
+          node --check functions/lib/nhlWagerV1.js
+          node --check functions/api/nhl-wager-research.js
+          node --test test/nhl-wager-v1.test.js
+          node --test test/nhl-player-pro-v2.test.js
+          node --test test/nhl-pro-v2.test.js
+      - name: Migration smoke
+        run: |
+          db="$(mktemp)"
+          sqlite3 "$db" "CREATE TABLE schema_migrations(id TEXT PRIMARY KEY,applied_at TEXT);"
+          sqlite3 "$db" < migrations/0042_nhl_wager_research.sql
+          sqlite3 "$db" "SELECT count(*) FROM sqlite_master WHERE name IN ('nhl_wager_decisions','nhl_wager_settlements','nhl_wager_confidence_calibration');" | grep -q '^3$'
+      - run: npm test
+      - run: npm run build

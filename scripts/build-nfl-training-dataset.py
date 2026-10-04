@@ -18,9 +18,9 @@ PBP_URL = "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_
 GAMES_URL = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
 LINES_URL = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/closing_lines.csv"
 NGS_URLS = {
-    "passing": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_passing.csv",
-    "rushing": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_rushing.csv",
-    "receiving": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.csv",
+    "passing": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_passing.csv.gz",
+    "rushing": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_rushing.csv.gz",
+    "receiving": "https://github.com/nflverse/nflverse-data/releases/download/nextgen_stats/ngs_receiving.csv.gz",
 }
 
 TEAM_ALIASES = {
@@ -42,7 +42,9 @@ def norm_team(x):
 def read_csv_url(url):
     req = Request(url, headers={"User-Agent": "FBIS-nfl-research/1.0"})
     with urlopen(req, timeout=120) as r:
-        return pd.read_csv(io.BytesIO(r.read()), low_memory=False)
+        payload = io.BytesIO(r.read())
+        compression = "gzip" if str(url).lower().endswith(".gz") else "infer"
+        return pd.read_csv(payload, low_memory=False, compression=compression)
 
 
 def read_parquet_url(url):
@@ -260,7 +262,17 @@ def build_ngs_pregame_features(games):
         raw["season"] = pd.to_numeric(raw[season_col], errors="coerce")
         raw["week"] = pd.to_numeric(raw[week_col], errors="coerce")
         raw["team"] = raw[team_col].map(norm_team)
-        raw = raw[(raw["season"] >= START_SEASON) & (raw["season"] <= END_SEASON)]
+        # nflverse NGS uses week=0 for the full regular-season summary.
+        # It is future information for every in-season game and must never enter
+        # a pregame walk-forward feature.
+        raw = raw[
+            (raw["season"] >= START_SEASON)
+            & (raw["season"] <= END_SEASON)
+            & (raw["week"] > 0)
+        ]
+        season_type_col = first_col(raw, ["season_type", "seasonType"])
+        if season_type_col:
+            raw = raw[raw[season_type_col].astype(str).str.upper().eq("REG")]
         rows = []
         for (season, week, team), g in raw.groupby(["season", "week", "team"], dropna=True):
             row = {"season": int(season), "week": int(week), "team": team}

@@ -97,3 +97,4 @@ jobs:
           cat "$body"
           test "$code" = "200"
           jq -e '.ok == true' "$body" >/dev/null
+# operator-trigger: 2026-10-04 daily Zen recovery
