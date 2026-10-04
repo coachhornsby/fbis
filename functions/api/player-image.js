@@ -38,6 +38,20 @@ function walkObjects(value,out=[]){
   return out;
 }
 
+
+async function mlbPlayerHeadshot(name){
+  const search="https://statsapi.mlb.com/api/v1/people/search?active=true&sportIds=1&names="+encodeURIComponent(name);
+  const res=await fetch(search,{headers:{accept:"application/json","user-agent":"FBIS/1.0"}});
+  if(!res.ok) return null;
+  const body=await res.json().catch(()=>({}));
+  const needle=norm(name);
+  const people=(body?.people||[]).filter(Boolean);
+  const exact=people.find(p=>norm(p.fullName)===needle) || people[0] || null;
+  const id=exact?.id;
+  if(!id) return null;
+  return "https://img.mlbstatic.com/mlb-photos/image/upload/w_320,q_auto:best/v1/people/"+id+"/headshot/67/current";
+}
+
 async function espnPlayerHeadshot(name,sport){
   const map={
     nfl:{searchSport:"football",league:"nfl",cdn:"nfl"},
@@ -155,6 +169,11 @@ export async function onRequestGet(context){
   }
   if(exact && isRealHeadshot(exact.player_headshot_url)) {
     return json({ok:true,found:true,name:exact.player_name,sport:exact.sport,imageUrl:exact.player_headshot_url,source:"PRIZEPICKS_FEED"});
+  }
+
+  if(String(sport||"").toLowerCase()==="mlb"){
+    const mlbImage=await mlbPlayerHeadshot(name).catch(()=>null);
+    if(mlbImage) return json({ok:true,found:true,name,sport,imageUrl:mlbImage,source:"MLB_HEADSHOT"});
   }
 
   const espnImage=await espnPlayerHeadshot(name,sport).catch(()=>null);
