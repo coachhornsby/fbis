@@ -4,6 +4,8 @@
  */
 
 import { BOARD_SPORTS, SPORTS, todayCT, shiftDateCT, buildSlate, recommendBundle } from "./slateEngine.js";
+import { evaluateNhlGameWagers } from "./nhlWagerV1.js";
+import { NHL_WAGER_CONFIDENCE_V1 } from "../../data/models/nhl-wager-confidence-v1.js";
 import { classifyBoardStatus, kickoffCt, noPlayReason, isPreStartStatus, isLiveStatus } from "./gameStatus.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { palUnavailableReason } from "./ballparkpal.js";
@@ -359,6 +361,28 @@ function buildMarketOddsByGame(rows = []) {
   return by;
 }
 
+function buildMarketLineHistoryByGame(rows = []) {
+  const by = new Map();
+  for (const row of rows || []) {
+    if (!row || row.period !== "fg" || row.rejectedPostStart) continue;
+    const id = String(row.gameId || "");
+    if (!id) continue;
+    if (!by.has(id)) by.set(id, []);
+    by.get(id).push({
+      sportsbook: row.book || null,
+      market: String(row.market || "").toLowerCase(),
+      selection: String(row.side || "").toLowerCase(),
+      line: row.line == null ? null : Number(row.line),
+      americanPrice: row.price == null ? null : Number(row.price),
+      collectedAt: row.capturedAt || null,
+      checkpoint: row.checkpoint || null,
+      source: "ODDS_SNAPSHOT",
+    });
+  }
+  for (const rows of by.values()) rows.sort((a,b)=>String(a.collectedAt||"").localeCompare(String(b.collectedAt||"")));
+  return by;
+}
+
 function hydrateOddsFromMarketRows(game, pack) {
   if (!pack) return game;
   const odds = { ...(game.odds || {}) };
@@ -408,6 +432,7 @@ export async function buildTodayBoard(
       });
       let bySnapshot = new Map();
       let byMarketOdds = new Map();
+      let byMarketHistory = new Map();
       if (env.DB) {
         const snapQ = await querySnaps(env, { sport, since: date, until: date, checkpoint: "LATEST" });
         if (snapQ?.ok && Array.isArray(snapQ.rows) && snapQ.rows.length) {
@@ -416,6 +441,7 @@ export async function buildTodayBoard(
         const oddsQ = await queryOdds(env, { sport, since: date, until: date });
         if (oddsQ?.ok && Array.isArray(oddsQ.rows) && oddsQ.rows.length) {
           byMarketOdds = buildMarketOddsByGame(oddsQ.rows);
+          byMarketHistory = buildMarketLineHistoryByGame(oddsQ.rows);
         }
       }
       if (slate?.parlay?.cached === false && slate?.parlay?.skipped !== true && !slate?.parlay?.error) {
@@ -430,9 +456,10 @@ export async function buildTodayBoard(
       );
       const recSlate = withRecs({
         ...slate,
-        games: selectedDateGames.map((g) =>
-          hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id)))
-        ),
+        games: selectedDateGames.map((g) => ({
+          ...hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id))),
+          marketLineHistory: byMarketHistory.get(String(g.id)) || [],
+        })),
       }, DEFAULT_WEIGHTS);
       const palReason = sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null;
 
@@ -458,6 +485,7 @@ export async function buildTodayBoard(
         }
       }
 
+      if (sport === "nhl") slateGames = slateGames.map((g)=>({...g,nhlWagerV1:evaluateNhlGameWagers(g,NHL_WAGER_CONFIDENCE_V1.game)}));
       const rows = slateGames.map((g) => toBoardGame(g, sport, now));
       feeds[sport] = {
         ok: true,
