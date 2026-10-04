@@ -1,0 +1,139 @@
+name: CBB player system v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/cbbPlayerFeed.js"
+      - "functions/lib/cbbPlayerGameModel.js"
+      - "functions/lib/cbbPlayerPropModel.js"
+      - "functions/lib/slateEngine.js"
+      - "scripts/cbb-player-history-v1.mjs"
+      - "scripts/cbb-player-game-fit-v1.mjs"
+      - "scripts/cbb-player-prop-fit-v2.mjs"
+      - "test/cbb-fbis-native-v1.test.js"
+      - ".github/workflows/cbb-player-system-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: cbb-player-system-v2
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Unit tests
+        run: |
+          node --check functions/lib/cbbPlayerGameModel.js
+          node --check scripts/cbb-player-history-v1.mjs
+          node --check scripts/cbb-player-game-fit-v1.mjs
+          node --check scripts/cbb-player-prop-fit-v2.mjs
+          node --test test/cbb-fbis-native-v1.test.js
+
+  season:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        season: [2018,2019,2020,2021,2022,2023,2024,2025]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Download frozen CBB v2 predictions
+        uses: actions/download-artifact@v4
+        with:
+          name: cbb-fbis-native-v1-aggregate-37181214791
+          github-token: "${{ github.token }}"
+          repository: coachhornsby/fbis
+          run-id: 37181214791
+          path: artifacts/frozen
+      - name: Build prior-only player state for ${{ matrix.season }}
+        env:
+          FBIS_SEASON: "${{ matrix.season }}"
+        run: |
+          set -euo pipefail
+          node scripts/cbb-player-history-v1.mjs             "${{ matrix.season }}"             artifacts/frozen/cbb-fbis-native-v2-predictions.json             | tee "artifacts/cbb-player-history-${{ matrix.season }}.log"
+          jq -e '.ok == true and .matchedGames > 0 and (.gameSamples|length) > 0 and (.propSamples|length) > 0' "artifacts/cbb-player-history-${{ matrix.season }}.json" >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbb-player-history-${{ matrix.season }}-${{ github.run_id }}
+          path: |
+            artifacts/cbb-player-history-${{ matrix.season }}.json
+            artifacts/cbb-player-history-${{ matrix.season }}.log
+          retention-days: 90
+
+  aggregate:
+    needs: season
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: Download season player histories
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cbb-player-history-*-${{ github.run_id }}
+          path: artifacts/parts
+          merge-multiple: true
+      - name: Download frozen CBB v2 fit
+        uses: actions/download-artifact@v4
+        with:
+          name: cbb-fbis-native-v1-aggregate-37181214791
+          github-token: "${{ github.token }}"
+          repository: coachhornsby/fbis
+          run-id: 37181214791
+          path: artifacts/frozen
+      - name: Require all seasons
+        run: |
+          set -euo pipefail
+          count=$(find artifacts/parts -name 'cbb-player-history-20*.json' | wc -l)
+          echo "player history seasons=$count"
+          test "$count" -eq 8
+      - name: Test incremental player value for game projections
+        run: |
+          node scripts/cbb-player-game-fit-v1.mjs artifacts/parts artifacts/frozen/cbb-fbis-v2-fit.json | tee artifacts/cbb-player-game-v1-fit.log
+      - name: Fit calibrated player prop v2 models
+        run: |
+          node scripts/cbb-player-prop-fit-v2.mjs artifacts/parts | tee artifacts/cbb-player-prop-v2-fit.log
+      - name: Summarize
+        run: |
+          G=artifacts/cbb-player-game-v1-fit.json
+          P=artifacts/cbb-player-prop-v2-fit.json
+          jq -e '.id=="CBB-PLAYER-GAME-v1-WALKFORWARD"' "$G" >/dev/null
+          jq -e '.id=="CBB-PLAYER-PROP-v2-WALKFORWARD"' "$P" >/dev/null
+          {
+            echo "## CBB player system v2"
+            jq -r '"- game total: validation gain=\(.models.total.validation.gain), 2025 gain=\(.models.total.confirmation.gain), promote=\(.models.total.promote)"' "$G"
+            jq -r '"- game margin: validation gain=\(.models.margin.validation.gain), 2025 gain=\(.models.margin.confirmation.gain), promote=\(.models.margin.promote)"' "$G"
+            for m in points rebounds assists three_pointers_made points_rebounds_assists; do
+              jq -r --arg m "$m" '"- prop "+$m+": validation gain="+(.markets[$m].validation.gain|tostring)+", 2025 gain="+(.markets[$m].confirmation.gain|tostring)+", promote="+(.markets[$m].promote|tostring)' "$P"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbb-player-system-v2-${{ github.run_id }}
+          path: |
+            artifacts/cbb-player-game-v1-fit.json
+            artifacts/cbb-player-game-v1-fit.log
+            artifacts/cbb-player-prop-v2-fit.json
+            artifacts/cbb-player-prop-v2-fit.log
+          retention-days: 90
