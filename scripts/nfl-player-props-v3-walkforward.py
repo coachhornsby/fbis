@@ -131,11 +131,11 @@ def main():
     df["opponent_team"]=df["opponent_team"].map(canon)
     df["position"]=df["position"].astype(str).str.upper()
     df=df[df.position.isin(ROLE_LIMIT)].copy()
-    idcol="player_id" if "player_id" in df.columns else "player_display_name"
-    namecol="player_display_name" if "player_display_name" in df.columns else idcol
-    df["_pid"]=df[idcol].astype(str)
-    df["_name"]=df[namecol].astype(str)
-    df=df.sort_values(["season","week","team","_pid"])
+    idcol="player_id" if "player_id" in df.columns else "player_displayplayer_name_key"
+    namecol="player_displayplayer_name_key" if "player_displayplayer_name_key" in df.columns else idcol
+    df["pid_key"]=df[idcol].astype(str)
+    df["player_name_key"]=df[namecol].astype(str)
+    df=df.sort_values(["season","week","team","pid_key"])
 
     configs=[]
     for rw in RECENT_WEIGHTS:
@@ -159,7 +159,7 @@ def main():
         roles=role_map(team_players,player_hist,last_team)
         if season>=EVAL_START:
             role_slots += len(roles)
-            actual_by_key={(r.team,r._pid):r for r in wk.itertuples(index=False)}
+            actual_by_key={(r.team,r.pid_key):r for r in wk.itertuples(index=False)}
             for (team,pid),(pos,rank) in roles.items():
                 rr=actual_by_key.get((team,pid))
                 if rr is None: continue
@@ -180,7 +180,7 @@ def main():
                         pred=base*factor(ratio,ms)
                         records.append({
                           "season":season,"week":week,"team":team,"opponent":canon(rr.opponent_team),
-                          "player_id":pid,"player":rr._name,"position":pos,"role":role,"market":market,
+                          "player_id":pid,"player":rr.player_name_key,"position":pos,"role":role,"market":market,
                           "actual":actual,"projection":pred,"error":pred-actual,"abs_error":abs(pred-actual),
                           "recent_weight":rw,"season_weight":sw,"prior_weight":pw,"matchup_strength":ms,
                           "recent_games":min(5,len(h)),"current_season_games":sum(1 for x in h if int(x["season"])==season),
@@ -198,11 +198,11 @@ def main():
         # Update player histories only after scoring the week.
         for rr in wk.itertuples(index=False):
             row={"season":season,"week":week,"team":rr.team,"opponent_team":canon(rr.opponent_team),
-                 "position":rr.position,"name":rr._name}
+                 "position":rr.position,"name":rr.player_name_key}
             for field in FIELDS:row[field]=num(getattr(rr,field,np.nan))
-            player_hist[rr._pid].append(row)
-            team_players[rr.team].add(rr._pid)
-            last_team[rr._pid]=rr.team
+            player_hist[rr.pid_key].append(row)
+            team_players[rr.team].add(rr.pid_key)
+            last_team[rr.pid_key]=rr.team
 
     out=pd.DataFrame(records)
     if out.empty: raise RuntimeError("no validation rows")
@@ -270,5 +270,5 @@ def main():
     (OUT/"report.json").write_text(json.dumps(report,indent=2))
     print(json.dumps(report,indent=2))
 
-if __name__=="__main__":
+if _player_name_key__=="__main__":
     main()
