@@ -371,7 +371,9 @@ export function reconstructCbbGame(rows = [], starters = {}) {
     homeTeamName:first.homeTeamName,awayTeamName:first.awayTeamName,
     teams,possessions,
     qa:{...qa,lineupCoverage:round(lineupCoverage),subResolution:round(subResolution)},
-    lineupReliable:lineupCoverage>=0.80 && subResolution>=0.80 && qa.lineupSizeFaults===0,
+    // ESPN's historical MBB release can contain no substitution events at all.
+    // Never certify reconstructed lineups unless substitution evidence exists.
+    lineupReliable:qa.subEvents>0 && lineupCoverage>=0.80 && subResolution>=0.80 && qa.lineupSizeFaults===0,
     independent:true,marketInformed:false,canQualify:false,canAuthorizeWager:false,
   };
 }

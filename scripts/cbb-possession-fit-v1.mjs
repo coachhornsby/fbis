@@ -25,7 +25,8 @@ function actual(r,kind){return kind==="total"?n(r.actualHome)+n(r.actualAway):n(
 
 const POS_KEYS=[
   "possessions","offensiveRating","defensiveRating","netRating","efgPct","tovPct","ftr","orbPctProxy","threePointRate",
-  "earlyEfgPct","middleEfgPct","lateEfgPct","earlyTovPct","middleTovPct","lateTovPct"
+  "earlyEfgPct","middleEfgPct","lateEfgPct","earlyTovPct","middleTovPct","lateTovPct",
+  "rimRate","rimFgPct","midRate","midFgPct","transitionRate"
 ];
 const LINEUP_KEYS=["topLineupPossessionShare","topLineupNetRating"];
 
@@ -37,15 +38,17 @@ function sideSnapshot(side,g){
     efgPct:n(s.efgPct),tovPct:n(s.tovPct),ftr:n(s.ftr),orbPctProxy:n(s.orbPctProxy),threePointRate:n(s.threePointRate),
     earlyEfgPct:n(s.earlyEfgPct),middleEfgPct:n(s.middleEfgPct),lateEfgPct:n(s.lateEfgPct),
     earlyTovPct:n(s.earlyTovPct),middleTovPct:n(s.middleTovPct),lateTovPct:n(s.lateTovPct),
+    rimRate:n(s.rimRate),rimFgPct:n(s.rimFgPct),midRate:n(s.midRate),midFgPct:n(s.midFgPct),transitionRate:n(s.transitionRate),
     topLineupPossessionShare:top&&n(s.possessions)>0?n(top.possessions)/n(s.possessions):null,
     topLineupNetRating:n(top?.netRating),
   };
 }
 function ewmaUpdate(st,obs,qa={},alpha=.28){
-  if(!st)st={games:0,values:{},qa:{lineupCoverage:null,subResolution:null}};
+  if(!st)st={games:0,values:{},qa:{lineupCoverage:null,cleanLineup:null}};
   st.games++;
-  for(const k of ["lineupCoverage","subResolution"]){
-    const x=n(qa?.[k]); if(x==null)continue;
+  const qvals={lineupCoverage:n(qa?.lineupCoverage),cleanLineup:n(qa?.subDeviate)==null?null:(n(qa?.subDeviate)===0?1:0)};
+  for(const k of ["lineupCoverage","cleanLineup"]){
+    const x=n(qvals[k]); if(x==null)continue;
     const old=n(st.qa[k]); st.qa[k]=old==null?x:alpha*x+(1-alpha)*old;
   }
   for(const k of [...POS_KEYS,...LINEUP_KEYS]){
@@ -78,7 +81,7 @@ function buildSamples(){
           homeGames:hs?.games||0,awayGames:as?.games||0,
           priorQa:{
             homeLineupCoverage:n(hs?.qa?.lineupCoverage),awayLineupCoverage:n(as?.qa?.lineupCoverage),
-            homeSubResolution:n(hs?.qa?.subResolution),awaySubResolution:n(as?.qa?.subResolution),
+            homeCleanLineup:n(hs?.qa?.cleanLineup),awayCleanLineup:n(as?.qa?.cleanLineup),
           },
           possessionFeatures:featurePair(hs,as,POS_KEYS),
           lineupFeatures:featurePair(hs,as,LINEUP_KEYS),
@@ -101,8 +104,8 @@ function eligible(r,family){
   if((r.homeGames||0)<5||(r.awayGames||0)<5)return false;
   if(family==="lineup"||family==="full"){
     const q=r.priorQa||{};
-    return (n(q.homeLineupCoverage)??0)>=.70&&(n(q.awayLineupCoverage)??0)>=.70&&
-      (n(q.homeSubResolution)??0)>=.70&&(n(q.awaySubResolution)??0)>=.70;
+    return (n(q.homeLineupCoverage)??0)>=.80&&(n(q.awayLineupCoverage)??0)>=.80&&
+      (n(q.homeCleanLineup)??0)>=.80&&(n(q.awayCleanLineup)??0)>=.80;
   }
   return true;
 }
@@ -168,7 +171,7 @@ const report={
     featureTiming:"Each target game uses only exponentially weighted prior completed games for each team.",
     discovery:"2018-22",validation:"2023-24",confirmation:"2025",
     marketInformed:false,
-    lineupGate:"lineup/full families require each team's prior-game EWMA reconstruction QA >=70% lineup coverage and substitution resolution.",
+    lineupGate:"lineup/full families require each team's prior-game EWMA NCAA lineup coverage >=80% and clean-substitution-game rate >=80%.",
   },
   families:{},
   promotion:{requiresOperatorApproval:true,automaticProduction:false},
