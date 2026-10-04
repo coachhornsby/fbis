@@ -2,7 +2,7 @@ name: NHL WIN-v1 validation
 
 on:
   push:
-    branches: [main, "feature/nhl-win-v1-travel-arena-20261004"]
+    branches: [main]
     paths:
       - "scripts/nhl-win-v1-backtest.mjs"
       - "functions/lib/nhlWinV1.js"
