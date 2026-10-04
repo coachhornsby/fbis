@@ -256,7 +256,18 @@ function pct(v){
 }
 function trendClass(value,line){
   if(value==null||line==null) return "";
-  return Number(value)>Number(line)?"over":"under";
+  const v=Number(value), l=Number(line);
+  if(v>l) return "over";
+  if(v<l) return "under";
+  return "push";
+}
+function shortGameDate(g){
+  const raw=g?.date;
+  if(raw){
+    const d=new Date(String(raw).length<=10?String(raw)+"T12:00:00":raw);
+    if(!Number.isNaN(d.getTime())) return d.toLocaleDateString("en-US",{month:"numeric",day:"numeric",timeZone:"America/Chicago"});
+  }
+  return g?.week?("W"+g.week):"—";
 }
 function modelReason(row,detail){
   const side=sideFor(row);
@@ -379,8 +390,8 @@ function PropAnalytics({ row, open, onToggle }){
                         <div className="pp-history-line" style={{bottom:Math.min(95,(line/max)*100)+"%"}}></div>
                       </div>
                       <b>{fmtStat(value)}</b>
-                      <span>{g.opponent?("vs "+g.opponent):("G"+(i+1))}</span>
-                      <small>{g.week?("W"+g.week):g.date||""}</small>
+                      <span>{g.opponent||("G"+(i+1))}</span>
+                      <small>{shortGameDate(g)}</small>
                     </div>
                   );
                 })}
@@ -431,9 +442,14 @@ function PropAnalytics({ row, open, onToggle }){
               <b>{Number(calibration.decisions||0)} decisions · {pct(calibration.hit_rate)} hit · MAE {fmtStat(calibration.mae)}</b>
             </div>
           ):null}
+          {!state.loading&&!state.error&&detail?.unavailable?(
+            <div className="pp-analytics-unavailable">
+              Player history unavailable in the current runtime snapshot. FBIS projection evidence remains shown above.
+            </div>
+          ):null}
           {!state.loading&&!state.error&&!detail?(
-            <div className="pp-analytics-loading">
-              Last-5 game logs are not wired for this sport/market yet. FBIS projection evidence remains shown above.
+            <div className="pp-analytics-unavailable">
+              Last-5 game logs are not available for this sport/market yet. FBIS projection evidence remains shown above.
             </div>
           ):null}
         </div>
