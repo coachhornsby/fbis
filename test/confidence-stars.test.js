@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { confidenceStars, sortByConfidence } from "../src/lib/confidenceStars.js";
+import { canonicalConfidenceStars } from "../functions/lib/projectionConfidence.js";
 
 function game(id, quality, extra = {}) {
   return {
@@ -161,4 +162,27 @@ it("uses soccer-specific canonical confidence stars instead of generic research 
     projectionKind:"FBIS",
   });
   assert.equal(confidenceStars(g),5);
+});
+
+
+it("uses one canonical server confidence value across sanitized product shapes", () => {
+  const raw = game("canonical-nfl", 76, {
+    model: { projAway: 22, projHome: 26, projTotal: 48, projMargin: 4 },
+    nflProShadow: { ok: true, coverage: { share: 0.36 } },
+    market: {
+      marketAvailable: true,
+      executionActionable: true,
+      execution: { available: true, actionable: true, spread: -3, total: 48 },
+    },
+  });
+  const canonical = canonicalConfidenceStars(raw);
+  const sanitized = {
+    id: raw.id,
+    sport: "nfl",
+    projection: { away: 22, home: 26, total: 48, independent: true },
+    market: { spread: -3, total: 48 },
+    confidenceStars: canonical,
+  };
+  assert.equal(canonical, confidenceStars(raw));
+  assert.equal(confidenceStars(sanitized), canonical);
 });
