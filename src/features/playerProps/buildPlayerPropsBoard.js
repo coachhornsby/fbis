@@ -203,6 +203,10 @@ export function withFbisPropAnalytics(row = {}) {
         ...ranked,
         market: ranked.marketCanonical || ranked.market,
         targetRole: nflTargetRole,
+        // Confidence display is independent from wager authorization. Research
+        // rows may carry calibrated stars when availability/role evidence is
+        // clear, while recommendationEligible/modelAuthorized remain false.
+        eligibleForCard: ranked.propGate === "CLEAR",
       }) ?? 1)
     : (propProjectionStars(ranked) ?? 1);
   const roleConfidence = ranked.roleConfidence == null ? null : Number(ranked.roleConfidence);
