@@ -1233,6 +1233,7 @@ CREATE TABLE IF NOT EXISTS nhl_wager_decisions (
   snapshot_at TEXT NOT NULL,
   event_id TEXT NOT NULL,
   event_start TEXT,
+  game_type INTEGER,
   wager_scope TEXT NOT NULL, -- GAME | PROP
   player_id TEXT,
   player_name TEXT,
@@ -1292,6 +1293,21 @@ CREATE TABLE IF NOT EXISTS nhl_wager_settlements (
 
 CREATE INDEX IF NOT EXISTS idx_nhl_wager_settlements_event
   ON nhl_wager_settlements(event_id, settled_at);
+
+CREATE TABLE IF NOT EXISTS nhl_wager_confidence_runs (
+  id TEXT PRIMARY KEY,
+  run_at TEXT NOT NULL,
+  source TEXT NOT NULL,
+  game_validated INTEGER NOT NULL DEFAULT 0,
+  prop_validated INTEGER NOT NULL DEFAULT 0,
+  game_n INTEGER NOT NULL DEFAULT 0,
+  prop_n INTEGER NOT NULL DEFAULT 0,
+  game_json TEXT NOT NULL,
+  prop_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_conf_runs_at ON nhl_wager_confidence_runs(run_at DESC);
+CREATE INDEX IF NOT EXISTS idx_nhl_wager_decisions_game_type
+  ON nhl_wager_decisions(game_type,wager_scope,snapshot_at);
 
 CREATE VIEW IF NOT EXISTS nhl_wager_confidence_calibration AS
 SELECT
