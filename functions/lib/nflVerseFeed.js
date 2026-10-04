@@ -311,7 +311,7 @@ function blendPlayerRows(priorByTeam={},currentByTeam={}){
       for(const f of ["completions","attempts","passing_yards","passing_tds","interceptions","carries","rushing_yards","rushing_tds","targets","receptions","receiving_yards","receiving_tds","total_tds"]){
         const recent=recentWeightedMean(recentGames,f);
         row.recent5[f]=recent;
-        row[f]=weightedParts([[recent,0.65],[q[f],0.25],[p[f],0.10]]);
+        row[f]=weightedParts([[recent,0.65],[q[f],0.20],[p[f],0.15]]);
         const recentSd=sd(recentGames.map(g=>g?.stats?.[f]));
         const histSd=blend(p.sd?.[f],q.sd?.[f],n,PLAYER_PRIOR_GAMES);
         row.sd[f]=weightedParts([[recentSd,0.60],[histSd,0.40]]) ?? histSd ?? recentSd;
@@ -421,7 +421,7 @@ export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now()
       }
     }
     const currentGames=Math.max(0,...Object.values(current.offense).map(r=>r.games||0)),playersByTeam=blendPlayerRows(prior.playersByTeam||{},current.playersByTeam||{});
-    const payload={season,byTeam,playersByTeam,leaguePositionDefense,meta:{source:"nflverse+ngs",snapshotSchema:SNAPSHOT_SCHEMA,builtAt:new Date(now).toISOString(),runtimeSource:"offline-builder",currentSeason:season,priorSeason:season-1,teams:Object.keys(byTeam).length,currentGames,currentRows:current.rows,priorRows:prior.rows,currentStatus:{team:current.teamStatus,player:current.playerStatus,snaps:current.snapStatus},priorStatus:{team:prior.teamStatus,player:prior.playerStatus,snaps:prior.snapStatus},ngsStatus:{passing:ngsPassing.status,rushing:ngsRushing.status,receiving:ngsReceiving.status},priorWeightGames:PRIOR_GAMES,playerPriorWeightGames:PLAYER_PRIOR_GAMES,recentGameWeights:[0.35,0.25,0.18,0.13,0.09],projectionBlend:{recent5:0.65,currentSeason:0.25,priorSeason:0.10},marketInformed:false,featureFamilies:["team_epa","qb_epa_cpoe","nextgen_passing","nextgen_rushing","nextgen_receiving","snap_share","last5_player_form","position_defense_allowed"],limitation:"Depth-chart and in-week participation remain separate availability inputs; runtime never uses sportsbook lines as features."}};
+    const payload={season,byTeam,playersByTeam,leaguePositionDefense,meta:{source:"nflverse+ngs",snapshotSchema:SNAPSHOT_SCHEMA,builtAt:new Date(now).toISOString(),runtimeSource:"offline-builder",currentSeason:season,priorSeason:season-1,teams:Object.keys(byTeam).length,currentGames,currentRows:current.rows,priorRows:prior.rows,currentStatus:{team:current.teamStatus,player:current.playerStatus,snaps:current.snapStatus},priorStatus:{team:prior.teamStatus,player:prior.playerStatus,snaps:prior.snapStatus},ngsStatus:{passing:ngsPassing.status,rushing:ngsRushing.status,receiving:ngsReceiving.status},priorWeightGames:PRIOR_GAMES,playerPriorWeightGames:PLAYER_PRIOR_GAMES,recentGameWeights:[0.35,0.25,0.18,0.13,0.09],projectionBlend:{recent5:0.65,currentSeason:0.20,priorSeason:0.15},marketInformed:false,featureFamilies:["team_epa","qb_epa_cpoe","nextgen_passing","nextgen_rushing","nextgen_receiving","snap_share","last5_player_form","position_defense_allowed"],limitation:"Depth-chart and in-week participation remain separate availability inputs; runtime never uses sportsbook lines as features."}};
     await writeCache(cacheKey,payload,env.caches,TTL_MS);return payload;
   }catch(err){
     const payload={season,byTeam:{},playersByTeam:{},meta:{source:"nflverse+ngs",teams:0,error:String(err?.message||err),marketInformed:false}};
