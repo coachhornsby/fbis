@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { propProjectionStars } from "./buildPlayerPropsBoard.js";
 
 const SPORTS=["all","mlb","tennis","nba","wnba","nfl","nhl","soccer","cfb","cbb"];
 const TIER_ORDER={standard:0,goblin:1,demon:2};
@@ -16,6 +17,7 @@ function matchupLabel(r){
 function groupLatest(rows=[]){
   const newest=new Map();
   for(const r of rows){
+    if (propProjectionStars(r) == null) continue;
     const tier=String(r.odds_tier||"standard").toLowerCase();
     const key=[r.sport,r.player_name,r.canonical_market||r.stat_type,r.duration||"full"].join("|");
     if(!newest.has(key)) newest.set(key,{key,variants:new Map()});
@@ -51,7 +53,7 @@ export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilt
     return()=>{cancelled=true};
   },[localSport]);
 
-  const groups=useMemo(()=>groupLatest(rows),[rows]);
+  const groups=useMemo(()=>groupLatest(rows).sort((a,b)=>(propProjectionStars(b.primary)||0)-(propProjectionStars(a.primary)||0)),[rows]);
 
   return (
     <section className="pp-market" aria-label="PrizePicks player props">
@@ -59,7 +61,7 @@ export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilt
         <div>
           <div className="pp-kicker">FBIS × PRIZEPICKS MARKET</div>
           <h1>PLAYER PROPS</h1>
-          <p>One card per player and market. Standard, Goblin and Demon variants are grouped under the same FBIS projection.</p>
+          <p>Only props with an independent FBIS projection are shown. Stars rate the FBIS projection gap versus the PrizePicks line.</p>
         </div>
         <div className="pp-count">{loading?"LOADING":groups.length+" MARKETS"}</div>
       </div>
@@ -68,15 +70,16 @@ export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilt
       </div>
       {freshness?.stale?<div className="pp-empty error-text">Today's PrizePicks acquisition has not completed. Stale prior-day props are hidden.</div>:null}
       {error?<div className="pp-empty error-text">{error}</div>:null}
-      {!loading&&!error&&!groups.length?<div className="pp-empty">No curated PrizePicks observations are stored for this filter yet.</div>:null}
+      {!loading&&!error&&!groups.length?<div className="pp-empty">No PrizePicks props with an FBIS projection are available for this filter yet.</div>:null}
       <div className="pp-card-grid">
         {groups.map((group)=>{
           const r=group.primary;
+          const stars=propProjectionStars(r);
           return (
             <article className={"pp-card "+tierClass(r.odds_tier)} key={group.key}>
               <div className="pp-card-top">
                 <span className="pp-sport">{String(r.sport||"").toUpperCase()}</span>
-                <span className="pp-tier">{group.variants.length>1?group.variants.length+" LINES":String(r.odds_tier||"STANDARD").toUpperCase()}</span>
+                <span className="pp-tier" aria-label={stars+" star projection confidence"}>{stars ? "★".repeat(stars)+"☆".repeat(5-stars) : ""}</span>
               </div>
               <div className="pp-player">
                 <div className="pp-headshot">
@@ -88,14 +91,15 @@ export default function PrizePicksMarketPanel({ sportFilter = "all", onSportFilt
                 </div>
               </div>
               <div className="pp-market-name">{marketLabel(r)}</div>
-              {group.variants.map((v)=>{
-                const side=v.candidate_side||"WATCH";
-                const diff=v.delta_fbis_minus_line;
+              {group.variants.filter((v)=>propProjectionStars(v)!=null).map((v)=>{
+                const side=v.candidate_side||((Number(v.fbis_projection)>Number(v.line))?"MORE":(Number(v.fbis_projection)<Number(v.line))?"LESS":"WATCH");
+                const diff=v.delta_fbis_minus_line ?? (Number(v.fbis_projection)-Number(v.line));
+                const variantStars=propProjectionStars(v);
                 return (
                   <div className="pp-variant" key={v.id||v.projection_id||String(v.odds_tier)+"-"+String(v.line)}>
                     <div className="pp-variant-label">
                       <b>{String(v.odds_tier||"standard").toUpperCase()}</b>
-                      <span>{String(v.duration||"FULL GAME").toUpperCase()}</span>
+                      <span>{String(v.duration||"FULL GAME").toUpperCase()} · {"★".repeat(variantStars)}{"☆".repeat(5-variantStars)}</span>
                     </div>
                     <div className="pp-line-row">
                       <div><span>PRIZEPICKS</span><strong>{v.line??"—"}</strong></div>
