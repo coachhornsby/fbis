@@ -1,0 +1,29 @@
+name: CFB v8.1 spread authorization
+on:
+  push:
+    branches: ["research/cfb-v5-context-engine"]
+    paths: ["scripts/cfb-wager-v81.py",".github/workflows/cfb-wager-v81.yml"]
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install pandas numpy
+      - name: Restore v8 scores
+        uses: actions/download-artifact@v4
+        with:
+          name: cfb-wager-v8
+          path: artifacts/cfb-final/wager-v8
+          github-token: ${{ github.token }}
+          run-id: 37184735028
+      - run: python scripts/cfb-wager-v81.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cfb-wager-v81
+          path: artifacts/cfb-final/wager-v81/*
+          retention-days: 90
