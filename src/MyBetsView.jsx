@@ -375,7 +375,7 @@ function PlayerHeadshot({ name, sport, size = 36 }) {
       height={size}
       loading="lazy"
       onError={() => setFailed(true)}
-      style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",objectPosition:"50% 18%",background:"rgba(255,255,255,.08)"}}
+      style={{width:size,height:size,borderRadius:"50%",objectFit:"contain",objectPosition:"center center",background:"rgba(255,255,255,.08)",padding:2,boxSizing:"border-box"}}
     />
   ) : (
     <span className="team-logo-fallback team-logo-plate" style={{width:size,height:size,fontSize:Math.max(9,size*.28)}}>
