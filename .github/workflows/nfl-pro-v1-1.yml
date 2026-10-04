@@ -1,7 +1,7 @@
 name: NFL-PRO-v1.2 NGS walk-forward
 on:
   push:
-    branches: ["research/nfl-pro-v1-1", "rebuild/nfl-props-edge-v2", "research/nfl-pro-v2-walkforward"]
+    branches: ["research/nfl-pro-v1-1", "rebuild/nfl-props-edge-v2", "research/nfl-pro-v2-walkforward", "research/nfl-pro-v1-3-residual"]
     paths:
       - "scripts/build-nfl-training-dataset.py"
       - "scripts/nfl-pro-v1-1-walkforward.py"
