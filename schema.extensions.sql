@@ -1123,7 +1123,62 @@ CREATE INDEX IF NOT EXISTS idx_cbb_prop_signals_player
   ON cbb_player_prop_signals(player_name, market, signal_at);
 
 
--- WNBA PrizePicks validation/calibration ledger (migration 0040)
+-- NFL point-in-time wager decision architecture (migration 0041).
+CREATE TABLE IF NOT EXISTS nfl_wager_decisions (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  sport TEXT NOT NULL DEFAULT 'nfl',
+  evaluated_at TEXT NOT NULL,
+  model_id TEXT,
+  model_version TEXT,
+  decision_version TEXT NOT NULL,
+  market_type TEXT NOT NULL,
+  selection TEXT NOT NULL,
+  sportsbook TEXT,
+  offered_line REAL,
+  american_price REAL,
+  break_even_probability REAL,
+  model_probability REAL,
+  probability_edge REAL,
+  expected_value_per_unit_risk REAL,
+  uncertainty_sigma REAL,
+  raw_confidence_score INTEGER,
+  confidence_score INTEGER,
+  confidence_validated INTEGER NOT NULL DEFAULT 0,
+  decision TEXT NOT NULL,
+  stake_units REAL,
+  projection_json TEXT NOT NULL,
+  decomposition_json TEXT,
+  wager_intelligence_json TEXT,
+  reasons_json TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_nfl_wager_decisions_event_time
+  ON nfl_wager_decisions(event_id, evaluated_at);
+CREATE INDEX IF NOT EXISTS idx_nfl_wager_decisions_market
+  ON nfl_wager_decisions(market_type, selection, evaluated_at);
+
+CREATE TABLE IF NOT EXISTS nfl_wager_outcomes (
+  decision_id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  settled_at TEXT NOT NULL,
+  result TEXT,
+  units REAL,
+  closing_line REAL,
+  closing_price REAL,
+  clv_line REAL,
+  clv_price REAL,
+  actual_margin REAL,
+  actual_total REAL,
+  evaluation_json TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(decision_id) REFERENCES nfl_wager_decisions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_nfl_wager_outcomes_event
+  ON nfl_wager_outcomes(event_id, settled_at);
+
+
+-- WNBA prop validation ledger (migration 0040_wnba_prop_validation).
 CREATE TABLE IF NOT EXISTS wnba_prop_validation (
   id TEXT PRIMARY KEY,
   source_line_id TEXT NOT NULL,
@@ -1155,28 +1210,115 @@ CREATE INDEX IF NOT EXISTS idx_wnba_prop_validation_market_star
   ON wnba_prop_validation(market, raw_star, candidate_side, odds_tier);
 CREATE INDEX IF NOT EXISTS idx_wnba_prop_validation_player
   ON wnba_prop_validation(player_name, game_start DESC);
-
 CREATE VIEW IF NOT EXISTS wnba_prop_calibration AS
 SELECT
-  market,
-  raw_star,
-  candidate_side,
-  COALESCE(odds_tier,'standard') AS odds_tier,
+  market, raw_star, candidate_side, COALESCE(odds_tier,'standard') AS odds_tier,
   COUNT(*) AS graded,
   SUM(CASE WHEN push=0 THEN 1 ELSE 0 END) AS decisions,
   SUM(CASE WHEN hit=1 THEN 1 ELSE 0 END) AS hits,
-  CASE
-    WHEN SUM(CASE WHEN push=0 THEN 1 ELSE 0 END) > 0
+  CASE WHEN SUM(CASE WHEN push=0 THEN 1 ELSE 0 END) > 0
     THEN 1.0 * SUM(CASE WHEN hit=1 THEN 1 ELSE 0 END) /
-         SUM(CASE WHEN push=0 THEN 1 ELSE 0 END)
-    ELSE NULL
-  END AS hit_rate,
+      SUM(CASE WHEN push=0 THEN 1 ELSE 0 END)
+    ELSE NULL END AS hit_rate,
   AVG(ABS(projection_delta)) AS avg_abs_projection_delta,
   AVG(CASE WHEN fbis_sigma IS NOT NULL AND fbis_sigma > 0
-           THEN ABS(projection_delta / fbis_sigma) END) AS avg_abs_z
+    THEN ABS(projection_delta / fbis_sigma) END) AS avg_abs_z
 FROM wnba_prop_validation
 GROUP BY market, raw_star, candidate_side, COALESCE(odds_tier,'standard');
 
+
+-- NHL exact-price wager research architecture (migration 0042).
+CREATE TABLE IF NOT EXISTS nhl_wager_decisions (
+  id TEXT PRIMARY KEY,
+  snapshot_at TEXT NOT NULL,
+  event_id TEXT NOT NULL,
+  event_start TEXT,
+  wager_scope TEXT NOT NULL, -- GAME | PROP
+  player_id TEXT,
+  player_name TEXT,
+  team TEXT,
+  market TEXT NOT NULL,
+  selection TEXT NOT NULL,
+  line REAL,
+  american_price REAL,
+  model_probability REAL,
+  calibrated_probability REAL,
+  break_even_probability REAL,
+  market_no_vig_probability REAL,
+  probability_edge REAL,
+  expected_roi REAL,
+  reliability REAL,
+  confidence INTEGER,
+  confidence_version TEXT,
+  confidence_status TEXT,
+  decision TEXT NOT NULL,
+  research_candidate INTEGER NOT NULL DEFAULT 0,
+  suggested_units REAL NOT NULL DEFAULT 0,
+  model_id TEXT,
+  model_version TEXT,
+  projection_json TEXT,
+  disagreement_json TEXT,
+  trajectory_json TEXT,
+  source_snapshot_type TEXT,
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize_wager INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_nhl_wager_decisions_event
+  ON nhl_wager_decisions(event_id, snapshot_at);
+CREATE INDEX IF NOT EXISTS idx_nhl_wager_decisions_market
+  ON nhl_wager_decisions(wager_scope, market, selection, confidence, snapshot_at);
+CREATE INDEX IF NOT EXISTS idx_nhl_wager_decisions_research_bet
+  ON nhl_wager_decisions(decision, snapshot_at);
+
+CREATE TABLE IF NOT EXISTS nhl_wager_settlements (
+  decision_id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  settled_at TEXT NOT NULL,
+  actual_home REAL,
+  actual_away REAL,
+  actual_player_value REAL,
+  result TEXT NOT NULL, -- WIN | LOSS | PUSH | VOID
+  risk_units REAL NOT NULL DEFAULT 1,
+  profit_units REAL NOT NULL DEFAULT 0,
+  close_line REAL,
+  close_price REAL,
+  close_no_vig_probability REAL,
+  clv_probability_pp REAL,
+  notes TEXT,
+  FOREIGN KEY(decision_id) REFERENCES nhl_wager_decisions(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_nhl_wager_settlements_event
+  ON nhl_wager_settlements(event_id, settled_at);
+
+CREATE VIEW IF NOT EXISTS nhl_wager_confidence_calibration AS
+SELECT
+  d.wager_scope,
+  d.market,
+  CASE
+    WHEN d.confidence < 50 THEN '0-49'
+    WHEN d.confidence < 60 THEN '50-59'
+    WHEN d.confidence < 70 THEN '60-69'
+    WHEN d.confidence < 80 THEN '70-79'
+    WHEN d.confidence < 90 THEN '80-89'
+    ELSE '90-100'
+  END AS confidence_band,
+  COUNT(*) AS graded,
+  SUM(CASE WHEN s.result='WIN' THEN 1 ELSE 0 END) AS wins,
+  SUM(CASE WHEN s.result='LOSS' THEN 1 ELSE 0 END) AS losses,
+  SUM(CASE WHEN s.result='PUSH' THEN 1 ELSE 0 END) AS pushes,
+  SUM(s.profit_units) AS units,
+  CASE WHEN SUM(ABS(s.risk_units)) > 0
+    THEN SUM(s.profit_units) / SUM(ABS(s.risk_units)) ELSE NULL END AS roi,
+  AVG(d.calibrated_probability) AS mean_probability,
+  AVG(CASE WHEN s.result='WIN' THEN 1.0 WHEN s.result='LOSS' THEN 0.0 END) AS win_rate,
+  AVG(s.clv_probability_pp) AS avg_clv_probability_pp
+FROM nhl_wager_decisions d
+JOIN nhl_wager_settlements s ON s.decision_id=d.id
+WHERE d.research_candidate=1
+GROUP BY d.wager_scope,d.market,confidence_band;
 
 -- NBA game + player projection research storage (migrations 0039-0042).
 CREATE TABLE IF NOT EXISTS nba_game_features (
