@@ -436,3 +436,84 @@ test("domain adapter preserves authorized WNBA prop flags", () => {
   assert.equal(board.rows[0].eligibleForCard,true);
   assert.equal(board.rows[0].propGate,"CLEAR");
 });
+
+
+test("live NFL props board hides rows below four stars outside San Francisco", () => {
+  const board = buildPlayerPropsBoard({
+    games:[{
+      id:"nfl-g",sport:"nfl",away:{abbr:"DAL"},home:{abbr:"PHI"},
+      playerMarkets:[
+        {
+          playerName:"QB Low",team:"DAL",marketCanonical:"passing_yards",
+          targetRole:"QB1",line:250.5,fbisProjection:255,fbisSigma:45,
+          roleConfidence:.9,propGate:"CLEAR",eligibleForCard:true,
+          featureEvidence:{
+            targetRole:true,targetRoleName:"QB1",recent5:true,snapShare:true,
+            positionDefense:true,nextGen:true,opponentMatchup:true
+          }
+        },
+        {
+          playerName:"WR Two",team:"PHI",marketCanonical:"receptions",
+          targetRole:"WR2",line:5.5,fbisProjection:3.0,fbisSigma:1.2,
+          roleConfidence:.9,propGate:"CLEAR",eligibleForCard:true,
+          featureEvidence:{
+            targetRole:true,targetRoleName:"WR2",recent5:true,snapShare:true,
+            positionDefense:true,nextGen:true,opponentMatchup:true
+          }
+        }
+      ]
+    }]
+  },{supportedOnly:false,enforceNflDisplayPolicy:true});
+  assert.deepEqual(board.rows.map(r=>r.playerName),["WR Two"]);
+  assert.equal(board.rows[0].confidenceStars,5);
+  assert.equal(board.counts.hiddenNflBelowFourStars,1);
+});
+
+test("live NFL props board always shows 49ers QB1 RB1 WR1 WR2 TE1 projections regardless of stars or PrizePicks line", () => {
+  const roles=["QB1","RB1","WR1","WR2","TE1"];
+  const positions={QB1:"QB",RB1:"RB",WR1:"WR",WR2:"WR",TE1:"TE"};
+  const markets={QB1:"passing_yards",RB1:"rushing_yards",WR1:"receiving_yards",WR2:"receptions",TE1:"receiving_yards"};
+  const playerProjectionRows=roles.map((role,i)=>({
+    playerId:"sf-"+role,playerName:"SF "+role,team:"SF",position:positions[role],
+    market:markets[role],targetRole:role,
+    fbisProjection:100+i,fbisSigma:20,roleConfidence:.9,
+    featureEvidence:{
+      targetRole:true,targetRoleName:role,recent5:true,snapShare:true,
+      positionDefense:true,nextGen:true,opponentMatchup:true
+    },
+    propGate:"CLEAR",eligibleForCard:true
+  }));
+  const board=buildPlayerPropsBoard({
+    games:[{
+      id:"sf-game",sport:"nfl",
+      away:{abbr:"DEN"},home:{abbr:"SF",name:"San Francisco 49ers"},
+      playerProjectionRows,
+      playerMarkets:[]
+    }]
+  },{supportedOnly:false,enforceNflDisplayPolicy:true});
+  assert.equal(board.rows.length,5);
+  assert.deepEqual(new Set(board.rows.map(r=>r.targetRole)),new Set(roles));
+  assert.ok(board.rows.every(r=>r.displayMode==="TEAM_PROJECTION" || r.displayMode==="QUALIFIED_EDGE"));
+  assert.equal(board.counts.visible49ersRoleProjections,5);
+});
+
+test("49ers low-star projection is informational rather than a recommendation", () => {
+  const board=buildPlayerPropsBoard({
+    games:[{
+      id:"sf-low",sport:"nfl",away:{abbr:"DEN"},home:{abbr:"SF",name:"San Francisco 49ers"},
+      playerMarkets:[{
+        playerName:"SF WR1",team:"SF",marketCanonical:"receptions",targetRole:"WR1",
+        line:5.5,fbisProjection:5.0,fbisSigma:2.0,roleConfidence:.9,
+        propGate:"CLEAR",eligibleForCard:true,
+        featureEvidence:{
+          targetRole:true,targetRoleName:"WR1",recent5:true,snapShare:true,
+          positionDefense:true,nextGen:true,opponentMatchup:true
+        }
+      }]
+    }]
+  },{supportedOnly:false,enforceNflDisplayPolicy:true});
+  assert.equal(board.rows.length,1);
+  assert.ok(board.rows[0].confidenceStars<4);
+  assert.equal(board.rows[0].displayMode,"TEAM_PROJECTION");
+  assert.equal(board.rows[0].recommendationEligible,false);
+});
