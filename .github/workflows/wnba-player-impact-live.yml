@@ -2,7 +2,7 @@ name: WNBA player impact live refresh
 
 on:
   push:
-    branches: ["research/wnba-player-impact-v1"]
+    branches: ["research/wnba-player-impact-v1", main]
     paths:
       - ".github/workflows/wnba-player-impact-live.yml"
       - "scripts/wnba-player-impact-live.mjs"
