@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import {
   ADMIN_NAV,
   CUSTOMER_NAV,
@@ -129,20 +130,25 @@ export default function AppShell({
         {children}
       </main>
 
-      <nav className="shell-mobile-nav" aria-label="Mobile primary navigation">
-        {[...CUSTOMER_NAV, ...ADMIN_NAV].map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`shell-mobile-nav-item ${route === item.id ? "active" : ""}`}
-            aria-current={route === item.id ? "page" : undefined}
-            onClick={() => onRouteChange?.(item.id)}
-          >
-            <span className="shell-mobile-nav-icon" aria-hidden="true">{mobileNavIcon(item.id)}</span>
-            <span className="shell-mobile-nav-label">{item.label}</span>
-          </button>
-        ))}
-      </nav>
+      {typeof document !== "undefined"
+        ? createPortal(
+            <nav className="shell-mobile-nav" aria-label="Mobile primary navigation" data-viewport-footer="true">
+              {[...CUSTOMER_NAV, ...ADMIN_NAV].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`shell-mobile-nav-item ${route === item.id ? "active" : ""}`}
+                  aria-current={route === item.id ? "page" : undefined}
+                  onClick={() => onRouteChange?.(item.id)}
+                >
+                  <span className="shell-mobile-nav-icon" aria-hidden="true">{mobileNavIcon(item.id)}</span>
+                  <span className="shell-mobile-nav-label">{item.label}</span>
+                </button>
+              ))}
+            </nav>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
