@@ -15,7 +15,7 @@ export function normalizeEspnPlay(play={}){
     sequenceNumber:finite(play?.sequenceNumber),
     period,
     clock:play?.clock?.displayValue||play?.clock||null,
-    type,text,teamId:String(play?.team?.id||""),
+    type,text,teamId:String(play?.team?.id||play?.teamId||""),
     scoringPlay:Boolean(play?.scoringPlay),
     scoreValue:finite(play?.scoreValue)||0,
     homeScore:finite(play?.homeScore),
