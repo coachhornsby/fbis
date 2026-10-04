@@ -1644,6 +1644,22 @@ CREATE TABLE IF NOT EXISTS nba_player_role_contexts (
 CREATE INDEX IF NOT EXISTS idx_nba_role_context_game
   ON nba_player_role_contexts(game_id,player_id,feature_cutoff_timestamp DESC);
 
+CREATE TABLE IF NOT EXISTS nba_player_impact_benchmarks (
+  id TEXT PRIMARY KEY,
+  player_id TEXT NOT NULL,
+  player_name TEXT,
+  as_of TEXT NOT NULL,
+  metric TEXT NOT NULL,
+  value REAL NOT NULL,
+  source TEXT NOT NULL,
+  license_status TEXT,
+  research_only INTEGER NOT NULL DEFAULT 1,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_impact_benchmark
+  ON nba_player_impact_benchmarks(metric,as_of,player_id);
+
 CREATE TABLE IF NOT EXISTS nba_player_impact_validation (
   id TEXT PRIMARY KEY,
   model_id TEXT NOT NULL,
