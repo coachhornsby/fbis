@@ -16,15 +16,39 @@ const WEB="https://api-web.nhle.com/v1";
 const STATS="https://api.nhle.com/stats/rest/en";
 const EDGE_CACHE=new Map();
 const EDGE_CACHE_MS=15*60*1000;
+const LIVE_FETCH_TIMEOUT_MS=4500;
+const EDGE_FETCH_TIMEOUT_MS=1800;
+const EDGE_TOTAL_BUDGET_MS=4000;
 
 function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
 function round(v,n=3){const p=10**n;return Math.round(Number(v)*p)/p;}
 function sigmoid(z){return z>=0?1/(1+Math.exp(-z)):Math.exp(z)/(1+Math.exp(z));}
+function timeoutFetcher(fetcher=fetch,timeoutMs=LIVE_FETCH_TIMEOUT_MS){
+  return async (url,options={})=>{
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort("nhl-pro-v2-timeout"),timeoutMs);
+    const upstream=options?.signal;
+    const onAbort=()=>controller.abort(upstream?.reason||"upstream-abort");
+    if(upstream?.addEventListener) upstream.addEventListener("abort",onAbort,{once:true});
+    try{
+      return await fetcher(url,{...options,signal:controller.signal});
+    } finally {
+      clearTimeout(timer);
+      if(upstream?.removeEventListener) upstream.removeEventListener("abort",onAbort);
+    }
+  };
+}
 async function fetchJson(url,fetcher=fetch){
   const res=await fetcher(url,{headers:{accept:"application/json","user-agent":"FBIS-NHL-PRO-v2/1.0"}});
   if(!res.ok)throw new Error(`NHL_PRO_V2_HTTP_${res.status}`);
   return res.json();
+}
+function withBudget(promise,ms,fallback){
+  return Promise.race([
+    promise,
+    new Promise(resolve=>setTimeout(()=>resolve(fallback),ms)),
+  ]);
 }
 function flattenEdge(raw){
   if(!raw)return [];
@@ -133,8 +157,16 @@ function restDays(team,start,schedule=[]){
 }
 
 export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDataverseUpdatedAt=null}={}){
-  const base=await loadNhlV1Context(date,games,{fetcher,sportsDataverseUpdatedAt});
-  const edge=await loadEdgeForSlate(games,fetcher).catch(err=>({__error:String(err?.message||err)}));
+  const liveFetcher=timeoutFetcher(fetcher,LIVE_FETCH_TIMEOUT_MS);
+  const edgeFetcher=timeoutFetcher(fetcher,EDGE_FETCH_TIMEOUT_MS);
+  const [base,edge]=await Promise.all([
+    loadNhlV1Context(date,games,{fetcher:liveFetcher,sportsDataverseUpdatedAt}),
+    withBudget(
+      loadEdgeForSlate(games,edgeFetcher).catch(err=>({__error:String(err?.message||err)})),
+      EDGE_TOTAL_BUDGET_MS,
+      {__timeout:true,__error:"NHL_EDGE_BUDGET_EXCEEDED"}
+    ),
+  ]);
   return {
     ok:Boolean(base?.ok),
     base,edge,
