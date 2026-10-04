@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { cfbdGet } from "../functions/lib/collegeApi.js";
 import { flattenGamesPlayersResponse, identifyGamePlayerRoles } from "../functions/lib/cfbPlayerIdentity.js";
 import { projectCfbPlayerV1, flattenCfbPlayerProjectionRows } from "../functions/lib/cfbPlayerModel.js";
 import fitted from "../data/models/cfb-fbis-v2-fitted-aa.js";
 
 const seasons=(process.env.CFB_PLAYER_BT_SEASONS||"2023,2024,2025").split(",").map(Number).filter(Number.isFinite);
 const MAX_WEEK=Number(process.env.CFB_PLAYER_BT_MAX_WEEK||15);
-const env={CFBD_API_KEY:process.env.CFBD_API_KEY||""};
-if(!env.CFBD_API_KEY) throw new Error("CFBD_API_KEY required");
+const BASE=process.env.FBIS_BASE||"https://fbis-myz.pages.dev";
+const SECRET=process.env.HARVEST_SECRET||"";
+if(!SECRET) throw new Error("HARVEST_SECRET required");
 mkdirSync("artifacts/cfb-player-backtest",{recursive:true});
 
 const n=v=>{const x=Number(v);return Number.isFinite(x)?x:null};
