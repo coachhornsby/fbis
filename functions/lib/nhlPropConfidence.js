@@ -6,6 +6,16 @@ export const NHL_SAVES_AUDIT_CUTS = Object.freeze({
   priorStarts:{q25:30,q50:48,q75:71},
 });
 
+export const NHL_SOG_CONFIDENCE_VERSION = "nhl-sog-stars-v1";
+export const NHL_SOG_AUDIT_CUTS = Object.freeze({
+  teamShotsFor:{q25:27.4697662602,q50:28.8226164080,q75:30.0243902439},
+  opponentShotsAgainst:{q25:27.4637957317,q50:28.8427889714,q75:29.8021341463},
+  projectedTeamShots:{q25:27.8574715280,q50:28.7505651398,q75:29.7160846841},
+  playerShotRate:{q25:1.0776678277,q50:1.4482130450,q75:2.0152628749},
+  playerShotShare:{q25:0.0377306136,q50:0.0505685103,q75:0.0694923814},
+  priorGames:{q25:59,q50:81,q75:140},
+});
+
 function finite(v){const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
 
@@ -106,6 +116,89 @@ export function rateNhlGoalieSavesConfidence({
     environment:env,
     confidenceVersion:NHL_SAVES_CONFIDENCE_VERSION,
     historicalBasis:"5245 PIT goalie starts; saves gap/direction + shot-environment subset audit",
+  };
+}
+
+export function classifyNhlSogEnvironment({
+  teamShotsFor,
+  opponentShotsAgainst,
+  projectedTeamShots,
+  playerShotRate,
+  playerShotShare,
+  cuts=NHL_SOG_AUDIT_CUTS,
+}={}){
+  const team=finite(teamShotsFor),opp=finite(opponentShotsAgainst),proj=finite(projectedTeamShots),rate=finite(playerShotRate),share=finite(playerShotShare);
+  const tc=cuts?.teamShotsFor||{},oc=cuts?.opponentShotsAgainst||{},pc=cuts?.projectedTeamShots||{},rc=cuts?.playerShotRate||{},sc=cuts?.playerShotShare||{};
+  return {
+    highTeamVolume:team!=null&&finite(tc.q75)!=null&&team>=Number(tc.q75),
+    lowTeamVolume:team!=null&&finite(tc.q25)!=null&&team<=Number(tc.q25),
+    favorableOpponent:opp!=null&&finite(oc.q75)!=null&&opp>=Number(oc.q75),
+    toughOpponent:opp!=null&&finite(oc.q25)!=null&&opp<=Number(oc.q25),
+    highProjectedTeamShots:proj!=null&&finite(pc.q75)!=null&&proj>=Number(pc.q75),
+    lowProjectedTeamShots:proj!=null&&finite(pc.q25)!=null&&proj<=Number(pc.q25),
+    highVolumeShooter:rate!=null&&finite(rc.q75)!=null&&rate>=Number(rc.q75),
+    lowVolumeShooter:rate!=null&&finite(rc.q25)!=null&&rate<=Number(rc.q25),
+    highShotShare:share!=null&&finite(sc.q75)!=null&&share>=Number(sc.q75),
+    lowShotShare:share!=null&&finite(sc.q25)!=null&&share<=Number(sc.q25),
+  };
+}
+
+export function rateNhlShotsOnGoalConfidence({
+  projection,
+  line,
+  teamShotsFor,
+  opponentShotsAgainst,
+  projectedTeamShots,
+  playerShotRate,
+  playerShotShare,
+  lineValidated=true,
+  modelValidated=true,
+  cuts=NHL_SOG_AUDIT_CUTS,
+}={}){
+  const p=finite(projection),l=finite(line);
+  if(p==null||l==null){
+    return {stars:1,label:"1 STAR",side:null,gap:null,tier:"NO_LINE",researchCandidate:false,reasons:["missing_projection_or_line"]};
+  }
+  const side=p<l?"UNDER":p>l?"OVER":"PUSH",gap=Math.abs(p-l);
+  const env=classifyNhlSogEnvironment({teamShotsFor,opponentShotsAgainst,projectedTeamShots,playerShotRate,playerShotShare,cuts});
+  const reasons=[];
+  if(!modelValidated) reasons.push("model_market_not_validated");
+  if(!lineValidated) reasons.push("line_not_validated");
+  if(side==="PUSH") reasons.push("projection_equals_line");
+  if(!modelValidated||!lineValidated||side==="PUSH"){
+    return {stars:1,label:"1 STAR",side,gap,tier:"HOLD",researchCandidate:false,reasons,environment:env,confidenceVersion:NHL_SOG_CONFIDENCE_VERSION};
+  }
+
+  let stars=gap>=2?5:gap>=1.5?4:gap>=1?3:gap>=0.5?2:1;
+  if(side==="OVER"){
+    reasons.push("sog_over_signal");
+    if(gap>=1) reasons.push("validated_over_gap_1plus");
+    if(gap>=2) reasons.push("validated_over_gap_2plus");
+    const supportive=[env.highVolumeShooter,env.favorableOpponent,env.highProjectedTeamShots,env.highShotShare].filter(Boolean).length;
+    if(gap>=1&&gap<2&&supportive>=3) stars=Math.min(4,stars+1);
+    if(env.highVolumeShooter) reasons.push("high_volume_shooter");
+    if(env.favorableOpponent) reasons.push("high_opponent_shot_allowance");
+    if(env.highProjectedTeamShots) reasons.push("high_projected_team_shots");
+    if(env.highShotShare) reasons.push("high_player_shot_share");
+  }else{
+    reasons.push("sog_under_signal");
+    if(gap>=1) reasons.push("validated_under_gap_1plus");
+    if(gap>=2) reasons.push("validated_under_gap_2plus");
+    const supportive=[env.lowVolumeShooter,env.toughOpponent,env.lowProjectedTeamShots,env.lowShotShare].filter(Boolean).length;
+    if(gap>=1&&gap<1.5&&supportive>=3) stars=Math.min(4,stars+1);
+    if(gap>=1.5&&gap<2&&supportive>=3) stars=5;
+    if(env.lowVolumeShooter) reasons.push("low_volume_shooter");
+    if(env.toughOpponent) reasons.push("low_opponent_shot_allowance");
+    if(env.lowProjectedTeamShots) reasons.push("low_projected_team_shots");
+    if(env.lowShotShare) reasons.push("low_player_shot_share");
+  }
+  stars=clamp(Math.round(stars),1,5);
+  return {
+    stars,label:`${stars} STAR`,side,gap,
+    tier:stars===5?"ELITE":stars===4?"PREMIUM":stars===3?"STRONG":stars===2?"LEAN":"WATCH",
+    researchCandidate:stars>=3,reasons,environment:env,
+    confidenceVersion:NHL_SOG_CONFIDENCE_VERSION,
+    historicalBasis:"94456 PIT skater-games; SOG gap/direction + shooter/team/opponent shot-environment audit",
   };
 }
 
