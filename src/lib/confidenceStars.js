@@ -105,7 +105,7 @@ export function confidenceStars(game) {
   // caps where the model itself is research/provisional, not because wagering
   // is disabled.
   if (vm.authority?.research || qualification === "RESEARCH_ONLY") {
-    stars = Math.min(stars, 4);
+    stars = Math.min(stars, 3);
   }
 
   return Math.max(1, Math.min(5, stars));
