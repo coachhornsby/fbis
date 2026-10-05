@@ -131,7 +131,7 @@ jobs:
           today="$(TZ=America/Chicago date +%F)"
           # Only sports with the current durable player-projection contract need candidate matching.
           # Research-only sports still ingest below without blocking on projection APIs.
-          for sport in mlb cfb cbb nfl nhl wnba; do
+          for sport in mlb cfb cbb nfl nhl; do
             for date in "$today"; do
               tmp="$(mktemp)"
               code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" "$BASE/api/projections?sport=$sport&date=$date&_t=$(date +%s)" || true)"
@@ -201,7 +201,7 @@ jobs:
         if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
         run: |
           set -euo pipefail
-          input='{"leagues":["MLB","NFL","NHL","WNBA","NBA","College Basketball","CFB","Soccer","Tennis"]}'
+          input='{"leagues":["MLB","NFL","NHL","NBA","College Basketball","CFB","Soccer","Tennis"]}'
           body="$(mktemp)"
           code="$(curl -sS --max-time 240 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary "$input" -o "$body" -w "%{http_code}" "https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items?format=json&clean=true")"
           echo "PrizePicks Actor http=$code"
