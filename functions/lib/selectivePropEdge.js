@@ -5,6 +5,12 @@
  * disagreements, not maximize projection coverage. Market lines are comparison
  * targets only; they are never projection inputs.
  */
+export const MLB_PITCHER_K_CANDIDATE_EDGE = Object.freeze({
+  minAbsoluteKs: 0.75,
+  lockedAt: "2026-10-05",
+  status: "PROSPECTIVE_LOCK",
+});
+
 function finite(v) {
   if (v == null || v === "") return null;
   const n = Number(v);
@@ -324,6 +330,14 @@ export function rankSelectiveProps(rows = [], opts = {}) {
     const evidence = evidenceState(row);
     const nflCalibration = evidence.sport === "nfl" ? nflCalibrationState(row, z) : null;
     const prizePicksEconomics = prizePicksTierEconomics(row, hitProbability);
+    const mlbKCandidate = evidence.sport === "mlb" && String(row.market || row.statType || "").toLowerCase() === "strikeouts"
+      ? {
+          threshold: MLB_PITCHER_K_CANDIDATE_EDGE.minAbsoluteKs,
+          absoluteEdge: Math.abs(delta),
+          qualified: Math.abs(delta) >= MLB_PITCHER_K_CANDIDATE_EDGE.minAbsoluteKs,
+          state: Math.abs(delta) >= MLB_PITCHER_K_CANDIDATE_EDGE.minAbsoluteKs ? "PROSPECTIVE_CANDIDATE" : "TRACK_ONLY",
+        }
+      : null;
     return {
       ...row,
       fbisProjection: projection,
@@ -336,6 +350,7 @@ export function rankSelectiveProps(rows = [], opts = {}) {
       evidenceState: evidence,
       nflCalibration,
       prizePicksEconomics,
+      mlbKCandidate,
       selectionScore:
         stars * 100 +
         (z ?? 0) * 15 +
@@ -348,6 +363,9 @@ export function rankSelectiveProps(rows = [], opts = {}) {
     if (row.evidenceState?.gate === "BLOCKED" || row.evidenceState?.gate === "HOLD") return false;
     if (row.evidenceState?.eligible === false) return false;
     if (row.estimatedHitProbability != null && row.estimatedHitProbability < minHitProbability) return false;
+    if (row.evidenceState?.sport === "mlb" && String(row.market || row.statType || "").toLowerCase() === "strikeouts") {
+      if (!row.mlbKCandidate?.qualified) return false;
+    }
     if (row.evidenceState?.sport === "nfl") {
       if (row.evidenceState?.role == null || row.evidenceState.role < minRoleConfidence) return false;
       if (!row.featureEvidence?.targetRole || !row.featureEvidence?.recent5) return false;
@@ -383,6 +401,8 @@ export function rankSelectiveProps(rows = [], opts = {}) {
       quotaBySport: false,
       fillWeakQuota: false,
       nflMarketCalibration: "NFL_PRIZEPICKS_CALIBRATION_V1",
+      mlbPitcherKCandidateEdge: MLB_PITCHER_K_CANDIDATE_EDGE.minAbsoluteKs,
+      mlbPitcherKCandidateLockedAt: MLB_PITCHER_K_CANDIDATE_EDGE.lockedAt,
     },
   };
 }
