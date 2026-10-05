@@ -31,7 +31,7 @@ function parseCsv(text=""){
   return lines.slice(1).map(line=>{const cells=splitCsvLine(line);return Object.fromEntries(headers.map((h,i)=>[h,cells[i]??""]));});
 }
 async function fetchNflPlayerSeason(year){
-  const controller=new AbortController();const timer=setTimeout(()=>controller.abort("nfl-player-detail-timeout"),8000);
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort("nfl-player-detail-timeout"),3500);
   try{
     const url=NFL_RELEASE+"/stats_player/stats_player_week_"+year+".csv";
     const res=await fetch(url,{headers:{Accept:"text/csv,*/*","User-Agent":"FBIS/2.0"},signal:controller.signal});
@@ -89,7 +89,7 @@ async function nflDetail(context,{name,team,opponent,market,line}){
 }
 async function mlbPerson(name){
   const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort("mlb-player-search-timeout"),6000);
+  const timer=setTimeout(()=>controller.abort("mlb-player-search-timeout"),3500);
   try{
     const r=await fetch("https://statsapi.mlb.com/api/v1/people/search?active=true&sportIds=1&names="+encodeURIComponent(name),{
       headers:{accept:"application/json","user-agent":"FBIS/1.0"},signal:controller.signal
@@ -138,7 +138,7 @@ async function mlbDetail({name,market,line}){
   const group=mlbGroup(market);
   const qs=new URLSearchParams({stats:"gameLog,season",group,season:String(season)});
   const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort("mlb-player-stats-timeout"),7000);
+  const timer=setTimeout(()=>controller.abort("mlb-player-stats-timeout"),4500);
   let body={};
   try{
     const r=await fetch("https://statsapi.mlb.com/api/v1/people/"+person.id+"/stats?"+qs.toString(),{
@@ -205,7 +205,7 @@ export async function onRequestGet(context){
     let detail=null;
     if(sport==="nfl"){
       detail=await nflDetail(context,{name,team,opponent,market,line});
-      if(detail?.unavailable) {
+      if(!detail || detail?.unavailable || !detail?.last5?.length) {
         const fallback=await loadEspnLastFive({sport,name,team,market,line});
         if(fallback && !fallback.unavailable) detail=fallback;
       }

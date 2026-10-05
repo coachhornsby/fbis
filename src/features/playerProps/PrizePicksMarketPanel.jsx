@@ -347,7 +347,7 @@ function PropAnalytics({ row, open, onToggle }){
     });
     setState({loading:true,error:"",body:null});
     const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort("player-prop-detail-timeout"),10000);
+    const timer=setTimeout(()=>controller.abort("player-prop-detail-timeout"),18000);
     fetch("/api/player-prop-detail?"+q.toString(),{credentials:"same-origin",signal:controller.signal})
       .then(async res=>{
         const body=await res.json().catch(()=>({}));
@@ -357,7 +357,7 @@ function PropAnalytics({ row, open, onToggle }){
       .then(body=>{clearTimeout(timer);if(!cancelled)setState({loading:false,error:"",body});})
       .catch(err=>{clearTimeout(timer);if(!cancelled)setState({loading:false,error:err?.name==="AbortError"?"History request timed out":String(err?.message||err),body:null});});
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
-  },[open,row,state.body,state.loading]);
+  },[open,row]);
 
   const detail=state.body?.detail||null;
   const calibration=state.body?.calibration||null;
