@@ -117,6 +117,6 @@ export function formatShellDate(isoOrDate = new Date()) {
 }
 
 /** Approved product expansion — do not change silently. */
-export const FBIS_PRODUCT_SUBTITLE = "Forecasting & Betting Intelligence System";
+export const FBIS_PRODUCT_SUBTITLE = "Fastwater Betting Intelligence System";
 
 export const FBIS_WORKFLOW_TAGLINE = "FBIS → Market → Diff → Decision";
