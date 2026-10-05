@@ -146,6 +146,10 @@ export function buildActorInput(opts = {}) {
   if (opts.onlyTrending === true) input.onlyTrending=true;
   const minBets=opts.minBets ?? opts.minNumBets;
   if (minBets != null && Number.isFinite(Number(minBets))) input.minBets=Math.max(0,Math.floor(Number(minBets)));
+  if (opts.minSharpGap != null && Number.isFinite(Number(opts.minSharpGap))) {
+    input.minSharpGap=Math.max(0,Number(opts.minSharpGap));
+  }
+  if (opts.sortBy != null && String(opts.sortBy).trim()) input.sortBy=String(opts.sortBy).trim();
   return input;
 }
 
