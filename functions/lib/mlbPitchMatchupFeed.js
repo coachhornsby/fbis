@@ -11,6 +11,10 @@ import { buildLineupMatchup, buildStatcastProfiles, MLB_PITCH_MATCHUP_VERSION } 
 const TTL_MS = 4 * 60 * 60 * 1000;
 const ERR_TTL_MS = 20 * 60 * 1000;
 const LOOKBACK_DAYS = 90;
+const POSTSEASON_PITCHER_LOOKBACK_DAYS = 60;
+const POSTSEASON_BATTER_LOOKBACK_DAYS = 75;
+const POSTSEASON_PITCHER_HALF_LIFE_DAYS = 21;
+const POSTSEASON_BATTER_HALF_LIFE_DAYS = 35;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
 
 function finite(v){ if(v==null||v==="")return null; const n=Number(v); return Number.isFinite(n)?n:null; }
@@ -55,17 +59,17 @@ async function fetchRows(args,fetchFn=fetch){
   if(!res.ok)throw new Error(`Statcast ${res.status}`);
   return parseStatcastCsv(await res.text());
 }
-async function loadProfiles({role,ids,asOf,env={},fetchFn=fetch}){
+async function loadProfiles({role,ids,asOf,env={},fetchFn=fetch,lookbackDays=LOOKBACK_DAYS,halfLifeDays=45}){
   const clean=[...new Set((ids||[]).map(Number).filter(Number.isFinite))].sort((a,b)=>a-b);
   if(!clean.length)return{};
   const end=dateOnly(asOf);
-  const start=addDays(end,-LOOKBACK_DAYS);
-  const cacheKey=`mlb-pitch-matchup-v1:${role}:${start}:${end}:${clean.join("-")}`;
+  const start=addDays(end,-lookbackDays);
+  const cacheKey=`mlb-pitch-matchup-v2:${role}:${start}:${end}:hl${halfLifeDays}:${clean.join("-")}`;
   const cached=await readCache(cacheKey,env.caches,TTL_MS);
   if(cached?.profiles)return cached.profiles;
   try{
     const rows=await fetchRows({role,ids:clean,start,end},fetchFn);
-    const profiles=buildStatcastProfiles(rows,{role,asOf:`${end}T23:59:59Z`});
+    const profiles=buildStatcastProfiles(rows,{role,asOf:`${end}T23:59:59Z`,halfLifeDays});
     await writeCache(cacheKey,{profiles,rows:rows.length,asOf:new Date().toISOString()},env.caches,TTL_MS);
     return profiles;
   }catch(err){
@@ -96,9 +100,26 @@ async function buildSide(game,pitcherSide,env,fetchFn){
   if(!Number.isFinite(pid))return null;
   const batterIds=lineupIdsVsStarter(game,pid);
   if(batterIds.length<5)return null;
+  const postseason=game?.mlbPostseason?.postseason===true || game?.mlbContext?.postseason===true;
   const [pitchers,batters]=await Promise.all([
-    loadProfiles({role:"pitcher",ids:[pid],asOf:game?.start||game?.date||Date.now(),env,fetchFn}),
-    loadProfiles({role:"batter",ids:batterIds,asOf:game?.start||game?.date||Date.now(),env,fetchFn}),
+    loadProfiles({
+      role:"pitcher",
+      ids:[pid],
+      asOf:game?.start||game?.date||Date.now(),
+      env,
+      fetchFn,
+      lookbackDays:postseason?POSTSEASON_PITCHER_LOOKBACK_DAYS:LOOKBACK_DAYS,
+      halfLifeDays:postseason?POSTSEASON_PITCHER_HALF_LIFE_DAYS:45,
+    }),
+    loadProfiles({
+      role:"batter",
+      ids:batterIds,
+      asOf:game?.start||game?.date||Date.now(),
+      env,
+      fetchFn,
+      lookbackDays:postseason?POSTSEASON_BATTER_LOOKBACK_DAYS:LOOKBACK_DAYS,
+      halfLifeDays:postseason?POSTSEASON_BATTER_HALF_LIFE_DAYS:45,
+    }),
   ]);
   const pitcher=pitchers[String(pid)];
   if(!pitcher)return null;
@@ -114,7 +135,9 @@ async function buildSide(game,pitcherSide,env,fetchFn){
     pitcherId:pid,
     batterIds,
     batterProfiles:hitterProfiles.length,
-    lookbackDays:LOOKBACK_DAYS,
+    lookbackDays:postseason?(pitcherSide?POSTSEASON_PITCHER_LOOKBACK_DAYS:LOOKBACK_DAYS):LOOKBACK_DAYS,
+    profileHalfLifeDays:postseason?POSTSEASON_PITCHER_HALF_LIFE_DAYS:45,
+    postseason,
     source:"BASEBALL_SAVANT_STATCAST_PITCH_LEVEL",
   }:null;
 }
@@ -149,6 +172,9 @@ export async function loadMlbPitchMatchupContext(games=[],env={},options={}){
       games:(games||[]).length,
       available,
       lookbackDays:LOOKBACK_DAYS,
+      postseasonPitcherLookbackDays:POSTSEASON_PITCHER_LOOKBACK_DAYS,
+      postseasonPitcherHalfLifeDays:POSTSEASON_PITCHER_HALF_LIFE_DAYS,
+      postseasonBatterHalfLifeDays:POSTSEASON_BATTER_HALF_LIFE_DAYS,
       marketInformed:false,
       canQualify:false,
     },
