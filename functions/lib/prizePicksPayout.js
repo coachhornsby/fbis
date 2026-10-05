@@ -16,6 +16,14 @@ function finite(v) {
 }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+export const PRIZEPICKS_PLATFORM_RULES = Object.freeze({
+  scope:"ALL_PLAYER_PICK_SPORTS",
+  payoutRulesUpdated:"2026-09-09",
+  dnpRebootTieRulesUpdated:"2026-08-11",
+  platformWide:["power-flex-payouts","dnp-reversion","tie-reversion","same-team-refund-after-dnp-reboot","special-projection-payout-adjustment"],
+  sportSpecific:["dnp-activity-threshold","reboot-eligibility","official-scoring"],
+});
+
 export const PRIZEPICKS_STANDARD_POWER = Object.freeze({
   2: 3,
   3: 6,
