@@ -27,6 +27,7 @@ const readJson=p=>{if(!fs.existsSync(p)||!fs.statSync(p).size)return null;try{re
 const readJsonl=p=>fs.existsSync(p)&&fs.statSync(p).size?fs.readFileSync(p,"utf8").split("\n").filter(Boolean).map(JSON.parse):[];
 function flatten(x){
  if(Array.isArray(x)){if(x.every(r=>Array.isArray(r?.results)))return x.flatMap(r=>r.results||[]);if(x.length===1&&Array.isArray(x[0]?.results))return x[0].results;return x}
+ if(Array.isArray(x?.rows))return x.rows;
  if(Array.isArray(x?.results))return x.results;
  if(Array.isArray(x?.result))return x.result.flatMap(r=>r?.results||[]);
  return[];
