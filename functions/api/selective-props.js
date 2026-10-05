@@ -121,7 +121,7 @@ export function groupKey(row = {}) {
     String(row.duration || "full").toLowerCase(),
   ].join("|");
 }
-function strongestByGroup(rows = []) {
+export function strongestByGroup(rows = []) {
   const map = new Map();
   for (const row of rows) {
     // Unpriced Demon/Goblin variants cannot represent a group in Top-25.
