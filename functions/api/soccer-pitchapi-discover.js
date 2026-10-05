@@ -1,4 +1,4 @@
-import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
+import { authorizeSoccerWorker, unauthorizedBody } from "../lib/soccerWorkerAuth.js";
 import {
   HERITAGE_SOCCER_COMPETITIONS,
   HERITAGE_SOCCER_EXTENDED_OFFERINGS,
@@ -44,28 +44,32 @@ async function pitch(env,path){
 }
 function seasonList(l){return Array.isArray(l?.seasons)?l.seasons.map(String).filter(Boolean):[];}
 export async function onRequestPost(context){
-  const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(auth.reason),401);
+  const auth=authorizeSoccerWorker(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(auth.reason),401);
   const db=context.env?.DB;if(!db?.prepare)return json({ok:false,error:"d1-unbound"},503);
   const started=new Date().toISOString(),runId=crypto.randomUUID();
   try{
+    let body={};try{body=await context.request.json();}catch{}
+    const limit=Math.max(1,Math.min(40,Number(body.limit)||40));
     const data=await pitch(context.env,"/v1/leagues"),leagues=data?.leagues||[];
-    const offerings=[...HERITAGE_SOCCER_COMPETITIONS.map(x=>x.name),...HERITAGE_SOCCER_EXTENDED_OFFERINGS];
+    const pending=(await db.prepare("SELECT heritage_name,heritage_key,offering_tier,model_eligible,policy_reason FROM soccer_competition_coverage WHERE discovery_status='PENDING' ORDER BY heritage_name LIMIT ?").bind(limit).all()).results||[];
     let exact=0,fuzzy=0,unmatched=0,queued=0;
     await db.prepare("INSERT INTO soccer_pitchapi_discovery_runs(id,started_at,status,heritage_offerings,pitch_leagues) VALUES(?,?,?,?,?)")
-      .bind(runId,started,"RUNNING",offerings.length,leagues.length).run();
-    for(const name of offerings){
-      const tier=heritageSoccerOfferingTier(name),match=bestMatch(name,leagues),accepted=Boolean(match?.accepted);
+      .bind(runId,started,"RUNNING",pending.length,leagues.length).run();
+    for(const row of pending){
+      const name=row.heritage_name;
+      const tier={tier:row.offering_tier,modelEligible:row.model_eligible===0?false:null,reason:row.policy_reason};
+      const match=bestMatch(name,leagues),accepted=Boolean(match?.accepted);
       const status=accepted?"MATCHED":match?.review?"REVIEW":"UNMATCHED";
       if(match?.method==="exact"&&accepted)exact++; else if(accepted)fuzzy++; else unmatched++;
-      const l=accepted?match.league:null,seasons=seasonList(l),canonical=HERITAGE_SOCCER_COMPETITIONS.find(x=>x.name===name);
-      const heritageKey=canonical?.key||("heritage."+norm(name).replace(/ /g,"."));
+      const l=accepted?match.league:null,seasons=seasonList(l).sort((a,b)=>{const ya=Number(String(a).match(/\d{4}/)?.[0]||0),yb=Number(String(b).match(/\d{4}/)?.[0]||0);return yb-ya;}),canonical=HERITAGE_SOCCER_COMPETITIONS.find(x=>x.name===name);
+      const heritageKey=row.heritage_key||canonical?.key||("heritage."+norm(name).replace(/ /g,"."));
       const modelEligible=tier.modelEligible===false?0:(accepted?1:null);
       await db.prepare("INSERT INTO soccer_competition_coverage(heritage_name,heritage_key,offering_tier,model_eligible,policy_reason,pitch_league_id,pitch_league_name,pitch_country_code,match_score,match_method,seasons_json,current_season,discovery_status,validation_status,can_qualify,can_authorize,last_discovered_at,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'NOT_RUN',0,0,?,?) ON CONFLICT(heritage_name) DO UPDATE SET heritage_key=excluded.heritage_key,offering_tier=excluded.offering_tier,model_eligible=excluded.model_eligible,policy_reason=excluded.policy_reason,pitch_league_id=excluded.pitch_league_id,pitch_league_name=excluded.pitch_league_name,pitch_country_code=excluded.pitch_country_code,match_score=excluded.match_score,match_method=excluded.match_method,seasons_json=excluded.seasons_json,current_season=excluded.current_season,discovery_status=excluded.discovery_status,last_discovered_at=excluded.last_discovered_at,notes=excluded.notes")
         .bind(name,heritageKey,tier.tier,modelEligible,tier.reason,l?.id||null,l?.name||null,l?.country_code||l?.country?.code||null,match?.score??null,match?.method||null,JSON.stringify(seasons),seasons[0]||null,status,started,accepted?null:(match?.league?("candidate:"+match.league.name):"no PitchAPI candidate")).run();
       if(accepted&&modelEligible===1){
         for(const season of seasons.slice(0,6)){
           const qid=String(l.id)+":"+season+":0";
-          await db.prepare("INSERT OR IGNORE INTO soccer_pitchapi_backfill_queue(id,heritage_name,heritage_key,pitch_league_id,season,offset,page_size,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?,0,8,'PENDING',0,?,?)")
+          await db.prepare("INSERT OR IGNORE INTO soccer_pitchapi_backfill_queue(id,heritage_name,heritage_key,pitch_league_id,season,offset,page_size,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?,0,4,'PENDING',0,?,?)")
             .bind(qid,name,heritageKey,String(l.id),season,started,started).run();
           queued++;
         }
@@ -74,7 +78,8 @@ export async function onRequestPost(context){
     const done=new Date().toISOString();
     await db.prepare("UPDATE soccer_pitchapi_discovery_runs SET completed_at=?,status='SUCCESS',exact_matches=?,fuzzy_matches=?,unmatched=? WHERE id=?")
       .bind(done,exact,fuzzy,unmatched,runId).run();
-    return json({ok:true,runId,heritageOfferings:offerings.length,pitchLeagues:leagues.length,exact,fuzzy,unmatched,queueSeeds:queued,policy:"auto-match >=0.92 only; review candidates never model-authorized"});
+    const remaining=await db.prepare("SELECT COUNT(*) n FROM soccer_competition_coverage WHERE discovery_status='PENDING'").first();
+    return json({ok:true,runId,processed:pending.length,remaining:Number(remaining?.n||0),pitchLeagues:leagues.length,exact,fuzzy,unmatched,queueSeeds:queued,policy:"40 max/run; auto-match >=0.92 only; review candidates stop automatic retry and never model-authorize"});
   }catch(e){
     await db.prepare("UPDATE soccer_pitchapi_discovery_runs SET completed_at=?,status='FAILED',meta_json=? WHERE id=?")
       .bind(new Date().toISOString(),JSON.stringify({error:String(e?.message||e)}),runId).run().catch(()=>{});
