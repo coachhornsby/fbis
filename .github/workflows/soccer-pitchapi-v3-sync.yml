@@ -3,10 +3,6 @@ name: Soccer PitchAPI v3 sync
 on:
   schedule:
     - cron: "35 11 * * *"
-  push:
-    branches: ["main"]
-    paths:
-      - "data/models/soccer-pitchapi-v3-trigger.json"
   workflow_dispatch:
     inputs:
       mode:
@@ -22,13 +18,9 @@ on:
         required: false
         default: ""
       offset:
-        description: "historical season offset"
+        description: "historical offset"
         required: false
         default: "0"
-      max_matches:
-        description: "bounded matches per job"
-        required: false
-        default: "40"
 
 permissions:
   contents: read
@@ -39,57 +31,39 @@ concurrency:
 
 jobs:
   live:
-    if: github.event_name == 'schedule' || github.event_name == 'push' || inputs.mode == 'live'
+    if: github.event_name == 'schedule' || inputs.mode == 'live'
     strategy:
       fail-fast: false
       max-parallel: 3
       matrix:
         league: ["eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","usa.nwsl"]
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22" }
-      - name: Require credentials
+      - name: Sync recent finals and lineup state through Cloudflare
         env:
-          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          LEAGUE: ${{ matrix.league }}
         run: |
-          test -n "${PITCHAPI_API_KEY:-}"
+          set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
-      - name: Sync recent results and upcoming lineup state
-        env:
-          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          PITCHAPI_MODE: live
-          PITCHAPI_MAX_MATCHES: "24"
-          PITCHAPI_CONCURRENCY: "3"
-        run: node scripts/soccer-pitchapi-sync.mjs "${{ matrix.league }}"
+          curl -fsS --connect-timeout 5 --max-time 120 --retry 2 --retry-delay 2 --retry-all-errors             -H "x-harvest-secret: $HARVEST_SECRET"             -H "content-type: application/json"             -d "{"leagueKey":"$LEAGUE","mode":"live","limit":8}"             https://fbis-myz.pages.dev/api/soccer-pitchapi-sync | tee result.json
+          jq -e '.ok == true' result.json >/dev/null
 
   historical:
     if: github.event_name == 'workflow_dispatch' && inputs.mode == 'historical'
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22" }
-      - name: Require credentials and season
+      - name: Sync one bounded historical shard through Cloudflare
         env:
-          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          LEAGUE: ${{ inputs.league }}
           SEASON: ${{ inputs.season }}
+          OFFSET: ${{ inputs.offset }}
         run: |
-          test -n "${PITCHAPI_API_KEY:-}"
+          set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
           test -n "${SEASON:-}"
-      - name: Sync bounded historical shard
-        env:
-          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          PITCHAPI_MODE: historical
-          PITCHAPI_OFFSET: ${{ inputs.offset }}
-          PITCHAPI_MAX_MATCHES: ${{ inputs.max_matches }}
-          PITCHAPI_CONCURRENCY: "3"
-        run: node scripts/soccer-pitchapi-sync.mjs "${{ inputs.league }}" "${{ inputs.season }}"
+          curl -fsS --connect-timeout 5 --max-time 120 --retry 2 --retry-delay 2 --retry-all-errors             -H "x-harvest-secret: $HARVEST_SECRET"             -H "content-type: application/json"             -d "{"leagueKey":"$LEAGUE","mode":"historical","season":"$SEASON","offset":$OFFSET,"limit":12}"             https://fbis-myz.pages.dev/api/soccer-pitchapi-sync | tee result.json
+          jq -e '.ok == true' result.json >/dev/null
