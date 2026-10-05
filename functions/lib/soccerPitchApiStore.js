@@ -23,7 +23,13 @@ export async function persistPitchApiBundle(env,bundle={}){
   ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   ON CONFLICT(pitch_match_id) DO UPDATE SET
     fbis_event_id=COALESCE(excluded.fbis_event_id,soccer_pitchapi_match_features.fbis_event_id),
-    status=excluded.status,home_score=COALESCE(excluded.home_score,soccer_pitchapi_match_features.home_score),
+    season=COALESCE(excluded.season,soccer_pitchapi_match_features.season),
+    match_date=excluded.match_date,
+    start_time=COALESCE(excluded.start_time,soccer_pitchapi_match_features.start_time),
+    status=excluded.status,
+    home_team_name=COALESCE(excluded.home_team_name,soccer_pitchapi_match_features.home_team_name),
+    away_team_name=COALESCE(excluded.away_team_name,soccer_pitchapi_match_features.away_team_name),
+    home_score=COALESCE(excluded.home_score,soccer_pitchapi_match_features.home_score),
     away_score=COALESCE(excluded.away_score,soccer_pitchapi_match_features.away_score),
     home_xg=COALESCE(excluded.home_xg,soccer_pitchapi_match_features.home_xg),away_xg=COALESCE(excluded.away_xg,soccer_pitchapi_match_features.away_xg),
     home_xgot=COALESCE(excluded.home_xgot,soccer_pitchapi_match_features.home_xgot),away_xgot=COALESCE(excluded.away_xgot,soccer_pitchapi_match_features.away_xgot),
