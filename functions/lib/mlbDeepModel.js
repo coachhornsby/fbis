@@ -1,6 +1,6 @@
 /**
- * MLB deep challenger v1.
- * Research-only. It never overwrites the production Savant champion and can never qualify wagers.
+ * MLB-FBIS canonical projection engine.
+ * Research-gated for wager authority, but it is the single published MLB score/F5/K projection path.
  *
  * Identity:
  * offense + starter share + bullpen share + platoon/lineup + park/weather + defense + umpire.

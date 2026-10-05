@@ -775,8 +775,12 @@ function pushF5Recs(sport, game, recs, cfg, pin) {
   if (!BASEBALL.has(sport)) return;
   const f5Odds = game.odds?.f5;
   if (!f5Odds) return;
-  const formHome = game.bpp?.f5?.homeWin ?? game.bpp?.matchupForm;
-  const formAway = game.bpp?.f5?.awayWin ?? (formHome != null ? 1 - formHome : null);
+
+  // MLB-FBIS is the sole F5 projection authority. Ballpark Pal F5 remains
+  // visible as an external comparison but must never generate a recommendation.
+  const fbisF5 = game.mlbDeepShadow?.f5 || game.challengers?.["MLB-FBIS-v2"]?.f5 || null;
+  const formHome = sport === "mlb" ? fbisF5?.probabilities?.homeConditional ?? fbisF5?.probabilities?.homeWin ?? null : game.bpp?.f5?.homeWin ?? game.bpp?.matchupForm;
+  const formAway = sport === "mlb" ? fbisF5?.probabilities?.awayConditional ?? fbisF5?.probabilities?.awayWin ?? null : game.bpp?.f5?.awayWin ?? (formHome != null ? 1 - formHome : null);
 
   if (formHome != null && (f5Odds.homeMl != null || f5Odds.awayMl != null)) {
     const homePriced = priceSelection({ pWin: formHome, twoWay: pin?.f5ml, side: "A", pinPrice: f5Odds.homeMl });
@@ -803,10 +807,10 @@ function pushF5Recs(sport, game, recs, cfg, pin) {
     }
   }
 
-  const palTotal = game.bpp?.f5?.total;
-  if (palTotal != null && f5Odds.total != null) {
+  const projectedTotal = sport === "mlb" ? fbisF5?.total ?? null : game.bpp?.f5?.total ?? null;
+  if (projectedTotal != null && f5Odds.total != null) {
     const line = f5Odds.total;
-    const diff = palTotal - line;
+    const diff = projectedTotal - line;
     if (Math.abs(diff) >= cfg.minSpreadEdge) {
       const over = diff > 0;
       const pF5Raw = logistic(Math.abs(diff), cfg.totalK);
