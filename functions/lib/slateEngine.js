@@ -183,9 +183,12 @@ export async function buildSlate(sport, date, env = {}) {
     // but never qualify or authorize.
     const research = promoteNflResearchToBoard(gameMatchups.games);
     const playerResearch = attachNflPlayerProjectionResearch(research.games, { byTeam: verse.playersByTeam || {}, leaguePositionDefense: verse.leaguePositionDefense || {} });
+    const profileKeys=[...new Set(playerResearch.flatMap(g=>[g?.home?.abbr,g?.away?.abbr]).filter(Boolean).map(x=>String(x).toLowerCase()))];
+    const persistentProfiles=await loadNflTeamProfiles(env.DB||null,profileKeys).catch(()=>({teams:{},players:{}}));
+    const profiledGames=attachNflPersistentProfiles(playerResearch,persistentProfiles);
     next = {
       ...slate,
-      games: playerResearch,
+      games: profiledGames,
       nfl: baseline.meta,
       research: {
         ...(slate.research || {}),
