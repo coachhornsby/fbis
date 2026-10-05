@@ -1868,6 +1868,7 @@ CREATE TABLE IF NOT EXISTS tennis_market_snapshots (
   hold REAL,
   observed_at TEXT NOT NULL,
   collected_at TEXT NOT NULL,
+  event_start_time TEXT,
   snapshot_type TEXT,
   traded_volume REAL,
   public_ticket_pct REAL,
