@@ -122,7 +122,9 @@ export function buildTennisResearchBoardRows(rawRows=[],rankings={byName:new Map
     for(const row of rows){
       const key=`${clean(row.player_name)}|${row.canonical_market}`;
       const pr=projMap.get(key)||null;
-      const image=headshots.get(clean(row.player_name))||rankings?.byName?.get(clean(row.player_name))?.headshot||null;
+      const prizeImage=headshots.get(clean(row.player_name))||null;
+      const espnImage=rankings?.byName?.get(clean(row.player_name))?.headshot||null;
+      const image=prizeImage||espnImage||null;
       if(!validImage(image)) continue;
       out.push({
         provider:"PRIZEPICKS_APIFY",
@@ -134,7 +136,8 @@ export function buildTennisResearchBoardRows(rawRows=[],rankings={byName:new Map
         team:row.player_name,
         position:"Player",
         imageUrl:image,
-        imageSource:headshots.get(clean(row.player_name))?"PRIZEPICKS_FEED":"ESPN_TENNIS_RANKINGS",
+        fallbackImageUrl:prizeImage&&espnImage&&prizeImage!==espnImage?espnImage:null,
+        imageSource:prizeImage?"PRIZEPICKS_FEED":"ESPN_TENNIS_RANKINGS",
         sport:"tennis",
         market:row.stat_type,
         marketCanonical:row.canonical_market,
@@ -147,6 +150,7 @@ export function buildTennisResearchBoardRows(rawRows=[],rankings={byName:new Map
         underOdds:null,
         sourceObservedAt:row.observed_at||null,
         collectedAt:row.collected_at||null,
+        startTime:row.start_time||null,
         gameIdentityConfidence:"EXACT_PROVIDER_GAME",
         playerIdentityConfidence:"HIGH",
         marketComplete:row.line!=null,
