@@ -21,10 +21,10 @@
       "currentResearchModel": "SOCCER-FBIS-v2",
       "incumbentStructuralModel": "SOCCER-FBIS-v1",
       "fitArtifact": "functions/lib/soccerFbisV2.js",
-      "status": "v2-causal-ensemble-built-head-to-head-validation-required",
+      "status": "historical-evidence-pass-market-benchmark-required",
       "canQualify": false,
       "canAuthorizeWager": false,
-      "notes": "Dixon-Coles structural model plus a strictly pre-match Elo/form/venue/rest online multinomial challenger. Optional xG/xGA, PPDA, deep completions and expected-points fields activate only when rights-cleared upstream data exists. Market remains benchmark-only; v2 must beat v1 on true walk-forward Brier/log loss and then pass no-vig market and prospective gates."
+      "notes": "SOCCER-FBIS-v2 beat v1 on the same 7,759-match true expanding walk-forward sample: accuracy 49.86% vs 49.72%, Brier 0.20269 vs 0.20376, log loss 1.01608 vs 1.02130, ECE 0.00450 vs 0.01101. Optional xG/xGA, PPDA, deep completions and expected-points fields activate only when rights-cleared upstream data exists. Market benchmark and prospective gates remain required before wager authority."
     },
     "nba": {
       "currentResearchModel": "NBA-FBIS-v1",
