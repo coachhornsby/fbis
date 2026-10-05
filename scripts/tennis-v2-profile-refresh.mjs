@@ -2,7 +2,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { TennisDeepState } from "../functions/lib/tennisTwoSidedV11.js";
-import { deriveCourtSpeedIndex } from "../functions/lib/tennisContextV2.js";
 
 const YEARS=String(process.env.TENNIS_PROFILE_YEARS||"2024,2025,2026").split(",").map(Number).filter(Number.isFinite);
 const OUT=process.env.TENNIS_PROFILE_SQL||"artifacts/tennis-v2-current-profiles.sql";
@@ -129,11 +128,31 @@ for(const tour of ["atp","wta"]){
     }
   }
 }
+const currentYear=Math.max(...YEARS);
+const tourEnv={};
+for(const tour of ["atp","wta"]){
+  const rows=[...tournaments.values()].filter(t=>t.tour===tour&&t.year===currentYear).flatMap(t=>t.rows);
+  const ace=rows.map(r=>finite(r.aceRate)).filter(x=>x!=null);
+  const spw=rows.map(r=>finite(r.servePointWin)).filter(x=>x!=null);
+  tourEnv[tour]={
+    ace:ace.length?ace.reduce((a,b)=>a+b,0)/ace.length:null,
+    spw:spw.length?spw.reduce((a,b)=>a+b,0)/spw.length:null,
+  };
+}
 const speedRows=[];
 for(const t of tournaments.values()){
-  if(t.year!==Math.max(...YEARS)||t.rows.length<10)continue;
-  const csi=deriveCourtSpeedIndex(t.rows,{tour:t.tour});
-  if(csi==null)continue;
+  if(t.year!==currentYear||t.rows.length<10)continue;
+  const base=tourEnv[t.tour]||{};
+  if(base.ace==null||base.spw==null)continue;
+  const ace=t.rows.map(r=>finite(r.aceRate)).filter(x=>x!=null);
+  const spw=t.rows.map(r=>finite(r.servePointWin)).filter(x=>x!=null);
+  if(!ace.length||!spw.length)continue;
+  const a=ace.reduce((x,y)=>x+y,0)/ace.length;
+  const sw=spw.reduce((x,y)=>x+y,0)/spw.length;
+  // Relative tournament environment, centered on the same-tour/current-season mean.
+  // 1.00 = tour-average speed; caps prevent small samples from dominating context.
+  const z=((a-base.ace)/0.035+(sw-base.spw)/0.035)/2;
+  const csi=clamp(1+z*0.08,.86,1.14);
   speedRows.push({...t,courtSpeedIndex:csi,sampleSides:t.rows.length,tournamentKey:clean(t.name)});
 }
 
