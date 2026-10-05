@@ -1,7 +1,7 @@
 name: MLB pitch-zone historical validation
 on:
   push:
-    branches: [research/mlb-pitch-zone-validation-2026-10-04]
+    branches: [research/mlb-profit-validation-2026-10-05]
     paths:
       - "scripts/mlb-pitch-zone-historical-validation.mjs"
       - ".github/workflows/mlb-pitch-zone-historical-validation.yml"
@@ -24,11 +24,11 @@ jobs:
       - name: Run temporally clean historical replay
         env:
           SEASON: "2026"
-          START_DATE: "2026-06-01"
+          START_DATE: "2026-08-26"
           END_DATE: "2026-09-30"
-          MAX_GAMES: "64"
-          DATE_STEP: "4"
-          GAMES_PER_DATE: "2"
+          MAX_GAMES: "120"
+          DATE_STEP: "1"
+          GAMES_PER_DATE: "4"
           OUT: "research/mlb/pitch-zone-validation.json"
         run: node scripts/mlb-pitch-zone-historical-validation.mjs | tee validation-summary.json
       - name: Show validation summary
