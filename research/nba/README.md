@@ -341,3 +341,35 @@ The 2025-26 holdout is now burned and may not be reused for further tuning. Prom
 The production availability adapter uses only NBA official injury-report PDFs from the league's referee/injury archive. Each report is archived immutably. Player rows are normalized into `player_availability_observations`, while team submission state is stored separately.
 
 A team is availability-verified only when its official report is submitted. `NOT YET SUBMITTED` explicitly remains unverified. A submitted team with zero listed injuries is treated as verified healthy rather than missing data.
+
+
+## Persistent team profiles
+
+NBA team state is no longer rebuilt from zero each day. FBIS maintains a persistent profile for all 30 teams and each rostered player.
+
+State hierarchy:
+1. official NBA injury report;
+2. official NBA live lineup / active-status evidence;
+3. actual game appearance;
+4. prior persistent state carried forward;
+5. roster-only fallback.
+
+An OUT/Doubtful/Questionable status remains active until newer evidence supersedes it. Calendar age alone never clears an injury. Confirmed ACTIVE/STARTER lineup evidence or an actual game appearance can clear a carried absence.
+
+Each team profile contains:
+- roster and current player state;
+- projected rotation / role hierarchy;
+- replacement candidates for unavailable players;
+- player-impact context;
+- head coach and coach experience context;
+- recent team style;
+- preseason + full regular-season schedule;
+- venue-to-venue travel path;
+- rest days, B2B, 3-in-4 and 4-in-6;
+- time-zone changes and altitude;
+- road-trip position;
+- schedule stress score and explicit weak-spot reasons.
+
+Coach descriptors and schedule-stress scores are context-only until prospective validation demonstrates incremental wagering value. The deep game model already uses independent rest/travel/altitude features; persistent profiles provide continuity and explainability rather than a second unvalidated adjustment.
+
+Profile updates are timeout-safe: six independent five-team source shards merge into one short state-build step. Current profiles are written to D1 and R2, with immutable D1/R2 snapshots retained for audit.
