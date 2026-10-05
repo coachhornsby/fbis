@@ -470,6 +470,76 @@ async function upsertTeam(db,r){
   r.scheduleStressScore,JSON.stringify(r.scheduleFlags||[]),JSON.stringify(r.identity||{}),r.updatedAt,r.sourceUpdatedAt,JSON.stringify(r.source||{})
  ).run();
 }
+function stateEvidenceRank(source){
+ const s=String(source||"").toLowerCase();
+ if(s.includes("game-participation"))return 95;
+ if(s.includes("nfl-official"))return 90;
+ if(s.includes("roster"))return 30;
+ if(s.includes("persistent"))return 20;
+ return 10;
+}
+function eventIdForState(p){
+ return ["nfl-state",p.playerKey,p.healthState,p.practiceState||"none",p.stateSourceUpdatedAt||p.updatedAt]
+   .join(":").toLowerCase().replace(/[^a-z0-9:_-]+/g,"-").slice(0,240);
+}
+async function persistProfileHistory(db,{profile,states,schedule,prior}){
+ if(!db?.prepare)return;
+ const now=profile.updatedAt||new Date().toISOString();
+ const eventSql=`INSERT OR IGNORE INTO nfl_player_state_events
+  (id,player_key,player_name,team_key,event_type,health_state,practice_state,injury_detail,source,source_timestamp,evidence_rank,raw_json,created_at)
+  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+ const changed=[];
+ for(const p of states||[]){
+  const old=prior?.get?.(normName(p.playerName))||null;
+  const stateChanged=!old ||
+    String(old.health_state||"")!==String(p.healthState||"") ||
+    String(old.practice_state||"")!==String(p.practiceState||"") ||
+    String(old.injury_detail||"")!==String(p.injuryDetail||"") ||
+    String(old.state_source||"")!==String(p.stateSource||"");
+  if(!stateChanged)continue;
+  changed.push(db.prepare(eventSql).bind(
+    eventIdForState(p),p.playerKey,p.playerName,p.teamKey,
+    p.carriedState?"CARRIED_STATE":"STATE_UPDATE",p.healthState,p.practiceState,p.injuryDetail,
+    p.stateSource,p.stateSourceUpdatedAt||now,stateEvidenceRank(p.stateSource),JSON.stringify(p.raw||{}),now
+  ));
+ }
+ for(let i=0;i<changed.length;i+=75)await db.batch(changed.slice(i,i+75));
+
+ const coaches=[
+  ["HEAD_COACH",profile.headCoach],
+  ["OFFENSIVE_COORDINATOR",profile.offensiveCoordinator],
+  ["DEFENSIVE_COORDINATOR",profile.defensiveCoordinator],
+ ].filter(([,name])=>name);
+ if(coaches.length){
+  const sql=`INSERT OR IGNORE INTO nfl_team_coach_history
+   (id,team_key,season,coach_name,role,observed_at,source,raw_json,created_at)
+   VALUES (?,?,?,?,?,?,?,?,?)`;
+  await db.batch(coaches.map(([role,name])=>db.prepare(sql).bind(
+    ["nfl-coach",profile.season,profile.teamKey,role,normName(name)].join(":"),
+    profile.teamKey,profile.season,name,role,now,profile.coachSource||"espn",JSON.stringify(profile.source||{}),now
+  )));
+ }
+
+ const snapshot={
+  ...profile,
+  players:(states||[]).map(p=>({
+    playerKey:p.playerKey,playerName:p.playerName,position:p.position,depthRank:p.depthRank,roleLabel:p.roleLabel,
+    healthState:p.healthState,practiceState:p.practiceState,injuryDetail:p.injuryDetail,injuryType:p.injuryType,
+    expectedSnapShare:p.expectedSnapShare,stateConfidence:p.stateConfidence,stateSource:p.stateSource,
+    stateSourceUpdatedAt:p.stateSourceUpdatedAt,carriedState:p.carriedState,replacements:p.replacements||[],
+  })),
+  schedule:(schedule||[]).map(r=>({
+    eventId:r.eventId,startTime:r.start_time,opponentKey:r.opponentKey,site:r.site,daysRest:r.daysRest,
+    shortWeek:r.shortWeek,postBye:r.postBye,travelMiles:r.travelMiles,timeZonesCrossed:r.timeZonesCrossed,
+    international:r.international,scheduleStressScore:r.scheduleStressScore,stressFlags:r.stressFlags||[],
+  })),
+ };
+ const sid=["nfl-profile-snapshot",profile.season,profile.teamKey,now].join(":");
+ await db.prepare(`INSERT OR IGNORE INTO nfl_team_profile_snapshots
+   (id,team_key,season,as_of,profile_json,created_at) VALUES (?,?,?,?,?,?)`)
+   .bind(sid,profile.teamKey,profile.season,now,JSON.stringify(snapshot),now).run();
+}
+
 async function recordRun(db,r){
  if(!db?.prepare)return;
  await db.prepare(`INSERT OR REPLACE INTO nfl_profile_sync_runs
@@ -610,6 +680,7 @@ export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=
 
   const [pWrite,sWrite]=await Promise.all([upsertPlayers(env.DB,states),upsertSchedule(env.DB,schedule)]);
   await upsertTeam(env.DB,profile);
+  await persistProfileHistory(env.DB,{profile,states,schedule,prior});
   await recordRun(env.DB,{id:runId,season,teamKey:profile.teamKey,status:"SUCCESS",source:NFL_PROFILE_SOURCE,startedAt,completedAt:new Date().toISOString(),rosterRows:roster.length,scheduleRows:schedule.length,injuryRows:availability.length,playerRowsUpserted:pWrite.rows,scheduleRowsUpserted:sWrite.rows,meta:{nextGame:next?.eventId||null,coachRows:coaches.found.length}});
 
   return{ok:true,team:team.abbr,season,profile,players:states.length,schedule:schedule.length,injuryObservations:availability.length,coaches:{headCoach:profile.headCoach,offensiveCoordinator:profile.offensiveCoordinator,defensiveCoordinator:profile.defensiveCoordinator}};
