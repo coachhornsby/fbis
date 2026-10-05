@@ -194,3 +194,64 @@
   letter-spacing: .015em !important;
   color: #d3e8fb !important;
 }
+
+/* Best Edge / venue alignment pass.
+   Main row uses a wider decision rail; venue/conditions align only beneath the matchup column. */
+.fbis-shell-main.route-board .cgc {
+  --cgc-edge-rail: 142px;
+  --cgc-main-gap: 14px;
+}
+.fbis-shell-main.route-board .cgc-main {
+  grid-template-columns: minmax(0,1fr) var(--cgc-edge-rail) !important;
+  gap: var(--cgc-main-gap) !important;
+}
+.fbis-shell-main.route-board .cgc-best-edge {
+  min-height: 150px !important;
+  padding: 14px 12px !important;
+  border-width: 2px !important;
+  border-color: rgba(0, 238, 160, .62) !important;
+  border-radius: 15px !important;
+  background: linear-gradient(180deg, rgba(0,111,78,.28), rgba(2,24,31,.84)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 0 18px rgba(0,232,148,.09) !important;
+}
+.fbis-shell-main.route-board .cgc-best-edge > span:first-child {
+  font-size: 11.5px !important;
+  font-weight: 950 !important;
+}
+.fbis-shell-main.route-board .cgc-best-edge > strong {
+  font-size: 36px !important;
+  font-weight: 950 !important;
+}
+.fbis-shell-main.route-board .cgc-best-edge > b {
+  font-size: 14px !important;
+  font-weight: 950 !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+.fbis-shell-main.route-board .cgc-best-edge > small {
+  font-size: 10px !important;
+  font-weight: 950 !important;
+}
+.fbis-shell-main.route-board .cgc-best-edge .cgc-edge-logo .team-logo {
+  width: 54px !important;
+  height: 54px !important;
+}
+.fbis-shell-main.route-board .cgc-conditions {
+  width: calc(100% - var(--cgc-edge-rail) - var(--cgc-main-gap)) !important;
+  box-sizing: border-box !important;
+  align-self: flex-start !important;
+  margin-right: auto !important;
+}
+
+@media (max-width: 560px) {
+  .fbis-shell-main.route-board .cgc {
+    --cgc-edge-rail: 112px;
+    --cgc-main-gap: 8px;
+  }
+  .fbis-shell-main.route-board .cgc-best-edge {
+    min-height: 136px !important;
+    padding: 11px 8px !important;
+  }
+  .fbis-shell-main.route-board .cgc-best-edge > strong { font-size: 30px !important; }
+  .fbis-shell-main.route-board .cgc-best-edge > b { font-size: 12px !important; }
+}
