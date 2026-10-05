@@ -1,4 +1,5 @@
 name: NBA persistent team profiles
+# Full-season source: preseason + regular season, six restartable shards.
 
 on:
   push:
