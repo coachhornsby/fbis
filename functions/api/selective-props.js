@@ -1,4 +1,4 @@
-import { rankSelectiveProps, selectivePropStars } from "../lib/selectivePropEdge.js";
+import { estimatedPropHitProbability, prizePicksTierEconomics, rankSelectiveProps, selectivePropStars } from "../lib/selectivePropEdge.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -38,8 +38,14 @@ export function latestByCandidate(rows = []) {
   }
   return out;
 }
+function rawPayload(row = {}) {
+  try { return row.raw_json ? JSON.parse(row.raw_json) : {}; }
+  catch { return {}; }
+}
 function normalizedRows(rows = []) {
-  return latestByCandidate(rows).map((row) => ({
+  return latestByCandidate(rows).map((row) => {
+    const raw = rawPayload(row);
+    return ({
     ...row,
     eventId: row.fbis_event_id || row.game_id,
     playerId: row.player_id,
@@ -57,7 +63,17 @@ function normalizedRows(rows = []) {
     statType: row.canonical_market || row.stat_type || null,
     modelSource: row.model_source,
     modelVersion: row.model_version,
-  }));
+    payoutBreakEvenProbability:
+      raw.payout_break_even_probability ??
+      raw.break_even_probability ??
+      raw.payoutBreakEvenProbability ??
+      raw.breakEvenProbability ??
+      null,
+    payoutCalibrationValidated:
+      raw.payout_calibration_validated === true ||
+      raw.payoutCalibrationValidated === true,
+  });
+  });
 }
 
 function is49ersTargetRole(row = {}) {
@@ -108,6 +124,8 @@ export function groupKey(row = {}) {
 function strongestByGroup(rows = []) {
   const map = new Map();
   for (const row of rows) {
+    // Unpriced Demon/Goblin variants cannot represent a group in Top-25.
+    if (row.prizePicksEconomics?.rankingEligible === false) continue;
     const key = groupKey(row);
     const prev = map.get(key);
     if (!prev) { map.set(key, row); continue; }
@@ -127,6 +145,8 @@ function rankAllProjected(rows = []) {
     const edge = projection - line;
     const standardizedEdge = sigma != null && sigma > 0 ? Math.abs(edge) / sigma : null;
     const relativeEdge = Math.abs(edge) / Math.max(Math.abs(line), 1);
+    const estimatedHitProbability = estimatedPropHitProbability(row);
+    const prizePicksEconomics = prizePicksTierEconomics(row, estimatedHitProbability);
     return {
       ...row,
       edge,
@@ -134,6 +154,8 @@ function rankAllProjected(rows = []) {
       confidenceStars: stars,
       standardizedEdge,
       relativeEdge,
+      estimatedHitProbability,
+      prizePicksEconomics,
       selectionScore:
         stars * 100 +
         (standardizedEdge ?? relativeEdge * 5) * 10,
@@ -163,7 +185,7 @@ export async function onRequestGet(context) {
   const sql =
     "SELECT id,run_id,projection_id,fbis_event_id,sport,league,player_id,player_name,player_headshot_url," +
     " team,opponent,game_id,start_time,stat_type,canonical_market,line,odds_tier,duration," +
-    " fbis_projection,fbis_sigma,delta_fbis_minus_line,candidate_side,role_confidence,snap_share,prop_gate,eligible_for_card,feature_evidence_json,model_source,model_version,observed_at,collected_at" +
+    " fbis_projection,fbis_sigma,delta_fbis_minus_line,candidate_side,role_confidence,snap_share,prop_gate,eligible_for_card,feature_evidence_json,model_source,model_version,observed_at,collected_at,raw_json" +
     " FROM prizepicks_prop_lines WHERE " + where.join(" AND ") +
     " ORDER BY collected_at DESC LIMIT 5000";
 
@@ -204,7 +226,7 @@ export async function onRequestGet(context) {
       concentrationLimits: false,
       lineRole: "comparison-only",
       tiers: ["standard","goblin","demon"],
-      note: "Top 25 player/market groups ranked by their strongest current PrizePicks tier edge; all available Standard, Goblin and Demon variants are returned for each selected group.",
+      note: "Top 25 player/market groups are ranked only by economically comparable tiers. Standard lines qualify normally; unpriced Goblin/Demon variants remain visible inside selected groups but cannot create or represent a Top-25 group.",
     };
   }
 
