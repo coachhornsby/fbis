@@ -20,7 +20,7 @@ import { attachSoccerV2Research } from "./soccerFbisV2.js";
 import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
 import { attachMlbPostseasonContext, loadMlbPostseasonContext } from "./mlbPostseasonContext.js";
 import { loadMlbPitchMatchupContext } from "./mlbPitchMatchupFeed.js";
-import { loadMlbPersistentState, buildPersistentBullpenFeed, attachMlbPersistentState } from "./mlbPersistentProfiles.js";
+import { loadMlbPersistentState, buildPersistentBullpenFeed, attachMlbPersistentState, attachMlbPersistentFeatureContext } from "./mlbPersistentProfiles.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
 import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
@@ -76,17 +76,18 @@ export async function buildSlate(sport, date, env = {}) {
       meta: { configured: false, error: String(err?.message || err) },
     }));
     const persistentGames = attachMlbPersistentState(slate.games || [], persistent);
-    const persistentBullpen = buildPersistentBullpenFeed(persistentGames, persistent);
+    const featureGames = attachMlbPersistentFeatureContext(persistentGames, persistent);
+    const persistentBullpen = buildPersistentBullpenFeed(featureGames, persistent);
     const usePersistentBullpen = persistentBullpen.meta.available > 0 || Boolean(env?.DB?.prepare);
     const bullpen = usePersistentBullpen
       ? persistentBullpen
-      : await loadMlbBullpenContext(persistentGames, env).catch((err) => ({
+      : await loadMlbBullpenContext(featureGames, env).catch((err) => ({
           byTeamId: {}, meta: { source: "MLB Stats relief split", teams: 0, available: 0, error: String(err?.message || err), marketInformed: false },
         }));
 
     // Production board requests consume one batched persistent D1 state read.
     // Expensive MLB Stats/Statcast fanout belongs to scheduled profile refreshes.
-    const baseEnriched = attachMlbBullpenContext(persistentGames, bullpen).map((game) => {
+    const baseEnriched = attachMlbBullpenContext(featureGames, bullpen).map((game) => {
       const pal = game.bpp || {};
       const parkRunsPct = Number(pal.park?.runsPct);
       const parkHrPct = Number(pal.park?.hrPct);
