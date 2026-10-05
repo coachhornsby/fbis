@@ -249,7 +249,8 @@ function baseballAsiaFactors(game, sport) {
       hera!=null&&aera!=null?Math.abs(round(hera-aera,2)):null,
       `${abbr(game,"home")} ${hs?.name||"starter"} ERA ${hera??"—"} · ${abbr(game,"away")} ${as?.name||"starter"} ERA ${aera??"—"}`,src));
   }
-  addPair("run-prevention","Run prevention",h.preventionFactor,a.preventionFactor,"🧱");\n  addPair("bullpen","Bullpen / run prevention",finite(h.bullpenEra)==null?null:-finite(h.bullpenEra),finite(a.bullpenEra)==null?null:-finite(a.bullpenEra),"🧱");
+  addPair("run-prevention","Run prevention",h.preventionFactor,a.preventionFactor,"🧱");
+  addPair("bullpen","Bullpen / run prevention",finite(h.bullpenEra)==null?null:-finite(h.bullpenEra),finite(a.bullpenEra)==null?null:-finite(a.bullpenEra),"🧱");
   addPair("lineup","Lineup strength",h.lineupFactor,a.lineupFactor,"💥");
   addPair("form","Recent form",h.recentFactor,a.recentFactor,"📈");
   const park=finite(h.parkFactor ?? a.parkFactor);
