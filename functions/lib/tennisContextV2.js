@@ -4,7 +4,7 @@
  * Research-only: no source in this file can authorize a wager.
  */
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 
 export const TENNIS_CONTEXT_VERSION="v2-context-1";
 
