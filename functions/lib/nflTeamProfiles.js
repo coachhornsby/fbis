@@ -692,30 +692,42 @@ export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=
 }
 
 export async function loadNflTeamProfiles(db,teamKeys=[]){
- if(!db?.prepare)return{teams:{},players:{}};
+ if(!db?.prepare)return{teams:{},players:{},schedule:{}};
  const keys=[...new Set((teamKeys||[]).map(x=>String(x||"").toLowerCase()).filter(Boolean))];
- if(!keys.length)return{teams:{},players:{}};
+ if(!keys.length)return{teams:{},players:{},schedule:{}};
  const marks=keys.map(()=>"?").join(",");
- const [tr,pr]=await Promise.all([
+ const [tr,pr,sr]=await Promise.all([
   queryRows(db,`SELECT * FROM nfl_team_profiles WHERE team_key IN (${marks})`,...keys),
   queryRows(db,`SELECT * FROM nfl_player_profiles WHERE team_key IN (${marks})`,...keys),
+  queryRows(db,`SELECT * FROM nfl_team_schedule_profile WHERE team_key IN (${marks}) ORDER BY start_time ASC`,...keys),
  ]);
  return{
   teams:Object.fromEntries(tr.map(r=>[r.team_key,r])),
   players:Object.fromEntries(keys.map(k=>[k,pr.filter(r=>r.team_key===k)])),
+  schedule:Object.fromEntries(keys.map(k=>[k,sr.filter(r=>r.team_key===k)])),
  };
+}
+
+function compactScheduleContext(rows=[],nowMs=Date.now()){
+ const upcoming=(rows||[]).filter(r=>Date.parse(r.start_time||0)>=nowMs).slice(0,8);
+ const weakSpots=upcoming.filter(r=>Number(r.schedule_stress_score||0)>=.2)
+   .sort((a,b)=>Number(b.schedule_stress_score||0)-Number(a.schedule_stress_score||0))
+   .slice(0,5);
+ return {upcoming,weakSpots};
 }
 
 export function attachNflPersistentProfiles(games=[],profiles={}){
  return (games||[]).map(game=>{
   const hk=teamKey(game?.home?.abbr),ak=teamKey(game?.away?.abbr);
   const home=profiles?.teams?.[hk]||null,away=profiles?.teams?.[ak]||null;
+  const hs=compactScheduleContext(profiles?.schedule?.[hk]||[]);
+  const as=compactScheduleContext(profiles?.schedule?.[ak]||[]);
   return{
    ...game,
    nflPersistentProfile:{
     version:NFL_PROFILE_VERSION,
-    home:home?{...home,players:profiles?.players?.[hk]||[]}:null,
-    away:away?{...away,players:profiles?.players?.[ak]||[]}:null,
+    home:home?{...home,players:profiles?.players?.[hk]||[],schedule:hs}:null,
+    away:away?{...away,players:profiles?.players?.[ak]||[],schedule:as}:null,
     configured:Boolean(home&&away),
     researchOnlyScheduleStress:true,
    },
