@@ -1,0 +1,52 @@
+name: Soccer-FBIS-v3 market replay
+
+on:
+  workflow_run:
+    workflows: ["Soccer-FBIS-v3 walk-forward"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: soccer-v3-market-replay
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Download frozen no-vig market sample
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/legacy-market
+          gh run download 37186030331 -n soccer-market-benchmark-37186030331 -D artifacts/legacy-market
+          test -s artifacts/legacy-market/soccer-market-benchmark-rows.jsonl
+      - name: Download latest successful v3 walk-forward
+        run: |
+          set -euo pipefail
+          run_id="$(gh run list --workflow soccer-v3-walkforward.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$run_id"
+          mkdir -p artifacts/v3
+          gh run download "$run_id" -n "soccer-v3-walkforward-$run_id" -D artifacts/v3
+          test -s artifacts/v3/soccer-v3-walkforward-rows.jsonl
+      - name: Replay v3 on frozen market observations
+        run: node scripts/soccer-v3-market-replay.mjs
+      - name: Show replay report
+        run: jq . artifacts/soccer-v3-market-replay.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soccer-v3-market-replay-${{ github.run_id }}
+          path: |
+            artifacts/soccer-v3-market-replay.json
+            artifacts/soccer-v3-market-replay-rows.jsonl
+          retention-days: 90
