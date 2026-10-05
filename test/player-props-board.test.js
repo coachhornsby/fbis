@@ -542,3 +542,30 @@ test("visible tennis cards require a real headshot URL", () => {
   assert.equal(board.counts.hiddenTennisWithoutHeadshot,1);
   assert.ok(board.rows.every(r=>r.sport!=="tennis"||Boolean(r.imageUrl)));
 });
+
+
+test("PrizePicks Demon/Goblin star cap is platform-wide on non-NFL player props", () => {
+  const standard=withFbisPropAnalytics({
+    sport:"wnba",
+    marketCanonical:"points",
+    line:20.5,
+    fbisProjection:30,
+    fbisSigma:4,
+    odds_tier:"standard",
+    propGate:"CLEAR",
+    eligibleForCard:true,
+  });
+  const demon=withFbisPropAnalytics({
+    sport:"wnba",
+    marketCanonical:"points",
+    line:30.5,
+    fbisProjection:20,
+    fbisSigma:4,
+    odds_tier:"demon",
+    propGate:"CLEAR",
+    eligibleForCard:true,
+  });
+  assert.equal(standard.confidenceStars,5);
+  assert.ok(demon.confidenceStars<=2);
+  assert.equal(demon.prizePicksEconomics.status,"ALTERNATE_TIER_PAYOUT_UNPRICED");
+});
