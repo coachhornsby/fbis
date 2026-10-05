@@ -170,3 +170,34 @@ export async function loadPitchApiPlayerHistory(env,{playerIds=[],beforeDate,sta
     WHERE player_id IN (${qs}) AND match_date>=? AND match_date<? ORDER BY match_date`).bind(...ids,startDate,beforeDate||"9999-12-31").all();
   return r?.results||[];
 }
+
+export function pitchApiRowToGame(row={}){
+  return {
+    id:String(row.pitch_match_id||""),
+    date:row.match_date||null,
+    start:row.start_time||row.match_date||null,
+    status:row.status||null,
+    soccerLeague:String(row.league_key||""),
+    league:String(row.league_key||""),
+    source:"pitchapi:d1",
+    home:{id:row.home_team_id,name:row.home_team_name,displayName:row.home_team_name},
+    away:{id:row.away_team_id,name:row.away_team_name,displayName:row.away_team_name},
+    homeScore:n(row.home_score),awayScore:n(row.away_score),
+    homeShotsOnTarget:n(row.home_sot),awayShotsOnTarget:n(row.away_sot),
+    homePossession:n(row.home_possession),awayPossession:n(row.away_possession),
+    homeXg:n(row.home_xg),awayXg:n(row.away_xg),
+    homePpda:n(row.home_ppda),awayPpda:n(row.away_ppda),
+    pitchLeagueId:row.pitch_league_id||null,pitchLeagueName:row.pitch_league_name||null,
+  };
+}
+export async function loadPitchApiBoardFixtures(env,{date}={}){
+  const db=env?.DB;if(!db?.prepare||!date)return[];
+  const r=await db.prepare(`SELECT f.* FROM soccer_pitchapi_match_features f
+    JOIN soccer_competition_coverage c ON c.heritage_key=f.league_key
+    WHERE f.match_date=? AND c.discovery_status='MATCHED' AND c.model_eligible=1
+    ORDER BY f.start_time,f.pitch_match_id`).bind(String(date).slice(0,10)).all();
+  return (r?.results||[]).map(pitchApiRowToGame);
+}
+export function pitchApiHistoryToGames(rows=[]){
+  return rows.map(pitchApiRowToGame).filter(g=>g.id&&g.date);
+}
