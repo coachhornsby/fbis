@@ -304,7 +304,12 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
     exp?fetchJson(`${STATS}/goalie/summary?isAggregate=false&isGame=false&start=0&limit=-1&cayenneExp=${exp}`):Promise.resolve({ok:false,data:{}}),
     fetchJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams/${espn}/roster`,{timeoutMs:4000}),
    ]);
-   const games=scheduleGames(schedule.data||{}),completed=games.filter(g=>Number(g.gameType)===2&&["OFF","FINAL"].includes(g.state)).sort((a,b)=>Date.parse(b.start)-Date.parse(a.start)).slice(0,2);
+   const games=scheduleGames(schedule.data||{});
+   const completedReg=games.filter(g=>Number(g.gameType)===2&&["OFF","FINAL"].includes(g.state)).sort((a,b)=>Date.parse(b.start)-Date.parse(a.start));
+   const completedAny=games.filter(g=>["OFF","FINAL"].includes(g.state)).sort((a,b)=>Date.parse(b.start)-Date.parse(a.start));
+   const completed=(completedReg.length?completedReg:completedAny).slice(0,2);
+   const upcoming=games.filter(g=>Date.parse(g.start)>Date.now()).sort((a,b)=>Date.parse(a.start)-Date.parse(b.start))[0]||null;
+   const pregameEligible=upcoming&&Date.parse(upcoming.start)-Date.now()<=18*3600000;
    const detail=await Promise.all(completed.map(async g=>{
     const [shifts,box]=await Promise.all([
      fetchJson(`${STATS}/shiftcharts?limit=-1&cayenneExp=${encodeURIComponent(`gameId=${g.id}`)}`,{timeoutMs:5000}),
@@ -312,14 +317,17 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
     ]);
     return{game:g,shifts,box};
    }));
-   return{directory,teamInfo,roster,schedule,summary,timeonice,goalies,coach,games,detail};
+   const pregameBox=pregameEligible
+    ? await fetchJson(sourceUrl(`gamecenter/${upcoming.id}/boxscore`),{timeoutMs:4000})
+    : {ok:false,data:null};
+   return{directory,teamInfo,roster,schedule,summary,timeonice,goalies,coach,games,detail,upcoming,pregameBox};
   })());
   if(sources?.__timeout)throw new Error("PROFILE_SOURCE_TOTAL_BUDGET_EXCEEDED");
   const roster=parseRoster(sources.roster?.data||{});
   if(!roster.length)throw new Error("OFFICIAL_ROSTER_EMPTY");
   const scheduleRows=buildNhlScheduleProfile(sources.games,team,seasonId,now.getTime());
   const summaryById=statByPlayer(sources.summary?.data||{}),timeById=statByPlayer(sources.timeonice?.data||{});
-  const latest=sources.detail?.[0]||null,scratches=scratchIds(latest?.box?.data||{}),starterIds=goalieStarterIds(latest?.box?.data||{});
+  const latest=sources.detail?.[0]||null,lastGameScratches=scratchIds(latest?.box?.data||{}),currentScratches=scratchIds(sources.pregameBox?.data||{}),starterIds=goalieStarterIds(latest?.box?.data||{});
   const shiftSets=(sources.detail||[]).map(d=>({gameId:d.game.id,rows:parseShiftRows(d.shifts?.data||{},team)}));
   const deploy=deploymentFromShifts(roster,shiftSets),units=ppPkUnits(roster,timeById);
   const [existing,availRows]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(DB,tkey)]);
@@ -327,8 +335,9 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
   const players=roster.map(p=>{
    const stat=summaryById.get(p.id)||{},toi=timeById.get(p.id)||{},role=deploy.lines.get(p.id)||{},unit=units.get(p.id)||{},prior=priorById.get(p.id)||null;
    const av=availability.get(p.id)||availability.get(p.name.toLowerCase())||null,officialState=normalizedAvailability(av);
-   const scratch=scratches.has(p.id),availabilityState=scratch?"CONFIRMED_SCRATCH":officialState||"AVAILABLE";
-   const gameState=scratch?"CONFIRMED_SCRATCH":["OUT","IR"].includes(availabilityState)?"OUT":"EXPECTED_ACTIVE";
+   const currentScratch=currentScratches.has(p.id),lastGameScratch=lastGameScratches.has(p.id);
+   const availabilityState=currentScratch?"CONFIRMED_SCRATCH":officialState||(lastGameScratch?"SCRATCHED_LAST_GAME":"AVAILABLE");
+   const gameState=currentScratch?"CONFIRMED_SCRATCH":["OUT","IR"].includes(availabilityState)?"OUT":lastGameScratch?"RETURN_PENDING":"EXPECTED_ACTIVE";
    const games=Math.max(1,finite(stat.gamesPlayed)||1),lastToi=(deploy.toi.get(p.id)||0)/Math.max(1,deploy.gamesByPlayer.get(p.id)||1);
    const rollToi=lastToi||durationSeconds(toi.timeOnIcePerGame)||finite(prior?.rolling_toi_seconds)||null;
    return{
@@ -339,8 +348,9 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
     rollingToiSeconds:round(rollToi,1),rollingPpToiSeconds:durationSeconds(toi.powerPlayTimeOnIcePerGame),
     shotsPerGame:finite(stat.shotsPerGame)??((finite(stat.shots)||0)/games),pointsPerGame:finite(stat.pointsPerGame)??((finite(stat.points)||0)/games),
     roleConfidence:shiftSets.some(x=>x.rows.length)?clamp(.62+.08*shiftSets.length,0,.82):.48,
-    stateConfidence:stateConfidence(availabilityState,true),source:scratch?"NHL_GAMECENTER_SCRATCHES":officialState?"PLAYER_AVAILABILITY_OBSERVATION":"NHL_CURRENT_ROSTER",
-    sourceUpdatedAt:av?.observed_at||now.toISOString(),carriedState:false,replacements:[],linemates:[],raw:{roster:p.raw,summary:stat,timeonice:toi}
+    stateConfidence:lastGameScratch&&!currentScratch&&!officialState?.72:stateConfidence(availabilityState,true),
+    source:currentScratch?"NHL_GAMECENTER_CURRENT_SCRATCH":officialState?"PLAYER_AVAILABILITY_OBSERVATION":lastGameScratch?"NHL_GAMECENTER_LAST_GAME_SCRATCH":"NHL_CURRENT_ROSTER",
+    sourceUpdatedAt:av?.observed_at||now.toISOString(),carriedState:false,replacements:[],linemates:[],raw:{roster:p.raw,summary:stat,timeonice:toi,currentScratch,lastGameScratch}
    };
   });
   for(const p of players)p.replacements=replacementMap(p,players);
@@ -377,7 +387,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
   const deploymentRows=players.filter(p=>!p.carriedState).map(p=>({
    id:`nhl:deploy:${latest?.game?.id||"current"}:${tkey}:${p.playerId}`,gameId:latest?.game?.id||"current",gameStart:latest?.game?.start||null,teamKey:tkey,
    playerId:p.playerId,playerName:p.playerName,position:p.position,evLine:p.evLine,dPair:p.dPair,ppUnit:p.ppUnit,pkUnit:p.pkUnit,
-   toiSeconds:p.lastToiSeconds,scratch:p.gameState==="CONFIRMED_SCRATCH",observedAt:now.toISOString(),raw:{source:p.source}
+   toiSeconds:p.lastToiSeconds,scratch:Boolean(p.raw?.lastGameScratch),observedAt:now.toISOString(),raw:{source:p.source,currentGameState:p.gameState}
   }));
   const coach=parseCoach(sources.coach?.data||{});
   const next=nextGame(scheduleRows,now.getTime()),counts={
