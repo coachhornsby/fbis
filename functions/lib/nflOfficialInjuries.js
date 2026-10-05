@@ -17,6 +17,7 @@
 import nflTeams from "../../data/teams/nfl.js";
 import { normalizeAvailabilityRecord } from "./availability.js";
 import { persistAvailabilityObservations, setMeta } from "./store.js";
+import { applyNflAvailabilityToProfiles } from "./nflTeamProfiles.js";
 
 export const NFL_OFFICIAL_INJURY_URL="https://www.nfl.com/injuries/";
 
@@ -193,6 +194,9 @@ export async function syncNflOfficialInjuries(env={}){
       return {ok:false,status:"FAILED",source:"nfl-official",httpStatus:res.status,fetched:0,normalized:0,inserted:0,already:0,failed:0,reason};
     }
     const persisted=await persistAvailabilityObservations(env,rows);
+    const profileUpdate=persisted.ok
+      ? await applyNflAvailabilityToProfiles(env,rows).catch((err)=>({ok:false,updated:0,reason:String(err?.message||err)}))
+      : {ok:false,updated:0,reason:"availability-persist-failed"};
     if(persisted.ok){
       await setMeta(env,"last_nfl_official_injury_success_at",observedAt).catch(()=>{});
       await setMeta(env,"last_nfl_official_injury_records",String(rows.length)).catch(()=>{});
@@ -210,6 +214,9 @@ export async function syncNflOfficialInjuries(env={}){
       inserted:persisted.inserted||0,
       already:persisted.already||0,
       failed:persisted.failed||0,
+      profileUpdated:profileUpdate.updated||0,
+      profileUpdateOk:profileUpdate.ok===true,
+      profileUpdateReason:profileUpdate.reason||null,
       reason:persisted.reason||null,
       observedAt,
       sourceUrl:NFL_OFFICIAL_INJURY_URL,
