@@ -10,6 +10,7 @@ const historicalImpact=args.historicalImpact||"artifacts/frozen/nba-player-impac
 const availabilityFile=args.availability||"artifacts/nba-availability.json";
 const coverageFile=args.coverage||"artifacts/nba-availability-coverage.json";
 const priorStatesFile=args.priorStates||"artifacts/nba-player-states-prior.json";
+const lineupsFile=args.lineups||"artifacts/nba-official-lineups.json";
 const lineupFile=args.lineups||"artifacts/frozen/nba-lineup-effects.json";
 const out=args.out||"artifacts/nba-player-impact-live.json";
 const sqlOut=args.sql||"artifacts/nba-player-impact-live.sql";
@@ -30,6 +31,7 @@ const flattenRows=x=>Array.isArray(x)
 const availability=flattenRows(availRaw);
 const coverage=flattenRows(readJson(coverageFile));
 const priorStates=flattenRows(readJson(priorStatesFile));
+const lineupRows=flattenRows(readJson(lineupsFile));
 const hist=new Map(),latest=new Map(),teamAbbrById=new Map();
 for(const g of games){
   if(g.homeId)teamAbbrById.set(String(g.homeId),g.home?.abbr||teamAbbrById.get(String(g.homeId))||null);
@@ -54,7 +56,14 @@ function latestAvailability(player){
       _ts:a.state_source_timestamp||a.as_of||a.updated_at,_carried:true,
       state_confidence:a.state_confidence
     }));
-  return [...rows,...prior]
+  const confirmed=lineupRows.filter(a=>(a.player_id&&String(a.player_id)===String(player.id))||String(a.player_name||"").toLowerCase()===String(player.name||"").toLowerCase())
+    .filter(a=>["STARTER","ACTIVE","CONFIRMED_ACTIVE","BENCH"].includes(String(a.lineup_status||"").toUpperCase()))
+    .map(a=>({
+      player_id:a.player_id,player_name:a.player_name,status:"AVAILABLE",
+      injury_detail:null,source:"CONFIRMED_LINEUP",
+      observed_at:a.observed_at,_ts:a.observed_at,_carried:false,state_confidence:.99
+    }));
+  return [...rows,...prior,...confirmed]
     .filter(a=>!a._ts||Date.parse(a._ts)<=Date.parse(asOf))
     .sort((a,b)=>Date.parse(b._ts||0)-Date.parse(a._ts||0))[0]||null;
 }
