@@ -3,6 +3,14 @@ name: Availability sync
 on:
   schedule:
     - cron: "37 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nflOfficialInjuries.js"
+      - "functions/lib/availability.js"
+      - "functions/lib/proPlayerProjectionLayer.js"
+      - "functions/api/availability-sync.js"
+      - ".github/workflows/availability-sync.yml"
   workflow_dispatch:
 
 concurrency:
