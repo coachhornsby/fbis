@@ -31,16 +31,19 @@ export default function MatchupFactors({ game }) {
   const sport = String(game?.sport || "").toLowerCase();
   const matchup = sport === "nfl" ? game?.nflGameMatchup : null;
   const matchupSignals = Array.isArray(matchup?.signals) ? matchup.signals : [];
-  const factors = matchupSignals.length
-    ? matchupSignals.map((s) => ({
-        id: s.id,
-        label: s.label,
-        edge: !s.available ? "UNAVAILABLE" : Math.abs(Number(s.adjustment) || 0) < 0.15 ? "EVEN" : Number(s.adjustment) > 0 ? game?.home?.abbr : game?.away?.abbr,
-        value: s.available ? (Number(s.adjustment) > 0 ? "+" : "") + Number(s.adjustment || 0).toFixed(1) : null,
-        detail: null,
-        source: "GAME MATCHUP ENGINE",
-      }))
+  const gameSpecific = matchupSignals.filter((s) => s?.available).map((s) => ({
+    id: `game-${s.id}`,
+    label: s.label,
+    edge: Math.abs(Number(s.adjustment) || 0) < 0.15 ? "EVEN" : Number(s.adjustment) > 0 ? game?.home?.abbr : game?.away?.abbr,
+    value: (Number(s.adjustment) > 0 ? "+" : "") + Number(s.adjustment || 0).toFixed(1),
+    detail: s.evidence || null,
+    source: "GAME MATCHUP ENGINE",
+  }));
+  const covered = new Set(gameSpecific.map((f) => String(f.id).replace(/^game-/, "")));
+  const supplemental = sport === "nfl"
+    ? legacyFactors.filter((f) => !covered.has(String(f.id)))
     : legacyFactors;
+  const factors = sport === "nfl" ? [...gameSpecific, ...supplemental] : legacyFactors;
   return (
     <section className={`matchup-factors${sport === "nfl" ? " matchup-factors-nfl" : ""}`} aria-label="Matchup factors">
       <div className="matchup-factors-head">
@@ -48,7 +51,7 @@ export default function MatchupFactors({ game }) {
           <span className="matchup-factors-kicker">FBIS ANALYSIS</span>
           <h2>{sport === "nfl" ? "Why FBIS Sees This Game This Way" : titleForSport(sport)}</h2>
         </div>
-        <span className="matchup-factors-count">{sport === "nfl" && matchup?.coverage ? `${matchup.coverage.available}/${matchup.coverage.total} signals · ${matchup.adjustment?.evidenceQualified ? "qualified" : "analysis only"}` : factors.length ? `${factors.length} published` : "Awaiting model factors"}</span>
+        <span className="matchup-factors-count">{sport === "nfl" && matchup?.coverage ? `${factors.length} published · ${matchup.coverage.available}/${matchup.coverage.total} game-specific · ${matchup.adjustment?.evidenceQualified ? "qualified" : "analysis only"}` : factors.length ? `${factors.length} published` : "Awaiting model factors"}</span>
       </div>
       {sport === "nfl" && matchup?.ok ? (
         <div className="matchup-factors-summary">
