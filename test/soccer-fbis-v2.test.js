@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { persistSoccerMatch } from "../functions/lib/store.js";
 import {
   buildSoccerV2State,
   projectSoccerV2,
@@ -102,4 +103,26 @@ test("optional advanced features are additive, not required",()=>{
   },noAdvanced);
   assert.equal(p.ok,true);
   assert.equal(p.uncertainty.advancedCoverage,0);
+});
+
+
+test("canonical soccer persistence binds v2 advanced columns exactly",async()=>{
+  let captured=null;
+  const env={DB:{prepare(sql){return{bind(...args){
+    captured={sql,args};
+    assert.equal((sql.match(/\\?/g)||[]).length,args.length);
+    return{run:async()=>({meta:{changes:1}})};
+  }}}}};
+  const r=await persistSoccerMatch(env,{
+    id:"evt",eventId:"evt",league:"eng.1",season:2026,date:"2026-09-01",
+    home:{espnId:"1",name:"Alpha"},away:{espnId:"2",name:"Beta"},
+    homeScore:2,awayScore:1,homeXg:1.8,awayXg:0.7,homePpda:8.2,awayPpda:12.4,
+    homeDeepCompletions:9,awayDeepCompletions:4,homeExpectedPoints:2.1,awayExpectedPoints:0.6,
+    advancedSource:"espn-summary",advancedObservedAt:"2026-09-01T22:00:00Z"
+  });
+  assert.equal(r.ok,true);
+  assert.match(captured.sql,/home_xg/);
+  assert.match(captured.sql,/advanced_source/);
+  assert.ok(captured.args.includes(1.8));
+  assert.ok(captured.args.includes("espn-summary"));
 });
