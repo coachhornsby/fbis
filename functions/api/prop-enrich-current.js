@@ -20,7 +20,7 @@ async function currentRows(db,sport,date,limit){
       ) rn
       FROM prizepicks_prop_lines
       WHERE lower(sport)=? AND substr(start_time,1,10)=?
-        AND fbis_projection IS NULL AND line IS NOT NULL
+        AND fbis_projection IS NULL AND line IS NOT NULL\n        AND (model_source IS NULL OR model_source NOT LIKE 'ENRICH_UNAVAILABLE:%')
         AND lower(coalesce(odds_tier,'standard'))='standard'
         AND lower(coalesce(duration,'full'))='full'
     )
@@ -98,7 +98,11 @@ export async function onRequestPost(context){
   for(const row of rows){
     const r=sport==="tennis"?await enrichTennis(context.env.DB,row):await enrichSoccer(context.env.DB,row);
     if(r.ok){projected++;updated+=r.changed||0}
-    else failures[r.reason||"unknown"]=(failures[r.reason||"unknown"]||0)+1;
+    else {
+      const reason=r.reason||"unknown"; failures[reason]=(failures[reason]||0)+1;
+      await context.env.DB.prepare("UPDATE prizepicks_prop_lines SET model_source=? WHERE lower(sport)=? AND substr(start_time,1,10)=? AND lower(player_name)=? AND lower(canonical_market)=? AND lower(coalesce(duration,'full'))='full' AND fbis_projection IS NULL")
+        .bind("ENRICH_UNAVAILABLE:"+reason,sport,date,String(row.player_name).toLowerCase(),String(row.canonical_market).toLowerCase()).run();
+    }
   }
   return json({ok:true,sport,date,attempted:rows.length,projected,updated,failures,remainingHint:rows.length===limit});
 }
