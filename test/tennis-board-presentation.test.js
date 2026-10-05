@@ -56,6 +56,23 @@ test("tennis TODAY cards carry full identity, rankings, headshots, market lines 
     public_ticket_pct: 61,
     public_money_pct: 72,
     money_minus_ticket_pct: 11,
+    spread_player1_line: -3.5,
+    spread_player2_line: 3.5,
+    spread_player1_price: -108,
+    spread_player2_price: -112,
+    spread_player1_no_vig: 0.495,
+    spread_player2_no_vig: 0.505,
+    spread_ticket_pct: 47,
+    spread_money_pct: 58,
+    spread_money_ticket_gap: 11,
+    total_line: 22.5,
+    over_price: -105,
+    under_price: -115,
+    over_no_vig_prob: 0.49,
+    under_no_vig_prob: 0.51,
+    total_ticket_pct: 62,
+    total_money_pct: 54,
+    total_money_ticket_gap: -8,
     market_observed_at: "2026-10-05T14:55:00Z",
     market_collected_at: "2026-10-05T14:56:00Z",
     tournament: "Shanghai",
@@ -99,6 +116,12 @@ test("tennis TODAY cards carry full identity, rankings, headshots, market lines 
   assert.equal(game.market.reference.moneyline.home, -285);
   assert.equal(game.market.reference.moneyline.away, 235);
   assert.equal(game.market.reference.noVig.home, 0.742);
+  assert.equal(game.market.reference.spread.home, -3.5);
+  assert.equal(game.market.reference.spread.awayPrice, -112);
+  assert.equal(game.market.reference.total.line, 22.5);
+  assert.equal(game.market.reference.total.overPrice, -105);
+  assert.ok(game.actionIntel.publicSplits.markets.some(x => x.market === "SPREAD" && x.moneyTicketGap === 11));
+  assert.ok(game.actionIntel.publicSplits.markets.some(x => x.market === "TOTAL" && x.moneyTicketGap === -8));
   assert.equal(game.tennisProjection.surface, "hard");
   assert.equal(game.tennisProjection.tournament, "Shanghai");
   assert.equal(game.actionIntel.publicSplits.ticketPct, 61);
