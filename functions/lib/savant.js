@@ -1,6 +1,8 @@
 /**
- * Baseball Savant + MLB Stats — run projections from SP quality and team offense.
- * Never a sportsbook. Never derived from the 1.5 run line.
+ * Baseball Savant + MLB Stats — MLB feature preparation.
+ * Supplies team offense, starter quality and workload/K context to MLB-FBIS.
+ * It no longer publishes an independent game score; MLB-FBIS-v2.5 is the
+ * single projection authority. Never a sportsbook.
  */
 
 import { readCache, writeCache } from "./cache.js";
@@ -214,14 +216,6 @@ export async function fetchSavantSlate(games, cfCache) {
     const awayEra = awaySp?.eraEq ?? awaySeason.era;
     const weatherFactor = Number(g.mlbContext?.weatherRunFactor);
     const park = Number.isFinite(weatherFactor) && weatherFactor > 0 ? weatherFactor : 1;
-    const proj = projectMatchup({
-      homeRpg,
-      awayRpg,
-      homeSpEra: homeEra,
-      awaySpEra: awayEra,
-      leagueRpg,
-      park,
-    });
     return {
       ...g,
       savant: {
@@ -245,12 +239,8 @@ export async function fetchSavantSlate(games, cfCache) {
         weatherRunFactor: park,
         source: homeSp || awaySp ? "Savant+MLB Stats" : "MLB",
       },
-      projHomeScore: proj.home,
-      projAwayScore: proj.away,
-      // This score is produced only from the independent Savant/MLB Stats
-      // run model above. Mark it explicitly so product/sheet layers do not
-      // mistake it for a market-implied score.
-      projectionKind: "FBIS",
+      // Feature packet only. Canonical MLB scores are produced downstream by
+      // MLB-FBIS-v2.5; do not publish a parallel Savant score here.
     };
   });
 
