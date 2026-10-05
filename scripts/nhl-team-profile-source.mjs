@@ -53,6 +53,19 @@ function statRows(sk={},go={}){
   }
   return by;
 }
+async function espnCatalog(){
+  const j=await get(`${ESPN}/teams?limit=100`).catch(()=>({sports:[]}));
+  const out={};
+  for(const x of j?.sports?.[0]?.leagues?.[0]?.teams||[]){
+    const t=x?.team||x,abbr=normalizeNhlTeamKey(t?.abbreviation||"");
+    if(abbr)out[abbr]=String(t?.id||"");
+  }
+  return out;
+}
+function coachRows(j){
+  const a=Array.isArray(j?.coach)?j.coach:Array.isArray(j?.coaches)?j.coaches:[];
+  return a.map((c,i)=>({id:String(c.id||""),name:c.displayName||[c.firstName,c.lastName].filter(Boolean).join(" "),role:c.position?.displayName||c.position?.name||c.type?.text||c.type||(i===0?"Head Coach":"Coach")})).filter(x=>x.name);
+}
 async function globalStats(){
   const exp=encodeURIComponent(`seasonId=${seasonId}`);
   const [s,g]=await Promise.all([
@@ -61,10 +74,11 @@ async function globalStats(){
   ]);
   return statRows(s,g);
 }
-const allStats=await globalStats();
+const [allStats,espnIds]=await Promise.all([globalStats(),espnCatalog()]);
 async function one(t){
   const team=normalizeNhlTeamKey(t.abbr),official=OFFICIAL[team]||team,state={roster:"ERROR",schedule:"ERROR",lastGame:"NONE",shifts:"NONE"},errors=[];
-  const [rr,sr]=await Promise.allSettled([get(`${WEB}/roster/${official}/current`),get(`${WEB}/club-schedule-season/${official}/${seasonId}`)]);
+  const espnId=espnIds[team]||null,seasonYear=Number(seasonId.slice(4));
+  const [rr,sr,er]=await Promise.allSettled([get(`${WEB}/roster/${official}/current`),get(`${WEB}/club-schedule-season/${official}/${seasonId}`),espnId?get(`${ESPN}/teams/${espnId}/roster?season=${seasonYear}`):Promise.resolve(null)]);
   const roster=rr.status==="fulfilled"?rosterRows(rr.value):[];
   if(rr.status==="fulfilled")state.roster="OK";else errors.push(String(rr.reason));
   let schedule=sr.status==="fulfilled"?scheduleRows(sr.value,team):[];
@@ -86,10 +100,11 @@ async function one(t){
   }
   const statsById={};for(const p of roster){const s=allStats[p.id]||{};statsById[p.id]={...s,toiPerGame:finite(s.toiPerGame),ppToiPerGame:finite(s.ppToiPerGame)}}
   const dep=buildShiftDeployment(shifts,roster),roles=inferNhlRoles(roster,statsById,dep);
-  return {teamKey:team,teamName:t.displayName,seasonId,roster,schedule,lastGame,scratchIds,activeIds,statsById,deployment:{...dep,roles},sourceState:state,errors};
+  const coaches=er.status==="fulfilled"&&er.value?coachRows(er.value):[];
+  return {teamKey:team,teamName:t.displayName,seasonId,roster,coaches,schedule,lastGame,scratchIds,activeIds,statsById,deployment:{...dep,roles},sourceState:state,errors};
 }
 const selected=teams.filter((_,i)=>i%shardCount===shardIndex),queue=[...selected],rows=[];
 async function worker(){while(queue.length){const t=queue.shift();if(!t)break;try{rows.push(await one(t))}catch(e){rows.push({teamKey:t.abbr,teamName:t.displayName,seasonId,roster:[],schedule:[],errors:[String(e)],sourceState:{roster:"ERROR",schedule:"ERROR"}})}}}
 await Promise.all(Array.from({length:concurrency},worker));rows.sort((a,b)=>a.teamKey.localeCompare(b.teamKey));
-const payload={generatedAt:new Date().toISOString(),seasonId,shard:{index:shardIndex,count:shardCount,selected:selected.length},teams:rows,quality:{teams:rows.length,rostersOk:rows.filter(x=>x.sourceState?.roster==="OK").length,schedulesOk:rows.filter(x=>x.sourceState?.schedule==="OK").length,shiftTeams:rows.filter(x=>x.sourceState?.shifts==="OK").length,players:rows.reduce((s,x)=>s+(x.roster?.length||0),0),scheduleItems:rows.reduce((s,x)=>s+(x.schedule?.length||0),0),errors:rows.reduce((s,x)=>s+(x.errors?.length||0),0)}};
+const payload={generatedAt:new Date().toISOString(),seasonId,shard:{index:shardIndex,count:shardCount,selected:selected.length},teams:rows,quality:{teams:rows.length,rostersOk:rows.filter(x=>x.sourceState?.roster==="OK").length,schedulesOk:rows.filter(x=>x.sourceState?.schedule==="OK").length,shiftTeams:rows.filter(x=>x.sourceState?.shifts==="OK").length,players:rows.reduce((s,x)=>s+(x.roster?.length||0),0),coaches:rows.reduce((s,x)=>s+(x.coaches?.length||0),0),scheduleItems:rows.reduce((s,x)=>s+(x.schedule?.length||0),0),errors:rows.reduce((s,x)=>s+(x.errors?.length||0),0)}};
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});fs.writeFileSync(out,JSON.stringify(payload,null,2)+"\n");console.log(JSON.stringify(payload.quality,null,2));
