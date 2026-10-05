@@ -99,8 +99,7 @@ for(let rawLine of lines){
 
 const sourceUrl=disc.url||null,createdAt=observedAt,sql=[];
 for(const e of entries){
- const effective=e.gameDate&&e.gameTime?easternToUtc(e.gameDate,e.gameTime.replace(" ET"," PM")):null;
- const id="nba-offavail:"+hash([reportTimestamp,e.gameDate,e.matchup,e.teamKey,e.playerName,e.status].join("|")).slice(0,32);
+  const id="nba-offavail:"+hash([reportTimestamp,e.gameDate,e.matchup,e.teamKey,e.playerName,e.status].join("|")).slice(0,32);
  sql.push(`INSERT OR IGNORE INTO player_availability_observations (id,source,sport,team_key,team_name,player_id,player_name,status,injury_detail,game_id,opponent_key,effective_from,source_updated_at,observed_at,source_url,raw_json,created_at) VALUES (${q(id)},'NBA_OFFICIAL_INJURY_REPORT','nba',${q(e.teamKey)},${q(e.teamName)},NULL,${q(e.playerName)},${q(e.status)},${q(e.reason)},NULL,${q(e.opponentKey)},NULL,${q(reportTimestamp)},${q(observedAt)},${q(sourceUrl)},${q(JSON.stringify(e))},${q(createdAt)});`);
 }
 for(const c of coverage.values()){
