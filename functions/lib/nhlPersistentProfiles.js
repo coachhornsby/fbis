@@ -317,6 +317,32 @@ function stateConfidence(state,sourceFresh=true){
  if(["IR","OUT","CONFIRMED_SCRATCH","AVAILABLE"].includes(s))return.98;if(["DOUBTFUL","QUESTIONABLE"].includes(s))return.88;return.74;
 }
 function nextGame(rows,now=Date.now()){return rows.find(r=>Date.parse(r.startTime)>now&&Number(r.gameType)===2)||rows.find(r=>Date.parse(r.startTime)>now)||null;}
+export function buildNhlDeploymentTendencies(players=[],priorById=new Map()){
+ const active=(players||[]).filter(p=>p.position!=="G"&&!p.carriedState);
+ const forwards=active.filter(p=>p.position!=="D").sort((a,b)=>(finite(b.rollingToiSeconds)||0)-(finite(a.rollingToiSeconds)||0));
+ const defense=active.filter(p=>p.position==="D").sort((a,b)=>(finite(b.rollingToiSeconds)||0)-(finite(a.rollingToiSeconds)||0));
+ const sum=a=>a.reduce((s,p)=>s+(finite(p.rollingToiSeconds)||0),0);
+ const fTotal=sum(forwards),dTotal=sum(defense);
+ let matched=0,sameEvenStrength=0,samePp=0,ppMatched=0,roleChanges=0;
+ for(const p of active){
+  const prior=priorById.get(String(p.playerId));if(!prior)continue;matched++;
+  const sameEv=p.position==="D"
+    ? finite(prior.d_pair)===finite(p.dPair)
+    : finite(prior.ev_line)===finite(p.evLine);
+  if(sameEv)sameEvenStrength++;else roleChanges++;
+  if(finite(prior.pp_unit)!=null||finite(p.ppUnit)!=null){ppMatched++;if(finite(prior.pp_unit)===finite(p.ppUnit))samePp++;}
+ }
+ return{
+  topLineToiConcentration:fTotal?round(sum(forwards.slice(0,3))/fTotal):null,
+  topSixToiConcentration:fTotal?round(sum(forwards.slice(0,6))/fTotal):null,
+  topPairToiConcentration:dTotal?round(sum(defense.slice(0,2))/dTotal):null,
+  evenStrengthContinuity:matched?round(sameEvenStrength/matched):null,
+  ppContinuity:ppMatched?round(samePp/ppMatched):null,
+  matchedPlayers:matched,roleChanges,
+  pp1Players:active.filter(p=>p.ppUnit===1).length,pp2Players:active.filter(p=>p.ppUnit===2).length,
+  researchOnly:true
+ };
+}
 function replacementMap(player,players){
  const same=players.filter(x=>x.playerId!==player.playerId&&x.position===player.position&&x.availabilityState!=="OUT"&&x.availabilityState!=="IR"&&x.gameState!=="CONFIRMED_SCRATCH");
  return same.sort((a,b)=>(finite(b.rollingToiSeconds)||0)-(finite(a.rollingToiSeconds)||0)).slice(0,3).map(x=>({
@@ -532,13 +558,14 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    roster:players.filter(p=>!p.carriedState).length,active:players.filter(p=>!p.carriedState&&p.gameState!=="CONFIRMED_SCRATCH"&&p.gameState!=="OUT").length,
    scratches:players.filter(p=>p.gameState==="CONFIRMED_SCRATCH").length,unavailable:players.filter(p=>["OUT","IR","CONFIRMED_SCRATCH"].includes(p.availabilityState)).length
   };
+  const deploymentTendencies=buildNhlDeploymentTendencies(players,priorById);
   const teamProfile={
    teamKey:tkey,teamAbbr:team,officialAbbr:official,teamName:record.displayName,seasonId,profileVersion:NHL_PERSISTENT_PROFILE_VERSION,
    ...counts,nextGameId:next?.gameId||null,nextGameStart:next?.startTime||null,nextOpponentKey:next?.opponentKey||null,nextSite:next?.site||null,
    restDays:next?.daysRest??null,backToBack:Boolean(next?.backToBack),threeInFour:Boolean(next?.threeInFour),fourInSix:Boolean(next?.fourInSix),
    roadTripGameNumber:next?.roadTripGameNumber||0,travelMiles:next?.travelMiles??null,timeZonesCrossed:next?.timeZonesCrossed??0,
    scheduleStressScore:next?.scheduleStressScore??0,scheduleFlags:next?.stressFlags||[],
-   deployment:{latestGameId:latest?.game?.id||null,shiftGames:shiftSets.filter(x=>x.rows.length).length,linesObserved:[...deploy.lines.entries()].map(([playerId,v])=>({playerId,...v}))},
+   deployment:{latestGameId:latest?.game?.id||null,shiftGames:shiftSets.filter(x=>x.rows.length).length,linesObserved:[...deploy.lines.entries()].map(([playerId,v])=>({playerId,...v})),tendencies:deploymentTendencies},
    goalie:{hierarchy:goalies.slice(0,3).map(g=>({playerId:g.playerId,name:g.playerName,rank:g.hierarchyRank,state:g.goalieState,expectedStartProbability:g.expectedStartProbability}))},
    coach,deploymentLearning:{
     replacementObservationsAdded:replacementObservations.length,
