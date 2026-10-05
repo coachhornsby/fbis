@@ -1,0 +1,67 @@
+name: Tennis deep v1.1 walk-forward
+
+on:
+  pull_request:
+    paths:
+      - "functions/lib/tennisFbisV1.js"
+      - "functions/lib/tennisTwoSidedV11.js"
+      - "scripts/tennis-deep-v1-1-walkforward.mjs"
+      - "test/tennis-two-sided-v11.test.js"
+      - ".github/workflows/tennis-deep-v11-walkforward.yml"
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/tennisFbisV1.js"
+      - "functions/lib/tennisTwoSidedV11.js"
+      - "scripts/tennis-deep-v1-1-walkforward.mjs"
+      - "test/tennis-two-sided-v11.test.js"
+      - ".github/workflows/tennis-deep-v11-walkforward.yml"
+  workflow_dispatch:
+    inputs:
+      simulations:
+        description: "Monte Carlo simulations per match"
+        required: false
+        default: "200"
+
+permissions:
+  contents: read
+
+jobs:
+  deep-walk-forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      TENNIS_DEEP_YEARS: "2018-2026"
+      TENNIS_DEEP_SIMS: ${{ inputs.simulations || '200' }}
+      TENNIS_DEEP_OUT: "research/tennis/deep-v1-1-latest.json"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Deep tennis unit tests
+        run: node --test test/tennis-two-sided-v11.test.js test/tennis-fbis-v1.test.js
+      - name: Strict two-sided historical walk-forward
+        run: node scripts/tennis-deep-v1-1-walkforward.mjs | tee tennis-deep-v1-1.log
+      - name: Verify deep report
+        run: |
+          node - <<'NODE'
+          const fs=require("fs");
+          const r=JSON.parse(fs.readFileSync("research/tennis/deep-v1-1-latest.json","utf8"));
+          if((r.sample?.holdout||0)<5000) throw new Error("insufficient holdout");
+          if(!r.design?.twoSided||!r.design?.surfaceSpecific||!r.design?.recencyWeighted) throw new Error("deep design flags missing");
+          for(const k of ["aces","doubleFaults","breakPointsWon","gamesWon","totalGames"]){
+            if(!Number.isFinite(r.props?.holdout?.deep?.[k]?.mae)) throw new Error("missing prop metric "+k);
+          }
+          if(!Number.isFinite(r.match?.holdout?.deepCalibrated?.brier)) throw new Error("missing match metric");
+          console.log(JSON.stringify({sample:r.sample,verdict:r.verdict,match:r.match.holdout,props:r.props.holdout},null,2));
+          NODE
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: tennis-deep-v1-1
+          path: |
+            research/tennis/deep-v1-1-latest.json
+            tennis-deep-v1-1.log
+          retention-days: 30
