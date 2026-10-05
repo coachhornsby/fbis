@@ -1,0 +1,58 @@
+name: Soccer PitchAPI v3 bootstrap
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "data/models/soccer-pitchapi-v3-trigger.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soccer-pitchapi-v3-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  recent-history:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - { league: "eng.1", season: "2025/2026" }
+          - { league: "eng.1", season: "2026/2027" }
+          - { league: "esp.1", season: "2025/2026" }
+          - { league: "esp.1", season: "2026/2027" }
+          - { league: "ger.1", season: "2025/2026" }
+          - { league: "ger.1", season: "2026/2027" }
+          - { league: "ita.1", season: "2025/2026" }
+          - { league: "ita.1", season: "2026/2027" }
+          - { league: "fra.1", season: "2025/2026" }
+          - { league: "fra.1", season: "2026/2027" }
+          - { league: "usa.1", season: "2025" }
+          - { league: "usa.1", season: "2026" }
+          - { league: "usa.nwsl", season: "2025" }
+          - { league: "usa.nwsl", season: "2026" }
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Require credentials
+        env:
+          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          test -n "${PITCHAPI_API_KEY:-}"
+          test -n "${HARVEST_SECRET:-}"
+      - name: Backfill one bounded league-season
+        env:
+          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          PITCHAPI_MODE: historical
+          PITCHAPI_MAX_MATCHES: "500"
+          PITCHAPI_CONCURRENCY: "4"
+        run: node scripts/soccer-pitchapi-sync.mjs "${{ matrix.league }}" "${{ matrix.season }}"
