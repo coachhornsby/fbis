@@ -58,14 +58,15 @@ export async function onRequestPost(context){
       const status=accepted?"MATCHED":match?.review?"REVIEW":"UNMATCHED";
       if(match?.method==="exact"&&accepted)exact++; else if(accepted)fuzzy++; else unmatched++;
       const l=accepted?match.league:null,seasons=seasonList(l),canonical=HERITAGE_SOCCER_COMPETITIONS.find(x=>x.name===name);
+      const heritageKey=canonical?.key||("heritage."+norm(name).replace(/ /g,"."));
       const modelEligible=tier.modelEligible===false?0:(accepted?1:null);
       await db.prepare("INSERT INTO soccer_competition_coverage(heritage_name,heritage_key,offering_tier,model_eligible,policy_reason,pitch_league_id,pitch_league_name,pitch_country_code,match_score,match_method,seasons_json,current_season,discovery_status,validation_status,can_qualify,can_authorize,last_discovered_at,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'NOT_RUN',0,0,?,?) ON CONFLICT(heritage_name) DO UPDATE SET heritage_key=excluded.heritage_key,offering_tier=excluded.offering_tier,model_eligible=excluded.model_eligible,policy_reason=excluded.policy_reason,pitch_league_id=excluded.pitch_league_id,pitch_league_name=excluded.pitch_league_name,pitch_country_code=excluded.pitch_country_code,match_score=excluded.match_score,match_method=excluded.match_method,seasons_json=excluded.seasons_json,current_season=excluded.current_season,discovery_status=excluded.discovery_status,last_discovered_at=excluded.last_discovered_at,notes=excluded.notes")
-        .bind(name,canonical?.key||null,tier.tier,modelEligible,tier.reason,l?.id||null,l?.name||null,l?.country_code||l?.country?.code||null,match?.score??null,match?.method||null,JSON.stringify(seasons),seasons[0]||null,status,started,accepted?null:(match?.league?("candidate:"+match.league.name):"no PitchAPI candidate")).run();
+        .bind(name,heritageKey,tier.tier,modelEligible,tier.reason,l?.id||null,l?.name||null,l?.country_code||l?.country?.code||null,match?.score??null,match?.method||null,JSON.stringify(seasons),seasons[0]||null,status,started,accepted?null:(match?.league?("candidate:"+match.league.name):"no PitchAPI candidate")).run();
       if(accepted&&modelEligible===1){
         for(const season of seasons.slice(0,6)){
           const qid=String(l.id)+":"+season+":0";
           await db.prepare("INSERT OR IGNORE INTO soccer_pitchapi_backfill_queue(id,heritage_name,heritage_key,pitch_league_id,season,offset,page_size,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?,0,8,'PENDING',0,?,?)")
-            .bind(qid,name,canonical?.key||null,String(l.id),season,started,started).run();
+            .bind(qid,name,heritageKey,String(l.id),season,started,started).run();
           queued++;
         }
       }
