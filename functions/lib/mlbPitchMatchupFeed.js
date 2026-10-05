@@ -147,7 +147,7 @@ export async function loadMlbPitchMatchupContext(games=[],env={},options={}){
   const fetchFn=options.fetchFn||fetch;
   const byGameId={};
   let available=0,persistentAvailable=0,liveFallbacks=0;
-  const persistent=await loadMlbPersistentState(games,env,{maxAgeHours:options.maxPersistentAgeHours??14}).catch(()=>({byGameId:{},meta:{configured:false}}));
+  const persistent=options.persistentState || await loadMlbPersistentState(games,env,{maxAgeHours:options.maxPersistentAgeHours??14}).catch(()=>({byGameId:{},meta:{configured:false}}));
   // In production, D1 persistence is the primary path. Avoid expensive per-game
   // Statcast fanout on customer requests. Live fallback is opt-in when D1 is bound.
   const allowLiveFallback=options.allowLiveFallback===true || !env?.DB?.prepare;
