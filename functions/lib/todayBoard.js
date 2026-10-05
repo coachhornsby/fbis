@@ -118,6 +118,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
       abbr: game.away?.abbr,
       logo: game.away?.logo,
       canonicalId: game.away?.canonicalId,
+      color: game.away?.color || null,
+      altColor: game.away?.altColor || game.away?.alternateColor || null,
       score: game.away?.score ?? null,
     },
     home: {
@@ -127,6 +129,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
       abbr: game.home?.abbr,
       logo: game.home?.logo,
       canonicalId: game.home?.canonicalId,
+      color: game.home?.color || null,
+      altColor: game.home?.altColor || game.home?.alternateColor || null,
       score: game.home?.score ?? null,
     },
     venue: game.venue || "",
