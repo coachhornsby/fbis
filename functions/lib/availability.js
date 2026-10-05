@@ -239,7 +239,8 @@ function teamAvailabilityImpact(rows=[], {sport, nowMs=Date.now()}={}){
     const position=normalizePosition(row.position_group || row.position);
     const rank=finite(row.depth_rank);
     const fr=freshness(row.source_updated_at || row.observed_at,nowMs);
-    const persistentStatus=["IR","PUP","NFI","SUSPENDED"].includes(status);
+    const persistentStatus=["IR","PUP","NFI","SUSPENDED"].includes(status) ||
+      (String(row.source||"").toLowerCase()==="nfl-profile" && Boolean(row.persistent_state));
     const effectiveWeight=fr.stale && !persistentStatus ? 0 : weight;
     const points=round2(playerBasePoints(position,sport)*depthFactor(rank)*effectiveWeight);
     if(freshest==null || (fr.ageHours!=null && fr.ageHours<freshest)) freshest=fr.ageHours;
@@ -440,6 +441,37 @@ export function applyAvailabilityAdjustment(game, sport){
   return next;
 }
 
+async function queryNflPersistentAvailability(env, teamKeys=[]){
+  if(!env?.DB?.prepare || !teamKeys.length) return [];
+  try{
+    const keys=[...new Set(teamKeys.map(x=>String(x||"").toLowerCase()).filter(Boolean))];
+    if(!keys.length)return[];
+    const marks=keys.map(()=>"?").join(",");
+    const res=await env.DB.prepare(
+      `SELECT team_key,player_id,player_name,position,depth_rank,health_state,practice_state,
+              injury_detail,state_source_updated_at,updated_at,carried_state
+         FROM nfl_player_profiles
+        WHERE team_key IN (${marks})`
+    ).bind(...keys).all();
+    return (res?.results||[]).map(r=>({
+      source:"nfl-profile",
+      sport:"nfl",
+      team_key:r.team_key,
+      player_id:r.player_id,
+      player_name:r.player_name,
+      position:r.position,
+      position_group:r.position,
+      depth_rank:r.depth_rank,
+      status:r.health_state,
+      practice_status:r.practice_state,
+      injury_detail:r.injury_detail,
+      source_updated_at:r.state_source_updated_at||r.updated_at,
+      observed_at:r.state_source_updated_at||r.updated_at,
+      persistent_state:Number(r.carried_state||0)===1 || ["OUT","IR","PUP","NFI","SUSPENDED"].includes(String(r.health_state||"").toUpperCase()),
+    }));
+  }catch{return[];}
+}
+
 export async function attachAvailability(games=[], sport, env={}){
   const id=String(sport||"").toLowerCase();
   if(!AVAILABILITY_SPORTS.includes(id) || !env?.DB?.prepare){
@@ -454,7 +486,11 @@ export async function attachAvailability(games=[], sport, env={}){
   ]))];
   const since=new Date(Date.now()-30*24*3600000).toISOString();
   const queried=await queryAvailabilityObservations(env,{sport:id,since,teamKeys,limit:3000});
-  const rows=queried.ok ? queried.rows : [];
+  let rows=queried.ok ? queried.rows : [];
+  if(id==="nfl"){
+    const persistent=await queryNflPersistentAvailability(env,teamKeys);
+    rows=[...rows,...persistent];
+  }
   const next=(games||[]).map((game)=>{
     const availabilityImpact=buildGameAvailabilityImpact(game,rows,{sport:id});
     return applyAvailabilityAdjustment({...game,availabilityImpact},id);
