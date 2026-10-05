@@ -50,7 +50,7 @@ function teamImpactContext(teamId){
  const top8=rows.slice(0,8),continuity=Math.min(1,top8.reduce((s,x)=>s+x.min,0)/240);
  const verified=rows.some(x=>Boolean(x.rc?.availabilityVerified))||[...unavailMap.values()].some(x=>x.source&&x.observedAt);
  const availability=[...unavailMap.entries()].map(([id,u])=>{
-   const p=impact.players?.[id];return {playerId:id,status:u.status,impactPoints:Math.abs(impactAvailabilityPoints(p,u.status)||0),source:u.source||null,observedAt:u.observedAt||null};
+   const p=impact.players?.[id];return {playerId:id,status:u.status,impactPoints:Math.max(0,impactAvailabilityPoints(p,u.status)||0),source:u.source||null,observedAt:u.observedAt||null};
  });
  return {lineup:{offense,defense,net,continuity,minutesKnown:Math.min(240,den),availabilityVerified:verified},availability,players:rows.map(x=>x.id)};
 }
