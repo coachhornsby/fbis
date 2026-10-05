@@ -1,4 +1,5 @@
 name: MLB persistent team profiles
+# Timeout-safe: six source shards + one batched D1 import.
 
 on:
   workflow_dispatch:
