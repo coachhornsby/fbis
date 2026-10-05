@@ -31,12 +31,12 @@ async function discover(env){
     if(accept)matched++;else if(status==="REVIEW")review++;else unmatched++;
     const l=accept?b.l:null,seasons=Array.isArray(l?.seasons)?l.seasons.map(String):[];
     const eligible=Number(r.model_eligible)===0?0:(accept?1:null);
-    await env.DB.prepare(\`UPDATE soccer_competition_coverage SET model_eligible=?,pitch_league_id=?,pitch_league_name=?,pitch_country_code=?,match_score=?,match_method=?,seasons_json=?,current_season=?,discovery_status=?,last_discovered_at=?,notes=? WHERE heritage_name=?\`)
+    await env.DB.prepare(`UPDATE soccer_competition_coverage SET model_eligible=?,pitch_league_id=?,pitch_league_name=?,pitch_country_code=?,match_score=?,match_method=?,seasons_json=?,current_season=?,discovery_status=?,last_discovered_at=?,notes=? WHERE heritage_name=?`)
       .bind(eligible,l?.id==null?null:String(l.id),l?.name||null,l?.country_code||l?.country?.code||null,b?.score??null,b?.score===1?"exact":"token-jaccard",JSON.stringify(seasons),seasons[0]||null,status,now,accept?null:(b?.l?("candidate:"+b.l.name):"no candidate"),r.heritage_name).run();
     if(accept&&eligible===1){
       for(const season of seasons.slice(0,6)){
         const id=String(l.id)+":"+season+":0";
-        await env.DB.prepare(\`INSERT OR IGNORE INTO soccer_pitchapi_backfill_queue(id,heritage_name,heritage_key,pitch_league_id,season,offset,page_size,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?,0,4,'PENDING',0,?,?)\`)
+        await env.DB.prepare(`INSERT OR IGNORE INTO soccer_pitchapi_backfill_queue(id,heritage_name,heritage_key,pitch_league_id,season,offset,page_size,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?,0,4,'PENDING',0,?,?)`)
           .bind(id,r.heritage_name,r.heritage_key,String(l.id),season,now,now).run();queued++;
       }
     }
@@ -45,9 +45,9 @@ async function discover(env){
 }
 async function claim(env){
   const now=new Date(),iso=now.toISOString(),lease=new Date(now.getTime()+4*60000).toISOString();
-  const row=await env.DB.prepare(\`SELECT * FROM soccer_pitchapi_backfill_queue WHERE (status='PENDING' OR (status='LEASED' AND lease_until<?)) AND attempts<6 ORDER BY updated_at,id LIMIT 1\`).bind(iso).first();
+  const row=await env.DB.prepare(`SELECT * FROM soccer_pitchapi_backfill_queue WHERE (status='PENDING' OR (status='LEASED' AND lease_until<?)) AND attempts<6 ORDER BY updated_at,id LIMIT 1`).bind(iso).first();
   if(!row)return null;
-  const u=await env.DB.prepare(\`UPDATE soccer_pitchapi_backfill_queue SET status='LEASED',attempts=attempts+1,lease_until=?,updated_at=? WHERE id=? AND (status='PENDING' OR (status='LEASED' AND lease_until<?))\`).bind(lease,iso,row.id,iso).run();
+  const u=await env.DB.prepare(`UPDATE soccer_pitchapi_backfill_queue SET status='LEASED',attempts=attempts+1,lease_until=?,updated_at=? WHERE id=? AND (status='PENDING' OR (status='LEASED' AND lease_until<?))`).bind(lease,iso,row.id,iso).run();
   return u?.meta?.changes?row:null;
 }
 async function persist(env,row,m,advanced,stats,shotsData,network){
@@ -70,7 +70,7 @@ async function persist(env,row,m,advanced,stats,shotsData,network){
     homeDefX:pick(ha,"defending.avg_defensive_action_x"),awayDefX:pick(aa,"defending.avg_defensive_action_x"),homeBuild:pick(ha,"tempo.buildup_attacks"),awayBuild:pick(aa,"tempo.buildup_attacks"),
     homeDA:pick(ha,"tempo.direct_attacks"),awayDA:pick(aa,"tempo.direct_attacks"),homeCent:num(hn.centralization),awayCent:num(an.centralization)
   };
-  await env.DB.prepare(\`INSERT INTO soccer_pitchapi_match_features(
+  await env.DB.prepare(`INSERT INTO soccer_pitchapi_match_features(
     pitch_match_id,league_key,pitch_league_id,pitch_league_name,season,match_date,start_time,status,home_team_id,home_team_name,away_team_id,away_team_name,home_score,away_score,
     home_xg,away_xg,home_xgot,away_xgot,home_shots,away_shots,home_sot,away_sot,home_ppda,away_ppda,home_field_tilt,away_field_tilt,home_final_third_entries,away_final_third_entries,
     home_box_entries,away_box_entries,home_high_turnovers,away_high_turnovers,home_counterpress_regains,away_counterpress_regains,home_ball_recovery_time,away_ball_recovery_time,
@@ -78,9 +78,9 @@ async function persist(env,row,m,advanced,stats,shotsData,network){
     home_passes_per_sequence,away_passes_per_sequence,home_direct_speed,away_direct_speed,source_observed_at,created_at,updated_at
   ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   ON CONFLICT(pitch_match_id) DO UPDATE SET status=excluded.status,home_score=excluded.home_score,away_score=excluded.away_score,home_xg=COALESCE(excluded.home_xg,home_xg),away_xg=COALESCE(excluded.away_xg,away_xg),
-  home_ppda=COALESCE(excluded.home_ppda,home_ppda),away_ppda=COALESCE(excluded.away_ppda,away_ppda),home_field_tilt=COALESCE(excluded.home_field_tilt,home_field_tilt),away_field_tilt=COALESCE(excluded.away_field_tilt,away_field_tilt),updated_at=excluded.updated_at\`)
+  home_ppda=COALESCE(excluded.home_ppda,home_ppda),away_ppda=COALESCE(excluded.away_ppda,away_ppda),home_field_tilt=COALESCE(excluded.home_field_tilt,home_field_tilt),away_field_tilt=COALESCE(excluded.away_field_tilt,away_field_tilt),updated_at=excluded.updated_at`)
   .bind(m.id,row.heritage_key,row.pitch_league_id,row.heritage_name,row.season,m.date,m.time_utc,m.status,h.id,h.name,a.id,a.name,num(m.score_home),num(m.score_away),fx.homeXg,fx.awayXg,fx.homeXgot,fx.awayXgot,fx.homeShots,fx.awayShots,fx.homeSot,fx.awaySot,fx.homePpda,fx.awayPpda,fx.homeFieldTilt,fx.awayFieldTilt,fx.homeFinalThird,fx.awayFinalThird,fx.homeBox,fx.awayBox,fx.homeHigh,fx.awayHigh,fx.homeCounter,fx.awayCounter,fx.homeRecovery,fx.awayRecovery,fx.homeXt,fx.awayXt,fx.homeVaep,fx.awayVaep,fx.homeProg,fx.awayProg,fx.homeCarry,fx.awayCarry,fx.homeXag,fx.awayXag,fx.homePoss,fx.awayPoss,fx.homePps,fx.awayPps,fx.homeDirect,fx.awayDirect,now,now,now).run();
-  await env.DB.prepare(\`UPDATE soccer_pitchapi_match_features SET home_npxg=?,away_npxg=?,home_xg_open_play=?,away_xg_open_play=?,home_xg_set_play=?,away_xg_set_play=?,home_xg_per_shot=?,away_xg_per_shot=?,home_pass_accuracy=?,away_pass_accuracy=?,home_passes_into_box=?,away_passes_into_box=?,home_progressive_pass_distance=?,away_progressive_pass_distance=?,home_carries_into_final_third=?,away_carries_into_final_third=?,home_carries_into_box=?,away_carries_into_box=?,home_avg_defensive_action_x=?,away_avg_defensive_action_x=?,home_buildup_attacks=?,away_buildup_attacks=?,home_direct_attacks=?,away_direct_attacks=?,home_network_centralization=?,away_network_centralization=? WHERE pitch_match_id=?\`)
+  await env.DB.prepare(`UPDATE soccer_pitchapi_match_features SET home_npxg=?,away_npxg=?,home_xg_open_play=?,away_xg_open_play=?,home_xg_set_play=?,away_xg_set_play=?,home_xg_per_shot=?,away_xg_per_shot=?,home_pass_accuracy=?,away_pass_accuracy=?,home_passes_into_box=?,away_passes_into_box=?,home_progressive_pass_distance=?,away_progressive_pass_distance=?,home_carries_into_final_third=?,away_carries_into_final_third=?,home_carries_into_box=?,away_carries_into_box=?,home_avg_defensive_action_x=?,away_avg_defensive_action_x=?,home_buildup_attacks=?,away_buildup_attacks=?,home_direct_attacks=?,away_direct_attacks=?,home_network_centralization=?,away_network_centralization=? WHERE pitch_match_id=?`)
     .bind(fx.homeOpen!=null&&fx.homeSet!=null?fx.homeOpen+fx.homeSet:null,fx.awayOpen!=null&&fx.awaySet!=null?fx.awayOpen+fx.awaySet:null,fx.homeOpen,fx.awayOpen,fx.homeSet,fx.awaySet,fx.homeShots?fx.homeXg/fx.homeShots:null,fx.awayShots?fx.awayXg/fx.awayShots:null,fx.homePassAcc,fx.awayPassAcc,fx.homeIntoBox,fx.awayIntoBox,fx.homeProgDist,fx.awayProgDist,fx.homeCarryThird,fx.awayCarryThird,fx.homeCarryBox,fx.awayCarryBox,fx.homeDefX,fx.awayDefX,fx.homeBuild,fx.awayBuild,fx.homeDA,fx.awayDA,fx.homeCent,fx.awayCent,m.id).run();
 }
 async function work(env){
