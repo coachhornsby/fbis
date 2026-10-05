@@ -21,6 +21,17 @@ import { loadSoccerMatchHistory } from "./store.js";
 export const SOCCER_FBIS_V2_ID = "SOCCER-FBIS-v2";
 export const SOCCER_FBIS_V2_VERSION = "research-v1-elo-context-online-ensemble";
 
+export const SOCCER_V2_LEAGUE_VALIDATION = Object.freeze({
+  "eng.1": Object.freeze({ n:1123, accuracy:0.5084594835262689, brier:0.1994670323709335, logLoss:1.0036071563596225, ece:0.01261252327373506 }),
+  "esp.1": Object.freeze({ n:1141, accuracy:0.5030674846625767, brier:0.19558366132771868, logLoss:0.9845823469125083, ece:0.020321648612440006 }),
+  "ger.1": Object.freeze({ n:888, accuracy:0.5112612612612613, brier:0.19902569946143653, logLoss:1.002476450736939, ece:0.02738841916872229 }),
+  "ita.1": Object.freeze({ n:1125, accuracy:0.536, brier:0.19753388349575315, logLoss:0.9919579010121115, ece:0.012394541894685647 }),
+  "fra.1": Object.freeze({ n:896, accuracy:0.5044642857142857, brier:0.20109299817092427, logLoss:1.0075524858880718, ece:0.009660522209552908 }),
+  "usa.1": Object.freeze({ n:1927, accuracy:0.4644525168655942, brier:0.21273114461587123, logLoss:1.0602652422097587, ece:0.013336669286461949 }),
+  "usa.nwsl": Object.freeze({ n:659, accuracy:0.48558421851289835, brier:0.20708780724009396, logLoss:1.0338034656966866, ece:0.017534927961223946 }),
+});
+
+
 const CFG = Object.freeze({
   eloStart: 1500,
   eloK: 20,
@@ -440,6 +451,7 @@ export function projectSoccerV2(game = {}, history = [], options = {}) {
     canQualify: false,
     canAuthorize: false,
     uncertainty,
+    validation: SOCCER_V2_LEAGUE_VALIDATION[String(game.soccerLeague || game.league || "")] || null,
     v1: {
       modelId: v1.modelId,
       modelVersion: v1.modelVersion,
