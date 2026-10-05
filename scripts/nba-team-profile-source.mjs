@@ -6,7 +6,9 @@ import { normalizeNbaTeamKey } from "../functions/lib/nbaTeamProfile.js";
 const args=Object.fromEntries(process.argv.slice(2).map(x=>x.split("=")));
 const out=args.out||"artifacts/nba-team-profile-source.json";
 const now=new Date(),season=Number(args.season||((now.getUTCMonth()+1)>=7?now.getUTCFullYear()+1:now.getUTCFullYear()));
-const concurrency=Math.max(1,Math.min(8,Number(args.concurrency||6)));
+const concurrency=Math.max(1,Math.min(8,Number(args.concurrency||4)));
+const shardCount=Math.max(1,Number(args.shardCount||1));
+const shardIndex=Math.max(0,Number(args.shardIndex||0));
 const ua={"user-agent":"FBIS-NBA-Team-Profiles/1.0",accept:"application/json"};
 
 async function get(url){
@@ -77,11 +79,12 @@ async function one(t){
    }
  };
 }
-const queue=[...teams],results=[];
+const selected=teams.filter((_,i)=>i%shardCount===shardIndex);
+const queue=[...selected],results=[];
 async function worker(){while(queue.length){const t=queue.shift();if(!t)break;results.push(await one(t))}}
 await Promise.all(Array.from({length:concurrency},worker));
 results.sort((a,b)=>a.teamName.localeCompare(b.teamName));
-const payload={generatedAt:new Date().toISOString(),season,source:"ESPN_PUBLIC",teams:results,
+const payload={generatedAt:new Date().toISOString(),season,source:"ESPN_PUBLIC",shard:{index:shardIndex,count:shardCount,selected:selected.length},teams:results,
  quality:{teams:results.length,rostersOk:results.filter(x=>x.sourceState.roster==="OK").length,schedulesOk:results.filter(x=>x.sourceState.schedule==="OK").length,players:results.reduce((s,x)=>s+x.roster.length,0),coaches:results.reduce((s,x)=>s+x.coaches.length,0),games:results.reduce((s,x)=>s+x.schedule.length,0)}};
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
 fs.writeFileSync(out,JSON.stringify(payload,null,2)+"\n");
