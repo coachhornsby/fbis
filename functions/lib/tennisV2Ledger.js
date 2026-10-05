@@ -12,40 +12,64 @@ export function noVigAmerican(a,b){
   const pa=americanToProb(a),pb=americanToProb(b);if(pa==null||pb==null)return null;
   const z=pa+pb;if(!(z>0))return null;return {p1:pa/z,p2:pb/z,hold:z-1};
 }
-export function actionObservationToTennisMarket(row={}){
-  const consensus=safe(row.consensus_json)||{};
-  const quality=safe(row.market_quality_json)||{};
-  const publicBetting=safe(row.public_betting_json)||{};
-  const movement=safe(row.line_movement_json)||{};
-  const home=String(row.home_team||"").trim(),away=String(row.away_team||"").trim();
-  const p1Price=finite(consensus.moneylineHome),p2Price=finite(consensus.moneylineAway);
-  const nvHome=finite(quality?.noVig?.moneylineHome);
-  const nvAway=finite(quality?.noVig?.moneylineAway);
-  const nv=nvHome!=null&&nvAway!=null?{p1:nvHome,p2:nvAway,hold:null}:noVigAmerican(p1Price,p2Price);
-  if(!home||!away||!nv)return null;
-  const ml=publicBetting.moneylineHome||{};
+function actionBase(row,home,away){
   return {
     canonicalEventId:row.fbis_event_id||`tennis:action:${row.action_game_id}`,
     providerEventId:String(row.action_game_id||""),
     tour:String(row.sport||row.league||"").toLowerCase(),
-    player1:home,player2:away,
-    provider:"ACTION_APIFY",sportsbook:"consensus",
-    player1Price:p1Price,player2Price:p2Price,
-    player1NoVig:nv.p1,player2NoVig:nv.p2,hold:nv.hold,
+    player1:home,player2:away,provider:"ACTION_APIFY",sportsbook:"consensus",
     observedAt:row.source_observed_at||row.observed_at||row.collected_at||row.created_at,
-    collectedAt:row.collected_at||row.created_at,
-    eventStartTime:row.start_time||null,
-    publicTicketPct:finite(ml.ticketsPercent??ml.ticketPercent),
-    publicMoneyPct:finite(ml.moneyPercent),
-    moneyMinusTicketPct:finite(ml.moneyMinusTickets??ml.moneyTicketGap??ml.sharpGap),
-    lineMovement:movement,
-    publicBetting,
+    collectedAt:row.collected_at||row.created_at,eventStartTime:row.start_time||null,
     rawPayloadHash:row.raw_payload_hash||null,
   };
 }
+function splitFields(node={}){
+  return {
+    publicTicketPct:finite(node.ticketsPercent??node.ticketPercent),
+    publicMoneyPct:finite(node.moneyPercent),
+    moneyMinusTicketPct:finite(node.moneyMinusTickets??node.moneyTicketGap??node.sharpGap),
+  };
+}
+export function actionObservationToTennisMarkets(row={}){
+  const consensus=safe(row.consensus_json)||{},quality=safe(row.market_quality_json)||{};
+  const publicBetting=safe(row.public_betting_json)||{},movement=safe(row.line_movement_json)||{};
+  const home=String(row.home_team||"").trim(),away=String(row.away_team||"").trim();
+  if(!home||!away)return [];
+  const base=actionBase(row,home,away),out=[];
+
+  const p1Price=finite(consensus.moneylineHome),p2Price=finite(consensus.moneylineAway);
+  const nvMlHome=finite(quality?.noVig?.moneylineHome),nvMlAway=finite(quality?.noVig?.moneylineAway);
+  const nvMl=nvMlHome!=null&&nvMlAway!=null?{p1:nvMlHome,p2:nvMlAway,hold:null}:noVigAmerican(p1Price,p2Price);
+  if(nvMl)out.push({...base,marketType:"moneyline",player1Price:p1Price,player2Price:p2Price,
+    player1NoVig:nvMl.p1,player2NoVig:nvMl.p2,hold:nvMl.hold,...splitFields(publicBetting.moneylineHome||{}),
+    lineMovement:movement,publicBetting,marketPayload:{consensus,quality}});
+
+  const p1Line=finite(consensus.spreadHome),p2Line=finite(consensus.spreadAway);
+  const p1SpreadPrice=finite(consensus.spreadHomeOdds),p2SpreadPrice=finite(consensus.spreadAwayOdds);
+  const nvSpHome=finite(quality?.noVig?.spreadHome),nvSpAway=finite(quality?.noVig?.spreadAway);
+  const nvSp=nvSpHome!=null&&nvSpAway!=null?{p1:nvSpHome,p2:nvSpAway,hold:null}:noVigAmerican(p1SpreadPrice,p2SpreadPrice);
+  if(p1Line!=null&&(p1SpreadPrice!=null||p2SpreadPrice!=null))out.push({...base,marketType:"spread",
+    player1Line:p1Line,player2Line:p2Line??-p1Line,player1Price:p1SpreadPrice,player2Price:p2SpreadPrice,
+    player1NoVig:nvSp?.p1??null,player2NoVig:nvSp?.p2??null,hold:nvSp?.hold??null,
+    ...splitFields(publicBetting.spreadHome||{}),lineMovement:movement,publicBetting,marketPayload:{consensus,quality}});
+
+  const total=finite(consensus.total),overPrice=finite(consensus.overOdds),underPrice=finite(consensus.underOdds);
+  const nvOver=finite(quality?.noVig?.over),nvUnder=finite(quality?.noVig?.under);
+  const nvTot=nvOver!=null&&nvUnder!=null?{p1:nvOver,p2:nvUnder,hold:null}:noVigAmerican(overPrice,underPrice);
+  if(total!=null&&(overPrice!=null||underPrice!=null))out.push({...base,marketType:"total",
+    player1Line:total,player2Line:total,overPrice,underPrice,overNoVig:nvTot?.p1??null,underNoVig:nvTot?.p2??null,
+    hold:nvTot?.hold??null,...splitFields(publicBetting.over||{}),lineMovement:movement,publicBetting,
+    marketPayload:{consensus,quality}});
+  return out;
+}
+export function actionObservationToTennisMarket(row={}){
+  return actionObservationToTennisMarkets(row).find(x=>x.marketType==="moneyline")||null;
+}
+
 export async function persistTennisMarketSnapshot(db,m={}){
   if(!db?.prepare||!m?.canonicalEventId)return {inserted:false};
-  const key=[m.canonicalEventId,m.provider,m.sportsbook,m.observedAt,m.player1Price,m.player2Price].join("|");
+  const marketType=String(m.marketType||"moneyline").toLowerCase();
+  const key=[m.canonicalEventId,marketType,m.provider,m.sportsbook,m.observedAt,m.player1Line,m.player2Line,m.player1Price,m.player2Price,m.overPrice,m.underPrice].join("|");
   const h=await hash(key),id=`tms_${h.slice(0,28)}`;
   const res=await db.prepare(
     `INSERT OR IGNORE INTO tennis_market_snapshots(
@@ -53,17 +77,20 @@ export async function persistTennisMarketSnapshot(db,m={}){
       player1_price,player2_price,player1_no_vig_prob,player2_no_vig_prob,hold,
       observed_at,collected_at,event_start_time,snapshot_type,traded_volume,public_ticket_pct,public_money_pct,
       money_minus_ticket_pct,line_velocity,raw_payload_hash,decision_eligible,can_qualify,
-      can_authorize_wager,created_at
-    ) VALUES(?,?,?,?,?,'moneyline',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,0,0,?)`
+      can_authorize_wager,created_at,player1_line,player2_line,over_price,under_price,
+      over_no_vig_prob,under_no_vig_prob,market_payload_json
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,0,0,?,?,?,?,?,?,?,?)`
   ).bind(
-    id,m.canonicalEventId,m.tour||"tennis",m.player1,m.player2,m.provider||"UNKNOWN",m.sportsbook||null,
+    id,m.canonicalEventId,m.tour||"tennis",m.player1,m.player2,marketType,m.provider||"UNKNOWN",m.sportsbook||null,
     finite(m.player1Price),finite(m.player2Price),finite(m.player1NoVig),finite(m.player2NoVig),finite(m.hold),
     m.observedAt||new Date().toISOString(),m.collectedAt||new Date().toISOString(),m.eventStartTime||null,m.snapshotType||"CURRENT",
     finite(m.tradedVolume),finite(m.publicTicketPct),finite(m.publicMoneyPct),finite(m.moneyMinusTicketPct),
-    finite(m.lineVelocity),m.rawPayloadHash||null,new Date().toISOString()
+    finite(m.lineVelocity),m.rawPayloadHash||null,new Date().toISOString(),finite(m.player1Line),finite(m.player2Line),
+    finite(m.overPrice),finite(m.underPrice),finite(m.overNoVig),finite(m.underNoVig),JSON.stringify(m.marketPayload||null)
   ).run();
   return {inserted:Number(res?.meta?.changes||res?.changes||0)>0,id};
 }
+
 export async function persistTennisContexts(db,{eventId,tour,players=[],contexts=[],source="FBIS_CONTEXT"}={}){
   if(!db?.prepare)return 0;let inserted=0;
   for(let i=0;i<Math.min(players.length,contexts.length);i++){

@@ -4,7 +4,7 @@ import { normalizeTennisContext, tennisContextServeAdjustment, deriveCourtSpeedI
 import { buildSharpMarketPrior, tennisMarketResidualProjection, deriveMarketMovementFeatures } from "../functions/lib/tennisMarketV2.js";
 import { simulateTennisV2, simulateTennisMarketV2 } from "../functions/lib/tennisFbisV2.js";
 import { projectTennisPlayerPropsV2 } from "../functions/lib/tennisPlayerPropModel.js";
-import { actionObservationToTennisMarket, buildTennisV2Validation } from "../functions/lib/tennisV2Ledger.js";
+import { actionObservationToTennisMarket, actionObservationToTennisMarkets, buildTennisV2Validation } from "../functions/lib/tennisV2Ledger.js";
 import { buildActorInput, normalizeActionGameRow } from "../functions/lib/actionApifyShadow.js";
 
 const p=(name,serve=.64,ret=.36)=>({
@@ -146,6 +146,37 @@ test("ACTION observation converts to canonical tennis market snapshot",()=>{
   assert.equal(m.canonicalEventId,"tennis:action:114596");
   assert.equal(m.player1NoVig,.545);
   assert.equal(m.moneyMinusTicketPct,15);
+});
+
+
+test("ACTION observation expands tennis moneyline, game spread and total games",()=>{
+  const markets=actionObservationToTennisMarkets({
+    action_game_id:"full1",sport:"atp",home_team:"Player A",away_team:"Player B",
+    consensus_json:JSON.stringify({
+      moneylineHome:-150,moneylineAway:130,
+      spreadHome:-2.5,spreadHomeOdds:-110,spreadAway:2.5,spreadAwayOdds:-110,
+      total:22.5,overOdds:-105,underOdds:-115
+    }),
+    market_quality_json:JSON.stringify({noVig:{
+      moneylineHome:.59,moneylineAway:.41,spreadHome:.5,spreadAway:.5,over:.49,under:.51
+    }}),
+    public_betting_json:JSON.stringify({
+      moneylineHome:{ticketsPercent:55,moneyPercent:60},
+      spreadHome:{ticketsPercent:48,moneyPercent:57,moneyMinusTickets:9},
+      over:{ticketsPercent:62,moneyPercent:54,moneyMinusTickets:-8}
+    }),
+    collected_at:"2026-10-05T12:00:00Z"
+  });
+  assert.deepEqual(markets.map(x=>x.marketType),["moneyline","spread","total"]);
+  const spread=markets.find(x=>x.marketType==="spread");
+  const total=markets.find(x=>x.marketType==="total");
+  assert.equal(spread.player1Line,-2.5);
+  assert.equal(spread.player2Line,2.5);
+  assert.equal(spread.moneyMinusTicketPct,9);
+  assert.equal(total.player1Line,22.5);
+  assert.equal(total.overPrice,-105);
+  assert.equal(total.underPrice,-115);
+  assert.equal(total.overNoVig,.49);
 });
 
 test("prospective validation cannot authorize wagers",()=>{

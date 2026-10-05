@@ -122,6 +122,14 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const tennisRef = game?.market?.reference || {};
   const tennisAwayMl = market.awayMl ?? tennisRef?.moneyline?.away ?? null;
   const tennisHomeMl = market.homeMl ?? tennisRef?.moneyline?.home ?? null;
+  const tennisSpread = tennisRef?.spread || null;
+  const tennisTotal = tennisRef?.total || null;
+  const tennisSpreadLabel = tennisSpread?.home == null && tennisSpread?.away == null
+    ? "—"
+    : `${away.abbr} ${signed(tennisSpread?.away)} (${fmtOdds(tennisSpread?.awayPrice)}) · ${home.abbr} ${signed(tennisSpread?.home)} (${fmtOdds(tennisSpread?.homePrice)})`;
+  const tennisTotalLabel = tennisTotal?.line == null
+    ? "—"
+    : `O ${num(tennisTotal.line)} ${fmtOdds(tennisTotal.overPrice)} · U ${num(tennisTotal.line)} ${fmtOdds(tennisTotal.underPrice)}`;
   const tennisMarketP1 = Number(tennis.marketPriorP1 ?? tennisRef?.noVig?.home);
   const tennisPureP1 = Number(tennis.player1WinProb);
   const tennisProbEdge = Number.isFinite(tennisMarketP1) && Number.isFinite(tennisPureP1)
@@ -191,6 +199,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <>
             <div><span>MARKET ML</span><strong>{tennisAwayMl == null && tennisHomeMl == null ? "—" : `${away.abbr} ${fmtOdds(tennisAwayMl)} · ${home.abbr} ${fmtOdds(tennisHomeMl)}`}</strong></div>
             <div><span>FBIS FAIR ML</span><strong>{proj.available ? `${away.abbr} ${fairAmerican((Number(proj.away) || 0) / 100)} · ${home.abbr} ${fairAmerican((Number(proj.home) || 0) / 100)}` : "—"}</strong></div>
+            <div><span>GAME SPREAD</span><strong>{tennisSpreadLabel}</strong></div>
+            <div><span>TOTAL GAMES</span><strong>{tennisTotalLabel}</strong></div>
             <div><span>SURFACE</span><strong>{[tennis.surface ? String(tennis.surface).toUpperCase() : null, tennis.indoor === true ? "INDOOR" : tennis.indoor === false ? "OUTDOOR" : null].filter(Boolean).join(" · ") || "—"}</strong></div>
             <div><span>EVENT</span><strong>{[tennisTour, tennis.tournament].filter(Boolean).join(" · ") || tennisTour}</strong></div>
           </>
