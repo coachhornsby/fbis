@@ -1096,7 +1096,7 @@
   text-transform:uppercase;
 }
 .fbis-shell-main.route-board .pgc-tennis-market{
-  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-columns:repeat(3,minmax(0,1fr));
 }
 .fbis-shell-main.route-board .pgc-tennis-market strong{
   font-size:12px;
