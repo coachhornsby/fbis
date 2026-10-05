@@ -16,6 +16,39 @@ function norm(v){
     .toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
 }
 function n(v){ if(v==null||v==="")return null; const x=Number(v); return Number.isFinite(x)?x:null; }
+const NFL_RELEASE="https://github.com/nflverse/nflverse-data/releases/download";
+const NFL_ABBR={JAC:"JAX",JAX:"JAX",LA:"LAR",LAR:"LAR",LV:"LV",OAK:"LV",WAS:"WAS",WSH:"WAS",SD:"LAC",LAC:"LAC",STL:"LAR"};
+function canonNfl(v){const s=String(v||"").trim().toUpperCase();return NFL_ABBR[s]||s;}
+function splitCsvLine(line){
+  const out=[]; let cur="",quoted=false;
+  for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(quoted&&line[i+1]==='"'){cur+='"';i+=1;}else quoted=!quoted;}else if(ch===","&&!quoted){out.push(cur);cur="";}else cur+=ch;}
+  out.push(cur);return out;
+}
+function parseCsv(text=""){
+  const lines=String(text).replace(/^\uFEFF/,"").trim().split(/\r?\n/).filter(Boolean);
+  if(lines.length<2)return[];
+  const headers=splitCsvLine(lines[0]);
+  return lines.slice(1).map(line=>{const cells=splitCsvLine(line);return Object.fromEntries(headers.map((h,i)=>[h,cells[i]??""]));});
+}
+async function fetchNflPlayerSeason(year){
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort("nfl-player-detail-timeout"),8000);
+  try{
+    const url=NFL_RELEASE+"/stats_player/stats_player_week_"+year+".csv";
+    const res=await fetch(url,{headers:{Accept:"text/csv,*/*","User-Agent":"FBIS/2.0"},signal:controller.signal});
+    if(!res.ok)return[];
+    return parseCsv(await res.text());
+  }catch{return[];}finally{clearTimeout(timer);}
+}
+async function recentNflGames(name,team,field){
+  const y=new Date().getFullYear();
+  const data=await Promise.all([fetchNflPlayerSeason(y),fetchNflPlayerSeason(y-1)]);
+  const wanted=norm(name),t=canonNfl(team);
+  const rows=[...data[0],...data[1]].filter(r=>{
+    const nm=norm(r.player_display_name||r.player_name||r.player_name_short||"");
+    return nm===wanted&&(!t||canonNfl(r.team)===t)&&String(r.season_type||"REG").toUpperCase()==="REG";
+  }).sort((x,y)=>(Number(y.season||0)-Number(x.season||0))||(Number(y.week||0)-Number(x.week||0)));
+  return rows.slice(0,5).map(r=>({season:n(r.season),week:n(r.week),date:r.gameday||r.game_date||r.date||null,opponent:canonNfl(r.opponent_team),value:n(r[field])??0}));
+}
 const NFL_MARKET_FIELD={
   completions:"completions",passing_attempts:"attempts",passing_yards:"passing_yards",
   passing_tds:"passing_tds",interceptions:"interceptions",rushing_attempts:"carries",
@@ -36,51 +69,23 @@ function gameStat(game,field){
   return v==null?null:v;
 }
 async function nflDetail(context,{name,team,opponent,market,line}){
-  let feed=await loadNflVerseFeatures(context.env||{},{forceNetwork:false});
-  let p=nflPlayer(feed,name,team);
+  const feed=await loadNflVerseFeatures(context.env||{},{forceNetwork:false});
+  const p=nflPlayer(feed,name,team);
   const field=NFL_MARKET_FIELD[market]||null;
-  // Never make a user-facing detail request rebuild the entire nflverse season.
-  // The board's archived snapshot is the latency-safe runtime source. If that
-  // snapshot cannot resolve this player/market, return an explicit unavailable
-  // state immediately instead of leaving the UI waiting on a large network fanout.
-  if(!p||!field) return {
-    unavailable:true,
-    reason:!field?"unsupported-market":"player-history-not-in-runtime-snapshot",
-    source:feed?.meta?.runtimeSource||"nflverse-snapshot",
-    sourceLabel:"nflverse runtime snapshot",
-    last5:[],
-    season:null,
-    role:null,
-    matchup:null,
-    advanced:null,
-  };
-  const last5=(p.recentGames||[]).slice(0,5).map(g=>({
-    season:g.season??null,week:g.week??null,date:g.date||null,opponent:g.opponent||null,
-    value:gameStat(g,field),hit:line==null?null:gameStat(g,field)>Number(line),
-  }));
-  const position=String(p.position||"").toUpperCase();
-  const opp=String(opponent||"").toUpperCase();
-  const defense=opp?feed?.byTeam?.[opp]?.positionDefense?.[position]?.[field]:null;
+  if(!field)return null;
+  let last5=(p?.recentGames||[]).slice(0,5).map(g=>({season:g.season??null,week:g.week??null,date:g.date??null,opponent:g.opponent||null,value:gameStat(g,field),hit:line==null?null:gameStat(g,field)>Number(line)})).filter(g=>g.value!=null);
+  if(last5.length<3){
+    const direct=await recentNflGames(name,team,field);
+    if(direct.length)last5=direct.map(g=>({...g,hit:line==null?null:Number(g.value)>Number(line)}));
+  }
+  const position=String(p?.position||"").toUpperCase();
+  const opp=canonNfl(opponent);
+  const defense=opp&&position?feed?.byTeam?.[opp]?.positionDefense?.[position]?.[field]:null;
   const league=position?feed?.leaguePositionDefense?.[position]?.[field]:null;
-  const seasonAvg=n(p?.seasonAvg?.[field]);
-  const recent5Avg=n(p?.recent5?.[field]);
-  const snapShare=n(p?.snapShare);
-  const ngs=p?.ngs||null;
-  return {
-    source:"nflverse",
-    sourceLabel:"nflverse weekly player stats",
-    statField:field,
-    last5,
-    season:{games:n(p.games),average:seasonAvg,recent5Average:recent5Avg},
-    role:{position:position||null,snapShare,trackingGames:n(p.trackingGames),snapGames:n(p.snapGames)},
-    matchup:{
-      opponent:opp||null,
-      opponentAllowed:defense==null?null:Number(defense),
-      leagueAverageAllowed:league==null?null:Number(league),
-      matchupFactor:defense!=null&&league?Number(defense)/Number(league):null,
-    },
-    advanced:ngs,
-  };
+  const currentSeason=last5.filter(g=>Number(g.season)===new Date().getFullYear()).map(g=>Number(g.value)).filter(Number.isFinite);
+  const seasonAvg=p?.seasonAvg?.[field]!=null?n(p.seasonAvg[field]):(currentSeason.length?currentSeason.reduce((s,v)=>s+v,0)/currentSeason.length:null);
+  const recent5Avg=last5.length?last5.reduce((s,g)=>s+(Number(g.value)||0),0)/last5.length:null;
+  return {source:"nflverse",sourceLabel:"nflverse weekly player stats",statField:field,last5,season:{games:n(p?.games)??currentSeason.length,average:seasonAvg,recent5Average:recent5Avg},role:{position:position||null,snapShare:n(p?.snapShare),trackingGames:n(p?.trackingGames),snapGames:n(p?.snapGames)},matchup:{opponent:opp||null,opponentAllowed:defense==null?null:Number(defense),leagueAverageAllowed:league==null?null:Number(league),matchupFactor:defense!=null&&league?Number(defense)/Number(league):null},advanced:p?.ngs||null};
 }
 async function mlbPerson(name){
   const r=await fetch("https://statsapi.mlb.com/api/v1/people/search?active=true&sportIds=1&names="+encodeURIComponent(name),{
