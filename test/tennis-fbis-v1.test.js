@@ -231,3 +231,12 @@ test("tennis research board excludes doubles until a pair-strength model exists"
 test("canonical PrizePicks tennis event identity is stable",()=>{
   assert.equal(canonicalTennisEventId({game_id:"190789"}),"tennis:pp:190789");
 });
+
+
+test("research backtest can lower simulation floor without changing production floor",()=>{
+  const game={id:"floor",player1:strong,player2:weak};
+  const research=simulateTennisMatch(game,{simulations:125},{seed:1,researchBacktest:true});
+  const production=simulateTennisMatch(game,{simulations:125},{seed:1});
+  assert.equal(research.simulations,125);
+  assert.equal(production.simulations,1000);
+});
