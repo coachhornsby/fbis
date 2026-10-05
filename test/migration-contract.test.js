@@ -89,6 +89,15 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(m38, /online_learning_shadow/);
   assert.match(schemaExt, /learning_monitor_runs/);
   assert.match(schemaExt, /online_learning_shadow/);
+  const m55nhl = await readFile(new URL("../migrations/0055_nhl_persistent_team_profiles.sql", import.meta.url), "utf8");
+  assert.match(m55nhl, /0055_nhl_persistent_team_profiles/i);
+  assert.match(m55nhl, /nhl_team_profiles/);
+  assert.match(m55nhl, /nhl_player_state_profiles/);
+  assert.match(m55nhl, /nhl_deployment_observations/);
+  assert.match(m55nhl, /nhl_linemate_edges/);
+  assert.match(m55nhl, /nhl_goalie_state_profiles/);
+  assert.match(m55nhl, /nhl_replacement_profiles/);
+  assert.match(schemaExt, /nhl_team_profiles/);
   const m39 = await readFile(new URL("../migrations/0052_soccer_v2_features.sql", import.meta.url), "utf8");
   const m52 = await readFile(new URL("../migrations/0052_soccer_v2_features.sql", import.meta.url), "utf8");
   assert.match(m39, /0052_soccer_v2_features/i);
