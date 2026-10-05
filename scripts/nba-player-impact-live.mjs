@@ -28,7 +28,11 @@ const flattenRows=x=>Array.isArray(x)
   : (Array.isArray(x?.results) ? x.results : Array.isArray(x?.result) ? x.result.flatMap(r=>r?.results||[]) : []);
 const availability=flattenRows(availRaw);
 const coverage=flattenRows(readJson(coverageFile));
-const hist=new Map(),latest=new Map();
+const hist=new Map(),latest=new Map(),teamAbbrById=new Map();
+for(const g of games){
+  if(g.homeId)teamAbbrById.set(String(g.homeId),g.home?.abbr||teamAbbrById.get(String(g.homeId))||null);
+  if(g.awayId)teamAbbrById.set(String(g.awayId),g.away?.abbr||teamAbbrById.get(String(g.awayId))||null);
+}
 for(const g of games)for(const p of g.players||[]){
   const id=String(p.id||p.name||"");if(!id)continue;
   if(!hist.has(id))hist.set(id,[]);
@@ -56,7 +60,7 @@ for(const [id,rows] of hist){
     net:blend(currentImpact.net,finite(h?.net)),
     name:latest.get(id)?.name||h?.name||id,
     teamId:String(latest.get(id)?.teamId||h?.teamId||""),
-    team:latest.get(id)?.team||h?.team||null,
+    team:latest.get(id)?.team||h?.team||teamAbbrById.get(String(latest.get(id)?.teamId||h?.teamId||""))||null,
     position:latest.get(id)?.position||h?.position||null,
     sourceBlend:{currentGames:currentN,currentWeight:w,historicalArtifact:Boolean(h)}
   };
