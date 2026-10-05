@@ -220,10 +220,14 @@ export function buildScheduleProfile(events,abbr,season,nowMs=Date.now()){
    const site=s.home===team?"HOME":"ROAD",opp=s.home===team?s.away:s.home,geo=venueGeo(e);
    if(site==="ROAD")roadStreak+=1;else roadStreak=0;
    const prevStart=previous?Date.parse(previous.start_time||0):null;
-   const gapDays=prevStart!=null&&Number.isFinite(startMs)?(startMs-prevStart)/86400000:null;
+   const gapHours=prevStart!=null&&Number.isFinite(startMs)?(startMs-prevStart)/3600000:null;
+   const gapDays=gapHours==null?null:gapHours/24;
    const daysRest=gapDays==null?null:Math.max(0,round(gapDays-1,1));
-   const shortWeek=daysRest!=null&&daysRest<6;
-   const postBye=daysRest!=null&&daysRest>=10;
+   // "Short week" is based on kickoff-to-kickoff elapsed time, not rounded
+   // rest-days. This prevents ordinary Sunday-to-Sunday games with different
+   // kickoff windows (e.g. 4:25 PM -> 1:00 PM) from being falsely flagged.
+   const shortWeek=gapHours!=null&&gapHours<144;
+   const postBye=gapHours!=null&&gapHours>=264;
    const prior4=rows.filter(r=>startMs-Date.parse(r.start_time)<=28*86400000);
    const roadGamesLast4=prior4.filter(r=>r.site==="ROAD").length+(site==="ROAD"?1:0);
    const threeRoadInFour=roadGamesLast4>=3;
