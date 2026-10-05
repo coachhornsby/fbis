@@ -180,8 +180,7 @@ async function scheduledCycle(env) {
   if (String(env.ORCH_CRON_ENABLED || "false").toLowerCase() !== "true") {
     return { ok: true, status: "CRON_DISABLED", at: new Date().toISOString() };
   }
-  const actionDaily = await runScheduledActionDaily(env);\n  const tennis = await runScheduledTennisCapture(env);
-  const gate = credentialGate();
+  const actionDaily = await runScheduledActionDaily(env); const tennis = await runScheduledTennisCapture(env); const gate = credentialGate();
   if (gate.missing.length) {
     return {
       ok: true,
