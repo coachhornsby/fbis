@@ -172,12 +172,13 @@ function goalieStarterIds(box={}){
  }
  return out;
 }
-function parseShiftRows(payload={},team){
+function parseShiftRows(payload={},team,rosterIds=null){
  const want=officialAbbr(team),out=[];
  for(const r of payload?.data||[]){
   const abbr=String(r.teamAbbrev||r.teamAbbreviation||r.teamAbbrevCode||"").toUpperCase();
   if(abbr&&abbr!==want)continue;
   const id=String(r.playerId||"");if(!id)continue;
+  if(rosterIds&&rosterIds.size&&!rosterIds.has(id))continue;
   const period=finite(r.period)||1,start=clockInPeriod(r.startTime),end=clockInPeriod(r.endTime),dur=durationSeconds(r.duration);
   let a=start,b=end;
   if(a!=null&&b!=null&&b<a)b+=20*60;
@@ -235,8 +236,8 @@ function deploymentFromShifts(roster,shiftSets=[]){
  return {lines,toi,pairs:pairsOut,gamesByPlayer};
 }
 function ppPkUnits(roster,timeById){
- const pp=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:finite(timeById.get(p.id)?.powerPlayTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
- const pk=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:finite(timeById.get(p.id)?.shortHandedTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
+ const pp=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.powerPlayTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
+ const pk=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.shortHandedTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
  const out=new Map();
  for(const p of roster)out.set(p.id,{ppUnit:null,pkUnit:null});
  pp.filter(x=>x.v>0).slice(0,10).forEach((x,i)=>out.get(x.id).ppUnit=i<5?1:2);
@@ -328,7 +329,8 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
   const scheduleRows=buildNhlScheduleProfile(sources.games,team,seasonId,now.getTime());
   const summaryById=statByPlayer(sources.summary?.data||{}),timeById=statByPlayer(sources.timeonice?.data||{});
   const latest=sources.detail?.[0]||null,lastGameScratches=scratchIds(latest?.box?.data||{}),currentScratches=scratchIds(sources.pregameBox?.data||{}),starterIds=goalieStarterIds(latest?.box?.data||{});
-  const shiftSets=(sources.detail||[]).map(d=>({gameId:d.game.id,rows:parseShiftRows(d.shifts?.data||{},team)}));
+  const rosterIdSet=new Set(roster.map(p=>p.id));
+  const shiftSets=(sources.detail||[]).map(d=>({gameId:d.game.id,rows:parseShiftRows(d.shifts?.data||{},team,rosterIdSet)}));
   const deploy=deploymentFromShifts(roster,shiftSets),units=ppPkUnits(roster,timeById);
   const [existing,availRows]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(DB,tkey)]);
   const priorById=new Map(existing.map(x=>[String(x.player_id),x])),availability=latestAvailability(availRows);
