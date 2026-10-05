@@ -140,10 +140,10 @@ for(const t of tournaments.values()){
 const now=new Date().toISOString();
 let sql="DELETE FROM tennis_player_profiles_current;\nDELETE FROM tennis_tournament_speed_current;\n";
 for(const r of profileRows){
-  sql+=`INSERT INTO tennis_player_profiles_current(tour,player_key,player_id,player_name,surface,profile_json,last_match_date,last_surface,last_tournament,games_last_3_days,games_last_7_days,sets_last_3_days,sets_last_7_days,days_since_retirement_or_mto,source,source_license,source_as_of,production_dependency,updated_at) VALUES(${q(r.tour)},${q(r.playerKey)},${q(r.playerId)},${q(r.playerName)},${q(r.surface)},${q(JSON.stringify(r.profile))},${q(r.lastDate)},${q(r.lastSurface)},${q(r.lastTournament)},${n(r.gamesLast3Days)},${n(r.gamesLast7Days)},${n(r.setsLast3Days)},${n(r.setsLast7Days)},${n(r.daysSinceRetirementOrMto)},'SACKMANN_TENNIS_ABSTRACT_RESEARCH','CC BY-NC-SA 4.0',${q(sourceAsOf)},0,${q(now)});\n`;
+  sql+=`INSERT OR REPLACE INTO tennis_player_profiles_current(tour,player_key,player_id,player_name,surface,profile_json,last_match_date,last_surface,last_tournament,games_last_3_days,games_last_7_days,sets_last_3_days,sets_last_7_days,days_since_retirement_or_mto,source,source_license,source_as_of,production_dependency,updated_at) VALUES(${q(r.tour)},${q(r.playerKey)},${q(r.playerId)},${q(r.playerName)},${q(r.surface)},${q(JSON.stringify(r.profile))},${q(r.lastDate)},${q(r.lastSurface)},${q(r.lastTournament)},${n(r.gamesLast3Days)},${n(r.gamesLast7Days)},${n(r.setsLast3Days)},${n(r.setsLast7Days)},${n(r.daysSinceRetirementOrMto)},'SACKMANN_TENNIS_ABSTRACT_RESEARCH','CC BY-NC-SA 4.0',${q(sourceAsOf)},0,${q(now)});\n`;
 }
 for(const r of speedRows){
-  sql+=`INSERT INTO tennis_tournament_speed_current(tour,tournament_key,tournament_name,season,surface,court_speed_index,sample_sides,source,source_as_of,production_dependency,updated_at) VALUES(${q(r.tour)},${q(r.tournamentKey)},${q(r.name)},${n(r.year)},${q(r.surface)},${n(r.courtSpeedIndex)},${n(r.sampleSides)},'SACKMANN_TENNIS_ABSTRACT_RESEARCH',${q(sourceAsOf)},0,${q(now)});\n`;
+  sql+=`INSERT OR REPLACE INTO tennis_tournament_speed_current(tour,tournament_key,tournament_name,season,surface,court_speed_index,sample_sides,source,source_as_of,production_dependency,updated_at) VALUES(${q(r.tour)},${q(r.tournamentKey)},${q(r.name)},${n(r.year)},${q(r.surface)},${n(r.courtSpeedIndex)},${n(r.sampleSides)},'SACKMANN_TENNIS_ABSTRACT_RESEARCH',${q(sourceAsOf)},0,${q(now)});\n`;
 }
 
 await fs.mkdir(path.dirname(OUT),{recursive:true});
