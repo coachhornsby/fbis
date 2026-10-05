@@ -8,7 +8,8 @@ const j=await r.json();
 const out=[];
 const firstEvent=(j.events||[])[0]||null;
 for(const ev of j.events||[]){
-  for(const c of ev.competitions||[]){
+  const comps=[...(ev.competitions||[]),...(ev.groupings||[]).flatMap(g=>g.competitions||[])];
+  for(const c of comps){
     const names=(c.competitors||[]).map(x=>x.athlete?.displayName||x.athlete?.shortName||x.team?.displayName||x.displayName||x.id);
     const oddsUrl=`https://sports.core.api.espn.com/v2/sports/tennis/leagues/${league}/events/${ev.id}/competitions/${c.id}/odds?limit=100`;
     let odds=null;try{const q=await fetch(oddsUrl,{headers:{"user-agent":"FBIS tennis ESPN market probe"}});if(q.ok)odds=await q.json();}catch{}
