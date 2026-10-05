@@ -2,6 +2,7 @@ import TeamLogo from "../TeamLogo.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
+import TennisMatchCard from "./TennisMatchCard.jsx";
 import "./premiumGameCard.css";
 
 function num(v) {
@@ -112,6 +113,9 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const sportId = String(vm.sport || game?.sport || "").toLowerCase();
   const isNfl = sportId === "nfl";
   const isTennis = sportId === "tennis";
+  if (isTennis) {
+    return <TennisMatchCard game={game} open={open} onToggle={onToggle} renderDetail={renderDetail} />;
+  }
   const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
   const finalAway = game?.away?.score ?? away?.score ?? null;
