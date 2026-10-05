@@ -84,7 +84,7 @@ function playGame(serverIdx,profiles,R,stats){
   let a=0,b=0;
   while(true){
     const receiver=1-serverIdx;
-    const isBreakPoint=(receiver===0?b:a)>=3 && (receiver===0?b-a:a-b)>=1;
+    const isBreakPoint=receiver===0 ? (a>=3&&a>b) : (b>=3&&b>a);
     const w=playPoint(serverIdx,profiles,R,stats,{isBreakPoint});
     if(w===0)a++;else b++;
     if((a>=4||b>=4)&&Math.abs(a-b)>=2)return a>b?0:1;
