@@ -146,6 +146,24 @@ function actionMoveLabel(action, away, home) {
   return "NO MOVE YET";
 }
 
+const MATCHUP_ICON_BY_ID = {
+  pressure: "⚡", run: "🏃", coverageRoute: "🛡️", explosive: "💥", earlyDown: "🎯",
+  starter: "🎯", starters: "🎯", bullpen: "🧱", offense: "🔥", "run-prevention": "🛡️",
+  lineup: "💥", form: "📈", environment: "🌤️", "matchup-eff": "⚡", defense: "🛡️",
+  pace: "🏃", projection: "🎯", "five-v-five": "🏒", finishing: "🎯", goaltending: "🥅",
+  "special-teams": "⚡", "high-danger": "🔥", rest: "🔋", attack: "⚽",
+  "expected-goals": "🎯", btts: "🔥", surface: "🎾", serve: "💣", return: "↩️", fitness: "🔋",
+};
+
+function splitMatchupVisual(id, rawLabel) {
+  const label = String(rawLabel || "MATCHUP").trim();
+  const match = label.match(/^(\p{Extended_Pictographic}|↩️?)\s*/u);
+  return {
+    icon: MATCHUP_ICON_BY_ID[String(id || "")] || (match ? match[1] : "◆"),
+    label: (match ? label.slice(match[0].length) : label).trim().toUpperCase(),
+  };
+}
+
 export default function CompactGameCard({ game, onOpen }) {
   const vm = buildGameCardViewModel(game);
   const stars = confidenceStars(game);
@@ -169,12 +187,14 @@ export default function CompactGameCard({ game, onOpen }) {
     ["coverageRoute", "COVERAGE"],
     ["explosive", "EXPLOSIVE"],
     ["earlyDown", "EARLY DOWN"],
-  ].map(([id, label]) => ({ id, label, ...matchupSignalLabel(matchupById[id], away, home) }));
+  ].map(([id, label]) => ({ id, ...splitMatchupVisual(id, label), ...matchupSignalLabel(matchupById[id], away, home) }));
   const genericMatchupItems = genericFactors.map((factor, i) => {
     const edge = String(factor?.edge || factor?.advantage || factor?.team || "EVEN").toUpperCase();
     const homeHit = edge === String(home.abbr || "").toUpperCase();
     const awayHit = edge === String(away.abbr || "").toUpperCase();
-    return { id: factor?.id || `factor-${i}`, label: String(factor?.label || factor?.name || "MATCHUP").toUpperCase(), text: homeHit ? home.abbr : awayHit ? away.abbr : edge || "EVEN", tone: homeHit ? "home" : awayHit ? "away" : "neutral" };
+    const id = factor?.id || `factor-${i}`;
+    const visual = splitMatchupVisual(id, factor?.label || factor?.name || "MATCHUP");
+    return { id, ...visual, text: homeHit ? home.abbr : awayHit ? away.abbr : edge || "EVEN", tone: homeHit ? "home" : awayHit ? "away" : "neutral" };
   });
   const baselineMargin = Number(matchup?.baseline?.margin);
   const finalMargin = Number(matchup?.final?.margin);
@@ -312,7 +332,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <div className="cgc-matchup-pills">
             {matchupItems.filter((item) => item.text !== "—").map((item) => (
               <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
-                <span>{item.label}</span><strong>{item.text}</strong>
+                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "◆"}</i><em>{item.label}</em></span><strong>{item.text}</strong>
               </div>
             ))}
           </div>
@@ -333,7 +353,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <div className="cgc-matchup-pills">
             {genericMatchupItems.length ? genericMatchupItems.map((item) => (
               <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
-                <span>{item.label}</span><strong>{item.text}</strong>
+                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "◆"}</i><em>{item.label}</em></span><strong>{item.text}</strong>
               </div>
             )) : <div className="cgc-matchup-pill tone-neutral"><span>STATUS</span><strong>AWAITING MATCHUP DATA</strong></div>}
           </div>
