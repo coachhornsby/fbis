@@ -3,7 +3,7 @@ name: NBA persistent team profiles
 
 on:
   push:
-    branches: ["feature/nba-persistent-team-profiles", "fix/nba-team-profile-stale-availability", main]
+    branches: ["feature/nba-persistent-team-profiles", main]
     paths:
       - "functions/lib/nbaTeamProfile.js"
       - "scripts/nba-team-profile-source.mjs"
