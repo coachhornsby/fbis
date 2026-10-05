@@ -105,6 +105,12 @@ export class TennisDeepState{
       const or=ratio(o[num],o[den],prior),sr=ratio(s[num],s[den],or),rr=ratio(r[num],r[den],or);
       return weightedRecent(mixSurface(sr,s[den],or,o[den],prior),rr,r[den]);
     };
+    const countRate=(num,den,prior)=>{
+      const or=ratio(o[num],o[den],prior),sr=ratio(s[num],s[den],or),rr=ratio(r[num],r[den],or);
+      const sw=s[den]/(s[den]+75), base=or*(1-sw)+sr*sw;
+      const rw=Math.min(.30,r[den]/300);
+      return Math.max(0,base*(1-rw)+rr*rw);
+    };
     const firstIn=rate("firstIn","svpt",P.firstIn);
     const firstWon=rate("firstWon","firstIn",P.firstWon);
     const secondWon=rate("secondWon","svpt",P.secondWon); // corrected below using second-point count
@@ -122,13 +128,13 @@ export class TennisDeepState{
       servePointWin:firstIn*firstWon+(1-firstIn)*secondWonRate,
       aceRate:rate("ace","svpt",P.ace),doubleFaultRate:rate("df","svpt",P.df),
       bpSaveRate:rate("bpSaved","bpFaced",P.bpSave),
-      bpFacedPerServiceGame:rate("bpFaced","serviceGames",P.bpFacedPerGame),
-      servicePointsPerGame:rate("svpt","serviceGames",P.servicePointsPerGame/10)*10,
+      bpFacedPerServiceGame:countRate("bpFaced","serviceGames",P.bpFacedPerGame),
+      servicePointsPerGame:countRate("svpt","serviceGames",P.servicePointsPerGame),
       returnPointWin:rate("returnWon","returnPts",P.returnWon),
       returnFirstWin:returnFirstWon,returnSecondWin:returnSecondWon,
       aceAllowedRate:rate("acesAllowed","returnPts",P.aceAllowed),
       dfReceivedRate:rate("dfsReceived","returnPts",P.dfReceived),
-      bpCreatePerReturnGame:rate("bpCreated","returnGames",P.bpFacedPerGame),
+      bpCreatePerReturnGame:countRate("bpCreated","returnGames",P.bpFacedPerGame),
       bpConvertRate:rate("bpWon","bpCreated",P.bpConvert),
       surface,
     };
