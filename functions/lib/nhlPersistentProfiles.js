@@ -265,6 +265,29 @@ export function parseNhlCoachMetadata(payload={}){
 }
 async function queryRows(db,sql,...binds){if(!db?.prepare)return[];try{return (await db.prepare(sql).bind(...binds).all())?.results||[];}catch{return[];}}
 async function existingPlayers(db,tkey){return queryRows(db,"SELECT * FROM nhl_player_profiles WHERE team_key=?",tkey);}
+async function replacementHistoryRows(db,tkey){
+ return queryRows(db,`SELECT unavailable_player_id,replacement_player_id,MAX(replacement_player_name) replacement_player_name,
+   COUNT(*) sample_count,AVG(toi_delta_seconds) avg_toi_delta_seconds,
+   SUM(CASE WHEN pp_unit_after=1 AND COALESCE(pp_unit_before,99)<>1 THEN 1 ELSE 0 END) pp1_promotions
+   FROM nhl_replacement_observations
+   WHERE team_key=?
+   GROUP BY unavailable_player_id,replacement_player_id
+   ORDER BY sample_count DESC,avg_toi_delta_seconds DESC`,tkey);
+}
+function learnedReplacementMap(player,players,historyRows){
+ const learned=(historyRows||[]).filter(r=>String(r.unavailable_player_id)===String(player.playerId))
+   .map(r=>{
+    const active=players.find(p=>String(p.playerId)===String(r.replacement_player_id));
+    if(!active||["OUT","IR"].includes(active.availabilityState)||active.gameState==="CONFIRMED_SCRATCH")return null;
+    return{
+      playerId:active.playerId,name:active.playerName,evLine:active.evLine,dPair:active.dPair,ppUnit:active.ppUnit,
+      rollingToiSeconds:active.rollingToiSeconds,learned:true,sampleCount:Number(r.sample_count)||0,
+      avgToiDeltaSeconds:round(r.avg_toi_delta_seconds,1),pp1Promotions:Number(r.pp1_promotions)||0
+    };
+   }).filter(Boolean).sort((a,b)=>b.sampleCount-a.sampleCount||b.avgToiDeltaSeconds-a.avgToiDeltaSeconds);
+ if(learned.length)return learned.slice(0,3);
+ return replacementMap(player,players).map(x=>({...x,learned:false,sampleCount:0}));
+}
 async function trackingRows(db,tkey){
  return queryRows(db,"SELECT * FROM nhl_player_tracking_profiles WHERE team_key=? ORDER BY source_as_of DESC LIMIT 24",tkey);
 }
@@ -372,8 +395,8 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
   const latest=sources.detail?.[0]||null,lastGameScratches=scratchIds(latest?.box?.data||{}),currentScratches=scratchIds(sources.pregameBox?.data||{}),starterIds=goalieStarterIds(latest?.box?.data||{});
   const rosterIdSet=new Set(roster.map(p=>p.id));
   const shiftSets=(sources.detail||[]).map(d=>({gameId:d.game.id,rows:parseShiftRows(d.shifts?.data||{},team,rosterIdSet)}));
-  const deploy=deploymentFromShifts(roster,shiftSets),units=inferNhlSpecialTeamsUnits(roster,timeById);
-  const [existing,availRows]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(DB,tkey)]);
+  const deploy=deploymentFromShifts(roster,shiftSets),latestDeploy=deploymentFromShifts(roster,shiftSets.slice(0,1)),units=inferNhlSpecialTeamsUnits(roster,timeById);
+  const [existing,availRows,replacementHistory]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(DB,tkey),replacementHistoryRows(DB,tkey)]);
   const priorById=new Map(existing.map(x=>[String(x.player_id),x])),availability=latestAvailability(availRows);
   const players=roster.map(p=>{
    const stat=summaryById.get(p.id)||{},toi=timeById.get(p.id)||{},role=deploy.lines.get(p.id)||{},unit=units.get(p.id)||{},prior=priorById.get(p.id)||null;
@@ -396,7 +419,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
     sourceUpdatedAt:av?.observed_at||now.toISOString(),carriedState:false,replacements:[],linemates:[],raw:{roster:p.raw,summary:stat,timeonice:toi,currentScratch,lastGameScratch}
    };
   });
-  for(const p of players)p.replacements=replacementMap(p,players);
+  for(const p of players)p.replacements=learnedReplacementMap(p,players,replacementHistory);
   for(const p of players){
    const mates=[...deploy.pairs.values()].filter(x=>x.a===p.playerId||x.b===p.playerId).sort((a,b)=>b.seconds-a.seconds).slice(0,5);
    p.linemates=mates.map(x=>({playerId:x.a===p.playerId?x.b:x.a,sharedSeconds:round(x.seconds,1),overlapShare:round(x.overlapShare)}));
@@ -438,6 +461,43 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    playerId:p.playerId,playerName:p.playerName,position:p.position,evLine:p.evLine,dPair:p.dPair,ppUnit:p.ppUnit,pkUnit:p.pkUnit,
    toiSeconds:p.lastToiSeconds,scratch:Boolean(p.raw?.lastGameScratch),observedAt:now.toISOString(),raw:{source:p.source,currentGameState:p.gameState}
   }));
+  const replacementObservations=[];
+  if(latest?.game?.id&&lastGameScratches.size&&shiftSets[0]?.rows?.length){
+   for(const sid of lastGameScratches){
+    const unavailable=priorById.get(String(sid));
+    if(!unavailable)continue;
+    const unavailableGroup=String(unavailable.position||"").toUpperCase()==="D"?"D":"F";
+    const candidates=players.filter(p=>!p.carriedState&&p.position!=="G"&&p.playerId!==String(sid)&&!lastGameScratches.has(String(p.playerId)))
+      .filter(p=>(p.position==="D"?"D":"F")===unavailableGroup)
+      .map(p=>{
+       const currentToi=finite(latestDeploy.toi.get(String(p.playerId)))||0;
+       const priorToi=finite(priorById.get(String(p.playerId))?.rolling_toi_seconds)||0;
+       return{p,currentToi,priorToi,delta:currentToi-priorToi};
+      })
+      .filter(x=>x.currentToi>0&&x.delta>=30)
+      .sort((a,b)=>b.delta-a.delta).slice(0,3);
+    for(const x of candidates){
+     const priorReplacement=priorById.get(String(x.p.playerId));
+     replacementObservations.push({
+      id:`nhl:replacement:${latest.game.id}:${sid}:${x.p.playerId}`,gameId:latest.game.id,gameStart:latest.game.start,teamKey:tkey,
+      unavailablePlayerId:String(sid),unavailablePlayerName:unavailable.player_name||null,replacementPlayerId:x.p.playerId,replacementPlayerName:x.p.playerName,
+      positionGroup:unavailableGroup,toiDeltaSeconds:round(x.delta,1),ppToiDeltaSeconds:null,
+      evLineBefore:finite(priorReplacement?.ev_line),evLineAfter:x.p.evLine,ppUnitBefore:finite(priorReplacement?.pp_unit),ppUnitAfter:x.p.ppUnit,
+      observedAt:now.toISOString(),raw:{currentToi:round(x.currentToi,1),priorRollingToi:round(x.priorToi,1),lastGameScratch:true}
+     });
+    }
+   }
+  }
+  if(replacementObservations.length){
+   await upsertRows(DB,`INSERT OR IGNORE INTO nhl_replacement_observations (
+    id,game_id,game_start,team_key,unavailable_player_id,unavailable_player_name,replacement_player_id,replacement_player_name,
+    position_group,toi_delta_seconds,pp_toi_delta_seconds,ev_line_before,ev_line_after,pp_unit_before,pp_unit_after,source,observed_at,raw_json
+   ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,replacementObservations,o=>[
+    o.id,o.gameId,o.gameStart,o.teamKey,o.unavailablePlayerId,o.unavailablePlayerName,o.replacementPlayerId,o.replacementPlayerName,
+    o.positionGroup,o.toiDeltaSeconds,o.ppToiDeltaSeconds,o.evLineBefore,o.evLineAfter,o.ppUnitBefore,o.ppUnitAfter,
+    "NHL_PERSISTENT_ROLE_LEARNING",o.observedAt,JSON.stringify(o.raw)
+   ]);
+  }
   if(trackingFetched.length){
    await upsertRows(DB,`INSERT INTO nhl_player_tracking_profiles (
     player_id,team_key,player_name,position,available,coverage,max_skating_speed,bursts_22_plus,bursts_20_plus,total_distance,distance_per_60,
@@ -467,7 +527,12 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    scheduleStressScore:next?.scheduleStressScore??0,scheduleFlags:next?.stressFlags||[],
    deployment:{latestGameId:latest?.game?.id||null,shiftGames:shiftSets.filter(x=>x.rows.length).length,linesObserved:[...deploy.lines.entries()].map(([playerId,v])=>({playerId,...v}))},
    goalie:{hierarchy:goalies.slice(0,3).map(g=>({playerId:g.playerId,name:g.playerName,rank:g.hierarchyRank,state:g.goalieState,expectedStartProbability:g.expectedStartProbability}))},
-   coach,style:{
+   coach,deploymentLearning:{
+    replacementObservationsAdded:replacementObservations.length,
+    learnedReplacementPairs:replacementHistory.length,
+    source:"NHL_PERSISTENT_ROLE_LEARNING",
+    researchOnly:true
+   },style:{
     source:"NHL_PRO_V2_EXISTING_TEAM_IDENTITY+PERSISTED_PLAYER_EDGE",
     playerTrackingRequested:trackingEffective.length,
     playerTrackingAvailable:trackingEffective.filter(x=>x.available).length,
