@@ -79,6 +79,34 @@ function splitLabel(split, away, home) {
   if(!Number.isFinite(a)||!Number.isFinite(h)) return "—";
   return `${away.abbr} ${Math.round(a)}% · ${home.abbr} ${Math.round(h)}%`;
 }
+function mlbStarterInfo(game, side) {
+  const persistent = game?.mlbPersistentState?.[side === "home" ? "homeStarter" : "awayStarter"] || null;
+  const raw = game?.[side === "home" ? "homeSp" : "awaySp"] || {};
+  const era = persistent?.era ?? game?.savant?.[side === "home" ? "homeSpEra" : "awaySpEra"] ?? null;
+  const id = raw?.id ?? persistent?.id ?? null;
+  return {
+    id,
+    name: raw?.name || persistent?.name || null,
+    wins: persistent?.wins ?? null,
+    losses: persistent?.losses ?? null,
+    era,
+  };
+}
+function MlbStarterMini({ game, side }) {
+  const sp = mlbStarterInfo(game, side);
+  if (!sp.name && sp.era == null) return null;
+  const record = sp.wins != null && sp.losses != null ? `${sp.wins}-${sp.losses}` : null;
+  const era = Number.isFinite(Number(sp.era)) ? `${Number(sp.era).toFixed(2)} ERA` : null;
+  const image = sp.id ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_96,q_auto:best/v1/people/${sp.id}/headshot/67/current` : null;
+  return <div className="pgc-mlb-starter">
+    {image ? <img src={image} alt="" width="38" height="38" loading="lazy" referrerPolicy="no-referrer" /> : null}
+    <div>
+      <strong>{sp.name || "TBD"}</strong>
+      <span>{[record, era].filter(Boolean).join(" · ") || "Starter"}</span>
+    </div>
+  </div>;
+}
+
 function MarketCell({ title, value, model, market, edge }) {
   return (
     <div className="pgc-market-cell">
@@ -169,7 +197,10 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
 
       <section className="pgc-featured-matchup">
         <div className="pgc-featured-team">
-          <TeamLogo team={away} size={82} className="pgc-featured-logo" />
+          <div className="pgc-team-visual">
+            <TeamLogo team={away} size={82} className="pgc-featured-logo" />
+            {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
+          </div>
           <div>
             <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
             {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(away, tennisTour)}</span> : null}
@@ -187,7 +218,10 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </div>
 
         <div className="pgc-featured-team pgc-featured-team-home">
-          <TeamLogo team={home} size={82} className="pgc-featured-logo" />
+          <div className="pgc-team-visual">
+            <TeamLogo team={home} size={82} className="pgc-featured-logo" />
+            {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
+          </div>
           <div>
             <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
             {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(home, tennisTour)}</span> : null}
