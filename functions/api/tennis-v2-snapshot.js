@@ -3,6 +3,7 @@ import { simulateTennisV2 } from "../lib/tennisFbisV2.js";
 import { buildSharpMarketPrior } from "../lib/tennisMarketV2.js";
 import {
   actionObservationToTennisMarket,
+  actionObservationToTennisMarkets,
   persistTennisMarketSnapshot,
   persistTennisContexts,
   persistTennisV2Decision,
@@ -133,17 +134,18 @@ export async function onRequestPost(context){
     if(mode==="capture"||mode==="all"){
       const rows=await latestActionRows(context.env.DB,{hours:body.hours,limit:body.limit});
       for(const row of rows){
-        const market=actionObservationToTennisMarket(row);
-        if(!market)continue;
-        const p=await persistTennisMarketSnapshot(context.env.DB,market);
-        if(p.inserted)marketInserted++;
-        captured.push({...market,snapshotId:p.id});
+        const markets=actionObservationToTennisMarkets(row);
+        for(const market of markets){
+          const p=await persistTennisMarketSnapshot(context.env.DB,market);
+          if(p.inserted)marketInserted++;
+          captured.push({...market,snapshotId:p.id});
+        }
       }
     }
 
     if(mode==="auto"||mode==="all"){
       const sourceMarkets=captured.length
-        ? captured.map(x=>({
+        ? captured.filter(x=>x.marketType==="moneyline").map(x=>({
             canonical_event_id:x.canonicalEventId,tour:x.tour,player1:x.player1,player2:x.player2,
             player1_price:x.player1Price,player2_price:x.player2Price,player1_no_vig_prob:x.player1NoVig,
             player2_no_vig_prob:x.player2NoVig,provider:x.provider,sportsbook:x.sportsbook,
@@ -154,7 +156,7 @@ export async function onRequestPost(context){
             `WITH ranked AS (
               SELECT *,ROW_NUMBER() OVER(PARTITION BY canonical_event_id ORDER BY observed_at DESC) rn
               FROM tennis_market_snapshots
-              WHERE event_start_time IS NOT NULL AND event_start_time>datetime('now')
+              WHERE market_type='moneyline' AND event_start_time IS NOT NULL AND event_start_time>datetime('now')
             ) SELECT * FROM ranked WHERE rn=1 ORDER BY observed_at DESC LIMIT 200`
           ).all().catch(()=>({results:[]})))?.results||[]);
       for(const m of sourceMarkets){
