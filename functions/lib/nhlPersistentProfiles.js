@@ -236,8 +236,8 @@ function deploymentFromShifts(roster,shiftSets=[]){
  return {lines,toi,pairs:pairsOut,gamesByPlayer};
 }
 function ppPkUnits(roster,timeById){
- const pp=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.powerPlayTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
- const pk=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.shortHandedTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
+ const pp=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.ppTimeOnIcePerGame ?? timeById.get(p.id)?.powerPlayTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
+ const pk=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.shTimeOnIcePerGame ?? timeById.get(p.id)?.shortHandedTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
  const out=new Map();
  for(const p of roster)out.set(p.id,{ppUnit:null,pkUnit:null});
  pp.filter(x=>x.v>0).slice(0,10).forEach((x,i)=>out.get(x.id).ppUnit=i<5?1:2);
@@ -246,13 +246,21 @@ function ppPkUnits(roster,timeById){
 }
 function parseCoach(payload={}){
  const found=[];
+ const direct=[...(Array.isArray(payload?.coach)?payload.coach:[]),...(Array.isArray(payload?.coaches)?payload.coaches:[])];
+ direct.forEach((v,i)=>{
+  const name=clean(v?.fullName||v?.displayName||v?.name||[v?.firstName,v?.lastName].filter(Boolean).join(" "));
+  const title=clean(v?.title||v?.role||v?.position||(i===0?"Head Coach":"Coach"));
+  if(name)found.push({title,name});
+ });
  function walk(v,depth=0){
   if(v==null||depth>7)return;if(Array.isArray(v)){for(const x of v)walk(x,depth+1);return;}if(typeof v!=="object")return;
-  const title=clean(v.title||v.role||v.position||v.type?.text||v.type?.name),name=clean(v.fullName||v.displayName||v.name);
-  if(name&&title&&/coach/i.test(title))found.push({title,name});
-  for(const [k,x] of Object.entries(v)){if(["links","logos","images"].includes(k))continue;walk(x,depth+1);}
+  const title=clean(v.title||v.role||v.position||v.type?.text||v.type?.name);
+  const name=clean(v.fullName||v.displayName||v.name||[v.firstName,v.lastName].filter(Boolean).join(" "));
+  if(name&&title&&/coach/i.test(title)&&!found.some(x=>x.name===name))found.push({title,name});
+  for(const [k,x] of Object.entries(v)){if(["links","logos","images","coach","coaches"].includes(k))continue;walk(x,depth+1);}
  }
- walk(payload);return {headCoach:found.find(x=>/head coach/i.test(x.title))?.name||null,staff:found};
+ walk(payload);
+ return {headCoach:found.find(x=>/head coach/i.test(x.title))?.name||found[0]?.name||null,staff:found};
 }
 async function queryRows(db,sql,...binds){if(!db?.prepare)return[];try{return (await db.prepare(sql).bind(...binds).all())?.results||[];}catch{return[];}}
 async function existingPlayers(db,tkey){return queryRows(db,"SELECT * FROM nhl_player_profiles WHERE team_key=?",tkey);}
@@ -347,7 +355,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
     rosterStatus:"CURRENT_ROSTER",availabilityState,gameState,injuryDetail:av?.detail||av?.injury_detail||null,
     evLine:role.evLine??null,dPair:role.dPair??null,ppUnit:unit.ppUnit??null,pkUnit:unit.pkUnit??null,
     lastGameId:latest?.game?.id||prior?.last_game_id||null,lastGameAt:latest?.game?.start||prior?.last_game_at||null,lastToiSeconds:round(lastToi,1),
-    rollingToiSeconds:round(rollToi,1),rollingPpToiSeconds:durationSeconds(toi.powerPlayTimeOnIcePerGame),
+    rollingToiSeconds:round(rollToi,1),rollingPpToiSeconds:durationSeconds(toi.ppTimeOnIcePerGame ?? toi.powerPlayTimeOnIcePerGame),
     shotsPerGame:finite(stat.shotsPerGame)??((finite(stat.shots)||0)/games),pointsPerGame:finite(stat.pointsPerGame)??((finite(stat.points)||0)/games),
     roleConfidence:shiftSets.some(x=>x.rows.length)?clamp(.62+.08*shiftSets.length,0,.82):.48,
     stateConfidence:lastGameScratch&&!currentScratch&&!officialState ? .72 : stateConfidence(availabilityState,true),
