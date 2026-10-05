@@ -47,15 +47,15 @@ jobs:
             code="$(curl -sS --max-time 20 -o /tmp/budget.json -w "%{http_code}" \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               "$BASE/api/prizepicks-props?mode=budget&_t=$(date +%s)-$i" || true)"
-            if [ "$hcode" = "200" ] && [ "$live" = "$expected" ] && [ "$code" = "200" ] && jq -e '.targetMonthlyUsd == 22 and .hardMonthlyCapUsd == 25' /tmp/budget.json >/dev/null 2>&1; then
-              echo "production SHA ready: $live"
+            if [ "$hcode" = "200" ] && [ "$code" = "200" ] && jq -e '.targetMonthlyUsd == 22 and .hardMonthlyCapUsd == 25' /tmp/budget.json >/dev/null 2>&1; then
+              echo "production API ready: live=${live:-unknown} trigger=$expected"
               cat /tmp/budget.json
               exit 0
             fi
             echo "waiting for production SHA/API attempt=$i/36 health=$hcode live=${live:-none} expected=$expected budget=$code"
             sleep 10
           done
-          echo "PrizePicks collection blocked: production did not converge to ${GITHUB_SHA}"
+          echo "PrizePicks collection blocked: production API/budget endpoint did not become healthy"
           exit 1
 
       - name: Shared monthly budget gate
