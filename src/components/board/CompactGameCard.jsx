@@ -1,6 +1,7 @@
 import TeamLogo from "../TeamLogo.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
+import "./compactGameCardEnhancements.css";
 
 function fmt(v) {
   const n = Number(v);
@@ -16,6 +17,39 @@ function Stars({ value = 1 }) {
         <svg key={i} className={i < safe ? "filled" : "empty"} viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg>
       ))}
     </span>
+  );
+}
+
+function VenueIcon({ indoor = false }) {
+  return indoor ? (
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9.5C4 6.5 7.6 4 12 4s8 2.5 8 5.5V19h-2v-3H6v3H4Zm2-5h12V9.5C18 7.7 15.3 6 12 6S6 7.7 6 9.5V14Zm2-4h8v2H8v-2Z" /></svg>
+  ) : (
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 6v2h18V6l-9-4ZM5 10v8H3v2h18v-2h-2v-8h-2v8h-3v-8h-4v8H7v-8H5Z" /></svg>
+  );
+}
+
+function WeatherIcon({ weather }) {
+  const text = String(weather?.description || "").toLowerCase();
+  if (/rain|shower|storm|thunder/.test(text)) return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.3 8.1 5 5 0 0 0 7 18Zm2 1-1 3h2l1-3H9Zm5 0-1 3h2l1-3h-2Z" /></svg>;
+  if (/snow|sleet|ice/.test(text)) return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m11 2 2 0v4l3-2 1 1-3 2 3 2 3-2 1 2-3 2 3 2-1 2-3-2-3 2 3 2-1 1-3-2v4h-2v-4l-3 2-1-1 3-2-3-2-3 2-1-2 3-2-3-2 1-2 3 2 3-2-3-2 1-1 3 2V2Z" /></svg>;
+  if (/cloud|overcast|fog|mist/.test(text)) return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.3 8.1 5 5 0 0 0 7 18Z" /></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm0-3h1v2h-2V2h1Zm0 18h1v2h-2v-2h1ZM2 11h2v2H2v-2Zm18 0h2v2h-2v-2ZM4.2 5.6l1.4-1.4L7 5.6 5.6 7 4.2 5.6Zm12.8 12.8 1.4-1.4 1.4 1.4-1.4 1.4-1.4-1.4ZM17 5.6l1.4-1.4 1.4 1.4L18.4 7 17 5.6ZM4.2 18.4 5.6 17 7 18.4l-1.4 1.4-1.4-1.4Z" /></svg>;
+}
+
+function VenueConditions({ context, game, sportId }) {
+  const weather = context?.weather || null;
+  const roof = String(game?.roof || game?.venue?.roof || game?.roofType || "").toLowerCase();
+  const indoor = Boolean(weather?.indoor || game?.indoor || game?.venue?.indoor || /dome|indoor|closed/.test(roof));
+  const venue = context?.venueLabel || context?.venueName || null;
+  const indoorLabel = indoor ? (/closed/.test(roof) ? "ROOF CLOSED" : /dome/.test(roof) ? "DOME" : "INDOORS") : null;
+  const conditions = indoorLabel || context?.weatherLine || null;
+  if (!venue && !conditions) return null;
+  const arenaSport = ["nba", "cbb", "nhl"].includes(sportId);
+  return (
+    <div className="cgc-conditions" aria-label="Venue and game conditions">
+      {venue ? <div className="cgc-condition-item"><VenueIcon indoor={indoor || arenaSport} /><span>{venue}</span></div> : null}
+      {conditions ? <div className="cgc-condition-item cgc-condition-weather">{indoor ? <VenueIcon indoor /> : <WeatherIcon weather={weather} />}<strong>{conditions}</strong></div> : null}
+    </div>
   );
 }
 
@@ -176,7 +210,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <span className="cgc-time">{vm.timing?.timeLine || "—"}</span>
         </div>
         <div className="cgc-head-right">
-          <span className="cgc-star-rating" aria-label={`${stars} of 5 confidence stars`}><b>{stars}</b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg></span>
+          <Stars value={stars} />
           <span className={`cgc-status cgc-status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
             {vm.status?.label || "FBIS"}
           </span>
@@ -228,6 +262,8 @@ export default function CompactGameCard({ game, onOpen }) {
           <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : edge.type}</small>
         </aside>
       </div>
+
+      <VenueConditions context={vm.context} game={game} sportId={sportId} />
 
       <div className="cgc-market-strip" aria-label="FBIS and market comparison">
         <div className="cgc-market-item">
