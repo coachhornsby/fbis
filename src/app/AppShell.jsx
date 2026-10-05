@@ -30,7 +30,7 @@ export default function AppShell({
 }) {
   const dateLabel = formatShellDate(new Date());
   const isPlayerProps = route === "player-props";
-  const showSportFilter = !isPlayerProps && SPORT_FILTER_ROUTES.includes(route);
+  const showSportFilter = false; // Redundant: Board and other views provide their own contextual filters.
   const healthDegraded = healthTone === "warn" || healthTone === "bad" || freshnessState === "STALE";
 
   return (
