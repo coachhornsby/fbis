@@ -125,3 +125,4 @@ jobs:
 # operator-trigger: 2026-10-04 daily Zen recovery
 
 # decision-loop-kick: 2026-10-04
+# incident-recovery: 2026-10-05 missing scheduled acquisition
