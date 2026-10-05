@@ -140,3 +140,31 @@
     padding: 6px 8px;
   }
 }
+
+/* Legibility pass: make compact-card information readable at two-column desktop density. */
+.fbis-shell-main.route-board .cgc { font-size: 12px; }
+.fbis-shell-main.route-board .cgc-time { font-size: 12px !important; font-weight: 900 !important; color: #b9d7f5 !important; }
+.fbis-shell-main.route-board .cgc-sport { font-size: 12px !important; padding: 6px 12px !important; }
+.fbis-shell-main.route-board .cgc-abbr { font-size: 23px !important; letter-spacing: .015em !important; text-shadow: 0 1px 8px rgba(255,255,255,.08); }
+.fbis-shell-main.route-board .cgc-team-name { max-width: 170px !important; font-size: 10.5px !important; line-height: 1.2 !important; color: #9fc5ea !important; }
+.fbis-shell-main.route-board .cgc-proj { font-size: 36px !important; text-shadow: 0 0 12px rgba(255,255,255,.08); }
+.fbis-shell-main.route-board .cgc-proj-label { font-size: 9.5px !important; color: #55c9ff !important; }
+.fbis-shell-main.route-board .cgc-vs { font-size: 13px !important; }
+.fbis-shell-main.route-board .cgc-best-edge > span:first-child { font-size: 10px !important; letter-spacing: .08em !important; }
+.fbis-shell-main.route-board .cgc-best-edge > strong { font-size: 32px !important; }
+.fbis-shell-main.route-board .cgc-best-edge > b { font-size: 12px !important; }
+.fbis-shell-main.route-board .cgc-best-edge > small { font-size: 9px !important; }
+.fbis-shell-main.route-board .cgc-condition-item,
+.fbis-shell-main.route-board .cgc-condition-weather strong { font-size: 10.5px !important; }
+.fbis-shell-main.route-board .cgc-market-item span { font-size: 9.5px !important; letter-spacing: .055em !important; }
+.fbis-shell-main.route-board .cgc-market-item strong { font-size: 15px !important; }
+.fbis-shell-main.route-board .cgc-action-cell span,
+.fbis-shell-main.route-board .cgc-matchup-head span,
+.fbis-shell-main.route-board .cgc-matchup-item span { font-size: 9.5px !important; }
+.fbis-shell-main.route-board .cgc-action-cell strong,
+.fbis-shell-main.route-board .cgc-matchup-item strong { font-size: 12px !important; }
+.fbis-shell-main.route-board .cgc-footer-main { font-size: 12px !important; }
+.fbis-shell-main.route-board .cgc-footer-sub { font-size: 9px !important; }
+.fbis-shell-main.route-board .cgc-view { font-size: 11px !important; padding: 10px 18px !important; }
+.fbis-shell-main.route-board .cgc-star-row { gap: 4px !important; }
+.fbis-shell-main.route-board .cgc-star-row > svg { width: 19px !important; height: 19px !important; flex-basis: 19px !important; filter: drop-shadow(0 0 4px rgba(255,210,63,.22)); }
