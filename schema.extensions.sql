@@ -2679,3 +2679,64 @@ CREATE TABLE IF NOT EXISTS soccer_pitchapi_sync_runs (
 CREATE INDEX IF NOT EXISTS idx_pitchapi_sync_runs_time
   ON soccer_pitchapi_sync_runs(started_at DESC,league_key);
 
+
+
+-- NHL persistent player tracking (migration 0090)
+-- Persistent NHL player EDGE/tracking snapshots.
+-- Refreshed asynchronously with team profiles; read by projections before live EDGE fallback.
+
+CREATE TABLE IF NOT EXISTS nhl_player_tracking_profiles (
+  player_id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  player_name TEXT,
+  position TEXT,
+  available INTEGER NOT NULL DEFAULT 0,
+  coverage REAL,
+  max_skating_speed REAL,
+  bursts_22_plus REAL,
+  bursts_20_plus REAL,
+  total_distance REAL,
+  distance_per_60 REAL,
+  max_shot_speed REAL,
+  avg_shot_speed REAL,
+  high_danger_shots REAL,
+  slot_shots REAL,
+  offensive_zone_pct REAL,
+  source TEXT NOT NULL,
+  source_as_of TEXT NOT NULL,
+  raw_json TEXT,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_tracking_team_time
+  ON nhl_player_tracking_profiles(team_key,source_as_of DESC);
+
+
+-- NHL learned replacement-role observations (migration 0091)
+-- Idempotent observations of who actually absorbs role when an NHL player is scratched.
+-- Used only as persistent research context until separately validated.
+
+CREATE TABLE IF NOT EXISTS nhl_replacement_observations (
+  id TEXT PRIMARY KEY,
+  game_id TEXT NOT NULL,
+  game_start TEXT,
+  team_key TEXT NOT NULL,
+  unavailable_player_id TEXT NOT NULL,
+  unavailable_player_name TEXT,
+  replacement_player_id TEXT NOT NULL,
+  replacement_player_name TEXT,
+  position_group TEXT,
+  toi_delta_seconds REAL,
+  pp_toi_delta_seconds REAL,
+  ev_line_before INTEGER,
+  ev_line_after INTEGER,
+  pp_unit_before INTEGER,
+  pp_unit_after INTEGER,
+  source TEXT NOT NULL,
+  observed_at TEXT NOT NULL,
+  raw_json TEXT,
+  UNIQUE(game_id,unavailable_player_id,replacement_player_id)
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_replacement_unavailable
+  ON nhl_replacement_observations(team_key,unavailable_player_id,observed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_nhl_replacement_replacement
+  ON nhl_replacement_observations(team_key,replacement_player_id,observed_at DESC);

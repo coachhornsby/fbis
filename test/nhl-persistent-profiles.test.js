@@ -5,6 +5,9 @@ import {
   buildNhlScheduleProfile,
   attachNhlPersistentProfiles,
   haversineMiles,
+  inferNhlSpecialTeamsUnits,
+  parseNhlCoachMetadata,
+  buildNhlDeploymentTendencies,
 } from "../functions/lib/nhlPersistentProfiles.js";
 
 function game({id,start,home,away,state="FUT",type=2}){
@@ -56,4 +59,51 @@ test("persistent profile attachment is market-free and research-only",()=>{
 test("haversine helper returns plausible Boston to Los Angeles travel",()=>{
   const miles=haversineMiles({lat:42.3662,lon:-71.0621},{lat:34.0430,lon:-118.2673});
   assert.ok(miles>2500&&miles<2700);
+});
+
+
+test("NHL special teams units use current pp/sh time-on-ice report fields",()=>{
+  const roster=[
+    {id:"1",position:"C"},{id:"2",position:"R"},{id:"3",position:"L"},{id:"4",position:"D"},{id:"5",position:"D"},
+    {id:"6",position:"C"},{id:"7",position:"R"},{id:"8",position:"D"},{id:"9",position:"D"},{id:"10",position:"L"},
+  ];
+  const time=new Map(roster.map((p,i)=>[p.id,{
+    ppTimeOnIcePerGame: i<5 ? 180-i*10 : 80-i,
+    shTimeOnIcePerGame: i<4 ? 120-i*10 : 0,
+  }]));
+  const units=inferNhlSpecialTeamsUnits(roster,time);
+  assert.equal(units.get("1").ppUnit,1);
+  assert.equal(units.get("6").ppUnit,2);
+  assert.equal(units.get("1").pkUnit,1);
+  assert.equal(units.get("5").pkUnit,null);
+});
+
+test("NHL coach parser accepts ESPN roster coach arrays without explicit titles",()=>{
+  const out=parseNhlCoachMetadata({coach:[{firstName:"Jim",lastName:"Example",experience:3}]});
+  assert.equal(out.headCoach,"Jim Example");
+  assert.equal(out.staff[0].title,"Head Coach");
+});
+
+
+test("NHL deployment tendencies measure role continuity and concentration",()=>{
+  const players=[
+    {playerId:"1",position:"C",evLine:1,ppUnit:1,rollingToiSeconds:1200},
+    {playerId:"2",position:"R",evLine:1,ppUnit:1,rollingToiSeconds:1100},
+    {playerId:"3",position:"L",evLine:1,ppUnit:1,rollingToiSeconds:1000},
+    {playerId:"4",position:"C",evLine:2,ppUnit:2,rollingToiSeconds:900},
+    {playerId:"5",position:"R",evLine:2,ppUnit:2,rollingToiSeconds:850},
+    {playerId:"6",position:"L",evLine:2,ppUnit:2,rollingToiSeconds:800},
+    {playerId:"7",position:"D",dPair:1,ppUnit:1,rollingToiSeconds:1300},
+    {playerId:"8",position:"D",dPair:1,ppUnit:null,rollingToiSeconds:1250},
+  ];
+  const prior=new Map(players.map(p=>[p.playerId,{
+    ev_line:p.evLine,d_pair:p.dPair,pp_unit:p.playerId==="4"?1:p.ppUnit
+  }]));
+  const out=buildNhlDeploymentTendencies(players,prior);
+  assert.ok(out.topLineToiConcentration>0&&out.topLineToiConcentration<1);
+  assert.ok(out.topSixToiConcentration>.9);
+  assert.equal(out.matchedPlayers,8);
+  assert.ok(out.evenStrengthContinuity>.9);
+  assert.ok(out.ppContinuity<1);
+  assert.equal(out.roleChanges,0);
 });

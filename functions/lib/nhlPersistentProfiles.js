@@ -6,6 +6,7 @@
  * used here and no profile can authorize a wager.
  */
 import nhlTeams from "../../data/teams/nhl.js";
+import { normalizeNhlPlayerEdge } from "./nhlPlayerTrackingV3.js";
 
 export const NHL_PERSISTENT_PROFILE_ID="NHL-PERSISTENT-PROFILE-v1";
 export const NHL_PERSISTENT_PROFILE_VERSION="v1.0-official-roster-shifts-deployment";
@@ -235,27 +236,71 @@ function deploymentFromShifts(roster,shiftSets=[]){
  }
  return {lines,toi,pairs:pairsOut,gamesByPlayer};
 }
-function ppPkUnits(roster,timeById){
- const pp=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.powerPlayTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
- const pk=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.shortHandedTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
+export function inferNhlSpecialTeamsUnits(roster,timeById){
+ const pp=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.ppTimeOnIcePerGame ?? timeById.get(p.id)?.powerPlayTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
+ const pk=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.shTimeOnIcePerGame ?? timeById.get(p.id)?.shortHandedTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
  const out=new Map();
  for(const p of roster)out.set(p.id,{ppUnit:null,pkUnit:null});
  pp.filter(x=>x.v>0).slice(0,10).forEach((x,i)=>out.get(x.id).ppUnit=i<5?1:2);
  pk.filter(x=>x.v>0).slice(0,8).forEach((x,i)=>out.get(x.id).pkUnit=i<4?1:2);
  return out;
 }
-function parseCoach(payload={}){
+export function parseNhlCoachMetadata(payload={}){
  const found=[];
+ const direct=[...(Array.isArray(payload?.coach)?payload.coach:[]),...(Array.isArray(payload?.coaches)?payload.coaches:[])];
+ direct.forEach((v,i)=>{
+  const name=clean(v?.fullName||v?.displayName||v?.name||[v?.firstName,v?.lastName].filter(Boolean).join(" "));
+  const title=clean(v?.title||v?.role||v?.position||(i===0?"Head Coach":"Coach"));
+  if(name)found.push({title,name});
+ });
  function walk(v,depth=0){
   if(v==null||depth>7)return;if(Array.isArray(v)){for(const x of v)walk(x,depth+1);return;}if(typeof v!=="object")return;
-  const title=clean(v.title||v.role||v.position||v.type?.text||v.type?.name),name=clean(v.fullName||v.displayName||v.name);
-  if(name&&title&&/coach/i.test(title))found.push({title,name});
-  for(const [k,x] of Object.entries(v)){if(["links","logos","images"].includes(k))continue;walk(x,depth+1);}
+  const title=clean(v.title||v.role||v.position||v.type?.text||v.type?.name);
+  const name=clean(v.fullName||v.displayName||v.name||[v.firstName,v.lastName].filter(Boolean).join(" "));
+  if(name&&title&&/coach/i.test(title)&&!found.some(x=>x.name===name))found.push({title,name});
+  for(const [k,x] of Object.entries(v)){if(["links","logos","images","coach","coaches"].includes(k))continue;walk(x,depth+1);}
  }
- walk(payload);return {headCoach:found.find(x=>/head coach/i.test(x.title))?.name||null,staff:found};
+ walk(payload);
+ return {headCoach:found.find(x=>/head coach/i.test(x.title))?.name||found[0]?.name||null,staff:found};
 }
 async function queryRows(db,sql,...binds){if(!db?.prepare)return[];try{return (await db.prepare(sql).bind(...binds).all())?.results||[];}catch{return[];}}
 async function existingPlayers(db,tkey){return queryRows(db,"SELECT * FROM nhl_player_profiles WHERE team_key=?",tkey);}
+async function replacementHistoryRows(db,tkey){
+ return queryRows(db,`SELECT unavailable_player_id,replacement_player_id,MAX(replacement_player_name) replacement_player_name,
+   COUNT(*) sample_count,AVG(toi_delta_seconds) avg_toi_delta_seconds,
+   SUM(CASE WHEN pp_unit_after=1 AND COALESCE(pp_unit_before,99)<>1 THEN 1 ELSE 0 END) pp1_promotions
+   FROM nhl_replacement_observations
+   WHERE team_key=?
+   GROUP BY unavailable_player_id,replacement_player_id
+   ORDER BY sample_count DESC,avg_toi_delta_seconds DESC`,tkey);
+}
+function learnedReplacementMap(player,players,historyRows){
+ const learned=(historyRows||[]).filter(r=>String(r.unavailable_player_id)===String(player.playerId))
+   .map(r=>{
+    const active=players.find(p=>String(p.playerId)===String(r.replacement_player_id));
+    if(!active||["OUT","IR"].includes(active.availabilityState)||active.gameState==="CONFIRMED_SCRATCH")return null;
+    return{
+      playerId:active.playerId,name:active.playerName,evLine:active.evLine,dPair:active.dPair,ppUnit:active.ppUnit,
+      rollingToiSeconds:active.rollingToiSeconds,learned:true,sampleCount:Number(r.sample_count)||0,
+      avgToiDeltaSeconds:round(r.avg_toi_delta_seconds,1),pp1Promotions:Number(r.pp1_promotions)||0
+    };
+   }).filter(Boolean).sort((a,b)=>b.sampleCount-a.sampleCount||b.avgToiDeltaSeconds-a.avgToiDeltaSeconds);
+ if(learned.length)return learned.slice(0,3);
+ return replacementMap(player,players).map(x=>({...x,learned:false,sampleCount:0}));
+}
+async function trackingRows(db,tkey){
+ return queryRows(db,"SELECT * FROM nhl_player_tracking_profiles WHERE team_key=? ORDER BY source_as_of DESC LIMIT 24",tkey);
+}
+function trackingRowToEdge(r){
+ return {
+  playerId:String(r.player_id||""),playerName:r.player_name||null,team:r.team_key||null,position:r.position||null,
+  source:r.source||"NHL_EDGE_PERSISTED",available:Boolean(r.available),coverage:finite(r.coverage)||0,
+  maxSkatingSpeed:finite(r.max_skating_speed),bursts22Plus:finite(r.bursts_22_plus),bursts20Plus:finite(r.bursts_20_plus),
+  totalDistance:finite(r.total_distance),distancePer60:finite(r.distance_per_60),maxShotSpeed:finite(r.max_shot_speed),
+  avgShotSpeed:finite(r.avg_shot_speed),highDangerShots:finite(r.high_danger_shots),slotShots:finite(r.slot_shots),
+  offensiveZonePct:finite(r.offensive_zone_pct),sourceAsOf:r.source_as_of||null
+ };
+}
 async function availabilityRows(db,tkey){
  return queryRows(db,`SELECT * FROM player_availability_observations WHERE sport='nhl' AND team_key=? AND observed_at>=? ORDER BY observed_at DESC LIMIT 150`,tkey,new Date(Date.now()-21*86400000).toISOString());
 }
@@ -272,15 +317,54 @@ function stateConfidence(state,sourceFresh=true){
  if(["IR","OUT","CONFIRMED_SCRATCH","AVAILABLE"].includes(s))return.98;if(["DOUBTFUL","QUESTIONABLE"].includes(s))return.88;return.74;
 }
 function nextGame(rows,now=Date.now()){return rows.find(r=>Date.parse(r.startTime)>now&&Number(r.gameType)===2)||rows.find(r=>Date.parse(r.startTime)>now)||null;}
+export function buildNhlDeploymentTendencies(players=[],priorById=new Map()){
+ const active=(players||[]).filter(p=>p.position!=="G"&&!p.carriedState);
+ const forwards=active.filter(p=>p.position!=="D").sort((a,b)=>(finite(b.rollingToiSeconds)||0)-(finite(a.rollingToiSeconds)||0));
+ const defense=active.filter(p=>p.position==="D").sort((a,b)=>(finite(b.rollingToiSeconds)||0)-(finite(a.rollingToiSeconds)||0));
+ const sum=a=>a.reduce((s,p)=>s+(finite(p.rollingToiSeconds)||0),0);
+ const fTotal=sum(forwards),dTotal=sum(defense);
+ let matched=0,sameEvenStrength=0,samePp=0,ppMatched=0,roleChanges=0;
+ for(const p of active){
+  const prior=priorById.get(String(p.playerId));if(!prior)continue;matched++;
+  const sameEv=p.position==="D"
+    ? finite(prior.d_pair)===finite(p.dPair)
+    : finite(prior.ev_line)===finite(p.evLine);
+  if(sameEv)sameEvenStrength++;else roleChanges++;
+  if(finite(prior.pp_unit)!=null||finite(p.ppUnit)!=null){ppMatched++;if(finite(prior.pp_unit)===finite(p.ppUnit))samePp++;}
+ }
+ return{
+  topLineToiConcentration:fTotal?round(sum(forwards.slice(0,3))/fTotal):null,
+  topSixToiConcentration:fTotal?round(sum(forwards.slice(0,6))/fTotal):null,
+  topPairToiConcentration:dTotal?round(sum(defense.slice(0,2))/dTotal):null,
+  evenStrengthContinuity:matched?round(sameEvenStrength/matched):null,
+  ppContinuity:ppMatched?round(samePp/ppMatched):null,
+  matchedPlayers:matched,roleChanges,
+  pp1Players:active.filter(p=>p.ppUnit===1).length,pp2Players:active.filter(p=>p.ppUnit===2).length,
+  researchOnly:true
+ };
+}
 function replacementMap(player,players){
  const same=players.filter(x=>x.playerId!==player.playerId&&x.position===player.position&&x.availabilityState!=="OUT"&&x.availabilityState!=="IR"&&x.gameState!=="CONFIRMED_SCRATCH");
  return same.sort((a,b)=>(finite(b.rollingToiSeconds)||0)-(finite(a.rollingToiSeconds)||0)).slice(0,3).map(x=>({
   playerId:x.playerId,name:x.playerName,evLine:x.evLine,dPair:x.dPair,ppUnit:x.ppUnit,rollingToiSeconds:x.rollingToiSeconds
  }));
 }
+async function d1WriteRetry(fn,{attempts=5,baseMs=100}={}){
+ let last;
+ for(let i=0;i<attempts;i++){
+  try{return await fn();}
+  catch(err){
+   last=err;
+   const msg=String(err?.message||err);
+   if(!/long-running import|database is locked|database busy|temporarily unavailable|too many requests|D1_ERROR/i.test(msg)||i===attempts-1)throw err;
+   await new Promise(resolve=>setTimeout(resolve,baseMs*(2**i)));
+  }
+ }
+ throw last;
+}
 async function upsertRows(db,sql,rows,binder,batchSize=50){
  if(!rows.length)return 0;const stmts=rows.map(r=>db.prepare(sql).bind(...binder(r)));
- for(let i=0;i<stmts.length;i+=batchSize)await db.batch(stmts.slice(i,i+batchSize));return rows.length;
+ for(let i=0;i<stmts.length;i+=batchSize)await d1WriteRetry(()=>db.batch(stmts.slice(i,i+batchSize)));return rows.length;
 }
 
 export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
@@ -288,10 +372,12 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
  const team=productAbbr(abbr),official=officialAbbr(team),record=teamRecord(team),seasonId=seasonIdFor(now),tkey=teamKey(team);
  if(!record)return{ok:false,error:"unknown-team",team};
  const runId=`nhl-profile:${tkey}:${now.toISOString()}:${Math.random().toString(36).slice(2,8)}`,started=now.toISOString();
- await DB.prepare(`INSERT INTO nhl_profile_sync_runs(id,season_id,team_key,status,source,started_at) VALUES(?,?,?,?,?,?)`)
-  .bind(runId,seasonId,tkey,"RUNNING",NHL_PERSISTENT_PROFILE_SOURCE,started).run();
+ await d1WriteRetry(()=>DB.prepare(`INSERT INTO nhl_profile_sync_runs(id,season_id,team_key,status,source,started_at) VALUES(?,?,?,?,?,?)`)
+  .bind(runId,seasonId,tkey,"RUNNING",NHL_PERSISTENT_PROFILE_SOURCE,started).run());
 
  try{
+  const existingTracking=await trackingRows(DB,tkey);
+  const freshTracking=existingTracking.filter(r=>Date.now()-Date.parse(r.source_as_of||"")<=6*3600000);
   const sources=await budget((async()=>{
    const directory=await fetchJson(`${STATS}/team?limit=-1`);
    const directoryMap=parseTeamDirectory(directory.data||{}),teamInfo=directoryMap.get(team),teamId=teamInfo?.id||null;
@@ -321,9 +407,26 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    const pregameBox=pregameEligible
     ? await fetchJson(sourceUrl(`gamecenter/${upcoming.id}/boxscore`),{timeoutMs:4000})
     : {ok:false,data:null};
-   return{directory,teamInfo,roster,schedule,summary,timeonice,goalies,coach,games,detail,upcoming,pregameBox};
+   const parsedRoster=parseRoster(roster.data||{});
+   const summaryMap=statByPlayer(summary.data||{});
+   const edgeCandidates=parsedRoster.filter(p=>p.position!=="G").map(p=>{
+    const s=summaryMap.get(p.id)||{};
+    const priority=(finite(s.shots)||0)/Math.max(1,finite(s.gamesPlayed)||1)*1.25+(finite(s.points)||0)/Math.max(1,finite(s.gamesPlayed)||1)*1.5;
+    return{...p,_priority:priority};
+   }).sort((a,b)=>b._priority-a._priority).slice(0,8);
+   return{directory,teamInfo,roster,schedule,summary,timeonice,goalies,coach,games,detail,upcoming,pregameBox,edgeCandidates};
   })());
   if(sources?.__timeout)throw new Error("PROFILE_SOURCE_TOTAL_BUDGET_EXCEEDED");
+  let trackingFetched=[];
+  if(freshTracking.length<6){
+   trackingFetched=await Promise.all((sources.edgeCandidates||[]).map(async p=>{
+    const r=await fetchJson(`${WEB}/edge/skater-detail/${p.id}/now`,{timeoutMs:1800});
+    if(!r.ok)return{playerId:p.id,playerName:p.name,position:p.position,teamKey:tkey,available:false,coverage:0,error:r.error,raw:null};
+    const n=normalizeNhlPlayerEdge(r.data);
+    return{playerId:p.id,playerName:p.name,position:p.position,teamKey:tkey,source:"NHL_EDGE_SKATER_DETAIL",...n,raw:r.data};
+   }));
+  }
+  const trackingEffective=(trackingFetched.length?trackingFetched:freshTracking.map(trackingRowToEdge));
   const roster=parseRoster(sources.roster?.data||{});
   if(!roster.length)throw new Error("OFFICIAL_ROSTER_EMPTY");
   const scheduleRows=buildNhlScheduleProfile(sources.games,team,seasonId,now.getTime());
@@ -331,8 +434,8 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
   const latest=sources.detail?.[0]||null,lastGameScratches=scratchIds(latest?.box?.data||{}),currentScratches=scratchIds(sources.pregameBox?.data||{}),starterIds=goalieStarterIds(latest?.box?.data||{});
   const rosterIdSet=new Set(roster.map(p=>p.id));
   const shiftSets=(sources.detail||[]).map(d=>({gameId:d.game.id,rows:parseShiftRows(d.shifts?.data||{},team,rosterIdSet)}));
-  const deploy=deploymentFromShifts(roster,shiftSets),units=ppPkUnits(roster,timeById);
-  const [existing,availRows]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(DB,tkey)]);
+  const deploy=deploymentFromShifts(roster,shiftSets),latestDeploy=deploymentFromShifts(roster,shiftSets.slice(0,1)),units=inferNhlSpecialTeamsUnits(roster,timeById);
+  const [existing,availRows,replacementHistory]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(DB,tkey),replacementHistoryRows(DB,tkey)]);
   const priorById=new Map(existing.map(x=>[String(x.player_id),x])),availability=latestAvailability(availRows);
   const players=roster.map(p=>{
    const stat=summaryById.get(p.id)||{},toi=timeById.get(p.id)||{},role=deploy.lines.get(p.id)||{},unit=units.get(p.id)||{},prior=priorById.get(p.id)||null;
@@ -347,7 +450,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
     rosterStatus:"CURRENT_ROSTER",availabilityState,gameState,injuryDetail:av?.detail||av?.injury_detail||null,
     evLine:role.evLine??null,dPair:role.dPair??null,ppUnit:unit.ppUnit??null,pkUnit:unit.pkUnit??null,
     lastGameId:latest?.game?.id||prior?.last_game_id||null,lastGameAt:latest?.game?.start||prior?.last_game_at||null,lastToiSeconds:round(lastToi,1),
-    rollingToiSeconds:round(rollToi,1),rollingPpToiSeconds:durationSeconds(toi.powerPlayTimeOnIcePerGame),
+    rollingToiSeconds:round(rollToi,1),rollingPpToiSeconds:durationSeconds(toi.ppTimeOnIcePerGame ?? toi.powerPlayTimeOnIcePerGame),
     shotsPerGame:finite(stat.shotsPerGame)??((finite(stat.shots)||0)/games),pointsPerGame:finite(stat.pointsPerGame)??((finite(stat.points)||0)/games),
     roleConfidence:shiftSets.some(x=>x.rows.length)?clamp(.62+.08*shiftSets.length,0,.82):.48,
     stateConfidence:lastGameScratch&&!currentScratch&&!officialState ? .72 : stateConfidence(availabilityState,true),
@@ -355,7 +458,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
     sourceUpdatedAt:av?.observed_at||now.toISOString(),carriedState:false,replacements:[],linemates:[],raw:{roster:p.raw,summary:stat,timeonice:toi,currentScratch,lastGameScratch}
    };
   });
-  for(const p of players)p.replacements=replacementMap(p,players);
+  for(const p of players)p.replacements=learnedReplacementMap(p,players,replacementHistory);
   for(const p of players){
    const mates=[...deploy.pairs.values()].filter(x=>x.a===p.playerId||x.b===p.playerId).sort((a,b)=>b.seconds-a.seconds).slice(0,5);
    p.linemates=mates.map(x=>({playerId:x.a===p.playerId?x.b:x.a,sharedSeconds:round(x.seconds,1),overlapShare:round(x.overlapShare)}));
@@ -397,20 +500,86 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    playerId:p.playerId,playerName:p.playerName,position:p.position,evLine:p.evLine,dPair:p.dPair,ppUnit:p.ppUnit,pkUnit:p.pkUnit,
    toiSeconds:p.lastToiSeconds,scratch:Boolean(p.raw?.lastGameScratch),observedAt:now.toISOString(),raw:{source:p.source,currentGameState:p.gameState}
   }));
-  const coach=parseCoach(sources.coach?.data||{});
+  const replacementObservations=[];
+  if(latest?.game?.id&&lastGameScratches.size&&shiftSets[0]?.rows?.length){
+   for(const sid of lastGameScratches){
+    const unavailable=priorById.get(String(sid));
+    if(!unavailable)continue;
+    const unavailableGroup=String(unavailable.position||"").toUpperCase()==="D"?"D":"F";
+    const candidates=players.filter(p=>!p.carriedState&&p.position!=="G"&&p.playerId!==String(sid)&&!lastGameScratches.has(String(p.playerId)))
+      .filter(p=>(p.position==="D"?"D":"F")===unavailableGroup)
+      .map(p=>{
+       const currentToi=finite(latestDeploy.toi.get(String(p.playerId)))||0;
+       const priorToi=finite(priorById.get(String(p.playerId))?.rolling_toi_seconds)||0;
+       return{p,currentToi,priorToi,delta:currentToi-priorToi};
+      })
+      .filter(x=>x.currentToi>0&&x.delta>=30)
+      .sort((a,b)=>b.delta-a.delta).slice(0,3);
+    for(const x of candidates){
+     const priorReplacement=priorById.get(String(x.p.playerId));
+     replacementObservations.push({
+      id:`nhl:replacement:${latest.game.id}:${sid}:${x.p.playerId}`,gameId:latest.game.id,gameStart:latest.game.start,teamKey:tkey,
+      unavailablePlayerId:String(sid),unavailablePlayerName:unavailable.player_name||null,replacementPlayerId:x.p.playerId,replacementPlayerName:x.p.playerName,
+      positionGroup:unavailableGroup,toiDeltaSeconds:round(x.delta,1),ppToiDeltaSeconds:null,
+      evLineBefore:finite(priorReplacement?.ev_line),evLineAfter:x.p.evLine,ppUnitBefore:finite(priorReplacement?.pp_unit),ppUnitAfter:x.p.ppUnit,
+      observedAt:now.toISOString(),raw:{currentToi:round(x.currentToi,1),priorRollingToi:round(x.priorToi,1),lastGameScratch:true}
+     });
+    }
+   }
+  }
+  if(replacementObservations.length){
+   await upsertRows(DB,`INSERT OR IGNORE INTO nhl_replacement_observations (
+    id,game_id,game_start,team_key,unavailable_player_id,unavailable_player_name,replacement_player_id,replacement_player_name,
+    position_group,toi_delta_seconds,pp_toi_delta_seconds,ev_line_before,ev_line_after,pp_unit_before,pp_unit_after,source,observed_at,raw_json
+   ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,replacementObservations,o=>[
+    o.id,o.gameId,o.gameStart,o.teamKey,o.unavailablePlayerId,o.unavailablePlayerName,o.replacementPlayerId,o.replacementPlayerName,
+    o.positionGroup,o.toiDeltaSeconds,o.ppToiDeltaSeconds,o.evLineBefore,o.evLineAfter,o.ppUnitBefore,o.ppUnitAfter,
+    "NHL_PERSISTENT_ROLE_LEARNING",o.observedAt,JSON.stringify(o.raw)
+   ]);
+  }
+  if(trackingFetched.length){
+   await upsertRows(DB,`INSERT INTO nhl_player_tracking_profiles (
+    player_id,team_key,player_name,position,available,coverage,max_skating_speed,bursts_22_plus,bursts_20_plus,total_distance,distance_per_60,
+    max_shot_speed,avg_shot_speed,high_danger_shots,slot_shots,offensive_zone_pct,source,source_as_of,raw_json,updated_at
+   ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+   ON CONFLICT(player_id) DO UPDATE SET team_key=excluded.team_key,player_name=excluded.player_name,position=excluded.position,
+    available=excluded.available,coverage=excluded.coverage,max_skating_speed=excluded.max_skating_speed,bursts_22_plus=excluded.bursts_22_plus,
+    bursts_20_plus=excluded.bursts_20_plus,total_distance=excluded.total_distance,distance_per_60=excluded.distance_per_60,
+    max_shot_speed=excluded.max_shot_speed,avg_shot_speed=excluded.avg_shot_speed,high_danger_shots=excluded.high_danger_shots,
+    slot_shots=excluded.slot_shots,offensive_zone_pct=excluded.offensive_zone_pct,source=excluded.source,source_as_of=excluded.source_as_of,
+    raw_json=excluded.raw_json,updated_at=excluded.updated_at`,trackingFetched,t=>[
+      t.playerId,t.teamKey,t.playerName,t.position,t.available?1:0,t.coverage,t.maxSkatingSpeed,t.bursts22Plus,t.bursts20Plus,t.totalDistance,t.distancePer60,
+      t.maxShotSpeed,t.avgShotSpeed,t.highDangerShots,t.slotShots,t.offensiveZonePct,t.source||"NHL_EDGE_SKATER_DETAIL",now.toISOString(),
+      t.raw?JSON.stringify(t.raw):null,now.toISOString()
+   ]);
+  }
+  const coach=parseNhlCoachMetadata(sources.coach?.data||{});
   const next=nextGame(scheduleRows,now.getTime()),counts={
    roster:players.filter(p=>!p.carriedState).length,active:players.filter(p=>!p.carriedState&&p.gameState!=="CONFIRMED_SCRATCH"&&p.gameState!=="OUT").length,
    scratches:players.filter(p=>p.gameState==="CONFIRMED_SCRATCH").length,unavailable:players.filter(p=>["OUT","IR","CONFIRMED_SCRATCH"].includes(p.availabilityState)).length
   };
+  const deploymentTendencies=buildNhlDeploymentTendencies(players,priorById);
   const teamProfile={
    teamKey:tkey,teamAbbr:team,officialAbbr:official,teamName:record.displayName,seasonId,profileVersion:NHL_PERSISTENT_PROFILE_VERSION,
    ...counts,nextGameId:next?.gameId||null,nextGameStart:next?.startTime||null,nextOpponentKey:next?.opponentKey||null,nextSite:next?.site||null,
    restDays:next?.daysRest??null,backToBack:Boolean(next?.backToBack),threeInFour:Boolean(next?.threeInFour),fourInSix:Boolean(next?.fourInSix),
    roadTripGameNumber:next?.roadTripGameNumber||0,travelMiles:next?.travelMiles??null,timeZonesCrossed:next?.timeZonesCrossed??0,
    scheduleStressScore:next?.scheduleStressScore??0,scheduleFlags:next?.stressFlags||[],
-   deployment:{latestGameId:latest?.game?.id||null,shiftGames:shiftSets.filter(x=>x.rows.length).length,linesObserved:[...deploy.lines.entries()].map(([playerId,v])=>({playerId,...v}))},
+   deployment:{latestGameId:latest?.game?.id||null,shiftGames:shiftSets.filter(x=>x.rows.length).length,linesObserved:[...deploy.lines.entries()].map(([playerId,v])=>({playerId,...v})),tendencies:deploymentTendencies},
    goalie:{hierarchy:goalies.slice(0,3).map(g=>({playerId:g.playerId,name:g.playerName,rank:g.hierarchyRank,state:g.goalieState,expectedStartProbability:g.expectedStartProbability}))},
-   coach,style:{source:"NHL_PRO_V2_EXISTING_TEAM_IDENTITY",researchOnly:true},
+   coach,deploymentLearning:{
+    replacementObservationsAdded:replacementObservations.length,
+    learnedReplacementPairs:replacementHistory.length,
+    source:"NHL_PERSISTENT_ROLE_LEARNING",
+    researchOnly:true
+   },style:{
+    source:"NHL_PRO_V2_EXISTING_TEAM_IDENTITY+PERSISTED_PLAYER_EDGE",
+    playerTrackingRequested:trackingEffective.length,
+    playerTrackingAvailable:trackingEffective.filter(x=>x.available).length,
+    playerTrackingCoverage:trackingEffective.length?round(trackingEffective.filter(x=>x.available).length/trackingEffective.length):0,
+    trackingSource:trackingFetched.length?"NHL_EDGE_BACKGROUND_REFRESH":freshTracking.length?"NHL_EDGE_D1_CACHE":"UNAVAILABLE",
+    researchOnly:true
+   },
    stateConfidence:round(clamp((roster.length?0.45:0)+(scheduleRows.length?0.20:0)+(shiftSets.some(x=>x.rows.length)?0.20:0)+(goalies.length?0.10:0)+(coach.headCoach?0.05:0),0,1)),
    sourceUpdatedAt:now.toISOString(),updatedAt:now.toISOString()
   };
@@ -473,7 +642,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    scheduleRows,s=>[s.id,s.seasonId,s.teamKey,s.gameId,s.gameType,s.startTime,s.gameState,teamKey(s.homeTeam),teamKey(s.awayTeam),s.opponentKey,s.site,s.venueName,s.neutralSite?1:0,
     s.daysRest,s.backToBack?1:0,s.threeInFour?1:0,s.fourInSix?1:0,s.roadTripGameNumber,s.travelMiles,s.timeZonesCrossed,s.scheduleStressScore,JSON.stringify(s.stressFlags),s.sourceUpdatedAt,JSON.stringify(s.raw)]);
 
-  await DB.prepare(`INSERT INTO nhl_team_profiles (
+  await d1WriteRetry(()=>DB.prepare(`INSERT INTO nhl_team_profiles (
    team_key,team_abbr,official_abbr,team_name,season_id,profile_version,roster_count,active_count,scratch_count,unavailable_count,
    next_game_id,next_game_start,next_opponent_key,next_site,rest_days,back_to_back,three_in_four,four_in_six,road_trip_game_number,travel_miles,
    time_zones_crossed,schedule_stress_score,schedule_flags_json,deployment_json,goalie_json,coach_json,style_json,state_confidence,source_updated_at,updated_at,profile_json
@@ -491,25 +660,25 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
     teamProfile.threeInFour?1:0,teamProfile.fourInSix?1:0,teamProfile.roadTripGameNumber,teamProfile.travelMiles,teamProfile.timeZonesCrossed,
     teamProfile.scheduleStressScore,JSON.stringify(teamProfile.scheduleFlags),JSON.stringify(teamProfile.deployment),JSON.stringify(teamProfile.goalie),
     JSON.stringify(teamProfile.coach),JSON.stringify(teamProfile.style),teamProfile.stateConfidence,teamProfile.sourceUpdatedAt,teamProfile.updatedAt,JSON.stringify(teamProfile.profile)
-  ).run();
+  ).run());
 
   const snapId=`nhl-profile-snapshot:${tkey}:${now.toISOString()}`;
-  await DB.prepare(`INSERT OR REPLACE INTO nhl_team_profile_snapshots(id,team_key,season_id,as_of,profile_json,created_at) VALUES(?,?,?,?,?,?)`)
-   .bind(snapId,tkey,seasonId,now.toISOString(),JSON.stringify(teamProfile.profile),now.toISOString()).run();
+  await d1WriteRetry(()=>DB.prepare(`INSERT OR REPLACE INTO nhl_team_profile_snapshots(id,team_key,season_id,as_of,profile_json,created_at) VALUES(?,?,?,?,?,?)`)
+   .bind(snapId,tkey,seasonId,now.toISOString(),JSON.stringify(teamProfile.profile),now.toISOString()).run());
   if(coach.headCoach){
    const cid=`nhl-coach:${tkey}:${seasonId}:${coach.headCoach.toLowerCase().replace(/[^a-z0-9]+/g,"-")}`;
-   await DB.prepare(`INSERT OR IGNORE INTO nhl_team_coach_history(id,team_key,season_id,coach_name,role,source,observed_at,raw_json,created_at) VALUES(?,?,?,?,?,?,?,?,?)`)
-    .bind(cid,tkey,seasonId,coach.headCoach,"HEAD_COACH","ESPN_METADATA",now.toISOString(),JSON.stringify(coach),now.toISOString()).run();
+   await d1WriteRetry(()=>DB.prepare(`INSERT OR IGNORE INTO nhl_team_coach_history(id,team_key,season_id,coach_name,role,source,observed_at,raw_json,created_at) VALUES(?,?,?,?,?,?,?,?,?)`)
+    .bind(cid,tkey,seasonId,coach.headCoach,"HEAD_COACH","ESPN_METADATA",now.toISOString(),JSON.stringify(coach),now.toISOString()).run());
   }
-  await DB.prepare(`UPDATE nhl_profile_sync_runs SET status='SUCCESS',completed_at=?,source_calls=?,roster_rows=?,schedule_rows=?,player_rows_upserted=?,goalie_rows_upserted=?,linemate_rows_upserted=?,deployment_rows_upserted=?,meta_json=? WHERE id=?`)
-   .bind(now.toISOString(),6+(sources.detail?.length||0)*2,roster.length,scheduleRows.length,players.length,goalies.length,linemates.length,deploymentRows.length,
-    JSON.stringify({team,official,latestGameId:latest?.game?.id||null,stateConfidence:teamProfile.stateConfidence}),runId).run();
+  await d1WriteRetry(()=>DB.prepare(`UPDATE nhl_profile_sync_runs SET status='SUCCESS',completed_at=?,source_calls=?,roster_rows=?,schedule_rows=?,player_rows_upserted=?,goalie_rows_upserted=?,linemate_rows_upserted=?,deployment_rows_upserted=?,meta_json=? WHERE id=?`)
+   .bind(now.toISOString(),6+(sources.detail?.length||0)*2+trackingFetched.length,roster.length,scheduleRows.length,players.length,goalies.length,linemates.length,deploymentRows.length,
+    JSON.stringify({team,official,latestGameId:latest?.game?.id||null,stateConfidence:teamProfile.stateConfidence,replacementObservations:replacementObservations.length}),runId).run());
   PROFILE_CACHE.clear();
   return{ok:true,team,teamKey:tkey,seasonId,players:players.length,goalies:goalies.length,scheduleRows:scheduleRows.length,linemates:linemates.length,
    shiftGames:shiftSets.filter(x=>x.rows.length).length,scratches:counts.scratches,stateConfidence:teamProfile.stateConfidence,latestGameId:latest?.game?.id||null,nextGameId:next?.gameId||null,
    bounded:true,requestTimeProjectionFetches:0};
  }catch(err){
-  await DB.prepare(`UPDATE nhl_profile_sync_runs SET status='FAILED',completed_at=?,error=? WHERE id=?`).bind(new Date().toISOString(),String(err?.message||err),runId).run().catch(()=>null);
+  await d1WriteRetry(()=>DB.prepare(`UPDATE nhl_profile_sync_runs SET status='FAILED',completed_at=?,error=? WHERE id=?`).bind(new Date().toISOString(),String(err?.message||err),runId).run()).catch(()=>null);
   return{ok:false,team,error:String(err?.message||err),bounded:true};
  }
 }
@@ -519,20 +688,22 @@ export async function loadNhlPersistentProfiles(db,teams=[]){
  const keys=[...new Set((teams||[]).map(teamKey).filter(Boolean))].sort();if(!db?.prepare||!keys.length)return{ok:false,teams:{},players:{},goalies:{},linemates:{},schedule:{}};
  const cacheKey=keys.join(","),cached=PROFILE_CACHE.get(cacheKey);if(cached&&Date.now()-cached.at<PROFILE_CACHE_MS)return{...cached.value,cacheHit:true};
  const q=keys.map(()=>"?").join(",");
- const [teamRows,playerRows,goalieRows,lineRows,scheduleRows]=await Promise.all([
+ const [teamRows,playerRows,goalieRows,lineRows,scheduleRows,trackingProfileRows]=await Promise.all([
   queryRows(db,`SELECT * FROM nhl_team_profiles WHERE team_key IN (${q})`,...keys),
   queryRows(db,`SELECT * FROM nhl_player_profiles WHERE team_key IN (${q})`,...keys),
   queryRows(db,`SELECT * FROM nhl_goalie_profiles WHERE team_key IN (${q})`,...keys),
   queryRows(db,`SELECT * FROM nhl_linemate_profiles WHERE team_key IN (${q}) ORDER BY shared_seconds DESC`,...keys),
   queryRows(db,`SELECT * FROM nhl_team_schedule_profile WHERE team_key IN (${q}) AND start_time>=? ORDER BY start_time LIMIT 40`,...keys,new Date(Date.now()-2*86400000).toISOString()),
+  queryRows(db,`SELECT * FROM nhl_player_tracking_profiles WHERE team_key IN (${q}) ORDER BY source_as_of DESC`,...keys),
  ]);
- const out={ok:teamRows.length>0,teams:{},players:{},goalies:{},linemates:{},schedule:{},cacheHit:false,marketInformed:false,researchOnly:true};
+ const out={ok:teamRows.length>0,teams:{},players:{},goalies:{},linemates:{},schedule:{},tracking:{},cacheHit:false,marketInformed:false,researchOnly:true};
  for(const r of teamRows){out.teams[r.team_key]={...r,scheduleFlags:parseJson(r.schedule_flags_json,[]),deployment:parseJson(r.deployment_json,{}),goalie:parseJson(r.goalie_json,{}),coach:parseJson(r.coach_json,{}),style:parseJson(r.style_json,{}),profile:parseJson(r.profile_json,{})};}
- for(const k of keys){out.players[k]=[];out.goalies[k]=[];out.linemates[k]=[];out.schedule[k]=[];}
+ for(const k of keys){out.players[k]=[];out.goalies[k]=[];out.linemates[k]=[];out.schedule[k]=[];out.tracking[k]=[];}
  for(const r of playerRows){out.players[r.team_key]?.push({...r,replacements:parseJson(r.replacement_json,[]),linemates:parseJson(r.linemate_json,[])});}
  for(const r of goalieRows){out.goalies[r.team_key]?.push(r);}
  for(const r of lineRows){out.linemates[r.team_key]?.push(r);}
  for(const r of scheduleRows){out.schedule[r.team_key]?.push({...r,stressFlags:parseJson(r.stress_flags_json,[])});}
+ for(const r of trackingProfileRows){out.tracking[r.team_key]?.push(trackingRowToEdge(r));}
  PROFILE_CACHE.set(cacheKey,{at:Date.now(),value:out});return out;
 }
 export function persistentPlayerFor(ctx,team,id){
@@ -544,8 +715,8 @@ export function attachNhlPersistentProfiles(games=[],profiles={}){
   const home=productAbbr(game?.home?.abbr),away=productAbbr(game?.away?.abbr),h=teamKey(home),a=teamKey(away);
   return{...game,nhlPersistentProfile:{
    modelId:NHL_PERSISTENT_PROFILE_ID,version:NHL_PERSISTENT_PROFILE_VERSION,configured:Boolean(profiles?.teams?.[h]||profiles?.teams?.[a]),
-   home:{team:profiles?.teams?.[h]||null,players:profiles?.players?.[h]||[],goalies:profiles?.goalies?.[h]||[],linemates:profiles?.linemates?.[h]||[]},
-   away:{team:profiles?.teams?.[a]||null,players:profiles?.players?.[a]||[],goalies:profiles?.goalies?.[a]||[],linemates:profiles?.linemates?.[a]||[]},
+   home:{team:profiles?.teams?.[h]||null,players:profiles?.players?.[h]||[],goalies:profiles?.goalies?.[h]||[],linemates:profiles?.linemates?.[h]||[],tracking:profiles?.tracking?.[h]||[]},
+   away:{team:profiles?.teams?.[a]||null,players:profiles?.players?.[a]||[],goalies:profiles?.goalies?.[a]||[],linemates:profiles?.linemates?.[a]||[],tracking:profiles?.tracking?.[a]||[]},
    marketInformed:false,researchOnlyScheduleStress:true,canQualify:false,canAuthorizeWager:false
   }};
  });
