@@ -26,7 +26,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const surface=[t.surface?String(t.surface).toUpperCase():null,t.indoor===true?"INDOOR":t.indoor===false?"OUTDOOR":null].filter(Boolean).join(" · ");
   const when=game?.start?new Date(game.start):null;
   const time=when&&Number.isFinite(when.getTime())?when.toLocaleString("en-US",{timeZone:"America/Chicago",weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true}):"—";
-  const status=game?.publicationStatus||"RESEARCH";
+  const status=game?.publicationStatus||"RESEARCH";\n  const bank=t?.playerBank||{}, bp1=bank.players?.[0]||{}, bp2=bank.players?.[1]||{}, h2h=bank.headToHead||{};\n  const recent=(p)=>(p?.recentForm||[]);\n  const formText=(p)=>recent(p).length?recent(p).map(x=>x.result).join(" · "):"—";
   return <article className="tmc">
     <header className="tmc-top"><div><b>TENNIS</b><strong>{t.tournament||tour}</strong><span>{tour}</span><span>{surface||"SURFACE —"}</span></div><div><span>{time} CT</span><em>{status.includes("RESEARCH")?"RESEARCH":status}</em></div></header>
     <section className="tmc-hero">
@@ -53,6 +53,11 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
         {!mlIntel&&!spIntel&&!totIntel?<tr><td colSpan="5">NO ACTION SNAPSHOT</td></tr>:null}
       </tbody></table></section>
       <section className="tmc-panel tmc-context"><h3>MATCH CONTEXT</h3><div><span>Surface</span><b>{surface||"—"}</b></div><div><span>Player rankings</span><b>{away.rank?"#"+away.rank:"—"} vs {home.rank?"#"+home.rank:"—"}</b></div><div><span>Market updated</span><b>{ref.observedAt?new Date(ref.observedAt).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"—"}</b></div><div><span>Model</span><b>{game?.model?.name||game?.modelId||"Tennis-FBIS-v2"}</b></div></section>
+    </div>
+    <div className="tmc-deep">
+      <section className="tmc-panel"><h3>RECENT FORM (LAST 5)</h3><div className="tmc-form"><div><b>{home.fullName||home.name}</b><strong>{formText(bp1)}</strong><span>Hold {bp1.holdPct==null?"—":pct(bp1.holdPct)} · Break {bp1.breakPct==null?"—":pct(bp1.breakPct)}</span></div><div><b>{away.fullName||away.name}</b><strong>{formText(bp2)}</strong><span>Hold {bp2.holdPct==null?"—":pct(bp2.holdPct)} · Break {bp2.breakPct==null?"—":pct(bp2.breakPct)}</span></div></div></section>
+      <section className="tmc-panel"><h3>HEAD TO HEAD</h3><div className="tmc-h2h"><strong>{h2h.meetings||0} meetings</strong><span>{home.fullName||home.name} {h2h.player1Wins||0}–{h2h.player2Wins||0} {away.fullName||away.name}</span>{h2h.recent?.[0]?<small>Latest: {h2h.recent[0].winner} · {h2h.recent[0].score||"score unavailable"}</small>:<small>No previous meeting in player bank</small>}</div></section>
+      <section className="tmc-panel"><h3>FBIS PROJECTED MATCH</h3><div className="tmc-projected"><div><span>Win probability</span><b>{pct(pHome)} / {pct(pAway)}</b></div><div><span>Fair moneyline</span><b>{fair(pHome)} / {fair(pAway)}</b></div><div><span>Total games</span><b>{t.projectedTotalGames??"—"}</b></div><div><span>Game spread</span><b>{t.projectedGameSpread??"—"}</b></div></div></section>
     </div>
     <footer className="tmc-footer"><span>FBIS TENNIS · MARKET INTELLIGENCE · {status}</span>{typeof onToggle==="function"?<button onClick={()=>onToggle(cardKey)}>{open?"Hide Details":"View Details"} →</button>:null}</footer>
     {open?<div className="tmc-advanced"><AdvancedGameDetail game={game} onClose={()=>onToggle?.(cardKey)}/>{typeof renderDetail==="function"?renderDetail(game):null}</div>:null}

@@ -6,3 +6,9 @@
 @media(max-width:600px){.tmc-hero{grid-template-columns:1fr}.tmc-player,.tmc-home{justify-content:center;text-align:center;flex-direction:column;align-items:center}.tmc-home>div{order:2}.tmc-home .team-logo{order:1}.tmc-context{grid-template-columns:1fr}.tmc-context h3{grid-column:1}.tmc-top{flex-direction:column}.tmc-panel table{font-size:12px}.tmc-panel th,.tmc-panel td{padding:7px}}
 
 .tmc-edge-help{max-width:180px;margin-top:7px;color:#9eb8d2!important;font-size:10px!important;line-height:1.25;font-weight:700!important}
+
+.tmc-deep{display:grid;grid-template-columns:1.25fr .8fr 1fr;gap:10px;padding:0 10px 10px}
+.tmc-form{display:grid;grid-template-columns:1fr 1fr}.tmc-form>div{padding:14px;border-right:1px solid #17364d}.tmc-form b,.tmc-form strong,.tmc-form span{display:block}.tmc-form strong{margin:9px 0;color:#eef8ff;letter-spacing:4px}.tmc-form span{color:#9eb8d2;font-size:12px}
+.tmc-h2h{display:flex;min-height:110px;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:7px;padding:12px}.tmc-h2h span,.tmc-h2h small{color:#9eb8d2}
+.tmc-projected{display:grid;grid-template-columns:1fr 1fr}.tmc-projected div{padding:12px;border-right:1px solid #17364d;border-bottom:1px solid #17364d}.tmc-projected span{display:block;color:#9eb8d2;font-size:11px}.tmc-projected b{display:block;margin-top:5px}
+@media(max-width:900px){.tmc-deep{grid-template-columns:1fr}.tmc-form{grid-template-columns:1fr 1fr}}
