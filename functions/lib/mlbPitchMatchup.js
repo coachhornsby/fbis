@@ -123,7 +123,7 @@ function finalizeBucket(b) {
   };
 }
 
-export function buildStatcastProfiles(rows = [], { role = "batter", asOf = new Date().toISOString() } = {}) {
+export function buildStatcastProfiles(rows = [], { role = "batter", asOf = new Date().toISOString(), halfLifeDays = 45 } = {}) {
   const byPlayer = new Map();
   for (const row of rows || []) {
     const id = Number(role === "pitcher" ? row.pitcher : row.batter);
@@ -136,7 +136,7 @@ export function buildStatcastProfiles(rows = [], { role = "batter", asOf = new D
     if (!p.buckets.has(key)) p.buckets.set(key,emptyBucket());
     if (!p.family.has(fam)) p.family.set(fam,emptyBucket());
     const targets=[p.buckets.get(key),p.family.get(fam),p.global];
-    const w=rowWeight(row,asOf);
+    const w=rowWeight(row,asOf,halfLifeDays);
     for(const b of targets){
       b.weight+=w;b.pitches+=1;
       if(swing(row)){b.swings+=w;if(whiff(row))b.whiffs+=w;else b.contacts+=w;}
