@@ -153,6 +153,17 @@ const MATCHUP_SYMBOL_BY_ID = {
   pace: "PC", projection: "PROJ", "five-v-five": "5V5", finishing: "FIN", goaltending: "G",
   "special-teams": "ST", "high-danger": "HD", rest: "RST", attack: "ATK",
   "expected-goals": "xG", btts: "BTTS", surface: "SUR", serve: "SRV", return: "RET", fitness: "FIT",
+  efficiency: "EFF", efg: "eFG", turnovers: "TO", rebounding: "REB", "free-throws": "FT",
+};
+
+const MATCHUP_SHORT_LABEL_BY_ID = {
+  pressure: "PRESSURE", run: "RUN GAME", coverageRoute: "COVERAGE", explosive: "EXPLOSIVE", earlyDown: "EARLY DOWN",
+  starter: "STARTER", starters: "STARTERS", bullpen: "BULLPEN", offense: "OFFENSE", "run-prevention": "RUN PREVENTION",
+  lineup: "LINEUP", form: "RECENT FORM", environment: "ENVIRONMENT", "matchup-eff": "EFFICIENCY", defense: "DEFENSE",
+  pace: "PACE", projection: "PROJECTION", "five-v-five": "5V5 xG", finishing: "FINISHING", goaltending: "GOALTENDING",
+  "special-teams": "SPECIAL TEAMS", "high-danger": "HIGH DANGER", rest: "REST", attack: "ATTACK",
+  "expected-goals": "EXPECTED GOALS", btts: "BTTS", surface: "SURFACE", serve: "SERVE", return: "RETURN", fitness: "FITNESS",
+  efficiency: "EFFICIENCY", efg: "eFG%", turnovers: "TURNOVERS", rebounding: "O-REBOUND", "free-throws": "FT RATE",
 };
 
 function stripDecorativeEmoji(rawLabel) {
@@ -161,10 +172,24 @@ function stripDecorativeEmoji(rawLabel) {
     .trim();
 }
 
+function matchupVisualKey(id) {
+  const key = String(id || "");
+  if (MATCHUP_SYMBOL_BY_ID[key] || MATCHUP_SHORT_LABEL_BY_ID[key]) return key;
+  if (/^lineup-/.test(key)) return "lineup";
+  if (/^starter-/.test(key)) return "starter";
+  if (/^batter-/.test(key)) return "batter";
+  if (/bullpen/.test(key)) return "bullpen";
+  if (/environment|park/.test(key)) return "environment";
+  return key;
+}
+
 function splitMatchupVisual(id, rawLabel) {
+  const key = matchupVisualKey(id);
+  const raw = stripDecorativeEmoji(rawLabel).toUpperCase();
+  const prefixLabel = key === "batter" ? "BATTER / SP" : null;
   return {
-    icon: MATCHUP_SYMBOL_BY_ID[String(id || "")] || "SIG",
-    label: stripDecorativeEmoji(rawLabel).toUpperCase(),
+    icon: key === "batter" ? "BvP" : MATCHUP_SYMBOL_BY_ID[key] || "SIG",
+    label: MATCHUP_SHORT_LABEL_BY_ID[key] || prefixLabel || raw,
   };
 }
 
@@ -212,7 +237,9 @@ export default function CompactGameCard({ game, onOpen }) {
     const awayHit = edge === String(away.abbr || "").toUpperCase();
     const id = factor?.id || `factor-${i}`;
     const visual = splitMatchupVisual(id, factor?.label || factor?.name || "MATCHUP");
-    return { id, ...visual, text: homeHit ? home.abbr : awayHit ? away.abbr : edge || "EVEN", tone: homeHit ? "home" : awayHit ? "away" : "neutral" };
+    const metric = factor?.value == null ? null : String(factor.value);
+    const detail = factor?.detail == null ? null : String(factor.detail);
+    return { id, ...visual, text: homeHit ? home.abbr : awayHit ? away.abbr : edge || "EVEN", metric, detail, tone: homeHit ? "home" : awayHit ? "away" : "neutral" };
   });
   const baselineMargin = Number(matchup?.baseline?.margin);
   const finalMargin = Number(matchup?.final?.margin);
@@ -373,7 +400,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <div className="cgc-matchup-pills">
             {genericMatchupItems.length ? genericMatchupItems.map((item) => (
               <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
-                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "◆"}</i><em>{item.label}</em></span><strong>{item.text}</strong>
+                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "SIG"}</i><em>{item.label}</em></span><strong>{item.text}</strong>{item.metric ? <small className="cgc-matchup-metric">{item.metric}</small> : null}
               </div>
             )) : <div className="cgc-matchup-pill tone-neutral"><span>STATUS</span><strong>AWAITING MATCHUP DATA</strong></div>}
           </div>
