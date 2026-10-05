@@ -213,7 +213,7 @@ export async function loadMlbPostseasonContext(games=[],env={},options={}){
   const fetchFn=options.fetchFn||fetch;
   const byGameId={};
   const postseason=(games||[]).filter(isMlbPostseasonGame);
-  const persistent=await loadMlbPersistentState(postseason,env,{maxAgeHours:options.maxPersistentAgeHours??10}).catch(()=>({byGameId:{},meta:{configured:false}}));
+  const persistent=options.persistentState || await loadMlbPersistentState(postseason,env,{maxAgeHours:options.maxPersistentAgeHours??10}).catch(()=>({byGameId:{},meta:{configured:false}}));
   // Production D1 is authoritative for operational state. Do not fan out to
   // active-roster/game-log/live-feed endpoints from customer board requests.
   const allowLiveFallback=options.allowLiveFallback===true || !env?.DB?.prepare;
