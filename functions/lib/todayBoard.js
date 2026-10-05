@@ -241,7 +241,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     fbisF5: game.mlbDeepShadow?.f5 || game.challengers?.["MLB-FBIS-v2"]?.f5 || null,
     f5MarketEvaluation: game.mlbDeepShadow?.f5?.market || game.challengers?.["MLB-FBIS-v2"]?.f5?.market || null,
     f5Book: game.odds?.f5 || null,
-    sportsbookProps: [],
+    playerMarkets: Array.isArray(game.playerMarkets) ? game.playerMarkets : [],\n    sportsbookProps: [],
     sportsbookPropCount: sportsbookProps.length,
     propConvictions,
     lineupsOfficial: Boolean(game.bpp?.lineupsOfficial),
@@ -416,6 +416,40 @@ function hydrateOddsFromMarketRows(game, pack) {
   return { ...game, odds };
 }
 
+
+function ppKey(v=""){return String(v||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
+
+async function attachPrizePicksMarkets(games=[], sport, date, db){
+  if(!db?.prepare || !games.length) return games;
+  let rows=[];
+  try{
+    rows=(await db.prepare(`SELECT fbis_event_id,sport,player_id,player_name,player_headshot_url,team,opponent,game_id,start_time,stat_type,canonical_market,line,odds_tier,duration,observed_at,collected_at
+      FROM prizepicks_prop_lines WHERE sport=? AND substr(start_time,1,10) BETWEEN date(?,'-1 day') AND date(?,'+1 day')
+      ORDER BY collected_at DESC LIMIT 3000`).bind(sport,date,date).all())?.results||[];
+  }catch{return games;}
+  return games.map(game=>{
+    const gid=String(game.id||"");
+    const names=new Set([ppKey(game.away?.name),ppKey(game.away?.fullName),ppKey(game.home?.name),ppKey(game.home?.fullName)].filter(Boolean));
+    const abbrs=new Set([ppKey(game.away?.abbr),ppKey(game.home?.abbr)].filter(Boolean));
+    const seen=new Set(), playerMarkets=[];
+    for(const row of rows){
+      const exact=row.fbis_event_id && String(row.fbis_event_id)===gid;
+      const tennisMatch=sport==="tennis" && names.has(ppKey(row.player_name));
+      const teamMatch=sport!=="tennis" && ((row.team&&abbrs.has(ppKey(row.team))) || (row.opponent&&abbrs.has(ppKey(row.opponent))));
+      if(!exact&&!tennisMatch&&!teamMatch) continue;
+      const key=[row.player_id||row.player_name,row.canonical_market||row.stat_type,row.line,row.odds_tier,row.duration].join("|");
+      if(seen.has(key)) continue; seen.add(key);
+      playerMarkets.push({
+        source:"PRIZEPICKS_APIFY",book:"PrizePicks",playerId:row.player_id||null,playerName:row.player_name||null,
+        playerHeadshotUrl:row.player_headshot_url||null,team:row.team||null,opponent:row.opponent||null,
+        market:row.stat_type||null,marketCanonical:row.canonical_market||null,line:row.line==null?null:Number(row.line),
+        oddsTier:row.odds_tier||null,duration:row.duration||null,observedAt:row.observed_at||row.collected_at||null,
+        decisionEligible:false,reasonCodes:["PRIZEPICKS_RESEARCH_ONLY"]
+      });
+    }
+    return {...game,playerMarkets};
+  });
+}
 
 function safeJson(value) {
   if (value == null) return null;
@@ -794,6 +828,7 @@ export async function buildTodayBoard(
       }
 
       if (sport === "nhl") slateGames = slateGames.map((g)=>({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
+      if (env.DB) slateGames = await attachPrizePicksMarkets(slateGames, sport, date, env.DB);
       const rows = slateGames.map((g) => toBoardGame(g, sport, now));
       feeds[sport] = {
         ok: true,
