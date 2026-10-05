@@ -1,0 +1,101 @@
+name: NBA deep v2 research
+
+on:
+  push:
+    branches: ["research/nba-deep-v2"]
+    paths:
+      - "functions/lib/nbaTravelContext.js"
+      - "functions/lib/nbaShotProfile.js"
+      - "functions/lib/nbaDeepFeatures.js"
+      - "functions/lib/nbaDeepModel.js"
+      - "scripts/nba-shot-profile-build.mjs"
+      - "scripts/nba-deep-v2-fit.mjs"
+      - "test/nba-deep-v2.test.js"
+      - ".github/workflows/nba-deep-v2-research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: nba-deep-v2-research
+  cancel-in-progress: false
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - run: node --test test/nba-deep-v2.test.js test/nba-fbis-v1.test.js
+
+  fit:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+
+      - name: Download frozen canonical snapshot
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/frozen artifacts/pbp artifacts/deep
+          PREFIX=$(node -p "require('./research/nba/frozen-snapshot.json').r2.prefix")
+          npx wrangler r2 object get "fbis-archive/${PREFIX}/nba-canonical.jsonl" --file artifacts/frozen/nba-canonical.jsonl --remote
+          test -s artifacts/frozen/nba-canonical.jsonl
+
+      - name: Reuse pinned PBP artifacts from player-impact run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id=$(node -p "require('./research/nba/player-impact-snapshot.json').sourceRunId")
+          curl -sS --fail-with-body             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100"             > /tmp/artifacts.json
+          jq -r '.artifacts[] | select(.name|startswith("nba-impact-chunk-")) | [.id,.name] | @tsv' /tmp/artifacts.json |
+          while IFS=$'\t' read -r id name; do
+            echo "downloading $name"
+            curl -L -sS --fail-with-body               -H "Authorization: Bearer $GH_TOKEN"               -H "Accept: application/vnd.github+json"               "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip"               -o "/tmp/${id}.zip"
+            mkdir -p "artifacts/pbp/${name}"
+            unzip -q "/tmp/${id}.zip" -d "artifacts/pbp/${name}"
+          done
+          test "$(find artifacts/pbp -name 'nba-pbp-*.jsonl' | wc -l)" -ge 5
+
+      - name: Build historical shot profiles
+        run: |
+          node scripts/nba-shot-profile-build.mjs input=artifacts/pbp out=artifacts/deep/nba-shot-profiles.jsonl
+
+      - name: Fit and validate NBA-FBIS-v2-DEEP
+        run: |
+          node scripts/nba-deep-v2-fit.mjs             games=artifacts/frozen/nba-canonical.jsonl             shots=artifacts/deep/nba-shot-profiles.jsonl             out=artifacts/deep/nba-fbis-v2-deep-fit.json             report=artifacts/deep/nba-fbis-v2-deep-validation.json             rows=artifacts/deep/nba-fbis-v2-deep-rows.jsonl
+          cat artifacts/deep/nba-fbis-v2-deep-validation.json
+
+      - name: Freeze immutable research artifacts to R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          IMM="research/nba/deep-v2/run-${GITHUB_RUN_ID}"
+          CUR="research/nba/deep-v2/latest"
+          for f in nba-shot-profiles.jsonl nba-fbis-v2-deep-fit.json nba-fbis-v2-deep-validation.json nba-fbis-v2-deep-rows.jsonl; do
+            npx wrangler r2 object put "fbis-archive/${IMM}/${f}" --file "artifacts/deep/${f}" --remote
+            npx wrangler r2 object put "fbis-archive/${CUR}/${f}" --file "artifacts/deep/${f}" --remote
+          done
+          printf '{"runId":%s,"immutablePrefix":"%s","decision":"%s","updatedAt":"%s"}\n'             "$GITHUB_RUN_ID" "$IMM" "$(jq -r '.decision' artifacts/deep/nba-fbis-v2-deep-validation.json)" "$(date -u +%FT%TZ)"             > artifacts/deep/pointer.json
+          npx wrangler r2 object put "fbis-archive/${CUR}/pointer.json" --file artifacts/deep/pointer.json --remote
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-deep-v2-${{ github.run_id }}
+          path: artifacts/deep/
+          retention-days: 90
