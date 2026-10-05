@@ -294,6 +294,22 @@ function stateConfidence(s,carried=false){
  if(s==="LIMITED")return .82;
  return .65;
 }
+function injuryType(detail=""){
+ const s=String(detail||"").toLowerCase();
+ if(/ankle/.test(s))return"ANKLE";
+ if(/knee/.test(s))return"KNEE";
+ if(/hamstring/.test(s))return"HAMSTRING";
+ if(/groin/.test(s))return"GROIN";
+ if(/calf/.test(s))return"CALF";
+ if(/back/.test(s))return"BACK";
+ if(/shoulder/.test(s))return"SHOULDER";
+ if(/foot/.test(s))return"FOOT";
+ if(/wrist/.test(s))return"WRIST";
+ if(/hand|finger|thumb/.test(s))return"HAND";
+ if(/concussion/.test(s))return"CONCUSSION";
+ if(/illness/.test(s))return"ILLNESS";
+ return detail?"OTHER":"NONE";
+}
 function injurySeverityClass(status,detail){
  const s=String(status||"").toUpperCase();
  if(["IR","PUP","NFI"].includes(s))return "EXTENDED_ABSENCE";
@@ -375,15 +391,15 @@ async function upsertPlayers(db,rows){
  if(!db?.prepare||!rows.length)return{ok:false,rows:0,reason:"db-or-rows-missing"};
  const sql=`INSERT INTO nfl_player_profiles (
   player_key,team_key,player_id,player_name,position,jersey,roster_status,depth_rank,role_label,
-  last_known_snap_share,health_state,practice_state,injury_detail,injury_onset_at,injury_severity_class,
+  last_known_snap_share,health_state,practice_state,injury_detail,injury_onset_at,injury_type,injury_severity_class,
   expected_return_state,expected_snap_share,state_confidence,state_source,state_source_updated_at,
   last_game_played_at,last_game_snap_share,replacement_json,active_confirmation_at,carried_state,updated_at,raw_json
- ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+ ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
  ON CONFLICT(player_key) DO UPDATE SET
   team_key=excluded.team_key,player_id=excluded.player_id,player_name=excluded.player_name,position=excluded.position,
   jersey=excluded.jersey,roster_status=excluded.roster_status,depth_rank=excluded.depth_rank,role_label=excluded.role_label,
   last_known_snap_share=excluded.last_known_snap_share,health_state=excluded.health_state,practice_state=excluded.practice_state,
-  injury_detail=excluded.injury_detail,injury_onset_at=excluded.injury_onset_at,injury_severity_class=excluded.injury_severity_class,
+  injury_detail=excluded.injury_detail,injury_onset_at=excluded.injury_onset_at,injury_type=excluded.injury_type,injury_severity_class=excluded.injury_severity_class,
   expected_return_state=excluded.expected_return_state,expected_snap_share=excluded.expected_snap_share,
   state_confidence=excluded.state_confidence,state_source=excluded.state_source,state_source_updated_at=excluded.state_source_updated_at,
   last_game_played_at=excluded.last_game_played_at,last_game_snap_share=excluded.last_game_snap_share,
@@ -391,7 +407,7 @@ async function upsertPlayers(db,rows){
   carried_state=excluded.carried_state,updated_at=excluded.updated_at,raw_json=excluded.raw_json`;
  const stmts=rows.map(r=>db.prepare(sql).bind(
   r.playerKey,r.teamKey,r.playerId,r.playerName,r.position,r.jersey,r.rosterStatus,r.depthRank,r.roleLabel,
-  r.lastKnownSnapShare,r.healthState,r.practiceState,r.injuryDetail,r.injuryOnsetAt,r.injurySeverityClass,
+  r.lastKnownSnapShare,r.healthState,r.practiceState,r.injuryDetail,r.injuryOnsetAt,r.injuryType,r.injurySeverityClass,
   r.expectedReturnState,r.expectedSnapShare,r.stateConfidence,r.stateSource,r.stateSourceUpdatedAt,
   r.lastGamePlayedAt,r.lastGameSnapShare,JSON.stringify(r.replacements||[]),r.activeConfirmationAt,r.carriedState?1:0,r.updatedAt,JSON.stringify(r.raw||{})
  ));
@@ -487,11 +503,11 @@ export async function applyNflAvailabilityToProfiles(env={},rows=[]){
   const onset=health==="AVAILABLE"?current.injury_onset_at:(current.injury_onset_at||sourceAt);
   const active=health==="AVAILABLE"?sourceAt:current.active_confirmation_at;
   stmts.push(env.DB.prepare(`UPDATE nfl_player_profiles SET
-    health_state=?,practice_state=?,injury_detail=?,injury_onset_at=?,injury_severity_class=?,
+    health_state=?,practice_state=?,injury_detail=?,injury_onset_at=?,injury_type=?,injury_severity_class=?,
     expected_return_state=?,expected_snap_share=?,state_confidence=?,state_source=?,state_source_updated_at=?,
     active_confirmation_at=?,carried_state=0,updated_at=?
     WHERE player_key=?`).bind(
-      health,practice,injury,onset,injurySeverityClass(health,injury),
+      health,practice,injury,onset,injuryType(injury),injurySeverityClass(health,injury),
       isPersistentHealth(health)?"RETURN_PENDING":unresolvedHealth(health)?"STATUS_PENDING":"AVAILABLE",
       expected,stateConfidence(health,false),"nfl-official",sourceAt,active,new Date().toISOString(),current.player_key
   ));
@@ -561,7 +577,7 @@ export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=
     playerKey:playerKey(team.abbr,p),teamKey:teamKey(team.abbr),playerId:p.id||null,playerName:p.name,position:p.position||null,
     jersey:p.jersey,rosterStatus:p.rosterStatus,depthRank:x.depthRank,roleLabel:roleFor(p.position,u,x.depthRank),
     lastKnownSnapShare:snap,healthState:health||"UNKNOWN",practiceState:practice,injuryDetail:injury,injuryOnsetAt:onset,
-    injurySeverityClass:injurySeverityClass(health,injury),expectedReturnState:isPersistentHealth(health)?"RETURN_PENDING":unresolvedHealth(health)?"STATUS_PENDING":"AVAILABLE",
+    injuryType:injuryType(injury),injurySeverityClass:injurySeverityClass(health,injury),expectedReturnState:isPersistentHealth(health)?"RETURN_PENDING":unresolvedHealth(health)?"STATUS_PENDING":"AVAILABLE",
     expectedSnapShare:expected,stateConfidence:stateConfidence(health,carried),stateSource:source,stateSourceUpdatedAt:sourceAt,
     lastGamePlayedAt:lastGame?.date||null,lastGameSnapShare:snap,activeConfirmationAt:activeConfirmed,carriedState:carried,
     updatedAt:startedAt,raw:{roster:p.raw||{},usage:u||null,officialAvailability:off||null},
