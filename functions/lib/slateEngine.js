@@ -11,6 +11,7 @@ import { attachNflShadow } from "./nflModel.js";
 import { attachNflProShadow } from "./nflProModel.js";
 import { attachNflGameMatchups } from "./nflGameMatchup.js";
 import { attachNflWagerDecisions } from "./nflWagerDecision.js";
+import { loadNflTeamProfiles, attachNflPersistentProfiles } from "./nflTeamProfiles.js";
 import { NFL_WAGER_CONFIDENCE_V1 } from "../../data/models/nfl-wager-confidence-v1.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
@@ -182,9 +183,12 @@ export async function buildSlate(sport, date, env = {}) {
     // but never qualify or authorize.
     const research = promoteNflResearchToBoard(gameMatchups.games);
     const playerResearch = attachNflPlayerProjectionResearch(research.games, { byTeam: verse.playersByTeam || {}, leaguePositionDefense: verse.leaguePositionDefense || {} });
+    const profileKeys=[...new Set(playerResearch.flatMap(g=>[g?.home?.abbr,g?.away?.abbr]).filter(Boolean).map(x=>String(x).toLowerCase()))];
+    const persistentProfiles=await loadNflTeamProfiles(env.DB||null,profileKeys).catch(()=>({teams:{},players:{}}));
+    const profiledGames=attachNflPersistentProfiles(playerResearch,persistentProfiles);
     next = {
       ...slate,
-      games: playerResearch,
+      games: profiledGames,
       nfl: baseline.meta,
       research: {
         ...(slate.research || {}),
@@ -193,6 +197,12 @@ export async function buildSlate(sport, date, env = {}) {
         nflPro: pro.meta,
         nflGameMatchup: gameMatchups.meta,
         nflResearchBoard: research.meta,
+        nflPersistentProfiles: {
+          version:"NFL-TEAM-PROFILE-v1",
+          teams:Object.keys(persistentProfiles.teams||{}).length,
+          players:Object.values(persistentProfiles.players||{}).reduce((n,x)=>n+x.length,0),
+          scheduleStressResearchOnly:true,
+        },
       },
     };
   } else if (id === "nhl") {
