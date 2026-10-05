@@ -77,7 +77,20 @@ function bundle(match,advanced,stats,shotsData,advancedPlayers,standardPlayers,l
 export async function onRequestPost(context){
   const auth=authorizeSoccerWorker(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(auth.reason),401);
   let body={};try{body=await context.request.json();}catch{return json({ok:false,error:"invalid-json"},400);}
-  const leagueKey=String(body.leagueKey||""),pitchLeagueId=body.pitchLeagueId==null?null:String(body.pitchLeagueId),mode=String(body.mode||"historical").toLowerCase(),offset=Math.max(0,Number(body.offset)||0),limit=Math.max(1,Math.min(12,Number(body.limit)||8));
+  let leagueKey=String(body.leagueKey||""),pitchLeagueId=body.pitchLeagueId==null?null:String(body.pitchLeagueId);
+  const mode=String(body.mode||"historical").toLowerCase(),offset=Math.max(0,Number(body.offset)||0),limit=Math.max(1,Math.min(12,Number(body.limit)||8));
+  let rotationTarget=null;
+  if(mode==="live-auto"){
+    const db=context.env?.DB;
+    if(!db?.prepare)return json({ok:false,error:"d1-unbound"},503);
+    rotationTarget=await db.prepare(`SELECT heritage_name,heritage_key,pitch_league_id,current_season
+      FROM soccer_competition_coverage
+      WHERE discovery_status='MATCHED' AND model_eligible=1 AND pitch_league_id IS NOT NULL
+      ORDER BY COALESCE(last_live_sync_at,'1970-01-01'),heritage_name LIMIT 1`).first();
+    if(!rotationTarget)return json({ok:true,mode:"live-auto",empty:true});
+    leagueKey=String(rotationTarget.heritage_key||"");
+    pitchLeagueId=String(rotationTarget.pitch_league_id||"");
+  }
   if(!leagueKey)return json({ok:false,error:"league-key-required"},400);
   if(!pitchLeagueId&&!ALIASES[leagueKey])return json({ok:false,error:"unsupported-league-without-pitch-id"},400);
   try{
@@ -85,11 +98,12 @@ export async function onRequestPost(context){
       ? (leagueData?.leagues||[]).find(x=>String(x.id)===pitchLeagueId)
       : findLeague(leagueData?.leagues||[],leagueKey);
     if(!league)return json({ok:false,error:"league-mapping-unresolved",leagueKey,pitchLeagueId},422);
-    const season=String(body.season||league.seasons?.[0]||"");if(!season)return json({ok:false,error:"season-unavailable"},422);
-    const status=mode==="live"?"all":"played";
+    const season=String(body.season||rotationTarget?.current_season||league.seasons?.[0]||"");if(!season)return json({ok:false,error:"season-unavailable"},422);
+    const liveMode=mode==="live"||mode==="live-auto";
+    const status=liveMode?"all":"played";
     const list=await pitch(context.env,`/v1/leagues/${league.id}/matches?season=${encodeURIComponent(season)}&status=${status}`);
     let matches=(list?.matches||[]).sort((a,b)=>String(a.time_utc||a.date).localeCompare(String(b.time_utc||b.date)));
-    if(mode==="live"){const now=Date.now(),lo=new Date(now-8*86400000).toISOString().slice(0,10),hi=new Date(now+3*86400000).toISOString().slice(0,10);matches=matches.filter(m=>String(m.date)>=lo&&String(m.date)<=hi);}else matches=matches.filter(m=>m.status==="finished");
+    if(liveMode){const now=Date.now(),lo=new Date(now-8*86400000).toISOString().slice(0,10),hi=new Date(now+3*86400000).toISOString().slice(0,10);matches=matches.filter(m=>String(m.date)>=lo&&String(m.date)<=hi);}else matches=matches.filter(m=>m.status==="finished");
     const slice=matches.slice(offset,offset+limit);let persisted=0,playersCount=0,lineupsCount=0,analyticsUnavailable=0,errors=0;
     for(let i=0;i<slice.length;i+=3){
       const group=slice.slice(i,i+3);
@@ -101,7 +115,7 @@ export async function onRequestPost(context){
             pitch(context.env,`/v1/matches/${m.id}/stats`,{optional:true}),
             pitch(context.env,`/v1/matches/${m.id}/advanced/network`,{optional:true})
           ]);
-          const [advancedPlayers,standardPlayers,lineups]=mode==="live"?await Promise.all([
+          const [advancedPlayers,standardPlayers,lineups]=liveMode?await Promise.all([
             pitch(context.env,`/v1/matches/${m.id}/advanced/players`,{optional:true}),
             pitch(context.env,`/v1/matches/${m.id}/players`,{optional:true}),
             pitch(context.env,`/v1/matches/${m.id}/lineups`,{optional:true})
@@ -113,6 +127,12 @@ export async function onRequestPost(context){
       }));
       for(const x of results){if(x?.ok){persisted+=x.match||0;playersCount+=x.players||0;lineupsCount+=x.lineups||0;}}
     }
-    return json({ok:errors===0,leagueKey,pitchLeagueId:league.id,pitchLeagueName:league.name,season,mode,offset,limit,totalMatches:matches.length,processed:slice.length,persisted,players:playersCount,lineups:lineupsCount,analyticsUnavailable,errors,nextOffset:offset+slice.length,done:offset+slice.length>=matches.length,marketUsed:false});
+    if(mode==="live-auto"&&rotationTarget){
+      const db=context.env?.DB;
+      const now=new Date().toISOString();
+      if(errors===0) await db.prepare("UPDATE soccer_competition_coverage SET last_live_sync_at=?,live_sync_last_error=NULL WHERE heritage_name=?").bind(now,rotationTarget.heritage_name).run();
+      else await db.prepare("UPDATE soccer_competition_coverage SET last_live_sync_at=?,live_sync_errors=live_sync_errors+1,live_sync_last_error=? WHERE heritage_name=?").bind(now,String(errors)+" match errors",rotationTarget.heritage_name).run();
+    }
+    return json({ok:errors===0,leagueKey,pitchLeagueId:league.id,pitchLeagueName:league.name,heritageName:rotationTarget?.heritage_name||null,season,mode,offset,limit,totalMatches:matches.length,processed:slice.length,persisted,players:playersCount,lineups:lineupsCount,analyticsUnavailable,errors,nextOffset:offset+slice.length,done:offset+slice.length>=matches.length,marketUsed:false});
   }catch(e){return json({ok:false,error:String(e?.message||e),leagueKey,mode},502);}
 }
