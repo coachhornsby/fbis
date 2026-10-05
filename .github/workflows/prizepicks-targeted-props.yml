@@ -201,17 +201,39 @@ jobs:
         if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
         run: |
           set -euo pipefail
-          input='{"leagues":["MLB","NFL","NHL","NBA","College Basketball","CFB","Soccer","Tennis"]}'
-          body="$(mktemp)"
-          code="$(curl -sS --max-time 240 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary "$input" -o "$body" -w "%{http_code}" "https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items?format=json&clean=true")"
-          echo "PrizePicks Actor http=$code"
-          case "$code" in 200|201) ;; *) echo "unexpected PrizePicks Actor HTTP $code"; cat "$body"; exit 1 ;; esac
-          jq -e 'type=="array"' "$body" >/dev/null
-          cp "$body" artifacts/prizepicks-rows.json
+          actor_url="https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items?format=json&clean=true"
+          wanted=("MLB" "NFL" "NHL" "NBA" "College Basketball" "CFB" "Soccer" "Tennis")
+          discover="$(mktemp)"
+          dcode="$(curl -sS --max-time 120 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary '{"listLeagues":true}' -o "$discover" -w "%{http_code}" "$actor_url")"
+          case "$dcode" in 200|201) ;; *) echo "PrizePicks league discovery failed HTTP $dcode"; cat "$discover"; exit 1 ;; esac
+          jq -e 'type=="array"' "$discover" >/dev/null
+          cp "$discover" artifacts/prizepicks-live-leagues.json
+          : > artifacts/prizepicks-rows.ndjson
+          : > artifacts/prizepicks-coverage.ndjson
+          for league in "${wanted[@]}"; do
+            # Discovery rows vary by actor version; accept common league/name fields.
+            live_count="$(jq -r --arg l "$league" '[.[] | select((.league // .name // .league_name // "") == $l) | (.count // .prop_count // .projection_count // 0)] | add // 0' "$discover")"
+            if [ "$live_count" = "0" ]; then
+              echo "coverage league=$league live_count=0 (not expected today)"
+              jq -nc --arg league "$league" '{league:$league,expected:false,rows:0}' >> artifacts/prizepicks-coverage.ndjson
+              continue
+            fi
+            input="$(jq -nc --arg league "$league" '{leagues:[$league]}')"
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 240 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary "$input" -o "$body" -w "%{http_code}" "$actor_url")"
+            case "$code" in 200|201) ;; *) echo "PrizePicks league pull failed league=$league HTTP $code"; cat "$body"; exit 1 ;; esac
+            jq -e 'type=="array"' "$body" >/dev/null
+            n="$(jq 'length' "$body")"
+            echo "coverage league=$league live_count=$live_count rows=$n"
+            test "$n" -gt 0
+            jq -c '.[]' "$body" >> artifacts/prizepicks-rows.ndjson
+            jq -nc --arg league "$league" --argjson live "$live_count" --argjson rows "$n" '{league:$league,expected:true,liveCount:$live,rows:$rows}' >> artifacts/prizepicks-coverage.ndjson
+          done
+          jq -s 'unique_by(.projection_id // .id // [(.league // .player_league),(.player_name // .playerName),(.stat_type // .stat),(.line // .value),(.odds_type // .oddsTier)])' artifacts/prizepicks-rows.ndjson > artifacts/prizepicks-rows.json
+          jq -s '.' artifacts/prizepicks-coverage.ndjson > artifacts/prizepicks-coverage.json
           rows="$(jq 'length' artifacts/prizepicks-rows.json)"
-          echo "modeled-leagues returned=$rows"
-          leagues="$(jq -r '[.[].league // .[].player_league // empty] | unique | join(", ")' artifacts/prizepicks-rows.json 2>/dev/null || true)"
-          echo "leagues=${leagues:-unknown}"
+          echo "complete-board rows=$rows"
+          jq -e '[.[] | select(.expected==true and .rows==0)] | length == 0' artifacts/prizepicks-coverage.json >/dev/null
           test "$rows" -gt 0
       - name: Persist curated PrizePicks lines
         if: env.SKIP_COLLECTION != '1'
