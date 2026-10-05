@@ -197,6 +197,12 @@ export async function buildSlate(sport, date, env = {}) {
         nflPro: pro.meta,
         nflGameMatchup: gameMatchups.meta,
         nflResearchBoard: research.meta,
+        nflPersistentProfiles: {
+          version:"NFL-TEAM-PROFILE-v1",
+          teams:Object.keys(persistentProfiles.teams||{}).length,
+          players:Object.values(persistentProfiles.players||{}).reduce((n,x)=>n+x.length,0),
+          scheduleStressResearchOnly:true,
+        },
       },
     };
   } else if (id === "nhl") {
