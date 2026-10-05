@@ -541,3 +541,12 @@
   .shell-brand-bull { width: 48px; height: 32px; }
   .shell-brand-lockup { gap: 6px; }
 }
+
+/* Global application canvas. Header/nav retain their own surfaces. */
+html, body, #root, .shell-main, .fbis-shell-main {
+  background: #000 !important;
+  background-color: #000 !important;
+}
+.shell-main, .fbis-shell-main {
+  min-height: calc(100vh - 76px);
+}
