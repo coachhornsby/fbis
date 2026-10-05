@@ -1336,6 +1336,9 @@ CREATE TABLE IF NOT EXISTS soccer_competition_coverage (
   can_authorize INTEGER NOT NULL DEFAULT 0,
   last_discovered_at TEXT,
   last_ingested_at TEXT,
+  last_live_sync_at TEXT,
+  live_sync_errors INTEGER NOT NULL DEFAULT 0,
+  live_sync_last_error TEXT,
   notes TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_soccer_coverage_status
