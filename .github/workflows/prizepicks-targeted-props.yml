@@ -295,6 +295,5 @@ jobs:
           retention-days: 14
 # operator-trigger: 2026-10-04 daily Zen recovery
 # incident-recovery: 2026-10-05 missing scheduled acquisition
-\n# operator-recovery: 2026-10-05 coverage repair after Apify limit increase\n
-
+# operator-recovery: 2026-10-05 coverage repair after Apify limit increase
 # incident-recovery-valid-trigger: 2026-10-05 full league coverage
