@@ -1,5 +1,5 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
-import { loadEspnLastFive } from "../lib/playerPropHistory.js";
+import { loadEspnLastFive, valueForEspnEvent } from "../lib/playerPropHistory.js";
 import { projectTennisPlayerPropsV2 } from "../lib/tennisPlayerPropModel.js";
 
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json","cache-control":"no-store"}})}
@@ -75,13 +75,80 @@ async function enrichTennis(db,row){
   const changed=await persistProjection(db,row,match.fbisProjection,match.fbisSigma,model.modelId||"TENNIS-FBIS-v2-CONTEXT");
   return {ok:changed>0,changed,projection:match.fbisProjection,market};
 }
+
+const SOCCER_LEAGUES=["uefa.nations","arg.1","eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","bra.1","uefa.champions","uefa.europa"];
+const soccerCache=new Map();
+async function getJson(url,timeoutMs=5000){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{const r=await fetch(url,{headers:{accept:"application/json","user-agent":"FBIS/1.0"},signal:controller.signal});return r.ok?await r.json():null}
+  catch{return null}finally{clearTimeout(timer)}
+}
+function teamToken(v){return clean(v).replace(/\b(fc|cf|ca|club|de|the)\b/g," ").replace(/\s+/g," ").trim()}
+function compTeams(event){
+  return event?.competitions?.[0]?.competitors||[];
+}
+async function soccerTeamContext(row){
+  const k=[row.team,row.opponent,String(row.start_time).slice(0,10)].join("|");
+  if(soccerCache.has(k))return soccerCache.get(k);
+  const date=String(row.start_time).slice(0,10).replace(/-/g,"");
+  const t=teamToken(row.team),o=teamToken(row.opponent);
+  for(const league of SOCCER_LEAGUES){
+    const board=await getJson("https://site.api.espn.com/apis/site/v2/sports/soccer/"+league+"/scoreboard?dates="+date,3500);
+    for(const event of board?.events||[]){
+      const comps=compTeams(event);
+      const names=comps.map(x=>teamToken(x?.team?.displayName||x?.team?.shortDisplayName||x?.team?.name||x?.team?.abbreviation));
+      const teamIndex=names.findIndex(x=>x&&(x.includes(t)||t.includes(x)));
+      const oppOk=!o||names.some(x=>x&&(x.includes(o)||o.includes(x)));
+      if(teamIndex>=0&&oppOk){
+        const out={league,teamId:comps[teamIndex]?.team?.id,eventId:event.id};
+        soccerCache.set(k,out);return out;
+      }
+    }
+  }
+  soccerCache.set(k,null);return null;
+}
+async function soccerRecentPlayerValues(row){
+  const ctx=await soccerTeamContext(row);
+  if(!ctx)return {values:[],reason:"event-team-not-found"};
+  const season=new Date(row.start_time).getUTCFullYear();
+  const sched=await getJson("https://site.api.espn.com/apis/site/v2/sports/soccer/"+ctx.league+"/teams/"+ctx.teamId+"/schedule?season="+season,5000);
+  const startMs=Date.parse(row.start_time);
+  const events=(sched?.events||[]).filter(e=>{
+    const ms=Date.parse(e.date||e?.competitions?.[0]?.date||"");
+    return Number.isFinite(ms)&&ms<startMs&&(e?.status?.type?.completed===true||String(e?.status?.type?.state||"").toLowerCase()==="post");
+  }).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,5);
+  const values=[];
+  for(const event of events){
+    const summary=await getJson("https://site.api.espn.com/apis/site/v2/sports/soccer/"+ctx.league+"/summary?event="+event.id,5000);
+    const groups=summary?.boxscore?.players||[];
+    for(const group of groups){
+      for(const statGroup of group?.statistics||[]){
+        const names=statGroup?.names||statGroup?.labels||[];
+        for(const athlete of statGroup?.athletes||[]){
+          const name=athlete?.athlete?.displayName||athlete?.athlete?.fullName||athlete?.displayName||"";
+          if(clean(name)!==clean(row.player_name))continue;
+          const v=valueForEspnEvent({names},{stats:athlete?.stats||[]},row.canonical_market,"soccer",row.player_name);
+          if(v!=null){values.push(v);break}
+        }
+        if(values.length&&values.length>=events.indexOf(event)+1)break;
+      }
+    }
+  }
+  return {values:values.slice(0,5),reason:values.length?null:"boxscore-stat-not-found",league:ctx.league};
+}
+
 async function enrichSoccer(db,row){
-  const h=await loadEspnLastFive({sport:"soccer",name:row.player_name,team:row.team,market:row.canonical_market,line:row.line});
-  if(!h||h.unavailable||!h.last5?.length)return {ok:false,reason:h?.reason||"history-unavailable"};
-  const vals=h.last5.map(x=>x.value).filter(v=>finite(v)!=null);
+  let vals=[];
+  const direct=await soccerRecentPlayerValues(row);
+  vals=(direct.values||[]).filter(v=>finite(v)!=null);
+  if(!vals.length){
+    const h=await loadEspnLastFive({sport:"soccer",name:row.player_name,team:row.team,market:row.canonical_market,line:row.line});
+    vals=(h?.last5||[]).map(x=>x.value).filter(v=>finite(v)!=null);
+    if(!vals.length)return {ok:false,reason:direct.reason||h?.reason||"history-unavailable"};
+  }
   const projection=weightedRecent(vals),sigma=sd(vals);
   if(projection==null)return {ok:false,reason:"history-empty"};
-  const changed=await persistProjection(db,row,Math.round(projection*100)/100,sigma==null?null:Math.round(sigma*100)/100,"SOCCER-PLAYER-LAST5-v1");
+  const changed=await persistProjection(db,row,Math.round(projection*100)/100,sigma==null?null:Math.round(sigma*100)/100,"SOCCER-PLAYER-LAST5-BOXSCORE-v1");
   return {ok:changed>0,changed,projection,market:row.canonical_market};
 }
 export async function onRequestPost(context){
