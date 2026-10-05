@@ -2,13 +2,13 @@
  * FBIS product navigation — Board-first decision workstation.
  * Sports are filters, not permanent primary tabs.
  *
- * Primary IA: BOARD · MODELS · MODEL LAB · MY BETS · MARKET · SYSTEM
+ * Primary IA: BOARD · PLAYER PROPS · MODELS · MODEL LAB · MY BETS · MARKET · SYSTEM
  */
 
 export const CUSTOMER_NAV = Object.freeze([
   { id: "board", label: "BOARD", description: "Decision workstation — FBIS → Market → Diff → Decision" },
   { id: "player-props", label: "PLAYER PROPS", description: "Curated PrizePicks lines + FBIS player projections" },
-  { id: "models", label: "MODELS", description: "Sport/model status and projections" },
+  { id: "models", label: "MODELS", description: "Model health, status, coverage, and readiness — no betting picks" },
   { id: "model-lab", label: "MODEL LAB", description: "Validation, version comparison, prospective evidence" },
   { id: "bets", label: "MY BETS", description: "Manual wager journal and performance" },
   { id: "market", label: "MARKET", description: "Advanced market intelligence and price comparison" },
