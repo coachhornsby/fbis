@@ -150,7 +150,9 @@ export async function onRequestGet(context){
     if(!auth.ok) return json(unauthorizedBody(),401);
     const day=todayCt();
     const row=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(day).first();
-    return json({ok:true,ctDate:day,acquisition:row||null,alreadyStarted:!!row});
+    let coverage=[];
+    if(row?.run_id){ coverage=(await context.env.DB.prepare("SELECT sport,COUNT(*) rows FROM prizepicks_prop_lines WHERE run_id=? GROUP BY sport ORDER BY sport").bind(row.run_id).all())?.results||[]; }
+    return json({ok:true,ctDate:day,acquisition:row||null,alreadyStarted:!!row,coverage});
   }
   if(mode==="budget"){
     const auth=authorizeHarvest(context.request,context.env);
@@ -193,7 +195,7 @@ export async function onRequestPost(context){
   if(!context.env?.DB) return json({ok:false,error:"database unavailable"},503);
   let body={};try{body=await context.request.json()}catch{}
   const operation=String(body.operation||"").toLowerCase();
-  const supplementalNfl=operation==="supplemental_nfl";
+  const supplementalNfl=operation==="supplemental_nfl";\n  const supplementalCoverage=operation==="supplemental_coverage";
   if(operation==="reserve"){
     const day=todayCt(), runId=s(body.runId)||`pp_${Date.now()}`, now=new Date().toISOString();
     const existing=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(day).first();
@@ -325,7 +327,7 @@ export async function onRequestPost(context){
   }
   const costId="cost_"+runId;
   const acquisition=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE run_id=?").bind(runId).first();
-  if(!acquisition && !supplementalNfl) return json({ok:false,blocked:true,error:"missing_daily_acquisition_reservation",runId},409);
+  if(!acquisition && !supplementalNfl && !supplementalCoverage) return json({ok:false,blocked:true,error:"missing_daily_acquisition_reservation",runId},409);
   if(supplementalNfl){
     const nonNfl=rows.filter((row)=>sportOf(row)!=="nfl");
     if(nonNfl.length) return json({ok:false,blocked:true,error:"supplemental_nfl_contains_non_nfl_rows",runId,rowsReturned:rows.length,nonNflRows:nonNfl.length},409);
@@ -352,13 +354,13 @@ export async function onRequestPost(context){
     // Replace the reservation-only cost with the complete estimated/actual charge in the shared Apify ledger.
     await context.env.DB.prepare(`UPDATE apify_sports_cost_ledger SET cost_basis=?, estimated_total_usd=?, actual_total_usd=?, rows_returned=? WHERE id=?`)
       .bind(actual==null?"ESTIMATED":"ACTUAL",estimate,actual,rows.length,"ppstart_"+acquisition.ct_date).run();
-  }else if(supplementalNfl){
+  }else if(supplementalNfl || supplementalCoverage){
     await context.env.DB.prepare(`
       INSERT OR REPLACE INTO apify_sports_cost_ledger
       (id,provider,run_id,sport,cost_basis,estimated_total_usd,actual_total_usd,rows_returned,created_at)
       VALUES(?,?,?,?,?,?,?,?,?)
     `).bind(
-      "ppsupp_"+runId,"PRIZEPICKS_APIFY",runId,"nfl",
+      "ppsupp_"+runId,"PRIZEPICKS_APIFY",runId,supplementalNfl?"nfl":"coverage",
       actual==null?"ESTIMATED":"ACTUAL",estimate,actual,rows.length,collectedAt
     ).run();
   }
