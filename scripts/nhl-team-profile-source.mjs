@@ -8,7 +8,7 @@ const out=args.out||"artifacts/nhl-profile-source.json";
 const seasonId=String(args.season||nhlSeasonId());
 const shardCount=Math.max(1,Number(args.shardCount||8)),shardIndex=Math.max(0,Number(args.shardIndex||0));
 const concurrency=Math.max(1,Math.min(4,Number(args.concurrency||2)));
-const WEB="https://api-web.nhle.com/v1",STATS="https://api.nhle.com/stats/rest/en";
+const WEB="https://api-web.nhle.com/v1",STATS="https://api.nhle.com/stats/rest/en";\nconst OFFICIAL=Object.freeze({LA:"LAK",NJ:"NJD",SJ:"SJS",TB:"TBL"});
 const headers={accept:"application/json","user-agent":"FBIS-NHL-Persistent/1.0"};
 
 async function get(url,ms=8000){
@@ -63,8 +63,8 @@ async function globalStats(){
 }
 const allStats=await globalStats();
 async function one(t){
-  const team=normalizeNhlTeamKey(t.abbr),state={roster:"ERROR",schedule:"ERROR",lastGame:"NONE",shifts:"NONE"},errors=[];
-  const [rr,sr]=await Promise.allSettled([get(`${WEB}/roster/${team}/current`),get(`${WEB}/club-schedule-season/${team}/${seasonId}`)]);
+  const team=normalizeNhlTeamKey(t.abbr),official=OFFICIAL[team]||team,state={roster:"ERROR",schedule:"ERROR",lastGame:"NONE",shifts:"NONE"},errors=[];
+  const [rr,sr]=await Promise.allSettled([get(`${WEB}/roster/${official}/current`),get(`${WEB}/club-schedule-season/${official}/${seasonId}`)]);
   const roster=rr.status==="fulfilled"?rosterRows(rr.value):[];
   if(rr.status==="fulfilled")state.roster="OK";else errors.push(String(rr.reason));
   let schedule=sr.status==="fulfilled"?scheduleRows(sr.value,team):[];
