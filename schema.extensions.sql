@@ -2681,7 +2681,7 @@ CREATE INDEX IF NOT EXISTS idx_pitchapi_sync_runs_time
 
 
 
--- NHL persistent player tracking (migration 0058)
+-- NHL persistent player tracking (migration 0090)
 -- Persistent NHL player EDGE/tracking snapshots.
 -- Refreshed asynchronously with team profiles; read by projections before live EDGE fallback.
 
@@ -2711,7 +2711,7 @@ CREATE INDEX IF NOT EXISTS idx_nhl_tracking_team_time
   ON nhl_player_tracking_profiles(team_key,source_as_of DESC);
 
 
--- NHL learned replacement-role observations (migration 0059)
+-- NHL learned replacement-role observations (migration 0091)
 -- Idempotent observations of who actually absorbs role when an NHL player is scratched.
 -- Used only as persistent research context until separately validated.
 
