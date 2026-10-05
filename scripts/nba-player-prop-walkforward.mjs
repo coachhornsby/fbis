@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import { projectNbaGame } from "../functions/lib/nbaModel.js";
+import { buildNbaScheduleContext } from "../functions/lib/nbaTravelContext.js";
 import { projectNbaPlayer } from "../functions/lib/nbaPlayerPropModel.js";
 
 const file=process.argv[2]||"artifacts/nba-canonical.jsonl";
@@ -38,9 +39,12 @@ for(const g of games){
   let gameProjection=null;
 
   if(date>=holdoutStart && hHist.length>=6 && aHist.length>=6){
+    const gi=games.indexOf(g);
     gameProjection=projectNbaGame(
       {id:g.id,neutralSite:g.neutralSite,featureCutoff:g.start},
-      {homeHistory:hHist,awayHistory:aHist,homeContext:{daysRest:2},awayContext:{daysRest:2}}
+      {homeHistory:hHist,awayHistory:aHist,
+       homeContext:buildNbaScheduleContext(games,g,gi,"home"),
+       awayContext:buildNbaScheduleContext(games,g,gi,"away")}
     );
   }
 

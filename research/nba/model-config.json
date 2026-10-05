@@ -110,5 +110,33 @@
       "injuryRedistribution": "prospective_only_until_timestamped_historical_availability_is_sufficient",
       "promoteOnlyIfIncrementalHoldoutValue": true
     }
+  },
+  "deepGameChallenger": {
+    "modelId": "NBA-FBIS-v2-DEEP",
+    "version": "research-v1",
+    "role": "prospective-shadow-challenger",
+    "incumbent": "NBA-FBIS-v1",
+    "canQualify": false,
+    "canAuthorize": false,
+    "featureFamilies": [
+      "opponent_adjusted_four_factors",
+      "shot_profile_and_shot_efficiency",
+      "real_rest_and_travel",
+      "altitude_fatigue",
+      "expected_lineup_strength",
+      "lineup_continuity",
+      "availability_context",
+      "nonlinear_matchup_interactions"
+    ],
+    "historicalValidation": {
+      "trainN": 1225,
+      "holdoutN": 1322,
+      "marginImprovement": -0.008481732596701704,
+      "totalImprovement": 0.03503211626567087,
+      "winnerAccuracyDelta": 0.0015128593040848,
+      "decision": "RETAIN_RESEARCH",
+      "holdoutStatus": "BURNED_NO_FURTHER_TUNING"
+    },
+    "promotionRule": "2026-27 prospective evidence required; do not retune against 2025-26 holdout"
   }
 }

@@ -8,6 +8,7 @@ const frozen=args.frozen||"artifacts/frozen/nba-canonical.jsonl";
 const current=args.current||"artifacts/current/nba-canonical.jsonl";
 const historicalImpact=args.historicalImpact||"artifacts/frozen/nba-player-impact-v1.json";
 const availabilityFile=args.availability||"artifacts/nba-availability.json";
+const coverageFile=args.coverage||"artifacts/nba-availability-coverage.json";
 const lineupFile=args.lineups||"artifacts/frozen/nba-lineup-effects.json";
 const out=args.out||"artifacts/nba-player-impact-live.json";
 const sqlOut=args.sql||"artifacts/nba-player-impact-live.sql";
@@ -22,10 +23,16 @@ const currentGames=readJsonl(current);
 const histArtifact=readJson(historicalImpact)||{players:{}};
 const lineupArtifact=readJson(lineupFile)||{effects:[]};
 const availRaw=readJson(availabilityFile);
-const availability=Array.isArray(availRaw)
-  ? (availRaw.every(x=>Array.isArray(x?.results)) ? availRaw.flatMap(x=>x.results||[]) : availRaw)
-  : (Array.isArray(availRaw?.results) ? availRaw.results : Array.isArray(availRaw?.result) ? availRaw.result.flatMap(x=>x?.results||[]) : []);
-const hist=new Map(),latest=new Map();
+const flattenRows=x=>Array.isArray(x)
+  ? (x.every(r=>Array.isArray(r?.results)) ? x.flatMap(r=>r.results||[]) : x)
+  : (Array.isArray(x?.results) ? x.results : Array.isArray(x?.result) ? x.result.flatMap(r=>r?.results||[]) : []);
+const availability=flattenRows(availRaw);
+const coverage=flattenRows(readJson(coverageFile));
+const hist=new Map(),latest=new Map(),teamAbbrById=new Map();
+for(const g of games){
+  if(g.homeId)teamAbbrById.set(String(g.homeId),g.home?.abbr||teamAbbrById.get(String(g.homeId))||null);
+  if(g.awayId)teamAbbrById.set(String(g.awayId),g.away?.abbr||teamAbbrById.get(String(g.awayId))||null);
+}
 for(const g of games)for(const p of g.players||[]){
   const id=String(p.id||p.name||"");if(!id)continue;
   if(!hist.has(id))hist.set(id,[]);
@@ -53,12 +60,22 @@ for(const [id,rows] of hist){
     net:blend(currentImpact.net,finite(h?.net)),
     name:latest.get(id)?.name||h?.name||id,
     teamId:String(latest.get(id)?.teamId||h?.teamId||""),
+    team:latest.get(id)?.team||h?.team||teamAbbrById.get(String(latest.get(id)?.teamId||h?.teamId||""))||null,
     position:latest.get(id)?.position||h?.position||null,
     sourceBlend:{currentGames:currentN,currentWeight:w,historicalArtifact:Boolean(h)}
   };
 }
 const teams=new Map();
 for(const [id,p] of Object.entries(impacts)){if(!p.teamId)continue;if(!teams.has(p.teamId))teams.set(p.teamId,{});teams.get(p.teamId)[id]=p}
+function officialCoverageForRoster(roster){
+  const teamAbbr=Object.values(roster).map(p=>String(p.team||"").toUpperCase()).find(Boolean);
+  if(!teamAbbr)return null;
+  const cutoff=Date.parse(asOf),maxAge=18*3600000;
+  return coverage.filter(r=>String(r.team_key||"").toUpperCase()===teamAbbr)
+    .filter(r=>!r.report_timestamp||Date.parse(r.report_timestamp)<=cutoff)
+    .filter(r=>!r.report_timestamp||cutoff-Date.parse(r.report_timestamp)<=maxAge)
+    .sort((a,b)=>Date.parse(b.report_timestamp||0)-Date.parse(a.report_timestamp||0))[0]||null;
+}
 const roleContexts={};
 for(const [teamId,roster] of teams){
   const unavailable=[];
@@ -66,12 +83,14 @@ for(const [teamId,roster] of teams){
     const a=latestAvailability({id,name:p.name});
     if(a&&["OUT","DOUBTFUL","QUESTIONABLE","PROBABLE"].includes(String(a.status||"").toUpperCase()))unavailable.push({playerId:id,status:a.status,source:a.source,observedAt:a.observed_at});
   }
-  const verified=unavailable.length>0&&unavailable.every(u=>u.source&&u.observedAt);
+  const coverageRow=officialCoverageForRoster(roster);
+  const officialSubmitted=String(coverageRow?.submission_status||"").toUpperCase()==="SUBMITTED";
+  const verified=officialSubmitted||(unavailable.length>0&&unavailable.every(u=>u.source&&u.observedAt));
   for(const id of Object.keys(roster)){
     const role=buildRoleRedistribution({targetPlayerId:id,rosterImpacts:roster,unavailablePlayers:unavailable});
     const expectedMates=Object.keys(roster).filter(x=>x!==id&&!unavailable.some(u=>u.playerId===x&&String(u.status).toUpperCase()==="OUT"));
     const lineup=lineupOpportunityModifier({playerId:id,lineupEffects:lineupArtifact.effects||[],expectedTeammates:expectedMates});
-    roleContexts[id]={role,lineup,availabilityVerified:verified,unavailable};
+    roleContexts[id]={role,lineup,availabilityVerified:verified,unavailable,officialCoverage:coverageRow||null};
   }
 }
 const createdAt=new Date().toISOString(),sql=[];

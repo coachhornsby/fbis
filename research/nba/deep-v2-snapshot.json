@@ -1,0 +1,31 @@
+{
+  "snapshotId": "nba-fbis-v2-deep-research-2026-10-05",
+  "workflowRunId": 37267109480,
+  "artifactId": 11326652664,
+  "artifactSha256": "b1f98be33c30d942dfb74364bf6957aa5b5c61ab18d7cbe3e2fab00ea2419d9e",
+  "sourceCanonicalSnapshot": "nba-espn-2024-10-22_2026-06-21-v1.1",
+  "sourcePlayerImpactRunId": 37235449669,
+  "trainN": 1225,
+  "holdoutN": 1322,
+  "shotProfileGames": 2650,
+  "shotProfileCoverage": 0.9973584905660378,
+  "featureCount": 57,
+  "holdout": {
+    "incumbentMarginMae": 11.559077155824511,
+    "challengerMarginMae": 11.657118157324858,
+    "marginImprovement": -0.008481732596701704,
+    "incumbentTotalMae": 15.933207261724647,
+    "challengerTotalMae": 15.375033292446878,
+    "totalImprovement": 0.03503211626567087,
+    "incumbentWinnerAccuracy": 0.6694402420574886,
+    "challengerWinnerAccuracy": 0.6709531013615734
+  },
+  "decision": "RETAIN_RESEARCH",
+  "holdoutStatus": "BURNED_NO_FURTHER_TUNING",
+  "prospectivePromotionRequired": true,
+  "r2": {
+    "bucket": "fbis-archive",
+    "immutablePrefix": "research/nba/deep-v2/run-37267109480",
+    "latestPrefix": "research/nba/deep-v2/latest"
+  }
+}
