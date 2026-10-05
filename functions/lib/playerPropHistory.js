@@ -10,7 +10,7 @@ const SPORT_CONFIG = Object.freeze({
     sportPath: "soccer",
     leagues: [
       "eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","mex.1",
-      "uefa.champions","uefa.europa","usa.nwsl","eng.w.1"
+      "uefa.champions","uefa.europa","uefa.nations","arg.1","bra.1","usa.nwsl","eng.w.1"
     ],
   },
   tennis: { searchSport: "tennis", sportPath: "tennis", leagues: ["atp","wta"] },
