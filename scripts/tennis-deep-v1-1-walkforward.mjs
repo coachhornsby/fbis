@@ -77,6 +77,31 @@ function propSummary(rows,pred,actual){
   const rr=rows.filter(r=>finite(r[pred])!=null&&finite(r[actual])!=null);if(!rr.length)return {n:0};
   const errs=rr.map(r=>r[pred]-r[actual]);return {n:rr.length,mae:round(mean(errs.map(Math.abs))),rmse:round(Math.sqrt(mean(errs.map(x=>x*x)))),bias:round(mean(errs))}
 }
+
+function fitAffine(rows,pred,actual){
+  const rr=rows.filter(r=>finite(r[pred])!=null&&finite(r[actual])!=null);
+  if(rr.length<50)return {a:0,b:1,n:rr.length};
+  const xs=rr.map(r=>r[pred]),ys=rr.map(r=>r[actual]),mx=mean(xs),my=mean(ys);
+  const cov=mean(xs.map((x,i)=>(x-mx)*(ys[i]-my))),vx=mean(xs.map(x=>(x-mx)**2));
+  const b=clamp(vx>1e-9?cov/vx:1,.45,1.55),a=clamp(my-b*mx,-8,8);
+  return {a,b,n:rr.length};
+}
+function fitGroupedPropCalibration(train,pred,actual){
+  const groups={};
+  const add=(key,subset)=>{groups[key]=fitAffine(subset,pred,actual)};
+  add("global",train);
+  for(const t of ["atp","wta"])add(`tour:${t}`,train.filter(r=>r.tour===t));
+  for(const s of ["hard","clay","grass"])add(`surface:${s}`,train.filter(r=>r.surface===s));
+  for(const t of ["atp","wta"])for(const s of ["hard","clay","grass"])add(`tourSurface:${t}:${s}`,train.filter(r=>r.tour===t&&r.surface===s));
+  return groups;
+}
+function applyGroupedCal(r,pred,groups){
+  const g=groups[`tourSurface:${r.tour}:${r.surface}`];
+  const t=groups[`tour:${r.tour}`],s=groups[`surface:${r.surface}`],base=groups.global;
+  const use=g?.n>=250?g:t?.n>=400?t:s?.n>=400?s:base;
+  return use.a+use.b*r[pred];
+}
+
 function allPropMetrics(rows,prefix){
   return {
     totalGames:propSummary(rows,`${prefix}TotalGames`,"actualTotalGames"),
@@ -126,6 +151,16 @@ while(i<all.length){
 }
 const train=rows.filter(r=>r.year<=2023),holdout=rows.filter(r=>r.year>=2024);
 const calV1=fitCalibration(train,"v1Win"),calDeep=fitCalibration(train,"deepWin");
+const propDefs=[
+  ["TotalGames","actualTotalGames"],["TotalSets","actualTotalSets"],["P1Games","actualP1Games"],
+  ["P1Aces","actualP1Aces"],["P1Df","actualP1Df"],["P1Bp","actualP1Bp"]
+];
+const propCalibration={};
+for(const [suffix,actual] of propDefs){
+  const pred=`deep${suffix}`;
+  propCalibration[suffix]=fitGroupedPropCalibration(train,pred,actual);
+  for(const r of rows)r[`deepCal${suffix}`]=applyGroupedCal(r,pred,propCalibration[suffix]);
+}
 const report={
   generatedAt:new Date().toISOString(),model:"TENNIS-FBIS-v1.1-DEEP / TENNIS-PLAYER-v1.1-DEEP",
   source:{name:"Jeff Sackmann / Tennis Abstract archive mirror",license:"CC BY-NC-SA 4.0",productionDependency:false,permittedUse:"research/backtest only"},
@@ -133,20 +168,20 @@ const report={
   sample:{train:train.length,holdout:holdout.length,total:rows.length},
   calibration:{v1:calV1,deep:calDeep},
   match:{holdout:{v1Raw:summarizeMatch(holdout,"v1Win"),deepRaw:summarizeMatch(holdout,"deepWin"),v1Calibrated:summarizeMatch(holdout,"v1Win",calV1),deepCalibrated:summarizeMatch(holdout,"deepWin",calDeep)}},
-  props:{holdout:{v1:allPropMetrics(holdout,"v1"),deep:allPropMetrics(holdout,"deep")}},
-  byTour:Object.fromEntries(["atp","wta"].map(t=>[t,{match:{v1:summarizeMatch(holdout.filter(r=>r.tour===t),"v1Win",calV1),deep:summarizeMatch(holdout.filter(r=>r.tour===t),"deepWin",calDeep)},props:{v1:allPropMetrics(holdout.filter(r=>r.tour===t),"v1"),deep:allPropMetrics(holdout.filter(r=>r.tour===t),"deep")}}])),
-  bySurface:Object.fromEntries(["hard","clay","grass"].map(s=>[s,{match:{v1:summarizeMatch(holdout.filter(r=>r.surface===s),"v1Win",calV1),deep:summarizeMatch(holdout.filter(r=>r.surface===s),"deepWin",calDeep)},props:{v1:allPropMetrics(holdout.filter(r=>r.surface===s),"v1"),deep:allPropMetrics(holdout.filter(r=>r.surface===s),"deep")}}])),
+  props:{holdout:{v1:allPropMetrics(holdout,"v1"),deepRaw:allPropMetrics(holdout,"deep"),deepCalibrated:allPropMetrics(holdout,"deepCal")},calibration:propCalibration},
+  byTour:Object.fromEntries(["atp","wta"].map(t=>[t,{match:{v1:summarizeMatch(holdout.filter(r=>r.tour===t),"v1Win",calV1),deep:summarizeMatch(holdout.filter(r=>r.tour===t),"deepWin",calDeep)},props:{v1:allPropMetrics(holdout.filter(r=>r.tour===t),"v1"),deepRaw:allPropMetrics(holdout.filter(r=>r.tour===t),"deep"),deepCalibrated:allPropMetrics(holdout.filter(r=>r.tour===t),"deepCal")}}])),
+  bySurface:Object.fromEntries(["hard","clay","grass"].map(s=>[s,{match:{v1:summarizeMatch(holdout.filter(r=>r.surface===s),"v1Win",calV1),deep:summarizeMatch(holdout.filter(r=>r.surface===s),"deepWin",calDeep)},props:{v1:allPropMetrics(holdout.filter(r=>r.surface===s),"v1"),deepRaw:allPropMetrics(holdout.filter(r=>r.surface===s),"deep"),deepCalibrated:allPropMetrics(holdout.filter(r=>r.surface===s),"deepCal")}}])),
 };
 const m=report.match.holdout,p=report.props.holdout;
 report.verdict={
   matchPredictivePromotion:m.deepCalibrated.brier<m.v1Calibrated.brier&&m.deepCalibrated.logLoss<m.v1Calibrated.logLoss&&m.deepCalibrated.accuracy>=m.v1Calibrated.accuracy,
   propImprovement:{
-    totalGames:p.deep.totalGames.mae<p.v1.totalGames.mae,
-    totalSets:p.deep.totalSets.mae<p.v1.totalSets.mae,
-    gamesWon:p.deep.gamesWon.mae<p.v1.gamesWon.mae,
-    aces:p.deep.aces.mae<p.v1.aces.mae,
-    doubleFaults:p.deep.doubleFaults.mae<p.v1.doubleFaults.mae,
-    breakPointsWon:p.deep.breakPointsWon.mae<p.v1.breakPointsWon.mae,
+    totalGames:p.deepCalibrated.totalGames.mae<p.v1.totalGames.mae,
+    totalSets:p.deepCalibrated.totalSets.mae<p.v1.totalSets.mae,
+    gamesWon:p.deepCalibrated.gamesWon.mae<p.v1.gamesWon.mae,
+    aces:p.deepCalibrated.aces.mae<p.v1.aces.mae,
+    doubleFaults:p.deepCalibrated.doubleFaults.mae<p.v1.doubleFaults.mae,
+    breakPointsWon:p.deepCalibrated.breakPointsWon.mae<p.v1.breakPointsWon.mae,
   },
   wagerPromotion:false,
   reasons:["historical sportsbook/PrizePicks prices not validated","research source not a production dependency"],
