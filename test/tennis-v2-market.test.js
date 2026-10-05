@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { normalizeTennisContext, tennisContextServeAdjustment, deriveCourtSpeedIndex } from "../functions/lib/tennisContextV2.js";
 import { buildSharpMarketPrior, tennisMarketResidualProjection, deriveMarketMovementFeatures } from "../functions/lib/tennisMarketV2.js";
 import { simulateTennisV2, simulateTennisMarketV2 } from "../functions/lib/tennisFbisV2.js";
-import { buildActorInput } from "../functions/lib/actionApifyShadow.js";
+import { buildActorInput, normalizeActionGameRow } from "../functions/lib/actionApifyShadow.js";
 
 const p=(name,serve=.64,ret=.36)=>({
   id:name,name,historyMatches:80,surfaceMatches:30,elo:1700,surfaceElo:{hard:1700},
@@ -87,4 +87,34 @@ test("ACTION actor input preserves tennis sharp-gap research filters",()=>{
   assert.equal(i.minSharpGap,12.5);
   assert.equal(i.minBets,100);
   assert.equal(i.sortBy,"sharpGap");
+});
+
+
+test("ACTION ATP/WTA competitor schema normalizes player identity and no-vig moneyline",()=>{
+  const raw={
+    gameId:114596,league:"atp",startTime:"2026-10-05T15:00:00Z",status:"scheduled",
+    title:"Player Alpha vs Player Beta",
+    competitors:[
+      {competitorId:271825,playerId:9001,side:"home",type:"player",player:{id:9001,name:"Player Alpha"}},
+      {competitorId:271826,playerId:9002,side:"away",type:"player",player:{id:9002,name:"Player Beta"}}
+    ],
+    consensus:{
+      moneyline:{sides:[
+        {competitorId:271825,playerId:9001,side:"noside",odds:327,noVigProbability:.220628,ticketPercent:null,moneyPercent:null,sharpGap:null},
+        {competitorId:271826,playerId:9002,side:"noside",odds:-479,noVigProbability:.779372,ticketPercent:null,moneyPercent:null,sharpGap:null}
+      ]},
+      spread:{sides:[]},total:{sides:[]}
+    },
+    booksPricing:[],lineMovement:{},lineMovementHistory:[],props:[]
+  };
+  const row=normalizeActionGameRow(raw,{scrapedAt:"2026-10-05T14:00:00Z"});
+  assert.ok(row);
+  assert.equal(row.homeTeam,"Player Alpha");
+  assert.equal(row.awayTeam,"Player Beta");
+  assert.equal(row.homePlayerId,"271825");
+  assert.equal(row.awayPlayerId,"271826");
+  assert.equal(row.consensus.moneylineHome,327);
+  assert.equal(row.consensus.moneylineAway,-479);
+  assert.ok(Math.abs(row.marketQuality.noVig.moneylineHome-.220628)<1e-6);
+  assert.equal(row.publicBetting.moneylineHome.ticketPct,undefined);
 });
