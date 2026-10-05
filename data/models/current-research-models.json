@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-04",
+  "updatedAt": "2026-10-05",
   "sports": {
     "nfl": {
       "currentResearchModel": "NFL-PRO-v1.1",
@@ -34,7 +34,20 @@
       "canAuthorizeWager": false,
       "notes": "Independent NBA score/margin/total/possession distribution feeds a strict point-in-time game-level wager decision engine. Offered line/juice, ordinary market trajectory and ACTION intelligence are separate post-projection layers. ACTION is shadow market intelligence only and cannot directly qualify or authorize. Confidence is provisional until empirical monotonicity passes; stake units remain withheld until staking validation. Player props now have an EPM-inspired FBIS-native impact layer: dynamic skill decay + SPM-style prior + regularized RAPM + lineup/on-off + role redistribution. EPM/DARKO/RAPM/VORP/WS48 are research benchmarks only.",
       "playerImpactModel": "NBA-FBIS-PLAYER-IMPACT-v1",
-      "playerImpactBenchmark": "EPM"
+      "playerImpactBenchmark": "EPM",
+      "deepGameChallenger": "NBA-FBIS-v2-DEEP",
+      "deepGameChallengerVersion": "research-v1",
+      "deepGameChallengerCanQualify": false,
+      "deepGameChallengerCanAuthorize": false,
+      "deepGameStatus": "prospective-shadow-required",
+      "deepGameValidation": {
+        "holdoutN": 1322,
+        "marginImprovement": -0.008481732596701704,
+        "totalImprovement": 0.03503211626567087,
+        "winnerAccuracyDelta": 0.0015128593040848,
+        "decision": "RETAIN_RESEARCH"
+      },
+      "deepGameNotes": "Four Factors, PBP shot profile, actual venue travel/rest, altitude/fatigue, expected lineup strength, availability context and learned nonlinear interactions. 2025-26 holdout is burned; promotion requires 2026-27 prospective evidence."
     },
     "wnba": {
       "currentResearchModel": "WNBA-FBIS-v2",
