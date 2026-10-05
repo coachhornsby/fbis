@@ -1,6 +1,18 @@
 name: NHL persistent team profiles
 
 on:
+  pull_request:
+    paths:
+      - "functions/lib/nhlPersistentProfile.js"
+      - "functions/lib/nhlProV2.js"
+      - "functions/lib/nhlPlayerProV2.js"
+      - "functions/lib/slateEngine.js"
+      - "scripts/nhl-team-profile-source.mjs"
+      - "scripts/nhl-team-profile-source-merge.mjs"
+      - "scripts/nhl-team-profile-build.mjs"
+      - "migrations/0055_nhl_persistent_team_profiles.sql"
+      - "test/nhl-persistent-profile.test.js"
+      - ".github/workflows/nhl-team-profiles.yml"
   push:
     branches: [main]
     paths:
