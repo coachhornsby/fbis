@@ -58,17 +58,27 @@ export async function loadMlbPersistentState(games=[],env={},opts={}){
   const [teams,pitchers,hitters]=await Promise.all([
     all(db,`SELECT team_id,team_key,as_of,profile_json,bullpen_json,lineup_json,schedule_json FROM mlb_team_profiles WHERE team_id IN (${tq})`,teamIds.map(String)),
     playerIds.length?all(db,`SELECT player_id,team_id,as_of,profile_json FROM mlb_pitcher_profiles WHERE player_id IN (${pq})`,playerIds.map(String)):[],
-    playerIds.length?all(db,`SELECT player_id,team_id,as_of,profile_json FROM mlb_hitter_profiles WHERE player_id IN (${pq})`,playerIds.map(String)):[],
+    all(db,`SELECT player_id,team_id,as_of,profile_json FROM mlb_hitter_profiles WHERE team_id IN (${tq})`,teamIds.map(String)),
   ]);
   const tMap=new Map(teams.map(x=>[String(x.team_id),x]));
   const pMap=new Map(pitchers.map(x=>[String(x.player_id),{...x,profile:safeJson(x.profile_json)}]));
   const hMap=new Map(hitters.map(x=>[String(x.player_id),{...x,profile:safeJson(x.profile_json)}]));
+  const hittersByTeam=new Map();
+  for(const row of hitters){
+    const key=String(row.team_id||"");
+    if(!hittersByTeam.has(key))hittersByTeam.set(key,{});
+    hittersByTeam.get(key)[String(row.player_id)]={...row,profile:safeJson(row.profile_json)};
+  }
   const byGameId={};
   for(const game of games||[]){
     const home=tMap.get(String(game.home?.mlbId)),away=tMap.get(String(game.away?.mlbId));
     const homeSp=pMap.get(String(game.homeSp?.id)),awaySp=pMap.get(String(game.awaySp?.id));
     const batterIds=[...new Set((game.bpp?.batterMatchups||[]).map(x=>Number(x?.batterId)).filter(Number.isFinite))];
     const batterProfiles=Object.fromEntries(batterIds.map(id=>[String(id),hMap.get(String(id))?.profile]).filter(([,v])=>v));
+    const teamHitterProfiles={
+      home:Object.fromEntries(Object.entries(hittersByTeam.get(String(game.home?.mlbId))||{}).map(([id,row])=>[id,row.profile]).filter(([,v])=>v)),
+      away:Object.fromEntries(Object.entries(hittersByTeam.get(String(game.away?.mlbId))||{}).map(([id,row])=>[id,row.profile]).filter(([,v])=>v)),
+    };
     const asOf=[home?.as_of,away?.as_of,homeSp?.as_of,awaySp?.as_of].filter(Boolean).sort().at(0)||null;
     byGameId[String(game.id||game.bpp?.gamePk||"")]={
       version:MLB_PERSISTENT_PROFILE_VERSION,
@@ -79,11 +89,12 @@ export async function loadMlbPersistentState(games=[],env={},opts={}){
       awayTeam:away?{...safeJson(away.profile_json),bullpen:safeJson(away.bullpen_json),lineup:safeJson(away.lineup_json),schedule:safeJson(away.schedule_json)}:null,
       homeStarter:homeSp?.profile||null,
       awayStarter:awaySp?.profile||null,
-      hitters:batterProfiles,
+      hitters:{...teamHitterProfiles.home,...teamHitterProfiles.away,...batterProfiles},
+      teamHitters:teamHitterProfiles,
       marketInformed:false,
     };
   }
-  return{byGameId,meta:{configured:true,version:MLB_PERSISTENT_PROFILE_VERSION,teams:teams.length,pitchers:pitchers.length,hitters:hitters.length,games:(games||[]).length}};
+  return{byGameId,meta:{configured:true,version:MLB_PERSISTENT_PROFILE_VERSION,teams:teams.length,pitchers:pitchers.length,hitters:hitters.length,games:(games||[]).length,propStateLoaded:true}};
 }
 
 function lineupIds(game,pitcherId){return [...new Set((game?.bpp?.batterMatchups||[]).filter(r=>Number(r?.pitcherId)===Number(pitcherId)).map(r=>Number(r?.batterId)).filter(Number.isFinite))]}
