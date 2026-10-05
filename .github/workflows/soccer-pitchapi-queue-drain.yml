@@ -1,0 +1,58 @@
+name: Soccer PitchAPI queue drain
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soccer-pitchapi-queue-drain
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Process bounded queue work
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          for iteration in 1 2 3 4; do
+            claim="$(curl -fsS --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 2 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET"               "$BASE/api/soccer-pitchapi-queue-claim")"
+            echo "$claim" | jq .
+            empty="$(echo "$claim" | jq -r '.empty // false')"
+            if [ "$empty" = "true" ]; then exit 0; fi
+            id="$(echo "$claim" | jq -r '.item.id')"
+            leagueKey="$(echo "$claim" | jq -r '.item.leagueKey')"
+            pitchLeagueId="$(echo "$claim" | jq -r '.item.pitchLeagueId')"
+            season="$(echo "$claim" | jq -r '.item.season')"
+            offset="$(echo "$claim" | jq -r '.item.offset')"
+            pageSize="$(echo "$claim" | jq -r '.item.pageSize')"
+
+            set +e
+            sync="$(curl -sS --connect-timeout 5 --max-time 120 --retry 1 --retry-delay 2 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "{"leagueKey":"$leagueKey","pitchLeagueId":"$pitchLeagueId","mode":"historical","season":"$season","offset":$offset,"limit":$pageSize}"               "$BASE/api/soccer-pitchapi-sync")"
+            curl_rc=$?
+            set -e
+
+            if [ "$curl_rc" -ne 0 ]; then
+              complete="$(jq -nc --arg id "$id" --arg error "sync curl rc=$curl_rc" '{id:$id,ok:false,error:$error}')"
+            else
+              ok="$(echo "$sync" | jq -r '.ok // false' 2>/dev/null || echo false)"
+              if [ "$ok" = "true" ]; then
+                complete="$(echo "$sync" | jq -c --arg id "$id" '{id:$id,ok:true,processed:(.processed//0),persisted:(.persisted//0),analyticsUnavailable:(.analyticsUnavailable//0),done:(.done//false)}')"
+              else
+                err="$(echo "$sync" | jq -r '.error // "sync rejected"' 2>/dev/null || echo "non-json sync response")"
+                complete="$(jq -nc --arg id "$id" --arg error "$err" '{id:$id,ok:false,error:$error}')"
+              fi
+            fi
+
+            curl -fsS --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 2 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "$complete" "$BASE/api/soccer-pitchapi-queue-complete" | jq .
+          done
