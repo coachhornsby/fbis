@@ -127,6 +127,34 @@ describe("TEAM IDENTITY", () => {
     assert.equal(ncsu.id, parlay.id);
   });
 
+
+  it("resolves Asian baseball official abbreviations to branded identities", () => {
+    const hanshin = enrichTeam("npb", { abbr: "HAN", name: "Hanshin Tigers" });
+    const kia = enrichTeam("kbo", { abbr: "KIA", name: "KIA Tigers" });
+    assert.equal(hanshin.canonicalId, "npb-ht");
+    assert.equal(hanshin.abbr, "HT");
+    assert.ok(hanshin.logo.includes("commons.wikimedia.org"));
+    assert.match(hanshin.color, /^#[0-9A-F]{6}$/i);
+    assert.equal(kia.canonicalId, "kbo-kia");
+    assert.ok(kia.logo.includes("commons.wikimedia.org"));
+    assert.match(kia.color, /^#[0-9A-F]{6}$/i);
+  });
+
+  it("preserves provider branding for unresolved soccer identities", () => {
+    const club = enrichTeam("soccer", {
+      name: "Example FC",
+      abbr: "EXF",
+      espnId: "999",
+      logo: "https://a.espncdn.com/i/teamlogos/soccer/500/999.png",
+      color: "123ABC",
+      alternateColor: "FFFFFF",
+    });
+    assert.equal(club.matchStatus, "unresolved");
+    assert.equal(club.logo, "https://a.espncdn.com/i/teamlogos/soccer/500/999.png");
+    assert.equal(club.color, "123ABC");
+    assert.equal(club.altColor, "FFFFFF");
+  });
+
   it("unresolved participants fail closed", () => {
     const miss = enrichTeam("nfl", { name: "Springfield Atoms" });
     assert.equal(miss.canonicalId, null);
