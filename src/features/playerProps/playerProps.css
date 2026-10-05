@@ -2712,3 +2712,22 @@
 }
 
 .pp-analytics-unavailable{padding:11px 12px;border:1px solid rgba(255,94,120,.32);border-radius:12px;background:rgba(47,10,22,.38);color:#ff9bad;font-size:9px;line-height:1.45}
+
+
+/* Keep sport/team badge fully inside hero art on all breakpoints. */
+.pp-card-visual .pp-team-pill {
+  bottom: 12px !important;
+  transform: translateX(-50%) !important;
+  z-index: 9 !important;
+}
+.pp-card-body {
+  padding-top: 18px;
+}
+@media (max-width:760px) {
+  .pp-card-visual .pp-team-pill {
+    bottom: 8px !important;
+  }
+  .pp-card.pp-expanded .pp-card-visual .pp-team-pill {
+    bottom: 10px !important;
+  }
+}
