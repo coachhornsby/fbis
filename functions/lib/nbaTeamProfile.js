@@ -68,7 +68,7 @@ function newer(a,b){
   return Number(a?.rank||0)>Number(b?.rank||0);
 }
 export function resolvePersistentPlayerState({
-  player,priorState=null,availabilityRows=[],lineupRows=[],gameAppearances=[],asOf=new Date().toISOString()
+  player,priorState=null,availabilityRows=[],lineupRows=[],gameAppearances=[],asOf=new Date().toISOString(),gameAppearanceMaxAgeDays=21
 }={}){
   const pid=String(player?.id||player?.playerId||""),name=player?.name||player?.displayName||priorState?.player_name||"";
   const norm=normalizePlayerName(name),events=[];
@@ -113,7 +113,9 @@ export function resolvePersistentPlayerState({
     });
   }
   for(const g of gameAppearances||[]){
-    if(Date.parse(g.date||g.start||0)>Date.parse(asOf))continue;
+    const gt=Date.parse(g.date||g.start||0),at=Date.parse(asOf);
+    if(gt>at)continue;
+    if(!Number.isFinite(gt)||!Number.isFinite(at)||at-gt>gameAppearanceMaxAgeDays*DAY)continue;
     if((finite(g.minutes)||0)<=0)continue;
     events.push({
       status:"AVAILABLE",source:"ACTUAL_GAME_APPEARANCE",timestamp:g.date||g.start,
