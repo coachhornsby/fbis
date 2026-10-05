@@ -284,7 +284,8 @@ export function projectMlbDeep(game = {}) {
     } : null,
     source: "FBIS_F5_RUN_ALLOCATION",
     marketInformed: false,
-    canQualify: false,
+    canQualify: true,
+    canAuthorizeWager: false,
   };
   f5.market = evaluateMlbF5Market({
     projection: f5,
@@ -341,7 +342,8 @@ export function projectMlbDeep(game = {}) {
     sigmaTotal: MLB_DEEP_CONSTANTS.totalSigma,
     independent: true,
     marketInformed: false,
-    canQualify: false,
+    canQualify: true,
+    canAuthorizeWager: false,
     f5,
     pitcherKs: {
       home: pitcherKs.home ? { ...pitcherKs.home, playerId: game.homeSp?.id ?? null, playerName: game.homeSp?.name ?? null, team: game.home?.abbr ?? null } : null,
@@ -480,8 +482,9 @@ export function attachMlbDeepShadow(games = []) {
       role: "shadow",
       available,
       games: next.length,
-      qualificationAllowed: false,
-      note: "Run-allocation challenger. Uses bounded Pal feature-level signals while Pal final scores/probabilities remain external cross-checks; Pinnacle remains the market benchmark.",
+      qualificationAllowed: true,
+      authorizationAllowed: false,
+      note: "Validated independent run-allocation projection may qualify strict market edges; staking remains disabled. Run-allocation challenger. Uses bounded Pal feature-level signals while Pal final scores/probabilities remain external cross-checks; Pinnacle remains the market benchmark.",
     },
   };
 }
