@@ -3,6 +3,13 @@ name: Soccer PitchAPI v3 sync
 on:
   schedule:
     - cron: "35 11 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/soccer-pitchapi-sync.js"
+      - "functions/api/prop-enrich-current.js"
+      - "functions/lib/soccerPitchApiStore.js"
+      - ".github/workflows/soccer-pitchapi-v3-sync.yml"
   workflow_dispatch:
     inputs:
       mode:
@@ -67,3 +74,31 @@ jobs:
           test -n "${SEASON:-}"
           curl -fsS --connect-timeout 5 --max-time 120 --retry 2 --retry-delay 2 --retry-all-errors             -H "x-harvest-secret: $HARVEST_SECRET"             -H "content-type: application/json"             -d "{"leagueKey":"$LEAGUE","mode":"historical","season":"$SEASON","offset":$OFFSET,"limit":12}"             https://fbis-myz.pages.dev/api/soccer-pitchapi-sync | tee result.json
           jq -e '.ok == true' result.json >/dev/null
+
+
+  props-history-hydrate:
+    if: github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        league: ["eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","usa.nwsl"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Hydrate recent PitchAPI player history for props
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          LEAGUE: ${{ matrix.league }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          for offset in 0 12 24 36 48; do
+            body="$(curl -fsS --connect-timeout 5 --max-time 120 --retry 2 --retry-delay 2 --retry-all-errors \
+              -H "x-harvest-secret: $HARVEST_SECRET" \
+              -H "content-type: application/json" \
+              -d "{\"leagueKey\":\"$LEAGUE\",\"mode\":\"recent-history\",\"offset\":$offset,\"limit\":12}" \
+              https://fbis-myz.pages.dev/api/soccer-pitchapi-sync)"
+            echo "$body" | jq .
+            echo "$body" | jq -e '.ok == true' >/dev/null
+          done
