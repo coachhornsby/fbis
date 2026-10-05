@@ -17,6 +17,7 @@ import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachBasketballFormResearch } from "./basketballFormModel.js";
 import { attachSoccerResearch } from "./soccerFbisV1.js";
 import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
+import { attachMlbPostseasonContext, loadMlbPostseasonContext } from "./mlbPostseasonContext.js";
 import { loadMlbPitchMatchupContext } from "./mlbPitchMatchupFeed.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
@@ -70,21 +71,17 @@ export async function buildSlate(sport, date, env = {}) {
     const bullpen = await loadMlbBullpenContext(slate.games || [], env).catch((err) => ({
       byTeamId: {}, meta: { source: "MLB Stats relief split", teams: 0, available: 0, error: String(err?.message || err), marketInformed: false },
     }));
-    const pitchMatchup = await loadMlbPitchMatchupContext(slate.games || [], env).catch((err) => ({
-      byGameId: {},
-      meta: { source: "Baseball Savant Statcast pitch-level", games: 0, available: 0, error: String(err?.message || err), marketInformed: false, canQualify: false },
-    }));
-    const enriched = attachMlbBullpenContext(slate.games || [], bullpen).map((game) => {
+
+    // Attach regular bullpen + Ballpark Pal feature context first. Postseason
+    // usage needs these baselines, but Pal final scores/probabilities stay audit-only.
+    const baseEnriched = attachMlbBullpenContext(slate.games || [], bullpen).map((game) => {
       const pal = game.bpp || {};
       const parkRunsPct = Number(pal.park?.runsPct);
       const parkHrPct = Number(pal.park?.hrPct);
-      // Pal matchup is expressed from the offense perspective vs the opposing starter.
       const homeVsAwaySp = pal.matchup?.vsAwaySp || null;
       const awayVsHomeSp = pal.matchup?.vsHomeSp || null;
-      const pitchPacket = pitchMatchup.byGameId?.[String(game.id || game.bpp?.gamePk || "")] || null;
       return {
         ...game,
-        mlbPitchMatchup: pitchPacket,
         mlbContext: {
           ...(game.mlbContext || {}),
           palParkRunFactor: Number.isFinite(parkRunsPct) ? 1 + parkRunsPct / 100 : null,
@@ -102,8 +99,6 @@ export async function buildSlate(sport, date, env = {}) {
           awayPalStarterExpectedInnings: pal.awaySp?.innings ?? null,
           homePalStarterProjectedKs: pal.homeSp?.k ?? null,
           awayPalStarterProjectedKs: pal.awaySp?.k ?? null,
-          // Keep Pal's finished game/F5 predictions available for auditing and
-          // external comparison, but MLB-FBIS-v2 never consumes them as score inputs.
           palProjectedHomeRuns: pal.homeRuns ?? null,
           palProjectedAwayRuns: pal.awayRuns ?? null,
           palHomeWinProbability: pal.pHome ?? null,
@@ -118,6 +113,24 @@ export async function buildSlate(sport, date, env = {}) {
         },
       };
     });
+
+    const postseason = await loadMlbPostseasonContext(baseEnriched, env).catch((err) => ({
+      byGameId: {},
+      meta: { version: "research-v1-october-usage", postseasonGames: 0, available: 0, error: String(err?.message || err), marketInformed: false, canQualify: false },
+    }));
+    const octoberEnriched = attachMlbPostseasonContext(baseEnriched, postseason);
+
+    // Statcast profile loader sees postseason state and shortens recency windows
+    // for pitcher arsenal/pitch mix and hitter contact-zone behavior.
+    const pitchMatchup = await loadMlbPitchMatchupContext(octoberEnriched, env).catch((err) => ({
+      byGameId: {},
+      meta: { source: "Baseball Savant Statcast pitch-level", games: 0, available: 0, error: String(err?.message || err), marketInformed: false, canQualify: false },
+    }));
+    const enriched = octoberEnriched.map((game) => ({
+      ...game,
+      mlbPitchMatchup: pitchMatchup.byGameId?.[String(game.id || game.bpp?.gamePk || "")] || null,
+    }));
+
     const deep = attachMlbDeepShadow(enriched);
     const research = promoteMlbResearchToBoard(deep.games);
     const playerResearch = attachMlbPlayerProjectionResearch(research.games);
@@ -127,6 +140,7 @@ export async function buildSlate(sport, date, env = {}) {
       research: {
         ...(slate.research || {}),
         mlbBullpen: bullpen.meta,
+        mlbPostseason: postseason.meta,
         mlbPitchMatchup: pitchMatchup.meta,
         mlbDeep: deep.meta,
         mlbResearchBoard: research.meta,
