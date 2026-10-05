@@ -90,12 +90,12 @@ function pitcherRows(game,state,side){
   }));
 }
 
-function hitterIdsForSide(game,state,side){
+function hitterSelectionForSide(game,state,side){
   const team=teamAbbr(game?.[side]);
   const bpp=(game?.bpp?.batterMatchups||[]).filter(x=>String(x?.batterTeam||"").toUpperCase()===team).map(x=>String(x.batterId)).filter(Boolean);
-  if(bpp.length>=5)return [...new Set(bpp)];
+  if(bpp.length>=5)return {ids:[...new Set(bpp)],lineupState:game?.bpp?.lineupsOfficial===true?"CONFIRMED":"EXPECTED"};
   const lineup=(state?.[side+"Team"]?.lineup?.activeHitters||[]).map(x=>String(x.id)).filter(Boolean);
-  return [...new Set(lineup)];
+  return {ids:[...new Set(lineup)],lineupState:"ROSTER_FALLBACK"};
 }
 function hitterRows(game,state,side){
   const team=teamAbbr(game?.[side]);
@@ -106,7 +106,8 @@ function hitterRows(game,state,side){
   const starterShare=clamp(starterIp/9+.08,.45,.80);
   const teamRuns=finite(game?.mlbDeepShadow?.[side])??finite(game?.model?.[side==="home"?"projHome":"projAway"]);
   const parkHr=finite(game?.mlbContext?.palParkHrFactor)??1;
-  const ids=hitterIdsForSide(game,state,side);
+  const selection=hitterSelectionForSide(game,state,side);
+  const ids=selection.ids;
   const all=state?.teamHitters?.[side]||{};
   const rows=[];
   for(const id of ids){
@@ -146,7 +147,8 @@ function hitterRows(game,state,side){
       market,projection:round1(projection),sigma:round1(sigma),source,
       playerId:String(h.id||id),playerName:h.name||null,position:h.position||null,team,
       expectedPlateAppearances:round1(pa),starterExposure:round1(starterShare),matchupCoverage:finite(scored?.coverage),
-      modelVersion:MLB_PLAYER_PROP_MODEL_VERSION,maturity:"RESEARCH_UNVALIDATED",independent:true,marketInformed:false
+      modelVersion:MLB_PLAYER_PROP_MODEL_VERSION,maturity:"RESEARCH_UNVALIDATED",independent:true,marketInformed:false,
+      lineupState:selection.lineupState
     });
   }
   return rows;
