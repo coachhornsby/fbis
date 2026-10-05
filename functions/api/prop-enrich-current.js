@@ -123,7 +123,7 @@ async function soccerRecentPlayerValues(row){
     const groups=summary?.boxscore?.players||[];
     for(const group of groups){
       for(const statGroup of group?.statistics||[]){
-        const names=statGroup?.names||statGroup?.labels||[];
+        const names=statGroup?.keys||statGroup?.names||statGroup?.labels||[];
         for(const athlete of statGroup?.athletes||[]){
           const name=athlete?.athlete?.displayName||athlete?.athlete?.fullName||athlete?.displayName||"";
           if(clean(name)!==clean(row.player_name))continue;
