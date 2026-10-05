@@ -78,7 +78,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     (game.odds?.pinSpreadHomePrice != null ? game.odds.spread : null);
   const pinTotal =
     game.odds?.pinTotal ?? (game.odds?.pinOverPrice != null ? game.odds.total : null);
-  const market = resolveCanonicalMarket(game);
+  const market = sport === "tennis" && game.market?.reference ? game.market : resolveCanonicalMarket(game);
   const marketAvail = marketAvailabilitySummary(market);
   const qualityFlags = normalizeQualityFlags(game.quality?.flags || [], market);
   const qualityComponents = resolveMarketQualityComponents(game, market);
@@ -241,7 +241,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     fbisF5: game.mlbDeepShadow?.f5 || game.challengers?.["MLB-FBIS-v2"]?.f5 || null,
     f5MarketEvaluation: game.mlbDeepShadow?.f5?.market || game.challengers?.["MLB-FBIS-v2"]?.f5?.market || null,
     f5Book: game.odds?.f5 || null,
-    sportsbookProps: [],
+    playerMarkets: Array.isArray(game.playerMarkets) ? game.playerMarkets : [],\n    sportsbookProps: [],
     sportsbookPropCount: sportsbookProps.length,
     propConvictions,
     lineupsOfficial: Boolean(game.bpp?.lineupsOfficial),
@@ -416,6 +416,40 @@ function hydrateOddsFromMarketRows(game, pack) {
   return { ...game, odds };
 }
 
+
+function ppKey(v=""){return String(v||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
+
+async function attachPrizePicksMarkets(games=[], sport, date, db){
+  if(!db?.prepare || !games.length) return games;
+  let rows=[];
+  try{
+    rows=(await db.prepare(`SELECT fbis_event_id,sport,player_id,player_name,player_headshot_url,team,opponent,game_id,start_time,stat_type,canonical_market,line,odds_tier,duration,observed_at,collected_at
+      FROM prizepicks_prop_lines WHERE sport=? AND substr(start_time,1,10) BETWEEN date(?,'-1 day') AND date(?,'+1 day')
+      ORDER BY collected_at DESC LIMIT 3000`).bind(sport,date,date).all())?.results||[];
+  }catch{return games;}
+  return games.map(game=>{
+    const gid=String(game.id||"");
+    const names=new Set([ppKey(game.away?.name),ppKey(game.away?.fullName),ppKey(game.home?.name),ppKey(game.home?.fullName)].filter(Boolean));
+    const abbrs=new Set([ppKey(game.away?.abbr),ppKey(game.home?.abbr)].filter(Boolean));
+    const seen=new Set(), playerMarkets=[];
+    for(const row of rows){
+      const exact=row.fbis_event_id && String(row.fbis_event_id)===gid;
+      const tennisMatch=sport==="tennis" && names.has(ppKey(row.player_name));
+      const teamMatch=sport!=="tennis" && ((row.team&&abbrs.has(ppKey(row.team))) || (row.opponent&&abbrs.has(ppKey(row.opponent))));
+      if(!exact&&!tennisMatch&&!teamMatch) continue;
+      const key=[row.player_id||row.player_name,row.canonical_market||row.stat_type,row.line,row.odds_tier,row.duration].join("|");
+      if(seen.has(key)) continue; seen.add(key);
+      playerMarkets.push({
+        source:"PRIZEPICKS_APIFY",book:"PrizePicks",playerId:row.player_id||null,playerName:row.player_name||null,
+        playerHeadshotUrl:row.player_headshot_url||null,team:row.team||null,opponent:row.opponent||null,
+        market:row.stat_type||null,marketCanonical:row.canonical_market||null,line:row.line==null?null:Number(row.line),
+        oddsTier:row.odds_tier||null,duration:row.duration||null,observedAt:row.observed_at||row.collected_at||null,
+        decisionEligible:false,reasonCodes:["PRIZEPICKS_RESEARCH_ONLY"]
+      });
+    }
+    return {...game,playerMarkets};
+  });
+}
 
 function safeJson(value) {
   if (value == null) return null;
@@ -602,18 +636,15 @@ export async function buildTennisResearchSlate(date, env = {}) {
         reference: {
           available: p1Price != null || p2Price != null || marketP1 != null,
           provider: row.market_provider || row.sportsbook || marketJson.source || quote?.book || "TENNIS MARKET · RESEARCH",
-          spread: spreadP1Line == null ? null : {
-            home: spreadP1Line,
-            away: spreadP2Line,
-            homePrice: spreadP1Price,
-            awayPrice: spreadP2Price,
+          spread: spreadP1Line,
+          spreadDetail: spreadP1Line == null ? null : {
+            home: spreadP1Line, away: spreadP2Line, homePrice: spreadP1Price, awayPrice: spreadP2Price,
             noVigHome: row.spread_player1_no_vig == null ? null : Number(row.spread_player1_no_vig),
             noVigAway: row.spread_player2_no_vig == null ? null : Number(row.spread_player2_no_vig),
           },
-          total: totalLine == null ? null : {
-            line: totalLine,
-            overPrice,
-            underPrice,
+          total: totalLine,
+          totalDetail: totalLine == null ? null : {
+            line: totalLine, overPrice, underPrice,
             noVigOver: row.over_no_vig_prob == null ? null : Number(row.over_no_vig_prob),
             noVigUnder: row.under_no_vig_prob == null ? null : Number(row.under_no_vig_prob),
           },
@@ -655,6 +686,21 @@ export async function buildTennisResearchSlate(date, env = {}) {
             trackedVolume: actionJson?.trackedVolume ?? null,
           }
         : null,
+      matchupFactors: [
+        ...(p1Rank?.rank != null && p2Rank?.rank != null ? [{
+          id: "ranking", label: "Current ranking", edge: p1Rank.rank < p2Rank.rank ? tennisPlayerAbbr(row.player1) : p2Rank.rank < p1Rank.rank ? tennisPlayerAbbr(row.player2) : "EVEN",
+          value: Math.abs(Number(p1Rank.rank) - Number(p2Rank.rank)), detail: `${row.player1} #${p1Rank.rank} · ${row.player2} #${p2Rank.rank}`, source: "ESPN tennis rankings"
+        }] : []),
+        ...(p1Prob != null ? [{
+          id: "pure-model", label: "Pure win probability", edge: p1Prob >= .5 ? tennisPlayerAbbr(row.player1) : tennisPlayerAbbr(row.player2),
+          value: `${(Math.max(p1Prob,p2Prob)*100).toFixed(1)}%`, detail: `${row.player1} ${(p1Prob*100).toFixed(1)}% · ${row.player2} ${(p2Prob*100).toFixed(1)}%`, source: row.pure_model_id || "TENNIS-FBIS-v2-CONTEXT"
+        }] : []),
+        ...(marketP1 != null && p1Prob != null ? [{
+          id: "model-market", label: "Model vs no-vig market", edge: (p1Prob-marketP1) >= 0 ? tennisPlayerAbbr(row.player1) : tennisPlayerAbbr(row.player2),
+          value: `${Math.abs((p1Prob-marketP1)*100).toFixed(1)} pts`, detail: `Pure P1 ${(p1Prob*100).toFixed(1)}% · market P1 ${(marketP1*100).toFixed(1)}%`, source: row.market_provider || row.sportsbook || "tennis market snapshot"
+        }] : []),
+        ...(row.surface ? [{ id:"surface", label:"Surface / conditions", edge:String(row.surface).toUpperCase(), value: row.court_speed_index == null ? null : Number(row.court_speed_index), detail:`${row.surface}${row.indoor == null ? "" : Number(row.indoor) ? " · indoor" : " · outdoor"}`, source:"tennis context snapshot" }] : []),
+      ],
       quality: {
         score: null,
         state: "RESEARCH",
@@ -782,6 +828,7 @@ export async function buildTodayBoard(
       }
 
       if (sport === "nhl") slateGames = slateGames.map((g)=>({...g,nhlWagerV1:evaluateNhlGameWagers(g)}));
+      if (env.DB) slateGames = await attachPrizePicksMarkets(slateGames, sport, date, env.DB);
       const rows = slateGames.map((g) => toBoardGame(g, sport, now));
       feeds[sport] = {
         ok: true,
