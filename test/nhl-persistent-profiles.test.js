@@ -7,6 +7,7 @@ import {
   haversineMiles,
   inferNhlSpecialTeamsUnits,
   parseNhlCoachMetadata,
+  buildNhlDeploymentTendencies,
 } from "../functions/lib/nhlPersistentProfiles.js";
 
 function game({id,start,home,away,state="FUT",type=2}){
@@ -81,4 +82,28 @@ test("NHL coach parser accepts ESPN roster coach arrays without explicit titles"
   const out=parseNhlCoachMetadata({coach:[{firstName:"Jim",lastName:"Example",experience:3}]});
   assert.equal(out.headCoach,"Jim Example");
   assert.equal(out.staff[0].title,"Head Coach");
+});
+
+
+test("NHL deployment tendencies measure role continuity and concentration",()=>{
+  const players=[
+    {playerId:"1",position:"C",evLine:1,ppUnit:1,rollingToiSeconds:1200},
+    {playerId:"2",position:"R",evLine:1,ppUnit:1,rollingToiSeconds:1100},
+    {playerId:"3",position:"L",evLine:1,ppUnit:1,rollingToiSeconds:1000},
+    {playerId:"4",position:"C",evLine:2,ppUnit:2,rollingToiSeconds:900},
+    {playerId:"5",position:"R",evLine:2,ppUnit:2,rollingToiSeconds:850},
+    {playerId:"6",position:"L",evLine:2,ppUnit:2,rollingToiSeconds:800},
+    {playerId:"7",position:"D",dPair:1,ppUnit:1,rollingToiSeconds:1300},
+    {playerId:"8",position:"D",dPair:1,ppUnit:null,rollingToiSeconds:1250},
+  ];
+  const prior=new Map(players.map(p=>[p.playerId,{
+    ev_line:p.evLine,d_pair:p.dPair,pp_unit:p.playerId==="4"?1:p.ppUnit
+  }]));
+  const out=buildNhlDeploymentTendencies(players,prior);
+  assert.ok(out.topLineToiConcentration>0&&out.topLineToiConcentration<1);
+  assert.ok(out.topSixToiConcentration>.9);
+  assert.equal(out.matchedPlayers,8);
+  assert.ok(out.evenStrengthContinuity>.9);
+  assert.ok(out.ppContinuity<1);
+  assert.equal(out.roleChanges,0);
 });
