@@ -371,13 +371,19 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    }));
   players.push(...carried);
 
-  const goalieStats=statRows(sources.goalies?.data||{}).sort((a,b)=>(finite(b.gamesStarted)||0)-(finite(a.gamesStarted)||0));
-  const goalies=goalieStats.map((g,i)=>({
-   playerId:String(g.playerId||""),playerName:g.goalieFullName||g.playerName||roster.find(p=>String(p.id)===String(g.playerId))?.name||null,teamKey:tkey,
-   hierarchyRank:i+1,goalieState:starterIds.has(String(g.playerId))?"LAST_CONFIRMED_STARTER":i===0?"EXPECTED_G1":"DEPTH",
-   expectedStartProbability:i===0 ? .68 : i===1 ? .27 : .05,games:finite(g.gamesPlayed),starts:finite(g.gamesStarted),savePct:finite(g.savePct),gaa:finite(g.goalsAgainstAverage),
-   lastGameId:starterIds.has(String(g.playerId))?latest?.game?.id:null,lastGameAt:starterIds.has(String(g.playerId))?latest?.game?.start:null,
-   rollingShotsFaced:finite(g.shotsAgainstPerGame),rollingSaves:finite(g.savesPerGame),restDays:null,stateConfidence:i<2 ? .82 : .68,raw:g
+  const goalieStatsById=new Map(statRows(sources.goalies?.data||{}).map(g=>[String(g.playerId||""),g]));
+  const goalieRoster=roster.filter(p=>p.position==="G").map((p,idx)=>({p,g:goalieStatsById.get(p.id)||{},idx}));
+  const anyGoalieStarts=goalieRoster.some(x=>(finite(x.g.gamesStarted)||0)>0);
+  goalieRoster.sort((a,b)=>anyGoalieStarts
+    ? (finite(b.g.gamesStarted)||0)-(finite(a.g.gamesStarted)||0)
+    : a.idx-b.idx);
+  const goalies=goalieRoster.map(({p,g},i)=>({
+   playerId:p.id,playerName:g.goalieFullName||g.playerName||p.name||null,teamKey:tkey,
+   hierarchyRank:i+1,goalieState:starterIds.has(p.id)?"LAST_CONFIRMED_STARTER":i===0?"EXPECTED_G1":"DEPTH",
+   expectedStartProbability:i===0 ? .68 : i===1 ? .27 : .05,games:finite(g.gamesPlayed)||0,starts:finite(g.gamesStarted)||0,savePct:finite(g.savePct),gaa:finite(g.goalsAgainstAverage),
+   lastGameId:starterIds.has(p.id)?latest?.game?.id:null,lastGameAt:starterIds.has(p.id)?latest?.game?.start:null,
+   rollingShotsFaced:finite(g.shotsAgainstPerGame),rollingSaves:finite(g.savesPerGame),restDays:null,
+   stateConfidence:anyGoalieStarts?(i<2 ? .82 : .68):(i<2 ? .68 : .55),raw:{roster:p.raw,stats:g}
   })).filter(g=>g.playerId);
 
   const linemates=[...deploy.pairs.values()].flatMap(x=>[
