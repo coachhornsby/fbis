@@ -16,16 +16,22 @@ function playerStatValue(row,key){
   return null;
 }
 function playerRows(advancedData,standardData){
+  const adv=new Map((advancedData?.players||[]).map(p=>[String(p?.player?.id||""),p]));
   const std=new Map((standardData||[]).map(p=>[String(p?.player?.id||""),p]));
-  return (advancedData?.players||[]).map(p=>{
-    const s=std.get(String(p?.player?.id||""));
-    return{playerId:p?.player?.id,playerName:p?.player?.name,teamId:p?.team_id,minutesPlayed:num(p?.minutes_played),actions:num(p?.actions),
+  const ids=new Set([...adv.keys(),...std.keys()].filter(Boolean));
+  return [...ids].map(id=>{
+    const p=adv.get(id)||null,s=std.get(id)||null;
+    const player=p?.player||s?.player||{};
+    const teamId=p?.team_id??s?.team_id??s?.team?.id??p?.team?.id;
+    return{playerId:player?.id||id,playerName:player?.name||player?.display_name||player?.displayName||s?.player_name||null,teamId,
+      minutesPlayed:num(p?.minutes_played??playerStatValue(s,"minutes_played")??playerStatValue(s,"minutes")),
+      actions:num(p?.actions),
       xtTotal:pick(p,"possession_value.xt_total"),vaepTotal:pick(p,"possession_value.vaep_total"),vaepOffensive:pick(p,"possession_value.vaep_offensive"),vaepDefensive:pick(p,"possession_value.vaep_defensive"),pvTotal:pick(p,"possession_value.pv_total"),
       xag:pick(p,"creation.xag"),xgChain:pick(p,"creation.xg_chain"),xgBuildup:pick(p,"creation.xg_buildup"),
       progressivePasses:pick(p,"passing.progressive_passes"),progressiveCarries:pick(p,"carrying.progressive_carries"),chancesCreated:pick(p,"creation.chances_created"),
       shots:playerStatValue(s,"total_shots"),goals:playerStatValue(s,"goals"),assists:playerStatValue(s,"assists"),expectedGoals:playerStatValue(s,"expected_goals"),expectedAssists:playerStatValue(s,"expected_assists"),
       saves:playerStatValue(s,"saves"),claims:pick(p,"goalkeeping.claims"),claimsWon:pick(p,"goalkeeping.claims_won"),sweeperActions:pick(p,"goalkeeping.sweeper_actions"),
-      distributionAccuracy:pick(p,"goalkeeping.distribution_accuracy"),avgPassLength:pick(p,"goalkeeping.avg_pass_length"),raw:{advanced:p,standard:s||null}};
+      distributionAccuracy:pick(p,"goalkeeping.distribution_accuracy"),avgPassLength:pick(p,"goalkeeping.avg_pass_length"),raw:{advanced:p,standard:s}};
   }).filter(p=>p.playerId&&p.teamId);
 }
 function lineupRows(data){const mk=(side,team)=>team?.id?{side,teamId:team.id,formation:data?.[side]?.formation||null,confirmed:data?.[side]?.confirmed===true,lineupType:data?.[side]?.lineup_type||null,starters:data?.[side]?.starters||[],subs:data?.[side]?.subs||[],coachName:data?.[side]?.coach?.name||null,raw:data?.[side]||null}:null;return[mk("home",data?.home_team),mk("away",data?.away_team)].filter(Boolean);}
@@ -100,11 +106,14 @@ export async function onRequestPost(context){
     if(!league)return json({ok:false,error:"league-mapping-unresolved",leagueKey,pitchLeagueId},422);
     const season=String(body.season||rotationTarget?.current_season||league.seasons?.[0]||"");if(!season)return json({ok:false,error:"season-unavailable"},422);
     const liveMode=mode==="live"||mode==="live-auto";
+    const recentHistoryMode=mode==="recent-history";
     const status=liveMode?"all":"played";
     const list=await pitch(context.env,`/v1/leagues/${league.id}/matches?season=${encodeURIComponent(season)}&status=${status}`);
     let matches=(list?.matches||[]).sort((a,b)=>String(a.time_utc||a.date).localeCompare(String(b.time_utc||b.date)));
     if(liveMode){const now=Date.now(),lo=new Date(now-8*86400000).toISOString().slice(0,10),hi=new Date(now+3*86400000).toISOString().slice(0,10);matches=matches.filter(m=>String(m.date)>=lo&&String(m.date)<=hi);}else matches=matches.filter(m=>m.status==="finished");
-    const slice=matches.slice(offset,offset+limit);let persisted=0,playersCount=0,lineupsCount=0,analyticsUnavailable=0,errors=0;
+    const slice=recentHistoryMode
+      ? matches.slice(Math.max(0,matches.length-offset-limit),Math.max(0,matches.length-offset))
+      : matches.slice(offset,offset+limit);let persisted=0,playersCount=0,lineupsCount=0,analyticsUnavailable=0,errors=0;
     for(let i=0;i<slice.length;i+=3){
       const group=slice.slice(i,i+3);
       const results=await Promise.all(group.map(async m=>{
@@ -115,11 +124,11 @@ export async function onRequestPost(context){
             pitch(context.env,`/v1/matches/${m.id}/stats`,{optional:true}),
             pitch(context.env,`/v1/matches/${m.id}/advanced/network`,{optional:true})
           ]);
-          const [advancedPlayers,standardPlayers,lineups]=liveMode?await Promise.all([
+          const [advancedPlayers,standardPlayers]=await Promise.all([
             pitch(context.env,`/v1/matches/${m.id}/advanced/players`,{optional:true}),
-            pitch(context.env,`/v1/matches/${m.id}/players`,{optional:true}),
-            pitch(context.env,`/v1/matches/${m.id}/lineups`,{optional:true})
-          ]):[null,null,null];
+            pitch(context.env,`/v1/matches/${m.id}/players`,{optional:true})
+          ]);
+          const lineups=liveMode?await pitch(context.env,`/v1/matches/${m.id}/lineups`,{optional:true}):null;
           if(!advanced)analyticsUnavailable++;
           const p=await persistPitchApiBundle(context.env,bundle(m,advanced,stats,shots,advancedPlayers,standardPlayers,lineups,network,league,season,leagueKey));
           return p;

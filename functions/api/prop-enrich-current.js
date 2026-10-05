@@ -1,5 +1,4 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
-import { loadEspnLastFive, valueForEspnEvent } from "../lib/playerPropHistory.js";
 import { projectTennisPlayerPropsV2 } from "../lib/tennisPlayerPropModel.js";
 
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json","cache-control":"no-store"}})}
@@ -76,80 +75,83 @@ async function enrichTennis(db,row){
   return {ok:changed>0,changed,projection:match.fbisProjection,market};
 }
 
-const SOCCER_LEAGUES=["uefa.nations","arg.1","eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","bra.1","uefa.champions","uefa.europa"];
-const soccerCache=new Map();
-async function getJson(url,timeoutMs=5000){
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
-  try{const r=await fetch(url,{headers:{accept:"application/json","user-agent":"FBIS/1.0"},signal:controller.signal});return r.ok?await r.json():null}
-  catch{return null}finally{clearTimeout(timer)}
-}
-function teamToken(v){return clean(v).replace(/\b(fc|cf|ca|club|de|the)\b/g," ").replace(/\s+/g," ").trim()}
-function compTeams(event){
-  return event?.competitions?.[0]?.competitors||[];
-}
-async function soccerTeamContext(row){
-  const k=[row.team,row.opponent,String(row.start_time).slice(0,10)].join("|");
-  if(soccerCache.has(k))return soccerCache.get(k);
-  const date=String(row.start_time).slice(0,10).replace(/-/g,"");
-  const t=teamToken(row.team),o=teamToken(row.opponent);
-  for(const league of SOCCER_LEAGUES){
-    const board=await getJson("https://site.api.espn.com/apis/site/v2/sports/soccer/"+league+"/scoreboard?dates="+date,3500);
-    for(const event of board?.events||[]){
-      const comps=compTeams(event);
-      const names=comps.map(x=>teamToken(x?.team?.displayName||x?.team?.shortDisplayName||x?.team?.name||x?.team?.abbreviation));
-      const teamIndex=names.findIndex(x=>x&&(x.includes(t)||t.includes(x)));
-      const oppOk=!o||names.some(x=>x&&(x.includes(o)||o.includes(x)));
-      if(teamIndex>=0&&oppOk){
-        const out={league,teamId:comps[teamIndex]?.team?.id,eventId:event.id};
-        soccerCache.set(k,out);return out;
-      }
+const SOCCER_PITCHAPI_MARKETS=Object.freeze({
+  shots:{column:"shots",aliases:["total_shots","shots"]},
+  shots_on_target:{aliases:["shots_on_target","total_shots_on_target","shots_on_goal"]},
+  goals:{column:"goals",aliases:["goals"]},
+  assists:{column:"assists",aliases:["assists"]},
+  goal_assist:{derive:["goals","assists"]},
+  saves:{column:"saves",aliases:["saves"]},
+  goalie_saves:{column:"saves",aliases:["saves"]},
+  fouls:{aliases:["fouls","fouls_committed","total_fouls"]},
+  tackles:{aliases:["tackles","total_tackles","tackles_won"]},
+  clearances:{aliases:["clearances","total_clearances"]},
+  passes:{aliases:["passes","total_passes","passes_attempted"]},
+  passes_attempted:{aliases:["passes_attempted","total_passes","passes"]},
+  chances_created:{column:"chances_created",aliases:["chances_created","key_passes"]},
+  shots_assisted:{column:"chances_created",aliases:["shots_assisted","key_passes","chances_created"]},
+  attempted_dribbles:{aliases:["attempted_dribbles","dribbles_attempted","take_ons_attempted"]},
+  expected_goals:{column:"expected_goals",aliases:["expected_goals","xg"]},
+  expected_assists:{column:"expected_assists",aliases:["expected_assists","xag"]}
+});
+function normKey(v){return String(v||"").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")}
+function pitchRawStat(raw,aliases=[]){
+  const wanted=new Set(aliases.map(normKey));
+  let obj=null;try{obj=typeof raw==="string"?JSON.parse(raw):raw}catch{return null}
+  const stack=[obj];
+  while(stack.length){
+    const x=stack.pop();
+    if(!x||typeof x!=="object")continue;
+    if(Array.isArray(x)){for(const y of x)stack.push(y);continue}
+    const key=normKey(x.key||x.name||x.stat_key||x.statKey);
+    if(key&&wanted.has(key)){
+      const v=finite(x?.stat?.value??x.value??x.stat??x.total);
+      if(v!=null)return v;
     }
+    for(const y of Object.values(x))if(y&&typeof y==="object")stack.push(y);
   }
-  soccerCache.set(k,null);return null;
+  return null;
 }
-async function soccerRecentPlayerValues(row){
-  const ctx=await soccerTeamContext(row);
-  if(!ctx)return {values:[],reason:"event-team-not-found"};
-  const season=new Date(row.start_time).getUTCFullYear();
-  const sched=await getJson("https://site.api.espn.com/apis/site/v2/sports/soccer/"+ctx.league+"/teams/"+ctx.teamId+"/schedule?season="+season,5000);
-  const startMs=Date.parse(row.start_time);
-  const events=(sched?.events||[]).filter(e=>{
-    const ms=Date.parse(e.date||e?.competitions?.[0]?.date||"");
-    return Number.isFinite(ms)&&ms<startMs&&(e?.status?.type?.completed===true||String(e?.status?.type?.state||"").toLowerCase()==="post");
-  }).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,5);
+function pitchMarketValue(row,market){
+  const cfg=SOCCER_PITCHAPI_MARKETS[market];
+  if(!cfg)return null;
+  if(cfg.derive){
+    const vals=cfg.derive.map(k=>finite(row[k]));
+    return vals.every(v=>v!=null)?vals.reduce((a,b)=>a+b,0):null;
+  }
+  const direct=cfg.column?finite(row[cfg.column]):null;
+  return direct!=null?direct:pitchRawStat(row.raw_json,cfg.aliases||[]);
+}
+async function soccerPitchApiLastFive(db,row){
+  const market=String(row.canonical_market||"").toLowerCase();
+  if(!SOCCER_PITCHAPI_MARKETS[market])return {values:[],reason:"pitchapi-market-not-modeled"};
+  const kickoff=String(row.start_time||"");
+  const candidates=(await db.prepare(`
+    SELECT player_id,player_name,team_id,match_date,minutes_played,shots,goals,assists,
+           expected_goals,expected_assists,saves,chances_created,raw_json
+    FROM soccer_pitchapi_player_match
+    WHERE match_date < substr(?,1,10) AND lower(player_name)=lower(?)
+    ORDER BY match_date DESC LIMIT 12
+  `).bind(kickoff,row.player_name).all())?.results||[];
+  const exact=candidates.filter(x=>clean(x.player_name)===clean(row.player_name));
+  if(!exact.length)return {values:[],reason:"pitchapi-player-history-missing"};
   const values=[];
-  for(const event of events){
-    const summary=await getJson("https://site.api.espn.com/apis/site/v2/sports/soccer/"+ctx.league+"/summary?event="+event.id,5000);
-    const groups=summary?.boxscore?.players||[];
-    for(const group of groups){
-      for(const statGroup of group?.statistics||[]){
-        const names=statGroup?.keys||statGroup?.names||statGroup?.labels||[];
-        for(const athlete of statGroup?.athletes||[]){
-          const name=athlete?.athlete?.displayName||athlete?.athlete?.fullName||athlete?.displayName||"";
-          if(clean(name)!==clean(row.player_name))continue;
-          const v=valueForEspnEvent({names},{stats:athlete?.stats||[]},row.canonical_market,"soccer",row.player_name);
-          if(v!=null){values.push(v);break}
-        }
-        if(values.length&&values.length>=events.indexOf(event)+1)break;
-      }
-    }
+  for(const x of exact){
+    const v=pitchMarketValue(x,market);
+    if(v!=null)values.push(v);
+    if(values.length>=5)break;
   }
-  return {values:values.slice(0,5),reason:values.length?null:"boxscore-stat-not-found",league:ctx.league};
+  return {values,reason:values.length?null:"pitchapi-market-history-missing",playerId:exact[0]?.player_id||null};
 }
-
 async function enrichSoccer(db,row){
-  let vals=[];
-  const direct=await soccerRecentPlayerValues(row);
-  vals=(direct.values||[]).filter(v=>finite(v)!=null);
-  if(!vals.length){
-    const h=await loadEspnLastFive({sport:"soccer",name:row.player_name,team:row.team,market:row.canonical_market,line:row.line});
-    vals=(h?.last5||[]).map(x=>x.value).filter(v=>finite(v)!=null);
-    if(!vals.length)return {ok:false,reason:direct.reason||h?.reason||"history-unavailable"};
-  }
+  const hist=await soccerPitchApiLastFive(db,row);
+  const vals=(hist.values||[]).filter(v=>finite(v)!=null);
+  if(!vals.length)return {ok:false,reason:hist.reason||"pitchapi-history-unavailable"};
   const projection=weightedRecent(vals),sigma=sd(vals);
-  if(projection==null)return {ok:false,reason:"history-empty"};
-  const changed=await persistProjection(db,row,Math.round(projection*100)/100,sigma==null?null:Math.round(sigma*100)/100,"SOCCER-PLAYER-LAST5-BOXSCORE-v1");
-  return {ok:changed>0,changed,projection,market:row.canonical_market};
+  if(projection==null)return {ok:false,reason:"pitchapi-history-empty"};
+  const source="SOCCER-PITCHAPI-PLAYER-LAST5-v1";
+  const changed=await persistProjection(db,row,Math.round(projection*100)/100,sigma==null?null:Math.round(sigma*100)/100,source);
+  return {ok:changed>0,changed,projection,market:row.canonical_market,source,playerId:hist.playerId,sample:vals.length};
 }
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);

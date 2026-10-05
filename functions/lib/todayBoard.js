@@ -545,7 +545,8 @@ export async function buildTennisResearchSlate(date, env = {}) {
   ]);
   const rows = (query?.results || []).filter((row) => boardDateCtForStart(row.event_start_time) === date);
   const games = await Promise.all(rows.map(async (row) => {
-    const bankContext = await tennisCardContext(env.DB,{tour:row.tour,player1:row.player1,player2:row.player2,surface:row.surface}).catch(()=>null);\n    const p1 = Number(row.pure_p1);
+    const bankContext = await tennisCardContext(env.DB,{tour:row.tour,player1:row.player1,player2:row.player2,surface:row.surface}).catch(()=>null);
+    const p1 = Number(row.pure_p1);
     const p1Prob = Number.isFinite(p1) ? p1 : null;
     const p2Prob = p1Prob == null ? null : 1 - p1Prob;
     const marketJson = safeJson(row.market_json) || {};
