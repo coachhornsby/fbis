@@ -1,10 +1,6 @@
 name: Soccer PitchAPI v3 bootstrap
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "data/models/soccer-pitchapi-v3-trigger.json"
   workflow_dispatch:
 
 permissions:
@@ -35,24 +31,27 @@ jobs:
           - { league: "usa.1", season: "2026" }
           - { league: "usa.nwsl", season: "2025" }
           - { league: "usa.nwsl", season: "2026" }
+        offset: [0,120,240,360]
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: "22" }
-      - name: Require credentials
+      - name: Backfill one restartable 120-match shard through Cloudflare
         env:
-          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          LEAGUE: ${{ matrix.league }}
+          SEASON: ${{ matrix.season }}
+          START_OFFSET: ${{ matrix.offset }}
         run: |
-          test -n "${PITCHAPI_API_KEY:-}"
+          set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
-      - name: Backfill one bounded league-season
-        env:
-          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
-          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
-          PITCHAPI_MODE: historical
-          PITCHAPI_MAX_MATCHES: "500"
-          PITCHAPI_CONCURRENCY: "4"
-        run: node scripts/soccer-pitchapi-sync.mjs "${{ matrix.league }}" "${{ matrix.season }}"
+          offset="$START_OFFSET"
+          stop=$((START_OFFSET + 120))
+          while [ "$offset" -lt "$stop" ]; do
+            body="$(curl -fsS --connect-timeout 5 --max-time 120 --retry 2 --retry-delay 2 --retry-all-errors               -H "x-harvest-secret: $HARVEST_SECRET"               -H "content-type: application/json"               -d "{"leagueKey":"$LEAGUE","mode":"historical","season":"$SEASON","offset":$offset,"limit":12}"               https://fbis-myz.pages.dev/api/soccer-pitchapi-sync)"
+            echo "$body" | jq .
+            echo "$body" | jq -e '.ok == true' >/dev/null
+            processed="$(echo "$body" | jq -r '.processed // 0')"
+            done_flag="$(echo "$body" | jq -r '.done // false')"
+            if [ "$processed" -eq 0 ] || [ "$done_flag" = "true" ]; then break; fi
+            offset=$((offset + processed))
+          done
