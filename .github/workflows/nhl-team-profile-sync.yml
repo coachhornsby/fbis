@@ -23,8 +23,42 @@ permissions:
   contents: read
 
 jobs:
+  production-gate:
+    name: WAIT FOR DEPLOYED DESCENDANT
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4.2.2
+        if: github.event_name == 'push'
+        with:
+          fetch-depth: 0
+      - name: Wait until production contains this profile change
+        if: github.event_name == 'push'
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)-$i" || true)"
+            if [ "$code" = "200" ]; then
+              while IFS= read -r prod_sha; do
+                [ -n "$prod_sha" ] || continue
+                if git cat-file -e "$prod_sha^{commit}" 2>/dev/null                   && git merge-base --is-ancestor "$EXPECTED_SHA" "$prod_sha"; then
+                  echo "production_contains=$EXPECTED_SHA deployed_sha=$prod_sha"
+                  exit 0
+                fi
+              done < <(jq -r '.. | strings | select(test("^[0-9a-f]{40}$"))' "$body" 2>/dev/null | sort -u)
+            fi
+            sleep 6
+          done
+          echo "Production never reached this commit or a descendant inside the bounded gate."
+          exit 1
+
   sync:
     name: NHL PROFILE BATCH ${{ matrix.batch }}
+    needs: production-gate
     runs-on: ubuntu-latest
     timeout-minutes: 14
     strategy:
@@ -54,25 +88,6 @@ jobs:
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: test -n "${HARVEST_SECRET:-}"
-
-      - name: Wait for production SHA on push
-        if: github.event_name == 'push'
-        env:
-          EXPECTED_SHA: ${{ github.sha }}
-          BASE: https://fbis-myz.pages.dev
-        run: |
-          set -euo pipefail
-          for i in $(seq 1 50); do
-            body="$(mktemp)"
-            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
-            if [ "$code" = "200" ] && grep -q "$EXPECTED_SHA" "$body"; then
-              echo "production_sha=$EXPECTED_SHA"
-              exit 0
-            fi
-            sleep 6
-          done
-          echo "Production SHA did not converge before bounded wait expired."
-          exit 1
 
       - name: Sync four teams as isolated bounded requests
         env:
