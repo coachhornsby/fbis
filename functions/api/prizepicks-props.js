@@ -195,7 +195,8 @@ export async function onRequestPost(context){
   if(!context.env?.DB) return json({ok:false,error:"database unavailable"},503);
   let body={};try{body=await context.request.json()}catch{}
   const operation=String(body.operation||"").toLowerCase();
-  const supplementalNfl=operation==="supplemental_nfl";\n  const supplementalCoverage=operation==="supplemental_coverage";
+  const supplementalNfl=operation==="supplemental_nfl";
+  const supplementalCoverage=operation==="supplemental_coverage";
   if(operation==="reserve"){
     const day=todayCt(), runId=s(body.runId)||`pp_${Date.now()}`, now=new Date().toISOString();
     const existing=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE ct_date=?").bind(day).first();
