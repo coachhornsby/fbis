@@ -2,7 +2,7 @@ name: Soccer-FBIS-v3 walk-forward
 
 on:
   workflow_run:
-    workflows: ["Soccer PitchAPI v3 sync"]
+    workflows: ["Soccer PitchAPI v3 sync","Soccer PitchAPI v3 bootstrap"]
     types: [completed]
   workflow_dispatch:
 
