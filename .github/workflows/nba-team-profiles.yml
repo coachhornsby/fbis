@@ -1,5 +1,6 @@
 name: NBA persistent team profiles
 # Full-season source: preseason + regular season, six restartable shards.
+# Manual production verification trigger: 2026-10-05
 
 on:
   push:
