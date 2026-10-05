@@ -5,6 +5,8 @@ import {
   buildScheduleProfile,
   attachNflPersistentProfiles,
   haversineMiles,
+  injuryType,
+  injurySeverityClass,
 } from "../functions/lib/nflTeamProfiles.js";
 
 function event({id,date,home,away,week=1,city="Houston",venue="Example Stadium",neutralSite=false}){
@@ -66,4 +68,12 @@ test("profile attachment is contextual and explicitly research-only for schedule
 test("haversine helper produces plausible cross-country distance", () => {
   const miles=haversineMiles({lat:37.4,lon:-122.0},{lat:40.8,lon:-74.1});
   assert.ok(miles>2400&&miles<2700);
+});
+
+
+test("NFL persistent profile injury classification records type without inventing a recovery date", () => {
+  assert.equal(injuryType("Right high ankle sprain"),"ANKLE");
+  assert.equal(injuryType("Concussion protocol"),"CONCUSSION");
+  assert.equal(injurySeverityClass("OUT","Right ankle sprain"),"UNAVAILABLE");
+  assert.equal(injurySeverityClass("QUESTIONABLE","Hamstring"),"ELEVATED_AVAILABILITY_RISK");
 });
