@@ -517,3 +517,28 @@ test("49ers low-star projection is informational rather than a recommendation", 
   assert.equal(board.rows[0].displayMode,"TEAM_PROJECTION");
   assert.equal(board.rows[0].recommendationEligible,false);
 });
+
+
+test("visible tennis cards require a real headshot URL", () => {
+  const board = buildPlayerPropsBoard({
+    games:[{
+      id:"tennis:pp:g1",sport:"tennis",
+      away:{abbr:"Opponent",name:"Opponent"},
+      home:{abbr:"Player",name:"Player"},
+      playerMarkets:[
+        {
+          playerName:"With Photo",marketCanonical:"total_games",line:22.5,
+          fbisProjection:23.4,fbisSigma:3.1,imageUrl:"https://static.prizepicks.com/player.png"
+        },
+        {
+          playerName:"No Photo",marketCanonical:"total_games_won",line:11.5,
+          fbisProjection:12.2,fbisSigma:2.0,imageUrl:null
+        }
+      ]
+    }]
+  },{supportedOnly:false});
+  assert.equal(board.rows.length,1);
+  assert.equal(board.rows[0].playerName,"With Photo");
+  assert.equal(board.counts.hiddenTennisWithoutHeadshot,1);
+  assert.ok(board.rows.every(r=>r.sport!=="tennis"||Boolean(r.imageUrl)));
+});
