@@ -40,7 +40,7 @@ export default function AppShell({
       </a>
       <header className={`app-header app-shell-header fbis-shell-header route-${route}${isPlayerProps ? " player-props-legacy-header" : ""}`}>
         <div className="shell-brand">
-          <div className="shell-brand-lockup"><img className="shell-brand-bull" src="/fastwater-bull.svg" alt="" aria-hidden="true" /><h1 className="shell-brand-mark">FBIS</h1></div>
+          <div className="shell-brand-lockup"><img className="shell-brand-bull" src="/fastwater-bull.png" alt="Fastwater" /><h1 className="shell-brand-mark">FBIS</h1></div>
           <div className="header-divider" />
           <div className="shell-brand-copy">
             <span className="shell-product-subtitle">{FBIS_PRODUCT_SUBTITLE}</span>
