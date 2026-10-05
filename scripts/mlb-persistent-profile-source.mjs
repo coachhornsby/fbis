@@ -48,7 +48,8 @@ function rosterRows(j){return (j?.roster||[]).map(r=>({id:String(r.person?.id||"
 function scheduleRows(j,teamId,teamKey){
   const rows=(j?.dates||[]).flatMap(d=>d.games||[]).map(g=>{
     const home=g.teams?.home?.team||{},away=g.teams?.away?.team||{},isHome=String(home.id)===String(teamId),opp=isHome?away:home;
-    return{gameId:String(g.gamePk||""),startTime:g.gameDate||null,opponentId:String(opp.id||""),opponentKey:opp.abbreviation||null,homeAway:isHome?"home":"away",gameType:g.gameType||null,seriesDescription:g.seriesDescription||null,seriesGameNumber:finite(g.seriesGameNumber),gamesInSeries:finite(g.gamesInSeries),doubleHeader:String(g.doubleHeader||"N")!=="N",completed:String(g.status?.abstractGameState||"").toLowerCase()==="final",dayNight:g.dayNight||null,teamKey};
+    const self=isHome?g.teams?.home:g.teams?.away;
+    return{gameId:String(g.gamePk||""),startTime:g.gameDate||null,opponentId:String(opp.id||""),opponentKey:opp.abbreviation||null,homeAway:isHome?"home":"away",gameType:g.gameType||null,seriesDescription:g.seriesDescription||null,seriesGameNumber:finite(g.seriesGameNumber),gamesInSeries:finite(g.gamesInSeries),doubleHeader:String(g.doubleHeader||"N")!=="N",completed:String(g.status?.abstractGameState||"").toLowerCase()==="final",dayNight:g.dayNight||null,probablePitcherId:self?.probablePitcher?.id?String(self.probablePitcher.id):null,probablePitcherName:self?.probablePitcher?.fullName||null,teamKey};
   }).filter(x=>x.gameId&&x.startTime).sort((a,b)=>Date.parse(a.startTime)-Date.parse(b.startTime));
   let road=0;
   for(let i=0;i<rows.length;i++){
@@ -83,13 +84,27 @@ function fatigue(rows,coreIds){
   const score=Math.max(0,Math.min(1.5,(p1/110)*.55+(p2/190)*.30+(t2/260)*.15));
   return{corePitches1d:p1,corePitches2d:p2,totalPitches2d:t2,coreRelieversUsed1d:used.size,fatigueScore:score,bullpenEraMultiplier:Math.max(1,Math.min(1.08,1+Math.max(0,score-.45)*.08))};
 }
+async function recentStarterWorkload(playerId){
+  if(!playerId)return null;
+  const j=await getJson(`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=pitching&season=${season}`).catch(()=>null);
+  if(!j)return null;
+  const rows=(j.stats||[]).flatMap(x=>x.splits||[]).filter(x=>(finite(x.stat?.gamesStarted)||0)>0).map(x=>({date:x.date||null,innings:finite(x.stat?.inningsPitched),pitches:finite(x.stat?.numberOfPitches),battersFaced:finite(x.stat?.battersFaced)})).filter(x=>x.innings!=null).sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))).slice(0,4);
+  if(!rows.length)return null;
+  const mean=k=>{const a=rows.map(x=>x[k]).filter(Number.isFinite);return a.length?a.reduce((s,v)=>s+v,0)/a.length:null};
+  return{starts:rows.length,innings:mean("innings"),pitches:mean("pitches"),battersFaced:mean("battersFaced"),rows};
+}
+function starterExpectedIp(base,recent,fatigueScore){
+  const b=finite(base)??5.35,r=finite(recent?.innings);let ip=r!=null?b*.45+r*.55:b;
+  if((finite(fatigueScore)||0)>.85)ip+=.18;else if((finite(fatigueScore)||0)<.25)ip-=.08;
+  return Math.max(3.5,Math.min(7,ip));
+}
 async function one(team){
   const teamId=String(team.id),teamKey=team.abbreviation||team.teamCode||teamId;
   const [active,forty,coaches,schedule,pitching]=await Promise.all([
     getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active&season=${season}&hydrate=person`),
     getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=40Man&season=${season}&hydrate=person`).catch(()=>({roster:[]})),
     getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/coaches?season=${season}`).catch(()=>({roster:[]})),
-    getJson(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${teamId}&season=${season}&gameType=R,F,D,L,W`),
+    getJson(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${teamId}&season=${season}&gameType=R,F,D,L,W&hydrate=probablePitcher`),
     getJson(`https://statsapi.mlb.com/api/v1/stats?stats=season&group=pitching&teamId=${teamId}&season=${season}&playerPool=ALL&limit=100`).catch(()=>({stats:[]}))
   ]);
   const roster=rosterRows(active),fortyRows=rosterRows(forty),pitchStats=statsMap(pitching);
@@ -108,8 +123,13 @@ async function one(team){
   const coreEra=den?core.reduce((s,p,i)=>s+(p.era||4.15)*weights[i],0)/den:null,ft=fatigue(usage,core.map(x=>x.id));
   const adjustedEra=coreEra==null?null:Math.max(2.2,Math.min(6.5,coreEra*ft.bullpenEraMultiplier));
   const sched=scheduleRows(schedule,teamId,teamKey),upcoming=sched.filter(x=>Date.parse(x.startTime)>=Date.parse(asOf)).slice(0,12);
+  const probableIds=[...new Set(upcoming.slice(0,2).map(x=>x.probablePitcherId).filter(Boolean))];
+  const workloadPairs=await Promise.all(probableIds.map(async id=>[String(id),await recentStarterWorkload(id)]));
+  const workloads=Object.fromEntries(workloadPairs);
+  const enrichedPitchers=seasonPitchers.map(p=>{const recent=workloads[p.id]||null;return{...p,recentStarter:recent,expectedInnings:starterExpectedIp(p.inningsPerStart,recent,ft.fatigueScore),statcastProfile:pProfiles[p.id]||null,asOf}});
+  const starterState=Object.fromEntries(enrichedPitchers.filter(p=>probableIds.includes(p.id)).map(p=>[p.id,{expectedInnings:p.expectedInnings,recentStarter:p.recentStarter,inningsPerStart:p.inningsPerStart}]));
   const staff=rosterRows(coaches).map(x=>({id:x.id,name:x.name,role:x.position||null}));
-  return{teamId,teamKey,teamName:team.name,season,asOf,roster,fortyMan:fortyRows,coaches:staff,schedule:sched,pitchers:seasonPitchers.map(p=>({...p,statcastProfile:pProfiles[p.id]||null,asOf})),hitters:hitters.map(h=>({...h,statcastProfile:hProfiles[h.id]||null,asOf})),bullpen:{coreRelievers:core.map(x=>({id:x.id,name:x.name,era:x.era,reliefGames:x.reliefGames})),coreBullpenEra:coreEra,adjustedBullpenEra:adjustedEra,fatigue:ft,recentUsage:usage},lineup:{state:"ROSTER_BASELINE",activeHitters:hitters.map(x=>({id:x.id,name:x.name,position:x.position})),officialLineupRequiredForFinalMatchup:true},scheduleState:{nextGames:upcoming,nextGame:upcoming[0]||null},sourceVersion:"mlb-state-v1"};
+  return{teamId,teamKey,teamName:team.name,season,asOf,roster,fortyMan:fortyRows,coaches:staff,schedule:sched,pitchers:enrichedPitchers,hitters:hitters.map(h=>({...h,statcastProfile:hProfiles[h.id]||null,asOf})),bullpen:{coreRelievers:core.map(x=>({id:x.id,name:x.name,era:x.era,reliefGames:x.reliefGames})),coreBullpenEra:coreEra,adjustedBullpenEra:adjustedEra,fatigue:ft,recentUsage:usage},starterState,lineup:{state:"ROSTER_BASELINE",activeHitters:hitters.map(x=>({id:x.id,name:x.name,position:x.position})),officialLineupRequiredForFinalMatchup:true},scheduleState:{nextGames:upcoming,nextGame:upcoming[0]||null},sourceVersion:"mlb-state-v1"};
 }
 const teamsJson=await getJson(`https://statsapi.mlb.com/api/v1/teams?sportId=1&season=${season}`);
 const allTeams=(teamsJson.teams||[]).filter(t=>t.sport?.id===1||t.sport?.name==="Major League Baseball").sort((a,b)=>String(a.name).localeCompare(String(b.name)));
@@ -119,7 +139,7 @@ await Promise.all(Array.from({length:concurrency},worker));results.sort((a,b)=>a
 
 const sql=[],createdAt=new Date().toISOString();
 for(const t of results){
-  const profile={teamId:t.teamId,teamKey:t.teamKey,teamName:t.teamName,season:t.season,asOf:t.asOf,coaches:t.coaches,bullpen:t.bullpen,lineup:t.lineup,scheduleState:t.scheduleState,governance:{persistentState:true,marketInformed:false,liveBoardFanout:false,statcastRefreshScheduled:true}};
+  const profile={teamId:t.teamId,teamKey:t.teamKey,teamName:t.teamName,season:t.season,asOf:t.asOf,coaches:t.coaches,bullpen:t.bullpen,starterState:t.starterState,lineup:t.lineup,scheduleState:t.scheduleState,governance:{persistentState:true,marketInformed:false,liveBoardFanout:false,statcastRefreshScheduled:true}};
   sql.push(`INSERT INTO mlb_team_profiles (team_id,team_key,team_name,season,as_of,roster_json,rotation_json,bullpen_json,lineup_json,schedule_json,profile_json,state_confidence,source_version,created_at,updated_at) VALUES (${q(t.teamId)},${q(t.teamKey)},${q(t.teamName)},${season},${q(asOf)},${q(JSON.stringify(t.roster))},${q(JSON.stringify(t.pitchers.map(x=>({id:x.id,name:x.name,starts:x.starts,inningsPerStart:x.inningsPerStart}))))},${q(JSON.stringify(t.bullpen))},${q(JSON.stringify(t.lineup))},${q(JSON.stringify(t.scheduleState))},${q(JSON.stringify(profile))},0.95,'mlb-state-v1',COALESCE((SELECT created_at FROM mlb_team_profiles WHERE team_id=${q(t.teamId)}),${q(createdAt)}),${q(createdAt)}) ON CONFLICT(team_id) DO UPDATE SET team_key=excluded.team_key,team_name=excluded.team_name,season=excluded.season,as_of=excluded.as_of,roster_json=excluded.roster_json,rotation_json=excluded.rotation_json,bullpen_json=excluded.bullpen_json,lineup_json=excluded.lineup_json,schedule_json=excluded.schedule_json,profile_json=excluded.profile_json,state_confidence=excluded.state_confidence,source_version=excluded.source_version,updated_at=excluded.updated_at;`);
   const snap="mlb-team:"+hash(t.teamId+"|"+asOf).slice(0,32);sql.push(`INSERT OR IGNORE INTO mlb_team_profile_snapshots (id,team_id,team_key,season,as_of,profile_json,created_at) VALUES (${q(snap)},${q(t.teamId)},${q(t.teamKey)},${season},${q(asOf)},${q(JSON.stringify(profile))},${q(createdAt)});`);
   const active=new Map(t.roster.map(x=>[x.id,x])),forty=new Map(t.fortyMan.map(x=>[x.id,x]));
