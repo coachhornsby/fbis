@@ -9,6 +9,7 @@ on:
       - "scripts/nba-team-profile-source.mjs"
       - "scripts/nba-team-profile-source-merge.mjs"
       - "scripts/nba-team-profile-build.mjs"
+      - "scripts/nba-official-lineup-collect.mjs"
       - "scripts/nba-player-impact-live.mjs"
       - "migrations/0054_nba_persistent_team_profiles.sql"
       - "test/nba-team-profile.test.js"
@@ -80,6 +81,16 @@ jobs:
           npx wrangler r2 object get "fbis-archive/${PREFIX}/nba-canonical.jsonl"             --file artifacts/frozen/nba-canonical.jsonl --remote
           npx wrangler r2 object get "fbis-archive/canonical/espn/nba/2026-27/current/nba-canonical.jsonl"             --file artifacts/current/nba-canonical.jsonl --remote || : > artifacts/current/nba-canonical.jsonl
 
+      - name: Collect current official NBA lineup evidence
+        run: |
+          set -euo pipefail
+          if node scripts/nba-official-lineup-collect.mjs             out=artifacts/nba-official-lineups.json             sql=artifacts/nba-official-lineups.sql; then
+            jq -e '.ok==true' artifacts/nba-official-lineups.json >/dev/null
+          else
+            echo '{"ok":false,"rows":[],"quality":{"observations":0}}' > artifacts/nba-official-lineups.json
+            : > artifacts/nba-official-lineups.sql
+          fi
+
       - name: Load prior persistent state and point-in-time evidence
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -88,12 +99,11 @@ jobs:
           set -euo pipefail
           npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_player_state_profiles"             > artifacts/nba-player-states-prior.json || echo '[]' > artifacts/nba-player-states-prior.json
           npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM player_availability_observations WHERE sport='nba' AND observed_at <= datetime('now') ORDER BY observed_at ASC"             > artifacts/nba-availability.json
-          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_lineup_observations WHERE observed_at <= datetime('now') ORDER BY observed_at ASC"             > artifacts/nba-lineups.json || echo '[]' > artifacts/nba-lineups.json
           npx wrangler d1 execute fbis --remote --json --command             "WITH ranked AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY player_id ORDER BY as_of DESC) rn FROM nba_player_impact_snapshots) SELECT * FROM ranked WHERE rn=1"             > artifacts/nba-player-impact-current.json
 
       - name: Build all 30 persistent profiles
         run: |
-          node scripts/nba-team-profile-build.mjs             source=artifacts/nba-team-profile-source.json             prior=artifacts/nba-player-states-prior.json             availability=artifacts/nba-availability.json             lineups=artifacts/nba-lineups.json             frozen=artifacts/frozen/nba-canonical.jsonl             current=artifacts/current/nba-canonical.jsonl             impact=artifacts/nba-player-impact-current.json             out=artifacts/nba-team-profiles.json             sql=artifacts/nba-team-profiles.sql
+          node scripts/nba-team-profile-build.mjs             source=artifacts/nba-team-profile-source.json             prior=artifacts/nba-player-states-prior.json             availability=artifacts/nba-availability.json             lineups=artifacts/nba-official-lineups.json             frozen=artifacts/frozen/nba-canonical.jsonl             current=artifacts/current/nba-canonical.jsonl             impact=artifacts/nba-player-impact-current.json             out=artifacts/nba-team-profiles.json             sql=artifacts/nba-team-profiles.sql
           jq -e '.quality.teams==30 and .quality.players>300 and .quality.scheduleItems>1000' artifacts/nba-team-profiles.json >/dev/null
 
       - name: Persist profiles
@@ -104,6 +114,9 @@ jobs:
         run: |
           set -euo pipefail
           npx wrangler d1 execute fbis --remote --file=migrations/0054_nba_persistent_team_profiles.sql
+          if [ -s artifacts/nba-official-lineups.sql ]; then
+            npx wrangler d1 execute fbis --remote --file=artifacts/nba-official-lineups.sql
+          fi
           npx wrangler d1 execute fbis --remote --file=artifacts/nba-team-profiles.sql
           npx wrangler r2 object put "fbis-archive/models/nba/team-profiles/current.json"             --file artifacts/nba-team-profiles.json --remote
           stamp=$(date -u +%Y%m%dT%H%M%SZ)
