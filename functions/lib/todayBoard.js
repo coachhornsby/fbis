@@ -78,7 +78,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     (game.odds?.pinSpreadHomePrice != null ? game.odds.spread : null);
   const pinTotal =
     game.odds?.pinTotal ?? (game.odds?.pinOverPrice != null ? game.odds.total : null);
-  const market = resolveCanonicalMarket(game);
+  const market = sport === "tennis" && game.market?.reference ? game.market : resolveCanonicalMarket(game);
   const marketAvail = marketAvailabilitySummary(market);
   const qualityFlags = normalizeQualityFlags(game.quality?.flags || [], market);
   const qualityComponents = resolveMarketQualityComponents(game, market);
@@ -602,18 +602,15 @@ export async function buildTennisResearchSlate(date, env = {}) {
         reference: {
           available: p1Price != null || p2Price != null || marketP1 != null,
           provider: row.market_provider || row.sportsbook || marketJson.source || quote?.book || "TENNIS MARKET · RESEARCH",
-          spread: spreadP1Line == null ? null : {
-            home: spreadP1Line,
-            away: spreadP2Line,
-            homePrice: spreadP1Price,
-            awayPrice: spreadP2Price,
+          spread: spreadP1Line,
+          spreadDetail: spreadP1Line == null ? null : {
+            home: spreadP1Line, away: spreadP2Line, homePrice: spreadP1Price, awayPrice: spreadP2Price,
             noVigHome: row.spread_player1_no_vig == null ? null : Number(row.spread_player1_no_vig),
             noVigAway: row.spread_player2_no_vig == null ? null : Number(row.spread_player2_no_vig),
           },
-          total: totalLine == null ? null : {
-            line: totalLine,
-            overPrice,
-            underPrice,
+          total: totalLine,
+          totalDetail: totalLine == null ? null : {
+            line: totalLine, overPrice, underPrice,
             noVigOver: row.over_no_vig_prob == null ? null : Number(row.over_no_vig_prob),
             noVigUnder: row.under_no_vig_prob == null ? null : Number(row.under_no_vig_prob),
           },
@@ -655,6 +652,21 @@ export async function buildTennisResearchSlate(date, env = {}) {
             trackedVolume: actionJson?.trackedVolume ?? null,
           }
         : null,
+      matchupFactors: [
+        ...(p1Rank?.rank != null && p2Rank?.rank != null ? [{
+          id: "ranking", label: "Current ranking", edge: p1Rank.rank < p2Rank.rank ? tennisPlayerAbbr(row.player1) : p2Rank.rank < p1Rank.rank ? tennisPlayerAbbr(row.player2) : "EVEN",
+          value: Math.abs(Number(p1Rank.rank) - Number(p2Rank.rank)), detail: `${row.player1} #${p1Rank.rank} · ${row.player2} #${p2Rank.rank}`, source: "ESPN tennis rankings"
+        }] : []),
+        ...(p1Prob != null ? [{
+          id: "pure-model", label: "Pure win probability", edge: p1Prob >= .5 ? tennisPlayerAbbr(row.player1) : tennisPlayerAbbr(row.player2),
+          value: `${(Math.max(p1Prob,p2Prob)*100).toFixed(1)}%`, detail: `${row.player1} ${(p1Prob*100).toFixed(1)}% · ${row.player2} ${(p2Prob*100).toFixed(1)}%`, source: row.pure_model_id || "TENNIS-FBIS-v2-CONTEXT"
+        }] : []),
+        ...(marketP1 != null && p1Prob != null ? [{
+          id: "model-market", label: "Model vs no-vig market", edge: (p1Prob-marketP1) >= 0 ? tennisPlayerAbbr(row.player1) : tennisPlayerAbbr(row.player2),
+          value: `${Math.abs((p1Prob-marketP1)*100).toFixed(1)} pts`, detail: `Pure P1 ${(p1Prob*100).toFixed(1)}% · market P1 ${(marketP1*100).toFixed(1)}%`, source: row.market_provider || row.sportsbook || "tennis market snapshot"
+        }] : []),
+        ...(row.surface ? [{ id:"surface", label:"Surface / conditions", edge:String(row.surface).toUpperCase(), value: row.court_speed_index == null ? null : Number(row.court_speed_index), detail:`${row.surface}${row.indoor == null ? "" : Number(row.indoor) ? " · indoor" : " · outdoor"}`, source:"tennis context snapshot" }] : []),
+      ],
       quality: {
         score: null,
         state: "RESEARCH",
