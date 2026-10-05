@@ -55,23 +55,22 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: test -n "${HARVEST_SECRET:-}"
 
-      - name: Wait for production SHA on push
+      - name: Wait for production profile endpoint readiness on push
         if: github.event_name == 'push'
         env:
-          EXPECTED_SHA: ${{ github.sha }}
           BASE: https://fbis-myz.pages.dev
         run: |
           set -euo pipefail
           for i in $(seq 1 50); do
             body="$(mktemp)"
-            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
-            if [ "$code" = "200" ] && grep -q "$EXPECTED_SHA" "$body"; then
-              echo "production_sha=$EXPECTED_SHA"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/nfl-team-profiles?summary=1&_t=$(date +%s)" || true)"
+            if [ "$code" = "200" ] && jq -e '.ok == true' "$body" >/dev/null 2>&1; then
+              echo "nfl_profile_endpoint_ready=1"
               exit 0
             fi
             sleep 6
           done
-          echo "Production SHA did not converge before bounded wait expired."
+          echo "NFL profile endpoint did not become ready before bounded wait expired."
           exit 1
 
       - name: Sync four-team profile batch one team at a time
