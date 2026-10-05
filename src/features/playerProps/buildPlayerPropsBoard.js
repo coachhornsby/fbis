@@ -18,7 +18,7 @@ import { estimatedPropHitProbability, prizePicksTierEconomics, selectivePropStar
 
 /**
  * All player-prop markets currently supported on FBIS product surfaces.
- * Scope is deliberately pro-only: MLB, NFL, NBA, NHL.
+ * PrizePicks payout/tier rules are platform-level and apply regardless of sport.
  */
 export const FBIS_PLAYER_MARKETS = Object.freeze([
   ...new Set(PRO_PLAYER_PROP_SPORTS.flatMap((sport) => PRO_PLAYER_PROP_MARKETS[sport] || [])),
@@ -144,6 +144,7 @@ export function withFbisPropAnalytics(row = {}) {
       const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars);
       return {
         ...ranked,
+        prizePicksEconomics: platform.economics,
         confidenceStars: platform.stars,
         confidenceLabel: `${platform.stars} STAR`,
         confidenceTier: platform.stars >= 5 ? "ELITE" : platform.stars === 4 ? "PREMIUM" : platform.stars === 3 ? "STRONG" : platform.stars === 2 ? "LEAN" : "WATCH",
@@ -172,6 +173,7 @@ export function withFbisPropAnalytics(row = {}) {
       const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars);
       return {
         ...ranked,
+        prizePicksEconomics: platform.economics,
         confidenceStars: platform.stars,
         confidenceLabel: `${platform.stars} STAR`,
         confidenceTier: platform.stars >= 5 ? "ELITE" : platform.stars === 4 ? "PREMIUM" : platform.stars === 3 ? "STRONG" : platform.stars === 2 ? "LEAN" : "WATCH",
@@ -197,6 +199,7 @@ export function withFbisPropAnalytics(row = {}) {
       const platform = applyPrizePicksPlatformConfidence(ranked, genericStars.stars);
       return {
         ...ranked,
+        prizePicksEconomics: platform.economics,
         confidenceStars: platform.stars,
         confidenceLabel: `${platform.stars} STAR`,
         confidenceTier: platform.stars >= 5 ? "ELITE" : platform.stars === 4 ? "PREMIUM" : platform.stars === 3 ? "STRONG" : platform.stars === 2 ? "LEAN" : "WATCH",
