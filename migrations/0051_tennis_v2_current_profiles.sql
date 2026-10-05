@@ -1,6 +1,8 @@
 -- Tennis v2 current research profiles and tournament court-speed state.
 -- Research-only source lineage; never authorizes wagers.
 
+ALTER TABLE tennis_market_snapshots ADD COLUMN event_start_time TEXT;
+
 CREATE TABLE IF NOT EXISTS tennis_player_profiles_current (
   tour TEXT NOT NULL,
   player_key TEXT NOT NULL,
