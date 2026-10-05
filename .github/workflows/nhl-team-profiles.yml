@@ -82,14 +82,21 @@ jobs:
           node scripts/nhl-team-profile-source-merge.mjs artifacts/profile-source-shards artifacts/nhl-team-profile-source.json
           jq -e '.quality.teams==32 and .quality.players>500 and .quality.scheduleItems>1500' artifacts/nhl-team-profile-source.json >/dev/null
 
+      - name: Seed empty prior state for PR validation
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p artifacts
+          echo '[]' > artifacts/nhl-player-states-prior.json
+
       - name: Load prior persistent state
+        if: github.event_name != 'pull_request'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          npx wrangler d1 execute fbis --remote --json --command "SELECT * FROM nhl_player_state_profiles"             > artifacts/nhl-player-states-prior.json || echo '[]' > artifacts/nhl-player-states-prior.json
+          npx wrangler d1 execute fbis --remote --json --command "SELECT * FROM nhl_player_state_profiles" > artifacts/nhl-player-states-prior.json || echo '[]' > artifacts/nhl-player-states-prior.json
 
       - name: Build persistent profiles
         run: |
