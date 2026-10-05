@@ -294,7 +294,7 @@ function stateConfidence(s,carried=false){
  if(s==="LIMITED")return .82;
  return .65;
 }
-function injuryType(detail=""){
+export function injuryType(detail=""){
  const s=String(detail||"").toLowerCase();
  if(/ankle/.test(s))return"ANKLE";
  if(/knee/.test(s))return"KNEE";
@@ -310,7 +310,7 @@ function injuryType(detail=""){
  if(/illness/.test(s))return"ILLNESS";
  return detail?"OTHER":"NONE";
 }
-function injurySeverityClass(status,detail){
+export function injurySeverityClass(status,detail){
  const s=String(status||"").toUpperCase();
  if(["IR","PUP","NFI"].includes(s))return "EXTENDED_ABSENCE";
  if(s==="OUT")return "UNAVAILABLE";
