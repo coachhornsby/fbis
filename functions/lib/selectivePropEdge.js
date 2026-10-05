@@ -23,6 +23,86 @@ function erf(x) {
 }
 function normalCdf(z) { return 0.5 * (1 + erf(z / Math.sqrt(2))); }
 
+function prizePicksTier(row = {}) {
+  return String(row.oddsTier ?? row.odds_tier ?? "standard").trim().toLowerCase() || "standard";
+}
+
+function explicitBreakEvenProbability(row = {}) {
+  let be = finite(
+    row.payoutBreakEvenProbability ??
+    row.payout_break_even_probability ??
+    row.breakEvenProbability ??
+    row.break_even_probability
+  );
+  if (be == null) return null;
+  if (be > 1 && be <= 100) be /= 100;
+  return be > 0 && be < 1 ? be : null;
+}
+
+export function prizePicksTierEconomics(row = {}, hitProbability = null) {
+  const tier = prizePicksTier(row);
+  const alternate = tier === "demon" || tier === "goblin";
+  if (!alternate) {
+    return {
+      tier,
+      alternate:false,
+      payoutAdjusted:false,
+      payoutPriced:false,
+      breakEvenProbability:null,
+      probabilityEdge:null,
+      comparableToStandard:true,
+      rankingEligible:true,
+      maxStars:5,
+      status:"STANDARD_LINE_CALIBRATED",
+      reason:null,
+    };
+  }
+
+  const be = explicitBreakEvenProbability(row);
+  const p = finite(hitProbability);
+  if (be == null) {
+    return {
+      tier,
+      alternate:true,
+      payoutAdjusted:false,
+      payoutPriced:false,
+      breakEvenProbability:null,
+      probabilityEdge:null,
+      comparableToStandard:false,
+      rankingEligible:false,
+      maxStars:2,
+      status:"ALTERNATE_TIER_PAYOUT_UNPRICED",
+      reason:"alternate-tier-payout-break-even-missing",
+    };
+  }
+
+  const probabilityEdge = p == null ? null : p - be;
+  const calibrationValidated = row.payoutCalibrationValidated === true || row.payout_calibration_validated === true;
+  let maxStars = 1;
+  if (probabilityEdge != null) {
+    maxStars = probabilityEdge >= 0.10 ? 5
+      : probabilityEdge >= 0.07 ? 4
+        : probabilityEdge >= 0.04 ? 3
+          : probabilityEdge >= 0.02 ? 2
+            : 1;
+  }
+  if (!calibrationValidated) maxStars = Math.min(maxStars, 4);
+
+  return {
+    tier,
+    alternate:true,
+    payoutAdjusted:true,
+    payoutPriced:true,
+    breakEvenProbability:be,
+    probabilityEdge,
+    comparableToStandard:calibrationValidated,
+    rankingEligible:probabilityEdge != null && probabilityEdge > 0,
+    maxStars,
+    status:calibrationValidated ? "ALTERNATE_TIER_PAYOUT_CALIBRATED" : "ALTERNATE_TIER_PAYOUT_RESEARCH",
+    reason:calibrationValidated ? null : "alternate-tier-payout-calibration-not-validated",
+  };
+}
+
 export function estimatedPropHitProbability(row = {}) {
   const projection = finite(row.fbisProjection ?? row.projection);
   const line = finite(row.line ?? row.marketLine);
@@ -199,6 +279,13 @@ export function selectivePropStars(row = {}) {
     const calibration = nflCalibrationState(row, z);
     if (!calibration?.allowed) stars = Math.min(stars, calibration?.maxStars ?? 2);
     else stars = Math.min(stars, calibration.maxStars);
+
+    // PrizePicks alternate lines are not economically comparable to Standard.
+    // Their payout is lineup-dependent, so a large line-distance z-score must
+    // not create a 4★/5★ label unless an explicit payout break-even is present.
+    const hitProbability = estimatedPropHitProbability(row);
+    const tierEconomics = prizePicksTierEconomics(row, hitProbability);
+    stars = Math.min(stars, tierEconomics.maxStars);
   }
   return stars;
 }
@@ -234,6 +321,7 @@ export function rankSelectiveProps(rows = [], opts = {}) {
     const quality = qRaw == null ? inferredQuality : clamp(qRaw > 1 ? qRaw / 100 : qRaw, 0, 1);
     const evidence = evidenceState(row);
     const nflCalibration = evidence.sport === "nfl" ? nflCalibrationState(row, z) : null;
+    const prizePicksEconomics = prizePicksTierEconomics(row, hitProbability);
     return {
       ...row,
       fbisProjection: projection,
@@ -245,6 +333,7 @@ export function rankSelectiveProps(rows = [], opts = {}) {
       estimatedHitProbability: hitProbability,
       evidenceState: evidence,
       nflCalibration,
+      prizePicksEconomics,
       selectionScore:
         stars * 100 +
         (z ?? 0) * 15 +
