@@ -12,7 +12,7 @@ import { clamp, coverageSummary, finite, round1 } from "./deepModelCommon.js";
 import { evaluateMlbF5Market, f5MoneylineProbabilities } from "./mlbF5.js";
 
 export const MLB_DEEP_ID = "MLB-FBIS-v2";
-export const MLB_DEEP_VERSION = "research-v2.4-pitch-zone-k-calibrated";
+export const MLB_DEEP_VERSION = "research-v2.5-postseason-context";
 export const MLB_DEEP_CONSTANTS = {
   leagueRpg: 4.45,
   leagueEra: 4.15,
@@ -422,7 +422,20 @@ export function projectMlbDeep(game = {}) {
         homeStarterProjectedKs: finite(ctx.homePalStarterProjectedKs),
         awayStarterProjectedKs: finite(ctx.awayPalStarterProjectedKs),
       },
-      f5Policy: "FBIS first-five projection is independent of market prices. When Statcast pitch-shape x hitter-zone coverage is available it adjusts the starter component of F5 run allocation; Ballpark Pal aggregate matchup is fallback. Sportsbook F5 and Pal final F5 remain comparison-only.",
+      postseasonPolicy: ctx.postseason === true
+        ? "Postseason context is active: expected starter innings use recent starts plus current bullpen fatigue; bullpen ERA is concentrated to the active-roster core and penalized only for measured recent workload; Statcast profiles use shorter recent-weighting windows. No blanket October run haircut is applied."
+        : "Regular-season context.",
+      postseasonContext: ctx.postseason === true ? {
+        round: ctx.postseasonRound || null,
+        version: ctx.postseasonContextVersion || null,
+        homeStarterExpectedInnings: finite(ctx.homeStarterExpectedInnings),
+        awayStarterExpectedInnings: finite(ctx.awayStarterExpectedInnings),
+        homeCoreBullpenEra: finite(ctx.homePostseasonCoreBullpenEra),
+        awayCoreBullpenEra: finite(ctx.awayPostseasonCoreBullpenEra),
+        homeBullpenFatigueScore: finite(ctx.homeBullpenFatigueScore),
+        awayBullpenFatigueScore: finite(ctx.awayBullpenFatigueScore),
+      } : null,
+      f5Policy: "FBIS first-five projection is independent of market prices. When Statcast pitch-shape x hitter-zone coverage is available it adjusts the starter component of F5 run allocation; postseason games additionally use active-roster bullpen context, recent starter workload and shorter Statcast recency weighting. Ballpark Pal aggregate matchup is fallback. Sportsbook F5 and Pal final F5 remain comparison-only.",
       pitcherKPolicy: "FBIS pitcher K projection uses the historically validated 2026 holdout calibration: 96% Statcast pitch-shape x hitter-zone projection + 4% MLB Stats baseline - 0.7936 Ks. MLB Stats K/9 x opponent team K-rate remains fallback when detailed matchup coverage is unavailable. Pal projected Ks are comparison-only.",
       palUsageAudit: {
         scoreInputs: [
