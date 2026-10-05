@@ -4,9 +4,10 @@ const KEY=process.env.PITCHAPI_API_KEY||"";
 const HARVEST=process.env.HARVEST_SECRET||"";
 const leagueKey=String(process.argv[2]||"");
 const seasonArg=String(process.argv[3]||"");
-const maxMatches=Math.max(1,Math.min(80,Number(process.env.PITCHAPI_MAX_MATCHES)||24));
-const offset=Math.max(0,Number(process.env.PITCHAPI_OFFSET)||0);
 const mode=String(process.env.PITCHAPI_MODE||"historical").toLowerCase();
+const maxCap=mode==="historical"?500:40;
+const maxMatches=Math.max(1,Math.min(maxCap,Number(process.env.PITCHAPI_MAX_MATCHES)||(mode==="historical"?500:24)));
+const offset=Math.max(0,Number(process.env.PITCHAPI_OFFSET)||0);
 const concurrency=Math.max(1,Math.min(4,Number(process.env.PITCHAPI_CONCURRENCY)||3));
 if(!KEY||!HARVEST||!leagueKey){console.error("usage: PITCHAPI_API_KEY=... HARVEST_SECRET=... node scripts/soccer-pitchapi-sync.mjs <leagueKey> [season]");process.exit(2);}
 const ALIASES={
@@ -137,13 +138,17 @@ for(let i=0;i<matches.length;i+=concurrency){
   const chunk=matches.slice(i,i+concurrency);
   const bundles=(await Promise.all(chunk.map(async m=>{
     try{
-      const [advanced,stats,shots,players,lineups]=await Promise.all([
+      const [advanced,shots]=await Promise.all([
         api(`/v1/matches/${m.id}/advanced`,{optional:true}),
-        api(`/v1/matches/${m.id}/stats`,{optional:true}),
         api(`/v1/matches/${m.id}/shots`,{optional:true}),
-        api(`/v1/matches/${m.id}/advanced/players`,{optional:true}),
-        api(`/v1/matches/${m.id}/lineups`,{optional:true}),
       ]);
+      const [stats,players,lineups]=mode==="live"
+        ? await Promise.all([
+            api(`/v1/matches/${m.id}/stats`,{optional:true}),
+            api(`/v1/matches/${m.id}/advanced/players`,{optional:true}),
+            api(`/v1/matches/${m.id}/lineups`,{optional:true}),
+          ])
+        : [null,null,null];
       if(!advanced)analyticsUnavailable++;
       return bundle(m,advanced,stats,shots,players,lineups,league,season);
     }catch(e){errors++;console.error(m.id,String(e?.message||e));return null;}
