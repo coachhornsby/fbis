@@ -37,6 +37,9 @@ jobs:
       TENNIS_WF_SIMS: ${{ inputs.simulations || '250' }}
       TENNIS_WF_EVAL_START: "2020"
       TENNIS_WF_OUT: "research/tennis/walkforward-latest.json"
+      TENNIS_WF_ROWS_OUT: "research/tennis/walkforward-rows.jsonl"
+      TENNIS_V11_ROWS: "research/tennis/walkforward-rows.jsonl"
+      TENNIS_V11_OUT: "research/tennis/v1-1-challenger-latest.json"
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
@@ -48,6 +51,26 @@ jobs:
         run: node --test test/tennis-fbis-v1.test.js test/player-props-board.test.js
       - name: Strict historical walk-forward
         run: node scripts/tennis-historical-walkforward.mjs | tee tennis-walkforward.log
+      - name: TENNIS-FBIS-v1.1 challenger
+        run: node scripts/tennis-v1-1-challenger.mjs | tee tennis-v1-1.log
+      - name: Verify v1.1 holdout
+        run: |
+          node - <<'NODE'
+          const fs=require("fs");
+          const p="research/tennis/v1-1-challenger-latest.json";
+          const r=JSON.parse(fs.readFileSync(p,"utf8"));
+          if((r.sample?.holdout||0)<5000) throw new Error("insufficient v1.1 holdout");
+          if(!Number.isFinite(r.holdout?.v11?.brier)) throw new Error("missing v1.1 metrics");
+          console.log("v1.1",JSON.stringify({
+            status:r.verdict.status,
+            n:r.sample.holdout,
+            accuracy:r.holdout.v11.accuracy,
+            brier:r.holdout.v11.brier,
+            logLoss:r.holdout.v11.logLoss,
+            calibration:r.holdout.v11.maxCalibrationError,
+            v1Brier:r.holdout.v1.brier
+          }));
+          NODE
       - name: Verify report integrity
         run: |
           node - <<'NODE'
@@ -71,5 +94,7 @@ jobs:
           name: tennis-historical-walkforward
           path: |
             research/tennis/walkforward-latest.json
+            research/tennis/v1-1-challenger-latest.json
             tennis-walkforward.log
+            tennis-v1-1.log
           retention-days: 30

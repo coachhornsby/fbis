@@ -1,0 +1,1519 @@
+{
+  "generatedAt": "2026-10-05T02:04:07.771Z",
+  "challenger": "TENNIS-FBIS-v1.1",
+  "incumbent": "TENNIS-FBIS-v1",
+  "design": {
+    "trainYears": "2020-2023",
+    "holdoutYears": "2024-2026",
+    "frozenAfterTraining": true,
+    "formula": "logistic(a*logit(v1_probability) + b*log((rank2+5)/(rank1+5)))",
+    "fitted": {
+      "a": 0.2,
+      "b": 0.45
+    },
+    "note": "v1.1 is a calibration/ranking challenger. Point/game/set/prop simulation is unchanged in this test."
+  },
+  "sample": {
+    "train": 17136,
+    "holdout": 12751,
+    "total": 29887
+  },
+  "training": {
+    "v1": {
+      "n": 17136,
+      "accuracy": 0.61455,
+      "brier": 0.25891,
+      "logLoss": 0.75878,
+      "maxCalibrationError": 0.23638,
+      "calibration": [
+        {
+          "range": "0.0-0.1",
+          "n": 2031,
+          "meanProbability": 0.059,
+          "observedWinRate": 0.25406
+        },
+        {
+          "range": "0.1-0.2",
+          "n": 2189,
+          "meanProbability": 0.14325,
+          "observedWinRate": 0.37963
+        },
+        {
+          "range": "0.2-0.3",
+          "n": 1451,
+          "meanProbability": 0.2468,
+          "observedWinRate": 0.40662
+        },
+        {
+          "range": "0.3-0.4",
+          "n": 1396,
+          "meanProbability": 0.34844,
+          "observedWinRate": 0.46132
+        },
+        {
+          "range": "0.4-0.5",
+          "n": 1416,
+          "meanProbability": 0.44848,
+          "observedWinRate": 0.48729
+        },
+        {
+          "range": "0.5-0.6",
+          "n": 1380,
+          "meanProbability": 0.54723,
+          "observedWinRate": 0.49855
+        },
+        {
+          "range": "0.6-0.7",
+          "n": 1423,
+          "meanProbability": 0.64852,
+          "observedWinRate": 0.54252
+        },
+        {
+          "range": "0.7-0.8",
+          "n": 1434,
+          "meanProbability": 0.74892,
+          "observedWinRate": 0.57601
+        },
+        {
+          "range": "0.8-0.9",
+          "n": 2155,
+          "meanProbability": 0.85261,
+          "observedWinRate": 0.62413
+        },
+        {
+          "range": "0.9-1.0",
+          "n": 2261,
+          "meanProbability": 0.93854,
+          "observedWinRate": 0.74657
+        }
+      ]
+    },
+    "v11": {
+      "n": 17136,
+      "accuracy": 0.64642,
+      "brier": 0.21882,
+      "logLoss": 0.62668,
+      "maxCalibrationError": 0.07255,
+      "calibration": [
+        {
+          "range": "0.0-0.1",
+          "n": 34,
+          "meanProbability": 0.07834,
+          "observedWinRate": 0.05882
+        },
+        {
+          "range": "0.1-0.2",
+          "n": 645,
+          "meanProbability": 0.165,
+          "observedWinRate": 0.16589
+        },
+        {
+          "range": "0.2-0.3",
+          "n": 1804,
+          "meanProbability": 0.25564,
+          "observedWinRate": 0.24667
+        },
+        {
+          "range": "0.3-0.4",
+          "n": 2679,
+          "meanProbability": 0.35215,
+          "observedWinRate": 0.36058
+        },
+        {
+          "range": "0.4-0.5",
+          "n": 3347,
+          "meanProbability": 0.45167,
+          "observedWinRate": 0.44547
+        },
+        {
+          "range": "0.5-0.6",
+          "n": 3455,
+          "meanProbability": 0.54789,
+          "observedWinRate": 0.54993
+        },
+        {
+          "range": "0.6-0.7",
+          "n": 2585,
+          "meanProbability": 0.6473,
+          "observedWinRate": 0.653
+        },
+        {
+          "range": "0.7-0.8",
+          "n": 1888,
+          "meanProbability": 0.74573,
+          "observedWinRate": 0.72934
+        },
+        {
+          "range": "0.8-0.9",
+          "n": 651,
+          "meanProbability": 0.83662,
+          "observedWinRate": 0.86943
+        },
+        {
+          "range": "0.9-1.0",
+          "n": 48,
+          "meanProbability": 0.92745,
+          "observedWinRate": 1
+        }
+      ]
+    }
+  },
+  "holdout": {
+    "v1": {
+      "n": 12751,
+      "accuracy": 0.60936,
+      "brier": 0.26855,
+      "logLoss": 0.78843,
+      "maxCalibrationError": 0.24521,
+      "calibration": [
+        {
+          "range": "0.0-0.1",
+          "n": 1694,
+          "meanProbability": 0.06084,
+          "observedWinRate": 0.27922
+        },
+        {
+          "range": "0.1-0.2",
+          "n": 1850,
+          "meanProbability": 0.14208,
+          "observedWinRate": 0.37189
+        },
+        {
+          "range": "0.2-0.3",
+          "n": 1051,
+          "meanProbability": 0.24444,
+          "observedWinRate": 0.44529
+        },
+        {
+          "range": "0.3-0.4",
+          "n": 879,
+          "meanProbability": 0.34714,
+          "observedWinRate": 0.49033
+        },
+        {
+          "range": "0.4-0.5",
+          "n": 860,
+          "meanProbability": 0.44918,
+          "observedWinRate": 0.52209
+        },
+        {
+          "range": "0.5-0.6",
+          "n": 831,
+          "meanProbability": 0.54618,
+          "observedWinRate": 0.52106
+        },
+        {
+          "range": "0.6-0.7",
+          "n": 868,
+          "meanProbability": 0.64911,
+          "observedWinRate": 0.57258
+        },
+        {
+          "range": "0.7-0.8",
+          "n": 1041,
+          "meanProbability": 0.75089,
+          "observedWinRate": 0.51393
+        },
+        {
+          "range": "0.8-0.9",
+          "n": 1761,
+          "meanProbability": 0.85509,
+          "observedWinRate": 0.60988
+        },
+        {
+          "range": "0.9-1.0",
+          "n": 1916,
+          "meanProbability": 0.93744,
+          "observedWinRate": 0.73382
+        }
+      ]
+    },
+    "v11": {
+      "n": 12751,
+      "accuracy": 0.64113,
+      "brier": 0.2187,
+      "logLoss": 0.62639,
+      "maxCalibrationError": 0.03825,
+      "calibration": [
+        {
+          "range": "0.0-0.1",
+          "n": 25,
+          "meanProbability": 0.07825,
+          "observedWinRate": 0.04
+        },
+        {
+          "range": "0.1-0.2",
+          "n": 478,
+          "meanProbability": 0.165,
+          "observedWinRate": 0.1318
+        },
+        {
+          "range": "0.2-0.3",
+          "n": 1391,
+          "meanProbability": 0.25399,
+          "observedWinRate": 0.25377
+        },
+        {
+          "range": "0.3-0.4",
+          "n": 1961,
+          "meanProbability": 0.35269,
+          "observedWinRate": 0.37481
+        },
+        {
+          "range": "0.4-0.5",
+          "n": 2450,
+          "meanProbability": 0.45098,
+          "observedWinRate": 0.46531
+        },
+        {
+          "range": "0.5-0.6",
+          "n": 2464,
+          "meanProbability": 0.54781,
+          "observedWinRate": 0.54058
+        },
+        {
+          "range": "0.6-0.7",
+          "n": 2001,
+          "meanProbability": 0.64712,
+          "observedWinRate": 0.62919
+        },
+        {
+          "range": "0.7-0.8",
+          "n": 1440,
+          "meanProbability": 0.74509,
+          "observedWinRate": 0.77292
+        },
+        {
+          "range": "0.8-0.9",
+          "n": 511,
+          "meanProbability": 0.83576,
+          "observedWinRate": 0.84344
+        },
+        {
+          "range": "0.9-1.0",
+          "n": 30,
+          "meanProbability": 0.93158,
+          "observedWinRate": 0.9
+        }
+      ]
+    },
+    "rankProbabilityBaseline": {
+      "n": 12751,
+      "accuracy": 0.63336,
+      "brier": 0.22502,
+      "logLoss": 0.64321,
+      "maxCalibrationError": 0.08716,
+      "calibration": [
+        {
+          "range": "0.0-0.1",
+          "n": 257,
+          "meanProbability": 0.07333,
+          "observedWinRate": 0.1284
+        },
+        {
+          "range": "0.1-0.2",
+          "n": 984,
+          "meanProbability": 0.15573,
+          "observedWinRate": 0.24289
+        },
+        {
+          "range": "0.2-0.3",
+          "n": 1405,
+          "meanProbability": 0.25304,
+          "observedWinRate": 0.30819
+        },
+        {
+          "range": "0.3-0.4",
+          "n": 1722,
+          "meanProbability": 0.35233,
+          "observedWinRate": 0.42334
+        },
+        {
+          "range": "0.4-0.5",
+          "n": 1964,
+          "meanProbability": 0.44781,
+          "observedWinRate": 0.46894
+        },
+        {
+          "range": "0.5-0.6",
+          "n": 1935,
+          "meanProbability": 0.5508,
+          "observedWinRate": 0.53798
+        },
+        {
+          "range": "0.6-0.7",
+          "n": 1726,
+          "meanProbability": 0.64761,
+          "observedWinRate": 0.58691
+        },
+        {
+          "range": "0.7-0.8",
+          "n": 1460,
+          "meanProbability": 0.74548,
+          "observedWinRate": 0.70822
+        },
+        {
+          "range": "0.8-0.9",
+          "n": 1050,
+          "meanProbability": 0.84465,
+          "observedWinRate": 0.76095
+        },
+        {
+          "range": "0.9-1.0",
+          "n": 248,
+          "meanProbability": 0.92816,
+          "observedWinRate": 0.85484
+        }
+      ]
+    },
+    "improvement": {
+      "accuracy": 0.031769999999999965,
+      "brier": 0.049850000000000005,
+      "logLoss": 0.16203999999999996,
+      "calibration": 0.20696
+    }
+  },
+  "byTour": {
+    "atp": {
+      "v1": {
+        "n": 6676,
+        "accuracy": 0.60545,
+        "brier": 0.2687,
+        "logLoss": 0.78344,
+        "maxCalibrationError": 0.25023,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 837,
+            "meanProbability": 0.06008,
+            "observedWinRate": 0.25806
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 991,
+            "meanProbability": 0.14293,
+            "observedWinRate": 0.37134
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 575,
+            "meanProbability": 0.24497,
+            "observedWinRate": 0.44696
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 481,
+            "meanProbability": 0.3479,
+            "observedWinRate": 0.49272
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 486,
+            "meanProbability": 0.44835,
+            "observedWinRate": 0.50412
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 442,
+            "meanProbability": 0.54748,
+            "observedWinRate": 0.51357
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 479,
+            "meanProbability": 0.64968,
+            "observedWinRate": 0.56576
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 559,
+            "meanProbability": 0.74934,
+            "observedWinRate": 0.49911
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 920,
+            "meanProbability": 0.85505,
+            "observedWinRate": 0.60978
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 906,
+            "meanProbability": 0.93738,
+            "observedWinRate": 0.72517
+          }
+        ]
+      },
+      "v11": {
+        "n": 6676,
+        "accuracy": 0.64395,
+        "brier": 0.21873,
+        "logLoss": 0.62639,
+        "maxCalibrationError": 0.07818,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 15,
+            "meanProbability": 0.07818,
+            "observedWinRate": 0
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 248,
+            "meanProbability": 0.1625,
+            "observedWinRate": 0.13306
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 745,
+            "meanProbability": 0.25414,
+            "observedWinRate": 0.24027
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 994,
+            "meanProbability": 0.35281,
+            "observedWinRate": 0.36016
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 1311,
+            "meanProbability": 0.45135,
+            "observedWinRate": 0.45461
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 1337,
+            "meanProbability": 0.54716,
+            "observedWinRate": 0.54749
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 1054,
+            "meanProbability": 0.64596,
+            "observedWinRate": 0.62619
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 715,
+            "meanProbability": 0.74524,
+            "observedWinRate": 0.76084
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 243,
+            "meanProbability": 0.83689,
+            "observedWinRate": 0.83539
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 14,
+            "meanProbability": 0.93954,
+            "observedWinRate": 0.92857
+          }
+        ]
+      }
+    },
+    "wta": {
+      "v1": {
+        "n": 6075,
+        "accuracy": 0.61366,
+        "brier": 0.26838,
+        "logLoss": 0.79391,
+        "maxCalibrationError": 0.24514,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 857,
+            "meanProbability": 0.06159,
+            "observedWinRate": 0.29988
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 859,
+            "meanProbability": 0.1411,
+            "observedWinRate": 0.37253
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 476,
+            "meanProbability": 0.24379,
+            "observedWinRate": 0.44328
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 398,
+            "meanProbability": 0.34621,
+            "observedWinRate": 0.48744
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 374,
+            "meanProbability": 0.45027,
+            "observedWinRate": 0.54545
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 389,
+            "meanProbability": 0.5447,
+            "observedWinRate": 0.52956
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 389,
+            "meanProbability": 0.6484,
+            "observedWinRate": 0.58098
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 482,
+            "meanProbability": 0.7527,
+            "observedWinRate": 0.53112
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 841,
+            "meanProbability": 0.85513,
+            "observedWinRate": 0.60999
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 1010,
+            "meanProbability": 0.9375,
+            "observedWinRate": 0.74158
+          }
+        ]
+      },
+      "v11": {
+        "n": 6075,
+        "accuracy": 0.63802,
+        "brier": 0.21866,
+        "logLoss": 0.6264,
+        "maxCalibrationError": 0.04961,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 10,
+            "meanProbability": 0.07836,
+            "observedWinRate": 0.1
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 230,
+            "meanProbability": 0.1677,
+            "observedWinRate": 0.13043
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 646,
+            "meanProbability": 0.25382,
+            "observedWinRate": 0.26935
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 967,
+            "meanProbability": 0.35255,
+            "observedWinRate": 0.38987
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 1139,
+            "meanProbability": 0.45054,
+            "observedWinRate": 0.47761
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 1127,
+            "meanProbability": 0.54858,
+            "observedWinRate": 0.53239
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 947,
+            "meanProbability": 0.64841,
+            "observedWinRate": 0.63252
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 725,
+            "meanProbability": 0.74493,
+            "observedWinRate": 0.78483
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 268,
+            "meanProbability": 0.83474,
+            "observedWinRate": 0.85075
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 16,
+            "meanProbability": 0.92461,
+            "observedWinRate": 0.875
+          }
+        ]
+      }
+    }
+  },
+  "bySurface": {
+    "hard": {
+      "v1": {
+        "n": 7672,
+        "accuracy": 0.6104,
+        "brier": 0.27622,
+        "logLoss": 0.81575,
+        "maxCalibrationError": 0.26945,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 1158,
+            "meanProbability": 0.0613,
+            "observedWinRate": 0.2867
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 1265,
+            "meanProbability": 0.1398,
+            "observedWinRate": 0.37787
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 588,
+            "meanProbability": 0.24314,
+            "observedWinRate": 0.46429
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 421,
+            "meanProbability": 0.34649,
+            "observedWinRate": 0.48456
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 411,
+            "meanProbability": 0.44786,
+            "observedWinRate": 0.51582
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 362,
+            "meanProbability": 0.54683,
+            "observedWinRate": 0.50552
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 412,
+            "meanProbability": 0.64983,
+            "observedWinRate": 0.57767
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 554,
+            "meanProbability": 0.75227,
+            "observedWinRate": 0.48375
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 1193,
+            "meanProbability": 0.85704,
+            "observedWinRate": 0.58759
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 1308,
+            "meanProbability": 0.93628,
+            "observedWinRate": 0.72554
+          }
+        ]
+      },
+      "v11": {
+        "n": 7672,
+        "accuracy": 0.6396,
+        "brier": 0.21917,
+        "logLoss": 0.62752,
+        "maxCalibrationError": 0.11371,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 20,
+            "meanProbability": 0.0817,
+            "observedWinRate": 0.05
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 307,
+            "meanProbability": 0.16577,
+            "observedWinRate": 0.12378
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 905,
+            "meanProbability": 0.25335,
+            "observedWinRate": 0.25525
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 1172,
+            "meanProbability": 0.35158,
+            "observedWinRate": 0.37372
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 1395,
+            "meanProbability": 0.45037,
+            "observedWinRate": 0.47097
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 1422,
+            "meanProbability": 0.54814,
+            "observedWinRate": 0.53446
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 1213,
+            "meanProbability": 0.64748,
+            "observedWinRate": 0.615
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 911,
+            "meanProbability": 0.7455,
+            "observedWinRate": 0.7629
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 311,
+            "meanProbability": 0.83562,
+            "observedWinRate": 0.8328
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 16,
+            "meanProbability": 0.92621,
+            "observedWinRate": 0.8125
+          }
+        ]
+      }
+    },
+    "clay": {
+      "v1": {
+        "n": 3944,
+        "accuracy": 0.60624,
+        "brier": 0.25999,
+        "logLoss": 0.75942,
+        "maxCalibrationError": 0.21278,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 460,
+            "meanProbability": 0.06023,
+            "observedWinRate": 0.27174
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 485,
+            "meanProbability": 0.14598,
+            "observedWinRate": 0.35876
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 357,
+            "meanProbability": 0.245,
+            "observedWinRate": 0.41737
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 327,
+            "meanProbability": 0.34919,
+            "observedWinRate": 0.50459
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 328,
+            "meanProbability": 0.45043,
+            "observedWinRate": 0.53963
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 339,
+            "meanProbability": 0.54421,
+            "observedWinRate": 0.52212
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 329,
+            "meanProbability": 0.649,
+            "observedWinRate": 0.54711
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 351,
+            "meanProbability": 0.74932,
+            "observedWinRate": 0.54986
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 457,
+            "meanProbability": 0.85139,
+            "observedWinRate": 0.65208
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 511,
+            "meanProbability": 0.93944,
+            "observedWinRate": 0.73581
+          }
+        ]
+      },
+      "v11": {
+        "n": 3944,
+        "accuracy": 0.64985,
+        "brier": 0.21671,
+        "logLoss": 0.62176,
+        "maxCalibrationError": 0.06585,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 2,
+            "meanProbability": 0.06045,
+            "observedWinRate": 0
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 144,
+            "meanProbability": 0.16391,
+            "observedWinRate": 0.125
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 379,
+            "meanProbability": 0.25555,
+            "observedWinRate": 0.2533
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 613,
+            "meanProbability": 0.35285,
+            "observedWinRate": 0.36378
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 831,
+            "meanProbability": 0.45191,
+            "observedWinRate": 0.44886
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 802,
+            "meanProbability": 0.54734,
+            "observedWinRate": 0.56608
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 607,
+            "meanProbability": 0.64679,
+            "observedWinRate": 0.63756
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 401,
+            "meanProbability": 0.74488,
+            "observedWinRate": 0.79052
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 152,
+            "meanProbability": 0.83591,
+            "observedWinRate": 0.875
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 13,
+            "meanProbability": 0.93415,
+            "observedWinRate": 1
+          }
+        ]
+      }
+    },
+    "grass": {
+      "v1": {
+        "n": 1135,
+        "accuracy": 0.61322,
+        "brier": 0.24645,
+        "logLoss": 0.70454,
+        "maxCalibrationError": 0.20796,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 76,
+            "meanProbability": 0.05768,
+            "observedWinRate": 0.21053
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 100,
+            "meanProbability": 0.15204,
+            "observedWinRate": 0.36
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 106,
+            "meanProbability": 0.24974,
+            "observedWinRate": 0.43396
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 131,
+            "meanProbability": 0.34409,
+            "observedWinRate": 0.47328
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 121,
+            "meanProbability": 0.45028,
+            "observedWinRate": 0.49587
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 130,
+            "meanProbability": 0.54951,
+            "observedWinRate": 0.56154
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 127,
+            "meanProbability": 0.64702,
+            "observedWinRate": 0.62205
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 136,
+            "meanProbability": 0.74932,
+            "observedWinRate": 0.54412
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 111,
+            "meanProbability": 0.84937,
+            "observedWinRate": 0.67568
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 97,
+            "meanProbability": 0.94252,
+            "observedWinRate": 0.83505
+          }
+        ]
+      },
+      "v11": {
+        "n": 1135,
+        "accuracy": 0.62115,
+        "brier": 0.22245,
+        "logLoss": 0.63482,
+        "maxCalibrationError": 0.09717,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 3,
+            "meanProbability": 0.06714,
+            "observedWinRate": 0
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 27,
+            "meanProbability": 0.16209,
+            "observedWinRate": 0.25926
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 107,
+            "meanProbability": 0.25387,
+            "observedWinRate": 0.24299
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 176,
+            "meanProbability": 0.35949,
+            "observedWinRate": 0.42045
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 224,
+            "meanProbability": 0.45132,
+            "observedWinRate": 0.49107
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 240,
+            "meanProbability": 0.54738,
+            "observedWinRate": 0.49167
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 181,
+            "meanProbability": 0.64579,
+            "observedWinRate": 0.69613
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 128,
+            "meanProbability": 0.7428,
+            "observedWinRate": 0.78906
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 48,
+            "meanProbability": 0.83618,
+            "observedWinRate": 0.8125
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 1,
+            "meanProbability": 0.98403,
+            "observedWinRate": 1
+          }
+        ]
+      }
+    }
+  },
+  "byYear": {
+    "2024": {
+      "v1": {
+        "n": 5217,
+        "accuracy": 0.60667,
+        "brier": 0.26619,
+        "logLoss": 0.77581,
+        "maxCalibrationError": 0.23951,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 662,
+            "meanProbability": 0.0613,
+            "observedWinRate": 0.26737
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 725,
+            "meanProbability": 0.14118,
+            "observedWinRate": 0.38069
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 438,
+            "meanProbability": 0.2456,
+            "observedWinRate": 0.44977
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 376,
+            "meanProbability": 0.34823,
+            "observedWinRate": 0.51596
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 357,
+            "meanProbability": 0.44973,
+            "observedWinRate": 0.55182
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 361,
+            "meanProbability": 0.5471,
+            "observedWinRate": 0.51801
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 379,
+            "meanProbability": 0.64891,
+            "observedWinRate": 0.59367
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 464,
+            "meanProbability": 0.75005,
+            "observedWinRate": 0.52802
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 722,
+            "meanProbability": 0.85587,
+            "observedWinRate": 0.61773
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 733,
+            "meanProbability": 0.93739,
+            "observedWinRate": 0.74352
+          }
+        ]
+      },
+      "v11": {
+        "n": 5217,
+        "accuracy": 0.63964,
+        "brier": 0.21842,
+        "logLoss": 0.62533,
+        "maxCalibrationError": 0.08594,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 14,
+            "meanProbability": 0.08594,
+            "observedWinRate": 0
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 176,
+            "meanProbability": 0.16431,
+            "observedWinRate": 0.11932
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 549,
+            "meanProbability": 0.25391,
+            "observedWinRate": 0.24226
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 809,
+            "meanProbability": 0.35304,
+            "observedWinRate": 0.39926
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 996,
+            "meanProbability": 0.45121,
+            "observedWinRate": 0.47289
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 1060,
+            "meanProbability": 0.54713,
+            "observedWinRate": 0.54717
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 837,
+            "meanProbability": 0.64617,
+            "observedWinRate": 0.64277
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 573,
+            "meanProbability": 0.74501,
+            "observedWinRate": 0.78534
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 190,
+            "meanProbability": 0.8344,
+            "observedWinRate": 0.84737
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 13,
+            "meanProbability": 0.93224,
+            "observedWinRate": 0.92308
+          }
+        ]
+      }
+    },
+    "2025": {
+      "v1": {
+        "n": 5031,
+        "accuracy": 0.60863,
+        "brier": 0.27242,
+        "logLoss": 0.80362,
+        "maxCalibrationError": 0.25959,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 672,
+            "meanProbability": 0.06019,
+            "observedWinRate": 0.28274
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 745,
+            "meanProbability": 0.14368,
+            "observedWinRate": 0.37718
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 414,
+            "meanProbability": 0.2439,
+            "observedWinRate": 0.44444
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 346,
+            "meanProbability": 0.34625,
+            "observedWinRate": 0.46821
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 353,
+            "meanProbability": 0.4489,
+            "observedWinRate": 0.50425
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 317,
+            "meanProbability": 0.54618,
+            "observedWinRate": 0.53312
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 336,
+            "meanProbability": 0.64895,
+            "observedWinRate": 0.5744
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 364,
+            "meanProbability": 0.75119,
+            "observedWinRate": 0.50275
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 703,
+            "meanProbability": 0.85418,
+            "observedWinRate": 0.59459
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 781,
+            "meanProbability": 0.93698,
+            "observedWinRate": 0.72215
+          }
+        ]
+      },
+      "v11": {
+        "n": 5031,
+        "accuracy": 0.64122,
+        "brier": 0.22071,
+        "logLoss": 0.63155,
+        "maxCalibrationError": 0.10628,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 8,
+            "meanProbability": 0.07201,
+            "observedWinRate": 0.125
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 200,
+            "meanProbability": 0.16459,
+            "observedWinRate": 0.14
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 552,
+            "meanProbability": 0.25383,
+            "observedWinRate": 0.26087
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 774,
+            "meanProbability": 0.35378,
+            "observedWinRate": 0.35917
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 972,
+            "meanProbability": 0.45097,
+            "observedWinRate": 0.46296
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 945,
+            "meanProbability": 0.54867,
+            "observedWinRate": 0.55344
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 781,
+            "meanProbability": 0.64787,
+            "observedWinRate": 0.61844
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 576,
+            "meanProbability": 0.74448,
+            "observedWinRate": 0.75
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 212,
+            "meanProbability": 0.83787,
+            "observedWinRate": 0.82075
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 11,
+            "meanProbability": 0.92446,
+            "observedWinRate": 0.81818
+          }
+        ]
+      }
+    },
+    "2026": {
+      "v1": {
+        "n": 2503,
+        "accuracy": 0.61646,
+        "brier": 0.2657,
+        "logLoss": 0.78419,
+        "maxCalibrationError": 0.24988,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 360,
+            "meanProbability": 0.06122,
+            "observedWinRate": 0.29444
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 380,
+            "meanProbability": 0.14066,
+            "observedWinRate": 0.34474
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 199,
+            "meanProbability": 0.24299,
+            "observedWinRate": 0.43719
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 157,
+            "meanProbability": 0.34645,
+            "observedWinRate": 0.47771
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 150,
+            "meanProbability": 0.44856,
+            "observedWinRate": 0.49333
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 153,
+            "meanProbability": 0.544,
+            "observedWinRate": 0.50327
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 153,
+            "meanProbability": 0.64993,
+            "observedWinRate": 0.51634
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 213,
+            "meanProbability": 0.75223,
+            "observedWinRate": 0.50235
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 336,
+            "meanProbability": 0.85532,
+            "observedWinRate": 0.625
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 402,
+            "meanProbability": 0.93844,
+            "observedWinRate": 0.73881
+          }
+        ]
+      },
+      "v11": {
+        "n": 2503,
+        "accuracy": 0.64403,
+        "brier": 0.21525,
+        "logLoss": 0.61824,
+        "maxCalibrationError": 0.05901,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 3,
+            "meanProbability": 0.05901,
+            "observedWinRate": 0
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 102,
+            "meanProbability": 0.16703,
+            "observedWinRate": 0.13725
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 290,
+            "meanProbability": 0.25444,
+            "observedWinRate": 0.26207
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 378,
+            "meanProbability": 0.34969,
+            "observedWinRate": 0.3545
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 482,
+            "meanProbability": 0.45052,
+            "observedWinRate": 0.45436
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 459,
+            "meanProbability": 0.54759,
+            "observedWinRate": 0.49891
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 383,
+            "meanProbability": 0.64766,
+            "observedWinRate": 0.62141
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 291,
+            "meanProbability": 0.74643,
+            "observedWinRate": 0.79381
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 109,
+            "meanProbability": 0.83403,
+            "observedWinRate": 0.88073
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 6,
+            "meanProbability": 0.94318,
+            "observedWinRate": 1
+          }
+        ]
+      }
+    }
+  },
+  "verdict": {
+    "status": "CHALLENGER_PASS",
+    "predictivePromotion": true,
+    "wagerPromotion": false,
+    "requirements": {
+      "minimumHoldoutN": 5000,
+      "maxBrier": 0.25,
+      "improveBrierVsV1": true,
+      "improveLogLossVsV1": true,
+      "accuracyNotWorseThanV1": true,
+      "maxCalibrationError": 0.08
+    },
+    "reasons": [
+      "historical_market_roi_clv_not_validated",
+      "research_source_not_a_production_dependency"
+    ]
+  }
+}
