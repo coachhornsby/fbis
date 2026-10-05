@@ -1784,8 +1784,23 @@ export async function buildSlate(sport, date, env = {}) {
   let cfb = { meta: { enabled: false } };
   let cbbd = { meta: { configured: false } };
   if (id === "mlb") {
-    savant = await fetchSavantSlate(games, env.caches);
-    games = savant.games || games;
+    // Production MLB projections hydrate expensive baseball state from D1 in
+    // slateEngine.js. Avoid a second live MLB Stats/Savant fanout here.
+    if (env?.DB?.prepare) {
+      savant = {
+        meta: {
+          enabled: true,
+          source: "D1_PERSISTENT_MLB_STATE",
+          deferredToPersistentLayer: true,
+          liveFanout: false,
+        },
+      };
+    } else {
+      savant = await fetchSavantSlate(games, env.caches);
+      games = savant.games || games;
+    }
+    // Pal remains a single bounded lineup/identity/context lookup. Production
+    // can force cache-only with palCacheOnly without affecting persistent data.
     pal = await fetchBallparkPal(day, env.BALLPARK_PAL_API_KEY, env.caches, { cacheOnly: Boolean(env.palCacheOnly) });
     games = mergeBallparkPal(games, pal);
   }
