@@ -264,3 +264,48 @@
 .fbis-shell-main.route-board .db-grid {
   background-color: #020408 !important;
 }
+
+/* Full-height Best Edge rail + true midnight board canvas. */
+.fbis-shell-main.route-board,
+.fbis-shell-main.route-board .fbis-shell-content,
+.fbis-shell-main.route-board .decision-board,
+.fbis-shell-main.route-board .decision-board-well,
+.fbis-shell-main.route-board .db-grid {
+  background: #000 !important;
+  background-color: #000 !important;
+}
+.fbis-shell-main.route-board .cgc {
+  --cgc-edge-rail: 142px;
+  --cgc-main-gap: 14px;
+}
+.fbis-shell-main.route-board .cgc-main {
+  grid-template-columns: minmax(0,1fr) var(--cgc-edge-rail) !important;
+  grid-template-rows: 1fr auto !important;
+  gap: 10px var(--cgc-main-gap) !important;
+  align-items: stretch !important;
+}
+.fbis-shell-main.route-board .cgc-matchup {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+}
+.fbis-shell-main.route-board .cgc-best-edge {
+  grid-column: 2 !important;
+  grid-row: 1 / 3 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+  justify-self: stretch !important;
+  padding: 16px 12px !important;
+  border: 3px solid #00f0a0 !important;
+  border-radius: 15px !important;
+  background: linear-gradient(180deg, rgba(0,116,81,.34), rgba(2,24,31,.90)) !important;
+  box-shadow: 0 0 0 1px rgba(0,240,160,.18), 0 0 22px rgba(0,240,160,.20), inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+.fbis-shell-main.route-board .cgc-conditions {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
