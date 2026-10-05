@@ -1,7 +1,7 @@
-import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
+import { authorizeSoccerWorker, unauthorizedBody } from "../lib/soccerWorkerAuth.js";
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
 export async function onRequestPost(context){
-  const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(auth.reason),401);
+  const auth=authorizeSoccerWorker(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(auth.reason),401);
   const db=context.env?.DB;if(!db?.prepare)return json({ok:false,error:"d1-unbound"},503);
   const now=new Date(),nowIso=now.toISOString(),leaseUntil=new Date(now.getTime()+5*60*1000).toISOString();
   const candidate=await db.prepare(`SELECT * FROM soccer_pitchapi_backfill_queue
