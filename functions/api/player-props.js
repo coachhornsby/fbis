@@ -280,7 +280,7 @@ export async function onRequestGet(context) {
            FROM action_market_book_observations
           WHERE canonical_event_id IN (${placeholders})
             AND (canonical_player_id IS NOT NULL OR provider_player_id IS NOT NULL)
-            AND LOWER(sport) IN ('mlb','nfl','nba','wnba','nhl')
+            AND LOWER(sport) IN ('mlb','nfl','nba','wnba','nhl','tennis')
             AND COALESCE(decision_eligible, 0) = 0
             AND COALESCE(can_qualify, 0) = 0
             AND COALESCE(can_authorize_wager, 0) = 0
