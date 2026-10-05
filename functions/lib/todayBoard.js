@@ -221,6 +221,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     nflProShadow: sport === "nfl" && game.nflProShadow ? game.nflProShadow : null,
     nflGameMatchup: sport === "nfl" && game.nflGameMatchup ? game.nflGameMatchup : null,
     nflWagerDecision: sport === "nfl" && game.nflWagerDecision ? game.nflWagerDecision : null,
+    tennisProjection: sport === "tennis" ? (game.tennisProjection || null) : null,
+    tour: sport === "tennis" ? (game.tour || game.tennisProjection?.tour || null) : null,
     palMatched: Boolean(game.bpp),
     palHome: game.bpp?.homeRuns ?? game.model?.palHome ?? null,
     palAway: game.bpp?.awayRuns ?? game.model?.palAway ?? null,
@@ -598,13 +600,22 @@ export async function buildTodayBoard(
       const selectedDateGames = (slate.games || []).filter(
         (g) => boardDateCtForStart(g?.start) === date
       );
-      const recSlate = withRecs({
-        ...slate,
-        games: selectedDateGames.map((g) => ({
-          ...hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id))),
-          marketLineHistory: byMarketHistory.get(String(g.id)) || [],
-        })),
-      }, DEFAULT_WEIGHTS);
+      const hydratedGames = selectedDateGames.map((g) => ({
+        ...hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id))),
+        marketLineHistory: byMarketHistory.get(String(g.id)) || [],
+      }));
+      const recSlate = sport === "tennis"
+        ? {
+            ...slate,
+            games: hydratedGames.map((g) => ({
+              ...g,
+              rec: null,
+              lean: null,
+              qualificationBlocked: true,
+              qualificationBlockReason: "TENNIS_V2_RESEARCH_ONLY",
+            })),
+          }
+        : withRecs({ ...slate, games: hydratedGames }, DEFAULT_WEIGHTS);
       const palReason = sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null;
 
       // ACTION must hydrate onto slate games BEFORE resolveCanonicalMarket / toBoardGame.
