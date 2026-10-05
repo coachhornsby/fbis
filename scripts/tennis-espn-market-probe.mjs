@@ -17,4 +17,12 @@ for(const ev of j.events||[]){
   }
   if(out.length>=12)break;
 }
-console.log(JSON.stringify({league,date,eventCount:(j.events||[]).length,eventKeys:firstEvent?Object.keys(firstEvent):[],firstEvent:firstEvent?JSON.parse(JSON.stringify(firstEvent).slice(0,20000)):null,sample:out},null,2));
+const shape={};
+if(firstEvent){
+  for(const [k,v] of Object.entries(firstEvent)){
+    shape[k]=Array.isArray(v)?{type:"array",length:v.length,firstKeys:v[0]&&typeof v[0]==="object"?Object.keys(v[0]):null}
+      :v&&typeof v==="object"?{type:"object",keys:Object.keys(v)}
+      :{type:typeof v,value:String(v).slice(0,200)};
+  }
+}
+console.log(JSON.stringify({league,date,eventCount:(j.events||[]).length,eventKeys:firstEvent?Object.keys(firstEvent):[],shape,sample:out},null,2));
