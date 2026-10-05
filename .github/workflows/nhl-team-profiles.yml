@@ -50,6 +50,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
+      - name: Syntax check profile collector
+        run: |
+          node --check scripts/nhl-team-profile-source.mjs
+          node --check functions/lib/nhlPersistentProfile.js
       - name: Collect four NHL teams
         run: |
           mkdir -p artifacts
@@ -70,6 +74,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22", cache: "npm" }
       - run: npm ci
+      - name: Syntax check profile build
+        run: |
+          node --check scripts/nhl-team-profile-source-merge.mjs
+          node --check scripts/nhl-team-profile-build.mjs
+          node --check functions/api/nhl-profiles.js
       - run: node --test test/nhl-persistent-profile.test.js test/nhl-player-pro-v2.test.js test/nhl-pro-v2.test.js
 
       - uses: actions/download-artifact@v4
