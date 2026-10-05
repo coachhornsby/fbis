@@ -93,6 +93,9 @@ export async function onRequestPost(context){
   if(!["tennis","soccer"].includes(sport))return json({ok:false,error:"sport must be tennis or soccer"},400);
   const date=String(body.date||new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()));
   const limit=Math.max(1,Math.min(sport==="soccer"?20:30,Number(body.limit)||20));
+  if(body.resetUnavailable===true){
+    await context.env.DB.prepare("UPDATE prizepicks_prop_lines SET model_source=NULL WHERE lower(sport)=? AND substr(start_time,1,10)=? AND fbis_projection IS NULL AND model_source LIKE 'ENRICH_UNAVAILABLE:%'").bind(sport,date).run();
+  }
   const rows=await currentRows(context.env.DB,sport,date,limit);
   let projected=0,updated=0;const failures={};
   for(const row of rows){
