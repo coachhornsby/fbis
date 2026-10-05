@@ -172,6 +172,20 @@ CREATE TABLE IF NOT EXISTS nhl_team_schedule_items (
 CREATE INDEX IF NOT EXISTS idx_nhl_schedule_team_time ON nhl_team_schedule_items(team_key,start_time);
 CREATE INDEX IF NOT EXISTS idx_nhl_schedule_game ON nhl_team_schedule_items(game_id);
 
+CREATE TABLE IF NOT EXISTS nhl_team_coach_history (
+  id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  coach_id TEXT,
+  coach_name TEXT NOT NULL,
+  role TEXT,
+  observed_at TEXT NOT NULL,
+  source TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_coach_team_time
+  ON nhl_team_coach_history(team_key,observed_at DESC);
+
 CREATE TABLE IF NOT EXISTS nhl_profile_runs (
   id TEXT PRIMARY KEY,
   run_at TEXT NOT NULL,
