@@ -11,6 +11,7 @@ import { palUnavailableReason } from "./ballparkpal.js";
 import { canonicalConfidenceStars } from "./projectionConfidence.js";
 import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
 import { querySnapshots, queryOddsSnapshots } from "./store.js";
+import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
 import {
   resolveCanonicalMarket,
   marketAvailabilitySummary,
@@ -118,6 +119,9 @@ export function toBoardGame(game, sport, now = Date.now()) {
       abbr: game.away?.abbr,
       logo: game.away?.logo,
       canonicalId: game.away?.canonicalId,
+      rank: game.away?.rank ?? null,
+      rankingPoints: game.away?.rankingPoints ?? game.away?.points ?? null,
+      imageSource: game.away?.imageSource || null,
       color: game.away?.color || null,
       altColor: game.away?.altColor || game.away?.alternateColor || null,
       score: game.away?.score ?? null,
@@ -129,6 +133,9 @@ export function toBoardGame(game, sport, now = Date.now()) {
       abbr: game.home?.abbr,
       logo: game.home?.logo,
       canonicalId: game.home?.canonicalId,
+      rank: game.home?.rank ?? null,
+      rankingPoints: game.home?.rankingPoints ?? game.home?.points ?? null,
+      imageSource: game.home?.imageSource || null,
       color: game.home?.color || null,
       altColor: game.home?.altColor || game.home?.alternateColor || null,
       score: game.home?.score ?? null,
@@ -422,36 +429,85 @@ function tennisPlayerAbbr(name = "") {
   return last.slice(0, 12).toUpperCase();
 }
 
+function tennisNameKey(name = "") {
+  return String(name || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function tennisRankProfile(name, rankings) {
+  return rankings?.byName?.get(tennisNameKey(name)) || null;
+}
+
 export async function buildTennisResearchSlate(date, env = {}) {
   if (!env.DB?.prepare) {
     return { sport: "tennis", date, games: [], research: { configured: false, error: "database unavailable" } };
   }
-  const query = await env.DB.prepare(`
-    WITH ranked AS (
-      SELECT *,
-             ROW_NUMBER() OVER (
-               PARTITION BY canonical_event_id
-               ORDER BY decision_timestamp DESC, created_at DESC
-             ) AS rn
-      FROM tennis_v2_research_decisions
-      WHERE event_start_time IS NOT NULL
-        AND event_start_time >= datetime(?, '-1 day')
-        AND event_start_time < datetime(?, '+2 day')
-    )
-    SELECT canonical_event_id,tour,player1,player2,pure_model_id,pure_p1,
-           market_prior_p1,market_v2_p1,model_edge,market_json,
-           decision_timestamp,event_start_time,snapshot_type
-    FROM ranked
-    WHERE rn=1
-    ORDER BY event_start_time, decision_timestamp DESC
-  `).bind(date, date).all();
+  const [query, rankings] = await Promise.all([
+    env.DB.prepare(`
+      WITH ranked AS (
+        SELECT *,
+               ROW_NUMBER() OVER (
+                 PARTITION BY canonical_event_id
+                 ORDER BY decision_timestamp DESC, created_at DESC
+               ) AS rn
+        FROM tennis_v2_research_decisions
+        WHERE event_start_time IS NOT NULL
+          AND event_start_time >= datetime(?, '-1 day')
+          AND event_start_time < datetime(?, '+2 day')
+      ),
+      latest_market AS (
+        SELECT *,
+               ROW_NUMBER() OVER (
+                 PARTITION BY canonical_event_id
+                 ORDER BY observed_at DESC, collected_at DESC, created_at DESC
+               ) AS rn
+        FROM tennis_market_snapshots
+      ),
+      latest_context AS (
+        SELECT *,
+               ROW_NUMBER() OVER (
+                 PARTITION BY canonical_event_id
+                 ORDER BY feature_cutoff_timestamp DESC, collected_at DESC, created_at DESC
+               ) AS rn
+        FROM tennis_context_snapshots
+      )
+      SELECT d.canonical_event_id,d.tour,d.player1,d.player2,d.pure_model_id,d.pure_p1,
+             d.market_prior_p1,d.market_v2_p1,d.model_edge,d.market_json,d.action_json,
+             d.decision_timestamp,d.event_start_time,d.snapshot_type,
+             m.provider AS market_provider,m.sportsbook,m.player1_price,m.player2_price,
+             m.player1_no_vig_prob,m.player2_no_vig_prob,m.public_ticket_pct,m.public_money_pct,
+             m.money_minus_ticket_pct,m.observed_at AS market_observed_at,m.collected_at AS market_collected_at,
+             c.tournament,c.surface,c.indoor,c.court_speed_index
+      FROM ranked d
+      LEFT JOIN latest_market m ON m.canonical_event_id=d.canonical_event_id AND m.rn=1
+      LEFT JOIN latest_context c ON c.canonical_event_id=d.canonical_event_id AND c.rn=1
+      WHERE d.rn=1
+      ORDER BY d.event_start_time, d.decision_timestamp DESC
+    `).bind(date, date).all(),
+    fetchEspnTennisRankings(env.fetchImpl || fetch),
+  ]);
   const rows = (query?.results || []).filter((row) => boardDateCtForStart(row.event_start_time) === date);
   const games = rows.map((row) => {
     const p1 = Number(row.pure_p1);
     const p1Prob = Number.isFinite(p1) ? p1 : null;
     const p2Prob = p1Prob == null ? null : 1 - p1Prob;
     const marketJson = safeJson(row.market_json) || {};
+    const actionJson = safeJson(row.action_json) || {};
     const quote = Array.isArray(marketJson.quotes) ? marketJson.quotes[0] || {} : {};
+    const p1Rank = tennisRankProfile(row.player1, rankings);
+    const p2Rank = tennisRankProfile(row.player2, rankings);
+    const p1Price = row.player1_price == null ? (quote?.p1Price == null ? null : Number(quote.p1Price)) : Number(row.player1_price);
+    const p2Price = row.player2_price == null ? (quote?.p2Price == null ? null : Number(quote.p2Price)) : Number(row.player2_price);
+    const marketP1 = row.player1_no_vig_prob == null
+      ? (row.market_prior_p1 == null ? null : Number(row.market_prior_p1))
+      : Number(row.player1_no_vig_prob);
+    const marketP2 = row.player2_no_vig_prob == null
+      ? (marketP1 == null ? null : 1 - marketP1)
+      : Number(row.player2_no_vig_prob);
     return {
       id: String(row.canonical_event_id),
       sport: "tennis",
@@ -463,11 +519,21 @@ export async function buildTennisResearchSlate(date, env = {}) {
         name: row.player2,
         fullName: row.player2,
         abbr: tennisPlayerAbbr(row.player2),
+        logo: p2Rank?.headshot || null,
+        canonicalId: p2Rank?.espnId || tennisNameKey(row.player2),
+        rank: p2Rank?.rank ?? null,
+        rankingPoints: p2Rank?.points ?? null,
+        imageSource: p2Rank?.headshot ? "ESPN_TENNIS_RANKINGS" : null,
       },
       home: {
         name: row.player1,
         fullName: row.player1,
         abbr: tennisPlayerAbbr(row.player1),
+        logo: p1Rank?.headshot || null,
+        canonicalId: p1Rank?.espnId || tennisNameKey(row.player1),
+        rank: p1Rank?.rank ?? null,
+        rankingPoints: p1Rank?.points ?? null,
+        imageSource: p1Rank?.headshot ? "ESPN_TENNIS_RANKINGS" : null,
       },
       model: {
         id: row.pure_model_id || "TENNIS-FBIS-v2-CONTEXT",
@@ -492,28 +558,60 @@ export async function buildTennisResearchSlate(date, env = {}) {
         player2: row.player2,
         player1WinProb: p1Prob,
         player2WinProb: p2Prob,
-        marketPriorP1: row.market_prior_p1 == null ? null : Number(row.market_prior_p1),
+        marketPriorP1: marketP1,
+        marketPriorP2: marketP2,
         marketAdjustedP1: row.market_v2_p1 == null ? null : Number(row.market_v2_p1),
         modelEdge: row.model_edge == null ? null : Number(row.model_edge),
         decisionTimestamp: row.decision_timestamp,
         snapshotType: row.snapshot_type || "DECISION",
         tour: String(row.tour || "").toUpperCase(),
+        tournament: row.tournament || null,
+        surface: row.surface || null,
+        indoor: row.indoor == null ? null : Boolean(Number(row.indoor)),
+        courtSpeedIndex: row.court_speed_index == null ? null : Number(row.court_speed_index),
+        marketProvider: row.market_provider || marketJson.source || quote?.book || null,
+        sportsbook: row.sportsbook || quote?.book || null,
+        marketObservedAt: row.market_observed_at || null,
+        player1Rank: p1Rank?.rank ?? null,
+        player2Rank: p2Rank?.rank ?? null,
+        player1RankingPoints: p1Rank?.points ?? null,
+        player2RankingPoints: p2Rank?.points ?? null,
       },
       market: {
         marketAvailable: false,
         executionActionable: false,
         operatorExecutionBooks: [],
         reference: {
-          available: quote?.p1Price != null || quote?.p2Price != null,
-          provider: "ACTION CONSENSUS · RESEARCH",
+          available: p1Price != null || p2Price != null || marketP1 != null,
+          provider: row.market_provider || row.sportsbook || marketJson.source || quote?.book || "TENNIS MARKET · RESEARCH",
           spread: null,
           total: null,
           moneyline: {
-            home: quote?.p1Price == null ? null : Number(quote.p1Price),
-            away: quote?.p2Price == null ? null : Number(quote.p2Price),
+            home: p1Price,
+            away: p2Price,
           },
+          noVig: {
+            home: marketP1,
+            away: marketP2,
+          },
+          observedAt: row.market_observed_at || row.market_collected_at || null,
         },
       },
+      actionIntel: (row.public_ticket_pct != null || row.public_money_pct != null || row.money_minus_ticket_pct != null || Object.keys(actionJson).length)
+        ? {
+            provider: row.market_provider || "ACTION",
+            role: "market_intelligence",
+            collectedAt: row.market_collected_at || row.market_observed_at || row.decision_timestamp,
+            publicSplits: {
+              ticketPct: row.public_ticket_pct == null ? null : Number(row.public_ticket_pct),
+              moneyPct: row.public_money_pct == null ? null : Number(row.public_money_pct),
+              moneyTicketGap: row.money_minus_ticket_pct == null ? null : Number(row.money_minus_ticket_pct),
+              markets: actionJson?.publicSplits?.markets || [],
+            },
+            trackedBetCount: actionJson?.trackedBetCount ?? null,
+            trackedVolume: actionJson?.trackedVolume ?? null,
+          }
+        : null,
       quality: {
         score: null,
         state: "RESEARCH",
