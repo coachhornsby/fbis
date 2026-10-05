@@ -71,3 +71,14 @@ test("replacement map prefers active same-position rotation players",()=>{
   assert.equal(r[0].playerId,"b");
   assert.ok(r[0].score>r.find(x=>x.playerId==="c").score);
 });
+
+
+test("stale game appearance does not certify current availability",()=>{
+  const s=resolvePersistentPlayerState({
+    player:{id:"23",name:"LeBron James"},
+    gameAppearances:[{date:"2026-04-10T02:00:00Z",minutes:34}],
+    asOf:"2026-10-05T12:00:00Z"
+  });
+  assert.equal(s.status,"UNKNOWN");
+  assert.equal(s.source,"ROSTER_UNVERIFIED");
+});
