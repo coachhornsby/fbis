@@ -29,9 +29,9 @@ for(const team of source.teams||[]){
     players.push(p);
     for(const r of p.replacements)replacements.push({playerId:p.id,replacementPlayerId:r.playerId,teamKey:team.teamKey,sampleN:0,toiShare:null,ppShare:null,shotShare:null,pointShare:null,evidenceSource:"ROLE_SIMILARITY_SEED",score:r.score});
     if(p.status==="CONFIRMED_SCRATCH"||p.carriedForward){
-      events.push({id:"nhl-state:"+hash([p.id,p.stateSourceTimestamp,p.status].join("|")).slice(0,32),...p,eventType:p.status==="CONFIRMED_SCRATCH"?"SCRATCH":"STATE_CARRY",gameId:team.lastGame?.gameId||null,evidenceRank:p.status==="CONFIRMED_SCRATCH"?100:60});
+      events.push({eventId:"nhl-state:"+hash([p.id,p.stateSourceTimestamp,p.status].join("|")).slice(0,32),playerId:p.id,...p,eventType:p.status==="CONFIRMED_SCRATCH"?"SCRATCH":"STATE_CARRY",gameId:team.lastGame?.gameId||null,evidenceRank:p.status==="CONFIRMED_SCRATCH"?100:60});
     }
-    deployments.push({id:"nhl-deploy:"+hash([team.lastGame?.gameId||asOf,p.id].join("|")).slice(0,32),gameId:team.lastGame?.gameId||"current",...p,scratched:p.status==="CONFIRMED_SCRATCH"});
+    deployments.push({observationId:"nhl-deploy:"+hash([team.lastGame?.gameId||asOf,p.id].join("|")).slice(0,32),playerId:p.id,gameId:team.lastGame?.gameId||"current",...p,scratched:p.status==="CONFIRMED_SCRATCH"});
   }
   for(const e of team.deployment?.edges||[])edges.push({id:"nhl-edge:"+hash([team.lastGame?.gameId,e.playerId,e.linemateId].join("|")).slice(0,32),gameId:team.lastGame?.gameId||"current",observedAt:team.lastGame?.startTime||asOf,...e});
   const goalieRows=teamPlayers.filter(x=>x.position==="G").sort((a,b)=>(team.statsById?.[b.id]?.starts||0)-(team.statsById?.[a.id]?.starts||0));
