@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          node scripts/mlb-persistent-profile-source.mjs             shardIndex=${{ matrix.shard }} shardCount=6 concurrency=1             out=artifacts/mlb-profile-${{ matrix.shard }}.json             sql=artifacts/mlb-profile-${{ matrix.shard }}.sql
+          node scripts/mlb-persistent-profile-source.mjs             shardIndex=${{ matrix.shard }} shardCount=6 concurrency=1             out=artifacts/mlb-profile-${{ matrix.shard }}.json             sql=artifacts/mlb-profile-${{ matrix.shard }}*.sql
           jq -e '.quality.teams >= 4 and .quality.errors <= 1' artifacts/mlb-profile-${{ matrix.shard }}.json >/dev/null
       - uses: actions/upload-artifact@v4
         with:
