@@ -92,8 +92,8 @@ function bundle(match,advanced,stats,shotsData,players,lineups,league,season){
     features:{
       homeXg:sumShots(shots,h.id,"expected_goals")??stat("expected_goals","home"),awayXg:sumShots(shots,a.id,"expected_goals")??stat("expected_goals","away"),
       homeXgot:sumShots(shots,h.id,"expected_goals_on_target"),awayXgot:sumShots(shots,a.id,"expected_goals_on_target"),
-      homeShots:countShots(shots,h.id),awayShots:countShots(shots,a.id),
-      homeSot:countShots(shots,h.id,s=>s.is_on_target===true),awaySot:countShots(shots,a.id,s=>s.is_on_target===true),
+      homeShots:shotsData?countShots(shots,h.id):null,awayShots:shotsData?countShots(shots,a.id):null,
+      homeSot:shotsData?countShots(shots,h.id,s=>s.is_on_target===true):null,awaySot:shotsData?countShots(shots,a.id,s=>s.is_on_target===true):null,
       homeBigChances:stat("big_chances","home"),awayBigChances:stat("big_chances","away"),
       homePpda:pick(ha,"defending.ppda"),awayPpda:pick(aa,"defending.ppda"),
       homeFieldTilt:pick(ha,"territory.field_tilt"),awayFieldTilt:pick(aa,"territory.field_tilt"),
