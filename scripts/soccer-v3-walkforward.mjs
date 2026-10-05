@@ -40,7 +40,7 @@ for(const league of leagues){
     const v3=projectSoccerV3(game,v2,rows);
     if(v2?.ok&&v3?.ok){
       const o=outcome(hs,as),p2=probs(v2),p3=probs(v3);
-      all.push({league,id:r.pitch_match_id,date:r.match_date,outcome:o,
+      all.push({league,id:r.pitch_match_id,date:r.match_date,homeTeam:r.home_team_name,awayTeam:r.away_team_name,outcome:o,
         v2Pick:argmax(p2),v3Pick:argmax(p3),
         v2Brier:brier(p2,o),v3Brier:brier(p3,o),
         v2LogLoss:-Math.log(Math.max(1e-12,p2[o])),v3LogLoss:-Math.log(Math.max(1e-12,p3[o])),
