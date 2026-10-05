@@ -47,7 +47,8 @@ jobs:
             jq -e '.ok == true' "/tmp/${sport}-plan.json" >/dev/null
             allowed="$(jq -r '.safety.allowed // false' "/tmp/${sport}-plan.json")"
             if [ "$allowed" = "true" ]; then
-              curl -fsS --max-time 180 -X POST                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -H "content-type: application/json"                 -d "{\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"CAPABILITY_AUDIT\",\"gameStatus\":\"scheduled\",\"maxItems\":3,\"fitBudgetUsd\":0.18}"                 "${BASE}/api/action-research-pull" | tee "/tmp/${sport}-run.json"
+              set +e
+              curl -sS --max-time 180 -X POST                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -H "content-type: application/json"                 -d "{\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"CAPABILITY_AUDIT\",\"gameStatus\":\"scheduled\",\"maxItems\":3,\"fitBudgetUsd\":0.18}"                 "${BASE}/api/action-research-pull" | tee "/tmp/${sport}-run.json"
               rc=$?
               set -e
               jq -c --arg sport "$sport" --argjson rc "$rc" '{sport:$sport,curlRc:$rc,run:.}' "/tmp/${sport}-run.json" >> artifacts/tennis-action-probe.jsonl || true
