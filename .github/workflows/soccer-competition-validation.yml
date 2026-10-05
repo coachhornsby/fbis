@@ -1,0 +1,61 @@
+name: Soccer competition validation
+
+on:
+  schedule:
+    - cron: "47 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soccer-competition-validation
+  cancel-in-progress: false
+
+jobs:
+  validate-one:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://fbis-myz.pages.dev
+      TOKEN: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Claim next eligible competition
+        run: |
+          set -euo pipefail
+          curl -fsS --connect-timeout 5 --max-time 20             -H "x-harvest-secret: $TOKEN"             "$BASE/api/soccer-competition-validation" > target.json
+          jq . target.json
+          key="$(jq -r '.target.heritage_key // empty' target.json)"
+          name="$(jq -r '.target.heritage_name // empty' target.json)"
+          if [ -z "$key" ]; then
+            echo "NO_TARGET=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "LEAGUE_KEY=$key" >> "$GITHUB_ENV"
+          echo "HERITAGE_NAME=$name" >> "$GITHUB_ENV"
+      - name: Export bounded history
+        if: env.NO_TARGET != '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl -fsS --connect-timeout 5 --max-time 45 --retry 2 --retry-delay 2 --retry-all-errors             -H "x-harvest-secret: $TOKEN"             "$BASE/api/soccer-pitchapi-export?league=$LEAGUE_KEY&start=2021-01-01&limit=1400" > raw.json
+          jq --arg name "$HERITAGE_NAME" --arg league "$LEAGUE_KEY"             '{ok,heritageName:$name,heritageKey:$league,league:$league,rows:(.rows // [])}' raw.json             > artifacts/soccer-competition-history.json
+          jq -e '.rows|length >= 120' artifacts/soccer-competition-history.json >/dev/null
+      - name: Walk-forward v2 vs v3.1
+        if: env.NO_TARGET != '1'
+        run: node scripts/soccer-competition-validate.mjs artifacts/soccer-competition-history.json artifacts/soccer-competition-validation.json
+      - name: Persist evidence
+        if: env.NO_TARGET != '1'
+        run: |
+          set -euo pipefail
+          curl -fsS --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 2 --retry-all-errors             -X POST -H "x-harvest-secret: $TOKEN" -H "content-type: application/json"             --data-binary @artifacts/soccer-competition-validation.json             "$BASE/api/soccer-competition-validation" | tee result.json
+          jq -e '.ok == true' result.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        if: env.NO_TARGET != '1'
+        with:
+          name: soccer-competition-validation-${{ github.run_id }}
+          path: artifacts/soccer-competition-validation.json
+          retention-days: 90
