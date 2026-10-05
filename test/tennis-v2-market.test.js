@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { normalizeTennisContext, tennisContextServeAdjustment, deriveCourtSpeedIndex } from "../functions/lib/tennisContextV2.js";
 import { buildSharpMarketPrior, tennisMarketResidualProjection, deriveMarketMovementFeatures } from "../functions/lib/tennisMarketV2.js";
 import { simulateTennisV2, simulateTennisMarketV2 } from "../functions/lib/tennisFbisV2.js";
+import { projectTennisPlayerPropsV2 } from "../functions/lib/tennisPlayerPropModel.js";
+import { actionObservationToTennisMarket, buildTennisV2Validation } from "../functions/lib/tennisV2Ledger.js";
 import { buildActorInput, normalizeActionGameRow } from "../functions/lib/actionApifyShadow.js";
 
 const p=(name,serve=.64,ret=.36)=>({
@@ -117,4 +119,40 @@ test("ACTION ATP/WTA competitor schema normalizes player identity and no-vig mon
   assert.equal(row.consensus.moneylineAway,-479);
   assert.ok(Math.abs(row.marketQuality.noVig.moneylineHome-.220628)<1e-6);
   assert.equal(row.publicBetting.moneylineHome.ticketPct,undefined);
+});
+
+
+test("v2 derivative prop path prioritizes total games and remains research gated",()=>{
+  const r=projectTennisPlayerPropsV2({
+    id:"prop-v2",tour:"atp",surface:"hard",bestOf:3,
+    player1:p("A",.65,.37),player2:p("B",.62,.34),
+    playerContexts:[{courtSpeedIndex:1.05},{hoursSinceLastMatch:22}]
+  },[{playerId:"A",market:"aces",line:7.5},{playerId:"A",market:"total_games_won",line:12.5}]);
+  assert.equal(r.ok,true);
+  assert.equal(r.rows[0].market,"total_games");
+  assert.ok(r.rows.some(x=>x.market==="aces"));
+  assert.equal(r.canAuthorizeWager,false);
+  assert.ok(r.rows.every(x=>x.propGate==="RESEARCH"));
+});
+
+test("ACTION observation converts to canonical tennis market snapshot",()=>{
+  const m=actionObservationToTennisMarket({
+    action_game_id:"114596",sport:"atp",home_team:"A",away_team:"B",
+    consensus_json:JSON.stringify({moneylineHome:-120,moneylineAway:110}),
+    public_betting_json:JSON.stringify({moneylineHome:{ticketsPercent:40,moneyPercent:55,moneyMinusTickets:15}}),
+    market_quality_json:JSON.stringify({noVig:{moneylineHome:.545,moneylineAway:.455}}),
+    collected_at:"2026-10-05T12:00:00Z"
+  });
+  assert.equal(m.canonicalEventId,"tennis:action:114596");
+  assert.equal(m.player1NoVig,.545);
+  assert.equal(m.moneyMinusTicketPct,15);
+});
+
+test("prospective validation cannot authorize wagers",()=>{
+  const rows=Array.from({length:600},(_,i)=>({
+    tour:i%2?"atp":"wta",graded_at:"2026-10-05",clv:i%3?0.01:-0.01,profit_units:i%2?0.8:-1
+  }));
+  const v=buildTennisV2Validation(rows);
+  assert.equal(v.gates.canAuthorizeWager,false);
+  assert.equal(v.status,"RESEARCH_ONLY");
 });
