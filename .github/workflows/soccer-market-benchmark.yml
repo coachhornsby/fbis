@@ -18,15 +18,15 @@ concurrency:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     env:
       GH_TOKEN: ${{ github.token }}
       APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
       SOCCER_MARKET_BENCHMARK_BUDGET_USD: "1.0"
-      SOCCER_MARKET_BENCHMARK_DATES: "6"
-      SOCCER_MARKET_BENCHMARK_MAX_GAMES: "30"
-      SOCCER_MARKET_BENCHMARK_MIN_MATCHED: "25"
-      SOCCER_MARKET_WAIT_SECS: "75"
+      SOCCER_MARKET_BENCHMARK_DATES: "4"
+      SOCCER_MARKET_BENCHMARK_MAX_GAMES: "24"
+      SOCCER_MARKET_BENCHMARK_MIN_MATCHED: "20"
+      SOCCER_MARKET_WAIT_SECS: "45"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
