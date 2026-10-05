@@ -1,0 +1,127 @@
+name: NBA persistent team profiles
+
+on:
+  push:
+    branches: ["feature/nba-persistent-team-profiles", main]
+    paths:
+      - "functions/lib/nbaTeamProfile.js"
+      - "scripts/nba-team-profile-source.mjs"
+      - "scripts/nba-team-profile-source-merge.mjs"
+      - "scripts/nba-team-profile-build.mjs"
+      - "scripts/nba-player-impact-live.mjs"
+      - "migrations/0054_nba_persistent_team_profiles.sql"
+      - "test/nba-team-profile.test.js"
+      - ".github/workflows/nba-team-profiles.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "20 11,16,22 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nba-team-profiles
+  cancel-in-progress: false
+
+jobs:
+  source:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5]
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - name: Collect five NBA teams
+        run: |
+          mkdir -p artifacts
+          node scripts/nba-team-profile-source.mjs             shardIndex=${{ matrix.shard }} shardCount=6 concurrency=3             out=artifacts/nba-team-profile-source-${{ matrix.shard }}.json
+          jq -e '.quality.teams==5' artifacts/nba-team-profile-source-${{ matrix.shard }}.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-team-profile-source-${{ matrix.shard }}-${{ github.run_id }}
+          path: artifacts/nba-team-profile-source-${{ matrix.shard }}.json
+          retention-days: 7
+
+  build:
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - run: node --test test/nba-team-profile.test.js
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nba-team-profile-source-*-${{ github.run_id }}
+          path: artifacts/profile-source-shards
+
+      - name: Merge source shards
+        run: |
+          node scripts/nba-team-profile-source-merge.mjs             artifacts/profile-source-shards artifacts/nba-team-profile-source.json
+          jq -e '.quality.teams==30' artifacts/nba-team-profile-source.json >/dev/null
+
+      - name: Load frozen/current NBA canonical state
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/frozen artifacts/current
+          PREFIX=$(node -p "require('./research/nba/frozen-snapshot.json').r2.prefix")
+          npx wrangler r2 object get "fbis-archive/${PREFIX}/nba-canonical.jsonl"             --file artifacts/frozen/nba-canonical.jsonl --remote
+          npx wrangler r2 object get "fbis-archive/canonical/espn/nba/2026-27/current/nba-canonical.jsonl"             --file artifacts/current/nba-canonical.jsonl --remote || : > artifacts/current/nba-canonical.jsonl
+
+      - name: Load prior persistent state and point-in-time evidence
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_player_state_profiles"             > artifacts/nba-player-states-prior.json || echo '[]' > artifacts/nba-player-states-prior.json
+          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM player_availability_observations WHERE sport='nba' AND observed_at <= datetime('now') ORDER BY observed_at ASC"             > artifacts/nba-availability.json
+          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_lineup_observations WHERE observed_at <= datetime('now') ORDER BY observed_at ASC"             > artifacts/nba-lineups.json || echo '[]' > artifacts/nba-lineups.json
+          npx wrangler d1 execute fbis --remote --json --command             "WITH ranked AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY player_id ORDER BY as_of DESC) rn FROM nba_player_impact_snapshots) SELECT * FROM ranked WHERE rn=1"             > artifacts/nba-player-impact-current.json
+
+      - name: Build all 30 persistent profiles
+        run: |
+          node scripts/nba-team-profile-build.mjs             source=artifacts/nba-team-profile-source.json             prior=artifacts/nba-player-states-prior.json             availability=artifacts/nba-availability.json             lineups=artifacts/nba-lineups.json             frozen=artifacts/frozen/nba-canonical.jsonl             current=artifacts/current/nba-canonical.jsonl             impact=artifacts/nba-player-impact-current.json             out=artifacts/nba-team-profiles.json             sql=artifacts/nba-team-profiles.sql
+          jq -e '.quality.teams==30 and .quality.players>300 and .quality.scheduleItems>1000' artifacts/nba-team-profiles.json >/dev/null
+
+      - name: Persist profiles
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --file=migrations/0054_nba_persistent_team_profiles.sql
+          npx wrangler d1 execute fbis --remote --file=artifacts/nba-team-profiles.sql
+          npx wrangler r2 object put "fbis-archive/models/nba/team-profiles/current.json"             --file artifacts/nba-team-profiles.json --remote
+          stamp=$(date -u +%Y%m%dT%H%M%SZ)
+          npx wrangler r2 object put "fbis-archive/models/nba/team-profiles/snapshots/${stamp}.json"             --file artifacts/nba-team-profiles.json --remote
+
+      - name: Publish summary
+        run: |
+          {
+            echo "## NBA persistent team profiles"
+            jq -r '"- Teams: \(.quality.teams)"' artifacts/nba-team-profiles.json
+            jq -r '"- Players: \(.quality.players)"' artifacts/nba-team-profiles.json
+            jq -r '"- Schedule items: \(.quality.scheduleItems)"' artifacts/nba-team-profiles.json
+            jq -r '"- Coaches: \(.quality.coaches)"' artifacts/nba-team-profiles.json
+            jq -r '"- Carried player states: \(.quality.carried)"' artifacts/nba-team-profiles.json
+            jq -r '"- Schedule weak spots: \(.quality.weakSpots)"' artifacts/nba-team-profiles.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-team-profiles-${{ github.run_id }}
+          path: artifacts/nba-team-profiles.json
+          retention-days: 30
