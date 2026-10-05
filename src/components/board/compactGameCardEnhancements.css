@@ -381,3 +381,59 @@
 .fbis-shell-main.route-board .cgc-matchup-pill.tone-home .cgc-matchup-icon { color: #63ffd0 !important; }
 .fbis-shell-main.route-board .cgc-matchup-pill.tone-away .cgc-matchup-icon { color: #ff9aa7 !important; }
 .fbis-shell-main.route-board .cgc-matchup-pill.tone-neutral .cgc-matchup-icon { color: #8fdcff !important; }
+
+/* Team identity atmosphere: primary-color half-card hue + oversized low-opacity logo watermark. */
+.fbis-shell-main.route-board .cgc-team-atmosphere {
+  position: relative !important;
+  isolation: isolate !important;
+  overflow: hidden !important;
+  border-radius: 15px !important;
+  background:
+    radial-gradient(ellipse 72% 118% at 8% 50%, color-mix(in srgb, var(--cgc-away-brand) 24%, transparent), transparent 69%),
+    radial-gradient(ellipse 72% 118% at 92% 50%, color-mix(in srgb, var(--cgc-home-brand) 24%, transparent), transparent 69%),
+    linear-gradient(90deg, color-mix(in srgb, var(--cgc-away-brand) 9%, #02060b) 0%, #02060b 46%, #02060b 54%, color-mix(in srgb, var(--cgc-home-brand) 9%, #02060b) 100%) !important;
+}
+.fbis-shell-main.route-board .cgc-team-atmosphere::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+  background: linear-gradient(90deg, transparent 0 37%, rgba(0,0,0,.72) 49%, rgba(0,0,0,.72) 51%, transparent 63%) !important;
+}
+.fbis-shell-main.route-board .cgc-team-atmosphere .cgc-team-block,
+.fbis-shell-main.route-board .cgc-team-atmosphere .cgc-vs {
+  position: relative !important;
+  z-index: 2 !important;
+}
+.fbis-shell-main.route-board .cgc-team-watermark {
+  position: absolute !important;
+  top: 50% !important;
+  width: clamp(138px, 21vw, 205px) !important;
+  height: clamp(138px, 21vw, 205px) !important;
+  object-fit: contain !important;
+  transform: translateY(-50%) !important;
+  opacity: .075 !important;
+  filter: saturate(.82) contrast(1.12) !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  z-index: 0 !important;
+}
+.fbis-shell-main.route-board .cgc-team-watermark-away { left: -14px !important; }
+.fbis-shell-main.route-board .cgc-team-watermark-home { right: -14px !important; }
+.fbis-shell-main.route-board .cgc-team-atmosphere .cgc-logo .team-logo {
+  filter: drop-shadow(0 6px 13px rgba(0,0,0,.48)) !important;
+}
+@media (max-width: 560px) {
+  .fbis-shell-main.route-board .cgc-team-atmosphere {
+    background:
+      radial-gradient(ellipse 76% 112% at 5% 50%, color-mix(in srgb, var(--cgc-away-brand) 20%, transparent), transparent 68%),
+      radial-gradient(ellipse 76% 112% at 95% 50%, color-mix(in srgb, var(--cgc-home-brand) 20%, transparent), transparent 68%),
+      #02060b !important;
+  }
+  .fbis-shell-main.route-board .cgc-team-watermark {
+    width: 126px !important;
+    height: 126px !important;
+    opacity: .065 !important;
+  }
+}
