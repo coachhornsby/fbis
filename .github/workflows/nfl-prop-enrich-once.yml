@@ -58,3 +58,5 @@ jobs:
           curl -fsS --max-time 45 "$BASE/api/selective-props?mode=sport&sport=nfl&date=$today&_t=$(date +%s)" > /tmp/readback.json
           jq -e '.ok==true and .count>2' /tmp/readback.json >/dev/null
           echo "NFL selective props=$(jq -r '.count' /tmp/readback.json)"
+
+# incident-recovery: 2026-10-05 persist NFL prop evidence metadata and reattach current rows

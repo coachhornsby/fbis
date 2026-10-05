@@ -265,12 +265,17 @@ export async function onRequestPost(context){
       `INSERT OR REPLACE INTO prizepicks_prop_lines(
         id,run_id,projection_id,fbis_event_id,sport,league,player_id,player_name,player_headshot_url,team,opponent,game_id,start_time,
         stat_type,canonical_market,line,odds_tier,duration,fbis_projection,fbis_sigma,delta_fbis_minus_line,candidate_side,
+        role_confidence,snap_share,prop_gate,eligible_for_card,feature_evidence_json,model_source,model_version,
         observed_at,collected_at,raw_json
-      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).bind(
       id,runId,projectionId,s(cand?.eventId),sport,s(first(raw,["league","leagueName","league.name"])),
       playerIdOf(raw),playerName,headshotOf(raw),s(teamOf(raw)||cand?.team),s(opponentOf(raw)||candidateOpponent(cand,teamOf(raw))),gameIdOf(raw),s(startOf(raw)||cand?.start),
       stat,market,line,tierOf(raw),durationOf(raw),fbisProjection,fbisSigma,delta,side,
+      n(cand?.roleConfidence),n(cand?.snapShare),s(cand?.propGate),
+      cand?.eligibleForCard==null?null:(cand.eligibleForCard?1:0),
+      cand?.featureEvidence?JSON.stringify(cand.featureEvidence):null,
+      s(cand?.modelSource||cand?.source),s(cand?.modelVersion),
       s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt,collectedAt,JSON.stringify(raw)
     ));
     if(sport==="cfb"&&cand&&fbisProjection!=null&&fbisSigma!=null){
