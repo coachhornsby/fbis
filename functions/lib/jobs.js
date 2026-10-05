@@ -3,7 +3,7 @@
  */
 
 import { MODEL_VERSION } from "./weights.js";
-import { recordRunManifest } from "./opsHealthLedger.js";
+import { recordRunManifest, recordWatchdogMetric, upsertOpsHealth } from "./opsHealthLedger.js";
 import { hasDb, persistJobRun, queryJobHealth, setMeta } from "./store.js";
 import {
   lastExpectedCollectUtc,
@@ -170,6 +170,7 @@ export async function recordJob(env, row) {
     jt.includes("publish") || jt.includes("projection") ? "projection-publication" :
     "github-schedules";
   let manifestPersist = { ok: false, reason: "not-attempted" };
+  let telemetryPersist = { ok: false, reason: "not-attempted" };
   try {
     manifestPersist = await recordRunManifest(env, {
       runId: payload.id,
@@ -196,13 +197,172 @@ export async function recordJob(env, row) {
   } catch (err) {
     manifestPersist = { ok: false, reason: String(err?.message || err) };
   }
+  try {
+    telemetryPersist = await syncJobOpsTelemetry(env, payload, componentId);
+  } catch (err) {
+    telemetryPersist = { ok: false, reason: String(err?.message || err) };
+  }
   return {
     ...payload,
     persistOk: persist.ok,
     persistReason: persist.reason || null,
     manifestPersistOk: manifestPersist.ok,
     manifestPersistReason: manifestPersist.reason || null,
+    telemetryPersistOk: telemetryPersist.ok,
+    telemetryPersistReason: telemetryPersist.reason || null,
   };
+}
+
+async function syncJobOpsTelemetry(env, payload, componentId) {
+  if (!env?.DB?.prepare) return { ok: false, reason: "d1-unbound" };
+
+  const completedAt = payload.completedAt || new Date().toISOString();
+  const success = payload.status === JOB_SUCCESS;
+  const degraded = payload.status === JOB_PARTIAL;
+  const failed = payload.status === JOB_FAILED;
+  const received = Math.max(0, Number(payload.gamesDiscovered || 0));
+  const written = Math.max(0, Number(payload.writesSucceeded || 0));
+  const already = Math.max(0, Number(payload.writesAlready || 0));
+  const persisted = written + already;
+
+  const previous = await env.DB.prepare(
+    `SELECT component_id, incident_fingerprint, consecutive_failures, consecutive_empty_successes
+       FROM fbis_ops_health
+      WHERE component_id = ?
+      LIMIT 1`
+  ).bind(componentId).first();
+
+  if (!previous) {
+    const firstManifest = await env.DB.prepare(
+      `SELECT COALESCE(MIN(created_at), MIN(started_at)) AS detected_at
+         FROM fbis_run_manifests
+        WHERE component_id = ?`
+    ).bind(componentId).first();
+    const detectedAt = firstManifest?.detected_at || payload.startedAt || completedAt;
+    await recordWatchdogMetric(env, {
+      incidentFingerprint: `ops-health-telemetry-gap:${componentId}`,
+      componentId,
+      failureClass: "telemetry_gap",
+      severity: "DEGRADED",
+      detectedAt,
+      repairedAt: completedAt,
+      verifiedAt: completedAt,
+      detectionSource: "control-plane-self-check",
+      autonomousRepair: true,
+      ownerActionRequired: false,
+      notes: "Run manifests existed without an ops-health row; active job telemetry writer repaired and verified the gap.",
+    });
+  }
+
+  let incidentFingerprint = null;
+  let consecutiveFailures = 0;
+  let consecutiveEmptySuccesses = 0;
+
+  if (failed || degraded) {
+    consecutiveFailures = Number(previous?.consecutive_failures || 0) + 1;
+    const failureClass = failed ? "job_failed" : "job_partial";
+    const normalizedError = String(payload.errorSummary || failureClass)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || failureClass;
+    incidentFingerprint = previous?.incident_fingerprint || `${componentId}:${failureClass}:${normalizedError}`;
+
+    const openIncident = await env.DB.prepare(
+      `SELECT detected_at, repeat_count
+         FROM fbis_watchdog_metrics
+        WHERE component_id = ? AND incident_fingerprint = ? AND repaired_at IS NULL
+        ORDER BY detected_at DESC
+        LIMIT 1`
+    ).bind(componentId, incidentFingerprint).first();
+
+    await recordWatchdogMetric(env, {
+      incidentFingerprint,
+      componentId,
+      failureClass,
+      severity: failed ? "CRITICAL" : "DEGRADED",
+      detectedAt: openIncident?.detected_at || completedAt,
+      detectionSource: payload.triggerType === "schedule" ? "scheduled-cycle" : "job-recorder",
+      autonomousRepair: false,
+      ownerActionRequired: false,
+      repeatCount: Number(openIncident?.repeat_count || 0) + 1,
+      notes: payload.errorSummary || `${payload.jobType || "job"} completed with status=${payload.status}`,
+    });
+  } else if (success) {
+    consecutiveEmptySuccesses = received === 0
+      ? Number(previous?.consecutive_empty_successes || 0) + 1
+      : 0;
+
+    if (previous?.incident_fingerprint) {
+      const openIncident = await env.DB.prepare(
+        `SELECT detected_at, failure_class, severity, detection_source, repeat_count
+           FROM fbis_watchdog_metrics
+          WHERE component_id = ? AND incident_fingerprint = ? AND repaired_at IS NULL
+          ORDER BY detected_at DESC
+          LIMIT 1`
+      ).bind(componentId, previous.incident_fingerprint).first();
+
+      if (openIncident?.detected_at) {
+        await recordWatchdogMetric(env, {
+          incidentFingerprint: previous.incident_fingerprint,
+          componentId,
+          failureClass: openIncident.failure_class,
+          severity: openIncident.severity || "DEGRADED",
+          detectedAt: openIncident.detected_at,
+          repairedAt: completedAt,
+          verifiedAt: completedAt,
+          detectionSource: openIncident.detection_source || "scheduled-cycle",
+          autonomousRepair: payload.triggerType === "schedule",
+          ownerActionRequired: false,
+          repeatCount: Number(openIncident.repeat_count || 1),
+          notes: "Subsequent successful job verified recovery.",
+        });
+      }
+    }
+  }
+
+  const sourceFreshnessAt = (success || degraded) && received > 0 ? completedAt : null;
+  const databaseFreshnessAt = persisted > 0 ? completedAt : null;
+  const publishedFreshnessAt =
+    componentId === "projection-publication" && persisted > 0 ? completedAt : null;
+
+  await upsertOpsHealth(env, {
+    componentId,
+    workflowFreshnessAt: payload.triggerType === "schedule" ? completedAt : null,
+    sourceFreshnessAt,
+    databaseFreshnessAt,
+    publishedFreshnessAt,
+    lastAttemptAt: completedAt,
+    lastSuccessAt: success ? completedAt : null,
+    lastNonemptyAt: received > 0 && (success || degraded) ? completedAt : null,
+    lastPersistAt: persisted > 0 ? completedAt : null,
+    lastVerifiedAt: success ? completedAt : null,
+    sourceRows: received,
+    rowsWritten: written,
+    status: success ? "HEALTHY" : degraded ? "DEGRADED" : "FAILED",
+    severity: success ? "INFO" : degraded ? "DEGRADED" : "CRITICAL",
+    incidentFingerprint,
+    consecutiveFailures,
+    consecutiveEmptySuccesses,
+    lastErrorClass: success ? null : (failed ? "job_failed" : "job_partial"),
+    lastError: success ? null : payload.errorSummary,
+    workflowRunId: null,
+    deploymentSha: payload.deploymentCommit,
+    dataDateOrRange: payload.datesJson,
+    metadata: {
+      jobId: payload.id,
+      jobType: payload.jobType,
+      triggerType: payload.triggerType,
+      sport: payload.sport,
+      writesAlready: already,
+      finalsDiscovered: payload.finalsDiscovered,
+      finalsGraded: payload.finalsGraded,
+      finalsAwaitingRetry: payload.finalsAwaitingRetry,
+    },
+    updatedAt: completedAt,
+  });
+
+  return { ok: true, componentId, incidentFingerprint };
 }
 
 function isScheduledTrigger(triggerType) {
