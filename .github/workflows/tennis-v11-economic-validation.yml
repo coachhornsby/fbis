@@ -28,9 +28,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Probe ESPN historical tennis odds
+        run: |
+          node scripts/tennis-espn-market-probe.mjs atp 20250825 | tee tennis-espn-atp.log
+          node scripts/tennis-espn-market-probe.mjs wta 20250825 | tee tennis-espn-wta.log
       - name: Run licensed economic validation
+        if: env.THEODDS_API_KEY != ''
         run: node scripts/tennis-v11-economic-usopen.mjs | tee tennis-economic.log
       - name: Verify report
+        if: env.THEODDS_API_KEY != ''
         run: |
           node - <<'NODE'
           const fs=require("fs");
@@ -48,4 +54,6 @@ jobs:
             research/tennis/economic-usopen-2025.json
             artifacts/tennis-economic-usopen-2025-rows.jsonl
             tennis-economic.log
+            tennis-espn-atp.log
+            tennis-espn-wta.log
           retention-days: 30
