@@ -203,8 +203,8 @@ export function buildScheduleProfile(events,abbr,season,nowMs=Date.now()){
    if(international)flags.push("INTERNATIONAL");
    if((altitude||0)>=4000)flags.push("ALTITUDE");
    const stress=clamp(
-     (shortWeek?.28:0)+(threeRoadInFour?.18:0)+((travelMiles||0)>=1500?.16:(travelMiles||0)>=900?.08:0)+
-     (zones>=2?.12:zones===1?.05:0)+(international?.18:0)+((altitude||0)>=4000?.08:0)-(postBye?.18:0),
+     (shortWeek ? .28 : 0)+(threeRoadInFour ? .18 : 0)+((travelMiles||0)>=1500 ? .16 : (travelMiles||0)>=900 ? .08 : 0)+
+     (zones>=2 ? .12 : zones===1 ? .05 : 0)+(international ? .18 : 0)+((altitude||0)>=4000 ? .08 : 0)-(postBye ? .18 : 0),
      0,1
    );
    const row={
