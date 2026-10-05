@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { hasUsableMarketSummary } from "../functions/lib/parlay.js";
 import {
   ODDS_PROVIDER_ORDER,
   canQualifyFromOddsResolution,
@@ -26,6 +27,21 @@ function okResult(provider, events, extra = {}) {
     ...extra,
   };
 }
+
+describe("market completeness", () => {
+  it("rejects event shells with no usable prices", () => {
+    assert.equal(hasUsableMarketSummary({ homeMl: null, awayMl: null, spread: null, total: null }), false);
+    assert.equal(hasUsableMarketSummary({ homeMl: -120, awayMl: 105 }), true);
+    assert.equal(
+      hasUsableMarketSummary({ spread: -4.5, spreadPrice: -110, pinSpreadHomePrice: -110, pinSpreadAwayPrice: -110 }),
+      true
+    );
+    assert.equal(
+      hasUsableMarketSummary({ total: 221.5, totalPrice: -108, pinOverPrice: -108, pinUnderPrice: -112 }),
+      true
+    );
+  });
+});
 
 describe("odds provider router", () => {
   it("exposes the intended production pool order", () => {
