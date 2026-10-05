@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { latestByCandidate, groupKey, strongestByGroup } from "../functions/api/selective-props.js";
+import { prizePicksTierEconomics, selectivePropStars } from "../functions/lib/selectivePropEdge.js";
 
 test("PrizePicks dedupe preserves Standard Goblin and Demon variants", () => {
   const base = {
@@ -60,4 +61,33 @@ test("unpriced alternate-only group cannot enter Top-25 ranking", () => {
     prizePicksEconomics:{rankingEligible:false}
   };
   assert.equal(strongestByGroup([demon]).size,0);
+});
+
+
+test("unpriced Demon/Goblin confidence cap applies across PrizePicks sports, not just NFL", () => {
+  for (const sport of ["mlb","nba","wnba","nhl","cfb","cbb","soccer","tennis"]) {
+    const row={
+      sport,
+      fbisProjection:100,
+      line:50,
+      fbisSigma:10,
+      odds_tier:"demon",
+      propGate:"CLEAR",
+      eligibleForCard:true,
+      dataQuality:.95,
+    };
+    assert.ok(selectivePropStars(row)<=2, sport);
+    const economics=prizePicksTierEconomics(row,.90);
+    assert.equal(economics.status,"ALTERNATE_TIER_PAYOUT_UNPRICED",sport);
+    assert.equal(economics.rankingEligible,false,sport);
+  }
+});
+
+test("standard PrizePicks tiers remain eligible across sports", () => {
+  for (const sport of ["mlb","nba","wnba","nhl","cfb","cbb","soccer","tennis"]) {
+    const economics=prizePicksTierEconomics({sport,odds_tier:"standard"},.60);
+    assert.equal(economics.comparableToStandard,true,sport);
+    assert.equal(economics.rankingEligible,true,sport);
+    assert.equal(economics.maxStars,5,sport);
+  }
 });
