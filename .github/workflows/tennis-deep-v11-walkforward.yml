@@ -53,7 +53,7 @@ jobs:
           if((r.sample?.holdout||0)<5000) throw new Error("insufficient holdout");
           if(!r.design?.twoSided||!r.design?.surfaceSpecific||!r.design?.recencyWeighted) throw new Error("deep design flags missing");
           for(const k of ["aces","doubleFaults","breakPointsWon","gamesWon","totalGames"]){
-            if(!Number.isFinite(r.props?.holdout?.deep?.[k]?.mae)) throw new Error("missing prop metric "+k);
+            if(!Number.isFinite(r.props?.holdout?.deepCalibrated?.[k]?.mae)) throw new Error("missing calibrated prop metric "+k);
           }
           if(!Number.isFinite(r.match?.holdout?.deepCalibrated?.brier)) throw new Error("missing match metric");
           console.log(JSON.stringify({sample:r.sample,verdict:r.verdict,match:r.match.holdout,props:r.props.holdout},null,2));
