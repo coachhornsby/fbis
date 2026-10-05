@@ -462,7 +462,7 @@ export async function buildTennisResearchSlate(date, env = {}) {
       latest_market AS (
         SELECT *,
                ROW_NUMBER() OVER (
-                 PARTITION BY canonical_event_id
+                 PARTITION BY canonical_event_id, market_type
                  ORDER BY observed_at DESC, collected_at DESC, created_at DESC
                ) AS rn
         FROM tennis_market_snapshots
@@ -478,12 +478,23 @@ export async function buildTennisResearchSlate(date, env = {}) {
       SELECT d.canonical_event_id,d.tour,d.player1,d.player2,d.pure_model_id,d.pure_p1,
              d.market_prior_p1,d.market_v2_p1,d.model_edge,d.market_json,d.action_json,
              d.decision_timestamp,d.event_start_time,d.snapshot_type,
-             m.provider AS market_provider,m.sportsbook,m.player1_price,m.player2_price,
-             m.player1_no_vig_prob,m.player2_no_vig_prob,m.public_ticket_pct,m.public_money_pct,
-             m.money_minus_ticket_pct,m.observed_at AS market_observed_at,m.collected_at AS market_collected_at,
+             ml.provider AS market_provider,ml.sportsbook,ml.player1_price,ml.player2_price,
+             ml.player1_no_vig_prob,ml.player2_no_vig_prob,ml.public_ticket_pct,ml.public_money_pct,
+             ml.money_minus_ticket_pct,ml.observed_at AS market_observed_at,ml.collected_at AS market_collected_at,
+             sp.player1_line AS spread_player1_line,sp.player2_line AS spread_player2_line,
+             sp.player1_price AS spread_player1_price,sp.player2_price AS spread_player2_price,
+             sp.player1_no_vig_prob AS spread_player1_no_vig,sp.player2_no_vig_prob AS spread_player2_no_vig,
+             sp.public_ticket_pct AS spread_ticket_pct,sp.public_money_pct AS spread_money_pct,
+             sp.money_minus_ticket_pct AS spread_money_ticket_gap,
+             tot.player1_line AS total_line,tot.over_price,tot.under_price,
+             tot.over_no_vig_prob,tot.under_no_vig_prob,
+             tot.public_ticket_pct AS total_ticket_pct,tot.public_money_pct AS total_money_pct,
+             tot.money_minus_ticket_pct AS total_money_ticket_gap,
              c.tournament,c.surface,c.indoor,c.court_speed_index
       FROM ranked d
-      LEFT JOIN latest_market m ON m.canonical_event_id=d.canonical_event_id AND m.rn=1
+      LEFT JOIN latest_market ml ON ml.canonical_event_id=d.canonical_event_id AND ml.market_type='moneyline' AND ml.rn=1
+      LEFT JOIN latest_market sp ON sp.canonical_event_id=d.canonical_event_id AND sp.market_type='spread' AND sp.rn=1
+      LEFT JOIN latest_market tot ON tot.canonical_event_id=d.canonical_event_id AND tot.market_type='total' AND tot.rn=1
       LEFT JOIN latest_context c ON c.canonical_event_id=d.canonical_event_id AND c.rn=1
       WHERE d.rn=1
       ORDER BY d.event_start_time, d.decision_timestamp DESC
@@ -508,6 +519,13 @@ export async function buildTennisResearchSlate(date, env = {}) {
     const marketP2 = row.player2_no_vig_prob == null
       ? (marketP1 == null ? null : 1 - marketP1)
       : Number(row.player2_no_vig_prob);
+    const spreadP1Line = row.spread_player1_line == null ? null : Number(row.spread_player1_line);
+    const spreadP2Line = row.spread_player2_line == null ? null : Number(row.spread_player2_line);
+    const spreadP1Price = row.spread_player1_price == null ? null : Number(row.spread_player1_price);
+    const spreadP2Price = row.spread_player2_price == null ? null : Number(row.spread_player2_price);
+    const totalLine = row.total_line == null ? null : Number(row.total_line);
+    const overPrice = row.over_price == null ? null : Number(row.over_price);
+    const underPrice = row.under_price == null ? null : Number(row.under_price);
     return {
       id: String(row.canonical_event_id),
       sport: "tennis",
@@ -584,8 +602,21 @@ export async function buildTennisResearchSlate(date, env = {}) {
         reference: {
           available: p1Price != null || p2Price != null || marketP1 != null,
           provider: row.market_provider || row.sportsbook || marketJson.source || quote?.book || "TENNIS MARKET · RESEARCH",
-          spread: null,
-          total: null,
+          spread: spreadP1Line == null ? null : {
+            home: spreadP1Line,
+            away: spreadP2Line,
+            homePrice: spreadP1Price,
+            awayPrice: spreadP2Price,
+            noVigHome: row.spread_player1_no_vig == null ? null : Number(row.spread_player1_no_vig),
+            noVigAway: row.spread_player2_no_vig == null ? null : Number(row.spread_player2_no_vig),
+          },
+          total: totalLine == null ? null : {
+            line: totalLine,
+            overPrice,
+            underPrice,
+            noVigOver: row.over_no_vig_prob == null ? null : Number(row.over_no_vig_prob),
+            noVigUnder: row.under_no_vig_prob == null ? null : Number(row.under_no_vig_prob),
+          },
           moneyline: {
             home: p1Price,
             away: p2Price,
@@ -606,7 +637,19 @@ export async function buildTennisResearchSlate(date, env = {}) {
               ticketPct: row.public_ticket_pct == null ? null : Number(row.public_ticket_pct),
               moneyPct: row.public_money_pct == null ? null : Number(row.public_money_pct),
               moneyTicketGap: row.money_minus_ticket_pct == null ? null : Number(row.money_minus_ticket_pct),
-              markets: actionJson?.publicSplits?.markets || [],
+              markets: [
+                ...(actionJson?.publicSplits?.markets || []),
+                ...(row.spread_ticket_pct != null || row.spread_money_pct != null ? [{
+                  market: "SPREAD", ticketPct: row.spread_ticket_pct == null ? null : Number(row.spread_ticket_pct),
+                  moneyPct: row.spread_money_pct == null ? null : Number(row.spread_money_pct),
+                  moneyTicketGap: row.spread_money_ticket_gap == null ? null : Number(row.spread_money_ticket_gap),
+                }] : []),
+                ...(row.total_ticket_pct != null || row.total_money_pct != null ? [{
+                  market: "TOTAL", ticketPct: row.total_ticket_pct == null ? null : Number(row.total_ticket_pct),
+                  moneyPct: row.total_money_pct == null ? null : Number(row.total_money_pct),
+                  moneyTicketGap: row.total_money_ticket_gap == null ? null : Number(row.total_money_ticket_gap),
+                }] : []),
+              ],
             },
             trackedBetCount: actionJson?.trackedBetCount ?? null,
             trackedVolume: actionJson?.trackedVolume ?? null,
