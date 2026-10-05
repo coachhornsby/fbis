@@ -1,0 +1,56 @@
+name: Soccer-FBIS-v2 market replay
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "data/models/soccer-v2-market-replay-trigger.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: soccer-v2-market-replay
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Download existing 206-game market sample
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/legacy-market
+          gh run download 37186030331 -n soccer-market-benchmark-37186030331 -D artifacts/legacy-market
+          test -s artifacts/legacy-market/soccer-market-benchmark-rows.jsonl
+      - name: Download latest successful v2 walk-forward
+        run: |
+          set -euo pipefail
+          run_id="$(gh run list --workflow soccer-v2-walkforward.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$run_id"
+          mkdir -p artifacts/v2-walkforward
+          gh run download "$run_id" -n "soccer-v2-walkforward-$run_id" -D artifacts/v2-walkforward
+          test -s artifacts/v2-walkforward/soccer-v2-walkforward-rows.jsonl
+      - name: Replay v2 against frozen no-vig market observations
+        run: node scripts/soccer-v2-market-replay.mjs
+      - name: Show replay report
+        if: always()
+        run: test -f artifacts/soccer-v2-market-replay.json && jq . artifacts/soccer-v2-market-replay.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soccer-v2-market-replay-${{ github.run_id }}
+          path: |
+            artifacts/soccer-v2-market-replay.json
+            artifacts/soccer-v2-market-replay-rows.jsonl
+          if-no-files-found: warn
+          retention-days: 90
