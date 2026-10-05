@@ -46,6 +46,7 @@ jobs:
       - name: Enrich soccer
         run: |
           set -euo pipefail
+          curl -fsS --max-time 120 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" --data '{"sport":"soccer","limit":20,"resetUnavailable":true}' "$BASE/api/prop-enrich-current"
           for i in $(seq 1 12); do
             out="$(mktemp)"
             curl -fsS --max-time 120 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" --data '{"sport":"soccer","limit":20}' "$BASE/api/prop-enrich-current" > "$out"
