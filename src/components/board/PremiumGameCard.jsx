@@ -18,6 +18,33 @@ function signed(v) {
   return `${x > 0 ? "+" : ""}${Number.isInteger(x) ? x : x.toFixed(1)}`;
 }
 
+function fmtOdds(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  if (n > 1 && n < 10) {
+    const american = n >= 2 ? Math.round((n - 1) * 100) : Math.round(-100 / (n - 1));
+    return american > 0 ? `+${american}` : String(american);
+  }
+  const rounded = Math.round(n);
+  return rounded > 0 ? `+${rounded}` : String(rounded);
+}
+
+function fairAmerican(prob) {
+  const p = Number(prob);
+  if (!Number.isFinite(p) || p <= 0 || p >= 1) return "—";
+  const american = p >= 0.5 ? -100 * p / (1 - p) : 100 * (1 - p) / p;
+  const rounded = Math.round(american);
+  return rounded > 0 ? `+${rounded}` : String(rounded);
+}
+
+function tennisPlayerMeta(team, tour) {
+  const rank = Number(team?.rank);
+  const pts = Number(team?.rankingPoints);
+  const rankLabel = Number.isFinite(rank) ? `${tour || "ATP/WTA"} #${Math.round(rank)}` : `${tour || "ATP/WTA"} UNRANKED`;
+  const pointsLabel = Number.isFinite(pts) ? ` · ${Math.round(pts).toLocaleString()} pts` : "";
+  return rankLabel + pointsLabel;
+}
+
 function modelEdge(vm) {
   const cmp = vm.comparison || {};
   const spread = Number(cmp.sideDiff);
@@ -90,6 +117,21 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const finalAway = game?.away?.score ?? away?.score ?? null;
   const finalHome = game?.home?.score ?? home?.score ?? null;
   const hasFinalScore = isFinal && finalAway != null && finalHome != null;
+  const tennis = game?.tennisProjection || {};
+  const tennisTour = String(game?.tour || tennis.tour || "TENNIS").toUpperCase();
+  const tennisRef = game?.market?.reference || {};
+  const tennisAwayMl = market.awayMl ?? tennisRef?.moneyline?.away ?? null;
+  const tennisHomeMl = market.homeMl ?? tennisRef?.moneyline?.home ?? null;
+  const tennisMarketP1 = Number(tennis.marketPriorP1 ?? tennisRef?.noVig?.home);
+  const tennisPureP1 = Number(tennis.player1WinProb);
+  const tennisProbEdge = Number.isFinite(tennisMarketP1) && Number.isFinite(tennisPureP1)
+    ? (tennisPureP1 - tennisMarketP1) * 100
+    : null;
+  const tennisEdgeTeam = tennisProbEdge == null ? null : tennisProbEdge >= 0 ? home : away;
+  const tennisEdgeValue = tennisProbEdge == null
+    ? "RESEARCH"
+    : `${tennisEdgeTeam?.abbr || "EDGE"} +${num(Math.abs(tennisProbEdge))}%`;
+  const tennisEdgeDelta = tennisProbEdge == null ? "NO MARKET EDGE" : "MODEL vs NO-VIG";
 
   return (
     <article className={`pgc pgc-featured status-${String(vm.status?.tone || "neutral").toLowerCase()}`}>
@@ -118,6 +160,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <TeamLogo team={away} size={82} className="pgc-featured-logo" />
           <div>
             <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
+            {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(away, tennisTour)}</span> : null}
             {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
             <b className="pgc-featured-score">{proj.available ? (isTennis ? `${num(proj.away)}%` : (proj.away ?? "—")) : "—"}</b>
             <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
@@ -127,14 +170,15 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <div className="pgc-featured-center">
           <span className="pgc-vs">VS</span>
           <small>{soccerPick ? "Confidence Pick" : "Model Edge"}</small>
-          <strong>{soccerPick ? soccerPick.pick || "—" : edge.value}</strong>
-          <span className="pgc-edge-delta">{soccerPick ? `${soccerPick.stars || stars}★ · 1X2` : `${edge.delta} ${edge.type}`}</span>
+          <strong>{soccerPick ? soccerPick.pick || "—" : isTennis ? tennisEdgeValue : edge.value}</strong>
+          <span className="pgc-edge-delta">{soccerPick ? `${soccerPick.stars || stars}★ · 1X2` : isTennis ? tennisEdgeDelta : `${edge.delta} ${edge.type}`}</span>
         </div>
 
         <div className="pgc-featured-team pgc-featured-team-home">
           <TeamLogo team={home} size={82} className="pgc-featured-logo" />
           <div>
             <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
+            {isTennis ? <span className="pgc-tennis-meta">{tennisPlayerMeta(home, tennisTour)}</span> : null}
             {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
             <b className="pgc-featured-score">{proj.available ? (isTennis ? `${num(proj.home)}%` : (proj.home ?? "—")) : "—"}</b>
             <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
@@ -142,12 +186,13 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         </div>
       </section>
 
-      <section className="pgc-nfl-market" aria-label="FBIS and market summary">
+      <section className={`pgc-nfl-market${isTennis ? " pgc-tennis-market" : ""}`} aria-label="FBIS and market summary">
         {isTennis ? (
           <>
-            <div><span>MODEL STATUS</span><strong>RESEARCH</strong></div>
-            <div><span>MARKET ML</span><strong>{market.awayMl == null && market.homeMl == null ? "—" : `${market.awayMl ?? "—"} / ${market.homeMl ?? "—"}`}</strong></div>
-            <div><span>TOUR</span><strong>{game.tennisProjection?.tour || "TENNIS"}</strong></div>
+            <div><span>MARKET ML</span><strong>{tennisAwayMl == null && tennisHomeMl == null ? "—" : `${away.abbr} ${fmtOdds(tennisAwayMl)} · ${home.abbr} ${fmtOdds(tennisHomeMl)}`}</strong></div>
+            <div><span>FBIS FAIR ML</span><strong>{proj.available ? `${away.abbr} ${fairAmerican((Number(proj.away) || 0) / 100)} · ${home.abbr} ${fairAmerican((Number(proj.home) || 0) / 100)}` : "—"}</strong></div>
+            <div><span>SURFACE</span><strong>{[tennis.surface ? String(tennis.surface).toUpperCase() : null, tennis.indoor === true ? "INDOOR" : tennis.indoor === false ? "OUTDOOR" : null].filter(Boolean).join(" · ") || "—"}</strong></div>
+            <div><span>EVENT</span><strong>{[tennisTour, tennis.tournament].filter(Boolean).join(" · ") || tennisTour}</strong></div>
           </>
         ) : (
           <>
