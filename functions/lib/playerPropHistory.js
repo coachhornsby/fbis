@@ -183,14 +183,24 @@ async function athleteId(name,sport,team){
   return candidateId(await fetchJson(u),queryName,team);
 }
 
+function seasonCandidates(sport){
+  const now=new Date(), y=now.getFullYear(), month=now.getMonth()+1;
+  // ESPN keys fall/winter leagues by the season ending year in many feeds.
+  if(["nba","nhl","cbb"].includes(sport) && month>=7) return [y+1,y,y-1];
+  if(["nba","nhl","cbb"].includes(sport)) return [y,y-1];
+  return [y,y-1];
+}
 async function gamelogFor(id,sport){
   const cfg=SPORT_CONFIG[sport];
   if(!cfg||!id) return null;
-  const season=new Date().getFullYear();
-  const results=await Promise.all(cfg.leagues.map(async league=>{
+  const attempts=[];
+  for(const league of cfg.leagues){
+    for(const season of seasonCandidates(sport)) attempts.push({league,season});
+  }
+  const results=await Promise.all(attempts.map(async ({league,season})=>{
     const u="https://site.web.api.espn.com/apis/common/v3/sports/"+encodeURIComponent(cfg.sportPath)+"/"+encodeURIComponent(league)+"/athletes/"+encodeURIComponent(id)+"/gamelog?season="+season;
-    const body=await fetchJson(u);
-    return body&&Array.isArray(body.events)&&body.events.length?{body,league}:null;
+    const body=await fetchJson(u,{timeoutMs:4000});
+    return body&&Array.isArray(body.events)&&body.events.length?{body,league,season}:null;
   }));
   return results.find(Boolean)||null;
 }
@@ -216,7 +226,7 @@ export async function loadEspnLastFive({sport,name,team,market,line}){
     source:"espn-gamelog",
     sourceLabel:"ESPN player gamelog",
     espnId:id,
-    league:log.league,
+    league:log.league,seasonKey:log.season,
     statField:market,
     last5:rows,
     season:{games:(log.body.events||[]).length,average:mean((log.body.events||[]).map(e=>valueForEspnEvent(log.body,e,market,sport,name))),recent5Average:mean(rows.map(r=>r.value))},
