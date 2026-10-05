@@ -1,0 +1,142 @@
+name: NHL persistent team profiles
+
+on:
+  pull_request:
+    paths:
+      - "functions/lib/nhlPersistentProfile.js"
+      - "functions/lib/nhlProV2.js"
+      - "functions/lib/nhlPlayerProV2.js"
+      - "functions/lib/slateEngine.js"
+      - "scripts/nhl-team-profile-source.mjs"
+      - "scripts/nhl-team-profile-source-merge.mjs"
+      - "scripts/nhl-team-profile-build.mjs"
+      - "migrations/0056_nhl_persistent_team_profiles.sql"
+      - "test/nhl-persistent-profile.test.js"
+      - ".github/workflows/nhl-team-profiles.yml"
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nhlPersistentProfile.js"
+      - "functions/lib/nhlProV2.js"
+      - "functions/lib/nhlPlayerProV2.js"
+      - "functions/lib/slateEngine.js"
+      - "scripts/nhl-team-profile-source.mjs"
+      - "scripts/nhl-team-profile-source-merge.mjs"
+      - "scripts/nhl-team-profile-build.mjs"
+      - "migrations/0056_nhl_persistent_team_profiles.sql"
+      - "test/nhl-persistent-profile.test.js"
+      - ".github/workflows/nhl-team-profiles.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "15 5,11,17,23 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nhl-team-profiles
+  cancel-in-progress: false
+
+jobs:
+  source:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5,6,7]
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - name: Collect four NHL teams
+        run: |
+          mkdir -p artifacts
+          node scripts/nhl-team-profile-source.mjs             shardIndex=${{ matrix.shard }} shardCount=8 concurrency=2             out=artifacts/nhl-team-profile-source-${{ matrix.shard }}.json
+          jq -e '.quality.teams==4 and .quality.rostersOk>=3 and .quality.schedulesOk>=3'             artifacts/nhl-team-profile-source-${{ matrix.shard }}.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nhl-team-profile-source-${{ matrix.shard }}-${{ github.run_id }}
+          path: artifacts/nhl-team-profile-source-${{ matrix.shard }}.json
+          retention-days: 7
+
+  build:
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - run: node --test test/nhl-persistent-profile.test.js test/nhl-player-pro-v2.test.js test/nhl-pro-v2.test.js
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nhl-team-profile-source-*-${{ github.run_id }}
+          path: artifacts/profile-source-shards
+
+      - name: Merge source shards
+        run: |
+          node scripts/nhl-team-profile-source-merge.mjs artifacts/profile-source-shards artifacts/nhl-team-profile-source.json
+          jq -e '.quality.teams==32 and .quality.players>500 and .quality.scheduleItems>1500' artifacts/nhl-team-profile-source.json >/dev/null
+
+      - name: Load prior persistent state
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          npx wrangler d1 execute fbis --remote --json --command "SELECT * FROM nhl_player_state_profiles"             > artifacts/nhl-player-states-prior.json || echo '[]' > artifacts/nhl-player-states-prior.json
+
+      - name: Build persistent profiles
+        run: |
+          node scripts/nhl-team-profile-build.mjs source=artifacts/nhl-team-profile-source.json prior=artifacts/nhl-player-states-prior.json out=artifacts/nhl-team-profiles.json sqlDir=artifacts/nhl-profile-sql
+          jq -e '.quality.teams==32 and .quality.players>500 and .quality.goalies>=50 and .quality.scheduleItems>1500' artifacts/nhl-team-profiles.json >/dev/null
+
+      - name: Persist bounded D1 chunks
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --file=migrations/0056_nhl_persistent_team_profiles.sql
+          for f in artifacts/nhl-profile-sql/*.sql; do
+            [ -s "$f" ] || continue
+            npx wrangler d1 execute fbis --remote --file="$f"
+          done
+          run_id="nhl-profile:${GITHUB_RUN_ID}"
+          now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          season=$(jq -r '.seasonId' artifacts/nhl-team-profiles.json)
+          teams=$(jq -r '.quality.teams' artifacts/nhl-team-profiles.json)
+          players=$(jq -r '.quality.players' artifacts/nhl-team-profiles.json)
+          dep=$(jq -r '.quality.deploymentRows' artifacts/nhl-team-profiles.json)
+          sched=$(jq -r '.quality.scheduleItems' artifacts/nhl-team-profiles.json)
+          errs=$(jq -r '.quality.sourceErrors' artifacts/nhl-team-profiles.json)
+          details=$(jq -c '.quality' artifacts/nhl-team-profiles.json | sed "s/'/''/g")
+          npx wrangler d1 execute fbis --remote --command "INSERT OR REPLACE INTO nhl_profile_runs(id,run_at,season_id,teams,players,deployment_rows,schedule_rows,source_errors,status,details_json) VALUES('$run_id','$now','$season',$teams,$players,$dep,$sched,$errs,'SUCCESS','$details');"
+          npx wrangler r2 object put "fbis-archive/models/nhl/team-profiles/current.json" --file artifacts/nhl-team-profiles.json --remote
+          stamp=$(date -u +%Y%m%dT%H%M%SZ)
+          npx wrangler r2 object put "fbis-archive/models/nhl/team-profiles/snapshots/${stamp}.json" --file artifacts/nhl-team-profiles.json --remote
+
+      - name: Publish summary
+        run: |
+          {
+            echo "## NHL persistent team profiles"
+            jq -r '"- Teams: \(.quality.teams)"' artifacts/nhl-team-profiles.json
+            jq -r '"- Players: \(.quality.players)"' artifacts/nhl-team-profiles.json
+            jq -r '"- Goalies: \(.quality.goalies)"' artifacts/nhl-team-profiles.json
+            jq -r '"- Deployment rows: \(.quality.deploymentRows)"' artifacts/nhl-team-profiles.json
+            jq -r '"- Linemate edges: \(.quality.linemateEdges)"' artifacts/nhl-team-profiles.json
+            jq -r '"- Schedule items: \(.quality.scheduleItems)"' artifacts/nhl-team-profiles.json
+            jq -r '"- Carried states: \(.quality.carried)"' artifacts/nhl-team-profiles.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nhl-team-profiles-${{ github.run_id }}
+          path: artifacts/nhl-team-profiles.json
+          retention-days: 30
