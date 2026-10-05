@@ -233,25 +233,28 @@ async function syncJobOpsTelemetry(env, payload, componentId) {
   ).bind(componentId).first();
 
   if (!previous) {
-    const firstManifest = await env.DB.prepare(
-      `SELECT COALESCE(MIN(created_at), MIN(started_at)) AS detected_at
+    const priorManifest = await env.DB.prepare(
+      `SELECT COUNT(*) AS manifest_count,
+              MIN(COALESCE(created_at, started_at)) AS detected_at
          FROM fbis_run_manifests
-        WHERE component_id = ?`
-    ).bind(componentId).first();
-    const detectedAt = firstManifest?.detected_at || payload.startedAt || completedAt;
-    await recordWatchdogMetric(env, {
-      incidentFingerprint: `ops-health-telemetry-gap:${componentId}`,
-      componentId,
-      failureClass: "telemetry_gap",
-      severity: "DEGRADED",
-      detectedAt,
-      repairedAt: completedAt,
-      verifiedAt: completedAt,
-      detectionSource: "control-plane-self-check",
-      autonomousRepair: true,
-      ownerActionRequired: false,
-      notes: "Run manifests existed without an ops-health row; active job telemetry writer repaired and verified the gap.",
-    });
+        WHERE component_id = ? AND run_id <> ?`
+    ).bind(componentId, payload.id).first();
+    if (Number(priorManifest?.manifest_count || 0) > 0) {
+      const detectedAt = priorManifest?.detected_at || payload.startedAt || completedAt;
+      await recordWatchdogMetric(env, {
+        incidentFingerprint: `ops-health-telemetry-gap:${componentId}`,
+        componentId,
+        failureClass: "telemetry_gap",
+        severity: "DEGRADED",
+        detectedAt,
+        repairedAt: completedAt,
+        verifiedAt: completedAt,
+        detectionSource: "control-plane-self-check",
+        autonomousRepair: true,
+        ownerActionRequired: false,
+        notes: "Prior run manifests existed without an ops-health row; active job telemetry writer repaired and verified the gap.",
+      });
+    }
   }
 
   let incidentFingerprint = null;
@@ -328,7 +331,7 @@ async function syncJobOpsTelemetry(env, payload, componentId) {
 
   await upsertOpsHealth(env, {
     componentId,
-    workflowFreshnessAt: payload.triggerType === "schedule" ? completedAt : null,
+    workflowFreshnessAt: completedAt,
     sourceFreshnessAt,
     databaseFreshnessAt,
     publishedFreshnessAt,
