@@ -103,13 +103,28 @@ function mergeDurableProps(board = {}, rows = []) {
     const id = String(game?.id || game?.eventId || game?.gameId || "");
     const durable = byEvent.get(id) || [];
     if (!durable.length) return game;
+    byEvent.delete(id);
     return {
       ...game,
-      // Durable ACTION observations are the board read source. Legacy
-      // propConvictions remain a fallback only when no durable rows exist.
       playerMarkets: durable,
     };
   });
+  for (const [id,durable] of byEvent) {
+    if (!durable.length || String(durable[0]?.sport || "").toLowerCase() !== "tennis") continue;
+    const first=durable[0];
+    const player=first.playerName || "Player";
+    const opponent=first.opponent || "Opponent";
+    mergedGames.push({
+      id,
+      sport:"tennis",
+      start:first.startTime || first.sourceObservedAt || null,
+      away:{abbr:opponent,name:opponent},
+      home:{abbr:player,name:player},
+      playerMarkets:durable,
+      projectionKind:"TENNIS_RESEARCH",
+      qualificationBlocked:true,
+    });
+  }
   return { ...board, games: mergedGames };
 }
 
@@ -143,7 +158,7 @@ export default function PlayerPropsBoard({
   useEffect(() => {
     let cancelled = false;
     const filter = String(sportFilter || "all").toLowerCase();
-    if ((filter !== "all" && !PRO_SPORTS.has(filter)) || !eventIds.length) {
+    if ((filter !== "all" && !PRO_SPORTS.has(filter)) || (!eventIds.length && filter !== "tennis")) {
       setDurableRows([]);
       setDiagnostics(null);
       setDurableError("");
@@ -153,8 +168,10 @@ export default function PlayerPropsBoard({
       };
     }
 
-    const params = new URLSearchParams({ eventIds: eventIds.join(",") });
+    const params = new URLSearchParams();
+    if (eventIds.length) params.set("eventIds", eventIds.join(","));
     if (filter !== "all") params.set("sport", filter);
+    if (date) params.set("date", date);
     setDurableLoading(true);
     setDurableError("");
     fetch(`/api/player-props?${params.toString()}`)
