@@ -20,6 +20,7 @@ import { attachSoccerV2Research } from "./soccerFbisV2.js";
 import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
 import { attachMlbPostseasonContext, loadMlbPostseasonContext } from "./mlbPostseasonContext.js";
 import { loadMlbPitchMatchupContext } from "./mlbPitchMatchupFeed.js";
+import { loadMlbPersistentState, buildPersistentBullpenFeed, attachMlbPersistentState } from "./mlbPersistentProfiles.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
 import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
@@ -70,13 +71,22 @@ export async function buildSlate(sport, date, env = {}) {
   let next = slate;
 
   if (id === "mlb") {
-    const bullpen = await loadMlbBullpenContext(slate.games || [], env).catch((err) => ({
-      byTeamId: {}, meta: { source: "MLB Stats relief split", teams: 0, available: 0, error: String(err?.message || err), marketInformed: false },
+    const persistent = await loadMlbPersistentState(slate.games || [], env, { maxAgeHours: 14 }).catch((err) => ({
+      byGameId: {},
+      meta: { configured: false, error: String(err?.message || err) },
     }));
+    const persistentGames = attachMlbPersistentState(slate.games || [], persistent);
+    const persistentBullpen = buildPersistentBullpenFeed(persistentGames, persistent);
+    const usePersistentBullpen = persistentBullpen.meta.available > 0 || Boolean(env?.DB?.prepare);
+    const bullpen = usePersistentBullpen
+      ? persistentBullpen
+      : await loadMlbBullpenContext(persistentGames, env).catch((err) => ({
+          byTeamId: {}, meta: { source: "MLB Stats relief split", teams: 0, available: 0, error: String(err?.message || err), marketInformed: false },
+        }));
 
-    // Attach regular bullpen + Ballpark Pal feature context first. Postseason
-    // usage needs these baselines, but Pal final scores/probabilities stay audit-only.
-    const baseEnriched = attachMlbBullpenContext(slate.games || [], bullpen).map((game) => {
+    // Production board requests consume one batched persistent D1 state read.
+    // Expensive MLB Stats/Statcast fanout belongs to scheduled profile refreshes.
+    const baseEnriched = attachMlbBullpenContext(persistentGames, bullpen).map((game) => {
       const pal = game.bpp || {};
       const parkRunsPct = Number(pal.park?.runsPct);
       const parkHrPct = Number(pal.park?.hrPct);
@@ -116,7 +126,7 @@ export async function buildSlate(sport, date, env = {}) {
       };
     });
 
-    const postseason = await loadMlbPostseasonContext(baseEnriched, env).catch((err) => ({
+    const postseason = await loadMlbPostseasonContext(baseEnriched, env, { persistentState: persistent }).catch((err) => ({
       byGameId: {},
       meta: { version: "research-v1-october-usage", postseasonGames: 0, available: 0, error: String(err?.message || err), marketInformed: false, canQualify: false },
     }));
@@ -124,7 +134,7 @@ export async function buildSlate(sport, date, env = {}) {
 
     // Statcast profile loader sees postseason state and shortens recency windows
     // for pitcher arsenal/pitch mix and hitter contact-zone behavior.
-    const pitchMatchup = await loadMlbPitchMatchupContext(octoberEnriched, env).catch((err) => ({
+    const pitchMatchup = await loadMlbPitchMatchupContext(octoberEnriched, env, { persistentState: persistent }).catch((err) => ({
       byGameId: {},
       meta: { source: "Baseball Savant Statcast pitch-level", games: 0, available: 0, error: String(err?.message || err), marketInformed: false, canQualify: false },
     }));
@@ -141,6 +151,12 @@ export async function buildSlate(sport, date, env = {}) {
       games: playerResearch,
       research: {
         ...(slate.research || {}),
+        mlbPersistentProfiles: {
+          ...persistent.meta,
+          profileAgePolicyHours: 14,
+          singleSlateRead: true,
+          boardLiveFanout: Boolean(!env?.DB?.prepare),
+        },
         mlbBullpen: bullpen.meta,
         mlbPostseason: postseason.meta,
         mlbPitchMatchup: pitchMatchup.meta,
