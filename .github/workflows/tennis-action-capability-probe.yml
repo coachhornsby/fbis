@@ -48,7 +48,9 @@ jobs:
             allowed="$(jq -r '.safety.allowed // false' "/tmp/${sport}-plan.json")"
             if [ "$allowed" = "true" ]; then
               curl -fsS --max-time 180 -X POST                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -H "content-type: application/json"                 -d "{\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"CAPABILITY_AUDIT\",\"gameStatus\":\"scheduled\",\"maxItems\":3,\"fitBudgetUsd\":0.18}"                 "${BASE}/api/action-research-pull" | tee "/tmp/${sport}-run.json"
-              jq -c --arg sport "$sport" '{sport:$sport,run:.}' "/tmp/${sport}-run.json" >> artifacts/tennis-action-probe.jsonl
+              rc=$?
+              set -e
+              jq -c --arg sport "$sport" --argjson rc "$rc" '{sport:$sport,curlRc:$rc,run:.}' "/tmp/${sport}-run.json" >> artifacts/tennis-action-probe.jsonl || true
             else
               jq -c --arg sport "$sport" '{sport:$sport,plan:.}' "/tmp/${sport}-plan.json" >> artifacts/tennis-action-probe.jsonl
             fi
@@ -61,8 +63,14 @@ jobs:
           for sport in atp wta; do
             runfile="/tmp/${sport}-run.json"
             [ -s "$runfile" ] || continue
-            run_id="$(jq -r '.runId // empty' "$runfile")"
-            dataset_id="$(npx wrangler d1 execute fbis --remote --json --command "SELECT dataset_id FROM shadow_collection_runs WHERE id='${run_id}' LIMIT 1" | jq -r '[..|objects|select(has("dataset_id"))|.dataset_id][0] // empty')"
+            run_id="$(jq -r '.runId // empty' "$runfile" 2>/dev/null || true)"
+            dataset_id=""
+            if [ -n "$run_id" ]; then
+              dataset_id="$(npx wrangler d1 execute fbis --remote --json --command "SELECT dataset_id FROM shadow_collection_runs WHERE id='${run_id}' LIMIT 1" | jq -r '[..|objects|select(has("dataset_id"))|.dataset_id][0] // empty')"
+            fi
+            if [ -z "$dataset_id" ]; then
+              dataset_id="$(npx wrangler d1 execute fbis --remote --json --command "SELECT dataset_id FROM shadow_collection_runs WHERE lower(sport)='${sport}' AND dataset_id IS NOT NULL ORDER BY started_at DESC LIMIT 1" | jq -r '[..|objects|select(has("dataset_id"))|.dataset_id][0] // empty')"
+            fi
             [ -n "$dataset_id" ] || continue
             curl -fsS --max-time 60 -H "Authorization: Bearer ${APIFY_TOKEN}"               "https://api.apify.com/v2/datasets/${dataset_id}/items?clean=true&format=json" > "/tmp/${sport}-raw.json"
             jq -c --arg sport "$sport" '
