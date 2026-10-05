@@ -41,7 +41,7 @@ jobs:
       - name: Collect five NBA teams
         run: |
           mkdir -p artifacts
-          node scripts/nba-team-profile-source.mjs             chunkIndex=${{ matrix.shard }} chunkCount=6 concurrency=3             out=artifacts/nba-team-profile-source-${{ matrix.shard }}.json
+          node scripts/nba-team-profile-source.mjs             shardIndex=${{ matrix.shard }} shardCount=6 concurrency=3             out=artifacts/nba-team-profile-source-${{ matrix.shard }}.json
           jq -e '.quality.teams==5' artifacts/nba-team-profile-source-${{ matrix.shard }}.json >/dev/null
       - uses: actions/upload-artifact@v4
         with:
