@@ -6,7 +6,7 @@
  */
 import { buildLineupMatchup } from "./mlbPitchMatchup.js";
 
-export const MLB_PERSISTENT_PROFILE_VERSION="mlb-state-v1";
+export const MLB_PERSISTENT_PROFILE_VERSION="mlb-state-v2";
 const HOUR=3600000;
 
 const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -112,4 +112,117 @@ export function buildPersistentPitchMatchup(game,state){
     marketInformed:false,
     canQualify:false,
   };
+}
+
+
+export function buildPersistentBullpenFeed(games=[],persistent={}){
+  const byTeamId={};
+  let available=0;
+  for(const game of games||[]){
+    const key=String(game.id||game.bpp?.gamePk||"");
+    const state=persistent?.byGameId?.[key]||null;
+    for(const [side,teamState] of [["home",state?.homeTeam],["away",state?.awayTeam]]){
+      const teamId=String(game?.[side]?.mlbId??"");
+      if(!teamId||byTeamId[teamId])continue;
+      const bullpen=teamState?.bullpen||null;
+      const era=finite(bullpen?.adjustedBullpenEra)??finite(bullpen?.coreBullpenEra);
+      if(era!=null)available+=1;
+      byTeamId[teamId]={
+        teamId:Number(teamId),
+        era,
+        coreBullpenEra:finite(bullpen?.coreBullpenEra),
+        adjustedBullpenEra:finite(bullpen?.adjustedBullpenEra),
+        fatigue:bullpen?.fatigue||null,
+        coreRelievers:Array.isArray(bullpen?.coreRelievers)?bullpen.coreRelievers:[],
+        source:"MLB persistent D1 profile",
+        asOf:state?.asOf||null,
+        persistent:true,
+        unavailable:era==null,
+      };
+    }
+  }
+  return {
+    byTeamId,
+    meta:{
+      source:"MLB persistent D1 profile",
+      teams:Object.keys(byTeamId).length,
+      available,
+      persistent:true,
+      liveFanout:false,
+      marketInformed:false,
+    },
+  };
+}
+
+export function attachMlbPersistentState(games=[],persistent={}){
+  return (games||[]).map(game=>{
+    const key=String(game.id||game.bpp?.gamePk||"");
+    const state=persistent?.byGameId?.[key]||null;
+    if(!state)return game;
+    return {
+      ...game,
+      mlbPersistentState:{
+        version:state.version,
+        asOf:state.asOf,
+        ageHours:state.ageHours,
+        fresh:state.fresh,
+        homeTeam:state.homeTeam?{
+          teamId:game.home?.mlbId??null,
+          bullpen:state.homeTeam.bullpen||null,
+          lineup:state.homeTeam.lineup||null,
+          schedule:state.homeTeam.schedule||null,
+          starterState:state.homeTeam.starterState||null,
+        }:null,
+        awayTeam:state.awayTeam?{
+          teamId:game.away?.mlbId??null,
+          bullpen:state.awayTeam.bullpen||null,
+          lineup:state.awayTeam.lineup||null,
+          schedule:state.awayTeam.schedule||null,
+          starterState:state.awayTeam.starterState||null,
+        }:null,
+        homeStarter:state.homeStarter||null,
+        awayStarter:state.awayStarter||null,
+        hitterProfileCount:Object.keys(state.hitters||{}).length,
+        marketInformed:false,
+      },
+    };
+  });
+}
+
+
+export function attachMlbPersistentFeatureContext(games=[],persistent={}){
+  return (games||[]).map(game=>{
+    const key=String(game.id||game.bpp?.gamePk||"");
+    const state=persistent?.byGameId?.[key]||null;
+    if(!state?.fresh)return game;
+    const homeOff=state.homeTeam?.offense||null;
+    const awayOff=state.awayTeam?.offense||null;
+    const homeSp=state.homeStarter||null;
+    const awaySp=state.awayStarter||null;
+    const existing=game.savant||{};
+    const packet={
+      homeRpg:finite(homeOff?.rpg)??finite(existing.homeRpg),
+      awayRpg:finite(awayOff?.rpg)??finite(existing.awayRpg),
+      homeSpEra:finite(homeSp?.era)??finite(existing.homeSpEra),
+      awaySpEra:finite(awaySp?.era)??finite(existing.awaySpEra),
+      homeSpKPer9:finite(homeSp?.k9)??finite(existing.homeSpKPer9),
+      awaySpKPer9:finite(awaySp?.k9)??finite(existing.awaySpKPer9),
+      homeSpKRate:finite(homeSp?.kRate)??finite(existing.homeSpKRate),
+      awaySpKRate:finite(awaySp?.kRate)??finite(existing.awaySpKRate),
+      homeSpInningsPerStart:finite(homeSp?.inningsPerStart)??finite(existing.homeSpInningsPerStart),
+      awaySpInningsPerStart:finite(awaySp?.inningsPerStart)??finite(existing.awaySpInningsPerStart),
+      homeSpBattersFacedPerInning:finite(homeSp?.battersFacedPerInning)??finite(existing.homeSpBattersFacedPerInning),
+      awaySpBattersFacedPerInning:finite(awaySp?.battersFacedPerInning)??finite(existing.awaySpBattersFacedPerInning),
+      homeSpGamesStarted:finite(homeSp?.starts)??finite(existing.homeSpGamesStarted),
+      awaySpGamesStarted:finite(awaySp?.starts)??finite(existing.awaySpGamesStarted),
+      homeOpponentKRate:finite(awayOff?.kRate)??finite(existing.homeOpponentKRate),
+      awayOpponentKRate:finite(homeOff?.kRate)??finite(existing.awayOpponentKRate),
+      leagueKRate:finite(existing.leagueKRate)??0.225,
+      weatherRunFactor:finite(existing.weatherRunFactor)??1,
+      source:"MLB persistent D1 state",
+      persistent:true,
+      asOf:state.asOf,
+    };
+    return {...game,savant:packet};
+  });
 }

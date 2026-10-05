@@ -6,6 +6,8 @@ import {
   expectedStarterInnings,
   bullpenFatigueFromUsage,
   loadMlbPersistentState,
+  buildPersistentBullpenFeed,
+  attachMlbPersistentFeatureContext,
 } from "../functions/lib/mlbPersistentProfiles.js";
 
 test("persistent MLB profile freshness is bounded",()=>{
@@ -72,4 +74,25 @@ test("D1 persistent loader batches teams and players without external fetch",asy
   assert.equal(result.meta.pitchers,2);
   assert.equal(result.byGameId.g1.homeStarter.expectedInnings,6.1);
   assert.equal(result.byGameId.g1.homeTeam.bullpen.fatigue.fatigueScore,.4);
+});
+
+
+test("persistent MLB state supplies offense starter and bullpen features without live fanout",()=>{
+  const game={id:"g1",sport:"mlb",home:{mlbId:117},away:{mlbId:147},homeSp:{id:100},awaySp:{id:200}};
+  const persistent={byGameId:{g1:{
+    fresh:true,asOf:"2026-10-05T12:00:00Z",
+    homeTeam:{offense:{rpg:4.8,kRate:.22},bullpen:{coreBullpenEra:3.4,adjustedBullpenEra:3.6,fatigue:{fatigueScore:.7}}},
+    awayTeam:{offense:{rpg:4.2,kRate:.25},bullpen:{coreBullpenEra:3.8,adjustedBullpenEra:4.0,fatigue:{fatigueScore:.9}}},
+    homeStarter:{era:3.1,k9:10.2,kRate:.29,inningsPerStart:5.9,battersFacedPerInning:4.15,starts:28},
+    awayStarter:{era:4.0,k9:8.1,kRate:.22,inningsPerStart:5.3,battersFacedPerInning:4.3,starts:26},
+  }},meta:{configured:true}};
+  const [enriched]=attachMlbPersistentFeatureContext([game],persistent);
+  assert.equal(enriched.savant.source,"MLB persistent D1 state");
+  assert.equal(enriched.savant.homeRpg,4.8);
+  assert.equal(enriched.savant.awaySpEra,4.0);
+  assert.equal(enriched.savant.homeOpponentKRate,.25);
+  const bullpen=buildPersistentBullpenFeed([game],persistent);
+  assert.equal(bullpen.meta.liveFanout,false);
+  assert.equal(bullpen.byTeamId["117"].era,3.6);
+  assert.equal(bullpen.byTeamId["147"].fatigue.fatigueScore,.9);
 });
