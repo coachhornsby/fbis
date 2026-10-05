@@ -113,17 +113,27 @@ function eventWeek(event){
  return finite(event?.week?.number??event?.week??event?.season?.week??event?.competitions?.[0]?.week?.number);
 }
 
+const NFL_POSITIONS=new Set(["QB","RB","FB","WR","TE","OT","T","G","OG","C","OL","DE","DT","NT","DL","EDGE","LB","ILB","OLB","CB","DB","S","FS","SS","K","P","LS"]);
+function rosterPosition(v){
+ const raw=clean(v).toUpperCase().replace(/[^A-Z]/g,"");
+ const map={
+  QUARTERBACK:"QB",RUNNINGBACK:"RB",FULLBACK:"FB",WIDERECEIVER:"WR",TIGHTEND:"TE",
+  OFFENSIVETACKLE:"OT",OFFENSIVEGUARD:"G",CENTER:"C",DEFENSIVEEND:"DE",DEFENSIVETACKLE:"DT",
+  LINEBACKER:"LB",CORNERBACK:"CB",SAFETY:"S",KICKER:"K",PUNTER:"P",LONGSNAPPER:"LS"
+ };
+ return map[raw]||raw;
+}
 function parseRoster(payload){
  const out=[],seen=new Set();
  function walk(v,positionHint=null,depth=0){
   if(v==null||depth>7)return;
   if(Array.isArray(v)){for(const x of v)walk(x,positionHint,depth+1);return;}
   if(typeof v!=="object")return;
-  const hint=clean(v?.position?.abbreviation||v?.position?.name||v?.position||v?.name||positionHint);
+  const hint=rosterPosition(v?.position?.abbreviation||v?.position?.name||v?.position||positionHint||"");
   const id=clean(v.id||v.uid||v.athlete?.id);
   const name=clean(v.fullName||v.displayName||v.athlete?.fullName||v.athlete?.displayName);
-  const pos=clean(v?.position?.abbreviation||v?.athlete?.position?.abbreviation||positionHint).toUpperCase();
-  const looksAthlete=Boolean(name&&id&&(pos||v.jersey||v.athlete));
+  const pos=rosterPosition(v?.position?.abbreviation||v?.athlete?.position?.abbreviation||v?.position?.name||positionHint||"");
+  const looksAthlete=Boolean(name&&id&&NFL_POSITIONS.has(pos));
   if(looksAthlete){
    const key=id+"|"+normName(name);
    if(!seen.has(key)){
