@@ -432,14 +432,14 @@ export function projectNhlProV2Game(game,ctx){
       goalie:{home:hg,away:ag},
       specialTeams:{home:round(hst-leagueSt,3),away:round(ast-leagueSt,3)},
       tracking:{home:he,away:ae,source:"NHL_EDGE_EXPANDED_OPTIONAL",expanded:{home:ctx?.edge?.[home]?.expanded||null,away:ctx?.edge?.[away]?.expanded||null,activation:"RESEARCH_ADVISORY_ONLY"},player:playerTracking,playerEdgeCoverage:ctx?.playerEdge?.coverage??0,historicalProxy:{homeHighDanger:round(hhd,2),awayHighDanger:round(ahd,2),homeRush:round(hrush,2),awayRush:round(arush,2)}},
-      opportunity:{source:opportunity?.source||null,available:Boolean(opportunity?.available),gameType:finite(opportunity?.gameType),scratchCount:opportunity?.scratchCount||0,home:opportunity?.home||null,away:opportunity?.away||null,homeGoalAdjustment:round(opportunityHome,3),awayGoalAdjustment:round(opportunityAway,3),researchOnly:true},
+      opportunity:{source:opportunity?.source||null,available:Boolean(opportunity?.available),gameType:finite(liveOpportunity?.gameType),scratchCount:liveOpportunity?.scratchCount||Number(persistentOpportunity?.home?.scratched?.length||0)+Number(persistentOpportunity?.away?.scratched?.length||0),home:opportunity?.home||null,away:opportunity?.away||null,homeGoalAdjustment:round(opportunityHome,3),awayGoalAdjustment:round(opportunityAway,3),persistentFallback:!liveOpportunity?.available&&Boolean(persistentOpportunity?.available),researchOnly:true},
       situation:{homeRestDays:hRest,awayRestDays:aRest,eloGoalAdjustment:round(eloGoalAdj,3),winnerSituational:winnerHead?.situational||null},
       distribution:{family:"BIVARIATE_POISSON",shared:probability.sharedComponent,winHead:"NHL-PRO-v2 calibrated probability + NHL-WIN-v1 directional pick",mostLikelyScore:probability.mostLikelyScore}
     },
     dataLineage:ctx?.sourceLineage||null,marketInformed:false,independent:true,
     canQualify:false,canAuthorizeWager:false,
     promotion:artifact?.promotion||null,
-    note:"NHL-PRO-v2 independent research challenger: event-chain boosted xG, shooter finishing, goalie GSAx, special teams, timeout-safe NHL EDGE zone-time plus expanded speed/distance/shot tracking advisory, and bivariate scoring."
+    note:"NHL-PRO-v2 independent research challenger: event-chain boosted xG, shooter finishing, goalie GSAx, special teams, persistent D1 personnel/deployment state with bounded live scratch overlay, timeout-safe NHL EDGE advisory, and bivariate scoring."
   };
 }
 export function attachNhlProV2(games=[],ctx=null){
