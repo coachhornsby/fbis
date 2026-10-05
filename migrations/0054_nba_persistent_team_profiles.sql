@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS nba_team_profiles (
   season INTEGER,
   head_coach_id TEXT,
   head_coach_name TEXT,
-  coach_tenure_years REAL,
+  coach_experience_years REAL,
   roster_json TEXT NOT NULL,
   rotation_json TEXT NOT NULL,
   availability_json TEXT NOT NULL,
