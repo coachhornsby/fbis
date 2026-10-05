@@ -78,7 +78,9 @@ for(const league of SOCCER_LEAGUES){
       const o=outcome(g);
       const conf=soccerConfidencePick(g,v2);
       rows.push({
-        league:g.league,id:g.id,start:g.start,outcome:o,
+        league:g.league,id:g.id,start:g.start,
+        homeTeam:g.home.name,awayTeam:g.away.name,
+        actualHome:g.homeScore,actualAway:g.awayScore,outcome:o,
         v1Home:v1.pHomeWin,v1Draw:v1.pDraw,v1Away:v1.pAwayWin,
         v2Home:v2.pHomeWin,v2Draw:v2.pDraw,v2Away:v2.pAwayWin,
         challengerActive:Boolean(v2.challenger?.active),
