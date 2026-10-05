@@ -65,6 +65,7 @@ export default function GameCard({
   const awayStarter = starterLine(game, "away");
   const homeStarter = starterLine(game, "home");
   const isMlb = game?.sport === "mlb";
+  const isTennis = game?.sport === "tennis";
   const logoSize = isMlb ? 48 : 86;
   const matchupClass = isMlb ? "gc-matchup-row" : "gc-matchup-row logo-stack";
   const venueLabel = safeDisplayString(game.venue, "");
@@ -128,7 +129,7 @@ export default function GameCard({
       </div>
 
       <section className="gc-projection" aria-label="FBIS projection">
-        <div className="gc-section-label">FBIS PROJECTION</div>
+        <div className="gc-section-label">{isTennis ? "FBIS WIN PROBABILITY · RESEARCH" : "FBIS PROJECTION"}</div>
         {proj.available ? (
           <>
             <div className="gc-score-grid">
@@ -141,16 +142,29 @@ export default function GameCard({
                 <strong className="gc-score-num">{fmtNum(proj.home, 1)}</strong>
               </div>
             </div>
-            <div className="gc-fair">
-              <div>
-                <span className="muted">FBIS FAIR</span>
-                <strong>{fairSpreadTeamLine(proj, game.away, game.home)}</strong>
+            {isTennis ? (
+              <div className="gc-fair">
+                <div>
+                  <span className="muted">PURE MODEL</span>
+                  <strong>{game.tennisProjection?.tour || "TENNIS"} · RESEARCH</strong>
+                </div>
+                <div>
+                  <span className="muted">MARKET-ADJ P1</span>
+                  <strong>{game.tennisProjection?.marketAdjustedP1 == null ? "—" : `${fmtNum(game.tennisProjection.marketAdjustedP1 * 100, 1)}%`}</strong>
+                </div>
               </div>
-              <div>
-                <span className="muted">TOTAL</span>
-                <strong>{fmtNum(proj.fairTotal, 1)}</strong>
+            ) : (
+              <div className="gc-fair">
+                <div>
+                  <span className="muted">FBIS FAIR</span>
+                  <strong>{fairSpreadTeamLine(proj, game.away, game.home)}</strong>
+                </div>
+                <div>
+                  <span className="muted">TOTAL</span>
+                  <strong>{fmtNum(proj.fairTotal, 1)}</strong>
+                </div>
               </div>
-            </div>
+            )}
           </>
         ) : (
           <div className="gc-proj-unavailable">
