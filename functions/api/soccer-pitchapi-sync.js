@@ -77,11 +77,14 @@ function bundle(match,advanced,stats,shotsData,advancedPlayers,standardPlayers,l
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(auth.reason),401);
   let body={};try{body=await context.request.json();}catch{return json({ok:false,error:"invalid-json"},400);}
-  const leagueKey=String(body.leagueKey||""),mode=String(body.mode||"historical").toLowerCase(),offset=Math.max(0,Number(body.offset)||0),limit=Math.max(1,Math.min(12,Number(body.limit)||8));
-  if(!ALIASES[leagueKey])return json({ok:false,error:"unsupported-league"},400);
+  const leagueKey=String(body.leagueKey||""),pitchLeagueId=body.pitchLeagueId==null?null:String(body.pitchLeagueId),mode=String(body.mode||"historical").toLowerCase(),offset=Math.max(0,Number(body.offset)||0),limit=Math.max(1,Math.min(12,Number(body.limit)||8));
+  if(!leagueKey)return json({ok:false,error:"league-key-required"},400);
+  if(!pitchLeagueId&&!ALIASES[leagueKey])return json({ok:false,error:"unsupported-league-without-pitch-id"},400);
   try{
-    const leagueData=await pitch(context.env,"/v1/leagues"),league=findLeague(leagueData?.leagues||[],leagueKey);
-    if(!league)return json({ok:false,error:"league-mapping-unresolved",leagueKey},422);
+    const leagueData=await pitch(context.env,"/v1/leagues"),league=pitchLeagueId
+      ? (leagueData?.leagues||[]).find(x=>String(x.id)===pitchLeagueId)
+      : findLeague(leagueData?.leagues||[],leagueKey);
+    if(!league)return json({ok:false,error:"league-mapping-unresolved",leagueKey,pitchLeagueId},422);
     const season=String(body.season||league.seasons?.[0]||"");if(!season)return json({ok:false,error:"season-unavailable"},422);
     const status=mode==="live"?"all":"played";
     const list=await pitch(context.env,`/v1/leagues/${league.id}/matches?season=${encodeURIComponent(season)}&status=${status}`);
