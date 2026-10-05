@@ -5,7 +5,7 @@
  * Research-only until prospective CLV/ROI validation passes.
  */
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const logit=p=>Math.log(clamp(p,1e-6,1-1e-6)/(1-clamp(p,1e-6,1-1e-6)));
 const logistic=z=>1/(1+Math.exp(-z));
 
