@@ -231,6 +231,7 @@ export function toDomainPlayerMarket(row = {}) {
     position: strOrNull(row.position),
 
     imageUrl,
+    fallbackImageUrl: strOrNull(row.fallbackImageUrl),
     imageSource: imageUrl ? strOrNull(row.imageSource) || "UPSTREAM" : null,
 
     market: strOrNull(row.market) || strOrNull(row.marketRaw),

@@ -609,7 +609,8 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
   const projectionRows = allRows.filter(
     (r) =>
       r.fbisProjection != null &&
-      Number.isFinite(Number(r.fbisProjection)),
+      Number.isFinite(Number(r.fbisProjection)) &&
+      (String(r.sport || "").toLowerCase() !== "tennis" || Boolean(r.imageUrl)),
   );
   const projectedRows = projectionRows.filter(
     (r) =>
@@ -643,7 +644,8 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       eventsWithProps: new Set(rows.map((r) => r.eventId).filter(Boolean)).size,
       supportedRows: supportedRows.length,
       unsupportedRows: projectedRows.length - supportedRows.length,
-      hiddenWithoutProjection: allRows.length - projectionRows.length,
+      hiddenWithoutProjection: allRows.filter((r) => r.fbisProjection == null || !Number.isFinite(Number(r.fbisProjection))).length,
+      hiddenTennisWithoutHeadshot: allRows.filter((r) => String(r.sport || "").toLowerCase() === "tennis" && !r.imageUrl).length,
       hiddenNflBelowFourStars: opts.enforceNflDisplayPolicy === true
         ? scopedBase.filter((r) =>
             String(r.sport || "").toLowerCase() === "nfl" &&
