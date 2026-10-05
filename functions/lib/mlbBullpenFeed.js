@@ -80,8 +80,11 @@ export function attachMlbBullpenContext(games = [], feed = {}) {
         ...(game.mlbContext || {}),
         homeBullpenEra: home?.era ?? game.mlbContext?.homeBullpenEra ?? null,
         awayBullpenEra: away?.era ?? game.mlbContext?.awayBullpenEra ?? null,
-        bullpenSource: "MLB Stats relief split",
+        bullpenSource: feed.meta?.source || home?.source || away?.source || "MLB Stats relief split",
         bullpenAsOf: home?.asOf || away?.asOf || null,
+        homeBullpenFatigueScore: home?.fatigue?.fatigueScore ?? game.mlbContext?.homeBullpenFatigueScore ?? null,
+        awayBullpenFatigueScore: away?.fatigue?.fatigueScore ?? game.mlbContext?.awayBullpenFatigueScore ?? null,
+        bullpenPersistent: Boolean(feed.meta?.persistent || home?.persistent || away?.persistent),
       },
     };
   });
