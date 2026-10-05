@@ -357,7 +357,7 @@ function PropAnalytics({ row, open, onToggle }){
       .then(body=>{clearTimeout(timer);if(!cancelled)setState({loading:false,error:"",body});})
       .catch(err=>{clearTimeout(timer);if(!cancelled)setState({loading:false,error:err?.name==="AbortError"?"History request timed out":String(err?.message||err),body:null});});
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
-  },[open,row,state.body,state.loading]);
+  },[open,row]);
 
   const detail=state.body?.detail||null;
   const calibration=state.body?.calibration||null;
