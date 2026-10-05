@@ -72,6 +72,32 @@ export async function persistPitchApiBundle(env,bundle={}){
       n(f.homeDirectSpeed),n(f.awayDirectSpeed),ts,json(bundle.rawAdvanced),json(bundle.rawStats),json(bundle.rawShots),created,created
     ).run();
 
+  await db.prepare(`UPDATE soccer_pitchapi_match_features SET
+    home_npxg=COALESCE(?,home_npxg),away_npxg=COALESCE(?,away_npxg),
+    home_xg_open_play=COALESCE(?,home_xg_open_play),away_xg_open_play=COALESCE(?,away_xg_open_play),
+    home_xg_set_play=COALESCE(?,home_xg_set_play),away_xg_set_play=COALESCE(?,away_xg_set_play),
+    home_xg_per_shot=COALESCE(?,home_xg_per_shot),away_xg_per_shot=COALESCE(?,away_xg_per_shot),
+    home_pass_accuracy=COALESCE(?,home_pass_accuracy),away_pass_accuracy=COALESCE(?,away_pass_accuracy),
+    home_passes_into_box=COALESCE(?,home_passes_into_box),away_passes_into_box=COALESCE(?,away_passes_into_box),
+    home_key_passes=COALESCE(?,home_key_passes),away_key_passes=COALESCE(?,away_key_passes),
+    home_through_balls=COALESCE(?,home_through_balls),away_through_balls=COALESCE(?,away_through_balls),
+    home_progressive_pass_distance=COALESCE(?,home_progressive_pass_distance),away_progressive_pass_distance=COALESCE(?,away_progressive_pass_distance),
+    home_carries_into_final_third=COALESCE(?,home_carries_into_final_third),away_carries_into_final_third=COALESCE(?,away_carries_into_final_third),
+    home_carries_into_box=COALESCE(?,home_carries_into_box),away_carries_into_box=COALESCE(?,away_carries_into_box),
+    home_avg_defensive_action_x=COALESCE(?,home_avg_defensive_action_x),away_avg_defensive_action_x=COALESCE(?,away_avg_defensive_action_x),
+    home_buildup_attacks=COALESCE(?,home_buildup_attacks),away_buildup_attacks=COALESCE(?,away_buildup_attacks),
+    home_direct_attacks=COALESCE(?,home_direct_attacks),away_direct_attacks=COALESCE(?,away_direct_attacks),
+    home_network_centralization=COALESCE(?,home_network_centralization),away_network_centralization=COALESCE(?,away_network_centralization)
+    WHERE pitch_match_id=?`).bind(
+      n(f.homeNpxg),n(f.awayNpxg),n(f.homeXgOpenPlay),n(f.awayXgOpenPlay),n(f.homeXgSetPlay),n(f.awayXgSetPlay),
+      n(f.homeXgPerShot),n(f.awayXgPerShot),n(f.homePassAccuracy),n(f.awayPassAccuracy),n(f.homePassesIntoBox),n(f.awayPassesIntoBox),
+      n(f.homeKeyPasses),n(f.awayKeyPasses),n(f.homeThroughBalls),n(f.awayThroughBalls),
+      n(f.homeProgressivePassDistance),n(f.awayProgressivePassDistance),n(f.homeCarriesIntoFinalThird),n(f.awayCarriesIntoFinalThird),
+      n(f.homeCarriesIntoBox),n(f.awayCarriesIntoBox),n(f.homeAvgDefensiveActionX),n(f.awayAvgDefensiveActionX),
+      n(f.homeBuildupAttacks),n(f.awayBuildupAttacks),n(f.homeDirectAttacks),n(f.awayDirectAttacks),
+      n(f.homeNetworkCentralization),n(f.awayNetworkCentralization),m.id
+    ).run();
+
   let players=0,lineups=0;
   for(const p of bundle.players||[]){
     if(!p?.playerId||!p?.teamId)continue;
@@ -91,6 +117,15 @@ export async function persistPitchApiBundle(env,bundle={}){
       raw_json=COALESCE(excluded.raw_json,soccer_pitchapi_player_match.raw_json),updated_at=excluded.updated_at`).bind(
         `${m.id}:${p.playerId}`,m.id,bundle.leagueKey,m.date,p.teamId,p.playerId,p.playerName||null,n(p.minutesPlayed),n(p.actions),n(p.xtTotal),n(p.vaepTotal),n(p.xag),n(p.xgChain),n(p.xgBuildup),
         n(p.progressivePasses),n(p.progressiveCarries),n(p.chancesCreated),n(p.shots),ts,json(p.raw||p),created,created
+      ).run();
+    await db.prepare(`UPDATE soccer_pitchapi_player_match SET
+      vaep_offensive=COALESCE(?,vaep_offensive),vaep_defensive=COALESCE(?,vaep_defensive),pv_total=COALESCE(?,pv_total),
+      goals=COALESCE(?,goals),assists=COALESCE(?,assists),expected_goals=COALESCE(?,expected_goals),expected_assists=COALESCE(?,expected_assists),
+      saves=COALESCE(?,saves),claims=COALESCE(?,claims),claims_won=COALESCE(?,claims_won),sweeper_actions=COALESCE(?,sweeper_actions),
+      distribution_accuracy=COALESCE(?,distribution_accuracy),avg_pass_length=COALESCE(?,avg_pass_length)
+      WHERE pitch_match_id=? AND player_id=?`).bind(
+        n(p.vaepOffensive),n(p.vaepDefensive),n(p.pvTotal),n(p.goals),n(p.assists),n(p.expectedGoals),n(p.expectedAssists),
+        n(p.saves),n(p.claims),n(p.claimsWon),n(p.sweeperActions),n(p.distributionAccuracy),n(p.avgPassLength),m.id,p.playerId
       ).run();players++;
   }
   for(const l of bundle.lineups||[]){

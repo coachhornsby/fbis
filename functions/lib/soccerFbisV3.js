@@ -9,12 +9,16 @@
 import { normalizeSoccerName, loadPitchApiHistory, loadEligiblePitchApiLineups, findPitchApiFixture } from "./soccerPitchApiStore.js";
 
 export const SOCCER_FBIS_V3_ID="SOCCER-FBIS-v3";
-export const SOCCER_FBIS_V3_VERSION="research-v1-pitchapi-advanced";
+export const SOCCER_FBIS_V3_VERSION="research-v1.1-pitchapi-full-reference";
 const MIN_LEAGUE=80,MIN_TEAM=8,LR=.03,L2=.0008;
 const FIELDS=[
- ["xg",1.2],["xgot",1],["sot",3],["field_tilt",20],["final_third_entries",35],["box_entries",15],
- ["ppda",6],["high_turnovers",6],["counterpress_regains",7],["ball_recovery_time",8],["xt",.6],["vaep",.4],
- ["progressive_passes",25],["progressive_carries",15],["xag",1],["possession",20],["passes_per_sequence",2],["direct_speed",1],
+ ["xg",1.2],["npxg",1.1],["xgot",1],["xg_per_shot",.12],["sot",3],
+ ["field_tilt",20],["final_third_entries",35],["box_entries",15],
+ ["ppda",6],["avg_defensive_action_x",10],["high_turnovers",6],["counterpress_regains",7],["ball_recovery_time",8],
+ ["xt",.6],["vaep",.4],["progressive_passes",25],["progressive_pass_distance",350],["passes_into_box",12],
+ ["progressive_carries",15],["carries_into_final_third",12],["carries_into_box",7],["xag",1],
+ ["possession",20],["pass_accuracy",10],["passes_per_sequence",2],["direct_speed",1],
+ ["buildup_attacks",7],["direct_attacks",6],["network_centralization",.18],
 ];
 function n(v){const x=Number(v);return Number.isFinite(x)?x:null;}
 function clamp(v,a,b){return Math.max(a,Math.min(b,Number(v)));}
@@ -23,10 +27,15 @@ function teamKey(id,name){return id?String(id):normalizeSoccerName(name);}
 function empty(){return{games:0,gf:0,ga:0,metrics:Object.fromEntries(FIELDS.map(([f])=>[f,{for:0,against:0,n:0}]))};}
 function avg(x){return x.n?x.for/x.n:null;}function avgAgainst(x){return x.n?x.against/x.n:null;}
 function col(row,side,f){
-  const map={xg:"xg",xgot:"xgot",sot:"sot",field_tilt:"field_tilt",final_third_entries:"final_third_entries",box_entries:"box_entries",
-    ppda:"ppda",high_turnovers:"high_turnovers",counterpress_regains:"counterpress_regains",ball_recovery_time:"ball_recovery_time",
-    xt:"xt",vaep:"vaep",progressive_passes:"progressive_passes",progressive_carries:"progressive_carries",xag:"xag",possession:"possession",
-    passes_per_sequence:"passes_per_sequence",direct_speed:"direct_speed"};
+  const map={
+    xg:"xg",npxg:"npxg",xgot:"xgot",xg_per_shot:"xg_per_shot",sot:"sot",
+    field_tilt:"field_tilt",final_third_entries:"final_third_entries",box_entries:"box_entries",
+    ppda:"ppda",avg_defensive_action_x:"avg_defensive_action_x",high_turnovers:"high_turnovers",counterpress_regains:"counterpress_regains",ball_recovery_time:"ball_recovery_time",
+    xt:"xt",vaep:"vaep",progressive_passes:"progressive_passes",progressive_pass_distance:"progressive_pass_distance",passes_into_box:"passes_into_box",
+    progressive_carries:"progressive_carries",carries_into_final_third:"carries_into_final_third",carries_into_box:"carries_into_box",xag:"xag",
+    possession:"possession",pass_accuracy:"pass_accuracy",passes_per_sequence:"passes_per_sequence",direct_speed:"direct_speed",
+    buildup_attacks:"buildup_attacks",direct_attacks:"direct_attacks",network_centralization:"network_centralization"
+  };
   return n(row?.[`${side}_${map[f]}`]);
 }
 function addTeam(t,row,side){
@@ -41,7 +50,7 @@ function feature(state,homeKey,awayKey){
     if(f==="ppda"||f==="ball_recovery_time"){const x=hv;hv=av;av=x;}
     out.push(hv==null||av==null?0:clamp((hv-av)/scale,-3,3));
     const hd=avg(hm),haa=avgAgainst(hm),ad=avg(am),aaa=avgAgainst(am);
-    if(["xg","xgot","sot","xt","vaep","xag"].includes(f)) out.push([hd,haa,ad,aaa].some(x=>x==null)?0:clamp(((hd-haa)-(ad-aaa))/scale,-3,3));
+    if(["xg","npxg","xgot","xg_per_shot","sot","xt","vaep","xag","passes_into_box","carries_into_box"].includes(f)) out.push([hd,haa,ad,aaa].some(x=>x==null)?0:clamp(((hd-haa)-(ad-aaa))/scale,-3,3));
   }
   out.push(clamp((h.games-a.games)/20,-1,1));
   return{vector:out,homeGames:h.games,awayGames:a.games};
@@ -51,7 +60,7 @@ function predict(m,x){const xx=[1,...x],z=m.w.map(w=>w.reduce((s,v,i)=>s+v*xx[i]
 function update(m,x,y){const xx=[1,...x],p=predict(m,x);for(let c=0;c<3;c++){const e=(c===y?1:0)-p[c];for(let j=0;j<xx.length;j++)m.w[c][j]+=LR*(e*xx[j]-(j?L2*m.w[c][j]:0));}m.updates++;m.loss+=-Math.log(Math.max(1e-9,p[y]));}
 function outcome(h,a){return h>a?0:h===a?1:2;}
 function stateFrom(rows=[],cutoff="9999-12-31"){
-  const d=FIELDS.length+["xg","xgot","sot","xt","vaep","xag"].length+1,state={teams:new Map(),model:null,matches:0,coverage:0};
+  const d=FIELDS.length+["xg","npxg","xgot","xg_per_shot","sot","xt","vaep","xag","passes_into_box","carries_into_box"].length+1,state={teams:new Map(),model:null,matches:0,coverage:0};
   state.model=classifier(d);
   for(const r of [...rows].filter(x=>String(x.match_date)<cutoff).sort((a,b)=>String(a.match_date).localeCompare(String(b.match_date)))){
     const hk=teamKey(r.home_team_id,r.home_team_name),ak=teamKey(r.away_team_id,r.away_team_name);
@@ -84,7 +93,7 @@ export function projectSoccerV3(game,v2,rows=[]){
     marketInformed:false,canQualify:false,canAuthorize:false,maturity:"RESEARCH",pitchMatchId,
     pitchapi:{classifier:{pHome:p[0],pDraw:p[1],pAway:p[2],updates:state.model.updates,trainingLogLoss:state.model.loss/state.model.updates},
       coverage:state.matches?state.coverage/state.matches:0,historyMatches:state.matches,homeHistory:f.homeGames,awayHistory:f.awayGames,
-      featureFamilies:["shot-quality","pressing","territory","possession-value","progression","tempo"]},
+      featureFamilies:["shot-quality","chance-type","pressing","defensive-height","territory","possession-value","progression","passing-efficiency","tempo","build-up-style","pass-network"]},
     ensemble:{v2Weight:w,pitchApiWeight:1-w},provenance:{provider:"PitchAPI",pointInTimeCutoff:cutoff,marketUsed:false,postMatchTargetFeaturesUsed:false}};
 }
 export async function attachSoccerV3Research(games=[],env={}){
