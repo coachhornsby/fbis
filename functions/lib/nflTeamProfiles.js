@@ -424,6 +424,43 @@ async function recordRun(db,r){
  ).run();
 }
 
+export async function applyNflAvailabilityToProfiles(env={},rows=[]){
+ if(!env?.DB?.prepare||!Array.isArray(rows)||!rows.length)return{ok:false,updated:0,reason:"db-or-rows-missing"};
+ const teams=[...new Set(rows.map(r=>String(r.teamKey||r.team_key||"").toLowerCase()).filter(Boolean))];
+ if(!teams.length)return{ok:false,updated:0,reason:"team-keys-missing"};
+ const marks=teams.map(()=>"?").join(",");
+ const existing=await queryRows(env.DB,`SELECT * FROM nfl_player_profiles WHERE team_key IN (${marks})`,...teams);
+ const byTeamName=new Map(existing.map(r=>[`${r.team_key}|${normName(r.player_name)}`,r]));
+ const stmts=[];
+ let matched=0;
+ for(const row of rows){
+  const t=String(row.teamKey||row.team_key||"").toLowerCase(),name=clean(row.playerName||row.player_name);
+  const current=byTeamName.get(`${t}|${normName(name)}`);
+  if(!current)continue;
+  const health=healthFromOfficial({status:row.status});
+  if(!health)continue;
+  const sourceAt=row.sourceUpdatedAt||row.source_updated_at||row.observedAt||row.observed_at||new Date().toISOString();
+  const injury=row.injuryDetail||row.injury_detail||null;
+  const practice=row.practiceStatus||row.practice_status||null;
+  const snap=finite(current.last_known_snap_share);
+  const expected=snap==null?null:round(snap*availabilityProbability(health),3);
+  const onset=health==="AVAILABLE"?current.injury_onset_at:(current.injury_onset_at||sourceAt);
+  const active=health==="AVAILABLE"?sourceAt:current.active_confirmation_at;
+  stmts.push(env.DB.prepare(`UPDATE nfl_player_profiles SET
+    health_state=?,practice_state=?,injury_detail=?,injury_onset_at=?,injury_severity_class=?,
+    expected_return_state=?,expected_snap_share=?,state_confidence=?,state_source=?,state_source_updated_at=?,
+    active_confirmation_at=?,carried_state=0,updated_at=?
+    WHERE player_key=?`).bind(
+      health,practice,injury,onset,injurySeverityClass(health,injury),
+      isPersistentHealth(health)?"RETURN_PENDING":unresolvedHealth(health)?"STATUS_PENDING":"AVAILABLE",
+      expected,stateConfidence(health,false),"nfl-official",sourceAt,active,new Date().toISOString(),current.player_key
+  ));
+  matched++;
+ }
+ for(let i=0;i<stmts.length;i+=75)await env.DB.batch(stmts.slice(i,i+75));
+ return{ok:true,updated:matched,teams:teams.length};
+}
+
 export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=Date.now(),nflverse=null}={}){
  const startedAt=new Date(nowMs).toISOString(),team=teamRegistry(abbr),runId=`nfl-profile:${season}:${teamKey(abbr)}:${startedAt}`;
  if(!team)return{ok:false,team:abbr,reason:"unknown-team"};
@@ -458,8 +495,14 @@ export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=
     if(health&&health!=="AVAILABLE"&&!onset)onset=sourceAt;
     if(health==="AVAILABLE")activeConfirmed=sourceAt;
    }else if(isPersistentHealth(oldState)){
-    health=oldState;carried=true;source=old?.state_source||"persistent-profile";sourceAt=old?.state_source_updated_at||old?.updated_at||startedAt;
-    practice=old?.practice_state||null;injury=old?.injury_detail||null;
+    const oldAt=String(old?.state_source_updated_at||old?.updated_at||"");
+    const lastPlayed=String(u?.recentGames?.[0]?.date||"");
+    if(lastPlayed && oldAt && Date.parse(lastPlayed)>Date.parse(oldAt)){
+      health="AVAILABLE";source="nflverse-game-participation";sourceAt=lastPlayed;activeConfirmed=lastPlayed;practice=null;injury=old?.injury_detail||null;
+    }else{
+      health=oldState;carried=true;source=old?.state_source||"persistent-profile";sourceAt=oldAt||startedAt;
+      practice=old?.practice_state||null;injury=old?.injury_detail||null;
+    }
    }else if(unresolvedHealth(oldState) && (!currentTeamReportAt || currentTeamReportAt<=String(old?.state_source_updated_at||old?.updated_at||""))){
     health=oldState;carried=true;source=old?.state_source||"persistent-profile";sourceAt=old?.state_source_updated_at||old?.updated_at||startedAt;
     practice=old?.practice_state||null;injury=old?.injury_detail||null;
