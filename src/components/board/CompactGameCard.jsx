@@ -157,7 +157,7 @@ const MATCHUP_SYMBOL_BY_ID = {
 
 function stripDecorativeEmoji(rawLabel) {
   return String(rawLabel || "MATCHUP")
-    .replace(/^(?:\\p{Extended_Pictographic}|[↩︎↩️])(?:\\uFE0F)?\\s*/u, "")
+    .replace(/^(?:\p{Extended_Pictographic}|[↩︎↩️])(?:\uFE0F)?\s*/u, "")
     .trim();
 }
 
