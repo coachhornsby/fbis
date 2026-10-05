@@ -235,7 +235,7 @@ function deploymentFromShifts(roster,shiftSets=[]){
  }
  return {lines,toi,pairs:pairsOut,gamesByPlayer};
 }
-function ppPkUnits(roster,timeById){
+export function inferNhlSpecialTeamsUnits(roster,timeById){
  const pp=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.ppTimeOnIcePerGame ?? timeById.get(p.id)?.powerPlayTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
  const pk=roster.filter(p=>p.position!=="G").map(p=>({id:p.id,v:durationSeconds(timeById.get(p.id)?.shTimeOnIcePerGame ?? timeById.get(p.id)?.shortHandedTimeOnIcePerGame)||0})).sort((a,b)=>b.v-a.v);
  const out=new Map();
@@ -244,7 +244,7 @@ function ppPkUnits(roster,timeById){
  pk.filter(x=>x.v>0).slice(0,8).forEach((x,i)=>out.get(x.id).pkUnit=i<4?1:2);
  return out;
 }
-function parseCoach(payload={}){
+export function parseNhlCoachMetadata(payload={}){
  const found=[];
  const direct=[...(Array.isArray(payload?.coach)?payload.coach:[]),...(Array.isArray(payload?.coaches)?payload.coaches:[])];
  direct.forEach((v,i)=>{
@@ -339,7 +339,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
   const latest=sources.detail?.[0]||null,lastGameScratches=scratchIds(latest?.box?.data||{}),currentScratches=scratchIds(sources.pregameBox?.data||{}),starterIds=goalieStarterIds(latest?.box?.data||{});
   const rosterIdSet=new Set(roster.map(p=>p.id));
   const shiftSets=(sources.detail||[]).map(d=>({gameId:d.game.id,rows:parseShiftRows(d.shifts?.data||{},team,rosterIdSet)}));
-  const deploy=deploymentFromShifts(roster,shiftSets),units=ppPkUnits(roster,timeById);
+  const deploy=deploymentFromShifts(roster,shiftSets),units=inferNhlSpecialTeamsUnits(roster,timeById);
   const [existing,availRows]=await Promise.all([existingPlayers(DB,tkey),availabilityRows(DB,tkey)]);
   const priorById=new Map(existing.map(x=>[String(x.player_id),x])),availability=latestAvailability(availRows);
   const players=roster.map(p=>{
@@ -405,7 +405,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    playerId:p.playerId,playerName:p.playerName,position:p.position,evLine:p.evLine,dPair:p.dPair,ppUnit:p.ppUnit,pkUnit:p.pkUnit,
    toiSeconds:p.lastToiSeconds,scratch:Boolean(p.raw?.lastGameScratch),observedAt:now.toISOString(),raw:{source:p.source,currentGameState:p.gameState}
   }));
-  const coach=parseCoach(sources.coach?.data||{});
+  const coach=parseNhlCoachMetadata(sources.coach?.data||{});
   const next=nextGame(scheduleRows,now.getTime()),counts={
    roster:players.filter(p=>!p.carriedState).length,active:players.filter(p=>!p.carriedState&&p.gameState!=="CONFIRMED_SCRATCH"&&p.gameState!=="OUT").length,
    scratches:players.filter(p=>p.gameState==="CONFIRMED_SCRATCH").length,unavailable:players.filter(p=>["OUT","IR","CONFIRMED_SCRATCH"].includes(p.availabilityState)).length
