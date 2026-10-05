@@ -31,15 +31,22 @@ function fairSpreadTeamLine(proj, away, home) {
   return `${away?.abbr || "AWAY"} ${formatSpreadLabel(-line)}`;
 }
 
+function starterInfo(game, side) {
+  if (game?.sport !== "mlb") return null;
+  const raw = side === "away" ? game.awaySp : game.homeSp;
+  const persistent = game?.mlbPersistentState?.[side === "away" ? "awayStarter" : "homeStarter"] || null;
+  const era = persistent?.era ?? (side === "away" ? game.savant?.awaySpEra : game.savant?.homeSpEra);
+  const id = raw?.id ?? persistent?.id ?? null;
+  const wins = persistent?.wins ?? null, losses = persistent?.losses ?? null;
+  return {id,name:raw?.name||persistent?.name||null,era,wins,losses};
+}
 function starterLine(game, side) {
   if (game?.sport !== "mlb") return null;
-  const sp = side === "away" ? game.awaySp : game.homeSp;
-  const era = side === "away" ? game.savant?.awaySpEra : game.savant?.homeSpEra;
-  if (!sp?.name && era == null) return null;
-  const name = sp?.last || sp?.name || "TBD";
-  const eraTxt = era == null || Number.isNaN(Number(era)) ? null : `${Number(era).toFixed(2)} ERA`;
-  const record = sp?.record || sp?.wL || null;
-  return [name, record, eraTxt].filter(Boolean).join(" · ");
+  const sp = starterInfo(game, side);
+  if (!sp?.name && sp?.era == null) return null;
+  const eraTxt = sp.era == null || Number.isNaN(Number(sp.era)) ? null : `${Number(sp.era).toFixed(2)} ERA`;
+  const record = sp.wins != null && sp.losses != null ? `${sp.wins}-${sp.losses}` : null;
+  return [sp.name || "TBD", record, eraTxt].filter(Boolean).join(" · ");
 }
 
 export default function GameCard({
@@ -64,6 +71,8 @@ export default function GameCard({
   const done = Boolean(game.status?.completed);
   const awayStarter = starterLine(game, "away");
   const homeStarter = starterLine(game, "home");
+  const awayStarterInfo = starterInfo(game, "away");
+  const homeStarterInfo = starterInfo(game, "home");
   const isMlb = game?.sport === "mlb";
   const isTennis = game?.sport === "tennis";
   const logoSize = isMlb ? 48 : 86;
@@ -104,7 +113,10 @@ export default function GameCard({
 
       <div className={matchupClass} aria-label="Matchup">
         <div className="gc-side away">
-          <TeamLogo team={game.away} size={logoSize} />
+          <div className="gc-team-logo-stack">
+            <TeamLogo team={game.away} size={logoSize} />
+            {isMlb && awayStarterInfo?.id ? <img className="gc-starter-headshot" src={`https://img.mlbstatic.com/mlb-photos/image/upload/w_80,q_auto:best/v1/people/${awayStarterInfo.id}/headshot/67/current`} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}
+          </div>
           <div className="gc-side-text">
             <span className="gc-team-name">{teamCardTitle(game.away)}</span>
             {game.away?.record ? <span className="gc-record muted">{safeDisplayString(game.away.record)}</span> : null}
@@ -116,7 +128,10 @@ export default function GameCard({
         </div>
         <div className="gc-at" aria-hidden="true">@</div>
         <div className="gc-side home">
-          <TeamLogo team={game.home} size={logoSize} />
+          <div className="gc-team-logo-stack">
+            <TeamLogo team={game.home} size={logoSize} />
+            {isMlb && homeStarterInfo?.id ? <img className="gc-starter-headshot" src={`https://img.mlbstatic.com/mlb-photos/image/upload/w_80,q_auto:best/v1/people/${homeStarterInfo.id}/headshot/67/current`} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}
+          </div>
           <div className="gc-side-text">
             <span className="gc-team-name">{teamCardTitle(game.home)}</span>
             {game.home?.record ? <span className="gc-record muted">{safeDisplayString(game.home.record)}</span> : null}
