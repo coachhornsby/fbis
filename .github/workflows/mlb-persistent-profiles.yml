@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: "45 10,18 * * *"
   push:
-    branches: [main, feature/mlb-persistent-profiles-v2-2026-10-05]
+    branches: [main]
     paths:
       - "functions/lib/mlbPersistentProfiles.js"
       - "functions/lib/mlbPitchMatchupFeed.js"
