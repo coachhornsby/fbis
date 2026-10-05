@@ -236,7 +236,10 @@ jobs:
             jq -e 'type=="array"' "$body" >/dev/null
             n="$(jq 'length' "$body")"
             echo "coverage league=$league advertised=$live_present rows=$n"
-            test "$n" -gt 0
+            if [ "$n" -eq 0 ]; then
+              jq -nc --arg league "$league" --argjson advertised "$live_present" '{league:$league,expected:($advertised>0),advertised:$advertised,rows:0}' >> artifacts/prizepicks-coverage.ndjson
+              continue
+            fi
             jq -c '.[]' "$body" >> artifacts/prizepicks-rows.ndjson
             jq -nc --arg league "$league" --argjson live "$live_present" --argjson rows "$n" '{league:$league,expected:true,liveCount:$live,rows:$rows}' >> artifacts/prizepicks-coverage.ndjson
           done
