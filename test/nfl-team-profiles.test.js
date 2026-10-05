@@ -77,3 +77,21 @@ test("NFL persistent profile injury classification records type without inventin
   assert.equal(injurySeverityClass("OUT","Right ankle sprain"),"UNAVAILABLE");
   assert.equal(injurySeverityClass("QUESTIONABLE","Hamstring"),"ELEVATED_AVAILABILITY_RISK");
 });
+
+
+test("normal Sunday-to-Sunday cadence is not a short week when kickoff windows differ", () => {
+  const rows=buildScheduleProfile([
+    event({id:"1",date:"2026-09-13T20:25:00Z",home:"DAL",away:"NYG",week:1,city:"Arlington"}),
+    event({id:"2",date:"2026-09-20T17:00:00Z",home:"CHI",away:"DAL",week:2,city:"Chicago"}),
+  ],"DAL",2026,Date.parse("2026-09-10T12:00:00Z"));
+  assert.equal(rows[1].shortWeek,false);
+  assert.ok((Date.parse(rows[1].start_time)-Date.parse(rows[0].start_time))/3600000 > 144);
+});
+
+test("Monday-to-Sunday turnaround remains classified as a short week", () => {
+  const rows=buildScheduleProfile([
+    event({id:"1",date:"2026-09-15T00:15:00Z",home:"HOU",away:"DAL",week:1,city:"Houston"}),
+    event({id:"2",date:"2026-09-20T17:00:00Z",home:"DAL",away:"NYG",week:2,city:"Arlington"}),
+  ],"DAL",2026,Date.parse("2026-09-10T12:00:00Z"));
+  assert.equal(rows[1].shortWeek,true);
+});
