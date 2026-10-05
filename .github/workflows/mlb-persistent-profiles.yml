@@ -79,10 +79,26 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0055_mlb_persistent_profiles.sql
+          retry_cf() {
+            local attempt=1
+            local max=5
+            local delay=3
+            while true; do
+              if "$@"; then return 0; fi
+              if [ "$attempt" -ge "$max" ]; then
+                echo "Cloudflare command failed after $max attempts: $*"
+                return 1
+              fi
+              echo "Cloudflare transient failure; retry $attempt/$max in ${delay}s"
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          retry_cf npx wrangler d1 execute fbis --remote --file=migrations/0055_mlb_persistent_profiles.sql
           find artifacts/mlb-profile-shards -name '*.sql' -print0 | sort -z | while IFS= read -r -d '' f; do
             echo "Applying $f"
-            npx wrangler d1 execute fbis --remote --file="$f"
+            retry_cf npx wrangler d1 execute fbis --remote --file="$f"
           done
       - name: Archive current profile state
         if: github.ref == 'refs/heads/main'
@@ -91,9 +107,21 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler r2 object put "fbis-archive/models/mlb/team-profiles/current.json" --file artifacts/mlb-persistent-profiles.json --remote
+          retry_cf() {
+            local attempt=1
+            local max=5
+            local delay=3
+            while true; do
+              if "$@"; then return 0; fi
+              if [ "$attempt" -ge "$max" ]; then return 1; fi
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          retry_cf npx wrangler r2 object put "fbis-archive/models/mlb/team-profiles/current.json" --file artifacts/mlb-persistent-profiles.json --remote
           stamp=$(date -u +%Y%m%dT%H%M%SZ)
-          npx wrangler r2 object put "fbis-archive/models/mlb/team-profiles/snapshots/${stamp}.json" --file artifacts/mlb-persistent-profiles.json --remote
+          retry_cf npx wrangler r2 object put "fbis-archive/models/mlb/team-profiles/snapshots/${stamp}.json" --file artifacts/mlb-persistent-profiles.json --remote
       - name: Publish summary
         run: |
           {
