@@ -5,6 +5,9 @@ on:
     paths:
       - "scripts/nhl-player-pro-v2-backtest.mjs"
       - "functions/lib/nhlPersistentProfiles.js"
+      - "functions/api/nhl-team-profiles.js"
+      - "migrations/0058_nhl_replacement_observations.sql"
+      - "migrations/0057_nhl_player_tracking_profiles.sql"
       - "functions/lib/nhlProV2.js"
       - "functions/lib/nhlPlayerProV2.js"
       - "test/nhl-persistent-profiles.test.js"
