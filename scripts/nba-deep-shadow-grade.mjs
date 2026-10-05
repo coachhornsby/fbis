@@ -51,7 +51,7 @@ const report={id,generatedAt:now,modelId:"NBA-FBIS-v2-DEEP",validationType:"PROS
   incumbentWinnerAccuracy:iw,challengerWinnerAccuracy:cw,evidencePass,
   decision:evidencePass?"PROSPECTIVE_EVIDENCE_PASS":"ACCUMULATING_OR_FAIL",
   governance:{autoPromote:false,canQualify:false,canAuthorize:false}};
-const insert=`INSERT OR REPLACE INTO nba_deep_validation_runs (id,model_id,model_version,validation_type,training_start,training_cutoff,holdout_start,n,incumbent_margin_mae,challenger_margin_mae,margin_improvement,incumbent_total_mae,challenger_total_mae,total_improvement,incumbent_winner_accuracy,challenger_winner_accuracy,evidence_pass,details_json,created_at) VALUES (${q(id)},'NBA-FBIS-v2-DEEP',NULL,'PROSPECTIVE',NULL,NULL,NULL,${graded.length},${num(im)},${num(cm)},${num(mi)},${num(it)},${num(ct)},${num(ti)},${num(iw)},${num(cw)},${evidencePass?1:0},${q(JSON.stringify(report))},${q(now)});`;
+const insert=`INSERT OR REPLACE INTO nba_deep_validation_runs (id,model_id,model_version,validation_type,training_start,training_cutoff,holdout_start,n,incumbent_margin_mae,challenger_margin_mae,margin_improvement,incumbent_total_mae,challenger_total_mae,total_improvement,incumbent_winner_accuracy,challenger_winner_accuracy,evidence_pass,details_json,created_at) VALUES (${q(id)},'NBA-FBIS-v2-DEEP','research-v1','PROSPECTIVE',NULL,NULL,NULL,${graded.length},${num(im)},${num(cm)},${num(mi)},${num(it)},${num(ct)},${num(ti)},${num(iw)},${num(cw)},${evidencePass?1:0},${q(JSON.stringify(report))},${q(now)});`;
 fs.mkdirSync(out.split("/").slice(0,-1).join("/")||".",{recursive:true});
 fs.writeFileSync(out,JSON.stringify(report,null,2)+"\n");
 fs.writeFileSync(sqlOut,[...updates,insert].join("\n")+"\n");
