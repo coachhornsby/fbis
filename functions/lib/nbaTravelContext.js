@@ -62,7 +62,8 @@ function teamAbbrInGame(g,teamId){
 export function buildNbaScheduleContext(games=[],target,index,side){
  const teamId=String(target?.[side+"Id"]||target?.[side]?.id||"");
  const targetStart=Date.parse(target?.start||target?.date||0);
- const targetAbbr=target?.[side]?.abbr||target?.[side+"Abbr"]||teamAbbrInGame(target,teamId);
+ const teamAbbr=target?.[side]?.abbr||target?.[side+"Abbr"]||teamAbbrInGame(target,teamId);
+ const targetVenueAbbr=target?.home?.abbr||target?.homeAbbr||teamAbbrInGame(target,String(target?.homeId||target?.home?.id||""));
  const prior=(games||[]).slice(0,index).filter(g=>String(g.homeId)===teamId||String(g.awayId)===teamId)
    .sort((a,b)=>Date.parse(b.start||b.date||0)-Date.parse(a.start||a.date||0));
  const prev=prior[0]||null;
@@ -70,17 +71,18 @@ export function buildNbaScheduleContext(games=[],target,index,side){
  const daysRest=prevStart!=null?Math.max(0,Math.floor((targetStart-prevStart)/86400000)-1):3;
  const recent4=prior.filter(g=>targetStart-Date.parse(g.start||g.date||0)<=4*86400000);
  const recent6=prior.filter(g=>targetStart-Date.parse(g.start||g.date||0)<=6*86400000);
- const prevAbbr=prev?teamAbbrInGame(prev,teamId):targetAbbr;
- const distanceMiles=prevAbbr&&targetAbbr?haversineMiles(NBA_TEAM_GEO[prevAbbr],NBA_TEAM_GEO[targetAbbr]):0;
- const tzCross=timeZonesCrossed(prevAbbr,targetAbbr,target.start||target.date);
- const altitude=NBA_TEAM_GEO[targetAbbr]?.altitudeFt||0;
+ const prevVenueAbbr=prev?(prev?.home?.abbr||prev?.homeAbbr||teamAbbrInGame(prev,String(prev?.homeId||prev?.home?.id||""))):targetVenueAbbr;
+ const distanceMiles=prevVenueAbbr&&targetVenueAbbr?haversineMiles(NBA_TEAM_GEO[prevVenueAbbr],NBA_TEAM_GEO[targetVenueAbbr]):0;
+ const tzCross=timeZonesCrossed(prevVenueAbbr,targetVenueAbbr,target.start||target.date);
+ const altitude=NBA_TEAM_GEO[targetVenueAbbr]?.altitudeFt||0;
  return {
    daysRest,
    backToBack:daysRest===0,
    threeInFour:recent4.length>=2,
    fourInSix:recent6.length>=3,
-   priorGameAbbr:prevAbbr||null,
-   destinationAbbr:targetAbbr||null,
+   teamAbbr:teamAbbr||null,
+   priorVenueAbbr:prevVenueAbbr||null,
+   destinationAbbr:targetVenueAbbr||null,
    travelMiles:finite(distanceMiles)||0,
    timeZonesCrossed:tzCross,
    altitudeFeet:altitude,
