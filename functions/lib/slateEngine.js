@@ -36,7 +36,8 @@ import { attachCbbPlayerGameResearch } from "./cbbPlayerGameModel.js";
 import { applyCbbPlayerMarginV1 } from "./cbbPlayerValidated.js";
 import { attachCbbPlayerProps } from "./cbbPlayerPropModel.js";
 import { pinMarkets } from "./pricing.js";
-import { applyAvailabilityAdjustment } from "./availability.js";
+import { applyAvailabilityAdjustment, buildGameAvailabilityImpact } from "./availability.js";
+import { loadNflTeamProfiles, attachNflPersistentProfiles } from "./nflTeamProfile.js";
 import { attachMatchupFactors } from "./matchupFactors.js";
 import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
 import { attachNbaBoardProjection } from "./nbaBoardProjection.js";
@@ -173,10 +174,43 @@ export async function buildSlate(sport, date, env = {}) {
     };
   } else if (id === "nfl") {
     const baseline = await attachNflShadow(slate.games || [], env);
-    const verse = await loadNflVerseFeatures(env).catch((err) => ({
-      byTeam: {}, playersByTeam: {}, meta: { source: "nflverse", teams: 0, error: String(err?.message || err), marketInformed: false },
-    }));
-    const enriched = attachNflVerseFeatures(baseline.games, verse);
+    const [verse,persistent] = await Promise.all([
+      loadNflVerseFeatures(env).catch((err) => ({
+        byTeam: {}, playersByTeam: {}, meta: { source: "nflverse", teams: 0, error: String(err?.message || err), marketInformed: false },
+      })),
+      loadNflTeamProfiles(env.DB).catch((err)=>({byTeam:{},byPlayer:{},playersByTeam:{},meta:{configured:false,reason:String(err?.message||err)}})),
+    ]);
+    let enriched = attachNflVerseFeatures(baseline.games, verse);
+    enriched = attachNflPersistentProfiles(enriched,persistent).map((game)=>{
+      // Carry the latest verified persistent player state forward when the
+      // raw weekly injury observation has gone stale. The original official
+      // timestamp remains in the player profile; this row is explicitly
+      // labeled as a carried profile state.
+      const carriedRows=[
+        ...(game.nflPersistentProfile?.homePlayers||[]).map(p=>({
+          source:"nfl-profile-carried",team_key:String(game.home?.abbr||"").toLowerCase(),
+          player_id:p.playerId||null,player_name:p.playerName,position:p.position||null,
+          depth_rank:p.depthRank??null,status:p.status,practice_status:null,injury_detail:p.injuryDetail||null,
+          source_updated_at:game.nflPersistentProfile?.home?.asOf||game.nflPersistentProfile?.asOf,
+          observed_at:game.nflPersistentProfile?.home?.asOf||game.nflPersistentProfile?.asOf,
+        })),
+        ...(game.nflPersistentProfile?.awayPlayers||[]).map(p=>({
+          source:"nfl-profile-carried",team_key:String(game.away?.abbr||"").toLowerCase(),
+          player_id:p.playerId||null,player_name:p.playerName,position:p.position||null,
+          depth_rank:p.depthRank??null,status:p.status,practice_status:null,injury_detail:p.injuryDetail||null,
+          source_updated_at:game.nflPersistentProfile?.away?.asOf||game.nflPersistentProfile?.asOf,
+          observed_at:game.nflPersistentProfile?.away?.asOf||game.nflPersistentProfile?.asOf,
+        })),
+      ].filter(r=>r.player_name&&r.status&&r.status!=="UNKNOWN");
+      if(!carriedRows.length)return game;
+      const profileImpact=buildGameAvailabilityImpact(game,carriedRows,{sport:"nfl"});
+      const current=game.availabilityImpact;
+      // Prefer current official observations when they are fresh; otherwise
+      // persistent state prevents yesterday's verified OUT from disappearing.
+      return (!current?.configured||current?.stale)
+        ? {...game,availabilityImpact:{...profileImpact,source:"nfl-persistent-profile",carried:true}}
+        : game;
+    });
     const pro = attachNflProShadow(enriched);
     const gameMatchups = attachNflGameMatchups(pro.games);
     // Research board: independent form/pure scores are displayable + freezable,
@@ -194,6 +228,7 @@ export async function buildSlate(sport, date, env = {}) {
         ...(slate.research || {}),
         nflBaseline: baseline.meta,
         nflVerse: verse.meta,
+        nflPersistentProfiles: persistent.meta,
         nflPro: pro.meta,
         nflGameMatchup: gameMatchups.meta,
         nflResearchBoard: research.meta,
