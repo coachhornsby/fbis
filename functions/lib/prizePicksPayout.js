@@ -189,3 +189,201 @@ export function evaluatePrizePicksLineup({
 
   return { ok:false, status:"UNSUPPORTED_PLAY_TYPE", pickCount, playType:type, expectedReturn:null, evPerUnit:null };
 }
+
+
+function normalizedOutcome(row = {}) {
+  return String(row.outcome ?? row.result ?? row.settlement ?? "").trim().toUpperCase();
+}
+function normalizedTeam(row = {}) {
+  return String(row.team ?? row.teamAbbr ?? row.team_abbr ?? "").trim().toUpperCase() || null;
+}
+function normalizedSide(row = {}) {
+  return String(row.side ?? row.candidateSide ?? row.selection ?? "").trim().toUpperCase() || null;
+}
+
+export const PRIZEPICKS_REVERSION = Object.freeze({
+  power: Object.freeze({
+    6:{playType:"power",pickCount:5},
+    5:{playType:"power",pickCount:4},
+    4:{playType:"power",pickCount:3},
+    3:{playType:"power",pickCount:2},
+    2:{refund:true},
+  }),
+  flex: Object.freeze({
+    6:{playType:"flex",pickCount:5},
+    5:{playType:"flex",pickCount:4},
+    4:{playType:"flex",pickCount:3},
+    3:{playType:"power",pickCount:2},
+    2:{refund:true},
+  }),
+});
+
+export function revertPrizePicksTier(playType, pickCount, steps = 1) {
+  let type=String(playType||"").toLowerCase();
+  let count=Number(pickCount);
+  const n=Math.max(0,Math.floor(Number(steps)||0));
+  for(let i=0;i<n;i++){
+    const next=PRIZEPICKS_REVERSION?.[type]?.[count];
+    if(!next) return {ok:false,status:"REVERSION_RULE_UNAVAILABLE",playType:type,pickCount:count};
+    if(next.refund) return {ok:true,status:"REFUND",refund:true,playType:type,pickCount:count};
+    type=next.playType;
+    count=next.pickCount;
+  }
+  return {ok:true,status:"REVERTED",refund:false,playType:type,pickCount:count};
+}
+
+function payoutForSettledTier(playType,pickCount,correct){
+  if(playType==="power"){
+    return correct===pickCount ? (PRIZEPICKS_STANDARD_POWER[pickCount] ?? 0) : 0;
+  }
+  if(playType==="flex"){
+    return Number(PRIZEPICKS_STANDARD_FLEX?.[pickCount]?.[correct] ?? 0);
+  }
+  return 0;
+}
+
+/**
+ * Settle a standard Player Picks lineup under published DNP/Reboot/Tie rules.
+ *
+ * Supported outcomes per row:
+ * WIN | LOSS | DNP | REBOOT | TIE
+ *
+ * For adjusted-payout lineups, pass quotedMultiplier/quotedPayoutSchedule from
+ * the submitted details screen; otherwise settlement fails closed.
+ */
+export function settlePrizePicksLineup({
+  rows = [],
+  playType = "power",
+  quotedMultiplier = null,
+  quotedPayoutSchedule = null,
+  allowSameGameStandard = false,
+} = {}) {
+  const originalType=String(playType||"power").trim().toLowerCase();
+  const originalPickCount=rows.length;
+  if(originalPickCount<2||originalPickCount>6){
+    return {ok:false,status:"INVALID_PICK_COUNT",payoutMultiplier:null};
+  }
+
+  const adjustedTier=hasAdjustedProjection(rows);
+  const sameGame=anySameGame(rows);
+  if((adjustedTier || (sameGame&&!allowSameGameStandard)) && quotedMultiplier==null && !quotedPayoutSchedule){
+    return {
+      ok:false,
+      status:adjustedTier?"ACTUAL_PAYOUT_REQUIRED_SPECIAL_PROJECTION":"ACTUAL_PAYOUT_REQUIRED_SAME_GAME",
+      payoutMultiplier:null,
+      reason:"use-details-screen-payout-before-settlement",
+    };
+  }
+
+  const outcomes=rows.map(normalizedOutcome);
+  if(outcomes.some((x)=>!["WIN","LOSS","DNP","REBOOT","TIE"].includes(x))){
+    return {ok:false,status:"UNRESOLVED_OUTCOME",payoutMultiplier:null};
+  }
+
+  // Reboots are only valid on MORE selections under the published policy.
+  for(let i=0;i<rows.length;i++){
+    if(outcomes[i]==="REBOOT" && normalizedSide(rows[i])!=="MORE"){
+      return {ok:false,status:"INVALID_REBOOT_SIDE",payoutMultiplier:null,index:i};
+    }
+  }
+
+  const removedIndexes=new Set();
+  outcomes.forEach((x,i)=>{if(x==="DNP"||x==="REBOOT")removedIndexes.add(i);});
+
+  // DNP/Reboot can make the remaining lineup same-team and therefore refundable.
+  // Ties remain part of the lineup for this eligibility check.
+  if(removedIndexes.size){
+    const remaining=rows.filter((_,i)=>!removedIndexes.has(i));
+    const teams=[...new Set(remaining.map(normalizedTeam).filter(Boolean))];
+    if(remaining.length>0 && teams.length===1){
+      return {
+        ok:true,status:"REFUND_SAME_TEAM_AFTER_DNP_REBOOT",refund:true,
+        payoutMultiplier:1,originalPlayType:originalType,originalPickCount,
+      };
+    }
+  }
+
+  const neutralCount=outcomes.filter((x)=>x==="DNP"||x==="REBOOT"||x==="TIE").length;
+  const tieCount=outcomes.filter((x)=>x==="TIE").length;
+  const activeWins=outcomes.filter((x)=>x==="WIN").length;
+  const activeLosses=outcomes.filter((x)=>x==="LOSS").length;
+
+  if(neutralCount===0){
+    const payout = originalType==="power"
+      ? (finite(quotedMultiplier) ?? payoutForSettledTier("power",originalPickCount,activeWins))
+      : quotedPayoutSchedule
+        ? Number(quotedPayoutSchedule?.[activeWins] ?? 0)
+        : payoutForSettledTier("flex",originalPickCount,activeWins);
+    return {
+      ok:true,status:payout>0?"SETTLED_WIN":"SETTLED_LOSS",refund:false,
+      payoutMultiplier:payout,playType:originalType,pickCount:originalPickCount,
+      correct:activeWins,incorrect:activeLosses,dnp:0,reboot:0,tie:0,
+    };
+  }
+
+  const reverted=revertPrizePicksTier(originalType,originalPickCount,neutralCount);
+  if(!reverted.ok) return {...reverted,payoutMultiplier:null};
+
+  // Published 2-pick tie exception: one correct + one tie pays 1.5x;
+  // one loss + one tie loses. This applies to both original Power and Flex.
+  if(originalPickCount===2 && tieCount===1 && neutralCount===1){
+    const payout=activeWins===1?1.5:0;
+    return {
+      ok:true,status:payout>0?"SETTLED_TIE_SPECIAL":"SETTLED_LOSS",
+      refund:false,payoutMultiplier:payout,playType:originalType,pickCount:2,
+      correct:activeWins,incorrect:activeLosses,
+      dnp:outcomes.filter(x=>x==="DNP").length,
+      reboot:outcomes.filter(x=>x==="REBOOT").length,
+      tie:1,
+    };
+  }
+
+  // A 2-pick Power/Flex with DNP/Reboot is a refund.
+  if(reverted.refund){
+    return {
+      ok:true,status:"REFUND_REVERTED_BELOW_MINIMUM",refund:true,payoutMultiplier:1,
+      originalPlayType:originalType,originalPickCount,
+      dnp:outcomes.filter(x=>x==="DNP").length,
+      reboot:outcomes.filter(x=>x==="REBOOT").length,
+      tie:tieCount,
+    };
+  }
+
+  // PrizePicks publishes the tier transition for ties, but not every possible
+  // multi-neutral combination at the 2-pick boundary. Fail closed rather than
+  // infer a payout not explicitly described.
+  if(reverted.pickCount===2 && tieCount>0 && neutralCount>1){
+    return {
+      ok:false,status:"COMBINED_NEUTRAL_SETTLEMENT_REQUIRES_DETAILS_SCREEN",
+      payoutMultiplier:null,playType:reverted.playType,pickCount:reverted.pickCount,
+    };
+  }
+
+  let payout;
+  if(reverted.playType==="power"){
+    // Once a lineup reverts, active losses still lose a Power lineup.
+    if(activeLosses>0) payout=0;
+    else if(quotedMultiplier!=null && neutralCount===0) payout=finite(quotedMultiplier);
+    else payout=PRIZEPICKS_STANDARD_POWER[reverted.pickCount] ?? 0;
+  }else{
+    payout=quotedPayoutSchedule
+      ? Number(quotedPayoutSchedule?.[activeWins] ?? 0)
+      : payoutForSettledTier("flex",reverted.pickCount,activeWins);
+  }
+
+  return {
+    ok:true,
+    status:payout>0?"SETTLED_REVERTED":"SETTLED_LOSS",
+    refund:false,
+    payoutMultiplier:payout,
+    originalPlayType:originalType,
+    originalPickCount,
+    playType:reverted.playType,
+    pickCount:reverted.pickCount,
+    correct:activeWins,
+    incorrect:activeLosses,
+    dnp:outcomes.filter(x=>x==="DNP").length,
+    reboot:outcomes.filter(x=>x==="REBOOT").length,
+    tie:tieCount,
+  };
+}
