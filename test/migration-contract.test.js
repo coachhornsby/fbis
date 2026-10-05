@@ -90,8 +90,11 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(schemaExt, /learning_monitor_runs/);
   assert.match(schemaExt, /online_learning_shadow/);
   const m39 = await readFile(new URL("../migrations/0039_soccer_canonical.sql", import.meta.url), "utf8");
+  const m52 = await readFile(new URL("../migrations/0052_soccer_v2_features.sql", import.meta.url), "utf8");
   assert.match(m39, /0039_soccer_canonical/i);
   assert.match(m39, /soccer_matches/);
+  assert.match(m52, /0052_soccer_v2_features/);
+  assert.match(m52, /home_xg/);
   assert.match(schemaExt, /soccer_matches/);
   assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /WHERE id = \?/);
