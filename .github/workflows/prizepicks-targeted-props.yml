@@ -223,11 +223,11 @@ jobs:
               echo "coverage league=$league already persisted; repair skip"
               continue
             fi
-            live_count="$(jq -r --arg l "$league" '[.[] | select((.league // .name // .league_name // "") == $l) | (.count // .prop_count // .projection_count // 0)] | add // 0' "$discover")"
-            if [ "$live_count" = "0" ]; then
-              echo "coverage league=$league live_count=0 (not expected today)"
-              jq -nc --arg league "$league" '{league:$league,expected:false,rows:0}' >> artifacts/prizepicks-coverage.ndjson
-              continue
+            live_present="$(jq -r --arg l "$league" '[.[] | select((if type=="string" then . else (.league // .name // .league_name // "") end) == $l)] | length' "$discover")"
+            if [ "$live_present" = "0" ]; then
+              echo "coverage league=$league not advertised by discovery; probing directly"
+            else
+              echo "coverage league=$league advertised by discovery"
             fi
             input="$(jq -nc --arg league "$league" '{leagues:[$league]}')"
             body="$(mktemp)"
@@ -235,10 +235,10 @@ jobs:
             case "$code" in 200|201) ;; *) echo "PrizePicks league pull failed league=$league HTTP $code"; cat "$body"; exit 1 ;; esac
             jq -e 'type=="array"' "$body" >/dev/null
             n="$(jq 'length' "$body")"
-            echo "coverage league=$league live_count=$live_count rows=$n"
+            echo "coverage league=$league advertised=$live_present rows=$n"
             test "$n" -gt 0
             jq -c '.[]' "$body" >> artifacts/prizepicks-rows.ndjson
-            jq -nc --arg league "$league" --argjson live "$live_count" --argjson rows "$n" '{league:$league,expected:true,liveCount:$live,rows:$rows}' >> artifacts/prizepicks-coverage.ndjson
+            jq -nc --arg league "$league" --argjson live "$live_present" --argjson rows "$n" '{league:$league,expected:true,liveCount:$live,rows:$rows}' >> artifacts/prizepicks-coverage.ndjson
           done
           jq -s 'unique_by(.projection_id // .id // [(.league // .player_league),(.player_name // .playerName),(.stat_type // .stat),(.line // .value),(.odds_type // .oddsTier)])' artifacts/prizepicks-rows.ndjson > artifacts/prizepicks-rows.json
           jq -s '.' artifacts/prizepicks-coverage.ndjson > artifacts/prizepicks-coverage.json
