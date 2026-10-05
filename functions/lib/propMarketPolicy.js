@@ -24,6 +24,12 @@ export const CURATED_PROP_POLICY = Object.freeze({
     markets: Object.freeze({
       "Total Games": PROP_MARKET_STATUS.PRIMARY,
       "Total Games Won": PROP_MARKET_STATUS.RESEARCH,
+      "Total Sets": PROP_MARKET_STATUS.RESEARCH,
+      "Aces": PROP_MARKET_STATUS.RESEARCH,
+      "Break Points Won": PROP_MARKET_STATUS.RESEARCH,
+      "Fantasy Score": PROP_MARKET_STATUS.RESEARCH,
+      "Total Tie Breaks": PROP_MARKET_STATUS.RESEARCH,
+      "Double Faults": PROP_MARKET_STATUS.RESEARCH,
     }),
   }),
   nba: Object.freeze({
