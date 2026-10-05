@@ -1,0 +1,2137 @@
+{
+  "generatedAt": "2026-10-05T02:16:39.904Z",
+  "model": "TENNIS-FBIS-v1.1-DEEP / TENNIS-PLAYER-v1.1-DEEP",
+  "source": {
+    "name": "Jeff Sackmann / Tennis Abstract archive mirror",
+    "license": "CC BY-NC-SA 4.0",
+    "productionDependency": false,
+    "permittedUse": "research/backtest only"
+  },
+  "design": {
+    "trainYears": "2020-2023",
+    "holdoutYears": "2024-2026",
+    "eventFreeze": true,
+    "twoSided": true,
+    "surfaceSpecific": true,
+    "recencyWeighted": true,
+    "features": [
+      "first serve in",
+      "first serve points won",
+      "second serve points won",
+      "serve points won",
+      "return points won",
+      "aces for",
+      "aces allowed",
+      "double faults for",
+      "double faults received",
+      "break points saved",
+      "break points faced per service game",
+      "break points created per return game",
+      "break point conversion",
+      "service points per game",
+      "overall Elo",
+      "surface Elo",
+      "rank calibration"
+    ],
+    "simulationsPerMatch": 200
+  },
+  "sample": {
+    "train": 17136,
+    "holdout": 12751,
+    "total": 29887
+  },
+  "calibration": {
+    "v1": {
+      "a": 0.175,
+      "b": 0.5,
+      "brier": 0.21868735942686293
+    },
+    "deep": {
+      "a": 0.45,
+      "b": 0.5,
+      "brier": 0.2183091271704688
+    }
+  },
+  "match": {
+    "holdout": {
+      "v1Raw": {
+        "n": 12751,
+        "accuracy": 0.60991,
+        "brier": 0.26879,
+        "logLoss": 0.79195,
+        "maxCalibrationError": 0.2532,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 1684,
+            "meanProbability": 0.06039,
+            "observedWinRate": 0.27969
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 1881,
+            "meanProbability": 0.14184,
+            "observedWinRate": 0.37746
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 1028,
+            "meanProbability": 0.24442,
+            "observedWinRate": 0.44358
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 883,
+            "meanProbability": 0.34609,
+            "observedWinRate": 0.48358
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 837,
+            "meanProbability": 0.44742,
+            "observedWinRate": 0.51493
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 861,
+            "meanProbability": 0.54701,
+            "observedWinRate": 0.53426
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 839,
+            "meanProbability": 0.64732,
+            "observedWinRate": 0.53397
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 1039,
+            "meanProbability": 0.75018,
+            "observedWinRate": 0.54187
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 1753,
+            "meanProbability": 0.85331,
+            "observedWinRate": 0.60011
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 1946,
+            "meanProbability": 0.93809,
+            "observedWinRate": 0.73792
+          }
+        ]
+      },
+      "deepRaw": {
+        "n": 12751,
+        "accuracy": 0.61948,
+        "brier": 0.22882,
+        "logLoss": 0.64944,
+        "maxCalibrationError": 0.12453,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 42,
+            "meanProbability": 0.06595,
+            "observedWinRate": 0.19048
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 284,
+            "meanProbability": 0.16121,
+            "observedWinRate": 0.1831
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 1003,
+            "meanProbability": 0.2561,
+            "observedWinRate": 0.27617
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 2070,
+            "meanProbability": 0.35243,
+            "observedWinRate": 0.37633
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 2832,
+            "meanProbability": 0.44857,
+            "observedWinRate": 0.45092
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 2906,
+            "meanProbability": 0.54698,
+            "observedWinRate": 0.54955
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 2193,
+            "meanProbability": 0.64389,
+            "observedWinRate": 0.63748
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 1038,
+            "meanProbability": 0.74222,
+            "observedWinRate": 0.72736
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 336,
+            "meanProbability": 0.83476,
+            "observedWinRate": 0.79464
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 47,
+            "meanProbability": 0.92596,
+            "observedWinRate": 0.93617
+          }
+        ]
+      },
+      "v1Calibrated": {
+        "n": 12751,
+        "accuracy": 0.64277,
+        "brier": 0.21857,
+        "logLoss": 0.62631,
+        "maxCalibrationError": 0.06754,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 38,
+            "meanProbability": 0.0738,
+            "observedWinRate": 0.10526
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 513,
+            "meanProbability": 0.16348,
+            "observedWinRate": 0.1384
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 1364,
+            "meanProbability": 0.25241,
+            "observedWinRate": 0.25073
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 1964,
+            "meanProbability": 0.35205,
+            "observedWinRate": 0.38187
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 2431,
+            "meanProbability": 0.45092,
+            "observedWinRate": 0.45948
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 2434,
+            "meanProbability": 0.54768,
+            "observedWinRate": 0.54108
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 1971,
+            "meanProbability": 0.64709,
+            "observedWinRate": 0.63369
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 1438,
+            "meanProbability": 0.74519,
+            "observedWinRate": 0.76634
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 556,
+            "meanProbability": 0.83716,
+            "observedWinRate": 0.83813
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 42,
+            "meanProbability": 0.92468,
+            "observedWinRate": 0.85714
+          }
+        ]
+      },
+      "deepCalibrated": {
+        "n": 12751,
+        "accuracy": 0.64293,
+        "brier": 0.21814,
+        "logLoss": 0.62528,
+        "maxCalibrationError": 0.05773,
+        "calibration": [
+          {
+            "range": "0.0-0.1",
+            "n": 54,
+            "meanProbability": 0.0779,
+            "observedWinRate": 0.09259
+          },
+          {
+            "range": "0.1-0.2",
+            "n": 506,
+            "meanProbability": 0.16363,
+            "observedWinRate": 0.13241
+          },
+          {
+            "range": "0.2-0.3",
+            "n": 1261,
+            "meanProbability": 0.25431,
+            "observedWinRate": 0.24504
+          },
+          {
+            "range": "0.3-0.4",
+            "n": 2040,
+            "meanProbability": 0.3535,
+            "observedWinRate": 0.37108
+          },
+          {
+            "range": "0.4-0.5",
+            "n": 2499,
+            "meanProbability": 0.45019,
+            "observedWinRate": 0.46819
+          },
+          {
+            "range": "0.5-0.6",
+            "n": 2437,
+            "meanProbability": 0.55011,
+            "observedWinRate": 0.54247
+          },
+          {
+            "range": "0.6-0.7",
+            "n": 2057,
+            "meanProbability": 0.64821,
+            "observedWinRate": 0.64609
+          },
+          {
+            "range": "0.7-0.8",
+            "n": 1298,
+            "meanProbability": 0.7452,
+            "observedWinRate": 0.7681
+          },
+          {
+            "range": "0.8-0.9",
+            "n": 541,
+            "meanProbability": 0.83808,
+            "observedWinRate": 0.8281
+          },
+          {
+            "range": "0.9-1.0",
+            "n": 58,
+            "meanProbability": 0.9198,
+            "observedWinRate": 0.86207
+          }
+        ]
+      }
+    }
+  },
+  "props": {
+    "holdout": {
+      "v1": {
+        "totalGames": {
+          "n": 12751,
+          "mae": 5.32913,
+          "rmse": 6.35505,
+          "bias": 0.56824
+        },
+        "totalSets": {
+          "n": 12751,
+          "mae": 0.48009,
+          "rmse": 0.51957,
+          "bias": 0.0279
+        },
+        "gamesWon": {
+          "n": 12751,
+          "mae": 3.29272,
+          "rmse": 4.24982,
+          "bias": 0.27613
+        },
+        "aces": {
+          "n": 12751,
+          "mae": 2.70686,
+          "rmse": 3.76066,
+          "bias": 0.19268
+        },
+        "doubleFaults": {
+          "n": 12751,
+          "mae": 1.81755,
+          "rmse": 2.37656,
+          "bias": 0.12466
+        },
+        "breakPointsWon": {
+          "n": 12751,
+          "mae": 1.60669,
+          "rmse": 2.02235,
+          "bias": 0.30166
+        }
+      },
+      "deepRaw": {
+        "totalGames": {
+          "n": 12751,
+          "mae": 5.72413,
+          "rmse": 6.62718,
+          "bias": 2.16902
+        },
+        "totalSets": {
+          "n": 12751,
+          "mae": 0.51086,
+          "rmse": 0.53369,
+          "bias": 0.13813
+        },
+        "gamesWon": {
+          "n": 12751,
+          "mae": 3.21703,
+          "rmse": 4.22483,
+          "bias": 1.06712
+        },
+        "aces": {
+          "n": 12751,
+          "mae": 2.57205,
+          "rmse": 3.49985,
+          "bias": 0.40243
+        },
+        "doubleFaults": {
+          "n": 12751,
+          "mae": 1.83739,
+          "rmse": 2.36631,
+          "bias": 0.34387
+        },
+        "breakPointsWon": {
+          "n": 12751,
+          "mae": 1.63557,
+          "rmse": 2.06312,
+          "bias": 0.66673
+        }
+      },
+      "deepCalibrated": {
+        "totalGames": {
+          "n": 12751,
+          "mae": 5.19118,
+          "rmse": 6.22855,
+          "bias": -0.20929
+        },
+        "totalSets": {
+          "n": 12751,
+          "mae": 0.47763,
+          "rmse": 0.51432,
+          "bias": -0.0033
+        },
+        "gamesWon": {
+          "n": 12751,
+          "mae": 3.18274,
+          "rmse": 4.07514,
+          "bias": -0.04724
+        },
+        "aces": {
+          "n": 12751,
+          "mae": 2.43048,
+          "rmse": 3.42194,
+          "bias": -0.07869
+        },
+        "doubleFaults": {
+          "n": 12751,
+          "mae": 1.78064,
+          "rmse": 2.33765,
+          "bias": 0.05859
+        },
+        "breakPointsWon": {
+          "n": 12751,
+          "mae": 1.5559,
+          "rmse": 1.92412,
+          "bias": 0.10639
+        }
+      }
+    },
+    "calibration": {
+      "TotalGames": {
+        "global": {
+          "a": 2.609153214694448,
+          "b": 0.8152297051251556,
+          "n": 17136
+        },
+        "tour:atp": {
+          "a": 3.440635144228402,
+          "b": 0.7936834191992801,
+          "n": 8977
+        },
+        "tour:wta": {
+          "a": 6.753158670730755,
+          "b": 0.6322610716000849,
+          "n": 8159
+        },
+        "surface:hard": {
+          "a": 2.3129014956444074,
+          "b": 0.8267446201591773,
+          "n": 10673
+        },
+        "surface:clay": {
+          "a": 3.7635182646553424,
+          "b": 0.765481386768338,
+          "n": 4728
+        },
+        "surface:grass": {
+          "a": 2.4916037649690423,
+          "b": 0.8320615253389834,
+          "n": 1735
+        },
+        "tourSurface:atp:hard": {
+          "a": 3.065808291628162,
+          "b": 0.8072499391657061,
+          "n": 5498
+        },
+        "tourSurface:atp:clay": {
+          "a": 4.89812077151149,
+          "b": 0.7353438560814082,
+          "n": 2599
+        },
+        "tourSurface:atp:grass": {
+          "a": 3.2358802621619347,
+          "b": 0.8136507458403138,
+          "n": 880
+        },
+        "tourSurface:wta:hard": {
+          "a": 8,
+          "b": 0.5613012066570326,
+          "n": 5175
+        },
+        "tourSurface:wta:clay": {
+          "a": 4.752876750791721,
+          "b": 0.7089628594054812,
+          "n": 2129
+        },
+        "tourSurface:wta:grass": {
+          "a": 4.648293468531051,
+          "b": 0.7361725125832566,
+          "n": 855
+        }
+      },
+      "TotalSets": {
+        "global": {
+          "a": 0.19139603761951074,
+          "b": 0.8733622897623734,
+          "n": 17136
+        },
+        "tour:atp": {
+          "a": 0.226221182817691,
+          "b": 0.8656589812076008,
+          "n": 8977
+        },
+        "tour:wta": {
+          "a": 1.2246571577399183,
+          "b": 0.45,
+          "n": 8159
+        },
+        "surface:hard": {
+          "a": 0.1331318644837256,
+          "b": 0.8967934765786123,
+          "n": 10673
+        },
+        "surface:clay": {
+          "a": 0.3032020215271345,
+          "b": 0.8288835340309867,
+          "n": 4728
+        },
+        "surface:grass": {
+          "a": 0.19830547441222457,
+          "b": 0.8694323349805745,
+          "n": 1735
+        },
+        "tourSurface:atp:hard": {
+          "a": 0.1648432902689505,
+          "b": 0.8901972276260015,
+          "n": 5498
+        },
+        "tourSurface:atp:clay": {
+          "a": 0.3492666183497959,
+          "b": 0.818126129788491,
+          "n": 2599
+        },
+        "tourSurface:atp:grass": {
+          "a": 0.20431832265896377,
+          "b": 0.8682931703364497,
+          "n": 880
+        },
+        "tourSurface:wta:hard": {
+          "a": 1.224085217391306,
+          "b": 0.45,
+          "n": 5175
+        },
+        "tourSurface:wta:clay": {
+          "a": 1.2214891968060124,
+          "b": 0.45,
+          "n": 2129
+        },
+        "tourSurface:wta:grass": {
+          "a": 1.2360073099415205,
+          "b": 0.45,
+          "n": 855
+        }
+      },
+      "P1Games": {
+        "global": {
+          "a": 0.5537915618787714,
+          "b": 0.8728255081644798,
+          "n": 17136
+        },
+        "tour:atp": {
+          "a": 0.9174429703494535,
+          "b": 0.8509863097343893,
+          "n": 8977
+        },
+        "tour:wta": {
+          "a": -1.265011968991562,
+          "b": 1.0196571399620276,
+          "n": 8159
+        },
+        "surface:hard": {
+          "a": 0.3480436029194749,
+          "b": 0.8894093389811711,
+          "n": 10673
+        },
+        "surface:clay": {
+          "a": 0.9255936753858851,
+          "b": 0.838140528008646,
+          "n": 4728
+        },
+        "surface:grass": {
+          "a": 0.9356612842218812,
+          "b": 0.8562965911478437,
+          "n": 1735
+        },
+        "tourSurface:atp:hard": {
+          "a": 0.660286942989103,
+          "b": 0.8708661228710796,
+          "n": 5498
+        },
+        "tourSurface:atp:clay": {
+          "a": 1.4542678951151746,
+          "b": 0.8055801906551149,
+          "n": 2599
+        },
+        "tourSurface:atp:grass": {
+          "a": 1.281834832565556,
+          "b": 0.8364955197122536,
+          "n": 880
+        },
+        "tourSurface:wta:hard": {
+          "a": -0.773849034965874,
+          "b": 0.9784587548232995,
+          "n": 5175
+        },
+        "tourSurface:wta:clay": {
+          "a": -1.9579383361778753,
+          "b": 1.0712610233377382,
+          "n": 2129
+        },
+        "tourSurface:wta:grass": {
+          "a": -2.751268756763439,
+          "b": 1.160116978132655,
+          "n": 855
+        }
+      },
+      "P1Aces": {
+        "global": {
+          "a": -1.1606403698049252,
+          "b": 1.13863744952033,
+          "n": 17136
+        },
+        "tour:atp": {
+          "a": -2.5465152992097844,
+          "b": 1.2857204229495187,
+          "n": 8977
+        },
+        "tour:wta": {
+          "a": -1.3900837665980887,
+          "b": 1.356822786431565,
+          "n": 8159
+        },
+        "surface:hard": {
+          "a": -1.153638687131794,
+          "b": 1.1402443807478202,
+          "n": 10673
+        },
+        "surface:clay": {
+          "a": -0.9364789728162397,
+          "b": 1.026374602410128,
+          "n": 4728
+        },
+        "surface:grass": {
+          "a": -0.7345768981883074,
+          "b": 1.1526911189250668,
+          "n": 1735
+        },
+        "tourSurface:atp:hard": {
+          "a": -2.940033555005562,
+          "b": 1.3303515930454564,
+          "n": 5498
+        },
+        "tourSurface:atp:clay": {
+          "a": -1.7940789750884436,
+          "b": 1.1466162641598787,
+          "n": 2599
+        },
+        "tourSurface:atp:grass": {
+          "a": -1.9517787737258114,
+          "b": 1.2534531462936835,
+          "n": 880
+        },
+        "tourSurface:wta:hard": {
+          "a": -1.3640557652845158,
+          "b": 1.344520717538416,
+          "n": 5175
+        },
+        "tourSurface:wta:clay": {
+          "a": -0.8407831981033782,
+          "b": 1.1039135797627877,
+          "n": 2129
+        },
+        "tourSurface:wta:grass": {
+          "a": -1.7152096491228104,
+          "b": 1.55,
+          "n": 855
+        }
+      },
+      "P1Df": {
+        "global": {
+          "a": -0.22235918691410061,
+          "b": 0.9830640531000915,
+          "n": 17136
+        },
+        "tour:atp": {
+          "a": -0.2560829103493649,
+          "b": 1.0189021987055036,
+          "n": 8977
+        },
+        "tour:wta": {
+          "a": -0.4275959596542718,
+          "b": 1.0140544348448557,
+          "n": 8159
+        },
+        "surface:hard": {
+          "a": -0.28911526605416205,
+          "b": 0.9911741528063898,
+          "n": 10673
+        },
+        "surface:clay": {
+          "a": -0.08669536826489832,
+          "b": 0.9314373572878097,
+          "n": 4728
+        },
+        "surface:grass": {
+          "a": 0.036223097298402784,
+          "b": 1.0055627632476103,
+          "n": 1735
+        },
+        "tourSurface:atp:hard": {
+          "a": -0.28457374996700224,
+          "b": 1.009795568366356,
+          "n": 5498
+        },
+        "tourSurface:atp:clay": {
+          "a": -0.12400211206801925,
+          "b": 0.9669573750129258,
+          "n": 2599
+        },
+        "tourSurface:atp:grass": {
+          "a": 0.10915788664720116,
+          "b": 1.031091029422043,
+          "n": 880
+        },
+        "tourSurface:wta:hard": {
+          "a": -0.509284287491214,
+          "b": 1.0303675256789266,
+          "n": 5175
+        },
+        "tourSurface:wta:clay": {
+          "a": -0.3216597772595642,
+          "b": 0.9706352414352984,
+          "n": 2129
+        },
+        "tourSurface:wta:grass": {
+          "a": -0.28215829104797097,
+          "b": 1.044345166583298,
+          "n": 855
+        }
+      },
+      "P1Bp": {
+        "global": {
+          "a": 0.3778468537545412,
+          "b": 0.744218259328653,
+          "n": 17136
+        },
+        "tour:atp": {
+          "a": -0.26554173707172124,
+          "b": 1.0381176434656145,
+          "n": 8977
+        },
+        "tour:wta": {
+          "a": -0.5464406514962934,
+          "b": 0.9025155026557449,
+          "n": 8159
+        },
+        "surface:hard": {
+          "a": 0.38121248232446847,
+          "b": 0.7304044630698604,
+          "n": 10673
+        },
+        "surface:clay": {
+          "a": 0.5944662607949969,
+          "b": 0.7245251056482528,
+          "n": 4728
+        },
+        "surface:grass": {
+          "a": 0.09154719557550095,
+          "b": 0.7972193277317797,
+          "n": 1735
+        },
+        "tourSurface:atp:hard": {
+          "a": -0.2577581900535244,
+          "b": 1.0393941243961058,
+          "n": 5498
+        },
+        "tourSurface:atp:clay": {
+          "a": -0.27800834841948063,
+          "b": 1.0480555581365858,
+          "n": 2599
+        },
+        "tourSurface:atp:grass": {
+          "a": -0.3002625944272812,
+          "b": 1.0060478526115155,
+          "n": 880
+        },
+        "tourSurface:wta:hard": {
+          "a": -0.7872958731713502,
+          "b": 0.9477286771916205,
+          "n": 5175
+        },
+        "tourSurface:wta:clay": {
+          "a": 0.4769551355530668,
+          "b": 0.7116537686173322,
+          "n": 2129
+        },
+        "tourSurface:wta:grass": {
+          "a": -1.0342714555033088,
+          "b": 1.0112196138628988,
+          "n": 855
+        }
+      }
+    }
+  },
+  "byTour": {
+    "atp": {
+      "match": {
+        "v1": {
+          "n": 6676,
+          "accuracy": 0.6453,
+          "brier": 0.21872,
+          "logLoss": 0.6267,
+          "maxCalibrationError": 0.06815,
+          "calibration": [
+            {
+              "range": "0.0-0.1",
+              "n": 25,
+              "meanProbability": 0.07535,
+              "observedWinRate": 0.08
+            },
+            {
+              "range": "0.1-0.2",
+              "n": 264,
+              "meanProbability": 0.16221,
+              "observedWinRate": 0.14773
+            },
+            {
+              "range": "0.2-0.3",
+              "n": 729,
+              "meanProbability": 0.25197,
+              "observedWinRate": 0.23868
+            },
+            {
+              "range": "0.3-0.4",
+              "n": 1009,
+              "meanProbability": 0.35217,
+              "observedWinRate": 0.36571
+            },
+            {
+              "range": "0.4-0.5",
+              "n": 1309,
+              "meanProbability": 0.45192,
+              "observedWinRate": 0.44996
+            },
+            {
+              "range": "0.5-0.6",
+              "n": 1304,
+              "meanProbability": 0.54845,
+              "observedWinRate": 0.55138
+            },
+            {
+              "range": "0.6-0.7",
+              "n": 1022,
+              "meanProbability": 0.64628,
+              "observedWinRate": 0.62524
+            },
+            {
+              "range": "0.7-0.8",
+              "n": 728,
+              "meanProbability": 0.74487,
+              "observedWinRate": 0.75687
+            },
+            {
+              "range": "0.8-0.9",
+              "n": 266,
+              "meanProbability": 0.83691,
+              "observedWinRate": 0.82331
+            },
+            {
+              "range": "0.9-1.0",
+              "n": 20,
+              "meanProbability": 0.91815,
+              "observedWinRate": 0.85
+            }
+          ]
+        },
+        "deep": {
+          "n": 6676,
+          "accuracy": 0.6462,
+          "brier": 0.21805,
+          "logLoss": 0.62522,
+          "maxCalibrationError": 0.0557,
+          "calibration": [
+            {
+              "range": "0.0-0.1",
+              "n": 38,
+              "meanProbability": 0.08068,
+              "observedWinRate": 0.10526
+            },
+            {
+              "range": "0.1-0.2",
+              "n": 271,
+              "meanProbability": 0.16245,
+              "observedWinRate": 0.13284
+            },
+            {
+              "range": "0.2-0.3",
+              "n": 682,
+              "meanProbability": 0.25355,
+              "observedWinRate": 0.24487
+            },
+            {
+              "range": "0.3-0.4",
+              "n": 1088,
+              "meanProbability": 0.35294,
+              "observedWinRate": 0.34375
+            },
+            {
+              "range": "0.4-0.5",
+              "n": 1273,
+              "meanProbability": 0.45052,
+              "observedWinRate": 0.46897
+            },
+            {
+              "range": "0.5-0.6",
+              "n": 1290,
+              "meanProbability": 0.55031,
+              "observedWinRate": 0.54961
+            },
+            {
+              "range": "0.6-0.7",
+              "n": 1060,
+              "meanProbability": 0.64847,
+              "observedWinRate": 0.64245
+            },
+            {
+              "range": "0.7-0.8",
+              "n": 664,
+              "meanProbability": 0.74535,
+              "observedWinRate": 0.75
+            },
+            {
+              "range": "0.8-0.9",
+              "n": 281,
+              "meanProbability": 0.839,
+              "observedWinRate": 0.80783
+            },
+            {
+              "range": "0.9-1.0",
+              "n": 29,
+              "meanProbability": 0.91777,
+              "observedWinRate": 0.86207
+            }
+          ]
+        }
+      },
+      "props": {
+        "v1": {
+          "totalGames": {
+            "n": 6676,
+            "mae": 5.62764,
+            "rmse": 6.75171,
+            "bias": 0.68941
+          },
+          "totalSets": {
+            "n": 6676,
+            "mae": 0.50168,
+            "rmse": 0.55119,
+            "bias": 0.03016
+          },
+          "gamesWon": {
+            "n": 6676,
+            "mae": 3.35045,
+            "rmse": 4.30888,
+            "bias": 0.35826
+          },
+          "aces": {
+            "n": 6676,
+            "mae": 3.44241,
+            "rmse": 4.5942,
+            "bias": 0.2791
+          },
+          "doubleFaults": {
+            "n": 6676,
+            "mae": 1.67895,
+            "rmse": 2.20939,
+            "bias": 0.10734
+          },
+          "breakPointsWon": {
+            "n": 6676,
+            "mae": 1.44212,
+            "rmse": 1.802,
+            "bias": 0.11325
+          }
+        },
+        "deepRaw": {
+          "totalGames": {
+            "n": 6676,
+            "mae": 6.0341,
+            "rmse": 7.07041,
+            "bias": 2.32345
+          },
+          "totalSets": {
+            "n": 6676,
+            "mae": 0.52904,
+            "rmse": 0.56773,
+            "bias": 0.14565
+          },
+          "gamesWon": {
+            "n": 6676,
+            "mae": 3.32778,
+            "rmse": 4.35212,
+            "bias": 1.17832
+          },
+          "aces": {
+            "n": 6676,
+            "mae": 3.23766,
+            "rmse": 4.25092,
+            "bias": 0.54825
+          },
+          "doubleFaults": {
+            "n": 6676,
+            "mae": 1.69,
+            "rmse": 2.19796,
+            "bias": 0.27147
+          },
+          "breakPointsWon": {
+            "n": 6676,
+            "mae": 1.42716,
+            "rmse": 1.76546,
+            "bias": 0.31479
+          }
+        },
+        "deepCalibrated": {
+          "totalGames": {
+            "n": 6676,
+            "mae": 5.50908,
+            "rmse": 6.61001,
+            "bias": -0.06754
+          },
+          "totalSets": {
+            "n": 6676,
+            "mae": 0.50274,
+            "rmse": 0.54707,
+            "bias": 0.00126
+          },
+          "gamesWon": {
+            "n": 6676,
+            "mae": 3.22229,
+            "rmse": 4.16851,
+            "bias": -0.01157
+          },
+          "aces": {
+            "n": 6676,
+            "mae": 3.06886,
+            "rmse": 4.15964,
+            "bias": -0.07412
+          },
+          "doubleFaults": {
+            "n": 6676,
+            "mae": 1.6507,
+            "rmse": 2.17759,
+            "bias": 0.06829
+          },
+          "breakPointsWon": {
+            "n": 6676,
+            "mae": 1.40937,
+            "rmse": 1.74785,
+            "bias": 0.15241
+          }
+        }
+      }
+    },
+    "wta": {
+      "match": {
+        "v1": {
+          "n": 6075,
+          "accuracy": 0.64,
+          "brier": 0.21841,
+          "logLoss": 0.62588,
+          "maxCalibrationError": 0.08303,
+          "calibration": [
+            {
+              "range": "0.0-0.1",
+              "n": 13,
+              "meanProbability": 0.07082,
+              "observedWinRate": 0.15385
+            },
+            {
+              "range": "0.1-0.2",
+              "n": 249,
+              "meanProbability": 0.16482,
+              "observedWinRate": 0.12851
+            },
+            {
+              "range": "0.2-0.3",
+              "n": 635,
+              "meanProbability": 0.25292,
+              "observedWinRate": 0.26457
+            },
+            {
+              "range": "0.3-0.4",
+              "n": 955,
+              "meanProbability": 0.35191,
+              "observedWinRate": 0.39895
+            },
+            {
+              "range": "0.4-0.5",
+              "n": 1122,
+              "meanProbability": 0.44976,
+              "observedWinRate": 0.47059
+            },
+            {
+              "range": "0.5-0.6",
+              "n": 1130,
+              "meanProbability": 0.5468,
+              "observedWinRate": 0.5292
+            },
+            {
+              "range": "0.6-0.7",
+              "n": 949,
+              "meanProbability": 0.64797,
+              "observedWinRate": 0.64278
+            },
+            {
+              "range": "0.7-0.8",
+              "n": 710,
+              "meanProbability": 0.74552,
+              "observedWinRate": 0.77606
+            },
+            {
+              "range": "0.8-0.9",
+              "n": 290,
+              "meanProbability": 0.83739,
+              "observedWinRate": 0.85172
+            },
+            {
+              "range": "0.9-1.0",
+              "n": 22,
+              "meanProbability": 0.93062,
+              "observedWinRate": 0.86364
+            }
+          ]
+        },
+        "deep": {
+          "n": 6075,
+          "accuracy": 0.63934,
+          "brier": 0.21824,
+          "logLoss": 0.62534,
+          "maxCalibrationError": 0.05976,
+          "calibration": [
+            {
+              "range": "0.0-0.1",
+              "n": 16,
+              "meanProbability": 0.0713,
+              "observedWinRate": 0.0625
+            },
+            {
+              "range": "0.1-0.2",
+              "n": 235,
+              "meanProbability": 0.16498,
+              "observedWinRate": 0.13191
+            },
+            {
+              "range": "0.2-0.3",
+              "n": 579,
+              "meanProbability": 0.25521,
+              "observedWinRate": 0.24525
+            },
+            {
+              "range": "0.3-0.4",
+              "n": 952,
+              "meanProbability": 0.35415,
+              "observedWinRate": 0.40231
+            },
+            {
+              "range": "0.4-0.5",
+              "n": 1226,
+              "meanProbability": 0.44984,
+              "observedWinRate": 0.46737
+            },
+            {
+              "range": "0.5-0.6",
+              "n": 1147,
+              "meanProbability": 0.54988,
+              "observedWinRate": 0.53444
+            },
+            {
+              "range": "0.6-0.7",
+              "n": 997,
+              "meanProbability": 0.64794,
+              "observedWinRate": 0.64995
+            },
+            {
+              "range": "0.7-0.8",
+              "n": 634,
+              "meanProbability": 0.74504,
+              "observedWinRate": 0.78707
+            },
+            {
+              "range": "0.8-0.9",
+              "n": 260,
+              "meanProbability": 0.83709,
+              "observedWinRate": 0.85
+            },
+            {
+              "range": "0.9-1.0",
+              "n": 29,
+              "meanProbability": 0.92183,
+              "observedWinRate": 0.86207
+            }
+          ]
+        }
+      },
+      "props": {
+        "v1": {
+          "totalGames": {
+            "n": 6075,
+            "mae": 5.00107,
+            "rmse": 5.88841,
+            "bias": 0.43509
+          },
+          "totalSets": {
+            "n": 6075,
+            "mae": 0.45637,
+            "rmse": 0.48244,
+            "bias": 0.02541
+          },
+          "gamesWon": {
+            "n": 6075,
+            "mae": 3.22927,
+            "rmse": 4.18396,
+            "bias": 0.18588
+          },
+          "aces": {
+            "n": 6075,
+            "mae": 1.89854,
+            "rmse": 2.54745,
+            "bias": 0.09771
+          },
+          "doubleFaults": {
+            "n": 6075,
+            "mae": 1.96986,
+            "rmse": 2.54765,
+            "bias": 0.1437
+          },
+          "breakPointsWon": {
+            "n": 6075,
+            "mae": 1.78754,
+            "rmse": 2.23965,
+            "bias": 0.50871
+          }
+        },
+        "deepRaw": {
+          "totalGames": {
+            "n": 6075,
+            "mae": 5.3835,
+            "rmse": 6.1031,
+            "bias": 1.9993
+          },
+          "totalSets": {
+            "n": 6075,
+            "mae": 0.49087,
+            "rmse": 0.49358,
+            "bias": 0.12987
+          },
+          "gamesWon": {
+            "n": 6075,
+            "mae": 3.09531,
+            "rmse": 4.08038,
+            "bias": 0.94492
+          },
+          "aces": {
+            "n": 6075,
+            "mae": 1.84059,
+            "rmse": 2.41902,
+            "bias": 0.24219
+          },
+          "doubleFaults": {
+            "n": 6075,
+            "mae": 1.99936,
+            "rmse": 2.53848,
+            "bias": 0.42344
+          },
+          "breakPointsWon": {
+            "n": 6075,
+            "mae": 1.86459,
+            "rmse": 2.34708,
+            "bias": 1.05349
+          }
+        },
+        "deepCalibrated": {
+          "totalGames": {
+            "n": 6075,
+            "mae": 4.84182,
+            "rmse": 5.78039,
+            "bias": -0.36507
+          },
+          "totalSets": {
+            "n": 6075,
+            "mae": 0.45004,
+            "rmse": 0.47573,
+            "bias": -0.0083
+          },
+          "gamesWon": {
+            "n": 6075,
+            "mae": 3.13928,
+            "rmse": 3.97001,
+            "bias": -0.08643
+          },
+          "aces": {
+            "n": 6075,
+            "mae": 1.72894,
+            "rmse": 2.35869,
+            "bias": -0.08371
+          },
+          "doubleFaults": {
+            "n": 6075,
+            "mae": 1.92344,
+            "rmse": 2.50176,
+            "bias": 0.04793
+          },
+          "breakPointsWon": {
+            "n": 6075,
+            "mae": 1.71693,
+            "rmse": 2.10084,
+            "bias": 0.05581
+          }
+        }
+      }
+    }
+  },
+  "bySurface": {
+    "hard": {
+      "match": {
+        "v1": {
+          "n": 7672,
+          "accuracy": 0.64051,
+          "brier": 0.21887,
+          "logLoss": 0.62709,
+          "maxCalibrationError": 0.1555,
+          "calibration": [
+            {
+              "range": "0.0-0.1",
+              "n": 25,
+              "meanProbability": 0.07944,
+              "observedWinRate": 0.08
+            },
+            {
+              "range": "0.1-0.2",
+              "n": 338,
+              "meanProbability": 0.16467,
+              "observedWinRate": 0.13018
+            },
+            {
+              "range": "0.2-0.3",
+              "n": 876,
+              "meanProbability": 0.25205,
+              "observedWinRate": 0.25685
+            },
+            {
+              "range": "0.3-0.4",
+              "n": 1166,
+              "meanProbability": 0.35137,
+              "observedWinRate": 0.37564
+            },
+            {
+              "range": "0.4-0.5",
+              "n": 1389,
+              "meanProbability": 0.45041,
+              "observedWinRate": 0.46796
+            },
+            {
+              "range": "0.5-0.6",
+              "n": 1420,
+              "meanProbability": 0.54752,
+              "observedWinRate": 0.5331
+            },
+            {
+              "range": "0.6-0.7",
+              "n": 1202,
+              "meanProbability": 0.64745,
+              "observedWinRate": 0.61814
+            },
+            {
+              "range": "0.7-0.8",
+              "n": 890,
+              "meanProbability": 0.74569,
+              "observedWinRate": 0.76292
+            },
+            {
+              "range": "0.8-0.9",
+              "n": 340,
+              "meanProbability": 0.83632,
+              "observedWinRate": 0.82353
+            },
+            {
+              "range": "0.9-1.0",
+              "n": 26,
+              "meanProbability": 0.92473,
+              "observedWinRate": 0.76923
+            }
+          ]
+        },
+        "deep": {
+          "n": 7672,
+          "accuracy": 0.64338,
+          "brier": 0.2181,
+          "logLoss": 0.62533,
+          "maxCalibrationError": 0.10877,
+          "calibration": [
+            {
+              "range": "0.0-0.1",
+              "n": 36,
+              "meanProbability": 0.0752,
+              "observedWinRate": 0.05556
+            },
+            {
+              "range": "0.1-0.2",
+              "n": 318,
+              "meanProbability": 0.16335,
+              "observedWinRate": 0.13208
+            },
+            {
+              "range": "0.2-0.3",
+              "n": 773,
+              "meanProbability": 0.25404,
+              "observedWinRate": 0.23933
+            },
+            {
+              "range": "0.3-0.4",
+              "n": 1208,
+              "meanProbability": 0.3525,
+              "observedWinRate": 0.35762
+            },
+            {
+              "range": "0.4-0.5",
+              "n": 1513,
+              "meanProbability": 0.45045,
+              "observedWinRate": 0.47191
+            },
+            {
+              "range": "0.5-0.6",
+              "n": 1479,
+              "meanProbability": 0.55068,
+              "observedWinRate": 0.54834
+            },
+            {
+              "range": "0.6-0.7",
+              "n": 1214,
+              "meanProbability": 0.64854,
+              "observedWinRate": 0.63427
+            },
+            {
+              "range": "0.7-0.8",
+              "n": 782,
+              "meanProbability": 0.74526,
+              "observedWinRate": 0.76343
+            },
+            {
+              "range": "0.8-0.9",
+              "n": 312,
+              "meanProbability": 0.83907,
+              "observedWinRate": 0.81731
+            },
+            {
+              "range": "0.9-1.0",
+              "n": 37,
+              "meanProbability": 0.91958,
+              "observedWinRate": 0.81081
+            }
+          ]
+        }
+      },
+      "props": {
+        "v1": {
+          "totalGames": {
+            "n": 7672,
+            "mae": 5.25435,
+            "rmse": 6.27747,
+            "bias": 0.32881
+          },
+          "totalSets": {
+            "n": 7672,
+            "mae": 0.47163,
+            "rmse": 0.50995,
+            "bias": 0.01705
+          },
+          "gamesWon": {
+            "n": 7672,
+            "mae": 3.3165,
+            "rmse": 4.24151,
+            "bias": 0.19733
+          },
+          "aces": {
+            "n": 7672,
+            "mae": 2.69597,
+            "rmse": 3.74059,
+            "bias": -0.30963
+          },
+          "doubleFaults": {
+            "n": 7672,
+            "mae": 1.81373,
+            "rmse": 2.3784,
+            "bias": -0.0067
+          },
+          "breakPointsWon": {
+            "n": 7672,
+            "mae": 1.57332,
+            "rmse": 1.98028,
+            "bias": 0.34438
+          }
+        },
+        "deepRaw": {
+          "totalGames": {
+            "n": 7672,
+            "mae": 5.70522,
+            "rmse": 6.59322,
+            "bias": 2.1971
+          },
+          "totalSets": {
+            "n": 7672,
+            "mae": 0.50665,
+            "rmse": 0.52634,
+            "bias": 0.14028
+          },
+          "gamesWon": {
+            "n": 7672,
+            "mae": 3.24634,
+            "rmse": 4.23449,
+            "bias": 1.12488
+          },
+          "aces": {
+            "n": 7672,
+            "mae": 2.65261,
+            "rmse": 3.56713,
+            "bias": 0.23131
+          },
+          "doubleFaults": {
+            "n": 7672,
+            "mae": 1.83667,
+            "rmse": 2.36294,
+            "bias": 0.27084
+          },
+          "breakPointsWon": {
+            "n": 7672,
+            "mae": 1.59941,
+            "rmse": 2.01312,
+            "bias": 0.65582
+          }
+        },
+        "deepCalibrated": {
+          "totalGames": {
+            "n": 7672,
+            "mae": 5.14101,
+            "rmse": 6.17124,
+            "bias": -0.23581
+          },
+          "totalSets": {
+            "n": 7672,
+            "mae": 0.4712,
+            "rmse": 0.50545,
+            "bias": 0.004
+          },
+          "gamesWon": {
+            "n": 7672,
+            "mae": 3.19639,
+            "rmse": 4.06604,
+            "bias": 0.03301
+          },
+          "aces": {
+            "n": 7672,
+            "mae": 2.54925,
+            "rmse": 3.5232,
+            "bias": -0.17481
+          },
+          "doubleFaults": {
+            "n": 7672,
+            "mae": 1.7819,
+            "rmse": 2.34578,
+            "bias": -0.05087
+          },
+          "breakPointsWon": {
+            "n": 7672,
+            "mae": 1.50983,
+            "rmse": 1.8593,
+            "bias": 0.06462
+          }
+        }
+      }
+    },
+    "clay": {
+      "match": {
+        "v1": {
+          "n": 3944,
+          "accuracy": 0.65213,
+          "brier": 0.21664,
+          "logLoss": 0.62184,
+          "maxCalibrationError": 0.218,
+          "calibration": [
+            {
+              "range": "0.0-0.1",
+              "n": 7,
+              "meanProbability": 0.06771,
+              "observedWinRate": 0.28571
+            },
+            {
+              "range": "0.1-0.2",
+              "n": 147,
+              "meanProbability": 0.16096,
+              "observedWinRate": 0.12925
+            },
+            {
+              "range": "0.2-0.3",
+              "n": 382,
+              "meanProbability": 0.25398,
+              "observedWinRate": 0.24084
+            },
+            {
+              "range": "0.3-0.4",
+              "n": 608,
+              "meanProbability": 0.35113,
+              "observedWinRate": 0.37664
+            },
+            {
+              "range": "0.4-0.5",
+              "n": 830,
+              "meanProbability": 0.45132,
+              "observedWinRate": 0.44096
+            },
+            {
+              "range": "0.5-0.6",
+              "n": 784,
+              "meanProbability": 0.54745,
+              "observedWinRate": 0.5625
+            },
+            {
+              "range": "0.6-0.7",
+              "n": 591,
+              "meanProbability": 0.64617,
+              "observedWinRate": 0.65313
+            },
+            {
+              "range": "0.7-0.8",
+              "n": 415,
+              "meanProbability": 0.74348,
+              "observedWinRate": 0.77108
+            },
+            {
+              "range": "0.8-0.9",
+              "n": 166,
+              "meanProbability": 0.83797,
+              "observedWinRate": 0.87349
+            },
+            {
+              "range": "0.9-1.0",
+              "n": 14,
+              "meanProbability": 0.92701,
+              "observedWinRate": 1
+            }
+          ]
+        },
+        "deep": {
+          "n": 3944,
+          "accuracy": 0.643,
+          "brier": 0.21734,
+          "logLoss": 0.62309,
+          "maxCalibrationError": 0.08046,
+          "calibration": [
+            {
+              "range": "0.0-0.1",
+              "n": 12,
+              "meanProbability": 0.08621,
+              "observedWinRate": 0.16667
+            },
+            {
+              "range": "0.1-0.2",
+              "n": 151,
+              "meanProbability": 0.16443,
+              "observedWinRate": 0.12583
+            },
+            {
+              "range": "0.2-0.3",
+              "n": 383,
+              "meanProbability": 0.25569,
+              "observedWinRate": 0.25065
+            },
+            {
+              "range": "0.3-0.4",
+              "n": 637,
+              "meanProbability": 0.35376,
+              "observedWinRate": 0.38305
+            },
+            {
+              "range": "0.4-0.5",
+              "n": 775,
+              "meanProbability": 0.44985,
+              "observedWinRate": 0.46065
+            },
+            {
+              "range": "0.5-0.6",
+              "n": 759,
+              "meanProbability": 0.549,
+              "observedWinRate": 0.52964
+            },
+            {
+              "range": "0.6-0.7",
+              "n": 655,
+              "meanProbability": 0.64802,
+              "observedWinRate": 0.65802
+            },
+            {
+              "range": "0.7-0.8",
+              "n": 384,
+              "meanProbability": 0.74448,
+              "observedWinRate": 0.77865
+            },
+            {
+              "range": "0.8-0.9",
+              "n": 173,
+              "meanProbability": 0.8362,
+              "observedWinRate": 0.86127
+            },
+            {
+              "range": "0.9-1.0",
+              "n": 15,
+              "meanProbability": 0.92464,
+              "observedWinRate": 1
+            }
+          ]
+        }
+      },
+      "props": {
+        "v1": {
+          "totalGames": {
+            "n": 3944,
+            "mae": 5.3495,
+            "rmse": 6.329,
+            "bias": 0.99453
+          },
+          "totalSets": {
+            "n": 3944,
+            "mae": 0.48445,
+            "rmse": 0.52225,
+            "bias": 0.03844
+          },
+          "gamesWon": {
+            "n": 3944,
+            "mae": 3.24212,
+            "rmse": 4.22654,
+            "bias": 0.41979
+          },
+          "aces": {
+            "n": 3944,
+            "mae": 2.63817,
+            "rmse": 3.57027,
+            "bias": 1.50683
+          },
+          "doubleFaults": {
+            "n": 3944,
+            "mae": 1.82123,
+            "rmse": 2.35857,
+            "bias": 0.43029
+          },
+          "breakPointsWon": {
+            "n": 3944,
+            "mae": 1.71269,
+            "rmse": 2.14511,
+            "bias": 0.13762
+          }
+        },
+        "deepRaw": {
+          "totalGames": {
+            "n": 3944,
+            "mae": 5.67783,
+            "rmse": 6.55546,
+            "bias": 2.19213
+          },
+          "totalSets": {
+            "n": 3944,
+            "mae": 0.51159,
+            "rmse": 0.53428,
+            "bias": 0.13388
+          },
+          "gamesWon": {
+            "n": 3944,
+            "mae": 3.15407,
+            "rmse": 4.17557,
+            "bias": 1.0183
+          },
+          "aces": {
+            "n": 3944,
+            "mae": 2.31685,
+            "rmse": 3.08205,
+            "bias": 0.99546
+          },
+          "doubleFaults": {
+            "n": 3944,
+            "mae": 1.84088,
+            "rmse": 2.35928,
+            "bias": 0.5613
+          },
+          "breakPointsWon": {
+            "n": 3944,
+            "mae": 1.75753,
+            "rmse": 2.21717,
+            "bias": 0.71407
+          }
+        },
+        "deepCalibrated": {
+          "totalGames": {
+            "n": 3944,
+            "mae": 5.1682,
+            "rmse": 6.1596,
+            "bias": -0.1187
+          },
+          "totalSets": {
+            "n": 3944,
+            "mae": 0.48071,
+            "rmse": 0.51656,
+            "bias": -0.01042
+          },
+          "gamesWon": {
+            "n": 3944,
+            "mae": 3.14355,
+            "rmse": 4.04132,
+            "bias": -0.14882
+          },
+          "aces": {
+            "n": 3944,
+            "mae": 2.07719,
+            "rmse": 2.94765,
+            "bias": 0.1729
+          },
+          "doubleFaults": {
+            "n": 3944,
+            "mae": 1.76348,
+            "rmse": 2.30187,
+            "bias": 0.25039
+          },
+          "breakPointsWon": {
+            "n": 3944,
+            "mae": 1.69831,
+            "rmse": 2.09759,
+            "bias": 0.23503
+          }
+        }
+      }
+    },
+    "grass": {
+      "match": {
+        "v1": {
+          "n": 1135,
+          "accuracy": 0.62555,
+          "brier": 0.22324,
+          "logLoss": 0.63659,
+          "maxCalibrationError": 0.12333,
+          "calibration": [
+            {
+              "range": "0.0-0.1",
+              "n": 6,
+              "meanProbability": 0.0574,
+              "observedWinRate": 0
+            },
+            {
+              "range": "0.1-0.2",
+              "n": 28,
+              "meanProbability": 0.16238,
+              "observedWinRate": 0.28571
+            },
+            {
+              "range": "0.2-0.3",
+              "n": 106,
+              "meanProbability": 0.24972,
+              "observedWinRate": 0.23585
+            },
+            {
+              "range": "0.3-0.4",
+              "n": 190,
+              "meanProbability": 0.35912,
+              "observedWinRate": 0.43684
+            },
+            {
+              "range": "0.4-0.5",
+              "n": 212,
+              "meanProbability": 0.4527,
+              "observedWinRate": 0.47642
+            },
+            {
+              "range": "0.5-0.6",
+              "n": 230,
+              "meanProbability": 0.5495,
+              "observedWinRate": 0.51739
+            },
+            {
+              "range": "0.6-0.7",
+              "n": 178,
+              "meanProbability": 0.6477,
+              "observedWinRate": 0.67416
+            },
+            {
+              "range": "0.7-0.8",
+              "n": 133,
+              "meanProbability": 0.74723,
+              "observedWinRate": 0.77444
+            },
+            {
+              "range": "0.8-0.9",
+              "n": 50,
+              "meanProbability": 0.84024,
+              "observedWinRate": 0.82
+            },
+            {
+              "range": "0.9-1.0",
+              "n": 2,
+              "meanProbability": 0.90791,
+              "observedWinRate": 1
+            }
+          ]
+        },
+        "deep": {
+          "n": 1135,
+          "accuracy": 0.63965,
+          "brier": 0.22116,
+          "logLoss": 0.63252,
+          "maxCalibrationError": 0.08918,
+          "calibration": [
+            {
+              "range": "0.0-0.1",
+              "n": 6,
+              "meanProbability": 0.07749,
+              "observedWinRate": 0.16667
+            },
+            {
+              "range": "0.1-0.2",
+              "n": 37,
+              "meanProbability": 0.16276,
+              "observedWinRate": 0.16216
+            },
+            {
+              "range": "0.2-0.3",
+              "n": 105,
+              "meanProbability": 0.25132,
+              "observedWinRate": 0.26667
+            },
+            {
+              "range": "0.3-0.4",
+              "n": 195,
+              "meanProbability": 0.35883,
+              "observedWinRate": 0.41538
+            },
+            {
+              "range": "0.4-0.5",
+              "n": 211,
+              "meanProbability": 0.44953,
+              "observedWinRate": 0.46919
+            },
+            {
+              "range": "0.5-0.6",
+              "n": 199,
+              "meanProbability": 0.55008,
+              "observedWinRate": 0.54774
+            },
+            {
+              "range": "0.6-0.7",
+              "n": 188,
+              "meanProbability": 0.6468,
+              "observedWinRate": 0.68085
+            },
+            {
+              "range": "0.7-0.8",
+              "n": 132,
+              "meanProbability": 0.74697,
+              "observedWinRate": 0.76515
+            },
+            {
+              "range": "0.8-0.9",
+              "n": 56,
+              "meanProbability": 0.83842,
+              "observedWinRate": 0.78571
+            },
+            {
+              "range": "0.9-1.0",
+              "n": 6,
+              "meanProbability": 0.90904,
+              "observedWinRate": 0.83333
+            }
+          ]
+        }
+      },
+      "props": {
+        "v1": {
+          "totalGames": {
+            "n": 1135,
+            "mae": 5.76378,
+            "rmse": 6.93966,
+            "bias": 0.7054
+          },
+          "totalSets": {
+            "n": 1135,
+            "mae": 0.52212,
+            "rmse": 0.572,
+            "bias": 0.06452
+          },
+          "gamesWon": {
+            "n": 1135,
+            "mae": 3.30772,
+            "rmse": 4.38454,
+            "bias": 0.30964
+          },
+          "aces": {
+            "n": 1135,
+            "mae": 3.01915,
+            "rmse": 4.47326,
+            "bias": -0.97843
+          },
+          "doubleFaults": {
+            "n": 1135,
+            "mae": 1.83053,
+            "rmse": 2.42591,
+            "bias": -0.04943
+          },
+          "breakPointsWon": {
+            "n": 1135,
+            "mae": 1.46392,
+            "rmse": 1.85753,
+            "bias": 0.58299
+          }
+        },
+        "deepRaw": {
+          "totalGames": {
+            "n": 1135,
+            "mae": 6.01283,
+            "rmse": 7.08802,
+            "bias": 1.89883
+          },
+          "totalSets": {
+            "n": 1135,
+            "mae": 0.53678,
+            "rmse": 0.57902,
+            "bias": 0.13838
+          },
+          "gamesWon": {
+            "n": 1135,
+            "mae": 3.23765,
+            "rmse": 4.32838,
+            "bias": 0.8463
+          },
+          "aces": {
+            "n": 1135,
+            "mae": 2.9143,
+            "rmse": 4.31169,
+            "bias": -0.50158
+          },
+          "doubleFaults": {
+            "n": 1135,
+            "mae": 1.83008,
+            "rmse": 2.41305,
+            "bias": 0.08199
+          },
+          "breakPointsWon": {
+            "n": 1135,
+            "mae": 1.45614,
+            "rmse": 1.8283,
+            "bias": 0.576
+          }
+        },
+        "deepCalibrated": {
+          "totalGames": {
+            "n": 1135,
+            "mae": 5.61009,
+            "rmse": 6.82396,
+            "bias": -0.34482
+          },
+          "totalSets": {
+            "n": 1135,
+            "mae": 0.51044,
+            "rmse": 0.56359,
+            "bias": -0.02786
+          },
+          "gamesWon": {
+            "n": 1135,
+            "mae": 3.22662,
+            "rmse": 4.24985,
+            "bias": -0.23668
+          },
+          "aces": {
+            "n": 1135,
+            "mae": 2.85531,
+            "rmse": 4.17771,
+            "bias": -0.3032
+          },
+          "doubleFaults": {
+            "n": 1135,
+            "mae": 1.83176,
+            "rmse": 2.405,
+            "bias": 0.13199
+          },
+          "breakPointsWon": {
+            "n": 1135,
+            "mae": 1.37248,
+            "rmse": 1.71341,
+            "bias": -0.05829
+          }
+        }
+      }
+    }
+  },
+  "verdict": {
+    "matchPredictivePromotion": true,
+    "propImprovement": {
+      "totalGames": true,
+      "totalSets": true,
+      "gamesWon": true,
+      "aces": true,
+      "doubleFaults": true,
+      "breakPointsWon": true
+    },
+    "wagerPromotion": false,
+    "reasons": [
+      "historical sportsbook/PrizePicks prices not validated",
+      "research source not a production dependency"
+    ]
+  }
+}

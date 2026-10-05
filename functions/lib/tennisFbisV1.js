@@ -44,6 +44,8 @@ function pointPct(v,fallback){
 }
 
 export function estimateServePointWin(server={},receiver={},context={}){
+  const matchupOverride=finite(server.matchupServePointWinPct);
+  if(matchupOverride!=null)return clamp(matchupOverride,0.46,0.79);
   const surface=surfaceKey(context.surface);
   const serverServe=pointPct(server.servePointWinPct??server.servicePointsWonPct,0.62);
   const receiverReturn=pointPct(receiver.returnPointWinPct??receiver.returnPointsWonPct,0.37);
