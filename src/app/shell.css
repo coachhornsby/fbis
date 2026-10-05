@@ -550,3 +550,35 @@ html, body, #root, .shell-main, .fbis-shell-main {
 .shell-main, .fbis-shell-main {
   min-height: calc(100vh - 76px);
 }
+
+/* Desktop primary-nav emphasis: larger, bolder, visually centered in the title bar. */
+@media (min-width: 769px) {
+  .fbis-shell-header:not(.player-props-legacy-header) {
+    display: grid !important;
+    grid-template-columns: minmax(330px, 1fr) auto minmax(230px, 1fr) !important;
+    align-items: center !important;
+    column-gap: 22px !important;
+  }
+  .fbis-shell-header:not(.player-props-legacy-header) .shell-brand {
+    justify-self: start !important;
+  }
+  .fbis-shell-header:not(.player-props-legacy-header) .shell-nav {
+    justify-self: center !important;
+    justify-content: center !important;
+    width: max-content !important;
+    max-width: 100% !important;
+    flex: none !important;
+    gap: 7px !important;
+    padding: 6px !important;
+  }
+  .fbis-shell-header:not(.player-props-legacy-header) .shell-nav button {
+    padding: 11px 15px !important;
+    font-size: 12.5px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+    letter-spacing: .025em !important;
+  }
+  .fbis-shell-header:not(.player-props-legacy-header) .header-actions {
+    justify-self: end !important;
+  }
+}
