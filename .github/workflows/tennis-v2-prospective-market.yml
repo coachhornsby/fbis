@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           hour="$(TZ=America/Chicago date +%H)"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$hour" = "08" ] || [ "$hour" = "14" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ] || [ "$hour" = "08" ] || [ "$hour" = "14" ]; then
             echo "run=1" >> "$GITHUB_OUTPUT"
           else
             echo "run=0" >> "$GITHUB_OUTPUT"
