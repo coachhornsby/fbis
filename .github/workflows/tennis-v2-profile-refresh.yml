@@ -1,15 +1,6 @@
 name: Tennis v2 profile refresh
 
 on:
-  pull_request:
-    paths:
-      - "scripts/tennis-v2-profile-refresh.mjs"
-      - "functions/lib/tennisContextV2.js"
-      - "functions/api/tennis-v2-snapshot.js"
-      - "functions/lib/tennisV2Ledger.js"
-      - "migrations/0051_tennis_v2_current_profiles.sql"
-      - "schema.extensions.sql"
-      - ".github/workflows/tennis-v2-profile-refresh.yml"
   push:
     branches: [main]
     paths:
@@ -26,6 +17,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: tennis-v2-profile-refresh
+  cancel-in-progress: true
 
 jobs:
   build-and-apply:
