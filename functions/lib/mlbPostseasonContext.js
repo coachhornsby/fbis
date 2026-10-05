@@ -180,8 +180,8 @@ function expectedStarterIp(base,recent,bullpen){
   const fatigue=finite(bullpen?.fatigueScore)??0;
   if(fatigue>0.85)ip+=0.18;
   else if(fatigue<0.25)ip-=0.08;
-  // October hook is quicker on average; recent workload can override much of it.
-  ip-=0.12;
+  // No blanket postseason innings haircut. Recent starter usage and current
+  // bullpen fatigue drive the bounded workload adjustment.
   return clamp(ip,3.5,7.0);
 }
 
