@@ -274,6 +274,8 @@ function teamPayload(c) {
       location: null,
       shortDisplayName: null,
       slug: null,
+      color: null,
+      alternateColor: null,
     };
   }
   const rec = (c.records || []).find((r) => r.type === "total")?.summary || "";
@@ -295,6 +297,10 @@ function teamPayload(c) {
     location: team.location || null,
     shortDisplayName: team.shortDisplayName || null,
     slug: team.slug || null,
+    // Preserve provider brand metadata for presentation-only team atmosphere.
+    // These fields never enter projection, qualification, or wager logic.
+    color: team.color || null,
+    alternateColor: team.alternateColor || null,
   };
 }
 
