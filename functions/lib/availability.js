@@ -15,8 +15,8 @@ export const AVAILABILITY_SPORTS = Object.freeze(["nfl","cfb","mlb","nba","wnba"
 
 export const SPORT_AVAILABILITY_POLICY = Object.freeze({
   nfl: {
-    primary: "Two Deep / persisted official or licensed availability",
-    nativeChecks: ["practice status","active/inactive","depth role"],
+    primary: "NFL official injury report + persisted licensed availability",
+    nativeChecks: ["official practice status","official game status","active/inactive","depth role"],
     numericalAdjustment: true,
     criticalRoles: ["QB"],
   },
@@ -66,6 +66,7 @@ const STATUS_WEIGHT = Object.freeze({
   SUSPENDED: 1,
   DOUBTFUL: 0.8,
   QUESTIONABLE: 0.35,
+  DNP_PRACTICE: 0.28,
   LIMITED: 0.15,
   PROBABLE: 0.08,
   ACTIVE: 0,
@@ -106,6 +107,7 @@ export function normalizeAvailabilityStatus(value){
   if(/\bOUT\b|INACTIVE|SEASON END|SEASON-ENDING/.test(raw)) return "OUT";
   if(/DOUBT/.test(raw)) return "DOUBTFUL";
   if(/QUESTION/.test(raw)) return "QUESTIONABLE";
+  if(/DID NOT PARTICIPATE|DID NOT PRACTICE|\bDNP\b/.test(raw)) return "DNP_PRACTICE";
   if(/LIMIT/.test(raw)) return "LIMITED";
   if(/PROBAB/.test(raw)) return "PROBABLE";
   if(/FULL|ACTIVE|AVAILABLE|CLEARED/.test(raw)) return "ACTIVE";
@@ -246,7 +248,7 @@ function teamAvailabilityImpact(rows=[], {sport, nowMs=Date.now()}={}){
       else if(SPECIAL_POSITIONS.has(position)) specialPenalty+=points;
       else offensePenalty+=points;
     }
-    if(position==="QB" && (rank==null || rank<=1) && ["DOUBTFUL","QUESTIONABLE"].includes(status)){
+    if(position==="QB" && rank===1 && ["DOUBTFUL","QUESTIONABLE"].includes(status)){
       criticalUnresolved=true;
     }
     players.push({
@@ -464,7 +466,9 @@ export async function attachAvailability(games=[], sport, env={}){
       configured:rows.length>0,
       rows:rows.length,
       error:queried.ok?null:queried.reason,
-      note:"Two Deep is preferred for NFL/CFB once licensed API access is installed; persisted official/licensed observations are normalized before model use.",
+      note:id==="nfl"
+        ? "NFL official injury reports are primary public availability evidence; licensed observations may augment depth/role context. All rows are normalized before model use."
+        : "Two Deep is preferred for CFB once licensed API access is installed; persisted official/licensed observations are normalized before model use.",
     },
   };
 }
@@ -483,7 +487,7 @@ export function buildSportAvailabilityPreflight(game = {}, sport = "") {
     ["OUT","IR","PUP","NFI","SUSPENDED"].includes(normalizeAvailabilityStatus(p.status))
   );
   const unresolved = allPlayers.filter((p) =>
-    ["DOUBTFUL","QUESTIONABLE","LIMITED"].includes(normalizeAvailabilityStatus(p.status))
+    ["DOUBTFUL","QUESTIONABLE","DNP_PRACTICE","LIMITED"].includes(normalizeAvailabilityStatus(p.status))
   );
 
   let state = "CLEAR";

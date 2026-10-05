@@ -8,12 +8,14 @@ import {
   buildSportAvailabilityPreflight,
 } from "../functions/lib/availability.js";
 import { extractTwoDeepAvailability } from "../functions/lib/twoDeep.js";
+import { extractNflOfficialInjuries } from "../functions/lib/nflOfficialInjuries.js";
 
 test("availability status normalization handles football designations", () => {
   assert.equal(normalizeAvailabilityStatus("Injured Reserve"), "IR");
   assert.equal(normalizeAvailabilityStatus("Did not practice - Questionable"), "QUESTIONABLE");
   assert.equal(normalizeAvailabilityStatus("Out"), "OUT");
   assert.equal(normalizeAvailabilityStatus("Full participant"), "ACTIVE");
+  assert.equal(normalizeAvailabilityStatus("Did Not Participate In Practice"), "DNP_PRACTICE");
 });
 
 test("licensed availability record normalizes to canonical row", () => {
@@ -150,4 +152,52 @@ test("NBA preflight fails closed when availability feed is not configured", () =
   const p = buildSportAvailabilityPreflight({sport:"nba",home:{},away:{}},"nba");
   assert.equal(p.state,"BLOCKED");
   assert.ok(p.reasons.includes("rights_cleared_injury_feed_required"));
+});
+
+
+test("official NFL injury report tables normalize practice and game status by team", () => {
+  const html = `
+    <section><h3>Chicago Bears</h3>
+      <table>
+        <thead><tr><th>Player</th><th>Position</th><th>Injuries</th><th>Practice Status</th><th>Game Status</th></tr></thead>
+        <tbody>
+          <tr><td>Caleb Williams</td><td>QB</td><td>Hamstring</td><td>Did Not Participate In Practice</td><td>Out</td></tr>
+          <tr><td>Example Receiver</td><td>WR</td><td>Ankle</td><td>Limited Participation in Practice</td><td>Questionable</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section><h3>Green Bay Packers</h3>
+      <table>
+        <tr><th>Player</th><th>Position</th><th>Injuries</th><th>Practice Status</th><th>Game Status</th></tr>
+        <tr><td>Example Guard</td><td>G</td><td>Knee</td><td>Did Not Participate In Practice</td><td></td></tr>
+      </table>
+    </section>
+  `;
+  const rows = extractNflOfficialInjuries(html,{observedAt:"2026-10-05T05:00:00Z"});
+  assert.equal(rows.length,3);
+  const qb=rows.find(r=>r.playerName==="Caleb Williams");
+  assert.equal(qb.teamKey,"chi");
+  assert.equal(qb.status,"OUT");
+  assert.equal(qb.practiceStatus,"Did Not Participate In Practice");
+  assert.equal(qb.source,"nfl-official");
+  const guard=rows.find(r=>r.playerName==="Example Guard");
+  assert.equal(guard.teamKey,"gb");
+  assert.equal(guard.status,"DNP_PRACTICE");
+});
+
+test("official NFL rows flow into player-prop availability holds without treating practice DNP as OUT", () => {
+  const game = {
+    sport:"nfl",
+    home:{abbr:"CHI",name:"Chicago Bears"},
+    away:{abbr:"GB",name:"Green Bay Packers"},
+  };
+  const impact=buildGameAvailabilityImpact(game,[{
+    source:"nfl-official",team_key:"chi",player_name:"Example WR",position:"WR",
+    depth_rank:null,status:"DNP_PRACTICE",practice_status:"Did Not Participate In Practice",
+    source_updated_at:"2026-10-05T05:00:00Z",observed_at:"2026-10-05T05:00:00Z"
+  }],{sport:"nfl",nowMs:Date.parse("2026-10-05T05:10:00Z")});
+  assert.equal(impact.configured,true);
+  assert.ok(impact.home.offensePenalty>0);
+  assert.equal(impact.home.players[0].status,"DNP_PRACTICE");
+  assert.equal(impact.criticalUnresolved,false);
 });
