@@ -224,7 +224,7 @@ jobs:
           echo "OPERATIONAL SHEET SYNC HTTP=$http"
           cat "$body"
           test "$http" = "200"
-          jq -e '.ok == true and .ledger.persisted > 0 and .npb.persisted >= 0 and .kbo.persisted >= 0 and .pitchers.exactPersisted >= 0' "$body" >/dev/null
+          jq -e '.ok == true and .ledger.persisted > 0 and .npb.persisted >= 0 and .kbo.persisted >= 0 and .pitchers.exactPersisted >= 0 and .opsTelemetry.healthRows > 0' "$body" >/dev/null
 
           wager_payload="$(mktemp)"
           jq -c '{rows:.}' artifacts/wager-feed.json > "$wager_payload"
@@ -240,6 +240,9 @@ jobs:
             echo "- Exact MLB pitcher rows: $(jq -r '.pitchers.exactPersisted' "$body")"
             echo "- NPB Ops rows: $(jq -r '.npb.persisted' "$body")"
             echo "- KBO Ops rows: $(jq -r '.kbo.persisted' "$body")"
+            echo "- Ops health rows: $(jq -r '.opsTelemetry.healthRows' "$body")"
+            echo "- Ops incident rows: $(jq -r '.opsTelemetry.incidentRows' "$body")"
+            echo "- Ops avg MTTR sec: $(jq -r '.opsTelemetry.avgMttrSeconds // "null"' "$body")"
             echo "- Wager Feed rows: $(jq -r '.persisted' "$wager_body")"
             echo "- Wager Feed READY: $(jq -r '.ready' "$wager_body")"
             echo "- Wager Feed SHOP: $(jq -r '.shop' "$wager_body")"

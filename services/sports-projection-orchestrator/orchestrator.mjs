@@ -47,6 +47,7 @@ function buildCfg(env = runtimeEnv){
       mlbPitcherProjections: 'MLB Pitcher Projections',
       npbOps: 'NPB Ops',
       kboOps: 'KBO Ops',
+      opsTelemetry: 'FBIS Ops Telemetry',
       snapshots: 'Feature Snapshots',
       usage: 'AI API Usage',
     }
@@ -1512,15 +1513,74 @@ export async function syncWagerFeed(inputRows=[]){
   return {ok:true,written:normalized.length,persisted,ready,shop,syncedAt:now()};
 }
 
+async function syncOpsTelemetrySheet(){
+  const base=String(CFG.fbisBaseUrl||"https://fbis-myz.pages.dev").replace(/\/$/,"");
+  const res=await fetchRetry(base+"/api/ops-health?_t="+Date.now(),{headers:{accept:"application/json"}},2);
+  const body=await res.json().catch(()=>({}));
+  if(!res.ok||body?.ok!==true||!Array.isArray(body?.components)||!Array.isArray(body?.incidents)){
+    throw new Error("FBIS ops telemetry readback failed http="+res.status);
+  }
+
+  const healthHeaders=[
+    "Component ID","Component Name","Type","Domain","Health Status","Severity","Freshness State","Age Minutes",
+    "Workflow Freshness","Source Freshness","Database Freshness","Published Freshness","Last Success","Last Verified",
+    "Source Rows","Rows Written","Incident Fingerprint","Deployment SHA"
+  ];
+  const incidentHeaders=[
+    "Incident Fingerprint","Component ID","Failure Class","Severity","Detected At","Repaired At","Verified At",
+    "Detection Source","Autonomous Repair","Owner Action Required","Repeat Count","MTTR Seconds","Notes"
+  ];
+
+  const healthRows=body.components.map(r=>[
+    r.component_id||"",r.component_name||"",r.component_type||"",r.sport_or_domain||"",
+    r.health_status||"",r.severity||"",r.freshness?.state||"",r.freshness?.ageMinutes??"",
+    r.workflow_freshness_at||"",r.source_freshness_at||"",r.database_freshness_at||"",r.published_freshness_at||"",
+    r.last_success_at||"",r.last_verified_at||"",r.source_rows??"",r.rows_written??"",
+    r.incident_fingerprint||"",r.deployment_sha||""
+  ]);
+  const incidentRows=body.incidents.map(r=>[
+    r.incident_fingerprint||"",r.component_id||"",r.failure_class||"",r.severity||"",r.detected_at||"",
+    r.repaired_at||"",r.verified_at||"",r.detection_source||"",r.autonomous_repair? "YES":"NO",
+    r.owner_action_required? "YES":"NO",r.repeat_count??"",r.mttr_seconds??"",r.notes||""
+  ]);
+
+  const sheet=q(CFG.sheets.opsTelemetry);
+  await sheets.clear(sheet+"!A1:AJ500");
+  const top=[
+    ["FBIS OPS TELEMETRY"],
+    ["Live mirror of Cloudflare D1 fbis_ops_health + fbis_watchdog_metrics for ChatGPT and Gemini Spark. D1 remains canonical."],
+    ["Generated At",body.generatedAt||now(),"Incidents (30d)",body.metrics?.incidents??0,"Avg MTTR sec",body.metrics?.avgMttrSeconds??"","Autonomous repairs",body.metrics?.autonomousRepairs??0],
+    [...healthHeaders,...incidentHeaders],
+  ];
+  await sheets.update(sheet+"!A1:AE"+String(top.length),top);
+  const max=Math.max(healthRows.length,incidentRows.length);
+  if(max){
+    const rows=Array.from({length:max},(_,i)=>[
+      ...(healthRows[i]||Array(healthHeaders.length).fill("")),
+      ...(incidentRows[i]||Array(incidentHeaders.length).fill(""))
+    ]);
+    await sheets.update(sheet+"!A5:AE"+String(rows.length+4),rows);
+  }
+  const readback=await sheets.get(sheet+"!A1:AE500");
+  const vals=readback.values||[];
+  const persistedHealth=vals.slice(4).filter(r=>String(r?.[0]||"").trim()).length;
+  const persistedIncidents=vals.slice(4).filter(r=>String(r?.[18]||"").trim()).length;
+  if(persistedHealth!==healthRows.length||persistedIncidents!==incidentRows.length){
+    throw new Error("Ops telemetry Sheet readback mismatch health="+persistedHealth+"/"+healthRows.length+" incidents="+persistedIncidents+"/"+incidentRows.length);
+  }
+  return {healthRows:persistedHealth,incidentRows:persistedIncidents,avgMttrSeconds:body.metrics?.avgMttrSeconds??null};
+}
+
 export async function syncOperationalProjectionSheets(){
   if(!sheets.available()) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON required for operational sheet sync");
   const ledger=await syncProjectionLedgerFromAudit();
-  const [pitchers,npb,kbo]=await Promise.all([
+  const [pitchers,npb,kbo,opsTelemetry]=await Promise.all([
     syncPitcherProjectionSheet(),
     syncAsiaOpsSheet("npb",CFG.sheets.npbOps),
     syncAsiaOpsSheet("kbo",CFG.sheets.kboOps),
+    syncOpsTelemetrySheet(),
   ]);
-  return {ok:true,ledger,pitchers,npb,kbo,syncedAt:now()};
+  return {ok:true,ledger,pitchers,npb,kbo,opsTelemetry,syncedAt:now()};
 }
 
 export async function validateModels(){
