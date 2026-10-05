@@ -1,9 +1,6 @@
 name: Tennis v2 prospective market capture
 
 on:
-  push:
-    branches: [main]
-    paths: [".github/workflows/tennis-v2-prospective-market.yml"]
   workflow_dispatch:
 
 concurrency:
@@ -26,7 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           hour="$(TZ=America/Chicago date +%H)"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "run=1" >> "$GITHUB_OUTPUT"
           else
             echo "run=0" >> "$GITHUB_OUTPUT"
