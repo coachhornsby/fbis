@@ -436,3 +436,29 @@
     font-size:17px !important;
   }
 }
+
+
+/* Models is an operational surface, not a betting-decision surface. */
+.model-status-page .panel-header{align-items:flex-start}
+.model-status-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:4px 0 18px}
+.model-status-summary>div{padding:12px 14px;border:1px solid var(--card-border);border-radius:10px;background:var(--card-float)}
+.model-status-summary span,.model-status-metrics span{display:block;font-size:9px;letter-spacing:.08em;color:var(--muted)}
+.model-status-summary strong{display:block;margin-top:4px;font-size:22px;color:#fff}
+.model-status-sport{margin-top:18px}
+.model-status-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;margin-top:10px}
+.model-status-card{border:1px solid var(--card-border);border-radius:12px;background:var(--card-float);box-shadow:var(--card-float-shadow);padding:14px}
+.model-status-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}
+.model-status-card-head h4{margin:3px 0 0;font-size:18px;color:#fff}
+.model-status-sport-label{font-size:9px;letter-spacing:.1em;color:var(--muted)}
+.model-status-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;margin-top:12px;background:rgba(255,255,255,.06)}
+.model-status-metrics>div{background:var(--card-float);padding:11px}
+.model-status-metrics strong{display:block;margin-top:4px;font-size:16px;color:#fff}
+.model-status-metrics small{display:block;margin-top:2px;color:var(--muted);font-size:9px}
+.model-status-card-foot{display:flex;justify-content:space-between;gap:12px;margin-top:12px;font-size:9px;color:var(--muted)}
+.model-status-note{margin-top:18px;padding:12px 14px;border:1px solid var(--card-border);border-radius:10px;color:var(--muted)}
+.model-status-note strong{color:#fff}
+@media(max-width:700px){
+  .model-status-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .model-status-grid{grid-template-columns:1fr}
+  .model-status-card-foot{display:grid}
+}
