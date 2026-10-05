@@ -122,6 +122,7 @@ export default function CompactGameCard({ game, onOpen }) {
   const action = vm.action || {};
   const sportId = String(vm.sport || game?.sport || "").toLowerCase();
   const isNfl = sportId === "nfl";
+  const showAction = true; // Keep compact-card information architecture consistent across sports.
   const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const edge = bestEdge(vm);
   const matchup = isNfl ? game?.nflGameMatchup : null;
@@ -245,7 +246,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       </div>
 
-      {isNfl ? (
+      {showAction ? (
         <div className={`cgc-action-strip${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="cgc-action-brand">
             <span>ACTION</span>
@@ -287,21 +288,21 @@ export default function CompactGameCard({ game, onOpen }) {
             <span>GAME READ <b>{Number.isFinite(finalMargin) ? `${finalMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(finalMargin))}` : "—"}</b></span>
           </div>
         </section>
-      ) : genericMatchupItems.length ? (
-        <section className="cgc-matchup-read" aria-label="FBIS matchup analysis">
+      ) : (
+        <section className={`cgc-matchup-read${genericMatchupItems.length ? "" : " is-unavailable"}`} aria-label="FBIS matchup analysis">
           <div className="cgc-matchup-read-head">
-            <div><span>GAME MATCHUP</span><strong>FBIS ANALYSIS</strong></div>
-            <b>{genericMatchupItems.length} SIGNALS</b>
+            <div><span>GAME MATCHUP</span><strong>{genericMatchupItems.length ? "FBIS ANALYSIS" : "NO ANALYTICS YET"}</strong></div>
+            <b>{genericMatchupItems.length ? `${genericMatchupItems.length} SIGNALS` : "—"}</b>
           </div>
           <div className="cgc-matchup-pills">
-            {genericMatchupItems.map((item) => (
+            {genericMatchupItems.length ? genericMatchupItems.map((item) => (
               <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
                 <span>{item.label}</span><strong>{item.text}</strong>
               </div>
-            ))}
+            )) : <div className="cgc-matchup-pill tone-neutral"><span>STATUS</span><strong>AWAITING MATCHUP DATA</strong></div>}
           </div>
         </section>
-      ) : null}
+      )}
 
 
       <footer className="cgc-footer">
