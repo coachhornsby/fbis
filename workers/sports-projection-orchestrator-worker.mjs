@@ -110,6 +110,29 @@ function chicagoHour(now = new Date()) {
   }).format(now));
 }
 
+async function runScheduledActionDaily(env) {
+  const hour = chicagoHour();
+  if (hour < 7 || hour > 11) return { status: "NOT_DUE", hourCt: hour };
+  if (!env.HARVEST_SECRET) return { status: "BLOCKED_FAIL_CLOSED", reason: "HARVEST_SECRET missing", hourCt: hour };
+  const base = String(CFG.fbisBaseUrl || "https://fbis-myz.pages.dev").replace(/\\/$/, "");
+  const call = async (mode) => {
+    const res = await fetch(`${base}/api/action-daily-async?mode=${mode}`, {
+      method: "POST",
+      headers: { "x-harvest-secret": env.HARVEST_SECRET, "content-type": "application/json" },
+      body: JSON.stringify({ mode }),
+    });
+    const body = await res.json().catch(() => ({}));
+    return { http: res.status, body };
+  };
+  const start = await call("start");
+  if (!start.body?.ok || ![200, 202].includes(start.http)) throw new Error(`ACTION daily start failed http=${start.http} status=${start.body?.status || "unknown"}`);
+  const terminal = new Set(["already_collected_today", "no_slate", "monthly_budget_blocked", "action_not_configured"]);
+  if (terminal.has(String(start.body?.status || ""))) return { status: start.body.status, hourCt: hour, runId: start.body.runId || null };
+  const harvest = await call("harvest");
+  if (!harvest.body?.ok || ![200, 202].includes(harvest.http)) throw new Error(`ACTION daily harvest failed http=${harvest.http} status=${harvest.body?.status || "unknown"}`);
+  return { status: harvest.body.status || "UNKNOWN", hourCt: hour, runId: harvest.body.runId || start.body.runId || null, remainingRows: harvest.body.remainingRows ?? null };
+}
+
 async function runScheduledTennisCapture(env) {
   const hour = chicagoHour();
   if (hour !== 8 && hour !== 14) return { status: "NOT_DUE", hourCt: hour };
@@ -157,7 +180,7 @@ async function scheduledCycle(env) {
   if (String(env.ORCH_CRON_ENABLED || "false").toLowerCase() !== "true") {
     return { ok: true, status: "CRON_DISABLED", at: new Date().toISOString() };
   }
-  const tennis = await runScheduledTennisCapture(env);
+  const actionDaily = await runScheduledActionDaily(env);\n  const tennis = await runScheduledTennisCapture(env);
   const gate = credentialGate();
   if (gate.missing.length) {
     return {
