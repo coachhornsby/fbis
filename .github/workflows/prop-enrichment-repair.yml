@@ -1,0 +1,64 @@
+name: Repair current player prop enrichment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/prop-enrich-current.js"
+      - "functions/lib/playerPropHistory.js"
+      - ".github/workflows/prop-enrichment-repair.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Wait for production SHA
+        run: |
+          set -euo pipefail
+          expected="$(echo "$GITHUB_SHA" | tr 'A-F' 'a-f')"
+          for i in $(seq 1 48); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)-$i" || true)"
+            live="$(jq -r '.deploymentCommit // .build.commitSha // empty' "$body" 2>/dev/null | tr 'A-F' 'a-f')"
+            if [ "$code" = "200" ] && [ "$live" = "$expected" ]; then exit 0; fi
+            echo "waiting production live=${live:-none} expected=$expected"
+            sleep 10
+          done
+          exit 1
+      - name: Enrich tennis
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 5); do
+            out="$(mktemp)"
+            curl -fsS --max-time 120 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" --data '{"sport":"tennis","limit":30}' "$BASE/api/prop-enrich-current" > "$out"
+            cat "$out"
+            attempted="$(jq -r '.attempted // 0' "$out")"
+            [ "$attempted" -gt 0 ] || break
+          done
+      - name: Enrich soccer
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            out="$(mktemp)"
+            curl -fsS --max-time 120 -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" --data '{"sport":"soccer","limit":20}' "$BASE/api/prop-enrich-current" > "$out"
+            cat "$out"
+            attempted="$(jq -r '.attempted // 0' "$out")"
+            [ "$attempted" -gt 0 ] || break
+          done
+      - name: Verify projected coverage
+        run: |
+          set -euo pipefail
+          for sport in tennis soccer; do
+            body="$(mktemp)"
+            curl -fsS --max-time 30 "$BASE/api/selective-props?sport=$sport&mode=sport&_t=$(date +%s)" > "$body"
+            echo "$sport projected cards=$(jq -r '.count // 0' "$body")"
+            jq -e '.ok==true' "$body" >/dev/null
+          done

@@ -90,7 +90,12 @@ const MARKET_ALIASES = Object.freeze({
   saves:["saves","sv"],
   goalie_saves:["saves","goalieSaves","sv"],
   goals:["goals","g"],
+  shots:["shots","totalShots"],
   shots_on_target:["shotsOnTarget","shotsOnGoal","sot"],
+  fouls:["fouls","foulsCommitted"],
+  tackles:["tackles","totalTackles"],
+  clearances:["clearances"],
+  goal_assist:["goalAssists","goalsAssists","goalsPlusAssists"],
   passes_attempted:["passesAttempted","passes","passAttempts"],
   total_games_won:["gamesWon","games"],
   total_games:["totalGames","gamesPlayed"],
@@ -136,6 +141,10 @@ export function valueForEspnEvent(payload,event,market,sport,name){
   if(m==="rebounds_assists"){
     const vals=["rebounds","assists"].map(k=>first(map,MARKET_ALIASES[k]));
     return vals.every(v=>v!=null)?vals.reduce((a,b)=>a+b,0):null;
+  }
+  if(m==="goal_assist"){
+    const g=first(map,MARKET_ALIASES.goals),a=first(map,MARKET_ALIASES.assists);
+    if(g!=null&&a!=null) return g+a;
   }
   if(m==="points"){
     const g=first(map,MARKET_ALIASES.goals),a=first(map,MARKET_ALIASES.assists);
