@@ -221,6 +221,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     nflProShadow: sport === "nfl" && game.nflProShadow ? game.nflProShadow : null,
     nflGameMatchup: sport === "nfl" && game.nflGameMatchup ? game.nflGameMatchup : null,
     nflWagerDecision: sport === "nfl" && game.nflWagerDecision ? game.nflWagerDecision : null,
+    tennisProjection: sport === "tennis" ? (game.tennisProjection || null) : null,
+    tour: sport === "tennis" ? (game.tour || game.tennisProjection?.tour || null) : null,
     palMatched: Boolean(game.bpp),
     palHome: game.bpp?.homeRuns ?? game.model?.palHome ?? null,
     palAway: game.bpp?.awayRuns ?? game.model?.palAway ?? null,
@@ -407,6 +409,138 @@ function hydrateOddsFromMarketRows(game, pack) {
   return { ...game, odds };
 }
 
+
+function safeJson(value) {
+  if (value == null) return null;
+  if (typeof value === "object") return value;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+function tennisPlayerAbbr(name = "") {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  const last = parts.at(-1) || String(name || "PLAYER");
+  return last.slice(0, 12).toUpperCase();
+}
+
+async function buildTennisResearchSlate(date, env = {}) {
+  if (!env.DB?.prepare) {
+    return { sport: "tennis", date, games: [], research: { configured: false, error: "database unavailable" } };
+  }
+  const query = await env.DB.prepare(`
+    WITH ranked AS (
+      SELECT *,
+             ROW_NUMBER() OVER (
+               PARTITION BY canonical_event_id
+               ORDER BY decision_timestamp DESC, created_at DESC
+             ) AS rn
+      FROM tennis_v2_research_decisions
+      WHERE event_start_time IS NOT NULL
+        AND event_start_time >= datetime(?, '-1 day')
+        AND event_start_time < datetime(?, '+2 day')
+    )
+    SELECT canonical_event_id,tour,player1,player2,pure_model_id,pure_p1,
+           market_prior_p1,market_v2_p1,model_edge,market_json,
+           decision_timestamp,event_start_time,snapshot_type
+    FROM ranked
+    WHERE rn=1
+    ORDER BY event_start_time, decision_timestamp DESC
+  `).bind(date, date).all();
+  const rows = (query?.results || []).filter((row) => boardDateCtForStart(row.event_start_time) === date);
+  const games = rows.map((row) => {
+    const p1 = Number(row.pure_p1);
+    const p1Prob = Number.isFinite(p1) ? p1 : null;
+    const p2Prob = p1Prob == null ? null : 1 - p1Prob;
+    const marketJson = safeJson(row.market_json) || {};
+    const quote = Array.isArray(marketJson.quotes) ? marketJson.quotes[0] || {} : {};
+    return {
+      id: String(row.canonical_event_id),
+      sport: "tennis",
+      tour: String(row.tour || "").toUpperCase(),
+      neutral: true,
+      start: row.event_start_time,
+      status: { detail: "Scheduled" },
+      away: {
+        name: row.player2,
+        fullName: row.player2,
+        abbr: tennisPlayerAbbr(row.player2),
+      },
+      home: {
+        name: row.player1,
+        fullName: row.player1,
+        abbr: tennisPlayerAbbr(row.player1),
+      },
+      model: {
+        id: row.pure_model_id || "TENNIS-FBIS-v2-CONTEXT",
+        name: "Tennis-FBIS-v2",
+        engine: row.pure_model_id || "TENNIS-FBIS-v2-CONTEXT",
+        maturity: "RESEARCH",
+        projAway: p2Prob == null ? null : p2Prob * 100,
+        projHome: p1Prob == null ? null : p1Prob * 100,
+        projTotal: 100,
+        projMargin: p1Prob == null ? null : (p1Prob - p2Prob) * 100,
+        projectionKind: "FBIS",
+      },
+      modelId: row.pure_model_id || "TENNIS-FBIS-v2-CONTEXT",
+      modelVersion: "v2-deep-context-market-separated",
+      projectionKind: "FBIS",
+      projectionMaturity: "RESEARCH",
+      pureProjectionAvailable: p1Prob != null,
+      projectionUnavailable: p1Prob == null,
+      publicationStatus: "RESEARCH_PUBLISHABLE",
+      tennisProjection: {
+        player1: row.player1,
+        player2: row.player2,
+        player1WinProb: p1Prob,
+        player2WinProb: p2Prob,
+        marketPriorP1: row.market_prior_p1 == null ? null : Number(row.market_prior_p1),
+        marketAdjustedP1: row.market_v2_p1 == null ? null : Number(row.market_v2_p1),
+        modelEdge: row.model_edge == null ? null : Number(row.model_edge),
+        decisionTimestamp: row.decision_timestamp,
+        snapshotType: row.snapshot_type || "DECISION",
+        tour: String(row.tour || "").toUpperCase(),
+      },
+      market: {
+        marketAvailable: false,
+        executionActionable: false,
+        operatorExecutionBooks: [],
+        reference: {
+          available: quote?.p1Price != null || quote?.p2Price != null,
+          provider: "ACTION CONSENSUS · RESEARCH",
+          spread: null,
+          total: null,
+          moneyline: {
+            home: quote?.p1Price == null ? null : Number(quote.p1Price),
+            away: quote?.p2Price == null ? null : Number(quote.p2Price),
+          },
+        },
+      },
+      quality: {
+        score: null,
+        state: "RESEARCH",
+        flags: ["research_only", "tennis_v2"],
+      },
+      rec: null,
+      lean: null,
+      authorized: false,
+    };
+  });
+  return {
+    sport: "tennis",
+    date,
+    games,
+    parlay: { cached: true, skipped: true },
+    research: {
+      configured: true,
+      source: "D1 tennis_v2_research_decisions",
+      records: games.length,
+      modelId: "TENNIS-FBIS-v2-CONTEXT",
+      maturity: "RESEARCH",
+      canQualify: false,
+      canAuthorizeWager: false,
+    },
+  };
+}
+
 export async function buildTodayBoard(
   date,
   env = {},
@@ -435,7 +569,9 @@ export async function buildTodayBoard(
       // The customer-facing board is a read path, never a collection path.
       // A focused tab must not burn quota or block on live provider/network I/O.
       // Scheduled /api/collect jobs own live provider refreshes and D1/cache writes.
-      const slate = await builder(sport, date, {
+      const slate = sport === "tennis"
+        ? await buildTennisResearchSlate(date, env)
+        : await builder(sport, date, {
         ...env,
         parlayCacheOnly: true,
         palCacheOnly: true,
@@ -464,13 +600,22 @@ export async function buildTodayBoard(
       const selectedDateGames = (slate.games || []).filter(
         (g) => boardDateCtForStart(g?.start) === date
       );
-      const recSlate = withRecs({
-        ...slate,
-        games: selectedDateGames.map((g) => ({
-          ...hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id))),
-          marketLineHistory: byMarketHistory.get(String(g.id)) || [],
-        })),
-      }, DEFAULT_WEIGHTS);
+      const hydratedGames = selectedDateGames.map((g) => ({
+        ...hydrateOddsFromMarketRows(hydrateOddsFromSnapshot(g, bySnapshot.get(String(g.id))), byMarketOdds.get(String(g.id))),
+        marketLineHistory: byMarketHistory.get(String(g.id)) || [],
+      }));
+      const recSlate = sport === "tennis"
+        ? {
+            ...slate,
+            games: hydratedGames.map((g) => ({
+              ...g,
+              rec: null,
+              lean: null,
+              qualificationBlocked: true,
+              qualificationBlockReason: "TENNIS_V2_RESEARCH_ONLY",
+            })),
+          }
+        : withRecs({ ...slate, games: hydratedGames }, DEFAULT_WEIGHTS);
       const palReason = sport === "mlb" ? palUnavailableReason(slate.pal?.meta || slate.pal || {}, null) : null;
 
       // ACTION must hydrate onto slate games BEFORE resolveCanonicalMarket / toBoardGame.
@@ -527,6 +672,9 @@ export async function buildTodayBoard(
           ...(sport === "nfl" ? {
             nflverse: slate.research?.nflVerse || null,
             baseline: slate.research?.nflBaseline || null,
+          } : {}),
+          ...(sport === "tennis" ? {
+            tennisV2: slate.research || null,
           } : {}),
         },
       };

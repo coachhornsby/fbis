@@ -84,6 +84,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
   const cardKey = `${vm.sport || ""}:${vm.id || game?.id}`;
   const sportId = String(vm.sport || game?.sport || "").toLowerCase();
   const isNfl = sportId === "nfl";
+  const isTennis = sportId === "tennis";
   const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
   const finalAway = game?.away?.score ?? away?.score ?? null;
@@ -118,8 +119,8 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <div>
             <strong className="pgc-featured-name">{away.fullName || away.name || away.abbr || "—"}</strong>
             {away.record ? <span className="pgc-featured-record">{away.record}</span> : null}
-            <b className="pgc-featured-score">{proj.available ? (proj.away ?? "—") : "—"}</b>
-            <small>PROJ. SCORE</small>
+            <b className="pgc-featured-score">{proj.available ? (isTennis ? `${num(proj.away)}%` : (proj.away ?? "—")) : "—"}</b>
+            <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
           </div>
         </div>
 
@@ -135,16 +136,26 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <div>
             <strong className="pgc-featured-name">{home.fullName || home.name || home.abbr || "—"}</strong>
             {home.record ? <span className="pgc-featured-record">{home.record}</span> : null}
-            <b className="pgc-featured-score">{proj.available ? (proj.home ?? "—") : "—"}</b>
-            <small>PROJ. SCORE</small>
+            <b className="pgc-featured-score">{proj.available ? (isTennis ? `${num(proj.home)}%` : (proj.home ?? "—")) : "—"}</b>
+            <small>{isTennis ? "WIN PROB." : "PROJ. SCORE"}</small>
           </div>
         </div>
       </section>
 
       <section className="pgc-nfl-market" aria-label="FBIS and market summary">
-        <div><span>{marketSideLabel}</span><strong>{market.spreadLabel || cmp.marketSide?.label || "—"}</strong></div>
-        <div><span>FBIS TOTAL</span><strong>{proj.total ?? "—"}</strong></div>
-        <div><span>MARKET TOTAL</span><strong>{market.total ?? "—"}</strong></div>
+        {isTennis ? (
+          <>
+            <div><span>MODEL STATUS</span><strong>RESEARCH</strong></div>
+            <div><span>MARKET ML</span><strong>{market.awayMl == null && market.homeMl == null ? "—" : `${market.awayMl ?? "—"} / ${market.homeMl ?? "—"}`}</strong></div>
+            <div><span>TOUR</span><strong>{game.tennisProjection?.tour || "TENNIS"}</strong></div>
+          </>
+        ) : (
+          <>
+            <div><span>{marketSideLabel}</span><strong>{market.spreadLabel || cmp.marketSide?.label || "—"}</strong></div>
+            <div><span>FBIS TOTAL</span><strong>{proj.total ?? "—"}</strong></div>
+            <div><span>MARKET TOTAL</span><strong>{market.total ?? "—"}</strong></div>
+          </>
+        )}
       </section>
       {true ? (
         <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
