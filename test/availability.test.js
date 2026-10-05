@@ -201,3 +201,14 @@ test("official NFL rows flow into player-prop availability holds without treatin
   assert.equal(impact.home.players[0].status,"DNP_PRACTICE");
   assert.equal(impact.criticalUnresolved,false);
 });
+
+
+test("stale carried NFL profile OUT state remains active until superseded", () => {
+  const game={home:{abbr:"CHI",name:"Chicago Bears"},away:{abbr:"GB",name:"Green Bay Packers"}};
+  const impact=buildGameAvailabilityImpact(game,[{
+    source:"nfl-profile",persistent_state:1,team_key:"chi",player_name:"WR One",position:"WR",
+    depth_rank:1,status:"OUT",source_updated_at:"2026-09-28T10:00:00Z",observed_at:"2026-09-28T10:00:00Z"
+  }],{sport:"nfl",nowMs:Date.parse("2026-10-05T10:00:00Z")});
+  assert.ok(impact.home.offensePenalty>0);
+  assert.equal(impact.home.players[0].status,"OUT");
+});
