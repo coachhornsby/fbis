@@ -144,7 +144,7 @@ export function buildNhlScheduleProfile(games,abbr,seasonId,nowMs=Date.now()){
   const flags=[];
   if(b2b)flags.push("BACK_TO_BACK");if(threeInFour)flags.push("THREE_IN_FOUR");if(fourInSix)flags.push("FOUR_IN_SIX");
   if((miles||0)>=1500)flags.push("LONG_TRAVEL");if(zones>=2)flags.push("MULTI_TIME_ZONE");if(site==="ROAD"&&roadStreak>=4)flags.push("LONG_ROAD_TRIP");
-  const stress=clamp((b2b?.30:0)+(threeInFour?.18:0)+(fourInSix?.16:0)+((miles||0)>=1500?.14:(miles||0)>=900?.07:0)+(zones>=2?.10:zones===1?.04:0)+(roadStreak>=4?.10:0),0,1);
+  const stress=clamp((b2b ? .30 : 0)+(threeInFour ? .18 : 0)+(fourInSix ? .16 : 0)+((miles||0)>=1500 ? .14 : (miles||0)>=900 ? .07 : 0)+(zones>=2 ? .10 : zones===1 ? .04 : 0)+(roadStreak>=4 ? .10 : 0),0,1);
   rows.push({
    id:`nhl:${seasonId}:${teamKey(team)}:${g.id}`,seasonId,teamKey:teamKey(team),gameId:g.id,gameType:g.gameType,
    startTime:g.start,gameState:g.state,homeTeam: g.home,awayTeam:g.away,opponentKey:teamKey(opp),site,venueName:g.venue,
