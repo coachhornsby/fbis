@@ -20,7 +20,7 @@ const TIER_LABELS = Object.freeze({
   NONE: "No FBIS read",
 });
 
-const PRO_SPORTS = new Set(["mlb", "nfl", "nba", "nhl"]);
+const PRO_SPORTS = new Set(["mlb", "nfl", "nba", "wnba", "nhl", "tennis"]);
 
 function fmtProb(v) {
   if (v == null || v === "" || !Number.isFinite(Number(v))) return "—";
@@ -228,7 +228,7 @@ export default function PlayerPropsBoard({
     <div className="main-content props-board">
       <header className="props-hero">
         <div className="props-hero-copy">
-          <p className="props-kicker">Player props · Pro sports only</p>
+          <p className="props-kicker">Player props · FBIS modeled markets</p>
           <h1>Board</h1>
           <p className="props-lede">
             MLB, NFL, NBA and NHL markets from durable ACTION observations. FBIS model reads are
