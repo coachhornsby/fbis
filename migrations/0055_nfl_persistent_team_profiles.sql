@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS nfl_player_profiles (
   practice_state TEXT,
   injury_detail TEXT,
   injury_onset_at TEXT,
+  injury_type TEXT,
   injury_severity_class TEXT,
   expected_return_state TEXT,
   expected_snap_share REAL,
@@ -109,6 +110,52 @@ CREATE TABLE IF NOT EXISTS nfl_team_schedule_profile (
 
 CREATE INDEX IF NOT EXISTS idx_nfl_team_schedule_profile_team_time
   ON nfl_team_schedule_profile(season, team_key, start_time);
+
+
+CREATE TABLE IF NOT EXISTS nfl_team_profile_snapshots (
+  id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  season INTEGER NOT NULL,
+  as_of TEXT NOT NULL,
+  profile_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nfl_team_profile_snapshots_time
+  ON nfl_team_profile_snapshots(team_key, as_of DESC);
+
+CREATE TABLE IF NOT EXISTS nfl_player_state_events (
+  id TEXT PRIMARY KEY,
+  player_key TEXT,
+  player_name TEXT NOT NULL,
+  team_key TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  health_state TEXT,
+  practice_state TEXT,
+  injury_detail TEXT,
+  source TEXT NOT NULL,
+  source_timestamp TEXT NOT NULL,
+  evidence_rank INTEGER NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nfl_player_state_events_player
+  ON nfl_player_state_events(player_key, source_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_nfl_player_state_events_team
+  ON nfl_player_state_events(team_key, source_timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS nfl_team_coach_history (
+  id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  season INTEGER NOT NULL,
+  coach_name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  observed_at TEXT NOT NULL,
+  source TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nfl_team_coach_history
+  ON nfl_team_coach_history(team_key, observed_at DESC);
 
 CREATE TABLE IF NOT EXISTS nfl_profile_sync_runs (
   id TEXT PRIMARY KEY,
