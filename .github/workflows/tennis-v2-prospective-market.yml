@@ -4,9 +4,6 @@ on:
   push:
     branches: [main]
     paths: [".github/workflows/tennis-v2-prospective-market.yml"]
-  schedule:
-    # Redundant UTC windows; local-hour gate below keeps 08:00 and 14:00 America/Chicago across DST.
-    - cron: "0 13,14,19,20 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -29,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           hour="$(TZ=America/Chicago date +%H)"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ] || [ "$hour" = "08" ] || [ "$hour" = "14" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ]; then
             echo "run=1" >> "$GITHUB_OUTPUT"
           else
             echo "run=0" >> "$GITHUB_OUTPUT"

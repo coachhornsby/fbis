@@ -422,7 +422,7 @@ function tennisPlayerAbbr(name = "") {
   return last.slice(0, 12).toUpperCase();
 }
 
-async function buildTennisResearchSlate(date, env = {}) {
+export async function buildTennisResearchSlate(date, env = {}) {
   if (!env.DB?.prepare) {
     return { sport: "tennis", date, games: [], research: { configured: false, error: "database unavailable" } };
   }
