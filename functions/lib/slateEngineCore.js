@@ -23,6 +23,10 @@ import { isUnusableCachedOddsMeta } from "./marketLineage.js";
 import { loadNpbV2Context, attachNpbFbisV2 } from "./npbFbisV2.js";
 import { loadKboV2Context, attachKboFbisV2 } from "./kboFbisV2.js";
 
+export function shouldUseLiveMlbFeatureFallback(env = {}) {
+  return !env?.DB?.prepare;
+}
+
 export const SPORTS = {
   cbb: {
     id: "cbb",
@@ -1784,8 +1788,23 @@ export async function buildSlate(sport, date, env = {}) {
   let cfb = { meta: { enabled: false } };
   let cbbd = { meta: { configured: false } };
   if (id === "mlb") {
-    savant = await fetchSavantSlate(games, env.caches);
-    games = savant.games || games;
+    if (shouldUseLiveMlbFeatureFallback(env)) {
+      savant = await fetchSavantSlate(games, env.caches);
+      games = savant.games || games;
+    } else {
+      // Production MLB feature state is attached by the public slate facade from
+      // one batched D1 read. Never fan out to Savant/MLB Stats from a board request.
+      savant = {
+        meta: {
+          enabled: true,
+          persistent: true,
+          deferredToPersistentState: true,
+          liveFanout: false,
+          source: "MLB persistent D1 state",
+        },
+      };
+    }
+    // Current lineup identities / Pal feature context remain one cached bounded feed.
     pal = await fetchBallparkPal(day, env.BALLPARK_PAL_API_KEY, env.caches, { cacheOnly: Boolean(env.palCacheOnly) });
     games = mergeBallparkPal(games, pal);
   }
