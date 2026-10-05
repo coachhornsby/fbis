@@ -1,0 +1,115 @@
+name: NFL persistent team profiles
+
+on:
+  schedule:
+    - cron: "15 13,23 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nflTeamProfiles.js"
+      - "functions/api/nfl-team-profile-sync.js"
+      - "functions/api/nfl-team-profiles.js"
+      - "functions/lib/availability.js"
+      - "functions/lib/nflOfficialInjuries.js"
+      - "migrations/0054_nfl_persistent_team_profiles.sql"
+      - ".github/workflows/nfl-team-profile-sync.yml"
+
+concurrency:
+  group: nfl-persistent-team-profiles
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: NFL PROFILE BATCH ${{ matrix.batch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - batch: "01"
+            teams: "ARI,ATL,BAL,BUF"
+          - batch: "02"
+            teams: "CAR,CHI,CIN,CLE"
+          - batch: "03"
+            teams: "DAL,DEN,DET,GB"
+          - batch: "04"
+            teams: "HOU,IND,JAX,KC"
+          - batch: "05"
+            teams: "LV,LAC,LAR,MIA"
+          - batch: "06"
+            teams: "MIN,NE,NO,NYG"
+          - batch: "07"
+            teams: "NYJ,PHI,PIT,SEA"
+          - batch: "08"
+            teams: "SF,TB,TEN,WAS"
+
+    steps:
+      - name: Require harvest secret
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Wait for production SHA on push
+        if: github.event_name == 'push'
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 50); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
+            if [ "$code" = "200" ] && grep -q "$EXPECTED_SHA" "$body"; then
+              echo "production_sha=$EXPECTED_SHA"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "Production SHA did not converge before bounded wait expired."
+          exit 1
+
+      - name: Sync four-team profile batch
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          TEAMS: ${{ matrix.teams }}
+        run: |
+          set -euo pipefail
+          out="$(mktemp)"
+          code="$(curl -sS --max-time 100 --retry 1 --retry-delay 3             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$out" -w "%{http_code}"             "${BASE}/api/nfl-team-profile-sync?teams=${TEAMS}")"
+          cat "$out"
+          test "$code" = "200"
+          jq -e '.ok == true and .failed == 0 and .succeeded == 4' "$out" >/dev/null
+          {
+            echo "## NFL profile batch ${{ matrix.batch }}"
+            echo "- teams: ${TEAMS}"
+            echo "- succeeded: $(jq -r '.succeeded' "$out")"
+            echo "- failed: $(jq -r '.failed' "$out")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  verify:
+    name: VERIFY 32 TEAM PROFILES
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: sync
+    steps:
+      - name: Verify all 32 persistent team profiles
+        env:
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          out="$(mktemp)"
+          code="$(curl -sS --max-time 30 -o "$out" -w "%{http_code}" "${BASE}/api/nfl-team-profiles?_t=$(date +%s)")"
+          test "$code" = "200"
+          jq -e '.ok == true and .teams == 32 and .players > 500' "$out" >/dev/null
+          {
+            echo "## NFL persistent profile verification"
+            echo "- teams: $(jq -r '.teams' "$out") / 32"
+            echo "- players: $(jq -r '.players' "$out")"
+          } >> "$GITHUB_STEP_SUMMARY"
