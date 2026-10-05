@@ -1,0 +1,48 @@
+name: Soccer-FBIS-v3 walk-forward
+
+on:
+  workflow_run:
+    workflows: ["Soccer PitchAPI v3 sync"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soccer-v3-walkforward
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Require harvest credential
+        run: test -n "${HARVEST_SECRET:-}"
+      - name: Export PitchAPI history from D1 in bounded league files
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/pitchapi
+          for league in eng.1 esp.1 ger.1 ita.1 fra.1 usa.1 usa.nwsl; do
+            curl -sS --connect-timeout 5 --max-time 30 --retry 2 --retry-delay 2 --retry-all-errors               -H "x-harvest-secret: $HARVEST_SECRET"               "$BASE/api/soccer-pitchapi-export?league=$league&start=2021-01-01&limit=5000"               -o "artifacts/pitchapi/$league.json"
+            jq -e '.ok == true' "artifacts/pitchapi/$league.json" >/dev/null
+          done
+      - name: Run causal v3 vs v2 walk-forward
+        run: node scripts/soccer-v3-walkforward.mjs
+      - name: Summarize
+        run: |
+          jq . artifacts/soccer-v3-walkforward-report.json
+          jq -r '. as $r | "## Soccer-FBIS-v3\n- n: \($r.v3.n)\n- v2 Brier: \($r.v2.brier)\n- v3 Brier: \($r.v3.brier)\n- v2 log loss: \($r.v2.logLoss)\n- v3 log loss: \($r.v3.logLoss)\n- v2 accuracy: \($r.v2.accuracy)\n- v3 accuracy: \($r.v3.accuracy)\n- decision: \($r.promotion.decision)"' artifacts/soccer-v3-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soccer-v3-walkforward-${{ github.run_id }}
+          path: artifacts/soccer-v3-walkforward-*
+          retention-days: 90
