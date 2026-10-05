@@ -8,7 +8,8 @@ const out=args.out||"artifacts/nhl-profile-source.json";
 const seasonId=String(args.season||nhlSeasonId());
 const shardCount=Math.max(1,Number(args.shardCount||8)),shardIndex=Math.max(0,Number(args.shardIndex||0));
 const concurrency=Math.max(1,Math.min(4,Number(args.concurrency||2)));
-const WEB="https://api-web.nhle.com/v1",STATS="https://api.nhle.com/stats/rest/en";\nconst OFFICIAL=Object.freeze({LA:"LAK",NJ:"NJD",SJ:"SJS",TB:"TBL"});
+const WEB="https://api-web.nhle.com/v1",STATS="https://api.nhle.com/stats/rest/en",ESPN="https://site.api.espn.com/apis/site/v2/sports/hockey/nhl";
+const OFFICIAL=Object.freeze({LA:"LAK",NJ:"NJD",SJ:"SJS",TB:"TBL"});
 const headers={accept:"application/json","user-agent":"FBIS-NHL-Persistent/1.0"};
 
 async function get(url,ms=8000){
