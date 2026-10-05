@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: current-player-prop-enrichment
+  cancel-in-progress: true
+
 jobs:
   enrich:
     runs-on: ubuntu-latest
