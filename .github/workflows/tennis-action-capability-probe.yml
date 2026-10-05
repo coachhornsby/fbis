@@ -21,6 +21,7 @@ jobs:
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
@@ -33,6 +34,7 @@ jobs:
           test -n "${HARVEST_SECRET:-}"
           test -n "${CLOUDFLARE_API_TOKEN:-}"
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -n "${APIFY_TOKEN:-}"
 
       - name: Probe ATP and WTA ACTION capability
         run: |
@@ -51,6 +53,34 @@ jobs:
               jq -c --arg sport "$sport" '{sport:$sport,plan:.}' "/tmp/${sport}-plan.json" >> artifacts/tennis-action-probe.jsonl
             fi
           done
+
+      - name: Inspect redacted ATP/WTA Actor schema
+        run: |
+          set -euo pipefail
+          : > artifacts/tennis-action-schema.jsonl
+          for sport in atp wta; do
+            runfile="/tmp/${sport}-run.json"
+            [ -s "$runfile" ] || continue
+            run_id="$(jq -r '.runId // empty' "$runfile")"
+            dataset_id="$(npx wrangler d1 execute fbis --remote --json --command "SELECT dataset_id FROM shadow_collection_runs WHERE id='${run_id}' LIMIT 1" | jq -r '[..|objects|select(has("dataset_id"))|.dataset_id][0] // empty')"
+            [ -n "$dataset_id" ] || continue
+            curl -fsS --max-time 60 -H "Authorization: Bearer ${APIFY_TOKEN}"               "https://api.apify.com/v2/datasets/${dataset_id}/items?clean=true&format=json" > "/tmp/${sport}-raw.json"
+            jq -c --arg sport "$sport" '
+              .[0:3][]? |
+              {sport:$sport,
+               topLevelKeys:(keys|sort),
+               type:(.type // .kind // .recordType // null),
+               league:(.league // .sport // null),
+               eventKeys:((.event // .game // .match // {})|if type=="object" then keys|sort else [] end),
+               consensusKeys:((.consensus // .markets // {})|if type=="object" then keys|sort else [] end),
+               sampleIdentity:{
+                 id:(.id // .gameId // .eventId // .matchId // null),
+                 home:(.homeTeam.name // .homeTeam // .player1.name // .player1 // .competitors[0].name // null),
+                 away:(.awayTeam.name // .awayTeam // .player2.name // .player2 // .competitors[1].name // null)
+               }}
+            ' "/tmp/${sport}-raw.json" >> artifacts/tennis-action-schema.jsonl
+          done
+          cat artifacts/tennis-action-schema.jsonl
 
       - name: Inspect persisted tennis ACTION fields
         run: |
