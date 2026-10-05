@@ -105,7 +105,7 @@ test("attachment emits match + player research layers",()=>{
 test("canonical PrizePicks tennis markets normalize",()=>{
   const pairs={
     "Total Games":"total_games",
-    "Games Won":"total_games_won",
+    "Total Games Won":"total_games_won",
     "Total Sets":"total_sets",
     "Aces":"aces",
     "Break Points Won":"break_points_won",
@@ -117,6 +117,7 @@ test("canonical PrizePicks tennis markets normalize",()=>{
     assert.equal(canonicalizeProPlayerPropMarket("tennis",raw),expected,raw);
     assert.ok(PRO_PLAYER_PROP_MARKETS.tennis.includes(expected));
   }
+  assert.equal(canonicalizeProPlayerPropMarket("tennis","Games Won"),"total_games_won");
   const curated=curatedMarketsForSport("tennis");
   for(const raw of Object.keys(pairs)) assert.ok(curated.includes(raw),raw);
 });
