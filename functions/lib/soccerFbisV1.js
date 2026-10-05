@@ -9,6 +9,7 @@
  * from this projection layer. Market joins happen only after projection freeze.
  */
 import { loadTeamForm, loadSoccerMatchHistory } from "./store.js";
+import { priceSoccerScoreMatrix, heritageSoccerFullMatchMenu } from "./soccerHeritageMarkets.js";
 
 export const SOCCER_FBIS_ID = "SOCCER-FBIS-v1";
 export const SOCCER_FBIS_VERSION = "research-v2-dixon-coles";
@@ -324,6 +325,7 @@ export function projectSoccerFromHistory(game = {}, history = [], options = {}) 
   const rho = Number.isFinite(Number(options.rho)) ? Number(options.rho) : CFG.rho;
   const matrix = buildScoreMatrix(homeLambda, awayLambda, { rho, maxScore: options.maxScore || CFG.maxScore });
   const markets = deriveMarkets(matrix);
+  const heritageMarkets = heritageSoccerFullMatchMenu(priceSoccerScoreMatrix(matrix));
   const homeRest = homeState.lastDate ? daysBetween(homeState.lastDate, cutoff) : null;
   const awayRest = awayState.lastDate ? daysBetween(awayState.lastDate, cutoff) : null;
 
@@ -342,6 +344,7 @@ export function projectSoccerFromHistory(game = {}, history = [], options = {}) 
     pBttsNo: markets.pBttsNo,
     totals: markets.totals,
     homeAsian: markets.homeAsian,
+    heritageMarkets,
     scoreMatrix: matrix,
     independent: true,
     marketInformed: false,
@@ -510,6 +513,7 @@ export function projectSoccerForm(game, { homePrior = null, awayPrior = null, ho
   const away = clamp((agf + hga) / 2, CFG.minGoals, CFG.maxGoals);
   const matrix = buildScoreMatrix(home, away, { rho: CFG.rho });
   const markets = deriveMarkets(matrix);
+  const heritageMarkets = heritageSoccerFullMatchMenu(priceSoccerScoreMatrix(matrix));
   return {
     ok: true,
     modelId: SOCCER_FBIS_ID,
@@ -525,6 +529,7 @@ export function projectSoccerForm(game, { homePrior = null, awayPrior = null, ho
     pBttsNo: markets.pBttsNo,
     totals: markets.totals,
     homeAsian: markets.homeAsian,
+    heritageMarkets,
     independent: true,
     marketInformed: false,
     maturity: "RESEARCH",
