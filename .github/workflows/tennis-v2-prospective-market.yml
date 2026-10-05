@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           body="$(mktemp)"
-          code="$(curl -sS --max-time 90 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d '{"mode":"capture","hours":8,"limit":200}'             -o "$body" -w "%{http_code}"             "${BASE}/api/tennis-v2-snapshot")"
+          code="$(curl -sS --max-time 90 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d '{"mode":"all","hours":8,"limit":200}'             -o "$body" -w "%{http_code}"             "${BASE}/api/tennis-v2-snapshot")"
           cat "$body"
           test "$code" = "200"
           jq -e '.ok == true' "$body" >/dev/null
