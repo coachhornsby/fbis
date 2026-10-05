@@ -13,6 +13,9 @@ export const MLB_F5_THRESHOLDS = Object.freeze({
   spread: 0.03,
   total: 0.035,
   minEv: 0.02,
+  candidateTotalRunEdge: 1.50,
+  candidateLockedAt: "2026-10-05",
+  candidateStatus: "PROSPECTIVE_LOCK",
 });
 
 function finite(v) {
@@ -133,13 +136,19 @@ export function f5SpreadProbabilities(homeMean, awayMean, homeLine) {
   return { home, away };
 }
 
-function sideRow({ market, side, line, price, probs, fair, threshold, book }) {
+function sideRow({ market, side, line, price, probs, fair, threshold, book, projectionMean = null }) {
   if (!probs || price == null || fair == null) return null;
   const modelConditional = finite(probs.conditionalWin);
   if (modelConditional == null) return null;
   const edge = modelConditional - fair;
   const ev = americanEv({ pWin: probs.win, pLoss: probs.loss, price });
   const qualifiesResearch = edge >= threshold && ev != null && ev >= MLB_F5_THRESHOLDS.minEv;
+  const runEdge = projectionMean != null && line != null ? Math.abs(Number(projectionMean) - Number(line)) : null;
+  const candidateThreshold = market === "total" ? MLB_F5_THRESHOLDS.candidateTotalRunEdge : null;
+  const candidateQualified = market === "total" &&
+    runEdge != null &&
+    runEdge >= candidateThreshold &&
+    qualifiesResearch;
   return {
     market,
     side,
@@ -153,6 +162,12 @@ function sideRow({ market, side, line, price, probs, fair, threshold, book }) {
     modelEdge: round(edge),
     expectedRoi: round(ev),
     researchQualified: Boolean(qualifiesResearch),
+    candidateRunEdge: runEdge == null ? null : round(runEdge, 3),
+    candidateThreshold,
+    candidateQualified: Boolean(candidateQualified),
+    candidateState: market === "total"
+      ? (candidateQualified ? "PROSPECTIVE_CANDIDATE" : "TRACK_ONLY")
+      : "NOT_LOCKED",
   };
 }
 
@@ -201,8 +216,8 @@ export function evaluateMlbF5Market({ projection, market, lineupsOfficial = null
     const noVig = noVigPair(market.overPrice, market.underPrice);
     const p = f5TotalProbabilities(homeMean, awayMean, market.total);
     if (noVig && p) {
-      rows.push(sideRow({ market: "total", side: "over", line: market.total, price: market.overPrice, probs: p.over, fair: noVig.a, threshold: MLB_F5_THRESHOLDS.total, book }));
-      rows.push(sideRow({ market: "total", side: "under", line: market.total, price: market.underPrice, probs: p.under, fair: noVig.b, threshold: MLB_F5_THRESHOLDS.total, book }));
+      rows.push(sideRow({ market: "total", side: "over", line: market.total, price: market.overPrice, probs: p.over, fair: noVig.a, threshold: MLB_F5_THRESHOLDS.total, book, projectionMean: homeMean + awayMean }));
+      rows.push(sideRow({ market: "total", side: "under", line: market.total, price: market.underPrice, probs: p.under, fair: noVig.b, threshold: MLB_F5_THRESHOLDS.total, book, projectionMean: homeMean + awayMean }));
     }
   }
   const usable = rows.filter(Boolean);

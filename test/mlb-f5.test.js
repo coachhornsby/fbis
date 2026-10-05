@@ -105,3 +105,26 @@ test("Parlay normalizer reads current first-five market keys", () => {
   assert.equal(event.f5.overPrice, -108);
   assert.equal(event.f5.underPrice, -112);
 });
+
+
+test("MLB F5 total candidate threshold is locked at 1.50 runs", () => {
+  const qualified = evaluateMlbF5Market({
+    projection: { home: 3.0, away: 2.5 },
+    market: { total: 4.0, overPrice: -110, underPrice: -110, book: "Pinnacle" },
+    lineupsOfficial: true,
+  });
+  const over = qualified.markets.find((r) => r.market === "total" && r.side === "over");
+  assert.equal(over.candidateThreshold, 1.5);
+  assert.equal(over.candidateRunEdge, 1.5);
+  assert.equal(over.candidateState, "PROSPECTIVE_CANDIDATE");
+
+  const trackOnly = evaluateMlbF5Market({
+    projection: { home: 2.6, away: 2.3 },
+    market: { total: 4.0, overPrice: -110, underPrice: -110, book: "Pinnacle" },
+    lineupsOfficial: true,
+  });
+  const overSmall = trackOnly.markets.find((r) => r.market === "total" && r.side === "over");
+  assert.equal(overSmall.candidateRunEdge, 0.9);
+  assert.equal(overSmall.candidateQualified, false);
+  assert.equal(overSmall.candidateState, "TRACK_ONLY");
+});
