@@ -19,6 +19,7 @@ for(const f of files){
   for(const t of j.teams||[])teams.set(String(t.teamId),t);
 }
 const rows=[...teams.values()].sort((a,b)=>a.teamName.localeCompare(b.teamName));
+if(rows.length!==30)throw new Error("expected 30 NBA teams, got "+rows.length);
 const payload={
   generatedAt:new Date().toISOString(),season,source:"ESPN_PUBLIC_SHARDED",
   teams:rows,
