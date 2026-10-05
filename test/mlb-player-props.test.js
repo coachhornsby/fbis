@@ -34,9 +34,9 @@ test("MLB persistent prop engine emits requested pitcher and hitter markets",()=
   };
   const rows=buildMlbPersistentPlayerPropRows(game,state);
   const pitcher=new Set(rows.filter(r=>r.position==="P").map(r=>r.market));
-  for(const market of ["pitcher_outs","hits_allowed","earned_runs","walks_allowed"])assert.ok(pitcher.has(market),market);
+  for(const market of ["pitcher_outs","hits_allowed","earned_runs","walks_allowed","pitch_count"])assert.ok(pitcher.has(market),market);
   const batter=new Set(rows.filter(r=>r.playerId==="300").map(r=>r.market));
-  for(const market of ["strikeouts","hits","total_bases","home_runs","walks"])assert.ok(batter.has(market),market);
+  for(const market of ["strikeouts","hits","total_bases","home_runs","walks","runs","rbis","hits_runs_rbis"])assert.ok(batter.has(market),market);
   assert.ok(rows.every(r=>r.marketInformed===false));
   assert.ok(rows.every(r=>r.maturity==="RESEARCH_UNVALIDATED"));
 });
@@ -44,4 +44,6 @@ test("MLB persistent prop engine emits requested pitcher and hitter markets",()=
 test("MLB batter walks canonicalizes independently from pitcher walks allowed",()=>{
   assert.equal(canonicalizeProPlayerPropMarket("mlb","batter_walks"),"walks");
   assert.equal(canonicalizeProPlayerPropMarket("mlb","pitcher_walks"),"walks_allowed");
+  assert.equal(canonicalizeProPlayerPropMarket("mlb","pitches_thrown"),"pitch_count");
+  assert.equal(canonicalizeProPlayerPropMarket("mlb","h_r_rbi"),"hits_runs_rbis");
 });

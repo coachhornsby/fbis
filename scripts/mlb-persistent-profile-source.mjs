@@ -96,14 +96,16 @@ function pitcherSeason(stat={}){
 }
 function hitterSeason(stat={}){
   const pa=finite(stat.plateAppearances),ab=finite(stat.atBats),h=finite(stat.hits),bb=finite(stat.baseOnBalls),so=finite(stat.strikeOuts);
-  const hr=finite(stat.homeRuns),d2=finite(stat.doubles),d3=finite(stat.triples);
+  const hr=finite(stat.homeRuns),d2=finite(stat.doubles),d3=finite(stat.triples),runs=finite(stat.runs),rbi=finite(stat.rbi);
   const tb=finite(stat.totalBases)??(h!=null?Math.max(0,h-(d2||0)-(d3||0)-(hr||0))+2*(d2||0)+3*(d3||0)+4*(hr||0):null);
   return{
-    games:finite(stat.gamesPlayed),plateAppearances:pa,atBats:ab,hits:h,totalBases:tb,homeRuns:hr,walks:bb,strikeOuts:so,
+    games:finite(stat.gamesPlayed),plateAppearances:pa,atBats:ab,hits:h,totalBases:tb,homeRuns:hr,walks:bb,strikeOuts:so,runs,rbi,
     avg:finite(stat.avg),obp:finite(stat.obp),slg:finite(stat.slg),ops:finite(stat.ops),
     hitPerPa:pa>0&&h!=null?h/pa:null,
     totalBasesPerPa:pa>0&&tb!=null?tb/pa:null,
     homeRunPerPa:pa>0&&hr!=null?hr/pa:null,
+    runsPerPa:pa>0&&runs!=null?runs/pa:null,
+    rbiPerPa:pa>0&&rbi!=null?rbi/pa:null,
     walkRate:pa>0&&bb!=null?bb/pa:null,
     strikeoutRate:pa>0&&so!=null?so/pa:null
   };
