@@ -39,6 +39,7 @@ test("MLB persistent prop engine emits requested pitcher and hitter markets",()=
   for(const market of ["strikeouts","hits","total_bases","home_runs","walks","runs","rbis","hits_runs_rbis"])assert.ok(batter.has(market),market);
   assert.ok(rows.every(r=>r.marketInformed===false));
   assert.ok(rows.every(r=>r.maturity==="RESEARCH_UNVALIDATED"));
+  assert.ok(rows.filter(r=>r.position!=="P").every(r=>r.lineupState==="ROSTER_FALLBACK"));
 });
 
 test("MLB batter walks canonicalizes independently from pitcher walks allowed",()=>{
