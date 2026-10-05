@@ -128,6 +128,24 @@ export function withFbisPropAnalytics(row = {}) {
     ...rankPropConviction(enriched),
   };
 
+  if (
+    String(ranked.sport || "").toLowerCase() === "mlb" &&
+    String(ranked.modelMaturity || "").toUpperCase() === "RESEARCH_UNVALIDATED"
+  ) {
+    return {
+      ...ranked,
+      convictionTier:"WATCH",
+      confidenceStars:1,
+      confidenceLabel:"1 STAR",
+      confidenceTier:"WATCH",
+      confidenceSide:ranked.convictionLean || null,
+      confidenceGap:ranked.projectionDelta,
+      confidenceReasons:["research_unvalidated_pending_historical_backtest"],
+      confidenceResearchCandidate:false,
+      confidenceVersion:"mlb-research-unvalidated-v1",
+    };
+  }
+
   if (String(ranked.sport || "").toLowerCase() === "nhl") {
     if (String(ranked.marketCanonical || ranked.market || "") === "saves") {
       const env = ranked.shotEnvironment || {};
