@@ -166,3 +166,17 @@ test("game/set workload fatigue is explicit and penalizes heavy recent load",()=
   assert.ok(heavy.parts.gamesFatigue3d<0);
   assert.ok(heavy.parts.setsFatigue7d<0);
 });
+
+
+test("missing ACTION tennis split fields remain null, never numeric zero",()=>{
+  const m=actionObservationToTennisMarket({
+    action_game_id:"n1",sport:"atp",home_team:"A",away_team:"B",
+    consensus_json:JSON.stringify({moneylineHome:-120,moneylineAway:110}),
+    public_betting_json:JSON.stringify({moneylineHome:{ticketsPercent:null,moneyPercent:null,moneyMinusTickets:null}}),
+    market_quality_json:JSON.stringify({noVig:{moneylineHome:.545, moneylineAway:.455}}),
+    collected_at:"2026-10-05T12:00:00Z"
+  });
+  assert.equal(m.publicTicketPct,null);
+  assert.equal(m.publicMoneyPct,null);
+  assert.equal(m.moneyMinusTicketPct,null);
+});
