@@ -82,11 +82,15 @@ const SOCCER_PITCHAPI_MARKETS=Object.freeze({
   assists:{column:"assists",aliases:["assists"]},
   goal_assist:{derive:["goals","assists"]},
   saves:{column:"saves",aliases:["saves"]},
+  goalie_saves:{column:"saves",aliases:["saves"]},
   fouls:{aliases:["fouls","fouls_committed","total_fouls"]},
   tackles:{aliases:["tackles","total_tackles","tackles_won"]},
   clearances:{aliases:["clearances","total_clearances"]},
   passes:{aliases:["passes","total_passes","passes_attempted"]},
+  passes_attempted:{aliases:["passes_attempted","total_passes","passes"]},
   chances_created:{column:"chances_created",aliases:["chances_created","key_passes"]},
+  shots_assisted:{column:"chances_created",aliases:["shots_assisted","key_passes","chances_created"]},
+  attempted_dribbles:{aliases:["attempted_dribbles","dribbles_attempted","take_ons_attempted"]},
   expected_goals:{column:"expected_goals",aliases:["expected_goals","xg"]},
   expected_assists:{column:"expected_assists",aliases:["expected_assists","xag"]}
 });
