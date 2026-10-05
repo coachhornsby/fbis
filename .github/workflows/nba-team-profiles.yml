@@ -118,10 +118,6 @@ jobs:
             npx wrangler d1 execute fbis --remote --file=artifacts/nba-official-lineups.sql
           fi
           npx wrangler d1 execute fbis --remote --file=artifacts/nba-team-profiles.sql
-          for f in artifacts/nba-team-schedule-*.sql; do
-            [ -s "$f" ] || continue
-            npx wrangler d1 execute fbis --remote --file="$f"
-          done
           npx wrangler r2 object put "fbis-archive/models/nba/team-profiles/current.json"             --file artifacts/nba-team-profiles.json --remote
           stamp=$(date -u +%Y%m%dT%H%M%SZ)
           npx wrangler r2 object put "fbis-archive/models/nba/team-profiles/snapshots/${stamp}.json"             --file artifacts/nba-team-profiles.json --remote
