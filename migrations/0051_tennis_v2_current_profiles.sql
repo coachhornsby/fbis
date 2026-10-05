@@ -2,6 +2,10 @@
 -- Research-only source lineage; never authorizes wagers.
 
 ALTER TABLE tennis_market_snapshots ADD COLUMN event_start_time TEXT;
+ALTER TABLE tennis_context_snapshots ADD COLUMN games_last_3_days REAL;
+ALTER TABLE tennis_context_snapshots ADD COLUMN games_last_7_days REAL;
+ALTER TABLE tennis_context_snapshots ADD COLUMN sets_last_3_days REAL;
+ALTER TABLE tennis_context_snapshots ADD COLUMN sets_last_7_days REAL;
 
 CREATE TABLE IF NOT EXISTS tennis_player_profiles_current (
   tour TEXT NOT NULL,
