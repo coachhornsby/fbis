@@ -16,7 +16,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const tour=String(game?.tour||t?.tour||"TENNIS").toUpperCase();
   const pAway=n(t.player2WinProb),pHome=n(t.player1WinProb),mHome=n(t.marketPriorP1??ref?.noVig?.home),mAway=n(t.marketPriorP2??ref?.noVig?.away);
   const edgeHome=pHome!=null&&mHome!=null?(pHome-mHome)*100:null,edgeAway=pAway!=null&&mAway!=null?(pAway-mAway)*100:null;
-  const best=edgeHome==null?null:(edgeHome>=0?{p:home,e:edgeHome}:{p:away,e:Math.abs(edgeAway)});
+  const candidates=[{p:home,e:edgeHome},{p:away,e:edgeAway}].filter(x=>Number.isFinite(x.e)&&x.e>0);\n  const best=candidates.sort((a,b)=>b.e-a.e)[0]||null;
   const spread=ref?.spread||{},total=ref?.total||{},ml=ref?.moneyline||{};
   const markets=Array.isArray(intel?.publicSplits?.markets)?intel.publicSplits.markets:[];
   const spIntel=markets.find(x=>String(x.market).toUpperCase()==="SPREAD");
@@ -33,7 +33,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <div className="tmc-player"><TeamLogo team={away} size={150}/><div><h2>{away.fullName||away.name}</h2><p>{playerMeta(away,tour)}</p><strong>{pct(pAway)}</strong><small>FBIS WIN PROBABILITY</small><b>{fair(pAway)}<i>FBIS FAIR ML</i></b></div></div>
       <div className="tmc-vs">VS</div>
       <div className="tmc-player tmc-home"><div><h2>{home.fullName||home.name}</h2><p>{playerMeta(home,tour)}</p><strong>{pct(pHome)}</strong><small>FBIS WIN PROBABILITY</small><b>{fair(pHome)}<i>FBIS FAIR ML</i></b></div><TeamLogo team={home} size={150}/></div>
-      <aside className="tmc-edge"><span>BEST EDGE</span><b>{best?.p?.fullName||best?.p?.name||"NO EDGE"}</b><strong>{best?`+${Math.abs(best.e).toFixed(1)}%`:"—"}</strong><small>MODEL EDGE</small><em>RESEARCH</em></aside>
+      <aside className="tmc-edge"><span>MODEL vs MARKET</span><b>{best?.p?.fullName||best?.p?.name||"NO EDGE"}</b><strong>{best?`+${Math.abs(best.e).toFixed(1)}%`:"—"}</strong><small>WIN PROBABILITY EDGE</small><small className="tmc-edge-help">FBIS win probability minus market no-vig probability</small><em>RESEARCH</em></aside>
     </section>
     <div className="tmc-main">
       <section className="tmc-panel tmc-odds"><h3>MARKET ODDS</h3><table><thead><tr><th></th><th>MONEYLINE</th><th>GAME SPREAD</th><th>TOTAL GAMES</th></tr></thead><tbody>
