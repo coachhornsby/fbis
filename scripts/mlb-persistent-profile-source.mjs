@@ -79,7 +79,34 @@ function scheduleRows(j,teamId,teamKey){
 function statsMap(j){const m=new Map();for(const s of (j?.stats||[]).flatMap(x=>x.splits||[])){const id=String(s.player?.id||"");if(id)m.set(id,{name:s.player?.fullName||null,stat:s.stat||{}})}return m}
 function pitcherSeason(stat={}){
   const ip=finite(stat.inningsPitched),gs=finite(stat.gamesStarted),bf=finite(stat.battersFaced),so=finite(stat.strikeOuts);
-  return{era:finite(stat.era),whip:finite(stat.whip),innings:ip,games:finite(stat.gamesPitched),starts:gs,k9:finite(stat.strikeoutsPer9Inn)??(ip>0&&so!=null?so*9/ip:null),kRate:bf>0&&so!=null?so/bf:null,inningsPerStart:gs>0&&ip!=null?ip/gs:null,battersFacedPerInning:ip>0&&bf!=null?bf/ip:null};
+  const hits=finite(stat.hits),bb=finite(stat.baseOnBalls),er=finite(stat.earnedRuns),wins=finite(stat.wins),losses=finite(stat.losses);
+  return{
+    era:finite(stat.era),whip:finite(stat.whip),innings:ip,games:finite(stat.gamesPitched),starts:gs,wins,losses,
+    strikeOuts:so,hitsAllowed:hits,walksAllowed:bb,earnedRuns:er,battersFaced:bf,
+    k9:finite(stat.strikeoutsPer9Inn)??(ip>0&&so!=null?so*9/ip:null),
+    bb9:finite(stat.walksPer9Inn)??(ip>0&&bb!=null?bb*9/ip:null),
+    h9:finite(stat.hitsPer9Inn)??(ip>0&&hits!=null?hits*9/ip:null),
+    er9:ip>0&&er!=null?er*9/ip:finite(stat.era),
+    kRate:bf>0&&so!=null?so/bf:null,
+    bbRate:bf>0&&bb!=null?bb/bf:null,
+    hitRate:bf>0&&hits!=null?hits/bf:null,
+    inningsPerStart:gs>0&&ip!=null?ip/gs:null,
+    battersFacedPerInning:ip>0&&bf!=null?bf/ip:null
+  };
+}
+function hitterSeason(stat={}){
+  const pa=finite(stat.plateAppearances),ab=finite(stat.atBats),h=finite(stat.hits),bb=finite(stat.baseOnBalls),so=finite(stat.strikeOuts);
+  const hr=finite(stat.homeRuns),d2=finite(stat.doubles),d3=finite(stat.triples);
+  const tb=finite(stat.totalBases)??(h!=null?Math.max(0,h-(d2||0)-(d3||0)-(hr||0))+2*(d2||0)+3*(d3||0)+4*(hr||0):null);
+  return{
+    games:finite(stat.gamesPlayed),plateAppearances:pa,atBats:ab,hits:h,totalBases:tb,homeRuns:hr,walks:bb,strikeOuts:so,
+    avg:finite(stat.avg),obp:finite(stat.obp),slg:finite(stat.slg),ops:finite(stat.ops),
+    hitPerPa:pa>0&&h!=null?h/pa:null,
+    totalBasesPerPa:pa>0&&tb!=null?tb/pa:null,
+    homeRunPerPa:pa>0&&hr!=null?hr/pa:null,
+    walkRate:pa>0&&bb!=null?bb/pa:null,
+    strikeoutRate:pa>0&&so!=null?so/pa:null
+  };
 }
 async function recentUsage(teamId){
   const end=day(asOf),start=shift(end,-3);
@@ -116,15 +143,16 @@ function starterExpectedIp(base,recent,fatigueScore){
 }
 async function one(team){
   const teamId=String(team.id),teamKey=team.abbreviation||team.teamCode||teamId;
-  const [active,forty,coaches,schedule,pitching,hitting]=await Promise.all([
+  const [active,forty,coaches,schedule,pitching,hitting,playerHitting]=await Promise.all([
     getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active&season=${season}&hydrate=person`),
     getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=40Man&season=${season}&hydrate=person`).catch(()=>({roster:[]})),
     getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/coaches?season=${season}`).catch(()=>({roster:[]})),
     getJson(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${teamId}&season=${season}&gameType=R,F,D,L,W&hydrate=probablePitcher,venue`),
     getJson(`https://statsapi.mlb.com/api/v1/stats?stats=season&group=pitching&teamId=${teamId}&season=${season}&playerPool=ALL&limit=100`).catch(()=>({stats:[]})),
-    getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/stats?stats=season&group=hitting&season=${season}`).catch(()=>({stats:[]}))
+    getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/stats?stats=season&group=hitting&season=${season}`).catch(()=>({stats:[]})),
+    getJson(`https://statsapi.mlb.com/api/v1/stats?stats=season&group=hitting&teamId=${teamId}&season=${season}&playerPool=ALL&limit=100`).catch(()=>({stats:[]}))
   ]);
-  const roster=rosterRows(active),fortyRows=rosterRows(forty),pitchStats=statsMap(pitching),offense=teamOffense(hitting);
+  const roster=rosterRows(active),fortyRows=rosterRows(forty),pitchStats=statsMap(pitching),hitStats=statsMap(playerHitting),offense=teamOffense(hitting);
   const pitchers=roster.filter(x=>/pitcher/i.test(x.positionType)),hitters=roster.filter(x=>!/pitcher/i.test(x.positionType));
   const end=day(asOf);
   const [pitchRows,hitRows,usage]=await Promise.all([
@@ -146,7 +174,7 @@ async function one(team){
   const enrichedPitchers=seasonPitchers.map(p=>{const recent=workloads[p.id]||null;return{...p,recentStarter:recent,expectedInnings:starterExpectedIp(p.inningsPerStart,recent,ft.fatigueScore),statcastProfile:pProfiles[p.id]||null,asOf}});
   const starterState=Object.fromEntries(enrichedPitchers.filter(p=>probableIds.includes(p.id)).map(p=>[p.id,{expectedInnings:p.expectedInnings,recentStarter:p.recentStarter,inningsPerStart:p.inningsPerStart}]));
   const staff=coachRows(coaches);
-  return{teamId,teamKey,teamName:team.name,season,asOf,roster,fortyMan:fortyRows,coaches:staff,offense,schedule:sched,pitchers:enrichedPitchers,hitters:hitters.map(h=>({...h,handedness:h.batSide||null,statcastProfile:hProfiles[h.id]||null,asOf})),bullpen:{coreRelievers:core.map(x=>({id:x.id,name:x.name,era:x.era,reliefGames:x.reliefGames})),coreBullpenEra:coreEra,adjustedBullpenEra:adjustedEra,fatigue:ft,recentUsage:usage},starterState,lineup:{state:"ROSTER_BASELINE",activeHitters:hitters.map(x=>({id:x.id,name:x.name,position:x.position})),activePitchers:pitchers.map(x=>({id:x.id,name:x.name,position:x.position})),officialLineupRequiredForFinalMatchup:true},scheduleState:{nextGames:upcoming,nextGame:upcoming[0]||null},sourceVersion:"mlb-state-v2"};
+  return{teamId,teamKey,teamName:team.name,season,asOf,roster,fortyMan:fortyRows,coaches:staff,offense,schedule:sched,pitchers:enrichedPitchers,hitters:hitters.map(h=>({...h,...hitterSeason(hitStats.get(h.id)?.stat||{}),handedness:h.batSide||null,statcastProfile:hProfiles[h.id]||null,asOf})),bullpen:{coreRelievers:core.map(x=>({id:x.id,name:x.name,era:x.era,reliefGames:x.reliefGames})),coreBullpenEra:coreEra,adjustedBullpenEra:adjustedEra,fatigue:ft,recentUsage:usage},starterState,lineup:{state:"ROSTER_BASELINE",activeHitters:hitters.map(x=>({id:x.id,name:x.name,position:x.position})),activePitchers:pitchers.map(x=>({id:x.id,name:x.name,position:x.position})),officialLineupRequiredForFinalMatchup:true},scheduleState:{nextGames:upcoming,nextGame:upcoming[0]||null},sourceVersion:"mlb-state-v2"};
 }
 const teamsJson=await getJson(`https://statsapi.mlb.com/api/v1/teams?sportId=1&season=${season}`);
 const allTeams=(teamsJson.teams||[]).filter(t=>t.sport?.id===1||t.sport?.name==="Major League Baseball").sort((a,b)=>String(a.name).localeCompare(String(b.name)));
