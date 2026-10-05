@@ -2,7 +2,7 @@ name: NBA prospective shadow
 on:
   workflow_dispatch:
   push:
-    branches: [main, "research/nba-decision-v2", "research/nba-player-impact-v1", "research/nba-deep-v2", "feature/nba-persistent-team-profiles"]
+    branches: [main, "research/nba-decision-v2", "research/nba-player-impact-v1", "research/nba-deep-v2"]
     paths:
       - "functions/lib/nbaModel.js"
       - "functions/lib/nbaPlayerPropModel.js"
