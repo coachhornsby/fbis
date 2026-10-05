@@ -14,7 +14,7 @@ on:
 
 concurrency:
   group: prizepicks-curated-props
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
