@@ -13,6 +13,16 @@ on:
       - ".github/workflows/nhl-wager-v1-validation.yml"
   push:
     branches: [main]
+    paths:
+      - "data/models/nhl-wager-confidence-v1.js"
+      - "functions/lib/nhlWagerV1.js"
+      - "functions/lib/slateEngine.js"
+      - "functions/lib/todayBoard.js"
+      - "src/features/playerProps/buildPlayerPropsBoard.js"
+      - "functions/api/nhl-wager-research.js"
+      - "migrations/0042_nhl_wager_research.sql"
+      - "test/nhl-wager-v1.test.js"
+      - ".github/workflows/nhl-wager-v1-validation.yml"
   workflow_dispatch:
 permissions:
   contents: read
