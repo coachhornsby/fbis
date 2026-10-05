@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import { runActionApifyShadow, createResearchBudget, americanToImpliedProb } from "../functions/lib/actionApifyShadow.js";
 
-const rowsPath=process.argv[2]||"artifacts/soccer-form-walkforward-rows.jsonl";
+const rowsPath=process.argv[2]||"artifacts/soccer-v2-walkforward-rows.jsonl";
 const budgetUsd=Number(process.env.SOCCER_MARKET_BENCHMARK_BUDGET_USD||3.0);
 const maxDates=Math.max(1,Math.min(12,Number(process.env.SOCCER_MARKET_BENCHMARK_DATES||6)));
 const maxGames=Math.max(10,Math.min(50,Number(process.env.SOCCER_MARKET_BENCHMARK_MAX_GAMES||30)));
@@ -29,7 +29,7 @@ for(const date of dates){
     if([h,d,w].some(x=>x==null))continue;
     const sum=h+d+w;if(!(sum>0))continue;
     const market={H:h/sum,D:d/sum,A:w/sum};
-    const model={H:Number(m.pHome),D:Number(m.pDraw),A:Number(m.pAway)};
+    const model={H:Number(m.v2Home),D:Number(m.v2Draw),A:Number(m.v2Away)};
     const outcome=Number(m.actualHome)>Number(m.actualAway)?"H":Number(m.actualHome)<Number(m.actualAway)?"A":"D";
     const prices={H:Number(a.consensus?.moneylineHome),D:Number(a.consensus?.moneylineDraw),A:Number(a.consensus?.moneylineAway)};
     const edges={H:model.H-market.H,D:model.D-market.D,A:model.A-market.A};
@@ -47,7 +47,7 @@ for(const date of dates){
 }
 const mean=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
 const report={
- generatedAt:new Date().toISOString(),modelId:"SOCCER-FBIS-v1",benchmark:"ZEN_ACTION_NO_VIG_1X2",datesRequested:dates.length,
+ generatedAt:new Date().toISOString(),modelId:"SOCCER-FBIS-v2",benchmark:"ZEN_ACTION_NO_VIG_1X2",datesRequested:dates.length,
  datesCompleted:runSummary.filter(x=>x.ok).length,matched:pairs.length,budgetLimitUsd:budgetUsd,estimatedSpendUsd:budget.spentUsd,
  model:{brier:mean(pairs.map(x=>x.modelBrier)),logLoss:mean(pairs.map(x=>x.modelLogLoss)),accuracy:pairs.length?pairs.filter(x=>x.modelCorrect).length/pairs.length:null},
  market:{brier:mean(pairs.map(x=>x.marketBrier)),logLoss:mean(pairs.map(x=>x.marketLogLoss)),accuracy:pairs.length?pairs.filter(x=>x.marketCorrect).length/pairs.length:null},

@@ -111,7 +111,7 @@ function modelIdentity(sport, game = {}) {
   if (sport === "soccer") {
     return {
       name: "FBIS Soccer Research",
-      engine: game.researchProjection?.modelId || game.soccerFbis?.modelId || "SOCCER-FBIS-v1",
+      engine: game.researchProjection?.modelId || game.soccerFbisV2?.modelId || game.soccerFbis?.modelId || "SOCCER-FBIS-v2",
       independent: Boolean(independentFbis),
       state: game.projectionState || game.projectionMaturity || null,
       maturity: "RESEARCH",
@@ -256,11 +256,11 @@ function mlbSubprojections(game = {}) {
 }
 
 function soccerSubprojections(game = {}) {
-  const p = game.soccerFbis || game.challengers?.["SOCCER-FBIS-v1"] || null;
-  if (!p?.ok) return { available: false, source: "SOCCER-FBIS-v1", maturity: "RESEARCH", canQualify: false };
+  const p = game.soccerFbisV2 || game.soccerFbis || game.challengers?.["SOCCER-FBIS-v2"] || game.challengers?.["SOCCER-FBIS-v1"] || null;
+  if (!p?.ok) return { available: false, source: "SOCCER-FBIS-v2", maturity: "RESEARCH", canQualify: false };
   return {
     available: true,
-    source: "SOCCER-FBIS-v1",
+    source: p.modelId || "SOCCER-FBIS-v2",
     modelVersion: p.modelVersion || game.modelVersion || null,
     maturity: "RESEARCH",
     canQualify: false,
@@ -272,6 +272,9 @@ function soccerSubprojections(game = {}) {
     homeAsian: p.homeAsian || null,
     uncertainty: p.uncertainty || null,
     diagnostics: p.diagnostics || null,
+    ensemble: p.ensemble || null,
+    challenger: p.challenger || null,
+    v1: p.v1 || null,
     confidencePick: game.soccerConfidence || game.confidencePick || p.confidencePick || null,
     policy: "Independent soccer research probabilities. Stars measure model confidence; they do not grant wager authority.",
   };

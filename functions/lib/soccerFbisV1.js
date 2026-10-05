@@ -413,7 +413,7 @@ export function soccerConfidencePick(game = {}, projection = null) {
   const best = probs[0];
   const second = probs[1];
   const league = String(game.soccerLeague || game.league || "");
-  const validation = SOCCER_LEAGUE_VALIDATION[league] || null;
+  const validation = p.validation || SOCCER_LEAGUE_VALIDATION[league] || null;
   const uncertainty = String(p.uncertainty?.level || "HIGH").toUpperCase();
   const minTeamGames = Math.min(
     Number(p.uncertainty?.homeHistoryGames || 0),

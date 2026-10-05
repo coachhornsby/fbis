@@ -1,0 +1,47 @@
+name: Soccer-FBIS-v2 walk-forward
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "functions/lib/soccerFbisV1.js"
+      - "functions/lib/soccerFbisV2.js"
+      - "scripts/soccer-v2-walkforward.mjs"
+      - ".github/workflows/soccer-v2-walkforward.yml"
+  pull_request:
+    paths:
+      - "functions/lib/soccerFbisV1.js"
+      - "functions/lib/soccerFbisV2.js"
+      - "functions/lib/store.js"
+      - "scripts/soccer-v2-walkforward.mjs"
+      - "test/soccer-fbis-v2.test.js"
+      - ".github/workflows/soccer-v2-walkforward.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soccer-v2-walkforward-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run true expanding walk-forward
+        run: node scripts/soccer-v2-walkforward.mjs
+      - name: Summarize
+        run: |
+          jq . artifacts/soccer-v2-walkforward-report.json
+          jq -r '. as $r | "## Soccer-FBIS-v2 head-to-head\n- n: \($r.v2.n)\n- v1 Brier: \($r.v1.brier)\n- v2 Brier: \($r.v2.brier)\n- v1 log loss: \($r.v1.logLoss)\n- v2 log loss: \($r.v2.logLoss)\n- v1 accuracy: \($r.v1.accuracy)\n- v2 accuracy: \($r.v2.accuracy)\n- decision: \($r.promotion.decision)"' artifacts/soccer-v2-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soccer-v2-walkforward-${{ github.run_id }}
+          path: artifacts/soccer-v2-walkforward-*
+          retention-days: 90

@@ -19,7 +19,7 @@ const MIGRATION_STATUS = {
 };
 
 /** Production tip expects harden migration after public/Actions billing recovery. */
-const EXPECTED_MIGRATION = "0039_soccer_canonical";
+const EXPECTED_MIGRATION = "0052_soccer_v2_features";
 
 /**
  * Read-only health endpoint.

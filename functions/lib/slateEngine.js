@@ -15,7 +15,7 @@ import { NFL_WAGER_CONFIDENCE_V1 } from "../../data/models/nfl-wager-confidence-
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachBasketballFormResearch } from "./basketballFormModel.js";
-import { attachSoccerResearch } from "./soccerFbisV1.js";
+import { attachSoccerV2Research } from "./soccerFbisV2.js";
 import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
 import { attachMlbPostseasonContext, loadMlbPostseasonContext } from "./mlbPostseasonContext.js";
 import { loadMlbPitchMatchupContext } from "./mlbPitchMatchupFeed.js";
@@ -327,12 +327,15 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "soccer" && Array.isArray(next.games)) {
-    const soccer = await attachSoccerResearch(next.games, env);
+    const soccer = await attachSoccerV2Research(next.games, env);
     next = {
       ...next,
       games: soccer.games,
       modelVersion: soccer.meta?.version || next.modelVersion,
-      research: { ...(next.research || {}), soccerFbisV1: soccer.meta },
+      research: {
+        ...(next.research || {}),
+        soccerFbisV2: soccer.meta,
+      },
     };
   }
 
