@@ -7,6 +7,7 @@
 
 import { readCache, writeCache } from "./cache.js";
 import { buildLineupMatchup, buildStatcastProfiles, MLB_PITCH_MATCHUP_VERSION } from "./mlbPitchMatchup.js";
+import { buildPersistentPitchMatchup, loadMlbPersistentState } from "./mlbPersistentProfiles.js";
 
 const TTL_MS = 4 * 60 * 60 * 1000;
 const ERR_TTL_MS = 20 * 60 * 1000;
@@ -145,32 +146,59 @@ async function buildSide(game,pitcherSide,env,fetchFn){
 export async function loadMlbPitchMatchupContext(games=[],env={},options={}){
   const fetchFn=options.fetchFn||fetch;
   const byGameId={};
-  let available=0;
+  let available=0,persistentAvailable=0,liveFallbacks=0;
+  const persistent=await loadMlbPersistentState(games,env,{maxAgeHours:options.maxPersistentAgeHours??14}).catch(()=>({byGameId:{},meta:{configured:false}}));
+  // In production, D1 persistence is the primary path. Avoid expensive per-game
+  // Statcast fanout on customer requests. Live fallback is opt-in when D1 is bound.
+  const allowLiveFallback=options.allowLiveFallback===true || !env?.DB?.prepare;
   for(const game of games||[]){
     if(game?.sport&&game.sport!=="mlb")continue;
+    const key=String(game.id||game.bpp?.gamePk||"");
+    const saved=buildPersistentPitchMatchup(game,persistent.byGameId?.[key]);
+    if(saved?.homeOffense||saved?.awayOffense){
+      byGameId[key]=saved;
+      available+=1;
+      persistentAvailable+=1;
+      continue;
+    }
+    if(!allowLiveFallback){
+      byGameId[key]={
+        version:MLB_PITCH_MATCHUP_VERSION,
+        homeOffense:null,awayOffense:null,
+        asOf:persistent.byGameId?.[key]?.asOf||null,
+        persistent:true,unavailable:true,
+        reason:"PERSISTENT_PROFILE_MISSING_OR_STALE",
+        marketInformed:false,canQualify:false,
+      };
+      continue;
+    }
     const [homeStarter,awayStarter]=await Promise.all([
       buildSide(game,"home",env,fetchFn).catch(()=>null),
       buildSide(game,"away",env,fetchFn).catch(()=>null),
     ]);
-    // home offense faces away starter; away offense faces home starter.
     const packet={
       version:MLB_PITCH_MATCHUP_VERSION,
       homeOffense:awayStarter,
       awayOffense:homeStarter,
       asOf:new Date().toISOString(),
+      persistent:false,
       marketInformed:false,
       canQualify:false,
     };
-    if(homeStarter||awayStarter)available+=1;
-    byGameId[String(game.id||game.bpp?.gamePk||"")]=packet;
+    if(homeStarter||awayStarter){available+=1;liveFallbacks+=1;}
+    byGameId[key]=packet;
   }
   return{
     byGameId,
     meta:{
       version:MLB_PITCH_MATCHUP_VERSION,
-      source:"Baseball Savant Statcast pitch-level",
+      source:persistentAvailable?"D1 persistent Statcast profiles":"Baseball Savant Statcast pitch-level",
       games:(games||[]).length,
       available,
+      persistentAvailable,
+      liveFallbacks,
+      persistentConfigured:Boolean(persistent.meta?.configured),
+      liveFanoutDisabled:Boolean(env?.DB?.prepare&&!allowLiveFallback),
       lookbackDays:LOOKBACK_DAYS,
       postseasonPitcherLookbackDays:POSTSEASON_PITCHER_LOOKBACK_DAYS,
       postseasonPitcherHalfLifeDays:POSTSEASON_PITCHER_HALF_LIFE_DAYS,

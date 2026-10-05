@@ -11,6 +11,7 @@
  */
 
 import { readCache, writeCache } from "./cache.js";
+import { loadMlbPersistentState } from "./mlbPersistentProfiles.js";
 
 export const MLB_POSTSEASON_CONTEXT_VERSION = "research-v1-october-usage";
 const POSTSEASON_TYPES = new Set(["F","D","L","W"]);
@@ -212,7 +213,65 @@ export async function loadMlbPostseasonContext(games=[],env={},options={}){
   const fetchFn=options.fetchFn||fetch;
   const byGameId={};
   const postseason=(games||[]).filter(isMlbPostseasonGame);
+  const persistent=await loadMlbPersistentState(postseason,env,{maxAgeHours:options.maxPersistentAgeHours??10}).catch(()=>({byGameId:{},meta:{configured:false}}));
+  // Production D1 is authoritative for operational state. Do not fan out to
+  // active-roster/game-log/live-feed endpoints from customer board requests.
+  const allowLiveFallback=options.allowLiveFallback===true || !env?.DB?.prepare;
   for(const game of postseason){
+    const persistentState=persistent.byGameId?.[String(game.id)]||null;
+    if(persistentState?.fresh){
+      const homeTeam=persistentState.homeTeam||{},awayTeam=persistentState.awayTeam||{};
+      const homeStarter=persistentState.homeStarter||{},awayStarter=persistentState.awayStarter||{};
+      const packet={
+        version:MLB_POSTSEASON_CONTEXT_VERSION,
+        postseason:true,
+        round:postseasonRound(game),
+        gameType:game.gameType||null,
+        seriesDescription:game.seriesDescription||null,
+        seriesGameNumber:finite(game.seriesGameNumber),
+        gamesInSeries:finite(game.gamesInSeries),
+        home:{
+          activePitchers:homeTeam?.lineup?.activePitchers?.length??null,
+          coreRelieverCount:homeTeam?.bullpen?.coreRelievers?.length??0,
+          coreRelieverIds:(homeTeam?.bullpen?.coreRelievers||[]).map(x=>x.id),
+          coreBullpenEra:finite(homeTeam?.bullpen?.coreBullpenEra),
+          bullpenEra:finite(homeTeam?.bullpen?.adjustedBullpenEra),
+          bullpenFatigue:homeTeam?.bullpen?.fatigue||null,
+          recentStarter:homeStarter?.recentStarter||null,
+          expectedStarterInnings:finite(homeStarter?.expectedInnings)??finite(homeStarter?.inningsPerStart),
+        },
+        away:{
+          activePitchers:awayTeam?.lineup?.activePitchers?.length??null,
+          coreRelieverCount:awayTeam?.bullpen?.coreRelievers?.length??0,
+          coreRelieverIds:(awayTeam?.bullpen?.coreRelievers||[]).map(x=>x.id),
+          coreBullpenEra:finite(awayTeam?.bullpen?.coreBullpenEra),
+          bullpenEra:finite(awayTeam?.bullpen?.adjustedBullpenEra),
+          bullpenFatigue:awayTeam?.bullpen?.fatigue||null,
+          recentStarter:awayStarter?.recentStarter||null,
+          expectedStarterInnings:finite(awayStarter?.expectedInnings)??finite(awayStarter?.inningsPerStart),
+        },
+        persistent:true,
+        persistentAsOf:persistentState.asOf,
+        marketInformed:false,
+        canQualify:false,
+        asOf:persistentState.asOf,
+      };
+      byGameId[String(game.id)]=packet;
+      continue;
+    }
+    if(!allowLiveFallback){
+      byGameId[String(game.id)]={
+        version:MLB_POSTSEASON_CONTEXT_VERSION,
+        postseason:true,
+        round:postseasonRound(game),
+        persistent:true,
+        unavailable:true,
+        reason:"PERSISTENT_PROFILE_MISSING_OR_STALE",
+        marketInformed:false,
+        canQualify:false,
+      };
+      continue;
+    }
     const date=ymd(game.start||game.date);
     const season=Number(date.slice(0,4));
     const key=`mlb-postseason-v1:${date}:${game.id}`;
@@ -261,6 +320,9 @@ export async function loadMlbPostseasonContext(games=[],env={},options={}){
       version:MLB_POSTSEASON_CONTEXT_VERSION,
       postseasonGames:postseason.length,
       available:Object.values(byGameId).filter(x=>x?.home||x?.away).length,
+      persistentAvailable:Object.values(byGameId).filter(x=>x?.persistent&&x?.home&&x?.away).length,
+      persistentConfigured:Boolean(persistent.meta?.configured),
+      liveFanoutDisabled:Boolean(env?.DB?.prepare&&!allowLiveFallback),
       marketInformed:false,
       canQualify:false,
     },
