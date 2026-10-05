@@ -446,12 +446,14 @@ export function formatBoardDate(iso, { now = new Date() } = {}) {
     .toLocaleDateString("en-US", { timeZone: CT, weekday: "short", month: "short", day: "numeric" })
     .replace(/,/g, "")
     .toUpperCase();
-  const timeLine = `${d.toLocaleTimeString("en-US", {
+  const weekday = d.toLocaleDateString("en-US", { timeZone: CT, weekday: "long" });
+  const clockTime = d.toLocaleTimeString("en-US", {
     timeZone: CT,
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  })} CT`;
+  });
+  const timeLine = `${weekday} · ${clockTime} CT`;
   const todayKey = now.toLocaleDateString("en-CA", { timeZone: CT });
   const gameKey = d.toLocaleDateString("en-CA", { timeZone: CT });
   return { dateLine, timeLine, isToday: todayKey === gameKey, raw: iso };
