@@ -209,7 +209,9 @@ jobs:
           jq -e 'type=="array"' "$body" >/dev/null
           cp "$body" artifacts/prizepicks-rows.json
           rows="$(jq 'length' artifacts/prizepicks-rows.json)"
-          echo "modeled-leagues returned=$rows"\n          leagues="$(jq -r '[.[].league // .[].player_league // empty] | unique | join(", ")' artifacts/prizepicks-rows.json 2>/dev/null || true)"\n          echo "leagues=${leagues:-unknown}"
+          echo "modeled-leagues returned=$rows"
+          leagues="$(jq -r '[.[].league // .[].player_league // empty] | unique | join(", ")' artifacts/prizepicks-rows.json 2>/dev/null || true)"
+          echo "leagues=${leagues:-unknown}"
           test "$rows" -gt 0
       - name: Persist curated PrizePicks lines
         if: env.SKIP_COLLECTION != '1'
