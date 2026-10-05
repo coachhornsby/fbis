@@ -60,6 +60,7 @@ function styleScores(profile,tour){
 }
 
 const all=[];
+const historyRows=[];
 for(const tour of ["atp","wta"])for(const year of YEARS){
   try{
     const txt=await fetchText(`${MIRROR}/${tour}/${tour}_matches_${year}.csv`);
@@ -92,7 +93,8 @@ for(const row of all){
   if(!/^\d{8}$/.test(date)||date>=cutoff)continue;
   const tour=row._tour,surface=surfaceKey(row.surface),state=states[tour];
   const wid=String(row.winner_id||row.winner_name||"").trim(),lid=String(row.loser_id||row.loser_name||"").trim();
-  const outcome=parseScore(row.score);\n  historyRows.push({tour,matchDate:dateIso(row.tourney_date),tournament:row.tourney_name||null,surface,round:row.round||null,p1Key:clean(row.winner_name),p1Name:row.winner_name,p2Key:clean(row.loser_name),p2Name:row.loser_name,winnerKey:clean(row.winner_name),score:row.score||null,p1Rank:finite(row.winner_rank),p2Rank:finite(row.loser_rank),p1Stats:{ace:finite(row.w_ace),df:finite(row.w_df),svpt:finite(row.w_svpt),firstIn:finite(row.w_1stIn),firstWon:finite(row.w_1stWon),secondWon:finite(row.w_2ndWon),bpSaved:finite(row.w_bpSaved),bpFaced:finite(row.w_bpFaced)},p2Stats:{ace:finite(row.l_ace),df:finite(row.l_df),svpt:finite(row.l_svpt),firstIn:finite(row.l_1stIn),firstWon:finite(row.l_1stWon),secondWon:finite(row.l_2ndWon),bpSaved:finite(row.l_bpSaved),bpFaced:finite(row.l_bpFaced)}});
+  const outcome=parseScore(row.score);
+  historyRows.push({tour,matchDate:dateIso(row.tourney_date),tournament:row.tourney_name||null,surface,round:row.round||null,p1Key:clean(row.winner_name),p1Name:row.winner_name,p2Key:clean(row.loser_name),p2Name:row.loser_name,winnerKey:clean(row.winner_name),score:row.score||null,p1Rank:finite(row.winner_rank),p2Rank:finite(row.loser_rank),p1Stats:{ace:finite(row.w_ace),df:finite(row.w_df),svpt:finite(row.w_svpt),firstIn:finite(row.w_1stIn),firstWon:finite(row.w_1stWon),secondWon:finite(row.w_2ndWon),bpSaved:finite(row.w_bpSaved),bpFaced:finite(row.w_bpFaced)},p2Stats:{ace:finite(row.l_ace),df:finite(row.l_df),svpt:finite(row.l_svpt),firstIn:finite(row.l_1stIn),firstWon:finite(row.l_1stWon),secondWon:finite(row.l_2ndWon),bpSaved:finite(row.l_bpSaved),bpFaced:finite(row.l_bpFaced)}});
   const retired=/RET|DEF|ABD/i.test(String(row.score||""));
   touch(tour,wid,row.winner_name,row,surface,outcome,false);
   touch(tour,lid,row.loser_name,row,surface,outcome,retired);
@@ -105,7 +107,7 @@ for(const row of all){
 }
 
 const cutoffIso=dateIso(cutoff);
-const profileRows=[];\nconst historyRows=[];
+const profileRows=[];
 for(const tour of ["atp","wta"]){
   for(const x of meta[tour].values()){
     const recent=x.matches.filter(m=>daysBetween(m.date,cutoffIso)!=null&&daysBetween(m.date,cutoffIso)>=0&&daysBetween(m.date,cutoffIso)<=7);
