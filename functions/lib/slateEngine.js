@@ -215,7 +215,7 @@ export async function buildSlate(sport, date, env = {}) {
         canQualify: false,
         canAuthorize: false,
       })),
-      loadNhlProV2Context(slate.date || date, slate.games || []).catch((err) => ({
+      loadNhlProV2Context(slate.date || date, slate.games || [], { db: env.DB || null }).catch((err) => ({
         ok: false,
         error: String(err?.message || err),
         base: {
@@ -239,7 +239,7 @@ export async function buildSlate(sport, date, env = {}) {
     const fiveLayer = attachNhlV1(baseline.games, v1Context);
     const proV2 = attachNhlProV2(fiveLayer.games, proContext);
     const research = promoteNhlResearchToBoard(proV2.games);
-    const playerResearch = attachNhlPlayerProjectionResearch(research.games, {...v1Context, playerEdge:proContext.playerEdge||null, opportunity:proContext.opportunity||null});
+    const playerResearch = attachNhlPlayerProjectionResearch(research.games, {...v1Context, playerEdge:proContext.playerEdge||null, opportunity:proContext.opportunity||null, persistent:proContext.persistent||null});
     const v2Promoted = Boolean(proV2.meta.historicalPromotionEligible && proV2.meta.projected > 0);
     next = {
       ...slate,
@@ -280,6 +280,9 @@ export async function buildSlate(sport, date, env = {}) {
           opportunityAvailable: Number(proContext.opportunity?.available||0),
           opportunityCoverage: Number(proContext.opportunity?.coverage||0),
           opportunityStatus: proContext.opportunity?.__timeout ? "TIMEOUT_FAIL_SOFT" : proContext.opportunity?.__error ? "DEGRADED_FAIL_SOFT" : "ACTIVE",
+          persistentTeamsLoaded: Number(proContext.persistent?.teamsLoaded||0),
+          persistentTeamsRequested: Number(proContext.persistent?.teamsRequested||0),
+          persistentStateStatus: proContext.persistent?.ok ? "ACTIVE_D1" : "DEGRADED_FAIL_SOFT",
         },
         nhlResearchBoard: research.meta,
       },
@@ -481,7 +484,7 @@ export async function buildSlate(sport, date, env = {}) {
         closeUsedAsDecisionInput: false,
         confidenceValidated: false,
         stakingValidated: false,
-        opportunityLayer: "NHL-OPPORTUNITY-v4",
+        opportunityLayer: "NHL-OPPORTUNITY-v4 + NHL-PERSISTENT-v1",
       },
     };
   }

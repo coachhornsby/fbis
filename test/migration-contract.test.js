@@ -72,7 +72,7 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   const m29 = await readFile(new URL("../migrations/0029_executed_bet_settlement_evidence.sql", import.meta.url), "utf8");
   assert.match(m29, /0029_executed_bet_settlement_evidence/i);
   assert.match(m29, /final_home_score/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0052_soccer_v2_features["\']/);
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0056_nhl_persistent_team_profiles["\']/);
   const m37 = await readFile(new URL("../migrations/0037_ops_control_plane.sql", import.meta.url), "utf8");
   assert.match(m37, /0037_ops_control_plane/i);
   assert.match(m37, /fbis_ops_components/);
@@ -89,6 +89,15 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(m38, /online_learning_shadow/);
   assert.match(schemaExt, /learning_monitor_runs/);
   assert.match(schemaExt, /online_learning_shadow/);
+  const m56nhl = await readFile(new URL("../migrations/0056_nhl_persistent_team_profiles.sql", import.meta.url), "utf8");
+  assert.match(m56nhl, /0056_nhl_persistent_team_profiles/i);
+  assert.match(m56nhl, /nhl_team_profiles/);
+  assert.match(m56nhl, /nhl_player_state_profiles/);
+  assert.match(m56nhl, /nhl_deployment_observations/);
+  assert.match(m56nhl, /nhl_linemate_edges/);
+  assert.match(m56nhl, /nhl_goalie_state_profiles/);
+  assert.match(m56nhl, /nhl_replacement_profiles/);
+  assert.match(schemaExt, /nhl_team_profiles/);
   const m39 = await readFile(new URL("../migrations/0052_soccer_v2_features.sql", import.meta.url), "utf8");
   const m52 = await readFile(new URL("../migrations/0052_soccer_v2_features.sql", import.meta.url), "utf8");
   assert.match(m39, /0052_soccer_v2_features/i);
