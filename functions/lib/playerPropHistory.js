@@ -142,6 +142,10 @@ export function valueForEspnEvent(payload,event,market,sport,name){
     const vals=["rebounds","assists"].map(k=>first(map,MARKET_ALIASES[k]));
     return vals.every(v=>v!=null)?vals.reduce((a,b)=>a+b,0):null;
   }
+  if(m==="goal_assist"){
+    const g=first(map,MARKET_ALIASES.goals),a=first(map,MARKET_ALIASES.assists);
+    if(g!=null&&a!=null) return g+a;
+  }
   if(m==="points"){
     const g=first(map,MARKET_ALIASES.goals),a=first(map,MARKET_ALIASES.assists);
     if(String(sport)==="nhl"&&g!=null&&a!=null) return g+a;
