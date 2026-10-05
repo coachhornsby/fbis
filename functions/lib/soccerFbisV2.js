@@ -17,6 +17,7 @@
  */
 import { projectSoccerFromHistory, soccerConfidencePick, SOCCER_LEAGUES } from "./soccerFbisV1.js";
 import { loadSoccerMatchHistory } from "./store.js";
+import { loadPitchApiHistory, pitchApiHistoryToGames } from "./soccerPitchApiStore.js";
 
 export const SOCCER_FBIS_V2_ID = "SOCCER-FBIS-v2";
 export const SOCCER_FBIS_V2_VERSION = "research-v1-elo-context-online-ensemble";
@@ -532,6 +533,7 @@ function attachV2(game, p) {
       pBttsYes: p.pBttsYes,
       totals: p.totals,
       homeAsian: p.homeAsian,
+      heritageMarkets: p.heritageMarkets || null,
       projectionKind: "FBIS",
       maturity: "RESEARCH",
       canQualify: false,
@@ -569,6 +571,7 @@ function attachV2(game, p) {
       pAway: p.pAwayWin,
       pBttsYes: p.pBttsYes,
       totals: p.totals,
+      heritageMarkets: p.heritageMarkets || null,
       uncertainty: p.uncertainty,
       confidencePick: confidence,
       ensemble: p.ensemble,
@@ -628,7 +631,11 @@ export async function attachSoccerV2Research(games = [], env = {}) {
           startDate: startDateDaysBefore(cutoff, 900),
           beforeDate: cutoff,
         }).catch(() => [])
-      : [];
+      : pitchApiHistoryToGames(await loadPitchApiHistory(env, {
+          leagueKey: league,
+          startDate: startDateDaysBefore(cutoff, 1100),
+          beforeDate: cutoff,
+        }).catch(() => []));
     for (const game of leagueGames) {
       const p = projectSoccerV2(game, history);
       if (p.ok) {
@@ -645,7 +652,7 @@ export async function attachSoccerV2Research(games = [], env = {}) {
     meta: {
       modelId: SOCCER_FBIS_V2_ID,
       version: SOCCER_FBIS_V2_VERSION,
-      leagues: SOCCER_LEAGUES,
+      leagues: [...new Set(list.map(g=>String(g.soccerLeague||g.league||"")).filter(Boolean))],
       projected,
       missing,
       challengerActive,

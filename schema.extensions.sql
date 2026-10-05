@@ -2707,6 +2707,14 @@ CREATE TABLE IF NOT EXISTS soccer_competition_coverage (
   can_authorize INTEGER NOT NULL DEFAULT 0,
   last_discovered_at TEXT,
   last_ingested_at TEXT,
+  last_live_sync_at TEXT,
+  live_sync_errors INTEGER NOT NULL DEFAULT 0,
+  live_sync_last_error TEXT,
+  last_validation_at TEXT,
+  validation_n INTEGER NOT NULL DEFAULT 0,
+  validation_brier REAL,
+  validation_log_loss REAL,
+  validation_accuracy REAL,
   notes TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_soccer_coverage_status
@@ -2752,3 +2760,30 @@ CREATE TABLE IF NOT EXISTS soccer_pitchapi_discovery_runs (
   meta_json TEXT
 );
 
+
+
+-- Per-competition soccer validation ledger (migration 0061).
+CREATE TABLE IF NOT EXISTS soccer_competition_validation (
+  id TEXT PRIMARY KEY,
+  heritage_name TEXT NOT NULL,
+  heritage_key TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  sample_n INTEGER NOT NULL DEFAULT 0,
+  v2_accuracy REAL,
+  v2_brier REAL,
+  v2_log_loss REAL,
+  v3_accuracy REAL,
+  v3_brier REAL,
+  v3_log_loss REAL,
+  delta_accuracy REAL,
+  delta_brier REAL,
+  delta_log_loss REAL,
+  advanced_coverage REAL,
+  historical_gate TEXT NOT NULL DEFAULT 'NOT_RUN',
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize INTEGER NOT NULL DEFAULT 0,
+  evaluated_at TEXT NOT NULL,
+  meta_json TEXT,
+  UNIQUE(heritage_key,model_version)
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_comp_validation_gate ON soccer_competition_validation(historical_gate,sample_n);

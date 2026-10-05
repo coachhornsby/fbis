@@ -56,6 +56,12 @@ async function cycle(env){
   let discovery=null;
   try{discovery=await call(env,"/api/soccer-pitchapi-discover",{limit:40});}
   catch(e){discovery={ok:false,error:String(e?.message||e)};}
+  const live=[];
+  for(let i=0;i<2;i++){
+    if(Date.now()-started>150000)break;
+    try{live.push(await call(env,"/api/soccer-pitchapi-sync",{mode:"live-auto",limit:8}));}
+    catch(e){live.push({ok:false,error:String(e?.message||e)});break;}
+  }
   const work=[];
   for(let i=0;i<2;i++){
     if(Date.now()-started>230000)break;
@@ -64,7 +70,7 @@ async function cycle(env){
       if(r.status==="QUEUE_EMPTY")break;
     }catch(e){work.push({status:"ERROR",error:String(e?.message||e)});break;}
   }
-  return{ok:true,at:new Date().toISOString(),durationMs:Date.now()-started,discovery,work};
+  return{ok:true,at:new Date().toISOString(),durationMs:Date.now()-started,discovery,live,work};
 }
 
 export default{
