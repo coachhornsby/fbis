@@ -168,11 +168,25 @@ function splitMatchupVisual(id, rawLabel) {
   };
 }
 
+function normalizeTeamColor(team, fallback) {
+  const raw = team?.color || team?.primaryColor || team?.primary_color || team?.brandColor || "";
+  const value = String(raw).trim();
+  if (/^#?[0-9a-f]{6}$/i.test(value)) return value.startsWith("#") ? value : `#${value}`;
+  if (/^#?[0-9a-f]{3}$/i.test(value)) return value.startsWith("#") ? value : `#${value}`;
+  return fallback;
+}
+
 export default function CompactGameCard({ game, onOpen }) {
   const vm = buildGameCardViewModel(game);
   const stars = confidenceStars(game);
   const away = vm.away || {};
   const home = vm.home || {};
+  const awayBrand = normalizeTeamColor(away, "#0b5fa5");
+  const homeBrand = normalizeTeamColor(home, "#7b1734");
+  const matchupAtmosphere = {
+    "--cgc-away-brand": awayBrand,
+    "--cgc-home-brand": homeBrand,
+  };
   const proj = vm.projection || {};
   const market = vm.market || {};
   const action = vm.action || {};
@@ -250,7 +264,9 @@ export default function CompactGameCard({ game, onOpen }) {
       ) : null}
 
       <div className="cgc-main">
-        <div className="cgc-matchup">
+        <div className="cgc-matchup cgc-team-atmosphere" style={matchupAtmosphere}>
+          {away.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-away" src={away.logoUrl} alt="" aria-hidden="true" /> : null}
+          {home.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-home" src={home.logoUrl} alt="" aria-hidden="true" /> : null}
           <div className="cgc-team-block">
             <TeamLogo team={away} size={66} className="cgc-logo" />
             <strong className="cgc-abbr">{away.abbr || "—"}</strong>
