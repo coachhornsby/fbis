@@ -240,7 +240,7 @@ function baseballAsiaFactors(game, sport) {
     out.push(factor(id, `${icon} ${label}`, sideFromDelta(game,hn-an), Math.abs(round(hn-an,2)),
       `${abbr(game,"home")} ${round(hn,2)} · ${abbr(game,"away")} ${round(an,2)}`, src));
   };
-  addPair("offense","Offensive run creation",h.offenseRate ?? h.offense,h?.opponentOffenseRate ?? a.offenseRate ?? a.offense,"🔥");
+  addPair("offense","Offensive run creation",h.offenseFactor,a.offenseFactor,"🔥");
   const hs=model.starters?.home, as=model.starters?.away;
   if(hs||as){
     const hera=finite(hs?.era), aera=finite(as?.era);
@@ -249,7 +249,7 @@ function baseballAsiaFactors(game, sport) {
       hera!=null&&aera!=null?Math.abs(round(hera-aera,2)):null,
       `${abbr(game,"home")} ${hs?.name||"starter"} ERA ${hera??"—"} · ${abbr(game,"away")} ${as?.name||"starter"} ERA ${aera??"—"}`,src));
   }
-  addPair("bullpen","Bullpen / run prevention", -(finite(h.bullpenEra)??0), -(finite(a.bullpenEra)??0),"🧱");
+  addPair("run-prevention","Run prevention",h.preventionFactor,a.preventionFactor,"🧱");\n  addPair("bullpen","Bullpen / run prevention",finite(h.bullpenEra)==null?null:-finite(h.bullpenEra),finite(a.bullpenEra)==null?null:-finite(a.bullpenEra),"🧱");
   addPair("lineup","Lineup strength",h.lineupFactor,a.lineupFactor,"💥");
   addPair("form","Recent form",h.recentFactor,a.recentFactor,"📈");
   const park=finite(h.parkFactor ?? a.parkFactor);
