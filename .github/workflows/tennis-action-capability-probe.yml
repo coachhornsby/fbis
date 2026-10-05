@@ -74,7 +74,8 @@ jobs:
                eventKeys:((.event // .game // .match // {})|if type=="object" then keys|sort else [] end),
                consensusKeys:((.consensus // .markets // {})|if type=="object" then keys|sort else [] end),
                competitorKeys:((.competitors[0] // {})|if type=="object" then keys|sort else [] end),
-               competitorSample:([.competitors[0:2][]? | {id:(.id // .competitorId // null),name:(.name // .fullName // .displayName // null),side:(.side // .homeAway // .position // null),abbr:(.abbreviation // .abbr // null)}]),
+               competitorPlayerKeys:((.competitors[0].player // {})|if type=="object" then keys|sort else [] end),
+               competitorSample:([.competitors[0:2][]? | {id:(.id // .competitorId // null),playerId:(.playerId // .player.id // null),name:(.name // .fullName // .displayName // .player.name // .player.fullName // .player.displayName // null),side:(.side // .homeAway // .position // null),abbr:(.abbreviation // .abbr // .player.abbreviation // .player.abbr // null)}]),
                moneylineSideKeys:((.consensus.moneyline.sides[0] // {})|if type=="object" then keys|sort else [] end),
                moneylineSides:([.consensus.moneyline.sides[0:2][]? | {side:(.side // .name // null),odds:(.odds // .price // null),ticketPercent:(.ticketPercent // .ticketsPercent // null),moneyPercent:(.moneyPercent // null),sharpGap:(.sharpGap // null),noVigProbability:(.noVigProbability // null)}]),
                sampleIdentity:{
