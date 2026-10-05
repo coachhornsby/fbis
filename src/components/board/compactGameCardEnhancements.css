@@ -437,3 +437,86 @@
     opacity: .065 !important;
   }
 }
+
+
+/* Mobile GAME MATCHUP readability: preserve five-signal density without truncating meaning. */
+.fbis-shell-main.route-board .cgc-matchup-metric {
+  display: block !important;
+  margin-top: 3px !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+  font-weight: 850 !important;
+  letter-spacing: .015em !important;
+  color: #8ea7c7 !important;
+}
+
+@media (max-width: 560px) {
+  .fbis-shell-main.route-board .cgc-matchup-read {
+    padding: 10px 8px 11px !important;
+  }
+
+  .fbis-shell-main.route-board .cgc-matchup-pills {
+    gap: 5px !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+
+  .fbis-shell-main.route-board .cgc-matchup-pill {
+    min-width: 0 !important;
+    min-height: 94px !important;
+    padding: 7px 4px 7px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+  }
+
+  .fbis-shell-main.route-board .cgc-matchup-pill-label {
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 4px !important;
+    min-width: 0 !important;
+  }
+
+  .fbis-shell-main.route-board .cgc-matchup-icon {
+    flex: 0 0 25px !important;
+    width: 25px !important;
+    height: 25px !important;
+    font-size: 8.5px !important;
+    border-radius: 8px !important;
+  }
+
+  .fbis-shell-main.route-board .cgc-matchup-pill-label em {
+    display: -webkit-box !important;
+    min-height: 22px !important;
+    max-height: 22px !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    font-size: 7.6px !important;
+    line-height: 1.15 !important;
+    letter-spacing: .02em !important;
+    text-align: center !important;
+    word-break: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .fbis-shell-main.route-board .cgc-matchup-pill > strong {
+    margin-top: 5px !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+  }
+
+  .fbis-shell-main.route-board .cgc-matchup-metric {
+    margin-top: 4px !important;
+    font-size: 7.8px !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    color: #9db2ce !important;
+  }
+}
