@@ -6,6 +6,7 @@
  * used here and no profile can authorize a wager.
  */
 import nhlTeams from "../../data/teams/nhl.js";
+import { normalizeNhlPlayerEdge } from "./nhlPlayerTrackingV3.js";
 
 export const NHL_PERSISTENT_PROFILE_ID="NHL-PERSISTENT-PROFILE-v1";
 export const NHL_PERSISTENT_PROFILE_VERSION="v1.0-official-roster-shifts-deployment";
@@ -264,6 +265,19 @@ export function parseNhlCoachMetadata(payload={}){
 }
 async function queryRows(db,sql,...binds){if(!db?.prepare)return[];try{return (await db.prepare(sql).bind(...binds).all())?.results||[];}catch{return[];}}
 async function existingPlayers(db,tkey){return queryRows(db,"SELECT * FROM nhl_player_profiles WHERE team_key=?",tkey);}
+async function trackingRows(db,tkey){
+ return queryRows(db,"SELECT * FROM nhl_player_tracking_profiles WHERE team_key=? ORDER BY source_as_of DESC LIMIT 24",tkey);
+}
+function trackingRowToEdge(r){
+ return {
+  playerId:String(r.player_id||""),playerName:r.player_name||null,team:r.team_key||null,position:r.position||null,
+  source:r.source||"NHL_EDGE_PERSISTED",available:Boolean(r.available),coverage:finite(r.coverage)||0,
+  maxSkatingSpeed:finite(r.max_skating_speed),bursts22Plus:finite(r.bursts_22_plus),bursts20Plus:finite(r.bursts_20_plus),
+  totalDistance:finite(r.total_distance),distancePer60:finite(r.distance_per_60),maxShotSpeed:finite(r.max_shot_speed),
+  avgShotSpeed:finite(r.avg_shot_speed),highDangerShots:finite(r.high_danger_shots),slotShots:finite(r.slot_shots),
+  offensiveZonePct:finite(r.offensive_zone_pct),sourceAsOf:r.source_as_of||null
+ };
+}
 async function availabilityRows(db,tkey){
  return queryRows(db,`SELECT * FROM player_availability_observations WHERE sport='nhl' AND team_key=? AND observed_at>=? ORDER BY observed_at DESC LIMIT 150`,tkey,new Date(Date.now()-21*86400000).toISOString());
 }
@@ -300,6 +314,8 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
   .bind(runId,seasonId,tkey,"RUNNING",NHL_PERSISTENT_PROFILE_SOURCE,started).run();
 
  try{
+  const existingTracking=await trackingRows(DB,tkey);
+  const freshTracking=existingTracking.filter(r=>Date.now()-Date.parse(r.source_as_of||"")<=6*3600000);
   const sources=await budget((async()=>{
    const directory=await fetchJson(`${STATS}/team?limit=-1`);
    const directoryMap=parseTeamDirectory(directory.data||{}),teamInfo=directoryMap.get(team),teamId=teamInfo?.id||null;
@@ -329,9 +345,26 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    const pregameBox=pregameEligible
     ? await fetchJson(sourceUrl(`gamecenter/${upcoming.id}/boxscore`),{timeoutMs:4000})
     : {ok:false,data:null};
-   return{directory,teamInfo,roster,schedule,summary,timeonice,goalies,coach,games,detail,upcoming,pregameBox};
+   const parsedRoster=parseRoster(roster.data||{});
+   const summaryMap=statByPlayer(summary.data||{});
+   const edgeCandidates=parsedRoster.filter(p=>p.position!=="G").map(p=>{
+    const s=summaryMap.get(p.id)||{};
+    const priority=(finite(s.shots)||0)/Math.max(1,finite(s.gamesPlayed)||1)*1.25+(finite(s.points)||0)/Math.max(1,finite(s.gamesPlayed)||1)*1.5;
+    return{...p,_priority:priority};
+   }).sort((a,b)=>b._priority-a._priority).slice(0,8);
+   return{directory,teamInfo,roster,schedule,summary,timeonice,goalies,coach,games,detail,upcoming,pregameBox,edgeCandidates};
   })());
   if(sources?.__timeout)throw new Error("PROFILE_SOURCE_TOTAL_BUDGET_EXCEEDED");
+  let trackingFetched=[];
+  if(freshTracking.length<6){
+   trackingFetched=await Promise.all((sources.edgeCandidates||[]).map(async p=>{
+    const r=await fetchJson(`${WEB}/edge/skater-detail/${p.id}/now`,{timeoutMs:1800});
+    if(!r.ok)return{playerId:p.id,playerName:p.name,position:p.position,teamKey:tkey,available:false,coverage:0,error:r.error,raw:null};
+    const n=normalizeNhlPlayerEdge(r.data);
+    return{playerId:p.id,playerName:p.name,position:p.position,teamKey:tkey,source:"NHL_EDGE_SKATER_DETAIL",...n,raw:r.data};
+   }));
+  }
+  const trackingEffective=(trackingFetched.length?trackingFetched:freshTracking.map(trackingRowToEdge));
   const roster=parseRoster(sources.roster?.data||{});
   if(!roster.length)throw new Error("OFFICIAL_ROSTER_EMPTY");
   const scheduleRows=buildNhlScheduleProfile(sources.games,team,seasonId,now.getTime());
@@ -405,6 +438,22 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    playerId:p.playerId,playerName:p.playerName,position:p.position,evLine:p.evLine,dPair:p.dPair,ppUnit:p.ppUnit,pkUnit:p.pkUnit,
    toiSeconds:p.lastToiSeconds,scratch:Boolean(p.raw?.lastGameScratch),observedAt:now.toISOString(),raw:{source:p.source,currentGameState:p.gameState}
   }));
+  if(trackingFetched.length){
+   await upsertRows(DB,`INSERT INTO nhl_player_tracking_profiles (
+    player_id,team_key,player_name,position,available,coverage,max_skating_speed,bursts_22_plus,bursts_20_plus,total_distance,distance_per_60,
+    max_shot_speed,avg_shot_speed,high_danger_shots,slot_shots,offensive_zone_pct,source,source_as_of,raw_json,updated_at
+   ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+   ON CONFLICT(player_id) DO UPDATE SET team_key=excluded.team_key,player_name=excluded.player_name,position=excluded.position,
+    available=excluded.available,coverage=excluded.coverage,max_skating_speed=excluded.max_skating_speed,bursts_22_plus=excluded.bursts_22_plus,
+    bursts_20_plus=excluded.bursts_20_plus,total_distance=excluded.total_distance,distance_per_60=excluded.distance_per_60,
+    max_shot_speed=excluded.max_shot_speed,avg_shot_speed=excluded.avg_shot_speed,high_danger_shots=excluded.high_danger_shots,
+    slot_shots=excluded.slot_shots,offensive_zone_pct=excluded.offensive_zone_pct,source=excluded.source,source_as_of=excluded.source_as_of,
+    raw_json=excluded.raw_json,updated_at=excluded.updated_at`,trackingFetched,t=>[
+      t.playerId,t.teamKey,t.playerName,t.position,t.available?1:0,t.coverage,t.maxSkatingSpeed,t.bursts22Plus,t.bursts20Plus,t.totalDistance,t.distancePer60,
+      t.maxShotSpeed,t.avgShotSpeed,t.highDangerShots,t.slotShots,t.offensiveZonePct,t.source||"NHL_EDGE_SKATER_DETAIL",now.toISOString(),
+      t.raw?JSON.stringify(t.raw):null,now.toISOString()
+   ]);
+  }
   const coach=parseNhlCoachMetadata(sources.coach?.data||{});
   const next=nextGame(scheduleRows,now.getTime()),counts={
    roster:players.filter(p=>!p.carriedState).length,active:players.filter(p=>!p.carriedState&&p.gameState!=="CONFIRMED_SCRATCH"&&p.gameState!=="OUT").length,
@@ -418,7 +467,14 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    scheduleStressScore:next?.scheduleStressScore??0,scheduleFlags:next?.stressFlags||[],
    deployment:{latestGameId:latest?.game?.id||null,shiftGames:shiftSets.filter(x=>x.rows.length).length,linesObserved:[...deploy.lines.entries()].map(([playerId,v])=>({playerId,...v}))},
    goalie:{hierarchy:goalies.slice(0,3).map(g=>({playerId:g.playerId,name:g.playerName,rank:g.hierarchyRank,state:g.goalieState,expectedStartProbability:g.expectedStartProbability}))},
-   coach,style:{source:"NHL_PRO_V2_EXISTING_TEAM_IDENTITY",researchOnly:true},
+   coach,style:{
+    source:"NHL_PRO_V2_EXISTING_TEAM_IDENTITY+PERSISTED_PLAYER_EDGE",
+    playerTrackingRequested:trackingEffective.length,
+    playerTrackingAvailable:trackingEffective.filter(x=>x.available).length,
+    playerTrackingCoverage:trackingEffective.length?round(trackingEffective.filter(x=>x.available).length/trackingEffective.length):0,
+    trackingSource:trackingFetched.length?"NHL_EDGE_BACKGROUND_REFRESH":freshTracking.length?"NHL_EDGE_D1_CACHE":"UNAVAILABLE",
+    researchOnly:true
+   },
    stateConfidence:round(clamp((roster.length?0.45:0)+(scheduleRows.length?0.20:0)+(shiftSets.some(x=>x.rows.length)?0.20:0)+(goalies.length?0.10:0)+(coach.headCoach?0.05:0),0,1)),
    sourceUpdatedAt:now.toISOString(),updatedAt:now.toISOString()
   };
@@ -510,7 +566,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
     .bind(cid,tkey,seasonId,coach.headCoach,"HEAD_COACH","ESPN_METADATA",now.toISOString(),JSON.stringify(coach),now.toISOString()).run();
   }
   await DB.prepare(`UPDATE nhl_profile_sync_runs SET status='SUCCESS',completed_at=?,source_calls=?,roster_rows=?,schedule_rows=?,player_rows_upserted=?,goalie_rows_upserted=?,linemate_rows_upserted=?,deployment_rows_upserted=?,meta_json=? WHERE id=?`)
-   .bind(now.toISOString(),6+(sources.detail?.length||0)*2,roster.length,scheduleRows.length,players.length,goalies.length,linemates.length,deploymentRows.length,
+   .bind(now.toISOString(),6+(sources.detail?.length||0)*2+trackingFetched.length,roster.length,scheduleRows.length,players.length,goalies.length,linemates.length,deploymentRows.length,
     JSON.stringify({team,official,latestGameId:latest?.game?.id||null,stateConfidence:teamProfile.stateConfidence}),runId).run();
   PROFILE_CACHE.clear();
   return{ok:true,team,teamKey:tkey,seasonId,players:players.length,goalies:goalies.length,scheduleRows:scheduleRows.length,linemates:linemates.length,
@@ -527,20 +583,22 @@ export async function loadNhlPersistentProfiles(db,teams=[]){
  const keys=[...new Set((teams||[]).map(teamKey).filter(Boolean))].sort();if(!db?.prepare||!keys.length)return{ok:false,teams:{},players:{},goalies:{},linemates:{},schedule:{}};
  const cacheKey=keys.join(","),cached=PROFILE_CACHE.get(cacheKey);if(cached&&Date.now()-cached.at<PROFILE_CACHE_MS)return{...cached.value,cacheHit:true};
  const q=keys.map(()=>"?").join(",");
- const [teamRows,playerRows,goalieRows,lineRows,scheduleRows]=await Promise.all([
+ const [teamRows,playerRows,goalieRows,lineRows,scheduleRows,trackingProfileRows]=await Promise.all([
   queryRows(db,`SELECT * FROM nhl_team_profiles WHERE team_key IN (${q})`,...keys),
   queryRows(db,`SELECT * FROM nhl_player_profiles WHERE team_key IN (${q})`,...keys),
   queryRows(db,`SELECT * FROM nhl_goalie_profiles WHERE team_key IN (${q})`,...keys),
   queryRows(db,`SELECT * FROM nhl_linemate_profiles WHERE team_key IN (${q}) ORDER BY shared_seconds DESC`,...keys),
   queryRows(db,`SELECT * FROM nhl_team_schedule_profile WHERE team_key IN (${q}) AND start_time>=? ORDER BY start_time LIMIT 40`,...keys,new Date(Date.now()-2*86400000).toISOString()),
+  queryRows(db,`SELECT * FROM nhl_player_tracking_profiles WHERE team_key IN (${q}) ORDER BY source_as_of DESC`,...keys),
  ]);
- const out={ok:teamRows.length>0,teams:{},players:{},goalies:{},linemates:{},schedule:{},cacheHit:false,marketInformed:false,researchOnly:true};
+ const out={ok:teamRows.length>0,teams:{},players:{},goalies:{},linemates:{},schedule:{},tracking:{},cacheHit:false,marketInformed:false,researchOnly:true};
  for(const r of teamRows){out.teams[r.team_key]={...r,scheduleFlags:parseJson(r.schedule_flags_json,[]),deployment:parseJson(r.deployment_json,{}),goalie:parseJson(r.goalie_json,{}),coach:parseJson(r.coach_json,{}),style:parseJson(r.style_json,{}),profile:parseJson(r.profile_json,{})};}
- for(const k of keys){out.players[k]=[];out.goalies[k]=[];out.linemates[k]=[];out.schedule[k]=[];}
+ for(const k of keys){out.players[k]=[];out.goalies[k]=[];out.linemates[k]=[];out.schedule[k]=[];out.tracking[k]=[];}
  for(const r of playerRows){out.players[r.team_key]?.push({...r,replacements:parseJson(r.replacement_json,[]),linemates:parseJson(r.linemate_json,[])});}
  for(const r of goalieRows){out.goalies[r.team_key]?.push(r);}
  for(const r of lineRows){out.linemates[r.team_key]?.push(r);}
  for(const r of scheduleRows){out.schedule[r.team_key]?.push({...r,stressFlags:parseJson(r.stress_flags_json,[])});}
+ for(const r of trackingProfileRows){out.tracking[r.team_key]?.push(trackingRowToEdge(r));}
  PROFILE_CACHE.set(cacheKey,{at:Date.now(),value:out});return out;
 }
 export function persistentPlayerFor(ctx,team,id){
@@ -552,8 +610,8 @@ export function attachNhlPersistentProfiles(games=[],profiles={}){
   const home=productAbbr(game?.home?.abbr),away=productAbbr(game?.away?.abbr),h=teamKey(home),a=teamKey(away);
   return{...game,nhlPersistentProfile:{
    modelId:NHL_PERSISTENT_PROFILE_ID,version:NHL_PERSISTENT_PROFILE_VERSION,configured:Boolean(profiles?.teams?.[h]||profiles?.teams?.[a]),
-   home:{team:profiles?.teams?.[h]||null,players:profiles?.players?.[h]||[],goalies:profiles?.goalies?.[h]||[],linemates:profiles?.linemates?.[h]||[]},
-   away:{team:profiles?.teams?.[a]||null,players:profiles?.players?.[a]||[],goalies:profiles?.goalies?.[a]||[],linemates:profiles?.linemates?.[a]||[]},
+   home:{team:profiles?.teams?.[h]||null,players:profiles?.players?.[h]||[],goalies:profiles?.goalies?.[h]||[],linemates:profiles?.linemates?.[h]||[],tracking:profiles?.tracking?.[h]||[]},
+   away:{team:profiles?.teams?.[a]||null,players:profiles?.players?.[a]||[],goalies:profiles?.goalies?.[a]||[],linemates:profiles?.linemates?.[a]||[],tracking:profiles?.tracking?.[a]||[]},
    marketInformed:false,researchOnlyScheduleStress:true,canQualify:false,canAuthorizeWager:false
   }};
  });
