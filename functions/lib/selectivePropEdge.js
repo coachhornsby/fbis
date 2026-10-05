@@ -280,13 +280,15 @@ export function selectivePropStars(row = {}) {
     if (!calibration?.allowed) stars = Math.min(stars, calibration?.maxStars ?? 2);
     else stars = Math.min(stars, calibration.maxStars);
 
-    // PrizePicks alternate lines are not economically comparable to Standard.
-    // Their payout is lineup-dependent, so a large line-distance z-score must
-    // not create a 4★/5★ label unless an explicit payout break-even is present.
-    const hitProbability = estimatedPropHitProbability(row);
-    const tierEconomics = prizePicksTierEconomics(row, hitProbability);
-    stars = Math.min(stars, tierEconomics.maxStars);
   }
+
+  // PrizePicks payout-tier economics are platform-wide, not NFL-specific.
+  // Demon/Goblin and other alternate lines cannot inherit Standard-equivalent
+  // confidence from line distance alone in ANY sport.
+  const hitProbability = estimatedPropHitProbability(row);
+  const tierEconomics = prizePicksTierEconomics(row, hitProbability);
+  stars = Math.min(stars, tierEconomics.maxStars);
+
   return stars;
 }
 
