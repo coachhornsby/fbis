@@ -186,7 +186,18 @@ export function attachMlbPlayerProjectionResearch(games = [], persistent = {}) {
         market:p.market,projection:p.projection,sigma:p.sigma,source:p.source,
         notes:"Persistent MLB player-prop model. Independent of market lines; research-only until historical validation."
       });
-      return row?{...row,...p,propGate:row.propGate,gateReason:row.gateReason,eligibleForCard:row.eligibleForCard,canQualify:false,canAuthorizeWager:false}:null;
+      if(!row)return null;
+      const hitterLineupHold=String(p.position||"").toUpperCase()!=="P" && p.lineupState==="ROSTER_FALLBACK";
+      return {
+        ...row,...p,
+        propGate:hitterLineupHold?"HOLD":row.propGate,
+        gateReason:hitterLineupHold?"lineup_not_expected_or_confirmed":(row.gateReason||"research_unvalidated"),
+        eligibleForCard:false,
+        modelAuthorized:false,
+        decisionEligible:false,
+        canQualify:false,
+        canAuthorizeWager:false
+      };
     }).filter(Boolean);
     const allRows=[...rows.filter(Boolean),...extra];
     return {

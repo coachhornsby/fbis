@@ -569,3 +569,26 @@ test("PrizePicks Demon/Goblin star cap is platform-wide on non-NFL player props"
   assert.ok(demon.confidenceStars<=2);
   assert.equal(demon.prizePicksEconomics.status,"ALTERNATE_TIER_PAYOUT_UNPRICED");
 });
+
+
+test("unvalidated MLB supplemental props stay visible but cannot present as conviction", () => {
+  const board=buildPlayerPropsBoard({
+    games:[{
+      id:"mlb-research",sport:"mlb",away:{abbr:"NYY"},home:{abbr:"BOS"},
+      playerProjectionRows:[{
+        playerId:"p1",playerName:"Test Hitter",team:"NYY",position:"RF",
+        market:"hits",fbisProjection:1.8,fbisSigma:.5,maturity:"RESEARCH_UNVALIDATED",
+        propGate:"CLEAR",eligibleForCard:false,decisionEligible:false,canAuthorizeWager:false
+      }],
+      playerMarkets:[{
+        providerPlayerId:"p1",playerName:"Test Hitter",team:"NYY",
+        marketCanonical:"hits",line:.5
+      }]
+    }]
+  },{supportedOnly:false});
+  assert.equal(board.rows.length,1);
+  assert.equal(board.rows[0].confidenceStars,1);
+  assert.equal(board.rows[0].convictionTier,"WATCH");
+  assert.equal(board.rows[0].recommendationEligible,false);
+  assert.equal(board.rows[0].modelAuthorized,false);
+});
