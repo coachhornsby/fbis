@@ -114,3 +114,18 @@ export async function loadEligiblePitchApiLineups(env,{pitchMatchId,cutoff}={}){
     WHERE pitch_match_id=? AND pre_match=1 AND observed_at<? ORDER BY observed_at DESC`).bind(pitchMatchId,cutoff||now()).all();
   return r?.results||[];
 }
+
+export async function findPitchApiFixture(env,{leagueKey,date,homeName,awayName}={}){
+  const db=env?.DB;if(!db?.prepare||!leagueKey||!date)return null;
+  const r=await db.prepare(`SELECT * FROM soccer_pitchapi_match_features
+    WHERE league_key=? AND match_date=? ORDER BY source_observed_at DESC`).bind(leagueKey,date).all();
+  const h=normalizeSoccerName(homeName),a=normalizeSoccerName(awayName);
+  return (r?.results||[]).find(x=>normalizeSoccerName(x.home_team_name)===h&&normalizeSoccerName(x.away_team_name)===a)||null;
+}
+export async function loadPitchApiPlayerHistory(env,{playerIds=[],beforeDate,startDate="2021-01-01"}={}){
+  const db=env?.DB;if(!db?.prepare||!playerIds.length)return[];
+  const ids=playerIds.map(String).slice(0,30),qs=ids.map(()=>"?").join(",");
+  const r=await db.prepare(`SELECT * FROM soccer_pitchapi_player_match
+    WHERE player_id IN (${qs}) AND match_date>=? AND match_date<? ORDER BY match_date`).bind(...ids,startDate,beforeDate||"9999-12-31").all();
+  return r?.results||[];
+}
