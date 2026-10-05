@@ -62,20 +62,27 @@ async function one(t){
  const teamId=String(t.espnId||t.sources?.espn?.id||"");
  const teamKey=normalizeNbaTeamKey(t.sources?.espn?.abbr||t.abbr);
  const base=`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}`;
- const [rosterResult,scheduleResult]=await Promise.allSettled([
+ const [rosterResult,preseasonResult,regularResult]=await Promise.allSettled([
    get(base+`/roster?season=${season}`),
-   get(base+`/schedule?season=${season}`)
+   get(base+`/schedule?season=${season}&seasontype=1`),
+   get(base+`/schedule?season=${season}&seasontype=2`)
  ]);
  const roster=rosterResult.status==="fulfilled"?rosterResult.value:null;
- const schedule=scheduleResult.status==="fulfilled"?scheduleResult.value:null;
+ const preseason=preseasonResult.status==="fulfilled"?preseasonResult.value:null;
+ const regular=regularResult.status==="fulfilled"?regularResult.value:null;
+ const mergedSchedule=[...scheduleRows(preseason,teamId,teamKey),...scheduleRows(regular,teamId,teamKey)];
+ const schedule=[...new Map(mergedSchedule.map(x=>[x.gameId,x])).values()].sort((a,b)=>Date.parse(a.startTime)-Date.parse(b.startTime));
  return {
    teamId,teamKey,teamName:t.displayName,season,
-   roster:athleteRows(roster),coaches:coaches(roster),schedule:scheduleRows(schedule,teamId,teamKey),
+   roster:athleteRows(roster),coaches:coaches(roster),schedule,
    sourceState:{
      roster:rosterResult.status==="fulfilled"?"OK":"ERROR",
-     schedule:scheduleResult.status==="fulfilled"?"OK":"ERROR",
+     preseason:preseasonResult.status==="fulfilled"?"OK":"ERROR",
+     regularSeason:regularResult.status==="fulfilled"?"OK":"ERROR",
+     schedule:regularResult.status==="fulfilled"?"OK":"ERROR",
      rosterError:rosterResult.status==="rejected"?String(rosterResult.reason):null,
-     scheduleError:scheduleResult.status==="rejected"?String(scheduleResult.reason):null
+     preseasonError:preseasonResult.status==="rejected"?String(preseasonResult.reason):null,
+     regularSeasonError:regularResult.status==="rejected"?String(regularResult.reason):null
    }
  };
 }
