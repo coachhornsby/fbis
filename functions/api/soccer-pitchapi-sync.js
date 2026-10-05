@@ -106,11 +106,14 @@ export async function onRequestPost(context){
     if(!league)return json({ok:false,error:"league-mapping-unresolved",leagueKey,pitchLeagueId},422);
     const season=String(body.season||rotationTarget?.current_season||league.seasons?.[0]||"");if(!season)return json({ok:false,error:"season-unavailable"},422);
     const liveMode=mode==="live"||mode==="live-auto";
+    const recentHistoryMode=mode==="recent-history";
     const status=liveMode?"all":"played";
     const list=await pitch(context.env,`/v1/leagues/${league.id}/matches?season=${encodeURIComponent(season)}&status=${status}`);
     let matches=(list?.matches||[]).sort((a,b)=>String(a.time_utc||a.date).localeCompare(String(b.time_utc||b.date)));
     if(liveMode){const now=Date.now(),lo=new Date(now-8*86400000).toISOString().slice(0,10),hi=new Date(now+3*86400000).toISOString().slice(0,10);matches=matches.filter(m=>String(m.date)>=lo&&String(m.date)<=hi);}else matches=matches.filter(m=>m.status==="finished");
-    const slice=matches.slice(offset,offset+limit);let persisted=0,playersCount=0,lineupsCount=0,analyticsUnavailable=0,errors=0;
+    const slice=recentHistoryMode
+      ? matches.slice(Math.max(0,matches.length-offset-limit),Math.max(0,matches.length-offset))
+      : matches.slice(offset,offset+limit);let persisted=0,playersCount=0,lineupsCount=0,analyticsUnavailable=0,errors=0;
     for(let i=0;i<slice.length;i+=3){
       const group=slice.slice(i,i+3);
       const results=await Promise.all(group.map(async m=>{
