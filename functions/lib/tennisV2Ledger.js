@@ -1,6 +1,6 @@
 import { buildSharpMarketPrior, tennisMarketResidualProjection, americanToProb } from "./tennisMarketV2.js";
 
-const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const safe=v=>{if(v==null)return null;if(typeof v==="object")return v;try{return JSON.parse(v)}catch{return null}};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
