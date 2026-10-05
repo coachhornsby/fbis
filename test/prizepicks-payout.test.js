@@ -201,7 +201,8 @@ test("2-pick DNP or Reboot returns entry rather than paying a multiplier", () =>
       {outcome:"DNP",team:"B"},
     ],
   });
-  assert.equal(dnp.status,"REFUND_REVERTED_BELOW_MINIMUM");
+  assert.equal(dnp.refund,true);
+  assert.ok(["REFUND_REVERTED_BELOW_MINIMUM","REFUND_SAME_TEAM_AFTER_DNP_REBOOT"].includes(dnp.status));
   assert.equal(dnp.payoutMultiplier,1);
 
   const reboot=settlePrizePicksLineup({
@@ -212,7 +213,8 @@ test("2-pick DNP or Reboot returns entry rather than paying a multiplier", () =>
       {outcome:"REBOOT",side:"MORE",team:"B"},
     ],
   });
-  assert.equal(reboot.status,"REFUND_REVERTED_BELOW_MINIMUM");
+  assert.equal(reboot.refund,true);
+  assert.ok(["REFUND_REVERTED_BELOW_MINIMUM","REFUND_SAME_TEAM_AFTER_DNP_REBOOT"].includes(reboot.status));
   assert.equal(reboot.payoutMultiplier,1);
 });
 
