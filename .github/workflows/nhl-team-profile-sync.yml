@@ -1,0 +1,137 @@
+name: NHL persistent team profiles
+
+on:
+  schedule:
+    - cron: "20 2,11,19 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nhlPersistentProfiles.js"
+      - "functions/api/nhl-team-profile-sync.js"
+      - "functions/api/nhl-team-profiles.js"
+      - "functions/lib/nhlProV2.js"
+      - "functions/lib/nhlPlayerProV2.js"
+      - "migrations/0056_nhl_persistent_profiles.sql"
+      - ".github/workflows/nhl-team-profile-sync.yml"
+
+concurrency:
+  group: nhl-persistent-team-profiles
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: NHL PROFILE BATCH ${{ matrix.batch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - batch: "01"
+            teams: "ANA,BOS,BUF,CGY"
+          - batch: "02"
+            teams: "CAR,CHI,COL,CBJ"
+          - batch: "03"
+            teams: "DAL,DET,EDM,FLA"
+          - batch: "04"
+            teams: "LA,MIN,MTL,NSH"
+          - batch: "05"
+            teams: "NJ,NYI,NYR,OTT"
+          - batch: "06"
+            teams: "PHI,PIT,SEA,SJ"
+          - batch: "07"
+            teams: "STL,TB,TOR,UTA"
+          - batch: "08"
+            teams: "VAN,VGK,WSH,WPG"
+
+    steps:
+      - name: Require harvest secret
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Wait for production SHA on push
+        if: github.event_name == 'push'
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 50); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
+            if [ "$code" = "200" ] && grep -q "$EXPECTED_SHA" "$body"; then
+              echo "production_sha=$EXPECTED_SHA"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "Production SHA did not converge before bounded wait expired."
+          exit 1
+
+      - name: Sync four teams as isolated bounded requests
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          TEAMS: ${{ matrix.teams }}
+        run: |
+          set -euo pipefail
+          failures=0
+          successes=0
+          IFS=',' read -r -a team_array <<< "$TEAMS"
+          for team in "${team_array[@]}"; do
+            out="$(mktemp)"
+            echo "syncing team=$team"
+            code="$(curl -sS --max-time 45 --retry 1 --retry-delay 2 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              -H "accept: application/json" \
+              -o "$out" -w "%{http_code}" \
+              "${BASE}/api/nhl-team-profile-sync?team=${team}" || true)"
+            cat "$out"
+            if [ "$code" = "200" ] && jq -e '.ok == true and .bounded == true' "$out" >/dev/null; then
+              successes=$((successes+1))
+            else
+              failures=$((failures+1))
+            fi
+          done
+          {
+            echo "## NHL profile batch ${{ matrix.batch }}"
+            echo "- teams: ${TEAMS}"
+            echo "- succeeded: ${successes}"
+            echo "- failed: ${failures}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$successes" = "4"
+          test "$failures" = "0"
+
+  verify:
+    name: VERIFY 32 NHL TEAM PROFILES
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: sync
+    steps:
+      - name: Verify persistent league state
+        env:
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          out="$(mktemp)"
+          code="$(curl -sS --max-time 30 -o "$out" -w "%{http_code}" "${BASE}/api/nhl-team-profiles?summary=1&_t=$(date +%s)")"
+          cat "$out"
+          test "$code" = "200"
+          jq -e '.ok == true and .teams == 32 and .players > 600 and .goalies > 45 and .scheduleRows > 2000 and .snapshots >= 32' "$out" >/dev/null
+          {
+            echo "## NHL persistent profile verification"
+            echo "- teams: $(jq -r '.teams' "$out") / 32"
+            echo "- players: $(jq -r '.players' "$out")"
+            echo "- goalies: $(jq -r '.goalies' "$out")"
+            echo "- schedule rows: $(jq -r '.scheduleRows' "$out")"
+            echo "- deployment rows: $(jq -r '.deploymentRows' "$out")"
+            echo "- linemate rows: $(jq -r '.linemateRows' "$out")"
+            echo "- snapshots: $(jq -r '.snapshots' "$out")"
+            echo "- latest sync: $(jq -r '.latestSyncAt // "none"' "$out")"
+          } >> "$GITHUB_STEP_SUMMARY"

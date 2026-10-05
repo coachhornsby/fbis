@@ -205,3 +205,30 @@ test("NHL player projection excludes confirmed scratches and increases an inheri
   assert.ok(boosted.projection>baseB.projection);
   assert.ok(boosted.opportunityAdjustment);
 });
+
+
+test("persistent NHL state suppresses fresh OUT but not last-game scratch",()=>{
+  const {game,ctx}=fixture();
+  const fresh=new Date().toISOString();
+  const lastScratch={
+    ...ctx,
+    persistentProfiles:{players:{bos:[{
+      player_id:"1",availability_state:"SCRATCHED_LAST_GAME",game_state:"RETURN_PENDING",
+      source_updated_at:fresh,ev_line:1,pp_unit:1,rolling_toi_seconds:1200,role_confidence:.8,
+      replacement_json:"[]",linemate_json:"[]",replacements:[],linemates:[]
+    }]}}
+  };
+  const a=nhlPlayerProV2RowsForSide(game,"home",lastScratch);
+  assert.equal(a.some(r=>r.player.id==="1"),true);
+  assert.ok(a.find(r=>r.player.id==="1"&&r.market==="shots_on_goal")?.persistentRoleContext);
+
+  const out={
+    ...ctx,
+    persistentProfiles:{players:{bos:[{
+      player_id:"1",availability_state:"OUT",game_state:"OUT",
+      source_updated_at:fresh,replacements:[],linemates:[]
+    }]}}
+  };
+  const b=nhlPlayerProV2RowsForSide(game,"home",out);
+  assert.equal(b.some(r=>r.player.id==="1"),false);
+});
