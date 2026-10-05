@@ -94,10 +94,11 @@ jobs:
         run: |
           set -euo pipefail
           npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM player_availability_observations WHERE sport='nba' AND observed_at <= datetime('now') AND observed_at >= datetime('now','-7 days') ORDER BY observed_at ASC"             > artifacts/nba-availability.json
+          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM nba_official_availability_reports WHERE report_timestamp <= datetime('now') AND report_timestamp >= datetime('now','-24 hours') ORDER BY report_timestamp ASC"             > artifacts/nba-availability-coverage.json || echo '[]' > artifacts/nba-availability-coverage.json
 
       - name: Build live player impact and role context
         run: |
-          node scripts/nba-player-impact-live.mjs             frozen=artifacts/frozen/nba-canonical.jsonl             current=artifacts/current/nba-canonical.jsonl             historicalImpact=artifacts/frozen/nba-player-impact-v1.json             availability=artifacts/nba-availability.json             lineups=artifacts/frozen/nba-lineup-effects.json             out=artifacts/nba-player-impact-live.json             sql=artifacts/nba-player-impact-live.sql
+          node scripts/nba-player-impact-live.mjs             frozen=artifacts/frozen/nba-canonical.jsonl             current=artifacts/current/nba-canonical.jsonl             historicalImpact=artifacts/frozen/nba-player-impact-v1.json             availability=artifacts/nba-availability.json             coverage=artifacts/nba-availability-coverage.json             lineups=artifacts/frozen/nba-lineup-effects.json             out=artifacts/nba-player-impact-live.json             sql=artifacts/nba-player-impact-live.sql
 
       - name: Generate calibrated research shadow
         run: |
