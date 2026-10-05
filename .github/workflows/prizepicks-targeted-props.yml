@@ -115,8 +115,14 @@ jobs:
           code="$(curl -sS --max-time 30 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" --data-binary "$payload" -o "$body" -w "%{http_code}" "$BASE/api/prizepicks-props")"
           cat "$body"
           if [ "$code" = "409" ] && jq -e '.error=="ALREADY_COLLECTED_TODAY"' "$body" >/dev/null 2>&1; then
-            echo "PrizePicks already acquired/reserved today; no paid Actor call will be made."
-            echo "SKIP_COLLECTION=1" >> "$GITHUB_ENV"
+            state_json="$(mktemp)"
+            curl -fsS --max-time 30 -H "x-harvest-secret: ${HARVEST_SECRET}" "$BASE/api/prizepicks-props?mode=acquisition&_t=$(date +%s)" > "$state_json"
+            covered="$(jq -r '[.coverage[].sport] | join(",")' "$state_json")"
+            run_id="pprepair_$(TZ=America/Chicago date +%Y%m%d)_${GITHUB_RUN_ID}"
+            echo "PrizePicks primary acquisition exists; running coverage repair only. covered=${covered:-none}"
+            echo "PP_RUN_ID=$run_id" >> "$GITHUB_ENV"
+            echo "COVERAGE_REPAIR=1" >> "$GITHUB_ENV"
+            echo "PP_COVERED_SPORTS=$covered" >> "$GITHUB_ENV"
             exit 0
           fi
           test "$code" = "200"
@@ -212,6 +218,11 @@ jobs:
           : > artifacts/prizepicks-coverage.ndjson
           for league in "${wanted[@]}"; do
             # Discovery rows vary by actor version; accept common league/name fields.
+            sport_key="$(case "$league" in "College Basketball") echo cbb;; CFB) echo cfb;; *) echo "$league" | tr '[:upper:]' '[:lower:]';; esac)"
+            if [ "${COVERAGE_REPAIR:-0}" = "1" ] && echo ",${PP_COVERED_SPORTS:-}," | grep -q ",$sport_key,"; then
+              echo "coverage league=$league already persisted; repair skip"
+              continue
+            fi
             live_count="$(jq -r --arg l "$league" '[.[] | select((.league // .name // .league_name // "") == $l) | (.count // .prop_count // .projection_count // 0)] | add // 0' "$discover")"
             if [ "$live_count" = "0" ]; then
               echo "coverage league=$league live_count=0 (not expected today)"
@@ -245,7 +256,8 @@ jobs:
             --arg runId "$run_id" \
             --slurpfile rows artifacts/prizepicks-rows.json \
             --slurpfile candidates artifacts/candidates.json \
-            '{runId:$runId,rows:$rows[0],candidates:$candidates[0]}' > "$payload"
+            --arg operation "${COVERAGE_REPAIR:+supplemental_coverage}" \
+            '{runId:$runId,operation:(if $operation=="" then null else $operation end),rows:$rows[0],candidates:$candidates[0]}' > "$payload"
           body="$(mktemp)"
           code="$(curl -sS --max-time 120 -X POST \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
