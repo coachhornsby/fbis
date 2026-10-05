@@ -46,7 +46,8 @@ async function courtSpeedForRows(db,tour,a,b){
 }
 async function autoDecisionForMarket(db,m){
   if(!m?.canonical_event_id||!m?.player1||!m?.player2)return {inserted:false,reason:"market-identity-missing"};
-  if(m.event_start_time&&Date.parse(m.event_start_time)<=Date.now())return {inserted:false,reason:"event-started"};
+  if(!m.event_start_time)return {inserted:false,reason:"event-start-missing"};
+  if(Date.parse(m.event_start_time)<=Date.now())return {inserted:false,reason:"event-started"};
   const [r1,r2]=await Promise.all([loadProfileRows(db,m.tour,m.player1),loadProfileRows(db,m.tour,m.player2)]);
   if(!r1.length||!r2.length)return {inserted:false,reason:"deep-profile-missing"};
   const last1=r1[0]?.last_surface,last2=r2[0]?.last_surface;
@@ -153,7 +154,7 @@ export async function onRequestPost(context){
             `WITH ranked AS (
               SELECT *,ROW_NUMBER() OVER(PARTITION BY canonical_event_id ORDER BY observed_at DESC) rn
               FROM tennis_market_snapshots
-              WHERE event_start_time IS NULL OR event_start_time>datetime('now')
+              WHERE event_start_time IS NOT NULL AND event_start_time>datetime('now')
             ) SELECT * FROM ranked WHERE rn=1 ORDER BY observed_at DESC LIMIT 200`
           ).all().catch(()=>({results:[]})))?.results||[]);
       for(const m of sourceMarkets){
