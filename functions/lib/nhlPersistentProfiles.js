@@ -323,9 +323,22 @@ function replacementMap(player,players){
   playerId:x.playerId,name:x.playerName,evLine:x.evLine,dPair:x.dPair,ppUnit:x.ppUnit,rollingToiSeconds:x.rollingToiSeconds
  }));
 }
+async function d1WriteRetry(fn,{attempts=5,baseMs=100}={}){
+ let last;
+ for(let i=0;i<attempts;i++){
+  try{return await fn();}
+  catch(err){
+   last=err;
+   const msg=String(err?.message||err);
+   if(!/long-running import|database is locked|database busy|temporarily unavailable|too many requests|D1_ERROR/i.test(msg)||i===attempts-1)throw err;
+   await new Promise(resolve=>setTimeout(resolve,baseMs*(2**i)));
+  }
+ }
+ throw last;
+}
 async function upsertRows(db,sql,rows,binder,batchSize=50){
  if(!rows.length)return 0;const stmts=rows.map(r=>db.prepare(sql).bind(...binder(r)));
- for(let i=0;i<stmts.length;i+=batchSize)await db.batch(stmts.slice(i,i+batchSize));return rows.length;
+ for(let i=0;i<stmts.length;i+=batchSize)await d1WriteRetry(()=>db.batch(stmts.slice(i,i+batchSize)));return rows.length;
 }
 
 export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
@@ -333,8 +346,8 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
  const team=productAbbr(abbr),official=officialAbbr(team),record=teamRecord(team),seasonId=seasonIdFor(now),tkey=teamKey(team);
  if(!record)return{ok:false,error:"unknown-team",team};
  const runId=`nhl-profile:${tkey}:${now.toISOString()}:${Math.random().toString(36).slice(2,8)}`,started=now.toISOString();
- await DB.prepare(`INSERT INTO nhl_profile_sync_runs(id,season_id,team_key,status,source,started_at) VALUES(?,?,?,?,?,?)`)
-  .bind(runId,seasonId,tkey,"RUNNING",NHL_PERSISTENT_PROFILE_SOURCE,started).run();
+ await d1WriteRetry(()=>DB.prepare(`INSERT INTO nhl_profile_sync_runs(id,season_id,team_key,status,source,started_at) VALUES(?,?,?,?,?,?)`)
+  .bind(runId,seasonId,tkey,"RUNNING",NHL_PERSISTENT_PROFILE_SOURCE,started).run());
 
  try{
   const existingTracking=await trackingRows(DB,tkey);
@@ -602,7 +615,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    scheduleRows,s=>[s.id,s.seasonId,s.teamKey,s.gameId,s.gameType,s.startTime,s.gameState,teamKey(s.homeTeam),teamKey(s.awayTeam),s.opponentKey,s.site,s.venueName,s.neutralSite?1:0,
     s.daysRest,s.backToBack?1:0,s.threeInFour?1:0,s.fourInSix?1:0,s.roadTripGameNumber,s.travelMiles,s.timeZonesCrossed,s.scheduleStressScore,JSON.stringify(s.stressFlags),s.sourceUpdatedAt,JSON.stringify(s.raw)]);
 
-  await DB.prepare(`INSERT INTO nhl_team_profiles (
+  await d1WriteRetry(()=>DB.prepare(`INSERT INTO nhl_team_profiles (
    team_key,team_abbr,official_abbr,team_name,season_id,profile_version,roster_count,active_count,scratch_count,unavailable_count,
    next_game_id,next_game_start,next_opponent_key,next_site,rest_days,back_to_back,three_in_four,four_in_six,road_trip_game_number,travel_miles,
    time_zones_crossed,schedule_stress_score,schedule_flags_json,deployment_json,goalie_json,coach_json,style_json,state_confidence,source_updated_at,updated_at,profile_json
@@ -620,25 +633,25 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
     teamProfile.threeInFour?1:0,teamProfile.fourInSix?1:0,teamProfile.roadTripGameNumber,teamProfile.travelMiles,teamProfile.timeZonesCrossed,
     teamProfile.scheduleStressScore,JSON.stringify(teamProfile.scheduleFlags),JSON.stringify(teamProfile.deployment),JSON.stringify(teamProfile.goalie),
     JSON.stringify(teamProfile.coach),JSON.stringify(teamProfile.style),teamProfile.stateConfidence,teamProfile.sourceUpdatedAt,teamProfile.updatedAt,JSON.stringify(teamProfile.profile)
-  ).run();
+  ).run());
 
   const snapId=`nhl-profile-snapshot:${tkey}:${now.toISOString()}`;
-  await DB.prepare(`INSERT OR REPLACE INTO nhl_team_profile_snapshots(id,team_key,season_id,as_of,profile_json,created_at) VALUES(?,?,?,?,?,?)`)
-   .bind(snapId,tkey,seasonId,now.toISOString(),JSON.stringify(teamProfile.profile),now.toISOString()).run();
+  await d1WriteRetry(()=>DB.prepare(`INSERT OR REPLACE INTO nhl_team_profile_snapshots(id,team_key,season_id,as_of,profile_json,created_at) VALUES(?,?,?,?,?,?)`)
+   .bind(snapId,tkey,seasonId,now.toISOString(),JSON.stringify(teamProfile.profile),now.toISOString()).run());
   if(coach.headCoach){
    const cid=`nhl-coach:${tkey}:${seasonId}:${coach.headCoach.toLowerCase().replace(/[^a-z0-9]+/g,"-")}`;
-   await DB.prepare(`INSERT OR IGNORE INTO nhl_team_coach_history(id,team_key,season_id,coach_name,role,source,observed_at,raw_json,created_at) VALUES(?,?,?,?,?,?,?,?,?)`)
-    .bind(cid,tkey,seasonId,coach.headCoach,"HEAD_COACH","ESPN_METADATA",now.toISOString(),JSON.stringify(coach),now.toISOString()).run();
+   await d1WriteRetry(()=>DB.prepare(`INSERT OR IGNORE INTO nhl_team_coach_history(id,team_key,season_id,coach_name,role,source,observed_at,raw_json,created_at) VALUES(?,?,?,?,?,?,?,?,?)`)
+    .bind(cid,tkey,seasonId,coach.headCoach,"HEAD_COACH","ESPN_METADATA",now.toISOString(),JSON.stringify(coach),now.toISOString()).run());
   }
-  await DB.prepare(`UPDATE nhl_profile_sync_runs SET status='SUCCESS',completed_at=?,source_calls=?,roster_rows=?,schedule_rows=?,player_rows_upserted=?,goalie_rows_upserted=?,linemate_rows_upserted=?,deployment_rows_upserted=?,meta_json=? WHERE id=?`)
+  await d1WriteRetry(()=>DB.prepare(`UPDATE nhl_profile_sync_runs SET status='SUCCESS',completed_at=?,source_calls=?,roster_rows=?,schedule_rows=?,player_rows_upserted=?,goalie_rows_upserted=?,linemate_rows_upserted=?,deployment_rows_upserted=?,meta_json=? WHERE id=?`)
    .bind(now.toISOString(),6+(sources.detail?.length||0)*2+trackingFetched.length,roster.length,scheduleRows.length,players.length,goalies.length,linemates.length,deploymentRows.length,
-    JSON.stringify({team,official,latestGameId:latest?.game?.id||null,stateConfidence:teamProfile.stateConfidence}),runId).run();
+    JSON.stringify({team,official,latestGameId:latest?.game?.id||null,stateConfidence:teamProfile.stateConfidence,replacementObservations:replacementObservations.length}),runId).run());
   PROFILE_CACHE.clear();
   return{ok:true,team,teamKey:tkey,seasonId,players:players.length,goalies:goalies.length,scheduleRows:scheduleRows.length,linemates:linemates.length,
    shiftGames:shiftSets.filter(x=>x.rows.length).length,scratches:counts.scratches,stateConfidence:teamProfile.stateConfidence,latestGameId:latest?.game?.id||null,nextGameId:next?.gameId||null,
    bounded:true,requestTimeProjectionFetches:0};
  }catch(err){
-  await DB.prepare(`UPDATE nhl_profile_sync_runs SET status='FAILED',completed_at=?,error=? WHERE id=?`).bind(new Date().toISOString(),String(err?.message||err),runId).run().catch(()=>null);
+  await d1WriteRetry(()=>DB.prepare(`UPDATE nhl_profile_sync_runs SET status='FAILED',completed_at=?,error=? WHERE id=?`).bind(new Date().toISOString(),String(err?.message||err),runId).run()).catch(()=>null);
   return{ok:false,team,error:String(err?.message||err),bounded:true};
  }
 }
