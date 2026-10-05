@@ -47,11 +47,33 @@ function posType(x){return String(x?.position?.type||x?.position?.name||"").toLo
 function rosterRows(j){return (j?.roster||[]).map(r=>({id:String(r.person?.id||""),name:r.person?.fullName||null,position:r.position?.abbreviation||r.person?.primaryPosition?.abbreviation||null,positionType:r.position?.type||r.person?.primaryPosition?.type||null,status:r.status?.description||r.status?.code||"ACTIVE",batSide:r.person?.batSide?.code||r.person?.batSide?.description||null,pitchHand:r.person?.pitchHand?.code||r.person?.pitchHand?.description||null})).filter(x=>x.id&&x.name)}
 function coachRows(j){return (j?.roster||[]).map(r=>({id:String(r.person?.id||""),name:r.person?.fullName||null,role:r.jobTitle||r.job||r.position?.name||null})).filter(x=>x.id&&x.name)}
 function teamOffense(j){const stat=(j?.stats||[]).flatMap(x=>x.splits||[])[0]?.stat||{};const runs=finite(stat.runs),games=finite(stat.gamesPlayed),so=finite(stat.strikeOuts),pa=finite(stat.plateAppearances);return{runs,games,rpg:runs!=null&&games>0?runs/games:null,strikeOuts:so,plateAppearances:pa,kRate:so!=null&&pa>0?so/pa:null,avg:finite(stat.avg),obp:finite(stat.obp),slg:finite(stat.slg),ops:finite(stat.ops)}}
+function haversineMiles(a,b){
+  if(!a||!b||![a.lat,a.lon,b.lat,b.lon].every(Number.isFinite))return null;
+  const rad=x=>x*Math.PI/180,R=3958.7613;
+  const dLat=rad(b.lat-a.lat),dLon=rad(b.lon-a.lon);
+  const q=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(q)));
+}
+function venueState(g){
+  const loc=g?.venue?.location||{};
+  const coord=loc.defaultCoordinates||{};
+  const tz=g?.venue?.timeZone||{};
+  return{
+    venueId:g?.venue?.id?String(g.venue.id):null,
+    venueName:g?.venue?.name||null,
+    city:loc.city||null,
+    state:loc.stateAbbrev||loc.state||null,
+    lat:finite(coord.latitude),
+    lon:finite(coord.longitude),
+    timeZoneId:tz.id||null,
+    utcOffset:finite(tz.offset),
+  };
+}
 function scheduleRows(j,teamId,teamKey){
   const rows=(j?.dates||[]).flatMap(d=>d.games||[]).map(g=>{
     const home=g.teams?.home?.team||{},away=g.teams?.away?.team||{},isHome=String(home.id)===String(teamId),opp=isHome?away:home;
     const self=isHome?g.teams?.home:g.teams?.away;
-    return{gameId:String(g.gamePk||""),startTime:g.gameDate||null,opponentId:String(opp.id||""),opponentKey:opp.abbreviation||null,homeAway:isHome?"home":"away",gameType:g.gameType||null,seriesDescription:g.seriesDescription||null,seriesGameNumber:finite(g.seriesGameNumber),gamesInSeries:finite(g.gamesInSeries),doubleHeader:String(g.doubleHeader||"N")!=="N",completed:String(g.status?.abstractGameState||"").toLowerCase()==="final",dayNight:g.dayNight||null,probablePitcherId:self?.probablePitcher?.id?String(self.probablePitcher.id):null,probablePitcherName:self?.probablePitcher?.fullName||null,teamKey};
+    return{gameId:String(g.gamePk||""),startTime:g.gameDate||null,opponentId:String(opp.id||""),opponentKey:opp.abbreviation||null,homeAway:isHome?"home":"away",gameType:g.gameType||null,seriesDescription:g.seriesDescription||null,seriesGameNumber:finite(g.seriesGameNumber),gamesInSeries:finite(g.gamesInSeries),doubleHeader:String(g.doubleHeader||"N")!=="N",completed:String(g.status?.abstractGameState||"").toLowerCase()==="final",dayNight:g.dayNight||null,probablePitcherId:self?.probablePitcher?.id?String(self.probablePitcher.id):null,probablePitcherName:self?.probablePitcher?.fullName||null,venue:venueState(g),teamKey};
   }).filter(x=>x.gameId&&x.startTime).sort((a,b)=>Date.parse(a.startTime)-Date.parse(b.startTime));
   let road=0;
   for(let i=0;i<rows.length;i++){
@@ -59,6 +81,9 @@ function scheduleRows(j,teamId,teamKey){
     if(cur.homeAway==="away")road++;else road=0;
     cur.restDays=rest;cur.consecutiveRoadGames=cur.homeAway==="away"?road:0;
     cur.dayAfterNight=Boolean(prev&&String(prev.dayNight).toLowerCase()==="night"&&String(cur.dayNight).toLowerCase()==="day"&&rest===0);
+    cur.travelMiles=prev?haversineMiles(prev.venue,cur.venue):0;
+    const prevOffset=finite(prev?.venue?.utcOffset),curOffset=finite(cur?.venue?.utcOffset);
+    cur.timeZoneShiftHours=prevOffset!=null&&curOffset!=null?curOffset-prevOffset:null;
   }
   return rows;
 }
@@ -106,7 +131,7 @@ async function one(team){
     getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active&season=${season}&hydrate=person`),
     getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=40Man&season=${season}&hydrate=person`).catch(()=>({roster:[]})),
     getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/coaches?season=${season}`).catch(()=>({roster:[]})),
-    getJson(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${teamId}&season=${season}&gameType=R,F,D,L,W&hydrate=probablePitcher`),
+    getJson(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${teamId}&season=${season}&gameType=R,F,D,L,W&hydrate=probablePitcher,venue`),
     getJson(`https://statsapi.mlb.com/api/v1/stats?stats=season&group=pitching&teamId=${teamId}&season=${season}&playerPool=ALL&limit=100`).catch(()=>({stats:[]})),
     getJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/stats?stats=season&group=hitting&season=${season}`).catch(()=>({stats:[]}))
   ]);
@@ -150,8 +175,10 @@ for(const t of results){
   const notIn40=current40.length?` AND player_id NOT IN (${current40.map(q).join(",")})`:"";
   sql.push(`UPDATE mlb_player_state_profiles SET roster_status='NOT_ON_40_MAN',carried_forward=0,as_of=${q(asOf)},state_source='MLB_STATS_ROSTER_TRANSITION',updated_at=${q(createdAt)} WHERE team_id=${q(t.teamId)}${notIn40};`);
   for(const p of forty.values()){
-    const status=active.has(p.id)?"ACTIVE":"40_MAN_NOT_ACTIVE";
-    const pp={...p,teamId:t.teamId,teamKey:t.teamKey,rosterStatus:status,asOf,source:"MLB_STATS_ROSTER"};
+    const activeRow=active.get(p.id)||null;
+    const sourceStatus=activeRow?.status||p.status||null;
+    const status=activeRow?"ACTIVE":(/injur|bereave|paternity|suspend/i.test(String(sourceStatus||""))?String(sourceStatus).toUpperCase().replace(/[^A-Z0-9]+/g,"_"):"40_MAN_NOT_ACTIVE");
+    const pp={...p,teamId:t.teamId,teamKey:t.teamKey,rosterStatus:status,sourceStatus,asOf,source:"MLB_STATS_ROSTER"};
     sql.push(`INSERT INTO mlb_player_state_profiles (player_id,player_name,team_id,team_key,position,roster_status,as_of,state_source,carried_forward,profile_json,created_at,updated_at) VALUES (${q(p.id)},${q(p.name)},${q(t.teamId)},${q(t.teamKey)},${q(p.position)},${q(status)},${q(asOf)},'MLB_STATS_ROSTER',0,${q(JSON.stringify(pp))},COALESCE((SELECT created_at FROM mlb_player_state_profiles WHERE player_id=${q(p.id)}),${q(createdAt)}),${q(createdAt)}) ON CONFLICT(player_id) DO UPDATE SET player_name=excluded.player_name,team_id=excluded.team_id,team_key=excluded.team_key,position=excluded.position,roster_status=excluded.roster_status,as_of=excluded.as_of,state_source=excluded.state_source,carried_forward=0,profile_json=excluded.profile_json,updated_at=excluded.updated_at;`);
   }
   for(const p of t.pitchers){const prof={...p,teamId:t.teamId,teamKey:t.teamKey};sql.push(`INSERT INTO mlb_pitcher_profiles (player_id,player_name,team_id,team_key,as_of,innings_per_start,batters_faced_per_inning,expected_innings,recent_velocity,recent_pitch_mix_json,statcast_profile_json,profile_json,source_version,created_at,updated_at) VALUES (${q(p.id)},${q(p.name)},${q(t.teamId)},${q(t.teamKey)},${q(asOf)},${num(p.inningsPerStart)},${num(p.battersFacedPerInning)},${num(p.expectedInnings)},${num(p.statcastProfile?.global?.velocity)},${q(JSON.stringify(p.statcastProfile?.family||{}))},${q(JSON.stringify(p.statcastProfile||null))},${q(JSON.stringify(prof))},'mlb-state-v2',COALESCE((SELECT created_at FROM mlb_pitcher_profiles WHERE player_id=${q(p.id)}),${q(createdAt)}),${q(createdAt)}) ON CONFLICT(player_id) DO UPDATE SET player_name=excluded.player_name,team_id=excluded.team_id,team_key=excluded.team_key,as_of=excluded.as_of,innings_per_start=excluded.innings_per_start,batters_faced_per_inning=excluded.batters_faced_per_inning,expected_innings=excluded.expected_innings,recent_velocity=excluded.recent_velocity,recent_pitch_mix_json=excluded.recent_pitch_mix_json,statcast_profile_json=excluded.statcast_profile_json,profile_json=excluded.profile_json,source_version=excluded.source_version,updated_at=excluded.updated_at;`)}
