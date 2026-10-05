@@ -146,7 +146,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
         <div><span>FBIS TOTAL</span><strong>{proj.total ?? "—"}</strong></div>
         <div><span>MARKET TOTAL</span><strong>{market.total ?? "—"}</strong></div>
       </section>
-      {(action.available || isNfl) ? (
+      {true ? (
         <section className={`pgc-nfl-action${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="pgc-nfl-action-head"><strong>ACTION</strong><span>{action.headline?.label || (action.available ? "MARKET INTEL" : action.emptyLabel || "NO SNAPSHOT")}</span></div>
           <div><span>TICKETS</span><strong>{splitLabel(action.tickets, away, home)}</strong></div>
