@@ -1,0 +1,60 @@
+import TeamLogo from "../TeamLogo.jsx";
+import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
+import "./tennisMatchCard.css";
+
+const n=v=>{const x=Number(v);return Number.isFinite(x)?x:null};
+const pct=v=>n(v)==null?"—":`${(n(v)*100).toFixed(1)}%`;
+const probPct=v=>n(v)==null?"—":`${n(v).toFixed(1)}%`;
+const odds=v=>{const x=n(v);if(x==null)return"—";const q=Math.round(x);return q>0?`+${q}`:String(q)};
+const line=v=>{const x=n(v);if(x==null)return"—";return x>0?`+${x}`:String(x)};
+const fair=p=>{const x=n(p);if(x==null||x<=0||x>=1)return"—";const a=x>=.5?-100*x/(1-x):100*(1-x)/x;return odds(a)};
+const playerMeta=(p,tour)=>{const r=n(p?.rank),pts=n(p?.rankingPoints);return [r!=null?`${tour} #${Math.round(r)}`:`${tour} UNRANKED`,pts!=null?`${Math.round(pts).toLocaleString()} points`:null].filter(Boolean).join("  |  ")};
+const splitRow=(market,side,row)=>row?<tr><td>{market}</td><td>{side||"—"}</td><td>{row.ticketPct==null?"—":`${Math.round(row.ticketPct)}%`}</td><td>{row.moneyPct==null?"—":`${Math.round(row.moneyPct)}%`}</td><td className={Number(row.moneyTicketGap)>=0?"tmc-good":"tmc-bad"}>{row.moneyTicketGap==null?"—":`${Number(row.moneyTicketGap)>0?"+":""}${Math.round(row.moneyTicketGap)}%`}</td></tr>:null;
+
+export default function TennisMatchCard({game,open=false,onToggle,renderDetail=null}){
+  const away=game?.away||{},home=game?.home||{},t=game?.tennisProjection||{},ref=game?.market?.reference||{},intel=game?.actionIntel||{};
+  const tour=String(game?.tour||t?.tour||"TENNIS").toUpperCase();
+  const pAway=n(t.player2WinProb),pHome=n(t.player1WinProb),mHome=n(t.marketPriorP1??ref?.noVig?.home),mAway=n(t.marketPriorP2??ref?.noVig?.away);
+  const edgeHome=pHome!=null&&mHome!=null?(pHome-mHome)*100:null,edgeAway=pAway!=null&&mAway!=null?(pAway-mAway)*100:null;
+  const best=edgeHome==null?null:(edgeHome>=0?{p:home,e:edgeHome}:{p:away,e:Math.abs(edgeAway)});
+  const spread=ref?.spread||{},total=ref?.total||{},ml=ref?.moneyline||{};
+  const markets=Array.isArray(intel?.publicSplits?.markets)?intel.publicSplits.markets:[];
+  const spIntel=markets.find(x=>String(x.market).toUpperCase()==="SPREAD");
+  const totIntel=markets.find(x=>String(x.market).toUpperCase()==="TOTAL");
+  const mlIntel=intel?.publicSplits&&(intel.publicSplits.ticketPct!=null||intel.publicSplits.moneyPct!=null)?intel.publicSplits:null;
+  const cardKey=`tennis:${game?.id||""}`;
+  const surface=[t.surface?String(t.surface).toUpperCase():null,t.indoor===true?"INDOOR":t.indoor===false?"OUTDOOR":null].filter(Boolean).join(" · ");
+  const when=game?.start?new Date(game.start):null;
+  const time=when&&Number.isFinite(when.getTime())?when.toLocaleString("en-US",{timeZone:"America/Chicago",weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true}):"—";
+  const status=game?.publicationStatus||"RESEARCH";
+  return <article className="tmc">
+    <header className="tmc-top"><div><b>TENNIS</b><strong>{t.tournament||tour}</strong><span>{tour}</span><span>{surface||"SURFACE —"}</span></div><div><span>{time} CT</span><em>{status.includes("RESEARCH")?"RESEARCH":status}</em></div></header>
+    <section className="tmc-hero">
+      <div className="tmc-player"><TeamLogo team={away} size={150}/><div><h2>{away.fullName||away.name}</h2><p>{playerMeta(away,tour)}</p><strong>{pct(pAway)}</strong><small>FBIS WIN PROBABILITY</small><b>{fair(pAway)}<i>FBIS FAIR ML</i></b></div></div>
+      <div className="tmc-vs">VS</div>
+      <div className="tmc-player tmc-home"><div><h2>{home.fullName||home.name}</h2><p>{playerMeta(home,tour)}</p><strong>{pct(pHome)}</strong><small>FBIS WIN PROBABILITY</small><b>{fair(pHome)}<i>FBIS FAIR ML</i></b></div><TeamLogo team={home} size={150}/></div>
+      <aside className="tmc-edge"><span>BEST EDGE</span><b>{best?.p?.fullName||best?.p?.name||"NO EDGE"}</b><strong>{best?`+${Math.abs(best.e).toFixed(1)}%`:"—"}</strong><small>MODEL EDGE</small><em>RESEARCH</em></aside>
+    </section>
+    <div className="tmc-main">
+      <section className="tmc-panel tmc-odds"><h3>MARKET ODDS</h3><table><thead><tr><th></th><th>MONEYLINE</th><th>GAME SPREAD</th><th>TOTAL GAMES</th></tr></thead><tbody>
+        <tr><td>{away.fullName||away.name}</td><td>{odds(ml.away)}</td><td>{spread.away==null?"—":`${line(spread.away)} (${odds(spread.awayPrice)})`}</td><td>{total.line==null?"—":`O ${total.line} (${odds(total.overPrice)})`}</td></tr>
+        <tr><td>{home.fullName||home.name}</td><td>{odds(ml.home)}</td><td>{spread.home==null?"—":`${line(spread.home)} (${odds(spread.homePrice)})`}</td><td>{total.line==null?"—":`U ${total.line} (${odds(total.underPrice)})`}</td></tr>
+        <tr className="tmc-market"><td>MARKET NO-VIG</td><td>{mAway==null?"—":pct(mAway)} / {mHome==null?"—":pct(mHome)}</td><td colSpan="2">Market benchmark</td></tr>
+        <tr className="tmc-fbis"><td>FBIS WIN PROB</td><td>{pct(pAway)} / {pct(pHome)}</td><td colSpan="2">Independent model</td></tr>
+        <tr><td>EDGE (VS NO-VIG)</td><td className={edgeHome>=0?"tmc-good":"tmc-bad"}>{edgeAway==null?"—":`${edgeAway>0?"+":""}${edgeAway.toFixed(1)}%`} / {edgeHome==null?"—":`${edgeHome>0?"+":""}${edgeHome.toFixed(1)}%`}</td><td colSpan="2">Research only</td></tr>
+      </tbody></table></section>
+      <aside className="tmc-panel tmc-info"><h3>MATCH INFO</h3><dl><dt>Tournament</dt><dd>{t.tournament||"—"}</dd><dt>Tour</dt><dd>{tour}</dd><dt>Surface</dt><dd>{surface||"—"}</dd><dt>Court Speed</dt><dd>{t.courtSpeedIndex??"—"}</dd><dt>Market Source</dt><dd>{t.marketProvider||ref.provider||"—"}</dd><dt>Sportsbook</dt><dd>{t.sportsbook||"Consensus"}</dd></dl></aside>
+    </div>
+    <div className="tmc-lower">
+      <section className="tmc-panel tmc-action"><h3>ACTION MARKET INTELLIGENCE <span>ACTION ●</span></h3><table><thead><tr><th>MARKET</th><th>SIDE</th><th>TICKETS</th><th>MONEY</th><th>GAP</th></tr></thead><tbody>
+        {splitRow("Moneyline",best?.p?.fullName||best?.p?.name,mlIntel)}
+        {splitRow("Spread",spread.home!=null?`${home.abbr} ${line(spread.home)}`:"—",spIntel)}
+        {splitRow("Total",total.line!=null?`O/U ${total.line}`:"—",totIntel)}
+        {!mlIntel&&!spIntel&&!totIntel?<tr><td colSpan="5">NO ACTION SNAPSHOT</td></tr>:null}
+      </tbody></table></section>
+      <section className="tmc-panel tmc-context"><h3>MATCH CONTEXT</h3><div><span>Surface</span><b>{surface||"—"}</b></div><div><span>Player rankings</span><b>{away.rank?"#"+away.rank:"—"} vs {home.rank?"#"+home.rank:"—"}</b></div><div><span>Market updated</span><b>{ref.observedAt?new Date(ref.observedAt).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"—"}</b></div><div><span>Model</span><b>{game?.model?.name||game?.modelId||"Tennis-FBIS-v2"}</b></div></section>
+    </div>
+    <footer className="tmc-footer"><span>FBIS TENNIS · MARKET INTELLIGENCE · {status}</span>{typeof onToggle==="function"?<button onClick={()=>onToggle(cardKey)}>{open?"Hide Details":"View Details"} →</button>:null}</footer>
+    {open?<div className="tmc-advanced"><AdvancedGameDetail game={game} onClose={()=>onToggle?.(cardKey)}/>{typeof renderDetail==="function"?renderDetail(game):null}</div>:null}
+  </article>;
+}
