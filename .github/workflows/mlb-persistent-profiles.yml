@@ -1,4 +1,5 @@
 name: MLB persistent team profiles
+# Timeout-safe: six source shards + one batched D1 import.
 
 on:
   workflow_dispatch:
@@ -96,10 +97,23 @@ jobs:
             done
           }
           retry_cf npx wrangler d1 execute fbis --remote --file=migrations/0055_mlb_persistent_profiles.sql
-          find artifacts/mlb-profile-shards -name '*.sql' -print0 | sort -z | while IFS= read -r -d '' f; do
-            echo "Applying $f"
-            retry_cf npx wrangler d1 execute fbis --remote --file="$f"
+          # D1 supports large import files; concatenate the already bounded
+          # per-statement SQL parts into one import so persistence pays the
+          # Cloudflare CLI/network overhead once instead of dozens of times.
+          # Individual statements remain below D1's statement-size limit.
+          mapfile -d '' sql_files < <(find artifacts/mlb-profile-shards -name '*.sql' -print0 | sort -z)
+          if [ "${#sql_files[@]}" -eq 0 ]; then
+            echo "No MLB profile SQL artifacts found"
+            exit 1
+          fi
+          : > artifacts/mlb-persistent-profiles-batch.sql
+          for f in "${sql_files[@]}"; do
+            echo "-- source: $f" >> artifacts/mlb-persistent-profiles-batch.sql
+            cat "$f" >> artifacts/mlb-persistent-profiles-batch.sql
+            printf '\n' >> artifacts/mlb-persistent-profiles-batch.sql
           done
+          echo "Applying combined MLB profile batch ($(wc -c < artifacts/mlb-persistent-profiles-batch.sql) bytes)"
+          retry_cf npx wrangler d1 execute fbis --remote --file=artifacts/mlb-persistent-profiles-batch.sql
       - name: Archive current profile state
         if: github.ref == 'refs/heads/main'
         env:
