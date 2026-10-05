@@ -132,6 +132,18 @@ export const SPORTS = {
     minEv: 0.03,
     maxProb: 0.72,
   },
+  tennis: {
+    id: "tennis",
+    label: "TENNIS",
+    name: "ATP / WTA Tennis",
+    espn: null,
+    k: 1,
+    totalK: 1,
+    minSpreadEdge: 999,
+    minMlEdge: 1,
+    minEv: 1,
+    maxProb: 1,
+  },
   cfb: {
     id: "cfb",
     label: "CFB",
@@ -146,7 +158,7 @@ export const SPORTS = {
   },
 };
 
-export const BOARD_SPORTS = ["mlb", "npb", "kbo", "nba", "wnba", "nhl", "nfl", "cfb", "cbb", "soccer"];
+export const BOARD_SPORTS = ["mlb", "npb", "kbo", "nba", "wnba", "nhl", "nfl", "cfb", "cbb", "soccer", "tennis"];
 
 export function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
