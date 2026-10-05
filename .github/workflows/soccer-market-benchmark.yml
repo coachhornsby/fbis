@@ -2,6 +2,10 @@ name: Soccer-FBIS market benchmark
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "data/models/soccer-market-benchmark-trigger.json"
 
 permissions:
   contents: read
@@ -35,12 +39,12 @@ jobs:
       - name: Reuse latest successful walk-forward artifact
         run: |
           set -euo pipefail
-          run_id="$(gh run list --workflow soccer-form-walkforward.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          run_id="$(gh run list --workflow soccer-v2-walkforward.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
           test -n "$run_id"
-          echo "using walk-forward run $run_id"
+          echo "using v2 walk-forward run $run_id"
           mkdir -p artifacts
-          gh run download "$run_id" -n "soccer-form-walkforward-$run_id" -D artifacts
-          test -s artifacts/soccer-form-walkforward-rows.jsonl
+          gh run download "$run_id" -n "soccer-v2-walkforward-$run_id" -D artifacts
+          test -s artifacts/soccer-v2-walkforward-rows.jsonl
 
       - name: Benchmark bounded sample against Zen ACTION no-vig 1X2
         run: node scripts/soccer-market-benchmark.mjs
