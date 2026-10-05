@@ -6,7 +6,7 @@
  * strictly from earlier completed matches; the classifier updates only after
  * the result is observed.
  */
-import { normalizeSoccerName, loadPitchApiHistory, loadEligiblePitchApiLineups } from "./soccerPitchApiStore.js";
+import { normalizeSoccerName, loadPitchApiHistory, loadEligiblePitchApiLineups, findPitchApiFixture } from "./soccerPitchApiStore.js";
 
 export const SOCCER_FBIS_V3_ID="SOCCER-FBIS-v3";
 export const SOCCER_FBIS_V3_VERSION="research-v1-pitchapi-advanced";
@@ -96,9 +96,10 @@ export async function attachSoccerV3Research(games=[],env={}){
     for(const g of gs){
       const v2=g.soccerFbisV2||g.soccerFbis||g.researchProjection;
       const p=projectSoccerV3(g,v2,rows);
-      let lineups=[];if(p.pitchMatchId)lineups=await loadEligiblePitchApiLineups(env,{pitchMatchId:p.pitchMatchId,cutoff:g.start||g.date}).catch(()=>[]);
+      const fixture=await findPitchApiFixture(env,{leagueKey:league,date:String(g.start||g.date||"").slice(0,10),homeName:g.home?.name,awayName:g.away?.name}).catch(()=>null);
+      let lineups=[];if(fixture?.pitch_match_id)lineups=await loadEligiblePitchApiLineups(env,{pitchMatchId:fixture.pitch_match_id,cutoff:g.start||g.date}).catch(()=>[]);
       if(lineups.length)lineupEligible++;
-      const enriched={...p,lineupEvidence:{eligible:lineups.length>0,count:lineups.length,policy:"pre-kick-observations-only"}};
+      const enriched={...p,pitchMatchId:fixture?.pitch_match_id||p.pitchMatchId||null,lineupEvidence:{eligible:lineups.length>0,count:lineups.length,confirmedSides:lineups.filter(x=>Number(x.confirmed)===1).length,policy:"pre-kick-observations-only"}};
       if(p.ok)available++;else missing++;
       out.set(String(g.id),{...g,soccerFbisV3:enriched,challengers:{...(g.challengers||{}),[SOCCER_FBIS_V3_ID]:enriched}});
     }
