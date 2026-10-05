@@ -46,7 +46,7 @@ function playerAvailabilityGate(game = {}, sport = "", player = {}, team = null)
   if (["OUT","IR","PUP","NFI","SUSPENDED"].includes(status)) {
     return { state:"BLOCKED", reason:"player_unavailable", status, match, preflight };
   }
-  if (["DOUBTFUL","QUESTIONABLE","LIMITED"].includes(status)) {
+  if (["DOUBTFUL","QUESTIONABLE","DNP_PRACTICE","LIMITED"].includes(status)) {
     return { state:"HOLD", reason:"player_status_unresolved", status, match, preflight };
   }
   if (sport === "nhl" && String(player?.position || "").toUpperCase() === "G") {
