@@ -98,6 +98,22 @@ jobs:
           test "$code" = "200"
           jq -e '.ok == true' "$body" >/dev/null
 
+      - name: Build tennis v2 research decisions from persisted ACTION
+        if: always()
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 120 -X POST \\
+            -H "x-harvest-secret: ${HARVEST_SECRET}" \\
+            -H "content-type: application/json" \\
+            -d '{"mode":"all","hours":24,"limit":200}' \\
+            -o "$body" -w "%{http_code}" \\
+            "$BASE/api/tennis-v2-snapshot?_t=$(date +%s)")"
+          cat "$body"
+          test "$code" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+          jq -e '.captured >= 0 and .decisionInserted >= 0' "$body" >/dev/null
+
       - name: Snapshot NFL wager decisions after ACTION refresh
         if: always()
         run: |
