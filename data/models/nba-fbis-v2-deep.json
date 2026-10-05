@@ -1,0 +1,55 @@
+{
+  "id": "nba-fbis-v2-deep-research",
+  "modelId": "NBA-FBIS-v2-DEEP",
+  "version": "research-v1",
+  "role": "prospective-shadow-challenger",
+  "incumbent": "NBA-FBIS-v1",
+  "marketInformed": false,
+  "canQualify": false,
+  "canAuthorizeWager": false,
+  "trainingCutoff": "2025-06-22T23:59:59Z",
+  "burnedHoldoutStart": "2025-10-21T00:00:00Z",
+  "featureCount": 57,
+  "featureFamilies": [
+    "opponent_adjusted_four_factors",
+    "pbp_shot_profile",
+    "actual_venue_rest_travel",
+    "timezone_and_altitude",
+    "expected_lineup_strength",
+    "lineup_continuity",
+    "point_in_time_availability",
+    "nonlinear_matchup_interactions"
+  ],
+  "architecture": {
+    "baseModel": "NBA-FBIS-v1",
+    "residualLinear": "standardized_ridge",
+    "nonlinearResidual": "boosted_decision_stumps",
+    "targets": [
+      "margin_residual",
+      "total_residual"
+    ],
+    "independent": true
+  },
+  "historicalValidation": {
+    "trainN": 1225,
+    "holdoutN": 1322,
+    "incumbentMarginMae": 11.559077155824511,
+    "challengerMarginMae": 11.657118157324858,
+    "marginImprovement": -0.008481732596701704,
+    "incumbentTotalMae": 15.933207261724647,
+    "challengerTotalMae": 15.375033292446878,
+    "totalImprovement": 0.03503211626567087,
+    "incumbentWinnerAccuracy": 0.6694402420574886,
+    "challengerWinnerAccuracy": 0.6709531013615734,
+    "decision": "RETAIN_RESEARCH"
+  },
+  "promotion": {
+    "historicalHoldoutReusableForTuning": false,
+    "prospectiveSeason": "2026-27",
+    "minimumProspectiveGames": 100,
+    "requireMarginImprovement": 0.005,
+    "requireTotalImprovement": 0.003,
+    "maxWinnerAccuracyRegression": 0.005,
+    "autoPromote": false
+  }
+}
