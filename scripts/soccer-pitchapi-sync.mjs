@@ -5,6 +5,8 @@ const HARVEST=process.env.HARVEST_SECRET||"";
 const leagueKey=String(process.argv[2]||"");
 const seasonArg=String(process.argv[3]||"");
 const maxMatches=Math.max(1,Math.min(80,Number(process.env.PITCHAPI_MAX_MATCHES)||24));
+const offset=Math.max(0,Number(process.env.PITCHAPI_OFFSET)||0);
+const mode=String(process.env.PITCHAPI_MODE||"historical").toLowerCase();
 const concurrency=Math.max(1,Math.min(4,Number(process.env.PITCHAPI_CONCURRENCY)||3));
 if(!KEY||!HARVEST||!leagueKey){console.error("usage: PITCHAPI_API_KEY=... HARVEST_SECRET=... node scripts/soccer-pitchapi-sync.mjs <leagueKey> [season]");process.exit(2);}
 const ALIASES={
@@ -120,8 +122,14 @@ async function postBundles(bundles){
 const leagueData=await api("/v1/leagues"),league=findLeague(leagueData?.leagues||[]);
 if(!league){console.error(`PitchAPI league mapping unresolved for ${leagueKey}`);process.exit(4);}
 const season=seasonArg||league.seasons?.[0];if(!season)throw new Error("season-unavailable");
-const list=await api(`/v1/leagues/${league.id}/matches?season=${encodeURIComponent(season)}`);
-const matches=(list?.matches||[]).filter(m=>m.status==="finished").slice(-maxMatches);
+const status=mode==="live"?"all":"played";
+const list=await api(`/v1/leagues/${league.id}/matches?season=${encodeURIComponent(season)}&status=${status}`);
+let candidates=(list?.matches||[]).sort((a,b)=>String(a.time_utc||a.date).localeCompare(String(b.time_utc||b.date)));
+if(mode==="live"){
+  const today=new Date(),lo=new Date(today.getTime()-8*86400000).toISOString().slice(0,10),hi=new Date(today.getTime()+3*86400000).toISOString().slice(0,10);
+  candidates=candidates.filter(m=>String(m.date)>=lo&&String(m.date)<=hi);
+}else candidates=candidates.filter(m=>m.status==="finished");
+const matches=candidates.slice(offset,offset+maxMatches);
 let persisted=0,analyticsUnavailable=0,errors=0;
 for(let i=0;i<matches.length;i+=concurrency){
   const chunk=matches.slice(i,i+concurrency);
@@ -140,5 +148,5 @@ for(let i=0;i<matches.length;i+=concurrency){
   }))).filter(Boolean);
   for(let x=0;x<bundles.length;x+=10){const r=await postBundles(bundles.slice(x,x+10));persisted+=Number(r.matches||0);}
 }
-console.log(JSON.stringify({ok:errors===0,leagueKey,pitchLeagueId:league.id,pitchLeagueName:league.name,season,matchesSeen:matches.length,persisted,analyticsUnavailable,errors,marketUsed:false}));
+console.log(JSON.stringify({ok:errors===0,mode,leagueKey,pitchLeagueId:league.id,pitchLeagueName:league.name,season,offset,maxMatches,matchesSeen:matches.length,persisted,analyticsUnavailable,errors,marketUsed:false}));
 if(errors)process.exitCode=3;
