@@ -47,6 +47,28 @@ describe("sport matchup factors", () => {
     assert.ok(rows.some(r=>r.id==="starter-home"));
   });
 
+
+  it("prefers frozen NBA-FBIS-v1 decomposition for deep matchup factors", () => {
+    const game={sport:"nba",home:{abbr:"HOU"},away:{abbr:"SAS"},
+      nbaFbisV1:{ok:true,home:118.4,away:111.2,margin:7.2,expectedPossessions:101.3,decomposition:{
+        home:{off:119.8,def:111.2,pace:101.8,efg:.574,tov:.121,orb:.286,ftr:.261},
+        away:{off:113.0,def:116.4,pace:99.8,efg:.528,tov:.148,orb:.241,ftr:.224},
+        homeRest:{pts:0},awayRest:{pts:-1.1},homeAvailability:{points:0},awayAvailability:{points:-2.2}
+      }},
+      basketballForm:{ok:true,decomposition:{home:{offense:118,defenseAllowed:112},away:{offense:113,defenseAllowed:116},matchup:{homeExpected:117,awayExpected:112}}}
+    };
+    const rows=buildMatchupFactors(game);
+    assert.ok(rows.some(r=>r.id==="efficiency" && r.edge==="HOU"));
+    assert.ok(rows.some(r=>r.id==="efg"));
+    assert.ok(rows.some(r=>r.id==="turnovers"));
+    assert.ok(rows.some(r=>r.id==="rebounding"));
+    assert.ok(rows.some(r=>r.id==="free-throws"));
+    assert.ok(rows.some(r=>r.id==="rest"));
+    assert.ok(rows.some(r=>r.id==="availability"));
+    assert.ok(rows.some(r=>r.id==="projection"));
+    assert.ok(rows.every(r=>String(r.source).includes("NBA-FBIS-v1")));
+  });
+
   it("publishes NBA scoreboard-form matchup evidence only", () => {
     const game={sport:"nba",home:{abbr:"HOU"},away:{abbr:"SAS"},basketballForm:{ok:true,decomposition:{
       home:{offense:118.2,defenseAllowed:111.4},away:{offense:113.1,defenseAllowed:116.7},
