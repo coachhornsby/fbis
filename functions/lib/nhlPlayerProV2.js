@@ -1,6 +1,7 @@
 import { NHL_PLAYER_PRO_V2_ARTIFACT } from "../../data/models/nhl-player-pro-v2.js";
 import { playerTrackingFor } from "./nhlPlayerTrackingV3.js";
 import { opportunityForGame, opportunityForPlayer } from "./nhlOpportunityV4.js";
+import { persistentPlayerFor } from "./nhlPersistentProfiles.js";
 
 export const NHL_PLAYER_PRO_V2_ID="NHL-PLAYER-PRO-v2";
 export const NHL_PLAYER_PRO_V2_VERSION="research-v2.0-share-environment";
@@ -61,7 +62,10 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
   const oppSide=opportunity?.[side]||null;
   for(const x of rates){
     const p=x.p,role=opportunityForPlayer(opportunity,side,p.id);
-    if(role?.scratched)continue;
+    const persistent=persistentPlayerFor(ctx,team,p.id);
+    const persistentAgeMs=Date.now()-Date.parse(persistent?.source_updated_at||"");
+    const persistentUnavailable=Number.isFinite(persistentAgeMs)&&persistentAgeMs<=7*86400000&&["OUT","IR"].includes(String(persistent?.availability_state||"").toUpperCase());
+    if(role?.scratched||persistentUnavailable)continue;
     const shareShots=teamShots*(x.shots/shotSum);
     const roleShot=finite(role?.shotMultiplier)??1,rolePoint=finite(role?.pointMultiplier)??1,roleToi=finite(role?.toiMultiplier)??1,rolePp=finite(role?.ppMultiplier)??1;
     const deploymentFactor=clamp(.62*roleToi+.38*rolePp,.82,1.28);
@@ -87,8 +91,18 @@ export function nhlPlayerProV2RowsForSide(game,side,ctx={}){
         }:null,
         trackingAdvisory:playerTrackingFor(ctx,p.id),
         opportunityAdjustment:role?{...role,teamScratchCount:oppSide?.scratched?.length||0,source:opportunity?.source||null}:null,
+        persistentRoleContext:persistent?{
+          modelId:"NHL-PERSISTENT-PROFILE-v1",
+          availabilityState:persistent.availability_state||null,
+          gameState:persistent.game_state||null,
+          evLine:finite(persistent.ev_line),dPair:finite(persistent.d_pair),ppUnit:finite(persistent.pp_unit),pkUnit:finite(persistent.pk_unit),
+          rollingToiSeconds:finite(persistent.rolling_toi_seconds),rollingPpToiSeconds:finite(persistent.rolling_pp_toi_seconds),
+          roleConfidence:finite(persistent.role_confidence),stateConfidence:finite(persistent.state_confidence),
+          replacements:persistent.replacements||[],linemates:persistent.linemates||[],
+          appliedToProjection:false,researchOnly:true
+        }:null,
         matchupTrackingAdvisory:game?.nhlProV2?.layers?.tracking?.player?.[side]||null,
-        notes:"Point-in-time player rate/share model tied to NHL-PRO-v2. Official gamecenter scratches remove unavailable players; vacated TOI/PP/shot/point opportunity is redistributed to active teammates. Market prices remain outside the projection."
+        notes:"Point-in-time player rate/share model tied to NHL-PRO-v2. Official gamecenter scratches remove unavailable players; fresh persisted OUT/IR state is a fail-soft availability fallback. Persisted line/PP/linemate state is attached for research but does not change the projection until validated. Market prices remain outside the projection."
       });
     }
   }
