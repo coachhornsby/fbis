@@ -209,6 +209,7 @@ while(i<all.length){
       predP1Aces:proj.playerMetrics[0].aces.mean,actualP1Aces:finite(row[`${p1side}_ace`]),
       predP1Df:proj.playerMetrics[0].double_faults.mean,actualP1Df:finite(row[`${p1side}_df`]),
       predP1Bp:proj.playerMetrics[0].break_points_won.mean,actualP1Bp:actualBpWon(row,p1side),
+      p1Rank,p2Rank,
       rankFavoriteCorrect:p1Rank!=null&&p2Rank!=null?(p1Rank<p2Rank)===(winnerFirst):null,
       p1History:p1.historicalMatches,p2History:p2.historicalMatches,
     });
