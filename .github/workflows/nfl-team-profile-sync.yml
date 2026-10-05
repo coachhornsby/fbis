@@ -74,24 +74,35 @@ jobs:
           echo "Production SHA did not converge before bounded wait expired."
           exit 1
 
-      - name: Sync four-team profile batch
+      - name: Sync four-team profile batch one team at a time
         env:
           BASE: https://fbis-myz.pages.dev
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
           TEAMS: ${{ matrix.teams }}
         run: |
           set -euo pipefail
-          out="$(mktemp)"
-          code="$(curl -sS --max-time 100 --retry 1 --retry-delay 3             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$out" -w "%{http_code}"             "${BASE}/api/nfl-team-profile-sync?teams=${TEAMS}")"
-          cat "$out"
-          test "$code" = "200"
-          jq -e '.ok == true and .failed == 0 and .succeeded == 4' "$out" >/dev/null
+          failures=0
+          successes=0
+          IFS=',' read -r -a team_array <<< "$TEAMS"
+          for team in "${team_array[@]}"; do
+            out="$(mktemp)"
+            echo "syncing team=${team}"
+            code="$(curl -sS --max-time 55 --retry 1 --retry-delay 2               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "accept: application/json"               -o "$out" -w "%{http_code}"               "${BASE}/api/nfl-team-profile-sync?team=${team}" || true)"
+            cat "$out"
+            if [ "$code" = "200" ] && jq -e '.ok == true and .failed == 0 and .succeeded == 1' "$out" >/dev/null; then
+              successes=$((successes+1))
+            else
+              failures=$((failures+1))
+            fi
+          done
           {
             echo "## NFL profile batch ${{ matrix.batch }}"
             echo "- teams: ${TEAMS}"
-            echo "- succeeded: $(jq -r '.succeeded' "$out")"
-            echo "- failed: $(jq -r '.failed' "$out")"
+            echo "- succeeded: ${successes}"
+            echo "- failed: ${failures}"
           } >> "$GITHUB_STEP_SUMMARY"
+          test "$successes" = "4"
+          test "$failures" = "0"
 
   verify:
     name: VERIFY 32 TEAM PROFILES
@@ -105,11 +116,15 @@ jobs:
         run: |
           set -euo pipefail
           out="$(mktemp)"
-          code="$(curl -sS --max-time 30 -o "$out" -w "%{http_code}" "${BASE}/api/nfl-team-profiles?_t=$(date +%s)")"
+          code="$(curl -sS --max-time 30 -o "$out" -w "%{http_code}" "${BASE}/api/nfl-team-profiles?summary=1&_t=$(date +%s)")"
           test "$code" = "200"
-          jq -e '.ok == true and .teams == 32 and .players > 500' "$out" >/dev/null
+          jq -e '.ok == true and .teams == 32 and .players > 500 and .scheduleRows > 500 and .snapshots >= 32' "$out" >/dev/null
           {
             echo "## NFL persistent profile verification"
             echo "- teams: $(jq -r '.teams' "$out") / 32"
             echo "- players: $(jq -r '.players' "$out")"
+            echo "- schedule rows: $(jq -r '.scheduleRows' "$out")"
+            echo "- snapshots: $(jq -r '.snapshots' "$out")"
+            echo "- head coach coverage: $(jq -r '.coachCoverage.head' "$out") / 32"
+            echo "- latest sync: $(jq -r '.latestSyncAt // "none"' "$out")"
           } >> "$GITHUB_STEP_SUMMARY"
