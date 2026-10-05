@@ -330,7 +330,7 @@ export function rankSelectiveProps(rows = [], opts = {}) {
     const evidence = evidenceState(row);
     const nflCalibration = evidence.sport === "nfl" ? nflCalibrationState(row, z) : null;
     const prizePicksEconomics = prizePicksTierEconomics(row, hitProbability);
-    const mlbKCandidate = evidence.sport === "mlb" && String(row.market || row.statType || "").toLowerCase() === "strikeouts"
+    const mlbKCandidate = evidence.sport === "mlb" && String(row.position || "").toUpperCase() === "P" && String(row.market || row.statType || "").toLowerCase() === "strikeouts"
       ? {
           threshold: MLB_PITCHER_K_CANDIDATE_EDGE.minAbsoluteKs,
           absoluteEdge: Math.abs(delta),
@@ -363,7 +363,7 @@ export function rankSelectiveProps(rows = [], opts = {}) {
     if (row.evidenceState?.gate === "BLOCKED" || row.evidenceState?.gate === "HOLD") return false;
     if (row.evidenceState?.eligible === false) return false;
     if (row.estimatedHitProbability != null && row.estimatedHitProbability < minHitProbability) return false;
-    if (row.evidenceState?.sport === "mlb" && String(row.market || row.statType || "").toLowerCase() === "strikeouts") {
+    if (row.evidenceState?.sport === "mlb" && String(row.position || "").toUpperCase() === "P" && String(row.market || row.statType || "").toLowerCase() === "strikeouts") {
       if (!row.mlbKCandidate?.qualified) return false;
     }
     if (row.evidenceState?.sport === "nfl") {
