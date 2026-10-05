@@ -113,3 +113,78 @@ export function buildPersistentPitchMatchup(game,state){
     canQualify:false,
   };
 }
+
+
+export function buildPersistentBullpenFeed(games=[],persistent={}){
+  const byTeamId={};
+  let available=0;
+  for(const game of games||[]){
+    const key=String(game.id||game.bpp?.gamePk||"");
+    const state=persistent?.byGameId?.[key]||null;
+    for(const [side,teamState] of [["home",state?.homeTeam],["away",state?.awayTeam]]){
+      const teamId=String(game?.[side]?.mlbId??"");
+      if(!teamId||byTeamId[teamId])continue;
+      const bullpen=teamState?.bullpen||null;
+      const era=finite(bullpen?.adjustedBullpenEra)??finite(bullpen?.coreBullpenEra);
+      if(era!=null)available+=1;
+      byTeamId[teamId]={
+        teamId:Number(teamId),
+        era,
+        coreBullpenEra:finite(bullpen?.coreBullpenEra),
+        adjustedBullpenEra:finite(bullpen?.adjustedBullpenEra),
+        fatigue:bullpen?.fatigue||null,
+        coreRelievers:Array.isArray(bullpen?.coreRelievers)?bullpen.coreRelievers:[],
+        source:"MLB persistent D1 profile",
+        asOf:state?.asOf||null,
+        persistent:true,
+        unavailable:era==null,
+      };
+    }
+  }
+  return {
+    byTeamId,
+    meta:{
+      source:"MLB persistent D1 profile",
+      teams:Object.keys(byTeamId).length,
+      available,
+      persistent:true,
+      liveFanout:false,
+      marketInformed:false,
+    },
+  };
+}
+
+export function attachMlbPersistentState(games=[],persistent={}){
+  return (games||[]).map(game=>{
+    const key=String(game.id||game.bpp?.gamePk||"");
+    const state=persistent?.byGameId?.[key]||null;
+    if(!state)return game;
+    return {
+      ...game,
+      mlbPersistentState:{
+        version:state.version,
+        asOf:state.asOf,
+        ageHours:state.ageHours,
+        fresh:state.fresh,
+        homeTeam:state.homeTeam?{
+          teamId:game.home?.mlbId??null,
+          bullpen:state.homeTeam.bullpen||null,
+          lineup:state.homeTeam.lineup||null,
+          schedule:state.homeTeam.schedule||null,
+          starterState:state.homeTeam.starterState||null,
+        }:null,
+        awayTeam:state.awayTeam?{
+          teamId:game.away?.mlbId??null,
+          bullpen:state.awayTeam.bullpen||null,
+          lineup:state.awayTeam.lineup||null,
+          schedule:state.awayTeam.schedule||null,
+          starterState:state.awayTeam.starterState||null,
+        }:null,
+        homeStarter:state.homeStarter||null,
+        awayStarter:state.awayStarter||null,
+        hitterProfileCount:Object.keys(state.hitters||{}).length,
+        marketInformed:false,
+      },
+    };
+  });
+}
