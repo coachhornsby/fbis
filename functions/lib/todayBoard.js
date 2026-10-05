@@ -11,7 +11,8 @@ import { palUnavailableReason } from "./ballparkpal.js";
 import { canonicalConfidenceStars } from "./projectionConfidence.js";
 import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
 import { querySnapshots, queryOddsSnapshots } from "./store.js";
-import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";\nimport { tennisCardContext } from "./tennisPlayerBank.js";
+import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
+import { tennisCardContext } from "./tennisPlayerBank.js";
 import {
   resolveCanonicalMarket,
   marketAvailabilitySummary,
