@@ -29,7 +29,7 @@ jobs:
     timeout-minutes: 14
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 1
       matrix:
         include:
           - batch: "01"
@@ -87,7 +87,7 @@ jobs:
           for team in "${team_array[@]}"; do
             out="$(mktemp)"
             echo "syncing team=$team"
-            code="$(curl -sS --max-time 45 --retry 1 --retry-delay 2 \
+            code="$(curl -sS --max-time 45 --retry 3 --retry-all-errors --retry-delay 2 \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               -H "accept: application/json" \
               -o "$out" -w "%{http_code}" \
