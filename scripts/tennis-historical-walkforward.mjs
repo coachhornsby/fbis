@@ -13,6 +13,7 @@ const YEARS = String(process.env.TENNIS_WF_YEARS || "2018-2026")
 const SIMS = Math.max(100, Number(process.env.TENNIS_WF_SIMS || 250));
 const EVAL_START = Number(process.env.TENNIS_WF_EVAL_START || 2020);
 const OUT = process.env.TENNIS_WF_OUT || "research/tennis/walkforward-latest.json";
+const ROWS_OUT = process.env.TENNIS_WF_ROWS_OUT || "";
 const MIRROR = "https://raw.githubusercontent.com/Aneeshers/tennis-sackmann-archive/main";
 const SOURCE_LICENSE = "CC BY-NC-SA 4.0";
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -284,4 +285,8 @@ const report={
 
 await fs.mkdir(path.dirname(OUT),{recursive:true});
 await fs.writeFile(OUT,JSON.stringify(report,null,2)+"\n");
+if(ROWS_OUT){
+  await fs.mkdir(path.dirname(ROWS_OUT),{recursive:true});
+  await fs.writeFile(ROWS_OUT,evalRows.map(r=>JSON.stringify(r)).join("\n")+"\n");
+}
 console.log(JSON.stringify(report,null,2));
