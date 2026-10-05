@@ -1,4 +1,4 @@
-import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
+import { authorizeSoccerWorker, unauthorizedBody } from "../lib/soccerWorkerAuth.js";
 import { persistPitchApiBundle } from "../lib/soccerPitchApiStore.js";
 
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
@@ -75,7 +75,7 @@ function bundle(match,advanced,stats,shotsData,advancedPlayers,standardPlayers,l
     players:playerRows(advancedPlayers,standardPlayers),lineups:lineupRows(lineups),rawAdvanced:advanced,rawStats:stats,rawShots:shotsData};
 }
 export async function onRequestPost(context){
-  const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(auth.reason),401);
+  const auth=authorizeSoccerWorker(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(auth.reason),401);
   let body={};try{body=await context.request.json();}catch{return json({ok:false,error:"invalid-json"},400);}
   const leagueKey=String(body.leagueKey||""),pitchLeagueId=body.pitchLeagueId==null?null:String(body.pitchLeagueId),mode=String(body.mode||"historical").toLowerCase(),offset=Math.max(0,Number(body.offset)||0),limit=Math.max(1,Math.min(12,Number(body.limit)||8));
   if(!leagueKey)return json({ok:false,error:"league-key-required"},400);
