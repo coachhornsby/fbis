@@ -158,7 +158,8 @@ export function deepMatchupProfiles(p1,p2,{tour="atp",surface="hard"}={}){
     return {
       ...server,
       servePointWinPct:pServe,
-      returnPointWinPct:receiver.returnPointWin,
+      matchupServePointWinPct:pServe,
+      returnPointWinPct:server.returnPointWin,
       aceRate:clamp(ace,.002,.25),
       doubleFaultRate:clamp(df,.002,.18),
       deepDiagnostics:{
