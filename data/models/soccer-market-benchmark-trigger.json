@@ -1,0 +1,7 @@
+{
+  "modelId": "SOCCER-FBIS-v2",
+  "requestedAt": "2026-10-05",
+  "reason": "initial-v2-no-vig-market-benchmark",
+  "budgetUsd": 1,
+  "oneShot": true
+}
