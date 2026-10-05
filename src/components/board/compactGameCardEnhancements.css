@@ -255,3 +255,12 @@
   .fbis-shell-main.route-board .cgc-best-edge > strong { font-size: 30px !important; }
   .fbis-shell-main.route-board .cgc-best-edge > b { font-size: 12px !important; }
 }
+
+/* Board body canvas: midnight black below the title/navigation bars. */
+.fbis-shell-main.route-board,
+.fbis-shell-main.route-board .fbis-shell-content,
+.fbis-shell-main.route-board .decision-board,
+.fbis-shell-main.route-board .decision-board-well,
+.fbis-shell-main.route-board .db-grid {
+  background-color: #020408 !important;
+}
