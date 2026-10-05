@@ -11,6 +11,7 @@ import { buildNhlSourceLineage } from "./nhlDataSources.js";
 import { projectNhlWinnerV1 } from "./nhlWinV1.js";
 import { loadNhlPlayerEdgeSnapshot, aggregateNhlTrackingMatchup } from "./nhlPlayerTrackingV3.js";
 import { loadNhlOpportunitySnapshot, opportunityForGame } from "./nhlOpportunityV4.js";
+import { loadNhlPersistentProfiles, persistentOpportunityForGame } from "./nhlPersistentProfile.js";
 
 export const NHL_PRO_V2_ID = "NHL-PRO-v2";
 export const NHL_PRO_V2_VERSION = "research-v2.0-event-chain-gbdt";
@@ -22,11 +23,11 @@ const CONTEXT_CACHE=new Map();
 const CONTEXT_INFLIGHT=new Map();
 const EDGE_CACHE_MS=15*60*1000;
 const CONTEXT_CACHE_MS=5*60*1000;
-const LIVE_FETCH_TIMEOUT_MS=4500;
+const LIVE_FETCH_TIMEOUT_MS=3200;
 const EDGE_FETCH_TIMEOUT_MS=1800;
-const EDGE_TOTAL_BUDGET_MS=4000;
-const PLAYER_EDGE_TOTAL_BUDGET_MS=1800;
-const OPPORTUNITY_TOTAL_BUDGET_MS=3200;
+const EDGE_TOTAL_BUDGET_MS=2200;
+const PLAYER_EDGE_TOTAL_BUDGET_MS=1000;
+const OPPORTUNITY_TOTAL_BUDGET_MS=1200;
 
 function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
@@ -271,7 +272,7 @@ function contextKey(date,games=[]){
   return `${date}|${ids.join(",")}`;
 }
 
-export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDataverseUpdatedAt=null}={}){
+export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDataverseUpdatedAt=null,db=null}={}){
   const key=contextKey(date,games),now=Date.now();
   const cached=CONTEXT_CACHE.get(key);
   if(cached&&now-cached.at<CONTEXT_CACHE_MS)return {...cached.value,cacheHit:true};
@@ -281,7 +282,7 @@ export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDat
     const started=Date.now();
     const liveFetcher=timeoutFetcher(fetcher,LIVE_FETCH_TIMEOUT_MS);
     const edgeFetcher=timeoutFetcher(fetcher,EDGE_FETCH_TIMEOUT_MS);
-    const [baseResult,edge]=await Promise.all([
+    const [baseResult,edge,persistent]=await Promise.all([
       loadNhlV1Context(date,games,{fetcher:liveFetcher,sportsDataverseUpdatedAt})
         .then(base=>({base,error:null}))
         .catch(err=>({base:fallbackBaseFromArtifact(),error:String(err?.message||err)})),
@@ -290,6 +291,7 @@ export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDat
         EDGE_TOTAL_BUDGET_MS,
         {__timeout:true,__error:"NHL_EDGE_BUDGET_EXCEEDED"}
       ),
+      loadNhlPersistentProfiles(db,games).catch(err=>({ok:false,byTeam:{},byPlayer:{},goaliesByTeam:{},error:String(err?.message||err)})),
     ]);
     const [playerEdge,opportunity]=await Promise.all([
       withBudget(
@@ -309,9 +311,11 @@ export async function loadNhlProV2Context(date,games=[],{fetcher=fetch,sportsDat
       edge,
       playerEdge,
       opportunity,
+      persistent,
       artifact:NHL_PRO_V2_ARTIFACT,
       degraded:Boolean(baseResult.base?.degraded||edge?.__timeout||edge?.__error),
       advisoryDegraded:Boolean(playerEdge?.__timeout||playerEdge?.__error),
+      persistentDegraded:!persistent?.ok,
       liveContextError:baseResult.error,
       timingMs:Date.now()-started,
       cacheHit:false,
@@ -369,8 +373,17 @@ export function projectNhlProV2Game(game,ctx){
 
   const he=edgeAdjustment(home,away,ctx.edge),ae=edgeAdjustment(away,home,ctx.edge);
   const playerTracking={home:aggregateNhlTrackingMatchup(home,away,base,ctx?.playerEdge),away:aggregateNhlTrackingMatchup(away,home,base,ctx?.playerEdge)};
-  const opportunity=opportunityForGame(ctx,game?.id);
-  const opportunityHome=finite(opportunity?.home?.goalAdjustment)||0,opportunityAway=finite(opportunity?.away?.goalAdjustment)||0;
+  const liveOpportunity=opportunityForGame(ctx,game?.id);
+  const persistentOpportunity=persistentOpportunityForGame(ctx?.persistent,game);
+  const opportunity=liveOpportunity?.available?liveOpportunity:persistentOpportunity;
+  const persistentAdj=(team)=>{
+    if(liveOpportunity?.available)return 0;
+    const rows=Object.values(ctx?.persistent?.byPlayer||{}).filter(p=>String(p.team_key||"").toUpperCase()===team&&["OUT","IR","CONFIRMED_SCRATCH"].includes(String(p.status||"").toUpperCase()));
+    const lost=rows.reduce((s,p)=>s+(finite(p.point_rate)||0)*.045+(finite(p.shot_rate)||0)*.008,0);
+    return -clamp(lost,0,.18);
+  };
+  const opportunityHome=liveOpportunity?.available?(finite(liveOpportunity?.home?.goalAdjustment)||0):persistentAdj(home);
+  const opportunityAway=liveOpportunity?.available?(finite(liveOpportunity?.away?.goalAdjustment)||0):persistentAdj(away);
   homeGoals+=he.goals+opportunityHome;awayGoals+=ae.goals+opportunityAway;
   const priorHomeElo=finite(hprior.elo)??1500,priorAwayElo=finite(aprior.elo)??1500;
   const hGames=finite(hs.games)||0,aGames=finite(as.games)||0;
