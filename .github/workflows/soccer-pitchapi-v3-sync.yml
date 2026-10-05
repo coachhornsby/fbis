@@ -1,0 +1,95 @@
+name: Soccer PitchAPI v3 sync
+
+on:
+  schedule:
+    - cron: "35 11 * * *"
+  push:
+    branches: ["main"]
+    paths:
+      - "data/models/soccer-pitchapi-v3-trigger.json"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "live or historical"
+        required: true
+        default: "live"
+      league:
+        description: "league key for historical mode"
+        required: false
+        default: "eng.1"
+      season:
+        description: "PitchAPI season, e.g. 2025/2026 or 2025"
+        required: false
+        default: ""
+      offset:
+        description: "historical season offset"
+        required: false
+        default: "0"
+      max_matches:
+        description: "bounded matches per job"
+        required: false
+        default: "40"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soccer-pitchapi-v3-${{ github.event_name }}-${{ inputs.mode || 'live' }}
+  cancel-in-progress: false
+
+jobs:
+  live:
+    if: github.event_name == 'schedule' || github.event_name == 'push' || inputs.mode == 'live'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        league: ["eng.1","esp.1","ger.1","ita.1","fra.1","usa.1","usa.nwsl"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Require credentials
+        env:
+          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          test -n "${PITCHAPI_API_KEY:-}"
+          test -n "${HARVEST_SECRET:-}"
+      - name: Sync recent results and upcoming lineup state
+        env:
+          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          PITCHAPI_MODE: live
+          PITCHAPI_MAX_MATCHES: "24"
+          PITCHAPI_CONCURRENCY: "3"
+        run: node scripts/soccer-pitchapi-sync.mjs "${{ matrix.league }}"
+
+  historical:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'historical'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Require credentials and season
+        env:
+          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          SEASON: ${{ inputs.season }}
+        run: |
+          test -n "${PITCHAPI_API_KEY:-}"
+          test -n "${HARVEST_SECRET:-}"
+          test -n "${SEASON:-}"
+      - name: Sync bounded historical shard
+        env:
+          PITCHAPI_API_KEY: ${{ secrets.PITCHAPI_API_KEY }}
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          PITCHAPI_MODE: historical
+          PITCHAPI_OFFSET: ${{ inputs.offset }}
+          PITCHAPI_MAX_MATCHES: ${{ inputs.max_matches }}
+          PITCHAPI_CONCURRENCY: "3"
+        run: node scripts/soccer-pitchapi-sync.mjs "${{ inputs.league }}" "${{ inputs.season }}"

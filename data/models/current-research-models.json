@@ -24,7 +24,25 @@
       "status": "historical-evidence-pass-market-benchmark-no-pass",
       "canQualify": false,
       "canAuthorizeWager": false,
-      "notes": "SOCCER-FBIS-v2 beat v1 on the same 7,759-match true expanding walk-forward sample: accuracy 49.86% vs 49.72%, Brier 0.20269 vs 0.20376, log loss 1.01608 vs 1.02130, ECE 0.00450 vs 0.01101. On the retained 206-game Zen ACTION no-vig sample, v2 top-pick accuracy was 52.43% vs market 51.46%, but probability scoring remained worse (Brier 0.20559 vs 0.20064; log loss 1.03236 vs 1.00506), so market promotion did not pass. Optional xG/xGA, PPDA, deep completions and expected-points fields activate only when rights-cleared upstream data exists. Prospective research continues; wager authority remains off."
+      "notes": "SOCCER-FBIS-v2 beat v1 on the same 7,759-match true expanding walk-forward sample: accuracy 49.86% vs 49.72%, Brier 0.20269 vs 0.20376, log loss 1.01608 vs 1.02130, ECE 0.00450 vs 0.01101. On the retained 206-game Zen ACTION no-vig sample, v2 top-pick accuracy was 52.43% vs market 51.46%, but probability scoring remained worse (Brier 0.20559 vs 0.20064; log loss 1.03236 vs 1.00506), so market promotion did not pass. Optional xG/xGA, PPDA, deep completions and expected-points fields activate only when rights-cleared upstream data exists. Prospective research continues; wager authority remains off. SOCCER-FBIS-v3 is the PitchAPI advanced-data shadow challenger. It remains behind v2 until PitchAPI history is backfilled and true walk-forward/market gates improve probability quality. Historical actual lineups are never treated as pre-kick evidence; only lineup observations captured before kickoff are eligible. Player-impact and lineup layers are stored for prospective shadow evaluation and are not yet allowed to alter v3 probabilities.",
+      "advancedDataChallenger": "SOCCER-FBIS-v3",
+      "advancedDataChallengerVersion": "research-v1-pitchapi-advanced",
+      "advancedDataSource": "PitchAPI",
+      "advancedDataStatus": "built-shadow-backfill-validation-required",
+      "advancedDataCanQualify": false,
+      "advancedDataCanAuthorize": false,
+      "advancedFeatureFamilies": [
+        "shot-quality",
+        "pressing",
+        "territory",
+        "possession-value",
+        "progression",
+        "tempo"
+      ],
+      "prospectiveContextLayers": [
+        "player-impact",
+        "pre-kick-lineups"
+      ]
     },
     "nba": {
       "currentResearchModel": "NBA-FBIS-v1",

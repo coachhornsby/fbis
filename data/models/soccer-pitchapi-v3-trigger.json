@@ -1,0 +1,16 @@
+{
+  "modelId": "SOCCER-FBIS-v3",
+  "source": "PitchAPI",
+  "requestedAt": "2026-10-05",
+  "mode": "live-validation",
+  "leagues": [
+    "eng.1",
+    "esp.1",
+    "ger.1",
+    "ita.1",
+    "fra.1",
+    "usa.1",
+    "usa.nwsl"
+  ],
+  "purpose": "verify credential, league mapping, live ingestion and pre-kick lineup capture"
+}
