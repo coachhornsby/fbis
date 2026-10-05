@@ -287,10 +287,14 @@ function candidate({
   const evGate=ev!=null&&ev>=Number(calibration?.minEv??0.025);
   const probGate=probability!=null&&be!=null&&(probability-be)>=Number(calibration?.minProbabilityEdge??0.02);
   const confidenceGate=calibrationState.ok&&confidence>=Number(calibration?.minConfidence??70);
-  const bet=evGate&&probGate&&confidenceGate&&reasons.filter(r=>[
+  // Qualification is deliberately separate from staking authorization.
+  // A validated independent NFL model may qualify a market when price/edge/data gates pass
+  // even while confidence monotonicity and staking rules are still accumulating.
+  const qualificationEligible=evGate&&probGate&&reasons.filter(r=>[
     "market-line-missing","actual-price-missing","probability-unavailable","break-even-unavailable","ev-unavailable",
     "critical-availability-unresolved","availability-stale","projection-coverage-low"
   ].includes(r)).length===0;
+  const bet=qualificationEligible;
 
   return {
     market,selection,line,americanPrice:price,book,
@@ -305,6 +309,10 @@ function candidate({
     confidenceValidated:calibrationState.ok,
     confidenceBin:bin||null,
     decision:bet?"BET":"PASS",
+    qualificationEligible,
+    canQualify:qualificationEligible,
+    canAuthorizeWager:false,
+    confidenceGatePassed:confidenceGate,
     stakeUnits:null,
     stakingValidated:false,
     reasons,
@@ -357,6 +365,8 @@ export function evaluateNflGameWagers(game={},calibration={}){
     decision:best?.decision||"PASS",
     confidenceScore:best?.confidenceScore??null,
     confidenceValidated:Boolean(best?.confidenceValidated),
+    canQualify:Boolean(best?.qualificationEligible),
+    canAuthorizeWager:false,
     staking:{validated:false,units:null,reason:"staking-rules-not-validated"},
     closeUsedAsDecisionInput:false,
     objective:"positive-expected-value-at-offered-price",
