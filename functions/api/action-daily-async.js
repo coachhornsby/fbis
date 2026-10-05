@@ -19,7 +19,7 @@ function dbOf(env){if(!env?.DB)return null;return{
 function parts(d=new Date()){const a=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",hourCycle:"h23"}).formatToParts(d),g=t=>a.find(x=>x.type===t)?.value||"";return{y:g("year"),m:g("month"),d:g("day"),h:Number(g("hour"))}}
 function day(d=new Date()){const p=parts(d);return `${p.y}-${p.m}-${p.d}`}
 function prev(k){const [y,m,d]=k.split("-").map(Number),x=new Date(Date.UTC(y,m-1,d,12));x.setUTCDate(x.getUTCDate()-1);return x.toISOString().slice(0,10)}
-function sport(league){const k=String(league||"").toLowerCase();if(k==="ncaaf")return "cfb";if(k==="ncaab")return "cbb";if(["epl","laliga","bundesliga","seriea","ligue1","mls"].includes(k))return "soccer";return k}
+function sport(league){const k=String(league||"").toLowerCase();if(k==="ncaaf")return "cfb";if(k==="ncaab")return "cbb";if(k==="atp"||k==="wta"||k==="tennis")return "tennis";if(k==="soccer"||["epl","laliga","bundesliga","seriea","ligue1","mls"].includes(k))return "soccer";return k}
 function rowDay(t){const ms=Date.parse(String(t||""));return Number.isFinite(ms)?day(new Date(ms)):null}
 function rawArchiveKey(source,date,runId){const [y,m,d]=String(date||"").split("-");return `raw/${source}/${y}/${m}/${d}/${runId}.json`}
 async function archiveRawPull(env,{source,date,runId,rows,meta={}}){
@@ -94,7 +94,7 @@ export async function onRequestPost(context){
      }
      return json({ok:true,executed:false,status:"already_collected_today",runId:done.id,apifyRunId:done.apify_run_id,datasetId:done.dataset_id,today,activeSports,actor:ACTION_APIFY_ACTOR_ID});
    }
-   const collectionSports=[...activeSports],leagues=collectionSports.map(s=>LEAGUE[s]);
+   const collectionSports=[...activeSports],leagues=[...new Set(collectionSports.flatMap(s=>LEAGUE[s]||[]))];
    const requestedRaw=Number(context.env.ACTION_APIFY_DAILY_MAX_GAMES||300);
    const requested=Math.max(1,Math.min(500,Number.isFinite(requestedRaw)?Math.floor(requestedRaw):300));
    // Zen base game payload already includes consensus, books, splits/sharp gap and
