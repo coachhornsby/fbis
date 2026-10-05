@@ -32,7 +32,15 @@ function flatten(x){
  return[];
 }
 const source=readJson(sourceFile)||{teams:[]},priorRows=flatten(readJson(priorFile)),availability=flatten(readJson(availabilityFile)),lineups=flatten(readJson(lineupFile));
-const impacts=readJson(impactFile)||{players:{},roleContexts:{}};
+const impactRaw=readJson(impactFile)||{};
+const impactRows=flatten(impactRaw);
+const impacts=impactRaw?.players
+  ? impactRaw
+  : {players:Object.fromEntries(impactRows.filter(r=>r.player_id).map(r=>[String(r.player_id),{
+      playerId:String(r.player_id),name:r.player_name||null,teamId:String(r.team_id||""),position:r.position||null,
+      offense:finite(r.offense_impact),defense:finite(r.defense_impact),net:finite(r.net_impact),
+      skill:(()=>{try{return JSON.parse(r.dynamic_skill_json||"{}")}catch{return{}}})()
+    }])),roleContexts:{}};
 const games=[...new Map([...readJsonl(frozenFile),...readJsonl(currentFile)].map(g=>[String(g.id),g])).values()].sort((a,b)=>Date.parse(a.start||a.date)-Date.parse(b.start||b.date));
 const priorById=new Map(priorRows.filter(x=>x.player_id).map(x=>[String(x.player_id),x]));
 const priorByName=new Map(priorRows.map(x=>[normalizePlayerName(x.player_name),x]));
