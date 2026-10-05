@@ -22,6 +22,7 @@ import { setMeta } from "./store.js";
 import { isUnusableCachedOddsMeta } from "./marketLineage.js";
 import { loadNpbV2Context, attachNpbFbisV2 } from "./npbFbisV2.js";
 import { loadKboV2Context, attachKboFbisV2 } from "./kboFbisV2.js";
+import { loadPitchApiBoardFixtures } from "./soccerPitchApiStore.js";
 
 export function shouldUseLiveMlbFeatureFallback(env = {}) {
   return !env?.DB?.prepare;
@@ -1692,12 +1693,22 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "soccer") {
-    try {
-      games = await fetchSoccerScoreboard(day);
-      scheduleResolved = true;
-    } catch {
-      games = [];
+    const [espnGames,pitchGames] = await Promise.all([
+      fetchSoccerScoreboard(day).catch(()=>[]),
+      loadPitchApiBoardFixtures(env,{date:day}).catch(()=>[]),
+    ]);
+    const byFixture=new Map();
+    const fixtureKey=(g)=>[
+      String(g.start||g.date||"").slice(0,16),
+      String(g.home?.name||"").toLowerCase().replace(/[^a-z0-9]/g,""),
+      String(g.away?.name||"").toLowerCase().replace(/[^a-z0-9]/g,"")
+    ].join("|");
+    for(const g of [...pitchGames,...espnGames]) {
+      const k=fixtureKey(g);
+      if(!byFixture.has(k)) byFixture.set(k,g);
     }
+    games=[...byFixture.values()];
+    scheduleResolved=true;
   }
 
   if (!games.length && !["npb","kbo","soccer"].includes(id)) {
