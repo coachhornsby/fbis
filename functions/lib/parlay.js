@@ -275,6 +275,34 @@ export function summarizeParlayEvent(event, sportId) {
   };
 }
 
+export function hasUsableMarketSummary(summary) {
+  if (!summary || typeof summary !== "object") return false;
+  const pairedMoneyline = validAmerican(summary.homeMl) && validAmerican(summary.awayMl);
+  const pairedSpread =
+    summary.spread != null &&
+    validAmerican(summary.spreadPrice) &&
+    (
+      (validAmerican(summary.pinSpreadHomePrice) && validAmerican(summary.pinSpreadAwayPrice)) ||
+      (validAmerican(summary.heritageSpreadHomePrice) && validAmerican(summary.heritageSpreadAwayPrice)) ||
+      (validAmerican(summary.softSpreadHomePrice) && validAmerican(summary.softSpreadAwayPrice))
+    );
+  const pairedTotal =
+    summary.total != null &&
+    validAmerican(summary.totalPrice) &&
+    (
+      (validAmerican(summary.pinOverPrice) && validAmerican(summary.pinUnderPrice)) ||
+      (validAmerican(summary.heritageOverPrice) && validAmerican(summary.heritageUnderPrice)) ||
+      (validAmerican(summary.softOverPrice) && validAmerican(summary.softUnderPrice))
+    );
+  return Boolean(pairedMoneyline || pairedSpread || pairedTotal);
+}
+
+function summarizeUsableEvents(events, sportId) {
+  return (events || [])
+    .map((event) => summarizeParlayEvent(event, sportId))
+    .filter((summary) => summary && hasUsableMarketSummary(summary));
+}
+
 export function matchParlay(game, events) {
   return matchEvent(game, events);
 }
@@ -715,7 +743,8 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
       nowMs: Date.now(),
       maxAgeMs: TTL_MS,
     });
-    if (!unusable && freshness.ok) {
+    const cachedHasUsableMarket = Array.isArray(cached.events) && cached.events.some(hasUsableMarketSummary);
+    if (!unusable && freshness.ok && cachedHasUsableMarket) {
       const lineage = attachMarketLineage(cachedMeta, {
         provider: cachedMeta.provider || null,
         cached: true,
@@ -746,7 +775,8 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         opts.backupApiKey
       );
       if (backup.events?.length) {
-        const events = backup.events.map((ev) => summarizeParlayEvent(ev, sportId)).filter(Boolean);
+        const events = summarizeUsableEvents(backup.events, sportId);
+        if (events.length) {
         const payload = {
           events,
           meta: {
@@ -768,12 +798,14 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         };
         await writeCache(cacheKey, payload, cfCache, TTL_MS);
         return payload;
+        }
       }
     }
     if (opts.sharpApiKey) {
       const sharp = await fetchSharpApiOdds(sportId, opts.sharpApiKey);
       if (sharp.events?.length) {
-        const events = sharp.events.map((ev) => summarizeParlayEvent(ev, sportId)).filter(Boolean);
+        const events = summarizeUsableEvents(sharp.events, sportId);
+        if (events.length) {
         const payload = {
           events,
           meta: {
@@ -796,12 +828,14 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         };
         await writeCache(cacheKey, payload, cfCache, TTL_MS);
         return payload;
+        }
       }
     }
     if (opts.theRundownApiKey) {
       const rundown = await fetchTheRundownOdds(sportId, opts.theRundownApiKey, opts.date);
       if (rundown.events?.length) {
-        const events = rundown.events.map((ev) => summarizeParlayEvent(ev, sportId)).filter(Boolean);
+        const events = summarizeUsableEvents(rundown.events, sportId);
+        if (events.length) {
         const payload = {
           events,
           meta: {
@@ -824,6 +858,7 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         };
         await writeCache(cacheKey, payload, cfCache, TTL_MS);
         return payload;
+        }
       }
     }
     return {
@@ -868,12 +903,15 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         pinCredits = pin.credits || pinCredits;
         parlayError = pin.error || null;
         const credit = isParlayCreditError(pin.error);
+        const usable = summarizeUsableEvents(pin.events || [], sportId);
+        const marketIncomplete = Boolean(pin.events?.length) && usable.length === 0;
         return {
           provider: "parlay",
           ok: !pin.error && Boolean(pin.events?.length),
-          complete: Boolean(pin.events?.length),
+          complete: Boolean(pin.events?.length) && !marketIncomplete,
+          incomplete: marketIncomplete,
           events: pin.events || [],
-          error: pin.error || null,
+          error: pin.error || (marketIncomplete ? "market-empty" : null),
           rateLimited: credit,
           quotaExhausted: credit,
           quotaRemaining: pin.credits?.remaining ?? null,
@@ -888,12 +926,15 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
         const backup = await fetchTheOddsJson(sportKey, marketParams, opts.backupApiKey);
         if (backup.error) backupError = backup.error;
         pinCredits = backup.credits || pinCredits;
+        const usable = summarizeUsableEvents(backup.events || [], sportId);
+        const marketIncomplete = Boolean(backup.events?.length) && usable.length === 0;
         return {
           provider: "theodds",
           ok: !backup.error && Boolean(backup.events?.length),
-          complete: Boolean(backup.events?.length),
+          complete: Boolean(backup.events?.length) && !marketIncomplete,
+          incomplete: marketIncomplete,
           events: backup.events || [],
-          error: backup.error || null,
+          error: backup.error || (marketIncomplete ? "market-empty" : null),
           quotaRemaining: backup.credits?.remaining ?? null,
           asOf: backup.credits?.asOf || new Date().toISOString(),
           meta: { credits: backup.credits },
@@ -904,12 +945,15 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
           return { provider: "sharpapi", ok: false, complete: false, events: [], error: "not-configured" };
         }
         const soft = await fetchSharpApiOdds(sportId, opts.sharpApiKey);
+        const usable = summarizeUsableEvents(soft.events || [], sportId);
+        const marketIncomplete = Boolean(soft.events?.length) && usable.length === 0;
         return {
           provider: "sharpapi",
           ok: !soft.error && Boolean(soft.events?.length),
-          complete: Boolean(soft.events?.length),
+          complete: Boolean(soft.events?.length) && !marketIncomplete,
+          incomplete: marketIncomplete,
           events: soft.events || [],
-          error: soft.error || null,
+          error: soft.error || (marketIncomplete ? "market-empty" : null),
           quotaRemaining: soft.credits?.remaining ?? null,
           asOf: soft.credits?.asOf || new Date().toISOString(),
           meta: { soft: true, books: soft.books },
@@ -920,12 +964,15 @@ export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
           return { provider: "therundown", ok: false, complete: false, events: [], error: "not-configured" };
         }
         const soft = await fetchTheRundownOdds(sportId, opts.theRundownApiKey, opts.date);
+        const usable = summarizeUsableEvents(soft.events || [], sportId);
+        const marketIncomplete = Boolean(soft.events?.length) && usable.length === 0;
         return {
           provider: "therundown",
           ok: !soft.error && Boolean(soft.events?.length),
-          complete: Boolean(soft.events?.length),
+          complete: Boolean(soft.events?.length) && !marketIncomplete,
+          incomplete: marketIncomplete,
           events: soft.events || [],
-          error: soft.error || null,
+          error: soft.error || (marketIncomplete ? "market-empty" : null),
           quotaRemaining: soft.credits?.remaining ?? null,
           asOf: soft.credits?.asOf || new Date().toISOString(),
           meta: { soft: true, books: soft.books },
