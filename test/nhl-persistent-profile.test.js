@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  deriveNhlScheduleStress,buildShiftDeployment,inferNhlRoles,resolveNhlPlayerState,replacementCandidates
+  deriveNhlScheduleStress,buildShiftDeployment,inferNhlRoles,resolveNhlPlayerState,replacementCandidates,normalizeNhlTeamKey
 } from "../functions/lib/nhlPersistentProfile.js";
 
 test("persistent NHL scratch carries until stronger active evidence arrives",()=>{
@@ -67,4 +67,12 @@ test("replacement candidates prioritize same deployment role and PP unit",()=>{
   ];
   const r=replacementCandidates("a",players);
   assert.equal(r[0].playerId,"b");
+});
+
+
+test("official NHL tricodes normalize to FBIS identity",()=>{
+  assert.equal(normalizeNhlTeamKey("LAK"),"LA");
+  assert.equal(normalizeNhlTeamKey("NJD"),"NJ");
+  assert.equal(normalizeNhlTeamKey("SJS"),"SJ");
+  assert.equal(normalizeNhlTeamKey("TBL"),"TB");
 });
