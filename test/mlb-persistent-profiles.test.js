@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { shouldUseLiveMlbFeatureFallback } from "../functions/lib/slateEngineCore.js";
 import {
   profileAgeHours,
   profileFresh,
@@ -95,4 +96,10 @@ test("persistent MLB state supplies offense starter and bullpen features without
   assert.equal(bullpen.meta.liveFanout,false);
   assert.equal(bullpen.byTeamId["117"].era,3.6);
   assert.equal(bullpen.byTeamId["147"].fatigue.fatigueScore,.9);
+});
+
+
+test("production MLB board disables live Savant feature fanout when D1 is bound",()=>{
+  assert.equal(shouldUseLiveMlbFeatureFallback({DB:{prepare(){}}}),false);
+  assert.equal(shouldUseLiveMlbFeatureFallback({}),true);
 });

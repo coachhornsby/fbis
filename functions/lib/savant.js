@@ -64,6 +64,7 @@ function splitCsvLine(line) {
 async function getText(url) {
   const res = await fetch(url, {
     headers: { Accept: "text/csv,application/json,*/*", "User-Agent": UA, Referer: "https://baseballsavant.mlb.com/" },
+    signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`Savant ${res.status}`);
   return res.text();
@@ -97,7 +98,7 @@ async function fetchSavantPitchers(year) {
 
 async function fetchTeamRpg(year) {
   const url = `https://statsapi.mlb.com/api/v1/teams/stats?season=${year}&group=hitting&stats=season&sportIds=1&gameType=R`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
   if (!res.ok) throw new Error(`MLB team stats ${res.status}`);
   const json = await res.json();
   const byId = new Map();
@@ -129,7 +130,7 @@ async function fetchPitcherStats(ids, year) {
       unique.slice(i, i + chunk).map(async (id) => {
         try {
           const url = `https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=season&group=pitching&season=${year}&gameType=R`;
-          const res = await fetch(url, { headers: { Accept: "application/json" } });
+          const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
           if (!res.ok) return;
           const json = await res.json();
           const stat = json.stats?.[0]?.splits?.[0]?.stat || {};
