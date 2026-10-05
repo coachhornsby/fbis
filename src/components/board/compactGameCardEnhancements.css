@@ -309,3 +309,66 @@
   margin: 0 !important;
   box-sizing: border-box !important;
 }
+
+/* Matchup signal visual system: icons are first-class graphics, not tiny label glyphs. */
+.fbis-shell-main.route-board .cgc-matchup-pill {
+  min-height: 70px !important;
+  padding: 9px 7px 8px !important;
+}
+.fbis-shell-main.route-board .cgc-matchup-pill-label {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  width: 100% !important;
+}
+.fbis-shell-main.route-board .cgc-matchup-pill-label em {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-style: normal !important;
+  font-size: 9px !important;
+  font-weight: 950 !important;
+  letter-spacing: .035em !important;
+  color: #b8d7ff !important;
+}
+.fbis-shell-main.route-board .cgc-matchup-icon {
+  display: inline-grid !important;
+  place-items: center !important;
+  flex: 0 0 27px !important;
+  width: 27px !important;
+  height: 27px !important;
+  border-radius: 8px !important;
+  font-style: normal !important;
+  font-family: "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  background: rgba(17,61,96,.64) !important;
+  border: 1px solid rgba(89,190,255,.48) !important;
+  box-shadow: 0 0 12px rgba(36,166,255,.15) !important;
+}
+.fbis-shell-main.route-board .cgc-matchup-pill > strong {
+  margin-top: 5px !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+}
+.fbis-shell-main.route-board .cgc-matchup-pill.tone-home .cgc-matchup-icon {
+  background: rgba(0,111,78,.34) !important;
+  border-color: rgba(0,240,160,.62) !important;
+  box-shadow: 0 0 13px rgba(0,240,160,.18) !important;
+}
+.fbis-shell-main.route-board .cgc-matchup-pill.tone-away .cgc-matchup-icon {
+  background: rgba(116,35,45,.32) !important;
+  border-color: rgba(255,92,109,.58) !important;
+  box-shadow: 0 0 13px rgba(255,76,96,.16) !important;
+}
+@media (max-width: 560px) {
+  .fbis-shell-main.route-board .cgc-matchup-icon {
+    flex-basis: 24px !important;
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 18px !important;
+  }
+  .fbis-shell-main.route-board .cgc-matchup-pill-label { gap: 5px !important; }
+}
