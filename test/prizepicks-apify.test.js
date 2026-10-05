@@ -13,7 +13,7 @@ test("MLB acquisition is limited to Ks and pitching outs", () => {
 
 test("tennis acquisition centers total games; research expansion is explicit", () => {
   assert.deepEqual(curatedMarketsForSport("tennis",{includeResearch:false}), ["Total Games"]);
-  assert.deepEqual(curatedMarketsForSport("tennis"), ["Total Games","Total Games Won"]);
+  assert.deepEqual(curatedMarketsForSport("tennis"), ["Total Games","Total Games Won","Total Sets","Aces","Break Points Won","Fantasy Score","Total Tie Breaks","Double Faults"]);
 });
 
 test("NBA/WNBA and soccer remain research until validation", () => {
