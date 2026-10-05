@@ -38,6 +38,7 @@ import { pinMarkets } from "./pricing.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
 import { attachMatchupFactors } from "./matchupFactors.js";
 import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
+import { attachNbaBoardProjection } from "./nbaBoardProjection.js";
 import { loadWnbaPlayerContext, attachWnbaPlayerProjectionResearch } from "./wnbaPlayerProjection.js";
 import { loadWnbaImpactContext, attachWnbaImpactShadows } from "./wnbaPlayerImpactShadow.js";
 import { attachWnbaV2Research } from "./wnbaFbisV2.js";
@@ -397,11 +398,13 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "nba" && Array.isArray(next.games)) {
+    const hydrated = await attachNbaBoardProjection(next.games, env.DB || null);
     next = {
       ...next,
-      games: attachNbaPlayerProjectionBlocked(next.games),
+      games: attachNbaPlayerProjectionBlocked(hydrated.games),
       research: {
         ...(next.research || {}),
+        nbaBoardProjection: hydrated.meta,
         nbaPlayerProjection: {
           state: "BLOCKED_RIGHTS_CLEARED_PLAYER_FEED",
           canQualify: false,

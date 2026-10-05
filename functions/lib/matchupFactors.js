@@ -161,6 +161,41 @@ function basketballFactors(game) {
   const out = [];
 
   if (sport === "nba") {
+    const pure = game?.nbaFbisV1;
+    const pd = pure?.decomposition;
+    if (pure?.ok && pd?.home && pd?.away) {
+      const h = pd.home, a = pd.away;
+      const src = "NBA-FBIS-v1 frozen decomposition";
+      const pushPair = (id,label,hv,av,{lowerBetter=false,digits=2,suffix=""}={}) => {
+        const hn=finite(hv), an=finite(av); if(hn==null||an==null)return;
+        const delta=lowerBetter?an-hn:hn-an;
+        out.push(factor(id,label,sideFromDelta(game,delta),Math.abs(round(hn-an,digits)),
+          `${homeAbbr} ${round(hn,digits)}${suffix} · ${awayAbbr} ${round(an,digits)}${suffix}`,src));
+      };
+      const hOff=finite(h.off),aOff=finite(a.off),hDef=finite(h.def),aDef=finite(a.def);
+      if([hOff,aOff,hDef,aDef].every(v=>v!=null)){
+        const delta=(hOff-aDef)-(aOff-hDef);
+        out.push(factor("efficiency","Offense vs defense efficiency",sideFromDelta(game,delta),Math.abs(round(delta,1)),
+          `${homeAbbr} ORtg ${round(hOff,1)} vs ${awayAbbr} DRtg ${round(aDef,1)} · ${awayAbbr} ORtg ${round(aOff,1)} vs ${homeAbbr} DRtg ${round(hDef,1)}`,src));
+      }
+      pushPair("pace","Pace",h.pace,a.pace,{digits:1});
+      pushPair("efg","Effective FG%",h.efg,a.efg,{digits:3});
+      pushPair("turnovers","Turnover rate",h.tov,a.tov,{lowerBetter:true,digits:3});
+      pushPair("rebounding","Offensive rebound rate",h.orb,a.orb,{digits:3});
+      pushPair("free-throws","Free-throw rate",h.ftr,a.ftr,{digits:3});
+      const hRest=finite(pd.homeRest?.pts),aRest=finite(pd.awayRest?.pts);
+      if(hRest!=null&&aRest!=null) pushPair("rest","Rest / schedule impact",hRest,aRest,{digits:2});
+      const hAvail=finite(pd.homeAvailability?.points),aAvail=finite(pd.awayAvailability?.points);
+      if(hAvail!=null&&aAvail!=null&&(Math.abs(hAvail)>0.01||Math.abs(aAvail)>0.01))
+        pushPair("availability","Availability impact",hAvail,aAvail,{digits:2});
+      if(finite(pure.margin)!=null) out.push(factor(
+        "projection","Independent possession-model matchup",sideFromDelta(game,pure.margin),Math.abs(round(pure.margin,1)),
+        `Independent score: ${awayAbbr} ${pure.away} · ${homeAbbr} ${pure.home} · ${round(pure.expectedPossessions,1)} possessions`,src
+      ));
+      if(out.length) return out;
+    }
+
+    // Fail-soft fallback when the frozen NBA research snapshot is not present.
     const form = game?.basketballForm;
     const d = form?.decomposition;
     if (!form?.ok || !d?.home || !d?.away) return [];
