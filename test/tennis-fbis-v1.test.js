@@ -20,6 +20,7 @@ import {
   PRO_PLAYER_PROP_MARKETS,
 } from "../functions/lib/proPlayerProps.js";
 import { curatedMarketsForSport } from "../functions/lib/propMarketPolicy.js";
+import { buildTennisResearchBoardRows, canonicalTennisEventId } from "../functions/lib/tennisPrizePicksResearch.js";
 
 const strong={
   id:"a",name:"Strong Server",elo:1820,hardElo:1860,
@@ -138,4 +139,95 @@ test("walk-forward evaluator rejects post-start leakage and fails closed below s
   assert.equal(evald.metrics.n,100);
   assert.equal(evald.promotion.pass,false);
   assert.equal(evald.promotion.decision,"RESEARCH_ONLY");
+});
+
+
+test("equal tennis players are approximately symmetric across repeated deterministic seeds",()=>{
+  const equal={id:"eq",name:"Equal",elo:1700,hardElo:1700,servePointWinPct:.62,returnPointWinPct:.38,aceRate:.06,doubleFaultRate:.035};
+  const probs=[];
+  for(let seed=1;seed<=20;seed++){
+    const p=simulateTennisMatch({id:"eq-"+seed,surface:"hard",bestOf:3,player1:{...equal,id:"a"},player2:{...equal,id:"b"}},{simulations:1500},{seed});
+    probs.push(p.match.pPlayer1Win);
+  }
+  const avg=probs.reduce((a,b)=>a+b,0)/probs.length;
+  assert.ok(Math.abs(avg-.5)<.025, String(avg));
+});
+
+test("increasing only player-one strength increases match win probability",()=>{
+  const base={id:"b",name:"Base",elo:1650,hardElo:1650,servePointWinPct:.62,returnPointWinPct:.38,aceRate:.06,doubleFaultRate:.035};
+  const weakP=simulateTennisMatch({id:"mono1",player1:{...base,id:"a",hardElo:1550},player2:base},{simulations:4000},{seed:7});
+  const strongP=simulateTennisMatch({id:"mono2",player1:{...base,id:"a",hardElo:1850},player2:base},{simulations:4000},{seed:7});
+  assert.ok(strongP.match.pPlayer1Win>weakP.match.pPlayer1Win);
+});
+
+test("simulation accounting conserves total games across player game counts",()=>{
+  const p=simulateTennisMatch({id:"acct",player1:strong,player2:weak},{simulations:4000},{seed:44});
+  const sum=p.playerMetrics[0].total_games_won.mean+p.playerMetrics[1].total_games_won.mean;
+  assert.ok(Math.abs(sum-p.match.totalGames.mean)<.01, `${sum} vs ${p.match.totalGames.mean}`);
+});
+
+test("PrizePicks tennis rows become canonical projected research cards with headshots",()=>{
+  const raw=[
+    {
+      player_name:"Daniil Medvedev",player_id:"201271",opponent:"Pablo Carreno Busta",
+      game_id:"190789",start_time:"2026-10-05T18:00:00Z",stat_type:"Total Games",
+      canonical_market:"total_games",line:22.5,player_headshot_url:"https://static.prizepicks.com/med.png",
+      collected_at:"2026-10-05T12:00:00Z"
+    },
+    {
+      player_name:"Pablo Carreno Busta",player_id:"290546",opponent:"Daniil Medvedev",
+      game_id:"190789",start_time:"2026-10-05T18:00:00Z",stat_type:"Total Games Won",
+      canonical_market:"total_games_won",line:9.5,player_headshot_url:"https://static.prizepicks.com/pcb.png",
+      collected_at:"2026-10-05T12:00:00Z"
+    }
+  ];
+  const byName=new Map([
+    ["daniil medvedev",{tour:"atp",name:"Daniil Medvedev",rank:6,espnId:"2383",headshot:"https://a.espncdn.com/2383.png"}],
+    ["pablo carreno busta",{tour:"atp",name:"Pablo Carreno Busta",rank:75,espnId:"1234",headshot:"https://a.espncdn.com/1234.png"}],
+  ]);
+  const rows=buildTennisResearchBoardRows(raw,{byName,rows:[...byName.values()]});
+  assert.equal(rows.length,2);
+  assert.ok(rows.every(x=>x.fbisEventId==="tennis:pp:190789"));
+  assert.ok(rows.every(x=>x.fbisProjection!=null&&x.fbisSigma!=null));
+  assert.ok(rows.every(x=>x.imageUrl&&x.imageSource==="PRIZEPICKS_FEED"));
+  assert.ok(rows.every(x=>x.fallbackImageUrl));
+  assert.ok(rows.every(x=>x.canQualify===false&&x.modelAuthorized===false&&x.propGate==="RESEARCH"));
+});
+
+test("ESPN headshot fills a missing PrizePicks tennis image",()=>{
+  const raw=[{
+    player_name:"Player One",player_id:"1",opponent:"Player Two",game_id:"g",
+    start_time:"2026-10-05T18:00:00Z",stat_type:"Total Games",canonical_market:"total_games",line:22.5,
+    player_headshot_url:null
+  }];
+  const byName=new Map([
+    ["player one",{tour:"atp",name:"Player One",rank:20,espnId:"1",headshot:"https://a.espncdn.com/one.png"}],
+    ["player two",{tour:"atp",name:"Player Two",rank:30,espnId:"2",headshot:"https://a.espncdn.com/two.png"}],
+  ]);
+  const rows=buildTennisResearchBoardRows(raw,{byName,rows:[...byName.values()]});
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].imageUrl,"https://a.espncdn.com/one.png");
+  assert.equal(rows[0].imageSource,"ESPN_TENNIS_RANKINGS");
+});
+
+test("tennis research board suppresses singles cards when no real headshot exists",()=>{
+  const raw=[{
+    player_name:"No Photo",player_id:"1",opponent:"Opponent",game_id:"g",
+    start_time:"2026-10-05T18:00:00Z",stat_type:"Total Games",canonical_market:"total_games",line:22.5
+  }];
+  const rows=buildTennisResearchBoardRows(raw,{byName:new Map(),rows:[]});
+  assert.equal(rows.length,0);
+});
+
+test("tennis research board excludes doubles until a pair-strength model exists",()=>{
+  const raw=[{
+    player_name:"A / B",player_id:"1",opponent:"C / D",game_id:"g",
+    start_time:"2026-10-05T18:00:00Z",stat_type:"Total Games",canonical_market:"total_games",line:22.5,
+    player_headshot_url:"https://static.prizepicks.com/doubles.png"
+  }];
+  assert.equal(buildTennisResearchBoardRows(raw,{byName:new Map(),rows:[]}).length,0);
+});
+
+test("canonical PrizePicks tennis event identity is stable",()=>{
+  assert.equal(canonicalTennisEventId({game_id:"190789"}),"tennis:pp:190789");
 });
