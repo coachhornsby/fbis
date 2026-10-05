@@ -318,3 +318,26 @@ Production-safe player-impact construction:
 The FBIS impact layer is inspired by the methodology class used by modern predictive impact metrics, but it does not reproduce or relabel proprietary EPM/DARKO formulas.
 
 Impact-context promotion requires incremental true walk-forward value against the existing prop baseline. Injury-driven redistribution remains prospective-only until timestamped historical availability is sufficient to backtest without target-game leakage.
+
+
+## NBA-FBIS-v2-DEEP game challenger
+
+The next game-model layer is implemented as a residual challenger over NBA-FBIS-v1 rather than an in-place replacement.
+
+New independent pregame feature families:
+- opponent-adjusted Four Factors: eFG%, turnover rate, offensive-rebound rate and free-throw rate;
+- PBP-derived shot mix and shot-efficiency profiles;
+- actual prior-venue to current-venue travel, rest, time-zone and altitude context;
+- expected lineup offense/defense/net impact and continuity;
+- point-in-time official availability context;
+- learned nonlinear matchup interactions.
+
+Historical fitting used 2024-25 only. The untouched 2025-26 holdout contained 1,322 games. Relative to NBA-FBIS-v1, v2-DEEP improved total MAE by 3.50% and winner accuracy slightly, but margin MAE regressed 0.85%. Therefore it remains a non-qualifying prospective shadow challenger.
+
+The 2025-26 holdout is now burned and may not be reused for further tuning. Promotion requires 2026-27 prospective evidence.
+
+### Official NBA availability
+
+The production availability adapter uses only NBA official injury-report PDFs from the league's referee/injury archive. Each report is archived immutably. Player rows are normalized into `player_availability_observations`, while team submission state is stored separately.
+
+A team is availability-verified only when its official report is submitted. `NOT YET SUBMITTED` explicitly remains unverified. A submitted team with zero listed injuries is treated as verified healthy rather than missing data.
