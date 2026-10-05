@@ -146,21 +146,25 @@ function actionMoveLabel(action, away, home) {
   return "NO MOVE YET";
 }
 
-const MATCHUP_ICON_BY_ID = {
-  pressure: "⚡", run: "🏃", coverageRoute: "🛡️", explosive: "💥", earlyDown: "🎯",
-  starter: "🎯", starters: "🎯", bullpen: "🧱", offense: "🔥", "run-prevention": "🛡️",
-  lineup: "💥", form: "📈", environment: "🌤️", "matchup-eff": "⚡", defense: "🛡️",
-  pace: "🏃", projection: "🎯", "five-v-five": "🏒", finishing: "🎯", goaltending: "🥅",
-  "special-teams": "⚡", "high-danger": "🔥", rest: "🔋", attack: "⚽",
-  "expected-goals": "🎯", btts: "🔥", surface: "🎾", serve: "💣", return: "↩️", fitness: "🔋",
+const MATCHUP_SYMBOL_BY_ID = {
+  pressure: "PR", run: "RN", coverageRoute: "CV", explosive: "XP", earlyDown: "ED",
+  starter: "SP", starters: "SP", bullpen: "BP", offense: "OF", "run-prevention": "RP",
+  lineup: "LU", form: "FM", environment: "ENV", "matchup-eff": "EFF", defense: "DF",
+  pace: "PC", projection: "PROJ", "five-v-five": "5V5", finishing: "FIN", goaltending: "G",
+  "special-teams": "ST", "high-danger": "HD", rest: "RST", attack: "ATK",
+  "expected-goals": "xG", btts: "BTTS", surface: "SUR", serve: "SRV", return: "RET", fitness: "FIT",
 };
 
+function stripDecorativeEmoji(rawLabel) {
+  return String(rawLabel || "MATCHUP")
+    .replace(/^(?:\\p{Extended_Pictographic}|[↩︎↩️])(?:\\uFE0F)?\\s*/u, "")
+    .trim();
+}
+
 function splitMatchupVisual(id, rawLabel) {
-  const label = String(rawLabel || "MATCHUP").trim();
-  const match = label.match(/^(\p{Extended_Pictographic}|↩️?)\s*/u);
   return {
-    icon: MATCHUP_ICON_BY_ID[String(id || "")] || (match ? match[1] : "◆"),
-    label: (match ? label.slice(match[0].length) : label).trim().toUpperCase(),
+    icon: MATCHUP_SYMBOL_BY_ID[String(id || "")] || "SIG",
+    label: stripDecorativeEmoji(rawLabel).toUpperCase(),
   };
 }
 
@@ -332,7 +336,7 @@ export default function CompactGameCard({ game, onOpen }) {
           <div className="cgc-matchup-pills">
             {matchupItems.filter((item) => item.text !== "—").map((item) => (
               <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
-                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "◆"}</i><em>{item.label}</em></span><strong>{item.text}</strong>
+                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "SIG"}</i><em>{item.label}</em></span><strong>{item.text}</strong>
               </div>
             ))}
           </div>
