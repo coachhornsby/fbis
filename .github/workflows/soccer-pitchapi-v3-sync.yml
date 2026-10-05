@@ -3,6 +3,10 @@ name: Soccer PitchAPI v3 sync
 on:
   schedule:
     - cron: "35 11 * * *"
+  push:
+    branches: ["main"]
+    paths:
+      - "data/models/soccer-pitchapi-v3-trigger.json"
   workflow_dispatch:
     inputs:
       mode:
@@ -35,7 +39,7 @@ concurrency:
 
 jobs:
   live:
-    if: github.event_name == 'schedule' || inputs.mode == 'live'
+    if: github.event_name == 'schedule' || github.event_name == 'push' || inputs.mode == 'live'
     strategy:
       fail-fast: false
       max-parallel: 3
