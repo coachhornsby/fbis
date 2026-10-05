@@ -183,7 +183,7 @@ export function attachMlbPlayerProjectionResearch(games = []) {
       playerProjectionStatus: {
         sport: "mlb",
         state: rows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : rows.length ? "HOLD_AVAILABILITY" : "NO_ELIGIBLE_STARTER_PROJECTION",
-        model: "MLB-FBIS-v2.4-PITCH-ZONE-K-CALIBRATED",
+        model: "MLB-FBIS-v2.5-POSTSEASON-CONTEXT",
         version: PRO_PLAYER_PROJECTION_VERSION,
         independent: true,
         marketInformed: false,
