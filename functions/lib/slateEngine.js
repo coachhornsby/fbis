@@ -17,6 +17,7 @@ import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js"
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachBasketballFormResearch } from "./basketballFormModel.js";
 import { attachSoccerV2Research } from "./soccerFbisV2.js";
+import { attachSoccerV3Research } from "./soccerFbisV3.js";
 import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
 import { attachMlbPostseasonContext, loadMlbPostseasonContext } from "./mlbPostseasonContext.js";
 import { loadMlbPitchMatchupContext } from "./mlbPitchMatchupFeed.js";
@@ -358,13 +359,15 @@ export async function buildSlate(sport, date, env = {}) {
 
   if (id === "soccer" && Array.isArray(next.games)) {
     const soccer = await attachSoccerV2Research(next.games, env);
+    const v3 = await attachSoccerV3Research(soccer.games, env);
     next = {
       ...next,
-      games: soccer.games,
+      games: v3.games,
       modelVersion: soccer.meta?.version || next.modelVersion,
       research: {
         ...(next.research || {}),
         soccerFbisV2: soccer.meta,
+        soccerFbisV3: v3.meta,
       },
     };
   }
