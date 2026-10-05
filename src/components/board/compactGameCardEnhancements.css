@@ -168,3 +168,29 @@
 .fbis-shell-main.route-board .cgc-view { font-size: 11px !important; padding: 10px 18px !important; }
 .fbis-shell-main.route-board .cgc-star-row { gap: 4px !important; }
 .fbis-shell-main.route-board .cgc-star-row > svg { width: 19px !important; height: 19px !important; flex-basis: 19px !important; filter: drop-shadow(0 0 4px rgba(255,210,63,.22)); }
+
+/* Section-header hierarchy: labels should read as headers, not metadata. */
+.fbis-shell-main.route-board .cgc-market-item span,
+.fbis-shell-main.route-board .cgc-action-brand span,
+.fbis-shell-main.route-board .cgc-action-item span,
+.fbis-shell-main.route-board .cgc-matchup-read-head span,
+.fbis-shell-main.route-board .cgc-matchup-pill span {
+  font-size: 10.5px !important;
+  font-weight: 950 !important;
+  letter-spacing: .065em !important;
+  line-height: 1.05 !important;
+  text-transform: uppercase;
+}
+
+.fbis-shell-main.route-board .cgc-action-brand strong,
+.fbis-shell-main.route-board .cgc-matchup-read-head strong {
+  font-size: 10.5px !important;
+  font-weight: 950 !important;
+}
+
+.fbis-shell-main.route-board .cgc-time {
+  font-size: 12.5px !important;
+  font-weight: 950 !important;
+  letter-spacing: .015em !important;
+  color: #d3e8fb !important;
+}
