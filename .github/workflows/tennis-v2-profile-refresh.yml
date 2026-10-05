@@ -1,0 +1,93 @@
+name: Tennis v2 profile refresh
+
+on:
+  pull_request:
+    paths:
+      - "scripts/tennis-v2-profile-refresh.mjs"
+      - "functions/lib/tennisContextV2.js"
+      - "functions/api/tennis-v2-snapshot.js"
+      - "functions/lib/tennisV2Ledger.js"
+      - "migrations/0051_tennis_v2_current_profiles.sql"
+      - "schema.extensions.sql"
+      - ".github/workflows/tennis-v2-profile-refresh.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/tennis-v2-profile-refresh.mjs"
+      - "functions/lib/tennisContextV2.js"
+      - "functions/api/tennis-v2-snapshot.js"
+      - "functions/lib/tennisV2Ledger.js"
+      - "migrations/0051_tennis_v2_current_profiles.sql"
+      - "schema.extensions.sql"
+      - ".github/workflows/tennis-v2-profile-refresh.yml"
+  schedule:
+    - cron: "30 11,12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+
+      - name: Build current deep tennis profiles
+        run: node scripts/tennis-v2-profile-refresh.mjs
+
+      - name: Verify profile artifact
+        run: |
+          set -euo pipefail
+          jq -e '.integrity.sameDayExcluded == true and .integrity.futureRowsExcluded == true' artifacts/tennis-v2-current-profiles-summary.json >/dev/null
+          jq -e '.profiles >= 1000 and .speedRows >= 20' artifacts/tennis-v2-current-profiles-summary.json >/dev/null
+          cat artifacts/tennis-v2-current-profiles-summary.json
+
+      - name: Local schedule gate
+        id: gate
+        run: |
+          set -euo pipefail
+          hour="$(TZ=America/Chicago date +%H)"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "apply=0" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$hour" = "06" ]; then
+            echo "apply=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "apply=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply profiles to production D1
+        if: steps.gate.outputs.apply == '1'
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          npx wrangler d1 execute fbis --remote --file artifacts/tennis-v2-current-profiles.sql
+
+      - name: Run automatic v2 decisions from latest markets
+        if: steps.gate.outputs.apply == '1'
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 120 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d '{"mode":"auto"}'             -o "$body" -w "%{http_code}"             "${BASE}/api/tennis-v2-snapshot")"
+          cat "$body"
+          test "$code" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: tennis-v2-current-profiles
+          path: |
+            artifacts/tennis-v2-current-profiles-summary.json
+          retention-days: 30

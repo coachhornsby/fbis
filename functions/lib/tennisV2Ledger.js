@@ -51,14 +51,14 @@ export async function persistTennisMarketSnapshot(db,m={}){
     `INSERT OR IGNORE INTO tennis_market_snapshots(
       id,canonical_event_id,tour,player1,player2,market_type,provider,sportsbook,
       player1_price,player2_price,player1_no_vig_prob,player2_no_vig_prob,hold,
-      observed_at,collected_at,snapshot_type,traded_volume,public_ticket_pct,public_money_pct,
+      observed_at,collected_at,event_start_time,snapshot_type,traded_volume,public_ticket_pct,public_money_pct,
       money_minus_ticket_pct,line_velocity,raw_payload_hash,decision_eligible,can_qualify,
       can_authorize_wager,created_at
-    ) VALUES(?,?,?,?,?,'moneyline',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,0,0,?)`
+    ) VALUES(?,?,?,?,?,'moneyline',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,0,0,?)`
   ).bind(
     id,m.canonicalEventId,m.tour||"tennis",m.player1,m.player2,m.provider||"UNKNOWN",m.sportsbook||null,
     finite(m.player1Price),finite(m.player2Price),finite(m.player1NoVig),finite(m.player2NoVig),finite(m.hold),
-    m.observedAt||new Date().toISOString(),m.collectedAt||new Date().toISOString(),m.snapshotType||"CURRENT",
+    m.observedAt||new Date().toISOString(),m.collectedAt||new Date().toISOString(),m.eventStartTime||null,m.snapshotType||"CURRENT",
     finite(m.tradedVolume),finite(m.publicTicketPct),finite(m.publicMoneyPct),finite(m.moneyMinusTicketPct),
     finite(m.lineVelocity),m.rawPayloadHash||null,new Date().toISOString()
   ).run();
@@ -72,15 +72,17 @@ export async function persistTennisContexts(db,{eventId,tour,players=[],contexts
     const res=await db.prepare(
       `INSERT OR IGNORE INTO tennis_context_snapshots(
         id,canonical_event_id,canonical_player_id,player_name,tour,tournament,surface,indoor,altitude_m,
-        court_speed_index,hours_since_last_match,minutes_last_3_days,minutes_last_7_days,travel_km_7_days,
+        court_speed_index,hours_since_last_match,minutes_last_3_days,minutes_last_7_days,
+        games_last_3_days,games_last_7_days,sets_last_3_days,sets_last_7_days,travel_km_7_days,
         time_zones_crossed_7_days,injury_status,days_since_injury_return,days_since_retirement_or_mto,
         recent_serve_speed_delta_kph,serve_style_score,return_style_score,source,source_as_of,collected_at,
         feature_cutoff_timestamp,created_at
-      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).bind(
       `tcs_${h.slice(0,28)}`,eventId,p.id?String(p.id):null,p.name||"",tour||"tennis",
       c.tournament||null,c.surface||null,c.indoor==null?null:(c.indoor?1:0),finite(c.altitudeM),
       finite(c.courtSpeedIndex),finite(c.hoursSinceLastMatch),finite(c.minutesLast3Days),finite(c.minutesLast7Days),
+      finite(c.gamesLast3Days),finite(c.gamesLast7Days),finite(c.setsLast3Days),finite(c.setsLast7Days),
       finite(c.travelKm7Days),finite(c.timeZonesCrossed7Days),c.injuryStatus||null,finite(c.daysSinceInjuryReturn),
       finite(c.daysSinceRetirementOrMto),finite(c.recentServeSpeedDeltaKph),finite(c.serveStyleScore),
       finite(c.returnStyleScore),source,c.sourceAsOf||null,new Date().toISOString(),cutoff,new Date().toISOString()
@@ -89,12 +91,12 @@ export async function persistTennisContexts(db,{eventId,tour,players=[],contexts
   }
   return inserted;
 }
-export async function persistTennisV2Decision(db,{eventId,tour,player1,player2,pureModelId,pureP1,market,actionIntel,context,eventStartTime,snapshotType="DECISION"}={}){
+export async function persistTennisV2Decision(db,{eventId,tour,player1,player2,pureModelId,pureP1,market,actionIntel,context,eventStartTime,decisionTimestamp=null,snapshotType="DECISION"}={}){
   if(!db?.prepare)return {inserted:false};
   const prior=market?.p1;
   const proj=tennisMarketResidualProjection({fundamentalP1:pureP1,market,actionIntel,contextDifferential:context?.differential||0});
   if(proj.p1==null)return {inserted:false,reason:proj.reason||"projection-unavailable"};
-  const ts=new Date().toISOString();
+  const ts=decisionTimestamp||new Date().toISOString();
   const h=await hash([eventId,ts,snapshotType,pureP1,prior,proj.p1].join("|"));
   const id=`tvd_${h.slice(0,28)}`;
   const res=await db.prepare(
