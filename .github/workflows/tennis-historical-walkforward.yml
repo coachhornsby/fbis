@@ -1,0 +1,75 @@
+name: Tennis historical walk-forward
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/tennisFbisV1.js"
+      - "functions/lib/tennisBacktest.js"
+      - "scripts/tennis-historical-walkforward.mjs"
+      - ".github/workflows/tennis-historical-walkforward.yml"
+  pull_request:
+    paths:
+      - "functions/lib/tennisFbisV1.js"
+      - "functions/lib/tennisBacktest.js"
+      - "scripts/tennis-historical-walkforward.mjs"
+      - ".github/workflows/tennis-historical-walkforward.yml"
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "Historical seasons"
+        required: false
+        default: "2018-2026"
+      simulations:
+        description: "Monte Carlo simulations per match"
+        required: false
+        default: "250"
+
+permissions:
+  contents: read
+
+jobs:
+  walk-forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TENNIS_WF_YEARS: ${{ inputs.years || '2018-2026' }}
+      TENNIS_WF_SIMS: ${{ inputs.simulations || '250' }}
+      TENNIS_WF_EVAL_START: "2020"
+      TENNIS_WF_OUT: "research/tennis/walkforward-latest.json"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tennis model unit tests
+        run: node --test test/tennis-fbis-v1.test.js test/player-props-board.test.js
+      - name: Strict historical walk-forward
+        run: node scripts/tennis-historical-walkforward.mjs | tee tennis-walkforward.log
+      - name: Verify report integrity
+        run: |
+          node - <<'NODE'
+          const fs=require("fs");
+          const p="research/tennis/walkforward-latest.json";
+          const r=JSON.parse(fs.readFileSync(p,"utf8"));
+          if(!r.integrity?.eventStateFreeze || r.integrity?.futureDataUsed) throw new Error("temporal integrity failed");
+          if((r.sample?.evaluated||0)<500) throw new Error("insufficient historical sample");
+          if(!Number.isFinite(r.overall?.brier)||!Number.isFinite(r.overall?.winnerAccuracy)) throw new Error("missing metrics");
+          if(r.source?.productionDependency!==false) throw new Error("licensed research data leaked into production dependency");
+          console.log("validated",JSON.stringify({
+            n:r.sample.evaluated,
+            accuracy:r.overall.winnerAccuracy,
+            brier:r.overall.brier,
+            logLoss:r.overall.logLoss,
+            totalGamesMae:r.overall.totalGames?.mae
+          }));
+          NODE
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: tennis-historical-walkforward
+          path: |
+            research/tennis/walkforward-latest.json
+            tennis-walkforward.log
+          retention-days: 30

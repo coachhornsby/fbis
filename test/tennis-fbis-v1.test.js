@@ -231,3 +231,30 @@ test("tennis research board excludes doubles until a pair-strength model exists"
 test("canonical PrizePicks tennis event identity is stable",()=>{
   assert.equal(canonicalTennisEventId({game_id:"190789"}),"tennis:pp:190789");
 });
+
+
+test("research backtest can lower simulation floor without changing production floor",()=>{
+  const game={id:"floor",player1:strong,player2:weak};
+  const research=simulateTennisMatch(game,{simulations:125},{seed:1,researchBacktest:true});
+  const production=simulateTennisMatch(game,{simulations:125},{seed:1});
+  assert.equal(research.simulations,125);
+  assert.equal(production.simulations,1000);
+});
+
+
+test("walk-forward promotion gate rejects a large but poorly calibrated sample",()=>{
+  const rows=Array.from({length:600},(_,i)=>({
+    id:String(i),
+    start:"2026-09-01T15:00:00Z",
+    frozenAt:"2026-09-01T14:59:00Z",
+    actualWinner:i%2===0?0:1,
+    pPlayer1Win:i%2===0?0.99:0.99,
+    actualTotalGames:22,
+    projectedTotalGames:22,
+  }));
+  const out=evaluateTennisWalkForward(rows,{minimumN:500,maxBrier:.25,rankBaselineAccuracy:.6});
+  assert.equal(out.promotion.pass,false);
+  assert.equal(out.promotion.decision,"RESEARCH_ONLY");
+  assert.ok(out.promotion.reasons.includes("brier_above_0.25"));
+  assert.ok(out.promotion.reasons.includes("below_rank_baseline"));
+});

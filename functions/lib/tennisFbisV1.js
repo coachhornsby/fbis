@@ -168,7 +168,9 @@ export function simulateTennisMatch(game={},ctx={},opts={}){
     surface:game.surface||ctx.surface||"hard",
     bestOf:game.bestOf||ctx.bestOf||3,
   };
-  const simulations=Math.max(1000,Math.min(50000,Number(opts.simulations||ctx.simulations||8000)));
+  const requested=Number(opts.simulations||ctx.simulations||8000);
+  const simulationFloor=opts.researchBacktest===true?100:1000;
+  const simulations=Math.max(simulationFloor,Math.min(50000,requested));
   const R=rng(hashSeed(opts.seed??game.id??[playerKey(player1),playerKey(player2),context.surface].join("|")));
   const outcomes=[];
   for(let i=0;i<simulations;i++)outcomes.push(oneMatch(player1,player2,context,R));
