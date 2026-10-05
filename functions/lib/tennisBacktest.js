@@ -28,7 +28,12 @@ export function scoreTennisForecast(row={}){
   };
 }
 
-export function evaluateTennisWalkForward(rows=[],{minimumN=500}={}){
+export function evaluateTennisWalkForward(rows=[],{
+  minimumN=500,
+  maxBrier=0.25,
+  minimumAccuracy=null,
+  rankBaselineAccuracy=null,
+}={}){
   const scored=rows.map(scoreTennisForecast).filter(x=>x.ok);
   const gamesErrors=scored.map(x=>x.totalGamesAbsError).filter(Number.isFinite);
   const metrics={
@@ -38,13 +43,20 @@ export function evaluateTennisWalkForward(rows=[],{minimumN=500}={}){
     winnerAccuracy:mean(scored.map(x=>x.winnerCorrect)),
     totalGamesMae:mean(gamesErrors),
   };
+  const reasons=[];
+  if(scored.length<minimumN) reasons.push(`requires_${minimumN}_temporal_matches`);
+  if(Number.isFinite(maxBrier)&&Number.isFinite(metrics.brier)&&metrics.brier>maxBrier) reasons.push(`brier_above_${maxBrier}`);
+  if(Number.isFinite(minimumAccuracy)&&Number.isFinite(metrics.winnerAccuracy)&&metrics.winnerAccuracy<minimumAccuracy) reasons.push(`accuracy_below_${minimumAccuracy}`);
+  if(Number.isFinite(rankBaselineAccuracy)&&Number.isFinite(metrics.winnerAccuracy)&&metrics.winnerAccuracy<rankBaselineAccuracy) reasons.push("below_rank_baseline");
+  const pass=reasons.length===0;
   return {
     metrics,
     promotion:{
-      minimumN,
-      pass:scored.length>=minimumN,
-      decision:scored.length>=minimumN?"VALIDATION_SAMPLE_MET":"RESEARCH_ONLY",
-      reason:scored.length>=minimumN?null:`requires_${minimumN}_temporal_matches`,
+      minimumN,maxBrier,minimumAccuracy,rankBaselineAccuracy,
+      pass,
+      decision:pass?"PREDICTIVE_VALIDATION_PASS":"RESEARCH_ONLY",
+      reasons,
+      wagerPromotion:false,
     },
   };
 }
