@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS nfl_player_profiles (
   practice_state TEXT,
   injury_detail TEXT,
   injury_onset_at TEXT,
+  injury_severity_class TEXT,
   expected_return_state TEXT,
   expected_snap_share REAL,
   state_confidence REAL,
