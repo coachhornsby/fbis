@@ -157,6 +157,11 @@ function parseRoster(payload){
 
 function parseCoach(payload){
  const found=[];
+ const rosterCoach=Array.isArray(payload?.coach)?payload.coach[0]:null;
+ if(rosterCoach){
+  const rosterName=clean(rosterCoach.fullName||rosterCoach.displayName||[rosterCoach.firstName,rosterCoach.lastName].filter(Boolean).join(" "));
+  if(rosterName)found.push({title:"Head Coach",name:rosterName});
+ }
  function walk(v,depth=0){
   if(v==null||depth>7)return;
   if(Array.isArray(v)){for(const x of v)walk(x,depth+1);return;}
@@ -179,6 +184,29 @@ function parseCoach(payload){
 function scheduleEvents(payload){
  const candidates=[payload?.events,payload?.team?.events,payload?.schedule?.events,payload?.items];
  return candidates.find(Array.isArray)||[];
+}
+
+function parseDepthRanks(payload){
+ const byId=new Map();
+ function walk(v,depth=0,rankHint=null){
+  if(v==null||depth>9)return;
+  if(Array.isArray(v)){for(let i=0;i<v.length;i++)walk(v[i],depth+1,i+1);return;}
+  if(typeof v!=="object")return;
+  const rank=finite(v.rank??v.depth??v.order??rankHint);
+  const refs=[v?.athlete?.$ref,v?.athlete?.ref,v?.$ref,v?.ref].filter(Boolean).map(String);
+  const ids=[v?.athlete?.id,v?.id,...refs.map(x=>x.match(/athletes\/(\d+)/)?.[1])].filter(Boolean).map(String);
+  if(rank!=null){
+   for(const id of ids){
+    if(!byId.has(id)||rank<byId.get(id))byId.set(id,rank);
+   }
+  }
+  for(const [k,x] of Object.entries(v)){
+   if(["links","logos","images"].includes(k))continue;
+   walk(x,depth+1,rank);
+  }
+ }
+ walk(payload);
+ return byId;
 }
 
 export function buildScheduleProfile(events,abbr,season,nowMs=Date.now()){
@@ -322,12 +350,14 @@ async function fetchJson(url,{timeoutMs=9000}={}){
 }
 async function sourceForTeam(team,season){
  const id=team.espnId;
- const [roster,schedule,info]=await Promise.all([
+ const [roster,schedule,info,coaches,depthcharts]=await Promise.all([
   fetchJson(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${id}/roster`),
   fetchJson(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${id}/schedule?season=${season}`),
   fetchJson(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${id}`),
+  fetchJson(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${season}/teams/${id}/coaches`),
+  fetchJson(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${season}/teams/${id}/depthcharts`),
  ]);
- return{roster,schedule,info};
+ return{roster,schedule,info,coaches,depthcharts};
 }
 async function queryRows(db,sql,...binds){
  if(!db?.prepare)return[];
@@ -492,7 +522,12 @@ export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=
   const schedule=buildScheduleProfile(events,team.abbr,season,nowMs);
   const official=latestByPlayer(availability),prior=new Map(existing.map(x=>[normName(x.player_name),x]));
   const usageRows=verse?.playersByTeam?.[canon(team.abbr)]||[];
+  const depthRanks=src.depthcharts.ok?parseDepthRanks(src.depthcharts.data):new Map();
   const players=inferDepth(roster.map(p=>({roster:p,usage:matchUsage(p,usageRows),position:p.position})));
+  for(const x of players){
+   const officialDepth=depthRanks.get(String(x.roster.id||""));
+   if(officialDepth!=null)x.depthRank=officialDepth;
+  }
   const currentTeamReportAt=availability.reduce((m,r)=>String(r.observed_at||"")>m?String(r.observed_at||""):m,"");
 
   const states=players.map(x=>{
@@ -535,14 +570,18 @@ export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=
   for(const p of states)p.replacements=replacementMap(p,states);
 
   const now=nowMs,next=schedule.find(x=>Date.parse(x.start_time)>now)||null;
-  const coaches=parseCoach(src.info.data||{});
+  const coaches=parseCoach({
+   ...(src.info.data||{}),
+   coach:src.roster.data?.coach||null,
+   coreCoaches:src.coaches.data||null,
+  });
   const counts={};
   for(const p of states)counts[p.healthState]=(counts[p.healthState]||0)+1;
   const identity=verse?.byTeam?.[canon(team.abbr)]||{};
   const profile={
    teamKey:teamKey(team.abbr),teamName:team.displayName,espnTeamId:String(team.espnId),season,
    headCoach:coaches.headCoach,offensiveCoordinator:coaches.offensiveCoordinator,defensiveCoordinator:coaches.defensiveCoordinator,
-   coachSource:src.info.ok?"espn-team":"unavailable",rosterCount:states.length,
+   coachSource:src.coaches.ok||src.roster.ok?"espn":"unavailable",rosterCount:states.length,
    injuredCount:states.filter(p=>p.healthState!=="AVAILABLE").length,outCount:(counts.OUT||0)+(counts.IR||0)+(counts.PUP||0)+(counts.NFI||0)+(counts.SUSPENDED||0),
    questionableCount:counts.QUESTIONABLE||0,doubtfulCount:counts.DOUBTFUL||0,limitedCount:counts.LIMITED||0,practiceDnpCount:counts.DNP_PRACTICE||0,
    nextGameId:next?.eventId||null,nextGameStart:next?.start_time||null,nextOpponentKey:next?.opponentKey||null,nextSite:next?.site||null,
@@ -550,7 +589,7 @@ export async function syncNflTeamProfile(env={},abbr,{season=seasonYear(),nowMs=
    roadGamesLast4:next?.roadGamesLast4??null,threeRoadInFour:Boolean(next?.threeRoadInFour),travelMiles:next?.travelMiles??null,
    timeZonesCrossed:next?.timeZonesCrossed??null,altitudeFeet:next?.altitudeFeet??null,international:Boolean(next?.international),
    scheduleStressScore:next?.scheduleStressScore??null,scheduleFlags:next?.stressFlags||[],identity,
-   updatedAt:startedAt,sourceUpdatedAt:startedAt,source:{profileVersion:NFL_PROFILE_VERSION,roster:src.roster.url,schedule:src.schedule.url,team:src.info.url,nflverse:verse?.meta||null},
+   updatedAt:startedAt,sourceUpdatedAt:startedAt,source:{profileVersion:NFL_PROFILE_VERSION,roster:src.roster.url,schedule:src.schedule.url,team:src.info.url,coaches:src.coaches.url,depthcharts:src.depthcharts.url,nflverse:verse?.meta||null},
   };
 
   const [pWrite,sWrite]=await Promise.all([upsertPlayers(env.DB,states),upsertSchedule(env.DB,schedule)]);
