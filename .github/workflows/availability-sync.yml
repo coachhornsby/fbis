@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   sync:
-    name: TWO DEEP / AVAILABILITY
+    name: OFFICIAL NFL + AVAILABILITY
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -23,7 +23,7 @@ jobs:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: test -n "${HARVEST_SECRET:-}"
 
-      - name: Sync licensed availability feed
+      - name: Sync official NFL + licensed availability feeds
         env:
           BASE: "https://fbis-myz.pages.dev"
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
@@ -34,14 +34,17 @@ jobs:
           echo "availability-sync http=${http}"
           cat "$out"
           test "$http" = "200"
-          jq -e '.ok == true and (.status == "SUCCESS" or .status == "CONFIGURATION_PENDING")' "$out" >/dev/null
+          jq -e '.ok == true and .status == "SUCCESS"' "$out" >/dev/null
           {
             echo "## Availability sync"
             echo "- status: $(jq -r '.status' "$out")"
+            echo "- source: $(jq -r '.source // "unknown"' "$out")"
             echo "- configured: $(jq -r '.configured' "$out")"
             echo "- fetched: $(jq -r '.fetched // 0' "$out")"
             echo "- normalized: $(jq -r '.normalized // 0' "$out")"
             echo "- inserted: $(jq -r '.inserted // 0' "$out")"
             echo "- already: $(jq -r '.already // 0' "$out")"
+            echo "- NFL official: $(jq -r '.nflOfficial.status // "unknown"' "$out") ($(jq -r '.nflOfficial.normalized // 0' "$out") rows)"
+            echo "- Two Deep: $(jq -r '.twoDeep.status // "unknown"' "$out")"
             echo "- reason: $(jq -r '.reason // "none"' "$out")"
           } >> "$GITHUB_STEP_SUMMARY"
