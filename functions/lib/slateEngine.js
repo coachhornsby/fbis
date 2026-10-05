@@ -397,11 +397,13 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "nba" && Array.isArray(next.games)) {
+    const hydrated = await attachNbaBoardProjection(next.games, env.DB || null);
     next = {
       ...next,
-      games: attachNbaPlayerProjectionBlocked(next.games),
+      games: attachNbaPlayerProjectionBlocked(hydrated.games),
       research: {
         ...(next.research || {}),
+        nbaBoardProjection: hydrated.meta,
         nbaPlayerProjection: {
           state: "BLOCKED_RIGHTS_CLEARED_PLAYER_FEED",
           canQualify: false,
