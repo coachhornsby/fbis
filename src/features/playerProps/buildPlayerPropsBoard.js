@@ -14,7 +14,7 @@ import {
   nhlPropConfidenceLineValidated,
 } from "../../../functions/lib/nhlPropConfidence.js";
 import { evaluateNhlPropWagerV1 } from "../../../functions/lib/nhlWagerV1.js";
-import { selectivePropStars } from "../../../functions/lib/selectivePropEdge.js";
+import { estimatedPropHitProbability, prizePicksTierEconomics, selectivePropStars } from "../../../functions/lib/selectivePropEdge.js";
 
 /**
  * All player-prop markets currently supported on FBIS product surfaces.
@@ -69,6 +69,15 @@ export function propProjectionStars(row = {}) {
  * May derive over/under probability from projection + sigma + line only —
  * never invents a projection or price.
  */
+function applyPrizePicksPlatformConfidence(row = {}, stars = 1) {
+  const hitProbability = estimatedPropHitProbability(row);
+  const economics = prizePicksTierEconomics(row, hitProbability);
+  return {
+    stars: Math.min(Number(stars) || 1, economics.maxStars),
+    economics,
+  };
+}
+
 export function withFbisPropAnalytics(row = {}) {
   const fbisProjection =
     row.fbisProjection ?? row.projection ?? row.average ?? row.proj ?? null;
@@ -132,11 +141,12 @@ export function withFbisPropAnalytics(row = {}) {
         lineValidated: nhlPropConfidenceLineValidated("saves",ranked.line),
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
+      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars);
       return {
         ...ranked,
-        confidenceStars: stars.stars,
-        confidenceLabel: stars.label,
-        confidenceTier: stars.tier,
+        confidenceStars: platform.stars,
+        confidenceLabel: `${platform.stars} STAR`,
+        confidenceTier: platform.stars >= 5 ? "ELITE" : platform.stars === 4 ? "PREMIUM" : platform.stars === 3 ? "STRONG" : platform.stars === 2 ? "LEAN" : "WATCH",
         confidenceSide: stars.side,
         confidenceGap: stars.gap,
         confidenceReasons: stars.reasons,
@@ -159,11 +169,12 @@ export function withFbisPropAnalytics(row = {}) {
         lineValidated: nhlPropConfidenceLineValidated("shots_on_goal",ranked.line),
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
+      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars);
       return {
         ...ranked,
-        confidenceStars: stars.stars,
-        confidenceLabel: stars.label,
-        confidenceTier: stars.tier,
+        confidenceStars: platform.stars,
+        confidenceLabel: `${platform.stars} STAR`,
+        confidenceTier: platform.stars >= 5 ? "ELITE" : platform.stars === 4 ? "PREMIUM" : platform.stars === 3 ? "STRONG" : platform.stars === 2 ? "LEAN" : "WATCH",
         confidenceSide: stars.side,
         confidenceGap: stars.gap,
         confidenceReasons: stars.reasons,
@@ -183,11 +194,12 @@ export function withFbisPropAnalytics(row = {}) {
       eligibleForCard: ranked.eligibleForCard,
     });
     if (genericStars) {
+      const platform = applyPrizePicksPlatformConfidence(ranked, genericStars.stars);
       return {
         ...ranked,
-        confidenceStars: genericStars.stars,
-        confidenceLabel: genericStars.label,
-        confidenceTier: genericStars.tier,
+        confidenceStars: platform.stars,
+        confidenceLabel: `${platform.stars} STAR`,
+        confidenceTier: platform.stars >= 5 ? "ELITE" : platform.stars === 4 ? "PREMIUM" : platform.stars === 3 ? "STRONG" : platform.stars === 2 ? "LEAN" : "WATCH",
         confidenceSide: ranked.convictionLean || null,
         confidenceGap: ranked.projectionDelta,
         confidenceReasons: genericStars.reasons,
@@ -212,9 +224,12 @@ export function withFbisPropAnalytics(row = {}) {
   const roleConfidence = ranked.roleConfidence == null ? null : Number(ranked.roleConfidence);
   if (Number.isFinite(roleConfidence) && roleConfidence < 0.6) stars = Math.min(stars, 2);
   if (ranked.propGate && ranked.propGate !== "CLEAR") stars = Math.min(stars, 2);
+  const platform = applyPrizePicksPlatformConfidence(ranked, stars);
+  stars = platform.stars;
   const hasSigma = Number.isFinite(Number(ranked.fbisSigma)) && Number(ranked.fbisSigma) > 0;
   return {
     ...ranked,
+    prizePicksEconomics: platform.economics,
     confidenceStars: stars,
     confidenceLabel: `${stars} STAR`,
     confidenceTier: stars >= 5 ? "ELITE" : stars === 4 ? "PREMIUM" : stars === 3 ? "STRONG" : stars === 2 ? "LEAN" : "WATCH",
