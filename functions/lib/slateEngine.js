@@ -11,6 +11,7 @@ import { attachNflShadow } from "./nflModel.js";
 import { attachNflProShadow } from "./nflProModel.js";
 import { attachNflGameMatchups } from "./nflGameMatchup.js";
 import { attachNflWagerDecisions } from "./nflWagerDecision.js";
+import { loadNflTeamProfiles, attachNflPersistentProfiles } from "./nflTeamProfiles.js";
 import { NFL_WAGER_CONFIDENCE_V1 } from "../../data/models/nfl-wager-confidence-v1.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
