@@ -1,0 +1,47 @@
+name: NBA official availability smoke
+
+on:
+  push:
+    branches: ["research/nba-deep-v2"]
+    paths:
+      - "scripts/nba-official-injury-discover.mjs"
+      - ".github/workflows/nba-official-availability-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - name: Discover official report
+        run: |
+          mkdir -p artifacts
+          node scripts/nba-official-injury-discover.mjs out=artifacts/discovery.json
+          cat artifacts/discovery.json
+      - name: Download and render text
+        run: |
+          set -euo pipefail
+          url=$(jq -r '.url // empty' artifacts/discovery.json)
+          if [ -z "$url" ]; then
+            echo "No current official injury PDF available; fail closed."
+            exit 0
+          fi
+          curl -L --fail-with-body -A "FBIS-NBA-Official-Availability/1.0" "$url" -o artifacts/report.pdf
+          if ! command -v pdftotext >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq poppler-utils
+          fi
+          pdftotext -layout artifacts/report.pdf artifacts/report.txt
+          sed -n '1,140p' artifacts/report.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-official-availability-smoke-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 7
