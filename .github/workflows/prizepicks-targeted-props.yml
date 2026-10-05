@@ -260,3 +260,4 @@ jobs:
           path: artifacts/
           retention-days: 14
 # operator-trigger: 2026-10-04 daily Zen recovery
+# incident-recovery: 2026-10-05 missing scheduled acquisition
