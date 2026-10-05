@@ -1,0 +1,97 @@
+name: Tennis ACTION capability probe
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/tennis-action-capability-probe.yml"
+      - "functions/lib/actionApifyShadow.js"
+      - "functions/lib/actionApifyCollector.js"
+      - "functions/lib/tennisMarketV2.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+
+      - name: Require existing production credentials
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+
+      - name: Probe ATP and WTA ACTION capability
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          : > artifacts/tennis-action-probe.jsonl
+          for sport in atp wta; do
+            echo "Planning $sport capability audit"
+            curl -fsS --max-time 60               -H "x-harvest-secret: ${HARVEST_SECRET}"               "${BASE}/api/action-research-pull?sport=${sport}&lifecycle=pregame&profile=CAPABILITY_AUDIT&gameStatus=scheduled&maxItems=3&fitBudgetUsd=0.18"               | tee "/tmp/${sport}-plan.json"
+            jq -e '.ok == true' "/tmp/${sport}-plan.json" >/dev/null
+            allowed="$(jq -r '.safety.allowed // false' "/tmp/${sport}-plan.json")"
+            if [ "$allowed" = "true" ]; then
+              curl -fsS --max-time 180 -X POST                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -H "content-type: application/json"                 -d "{\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"CAPABILITY_AUDIT\",\"gameStatus\":\"scheduled\",\"maxItems\":3,\"fitBudgetUsd\":0.18}"                 "${BASE}/api/action-research-pull" | tee "/tmp/${sport}-run.json"
+              jq -c --arg sport "$sport" '{sport:$sport,run:.}' "/tmp/${sport}-run.json" >> artifacts/tennis-action-probe.jsonl
+            else
+              jq -c --arg sport "$sport" '{sport:$sport,plan:.}' "/tmp/${sport}-plan.json" >> artifacts/tennis-action-probe.jsonl
+            fi
+          done
+
+      - name: Inspect persisted tennis ACTION fields
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --json --command "
+            SELECT sport,
+                   COUNT(*) AS observations,
+                   COUNT(DISTINCT canonical_event_id) AS matched_events,
+                   SUM(CASE WHEN public_ticket_pct IS NOT NULL THEN 1 ELSE 0 END) AS ticket_rows,
+                   SUM(CASE WHEN public_money_pct IS NOT NULL THEN 1 ELSE 0 END) AS money_rows,
+                   SUM(CASE WHEN money_minus_ticket_pct IS NOT NULL THEN 1 ELSE 0 END) AS gap_rows,
+                   MAX(ABS(money_minus_ticket_pct)) AS max_abs_gap,
+                   SUM(CASE WHEN tracked_bet_count IS NOT NULL THEN 1 ELSE 0 END) AS bet_count_rows,
+                   SUM(CASE WHEN tracked_volume IS NOT NULL THEN 1 ELSE 0 END) AS volume_rows,
+                   MIN(collected_at) AS first_seen,
+                   MAX(collected_at) AS last_seen
+            FROM action_market_book_observations
+            WHERE lower(sport) IN ('atp','wta')
+              AND collected_at >= datetime('now','-2 hours')
+            GROUP BY sport
+            ORDER BY sport;" > artifacts/tennis-action-fields.json
+          cat artifacts/tennis-action-fields.json
+
+      - name: Inspect tennis movement coverage
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --json --command "
+            SELECT lower(sport) AS sport,
+                   COUNT(*) AS movement_rows,
+                   COUNT(DISTINCT provider_event_id) AS events,
+                   COUNT(DISTINCT sportsbook) AS books
+            FROM action_market_book_observations
+            WHERE lower(sport) IN ('atp','wta')
+              AND provider_timestamp IS NOT NULL
+              AND collected_at >= datetime('now','-2 hours')
+            GROUP BY lower(sport);" > artifacts/tennis-action-movement.json
+          cat artifacts/tennis-action-movement.json
+
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: tennis-action-capability-probe
+          path: artifacts/tennis-action-*.json*
+          retention-days: 30
