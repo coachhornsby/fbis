@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-04",
+  "updatedAt": "2026-10-05",
   "sports": {
     "nfl": {
       "currentResearchModel": "NFL-PRO-v1.1",
@@ -18,12 +18,13 @@
       "notes": "Full-history PIT-safe Ridge research model using 2004-2026 event/context data. Market remains benchmark-only. Frozen fit trained through 2025."
     },
     "soccer": {
-      "currentResearchModel": "SOCCER-FBIS-v1",
-      "fitArtifact": "functions/lib/soccerFbisV1.js",
-      "status": "research-system-built-validation-required",
+      "currentResearchModel": "SOCCER-FBIS-v2",
+      "incumbentStructuralModel": "SOCCER-FBIS-v1",
+      "fitArtifact": "functions/lib/soccerFbisV2.js",
+      "status": "v2-causal-ensemble-built-head-to-head-validation-required",
       "canQualify": false,
       "canAuthorizeWager": false,
-      "notes": "Point-in-time league-aware Dixon-Coles research engine covering EPL, La Liga, Bundesliga, Serie A, Ligue 1, MLS and NWSL. Market is benchmark-only; no wager authority until walk-forward, market and prospective gates pass."
+      "notes": "Dixon-Coles structural model plus a strictly pre-match Elo/form/venue/rest online multinomial challenger. Optional xG/xGA, PPDA, deep completions and expected-points fields activate only when rights-cleared upstream data exists. Market remains benchmark-only; v2 must beat v1 on true walk-forward Brier/log loss and then pass no-vig market and prospective gates."
     },
     "nba": {
       "currentResearchModel": "NBA-FBIS-v1",
