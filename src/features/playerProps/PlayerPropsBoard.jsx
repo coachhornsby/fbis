@@ -53,17 +53,19 @@ function matchupText(row) {
 }
 
 function PlayerAvatar({ row, size = 54 }) {
-  const [failed, setFailed] = useState(false);
-  if (row?.imageUrl && !failed) {
+  const sources = [row?.imageUrl, row?.fallbackImageUrl].filter(Boolean);
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const src = sources[sourceIndex] || null;
+  if (src) {
     return (
       <img
-        src={row.imageUrl}
+        src={src}
         alt={row.playerName || "Player headshot"}
         width={size}
         height={size}
         loading="lazy"
         referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
+        onError={() => setSourceIndex((i) => i + 1)}
         style={{
           width: size,
           height: size,
@@ -76,6 +78,7 @@ function PlayerAvatar({ row, size = 54 }) {
       />
     );
   }
+  if (String(row?.sport || "").toLowerCase() === "tennis") return null;
   return (
     <TeamLogo
       team={row?.teamIdentity || { abbr: row?.team, name: row?.team }}
