@@ -41,13 +41,23 @@ function playerAvailabilityGate(game = {}, sport = "", player = {}, team = null)
     if (pid && p.playerId && String(p.playerId) === pid) return true;
     return pname && normName(p.name) === pname;
   }) || null;
-  const status = normalizeAvailabilityStatus(match?.status || "UNKNOWN");
+  const persistentPlayers = sport==="nfl"
+    ? [
+        ...(game?.nflPersistentProfile?.homePlayers || []),
+        ...(game?.nflPersistentProfile?.awayPlayers || []),
+      ]
+    : [];
+  const persistent = persistentPlayers.find((p)=>{
+    if(pid && p.playerId && String(p.playerId)===pid)return true;
+    return pname && normName(p.playerName||p.name)===pname;
+  }) || null;
+  const status = normalizeAvailabilityStatus(match?.status || persistent?.status || "UNKNOWN");
 
   if (["OUT","IR","PUP","NFI","SUSPENDED"].includes(status)) {
-    return { state:"BLOCKED", reason:"player_unavailable", status, match, preflight };
+    return { state:"BLOCKED", reason:"player_unavailable", status, match:match||persistent, preflight };
   }
   if (["DOUBTFUL","QUESTIONABLE","DNP_PRACTICE","LIMITED"].includes(status)) {
-    return { state:"HOLD", reason:"player_status_unresolved", status, match, preflight };
+    return { state:"HOLD", reason:"player_status_unresolved", status, match:match||persistent, preflight };
   }
   if (sport === "nhl" && String(player?.position || "").toUpperCase() === "G") {
     const goalieSide = team && String(game?.home?.abbr || "").toUpperCase() === String(team).toUpperCase() ? "home" : "away";
@@ -61,7 +71,7 @@ function playerAvailabilityGate(game = {}, sport = "", player = {}, team = null)
       return { state:"HOLD", reason:"probable_starter_unresolved", status, match, preflight };
     }
   }
-  return { state:"CLEAR", reason:null, status, match, preflight };
+  return { state:"CLEAR", reason:null, status, match:match||persistent, preflight };
 }
 
 function statRow({ sport, game, team, player, market, projection, sigma = null, source, notes = null }) {
