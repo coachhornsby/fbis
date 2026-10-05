@@ -298,7 +298,17 @@ function advancedMetricRows(detail,row){
     if(value==null||!Number.isFinite(Number(value))) return;
     out.push({label,value:formatter(value)});
   };
-  if(market.startsWith("passing")||market==="completions"||market==="interceptions"){
+  const sport=String(row?.sport||"").toLowerCase();
+  if(sport==="mlb"){
+    add("ERA",a.era,(v)=>Number(v).toFixed(2));
+    add("WHIP",a.whip,(v)=>Number(v).toFixed(2));
+    add("K / 9",a.strikeoutsPer9,(v)=>Number(v).toFixed(1));
+    add("BB / 9",a.walksPer9,(v)=>Number(v).toFixed(1));
+    add("H / 9",a.hitsPer9,(v)=>Number(v).toFixed(1));
+    if(a.inningsPitched!=null&&a.gamesStarted){
+      add("IP / Start",Number(a.inningsPitched)/Number(a.gamesStarted),(v)=>Number(v).toFixed(1));
+    }
+  } else if(market.startsWith("passing")||market==="completions"||market==="interceptions"){
     add("CPOE",a.cpoe,(v)=>Number(v).toFixed(1));
     add("Time to Throw",a.avgTimeToThrow,(v)=>Number(v).toFixed(2)+"s");
     add("Aggressiveness",a.aggressiveness,(v)=>Number(v).toFixed(1)+"%");
@@ -336,15 +346,17 @@ function PropAnalytics({ row, open, onToggle }){
       modelVersion:String(row?.model_version||""),
     });
     setState({loading:true,error:"",body:null});
-    fetch("/api/player-prop-detail?"+q.toString(),{credentials:"same-origin"})
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort("player-prop-detail-timeout"),10000);
+    fetch("/api/player-prop-detail?"+q.toString(),{credentials:"same-origin",signal:controller.signal})
       .then(async res=>{
         const body=await res.json().catch(()=>({}));
         if(!res.ok||body?.ok===false) throw new Error(body?.error||("HTTP "+res.status));
         return body;
       })
-      .then(body=>{if(!cancelled)setState({loading:false,error:"",body});})
-      .catch(err=>{if(!cancelled)setState({loading:false,error:String(err?.message||err),body:null});});
-    return()=>{cancelled=true};
+      .then(body=>{clearTimeout(timer);if(!cancelled)setState({loading:false,error:"",body});})
+      .catch(err=>{clearTimeout(timer);if(!cancelled)setState({loading:false,error:err?.name==="AbortError"?"History request timed out":String(err?.message||err),body:null});});
+    return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
   },[open,row,state.body,state.loading]);
 
   const detail=state.body?.detail||null;
