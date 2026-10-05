@@ -91,6 +91,14 @@ jobs:
             start="$(TZ=America/Chicago date -d '4 days ago' +%F)"
           fi
 
+          if [ "$MODE" = "incremental" ]; then
+            export SOCCER_ADVANCED=1
+            export SOCCER_ADVANCED_MAX=12
+          else
+            export SOCCER_ADVANCED=0
+            export SOCCER_ADVANCED_MAX=0
+          fi
+
           cursor="$start"
           while [ "$cursor" < "$today" ] || [ "$cursor" = "$today" ]; do
             month_end="$(date -u -d "$cursor +1 month -1 day" +%F)"
