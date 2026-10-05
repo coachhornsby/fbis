@@ -9,7 +9,9 @@ const current=args.current||"artifacts/current/nba-canonical.jsonl";
 const historicalImpact=args.historicalImpact||"artifacts/frozen/nba-player-impact-v1.json";
 const availabilityFile=args.availability||"artifacts/nba-availability.json";
 const coverageFile=args.coverage||"artifacts/nba-availability-coverage.json";
-const lineupFile=args.lineups||"artifacts/frozen/nba-lineup-effects.json";
+const priorStatesFile=args.priorStates||"artifacts/nba-player-states-prior.json";
+const lineupsFile=args.lineupEvidence||"artifacts/nba-official-lineups.json";
+const lineupFile=args.lineupEffects||"artifacts/frozen/nba-lineup-effects.json";
 const out=args.out||"artifacts/nba-player-impact-live.json";
 const sqlOut=args.sql||"artifacts/nba-player-impact-live.sql";
 const asOf=args.asOf||new Date().toISOString();
@@ -28,6 +30,8 @@ const flattenRows=x=>Array.isArray(x)
   : (Array.isArray(x?.results) ? x.results : Array.isArray(x?.result) ? x.result.flatMap(r=>r?.results||[]) : []);
 const availability=flattenRows(availRaw);
 const coverage=flattenRows(readJson(coverageFile));
+const priorStates=flattenRows(readJson(priorStatesFile));
+const lineupRows=flattenRows(readJson(lineupsFile));
 const hist=new Map(),latest=new Map(),teamAbbrById=new Map();
 for(const g of games){
   if(g.homeId)teamAbbrById.set(String(g.homeId),g.home?.abbr||teamAbbrById.get(String(g.homeId))||null);
@@ -43,8 +47,25 @@ for(const g of currentGames)for(const p of g.players||[])latest.set(String(p.id|
 function latestAvailability(player){
   const rows=availability.filter(a=>(a.player_id&&String(a.player_id)===String(player.id))||String(a.player_name||"").toLowerCase()===String(player.name||"").toLowerCase())
     .filter(a=>!a.observed_at||Date.parse(a.observed_at)<=Date.parse(asOf))
-    .sort((a,b)=>Date.parse(b.observed_at||0)-Date.parse(a.observed_at||0));
-  return rows[0]||null;
+    .map(a=>({...a,_ts:a.observed_at||a.source_updated_at||null,_carried:false}));
+  const prior=priorStates.filter(a=>(a.player_id&&String(a.player_id)===String(player.id))||String(a.player_name||"").toLowerCase()===String(player.name||"").toLowerCase())
+    .map(a=>({
+      player_id:a.player_id,player_name:a.player_name,status:a.status,
+      injury_detail:a.injury_detail,source:"PERSISTENT_TEAM_PROFILE",
+      observed_at:a.state_source_timestamp||a.as_of||a.updated_at,
+      _ts:a.state_source_timestamp||a.as_of||a.updated_at,_carried:true,
+      state_confidence:a.state_confidence
+    }));
+  const confirmed=lineupRows.filter(a=>(a.player_id&&String(a.player_id)===String(player.id))||String(a.player_name||"").toLowerCase()===String(player.name||"").toLowerCase())
+    .filter(a=>["STARTER","ACTIVE","CONFIRMED_ACTIVE","BENCH"].includes(String(a.lineup_status||"").toUpperCase()))
+    .map(a=>({
+      player_id:a.player_id,player_name:a.player_name,status:"AVAILABLE",
+      injury_detail:null,source:"CONFIRMED_LINEUP",
+      observed_at:a.observed_at,_ts:a.observed_at,_carried:false,state_confidence:.99
+    }));
+  return [...rows,...prior,...confirmed]
+    .filter(a=>!a._ts||Date.parse(a._ts)<=Date.parse(asOf))
+    .sort((a,b)=>Date.parse(b._ts||0)-Date.parse(a._ts||0))[0]||null;
 }
 const impacts={};
 for(const [id,rows] of hist){
@@ -81,7 +102,10 @@ for(const [teamId,roster] of teams){
   const unavailable=[];
   for(const [id,p] of Object.entries(roster)){
     const a=latestAvailability({id,name:p.name});
-    if(a&&["OUT","DOUBTFUL","QUESTIONABLE","PROBABLE"].includes(String(a.status||"").toUpperCase()))unavailable.push({playerId:id,status:a.status,source:a.source,observedAt:a.observed_at});
+    if(a&&["OUT","DOUBTFUL","QUESTIONABLE","PROBABLE"].includes(String(a.status||"").toUpperCase()))unavailable.push({
+      playerId:id,status:a.status,source:a.source,observedAt:a.observed_at,
+      carriedForward:Boolean(a._carried),injuryDetail:a.injury_detail||null,stateConfidence:a.state_confidence??null
+    });
   }
   const coverageRow=officialCoverageForRoster(roster);
   const officialSubmitted=String(coverageRow?.submission_status||"").toUpperCase()==="SUBMITTED";
