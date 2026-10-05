@@ -88,13 +88,17 @@ async function nflDetail(context,{name,team,opponent,market,line}){
   return {source:"nflverse",sourceLabel:"nflverse weekly player stats",statField:field,last5,season:{games:n(p?.games)??currentSeason.length,average:seasonAvg,recent5Average:recent5Avg},role:{position:position||null,snapShare:n(p?.snapShare),trackingGames:n(p?.trackingGames),snapGames:n(p?.snapGames)},matchup:{opponent:opp||null,opponentAllowed:defense==null?null:Number(defense),leagueAverageAllowed:league==null?null:Number(league),matchupFactor:defense!=null&&league?Number(defense)/Number(league):null},advanced:p?.ngs||null};
 }
 async function mlbPerson(name){
-  const r=await fetch("https://statsapi.mlb.com/api/v1/people/search?active=true&sportIds=1&names="+encodeURIComponent(name),{
-    headers:{accept:"application/json","user-agent":"FBIS/1.0"}
-  });
-  if(!r.ok)return null;
-  const body=await r.json().catch(()=>({}));
-  const wanted=norm(name);
-  return (body?.people||[]).find(x=>norm(x?.fullName)===wanted)||(body?.people||[])[0]||null;
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort("mlb-player-search-timeout"),6000);
+  try{
+    const r=await fetch("https://statsapi.mlb.com/api/v1/people/search?active=true&sportIds=1&names="+encodeURIComponent(name),{
+      headers:{accept:"application/json","user-agent":"FBIS/1.0"},signal:controller.signal
+    });
+    if(!r.ok)return null;
+    const body=await r.json().catch(()=>({}));
+    const wanted=norm(name);
+    return (body?.people||[]).find(x=>norm(x?.fullName)===wanted)||(body?.people||[])[0]||null;
+  }catch{return null;}finally{clearTimeout(timer);}
 }
 function mlbGroup(market){
   return ["strikeouts","pitching_outs","earned_runs","walks_allowed","hits_allowed"].includes(market)?"pitching":"hitting";
@@ -133,11 +137,16 @@ async function mlbDetail({name,market,line}){
   const season=new Date().getFullYear();
   const group=mlbGroup(market);
   const qs=new URLSearchParams({stats:"gameLog,season",group,season:String(season)});
-  const r=await fetch("https://statsapi.mlb.com/api/v1/people/"+person.id+"/stats?"+qs.toString(),{
-    headers:{accept:"application/json","user-agent":"FBIS/1.0"}
-  });
-  if(!r.ok)return null;
-  const body=await r.json().catch(()=>({}));
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort("mlb-player-stats-timeout"),7000);
+  let body={};
+  try{
+    const r=await fetch("https://statsapi.mlb.com/api/v1/people/"+person.id+"/stats?"+qs.toString(),{
+      headers:{accept:"application/json","user-agent":"FBIS/1.0"},signal:controller.signal
+    });
+    if(!r.ok)return null;
+    body=await r.json().catch(()=>({}));
+  }catch{return null;}finally{clearTimeout(timer);}
   let games=[],seasonStat=null;
   for(const block of body?.stats||[]){
     const type=String(block?.type?.displayName||block?.type||"").toLowerCase();
@@ -154,11 +163,21 @@ async function mlbDetail({name,market,line}){
   });
   const values=games.map(g=>mlbValue(g?.stat,market)).filter(v=>v!=null);
   const avg=values.length?values.reduce((a,b)=>a+b,0)/values.length:null;
+  const advanced=group==="pitching"&&seasonStat?{
+    era:n(seasonStat.era),
+    whip:n(seasonStat.whip),
+    strikeoutsPer9:n(seasonStat.strikeoutsPer9Inn),
+    walksPer9:n(seasonStat.walksPer9Inn),
+    hitsPer9:n(seasonStat.hitsPer9Inn),
+    inningsPitched:n(seasonStat.inningsPitched),
+    gamesStarted:n(seasonStat.gamesStarted),
+    pitchesThrown:n(seasonStat.numberOfPitches ?? seasonStat.pitchesThrown),
+  }:null;
   return {
     source:"mlb-stats-api",sourceLabel:"MLB Stats API",
     statField:market,last5,
     season:{games:values.length,average:avg,total:mlbValue(seasonStat,market)},
-    role:null,matchup:null,advanced:null,
+    role:null,matchup:null,advanced,
   };
 }
 async function calibration(db,sport,market,modelVersion){
