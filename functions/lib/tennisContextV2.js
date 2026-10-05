@@ -15,6 +15,10 @@ export function normalizeTennisContext(raw={}){
   const hoursSinceLastMatch=finite(raw.hoursSinceLastMatch);
   const minutesLast3Days=finite(raw.minutesLast3Days);
   const minutesLast7Days=finite(raw.minutesLast7Days);
+  const gamesLast3Days=finite(raw.gamesLast3Days);
+  const gamesLast7Days=finite(raw.gamesLast7Days);
+  const setsLast3Days=finite(raw.setsLast3Days);
+  const setsLast7Days=finite(raw.setsLast7Days);
   const travelKm7Days=finite(raw.travelKm7Days);
   const timeZonesCrossed7Days=finite(raw.timeZonesCrossed7Days);
   const daysSinceRetirementOrMto=finite(raw.daysSinceRetirementOrMto);
@@ -26,6 +30,7 @@ export function normalizeTennisContext(raw={}){
   const serveStyleScore=finite(raw.serveStyleScore);
   return {
     indoor,altitudeM,courtSpeedIndex,hoursSinceLastMatch,minutesLast3Days,minutesLast7Days,
+    gamesLast3Days,gamesLast7Days,setsLast3Days,setsLast7Days,
     travelKm7Days,timeZonesCrossed7Days,daysSinceRetirementOrMto,daysSinceInjuryReturn,
     age,injuryStatus,recentServeSpeedDeltaKph,returnStyleScore,serveStyleScore,
     tournamentLevel:raw.tournamentLevel?String(raw.tournamentLevel).toLowerCase():null,
@@ -36,7 +41,8 @@ export function normalizeTennisContext(raw={}){
 
 export function contextCompleteness(ctx={}){
   const keys=["indoor","altitudeM","courtSpeedIndex","hoursSinceLastMatch","minutesLast3Days",
-    "minutesLast7Days","travelKm7Days","timeZonesCrossed7Days","injuryStatus",
+    "minutesLast7Days","gamesLast3Days","gamesLast7Days","setsLast3Days","setsLast7Days",
+    "travelKm7Days","timeZonesCrossed7Days","injuryStatus",
     "daysSinceInjuryReturn","recentServeSpeedDeltaKph","returnStyleScore","serveStyleScore"];
   const present=keys.filter(k=>ctx[k]!=null).length;
   return {present,total:keys.length,ratio:present/keys.length};
@@ -56,6 +62,10 @@ export function tennisContextServeAdjustment(raw={},opponentRaw={}){
   if(c.hoursSinceLastMatch!=null && c.hoursSinceLastMatch<30) parts.turnaround=-clamp((30-c.hoursSinceLastMatch)/30*0.008,0,0.008);
   if(c.minutesLast3Days!=null) parts.fatigue3d=-clamp(Math.max(0,c.minutesLast3Days-240)/360*0.010,0,0.010);
   if(c.minutesLast7Days!=null) parts.fatigue7d=-clamp(Math.max(0,c.minutesLast7Days-540)/700*0.006,0,0.006);
+  if(c.gamesLast3Days!=null) parts.gamesFatigue3d=-clamp(Math.max(0,c.gamesLast3Days-55)/70*0.008,0,0.008);
+  if(c.gamesLast7Days!=null) parts.gamesFatigue7d=-clamp(Math.max(0,c.gamesLast7Days-110)/130*0.005,0,0.005);
+  if(c.setsLast3Days!=null) parts.setsFatigue3d=-clamp(Math.max(0,c.setsLast3Days-6)/8*0.006,0,0.006);
+  if(c.setsLast7Days!=null) parts.setsFatigue7d=-clamp(Math.max(0,c.setsLast7Days-12)/16*0.004,0,0.004);
   if(c.travelKm7Days!=null) parts.travel=-clamp(Math.max(0,c.travelKm7Days-2500)/9000*0.005,0,0.005);
   if(c.timeZonesCrossed7Days!=null) parts.timezones=-clamp(Math.max(0,c.timeZonesCrossed7Days-2)/8*0.005,0,0.005);
   if(c.recentServeSpeedDeltaKph!=null) parts.serveSpeed=clamp(c.recentServeSpeedDeltaKph/25*0.010,-0.010,0.010);
