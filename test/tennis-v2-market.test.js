@@ -156,3 +156,13 @@ test("prospective validation cannot authorize wagers",()=>{
   assert.equal(v.gates.canAuthorizeWager,false);
   assert.equal(v.status,"RESEARCH_ONLY");
 });
+
+
+test("game/set workload fatigue is explicit and penalizes heavy recent load",()=>{
+  const light=tennisContextServeAdjustment({gamesLast3Days:30,setsLast3Days:3},{});
+  const heavy=tennisContextServeAdjustment({gamesLast3Days:95,gamesLast7Days:170,setsLast3Days:11,setsLast7Days:20},{});
+  assert.equal(light.parts.gamesFatigue3d,undefined);
+  assert.ok(heavy.total<0);
+  assert.ok(heavy.parts.gamesFatigue3d<0);
+  assert.ok(heavy.parts.setsFatigue7d<0);
+});
