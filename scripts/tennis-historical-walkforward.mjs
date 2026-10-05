@@ -225,6 +225,13 @@ const byYear=Object.fromEntries([...new Set(evalRows.map(r=>r.year))].sort().map
 const byTour=Object.fromEntries(["atp","wta"].map(t=>[t,summarize(evalRows.filter(r=>r.tour===t))]));
 const bySurface=Object.fromEntries(["hard","clay","grass"].map(s=>[s,summarize(evalRows.filter(r=>r.surface===s))]));
 const overall=summarize(evalRows);
+const maxCalibrationError=Math.max(...overall.calibration.map(b=>Math.abs(b.meanProbability-b.observedWinRate)));
+const predictivePass=
+  overall.n>=500 &&
+  overall.brier<=0.25 &&
+  overall.winnerAccuracy>=overall.rankFavoriteAccuracy &&
+  maxCalibrationError<=0.08;
+
 const report={
   generatedAt:new Date().toISOString(),
   model:"TENNIS-FBIS-v1",
@@ -256,6 +263,21 @@ const report={
     note:"This validates predictive calibration/accuracy only. It cannot authorize wagering without independent market-line/CLV evidence and a production-licensed historical source.",
   },
   overall,byTour,bySurface,byYear,
+  verdict:{
+    status:predictivePass?"PREDICTIVE_VALIDATION_PASS":"FAIL_RECALIBRATION_REQUIRED",
+    predictivePromotion:predictivePass,
+    wagerPromotion:false,
+    thresholds:{minimumN:500,maxBrier:0.25,beatRankBaseline:true,maxCalibrationError:0.08},
+    observedMaxCalibrationError:round(maxCalibrationError),
+    reasons:[
+      ...(overall.n<500?["insufficient_sample"]:[]),
+      ...(overall.brier>0.25?[`brier_${overall.brier}_above_0.25`]:[]),
+      ...(overall.winnerAccuracy<overall.rankFavoriteAccuracy?[`winner_accuracy_${overall.winnerAccuracy}_below_rank_baseline_${overall.rankFavoriteAccuracy}`]:[]),
+      ...(maxCalibrationError>0.08?[`max_calibration_error_${round(maxCalibrationError)}_above_0.08`]:[]),
+      "historical_market_lines_and_clv_unavailable",
+      "research_source_license_prohibits_production_dependency",
+    ],
+  },
   sample:{evaluated:evalRows.length,loaded:all.length},
 };
 
