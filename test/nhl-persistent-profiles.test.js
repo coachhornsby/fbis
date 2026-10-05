@@ -5,6 +5,8 @@ import {
   buildNhlScheduleProfile,
   attachNhlPersistentProfiles,
   haversineMiles,
+  inferNhlSpecialTeamsUnits,
+  parseNhlCoachMetadata,
 } from "../functions/lib/nhlPersistentProfiles.js";
 
 function game({id,start,home,away,state="FUT",type=2}){
@@ -56,4 +58,27 @@ test("persistent profile attachment is market-free and research-only",()=>{
 test("haversine helper returns plausible Boston to Los Angeles travel",()=>{
   const miles=haversineMiles({lat:42.3662,lon:-71.0621},{lat:34.0430,lon:-118.2673});
   assert.ok(miles>2500&&miles<2700);
+});
+
+
+test("NHL special teams units use current pp/sh time-on-ice report fields",()=>{
+  const roster=[
+    {id:"1",position:"C"},{id:"2",position:"R"},{id:"3",position:"L"},{id:"4",position:"D"},{id:"5",position:"D"},
+    {id:"6",position:"C"},{id:"7",position:"R"},{id:"8",position:"D"},{id:"9",position:"D"},{id:"10",position:"L"},
+  ];
+  const time=new Map(roster.map((p,i)=>[p.id,{
+    ppTimeOnIcePerGame: i<5 ? 180-i*10 : 80-i,
+    shTimeOnIcePerGame: i<4 ? 120-i*10 : 0,
+  }]));
+  const units=inferNhlSpecialTeamsUnits(roster,time);
+  assert.equal(units.get("1").ppUnit,1);
+  assert.equal(units.get("6").ppUnit,2);
+  assert.equal(units.get("1").pkUnit,1);
+  assert.equal(units.get("5").pkUnit,null);
+});
+
+test("NHL coach parser accepts ESPN roster coach arrays without explicit titles",()=>{
+  const out=parseNhlCoachMetadata({coach:[{firstName:"Jim",lastName:"Example",experience:3}]});
+  assert.equal(out.headCoach,"Jim Example");
+  assert.equal(out.staff[0].title,"Head Coach");
 });
