@@ -170,14 +170,44 @@ export async function loadNflTeamProfiles(db){
       db.prepare("SELECT player_id,team_key,profile_json,status,state_confidence FROM nfl_player_state_profiles").all(),
     ]);
     const byTeam={};for(const r of t.results||[])byTeam[normalizeNflTeamKey(r.team_key)]={...parseJson(r.profile_json,{}),updatedAt:r.updated_at};
-    const byPlayer={};for(const r of p.results||[])if(r.player_id)byPlayer[String(r.player_id)]={...parseJson(r.profile_json,{}),status:r.status,stateConfidence:r.state_confidence};
-    return {byTeam,byPlayer,meta:{configured:true,teams:Object.keys(byTeam).length,players:Object.keys(byPlayer).length}};
-  }catch(err){return {byTeam:{},byPlayer:{},meta:{configured:false,reason:String(err?.message||err)}}}
+    const byPlayer={},playersByTeam={};
+    for(const r of p.results||[]){
+      if(r.player_id)byPlayer[String(r.player_id)]={...parseJson(r.profile_json,{}),status:r.status,stateConfidence:r.state_confidence};
+      const tk=normalizeNflTeamKey(r.team_key);
+      if(tk)(playersByTeam[tk]||(playersByTeam[tk]=[])).push({...parseJson(r.profile_json,{}),status:r.status,stateConfidence:r.state_confidence});
+    }
+    return {byTeam,byPlayer,playersByTeam,meta:{configured:true,teams:Object.keys(byTeam).length,players:Object.keys(byPlayer).length}};
+  }catch(err){return {byTeam:{},byPlayer:{},playersByTeam:{},meta:{configured:false,reason:String(err?.message||err)}}}
+}
+function gameScheduleContext(profile,gameId){
+  const rows=profile?.schedule?.summary?.next8||[];
+  return rows.find(x=>String(x.gameId||"")===String(gameId||""))||profile?.schedule?.summary?.nextGame||null;
 }
 export function attachNflPersistentProfiles(games=[],ctx={}){
   return (games||[]).map(game=>{
-    const home=ctx.byTeam?.[normalizeNflTeamKey(game?.home?.abbr)]||null;
-    const away=ctx.byTeam?.[normalizeNflTeamKey(game?.away?.abbr)]||null;
-    return {...game,nflPersistentProfile:{home,away,asOf:new Date().toISOString(),configured:Boolean(home||away)}};
+    const hk=normalizeNflTeamKey(game?.home?.abbr),ak=normalizeNflTeamKey(game?.away?.abbr);
+    const home=ctx.byTeam?.[hk]||null,away=ctx.byTeam?.[ak]||null;
+    const hs=gameScheduleContext(home,game?.id),as=gameScheduleContext(away,game?.id);
+    const homePlayers=ctx.playersByTeam?.[hk]||[],awayPlayers=ctx.playersByTeam?.[ak]||[];
+    const nflFeatures={...(game.nflFeatures||{})};
+    nflFeatures.home={...(nflFeatures.home||{}),
+      daysRest:hs?.daysRest??nflFeatures.home?.daysRest??null,
+      travelMiles:hs?.travelMiles??nflFeatures.home?.travelMiles??null,
+      timeZonesCrossed:hs?.timeZonesCrossed??nflFeatures.home?.timeZonesCrossed??null,
+      altitudeFeet:hs?.altitudeFeet??nflFeatures.home?.altitudeFeet??null,
+      scheduleStressScore:hs?.scheduleStressScore??null,
+      shortWeek:hs?.shortWeek===true,
+      internationalGame:hs?.international===true,
+    };
+    nflFeatures.away={...(nflFeatures.away||{}),
+      daysRest:as?.daysRest??nflFeatures.away?.daysRest??null,
+      travelMiles:as?.travelMiles??nflFeatures.away?.travelMiles??null,
+      timeZonesCrossed:as?.timeZonesCrossed??nflFeatures.away?.timeZonesCrossed??null,
+      altitudeFeet:as?.altitudeFeet??nflFeatures.away?.altitudeFeet??null,
+      scheduleStressScore:as?.scheduleStressScore??null,
+      shortWeek:as?.shortWeek===true,
+      internationalGame:as?.international===true,
+    };
+    return {...game,nflFeatures,nflPersistentProfile:{home,away,homePlayers,awayPlayers,homeSchedule:hs,awaySchedule:as,asOf:new Date().toISOString(),configured:Boolean(home||away)}};
   });
 }
