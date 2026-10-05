@@ -201,7 +201,7 @@ jobs:
         if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
         run: |
           set -euo pipefail
-          input='{}'
+          input='{"leagues":["MLB","NFL","NHL","WNBA","NBA","College Basketball","CFB","Soccer","Tennis"]}'
           body="$(mktemp)"
           code="$(curl -sS --max-time 240 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary "$input" -o "$body" -w "%{http_code}" "https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items?format=json&clean=true")"
           echo "PrizePicks Actor http=$code"
@@ -209,7 +209,7 @@ jobs:
           jq -e 'type=="array"' "$body" >/dev/null
           cp "$body" artifacts/prizepicks-rows.json
           rows="$(jq 'length' artifacts/prizepicks-rows.json)"
-          echo "full-board returned=$rows"
+          echo "modeled-leagues returned=$rows"\n          leagues="$(jq -r '[.[].league // .[].player_league // empty] | unique | join(", ")' artifacts/prizepicks-rows.json 2>/dev/null || true)"\n          echo "leagues=${leagues:-unknown}"
           test "$rows" -gt 0
       - name: Persist curated PrizePicks lines
         if: env.SKIP_COLLECTION != '1'
