@@ -39,7 +39,9 @@ async function api(path,{optional=false}={}){
 function norm(s){return String(s||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();}
 function findLeague(ls){
   const aliases=ALIASES[leagueKey]||[];
-  return ls.find(l=>aliases.some(([name,c])=>norm(l.name)===norm(name)&&(!c||String(l.country_code||"").toUpperCase()===c)))||null;
+  const byName=ls.filter(l=>aliases.some(([name])=>norm(l.name)===norm(name)));
+  if(byName.length===1)return byName[0];
+  return byName.find(l=>aliases.some(([name,c])=>norm(l.name)===norm(name)&&(!c||String(l.country_code||"").toUpperCase()===c)))||null;
 }
 function num(v){const n=Number(v);return Number.isFinite(n)?n:null;}
 function flattenShots(data){
