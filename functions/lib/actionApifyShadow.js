@@ -273,6 +273,41 @@ function zenMarketSide(consensus, market, side) {
   if (!Array.isArray(sides)) return null;
   return sides.find((x) => String(x?.side || "").toLowerCase() === String(side).toLowerCase()) || null;
 }
+function competitorName(c) {
+  if (!c || typeof c !== "object") return null;
+  const p=c.player && typeof c.player==="object" ? c.player : {};
+  return strOrNull(
+    c.name || c.fullName || c.displayName ||
+    p.name || p.fullName || p.displayName ||
+    [p.firstName,p.lastName].filter(Boolean).join(" ") ||
+    [c.firstName,c.lastName].filter(Boolean).join(" ")
+  );
+}
+function competitorId(c) {
+  if (!c || typeof c !== "object") return null;
+  return c.competitorId ?? c.id ?? c.playerId ?? c.player?.id ?? null;
+}
+function tennisCompetitorPair(raw) {
+  if (!Array.isArray(raw?.competitors) || raw.competitors.length < 2) return null;
+  const home=raw.competitors.find(c=>String(c?.side||"").toLowerCase()==="home") || raw.competitors[0];
+  const away=raw.competitors.find(c=>String(c?.side||"").toLowerCase()==="away") || raw.competitors.find(c=>c!==home) || raw.competitors[1];
+  let homeName=competitorName(home), awayName=competitorName(away);
+  if ((!homeName || !awayName) && raw.title) {
+    const parts=String(raw.title).split(/\s+(?:vs\.?|v\.?|at|@)\s+/i).map(x=>x.trim()).filter(Boolean);
+    if (parts.length>=2) {
+      if (!homeName) homeName=parts[0];
+      if (!awayName) awayName=parts[1];
+    }
+  }
+  if (!homeName || !awayName) return null;
+  return {home,away,homeName,awayName,homeId:competitorId(home),awayId:competitorId(away)};
+}
+function zenMarketCompetitor(consensus, market, competitor) {
+  const sides=consensus?.[market]?.sides;
+  if (!Array.isArray(sides) || !competitor) return null;
+  const ids=new Set([competitor.competitorId,competitor.id,competitor.playerId,competitor.player?.id].filter(x=>x!=null).map(String));
+  return sides.find(x=>[x?.competitorId,x?.playerId,x?.teamId].some(id=>id!=null&&ids.has(String(id)))) || null;
+}
 function zenMovementSide(rows, side) {
   if (!Array.isArray(rows)) return null;
   return rows.find((x) => String(x?.side || "").toLowerCase() === String(side).toLowerCase()) || null;
@@ -715,15 +750,16 @@ export function normalizeActionGameRow(raw, ctx = {}) {
     if (actionGameId == null) return null;
     const scrapedAt = strOrNull(raw.scrapedAt || ctx.scrapedAt || ctx.finishedAt);
     const receivedAt = strOrNull(ctx.receivedAt) || new Date().toISOString();
-    const homeTeam = teamName(raw.homeTeam) || strOrNull(raw.home);
-    const awayTeam = teamName(raw.awayTeam) || strOrNull(raw.away);
+    const tennisPair = ["atp","wta"].includes(String(raw.league||"").toLowerCase()) ? tennisCompetitorPair(raw) : null;
+    const homeTeam = teamName(raw.homeTeam) || strOrNull(raw.home) || tennisPair?.homeName || null;
+    const awayTeam = teamName(raw.awayTeam) || strOrNull(raw.away) || tennisPair?.awayName || null;
     if (!homeTeam || !awayTeam) return null;
 
-    const zMlHome=zenMarketSide(raw.consensus,"moneyline","home");
-    const zMlAway=zenMarketSide(raw.consensus,"moneyline","away");
+    const zMlHome=zenMarketSide(raw.consensus,"moneyline","home") || zenMarketCompetitor(raw.consensus,"moneyline",tennisPair?.home);
+    const zMlAway=zenMarketSide(raw.consensus,"moneyline","away") || zenMarketCompetitor(raw.consensus,"moneyline",tennisPair?.away);
     const zMlDraw=zenMarketSide(raw.consensus,"moneyline","draw") || zenMarketSide(raw.consensus,"moneyline","tie");
-    const zSpHome=zenMarketSide(raw.consensus,"spread","home");
-    const zSpAway=zenMarketSide(raw.consensus,"spread","away");
+    const zSpHome=zenMarketSide(raw.consensus,"spread","home") || zenMarketCompetitor(raw.consensus,"spread",tennisPair?.home);
+    const zSpAway=zenMarketSide(raw.consensus,"spread","away") || zenMarketCompetitor(raw.consensus,"spread",tennisPair?.away);
     const zOver=zenMarketSide(raw.consensus,"total","over");
     const zUnder=zenMarketSide(raw.consensus,"total","under");
     const consensusSpreadHome = numOrNull(raw.consensusSpreadHome ?? zSpHome?.line);
@@ -804,6 +840,8 @@ export function normalizeActionGameRow(raw, ctx = {}) {
       awayTeam,
       homeAbbr: teamAbbr(raw.homeTeam),
       awayAbbr: teamAbbr(raw.awayTeam),
+      homePlayerId: tennisPair?.homeId != null ? String(tennisPair.homeId) : null,
+      awayPlayerId: tennisPair?.awayId != null ? String(tennisPair.awayId) : null,
       startTime: strOrNull(raw.startTime),
       status: strOrNull(raw.status || raw.gameStatus),
       isLive: Boolean(raw.isLive),
