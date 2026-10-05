@@ -146,7 +146,7 @@ export async function buildSlate(sport, date, env = {}) {
 
     const deep = attachMlbDeepShadow(enriched);
     const research = promoteMlbResearchToBoard(deep.games);
-    const playerResearch = attachMlbPlayerProjectionResearch(research.games);
+    const playerResearch = attachMlbPlayerProjectionResearch(research.games, persistent);
     next = {
       ...slate,
       games: playerResearch,

@@ -1119,3 +1119,11 @@
     border-top:1px solid rgba(68,139,198,.2);
   }
 }
+
+.pgc-team-visual{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:96px}
+.pgc-mlb-starter{display:flex;align-items:center;gap:7px;max-width:170px;padding:5px 7px;border:1px solid rgba(255,255,255,.10);border-radius:9px;background:rgba(3,10,18,.48)}
+.pgc-mlb-starter img{width:38px;height:38px;flex:0 0 38px;border-radius:50%;object-fit:cover;object-position:center top;background:rgba(255,255,255,.06)}
+.pgc-mlb-starter div{display:flex;flex-direction:column;min-width:0}
+.pgc-mlb-starter strong{font-size:11px;line-height:1.15;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pgc-mlb-starter span{font-size:9px;color:var(--muted,#aebaca);white-space:nowrap}
+@media(max-width:700px){.pgc-team-visual{min-width:78px}.pgc-mlb-starter{max-width:125px;padding:4px 5px}.pgc-mlb-starter img{width:32px;height:32px;flex-basis:32px}.pgc-mlb-starter strong{font-size:10px}.pgc-mlb-starter span{font-size:8px}}

@@ -7,6 +7,7 @@
 
 import { buildSportAvailabilityPreflight, normalizeAvailabilityStatus } from "./availability.js";
 import { nhlPlayerProV2RowsForSide, NHL_PLAYER_PRO_V2_ID, NHL_PLAYER_PRO_V2_VERSION } from "./nhlPlayerProV2.js";
+import { buildMlbPersistentPlayerPropRows, MLB_PLAYER_PROP_MODEL_VERSION } from "./mlbPlayerPropModel.js";
 
 export const PRO_PLAYER_PROJECTION_VERSION = "research-v3.1-calibrated-last5-role-defense";
 
@@ -156,7 +157,7 @@ export function attachNpbPlayerProjectionResearch(games = []) {
   });
 }
 
-export function attachMlbPlayerProjectionResearch(games = []) {
+export function attachMlbPlayerProjectionResearch(games = [], persistent = {}) {
   return (games || []).map((game) => {
     const rows = [];
     const ks = game.mlbDeepShadow?.pitcherKs || null;
@@ -177,13 +178,25 @@ export function attachMlbPlayerProjectionResearch(games = []) {
           : "Fallback MLB K projection uses season K/9, workload and opponent team K rate. Ballpark Pal starter K remains external comparison.",
       }));
     }
+    const state=persistent?.byGameId?.[String(game.id||game.bpp?.gamePk||"")]||null;
+    const extra=buildMlbPersistentPlayerPropRows(game,state).map((p)=>{
+      const row=statRow({
+        sport:"mlb",game,team:p.team,
+        player:{id:p.playerId,name:p.playerName,position:p.position},
+        market:p.market,projection:p.projection,sigma:p.sigma,source:p.source,
+        notes:"Persistent MLB player-prop model. Independent of market lines; research-only until historical validation."
+      });
+      return row?{...row,...p,propGate:row.propGate,gateReason:row.gateReason,eligibleForCard:row.eligibleForCard,canQualify:false,canAuthorizeWager:false}:null;
+    }).filter(Boolean);
+    const allRows=[...rows.filter(Boolean),...extra];
     return {
       ...game,
-      playerProjectionRows: rows.filter(Boolean),
+      playerProjectionRows: allRows,
       playerProjectionStatus: {
         sport: "mlb",
-        state: rows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : rows.length ? "HOLD_AVAILABILITY" : "NO_ELIGIBLE_STARTER_PROJECTION",
+        state: allRows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : allRows.length ? "HOLD_AVAILABILITY" : "NO_ELIGIBLE_PLAYER_PROJECTION",
         model: "MLB-FBIS-v2.5-POSTSEASON-CONTEXT",
+        propModel: MLB_PLAYER_PROP_MODEL_VERSION,
         version: PRO_PLAYER_PROJECTION_VERSION,
         independent: true,
         marketInformed: false,
