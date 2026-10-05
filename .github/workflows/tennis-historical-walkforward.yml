@@ -1,6 +1,13 @@
 name: Tennis historical walk-forward
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/tennisFbisV1.js"
+      - "functions/lib/tennisBacktest.js"
+      - "scripts/tennis-historical-walkforward.mjs"
+      - ".github/workflows/tennis-historical-walkforward.yml"
   pull_request:
     paths:
       - "functions/lib/tennisFbisV1.js"
