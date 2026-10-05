@@ -521,3 +521,6 @@
     padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* Official Fastwater logo lockup */
+.shell-brand-lockup{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto}.shell-brand-bull{display:block;width:58px;height:46px;object-fit:contain;object-position:center;filter:drop-shadow(0 2px 6px rgba(0,0,0,.45))}@media(max-width:768px){.shell-brand-bull{width:48px;height:38px}.shell-brand-lockup{gap:6px}}
