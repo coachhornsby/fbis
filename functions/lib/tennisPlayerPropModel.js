@@ -1,3 +1,6 @@
+import { simulateTennisV2, TENNIS_V2_PLAYER_MODEL_ID, TENNIS_V2_VERSION } from "./tennisFbisV2.js";
+import { tennisPlayerProjectionRows } from "./tennisFbisV1.js";
+
 /**
  * TENNIS-PLAYER-PROP-v1 research model.
  *
@@ -79,5 +82,67 @@ export function projectTennisPlayerProps(match = {}) {
       row(a, "total_games_won", gamesA, playerSigma, dataQuality),
       row(b, "total_games_won", gamesB, playerSigma, dataQuality),
     ],
+  };
+}
+
+
+/**
+ * Preferred derivative-market research path.
+ * Uses the deep/contextual v2 simulator when complete player profiles are supplied.
+ * Market lines are used only to price probabilities after the distribution is generated.
+ */
+export function projectTennisPlayerPropsV2(match={},lines=[]){
+  const player1=match.player1||match.playerA||{};
+  const player2=match.player2||match.playerB||{};
+  const hasDeep=[player1,player2].every(p=>
+    finite(p.firstServeIn)!=null &&
+    finite(p.firstServeWin)!=null &&
+    finite(p.secondServeWin)!=null &&
+    finite(p.returnFirstWin)!=null &&
+    finite(p.returnSecondWin)!=null &&
+    finite(p.aceRate)!=null &&
+    finite(p.doubleFaultRate)!=null
+  );
+  if(!hasDeep){
+    return {
+      ok:false,state:"DEEP_PROFILE_REQUIRED",rows:[],
+      modelId:TENNIS_V2_PLAYER_MODEL_ID,modelVersion:TENNIS_V2_VERSION,
+      canQualify:false,canAuthorizeWager:false,
+    };
+  }
+  const game={
+    id:match.id||match.eventId||"tennis-v2-prop",
+    tour:match.tour||"atp",surface:match.surface||"hard",
+    bestOf:Number(match.bestOf)||3,player1,player2,
+    playerContexts:match.playerContexts||[{},{}],
+  };
+  const projection=simulateTennisV2(
+    game,
+    {simulations:Math.max(1000,Number(match.simulations)||2500)},
+    {seed:String(game.id)}
+  );
+  const rows=tennisPlayerProjectionRows(game,projection,lines).map(r=>({
+    ...r,
+    source:"TENNIS_PLAYER_V2_CONTEXT_SIM",
+    modelId:TENNIS_V2_PLAYER_MODEL_ID,
+    modelVersion:TENNIS_V2_VERSION,
+    maturity:"RESEARCH",
+    independent:true,
+    marketInformed:false,
+    canQualify:false,
+    canAuthorizeWager:false,
+    decisionEligible:false,
+    eligibleForCard:false,
+    propGate:"RESEARCH",
+    gateReason:"prospective_derivative_clv_roi_validation_required",
+    contextApplied:true,
+  }));
+  const priority={total_games:1,total_games_won:2,aces:3,double_faults:4,total_sets:5,break_points_won:6,total_tie_breaks:7,fantasy_score:8};
+  rows.sort((a,b)=>(priority[a.market]||99)-(priority[b.market]||99));
+  return {
+    ok:true,state:"V2_RESEARCH_READY",modelId:TENNIS_V2_PLAYER_MODEL_ID,modelVersion:TENNIS_V2_VERSION,
+    projection,rows,
+    marketPriority:["total_games","total_games_won","aces","double_faults","total_sets","break_points_won","total_tie_breaks"],
+    canQualify:false,canAuthorizeWager:false,
   };
 }
