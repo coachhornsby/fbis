@@ -1,0 +1,45 @@
+name: WNBA possession challenger grade
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/wnba-possession-challenger-grade.js"
+      - "migrations/0079_wnba_possession_challenger_shadow.sql"
+      - ".github/workflows/wnba-possession-challenger-grade.yml"
+  schedule:
+    - cron: "35 15 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wnba-possession-challenger-grade
+  cancel-in-progress: false
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Grade prior CT date
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          d="$(TZ=America/Chicago date -d 'yesterday' +%F)"
+          body="$(mktemp)"
+          http="$(curl -sS --max-time 120 --retry 2 --retry-delay 3             -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             --data-binary "$(jq -nc --arg date "$d" '{date:$date}')"             -o "$body" -w "%{http_code}"             "${BASE}/api/wnba-possession-challenger-grade" || true)"
+          cat "$body"
+          test "$http" = "200"
+          jq -e '.ok==true' "$body" >/dev/null
+          {
+            echo "## WNBA possession challenger validation"
+            echo "- date: $d"
+            echo "- game projections graded: $(jq -r '.gradedGames // 0' "$body")"
+            echo "- market shadows settled: $(jq -r '.settledMarkets // 0' "$body")"
+            echo "- opportunity rows graded: $(jq -r '.gradedProps // 0' "$body")"
+            echo "- production promotion applied: $(jq -r '.productionPromotionApplied // false' "$body")"
+          } >> "$GITHUB_STEP_SUMMARY"
