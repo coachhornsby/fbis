@@ -7,6 +7,8 @@ function baseCandidate(overrides = {}) {
   return {
     qualified: true,
     lean: false,
+    sport: "mlb",
+    modelId: "MLB-SAVANT-RPG-SP",
     modelProbability: 0.61,
     pinPrice: -110,
     executionPrice: -110,
@@ -82,3 +84,19 @@ describe("CONVICTION pricing integrity regressions", () => {
     assert.ok(Math.abs(out.expectedRoi - expectedRoi(0.61, -110)) < 1e-12);
   });
 });
+
+
+  it("fails closed when registry canQualify is false", () => {
+    const out = gate(baseCandidate({ sport: "cfb", modelId: "CFB-FBIS-v2", modelVersion: "CFB-FBIS-v2" }));
+    assert.equal(out.ok, false);
+    assert.equal(out.reason, "model-not-qualification-authorized");
+  });
+
+  it("fails closed for unknown and wrong-sport model authority", () => {
+    const unknown = gate(baseCandidate({ modelId: "UNKNOWN-MODEL" }));
+    assert.equal(unknown.ok, false);
+    assert.equal(unknown.reason, "unknown-model-authority");
+    const wrongSport = gate(baseCandidate({ sport: "cfb", modelId: "MLB-SAVANT-RPG-SP" }));
+    assert.equal(wrongSport.ok, false);
+    assert.equal(wrongSport.reason, "model-sport-authority-mismatch");
+  });
