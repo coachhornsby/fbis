@@ -10,6 +10,9 @@ on:
       - "functions/lib/nflQbPersonnelShadow.js"
       - "functions/api/nfl-qb-shadow.js"
       - "data/models/nfl-qb-personnel-overlay-v1-fit.json"
+      - "data/models/nfl-qb-prospective-promotion-gate-v1.json"
+      - "functions/lib/nflProspectiveGate.js"
+      - "functions/api/nfl-research-status.js"
       - "migrations/0065_nfl_qb_shadow_prop_calibration.sql"
       - ".github/workflows/nfl-qb-personnel-shadow.yml"
 
@@ -126,12 +129,14 @@ jobs:
           code="$(curl -sS --max-time 30             -H "x-harvest-secret: ${HARVEST_SECRET}"             -o "$out" -w "%{http_code}"             "${BASE}/api/nfl-qb-shadow?mode=summary")"
           cat "$out"
           test "$code" = "200"
-          jq -e '.ok==true and .lifecycle=="SHADOW" and .productionChampionModified==false and .wagerAuthorityModified==false' "$out" >/dev/null
+          jq -e '.ok==true and .lifecycle=="SHADOW" and .productionChampionModified==false and .wagerAuthorityModified==false and .prospectiveGate.automaticPromotion==false and .prospectiveGate.operatorApprovalRequired==true and .prospectiveGate.checks.totalsExact==true and .prospectiveGate.checks.gateOffExact==true' "$out" >/dev/null
           {
             echo "## NFL QB prospective shadow"
-            echo "- graded: $(jq -r '.all.n // 0' "$out")"
+            echo "- graded: $(jq -r '.primary.n // 0' "$out")"
             echo "- gated graded: $(jq -r '.gated.n // 0' "$out")"
             echo "- non-gated graded: $(jq -r '.nonGated.n // 0' "$out")"
             echo "- production champion modified: $(jq -r '.productionChampionModified' "$out")"
             echo "- wager authority modified: $(jq -r '.wagerAuthorityModified' "$out")"
+            echo "- research gate: $(jq -r '.prospectiveGate.decision' "$out")"
+            echo "- temporal violations: $(jq -r '.prospectiveGate.integrity.temporalViolations | length' "$out")"
           } >> "$GITHUB_STEP_SUMMARY"
