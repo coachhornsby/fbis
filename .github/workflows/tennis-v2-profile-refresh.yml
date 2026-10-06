@@ -7,7 +7,8 @@ on:
       - "functions/lib/tennisContextV2.js"
       - "functions/api/tennis-v2-snapshot.js"
       - "functions/lib/tennisV2Ledger.js"
-      - "migrations/0051_tennis_v2_current_profiles.sql"\n      - "migrations/0053_tennis_player_bank.sql"
+      - "migrations/0051_tennis_v2_current_profiles.sql"
+      - "migrations/0053_tennis_player_bank.sql"
       - "schema.extensions.sql"
       - ".github/workflows/tennis-v2-profile-refresh.yml"
   push:
@@ -17,7 +18,8 @@ on:
       - "functions/lib/tennisContextV2.js"
       - "functions/api/tennis-v2-snapshot.js"
       - "functions/lib/tennisV2Ledger.js"
-      - "migrations/0051_tennis_v2_current_profiles.sql"\n      - "migrations/0053_tennis_player_bank.sql"
+      - "migrations/0051_tennis_v2_current_profiles.sql"
+      - "migrations/0053_tennis_player_bank.sql"
       - "schema.extensions.sql"
       - ".github/workflows/tennis-v2-profile-refresh.yml"
   schedule:
@@ -79,7 +81,7 @@ jobs:
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
           body="$(mktemp)"
-          code="$(curl -sS --max-time 120 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d '{"mode":"auto"}'             -o "$body" -w "%{http_code}"             "${BASE}/api/tennis-v2-snapshot")"
+          code="$(curl -sS --max-time 120 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" -d '{"mode":"auto"}' -o "$body" -w "%{http_code}" "${BASE}/api/tennis-v2-snapshot")"
           cat "$body"
           test "$code" = "200"
           jq -e '.ok == true' "$body" >/dev/null
@@ -88,6 +90,5 @@ jobs:
         if: always()
         with:
           name: tennis-v2-current-profiles
-          path: |
-            artifacts/tennis-v2-current-profiles-summary.json
+          path: artifacts/tennis-v2-current-profiles-summary.json
           retention-days: 30
