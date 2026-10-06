@@ -19,6 +19,7 @@ import {
   teamCardTitle,
 } from "../../lib/boardDecision.js";
 import { fmtAmerican, fmtNum } from "../../lib/format.js";
+import { confidenceStars } from "../../lib/confidenceStars.js";
 import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
 import { GameDetails } from "../../TodayView.jsx";
 
@@ -80,6 +81,7 @@ export default function GameCard({
   const venueLabel = safeDisplayString(game.venue, "");
   const statusDetail = safeDisplayString(game.status?.detail || game.status, "");
   const venueClass = venueAtmosphereClass(game?.sport);
+  const stars = confidenceStars(game);
   const soccerPick = String(game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -347,7 +349,7 @@ export default function GameCard({
         <DecisionBadge tier={decision.tier} label={decision.label} pick={decision.pick} />
         {soccerPick ? (
           <span className="gc-decision-market">
-            MODEL PICK: {soccerPick.pick || "—"} · {soccerPick.stars || 1}★ · RESEARCH
+            MODEL PICK: {soccerPick.pick || "—"} · {stars}★ · RESEARCH
           </span>
         ) : null}
         {decision.mispriceState ? (
