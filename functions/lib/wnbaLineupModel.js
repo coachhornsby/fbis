@@ -148,6 +148,47 @@ export function aggregateLineupEffects(stints=[],minPossessions=20){
     .filter(a=>a.possessions>=minPossessions);
 }
 
+
+export function auditWnbaLineupEvidence({
+  plays=[],homeTeamId,awayTeamId,homePlayers=[],awayPlayers=[]
+}={}){
+  const homeName=byName(homePlayers),awayName=byName(awayPlayers);
+  const starters=arr=>arr.filter(p=>p.starter).slice(0,5).map(p=>String(p.id||p.playerId||""));
+  let home=starters(homePlayers),away=starters(awayPlayers);
+  const out={
+    substitutionEvents:0,resolved:0,unresolved:0,outNotOnFloor:0,
+    inAlreadyOnFloor:0,lineupSizeFaults:0,starterCompleteHome:home.length===5,
+    starterCompleteAway:away.length===5
+  };
+  const normalized=(plays||[]).map(normalizeEspnPlay).sort((a,b)=>{
+    const ea=elapsed(a.period,a.clock),eb=elapsed(b.period,b.clock);
+    if(ea!==eb)return ea-eb;
+    return (a.sequenceNumber??0)-(b.sequenceNumber??0);
+  });
+  for(const p of normalized){
+    const sub=parseSubstitution({...p,participants:p.participants});
+    if(!sub)continue;
+    out.substitutionEvents++;
+    const team=String(sub.teamId||"");
+    const isHome=team===String(homeTeamId),isAway=team===String(awayTeamId);
+    if(!isHome&&!isAway){out.unresolved++;continue}
+    const lineup=isHome?home:away,nameMap=isHome?homeName:awayName;
+    const resolve=x=>String(x?.id||nameMap.get(norm(x?.name))||"");
+    const inn=resolve(sub.playerIn),outId=resolve(sub.playerOut);
+    if(!inn||!outId){out.unresolved++;continue}
+    const idx=lineup.indexOf(outId);
+    if(idx<0){out.outNotOnFloor++;out.unresolved++;continue}
+    if(lineup.includes(inn)){out.inAlreadyOnFloor++;out.unresolved++;continue}
+    lineup.splice(idx,1,inn);
+    if(lineup.length!==5){out.lineupSizeFaults++;out.unresolved++;continue}
+    out.resolved++;
+  }
+  out.resolutionRate=out.substitutionEvents?round(out.resolved/out.substitutionEvents):1;
+  out.finalCompleteHome=home.length===5;
+  out.finalCompleteAway=away.length===5;
+  return out;
+}
+
 export function teammateWithWithout(stints=[],playerId,teammateId){
   const p=String(playerId),t=String(teammateId);
   let withPoss=0,withDiff=0,withoutPoss=0,withoutDiff=0;
