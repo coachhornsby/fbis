@@ -214,7 +214,7 @@ export default function PremiumGameCard({ game, open = false, onToggle, renderDe
           <span className="pgc-vs">VS</span>
           <small>{soccerPick ? "Confidence Pick" : "Model Edge"}</small>
           <strong>{soccerPick ? soccerPick.pick || "—" : isTennis ? tennisEdgeValue : edge.value}</strong>
-          <span className="pgc-edge-delta">{soccerPick ? `${soccerPick.stars || stars}★ · 1X2` : isTennis ? tennisEdgeDelta : `${edge.delta} ${edge.type}`}</span>
+          <span className="pgc-edge-delta">{soccerPick ? `${stars}★ · 1X2` : isTennis ? tennisEdgeDelta : `${edge.delta} ${edge.type}`}</span>
         </div>
 
         <div className="pgc-featured-team pgc-featured-team-home">

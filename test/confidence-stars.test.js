@@ -1,220 +1,103 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { confidenceStars, sortByConfidence } from "../src/lib/confidenceStars.js";
-import { canonicalConfidenceStars } from "../functions/lib/projectionConfidence.js";
+import {
+  canonicalConfidenceStars,
+  canonicalProjectionConfidence,
+  CONFIDENCE_VERSION,
+} from "../functions/lib/projectionConfidence.js";
 
-function game(id, quality, extra = {}) {
+function baseGame(id, quality, extra = {}) {
   return {
     id,
-    sport: "nfl",
+    sport: "mlb",
     start: "2026-10-04T17:00:00Z",
     away: { abbr: "AWY", name: "Away" },
     home: { abbr: "HME", name: "Home" },
-    model: { projAway: 21, projHome: 27, projTotal: 48, projMargin: 6 },
+    model: { projAway: 3.8, projHome: 4.6, projTotal: 8.4, projMargin: 0.8 },
     projectionKind: "FBIS",
-    projectionState: "COMPLETE",
     quality: { score: quality, flags: [] },
-    market: {
-      marketAvailable: true,
-      executionActionable: true,
-      execution: { available: true, actionable: true, spread: -3, total: 45 },
-    },
     ...extra,
   };
 }
 
-describe("board confidence stars", () => {
-  it("allows a high-quality qualified game to reach five stars", () => {
-    const g = game("five", 94, { rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 } });
-    assert.equal(confidenceStars(g), 5);
+describe("FBIS-CONFIDENCE-v2", () => {
+  it("uses attainable shared confidence bands", () => {
+    assert.equal(canonicalConfidenceStars(baseGame("five", 86)), 5);
+    assert.equal(canonicalConfidenceStars(baseGame("four", 74)), 4);
+    assert.equal(canonicalConfidenceStars(baseGame("three", 60)), 3);
+    assert.equal(canonicalConfidenceStars(baseGame("two", 46)), 2);
+    assert.equal(canonicalConfidenceStars(baseGame("one", 35)), 1);
   });
 
-  it("does not coerce missing quality to zero and falls back to decision tier", () => {
-    const g = game("missing-quality", null, {
-      quality: { score: null, flags: [] },
-      rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 },
-    });
-    assert.equal(confidenceStars(g), 4);
+  it("returns a versioned canonical score and stars", () => {
+    const result = canonicalProjectionConfidence(baseGame("versioned", 74));
+    assert.equal(result.version, CONFIDENCE_VERSION);
+    assert.equal(result.score, 74);
+    assert.equal(result.stars, 4);
+    assert.equal(result.source, "QUALITY_SCORE");
   });
 
-  it("accepts canonical snake_case data_quality when nested quality is absent", () => {
-    const g = game("snake-quality", null, {
-      quality: undefined,
-      data_quality: 84,
-      rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 },
-    });
-    assert.equal(confidenceStars(g), 4);
+  it("keeps hard data disqualifications at one star", () => {
+    const result = canonicalProjectionConfidence(baseGame("dq", 99, { dqState: "DQ" }));
+    assert.equal(result.stars, 1);
+    assert.equal(result.source, "HARD_DQ");
   });
 
-  it("accepts sport-specific CFB dataQuality when nested quality is absent", () => {
-    const g = game("cfb-quality", null, {
-      sport: "cfb",
-      quality: undefined,
-      cfb: { dataQuality: 88, bettingAllowed: true },
-      rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 },
-    });
-    assert.equal(confidenceStars(g), 4);
+  it("does not reuse legacy soccer star fields", () => {
+    const result = canonicalProjectionConfidence(baseGame("soccer", 10, {
+      sport: "soccer",
+      soccerConfidence: { score: 74, stars: 1, pick: "Home FC" },
+    }));
+    assert.equal(result.stars, 4);
+    assert.equal(result.source, "SOCCER_CONFIDENCE_SCORE");
   });
 
-  it("uses the documented quality thresholds exactly", () => {
-    const qualified = { rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 } };
-    assert.equal(confidenceStars(game("q90", 90, qualified)), 5);
-    assert.equal(confidenceStars(game("q89", 89, qualified)), 4);
-    assert.equal(confidenceStars(game("q80", 80, qualified)), 4);
-    assert.equal(confidenceStars(game("q79", 79, qualified)), 3);
-    assert.equal(confidenceStars(game("q68", 68, qualified)), 3);
-    assert.equal(confidenceStars(game("q67", 67, qualified)), 2);
-    assert.equal(confidenceStars(game("q55", 55, qualified)), 2);
-    assert.equal(confidenceStars(game("q54", 54, qualified)), 1);
-  });
-
-  it("uses current NFL-PRO scores rather than stale fallback model scores", () => {
-    const common = {
+  it("allows a strong NFL-PRO projection to occupy the five-star band", () => {
+    const result = canonicalProjectionConfidence(baseGame("nfl-elite", 90, {
+      sport: "nfl",
+      model: { projAway: 20, projHome: 31 },
       nflProShadow: {
         ok: true,
-        coverage: { share: 0.70 },
-        sigmaMargin: 14.2,
-        sigmaTotal: 13.4,
-        home: 23.5,
-        away: 28.7,
+        coverage: { share: 0.92 },
+        sigmaMargin: 12.8,
+        sigmaTotal: 12.0,
+        home: 31,
+        away: 20,
       },
       market: {
-        marketAvailable: true,
-        executionActionable: true,
-        execution: { available: true, actionable: true, spread: -2.5, total: 51.5 },
+        execution: { spread: -3, total: 44 },
       },
+    }));
+    assert.equal(result.stars, 5);
+    assert.equal(result.source, "NFL_PRO_COMPOSITE");
+  });
+
+  it("client display is canonical-only and never recomputes a rating", () => {
+    const raw = baseGame("same-game", 99);
+    assert.equal(confidenceStars(raw), 1);
+
+    const canonical = canonicalProjectionConfidence(raw);
+    const boardShape = { ...raw, confidenceStars: canonical.stars, confidenceScore: canonical.score };
+    const marketShape = {
+      id: raw.id,
+      sport: raw.sport,
+      confidenceStars: canonical.stars,
+      confidenceScore: canonical.score,
+      model: raw.model,
     };
-    const strongGap = game("current-pro-strong", 76, {
-      model: { projAway: 24, projHome: 27, projTotal: 51, projMargin: 3 },
-      ...common,
-    });
-    const weakGap = game("current-pro-weak", 76, {
-      model: { projAway: 24, projHome: 27, projTotal: 51, projMargin: 3 },
-      ...common,
-      nflProShadow: {
-        ...common.nflProShadow,
-        home: 26,
-        away: 24,
-      },
-    });
-    assert.ok(confidenceStars(strongGap) > confidenceStars(weakGap));
+
+    assert.equal(confidenceStars(boardShape), canonical.stars);
+    assert.equal(confidenceStars(marketShape), canonical.stars);
+    assert.equal(confidenceStars(boardShape), confidenceStars(marketShape));
   });
 
-  it("uses NFL-PRO coverage plus model-market disagreement instead of generic quality alone", () => {
-    const strong = game("nfl-strong", 76, {
-      model: { projAway: 20, projHome: 30, projTotal: 50, projMargin: 10 },
-      nflProShadow: { ok: true, coverage: { share: 0.36 } },
-      market: {
-        marketAvailable: true,
-        executionActionable: true,
-        execution: { available: true, actionable: true, spread: -3, total: 49 },
-      },
-    });
-    const modest = game("nfl-modest", 76, {
-      model: { projAway: 22, projHome: 26, projTotal: 48, projMargin: 4 },
-      nflProShadow: { ok: true, coverage: { share: 0.36 } },
-      market: {
-        marketAvailable: true,
-        executionActionable: true,
-        execution: { available: true, actionable: true, spread: -3, total: 48 },
-      },
-    });
-    assert.ok(confidenceStars(strong) > confidenceStars(modest));
-    assert.equal(confidenceStars(strong), 4);
+  it("sorts by canonical stars then canonical score", () => {
+    const rows = [
+      { id: "a", sport: "mlb", start: "2026-10-04T17:00:00Z", model: { projAway: 3, projHome: 4 }, confidenceStars: 4, confidenceScore: 72 },
+      { id: "b", sport: "mlb", start: "2026-10-04T17:00:00Z", model: { projAway: 3, projHome: 4 }, confidenceStars: 5, confidenceScore: 85 },
+      { id: "c", sport: "mlb", start: "2026-10-04T17:00:00Z", model: { projAway: 3, projHome: 4 }, confidenceStars: 4, confidenceScore: 79 },
+    ];
+    assert.deepEqual(sortByConfidence(rows).map((g) => g.id), ["b", "c", "a"]);
   });
-
-  it("keeps explicit data disqualifications at one star regardless of quality", () => {
-    const g = game("blocked", 98, { dqState: "DQ" });
-    assert.equal(confidenceStars(g), 1);
-  });
-
-  it("does not treat a normal quality state as a data disqualification", () => {
-    const g = game("ready-state", 84, { quality: { score: 84, state: "READY", flags: [] } });
-    assert.equal(confidenceStars(g), 4);
-  });
-
-  it("does not collapse wager-blocked CFB projections to one star", () => {
-    const g = game("cfb-blocked-complete", 0, {
-      sport: "cfb",
-      projectionState: "COMPLETE",
-      cfb: { projectionState: "COMPLETE", bettingAllowed: false, dataQuality: 0 },
-      qualificationBlocked: true,
-    });
-    assert.equal(confidenceStars(g), 4);
-  });
-
-  it("uses CFB projection state as the primary confidence signal", () => {
-    const partial = game("cfb-partial", 0, {
-      sport: "cfb",
-      projectionState: "PARTIAL",
-      cfb: { projectionState: "PARTIAL", bettingAllowed: false, dataQuality: 0 },
-      qualificationBlocked: true,
-    });
-    const prior = game("cfb-prior", 0, {
-      sport: "cfb",
-      projectionState: "PRIOR_ONLY",
-      cfb: { projectionState: "PRIOR_ONLY", bettingAllowed: false, dataQuality: 0 },
-      qualificationBlocked: true,
-    });
-    const leagueAvg = game("cfb-league", 0, {
-      sport: "cfb",
-      projectionState: "LEAGUE_AVERAGE_ONLY",
-      cfb: { projectionState: "LEAGUE_AVERAGE_ONLY", bettingAllowed: false, dataQuality: 0 },
-      qualificationBlocked: true,
-    });
-    assert.equal(confidenceStars(partial), 3);
-    assert.equal(confidenceStars(prior), 2);
-    assert.equal(confidenceStars(leagueAvg), 1);
-  });
-
-  it("does not cap research-only projections below their projection confidence", () => {
-    const g = game("research", 98, {
-      projectionMaturity: "RESEARCH",
-      publicationStatus: "RESEARCH_PUBLISHABLE",
-      researchProjection: { projAway: 21, projHome: 27 },
-    });
-    assert.equal(confidenceStars(g), 5);
-  });
-
-  it("sorts the board by stars across sports", () => {
-    const five = game("five", 94, { sport: "nfl", rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 } });
-    const three = game("three", 74, { sport: "mlb" });
-    const four = game("four", 84, { sport: "cfb", rec: { tag: "QUALIFIED", pick: "HME -3", market: "spread", edge: 3 } });
-    assert.deepEqual(sortByConfidence([three, five, four]).map((g) => g.id), ["five", "four", "three"]);
-  });
-});
-
-
-it("uses soccer-specific canonical confidence stars instead of generic research fallback", () => {
-  const g = game("soccer-stars", 10, {
-    sport:"soccer",
-    projectionMaturity:"RESEARCH",
-    soccerConfidence:{stars:5,score:88,pick:"Home FC",side:"HOME"},
-    model:{projAway:0.8,projHome:2.1,projTotal:2.9,projMargin:1.3,projectionKind:"FBIS"},
-    projectionKind:"FBIS",
-  });
-  assert.equal(confidenceStars(g),5);
-});
-
-
-it("uses one canonical server confidence value across sanitized product shapes", () => {
-  const raw = game("canonical-nfl", 76, {
-    model: { projAway: 22, projHome: 26, projTotal: 48, projMargin: 4 },
-    nflProShadow: { ok: true, coverage: { share: 0.36 } },
-    market: {
-      marketAvailable: true,
-      executionActionable: true,
-      execution: { available: true, actionable: true, spread: -3, total: 48 },
-    },
-  });
-  const canonical = canonicalConfidenceStars(raw);
-  const sanitized = {
-    id: raw.id,
-    sport: "nfl",
-    projection: { away: 22, home: 26, total: 48, independent: true },
-    market: { spread: -3, total: 48 },
-    confidenceStars: canonical,
-  };
-  assert.equal(canonical, confidenceStars(raw));
-  assert.equal(confidenceStars(sanitized), canonical);
 });
