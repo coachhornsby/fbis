@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import {
   buildProspectiveEvidence,
@@ -45,6 +46,18 @@ test("promotion cohorts exclude legacy and wrong gate versions", () => {
     modelId: "QB-shadow",
     gateVersion: "NFL-QB-PROSPECTIVE-GATE-v1",
     lifecycle: PROSPECTIVE_LIFECYCLE.SHADOW,
+    stateSnapshotId: "state-g2",
+    marketSnapshotId: "market-g2",
+    marketObservedAt: "2026-10-12T11:55:00Z",
+    sourceObservedAts: ["2026-10-12T11:50:00Z"],
+    codeSha: "abc123",
+    stateSnapshot: { asOf: "2026-10-12T11:50:00Z" },
+    marketSnapshot: { asOf: "2026-10-12T11:55:00Z" },
+    uncertainty: { state: "UNKNOWN", reason: "research-shadow" },
+    incumbentProjection: { value: 0.5 },
+    challengerProjection: { value: 0.52 },
+    qualificationAuthority: { canQualify: false, source: "model-registry" },
+    wagerAuthority: { canAuthorize: false, source: "model-registry" },
   });
   assert.equal(promotionCohortEligibility(row, {gateVersion:"NFL-QB-PROSPECTIVE-GATE-v1"}).eligible, true);
   assert.equal(promotionCohortEligibility({...row, legacy:true}, {gateVersion:"NFL-QB-PROSPECTIVE-GATE-v1"}).eligible, false);
@@ -97,4 +110,36 @@ test("persistent state carries stronger fresh evidence and expires stale evidenc
     asOf:"2026-10-07T13:00:00Z",
     maxAgeMs:24*60*60*1000,
   }).fresh, false);
+});
+
+
+test("promotion cohort preserves incomplete evidence but excludes it fail-closed", () => {
+  const row = buildProspectiveEvidence({
+    evidenceId: "e-incomplete",
+    sport: "nfl",
+    eventId: "g-incomplete",
+    eventStartAt: "2026-10-12T18:00:00Z",
+    snapshotAt: "2026-10-12T12:00:00Z",
+    championModelId: "NFL-PINNACLE-IMPLIED",
+    modelId: "NFL-FBIS-PURE",
+    gateVersion: "NFL-GATE-v1",
+  });
+  const out = promotionCohortEligibility(row, { gateVersion: "NFL-GATE-v1" });
+  assert.equal(out.eligible, false);
+  assert.ok(out.reasons.includes("MISSING_STATE_SNAPSHOT_ID"));
+  assert.ok(out.reasons.includes("MISSING_MARKET_SNAPSHOT"));
+  assert.ok(out.reasons.includes("MISSING_UNCERTAINTY"));
+  assert.ok(out.reasons.includes("MISSING_SOURCE_OBSERVATION_TIMES"));
+});
+
+
+test("0091 keeps prospective and economic provenance additive and cohort-scoped", async () => {
+  const migration = await readFile(new URL("../migrations/0091_fbis_prospective_economic_provenance.sql", import.meta.url), "utf8");
+  assert.match(migration, /ALTER TABLE fbis_prospective_evidence ADD COLUMN source_observed_ats_json/);
+  assert.match(migration, /ALTER TABLE fbis_prospective_evidence ADD COLUMN uncertainty_json/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS fbis_economic_cohort_metrics/);
+  assert.match(migration, /calibration_method_version/);
+  assert.match(migration, /drawdown_method_version/);
+  assert.match(migration, /0091_fbis_prospective_economic_provenance/);
+  assert.doesNotMatch(migration, /DELETE\s+FROM|DROP\s+TABLE/i);
 });

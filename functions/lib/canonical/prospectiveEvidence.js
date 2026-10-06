@@ -58,9 +58,14 @@ export function buildProspectiveEvidence({
   marketObservedAt = null,
   sourceObservedAts = [],
   codeSha = null,
+  stateSnapshot = null,
+  marketSnapshot = null,
+  uncertainty = null,
   incumbentProjection = null,
   challengerProjection = null,
   governance = {},
+  qualificationAuthority = null,
+  wagerAuthority = null,
   canQualify = false,
   canAuthorize = false,
   legacy = false,
@@ -85,9 +90,14 @@ export function buildProspectiveEvidence({
     marketObservedAt: iso(marketObservedAt),
     sourceObservedAts: (sourceObservedAts || []).filter(Boolean).map(iso),
     codeSha: codeSha || null,
+    stateSnapshot,
+    marketSnapshot,
+    uncertainty,
     incumbentProjection,
     challengerProjection,
     governance: { ...governance },
+    qualificationAuthority,
+    wagerAuthority,
     canQualify: canQualify === true,
     canAuthorize: canAuthorize === true,
     legacy: legacy === true,
@@ -103,6 +113,28 @@ export function promotionCohortEligibility(row = {}, {
 } = {}) {
   const reasons = [];
   if (row.legacy === true) reasons.push("LEGACY_ROW");
+  const mandatory = [
+    ["eventStartAt", "MISSING_EVENT_START"],
+    ["snapshotAt", "MISSING_SNAPSHOT_AT"],
+    ["gateVersion", "MISSING_GATE_VERSION"],
+    ["stateSnapshotId", "MISSING_STATE_SNAPSHOT_ID"],
+    ["marketSnapshotId", "MISSING_MARKET_SNAPSHOT_ID"],
+    ["marketObservedAt", "MISSING_MARKET_OBSERVED_AT"],
+    ["codeSha", "MISSING_CODE_SHA"],
+    ["stateSnapshot", "MISSING_STATE_SNAPSHOT"],
+    ["marketSnapshot", "MISSING_MARKET_SNAPSHOT"],
+    ["uncertainty", "MISSING_UNCERTAINTY"],
+    ["incumbentProjection", "MISSING_INCUMBENT_PROJECTION"],
+    ["challengerProjection", "MISSING_CHALLENGER_PROJECTION"],
+    ["qualificationAuthority", "MISSING_QUALIFICATION_AUTHORITY"],
+    ["wagerAuthority", "MISSING_WAGER_AUTHORITY"],
+  ];
+  for (const [field, reason] of mandatory) {
+    if (row[field] == null) reasons.push(reason);
+  }
+  if (!Array.isArray(row.sourceObservedAts) || row.sourceObservedAts.length === 0) {
+    reasons.push("MISSING_SOURCE_OBSERVATION_TIMES");
+  }
   if (gateVersion && row.gateVersion !== gateVersion) reasons.push("WRONG_GATE_VERSION");
   if (minSnapshotAt && row.snapshotAt && Date.parse(row.snapshotAt) < Date.parse(minSnapshotAt)) {
     reasons.push("PRE_GATE_SNAPSHOT");

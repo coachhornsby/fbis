@@ -6,7 +6,6 @@ on:
       - "scripts/tennis-wta-ranked-reconcile.mjs"
       - "scripts/tennis-wta-official-audit.mjs"
       - "migrations/0076_tennis_wta_ranked_reconciliation.sql"
-      - "schema.extensions.sql"
       - ".github/workflows/tennis-wta-ranked-reconcile.yml"
   push:
     branches: [main]
@@ -14,7 +13,6 @@ on:
       - "scripts/tennis-wta-ranked-reconcile.mjs"
       - "scripts/tennis-wta-official-audit.mjs"
       - "migrations/0076_tennis_wta_ranked_reconciliation.sql"
-      - "schema.extensions.sql"
       - ".github/workflows/tennis-wta-ranked-reconcile.yml"
   schedule:
     - cron: "23 * * * *"
