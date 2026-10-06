@@ -134,7 +134,7 @@ test("Phase 3G grading helpers stay research/simulation primitives",()=>{
   assert.ok(prob.v31.brier<prob.v2.brier);
   assert.ok(prob.v31.logLoss<prob.v2.logLoss);
   const value=gradeSoccerShadowValue({v2ProjectionValue:2.4,v31ProjectionValue:2.7,actual:3});
-  assert.equal(value.v2AbsError,.6);
+  assert.ok(Math.abs(value.v2AbsError-.6)<1e-12);
   assert.ok(Math.abs(value.v31AbsError-.3)<1e-12);
   assert.equal(simulatedUnitResult({result:"WIN",americanPrice:-110}),100/110);
   assert.equal(simulatedUnitResult({result:"LOSS",americanPrice:+120}),-1);
