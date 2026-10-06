@@ -27,7 +27,7 @@ concurrency:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
     steps:
       - name: Capture WNBA impact challengers
         env:
@@ -49,13 +49,28 @@ jobs:
           for offset in 0 1 2 3; do
             date_ct="$(TZ=America/Chicago date -d "+${offset} day" +%F)"
             body="$(mktemp)"
-            http="$(curl -sS --max-time 60 --retry 1 --retry-delay 2               -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               --data-binary "$(jq -nc --arg date "$date_ct" '{date:$date}')"               -o "$body" -w "%{http_code}"               "${BASE}/api/wnba-impact-shadow" || true)"
-            cat "$body"
+            http=""
+            ok=0
 
-            if [ "$http" != "200" ] || ! jq -e '.ok==true' "$body" >/dev/null 2>&1; then
+            for attempt in 1 2 3; do
+              http="$(curl -sS --max-time 25 --retry 1 --retry-delay 2                 -X POST                 -H "x-harvest-secret: ${HARVEST_SECRET}"                 -H "content-type: application/json"                 --data-binary "$(jq -nc --arg date "$date_ct" '{date:$date}')"                 -o "$body" -w "%{http_code}"                 "${BASE}/api/wnba-impact-shadow" || true)"
+              cat "$body"
+
+              if [ "$http" = "200" ] && jq -e '.ok==true' "$body" >/dev/null 2>&1; then
+                ok=1
+                break
+              fi
+
+              if [ "$attempt" -lt 3 ]; then
+                echo "date=${date_ct} capture attempt=${attempt}/3 failed (HTTP ${http}); retrying"
+                sleep $((attempt * 5))
+              fi
+            done
+
+            if [ "$ok" != "1" ]; then
               failed_dates=$((failed_dates+1))
               {
-                echo "- ${date_ct}: capture failed (HTTP ${http})"
+                echo "- ${date_ct}: capture failed after 3 bounded attempts (HTTP ${http})"
               } >> "$GITHUB_STEP_SUMMARY"
               continue
             fi
