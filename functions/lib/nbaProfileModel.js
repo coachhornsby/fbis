@@ -1,4 +1,4 @@
-import { projectNbaGame } from "./nbaModel.js";
+import { projectNbaGame, calibrateNbaProjection } from "./nbaModel.js";
 import { buildNbaScheduleContext } from "./nbaTravelContext.js";
 import { impactAvailabilityPoints } from "./nbaPlayerImpact.js";
 import { pGreater } from "./metrics.js";
@@ -40,11 +40,12 @@ function overlayAdjustment(o={}){
  return {availability, replacementMinutes:round(replacement), usageRedistribution:round(usage), lineupStrength:round(lineup),
    total:round(availability+replacement+usage+lineup)};
 }
-export function projectNbaProfileGame(game,{homeHistory=[],awayHistory=[],impact={},sequence=[]}={}){
+export function projectNbaProfileGame(game,{homeHistory=[],awayHistory=[],impact={},sequence=[],fit={}}={}){
  const idx=sequence.length-1;
  const hs=buildNbaScheduleContext(sequence,game,idx,"home"),as=buildNbaScheduleContext(sequence,game,idx,"away");
- const base=projectNbaGame(game,{homeHistory,awayHistory,homeContext:hs,awayContext:as});
- if(!base.ok)return base;
+ const rawBase=projectNbaGame(game,{homeHistory,awayHistory,homeContext:hs,awayContext:as});
+ if(!rawBase.ok)return rawBase;
+ const base=calibrateNbaProjection(rawBase,fit);
  const hp=teamProfileOverlay(game.homeId,impact),ap=teamProfileOverlay(game.awayId,impact);
  const ha=overlayAdjustment(hp),aa=overlayAdjustment(ap);
  const home=base.home+ha.total,away=base.away+aa.total,margin=home-away,total=home+away;
@@ -53,5 +54,5 @@ export function projectNbaProfileGame(game,{homeHistory=[],awayHistory=[],impact
  return {...base,modelId:NBA_PROFILE_MODEL_ID,modelVersion:NBA_PROFILE_MODEL_VERSION,home:round(home,1),away:round(away,1),margin:round(margin,1),total:round(total,1),
    pHomeWin:pGreater(margin,0,base.sigmaMargin), maturity:"CHALLENGER",canQualify:false,canAuthorize:false,
    profileOverlay:{home:{...hp,adjustment:ha},away:{...ap,adjustment:aa},schedule:scheduleDecomp},
-   provenance:{...base.provenance,marketUsed:false,profileOverlay:true}};
+   provenance:{...base.provenance,marketUsed:false,profileOverlay:true,calibratedBaseVersion:base.modelVersion}};
 }
