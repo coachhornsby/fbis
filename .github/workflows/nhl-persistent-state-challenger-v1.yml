@@ -1,0 +1,79 @@
+name: NHL persistent-state challenger v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/nhl-persistent-state-walkforward.mjs"
+      - "functions/lib/nhlPersistentProfiles.js"
+      - "test/nhl-persistent-state-challenger.test.js"
+      - ".github/workflows/nhl-persistent-state-challenger-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nhl-persistent-state-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+      - name: Focused governance tests
+        run: node --test test/nhl-persistent-state-challenger.test.js test/nhl-persistent-profiles.test.js
+      - name: Restore historical state cache
+        uses: actions/cache@v4.2.0
+        with:
+          path: .cache/nhl-persistent-state-v1
+          key: nhl-persistent-state-v1-${{ runner.os }}-${{ hashFiles('scripts/nhl-persistent-state-walkforward.mjs') }}
+          restore-keys: |
+            nhl-persistent-state-v1-${{ runner.os }}-
+      - name: Controlled smoke
+        run: |
+          node scripts/nhl-persistent-state-walkforward.mjs             --max-games=80             --concurrency=6             --cache-dir=.cache/nhl-persistent-state-v1             --out=/tmp/nhl-persistent-state-smoke.json
+          jq -e '.pointInTime == true and .marketInformed == false' /tmp/nhl-persistent-state-smoke.json >/dev/null
+          jq -e '.governance.productionChampionChanged == false and .governance.canAuthorizeWager == false' /tmp/nhl-persistent-state-smoke.json >/dev/null
+      - name: Full PIT persistent-state walk-forward
+        run: |
+          node scripts/nhl-persistent-state-walkforward.mjs             --concurrency=8             --cache-dir=.cache/nhl-persistent-state-v1             --out=data/models/nhl-persistent-state-challenger-v1.json
+      - name: Verify historical research contract
+        run: |
+          set -euo pipefail
+          jq -e '.population.samePopulation == true and .population.evaluated >= 2600' data/models/nhl-persistent-state-challenger-v1.json >/dev/null
+          jq -e '.pointInTime == true and .marketInformed == false' data/models/nhl-persistent-state-challenger-v1.json >/dev/null
+          jq -e '.coverage.failClosedCurrentGameStates == true' data/models/nhl-persistent-state-challenger-v1.json >/dev/null
+          jq -e '.governance.productionChampion == "NHL-PRO-v2" and .governance.productionChampionChanged == false' data/models/nhl-persistent-state-challenger-v1.json >/dev/null
+          jq -e '.governance.canQualify == false and .governance.canAuthorizeWager == false and .governance.stakingAuthorized == false' data/models/nhl-persistent-state-challenger-v1.json >/dev/null
+          jq '.coverage,.aggregate,.ablation,.gates,.governance' data/models/nhl-persistent-state-challenger-v1.json
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-persistent-state-challenger-v1-${{ github.run_id }}
+          path: data/models/nhl-persistent-state-challenger-v1.json
+          retention-days: 90
+      - name: Persist research artifact
+        run: |
+          set -euo pipefail
+          cp data/models/nhl-persistent-state-challenger-v1.json "$RUNNER_TEMP/nhl-persistent-state-challenger-v1.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin "${{ github.ref_name }}"
+            git reset --hard "origin/${{ github.ref_name }}"
+            cp "$RUNNER_TEMP/nhl-persistent-state-challenger-v1.json" data/models/nhl-persistent-state-challenger-v1.json
+            git add data/models/nhl-persistent-state-challenger-v1.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m "data: update NHL persistent-state challenger v1"
+            if git push origin HEAD:"${{ github.ref_name }}"; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          exit 1
