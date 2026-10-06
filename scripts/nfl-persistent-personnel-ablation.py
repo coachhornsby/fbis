@@ -272,6 +272,15 @@ def build_features():
         snaps=snaps[snaps["game_type"].astype(str).str.upper().eq("REG")]
     if "game_type" in injuries.columns:
         injuries=injuries[injuries["game_type"].astype(str).str.upper().eq("REG")]
+    # One pregame state per player/team/week. When the source contains multiple
+    # practice-report revisions, retain the latest timestamp available before
+    # grading rather than double-counting a player.
+    injuries["team"]=injuries["team"].map(canon_team)
+    injuries["_name_key"]=injuries["full_name"].map(norm_name)
+    if "date_modified" in injuries.columns:
+        injuries["_modified"]=pd.to_datetime(injuries["date_modified"],errors="coerce",utc=True)
+        injuries=injuries.sort_values(["season","week","team","_name_key","_modified"])
+    injuries=injuries.drop_duplicates(["season","week","team","_name_key"],keep="last").drop(columns=["_name_key","_modified"],errors="ignore")
     merged,snap_hist=latest_prior_snap_features(snaps,injuries)
     features,detail=build_team_week_features(merged,snap_hist)
     features.to_csv(FEATURE_FILE,index=False)
