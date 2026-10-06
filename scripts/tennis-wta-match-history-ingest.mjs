@@ -21,12 +21,10 @@ const arr=v=>Array.isArray(v)?v:(v?.content||v?.matches||v?.players||[]);
 const enc=encodeURIComponent;
 async function get(p){const r=await fetch(BASE+p,{headers:{accept:"application/json","user-agent":"FBIS-WTA-History/1.1"}});const text=await r.text();let body=null;try{body=JSON.parse(text)}catch{}return{ok:r.ok,status:r.status,text,body,path:p}}
 const pick=(o,...ks)=>{for(const k of ks){if(o?.[k]!=null)return o[k]}return null};
-const playerObj=(m,n)=>m?.[`player${n}`]||m?.[`player${n}Details`]||m?.[`team${n}`]?.player||null;
 const sourcePid=(m,n)=>String(pick(m,n===1?"PlayerIDA":"PlayerIDB")??"")||null;
 const matchId=m=>String(pick(m,"MatchID")??"")||null;
 const date=m=>pick(m,"MatchTimeStamp");
 const round=m=>pick(m,"RoundID");
-const winner=m=>null;
 const reason=m=>pick(m,"MatchState");
 const completion=m=>String(pick(m,"MatchState")||"")==="F"?"FINAL":"UNKNOWN";
 const score=m=>pick(m,"ScoreString");
@@ -66,10 +64,11 @@ for(const t of chosen){
    const p1=a?`(SELECT fbis_player_id FROM tennis_player_source_ids WHERE provider='WTA_OFFICIAL' AND source_player_id=${q(a)} LIMIT 1)`:"NULL";
    const p2=b?`(SELECT fbis_player_id FROM tennis_player_source_ids WHERE provider='WTA_OFFICIAL' AND source_player_id=${q(b)} LIMIT 1)`:"NULL";
    const win=w?`(SELECT fbis_player_id FROM tennis_player_source_ids WHERE provider='WTA_OFFICIAL' AND source_player_id=${q(w)} LIMIT 1)`:"NULL";
-   const mid=`wta_${h(`WTA_OFFICIAL|wta|${smid}`).slice(0,24)}`;
-   sql+=`INSERT INTO tennis_official_matches(match_id,tour,source,source_match_id,tournament_group_id,tournament_year,tournament_name,tournament_level,round_code,match_time,surface,indoor_outdoor,venue,player1_id,player2_id,source_player1_id,source_player2_id,winner_id,source_winner_id,score_text,sets_json,duration_seconds,player1_entry_rank,player2_entry_rank,completion_state,result_reason,observed_at,effective_at,ingested_at,provenance_json,raw_artifact_key) VALUES(${q(mid)},'wta','WTA_OFFICIAL',${q(smid)},${q(gid)},${yr},${q(tname(t))},${q(level(t))},${q(round(m))},${q(date(m))},${q(surface(t))},${q(io(t))},${q(venue(t))},${p1},${p2},${q(a)},${q(b)},${win},${q(w)},${q(score(m))},${escJson(sets(m))},NULL,NULL,NULL,${q(completion(m))},${q(reason(m))},${q(now)},${q(date(m))},${q(now)},${q(JSON.stringify({source:"WTA_OFFICIAL",path:sourcePath,checksum}))},${q(rawKey)}) ON CONFLICT(source,tour,source_match_id) DO UPDATE SET observed_at=excluded.observed_at,raw_artifact_key=excluded.raw_artifact_key WHERE excluded.observed_at>tennis_official_matches.observed_at;
+   const sourceMatchKey=`${yr}|${gid}|${smid}`;
+   const mid=`wta_${h(`WTA_OFFICIAL|wta|${sourceMatchKey}`).slice(0,24)}`;
+   sql+=`INSERT INTO tennis_official_matches(match_id,tour,source,source_match_id,tournament_group_id,tournament_year,tournament_name,tournament_level,round_code,match_time,surface,indoor_outdoor,venue,player1_id,player2_id,source_player1_id,source_player2_id,winner_id,source_winner_id,score_text,sets_json,duration_seconds,player1_entry_rank,player2_entry_rank,completion_state,result_reason,observed_at,effective_at,ingested_at,provenance_json,raw_artifact_key) VALUES(${q(mid)},'wta','WTA_OFFICIAL',${q(sourceMatchKey)},${q(gid)},${yr},${q(tname(t))},${q(level(t))},${q(round(m))},${q(date(m))},${q(surface(t))},${q(io(t))},${q(venue(t))},${p1},${p2},${q(a)},${q(b)},${win},${q(w)},${q(score(m))},${escJson(sets(m))},NULL,NULL,NULL,${q(completion(m))},${q(reason(m))},${q(now)},${q(date(m))},${q(now)},${q(JSON.stringify({source:"WTA_OFFICIAL",path:sourcePath,checksum}))},${q(rawKey)}) ON CONFLICT(source,tour,source_match_id) DO UPDATE SET observed_at=excluded.observed_at,raw_artifact_key=excluded.raw_artifact_key WHERE excluded.observed_at>tennis_official_matches.observed_at;
 `;
-   for(const spid of [a,b].filter(Boolean)) sql+=`INSERT OR IGNORE INTO tennis_match_identity_review_queue(review_id,source,tour,source_match_id,source_player_id,reason,payload_json,status,created_at) SELECT ${q("tmr_"+h(smid+"|"+spid).slice(0,24))},'WTA_OFFICIAL','wta',${q(smid)},${q(spid)},'UNRESOLVED_OFFICIAL_PLAYER_ID',${q(JSON.stringify({tournamentGroupId:gid,year:yr}))},'OPEN',${q(now)} WHERE NOT EXISTS(SELECT 1 FROM tennis_player_source_ids WHERE provider='WTA_OFFICIAL' AND source_player_id=${q(spid)});
+   for(const spid of [a,b].filter(Boolean)) sql+=`INSERT OR IGNORE INTO tennis_match_identity_review_queue(review_id,source,tour,source_match_id,source_player_id,reason,payload_json,status,created_at) SELECT ${q("tmr_"+h(sourceMatchKey+"|"+spid).slice(0,24))},'WTA_OFFICIAL','wta',${q(sourceMatchKey)},${q(spid)},'UNRESOLVED_OFFICIAL_PLAYER_ID',${q(JSON.stringify({tournamentGroupId:gid,year:yr}))},'OPEN',${q(now)} WHERE NOT EXISTS(SELECT 1 FROM tennis_player_source_ids WHERE provider='WTA_OFFICIAL' AND source_player_id=${q(spid)});
 `;
    written++;
   }
