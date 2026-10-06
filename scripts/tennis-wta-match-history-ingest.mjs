@@ -4,7 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 const BASE=process.env.WTA_API_BASE||"https://api.wtatennis.com/tennis";
-const YEAR=Number(process.env.WTA_YEAR||new Date().getUTCFullYear());
+const YEAR=Number(process.env.WTA_YEAR||new Date().getUTCFullYear());\nconst SEED_GROUP=process.env.WTA_TOURNAMENT_GROUP_ID||"";
 const LIMIT=Math.max(1,Math.min(10,Number(process.env.WTA_TOURNAMENT_LIMIT||2)));
 const START=Number(process.env.WTA_TOURNAMENT_OFFSET||0);
 const PAGE_SIZE=Math.max(25,Math.min(500,Number(process.env.WTA_TOURNAMENT_PAGE_SIZE||100)));
