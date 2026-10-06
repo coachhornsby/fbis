@@ -88,3 +88,32 @@ test("tracker workflow fails once on deterministic D1 conflict instead of retryi
   assert.match(workflow, /Deterministic tracker conflict; failing once without retry/);
   assert.match(workflow, /contains\("http=409"\)/);
 });
+
+
+test("snapshot readers preserve immutable prediction snapshot primary key", async () => {
+  const store = await readFile(new URL("../functions/lib/store.js", import.meta.url), "utf8");
+  assert.match(store, /snapshotId:\s*r\.id \|\| null/);
+  assert.match(store, /"id, game_id, sport, date, checkpoint, model_version/);
+});
+
+test("executed-bet attribution prefers immutable snapshot id over reconstructed legacy identity", async () => {
+  const bets = await readFile(new URL("../functions/lib/executedBets.js", import.meta.url), "utf8");
+  assert.match(bets, /snap\.snapshotId \|\| `\$\{snap\.date\}:\$\{snap\.id \|\| snap\.gameId\}:\$\{snap\.checkpoint\}`/);
+  const { attributeRecommendation } = await import("../functions/lib/executedBets.js");
+  const out = attributeRecommendation(
+    { executedAt: "2026-09-08T22:26:00.000Z", gameId: "823738", market: "ML", selectedSide: "HOME" },
+    { snapshots: [{
+      id: "823738",
+      snapshotId: "2026-09-08:823738:EARLY:FBIS-v1.4",
+      gameId: "823738",
+      date: "2026-09-08",
+      checkpoint: "EARLY",
+      frozenAt: "2026-09-08T19:19:58.852Z",
+      projHome: 4.2,
+      pHomeFinal: 0.55,
+      modelVersion: "FBIS-v1.4",
+    }], strategyTickets: [] }
+  );
+  assert.equal(out.matchedPredictionId, "2026-09-08:823738:EARLY:FBIS-v1.4");
+  assert.equal(out.evidence.predictionId, "2026-09-08:823738:EARLY:FBIS-v1.4");
+});
