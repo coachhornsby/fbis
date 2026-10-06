@@ -32,3 +32,13 @@ test("future-grade cleanup uses audited executed-bet mutation path", async () =>
   assert.match(body, /future-grade-cleanup/);
   assert.doesNotMatch(body, /UPDATE executed_bets/);
 });
+
+
+test("historical audit backfill is idempotent and does not mutate wagers", async () => {
+  const migration = await readFile(new URL("../migrations/0087_executed_bet_audit_backfill.sql", import.meta.url), "utf8");
+  assert.match(migration, /historical-audit-backfill/);
+  assert.match(migration, /NOT EXISTS/);
+  assert.match(migration, /0087_executed_bet_audit_backfill/);
+  assert.doesNotMatch(migration, /UPDATE\s+executed_bets/i);
+  assert.doesNotMatch(migration, /DELETE\s+FROM\s+executed_bets/i);
+});
