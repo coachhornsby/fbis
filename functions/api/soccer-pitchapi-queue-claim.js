@@ -54,11 +54,12 @@ async function breadthCandidate(db,nowIso,state){
     LIMIT 1`).bind(...state.underfilled,nowIso,nowIso).first();
 }
 
-async function depthCandidate(db,nowIso){
+async function depthCandidate(db,nowIso,{excludeKeys=[]}={}){
+  const exclusion=excludeKeys.length?` AND heritage_key NOT IN (${excludeKeys.map(()=>"?").join(",")})`:"";
   return db.prepare(`SELECT * FROM soccer_pitchapi_backfill_queue
     WHERE (status='PENDING' OR (status='LEASED' AND (lease_until IS NULL OR lease_until<?)))
-      AND attempts<6
-    ORDER BY ${PRIORITY}, updated_at,id LIMIT 1`).bind(nowIso).first();
+      AND attempts<6${exclusion}
+    ORDER BY ${PRIORITY}, updated_at,id LIMIT 1`).bind(nowIso,...excludeKeys).first();
 }
 
 export async function onRequestPost(context){
@@ -73,7 +74,7 @@ export async function onRequestPost(context){
     let candidate=state.stage==="A_BREADTH"?await breadthCandidate(db,nowIso,state):null;
     let policy=state.stage;
     if(!candidate){
-      candidate=await depthCandidate(db,nowIso);
+      candidate=await depthCandidate(db,nowIso,{excludeKeys:state.stage==="A_BREADTH"?state.underfilled:[]});
       if(state.stage==="A_BREADTH"&&candidate)policy="A_BREADTH_FALLBACK_DEPTH";
     }
     if(!candidate)return json({ok:true,empty:true,policy,validationFloor:VALIDATION_FLOOR,eligibleCounts:state.counts,underfilled:state.underfilled});
