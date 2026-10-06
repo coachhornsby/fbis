@@ -1,0 +1,32 @@
+name: KBO NPB Phase 3 controlled sample once
+on:
+  push:
+    branches: ["codex/kbo-npb-phase3-sample-run"]
+
+permissions:
+  contents: read
+
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Require harvest auth
+        run: test -n "${HARVEST_SECRET:-}"
+      - name: Build controlled pregame samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          call_post () {
+            curl -fsS --connect-timeout 5 --max-time 90 --retry 4 --retry-delay 5 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "$1" "$BASE/api/asian-baseball-pregame-controlled"
+          }
+          for league in KBO NPB; do
+            call_post "{"league":"$league","season":2025,"month":9,"limit":12,"cutoffMinutes":360}" | tee "/tmp/$league-sample.json" | jq .
+            jq -e '.ok == true and .targetGames == 12 and .snapshotsCreated == 12 and .snapshotsBeforeFirstPitch == 12' "/tmp/$league-sample.json" >/dev/null
+            body="$(curl -fsS --connect-timeout 5 --max-time 60 --retry 4 --retry-delay 5 --retry-all-errors               -H "x-harvest-secret: $HARVEST_SECRET"               "$BASE/api/asian-baseball-pregame-controlled?league=$league&season=2025&month=9&walkforward=1")"
+            echo "$body" | tee "/tmp/$league-wf.json" | jq .
+            echo "$body" | jq -e '.ok == true and .rows > 0 and .evaluation.promotion.decision == "RESEARCH_ONLY" and .evaluation.promotion.canAuthorize == false' >/dev/null
+          done
