@@ -56,6 +56,7 @@ jobs:
           npx wrangler r2 object get "fbis-archive/${CUR}/wnba-lineup-effects.json" --file artifacts/frozen/wnba-lineup-effects.json --remote || echo '{"effects":[]}' > artifacts/frozen/wnba-lineup-effects.json
           npx wrangler r2 object get "fbis-archive/canonical/espn/wnba/current/wnba-canonical.jsonl" --file artifacts/current/previous.jsonl --remote || : > artifacts/current/previous.jsonl
           npx wrangler r2 object get "fbis-archive/canonical/espn/wnba/current/wnba-lineup-stints.jsonl" --file artifacts/current/previous-stints.jsonl --remote || : > artifacts/current/previous-stints.jsonl
+          npx wrangler r2 object get "fbis-archive/canonical/espn/wnba/current/wnba-pbp.jsonl" --file artifacts/current/previous-pbp.jsonl --remote || : > artifacts/current/previous-pbp.jsonl
           npx wrangler r2 object get "fbis-archive/${CUR}/wnba-lineup-stints.jsonl" --file artifacts/frozen/wnba-lineup-stints.jsonl --remote || : > artifacts/frozen/wnba-lineup-stints.jsonl
 
       - name: Increment latest completed date only
@@ -63,6 +64,11 @@ jobs:
           node scripts/wnba-canonical-build.mjs start="$WNBA_YESTERDAY" end="$WNBA_YESTERDAY" out=artifacts/daily/wnba-daily.jsonl allowEmpty=1
           node scripts/wnba-pbp-canonical-build.mjs start="$WNBA_YESTERDAY" end="$WNBA_YESTERDAY" out=artifacts/daily/wnba-daily-pbp.jsonl
           node scripts/wnba-lineup-stints-build.mjs             games=artifacts/daily/wnba-daily.jsonl             pbp=artifacts/daily/wnba-daily-pbp.jsonl             out=artifacts/daily/wnba-daily-stints.jsonl             effects=artifacts/daily/wnba-daily-effects.json
+          mkdir -p artifacts/pbp-merge
+          cp artifacts/current/previous-pbp.jsonl artifacts/pbp-merge/previous.jsonl
+          cp artifacts/daily/wnba-daily-pbp.jsonl artifacts/pbp-merge/daily.jsonl
+          node scripts/wnba-merge-pbp.mjs artifacts/pbp-merge artifacts/current/wnba-pbp.jsonl
+          node scripts/wnba-possession-state-build.mjs games=artifacts/current/wnba-canonical.jsonl pbp=artifacts/current/wnba-pbp.jsonl out=artifacts/current/wnba-possession-state.jsonl shots=artifacts/current/wnba-shot-events.jsonl profiles=artifacts/current/wnba-shot-profiles.jsonl
           cp artifacts/current/previous.jsonl artifacts/merge/previous.jsonl
           cp artifacts/daily/wnba-daily.jsonl artifacts/merge/daily.jsonl
           node scripts/wnba-merge-canonical.mjs artifacts/merge artifacts/current/wnba-canonical.jsonl
@@ -82,6 +88,10 @@ jobs:
           npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-canonical.jsonl" --file artifacts/current/wnba-canonical.jsonl --remote
           npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-lineup-stints.jsonl" --file artifacts/current/wnba-lineup-stints.jsonl --remote
           npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-lineup-effects.json" --file artifacts/current/wnba-lineup-effects.json --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-pbp.jsonl" --file artifacts/current/wnba-pbp.jsonl --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-possession-state.jsonl" --file artifacts/current/wnba-possession-state.jsonl --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-shot-events.jsonl" --file artifacts/current/wnba-shot-events.jsonl --remote
+          npx wrangler r2 object put "fbis-archive/canonical/espn/wnba/current/wnba-shot-profiles.jsonl" --file artifacts/current/wnba-shot-profiles.jsonl --remote
 
       - name: Load point-in-time WNBA availability
         env:
