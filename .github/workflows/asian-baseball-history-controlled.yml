@@ -1,0 +1,50 @@
+name: KBO NPB controlled history seed
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asian-baseball-controlled-history
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Require harvest auth
+        run: test -n "${HARVEST_SECRET:-}"
+      - name: Seed controlled September 2025 slices
+        shell: bash
+        run: |
+          set -euo pipefail
+          call () {
+            curl -fsS --connect-timeout 5 --max-time 120 --retry 2 --retry-delay 2 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "$1" "$BASE/api/asian-baseball-history-backfill"
+          }
+          # NPB month is one official monthly page.
+          call '{"league":"NPB","season":2025,"month":9,"maxRequests":1}' | tee /tmp/npb.json | jq .
+          # KBO official scoreboard is date-addressed; seven-date shards keep each call bounded.
+          for i in 1 2 3 4 5; do
+            call '{"league":"KBO","season":2025,"month":9,"maxRequests":7}' | tee /tmp/kbo.json | jq .
+            test "$(jq -r '.status // empty' /tmp/kbo.json)" = "DONE" && break
+          done
+      - name: Verify controlled slice reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          for spec in "NPB 2025 9" "KBO 2025 9"; do
+            set -- $spec
+            body="$(curl -fsS --connect-timeout 5 --max-time 30 --retry 2               -H "x-harvest-secret: $HARVEST_SECRET"               "$BASE/api/asian-baseball-history-backfill?league=$1&season=$2&month=$3")"
+            echo "$body" | jq .
+            echo "$body" | jq -e '.ok == true and .persistedGames > 0 and .completedResultCoverage == 1 and .canonicalTeamMappingCoverage == 1 and .temporalMetadataCoverage == 1' >/dev/null
+          done
