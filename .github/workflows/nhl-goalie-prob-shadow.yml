@@ -26,10 +26,12 @@ jobs:
           set -euo pipefail
           d="$(date +%F)"
           body="$(mktemp)"
-          code="$(curl -sS --max-time 150 --retry 1 -X POST             -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"             -d "{"mode":"freeze","date":"$d","codeSha":"${GITHUB_SHA}"}"             -o "$body" -w "%{http_code}" "$BASE/api/nhl-goalie-shadow")"
+          payload="$(jq -nc --arg mode freeze --arg date "$d" --arg codeSha "$GITHUB_SHA" '{mode:$mode,date:$date,codeSha:$codeSha}')"
+          code="$(curl -sS --max-time 150 --retry 1 -X POST             -H "x-harvest-secret: $HARVEST_SECRET"             -H "content-type: application/json"             -d "$payload"             -o "$body" -w "%{http_code}" "$BASE/api/nhl-goalie-shadow")"
           cat "$body"
           test "$code" = "200"
           jq -e '.ok == true and .productionChampion == "NHL-PRO-v2" and .productionChanged == false and .qualificationChanged == false and .authority == false and .staking == false' "$body" >/dev/null
+
       - name: Settle prior-day shadow rows
         if: ${{ always() }}
         run: |
@@ -38,7 +40,8 @@ jobs:
           if [ "$h" != "04" ]; then echo "not settlement hour"; exit 0; fi
           d="$(date -d 'yesterday' +%F)"
           body="$(mktemp)"
-          code="$(curl -sS --max-time 150 --retry 1 -X POST             -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"             -d "{"mode":"settle","date":"$d"}"             -o "$body" -w "%{http_code}" "$BASE/api/nhl-goalie-shadow")"
+          payload="$(jq -nc --arg mode settle --arg date "$d" '{mode:$mode,date:$date}')"
+          code="$(curl -sS --max-time 150 --retry 1 -X POST             -H "x-harvest-secret: $HARVEST_SECRET"             -H "content-type: application/json"             -d "$payload"             -o "$body" -w "%{http_code}" "$BASE/api/nhl-goalie-shadow")"
           cat "$body"
           test "$code" = "200"
-          jq -e '.ok == true and .productionChampion == "NHL-PRO-v2" and .productionChanged == false and .authority == false and .staking == false' "$body" >/dev/null
+          jq -e '.ok == true and .productionChampion == "NHL-PRO-v2" and .productionChanged == false and .qualificationChanged == false and .authority == false and .staking == false' "$body" >/dev/null
