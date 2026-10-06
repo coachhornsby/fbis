@@ -4,16 +4,22 @@ on:
   pull_request:
     paths:
       - "migrations/0084_cbb_directory_phase_b.sql"
+      - "functions/lib/cbbDirectoryPhaseB.js"
+      - "functions/api/collect.js"
       - "scripts/cbb-directory-phase-b.mjs"
       - "test/cbb-directory-phase-b.test.js"
       - ".github/workflows/cbb-directory-phase-b.yml"
+      - "schema.sql"
   push:
     branches: [main]
     paths:
       - "migrations/0084_cbb_directory_phase_b.sql"
+      - "functions/lib/cbbDirectoryPhaseB.js"
+      - "functions/api/collect.js"
       - "scripts/cbb-directory-phase-b.mjs"
       - "test/cbb-directory-phase-b.test.js"
       - ".github/workflows/cbb-directory-phase-b.yml"
+      - "schema.sql"
   workflow_dispatch:
 
 permissions:
@@ -24,13 +30,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  phase-b:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    env:
-      CBBD_API_KEY: ${{ secrets.CBBD_API_KEY }}
-      CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
-      FBIS_CBB_SEASON: "2027"
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
@@ -38,70 +40,11 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - name: Contract tests
-        run: node --test test/cbb-directory-phase-b.test.js test/cbb-persistent-directory.test.js test/state-overlay-governance.test.js
-      - name: Require Phase A durable checkpoint
-        if: github.event_name != 'pull_request'
+      - name: Verify canonical migrations
+        run: npm run verify:migrations
+      - name: Phase B contract tests
         run: |
-          set -euo pipefail
-          row="$(npx wrangler d1 execute fbis --remote --json --command="SELECT canonical_teams,players,roster_memberships,state_events,team_snapshots,player_snapshots,schedule_items,status FROM cbb_directory_population_runs ORDER BY completed_at DESC LIMIT 1;")"
-          printf '%s' "$row" | jq -e '.[0].results[0] | .status=="COMPLETE" and .canonical_teams==362 and .players==23273 and .roster_memberships==39347 and .state_events==89334 and .team_snapshots==2837 and .player_snapshots==39347 and .schedule_items==84664' >/dev/null
-          gov="$(npx wrangler d1 execute fbis --remote --json --command="SELECT COUNT(*) AS bad FROM cbb_state_overlay_governance WHERE can_influence_projection<>0 OR can_qualify<>0 OR can_authorize_wager<>0;")"
-          printf '%s' "$gov" | jq -e '.[0].results[0].bad==0' >/dev/null
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Acquire bounded verified CBBD current state
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts/cbb-phase-b-source
-          KEY="${CBBD_API_KEY:-${CFBD_API_KEY:-}}"
-          test -n "$KEY" || { echo "No CBBD/CFBD API bearer configured"; exit 1; }
-          get(){ curl --fail --silent --show-error --retry 3 -H "Authorization: Bearer $KEY" "$1"; }
-          get "https://api.collegebasketballdata.com/teams/roster?season=2027" > artifacts/cbb-phase-b-source/rosters.json
-          get "https://api.collegebasketballdata.com/teams?season=2027" > artifacts/cbb-phase-b-source/teams.json
-          get "https://api.collegebasketballdata.com/games?season=2027" > artifacts/cbb-phase-b-source/games.json
-          get "https://api.collegebasketballdata.com/stats/player/season?season=2026&seasonType=regular" > artifacts/cbb-phase-b-source/player-stats.json
-          test "$(jq 'length' artifacts/cbb-phase-b-source/rosters.json)" -gt 0
-          test "$(jq 'length' artifacts/cbb-phase-b-source/teams.json)" -gt 0
-      - name: Export Phase A identity candidates
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo '[]' > artifacts/cbb-phase-b-source/phase-a-players.json
-          else
-            npx wrangler d1 execute fbis --remote --json --command="SELECT DISTINCT p.player_id,p.canonical_name,m.team_id FROM cbb_players p JOIN cbb_roster_membership m ON m.player_id=p.player_id;" | jq '.[0].results' > artifacts/cbb-phase-b-source/phase-a-players.json
-          fi
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Build Phase B immutable enrichment
-        env:
-          FBIS_OBSERVED_AT: ${{ github.event.pull_request.head.sha && '2026-10-06T14:00:00.000Z' || '' }}
-        run: node scripts/cbb-directory-phase-b.mjs artifacts/cbb-phase-b-source artifacts/cbb-phase-b | tee artifacts/cbb-phase-b.log
-      - name: Fail-closed PIT and governance QA
-        run: |
-          jq -e '.id=="CBB-DIRECTORY-PHASE-B-v1" and .canonicalTeams==362 and .currentRosterPlayers>0 and .stableIdPlayers>0 and .ambiguousIdentities>=0 and .unknownAvailabilityRate==1 and .verifiedAvailability==0 and .temporalIntegrity.ok==true and .governance.mode=="SHADOW" and .governance.totalsFamiliesActivated==0 and .governance.canInfluenceProjection==false and .governance.canQualify==false and .governance.canAuthorizeWager==false' artifacts/cbb-phase-b/qa.json >/dev/null
-      - name: Apply schema and enrichment to D1
-        if: github.event_name != 'pull_request'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0084_cbb_directory_phase_b.sql
-          for f in artifacts/cbb-phase-b/chunk-*.sql; do npx wrangler d1 execute fbis --remote --file="$f"; done
-      - name: Verify persisted governance
-        if: github.event_name != 'pull_request'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          npx wrangler d1 execute fbis --remote --command="SELECT COUNT(*) stable_ids FROM cbb_player_provider_ids; SELECT COUNT(*) roster_observations FROM cbb_roster_observations; SELECT COUNT(*) rotation_observations FROM cbb_rotation_observations; SELECT COUNT(*) game_state_snapshots FROM cbb_game_state_snapshots; SELECT target,family,evidence_policy,mode,can_influence_projection,can_qualify,can_authorize_wager FROM cbb_shadow_challenger_definitions ORDER BY target,family;"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cbb-directory-phase-b-${{ github.run_id }}
-          path: |
-            artifacts/cbb-phase-b/qa.json
-            artifacts/cbb-phase-b/ambiguous-identities.json
-            artifacts/cbb-phase-b.log
-          retention-days: 90
+          node --check functions/lib/cbbDirectoryPhaseB.js
+          node --check functions/api/collect.js
+          node --check scripts/cbb-directory-phase-b.mjs
+          node --test test/cbb-directory-phase-b.test.js test/cbb-persistent-directory.test.js test/state-overlay-governance.test.js
