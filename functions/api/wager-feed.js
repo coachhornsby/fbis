@@ -2,8 +2,26 @@ import { buildSlate, resolveSlateDate, recommendBundle, SPORTS } from "../lib/sl
 import { DEFAULT_WEIGHTS } from "../lib/weights.js";
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { expectedRoi, validAmericanOdds } from "../lib/pricing.js";
+import { getModel } from "../lib/canonical/modelRegistry.js";
 
 const SUPPORTED = new Set(["mlb","npb","kbo","nfl","cfb","cbb","nba","wnba","nhl","soccer"]);
+
+export function resolveWagerAuthority(...candidates) {
+  for (const candidate of candidates) {
+    const raw = String(candidate || "").trim();
+    if (!raw) continue;
+    const modelId = raw.split("@")[0];
+    const registration = getModel(modelId);
+    if (registration) {
+      return {
+        authorized: registration.canAuthorizeWager === true,
+        modelId: registration.modelId,
+        source: "MODEL_REGISTRY",
+      };
+    }
+  }
+  return { authorized: false, modelId: null, source: "UNKNOWN_MODEL_FAIL_CLOSED" };
+}
 
 function finite(v) {
   if (v == null || v === "") return null;
@@ -56,13 +74,16 @@ async function loadWnbaDecisionFeed(db,date){
 function wnbaFeedRow(r){
   const edge=finite(r.probability_edge);
   const conf=finite(r.confidence);
+  const authority=resolveWagerAuthority(r.model_id,r.model_version);
+  const researchBet=r.decision==="BET";
+  const authorizedBet=researchBet&&authority.authorized;
   return {
     generatedAt:r.captured_at,
     gameDate:r.event_start?String(r.event_start).slice(0,10):null,
     eventStart:r.event_start,
     sport:"WNBA",
     matchup:r.event_id,
-    decision:r.decision,
+    decision:authorizedBet?"BET":researchBet?"RESEARCH_CANDIDATE":r.decision,
     grade:conf==null?"UNRATED":`CONFIDENCE_${Math.round(conf)}`,
     market:r.market,
     pick:`${r.side}${r.line==null?"":` ${r.line>0?"+":""}${r.line}`}`,
@@ -78,15 +99,21 @@ function wnbaFeedRow(r){
     expectedRoi:finite(r.expected_value),
     executionRoi:finite(r.expected_value),
     minimumAcceptableOdds:null,
-    suggestedUnits:finite(r.stake_units)??0,
+    suggestedUnits:authorizedBet?(finite(r.stake_units)??0):0,
     confidence:conf,
     confidenceCalibrationState:r.confidence_calibration_state,
     confidenceCalibrationN:Number(r.confidence_calibration_n)||0,
     checkpoint:checkpoint(r.event_start),
-    status:r.decision==="BET"?"READY":"PASS",
-    reason:r.decision==="BET"
-      ?"WNBA game-level decision engine: positive EV at offered price"
-      :"WNBA game-level decision engine: offer did not clear EV/evidence gates",
+    status:authorizedBet?"READY":researchBet?"RESEARCH CANDIDATE — WAGER AUTHORITY DISABLED":"PASS",
+    reason:authorizedBet
+      ?"WNBA game-level decision engine: positive EV and wager authority enabled"
+      :researchBet
+        ?"Positive-EV research decision; canonical model registry does not authorize wagering"
+        :"WNBA game-level decision engine: offer did not clear EV/evidence gates",
+    wagerAuthority:authority.authorized,
+    wagerAuthoritySource:authority.source,
+    authorityModelId:authority.modelId,
+    researchDecision:r.decision,
     decisionArchitecture:"WNBA-WAGER-v2",
   };
 }
@@ -182,7 +209,16 @@ export async function onRequestGet(context) {
       const executionEv = modelProbability != null && validAmericanOdds(executionPrice)
         ? expectedRoi(modelProbability, executionPrice)
         : null;
-      const ready = executionEv != null && executionEv >= minEv;
+      const priceReady = executionEv != null && executionEv >= minEv;
+      const authority = resolveWagerAuthority(
+        rec.modelId,
+        game?.model?.modelId,
+        game?.modelId,
+        rec.modelVersion,
+        game?.modelVersion,
+        game?.championModel
+      );
+      const ready = priceReady && authority.authorized;
       const minOdds = minAcceptableAmerican(modelProbability, minEv);
 
       rows.push({
@@ -191,7 +227,7 @@ export async function onRequestGet(context) {
         eventStart: game.start || null,
         sport: sport.toUpperCase(),
         matchup: matchup(game),
-        decision: ready ? "BET" : "SHOP",
+        decision: ready ? "BET" : priceReady ? "QUALIFIED" : "SHOP",
         grade: String(rec.tag || "QUALIFIED").toUpperCase(),
         market: rec.market || null,
         pick: rec.pick || null,
@@ -208,14 +244,23 @@ export async function onRequestGet(context) {
         executionRoi: executionEv,
         minimumAcceptableOdds: minOdds,
         suggestedUnits: ready ? 1 : 0,
+        wagerAuthority: authority.authorized,
+        wagerAuthoritySource: authority.source,
+        authorityModelId: authority.modelId,
         modelVersion: rec.modelVersion || game.modelVersion || game.championModel || null,
         checkpoint: checkpoint(game.start),
-        status: ready ? "READY" : "SHOP — EXECUTION PRICE REQUIRED",
+        status: ready
+          ? "READY"
+          : priceReady
+            ? "QUALIFIED — WAGER AUTHORITY DISABLED"
+            : "SHOP — EXECUTION PRICE REQUIRED",
         reason: ready
-          ? "Qualified FBIS edge and executable price clears sport EV floor"
-          : executionPrice == null
-            ? "Qualified vs reference market; no executable price persisted"
-            : `Execution price does not clear ${(minEv*100).toFixed(1)}% EV floor`,
+          ? "Qualified FBIS edge, executable price, and explicit wager authority"
+          : priceReady
+            ? "Qualified edge and executable price clear EV floor, but wager authority is disabled"
+            : executionPrice == null
+              ? "Qualified vs reference market; no executable price persisted"
+              : `Execution price does not clear ${(minEv*100).toFixed(1)}% EV floor`,
       });
     }
 
