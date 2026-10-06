@@ -16,11 +16,11 @@ const SOURCE="WTA_OFFICIAL";
 const PRIORITY=100;
 
 const q=v=>v==null?"NULL":`'${String(v).replaceAll("'","''")}'`;
-const n=v=>{const x=Number(v);return Number.isFinite(x)?String(x):"NULL"};
+const n=v=>{if(v==null||v==="")return "NULL";const x=Number(v);return Number.isFinite(x)?String(x):"NULL"};
 const norm=v=>String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 const h=v=>crypto.createHash("sha256").update(String(v)).digest("hex").slice(0,32);
 const pick=(obj,...paths)=>{for(const p of paths){let cur=obj;for(const k of p.split(".")){cur=cur?.[k]}if(cur!==undefined&&cur!==null&&cur!=="")return cur}return null};
-const cm=v=>{const x=Number(v);if(!Number.isFinite(x))return null;return x<3?x*100:x};
+const cm=v=>{if(v==null||v==="")return null;const x=Number(v);if(!Number.isFinite(x)||x<=0)return null;return x<3?x*100:x};
 const money=v=>{if(v==null)return null;const x=Number(String(v).replace(/[^0-9.-]/g,""));return Number.isFinite(x)?x:null};
 
 async function fetchJson(url,{attempts=3}={}){
