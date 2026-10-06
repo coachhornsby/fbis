@@ -7,8 +7,13 @@ ROOT=Path(tempfile.mkdtemp(prefix="fbis-kbo-phase4a-"))
 A=ROOT/"KBO-league"; B=ROOT/"collector"
 
 def run(cmd,cwd=None,timeout=180):
-    p=subprocess.run(cmd,cwd=cwd,text=True,capture_output=True,timeout=timeout)
-    return {"code":p.returncode,"stdout":p.stdout[-6000:],"stderr":p.stderr[-6000:]}
+    try:
+        p=subprocess.run(cmd,cwd=cwd,text=True,capture_output=True,timeout=timeout)
+        return {"code":p.returncode,"stdout":p.stdout[-6000:],"stderr":p.stderr[-6000:],"timeout":False}
+    except subprocess.TimeoutExpired as e:
+        out=(e.stdout.decode() if isinstance(e.stdout,bytes) else e.stdout) or ""
+        err=(e.stderr.decode() if isinstance(e.stderr,bytes) else e.stderr) or ""
+        return {"code":None,"stdout":out[-6000:],"stderr":err[-6000:],"timeout":True}
 
 def clone(url,path):
     r=run(["git","clone","--depth","1",url,str(path)],timeout=120)
@@ -16,6 +21,8 @@ def clone(url,path):
 
 def source_a():
     clone("https://github.com/dialektike/KBO-league.git",A)
+    pip=run([sys.executable,"-m","pip","install","-q","-r","requirements.txt"],cwd=A,timeout=180)
+    if pip["code"]!=0: return {"pip_exit":pip["code"],"pip_error":pip["stderr"]}
     sys.path.insert(0,str(A))
     import get_game_schedule, get_game_data
     rows=[]
@@ -37,7 +44,7 @@ def source_a():
                 "pitcher_np_complete":all("NP" in p for p in ap+hp) if ap or hp else False,
                 "batter_name_complete":all(bool(x.get("name")) for x in ab+hb) if ab or hb else False
             })
-    return {"count":len(rows),"games":rows}
+    return {"pip_exit":pip["code"],"count":len(rows),"games":rows}
 
 def source_b():
     clone("https://github.com/kbo-data-portal/collector.git",B)
@@ -51,10 +58,10 @@ def source_b():
       "has_runner_url":"/Runner/Basic.aspx" in player
     }
     pip=run([sys.executable,"-m","pip","install","-q","-r","requirements.txt"],cwd=B,timeout=180)
-    live=run([sys.executable,"run.py","player","-y","2025","-d","20250920","-f","json"],cwd=B,timeout=180)
+    live=run([sys.executable,"run.py","player","-y","2025","-d","20250920","-f","json"],cwd=B,timeout=90)
     files=[str(p.relative_to(B)) for p in B.rglob("*.json")]
-    return {"contract":contract,"pip_exit":pip["code"],"live_exit":live["code"],"json_files":files[-50:],
-            "stdout_tail":live["stdout"][-2500:],"stderr_tail":live["stderr"][-2500:]}
+    return {"contract":contract,"pip_exit":pip["code"],"live_exit":live["code"],"live_timeout":live["timeout"],
+            "json_files":files[-50:],"stdout_tail":live["stdout"][-2500:],"stderr_tail":live["stderr"][-2500:]}
 
 out={"dates":DATES}
 try: out["sourceA"]=source_a()
