@@ -99,8 +99,9 @@ function matchupSignal(h,a,key,oppKey){
 }
 function compositeShotSignal(h,a){
   const shot=(rows,prefix="")=>{
-    const rr=recent(rows,prefix+"rimRate"),rp=recent(rows,prefix+"rimPct"),pr=recent(rows,prefix+"paintRate"),pp=recent(rows,prefix+"paintPct"),
-      mr=recent(rows,prefix+"midRate"),mp=recent(rows,prefix+"midPct"),tr=recent(rows,prefix+"threeRate"),tp=recent(rows,prefix+"threePct");
+    const k=name=>prefix?prefix+name[0].toUpperCase()+name.slice(1):name;
+    const rr=recent(rows,k("rimRate")),rp=recent(rows,k("rimPct")),pr=recent(rows,k("paintRate")),pp=recent(rows,k("paintPct")),
+      mr=recent(rows,k("midRate")),mp=recent(rows,k("midPct")),tr=recent(rows,k("threeRate")),tp=recent(rows,k("threePct"));
     if([rr,rp,pr,pp,mr,mp,tr,tp].some(x=>x==null))return null;
     return rr*rp+pr*pp+mr*mp+1.5*tr*tp;
   };
@@ -187,6 +188,12 @@ for(const g of games){
 }
 
 const gameEvidence=Object.keys(GAME_FAMILIES).map(f=>summarizeGame(gameRows,f));
+gameEvidence.unshift({
+  family:"offensive_defensive_efficiency",
+  n:gameRows.length,
+  decision:"REJECT",
+  reason:"DEDUPLICATE: recency-weighted ORtg/DRtg are already incumbent WNBA-FBIS-v2 inputs; reconstructing the same statistic from the same boxes is not an independent feature."
+});
 
 function playerGameEnrich(g,p){
   const teamId=String(p.teamId||""),oppId=teamId===String(g.homeId)?String(g.awayId):String(g.homeId);
