@@ -43,14 +43,17 @@ for(const [key,pathname,res] of defs){
   const arr=Array.isArray(body)?body:(body?.content||body?.matches||body?.players||[]);
   const dates=dateStrings(body).sort();
   const inventory={topLevel:keys(body),sample:keys(Array.isArray(arr)?arr[0]:null),samplePlayer:keys(Array.isArray(arr)?arr[0]?.player:null)};
-  const sampleKeys=Array.isArray(arr)&&arr[0]?keys(arr[0]):[];\n  const detail={samplePlayerId:pid,tournamentGroupId:group,tournamentYear:year,serveStatFieldsDetected:sampleKeys.filter(k=>/ace|double|serve|break|return/i.test(k))};
+  const sampleKeys=Array.isArray(arr)&&arr[0]?keys(arr[0]):[];
+  const detail={samplePlayerId:pid,tournamentGroupId:group,tournamentYear:year,serveStatFieldsDetected:sampleKeys.filter(k=>/ace|double|serve|break|return/i.test(k))};
   const audit={endpointKey:key,path:pathname,httpStatus:res.status,available:Boolean(res.ok),sampleCount:Array.isArray(arr)?arr.length:null,earliestDate:dates[0]||null,latestDate:dates.at(-1)||null,fieldInventory:inventory,detail};
   audits.push(audit);
   const id="tsa_"+hash(["WTA_OFFICIAL","wta",key,now].join("|"));
-  sql+=`INSERT OR IGNORE INTO tennis_source_audits(audit_id,source,tour,endpoint_key,endpoint_path,http_status,available,sample_count,earliest_date,latest_date,field_inventory_json,detail_json,observed_at,created_at) VALUES(${q(id)},'WTA_OFFICIAL','wta',${q(key)},${q(pathname)},${res.status??"NULL"},${res.ok?1:0},${Number.isFinite(Number(audit.sampleCount))?Number(audit.sampleCount):"NULL"},${q(audit.earliestDate)},${q(audit.latestDate)},${q(JSON.stringify(inventory))},${q(JSON.stringify(detail))},${q(now)},${q(now)});\n`;
+  sql+=`INSERT OR IGNORE INTO tennis_source_audits(audit_id,source,tour,endpoint_key,endpoint_path,http_status,available,sample_count,earliest_date,latest_date,field_inventory_json,detail_json,observed_at,created_at) VALUES(${q(id)},'WTA_OFFICIAL','wta',${q(key)},${q(pathname)},${res.status??"NULL"},${res.ok?1:0},${Number.isFinite(Number(audit.sampleCount))?Number(audit.sampleCount):"NULL"},${q(audit.earliestDate)},${q(audit.latestDate)},${q(JSON.stringify(inventory))},${q(JSON.stringify(detail))},${q(now)},${q(now)});
+`;
 }
 await fs.mkdir(path.dirname(OUT),{recursive:true});await fs.writeFile(OUT,sql);
 const summary={generatedAt:now,source:"WTA_OFFICIAL",samplePlayerId:pid,tournamentGroupId:group,tournamentYear:year,endpoints:audits,capabilities:{ranking:audits.find(x=>x.endpointKey==="rankings")?.available||false,playerProfile:audits.find(x=>x.endpointKey==="player_profile")?.available||false,playerMatchHistory:audits.find(x=>x.endpointKey==="player_matches")?.available||false,tournamentHistory:audits.find(x=>x.endpointKey==="tournaments")?.available||false,tournamentMatches:audits.find(x=>x.endpointKey==="tournament_matches")?.available||false,tournamentPlayers:audits.find(x=>x.endpointKey==="tournament_players")?.available||false,serveReturnStatsDetected:audits.some(x=>(x.detail?.serveStatFieldsDetected||[]).length>0)},notes:{headToHeadEndpoint:"not_assumed",statsLeadersEndpoint:"not_assumed",largeHistoricalAcquisition:false}};
-await fs.writeFile(SUMMARY,JSON.stringify(summary,null,2)+"\n");
+await fs.writeFile(SUMMARY,JSON.stringify(summary,null,2)+"
+");
 console.log(JSON.stringify(summary,null,2));
 if(!ranked.ok||!player.ok)process.exitCode=2;
