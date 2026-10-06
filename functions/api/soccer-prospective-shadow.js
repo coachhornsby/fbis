@@ -73,6 +73,7 @@ async function snapshot(context,date){
     slateGames:Number(slate.games?.length||0),
     eligibleGames,attempted,written,existing,skipped,skippedDetails,
     lifecycle:"SHADOW",
+    collectorCodeSha:context.env.CF_PAGES_COMMIT_SHA||null,
     publicProjectionRoutingChanged:false,
     persistentStateUsed:false,
     marketUsedInModel:false,
@@ -82,7 +83,7 @@ async function snapshot(context,date){
   };
 }
 
-async function summary(db){
+async function summary(db,collectorCodeSha=null){
   const total=await db.prepare(`SELECT
     COUNT(*) n,
     COUNT(DISTINCT event_id) events,
@@ -98,7 +99,7 @@ async function summary(db){
     GROUP BY competition_key,market_family
     ORDER BY competition_key,market_family`).all())?.results||[];
   return{
-    ok:true,lifecycle:"SHADOW",
+    ok:true,lifecycle:"SHADOW",collectorCodeSha,
     rows:Number(total?.n||0),events:Number(total?.events||0),
     withMarket:Number(total?.with_market||0),
     governanceViolations:Number(total?.governance_violations||0),
@@ -116,7 +117,7 @@ export async function onRequest(context){
   const url=new URL(context.request.url);
   const mode=String(url.searchParams.get("mode")||"summary").toLowerCase();
   try{
-    if(mode==="summary")return json(await summary(context.env.DB));
+    if(mode==="summary")return json(await summary(context.env.DB,context.env.CF_PAGES_COMMIT_SHA||null));
     if(mode==="snapshot"){
       const result=await snapshot(context,url.searchParams.get("date"));
       return json(result,result.ok?200:400);
