@@ -63,6 +63,7 @@ jobs:
             .teamSnapshots > 0 and
             .playerSnapshots > 0 and
             .scheduleItems > 0 and
+            .storageFootprintBytes < 250000000 and
             .governance.researchOnly == true and
             .governance.canInfluenceProjection == false and
             .governance.canQualify == false and
