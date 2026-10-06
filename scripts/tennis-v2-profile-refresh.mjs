@@ -21,8 +21,7 @@ function parseCsv(text){
   const rows=[];let row=[],field="",quoted=false;
   for(let i=0;i<text.length;i++){const ch=text[i];
     if(quoted){if(ch==='"'&&text[i+1]==='"'){field+='"';i++;}else if(ch==='"')quoted=false;else field+=ch;}
-    else{if(ch==='"')quoted=true;else if(ch===","){row.push(field);field="";}else if(ch==="
-"){row.push(field);rows.push(row);row=[];field="";}else if(ch!=="\r")field+=ch;}
+    else{if(ch==='"')quoted=true;else if(ch===","){row.push(field);field="";}else if(ch==="\n"){row.push(field);rows.push(row);row=[];field="";}else if(ch!=="\r")field+=ch;}
   }
   if(field||row.length){row.push(field);rows.push(row)}
   const h=rows.shift()||[];
@@ -162,11 +161,7 @@ for(const t of tournaments.values()){
 }
 
 const now=new Date().toISOString();
-let sql="DELETE FROM tennis_player_profiles_current;
-DELETE FROM tennis_tournament_speed_current;
-DELETE FROM tennis_player_bank;
-DELETE FROM tennis_match_history;
-";
+let sql=`DELETE FROM tennis_player_profiles_current;\nDELETE FROM tennis_tournament_speed_current;\nDELETE FROM tennis_player_bank;\nDELETE FROM tennis_match_history;\n`;
 for(const r of profileRows){
   sql+=`INSERT OR REPLACE INTO tennis_player_profiles_current(tour,player_key,player_id,player_name,surface,profile_json,last_match_date,last_surface,last_tournament,games_last_3_days,games_last_7_days,sets_last_3_days,sets_last_7_days,days_since_retirement_or_mto,source,source_license,source_as_of,production_dependency,updated_at) VALUES(${q(r.tour)},${q(r.playerKey)},${q(r.playerId)},${q(r.playerName)},${q(r.surface)},${q(JSON.stringify(r.profile))},${q(r.lastDate)},${q(r.lastSurface)},${q(r.lastTournament)},${n(r.gamesLast3Days)},${n(r.gamesLast7Days)},${n(r.setsLast3Days)},${n(r.setsLast7Days)},${n(r.daysSinceRetirementOrMto)},'SACKMANN_TENNIS_ABSTRACT_RESEARCH','CC BY-NC-SA 4.0',${q(sourceAsOf)},0,${q(now)});
 `;
@@ -196,6 +191,5 @@ const summary={
   integrity:{sameDayExcluded:true,futureRowsExcluded:true,cutoff:sourceAsOf},
   missingByDesign:["travelKm7Days","timeZonesCrossed7Days","minutesLast3Days","minutesLast7Days","injuryStatus","recentServeSpeedDeltaKph","indoor","altitudeM"],
 };
-await fs.writeFile(SUMMARY,JSON.stringify(summary,null,2)+"
-");
+await fs.writeFile(SUMMARY,JSON.stringify(summary,null,2)+"\n");
 console.log(JSON.stringify(summary,null,2));
