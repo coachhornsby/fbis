@@ -7,7 +7,7 @@
  * than inferred capabilities.
  */
 
-export const ASIAN_BASEBALL_DATA_CONTRACT_VERSION = "phase1-2026-10-06";
+export const ASIAN_BASEBALL_DATA_CONTRACT_VERSION = "phase4b-2026-10-06";
 
 const SOURCE_STATE = Object.freeze({
   VERIFIED_LIVE: "VERIFIED_LIVE",
