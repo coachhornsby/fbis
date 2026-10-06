@@ -296,15 +296,20 @@ VALUES ({esc(oid)},{esc(pid)},{esc(tid)},'ESPN',{esc(provider_pid)},{esc(tid_raw
     coverage.append(cov)
     print(json.dumps(cov),flush=True)
 
-final_lines=[
+# Finalization is intentionally split into bounded, restartable D1 files.
+# A single transaction aggregating all 23 seasons can exceed D1 execution limits.
+active_lines=[
   "UPDATE cfb_canonical_players SET active=0;",
   f"UPDATE cfb_canonical_players SET active=1 WHERE player_id IN (SELECT DISTINCT player_id FROM cfb_roster_membership WHERE season={END});",
   f"DELETE FROM cfb_roster_source_coverage WHERE source='{SOURCE}';"
 ]
+(OUT/"cfb-player-directory-finalize-active.sql").write_text("\\n".join(active_lines)+"\\n")
+
+final_lines=list(active_lines)
 for cov in coverage:
     season=cov["season"]
     game_rows=cov["gameRosterRows"]
-    final_lines.append(f"""INSERT INTO cfb_roster_source_coverage
+    coverage_sql=f"""INSERT INTO cfb_roster_source_coverage
 (season,source,roster_rows,distinct_players,distinct_teams,resolved_team_rows,orphan_team_rows,provisional_players,pit_unresolved_memberships,game_roster_rows,source_file,observed_at)
 SELECT
   m.season,
@@ -323,11 +328,23 @@ FROM cfb_roster_membership m
 LEFT JOIN cfb_canonical_teams t ON t.team_id=m.team_id
 LEFT JOIN cfb_canonical_players p ON p.player_id=m.player_id
 WHERE m.source='{SOURCE}' AND m.season={season}
-GROUP BY m.season;""")
-final_sql="\\n".join(final_lines)
+GROUP BY m.season
+ON CONFLICT(season,source) DO UPDATE SET
+  roster_rows=excluded.roster_rows,
+  distinct_players=excluded.distinct_players,
+  distinct_teams=excluded.distinct_teams,
+  resolved_team_rows=excluded.resolved_team_rows,
+  orphan_team_rows=excluded.orphan_team_rows,
+  provisional_players=excluded.provisional_players,
+  pit_unresolved_memberships=excluded.pit_unresolved_memberships,
+  game_roster_rows=excluded.game_roster_rows,
+  source_file=excluded.source_file,
+  observed_at=excluded.observed_at;"""
+    (OUT/f"cfb-player-directory-coverage-{season}.sql").write_text(coverage_sql+"\\n")
+    final_lines.append(coverage_sql)
 
-
-(OUT/"cfb-player-directory-finalize.sql").write_text(final_sql+"\n")
+# Keep aggregate artifact for local inspection/backward compatibility only.
+(OUT/"cfb-player-directory-finalize.sql").write_text("\\n".join(final_lines)+"\\n")
 
 qa={
  "generatedAt":observed,
