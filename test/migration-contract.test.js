@@ -157,3 +157,16 @@ test("migration verifier audits numeric-prefix ambiguity", async () => {
   assert.match(verifier, /duplicatePrefixes/);
   assert.match(verifier, /Duplicate numeric migration prefixes detected/);
 });
+
+
+test("migration lineage repair is forward-only and verifier blocks new ambiguity", async () => {
+  const repair = await readFile(new URL("../migrations/0086_migration_lineage_reconciliation.sql", import.meta.url), "utf8");
+  const verifier = await readFile(new URL("../scripts/verify-migrations.mjs", import.meta.url), "utf8");
+  assert.match(repair, /0086_migration_lineage_reconciliation/);
+  assert.match(repair, /0010_mlb_market_projections/);
+  assert.doesNotMatch(repair, /\bDROP\b/i);
+  assert.doesNotMatch(repair, /\bDELETE\b/i);
+  assert.match(verifier, /legacyDuplicatePrefixes/);
+  assert.match(verifier, /unexpectedDuplicatePrefixes/);
+  assert.match(verifier, /legacyRegistrationExceptions/);
+});
