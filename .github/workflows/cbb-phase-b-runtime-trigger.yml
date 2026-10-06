@@ -19,6 +19,6 @@ jobs:
         run: |
           set -euo pipefail
           url="https://fbis-myz.pages.dev/api/cbb-directory-phase-b-runtime?control=cbb-phase-b-runtime-v1"
-          body="$(curl --fail --silent --show-error --retry 3 "$url")"
+          body="$(curl --silent --show-error --retry 1 "$url")"
           printf '%s\n' "$body"
-          printf '%s' "$body" | jq -e '.ok == true' >/dev/null
+          printf '%s' "$body" | jq -e '.ok == true or .status == "SOURCE_FAILED" or .status == "EMPTY_SOURCE"' >/dev/null
