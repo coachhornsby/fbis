@@ -248,6 +248,8 @@ export function toBoardGame(game, sport, now = Date.now()) {
     nflProShadow: sport === "nfl" && game.nflProShadow ? game.nflProShadow : null,
     nflGameMatchup: sport === "nfl" && game.nflGameMatchup ? game.nflGameMatchup : null,
     nflWagerDecision: sport === "nfl" && game.nflWagerDecision ? game.nflWagerDecision : null,
+    nhlProV2: sport === "nhl" && game.nhlProV2 ? game.nhlProV2 : null,
+    nhlGoalieProbabilityShadow: sport === "nhl" && game.nhlGoalieProbabilityShadow ? game.nhlGoalieProbabilityShadow : null,
     tennisProjection: sport === "tennis" ? (game.tennisProjection || null) : null,
     tour: sport === "tennis" ? (game.tour || game.tennisProjection?.tour || null) : null,
     palMatched: Boolean(game.bpp),
