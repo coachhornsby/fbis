@@ -18,6 +18,35 @@ function finite(v) {
 }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+export function propCalibrationValidated(row = {}) {
+  const explicit =
+    row.propCalibrationValidated === true ||
+    row.prop_calibration_validated === true ||
+    row.probabilityCalibrationValidated === true ||
+    row.probability_calibration_validated === true ||
+    row.marketCalibrationValidated === true ||
+    row.market_calibration_validated === true;
+  if (explicit) return true;
+
+  const calibrated = finite(
+    row.calibratedHitProbability ??
+    row.calibrated_hit_probability
+  );
+  return calibrated != null && calibrated > 0 && calibrated < 1;
+}
+
+/**
+ * Platform-wide guardrail: a raw projection gap or z-score is not enough to
+ * support PREMIUM/ELITE prop confidence. Until the market-specific mapping from
+ * model edge to realized hit probability is explicitly validated, props are
+ * capped at 3★. Sport-specific validated graders may opt in by attaching an
+ * explicit calibration flag/probability before this ceiling is applied.
+ */
+export function applyPropCalibrationCeiling(row = {}, stars = 1) {
+  const value = clamp(Number(stars) || 1, 1, 5);
+  return propCalibrationValidated(row) ? value : Math.min(value, 3);
+}
+
 function erf(x) {
   const sign = x < 0 ? -1 : 1;
   const a = Math.abs(x);
@@ -294,6 +323,7 @@ export function selectivePropStars(row = {}) {
   const hitProbability = estimatedPropHitProbability(row);
   const tierEconomics = prizePicksTierEconomics(row, hitProbability);
   stars = Math.min(stars, tierEconomics.maxStars);
+  stars = applyPropCalibrationCeiling(row, stars);
 
   return stars;
 }
