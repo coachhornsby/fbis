@@ -2701,22 +2701,24 @@ export async function persistExecutedBet(env, row) {
   markBound(env);
   const packed = packExecutedBetRow(row || {});
   if (!hasDb(env) || !packed?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
-  try {
-    const existing = await env.DB.prepare(
+  const executionBook = packed.executionBook || "Heritage";
+  const lookupExisting = async () => {
+    const row = await env.DB.prepare(
       "SELECT * FROM executed_bets WHERE execution_book = ? AND external_ticket_id = ?"
-    )
-      .bind(packed.executionBook || "Heritage", packed.externalTicketId)
-      .first();
+    ).bind(executionBook, packed.externalTicketId).first();
+    return row ? mapExecutedBet(row) : null;
+  };
+  try {
+    const existing = await lookupExisting();
     if (existing) {
-      const mapped = mapExecutedBet(existing);
-      if (immutableConflict(mapped, packed)) {
+      if (immutableConflict(existing, packed)) {
         await recordWriteConflict(env, "executed_bets", packed.id, "immutable-execution-mismatch");
-        return { ok: false, conflict: true, already: true, reason: "duplicate-conflict", existing: mapped };
+        return { ok: false, conflict: true, already: true, reason: "duplicate-conflict", existing };
       }
       markWrite();
-      return { ok: true, already: true, existing: mapped };
+      return { ok: true, already: true, existing };
     }
-    await env.DB.prepare(
+    const insert = env.DB.prepare(
       `INSERT INTO executed_bets (
         id, external_ticket_id, execution_book, executed_at, timezone, sport, date, game_id,
         source_event_id, source_url, matchup_text, away_team, home_team, market, period,
@@ -2729,73 +2731,97 @@ export async function persistExecutedBet(env, row) {
         clv, clv_status, clv_method_version, attribution_label, player_name, prop_type,
         prop_actual, prop_stat_source, tracker_metadata_json
       ) VALUES (${Array(57).fill("?").join(",")})`
-    )
-      .bind(
-        packed.id,
-        packed.externalTicketId,
-        packed.executionBook || "Heritage",
-        n(packed.executedAt),
-        n(packed.timezone),
-        n(packed.sport),
-        n(packed.date),
-        n(packed.gameId),
-        n(packed.sourceEventId),
-        n(packed.sourceUrl),
-        n(packed.matchupText),
-        n(packed.awayTeam),
-        n(packed.homeTeam),
-        n(packed.market),
-        n(packed.period),
-        n(packed.selectedSide),
-        n(packed.selectedTeam),
-        n(packed.executionLine),
-        n(packed.executionPrice),
-        n(packed.riskAmount),
-        n(packed.toWinAmount),
-        n(packed.potentialPayout),
-        n(packed.currency || "USD"),
-        packed.importedAt || new Date().toISOString(),
-        n(packed.importSource || "heritage-slip"),
-        n(packed.rawTextHash),
-        n(packed.rawText || null),
-        n(packed.matchStatus),
-        n(packed.matchConfidence),
-        n(packed.matchedPredictionId),
-        n(packed.matchedStrategyTicketId),
-        n(packed.recommendationStatus),
-        n(packed.modelVersionAtEntry),
-        n(packed.checkpointAtEntry),
-        n(packed.result || "OPEN"),
-        n(packed.settledReturn),
-        n(packed.profit),
-        n(packed.gradedAt),
-        n(packed.voidReason),
-        n(packed.heritageCurrentLine),
-        n(packed.heritageCurrentPrice),
-        n(packed.heritageCurrentAt),
-        n(packed.pinEntryLine),
-        n(packed.pinEntryPrice),
-        n(packed.pinEntryNoVig),
-        n(packed.pinCloseLine),
-        n(packed.pinClosePrice),
-        n(packed.pinCloseNoVig),
-        n(packed.clv),
-        n(packed.clvStatus),
-        n(packed.clvMethodVersion),
-        n(packed.attributionLabel),
-        n(packed.playerName),
-        n(packed.propType),
-        n(packed.propActual),
-        n(packed.propStatSource),
-        packed.trackerMetadata ? JSON.stringify(packed.trackerMetadata) : null
-      )
-      .run();
+    ).bind(
+      packed.id,
+      packed.externalTicketId,
+      executionBook,
+      n(packed.executedAt),
+      n(packed.timezone),
+      n(packed.sport),
+      n(packed.date),
+      n(packed.gameId),
+      n(packed.sourceEventId),
+      n(packed.sourceUrl),
+      n(packed.matchupText),
+      n(packed.awayTeam),
+      n(packed.homeTeam),
+      n(packed.market),
+      n(packed.period),
+      n(packed.selectedSide),
+      n(packed.selectedTeam),
+      n(packed.executionLine),
+      n(packed.executionPrice),
+      n(packed.riskAmount),
+      n(packed.toWinAmount),
+      n(packed.potentialPayout),
+      n(packed.currency || "USD"),
+      packed.importedAt || new Date().toISOString(),
+      n(packed.importSource || "heritage-slip"),
+      n(packed.rawTextHash),
+      n(packed.rawText || null),
+      n(packed.matchStatus),
+      n(packed.matchConfidence),
+      n(packed.matchedPredictionId),
+      n(packed.matchedStrategyTicketId),
+      n(packed.recommendationStatus),
+      n(packed.modelVersionAtEntry),
+      n(packed.checkpointAtEntry),
+      n(packed.result || "OPEN"),
+      n(packed.settledReturn),
+      n(packed.profit),
+      n(packed.gradedAt),
+      n(packed.voidReason),
+      n(packed.heritageCurrentLine),
+      n(packed.heritageCurrentPrice),
+      n(packed.heritageCurrentAt),
+      n(packed.pinEntryLine),
+      n(packed.pinEntryPrice),
+      n(packed.pinEntryNoVig),
+      n(packed.pinCloseLine),
+      n(packed.pinClosePrice),
+      n(packed.pinCloseNoVig),
+      n(packed.clv),
+      n(packed.clvStatus),
+      n(packed.clvMethodVersion),
+      n(packed.attributionLabel),
+      n(packed.playerName),
+      n(packed.propType),
+      n(packed.propActual),
+      n(packed.propStatSource),
+      packed.trackerMetadata ? JSON.stringify(packed.trackerMetadata) : null
+    );
+    const audit = env.DB.prepare(
+      "INSERT INTO executed_bet_audit (bet_id, action, detail, created_at) VALUES (?, ?, ?, ?)"
+    ).bind(packed.id, "import", n(packed.matchStatus || "imported"), new Date().toISOString());
+
+    if (typeof env.DB.batch === "function") {
+      try {
+        await env.DB.batch([insert, audit]);
+      } catch (err) {
+        const raced = await lookupExisting();
+        if (raced) {
+          if (immutableConflict(raced, packed)) {
+            await recordWriteConflict(env, "executed_bets", packed.id, "immutable-execution-mismatch");
+            return { ok: false, conflict: true, already: true, reason: "duplicate-conflict", existing: raced };
+          }
+          markWrite();
+          return { ok: true, already: true, existing: raced, replayRecovered: true };
+        }
+        throw err;
+      }
+    } else {
+      await insert.run();
+      const auditRes = await appendExecutedBetAudit(env, {
+        betId: packed.id,
+        action: "import",
+        detail: packed.matchStatus || "imported",
+      });
+      if (!auditRes.ok) {
+        markWrite();
+        return { ok: false, wrote: true, partial: true, reason: "audit-write-failed", auditReason: auditRes.reason || null };
+      }
+    }
     markWrite();
-    await appendExecutedBetAudit(env, {
-      betId: packed.id,
-      action: "import",
-      detail: packed.matchStatus || "imported",
-    });
     return { ok: true, inserted: true };
   } catch (err) {
     markErr(err);
