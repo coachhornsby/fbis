@@ -60,12 +60,7 @@ jobs:
             echo "max_pages=1" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          cursor_ok=0
-          for attempt in 1 2 3 4 5 6 7 8; do
-            if npx wrangler d1 execute fbis --remote --command "SELECT cursor_value,status FROM tennis_ingestion_state WHERE source='WTA_OFFICIAL' AND tour='wta' AND stream='rankings' LIMIT 1" --json >/tmp/wta-rank-cursor.json; then cursor_ok=1; break; fi
-            sleep $((attempt*10))
-          done
-          test "$cursor_ok" = "1"
+          node scripts/d1-query-json.mjs "SELECT cursor_value,status FROM tennis_ingestion_state WHERE source='WTA_OFFICIAL' AND tour='wta' AND stream='rankings' LIMIT 1" >/tmp/wta-rank-cursor.json
           cursor="$(jq -r '.[0].results[0].cursor_value // ""' /tmp/wta-rank-cursor.json)"
           status="$(jq -r '.[0].results[0].status // "PENDING"' /tmp/wta-rank-cursor.json)"
           prior_date="${cursor%%|*}"
@@ -105,7 +100,7 @@ jobs:
 
       - name: Persist WTA source audit
         if: github.event_name != 'pull_request' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        run: npx wrangler d1 execute fbis --remote --file artifacts/wta-source-audit.sql
+        run: node scripts/d1-batched-sql.mjs artifacts/wta-source-audit.sql
 
       - uses: actions/upload-artifact@v4.6.2
         if: always()
