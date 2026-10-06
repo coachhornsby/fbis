@@ -7,7 +7,9 @@ on:
     paths:
       - "functions/api/wnba-impact-shadow.js"
       - "functions/lib/wnbaPlayerImpactShadow.js"
+      - "functions/lib/wnbaProspectiveChallenger.js"
       - "functions/lib/slateEngine.js"
+      - "migrations/0080_wnba_possession_challenger_shadow.sql"
       - "migrations/0049_wnba_player_impact.sql"
       - ".github/workflows/wnba-impact-shadow-snapshots.yml"
   schedule:
@@ -52,5 +54,9 @@ jobs:
             echo "- game rows inserted: $(jq -r '.gameInserted // 0' "$body")"
             echo "- prop rows: $(jq -r '.props // 0' "$body")"
             echo "- prop rows inserted: $(jq -r '.propInserted // 0' "$body")"
+            echo "- possession challenger rows: $(jq -r '.possessionRows // 0' "$body")"
+            echo "- possession rows inserted: $(jq -r '.possessionInserted // 0' "$body")"
+            echo "- challenger market rows inserted: $(jq -r '.possessionMarketInserted // 0' "$body")"
+            echo "- opportunity rows inserted: $(jq -r '.opportunityInserted // 0' "$body")"
             echo "- qualification: OFF"
           } >> "$GITHUB_STEP_SUMMARY"

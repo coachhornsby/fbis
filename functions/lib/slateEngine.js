@@ -46,6 +46,7 @@ import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, a
 import { attachNbaBoardProjection } from "./nbaBoardProjection.js";
 import { loadWnbaPlayerContext, attachWnbaPlayerProjectionResearch } from "./wnbaPlayerProjection.js";
 import { loadWnbaImpactContext, attachWnbaImpactShadows } from "./wnbaPlayerImpactShadow.js";
+import { loadWnbaPossessionChallengerContext, attachWnbaProspectiveGameChallengers, attachWnbaPlayerOpportunityShadows } from "./wnbaProspectiveChallenger.js";
 import { attachWnbaV2Research } from "./wnbaFbisV2.js";
 import { buildWnbaGameDecisions, WNBA_WAGER_DECISION_VERSION } from "./wnbaWagerDecision.js";
 import {
@@ -419,9 +420,12 @@ export async function buildSlate(sport, date, env = {}) {
     const wnbaPlayers = attachWnbaPlayerProjectionResearch(next.games, wnbaCtx);
     const impactCtx = await loadWnbaImpactContext(env.DB || null);
     const impactShadow = attachWnbaImpactShadows(wnbaPlayers.games, impactCtx);
+    const opportunityShadow = attachWnbaPlayerOpportunityShadows(impactShadow.games, impactCtx);
+    const possessionCtx = await loadWnbaPossessionChallengerContext(env.DB || null);
+    const possessionShadow = attachWnbaProspectiveGameChallengers(opportunityShadow.games, possessionCtx);
     next = {
       ...next,
-      games: impactShadow.games,
+      games: possessionShadow.games,
       research: {
         ...(next.research || {}),
         wnbaPlayerProjection: wnbaPlayers.meta,
@@ -432,6 +436,13 @@ export async function buildSlate(sport, date, env = {}) {
           challenger: "WNBA-PLAYER-PROP-IMPACT-v1",
           incumbentGameModel: "WNBA-FBIS-v2",
           gameChallenger: "WNBA-FBIS-IMPACT-v1",
+        },
+        wnbaPlayerOpportunity: opportunityShadow.meta,
+        wnbaPossessionChallengers: {
+          ...possessionShadow.meta,
+          context: possessionCtx.meta,
+          incumbentGameModel: "WNBA-FBIS-v2",
+          productionAuthorityChanged: false,
         },
       },
     };
