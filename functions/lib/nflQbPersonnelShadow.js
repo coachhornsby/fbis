@@ -155,9 +155,27 @@ export function buildNflQbPersonnelShadow(game={}){
   };
 }
 
+function americanImplied(price){
+  const p=finite(price);if(p==null||p===0)return null;
+  return p<0?(-p)/((-p)+100):100/(p+100);
+}
+function noVigPair(homePrice,awayPrice){
+  const h=americanImplied(homePrice),a=americanImplied(awayPrice);
+  if(h==null||a==null||h+a<=0)return {home:null,away:null,overround:null};
+  return {home:h/(h+a),away:a/(h+a),overround:h+a-1};
+}
 export function executableNflMarketSnapshot(game={}){
   const m=game.market||{},x=m.execution||{},offer=x.selectedOffer||x.bestOffer||m.comparison||{};
   const num=(...vs)=>{for(const v of vs){const n=finite(v);if(n!=null)return n}return null};
+  const moneylineHome=num(
+    x.moneylineHome,x.homeMoneyline,x.moneyline?.home,offer.moneylineHome,offer.homeMoneyline,offer.moneyline?.home,
+    m.moneyline?.home,game.odds?.moneyline?.home,game.odds?.homeMoneyline,game.odds?.heritageMoneylineHome,game.odds?.softMoneylineHome
+  );
+  const moneylineAway=num(
+    x.moneylineAway,x.awayMoneyline,x.moneyline?.away,offer.moneylineAway,offer.awayMoneyline,offer.moneyline?.away,
+    m.moneyline?.away,game.odds?.moneyline?.away,game.odds?.awayMoneyline,game.odds?.heritageMoneylineAway,game.odds?.softMoneylineAway
+  );
+  const noVig=noVigPair(moneylineHome,moneylineAway);
   return {
     sportsbook:x.book||offer.book||game.odds?.softSource||null,
     actionable:Boolean(m.executionActionable??x.actionable??x.available??false),
@@ -167,6 +185,10 @@ export function executableNflMarketSnapshot(game={}){
     total:num(x.total,offer.total,game.odds?.total),
     overPrice:num(x.overPrice,x.totalOverPrice,x.totalPrice?.over,offer.overPrice,game.odds?.heritageOverPrice,game.odds?.softOverPrice),
     underPrice:num(x.underPrice,x.totalUnderPrice,x.totalPrice?.under,offer.underPrice,game.odds?.heritageUnderPrice,game.odds?.softUnderPrice),
+    moneylineHome,moneylineAway,
+    noVigHomeProbability:noVig.home,
+    noVigAwayProbability:noVig.away,
+    moneylineOverround:noVig.overround,
     observedAt:x.observedAt||offer.observedAt||game.market?.observedAt||game.odds?.observedAt||null,
     stale:Boolean(game.marketStale||game.odds?.stale||x.freshness==="STALE"),
   };
