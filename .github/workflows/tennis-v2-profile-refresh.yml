@@ -9,7 +9,6 @@ on:
       - "functions/lib/tennisV2Ledger.js"
       - "migrations/0051_tennis_v2_current_profiles.sql"
       - "migrations/0053_tennis_player_bank.sql"
-      - "schema.extensions.sql"
       - ".github/workflows/tennis-v2-profile-refresh.yml"
   push:
     branches: [main]
@@ -20,7 +19,6 @@ on:
       - "functions/lib/tennisV2Ledger.js"
       - "migrations/0051_tennis_v2_current_profiles.sql"
       - "migrations/0053_tennis_player_bank.sql"
-      - "schema.extensions.sql"
       - ".github/workflows/tennis-v2-profile-refresh.yml"
   schedule:
     - cron: "30 11,12 * * *"
