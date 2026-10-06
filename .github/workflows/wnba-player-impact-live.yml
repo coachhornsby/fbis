@@ -68,10 +68,10 @@ jobs:
           cp artifacts/current/previous-pbp.jsonl artifacts/pbp-merge/previous.jsonl
           cp artifacts/daily/wnba-daily-pbp.jsonl artifacts/pbp-merge/daily.jsonl
           node scripts/wnba-merge-pbp.mjs artifacts/pbp-merge artifacts/current/wnba-pbp.jsonl
-          node scripts/wnba-possession-state-build.mjs games=artifacts/current/wnba-canonical.jsonl pbp=artifacts/current/wnba-pbp.jsonl out=artifacts/current/wnba-possession-state.jsonl shots=artifacts/current/wnba-shot-events.jsonl profiles=artifacts/current/wnba-shot-profiles.jsonl
           cp artifacts/current/previous.jsonl artifacts/merge/previous.jsonl
           cp artifacts/daily/wnba-daily.jsonl artifacts/merge/daily.jsonl
           node scripts/wnba-merge-canonical.mjs artifacts/merge artifacts/current/wnba-canonical.jsonl
+          node scripts/wnba-possession-state-build.mjs games=artifacts/current/wnba-canonical.jsonl pbp=artifacts/current/wnba-pbp.jsonl out=artifacts/current/wnba-possession-state.jsonl shots=artifacts/current/wnba-shot-events.jsonl profiles=artifacts/current/wnba-shot-profiles.jsonl
           cp artifacts/current/previous-stints.jsonl artifacts/stints/previous.jsonl
           cp artifacts/daily/wnba-daily-stints.jsonl artifacts/stints/daily.jsonl
           node scripts/wnba-merge-lineup-stints.mjs artifacts/stints artifacts/current/wnba-lineup-stints.jsonl
