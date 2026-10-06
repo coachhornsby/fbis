@@ -183,7 +183,7 @@ export function evaluateMlbF5Market({ projection, market, lineupsOfficial = null
     modelVersion: MLB_F5_MARKET_VERSION,
     canQualify: false,
     canAuthorize: false,
-    qualificationState: "RESEARCH_ONLY",
+    qualificationState: "NO_QUALIFIED_EDGE",
     homeMean: round(homeMean, 3),
     awayMean: round(awayMean, 3),
     totalMean: round(homeMean + awayMean, 3),
@@ -223,11 +223,16 @@ export function evaluateMlbF5Market({ projection, market, lineupsOfficial = null
   const usable = rows.filter(Boolean);
   const ranked = usable.filter((r) => r.researchQualified)
     .sort((a, b) => (b.expectedRoi ?? -99) - (a.expectedRoi ?? -99) || (b.modelEdge ?? -99) - (a.modelEdge ?? -99));
+  const best = ranked[0] || null;
+  const canQualify = Boolean(best && lineupsOfficial !== false);
   return {
     ...base,
     available: usable.length > 0,
     reason: usable.length ? null : "F5_PAIRED_PRICE_UNAVAILABLE",
-    markets: usable,
-    bestResearchSignal: ranked[0] || null,
+    canQualify,
+    qualificationState: canQualify ? "QUALIFIED_STAKING_DISABLED" : "NO_QUALIFIED_EDGE",
+    markets: usable.map((r) => ({ ...r, canQualify: Boolean(r.researchQualified && lineupsOfficial !== false), canAuthorize: false })),
+    bestResearchSignal: best,
+    bestQualifiedSignal: canQualify ? best : null,
   };
 }
