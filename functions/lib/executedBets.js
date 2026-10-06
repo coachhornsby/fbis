@@ -148,7 +148,7 @@ export function attributeRecommendation(ticket, { snapshots = [], strategyTicket
               : "RECOMMENDED"
         : "OPERATOR_ONLY",
     label: recommended ? (conviction ? "CONVICTION" : qualified ? "QUALIFIED" : lean ? "MODEL LEAN" : "RECOMMENDED") : OPERATOR_ONLY,
-    matchedPredictionId: snap ? `${snap.date}:${snap.id || snap.gameId}:${snap.checkpoint}` : null,
+    matchedPredictionId: snap ? (snap.snapshotId || `${snap.date}:${snap.id || snap.gameId}:${snap.checkpoint}`) : null,
     matchedStrategyTicketId: rec?.id || null,
     modelVersionAtEntry: snap?.modelVersion || rec?.modelVersion || null,
     checkpointAtEntry: snap?.checkpoint || rec?.checkpoint || null,
@@ -158,7 +158,7 @@ export function attributeRecommendation(ticket, { snapshots = [], strategyTicket
     ev: rec?.ev ?? null,
     tag: rec?.tag || null,
     evidence: {
-      predictionId: snap ? `${snap.date}:${snap.id || snap.gameId}:${snap.checkpoint}` : null,
+      predictionId: snap ? (snap.snapshotId || `${snap.date}:${snap.id || snap.gameId}:${snap.checkpoint}`) : null,
       strategyTicketId: rec?.id || null,
       modelVersion: snap?.modelVersion || rec?.modelVersion || null,
       checkpoint: snap?.checkpoint || null,
