@@ -12,6 +12,8 @@ import {
   deriveWnbaMarketTrajectory,
   buildWnbaGameDecisions,
   loadWnbaOwnedOddsRows,
+  buildWnbaOffersFromOwnedRows,
+  mergeWnbaOffers,
 } from "../functions/lib/wnbaWagerDecision.js";
 
 test("price math uses actual American odds and no market shrink",()=>{
@@ -161,4 +163,28 @@ test("WNBA packet mirrors NFL wager architecture contract fields",async()=>{
   assert.equal(p.closeUsedAsDecisionInput,false);
   assert.equal(p.staking.validated,false);
   assert.equal(p.objective,"positive-expected-value-at-offered-price");
+});
+
+
+test("WNBA offer builder fails closed when price is missing instead of converting null to zero",()=>{
+  const offers=buildWnbaOffers({odds:{spread:-3,total:161}});
+  assert.deepEqual(offers,[]);
+});
+
+test("owned WNBA odds with real juice can supply executable fallback offers",()=>{
+  const rows=[
+    {market_type:"spread",selection:"home",line:-3,american_price:-110,sportsbook:"Heritage",collected_at:"2026-10-06T14:00:00Z"},
+    {market_type:"spread",selection:"away",line:3,american_price:-110,sportsbook:"Heritage",collected_at:"2026-10-06T14:00:00Z"},
+    {market_type:"total",selection:"over",line:161.5,american_price:-105,sportsbook:"Heritage",collected_at:"2026-10-06T14:00:00Z"},
+  ];
+  const owned=buildWnbaOffersFromOwnedRows(rows);
+  assert.equal(owned.length,3);
+  assert.equal(owned.find(x=>x.market==="TOTAL"&&x.side==="OVER").price,-105);
+  const merged=mergeWnbaOffers(
+    [{market:"SPREAD",side:"HOME",line:-2.5,price:-115,sportsbook:"Current"}],
+    owned
+  );
+  assert.equal(merged.filter(x=>x.market==="SPREAD"&&x.side==="HOME").length,1);
+  assert.equal(merged.find(x=>x.market==="SPREAD"&&x.side==="HOME").price,-115);
+  assert.equal(merged.find(x=>x.market==="SPREAD"&&x.side==="AWAY").price,-110);
 });
