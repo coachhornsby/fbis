@@ -118,7 +118,7 @@ async function freezeRows(db,board,snapshotAt,codeSha){
   return out;
 }
 async function persist(db,rows){
-  let written=0,existing=0;
+  let written=0,existing=0,canonicalWritten=0,canonicalExisting=0,canonicalTemporalFailures=0,canonicalContextExcluded=0;
   for(const r of rows){
     const result=await db.prepare(`INSERT OR IGNORE INTO nhl_goalie_probability_shadow(
       id,event_id,game_start,feature_cutoff_timestamp,model_id,model_version,incumbent_model_id,gate_id,gate_fired,historical_gate_validated,
@@ -137,8 +137,29 @@ async function persist(db,rows){
         r.homeExpectedStarterName,r.awayExpectedStarterName,r.homeExpectedStartProbability,r.awayExpectedStartProbability,r.goalieEvidenceSource,r.goalieEvidenceAt,
         r.deploymentEvidenceAt,r.availabilityEvidenceAt,r.marketObservedAt,r.temporalIntegrityPassed?1:0,JSON.stringify(r.temporalIntegrity),r.probabilityDelta,r.starterQualityDelta,r.goalieUsageState).run();
     if(result?.meta?.changes)written++;else existing++;
+    if(!r.gateFired){canonicalContextExcluded++;continue;}
+    const canonical=await persistCanonicalProspectiveEvidence(db,{
+      sport:"nhl",eventId:r.eventId,eventStartAt:r.gameStart,snapshotAt:r.featureCutoffTimestamp,
+      championModelId:"NHL-PRO-v2",modelId:r.modelId,modelVersion:r.modelVersion,
+      lifecycle:"SHADOW",gateVersion:PROSPECTIVE_GATE.gateVersion,
+      stateSnapshotId:"nhl-profile:"+r.eventId+":"+r.featureCutoffTimestamp,
+      marketSnapshotId:r.marketObservedAt?"nhl-market:"+r.eventId+":"+r.marketObservedAt:null,
+      marketObservedAt:r.marketObservedAt,
+      sourceObservedAts:[r.goalieEvidenceAt,r.deploymentEvidenceAt,r.availabilityEvidenceAt].filter(Boolean),
+      codeSha:r.codeSha,
+      incumbentProjection:{home:r.projectedHome,away:r.projectedAway,homeWinProbability:r.incumbentHomeWinProbability},
+      challengerProjection:{home:r.projectedHome,away:r.projectedAway,homeWinProbability:r.shadowHomeWinProbability},
+      governance:{governanceId:"FBIS-STATE-OVERLAY-v1",gateFired:true,historicallyValidated:true,prospectivelyValidated:false,operatorApproved:false,stakingAuthorized:false},
+      canQualify:false,canAuthorize:false,legacy:false
+    },{
+      sourceTable:"nhl_goalie_probability_shadow",sourceId:r.id,
+      cohortGateVersion:PROSPECTIVE_GATE.gateVersion
+    });
+    canonicalWritten+=Number(canonical.written||0);
+    canonicalExisting+=Number(canonical.existing||0);
+    if(!canonical.ok&&canonical.reason==="temporal_integrity_failed")canonicalTemporalFailures++;
   }
-  return{written,existing};
+  return{written,existing,canonical:{written:canonicalWritten,existing:canonicalExisting,temporalFailures:canonicalTemporalFailures,contextOnlyExcluded:canonicalContextExcluded}};
 }
 async function fetchBox(eventId){
   const r=await fetch(`https://api-web.nhle.com/v1/gamecenter/${encodeURIComponent(eventId)}/boxscore`,{headers:{accept:"application/json","user-agent":"FBIS-NHL-GOALIE-SHADOW-v1/1.0"},signal:AbortSignal.timeout(6000)});
