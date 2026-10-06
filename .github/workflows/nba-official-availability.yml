@@ -7,6 +7,8 @@ on:
     paths:
       - "scripts/nba-official-injury-discover.mjs"
       - "scripts/nba-official-injury-parse.mjs"
+      - "scripts/nba-observation-health-sql.mjs"
+      - "migrations/0060_nba_observation_health.sql"
       - "migrations/0053_nba_official_availability.sql"
       - "test/nba-official-availability.test.js"
       - ".github/workflows/nba-official-availability.yml"
