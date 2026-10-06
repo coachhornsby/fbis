@@ -101,7 +101,9 @@ export function buildSoccerProspectiveShadowRecords(game={},slate={},{
   collectorCodeSha=null,
 }={}){
   const kickoff=game.start||game.date||null;
-  const snapshot=new Date(snapshotAt).toISOString();
+  const snapshotMs=Date.parse(snapshotAt);
+  if(!Number.isFinite(snapshotMs))return{ok:false,reason:"post-kickoff-or-invalid-time",rows:[]};
+  const snapshot=new Date(snapshotMs).toISOString();
   const idempotencyBucket=bucketIso(snapshot);
   if(!idempotencyBucket||!kickoff||!before(snapshot,kickoff)){
     return{ok:false,reason:"post-kickoff-or-invalid-time",rows:[]};
