@@ -23,22 +23,12 @@ const PRIORITY=`CASE heritage_key
   WHEN 'bra.1' THEN 14
   ELSE 100 END`;
 
-const ELIGIBLE_ADVANCED=`
-  status='finished'
-  AND home_xg IS NOT NULL AND away_xg IS NOT NULL
-  AND home_ppda IS NOT NULL AND away_ppda IS NOT NULL
-  AND home_field_tilt IS NOT NULL AND away_field_tilt IS NOT NULL
-  AND home_network_centralization IS NOT NULL AND away_network_centralization IS NOT NULL
-`;
-
 async function stageState(db){
   const placeholders=PRIORITY_KEYS.map(()=>"?").join(",");
-  const r=await db.prepare(`SELECT league_key,COUNT(*) AS eligible_count
-    FROM soccer_pitchapi_match_features
-    WHERE league_key IN (${placeholders}) AND ${ELIGIBLE_ADVANCED}
-    GROUP BY league_key`).bind(...PRIORITY_KEYS).all();
+  const r=await db.prepare(`SELECT heritage_key,COALESCE(advanced_rows,0) AS eligible_count
+    FROM soccer_competition_coverage WHERE heritage_key IN (${placeholders})`).bind(...PRIORITY_KEYS).all();
   const counts=Object.fromEntries(PRIORITY_KEYS.map(k=>[k,0]));
-  for(const row of r?.results||[])counts[String(row.league_key)]=Math.max(0,Number(row.eligible_count)||0);
+  for(const row of r?.results||[])counts[String(row.heritage_key)]=Math.max(0,Number(row.eligible_count)||0);
   const underfilled=PRIORITY_KEYS.filter(k=>counts[k]<VALIDATION_FLOOR);
   return {stage:underfilled.length?"A_BREADTH":"B_DEPTH",counts,underfilled};
 }
@@ -46,10 +36,9 @@ async function stageState(db){
 async function breadthCandidate(db,nowIso,state){
   if(!state.underfilled.length)return null;
   const placeholders=state.underfilled.map(()=>"?").join(",");
-  return db.prepare(`SELECT q.*,
-      COALESCE((SELECT COUNT(*) FROM soccer_pitchapi_match_features f
-        WHERE f.league_key=q.heritage_key AND ${ELIGIBLE_ADVANCED}),0) AS eligible_advanced_count
+  return db.prepare(`SELECT q.*,COALESCE(c.advanced_rows,0) AS eligible_advanced_count
     FROM soccer_pitchapi_backfill_queue q
+    LEFT JOIN soccer_competition_coverage c ON c.heritage_key=q.heritage_key
     WHERE q.heritage_key IN (${placeholders})
       AND (q.status='PENDING' OR (q.status='LEASED' AND (q.lease_until IS NULL OR q.lease_until<?)))
       AND q.attempts<6
