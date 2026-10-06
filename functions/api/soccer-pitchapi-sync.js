@@ -1,5 +1,5 @@
 import { authorizeSoccerWorker, unauthorizedBody } from "../lib/soccerWorkerAuth.js";
-import { persistPitchApiBundle } from "../lib/soccerPitchApiStore.js";
+import { persistPitchApiBundle, refreshPitchApiCompetitionCoverage } from "../lib/soccerPitchApiStore.js";
 
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
 function norm(s){return String(s||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();}
@@ -127,12 +127,13 @@ export async function onRequestPost(context){
       }));
       for(const x of results){if(x?.ok){persisted+=x.match||0;playersCount+=x.players||0;lineupsCount+=x.lineups||0;}}
     }
+    const coverageRefresh=await refreshPitchApiCompetitionCoverage(context.env,{leagueKey}).catch(()=>null);
     if(mode==="live-auto"&&rotationTarget){
       const db=context.env?.DB;
       const now=new Date().toISOString();
       if(errors===0) await db.prepare("UPDATE soccer_competition_coverage SET last_live_sync_at=?,live_sync_last_error=NULL WHERE heritage_name=?").bind(now,rotationTarget.heritage_name).run();
       else await db.prepare("UPDATE soccer_competition_coverage SET last_live_sync_at=?,live_sync_errors=live_sync_errors+1,live_sync_last_error=? WHERE heritage_name=?").bind(now,String(errors)+" match errors",rotationTarget.heritage_name).run();
     }
-    return json({ok:errors===0,leagueKey,pitchLeagueId:league.id,pitchLeagueName:league.name,heritageName:rotationTarget?.heritage_name||null,season,mode,offset,limit,totalMatches:matches.length,processed:slice.length,persisted,players:playersCount,lineups:lineupsCount,analyticsUnavailable,errors,nextOffset:offset+slice.length,done:offset+slice.length>=matches.length,marketUsed:false});
+    return json({ok:errors===0,leagueKey,pitchLeagueId:league.id,pitchLeagueName:league.name,heritageName:rotationTarget?.heritage_name||null,season,mode,offset,limit,totalMatches:matches.length,processed:slice.length,persisted,players:playersCount,lineups:lineupsCount,analyticsUnavailable,errors,nextOffset:offset+slice.length,done:offset+slice.length>=matches.length,coverageRefresh,marketUsed:false});
   }catch(e){return json({ok:false,error:String(e?.message||e),leagueKey,mode},502);}
 }
