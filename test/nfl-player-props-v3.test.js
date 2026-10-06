@@ -84,7 +84,7 @@ test("selective NFL prop portfolio rejects weak role even with a large raw gap",
   assert.deepEqual(out.rows.map(r=>r.playerName),["Strong"]);
 });
 
-test("NFL 5-star confidence requires target role, recent-five and complete matchup evidence", () => {
+test("NFL evidence completeness alone cannot unlock premium stars without calibration", () => {
   const strong = selectivePropStars({
     sport:"nfl",fbisProjection:98,line:74.5,fbisSigma:18,
     roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
@@ -100,7 +100,7 @@ test("NFL 5-star confidence requires target role, recent-five and complete match
     roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
     featureEvidence:{...evidence("WR3"),targetRole:false}
   });
-  assert.equal(strong,5);
+  assert.equal(strong,3);
   assert.ok(noRecent<=2);
   assert.equal(nonTarget,1);
 });
@@ -144,7 +144,7 @@ test("NFL historical calibration caps weak market-role-direction combinations", 
   assert.equal(te1RecYardsMore,1);
 });
 
-test("NFL historical calibration allows strongest validated five-star segments", () => {
+test("NFL historical segment rules alone remain capped until probability calibration is explicit", () => {
   const wr2RecLess = selectivePropStars({
     sport:"nfl",market:"receptions",targetRole:"WR2",
     fbisProjection:3.2,line:5.5,fbisSigma:1.4,
@@ -157,8 +157,17 @@ test("NFL historical calibration allows strongest validated five-star segments",
     roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
     featureEvidence:evidence("QB1")
   });
-  assert.equal(wr2RecLess,5);
-  assert.equal(qbCompLess,5);
+  assert.equal(wr2RecLess,3);
+  assert.equal(qbCompLess,3);
+
+  const explicit = selectivePropStars({
+    sport:"nfl",market:"completions",targetRole:"QB1",
+    fbisProjection:18.0,line:23.5,fbisSigma:7.0,
+    roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
+    propCalibrationValidated:true,
+    featureEvidence:evidence("QB1")
+  });
+  assert.equal(explicit,5);
 });
 
 test("NFL market calibration requires edge floor before high-star authorization", () => {
@@ -198,7 +207,7 @@ test("NFL Demon/Goblin lines cannot inherit Standard 4-star or 5-star confidence
     roleConfidence:.90,propGate:"CLEAR",eligibleForCard:true,
     featureEvidence:evidence("QB1")
   };
-  assert.equal(selectivePropStars({...base,line:21.5,odds_tier:"standard"}),5);
+  assert.equal(selectivePropStars({...base,line:21.5,odds_tier:"standard",propCalibrationValidated:true}),5);
   assert.ok(selectivePropStars({...base,line:31.5,odds_tier:"demon"})<=2);
   assert.ok(selectivePropStars({...base,line:17.5,odds_tier:"goblin"})<=2);
 
