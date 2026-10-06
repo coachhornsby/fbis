@@ -5,14 +5,14 @@ import { normalizeCbbIdentity } from "./cbbPersistentDirectory.js";
 
 const SD_BASE="https://github.com/sportsdataverse/sportsdataverse-data/releases/download";
 const SD={
- roster:{tag:"espn_mens_college_basketball_rosters",asset:"rosters_2027.csv"},
- teams:{tag:"mbb_crosswalk",asset:"mbb_team_crosswalk_2026.csv"},
- games:{tag:"espn_mens_college_basketball_schedules",asset:"mbb_schedule_2027.csv"},
- stats:{tag:"espn_mens_college_basketball_player_season_stats",asset:"player_season_stats_2026.csv"},
- gameRosters:{tag:"espn_mens_college_basketball_game_rosters",asset:"game_rosters_2026.csv"}
+ roster:{tag:"espn_mens_college_basketball_rosters",asset:"rosters_2027.csv",sha256:"4d11c6c4f33b31b676ae571df4939b9265f15a08db0345715e6ee63756577c4b"},
+ teams:{tag:"mbb_crosswalk",asset:"mbb_team_crosswalk_2026.csv",sha256:"f492b4e2cbed5da6faaf48c087638a32213334a934938c57f5e7498accfde0d7"},
+ games:{tag:"espn_mens_college_basketball_schedules",asset:"mbb_schedule_2027.csv",sha256:"63a6ec8f565a11dfbaab54ea656cc6fc47e19e3d1b29eb40f0824649f56eb9fa"},
+ stats:{tag:"espn_mens_college_basketball_player_season_stats",asset:"player_season_stats_2026.csv",sha256:"2e1868fcc82b12aa4a6ffcb131ad5c4364a8f8e02cf2a3be3cb6200a44a9eba4"},
+ gameRosters:{tag:"espn_mens_college_basketball_game_rosters",asset:"game_rosters_2026.csv",sha256:"95ecddd648e68aaaa4e9921f201667640a458f58768a8be39e7a61767af3bc06"}
 };
 function csvRows(text){const rows=[];let row=[],field="",quoted=false;for(let i=0;i<text.length;i++){const ch=text[i];if(quoted){if(ch==='"'&&text[i+1]==='"'){field+='"';i++}else if(ch==='"')quoted=false;else field+=ch}else if(ch==='"')quoted=true;else if(ch===','){row.push(field);field=""}else if(ch==='\n'){row.push(field.replace(/\r$/,""));rows.push(row);row=[];field=""}else field+=ch}if(field||row.length){row.push(field.replace(/\r$/,""));rows.push(row)}if(!rows.length)return[];const h=rows.shift();return rows.filter(r=>r.some(Boolean)).map(r=>Object.fromEntries(h.map((k,i)=>[k,r[i]??""])))}
-async function sdGet(spec){try{const url=SD_BASE+"/"+spec.tag+"/"+spec.asset,r=await fetch(url,{headers:{"user-agent":"FBIS-CBB-Phase-B/1.0"}});if(!r.ok)return{ok:false,status:r.status,reason:"sportsdataverse-http-"+r.status,data:[]};const data=csvRows(await r.text());return{ok:true,status:r.status,n:data.length,data,source:{tag:spec.tag,asset:spec.asset,url}}}catch(e){return{ok:false,status:0,reason:String(e?.message||e),data:[]}}}
+async function sdGet(spec){try{const url=SD_BASE+"/"+spec.tag+"/"+spec.asset,r=await fetch(url,{headers:{"user-agent":"FBIS-CBB-Phase-B/1.0"}});if(!r.ok)return{ok:false,status:r.status,reason:"sportsdataverse-http-"+r.status,data:[]};const bytes=await r.arrayBuffer(),digest=[...new Uint8Array(await crypto.subtle.digest("SHA-256",bytes))].map(x=>x.toString(16).padStart(2,"0")).join("");if(digest!==spec.sha256)return{ok:false,status:r.status,reason:"sportsdataverse-digest-mismatch",expected:spec.sha256,actual:digest,data:[]};const data=csvRows(new TextDecoder().decode(bytes));return{ok:true,status:r.status,n:data.length,data,source:{tag:spec.tag,asset:spec.asset,sha256:digest,url}}}catch(e){return{ok:false,status:0,reason:String(e?.message||e),data:[]}}}
 function sdRoster(rows){return rows.map(x=>({id:x.athlete_id,athleteId:x.athlete_id,name:x.full_name||x.display_name,team:x.team_display_name,teamId:x.team_id,position:x.position_abbreviation||x.position_name,year:x.experience_display_value||x.experience_years,height:x.height,weight:x.weight,uid:x.uid,guid:x.guid}))}
 function sdTeams(rows){return rows.map(x=>({id:x.espn_team_id,teamId:x.espn_team_id,team:x.espn_display_name,name:x.espn_display_name,conference:x.espn_conference}))}
 function sdGames(rows){return rows.map(x=>({id:x.game_id||x.id,startDate:x.game_date_time||x.start_date||x.date,homeTeam:x.home_display_name,homeTeamId:x.home_id,awayTeam:x.away_display_name,awayTeamId:x.away_id,neutralSite:String(x.neutral_site).toLowerCase()==="true",venueId:x.venue_id,venueName:x.venue_full_name}))}
