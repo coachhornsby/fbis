@@ -1,13 +1,13 @@
 {
-  "updatedAt": "2026-10-04",
+  "updatedAt": "2026-10-05",
   "sports": {
     "nfl": {
       "currentResearchModel": "NFL-PRO-v1.1",
       "fitArtifact": "data/models/nfl-pro-v1-1-fit.json",
-      "status": "research-evidence-pass",
-      "canQualify": false,
+      "status": "historical-evidence-pass-qualification-enabled",
+      "canQualify": true,
       "canAuthorizeWager": false,
-      "notes": "Compact EPA/QB challenger beat the calibrated form baseline on margin MAE, total MAE, and winner accuracy in true walk-forward validation; prospective monitoring remains required."
+      "notes": "Compact EPA/QB challenger beat the calibrated form baseline on margin MAE, total MAE, and winner accuracy in true walk-forward validation. Strict executable-price, EV, probability-edge, availability and coverage gates may now qualify plays; staking authorization remains disabled pending prospective ROI/CLV/drawdown and confidence validation."
     },
     "cfb": {
       "currentResearchModel": "CFB-FBIS-v3-research",
@@ -18,12 +18,98 @@
       "notes": "Full-history PIT-safe Ridge research model using 2004-2026 event/context data. Market remains benchmark-only. Frozen fit trained through 2025."
     },
     "soccer": {
-      "currentResearchModel": "SOCCER-FBIS-v1",
-      "fitArtifact": "functions/lib/soccerFbisV1.js",
-      "status": "research-system-built-validation-required",
+      "currentResearchModel": "SOCCER-FBIS-v2",
+      "incumbentStructuralModel": "SOCCER-FBIS-v1",
+      "fitArtifact": "functions/lib/soccerFbisV2.js",
+      "status": "phase3-parallel-research-persistent-state-and-v3.1-validation",
       "canQualify": false,
       "canAuthorizeWager": false,
-      "notes": "Point-in-time league-aware Dixon-Coles research engine covering EPL, La Liga, Bundesliga, Serie A, Ligue 1, MLS and NWSL. Market is benchmark-only; no wager authority until walk-forward, market and prospective gates pass."
+      "notes": "SOCCER-FBIS-v2 beat v1 on the same 7,759-match true expanding walk-forward sample: accuracy 49.86% vs 49.72%, Brier 0.20269 vs 0.20376, log loss 1.01608 vs 1.02130, ECE 0.00450 vs 0.01101. On the retained 206-game Zen ACTION no-vig sample, v2 top-pick accuracy was 52.43% vs market 51.46%, but probability scoring remained worse (Brier 0.20559 vs 0.20064; log loss 1.03236 vs 1.00506), so market promotion did not pass. Optional xG/xGA, PPDA, deep completions and expected-points fields activate only when rights-cleared upstream data exists. Prospective research continues; wager authority remains off. SOCCER-FBIS-v3 is the PitchAPI advanced-data shadow challenger. It remains behind v2 until PitchAPI history is backfilled and true walk-forward/market gates improve probability quality. Historical actual lineups are never treated as pre-kick evidence; only lineup observations captured before kickoff are eligible. Player-impact and lineup layers are stored for prospective shadow evaluation and are not yet allowed to alter v3 probabilities.",
+      "advancedDataChallenger": "SOCCER-FBIS-v3",
+      "advancedDataChallengerVersion": "research-v1.2-phase3-score-layer",
+      "advancedDataSource": "PitchAPI",
+      "advancedDataStatus": "phase3-persistent-state-live-rolling-walkforward-and-derivative-validation",
+      "advancedDataCanQualify": false,
+      "advancedDataCanAuthorize": false,
+      "advancedFeatureFamilies": [
+        "shot-quality",
+        "chance-type",
+        "pressing",
+        "defensive-height",
+        "territory",
+        "possession-value",
+        "progression",
+        "passing-efficiency",
+        "tempo",
+        "build-up-style",
+        "pass-network"
+      ],
+      "prospectiveContextLayers": [
+        "player-impact",
+        "goalkeeper-impact",
+        "pre-kick-lineups",
+        "player-half-load"
+      ],
+      "persistentStateResearch": {
+        "status": "BUILT_RESEARCH_ONLY",
+        "canInfluenceProjection": false,
+        "canQualify": false,
+        "canAuthorize": false,
+        "layers": [
+          "manager",
+          "formation",
+          "lineup-continuity",
+          "expected-xi-observation",
+          "goalkeeper-evidence",
+          "minutes-load",
+          "fixture-congestion",
+          "competition-mix",
+          "rotation-index",
+          "availability-observations"
+        ],
+        "unavailableWithoutVerifiedSource": [
+          "injury-status",
+          "suspension-status",
+          "travel-distance"
+        ],
+        "temporalPolicy": "state snapshots require explicit as-of/data-cutoff; historical post-kick evidence may not leak into pre-kick tests"
+      },
+      "phase3Validation": {
+        "cadence": "every-2-hours",
+        "priorityLeagues": [
+          "eng.1",
+          "eng.2",
+          "ger.1",
+          "esp.1",
+          "ita.1",
+          "fra.1",
+          "uefa.champions",
+          "uefa.europa",
+          "usa.1",
+          "mex.1"
+        ],
+        "metrics": [
+          "1X2 accuracy",
+          "Brier",
+          "log loss",
+          "ECE",
+          "goal MAE",
+          "total-goal MAE",
+          "BTTS Brier",
+          "O2.5 Brier",
+          "Asian-handicap Brier"
+        ],
+        "marketBenchmarkHistorical": [
+          "1X2 frozen no-vig sample"
+        ],
+        "unavailableHistoricalMarketFamilies": [
+          "BTTS",
+          "totals",
+          "Asian handicap"
+        ],
+        "canQualify": false,
+        "canAuthorize": false
+      }
     },
     "nba": {
       "currentResearchModel": "NBA-FBIS-v1",
@@ -32,7 +118,53 @@
       "status": "game-level-prospective-qualification-enabled",
       "canQualify": true,
       "canAuthorizeWager": false,
-      "notes": "Independent NBA score/margin/total/possession distribution feeds a strict point-in-time game-level wager decision engine. Offered line/juice, ordinary market trajectory and ACTION intelligence are separate post-projection layers. ACTION is shadow market intelligence only and cannot directly qualify or authorize. Confidence is provisional until empirical monotonicity passes; stake units remain withheld until staking validation."
+      "notes": "Independent NBA score/margin/total/possession distribution feeds a strict point-in-time game-level wager decision engine. Offered line/juice, ordinary market trajectory and ACTION intelligence are separate post-projection layers. ACTION is shadow market intelligence only and cannot directly qualify or authorize. Confidence is provisional until empirical monotonicity passes; stake units remain withheld until staking validation. Player props now have an EPM-inspired FBIS-native impact layer: dynamic skill decay + SPM-style prior + regularized RAPM + lineup/on-off + role redistribution. EPM/DARKO/RAPM/VORP/WS48 are research benchmarks only.",
+      "playerImpactModel": "NBA-FBIS-PLAYER-IMPACT-v1",
+      "playerImpactBenchmark": "EPM",
+      "deepGameChallenger": "NBA-FBIS-v2-DEEP",
+      "deepGameChallengerVersion": "research-v1",
+      "deepGameChallengerCanQualify": false,
+      "deepGameChallengerCanAuthorize": false,
+      "deepGameStatus": "prospective-shadow-required",
+      "deepGameValidation": {
+        "holdoutN": 1322,
+        "marginImprovement": -0.008481732596701704,
+        "totalImprovement": 0.03503211626567087,
+        "winnerAccuracyDelta": 0.0015128593040848,
+        "decision": "RETAIN_RESEARCH"
+      },
+      "deepGameNotes": "Four Factors, PBP shot profile, actual venue travel/rest, altitude/fatigue, expected lineup strength, availability context and learned nonlinear interactions. 2025-26 holdout is burned; promotion requires 2026-27 prospective evidence."
+    },
+    "wnba": {
+      "currentResearchModel": "WNBA-FBIS-v2",
+      "propResearchModel": "WNBA-PLAYER-PROJ-v2",
+      "playerImpactModel": "WNBA-FBIS-PLAYER-IMPACT-v1",
+      "playerImpactBenchmark": "EPM",
+      "gameImpactChallenger": "WNBA-FBIS-IMPACT-v1",
+      "propImpactChallenger": "WNBA-PLAYER-PROP-IMPACT-v1",
+      "status": "incumbents-active-impact-challengers-prospective-shadow",
+      "canQualify": true,
+      "canAuthorizeWager": true,
+      "impactChallengerCanQualify": false,
+      "impactChallengerCanAuthorize": false,
+      "notes": "WNBA incumbents remain active. The new FBIS-native EPM-style player-impact stack uses dynamic skill decay, a WNBA-specific SPM prior, regularized RAPM, 10-minute-quarter lineup reconstruction, lineup/pair/trio effects, and point-in-time role redistribution. Historical direct self-impact multipliers did not improve four core prop MAEs and were rejected. Role/lineup/availability effects remain prospective shadow challengers until they beat incumbents on out-of-sample error, offered-line side accuracy, CLV and wagering evidence."
+    },
+    "mlb": {
+      "currentResearchModel": "MLB-DEEP",
+      "version": "research-v2.5-postseason-context",
+      "fitArtifact": "functions/lib/mlbDeepModel.js",
+      "status": "independent-projection-qualification-enabled",
+      "canQualify": true,
+      "canAuthorizeWager": false,
+      "notes": "MLB-DEEP is the published independent score/F5/K projection path with persistent profiles, starter/bullpen, Statcast pitch-shape x hitter-zone, environment and postseason context. Strict market-edge qualification is enabled; staking authorization remains disabled pending market-relative validation."
+    },
+    "nhl": {
+      "currentResearchModel": "NHL-PRO-v2",
+      "fitArtifact": "data/models/nhl-pro-v2-validation.json",
+      "status": "historical-evidence-pass-qualification-enabled",
+      "canQualify": true,
+      "canAuthorizeWager": false,
+      "notes": "NHL-PRO-v2 beat the incumbent on aggregate margin MAE, total MAE and Brier across the strict point-in-time walk-forward. Game and validated prop offers may qualify when executable price, probability edge, EV, reliability and two-way market gates pass. Unit staking remains disabled pending prospective ROI/CLV/drawdown and confidence-monotonicity validation."
     }
   }
 }

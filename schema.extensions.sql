@@ -1073,6 +1073,16 @@ CREATE TABLE IF NOT EXISTS soccer_matches (
   away_possession REAL,
   home_corners REAL,
   away_corners REAL,
+  home_xg REAL,
+  away_xg REAL,
+  home_ppda REAL,
+  away_ppda REAL,
+  home_deep_completions REAL,
+  away_deep_completions REAL,
+  home_expected_points REAL,
+  away_expected_points REAL,
+  advanced_source TEXT,
+  advanced_observed_at TEXT,
   source TEXT NOT NULL DEFAULT 'espn',
   source_observed_at TEXT,
   provenance_json TEXT,
@@ -1592,3 +1602,1324 @@ SELECT sport,market,side,model_version,COUNT(*) graded,
  AVG(projection_edge) avg_projection_edge,AVG(line_clv) avg_line_clv
 FROM player_prop_legs WHERE actual IS NOT NULL AND calibration_eligibility LIKE 'ELIGIBLE%'
 GROUP BY sport,market,side,model_version;
+
+
+-- NBA player impact / role context (migration 0048).
+CREATE TABLE IF NOT EXISTS nba_player_impact_snapshots (
+  id TEXT PRIMARY KEY,
+  player_id TEXT NOT NULL,
+  player_name TEXT,
+  team_id TEXT,
+  position TEXT,
+  as_of TEXT NOT NULL,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  offense_impact REAL,
+  defense_impact REAL,
+  net_impact REAL,
+  rapm_net REAL,
+  raw_on_off REAL,
+  bpm_style REAL,
+  vorp_style REAL,
+  ws48_style REAL,
+  dynamic_skill_json TEXT,
+  provenance_json TEXT,
+  production_eligible INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_impact_player_time
+  ON nba_player_impact_snapshots(player_id,as_of DESC);
+CREATE INDEX IF NOT EXISTS idx_nba_impact_team_time
+  ON nba_player_impact_snapshots(team_id,as_of DESC);
+
+CREATE TABLE IF NOT EXISTS nba_player_role_contexts (
+  id TEXT PRIMARY KEY,
+  game_id TEXT,
+  player_id TEXT NOT NULL,
+  player_name TEXT,
+  team_id TEXT,
+  feature_cutoff_timestamp TEXT NOT NULL,
+  minutes_delta REAL,
+  usage_multiplier REAL,
+  points_multiplier REAL,
+  rebounds_multiplier REAL,
+  assists_multiplier REAL,
+  threes_multiplier REAL,
+  lineup_multiplier REAL,
+  unavailable_count INTEGER NOT NULL DEFAULT 0,
+  availability_verified INTEGER NOT NULL DEFAULT 0,
+  context_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_role_context_game
+  ON nba_player_role_contexts(game_id,player_id,feature_cutoff_timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS nba_player_impact_benchmarks (
+  id TEXT PRIMARY KEY,
+  player_id TEXT NOT NULL,
+  player_name TEXT,
+  as_of TEXT NOT NULL,
+  metric TEXT NOT NULL,
+  value REAL NOT NULL,
+  source TEXT NOT NULL,
+  license_status TEXT,
+  research_only INTEGER NOT NULL DEFAULT 1,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_impact_benchmark
+  ON nba_player_impact_benchmarks(metric,as_of,player_id);
+
+
+
+CREATE TABLE IF NOT EXISTS nba_player_prop_impact_shadow (
+  id TEXT PRIMARY KEY,
+  game_id TEXT NOT NULL,
+  player_id TEXT,
+  player_name TEXT NOT NULL,
+  team TEXT,
+  market_type TEXT NOT NULL,
+  baseline_projection REAL,
+  impact_projection REAL,
+  sigma REAL,
+  projected_minutes REAL,
+  feature_cutoff_timestamp TEXT NOT NULL,
+  availability_status TEXT,
+  availability_verified INTEGER NOT NULL DEFAULT 0,
+  context_json TEXT,
+  entry_line REAL,
+  entry_observed_at TEXT,
+  close_line REAL,
+  close_observed_at TEXT,
+  actual_value REAL,
+  baseline_abs_error REAL,
+  impact_abs_error REAL,
+  baseline_side TEXT,
+  impact_side TEXT,
+  impact_probability REAL,
+  line_clv REAL,
+  graded_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_prop_impact_shadow_game
+  ON nba_player_prop_impact_shadow(game_id,player_id,market_type);
+CREATE INDEX IF NOT EXISTS idx_nba_prop_impact_shadow_grade
+  ON nba_player_prop_impact_shadow(graded_at,feature_cutoff_timestamp);
+
+CREATE TABLE IF NOT EXISTS nba_player_impact_validation (
+  id TEXT PRIMARY KEY,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  training_window TEXT,
+  holdout_window TEXT,
+  market_type TEXT NOT NULL,
+  n INTEGER NOT NULL,
+  baseline_mae REAL,
+  impact_mae REAL,
+  mae_delta REAL,
+  baseline_bias REAL,
+  impact_bias REAL,
+  passed INTEGER NOT NULL DEFAULT 0,
+  details_json TEXT,
+  created_at TEXT NOT NULL
+);
+
+
+-- WNBA player impact / lineup / role challengers (migration 0049).
+-- 0049_wnba_player_impact.sql
+CREATE TABLE IF NOT EXISTS wnba_player_impact_snapshots (
+  id TEXT PRIMARY KEY,
+  player_id TEXT NOT NULL,
+  player_name TEXT,
+  team_id TEXT,
+  position TEXT,
+  as_of TEXT NOT NULL,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  offense_impact REAL,
+  defense_impact REAL,
+  net_impact REAL,
+  rapm_net REAL,
+  bpm_style REAL,
+  vorp_style REAL,
+  ws48_style REAL,
+  dynamic_skill_json TEXT,
+  provenance_json TEXT,
+  production_eligible INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_wnba_impact_player_time ON wnba_player_impact_snapshots(player_id,as_of DESC);
+CREATE INDEX IF NOT EXISTS idx_wnba_impact_team_time ON wnba_player_impact_snapshots(team_id,as_of DESC);
+
+CREATE TABLE IF NOT EXISTS wnba_player_role_contexts (
+  id TEXT PRIMARY KEY,
+  player_id TEXT NOT NULL,
+  player_name TEXT,
+  team_id TEXT,
+  feature_cutoff_timestamp TEXT NOT NULL,
+  minutes_delta REAL,
+  usage_multiplier REAL,
+  points_multiplier REAL,
+  rebounds_multiplier REAL,
+  assists_multiplier REAL,
+  threes_multiplier REAL,
+  lineup_multiplier REAL,
+  unavailable_count INTEGER NOT NULL DEFAULT 0,
+  availability_verified INTEGER NOT NULL DEFAULT 0,
+  context_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_wnba_role_player_time ON wnba_player_role_contexts(player_id,feature_cutoff_timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS wnba_player_prop_impact_shadow (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  event_start TEXT,
+  player_id TEXT,
+  player_name TEXT NOT NULL,
+  team TEXT,
+  market_type TEXT NOT NULL,
+  feature_cutoff_timestamp TEXT NOT NULL,
+  baseline_projection REAL,
+  impact_projection REAL,
+  sigma REAL,
+  projected_minutes REAL,
+  player_impact_net REAL,
+  availability_verified INTEGER NOT NULL DEFAULT 0,
+  role_context_json TEXT,
+  lineup_context_json TEXT,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize INTEGER NOT NULL DEFAULT 0,
+  entry_line REAL,
+  entry_observed_at TEXT,
+  close_line REAL,
+  close_observed_at TEXT,
+  actual_value REAL,
+  baseline_abs_error REAL,
+  impact_abs_error REAL,
+  baseline_side TEXT,
+  impact_side TEXT,
+  impact_probability REAL,
+  line_clv REAL,
+  graded_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_wnba_impact_shadow_event ON wnba_player_prop_impact_shadow(event_id,player_name,market_type);
+CREATE INDEX IF NOT EXISTS idx_wnba_impact_shadow_grade ON wnba_player_prop_impact_shadow(graded_at,feature_cutoff_timestamp);
+
+CREATE TABLE IF NOT EXISTS wnba_game_impact_shadow (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  event_start TEXT,
+  feature_cutoff_timestamp TEXT NOT NULL,
+  baseline_home REAL,
+  baseline_away REAL,
+  baseline_margin REAL,
+  baseline_total REAL,
+  impact_home REAL,
+  impact_away REAL,
+  impact_margin REAL,
+  impact_total REAL,
+  home_adjustment REAL,
+  away_adjustment REAL,
+  availability_verified INTEGER NOT NULL DEFAULT 0,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize INTEGER NOT NULL DEFAULT 0,
+  context_json TEXT,
+  actual_home REAL,
+  actual_away REAL,
+  baseline_margin_abs_error REAL,
+  impact_margin_abs_error REAL,
+  baseline_total_abs_error REAL,
+  impact_total_abs_error REAL,
+  graded_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_wnba_game_impact_event ON wnba_game_impact_shadow(event_id,feature_cutoff_timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS wnba_player_impact_validation (
+  id TEXT PRIMARY KEY,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  validation_type TEXT NOT NULL,
+  market_type TEXT NOT NULL,
+  n INTEGER NOT NULL,
+  baseline_mae REAL,
+  impact_mae REAL,
+  mae_delta REAL,
+  baseline_side_accuracy REAL,
+  impact_side_accuracy REAL,
+  side_accuracy_delta REAL,
+  positive_clv_rate REAL,
+  passed INTEGER NOT NULL DEFAULT 0,
+  details_json TEXT,
+  created_at TEXT NOT NULL
+);
+
+
+-- Tennis v2 market/context research architecture (migration 0050).
+CREATE TABLE IF NOT EXISTS tennis_market_snapshots (
+  id TEXT PRIMARY KEY,
+  canonical_event_id TEXT NOT NULL,
+  tour TEXT NOT NULL,
+  player1 TEXT NOT NULL,
+  player2 TEXT NOT NULL,
+  market_type TEXT NOT NULL DEFAULT 'moneyline',
+  provider TEXT NOT NULL,
+  sportsbook TEXT,
+  player1_price REAL,
+  player2_price REAL,
+  player1_no_vig_prob REAL,
+  player2_no_vig_prob REAL,
+  hold REAL,
+  observed_at TEXT NOT NULL,
+  collected_at TEXT NOT NULL,
+  event_start_time TEXT,
+  snapshot_type TEXT,
+  traded_volume REAL,
+  public_ticket_pct REAL,
+  public_money_pct REAL,
+  money_minus_ticket_pct REAL,
+  line_velocity REAL,
+  raw_payload_hash TEXT,
+  decision_eligible INTEGER NOT NULL DEFAULT 0,
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize_wager INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_market_event_time
+  ON tennis_market_snapshots(canonical_event_id, observed_at);
+CREATE INDEX IF NOT EXISTS idx_tennis_market_provider
+  ON tennis_market_snapshots(provider, tour, observed_at);
+
+CREATE TABLE IF NOT EXISTS tennis_context_snapshots (
+  id TEXT PRIMARY KEY,
+  canonical_event_id TEXT NOT NULL,
+  canonical_player_id TEXT,
+  player_name TEXT NOT NULL,
+  tour TEXT NOT NULL,
+  tournament TEXT,
+  surface TEXT,
+  indoor INTEGER,
+  altitude_m REAL,
+  court_speed_index REAL,
+  hours_since_last_match REAL,
+  minutes_last_3_days REAL,
+  minutes_last_7_days REAL,
+  games_last_3_days REAL,
+  games_last_7_days REAL,
+  sets_last_3_days REAL,
+  sets_last_7_days REAL,
+  travel_km_7_days REAL,
+  time_zones_crossed_7_days REAL,
+  injury_status TEXT,
+  days_since_injury_return REAL,
+  days_since_retirement_or_mto REAL,
+  recent_serve_speed_delta_kph REAL,
+  serve_style_score REAL,
+  return_style_score REAL,
+  source TEXT NOT NULL,
+  source_as_of TEXT,
+  collected_at TEXT NOT NULL,
+  feature_cutoff_timestamp TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_context_event_player
+  ON tennis_context_snapshots(canonical_event_id, player_name, feature_cutoff_timestamp);
+
+CREATE TABLE IF NOT EXISTS tennis_v2_research_decisions (
+  id TEXT PRIMARY KEY,
+  canonical_event_id TEXT NOT NULL,
+  tour TEXT NOT NULL,
+  player1 TEXT NOT NULL,
+  player2 TEXT NOT NULL,
+  pure_model_id TEXT NOT NULL,
+  market_model_id TEXT,
+  pure_p1 REAL,
+  market_prior_p1 REAL,
+  market_v2_p1 REAL,
+  market_residual REAL,
+  model_edge REAL,
+  context_json TEXT,
+  action_json TEXT,
+  market_json TEXT,
+  decision_timestamp TEXT NOT NULL,
+  event_start_time TEXT,
+  snapshot_type TEXT NOT NULL,
+  result_winner TEXT,
+  closing_p1_no_vig REAL,
+  clv REAL,
+  profit_units REAL,
+  graded_at TEXT,
+  decision_eligible INTEGER NOT NULL DEFAULT 0,
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize_wager INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_v2_decisions_event
+  ON tennis_v2_research_decisions(canonical_event_id, decision_timestamp);
+CREATE INDEX IF NOT EXISTS idx_tennis_v2_decisions_grade
+  ON tennis_v2_research_decisions(graded_at, tour);
+
+
+-- Tennis v2 current research profiles and tournament court-speed state (0051).
+CREATE TABLE IF NOT EXISTS tennis_player_profiles_current (
+  tour TEXT NOT NULL,
+  player_key TEXT NOT NULL,
+  player_id TEXT,
+  player_name TEXT NOT NULL,
+  surface TEXT NOT NULL,
+  profile_json TEXT NOT NULL,
+  last_match_date TEXT,
+  last_surface TEXT,
+  last_tournament TEXT,
+  games_last_3_days REAL,
+  games_last_7_days REAL,
+  sets_last_3_days REAL,
+  sets_last_7_days REAL,
+  days_since_retirement_or_mto REAL,
+  source TEXT NOT NULL,
+  source_license TEXT,
+  source_as_of TEXT NOT NULL,
+  production_dependency INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (tour, player_key, surface)
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_profiles_name
+  ON tennis_player_profiles_current(tour, player_name, surface);
+CREATE INDEX IF NOT EXISTS idx_tennis_profiles_updated
+  ON tennis_player_profiles_current(updated_at, tour);
+
+CREATE TABLE IF NOT EXISTS tennis_tournament_speed_current (
+  tour TEXT NOT NULL,
+  tournament_key TEXT NOT NULL,
+  tournament_name TEXT NOT NULL,
+  season INTEGER NOT NULL,
+  surface TEXT NOT NULL,
+  court_speed_index REAL,
+  sample_sides INTEGER NOT NULL DEFAULT 0,
+  source TEXT NOT NULL,
+  source_as_of TEXT NOT NULL,
+  production_dependency INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (tour, tournament_key, season)
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_speed_surface
+  ON tennis_tournament_speed_current(tour, surface, season, updated_at);
+
+
+-- NBA deep game-model challenger (migration 0052).
+-- NBA deep game-model challenger: Four Factors, shot profile, lineup and real travel/rest.
+CREATE TABLE IF NOT EXISTS nba_deep_game_shadow (
+  id TEXT PRIMARY KEY,
+  game_id TEXT NOT NULL,
+  tipoff_timestamp TEXT,
+  feature_cutoff_timestamp TEXT NOT NULL,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  incumbent_model_id TEXT NOT NULL,
+  projected_home REAL,
+  projected_away REAL,
+  projected_margin REAL,
+  projected_total REAL,
+  expected_possessions REAL,
+  p_home_win REAL,
+  sigma_margin REAL,
+  sigma_total REAL,
+  incumbent_margin REAL,
+  incumbent_total REAL,
+  margin_adjustment REAL,
+  total_adjustment REAL,
+  availability_verified INTEGER NOT NULL DEFAULT 0,
+  feature_json TEXT,
+  decomposition_json TEXT,
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize INTEGER NOT NULL DEFAULT 0,
+  actual_home REAL,
+  actual_away REAL,
+  margin_abs_error REAL,
+  total_abs_error REAL,
+  incumbent_margin_abs_error REAL,
+  incumbent_total_abs_error REAL,
+  graded_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_deep_shadow_game
+  ON nba_deep_game_shadow(game_id,feature_cutoff_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_nba_deep_shadow_grade
+  ON nba_deep_game_shadow(graded_at,feature_cutoff_timestamp);
+
+CREATE TABLE IF NOT EXISTS nba_deep_validation_runs (
+  id TEXT PRIMARY KEY,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  validation_type TEXT NOT NULL,
+  training_start TEXT,
+  training_cutoff TEXT,
+  holdout_start TEXT,
+  n INTEGER NOT NULL,
+  incumbent_margin_mae REAL,
+  challenger_margin_mae REAL,
+  margin_improvement REAL,
+  incumbent_total_mae REAL,
+  challenger_total_mae REAL,
+  total_improvement REAL,
+  incumbent_winner_accuracy REAL,
+  challenger_winner_accuracy REAL,
+  evidence_pass INTEGER NOT NULL DEFAULT 0,
+  details_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_deep_validation_created
+  ON nba_deep_validation_runs(created_at DESC);
+
+INSERT OR IGNORE INTO schema_migrations(id,applied_at)
+VALUES('0052_nba_deep_game_model',datetime('now'));
+
+
+-- NBA official availability coverage (migration 0053).
+-- Official NBA injury-report submission evidence.
+CREATE TABLE IF NOT EXISTS nba_official_availability_reports (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL DEFAULT 'NBA_OFFICIAL_INJURY_REPORT',
+  report_url TEXT NOT NULL,
+  report_timestamp TEXT NOT NULL,
+  game_date TEXT,
+  game_time_et TEXT,
+  matchup TEXT,
+  team_key TEXT NOT NULL,
+  team_name TEXT,
+  opponent_key TEXT,
+  submission_status TEXT NOT NULL,
+  player_rows INTEGER NOT NULL DEFAULT 0,
+  observed_at TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_official_avail_team_time
+  ON nba_official_availability_reports(team_key,report_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_nba_official_avail_matchup_time
+  ON nba_official_availability_reports(matchup,report_timestamp DESC);
+
+INSERT OR IGNORE INTO schema_migrations(id,applied_at)
+VALUES('0053_nba_official_availability',datetime('now'));
+
+
+-- NBA persistent team/player profiles (migration 0054).
+-- Persistent NBA team/player state profiles.
+CREATE TABLE IF NOT EXISTS nba_team_profiles (
+  team_id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  team_name TEXT NOT NULL,
+  as_of TEXT NOT NULL,
+  season INTEGER,
+  head_coach_id TEXT,
+  head_coach_name TEXT,
+  coach_experience_years REAL,
+  roster_json TEXT NOT NULL,
+  rotation_json TEXT NOT NULL,
+  availability_json TEXT NOT NULL,
+  style_json TEXT,
+  schedule_json TEXT NOT NULL,
+  schedule_weak_spots_json TEXT NOT NULL,
+  travel_json TEXT,
+  profile_json TEXT NOT NULL,
+  state_confidence REAL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_nba_team_profiles_key ON nba_team_profiles(team_key);
+
+CREATE TABLE IF NOT EXISTS nba_team_profile_snapshots (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL,
+  team_key TEXT NOT NULL,
+  as_of TEXT NOT NULL,
+  season INTEGER,
+  profile_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_team_profile_snapshots_time
+  ON nba_team_profile_snapshots(team_id,as_of DESC);
+
+CREATE TABLE IF NOT EXISTS nba_player_state_profiles (
+  player_id TEXT PRIMARY KEY,
+  player_name TEXT NOT NULL,
+  team_id TEXT,
+  team_key TEXT,
+  as_of TEXT NOT NULL,
+  status TEXT NOT NULL,
+  state_source TEXT NOT NULL,
+  state_source_timestamp TEXT,
+  injury_detail TEXT,
+  injury_type TEXT,
+  injury_severity TEXT,
+  carried_forward INTEGER NOT NULL DEFAULT 0,
+  expected_minutes REAL,
+  rotation_role TEXT,
+  starter_probability REAL,
+  player_impact_net REAL,
+  replacement_json TEXT,
+  state_confidence REAL,
+  profile_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_player_state_team
+  ON nba_player_state_profiles(team_key,status);
+CREATE INDEX IF NOT EXISTS idx_nba_player_state_time
+  ON nba_player_state_profiles(state_source_timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS nba_player_state_events (
+  id TEXT PRIMARY KEY,
+  player_id TEXT,
+  player_name TEXT NOT NULL,
+  team_key TEXT,
+  event_type TEXT NOT NULL,
+  status TEXT,
+  injury_detail TEXT,
+  source TEXT NOT NULL,
+  source_timestamp TEXT NOT NULL,
+  evidence_rank INTEGER NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_player_state_events_player
+  ON nba_player_state_events(player_id,source_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_nba_player_state_events_name
+  ON nba_player_state_events(player_name,source_timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS nba_lineup_observations (
+  id TEXT PRIMARY KEY,
+  game_id TEXT,
+  team_key TEXT NOT NULL,
+  player_id TEXT,
+  player_name TEXT NOT NULL,
+  lineup_status TEXT NOT NULL,
+  source TEXT NOT NULL,
+  observed_at TEXT NOT NULL,
+  tipoff_timestamp TEXT,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_lineup_obs_team_time
+  ON nba_lineup_observations(team_key,observed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_nba_lineup_obs_player_time
+  ON nba_lineup_observations(player_id,observed_at DESC);
+
+CREATE TABLE IF NOT EXISTS nba_team_schedule_items (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL,
+  team_key TEXT NOT NULL,
+  game_id TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  opponent_key TEXT,
+  venue_team_key TEXT,
+  home_away TEXT,
+  neutral_site INTEGER NOT NULL DEFAULT 0,
+  completed INTEGER NOT NULL DEFAULT 0,
+  rest_days REAL,
+  back_to_back INTEGER NOT NULL DEFAULT 0,
+  three_in_four INTEGER NOT NULL DEFAULT 0,
+  four_in_six INTEGER NOT NULL DEFAULT 0,
+  travel_miles REAL,
+  time_zones_crossed REAL,
+  altitude_feet REAL,
+  road_trip_game_number INTEGER NOT NULL DEFAULT 0,
+  consecutive_road_games INTEGER NOT NULL DEFAULT 0,
+  schedule_stress_score REAL,
+  stress_reasons_json TEXT,
+  source TEXT NOT NULL,
+  observed_at TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_team_schedule_team_time
+  ON nba_team_schedule_items(team_id,start_time);
+CREATE INDEX IF NOT EXISTS idx_nba_team_schedule_game
+  ON nba_team_schedule_items(game_id);
+
+CREATE TABLE IF NOT EXISTS nba_team_coach_history (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL,
+  team_key TEXT NOT NULL,
+  coach_id TEXT,
+  coach_name TEXT NOT NULL,
+  role TEXT,
+  experience_years REAL,
+  observed_at TEXT NOT NULL,
+  source TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nba_team_coach_history
+  ON nba_team_coach_history(team_id,observed_at DESC);
+
+
+-- NHL persistent profiles (migration 0056)
+-- Persistent NHL team/player/deployment operating profiles.
+-- Expensive source refresh is asynchronous. Projection requests read compact D1 state only.
+
+CREATE TABLE IF NOT EXISTS nhl_team_profiles (
+  team_key TEXT PRIMARY KEY,
+  team_abbr TEXT NOT NULL,
+  official_abbr TEXT NOT NULL,
+  team_name TEXT,
+  season_id INTEGER NOT NULL,
+  profile_version TEXT NOT NULL,
+  roster_count INTEGER NOT NULL DEFAULT 0,
+  active_count INTEGER NOT NULL DEFAULT 0,
+  scratch_count INTEGER NOT NULL DEFAULT 0,
+  unavailable_count INTEGER NOT NULL DEFAULT 0,
+  next_game_id TEXT,
+  next_game_start TEXT,
+  next_opponent_key TEXT,
+  next_site TEXT,
+  rest_days REAL,
+  back_to_back INTEGER NOT NULL DEFAULT 0,
+  three_in_four INTEGER NOT NULL DEFAULT 0,
+  four_in_six INTEGER NOT NULL DEFAULT 0,
+  road_trip_game_number INTEGER NOT NULL DEFAULT 0,
+  travel_miles REAL,
+  time_zones_crossed INTEGER,
+  schedule_stress_score REAL,
+  schedule_flags_json TEXT,
+  deployment_json TEXT,
+  goalie_json TEXT,
+  coach_json TEXT,
+  style_json TEXT,
+  state_confidence REAL,
+  source_updated_at TEXT,
+  updated_at TEXT NOT NULL,
+  profile_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS nhl_player_profiles (
+  player_key TEXT PRIMARY KEY,
+  player_id TEXT NOT NULL,
+  team_key TEXT NOT NULL,
+  player_name TEXT NOT NULL,
+  position TEXT,
+  sweater_number TEXT,
+  roster_status TEXT,
+  availability_state TEXT NOT NULL DEFAULT 'UNKNOWN',
+  game_state TEXT NOT NULL DEFAULT 'EXPECTED_ACTIVE',
+  injury_detail TEXT,
+  ev_line INTEGER,
+  d_pair INTEGER,
+  pp_unit INTEGER,
+  pk_unit INTEGER,
+  last_game_id TEXT,
+  last_game_at TEXT,
+  last_toi_seconds REAL,
+  rolling_toi_seconds REAL,
+  rolling_pp_toi_seconds REAL,
+  shots_per_game REAL,
+  points_per_game REAL,
+  role_confidence REAL,
+  state_confidence REAL,
+  source TEXT,
+  source_updated_at TEXT,
+  carried_state INTEGER NOT NULL DEFAULT 0,
+  replacement_json TEXT,
+  linemate_json TEXT,
+  raw_json TEXT,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_player_profiles_team_role
+  ON nhl_player_profiles(team_key,position,ev_line,d_pair,pp_unit);
+CREATE INDEX IF NOT EXISTS idx_nhl_player_profiles_state
+  ON nhl_player_profiles(availability_state,source_updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS nhl_goalie_profiles (
+  player_id TEXT PRIMARY KEY,
+  player_name TEXT NOT NULL,
+  team_key TEXT NOT NULL,
+  hierarchy_rank INTEGER,
+  goalie_state TEXT NOT NULL DEFAULT 'UNKNOWN',
+  expected_start_probability REAL,
+  games INTEGER,
+  starts INTEGER,
+  save_pct REAL,
+  gaa REAL,
+  last_game_id TEXT,
+  last_game_at TEXT,
+  rolling_shots_faced REAL,
+  rolling_saves REAL,
+  rest_days REAL,
+  state_confidence REAL,
+  source_updated_at TEXT,
+  raw_json TEXT,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_goalie_profiles_team
+  ON nhl_goalie_profiles(team_key,hierarchy_rank);
+
+CREATE TABLE IF NOT EXISTS nhl_linemate_profiles (
+  id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  teammate_id TEXT NOT NULL,
+  games_sample INTEGER NOT NULL DEFAULT 0,
+  shared_seconds REAL NOT NULL DEFAULT 0,
+  shared_seconds_per_game REAL,
+  overlap_share REAL,
+  strength_state TEXT NOT NULL DEFAULT 'ALL_SITUATIONS',
+  last_game_id TEXT,
+  last_observed_at TEXT,
+  confidence REAL,
+  raw_json TEXT,
+  updated_at TEXT NOT NULL,
+  UNIQUE(team_key,player_id,teammate_id,strength_state)
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_linemate_profiles_player
+  ON nhl_linemate_profiles(team_key,player_id,shared_seconds DESC);
+
+CREATE TABLE IF NOT EXISTS nhl_deployment_observations (
+  id TEXT PRIMARY KEY,
+  game_id TEXT NOT NULL,
+  game_start TEXT,
+  team_key TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  player_name TEXT,
+  position TEXT,
+  ev_line INTEGER,
+  d_pair INTEGER,
+  pp_unit INTEGER,
+  pk_unit INTEGER,
+  toi_seconds REAL,
+  scratch INTEGER NOT NULL DEFAULT 0,
+  source TEXT NOT NULL,
+  observed_at TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_deployment_obs_team_time
+  ON nhl_deployment_observations(team_key,observed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_nhl_deployment_obs_player_time
+  ON nhl_deployment_observations(player_id,observed_at DESC);
+
+CREATE TABLE IF NOT EXISTS nhl_team_schedule_profile (
+  id TEXT PRIMARY KEY,
+  season_id INTEGER NOT NULL,
+  team_key TEXT NOT NULL,
+  game_id TEXT NOT NULL,
+  game_type INTEGER,
+  start_time TEXT,
+  game_state TEXT,
+  home_team_key TEXT,
+  away_team_key TEXT,
+  opponent_key TEXT,
+  site TEXT,
+  venue_name TEXT,
+  neutral_site INTEGER NOT NULL DEFAULT 0,
+  days_rest REAL,
+  back_to_back INTEGER NOT NULL DEFAULT 0,
+  three_in_four INTEGER NOT NULL DEFAULT 0,
+  four_in_six INTEGER NOT NULL DEFAULT 0,
+  road_trip_game_number INTEGER NOT NULL DEFAULT 0,
+  travel_miles REAL,
+  time_zones_crossed INTEGER,
+  schedule_stress_score REAL,
+  stress_flags_json TEXT,
+  source_updated_at TEXT,
+  raw_json TEXT,
+  UNIQUE(season_id,team_key,game_id)
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_team_schedule_team_time
+  ON nhl_team_schedule_profile(season_id,team_key,start_time);
+
+CREATE TABLE IF NOT EXISTS nhl_team_profile_snapshots (
+  id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  season_id INTEGER NOT NULL,
+  as_of TEXT NOT NULL,
+  profile_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_team_profile_snapshots_time
+  ON nhl_team_profile_snapshots(team_key,as_of DESC);
+
+CREATE TABLE IF NOT EXISTS nhl_team_coach_history (
+  id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  season_id INTEGER NOT NULL,
+  coach_name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  source TEXT NOT NULL,
+  observed_at TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_team_coach_history_team
+  ON nhl_team_coach_history(team_key,observed_at DESC);
+
+CREATE TABLE IF NOT EXISTS nhl_profile_sync_runs (
+  id TEXT PRIMARY KEY,
+  season_id INTEGER NOT NULL,
+  team_key TEXT,
+  status TEXT NOT NULL,
+  source TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  source_calls INTEGER NOT NULL DEFAULT 0,
+  roster_rows INTEGER NOT NULL DEFAULT 0,
+  schedule_rows INTEGER NOT NULL DEFAULT 0,
+  player_rows_upserted INTEGER NOT NULL DEFAULT 0,
+  goalie_rows_upserted INTEGER NOT NULL DEFAULT 0,
+  linemate_rows_upserted INTEGER NOT NULL DEFAULT 0,
+  deployment_rows_upserted INTEGER NOT NULL DEFAULT 0,
+  error TEXT,
+  meta_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_profile_sync_runs_time
+  ON nhl_profile_sync_runs(started_at DESC,team_key);
+
+
+-- Tennis persistent player bank (migration 0053)
+-- Persistent FBIS tennis player bank + matchup history.
+-- Research-only. Historical observations are immutable; current bank is a materialized state.
+
+CREATE TABLE IF NOT EXISTS tennis_player_bank (
+  tour TEXT NOT NULL,
+  player_key TEXT NOT NULL,
+  player_id TEXT,
+  player_name TEXT NOT NULL,
+  country TEXT,
+  handedness TEXT,
+  birth_date TEXT,
+  headshot_url TEXT,
+  current_rank INTEGER,
+  ranking_points INTEGER,
+  profile_json TEXT NOT NULL,
+  recent_form_json TEXT,
+  source TEXT NOT NULL,
+  source_as_of TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (tour, player_key)
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_player_bank_rank ON tennis_player_bank(tour,current_rank);
+CREATE INDEX IF NOT EXISTS idx_tennis_player_bank_id ON tennis_player_bank(player_id);
+
+CREATE TABLE IF NOT EXISTS tennis_match_history (
+  match_key TEXT PRIMARY KEY,
+  tour TEXT NOT NULL,
+  match_date TEXT NOT NULL,
+  tournament TEXT,
+  surface TEXT,
+  round TEXT,
+  player1_key TEXT NOT NULL,
+  player1_name TEXT NOT NULL,
+  player2_key TEXT NOT NULL,
+  player2_name TEXT NOT NULL,
+  winner_key TEXT,
+  score TEXT,
+  player1_rank INTEGER,
+  player2_rank INTEGER,
+  player1_stats_json TEXT,
+  player2_stats_json TEXT,
+  source TEXT NOT NULL,
+  source_as_of TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_history_p1 ON tennis_match_history(tour,player1_key,match_date DESC);
+CREATE INDEX IF NOT EXISTS idx_tennis_history_p2 ON tennis_match_history(tour,player2_key,match_date DESC);
+
+
+-- SOCCER-FBIS-v3 PitchAPI research feature store (migration 0057).
+-- SOCCER-FBIS-v3 PitchAPI research feature store.
+-- Market-free football observations only. Historical actual lineups are stored
+-- with post_match=1 and are never eligible as pre-kick lineup evidence.
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_match_features (
+  pitch_match_id TEXT PRIMARY KEY,
+  fbis_event_id TEXT,
+  league_key TEXT NOT NULL,
+  pitch_league_id TEXT,
+  pitch_league_name TEXT,
+  season TEXT,
+  match_date TEXT NOT NULL,
+  start_time TEXT,
+  status TEXT,
+  home_team_id TEXT NOT NULL,
+  home_team_name TEXT NOT NULL,
+  away_team_id TEXT NOT NULL,
+  away_team_name TEXT NOT NULL,
+  home_score REAL,
+  away_score REAL,
+  home_xg REAL,
+  away_xg REAL,
+  home_xgot REAL,
+  away_xgot REAL,
+  home_shots INTEGER,
+  away_shots INTEGER,
+  home_sot INTEGER,
+  away_sot INTEGER,
+  home_big_chances REAL,
+  away_big_chances REAL,
+  home_ppda REAL,
+  away_ppda REAL,
+  home_field_tilt REAL,
+  away_field_tilt REAL,
+  home_final_third_entries REAL,
+  away_final_third_entries REAL,
+  home_box_entries REAL,
+  away_box_entries REAL,
+  home_high_turnovers REAL,
+  away_high_turnovers REAL,
+  home_counterpress_regains REAL,
+  away_counterpress_regains REAL,
+  home_ball_recovery_time REAL,
+  away_ball_recovery_time REAL,
+  home_xt REAL,
+  away_xt REAL,
+  home_vaep REAL,
+  away_vaep REAL,
+  home_progressive_passes REAL,
+  away_progressive_passes REAL,
+  home_progressive_carries REAL,
+  away_progressive_carries REAL,
+  home_xag REAL,
+  away_xag REAL,
+  home_possession REAL,
+  away_possession REAL,
+  home_passes_per_sequence REAL,
+  away_passes_per_sequence REAL,
+  home_direct_speed REAL,
+  away_direct_speed REAL,
+  source_observed_at TEXT NOT NULL,
+  raw_advanced_json TEXT,
+  raw_stats_json TEXT,
+  raw_shots_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_soccer_league_date
+  ON soccer_pitchapi_match_features(league_key,match_date,pitch_match_id);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_soccer_home_date
+  ON soccer_pitchapi_match_features(home_team_id,match_date);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_soccer_away_date
+  ON soccer_pitchapi_match_features(away_team_id,match_date);
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_player_match (
+  id TEXT PRIMARY KEY,
+  pitch_match_id TEXT NOT NULL,
+  league_key TEXT NOT NULL,
+  match_date TEXT NOT NULL,
+  team_id TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  player_name TEXT,
+  minutes_played REAL,
+  actions REAL,
+  xt_total REAL,
+  vaep_total REAL,
+  xag REAL,
+  xg_chain REAL,
+  xg_buildup REAL,
+  progressive_passes REAL,
+  progressive_carries REAL,
+  chances_created REAL,
+  shots REAL,
+  source_observed_at TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(pitch_match_id,player_id)
+);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_player_history
+  ON soccer_pitchapi_player_match(player_id,match_date);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_player_team_date
+  ON soccer_pitchapi_player_match(team_id,match_date);
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_lineup_observations (
+  id TEXT PRIMARY KEY,
+  pitch_match_id TEXT NOT NULL,
+  league_key TEXT NOT NULL,
+  team_id TEXT NOT NULL,
+  side TEXT NOT NULL,
+  kickoff_time TEXT,
+  observed_at TEXT NOT NULL,
+  confirmed INTEGER NOT NULL DEFAULT 0,
+  lineup_type TEXT,
+  formation TEXT,
+  starters_json TEXT NOT NULL,
+  subs_json TEXT,
+  coach_name TEXT,
+  pre_match INTEGER NOT NULL DEFAULT 0,
+  post_match INTEGER NOT NULL DEFAULT 0,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_lineup_match_time
+  ON soccer_pitchapi_lineup_observations(pitch_match_id,observed_at);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_lineup_team_time
+  ON soccer_pitchapi_lineup_observations(team_id,observed_at);
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_sync_runs (
+  id TEXT PRIMARY KEY,
+  league_key TEXT,
+  pitch_league_id TEXT,
+  season TEXT,
+  mode TEXT NOT NULL,
+  status TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  matches_seen INTEGER NOT NULL DEFAULT 0,
+  matches_persisted INTEGER NOT NULL DEFAULT 0,
+  players_persisted INTEGER NOT NULL DEFAULT 0,
+  lineups_persisted INTEGER NOT NULL DEFAULT 0,
+  analytics_unavailable INTEGER NOT NULL DEFAULT 0,
+  errors INTEGER NOT NULL DEFAULT 0,
+  meta_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_sync_runs_time
+  ON soccer_pitchapi_sync_runs(started_at DESC,league_key);
+
+
+
+-- Heritage x PitchAPI coverage + restartable queue (migration 0059).
+-- Timeout-safe Heritage x PitchAPI soccer coverage and backfill control.
+CREATE TABLE IF NOT EXISTS soccer_competition_coverage (
+  heritage_name TEXT PRIMARY KEY,
+  heritage_key TEXT,
+  offering_tier TEXT NOT NULL DEFAULT 'DISCOVERY',
+  model_eligible INTEGER,
+  policy_reason TEXT,
+  pitch_league_id TEXT,
+  pitch_league_name TEXT,
+  pitch_country_code TEXT,
+  match_score REAL,
+  match_method TEXT,
+  seasons_json TEXT,
+  current_season TEXT,
+  pitch_match_count INTEGER NOT NULL DEFAULT 0,
+  advanced_rows INTEGER NOT NULL DEFAULT 0,
+  advanced_coverage REAL,
+  history_start TEXT,
+  history_end TEXT,
+  discovery_status TEXT NOT NULL DEFAULT 'PENDING',
+  validation_status TEXT NOT NULL DEFAULT 'NOT_RUN',
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize INTEGER NOT NULL DEFAULT 0,
+  last_discovered_at TEXT,
+  last_ingested_at TEXT,
+  last_live_sync_at TEXT,
+  live_sync_errors INTEGER NOT NULL DEFAULT 0,
+  live_sync_last_error TEXT,
+  last_validation_at TEXT,
+  validation_n INTEGER NOT NULL DEFAULT 0,
+  validation_brier REAL,
+  validation_log_loss REAL,
+  validation_accuracy REAL,
+  notes TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_coverage_status
+  ON soccer_competition_coverage(discovery_status,offering_tier,heritage_name);
+CREATE INDEX IF NOT EXISTS idx_soccer_coverage_pitch
+  ON soccer_competition_coverage(pitch_league_id);
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_backfill_queue (
+  id TEXT PRIMARY KEY,
+  heritage_name TEXT NOT NULL,
+  heritage_key TEXT,
+  pitch_league_id TEXT NOT NULL,
+  season TEXT NOT NULL,
+  offset INTEGER NOT NULL DEFAULT 0,
+  page_size INTEGER NOT NULL DEFAULT 8,
+  status TEXT NOT NULL DEFAULT 'PENDING',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  matches_seen INTEGER NOT NULL DEFAULT 0,
+  matches_persisted INTEGER NOT NULL DEFAULT 0,
+  analytics_unavailable INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  lease_until TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  completed_at TEXT,
+  UNIQUE(pitch_league_id,season,offset)
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_backfill_queue_status
+  ON soccer_pitchapi_backfill_queue(status,updated_at);
+CREATE INDEX IF NOT EXISTS idx_soccer_backfill_queue_league
+  ON soccer_pitchapi_backfill_queue(pitch_league_id,season,offset);
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_discovery_runs (
+  id TEXT PRIMARY KEY,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  status TEXT NOT NULL,
+  heritage_offerings INTEGER NOT NULL DEFAULT 0,
+  pitch_leagues INTEGER NOT NULL DEFAULT 0,
+  exact_matches INTEGER NOT NULL DEFAULT 0,
+  fuzzy_matches INTEGER NOT NULL DEFAULT 0,
+  unmatched INTEGER NOT NULL DEFAULT 0,
+  meta_json TEXT
+);
+
+
+
+-- Per-competition soccer validation ledger (migration 0061).
+CREATE TABLE IF NOT EXISTS soccer_competition_validation (
+  id TEXT PRIMARY KEY,
+  heritage_name TEXT NOT NULL,
+  heritage_key TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  sample_n INTEGER NOT NULL DEFAULT 0,
+  v2_accuracy REAL,
+  v2_brier REAL,
+  v2_log_loss REAL,
+  v3_accuracy REAL,
+  v3_brier REAL,
+  v3_log_loss REAL,
+  delta_accuracy REAL,
+  delta_brier REAL,
+  delta_log_loss REAL,
+  advanced_coverage REAL,
+  historical_gate TEXT NOT NULL DEFAULT 'NOT_RUN',
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize INTEGER NOT NULL DEFAULT 0,
+  evaluated_at TEXT NOT NULL,
+  meta_json TEXT,
+  UNIQUE(heritage_key,model_version)
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_comp_validation_gate ON soccer_competition_validation(historical_gate,sample_n);
+
+
+-- Durable soccer competition provider registry (migration 0062).
+CREATE TABLE IF NOT EXISTS soccer_competition_provider_map (
+  heritage_name TEXT PRIMARY KEY,
+  heritage_key TEXT,
+  canonical_competition_id TEXT,
+  provider TEXT NOT NULL DEFAULT 'pitchapi',
+  provider_competition_id TEXT,
+  provider_name TEXT,
+  provider_aliases_json TEXT,
+  mapping_source TEXT NOT NULL DEFAULT 'DISCOVERY',
+  confidence REAL,
+  verified_manual INTEGER NOT NULL DEFAULT 0,
+  last_checked TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_provider_map_provider
+  ON soccer_competition_provider_map(provider,provider_competition_id);
+
+
+-- Soccer Phase 3 persistent state research bank (migration 0063).
+CREATE TABLE IF NOT EXISTS soccer_team_state (
+  team_id TEXT PRIMARY KEY, team_name TEXT, league_key TEXT, manager_name TEXT, primary_formation TEXT,
+  goalkeeper_player_id TEXT, goalkeeper_name TEXT, latest_lineup_match_id TEXT, latest_lineup_observed_at TEXT,
+  latest_lineup_confirmed INTEGER NOT NULL DEFAULT 0, lineup_continuity_5 REAL, rotation_index_5 REAL,
+  matches_14 INTEGER NOT NULL DEFAULT 0, matches_28 INTEGER NOT NULL DEFAULT 0, competition_count_28 INTEGER NOT NULL DEFAULT 0,
+  rest_days REAL, travel_km_14 REAL, travel_source TEXT, state_as_of TEXT NOT NULL,
+  research_only INTEGER NOT NULL DEFAULT 1, can_influence_projection INTEGER NOT NULL DEFAULT 0,
+  source_json TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS soccer_player_state (
+  player_id TEXT PRIMARY KEY, team_id TEXT NOT NULL, player_name TEXT, role_state TEXT,
+  availability_status TEXT NOT NULL DEFAULT 'UNKNOWN', availability_reason TEXT, availability_source TEXT, availability_observed_at TEXT,
+  expected_xi_state TEXT NOT NULL DEFAULT 'UNKNOWN', last_match_date TEXT, last_start_date TEXT,
+  appearances_28 INTEGER NOT NULL DEFAULT 0, starts_5 INTEGER NOT NULL DEFAULT 0,
+  minutes_7 REAL NOT NULL DEFAULT 0, minutes_14 REAL NOT NULL DEFAULT 0, minutes_28 REAL NOT NULL DEFAULT 0,
+  load_index_28 REAL, replacement_rank REAL, goalkeeper_evidence INTEGER NOT NULL DEFAULT 0, state_as_of TEXT NOT NULL,
+  research_only INTEGER NOT NULL DEFAULT 1, can_influence_projection INTEGER NOT NULL DEFAULT 0,
+  source_json TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS soccer_availability_observations (
+  id TEXT PRIMARY KEY, player_id TEXT NOT NULL, team_id TEXT, status TEXT NOT NULL, reason TEXT, source TEXT NOT NULL,
+  source_ref TEXT, observed_at TEXT NOT NULL, valid_from TEXT, valid_until TEXT, verified INTEGER NOT NULL DEFAULT 0,
+  research_only INTEGER NOT NULL DEFAULT 1, can_influence_projection INTEGER NOT NULL DEFAULT 0, raw_json TEXT, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS soccer_team_state_snapshots (
+  id TEXT PRIMARY KEY, team_id TEXT NOT NULL, league_key TEXT, target_match_id TEXT, snapshot_as_of TEXT NOT NULL,
+  data_cutoff TEXT NOT NULL, state_json TEXT NOT NULL, research_only INTEGER NOT NULL DEFAULT 1,
+  can_influence_projection INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS soccer_player_state_snapshots (
+  id TEXT PRIMARY KEY, player_id TEXT NOT NULL, team_id TEXT NOT NULL, target_match_id TEXT, snapshot_as_of TEXT NOT NULL,
+  data_cutoff TEXT NOT NULL, state_json TEXT NOT NULL, research_only INTEGER NOT NULL DEFAULT 1,
+  can_influence_projection INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+);
+
+
+-- Soccer Phase 3 validation evidence ledger (migration 0064).
+CREATE TABLE IF NOT EXISTS soccer_validation_evidence (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  heritage_key TEXT,
+  model_version TEXT NOT NULL,
+  model_variant TEXT NOT NULL,
+  benchmark_variant TEXT,
+  market_family TEXT NOT NULL,
+  line_key TEXT,
+  sample_n INTEGER NOT NULL DEFAULT 0,
+  metrics_json TEXT NOT NULL,
+  point_in_time INTEGER NOT NULL DEFAULT 1,
+  market_used INTEGER NOT NULL DEFAULT 0,
+  research_only INTEGER NOT NULL DEFAULT 1,
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize INTEGER NOT NULL DEFAULT 0,
+  evaluated_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(run_id,heritage_key,model_variant,market_family,line_key)
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_validation_evidence_lookup
+  ON soccer_validation_evidence(heritage_key,model_version,market_family,evaluated_at DESC);
+
+-- NHL goalie probability prospective shadow freeze/grade ledger.
+-- Research only. Never grants qualification, wager authority, or staking.
+
+CREATE TABLE IF NOT EXISTS nhl_goalie_probability_shadow (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  game_start TEXT,
+  feature_cutoff_timestamp TEXT NOT NULL,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  incumbent_model_id TEXT NOT NULL,
+  gate_id TEXT NOT NULL,
+  gate_fired INTEGER NOT NULL DEFAULT 0,
+  historical_gate_validated INTEGER NOT NULL DEFAULT 0,
+  goalie_probability_scale REAL NOT NULL,
+  incumbent_home_win_probability REAL,
+  shadow_home_win_probability REAL,
+  projected_home REAL,
+  projected_away REAL,
+  goalie_state_json TEXT,
+  ev_deployment_json TEXT,
+  pp_deployment_json TEXT,
+  scratches_availability_json TEXT,
+  replacement_mapping_json TEXT,
+  persistent_state_json TEXT,
+  market_snapshot_json TEXT,
+  code_sha TEXT,
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize_wager INTEGER NOT NULL DEFAULT 0,
+  staking_authorized INTEGER NOT NULL DEFAULT 0,
+  actual_home REAL,
+  actual_away REAL,
+  incumbent_brier REAL,
+  shadow_brier REAL,
+  incumbent_log_loss REAL,
+  shadow_log_loss REAL,
+  incumbent_correct INTEGER,
+  shadow_correct INTEGER,
+  research_clv_probability_pp REAL,
+  research_profit_units REAL,
+  grade_json TEXT,
+  graded_at TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE(event_id,model_version)
+);
+CREATE INDEX IF NOT EXISTS idx_nhl_goalie_shadow_event
+  ON nhl_goalie_probability_shadow(event_id,feature_cutoff_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_nhl_goalie_shadow_grade
+  ON nhl_goalie_probability_shadow(graded_at,feature_cutoff_timestamp);
+
+INSERT OR IGNORE INTO schema_migrations(id,applied_at)
+VALUES('0066_nhl_goalie_probability_shadow',datetime('now'));
+

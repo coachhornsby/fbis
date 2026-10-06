@@ -1,0 +1,69 @@
+name: WNBA impact shadow grade
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 15 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wnba-impact-shadow-grade
+  cancel-in-progress: false
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+
+      - name: Load current outcomes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          mkdir -p artifacts/current
+          npx wrangler r2 object get "fbis-archive/canonical/espn/wnba/current/wnba-canonical.jsonl" --file artifacts/current/wnba-canonical.jsonl --remote || : > artifacts/current/wnba-canonical.jsonl
+
+      - name: Export existing challenger and PrizePicks evidence
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM wnba_player_prop_impact_shadow WHERE feature_cutoff_timestamp >= datetime('now','-60 days') ORDER BY feature_cutoff_timestamp ASC"             > artifacts/wnba-impact-props.json || echo '[]' > artifacts/wnba-impact-props.json
+          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM wnba_game_impact_shadow WHERE feature_cutoff_timestamp >= datetime('now','-60 days') ORDER BY feature_cutoff_timestamp ASC"             > artifacts/wnba-impact-games.json || echo '[]' > artifacts/wnba-impact-games.json
+          npx wrangler d1 execute fbis --remote --json --command             "SELECT * FROM prizepicks_prop_lines WHERE sport='wnba' AND collected_at >= datetime('now','-60 days') ORDER BY collected_at ASC"             > artifacts/wnba-prizepicks.json || echo '[]' > artifacts/wnba-prizepicks.json
+
+      - name: Grade game and prop challengers
+        run: node scripts/wnba-impact-shadow-grade.mjs
+
+      - name: Persist evidence
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler d1 execute fbis --remote --file=migrations/0049_wnba_player_impact.sql
+          if [ -s artifacts/wnba-impact-grade.sql ]; then
+            npx wrangler d1 execute fbis --remote --file=artifacts/wnba-impact-grade.sql
+          fi
+
+      - name: Archive report
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          npx wrangler r2 object put "fbis-archive/evaluation/wnba/player-impact/${stamp}.json" --file artifacts/wnba-impact-grade.json --remote
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-impact-grade-${{ github.run_id }}
+          path: artifacts/wnba-impact-grade.json
+          retention-days: 90

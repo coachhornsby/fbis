@@ -103,6 +103,62 @@ function credentialGate() {
   return { health, missing };
 }
 
+
+function chicagoHour(now = new Date()) {
+  return Number(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago", hour: "2-digit", hourCycle: "h23",
+  }).format(now));
+}
+
+async function runScheduledActionDaily(env) {
+  const hour = chicagoHour();
+  if (hour < 7 || hour > 11) return { status: "NOT_DUE", hourCt: hour };
+  if (!env.HARVEST_SECRET) return { status: "BLOCKED_FAIL_CLOSED", reason: "HARVEST_SECRET missing", hourCt: hour };
+  const base = String(CFG.fbisBaseUrl || "https://fbis-myz.pages.dev").replace(/\\/$/, "");
+  const call = async (mode) => {
+    const res = await fetch(`${base}/api/action-daily-async?mode=${mode}`, {
+      method: "POST",
+      headers: { "x-harvest-secret": env.HARVEST_SECRET, "content-type": "application/json" },
+      body: JSON.stringify({ mode }),
+    });
+    const body = await res.json().catch(() => ({}));
+    return { http: res.status, body };
+  };
+  const start = await call("start");
+  if (!start.body?.ok || ![200, 202].includes(start.http)) throw new Error(`ACTION daily start failed http=${start.http} status=${start.body?.status || "unknown"}`);
+  const terminal = new Set(["already_collected_today", "no_slate", "monthly_budget_blocked", "action_not_configured"]);
+  if (terminal.has(String(start.body?.status || ""))) return { status: start.body.status, hourCt: hour, runId: start.body.runId || null };
+  const harvest = await call("harvest");
+  if (!harvest.body?.ok || ![200, 202].includes(harvest.http)) throw new Error(`ACTION daily harvest failed http=${harvest.http} status=${harvest.body?.status || "unknown"}`);
+  return { status: harvest.body.status || "UNKNOWN", hourCt: hour, runId: harvest.body.runId || start.body.runId || null, remainingRows: harvest.body.remainingRows ?? null };
+}
+
+async function runScheduledTennisCapture(env) {
+  const hour = chicagoHour();
+  if (hour !== 8 && hour !== 14) return { status: "NOT_DUE", hourCt: hour };
+  if (!env.HARVEST_SECRET) return { status: "BLOCKED_FAIL_CLOSED", reason: "HARVEST_SECRET missing", hourCt: hour };
+  const base = String(CFG.fbisBaseUrl || "https://fbis-myz.pages.dev").replace(/\/$/, "");
+  const pulls = [];
+  for (const sport of ["atp", "wta"]) {
+    const res = await fetch(`${base}/api/action-research-pull`, {
+      method: "POST",
+      headers: { "x-harvest-secret": env.HARVEST_SECRET, "content-type": "application/json" },
+      body: JSON.stringify({ sport, lifecycle: "pregame", profile: "MOVEMENT", gameStatus: "scheduled", maxItems: 10, fitBudgetUsd: 0.20 }),
+    });
+    const body = await res.json().catch(() => ({}));
+    pulls.push({ sport, http: res.status, ok: body?.ok === true, status: body?.status || null, gamesReturned: body?.gamesReturned || 0, observationsWritten: body?.observationsWritten || 0 });
+    if (!res.ok || body?.ok !== true) throw new Error(`tennis ${sport} capture failed http=${res.status}`);
+  }
+  const snap = await fetch(`${base}/api/tennis-v2-snapshot`, {
+    method: "POST",
+    headers: { "x-harvest-secret": env.HARVEST_SECRET, "content-type": "application/json" },
+    body: JSON.stringify({ mode: "all", hours: 8, limit: 200 }),
+  });
+  const snapshot = await snap.json().catch(() => ({}));
+  if (!snap.ok || snapshot?.ok !== true) throw new Error(`tennis snapshot failed http=${snap.status}`);
+  return { status: "EXECUTED", hourCt: hour, pulls, snapshot: { marketInserted: snapshot.marketInserted || 0, decisionInserted: snapshot.decisionInserted || 0, captured: snapshot.captured || 0 } };
+}
+
 async function fetchLearningReport(env) {
   if (!env.HARVEST_SECRET) throw new Error("HARVEST_SECRET missing");
   const base = String(CFG.fbisBaseUrl || "https://fbis-myz.pages.dev").replace(/\/$/, "");
@@ -124,13 +180,14 @@ async function scheduledCycle(env) {
   if (String(env.ORCH_CRON_ENABLED || "false").toLowerCase() !== "true") {
     return { ok: true, status: "CRON_DISABLED", at: new Date().toISOString() };
   }
-  const gate = credentialGate();
+  const actionDaily = await runScheduledActionDaily(env); const tennis = await runScheduledTennisCapture(env); const gate = credentialGate();
   if (gate.missing.length) {
     return {
       ok: true,
       status: "BLOCKED_FAIL_CLOSED",
       reason: "runtime_credentials_incomplete",
       missing: gate.missing,
+      tennis,
       at: new Date().toISOString(),
     };
   }
@@ -142,6 +199,7 @@ async function scheduledCycle(env) {
   return {
     ok: true,
     status: "EXECUTED",
+    tennis,
     selected,
     learning,
     operationalSheets,

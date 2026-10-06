@@ -19,6 +19,7 @@ import {
   teamCardTitle,
 } from "../../lib/boardDecision.js";
 import { fmtAmerican, fmtNum } from "../../lib/format.js";
+import { confidenceStars } from "../../lib/confidenceStars.js";
 import { venueAtmosphereClass } from "../../lib/venueAtmosphere.js";
 import { GameDetails } from "../../TodayView.jsx";
 
@@ -31,15 +32,22 @@ function fairSpreadTeamLine(proj, away, home) {
   return `${away?.abbr || "AWAY"} ${formatSpreadLabel(-line)}`;
 }
 
+function starterInfo(game, side) {
+  if (game?.sport !== "mlb") return null;
+  const raw = side === "away" ? game.awaySp : game.homeSp;
+  const persistent = game?.mlbPersistentState?.[side === "away" ? "awayStarter" : "homeStarter"] || null;
+  const era = persistent?.era ?? (side === "away" ? game.savant?.awaySpEra : game.savant?.homeSpEra);
+  const id = raw?.id ?? persistent?.id ?? null;
+  const wins = persistent?.wins ?? null, losses = persistent?.losses ?? null;
+  return {id,name:raw?.name||persistent?.name||null,era,wins,losses};
+}
 function starterLine(game, side) {
   if (game?.sport !== "mlb") return null;
-  const sp = side === "away" ? game.awaySp : game.homeSp;
-  const era = side === "away" ? game.savant?.awaySpEra : game.savant?.homeSpEra;
-  if (!sp?.name && era == null) return null;
-  const name = sp?.last || sp?.name || "TBD";
-  const eraTxt = era == null || Number.isNaN(Number(era)) ? null : `${Number(era).toFixed(2)} ERA`;
-  const record = sp?.record || sp?.wL || null;
-  return [name, record, eraTxt].filter(Boolean).join(" · ");
+  const sp = starterInfo(game, side);
+  if (!sp?.name && sp?.era == null) return null;
+  const eraTxt = sp.era == null || Number.isNaN(Number(sp.era)) ? null : `${Number(sp.era).toFixed(2)} ERA`;
+  const record = sp.wins != null && sp.losses != null ? `${sp.wins}-${sp.losses}` : null;
+  return [sp.name || "TBD", record, eraTxt].filter(Boolean).join(" · ");
 }
 
 export default function GameCard({
@@ -64,12 +72,16 @@ export default function GameCard({
   const done = Boolean(game.status?.completed);
   const awayStarter = starterLine(game, "away");
   const homeStarter = starterLine(game, "home");
+  const awayStarterInfo = starterInfo(game, "away");
+  const homeStarterInfo = starterInfo(game, "home");
   const isMlb = game?.sport === "mlb";
+  const isTennis = game?.sport === "tennis";
   const logoSize = isMlb ? 48 : 86;
   const matchupClass = isMlb ? "gc-matchup-row" : "gc-matchup-row logo-stack";
   const venueLabel = safeDisplayString(game.venue, "");
   const statusDetail = safeDisplayString(game.status?.detail || game.status, "");
   const venueClass = venueAtmosphereClass(game?.sport);
+  const stars = confidenceStars(game);
   const soccerPick = String(game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -103,7 +115,10 @@ export default function GameCard({
 
       <div className={matchupClass} aria-label="Matchup">
         <div className="gc-side away">
-          <TeamLogo team={game.away} size={logoSize} />
+          <div className="gc-team-logo-stack">
+            <TeamLogo team={game.away} size={logoSize} />
+            {isMlb && awayStarterInfo?.id ? <img className="gc-starter-headshot" src={`https://img.mlbstatic.com/mlb-photos/image/upload/w_80,q_auto:best/v1/people/${awayStarterInfo.id}/headshot/67/current`} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}
+          </div>
           <div className="gc-side-text">
             <span className="gc-team-name">{teamCardTitle(game.away)}</span>
             {game.away?.record ? <span className="gc-record muted">{safeDisplayString(game.away.record)}</span> : null}
@@ -115,7 +130,10 @@ export default function GameCard({
         </div>
         <div className="gc-at" aria-hidden="true">@</div>
         <div className="gc-side home">
-          <TeamLogo team={game.home} size={logoSize} />
+          <div className="gc-team-logo-stack">
+            <TeamLogo team={game.home} size={logoSize} />
+            {isMlb && homeStarterInfo?.id ? <img className="gc-starter-headshot" src={`https://img.mlbstatic.com/mlb-photos/image/upload/w_80,q_auto:best/v1/people/${homeStarterInfo.id}/headshot/67/current`} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}
+          </div>
           <div className="gc-side-text">
             <span className="gc-team-name">{teamCardTitle(game.home)}</span>
             {game.home?.record ? <span className="gc-record muted">{safeDisplayString(game.home.record)}</span> : null}
@@ -128,7 +146,7 @@ export default function GameCard({
       </div>
 
       <section className="gc-projection" aria-label="FBIS projection">
-        <div className="gc-section-label">FBIS PROJECTION</div>
+        <div className="gc-section-label">{isTennis ? "FBIS WIN PROBABILITY · RESEARCH" : "FBIS PROJECTION"}</div>
         {proj.available ? (
           <>
             <div className="gc-score-grid">
@@ -141,16 +159,29 @@ export default function GameCard({
                 <strong className="gc-score-num">{fmtNum(proj.home, 1)}</strong>
               </div>
             </div>
-            <div className="gc-fair">
-              <div>
-                <span className="muted">FBIS FAIR</span>
-                <strong>{fairSpreadTeamLine(proj, game.away, game.home)}</strong>
+            {isTennis ? (
+              <div className="gc-fair">
+                <div>
+                  <span className="muted">PURE MODEL</span>
+                  <strong>{game.tennisProjection?.tour || "TENNIS"} · RESEARCH</strong>
+                </div>
+                <div>
+                  <span className="muted">MARKET-ADJ P1</span>
+                  <strong>{game.tennisProjection?.marketAdjustedP1 == null ? "—" : `${fmtNum(game.tennisProjection.marketAdjustedP1 * 100, 1)}%`}</strong>
+                </div>
               </div>
-              <div>
-                <span className="muted">TOTAL</span>
-                <strong>{fmtNum(proj.fairTotal, 1)}</strong>
+            ) : (
+              <div className="gc-fair">
+                <div>
+                  <span className="muted">FBIS FAIR</span>
+                  <strong>{fairSpreadTeamLine(proj, game.away, game.home)}</strong>
+                </div>
+                <div>
+                  <span className="muted">TOTAL</span>
+                  <strong>{fmtNum(proj.fairTotal, 1)}</strong>
+                </div>
               </div>
-            </div>
+            )}
           </>
         ) : (
           <div className="gc-proj-unavailable">
@@ -318,7 +349,7 @@ export default function GameCard({
         <DecisionBadge tier={decision.tier} label={decision.label} pick={decision.pick} />
         {soccerPick ? (
           <span className="gc-decision-market">
-            MODEL PICK: {soccerPick.pick || "—"} · {soccerPick.stars || 1}★ · RESEARCH
+            MODEL PICK: {soccerPick.pick || "—"} · {stars}★ · RESEARCH
           </span>
         ) : null}
         {decision.mispriceState ? (

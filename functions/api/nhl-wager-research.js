@@ -35,7 +35,8 @@ function gameRows(board,snapshotAt){
         confidenceVersion:o.confidenceVersion,confidenceStatus:o.confidenceStatus,decision:o.decision,
         suggestedUnits:o.suggestedUnits||0,modelId:game.nhlWagerV1.modelId,modelVersion:game.nhlWagerV1.version,
         projection:game.nhlWagerV1.independentProjection,disagreement:game.nhlWagerV1.disagreement,
-        trajectory:o.trajectory,sourceSnapshotType:checkpoint(game.start,snapshotAt),researchCandidate:Boolean(o.researchCandidate)
+        trajectory:o.trajectory,sourceSnapshotType:checkpoint(game.start,snapshotAt),researchCandidate:Boolean(o.researchCandidate),
+        canQualify:Boolean(o.canQualify),canAuthorizeWager:false
       });
     }
   }
@@ -57,7 +58,8 @@ function propRows(board,snapshotAt){
       confidenceVersion:w.confidenceVersion,confidenceStatus:w.confidenceStatus,decision:w.decision,
       suggestedUnits:w.suggestedUnits||0,modelId:w.modelId,modelVersion:w.version,
       projection:{projection:w.projection,line:w.line,market:w.market},disagreement:null,trajectory:null,
-      sourceSnapshotType:checkpoint(game?.start,snapshotAt),researchCandidate:Boolean(w.researchCandidate)
+      sourceSnapshotType:checkpoint(game?.start,snapshotAt),researchCandidate:Boolean(w.researchCandidate),
+      canQualify:Boolean(w.canQualify),canAuthorizeWager:false
     });
   }
   return rows;
@@ -75,7 +77,7 @@ async function persistRows(db,rows,snapshotAt){
       .bind(id,snapshotAt,r.eventId,r.eventStart,r.gameType,r.wagerScope,r.playerId,r.playerName,r.team,r.market,r.selection,r.line,r.americanPrice,
         r.modelProbability,r.calibratedProbability,r.breakEvenProbability,r.marketNoVigProbability,r.probabilityEdge,r.expectedRoi,
         r.reliability,r.confidence,r.confidenceVersion,r.confidenceStatus,r.decision,r.researchCandidate?1:0,r.suggestedUnits,r.modelId,r.modelVersion,
-        JSON.stringify(r.projection||null),JSON.stringify(r.disagreement||null),JSON.stringify(r.trajectory||null),r.sourceSnapshotType,0,0,snapshotAt).run();
+        JSON.stringify(r.projection||null),JSON.stringify(r.disagreement||null),JSON.stringify(r.trajectory||null),r.sourceSnapshotType,r.canQualify?1:0,0,snapshotAt).run();
     written++;
   }
   return written;
@@ -196,6 +198,6 @@ export async function onRequestPost(context){
   const snapshotAt=new Date().toISOString(),rows=[...gameRows(board,snapshotAt),...propRows(board,snapshotAt)];
   const written=await persistRows(db,rows,snapshotAt);
   return json({ok:true,mode,date:resolved.date,snapshotAt,rows:rows.length,written,
-    researchCandidates:rows.filter(r=>r.researchCandidate).length,researchBets:rows.filter(r=>r.decision==="BET").length,gameRows:rows.filter(r=>r.wagerScope==="GAME").length,
+    researchCandidates:rows.filter(r=>r.researchCandidate).length,qualified:rows.filter(r=>r.canQualify).length,researchBets:rows.filter(r=>r.decision==="BET").length,gameRows:rows.filter(r=>r.wagerScope==="GAME").length,
     propRows:rows.filter(r=>r.wagerScope==="PROP").length,authority:false,staking:false});
 }

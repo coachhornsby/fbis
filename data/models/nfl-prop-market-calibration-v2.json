@@ -1,0 +1,113 @@
+{
+  "modelId": "NFL-PLAYER-PROJ-v3",
+  "calibrationVersion": "NFL-PROP-MARKET-CAL-v2",
+  "evaluatedAt": "2026-10-06T02:00:00Z",
+  "governance": {
+    "calibrationBeforeStars": true,
+    "unvalidatedMaxStars": 3,
+    "rawZMayCreateFourOrFiveStars": false,
+    "marketSpecificValidationRequired": true,
+    "prospectiveValidationRequiredForPromotion": true
+  },
+  "validationRule": {
+    "minTotalN": 180,
+    "minWalkForwardN": 80,
+    "monotonicTolerancePp": 2,
+    "maxCalibratedBrier": 0.25,
+    "maxCalibratedEce": 0.06,
+    "requireIncreasingEdgeToHitRelationship": true
+  },
+  "markets": {
+    "passing_yards": {
+      "n": 201,
+      "bias": 10.5902,
+      "empiricalSigma": 86.6852,
+      "rawBrier": 0.28745,
+      "rawLogLoss": 0.80912,
+      "rawEce": 0.17049,
+      "walkForwardN": 90,
+      "calibratedBrier": 0.25097,
+      "calibratedLogLoss": 0.69414,
+      "calibratedEce": 0.06476,
+      "monotonic": false,
+      "validated": false,
+      "reason": "edge_to_hit_nonmonotonic_and_calibration_thresholds_failed"
+    },
+    "passing_attempts": {
+      "n": 197,
+      "bias": 1.9874,
+      "empiricalSigma": 10.7416,
+      "rawBrier": 0.28044,
+      "rawLogLoss": 0.80645,
+      "rawEce": 0.12042,
+      "walkForwardN": 89,
+      "calibratedBrier": 0.25974,
+      "calibratedLogLoss": 0.71332,
+      "calibratedEce": 0.15889,
+      "monotonic": false,
+      "validated": false,
+      "reason": "edge_to_hit_nonmonotonic_and_calibration_failed"
+    },
+    "completions": {
+      "n": 192,
+      "bias": 1.3097,
+      "empiricalSigma": 6.9835,
+      "rawBrier": 0.27423,
+      "rawLogLoss": 0.79755,
+      "rawEce": 0.13772,
+      "walkForwardN": 85,
+      "calibratedBrier": 0.26877,
+      "calibratedLogLoss": 0.73813,
+      "calibratedEce": 0.11358,
+      "monotonic": true,
+      "validated": false,
+      "reason": "monotonic_direction_exists_but_probability_calibration_failed"
+    },
+    "receiving_yards": {
+      "n": 573,
+      "bias": -2.1236,
+      "empiricalSigma": 35.0359,
+      "rawBrier": 0.27984,
+      "rawLogLoss": 0.77214,
+      "rawEce": 0.12567,
+      "walkForwardN": 405,
+      "calibratedBrier": 0.25762,
+      "calibratedLogLoss": 0.71477,
+      "calibratedEce": 0.03552,
+      "monotonic": false,
+      "validated": false,
+      "reason": "calibration_ece_improved_but_edge_to_hit_nonmonotonic_and_brier_above_gate"
+    },
+    "receptions": {
+      "n": 408,
+      "bias": 0.0775,
+      "empiricalSigma": 2.5478,
+      "rawBrier": 0.28015,
+      "rawLogLoss": 0.77194,
+      "rawEce": 0.14073,
+      "walkForwardN": 296,
+      "calibratedBrier": 0.26451,
+      "calibratedLogLoss": 0.73477,
+      "calibratedEce": 0.06068,
+      "monotonic": false,
+      "validated": false,
+      "reason": "edge_to_hit_nonmonotonic_and_probability_calibration_failed"
+    },
+    "rushing_yards": {
+      "n": 190,
+      "bias": -0.3674,
+      "empiricalSigma": 39.1616,
+      "rawBrier": 0.30214,
+      "rawLogLoss": 0.85468,
+      "rawEce": 0.20309,
+      "walkForwardN": 83,
+      "calibratedBrier": 0.26923,
+      "calibratedLogLoss": 0.73808,
+      "calibratedEce": 0.09383,
+      "monotonic": false,
+      "validated": false,
+      "reason": "edge_to_hit_inverts_at_higher_z_and_calibration_failed"
+    }
+  },
+  "conclusion": "No requested NFL prop market currently regains 4★/5★ eligibility."
+}

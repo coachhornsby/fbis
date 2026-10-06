@@ -1,0 +1,67 @@
+name: Tennis v2 prospective market capture
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: tennis-v2-prospective-market
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Local-time gate
+        id: gate
+        run: |
+          set -euo pipefail
+          hour="$(TZ=America/Chicago date +%H)"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require credentials
+        if: steps.gate.outputs.run == '1'
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Collect ATP and WTA movement snapshots
+        if: steps.gate.outputs.run == '1'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          : > artifacts/tennis-v2-action-runs.jsonl
+          for sport in atp wta; do
+            body="$(mktemp)"
+            set +e
+            code="$(curl -sS --max-time 180 -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               -d "{\"sport\":\"${sport}\",\"lifecycle\":\"pregame\",\"profile\":\"MOVEMENT\",\"gameStatus\":\"scheduled\",\"maxItems\":10,\"fitBudgetUsd\":0.20}"               -o "$body" -w "%{http_code}"               "${BASE}/api/action-research-pull")"
+            ec=$?
+            set -e
+            jq -c --arg sport "$sport" --arg code "$code" --argjson ec "$ec"               '{sport:$sport,http:$code,curlExit:$ec,ok:(.ok//false),status:(.status//null),gamesReturned:(.gamesReturned//0),observationsWritten:(.observationsWritten//0),estimatedCostUsd:(.estimatedCostUsd//null)}'               "$body" >> artifacts/tennis-v2-action-runs.jsonl 2>/dev/null || true
+          done
+          cat artifacts/tennis-v2-action-runs.jsonl
+
+      - name: Freeze tennis market snapshots in D1
+        if: steps.gate.outputs.run == '1'
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl -sS --max-time 90 -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             -d '{"mode":"all","hours":8,"limit":200}'             -o "$body" -w "%{http_code}"             "${BASE}/api/tennis-v2-snapshot")"
+          cat "$body"
+          test "$code" = "200"
+          jq -e '.ok == true' "$body" >/dev/null
+
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: tennis-v2-market-capture
+          path: artifacts/tennis-v2-action-runs.jsonl
+          retention-days: 30

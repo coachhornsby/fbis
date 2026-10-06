@@ -1,0 +1,1612 @@
+{
+  "generatedAt": "2026-10-05T02:47:22.290Z",
+  "model": "TENNIS-PLAYER-v1.1-DEEP",
+  "test": "Prospective grading of FBIS-captured PrizePicks tennis board from Oct 1-2, 2026",
+  "integrity": {
+    "linesCapturedBeforeResults": true,
+    "lineSource": "FBIS D1 prizepicks_prop_lines",
+    "futureLineBackfill": false,
+    "duplicateRowsCollapsed": true,
+    "projectionHistoryUsesOnlyPriorTournamentState": true,
+    "modelCalibrationFrozenFrom2020to2023": true
+  },
+  "sourceCoverage": {
+    "rawCapturedRows": 456,
+    "dedupedLines": 450,
+    "targetPairs": 59,
+    "matchedCompletedMatches": 20,
+    "gradedLines": 179,
+    "capturedMarkets": [
+      "total_games",
+      "total_games_won"
+    ],
+    "note": "The captured Oct 1-2 board contains Total Games and Total Games Won only; it cannot prospectively validate aces/DF/BP from this snapshot."
+  },
+  "overall": {
+    "n": 179,
+    "decisions": 179,
+    "wins": 109,
+    "losses": 70,
+    "pushes": 0,
+    "hitRate": 0.60894,
+    "meanConfidence": 0.62937,
+    "brier": 0.22424,
+    "calibrationGap": -0.02043,
+    "confidenceBuckets": [
+      {
+        "lo": 0.5,
+        "hi": 0.55,
+        "n": 34,
+        "wins": 16,
+        "losses": 18,
+        "hitRate": 0.47059,
+        "meanConfidence": 0.52512
+      },
+      {
+        "lo": 0.55,
+        "hi": 0.6,
+        "n": 35,
+        "wins": 19,
+        "losses": 16,
+        "hitRate": 0.54286,
+        "meanConfidence": 0.57083
+      },
+      {
+        "lo": 0.6,
+        "hi": 0.65,
+        "n": 39,
+        "wins": 23,
+        "losses": 16,
+        "hitRate": 0.58974,
+        "meanConfidence": 0.62176
+      },
+      {
+        "lo": 0.65,
+        "hi": 0.7,
+        "n": 20,
+        "wins": 12,
+        "losses": 8,
+        "hitRate": 0.6,
+        "meanConfidence": 0.66948
+      },
+      {
+        "lo": 0.7,
+        "hi": 0.75,
+        "n": 17,
+        "wins": 13,
+        "losses": 4,
+        "hitRate": 0.76471,
+        "meanConfidence": 0.72174
+      },
+      {
+        "lo": 0.75,
+        "hi": 0.8,
+        "n": 9,
+        "wins": 8,
+        "losses": 1,
+        "hitRate": 0.88889,
+        "meanConfidence": 0.77633
+      },
+      {
+        "lo": 0.8,
+        "hi": 0.9,
+        "n": 10,
+        "wins": 7,
+        "losses": 3,
+        "hitRate": 0.7,
+        "meanConfidence": 0.8432
+      },
+      {
+        "lo": 0.9,
+        "hi": null,
+        "n": 6,
+        "wins": 6,
+        "losses": 0,
+        "hitRate": 1,
+        "meanConfidence": 0.9675
+      }
+    ]
+  },
+  "byTier": {
+    "standard": {
+      "n": 36,
+      "decisions": 36,
+      "wins": 20,
+      "losses": 16,
+      "pushes": 0,
+      "hitRate": 0.55556,
+      "meanConfidence": 0.59737,
+      "brier": 0.22137,
+      "calibrationGap": -0.04182,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 11,
+          "wins": 4,
+          "losses": 7,
+          "hitRate": 0.36364,
+          "meanConfidence": 0.52345
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 3,
+          "wins": 2,
+          "losses": 1,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.564
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 9,
+          "wins": 4,
+          "losses": 5,
+          "hitRate": 0.44444,
+          "meanConfidence": 0.62072
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 1,
+          "wins": 0,
+          "losses": 1,
+          "hitRate": 0,
+          "meanConfidence": 0.665
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 3,
+          "wins": 3,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.72417
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.7515
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.84
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.957
+        }
+      ]
+    },
+    "goblin": {
+      "n": 77,
+      "decisions": 77,
+      "wins": 52,
+      "losses": 25,
+      "pushes": 0,
+      "hitRate": 0.67532,
+      "meanConfidence": 0.65304,
+      "brier": 0.21047,
+      "calibrationGap": 0.02229,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 19,
+          "wins": 11,
+          "losses": 8,
+          "hitRate": 0.57895,
+          "meanConfidence": 0.52974
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 16,
+          "wins": 10,
+          "losses": 6,
+          "hitRate": 0.625,
+          "meanConfidence": 0.56956
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 12,
+          "wins": 8,
+          "losses": 4,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.62325
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 7,
+          "wins": 5,
+          "losses": 2,
+          "hitRate": 0.71429,
+          "meanConfidence": 0.66964
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 6,
+          "wins": 4,
+          "losses": 2,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.72467
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 6,
+          "wins": 5,
+          "losses": 1,
+          "hitRate": 0.83333,
+          "meanConfidence": 0.77958
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 6,
+          "wins": 4,
+          "losses": 2,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.84433
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 5,
+          "wins": 5,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.9696
+        }
+      ]
+    },
+    "demon": {
+      "n": 66,
+      "decisions": 66,
+      "wins": 37,
+      "losses": 29,
+      "pushes": 0,
+      "hitRate": 0.56061,
+      "meanConfidence": 0.6192,
+      "brier": 0.24187,
+      "calibrationGap": -0.05859,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 4,
+          "wins": 1,
+          "losses": 3,
+          "hitRate": 0.25,
+          "meanConfidence": 0.50775
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 16,
+          "wins": 7,
+          "losses": 9,
+          "hitRate": 0.4375,
+          "meanConfidence": 0.57337
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 18,
+          "wins": 11,
+          "losses": 7,
+          "hitRate": 0.61111,
+          "meanConfidence": 0.62128
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 12,
+          "wins": 7,
+          "losses": 5,
+          "hitRate": 0.58333,
+          "meanConfidence": 0.66975
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 8,
+          "wins": 6,
+          "losses": 2,
+          "hitRate": 0.75,
+          "meanConfidence": 0.71863
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.779
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 2,
+          "wins": 1,
+          "losses": 1,
+          "hitRate": 0.5,
+          "meanConfidence": 0.843
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        }
+      ]
+    }
+  },
+  "byMarket": {
+    "total_games": {
+      "n": 115,
+      "decisions": 115,
+      "wins": 74,
+      "losses": 41,
+      "pushes": 0,
+      "hitRate": 0.64348,
+      "meanConfidence": 0.62457,
+      "brier": 0.21054,
+      "calibrationGap": 0.01891,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 27,
+          "wins": 12,
+          "losses": 15,
+          "hitRate": 0.44444,
+          "meanConfidence": 0.52285
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 26,
+          "wins": 16,
+          "losses": 10,
+          "hitRate": 0.61538,
+          "meanConfidence": 0.57131
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 22,
+          "wins": 15,
+          "losses": 7,
+          "hitRate": 0.68182,
+          "meanConfidence": 0.61993
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 14,
+          "wins": 8,
+          "losses": 6,
+          "hitRate": 0.57143,
+          "meanConfidence": 0.67204
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 10,
+          "wins": 8,
+          "losses": 2,
+          "hitRate": 0.8,
+          "meanConfidence": 0.72125
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 5,
+          "wins": 5,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.7819
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 4,
+          "wins": 4,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.83525
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 4,
+          "wins": 4,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.98488
+        }
+      ]
+    },
+    "total_games_won": {
+      "n": 64,
+      "decisions": 64,
+      "wins": 35,
+      "losses": 29,
+      "pushes": 0,
+      "hitRate": 0.54688,
+      "meanConfidence": 0.63799,
+      "brier": 0.24884,
+      "calibrationGap": -0.09112,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 7,
+          "wins": 4,
+          "losses": 3,
+          "hitRate": 0.57143,
+          "meanConfidence": 0.53386
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 9,
+          "wins": 3,
+          "losses": 6,
+          "hitRate": 0.33333,
+          "meanConfidence": 0.56944
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 17,
+          "wins": 8,
+          "losses": 9,
+          "hitRate": 0.47059,
+          "meanConfidence": 0.62412
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 6,
+          "wins": 4,
+          "losses": 2,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.6635
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 7,
+          "wins": 5,
+          "losses": 2,
+          "hitRate": 0.71429,
+          "meanConfidence": 0.72243
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 4,
+          "wins": 3,
+          "losses": 1,
+          "hitRate": 0.75,
+          "meanConfidence": 0.76937
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 6,
+          "wins": 3,
+          "losses": 3,
+          "hitRate": 0.5,
+          "meanConfidence": 0.8485
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.93275
+        }
+      ]
+    }
+  },
+  "byTierMarket": {
+    "standard:total_games": {
+      "n": 18,
+      "decisions": 18,
+      "wins": 9,
+      "losses": 9,
+      "pushes": 0,
+      "hitRate": 0.5,
+      "meanConfidence": 0.55764,
+      "brier": 0.22863,
+      "calibrationGap": -0.05764,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 10,
+          "wins": 3,
+          "losses": 7,
+          "hitRate": 0.3,
+          "meanConfidence": 0.52175
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 2,
+          "wins": 1,
+          "losses": 1,
+          "hitRate": 0.5,
+          "meanConfidence": 0.559
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.6285
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.712
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.957
+        }
+      ]
+    },
+    "standard:total_games_won": {
+      "n": 18,
+      "decisions": 18,
+      "wins": 11,
+      "losses": 7,
+      "pushes": 0,
+      "hitRate": 0.61111,
+      "meanConfidence": 0.63711,
+      "brier": 0.2141,
+      "calibrationGap": -0.026,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.5405
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.574
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 8,
+          "wins": 3,
+          "losses": 5,
+          "hitRate": 0.375,
+          "meanConfidence": 0.61975
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 1,
+          "wins": 0,
+          "losses": 1,
+          "hitRate": 0,
+          "meanConfidence": 0.665
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.73025
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.7515
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.84
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        }
+      ]
+    },
+    "goblin:total_games": {
+      "n": 46,
+      "decisions": 46,
+      "wins": 36,
+      "losses": 10,
+      "pushes": 0,
+      "hitRate": 0.78261,
+      "meanConfidence": 0.64647,
+      "brier": 0.1769,
+      "calibrationGap": 0.13614,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 13,
+          "wins": 8,
+          "losses": 5,
+          "hitRate": 0.61538,
+          "meanConfidence": 0.52835
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 10,
+          "wins": 8,
+          "losses": 2,
+          "hitRate": 0.8,
+          "meanConfidence": 0.5695
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 6,
+          "wins": 5,
+          "losses": 1,
+          "hitRate": 0.83333,
+          "meanConfidence": 0.621
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 4,
+          "wins": 3,
+          "losses": 1,
+          "hitRate": 0.75,
+          "meanConfidence": 0.674
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 4,
+          "wins": 3,
+          "losses": 1,
+          "hitRate": 0.75,
+          "meanConfidence": 0.724
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 3,
+          "wins": 3,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.78383
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 3,
+          "wins": 3,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.84067
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 3,
+          "wins": 3,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.99417
+        }
+      ]
+    },
+    "goblin:total_games_won": {
+      "n": 31,
+      "decisions": 31,
+      "wins": 16,
+      "losses": 15,
+      "pushes": 0,
+      "hitRate": 0.51613,
+      "meanConfidence": 0.66279,
+      "brier": 0.26028,
+      "calibrationGap": -0.14666,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 6,
+          "wins": 3,
+          "losses": 3,
+          "hitRate": 0.5,
+          "meanConfidence": 0.53275
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 6,
+          "wins": 2,
+          "losses": 4,
+          "hitRate": 0.33333,
+          "meanConfidence": 0.56967
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 6,
+          "wins": 3,
+          "losses": 3,
+          "hitRate": 0.5,
+          "meanConfidence": 0.6255
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 3,
+          "wins": 2,
+          "losses": 1,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.66383
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 2,
+          "wins": 1,
+          "losses": 1,
+          "hitRate": 0.5,
+          "meanConfidence": 0.726
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 3,
+          "wins": 2,
+          "losses": 1,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.77533
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 3,
+          "wins": 1,
+          "losses": 2,
+          "hitRate": 0.33333,
+          "meanConfidence": 0.848
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.93275
+        }
+      ]
+    },
+    "demon:total_games": {
+      "n": 51,
+      "decisions": 51,
+      "wins": 29,
+      "losses": 22,
+      "pushes": 0,
+      "hitRate": 0.56863,
+      "meanConfidence": 0.62843,
+      "brier": 0.2345,
+      "calibrationGap": -0.0598,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 4,
+          "wins": 1,
+          "losses": 3,
+          "hitRate": 0.25,
+          "meanConfidence": 0.50775
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 14,
+          "wins": 7,
+          "losses": 7,
+          "hitRate": 0.5,
+          "meanConfidence": 0.57436
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 15,
+          "wins": 9,
+          "losses": 6,
+          "hitRate": 0.6,
+          "meanConfidence": 0.61893
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 10,
+          "wins": 5,
+          "losses": 5,
+          "hitRate": 0.5,
+          "meanConfidence": 0.67125
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 5,
+          "wins": 4,
+          "losses": 1,
+          "hitRate": 0.8,
+          "meanConfidence": 0.7209
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.779
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.819
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        }
+      ]
+    },
+    "demon:total_games_won": {
+      "n": 15,
+      "decisions": 15,
+      "wins": 8,
+      "losses": 7,
+      "pushes": 0,
+      "hitRate": 0.53333,
+      "meanConfidence": 0.5878,
+      "brier": 0.26689,
+      "calibrationGap": -0.05447,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 2,
+          "wins": 0,
+          "losses": 2,
+          "hitRate": 0,
+          "meanConfidence": 0.5665
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 3,
+          "wins": 2,
+          "losses": 1,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.633
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.66225
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 3,
+          "wins": 2,
+          "losses": 1,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.71483
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 1,
+          "wins": 0,
+          "losses": 1,
+          "hitRate": 0,
+          "meanConfidence": 0.867
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        }
+      ]
+    }
+  },
+  "byTour": {
+    "atp": {
+      "n": 70,
+      "decisions": 70,
+      "wins": 50,
+      "losses": 20,
+      "pushes": 0,
+      "hitRate": 0.71429,
+      "meanConfidence": 0.67659,
+      "brier": 0.1763,
+      "calibrationGap": 0.0377,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 9,
+          "wins": 5,
+          "losses": 4,
+          "hitRate": 0.55556,
+          "meanConfidence": 0.52589
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 16,
+          "wins": 7,
+          "losses": 9,
+          "hitRate": 0.4375,
+          "meanConfidence": 0.57297
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 11,
+          "wins": 7,
+          "losses": 4,
+          "hitRate": 0.63636,
+          "meanConfidence": 0.61959
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 5,
+          "wins": 3,
+          "losses": 2,
+          "hitRate": 0.6,
+          "meanConfidence": 0.6649
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 9,
+          "wins": 9,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.72194
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 7,
+          "wins": 7,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.77736
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 6,
+          "wins": 5,
+          "losses": 1,
+          "hitRate": 0.83333,
+          "meanConfidence": 0.85425
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 6,
+          "wins": 6,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.9675
+        }
+      ]
+    },
+    "wta": {
+      "n": 109,
+      "decisions": 109,
+      "wins": 59,
+      "losses": 50,
+      "pushes": 0,
+      "hitRate": 0.54128,
+      "meanConfidence": 0.59904,
+      "brier": 0.25502,
+      "calibrationGap": -0.05776,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 25,
+          "wins": 11,
+          "losses": 14,
+          "hitRate": 0.44,
+          "meanConfidence": 0.52484
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 19,
+          "wins": 12,
+          "losses": 7,
+          "hitRate": 0.63158,
+          "meanConfidence": 0.56903
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 28,
+          "wins": 16,
+          "losses": 12,
+          "hitRate": 0.57143,
+          "meanConfidence": 0.62261
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 15,
+          "wins": 9,
+          "losses": 6,
+          "hitRate": 0.6,
+          "meanConfidence": 0.671
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 8,
+          "wins": 4,
+          "losses": 4,
+          "hitRate": 0.5,
+          "meanConfidence": 0.7215
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 2,
+          "wins": 1,
+          "losses": 1,
+          "hitRate": 0.5,
+          "meanConfidence": 0.77275
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 4,
+          "wins": 2,
+          "losses": 2,
+          "hitRate": 0.5,
+          "meanConfidence": 0.82663
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        }
+      ]
+    }
+  },
+  "bySurface": {
+    "hard": {
+      "n": 162,
+      "decisions": 162,
+      "wins": 97,
+      "losses": 65,
+      "pushes": 0,
+      "hitRate": 0.59877,
+      "meanConfidence": 0.62929,
+      "brier": 0.22871,
+      "calibrationGap": -0.03052,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 30,
+          "wins": 14,
+          "losses": 16,
+          "hitRate": 0.46667,
+          "meanConfidence": 0.52438
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 32,
+          "wins": 18,
+          "losses": 14,
+          "hitRate": 0.5625,
+          "meanConfidence": 0.56977
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 36,
+          "wins": 21,
+          "losses": 15,
+          "hitRate": 0.58333,
+          "meanConfidence": 0.62315
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 18,
+          "wins": 10,
+          "losses": 8,
+          "hitRate": 0.55556,
+          "meanConfidence": 0.66961
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 14,
+          "wins": 10,
+          "losses": 4,
+          "hitRate": 0.71429,
+          "meanConfidence": 0.72314
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 7,
+          "wins": 6,
+          "losses": 1,
+          "hitRate": 0.85714,
+          "meanConfidence": 0.77736
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 10,
+          "wins": 7,
+          "losses": 3,
+          "hitRate": 0.7,
+          "meanConfidence": 0.8432
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 6,
+          "wins": 6,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.9675
+        }
+      ]
+    },
+    "clay": {
+      "n": 17,
+      "decisions": 17,
+      "wins": 12,
+      "losses": 5,
+      "pushes": 0,
+      "hitRate": 0.70588,
+      "meanConfidence": 0.63009,
+      "brier": 0.18159,
+      "calibrationGap": 0.07579,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 4,
+          "wins": 2,
+          "losses": 2,
+          "hitRate": 0.5,
+          "meanConfidence": 0.53063
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 3,
+          "wins": 1,
+          "losses": 2,
+          "hitRate": 0.33333,
+          "meanConfidence": 0.58217
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 3,
+          "wins": 2,
+          "losses": 1,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.605
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.66825
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 3,
+          "wins": 3,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.71517
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.77275
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        }
+      ]
+    },
+    "grass": {
+      "n": 0,
+      "decisions": 0,
+      "wins": 0,
+      "losses": 0,
+      "pushes": 0,
+      "hitRate": null,
+      "meanConfidence": null,
+      "brier": null,
+      "calibrationGap": null,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 0,
+          "wins": 0,
+          "losses": 0,
+          "hitRate": null,
+          "meanConfidence": null
+        }
+      ]
+    }
+  },
+  "economics": {
+    "roiAvailable": false,
+    "reason": "PrizePicks card payout/multiplier economics are not encoded per captured line; Goblin/Demon/Standard hit rates cannot be converted honestly into flat single-leg ROI.",
+    "standardDirectionalEvidence": {
+      "n": 36,
+      "decisions": 36,
+      "wins": 20,
+      "losses": 16,
+      "pushes": 0,
+      "hitRate": 0.55556,
+      "meanConfidence": 0.59737,
+      "brier": 0.22137,
+      "calibrationGap": -0.04182,
+      "confidenceBuckets": [
+        {
+          "lo": 0.5,
+          "hi": 0.55,
+          "n": 11,
+          "wins": 4,
+          "losses": 7,
+          "hitRate": 0.36364,
+          "meanConfidence": 0.52345
+        },
+        {
+          "lo": 0.55,
+          "hi": 0.6,
+          "n": 3,
+          "wins": 2,
+          "losses": 1,
+          "hitRate": 0.66667,
+          "meanConfidence": 0.564
+        },
+        {
+          "lo": 0.6,
+          "hi": 0.65,
+          "n": 9,
+          "wins": 4,
+          "losses": 5,
+          "hitRate": 0.44444,
+          "meanConfidence": 0.62072
+        },
+        {
+          "lo": 0.65,
+          "hi": 0.7,
+          "n": 1,
+          "wins": 0,
+          "losses": 1,
+          "hitRate": 0,
+          "meanConfidence": 0.665
+        },
+        {
+          "lo": 0.7,
+          "hi": 0.75,
+          "n": 3,
+          "wins": 3,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.72417
+        },
+        {
+          "lo": 0.75,
+          "hi": 0.8,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.7515
+        },
+        {
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 2,
+          "wins": 2,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.84
+        },
+        {
+          "lo": 0.9,
+          "hi": null,
+          "n": 1,
+          "wins": 1,
+          "losses": 0,
+          "hitRate": 1,
+          "meanConfidence": 0.957
+        }
+      ]
+    }
+  },
+  "unmatched": {
+    "linePairs": 39,
+    "sample": [
+      "diana shnaider|janice tjen",
+      "anastasia potapova|sinja kraus",
+      "alina charaeva|elena rybakina",
+      "sonay kartal|xinyu wang",
+      "novak djokovic|yunchaokete bu",
+      "mirra andreeva|yue yuan",
+      "kimberly birrell|marie bouzkova",
+      "linda fruhvirtova|liudmila samsonova",
+      "emerson jones|kyoka okamura",
+      "stefanos tsitsipas|valentin vacherot",
+      "aliona falei|sara sorribes tormo",
+      "diane parry|taylah preston",
+      "elena gabriela ruse|linda noskova",
+      "dayana yastremska|maja chwalinska",
+      "frantzen c haase r|melo m zverev a",
+      "daria snigur|jasmine paolini",
+      "jessica bouzas maneiro|sofya lansere",
+      "alexandra shubladze|sijia wei",
+      "cash j glasspool l|khachanov k rublev a",
+      "maddison inglis|sara bejlek",
+      "kyrian jacquet|luciano darderi",
+      "bublik a shang j|gonzalez m molteni a",
+      "maria timofeeva|naomi osaka",
+      "andreozzi g guinard m|arends s pel d",
+      "arthur gea|hubert hurkacz"
+    ]
+  },
+  "governance": {
+    "maturity": "RESEARCH",
+    "canQualify": false,
+    "canAuthorizeWager": false
+  },
+  "verdict": {
+    "prospectiveSamplePass": false,
+    "standardHitRatePass": false,
+    "calibrationPass": false,
+    "monotonicConfidenceEvidence": false,
+    "wagerPromotion": false,
+    "decision": "RESEARCH_ONLY"
+  }
+}

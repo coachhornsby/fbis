@@ -1,0 +1,16 @@
+name = "fbis-soccer-pitchapi-backfill"
+main = "workers/soccer-pitchapi-backfill-worker.mjs"
+compatibility_date = "2026-10-05"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[observability]
+enabled = true
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fbis"
+database_id = "b50c724c-903b-4241-8ce1-48d931e7a44c"

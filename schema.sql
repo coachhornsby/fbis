@@ -831,6 +831,16 @@ CREATE TABLE IF NOT EXISTS soccer_matches (
   away_possession REAL,
   home_corners REAL,
   away_corners REAL,
+  home_xg REAL,
+  away_xg REAL,
+  home_ppda REAL,
+  away_ppda REAL,
+  home_deep_completions REAL,
+  away_deep_completions REAL,
+  home_expected_points REAL,
+  away_expected_points REAL,
+  advanced_source TEXT,
+  advanced_observed_at TEXT,
   source TEXT NOT NULL DEFAULT 'espn',
   source_observed_at TEXT,
   provenance_json TEXT,
@@ -840,3 +850,718 @@ CREATE TABLE IF NOT EXISTS soccer_matches (
 );
 CREATE INDEX IF NOT EXISTS idx_soccer_matches_league_date ON soccer_matches (league, match_date, event_id);
 CREATE INDEX IF NOT EXISTS idx_soccer_matches_league_season_date ON soccer_matches (league, season, match_date, event_id);
+
+-- Persistent NFL team/player operating profiles.
+-- Current state is mutable; source observations remain immutable in their source tables.
+
+CREATE TABLE IF NOT EXISTS nfl_team_profiles (
+  team_key TEXT PRIMARY KEY,
+  team_name TEXT,
+  espn_team_id TEXT,
+  season INTEGER NOT NULL,
+  head_coach TEXT,
+  offensive_coordinator TEXT,
+  defensive_coordinator TEXT,
+  coach_source TEXT,
+  roster_count INTEGER NOT NULL DEFAULT 0,
+  injured_count INTEGER NOT NULL DEFAULT 0,
+  out_count INTEGER NOT NULL DEFAULT 0,
+  questionable_count INTEGER NOT NULL DEFAULT 0,
+  doubtful_count INTEGER NOT NULL DEFAULT 0,
+  limited_count INTEGER NOT NULL DEFAULT 0,
+  practice_dnp_count INTEGER NOT NULL DEFAULT 0,
+  next_game_id TEXT,
+  next_game_start TEXT,
+  next_opponent_key TEXT,
+  next_site TEXT,
+  days_rest REAL,
+  short_week INTEGER NOT NULL DEFAULT 0,
+  post_bye INTEGER NOT NULL DEFAULT 0,
+  road_trip_game_number INTEGER,
+  road_games_last_4 INTEGER,
+  three_road_in_four INTEGER NOT NULL DEFAULT 0,
+  travel_miles REAL,
+  time_zones_crossed INTEGER,
+  altitude_feet REAL,
+  international INTEGER NOT NULL DEFAULT 0,
+  schedule_stress_score REAL,
+  schedule_flags_json TEXT,
+  identity_json TEXT,
+  updated_at TEXT NOT NULL,
+  source_updated_at TEXT,
+  source_json TEXT
+);
+
+CREATE TABLE IF NOT EXISTS nfl_player_profiles (
+  player_key TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  player_id TEXT,
+  player_name TEXT NOT NULL,
+  position TEXT,
+  jersey TEXT,
+  roster_status TEXT,
+  depth_rank INTEGER,
+  role_label TEXT,
+  last_known_snap_share REAL,
+  health_state TEXT NOT NULL DEFAULT 'UNKNOWN',
+  practice_state TEXT,
+  injury_detail TEXT,
+  injury_onset_at TEXT,
+  injury_type TEXT,
+  injury_severity_class TEXT,
+  expected_return_state TEXT,
+  expected_snap_share REAL,
+  state_confidence REAL,
+  state_source TEXT,
+  state_source_updated_at TEXT,
+  last_game_played_at TEXT,
+  last_game_snap_share REAL,
+  replacement_json TEXT,
+  active_confirmation_at TEXT,
+  carried_state INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  raw_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_nfl_player_profiles_team
+  ON nfl_player_profiles(team_key, position, depth_rank);
+
+CREATE INDEX IF NOT EXISTS idx_nfl_player_profiles_health
+  ON nfl_player_profiles(health_state, updated_at);
+
+CREATE TABLE IF NOT EXISTS nfl_team_schedule_profile (
+  id TEXT PRIMARY KEY,
+  season INTEGER NOT NULL,
+  team_key TEXT NOT NULL,
+  event_id TEXT NOT NULL,
+  week INTEGER,
+  season_type TEXT,
+  start_time TEXT,
+  home_team_key TEXT,
+  away_team_key TEXT,
+  opponent_key TEXT,
+  site TEXT,
+  venue_name TEXT,
+  venue_city TEXT,
+  neutral_site INTEGER NOT NULL DEFAULT 0,
+  international INTEGER NOT NULL DEFAULT 0,
+  days_rest REAL,
+  short_week INTEGER NOT NULL DEFAULT 0,
+  post_bye INTEGER NOT NULL DEFAULT 0,
+  road_trip_game_number INTEGER,
+  road_games_last_4 INTEGER,
+  three_road_in_four INTEGER NOT NULL DEFAULT 0,
+  travel_miles REAL,
+  time_zones_crossed INTEGER,
+  altitude_feet REAL,
+  schedule_stress_score REAL,
+  stress_flags_json TEXT,
+  source_updated_at TEXT,
+  raw_json TEXT,
+  UNIQUE(season, team_key, event_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_nfl_team_schedule_profile_team_time
+  ON nfl_team_schedule_profile(season, team_key, start_time);
+
+
+CREATE TABLE IF NOT EXISTS nfl_team_profile_snapshots (
+  id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  season INTEGER NOT NULL,
+  as_of TEXT NOT NULL,
+  profile_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nfl_team_profile_snapshots_time
+  ON nfl_team_profile_snapshots(team_key, as_of DESC);
+
+CREATE TABLE IF NOT EXISTS nfl_player_state_events (
+  id TEXT PRIMARY KEY,
+  player_key TEXT,
+  player_name TEXT NOT NULL,
+  team_key TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  health_state TEXT,
+  practice_state TEXT,
+  injury_detail TEXT,
+  source TEXT NOT NULL,
+  source_timestamp TEXT NOT NULL,
+  evidence_rank INTEGER NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nfl_player_state_events_player
+  ON nfl_player_state_events(player_key, source_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_nfl_player_state_events_team
+  ON nfl_player_state_events(team_key, source_timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS nfl_team_coach_history (
+  id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  season INTEGER NOT NULL,
+  coach_name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  observed_at TEXT NOT NULL,
+  source TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_nfl_team_coach_history
+  ON nfl_team_coach_history(team_key, observed_at DESC);
+
+CREATE TABLE IF NOT EXISTS nfl_profile_sync_runs (
+  id TEXT PRIMARY KEY,
+  season INTEGER NOT NULL,
+  team_key TEXT,
+  status TEXT NOT NULL,
+  source TEXT,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  roster_rows INTEGER NOT NULL DEFAULT 0,
+  schedule_rows INTEGER NOT NULL DEFAULT 0,
+  injury_rows INTEGER NOT NULL DEFAULT 0,
+  player_rows_upserted INTEGER NOT NULL DEFAULT 0,
+  schedule_rows_upserted INTEGER NOT NULL DEFAULT 0,
+  error TEXT,
+  meta_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_nfl_profile_sync_runs_time
+  ON nfl_profile_sync_runs(started_at DESC, team_key);
+
+
+-- Persistent MLB team/player state. Keep in sync with migration 0055.
+CREATE TABLE IF NOT EXISTS mlb_team_profiles (
+  team_id TEXT PRIMARY KEY,
+  team_key TEXT NOT NULL,
+  team_name TEXT NOT NULL,
+  season INTEGER,
+  as_of TEXT NOT NULL,
+  roster_json TEXT NOT NULL,
+  rotation_json TEXT,
+  bullpen_json TEXT,
+  lineup_json TEXT,
+  schedule_json TEXT,
+  profile_json TEXT NOT NULL,
+  state_confidence REAL,
+  source_version TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mlb_team_profiles_key ON mlb_team_profiles(team_key);
+CREATE INDEX IF NOT EXISTS idx_mlb_team_profiles_asof ON mlb_team_profiles(as_of DESC);
+
+CREATE TABLE IF NOT EXISTS mlb_team_profile_snapshots (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL,
+  team_key TEXT NOT NULL,
+  season INTEGER,
+  as_of TEXT NOT NULL,
+  profile_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mlb_team_profile_snapshots_team_time
+  ON mlb_team_profile_snapshots(team_id,as_of DESC);
+
+CREATE TABLE IF NOT EXISTS mlb_player_state_profiles (
+  player_id TEXT PRIMARY KEY,
+  player_name TEXT NOT NULL,
+  team_id TEXT,
+  team_key TEXT,
+  position TEXT,
+  roster_status TEXT NOT NULL,
+  as_of TEXT NOT NULL,
+  state_source TEXT NOT NULL,
+  carried_forward INTEGER NOT NULL DEFAULT 0,
+  profile_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mlb_player_state_team
+  ON mlb_player_state_profiles(team_id,roster_status);
+
+CREATE TABLE IF NOT EXISTS mlb_pitcher_profiles (
+  player_id TEXT PRIMARY KEY,
+  player_name TEXT NOT NULL,
+  team_id TEXT,
+  team_key TEXT,
+  as_of TEXT NOT NULL,
+  innings_per_start REAL,
+  batters_faced_per_inning REAL,
+  expected_innings REAL,
+  recent_velocity REAL,
+  recent_pitch_mix_json TEXT,
+  statcast_profile_json TEXT,
+  profile_json TEXT NOT NULL,
+  source_version TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mlb_pitcher_profiles_team
+  ON mlb_pitcher_profiles(team_id,as_of DESC);
+
+CREATE TABLE IF NOT EXISTS mlb_hitter_profiles (
+  player_id TEXT PRIMARY KEY,
+  player_name TEXT NOT NULL,
+  team_id TEXT,
+  team_key TEXT,
+  as_of TEXT NOT NULL,
+  handedness TEXT,
+  lineup_role TEXT,
+  statcast_profile_json TEXT,
+  profile_json TEXT NOT NULL,
+  source_version TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mlb_hitter_profiles_team
+  ON mlb_hitter_profiles(team_id,as_of DESC);
+
+CREATE TABLE IF NOT EXISTS mlb_team_schedule_items (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL,
+  team_key TEXT NOT NULL,
+  game_id TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  opponent_id TEXT,
+  opponent_key TEXT,
+  home_away TEXT,
+  game_type TEXT,
+  series_description TEXT,
+  series_game_number INTEGER,
+  games_in_series INTEGER,
+  completed INTEGER NOT NULL DEFAULT 0,
+  rest_days REAL,
+  day_after_night INTEGER NOT NULL DEFAULT 0,
+  doubleheader INTEGER NOT NULL DEFAULT 0,
+  consecutive_road_games INTEGER NOT NULL DEFAULT 0,
+  source TEXT NOT NULL,
+  observed_at TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mlb_schedule_team_time
+  ON mlb_team_schedule_items(team_id,start_time);
+CREATE INDEX IF NOT EXISTS idx_mlb_schedule_game ON mlb_team_schedule_items(game_id);
+
+CREATE TABLE IF NOT EXISTS mlb_profile_refresh_state (
+  shard_key TEXT PRIMARY KEY,
+  as_of TEXT NOT NULL,
+  status TEXT NOT NULL,
+  teams_processed INTEGER NOT NULL DEFAULT 0,
+  players_processed INTEGER NOT NULL DEFAULT 0,
+  source_calls INTEGER NOT NULL DEFAULT 0,
+  error_count INTEGER NOT NULL DEFAULT 0,
+  cursor_json TEXT,
+  details_json TEXT,
+  updated_at TEXT NOT NULL
+);
+
+
+-- SOCCER-FBIS-v3 PitchAPI research feature store (migration 0057).
+-- SOCCER-FBIS-v3 PitchAPI research feature store.
+-- Market-free football observations only. Historical actual lineups are stored
+-- with post_match=1 and are never eligible as pre-kick lineup evidence.
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_match_features (
+  pitch_match_id TEXT PRIMARY KEY,
+  fbis_event_id TEXT,
+  league_key TEXT NOT NULL,
+  pitch_league_id TEXT,
+  pitch_league_name TEXT,
+  season TEXT,
+  match_date TEXT NOT NULL,
+  start_time TEXT,
+  status TEXT,
+  home_team_id TEXT NOT NULL,
+  home_team_name TEXT NOT NULL,
+  away_team_id TEXT NOT NULL,
+  away_team_name TEXT NOT NULL,
+  home_score REAL,
+  away_score REAL,
+  home_xg REAL,
+  away_xg REAL,
+  home_xgot REAL,
+  away_xgot REAL,
+  home_shots INTEGER,
+  away_shots INTEGER,
+  home_sot INTEGER,
+  away_sot INTEGER,
+  home_big_chances REAL,
+  away_big_chances REAL,
+  home_ppda REAL,
+  away_ppda REAL,
+  home_field_tilt REAL,
+  away_field_tilt REAL,
+  home_final_third_entries REAL,
+  away_final_third_entries REAL,
+  home_box_entries REAL,
+  away_box_entries REAL,
+  home_high_turnovers REAL,
+  away_high_turnovers REAL,
+  home_counterpress_regains REAL,
+  away_counterpress_regains REAL,
+  home_ball_recovery_time REAL,
+  away_ball_recovery_time REAL,
+  home_xt REAL,
+  away_xt REAL,
+  home_vaep REAL,
+  away_vaep REAL,
+  home_progressive_passes REAL,
+  away_progressive_passes REAL,
+  home_progressive_carries REAL,
+  away_progressive_carries REAL,
+  home_xag REAL,
+  away_xag REAL,
+  home_possession REAL,
+  away_possession REAL,
+  home_passes_per_sequence REAL,
+  away_passes_per_sequence REAL,
+  home_direct_speed REAL,
+  away_direct_speed REAL,
+  source_observed_at TEXT NOT NULL,
+  raw_advanced_json TEXT,
+  raw_stats_json TEXT,
+  raw_shots_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_soccer_league_date
+  ON soccer_pitchapi_match_features(league_key,match_date,pitch_match_id);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_soccer_home_date
+  ON soccer_pitchapi_match_features(home_team_id,match_date);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_soccer_away_date
+  ON soccer_pitchapi_match_features(away_team_id,match_date);
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_player_match (
+  id TEXT PRIMARY KEY,
+  pitch_match_id TEXT NOT NULL,
+  league_key TEXT NOT NULL,
+  match_date TEXT NOT NULL,
+  team_id TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  player_name TEXT,
+  minutes_played REAL,
+  actions REAL,
+  xt_total REAL,
+  vaep_total REAL,
+  xag REAL,
+  xg_chain REAL,
+  xg_buildup REAL,
+  progressive_passes REAL,
+  progressive_carries REAL,
+  chances_created REAL,
+  shots REAL,
+  source_observed_at TEXT NOT NULL,
+  raw_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(pitch_match_id,player_id)
+);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_player_history
+  ON soccer_pitchapi_player_match(player_id,match_date);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_player_team_date
+  ON soccer_pitchapi_player_match(team_id,match_date);
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_lineup_observations (
+  id TEXT PRIMARY KEY,
+  pitch_match_id TEXT NOT NULL,
+  league_key TEXT NOT NULL,
+  team_id TEXT NOT NULL,
+  side TEXT NOT NULL,
+  kickoff_time TEXT,
+  observed_at TEXT NOT NULL,
+  confirmed INTEGER NOT NULL DEFAULT 0,
+  lineup_type TEXT,
+  formation TEXT,
+  starters_json TEXT NOT NULL,
+  subs_json TEXT,
+  coach_name TEXT,
+  pre_match INTEGER NOT NULL DEFAULT 0,
+  post_match INTEGER NOT NULL DEFAULT 0,
+  raw_json TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_lineup_match_time
+  ON soccer_pitchapi_lineup_observations(pitch_match_id,observed_at);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_lineup_team_time
+  ON soccer_pitchapi_lineup_observations(team_id,observed_at);
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_sync_runs (
+  id TEXT PRIMARY KEY,
+  league_key TEXT,
+  pitch_league_id TEXT,
+  season TEXT,
+  mode TEXT NOT NULL,
+  status TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  matches_seen INTEGER NOT NULL DEFAULT 0,
+  matches_persisted INTEGER NOT NULL DEFAULT 0,
+  players_persisted INTEGER NOT NULL DEFAULT 0,
+  lineups_persisted INTEGER NOT NULL DEFAULT 0,
+  analytics_unavailable INTEGER NOT NULL DEFAULT 0,
+  errors INTEGER NOT NULL DEFAULT 0,
+  meta_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pitchapi_sync_runs_time
+  ON soccer_pitchapi_sync_runs(started_at DESC,league_key);
+
+
+
+-- Heritage x PitchAPI coverage + restartable queue (migration 0059).
+-- Timeout-safe Heritage x PitchAPI soccer coverage and backfill control.
+CREATE TABLE IF NOT EXISTS soccer_competition_coverage (
+  heritage_name TEXT PRIMARY KEY,
+  heritage_key TEXT,
+  offering_tier TEXT NOT NULL DEFAULT 'DISCOVERY',
+  model_eligible INTEGER,
+  policy_reason TEXT,
+  pitch_league_id TEXT,
+  pitch_league_name TEXT,
+  pitch_country_code TEXT,
+  match_score REAL,
+  match_method TEXT,
+  seasons_json TEXT,
+  current_season TEXT,
+  pitch_match_count INTEGER NOT NULL DEFAULT 0,
+  advanced_rows INTEGER NOT NULL DEFAULT 0,
+  advanced_coverage REAL,
+  history_start TEXT,
+  history_end TEXT,
+  discovery_status TEXT NOT NULL DEFAULT 'PENDING',
+  validation_status TEXT NOT NULL DEFAULT 'NOT_RUN',
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize INTEGER NOT NULL DEFAULT 0,
+  last_discovered_at TEXT,
+  last_ingested_at TEXT,
+  last_live_sync_at TEXT,
+  live_sync_errors INTEGER NOT NULL DEFAULT 0,
+  live_sync_last_error TEXT,
+  last_validation_at TEXT,
+  validation_n INTEGER NOT NULL DEFAULT 0,
+  validation_brier REAL,
+  validation_log_loss REAL,
+  validation_accuracy REAL,
+  notes TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_coverage_status
+  ON soccer_competition_coverage(discovery_status,offering_tier,heritage_name);
+CREATE INDEX IF NOT EXISTS idx_soccer_coverage_pitch
+  ON soccer_competition_coverage(pitch_league_id);
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_backfill_queue (
+  id TEXT PRIMARY KEY,
+  heritage_name TEXT NOT NULL,
+  heritage_key TEXT,
+  pitch_league_id TEXT NOT NULL,
+  season TEXT NOT NULL,
+  offset INTEGER NOT NULL DEFAULT 0,
+  page_size INTEGER NOT NULL DEFAULT 8,
+  status TEXT NOT NULL DEFAULT 'PENDING',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  matches_seen INTEGER NOT NULL DEFAULT 0,
+  matches_persisted INTEGER NOT NULL DEFAULT 0,
+  analytics_unavailable INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  lease_until TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  completed_at TEXT,
+  UNIQUE(pitch_league_id,season,offset)
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_backfill_queue_status
+  ON soccer_pitchapi_backfill_queue(status,updated_at);
+CREATE INDEX IF NOT EXISTS idx_soccer_backfill_queue_league
+  ON soccer_pitchapi_backfill_queue(pitch_league_id,season,offset);
+
+CREATE TABLE IF NOT EXISTS soccer_pitchapi_discovery_runs (
+  id TEXT PRIMARY KEY,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  status TEXT NOT NULL,
+  heritage_offerings INTEGER NOT NULL DEFAULT 0,
+  pitch_leagues INTEGER NOT NULL DEFAULT 0,
+  exact_matches INTEGER NOT NULL DEFAULT 0,
+  fuzzy_matches INTEGER NOT NULL DEFAULT 0,
+  unmatched INTEGER NOT NULL DEFAULT 0,
+  meta_json TEXT
+);
+
+
+
+-- Per-competition soccer validation ledger (migration 0061).
+CREATE TABLE IF NOT EXISTS soccer_competition_validation (
+  id TEXT PRIMARY KEY,
+  heritage_name TEXT NOT NULL,
+  heritage_key TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  sample_n INTEGER NOT NULL DEFAULT 0,
+  v2_accuracy REAL,
+  v2_brier REAL,
+  v2_log_loss REAL,
+  v3_accuracy REAL,
+  v3_brier REAL,
+  v3_log_loss REAL,
+  delta_accuracy REAL,
+  delta_brier REAL,
+  delta_log_loss REAL,
+  advanced_coverage REAL,
+  historical_gate TEXT NOT NULL DEFAULT 'NOT_RUN',
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize INTEGER NOT NULL DEFAULT 0,
+  evaluated_at TEXT NOT NULL,
+  meta_json TEXT,
+  UNIQUE(heritage_key,model_version)
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_comp_validation_gate ON soccer_competition_validation(historical_gate,sample_n);
+
+
+-- NFL QB personnel prospective shadow + NFL prop calibration/state freeze (migration 0065).
+-- NFL prospective QB-personnel shadow + point-in-time prop state freeze.
+-- Shadow rows are append-only. They never modify the NFL-PRO champion or wager authority.
+
+CREATE TABLE IF NOT EXISTS nfl_qb_personnel_shadow_predictions (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  season INTEGER,
+  week INTEGER,
+  start_time TEXT NOT NULL,
+  checkpoint TEXT NOT NULL,
+  frozen_at TEXT NOT NULL,
+
+  champion_governance_id TEXT NOT NULL,
+  incumbent_model_id TEXT,
+  incumbent_model_version TEXT,
+  incumbent_home REAL NOT NULL,
+  incumbent_away REAL NOT NULL,
+  incumbent_margin REAL NOT NULL,
+  incumbent_win_probability REAL,
+  incumbent_total REAL NOT NULL,
+
+  challenger_model_id TEXT NOT NULL,
+  challenger_home REAL NOT NULL,
+  challenger_away REAL NOT NULL,
+  challenger_margin REAL NOT NULL,
+  challenger_win_probability REAL,
+  challenger_total REAL NOT NULL,
+  margin_correction REAL NOT NULL DEFAULT 0,
+
+  combined_qb_burden REAL NOT NULL,
+  home_qb_burden REAL NOT NULL,
+  away_qb_burden REAL NOT NULL,
+  gate_threshold REAL NOT NULL,
+  gate_fired INTEGER NOT NULL DEFAULT 0,
+
+  executable_market_json TEXT,
+  home_profile_json TEXT,
+  away_profile_json TEXT,
+  personnel_json TEXT,
+  provenance_json TEXT NOT NULL,
+
+  actual_home REAL,
+  actual_away REAL,
+  actual_margin REAL,
+  actual_total REAL,
+  closing_market_json TEXT,
+  incumbent_margin_abs_error REAL,
+  challenger_margin_abs_error REAL,
+  incumbent_winner_correct INTEGER,
+  challenger_winner_correct INTEGER,
+  incumbent_brier REAL,
+  challenger_brier REAL,
+  incumbent_log_loss REAL,
+  challenger_log_loss REAL,
+  incumbent_ats_result TEXT,
+  challenger_ats_result TEXT,
+  incumbent_roi_units REAL,
+  challenger_roi_units REAL,
+  incumbent_clv REAL,
+  challenger_clv REAL,
+  graded_at TEXT,
+
+  lifecycle TEXT NOT NULL DEFAULT 'SHADOW',
+  can_qualify INTEGER NOT NULL DEFAULT 0,
+  can_authorize_wager INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  UNIQUE(event_id, checkpoint)
+);
+
+CREATE INDEX IF NOT EXISTS idx_nfl_qb_shadow_start
+  ON nfl_qb_personnel_shadow_predictions(start_time, graded_at);
+CREATE INDEX IF NOT EXISTS idx_nfl_qb_shadow_gate
+  ON nfl_qb_personnel_shadow_predictions(gate_fired, start_time);
+CREATE INDEX IF NOT EXISTS idx_nfl_qb_shadow_week
+  ON nfl_qb_personnel_shadow_predictions(season, week, checkpoint);
+
+CREATE TABLE IF NOT EXISTS nfl_prop_state_snapshots (
+  id TEXT PRIMARY KEY,
+  prop_line_id TEXT NOT NULL UNIQUE,
+  run_id TEXT,
+  projection_id TEXT,
+  event_id TEXT,
+  player_id TEXT,
+  player_name TEXT NOT NULL,
+  team_key TEXT,
+  market TEXT,
+  line REAL,
+  odds_tier TEXT,
+  line_observed_at TEXT,
+  collected_at TEXT NOT NULL,
+
+  health_state TEXT,
+  practice_state TEXT,
+  injury_detail TEXT,
+  injury_type TEXT,
+  injury_severity_class TEXT,
+  expected_return_state TEXT,
+  last_known_snap_share REAL,
+  expected_snap_share REAL,
+  depth_rank INTEGER,
+  role_label TEXT,
+  state_confidence REAL,
+  carried_state INTEGER NOT NULL DEFAULT 0,
+  state_source TEXT,
+  state_source_updated_at TEXT,
+  player_profile_updated_at TEXT,
+
+  player_state_json TEXT,
+  injury_evidence_json TEXT,
+  provenance_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_nfl_prop_state_player_time
+  ON nfl_prop_state_snapshots(player_name, collected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_nfl_prop_state_event
+  ON nfl_prop_state_snapshots(event_id, collected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_nfl_prop_state_market
+  ON nfl_prop_state_snapshots(market, collected_at DESC);
+
+CREATE TABLE IF NOT EXISTS nfl_prop_market_calibration_runs (
+  id TEXT PRIMARY KEY,
+  model_id TEXT NOT NULL,
+  model_version TEXT,
+  evaluated_at TEXT NOT NULL,
+  market TEXT NOT NULL,
+  sample_size INTEGER NOT NULL,
+  walk_forward_n INTEGER NOT NULL,
+  bias REAL,
+  empirical_sigma REAL,
+  raw_brier REAL,
+  raw_log_loss REAL,
+  raw_ece REAL,
+  calibrated_brier REAL,
+  calibrated_log_loss REAL,
+  calibrated_ece REAL,
+  monotonic INTEGER NOT NULL DEFAULT 0,
+  validated INTEGER NOT NULL DEFAULT 0,
+  validation_reason TEXT,
+  report_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_nfl_prop_calibration_market
+  ON nfl_prop_market_calibration_runs(market, evaluated_at DESC);

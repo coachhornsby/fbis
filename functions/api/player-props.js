@@ -1,3 +1,4 @@
+import { fetchEspnTennisRankings, buildTennisResearchBoardRows } from "../lib/tennisPrizePicksResearch.js";
 import {
   PRO_PLAYER_PROP_SPORTS,
   canonicalizeProPlayerPropMarket,
@@ -256,6 +257,41 @@ export async function onRequestGet(context) {
       .filter(Boolean),
   )].slice(0, 80);
   const sportParam = normalizeProPropSport(url.searchParams.get("sport"));
+  const dateParam = str(url.searchParams.get("date"));
+
+  if (!eventIds.length && sportParam === "tennis") {
+    try {
+      const where = ["LOWER(sport)='tennis'"];
+      const binds = [];
+      if (dateParam) { where.push("substr(start_time,1,10)=?"); binds.push(dateParam); }
+      const result = await context.env.DB.prepare(
+        `SELECT * FROM prizepicks_prop_lines
+          WHERE ${where.join(" AND ")}
+          ORDER BY collected_at DESC
+          LIMIT 4000`
+      ).bind(...binds).all();
+      const raw = result?.results || [];
+      const rankings = await fetchEspnTennisRankings();
+      const rows = buildTennisResearchBoardRows(raw, rankings);
+      return json({
+        ok:true,
+        rows,
+        sports:PRO_PLAYER_PROP_SPORTS,
+        governance:{role:"research_projection",inProductionRouter:false,decisionEligible:false,canQualify:false,canAuthorizeWager:false},
+        diagnostics:{
+          checkedEvents:new Set(rows.map(x=>x.fbisEventId)).size,
+          durableObservations:raw.length,
+          boardRows:rows.length,
+          tennisHeadshotRows:rows.filter(x=>x.imageUrl).length,
+          tennisHeadshotCoverage:rows.length ? rows.filter(x=>x.imageUrl).length/rows.length : 1,
+          tennisProjectedRows:rows.filter(x=>x.fbisProjection!=null).length,
+          rankingRows:rankings.rows.length,
+        },
+      });
+    } catch (error) {
+      return json({ok:false,error:String(error?.message||error),rows:[],diagnostics:{checkedEvents:0,durableObservations:0,boardRows:0}},500);
+    }
+  }
 
   if (!eventIds.length) {
     return json({
@@ -280,7 +316,7 @@ export async function onRequestGet(context) {
            FROM action_market_book_observations
           WHERE canonical_event_id IN (${placeholders})
             AND (canonical_player_id IS NOT NULL OR provider_player_id IS NOT NULL)
-            AND LOWER(sport) IN ('mlb','nfl','nba','wnba','nhl')
+            AND LOWER(sport) IN ('mlb','nfl','nba','wnba','nhl','tennis')
             AND COALESCE(decision_eligible, 0) = 0
             AND COALESCE(can_qualify, 0) = 0
             AND COALESCE(can_authorize_wager, 0) = 0

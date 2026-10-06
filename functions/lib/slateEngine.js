@@ -11,12 +11,17 @@ import { attachNflShadow } from "./nflModel.js";
 import { attachNflProShadow } from "./nflProModel.js";
 import { attachNflGameMatchups } from "./nflGameMatchup.js";
 import { attachNflWagerDecisions } from "./nflWagerDecision.js";
+import { loadNflTeamProfiles, attachNflPersistentProfiles } from "./nflTeamProfiles.js";
 import { NFL_WAGER_CONFIDENCE_V1 } from "../../data/models/nfl-wager-confidence-v1.js";
 import { attachNflVerseFeatures, loadNflVerseFeatures } from "./nflVerseFeed.js";
 import { attachMlbDeepShadow } from "./mlbDeepModel.js";
 import { attachBasketballFormResearch } from "./basketballFormModel.js";
-import { attachSoccerResearch } from "./soccerFbisV1.js";
+import { attachSoccerV2Research } from "./soccerFbisV2.js";
+import { attachSoccerV3Research } from "./soccerFbisV3.js";
 import { attachMlbBullpenContext, loadMlbBullpenContext } from "./mlbBullpenFeed.js";
+import { attachMlbPostseasonContext, loadMlbPostseasonContext } from "./mlbPostseasonContext.js";
+import { loadMlbPitchMatchupContext } from "./mlbPitchMatchupFeed.js";
+import { loadMlbPersistentState, buildPersistentBullpenFeed, attachMlbPersistentState, attachMlbPersistentFeatureContext } from "./mlbPersistentProfiles.js";
 import { attachCfbMatchupV2 } from "./cfbMatchupV2.js";
 import { attachCfbFbisV2, promoteCfbFbisV2ToBoard } from "./cfbFbisV2.js";
 import { attachCfbPlayerV1 } from "./cfbPlayerModel.js";
@@ -25,6 +30,7 @@ import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearc
 import { loadNhlResearchPrior, attachNhlResearch } from "./nhlResearchModel.js";
 import { attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
 import { loadNhlProV2Context, attachNhlProV2, NHL_PRO_V2_ID, NHL_PRO_V2_VERSION } from "./nhlProV2.js";
+import { attachNhlGoalieProbabilityShadow } from "./nhlGoalieProbabilityShadow.js";
 import { evaluateNhlGameWagers } from "./nhlWagerV1.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { attachCbbPro } from "./cbbProModel.js";
@@ -33,10 +39,13 @@ import { attachCbbPlayerGameResearch } from "./cbbPlayerGameModel.js";
 import { applyCbbPlayerMarginV1 } from "./cbbPlayerValidated.js";
 import { attachCbbPlayerProps } from "./cbbPlayerPropModel.js";
 import { pinMarkets } from "./pricing.js";
+import { canonicalProjectionConfidence } from "./projectionConfidence.js";
 import { applyAvailabilityAdjustment } from "./availability.js";
 import { attachMatchupFactors } from "./matchupFactors.js";
 import { attachMlbPlayerProjectionResearch, attachNpbPlayerProjectionResearch, attachKboPlayerProjectionResearch, attachNflPlayerProjectionResearch, attachNhlPlayerProjectionResearch, attachNbaPlayerProjectionBlocked } from "./proPlayerProjectionLayer.js";
+import { attachNbaBoardProjection } from "./nbaBoardProjection.js";
 import { loadWnbaPlayerContext, attachWnbaPlayerProjectionResearch } from "./wnbaPlayerProjection.js";
+import { loadWnbaImpactContext, attachWnbaImpactShadows } from "./wnbaPlayerImpactShadow.js";
 import { attachWnbaV2Research } from "./wnbaFbisV2.js";
 import { buildWnbaGameDecisions, WNBA_WAGER_DECISION_VERSION } from "./wnbaWagerDecision.js";
 import {
@@ -50,7 +59,7 @@ import {
 export * from "./slateEngineCore.js";
 export { pinMarkets } from "./pricing.js";
 
-const INDEPENDENT_SCORE_REQUIRED = new Set(["cbb", "nba", "wnba", "nhl", "nfl", "soccer"]);
+const INDEPENDENT_SCORE_REQUIRED = new Set(["cbb", "nba", "wnba", "nhl", "nfl", "soccer", "npb", "kbo"]);
 const CRITICAL_QUALITY_FLAGS = new Set(["pinnacle_implied_score", "market_unresolved"]);
 const MLB_STARTER_FLAGS = new Set(["missing_home_sp", "missing_away_sp"]);
 
@@ -65,14 +74,26 @@ export async function buildSlate(sport, date, env = {}) {
   let next = slate;
 
   if (id === "mlb") {
-    const bullpen = await loadMlbBullpenContext(slate.games || [], env).catch((err) => ({
-      byTeamId: {}, meta: { source: "MLB Stats relief split", teams: 0, available: 0, error: String(err?.message || err), marketInformed: false },
+    const persistent = await loadMlbPersistentState(slate.games || [], env, { maxAgeHours: 14 }).catch((err) => ({
+      byGameId: {},
+      meta: { configured: false, error: String(err?.message || err) },
     }));
-    const enriched = attachMlbBullpenContext(slate.games || [], bullpen).map((game) => {
+    const persistentGames = attachMlbPersistentState(slate.games || [], persistent);
+    const featureGames = attachMlbPersistentFeatureContext(persistentGames, persistent);
+    const persistentBullpen = buildPersistentBullpenFeed(featureGames, persistent);
+    const usePersistentBullpen = persistentBullpen.meta.available > 0 || Boolean(env?.DB?.prepare);
+    const bullpen = usePersistentBullpen
+      ? persistentBullpen
+      : await loadMlbBullpenContext(featureGames, env).catch((err) => ({
+          byTeamId: {}, meta: { source: "MLB Stats relief split", teams: 0, available: 0, error: String(err?.message || err), marketInformed: false },
+        }));
+
+    // Production board requests consume one batched persistent D1 state read.
+    // Expensive MLB Stats/Statcast fanout belongs to scheduled profile refreshes.
+    const baseEnriched = attachMlbBullpenContext(featureGames, bullpen).map((game) => {
       const pal = game.bpp || {};
       const parkRunsPct = Number(pal.park?.runsPct);
       const parkHrPct = Number(pal.park?.hrPct);
-      // Pal matchup is expressed from the offense perspective vs the opposing starter.
       const homeVsAwaySp = pal.matchup?.vsAwaySp || null;
       const awayVsHomeSp = pal.matchup?.vsHomeSp || null;
       return {
@@ -94,8 +115,6 @@ export async function buildSlate(sport, date, env = {}) {
           awayPalStarterExpectedInnings: pal.awaySp?.innings ?? null,
           homePalStarterProjectedKs: pal.homeSp?.k ?? null,
           awayPalStarterProjectedKs: pal.awaySp?.k ?? null,
-          // Keep Pal's finished game/F5 predictions available for auditing and
-          // external comparison, but MLB-FBIS-v2 never consumes them as score inputs.
           palProjectedHomeRuns: pal.homeRuns ?? null,
           palProjectedAwayRuns: pal.awayRuns ?? null,
           palHomeWinProbability: pal.pHome ?? null,
@@ -110,15 +129,41 @@ export async function buildSlate(sport, date, env = {}) {
         },
       };
     });
+
+    const postseason = await loadMlbPostseasonContext(baseEnriched, env, { persistentState: persistent }).catch((err) => ({
+      byGameId: {},
+      meta: { version: "research-v1-october-usage", postseasonGames: 0, available: 0, error: String(err?.message || err), marketInformed: false, canQualify: false },
+    }));
+    const octoberEnriched = attachMlbPostseasonContext(baseEnriched, postseason);
+
+    // Statcast profile loader sees postseason state and shortens recency windows
+    // for pitcher arsenal/pitch mix and hitter contact-zone behavior.
+    const pitchMatchup = await loadMlbPitchMatchupContext(octoberEnriched, env, { persistentState: persistent }).catch((err) => ({
+      byGameId: {},
+      meta: { source: "Baseball Savant Statcast pitch-level", games: 0, available: 0, error: String(err?.message || err), marketInformed: false, canQualify: false },
+    }));
+    const enriched = octoberEnriched.map((game) => ({
+      ...game,
+      mlbPitchMatchup: pitchMatchup.byGameId?.[String(game.id || game.bpp?.gamePk || "")] || null,
+    }));
+
     const deep = attachMlbDeepShadow(enriched);
     const research = promoteMlbResearchToBoard(deep.games);
-    const playerResearch = attachMlbPlayerProjectionResearch(research.games);
+    const playerResearch = attachMlbPlayerProjectionResearch(research.games, persistent);
     next = {
       ...slate,
       games: playerResearch,
       research: {
         ...(slate.research || {}),
+        mlbPersistentProfiles: {
+          ...persistent.meta,
+          profileAgePolicyHours: 14,
+          singleSlateRead: true,
+          boardLiveFanout: Boolean(!env?.DB?.prepare),
+        },
         mlbBullpen: bullpen.meta,
+        mlbPostseason: postseason.meta,
+        mlbPitchMatchup: pitchMatchup.meta,
         mlbDeep: deep.meta,
         mlbResearchBoard: research.meta,
       },
@@ -158,9 +203,12 @@ export async function buildSlate(sport, date, env = {}) {
     // but never qualify or authorize.
     const research = promoteNflResearchToBoard(gameMatchups.games);
     const playerResearch = attachNflPlayerProjectionResearch(research.games, { byTeam: verse.playersByTeam || {}, leaguePositionDefense: verse.leaguePositionDefense || {} });
+    const profileKeys=[...new Set(playerResearch.flatMap(g=>[g?.home?.abbr,g?.away?.abbr]).filter(Boolean).map(x=>String(x).toLowerCase()))];
+    const persistentProfiles=await loadNflTeamProfiles(env.DB||null,profileKeys).catch(()=>({teams:{},players:{}}));
+    const profiledGames=attachNflPersistentProfiles(playerResearch,persistentProfiles);
     next = {
       ...slate,
-      games: playerResearch,
+      games: profiledGames,
       nfl: baseline.meta,
       research: {
         ...(slate.research || {}),
@@ -169,6 +217,12 @@ export async function buildSlate(sport, date, env = {}) {
         nflPro: pro.meta,
         nflGameMatchup: gameMatchups.meta,
         nflResearchBoard: research.meta,
+        nflPersistentProfiles: {
+          version:"NFL-TEAM-PROFILE-v1",
+          teams:Object.keys(persistentProfiles.teams||{}).length,
+          players:Object.values(persistentProfiles.players||{}).reduce((n,x)=>n+x.length,0),
+          scheduleStressResearchOnly:true,
+        },
       },
     };
   } else if (id === "nhl") {
@@ -181,7 +235,7 @@ export async function buildSlate(sport, date, env = {}) {
         canQualify: false,
         canAuthorize: false,
       })),
-      loadNhlProV2Context(slate.date || date, slate.games || []).catch((err) => ({
+      loadNhlProV2Context(slate.date || date, slate.games || [], { DB: env.DB }).catch((err) => ({
         ok: false,
         error: String(err?.message || err),
         base: {
@@ -204,8 +258,9 @@ export async function buildSlate(sport, date, env = {}) {
     const baseline = attachNhlResearch(slate.games || [], prior);
     const fiveLayer = attachNhlV1(baseline.games, v1Context);
     const proV2 = attachNhlProV2(fiveLayer.games, proContext);
-    const research = promoteNhlResearchToBoard(proV2.games);
-    const playerResearch = attachNhlPlayerProjectionResearch(research.games, {...v1Context, playerEdge:proContext.playerEdge||null, opportunity:proContext.opportunity||null});
+    const goalieShadow = attachNhlGoalieProbabilityShadow(proV2.games, proContext.persistentProfiles||{});
+    const research = promoteNhlResearchToBoard(goalieShadow.games);
+    const playerResearch = attachNhlPlayerProjectionResearch(research.games, {...v1Context, playerEdge:proContext.playerEdge||null, opportunity:proContext.opportunity||null, persistentProfiles:proContext.persistentProfiles||null});
     const v2Promoted = Boolean(proV2.meta.historicalPromotionEligible && proV2.meta.projected > 0);
     next = {
       ...slate,
@@ -246,7 +301,11 @@ export async function buildSlate(sport, date, env = {}) {
           opportunityAvailable: Number(proContext.opportunity?.available||0),
           opportunityCoverage: Number(proContext.opportunity?.coverage||0),
           opportunityStatus: proContext.opportunity?.__timeout ? "TIMEOUT_FAIL_SOFT" : proContext.opportunity?.__error ? "DEGRADED_FAIL_SOFT" : "ACTIVE",
+          persistentProfileTeams: Object.keys(proContext.persistentProfiles?.teams||{}).length,
+          persistentProfileStatus: proContext.persistentProfiles?.__timeout ? "TIMEOUT_FAIL_SOFT" : proContext.persistentProfiles?.__error ? "DEGRADED_FAIL_SOFT" : proContext.persistentProfiles?.ok ? "ACTIVE" : "UNAVAILABLE",
+          persistentProfileRequestTimeSourceFetches: 0,
         },
+        nhlGoalieProbabilityShadow: goalieShadow.meta,
         nhlResearchBoard: research.meta,
       },
     };
@@ -286,7 +345,7 @@ export async function buildSlate(sport, date, env = {}) {
       games: attachKboPlayerProjectionResearch(next.games),
       research: {
         ...(next.research || {}),
-        kboFbisV1: next.kbo || { modelId:"KBO-FBIS-v1", maturity:"RESEARCH", canQualify:false, canAuthorize:false },
+        kboFbisV2: next.kbo || { modelId:"KBO-FBIS-v2", maturity:"RESEARCH", canQualify:false, canAuthorize:false },
       },
     };
   }
@@ -297,18 +356,23 @@ export async function buildSlate(sport, date, env = {}) {
       games: attachNpbPlayerProjectionResearch(next.games),
       research: {
         ...(next.research || {}),
-        npbFbisV1: next.npb || { modelId:"NPB-FBIS-v1", maturity:"RESEARCH", canQualify:false, canAuthorize:false },
+        npbFbisV2: next.npb || { modelId:"NPB-FBIS-v2", maturity:"RESEARCH", canQualify:false, canAuthorize:false },
       },
     };
   }
 
   if (id === "soccer" && Array.isArray(next.games)) {
-    const soccer = await attachSoccerResearch(next.games, env);
+    const soccer = await attachSoccerV2Research(next.games, env);
+    const v3 = await attachSoccerV3Research(soccer.games, env);
     next = {
       ...next,
-      games: soccer.games,
+      games: v3.games,
       modelVersion: soccer.meta?.version || next.modelVersion,
-      research: { ...(next.research || {}), soccerFbisV1: soccer.meta },
+      research: {
+        ...(next.research || {}),
+        soccerFbisV2: soccer.meta,
+        soccerFbisV3: v3.meta,
+      },
     };
   }
 
@@ -353,22 +417,34 @@ export async function buildSlate(sport, date, env = {}) {
       meta: { source:"ESPN_WNBA_ATHLETE_STATS", error:String(err?.message||err), marketInformed:false },
     }));
     const wnbaPlayers = attachWnbaPlayerProjectionResearch(next.games, wnbaCtx);
+    const impactCtx = await loadWnbaImpactContext(env.DB || null);
+    const impactShadow = attachWnbaImpactShadows(wnbaPlayers.games, impactCtx);
     next = {
       ...next,
-      games: wnbaPlayers.games,
+      games: impactShadow.games,
       research: {
         ...(next.research || {}),
         wnbaPlayerProjection: wnbaPlayers.meta,
+        wnbaPlayerImpact: {
+          ...impactShadow.meta,
+          context: impactCtx.meta,
+          incumbentPlayerModel: "WNBA-PLAYER-PROJ-v2",
+          challenger: "WNBA-PLAYER-PROP-IMPACT-v1",
+          incumbentGameModel: "WNBA-FBIS-v2",
+          gameChallenger: "WNBA-FBIS-IMPACT-v1",
+        },
       },
     };
   }
 
   if (id === "nba" && Array.isArray(next.games)) {
+    const hydrated = await attachNbaBoardProjection(next.games, env.DB || null);
     next = {
       ...next,
-      games: attachNbaPlayerProjectionBlocked(next.games),
+      games: attachNbaPlayerProjectionBlocked(hydrated.games),
       research: {
         ...(next.research || {}),
+        nbaBoardProjection: hydrated.meta,
         nbaPlayerProjection: {
           state: "BLOCKED_RIGHTS_CLEARED_PLAYER_FEED",
           canQualify: false,
@@ -379,10 +455,13 @@ export async function buildSlate(sport, date, env = {}) {
     };
   }
 
-  // Availability adjustment is applied only after the sport's final board model
-  // has been selected/promoted, so it cannot be overwritten by research-board
-  // promotion. This remains bounded and fully captured in the frozen snapshot.
-  if (Array.isArray(next.games) && ["nfl","cfb"].includes(id)) {
+  // State-before-weight governance:
+  // - CFB retains its approved availability adjustment.
+  // - NFL persistent state is attached broadly but MUST NOT alter the production
+  //   champion. The only historically validated NFL state-derived model effect
+  //   is the QB-personnel overlay, and that remains SHADOW-only until
+  //   prospective validation + operator approval.
+  if (Array.isArray(next.games) && id === "cfb") {
     next = {
       ...next,
       games: next.games.map((game) => applyAvailabilityAdjustment(game, id)),
@@ -499,6 +578,20 @@ export async function buildSlate(sport, date, env = {}) {
     }
   }
 
+  next = {
+    ...next,
+    games: (next?.games || []).map((game) => {
+      const confidence = canonicalProjectionConfidence({ ...game, sport: id });
+      return {
+        ...game,
+        confidenceStars: confidence.stars,
+        confidenceScore: confidence.score,
+        confidenceVersion: confidence.version,
+        confidenceSource: confidence.source,
+      };
+    }),
+  };
+
   return next;
 }
 
@@ -507,12 +600,19 @@ export function qualificationIntegrity(sport, game) {
   const projectionKind = game?.projectionKind || game?.model?.projectionKind || null;
   const flags = new Set(game?.quality?.flags || []);
 
-  // Research / maturity-gated models may display and publish but never qualify.
+  // Explicit qualification approval is allowed to override a RESEARCH maturity label.
+  // This separates "may surface a qualified edge" from "may size/authorize a wager".
+  const explicitlyQualificationEnabled =
+    game?.canQualify === true ||
+    game?.model?.canQualify === true ||
+    game?.nflProShadow?.canQualify === true ||
+    game?.nhlProV2?.canQualify === true ||
+    game?.mlbDeepShadow?.canQualify === true;
   if (
     game?.canQualify === false ||
     game?.qualificationBlocked === true ||
     game?.model?.canQualify === false ||
-    String(game?.projectionMaturity || game?.model?.maturity || "").toUpperCase() === "RESEARCH" ||
+    (!explicitlyQualificationEnabled && String(game?.projectionMaturity || game?.model?.maturity || "").toUpperCase() === "RESEARCH") ||
     game?.bettingAuthority === "NOT_ELIGIBLE"
   ) {
     return {

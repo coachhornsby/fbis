@@ -1,0 +1,78 @@
+name: Tennis v1.1 economic validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/tennis-v11-economic-usopen.mjs"
+      - ".github/workflows/tennis-v11-economic-validation.yml"
+      - "functions/lib/tennisTwoSidedV11.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  economic-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
+      TENNIS_ECON_MAX_REQUESTS: "60"
+      TENNIS_ECON_MIN_QUOTA_RESERVE: "250"
+      TENNIS_ECON_SIMS: "1200"
+      TENNIS_ECON_OUT: "research/tennis/economic-usopen-2025.json"
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Grade captured PrizePicks board prospectively
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TENNIS_PP_GRADE_OUT: "research/tennis/prizepicks-prospective-2026-10-01-02.json"
+          TENNIS_PP_GRADE_SIMS: "2000"
+        run: node scripts/tennis-prizepicks-prospective-grade.mjs | tee tennis-prizepicks-grade.log
+      - name: Verify prospective PrizePicks grading
+        run: |
+          node - <<'NODE'
+          const fs=require("fs");
+          const r=JSON.parse(fs.readFileSync("research/tennis/prizepicks-prospective-2026-10-01-02.json","utf8"));
+          if(r.integrity?.linesCapturedBeforeResults!==true) throw new Error("prospective integrity missing");
+          if(r.governance?.canAuthorizeWager!==false) throw new Error("wager gate violated");
+          console.log(JSON.stringify({coverage:r.sourceCoverage,overall:r.overall,byTier:r.byTier,byMarket:r.byMarket,economics:r.economics,verdict:r.verdict,unmatched:r.unmatched},null,2));
+          NODE
+      - name: Probe ESPN historical tennis odds
+        run: |
+          node scripts/tennis-espn-market-probe.mjs atp 20250825 | tee tennis-espn-atp.log
+          node scripts/tennis-espn-market-probe.mjs wta 20250825 | tee tennis-espn-wta.log
+      - name: Run licensed economic validation
+        if: env.THEODDS_API_KEY != ''
+        run: node scripts/tennis-v11-economic-usopen.mjs | tee tennis-economic.log
+      - name: Verify report
+        if: env.THEODDS_API_KEY != ''
+        run: |
+          node - <<'NODE'
+          const fs=require("fs");
+          const p="research/tennis/economic-usopen-2025.json";
+          const r=JSON.parse(fs.readFileSync(p,"utf8"));
+          if(!r.sample) throw new Error("missing sample");
+          if(r.quota.requestsUsed>60) throw new Error("request cap violated");
+          if(r.governance.canAuthorizeWager!==false) throw new Error("research gate violated");
+          console.log(JSON.stringify({sample:r.sample,predictive:r.predictive,betting:r.betting,propHistoricalProbe:r.propHistoricalProbe,verdict:r.verdict,quota:r.quota},null,2));
+          NODE
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: tennis-v11-economic-validation
+          path: |
+            research/tennis/economic-usopen-2025.json
+            artifacts/tennis-economic-usopen-2025-rows.jsonl
+            tennis-economic.log
+            tennis-espn-atp.log
+            tennis-espn-wta.log
+            research/tennis/prizepicks-prospective-2026-10-01-02.json
+            artifacts/tennis-prizepicks-prospective-rows.jsonl
+            tennis-prizepicks-grade.log
+          retention-days: 30

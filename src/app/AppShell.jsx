@@ -30,7 +30,7 @@ export default function AppShell({
 }) {
   const dateLabel = formatShellDate(new Date());
   const isPlayerProps = route === "player-props";
-  const showSportFilter = !isPlayerProps && SPORT_FILTER_ROUTES.includes(route);
+  const showSportFilter = false; // Redundant: Board and other views provide their own contextual filters.
   const healthDegraded = healthTone === "warn" || healthTone === "bad" || freshnessState === "STALE";
 
   return (
@@ -40,7 +40,7 @@ export default function AppShell({
       </a>
       <header className={`app-header app-shell-header fbis-shell-header route-${route}${isPlayerProps ? " player-props-legacy-header" : ""}`}>
         <div className="shell-brand">
-          <h1 className="shell-brand-mark">FBIS</h1>
+          <div className="shell-brand-lockup"><img className="shell-brand-bull" src="/fastwater-bull.png" alt="Fastwater" /><h1 className="shell-brand-mark">FBIS</h1></div>
           <div className="header-divider" />
           <div className="shell-brand-copy">
             <span className="shell-product-subtitle">{FBIS_PRODUCT_SUBTITLE}</span>

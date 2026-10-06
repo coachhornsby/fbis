@@ -20,8 +20,13 @@ import { enrichGamesVenues } from "./venues.js";
 import { attachKalshiSentiment } from "./kalshi.js";
 import { setMeta } from "./store.js";
 import { isUnusableCachedOddsMeta } from "./marketLineage.js";
-import { loadNpbContext, attachNpbFbisV1 } from "./npbFbisV1.js";
-import { loadKboContext, attachKboFbisV1 } from "./kboFbisV1.js";
+import { loadNpbV2Context, attachNpbFbisV2 } from "./npbFbisV2.js";
+import { loadKboV2Context, attachKboFbisV2 } from "./kboFbisV2.js";
+import { loadPitchApiBoardFixtures } from "./soccerPitchApiStore.js";
+
+export function shouldUseLiveMlbFeatureFallback(env = {}) {
+  return !env?.DB?.prepare;
+}
 
 export const SPORTS = {
   cbb: {
@@ -132,6 +137,18 @@ export const SPORTS = {
     minEv: 0.03,
     maxProb: 0.72,
   },
+  tennis: {
+    id: "tennis",
+    label: "TENNIS",
+    name: "ATP / WTA Tennis",
+    espn: null,
+    k: 1,
+    totalK: 1,
+    minSpreadEdge: 999,
+    minMlEdge: 1,
+    minEv: 1,
+    maxProb: 1,
+  },
   cfb: {
     id: "cfb",
     label: "CFB",
@@ -146,7 +163,7 @@ export const SPORTS = {
   },
 };
 
-export const BOARD_SPORTS = ["mlb", "npb", "kbo", "nba", "wnba", "nhl", "nfl", "cfb", "cbb", "soccer"];
+export const BOARD_SPORTS = ["mlb", "npb", "kbo", "nba", "wnba", "nhl", "nfl", "cfb", "cbb", "soccer", "tennis"];
 
 export function todayCT() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -274,6 +291,8 @@ function teamPayload(c) {
       location: null,
       shortDisplayName: null,
       slug: null,
+      color: null,
+      alternateColor: null,
     };
   }
   const rec = (c.records || []).find((r) => r.type === "total")?.summary || "";
@@ -295,6 +314,10 @@ function teamPayload(c) {
     location: team.location || null,
     shortDisplayName: team.shortDisplayName || null,
     slug: team.slug || null,
+    // Preserve provider brand metadata for presentation-only team atmosphere.
+    // These fields never enter projection, qualification, or wager logic.
+    color: team.color || null,
+    alternateColor: team.alternateColor || null,
   };
 }
 
@@ -775,8 +798,12 @@ function pushF5Recs(sport, game, recs, cfg, pin) {
   if (!BASEBALL.has(sport)) return;
   const f5Odds = game.odds?.f5;
   if (!f5Odds) return;
-  const formHome = game.bpp?.f5?.homeWin ?? game.bpp?.matchupForm;
-  const formAway = game.bpp?.f5?.awayWin ?? (formHome != null ? 1 - formHome : null);
+
+  // MLB-FBIS is the sole F5 projection authority. Ballpark Pal F5 remains
+  // visible as an external comparison but must never generate a recommendation.
+  const fbisF5 = game.mlbDeepShadow?.f5 || game.challengers?.["MLB-FBIS-v2"]?.f5 || null;
+  const formHome = sport === "mlb" ? fbisF5?.probabilities?.homeConditional ?? fbisF5?.probabilities?.homeWin ?? null : game.bpp?.f5?.homeWin ?? game.bpp?.matchupForm;
+  const formAway = sport === "mlb" ? fbisF5?.probabilities?.awayConditional ?? fbisF5?.probabilities?.awayWin ?? null : game.bpp?.f5?.awayWin ?? (formHome != null ? 1 - formHome : null);
 
   if (formHome != null && (f5Odds.homeMl != null || f5Odds.awayMl != null)) {
     const homePriced = priceSelection({ pWin: formHome, twoWay: pin?.f5ml, side: "A", pinPrice: f5Odds.homeMl });
@@ -803,10 +830,10 @@ function pushF5Recs(sport, game, recs, cfg, pin) {
     }
   }
 
-  const palTotal = game.bpp?.f5?.total;
-  if (palTotal != null && f5Odds.total != null) {
+  const projectedTotal = sport === "mlb" ? fbisF5?.total ?? null : game.bpp?.f5?.total ?? null;
+  if (projectedTotal != null && f5Odds.total != null) {
     const line = f5Odds.total;
-    const diff = palTotal - line;
+    const diff = projectedTotal - line;
     if (Math.abs(diff) >= cfg.minSpreadEdge) {
       const over = diff > 0;
       const pF5Raw = logistic(Math.abs(diff), cfg.totalK);
@@ -1190,6 +1217,11 @@ function mapMlbStatsGame(g) {
     },
     homeSp: mapPitcher(home.probablePitcher),
     awaySp: mapPitcher(away.probablePitcher),
+    gameType: g.gameType || null,
+    seriesDescription: g.seriesDescription || g.description || null,
+    seriesGameNumber: num(g.seriesGameNumber),
+    gamesInSeries: num(g.gamesInSeries),
+    gameNumber: num(g.gameNumber),
     f5Score: f5FromLinescore(g),
     odds: { spread: null, total: null, homeMl: null, awayMl: null, details: "", book: EXECUTION_BOOK },
     espnHomeWinPct: null,
@@ -1633,7 +1665,7 @@ export async function buildSlate(sport, date, env = {}) {
 
   if (id === "kbo") {
     try {
-      kboContext = await loadKboContext(day);
+      kboContext = await loadKboV2Context(day);
       games = kboContext.games || [];
       scheduleResolved = true;
     } catch {
@@ -1643,7 +1675,7 @@ export async function buildSlate(sport, date, env = {}) {
 
   if (id === "npb") {
     try {
-      npbContext = await loadNpbContext(day);
+      npbContext = await loadNpbV2Context(day);
       games = npbContext.games || [];
       scheduleResolved = true;
     } catch {
@@ -1661,12 +1693,22 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "soccer") {
-    try {
-      games = await fetchSoccerScoreboard(day);
-      scheduleResolved = true;
-    } catch {
-      games = [];
+    const [espnGames,pitchGames] = await Promise.all([
+      fetchSoccerScoreboard(day).catch(()=>[]),
+      loadPitchApiBoardFixtures(env,{date:day}).catch(()=>[]),
+    ]);
+    const byFixture=new Map();
+    const fixtureKey=(g)=>[
+      String(g.start||g.date||"").slice(0,16),
+      String(g.home?.name||"").toLowerCase().replace(/[^a-z0-9]/g,""),
+      String(g.away?.name||"").toLowerCase().replace(/[^a-z0-9]/g,"")
+    ].join("|");
+    for(const g of [...pitchGames,...espnGames]) {
+      const k=fixtureKey(g);
+      if(!byFixture.has(k)) byFixture.set(k,g);
     }
+    games=[...byFixture.values()];
+    scheduleResolved=true;
   }
 
   if (!games.length && !["npb","kbo","soccer"].includes(id)) {
@@ -1757,8 +1799,23 @@ export async function buildSlate(sport, date, env = {}) {
   let cfb = { meta: { enabled: false } };
   let cbbd = { meta: { configured: false } };
   if (id === "mlb") {
-    savant = await fetchSavantSlate(games, env.caches);
-    games = savant.games || games;
+    if (shouldUseLiveMlbFeatureFallback(env)) {
+      savant = await fetchSavantSlate(games, env.caches);
+      games = savant.games || games;
+    } else {
+      // Production MLB feature state is attached by the public slate facade from
+      // one batched D1 read. Never fan out to Savant/MLB Stats from a board request.
+      savant = {
+        meta: {
+          enabled: true,
+          persistent: true,
+          deferredToPersistentState: true,
+          liveFanout: false,
+          source: "MLB persistent D1 state",
+        },
+      };
+    }
+    // Current lineup identities / Pal feature context remain one cached bounded feed.
     pal = await fetchBallparkPal(day, env.BALLPARK_PAL_API_KEY, env.caches, { cacheOnly: Boolean(env.palCacheOnly) });
     games = mergeBallparkPal(games, pal);
   }
@@ -1775,12 +1832,12 @@ export async function buildSlate(sport, date, env = {}) {
   }
 
   if (id === "npb" && npbContext) {
-    const attached = attachNpbFbisV1(games, npbContext);
+    const attached = attachNpbFbisV2(games, npbContext);
     games = attached.games;
     npbContext = { ...npbContext, meta: attached.meta };
   }
   if (id === "kbo" && kboContext) {
-    const attached = attachKboFbisV1(games, kboContext);
+    const attached = attachKboFbisV2(games, kboContext);
     games = attached.games;
     kboContext = { ...kboContext, meta: attached.meta };
   }
@@ -1818,7 +1875,7 @@ export async function buildSlate(sport, date, env = {}) {
     npb: id === "npb" ? {
       source: npbContext?.source || "NPB.jp",
       timezone: npbContext?.timezone || "Asia/Tokyo",
-      modelId: npbContext?.meta?.modelId || "NPB-FBIS-v1",
+      modelId: npbContext?.meta?.modelId || "NPB-FBIS-v2",
       modelVersion: npbContext?.meta?.modelVersion || null,
       projected: npbContext?.meta?.projected || 0,
       missing: npbContext?.meta?.missing || 0,
@@ -1830,7 +1887,7 @@ export async function buildSlate(sport, date, env = {}) {
     kbo: id === "kbo" ? {
       source: kboContext?.source || "KBO official English site",
       timezone: kboContext?.timezone || "Asia/Seoul",
-      modelId: kboContext?.meta?.modelId || "KBO-FBIS-v1",
+      modelId: kboContext?.meta?.modelId || "KBO-FBIS-v2",
       modelVersion: kboContext?.meta?.modelVersion || null,
       projected: kboContext?.meta?.projected || 0,
       missing: kboContext?.meta?.missing || 0,

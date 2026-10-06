@@ -117,3 +117,15 @@ test("selective prop portfolio requires enough modeled hit probability and role 
   assert.deepEqual(out.rows.map(r=>r.playerName),["Stable"]);
   assert.equal(out.policy.minHitProbability,0.56);
 });
+
+
+test("MLB pitcher K candidate threshold is locked at 0.75 Ks", () => {
+  const out = rankSelectiveProps([
+    {sport:"mlb",eventId:"m1",playerName:"A",market:"strikeouts",fbisProjection:6.3,line:5.5,fbisSigma:1.5,dataQuality:1,propGate:"CLEAR",eligibleForCard:true},
+    {sport:"mlb",eventId:"m2",playerName:"B",market:"strikeouts",fbisProjection:6.1,line:5.5,fbisSigma:1.5,dataQuality:1,propGate:"CLEAR",eligibleForCard:true},
+  ], { minStars:1, minHitProbability:0.50 });
+  assert.deepEqual(out.rows.map(r=>r.playerName),["A"]);
+  assert.equal(out.rows[0].mlbKCandidate.threshold,0.75);
+  assert.equal(out.rows[0].mlbKCandidate.state,"PROSPECTIVE_CANDIDATE");
+  assert.equal(out.policy.mlbPitcherKCandidateEdge,0.75);
+});

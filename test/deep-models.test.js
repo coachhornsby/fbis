@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { projectMlbDeep, MLB_DEEP_ID } from "../functions/lib/mlbDeepModel.js";
+import { projectMlbDeep, MLB_DEEP_ID, MLB_PITCH_ZONE_K_CALIBRATION } from "../functions/lib/mlbDeepModel.js";
 import { projectCfbMatchupV2, CFB_MATCHUP_V2_ID } from "../functions/lib/cfbMatchupV2.js";
 import { projectNflProV1, NFL_PRO_ID } from "../functions/lib/nflProModel.js";
 import { modelMeta, shadowCannotQualify } from "../functions/lib/collegeModels.js";
@@ -44,7 +44,7 @@ test("MLB deep challenger allocates starter and bullpen run prevention without m
   assert.equal(p.modelId, MLB_DEEP_ID);
   assert.equal(p.independent, true);
   assert.equal(p.marketInformed, false);
-  assert.equal(p.canQualify, false);
+  assert.equal(p.canQualify, true);
   assert.ok(Number.isFinite(p.home));
   assert.ok(Number.isFinite(p.away));
   assert.ok(p.decomposition.home.bullpenShare > 0);
@@ -69,6 +69,47 @@ test("MLB deep challenger allocates starter and bullpen run prevention without m
   assert.ok(Number.isFinite(p.pitcherKs.away.projection));
   assert.equal(p.pitcherKs.home.independentOfPalFinalProjection, true);
   assert.equal(p.pitcherKs.away.independentOfPalFinalProjection, true);
+});
+
+
+
+test("MLB pitcher K uses validated pitch-zone calibration when detailed matchup exists", () => {
+  const p = projectMlbDeep({
+    sport: "mlb",
+    home: { abbr: "HOU" },
+    away: { abbr: "SEA" },
+    homeSp: { id: 1, name: "Home Starter" },
+    awaySp: { id: 2, name: "Away Starter" },
+    savant: {
+      homeRpg: 4.6, awayRpg: 4.4,
+      homeSpEra: 3.5, awaySpEra: 4.1,
+      homeSpKPer9: 9.0, awaySpKPer9: 8.0,
+      homeSpInningsPerStart: 6.0, awaySpInningsPerStart: 5.5,
+      homeSpBattersFacedPerInning: 4.2, awaySpBattersFacedPerInning: 4.3,
+      homeOpponentKRate: 0.23, awayOpponentKRate: 0.22, leagueKRate: 0.225,
+    },
+    mlbContext: { homeBullpenEra: 4.0, awayBullpenEra: 4.2 },
+    mlbPitchMatchup: {
+      awayOffense: { lineupKRate: 0.25, coverage: 0.8, whiffPerSwing: 0.27, contactPerSwing: 0.73, dynamicDifficulty: 0.2 },
+      homeOffense: { lineupKRate: 0.22, coverage: 0.8, whiffPerSwing: 0.24, contactPerSwing: 0.76, dynamicDifficulty: 0.1 },
+    },
+  });
+  const home = p.pitcherKs.home;
+  assert.equal(home.calibrationState, "HISTORICALLY_VALIDATED_2026_HOLDOUT");
+  assert.equal(home.source, "STATCAST_PITCH_SHAPE_X_HITTER_ZONE_X_WORKLOAD_CALIBRATED_V1");
+  assert.equal(home.calibration.pitchZoneWeight, MLB_PITCH_ZONE_K_CALIBRATION.pitchZoneWeight);
+  assert.ok(Number.isFinite(home.rawPitchZoneProjection));
+  assert.ok(Number.isFinite(home.baselineProjection));
+  const expected = Math.max(
+    1,
+    Math.min(
+      12.5,
+      home.baselineProjection * MLB_PITCH_ZONE_K_CALIBRATION.baselineWeight +
+      home.rawPitchZoneProjection * MLB_PITCH_ZONE_K_CALIBRATION.pitchZoneWeight +
+      MLB_PITCH_ZONE_K_CALIBRATION.offset
+    )
+  );
+  assert.ok(Math.abs(home.projection - Math.round(expected * 10) / 10) < 1e-9);
 });
 
 test("MLB deep challenger uses Pal starter innings as a fallback but not Pal final game predictions", () => {
@@ -193,7 +234,7 @@ test("NFL pro v1 requires independent EPA and QB evidence and keeps QB separate"
   assert.equal(p.ok, true);
   assert.equal(p.modelId, NFL_PRO_ID);
   assert.equal(p.marketInformed, false);
-  assert.equal(p.canQualify, false);
+  assert.equal(p.canQualify, true);
   assert.equal(p.provenance.qbSeparatedFromTeamBaseline, true);
   assert.ok(Number.isFinite(p.home));
   assert.ok(Number.isFinite(p.away));

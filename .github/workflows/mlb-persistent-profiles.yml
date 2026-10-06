@@ -1,0 +1,156 @@
+name: MLB persistent team profiles
+# Timeout-safe: six source shards + one batched D1 import.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "45 10,18 * * *"
+  push:
+    branches: [main, "feat/mlb-persistent-state-*"]
+    paths:
+      - "functions/lib/mlbPersistentProfiles.js"
+      - "functions/lib/mlbPitchMatchupFeed.js"
+      - "functions/lib/mlbPostseasonContext.js"
+      - "scripts/mlb-persistent-profile-source.mjs"
+      - "scripts/mlb-persistent-profile-merge.mjs"
+      - "migrations/0055_mlb_persistent_profiles.sql"
+      - "test/mlb-persistent-profiles.test.js"
+      - ".github/workflows/mlb-persistent-profiles.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mlb-persistent-team-profiles
+  cancel-in-progress: false
+
+jobs:
+  source:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5]
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Collect five MLB teams
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          node scripts/mlb-persistent-profile-source.mjs             shardIndex=${{ matrix.shard }} shardCount=6 concurrency=1             out=artifacts/mlb-profile-${{ matrix.shard }}.json             sql=artifacts/mlb-profile-${{ matrix.shard }}.sql
+          jq -e '.quality.teams >= 4 and .quality.errors <= 1' artifacts/mlb-profile-${{ matrix.shard }}.json >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlb-profile-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            artifacts/mlb-profile-${{ matrix.shard }}.json
+            artifacts/mlb-profile-${{ matrix.shard }}*.sql
+          retention-days: 7
+
+  persist:
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: node --test test/mlb-persistent-profiles.test.js test/mlb-pitch-matchup.test.js test/mlb-postseason.test.js
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mlb-profile-*-${{ github.run_id }}
+          path: artifacts/mlb-profile-shards
+      - name: Merge six restartable shards
+        run: |
+          node scripts/mlb-persistent-profile-merge.mjs artifacts/mlb-profile-shards artifacts/mlb-persistent-profiles.json
+          jq -e '.quality.teams >= 29 and .quality.errors <= 1' artifacts/mlb-persistent-profiles.json >/dev/null
+      - name: Persist D1 profiles
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          retry_cf() {
+            local attempt=1
+            local max=5
+            local delay=3
+            while true; do
+              if "$@"; then return 0; fi
+              if [ "$attempt" -ge "$max" ]; then
+                echo "Cloudflare command failed after $max attempts: $*"
+                return 1
+              fi
+              echo "Cloudflare transient failure; retry $attempt/$max in ${delay}s"
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          retry_cf npx wrangler d1 execute fbis --remote --file=migrations/0055_mlb_persistent_profiles.sql
+          # D1 supports large import files; concatenate the already bounded
+          # per-statement SQL parts into one import so persistence pays the
+          # Cloudflare CLI/network overhead once instead of dozens of times.
+          # Individual statements remain below D1's statement-size limit.
+          mapfile -d '' sql_files < <(find artifacts/mlb-profile-shards -name '*.sql' -print0 | sort -z)
+          if [ "${#sql_files[@]}" -eq 0 ]; then
+            echo "No MLB profile SQL artifacts found"
+            exit 1
+          fi
+          : > artifacts/mlb-persistent-profiles-batch.sql
+          for f in "${sql_files[@]}"; do
+            echo "-- source: $f" >> artifacts/mlb-persistent-profiles-batch.sql
+            cat "$f" >> artifacts/mlb-persistent-profiles-batch.sql
+            printf '\n' >> artifacts/mlb-persistent-profiles-batch.sql
+          done
+          echo "Applying combined MLB profile batch ($(wc -c < artifacts/mlb-persistent-profiles-batch.sql) bytes)"
+          retry_cf npx wrangler d1 execute fbis --remote --file=artifacts/mlb-persistent-profiles-batch.sql
+      - name: Archive current profile state
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          retry_cf() {
+            local attempt=1
+            local max=5
+            local delay=3
+            while true; do
+              if "$@"; then return 0; fi
+              if [ "$attempt" -ge "$max" ]; then return 1; fi
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          retry_cf npx wrangler r2 object put "fbis-archive/models/mlb/team-profiles/current.json" --file artifacts/mlb-persistent-profiles.json --remote
+          stamp=$(date -u +%Y%m%dT%H%M%SZ)
+          retry_cf npx wrangler r2 object put "fbis-archive/models/mlb/team-profiles/snapshots/${stamp}.json" --file artifacts/mlb-persistent-profiles.json --remote
+      - name: Publish summary
+        run: |
+          {
+            echo "## MLB persistent profiles"
+            jq -r '"- Teams: \(.quality.teams)"' artifacts/mlb-persistent-profiles.json
+            jq -r '"- Players: \(.quality.players)"' artifacts/mlb-persistent-profiles.json
+            jq -r '"- Pitchers: \(.quality.pitchers)"' artifacts/mlb-persistent-profiles.json
+            jq -r '"- Hitters: \(.quality.hitters)"' artifacts/mlb-persistent-profiles.json
+            jq -r '"- Pitcher Statcast: \(.quality.pitcherStatcast)"' artifacts/mlb-persistent-profiles.json
+            jq -r '"- Hitter Statcast: \(.quality.hitterStatcast)"' artifacts/mlb-persistent-profiles.json
+            jq -r '"- Source calls: \(.quality.sourceCalls)"' artifacts/mlb-persistent-profiles.json
+            jq -r '"- Errors: \(.quality.errors)"' artifacts/mlb-persistent-profiles.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlb-persistent-profiles-${{ github.run_id }}
+          path: artifacts/mlb-persistent-profiles.json
+          retention-days: 30

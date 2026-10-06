@@ -14,11 +14,11 @@ import {
   nhlPropConfidenceLineValidated,
 } from "../../../functions/lib/nhlPropConfidence.js";
 import { evaluateNhlPropWagerV1 } from "../../../functions/lib/nhlWagerV1.js";
-import { selectivePropStars } from "../../../functions/lib/selectivePropEdge.js";
+import { applyPropCalibrationCeiling, estimatedPropHitProbability, prizePicksTierEconomics, selectivePropStars } from "../../../functions/lib/selectivePropEdge.js";
 
 /**
  * All player-prop markets currently supported on FBIS product surfaces.
- * Scope is deliberately pro-only: MLB, NFL, NBA, NHL.
+ * PrizePicks payout/tier rules are platform-level and apply regardless of sport.
  */
 export const FBIS_PLAYER_MARKETS = Object.freeze([
   ...new Set(PRO_PLAYER_PROP_SPORTS.flatMap((sport) => PRO_PLAYER_PROP_MARKETS[sport] || [])),
@@ -28,8 +28,10 @@ export const FBIS_PLAYER_MARKETS = Object.freeze([
 export const MARKET_LABELS = Object.freeze({ ...PRO_PLAYER_PROP_LABELS });
 
 /**
- * Generic 1–5 star projection confidence from FBIS projection vs market line.
- * Sport-specific validated graders (for example NHL goalie saves) remain authoritative.
+ * Generic raw projection-gap confidence from FBIS projection vs market line.
+ * This path is intentionally capped at 3★ because z-distance / relative gap is
+ * not a calibrated hit-probability mapping. Validated sport/market graders may
+ * unlock 4★/5★ through the shared calibration contract.
  */
 export function propProjectionStars(row = {}) {
   const projectionRaw = row.fbisProjection ?? row.fbis_projection ?? row.projection ?? null;
@@ -49,16 +51,12 @@ export function propProjectionStars(row = {}) {
 
   if (Number.isFinite(sigma) && sigma > 0) {
     const z = delta / sigma;
-    if (z >= 0.90) return 5;
-    if (z >= 0.65) return 4;
     if (z >= 0.40) return 3;
     if (z >= 0.20) return 2;
     return 1;
   }
 
   const relativeGap = delta / Math.max(Math.abs(line), 1);
-  if (relativeGap >= 0.15) return 5;
-  if (relativeGap >= 0.10) return 4;
   if (relativeGap >= 0.06) return 3;
   if (relativeGap >= 0.03) return 2;
   return 1;
@@ -69,6 +67,21 @@ export function propProjectionStars(row = {}) {
  * May derive over/under probability from projection + sigma + line only —
  * never invents a projection or price.
  */
+function applyPrizePicksPlatformConfidence(row = {}, stars = 1, opts = {}) {
+  const hitProbability = estimatedPropHitProbability(row);
+  const economics = prizePicksTierEconomics(row, hitProbability);
+  const calibrationRow = opts.calibrationValidated === true
+    ? { ...row, propCalibrationValidated: true }
+    : row;
+  return {
+    stars: applyPropCalibrationCeiling(
+      calibrationRow,
+      Math.min(Number(stars) || 1, economics.maxStars),
+    ),
+    economics,
+  };
+}
+
 export function withFbisPropAnalytics(row = {}) {
   const fbisProjection =
     row.fbisProjection ?? row.projection ?? row.average ?? row.proj ?? null;
@@ -119,6 +132,24 @@ export function withFbisPropAnalytics(row = {}) {
     ...rankPropConviction(enriched),
   };
 
+  if (
+    String(ranked.sport || "").toLowerCase() === "mlb" &&
+    String(ranked.modelMaturity || ranked.maturity || "").toUpperCase() === "RESEARCH_UNVALIDATED"
+  ) {
+    return {
+      ...ranked,
+      convictionTier:"WATCH",
+      confidenceStars:1,
+      confidenceLabel:"1 STAR",
+      confidenceTier:"WATCH",
+      confidenceSide:ranked.convictionLean || null,
+      confidenceGap:ranked.projectionDelta,
+      confidenceReasons:["research_unvalidated_pending_historical_backtest"],
+      confidenceResearchCandidate:false,
+      confidenceVersion:"mlb-research-unvalidated-v1",
+    };
+  }
+
   if (String(ranked.sport || "").toLowerCase() === "nhl") {
     if (String(ranked.marketCanonical || ranked.market || "") === "saves") {
       const env = ranked.shotEnvironment || {};
@@ -132,11 +163,15 @@ export function withFbisPropAnalytics(row = {}) {
         lineValidated: nhlPropConfidenceLineValidated("saves",ranked.line),
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
+      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars, {
+        calibrationValidated: ranked.validationStatus === "PROMOTE_RESEARCH" && nhlPropConfidenceLineValidated("saves", ranked.line),
+      });
       return {
         ...ranked,
-        confidenceStars: stars.stars,
-        confidenceLabel: stars.label,
-        confidenceTier: stars.tier,
+        prizePicksEconomics: platform.economics,
+        confidenceStars: platform.stars,
+        confidenceLabel: `${platform.stars} STAR`,
+        confidenceTier: platform.stars >= 5 ? "ELITE" : platform.stars === 4 ? "PREMIUM" : platform.stars === 3 ? "STRONG" : platform.stars === 2 ? "LEAN" : "WATCH",
         confidenceSide: stars.side,
         confidenceGap: stars.gap,
         confidenceReasons: stars.reasons,
@@ -159,11 +194,15 @@ export function withFbisPropAnalytics(row = {}) {
         lineValidated: nhlPropConfidenceLineValidated("shots_on_goal",ranked.line),
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
+      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars, {
+        calibrationValidated: ranked.validationStatus === "PROMOTE_RESEARCH" && nhlPropConfidenceLineValidated("shots_on_goal", ranked.line),
+      });
       return {
         ...ranked,
-        confidenceStars: stars.stars,
-        confidenceLabel: stars.label,
-        confidenceTier: stars.tier,
+        prizePicksEconomics: platform.economics,
+        confidenceStars: platform.stars,
+        confidenceLabel: `${platform.stars} STAR`,
+        confidenceTier: platform.stars >= 5 ? "ELITE" : platform.stars === 4 ? "PREMIUM" : platform.stars === 3 ? "STRONG" : platform.stars === 2 ? "LEAN" : "WATCH",
         confidenceSide: stars.side,
         confidenceGap: stars.gap,
         confidenceReasons: stars.reasons,
@@ -183,11 +222,15 @@ export function withFbisPropAnalytics(row = {}) {
       eligibleForCard: ranked.eligibleForCard,
     });
     if (genericStars) {
+      const platform = applyPrizePicksPlatformConfidence(ranked, genericStars.stars, {
+        calibrationValidated: ranked.validationStatus === "PROMOTE_RESEARCH" && ranked.lineValidationStatus === "VALIDATED",
+      });
       return {
         ...ranked,
-        confidenceStars: genericStars.stars,
-        confidenceLabel: genericStars.label,
-        confidenceTier: genericStars.tier,
+        prizePicksEconomics: platform.economics,
+        confidenceStars: platform.stars,
+        confidenceLabel: `${platform.stars} STAR`,
+        confidenceTier: platform.stars >= 5 ? "ELITE" : platform.stars === 4 ? "PREMIUM" : platform.stars === 3 ? "STRONG" : platform.stars === 2 ? "LEAN" : "WATCH",
         confidenceSide: ranked.convictionLean || null,
         confidenceGap: ranked.projectionDelta,
         confidenceReasons: genericStars.reasons,
@@ -212,9 +255,12 @@ export function withFbisPropAnalytics(row = {}) {
   const roleConfidence = ranked.roleConfidence == null ? null : Number(ranked.roleConfidence);
   if (Number.isFinite(roleConfidence) && roleConfidence < 0.6) stars = Math.min(stars, 2);
   if (ranked.propGate && ranked.propGate !== "CLEAR") stars = Math.min(stars, 2);
+  const platform = applyPrizePicksPlatformConfidence(ranked, stars);
+  stars = platform.stars;
   const hasSigma = Number.isFinite(Number(ranked.fbisSigma)) && Number(ranked.fbisSigma) > 0;
   return {
     ...ranked,
+    prizePicksEconomics: platform.economics,
     confidenceStars: stars,
     confidenceLabel: `${stars} STAR`,
     confidenceTier: stars >= 5 ? "ELITE" : stars === 4 ? "PREMIUM" : stars === 3 ? "STRONG" : stars === 2 ? "LEAN" : "WATCH",
@@ -604,16 +650,19 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
   }
 
   // General product contract: visible props need an FBIS projection and a
-  // comparable market line. Exception: all 49ers target-role model
-  // projections remain visible even when no PrizePicks line is attached.
+  // comparable market line. Exceptions: MLB persistent model projections and
+  // all 49ers target-role projections remain visible before a market line is
+  // attached. Line-less rows are informational only and cannot be recommended.
   const projectionRows = allRows.filter(
     (r) =>
       r.fbisProjection != null &&
-      Number.isFinite(Number(r.fbisProjection)),
+      Number.isFinite(Number(r.fbisProjection)) &&
+      (String(r.sport || "").toLowerCase() !== "tennis" || Boolean(r.imageUrl)),
   );
   const projectedRows = projectionRows.filter(
     (r) =>
       (r.line != null && Number.isFinite(Number(r.line))) ||
+      String(r.sport || "").toLowerCase() === "mlb" ||
       is49ersRoleProjection(r),
   );
   const supportedRows = projectedRows.filter((r) => r.supportedMarket || is49ersRoleProjection(r));
@@ -621,15 +670,23 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
   const scoped = opts.enforceNflDisplayPolicy === true
     ? scopedBase.filter(nflBoardVisible)
     : scopedBase;
-  const rows = sortPropsByConviction(scoped).map((r) => ({
-    ...r,
-    displayMode: is49ersRoleProjection(r) && Number(r.confidenceStars || 0) < 4
-      ? "TEAM_PROJECTION"
-      : "QUALIFIED_EDGE",
-    recommendationEligible: String(r.sport || "").toLowerCase() !== "nfl"
-      ? r.eligibleForCard === true
-      : Number(r.confidenceStars || 0) >= 4 && r.eligibleForCard === true,
-  }));
+  const rows = sortPropsByConviction(scoped).map((r) => {
+    const hasLine = r.line != null && Number.isFinite(Number(r.line));
+    const mlbProjectionOnly = String(r.sport || "").toLowerCase() === "mlb" && !hasLine;
+    return {
+      ...r,
+      displayMode: mlbProjectionOnly
+        ? "MODEL_PROJECTION"
+        : is49ersRoleProjection(r) && Number(r.confidenceStars || 0) < 4
+          ? "TEAM_PROJECTION"
+          : "QUALIFIED_EDGE",
+      recommendationEligible: mlbProjectionOnly
+        ? false
+        : String(r.sport || "").toLowerCase() !== "nfl"
+          ? r.eligibleForCard === true
+          : Number(r.confidenceStars || 0) >= 4 && r.eligibleForCard === true,
+    };
+  });
   const rankedAllRows = sortPropsByConviction(projectedRows);
 
   return {
@@ -643,7 +700,8 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       eventsWithProps: new Set(rows.map((r) => r.eventId).filter(Boolean)).size,
       supportedRows: supportedRows.length,
       unsupportedRows: projectedRows.length - supportedRows.length,
-      hiddenWithoutProjection: allRows.length - projectionRows.length,
+      hiddenWithoutProjection: allRows.filter((r) => r.fbisProjection == null || !Number.isFinite(Number(r.fbisProjection))).length,
+      hiddenTennisWithoutHeadshot: allRows.filter((r) => String(r.sport || "").toLowerCase() === "tennis" && !r.imageUrl).length,
       hiddenNflBelowFourStars: opts.enforceNflDisplayPolicy === true
         ? scopedBase.filter((r) =>
             String(r.sport || "").toLowerCase() === "nfl" &&
@@ -652,6 +710,7 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
           ).length
         : 0,
       visible49ersRoleProjections: rows.filter(is49ersRoleProjection).length,
+      visibleMlbProjectionOnly: rows.filter((r)=>String(r.sport||"").toLowerCase()==="mlb" && (r.line==null || !Number.isFinite(Number(r.line)))).length,
       byMarket,
       decisionEligible: rows.filter((r) => r.decisionEligible).length,
       cardEligible: rows.filter((r) => r.eligibleForCard === true).length,
@@ -671,6 +730,8 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       nflBelowFourHidden: true,
       fortyNinersTargetRolesAlwaysVisible: ["QB1","RB1","WR1","WR2","TE1"],
       fortyNinersLowStarRowsInformationalOnly: true,
+      mlbProjectionOnlyRowsVisible: true,
+      mlbProjectionOnlyRowsInformationalOnly: true,
     },
     schemaVersion: "fbis-player-props-board-v2.1",
   };

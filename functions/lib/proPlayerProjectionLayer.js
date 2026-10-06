@@ -7,6 +7,7 @@
 
 import { buildSportAvailabilityPreflight, normalizeAvailabilityStatus } from "./availability.js";
 import { nhlPlayerProV2RowsForSide, NHL_PLAYER_PRO_V2_ID, NHL_PLAYER_PRO_V2_VERSION } from "./nhlPlayerProV2.js";
+import { buildMlbPersistentPlayerPropRows, MLB_PLAYER_PROP_MODEL_VERSION } from "./mlbPlayerPropModel.js";
 
 export const PRO_PLAYER_PROJECTION_VERSION = "research-v3.1-calibrated-last5-role-defense";
 
@@ -46,7 +47,7 @@ function playerAvailabilityGate(game = {}, sport = "", player = {}, team = null)
   if (["OUT","IR","PUP","NFI","SUSPENDED"].includes(status)) {
     return { state:"BLOCKED", reason:"player_unavailable", status, match, preflight };
   }
-  if (["DOUBTFUL","QUESTIONABLE","LIMITED"].includes(status)) {
+  if (["DOUBTFUL","QUESTIONABLE","DNP_PRACTICE","LIMITED"].includes(status)) {
     return { state:"HOLD", reason:"player_status_unresolved", status, match, preflight };
   }
   if (sport === "nhl" && String(player?.position || "").toUpperCase() === "G") {
@@ -156,7 +157,7 @@ export function attachNpbPlayerProjectionResearch(games = []) {
   });
 }
 
-export function attachMlbPlayerProjectionResearch(games = []) {
+export function attachMlbPlayerProjectionResearch(games = [], persistent = {}) {
   return (games || []).map((game) => {
     const rows = [];
     const ks = game.mlbDeepShadow?.pitcherKs || null;
@@ -171,17 +172,42 @@ export function attachMlbPlayerProjectionResearch(games = []) {
         market: "strikeouts",
         projection: p.projection,
         sigma: p.sigma ?? null,
-        source: "MLB_STATS_STARTER_K_RATE_X_WORKLOAD_X_OPPONENT_K_RATE",
-        notes: "Ballpark Pal starter K is retained separately as an external comparison.",
+        source: p.source || "MLB_STATS_STARTER_K_RATE_X_WORKLOAD_X_OPPONENT_K_RATE_FALLBACK",
+        notes: String(p.source || "").startsWith("STATCAST_PITCH_SHAPE_X_HITTER_ZONE_X_WORKLOAD")
+          ? "Primary MLB K projection uses Statcast pitcher arsenal/shape versus hitter contact zones, expected batters faced and workload. Ballpark Pal starter K remains external comparison."
+          : "Fallback MLB K projection uses season K/9, workload and opponent team K rate. Ballpark Pal starter K remains external comparison.",
       }));
     }
+    const state=persistent?.byGameId?.[String(game.id||game.bpp?.gamePk||"")]||null;
+    const extra=buildMlbPersistentPlayerPropRows(game,state).map((p)=>{
+      const row=statRow({
+        sport:"mlb",game,team:p.team,
+        player:{id:p.playerId,name:p.playerName,position:p.position},
+        market:p.market,projection:p.projection,sigma:p.sigma,source:p.source,
+        notes:"Persistent MLB player-prop model. Independent of market lines; research-only until historical validation."
+      });
+      if(!row)return null;
+      const hitterLineupHold=String(p.position||"").toUpperCase()!=="P" && p.lineupState==="ROSTER_FALLBACK";
+      return {
+        ...row,...p,
+        propGate:hitterLineupHold?"HOLD":row.propGate,
+        gateReason:hitterLineupHold?"lineup_not_expected_or_confirmed":(row.gateReason||"research_unvalidated"),
+        eligibleForCard:false,
+        modelAuthorized:false,
+        decisionEligible:false,
+        canQualify:false,
+        canAuthorizeWager:false
+      };
+    }).filter(Boolean);
+    const allRows=[...rows.filter(Boolean),...extra];
     return {
       ...game,
-      playerProjectionRows: rows.filter(Boolean),
+      playerProjectionRows: allRows,
       playerProjectionStatus: {
         sport: "mlb",
-        state: rows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : rows.length ? "HOLD_AVAILABILITY" : "NO_ELIGIBLE_STARTER_PROJECTION",
-        model: "MLB-FBIS-v2.1-PITCHER-K",
+        state: allRows.some((r)=>r?.eligibleForCard) ? "ACTIVE_RESEARCH" : allRows.length ? "HOLD_AVAILABILITY" : "NO_ELIGIBLE_PLAYER_PROJECTION",
+        model: "MLB-FBIS-v2.5-POSTSEASON-CONTEXT",
+        propModel: MLB_PLAYER_PROP_MODEL_VERSION,
         version: PRO_PLAYER_PROJECTION_VERSION,
         independent: true,
         marketInformed: false,

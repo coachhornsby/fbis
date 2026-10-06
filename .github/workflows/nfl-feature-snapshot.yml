@@ -1,4 +1,5 @@
 name: NFL feature snapshot
+# ops refresh: rebuild last-five player history snapshot
 
 on:
   schedule:

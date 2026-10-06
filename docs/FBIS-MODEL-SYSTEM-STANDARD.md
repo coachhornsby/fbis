@@ -188,6 +188,28 @@ Every sport must model or classify uncertainty rather than treating all projecti
 
 Missing high-impact state must increase uncertainty or fail closed; it must not be silently imputed as normal.
 
+## 9A. Persistent-state weighting governance
+
+Persistent team/player state may be collected, persisted, and exposed as context across all sports. It may not silently alter a production champion projection.
+
+Hard rule:
+- no state-derived numerical overlay may modify production unless it is tied to an explicit gate;
+- the gate must pass leakage-safe historical validation;
+- the same overlay must pass prospective shadow validation;
+- operator approval is required before production application;
+- until then, the overlay remains CONTEXT_ONLY or SHADOW;
+- shadow projections must be frozen at the same timestamp and market snapshot as the incumbent for fair grading;
+- a failed or ungated state feature remains research context and does not receive implicit weight.
+
+Canonical overlay states:
+- CONTEXT_ONLY
+- SHADOW
+- PRODUCTION_APPROVED
+
+The shared enforcement contract is `FBIS-STATE-OVERLAY-v1` in `functions/lib/stateOverlayGovernance.js`.
+
+This rule is structural, not numeric. Each sport must validate its own gate and overlay. For example, an NFL QB-personnel gate does not authorize analogous NBA/NHL/MLB adjustments.
+
 ## 10. Market roles
 
 Use the canonical FBIS hierarchy:

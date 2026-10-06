@@ -111,7 +111,7 @@ function modelIdentity(sport, game = {}) {
   if (sport === "soccer") {
     return {
       name: "FBIS Soccer Research",
-      engine: game.researchProjection?.modelId || game.soccerFbis?.modelId || "SOCCER-FBIS-v1",
+      engine: game.researchProjection?.modelId || game.soccerFbisV2?.modelId || game.soccerFbis?.modelId || "SOCCER-FBIS-v2",
       independent: Boolean(independentFbis),
       state: game.projectionState || game.projectionMaturity || null,
       maturity: "RESEARCH",
@@ -185,7 +185,35 @@ function mlbSubprojections(game = {}) {
         away: finite(f5.away),
         total: finite(f5.total),
         margin: finite(f5.margin),
+        probabilities: f5.probabilities ? {
+          homeWin: finite(f5.probabilities.homeWin),
+          awayWin: finite(f5.probabilities.awayWin),
+          tie: finite(f5.probabilities.tie),
+          homeConditional: finite(f5.probabilities.homeConditional),
+          awayConditional: finite(f5.probabilities.awayConditional),
+        } : null,
       },
+      sportsbook: game.odds?.f5 ? {
+        homeMl: finite(game.odds.f5.homeMl),
+        awayMl: finite(game.odds.f5.awayMl),
+        spread: finite(game.odds.f5.spread),
+        spreadHomePrice: finite(game.odds.f5.spreadHomePrice),
+        spreadAwayPrice: finite(game.odds.f5.spreadAwayPrice),
+        total: finite(game.odds.f5.total),
+        overPrice: finite(game.odds.f5.overPrice),
+        underPrice: finite(game.odds.f5.underPrice),
+        book: game.odds.f5.book || null,
+      } : null,
+      marketEvaluation: f5.market ? {
+        available: Boolean(f5.market.available),
+        qualificationState: f5.market.qualificationState || "RESEARCH_ONLY",
+        canQualify: false,
+        lineupsOfficial: f5.market.lineupsOfficial ?? null,
+        riskFlags: f5.market.riskFlags || [],
+        markets: f5.market.markets || [],
+        bestResearchSignal: f5.market.bestResearchSignal || null,
+        reason: f5.market.reason || null,
+      } : null,
       ballparkPal: palF5 ? {
         home: finite(palF5.homeRuns),
         away: finite(palF5.awayRuns),
@@ -228,11 +256,11 @@ function mlbSubprojections(game = {}) {
 }
 
 function soccerSubprojections(game = {}) {
-  const p = game.soccerFbis || game.challengers?.["SOCCER-FBIS-v1"] || null;
-  if (!p?.ok) return { available: false, source: "SOCCER-FBIS-v1", maturity: "RESEARCH", canQualify: false };
+  const p = game.soccerFbisV2 || game.soccerFbis || game.challengers?.["SOCCER-FBIS-v2"] || game.challengers?.["SOCCER-FBIS-v1"] || null;
+  if (!p?.ok) return { available: false, source: "SOCCER-FBIS-v2", maturity: "RESEARCH", canQualify: false };
   return {
     available: true,
-    source: "SOCCER-FBIS-v1",
+    source: p.modelId || "SOCCER-FBIS-v2",
     modelVersion: p.modelVersion || game.modelVersion || null,
     maturity: "RESEARCH",
     canQualify: false,
@@ -244,6 +272,9 @@ function soccerSubprojections(game = {}) {
     homeAsian: p.homeAsian || null,
     uncertainty: p.uncertainty || null,
     diagnostics: p.diagnostics || null,
+    ensemble: p.ensemble || null,
+    challenger: p.challenger || null,
+    v1: p.v1 || null,
     confidencePick: game.soccerConfidence || game.confidencePick || p.confidencePick || null,
     policy: "Independent soccer research probabilities. Stars measure model confidence; they do not grant wager authority.",
   };

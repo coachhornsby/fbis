@@ -1993,7 +1993,12 @@ async function persistSnap(env, row, date, game = null) {
   let rows = packed.rows;
   if (!rows.length) {
     const snap = (row.snapshots || []).at(-1);
-    if (!snap) return { ok: true, skipped: true, reason: "no-odds" };
+    // Never persist a placeholder market row. A usable two-way ML pair is
+    // required for this legacy fallback; otherwise "no market" must remain
+    // distinguishable from a captured market with a real price.
+    if (!snap || snap.pinHomeMl == null || snap.pinAwayMl == null) {
+      return { ok: true, skipped: true, reason: "no-paired-odds" };
+    }
     rows = [
       {
         gameId: row.id,

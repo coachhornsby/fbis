@@ -1,6 +1,7 @@
 import TeamLogo from "../TeamLogo.jsx";
 import { buildGameCardViewModel } from "../../lib/gameCardViewModel.js";
 import { confidenceStars } from "../../lib/confidenceStars.js";
+import "./compactGameCardEnhancements.css";
 
 function fmt(v) {
   const n = Number(v);
@@ -13,9 +14,42 @@ function Stars({ value = 1 }) {
   return (
     <span className="cgc-star-row" aria-label={`${safe} of 5 confidence stars`}>
       {Array.from({ length: 5 }, (_, i) => (
-        <span key={i} className={i < safe ? "filled" : "empty"} aria-hidden="true">★</span>
+        i < safe ? <svg key={i} className="filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.28l-5.9 3.1 1.13-6.58-4.78-4.66 6.6-.96L12 2.2z" /></svg> : null
       ))}
     </span>
+  );
+}
+
+function VenueIcon({ indoor = false }) {
+  return indoor ? (
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9.5C4 6.5 7.6 4 12 4s8 2.5 8 5.5V19h-2v-3H6v3H4Zm2-5h12V9.5C18 7.7 15.3 6 12 6S6 7.7 6 9.5V14Zm2-4h8v2H8v-2Z" /></svg>
+  ) : (
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 6v2h18V6l-9-4ZM5 10v8H3v2h18v-2h-2v-8h-2v8h-3v-8h-4v8H7v-8H5Z" /></svg>
+  );
+}
+
+function WeatherIcon({ weather }) {
+  const text = String(weather?.description || "").toLowerCase();
+  if (/rain|shower|storm|thunder/.test(text)) return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.3 8.1 5 5 0 0 0 7 18Zm2 1-1 3h2l1-3H9Zm5 0-1 3h2l1-3h-2Z" /></svg>;
+  if (/snow|sleet|ice/.test(text)) return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m11 2 2 0v4l3-2 1 1-3 2 3 2 3-2 1 2-3 2 3 2-1 2-3-2-3 2 3 2-1 1-3-2v4h-2v-4l-3 2-1-1 3-2-3-2-3 2-1-2 3-2-3-2 1-2 3 2 3-2-3-2 1-1 3 2V2Z" /></svg>;
+  if (/cloud|overcast|fog|mist/.test(text)) return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.3 8.1 5 5 0 0 0 7 18Z" /></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm0-3h1v2h-2V2h1Zm0 18h1v2h-2v-2h1ZM2 11h2v2H2v-2Zm18 0h2v2h-2v-2ZM4.2 5.6l1.4-1.4L7 5.6 5.6 7 4.2 5.6Zm12.8 12.8 1.4-1.4 1.4 1.4-1.4 1.4-1.4-1.4ZM17 5.6l1.4-1.4 1.4 1.4L18.4 7 17 5.6ZM4.2 18.4 5.6 17 7 18.4l-1.4 1.4-1.4-1.4Z" /></svg>;
+}
+
+function VenueConditions({ context, game, sportId }) {
+  const weather = context?.weather || null;
+  const roof = String(game?.roof || game?.venue?.roof || game?.roofType || "").toLowerCase();
+  const indoor = Boolean(weather?.indoor || game?.indoor || game?.venue?.indoor || /dome|indoor|closed/.test(roof));
+  const venue = context?.venueLabel || context?.venueName || null;
+  const indoorLabel = indoor ? (/closed/.test(roof) ? "ROOF CLOSED" : /dome/.test(roof) ? "DOME" : "INDOORS") : null;
+  const conditions = indoorLabel || context?.weatherLine || null;
+  if (!venue && !conditions) return null;
+  const arenaSport = ["nba", "cbb", "nhl"].includes(sportId);
+  return (
+    <div className="cgc-conditions" aria-label="Venue and game conditions">
+      {venue ? <div className="cgc-condition-item"><VenueIcon indoor={indoor || arenaSport} /><span>{venue}</span></div> : null}
+      {conditions ? <div className="cgc-condition-item cgc-condition-weather">{indoor ? <VenueIcon indoor /> : <WeatherIcon weather={weather} />}<strong>{conditions}</strong></div> : null}
+    </div>
   );
 }
 
@@ -112,17 +146,82 @@ function actionMoveLabel(action, away, home) {
   return "NO MOVE YET";
 }
 
+const MATCHUP_SYMBOL_BY_ID = {
+  pressure: "PR", run: "RN", coverageRoute: "CV", explosive: "XP", earlyDown: "ED",
+  starter: "SP", starters: "SP", bullpen: "BP", offense: "OF", "run-prevention": "RP",
+  lineup: "LU", form: "FM", environment: "ENV", "matchup-eff": "EFF", defense: "DF",
+  pace: "PC", projection: "PROJ", "five-v-five": "5V5", finishing: "FIN", goaltending: "G",
+  "special-teams": "ST", "high-danger": "HD", rest: "RST", attack: "ATK",
+  "expected-goals": "xG", btts: "BTTS", surface: "SUR", serve: "SRV", return: "RET", fitness: "FIT",
+  efficiency: "EFF", efg: "eFG", turnovers: "TO", rebounding: "REB", "free-throws": "FT",
+};
+
+const MATCHUP_SHORT_LABEL_BY_ID = {
+  pressure: "PRESSURE", run: "RUN GAME", coverageRoute: "COVERAGE", explosive: "EXPLOSIVE", earlyDown: "EARLY DOWN",
+  starter: "STARTER", starters: "STARTERS", bullpen: "BULLPEN", offense: "OFFENSE", "run-prevention": "RUN PREVENTION",
+  lineup: "LINEUP", form: "RECENT FORM", environment: "ENVIRONMENT", "matchup-eff": "EFFICIENCY", defense: "DEFENSE",
+  pace: "PACE", projection: "PROJECTION", "five-v-five": "5V5 xG", finishing: "FINISHING", goaltending: "GOALTENDING",
+  "special-teams": "SPECIAL TEAMS", "high-danger": "HIGH DANGER", rest: "REST", attack: "ATTACK",
+  "expected-goals": "EXPECTED GOALS", btts: "BTTS", surface: "SURFACE", serve: "SERVE", return: "RETURN", fitness: "FITNESS",
+  efficiency: "EFFICIENCY", efg: "eFG%", turnovers: "TURNOVERS", rebounding: "O-REBOUND", "free-throws": "FT RATE",
+};
+
+function stripDecorativeEmoji(rawLabel) {
+  return String(rawLabel || "MATCHUP")
+    .replace(/^(?:\p{Extended_Pictographic}|[↩︎↩️])(?:\uFE0F)?\s*/u, "")
+    .trim();
+}
+
+function matchupVisualKey(id) {
+  const key = String(id || "");
+  if (MATCHUP_SYMBOL_BY_ID[key] || MATCHUP_SHORT_LABEL_BY_ID[key]) return key;
+  if (/^lineup-/.test(key)) return "lineup";
+  if (/^starter-/.test(key)) return "starter";
+  if (/^batter-/.test(key)) return "batter";
+  if (/bullpen/.test(key)) return "bullpen";
+  if (/environment|park/.test(key)) return "environment";
+  return key;
+}
+
+function splitMatchupVisual(id, rawLabel) {
+  const key = matchupVisualKey(id);
+  const raw = stripDecorativeEmoji(rawLabel).toUpperCase();
+  const prefixLabel = key === "batter" ? "BATTER / SP" : null;
+  return {
+    icon: key === "batter" ? "BvP" : MATCHUP_SYMBOL_BY_ID[key] || "SIG",
+    label: MATCHUP_SHORT_LABEL_BY_ID[key] || prefixLabel || raw,
+  };
+}
+
+function normalizeTeamColor(team, fallback) {
+  const raw = team?.color || team?.primaryColor || team?.primary_color || team?.brandColor || "";
+  const value = String(raw).trim();
+  if (/^#?[0-9a-f]{6}$/i.test(value)) return value.startsWith("#") ? value : `#${value}`;
+  if (/^#?[0-9a-f]{3}$/i.test(value)) return value.startsWith("#") ? value : `#${value}`;
+  return fallback;
+}
+
 export default function CompactGameCard({ game, onOpen }) {
   const vm = buildGameCardViewModel(game);
   const stars = confidenceStars(game);
   const away = vm.away || {};
   const home = vm.home || {};
+  const awayBrand = normalizeTeamColor(away, "#0b5fa5");
+  const homeBrand = normalizeTeamColor(home, "#7b1734");
+  const matchupAtmosphere = {
+    "--cgc-away-brand": awayBrand,
+    "--cgc-home-brand": homeBrand,
+  };
   const proj = vm.projection || {};
   const market = vm.market || {};
   const action = vm.action || {};
-  const isNfl = String(vm.sport || game?.sport || "").toLowerCase() === "nfl";
+  const sportId = String(vm.sport || game?.sport || "").toLowerCase();
+  const isNfl = sportId === "nfl";
+  const showAction = true; // Keep compact-card information architecture consistent across sports.
+  const marketSideLabel = ["mlb","npb","kbo"].includes(sportId) ? "MARKET RUN LINE" : sportId === "nhl" ? "MARKET PUCK LINE" : sportId === "soccer" ? "MARKET SIDE" : "MARKET SPREAD";
   const edge = bestEdge(vm);
   const matchup = isNfl ? game?.nflGameMatchup : null;
+  const genericFactors = !isNfl && Array.isArray(game?.matchupFactors) ? game.matchupFactors.slice(0, 5) : [];
   const matchupSignals = Array.isArray(matchup?.signals) ? matchup.signals : [];
   const matchupById = Object.fromEntries(matchupSignals.map((s) => [s.id, s]));
   const matchupItems = [
@@ -131,10 +230,24 @@ export default function CompactGameCard({ game, onOpen }) {
     ["coverageRoute", "COVERAGE"],
     ["explosive", "EXPLOSIVE"],
     ["earlyDown", "EARLY DOWN"],
-  ].map(([id, label]) => ({ id, label, ...matchupSignalLabel(matchupById[id], away, home) }));
+  ].map(([id, label]) => ({ id, ...splitMatchupVisual(id, label), ...matchupSignalLabel(matchupById[id], away, home) }));
+  const genericMatchupItems = genericFactors.map((factor, i) => {
+    const edge = String(factor?.edge || factor?.advantage || factor?.team || "EVEN").toUpperCase();
+    const homeHit = edge === String(home.abbr || "").toUpperCase();
+    const awayHit = edge === String(away.abbr || "").toUpperCase();
+    const id = factor?.id || `factor-${i}`;
+    const visual = splitMatchupVisual(id, factor?.label || factor?.name || "MATCHUP");
+    const metric = factor?.value == null ? null : String(factor.value);
+    const detail = factor?.detail == null ? null : String(factor.detail);
+    return { id, ...visual, text: homeHit ? home.abbr : awayHit ? away.abbr : edge || "EVEN", metric, detail, tone: homeHit ? "home" : awayHit ? "away" : "neutral" };
+  });
   const baselineMargin = Number(matchup?.baseline?.margin);
   const finalMargin = Number(matchup?.final?.margin);
   const matchupAdj = Number(matchup?.adjustment?.margin);
+  const isFinal = String(vm.status?.key || "").toUpperCase() === "FINAL" || Boolean(game?.status?.completed);
+  const finalAway = game?.away?.score ?? away?.score ?? null;
+  const finalHome = game?.home?.score ?? home?.score ?? null;
+  const hasFinalScore = isFinal && finalAway != null && finalHome != null;
   const soccerPick = String(vm.sport || game?.sport || "").toLowerCase() === "soccer"
     ? (game?.soccerConfidence || game?.confidencePick || game?.soccerFbis?.confidencePick || null)
     : null;
@@ -169,8 +282,18 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       </header>
 
+      {hasFinalScore ? (
+        <section className="cgc-final-score" aria-label="Final score">
+          <span>FINAL SCORE</span>
+          <strong><b>{away.abbr}</b> {finalAway} <i>–</i> {finalHome} <b>{home.abbr}</b></strong>
+          <small>vs FBIS {proj.available ? `${proj.away ?? "—"}–${proj.home ?? "—"}` : "projection"}</small>
+        </section>
+      ) : null}
+
       <div className="cgc-main">
-        <div className="cgc-matchup">
+        <div className="cgc-matchup cgc-team-atmosphere" style={matchupAtmosphere}>
+          {away.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-away" src={away.logoUrl} alt="" aria-hidden="true" /> : null}
+          {home.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-home" src={home.logoUrl} alt="" aria-hidden="true" /> : null}
           <div className="cgc-team-block">
             <TeamLogo team={away} size={66} className="cgc-logo" />
             <strong className="cgc-abbr">{away.abbr || "—"}</strong>
@@ -201,38 +324,17 @@ export default function CompactGameCard({ game, onOpen }) {
               <div className="cgc-total-mark">TOTAL</div>
             ) : null}
           </div>
-          <strong>{soccerPick ? `${soccerPick.stars || stars}★` : edge.value}</strong>
+          <strong>{soccerPick ? `${stars}★` : edge.value}</strong>
           <b>{soccerPick ? soccerPick.pick || "—" : edge.detail}</b>
           <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : edge.type}</small>
         </aside>
       </div>
 
-      {isNfl && matchup?.ok ? (
-        <section className="cgc-matchup-read" aria-label="FBIS individual game matchup analysis">
-          <div className="cgc-matchup-read-head">
-            <div><span>GAME MATCHUP</span><strong>{matchup?.adjustment?.evidenceQualified ? "EVIDENCE QUALIFIED" : "ANALYSIS ONLY"}</strong></div>
-            <b>{matchup?.coverage ? `${matchup.coverage.available}/${matchup.coverage.total} SIGNALS` : "—"}</b>
-          </div>
-          <div className="cgc-matchup-pills">
-            {matchupItems.map((item) => (
-              <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
-                <span>{item.label}</span><strong>{item.text}</strong>
-              </div>
-            ))}
-          </div>
-          <div className="cgc-matchup-adjustment">
-            <span>BASELINE <b>{Number.isFinite(baselineMargin) ? `${baselineMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(baselineMargin))}` : "—"}</b></span>
-            <i>→</i>
-            <span>ADJ <b>{Number.isFinite(matchupAdj) ? `${matchupAdj > 0 ? "+" : ""}${fmt(matchupAdj)}` : "0"}</b></span>
-            <i>→</i>
-            <span>GAME READ <b>{Number.isFinite(finalMargin) ? `${finalMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(finalMargin))}` : "—"}</b></span>
-          </div>
-        </section>
-      ) : null}
+      <VenueConditions context={vm.context} game={game} sportId={sportId} />
 
       <div className="cgc-market-strip" aria-label="FBIS and market comparison">
         <div className="cgc-market-item">
-          <span>MARKET SPREAD</span>
+          <span>{marketSideLabel}</span>
           <strong>{market.spreadLabel || "—"}</strong>
         </div>
         <div className="cgc-market-divider" aria-hidden="true" />
@@ -247,7 +349,7 @@ export default function CompactGameCard({ game, onOpen }) {
         </div>
       </div>
 
-      {isNfl ? (
+      {showAction ? (
         <div className={`cgc-action-strip${action.available ? "" : " is-unavailable"}`} aria-label="ACTION market intelligence">
           <div className="cgc-action-brand">
             <span>ACTION</span>
@@ -267,6 +369,44 @@ export default function CompactGameCard({ game, onOpen }) {
           </div>
         </div>
       ) : null}
+
+      {isNfl && matchup?.ok ? (
+        <section className="cgc-matchup-read" aria-label="FBIS individual game matchup analysis">
+          <div className="cgc-matchup-read-head">
+            <div><span>GAME MATCHUP</span><strong>{matchup?.adjustment?.evidenceQualified ? "QUALIFIED" : "READ"}</strong></div>
+            <b>{matchup?.coverage ? `${matchup.coverage.available}/${matchup.coverage.total}` : "—"}</b>
+          </div>
+          <div className="cgc-matchup-pills">
+            {matchupItems.filter((item) => item.text !== "—").map((item) => (
+              <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
+                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "SIG"}</i><em>{item.label}</em></span><strong>{item.text}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="cgc-matchup-adjustment">
+            <span>BASELINE <b>{Number.isFinite(baselineMargin) ? `${baselineMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(baselineMargin))}` : "—"}</b></span>
+            <i>→</i>
+            <span>ADJ <b>{Number.isFinite(matchupAdj) ? `${matchupAdj > 0 ? "+" : ""}${fmt(matchupAdj)}` : "0"}</b></span>
+            <i>→</i>
+            <span>GAME READ <b>{Number.isFinite(finalMargin) ? `${finalMargin > 0 ? home.abbr : away.abbr} ${fmt(-Math.abs(finalMargin))}` : "—"}</b></span>
+          </div>
+        </section>
+      ) : (
+        <section className={`cgc-matchup-read${genericMatchupItems.length ? "" : " is-unavailable"}`} aria-label="FBIS matchup analysis">
+          <div className="cgc-matchup-read-head">
+            <div><span>GAME MATCHUP</span><strong>{genericMatchupItems.length ? "FBIS ANALYSIS" : "NO ANALYTICS YET"}</strong></div>
+            <b>{genericMatchupItems.length ? `${genericMatchupItems.length} SIGNALS` : "—"}</b>
+          </div>
+          <div className="cgc-matchup-pills">
+            {genericMatchupItems.length ? genericMatchupItems.map((item) => (
+              <div className={`cgc-matchup-pill tone-${item.tone}`} key={item.id}>
+                <span className="cgc-matchup-pill-label"><i className="cgc-matchup-icon" aria-hidden="true">{item.icon || "SIG"}</i><em>{item.label}</em></span><strong>{item.text}</strong>{item.metric ? <small className="cgc-matchup-metric">{item.metric}</small> : null}
+              </div>
+            )) : <div className="cgc-matchup-pill tone-neutral"><span>STATUS</span><strong>AWAITING MATCHUP DATA</strong></div>}
+          </div>
+        </section>
+      )}
+
 
       <footer className="cgc-footer">
         <div className="cgc-footer-metric">

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { attachNflPlayerProjectionResearch } from "../functions/lib/proPlayerProjectionLayer.js";
-import { rankSelectiveProps, selectivePropStars } from "../functions/lib/selectivePropEdge.js";
+import { prizePicksTierEconomics, rankSelectiveProps, selectivePropStars } from "../functions/lib/selectivePropEdge.js";
 
 function evidence(role="WR1"){
   return {
@@ -84,7 +84,7 @@ test("selective NFL prop portfolio rejects weak role even with a large raw gap",
   assert.deepEqual(out.rows.map(r=>r.playerName),["Strong"]);
 });
 
-test("NFL 5-star confidence requires target role, recent-five and complete matchup evidence", () => {
+test("NFL evidence completeness alone cannot unlock premium stars without calibration", () => {
   const strong = selectivePropStars({
     sport:"nfl",fbisProjection:98,line:74.5,fbisSigma:18,
     roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
@@ -100,7 +100,7 @@ test("NFL 5-star confidence requires target role, recent-five and complete match
     roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
     featureEvidence:{...evidence("WR3"),targetRole:false}
   });
-  assert.equal(strong,5);
+  assert.equal(strong,3);
   assert.ok(noRecent<=2);
   assert.equal(nonTarget,1);
 });
@@ -144,7 +144,7 @@ test("NFL historical calibration caps weak market-role-direction combinations", 
   assert.equal(te1RecYardsMore,1);
 });
 
-test("NFL historical calibration allows strongest validated five-star segments", () => {
+test("NFL historical segment rules alone remain capped until probability calibration is explicit", () => {
   const wr2RecLess = selectivePropStars({
     sport:"nfl",market:"receptions",targetRole:"WR2",
     fbisProjection:3.2,line:5.5,fbisSigma:1.4,
@@ -157,8 +157,17 @@ test("NFL historical calibration allows strongest validated five-star segments",
     roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
     featureEvidence:evidence("QB1")
   });
-  assert.equal(wr2RecLess,5);
-  assert.equal(qbCompLess,5);
+  assert.equal(wr2RecLess,3);
+  assert.equal(qbCompLess,3);
+
+  const explicit = selectivePropStars({
+    sport:"nfl",market:"completions",targetRole:"QB1",
+    fbisProjection:18.0,line:23.5,fbisSigma:7.0,
+    roleConfidence:.92,propGate:"CLEAR",eligibleForCard:true,
+    propCalibrationValidated:true,
+    featureEvidence:evidence("QB1")
+  });
+  assert.equal(explicit,5);
 });
 
 test("NFL market calibration requires edge floor before high-star authorization", () => {
@@ -188,4 +197,42 @@ test("NFL ranker blocks historically weak one-star segments from published card"
       propGate:"CLEAR",eligibleForCard:true,featureEvidence:evidence("WR2")},
   ],{minStars:3,minHitProbability:.50});
   assert.deepEqual(out.rows.map(r=>r.playerName),["WR Two"]);
+});
+
+
+test("NFL Demon/Goblin lines cannot inherit Standard 4-star or 5-star confidence without payout economics", () => {
+  const base = {
+    sport:"nfl",market:"completions",targetRole:"QB1",
+    fbisProjection:18.9,fbisSigma:1.6,
+    roleConfidence:.90,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:evidence("QB1")
+  };
+  assert.equal(selectivePropStars({...base,line:21.5,odds_tier:"standard",propCalibrationValidated:true}),5);
+  assert.ok(selectivePropStars({...base,line:31.5,odds_tier:"demon"})<=2);
+  assert.ok(selectivePropStars({...base,line:17.5,odds_tier:"goblin"})<=2);
+
+  const demon = prizePicksTierEconomics({...base,line:31.5,odds_tier:"demon"},0.90);
+  assert.equal(demon.status,"ALTERNATE_TIER_PAYOUT_UNPRICED");
+  assert.equal(demon.rankingEligible,false);
+  assert.equal(demon.comparableToStandard,false);
+});
+
+test("NFL alternate tier uses explicit break-even probability and stays research until payout calibration validates", () => {
+  const row = {
+    sport:"nfl",market:"completions",targetRole:"QB1",
+    fbisProjection:18.9,line:31.5,fbisSigma:1.6,odds_tier:"demon",
+    payoutBreakEvenProbability:.70,
+    roleConfidence:.90,propGate:"CLEAR",eligibleForCard:true,
+    featureEvidence:evidence("QB1")
+  };
+  const economics = prizePicksTierEconomics(row,0.90);
+  assert.equal(economics.payoutAdjusted,true);
+  assert.equal(economics.breakEvenProbability,.70);
+  assert.ok(Math.abs(economics.probabilityEdge-.20)<1e-9);
+  assert.equal(economics.comparableToStandard,false);
+  assert.equal(economics.maxStars,4);
+
+  const validated = prizePicksTierEconomics({...row,payoutCalibrationValidated:true},0.90);
+  assert.equal(validated.comparableToStandard,true);
+  assert.equal(validated.maxStars,5);
 });

@@ -1,0 +1,72 @@
+name: Soccer-FBIS-v3 walk-forward
+
+on:
+  schedule:
+    - cron: "23 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soccer-v3-walkforward
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Require harvest credential
+        run: test -n "${HARVEST_SECRET:-}"
+      - name: Export PitchAPI history from D1 in bounded league files
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/pitchapi
+          for league in eng.1 eng.2 ger.1 esp.1 ita.1 fra.1 uefa.champions uefa.europa usa.1 mex.1; do
+            curl -sS --connect-timeout 5 --max-time 30 --retry 2 --retry-delay 2 --retry-all-errors               -H "x-harvest-secret: $HARVEST_SECRET"               "$BASE/api/soccer-pitchapi-export?league=$league&start=2021-01-01&limit=5000"               -o "artifacts/pitchapi/$league.json"
+            jq -e '.ok == true' "artifacts/pitchapi/$league.json" >/dev/null
+          done
+      - name: Run causal v3 vs v2 walk-forward
+        run: node scripts/soccer-v3-walkforward.mjs
+      - name: Summarize
+        run: |
+          jq . artifacts/soccer-v3-walkforward-report.json
+          jq -r '. as $r | "## Soccer-FBIS-v3.1 Phase 3\n- n: \($r.v3.n)\n- v2 Brier: \($r.v2.brier)\n- v3 Brier: \($r.v3.brier)\n- v2 log loss: \($r.v2.logLoss)\n- v3 log loss: \($r.v3.logLoss)\n- v2 ECE: \($r.v2.ece)\n- v3 ECE: \($r.v3.ece)\n- derivative n: \($r.derivatives.v3.n)\n- v2 total-goal MAE: \($r.derivatives.v2.totalGoalMae)\n- v3 total-goal MAE: \($r.derivatives.v3.totalGoalMae)\n- v2 BTTS Brier: \($r.derivatives.v2.bttsBrier)\n- v3 BTTS Brier: \($r.derivatives.v3.bttsBrier)\n- v2 O2.5 Brier: \($r.derivatives.v2.total25Brier)\n- v3 O2.5 Brier: \($r.derivatives.v3.total25Brier)\n- decision: \($r.promotion.decision)"' artifacts/soccer-v3-walkforward-report.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Persist research evidence
+        run: |
+          set -euo pipefail
+          report="artifacts/soccer-v3-walkforward-report.json"
+          run_id="wf-$GITHUB_RUN_ID"
+          jq --arg run_id "$run_id" '{
+            runId:$run_id,
+            modelVersion:.modelVersion,
+            rows:[
+              {modelVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.v2.n,metrics:.v2},
+              {modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.v3.n,metrics:.v3},
+              {modelVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.derivatives.v2.n,metrics:.derivatives.v2},
+              {modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.derivatives.v3.n,metrics:.derivatives.v3}
+            ] + ([.leagues|to_entries[]|[
+              {heritageKey:.key,modelVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.value.v2.n,metrics:.value.v2},
+              {heritageKey:.key,modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.value.v3.n,metrics:.value.v3},
+              {heritageKey:.key,modelVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.value.v2Derivatives.n,metrics:.value.v2Derivatives},
+              {heritageKey:.key,modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.value.v3Derivatives.n,metrics:.value.v3Derivatives}
+            ]]|flatten)
+          }' "$report" > artifacts/soccer-v3-evidence.json
+          curl -fsS --connect-timeout 5 --max-time 30 --retry 2 --retry-delay 2 --retry-all-errors \
+            -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
+            --data-binary @artifacts/soccer-v3-evidence.json \
+            "$BASE/api/soccer-validation-evidence" | tee artifacts/soccer-v3-evidence-result.json
+          jq -e '.ok == true and .researchOnly == true and .canQualify == false and .canAuthorize == false' artifacts/soccer-v3-evidence-result.json >/dev/null
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soccer-v3-walkforward-${{ github.run_id }}
+          path: artifacts/soccer-v3-walkforward-*
+          retention-days: 90

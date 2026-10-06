@@ -1,0 +1,63 @@
+name: NHL state research v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/nhl-state-research-v1.mjs"
+      - "test/nhl-state-research-v1.test.js"
+      - ".github/workflows/nhl-state-research-v1.yml"
+      - "data/models/nhl-pro-v2-validation.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nhl-state-research-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ablation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+      - name: Run focused test
+        run: node --test test/nhl-state-research-v1.test.js
+      - name: Run NHL state ablation
+        run: node scripts/nhl-state-research-v1.mjs --out=data/models/nhl-state-research-v1.json
+      - name: Verify governance and PIT contract
+        run: |
+          jq -e '.pointInTime == true and .marketInformed == false' data/models/nhl-state-research-v1.json >/dev/null
+          jq -e '.governance.canAuthorizeWager == false and .governance.stakingAuthorized == false' data/models/nhl-state-research-v1.json >/dev/null
+          jq -e '.sampleGames >= 2500' data/models/nhl-state-research-v1.json >/dev/null
+          jq '.ranking,.findings' data/models/nhl-state-research-v1.json
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-state-research-v1-${{ github.run_id }}
+          path: data/models/nhl-state-research-v1.json
+          retention-days: 90
+      - name: Persist research artifact
+        run: |
+          set -euo pipefail
+          cp data/models/nhl-state-research-v1.json "$RUNNER_TEMP/nhl-state-research-v1.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin "${{ github.ref_name }}"
+            git reset --hard "origin/${{ github.ref_name }}"
+            cp "$RUNNER_TEMP/nhl-state-research-v1.json" data/models/nhl-state-research-v1.json
+            git add data/models/nhl-state-research-v1.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m "data: update NHL state research v1"
+            if git push origin HEAD:"${{ github.ref_name }}"; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          exit 1

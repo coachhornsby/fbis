@@ -1,6 +1,8 @@
 /**
- * Baseball Savant + MLB Stats — run projections from SP quality and team offense.
- * Never a sportsbook. Never derived from the 1.5 run line.
+ * Baseball Savant + MLB Stats — MLB feature preparation.
+ * Supplies team offense, starter quality and workload/K context to MLB-FBIS.
+ * It no longer publishes an independent game score; MLB-FBIS-v2.5 is the
+ * single projection authority. Never a sportsbook.
  */
 
 import { readCache, writeCache } from "./cache.js";
@@ -62,6 +64,7 @@ function splitCsvLine(line) {
 async function getText(url) {
   const res = await fetch(url, {
     headers: { Accept: "text/csv,application/json,*/*", "User-Agent": UA, Referer: "https://baseballsavant.mlb.com/" },
+    signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`Savant ${res.status}`);
   return res.text();
@@ -95,7 +98,7 @@ async function fetchSavantPitchers(year) {
 
 async function fetchTeamRpg(year) {
   const url = `https://statsapi.mlb.com/api/v1/teams/stats?season=${year}&group=hitting&stats=season&sportIds=1&gameType=R`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
   if (!res.ok) throw new Error(`MLB team stats ${res.status}`);
   const json = await res.json();
   const byId = new Map();
@@ -127,7 +130,7 @@ async function fetchPitcherStats(ids, year) {
       unique.slice(i, i + chunk).map(async (id) => {
         try {
           const url = `https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=season&group=pitching&season=${year}&gameType=R`;
-          const res = await fetch(url, { headers: { Accept: "application/json" } });
+          const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
           if (!res.ok) return;
           const json = await res.json();
           const stat = json.stats?.[0]?.splits?.[0]?.stat || {};
@@ -144,6 +147,7 @@ async function fetchPitcherStats(ids, year) {
             battersFaced,
             kPer9: innings > 0 && strikeOuts != null ? strikeOuts * 9 / innings : null,
             kRate: battersFaced > 0 && strikeOuts != null ? strikeOuts / battersFaced : null,
+            battersFacedPerInning: innings > 0 && battersFaced != null ? battersFaced / innings : null,
             inningsPerStart: gamesStarted > 0 && innings != null ? innings / gamesStarted : null,
           });
         } catch {
@@ -213,14 +217,6 @@ export async function fetchSavantSlate(games, cfCache) {
     const awayEra = awaySp?.eraEq ?? awaySeason.era;
     const weatherFactor = Number(g.mlbContext?.weatherRunFactor);
     const park = Number.isFinite(weatherFactor) && weatherFactor > 0 ? weatherFactor : 1;
-    const proj = projectMatchup({
-      homeRpg,
-      awayRpg,
-      homeSpEra: homeEra,
-      awaySpEra: awayEra,
-      leagueRpg,
-      park,
-    });
     return {
       ...g,
       savant: {
@@ -234,6 +230,8 @@ export async function fetchSavantSlate(games, cfCache) {
         awaySpKRate: awaySeason.kRate ?? null,
         homeSpInningsPerStart: homeSeason.inningsPerStart ?? null,
         awaySpInningsPerStart: awaySeason.inningsPerStart ?? null,
+        homeSpBattersFacedPerInning: homeSeason.battersFacedPerInning ?? null,
+        awaySpBattersFacedPerInning: awaySeason.battersFacedPerInning ?? null,
         homeSpGamesStarted: homeSeason.gamesStarted ?? null,
         awaySpGamesStarted: awaySeason.gamesStarted ?? null,
         homeOpponentKRate: awayTeamStats.kRate ?? null,
@@ -242,12 +240,8 @@ export async function fetchSavantSlate(games, cfCache) {
         weatherRunFactor: park,
         source: homeSp || awaySp ? "Savant+MLB Stats" : "MLB",
       },
-      projHomeScore: proj.home,
-      projAwayScore: proj.away,
-      // This score is produced only from the independent Savant/MLB Stats
-      // run model above. Mark it explicitly so product/sheet layers do not
-      // mistake it for a market-implied score.
-      projectionKind: "FBIS",
+      // Feature packet only. Canonical MLB scores are produced downstream by
+      // MLB-FBIS-v2.5; do not publish a parallel Savant score here.
     };
   });
 

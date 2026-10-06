@@ -231,6 +231,7 @@ export function toDomainPlayerMarket(row = {}) {
     position: strOrNull(row.position),
 
     imageUrl,
+    fallbackImageUrl: strOrNull(row.fallbackImageUrl),
     imageSource: imageUrl ? strOrNull(row.imageSource) || "UPSTREAM" : null,
 
     market: strOrNull(row.market) || strOrNull(row.marketRaw),
@@ -281,6 +282,9 @@ export function toDomainPlayerMarket(row = {}) {
     probability: numOrNull(row.probability),
     edge: numOrNull(row.edge ?? row.ev),
     projectionSide: strOrNull(row.projectionSide ?? row.sideLean ?? row.leanSide),
+    modelMaturity: strOrNull(row.modelMaturity ?? row.maturity),
+    validationStatus: strOrNull(row.validationStatus),
+    lineValidationStatus: strOrNull(row.lineValidationStatus),
 
     // NFL role-calibration evidence must survive the board-domain adapter so
     // display policy can distinguish QB1/RB1/WR1/WR2/TE1 and apply the

@@ -20,7 +20,7 @@ const TIER_LABELS = Object.freeze({
   NONE: "No FBIS read",
 });
 
-const PRO_SPORTS = new Set(["mlb", "nfl", "nba", "nhl"]);
+const PRO_SPORTS = new Set(["mlb", "nfl", "nba", "wnba", "nhl", "tennis"]);
 
 function fmtProb(v) {
   if (v == null || v === "" || !Number.isFinite(Number(v))) return "—";
@@ -53,17 +53,19 @@ function matchupText(row) {
 }
 
 function PlayerAvatar({ row, size = 54 }) {
-  const [failed, setFailed] = useState(false);
-  if (row?.imageUrl && !failed) {
+  const sources = [row?.imageUrl, row?.fallbackImageUrl].filter(Boolean);
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const src = sources[sourceIndex] || null;
+  if (src) {
     return (
       <img
-        src={row.imageUrl}
+        src={src}
         alt={row.playerName || "Player headshot"}
         width={size}
         height={size}
         loading="lazy"
         referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
+        onError={() => setSourceIndex((i) => i + 1)}
         style={{
           width: size,
           height: size,
@@ -76,6 +78,7 @@ function PlayerAvatar({ row, size = 54 }) {
       />
     );
   }
+  if (String(row?.sport || "").toLowerCase() === "tennis") return null;
   return (
     <TeamLogo
       team={row?.teamIdentity || { abbr: row?.team, name: row?.team }}
@@ -103,13 +106,28 @@ function mergeDurableProps(board = {}, rows = []) {
     const id = String(game?.id || game?.eventId || game?.gameId || "");
     const durable = byEvent.get(id) || [];
     if (!durable.length) return game;
+    byEvent.delete(id);
     return {
       ...game,
-      // Durable ACTION observations are the board read source. Legacy
-      // propConvictions remain a fallback only when no durable rows exist.
       playerMarkets: durable,
     };
   });
+  for (const [id,durable] of byEvent) {
+    if (!durable.length || String(durable[0]?.sport || "").toLowerCase() !== "tennis") continue;
+    const first=durable[0];
+    const player=first.playerName || "Player";
+    const opponent=first.opponent || "Opponent";
+    mergedGames.push({
+      id,
+      sport:"tennis",
+      start:first.startTime || first.sourceObservedAt || null,
+      away:{abbr:opponent,name:opponent},
+      home:{abbr:player,name:player},
+      playerMarkets:durable,
+      projectionKind:"TENNIS_RESEARCH",
+      qualificationBlocked:true,
+    });
+  }
   return { ...board, games: mergedGames };
 }
 
@@ -143,7 +161,7 @@ export default function PlayerPropsBoard({
   useEffect(() => {
     let cancelled = false;
     const filter = String(sportFilter || "all").toLowerCase();
-    if ((filter !== "all" && !PRO_SPORTS.has(filter)) || !eventIds.length) {
+    if ((filter !== "all" && !PRO_SPORTS.has(filter)) || (!eventIds.length && filter !== "tennis")) {
       setDurableRows([]);
       setDiagnostics(null);
       setDurableError("");
@@ -153,8 +171,10 @@ export default function PlayerPropsBoard({
       };
     }
 
-    const params = new URLSearchParams({ eventIds: eventIds.join(",") });
+    const params = new URLSearchParams();
+    if (eventIds.length) params.set("eventIds", eventIds.join(","));
     if (filter !== "all") params.set("sport", filter);
+    if (date) params.set("date", date);
     setDurableLoading(true);
     setDurableError("");
     fetch(`/api/player-props?${params.toString()}`)
@@ -228,7 +248,7 @@ export default function PlayerPropsBoard({
     <div className="main-content props-board">
       <header className="props-hero">
         <div className="props-hero-copy">
-          <p className="props-kicker">Player props · Pro sports only</p>
+          <p className="props-kicker">Player props · FBIS modeled markets</p>
           <h1>Board</h1>
           <p className="props-lede">
             MLB, NFL, NBA and NHL markets from durable ACTION observations. FBIS model reads are

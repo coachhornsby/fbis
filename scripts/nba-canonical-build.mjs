@@ -59,18 +59,23 @@ function playerRows(summary){
           name,
           teamId:String(team.id||""),
           team:team.abbreviation||team.displayName||"",
+          position:a.athlete?.position?.abbreviation||a.athlete?.position?.name||null,
           minutes:num(["MIN","minutes"]),
           points:num(["PTS","points"]),
           rebounds:num(["REB","rebounds"]),
           offensiveRebounds:num(["OREB","offensive rebounds"]),
+          defensiveRebounds:num(["DREB","defensive rebounds"]),
           assists:num(["AST","assists"]),
           turnovers:num(["TO","turnovers"]),
+          steals:num(["STL","steals"]),
+          blocks:num(["BLK","blocks"]),
+          fouls:num(["PF","fouls","personal fouls"]),
           fgm:fg.made,fga:fg.attempted,
           threes:tp.made,tpa:tp.attempted,
           ftm:ft.made,fta:ft.attempted,
           starter:a.starter?1:0
         };
-        const hasGameStats=[row.minutes,row.points,row.rebounds,row.assists,row.fga,row.fta,row.turnovers].some(v=>finite(v)!=null);
+        const hasGameStats=[row.minutes,row.points,row.rebounds,row.assists,row.fga,row.fta,row.turnovers,row.steals,row.blocks].some(v=>finite(v)!=null);
         if(hasGameStats) out.push(row);
       }
     }
@@ -94,6 +99,12 @@ function teamLine(comp,players=[]){
   const fgm=players.length?sum(players.map(x=>x.fgm)):val("fieldGoalsMade","fgm");
   const fga=players.length?sum(players.map(x=>x.fga)):val("fieldGoalsAttempted","fga");
   const tpm=players.length?sum(players.map(x=>x.threes)):val("threePointFieldGoalsMade","3pm");
+  const tpaPlayers=players.map(x=>x.tpa).filter(v=>finite(v)!=null);
+  const drebPlayers=players.map(x=>x.defensiveRebounds).filter(v=>finite(v)!=null);
+  const ftmPlayers=players.map(x=>x.ftm).filter(v=>finite(v)!=null);
+  const tpa=tpaPlayers.length?sum(tpaPlayers):val("threePointFieldGoalsAttempted","3pa");
+  const dreb=drebPlayers.length?sum(drebPlayers):val("defensiveRebounds","dreb");
+  const ftm=ftmPlayers.length?sum(ftmPlayers):val("freeThrowsMade","ftm");
   const orbPlayers=players.map(x=>x.offensiveRebounds).filter(v=>finite(v)!=null);
   const tovPlayers=players.map(x=>x.turnovers).filter(v=>finite(v)!=null);
   const ftaPlayers=players.map(x=>x.fta).filter(v=>finite(v)!=null);
@@ -106,11 +117,14 @@ function teamLine(comp,players=[]){
     id:String(t.id||comp?.id||""),
     abbr:t.abbreviation||"",
     name:t.displayName||t.name||"",
-    fga,fgm,tpm,orb,tov,fta,efg,
+    fga,fgm,tpm,tpa,dreb,ftm,orb,tov,fta,efg,
     possessions:poss,
     tovPct:poss>0&&tov!=null?tov/poss:null,
     orbPct:null,
-    ftRate:fga>0&&fta!=null?fta/fga:null
+    ftRate:fga>0&&fta!=null?fta/fga:null,
+    threeRate:fga>0&&tpa!=null?tpa/fga:null,
+    threePct:tpa>0&&tpm!=null?tpm/tpa:null,
+    twoPct:(fga-tpa)>0&&fgm!=null&&tpm!=null?(fgm-tpm)/(fga-tpa):null
   };
 }
 
@@ -142,6 +156,8 @@ for(const date of dates(start,end)){
     const aComp=at||{team:a.team};
     const hl=teamLine(hComp,byTeam.get(String(h.team?.id))||[]);
     const al=teamLine(aComp,byTeam.get(String(a.team?.id))||[]);
+    hl.orbPct=hl.orb!=null&&al.dreb!=null&&(hl.orb+al.dreb)>0?hl.orb/(hl.orb+al.dreb):null;
+    al.orbPct=al.orb!=null&&hl.dreb!=null&&(al.orb+hl.dreb)>0?al.orb/(al.orb+hl.dreb):null;
     const hp=finite(hl.possessions),ap=finite(al.possessions);
     const poss=hp!=null&&ap!=null?(hp+ap)/2:null;
 

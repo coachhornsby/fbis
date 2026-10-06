@@ -1,0 +1,94 @@
+name: NBA official availability
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "research/nba-deep-v2"]
+    paths:
+      - "scripts/nba-official-injury-discover.mjs"
+      - "scripts/nba-official-injury-parse.mjs"
+      - "migrations/0053_nba_official_availability.sql"
+      - "test/nba-official-availability.test.js"
+      - ".github/workflows/nba-official-availability.yml"
+  schedule:
+    - cron: "35 14,17,21 * * *"
+    - cron: "35 0,2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nba-official-availability
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - run: node --test test/nba-official-availability.test.js
+
+      - name: Discover latest official NBA report
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          node scripts/nba-official-injury-discover.mjs out=artifacts/discovery.json
+          cat artifacts/discovery.json
+
+      - name: Download and normalize official report
+        id: report
+        run: |
+          set -euo pipefail
+          url=$(jq -r '.url // empty' artifacts/discovery.json)
+          if [ -z "$url" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "No official NBA injury report is currently available."
+            exit 0
+          fi
+          case "$url" in
+            https://ak-static.cms.nba.com/referee/injury/Injury-Report_*.pdf) ;;
+            *) echo "Unexpected source URL: $url"; exit 1 ;;
+          esac
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          curl -L --fail-with-body -A "FBIS-NBA-Official-Availability/1.0" "$url" -o artifacts/report.pdf
+          if ! command -v pdftotext >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq poppler-utils
+          fi
+          pdftotext -layout artifacts/report.pdf artifacts/report.txt
+          test -s artifacts/report.txt
+          node scripts/nba-official-injury-parse.mjs             text=artifacts/report.txt discovery=artifacts/discovery.json             out=artifacts/nba-official-availability.json             sql=artifacts/nba-official-availability.sql
+          jq -e '.ok==true and (.quality.teams > 0)' artifacts/nba-official-availability.json >/dev/null
+
+      - name: Persist immutable availability observations
+        if: steps.report.outputs.available == 'true' && github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --file=migrations/0053_nba_official_availability.sql
+          npx wrangler d1 execute fbis --remote --file=artifacts/nba-official-availability.sql
+
+      - name: Archive source evidence
+        if: steps.report.outputs.available == 'true' && github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          stamp=$(jq -r '.reportTimestamp' artifacts/nba-official-availability.json | tr ':+' '__' | tr -d ' ')
+          prefix="availability/nba/official/${stamp}"
+          npx wrangler r2 object put "fbis-archive/${prefix}/report.pdf" --file artifacts/report.pdf --remote
+          npx wrangler r2 object put "fbis-archive/${prefix}/report.txt" --file artifacts/report.txt --remote
+          npx wrangler r2 object put "fbis-archive/${prefix}/normalized.json" --file artifacts/nba-official-availability.json --remote
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-official-availability-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 14

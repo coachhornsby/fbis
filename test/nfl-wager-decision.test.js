@@ -98,10 +98,13 @@ test("game-level decision prices each offered side/total and preserves independe
   assert.ok(out.decomposition.some(x=>x.label==="Injuries / availability"));
 });
 
-test("no calibrated confidence means fail-closed PASS even when raw EV is positive",()=>{
+test("positive EV can qualify without calibrated confidence while staking stays disabled",()=>{
   const out=evaluateNflGameWagers(game(),{validated:false,bins:[],minEv:.01,minProbabilityEdge:.01,minConfidence:1});
   assert.equal(out.confidenceValidated,false);
-  assert.equal(out.decision,"PASS");
+  assert.equal(out.decision,"BET");
+  assert.equal(out.canQualify,true);
+  assert.equal(out.canAuthorizeWager,false);
+  assert.equal(out.staking.validated,false);
   assert.ok(out.bestWager.reasons.includes("confidence-calibration-not-validated"));
 });
 

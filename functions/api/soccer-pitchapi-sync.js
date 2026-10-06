@@ -1,0 +1,139 @@
+import { authorizeSoccerWorker, unauthorizedBody } from "../lib/soccerWorkerAuth.js";
+import { persistPitchApiBundle, refreshPitchApiCompetitionCoverage } from "../lib/soccerPitchApiStore.js";
+
+function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
+function norm(s){return String(s||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();}
+function num(v){const n=Number(v);return Number.isFinite(n)?n:null;}
+function parseStat(v){if(v==null)return null;const m=String(v).match(/-?\d+(?:\.\d+)?/);return m?Number(m[0]):null;}
+function flattenShots(data){return (data?.periods||[]).flatMap(p=>p?.shots||[]);}
+function sumShots(shots,teamId,field){const xs=shots.filter(s=>String(s.team_id)===String(teamId)).map(s=>num(s[field])).filter(v=>v!=null);return xs.length?xs.reduce((a,b)=>a+b,0):null;}
+function countShots(shots,teamId,fn=()=>true){return shots.filter(s=>String(s.team_id)===String(teamId)&&fn(s)).length;}
+function statMap(data){const period=(data?.periods||[]).find(p=>String(p.period).toLowerCase()==="all")||data?.periods?.[0],out={};for(const g of period?.groups||[])for(const it of g?.items||[]){const k=String(it.key||"");if(k)out[k]={home:parseStat(it.home),away:parseStat(it.away)};}return out;}
+function sideAdv(data,teamId){return (data?.teams||[]).find(x=>String(x?.team?.id)===String(teamId))||null;}
+function pick(o,path){let x=o;for(const k of path.split(".")){if(x==null)return null;x=x[k];}return num(x);}
+function playerStatValue(row,key){
+  for(const group of row?.stats||[])for(const entry of Object.values(group?.stats||{})){if(entry?.key===key)return num(entry?.stat?.value);}
+  return null;
+}
+function playerRows(advancedData,standardData){
+  const std=new Map((standardData||[]).map(p=>[String(p?.player?.id||""),p]));
+  return (advancedData?.players||[]).map(p=>{
+    const s=std.get(String(p?.player?.id||""));
+    return{playerId:p?.player?.id,playerName:p?.player?.name,teamId:p?.team_id,minutesPlayed:num(p?.minutes_played),actions:num(p?.actions),
+      xtTotal:pick(p,"possession_value.xt_total"),vaepTotal:pick(p,"possession_value.vaep_total"),vaepOffensive:pick(p,"possession_value.vaep_offensive"),vaepDefensive:pick(p,"possession_value.vaep_defensive"),pvTotal:pick(p,"possession_value.pv_total"),
+      xag:pick(p,"creation.xag"),xgChain:pick(p,"creation.xg_chain"),xgBuildup:pick(p,"creation.xg_buildup"),
+      progressivePasses:pick(p,"passing.progressive_passes"),progressiveCarries:pick(p,"carrying.progressive_carries"),chancesCreated:pick(p,"creation.chances_created"),
+      shots:playerStatValue(s,"total_shots"),goals:playerStatValue(s,"goals"),assists:playerStatValue(s,"assists"),expectedGoals:playerStatValue(s,"expected_goals"),expectedAssists:playerStatValue(s,"expected_assists"),
+      saves:playerStatValue(s,"saves"),claims:pick(p,"goalkeeping.claims"),claimsWon:pick(p,"goalkeeping.claims_won"),sweeperActions:pick(p,"goalkeeping.sweeper_actions"),
+      distributionAccuracy:pick(p,"goalkeeping.distribution_accuracy"),avgPassLength:pick(p,"goalkeeping.avg_pass_length"),raw:{advanced:p,standard:s||null}};
+  }).filter(p=>p.playerId&&p.teamId);
+}
+function lineupRows(data){const mk=(side,team)=>team?.id?{side,teamId:team.id,formation:data?.[side]?.formation||null,confirmed:data?.[side]?.confirmed===true,lineupType:data?.[side]?.lineup_type||null,starters:data?.[side]?.starters||[],subs:data?.[side]?.subs||[],coachName:data?.[side]?.coach?.name||null,raw:data?.[side]||null}:null;return[mk("home",data?.home_team),mk("away",data?.away_team)].filter(Boolean);}
+const ALIASES={
+  "eng.1":["Premier League"],"esp.1":["LaLiga","La Liga"],"ger.1":["Bundesliga"],"ita.1":["Serie A"],"fra.1":["Ligue 1"],
+  "usa.1":["Major League Soccer","MLS"],"usa.nwsl":["National Women's Soccer League","NWSL"]
+};
+async function pitch(env,path,{optional=false}={}){
+  const key=String(env?.PITCHAPI_API_KEY||"");if(!key)throw new Error("pitchapi-secret-unconfigured");
+  let last=null;
+  for(let attempt=1;attempt<=3;attempt++){
+    try{
+      const r=await fetch("https://api.pitchapi.dev"+path,{headers:{"X-API-KEY":key,accept:"application/json"},signal:AbortSignal.timeout(8000)});
+      if(r.ok)return(await r.json())?.data??null;
+      if(optional&&r.status===404)return null;
+      last=new Error(`PitchAPI ${r.status}`);
+      if(r.status===429){await new Promise(res=>setTimeout(res,Math.min(6000,attempt*1500)));continue;}
+      if(r.status<500)break;
+    }catch(e){last=e;}
+  }
+  if(optional)return null;throw last||new Error("pitchapi-request-failed");
+}
+function findLeague(leagues,key){const names=(ALIASES[key]||[]).map(norm);return leagues.find(l=>names.includes(norm(l.name)))||null;}
+function networkMap(data){const out={};for(const n of data?.networks||[])if(n?.team?.id)out[String(n.team.id)]=n;return out;}
+function bundle(match,advanced,stats,shotsData,advancedPlayers,standardPlayers,lineups,network,league,season,leagueKey){
+  const shots=flattenShots(shotsData),h=match.home_team,a=match.away_team,ha=sideAdv(advanced,h.id),aa=sideAdv(advanced,a.id),sm=statMap(stats),stat=(k,s)=>num(sm[k]?.[s]),nm=networkMap(network),hn=nm[String(h.id)]||null,an=nm[String(a.id)]||null;
+  return{leagueKey,season,pitchLeagueId:league.id,pitchLeagueName:league.name,observedAt:new Date().toISOString(),
+    match:{id:match.id,date:match.date,startTime:match.time_utc,status:match.status,league:{id:league.id,name:league.name},homeTeam:{id:h.id,name:h.name},awayTeam:{id:a.id,name:a.name},homeScore:match.score_home,awayScore:match.score_away},
+    features:{homeXg:sumShots(shots,h.id,"expected_goals")??stat("expected_goals","home"),awayXg:sumShots(shots,a.id,"expected_goals")??stat("expected_goals","away"),homeXgot:sumShots(shots,h.id,"expected_goals_on_target"),awayXgot:sumShots(shots,a.id,"expected_goals_on_target"),homeShots:shotsData?countShots(shots,h.id):null,awayShots:shotsData?countShots(shots,a.id):null,homeSot:shotsData?countShots(shots,h.id,s=>s.is_on_target===true):null,awaySot:shotsData?countShots(shots,a.id,s=>s.is_on_target===true):null,homeBigChances:stat("big_chances","home"),awayBigChances:stat("big_chances","away"),homePpda:pick(ha,"defending.ppda"),awayPpda:pick(aa,"defending.ppda"),homeFieldTilt:pick(ha,"territory.field_tilt"),awayFieldTilt:pick(aa,"territory.field_tilt"),homeFinalThirdEntries:pick(ha,"territory.final_third_entries"),awayFinalThirdEntries:pick(aa,"territory.final_third_entries"),homeBoxEntries:pick(ha,"territory.box_entries"),awayBoxEntries:pick(aa,"territory.box_entries"),homeHighTurnovers:pick(ha,"defending.high_turnovers"),awayHighTurnovers:pick(aa,"defending.high_turnovers"),homeCounterpressRegains:pick(ha,"defending.counterpress_regains_5s"),awayCounterpressRegains:pick(aa,"defending.counterpress_regains_5s"),homeBallRecoveryTime:pick(ha,"defending.ball_recovery_time"),awayBallRecoveryTime:pick(aa,"defending.ball_recovery_time"),homeXt:pick(ha,"possession_value.xt_total"),awayXt:pick(aa,"possession_value.xt_total"),homeVaep:pick(ha,"possession_value.vaep_total"),awayVaep:pick(aa,"possession_value.vaep_total"),homeProgressivePasses:pick(ha,"passing.progressive_passes"),awayProgressivePasses:pick(aa,"passing.progressive_passes"),homeProgressiveCarries:pick(ha,"carrying.progressive_carries"),awayProgressiveCarries:pick(aa,"carrying.progressive_carries"),homeXag:pick(ha,"creation.xag"),awayXag:pick(aa,"creation.xag"),homePossession:pick(ha,"territory.possession_pct"),awayPossession:pick(aa,"territory.possession_pct"),homePassesPerSequence:pick(ha,"tempo.passes_per_sequence"),awayPassesPerSequence:pick(aa,"tempo.passes_per_sequence"),homeDirectSpeed:pick(ha,"tempo.direct_speed"),awayDirectSpeed:pick(aa,"tempo.direct_speed"),
+      homeNpxg:stat("expected_goals_open_play","home")!=null&&stat("expected_goals_set_play","home")!=null?(stat("expected_goals_open_play","home")+stat("expected_goals_set_play","home")):null,
+      awayNpxg:stat("expected_goals_open_play","away")!=null&&stat("expected_goals_set_play","away")!=null?(stat("expected_goals_open_play","away")+stat("expected_goals_set_play","away")):null,
+      homeXgOpenPlay:stat("expected_goals_open_play","home"),awayXgOpenPlay:stat("expected_goals_open_play","away"),
+      homeXgSetPlay:stat("expected_goals_set_play","home"),awayXgSetPlay:stat("expected_goals_set_play","away"),
+      homeXgPerShot:(shotsData&&countShots(shots,h.id)>0)?sumShots(shots,h.id,"expected_goals")/countShots(shots,h.id):null,
+      awayXgPerShot:(shotsData&&countShots(shots,a.id)>0)?sumShots(shots,a.id,"expected_goals")/countShots(shots,a.id):null,
+      homePassAccuracy:pick(ha,"passing.pass_accuracy"),awayPassAccuracy:pick(aa,"passing.pass_accuracy"),
+      homePassesIntoBox:pick(ha,"passing.passes_into_box"),awayPassesIntoBox:pick(aa,"passing.passes_into_box"),
+      homeKeyPasses:pick(ha,"passing.key_passes"),awayKeyPasses:pick(aa,"passing.key_passes"),
+      homeThroughBalls:pick(ha,"passing.through_balls"),awayThroughBalls:pick(aa,"passing.through_balls"),
+      homeProgressivePassDistance:pick(ha,"passing.progressive_pass_distance"),awayProgressivePassDistance:pick(aa,"passing.progressive_pass_distance"),
+      homeCarriesIntoFinalThird:pick(ha,"carrying.carries_into_final_third"),awayCarriesIntoFinalThird:pick(aa,"carrying.carries_into_final_third"),
+      homeCarriesIntoBox:pick(ha,"carrying.carries_into_box"),awayCarriesIntoBox:pick(aa,"carrying.carries_into_box"),
+      homeAvgDefensiveActionX:pick(ha,"defending.avg_defensive_action_x"),awayAvgDefensiveActionX:pick(aa,"defending.avg_defensive_action_x"),
+      homeBuildupAttacks:pick(ha,"tempo.buildup_attacks"),awayBuildupAttacks:pick(aa,"tempo.buildup_attacks"),
+      homeDirectAttacks:pick(ha,"tempo.direct_attacks"),awayDirectAttacks:pick(aa,"tempo.direct_attacks"),
+      homeNetworkCentralization:num(hn?.centralization),awayNetworkCentralization:num(an?.centralization)},
+    players:playerRows(advancedPlayers,standardPlayers),lineups:lineupRows(lineups),rawAdvanced:advanced,rawStats:stats,rawShots:shotsData};
+}
+export async function onRequestPost(context){
+  const auth=authorizeSoccerWorker(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(auth.reason),401);
+  let body={};try{body=await context.request.json();}catch{return json({ok:false,error:"invalid-json"},400);}
+  let leagueKey=String(body.leagueKey||""),pitchLeagueId=body.pitchLeagueId==null?null:String(body.pitchLeagueId);
+  const mode=String(body.mode||"historical").toLowerCase(),offset=Math.max(0,Number(body.offset)||0),limit=Math.max(1,Math.min(12,Number(body.limit)||8));
+  let rotationTarget=null;
+  if(mode==="live-auto"){
+    const db=context.env?.DB;
+    if(!db?.prepare)return json({ok:false,error:"d1-unbound"},503);
+    rotationTarget=await db.prepare(`SELECT heritage_name,heritage_key,pitch_league_id,current_season
+      FROM soccer_competition_coverage
+      WHERE discovery_status='MATCHED' AND model_eligible=1 AND pitch_league_id IS NOT NULL
+      ORDER BY COALESCE(last_live_sync_at,'1970-01-01'),heritage_name LIMIT 1`).first();
+    if(!rotationTarget)return json({ok:true,mode:"live-auto",empty:true});
+    leagueKey=String(rotationTarget.heritage_key||"");
+    pitchLeagueId=String(rotationTarget.pitch_league_id||"");
+  }
+  if(!leagueKey)return json({ok:false,error:"league-key-required"},400);
+  if(!pitchLeagueId&&!ALIASES[leagueKey])return json({ok:false,error:"unsupported-league-without-pitch-id"},400);
+  try{
+    const leagueData=await pitch(context.env,"/v1/leagues"),league=pitchLeagueId
+      ? (leagueData?.leagues||[]).find(x=>String(x.id)===pitchLeagueId)
+      : findLeague(leagueData?.leagues||[],leagueKey);
+    if(!league)return json({ok:false,error:"league-mapping-unresolved",leagueKey,pitchLeagueId},422);
+    const season=String(body.season||rotationTarget?.current_season||league.seasons?.[0]||"");if(!season)return json({ok:false,error:"season-unavailable"},422);
+    const liveMode=mode==="live"||mode==="live-auto";
+    const status=liveMode?"all":"played";
+    const list=await pitch(context.env,`/v1/leagues/${league.id}/matches?season=${encodeURIComponent(season)}&status=${status}`);
+    let matches=(list?.matches||[]).sort((a,b)=>String(a.time_utc||a.date).localeCompare(String(b.time_utc||b.date)));
+    if(liveMode){const now=Date.now(),lo=new Date(now-8*86400000).toISOString().slice(0,10),hi=new Date(now+3*86400000).toISOString().slice(0,10);matches=matches.filter(m=>String(m.date)>=lo&&String(m.date)<=hi);}else matches=matches.filter(m=>m.status==="finished");
+    const slice=matches.slice(offset,offset+limit);let persisted=0,playersCount=0,lineupsCount=0,analyticsUnavailable=0,errors=0;
+    for(let i=0;i<slice.length;i+=3){
+      const group=slice.slice(i,i+3);
+      const results=await Promise.all(group.map(async m=>{
+        try{
+          const [advanced,shots,stats,network]=await Promise.all([
+            pitch(context.env,`/v1/matches/${m.id}/advanced`,{optional:true}),
+            pitch(context.env,`/v1/matches/${m.id}/shots`,{optional:true}),
+            pitch(context.env,`/v1/matches/${m.id}/stats`,{optional:true}),
+            pitch(context.env,`/v1/matches/${m.id}/advanced/network`,{optional:true})
+          ]);
+          const [advancedPlayers,standardPlayers,lineups]=liveMode?await Promise.all([
+            pitch(context.env,`/v1/matches/${m.id}/advanced/players`,{optional:true}),
+            pitch(context.env,`/v1/matches/${m.id}/players`,{optional:true}),
+            pitch(context.env,`/v1/matches/${m.id}/lineups`,{optional:true})
+          ]):[null,null,null];
+          if(!advanced)analyticsUnavailable++;
+          const p=await persistPitchApiBundle(context.env,bundle(m,advanced,stats,shots,advancedPlayers,standardPlayers,lineups,network,league,season,leagueKey));
+          return p;
+        }catch(e){errors++;return{ok:false,error:String(e?.message||e)};}
+      }));
+      for(const x of results){if(x?.ok){persisted+=x.match||0;playersCount+=x.players||0;lineupsCount+=x.lineups||0;}}
+    }
+    const coverageRefresh=await refreshPitchApiCompetitionCoverage(context.env,{leagueKey}).catch(()=>null);
+    if(mode==="live-auto"&&rotationTarget){
+      const db=context.env?.DB;
+      const now=new Date().toISOString();
+      if(errors===0) await db.prepare("UPDATE soccer_competition_coverage SET last_live_sync_at=?,live_sync_last_error=NULL WHERE heritage_name=?").bind(now,rotationTarget.heritage_name).run();
+      else await db.prepare("UPDATE soccer_competition_coverage SET last_live_sync_at=?,live_sync_errors=live_sync_errors+1,live_sync_last_error=? WHERE heritage_name=?").bind(now,String(errors)+" match errors",rotationTarget.heritage_name).run();
+    }
+    return json({ok:errors===0,leagueKey,pitchLeagueId:league.id,pitchLeagueName:league.name,heritageName:rotationTarget?.heritage_name||null,season,mode,offset,limit,totalMatches:matches.length,processed:slice.length,persisted,players:playersCount,lineups:lineupsCount,analyticsUnavailable,errors,nextOffset:offset+slice.length,done:offset+slice.length>=matches.length,coverageRefresh,marketUsed:false});
+  }catch(e){return json({ok:false,error:String(e?.message||e),leagueKey,mode},502);}
+}

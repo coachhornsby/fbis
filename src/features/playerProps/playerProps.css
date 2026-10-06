@@ -2175,3 +2175,559 @@
   .tracked-prop-leg { grid-template-columns:1.25fr 1fr .72fr .45fr; }
   .tracked-props-heading { align-items:flex-start; }
 }
+
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Player Props mobile density + expandable analytics
+   Compact two-column browse cards; expanded cards span the grid.
+   ────────────────────────────────────────────────────────────────────────── */
+.pp-analytics {
+  margin-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.pp-analytics-toggle {
+  width: 100%;
+  min-height: 40px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 2px 2px;
+  border:0;
+  background:transparent;
+  color:#bcd4ef;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.025em;
+  cursor:pointer;
+}
+.pp-analytics-toggle span:last-child {
+  font-size:18px;
+  line-height:1;
+  color:#68bfff;
+}
+.pp-analytics-body {
+  display:grid;
+  gap:10px;
+  margin-top:9px;
+  animation:ppAnalyticsIn .15s ease-out;
+}
+@keyframes ppAnalyticsIn {
+  from { opacity:0; transform:translateY(-4px); }
+  to { opacity:1; transform:none; }
+}
+.pp-analytics-loading {
+  padding:11px 12px;
+  border:1px solid rgba(113,148,197,.22);
+  border-radius:12px;
+  background:rgba(3,12,26,.58);
+  color:#8fa3bd;
+  font-size:10px;
+  line-height:1.4;
+}
+.pp-analytics-label {
+  color:#6e8aa9;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.12em;
+}
+.pp-why-card,
+.pp-history-block {
+  padding:12px;
+  border:1px solid rgba(98,139,194,.26);
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(8,25,47,.9),rgba(4,14,29,.9));
+}
+.pp-why-card ul {
+  margin:7px 0 0;
+  padding-left:17px;
+  color:#d9e6f5;
+  font-size:10px;
+  line-height:1.55;
+}
+.pp-history-head {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+}
+.pp-history-head strong {
+  display:block;
+  margin-top:3px;
+  color:#fff;
+  font-size:13px;
+}
+.pp-history-summary {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:2px;
+}
+.pp-history-summary span,
+.pp-season-grid span,
+.pp-matchup-grid span {
+  color:#7187a2;
+  font-size:7px;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+.pp-history-summary b {
+  color:#fff;
+  font-size:16px;
+}
+.pp-history-bars {
+  height:128px;
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:7px;
+  align-items:end;
+  margin-top:12px;
+}
+.pp-history-game {
+  min-width:0;
+  display:grid;
+  grid-template-rows:78px auto auto auto;
+  gap:2px;
+  text-align:center;
+}
+.pp-history-bar-wrap {
+  position:relative;
+  height:78px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  border-bottom:1px solid rgba(255,255,255,.12);
+}
+.pp-history-bar {
+  width:min(28px,74%);
+  min-height:8px;
+  border-radius:6px 6px 2px 2px;
+  background:#4e77a5;
+}
+.pp-history-bar.over {
+  background:#39ff88;
+  box-shadow:0 0 12px rgba(57,255,136,.62),0 0 3px rgba(57,255,136,.9);
+}
+.pp-history-bar.under {
+  background:#ff315f;
+  box-shadow:0 0 12px rgba(255,49,95,.55),0 0 3px rgba(255,49,95,.88);
+}
+.pp-history-bar.push {
+  background:#ffd84a;
+  box-shadow:0 0 10px rgba(255,216,74,.42);
+}
+.pp-history-line {
+  position:absolute;
+  left:0;
+  right:0;
+  border-top:1px dashed rgba(255,255,255,.58);
+}
+.pp-history-game b {
+  color:#f7f9ff;
+  font-size:11px;
+}
+.pp-history-game span {
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  color:#a4b3c7;
+  font-size:8px;
+}
+.pp-history-game small {
+  color:#64768f;
+  font-size:7px;
+}
+.pp-history-legend {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:6px;
+  color:#7187a2;
+  font-size:8px;
+}
+.pp-history-legend span {
+  width:18px;
+  border-top:1px dashed rgba(255,255,255,.58);
+}
+.pp-season-grid {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  border:1px solid rgba(98,139,194,.24);
+  border-radius:12px;
+  overflow:hidden;
+  background:rgba(3,12,26,.62);
+}
+.pp-season-grid>div,
+.pp-matchup-grid>div {
+  min-width:0;
+  padding:9px 6px;
+  text-align:center;
+}
+.pp-season-grid>div+div,
+.pp-matchup-grid>div+div {
+  border-left:1px solid rgba(255,255,255,.07);
+}
+.pp-season-grid b,
+.pp-matchup-grid b {
+  display:block;
+  margin-top:4px;
+  color:#fff;
+  font-size:13px;
+  font-variant-numeric:tabular-nums;
+}
+.pp-season-grid>div:nth-child(3) b { color:#64efaa; }
+.pp-matchup-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  border:1px solid rgba(98,139,194,.24);
+  border-radius:12px;
+  overflow:hidden;
+  background:rgba(3,12,26,.62);
+}
+.pp-calibration-row {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 2px 0;
+  color:#7187a2;
+  font-size:8px;
+}
+.pp-calibration-row b {
+  color:#bcd4ef;
+  text-align:right;
+  font-size:8px;
+}
+
+@media (max-width:760px) {
+  .player-props-page {
+    margin-left:-10px !important;
+    margin-right:-10px !important;
+    padding-left:7px !important;
+    padding-right:7px !important;
+  }
+  .pp-premium-header {
+    padding:10px 3px 9px !important;
+  }
+  .pp-premium-brandline { font-size:23px !important; }
+  .pp-premium-brand h1 { font-size:13px !important; }
+  .pp-sport-strip.pp-premium-tabs {
+    margin-bottom:12px !important;
+    border-radius:13px !important;
+  }
+  .pp-sport-strip.pp-premium-tabs button {
+    min-width:64px !important;
+    min-height:36px !important;
+    padding:0 11px !important;
+    font-size:10px !important;
+  }
+  .pp-premium-section-head {
+    padding:0 2px 10px !important;
+  }
+  .pp-premium-section-head h2 { font-size:23px !important; }
+  .pp-premium-section-head p {
+    max-width:230px !important;
+    font-size:9px !important;
+  }
+  .pp-count.pp-premium-count {
+    padding:6px 8px !important;
+    font-size:8px !important;
+  }
+  .pp-card-grid.pp-premium-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:8px !important;
+    padding:0 0 18px !important;
+    align-items:start;
+  }
+  .pp-card.pp-premium-card {
+    width:100%;
+    min-width:0;
+    border-radius:14px !important;
+    box-shadow:0 8px 20px rgba(0,0,0,.28) !important;
+  }
+  .pp-card.pp-premium-card.pp-five-star {
+    box-shadow:
+      0 0 0 1px rgba(255,210,63,.56),
+      0 0 9px rgba(255,204,55,.45),
+      0 8px 20px rgba(0,0,0,.28) !important;
+  }
+  .pp-card.pp-premium-card.pp-expanded {
+    grid-column:1 / -1;
+    border-radius:17px !important;
+  }
+  .pp-card-visual {
+    height:116px !important;
+  }
+  .pp-card.pp-expanded .pp-card-visual {
+    height:164px !important;
+  }
+  .pp-premium-headshot {
+    width:61% !important;
+    max-width:135px !important;
+    height:94% !important;
+  }
+  .pp-card.pp-expanded .pp-premium-headshot {
+    width:54% !important;
+    max-width:215px !important;
+  }
+  .pp-team-watermark {
+    left:-12px !important;
+    top:-14px !important;
+    width:118px !important;
+    height:118px !important;
+    opacity:.14 !important;
+  }
+  .pp-team-watermark img {
+    width:118px !important;
+    height:118px !important;
+    max-width:118px !important;
+    max-height:118px !important;
+  }
+  .pp-card.pp-expanded .pp-team-watermark {
+    width:170px !important;
+    height:170px !important;
+  }
+  .pp-card.pp-expanded .pp-team-watermark img {
+    width:170px !important;
+    height:170px !important;
+    max-width:170px !important;
+    max-height:170px !important;
+  }
+  .pp-premium-stars {
+    top:7px !important;
+    right:7px !important;
+  }
+  .pp-star-icons {
+    font-size:10px !important;
+    gap:0 !important;
+  }
+  .pp-card.pp-expanded .pp-star-icons { font-size:15px !important; }
+  .pp-team-pill {
+    bottom:5px !important;
+    min-height:22px !important;
+    max-width:88% !important;
+    padding:0 8px !important;
+    gap:3px !important;
+    font-size:7px !important;
+    letter-spacing:.035em !important;
+  }
+  .pp-card-body {
+    padding:8px 8px 9px !important;
+  }
+  .pp-card.pp-expanded .pp-card-body {
+    padding:10px 12px 13px !important;
+  }
+  .pp-player-title h3 {
+    font-size:15px !important;
+    line-height:1.06 !important;
+    letter-spacing:-.25px !important;
+  }
+  .pp-card.pp-expanded .pp-player-title h3 { font-size:22px !important; }
+  .pp-player-position { font-size:.55em !important; }
+  .pp-player-title p {
+    margin-top:3px !important;
+    font-size:7.5px !important;
+  }
+  .pp-card.pp-expanded .pp-player-title p { font-size:10px !important; }
+  .pp-market-name.pp-premium-market-name {
+    margin:7px 0 7px !important;
+    font-size:14px !important;
+    line-height:1.05 !important;
+  }
+  .pp-card.pp-expanded .pp-market-name.pp-premium-market-name {
+    margin:9px 0 !important;
+    font-size:21px !important;
+  }
+  .pp-variant-shell { margin-top:7px !important; }
+  .pp-tier-control-row {
+    gap:5px !important;
+    margin-bottom:6px !important;
+  }
+  .pp-active-tier { font-size:7px !important; }
+  .pp-tier-select-wrap {
+    gap:4px !important;
+    font-size:7px !important;
+  }
+  .pp-tier-select {
+    min-width:0 !important;
+    width:86px !important;
+    padding:5px 18px 5px 6px !important;
+    border-radius:7px !important;
+    font-size:7px !important;
+  }
+  .pp-card.pp-expanded .pp-tier-select {
+    width:132px !important;
+    font-size:9px !important;
+  }
+  .pp-line-row.pp-premium-metrics {
+    border-radius:9px !important;
+  }
+  .pp-line-row.pp-premium-metrics > div {
+    padding:7px 2px 7px !important;
+  }
+  .pp-line-row.pp-premium-metrics > div + div::before {
+    top:8px !important;
+    bottom:8px !important;
+  }
+  .pp-line-row.pp-premium-metrics span {
+    font-size:6px !important;
+    letter-spacing:.04em !important;
+  }
+  .pp-line-row.pp-premium-metrics strong {
+    margin-top:4px !important;
+    font-size:15px !important;
+  }
+  .pp-card.pp-expanded .pp-line-row.pp-premium-metrics strong {
+    font-size:21px !important;
+  }
+  .pp-read.pp-premium-read {
+    margin-top:6px !important;
+    border-radius:9px !important;
+  }
+  .pp-read-side,
+  .pp-edge-value {
+    min-height:33px !important;
+    gap:4px !important;
+  }
+  .pp-read-arrow { font-size:14px !important; }
+  .pp-read.pp-premium-read .pp-read-side b { font-size:10px !important; }
+  .pp-edge-value span { font-size:5.5px !important; }
+  .pp-edge-value strong { font-size:9px !important; }
+  .pp-card.pp-expanded .pp-read-side,
+  .pp-card.pp-expanded .pp-edge-value { min-height:44px !important; }
+  .pp-card.pp-expanded .pp-read-arrow { font-size:20px !important; }
+  .pp-card.pp-expanded .pp-read.pp-premium-read .pp-read-side b { font-size:15px !important; }
+  .pp-card.pp-expanded .pp-edge-value strong { font-size:13px !important; }
+  .pp-card-foot.pp-premium-foot {
+    margin-top:6px !important;
+    padding-top:6px !important;
+    gap:4px !important;
+    font-size:5.5px !important;
+  }
+  .pp-card.pp-expanded .pp-card-foot.pp-premium-foot {
+    font-size:8px !important;
+  }
+  .pp-analytics { margin-top:6px; }
+  .pp-analytics-toggle {
+    min-height:32px;
+    padding-top:6px;
+    font-size:8px;
+  }
+  .pp-card.pp-expanded .pp-analytics-toggle {
+    min-height:38px;
+    font-size:10px;
+  }
+  .pp-card:not(.pp-expanded) .pp-analytics-body { display:none; }
+}
+
+@media (max-width:360px) {
+  .pp-card-grid.pp-premium-grid { gap:6px !important; }
+  .pp-card-visual { height:108px !important; }
+  .pp-player-title h3 { font-size:14px !important; }
+  .pp-market-name.pp-premium-market-name { font-size:13px !important; }
+  .pp-line-row.pp-premium-metrics strong { font-size:14px !important; }
+}
+
+
+/* Expanded prop evidence */
+.pp-advanced-block {
+  padding:12px;
+  border:1px solid rgba(98,139,194,.24);
+  border-radius:12px;
+  background:rgba(3,12,26,.62);
+}
+.pp-advanced-grid {
+  margin-top:8px;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:10px;
+}
+.pp-advanced-grid > div {
+  min-width:0;
+  padding:9px 6px;
+  text-align:center;
+}
+.pp-advanced-grid > div + div {
+  border-left:1px solid rgba(255,255,255,.06);
+}
+.pp-advanced-grid span {
+  display:block;
+  color:#7187a2;
+  font-size:7px;
+  font-weight:900;
+  letter-spacing:.06em;
+}
+.pp-advanced-grid b {
+  display:block;
+  margin-top:4px;
+  color:#f7f9ff;
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Team watermark: +20% and centered behind player image */
+.pp-card-visual .pp-team-watermark {
+  left:50% !important;
+  top:50% !important;
+  width:240px !important;
+  height:240px !important;
+  transform:translate(-50%,-50%) !important;
+  opacity:.17 !important;
+}
+.pp-card-visual .pp-team-watermark img {
+  width:240px !important;
+  height:240px !important;
+  max-width:240px !important;
+  max-height:240px !important;
+  object-fit:contain !important;
+}
+@media (max-width:760px) {
+  .pp-card-visual .pp-team-watermark {
+    left:50% !important;
+    top:50% !important;
+    width:142px !important;
+    height:142px !important;
+    transform:translate(-50%,-50%) !important;
+  }
+  .pp-card-visual .pp-team-watermark img {
+    width:142px !important;
+    height:142px !important;
+    max-width:142px !important;
+    max-height:142px !important;
+  }
+  .pp-card.pp-expanded .pp-team-watermark {
+    width:204px !important;
+    height:204px !important;
+  }
+  .pp-card.pp-expanded .pp-team-watermark img {
+    width:204px !important;
+    height:204px !important;
+    max-width:204px !important;
+    max-height:204px !important;
+  }
+  .pp-advanced-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+.pp-analytics-unavailable{padding:11px 12px;border:1px solid rgba(255,94,120,.32);border-radius:12px;background:rgba(47,10,22,.38);color:#ff9bad;font-size:9px;line-height:1.45}
+
+
+/* Keep sport/team badge fully inside hero art on all breakpoints. */
+.pp-card-visual .pp-team-pill {
+  bottom: 12px !important;
+  transform: translateX(-50%) !important;
+  z-index: 9 !important;
+}
+.pp-card-body {
+  padding-top: 18px;
+}
+@media (max-width:760px) {
+  .pp-card-visual .pp-team-pill {
+    bottom: 8px !important;
+  }
+  .pp-card.pp-expanded .pp-card-visual .pp-team-pill {
+    bottom: 10px !important;
+  }
+}

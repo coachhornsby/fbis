@@ -238,7 +238,8 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
   if(reliability.score<.58)reasons.push("matchup-reliability-low");
   const minEv=Number(calibration?.minEv??.03),minEdge=Number(calibration?.minProbabilityEdge??.02),minConf=Number(calibration?.minConfidence??70);
   const researchCandidate=Boolean(ev!=null&&edge!=null&&ev>=minEv&&edge>=minEdge&&reliability.score>=.58&&tw.complete);
-  const bet=Boolean(researchCandidate&&calibrationState.ok&&confidence>=minConf);
+  const qualificationEligible=researchCandidate;
+  const bet=qualificationEligible;
   return {
     market,selection,line:finite(line),americanPrice:finite(price),
     modelProbability:round(modelProbability),calibratedProbability:round(adjusted),
@@ -251,11 +252,12 @@ function offerRow({market,selection,line,price,oppositePrice,modelProbability,ga
     confidenceStatus:calibrationState.ok?"VALIDATED":"UNVALIDATED_FAIL_CLOSED",
     confidenceBin:bin,
     researchCandidate,
+    qualificationEligible,
     decision:bet?"BET":"PASS",
-    decisionStatus:bet?"VALIDATED":"RESEARCH_ONLY_FAIL_CLOSED",
+    decisionStatus:bet?"QUALIFIED_STAKING_DISABLED":"PASS",
     stakeUnits:null,suggestedUnits:0,stakingValidated:false,
-    canQualify:false,canAuthorizeWager:false,reasons,
-    reason:bet?"Validated confidence and exact-price EV gates cleared.":"Fail-closed until all EV/reliability/confidence gates clear."
+    canQualify:qualificationEligible,canAuthorizeWager:false,reasons,
+    reason:bet?"Independent model edge and executable-price qualification gates cleared; staking remains disabled.":"Qualification gates not cleared."
   };
 }
 export function evaluateNhlGameWagers(game={},calibration=NHL_WAGER_CONFIDENCE_V1.game){
@@ -288,8 +290,8 @@ export function evaluateNhlGameWagers(game={},calibration=NHL_WAGER_CONFIDENCE_V
     decision:offers[0]?.decision||"PASS",
     confidenceCalibrated:Boolean(offers[0]?.confidenceValidated),
     stakingValidated:false,
-    canQualify:false,canAuthorizeWager:false,
-    governance:"Research BET/PASS labels are evaluation targets only. Unit stakes remain zero until walk-forward ROI, calibration, drawdown, CLV and confidence monotonicity pass."
+    canQualify:Boolean(offers.some(x=>x.qualificationEligible)),canAuthorizeWager:false,
+    governance:"Qualified plays may be surfaced when independent model edge, executable price, reliability and two-way market gates pass. Unit stakes remain disabled until ROI, drawdown, CLV and confidence monotonicity validate."
   };
 }
 
@@ -315,7 +317,8 @@ export function evaluateNhlPropWagerV1(row={},calibration=NHL_WAGER_CONFIDENCE_V
   const bin=calibrationState.ok?calibrationBin(rawConfidence,calibration):null;
   const confidence=calibrationState.ok?clamp(Math.round(finite(bin?.calibratedScore)??rawConfidence),0,100):rawConfidence;
   const researchCandidate=Boolean(validated&&gate&&tw.complete&&ev!=null&&edge!=null&&ev>=Number(calibration?.minEv??.035)&&edge>=Number(calibration?.minProbabilityEdge??.025));
-  const bet=Boolean(researchCandidate&&calibrationState.ok&&confidence>=Number(calibration?.minConfidence??70));
+  const qualificationEligible=researchCandidate;
+  const bet=qualificationEligible;
   return {
     modelId:"NHL-WAGER-PROP-v1",version:"research-v1.0-price-aware",
     market:row.marketCanonical||row.market,side,projection:finite(row.fbisProjection),line:finite(row.line),
@@ -326,10 +329,10 @@ export function evaluateNhlPropWagerV1(row={},calibration=NHL_WAGER_CONFIDENCE_V
     confidenceVersion:NHL_WAGER_CONFIDENCE_VERSION,
     confidenceValidated:calibrationState.ok,
     confidenceStatus:calibrationState.ok?"VALIDATED":"UNVALIDATED_FAIL_CLOSED",
-    confidenceBin:bin,researchCandidate,
-    decision:bet?"BET":"PASS",decisionStatus:bet?"VALIDATED":"RESEARCH_ONLY_FAIL_CLOSED",
+    confidenceBin:bin,researchCandidate,qualificationEligible,
+    decision:bet?"BET":"PASS",decisionStatus:bet?"QUALIFIED_STAKING_DISABLED":"PASS",
     stakeUnits:null,suggestedUnits:0,stakingValidated:false,
-    canQualify:false,canAuthorizeWager:false,
+    canQualify:qualificationEligible,canAuthorizeWager:false,
     reasons:[...(!calibrationState.ok?[calibrationState.reason]:[]),...(!validated?["model-market-not-validated"]:[]),...(!gate?["availability-or-line-gate"]:[])],
     reason:bet?"Validated confidence and exact-price prop EV gates cleared.":"Fail-closed until price/model/availability/confidence gates clear."
   };

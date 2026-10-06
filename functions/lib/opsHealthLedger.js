@@ -260,9 +260,19 @@ export async function loadOpsControlPlane(env) {
        WHERE detected_at >= datetime('now', '-30 days')`
   ).first();
 
+  const incidentsRes = await env.DB.prepare(
+    `SELECT incident_fingerprint, component_id, failure_class, severity, detected_at,
+            repaired_at, verified_at, detection_source, autonomous_repair,
+            owner_action_required, repeat_count, mttr_seconds, notes
+       FROM fbis_watchdog_metrics
+      ORDER BY detected_at DESC
+      LIMIT 50`
+  ).all();
+
   return {
     bound: true,
     components,
+    incidents: incidentsRes?.results || [],
     invariants: [...manifestInvariants, ...(invRes?.results || [])].slice(0, 150),
     metrics: {
       incidents: Number(metric?.incidents || 0),

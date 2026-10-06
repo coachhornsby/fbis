@@ -2,15 +2,15 @@
  * FBIS product navigation — Board-first decision workstation.
  * Sports are filters, not permanent primary tabs.
  *
- * Primary IA: BOARD · MODELS · MODEL LAB · MY BETS · MARKET · SYSTEM
+ * Primary IA: BOARD · PLAYER PROPS · MY BETS · MODELS · MODEL LAB · MARKET · SYSTEM
  */
 
 export const CUSTOMER_NAV = Object.freeze([
   { id: "board", label: "BOARD", description: "Decision workstation — FBIS → Market → Diff → Decision" },
   { id: "player-props", label: "PLAYER PROPS", description: "Curated PrizePicks lines + FBIS player projections" },
-  { id: "models", label: "MODELS", description: "Sport/model status and projections" },
-  { id: "model-lab", label: "MODEL LAB", description: "Validation, version comparison, prospective evidence" },
   { id: "bets", label: "MY BETS", description: "Manual wager journal and performance" },
+  { id: "models", label: "MODELS", description: "Model health, status, coverage, and readiness — no betting picks" },
+  { id: "model-lab", label: "MODEL LAB", description: "Validation, version comparison, prospective evidence" },
   { id: "market", label: "MARKET", description: "Advanced market intelligence and price comparison" },
 ]);
 
@@ -117,6 +117,6 @@ export function formatShellDate(isoOrDate = new Date()) {
 }
 
 /** Approved product expansion — do not change silently. */
-export const FBIS_PRODUCT_SUBTITLE = "Forecasting & Betting Intelligence System";
+export const FBIS_PRODUCT_SUBTITLE = "Fastwater Betting Intelligence System";
 
 export const FBIS_WORKFLOW_TAGLINE = "FBIS → Market → Diff → Decision";

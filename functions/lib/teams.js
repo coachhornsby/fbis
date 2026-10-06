@@ -58,6 +58,13 @@ function indexSport(sport, rows) {
         extra.push(row);
         byAbbr.set(espnAbbr, extra);
       }
+      for (const alias of row.sources?.official?.abbrs || []) {
+        const a = String(alias || "").toUpperCase();
+        if (!a || a === row.abbr) continue;
+        const extra = byAbbr.get(a) || [];
+        extra.push(row);
+        byAbbr.set(a, extra);
+      }
     }
     const names = [
       row.displayName,
@@ -200,6 +207,8 @@ export function enrichTeam(sport, raw = {}) {
       abbr: invented ? "—" : abbr,
       logo: raw.logo || espnLogoUrl(sport, raw.espnId, abbr),
       espnId: raw.espnId || raw.espnTeamId || null,
+      color: raw.color || raw.primaryColor || null,
+      altColor: raw.altColor || raw.alternateColor || null,
     };
   }
   const espnAbbr = hit.sources?.espn?.abbr || hit.abbr;
@@ -216,8 +225,8 @@ export function enrichTeam(sport, raw = {}) {
     abbr: hit.abbr,
     logo: hit.logo || raw.logo || espnLogoUrl(sport, hit.espnId, espnAbbr),
     espnId: hit.espnId || raw.espnId || raw.espnTeamId || null,
-    color: hit.color || raw.color || null,
-    altColor: hit.altColor || raw.altColor || null,
+    color: hit.color || raw.color || raw.primaryColor || null,
+    altColor: hit.altColor || raw.altColor || raw.alternateColor || null,
     conference: hit.conference || raw.conference || null,
     classification: hit.classification || raw.classification || null,
     sources: hit.sources,

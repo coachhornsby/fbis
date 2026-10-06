@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import { projectNbaGame } from "../functions/lib/nbaModel.js";
+import { buildNbaScheduleContext } from "../functions/lib/nbaTravelContext.js";
 import { projectBasketballForm } from "../functions/lib/basketballFormModel.js";
 const file=process.argv[2]||"artifacts/nba-canonical.jsonl";
 const rows=fs.readFileSync(file,"utf8").trim().split("\n").filter(Boolean).map(JSON.parse).sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
@@ -11,7 +12,9 @@ for(let i=0;i<rows.length;i++){
  const g=rows[i],hh=byTeam.get(g.homeId)||[],ah=byTeam.get(g.awayId)||[];
  if(hh.length>=6&&ah.length>=6){
   const p=projectNbaGame({id:g.id,neutralSite:g.neutralSite,featureCutoff:g.start},{
-   homeHistory:hh,awayHistory:ah,homeContext:{daysRest:2},awayContext:{daysRest:2}
+   homeHistory:hh,awayHistory:ah,
+   homeContext:buildNbaScheduleContext(rows,g,i,"home"),
+   awayContext:buildNbaScheduleContext(rows,g,i,"away")
   });
   const agg=x=>({games:x.length,pointsFor:x.reduce((s,r)=>s+r.pointsFor,0),pointsAgainst:x.reduce((s,r)=>s+r.pointsAgainst,0)});
   const f=projectBasketballForm("nba",{neutralSite:g.neutralSite},{homeCurrent:agg(hh),awayCurrent:agg(ah)});

@@ -430,7 +430,7 @@ test("migration 0021/0022 + schema.extensions + health expected migration", asyn
     assert.match(schema, new RegExp(t));
   }
   assert.match(schema, /shadow_candidate_scheduler_state/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0039_soccer_canonical["\']/);
+  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0064_soccer_phase3_validation_evidence["\']/);
   assert.match(health, /actionApifyCandidateHealth/);
   assert.match(health, /actionApify:/);
 });

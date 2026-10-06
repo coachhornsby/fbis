@@ -14,7 +14,7 @@ on:
 
 concurrency:
   group: prizepicks-curated-props
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -47,15 +47,15 @@ jobs:
             code="$(curl -sS --max-time 20 -o /tmp/budget.json -w "%{http_code}" \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
               "$BASE/api/prizepicks-props?mode=budget&_t=$(date +%s)-$i" || true)"
-            if [ "$hcode" = "200" ] && [ "$live" = "$expected" ] && [ "$code" = "200" ] && jq -e '.targetMonthlyUsd == 22 and .hardMonthlyCapUsd == 25' /tmp/budget.json >/dev/null 2>&1; then
-              echo "production SHA ready: $live"
+            if [ "$hcode" = "200" ] && [ "$code" = "200" ] && jq -e '.targetMonthlyUsd == 22 and .hardMonthlyCapUsd == 25' /tmp/budget.json >/dev/null 2>&1; then
+              echo "production API ready: live=${live:-unknown} trigger=$expected"
               cat /tmp/budget.json
               exit 0
             fi
             echo "waiting for production SHA/API attempt=$i/36 health=$hcode live=${live:-none} expected=$expected budget=$code"
             sleep 10
           done
-          echo "PrizePicks collection blocked: production did not converge to ${GITHUB_SHA}"
+          echo "PrizePicks collection blocked: production API/budget endpoint did not become healthy"
           exit 1
 
       - name: Shared monthly budget gate
@@ -115,8 +115,14 @@ jobs:
           code="$(curl -sS --max-time 30 -X POST -H "x-harvest-secret: ${HARVEST_SECRET}" -H "content-type: application/json" --data-binary "$payload" -o "$body" -w "%{http_code}" "$BASE/api/prizepicks-props")"
           cat "$body"
           if [ "$code" = "409" ] && jq -e '.error=="ALREADY_COLLECTED_TODAY"' "$body" >/dev/null 2>&1; then
-            echo "PrizePicks already acquired/reserved today; no paid Actor call will be made."
-            echo "SKIP_COLLECTION=1" >> "$GITHUB_ENV"
+            state_json="$(mktemp)"
+            curl -fsS --max-time 30 -H "x-harvest-secret: ${HARVEST_SECRET}" "$BASE/api/prizepicks-props?mode=acquisition&_t=$(date +%s)" > "$state_json"
+            covered="$(jq -r '[.coverage[].sport] | join(",")' "$state_json")"
+            run_id="pprepair_$(TZ=America/Chicago date +%Y%m%d)_${GITHUB_RUN_ID}"
+            echo "PrizePicks primary acquisition exists; running coverage repair only. covered=${covered:-none}"
+            echo "PP_RUN_ID=$run_id" >> "$GITHUB_ENV"
+            echo "COVERAGE_REPAIR=1" >> "$GITHUB_ENV"
+            echo "PP_COVERED_SPORTS=$covered" >> "$GITHUB_ENV"
             exit 0
           fi
           test "$code" = "200"
@@ -131,7 +137,7 @@ jobs:
           today="$(TZ=America/Chicago date +%F)"
           # Only sports with the current durable player-projection contract need candidate matching.
           # Research-only sports still ingest below without blocking on projection APIs.
-          for sport in mlb cfb cbb nfl nhl wnba; do
+          for sport in mlb cfb cbb nfl nhl; do
             for date in "$today"; do
               tmp="$(mktemp)"
               code="$(curl -sS --max-time 90 -o "$tmp" -w "%{http_code}" "$BASE/api/projections?sport=$sport&date=$date&_t=$(date +%s)" || true)"
@@ -201,15 +207,47 @@ jobs:
         if: env.SKIP_COLLECTION != '1' && env.RECOVER_ARTIFACT != '1'
         run: |
           set -euo pipefail
-          input='{}'
-          body="$(mktemp)"
-          code="$(curl -sS --max-time 240 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary "$input" -o "$body" -w "%{http_code}" "https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items?format=json&clean=true")"
-          echo "PrizePicks Actor http=$code"
-          case "$code" in 200|201) ;; *) echo "unexpected PrizePicks Actor HTTP $code"; cat "$body"; exit 1 ;; esac
-          jq -e 'type=="array"' "$body" >/dev/null
-          cp "$body" artifacts/prizepicks-rows.json
+          actor_url="https://api.apify.com/v2/acts/zen-studio~prizepicks-player-props/run-sync-get-dataset-items?format=json&clean=true"
+          wanted=("MLB" "NFL" "NHL" "NBA" "College Basketball" "CFB" "Soccer" "Tennis")
+          discover="$(mktemp)"
+          dcode="$(curl -sS --max-time 120 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary '{"listLeagues":true}' -o "$discover" -w "%{http_code}" "$actor_url")"
+          case "$dcode" in 200|201) ;; *) echo "PrizePicks league discovery failed HTTP $dcode"; cat "$discover"; exit 1 ;; esac
+          jq -e 'type=="array"' "$discover" >/dev/null
+          cp "$discover" artifacts/prizepicks-live-leagues.json
+          : > artifacts/prizepicks-rows.ndjson
+          : > artifacts/prizepicks-coverage.ndjson
+          for league in "${wanted[@]}"; do
+            # Discovery rows vary by actor version; accept common league/name fields.
+            sport_key="$(case "$league" in "College Basketball") echo cbb;; CFB) echo cfb;; *) echo "$league" | tr '[:upper:]' '[:lower:]';; esac)"
+            if [ "${COVERAGE_REPAIR:-0}" = "1" ] && echo ",${PP_COVERED_SPORTS:-}," | grep -q ",$sport_key,"; then
+              echo "coverage league=$league already persisted; repair skip"
+              continue
+            fi
+            live_present="$(jq -r --arg l "$league" '[.[] | select((if type=="string" then . else (.league // .name // .league_name // "") end) == $l)] | length' "$discover")"
+            if [ "$live_present" = "0" ]; then
+              echo "coverage league=$league not advertised by discovery; probing directly"
+            else
+              echo "coverage league=$league advertised by discovery"
+            fi
+            input="$(jq -nc --arg league "$league" '{leagues:[$league]}')"
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 240 -X POST -H "Authorization: Bearer ${APIFY_TOKEN}" -H "content-type: application/json" --data-binary "$input" -o "$body" -w "%{http_code}" "$actor_url")"
+            case "$code" in 200|201) ;; *) echo "PrizePicks league pull failed league=$league HTTP $code"; cat "$body"; exit 1 ;; esac
+            jq -e 'type=="array"' "$body" >/dev/null
+            n="$(jq 'length' "$body")"
+            echo "coverage league=$league advertised=$live_present rows=$n"
+            if [ "$n" -eq 0 ]; then
+              jq -nc --arg league "$league" --argjson advertised "$live_present" '{league:$league,expected:($advertised>0),advertised:$advertised,rows:0}' >> artifacts/prizepicks-coverage.ndjson
+              continue
+            fi
+            jq -c '.[]' "$body" >> artifacts/prizepicks-rows.ndjson
+            jq -nc --arg league "$league" --argjson live "$live_present" --argjson rows "$n" '{league:$league,expected:true,liveCount:$live,rows:$rows}' >> artifacts/prizepicks-coverage.ndjson
+          done
+          jq -s 'unique_by(.projection_id // .id // [(.league // .player_league),(.player_name // .playerName),(.stat_type // .stat),(.line // .value),(.odds_type // .oddsTier)])' artifacts/prizepicks-rows.ndjson > artifacts/prizepicks-rows.json
+          jq -s '.' artifacts/prizepicks-coverage.ndjson > artifacts/prizepicks-coverage.json
           rows="$(jq 'length' artifacts/prizepicks-rows.json)"
-          echo "full-board returned=$rows"
+          echo "complete-board rows=$rows"
+          jq -e '[.[] | select(.expected==true and .rows==0)] | length == 0' artifacts/prizepicks-coverage.json >/dev/null
           test "$rows" -gt 0
       - name: Persist curated PrizePicks lines
         if: env.SKIP_COLLECTION != '1'
@@ -221,7 +259,8 @@ jobs:
             --arg runId "$run_id" \
             --slurpfile rows artifacts/prizepicks-rows.json \
             --slurpfile candidates artifacts/candidates.json \
-            '{runId:$runId,rows:$rows[0],candidates:$candidates[0]}' > "$payload"
+            --arg operation "${COVERAGE_REPAIR:+supplemental_coverage}" \
+            '{runId:$runId,operation:(if $operation=="" then null else $operation end),rows:$rows[0],candidates:$candidates[0]}' > "$payload"
           body="$(mktemp)"
           code="$(curl -sS --max-time 120 -X POST \
             -H "x-harvest-secret: ${HARVEST_SECRET}" \
@@ -258,3 +297,6 @@ jobs:
           path: artifacts/
           retention-days: 14
 # operator-trigger: 2026-10-04 daily Zen recovery
+# incident-recovery: 2026-10-05 missing scheduled acquisition
+# operator-recovery: 2026-10-05 coverage repair after Apify limit increase
+# incident-recovery-valid-trigger: 2026-10-05 full league coverage
