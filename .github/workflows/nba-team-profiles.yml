@@ -92,6 +92,10 @@ jobs:
             : > artifacts/nba-official-lineups.sql
           fi
 
+      - name: Build lineup observation health
+        run: |
+          node scripts/nba-observation-health-sql.mjs mode=lineup input=artifacts/nba-official-lineups.json out=artifacts/nba-lineup-health.sql
+
       - name: Load prior persistent state and point-in-time evidence
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -115,9 +119,11 @@ jobs:
         run: |
           set -euo pipefail
           npx wrangler d1 execute fbis --remote --file=migrations/0054_nba_persistent_team_profiles.sql
+          npx wrangler d1 execute fbis --remote --file=migrations/0060_nba_observation_health.sql
           if [ -s artifacts/nba-official-lineups.sql ]; then
             npx wrangler d1 execute fbis --remote --file=artifacts/nba-official-lineups.sql
           fi
+          npx wrangler d1 execute fbis --remote --file=artifacts/nba-lineup-health.sql
           npx wrangler d1 execute fbis --remote --file=artifacts/nba-team-profiles.sql
           for f in artifacts/nba-team-schedule-*.sql; do
             [ -s "$f" ] || continue
