@@ -41,7 +41,7 @@ export function stateOverlayPermission() {
 export function isCurrentFbsTeam(team) {
   return Boolean(team)
     && (team.active === 1 || team.active === true)
-    && String(team.subdivision || "").toUpperCase() === "FBS";
+    && String(team.subdivision || "").trim().toUpperCase() === "FBS";
 }
 
 export function currentFbsUniverse(teams = []) {

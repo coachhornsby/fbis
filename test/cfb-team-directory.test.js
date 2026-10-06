@@ -39,3 +39,8 @@ test("historical subdivision is temporal and does not use current canonical clas
   assert.equal(isFbsAt(rows,"t1","2023-10-01T00:00:00Z"),false);
   assert.equal(isFbsAt(rows,"t1","2024-10-01T00:00:00Z"),true);
 });
+
+test("current FBS selector tolerates source case while persisted builder normalizes labels",()=> {
+  assert.equal(isCurrentFbsTeam({active:1,subdivision:"fbs"}),true);
+  assert.equal(isCurrentFbsTeam({active:1,subdivision:" fBs "}),true);
+});
