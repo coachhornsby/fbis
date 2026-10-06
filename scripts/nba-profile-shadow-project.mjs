@@ -15,15 +15,24 @@ const fit=JSON.parse(fs.readFileSync(fitFile,"utf8")),impact=fs.existsSync(impac
 const all=[...new Map([...readJsonl(prior),...readJsonl(current)].map(g=>[String(g.id),g])).values()].sort((a,b)=>Date.parse(a.start||a.date)-Date.parse(b.start||b.date));
 const teamHist=new Map(),push=(id,row)=>{const k=String(id||"");if(!k)return;if(!teamHist.has(k))teamHist.set(k,[]);teamHist.get(k).push(row)};
 for(const g of all){push(g.homeId,{date:g.start||g.date,pointsFor:g.homeScore,pointsAgainst:g.awayScore,possessions:g.possessions,fga:g.home?.fga,orb:g.home?.orb,tov:g.home?.tov,fta:g.home?.fta});push(g.awayId,{date:g.start||g.date,pointsFor:g.awayScore,pointsAgainst:g.homeScore,possessions:g.possessions,fga:g.away?.fga,orb:g.away?.orb,tov:g.away?.tov,fta:g.away?.fta})}
+function restContext(rows=[]){
+  const sorted=[...rows].sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));
+  if(!sorted.length)return{daysRest:3};
+  const target=Date.parse(date+"T18:00:00Z"),last=Date.parse(sorted[0].date);
+  const daysRest=Math.max(0,Math.floor((target-last)/86400000)-1);
+  const threeInFour=sorted.filter(r=>target-Date.parse(r.date)<=4*86400000).length>=2;
+  const fourInSix=sorted.filter(r=>target-Date.parse(r.date)<=6*86400000).length>=3;
+  return{daysRest,threeInFour,fourInSix};
+}
 const q=v=>v==null?"NULL":"'"+String(v).replaceAll("'","''")+"'",num=v=>Number.isFinite(Number(v))?String(Number(v)):"NULL";
 async function board(){const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${date.replaceAll("-","")}&limit=100`,{headers:{"user-agent":"FBIS-NBA-PROFILE/1.0",accept:"application/json"}});if(!r.ok)throw new Error("scoreboard "+r.status);return r.json()}
 const b=await board(),predictionTimestamp=new Date().toISOString(),rows=[];
 for(const ev of b.events||[]){const comp=ev.competitions?.[0],cs=comp?.competitors||[],h=cs.find(x=>x.homeAway==="home"),a=cs.find(x=>x.homeAway==="away");if(!h||!a||ev.status?.type?.completed)continue;
  const homeId=String(h.team?.id||h.id||""),awayId=String(a.team?.id||a.id||""),gameId=String(ev.id),hh=teamHist.get(homeId)||[],ah=teamHist.get(awayId)||[];if(!hh.length&&!ah.length)continue;
  const target={id:gameId,homeId,awayId,home:{id:homeId,abbr:h.team?.abbreviation||""},away:{id:awayId,abbr:a.team?.abbreviation||""},start:ev.date,featureCutoff:predictionTimestamp,neutralSite:Boolean(comp?.neutralSite)};
- const control=calibrateNbaProjection(projectNbaGame(target,{homeHistory:hh,awayHistory:ah}),fit);
+ const control=calibrateNbaProjection(projectNbaGame(target,{homeHistory:hh,awayHistory:ah,homeContext:restContext(hh),awayContext:restContext(ah)}),fit);
  if(!control.ok)continue;
- const profile=projectNbaProfileGame(target,{homeHistory:hh,awayHistory:ah,impact,sequence:[...all,target]});
+ const profile=projectNbaProfileGame(target,{homeHistory:hh,awayHistory:ah,impact,sequence:[...all,target],fit});
  const profileTeams=[h.team?.abbreviation,a.team?.abbreviation].filter(Boolean);
  const snapshotIds=profileTeams.map(x=>snapshotByTeam.get(String(x).toUpperCase())?.id||null).filter(Boolean);
  const injuryBuckets=[];for(const side of ["home","away"]){const p=profile.profileOverlay?.[side];if(!p)continue;const un=p.players.filter(x=>x.status!=="AVAILABLE");if(!un.length)injuryBuckets.push(side.toUpperCase()+":NO_MATERIAL_AVAILABILITY_CHANGE");if(un.some(x=>x.status==="OUT"))injuryBuckets.push(side.toUpperCase()+":OUT");if(un.filter(x=>x.status==="OUT").length>=2)injuryBuckets.push(side.toUpperCase()+":MULTIPLE_ROTATION_OUT");if(un.some(x=>x.status==="QUESTIONABLE"))injuryBuckets.push(side.toUpperCase()+":QUESTIONABLE");if(un.some(x=>x.status==="PROBABLE"))injuryBuckets.push(side.toUpperCase()+":PROBABLE");}
