@@ -60,7 +60,7 @@ for _,r in latest.iterrows():
     school=pick(r,"school","display_name","location","name") or f"ESPN Team {eid}"
     mascot=pick(r,"mascot","nickname")
     conf=pick(r,"cfbd_conference","conference_name")
-    subdivision=pick(r,"division","classification") or "UNKNOWN"
+    subdivision=str(pick(r,"division","classification") or "UNKNOWN").strip().upper()
     active=1 if eid in current_ids else 0
     source={k:(None if pd.isna(v) else v) for k,v in r.to_dict().items()}
     source_json=json.dumps(source,default=str,separators=(",",":"))
@@ -93,7 +93,7 @@ for eid,g in all_df.groupby("team_id"):
     for _,r in g.sort_values("season").iterrows():
         year=int(r["season"])
         conf=pick(r,"cfbd_conference","conference_name")
-        sub=pick(r,"division","classification")
+        sub_raw=pick(r,"division","classification")\n        sub=str(sub_raw).strip().upper() if sub_raw is not None else None
         independent=0 if conf else 1
         state=(str(conf) if conf is not None else None,str(sub) if sub is not None else None,independent)
         if run and run["state"]==state and year==run["end"]+1:
