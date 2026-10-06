@@ -187,10 +187,11 @@ def latest_prior_snap_features(snaps, injuries):
 
     # Merge strictly backward in time. Current-week snap participation is never used.
     merged_parts=[]
+    role_lookup={(name,team):g.sort_values("ord") for (name,team),g in role.groupby(["name_key","team"],sort=False)}
     for (name,team),g in inj.groupby(["name_key","team"],sort=False):
-        rg=role[(role["name_key"]==name)&(role["team"]==team)]
+        rg=role_lookup.get((name,team))
         gg=g.sort_values("ord").copy()
-        if len(rg):
+        if rg is not None and len(rg):
             m=pd.merge_asof(
                 gg, rg[["ord","prior_off","prior_def","prior_pos"]].sort_values("ord"),
                 on="ord",direction="backward",allow_exact_matches=False
@@ -226,10 +227,11 @@ def build_team_week_features(inj_with_role,snap_history):
         top2=("role_snap",lambda v: sorted([float(z) for z in v if pd.notna(z)],reverse=True)[1] if len([z for z in v if pd.notna(z)])>1 else 0.0)
     ).sort_values(["team","group","ord"])
     depth_parts=[]
+    depth_lookup={(team,grp):g.sort_values("ord") for (team,grp),g in depth.groupby(["team","group"],sort=False)}
     for (team,grp),g in x.groupby(["team","group"],sort=False):
-        dg=depth[(depth["team"]==team)&(depth["group"]==grp)]
+        dg=depth_lookup.get((team,grp))
         gg=g.sort_values("ord").copy()
-        if len(dg):
+        if dg is not None and len(dg):
             m=pd.merge_asof(gg,dg[["ord","top1","top2"]].sort_values("ord"),on="ord",direction="backward",allow_exact_matches=False)
         else:
             gg["top1"]=np.nan;gg["top2"]=np.nan;m=gg
