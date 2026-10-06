@@ -116,9 +116,28 @@ async function reject(db,{operation,eventId,row,reason,details,at}){
     (id,operation,event_id,player_id,player_name,market,reason,details_json,observed_at)
     VALUES(?,?,?,?,?,?,?,?,?)`).bind(id,operation,text(eventId),text(row?.playerId),text(row?.playerName),text(row?.market),reason,JSON.stringify(details||{}),at).run();
 }
+async function startEvidenceRun(db,{id,operation,date,shard,shards,started}){
+  await db.prepare(`INSERT INTO mlb_prop_evidence_runs(
+    id,operation,event_date,shard,shards,status,attempted,accepted,duplicates,rejected,settled,missing_outcomes,started_at,finished_at,details_json
+  ) VALUES(?,?,?,?,?,'RUNNING',0,0,0,0,0,0,?,NULL,?)`)
+    .bind(id,operation,date,shard,shards,started,JSON.stringify({phase:"started"})).run();
+}
+async function finishEvidenceRun(db,{id,status="SUCCESS",attempted=0,accepted=0,duplicates=0,rejected=0,settled=0,missing=0,finished,details={}}){
+  await db.prepare(`UPDATE mlb_prop_evidence_runs
+    SET status=?,attempted=?,accepted=?,duplicates=?,rejected=?,settled=?,missing_outcomes=?,finished_at=?,details_json=?
+    WHERE id=?`)
+    .bind(status,attempted,accepted,duplicates,rejected,settled,missing,finished,JSON.stringify(details||{}),id).run();
+}
+async function failEvidenceRun(db,id,error){
+  try{
+    await finishEvidenceRun(db,{id,status:"FAILED",finished:new Date().toISOString(),details:{error:String(error?.message||error)}});
+  }catch{}
+}
 async function capture(context,{date,shard=0,shards=1}={}){
   const db=context.env.DB,started=new Date().toISOString();
   const runId=sha256Hex(JSON.stringify(["mlb_prop_capture",date,shard,shards,started]));
+  await startEvidenceRun(db,{id:runId,operation:"capture",date,shard,shards,started});
+  try{
   const env=envFor(context);
   const slate=await buildSlate("mlb",date,env);
   const games=(slate.games||[]).filter(g=>!g?.status?.completed&&!g?.status?.live).slice(0,8);
@@ -233,9 +252,12 @@ async function capture(context,{date,shard=0,shards=1}={}){
     }
   }
   const finished=new Date().toISOString();
-  await db.prepare(`INSERT INTO mlb_prop_evidence_runs(id,operation,event_date,shard,shards,status,attempted,accepted,duplicates,rejected,started_at,finished_at,details_json)
-    VALUES(?,?,?,?,?,'SUCCESS',?,?,?,?,?,?,?)`).bind(runId,"capture",date,shard,shards,attempted,accepted,duplicates,rejected,started,finished,JSON.stringify({games:games.length,projectionRows:flat.length,marketQuotes:[...quotes.values()].reduce((n,x)=>n+x.length,0)})).run();
+  await finishEvidenceRun(db,{id:runId,attempted,accepted,duplicates,rejected,finished,details:{games:games.length,projectionRows:flat.length,marketQuotes:[...quotes.values()].reduce((n,x)=>n+x.length,0)}});
   return{ok:true,operation:"capture",date,shard,shards,games:games.length,projectionRows:flat.length,attempted,accepted,duplicates,rejected,runId};
+  }catch(e){
+    await failEvidenceRun(db,runId,e);
+    throw e;
+  }
 }
 function inningsToOuts(v){
   const s=String(v??""); if(!s)return null; const [a,b="0"]=s.split("."); const inn=Number(a),rem=Number(b);
@@ -266,6 +288,8 @@ function playerActual(player={},market=""){
 async function settle(context,{date,shard=0,shards=1,limitGames=6}={}){
   const db=context.env.DB,started=new Date().toISOString();
   const runId=sha256Hex(JSON.stringify(["mlb_prop_settle",date,shard,shards,started]));
+  await startEvidenceRun(db,{id:runId,operation:"settle",date,shard,shards,started});
+  try{
   const q=await db.prepare(`SELECT DISTINCT event_id FROM mlb_prop_prospective_evidence
     WHERE event_date=? AND temporal_integrity=1 AND settled_at IS NULL ORDER BY event_id`).bind(date).all();
   const ids=(q.results||[]).map(x=>String(x.event_id)).filter(x=>shardAccept(x,shard,shards)).slice(0,Math.max(1,Math.min(10,Number(limitGames)||6)));
@@ -351,9 +375,12 @@ async function settle(context,{date,shard=0,shards=1,limitGames=6}={}){
     }
   }
   const finished=new Date().toISOString();
-  await db.prepare(`INSERT INTO mlb_prop_evidence_runs(id,operation,event_date,shard,shards,status,attempted,settled,missing_outcomes,rejected,started_at,finished_at,details_json)
-    VALUES(?,?,?,?,?,'SUCCESS',?,?,?,?,?,?,?)`).bind(runId,"settle",date,shard,shards,attempted,settled,missing,rejected,started,finished,JSON.stringify({eventIds:ids})).run();
+  await finishEvidenceRun(db,{id:runId,attempted,rejected,settled,missing,finished,details:{eventIds:ids}});
   return{ok:true,operation:"settle",date,shard,shards,games:ids.length,settled,missingOutcomes:missing,rejected,runId};
+  }catch(e){
+    await failEvidenceRun(db,runId,e);
+    throw e;
+  }
 }
 async function status(context,{date=null}={}){
   const where=date?"WHERE event_date=?":"",bind=date?[date]:[];
