@@ -1,0 +1,104 @@
+name: NHL goalie probability historical expansion v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nhlGoalieHistoricalExpansion.js"
+      - "scripts/nhl-goalie-prob-historical-expansion-v1.mjs"
+      - "test/nhl-goalie-prob-historical-expansion.test.js"
+      - ".github/workflows/nhl-goalie-prob-historical-expansion-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nhl-goalie-historical-expansion-v1-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+
+      - name: Locked expansion tests
+        run: node --test test/nhl-goalie-prob-historical-expansion.test.js test/nhl-goalie-prob-shadow.test.js
+
+      - name: Restore historical expansion cache
+        uses: actions/cache@v4.2.0
+        with:
+          path: .cache/nhl-goalie-historical-expansion
+          key: nhl-goalie-historical-expansion-v1-${{ runner.os }}-${{ hashFiles('scripts/nhl-pro-v2-walkforward.mjs','scripts/nhl-goalie-prob-historical-expansion-v1.mjs') }}
+          restore-keys: |
+            nhl-goalie-historical-expansion-v1-${{ runner.os }}-
+
+      - name: Build untouched NHL-PRO-v2 PIT base
+        run: |
+          set -euo pipefail
+          node scripts/nhl-pro-v2-walkforward.mjs \
+            --seasons=20182019,20192020,20202021,20212022,20222023 \
+            --concurrency=12 \
+            --cache-dir=.cache/nhl-goalie-historical-expansion/pro-v2 \
+            --out=/tmp/nhl-goalie-historical-base.json
+          jq -e '.pointInTime == true and .marketInformed == false' /tmp/nhl-goalie-historical-base.json >/dev/null
+          jq -e '.integrity.noMarketInputs == true and .integrity.fetchErrors == 0' /tmp/nhl-goalie-historical-base.json >/dev/null
+          jq -e '[.gamePredictions[].season] | unique == ["20192020","20202021","20212022","20222023"]' /tmp/nhl-goalie-historical-base.json >/dev/null
+
+      - name: Run locked goalie historical confirmation
+        run: |
+          set -euo pipefail
+          node scripts/nhl-goalie-prob-historical-expansion-v1.mjs \
+            --source=/tmp/nhl-goalie-historical-base.json \
+            --target-seasons=20192020,20202021,20212022,20222023 \
+            --concurrency=10 \
+            --cache-dir=.cache/nhl-goalie-historical-expansion \
+            --out=data/models/nhl-goalie-prob-historical-expansion-v1.json
+
+      - name: Verify locked confirmation contract
+        run: |
+          set -euo pipefail
+          f=data/models/nhl-goalie-prob-historical-expansion-v1.json
+          jq -e '.lockedSpecification.goalieProbabilityScale == 0.25' "$f" >/dev/null
+          jq -e '.lockedSpecification.optimizationAllowed == false' "$f" >/dev/null
+          jq -e '.lockedSpecification.scoreProjectionChanged == false' "$f" >/dev/null
+          jq -e '.integrity.pointInTime == true and .integrity.noMarketInputs == true' "$f" >/dev/null
+          jq -e '.integrity.actualStarterUsedOnlyAfterPregameState == true' "$f" >/dev/null
+          jq -e '.integrity.scoreProjectionInvariant == true' "$f" >/dev/null
+          jq -e '.coverage.timestampVerifiedCurrentGoalieConfirmation == 0' "$f" >/dev/null
+          jq -e '.coverage.marketCoverage == 0' "$f" >/dev/null
+          jq -e '.governance.productionChampion == "NHL-PRO-v2" and .governance.productionChampionChanged == false' "$f" >/dev/null
+          jq -e '.governance.prospectiveGateChanged == false and .governance.canQualify == false and .governance.canAuthorizeWager == false and .governance.stakingAuthorized == false' "$f" >/dev/null
+          jq '.population,.coverage,.aggregate,.power,.conclusion,.governance' "$f"
+
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nhl-goalie-prob-historical-expansion-v1-${{ github.run_id }}
+          path: data/models/nhl-goalie-prob-historical-expansion-v1.json
+          retention-days: 90
+
+      - name: Persist historical confirmation artifact
+        run: |
+          set -euo pipefail
+          cp data/models/nhl-goalie-prob-historical-expansion-v1.json "$RUNNER_TEMP/nhl-goalie-prob-historical-expansion-v1.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin "${{ github.ref_name }}"
+            git reset --hard "origin/${{ github.ref_name }}"
+            cp "$RUNNER_TEMP/nhl-goalie-prob-historical-expansion-v1.json" data/models/nhl-goalie-prob-historical-expansion-v1.json
+            git add data/models/nhl-goalie-prob-historical-expansion-v1.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m "data: update NHL goalie historical expansion v1"
+            if git push origin HEAD:"${{ github.ref_name }}"; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          exit 1
