@@ -26,9 +26,9 @@
       "canAuthorizeWager": false,
       "notes": "SOCCER-FBIS-v2 beat v1 on the same 7,759-match true expanding walk-forward sample: accuracy 49.86% vs 49.72%, Brier 0.20269 vs 0.20376, log loss 1.01608 vs 1.02130, ECE 0.00450 vs 0.01101. On the retained 206-game Zen ACTION no-vig sample, v2 top-pick accuracy was 52.43% vs market 51.46%, but probability scoring remained worse (Brier 0.20559 vs 0.20064; log loss 1.03236 vs 1.00506), so market promotion did not pass. Optional xG/xGA, PPDA, deep completions and expected-points fields activate only when rights-cleared upstream data exists. Prospective research continues; wager authority remains off. SOCCER-FBIS-v3 is the PitchAPI advanced-data shadow challenger. It remains behind v2 until PitchAPI history is backfilled and true walk-forward/market gates improve probability quality. Historical actual lineups are never treated as pre-kick evidence; only lineup observations captured before kickoff are eligible. Player-impact and lineup layers are stored for prospective shadow evaluation and are not yet allowed to alter v3 probabilities.",
       "advancedDataChallenger": "SOCCER-FBIS-v3",
-      "advancedDataChallengerVersion": "research-v1.1-pitchapi-full-reference",
+      "advancedDataChallengerVersion": "research-v1.2-phase3-score-layer",
       "advancedDataSource": "PitchAPI",
-      "advancedDataStatus": "phase3-backfill-running-persistent-state-research-live-validation-pending-depth",
+      "advancedDataStatus": "phase3-persistent-state-live-rolling-walkforward-and-derivative-validation",
       "advancedDataCanQualify": false,
       "advancedDataCanAuthorize": false,
       "advancedFeatureFamilies": [
@@ -73,6 +73,42 @@
           "travel-distance"
         ],
         "temporalPolicy": "state snapshots require explicit as-of/data-cutoff; historical post-kick evidence may not leak into pre-kick tests"
+      },
+      "phase3Validation": {
+        "cadence": "every-2-hours",
+        "priorityLeagues": [
+          "eng.1",
+          "eng.2",
+          "ger.1",
+          "esp.1",
+          "ita.1",
+          "fra.1",
+          "uefa.champions",
+          "uefa.europa",
+          "usa.1",
+          "mex.1"
+        ],
+        "metrics": [
+          "1X2 accuracy",
+          "Brier",
+          "log loss",
+          "ECE",
+          "goal MAE",
+          "total-goal MAE",
+          "BTTS Brier",
+          "O2.5 Brier",
+          "Asian-handicap Brier"
+        ],
+        "marketBenchmarkHistorical": [
+          "1X2 frozen no-vig sample"
+        ],
+        "unavailableHistoricalMarketFamilies": [
+          "BTTS",
+          "totals",
+          "Asian handicap"
+        ],
+        "canQualify": false,
+        "canAuthorize": false
       }
     },
     "nba": {
