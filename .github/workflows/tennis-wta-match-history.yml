@@ -45,6 +45,15 @@ jobs:
       - name: Validate artifact
         run: |
           node -e "const s=require('./artifacts/wta-match-history-summary.json');if(s.failures||s.tournamentsAttempted<1||s.recordsSeen<1||s.recordsWritten<1)process.exit(1);console.log(s)"
+      - name: Verify deterministic saved-raw replay
+        run: |
+          RAW=$(find artifacts/wta-raw -name matches.json | head -1)
+          test -n "$RAW"
+          WTA_TOURNAMENT_LIMIT=1 WTA_MATCH_INPUT="$RAW" WTA_MATCH_SQL=artifacts/replay-1.sql WTA_MATCH_SUMMARY=artifacts/replay-1.json node scripts/tennis-wta-match-history-ingest.mjs
+          WTA_TOURNAMENT_LIMIT=1 WTA_MATCH_INPUT="$RAW" WTA_MATCH_SQL=artifacts/replay-2.sql WTA_MATCH_SUMMARY=artifacts/replay-2.json node scripts/tennis-wta-match-history-ingest.mjs
+          sed -E "s/'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z'/'<FBIS_TIME>'/g" artifacts/replay-1.sql > artifacts/replay-1.normalized.sql
+          sed -E "s/'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z'/'<FBIS_TIME>'/g" artifacts/replay-2.sql > artifacts/replay-2.normalized.sql
+          cmp artifacts/replay-1.normalized.sql artifacts/replay-2.normalized.sql
       - uses: actions/upload-artifact@v4
         with:
           name: wta-match-history-${{ github.run_id }}
