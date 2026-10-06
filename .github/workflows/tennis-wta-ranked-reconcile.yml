@@ -23,7 +23,7 @@ on:
       max_pages:
         description: "Maximum current-ranking pages to reconcile"
         required: false
-        default: "4"
+        default: "20"
 
 permissions:
   contents: read
@@ -68,7 +68,7 @@ jobs:
           echo "page=$page" >> "$GITHUB_OUTPUT"
           echo "rank_date=$rank_date" >> "$GITHUB_OUTPUT"
           echo "skip=$skip" >> "$GITHUB_OUTPUT"
-          echo "max_pages=${{ github.event.inputs.max_pages || '4' }}" >> "$GITHUB_OUTPUT"
+          echo "max_pages=${{ github.event.inputs.max_pages || '20' }}" >> "$GITHUB_OUTPUT"
 
       - name: Build bounded ranked reconciliation shard
         if: steps.cursor.outputs.skip != '1'
