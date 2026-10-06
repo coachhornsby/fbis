@@ -1,0 +1,29 @@
+name: CBB Phase B bounded finalize
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/cbb-phase-b-finalize.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cbb-phase-b-bounded-finalize
+  cancel-in-progress: false
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Invoke authenticated production CBB collect
+        env:
+          BASE: "https://fbis-myz.pages.dev"
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+          tmp="$(mktemp)"
+          code="$(curl -sS --max-time 240 --retry 1 --retry-delay 15 -o "$tmp" -w "%{http_code}"             -H "x-harvest-secret: ${HARVEST_SECRET}" -H "accept: application/json"             "${BASE}/api/collect?sport=cbb&odds=cache&trigger=workflow_dispatch")"
+          echo "http=${code}"
+          jq '{ok,status,cbbDirectoryPhaseB}' "$tmp"
+          test "$code" = "200"
+          jq -e '.ok==true and .cbbDirectoryPhaseB.ok==true and (.cbbDirectoryPhaseB.status=="COMPLETE" or .cbbDirectoryPhaseB.status=="already_complete") and .cbbDirectoryPhaseB.temporalIntegrity.ok==true and .cbbDirectoryPhaseB.governance.totalsShadowDefinitions==0 and .cbbDirectoryPhaseB.governance.canInfluenceProjection==false and .cbbDirectoryPhaseB.governance.canQualify==false and .cbbDirectoryPhaseB.governance.canAuthorizeWager==false' "$tmp" >/dev/null
