@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildMlbPersistentPlayerPropRows } from "../functions/lib/mlbPlayerPropModel.js";
 import { canonicalizeProPlayerPropMarket } from "../functions/lib/proPlayerProps.js";
-import { classifyMlbPropPromotionEvidence, MLB_PROP_PROMOTION_GOVERNANCE } from "../functions/lib/mlbPropPromotionGovernance.js";
+import { classifyMlbPropPromotionEvidence, MLB_PROP_PROMOTION_GOVERNANCE, MLB_PROP_PROMOTION_THRESHOLDS } from "../functions/lib/mlbPropPromotionGovernance.js";
 import fs from "node:fs";
 
 function sc(role,kRate=.22){
@@ -58,6 +58,14 @@ test("MLB prop promotion gate is explicit and fail-closed during evaluation",()=
   assert.equal(MLB_PROP_PROMOTION_GOVERNANCE.canAuthorizeWagerDuringEvaluation,false);
   assert.equal(MLB_PROP_PROMOTION_GOVERNANCE.rawProjectionDistanceCanPromote,false);
   assert.equal(classifyMlbPropPromotionEvidence({settledN:0,walkForwardN:0,distinctDates:0}).classification,"INSUFFICIENT_DATA");
+});
+
+test("MLB minimum temporal gate is 17 dates while later gates remain 30 and 45",()=>{
+  assert.equal(MLB_PROP_PROMOTION_THRESHOLDS.insufficientData.minDistinctDates,17);
+  assert.equal(MLB_PROP_PROMOTION_THRESHOLDS.calibrationCandidate.minDistinctDates,30);
+  assert.equal(MLB_PROP_PROMOTION_THRESHOLDS.promotionReady.minDistinctDates,45);
+  assert.equal(classifyMlbPropPromotionEvidence({settledN:250,walkForwardN:150,distinctDates:16}).classification,"INSUFFICIENT_DATA");
+  assert.equal(classifyMlbPropPromotionEvidence({settledN:250,walkForwardN:150,distinctDates:17}).classification,"RESEARCH_CONTINUE");
 });
 
 test("MLB promotion readiness requires strong market-specific prospective evidence",()=>{
