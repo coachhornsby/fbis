@@ -1887,3 +1887,30 @@ CREATE TABLE IF NOT EXISTS cbb_shadow_challenger_definitions (
   can_authorize_wager INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
   UNIQUE(target,family)
 );
+
+-- CBB Directory Phase B population checkpoints (migration 0084)
+CREATE TABLE IF NOT EXISTS cbb_directory_phase_b_runs (
+  id TEXT PRIMARY KEY,
+  season INTEGER NOT NULL,
+  observed_at TEXT NOT NULL,
+  status TEXT NOT NULL,
+  canonical_teams INTEGER NOT NULL,
+  stable_id_players INTEGER NOT NULL,
+  unresolved_provisional_players INTEGER NOT NULL,
+  ambiguous_identities INTEGER NOT NULL,
+  transfer_links INTEGER NOT NULL,
+  roster_teams INTEGER NOT NULL,
+  roster_players INTEGER NOT NULL,
+  rotation_players INTEGER NOT NULL,
+  starter_evidence_players INTEGER NOT NULL,
+  lineup_continuity_teams INTEGER NOT NULL,
+  replacement_players INTEGER NOT NULL,
+  schedule_teams INTEGER NOT NULL,
+  game_state_snapshots INTEGER NOT NULL,
+  verified_availability INTEGER NOT NULL,
+  unknown_availability INTEGER NOT NULL,
+  qa_json TEXT NOT NULL,
+  source_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cbb_phase_b_runs_time ON cbb_directory_phase_b_runs(observed_at DESC);
