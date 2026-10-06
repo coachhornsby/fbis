@@ -3,7 +3,7 @@ on:
   push:
     branches: [research/mlb-pitcher-k-full-pit-scaleup]
     paths:
-      - "scripts/mlb-pitcher-k-full-pit-scaleup.mjs"
+      - "scripts/mlb-pitcher-k-full-pit-scaleup.mjs"\n      - "scripts/mlb-pitcher-k-pit-merge.mjs"
       - ".github/workflows/mlb-pitcher-k-full-pit-scaleup.yml"
 permissions:
   contents: read
@@ -53,4 +53,23 @@ jobs:
         with:
           name: mlb-pitcher-k-pit-${{ matrix.shard }}
           path: pitcher-k-pit-${{ matrix.shard }}.json
+          retention-days: 30
+
+  aggregate:
+    needs: replay
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mlb-pitcher-k-pit-*
+          path: pit-artifacts
+      - name: Merge shards and evaluate gates
+        run: node scripts/mlb-pitcher-k-pit-merge.mjs
+      - name: Show full summary
+        run: jq '.summary' pitcher-k-pit-full.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlb-pitcher-k-pit-full
+          path: pitcher-k-pit-full.json
           retention-days: 30
