@@ -80,8 +80,13 @@ for(const league of leagues){
     if(v2?.ok&&v3?.ok){
       const o=outcome(hs,as),p2=probs(v2),p3=probs(v3),actualTotal=hs+as,margin=hs-as,btts=hs>0&&as>0?1:0,o25=actualTotal>2.5?1:0;
       all.push({
-        league,id:r.pitch_match_id,date:r.match_date,homeTeam:r.home_team_name,awayTeam:r.away_team_name,
+        league,id:r.pitch_match_id,date:r.match_date,season:r.season??null,homeTeam:r.home_team_name,awayTeam:r.away_team_name,
         homeScore:hs,awayScore:as,outcome:o,
+        v2HomeGoals:Number(v2.home),v2AwayGoals:Number(v2.away),v3HomeGoals:Number(v3.home),v3AwayGoals:Number(v3.away),
+        v2BttsProb:Number(v2.pBttsYes),v3BttsProb:Number(v3.pBttsYes),
+        v2O25Prob:Number(v2.totals?.["2.5"]?.over),v3O25Prob:Number(v3.totals?.["2.5"]?.over),
+        v2AsianCore:Object.fromEntries([-0.5,0,0.5].map(line=>[String(line),v2.homeAsian?.[String(line)]??null])),
+        v3AsianCore:Object.fromEntries([-0.5,0,0.5].map(line=>[String(line),v3.homeAsian?.[String(line)]??null])),
         v2Home:p2.H,v2Draw:p2.D,v2Away:p2.A,v3Home:p3.H,v3Draw:p3.D,v3Away:p3.A,
         v2Pick:argmax(p2),v3Pick:argmax(p3),
         v2Brier:brier(p2,o),v3Brier:brier(p3,o),

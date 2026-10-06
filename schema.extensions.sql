@@ -2865,6 +2865,8 @@ CREATE TABLE IF NOT EXISTS soccer_validation_evidence (
   can_authorize INTEGER NOT NULL DEFAULT 0,
   evaluated_at TEXT NOT NULL,
   created_at TEXT NOT NULL,
+  snapshot_id TEXT,
+  code_sha TEXT,
   UNIQUE(run_id,heritage_key,model_variant,market_family,line_key)
 );
 CREATE INDEX IF NOT EXISTS idx_soccer_validation_evidence_lookup
