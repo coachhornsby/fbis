@@ -114,7 +114,7 @@ async function runScheduledActionDaily(env) {
   const hour = chicagoHour();
   if (hour < 7 || hour > 11) return { status: "NOT_DUE", hourCt: hour };
   if (!env.HARVEST_SECRET) return { status: "BLOCKED_FAIL_CLOSED", reason: "HARVEST_SECRET missing", hourCt: hour };
-  const base = String(CFG.fbisBaseUrl || "https://fbis-myz.pages.dev").replace(/\\/$/, "");
+  const base = String(CFG.fbisBaseUrl || "https://fbis-myz.pages.dev").replace(/\/$/, "");
   const call = async (mode) => {
     const res = await fetch(`${base}/api/action-daily-async?mode=${mode}`, {
       method: "POST",
