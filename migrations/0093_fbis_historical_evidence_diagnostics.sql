@@ -22,7 +22,7 @@ SET
       CASE WHEN fbis_prospective_evidence.wager_authority_json IS NULL THEN 'MISSING_WAGER_AUTHORITY' END,
       CASE WHEN fbis_prospective_evidence.source_observed_ats_json IS NULL OR json_array_length(fbis_prospective_evidence.source_observed_ats_json)=0 THEN 'MISSING_SOURCE_OBSERVATION_TIMES' END
     ))
-    WHERE value IS NOT NULL
+    WHERE type <> 'null'
   )
 WHERE promotion_eligible = 0
   AND promotion_exclusion_reasons_json IS NULL
