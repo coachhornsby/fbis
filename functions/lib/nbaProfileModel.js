@@ -1,6 +1,7 @@
 import { projectNbaGame } from "./nbaModel.js";
 import { buildNbaScheduleContext } from "./nbaTravelContext.js";
 import { impactAvailabilityPoints } from "./nbaPlayerImpact.js";
+import { pGreater } from "./metrics.js";
 
 export const NBA_PROFILE_MODEL_ID="NBA-FBIS-v1-PROFILE";
 export const NBA_PROFILE_MODEL_VERSION="prospective-v1";
@@ -21,7 +22,7 @@ function teamProfileOverlay(teamId,impact={}){
    const id=String(p.playerId||p.id),u=unavailable.get(id),rc=impact.roleContexts?.[id]||{};
    const base=finite(p.skill?.minutes)||0,delta=Math.max(0,finite(rc.role?.minutesDelta)||0);
    const status=String(u?.status||"AVAILABLE").toUpperCase();
-   const miss=status==="OUT"?1:status==="DOUBTFUL"?.8:status==="QUESTIONABLE"?.45:status==="PROBABLE"?.12:0;
+   const miss=status==="OUT"?1:status==="DOUBTFUL"?0.8:status==="QUESTIONABLE"?0.45:status==="PROBABLE"?0.12:0;
    if(miss){availabilityPoints-=Math.max(0,impactAvailabilityPoints(p,status)||0);lostMinutes+=base*miss;}
    replacementMinutes+=delta;
    usageRedistribution+=Math.max(0,(finite(rc.role?.usageMultiplier)||1)-1)*Math.max(base,1)/48;
@@ -50,7 +51,7 @@ export function projectNbaProfileGame(game,{homeHistory=[],awayHistory=[],impact
  const scheduleDecomp={home:{rest:hs.daysRest,b2b:hs.backToBack,threeInFour:hs.threeInFour,fourInSix:hs.fourInSix,travelMiles:hs.travelMiles,timeZonesCrossed:hs.timeZonesCrossed,altitude:hs.altitudeDestination},
    away:{rest:as.daysRest,b2b:as.backToBack,threeInFour:as.threeInFour,fourInSix:as.fourInSix,travelMiles:as.travelMiles,timeZonesCrossed:as.timeZonesCrossed,altitude:as.altitudeDestination}};
  return {...base,modelId:NBA_PROFILE_MODEL_ID,modelVersion:NBA_PROFILE_MODEL_VERSION,home:round(home,1),away:round(away,1),margin:round(margin,1),total:round(total,1),
-   pHomeWin:base.pHomeWin, maturity:"CHALLENGER",canQualify:false,canAuthorize:false,
+   pHomeWin:pGreater(margin,0,base.sigmaMargin), maturity:"CHALLENGER",canQualify:false,canAuthorize:false,
    profileOverlay:{home:{...hp,adjustment:ha},away:{...ap,adjustment:aa},schedule:scheduleDecomp},
    provenance:{...base.provenance,marketUsed:false,profileOverlay:true}};
 }
