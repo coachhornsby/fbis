@@ -157,7 +157,7 @@ audit.pitEligible=Object.values(audit.gates).every(v=>v===true||typeof v==="stri
 const FAM=Object.keys(FAMILY_KEYS);
 function eligible(r,fam){if(r.homeGames<5||r.awayGames<5)return false;if(["lineup","playerRotation","playerRotationLineup","combined"].includes(fam))return (n(r.priorQa.homeValidatedLineupCoverage)||0)>=.80&&(n(r.priorQa.awayValidatedLineupCoverage)||0)>=.80;return true}
 function vector(r,fam){const o=r.families[fam];return FAMILY_KEYS[fam].map(k=>n(o[k])??0)}
-function solve(A,b){const m=A.map((r,i)=>[...r,b[i]]),N=m.length;for(let i=0;i<N;i++){let p=i;for(let j=i+1;j<N;j++)if(Math.abs(m[j][i])>Math.abs(m[p][i]))p=j;[m[i],m[p]]=[m[p],m[i]];let d=Math.abs(m[i][i])<1e-12?1e-12:m[i][i];for(let k=i;k<=N;k++)m[i][k]/=d;for(let j=0;j<N;j++){if(j===i)continue;const q=m[j][i];for(let k=i;k<=N;k++)m[j][k]-=q*m[i][k]}}}return m.map(r=>r[N])}
+function solve(A,b){const m=A.map((r,i)=>[...r,b[i]]),N=m.length;for(let i=0;i<N;i++){let p=i;for(let j=i+1;j<N;j++)if(Math.abs(m[j][i])>Math.abs(m[p][i]))p=j;[m[i],m[p]]=[m[p],m[i]];let d=Math.abs(m[i][i])<1e-12?1e-12:m[i][i];for(let k=i;k<=N;k++)m[i][k]/=d;for(let j=0;j<N;j++){if(j===i)continue;const q=m[j][i];for(let k=i;k<=N;k++)m[j][k]-=q*m[i][k]}}return m.map(r=>r[N])}
 function fitRidge(rs,kind,lambda,fam){
   const X=rs.map(r=>vector(r,fam)), y=rs.map(r=>actual(r,kind)-base(r,kind,frozen)), p=X[0].length, means=Array(p).fill(0),sds=Array(p).fill(1);
   for(let j=0;j<p;j++){means[j]=X.reduce((s,a)=>s+a[j],0)/X.length;const v=X.reduce((s,a)=>s+(a[j]-means[j])**2,0)/Math.max(1,X.length-1);sds[j]=Math.sqrt(v)||1}
