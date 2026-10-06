@@ -270,6 +270,24 @@ export async function importBets(env, tickets) {
 }
 
 
+function stableValue(value) {
+  if (value == null) return null;
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, stableValue(v)]));
+  }
+  return value;
+}
+
+function trackerFieldEqual(a, b) {
+  const left = stableValue(a);
+  const right = stableValue(b);
+  if (left && typeof left === "object" || right && typeof right === "object") {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+  return left === right;
+}
+
 export async function syncTrackerBets(env, tickets) {
   if (!hasDb(env)) return { ok:false, status:503, body:{ ok:false, error:"D1 unbound" } };
   const inserted = [];
@@ -319,7 +337,7 @@ export async function syncTrackerBets(env, tickets) {
       clv: packed.clv,
       clvStatus: packed.clvStatus || "unavailable",
     };
-    const changed = Object.entries(patch).some(([k,v]) => (existing?.[k] ?? null) !== (v ?? null));
+    const changed = Object.entries(patch).some(([k,v]) => !trackerFieldEqual(existing?.[k] ?? null, v ?? null));
     if (!changed) {
       skipped.push({ id:existing.id, externalTicketId:packed.externalTicketId, reason:"unchanged" });
       continue;
