@@ -75,11 +75,12 @@ export function buildActionObservationKey({
   selection,
   sportsbook,
   providerTimestamp = null,
+  rawPayloadHash = null,
   collectedAt,
 } = {}) {
   const eventPart = canonicalEventId || providerEventId;
   const playerPart = canonicalPlayerId || providerPlayerId || "";
-  const observedAt = providerTimestamp || collectedAt;
+  const observedAt = providerTimestamp || rawPayloadHash || collectedAt;
   if (!eventPart || !marketType || !selection || !sportsbook || !observedAt) {
     throw new Error("action_observation_key_incomplete");
   }
@@ -291,6 +292,19 @@ export function expandBookObservations(row, ctx = {}) {
         trackedVolume: split.volume ?? split.trackedVolume,
         providerSharpLabel: split.sharpSide ?? row.publicBetting?.sharpSide,
       });
+      const statePayloadHash =
+        strOrNull(book.payloadHash) ||
+        strOrNull(row.rawPayloadHash) ||
+        stableHash([
+          providerEventId,
+          sportsbook,
+          c.marketType,
+          c.selection,
+          c.line,
+          c.americanPrice,
+          publicMetrics.publicTicketPct,
+          publicMetrics.publicMoneyPct,
+        ]);
       const observationKey = buildActionObservationKey({
         providerEventId,
         canonicalEventId,
@@ -299,6 +313,7 @@ export function expandBookObservations(row, ctx = {}) {
         selection: c.selection,
         sportsbook,
         providerTimestamp,
+        rawPayloadHash: statePayloadHash,
         collectedAt,
       });
       out.push({
@@ -320,18 +335,7 @@ export function expandBookObservations(row, ctx = {}) {
         eventStartTime,
         snapshotType,
         ...publicMetrics,
-        rawPayloadHash:
-          strOrNull(book.payloadHash) ||
-          strOrNull(row.rawPayloadHash) ||
-          stableHash([
-            providerEventId,
-            sportsbook,
-            c.marketType,
-            c.selection,
-            c.line,
-            c.americanPrice,
-            collectedAt,
-          ]),
+        rawPayloadHash: statePayloadHash,
         matchConfidence,
         schemaVersion,
         runId,
@@ -417,6 +421,20 @@ export function expandPlayerPropObservations(row, ctx = {}) {
         trackedVolume: p.volume ?? p.trackedVolume,
         providerSharpLabel: p.sharpSide || p.sharpLabel,
       });
+      const statePayloadHash =
+        strOrNull(p.payloadHash) ||
+        stableHash([
+          providerEventId,
+          providerPlayerId,
+          marketType,
+          marketPeriod,
+          side.selection,
+          sportsbook,
+          side.line,
+          side.americanPrice,
+          publicMetrics.publicTicketPct,
+          publicMetrics.publicMoneyPct,
+        ]);
       const observationKey = buildActionObservationKey({
         providerEventId,
         canonicalEventId,
@@ -427,6 +445,7 @@ export function expandPlayerPropObservations(row, ctx = {}) {
         selection: side.selection,
         sportsbook,
         providerTimestamp,
+        rawPayloadHash: statePayloadHash,
         collectedAt,
       });
       out.push({
@@ -448,19 +467,7 @@ export function expandPlayerPropObservations(row, ctx = {}) {
         eventStartTime,
         snapshotType,
         ...publicMetrics,
-        rawPayloadHash:
-          strOrNull(p.payloadHash) ||
-          stableHash([
-            providerEventId,
-            providerPlayerId,
-            marketType,
-            marketPeriod,
-            side.selection,
-            sportsbook,
-            side.line,
-            side.americanPrice,
-            collectedAt,
-          ]),
+        rawPayloadHash: statePayloadHash,
         matchConfidence,
         schemaVersion,
         runId,

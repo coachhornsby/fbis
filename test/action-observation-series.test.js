@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { ODDS_PROVIDER_ORDER } from "../functions/lib/oddsProviderRouter.js";
 import {
   ACTION_FIREWALL,
@@ -357,6 +358,32 @@ test("daily parent observation identity is stable across harvest retries", () =>
   const differentRun = actionShadowObservationKey(row, { runId: "daily_20260924_y" });
   const changedPayload = actionShadowObservationKey({ ...row, rawPayloadHash: "payload-def" }, { runId: "daily_20260923_x" });
   assert.equal(a, b);
-  assert.notEqual(a, differentRun);
+  assert.equal(a, differentRun);
   assert.notEqual(a, changedPayload);
+});
+
+
+test("identical ACTION quote state across acquisition runs shares one canonical observation key", () => {
+  const base = {
+    providerEventId: "g-dedupe",
+    marketType: "moneyline",
+    marketPeriod: "event",
+    selection: "home",
+    sportsbook: "pinnacle",
+    rawPayloadHash: "same-state-hash",
+  };
+  const a = buildActionObservationKey({ ...base, collectedAt: "2026-10-06T16:00:00Z" });
+  const b = buildActionObservationKey({ ...base, collectedAt: "2026-10-06T16:00:20Z" });
+  const changed = buildActionObservationKey({ ...base, rawPayloadHash: "changed-state-hash", collectedAt: "2026-10-06T16:00:20Z" });
+  assert.equal(a, b);
+  assert.notEqual(a, changed);
+});
+
+test("ACTION daily start claims one canonical paid run before starting Apify", async () => {
+  const api = await readFile(new URL("../functions/api/action-daily-async.js", import.meta.url), "utf8");
+  assert.match(api, /daily_\$\{today\.replaceAll\("-",""\)\}_canonical/);
+  assert.match(api, /INSERT OR IGNORE INTO shadow_collection_runs/);
+  assert.match(api, /"starting_daily"/);
+  assert.match(api, /Number\(claim\?\.meta\?\.changes\|\|0\)===0/);
+  assert.match(api, /status IN \('starting_daily','running_daily'\)/);
 });
