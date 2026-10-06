@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import {
   buildProspectiveEvidence,
@@ -129,4 +130,16 @@ test("promotion cohort preserves incomplete evidence but excludes it fail-closed
   assert.ok(out.reasons.includes("MISSING_MARKET_SNAPSHOT"));
   assert.ok(out.reasons.includes("MISSING_UNCERTAINTY"));
   assert.ok(out.reasons.includes("MISSING_SOURCE_OBSERVATION_TIMES"));
+});
+
+
+test("0091 keeps prospective and economic provenance additive and cohort-scoped", async () => {
+  const migration = await readFile(new URL("../migrations/0091_fbis_prospective_economic_provenance.sql", import.meta.url), "utf8");
+  assert.match(migration, /ALTER TABLE fbis_prospective_evidence ADD COLUMN source_observed_ats_json/);
+  assert.match(migration, /ALTER TABLE fbis_prospective_evidence ADD COLUMN uncertainty_json/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS fbis_economic_cohort_metrics/);
+  assert.match(migration, /calibration_method_version/);
+  assert.match(migration, /drawdown_method_version/);
+  assert.match(migration, /0091_fbis_prospective_economic_provenance/);
+  assert.doesNotMatch(migration, /DELETE\s+FROM|DROP\s+TABLE/i);
 });
