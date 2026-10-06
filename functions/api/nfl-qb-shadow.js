@@ -2,6 +2,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { buildNflQbPersonnelShadow, executableNflMarketSnapshot, NFL_QB_PERSONNEL_GATE } from "../lib/nflQbPersonnelShadow.js";
 import { sha256Hex } from "../lib/sha256Hex.js";
+import { evaluateNflQbProspectiveGate, nflQbProspectiveCriteria } from "../lib/nflProspectiveGate.js";
 
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json","cache-control":"no-store"}})}
 function finite(v){const n=Number(v);return v==null||v===""||!Number.isFinite(n)?null:n}
@@ -122,6 +123,8 @@ async function snapshot(context,date){
       historicalGateValidated:true,prospectiveValidated:false,operatorApprovedProduction:false,
       championUntouched:true,wagerAuthorityUntouched:true,marketUsedInProjection:false,
       profileVersion:profile.version||null,
+      prospectiveGateId:nflQbProspectiveCriteria().gateId,
+      governanceId:nflQbProspectiveCriteria().governanceId,
     };
     const result=await context.env.DB.prepare(`
       INSERT OR IGNORE INTO nfl_qb_personnel_shadow_predictions(
@@ -184,7 +187,8 @@ async function grade(context,date){
   return{ok:true,date,candidates:rows.length,finals:finals.size,graded};
 }
 async function summary(db){
-  const rows=(await db.prepare("SELECT * FROM nfl_qb_personnel_shadow_predictions WHERE graded_at IS NOT NULL ORDER BY start_time").all())?.results||[];
+  const allRows=(await db.prepare("SELECT * FROM nfl_qb_personnel_shadow_predictions ORDER BY start_time").all())?.results||[];
+  const rows=allRows.filter(r=>r.graded_at);
   const group=(arr)=>{
     if(!arr.length)return{n:0};
     const avg=k=>arr.reduce((s,r)=>s+Number(r[k]||0),0)/arr.length;
@@ -212,6 +216,9 @@ async function summary(db){
   }
   const primary=[...byEvent.values()];
   const checkpointGroups={EARLY:group(rows.filter(r=>r.checkpoint==="EARLY")),LATE:group(rows.filter(r=>r.checkpoint==="LATE"))};
+  const homeDisrupted=primary.filter(r=>Number(r.home_qb_burden)>=0.30);
+  const awayDisrupted=primary.filter(r=>Number(r.away_qb_burden)>=0.30);
+  const prospectiveGate=evaluateNflQbProspectiveGate(allRows);
   return{
     ok:true,lifecycle:"SHADOW",productionChampionModified:false,wagerAuthorityModified:false,
     frozenRows:rows.length,uniqueGames:primary.length,
@@ -230,7 +237,12 @@ async function summary(db){
       const ev=new Map();for(const r of v){const p=ev.get(String(r.event_id));if(!p||(p.checkpoint!=="LATE"&&r.checkpoint==="LATE"))ev.set(String(r.event_id),r)}
       return[k,group([...ev.values()])];
     })),
-    promotionState:"PROSPECTIVE_SHADOW_ACCUMULATING",
+    disruptionSide:{
+      home:homeDisrupted.length>=10?group(homeDisrupted):{n:homeDisrupted.length,status:"INSUFFICIENT_SAMPLE"},
+      away:awayDisrupted.length>=10?group(awayDisrupted):{n:awayDisrupted.length,status:"INSUFFICIENT_SAMPLE"},
+    },
+    prospectiveGate,
+    promotionState:prospectiveGate.decision,
     promotionEligible:false,
     prospectiveValidationPassed:false,
     operatorApprovedForProduction:false,
