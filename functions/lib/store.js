@@ -941,6 +941,7 @@ export function mapSnapshotRow(r) {
   const parsed = parseMatchup(r.matchup);
   return {
     id: r.game_id,
+    snapshotId: r.id || null,
     gameId: r.game_id,
     sport: r.sport,
     date: r.date,
@@ -1024,12 +1025,13 @@ function parseMatchup(matchup) {
 }
 
 const HERITAGE_SNAPSHOT_COLS =
-  "game_id, sport, date, checkpoint, model_version, frozen_at, proj_home, proj_away, p_home_final";
+  "id, game_id, sport, date, checkpoint, model_version, frozen_at, proj_home, proj_away, p_home_final";
 
 function mapHeritageSnapshotRow(r) {
   if (!r) return null;
   return {
     id: r.game_id,
+    snapshotId: r.id || null,
     gameId: r.game_id,
     sport: r.sport,
     date: r.date,
