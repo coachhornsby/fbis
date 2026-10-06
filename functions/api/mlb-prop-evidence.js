@@ -162,7 +162,26 @@ async function capture(context,{date,shard=0,shards=1}={}){
         num(r.fbisProjection),num(r.fbisSigma),modelSource,modelVersion,sourceObservedAt,stateAsOf,projectionAt,cp,
         q.marketSource,q.sportsbook,q.line,q.oddsTier,q.observedAt,decisionAt,side,
         JSON.stringify(stateSnapshot),JSON.stringify(r),JSON.stringify(q),1,JSON.stringify({ok:true,problems:[]}),duplicateKey,decisionAt).run();
-      if(Number(result?.meta?.changes||0)>0)accepted++;else duplicates++;
+      if(Number(result?.meta?.changes||0)>0){
+        accepted++;
+        const stateSnapshotId=sha256Hex(JSON.stringify(["mlb_prop_state",g.id,r.playerId||norm(r.playerName),stateAsOf,modelVersion]));
+        await db.prepare(`INSERT OR IGNORE INTO fbis_prospective_evidence(
+          evidence_id,contract_version,sport,event_id,event_start_at,snapshot_at,champion_model_id,model_id,model_version,
+          lifecycle,gate_version,state_snapshot_id,market_snapshot_id,market_observed_at,code_sha,
+          incumbent_projection_json,challenger_projection_json,governance_json,temporal_integrity,legacy,
+          can_qualify,can_authorize,created_at
+        ) VALUES(?,?,?,?,?,?,?,?,?,'SHADOW',?,?,?,?,?,?,?,?,1,0,0,0,?)`)
+        .bind(
+          id,"FBIS-PROSPECTIVE-EVIDENCE-v1","mlb",String(g.id),eventStart,decisionAt,
+          String(g.championModel||slate.modelVersion||"FBIS-v1.4"),modelSource,modelVersion,
+          MLB_PROP_PROMOTION_GATE_VERSION,stateSnapshotId,duplicateKey,q.observedAt,
+          context.env.CF_PAGES_COMMIT_SHA||null,
+          JSON.stringify({championModel:String(g.championModel||slate.modelVersion||"FBIS-v1.4")}),
+          JSON.stringify({playerId:r.playerId||null,playerName:r.playerName,market:r.market,projection:num(r.fbisProjection),sigma:num(r.fbisSigma),candidateSide:side}),
+          JSON.stringify({stateBeforeWeight:true,rawProjectionDistanceCanPromote:false,canQualify:false,canAuthorizeWager:false,marketSource:q.marketSource,sportsbook:q.sportsbook,oddsTier:q.oddsTier,marketLine:q.line}),
+          decisionAt
+        ).run();
+      }else duplicates++;
     }
   }
   const finished=new Date().toISOString();
