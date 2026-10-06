@@ -6,7 +6,7 @@ function json(body,status=200){
 
 const PRIORITY_KEYS=["eng.1","eng.2","ger.1","esp.1","ita.1","fra.1","uefa.champions","uefa.europa","usa.1","mex.1"];
 const VALIDATION_FLOOR=120;
-const PRIORITY=`CASE heritage_key
+const PRIORITY=`CASE q.heritage_key
   WHEN 'eng.1' THEN 1
   WHEN 'eng.2' THEN 2
   WHEN 'ger.1' THEN 3
@@ -55,11 +55,11 @@ async function breadthCandidate(db,nowIso,state){
 }
 
 async function depthCandidate(db,nowIso,{excludeKeys=[]}={}){
-  const exclusion=excludeKeys.length?` AND heritage_key NOT IN (${excludeKeys.map(()=>"?").join(",")})`:"";
-  return db.prepare(`SELECT * FROM soccer_pitchapi_backfill_queue
-    WHERE (status='PENDING' OR (status='LEASED' AND (lease_until IS NULL OR lease_until<?)))
-      AND attempts<6${exclusion}
-    ORDER BY ${PRIORITY}, updated_at,id LIMIT 1`).bind(nowIso,...excludeKeys).first();
+  const exclusion=excludeKeys.length?` AND q.heritage_key NOT IN (${excludeKeys.map(()=>"?").join(",")})`:"";
+  return db.prepare(`SELECT q.* FROM soccer_pitchapi_backfill_queue q
+    WHERE (q.status='PENDING' OR (q.status='LEASED' AND (q.lease_until IS NULL OR q.lease_until<?)))
+      AND q.attempts<6${exclusion}
+    ORDER BY ${PRIORITY}, q.updated_at,q.id LIMIT 1`).bind(nowIso,...excludeKeys).first();
 }
 
 export async function onRequestPost(context){
