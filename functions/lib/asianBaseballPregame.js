@@ -77,7 +77,7 @@ function missingFlags(league){
     "bullpen_role_fatigue_historical_asof_unavailable",
     "lineup_history_unavailable",
     "roster_history_unavailable",
-    ...(String(league).toUpperCase()==="NPB"?["npb_hitter_ids_not_durably_resolved"]:["kbo_hitter_identity_history_incomplete"])
+    ...(String(league).toUpperCase()==="NPB"?["npb_hitter_ids_historical_asof_unavailable"]:["kbo_hitter_identity_history_incomplete"])
   ];
 }
 
