@@ -40,7 +40,33 @@ jobs:
         run: |
           set -euo pipefail
           call () {
-            curl -fsS --connect-timeout 5 --max-time 120 --retry 2 --retry-delay 2 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "$1" "$BASE/api/asian-baseball-history-backfill"
+            local payload="$1"
+            local body_file code attempt
+            body_file="$(mktemp)"
+            for attempt in 1 2 3 4 5 6 7 8; do
+              code="$(
+                curl -sS --connect-timeout 5 --max-time 120 \
+                  -o "$body_file" -w "%{http_code}" \
+                  -X POST \
+                  -H "x-harvest-secret: $HARVEST_SECRET" \
+                  -H "content-type: application/json" \
+                  -d "$payload" \
+                  "$BASE/api/asian-baseball-history-backfill" \
+                || printf '000'
+              )"
+              if [ "$code" = "200" ]; then
+                cat "$body_file"
+                rm -f "$body_file"
+                return 0
+              fi
+              echo "Asian baseball seed attempt $attempt returned HTTP $code" >&2
+              cat "$body_file" >&2 || true
+              if [[ ! "$code" =~ ^(000|429|500|502|503|504)$ ]] || [ "$attempt" -eq 8 ]; then
+                rm -f "$body_file"
+                return 1
+              fi
+              sleep 8
+            done
           }
           # NPB month is one official monthly page.
           call '{"league":"NPB","season":2025,"month":9,"maxRequests":1}' | tee /tmp/npb.json | jq .
@@ -55,7 +81,9 @@ jobs:
           set -euo pipefail
           for spec in "NPB 2025 9" "KBO 2025 9"; do
             set -- $spec
-            body="$(curl -fsS --connect-timeout 5 --max-time 30 --retry 2               -H "x-harvest-secret: $HARVEST_SECRET"               "$BASE/api/asian-baseball-history-backfill?league=$1&season=$2&month=$3")"
+            body="$(curl -fsS --connect-timeout 5 --max-time 30 --retry 4 --retry-delay 5 --retry-all-errors \
+              -H "x-harvest-secret: $HARVEST_SECRET" \
+              "$BASE/api/asian-baseball-history-backfill?league=$1&season=$2&month=$3")"
             echo "$body" | jq .
             echo "$body" | jq -e '.ok == true and .persistedGames > 0 and .completedResultCoverage == 1 and .canonicalTeamMappingCoverage == 1 and .temporalMetadataCoverage == 1' >/dev/null
           done
