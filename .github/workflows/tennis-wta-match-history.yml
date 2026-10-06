@@ -1,0 +1,63 @@
+name: Tennis WTA match history
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: WTA season year
+        required: false
+        default: "2026"
+      offset:
+        description: Tournament offset
+        required: false
+        default: "0"
+      limit:
+        description: Tournament shard count
+        required: false
+        default: "12"
+  pull_request:
+    paths:
+      - "scripts/tennis-wta-match-history-ingest.mjs"
+      - "migrations/0094_tennis_wta_match_history_pit.sql"
+      - ".github/workflows/tennis-wta-match-history.yml"
+
+concurrency:
+  group: tennis-d1-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax check WTA history ingestor
+        run: node --check scripts/tennis-wta-match-history-ingest.mjs
+      - name: Acquire bounded WTA shard
+        env:
+          WTA_YEAR: ${{ inputs.year || '2026' }}
+          WTA_TOURNAMENT_OFFSET: ${{ inputs.offset || '0' }}
+          WTA_TOURNAMENT_LIMIT: ${{ inputs.limit || '12' }}
+        run: node scripts/tennis-wta-match-history-ingest.mjs
+      - name: Validate artifact
+        run: |
+          node -e "const s=require('./artifacts/wta-match-history-summary.json');if(s.failures||s.tournamentsAttempted<1||s.recordsSeen<1||s.recordsWritten<1)process.exit(1);console.log(s)"
+      - name: Verify deterministic saved-raw replay
+        run: |
+          RAW=$(find artifacts/wta-raw -name matches.json | head -1)
+          test -n "$RAW"
+          WTA_TOURNAMENT_LIMIT=1 WTA_MATCH_INPUT="$RAW" WTA_MATCH_SQL=artifacts/replay-1.sql WTA_MATCH_SUMMARY=artifacts/replay-1.json node scripts/tennis-wta-match-history-ingest.mjs
+          WTA_TOURNAMENT_LIMIT=1 WTA_MATCH_INPUT="$RAW" WTA_MATCH_SQL=artifacts/replay-2.sql WTA_MATCH_SUMMARY=artifacts/replay-2.json node scripts/tennis-wta-match-history-ingest.mjs
+          sed -E "s/'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z'/'<FBIS_TIME>'/g" artifacts/replay-1.sql > artifacts/replay-1.normalized.sql
+          sed -E "s/'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z'/'<FBIS_TIME>'/g" artifacts/replay-2.sql > artifacts/replay-2.normalized.sql
+          cmp artifacts/replay-1.normalized.sql artifacts/replay-2.normalized.sql
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wta-match-history-${{ github.run_id }}
+          path: |
+            artifacts/wta-match-history.sql
+            artifacts/wta-match-history-summary.json
+            artifacts/wta-raw
