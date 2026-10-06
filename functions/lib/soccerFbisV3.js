@@ -7,9 +7,10 @@
  * the result is observed.
  */
 import { normalizeSoccerName, loadPitchApiHistory, loadEligiblePitchApiLineups, findPitchApiFixture } from "./soccerPitchApiStore.js";
+import { buildScoreMatrix } from "./soccerFbisV1.js";
 
 export const SOCCER_FBIS_V3_ID="SOCCER-FBIS-v3";
-export const SOCCER_FBIS_V3_VERSION="research-v1.1-pitchapi-full-reference";
+export const SOCCER_FBIS_V3_VERSION="research-v1.2-phase3-score-layer";
 const MIN_LEAGUE=80,MIN_TEAM=8,LR=.03,L2=.0008;
 const FIELDS=[
  ["xg",1.2],["npxg",1.1],["xgot",1],["xg_per_shot",.12],["sot",3],
@@ -74,6 +75,42 @@ function stateFrom(rows=[],cutoff="9999-12-31"){
   return state;
 }
 function findTeam(state,name){const k=normalizeSoccerName(name);for(const [id,t] of state.teams){if(normalizeSoccerName(t.name||"")===k)return[id,t];}return null;}
+function scoreMarkets(matrix){
+  let bttsYes=0;
+  const totals={"1.5":{over:0,under:0},"2.5":{over:0,under:0},"3.5":{over:0,under:0}};
+  const lines=[-1.5,-1,-0.5,0,0.5,1,1.5],homeAsian=Object.fromEntries(lines.map(x=>[String(x),{win:0,push:0,loss:0}]));
+  let home=0,draw=0,away=0;
+  for(const cell of matrix){
+    const h=Number(cell.home),a=Number(cell.away),p=Number(cell.p)||0,total=h+a;
+    if(h>a)home+=p;else if(h===a)draw+=p;else away+=p;
+    if(h>0&&a>0)bttsYes+=p;
+    for(const line of [1.5,2.5,3.5]){const k=String(line);if(total>line)totals[k].over+=p;else totals[k].under+=p;}
+    for(const line of lines){const z=h-a+line,b=homeAsian[String(line)];if(z>0)b.win+=p;else if(z<0)b.loss+=p;else b.push+=p;}
+  }
+  return{pHomeWin:home,pDraw:draw,pAwayWin:away,pBttsYes:bttsYes,pBttsNo:1-bttsYes,totals,homeAsian};
+}
+function phase3ScoreLayer(state,hk,ak,v2){
+  const h=state.teams.get(hk)||empty(),a=state.teams.get(ak)||empty();
+  const hxgf=avg(h.metrics.xg),hxga=avgAgainst(h.metrics.xg),axgf=avg(a.metrics.xg),axga=avgAgainst(a.metrics.xg);
+  const baseHome=n(v2?.home),baseAway=n(v2?.away);
+  if(baseHome==null||baseAway==null)return null;
+  const complete=[hxgf,hxga,axgf,axga].every(x=>x!=null);
+  const depth=Math.min(h.games,a.games),coverage=state.matches?state.coverage/state.matches:0;
+  const weight=complete?clamp(.10+Math.min(depth,30)/30*.08+Math.min(coverage,1)*.04,.10,.22):0;
+  const targetHome=complete?Math.sqrt(Math.max(.15,hxgf)*Math.max(.15,axga)):baseHome;
+  const targetAway=complete?Math.sqrt(Math.max(.15,axgf)*Math.max(.15,hxga)):baseAway;
+  const homeLambda=clamp((1-weight)*baseHome+weight*targetHome,.15,4.5);
+  const awayLambda=clamp((1-weight)*baseAway+weight*targetAway,.15,4.5);
+  const matrix=buildScoreMatrix(homeLambda,awayLambda);
+  const markets=scoreMarkets(matrix);
+  return{
+    active:complete,weight,homeLambda,awayLambda,total:homeLambda+awayLambda,margin:homeLambda-awayLambda,
+    targets:{homeXg:targetHome,awayXg:targetAway,homeFor:hxgf,homeAgainst:hxga,awayFor:axgf,awayAgainst:axga},
+    ...markets,scoreMatrix:matrix,
+    policy:"capped xG score-rate challenger; research-only; pre-match rolling state only"
+  };
+}
+
 function matchIds(rows,game){
   const h=normalizeSoccerName(game?.home?.name||game?.homeTeam||""),a=normalizeSoccerName(game?.away?.name||game?.awayTeam||"");
   const exact=[...rows].reverse().find(r=>normalizeSoccerName(r.home_team_name)===h&&normalizeSoccerName(r.away_team_name)===a);
@@ -89,12 +126,16 @@ export function projectSoccerV3(game,v2,rows=[]){
   if(!active)return{ok:false,reason:"insufficient-pitchapi-history",modelId:SOCCER_FBIS_V3_ID,historyMatches:state.matches,classifierUpdates:state.model.updates,homeHistory:f.homeGames,awayHistory:f.awayGames};
   const p=predict(state.model,f.vector),w=clamp(.72+(state.coverage/state.matches<.55?.08:0),.62,.82);
   const probs=[w*v2.pHomeWin+(1-w)*p[0],w*v2.pDraw+(1-w)*p[1],w*v2.pAwayWin+(1-w)*p[2]],s=probs.reduce((a,b)=>a+b,0);
+  const scoreLayer=phase3ScoreLayer(state,hk,ak,v2);
   return{ok:true,modelId:SOCCER_FBIS_V3_ID,modelVersion:SOCCER_FBIS_V3_VERSION,pHomeWin:probs[0]/s,pDraw:probs[1]/s,pAwayWin:probs[2]/s,
+    home:scoreLayer?.homeLambda??v2.home,away:scoreLayer?.awayLambda??v2.away,total:scoreLayer?.total??v2.total,margin:scoreLayer?.margin??v2.margin,
+    pBttsYes:scoreLayer?.pBttsYes??v2.pBttsYes,pBttsNo:scoreLayer?.pBttsNo??v2.pBttsNo,
+    totals:scoreLayer?.totals??v2.totals,homeAsian:scoreLayer?.homeAsian??v2.homeAsian,scoreLayer,
     marketInformed:false,canQualify:false,canAuthorize:false,maturity:"RESEARCH",pitchMatchId,
     pitchapi:{classifier:{pHome:p[0],pDraw:p[1],pAway:p[2],updates:state.model.updates,trainingLogLoss:state.model.loss/state.model.updates},
       coverage:state.matches?state.coverage/state.matches:0,historyMatches:state.matches,homeHistory:f.homeGames,awayHistory:f.awayGames,
       featureFamilies:["shot-quality","chance-type","pressing","defensive-height","territory","possession-value","progression","passing-efficiency","tempo","build-up-style","pass-network"]},
-    ensemble:{v2Weight:w,pitchApiWeight:1-w},provenance:{provider:"PitchAPI",pointInTimeCutoff:cutoff,marketUsed:false,postMatchTargetFeaturesUsed:false}};
+    ensemble:{v2Weight:w,pitchApiWeight:1-w,scoreLayerWeight:scoreLayer?.weight??0},provenance:{provider:"PitchAPI",pointInTimeCutoff:cutoff,marketUsed:false,postMatchTargetFeaturesUsed:false,persistentStateUsed:false}};
 }
 export async function attachSoccerV3Research(games=[],env={}){
   const groups=new Map();for(const g of games){const l=String(g.soccerLeague||g.league||"");if(!groups.has(l))groups.set(l,[]);groups.get(l).push(g);}
