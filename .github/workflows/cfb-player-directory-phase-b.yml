@@ -1,6 +1,13 @@
 name: CFB player directory Phase B
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/cfb-player-directory-build.py"
+      - "migrations/*cfb*player*"
+      - "migrations/*cfb*roster*"
+      - ".github/workflows/cfb-player-directory-phase-b.yml"
   workflow_dispatch:
     inputs:
       start_year:
