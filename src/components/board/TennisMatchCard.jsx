@@ -1,4 +1,3 @@
-import TeamLogo from "../TeamLogo.jsx";
 import AdvancedGameDetail from "./AdvancedGameDetail.jsx";
 import "./tennisMatchCard.css";
 
