@@ -57,7 +57,7 @@ for(const t of chosen){
  const gid=group(t),yr=yearOf(t),sourcePath=`/tournaments/${gid}/${yr}/matches`,shardKey=`wta:matches:${yr}:${gid}`;
  try{
   const res=await get(sourcePath);if(!res.ok)throw new Error(`HTTP ${res.status}`);
-  const rows=arr(res.body);if(!rows.length)throw new Error("EMPTY_MATCH_SHARD");const checksum=h(res.text),rawKey=`wta/matches/${yr}/${gid}/matches-${checksum.slice(0,16)}.json`;
+  const rows=arr(res.body);if(!rows.length){shards.push({shardKey,gid,year:yr,status:"EMPTY",rows:0});continue;}const checksum=h(res.text),rawKey=`wta/matches/${yr}/${gid}/matches-${checksum.slice(0,16)}.json`;
   await fs.mkdir(path.join(RAW,String(yr),gid),{recursive:true});await fs.writeFile(path.join(RAW,String(yr),gid,"matches.json"),res.text);
   seen+=rows.length;
   for(const m of rows){
@@ -82,4 +82,4 @@ await fs.writeFile(OUT,sql);
 const summary={generatedAt:now,year:YEAR,offset:START,limit:LIMIT,tournamentPagesScanned:pagesScanned,tournamentsAvailable:all.length,tournamentsAttempted:chosen.length,recordsSeen:seen,recordsWritten:written,failures,shards,nextOffset:START+chosen.length,complete:START+chosen.length>=all.length};
 await fs.writeFile(SUMMARY,JSON.stringify(summary,null,2)+String.fromCharCode(10));
 console.log(JSON.stringify(summary,null,2));
-if(!chosen.length||failures)process.exitCode=2;
+if(!chosen.length||!seen||failures)process.exitCode=2;
