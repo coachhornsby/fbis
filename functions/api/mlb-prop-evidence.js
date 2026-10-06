@@ -44,7 +44,8 @@ async function latestMarketQuotes(db,date,decisionAt){
     ) WHERE rn=1`).bind(date,decisionAt).all(),
     db.prepare(`SELECT * FROM (
       SELECT subject_id,subject_name,team_id,market_type,COALESCE(book_line,line) line,
-             COALESCE(book,source) book,COALESCE(source_as_of,frozen_at) observed_at,frozen_at,
+             COALESCE(book,source) book,book_over_price,book_under_price,priced,
+             COALESCE(source_as_of,frozen_at) observed_at,frozen_at,
              ROW_NUMBER() OVER(PARTITION BY lower(subject_name),market_type,COALESCE(book,source)
                ORDER BY frozen_at DESC) rn
         FROM mlb_market_projections
@@ -146,7 +147,14 @@ async function capture(context,{date,shard=0,shards=1}={}){
       const team=String(r.team||"").toUpperCase();
       const opponent=team===String(g.home?.abbr||"").toUpperCase()?(g.away?.abbr||g.away?.name): (g.home?.abbr||g.home?.name);
       const cp=checkpoint(g);
-      const duplicateKey=sha256Hex(JSON.stringify([g.id,r.playerId||norm(r.playerName),r.market,modelVersion,q.marketSource,q.sportsbook,q.oddsTier,q.line,cp]));
+      const projectionUnitKey=[
+        String(g.id),
+        String(r.playerId||norm(r.playerName)),
+        r.market,
+        modelVersion,
+        cp,
+      ].join("|");
+      const duplicateKey=sha256Hex(JSON.stringify([projectionUnitKey,q.marketSource,q.sportsbook,q.oddsTier,q.line]));
       const id=sha256Hex(JSON.stringify(["MLB_PROP_EVIDENCE_v1",duplicateKey]));
       const prof=String(r.position||"").toUpperCase()==="P"?profiles.pitchers.get(String(r.playerId)):profiles.hitters.get(String(r.playerId));
       const stateSnapshot={contract:"mlb-state-v2",stateAsOf,sourceObservedAt,eventPersistentState:g.mlbPersistentState||null,
@@ -155,13 +163,13 @@ async function capture(context,{date,shard=0,shards=1}={}){
         id,gate_version,event_id,event_date,event_start_at,player_id,player_name,team,opponent,position,market,
         projection,sigma,model_source,model_version,source_observed_at,state_as_of,projection_snapshot_at,checkpoint,
         market_source,sportsbook,market_line,odds_tier,market_observed_at,decision_snapshot_at,candidate_side,
-        state_snapshot_json,projection_json,market_json,temporal_integrity,temporal_diagnostics_json,duplicate_key,
+        state_snapshot_json,projection_json,market_json,temporal_integrity,temporal_diagnostics_json,duplicate_key,projection_unit_key,
         can_qualify,can_authorize_wager,updated_at
-      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,0,?)`)
+      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,0,?)`)
       .bind(id,MLB_PROP_PROMOTION_GATE_VERSION,String(g.id),date,eventStart,text(r.playerId),r.playerName,r.team||null,opponent||null,r.position||null,r.market,
         num(r.fbisProjection),num(r.fbisSigma),modelSource,modelVersion,sourceObservedAt,stateAsOf,projectionAt,cp,
         q.marketSource,q.sportsbook,q.line,q.oddsTier,q.observedAt,decisionAt,side,
-        JSON.stringify(stateSnapshot),JSON.stringify(r),JSON.stringify(q),1,JSON.stringify({ok:true,problems:[]}),duplicateKey,decisionAt).run();
+        JSON.stringify(stateSnapshot),JSON.stringify(r),JSON.stringify(q),1,JSON.stringify({ok:true,problems:[]}),duplicateKey,projectionUnitKey,decisionAt).run();
       if(Number(result?.meta?.changes||0)>0){
         accepted++;
         const stateSnapshotId=sha256Hex(JSON.stringify(["mlb_prop_state",g.id,r.playerId||norm(r.playerName),stateAsOf,modelVersion]));
@@ -178,7 +186,7 @@ async function capture(context,{date,shard=0,shards=1}={}){
           context.env.CF_PAGES_COMMIT_SHA||null,
           JSON.stringify({championModel:String(g.championModel||slate.modelVersion||"FBIS-v1.4")}),
           JSON.stringify({playerId:r.playerId||null,playerName:r.playerName,market:r.market,projection:num(r.fbisProjection),sigma:num(r.fbisSigma),candidateSide:side}),
-          JSON.stringify({stateBeforeWeight:true,rawProjectionDistanceCanPromote:false,canQualify:false,canAuthorizeWager:false,marketSource:q.marketSource,sportsbook:q.sportsbook,oddsTier:q.oddsTier,marketLine:q.line}),
+          JSON.stringify({stateBeforeWeight:true,rawProjectionDistanceCanPromote:false,canQualify:false,canAuthorizeWager:false,projectionUnitKey,marketSource:q.marketSource,sportsbook:q.sportsbook,oddsTier:q.oddsTier,marketLine:q.line}),
           decisionAt
         ).run();
       }else duplicates++;
