@@ -72,7 +72,7 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   const m29 = await readFile(new URL("../migrations/0029_executed_bet_settlement_evidence.sql", import.meta.url), "utf8");
   assert.match(m29, /0029_executed_bet_settlement_evidence/i);
   assert.match(m29, /final_home_score/);
-  assert.match(health, /EXPECTED_MIGRATION\s*=\s*["\']0064_soccer_phase3_validation_evidence["\']/);
+  assert.match(health, /EXPECTED_MIGRATION\\s*=\\s*["\\\']0067_soccer_phase3b_validation_provenance["\\\']/);
   const m62 = await readFile(new URL("../migrations/0062_soccer_provider_mapping_registry.sql", import.meta.url), "utf8");
   assert.match(m62, /0062_soccer_provider_mapping_registry/i);
   assert.match(m62, /soccer_competition_provider_map/);
@@ -83,10 +83,16 @@ test("CFBD audit migrations are registered and health expects latest", async () 
   assert.match(m63, /soccer_player_state/);
   assert.match(m63, /soccer_team_state_snapshots/);
   assert.match(schemaExt, /soccer_team_state/);
-  const m64 = await readFile(new URL("../migrations/0064_soccer_phase3_validation_evidence.sql", import.meta.url), "utf8");
-  assert.match(m64, /0064_soccer_phase3_validation_evidence/i);
+  const m64 = await readFile(new URL("../migrations/0067_soccer_phase3b_validation_provenance.sql", import.meta.url), "utf8");
+  assert.match(m64, /0067_soccer_phase3b_validation_provenance/i);
   assert.match(m64, /soccer_validation_evidence/);
+  const m67 = await readFile(new URL("../migrations/0067_soccer_phase3b_validation_provenance.sql", import.meta.url), "utf8");
+  assert.match(m67, /0067_soccer_phase3b_validation_provenance/i);
+  assert.match(m67, /snapshot_id/);
+  assert.match(m67, /code_sha/);
   assert.match(schemaExt, /soccer_validation_evidence/);
+  assert.match(schemaExt, /snapshot_id/);
+  assert.match(schemaExt, /code_sha/);
   const m37 = await readFile(new URL("../migrations/0037_ops_control_plane.sql", import.meta.url), "utf8");
   assert.match(m37, /0037_ops_control_plane/i);
   assert.match(m37, /fbis_ops_components/);
