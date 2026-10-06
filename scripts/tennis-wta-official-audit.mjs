@@ -23,7 +23,7 @@ const player=pid?await get(`/players/${pid}`):{status:null,ok:false,body:null};
 const matches=pid?await get(`/players/${pid}/matches`):{status:null,ok:false,body:null};
 const tournaments=await get("/tournaments?page=0&pageSize=5");
 const trows=Array.isArray(tournaments.body)?tournaments.body:(tournaments.body?.content||[]);
-const group=trows?.[0]?.tournamentGroup?.id||null,year=trows?.[0]?.year||null;
+let group=trows?.[0]?.tournamentGroup?.id||null,year=trows?.[0]?.year||null;\nif(!year||Number(year)<2020){group=901;year=2025;}
 const tournament=(group&&year)?await get(`/tournaments/${group}/${year}`):{status:null,ok:false,body:null};
 const tournamentMatches=(group&&year)?await get(`/tournaments/${group}/${year}/matches`):{status:null,ok:false,body:null};
 const tournamentPlayers=(group&&year)?await get(`/tournaments/${group}/${year}/players`):{status:null,ok:false,body:null};
@@ -44,7 +44,7 @@ for(const [key,pathname,res] of defs){
   const dates=dateStrings(body).sort();
   const inventory={topLevel:keys(body),sample:keys(Array.isArray(arr)?arr[0]:null),samplePlayer:keys(Array.isArray(arr)?arr[0]?.player:null)};
   const sampleKeys=Array.isArray(arr)&&arr[0]?keys(arr[0]):[];
-  const detail={samplePlayerId:pid,tournamentGroupId:group,tournamentYear:year,serveStatFieldsDetected:sampleKeys.filter(k=>/ace|double|serve|break|return/i.test(k))};
+  const detail={samplePlayerId:pid,tournamentGroupId:group,tournamentYear:year,serveStatFieldsDetected:sampleKeys.filter(k=>/(^|_)(ace|aces|double_fault|doublefault|serve|service|break|break_point|return)/i.test(k))};
   const audit={endpointKey:key,path:pathname,httpStatus:res.status,available:Boolean(res.ok),sampleCount:Array.isArray(arr)?arr.length:null,earliestDate:dates[0]||null,latestDate:dates.at(-1)||null,fieldInventory:inventory,detail};
   audits.push(audit);
   const id="tsa_"+hash(["WTA_OFFICIAL","wta",key,now].join("|"));
