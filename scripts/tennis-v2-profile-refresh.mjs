@@ -69,7 +69,7 @@ for(const tour of ["atp","wta"])for(const year of YEARS){
 }
 all.sort((a,b)=>String(a.tourney_date).localeCompare(String(b.tourney_date))||String(a.match_num||"").localeCompare(String(b.match_num||"")));
 
-const states={atp:new TennisDeepState("atp"),wta:new TennisDeepState("wta")};
+const states={atp:new TennisDeepState("atp"),wta:new TennisDeepState("wta")};\nconst historyRows=[];
 const meta={atp:new Map(),wta:new Map()};
 const tournaments=new Map();
 
@@ -105,7 +105,7 @@ for(const row of all){
 }
 
 const cutoffIso=dateIso(cutoff);
-const profileRows=[];\nconst historyRows=[];
+const profileRows=[];
 for(const tour of ["atp","wta"]){
   for(const x of meta[tour].values()){
     const recent=x.matches.filter(m=>daysBetween(m.date,cutoffIso)!=null&&daysBetween(m.date,cutoffIso)>=0&&daysBetween(m.date,cutoffIso)<=7);
