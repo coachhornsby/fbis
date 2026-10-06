@@ -1,6 +1,7 @@
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { buildTodayBoard, resolveTodayDate } from "../lib/todayBoard.js";
 import { americanProfit } from "../lib/pricing.js";
+import { NHL_GOALIE_PROB_PROSPECTIVE_GATE as PROSPECTIVE_GATE } from "../../data/models/nhl-goalie-prob-prospective-gate-v1.js";
 
 const TZ="America/Chicago";
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
@@ -14,13 +15,36 @@ function envOf(context){return {
   BALLPARK_PAL_API_KEY:context.env.BALLPARK_PAL_API_KEY,CFBD_API_KEY:context.env.CFBD_API_KEY,
   CBBD_API_KEY:context.env.CBBD_API_KEY,DB:context.env.DB,caches:caches.default
 };}
+function maxIso(values=[]){
+  const good=values.filter(Boolean).filter(x=>Number.isFinite(Date.parse(x))).sort((a,b)=>Date.parse(a)-Date.parse(b));
+  return good.at(-1)||null;
+}
+function starterState(side={}){
+  const goalies=(side.goalies||[]).slice().sort((a,b)=>{
+    const ap=finite(a.expected_start_probability)??-1,bp=finite(b.expected_start_probability)??-1;
+    if(bp!==ap)return bp-ap;
+    return (finite(a.hierarchy_rank)??99)-(finite(b.hierarchy_rank)??99);
+  });
+  const confirmed=goalies.find(g=>String(g.goalie_state||"").toUpperCase()==="CONFIRMED_STARTER")||null;
+  const expected=confirmed||goalies[0]||null;
+  return {
+    confirmationState:confirmed?"CONFIRMED":expected?"EXPECTED_ONLY":"UNKNOWN",
+    expectedStarterId:expected?.player_id?String(expected.player_id):null,
+    expectedStarterName:expected?.player_name||null,
+    expectedStartProbability:finite(expected?.expected_start_probability),
+    evidenceAt:maxIso(goalies.flatMap(g=>[g.source_updated_at,g.updated_at])),
+    evidenceSource:"NHL-PERSISTENT-PROFILE-v1:nhl_goalie_profiles",goalies
+  };
+}
 function playerState(side={}){
   const players=side.players||[];
   return {
     ev:players.filter(p=>p.ev_line!=null||p.d_pair!=null).map(p=>({playerId:p.player_id,name:p.player_name,position:p.position,evLine:p.ev_line,dPair:p.d_pair,roleConfidence:p.role_confidence})),
     pp:players.filter(p=>p.pp_unit!=null).map(p=>({playerId:p.player_id,name:p.player_name,ppUnit:p.pp_unit,rollingPpToiSeconds:p.rolling_pp_toi_seconds})),
     availability:players.map(p=>({playerId:p.player_id,name:p.player_name,availabilityState:p.availability_state,gameState:p.game_state,injuryDetail:p.injury_detail,stateConfidence:p.state_confidence})),
-    replacements:players.filter(p=>Array.isArray(p.replacements)&&p.replacements.length).map(p=>({playerId:p.player_id,name:p.player_name,replacements:p.replacements}))
+    replacements:players.filter(p=>Array.isArray(p.replacements)&&p.replacements.length).map(p=>({playerId:p.player_id,name:p.player_name,replacements:p.replacements})),
+    deploymentEvidenceAt:maxIso(players.flatMap(p=>[p.source_updated_at,p.updated_at])),
+    availabilityEvidenceAt:maxIso(players.flatMap(p=>[p.source_updated_at,p.updated_at]))
   };
 }
 function freezeRows(board,snapshotAt,codeSha){
