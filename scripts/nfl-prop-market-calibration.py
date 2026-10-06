@@ -63,12 +63,50 @@ def side_summary(g):
 def role_summary(g):
     return {str(k):{"n":int(len(x)),"hitRate":float(x.hit.mean())} for k,x in g.groupby("target_role")}
 
-def line_ranges(g):
+def quantile_ranges(g,column):
     try:
-        z=g.copy();z["bucket"]=pd.qcut(z.line,4,duplicates="drop")
-        return [{"range":str(k),"n":int(len(x)),"lineMin":float(x.line.min()),"lineMax":float(x.line.max()),"hitRate":float(x.hit.mean())}
+        z=g.copy();z["bucket"]=pd.qcut(pd.to_numeric(z[column],errors="coerce"),4,duplicates="drop")
+        return [{"range":str(k),"n":int(len(x)),"min":float(pd.to_numeric(x[column],errors="coerce").min()),"max":float(pd.to_numeric(x[column],errors="coerce").max()),"hitRate":float(x.hit.mean())}
                 for k,x in z.groupby("bucket",observed=True)]
     except Exception:return []
+
+def line_ranges(g): return quantile_ranges(g,"line")
+def projection_ranges(g): return quantile_ranges(g,"projection")
+
+def side_diagnostics(g):
+    out={}
+    for side,x in g.groupby("model_side"):
+        wf=x[x.calProb.notna()].copy()
+        out[str(side)]={
+          "n":int(len(x)),"hitRate":float(x.hit.mean()),
+          "bias":float(x.residual.mean()),"empiricalSigma":float(x.residual.std(ddof=1)) if len(x)>1 else None,
+          "rawBrier":float(brier_score_loss(x.hit,x.rawProb)) if len(x) else None,
+          "rawLogLoss":float(log_loss(x.hit,np.clip(x.rawProb,.01,.99),labels=[0,1])) if len(x) else None,
+          "calibratedBrier":float(brier_score_loss(wf.hit,wf.calProb)) if len(wf) else None,
+          "calibratedLogLoss":float(log_loss(wf.hit,np.clip(wf.calProb,.01,.99),labels=[0,1])) if len(wf) else None,
+          "calibratedEce":ece(wf.hit,wf.calProb) if len(wf) else None,
+          "zBuckets":bucket_summary(x),
+        }
+    return out
+
+def season_stability(g):
+    rows=[]
+    for season,x in g.groupby("season"):
+        rows.append({"season":int(season),"n":int(len(x)),"hitRate":float(x.hit.mean()),"bias":float(x.residual.mean()),"empiricalSigma":float(x.residual.std(ddof=1)) if len(x)>1 else None})
+    return rows
+
+def week_stability(g):
+    rows=[]
+    for (season,week),x in g.groupby(["season","week"]):
+        if len(x)<5: continue
+        rows.append({"season":int(season),"week":int(week),"n":int(len(x)),"hitRate":float(x.hit.mean()),"bias":float(x.residual.mean())})
+    rates=[x["hitRate"] for x in rows]
+    return {
+      "weeksWithN5":len(rows),
+      "meanWeeklyHitRate":float(np.mean(rates)) if rates else None,
+      "weeklyHitRateStd":float(np.std(rates,ddof=1)) if len(rates)>1 else None,
+      "weeks":rows,
+    }
 
 def expanding_calibration(g):
     preds=pd.Series(np.nan,index=g.index,dtype=float)
@@ -118,7 +156,13 @@ def audit_market(g):
       "rawBrier":raw_brier,"rawLogLoss":raw_ll,"rawEce":ece(g.hit,g.rawProb),
       "calibratedBrier":cal_brier,"calibratedLogLoss":cal_ll,"calibratedEce":cal_ece,
       "monotonic":monotonic,"bucketRankCorrelation":corr,
-      "zBuckets":zb,"sides":side_summary(g),"roles":role_summary(g),"lineRanges":line_ranges(g),
+      "zBuckets":zb,
+      "sides":side_diagnostics(g),
+      "roles":role_summary(g),
+      "lineRanges":line_ranges(g),
+      "projectionRanges":projection_ranges(g),
+      "seasonStability":season_stability(g),
+      "weekStability":week_stability(g),
       "validated":passed,"reason":"validated" if passed else ";".join(reasons),
       "closingLineEvidence":{"available":False,"reason":"historical PrizePicks reconstruction has pregame lines but not a separate executable closing-line series"},
     }
