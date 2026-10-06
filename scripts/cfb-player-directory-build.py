@@ -246,3 +246,20 @@ WHERE m.source='{SOURCE}' AND m.season={season}
 GROUP BY m.season;""")
 final_sql="\\n".join(final_lines)
 
+
+(OUT/"cfb-player-directory-finalize.sql").write_text(final_sql+"\n")
+
+qa={
+ "generatedAt":observed,
+ "source":SOURCE,
+ "startSeason":START,
+ "endSeason":END,
+ "seasonFiles":len(coverage),
+ "totalRosterRows":sum(x["rosterRows"] for x in coverage),
+ "totalGameRosterRows":sum(x["gameRosterRows"] for x in coverage),
+ "totalProvisionalRows":sum(x["provisionalRows"] for x in coverage),
+ "coverage":coverage,
+ "governance":{"overlayVersion":"FBIS-STATE-OVERLAY-v1","canInfluenceProjection":False,"canQualify":False,"canAuthorizeWager":False}
+}
+(OUT/"qa.json").write_text(json.dumps(qa,indent=2)+"\n")
+print(json.dumps({k:v for k,v in qa.items() if k!="coverage"},indent=2))
