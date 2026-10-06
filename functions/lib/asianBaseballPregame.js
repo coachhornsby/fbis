@@ -118,7 +118,8 @@ export function buildReconstructedPregameSnapshot(target,history=[],{cutoffMinut
     starters:{home:null,away:null,resolution:"UNAVAILABLE_HISTORICAL_ASOF"},
     bullpen:{home:null,away:null,state:"UNAVAILABLE_HISTORICAL_ASOF"},
     park,lineup:{home:null,away:null,state:"UNAVAILABLE_HISTORICAL_ASOF"},missingFlags:flags,
-    sourceRefs:[{contract:"ASIAN_BASEBALL_PHASE2_OFFICIAL_FINAL_HISTORY",priorGames:prior.length}],
+    sourceRefs:[{contract:"ASIAN_BASEBALL_PHASE2_OFFICIAL_FINAL_HISTORY",priorGames:prior.length,
+      refs:[...new Set(prior.map(g=>g.source_ref).filter(Boolean))].slice(-50)}],
     parserVersion:ASIAN_BASEBALL_PREGAME_VERSION,
     temporalEligible:temporalEligible?1:0,
     walkForwardEligible:temporalEligible&&home.games>0&&away.games>0&&Boolean(v1?.ok)&&Boolean(v2?.ok)?1:0,
@@ -206,8 +207,14 @@ export async function controlledWalkForwardRows(env,{league,season=2025,month=9}
     WHERE s.league=? AND substr(s.game_date,1,7)=? ORDER BY s.game_date,s.canonical_game_id`,L,prefix);
   return rows.map(r=>{
     const m=JSON.parse(r.model_outputs_json||"{}");
+    const shape=p=>{
+      if(!p?.ok)return null;
+      const out={home:p.home,away:p.away};
+      const ph=p.probabilities?.pHomeWin;
+      if(finite(ph)!=null)out.pHome=ph;
+      return out;
+    };
     return{start:r.scheduled_start,frozenAt:r.snapshot_at,homeRuns:r.home_final_runs,awayRuns:r.away_final_runs,
-      v1:m.v1?.ok?{home:m.v1.home,away:m.v1.away,pHome:m.v1.probabilities?.pHomeWin??null}:null,
-      v2:m.v2?.ok?{home:m.v2.home,away:m.v2.away,pHome:m.v2.probabilities?.pHomeWin??null}:null};
+      v1:shape(m.v1),v2:shape(m.v2)};
   }).filter(r=>r.v1&&r.v2);
 }
