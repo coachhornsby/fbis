@@ -65,9 +65,9 @@ export async function runCbbDirectoryPhaseB(env,{asOf=new Date()}={}){
  const teamCtx=new Map(),teamStmts=[];
  for(const t of teams){
   const tid=teamId(season,teamName(t),t?.id??t?.teamId);if(!tid)continue;teamCtx.set(tid,t);
-  const hca=hcaCatalog?.[t?.school||t?.name||t?.team]??null;
+  const hca=null;
   teamStmts.push(env.DB.prepare(`INSERT OR REPLACE INTO cbb_team_context_observations(id,team_id,season,conference,head_coach,coach_tenure_start,venue_id,venue_name,venue_latitude,venue_longitude,hca_reference,observed_at,effective_at,ingested_at,source,provenance_json,confidence,stale,supersedes_id,pit_eligible,research_only,created_at)
-   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,NULL,1,1,?)`).bind("teamctx:"+season+":"+tid,tid,season,conf(t),t?.headCoach??t?.coach?.name??null,t?.coachTenureStart??null,t?.venueId??t?.venue?.id??null,venue(t),num(t?.venue?.latitude),num(t?.venue?.longitude),num(hca),observedAt,observedAt,observedAt,"CBBD_TEAMS",JSON.stringify({endpoint:"/teams",season,hca:hca==null?null:"research/cbb/kenpom-hca-2025-26.json"}),0.95,observedAt));
+   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,NULL,1,1,?)`).bind("teamctx:"+season+":"+tid,tid,season,conf(t),t?.headCoach??t?.coach?.name??null,t?.coachTenureStart??null,t?.venueId??t?.venue?.id??null,venue(t),num(t?.venue?.latitude),num(t?.venue?.longitude),num(hca),observedAt,observedAt,observedAt,"CBBD_TEAMS",JSON.stringify({endpoint:"/teams",season,hca:"UNRESOLVED_NO_VERIFIED_TEAM_SPECIFIC_LINK"}),0.95,observedAt));
  }
  await runBatches(env.DB,teamStmts);
 
@@ -89,7 +89,7 @@ export async function runCbbDirectoryPhaseB(env,{asOf=new Date()}={}){
   const start=g?.startDate||g?.start_date||g?.date;if(!start||Date.parse(start)<=asOf.getTime())continue;
   const ht=teamId(season,g?.homeTeam||g?.homeTeamName,g?.homeTeamId),at=teamId(season,g?.awayTeam||g?.awayTeamName,g?.awayTeamId);if(!ht||!at)continue;
   const cutoff=new Date(Date.parse(start)-60*60*1000).toISOString();if(asOf.getTime()>Date.parse(cutoff)){temporalFailures++;continue}
-  const state=tid=>({rosterObservedAt:observedAt,rosterPlayers:(currentByTeam.get(tid)||[]).map(p=>p.pid),availability:"UNKNOWN",availabilityEvidence:"NONE",rotationBaseline:"PRIOR_SEASON_SAME_TEAM_ONLY",conference:conf(teamCtx.get(tid)),hcaReference:hcaCatalog?.[teamCtx.get(tid)?.school||teamCtx.get(tid)?.name]??null});
+  const state=tid=>({rosterObservedAt:observedAt,rosterPlayers:(currentByTeam.get(tid)||[]).map(p=>p.pid),availability:"UNKNOWN",availabilityEvidence:"NONE",rotationBaseline:"PRIOR_SEASON_SAME_TEAM_ONLY",conference:conf(teamCtx.get(tid)),hcaReference:null});
   gameStmts.push(env.DB.prepare(`INSERT OR REPLACE INTO cbb_game_state_snapshots(id,game_id,season,game_start,feature_cutoff,home_team_id,away_team_id,home_state_json,away_state_json,unresolved_json,temporal_integrity_ok,post_tip_observations,future_membership_leaks,future_availability_leaks,future_lineup_leaks,mode,overlay_version,research_only,can_influence_projection,can_qualify,can_authorize_wager,provenance_json,created_at)
    VALUES(?,?,?,?,?,?,?,?,?,?,1,0,0,0,0,'SHADOW','FBIS-STATE-OVERLAY-v1',1,0,0,0,?,?)`).bind("gamesnap:"+String(g.id??g.gameId)+":"+cutoff,String(g.id??g.gameId),season,start,cutoff,ht,at,JSON.stringify(state(ht)),JSON.stringify(state(at)),JSON.stringify({availability:"UNKNOWN absent explicit verified source",coach:"UNRESOLVED unless source supplies it",travel:"UNRESOLVED unless verified venue coordinates"}),JSON.stringify({roster:"CBBD /teams/roster",teams:"CBBD /teams",games:"CBBD /games",priorStats:"CBBD /stats/player/season",observedAt}),observedAt));
  }
