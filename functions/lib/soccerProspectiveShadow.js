@@ -115,7 +115,16 @@ export function buildSoccerProspectiveShadowRecords(game={},slate={},{
     return{ok:false,reason:"competition-unavailable",detail:"missing-league-mapping",rows:[]};
   }
   if(!v2?.ok){
-    return{ok:false,reason:"v2-projection-unavailable",detail:String(v2?.reason||"v2-projection-unavailable"),rows:[]};
+    const d=v2?.diagnostics||{};
+    const detail=[
+      String(v2?.reason||"v2-projection-unavailable"),
+      d.homeMatched===false?"home-unmatched":null,
+      d.awayMatched===false?"away-unmatched":null,
+      Number.isFinite(Number(d.historyMatches))?`history-${Number(d.historyMatches)}`:null,
+      d.homeIdentity?.name?`home-${String(d.homeIdentity.name)}`:null,
+      d.awayIdentity?.name?`away-${String(d.awayIdentity.name)}`:null,
+    ].filter(Boolean).join("|");
+    return{ok:false,reason:"v2-projection-unavailable",detail,rows:[]};
   }
   if(!v31?.ok){
     return{ok:false,reason:"v31-projection-unavailable",detail:String(v31?.reason||"v31-projection-unavailable"),rows:[]};
