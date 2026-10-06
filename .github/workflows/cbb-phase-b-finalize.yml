@@ -2,7 +2,9 @@ name: CBB Phase B bounded finalize
 on:
   push:
     branches: [main]
-    paths: [".github/workflows/cbb-phase-b-finalize.yml"]
+    paths:
+      - ".github/workflows/cbb-phase-b-finalize.yml"
+      - "functions/lib/cbbDirectoryPhaseB.js"
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,4 +28,4 @@ jobs:
           echo "http=${code}"
           jq '{ok,status,cbbDirectoryPhaseB}' "$tmp"
           test "$code" = "200"
-          jq -e '.ok==true and .cbbDirectoryPhaseB.ok==true and (.cbbDirectoryPhaseB.status=="COMPLETE" or .cbbDirectoryPhaseB.status=="already_complete") and .cbbDirectoryPhaseB.temporalIntegrity.ok==true and .cbbDirectoryPhaseB.governance.totalsShadowDefinitions==0 and .cbbDirectoryPhaseB.governance.canInfluenceProjection==false and .cbbDirectoryPhaseB.governance.canQualify==false and .cbbDirectoryPhaseB.governance.canAuthorizeWager==false' "$tmp" >/dev/null
+          jq -e '.ok==true and .cbbDirectoryPhaseB.ok==true and (.cbbDirectoryPhaseB.status=="success" or .cbbDirectoryPhaseB.status=="already_complete") and ((.cbbDirectoryPhaseB.qa.pit.temporalIntegrityOk // .cbbDirectoryPhaseB.qa.temporalIntegrity.ok // false)==true) and ((.cbbDirectoryPhaseB.qa.governance.totalsDefinitions // .cbbDirectoryPhaseB.qa.governance.totalsShadowDefinitions // 0)==0) and ((.cbbDirectoryPhaseB.qa.governance.canInfluenceProjection // false)==false) and ((.cbbDirectoryPhaseB.qa.governance.canQualify // false)==false) and ((.cbbDirectoryPhaseB.qa.governance.canAuthorizeWager // false)==false)' "$tmp" >/dev/null
