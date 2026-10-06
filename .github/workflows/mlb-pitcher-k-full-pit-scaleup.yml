@@ -1,0 +1,56 @@
+name: MLB pitcher-K full PIT scale-up
+on:
+  push:
+    branches: [research/mlb-pitcher-k-full-pit-scaleup]
+    paths:
+      - "scripts/mlb-pitcher-k-full-pit-scaleup.mjs"
+      - ".github/workflows/mlb-pitcher-k-full-pit-scaleup.yml"
+permissions:
+  contents: read
+jobs:
+  replay:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: a
+            dates: "2026-08-27,2026-08-28,2026-08-29,2026-09-01,2026-09-02"
+          - shard: b
+            dates: "2026-09-03,2026-09-04,2026-09-05,2026-09-06,2026-09-07"
+          - shard: c
+            dates: "2026-09-08,2026-09-09,2026-09-10,2026-10-01,2026-10-03"
+          - shard: d
+            dates: "2026-10-04,2026-10-05"
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Export historical pitcher-K market rows from D1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATES: ${{ matrix.dates }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          IN_LIST="$(printf "%s" "$DATES" | awk -F, '{for(i=1;i<=NF;i++){printf "%s\047%s\047",(i>1?",":""),$i}}')"
+          SQL="SELECT id,game_id,date,checkpoint,market_type,subject_name,book,book_line,book_over_price,book_under_price,source_as_of,frozen_at FROM mlb_market_projections WHERE date IN (${IN_LIST}) AND market_type IN ('SPORTSBOOK_PROP:player_strikeouts','SPORTSBOOK_PROP:player_pitcher_strikeouts','SPORTSBOOK_PROP:player_strikeouts_thrown') ORDER BY date,game_id,checkpoint,subject_name,source_as_of"
+          npx wrangler d1 execute fbis --remote --json --command "$SQL" > market.json
+          jq '[.[].results[]?] | length' market.json
+      - name: Replay PIT model and join market
+        env:
+          MARKET_FILE: market.json
+          OUT: pitcher-k-pit-${{ matrix.shard }}.json
+        run: node scripts/mlb-pitcher-k-full-pit-scaleup.mjs
+      - name: Show shard summary
+        run: jq '.summary' pitcher-k-pit-${{ matrix.shard }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlb-pitcher-k-pit-${{ matrix.shard }}
+          path: pitcher-k-pit-${{ matrix.shard }}.json
+          retention-days: 30
