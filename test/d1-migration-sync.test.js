@@ -9,5 +9,7 @@ test("D1 migration sync script is non-destructive and gates on live schema evide
   assert.match(body, /published_projections/);
   assert.doesNotMatch(body, /\bDROP\b/i);
   assert.doesNotMatch(body, /\bDELETE FROM\b/i);
-  assert.doesNotMatch(body, /files\.slice\(0, -1\)/);\n  assert.match(body, /prefix <= 15/);\n  assert.match(body, /bootstrapHistorical/);
+  assert.doesNotMatch(body, /files\.slice\(0, -1\)/);
+  assert.match(body, /prefix <= 15/);
+  assert.match(body, /bootstrapHistorical/);
 });
