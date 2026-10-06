@@ -31,8 +31,11 @@ test("MLB prop evidence supports required settlement markets and no fantasy scor
 
 test("MLB evidence workflow is bounded and restartable",()=>{
   const src=fs.readFileSync(new URL("../.github/workflows/mlb-prop-evidence.yml",import.meta.url),"utf8");
-  assert.match(src,/for shard in 0 1 2/);
-  assert.match(src,/shards:3/);
+  assert.match(src,/seq 0 11/);
+  assert.match(src,/shards:12/);
+  assert.match(src,/id: capture/);
+  assert.match(src,/continue-on-error: true/);
+  assert.match(src,/Enforce capture settlement and readback success/);
   assert.match(src,/limitGames:6/);
   assert.match(src,/operation:"capture"/);
   assert.match(src,/operation:"settle"/);
@@ -41,8 +44,8 @@ test("MLB evidence workflow is bounded and restartable",()=>{
 
 test("MLB accepted evidence also writes the canonical prospective ledger",()=>{
   const src=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
-  assert.match(src,/INSERT OR IGNORE INTO fbis_prospective_evidence/);
-  assert.match(src,/FBIS-PROSPECTIVE-EVIDENCE-v1/);
+  assert.match(src,/persistProspectiveEvidenceAtomic/);
+  assert.match(src,/beforeStatements:\[sportInsert\]/);
   assert.match(src,/stateBeforeWeight:true/);
   assert.match(src,/rawProjectionDistanceCanPromote:false/);
 });
@@ -89,11 +92,11 @@ test("MLB evidence status reports offer and independent settlement counts separa
 
 test("MLB canonical evidence carries source/state/market/uncertainty and authority provenance",()=>{
   const src=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
-  for(const field of ["source_observed_ats_json","state_snapshot_json","market_snapshot_json","uncertainty_json","qualification_authority_json","wager_authority_json"]){
+  for(const field of ["sourceObservedAts","stateSnapshot","marketSnapshot","uncertainty","qualificationAuthority","wagerAuthority"]){
     assert.match(src,new RegExp(field));
   }
-  assert.match(src,/promotion_eligible,promotion_exclusion_reasons_json/);
-  assert.match(src,/SHADOW_RESEARCH_ONLY/);
+  assert.match(src,/canQualify:false/);
+  assert.match(src,/canAuthorize:false/);
 });
 
 test("MLB settlement updates canonical evidence and grades only real two-sided priced offers",()=>{
@@ -103,5 +106,20 @@ test("MLB settlement updates canonical evidence and grades only real two-sided p
   assert.match(src,/book_under_price/);
   assert.match(src,/noVigPair/);
   assert.match(src,/SIMULATED_1U_PRICE_AVAILABLE/);
-  assert.match(src,/INSERT OR IGNORE INTO fbis_economic_grades/);
+  assert.match(src,/persistEconomicGrade/);
+});
+
+
+test("MLB capture shards by deterministic evidence identity, not event identity",()=>{
+  const src=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
+  assert.match(src,/function evidenceShardAccept/);
+  assert.match(src,/evidenceShardAccept\(id,shard,shards\)/);
+  assert.doesNotMatch(src,/filter\(g=>shardAccept\(g\.id,shard,shards\)/);
+});
+
+test("MLB sport-specific and canonical prospective writes are one atomic bundle",()=>{
+  const src=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
+  assert.match(src,/const sportInsert=db\.prepare/);
+  assert.match(src,/persistProspectiveEvidenceAtomic/);
+  assert.match(src,/beforeStatements:\[sportInsert\]/);
 });
