@@ -1,0 +1,98 @@
+name: Tennis WTA official player bank
+
+on:
+  pull_request:
+    paths:
+      - "scripts/tennis-wta-official-ingest.mjs"
+      - "migrations/0073_tennis_canonical_player_bank.sql"
+      - ".github/workflows/tennis-wta-official-player-bank.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/tennis-wta-official-ingest.mjs"
+      - "migrations/0073_tennis_canonical_player_bank.sql"
+      - ".github/workflows/tennis-wta-official-player-bank.yml"
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      max_pages:
+        description: "Maximum WTA player pages to ingest"
+        required: false
+        default: "2"
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+
+      - name: Resolve durable WTA cursor
+        id: cursor
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "page=0" >> "$GITHUB_OUTPUT"
+            echo "status=PR_TEST" >> "$GITHUB_OUTPUT"
+            echo "max_pages=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          npx wrangler d1 execute fbis --remote --file migrations/0073_tennis_canonical_player_bank.sql >/tmp/wta-schema.log
+          npx wrangler d1 execute fbis --remote --command "SELECT cursor_value,status FROM tennis_ingestion_state WHERE source='WTA_OFFICIAL' AND tour='wta' AND stream='players' LIMIT 1" --json >/tmp/wta-cursor.json
+          page="$(jq -r '.[0].results[0].cursor_value // "0"' /tmp/wta-cursor.json)"
+          status="$(jq -r '.[0].results[0].status // "PENDING"' /tmp/wta-cursor.json)"
+          max_pages="${{ github.event.inputs.max_pages || '2' }}"
+          echo "page=$page" >> "$GITHUB_OUTPUT"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "max_pages=$max_pages" >> "$GITHUB_OUTPUT"
+
+      - name: Build bounded official WTA shard
+        if: steps.cursor.outputs.status != 'COMPLETE'
+        env:
+          WTA_START_PAGE: ${{ steps.cursor.outputs.page }}
+          WTA_MAX_PAGES: ${{ steps.cursor.outputs.max_pages }}
+          WTA_PAGE_SIZE: "50"
+          WTA_PROFILE_CONCURRENCY: "3"
+        run: node scripts/tennis-wta-official-ingest.mjs
+
+      - name: Verify WTA shard
+        if: steps.cursor.outputs.status != 'COMPLETE'
+        run: |
+          set -euo pipefail
+          jq -e '.source == "WTA_OFFICIAL"' artifacts/wta-official-player-bank-summary.json >/dev/null
+          jq -e '.playersSeen > 0 and .playersWritten > 0' artifacts/wta-official-player-bank-summary.json >/dev/null
+          jq -e '.governance.officialWtaPriority == 100 and .governance.secondaryMayNotOverwriteOfficial == true' artifacts/wta-official-player-bank-summary.json >/dev/null
+          cat artifacts/wta-official-player-bank-summary.json
+
+      - name: Apply WTA shard to production D1
+        if: github.event_name != 'pull_request' && steps.cursor.outputs.status != 'COMPLETE'
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/wta-player-chunks
+          split -l 200 -d -a 4 artifacts/wta-official-player-bank.sql /tmp/wta-player-chunks/chunk-
+          for file in /tmp/wta-player-chunks/chunk-*; do
+            ok=0
+            for attempt in 1 2 3; do
+              if npx wrangler d1 execute fbis --remote --file "$file"; then ok=1; break; fi
+              sleep $((attempt*3))
+            done
+            test "$ok" = "1"
+          done
+
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: wta-official-player-bank
+          path: |
+            artifacts/wta-official-player-bank-summary.json
+          retention-days: 30
