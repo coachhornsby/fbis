@@ -137,11 +137,12 @@ test("behavior: economic grade requires prospective evidence", async () => {
 });
 
 test("behavior: economic grade persists stake provenance", async () => {
-  const db = fakeDb({ evidenceForGrade: { evidence_id: "ev-1", promotion_eligible: 0 } });
+  const db = fakeDb({ evidenceForGrade: { evidence_id: "ev-1", sport: "mlb", event_id: "game-1", market_snapshot_id: "market-1", market_observed_at: "2026-10-06T19:59:00.000Z", promotion_eligible: 0 } });
   const out = await persistEconomicGrade({ DB: db }, {
     gradeId: "g-1", evidenceId: "ev-1", sport: "mlb", eventId: "game-1",
     marketFamily: "ML", selection: "HOME", projectedProbability: 0.55, entryPrice: -110,
     result: "WON", stakeUnits: 2, gradedAt: "2026-10-07T04:00:00Z",
+    metadata: { entryMarketSnapshotId: "market-1", entryObservedAt: "2026-10-06T19:59:00.000Z", economicBasis: "SIMULATED_1U_PRICE_AVAILABLE", metricMethodVersion: "FBIS-ECONOMIC-GRADE-v1" },
   });
   assert.equal(out.ok, true);
   assert.equal(out.inserted, true);
@@ -159,7 +160,7 @@ test("behavior: explicit UNKNOWN uncertainty remains promotion-ineligible", asyn
 });
 
 test("behavior: economic grade requires entry market provenance", async () => {
-  const db = fakeDb({ evidenceForGrade: { evidence_id: "ev-1", promotion_eligible: 0 } });
+  const db = fakeDb({ evidenceForGrade: { evidence_id: "ev-1", sport: "mlb", event_id: "game-1", market_snapshot_id: "market-1", market_observed_at: "2026-10-06T19:59:00.000Z", promotion_eligible: 0 } });
   const out = await persistEconomicGrade({ DB: db }, {
     gradeId: "g-missing-prov", evidenceId: "ev-1", sport: "mlb", eventId: "game-1",
     marketFamily: "ML", selection: "HOME", entryPrice: -110, result: "WON", stakeUnits: 1,
@@ -168,4 +169,63 @@ test("behavior: economic grade requires entry market provenance", async () => {
   assert.equal(out.ok, false);
   assert.equal(out.reason, "economic-grade-provenance-incomplete");
   assert.equal(db.writes.length, 0);
+});
+
+
+test("behavior: economic grade must bind to the same sport event and entry market evidence", async () => {
+  const evidence = {
+    evidence_id: "ev-1", sport: "mlb", event_id: "game-1",
+    market_snapshot_id: "market-1", market_observed_at: "2026-10-06T19:59:00.000Z",
+    promotion_eligible: 0,
+  };
+  const base = {
+    gradeId: "g-link", evidenceId: "ev-1", sport: "mlb", eventId: "game-1",
+    marketFamily: "player-prop", selection: "OVER", entryPrice: -110, result: "WON",
+    metadata: {
+      entryMarketSnapshotId: "market-1",
+      entryObservedAt: "2026-10-06T19:59:00.000Z",
+      economicBasis: "SIMULATED_1U_PRICE_AVAILABLE",
+      metricMethodVersion: "FBIS-ECONOMIC-GRADE-v1",
+    },
+  };
+  for (const [field,value,expected] of [
+    ["sport","nfl","sport"],
+    ["eventId","game-2","event_id"],
+  ]) {
+    const db=fakeDb({ evidenceForGrade:evidence });
+    const out=await persistEconomicGrade({DB:db},{...base,[field]:value});
+    assert.equal(out.ok,false);
+    assert.equal(out.reason,"economic-grade-evidence-linkage-conflict");
+    assert.ok(out.fields.includes(expected));
+    assert.equal(db.writes.length,0);
+  }
+  for (const [field,value,expected] of [
+    ["entryMarketSnapshotId","market-2","entry_market_snapshot_id"],
+    ["entryObservedAt","2026-10-06T20:00:00.000Z","entry_observed_at"],
+  ]) {
+    const db=fakeDb({ evidenceForGrade:evidence });
+    const out=await persistEconomicGrade({DB:db},{...base,metadata:{...base.metadata,[field]:value}});
+    assert.equal(out.ok,false);
+    assert.equal(out.reason,"economic-grade-evidence-linkage-conflict");
+    assert.ok(out.fields.includes(expected));
+    assert.equal(db.writes.length,0);
+  }
+});
+
+test("behavior: correctly linked economic grade is accepted", async () => {
+  const db=fakeDb({ evidenceForGrade:{
+    evidence_id:"ev-1", sport:"mlb", event_id:"game-1",
+    market_snapshot_id:"market-1", market_observed_at:"2026-10-06T19:59:00.000Z", promotion_eligible:0,
+  }});
+  const out=await persistEconomicGrade({DB:db},{
+    gradeId:"g-linked", evidenceId:"ev-1", sport:"mlb", eventId:"game-1",
+    marketFamily:"player-prop", selection:"OVER", entryPrice:-110, result:"WON",
+    metadata:{
+      entryMarketSnapshotId:"market-1", entryObservedAt:"2026-10-06T19:59:00.000Z",
+      economicBasis:"SIMULATED_1U_PRICE_AVAILABLE", metricMethodVersion:"FBIS-ECONOMIC-GRADE-v1",
+    },
+  });
+  assert.equal(out.ok,true);
+  assert.equal(out.inserted,true);
+  assert.equal(db.writes.length,1);
 });
