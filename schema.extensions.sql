@@ -4080,7 +4080,7 @@ INSERT OR IGNORE INTO schema_migrations(id,applied_at)
 VALUES('0079_cbb_persistent_directory_phase_a',datetime('now'));
 
 
--- Canonical bundle mirror: WTA official match-history + PIT state (migration 0082).
+-- Canonical bundle mirror: WTA official match-history + PIT state (migration 0083).
 CREATE TABLE IF NOT EXISTS tennis_official_matches (
   match_id TEXT PRIMARY KEY,
   tour TEXT NOT NULL,
@@ -4161,4 +4161,4 @@ CREATE TABLE IF NOT EXISTS tennis_wta_shards (
 CREATE INDEX IF NOT EXISTS idx_tennis_wta_shards_stream_status ON tennis_wta_shards(stream,status,year);
 
 INSERT OR IGNORE INTO schema_migrations(id,applied_at)
-VALUES('0082_tennis_wta_match_history_pit',datetime('now'));
+VALUES('0083_tennis_wta_match_history_pit',datetime('now'));
