@@ -21,3 +21,14 @@ test("executed-bet schema has deterministic execution identity", async () => {
   const migration = await readFile(new URL("../migrations/0007_executed_bets.sql", import.meta.url), "utf8");
   assert.match(migration, /UNIQUE\s*\(execution_book,\s*external_ticket_id\)/i);
 });
+
+
+test("future-grade cleanup uses audited executed-bet mutation path", async () => {
+  const track = await readFile(new URL("../functions/api/track.js", import.meta.url), "utf8");
+  const start = track.indexOf("async function cleanupFutureGrades");
+  const end = track.indexOf("async function cleanupCrossDateStrategy", start);
+  const body = track.slice(start, end);
+  assert.match(body, /updateExecutedBet\(/);
+  assert.match(body, /future-grade-cleanup/);
+  assert.doesNotMatch(body, /UPDATE executed_bets/);
+});
