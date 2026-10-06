@@ -56,10 +56,29 @@ async function breadthCandidate(db,nowIso,state){
 
 async function depthCandidate(db,nowIso,{excludeKeys=[]}={}){
   const exclusion=excludeKeys.length?` AND q.heritage_key NOT IN (${excludeKeys.map(()=>"?").join(",")})`:"";
-  return db.prepare(`SELECT q.* FROM soccer_pitchapi_backfill_queue q
+  return db.prepare(`SELECT q.*,COALESCE(c.advanced_rows,0) AS eligible_advanced_count
+    FROM soccer_pitchapi_backfill_queue q
+    LEFT JOIN soccer_competition_coverage c ON c.heritage_key=q.heritage_key
     WHERE (q.status='PENDING' OR (q.status='LEASED' AND (q.lease_until IS NULL OR q.lease_until<?)))
       AND q.attempts<6${exclusion}
-    ORDER BY ${PRIORITY}, q.updated_at,q.id LIMIT 1`).bind(nowIso,...excludeKeys).first();
+      AND NOT EXISTS (
+        SELECT 1 FROM soccer_pitchapi_backfill_queue active
+        WHERE active.heritage_key=q.heritage_key
+          AND active.id<>q.id
+          AND active.status='LEASED'
+          AND active.lease_until IS NOT NULL
+          AND active.lease_until>=?
+      )
+    ORDER BY
+      CASE WHEN q.heritage_key IN ('eng.1','eng.2','ger.1','esp.1','ita.1','fra.1','uefa.champions','uefa.europa','usa.1','mex.1') THEN 0 ELSE 1 END,
+      COALESCE(c.advanced_rows,0) ASC,
+      ${PRIORITY},
+      q.season ASC,
+      q.offset ASC,
+      q.attempts ASC,
+      q.updated_at,
+      q.id
+    LIMIT 1`).bind(nowIso,...excludeKeys,nowIso).first();
 }
 
 export async function onRequestPost(context){
