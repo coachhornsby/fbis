@@ -68,9 +68,10 @@ export function parseNpbBattingPage(html=""){
   for(const row of rows(html)){
     const c=row.cells;
     if(c.length<23 || !c[0] || c[0]==="Player") continue;
+    const playerHref=[...row.html.matchAll(/href=["'][^"']*\/players\/(\d+)\.html["']/gi)][0]?.[1]||null;
     const games=finite(c[1]), pa=finite(c[2]), runs=finite(c[4]), hr=finite(c[8]), bb=finite(c[15]), so=finite(c[18]);
     if(pa==null) continue;
-    out.push({name:c[0].replace(/^\*|^\+/,"").trim(),games,pa,runs,hr,bb,so,avg:finite(c[20]),slg:finite(c[21]),obp:finite(c[22])});
+    out.push({playerId:playerHref,name:c[0].replace(/^\*|^\+/,"").trim(),games,pa,runs,hr,bb,so,avg:finite(c[20]),slg:finite(c[21]),obp:finite(c[22])});
   }
   return out;
 }
