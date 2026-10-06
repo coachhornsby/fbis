@@ -123,3 +123,17 @@ test("MLB sport-specific and canonical prospective writes are one atomic bundle"
   assert.match(src,/persistProspectiveEvidenceAtomic/);
   assert.match(src,/beforeStatements:\[sportInsert\]/);
 });
+
+
+test("MLB bounded jobs persist durable RUNNING state before expensive work",()=>{
+  const src=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
+  const capture=src.slice(src.indexOf("async function capture"),src.indexOf("function inningsToOuts"));
+  const settle=src.slice(src.indexOf("async function settle"),src.indexOf("async function status"));
+  assert.match(src,/status,attempted,accepted,duplicates,rejected,settled,missing_outcomes,started_at/);
+  assert.match(src,/'RUNNING'/);
+  assert.ok(capture.indexOf("startEvidenceRun") < capture.indexOf("buildSlate"));
+  assert.ok(settle.indexOf("startEvidenceRun") < settle.indexOf("SELECT DISTINCT event_id"));
+  assert.match(capture,/failEvidenceRun\(db,runId,e\)/);
+  assert.match(settle,/failEvidenceRun\(db,runId,e\)/);
+  assert.match(src,/status:"FAILED"/);
+});
