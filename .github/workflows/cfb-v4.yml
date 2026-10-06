@@ -1,0 +1,56 @@
+name: CFB v4 football ensemble research
+on:
+  push:
+    branches: ["research/cfb-v4-football-ensemble"]
+    paths:
+      - "scripts/cfb-v4-walkforward.py"
+      - "scripts/cfb-fpr.py"
+      - "scripts/cfb-fpr-incremental.py"
+      - ".github/workflows/cfb-v4.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: "22"}
+      - run: python -m pip install --upgrade pip pandas numpy pyarrow scikit-learn
+      - name: Build CFB game history
+        env: {CFB_BULK_START: "2004", CFB_BULK_END: "2026"}
+        run: python scripts/cfb-bulk-history-v3.py
+      - name: Build program context
+        env: {CFB_CONTEXT_START: "2004", CFB_CONTEXT_END: "2026"}
+        run: python scripts/cfb-program-context.py
+      - run: python scripts/cfb-sdv-line-archive.py
+      - name: Pull CFBD provider market history
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          FBIS_BASE: https://fbis-myz.pages.dev
+          CFB_MARKET_START: "2004"
+          CFB_MARKET_END: "2026"
+        run: node scripts/cfb-cfbd-market-enrichment.mjs
+      - run: python scripts/cfb-final-enrich.py
+      - run: python scripts/cfb-v3-walkforward.py
+      - name: Build independent FBIS Power Rating
+        run: python scripts/cfb-fpr.py
+      - run: python scripts/cfb-v4-walkforward.py
+      - name: Test FPR incremental value
+        run: python scripts/cfb-fpr-incremental.py
+      - name: Report FPR incremental value
+        run: jq '{overall,holdout2025_2026,incrementalPass,canQualify}' artifacts/cfb-final/fpr-incremental/report.json
+      - run: jq '{modelId,sample,v4,v3,marketPairedV4,market,holdout2025_2026,beatsV3AllThree,canQualify}' artifacts/cfb-final/model-v4/report.json
+      - run: jq '{spread:.betting.spread.holdout2025_2026,total:.betting.total.holdout2025_2026}' artifacts/cfb-final/model-v4/report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-v4
+          path: |
+            artifacts/cfb-final/model-v4/*
+            artifacts/cfb-final/fpr/*
+            artifacts/cfb-final/fpr-incremental/*
+          retention-days: 90
