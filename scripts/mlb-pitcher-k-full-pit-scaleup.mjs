@@ -85,54 +85,73 @@ function chooseClose(rows,book,start){
  return rows.filter(r=>String(r.book)===String(book)&&r.book_line!=null&&r.book_over_price!=null&&r.book_under_price!=null&&String(r.source_as_of)<start).sort((a,b)=>String(a.source_as_of).localeCompare(String(b.source_as_of))).at(-1)||null;
 }
 const raw=JSON.parse(await fs.readFile(file,"utf8"));const rows=unwrapWrangler(raw);
-const byGame=new Map();for(const r of rows){if(!byGame.has(String(r.game_id)))byGame.set(String(r.game_id),[]);byGame.get(String(r.game_id)).push(r)}
-const units=[],rejects={AMBIGUOUS_OR_NONSTARTER:0,STATE_MISSING:0,MARKET_AFTER_START:0,NO_ENTRY_PRICE:0,NO_CLOSE_PRICE:0,FEED_ERROR:0};
-for(const [gameId,marketRows] of byGame){
- let feed;try{feed=await fetchJson("https://statsapi.mlb.com/api/v1.1/game/"+gameId+"/feed/live")}catch{rejects.FEED_ERROR+=marketRows.length;continue}
- const date=day(feed.gameData?.datetime?.dateTime),start=feed.gameData?.datetime?.dateTime,box=feed.liveData?.boxscore?.teams||{};
- const home=starter(box.home),away=starter(box.away);if(!home||!away)continue;
- const starters=[home,away],resolved=marketRows.map(r=>({...r,_starter:resolveStarter(r.subject_name,starters)})).filter(r=>r._starter);
- rejects.AMBIGUOUS_OR_NONSTARTER+=marketRows.length-resolved.length;
- const needed=[...new Set(resolved.map(r=>r._starter.id))];
+const byDate=new Map();for(const r of rows){if(!byDate.has(String(r.date)))byDate.set(String(r.date),[]);byDate.get(String(r.date)).push(r)}
+const units=[],rejects={AMBIGUOUS_OR_NONSTARTER:0,STATE_MISSING:0,MARKET_AFTER_START:0,NO_ENTRY_PRICE:0,NO_CLOSE_PRICE:0,FEED_ERROR:0,NO_FINAL_EVENT:0};
+let originalGameIdMatched=0,originalGameIdRemapped=0;
+for(const [archiveDate,marketRows] of byDate){
+ let sched;try{sched=await fetchJson("https://statsapi.mlb.com/api/v1/schedule?sportId=1&date="+archiveDate)}catch{rejects.FEED_ERROR+=marketRows.length;continue}
+ const gamePks=(sched.dates||[]).flatMap(d=>d.games||[]).filter(g=>String(g.status?.abstractGameState||"").toLowerCase()==="final").map(g=>String(g.gamePk));
+ if(!gamePks.length){rejects.NO_FINAL_EVENT+=marketRows.length;continue}
+ const events=[];
+ for(const gameId of gamePks){
+  try{
+   const feed=await fetchJson("https://statsapi.mlb.com/api/v1.1/game/"+gameId+"/feed/live");
+   const officialDate=feed.gameData?.datetime?.officialDate||archiveDate,startTime=feed.gameData?.datetime?.dateTime,box=feed.liveData?.boxscore?.teams||{};
+   if(String(officialDate)!==String(archiveDate)||!startTime)continue;
+   const home=starter(box.home),away=starter(box.away);if(!home||!away)continue;
+   events.push({gameId,archiveDate,start:startTime,feed,box,home,away,starters:[home,away]});
+  }catch{rejects.FEED_ERROR++}
+ }
+ const allStarters=events.flatMap(e=>e.starters.map(s=>({...s,event:e})));
+ const resolved=[];
+ for(const r of marketRows){
+  const matches=allStarters.filter(s=>norm(s.name)===norm(r.subject_name));
+  if(matches.length!==1){rejects.AMBIGUOUS_OR_NONSTARTER++;continue}
+  const m=matches[0];
+  if(String(r.source_as_of)>=String(m.event.start)){rejects.MARKET_AFTER_START++;continue}
+  if(String(r.game_id)===String(m.event.gameId))originalGameIdMatched++;else originalGameIdRemapped++;
+  resolved.push({...r,_starter:m,_event:m.event});
+ }
  const projections={};
- for(const spid of needed){
-   const side=home.id===spid?"home":"away",oppSide=side==="home"?"away":"home",sp=side==="home"?home:away,oppTeam=feed.gameData?.teams?.[oppSide]?.id;
-   const lineup=startingLineup(box[oppSide]);if(lineup.length<8){rejects.STATE_MISSING++;continue}
-   try{
-    const through=shift(date,-1);const [ps,ts,pp,bp]=await Promise.all([pitcherStats(spid,through),teamStats(oppTeam,through),profiles("pitcher",[spid],date),profiles("batter",lineup.map(x=>x.id),date)]);
-    const match=buildLineupMatchup({pitcherProfile:pp[String(spid)]||null,batterProfiles:lineup.map(x=>bp[String(x.id)]).filter(Boolean),expectedInnings:ps.inningsPerStart,battersFacedPerInning:ps.battersFacedPerInning});
-    const pr=projectK(ps,ts.kRate,match);if(!pr){rejects.STATE_MISSING++;continue}
-    projections[spid]={...pr,actual:sp.actualKs,name:sp.name,stateCutoff:through};
-   }catch{rejects.STATE_MISSING++}
+ for(const rr of resolved){
+  const e=rr._event,sp=rr._starter,pkey=e.gameId+"|"+sp.id;if(projections[pkey])continue;
+  const side=e.home.id===sp.id?"home":"away",oppSide=side==="home"?"away":"home",oppTeam=e.feed.gameData?.teams?.[oppSide]?.id;
+  const lineup=startingLineup(e.box[oppSide]);if(lineup.length<8){rejects.STATE_MISSING++;continue}
+  try{
+   const through=shift(archiveDate,-1);const [ps,ts,pp,bp]=await Promise.all([pitcherStats(sp.id,through),teamStats(oppTeam,through),profiles("pitcher",[sp.id],archiveDate),profiles("batter",lineup.map(x=>x.id),archiveDate)]);
+   const match=buildLineupMatchup({pitcherProfile:pp[String(sp.id)]||null,batterProfiles:lineup.map(x=>bp[String(x.id)]).filter(Boolean),expectedInnings:ps.inningsPerStart,battersFacedPerInning:ps.battersFacedPerInning});
+   const pr=projectK(ps,ts.kRate,match);if(!pr){rejects.STATE_MISSING++;continue}
+   projections[pkey]={...pr,actual:sp.actualKs,name:sp.name,stateCutoff:through};
+  }catch{rejects.STATE_MISSING++}
  }
  const byUnit=new Map();
  for(const r of resolved){
-   if(String(r.source_as_of)>=start){rejects.MARKET_AFTER_START++;continue}
-   const p=projections[r._starter.id];if(!p)continue;
-   const key=[gameId,r._starter.id,"pitcher_strikeouts",MLB_DEEP_VERSION,r.checkpoint].join("|");
-   if(!byUnit.has(key))byUnit.set(key,{key,gameId,date,start,checkpoint:r.checkpoint,playerId:String(r._starter.id),playerName:r._starter.name,projection:p,rows:[]});
-   byUnit.get(key).rows.push(r);
+  const e=r._event,sp=r._starter,p=projections[e.gameId+"|"+sp.id];if(!p)continue;
+  const key=[e.gameId,sp.id,"pitcher_strikeouts",MLB_DEEP_VERSION,r.checkpoint].join("|");
+  if(!byUnit.has(key))byUnit.set(key,{key,event:e,checkpoint:r.checkpoint,playerId:String(sp.id),playerName:sp.name,projection:p,rows:[]});
+  byUnit.get(key).rows.push(r);
  }
- const allResolved=resolved.filter(r=>String(r.source_as_of)<start);
  for(const u of byUnit.values()){
-   const entry=chooseEntry(u.rows);if(!entry){rejects.NO_ENTRY_PRICE++;continue}
-   const samePlayerAll=allResolved.filter(r=>String(r._starter.id)===u.playerId);
-   const close=chooseClose(samePlayerAll,entry.book,start);if(!close)rejects.NO_CLOSE_PRICE++;
-   const line=Number(entry.book_line),sel=u.projection.projection>line?"OVER":u.projection.projection<line?"UNDER":"PUSH";
-   const actual=u.projection.actual,result=sel==="OVER"?(actual>line?"WIN":actual===line?"PUSH":"LOSS"):sel==="UNDER"?(actual<line?"WIN":actual===line?"PUSH":"LOSS"):"PUSH";
-   const ep=sel==="OVER"?entry.book_over_price:entry.book_under_price,cp=close?(sel==="OVER"?close.book_over_price:close.book_under_price):null;
-   const eNv=noVig(entry.book_over_price,entry.book_under_price),cNv=close?noVig(close.book_over_price,close.book_under_price):null;
-   const entryProb=sel==="OVER"?eNv:eNv==null?null:1-eNv,closeProb=sel==="OVER"?cNv:cNv==null?null:1-cNv;
-   const lineClv=close?(sel==="OVER"?Number(close.book_line)-line:sel==="UNDER"?line-Number(close.book_line):0):null;
-   const profit=result==="PUSH"?0:americanProfit(ep,result==="WIN");
-   units.push({
-    evidence_class:"HISTORICAL_PIT_RECONSTRUCTED",projection_unit_key:u.key,event_id:gameId,event_date:date,event_start:start,player_id:u.playerId,player_name:u.playerName,market:"pitcher_strikeouts",
-    model_id:MLB_DEEP_ID,model_version:MLB_DEEP_VERSION,projection:u.projection.projection,baseline_projection:u.projection.baseline,raw_pitch_zone_projection:u.projection.raw,sigma:u.projection.sigma,
-    state_cutoff:u.projection.stateCutoff,checkpoint:u.checkpoint,entry_book:entry.book,entry_timestamp:entry.source_as_of,entry_line:line,entry_over_price:entry.book_over_price,entry_under_price:entry.book_under_price,
-    close_timestamp:close?.source_as_of||null,close_line:close?.book_line??null,close_over_price:close?.book_over_price??null,close_under_price:close?.book_under_price??null,
-    selection:sel,actual_value:actual,result,line_clv:lineClv,probability_clv:entryProb!=null&&closeProb!=null?closeProb-entryProb:null,profit_units:profit,
-    settlement_source:"MLB_STATS_FINAL",temporal_integrity:true,canQualify:false,canAuthorizeWager:false,source_offer_count:u.rows.length
-   });
+  const entry=chooseEntry(u.rows);if(!entry){rejects.NO_ENTRY_PRICE++;continue}
+  const samePlayerAll=resolved.filter(r=>String(r._event.gameId)===String(u.event.gameId)&&String(r._starter.id)===u.playerId);
+  const close=chooseClose(samePlayerAll,entry.book,u.event.start);if(!close)rejects.NO_CLOSE_PRICE++;
+  const line=Number(entry.book_line),sel=u.projection.projection>line?"OVER":u.projection.projection<line?"UNDER":"PUSH";
+  const actual=u.projection.actual,result=sel==="OVER"?(actual>line?"WIN":actual===line?"PUSH":"LOSS"):sel==="UNDER"?(actual<line?"WIN":actual===line?"PUSH":"LOSS"):"PUSH";
+  const ep=sel==="OVER"?entry.book_over_price:entry.book_under_price;
+  const eNv=noVig(entry.book_over_price,entry.book_under_price),cNv=close?noVig(close.book_over_price,close.book_under_price):null;
+  const entryProb=sel==="OVER"?eNv:eNv==null?null:1-eNv,closeProb=sel==="OVER"?cNv:cNv==null?null:1-cNv;
+  const lineClv=close?(sel==="OVER"?Number(close.book_line)-line:sel==="UNDER"?line-Number(close.book_line):0):null;
+  const profit=result==="PUSH"?0:americanProfit(ep,result==="WIN");
+  units.push({
+   evidence_class:"HISTORICAL_PIT_RECONSTRUCTED",projection_unit_key:u.key,event_id:u.event.gameId,event_date:u.event.archiveDate,event_start:u.event.start,
+   player_id:u.playerId,player_name:u.playerName,market:"pitcher_strikeouts",model_id:MLB_DEEP_ID,model_version:MLB_DEEP_VERSION,
+   projection:u.projection.projection,baseline_projection:u.projection.baseline,raw_pitch_zone_projection:u.projection.raw,sigma:u.projection.sigma,state_cutoff:u.projection.stateCutoff,
+   checkpoint:u.checkpoint,source_archive_game_ids:[...new Set(u.rows.map(r=>String(r.game_id)))],entry_book:entry.book,entry_timestamp:entry.source_as_of,entry_line:line,
+   entry_over_price:entry.book_over_price,entry_under_price:entry.book_under_price,close_timestamp:close?.source_as_of||null,close_line:close?.book_line??null,
+   close_over_price:close?.book_over_price??null,close_under_price:close?.book_under_price??null,selection:sel,actual_value:actual,result,line_clv:lineClv,
+   probability_clv:entryProb!=null&&closeProb!=null?closeProb-entryProb:null,profit_units:profit,settlement_source:"MLB_STATS_FINAL",temporal_integrity:true,
+   canQualify:false,canAuthorizeWager:false,source_offer_count:u.rows.length
+  });
  }
 }
 units.sort((a,b)=>String(a.entry_timestamp).localeCompare(String(b.entry_timestamp)));
@@ -154,6 +173,7 @@ const summary={
  generatedAt:new Date().toISOString(),model:{id:MLB_DEEP_ID,version:MLB_DEEP_VERSION,calibration:MLB_PITCH_ZONE_K_CALIBRATION},
  economicRule:{entry:"latest two-sided quote at checkpoint from first available fixed-priority book",bookPriority:BOOK_ORDER,close:"same entry book; latest two-sided quote strictly before start and no older than 12 hours",oneSided:"excluded",lineDisagreement:"no cross-book synthesis; retain executable fixed-book quote"},
  rawMarketRows:rows.length,independentUnits:units.length,dates:dates.length,dateList:dates,checkpoints,rejects,split,
+ eventIdentity:{originalGameIdMatched,originalGameIdRemapped,remapRate:(originalGameIdMatched+originalGameIdRemapped)?originalGameIdRemapped/(originalGameIdMatched+originalGameIdRemapped):null},
  projection:{mae:mae(errs),rmse:rmse(errs),bias:mean(errs),baselineMae:mae(baseErrs),relativeMaeImprovement:mae(baseErrs)?(mae(baseErrs)-mae(errs))/mae(baseErrs):null},
  directional:{n:directional.length,wins,hitRate:directional.length?wins/directional.length:null,over:directional.filter(u=>u.selection==="OVER").length,under:directional.filter(u=>u.selection==="UNDER").length,buckets,edgeHitMonotonic,edgeHitRankCorrelation},
  economics:{closeReady:units.filter(u=>u.close_timestamp).length,probabilityClvReady:units.filter(u=>u.probability_clv!=null).length,roiReady:units.filter(u=>Number.isFinite(u.profit_units)).length,profitUnits:units.reduce((s,u)=>s+u.profit_units,0),roi:units.length?units.reduce((s,u)=>s+u.profit_units,0)/units.length:null,maxDrawdown:maxDd,meanLineClv:mean(units.map(u=>u.line_clv).filter(Number.isFinite)),meanProbabilityClv:mean(units.map(u=>u.probability_clv).filter(Number.isFinite))},
