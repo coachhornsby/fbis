@@ -72,7 +72,7 @@ function temporalAudit({snapshotAt,gameStart,goalieAt,deploymentAt,availabilityA
   const contextualSafe=checks.filter(x=>!x.required&&x.value).every(x=>x.status==="PASS");
   return {passed:modelInputSafe&&contextualSafe,modelInputSafe,contextualSafe,checks,noPostgameData:true,noClosingLineCopiedBackward:true,futureGoalieConfirmationBlocked:true};
 }
-async function freezeRows(db,board,snapshotAt,codeSha){
+export async function freezeRows(db,board,snapshotAt,codeSha){
   const out=[];
   for(const game of board.games||[]){
     if(String(game.sport||"").toLowerCase()!=="nhl")continue;
@@ -117,7 +117,7 @@ async function freezeRows(db,board,snapshotAt,codeSha){
   }
   return out;
 }
-async function persist(db,rows){
+export async function persist(db,rows){
   let written=0,existing=0,canonicalWritten=0,canonicalExisting=0,canonicalTemporalFailures=0,canonicalContextExcluded=0;
   for(const r of rows){
     const result=await db.prepare(`INSERT OR IGNORE INTO nhl_goalie_probability_shadow(
@@ -174,7 +174,12 @@ function durationLike(v){
   if(v==null)return 0;const n=Number(v);if(Number.isFinite(n))return n;
   const m=String(v).match(/^(\\d+):(\\d+)$/);return m?Number(m[1])*60+Number(m[2]):0;
 }
+function isOfficialFinal(box){
+  const state=String(box?.gameState||box?.gameScheduleState||"").toUpperCase();
+  return state==="OFF"||state==="FINAL";
+}
 function boxScore(box){
+  if(!isOfficialFinal(box))return null;
   const h=finite(box?.homeTeam?.score),a=finite(box?.awayTeam?.score);
   return h==null||a==null?null:{home:h,away:a,homeStarterId:actualStarterId(box,"homeTeam"),awayStarterId:actualStarterId(box,"awayTeam")};
 }
@@ -205,7 +210,7 @@ async function closeNoVig(db,eventId,side,start){
     return finite(row?.no_vig);
   }catch{return null;}
 }
-async function settle(db,date){
+export async function settle(db,date){
   const rows=(await db.prepare(`SELECT * FROM nhl_goalie_probability_shadow
     WHERE graded_at IS NULL AND substr(game_start,1,10) BETWEEN ? AND ? ORDER BY game_start`)
     .bind(shiftDay(date,-1),shiftDay(date,1)).all()).results||[];
@@ -251,7 +256,7 @@ async function settle(db,date){
   }
   return{eligible:rows.length,graded};
 }
-async function summary(db){
+export async function summary(db){
   const [counts,metrics,splits,integrity]=await Promise.all([
     db.prepare(`SELECT COUNT(*) n,SUM(CASE WHEN gate_fired=1 THEN 1 ELSE 0 END) gate_n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
       SUM(CASE WHEN graded_at IS NULL THEN 1 ELSE 0 END) ungraded_n,
@@ -290,7 +295,7 @@ async function summary(db){
 }
 export async function onRequestGet(context){
   const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
-  return json({ok:true,...await summary(db)});
+  return json({ok:true,codeSha:context.env.CF_PAGES_COMMIT_SHA||null,...await summary(db)});
 }
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(),401);
