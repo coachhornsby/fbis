@@ -47,7 +47,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Wait for exact production SHA
+      - name: Wait for production containing target SHA
         env:
           TARGET_SHA: ${{ github.sha }}
         run: |
@@ -57,10 +57,17 @@ jobs:
             BODY="$(curl -fsS --max-time 20 "$BASE/api/health" || true)"
             SHA="$(printf '%s' "$BODY" | jq -r '.deploymentCommit // .build.commit // empty' 2>/dev/null || true)"
             echo "production_sha=${SHA:-unknown} target=${TARGET_SHA}"
-            if [ "$SHA" = "$TARGET_SHA" ]; then exit 0; fi
+            if [ -n "$SHA" ]; then
+              if [ "$SHA" = "$TARGET_SHA" ]; then exit 0; fi
+              git fetch --no-tags --quiet --depth=200 origin "$SHA" || true
+              if git merge-base --is-ancestor "$TARGET_SHA" "$SHA" 2>/dev/null; then
+                echo "Production ${SHA} contains target ${TARGET_SHA}; continuing."
+                exit 0
+              fi
+            fi
             sleep 15
           done
-          echo "Production did not reach target SHA in validation window."
+          echo "Production did not contain target SHA in validation window."
           exit 1
 
       - name: Refresh CBB source catalogs by season
