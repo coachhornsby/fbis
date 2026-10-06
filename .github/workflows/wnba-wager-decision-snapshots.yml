@@ -17,23 +17,47 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Capture current WNBA decision snapshot
+      - name: Capture upcoming WNBA decision and owned-odds snapshots
         env:
           BASE: "https://fbis-myz.pages.dev"
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
         run: |
           set -euo pipefail
-          date_ct="$(TZ=America/Chicago date +%F)"
-          body="$(mktemp)"
-          http="$(curl -sS --max-time 90 --retry 1 --retry-delay 3             -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             --data-binary "$(jq -nc --arg date "$date_ct" '{date:$date}')"             -o "$body" -w "%{http_code}"             "${BASE}/api/wnba-wager-decisions")"
-          cat "$body"
-          test "$http" = "200"
-          jq -e '.ok==true' "$body" >/dev/null
+          failed=0
+          total_games=0
+          total_offers=0
+          total_bets=0
+          total_inserted=0
+          echo "## WNBA wager decisions" >> "$GITHUB_STEP_SUMMARY"
+
+          for offset in 0 1 2 3; do
+            date_ct="$(TZ=America/Chicago date -d "+${offset} day" +%F)"
+            body="$(mktemp)"
+            http="$(curl -sS --max-time 60 --retry 1 --retry-delay 2               -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               --data-binary "$(jq -nc --arg date "$date_ct" '{date:$date}')"               -o "$body" -w "%{http_code}"               "${BASE}/api/wnba-wager-decisions" || true)"
+            cat "$body"
+            if [ "$http" != "200" ] || ! jq -e '.ok==true' "$body" >/dev/null 2>&1; then
+              failed=$((failed+1))
+              echo "- ${date_ct}: capture failed (HTTP ${http})" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            games="$(jq -r '.games // 0' "$body")"
+            offers="$(jq -r '.offers // 0' "$body")"
+            bets="$(jq -r '.bets // 0' "$body")"
+            inserted="$(jq -r '.inserted // 0' "$body")"
+            total_games=$((total_games+games))
+            total_offers=$((total_offers+offers))
+            total_bets=$((total_bets+bets))
+            total_inserted=$((total_inserted+inserted))
+            echo "- ${date_ct}: games=${games}, offers=${offers}, BET=${bets}, decision snapshots inserted=${inserted}" >> "$GITHUB_STEP_SUMMARY"
+          done
+
           {
-            echo "## WNBA wager decisions"
-            echo "- date: $(jq -r '.date' "$body")"
-            echo "- games: $(jq -r '.games // 0' "$body")"
-            echo "- offers: $(jq -r '.offers // 0' "$body")"
-            echo "- BET: $(jq -r '.bets // 0' "$body")"
-            echo "- snapshots inserted: $(jq -r '.inserted // 0' "$body")"
+            echo "- horizon: today + 3 CT dates"
+            echo "- total games: ${total_games}"
+            echo "- executable offers: ${total_offers}"
+            echo "- provisional BET decisions: ${total_bets}"
+            echo "- decision snapshots inserted: ${total_inserted}"
+            echo "- failed dates: ${failed}"
+            echo "- staking: disabled"
           } >> "$GITHUB_STEP_SUMMARY"
+          test "$failed" = "0"

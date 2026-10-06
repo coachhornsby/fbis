@@ -99,3 +99,36 @@ test("player opportunity shadow freezes distributions but keeps incumbent mean",
   assert.equal(s.canQualify,false);
   assert.equal(s.marketInformed,false);
 });
+
+
+test("player opportunity shadow can freeze distribution-only state from persisted player bank",()=>{
+  const g=game();
+  g.playerProjectionRows=[];
+  const impact={
+    players:{
+      p1:{playerId:"p1",name:"Player One",teamId:"1",position:"G",skill:{games:20,minutes:30,usage:22,pointsPer40:20,reboundsPer40:6,assistsPer40:4,threesPer40:2}},
+      p2:{playerId:"p2",name:"Player Two",teamId:"1",position:"F",skill:{games:18,minutes:25,usage:16,pointsPer40:14,reboundsPer40:8,assistsPer40:2,threesPer40:1}},
+      a1:{playerId:"a1",name:"Away One",teamId:"2",position:"G",skill:{games:16,minutes:28,usage:19,pointsPer40:17,reboundsPer40:5,assistsPer40:5,threesPer40:2}}
+    },
+    roles:{
+      p1:{featureCutoffTimestamp:"2026-10-06T11:00:00Z",availabilityVerified:false,role:{minutesDelta:4},unavailable:[]},
+      p2:{featureCutoffTimestamp:"2026-10-06T11:00:00Z",availabilityVerified:false,role:{minutesDelta:0},unavailable:[]},
+      a1:{featureCutoffTimestamp:"2026-10-06T11:00:00Z",availabilityVerified:false,role:{minutesDelta:0},unavailable:[]}
+    }
+  };
+  const r=attachWnbaPlayerOpportunityShadows([g],impact);
+  assert.deepEqual(r.games[0].playerProjectionRows,[]);
+  assert.ok(r.games[0].playerOpportunityShadowRows.length>=12);
+  const row=r.games[0].playerOpportunityShadowRows.find(x=>x.playerId==="p1"&&x.market==="points");
+  assert.ok(row);
+  assert.equal(row.fbisProjection,null);
+  assert.equal(row.opportunityShadow.projection,null);
+  assert.equal(row.opportunityShadow.baselineAvailable,false);
+  assert.equal(row.opportunityShadow.distributionOnly,true);
+  assert.equal(row.opportunityShadow.minutesMean,30);
+  assert.ok(row.opportunityShadow.fgaMean>0);
+  assert.equal(row.opportunityShadow.canQualify,false);
+  assert.equal(row.opportunityShadow.marketInformed,false);
+  assert.equal(r.meta.incumbentBackedRows,0);
+  assert.ok(r.meta.fallbackRows>0);
+});
