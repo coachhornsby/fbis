@@ -7,6 +7,8 @@ function baseCandidate(overrides = {}) {
   return {
     qualified: true,
     lean: false,
+    sport: "mlb",
+    modelId: "MLB-SAVANT-RPG-SP",
     modelProbability: 0.61,
     pinPrice: -110,
     executionPrice: -110,
@@ -82,3 +84,22 @@ describe("CONVICTION pricing integrity regressions", () => {
     assert.ok(Math.abs(out.expectedRoi - expectedRoi(0.61, -110)) < 1e-12);
   });
 });
+
+
+  it("fails closed when the canonical registry does not authorize qualification", () => {
+    const candidate = baseCandidate({
+      sport: "cfb",
+      modelId: "CFB-FBIS-v2",
+      modelVersion: "CFB-FBIS-v2",
+    });
+    const out = gate(candidate);
+    assert.equal(out.ok, false);
+    assert.equal(out.reason, "model-not-qualification-authorized");
+  });
+
+  it("fails closed when model authority identity is unknown", () => {
+    const candidate = baseCandidate({ modelId: "UNKNOWN-MODEL" });
+    const out = gate(candidate);
+    assert.equal(out.ok, false);
+    assert.equal(out.reason, "unknown-model-authority");
+  });
