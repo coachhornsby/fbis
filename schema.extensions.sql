@@ -4313,6 +4313,7 @@ CREATE TABLE IF NOT EXISTS tennis_official_matches (
   player2_entry_rank INTEGER,
   completion_state TEXT NOT NULL DEFAULT 'UNKNOWN',
   result_reason TEXT,
+  source_updated_at TEXT,
   observed_at TEXT NOT NULL,
   effective_at TEXT,
   ingested_at TEXT NOT NULL,
