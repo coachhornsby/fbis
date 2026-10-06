@@ -161,6 +161,10 @@ function americanImplied(price){
   return p<0?(-p)/((-p)+100):100/(p+100);
 }
 function priceForSide(snapshot,side){
+  if(Array.isArray(snapshot)){
+    const row=snapshot.find(x=>String(x.market||"").toUpperCase()==="ML"&&String(x.side||"").toUpperCase()===side);
+    return finite(row?.price);
+  }
   if(!snapshot||typeof snapshot!=="object")return null;
   const homeKeys=["homeML","homeMoneyline","home_ml","moneylineHome"],awayKeys=["awayML","awayMoneyline","away_ml","moneylineAway"];
   for(const k of side==="HOME"?homeKeys:awayKeys){const v=finite(snapshot[k]);if(v!=null)return v;}
