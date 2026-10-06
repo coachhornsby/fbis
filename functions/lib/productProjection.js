@@ -382,10 +382,21 @@ function proPlayerProjections(game = {}, sport = "") {
       fbisProjection: finite(row.fbisProjection),
       fbisSigma: finite(row.fbisSigma),
       source: row.source || null,
+      modelSource: row.source || null,
+      modelVersion: row.modelVersion || (sport === "mlb" ? (status.propModel || status.version || null) : (status.version || null)),
+      sourceObservedAt: row.sourceObservedAt || row.stateAsOf || (sport === "mlb" ? game?.mlbPersistentState?.asOf || null : null),
+      stateAsOf: row.stateAsOf || (sport === "mlb" ? game?.mlbPersistentState?.asOf || null : null),
+      eventId: String(game?.id || ""),
+      opponent: row.team && String(row.team).toUpperCase() === String(game?.home?.abbr || "").toUpperCase()
+        ? (game?.away?.abbr || game?.away?.name || null)
+        : (game?.home?.abbr || game?.home?.name || null),
+      eventStartAt: game?.start || null,
+      projectionSnapshotAt: new Date().toISOString(),
       maturity: row.maturity || "RESEARCH",
       independent: row.independent !== false,
       marketInformed: Boolean(row.marketInformed),
       canQualify: false,
+      canAuthorizeWager: false,
     };
     if (sport === "mlb" && clean.market === "strikeouts") {
       const homeId = String(game.bpp?.homeSp?.id ?? "");
