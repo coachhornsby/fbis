@@ -4,6 +4,11 @@ on:
   schedule:
     # UTC. Three bounded capture windows; each run also settles prior-day finals.
     - cron: "15 16,20,0 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "functions/api/mlb-prop-evidence.js"
+      - ".github/workflows/mlb-prop-evidence.yml"
   workflow_dispatch:
     inputs:
       date:
@@ -22,12 +27,24 @@ permissions:
 
 jobs:
   capture-settle:
+    if: ${{ github.event_name != 'push' || contains(github.event.head_commit.message, '[mlb-prop-evidence-smoke]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
       BASE: https://fbis-myz.pages.dev
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
     steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+
+      - name: Wait for exact production SHA on controlled push smoke
+        if: ${{ github.event_name == 'push' }}
+        env:
+          VERIFY_MAX_ATTEMPTS: "24"
+        run: node scripts/verify-deployment-sha.mjs "${GITHUB_SHA}"
+
       - name: Require credential
         run: test -n "${HARVEST_SECRET:-}"
 
