@@ -45,6 +45,29 @@ async function archiveRawPull(env,{source,date,runId,rows,meta={}}){
   return key;
 }
 function norm(v){return String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()}
+function normTeam(v){return String(v||"").trim().toLowerCase().replace(/[^a-z0-9]/g,"")}
+function parseJson(v,fallback=null){try{return typeof v==="string"?JSON.parse(v):v??fallback}catch{return fallback}}
+async function loadNflPropStateIndex(db){
+  if(!db?.prepare)return{byId:new Map(),byTeamName:new Map(),byUniqueName:new Map()};
+  try{
+    const rows=(await db.prepare("SELECT * FROM nfl_player_profiles").all())?.results||[];
+    const byId=new Map(),byTeamName=new Map(),counts=new Map();
+    for(const r of rows){
+      if(r.player_id)byId.set(String(r.player_id),r);
+      const nk=norm(r.player_name),tk=normTeam(r.team_key);
+      if(nk&&tk)byTeamName.set(tk+"|"+nk,r);
+      if(nk){const a=counts.get(nk)||[];a.push(r);counts.set(nk,a)}
+    }
+    const byUniqueName=new Map();
+    for(const [k,a] of counts)if(a.length===1)byUniqueName.set(k,a[0]);
+    return{byId,byTeamName,byUniqueName};
+  }catch{return{byId:new Map(),byTeamName:new Map(),byUniqueName:new Map()}}
+}
+function matchNflPropState(index,{playerId,playerName,team}={}){
+  return (playerId&&index.byId.get(String(playerId))) ||
+    index.byTeamName.get(normTeam(team)+"|"+norm(playerName)) ||
+    index.byUniqueName.get(norm(playerName)) || null;
+}
 function first(obj,paths){
   for(const path of paths){
     let v=obj;
@@ -247,9 +270,11 @@ export async function onRequestPost(context){
     return json({ok:false,blocked:true,error:"monthly_budget_cap",monthToDateUsd:spent.usd,estimatedRunUsd:estimate,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD},409);
   }
   const cmap=new Map(candidates.map(c=>[candidateKey(c),c]));
-  let written=0,matched=0,malformed=0,signalsCreated=0,cfbSignalsPrepared=0;
+  const nflStateIndex=await loadNflPropStateIndex(context.env.DB);
+  let written=0,matched=0,malformed=0,signalsCreated=0,cfbSignalsPrepared=0,nflStateSnapshotsPrepared=0;
   const statements=[];
   const signalStatements=[];
+  const nflStateStatements=[];
   for(const raw of rows){
     const sport=sportOf(raw),playerName=playerNameOf(raw),stat=statOf(raw),line=lineOf(raw);
     if(!sport||!playerName||!stat||line==null){malformed++;continue}
@@ -273,6 +298,41 @@ export async function onRequestPost(context){
       stat,market,line,tierOf(raw),durationOf(raw),fbisProjection,fbisSigma,delta,side,
       s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt,collectedAt,JSON.stringify(raw)
     ));
+    if(sport==="nfl"){
+      const state=matchNflPropState(nflStateIndex,{
+        playerId:playerIdOf(raw),playerName,team:s(teamOf(raw)||cand?.team)
+      });
+      const stateRaw=parseJson(state?.raw_json,{})||{};
+      const injuryEvidence=stateRaw?.officialAvailability||stateRaw?.availability||null;
+      const lineObservedAt=s(first(raw,["updatedAt","updated_at","timestamp","observedAt","createdAt"]))||collectedAt;
+      const provenance={
+        frozenAt:collectedAt,
+        lineObservedAt,
+        playerProfileUpdatedAt:state?.updated_at||null,
+        stateSource:state?.state_source||null,
+        stateSourceUpdatedAt:state?.state_source_updated_at||null,
+        temporalRule:"Only state already persisted at collection time is frozen; future reports never rewrite this row.",
+        stateBeforeWeight:true,
+        snapshotPurpose:"prospective_nfl_prop_injury_validation",
+      };
+      const sid=sha256Hex(JSON.stringify(["nfl_prop_state_v1",id,collectedAt]));
+      nflStateStatements.push(context.env.DB.prepare(
+        `INSERT OR IGNORE INTO nfl_prop_state_snapshots(
+          id,prop_line_id,run_id,projection_id,event_id,player_id,player_name,team_key,market,line,odds_tier,line_observed_at,collected_at,
+          health_state,practice_state,injury_detail,injury_type,injury_severity_class,expected_return_state,last_known_snap_share,
+          expected_snap_share,depth_rank,role_label,state_confidence,carried_state,state_source,state_source_updated_at,player_profile_updated_at,
+          player_state_json,injury_evidence_json,provenance_json
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ).bind(
+        sid,id,runId,projectionId,s(cand?.eventId),playerIdOf(raw),playerName,state?.team_key||s(teamOf(raw)||cand?.team),market,line,tierOf(raw),
+        lineObservedAt,collectedAt,state?.health_state||null,state?.practice_state||null,state?.injury_detail||null,
+        state?.injury_type||null,state?.injury_severity_class||null,state?.expected_return_state||null,state?.last_known_snap_share??null,
+        state?.expected_snap_share??null,state?.depth_rank??null,state?.role_label||null,state?.state_confidence??null,Number(state?.carried_state||0),
+        state?.state_source||null,state?.state_source_updated_at||null,state?.updated_at||null,
+        JSON.stringify(state||null),JSON.stringify(injuryEvidence),JSON.stringify(provenance)
+      ));
+      nflStateSnapshotsPrepared++;
+    }
     if(sport==="cfb"&&cand&&fbisProjection!=null&&fbisSigma!=null){
       const signal=buildCfbPropSignal({...cand,fbisProjection,fbisSigma},{
         fbisEventId:s(cand?.eventId),playerId:playerIdOf(raw),playerName,canonicalMarket:market,line,collectedAt
@@ -326,6 +386,11 @@ export async function onRequestPost(context){
     const result=await context.env.DB.batch(signalStatements.slice(i,i+BATCH_SIZE));
     signalsCreated+=result.reduce((sum,row)=>sum+Number(row?.meta?.changes||0),0);
   }
+  let nflStateSnapshotsWritten=0;
+  for(let i=0;i<nflStateStatements.length;i+=BATCH_SIZE){
+    const result=await context.env.DB.batch(nflStateStatements.slice(i,i+BATCH_SIZE));
+    nflStateSnapshotsWritten+=result.reduce((sum,row)=>sum+Number(row?.meta?.changes||0),0);
+  }
   const costId="cost_"+runId;
   const acquisition=await context.env.DB.prepare("SELECT * FROM prizepicks_daily_acquisitions WHERE run_id=?").bind(runId).first();
   if(!acquisition && !supplementalNfl && !supplementalCoverage) return json({ok:false,blocked:true,error:"missing_daily_acquisition_reservation",runId},409);
@@ -376,5 +441,5 @@ export async function onRequestPost(context){
     RUN_START_USD,0,rows.length*PER_PROJECTION_USD,0,0,0,0,0,0,0,0,estimate,actual,actual==null?null:actual-estimate,
     rows.length,JSON.stringify({actor:"zen-studio/prizepicks-player-props",candidateCount:candidates.length,targeted:true}),collectedAt
   ).run();
-  return json({ok:true,runId,rowsReturned:rows.length,written,matched,malformed,cbbPlayerPropSignalsCreated:signalsCreated,cfbPlayerPropSignalsPrepared:cfbSignalsPrepared,estimatedCostUsd:estimate,recordedCostUsd:total,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD,archiveKey});
+  return json({ok:true,runId,rowsReturned:rows.length,written,matched,malformed,cbbPlayerPropSignalsCreated:signalsCreated,cfbPlayerPropSignalsPrepared:cfbSignalsPrepared,nflStateSnapshotsPrepared,nflStateSnapshotsWritten,estimatedCostUsd:estimate,recordedCostUsd:total,hardMonthlyCapUsd:HARD_MONTHLY_CAP_USD,archiveKey});
 }
