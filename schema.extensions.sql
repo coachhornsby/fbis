@@ -3111,6 +3111,7 @@ CREATE TABLE IF NOT EXISTS mlb_prop_prospective_evidence (
   temporal_integrity INTEGER NOT NULL DEFAULT 0,
   temporal_diagnostics_json TEXT,
   duplicate_key TEXT NOT NULL,
+  projection_unit_key TEXT,
   can_qualify INTEGER NOT NULL DEFAULT 0,
   can_authorize_wager INTEGER NOT NULL DEFAULT 0,
   actual_value REAL,
@@ -3124,6 +3125,7 @@ CREATE TABLE IF NOT EXISTS mlb_prop_prospective_evidence (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mlb_prop_evidence_duplicate ON mlb_prop_prospective_evidence (duplicate_key);
 CREATE INDEX IF NOT EXISTS idx_mlb_prop_evidence_market ON mlb_prop_prospective_evidence (market, model_version, event_date, projection_snapshot_at);
 CREATE INDEX IF NOT EXISTS idx_mlb_prop_evidence_pending ON mlb_prop_prospective_evidence (event_date, event_id, settled_at, temporal_integrity);
+CREATE INDEX IF NOT EXISTS idx_mlb_prop_evidence_projection_unit ON mlb_prop_prospective_evidence (projection_unit_key, event_date, settled_at);
 
 CREATE TABLE IF NOT EXISTS mlb_prop_evidence_rejections (
   id TEXT PRIMARY KEY,

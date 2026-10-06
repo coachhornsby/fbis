@@ -46,3 +46,13 @@ test("MLB accepted evidence also writes the canonical prospective ledger",()=>{
   assert.match(src,/stateBeforeWeight:true/);
   assert.match(src,/rawProjectionDistanceCanPromote:false/);
 });
+
+
+test("MLB evidence distinguishes offer snapshots from independent model units",()=>{
+  const api=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
+  const migration=fs.readFileSync(new URL("../migrations/0072_mlb_prop_independent_unit.sql",import.meta.url),"utf8");
+  assert.match(api,/projectionUnitKey/);
+  assert.match(api,/COUNT\(DISTINCT projection_unit_key\) independent_projection_units/);
+  assert.match(api,/book_over_price,book_under_price,priced/);
+  assert.match(migration,/projection_unit_key/);
+});
