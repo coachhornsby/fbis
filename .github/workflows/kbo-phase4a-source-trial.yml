@@ -1,11 +1,5 @@
 name: KBO Phase 4A external source trial
 on:
-  push:
-    branches:
-      - codex/kbo-npb-phase4a-source-trial
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 jobs:
   trial:
