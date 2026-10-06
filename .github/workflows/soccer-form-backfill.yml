@@ -1,9 +1,6 @@
 name: Soccer canonical history ingest
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
   schedule:
     - cron: "15 10 * * *"
     - cron: "15 11 * * *"
@@ -31,20 +28,13 @@ jobs:
       - id: gate
         env:
           EVENT_NAME: ${{ github.event_name }}
-          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          WORKFLOW_BRANCH: ${{ github.event.workflow_run.head_branch }}
           INPUT_MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
           run=false
           mode=incremental
 
-          if [ "$EVENT_NAME" = "workflow_run" ]; then
-            if [ "$WORKFLOW_CONCLUSION" = "success" ] && [ "$WORKFLOW_BRANCH" = "main" ]; then
-              run=true
-              mode=incremental
-            fi
-          elif [ "$EVENT_NAME" = "schedule" ]; then
+          if [ "$EVENT_NAME" = "schedule" ]; then
             hour="$(TZ=America/Chicago date +%H)"
             [ "$hour" = "05" ] && run=true
             mode=incremental
