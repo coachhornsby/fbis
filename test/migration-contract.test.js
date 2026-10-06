@@ -155,7 +155,8 @@ test("live CFBD audit artifact is checked in without secrets", async () => {
 test("migration verifier audits numeric-prefix ambiguity", async () => {
   const verifier = await readFile(new URL("../scripts/verify-migrations.mjs", import.meta.url), "utf8");
   assert.match(verifier, /duplicatePrefixes/);
-  assert.match(verifier, /legacyDuplicatePrefixes/);\n  assert.match(verifier, /Unexpected duplicate numeric migration prefixes detected/);
+  assert.match(verifier, /legacyDuplicatePrefixes/);
+  assert.match(verifier, /Unexpected duplicate numeric migration prefixes detected/);
 });
 
 
