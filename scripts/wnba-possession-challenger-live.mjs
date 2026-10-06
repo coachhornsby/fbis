@@ -18,9 +18,10 @@ const num=v=>{const n=finite(v);return n==null?"NULL":String(n)};
 const mean=xs=>{const a=xs.filter(Number.isFinite);return a.length?a.reduce((s,x)=>s+x,0)/a.length:null};
 const sd=xs=>{const a=xs.filter(Number.isFinite);if(a.length<2)return null;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))};
 const weighted=(rows,key,halfLife=8)=>{let n=0,d=0;const a=[...rows].sort((x,y)=>Date.parse(y.date)-Date.parse(x.date));for(let i=0;i<a.length;i++){const v=finite(a[i][key]);if(v==null)continue;const w=Math.pow(.5,i/halfLife);n+=v*w;d+=w}return d?n/d:null};
-const games=read(gamesFile).filter(g=>Date.parse(g.start||g.date)<Date.parse(asOf)).sort((a,b)=>Date.parse(a.start||a.date)-Date.parse(b.start||b.date));
-const states=read(statesFile).filter(s=>Date.parse(s.start||s.date)<Date.parse(asOf));
-const stints=read(stintsFile).filter(s=>Date.parse(s.date)<Date.parse(asOf));
+const games=[...new Map(read(gamesFile).filter(g=>Date.parse(g.start||g.date)<Date.parse(asOf)).map(g=>[String(g.id),g])).values()].sort((a,b)=>Date.parse(a.start||a.date)-Date.parse(b.start||b.date));
+const states=[...new Map(read(statesFile).filter(s=>Date.parse(s.start||s.date)<Date.parse(asOf)).map(s=>[String(s.gameId||s.id),s])).values()];
+const rawStints=read(stintsFile).filter(s=>Date.parse(s.date)<Date.parse(asOf));
+const stints=[...new Map(rawStints.map(s=>[[s.gameId,s.startElapsed,s.endElapsed,(s.homePlayers||[]).join(","),(s.awayPlayers||[]).join(",")].join("|"),s])).values()];
 let qa={};try{qa=JSON.parse(fs.readFileSync(qaFile,"utf8"))}catch{}
 const stateBy=new Map(states.map(s=>[String(s.gameId||s.id),s]));
 const hist=new Map();
