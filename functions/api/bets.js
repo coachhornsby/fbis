@@ -288,8 +288,31 @@ function trackerFieldEqual(a, b) {
   return left === right;
 }
 
+function trackerImmutableConflictFields(existing, packed) {
+  const fields = [
+    ["selectedSide", "selected_side"],
+    ["executionLine", "execution_line"],
+    ["executionPrice", "execution_price"],
+    ["riskAmount", "risk_amount"],
+  ];
+  const conflicts = [];
+  for (const [camel, snake] of fields) {
+    const a = existing?.[camel] ?? existing?.[snake];
+    const b = packed?.[camel] ?? packed?.[snake];
+    if (a == null || b == null) continue;
+    if (String(a) !== String(b)) conflicts.push(camel);
+  }
+  return conflicts;
+}
+
 export async function syncTrackerBets(env, tickets) {
   if (!hasDb(env)) return { ok:false, status:503, body:{ ok:false, error:"D1 unbound" } };
+  const existingQ = await queryExecutedBets(env, { includeRaw:false });
+  if (!existingQ.ok) return { ok:false, status:503, body:{ ok:false, error:existingQ.reason || "executed-bet-read-failed" } };
+  const existingByExecutionKey = new Map((existingQ.rows || []).map((row) => [
+    `${String(row.executionBook || "")}\u0000${String(row.externalTicketId || "")}`,
+    row,
+  ]));
   const inserted = [];
   const updated = [];
   const skipped = [];
@@ -301,7 +324,27 @@ export async function syncTrackerBets(env, tickets) {
       errors.push({ id: packed.id, errors:["missing ticket ID"] });
       continue;
     }
-    const res = await persistExecutedBet(env, packed);
+    const executionKey = `${String(packed.executionBook || "Heritage")}\u0000${String(packed.externalTicketId || "")}`;
+    const prior = existingByExecutionKey.get(executionKey) || null;
+    let res;
+    if (prior) {
+      const immutableFields = trackerImmutableConflictFields(prior, packed);
+      if (immutableFields.length) {
+        conflicts.push({
+          id: packed.id,
+          externalTicketId: packed.externalTicketId,
+          reason: "duplicate-conflict",
+          immutableFields,
+        });
+        continue;
+      }
+      // Historical tracker rows were written under more than one executedAt
+      // derivation. Preserve the already-ledgered execution timestamp rather
+      // than treating transport-derived timestamp drift as a financial mutation.
+      res = { ok:true, already:true, existing:prior, trackerReplayPreservedExecutedAt:true };
+    } else {
+      res = await persistExecutedBet(env, packed);
+    }
     if (res.conflict) {
       conflicts.push({ id:packed.id, externalTicketId:packed.externalTicketId, reason:res.reason });
       continue;
