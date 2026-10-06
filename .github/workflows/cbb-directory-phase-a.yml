@@ -72,6 +72,7 @@ jobs:
             .governance.canAuthorizeWager == false and
             (.governance.availabilityRule | contains("UNKNOWN remains UNKNOWN"))
           ' artifacts/cbb-directory/qa.json >/dev/null
+      # Persistence transport is transaction-wrapper-free for remote D1 imports.
       - name: Apply Phase A schema and population to D1
         if: github.event_name == 'push'
         run: |
