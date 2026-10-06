@@ -12,7 +12,7 @@ mkdirSync(OUT,{recursive:true});
 const esc=v=>v==null?"NULL":"'"+String(v).replaceAll("'","''")+"'";
 const js=v=>esc(JSON.stringify(v));
 const hid=(...p)=>createHash("sha256").update(p.map(x=>String(x??"")).join("|")).digest("hex").slice(0,32);
-const isoDate=v=>{const s=String(v||"").slice(0,10);return /^\d{4}-\d{2}-\d{2}$/.test(s)?s+"T23:59:59.000Z":null};
+const isoDate=v=>{const raw=String(v||"").trim();const s=raw.slice(0,10);if(/^\\d{4}-\\d{2}-\\d{2}$/.test(s))return s+"T23:59:59.000Z";const m=raw.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);return m?`${m[3]}-${m[1].padStart(2,"0")}-${m[2].padStart(2,"0")}T23:59:59.000Z`:null};
 const sql=[];
 const qa={version:"cbb-directory-phase-a-v1",snapshotId:CBB_DIRECTORY_SNAPSHOT,sourceRun:SOURCE_RUN,sourceSha:SOURCE_SHA,generatedAt:new Date().toISOString(),canonicalTeams:0,players:0,rosterMemberships:0,stateEvents:0,teamSnapshots:0,playerSnapshots:0,scheduleItems:0,coverage:{},missing:{conference:[],coach:[],venue:[]},provenance:["repo:data/teams/cbb.js","run:37411381038:cbb-possession-history-2018..2025","snapshot:CBB-PIT-RESEARCH-v1-37411381038"],governance:{overlayVersion:"FBIS-STATE-OVERLAY-v1",researchOnly:true,canInfluenceProjection:false,canQualify:false,canAuthorizeWager:false,availabilityRule:"UNKNOWN remains UNKNOWN; missing minutes/appearances are not injury evidence",totalsPolicy:"All current directory-derived families remain excluded from totals production."}};
 
