@@ -2,8 +2,8 @@ name: MLB prospective prop evidence
 
 on:
   schedule:
-    # UTC. Three bounded capture windows; each run also settles prior-day finals.
-    - cron: "15 16,20,0 * * *"
+    # UTC. Three daytime capture windows plus a 05:15 UTC late settlement pass; each run settles prior-day finals.
+    - cron: "15 5,16,20,0 * * *"
   push:
     branches: [main]
     paths:

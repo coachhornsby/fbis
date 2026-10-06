@@ -56,3 +56,32 @@ test("MLB evidence distinguishes offer snapshots from independent model units",(
   assert.match(api,/book_over_price,book_under_price,priced/);
   assert.match(migration,/projection_unit_key/);
 });
+
+
+test("MLB settlement conversion math is exact for outs, total bases, and H+R+RBI",async()=>{
+  const {inningsToOuts,playerActual}=await import("../functions/api/mlb-prop-evidence.js");
+  assert.equal(inningsToOuts("6.2"),20);
+  assert.equal(inningsToOuts("5.1"),16);
+  assert.equal(inningsToOuts("7.0"),21);
+  assert.equal(inningsToOuts("4.3"),null);
+  const hitter={position:{abbreviation:"3B"},stats:{batting:{hits:3,doubles:1,triples:1,homeRuns:1,runs:2,rbi:4,strikeOuts:1,baseOnBalls:2}}};
+  assert.equal(playerActual(hitter,"total_bases"),9);
+  assert.equal(playerActual(hitter,"hits_runs_rbis"),9);
+  assert.equal(playerActual(hitter,"strikeouts"),1);
+  const pitcher={position:{abbreviation:"P"},stats:{pitching:{inningsPitched:"6.2",strikeOuts:8,baseOnBalls:2,hits:5,earnedRuns:2,numberOfPitches:101}}};
+  assert.equal(playerActual(pitcher,"pitcher_outs"),20);
+  assert.equal(playerActual(pitcher,"strikeouts"),8);
+  assert.equal(playerActual(pitcher,"walks_allowed"),2);
+  assert.equal(playerActual(pitcher,"hits_allowed"),5);
+  assert.equal(playerActual(pitcher,"earned_runs"),2);
+  assert.equal(playerActual(pitcher,"pitch_count"),101);
+});
+
+test("MLB evidence status reports offer and independent settlement counts separately",()=>{
+  const src=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
+  assert.match(src,/offer_snapshots/);
+  assert.match(src,/independent_projection_units/);
+  assert.match(src,/settled_offer_snapshots/);
+  assert.match(src,/settled_independent_units/);
+  assert.match(src,/actual_value_mismatch_units/);
+});
