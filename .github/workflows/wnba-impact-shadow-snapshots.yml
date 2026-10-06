@@ -9,7 +9,7 @@ on:
       - "functions/lib/wnbaPlayerImpactShadow.js"
       - "functions/lib/wnbaProspectiveChallenger.js"
       - "functions/lib/slateEngine.js"
-      - "migrations/0079_wnba_possession_challenger_shadow.sql"
+      - "migrations/0080_wnba_possession_challenger_shadow.sql"
       - "migrations/0049_wnba_player_impact.sql"
       - ".github/workflows/wnba-impact-shadow-snapshots.yml"
   schedule:
