@@ -6,6 +6,10 @@ const args=Object.fromEntries(process.argv.slice(2).map(x=>x.split("=")));
 const date=args.date,checkpoint=args.checkpoint||"SHADOW",codeSha=args.codeSha||process.env.GITHUB_SHA||"UNKNOWN";
 const prior=args.prior||"artifacts/frozen/nba-canonical.jsonl",current=args.current||"artifacts/current/nba-canonical.jsonl",impactFile=args.impact||"artifacts/nba-player-impact-live.json",fitFile=args.fit||"data/models/nba-fbis-v1-fit.json";
 const out=args.out||"artifacts/nba-three-model-freeze.json",sqlOut=args.sql||"artifacts/nba-three-model-freeze.sql";
+const stateSnapshotsFile=args.stateSnapshots||"artifacts/nba-latest-team-snapshots.json";
+const flatten=x=>Array.isArray(x)?(x.every(r=>Array.isArray(r?.results))?x.flatMap(r=>r.results||[]):x):Array.isArray(x?.results)?x.results:[];
+const stateSnapshotRows=fs.existsSync(stateSnapshotsFile)?flatten(JSON.parse(fs.readFileSync(stateSnapshotsFile,"utf8"))):[];
+const snapshotByTeam=new Map(stateSnapshotRows.map(x=>[String(x.team_key||"").toUpperCase(),x]));
 const readJsonl=p=>fs.existsSync(p)&&fs.statSync(p).size?fs.readFileSync(p,"utf8").split("\n").filter(Boolean).map(JSON.parse):[];
 const fit=JSON.parse(fs.readFileSync(fitFile,"utf8")),impact=fs.existsSync(impactFile)?JSON.parse(fs.readFileSync(impactFile,"utf8")):{players:{},roleContexts:{}};
 const all=[...new Map([...readJsonl(prior),...readJsonl(current)].map(g=>[String(g.id),g])).values()].sort((a,b)=>Date.parse(a.start||a.date)-Date.parse(b.start||b.date));
@@ -21,7 +25,7 @@ for(const ev of b.events||[]){const comp=ev.competitions?.[0],cs=comp?.competito
  if(!control.ok)continue;
  const profile=projectNbaProfileGame(target,{homeHistory:hh,awayHistory:ah,impact,sequence:[...all,target]});
  const profileTeams=[h.team?.abbreviation,a.team?.abbreviation].filter(Boolean);
- const snapshotIds=profileTeams.map(x=>String(x)+":"+predictionTimestamp);
+ const snapshotIds=profileTeams.map(x=>snapshotByTeam.get(String(x).toUpperCase())?.id||null).filter(Boolean);
  const injuryBuckets=[];for(const side of ["home","away"]){const p=profile.profileOverlay?.[side];if(!p)continue;const un=p.players.filter(x=>x.status!=="AVAILABLE");if(!un.length)injuryBuckets.push(side.toUpperCase()+":NO_MATERIAL_AVAILABILITY_CHANGE");if(un.some(x=>x.status==="OUT"))injuryBuckets.push(side.toUpperCase()+":OUT");if(un.filter(x=>x.status==="OUT").length>=2)injuryBuckets.push(side.toUpperCase()+":MULTIPLE_ROTATION_OUT");if(un.some(x=>x.status==="QUESTIONABLE"))injuryBuckets.push(side.toUpperCase()+":QUESTIONABLE");if(un.some(x=>x.status==="PROBABLE"))injuryBuckets.push(side.toUpperCase()+":PROBABLE");}
  const sched=[];for(const side of ["home","away"]){const s=profile.profileOverlay?.schedule?.[side]||{};if(s.b2b)sched.push(side.toUpperCase()+":B2B");if(s.threeInFour)sched.push(side.toUpperCase()+":3IN4");if(s.fourInSix)sched.push(side.toUpperCase()+":4IN6");if((s.travelMiles||0)>=1200)sched.push(side.toUpperCase()+":LONG_TRAVEL");if((s.timeZonesCrossed||0)>=2)sched.push(side.toUpperCase()+":TIMEZONE_SHIFT");if(s.altitude)sched.push(side.toUpperCase()+":ALTITUDE");if(!sched.some(x=>x.startsWith(side.toUpperCase()+":")))sched.push(side.toUpperCase()+":NORMAL_REST");}
  const common={gameId,tipoff:ev.date,predictionTimestamp,featureCutoff:predictionTimestamp,codeSha,stateSnapshotIds:snapshotIds,lineupState:{source:"nba_lineup_observations",cutoff:predictionTimestamp},availabilityState:{source:"nba_player_state_profiles",cutoff:predictionTimestamp},scheduleState:{source:"nba_team_schedule_items",cutoff:predictionTimestamp},injuryBuckets,scheduleBuckets:sched};
