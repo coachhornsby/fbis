@@ -1,7 +1,7 @@
 # FBIS Model System Standard
 
 **Status:** Canonical cross-sport specification  
-**Version:** 1.0  
+**Version:** 1.1  
 **Applies to:** MLB, NFL, CFB, CBB, NBA, WNBA, NHL, soccer, and every future FBIS sport/model.
 
 ## 1. Purpose
@@ -210,6 +210,23 @@ The shared enforcement contract is `FBIS-STATE-OVERLAY-v1` in `functions/lib/sta
 
 This rule is structural, not numeric. Each sport must validate its own gate and overlay. For example, an NFL QB-personnel gate does not authorize analogous NBA/NHL/MLB adjustments.
 
+## 9B. Canonical persistent-state contract
+
+All sports that maintain persistent team/player/entity state inherit the structural contract `FBIS-PERSISTENT-STATE-v1` in `functions/lib/canonical/persistentState.js`.
+
+Required fields for an immutable state observation:
+- sport, entity type, entity ID, and state family;
+- value/payload;
+- source and evidence class;
+- evidence rank supplied by the sport-specific policy;
+- observed_at, effective_at, and ingested_at;
+- optional expiry and supersession lineage;
+- provenance and confidence.
+
+The shared contract deliberately does **not** define sport-specific evidence weights or freshness windows. Those must be validated/configured by each sport. UNKNOWN remains a valid state and may not be silently converted into a normal/healthy state.
+
+Migration `0070_fbis_cross_sport_evidence` adds the additive canonical state-observation ledger. Existing sport-specific state tables remain authoritative until explicitly migrated.
+
 ## 10. Market roles
 
 Use the canonical FBIS hierarchy:
@@ -239,6 +256,28 @@ For each prediction preserve:
 
 The ledger is the population for learning; executed bets alone are not.
 
+## 11A. Prospective evidence and economic grading
+
+All prospective challengers should be representable by `FBIS-PROSPECTIVE-EVIDENCE-v1` in `functions/lib/canonical/prospectiveEvidence.js`.
+
+A prospective evidence record must pin:
+- sport/event identity and event start;
+- pre-event snapshot timestamp;
+- champion and challenger model/version;
+- lifecycle and versioned gate;
+- state/market snapshot IDs;
+- source and market observation timestamps;
+- exact code SHA;
+- incumbent and challenger projections;
+- temporal-integrity result;
+- qualification and wager-authority flags.
+
+Legacy, wrong-version, post-start, or future-observation rows must be excluded from promotion cohorts without mutating the original row.
+
+The canonical downstream economic contract is `FBIS-ECONOMIC-GRADE-v1` in `functions/lib/canonical/economicGrading.js`. It standardizes no-vig probability normalization, probability CLV, binary calibration losses, unit profit/ROI, and drawdown calculation. Sports may set different qualification thresholds, but they must not redefine the meaning of these metrics.
+
+Migration `0070_fbis_cross_sport_evidence` adds additive canonical prospective-evidence and economic-grade ledgers. Sport-specific evidence tables may continue in parallel while adapters are introduced.
+
 ## 12. Continuous learning
 
 FBIS is self-governing, not self-modifying.
@@ -263,6 +302,26 @@ Each sport must document:
 - health checks and alerts.
 
 Paid acquisition must have explicit run guards.
+
+## 13A. Bounded and restartable production work
+
+Long-running ingestion, backfill, grading, calibration, snapshot, and research jobs must be represented as bounded, durable work units rather than monolithic all-season/all-slate requests whenever the task can be partitioned without changing model semantics.
+
+Required behavior:
+- deterministic shards or date/range partitions;
+- explicit per-call and per-job time bounds;
+- durable persistence before advancing to the next work unit;
+- idempotent and retry-safe operations;
+- lease/claim/complete or equivalent contention protection for shared queues;
+- acquisition, snapshotting, grading, calibration, and research separated when coupling creates timeout/recovery risk;
+- resume from durable state after interruption rather than restarting completed work;
+- fail closed on malformed, incomplete, or ambiguous work units;
+- concurrency capped to observed provider/database/runtime limits;
+- auditable run metadata for completed, failed, retried, leased, and pending units.
+
+CI completion must not automatically fan out expensive sport workflows when an independent schedule already provides an equivalent bounded cadence. Post-deploy immediacy should be explicit and path-scoped rather than attached to every successful CI run.
+
+This is an operational standard only. It does not change sport-specific model weights, gates, confidence calibration, qualification, or wager authority.
 
 ## 14. Cross-sport inheritance rule
 
