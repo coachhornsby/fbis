@@ -651,7 +651,8 @@ export async function buildTennisResearchSlate(date, env = {}) {
         player1Rank: p1Rank?.rank ?? null,
         player2Rank: p2Rank?.rank ?? null,
         player1RankingPoints: p1Rank?.points ?? null,
-        player2RankingPoints: p2Rank?.points ?? null,\n        playerBank: bankContext,
+        player2RankingPoints: p2Rank?.points ?? null,
+        playerBank: bankContext,
       },
       market: {
         marketAvailable: false,
