@@ -1,0 +1,120 @@
+name: NFL QB personnel prospective shadow
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */3 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "functions/lib/nflQbPersonnelShadow.js"
+      - "functions/api/nfl-qb-shadow.js"
+      - "data/models/nfl-qb-personnel-overlay-v1-fit.json"
+      - "migrations/0065_nfl_qb_shadow_prop_calibration.sql"
+      - ".github/workflows/nfl-qb-personnel-shadow.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nfl-qb-personnel-prospective-shadow
+  cancel-in-progress: false
+
+jobs:
+  ready:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Wait for production SHA on push
+        if: github.event_name == 'push'
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          BASE: https://fbis-myz.pages.dev
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 50); do
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 20 -o "$body" -w "%{http_code}" "$BASE/api/health?_t=$(date +%s)" || true)"
+            if [ "$code" = "200" ] && grep -q "$EXPECTED_SHA" "$body"; then
+              echo "production_sha=$EXPECTED_SHA"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "Production SHA did not converge before bounded wait expired."
+          exit 1
+      - name: Scheduled run uses current production
+        if: github.event_name != 'push'
+        run: echo "Using current production deployment."
+
+  capture:
+    name: FREEZE +${{ matrix.offset }}D
+    needs: ready
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        offset: [0,1,2,3]
+    steps:
+      - name: Freeze same-timestamp incumbent and QB challenger
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          OFFSET: ${{ matrix.offset }}
+        run: |
+          set -euo pipefail
+          date_ct="$(TZ=America/Chicago date -d "+${OFFSET} day" +%F)"
+          out="$(mktemp)"
+          code="$(curl -sS --max-time 75 --retry 1 --retry-delay 2             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "accept: application/json"             -o "$out" -w "%{http_code}"             "${BASE}/api/nfl-qb-shadow?mode=snapshot&date=${date_ct}")"
+          cat "$out"
+          test "$code" = "200"
+          jq -e '.ok==true and .gate.threshold==0.30 and .gate.lifecycle=="SHADOW" and .gate.prospectiveValidationPassed==false' "$out" >/dev/null
+          {
+            echo "## NFL QB shadow +${OFFSET}d"
+            echo "- date: $(jq -r '.date' "$out")"
+            echo "- eligible: $(jq -r '.eligible' "$out")"
+            echo "- gated: $(jq -r '.gated' "$out")"
+            echo "- new freezes: $(jq -r '.inserted' "$out")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  grade:
+    needs: capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Grade recent completed shadow games
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          for back in 0 1 2 3; do
+            date_ct="$(TZ=America/Chicago date -d "-${back} day" +%F)"
+            out="$(mktemp)"
+            code="$(curl -sS --max-time 60 --retry 1               -H "x-harvest-secret: ${HARVEST_SECRET}"               -o "$out" -w "%{http_code}"               "${BASE}/api/nfl-qb-shadow?mode=grade&date=${date_ct}")"
+            cat "$out"
+            test "$code" = "200"
+            jq -e '.ok==true' "$out" >/dev/null
+          done
+
+      - name: Verify shadow governance and summary
+        env:
+          BASE: https://fbis-myz.pages.dev
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+        run: |
+          set -euo pipefail
+          out="$(mktemp)"
+          code="$(curl -sS --max-time 30             -H "x-harvest-secret: ${HARVEST_SECRET}"             -o "$out" -w "%{http_code}"             "${BASE}/api/nfl-qb-shadow?mode=summary")"
+          cat "$out"
+          test "$code" = "200"
+          jq -e '.ok==true and .lifecycle=="SHADOW" and .productionChampionModified==false and .wagerAuthorityModified==false' "$out" >/dev/null
+          {
+            echo "## NFL QB prospective shadow"
+            echo "- graded: $(jq -r '.all.n // 0' "$out")"
+            echo "- gated graded: $(jq -r '.gated.n // 0' "$out")"
+            echo "- non-gated graded: $(jq -r '.nonGated.n // 0' "$out")"
+            echo "- production champion modified: $(jq -r '.productionChampionModified' "$out")"
+            echo "- wager authority modified: $(jq -r '.wagerAuthorityModified' "$out")"
+          } >> "$GITHUB_STEP_SUMMARY"
