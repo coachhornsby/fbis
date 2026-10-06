@@ -30,6 +30,7 @@ import { promoteMlbResearchToBoard, promoteNflResearchToBoard, promoteCbbResearc
 import { loadNhlResearchPrior, attachNhlResearch } from "./nhlResearchModel.js";
 import { attachNhlV1, NHL_FBIS_V1_ID, NHL_FBIS_V1_VERSION } from "./nhlFbisV1.js";
 import { loadNhlProV2Context, attachNhlProV2, NHL_PRO_V2_ID, NHL_PRO_V2_VERSION } from "./nhlProV2.js";
+import { attachNhlGoalieProbabilityShadow } from "./nhlGoalieProbabilityShadow.js";
 import { evaluateNhlGameWagers } from "./nhlWagerV1.js";
 import { loadCbbdCatalog } from "./collegeApply.js";
 import { attachCbbPro } from "./cbbProModel.js";
@@ -257,7 +258,8 @@ export async function buildSlate(sport, date, env = {}) {
     const baseline = attachNhlResearch(slate.games || [], prior);
     const fiveLayer = attachNhlV1(baseline.games, v1Context);
     const proV2 = attachNhlProV2(fiveLayer.games, proContext);
-    const research = promoteNhlResearchToBoard(proV2.games);
+    const goalieShadow = attachNhlGoalieProbabilityShadow(proV2.games, proContext.persistentProfiles||{});
+    const research = promoteNhlResearchToBoard(goalieShadow.games);
     const playerResearch = attachNhlPlayerProjectionResearch(research.games, {...v1Context, playerEdge:proContext.playerEdge||null, opportunity:proContext.opportunity||null, persistentProfiles:proContext.persistentProfiles||null});
     const v2Promoted = Boolean(proV2.meta.historicalPromotionEligible && proV2.meta.projected > 0);
     next = {
@@ -303,6 +305,7 @@ export async function buildSlate(sport, date, env = {}) {
           persistentProfileStatus: proContext.persistentProfiles?.__timeout ? "TIMEOUT_FAIL_SOFT" : proContext.persistentProfiles?.__error ? "DEGRADED_FAIL_SOFT" : proContext.persistentProfiles?.ok ? "ACTIVE" : "UNAVAILABLE",
           persistentProfileRequestTimeSourceFetches: 0,
         },
+        nhlGoalieProbabilityShadow: goalieShadow.meta,
         nhlResearchBoard: research.meta,
       },
     };
