@@ -147,6 +147,8 @@ export async function refreshPitchApiCompetitionCoverage(env,{leagueKey}={}){
   const row=await db.prepare(`SELECT
       COUNT(*) AS pitch_match_count,
       SUM(CASE WHEN
+        status='finished' AND
+        home_score IS NOT NULL AND away_score IS NOT NULL AND
         home_xg IS NOT NULL AND away_xg IS NOT NULL AND
         home_ppda IS NOT NULL AND away_ppda IS NOT NULL AND
         home_field_tilt IS NOT NULL AND away_field_tilt IS NOT NULL AND

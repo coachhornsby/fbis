@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("soccer accelerated backfill is four-worker, bounded, and contention-safe", async () => {
+test("soccer accelerated backfill is six-worker, bounded, and contention-safe", async () => {
   const workflow=await readFile(new URL("../.github/workflows/soccer-pitchapi-queue-drain.yml",import.meta.url),"utf8");
   const discover=await readFile(new URL("../functions/api/soccer-pitchapi-discover.js",import.meta.url),"utf8");
   const claim=await readFile(new URL("../functions/api/soccer-pitchapi-queue-claim.js",import.meta.url),"utf8");
