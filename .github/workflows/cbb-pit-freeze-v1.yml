@@ -1,0 +1,76 @@
+name: CBB PIT research freeze v1
+
+on:
+  pull_request:
+    paths:
+      - "scripts/cbb-pit-freeze-v1.mjs"
+      - ".github/workflows/cbb-pit-freeze-v1.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/cbb-pit-freeze-v1.mjs"
+      - ".github/workflows/cbb-pit-freeze-v1.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: cbb-pit-freeze-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Syntax
+        run: node --check scripts/cbb-pit-freeze-v1.mjs
+      - name: Download immutable historical source
+        uses: actions/download-artifact@v4
+        with:
+          name: cbb-possession-v1-37411381038
+          github-token: "${{ github.token }}"
+          repository: coachhornsby/fbis
+          run-id: 37411381038
+          path: artifacts/source
+      - name: Download frozen CBB benchmark
+        uses: actions/download-artifact@v4
+        with:
+          name: cbb-fbis-native-v1-aggregate-37181214791
+          github-token: "${{ github.token }}"
+          repository: coachhornsby/fbis
+          run-id: 37181214791
+          path: artifacts/frozen
+      - name: Audit, freeze, and target-specific ablations
+        run: |
+          set -euo pipefail
+          node --max-old-space-size=6144 scripts/cbb-pit-freeze-v1.mjs             artifacts/source/parts             artifacts/frozen/cbb-fbis-native-v2-predictions.json             artifacts/frozen/cbb-fbis-v2-fit.json             artifacts/pit | tee artifacts/cbb-pit-freeze-v1.log
+          jq -e '.pitEligible == true and .totals.matched > 0 and .conflicts.predictionMatchup == 0 and .conflicts.historicalDuplicateKeys == 0' artifacts/pit/cbb-pit-audit-v1.json >/dev/null
+          test -s artifacts/pit/cbb-pit-snapshot-v1.json
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f artifacts/pit/cbb-pit-audit-v1.json ]; then
+            {
+              echo "## CBB PIT freeze v1"
+              jq -r '"- snapshot: "+.snapshotId+"\n- candidate="+(.totals.candidate|tostring)+", matched="+(.totals.matched|tostring)+", direct="+(.totals.direct|tostring)+", fallback="+(.totals.fallback|tostring)+", unmatched="+(.totals.unmatched|tostring)+"\n- match rate="+((100*.matchRate)|tostring)+"%\n- five-player reliable="+((100*.coverage.validFivePlayerFloorStateRate)|tostring)+"%, lineup attribution="+((100*.coverage.lineupPossessionAttributionRate)|tostring)+"%, shot-clock evidence="+((100*.coverage.shotClockEvidenceRate)|tostring)+"%, player linkage="+((100*.coverage.playerRotationNameLinkageRate)|tostring)+"%"' artifacts/pit/cbb-pit-audit-v1.json
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cbb-pit-research-v1-${{ github.run_id }}
+          path: |
+            artifacts/pit/cbb-pit-audit-v1.json
+            artifacts/pit/cbb-target-ablation-v1.json
+            artifacts/pit/cbb-pit-snapshot-v1.json
+            artifacts/cbb-pit-freeze-v1.log
+          retention-days: 90
+          if-no-files-found: warn
