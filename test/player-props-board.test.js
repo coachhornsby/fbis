@@ -608,3 +608,25 @@ test("unvalidated MLB supplemental props stay visible but cannot present as conv
   assert.equal(board.rows[0].recommendationEligible,false);
   assert.equal(board.rows[0].modelAuthorized,false);
 });
+
+
+test("MLB model-only prop rows remain visible before a market line posts", () => {
+  const board=buildPlayerPropsBoard({
+    games:[{
+      id:"mlb-model-only",sport:"mlb",away:{abbr:"NYY"},home:{abbr:"BOS"},
+      playerProjectionRows:[{
+        playerId:"p1",playerName:"Test Hitter",team:"NYY",position:"RF",
+        market:"total_bases",fbisProjection:1.7,fbisSigma:.8,
+        maturity:"RESEARCH_UNVALIDATED",propGate:"CLEAR",
+        eligibleForCard:false,decisionEligible:false,canAuthorizeWager:false
+      }],
+      playerMarkets:[]
+    }]
+  },{supportedOnly:false});
+  assert.equal(board.rows.length,1);
+  assert.equal(board.rows[0].line,null);
+  assert.equal(board.rows[0].displayMode,"MODEL_PROJECTION");
+  assert.equal(board.rows[0].recommendationEligible,false);
+  assert.equal(board.counts.visibleMlbProjectionOnly,1);
+  assert.equal(board.policy.mlbProjectionOnlyRowsVisible,true);
+});
