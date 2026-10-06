@@ -58,26 +58,31 @@ jobs:
           set -euo pipefail
           report="artifacts/soccer-v3-walkforward-report.json"
           run_id="wf-$GITHUB_RUN_ID"
-          jq --arg run_id "$run_id" '{
+          snapshot_id="phase3b-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          jq --arg run_id "$run_id" --arg snapshot_id "$snapshot_id" --arg code_sha "$GITHUB_SHA" '{
             runId:$run_id,
+            snapshotId:$snapshot_id,
+            codeSha:$code_sha,
             modelVersion:.modelVersion,
-            rows:[
-              {modelVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.v2.n,metrics:.v2},
-              {modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.v3.n,metrics:.v3},
-              {modelVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.derivatives.v2.n,metrics:.derivatives.v2},
-              {modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.derivatives.v3.n,metrics:.derivatives.v3}
-            ] + ([.leagues|to_entries[]|[
-              {heritageKey:.key,modelVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.value.v2.n,metrics:.value.v2},
-              {heritageKey:.key,modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.value.v3.n,metrics:.value.v3},
-              {heritageKey:.key,modelVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.value.v2Derivatives.n,metrics:.value.v2Derivatives},
-              {heritageKey:.key,modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.value.v3Derivatives.n,metrics:.value.v3Derivatives}
-            ]]|flatten)
+            rows:(
+              [
+                {modelVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.v2.n,metrics:.v2},
+                {modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.v3.n,metrics:.v3},
+                {modelVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.derivatives.v2.n,metrics:.derivatives.v2},
+                {modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.derivatives.v3.n,metrics:.derivatives.v3}
+              ] + ([.leagues|to_entries[]|[
+                {heritageKey:.key,modelVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.value.v2.n,metrics:.value.v2},
+                {heritageKey:.key,modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"1X2",sampleN:.value.v3.n,metrics:.value.v3},
+                {heritageKey:.key,modelVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.value.v2Derivatives.n,metrics:.value.v2Derivatives},
+                {heritageKey:.key,modelVariant:"SOCCER-FBIS-v3.1",benchmarkVariant:"SOCCER-FBIS-v2",marketFamily:"DERIVATIVES",sampleN:.value.v3Derivatives.n,metrics:.value.v3Derivatives}
+              ]]|flatten)
+            )
           }' "$report" > artifacts/soccer-v3-evidence.json
           curl -fsS --connect-timeout 5 --max-time 30 --retry 2 --retry-delay 2 --retry-all-errors \
             -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json" \
             --data-binary @artifacts/soccer-v3-evidence.json \
             "$BASE/api/soccer-validation-evidence" | tee artifacts/soccer-v3-evidence-result.json
-          jq -e '.ok == true and .researchOnly == true and .canQualify == false and .canAuthorize == false' artifacts/soccer-v3-evidence-result.json >/dev/null
+          jq -e '.ok == true and .researchOnly == true and .canQualify == false and .canAuthorize == false and .snapshotId != null and .codeSha != null' artifacts/soccer-v3-evidence-result.json >/dev/null
 
       - name: Persist Phase 3B league evidence
         run: |
