@@ -1,8 +1,6 @@
-name: KBO Phase 4B one-shot certification
+name: KBO Phase 4B certification
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 jobs:
   certify:
     runs-on: ubuntu-latest
