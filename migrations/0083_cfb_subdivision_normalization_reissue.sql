@@ -1,4 +1,5 @@
--- Reissue CFB subdivision normalization after 0078 was falsely marked applied
+-- Reissue CFB subdivision normalization after 0078 was falsely marked applied.
+-- Idempotent data repair: preserves identities and only normalizes persisted labels.
 -- by legacy migration bookkeeping without executing its SQL.
 UPDATE cfb_canonical_teams
 SET subdivision = UPPER(TRIM(subdivision)),
