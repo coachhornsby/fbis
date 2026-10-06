@@ -51,53 +51,73 @@ export function applyWnbaGameImpactShadow(game,{homeAdjustment=0,awayAdjustment=
 
 function parseJson(v){if(v&&typeof v==="object")return v;try{return JSON.parse(v||"{}")}catch{return{}}}
 
-export async function loadWnbaImpactContext(db){
-  if(!db?.prepare)return {players:{},roles:{},meta:{available:false,reason:"db_unavailable"}};
-  try{
-    const [impactRes,roleRes]=await Promise.all([
-      db.prepare(`
-        WITH ranked AS (
-          SELECT *,ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY as_of DESC) rn
-          FROM wnba_player_impact_snapshots
-        )
-        SELECT * FROM ranked WHERE rn=1
-      `).all(),
-      db.prepare(`
-        WITH ranked AS (
-          SELECT *,ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY feature_cutoff_timestamp DESC) rn
-          FROM wnba_player_role_contexts
-        )
-        SELECT * FROM ranked WHERE rn=1
-      `).all()
-    ]);
-    const players={},roles={};
-    for(const r of impactRes?.results||[]){
-      players[String(r.player_id)]={
-        modelId:r.model_id,version:r.model_version,playerId:String(r.player_id),name:r.player_name,teamId:r.team_id,position:r.position,
-        offense:finite(r.offense_impact),defense:finite(r.defense_impact),net:finite(r.net_impact),
-        rapm:r.rapm_net==null?null:{net:finite(r.rapm_net)},
-        diagnostics:{bpmStyle:finite(r.bpm_style),vorpStylePerGame:finite(r.vorp_style),ws48Style:finite(r.ws48_style)},
-        skill:parseJson(r.dynamic_skill_json)
-      };
+async function d1AllWithRetry(db,sql,{attempts=3,baseDelayMs=120}={}){
+  let lastError=null;
+  for(let i=0;i<attempts;i++){
+    try{return await db.prepare(sql).all();}
+    catch(err){
+      lastError=err;
+      if(i<attempts-1)await new Promise(resolve=>setTimeout(resolve,baseDelayMs*(i+1)));
     }
-    for(const r of roleRes?.results||[]){
-      const x=parseJson(r.context_json);
-      roles[String(r.player_id)]={
-        featureCutoffTimestamp:r.feature_cutoff_timestamp,
-        role:{
-          minutesDelta:finite(r.minutes_delta),usageMultiplier:finite(r.usage_multiplier),pointsMultiplier:finite(r.points_multiplier),
-          reboundsMultiplier:finite(r.rebounds_multiplier),assistsMultiplier:finite(r.assists_multiplier),threesMultiplier:finite(r.threes_multiplier),
-          unavailableCount:Number(r.unavailable_count||0)
-        },
-        lineup:{multiplier:finite(r.lineup_multiplier)??1},
-        availabilityVerified:Number(r.availability_verified||0)===1,
-        unavailable:x.unavailable||[]
-      };
-    }
-    return {players,roles,meta:{available:true,players:Object.keys(players).length,roles:Object.keys(roles).length}};
-  }catch(err){
-    return {players:{},roles:{},meta:{available:false,error:String(err?.message||err)}};
   }
+  throw lastError;
+}
+
+export async function loadWnbaImpactContext(db){
+  if(!db?.prepare)return {players:{},roles:{},meta:{available:false,reason:"db_unavailable",partial:false}};
+  const impactSql=`
+    WITH ranked AS (
+      SELECT *,ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY as_of DESC) rn
+      FROM wnba_player_impact_snapshots
+    )
+    SELECT * FROM ranked WHERE rn=1
+  `;
+  const roleSql=`
+    WITH ranked AS (
+      SELECT *,ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY feature_cutoff_timestamp DESC) rn
+      FROM wnba_player_role_contexts
+    )
+    SELECT * FROM ranked WHERE rn=1
+  `;
+  let impactRes={results:[]},roleRes={results:[]},impactError=null,roleError=null;
+  try{impactRes=await d1AllWithRetry(db,impactSql);}catch(err){impactError=String(err?.message||err);}
+  try{roleRes=await d1AllWithRetry(db,roleSql);}catch(err){roleError=String(err?.message||err);}
+
+  const players={},roles={};
+  for(const r of impactRes?.results||[]){
+    players[String(r.player_id)]={
+      modelId:r.model_id,version:r.model_version,playerId:String(r.player_id),name:r.player_name,teamId:r.team_id,position:r.position,
+      offense:finite(r.offense_impact),defense:finite(r.defense_impact),net:finite(r.net_impact),
+      rapm:r.rapm_net==null?null:{net:finite(r.rapm_net)},
+      diagnostics:{bpmStyle:finite(r.bpm_style),vorpStylePerGame:finite(r.vorp_style),ws48Style:finite(r.ws48_style)},
+      skill:parseJson(r.dynamic_skill_json)
+    };
+  }
+  for(const r of roleRes?.results||[]){
+    const x=parseJson(r.context_json);
+    roles[String(r.player_id)]={
+      featureCutoffTimestamp:r.feature_cutoff_timestamp,
+      role:{
+        minutesDelta:finite(r.minutes_delta),usageMultiplier:finite(r.usage_multiplier),pointsMultiplier:finite(r.points_multiplier),
+        reboundsMultiplier:finite(r.rebounds_multiplier),assistsMultiplier:finite(r.assists_multiplier),threesMultiplier:finite(r.threes_multiplier),
+        unavailableCount:Number(r.unavailable_count||0)
+      },
+      lineup:{multiplier:finite(r.lineup_multiplier)??1},
+      availabilityVerified:Number(r.availability_verified||0)===1,
+      unavailable:x.unavailable||[]
+    };
+  }
+  const playerN=Object.keys(players).length,roleN=Object.keys(roles).length;
+  const available=playerN>0;
+  return {
+    players,roles,
+    meta:{
+      available,partial:Boolean(impactError||roleError),players:playerN,roles:roleN,
+      impactError,roleError,
+      roleContextAvailable:roleN>0,
+      playerBankAvailable:playerN>0
+    }
+  };
 }
 
 function teamAbbr(team={}){return String(team.abbr||team.shortName||team.name||"").toUpperCase();}
