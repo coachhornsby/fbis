@@ -4,7 +4,7 @@ export const MLB_PROP_PROMOTION_THRESHOLDS = Object.freeze({
   insufficientData: Object.freeze({
     minSettledN: 250,
     minWalkForwardN: 150,
-    minDistinctDates: 20,
+    minDistinctDates: 17,
   }),
   calibrationCandidate: Object.freeze({
     minSettledN: 500,
