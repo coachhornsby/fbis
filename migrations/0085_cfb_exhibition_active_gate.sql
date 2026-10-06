@@ -1,4 +1,4 @@
--- Exhibition/all-star event sides can appear in ESPN's terminal-season team feed
+-- Exhibition/all-star event sides can appear in ESPN's terminal-season team feed.
 -- with FBS/FCS labels. Retain canonical identities/history but fail closed for active programs.
 UPDATE cfb_canonical_teams
 SET active = 0,
