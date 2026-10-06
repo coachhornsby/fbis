@@ -34,7 +34,7 @@ test("controlled tiny sample cannot pass 500-game promotion gate",()=>{
   assert.equal(r.promotion.pass,false);assert.equal(r.promotion.checks.sampleSize,false);assert.equal(r.promotion.canAuthorize,false);
 });
 test("Phase 3 migration is additive and fail-closed",async()=>{
-  const sql=await readFile(new URL("../migrations/0081_asian_baseball_pregame_foundation.sql",import.meta.url),"utf8");
+  const sql=await readFile(new URL("../migrations/0082_asian_baseball_pregame_foundation.sql",import.meta.url),"utf8");
   assert.match(sql,/asian_baseball_pregame_snapshots/);assert.match(sql,/asian_baseball_park_factors/);
   assert.match(sql,/temporal_eligible INTEGER NOT NULL DEFAULT 0/);assert.match(sql,/can_qualify INTEGER NOT NULL DEFAULT 0/);
   assert.match(sql,/can_authorize INTEGER NOT NULL DEFAULT 0/);assert.doesNotMatch(sql,/\bDROP\b|\bDELETE FROM\b/i);
