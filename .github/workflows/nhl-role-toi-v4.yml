@@ -1,0 +1,54 @@
+name: NHL role TOI v4
+
+on:
+  pull_request:
+    paths:
+      - "scripts/nhl-role-toi-v4-backtest.mjs"
+      - ".github/workflows/nhl-role-toi-v4.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+      - name: Syntax check
+        run: node --check scripts/nhl-role-toi-v4-backtest.mjs
+      - name: Download completed-season PIT datasets
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/nhl-role-toi
+          for y in 2024 2025 2026; do
+            curl -fL --retry 4 --retry-delay 2 "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_skater_boxscores/skater_box_${y}.csv" -o "artifacts/nhl-role-toi/skater_box_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2 "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_shifts/shifts_${y}.csv" -o "artifacts/nhl-role-toi/shifts_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2 "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_scratches/scratches_${y}.csv" -o "artifacts/nhl-role-toi/scratches_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2 "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_game_rosters/game_rosters_${y}.csv" -o "artifacts/nhl-role-toi/game_rosters_${y}.csv"
+          done
+      - name: Run learned deployment validation
+        run: |
+          node --max-old-space-size=6144 scripts/nhl-role-toi-v4-backtest.mjs artifacts/nhl-role-toi artifacts/nhl-role-toi-v4-validation.json 2024,2025,2026 | tee artifacts/nhl-role-toi-v4.log
+          jq -e '.counts.samples > 100000 and .counts.propPredictions > 100000 and .counts.gamePredictions > 3000 and .integrity.validationAndConfirmationUntouchedForFit == true' artifacts/nhl-role-toi-v4-validation.json >/dev/null
+      - name: Summary
+        run: |
+          R=artifacts/nhl-role-toi-v4-validation.json
+          {
+            echo "## NHL role TOI v4"
+            jq -r '"- TOI validation/confirmation gain (min): " + (.toi.bySeason["2025"].gainMinutes|tostring) + " / " + (.toi.bySeason["2026"].gainMinutes|tostring)' "$R"
+            jq -r '"- SOG validation/confirmation MAE gain: " + (.playerSog.bySeason["2025"].maeGain|tostring) + " / " + (.playerSog.bySeason["2026"].maeGain|tostring)' "$R"
+            jq -r '"- game validation margin/total/winner gain: " + (.gameProjection.bySeason["2025"].marginGain|tostring) + " / " + (.gameProjection.bySeason["2025"].totalGain|tostring) + " / " + (.gameProjection.bySeason["2025"].winnerGain|tostring)' "$R"
+            jq -r '"- game confirmation margin/total/winner gain: " + (.gameProjection.bySeason["2026"].marginGain|tostring) + " / " + (.gameProjection.bySeason["2026"].totalGain|tostring) + " / " + (.gameProjection.bySeason["2026"].winnerGain|tostring)' "$R"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nhl-role-toi-v4-${{ github.run_id }}
+          path: |
+            artifacts/nhl-role-toi-v4-validation.json
+            artifacts/nhl-role-toi-v4.log
+          retention-days: 90
