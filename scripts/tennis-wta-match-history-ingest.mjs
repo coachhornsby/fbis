@@ -79,7 +79,6 @@ for(const t of chosen){
 }
 await fs.writeFile(OUT,sql);
 const summary={generatedAt:now,year:YEAR,offset:START,limit:LIMIT,tournamentPagesScanned:pagesScanned,tournamentsAvailable:all.length,tournamentsAttempted:chosen.length,recordsSeen:seen,recordsWritten:written,failures,shards,nextOffset:START+chosen.length,complete:START+chosen.length>=all.length};
-await fs.writeFile(SUMMARY,JSON.stringify(summary,null,2)+"
-");
+await fs.writeFile(SUMMARY,JSON.stringify(summary,null,2)+String.fromCharCode(10));
 console.log(JSON.stringify(summary,null,2));
 if(!chosen.length||failures)process.exitCode=2;
