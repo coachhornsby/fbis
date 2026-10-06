@@ -32,8 +32,6 @@ function hitterFallbackRates(h={}){
     runs:finite(h.runsPerPa)??clamp(.115+(x-.320)*.20,.045,.22),
     rbi:finite(h.rbiPerPa)??clamp(.105+(x-.320)*.22+(bar-.055)*.18,.035,.24),
     bb:finite(h.walkRate)??clamp(.083+(0.50-(finite(g.swingRate)??.47))*.12,.035,.18),
-    runs:finite(h.runsPerPa)??.115,
-    rbi:finite(h.rbiPerPa)??.105,
   };
 }
 function lineupWalkRate(state,side){
@@ -66,14 +64,14 @@ function pitcherRows(game,state,side){
   const env=clamp((finite(game?.mlbContext?.palParkRunFactor)??1)*(finite(game?.mlbContext?.weatherRunFactor)??1),.82,1.22);
   const erLambda=er9!=null?(er9/9)*ip*runFactor*env:null;
   const outSigma=recentIpSigma(profile)*3;
+  const pitchSamples=(profile?.recentStarter?.rows||[]).map(x=>finite(x?.pitches)).filter(Number.isFinite);
   const recentPitches=finite(profile?.recentStarter?.pitches);
   const recentIp=finite(profile?.recentStarter?.innings);
-  const pitchCount=recentPitches!=null
-    ? clamp(recentPitches*(recentIp>0?ip/recentIp:1),45,125)
-    : clamp(expectedBf*3.85,45,125);
-  const pitchSamples=(profile?.recentStarter?.rows||[]).map(x=>finite(x?.pitches)).filter(Number.isFinite);
+  const pitchesPerInning=recentPitches!=null&&recentIp>0?recentPitches/recentIp:15.8;
+  const pitchCount=clamp(ip*pitchesPerInning,55,115);
+  const pitchMean=pitchSamples.length?pitchSamples.reduce((a,b)=>a+b,0)/pitchSamples.length:null;
   const pitchSigma=pitchSamples.length>=2
-    ? clamp(Math.sqrt(pitchSamples.reduce((s,x)=>s+(x-pitchSamples.reduce((a,b)=>a+b,0)/pitchSamples.length)**2,0)/(pitchSamples.length-1)),6,22)
+    ? clamp(Math.sqrt(pitchSamples.reduce((s,x)=>s+(x-pitchMean)**2,0)/(pitchSamples.length-1)),6,22)
     : 14;
   const rows=[];
   const add=(market,projection,sigma,source)=>{
@@ -84,11 +82,6 @@ function pitcherRows(game,state,side){
   add("hits_allowed",hitLambda,Math.sqrt(Math.max(.4,hitLambda??0)),"MLB_PERSISTENT_H9_X_MATCHUP_CONTACT_V1");
   add("earned_runs",erLambda,Math.sqrt(Math.max(.5,(erLambda??0)*1.18)),"MLB_PERSISTENT_ERA_X_MATCHUP_RUN_ENV_V1");
   add("walks_allowed",walkLambda,Math.sqrt(Math.max(.35,walkLambda??0)),"MLB_PERSISTENT_BB_X_OPPONENT_WALK_V1");
-  const recentPitches=finite(profile?.recentStarter?.pitches);
-  const recentIp=finite(profile?.recentStarter?.innings);
-  const pitchesPerInning=recentPitches!=null&&recentIp>0?recentPitches/recentIp:15.8;
-  const pitchCount=clamp(ip*pitchesPerInning,55,115);
-  add("pitch_count",pitchCount,8.5,"MLB_PERSISTENT_RECENT_PITCHES_X_EXPECTED_IP_V1");
   add("pitch_count",pitchCount,pitchSigma,"MLB_PERSISTENT_RECENT_PITCH_COUNT_X_EXPECTED_IP_V1");
   return rows.map(r=>({
     ...r,playerId:String(sp.id),playerName:sp.name||profile.name||null,position:"P",team,
@@ -145,9 +138,6 @@ function hitterRows(game,state,side){
       ["total_bases",pa*tbRate,Math.sqrt(Math.max(.40,pa*tbRate*1.25)),"MLB_BATTER_TOTAL_BASES_DAMAGE_V1"],
       ["home_runs",pa*hrRate,Math.sqrt(Math.max(.08,pa*hrRate*(1-hrRate))),"MLB_BATTER_HR_BARREL_XWOBA_PARK_V1"],
       ["walks",pa*bbRate,Math.sqrt(Math.max(.15,pa*bbRate*(1-bbRate))),"MLB_BATTER_WALKS_DISCIPLINE_PITCHER_BB_V1"],
-      ["runs",pa*runsRate,Math.sqrt(Math.max(.18,pa*runsRate*(1-runsRate))),"MLB_BATTER_RUNS_TEAM_ENV_V1"],
-      ["rbis",pa*rbiRate,Math.sqrt(Math.max(.18,pa*rbiRate*(1-rbiRate))),"MLB_BATTER_RBI_TEAM_ENV_V1"],
-      ["hits_runs_rbis",pa*hrrRate,Math.sqrt(Math.max(.35,pa*hrrRate*1.12)),"MLB_BATTER_HRR_COMPOSITE_V1"],
       ["runs",runsProjection,Math.sqrt(Math.max(.18,runsProjection*.82)),"MLB_BATTER_RUNS_SEASON_RATE_X_TEAM_ENV_V1"],
       ["rbis",rbiProjection,Math.sqrt(Math.max(.18,rbiProjection*.88)),"MLB_BATTER_RBI_SEASON_RATE_X_TEAM_ENV_DAMAGE_V1"],
       ["hits_runs_rbis",hitsProjection+runsProjection+rbiProjection,Math.sqrt(Math.max(.45,(hitsProjection+runsProjection+rbiProjection)*1.05)),"MLB_BATTER_H_R_RBI_COMPONENT_SUM_V1"],
