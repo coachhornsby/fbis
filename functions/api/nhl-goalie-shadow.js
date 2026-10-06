@@ -6,7 +6,7 @@ import { canonicalEvidenceId, persistCanonicalProspectiveEvidence, persistCanoni
 
 const TZ="America/Chicago";
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
-function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
+function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}\nfunction sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}\nasync function d1Retry(label,fn,attempts=4){let last;for(let i=1;i<=attempts;i++){try{return await fn();}catch(error){last=error;if(i<attempts)await sleep(180*i);}}throw new Error(`D1_RETRY_EXHAUSTED:${label}:${String(last?.message||last||"unknown")}`);}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function dateCt(d=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);}
 function shiftDay(day,delta){const [y,m,d]=day.split("-").map(Number),x=new Date(Date.UTC(y,m-1,d,12));x.setUTCDate(x.getUTCDate()+delta);return x.toISOString().slice(0,10);}
