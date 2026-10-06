@@ -265,10 +265,55 @@ async function settle(context,{date,shard=0,shards=1,limitGames=6}={}){
       const result=side==="MORE"?(actual>row.market_line?"HIT":actual<row.market_line?"MISS":"PUSH"):
         side==="LESS"?(actual<row.market_line?"HIT":actual>row.market_line?"MISS":"PUSH"):"NO_SIDE";
       const at=new Date().toISOString();
+      const settlementPayload={gameStatus:feed.gameData.status,playerId:player?.person?.id||null,market:row.market,actual};
       const upd=await db.prepare(`UPDATE mlb_prop_prospective_evidence
         SET actual_value=?,result=?,settled_at=?,settlement_source='MLB_STATS_FINAL',settlement_json=?,updated_at=?
-        WHERE id=? AND settled_at IS NULL`).bind(actual,result,at,JSON.stringify({gameStatus:feed.gameData.status,playerId:player?.person?.id||null,market:row.market,actual}),at,row.id).run();
-      settled+=Number(upd?.meta?.changes||0);
+        WHERE id=? AND settled_at IS NULL`).bind(actual,result,at,JSON.stringify(settlementPayload),at,row.id).run();
+      const changed=Number(upd?.meta?.changes||0);
+      settled+=changed;
+      if(changed>0){
+        await db.prepare(`UPDATE fbis_prospective_evidence
+          SET graded_at=?,result_json=?
+          WHERE evidence_id=? AND graded_at IS NULL`)
+          .bind(at,JSON.stringify({result,actual,settlementSource:"MLB_STATS_FINAL",settlement:settlementPayload}),row.id).run();
+
+        let market={};
+        try{market=JSON.parse(row.market_json||"{}")||{}}catch{}
+        const raw=market?.raw||{};
+        const overPrice=num(raw.book_over_price);
+        const underPrice=num(raw.book_under_price);
+        if(overPrice!=null&&underPrice!=null&&(row.candidate_side==="MORE"||row.candidate_side==="LESS")){
+          const nv=noVigPair(overPrice,underPrice);
+          const isMore=row.candidate_side==="MORE";
+          const entryPrice=isMore?overPrice:underPrice;
+          const entryNoVig=isMore?nv.a:nv.b;
+          const normalizedResult=result==="HIT"?"WIN":result==="MISS"?"LOSS":result==="PUSH"?"PUSH":null;
+          if(normalizedResult&&entryNoVig!=null){
+            const gradeId=sha256Hex(JSON.stringify(["FBIS_ECONOMIC_GRADE_v1",row.id]));
+            const grade=buildEconomicGrade({
+              gradeId,evidenceId:row.id,sport:"mlb",eventId:row.event_id,
+              marketFamily:row.market,selection:row.candidate_side,
+              projectedProbability:null,entryLine:num(row.market_line),entryPrice,
+              entryNoVigProbability:entryNoVig,result:normalizedResult,stakeUnits:1,gradedAt:at,
+              metadata:{economicBasis:"SIMULATED_1U_PRICE_AVAILABLE",marketSource:row.market_source,sportsbook:row.sportsbook}
+            });
+            await db.prepare(`INSERT OR IGNORE INTO fbis_economic_grades(
+              grade_id,evidence_id,contract_version,sport,event_id,market_family,selection,
+              projected_probability,entry_line,entry_price,entry_no_vig_probability,
+              close_line,close_price,close_no_vig_probability,result,clv_probability,
+              profit_units,roi,brier,log_loss,graded_at,metadata_json,
+              entry_market_snapshot_id,entry_observed_at,economic_basis,metric_method_version
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+              .bind(
+                grade.gradeId,grade.evidenceId,grade.version,grade.sport,grade.eventId,grade.marketFamily,grade.selection,
+                grade.projectedProbability,grade.entryLine,grade.entryPrice,grade.entryNoVigProbability,
+                grade.closeLine,grade.closePrice,grade.closeNoVigProbability,grade.result,grade.clvProbability,
+                grade.profitUnits,grade.roi,grade.brier,grade.logLoss,grade.gradedAt,JSON.stringify(grade.metadata),
+                row.duplicate_key,row.market_observed_at,"SIMULATED_1U_PRICE_AVAILABLE","FBIS-ECONOMIC-GRADE-v1"
+              ).run();
+          }
+        }
+      }
     }
   }
   const finished=new Date().toISOString();
