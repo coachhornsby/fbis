@@ -1,0 +1,37 @@
+name: Deploy NHL goalie shadow scheduler
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "workers/nhl-goalie-shadow-scheduler.mjs"
+      - "wrangler.nhl-goalie-shadow-scheduler.toml"
+      - "functions/api/nhl-goalie-shadow.js"
+      - "functions/lib/todayBoard.js"
+      - ".github/workflows/deploy-nhl-goalie-shadow-scheduler.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-nhl-goalie-shadow-scheduler
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+      - run: npm ci --no-audit --no-fund
+      - name: Focused NHL shadow tests
+        run: node --test test/nhl-goalie-prob-shadow.test.js test/nhl-goalie-shadow-scheduler.test.js
+      - name: Deploy Cloudflare cron worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.nhl-goalie-shadow-scheduler.toml
