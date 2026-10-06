@@ -3,7 +3,8 @@ on:
   push:
     branches: [research/mlb-pitcher-k-full-pit-scaleup]
     paths:
-      - "scripts/mlb-pitcher-k-full-pit-scaleup.mjs"\n      - "scripts/mlb-pitcher-k-pit-merge.mjs"
+      - "scripts/mlb-pitcher-k-full-pit-scaleup.mjs"
+      - "scripts/mlb-pitcher-k-pit-merge.mjs"
       - ".github/workflows/mlb-pitcher-k-full-pit-scaleup.yml"
 permissions:
   contents: read
