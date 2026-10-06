@@ -10,6 +10,7 @@ const LIMIT=Math.max(1,Math.min(10,Number(process.env.WTA_TOURNAMENT_LIMIT||2)))
 const START=Number(process.env.WTA_TOURNAMENT_OFFSET||0);
 const PAGE_SIZE=Math.max(25,Math.min(500,Number(process.env.WTA_TOURNAMENT_PAGE_SIZE||100)));
 const MAX_PAGES=Math.max(1,Math.min(25,Number(process.env.WTA_TOURNAMENT_MAX_PAGES||10)));
+const INPUT=process.env.WTA_MATCH_INPUT||"";
 const OUT=process.env.WTA_MATCH_SQL||"artifacts/wta-match-history.sql";
 const RAW=process.env.WTA_RAW_DIR||"artifacts/wta-raw";
 const SUMMARY=process.env.WTA_MATCH_SUMMARY||"artifacts/wta-match-history-summary.json";
@@ -55,7 +56,7 @@ let sql="";let seen=0,written=0,failures=0;const shards=[];
 for(const t of chosen){
  const gid=group(t),yr=yearOf(t),sourcePath=`/tournaments/${gid}/${yr}/matches`,shardKey=`wta:matches:${yr}:${gid}`;
  try{
-  const res=await get(sourcePath);if(!res.ok)throw new Error(`HTTP ${res.status}`);
+  const res=INPUT?{ok:true,status:200,text:await fs.readFile(INPUT,"utf8"),body:JSON.parse(await fs.readFile(INPUT,"utf8")),path:sourcePath}:await get(sourcePath);if(!res.ok)throw new Error(`HTTP ${res.status}`);
   const rows=arr(res.body);if(!rows.length){shards.push({shardKey,gid,year:yr,status:"EMPTY",rows:0});continue;}const checksum=h(res.text),rawKey=`wta/matches/${yr}/${gid}/matches-${checksum.slice(0,16)}.json`;
   await fs.mkdir(path.join(RAW,String(yr),gid),{recursive:true});await fs.writeFile(path.join(RAW,String(yr),gid,"matches.json"),res.text);
   seen+=rows.length;
