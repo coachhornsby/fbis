@@ -30,13 +30,18 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const status=game?.publicationStatus||"RESEARCH";
   const bank=t?.playerBank||{}, bp1=bank.players?.[0]||{}, bp2=bank.players?.[1]||{}, h2h=bank.headToHead||{};
   const recent=(p)=>(p?.recentForm||[]);
-  const formText=(p)=>recent(p).length?recent(p).map(x=>x.result).join(" · "):"—";
+  const formTokens=(p)=>recent(p).length?recent(p).slice(0,5).map((x,i)=>{const r=String(x?.result||"").toUpperCase();return <span key={i} className={r==="W"?"tmc-form-win":r==="L"?"tmc-form-loss":"tmc-form-unknown"}>{r||"—"}</span>}):<span className="tmc-form-unknown">—</span>;
+  const portraitUrl=(team,bp)=>team?.headshotUrl||team?.headshot_url||team?.photoUrl||team?.photo_url||bp?.headshotUrl||bp?.headshot_url||null;
+  const country=(team,bp)=>String(team?.countryCode||team?.country_code||team?.country||bp?.countryCode||bp?.country_code||bp?.country||"").trim();
+  const flagUrl=(code)=>{const cc=String(code||"").trim().toLowerCase();return /^[a-z]{2}$/.test(cc)?`https://flagcdn.com/w80/${cc}.png`:null};
+  const flagFallback=(code)=>{const cc=String(code||"").trim().toUpperCase();if(!/^[A-Z]{2}$/.test(cc))return "";return String.fromCodePoint(...[...cc].map(ch=>127397+ch.charCodeAt(0)))};
+  const PlayerVisual=({team,bp})=>{const src=portraitUrl(team,bp),cc=country(team,bp),flag=flagUrl(cc);return <div className="tmc-player-visual">{src?<img className="tmc-headshot" src={src} alt="" loading="lazy" decoding="async"/>:<div className="tmc-headshot-fallback" aria-label="Player headshot unavailable">{(team?.abbr||team?.name||"?").slice(0,4)}</div>}<span className="tmc-country" title={cc||"Country unavailable"}>{flag?<img src={flag} alt={cc}/>:flagFallback(cc)||"—"}</span></div>};
   return <article className="tmc">
     <header className="tmc-top"><div><b>TENNIS</b><strong>{t.tournament||tour}</strong><span>{tour}</span><span>{surface||"SURFACE —"}</span></div><div><span>{time} CT</span><em>{status.includes("RESEARCH")?"RESEARCH":status}</em></div></header>
     <section className="tmc-hero">
-      <div className="tmc-player"><TeamLogo team={away} size={150}/><div><h2>{away.fullName||away.name}</h2><p>{playerMeta(away,tour)}</p><strong>{pct(pAway)}</strong><small>FBIS WIN PROBABILITY</small><b>{fair(pAway)}<i>FBIS FAIR ML</i></b></div></div>
+      <div className="tmc-player"><PlayerVisual team={away} bp={bp2}/><div><h2>{away.fullName||away.name}</h2><p>{playerMeta(away,tour)}</p><strong>{pct(pAway)}</strong><small>FBIS WIN PROBABILITY</small><b>{fair(pAway)}<i>FBIS FAIR ML</i></b></div></div>
       <div className="tmc-vs">VS</div>
-      <div className="tmc-player tmc-home"><div><h2>{home.fullName||home.name}</h2><p>{playerMeta(home,tour)}</p><strong>{pct(pHome)}</strong><small>FBIS WIN PROBABILITY</small><b>{fair(pHome)}<i>FBIS FAIR ML</i></b></div><TeamLogo team={home} size={150}/></div>
+      <div className="tmc-player tmc-home"><div><h2>{home.fullName||home.name}</h2><p>{playerMeta(home,tour)}</p><strong>{pct(pHome)}</strong><small>FBIS WIN PROBABILITY</small><b>{fair(pHome)}<i>FBIS FAIR ML</i></b></div><PlayerVisual team={home} bp={bp1}/></div>
       <aside className="tmc-edge"><span>MODEL vs MARKET</span><b>{best?.p?.fullName||best?.p?.name||"NO EDGE"}</b><strong>{best?`+${Math.abs(best.e).toFixed(1)}%`:"—"}</strong><small>WIN PROBABILITY EDGE</small><small className="tmc-edge-help">FBIS win probability minus market no-vig probability</small><em>RESEARCH</em></aside>
     </section>
     <div className="tmc-main">
@@ -59,7 +64,7 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
       <section className="tmc-panel tmc-context"><h3>MATCH CONTEXT</h3><div><span>Surface</span><b>{surface||"—"}</b></div><div><span>Player rankings</span><b>{away.rank?"#"+away.rank:"—"} vs {home.rank?"#"+home.rank:"—"}</b></div><div><span>Market updated</span><b>{ref.observedAt?new Date(ref.observedAt).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}):"—"}</b></div><div><span>Model</span><b>{game?.model?.name||game?.modelId||"Tennis-FBIS-v2"}</b></div></section>
     </div>
     <div className="tmc-deep">
-      <section className="tmc-panel"><h3>RECENT FORM (LAST 5)</h3><div className="tmc-form"><div><b>{home.fullName||home.name}</b><strong>{formText(bp1)}</strong><span>Hold {bp1.holdPct==null?"—":pct(bp1.holdPct)} · Break {bp1.breakPct==null?"—":pct(bp1.breakPct)}</span></div><div><b>{away.fullName||away.name}</b><strong>{formText(bp2)}</strong><span>Hold {bp2.holdPct==null?"—":pct(bp2.holdPct)} · Break {bp2.breakPct==null?"—":pct(bp2.breakPct)}</span></div></div></section>
+      <section className="tmc-panel"><h3>RECENT FORM (LAST 5)</h3><div className="tmc-form"><div><b>{home.fullName||home.name}</b><strong className="tmc-form-results">{formTokens(bp1)}</strong><span>Hold {bp1.holdPct==null?"—":pct(bp1.holdPct)} · Break {bp1.breakPct==null?"—":pct(bp1.breakPct)}</span></div><div><b>{away.fullName||away.name}</b><strong className="tmc-form-results">{formTokens(bp2)}</strong><span>Hold {bp2.holdPct==null?"—":pct(bp2.holdPct)} · Break {bp2.breakPct==null?"—":pct(bp2.breakPct)}</span></div></div></section>
       <section className="tmc-panel"><h3>HEAD TO HEAD</h3><div className="tmc-h2h"><strong>{h2h.meetings||0} meetings</strong><span>{home.fullName||home.name} {h2h.player1Wins||0}–{h2h.player2Wins||0} {away.fullName||away.name}</span>{h2h.recent?.[0]?<small>Latest: {h2h.recent[0].winner} · {h2h.recent[0].score||"score unavailable"}</small>:<small>No previous meeting in player bank</small>}</div></section>
       <section className="tmc-panel"><h3>FBIS PROJECTED MATCH</h3><div className="tmc-projected"><div><span>Win probability</span><b>{pct(pHome)} / {pct(pAway)}</b></div><div><span>Fair moneyline</span><b>{fair(pHome)} / {fair(pAway)}</b></div><div><span>Total games</span><b>{t.projectedTotalGames??"—"}</b></div><div><span>Game spread</span><b>{t.projectedGameSpread??"—"}</b></div></div></section>
     </div>
