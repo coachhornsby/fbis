@@ -341,6 +341,42 @@ export const MODEL_REGISTRY = Object.freeze([
     notes:
       "Point-in-time canonical results, recency-weighted league environment, shrunk home/away attack-defense rates, Dixon-Coles score distribution. 1X2/totals/BTTS/AH research only until market and prospective gates pass.",
   },
+  {
+    modelId: "SOCCER-FBIS-v2",
+    sport: "soccer",
+    family: MODEL_FAMILY.PURE,
+    displayName: "Soccer FBIS v2 structural incumbent",
+    maturity: MODEL_MATURITY.RESEARCH,
+    role: "baseline",
+    artifactRef: "functions/lib/soccerFbisV2.js",
+    coefficientsLocked: true,
+    calibrationLocked: false,
+    canQualify: false,
+    canAuthorizeWager: false,
+    marketInformed: false,
+    independent: true,
+    preservesIncumbent: true,
+    notes:
+      "Structural incumbent for Phase 3 league × market-family comparisons. Authoritative route remains v2 unless an explicit later operator-approved production cutover occurs.",
+  },
+  {
+    modelId: "SOCCER-FBIS-v3.1",
+    sport: "soccer",
+    family: MODEL_FAMILY.PURE,
+    displayName: "Soccer FBIS v3.1 advanced-data score-layer challenger",
+    maturity: MODEL_MATURITY.RESEARCH,
+    role: "challenger",
+    artifactRef: "functions/lib/soccerFbisV3.js",
+    coefficientsLocked: false,
+    calibrationLocked: false,
+    canQualify: false,
+    canAuthorizeWager: false,
+    marketInformed: false,
+    independent: true,
+    preservesIncumbent: true,
+    notes:
+      "Advanced xG/PPDA/field-tilt/network challenger. League × market-family research routing only; persistent state excluded; no automatic qualification or wager authority.",
+  },
 ]);
 
 export function getModel(modelId) {
