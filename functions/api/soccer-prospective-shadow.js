@@ -37,7 +37,7 @@ async function snapshot(context,date){
   const snapshotAt=new Date().toISOString();
   const slate=await buildSlate("soccer",resolved.date,envForSlate(context));
   let attempted=0,written=0,existing=0,eligibleGames=0;
-  const skipped={};
+  const skipped={},skippedDetails={};
   for(const game of slate.games||[]){
     if(game?.status?.completed||game?.status?.live){
       skipped["not-pregame"]=(skipped["not-pregame"]||0)+1;
@@ -49,6 +49,10 @@ async function snapshot(context,date){
     });
     if(!built.ok){
       skipped[built.reason]=(skipped[built.reason]||0)+1;
+      if(built.detail){
+        const key=`${built.reason}:${built.detail}`;
+        skippedDetails[key]=(skippedDetails[key]||0)+1;
+      }
       continue;
     }
     if(!built.rows.length){
@@ -67,7 +71,7 @@ async function snapshot(context,date){
     date:resolved.date,
     snapshotAt,
     slateGames:Number(slate.games?.length||0),
-    eligibleGames,attempted,written,existing,skipped,
+    eligibleGames,attempted,written,existing,skipped,skippedDetails,
     lifecycle:"SHADOW",
     publicProjectionRoutingChanged:false,
     persistentStateUsed:false,
