@@ -2919,7 +2919,9 @@ export async function updateExecutedBet(env, id, patch, action = "correction", o
       ...(expectedResult != null ? [expectedResult] : [])
     );
     const audit = env.DB.prepare(
-      "INSERT INTO executed_bet_audit (bet_id, action, detail, created_at) VALUES (?, ?, ?, ?)"
+      expectedResult != null
+        ? "INSERT INTO executed_bet_audit (bet_id, action, detail, created_at) SELECT ?, ?, ?, ? WHERE changes() > 0"
+        : "INSERT INTO executed_bet_audit (bet_id, action, detail, created_at) VALUES (?, ?, ?, ?)"
     ).bind(id, n(action), n(JSON.stringify(patch).slice(0, 500)), new Date().toISOString());
 
     const batchResult = await env.DB.batch([update, audit]);
