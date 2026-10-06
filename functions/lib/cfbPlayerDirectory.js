@@ -28,6 +28,7 @@ export function membershipAt(memberships = [], playerId, at) {
   if (!Number.isFinite(t)) return [];
   return memberships
     .filter(r=>String(r.player_id)===String(playerId))
+    .filter(r=>r.pit_resolvable !== 0 && r.pit_resolvable !== false)
     .filter(r=>{
       const from=Date.parse(r.effective_from || "");
       const to=Date.parse(r.effective_to || "");
@@ -41,6 +42,7 @@ export function rosterAt(memberships = [], teamId, at) {
   if (!Number.isFinite(t)) return [];
   return memberships
     .filter(r=>String(r.team_id)===String(teamId))
+    .filter(r=>r.pit_resolvable !== 0 && r.pit_resolvable !== false)
     .filter(r=>{
       const from=Date.parse(r.effective_from || "");
       const to=Date.parse(r.effective_to || "");
