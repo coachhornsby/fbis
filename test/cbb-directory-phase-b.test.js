@@ -25,12 +25,14 @@ test("CBB Phase B excludes totals challengers",()=>{
  assert.equal(defs.includes("TOTALS"),false);
 });
 
-test("runtime Phase B uses bounded CBBD sources and daily idempotency",()=>{
+test("runtime Phase B uses digest-pinned SportsDataverse ESPN sources and daily idempotency",()=>{
  const s=readFileSync("functions/lib/cbbDirectoryPhaseB.js","utf8");
- assert.match(s,/cbbdGet\("\/teams\/roster"/);
- assert.match(s,/cbbdGet\("\/teams"/);
- assert.match(s,/cbbdGet\("\/games"/);
- assert.match(s,/cbbdGet\("\/stats\/player\/season"/);
+ assert.match(s,/sportsdataverse-data\/releases\/download/);
+ assert.match(s,/rosters_2027\.csv/);
+ assert.match(s,/mbb_schedule_2027\.csv/);
+ assert.match(s,/player_season_stats_2026\.csv/);
+ assert.match(s,/game_rosters_2026\.csv/);
+ assert.match(s,/sportsdataverse-digest-mismatch/);
  assert.match(s,/already_complete/);
  assert.match(s,/prior-season baseline only when provider identity and team match verified current roster/);
  assert.match(s,/UNKNOWN absent explicit verified status source/);
