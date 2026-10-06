@@ -1,0 +1,37 @@
+name: KBO NPB Phase 3 controlled pregame seed once
+on:
+  push:
+    branches: ["codex/kbo-npb-phase3-seed-once"]
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Require harvest auth
+        run: test -n "${HARVEST_SECRET:-}"
+      - name: Build controlled pregame samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          call () {
+            curl -fsS --connect-timeout 5 --max-time 120 --retry 4 --retry-delay 5 --retry-all-errors               -X POST               -H "x-harvest-secret: $HARVEST_SECRET"               -H "content-type: application/json"               -d "$1"               "$BASE/api/asian-baseball-pregame-controlled"
+          }
+          call '{"league":"KBO","season":2025,"month":9,"limit":12,"cutoffMinutes":360}' | tee /tmp/kbo.json | jq .
+          call '{"league":"NPB","season":2025,"month":9,"limit":12,"cutoffMinutes":360}' | tee /tmp/npb.json | jq .
+          test "$(jq -r '.ok' /tmp/kbo.json)" = "true"
+          test "$(jq -r '.ok' /tmp/npb.json)" = "true"
+      - name: Verify quality and walk forward
+        shell: bash
+        run: |
+          set -euo pipefail
+          for L in KBO NPB; do
+            curl -fsS --connect-timeout 5 --max-time 60 --retry 4 --retry-delay 5 --retry-all-errors               -H "x-harvest-secret: $HARVEST_SECRET"               "$BASE/api/asian-baseball-pregame-controlled?league=$L&season=2025&month=9&walkforward=1"               | tee "/tmp/$L-report.json" | jq .
+            jq -e '.ok == true and .quality.snapshots == 12 and .quality.temporalEligible == 12 and .evaluation.promotion.canAuthorize == false' "/tmp/$L-report.json" >/dev/null
+          done
