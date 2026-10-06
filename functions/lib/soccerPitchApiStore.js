@@ -142,6 +142,32 @@ export async function persistPitchApiBundle(env,bundle={}){
   }
   return{ok:true,match:1,players,lineups};
 }
+export async function refreshPitchApiCompetitionCoverage(env,{leagueKey}={}){
+  const db=env?.DB;if(!db?.prepare||!leagueKey)return{ok:false,reason:"d1-unbound-or-league-missing"};
+  const row=await db.prepare(`SELECT
+      COUNT(*) AS pitch_match_count,
+      SUM(CASE WHEN
+        home_xg IS NOT NULL AND away_xg IS NOT NULL AND
+        home_ppda IS NOT NULL AND away_ppda IS NOT NULL AND
+        home_field_tilt IS NOT NULL AND away_field_tilt IS NOT NULL AND
+        home_network_centralization IS NOT NULL AND away_network_centralization IS NOT NULL
+      THEN 1 ELSE 0 END) AS advanced_rows,
+      MIN(match_date) AS history_start,
+      MAX(match_date) AS history_end
+    FROM soccer_pitchapi_match_features
+    WHERE league_key=?`).bind(leagueKey).first();
+  const total=Math.max(0,Number(row?.pitch_match_count)||0);
+  const advanced=Math.max(0,Number(row?.advanced_rows)||0);
+  const coverage=total>0?advanced/total:null;
+  const updated=now();
+  await db.prepare(`UPDATE soccer_competition_coverage
+    SET pitch_match_count=?,advanced_rows=?,advanced_coverage=?,history_start=?,history_end=?,last_ingested_at=?
+    WHERE heritage_key=?`).bind(
+      total,advanced,coverage,row?.history_start||null,row?.history_end||null,updated,leagueKey
+    ).run();
+  return{ok:true,leagueKey,pitchMatchCount:total,advancedRows:advanced,advancedCoverage:coverage,historyStart:row?.history_start||null,historyEnd:row?.history_end||null};
+}
+
 export async function loadPitchApiHistory(env,{leagueKey,beforeDate,startDate="2021-01-01"}={}){
   const db=env?.DB;if(!db?.prepare||!leagueKey)return[];
   const r=await db.prepare(`SELECT * FROM soccer_pitchapi_match_features
