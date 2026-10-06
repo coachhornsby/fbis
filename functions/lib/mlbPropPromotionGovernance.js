@@ -52,6 +52,7 @@ function corePass(e,t,{prospective=false}={}){
   const settled=n(e?.settledN), wf=n(e?.walkForwardN), dates=n(e?.distinctDates);
   const corr=n(e?.bucketRankCorrelation), brier=n(e?.calibratedBrier), ece=n(e?.calibratedEce);
   const biasShare=n(e?.absoluteBiasSdShare), maeGain=n(e?.maeImprovementVsBestNonMarketBaseline);
+  const properScoreGain=n(e?.properScoreImprovementVsBestNonMarketBaseline);
   if(settled==null||settled<t.minSettledN)return false;
   if(wf==null||wf<t.minWalkForwardN)return false;
   if(dates==null||dates<t.minDistinctDates)return false;
@@ -62,13 +63,14 @@ function corePass(e,t,{prospective=false}={}){
   if(brier==null||brier>t.maxCalibratedBrier)return false;
   if(ece==null||ece>t.maxCalibratedEce)return false;
   if(biasShare==null||biasShare>t.maxAbsoluteBiasSdShare)return false;
-  if(maeGain==null||maeGain<t.minMaeImprovementVsBestNonMarketBaseline)return false;
+  const baselineGainOk=(maeGain!=null&&maeGain>=t.minMaeImprovementVsBestNonMarketBaseline) ||
+    (e?.rareEventMarket===true && properScoreGain!=null && properScoreGain>=t.minMaeImprovementVsBestNonMarketBaseline);
+  if(!baselineGainOk)return false;
   if(prospective){
     if(n(e?.prospectiveDays)<t.minProspectiveDays)return false;
     if(e?.temporalIntegrity!==true||e?.stateBeforeWeight!==true)return false;
     const seg=n(e?.maxMaterialSegmentRelativeMaeDegradation);
     if(seg==null||seg>t.maxMaterialSegmentRelativeMaeDegradation)return false;
-    if(e?.manualPromotionApproved===true)return false; // evaluation phase never performs promotion
   }
   return true;
 }
