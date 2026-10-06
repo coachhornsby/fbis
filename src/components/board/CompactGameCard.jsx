@@ -110,6 +110,44 @@ function bestEdge(vm) {
   };
 }
 
+function mlbStarterInfo(game, side) {
+  const persistent = game?.mlbPersistentState?.[side === "home" ? "homeStarter" : "awayStarter"] || null;
+  const raw = game?.[side === "home" ? "homeSp" : "awaySp"] || {};
+  const era = persistent?.era ?? game?.savant?.[side === "home" ? "homeSpEra" : "awaySpEra"] ?? null;
+  const id = raw?.id ?? persistent?.id ?? null;
+  return {
+    id,
+    name: raw?.name || persistent?.name || null,
+    wins: persistent?.wins ?? null,
+    losses: persistent?.losses ?? null,
+    era,
+  };
+}
+
+function starterInitials(name) {
+  return String(name || "SP").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "SP";
+}
+
+function MlbStarterMini({ game, side }) {
+  const sp = mlbStarterInfo(game, side);
+  if (!sp.name && sp.era == null) return null;
+  const record = sp.wins != null && sp.losses != null ? `${sp.wins}-${sp.losses}` : null;
+  const era = Number.isFinite(Number(sp.era)) ? `${Number(sp.era).toFixed(2)} ERA` : null;
+  const image = sp.id ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_96,q_auto:best/v1/people/${sp.id}/headshot/67/current` : null;
+  return (
+    <div className="cgc-mlb-starter" aria-label={[`Starter ${sp.name || "TBD"}`, record, era].filter(Boolean).join(", ")}>
+      <span className="cgc-starter-avatar" aria-hidden="true">
+        <span>{starterInitials(sp.name)}</span>
+        {image ? <img src={image} alt="" width="30" height="30" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : null}
+      </span>
+      <span className="cgc-starter-copy">
+        <strong title={sp.name || "TBD"}>{sp.name || "TBD"}</strong>
+        <span>{[record, era].filter(Boolean).join(" · ") || "Starter"}</span>
+      </span>
+    </div>
+  );
+}
+
 function actionSplitLabel(split, away, home) {
   if (!split) return "—";
   const awayPct = Number(split.awayPct);
@@ -298,6 +336,7 @@ export default function CompactGameCard({ game, onOpen }) {
             <TeamLogo team={away} size={66} className="cgc-logo" />
             <strong className="cgc-abbr">{away.abbr || "—"}</strong>
             <span className="cgc-team-name">{away.fullName || away.name || away.abbr || "—"}</span>
+            {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
             <strong className="cgc-proj">{proj.available ? (proj.away ?? "—") : "—"}</strong>
             <span>FBIS SCORE</span>
           </div>
@@ -308,6 +347,7 @@ export default function CompactGameCard({ game, onOpen }) {
             <TeamLogo team={home} size={66} className="cgc-logo" />
             <strong className="cgc-abbr">{home.abbr || "—"}</strong>
             <span className="cgc-team-name">{home.fullName || home.name || home.abbr || "—"}</span>
+            {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
             <strong className="cgc-proj">{proj.available ? (proj.home ?? "—") : "—"}</strong>
             <span>FBIS SCORE</span>
           </div>
