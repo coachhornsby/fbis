@@ -1819,8 +1819,19 @@ export async function persistStrategyTicket(env, row, opts = {}) {
         n(row.qualificationRuleVersion)
       )
       .run();
+    const inserted = (Number(res?.meta?.changes) || 0) > 0;
+    if (!inserted) {
+      const raced = await env.DB.prepare("SELECT * FROM strategy_tickets WHERE id = ?").bind(row.id).first();
+      if (!raced) return { ok: false, conflict: true, reason: "insert-race-readback-missing" };
+      const mapped = mapStrategyTicket(raced);
+      const clash = strict ? immutableFieldsConflict(mapped, row) : identityFieldsConflict(mapped, row);
+      if (clash) return { ok: false, conflict: true, reason: "duplicate-conflict", existing: mapped };
+      await fillNullStrategyFields(env, row);
+      markWrite();
+      return { ok: true, already: true, replayRecovered: true, existing: mapped };
+    }
     markWrite();
-    return { ok: true, inserted: (Number(res?.meta?.changes) || 0) > 0 };
+    return { ok: true, inserted: true };
   } catch (err) {
     markErr(err);
     return { ok: false, reason: String(err?.message || err) };
@@ -1904,7 +1915,7 @@ export async function gradeStrategyTicket(env, id, { result, profit, clv, graded
       }
       return { ok: true, already: true };
     }
-    await env.DB.prepare(
+    const write = await env.DB.prepare(
       `UPDATE strategy_tickets
        SET result = ?, profit = ?, clv = ?, graded_at = ?, missing_execution_price = COALESCE(?, missing_execution_price)
        WHERE id = ? AND (result IS NULL OR result = 'OPEN')`
@@ -1918,6 +1929,15 @@ export async function gradeStrategyTicket(env, id, { result, profit, clv, graded
         id
       )
       .run();
+    if ((Number(write?.meta?.changes) || 0) === 0) {
+      const raced = await env.DB.prepare("SELECT result, profit, clv FROM strategy_tickets WHERE id = ?").bind(id).first();
+      if (!raced) return { ok: false, reason: "not-found" };
+      const sameResult = raced.result === result;
+      const sameProfit = String(raced.profit ?? "") === String(profit ?? "");
+      const sameClv = String(raced.clv ?? "") === String(clv ?? "");
+      if (sameResult && sameProfit && sameClv) return { ok: true, already: true };
+      return { ok: false, conflict: true, reason: "settled-immutable" };
+    }
     markWrite();
     return { ok: true };
   } catch (err) {
