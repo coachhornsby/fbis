@@ -23,7 +23,8 @@ const player=pid?await get(`/players/${pid}`):{status:null,ok:false,body:null};
 const matches=pid?await get(`/players/${pid}/matches`):{status:null,ok:false,body:null};
 const tournaments=await get("/tournaments?page=0&pageSize=5");
 const trows=Array.isArray(tournaments.body)?tournaments.body:(tournaments.body?.content||[]);
-let group=trows?.[0]?.tournamentGroup?.id||null,year=trows?.[0]?.year||null;\nif(!year||Number(year)<2020){group=901;year=2025;}
+let group=trows?.[0]?.tournamentGroup?.id||null,year=trows?.[0]?.year||null;
+if(!year||Number(year)<2020){group=901;year=2025;}
 const tournament=(group&&year)?await get(`/tournaments/${group}/${year}`):{status:null,ok:false,body:null};
 const tournamentMatches=(group&&year)?await get(`/tournaments/${group}/${year}/matches`):{status:null,ok:false,body:null};
 const tournamentPlayers=(group&&year)?await get(`/tournaments/${group}/${year}/players`):{status:null,ok:false,body:null};
