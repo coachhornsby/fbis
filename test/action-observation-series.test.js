@@ -387,3 +387,4 @@ test("ACTION daily start claims one canonical paid run before starting Apify", a
   assert.match(api, /Number\(claim\?\.meta\?\.changes\|\|0\)===0/);
   assert.match(api, /status IN \('starting_daily','running_daily'\)/);
 });
+
