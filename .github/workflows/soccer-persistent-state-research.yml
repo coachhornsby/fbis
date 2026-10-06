@@ -1,0 +1,36 @@
+name: Soccer persistent state research
+
+on:
+  schedule:
+    - cron: "12,42 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soccer-persistent-state-research
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      BASE: https://fbis-myz.pages.dev
+      TOKEN: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Refresh bounded research profiles
+        run: |
+          set -euo pipefail
+          test -n "${TOKEN:-}"
+          for i in 1 2 3 4 5 6; do
+            curl -fsS --connect-timeout 5 --max-time 45 --retry 2 --retry-delay 2 --retry-all-errors \
+              -X POST \
+              -H "x-harvest-secret: ${TOKEN}" \
+              -H "content-type: application/json" \
+              -d '{}' \
+              "${BASE}/api/soccer-profile-refresh" | tee "profile-${i}.json"
+            jq -e '.ok == true and .researchOnly == true and .canInfluenceProjection == false' "profile-${i}.json" >/dev/null
+            jq -c '{teamId,teamName,leagueKey,manager,primaryFormation,lineupContinuity5,rotationIndex5,matches14,matches28,playerStates,stateAsOf}' "profile-${i}.json"
+          done
