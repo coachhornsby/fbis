@@ -86,3 +86,6 @@ CREATE TABLE IF NOT EXISTS fbis_economic_grades (
 
 CREATE INDEX IF NOT EXISTS idx_fbis_economic_grades_model_evidence
   ON fbis_economic_grades (sport, market_family, evidence_id);
+
+INSERT OR IGNORE INTO schema_migrations(id,applied_at)
+VALUES('0070_fbis_cross_sport_evidence',datetime('now'));
