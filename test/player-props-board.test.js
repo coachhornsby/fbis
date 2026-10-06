@@ -438,7 +438,7 @@ test("domain adapter preserves authorized WNBA prop flags", () => {
 });
 
 
-test("live NFL props board hides rows below four stars outside San Francisco", () => {
+test("live NFL props board hides uncalibrated sub-4-star rows outside San Francisco", () => {
   const board = buildPlayerPropsBoard({
     games:[{
       id:"nfl-g",sport:"nfl",away:{abbr:"DAL"},home:{abbr:"PHI"},
@@ -464,9 +464,8 @@ test("live NFL props board hides rows below four stars outside San Francisco", (
       ]
     }]
   },{supportedOnly:false,enforceNflDisplayPolicy:true});
-  assert.deepEqual(board.rows.map(r=>r.playerName),["WR Two"]);
-  assert.equal(board.rows[0].confidenceStars,5);
-  assert.equal(board.counts.hiddenNflBelowFourStars,1);
+  assert.deepEqual(board.rows.map(r=>r.playerName),[]);
+  assert.equal(board.counts.hiddenNflBelowFourStars,2);
 });
 
 test("live NFL props board always shows 49ers QB1 RB1 WR1 WR2 TE1 projections regardless of stars or PrizePicks line", () => {
