@@ -242,3 +242,16 @@ test("classifyProspectiveLifecycle separates past-open from upcoming", async () 
   assert.equal(out.counts.graded, 1);
   assert.equal(out.counts.dataErrors, 1);
 });
+
+
+test("NBA watchdog recovers missed full-odds slots instead of cache-only recovery", () => {
+  const health = readFileSync(new URL("../functions/api/health.js", import.meta.url), "utf8");
+  const workflow = readFileSync(new URL("../.github/workflows/harvest.yml", import.meta.url), "utf8");
+  assert.match(health, /nbaFullCollect/);
+  assert.match(health, /job_type='collect-full'/);
+  assert.match(workflow, /expected_nba_full/);
+  assert.match(workflow, /need_nba_full/);
+  assert.match(workflow, /odds=full&sport=nba/);
+  assert.match(workflow, /watchdog-nba-full-recovery/);
+  assert.match(workflow, /nba_full_failed/);
+});

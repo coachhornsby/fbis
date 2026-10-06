@@ -582,6 +582,26 @@ jobs:
           need_collect=0
           need_harvest=0
           need_action=0
+          need_nba_full=0
+          # Slot-aware NBA primary-market recovery. Generic scheduled-health freshness
+          # can remain green for ~12h and therefore miss the 13:00/16:00 full-odds slots.
+          # Recover at most once per due slot by comparing durable collect-full evidence.
+          utc_hour="$(date -u +%H)"
+          utc_day="$(date -u +%F)"
+          expected_nba_full=""
+          if [ "$utc_hour" -ge 16 ]; then
+            expected_nba_full="${utc_day}T16:00:00Z"
+          elif [ "$utc_hour" -ge 13 ]; then
+            expected_nba_full="${utc_day}T13:00:00Z"
+          fi
+          last_nba_full="$(jq -r '.pipeline.nbaFullCollect.lastSuccessAt // empty' "$tmp")"
+          if [ -n "$expected_nba_full" ]; then
+            expected_epoch="$(date -u -d "$expected_nba_full" +%s)"
+            last_epoch=0
+            if [ -n "$last_nba_full" ]; then last_epoch="$(date -u -d "$last_nba_full" +%s 2>/dev/null || echo 0)"; fi
+            if [ "$last_epoch" -lt "$expected_epoch" ]; then need_nba_full=1; fi
+          fi
+          echo "NBA full-odds slot health expected=${expected_nba_full:-not-due} last=${last_nba_full:-none} recover=$need_nba_full"
           if [ "$collect_state" = "missed" ] || [ "$collect_ok" = "false" ] || [ "$collect_state" = "delayed" ]; then need_collect=1; fi
           if [ "$harvest_state" = "missed" ] || [ "$harvest_ok" = "false" ] || [ "$harvest_stale" = "true" ]; then need_harvest=1; fi
           if [ "$action_enabled" = "true" ]; then
@@ -593,7 +613,7 @@ jobs:
             echo "ACTION daily health http=${acode} state=${action_state} expected=${action_expected} covered=${action_covered}"
             if [ "$acode" != "200" ] || { [ "$action_expected" -gt 0 ] && [ "$action_state" != "HEALTHY" ]; }; then need_action=1; fi
           fi
-          if [ "$need_collect" -eq 0 ] && [ "$need_harvest" -eq 0 ] && [ "$need_action" -eq 0 ]; then
+          if [ "$need_collect" -eq 0 ] && [ "$need_harvest" -eq 0 ] && [ "$need_action" -eq 0 ] && [ "$need_nba_full" -eq 0 ]; then
             echo "No catch-up required. collect=${collect_state} harvest=${harvest_state} harvest_ok=${harvest_ok} harvest_stale=${harvest_stale}"
             exit 0
           fi
@@ -616,6 +636,26 @@ jobs:
           echo "cleanup-future-grades curl_ec=${cleanup_ec} http=${cleanup_code:-000}"
           jq -c '{ok,strategyTicketsReset,executedBetsReset}' "$cleanup_tmp" 2>/dev/null || true
           collect_failed=0
+          nba_full_failed=0
+          if [ "$need_nba_full" -eq 1 ]; then
+            echo "Recovering missed NBA full-odds slot with primary provider pool"
+            body="$(mktemp)"
+            ok_full=0
+            for attempt in 1 2; do
+              set +e
+              code="$(curl -sS --max-time 120 -o "$body" -w '%{http_code}' -H "x-harvest-secret: ${HARVEST_SECRET}" "${BASE}/api/collect?odds=full&sport=nba&trigger=schedule&scheduledSlot=watchdog-nba-full-recovery&runUrl=${run_url_enc}")"
+              curl_ec=$?
+              set -e
+              echo "nba-full-recovery attempt=${attempt} curl_ec=${curl_ec} http=${code}"
+              jq -c '{ok,status,sports,errors:(.errors//[])[:4],games:.games_discovered,writes_failed:.failed_writes}' "$body" 2>/dev/null || head -c 400 "$body" || true
+              if [ "$curl_ec" -eq 0 ] && [ "$code" = "200" ] && [ "$(jq -r '.ok == true and .status == "success"' "$body" 2>/dev/null || echo false)" = "true" ]; then
+                ok_full=1
+                break
+              fi
+              if [ "$attempt" -lt 2 ]; then sleep $((attempt * 8)); fi
+            done
+            if [ "$ok_full" -ne 1 ]; then nba_full_failed=1; fi
+          fi
           if [ "$need_collect" -eq 1 ]; then
             echo "Recovering missed/stale/delayed collect slot"
             for sport in mlb nba wnba nhl cfb cbb nfl soccer; do
@@ -769,8 +809,8 @@ jobs:
               sleep 5
             done
           fi
-          if [ "$collect_failed" != "0" ] || [ "$harvest_failed" != "0" ] || [ "$action_failed" != "0" ]; then
-            echo "Catch-up incomplete collect_failed=${collect_failed} harvest_failed=${harvest_failed} action_failed=${action_failed}"
+          if [ "$collect_failed" != "0" ] || [ "$nba_full_failed" != "0" ] || [ "$harvest_failed" != "0" ] || [ "$action_failed" != "0" ]; then
+            echo "Catch-up incomplete collect_failed=${collect_failed} nba_full_failed=${nba_full_failed} harvest_failed=${harvest_failed} action_failed=${action_failed}"
             exit 1
           fi
 

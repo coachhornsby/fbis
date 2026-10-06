@@ -100,6 +100,7 @@ export async function onRequestGet(context) {
       ],
     });
     const settleTargets = await listSettleTargets(env, { readOk });
+    const nbaFullCollect = await latestNbaFullCollect(env, { readOk });
     const providerConfigured = providerConfigFlags(env);
     let retryClassification = {
       total: Number(health.retryOpen || 0),
@@ -237,6 +238,7 @@ export async function onRequestGet(context) {
           conflictBreakdown: conflicts,
           schedule,
           settleTargets,
+          nbaFullCollect,
         },
         ops: await buildOpsTelemetry(env, {
           lastCollectSuccessAt: health.lastCollectSuccessAt || null,
@@ -423,4 +425,24 @@ async function listSettleTargets(env, { readOk }) {
     if (bOpen !== aOpen) return bOpen - aOpen;
     return String(b.date).localeCompare(String(a.date)) || String(a.sport).localeCompare(String(b.sport));
   });
+}
+
+
+async function latestNbaFullCollect(env, { readOk } = {}) {
+  if (!readOk || !env?.DB?.prepare) return { available: false, lastSuccessAt: null, lastAttemptAt: null, status: null, deploymentCommit: null };
+  try {
+    const row = await env.DB.prepare(
+      "SELECT started_at, completed_at, status, deployment_commit FROM job_runs WHERE sport='nba' AND job_type='collect-full' ORDER BY started_at DESC LIMIT 1"
+    ).first();
+    if (!row) return { available: true, lastSuccessAt: null, lastAttemptAt: null, status: null, deploymentCommit: null };
+    return {
+      available: true,
+      lastAttemptAt: row.started_at || null,
+      lastSuccessAt: String(row.status || '').toLowerCase() === 'success' ? (row.completed_at || row.started_at || null) : null,
+      status: row.status || null,
+      deploymentCommit: row.deployment_commit || null,
+    };
+  } catch (err) {
+    return { available: false, lastSuccessAt: null, lastAttemptAt: null, status: 'query-failed', deploymentCommit: null, error: String(err?.message || err) };
+  }
 }
