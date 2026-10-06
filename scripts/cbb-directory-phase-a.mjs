@@ -88,7 +88,8 @@ const runId="cbb-dir-a:"+hid(CBB_DIRECTORY_SNAPSHOT,SOURCE_SHA);
 sql.push(`INSERT OR REPLACE INTO cbb_directory_population_runs(id,snapshot_id,source_run_id,source_sha,status,canonical_teams,players,roster_memberships,state_events,team_snapshots,player_snapshots,schedule_items,qa_json,started_at,completed_at,created_at) VALUES(${esc(runId)},${esc(CBB_DIRECTORY_SNAPSHOT)},${esc(SOURCE_RUN)},${esc(SOURCE_SHA)},'COMPLETE',${qa.canonicalTeams},${qa.players},${qa.rosterMemberships},${qa.stateEvents},${qa.teamSnapshots},${qa.playerSnapshots},${qa.scheduleItems},${js(qa)},${esc(OBSERVED_AT)},${esc(new Date().toISOString())},${esc(OBSERVED_AT)});`);
 
 const CHUNK=4000;let chunk=0,totalBytes=0;
-// Wrangler/D1 remote import owns transaction boundaries; explicit BEGIN/COMMIT is rejected.\nfor(let i=0;i<sql.length;i+=CHUNK){const p=`${OUT}/chunk-${String(++chunk).padStart(3,"0")}.sql`,body=sql.slice(i,i+CHUNK).join("\n")+"\n";writeFileSync(p,body);totalBytes+=Buffer.byteLength(body)}
+// Wrangler/D1 remote import owns transaction boundaries; explicit BEGIN/COMMIT is rejected.
+for(let i=0;i<sql.length;i+=CHUNK){const p=`${OUT}/chunk-${String(++chunk).padStart(3,"0")}.sql`,body=sql.slice(i,i+CHUNK).join("\n")+"\n";writeFileSync(p,body);totalBytes+=Buffer.byteLength(body)}
 qa.sqlStatements=sql.length;qa.sqlChunks=chunk;qa.storageFootprintBytes=totalBytes;
 writeFileSync(OUT+"/qa.json",JSON.stringify(qa,null,2)+"\n");
 console.log(JSON.stringify(qa,null,2));
