@@ -18,7 +18,7 @@ const norm=s=>{let z=String(s||"").trim();const i=z.lastIndexOf(" (");if(i>0&&z.
 const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null;
 const median=a=>{const x=a.filter(Number.isFinite).sort((a,b)=>a-b);if(!x.length)return null;const m=Math.floor(x.length/2);return x.length%2?x[m]:(x[m-1]+x[m])/2};
 const mae=a=>mean(a.map(Math.abs));
-const rmse=a=>Math.sqrt(mean(a.map(x=>x*x)));
+const rmse=a=>Math.sqrt(mean(a.map(x=>x*x)));\nconst corr=(a,b)=>{if(a.length!==b.length||a.length<2)return null;const ma=mean(a),mb=mean(b);let num=0,da=0,db=0;for(let i=0;i<a.length;i++){const x=a[i]-ma,y=b[i]-mb;num+=x*y;da+=x*x;db+=y*y}return da>0&&db>0?num/Math.sqrt(da*db):null};
 const americanProfit=(price,win)=>{if(!win)return -1;const p=Number(price);return p>0?p/100:100/Math.abs(p)};
 const implied=p=>{p=Number(p);if(!Number.isFinite(p)||p===0)return null;return p>0?100/(p+100):Math.abs(p)/(Math.abs(p)+100)};
 const noVig=(over,under)=>{const a=implied(over),b=implied(under);return a!=null&&b!=null&&a+b>0?a/(a+b):null};
@@ -140,11 +140,21 @@ const directional=units.filter(u=>u.selection!=="PUSH"),wins=directional.filter(
 let cum=0,peak=0,maxDd=0;for(const u of units){cum+=u.profit_units;peak=Math.max(peak,cum);maxDd=Math.max(maxDd,peak-cum)}
 const dates=[...new Set(units.map(u=>u.event_date))];
 const checkpoints={};for(const u of units)checkpoints[u.checkpoint]=(checkpoints[u.checkpoint]||0)+1;
+const n=units.length,trainEnd=Math.floor(n*.60),valEnd=Math.floor(n*.80);
+const split={trainN:trainEnd,validationN:Math.max(0,valEnd-trainEnd),testN:Math.max(0,n-valEnd),walkForwardN:Math.max(0,n-trainEnd)};
+const bucketDefs=[[0,.5],[.5,1],[1,1.5],[1.5,99]],buckets=bucketDefs.map(([lo,hi],i)=>{
+ const xs=directional.filter(u=>Math.abs(u.projection-u.entry_line)>=lo&&Math.abs(u.projection-u.entry_line)<hi);
+ return {order:i,label:hi===99?">=1.5":lo+"-"+hi,n:xs.length,hitRate:xs.length?xs.filter(u=>u.result==="WIN").length/xs.length:null};
+});
+const populated=buckets.filter(b=>b.n>0&&b.hitRate!=null);
+const edgeHitRankCorrelation=corr(populated.map(b=>b.order),populated.map(b=>b.hitRate));
+const edgeHitMonotonic=populated.every((b,i)=>i===0||b.hitRate+0.03>=populated[i-1].hitRate);
 const summary={
  generatedAt:new Date().toISOString(),model:{id:MLB_DEEP_ID,version:MLB_DEEP_VERSION,calibration:MLB_PITCH_ZONE_K_CALIBRATION},
- rawMarketRows:rows.length,independentUnits:units.length,dates:dates.length,dateList:dates,checkpoints,rejects,
+ economicRule:{entry:"latest two-sided quote at checkpoint from first available fixed-priority book",bookPriority:BOOK_ORDER,close:"same entry book; latest two-sided quote strictly before start and no older than 12 hours",oneSided:"excluded",lineDisagreement:"no cross-book synthesis; retain executable fixed-book quote"},
+ rawMarketRows:rows.length,independentUnits:units.length,dates:dates.length,dateList:dates,checkpoints,rejects,split,
  projection:{mae:mae(errs),rmse:rmse(errs),bias:mean(errs),baselineMae:mae(baseErrs),relativeMaeImprovement:mae(baseErrs)?(mae(baseErrs)-mae(errs))/mae(baseErrs):null},
- directional:{n:directional.length,wins,hitRate:directional.length?wins/directional.length:null,over:directional.filter(u=>u.selection==="OVER").length,under:directional.filter(u=>u.selection==="UNDER").length},
+ directional:{n:directional.length,wins,hitRate:directional.length?wins/directional.length:null,over:directional.filter(u=>u.selection==="OVER").length,under:directional.filter(u=>u.selection==="UNDER").length,buckets,edgeHitMonotonic,edgeHitRankCorrelation},
  economics:{closeReady:units.filter(u=>u.close_timestamp).length,probabilityClvReady:units.filter(u=>u.probability_clv!=null).length,roiReady:units.filter(u=>Number.isFinite(u.profit_units)).length,profitUnits:units.reduce((s,u)=>s+u.profit_units,0),roi:units.length?units.reduce((s,u)=>s+u.profit_units,0)/units.length:null,maxDrawdown:maxDd,meanLineClv:mean(units.map(u=>u.line_clv).filter(Number.isFinite)),meanProbabilityClv:mean(units.map(u=>u.probability_clv).filter(Number.isFinite))},
  temporalIntegrity:units.every(u=>u.temporal_integrity===true&&u.entry_timestamp<u.event_start)
 };
