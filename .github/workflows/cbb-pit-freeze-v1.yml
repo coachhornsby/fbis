@@ -52,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           node --max-old-space-size=6144 scripts/cbb-pit-freeze-v1.mjs             artifacts/source/parts             artifacts/frozen/cbb-fbis-native-v2-predictions.json             artifacts/frozen/cbb-fbis-v2-fit.json             artifacts/pit | tee artifacts/cbb-pit-freeze-v1.log
-          jq -e '.pitEligible == true and .totals.matched > 0 and .conflicts.predictionMatchup == 0 and .conflicts.historicalDuplicateKeys == 0' artifacts/pit/cbb-pit-audit-v1.json >/dev/null
+          jq -e '.pitEligible == true and .totals.matched > 0 and .conflicts.predictionMatchup == 0 and .conflicts.unresolvedAmbiguousRows == 0' artifacts/pit/cbb-pit-audit-v1.json >/dev/null
           test -s artifacts/pit/cbb-pit-snapshot-v1.json
       - name: Summary
         if: always()
