@@ -217,14 +217,15 @@ VALUES ({esc(oid)},{esc(pid)},{esc(tid)},'ESPN',{esc(provider_pid)},{esc(tid_raw
     coverage.append(cov)
     print(json.dumps(cov),flush=True)
 
-final_sql=f"""
-UPDATE cfb_canonical_players SET active=0;
-UPDATE cfb_canonical_players
-SET active=1
-WHERE player_id IN (SELECT DISTINCT player_id FROM cfb_roster_membership WHERE season={END});
-
-DELETE FROM cfb_roster_source_coverage WHERE source='{SOURCE}';
-INSERT INTO cfb_roster_source_coverage
+final_lines=[
+  "UPDATE cfb_canonical_players SET active=0;",
+  f"UPDATE cfb_canonical_players SET active=1 WHERE player_id IN (SELECT DISTINCT player_id FROM cfb_roster_membership WHERE season={END});",
+  f"DELETE FROM cfb_roster_source_coverage WHERE source='{SOURCE}';"
+]
+for cov in coverage:
+    season=cov["season"]
+    game_rows=cov["gameRosterRows"]
+    final_lines.append(f"""INSERT INTO cfb_roster_source_coverage
 (season,source,roster_rows,distinct_players,distinct_teams,resolved_team_rows,orphan_team_rows,provisional_players,game_roster_rows,source_file,observed_at)
 SELECT
   m.season,
@@ -235,28 +236,13 @@ SELECT
   SUM(CASE WHEN t.team_id IS NOT NULL THEN 1 ELSE 0 END),
   SUM(CASE WHEN t.team_id IS NULL THEN 1 ELSE 0 END),
   COUNT(DISTINCT CASE WHEN p.identity_status='PROVISIONAL' THEN p.player_id END),
-  MAX(COALESCE(m.games_rostered,0)),
-  'sportsdataverse/cfbfastR-cfb-data/cfb/cfb_rosters/parquet',
+  {game_rows},
+  'sportsdataverse/cfbfastR-cfb-data/cfb/cfb_rosters/parquet/cfb_rosters_{season}.parquet',
   '{observed}'
 FROM cfb_roster_membership m
 LEFT JOIN cfb_canonical_teams t ON t.team_id=m.team_id
 LEFT JOIN cfb_canonical_players p ON p.player_id=m.player_id
-WHERE m.source='{SOURCE}'
-GROUP BY m.season;
-"""
-(OUT/"cfb-player-directory-finalize.sql").write_text(final_sql.strip()+"\n")
+WHERE m.source='{SOURCE}' AND m.season={season}
+GROUP BY m.season;""")
+final_sql="\\n".join(final_lines)
 
-qa={
- "generatedAt":observed,
- "source":SOURCE,
- "startSeason":START,
- "endSeason":END,
- "seasonFiles":len(coverage),
- "totalRosterRows":sum(x["rosterRows"] for x in coverage),
- "totalGameRosterRows":sum(x["gameRosterRows"] for x in coverage),
- "totalProvisionalRows":sum(x["provisionalRows"] for x in coverage),
- "coverage":coverage,
- "governance":{"overlayVersion":"FBIS-STATE-OVERLAY-v1","canInfluenceProjection":False,"canQualify":False,"canAuthorizeWager":False}
-}
-(OUT/"qa.json").write_text(json.dumps(qa,indent=2)+"\n")
-print(json.dumps({k:v for k,v in qa.items() if k!="coverage"},indent=2))
