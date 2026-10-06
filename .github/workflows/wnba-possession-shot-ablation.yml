@@ -1,0 +1,154 @@
+name: WNBA possession-shot historical ablation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/wnba-possession-shot-ablation.yml"
+      - "scripts/wnba-possession-qa.mjs"
+      - "scripts/wnba-possession-ablation.mjs"
+      - "scripts/wnba-possession-state-build.mjs"
+      - "scripts/wnba-pbp-canonical-build.mjs"
+      - "scripts/wnba-canonical-build.mjs"
+      - "scripts/wnba-lineup-stints-build.mjs"
+      - "functions/lib/wnbaPossessionState.js"
+      - "functions/lib/wnbaLineupModel.js"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wnba-possession-shot-ablation
+  cancel-in-progress: false
+
+jobs:
+  shards:
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        chunk:
+          - { id: "2024-05", start: "2024-05-14", end: "2024-05-31" }
+          - { id: "2024-06", start: "2024-06-01", end: "2024-06-30" }
+          - { id: "2024-07", start: "2024-07-01", end: "2024-07-31" }
+          - { id: "2024-08", start: "2024-08-01", end: "2024-08-31" }
+          - { id: "2024-09", start: "2024-09-01", end: "2024-09-30" }
+          - { id: "2024-10", start: "2024-10-01", end: "2024-10-20" }
+          - { id: "2025-05", start: "2025-05-16", end: "2025-05-31" }
+          - { id: "2025-06", start: "2025-06-01", end: "2025-06-30" }
+          - { id: "2025-07", start: "2025-07-01", end: "2025-07-31" }
+          - { id: "2025-08", start: "2025-08-01", end: "2025-08-31" }
+          - { id: "2025-09", start: "2025-09-01", end: "2025-09-30" }
+          - { id: "2025-10", start: "2025-10-01", end: "2025-10-17" }
+          - { id: "2026-05", start: "2026-05-01", end: "2026-05-31" }
+          - { id: "2026-06", start: "2026-06-01", end: "2026-06-30" }
+          - { id: "2026-07", start: "2026-07-01", end: "2026-07-31" }
+          - { id: "2026-08", start: "2026-08-01", end: "2026-08-31" }
+          - { id: "2026-09", start: "2026-09-01", end: "2026-09-30" }
+          - { id: "2026-10", start: "2026-10-01", end: "2026-10-05" }
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+
+      - name: Build bounded canonical shard
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          node scripts/wnba-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl allowEmpty=1
+          node scripts/wnba-pbp-canonical-build.mjs start=${{ matrix.chunk.start }} end=${{ matrix.chunk.end }} out=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl
+          node scripts/wnba-lineup-stints-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-lineup-stints-${{ matrix.chunk.id }}.jsonl             effects=artifacts/wnba-lineup-effects-${{ matrix.chunk.id }}.json
+          node scripts/wnba-possession-state-build.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-possession-state-${{ matrix.chunk.id }}.jsonl             shots=artifacts/wnba-shot-events-${{ matrix.chunk.id }}.jsonl             profiles=artifacts/wnba-shot-profiles-${{ matrix.chunk.id }}.jsonl
+          node scripts/wnba-possession-qa.mjs             games=artifacts/wnba-canonical-${{ matrix.chunk.id }}.jsonl             pbp=artifacts/wnba-pbp-${{ matrix.chunk.id }}.jsonl             states=artifacts/wnba-possession-state-${{ matrix.chunk.id }}.jsonl             stints=artifacts/wnba-lineup-stints-${{ matrix.chunk.id }}.jsonl             out=artifacts/wnba-qa-${{ matrix.chunk.id }}.json
+
+      - name: Persist immutable shard to R2
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          P="research/wnba/possession-shot/v1/run-${GITHUB_RUN_ID}/shards/${{ matrix.chunk.id }}"
+          for f in artifacts/wnba-*-${{ matrix.chunk.id }}.*; do
+            [ -f "$f" ] || continue
+            n="$(basename "$f")"
+            npx wrangler r2 object put "fbis-archive/${P}/${n}" --file "$f" --remote
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-possession-${{ matrix.chunk.id }}-${{ github.run_id }}
+          path: artifacts/wnba-*
+          retention-days: 30
+
+  merge_and_ablate:
+    needs: shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wnba-possession-*-${{ github.run_id }}
+          path: artifacts/chunks
+
+      - name: Merge completed canonical artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/merged artifacts/pbp artifacts/stints
+          node scripts/wnba-merge-canonical.mjs artifacts/chunks artifacts/merged/wnba-canonical.jsonl
+          find artifacts/chunks -name 'wnba-pbp-*.jsonl' -type f -exec cp {} artifacts/pbp/ \;
+          node scripts/wnba-merge-pbp.mjs artifacts/pbp artifacts/merged/wnba-pbp.jsonl
+          find artifacts/chunks -name 'wnba-lineup-stints-*.jsonl' -type f -exec cp {} artifacts/stints/ \;
+          node scripts/wnba-merge-lineup-stints.mjs artifacts/stints artifacts/merged/wnba-lineup-stints.jsonl
+          node scripts/wnba-possession-state-build.mjs             games=artifacts/merged/wnba-canonical.jsonl             pbp=artifacts/merged/wnba-pbp.jsonl             out=artifacts/merged/wnba-possession-state.jsonl             shots=artifacts/merged/wnba-shot-events.jsonl             profiles=artifacts/merged/wnba-shot-profiles.jsonl
+          node scripts/wnba-possession-qa.mjs             games=artifacts/merged/wnba-canonical.jsonl             pbp=artifacts/merged/wnba-pbp.jsonl             states=artifacts/merged/wnba-possession-state.jsonl             stints=artifacts/merged/wnba-lineup-stints.jsonl             out=artifacts/merged/wnba-possession-qa.json
+
+      - name: Require canonical QA before ablation
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const q=JSON.parse(fs.readFileSync('artifacts/merged/wnba-possession-qa.json','utf8'));
+          console.log(JSON.stringify({games:q.games,coverage:q.coverage,gates:q.gates,shooting:q.shooting,lineup:q.lineup,state:q.state},null,2));
+          if(!q.gates.pbpCoveragePass) throw new Error('PBP coverage gate failed');
+          if(!q.gates.possessionCoveragePass) throw new Error('possession coverage gate failed');
+          if(!q.gates.zoneResolutionPass) throw new Error('shot-zone resolution gate failed');
+          if(!q.gates.gameStateCoveragePass) throw new Error('game-state coverage gate failed');
+          NODE
+
+      - name: Chronological feature-family ablation
+        run: |
+          node scripts/wnba-possession-ablation.mjs             games=artifacts/merged/wnba-canonical.jsonl             states=artifacts/merged/wnba-possession-state.jsonl             stints=artifacts/merged/wnba-lineup-stints.jsonl             out=artifacts/merged/wnba-possession-ablation.json             rows=artifacts/merged/wnba-possession-ablation-rows.jsonl
+          cat artifacts/merged/wnba-possession-ablation.json
+
+      - name: Freeze merged research checkpoint
+        if: github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          IMM="research/wnba/possession-shot/v1/run-${GITHUB_RUN_ID}/merged"
+          CUR="models/wnba/possession-shot/research-current"
+          for f in artifacts/merged/*; do
+            [ -f "$f" ] || continue
+            n="$(basename "$f")"
+            npx wrangler r2 object put "fbis-archive/${IMM}/${n}" --file "$f" --remote
+            npx wrangler r2 object put "fbis-archive/${CUR}/${n}" --file "$f" --remote
+          done
+          printf '{"runId":%s,"immutablePrefix":"%s","updatedAt":"%s"}\n' "$GITHUB_RUN_ID" "$IMM" "$(date -u +%FT%TZ)" > artifacts/merged/pointer.json
+          npx wrangler r2 object put "fbis-archive/${CUR}/pointer.json" --file artifacts/merged/pointer.json --remote
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-possession-ablation-${{ github.run_id }}
+          path: artifacts/merged/
+          retention-days: 90
