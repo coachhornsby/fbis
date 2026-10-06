@@ -53,7 +53,7 @@ test("prospective evaluator rejects temporal leakage and total mismatch",()=>{
   const row={
     event_id:"g1",checkpoint:"EARLY",frozen_at:"2026-10-06T10:00:00Z",
     executable_market_json:JSON.stringify({observedAt:"2026-10-06T10:05:00Z"}),
-    home_profile_json:"{}",away_profile_json:"{}",provenance_json:"{}",
+    home_profile_json:"{}",away_profile_json:"{}",provenance_json:JSON.stringify({prospectiveGateId:"NFL-QB-PROSPECTIVE-GATE-v1",governanceId:"FBIS-STATE-OVERLAY-v1"}),
     incumbent_total:44,challenger_total:45,incumbent_margin:3,challenger_margin:3,
     incumbent_win_probability:.6,challenger_win_probability:.6,gate_fired:0,
   };
