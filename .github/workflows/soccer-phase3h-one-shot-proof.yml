@@ -21,6 +21,7 @@ jobs:
       - name: Controlled prospective snapshot + idempotency retry
         env:
           HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          GITHUB_TOKEN: ${{ github.token }}
           BASE: https://fbis-myz.pages.dev
           SNAPSHOT_DATE: "2026-10-07"
         shell: bash
