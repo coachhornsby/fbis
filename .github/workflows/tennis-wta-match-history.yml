@@ -44,7 +44,7 @@ jobs:
         run: node scripts/tennis-wta-match-history-ingest.mjs
       - name: Validate artifact
         run: |
-          node -e "const s=require('./artifacts/wta-match-history-summary.json');if(s.failures||s.tournamentsAttempted<1)process.exit(1);console.log(s)"
+          node -e "const s=require('./artifacts/wta-match-history-summary.json');if(s.failures||s.tournamentsAttempted<1||s.recordsSeen<1||s.recordsWritten<1)process.exit(1);console.log(s)"
       - uses: actions/upload-artifact@v4
         with:
           name: wta-match-history-${{ github.run_id }}
