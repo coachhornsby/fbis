@@ -120,8 +120,8 @@ export const ASIAN_BASEBALL_DATA_CONTRACTS = Object.freeze({
     hitterStats: Object.freeze({
       state: SOURCE_STATE.VERIFIED_LIVE,
       source: "NPB.jp official team batting pages",
-      stablePlayerId: false,
-      notes: "Current batting parser does not persist official hitter IDs.",
+      stablePlayerId: true,
+      notes: "Current batting parser retains official NPB numeric player IDs from player links; historical roster/lineup as-of persistence remains unresolved.",
     }),
     bullpen: Object.freeze({
       state: SOURCE_STATE.PARTIAL,
@@ -144,7 +144,7 @@ export const ASIAN_BASEBALL_DATA_CONTRACTS = Object.freeze({
     stableIds: Object.freeze({
       state: SOURCE_STATE.PARTIAL,
       team: "canonical FBIS team registry exists",
-      player: "official NPB pitcher/starter playerId present; hitter IDs not currently persisted",
+      player: "official NPB pitcher/starter and current batting playerId links are retained; historical roster/lineup identity remains incomplete",
       game: "deterministic FBIS key exists; durable canonical game table not yet present",
     }),
     models: Object.freeze(["NPB-FBIS-v1", "NPB-FBIS-v2"]),
