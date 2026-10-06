@@ -152,3 +152,89 @@ export async function persistPlayerIdentity(env,row){
       row.sourceContract,JSON.stringify(row.provenance||{}),ASIAN_BASEBALL_ENRICHMENT_VERSION,now,now).run();
   return{ok:true,id};
 }
+
+export function enrichmentShardId({league="KBO",provider="KBO_OFFICIAL",season,providerPlayerId,dataFamily}={}){
+  return [String(league).toLowerCase(),String(provider).toLowerCase(),Number(season),String(providerPlayerId||"all"),String(dataFamily||"unknown").toLowerCase()].join(":");
+}
+export async function persistPlayerGameObservation(env,raw){
+  const db=env?.DB;if(!db?.prepare)return{ok:false,error:"d1-unbound"};
+  const o=raw?.league?raw:normalizeKboPlayerObservation(raw);
+  if(!o.canonicalGameId||!o.providerPlayerId||!o.gameDate)return{ok:false,error:"missing-observation-key"};
+  const now=new Date().toISOString();
+  const id=[o.league||"KBO",o.provider||"KBO_OFFICIAL",o.canonicalGameId,o.providerPlayerId,o.observationRole].join(":");
+  await db.prepare(`INSERT INTO asian_baseball_player_game_observations(
+    id,league,canonical_game_id,provider,provider_game_id,provider_player_id,team_id,opponent_team_id,game_date,scheduled_start,completed_at,
+    observation_role,batting_order,position_text,innings_outs,batters_faced,pitches,hits_allowed,home_runs_allowed,walks,strikeouts,
+    runs_allowed,earned_runs,plate_appearances,at_bats,hits,home_runs,source_contract,source_ref,parser_version,represented_at,retrieved_at,
+    temporal_class,pregame_eligible,provenance_json,research_only,can_influence_projection,can_qualify,can_authorize,created_at,updated_at
+  ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,0,0,0,?,?)
+  ON CONFLICT(league,provider,canonical_game_id,provider_player_id,observation_role) DO UPDATE SET
+    team_id=COALESCE(excluded.team_id,asian_baseball_player_game_observations.team_id),
+    completed_at=COALESCE(excluded.completed_at,asian_baseball_player_game_observations.completed_at),
+    batting_order=COALESCE(excluded.batting_order,asian_baseball_player_game_observations.batting_order),
+    position_text=COALESCE(excluded.position_text,asian_baseball_player_game_observations.position_text),
+    innings_outs=COALESCE(excluded.innings_outs,asian_baseball_player_game_observations.innings_outs),
+    batters_faced=COALESCE(excluded.batters_faced,asian_baseball_player_game_observations.batters_faced),
+    pitches=COALESCE(excluded.pitches,asian_baseball_player_game_observations.pitches),
+    hits_allowed=COALESCE(excluded.hits_allowed,asian_baseball_player_game_observations.hits_allowed),
+    home_runs_allowed=COALESCE(excluded.home_runs_allowed,asian_baseball_player_game_observations.home_runs_allowed),
+    walks=COALESCE(excluded.walks,asian_baseball_player_game_observations.walks),
+    strikeouts=COALESCE(excluded.strikeouts,asian_baseball_player_game_observations.strikeouts),
+    runs_allowed=COALESCE(excluded.runs_allowed,asian_baseball_player_game_observations.runs_allowed),
+    earned_runs=COALESCE(excluded.earned_runs,asian_baseball_player_game_observations.earned_runs),
+    provenance_json=excluded.provenance_json,retrieved_at=excluded.retrieved_at,updated_at=excluded.updated_at`)
+    .bind(id,o.league||"KBO",o.canonicalGameId,o.provider||"KBO_OFFICIAL",o.providerGameId||null,o.providerPlayerId,o.teamId||null,o.opponentTeamId||null,
+      o.gameDate,o.scheduledStart||null,o.completedAt||null,o.observationRole,n(o.battingOrder),o.positionText||null,n(o.inningsOuts),n(o.battersFaced),n(o.pitches),
+      n(o.hitsAllowed),n(o.homeRunsAllowed),n(o.walks),n(o.strikeouts),n(o.runsAllowed),n(o.earnedRuns),n(o.plateAppearances),n(o.atBats),n(o.hits),n(o.homeRuns),
+      raw.sourceContract||KBO_GAMECENTER_CONTRACT,raw.sourceRef||null,ASIAN_BASEBALL_ENRICHMENT_VERSION,raw.representedAt||o.completedAt||o.scheduledStart||o.gameDate,
+      raw.retrievedAt||now,o.temporalClass||"POSTGAME",0,JSON.stringify(raw.provenance||{source:"completed-game-observation"}),now,now).run();
+  return{ok:true,id};
+}
+export async function runBoundedEnrichmentShard(env,{
+  league="KBO",provider="KBO_OFFICIAL",season,providerPlayerId,dataFamily,maxRequests=1,fetchPage,
+  sourceContract=KBO_PLAYER_HISTORY_CONTRACT,persistRow=persistPlayerGameObservation
+}={}){
+  const db=env?.DB;if(!db?.prepare)return{ok:false,error:"d1-unbound"};
+  if(!Number.isInteger(Number(season))||!providerPlayerId||!dataFamily||typeof fetchPage!=="function")return{ok:false,error:"invalid-shard"};
+  const cap=Math.max(1,Math.min(25,Number(maxRequests)||1));
+  const id=enrichmentShardId({league,provider,season,providerPlayerId,dataFamily}),now=new Date().toISOString();
+  await db.prepare(`INSERT INTO asian_baseball_enrichment_shards(
+    id,league,provider,season,provider_player_id,data_family,max_requests,status,source_contract,parser_version,research_only,
+    can_influence_projection,can_qualify,can_authorize,created_at,updated_at
+  ) VALUES(?,?,?,?,?,?,?,'PENDING',?,?,1,0,0,0,?,?)
+  ON CONFLICT(id) DO UPDATE SET max_requests=excluded.max_requests,updated_at=excluded.updated_at`)
+    .bind(id,league,provider,Number(season),String(providerPlayerId),dataFamily,cap,sourceContract,ASIAN_BASEBALL_ENRICHMENT_VERSION,now,now).run();
+  let shard=await db.prepare("SELECT * FROM asian_baseball_enrichment_shards WHERE id=?").bind(id).first();
+  if(shard?.status==="DONE")return{ok:true,id,status:"DONE",alreadyComplete:true};
+  await db.prepare("UPDATE asian_baseball_enrichment_shards SET status='RUNNING',attempts=attempts+1,lease_until=?,updated_at=? WHERE id=?")
+    .bind(new Date(Date.now()+4*60*1000).toISOString(),now,id).run();
+  let cursor=shard?.cursor||null,requests=0,discovered=0,persisted=0,duplicates=0,malformed=0,done=false;
+  try{
+    while(requests<cap&&!done){
+      const page=await fetchPage({league,provider,season:Number(season),providerPlayerId:String(providerPlayerId),dataFamily,cursor});
+      requests++;
+      const rows=Array.isArray(page?.rows)?page.rows:[];
+      discovered+=rows.length;
+      for(const row of rows){
+        try{
+          const r=await persistRow(env,row);
+          if(r?.ok)persisted++;else malformed++;
+        }catch{malformed++;}
+      }
+      if(page?.done===true)done=true;
+      const next=page?.nextCursor??null;
+      if(!done&&!next)break;
+      cursor=next;
+    }
+    const status=done?"DONE":"PARTIAL",finished=new Date().toISOString();
+    await db.prepare(`UPDATE asian_baseball_enrichment_shards SET status=?,cursor=?,requests_used=requests_used+?,rows_discovered=rows_discovered+?,
+      rows_persisted=rows_persisted+?,duplicate_rows=duplicate_rows+?,malformed_rows=malformed_rows+?,lease_until=NULL,last_error=NULL,
+      updated_at=?,completed_at=? WHERE id=?`).bind(status,cursor,requests,discovered,persisted,duplicates,malformed,finished,done?finished:null,id).run();
+    return{ok:true,id,status,requests,discovered,persisted,duplicates,malformed,cursor};
+  }catch(err){
+    const finished=new Date().toISOString();
+    await db.prepare("UPDATE asian_baseball_enrichment_shards SET status='FAILED',lease_until=NULL,last_error=?,updated_at=? WHERE id=?")
+      .bind(String(err?.message||err).slice(0,500),finished,id).run();
+    return{ok:false,id,status:"FAILED",error:String(err?.message||err),requests,discovered,persisted,malformed};
+  }
+}
