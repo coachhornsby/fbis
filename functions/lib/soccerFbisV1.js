@@ -73,19 +73,31 @@ function teamKey(team = {}) {
   if (team.abbr) return `abbr:${String(team.abbr).toUpperCase()}`;
   return `name:${String(team.name || team.displayName || "").toLowerCase()}`;
 }
-
-function row(map, team) {
-  if (!map?.get || !team) return null;
-  for (const k of [
+function teamKeys(team = {}) {
+  return [...new Set([
+    team.teamKey ? String(team.teamKey) : null,
     team.espnId != null ? `id:${team.espnId}` : null,
     team.id != null ? `id:${team.id}` : null,
     team.abbr ? `abbr:${String(team.abbr).toUpperCase()}` : null,
-    team.name ? `name:${String(team.name).toLowerCase()}` : null,
-  ].filter(Boolean)) {
+    (team.name || team.displayName) ? `name:${String(team.name || team.displayName).toLowerCase()}` : null,
+  ].filter(Boolean))];
+}
+
+function row(map, team) {
+  if (!map?.get || !team) return null;
+  for (const k of teamKeys(team)) {
     const x = map.get(k);
     if (x) return x;
   }
   return null;
+}
+function ensureTeamAliases(map, team) {
+  const keys = teamKeys(team);
+  if (!keys.length) return null;
+  let state = row(map, team);
+  if (!state) state = blankTeamState();
+  for (const k of keys) map.set(k, state);
+  return state;
 }
 
 function legacyRates(r) {
@@ -224,10 +236,9 @@ export function buildSoccerHistoryState(history = [], cutoff = null, options = {
     const hk = teamKey(g.home);
     const ak = teamKey(g.away);
     if (!hk || !ak) continue;
-    if (!teams.has(hk)) teams.set(hk, blankTeamState());
-    if (!teams.has(ak)) teams.set(ak, blankTeamState());
-    const h = teams.get(hk);
-    const a = teams.get(ak);
+    const h = ensureTeamAliases(teams, g.home);
+    const a = ensureTeamAliases(teams, g.away);
+    if (!h || !a) continue;
     addStat(h.all, hs, as, w);
     addStat(h.home, hs, as, w);
     addStat(a.all, as, hs, w);
@@ -285,8 +296,8 @@ export function projectSoccerFromHistory(game = {}, history = [], options = {}) 
   const state = buildSoccerHistoryState(history, cutoff, options);
   const hk = teamKey(game.home);
   const ak = teamKey(game.away);
-  const homeState = state.teams.get(hk);
-  const awayState = state.teams.get(ak);
+  const homeState = row(state.teams, game.home);
+  const awayState = row(state.teams, game.away);
 
   if (!homeState || !awayState) {
     return {
