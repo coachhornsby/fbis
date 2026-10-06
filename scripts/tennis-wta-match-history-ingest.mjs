@@ -10,7 +10,7 @@ const LIMIT=Math.max(1,Math.min(25,Number(process.env.WTA_TOURNAMENT_LIMIT||2)))
 const START=Number(process.env.WTA_TOURNAMENT_OFFSET||0);
 const PAGE_SIZE=Math.max(25,Math.min(500,Number(process.env.WTA_TOURNAMENT_PAGE_SIZE||100)));
 const MAX_PAGES=Math.max(1,Math.min(25,Number(process.env.WTA_TOURNAMENT_MAX_PAGES||10)));
-const INPUT=process.env.WTA_MATCH_INPUT||"";\nconst REQUIRE_GROUP=process.env.WTA_REQUIRE_GROUP_ID||"";
+const INPUT=process.env.WTA_MATCH_INPUT||"";
 const OUT=process.env.WTA_MATCH_SQL||"artifacts/wta-match-history.sql";
 const RAW=process.env.WTA_RAW_DIR||"artifacts/wta-raw";
 const SUMMARY=process.env.WTA_MATCH_SUMMARY||"artifacts/wta-match-history-summary.json";
