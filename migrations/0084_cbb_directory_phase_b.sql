@@ -65,6 +65,32 @@ CREATE TABLE IF NOT EXISTS cbb_game_state_snapshots (
 );
 CREATE INDEX IF NOT EXISTS idx_cbb_game_state_cutoff ON cbb_game_state_snapshots(feature_cutoff,game_start);
 
+CREATE TABLE IF NOT EXISTS cbb_directory_phase_b_runs (
+  id TEXT PRIMARY KEY,
+  season INTEGER NOT NULL,
+  observed_at TEXT NOT NULL,
+  status TEXT NOT NULL,
+  canonical_teams INTEGER NOT NULL,
+  stable_id_players INTEGER NOT NULL,
+  unresolved_provisional_players INTEGER NOT NULL,
+  ambiguous_identities INTEGER NOT NULL,
+  transfer_links INTEGER NOT NULL,
+  roster_teams INTEGER NOT NULL,
+  roster_players INTEGER NOT NULL,
+  rotation_players INTEGER NOT NULL,
+  starter_evidence_players INTEGER NOT NULL,
+  lineup_continuity_teams INTEGER NOT NULL,
+  replacement_players INTEGER NOT NULL,
+  schedule_teams INTEGER NOT NULL,
+  game_state_snapshots INTEGER NOT NULL,
+  verified_availability INTEGER NOT NULL,
+  unknown_availability INTEGER NOT NULL,
+  qa_json TEXT NOT NULL,
+  source_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cbb_phase_b_runs_time ON cbb_directory_phase_b_runs(observed_at DESC);
+
 CREATE TABLE IF NOT EXISTS cbb_shadow_challenger_definitions (
   id TEXT PRIMARY KEY, target TEXT NOT NULL, family TEXT NOT NULL, evidence_policy TEXT NOT NULL,
   mode TEXT NOT NULL DEFAULT 'SHADOW', overlay_version TEXT NOT NULL DEFAULT 'FBIS-STATE-OVERLAY-v1',
