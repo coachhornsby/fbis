@@ -264,6 +264,26 @@ Each sport must document:
 
 Paid acquisition must have explicit run guards.
 
+## 13A. Bounded and restartable production work
+
+Long-running ingestion, backfill, grading, calibration, snapshot, and research jobs must be designed as bounded, durable work units rather than monolithic all-season/all-slate requests.
+
+Required behavior:
+- split large jobs into deterministic shards or date/range partitions;
+- impose explicit per-call and per-job time bounds;
+- persist completed work durably before proceeding to the next shard;
+- make jobs idempotent and safe to retry;
+- use leases, claim/complete semantics, or equivalent contention protection when parallel workers share a queue;
+- separate acquisition, snapshotting, grading, calibration, and research when coupling them would create timeout or recovery risk;
+- resume from durable state after interruption rather than restarting successful work;
+- fail closed on malformed, incomplete, or ambiguous work units;
+- cap concurrency to the provider/database/runtime limits actually observed rather than maximizing worker count by default;
+- record enough run metadata to audit which shard/date/window completed, failed, retried, or remains pending.
+
+Monolithic workflows are prohibited when the same task can be represented as bounded restartable units without changing model semantics.
+
+This is an operational governance rule only. It does not alter sport-specific model weights, qualification thresholds, confidence calibration, or wager authority.
+
 ## 14. Cross-sport inheritance rule
 
 A sport may inherit architecture and governance from this standard. It may **not inherit numeric thresholds, feature weights, variance assumptions, market tiers, or staking rules from another sport without sport-specific validation**.
