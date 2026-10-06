@@ -2,7 +2,7 @@ name: Soccer PitchAPI queue drain
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "2,17,32,47 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   drain:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     env:
       BASE: https://fbis-myz.pages.dev
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
@@ -25,7 +25,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
-          for iteration in 1 2 3 4; do
+          for iteration in 1 2 3 4 5 6; do
             claim="$(curl -fsS --connect-timeout 5 --max-time 20 --retry 2 --retry-delay 2 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET"               "$BASE/api/soccer-pitchapi-queue-claim")"
             echo "$claim" | jq .
             empty="$(echo "$claim" | jq -r '.empty // false')"
