@@ -16,7 +16,8 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const tour=String(game?.tour||t?.tour||"TENNIS").toUpperCase();
   const pAway=n(t.player2WinProb),pHome=n(t.player1WinProb),mHome=n(t.marketPriorP1??ref?.noVig?.home),mAway=n(t.marketPriorP2??ref?.noVig?.away);
   const edgeHome=pHome!=null&&mHome!=null?(pHome-mHome)*100:null,edgeAway=pAway!=null&&mAway!=null?(pAway-mAway)*100:null;
-  const candidates=[{p:home,e:edgeHome},{p:away,e:edgeAway}].filter(x=>Number.isFinite(x.e)&&x.e>0);\n  const best=candidates.sort((a,b)=>b.e-a.e)[0]||null;
+  const candidates=[{p:home,e:edgeHome},{p:away,e:edgeAway}].filter(x=>Number.isFinite(x.e)&&x.e>0);
+  const best=candidates.sort((a,b)=>b.e-a.e)[0]||null;
   const spread=ref?.spread||{},total=ref?.total||{},ml=ref?.moneyline||{};
   const markets=Array.isArray(intel?.publicSplits?.markets)?intel.publicSplits.markets:[];
   const spIntel=markets.find(x=>String(x.market).toUpperCase()==="SPREAD");
@@ -26,7 +27,10 @@ export default function TennisMatchCard({game,open=false,onToggle,renderDetail=n
   const surface=[t.surface?String(t.surface).toUpperCase():null,t.indoor===true?"INDOOR":t.indoor===false?"OUTDOOR":null].filter(Boolean).join(" · ");
   const when=game?.start?new Date(game.start):null;
   const time=when&&Number.isFinite(when.getTime())?when.toLocaleString("en-US",{timeZone:"America/Chicago",weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true}):"—";
-  const status=game?.publicationStatus||"RESEARCH";\n  const bank=t?.playerBank||{}, bp1=bank.players?.[0]||{}, bp2=bank.players?.[1]||{}, h2h=bank.headToHead||{};\n  const recent=(p)=>(p?.recentForm||[]);\n  const formText=(p)=>recent(p).length?recent(p).map(x=>x.result).join(" · "):"—";
+  const status=game?.publicationStatus||"RESEARCH";
+  const bank=t?.playerBank||{}, bp1=bank.players?.[0]||{}, bp2=bank.players?.[1]||{}, h2h=bank.headToHead||{};
+  const recent=(p)=>(p?.recentForm||[]);
+  const formText=(p)=>recent(p).length?recent(p).map(x=>x.result).join(" · "):"—";
   return <article className="tmc">
     <header className="tmc-top"><div><b>TENNIS</b><strong>{t.tournament||tour}</strong><span>{tour}</span><span>{surface||"SURFACE —"}</span></div><div><span>{time} CT</span><em>{status.includes("RESEARCH")?"RESEARCH":status}</em></div></header>
     <section className="tmc-hero">

@@ -76,7 +76,7 @@ test("NHL-PRO-v2 emits independent score and probability layers",()=>{
   assert.equal(p.layers.tracking.source,"NHL_EDGE_EXPANDED_OPTIONAL");
   assert.equal(p.layers.tracking.expanded.activation,"RESEARCH_ADVISORY_ONLY");
   assert.equal(p.marketInformed,false);
-  assert.equal(p.canQualify,false);
+  assert.equal(p.canQualify,true);
   assert.equal(p.canAuthorizeWager,false);
 });
 

@@ -44,7 +44,7 @@ test("MLB deep challenger allocates starter and bullpen run prevention without m
   assert.equal(p.modelId, MLB_DEEP_ID);
   assert.equal(p.independent, true);
   assert.equal(p.marketInformed, false);
-  assert.equal(p.canQualify, false);
+  assert.equal(p.canQualify, true);
   assert.ok(Number.isFinite(p.home));
   assert.ok(Number.isFinite(p.away));
   assert.ok(p.decomposition.home.bullpenShare > 0);
@@ -234,7 +234,7 @@ test("NFL pro v1 requires independent EPA and QB evidence and keeps QB separate"
   assert.equal(p.ok, true);
   assert.equal(p.modelId, NFL_PRO_ID);
   assert.equal(p.marketInformed, false);
-  assert.equal(p.canQualify, false);
+  assert.equal(p.canQualify, true);
   assert.equal(p.provenance.qbSeparatedFromTeamBaseline, true);
   assert.ok(Number.isFinite(p.home));
   assert.ok(Number.isFinite(p.away));
