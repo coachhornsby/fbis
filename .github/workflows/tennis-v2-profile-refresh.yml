@@ -29,6 +29,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: tennis-d1-writes
+  cancel-in-progress: false
+
 jobs:
   build-and-apply:
     runs-on: ubuntu-latest
