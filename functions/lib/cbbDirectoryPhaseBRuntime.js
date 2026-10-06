@@ -9,8 +9,8 @@ const norm=normalizeCbbIdentity;
 const chunk=(a,n)=>Array.from({length:Math.ceil(a.length/n)},(_,i)=>a.slice(i*n,(i+1)*n));
 const teamId=(season,name,id)=>{const m=mapSourceTeam("cbb",{id,team:name,school:name},season);return m?.ok?m.canonicalId:null};
 const rosterPlayers=r=>Array.isArray(r?.players)?r.players:Array.isArray(r?.roster)?r.roster:[];
-const playerProviderId=p=>String(p?.id??p?.athleteId??p?.athleteSourceId??p?.athlete?.id??"");
-const playerName=p=>p?.name||p?.displayName||p?.athlete?.displayName||p?.athlete||[p?.firstName,p?.lastName].filter(Boolean).join(" ");
+const playerProviderId=p=>String(p?.id??p?.sourceId??p?.source_id??p?.athleteId??p?.athleteSourceId??p?.athlete?.id??"");
+const playerName=p=>p?.name||p?.displayName||p?.athlete?.displayName||p?.athlete||[p?.firstName??p?.first_name,p?.lastName??p?.last_name].filter(Boolean).join(" ");
 const teamName=x=>x?.team||x?.school||x?.name||x?.displayName||null;
 const conf=x=>x?.conference||x?.conferenceAbbreviation||x?.conference?.abbreviation||x?.conference?.name||null;
 const venue=x=>x?.venue||x?.venueName||x?.homeVenue||x?.venue?.name||null;
@@ -40,7 +40,7 @@ export async function runCbbDirectoryPhaseB(env,{asOf=new Date()}={}){
  for(const p of prior){const k=p.team_id+"|"+norm(p.canonical_name);if(!priorBy.has(k))priorBy.set(k,[]);priorBy.get(k).push(p)}
  const current=[],ambiguous=[];const rosterStmts=[],providerStmts=[],playerStmts=[];
  for(const tr of rosters){
-  const tid=teamId(season,teamName(tr),tr?.teamId??tr?.id);if(!tid)continue;
+  const tid=teamId(season,teamName(tr),tr?.teamId??tr?.team_id??tr?.teamSourceId??tr?.team_source_id??tr?.id);if(!tid)continue;
   for(const p of rosterPlayers(tr)){
    const provider=playerProviderId(p),name=playerName(p);if(!provider||!name)continue;
    const hits=priorBy.get(tid+"|"+norm(name))||[];let pid;
@@ -53,21 +53,21 @@ export async function runCbbDirectoryPhaseB(env,{asOf=new Date()}={}){
     ON CONFLICT(player_id) DO UPDATE SET canonical_name=excluded.canonical_name,identity_status='STABLE_PROVIDER',provider_player_id=excluded.provider_player_id,
     position=COALESCE(excluded.position,cbb_players.position),class_year=COALESCE(excluded.class_year,cbb_players.class_year),
     height_text=COALESCE(excluded.height_text,cbb_players.height_text),size_text=COALESCE(excluded.size_text,cbb_players.size_text),
-    last_observed_at=excluded.last_observed_at,updated_at=excluded.updated_at`).bind(pid,name,provider,p.position??p.positionAbbreviation??null,p.year??p.classYear??p.class??null,p.height??p.heightText??null,p.weight??p.weightText??null,observedAt,observedAt,JSON.stringify({source:"CBBD /teams/roster",season}),observedAt,observedAt));
+    last_observed_at=excluded.last_observed_at,updated_at=excluded.updated_at`).bind(pid,name,provider,p.position??p.positionAbbreviation??null,p.year??p.classYear??p.class??p.startSeason??p.start_season??null,p.height??p.heightText??null,p.weight??p.weightText??null,observedAt,observedAt,JSON.stringify({source:"CBBD /teams/roster",season}),observedAt,observedAt));
    providerStmts.push(env.DB.prepare(`INSERT OR REPLACE INTO cbb_player_provider_ids(id,player_id,provider,provider_player_id,evidence_type,observed_at,confidence,provenance_json,created_at)
     VALUES(?,?,?,?,?,?,?,?,?)`).bind("provider:CBBD:"+provider,pid,"CBBD",provider,"EXACT_PROVIDER_ROSTER_ID",observedAt,1,JSON.stringify({endpoint:"/teams/roster",season,team:teamName(tr)}),observedAt));
    rosterStmts.push(env.DB.prepare(`INSERT OR IGNORE INTO cbb_roster_observations(id,player_id,team_id,season,provider_player_id,canonical_name,position,class_year,height_text,observed_at,effective_at,ingested_at,source,provenance_json,confidence,stale,supersedes_id,pit_eligible,research_only,created_at)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,0,NULL,1,1,?)`).bind("roster-b:"+season+":"+provider+":"+tid,pid,tid,season,provider,name,p.position??p.positionAbbreviation??null,p.year??p.classYear??p.class??null,p.height??p.heightText??null,observedAt,observedAt,observedAt,"CBBD_TEAMS_ROSTER",JSON.stringify({endpoint:"/teams/roster",season}),observedAt));
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,0,NULL,1,1,?)`).bind("roster-b:"+season+":"+provider+":"+tid,pid,tid,season,provider,name,p.position??p.positionAbbreviation??null,p.year??p.classYear??p.class??p.startSeason??p.start_season??null,p.height??p.heightText??null,observedAt,observedAt,observedAt,"CBBD_TEAMS_ROSTER",JSON.stringify({endpoint:"/teams/roster",season}),observedAt));
   }
  }
  await runBatches(env.DB,[...playerStmts,...providerStmts,...rosterStmts]);
 
  const teamCtx=new Map(),teamStmts=[];
  for(const t of teams){
-  const tid=teamId(season,teamName(t),t?.id??t?.teamId);if(!tid)continue;teamCtx.set(tid,t);
+  const tid=teamId(season,teamName(t),t?.id??t?.teamId??t?.team_id??t?.sourceId??t?.source_id);if(!tid)continue;teamCtx.set(tid,t);
   const hca=null;
   teamStmts.push(env.DB.prepare(`INSERT OR REPLACE INTO cbb_team_context_observations(id,team_id,season,conference,head_coach,coach_tenure_start,venue_id,venue_name,venue_latitude,venue_longitude,hca_reference,observed_at,effective_at,ingested_at,source,provenance_json,confidence,stale,supersedes_id,pit_eligible,research_only,created_at)
-   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,NULL,1,1,?)`).bind("teamctx:"+season+":"+tid,tid,season,conf(t),t?.headCoach??t?.coach?.name??null,t?.coachTenureStart??null,t?.venueId??t?.venue?.id??null,venue(t),num(t?.venue?.latitude),num(t?.venue?.longitude),num(hca),observedAt,observedAt,observedAt,"CBBD_TEAMS",JSON.stringify({endpoint:"/teams",season,hca:"UNRESOLVED_NO_VERIFIED_TEAM_SPECIFIC_LINK"}),0.95,observedAt));
+   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,NULL,1,1,?)`).bind("teamctx:"+season+":"+tid,tid,season,conf(t),t?.headCoach??t?.coach?.name??null,t?.coachTenureStart??null,t?.venueId??t?.venue?.id??null,venue(t),num(t?.venue?.latitude),num(t?.venue?.longitude),num(hca),observedAt,observedAt,observedAt,"CBBD_TEAMS",JSON.stringify({endpoint:"/teams",season,hca:"UNRESOLVED_NO_VERIFIED_TEAM_SPECIFIC_LINK"}),0.95,observedAt));
  }
  await runBatches(env.DB,teamStmts);
 
