@@ -4,7 +4,7 @@ import { canonicalizeProPlayerPropMarket } from "../lib/proPlayerProps.js";
 import { sha256Hex } from "../lib/sha256Hex.js";
 import { MLB_PROP_PROMOTION_GATE_VERSION } from "../lib/mlbPropPromotionGovernance.js";
 import { noVigPair } from "../lib/canonical/economicGrading.js";
-import { persistProspectiveEvidence, persistEconomicGrade } from "../lib/canonical/evidenceStore.js";
+import { persistProspectiveEvidenceAtomic, persistEconomicGrade } from "../lib/canonical/evidenceStore.js";
 
 const SUPPORTED_MARKETS=new Set([
   "strikeouts","pitcher_outs","walks_allowed","hits_allowed","earned_runs","pitch_count",
@@ -29,6 +29,11 @@ function marketKey(raw){
 function shardAccept(eventId,shard,shards){
   const n=Number(String(eventId||"").replace(/\D/g,"").slice(-9))||0;
   return shards<=1 || (n%shards)===shard;
+}
+function evidenceShardAccept(evidenceId,shard,shards){
+  if(shards<=1)return true;
+  const n=parseInt(String(evidenceId||"0").slice(0,8),16);
+  return Number.isFinite(n) && (n%shards)===shard;
 }
 function checkpoint(game={}){
   const start=Date.parse(game.start||""); const h=Number.isFinite(start)?(start-Date.now())/3600000:null;
@@ -116,7 +121,7 @@ async function capture(context,{date,shard=0,shards=1}={}){
   const runId=sha256Hex(JSON.stringify(["mlb_prop_capture",date,shard,shards,started]));
   const env=envFor(context);
   const slate=await buildSlate("mlb",date,env);
-  const games=(slate.games||[]).filter(g=>shardAccept(g.id,shard,shards)&&!g?.status?.completed&&!g?.status?.live).slice(0,8);
+  const games=(slate.games||[]).filter(g=>!g?.status?.completed&&!g?.status?.live).slice(0,8);
   const flat=games.flatMap(g=>(g.playerProjectionRows||[]).map(r=>({g,r}))).filter(x=>SUPPORTED_MARKETS.has(x.r.market));
   const profiles=await loadPlayerProfiles(db,flat.map(x=>x.r));
   const decisionAt=new Date().toISOString();
@@ -161,7 +166,8 @@ async function capture(context,{date,shard=0,shards=1}={}){
       const prof=String(r.position||"").toUpperCase()==="P"?profiles.pitchers.get(String(r.playerId)):profiles.hitters.get(String(r.playerId));
       const stateSnapshot={contract:"mlb-state-v2",stateAsOf,sourceObservedAt,eventPersistentState:g.mlbPersistentState||null,
         playerProfile:prof?{playerId:prof.player_id,asOf:prof.as_of,sourceVersion:prof.source_version,profile:JSON.parse(prof.profile_json||"null")}:null};
-      const result=await db.prepare(`INSERT OR IGNORE INTO mlb_prop_prospective_evidence(
+      if(!evidenceShardAccept(id,shard,shards))continue;
+      const sportInsert=db.prepare(`INSERT OR IGNORE INTO mlb_prop_prospective_evidence(
         id,gate_version,event_id,event_date,event_start_at,player_id,player_name,team,opponent,position,market,
         projection,sigma,model_source,model_version,source_observed_at,state_as_of,projection_snapshot_at,checkpoint,
         market_source,sportsbook,market_line,odds_tier,market_observed_at,decision_snapshot_at,candidate_side,
@@ -171,9 +177,7 @@ async function capture(context,{date,shard=0,shards=1}={}){
       .bind(id,MLB_PROP_PROMOTION_GATE_VERSION,String(g.id),date,eventStart,text(r.playerId),r.playerName,r.team||null,opponent||null,r.position||null,r.market,
         num(r.fbisProjection),num(r.fbisSigma),modelSource,modelVersion,sourceObservedAt,stateAsOf,projectionAt,cp,
         q.marketSource,q.sportsbook,q.line,q.oddsTier,q.observedAt,decisionAt,side,
-        JSON.stringify(stateSnapshot),JSON.stringify(r),JSON.stringify(q),1,JSON.stringify({ok:true,problems:[]}),duplicateKey,projectionUnitKey,decisionAt).run();
-      if(Number(result?.meta?.changes||0)>0){
-        accepted++;
+        JSON.stringify(stateSnapshot),JSON.stringify(r),JSON.stringify(q),1,JSON.stringify({ok:true,problems:[]}),duplicateKey,projectionUnitKey,decisionAt);
         const stateSnapshotId=sha256Hex(JSON.stringify(["mlb_prop_state",g.id,r.playerId||norm(r.playerName),stateAsOf,modelVersion]));
         const championProjection={championModel:String(g.championModel||slate.modelVersion||"FBIS-v1.4")};
         const challengerProjection={playerId:r.playerId||null,playerName:r.playerName,market:r.market,projection:num(r.fbisProjection),sigma:num(r.fbisSigma),candidateSide:side};
@@ -181,7 +185,7 @@ async function capture(context,{date,shard=0,shards=1}={}){
         const uncertainty={sigma:num(r.fbisSigma),state:num(r.fbisSigma)==null?"UNKNOWN":"OBSERVED"};
         const qualificationAuthority={canQualify:false,source:"MLB_PROP_PROMOTION_GATE",gateVersion:MLB_PROP_PROMOTION_GATE_VERSION};
         const wagerAuthority={canAuthorize:false,source:"MODEL_GOVERNANCE"};
-        const canonical = await persistProspectiveEvidence(context.env, {
+        const canonical = await persistProspectiveEvidenceAtomic(context.env, {
           evidenceId:id,
           sport:"mlb",
           eventId:String(g.id),
@@ -217,12 +221,15 @@ async function capture(context,{date,shard=0,shards=1}={}){
           wagerAuthority,
           canQualify:false,
           canAuthorize:false,
-        });
+        }, { beforeStatements:[sportInsert] });
         if(!canonical.ok){
           rejected++;
           await reject(db,{operation:"canonical_capture",eventId:g.id,row:r,reason:canonical.reason||"CANONICAL_EVIDENCE_WRITE_FAILED",details:{canonical},at:decisionAt});
+          continue;
         }
-      }else duplicates++;
+        const sportChanged=Number(canonical.beforeResults?.[0]?.meta?.changes||0);
+        if(sportChanged>0)accepted++; else duplicates++;
+      
     }
   }
   const finished=new Date().toISOString();
@@ -389,7 +396,7 @@ export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env); if(!auth.ok)return json(unauthorizedBody(),401);
   let body={};try{body=await context.request.json()}catch{}
   const operation=String(body.operation||"").toLowerCase(),date=text(body.date)||ctDate();
-  const shard=Math.max(0,Number(body.shard)||0),shards=Math.max(1,Math.min(8,Number(body.shards)||1));
+  const shard=Math.max(0,Number(body.shard)||0),shards=Math.max(1,Math.min(32,Number(body.shards)||1));
   if(shard>=shards)return json({ok:false,error:"invalid_shard"},400);
   try{
     if(operation==="capture")return json(await capture(context,{date,shard,shards}));
