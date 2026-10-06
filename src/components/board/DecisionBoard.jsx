@@ -68,11 +68,16 @@ export default function DecisionBoard({ games = [], renderDetail }) {
     <div className="decision-board">
       <BoardSummaryStrip games={ranked} />
       <div className="db-grid" role="list" aria-label="Decision board cards">
-        {ranked.map((g) => (
-          <div key={`${g.sport}:${g.id}`} role="listitem" className="db-grid-item">
-            <CompactGameCard game={g} onOpen={setSelected} />
-          </div>
-        ))}
+        {ranked.map((g) => {
+          const isTennis = String(g?.sport || "").toLowerCase() === "tennis";
+          return (
+            <div key={`${g.sport}:${g.id}`} role="listitem" className={isTennis ? "db-grid-item db-grid-item-tennis" : "db-grid-item"}>
+              {isTennis
+                ? <PremiumGameCard game={g} />
+                : <CompactGameCard game={g} onOpen={setSelected} />}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

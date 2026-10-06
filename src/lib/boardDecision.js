@@ -189,8 +189,13 @@ export function resolveBoardProjection(game) {
     const away = independent.away;
     const home = independent.home;
     // Prefer explicit board margin/total when present; otherwise derive and round to 1dp.
-    const derivedMargin = Math.round((home - away) * 10) / 10;
-    const derivedTotal = Math.round((away + home) * 10) / 10;
+    // Team-sport projected scores may derive margin/total from score pairs. Tennis
+    // uses win probabilities in these legacy score slots, so deriving a 100-game
+    // total or probability margin would be dimensionally invalid.
+    const sport = String(game?.sport || "").toLowerCase();
+    const isTennis = sport === "tennis";
+    const derivedMargin = isTennis ? null : Math.round((home - away) * 10) / 10;
+    const derivedTotal = isTennis ? null : Math.round((away + home) * 10) / 10;
     const fromNflPro = independent.source === "nflProShadow";
     const explicitMargin = fromNflPro
       ? finiteScore(game?.nflProShadow?.margin)
@@ -198,8 +203,10 @@ export function resolveBoardProjection(game) {
     const explicitTotal = fromNflPro
       ? finiteScore(game?.nflProShadow?.total)
       : finiteScore(game?.model?.projTotal ?? game?.projTotal);
-    const margin = explicitMargin != null ? explicitMargin : derivedMargin;
-    const total = explicitTotal != null ? explicitTotal : derivedTotal;
+    const tennisTotal = finiteScore(game?.tennisProjection?.projectedTotalGames);
+    const tennisMargin = finiteScore(game?.tennisProjection?.projectedGameSpread);
+    const margin = isTennis ? tennisMargin : (explicitMargin != null ? explicitMargin : derivedMargin);
+    const total = isTennis ? tennisTotal : (explicitTotal != null ? explicitTotal : derivedTotal);
     const research = Boolean(independent.fromResearch || isResearchProjection(game));
     return {
       available: true,

@@ -624,8 +624,10 @@ export async function buildTennisResearchSlate(date, env = {}) {
         maturity: "RESEARCH",
         projAway: p2Prob == null ? null : p2Prob * 100,
         projHome: p1Prob == null ? null : p1Prob * 100,
-        projTotal: 100,
-        projMargin: p1Prob == null ? null : (p1Prob - p2Prob) * 100,
+        // Tennis probabilities are not score projections. Total-games/spread belong only
+        // to explicit simulator outputs; keep them null until those outputs exist.
+        projTotal: null,
+        projMargin: null,
         projectionKind: "FBIS",
       },
       modelId: row.pure_model_id || "TENNIS-FBIS-v2-CONTEXT",

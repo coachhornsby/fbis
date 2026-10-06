@@ -132,6 +132,8 @@ test("tennis TODAY cards carry full identity, rankings, headshots, market lines 
   assert.equal(board.away.rank, 123);
   assert.equal(board.home.logo, "https://a.espncdn.com/roman.png");
   assert.equal(board.tennisProjection.marketPriorP1, 0.742);
+  assert.equal(board.projTotal, null);
+  assert.equal(board.projMargin, null);
   assert.equal(board.referenceMarketAvailable, true);
   assert.equal(board.marketUnavailable, true);
 });
@@ -161,4 +163,25 @@ test("tennis ranking/headshot enrichment fails open", async () => {
   assert.equal(slate.games[0].home.fullName, "Player One");
   assert.equal(slate.games[0].home.rank, null);
   assert.equal(slate.games[0].home.logo, null);
+});
+
+
+test("tennis win probabilities never masquerade as projected total games", async () => {
+  const rows = [{
+    canonical_event_id: "tennis:action:prob-contract",
+    tour: "wta", player1: "Player One", player2: "Player Two",
+    pure_model_id: "TENNIS-FBIS-v2-CONTEXT", pure_p1: 0.461,
+    market_prior_p1: 0.45, market_v2_p1: 0.46, model_edge: 0.011,
+    decision_timestamp: "2026-10-05T15:00:00Z", event_start_time: "2026-10-06T03:00:00Z",
+    snapshot_type: "DECISION", total_line: 20.5
+  }];
+  const slate = await buildTennisResearchSlate("2026-10-05", {
+    DB: fakeDb(rows),
+    fetchImpl: async () => ({ ok: true, async json() { return { rankings: [] }; } }),
+  });
+  const board = toBoardGame(slate.games[0], "tennis");
+  assert.equal(board.model?.projTotal, undefined);
+  assert.equal(board.projTotal, null);
+  assert.equal(board.tennisProjection.projectedTotalGames, undefined);
+  assert.equal(board.market.reference.total, 20.5);
 });
