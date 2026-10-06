@@ -50,6 +50,15 @@ jobs:
         run: |
           set -euo pipefail
           for file in artifacts/cfb-player-directory/cfb-player-directory-20*.sql; do
+            season="$(basename "${file}" .sql | sed 's/.*-//')"
+            echo "Checking durable Phase B state for ${season}"
+            existing="$(npx wrangler d1 execute fbis --remote --json --command="SELECT COUNT(*) AS n, SUM(CASE WHEN temporal_confidence IS NOT NULL THEN 1 ELSE 0 END) AS temporal_n FROM cfb_roster_membership WHERE source='SPORTSDATAVERSE_ESPN_CFB_ROSTERS' AND season=${season};")"
+            n="$(printf '%s' "${existing}" | jq -r '.[0].results[0].n // 0')"
+            temporal_n="$(printf '%s' "${existing}" | jq -r '.[0].results[0].temporal_n // 0')"
+            if [ "${n}" -gt 0 ] && [ "${n}" -eq "${temporal_n}" ]; then
+              echo "Season ${season} already durably populated with temporal confidence (${n} rows); skipping"
+              continue
+            fi
             echo "Applying ${file}"
             ok=0
             for attempt in 1 2 3; do
@@ -57,10 +66,19 @@ jobs:
                 ok=1
                 break
               fi
+              echo "Wrangler import returned failure for ${file}; verifying durable production state"
+              landed="$(npx wrangler d1 execute fbis --remote --json --command="SELECT COUNT(*) AS n, SUM(CASE WHEN temporal_confidence IS NOT NULL THEN 1 ELSE 0 END) AS temporal_n FROM cfb_roster_membership WHERE source='SPORTSDATAVERSE_ESPN_CFB_ROSTERS' AND season=${season};")"
+              landed_n="$(printf '%s' "${landed}" | jq -r '.[0].results[0].n // 0')"
+              landed_temporal_n="$(printf '%s' "${landed}" | jq -r '.[0].results[0].temporal_n // 0')"
+              if [ "${landed_n}" -gt 0 ] && [ "${landed_n}" -eq "${landed_temporal_n}" ]; then
+                echo "Season ${season} is durably populated despite Wrangler failure (${landed_n} rows); continuing"
+                ok=1
+                break
+              fi
               echo "D1 import attempt ${attempt} failed for ${file}; retrying"
               sleep $((attempt * 5))
             done
-            test "${ok}" -eq 1 || { echo "D1 import failed after retries: ${file}"; exit 1; }
+            test "${ok}" -eq 1 || { echo "D1 import failed after retries and durable verification: ${file}"; exit 1; }
           done
       - name: Finalize active state and coverage
         run: npx wrangler d1 execute fbis --remote --file=artifacts/cfb-player-directory/cfb-player-directory-finalize.sql
