@@ -10,11 +10,15 @@ test("executed-bet writes couple financial mutation and audit in D1 batch", asyn
   const append = store.indexOf("export async function appendExecutedBetAudit");
   const persistBody = store.slice(start, query);
   const updateBody = store.slice(update, append);
+  assert.match(persistBody, /atomic-batch-required/);
   assert.match(persistBody, /env\.DB\.batch\(\[insert, audit\]\)/);
   assert.match(persistBody, /replayRecovered: true/);
-  assert.match(persistBody, /partial: true/);
+  assert.doesNotMatch(persistBody, /partial: true/);
+  assert.match(updateBody, /atomic-batch-required/);
   assert.match(updateBody, /env\.DB\.batch\(\[update, audit\]\)/);
-  assert.match(updateBody, /audit-write-failed/);
+  assert.match(updateBody, /state-precondition-failed/);
+  assert.match(updateBody, /WHERE changes\(\) > 0/);
+  assert.doesNotMatch(updateBody, /partial: true/);
 });
 
 test("executed-bet schema has deterministic execution identity", async () => {
@@ -50,4 +54,17 @@ test("tracker sync compares structured metadata by value, not object identity", 
   assert.match(bets, /JSON\.stringify\(left\) === JSON\.stringify\(right\)/);
   assert.match(bets, /!trackerFieldEqual\(existing\?\.\[k\]/);
   assert.doesNotMatch(bets, /Object\.entries\(patch\)\.some\(\(\[k,v\]\) => \(existing\?\.\[k\] \?\? null\) !== \(v \?\? null\)\)/);
+});
+
+
+test("settlement callers use OPEN compare-and-set and tracker cannot reopen settled wagers", async () => {
+  const bets = await readFile(new URL("../functions/api/bets.js", import.meta.url), "utf8");
+  const track = await readFile(new URL("../functions/api/track.js", import.meta.url), "utf8");
+  const ledger = await readFile(new URL("../functions/lib/projLedger.js", import.meta.url), "utf8");
+  assert.match(bets, /settledExisting \? existing\.result/);
+  assert.match(bets, /expectedResult: existing\.result \|\| "OPEN"/);
+  assert.match(bets, /manual-player-prop-stat", \{ expectedResult: "OPEN" \}/);
+  assert.match(track, /"manual-final-score",[\s\S]*expectedResult: "OPEN"/);
+  assert.match(ledger, /alreadySettled && changed\) continue/);
+  assert.match(ledger, /expectedResult: alreadySettled \? t\.result : "OPEN"/);
 });

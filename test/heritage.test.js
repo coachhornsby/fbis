@@ -869,6 +869,9 @@ function executedBetsDb() {
   return {
     bets,
     DB: {
+      async batch(statements) {
+        return Promise.all(statements.map((statement) => statement.run()));
+      },
       prepare(sql) {
         return {
           bind(...args) {

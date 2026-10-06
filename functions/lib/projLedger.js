@@ -1776,6 +1776,9 @@ async function gradeExecutedBets(env, finals, opts = {}) {
       const alreadySettled = t.result && t.result !== "OPEN";
       const changed = settled.result !== t.result || Number(settled.profit) !== Number(t.profit);
       const evidenceMissing = t.finalAwayScore == null || t.finalHomeScore == null || !t.settlementSource;
+      // A scoreboard replay may enrich evidence for an identical settled result, but it must
+      // never silently overwrite an existing economic settlement with a conflicting result.
+      if (alreadySettled && changed) continue;
       if (changed || bindGame || evidenceMissing) {
         jobs.push(
           updateExecutedBet(
@@ -1796,7 +1799,8 @@ async function gradeExecutedBets(env, finals, opts = {}) {
                 capturedAt: new Date().toISOString(),
               },
             },
-            bindGame ? "sport-correction-settlement" : alreadySettled ? "settlement-correction" : "settlement"
+            bindGame ? "sport-correction-settlement" : alreadySettled ? "settlement-evidence" : "settlement",
+            { expectedResult: alreadySettled ? t.result : "OPEN" }
           )
         );
       }

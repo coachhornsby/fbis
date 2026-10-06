@@ -319,6 +319,7 @@ export async function syncTrackerBets(env, tickets) {
       skipped.push({ id:packed.id, externalTicketId:packed.externalTicketId, reason:"already-present" });
       continue;
     }
+    const settledExisting = String(existing.result || "OPEN") !== "OPEN";
     const patch = {
       matchupText: packed.matchupText,
       awayTeam: packed.awayTeam,
@@ -326,11 +327,11 @@ export async function syncTrackerBets(env, tickets) {
       selectedSide: packed.selectedSide,
       selectedTeam: packed.selectedTeam,
       trackerMetadata: packed.trackerMetadata,
-      result: packed.result || "OPEN",
-      profit: packed.profit,
-      settledReturn: packed.settledReturn,
-      gradedAt: packed.gradedAt,
-      voidReason: packed.voidReason,
+      result: settledExisting ? existing.result : (packed.result || "OPEN"),
+      profit: settledExisting ? existing.profit : packed.profit,
+      settledReturn: settledExisting ? existing.settledReturn : packed.settledReturn,
+      gradedAt: settledExisting ? existing.gradedAt : packed.gradedAt,
+      voidReason: settledExisting ? existing.voidReason : packed.voidReason,
       matchStatus: packed.matchStatus || "tracker-synced",
       recommendationStatus: packed.recommendationStatus || "TRACKER_SYNCED",
       attributionLabel: packed.attributionLabel || "TRACKER SYNCED",
@@ -342,7 +343,7 @@ export async function syncTrackerBets(env, tickets) {
       skipped.push({ id:existing.id, externalTicketId:packed.externalTicketId, reason:"unchanged" });
       continue;
     }
-    const up = await updateExecutedBet(env, existing.id, patch, "sports-betting-tracker-sync");
+    const up = await updateExecutedBet(env, existing.id, patch, "sports-betting-tracker-sync", { expectedResult: existing.result || "OPEN" });
     if (!up.ok) {
       errors.push({ id:existing.id, errors:[up.reason || "update"] });
       continue;
@@ -423,7 +424,7 @@ export async function handleBetsPost(env, request, body) {
       propActual: actual,
       propStatSource: "operator-entered",
     };
-    const res = await updateExecutedBet(env, body.id, patch, "manual-player-prop-stat");
+    const res = await updateExecutedBet(env, body.id, patch, "manual-player-prop-stat", { expectedResult: "OPEN" });
     return { status: res.ok ? 200 : 400, body: { ok: res.ok, error: res.reason || null, result: settlement.result, actual } };
   }
   if (action === "correct") {
