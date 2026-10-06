@@ -24,7 +24,7 @@ export async function onRequestPost(context){
     nextId=String(row.pitch_league_id)+":"+String(row.season)+":"+nextOffset;
     await db.prepare(`INSERT OR IGNORE INTO soccer_pitchapi_backfill_queue(
       id,heritage_name,heritage_key,pitch_league_id,season,offset,page_size,status,attempts,created_at,updated_at
-    ) VALUES(?,?,?,?,?,?,?,'PENDING',0,?,?)`).bind(nextId,row.heritage_name,row.heritage_key,row.pitch_league_id,row.season,nextOffset,row.page_size,now,now).run();
+    ) VALUES(?,?,?,?,?,?,?,'PENDING',0,?,?)`).bind(nextId,row.heritage_name,row.heritage_key,row.pitch_league_id,row.season,nextOffset,Math.max(12,Number(row.page_size)||12),now,now).run();
   }
   await db.prepare(`UPDATE soccer_competition_coverage SET last_ingested_at=? WHERE heritage_name=?`).bind(now,row.heritage_name).run();
   return json({ok:true,status:"DONE",nextId,done});

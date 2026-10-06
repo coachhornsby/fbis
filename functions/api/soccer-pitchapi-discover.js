@@ -106,7 +106,7 @@ export async function onRequestPost(context){
       if(accepted&&modelEligible===1){
         for(const season of seasons.slice(0,6)){
           const qid=String(l.id)+":"+season+":0";
-          await db.prepare("INSERT OR IGNORE INTO soccer_pitchapi_backfill_queue(id,heritage_name,heritage_key,pitch_league_id,season,offset,page_size,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?,0,4,'PENDING',0,?,?)")
+          await db.prepare("INSERT OR IGNORE INTO soccer_pitchapi_backfill_queue(id,heritage_name,heritage_key,pitch_league_id,season,offset,page_size,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?,0,12,'PENDING',0,?,?)")
             .bind(qid,name,heritageKey,String(l.id),season,started,started).run();
           queued++;
         }
