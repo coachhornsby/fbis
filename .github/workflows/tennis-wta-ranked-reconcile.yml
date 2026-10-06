@@ -92,24 +92,7 @@ jobs:
 
       - name: Apply ranked reconciliation to D1
         if: github.event_name != 'pull_request' && steps.cursor.outputs.skip != '1'
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/wta-rank-chunks
-          split -l 1000 -d -a 4 artifacts/wta-ranked-reconcile.sql /tmp/wta-rank-chunks/chunk-
-          for file in /tmp/wta-rank-chunks/chunk-*; do
-            ok=0
-            for attempt in 1 2 3 4 5 6; do
-              if npx wrangler d1 execute fbis --remote --file "$file"; then
-                ok=1
-                sleep 8
-                break
-              fi
-              delay=$((attempt*15))
-              echo "WTA ranking D1 chunk busy/failing; retrying in ${delay}s (attempt ${attempt}/6)"
-              sleep "$delay"
-            done
-            test "$ok" = "1"
-          done
+        run: node scripts/d1-batched-sql.mjs artifacts/wta-ranked-reconcile.sql
 
       - name: Audit official WTA source contract
         if: github.event_name == 'pull_request' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
