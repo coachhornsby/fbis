@@ -224,10 +224,29 @@ async function settle(db,date){
     const unexpectedStarter=Boolean((score.homeStarterId&&r.home_expected_starter_id&&score.homeStarterId!==String(r.home_expected_starter_id))||(score.awayStarterId&&r.away_expected_starter_id&&score.awayStarterId!==String(r.away_expected_starter_id)));
     const usage=unexpectedStarter?"LATE_OR_UNEXPECTED_STARTER_CHANGE":(r.home_goalie_confirmation_state==="CONFIRMED"&&r.away_goalie_confirmation_state==="CONFIRMED"?"BOTH_CONFIRMED":"EXPECTED_STARTER_ONLY");
     const grade={side,price,won,scoreMarketsChanged:false,atsDelta:"SAME_AS_INCUMBENT",totalDelta:"SAME_AS_INCUMBENT",actualHomeStarterId:score.homeStarterId,actualAwayStarterId:score.awayStarterId,unexpectedStarter};
+    const gradedAt=new Date().toISOString();
     await db.prepare(`UPDATE nhl_goalie_probability_shadow SET
       actual_home=?,actual_away=?,incumbent_brier=?,shadow_brier=?,incumbent_log_loss=?,shadow_log_loss=?,
       incumbent_correct=?,shadow_correct=?,research_clv_probability_pp=?,research_profit_units=?,grade_json=?,graded_at=?,lifecycle='GRADED',goalie_usage_state=?
-      WHERE id=?`).bind(score.home,score.away,ib,sb,ill,sll,ic,sc,clv,profit,JSON.stringify(grade),new Date().toISOString(),usage,r.id).run();
+      WHERE id=?`).bind(score.home,score.away,ib,sb,ill,sll,ic,sc,clv,profit,JSON.stringify(grade),gradedAt,usage,r.id).run();
+
+    if(Number(r.gate_fired)===1 && Number(r.temporal_integrity_passed)===1){
+      const evidenceId=canonicalEvidenceId({sport:"nhl",sourceTable:"nhl_goalie_probability_shadow",sourceId:r.id,gateVersion:PROSPECTIVE_GATE.gateVersion});
+      await markCanonicalEvidenceGraded(db,evidenceId,{gradedAt,result:{
+        actualHome:score.home,actualAway:score.away,incumbentBrier:ib,challengerBrier:sb,
+        incumbentLogLoss:ill,challengerLogLoss:sll,actualHomeStarterId:score.homeStarterId,actualAwayStarterId:score.awayStarterId,
+        unexpectedStarter,sourceResearchClvProbabilityPp:clv,sourceResearchProfitUnits:profit
+      }});
+      const entryNoVig=noVigForSide(market,side);
+      await persistCanonicalEconomicGrade(db,{
+        evidenceId,sport:"nhl",eventId:String(r.event_id),marketFamily:"moneyline_probability",
+        selection:side,projectedProbability:side==="HOME"?ps:1-ps,entryNoVigProbability:entryNoVig,closeNoVigProbability:close,
+        result:won?"WIN":"LOSS",gradedAt,metadata:{researchOnly:true,sourceClvSemantics:"close_no_vig_minus_entry_vigged_implied_pp",canonicalClvSemantics:"close_no_vig_minus_entry_no_vig_probability"}
+      },{
+        executionEvidence:false,sourceTable:"nhl_goalie_probability_shadow",sourceId:r.id,
+        sourceMetrics:{shadowBrier:sb,shadowLogLoss:sll,researchClvProbabilityPp:clv,researchProfitUnits:profit}
+      });
+    }
     graded++;
   }
   return{eligible:rows.length,graded};
