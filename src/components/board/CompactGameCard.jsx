@@ -334,8 +334,14 @@ export default function CompactGameCard({ game, onOpen }) {
           {home.logoUrl ? <img className="cgc-team-watermark cgc-team-watermark-home" src={home.logoUrl} alt="" aria-hidden="true" /> : null}
           <div className="cgc-team-block">
             <TeamLogo team={away} size={66} className="cgc-logo" />
-            <strong className="cgc-abbr">{away.abbr || "—"}</strong>
-            <span className="cgc-team-name">{away.fullName || away.name || away.abbr || "—"}</span>
+            {sportId === "mlb" ? (
+              <strong className="cgc-team-name cgc-team-name-mlb">{away.fullName || away.name || away.abbr || "—"}</strong>
+            ) : (
+              <>
+                <strong className="cgc-abbr">{away.abbr || "—"}</strong>
+                <span className="cgc-team-name">{away.fullName || away.name || away.abbr || "—"}</span>
+              </>
+            )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="away" /> : null}
             <strong className="cgc-proj">{proj.available ? (proj.away ?? "—") : "—"}</strong>
             <span>FBIS SCORE</span>
@@ -345,8 +351,14 @@ export default function CompactGameCard({ game, onOpen }) {
 
           <div className="cgc-team-block">
             <TeamLogo team={home} size={66} className="cgc-logo" />
-            <strong className="cgc-abbr">{home.abbr || "—"}</strong>
-            <span className="cgc-team-name">{home.fullName || home.name || home.abbr || "—"}</span>
+            {sportId === "mlb" ? (
+              <strong className="cgc-team-name cgc-team-name-mlb">{home.fullName || home.name || home.abbr || "—"}</strong>
+            ) : (
+              <>
+                <strong className="cgc-abbr">{home.abbr || "—"}</strong>
+                <span className="cgc-team-name">{home.fullName || home.name || home.abbr || "—"}</span>
+              </>
+            )}
             {sportId === "mlb" ? <MlbStarterMini game={game} side="home" /> : null}
             <strong className="cgc-proj">{proj.available ? (proj.home ?? "—") : "—"}</strong>
             <span>FBIS SCORE</span>
