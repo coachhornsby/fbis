@@ -136,6 +136,14 @@ audit.exclusions={ambiguousCanonicalMatchupRows:ambiguousRows.length,ambiguousCa
 audit.conflicts.detectedHistoricalDuplicateKeys=audit.conflicts.historicalDuplicateKeys;
 audit.conflicts.historicalDuplicateKeys=0;
 rows=rows.filter(r=>!ambiguousHistKeys.has(r.matchKey));
+const rawMatchedRows=rows.length;
+const ambiguousMatchedRows=rows.filter(r=>duplicateHistKeys.has(r.matchKey)).length;
+rows=rows.filter(r=>!duplicateHistKeys.has(r.matchKey));
+audit.conflicts.ambiguousHistoricalKeys=[...duplicateHistKeys].sort();
+audit.conflicts.ambiguousMatchedRowsExcluded=ambiguousMatchedRows;
+audit.conflicts.unresolvedAmbiguousRows=rows.filter(r=>duplicateHistKeys.has(r.matchKey)).length;
+audit.totals.frozenMatched=rows.length;
+for(const [season,s] of Object.entries(audit.seasons))s.frozenMatched=rows.filter(r=>r.season===Number(season)).length;
 audit.coverage={
   pbpGameRate:round(cov.pbpGames/cov.games),
   substitutionEvidenceRate:round(cov.substitutionGames/cov.games),
@@ -156,7 +164,7 @@ audit.gates={
   noUnresolvedDuplicateConflicts:audit.conflicts.predictionMatchup===0&&audit.exclusions.ambiguousCanonicalMatchupRows>=audit.conflicts.historicalDuplicateKeys,
   noParserRepeats:Object.values(audit.seasons).every(s=>(s.counts?.repeatedGames||0)===0&&(s.counts?.lineupRepeated||0)===0),
   pitTiming:"features are derived only from each team's prior completed games before target game",
-  minimumMatchedRows:audit.totals.matched>=25000,
+  minimumMatchedRows:audit.totals.frozenMatched>=25000,
   minimumSeasonLineupReliability:minReliable>=0.75,
   minimumSeasonValidatedCoverage:minValidated>=0.85,
   canonicalTeams:rows.every(r=>r.home.canonicalId&&r.away.canonicalId),
@@ -208,7 +216,7 @@ for(const fam of FAM){
     }
   }
 }
-const snapshot={id:SNAPSHOT_ID,version:"v1",createdAt:new Date().toISOString(),source:{historicalRun:SOURCE_RUN,historicalSha:SOURCE_SHA,benchmarkRun:BENCHMARK_RUN,benchmarkIdentity:"cbb-fbis-native-v2-predictions + cbb-fbis-v2-fit"},featureVersion:"CBB-NCAA-POSSESSION-v1/v1.0.0 + CBB-PIT-FEATURES-v1",pitEligibility:audit.pitEligible,methodology:"All target-game features are prior-game EWMA state only; no target or future game state enters features.",auditRef:"cbb-pit-audit-v1.json",ablationRef:"cbb-target-ablation-v1.json",rowCount:rows.length,rows:rows.map(r=>({id:r.id,season:r.season,date:r.date,home:r.home,away:r.away,actualHome:r.actualHome,actualAway:r.actualAway,fbis:r.fbis,homeGames:r.homeGames,awayGames:r.awayGames,priorQa:r.priorQa,families:r.families}))};
+const snapshot={id:SNAPSHOT_ID,version:"v1",createdAt:new Date().toISOString(),source:{historicalRun:SOURCE_RUN,historicalSha:SOURCE_SHA,benchmarkRun:BENCHMARK_RUN,benchmarkIdentity:"cbb-fbis-native-v2-predictions + cbb-fbis-v2-fit"},featureVersion:"CBB-NCAA-POSSESSION-v1/v1.0.0 + CBB-PIT-FEATURES-v1",pitEligibility:audit.pitEligible,methodology:"All target-game features are prior-game EWMA state only; no target or future game state enters features.",auditRef:"cbb-pit-audit-v1.json",ablationRef:"cbb-target-ablation-v1.json",rowCount:rows.length,excludedAmbiguousMatchedRows:audit.conflicts.ambiguousMatchedRowsExcluded,rows:rows.map(r=>({id:r.id,season:r.season,date:r.date,home:r.home,away:r.away,actualHome:r.actualHome,actualAway:r.actualAway,fbis:r.fbis,homeGames:r.homeGames,awayGames:r.awayGames,priorQa:r.priorQa,families:r.families}))};
 writeFileSync(outDir+"/cbb-pit-audit-v1.json",JSON.stringify(audit,null,2));
 writeFileSync(outDir+"/cbb-target-ablation-v1.json",JSON.stringify(ab,null,2));
 if(audit.pitEligible)writeFileSync(outDir+"/cbb-pit-snapshot-v1.json",JSON.stringify(snapshot));
