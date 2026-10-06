@@ -1,5 +1,6 @@
 name: WNBA impact shadow snapshots
 # prerequisite-capture-touch: 2026-10-06
+# verified-production-capture-touch: 2026-10-06
 
 on:
   workflow_dispatch:
