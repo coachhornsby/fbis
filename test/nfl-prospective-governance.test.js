@@ -63,3 +63,35 @@ test("prospective evaluator rejects temporal leakage and total mismatch",()=>{
   assert.equal(r.checks.temporalIntegrity,false);
   assert.equal(r.checks.totalsExact,false);
 });
+
+
+test("pre-gate legacy rows are excluded without being mutated",()=>{
+  const legacy={
+    event_id:"legacy",checkpoint:"EARLY",frozen_at:"2026-10-06T03:25:27.083Z",
+    incumbent_total:43.4,challenger_total:43.4,
+    incumbent_margin:7,challenger_margin:7,
+    incumbent_win_probability:.6685919067,challenger_win_probability:.7306815685,
+    gate_fired:0,
+    provenance_json:JSON.stringify({source:"FBIS_PROSPECTIVE_SHADOW"}),
+  };
+  const r=evaluateNflQbProspectiveGate([legacy]);
+  assert.equal(r.sample.eligibleFrozenRows,0);
+  assert.equal(r.sample.excludedPreGateOrWrongVersionRows,1);
+  assert.equal(r.integrity.gateOffMismatches,0);
+  assert.equal(r.checks.gateOffExact,true);
+});
+
+test("versioned post-gate rows enter the cohort and enforce gate-off equality",()=>{
+  const row={
+    event_id:"g2",checkpoint:"EARLY@NFL-QB-PROSPECTIVE-GATE-v1",frozen_at:"2026-10-06T04:30:00Z",
+    incumbent_total:43.4,challenger_total:43.4,
+    incumbent_margin:7,challenger_margin:7,
+    incumbent_win_probability:.6685919067,challenger_win_probability:.6685919067,
+    gate_fired:0,
+    provenance_json:JSON.stringify({prospectiveGateId:"NFL-QB-PROSPECTIVE-GATE-v1",governanceId:"FBIS-STATE-OVERLAY-v1"}),
+  };
+  const r=evaluateNflQbProspectiveGate([row]);
+  assert.equal(r.sample.eligibleFrozenRows,1);
+  assert.equal(r.integrity.gateOffMismatches,0);
+  assert.equal(r.checks.gateOffExact,true);
+});
