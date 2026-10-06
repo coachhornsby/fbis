@@ -1,0 +1,100 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  buildProspectiveEvidence,
+  promotionCohortEligibility,
+  PROSPECTIVE_LIFECYCLE,
+} from "../functions/lib/canonical/prospectiveEvidence.js";
+import {
+  americanImpliedProbability,
+  noVigPair,
+  buildEconomicGrade,
+  maximumDrawdown,
+} from "../functions/lib/canonical/economicGrading.js";
+import {
+  buildStateObservation,
+  resolveCurrentState,
+  observationFreshness,
+} from "../functions/lib/canonical/persistentState.js";
+
+test("prospective evidence rejects post-start and future-source leakage", () => {
+  const row = buildProspectiveEvidence({
+    evidenceId: "e1",
+    sport: "nba",
+    eventId: "g1",
+    eventStartAt: "2026-10-10T00:00:00Z",
+    snapshotAt: "2026-10-10T00:05:00Z",
+    championModelId: "champ",
+    modelId: "shadow",
+    sourceObservedAts: ["2026-10-10T00:06:00Z"],
+  });
+  assert.equal(row.temporalIntegrity.ok, false);
+  assert.ok(row.temporalIntegrity.problems.includes("POST_START_SNAPSHOT"));
+  assert.ok(row.temporalIntegrity.problems.includes("FUTURE_SOURCE_OBSERVATION"));
+});
+
+test("promotion cohorts exclude legacy and wrong gate versions", () => {
+  const row = buildProspectiveEvidence({
+    evidenceId: "e2",
+    sport: "nfl",
+    eventId: "g2",
+    eventStartAt: "2026-10-12T18:00:00Z",
+    snapshotAt: "2026-10-12T12:00:00Z",
+    championModelId: "NFL-PRO-v1.1",
+    modelId: "QB-shadow",
+    gateVersion: "NFL-QB-PROSPECTIVE-GATE-v1",
+    lifecycle: PROSPECTIVE_LIFECYCLE.SHADOW,
+  });
+  assert.equal(promotionCohortEligibility(row, {gateVersion:"NFL-QB-PROSPECTIVE-GATE-v1"}).eligible, true);
+  assert.equal(promotionCohortEligibility({...row, legacy:true}, {gateVersion:"NFL-QB-PROSPECTIVE-GATE-v1"}).eligible, false);
+  assert.equal(promotionCohortEligibility(row, {gateVersion:"other"}).eligible, false);
+});
+
+test("economic grading normalizes vig, CLV, ROI and drawdown", () => {
+  assert.ok(americanImpliedProbability(-110) > 0.52);
+  const nv = noVigPair(-110, -110);
+  assert.equal(Number(nv.a.toFixed(6)), 0.5);
+  const grade = buildEconomicGrade({
+    gradeId:"gr1",
+    evidenceId:"e1",
+    sport:"nba",
+    eventId:"g1",
+    marketFamily:"spread",
+    selection:"HOME",
+    projectedProbability:0.58,
+    entryPrice:-110,
+    entryNoVigProbability:0.52,
+    closeNoVigProbability:0.55,
+    result:"WIN",
+  });
+  assert.ok(grade.clvProbability > 0);
+  assert.ok(grade.profitUnits > 0);
+  assert.ok(grade.roi > 0);
+  assert.equal(maximumDrawdown([1,-1,-1,2]), 2);
+});
+
+test("persistent state carries stronger fresh evidence and expires stale evidence", () => {
+  const official = buildStateObservation({
+    observationId:"s1", sport:"nba", entityType:"player", entityId:"p1",
+    stateFamily:"availability", value:"OUT", source:"official",
+    evidenceClass:"OFFICIAL_REPORT", evidenceRank:100,
+    observedAt:"2026-10-05T10:00:00Z",
+  });
+  const secondary = buildStateObservation({
+    observationId:"s2", sport:"nba", entityType:"player", entityId:"p1",
+    stateFamily:"availability", value:"AVAILABLE", source:"secondary",
+    evidenceClass:"SECONDARY", evidenceRank:10,
+    observedAt:"2026-10-05T12:00:00Z",
+  });
+  const resolved = resolveCurrentState([official, secondary], {
+    asOf:"2026-10-05T13:00:00Z",
+    maxAgeMs:24*60*60*1000,
+  });
+  assert.equal(resolved.current.observationId, "s1");
+  assert.equal(resolved.carried, true);
+  assert.equal(observationFreshness(official, {
+    asOf:"2026-10-07T13:00:00Z",
+    maxAgeMs:24*60*60*1000,
+  }).fresh, false);
+});
