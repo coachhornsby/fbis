@@ -83,6 +83,7 @@ export async function loadWnbaImpactContext(db){
     for(const r of roleRes?.results||[]){
       const x=parseJson(r.context_json);
       roles[String(r.player_id)]={
+        featureCutoffTimestamp:r.feature_cutoff_timestamp,
         role:{
           minutesDelta:finite(r.minutes_delta),usageMultiplier:finite(r.usage_multiplier),pointsMultiplier:finite(r.points_multiplier),
           reboundsMultiplier:finite(r.rebounds_multiplier),assistsMultiplier:finite(r.assists_multiplier),threesMultiplier:finite(r.threes_multiplier),
