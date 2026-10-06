@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 
 const BASE=process.env.WTA_API_BASE||"https://api.wtatennis.com/tennis";
 const START_PAGE=Math.max(0,Number(process.env.WTA_RANK_START_PAGE||0));
-const MAX_PAGES=Math.max(1,Math.min(10,Number(process.env.WTA_RANK_MAX_PAGES||4)));
+const MAX_PAGES=Math.max(1,Math.min(25,Number(process.env.WTA_RANK_MAX_PAGES||20)));
 const PAGE_SIZE=Math.max(25,Math.min(100,Number(process.env.WTA_RANK_PAGE_SIZE||100)));
 const OUT=process.env.WTA_RANK_SQL||"artifacts/wta-ranked-reconcile.sql";
 const SUMMARY=process.env.WTA_RANK_SUMMARY||"artifacts/wta-ranked-reconcile-summary.json";
