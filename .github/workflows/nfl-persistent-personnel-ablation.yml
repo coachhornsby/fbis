@@ -13,10 +13,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: nfl-persistent-personnel-ablation-\${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   game-dataset:
     name: BUILD GAME DATASET
