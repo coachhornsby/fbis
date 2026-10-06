@@ -131,7 +131,7 @@ async function snapshot(context,date){
         executable_market_json,home_profile_json,away_profile_json,personnel_json,provenance_json,lifecycle,can_qualify,can_authorize_wager
       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).bind(
-      id,eventId,finite(game.week?.number??game.week),finite(game.week?.number??game.week),start,cp,frozenAt,
+      id,eventId,finite(game.season?.year??game.seasonYear??new Date(start).getUTCFullYear()),finite(game.week?.number??game.week),start,cp,frozenAt,
       shadow.championGovernanceId,shadow.incumbentModelId,shadow.incumbentModelVersion,
       shadow.incumbent.home,shadow.incumbent.away,shadow.incumbent.margin,shadow.incumbent.pHomeWin,shadow.incumbent.total,
       shadow.modelId,shadow.home,shadow.away,shadow.margin,shadow.pHomeWin,shadow.total,shadow.marginCorrection,
