@@ -4,10 +4,10 @@
     "nfl": {
       "currentResearchModel": "NFL-PRO-v1.1",
       "fitArtifact": "data/models/nfl-pro-v1-1-fit.json",
-      "status": "research-evidence-pass",
-      "canQualify": false,
+      "status": "historical-evidence-pass-qualification-enabled",
+      "canQualify": true,
       "canAuthorizeWager": false,
-      "notes": "Compact EPA/QB challenger beat the calibrated form baseline on margin MAE, total MAE, and winner accuracy in true walk-forward validation; prospective monitoring remains required."
+      "notes": "Compact EPA/QB challenger beat the calibrated form baseline on margin MAE, total MAE, and winner accuracy in true walk-forward validation. Strict executable-price, EV, probability-edge, availability and coverage gates may now qualify plays; staking authorization remains disabled pending prospective ROI/CLV/drawdown and confidence validation."
     },
     "cfb": {
       "currentResearchModel": "CFB-FBIS-v3-research",
@@ -88,6 +88,23 @@
       "impactChallengerCanQualify": false,
       "impactChallengerCanAuthorize": false,
       "notes": "WNBA incumbents remain active. The new FBIS-native EPM-style player-impact stack uses dynamic skill decay, a WNBA-specific SPM prior, regularized RAPM, 10-minute-quarter lineup reconstruction, lineup/pair/trio effects, and point-in-time role redistribution. Historical direct self-impact multipliers did not improve four core prop MAEs and were rejected. Role/lineup/availability effects remain prospective shadow challengers until they beat incumbents on out-of-sample error, offered-line side accuracy, CLV and wagering evidence."
+    },
+    "mlb": {
+      "currentResearchModel": "MLB-DEEP",
+      "version": "research-v2.5-postseason-context",
+      "fitArtifact": "functions/lib/mlbDeepModel.js",
+      "status": "independent-projection-qualification-enabled",
+      "canQualify": true,
+      "canAuthorizeWager": false,
+      "notes": "MLB-DEEP is the published independent score/F5/K projection path with persistent profiles, starter/bullpen, Statcast pitch-shape x hitter-zone, environment and postseason context. Strict market-edge qualification is enabled; staking authorization remains disabled pending market-relative validation."
+    },
+    "nhl": {
+      "currentResearchModel": "NHL-PRO-v2",
+      "fitArtifact": "data/models/nhl-pro-v2-validation.json",
+      "status": "historical-evidence-pass-qualification-enabled",
+      "canQualify": true,
+      "canAuthorizeWager": false,
+      "notes": "NHL-PRO-v2 beat the incumbent on aggregate margin MAE, total MAE and Brier across the strict point-in-time walk-forward. Game and validated prop offers may qualify when executable price, probability edge, EV, reliability and two-way market gates pass. Unit staking remains disabled pending prospective ROI/CLV/drawdown and confidence-monotonicity validation."
     }
   }
 }

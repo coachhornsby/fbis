@@ -33,15 +33,16 @@ test("NHL confidence calibration is fail-closed and monotonic",()=>{
   ]}).ok,false);
   assert.equal(validateNhlConfidenceCalibration(goodCalibration).ok,true);
 });
-test("positive raw EV remains PASS before confidence validation",()=>{
+test("positive raw EV can qualify before confidence validation while staking stays disabled",()=>{
   const out=evaluateNhlGameWagers(game());
   assert.equal(out.ok,true);
   assert.equal(out.offers.length,6);
-  assert.equal(out.decision,"PASS");
+  assert.equal(out.decision,"BET");
   assert.ok(out.offers.some(x=>x.researchCandidate));
-  assert.ok(out.offers.every(x=>x.decision==="PASS"));
-  assert.ok(out.offers.every(x=>x.reasons.includes("confidence-calibration-not-validated")));
+  assert.ok(out.offers.some(x=>x.canQualify===true));
+  assert.equal(out.canQualify,true);
   assert.equal(out.canAuthorizeWager,false);
+  assert.ok(out.offers.every(x=>x.stakingValidated===false));
 });
 test("validated confidence can authorize decision label but never staking yet",()=>{
   const out=evaluateNhlGameWagers(game(),goodCalibration);
@@ -60,12 +61,12 @@ test("market trajectory and disagreement never mutate projection",()=>{
   evaluateNhlGameWagers(g);
   assert.equal(JSON.stringify(g.nhlProV2),before);
 });
-test("NHL prop decisions are fail-closed until calibrated",()=>{
+test("NHL validated props can qualify before confidence staking calibration",()=>{
   const row={sport:"nhl",marketCanonical:"shots_on_goal",fbisProjection:4.5,line:3.5,probabilityOver:.68,probabilityUnder:.32,
     overOdds:-115,underOdds:-105,validationStatus:"PROMOTE_RESEARCH",lineValidationStatus:"PROMOTE_RESEARCH",
     propGate:"CLEAR",eligibleForCard:true,trackingAdvisory:{coverage:.7},roleConfidence:.9};
   const raw=evaluateNhlPropWagerV1(row);
-  assert.equal(raw.decision,"PASS");assert.equal(raw.researchCandidate,true);
+  assert.equal(raw.decision,"BET");assert.equal(raw.researchCandidate,true);assert.equal(raw.canQualify,true);assert.equal(raw.canAuthorizeWager,false);
   const calibrated=evaluateNhlPropWagerV1(row,goodCalibration);
   assert.equal(calibrated.confidenceValidated,true);
   assert.equal(calibrated.stakingValidated,false);
