@@ -8,11 +8,9 @@ test("soccer accelerated backfill is six-worker, bounded, and contention-safe", 
   const claim=await readFile(new URL("../functions/api/soccer-pitchapi-queue-claim.js",import.meta.url),"utf8");
   const complete=await readFile(new URL("../functions/api/soccer-pitchapi-queue-complete.js",import.meta.url),"utf8");
   assert.match(workflow,/cron:\s*"\*\/5 \* \* \* \*"/);
-  assert.match(workflow,/workflow_run:/);
-  assert.match(workflow,/workflows:\s*\["CI"\]/);
-  assert.match(workflow,/github\.event\.workflow_run\.conclusion == 'success'/);
-  assert.match(workflow,/github\.event\.workflow_run\.event == 'push'/);
-  assert.match(workflow,/github\.event\.workflow_run\.head_branch == 'main'/);
+  assert.doesNotMatch(workflow,/workflow_run:/);
+  assert.doesNotMatch(workflow,/workflows:\s*\["CI"\]/);
+  assert.match(workflow,/workflow_dispatch:/);
   assert.match(workflow,/payload="\$\(jq -nc/);
   assert.match(workflow,/-d "\$payload"/);
   assert.doesNotMatch(workflow,/-d "\{"leagueKey"/);
