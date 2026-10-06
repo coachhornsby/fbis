@@ -181,6 +181,7 @@ function oppMarketProjection(row,impactCtx,roleCtx,expectedTeammates=null){
   // Distributional state is the research object being validated.
   return {
     projection:base,sigma:finite(row?.fbisSigma),
+    baselineAvailable:base!=null,distributionOnly:base==null,
     minutesMean,minutesSd,usageMean,usageSd,
     fgaMean,fgaSd:fgaMean==null?null:Math.max(1,Math.sqrt(fgaMean)*0.85),
     tpaMean,tpaSd:tpaMean==null?null:Math.max(.7,Math.sqrt(tpaMean)*.75),
@@ -192,7 +193,7 @@ function oppMarketProjection(row,impactCtx,roleCtx,expectedTeammates=null){
     featureCutoffTimestamp:roleCtx?.featureCutoffTimestamp||null,
     modelId:WNBA_PLAYER_OPPORTUNITY_ID,modelVersion:WNBA_POSSESSION_CHALLENGER_VERSION,
     independent:true,marketInformed:false,canQualify:false,canAuthorize:false,
-    note:"Opportunity distribution shadow. Mean remains anchored to incumbent until prospective evidence supports a mean correction."
+    note:base==null?"Opportunity distribution-only shadow from persisted point-in-time player state; no projection mean is invented.":"Opportunity distribution shadow. Mean remains anchored to incumbent until prospective evidence supports a mean correction."
   };
 }
 function fallbackOpportunityRows(game,impactCtx={}){
