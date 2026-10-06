@@ -75,6 +75,24 @@ test("canonical history projection is point-in-time and ignores future rows",()=
   assert.equal(p1.canQualify,false);
 });
 
+
+test("canonical history resolves exact team names across provider-specific IDs",()=>{
+  const history=[
+    {date:"2026-07-01",home:{espnId:"182",name:"Chicago Fire FC"},away:{espnId:"10",name:"Other A"},homeScore:2,awayScore:1},
+    {date:"2026-07-02",home:{espnId:"11",name:"Other B"},away:{espnId:"9727",name:"Vancouver Whitecaps"},homeScore:1,awayScore:2},
+    {date:"2026-07-08",home:{espnId:"12",name:"Other C"},away:{espnId:"182",name:"Chicago Fire FC"},homeScore:0,awayScore:1},
+    {date:"2026-07-09",home:{espnId:"9727",name:"Vancouver Whitecaps"},away:{espnId:"13",name:"Other D"},homeScore:2,awayScore:0},
+  ];
+  const p=projectSoccerFromHistory({
+    start:"2026-08-01T18:00:00Z",
+    soccerLeague:"usa.1",
+    home:{id:"t_09gmAn",name:"Chicago Fire FC"},
+    away:{id:"t_2CuHdk",name:"Vancouver Whitecaps"},
+  },history);
+  assert.equal(p.ok,true);
+  assert.equal(p.provenance.marketUsed,false);
+});
+
 test("canonical model exposes coherent soccer market probabilities",()=>{
   const h={espnId:"10",name:"Alpha"};
   const a={espnId:"20",name:"Beta"};

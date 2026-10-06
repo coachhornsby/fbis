@@ -99,6 +99,24 @@ function key(team = {}) {
   if (team.abbr) return `abbr:${String(team.abbr).toUpperCase()}`;
   return `name:${String(team.name || team.displayName || "").toLowerCase()}`;
 }
+function keys(team = {}) {
+  return [...new Set([
+    team.teamKey ? String(team.teamKey) : null,
+    team.espnId != null ? `id:${team.espnId}` : null,
+    team.id != null ? `id:${team.id}` : null,
+    team.abbr ? `abbr:${String(team.abbr).toUpperCase()}` : null,
+    (team.name || team.displayName) ? `name:${String(team.name || team.displayName).toLowerCase()}` : null,
+  ].filter(Boolean))];
+}
+function findByAliases(map, team) {
+  for (const k of keys(team)) {
+    if (map.has(k)) return map.get(k);
+  }
+  return null;
+}
+function setAliases(map, team, value) {
+  for (const k of keys(team)) map.set(k, value);
+}
 function mean(arr, field) {
   const xs = (arr || []).map((x) => n(field ? x?.[field] : x)).filter((x) => x != null);
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
@@ -242,10 +260,20 @@ function createState() {
   };
 }
 function ensureTeam(state, team) {
-  const k = key(team);
-  if (!state.teams.has(k)) state.teams.set(k, blankTeam());
-  if (!state.elo.has(k)) state.elo.set(k, CFG.eloStart);
-  return state.teams.get(k);
+  let record = findByAliases(state.teams, team);
+  if (!record) record = blankTeam();
+  setAliases(state.teams, team, record);
+  let elo = findByAliases(state.elo, team);
+  if (elo == null) elo = CFG.eloStart;
+  setAliases(state.elo, team, elo);
+  return record;
+}
+function eloFor(state, team) {
+  const elo = findByAliases(state.elo, team);
+  return elo == null ? CFG.eloStart : elo;
+}
+function setElo(state, team, value) {
+  setAliases(state.elo, team, value);
 }
 function points(gf, ga) {
   return gf > ga ? 3 : gf === ga ? 1 : 0;
@@ -265,16 +293,16 @@ function recordAdvanced(game, side) {
 function featureVector(state, game) {
   const hk = key(game.home);
   const ak = key(game.away);
-  const h = state.teams.get(hk) || blankTeam();
-  const a = state.teams.get(ak) || blankTeam();
+  const h = findByAliases(state.teams, game.home) || blankTeam();
+  const a = findByAliases(state.teams, game.away) || blankTeam();
   const ho = avgRecord(h.all);
   const ao = avgRecord(a.all);
   const hf = avgRecent(h.recent.slice(-CFG.formWindow));
   const af = avgRecent(a.recent.slice(-CFG.formWindow));
   const hv = avgRecent(h.recentHome.slice(-CFG.venueWindow));
   const av = avgRecent(a.recentAway.slice(-CFG.venueWindow));
-  const hElo = state.elo.get(hk) ?? CFG.eloStart;
-  const aElo = state.elo.get(ak) ?? CFG.eloStart;
+  const hElo = eloFor(state, game.home);
+  const aElo = eloFor(state, game.away);
   const date = iso(game.date || game.start);
   const hRest = h.lastDate ? clamp(daysBetween(h.lastDate, date) ?? 7, 0, CFG.restCapDays) : 7;
   const aRest = a.lastDate ? clamp(daysBetween(a.lastDate, date) ?? 7, 0, CFG.restCapDays) : 7;
@@ -348,8 +376,8 @@ function applyMatch(state, game) {
   const expectedHome = 1 / (1 + 10 ** (-(hElo - aElo + (game.neutralSite ? 0 : CFG.eloHomeAdv)) / 400));
   const actualHome = hs > as ? 1 : hs === as ? 0.5 : 0;
   const delta = CFG.eloK * gdMultiplier(hs - as) * (actualHome - expectedHome);
-  state.elo.set(hk, hElo + delta);
-  state.elo.set(ak, aElo - delta);
+  setElo(state, game.home, hElo + delta);
+  setElo(state, game.away, aElo - delta);
 
   const hp = points(hs, as);
   const ap = points(as, hs);
@@ -424,8 +452,8 @@ export function projectSoccerV2(game = {}, history = [], options = {}) {
 
   const state = buildSoccerV2State(history, cutoff);
   const fv = featureVector(state, game);
-  const h = state.teams.get(key(game.home));
-  const a = state.teams.get(key(game.away));
+  const h = findByAliases(state.teams, game.home);
+  const a = findByAliases(state.teams, game.away);
   const minTeam = Math.min(Number(h?.all?.matches || 0), Number(a?.all?.matches || 0));
   const enough = state.leagueMatches >= CFG.minHistoryMatches && minTeam >= CFG.minTeamMatches;
   const challenger = enough ? classify(state.classifier, fv.vector) : [v1.pHomeWin, v1.pDraw, v1.pAwayWin];
