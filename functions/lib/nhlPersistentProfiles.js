@@ -244,15 +244,30 @@ function ppPkUnits(roster,timeById){
  pk.filter(x=>x.v>0).slice(0,8).forEach((x,i)=>out.get(x.id).pkUnit=i<4?1:2);
  return out;
 }
-function parseCoach(payload={}){
- const found=[];
+export function parseNhlCoach(payload={}){
+ const found=[],seen=new Set();
+ const add=(title,name)=>{
+  const n=clean(name),t=clean(title)||"Head Coach";if(!n)return;
+  const key=(t+"|"+n).toLowerCase();if(seen.has(key))return;seen.add(key);found.push({title:t,name:n});
+ };
+ const explicit=payload?.coach??payload?.coaches;
+ const explicitRows=Array.isArray(explicit)?explicit:explicit!=null?[explicit]:[];
+ for(const v of explicitRows){
+  if(typeof v==="string"){add("Head Coach",v);continue;}
+  if(!v||typeof v!=="object")continue;
+  const name=clean(v.fullName||v.displayName||v.name||[v.firstName,v.lastName].filter(Boolean).join(" "));
+  add(v.title||v.role||v.position||"Head Coach",name);
+ }
  function walk(v,depth=0){
   if(v==null||depth>7)return;if(Array.isArray(v)){for(const x of v)walk(x,depth+1);return;}if(typeof v!=="object")return;
-  const title=clean(v.title||v.role||v.position||v.type?.text||v.type?.name),name=clean(v.fullName||v.displayName||v.name);
-  if(name&&title&&/coach/i.test(title))found.push({title,name});
+  const title=clean(v.title||v.role||v.position||v.type?.text||v.type?.name);
+  const name=clean(v.fullName||v.displayName||v.name||[v.firstName,v.lastName].filter(Boolean).join(" "));
+  if(name&&title&&/coach/i.test(title))add(title,name);
   for(const [k,x] of Object.entries(v)){if(["links","logos","images"].includes(k))continue;walk(x,depth+1);}
  }
- walk(payload);return {headCoach:found.find(x=>/head coach/i.test(x.title))?.name||null,staff:found};
+ walk(payload);
+ const head=found.find(x=>/head coach/i.test(x.title))||found.find(x=>/coach/i.test(x.title))||null;
+ return {headCoach:head?.name||null,staff:found};
 }
 async function queryRows(db,sql,...binds){if(!db?.prepare)return[];try{return (await db.prepare(sql).bind(...binds).all())?.results||[];}catch{return[];}}
 async function existingPlayers(db,tkey){return queryRows(db,"SELECT * FROM nhl_player_profiles WHERE team_key=?",tkey);}
@@ -397,7 +412,7 @@ export async function syncNhlTeamProfile(env,abbr,{now=new Date()}={}){
    playerId:p.playerId,playerName:p.playerName,position:p.position,evLine:p.evLine,dPair:p.dPair,ppUnit:p.ppUnit,pkUnit:p.pkUnit,
    toiSeconds:p.lastToiSeconds,scratch:Boolean(p.raw?.lastGameScratch),observedAt:now.toISOString(),raw:{source:p.source,currentGameState:p.gameState}
   }));
-  const coach=parseCoach(sources.coach?.data||{});
+  const coach=parseNhlCoach(sources.coach?.data||{});
   const next=nextGame(scheduleRows,now.getTime()),counts={
    roster:players.filter(p=>!p.carriedState).length,active:players.filter(p=>!p.carriedState&&p.gameState!=="CONFIRMED_SCRATCH"&&p.gameState!=="OUT").length,
    scratches:players.filter(p=>p.gameState==="CONFIRMED_SCRATCH").length,unavailable:players.filter(p=>["OUT","IR","CONFIRMED_SCRATCH"].includes(p.availabilityState)).length
