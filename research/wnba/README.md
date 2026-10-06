@@ -102,3 +102,33 @@ Normal operation:
 9. Grade against existing PrizePicks lines and completed outcomes.
 
 The impact workflows make no additional paid ACTION or PrizePicks acquisition calls.
+
+## Possession / shot-state checkpoint
+
+Verified infrastructure before this checkpoint:
+
+- canonical game + player boxes are persisted in R2;
+- team possession estimates are already derived from FGA/ORB/TO/FTA;
+- normalized ESPN PBP exists in bounded builders but was not retained as canonical R2 state;
+- reconstructed lineup stints and lineup effects are persisted in R2;
+- player-impact and point-in-time role contexts are persisted in D1;
+- direct player self-impact failed historical MAE ablation and remains rejected;
+- wager and prop validation ledgers exist independently of this research layer.
+
+This checkpoint adds `WNBA-POSSESSION-STATE-v1` as research-only infrastructure:
+
+- canonical normalized PBP is retained in R2;
+- possession boundaries are reconstructed deterministically from turnovers, rebounds, made field goals, free throws and period boundaries;
+- shot events are classified into rim / paint / midrange / three / unresolved two-point zones;
+- early / middle / late possession timing is derived from reconstructed segment elapsed time;
+- transition is explicitly labeled as a proxy only when a possession begins from a turnover or defensive rebound and reaches its terminal event within six seconds;
+- score-margin game-state buckets are retained;
+- opponent shot-profile rows are derived from the same shot events;
+- raw coordinates are preserved when ESPN supplies them, but coordinates are not used as authoritative zone labels until their reliability is validated.
+
+Governance:
+
+- no new possession, shot, opponent-profile or game-state feature is active in `WNBA-FBIS-v2` or WNBA prop production;
+- no market data enters possession reconstruction;
+- all new features require chronological historical ablation before prospective shadow use;
+- historical research is sharded by month and current operation increments only the latest completed date.
