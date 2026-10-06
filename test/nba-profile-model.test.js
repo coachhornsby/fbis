@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { projectNbaGame } from "../functions/lib/nbaModel.js";
+import { projectNbaGame, calibrateNbaProjection } from "../functions/lib/nbaModel.js";
 import { projectNbaProfileGame,NBA_PROFILE_MODEL_ID } from "../functions/lib/nbaProfileModel.js";
 
 const hist=(pf,pa)=>Array.from({length:8},(_,i)=>({date:`2026-09-${String(20+i).padStart(2,"0")}T00:00:00Z`,pointsFor:pf+i%3,pointsAgainst:pa,possessions:100,fga:88,orb:10,tov:12,fta:20}));
@@ -32,4 +32,14 @@ test("profile challenger carries no market input surface",()=>{
  const p=projectNbaProfileGame(game,{homeHistory:hist(115,110),awayHistory:hist(111,113),impact:{players:{},roleContexts:{}},sequence});
  assert.equal(p.provenance.marketUsed,false);
  assert.equal(p.marketInformed,false);
+});
+
+
+test("v1-profile applies the incumbent calibration before profile overlay",()=>{
+ const ctx={homeHistory:hist(115,110),awayHistory:hist(111,113)};
+ const fit={version:"control-fit",calibration:{margin:{intercept:1,slope:1.1,sigma:14},total:{intercept:2,slope:.9,sigma:18}}};
+ const p=projectNbaProfileGame(game,{...ctx,impact:{players:{},roleContexts:{}},sequence,fit});
+ assert.equal(p.provenance.calibratedBaseVersion,"control-fit");
+ assert.equal(p.canQualify,false);
+ assert.equal(p.canAuthorize,false);
 });
