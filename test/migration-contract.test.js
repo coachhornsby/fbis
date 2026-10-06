@@ -150,3 +150,10 @@ test("live CFBD audit artifact is checked in without secrets", async () => {
   assert.ok((audit.summary?.available || []).includes("/ratings/core"));
   assert.equal((audit.summary?.notEntitled || []).length, 0);
 });
+
+
+test("migration verifier audits numeric-prefix ambiguity", async () => {
+  const verifier = await readFile(new URL("../scripts/verify-migrations.mjs", import.meta.url), "utf8");
+  assert.match(verifier, /duplicatePrefixes/);
+  assert.match(verifier, /Duplicate numeric migration prefixes detected/);
+});

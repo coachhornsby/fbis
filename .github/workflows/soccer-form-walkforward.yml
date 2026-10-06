@@ -1,8 +1,6 @@
 name: Soccer-FBIS walk-forward
 
 on:
-  push:
-    branches: ["main"]
   pull_request:
     paths:
       - "functions/lib/soccerFbisV1.js"
