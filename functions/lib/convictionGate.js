@@ -5,6 +5,7 @@
  */
 
 import { expectedRoi, validAmericanOdds } from "./pricing.js";
+import { getModel } from "./canonical/modelRegistry.js";
 import {
   EXPECTED_ROI_FORMULA_VERSION,
   EXPECTED_ROI_TOLERANCE,
@@ -72,6 +73,13 @@ export function evaluateConvictionGates({
   if (candidate.qualified !== true && candidate.qualified !== 1) {
     return fail("not-qualified");
   }
+
+  const modelId = String(candidate.modelId || "").split("@")[0];
+  const registration = modelId ? getModel(modelId) : null;
+  if (!registration) return fail("unknown-model-authority");
+  if (registration.sport !== String(candidate.sport || "").toLowerCase()) return fail("model-sport-authority-mismatch");
+  if (registration.independent !== true || registration.marketInformed === true) return fail("model-not-independent");
+  if (registration.canQualify !== true) return fail("model-not-qualification-authorized");
 
   const prob = validateCanonicalProbability(candidate.modelProbability ?? candidate.fair);
   if (!prob.ok) return fail("frozen-probability-invalid", { reasons: [prob.reason || "missing"] });
