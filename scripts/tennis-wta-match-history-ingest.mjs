@@ -6,11 +6,11 @@ import crypto from "node:crypto";
 const BASE=process.env.WTA_API_BASE||"https://api.wtatennis.com/tennis";
 const YEAR=Number(process.env.WTA_YEAR||new Date().getUTCFullYear());
 const SEED_GROUP=process.env.WTA_TOURNAMENT_GROUP_ID||"";
-const LIMIT=Math.max(1,Math.min(10,Number(process.env.WTA_TOURNAMENT_LIMIT||2)));
+const LIMIT=Math.max(1,Math.min(25,Number(process.env.WTA_TOURNAMENT_LIMIT||2)));
 const START=Number(process.env.WTA_TOURNAMENT_OFFSET||0);
 const PAGE_SIZE=Math.max(25,Math.min(500,Number(process.env.WTA_TOURNAMENT_PAGE_SIZE||100)));
 const MAX_PAGES=Math.max(1,Math.min(25,Number(process.env.WTA_TOURNAMENT_MAX_PAGES||10)));
-const INPUT=process.env.WTA_MATCH_INPUT||"";
+const INPUT=process.env.WTA_MATCH_INPUT||"";\nconst REQUIRE_GROUP=process.env.WTA_REQUIRE_GROUP_ID||"";
 const OUT=process.env.WTA_MATCH_SQL||"artifacts/wta-match-history.sql";
 const RAW=process.env.WTA_RAW_DIR||"artifacts/wta-raw";
 const SUMMARY=process.env.WTA_MATCH_SUMMARY||"artifacts/wta-match-history-summary.json";
@@ -51,7 +51,7 @@ for(let page=0;page<MAX_PAGES;page++){
 }
 const uniq=new Map();for(const t of all)uniq.set(`${group(t)}|${yearOf(t)}`,t);
 all=[...uniq.values()];
-const chosen=all.slice(START,START+LIMIT);
+const chosen=SEED_GROUP?all.filter(t=>group(t)===SEED_GROUP).slice(0,LIMIT):all.slice(START,START+LIMIT);\nif(SEED_GROUP&&!chosen.length)throw new Error(`requested tournament group ${SEED_GROUP} not found for ${YEAR}`);
 let sql="";let seen=0,written=0,failures=0;const shards=[];
 for(const t of chosen){
  const gid=group(t),yr=yearOf(t),sourcePath=`/tournaments/${gid}/${yr}/matches`,shardKey=`wta:matches:${yr}:${gid}`;
