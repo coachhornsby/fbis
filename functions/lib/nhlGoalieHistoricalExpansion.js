@@ -4,7 +4,7 @@ export const HISTORICAL_EXPANSION_MODEL_ID="NHL-GOALIE-PROB-HISTORICAL-EXPANSION
 export const LOCKED_GOALIE_SCALE=CONFIG.goalieProbabilityScale;
 
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-function finite(v){const n=Number(v);return Number.isFinite(n)?n:null;}
+function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 function round(v,n=6){return Number(Number(v).toFixed(n));}
 function mean(xs){const v=xs.filter(Number.isFinite);return v.length?v.reduce((s,x)=>s+x,0)/v.length:null;}
 function poisson(lambda,k){let p=Math.exp(-lambda);for(let i=1;i<=k;i++)p*=lambda/i;return p;}
