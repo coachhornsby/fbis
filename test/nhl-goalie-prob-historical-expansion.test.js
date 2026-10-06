@@ -36,7 +36,7 @@ test("historical expansion metrics are paired and finite",()=>{
   const p=pairedSummary(rows);
   assert.equal(Number.isFinite(p.brier.mean),true);
   assert.equal(calibrationFit(rows,"shadowP").n,4);
-  assert.equal(requiredSampleForMeanEffect([0.01,-0.01,0.02,-0.02])>0,true);
+  assert.equal(requiredSampleForMeanEffect([0.01,0.00,0.02,-0.005])>0,true);
 });
 
 test("missing locked PIT inputs fail closed",()=>{
