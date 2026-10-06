@@ -80,8 +80,24 @@ jobs:
             done
             test "${ok}" -eq 1 || { echo "D1 import failed after retries and durable verification: ${file}"; exit 1; }
           done
-      - name: Finalize active state and coverage
-        run: npx wrangler d1 execute fbis --remote --file=artifacts/cfb-player-directory/cfb-player-directory-finalize.sql
+      - name: Finalize active state
+        run: npx wrangler d1 execute fbis --remote --file=artifacts/cfb-player-directory/cfb-player-directory-finalize-active.sql
+      - name: Finalize bounded season coverage
+        run: |
+          set -euo pipefail
+          for file in artifacts/cfb-player-directory/cfb-player-directory-coverage-20*.sql; do
+            echo "Finalizing coverage from ${file}"
+            ok=0
+            for attempt in 1 2 3; do
+              if npx wrangler d1 execute fbis --remote --file="${file}"; then
+                ok=1
+                break
+              fi
+              echo "Coverage finalization attempt ${attempt} failed for ${file}; retrying"
+              sleep $((attempt * 5))
+            done
+            test "${ok}" -eq 1 || { echo "Coverage finalization failed after retries: ${file}"; exit 1; }
+          done
       - name: Verify production Phase B counts and governance
         run: |
           set -euo pipefail
