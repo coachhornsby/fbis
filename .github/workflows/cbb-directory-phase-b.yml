@@ -6,8 +6,8 @@ on:
       - "migrations/0084_cbb_directory_phase_b.sql"
       - "functions/lib/cbbDirectoryPhaseB.js"
       - "functions/api/collect.js"
-      - "scripts/cbb-directory-phase-b.mjs"
-      - "test/cbb-directory-phase-b.test.js"
+      - "scripts/cbb-directory-phase-b.mjs"\n      - "scripts/cbb-directory-phase-b-sportsdataverse.mjs"
+      - "test/cbb-directory-phase-b.test.js"\n      - "test/cbb-directory-phase-b-sportsdataverse.test.js"
       - ".github/workflows/cbb-directory-phase-b.yml"
       - "schema.sql"
   push:
@@ -47,5 +47,5 @@ jobs:
         run: |
           node --check functions/lib/cbbDirectoryPhaseB.js
           node --check functions/api/collect.js
-          node --check scripts/cbb-directory-phase-b.mjs
-          node --test test/cbb-directory-phase-b.test.js test/cbb-persistent-directory.test.js test/state-overlay-governance.test.js
+          node --check scripts/cbb-directory-phase-b.mjs\n          node --check scripts/cbb-directory-phase-b-sportsdataverse.mjs
+          node --test test/cbb-directory-phase-b.test.js test/cbb-directory-phase-b-sportsdataverse.test.js test/cbb-persistent-directory.test.js test/state-overlay-governance.test.js
