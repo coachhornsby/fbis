@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { buildWnbaDynamicSkill, wnbaBoxImpactPrior, fitWnbaRapm, combineWnbaPlayerImpact } from "../functions/lib/wnbaPlayerImpact.js";
 import { reconstructLineupStints, attachStintOutcomes } from "../functions/lib/wnbaLineupModel.js";
 import { buildWnbaRoleRedistribution } from "../functions/lib/wnbaRoleRedistribution.js";
-import { applyWnbaPropImpactShadow, applyWnbaGameImpactShadow } from "../functions/lib/wnbaPlayerImpactShadow.js";
+import { applyWnbaPropImpactShadow, applyWnbaGameImpactShadow, loadWnbaImpactContext } from "../functions/lib/wnbaPlayerImpactShadow.js";
 
 const hist=Array.from({length:16},(_,i)=>({
   date:`2026-06-${String((i%28)+1).padStart(2,"0")}`,minutes:31,points:18+i%4,rebounds:6,assists:4.5,turnovers:2,
@@ -104,4 +104,34 @@ test("WNBA impact challengers cannot qualify before prospective promotion",()=>{
   assert.match(migration,/wnba_player_prop_impact_shadow/);
   assert.match(migration,/can_qualify INTEGER NOT NULL DEFAULT 0/);
   assert.match(migration,/wnba_game_impact_shadow/);
+});
+
+
+test("WNBA impact context preserves player bank when role-context D1 reads fail",async()=>{
+  let roleCalls=0;
+  const db={
+    prepare(sql){
+      const isRole=String(sql).includes("wnba_player_role_contexts");
+      return {
+        async all(){
+          if(isRole){roleCalls++;throw new Error("D1_ERROR: Currently processing a long-running import.");}
+          return {results:[{
+            player_id:"p1",player_name:"Player One",team_id:"20",position:"G",
+            model_id:"WNBA-PLAYER-IMPACT-v1",model_version:"research-v1",
+            offense_impact:2.1,defense_impact:0.5,net_impact:2.6,rapm_net:1.8,
+            bpm_style:2,vorp_style:.1,ws48_style:.12,
+            dynamic_skill_json:JSON.stringify({games:20,minutes:30,usage:22,pointsPer40:20})
+          }]};
+        }
+      };
+    }
+  };
+  const ctx=await loadWnbaImpactContext(db);
+  assert.equal(roleCalls,3);
+  assert.equal(ctx.meta.available,true);
+  assert.equal(ctx.meta.partial,true);
+  assert.equal(ctx.meta.playerBankAvailable,true);
+  assert.equal(ctx.meta.roleContextAvailable,false);
+  assert.equal(ctx.players.p1.teamId,"20");
+  assert.deepEqual(ctx.roles,{});
 });
