@@ -12,3 +12,17 @@
 .tmc-h2h{display:flex;min-height:110px;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:7px;padding:12px}.tmc-h2h span,.tmc-h2h small{color:#9eb8d2}
 .tmc-projected{display:grid;grid-template-columns:1fr 1fr}.tmc-projected div{padding:12px;border-right:1px solid #17364d;border-bottom:1px solid #17364d}.tmc-projected span{display:block;color:#9eb8d2;font-size:11px}.tmc-projected b{display:block;margin-top:5px}
 @media(max-width:900px){.tmc-deep{grid-template-columns:1fr}.tmc-form{grid-template-columns:1fr 1fr}}
+
+/* Tennis player identity: portraits are not team logos. Keep the headshot unplated and use country as the player team mark. */
+.tmc-player-visual{position:relative;align-self:end;width:150px;height:190px;flex:0 0 150px;overflow:hidden}
+.tmc-headshot{display:block;width:100%;height:100%;object-fit:contain;object-position:center bottom;background:transparent}
+.tmc-headshot-fallback{display:flex;width:100%;height:100%;align-items:center;justify-content:center;color:#dcecff;font-size:28px;font-weight:900;background:transparent}
+.tmc-country{position:absolute;left:7px;bottom:7px;display:flex;align-items:center;justify-content:center;min-width:38px;height:26px;padding:2px 4px;border-radius:4px;background:#031323e8;border:1px solid #1599e8;font-size:20px;line-height:1}
+.tmc-country img{display:block;max-width:34px;max-height:22px;object-fit:cover}
+.tmc-form-results{display:flex!important;gap:6px;align-items:center;letter-spacing:0!important}
+.tmc-form-results>span{display:inline-flex!important;width:24px;height:24px;align-items:center;justify-content:center;border-radius:5px;font-size:13px;font-weight:950;color:#fff}
+.tmc-form-win{background:#00e889;box-shadow:0 0 10px #00e88955}
+.tmc-form-loss{background:#ff334e;box-shadow:0 0 10px #ff334e55}
+.tmc-form-unknown{background:#42556a;color:#d8e5ef!important}
+@media(max-width:900px){.tmc-player-visual{width:100px;height:128px;flex-basis:100px}}
+@media(max-width:600px){.tmc-player-visual{width:120px;height:145px;flex-basis:120px}}
