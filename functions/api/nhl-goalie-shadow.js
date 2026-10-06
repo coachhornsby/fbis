@@ -295,7 +295,11 @@ export async function summary(db){
     productionChampion:"NHL-PRO-v2",productionChanged:false,qualificationChanged:false,authority:false,staking:false
   };
 }
-export async function onRequestGet(context){\n  const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);\n  try{return json({ok:true,codeSha:context.env.CF_PAGES_COMMIT_SHA||null,...await summary(db)});}\n  catch(error){return json({ok:false,error:"nhl_shadow_d1_temporarily_unavailable",detail:String(error?.message||error),codeSha:context.env.CF_PAGES_COMMIT_SHA||null,productionChampion:"NHL-PRO-v2",productionChanged:false,qualificationChanged:false,authority:false,staking:false},503);}\n}
+export async function onRequestGet(context){
+  const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
+  try{return json({ok:true,codeSha:context.env.CF_PAGES_COMMIT_SHA||null,...await summary(db)});}
+  catch(error){return json({ok:false,error:"nhl_shadow_d1_temporarily_unavailable",detail:String(error?.message||error),codeSha:context.env.CF_PAGES_COMMIT_SHA||null,productionChampion:"NHL-PRO-v2",productionChanged:false,qualificationChanged:false,authority:false,staking:false},503);}
+}
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(),401);
   const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
