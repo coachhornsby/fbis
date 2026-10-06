@@ -45,6 +45,24 @@ CREATE INDEX IF NOT EXISTS idx_tennis_official_matches_p2_time ON tennis_officia
 CREATE INDEX IF NOT EXISTS idx_tennis_official_matches_tournament ON tennis_official_matches(tour,tournament_year,tournament_group_id);
 CREATE INDEX IF NOT EXISTS idx_tennis_official_matches_surface_time ON tennis_official_matches(tour,surface,match_time);
 
+
+CREATE TABLE IF NOT EXISTS tennis_official_match_observations (
+  observation_id TEXT PRIMARY KEY,
+  match_id TEXT NOT NULL,
+  source TEXT NOT NULL,
+  tour TEXT NOT NULL,
+  source_match_id TEXT NOT NULL,
+  raw_checksum TEXT NOT NULL,
+  raw_artifact_key TEXT NOT NULL,
+  source_updated_at TEXT,
+  observed_at TEXT NOT NULL,
+  ingested_at TEXT NOT NULL,
+  provenance_json TEXT NOT NULL,
+  UNIQUE(source,tour,source_match_id,raw_checksum)
+);
+CREATE INDEX IF NOT EXISTS idx_tennis_official_match_obs_match ON tennis_official_match_observations(match_id,observed_at);
+CREATE INDEX IF NOT EXISTS idx_tennis_official_match_obs_source ON tennis_official_match_observations(source,tour,source_match_id,source_updated_at);
+
 CREATE TABLE IF NOT EXISTS tennis_match_identity_review_queue (
   review_id TEXT PRIMARY KEY,
   source TEXT NOT NULL,
