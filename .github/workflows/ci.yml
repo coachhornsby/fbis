@@ -93,8 +93,19 @@ jobs:
           set -euo pipefail
           # Production was bootstrapped via schema.sql; sync wrangler bookkeeping
           # before apply so already-present columns are not ALTER'd again.
-          node scripts/sync-d1-migrations.mjs
-          npx wrangler d1 migrations apply fbis --remote
+          # Cloudflare D1 occasionally returns transient internal 7500 errors
+          # on bookkeeping queries. Retry the whole idempotent sync/apply pair.
+          for attempt in 1 2 3 4; do
+            echo "D1 migration attempt $attempt/4"
+            if node scripts/sync-d1-migrations.mjs && npx wrangler d1 migrations apply fbis --remote; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 4 ]; then
+              sleep $((attempt * 5))
+            fi
+          done
+          echo "D1 migration sync/apply failed after bounded retries"
+          exit 1
 
       - name: Build production artifact
         run: npm run build
