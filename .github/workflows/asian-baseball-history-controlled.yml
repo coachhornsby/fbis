@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: asian-baseball-controlled-history
@@ -15,13 +16,23 @@ concurrency:
 
 jobs:
   seed:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
       BASE: https://fbis-myz.pages.dev
       HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
     steps:
+      - name: Require successful CI test/build
+        if: ${{ github.event_name == 'workflow_run' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOBS_URL: ${{ github.event.workflow_run.jobs_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$JOBS_URL?per_page=100")"
+          echo "$body" | jq -e '.jobs[] | select(.name == "TEST / BUILD" and .conclusion == "success")' >/dev/null
       - name: Require harvest auth
         run: test -n "${HARVEST_SECRET:-}"
       - name: Seed controlled September 2025 slices
