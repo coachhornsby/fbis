@@ -82,7 +82,7 @@ const FAMILY_KEYS={
 const seasonFiles=readdirSync(sourceDir).filter(x=>/^cbb-possession-history-20\d\d\.json$/.test(x)).sort();
 if(seasonFiles.length!==8)throw new Error("expected 8 season artifacts, got "+seasonFiles.length);
 const audit={id:"CBB-PIT-AUDIT-v1",snapshotId:SNAPSHOT_ID,sourceRun:SOURCE_RUN,sourceSha:SOURCE_SHA,benchmarkRun:BENCHMARK_RUN,generatedAt:new Date().toISOString(),seasons:{},totals:{candidate:0,matched:0,direct:0,fallback:0,unmatched:0},conflicts:{predictionMatchup:predKeyConflicts,historicalDuplicateKeys:0},coverage:{},gates:{},provenance:[]};
-const rows=[], seenHist=new Set();
+let rows=[]; const seenHist=new Set(), ambiguousHistKeys=new Set();
 let cov={games:0,pbpGames:0,substitutionGames:0,fivePlayerReliableGames:0,possessionGames:0,lineupAttributedGames:0,shotClockGames:0,playerLinkedGames:0};
 
 for(const file of seasonFiles){
@@ -92,7 +92,7 @@ for(const file of seasonFiles){
   const games=(pack.games||[]).filter(g=>g.ok!==false&&g.gameId).sort((a,b)=>dateNorm(a.date).localeCompare(dateNorm(b.date)));
   for(const g of games){
     s.candidate++; audit.totals.candidate++; cov.games++;
-    const hk=key(season,g.date,g.homeTeamName,g.awayTeamName); if(seenHist.has(hk))audit.conflicts.historicalDuplicateKeys++; else seenHist.add(hk);
+    const hk=key(season,g.date,g.homeTeamName,g.awayTeamName); if(seenHist.has(hk)){audit.conflicts.historicalDuplicateKeys++;ambiguousHistKeys.add(hk)} else seenHist.add(hk);
     cov.pbpGames++;
     if((n(g.qa?.validatedLineupRows)||0)>0)cov.substitutionGames++;
     if(g.lineupReliable)cov.fivePlayerReliableGames++;
@@ -119,13 +119,21 @@ for(const file of seasonFiles){
         else src=[...POS_CORE,...SHOTCLOCK,...LINEUP,...ROTATION,...INTERACTION];
         families[fam]=pair(hs,as,src);
       }
-      rows.push({id:String(g.gameId),season,date:dateNorm(g.date),join:via,home:{sourceId:String(g.homeTeamId),canonicalId:canonicalTeam(g.homeTeamName,season),name:g.homeTeamName},away:{sourceId:String(g.awayTeamId),canonicalId:canonicalTeam(g.awayTeamName,season),name:g.awayTeamName},actualHome:p.actualHome,actualAway:p.actualAway,fbis:p.fbis,homeGames:hs?.games||0,awayGames:as?.games||0,priorQa:{homeValidatedLineupCoverage:n(hs?.coverage),awayValidatedLineupCoverage:n(as?.coverage)},families});
+      rows.push({id:String(g.gameId),season,date:dateNorm(g.date),matchKey:hk,join:via,home:{sourceId:String(g.homeTeamId),canonicalId:canonicalTeam(g.homeTeamName,season),name:g.homeTeamName},away:{sourceId:String(g.awayTeamId),canonicalId:canonicalTeam(g.awayTeamName,season),name:g.awayTeamName},actualHome:p.actualHome,actualAway:p.actualAway,fbis:p.fbis,homeGames:hs?.games||0,awayGames:as?.games||0,priorQa:{homeValidatedLineupCoverage:n(hs?.coverage),awayValidatedLineupCoverage:n(as?.coverage)},families});
     }else{s.unmatched++;audit.totals.unmatched++}
     state.set(String(g.homeTeamId),update(state.get(String(g.homeTeamId)),obs(g.home),g.qa));
     state.set(String(g.awayTeamId),update(state.get(String(g.awayTeamId)),obs(g.away),g.qa));
   }
   audit.seasons[season]=s;
 }
+audit.conflicts.ambiguousHistoricalMatchups=ambiguousHistKeys.size;
+const ambiguousRows=rows.filter(r=>ambiguousHistKeys.has(r.matchKey));
+for(const r of ambiguousRows){
+  audit.totals.matched--; audit.totals[r.join==="direct"?"direct":"fallback"]--; audit.totals.unmatched++;
+  const s=audit.seasons[r.season]; s.matched--; s[r.join==="direct"?"direct":"fallback"]--; s.unmatched++;
+}
+audit.exclusions={ambiguousCanonicalMatchupRows:ambiguousRows.length,ambiguousCanonicalMatchupKeys:[...ambiguousHistKeys]};
+rows=rows.filter(r=>!ambiguousHistKeys.has(r.matchKey));
 audit.coverage={
   pbpGameRate:round(cov.pbpGames/cov.games),
   substitutionEvidenceRate:round(cov.substitutionGames/cov.games),
@@ -143,7 +151,7 @@ const minReliable=Math.min(...Object.values(audit.seasons).map(s=>n(s.qa?.lineup
 const minValidated=Math.min(...Object.values(audit.seasons).map(s=>n(s.qa?.meanValidatedLineupCoverage)||0));
 audit.gates={
   eightSeasons:seasonFiles.length===8,
-  noDuplicateConflicts:audit.conflicts.predictionMatchup===0&&audit.conflicts.historicalDuplicateKeys===0,
+  noUnresolvedDuplicateConflicts:audit.conflicts.predictionMatchup===0&&audit.exclusions.ambiguousCanonicalMatchupRows>=audit.conflicts.historicalDuplicateKeys,
   noParserRepeats:Object.values(audit.seasons).every(s=>(s.counts?.repeatedGames||0)===0&&(s.counts?.lineupRepeated||0)===0),
   pitTiming:"features are derived only from each team's prior completed games before target game",
   minimumMatchedRows:audit.totals.matched>=25000,
