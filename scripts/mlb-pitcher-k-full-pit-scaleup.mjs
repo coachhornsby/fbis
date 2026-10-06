@@ -125,7 +125,7 @@ for(const [gameId,marketRows] of byGame){
    const lineClv=close?(sel==="OVER"?Number(close.book_line)-line:sel==="UNDER"?line-Number(close.book_line):0):null;
    const profit=result==="PUSH"?0:americanProfit(ep,result==="WIN");
    units.push({
-    evidence_class:"HISTORICAL_PIT_RECONSTRUCTED",projection_unit_key:u.key,event_id:gameId,event_date:date,player_id:u.playerId,player_name:u.playerName,market:"pitcher_strikeouts",
+    evidence_class:"HISTORICAL_PIT_RECONSTRUCTED",projection_unit_key:u.key,event_id:gameId,event_date:date,event_start:start,player_id:u.playerId,player_name:u.playerName,market:"pitcher_strikeouts",
     model_id:MLB_DEEP_ID,model_version:MLB_DEEP_VERSION,projection:u.projection.projection,baseline_projection:u.projection.baseline,raw_pitch_zone_projection:u.projection.raw,sigma:u.projection.sigma,
     state_cutoff:u.projection.stateCutoff,checkpoint:u.checkpoint,entry_book:entry.book,entry_timestamp:entry.source_as_of,entry_line:line,entry_over_price:entry.book_over_price,entry_under_price:entry.book_under_price,
     close_timestamp:close?.source_as_of||null,close_line:close?.book_line??null,close_over_price:close?.book_over_price??null,close_under_price:close?.book_under_price??null,
@@ -146,7 +146,7 @@ const summary={
  projection:{mae:mae(errs),rmse:rmse(errs),bias:mean(errs),baselineMae:mae(baseErrs),relativeMaeImprovement:mae(baseErrs)?(mae(baseErrs)-mae(errs))/mae(baseErrs):null},
  directional:{n:directional.length,wins,hitRate:directional.length?wins/directional.length:null,over:directional.filter(u=>u.selection==="OVER").length,under:directional.filter(u=>u.selection==="UNDER").length},
  economics:{closeReady:units.filter(u=>u.close_timestamp).length,probabilityClvReady:units.filter(u=>u.probability_clv!=null).length,roiReady:units.filter(u=>Number.isFinite(u.profit_units)).length,profitUnits:units.reduce((s,u)=>s+u.profit_units,0),roi:units.length?units.reduce((s,u)=>s+u.profit_units,0)/units.length:null,maxDrawdown:maxDd,meanLineClv:mean(units.map(u=>u.line_clv).filter(Number.isFinite)),meanProbabilityClv:mean(units.map(u=>u.probability_clv).filter(Number.isFinite))},
- temporalIntegrity:units.every(u=>u.temporal_integrity===true&&u.entry_timestamp<u.start)
+ temporalIntegrity:units.every(u=>u.temporal_integrity===true&&u.entry_timestamp<u.event_start)
 };
 await fs.writeFile(out,JSON.stringify({summary,units},null,2)+"\n");
 console.log(JSON.stringify(summary,null,2));
