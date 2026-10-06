@@ -2,7 +2,7 @@ import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
 import { buildSlate, resolveSlateDate } from "../lib/slateEngine.js";
 import { WNBA_PROP_IMPACT_CHALLENGER_ID, WNBA_GAME_IMPACT_CHALLENGER_ID } from "../lib/wnbaPlayerImpactShadow.js";
 import { WNBA_PLAYER_OPPORTUNITY_ID } from "../lib/wnbaProspectiveChallenger.js";
-import { buildWnbaOffers } from "../lib/wnbaWagerDecision.js";
+import { buildWnbaOffers, buildWnbaOffersFromOwnedRows, mergeWnbaOffers, loadWnbaOwnedOddsRows } from "../lib/wnbaWagerDecision.js";
 import { decisionFromOffer } from "../lib/wagerDecisionEngine.js";
 
 const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -83,14 +83,17 @@ export async function onRequestPost(context){
     for(const game of slate.games||[]){
       if(game?.status?.live||game?.status?.completed)continue;
       if(game.wnbaImpactGameShadow){gameRows++;gameInserted+=await persistGame(context.env.DB,game,capturedAt)}
-      const offers=buildWnbaOffers(game);
+      const ownedOdds=await loadWnbaOwnedOddsRows(context.env.DB,game.id);
+      const offers=mergeWnbaOffers(buildWnbaOffers(game),buildWnbaOffersFromOwnedRows(ownedOdds));
       for(const s of Object.values(game.wnbaPossessionChallengers||{})){
         possessionRows++;possessionInserted+=await persistPossessionGame(context.env.DB,game,s,capturedAt);
         for(const offer of offers){possessionMarketRows++;possessionMarketInserted+=await persistPossessionMarket(context.env.DB,game,s,offer,capturedAt);}
       }
       for(const row of game.playerProjectionRows||[]){
         if(row.impactShadow){propRows++;propInserted+=await persistProp(context.env.DB,game,row,capturedAt);}
-        if(row.opportunityShadow){opportunityRows++;opportunityInserted+=await persistOpportunity(context.env.DB,game,row,capturedAt);}
+      }
+      for(const row of game.playerOpportunityShadowRows||[]){
+        opportunityRows++;opportunityInserted+=await persistOpportunity(context.env.DB,game,row,capturedAt);
       }
     }
     return json({ok:true,date:resolved.date,capturedAt,games:gameRows,gameInserted,props:propRows,propInserted,possessionRows,possessionInserted,possessionMarketRows,possessionMarketInserted,opportunityRows,opportunityInserted,modelIds:{legacyGame:WNBA_GAME_IMPACT_CHALLENGER_ID,legacyProp:WNBA_PROP_IMPACT_CHALLENGER_ID,opportunity:WNBA_PLAYER_OPPORTUNITY_ID},canQualify:false,canAuthorize:false,marketInformed:false});
