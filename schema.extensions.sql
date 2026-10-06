@@ -3465,9 +3465,13 @@ CREATE TABLE IF NOT EXISTS cfb_roster_membership (
   weight REAL,
   first_game_id TEXT,
   first_week INTEGER,
+  first_game_at TEXT,
   last_game_id TEXT,
   last_week INTEGER,
+  last_game_at TEXT,
   games_rostered INTEGER,
+  pit_resolvable INTEGER NOT NULL DEFAULT 1,
+  temporal_confidence REAL,
   effective_from TEXT NOT NULL,
   effective_to TEXT NOT NULL,
   source TEXT NOT NULL,
@@ -3500,9 +3504,13 @@ CREATE TABLE IF NOT EXISTS cfb_roster_observations (
   class_year TEXT,
   first_game_id TEXT,
   first_week INTEGER,
+  first_game_at TEXT,
   last_game_id TEXT,
   last_week INTEGER,
+  last_game_at TEXT,
   games_rostered INTEGER,
+  pit_resolvable INTEGER NOT NULL DEFAULT 1,
+  temporal_confidence REAL,
   payload_json TEXT NOT NULL,
   source_timestamp TEXT,
   observed_at TEXT NOT NULL,
@@ -3527,6 +3535,7 @@ CREATE TABLE IF NOT EXISTS cfb_roster_source_coverage (
   resolved_team_rows INTEGER NOT NULL DEFAULT 0,
   orphan_team_rows INTEGER NOT NULL DEFAULT 0,
   provisional_players INTEGER NOT NULL DEFAULT 0,
+  pit_unresolved_memberships INTEGER NOT NULL DEFAULT 0,
   game_roster_rows INTEGER,
   source_file TEXT,
   observed_at TEXT NOT NULL,
@@ -3597,3 +3606,6 @@ BEGIN
   SELECT RAISE(ABORT,'tennis official source priority violation');
 END;
 
+
+CREATE INDEX IF NOT EXISTS idx_cfb_roster_pit_resolvable
+  ON cfb_roster_membership(player_id,season,pit_resolvable,effective_from,effective_to);

@@ -74,3 +74,22 @@ test("roster state has zero projection, qualification, or wager authority",()=> 
   assert.equal(p.canQualify,false);
   assert.equal(p.canAuthorizeWager,false);
 });
+
+
+test("same-season later-team membership cannot leak backward",()=> {
+  const rows=[
+    {player_id:"p1",team_id:"old",pit_resolvable:1,effective_from:"2025-07-01T00:00:00Z",effective_to:"2025-10-15T00:00:00Z"},
+    {player_id:"p1",team_id:"new",pit_resolvable:1,effective_from:"2025-10-15T00:00:00Z",effective_to:"2026-07-01T00:00:00Z"}
+  ];
+  assert.deepEqual(membershipAt(rows,"p1","2025-09-01T00:00:00Z").map(x=>x.team_id),["old"]);
+  assert.deepEqual(membershipAt(rows,"p1","2025-11-01T00:00:00Z").map(x=>x.team_id),["new"]);
+});
+
+test("ambiguous same-season program state stays UNKNOWN for PIT lookup",()=> {
+  const rows=[
+    {player_id:"p1",team_id:"a",pit_resolvable:0,effective_from:"2025-07-01T00:00:00Z",effective_to:"2026-07-01T00:00:00Z"},
+    {player_id:"p1",team_id:"b",pit_resolvable:0,effective_from:"2025-07-01T00:00:00Z",effective_to:"2026-07-01T00:00:00Z"}
+  ];
+  assert.deepEqual(membershipAt(rows,"p1","2025-10-01T00:00:00Z"),[]);
+  assert.deepEqual(rosterAt(rows,"a","2025-10-01T00:00:00Z"),[]);
+});

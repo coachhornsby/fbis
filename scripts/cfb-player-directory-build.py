@@ -8,6 +8,7 @@ START=int(os.getenv("CFB_ROSTER_START") or "2004")
 END=int(os.getenv("CFB_ROSTER_END") or "2026")
 ROSTER_BASE="https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/main/cfb/cfb_rosters/parquet"
 GAME_BASE="https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/main/cfb/game_rosters/parquet"
+SCHEDULE_BASE="https://raw.githubusercontent.com/sportsdataverse/cfbfastR-cfb-data/main/cfb/cfb_schedules/parquet"
 OUT=Path(os.getenv("CFB_ROSTER_OUT") or "artifacts/cfb-player-directory")
 UA={"User-Agent":"FBIS-CFB-Player-Directory/1.0"}
 SOURCE="SPORTSDATAVERSE_ESPN_CFB_ROSTERS"
@@ -68,6 +69,12 @@ def team_id(v):
     x=integer(v)
     return f"cfb:espn:{x}" if x is not None else None
 
+def iso_utc(v):
+    if v is None: return None
+    ts=pd.to_datetime(v,utc=True,errors="coerce")
+    if pd.isna(ts): return None
+    return ts.isoformat().replace("+00:00","Z")
+
 def player_identity(row,season):
     aid=integer(row.get("athlete_id"))
     if aid is not None:
@@ -99,8 +106,17 @@ coverage=[]
 for season in range(START,END+1):
     roster_url=f"{ROSTER_BASE}/cfb_rosters_{season}.parquet"
     game_url=f"{GAME_BASE}/game_rosters_{season}.parquet"
+    schedule_url=f"{SCHEDULE_BASE}/cfb_schedules_{season}.parquet"
     roster=download_parquet(roster_url)
     game=download_parquet(game_url)
+    schedule=download_parquet(schedule_url)
+
+    game_start={}
+    if {"game_id","start_date"}.issubset(schedule.columns):
+        for _,sr in schedule[["game_id","start_date"]].dropna(subset=["game_id"]).iterrows():
+            gid=integer(sr.get("game_id"))
+            if gid is not None:
+                game_start[gid]=iso_utc(sr.get("start_date"))
 
     # Canonical season roster should already be one row per season/team/athlete.
     if "season" not in roster.columns: roster["season"]=season
@@ -119,12 +135,63 @@ for season in range(START,END+1):
         g=g.sort_values([c for c in ["week","game_id"] if c in g.columns])
         for (tid,aid),grp in g.groupby(["team_id","athlete_id"],dropna=True):
             first=grp.iloc[0]; last=grp.iloc[-1]
+            gids=[integer(v) for v in grp["game_id"].tolist()] if "game_id" in grp.columns else []
+            dated=[game_start.get(gid) for gid in gids if gid is not None and game_start.get(gid)]
+            dated=sorted(set(dated),key=lambda x: pd.Timestamp(x))
             timing[(int(tid),int(aid))]={
               "first_game_id": str(int(first["game_id"])) if "game_id" in grp.columns and pd.notna(first["game_id"]) else None,
               "first_week": int(first["week"]) if "week" in grp.columns and pd.notna(first["week"]) else None,
+              "first_game_at": dated[0] if dated else None,
               "last_game_id": str(int(last["game_id"])) if "game_id" in grp.columns and pd.notna(last["game_id"]) else None,
               "last_week": int(last["week"]) if "week" in grp.columns and pd.notna(last["week"]) else None,
+              "last_game_at": dated[-1] if dated else None,
               "game_observations": int(len(grp))
+            }
+
+    season_start=f"{season}-07-01T00:00:00Z"
+    season_end=f"{season+1}-07-01T00:00:00Z"
+    member_groups={}
+    for idx,r in roster.iterrows():
+        pid,_,_,_,_=player_identity(r,season)
+        tid_raw=integer(r.get("team_id"))
+        aid=integer(r.get("athlete_id"))
+        tm=timing.get((tid_raw,aid),{}) if tid_raw is not None and aid is not None else {}
+        member_groups.setdefault(pid,[]).append({
+          "idx":idx,
+          "team_id":tid_raw,
+          "first_game_at":tm.get("first_game_at"),
+          "last_game_at":tm.get("last_game_at")
+        })
+
+    windows={}
+    for pid,members in member_groups.items():
+        if len(members)==1:
+            m=members[0]
+            windows[(pid,m["team_id"])]={
+              "effective_from":season_start,
+              "effective_to":season_end,
+              "pit_resolvable":1,
+              "temporal_confidence":0.80
+            }
+            continue
+        starts=[m.get("first_game_at") for m in members]
+        safe=all(starts) and len(set(starts))==len(starts)
+        if not safe:
+            for m in members:
+                windows[(pid,m["team_id"])]={
+                  "effective_from":season_start,
+                  "effective_to":season_end,
+                  "pit_resolvable":0,
+                  "temporal_confidence":0.0
+                }
+            continue
+        ordered=sorted(members,key=lambda m: pd.Timestamp(m["first_game_at"]))
+        for i,m in enumerate(ordered):
+            windows[(pid,m["team_id"])]={
+              "effective_from":season_start if i==0 else m["first_game_at"],
+              "effective_to":ordered[i+1]["first_game_at"] if i+1<len(ordered) else season_end,
+              "pit_resolvable":1,
+              "temporal_confidence":1.0
             }
 
     sql=[
@@ -159,11 +226,20 @@ for season in range(START,END+1):
         tm=timing.get((tid_raw,integer(r.get("athlete_id")))) if tid_raw is not None and integer(r.get("athlete_id")) is not None else None
         tm=tm or {}
         games=integer(r.get("games_rostered")) or tm.get("game_observations")
+        window=windows.get((pid,tid_raw),{
+          "effective_from":season_start,
+          "effective_to":season_end,
+          "pit_resolvable":0,
+          "temporal_confidence":0.0
+        })
+        effective_from=window["effective_from"]
+        effective_to=window["effective_to"]
+        pit_resolvable=window["pit_resolvable"]
+        temporal_confidence=window["temporal_confidence"]
         raw=payload(r,tm)
+        raw["pit_window"]=window
         raw_json=json.dumps(raw,sort_keys=True,separators=(",",":"),default=str)
         content_hash=hashlib.sha256(raw_json.encode()).hexdigest()
-        effective_from=f"{season}-07-01T00:00:00Z"
-        effective_to=f"{season+1}-07-01T00:00:00Z"
 
         sql.append(f"""INSERT INTO cfb_canonical_players
 (player_id,canonical_name,first_name,middle_name,last_name,current_position,active,identity_status,identity_confidence,first_observed_at,last_observed_at,research_only,can_influence_projection,source_json,created_at,updated_at)
@@ -189,15 +265,15 @@ ON CONFLICT(id) DO UPDATE SET alias=excluded.alias,normalized_alias=excluded.nor
 
         mid=f"membership:{hid(pid,tid or 'UNKNOWN_TEAM',season,SOURCE)}"
         sql.append(f"""INSERT INTO cfb_roster_membership
-(id,player_id,team_id,provider_team_id,season,position,position_abbreviation,jersey,class_year,height,weight,first_game_id,first_week,last_game_id,last_week,games_rostered,effective_from,effective_to,source,source_timestamp,observed_at,ingested_at,confidence,raw_json,research_only,can_influence_projection)
-VALUES ({esc(mid)},{esc(pid)},{esc(tid)},{esc(tid_raw)},{season},{esc(position)},{esc(position_abbrev)},{esc(jersey)},{esc(class_year)},{sqlnum(height)},{sqlnum(weight)},{esc(tm.get('first_game_id'))},{sqlnum(tm.get('first_week'))},{esc(tm.get('last_game_id'))},{sqlnum(tm.get('last_week'))},{sqlnum(games)},{esc(effective_from)},{esc(effective_to)},{esc(SOURCE)},NULL,{esc(observed)},{esc(observed)},{confidence},{esc(raw_json)},1,0)
+(id,player_id,team_id,provider_team_id,season,position,position_abbreviation,jersey,class_year,height,weight,first_game_id,first_week,first_game_at,last_game_id,last_week,last_game_at,games_rostered,pit_resolvable,temporal_confidence,effective_from,effective_to,source,source_timestamp,observed_at,ingested_at,confidence,raw_json,research_only,can_influence_projection)
+VALUES ({esc(mid)},{esc(pid)},{esc(tid)},{esc(tid_raw)},{season},{esc(position)},{esc(position_abbrev)},{esc(jersey)},{esc(class_year)},{sqlnum(height)},{sqlnum(weight)},{esc(tm.get('first_game_id'))},{sqlnum(tm.get('first_week'))},{esc(tm.get('first_game_at'))},{esc(tm.get('last_game_id'))},{sqlnum(tm.get('last_week'))},{esc(tm.get('last_game_at'))},{sqlnum(games)},{pit_resolvable},{temporal_confidence},{esc(effective_from)},{esc(effective_to)},{esc(SOURCE)},NULL,{esc(observed)},{esc(observed)},{confidence},{esc(raw_json)},1,0)
 ON CONFLICT(player_id,team_id,season,source) DO UPDATE SET
-position=excluded.position,position_abbreviation=excluded.position_abbreviation,jersey=excluded.jersey,class_year=excluded.class_year,height=excluded.height,weight=excluded.weight,first_game_id=excluded.first_game_id,first_week=excluded.first_week,last_game_id=excluded.last_game_id,last_week=excluded.last_week,games_rostered=excluded.games_rostered,observed_at=excluded.observed_at,ingested_at=excluded.ingested_at,confidence=excluded.confidence,raw_json=excluded.raw_json,research_only=1,can_influence_projection=0;""")
+position=excluded.position,position_abbreviation=excluded.position_abbreviation,jersey=excluded.jersey,class_year=excluded.class_year,height=excluded.height,weight=excluded.weight,first_game_id=excluded.first_game_id,first_week=excluded.first_week,first_game_at=excluded.first_game_at,last_game_id=excluded.last_game_id,last_week=excluded.last_week,last_game_at=excluded.last_game_at,games_rostered=excluded.games_rostered,pit_resolvable=excluded.pit_resolvable,temporal_confidence=excluded.temporal_confidence,effective_from=excluded.effective_from,effective_to=excluded.effective_to,observed_at=excluded.observed_at,ingested_at=excluded.ingested_at,confidence=excluded.confidence,raw_json=excluded.raw_json,research_only=1,can_influence_projection=0;""")
 
         oid=f"rosterobs:{hid(SOURCE,season,tid_raw,provider_pid or pid,content_hash)}"
         sql.append(f"""INSERT OR IGNORE INTO cfb_roster_observations
-(id,player_id,team_id,provider,provider_player_id,provider_team_id,season,position,jersey,class_year,first_game_id,first_week,last_game_id,last_week,games_rostered,payload_json,source_timestamp,observed_at,ingested_at,content_hash,confidence,research_only,can_influence_projection)
-VALUES ({esc(oid)},{esc(pid)},{esc(tid)},'ESPN',{esc(provider_pid)},{esc(tid_raw)},{season},{esc(position)},{esc(jersey)},{esc(class_year)},{esc(tm.get('first_game_id'))},{sqlnum(tm.get('first_week'))},{esc(tm.get('last_game_id'))},{sqlnum(tm.get('last_week'))},{sqlnum(games)},{esc(raw_json)},NULL,{esc(observed)},{esc(observed)},{esc(content_hash)},{confidence},1,0);""")
+(id,player_id,team_id,provider,provider_player_id,provider_team_id,season,position,jersey,class_year,first_game_id,first_week,first_game_at,last_game_id,last_week,last_game_at,games_rostered,pit_resolvable,temporal_confidence,payload_json,source_timestamp,observed_at,ingested_at,content_hash,confidence,research_only,can_influence_projection)
+VALUES ({esc(oid)},{esc(pid)},{esc(tid)},'ESPN',{esc(provider_pid)},{esc(tid_raw)},{season},{esc(position)},{esc(jersey)},{esc(class_year)},{esc(tm.get('first_game_id'))},{sqlnum(tm.get('first_week'))},{esc(tm.get('first_game_at'))},{esc(tm.get('last_game_id'))},{sqlnum(tm.get('last_week'))},{esc(tm.get('last_game_at'))},{sqlnum(games)},{pit_resolvable},{temporal_confidence},{esc(raw_json)},NULL,{esc(observed)},{esc(observed)},{esc(content_hash)},{confidence},1,0);""")
 
     shard=OUT/f"cfb-player-directory-{season}.sql"
     shard.write_text("\n".join(sql)+"\n")
@@ -210,8 +286,11 @@ VALUES ({esc(oid)},{esc(pid)},{esc(tid)},'ESPN',{esc(provider_pid)},{esc(tid_raw
       "distinctTeams":len(distinct_teams),
       "gameRosterRows":int(game_rows),
       "timedMemberships":len(timing),
+      "pitUnresolvedMemberships":sum(1 for v in windows.values() if v["pit_resolvable"]==0),
+      "sameSeasonMultiTeamPlayers":sum(1 for v in member_groups.values() if len(v)>1),
       "rosterUrl":roster_url,
       "gameRosterUrl":game_url,
+      "scheduleUrl":schedule_url,
       "sqlFile":str(shard)
     }
     coverage.append(cov)
@@ -226,7 +305,7 @@ for cov in coverage:
     season=cov["season"]
     game_rows=cov["gameRosterRows"]
     final_lines.append(f"""INSERT INTO cfb_roster_source_coverage
-(season,source,roster_rows,distinct_players,distinct_teams,resolved_team_rows,orphan_team_rows,provisional_players,game_roster_rows,source_file,observed_at)
+(season,source,roster_rows,distinct_players,distinct_teams,resolved_team_rows,orphan_team_rows,provisional_players,pit_unresolved_memberships,game_roster_rows,source_file,observed_at)
 SELECT
   m.season,
   '{SOURCE}',
@@ -236,6 +315,7 @@ SELECT
   SUM(CASE WHEN t.team_id IS NOT NULL THEN 1 ELSE 0 END),
   SUM(CASE WHEN t.team_id IS NULL THEN 1 ELSE 0 END),
   COUNT(DISTINCT CASE WHEN p.identity_status='PROVISIONAL' THEN p.player_id END),
+  SUM(CASE WHEN m.pit_resolvable=0 THEN 1 ELSE 0 END),
   {game_rows},
   'sportsdataverse/cfbfastR-cfb-data/cfb/cfb_rosters/parquet/cfb_rosters_{season}.parquet',
   '{observed}'
