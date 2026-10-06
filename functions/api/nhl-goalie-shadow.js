@@ -5,7 +5,19 @@ import { NHL_GOALIE_PROB_PROSPECTIVE_GATE as PROSPECTIVE_GATE } from "../../data
 import { canonicalEvidenceId, persistCanonicalProspectiveEvidence, persistCanonicalEconomicGrade, markCanonicalEvidenceGraded } from "../lib/canonical/sportEvidenceAdapter.js";
 
 const TZ="America/Chicago";
-function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}\nfunction sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}\nasync function retryDb(op,{attempts=4,baseDelayMs=80}={}){\n  let last;\n  for(let i=0;i<attempts;i++){\n    try{return await op();}catch(error){\n      last=error;\n      if(i===attempts-1)break;\n      await sleep(baseDelayMs*(i+1));\n    }\n  }\n  throw last;\n}
+function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
+function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+async function retryDb(op,{attempts=4,baseDelayMs=80}={}){
+  let last;
+  for(let i=0;i<attempts;i++){
+    try{return await op();}catch(error){
+      last=error;
+      if(i===attempts-1)break;
+      await sleep(baseDelayMs*(i+1));
+    }
+  }
+  throw last;
+}
 function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function dateCt(d=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);}
@@ -211,7 +223,9 @@ async function closeNoVig(db,eventId,side,start){
   }catch{return null;}
 }
 export async function settle(db,date){
-  const rows=((await retryDb(()=>db.prepare(`SELECT * FROM nhl_goalie_probability_shadow\n    WHERE graded_at IS NULL AND substr(game_start,1,10) BETWEEN ? AND ? ORDER BY game_start`)\n    .bind(shiftDay(date,-1),shiftDay(date,1)).all())).results)||[];
+  const rows=((await retryDb(()=>db.prepare(`SELECT * FROM nhl_goalie_probability_shadow
+    WHERE graded_at IS NULL AND substr(game_start,1,10) BETWEEN ? AND ? ORDER BY game_start`)
+    .bind(shiftDay(date,-1),shiftDay(date,1)).all())).results)||[];
   let graded=0;
   for(const r of rows){
     const box=await fetchBox(r.event_id).catch(()=>null),score=boxScore(box);if(!score)continue;
@@ -238,7 +252,8 @@ export async function settle(db,date){
       await retryDb(()=>markCanonicalEvidenceGraded(db,evidenceId,{gradedAt,result:{
         actualHome:score.home,actualAway:score.away,incumbentBrier:ib,challengerBrier:sb,
         incumbentLogLoss:ill,challengerLogLoss:sll,actualHomeStarterId:score.homeStarterId,actualAwayStarterId:score.awayStarterId,
-        unexpectedStarter,sourceResearchClvProbabilityPp:clv,sourceResearchProfitUnits:profit\n      }}));
+        unexpectedStarter,sourceResearchClvProbabilityPp:clv,sourceResearchProfitUnits:profit
+      }}));
       const entryNoVig=noVigForSide(market,side);
       await retryDb(()=>persistCanonicalEconomicGrade(db,{
         evidenceId,sport:"nhl",eventId:String(r.event_id),marketFamily:"moneyline_probability",
@@ -246,7 +261,8 @@ export async function settle(db,date){
         result:won?"WIN":"LOSS",gradedAt,metadata:{researchOnly:true,sourceClvSemantics:"close_no_vig_minus_entry_vigged_implied_pp",canonicalClvSemantics:"close_no_vig_minus_entry_no_vig_probability"}
       },{
         executionEvidence:false,sourceTable:"nhl_goalie_probability_shadow",sourceId:r.id,
-        sourceMetrics:{shadowBrier:sb,shadowLogLoss:sll,researchClvProbabilityPp:clv,researchProfitUnits:profit}\n      }));
+        sourceMetrics:{shadowBrier:sb,shadowLogLoss:sll,researchClvProbabilityPp:clv,researchProfitUnits:profit}
+      }));
     }
     graded++;
   }
@@ -254,24 +270,24 @@ export async function settle(db,date){
 }
 export async function summary(db){
   const [counts,metrics,splits,integrity]=await Promise.all([
-    db.prepare(`SELECT COUNT(*) n,SUM(CASE WHEN gate_fired=1 THEN 1 ELSE 0 END) gate_n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
+    retryDb(()=>db.prepare(`SELECT COUNT(*) n,SUM(CASE WHEN gate_fired=1 THEN 1 ELSE 0 END) gate_n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
       SUM(CASE WHEN graded_at IS NULL THEN 1 ELSE 0 END) ungraded_n,
       SUM(CASE WHEN ABS(COALESCE(probability_delta,0))>0.000001 THEN 1 ELSE 0 END) shadow_diff_n,
       SUM(CASE WHEN ABS(COALESCE(probability_delta,0))<=0.000001 THEN 1 ELSE 0 END) shadow_equal_n,
       AVG(probability_delta) mean_probability_delta,
-      MIN(feature_cutoff_timestamp) first_at,MAX(feature_cutoff_timestamp) last_at FROM nhl_goalie_probability_shadow`).first(),
-    db.prepare(`SELECT COUNT(*) n,AVG(incumbent_brier) incumbent_brier,AVG(shadow_brier) shadow_brier,
+      MIN(feature_cutoff_timestamp) first_at,MAX(feature_cutoff_timestamp) last_at FROM nhl_goalie_probability_shadow`).first()),
+    retryDb(()=>db.prepare(`SELECT COUNT(*) n,AVG(incumbent_brier) incumbent_brier,AVG(shadow_brier) shadow_brier,
       AVG(incumbent_log_loss) incumbent_log_loss,AVG(shadow_log_loss) shadow_log_loss,
       AVG(incumbent_correct) incumbent_accuracy,AVG(shadow_correct) shadow_accuracy,
       AVG(research_clv_probability_pp) avg_clv_probability_pp,AVG(research_profit_units) avg_profit_units
-      FROM nhl_goalie_probability_shadow WHERE graded_at IS NOT NULL`).first(),
-    db.prepare(`SELECT goalie_usage_state,COUNT(*) n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
+      FROM nhl_goalie_probability_shadow WHERE graded_at IS NOT NULL`).first()),
+    retryDb(()=>db.prepare(`SELECT goalie_usage_state,COUNT(*) n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
       AVG(CASE WHEN graded_at IS NOT NULL THEN incumbent_brier END) incumbent_brier,
       AVG(CASE WHEN graded_at IS NOT NULL THEN shadow_brier END) shadow_brier,
       AVG(starter_quality_delta) avg_starter_quality_delta
-      FROM nhl_goalie_probability_shadow GROUP BY goalie_usage_state ORDER BY goalie_usage_state`).all(),
-    db.prepare(`SELECT COUNT(*) total,SUM(CASE WHEN temporal_integrity_passed=1 THEN 1 ELSE 0 END) passed,
-      SUM(CASE WHEN temporal_integrity_passed<>1 THEN 1 ELSE 0 END) violations FROM nhl_goalie_probability_shadow`).first()
+      FROM nhl_goalie_probability_shadow GROUP BY goalie_usage_state ORDER BY goalie_usage_state`).all()),
+    retryDb(()=>db.prepare(`SELECT COUNT(*) total,SUM(CASE WHEN temporal_integrity_passed=1 THEN 1 ELSE 0 END) passed,
+      SUM(CASE WHEN temporal_integrity_passed<>1 THEN 1 ELSE 0 END) violations FROM nhl_goalie_probability_shadow`).first())
   ]);
   const confirmed=(splits.results||[]).find(x=>x.goalie_usage_state==="BOTH_CONFIRMED");
   return{
