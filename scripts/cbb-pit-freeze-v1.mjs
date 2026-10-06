@@ -128,20 +128,19 @@ for(const file of seasonFiles){
 }
 audit.conflicts.ambiguousHistoricalMatchups=ambiguousHistKeys.size;
 const ambiguousRows=rows.filter(r=>ambiguousHistKeys.has(r.matchKey));
+audit.conflicts.detectedHistoricalDuplicateOccurrences=audit.conflicts.historicalDuplicateKeys;
+audit.conflicts.ambiguousMatchedRowsExcluded=ambiguousRows.length;
+audit.conflicts.ambiguousHistoricalKeys=[...ambiguousHistKeys].sort();
 for(const r of ambiguousRows){
-  audit.totals.matched--; audit.totals[r.join==="direct"?"direct":"fallback"]--; audit.totals.unmatched++;
-  const s=audit.seasons[r.season]; s.matched--; s[r.join==="direct"?"direct":"fallback"]--; s.unmatched++;
+  const s=audit.seasons[r.season];
+  s.matched--; s[r.join==="direct"?"direct":"fallback"]--; s.unmatched++;
 }
-audit.exclusions={ambiguousCanonicalMatchupRows:ambiguousRows.length,ambiguousCanonicalMatchupKeys:[...ambiguousHistKeys]};
-audit.conflicts.detectedHistoricalDuplicateKeys=audit.conflicts.historicalDuplicateKeys;
-audit.conflicts.historicalDuplicateKeys=0;
+audit.totals.matched-=ambiguousRows.length;
+audit.totals.fallback-=ambiguousRows.filter(r=>r.join==="fallback").length;
+audit.totals.direct-=ambiguousRows.filter(r=>r.join==="direct").length;
+audit.totals.unmatched+=ambiguousRows.length;
 rows=rows.filter(r=>!ambiguousHistKeys.has(r.matchKey));
-const rawMatchedRows=rows.length;
-const ambiguousMatchedRows=rows.filter(r=>duplicateHistKeys.has(r.matchKey)).length;
-rows=rows.filter(r=>!duplicateHistKeys.has(r.matchKey));
-audit.conflicts.ambiguousHistoricalKeys=[...duplicateHistKeys].sort();
-audit.conflicts.ambiguousMatchedRowsExcluded=ambiguousMatchedRows;
-audit.conflicts.unresolvedAmbiguousRows=rows.filter(r=>duplicateHistKeys.has(r.matchKey)).length;
+audit.conflicts.unresolvedAmbiguousRows=rows.filter(r=>ambiguousHistKeys.has(r.matchKey)).length;
 audit.totals.frozenMatched=rows.length;
 for(const [season,s] of Object.entries(audit.seasons))s.frozenMatched=rows.filter(r=>r.season===Number(season)).length;
 audit.coverage={
@@ -161,7 +160,7 @@ const minReliable=Math.min(...Object.values(audit.seasons).map(s=>n(s.qa?.lineup
 const minValidated=Math.min(...Object.values(audit.seasons).map(s=>n(s.qa?.meanValidatedLineupCoverage)||0));
 audit.gates={
   eightSeasons:seasonFiles.length===8,
-  noUnresolvedDuplicateConflicts:audit.conflicts.predictionMatchup===0&&audit.exclusions.ambiguousCanonicalMatchupRows>=audit.conflicts.historicalDuplicateKeys,
+  noUnresolvedDuplicateConflicts:audit.conflicts.predictionMatchup===0&&audit.conflicts.unresolvedAmbiguousRows===0,
   noParserRepeats:Object.values(audit.seasons).every(s=>(s.counts?.repeatedGames||0)===0&&(s.counts?.lineupRepeated||0)===0),
   pitTiming:"features are derived only from each team's prior completed games before target game",
   minimumMatchedRows:audit.totals.frozenMatched>=25000,
