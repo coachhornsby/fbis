@@ -650,8 +650,9 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
   }
 
   // General product contract: visible props need an FBIS projection and a
-  // comparable market line. Exception: all 49ers target-role model
-  // projections remain visible even when no PrizePicks line is attached.
+  // comparable market line. Exceptions: MLB persistent model projections and
+  // all 49ers target-role projections remain visible before a market line is
+  // attached. Line-less rows are informational only and cannot be recommended.
   const projectionRows = allRows.filter(
     (r) =>
       r.fbisProjection != null &&
@@ -661,6 +662,7 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
   const projectedRows = projectionRows.filter(
     (r) =>
       (r.line != null && Number.isFinite(Number(r.line))) ||
+      String(r.sport || "").toLowerCase() === "mlb" ||
       is49ersRoleProjection(r),
   );
   const supportedRows = projectedRows.filter((r) => r.supportedMarket || is49ersRoleProjection(r));
@@ -668,15 +670,23 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
   const scoped = opts.enforceNflDisplayPolicy === true
     ? scopedBase.filter(nflBoardVisible)
     : scopedBase;
-  const rows = sortPropsByConviction(scoped).map((r) => ({
-    ...r,
-    displayMode: is49ersRoleProjection(r) && Number(r.confidenceStars || 0) < 4
-      ? "TEAM_PROJECTION"
-      : "QUALIFIED_EDGE",
-    recommendationEligible: String(r.sport || "").toLowerCase() !== "nfl"
-      ? r.eligibleForCard === true
-      : Number(r.confidenceStars || 0) >= 4 && r.eligibleForCard === true,
-  }));
+  const rows = sortPropsByConviction(scoped).map((r) => {
+    const hasLine = r.line != null && Number.isFinite(Number(r.line));
+    const mlbProjectionOnly = String(r.sport || "").toLowerCase() === "mlb" && !hasLine;
+    return {
+      ...r,
+      displayMode: mlbProjectionOnly
+        ? "MODEL_PROJECTION"
+        : is49ersRoleProjection(r) && Number(r.confidenceStars || 0) < 4
+          ? "TEAM_PROJECTION"
+          : "QUALIFIED_EDGE",
+      recommendationEligible: mlbProjectionOnly
+        ? false
+        : String(r.sport || "").toLowerCase() !== "nfl"
+          ? r.eligibleForCard === true
+          : Number(r.confidenceStars || 0) >= 4 && r.eligibleForCard === true,
+    };
+  });
   const rankedAllRows = sortPropsByConviction(projectedRows);
 
   return {
@@ -700,6 +710,7 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
           ).length
         : 0,
       visible49ersRoleProjections: rows.filter(is49ersRoleProjection).length,
+      visibleMlbProjectionOnly: rows.filter((r)=>String(r.sport||"").toLowerCase()==="mlb" && (r.line==null || !Number.isFinite(Number(r.line)))).length,
       byMarket,
       decisionEligible: rows.filter((r) => r.decisionEligible).length,
       cardEligible: rows.filter((r) => r.eligibleForCard === true).length,
@@ -719,6 +730,8 @@ export function buildPlayerPropsBoard(board = {}, opts = {}) {
       nflBelowFourHidden: true,
       fortyNinersTargetRolesAlwaysVisible: ["QB1","RB1","WR1","WR2","TE1"],
       fortyNinersLowStarRowsInformationalOnly: true,
+      mlbProjectionOnlyRowsVisible: true,
+      mlbProjectionOnlyRowsInformationalOnly: true,
     },
     schemaVersion: "fbis-player-props-board-v2.1",
   };
