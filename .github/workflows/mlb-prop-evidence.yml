@@ -1,0 +1,93 @@
+name: MLB prospective prop evidence
+
+on:
+  schedule:
+    # UTC. Three bounded capture windows; each run also settles prior-day finals.
+    - cron: "15 16,20,0 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Capture date (YYYY-MM-DD, CT). Blank = today CT"
+        required: false
+      settle_date:
+        description: "Settlement date (YYYY-MM-DD, CT). Blank = yesterday CT"
+        required: false
+
+concurrency:
+  group: mlb-prop-prospective-evidence
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  capture-settle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://fbis-myz.pages.dev
+      HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+    steps:
+      - name: Require credential
+        run: test -n "${HARVEST_SECRET:-}"
+
+      - name: Resolve bounded dates
+        run: |
+          set -euo pipefail
+          capture="${{ inputs.date }}"
+          settle="${{ inputs.settle_date }}"
+          if [ -z "$capture" ]; then capture="$(TZ=America/Chicago date +%F)"; fi
+          if [ -z "$settle" ]; then settle="$(TZ=America/Chicago date -d 'yesterday' +%F)"; fi
+          echo "CAPTURE_DATE=$capture" >> "$GITHUB_ENV"
+          echo "SETTLE_DATE=$settle" >> "$GITHUB_ENV"
+
+      - name: Capture prospective MLB prop evidence in bounded shards
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          : > artifacts/capture.ndjson
+          for shard in 0 1 2; do
+            body="$(jq -nc --arg date "$CAPTURE_DATE" --argjson shard "$shard" '{operation:"capture",date:$date,shard:$shard,shards:3}')"
+            out="artifacts/capture-$shard.json"
+            code="$(curl -sS --max-time 180 -o "$out" -w "%{http_code}" -X POST               -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               --data-binary "$body" "$BASE/api/mlb-prop-evidence")"
+            cat "$out"; echo
+            test "$code" = "200"
+            jq -e '.ok==true and .operation=="capture"' "$out" >/dev/null
+            jq -c '.' "$out" >> artifacts/capture.ndjson
+          done
+
+      - name: Settle prior MLB prop evidence in bounded shards
+        run: |
+          set -euo pipefail
+          : > artifacts/settle.ndjson
+          for shard in 0 1 2; do
+            body="$(jq -nc --arg date "$SETTLE_DATE" --argjson shard "$shard" '{operation:"settle",date:$date,shard:$shard,shards:3,limitGames:6}')"
+            out="artifacts/settle-$shard.json"
+            code="$(curl -sS --max-time 180 -o "$out" -w "%{http_code}" -X POST               -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               --data-binary "$body" "$BASE/api/mlb-prop-evidence")"
+            cat "$out"; echo
+            test "$code" = "200"
+            jq -e '.ok==true and .operation=="settle"' "$out" >/dev/null
+            jq -c '.' "$out" >> artifacts/settle.ndjson
+          done
+
+      - name: Verify prospective evidence readback
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 60 -H "x-harvest-secret: $HARVEST_SECRET"             "$BASE/api/mlb-prop-evidence?date=$CAPTURE_DATE&_t=$(date +%s)" > artifacts/status.json
+          jq -e '.ok==true and .governance.canQualify==false and .governance.canAuthorizeWager==false and .governance.autoPromotion==false' artifacts/status.json >/dev/null
+          {
+            echo "## MLB prospective prop evidence"
+            echo "- Capture date: $CAPTURE_DATE"
+            echo "- Settlement date: $SETTLE_DATE"
+            echo "- New snapshots: $(jq -s '[.[].accepted]|add // 0' artifacts/capture.ndjson)"
+            echo "- Duplicates: $(jq -s '[.[].duplicates]|add // 0' artifacts/capture.ndjson)"
+            echo "- Rejected: $(jq -s '[.[].rejected]|add // 0' artifacts/capture.ndjson)"
+            echo "- Settled: $(jq -s '[.[].settled]|add // 0' artifacts/settle.ndjson)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mlb-prop-evidence-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 14

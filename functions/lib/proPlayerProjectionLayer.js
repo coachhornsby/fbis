@@ -160,11 +160,12 @@ export function attachNpbPlayerProjectionResearch(games = []) {
 export function attachMlbPlayerProjectionResearch(games = [], persistent = {}) {
   return (games || []).map((game) => {
     const rows = [];
+    const state=persistent?.byGameId?.[String(game.id||game.bpp?.gamePk||"")]||null;
     const ks = game.mlbDeepShadow?.pitcherKs || null;
     for (const side of ["home", "away"]) {
       const p = ks?.[side];
       if (!p || finite(p.projection) == null) continue;
-      rows.push(statRow({
+      const kRow=statRow({
         sport: "mlb",
         game,
         team: p.team || teamAbbr(game[side]),
@@ -176,9 +177,16 @@ export function attachMlbPlayerProjectionResearch(games = [], persistent = {}) {
         notes: String(p.source || "").startsWith("STATCAST_PITCH_SHAPE_X_HITTER_ZONE_X_WORKLOAD")
           ? "Primary MLB K projection uses Statcast pitcher arsenal/shape versus hitter contact zones, expected batters faced and workload. Ballpark Pal starter K remains external comparison."
           : "Fallback MLB K projection uses season K/9, workload and opponent team K rate. Ballpark Pal starter K remains external comparison.",
-      }));
+      });
+      if(kRow){
+        rows.push({
+          ...kRow,
+          modelVersion:game?.mlbDeepShadow?.version || game?.mlbDeepShadow?.modelVersion || "research-v2.5-postseason-context",
+          sourceObservedAt:state?.asOf || null,
+          stateAsOf:state?.asOf || null,
+        });
+      }
     }
-    const state=persistent?.byGameId?.[String(game.id||game.bpp?.gamePk||"")]||null;
     const extra=buildMlbPersistentPlayerPropRows(game,state).map((p)=>{
       const row=statRow({
         sport:"mlb",game,team:p.team,
@@ -190,6 +198,9 @@ export function attachMlbPlayerProjectionResearch(games = [], persistent = {}) {
       const hitterLineupHold=String(p.position||"").toUpperCase()!=="P" && p.lineupState==="ROSTER_FALLBACK";
       return {
         ...row,...p,
+        modelVersion:p.modelVersion || MLB_PLAYER_PROP_MODEL_VERSION,
+        sourceObservedAt:p.stateAsOf || state?.asOf || null,
+        stateAsOf:p.stateAsOf || state?.asOf || null,
         propGate:hitterLineupHold?"HOLD":row.propGate,
         gateReason:hitterLineupHold?"lineup_not_expected_or_confirmed":(row.gateReason||"research_unvalidated"),
         eligibleForCard:false,
