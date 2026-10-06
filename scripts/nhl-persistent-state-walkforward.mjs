@@ -13,7 +13,7 @@ const OUT_DEFAULT="data/models/nhl-persistent-state-challenger-v1.json";
 const CACHE_DEFAULT=".cache/nhl-persistent-state-v1";
 
 function arg(name,fallback=null){
-  const p=process.argv.find(x=>x.startsWith(\`--\${name}=\`));
+  const p=process.argv.find(x=>x.startsWith(`--${name}=`));
   return p?p.split("=").slice(1).join("="):fallback;
 }
 const sourcePath=arg("source",SOURCE_DEFAULT);
@@ -52,7 +52,7 @@ async function fetchJson(url,attempts=4){
     try{
       const r=await fetch(url,{headers:{accept:"application/json","user-agent":"FBIS-NHL-PERSISTENT-STATE-RESEARCH/1.0"},signal:AbortSignal.timeout(15000)});
       if(r.ok)return r.json();
-      last=new Error(\`HTTP_\${r.status} \${url}\`);
+      last=new Error(`HTTP_${r.status} ${url}`);
       if(r.status===404)throw last;
       if(r.status===429||r.status>=500)await sleep(i*500);else throw last;
     }catch(err){last=err;if(i<attempts)await sleep(i*500);}
@@ -60,7 +60,7 @@ async function fetchJson(url,attempts=4){
   throw last;
 }
 async function cachedJson(kind,id,url){
-  const dir=\`\${cacheDir}/\${kind}\`,path=\`\${dir}/\${id}.json\`;
+  const dir=`${cacheDir}/${kind}`,path=`${dir}/${id}.json`;
   try{return JSON.parse(await readFile(path,"utf8"));}catch{}
   const json=await fetchJson(url);
   await mkdir(dir,{recursive:true});
@@ -127,8 +127,8 @@ function buildGameTeamState(game,team,box,shifts){
 async function fetchHistoricalGame(row){
   const id=String(row.id);
   const [box,shifts]=await Promise.all([
-    cachedJson("box",id,\`\${WEB}/gamecenter/\${id}/boxscore\`),
-    cachedJson("shifts",id,\`\${STATS}/shiftcharts?limit=-1&cayenneExp=\${encodeURIComponent(\`gameId=\${id}\`)}\`)
+    cachedJson("box",id,`${WEB}/gamecenter/${id}/boxscore`),
+    cachedJson("shifts",id,`${STATS}/shiftcharts?limit=-1&cayenneExp=${encodeURIComponent(`gameId=${id}`)}`)
   ]);
   return {
     ok:true,gameId:id,
@@ -137,7 +137,7 @@ async function fetchHistoricalGame(row){
   };
 }
 
-function roleKey(p){return p?.position==="D"?\`D\${p.dPair??"?"}\`:\`F\${p.evLine??"?"}\`;}
+function roleKey(p){return p?.position==="D"?`D${p.dPair??"?"}`:`F${p.evLine??"?"}`;}
 function baselinePlayer(hist,id,excludeLast=true){
   const games=(excludeLast?hist.slice(0,-1):hist).slice(-5);
   const obs=games.map(g=>g.players[id]).filter(Boolean);
