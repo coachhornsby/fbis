@@ -11,7 +11,7 @@ function checkpoint(start,frozenAt){
   if(!Number.isFinite(ms)||ms<=0)return null;
   const h=ms/3600000;
   if(h<=4 && h>=0.25)return"LATE";
-  if(h<=36 && h>4)return"EARLY";
+  if(h<=72 && h>4)return"EARLY";
   return null;
 }
 function compactProfile(node={}){
@@ -49,7 +49,8 @@ function gradeAts(actualMargin,spreadHome,selection,homePrice,awayPrice){
   const result=signed>0?"WIN":signed<0?"LOSS":"PUSH";
   const price=selection==="home"?homePrice:awayPrice;
   const pr=profit(price);
-  return {result,units:result==="WIN"?(pr??null):result==="LOSS"?-1:0};
+  if(result!=="PUSH" && pr==null)return {result,units:null};
+  return {result,units:result==="WIN"?pr:result==="LOSS"?-1:0};
 }
 function probGrade(actualHomeWin,p){
   const q=Math.max(.001,Math.min(.999,finite(p)??.5)),y=actualHomeWin?1:0;
@@ -230,6 +231,9 @@ async function summary(db){
       return[k,group([...ev.values()])];
     })),
     promotionState:"PROSPECTIVE_SHADOW_ACCUMULATING",
+    promotionEligible:false,
+    prospectiveValidationPassed:false,
+    operatorApprovedForProduction:false,
     primaryPromotionQuestion:"Does improvement remain concentrated in gate-fired games (QB burden >= 0.30) prospectively?",
   };
 }
