@@ -27,6 +27,15 @@ for (const path of schemaPaths) {
 const files = (await readdir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
 const missing = [];
 const registrationFailures = [];
+const prefixOwners = new Map();
+for (const file of files) {
+  const prefix = file.match(/^(\d+)_/)?.[1];
+  if (!prefix) continue;
+  const owners = prefixOwners.get(prefix) || [];
+  owners.push(file);
+  prefixOwners.set(prefix, owners);
+}
+const duplicatePrefixes = [...prefixOwners.entries()].filter(([, owners]) => owners.length > 1);
 for (const file of files) {
   const body = await readFile(join(migrationsDir, file), "utf8");
   const tables = [...extractCreateTables(body)];
@@ -49,6 +58,14 @@ if (registrationFailures.length) {
   console.error("Latest migration does not register itself in schema_migrations:");
   for (const m of registrationFailures) console.error(`- ${m.file}: expected ${m.id}`);
   process.exit(1);
+}
+
+if (duplicatePrefixes.length) {
+  console.error("Duplicate numeric migration prefixes detected; migration order is ambiguous:");
+  for (const [prefix, owners] of duplicatePrefixes) console.error(`- ${prefix}: ${owners.join(", ")}`);
+  console.error("Historical duplicates require an explicit lineage repair before this check can become blocking.");
+} else {
+  console.log("Migration numeric prefixes are unique.");
 }
 
 console.log(`Verified ${files.length} migrations against canonical schema bundle (${schemaTables.size} tables).`);
