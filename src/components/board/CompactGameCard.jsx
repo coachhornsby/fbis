@@ -133,7 +133,7 @@ function MlbStarterMini({ game, side }) {
   if (!sp.name && sp.era == null) return null;
   const record = sp.wins != null && sp.losses != null ? `${sp.wins}-${sp.losses}` : null;
   const era = Number.isFinite(Number(sp.era)) ? `${Number(sp.era).toFixed(2)} ERA` : null;
-  const image = sp.id ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_96,q_auto:best/v1/people/${sp.id}/headshot/67/current` : null;
+  const image = sp.id ? `/api/mlb-headshot?id=${encodeURIComponent(sp.id)}` : null;
   return (
     <div className="cgc-mlb-starter" aria-label={[`Starter ${sp.name || "TBD"}`, record, era].filter(Boolean).join(", ")}>
       <span className="cgc-starter-avatar" aria-hidden="true">
