@@ -176,6 +176,7 @@ export function reconstructWnbaPossessionState(pbpGame={}){
     transitionProxyPossessions:0,coordinateShots:0,
   };
   let offense=null,startElapsed=null,segmentElapsed=null,startScore=starterScore(plays[0]),startReason="UNKNOWN",period=null;
+  let pendingStartReason="UNKNOWN";
   let currentScore={...startScore};
 
   const open=(p,team,reason)=>{
@@ -184,7 +185,8 @@ export function reconstructWnbaPossessionState(pbpGame={}){
     startElapsed=elapsedGame(p.period,p.clock);
     segmentElapsed=startElapsed;
     startScore={...currentScore};
-    startReason=reason||"UNKNOWN";
+    startReason=(reason==="EVENT"||reason==="SHOT")&&pendingStartReason!=="UNKNOWN"?pendingStartReason:(reason||"UNKNOWN");
+    pendingStartReason="UNKNOWN";
   };
   const close=(p,reason)=>{
     if(!offense){qa.possessionsWithoutOffense++;return}
@@ -218,6 +220,7 @@ export function reconstructWnbaPossessionState(pbpGame={}){
       if(s.gameState[state]){s.gameState[state].possessions++;s.gameState[state].points+=points}
     }
     offense=null;startElapsed=null;segmentElapsed=null;startReason="UNKNOWN";period=null;
+    if(reason==="TURNOVER")pendingStartReason="TURNOVER";
   };
 
   for(const p of plays){
