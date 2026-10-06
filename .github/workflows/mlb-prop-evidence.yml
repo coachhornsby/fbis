@@ -58,15 +58,17 @@ jobs:
           echo "CAPTURE_DATE=$capture" >> "$GITHUB_ENV"
           echo "SETTLE_DATE=$settle" >> "$GITHUB_ENV"
 
-      - name: Capture prospective MLB prop evidence in bounded shards
+      - name: Capture prospective MLB prop evidence in bounded offer shards
+        id: capture
+        continue-on-error: true
         run: |
           set -euo pipefail
           mkdir -p artifacts
           : > artifacts/capture.ndjson
-          for shard in 0 1 2; do
-            body="$(jq -nc --arg date "$CAPTURE_DATE" --argjson shard "$shard" '{operation:"capture",date:$date,shard:$shard,shards:3}')"
+          for shard in $(seq 0 11); do
+            body="$(jq -nc --arg date "$CAPTURE_DATE" --argjson shard "$shard" '{operation:"capture",date:$date,shard:$shard,shards:12}')"
             out="artifacts/capture-$shard.json"
-            code="$(curl -sS --max-time 180 -o "$out" -w "%{http_code}" -X POST               -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               --data-binary "$body" "$BASE/api/mlb-prop-evidence")"
+            code="$(curl -sS --max-time 120 -o "$out" -w "%{http_code}" -X POST               -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               --data-binary "$body" "$BASE/api/mlb-prop-evidence")"
             cat "$out"; echo
             test "$code" = "200"
             jq -e '.ok==true and .operation=="capture"' "$out" >/dev/null
@@ -74,6 +76,9 @@ jobs:
           done
 
       - name: Settle prior MLB prop evidence in bounded shards
+        id: settle
+        if: ${{ always() }}
+        continue-on-error: true
         run: |
           set -euo pipefail
           : > artifacts/settle.ndjson
@@ -88,6 +93,9 @@ jobs:
           done
 
       - name: Verify prospective evidence readback
+        id: verify
+        if: ${{ always() }}
+        continue-on-error: true
         run: |
           set -euo pipefail
           curl -fsS --max-time 60 -H "x-harvest-secret: $HARVEST_SECRET"             "$BASE/api/mlb-prop-evidence?date=$CAPTURE_DATE&_t=$(date +%s)" > artifacts/status.json
@@ -101,6 +109,13 @@ jobs:
             echo "- Rejected: $(jq -s '[.[].rejected]|add // 0' artifacts/capture.ndjson)"
             echo "- Settled: $(jq -s '[.[].settled]|add // 0' artifacts/settle.ndjson)"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce capture settlement and readback success
+        if: ${{ always() }}
+        run: |
+          test "${{ steps.capture.outcome }}" = "success"
+          test "${{ steps.settle.outcome }}" = "success"
+          test "${{ steps.verify.outcome }}" = "success"
 
       - uses: actions/upload-artifact@v4
         if: always()

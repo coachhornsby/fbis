@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { persistProspectiveEvidence, persistEconomicGrade } from "../functions/lib/canonical/evidenceStore.js";
+import { persistProspectiveEvidence, persistProspectiveEvidenceAtomic, persistEconomicGrade } from "../functions/lib/canonical/evidenceStore.js";
 
 test("canonical prospective persistence stores eligibility and full provenance without deleting invalid evidence", async () => {
   const src=await readFile(new URL("../functions/lib/canonical/evidenceStore.js",import.meta.url),"utf8");
@@ -31,6 +31,11 @@ function fakeDb({ prospectiveExisting = null, gradeExisting = null, evidenceForG
   const writes = [];
   return {
     writes,
+    async batch(statements) {
+      const out=[];
+      for (const statement of statements) out.push(await statement.run());
+      return out;
+    },
     prepare(sql) {
       return {
         bind(...args) {
@@ -229,4 +234,25 @@ test("behavior: correctly linked economic grade is accepted", async () => {
   assert.equal(out.ok,true);
   assert.equal(out.inserted,true);
   assert.equal(db.writes.length,1);
+});
+
+
+test("behavior: atomic prospective bundle writes sport statement and canonical row together", async () => {
+  const db=fakeDb();
+  const sportStatement=db.prepare("INSERT OR IGNORE INTO sport_shadow(id) VALUES(?)").bind("ev-1");
+  const out=await persistProspectiveEvidenceAtomic({DB:db},validEvidence(),{beforeStatements:[sportStatement]});
+  assert.equal(out.ok,true);
+  assert.equal(out.inserted,true);
+  assert.equal(out.beforeResults.length,1);
+  assert.equal(db.writes.length,2);
+  assert.match(db.writes[0].sql,/sport_shadow/);
+  assert.match(db.writes[1].sql,/INSERT INTO fbis_prospective_evidence/);
+});
+
+test("behavior: atomic prospective bundle refuses mutation without D1 batch", async () => {
+  const db=fakeDb();
+  delete db.batch;
+  const out=await persistProspectiveEvidenceAtomic({DB:db},validEvidence(),{beforeStatements:[]});
+  assert.deepEqual(out,{ok:false,reason:"atomic-batch-required"});
+  assert.equal(db.writes.length,0);
 });
