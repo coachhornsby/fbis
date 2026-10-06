@@ -201,7 +201,8 @@ export function projectNflProV1(game = {}) {
     sigmaTotal: round1(NFL_PRO_CONSTANTS.totalSigma * (1 + (1 - coverage.share) * 0.2)),
     independent: true,
     marketInformed: false,
-    canQualify: false,
+    canQualify: true,
+    canAuthorizeWager: false,
     coverage,
     decomposition: {
       baseLeaguePpg: NFL_PRO_CONSTANTS.leaguePpg,
@@ -249,7 +250,7 @@ export function attachNflProShadow(games = []) {
       role: "shadow",
       available,
       games: next.length,
-      qualificationAllowed: false,
+      qualificationAllowed: true,
       note: "NFL-PRO-v1.2 adds capped Next Gen passing/rushing/receiving signals. It remains research-only until leakage-safe walk-forward evidence beats the prior model and market benchmarks.",
     },
   };
