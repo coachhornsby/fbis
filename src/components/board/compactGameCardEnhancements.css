@@ -554,7 +554,21 @@
   height: 100%;
   object-fit: cover;
   object-position: center top;
+  transform: translateY(-3px) scale(1.08);
+  transform-origin: center top;
   background: #0a1726;
+}
+.fbis-shell-main.route-board .cgc-team-name-mlb {
+  display: block;
+  max-width: 176px !important;
+  overflow: hidden;
+  color: #edf7ff !important;
+  font-size: 13px !important;
+  font-weight: 950 !important;
+  line-height: 1.15 !important;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .fbis-shell-main.route-board .cgc-starter-copy {
   display: flex;
@@ -579,7 +593,9 @@
 }
 @media (max-width: 560px) {
   .fbis-shell-main.route-board .cgc-mlb-starter { gap: 4px; width: min(124px, 100%); }
+  .fbis-shell-main.route-board .cgc-team-name-mlb { max-width: 132px !important; font-size: 10.5px !important; }
   .fbis-shell-main.route-board .cgc-starter-avatar { width: 26px; height: 26px; flex-basis: 26px; font-size: 8px; }
+  .fbis-shell-main.route-board .cgc-starter-avatar img { transform: translateY(-2.5px) scale(1.08); }
   .fbis-shell-main.route-board .cgc-starter-copy > strong { max-width: 88px; font-size: 9px; }
   .fbis-shell-main.route-board .cgc-starter-copy > span { font-size: 7.5px; }
 }
