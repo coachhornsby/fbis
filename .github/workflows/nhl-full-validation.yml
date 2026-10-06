@@ -28,7 +28,6 @@ on:
       - "functions/lib/proPlayerProjectionLayer.js"
       - "src/features/playerProps/buildPlayerPropsBoard.js"
       - "test/nhl-prop-confidence.test.js"
-      - "package.json"
       - ".github/workflows/nhl-full-validation.yml"
   workflow_dispatch:
 
