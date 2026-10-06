@@ -27,7 +27,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: tennis-d1-writes-${{ github.event_name == 'pull_request' && github.run_id || 'production' }}
+  group: ${{ github.event_name == 'pull_request' && format('tennis-pr-{0}', github.run_id) || 'tennis-d1-writes' }}
   cancel-in-progress: false
 
 jobs:
