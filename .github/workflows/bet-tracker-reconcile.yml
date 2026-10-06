@@ -72,6 +72,10 @@ jobs:
               cp "$body" /tmp/tracker-sync.json
               exit 0
             fi
+            if jq -e '((.error // "") | tostring | contains("http=409")) or (.status == "D1_CONFLICT")' "$body" >/dev/null 2>&1; then
+              echo "Deterministic tracker conflict; failing once without retry."
+              exit 1
+            fi
             sleep 10
           done
           exit 1
