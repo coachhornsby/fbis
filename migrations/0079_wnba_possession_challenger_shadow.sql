@@ -85,6 +85,43 @@ CREATE INDEX IF NOT EXISTS idx_wnba_possession_shadow_event
 CREATE INDEX IF NOT EXISTS idx_wnba_possession_shadow_model_grade
   ON wnba_game_possession_challenger_shadow(model_id,graded_at,captured_at);
 
+CREATE TABLE IF NOT EXISTS wnba_game_possession_market_shadow (
+  id TEXT PRIMARY KEY,
+  natural_key TEXT NOT NULL UNIQUE,
+  event_id TEXT NOT NULL,
+  event_start TEXT,
+  captured_at TEXT NOT NULL,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  market TEXT NOT NULL,
+  side TEXT NOT NULL,
+  line REAL,
+  american_price REAL NOT NULL,
+  sportsbook TEXT,
+  market_observed_at TEXT,
+  model_probability REAL,
+  break_even_probability REAL,
+  probability_edge REAL,
+  expected_value REAL,
+  research_decision TEXT NOT NULL,
+  feature_reliability REAL,
+  lineup_reliability REAL,
+  result TEXT,
+  win INTEGER,
+  push INTEGER,
+  units REAL,
+  close_line REAL,
+  close_price REAL,
+  clv_line REAL,
+  clv_price REAL,
+  settled_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_wnba_possession_market_shadow_event
+  ON wnba_game_possession_market_shadow(event_id,captured_at);
+CREATE INDEX IF NOT EXISTS idx_wnba_possession_market_shadow_model
+  ON wnba_game_possession_market_shadow(model_id,market,research_decision,settled_at);
+
 CREATE TABLE IF NOT EXISTS wnba_player_opportunity_shadow (
   id TEXT PRIMARY KEY,
   natural_key TEXT NOT NULL UNIQUE,
