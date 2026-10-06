@@ -25,6 +25,8 @@ function round(v,n=6){return Number(Number(v).toFixed(n));}
 function mean(xs){const v=xs.filter(Number.isFinite);return v.length?v.reduce((s,x)=>s+x,0)/v.length:null;}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function dayDiff(a,b){return Math.abs(Date.parse(a)-Date.parse(b))/86400000;}
+function isoShift(iso,hours){const t=Date.parse(iso);return Number.isFinite(t)?new Date(t+hours*3600000).toISOString():null;}
+function gameStartFromBox(box){const v=box?.startTimeUTC||box?.gameDateTimeUTC||null;return v&&Number.isFinite(Date.parse(v))?new Date(v).toISOString():null;}
 async function fetchJson(url,attempts=4){
   let last;
   for(let i=1;i<=attempts;i++){
@@ -61,15 +63,16 @@ function actualStarter(box,abbr){
   const rows=goalies.map(g=>({id:String(g.playerId??g.id??""),name:String(g.name?.default??g.name??g.playerName??""),toi:durationSeconds(g.toi??g.timeOnIce)})).filter(x=>x.id);
   rows.sort((a,b)=>b.toi-a.toi);return rows[0]||null;
 }
-function expectedStarter(history){
-  const recent=history.slice(-5).filter(x=>x?.starterId);
-  if(!recent.length)return{known:false,id:null,name:null,probability:null,backToBack:false};
+function expectedStarter(history,snapshotAt){
+  const cutoff=Date.parse(snapshotAt);
+  const recent=history.filter(x=>x?.starterId&&x?.sourceAvailableAt&&Date.parse(x.sourceAvailableAt)<=cutoff).slice(-5);
+  if(!recent.length)return{known:false,id:null,name:null,probability:null,backToBack:false,evidenceAt:null};
   const counts=new Map();
   for(const x of recent)counts.set(x.starterId,(counts.get(x.starterId)||0)+1);
   const [id,n]=[...counts].sort((a,b)=>b[1]-a[1])[0];
   const last=[...recent].reverse().find(x=>x.starterId===id);
   const latest=recent.at(-1);
-  return{known:true,id,name:last?.starterName||id,probability:n/recent.length,backToBack:Boolean(latest?.starterId===id)};
+  return{known:true,id,name:last?.starterName||id,probability:n/recent.length,backToBack:Boolean(latest?.starterId===id),evidenceAt:latest?.sourceAvailableAt||null};
 }
 function regime(row){
   if(!row.expectedHomeKnown||!row.expectedAwayKnown)return"EXPECTED_STATE_INCOMPLETE";
@@ -108,19 +111,28 @@ const histories=new Map();
 const hist=t=>{const k=String(t).toUpperCase();if(!histories.has(k))histories.set(k,[]);return histories.get(k);};
 const replay=[];
 for(const r of rows){
-  const hExp=expectedStarter(hist(r.home)),aExp=expectedStarter(hist(r.away));
+  const box=boxMap.get(String(r.id));
+  const gameStart=box?gameStartFromBox(box):null;
+  const simulatedSnapshotAt=gameStart?isoShift(gameStart,-6):null;
+  if(!gameStart||!simulatedSnapshotAt)continue;
+  const hExp=expectedStarter(hist(r.home),simulatedSnapshotAt),aExp=expectedStarter(hist(r.away),simulatedSnapshotAt);
   const pred=historicalShadowPrediction(r);
   if(!pred.ok)continue;
-  const box=boxMap.get(String(r.id));
   const hActual=box?actualStarter(box,r.home):null,aActual=box?actualStarter(box,r.away):null;
   const unexpected=Boolean(
     (hExp.id&&hActual?.id&&hExp.id!==hActual.id)||
     (aExp.id&&aActual?.id&&aExp.id!==aActual.id)
   );
   const date=String(r.date||"");
-  const hLast=hist(r.home).at(-1),aLast=hist(r.away).at(-1);
+  const hLast=hist(r.home).filter(x=>Date.parse(x.sourceAvailableAt)<=Date.parse(simulatedSnapshotAt)).at(-1);
+  const aLast=hist(r.away).filter(x=>Date.parse(x.sourceAvailableAt)<=Date.parse(simulatedSnapshotAt)).at(-1);
+  const temporalIntegrityPassed=Boolean(
+    Date.parse(simulatedSnapshotAt)<Date.parse(gameStart)&&
+    (!hExp.evidenceAt||Date.parse(hExp.evidenceAt)<=Date.parse(simulatedSnapshotAt))&&
+    (!aExp.evidenceAt||Date.parse(aExp.evidenceAt)<=Date.parse(simulatedSnapshotAt))
+  );
   const out={
-    id:String(r.id),season:String(r.season),date,home:r.home,away:r.away,
+    id:String(r.id),season:String(r.season),date,gameStart,simulatedSnapshotAt,home:r.home,away:r.away,
     actualHomeGoals:Number(r.actualHomeGoals),actualAwayGoals:Number(r.actualAwayGoals),
     projHome:pred.projHome,projAway:pred.projAway,
     incumbentP:pred.incumbentP,shadowP:pred.shadowP,probabilityDelta:pred.probabilityDelta,
@@ -129,23 +141,26 @@ for(const r of rows){
     homeExpectedStarterId:hExp.id,awayExpectedStarterId:aExp.id,
     homeExpectedStarterName:hExp.name,awayExpectedStarterName:aExp.name,
     homeExpectedStartProbability:hExp.probability,awayExpectedStartProbability:aExp.probability,
+    homeGoalieEvidenceAt:hExp.evidenceAt,awayGoalieEvidenceAt:aExp.evidenceAt,
     homeActualStarterId:hActual?.id||null,awayActualStarterId:aActual?.id||null,
     unexpectedStarter:unexpected,
     homeGoalieBackToBack:Boolean(hExp.id&&hLast?.starterId===hExp.id&&dayDiff(date,hLast.date)<=2),
     awayGoalieBackToBack:Boolean(aExp.id&&aLast?.starterId===aExp.id&&dayDiff(date,aLast.date)<=2),
     confirmationState:"UNKNOWN_NO_TIMESTAMP_VERIFIED_HISTORICAL_CONFIRMATION",
     goalieUsageState:null,
-    sourceTimestampContract:"PRIOR_COMPLETED_GAMES_ONLY",
+    sourceTimestampContract:"PRIOR_COMPLETED_GAMES_AVAILABLE_BEFORE_SIMULATED_SNAPSHOT",
+    temporalIntegrityPassed,
     marketState:"UNAVAILABLE_NO_TIMESTAMP_VERIFIED_2019_2023_ARCHIVE",
     homeB2B:Boolean(r.homeB2B),awayB2B:Boolean(r.awayB2B)
   };
   out.goalieUsageState=regime(out);
   replay.push(out);
-  if(hActual)hist(r.home).push({date,starterId:hActual.id,starterName:hActual.name});
-  if(aActual)hist(r.away).push({date,starterId:aActual.id,starterName:aActual.name});
+  const sourceAvailableAt=isoShift(gameStart,5);
+  if(hActual)hist(r.home).push({date,gameStart,sourceAvailableAt,starterId:hActual.id,starterName:hActual.name});
+  if(aActual)hist(r.away).push({date,gameStart,sourceAvailableAt,starterId:aActual.id,starterName:aActual.name});
 }
 
-const usable=replay.filter(r=>Number.isFinite(r.shadowP)&&Number.isFinite(r.incumbentP));
+const usable=replay.filter(r=>r.temporalIntegrityPassed&&Number.isFinite(r.shadowP)&&Number.isFinite(r.incumbentP));
 const incumbent=predictiveMetrics(usable,"incumbentP"),shadow=predictiveMetrics(usable,"shadowP"),paired=pairedSummary(usable);
 const bySeason=grouped(usable,r=>r.season,40),byMonth=grouped(usable,r=>r.date.slice(0,7),20);
 const regimes={
@@ -186,7 +201,9 @@ const report={
     deploymentCoverage:"NOT_RECONSTRUCTED_CONTEXT_ONLY_NOT_REQUIRED_FOR_LOCKED_GOALIE_CONFIRMATION",
     marketCoverage:0,
     marketReason:"Production NHL odds_snapshots begin 2026-09-29; no timestamp-verifiable 2019-23 market archive is available in FBIS.",
-    temporalIntegrityFailures:0,
+    simulatedSnapshotPolicy:"GAME_START_MINUS_6_HOURS",
+    priorGameEvidenceAvailabilityPolicy:"GAME_START_PLUS_5_HOURS",
+    temporalIntegrityFailures:replay.filter(r=>!r.temporalIntegrityPassed).length,
     failClosedCurrentGameConfirmation:true
   },
   aggregate:{
@@ -246,6 +263,8 @@ const report={
   },
   integrity:{
     pointInTime:true,noMarketInputs:true,priorCompletedGamesOnly:true,
+    explicitSnapshotTimestamps:true,
+    rowwiseTemporalIntegrity:usable.every(r=>r.temporalIntegrityPassed&&Date.parse(r.simulatedSnapshotAt)<Date.parse(r.gameStart)&&(!r.homeGoalieEvidenceAt||Date.parse(r.homeGoalieEvidenceAt)<=Date.parse(r.simulatedSnapshotAt))&&(!r.awayGoalieEvidenceAt||Date.parse(r.awayGoalieEvidenceAt)<=Date.parse(r.simulatedSnapshotAt))),
     actualStarterUsedOnlyAfterPregameState:true,
     scoreProjectionInvariant:usable.every(r=>r.scoreProjectionChanged===false),
     fetchErrors
