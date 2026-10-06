@@ -1,3 +1,5 @@
+import nflPropMarketCalibration from "../../data/models/nfl-prop-market-calibration-v2.json" with { type: "json" };
+
 /**
  * Selective FBIS player-prop portfolio.
  *
@@ -18,6 +20,21 @@ function finite(v) {
 }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+export function nflPropMarketCalibrationState(row = {}) {
+  const sport=String(row.sport||row.league||"").trim().toLowerCase();
+  if(sport!=="nfl")return null;
+  const market=String(row.market||row.canonicalMarket||row.canonical_market||row.statType||"").trim().toLowerCase();
+  const evidence=nflPropMarketCalibration?.markets?.[market]||null;
+  return {
+    market,
+    version:nflPropMarketCalibration?.calibrationVersion||"NFL-PROP-MARKET-CAL-v2",
+    evidence,
+    validated:evidence?.validated===true,
+    maxStars:evidence?.validated===true?5:3,
+    reason:evidence?.validated===true?null:(evidence?.reason||"market_specific_calibration_not_validated"),
+  };
+}
+
 export function propCalibrationValidated(row = {}) {
   const explicit =
     row.propCalibrationValidated === true ||
@@ -26,12 +43,20 @@ export function propCalibrationValidated(row = {}) {
     row.probability_calibration_validated === true ||
     row.marketCalibrationValidated === true ||
     row.market_calibration_validated === true;
-  if (explicit) return true;
 
-  const calibrated = finite(
-    row.calibratedHitProbability ??
-    row.calibrated_hit_probability
-  );
+  // NFL requires BOTH row-level calibrated probability evidence and a
+  // market-specific validation record. A raw z-score can never opt itself into
+  // 4★/5★ confidence.
+  const nfl=nflPropMarketCalibrationState(row);
+  if(nfl){
+    if(!nfl.validated)return false;
+    if(explicit)return true;
+    const calibrated=finite(row.calibratedHitProbability??row.calibrated_hit_probability);
+    return calibrated!=null&&calibrated>0&&calibrated<1;
+  }
+
+  if (explicit) return true;
+  const calibrated = finite(row.calibratedHitProbability ?? row.calibrated_hit_probability);
   return calibrated != null && calibrated > 0 && calibrated < 1;
 }
 
@@ -379,6 +404,7 @@ export function rankSelectiveProps(rows = [], opts = {}) {
       estimatedHitProbability: hitProbability,
       evidenceState: evidence,
       nflCalibration,
+      nflMarketCalibration: evidence.sport === "nfl" ? nflPropMarketCalibrationState(row) : null,
       prizePicksEconomics,
       mlbKCandidate,
       selectionScore:
@@ -430,7 +456,7 @@ export function rankSelectiveProps(rows = [], opts = {}) {
       minRoleConfidence,
       quotaBySport: false,
       fillWeakQuota: false,
-      nflMarketCalibration: "NFL_PRIZEPICKS_CALIBRATION_V1",
+      nflMarketCalibration: nflPropMarketCalibration?.calibrationVersion || "NFL-PROP-MARKET-CAL-v2",
       mlbPitcherKCandidateEdge: MLB_PITCHER_K_CANDIDATE_EDGE.minAbsoluteKs,
       mlbPitcherKCandidateLockedAt: MLB_PITCHER_K_CANDIDATE_EDGE.lockedAt,
     },
