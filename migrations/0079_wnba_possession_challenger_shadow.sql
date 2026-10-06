@@ -169,6 +169,21 @@ CREATE INDEX IF NOT EXISTS idx_wnba_player_opportunity_event
 CREATE INDEX IF NOT EXISTS idx_wnba_player_opportunity_grade
   ON wnba_player_opportunity_shadow(graded_at,feature_cutoff_timestamp);
 
+CREATE TABLE IF NOT EXISTS wnba_player_opportunity_validation (
+  id TEXT PRIMARY KEY,
+  model_id TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  market_type TEXT NOT NULL,
+  n INTEGER NOT NULL,
+  baseline_mae REAL,
+  opportunity_mae REAL,
+  mae_delta REAL,
+  availability_verified_n INTEGER NOT NULL DEFAULT 0,
+  details_json TEXT,
+  decision TEXT NOT NULL DEFAULT 'CONTINUE_SHADOW',
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS wnba_possession_challenger_validation (
   id TEXT PRIMARY KEY,
   model_id TEXT NOT NULL,
