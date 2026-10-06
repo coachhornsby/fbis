@@ -51,14 +51,23 @@ jobs:
           set -euo pipefail
           for file in artifacts/cfb-player-directory/cfb-player-directory-20*.sql; do
             echo "Applying ${file}"
-            npx wrangler d1 execute fbis --remote --file="${file}"
+            ok=0
+            for attempt in 1 2 3; do
+              if npx wrangler d1 execute fbis --remote --file="${file}"; then
+                ok=1
+                break
+              fi
+              echo "D1 import attempt ${attempt} failed for ${file}; retrying"
+              sleep $((attempt * 5))
+            done
+            test "${ok}" -eq 1 || { echo "D1 import failed after retries: ${file}"; exit 1; }
           done
       - name: Finalize active state and coverage
         run: npx wrangler d1 execute fbis --remote --file=artifacts/cfb-player-directory/cfb-player-directory-finalize.sql
       - name: Verify production Phase B counts and governance
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --command="SELECT COUNT(*) AS canonical_players FROM cfb_canonical_players; SELECT COUNT(*) AS provider_ids FROM cfb_player_provider_ids; SELECT COUNT(*) AS aliases FROM cfb_player_aliases; SELECT COUNT(*) AS memberships FROM cfb_roster_membership; SELECT COUNT(*) AS observations FROM cfb_roster_observations; SELECT COUNT(*) AS orphan_team_rows FROM cfb_roster_membership m LEFT JOIN cfb_canonical_teams t ON t.team_id=m.team_id WHERE t.team_id IS NULL; SELECT identity_status,COUNT(*) AS n FROM cfb_canonical_players GROUP BY identity_status; SELECT state_family,mode,can_influence_projection,can_qualify,can_authorize_wager FROM cfb_state_overlay_governance WHERE state_family IN ('PLAYER_DIRECTORY','ROSTER_STATE') ORDER BY state_family;"
+          npx wrangler d1 execute fbis --remote --command="SELECT COUNT(*) AS canonical_players FROM cfb_canonical_players; SELECT COUNT(*) AS provider_ids FROM cfb_player_provider_ids; SELECT COUNT(*) AS aliases FROM cfb_player_aliases; SELECT COUNT(*) AS memberships FROM cfb_roster_membership; SELECT COUNT(*) AS observations FROM cfb_roster_observations; SELECT COUNT(*) AS pit_unresolved FROM cfb_roster_membership WHERE pit_resolvable=0; SELECT COUNT(*) AS orphan_team_rows FROM cfb_roster_membership m LEFT JOIN cfb_canonical_teams t ON t.team_id=m.team_id WHERE t.team_id IS NULL; SELECT identity_status,COUNT(*) AS n FROM cfb_canonical_players GROUP BY identity_status; SELECT state_family,mode,can_influence_projection,can_qualify,can_authorize_wager FROM cfb_state_overlay_governance WHERE state_family IN ('PLAYER_DIRECTORY','ROSTER_STATE') ORDER BY state_family;"
       - uses: actions/upload-artifact@v4
         with:
           name: cfb-player-directory-phase-b
