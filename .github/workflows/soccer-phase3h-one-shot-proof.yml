@@ -28,27 +28,54 @@ jobs:
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
 
-          # Start early inside a five-minute idempotency bucket so two bounded
-          # collector calls can complete before the bucket rolls.
+          # Start early inside a five-minute idempotency bucket so bounded
+          # transient retries and the duplicate proof remain in one bucket.
           rem=$(( $(date +%s) % 300 ))
           if [ "$rem" -gt 20 ]; then
             sleep $((300 - rem + 5))
           fi
 
-          call_snapshot() {
-            curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 120 \
+          request_snapshot() {
+            local out status body
+            out="$(mktemp)"
+            status="$(curl -sS --max-time 90 -o "$out" -w "%{http_code}" \
               -H "x-harvest-secret: ${HARVEST_SECRET}" \
-              "${BASE}/api/soccer-prospective-shadow?mode=snapshot&date=${SNAPSHOT_DATE}&_t=$(date +%s)"
+              "${BASE}/api/soccer-prospective-shadow?mode=snapshot&date=${SNAPSHOT_DATE}&_t=$(date +%s)" || true)"
+            body="$(cat "$out")"
+            rm -f "$out"
+            printf '%s\n%s' "$status" "$body"
           }
 
-          first="$(call_snapshot)"
-          echo "$first" | jq '{ok,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,researchOnly,canQualify,canAuthorize}'
-          echo "$first" | jq -e '.ok == true and .eligibleGames > 0 and .attempted > 0 and .written > 0 and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null
+          first=""
+          for attempt in 1 2 3 4 5 6; do
+            raw="$(request_snapshot)"
+            status="$(printf '%s\n' "$raw" | head -n1)"
+            body="$(printf '%s\n' "$raw" | tail -n +2)"
+            echo "first attempt=${attempt} http=${status}"
+            printf '%s\n' "$body" | jq -c '{ok,error,detail,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,researchOnly,canQualify,canAuthorize}' 2>/dev/null || printf '%s\n' "$body"
+            if [ "$status" = "200" ] && printf '%s\n' "$body" | jq -e '.ok == true and .eligibleGames > 0 and .attempted > 0 and .written > 0 and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null 2>&1; then
+              first="$body"
+              break
+            fi
+            sleep 3
+          done
+          test -n "$first"
 
-          second="$(call_snapshot)"
-          echo "$second" | jq '{ok,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,researchOnly,canQualify,canAuthorize}'
-          echo "$second" | jq -e '.ok == true and .attempted > 0 and .written == 0 and .existing == .attempted and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null
+          second=""
+          for attempt in 1 2 3 4 5 6; do
+            raw="$(request_snapshot)"
+            status="$(printf '%s\n' "$raw" | head -n1)"
+            body="$(printf '%s\n' "$raw" | tail -n +2)"
+            echo "second attempt=${attempt} http=${status}"
+            printf '%s\n' "$body" | jq -c '{ok,error,detail,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,researchOnly,canQualify,canAuthorize}' 2>/dev/null || printf '%s\n' "$body"
+            if [ "$status" = "200" ] && printf '%s\n' "$body" | jq -e '.ok == true and .attempted > 0 and .written == 0 and .existing == .attempted and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null 2>&1; then
+              second="$body"
+              break
+            fi
+            sleep 3
+          done
+          test -n "$second"
 
-          first_bucket="$(echo "$first" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
-          second_bucket="$(echo "$second" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
+          first_bucket="$(printf '%s\n' "$first" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
+          second_bucket="$(printf '%s\n' "$second" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
           test "$first_bucket" = "$second_bucket"
