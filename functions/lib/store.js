@@ -2701,6 +2701,7 @@ export async function persistExecutedBet(env, row) {
   markBound(env);
   const packed = packExecutedBetRow(row || {});
   if (!hasDb(env) || !packed?.id) return { ok: false, reason: hasDb(env) ? "no-id" : "unbound" };
+  if (typeof env.DB.batch !== "function") return { ok: false, reason: "atomic-batch-required" };
   const executionBook = packed.executionBook || "Heritage";
   const lookupExisting = async () => {
     const row = await env.DB.prepare(
@@ -2794,32 +2795,19 @@ export async function persistExecutedBet(env, row) {
       "INSERT INTO executed_bet_audit (bet_id, action, detail, created_at) VALUES (?, ?, ?, ?)"
     ).bind(packed.id, "import", n(packed.matchStatus || "imported"), new Date().toISOString());
 
-    if (typeof env.DB.batch === "function") {
-      try {
-        await env.DB.batch([insert, audit]);
-      } catch (err) {
-        const raced = await lookupExisting();
-        if (raced) {
-          if (immutableConflict(raced, packed)) {
-            await recordWriteConflict(env, "executed_bets", packed.id, "immutable-execution-mismatch");
-            return { ok: false, conflict: true, already: true, reason: "duplicate-conflict", existing: raced };
-          }
-          markWrite();
-          return { ok: true, already: true, existing: raced, replayRecovered: true };
+    try {
+      await env.DB.batch([insert, audit]);
+    } catch (err) {
+      const raced = await lookupExisting();
+      if (raced) {
+        if (immutableConflict(raced, packed)) {
+          await recordWriteConflict(env, "executed_bets", packed.id, "immutable-execution-mismatch");
+          return { ok: false, conflict: true, already: true, reason: "duplicate-conflict", existing: raced };
         }
-        throw err;
-      }
-    } else {
-      await insert.run();
-      const auditRes = await appendExecutedBetAudit(env, {
-        betId: packed.id,
-        action: "import",
-        detail: packed.matchStatus || "imported",
-      });
-      if (!auditRes.ok) {
         markWrite();
-        return { ok: false, wrote: true, partial: true, reason: "audit-write-failed", auditReason: auditRes.reason || null };
+        return { ok: true, already: true, existing: raced, replayRecovered: true };
       }
+      throw err;
     }
     markWrite();
     return { ok: true, inserted: true };
@@ -2861,13 +2849,24 @@ export async function queryExecutedBets(env, { date, sport, includeRaw = false }
   }
 }
 
-export async function updateExecutedBet(env, id, patch, action = "correction") {
+export async function updateExecutedBet(env, id, patch, action = "correction", options = {}) {
   markBound(env);
   if (!hasDb(env) || !id) return { ok: false, reason: "unbound" };
+  if (typeof env.DB.batch !== "function") return { ok: false, reason: "atomic-batch-required" };
   try {
     const existing = await env.DB.prepare("SELECT * FROM executed_bets WHERE id = ?").bind(id).first();
     if (!existing) return { ok: false, reason: "not-found" };
-    const mapped = { ...mapExecutedBet(existing), ...patch };
+    const current = mapExecutedBet(existing);
+    const expectedResult = options.expectedResult == null ? null : String(options.expectedResult);
+    if (expectedResult != null && String(current.result || "OPEN") !== expectedResult) {
+      const sameResult = patch?.result != null && String(current.result) === String(patch.result);
+      const sameEconomics = sameResult
+        && (patch.profit ?? null) === (current.profit ?? null)
+        && (patch.settledReturn ?? null) === (current.settledReturn ?? null);
+      if (sameEconomics) return { ok: true, already: true, existing: current };
+      return { ok: false, conflict: true, reason: "state-precondition-failed", existing: current };
+    }
+    const mapped = { ...current, ...patch };
     const update = env.DB.prepare(
       `UPDATE executed_bets SET
         game_id = ?, matchup_text = ?, away_team = ?, home_team = ?,
@@ -2880,7 +2879,7 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
         prop_actual = ?, prop_stat_source = ?,
         final_away_score = ?, final_home_score = ?, f5_away_score = ?, f5_home_score = ?,
         settlement_source = ?, settlement_evidence_json = ?, tracker_metadata_json = ?
-       WHERE id = ?`
+       WHERE id = ?${expectedResult != null ? " AND result = ?" : ""}`
     ).bind(
       n(mapped.gameId),
       n(mapped.matchupText),
@@ -2916,21 +2915,24 @@ export async function updateExecutedBet(env, id, patch, action = "correction") {
       n(mapped.settlementSource),
       mapped.settlementEvidence ? JSON.stringify(mapped.settlementEvidence) : null,
       mapped.trackerMetadata ? JSON.stringify(mapped.trackerMetadata) : null,
-      id
+      id,
+      ...(expectedResult != null ? [expectedResult] : [])
     );
     const audit = env.DB.prepare(
       "INSERT INTO executed_bet_audit (bet_id, action, detail, created_at) VALUES (?, ?, ?, ?)"
     ).bind(id, n(action), n(JSON.stringify(patch).slice(0, 500)), new Date().toISOString());
 
-    if (typeof env.DB.batch === "function") {
-      await env.DB.batch([update, audit]);
-    } else {
-      await update.run();
-      const auditRes = await appendExecutedBetAudit(env, { betId: id, action, detail: JSON.stringify(patch).slice(0, 500) });
-      if (!auditRes.ok) {
-        markWrite();
-        return { ok: false, wrote: true, partial: true, reason: "audit-write-failed", auditReason: auditRes.reason || null };
-      }
+    const batchResult = await env.DB.batch([update, audit]);
+    const changed = Number(batchResult?.[0]?.meta?.changes ?? 0);
+    if (expectedResult != null && changed === 0) {
+      const raced = await env.DB.prepare("SELECT * FROM executed_bets WHERE id = ?").bind(id).first();
+      const currentAfterRace = raced ? mapExecutedBet(raced) : null;
+      const sameResult = currentAfterRace && patch?.result != null && String(currentAfterRace.result) === String(patch.result);
+      const sameEconomics = sameResult
+        && (patch.profit ?? null) === (currentAfterRace.profit ?? null)
+        && (patch.settledReturn ?? null) === (currentAfterRace.settledReturn ?? null);
+      if (sameEconomics) return { ok: true, already: true, existing: currentAfterRace };
+      return { ok: false, conflict: true, reason: "state-precondition-failed", existing: currentAfterRace };
     }
     markWrite();
     return { ok: true };
