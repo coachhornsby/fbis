@@ -735,7 +735,7 @@ export async function buildTennisResearchSlate(date, env = {}) {
       lean: null,
       authorized: false,
     };
-  });
+  }));
   return {
     sport: "tennis",
     date,
