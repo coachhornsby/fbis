@@ -477,7 +477,8 @@ async function applyManualFinal(env, payload) {
         settlementSource: "operator-final-score",
         settlementEvidence: { status: "final", source: "operator-final-score", capturedAt: gradedAt },
       },
-      "manual-final-score"
+      "manual-final-score",
+      { expectedResult: "OPEN" }
     );
     if (out?.ok) betsGraded += 1;
   }
