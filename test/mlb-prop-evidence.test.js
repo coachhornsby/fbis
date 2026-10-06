@@ -85,3 +85,23 @@ test("MLB evidence status reports offer and independent settlement counts separa
   assert.match(src,/settled_independent_units/);
   assert.match(src,/actual_value_mismatch_units/);
 });
+
+
+test("MLB canonical evidence carries source/state/market/uncertainty and authority provenance",()=>{
+  const src=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
+  for(const field of ["source_observed_ats_json","state_snapshot_json","market_snapshot_json","uncertainty_json","qualification_authority_json","wager_authority_json"]){
+    assert.match(src,new RegExp(field));
+  }
+  assert.match(src,/promotion_eligible,promotion_exclusion_reasons_json/);
+  assert.match(src,/SHADOW_RESEARCH_ONLY/);
+});
+
+test("MLB settlement updates canonical evidence and grades only real two-sided priced offers",()=>{
+  const src=fs.readFileSync(new URL("../functions/api/mlb-prop-evidence.js",import.meta.url),"utf8");
+  assert.match(src,/UPDATE fbis_prospective_evidence[\s\S]*graded_at/);
+  assert.match(src,/book_over_price/);
+  assert.match(src,/book_under_price/);
+  assert.match(src,/noVigPair/);
+  assert.match(src,/SIMULATED_1U_PRICE_AVAILABLE/);
+  assert.match(src,/INSERT OR IGNORE INTO fbis_economic_grades/);
+});
