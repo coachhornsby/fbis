@@ -1,0 +1,52 @@
+name: Tennis WTA match history
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: WTA season year
+        required: false
+        default: "2026"
+      offset:
+        description: Tournament offset
+        required: false
+        default: "0"
+      limit:
+        description: Tournament shard count
+        required: false
+        default: "2"
+  pull_request:
+    paths:
+      - "scripts/tennis-wta-match-history-ingest.mjs"
+      - "migrations/0082_tennis_wta_match_history_pit.sql"
+      - ".github/workflows/tennis-wta-match-history.yml"
+
+concurrency:
+  group: tennis-d1-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Acquire bounded WTA shard
+        env:
+          WTA_YEAR: ${{ inputs.year || '2026' }}
+          WTA_TOURNAMENT_OFFSET: ${{ inputs.offset || '0' }}
+          WTA_TOURNAMENT_LIMIT: ${{ inputs.limit || '2' }}
+        run: node scripts/tennis-wta-match-history-ingest.mjs
+      - name: Validate artifact
+        run: |
+          node -e "const s=require('./artifacts/wta-match-history-summary.json');if(s.failures||s.tournamentsAttempted<1)process.exit(1);console.log(s)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wta-match-history-${{ github.run_id }}
+          path: |
+            artifacts/wta-match-history.sql
+            artifacts/wta-match-history-summary.json
+            artifacts/wta-raw
