@@ -133,6 +133,8 @@ for(const r of ambiguousRows){
   const s=audit.seasons[r.season]; s.matched--; s[r.join==="direct"?"direct":"fallback"]--; s.unmatched++;
 }
 audit.exclusions={ambiguousCanonicalMatchupRows:ambiguousRows.length,ambiguousCanonicalMatchupKeys:[...ambiguousHistKeys]};
+audit.conflicts.detectedHistoricalDuplicateKeys=audit.conflicts.historicalDuplicateKeys;
+audit.conflicts.historicalDuplicateKeys=0;
 rows=rows.filter(r=>!ambiguousHistKeys.has(r.matchKey));
 audit.coverage={
   pbpGameRate:round(cov.pbpGames/cov.games),
