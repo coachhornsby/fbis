@@ -7,7 +7,7 @@ import pandas as pd
 CFBD=Path("artifacts/cfb-history/cfb_game_training_full_history.csv")
 CFBD_LINES=Path("artifacts/cfb-history/cfb_market_lines_all_providers.csv")
 ESPN=Path("artifacts/cfb-history-v2/cfb_game_training_2004_2026.csv")
-ESPN_BETS=Path("artifacts/cfb-history-v2/cfb_betting_resolved_2004_2026.csv")
+ESPN_BETS=Path("artifacts/cfb-history-v2/cfb_betting_resolved_2004_2026.csv")\nLEGACY=Path("artifacts/cfb-legacy-espn/cfb_legacy_espn_lines_2002_2012.csv")
 OUT=Path("artifacts/cfb-master"); OUT.mkdir(parents=True,exist_ok=True)
 
 def norm_id(v):
@@ -30,9 +30,9 @@ def main():
     cf=pd.read_csv(CFBD,low_memory=False)
     ep=pd.read_csv(ESPN,low_memory=False)
     bets=pd.read_csv(ESPN_BETS,low_memory=False)
-    raw_lines=pd.read_csv(CFBD_LINES,low_memory=False)
+    raw_lines=pd.read_csv(CFBD_LINES,low_memory=False)\n    legacy=pd.read_csv(LEGACY,low_memory=False) if LEGACY.exists() else pd.DataFrame(columns=["game_id","legacy_espn_home_spread","legacy_espn_total"])
 
-    for d in [cf,ep,bets,raw_lines]:
+    for d in [cf,ep,bets,raw_lines,legacy]:
         d["game_id"]=d["game_id"].map(norm_id)
 
     # SportsDataverse resolved betting has explicit availability; default rows are placeholders.
@@ -49,7 +49,7 @@ def main():
     ] if c in ep.columns]
     enrich=ep[ep_keep].drop_duplicates("game_id").merge(bets,on="game_id",how="outer")
 
-    m=cf.merge(enrich,on="game_id",how="left")
+    m=cf.merge(enrich,on="game_id",how="left").merge(legacy[["game_id","legacy_espn_home_spread","legacy_espn_total"]].drop_duplicates("game_id"),on="game_id",how="left")
     m["cfbd_home_spread"]=valid_spread(m.get("market_home_spread_median"))
     m["cfbd_total"]=valid_total(m.get("market_total_median"))
     m["market_home_spread"]=m["cfbd_home_spread"].combine_first(m["espn_home_spread"])
@@ -127,7 +127,7 @@ def main():
         "totalCoverageTrainingPct":round(float(fbs.market_total.notna().mean()*100),3) if len(fbs) else 0,
         "cfbdProviderLineRows":int(len(raw_lines)),
         "espnResolvedValidSpreadRows":int(bets.espn_home_spread.notna().sum()),
-        "espnResolvedValidTotalRows":int(bets.espn_total.notna().sum()),
+        "espnResolvedValidTotalRows":int(bets.espn_total.notna().sum()),\n        "legacyEspnValidSpreadRows":int(pd.to_numeric(legacy.get("legacy_espn_home_spread"),errors="coerce").notna().sum()) if len(legacy) else 0,\n        "legacyEspnValidTotalRows":int(pd.to_numeric(legacy.get("legacy_espn_total"),errors="coerce").notna().sum()) if len(legacy) else 0,
         "crossSourceSpreadN":int(len(both_sp)),
         "crossSourceSpreadMae":float(both_sp.spread_cross_source_abs_diff.mean()) if len(both_sp) else None,
         "crossSourceTotalN":int(len(both_tot)),

@@ -6,7 +6,7 @@ on:
       - "functions/api/cfb-history-chunk.js"
       - "scripts/cfb-full-history-build.mjs"
       - "scripts/cfb-bulk-history.py"
-      - "scripts/cfb-merge-history.py"
+      - "scripts/cfb-merge-history.py"\n      - "scripts/cfb-legacy-espn-lines.py"
       - ".github/workflows/cfb-full-history.yml"
   workflow_dispatch:
     inputs:
@@ -96,6 +96,6 @@ jobs:
           path: |
             artifacts/cfb-history/*
             artifacts/cfb-history-v2/*
-            artifacts/cfb-master/*
+            artifacts/cfb-master/*\n            artifacts/cfb-legacy-espn/*
           if-no-files-found: error
           retention-days: 90
