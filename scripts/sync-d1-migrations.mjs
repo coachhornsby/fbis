@@ -132,17 +132,20 @@ if (!hasQualifiedAt || !hasExecutionPrice) {
   process.exit(0);
 }
 
-// Mark every migration before the latest as applied when the live schema already
-// contains the pre-0016 contract. Never auto-mark the latest file unless its
-// primary table already exists (prevents skipping new additive migrations).
-const historical = files.slice(0, -1);
+// Only synchronize the legacy bootstrap range whose effects are proven by the
+// pre-0016 schema checks above. Never infer that later schema/data migrations
+// ran merely because an old bootstrap contract exists.
+const bootstrapHistorical = files.filter((file) => {
+  const prefix = Number.parseInt(file.match(/^(\d+)/)?.[1] || "", 10);
+  return Number.isFinite(prefix) && prefix <= 15;
+});
 let inserted = 0;
-for (const file of historical) {
+for (const file of bootstrapHistorical) {
   if (applied.has(file)) continue;
   const safe = file.replace(/'/g, "''");
   d1Exec(`INSERT OR IGNORE INTO d1_migrations (name) VALUES ('${safe}');`);
   inserted += 1;
-  console.log(`Marked already-applied: ${file}`);
+  console.log(`Marked bootstrap-applied: ${file}`);
 }
 
 const latest = files.at(-1);
