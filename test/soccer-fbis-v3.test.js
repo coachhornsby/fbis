@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { projectSoccerV3, SOCCER_FBIS_V3_ID } from "../functions/lib/soccerFbisV3.js";
-import { persistPitchApiBundle } from "../functions/lib/soccerPitchApiStore.js";
+import { persistPitchApiBundle, pitchApiRowToGame } from "../functions/lib/soccerPitchApiStore.js";
 
 function row(i,home,away,hs,as){
   return {
@@ -69,4 +69,16 @@ test("historical lineup observations are explicitly post-match when fetched late
   assert.ok(lineup);
   assert.equal(lineup.args[13],0);
   assert.equal(lineup.args[14],1);
+});
+
+
+test("PitchAPI board fixture exposes an explicit null market shell",()=>{
+  const g=pitchApiRowToGame({
+    pitch_match_id:"m_future",league_key:"usa.1",match_date:"2026-10-07",
+    start_time:"2026-10-07T00:30:00Z",status:"not_started",
+    home_team_id:"h",home_team_name:"Home",away_team_id:"a",away_team_name:"Away"
+  });
+  assert.deepEqual(g.odds,{
+    spread:null,total:null,homeMl:null,awayMl:null,details:"",book:null
+  });
 });
