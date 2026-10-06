@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -92,4 +93,17 @@ test("ambiguous same-season program state stays UNKNOWN for PIT lookup",()=> {
   ];
   assert.deepEqual(membershipAt(rows,"p1","2025-10-01T00:00:00Z"),[]);
   assert.deepEqual(rosterAt(rows,"a","2025-10-01T00:00:00Z"),[]);
+});
+
+
+// D1 finalization must stay bounded so coverage repair never replays durable roster shards.
+test("Phase B finalization is emitted as bounded restartable D1 shards",async()=> {
+  const builder=await readFile(new URL("../scripts/cfb-player-directory-build.py",import.meta.url),"utf8");
+  const workflow=await readFile(new URL("../.github/workflows/cfb-player-directory-phase-b.yml",import.meta.url),"utf8");
+  assert.match(builder,/cfb-player-directory-finalize-active\.sql/);
+  assert.match(builder,/cfb-player-directory-coverage-\{season\}\.sql/);
+  assert.match(builder,/ON CONFLICT\(season,source\) DO UPDATE/);
+  assert.match(workflow,/Finalize bounded season coverage/);
+  assert.match(workflow,/cfb-player-directory-coverage-20\*\.sql/);
+  assert.doesNotMatch(workflow,/--file=artifacts\/cfb-player-directory\/cfb-player-directory-finalize\.sql/);
 });
