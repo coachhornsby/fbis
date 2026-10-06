@@ -7,7 +7,7 @@ on:
     paths:
       - "scripts/wnba-possession-challenger-live.mjs"
       - ".github/workflows/wnba-possession-challenger-feature-refresh.yml"
-      - "migrations/0079_wnba_possession_challenger_shadow.sql"
+      - "migrations/0080_wnba_possession_challenger_shadow.sql"
   schedule:
     - cron: "5 14,19,23 * * *"
 
@@ -52,7 +52,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0079_wnba_possession_challenger_shadow.sql
+          npx wrangler d1 execute fbis --remote --file=migrations/0080_wnba_possession_challenger_shadow.sql
           if [ -s artifacts/wnba-team-possession-features.sql ]; then
             npx wrangler d1 execute fbis --remote --file=artifacts/wnba-team-possession-features.sql
           fi
