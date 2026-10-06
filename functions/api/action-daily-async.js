@@ -192,7 +192,11 @@ export async function onRequestPost(context){
  },{runId:run.id})));
  const pending=recoveryReplay?eligible:eligible.filter(x=>!existing.has(x.key));
  const configuredBatch=Number(context.env.ACTION_APIFY_HARVEST_BATCH_ROWS||4);
- const batchSize=Math.max(1,Math.min(12,Number.isFinite(configuredBatch)?Math.floor(configuredBatch):4));
+ const normalBatchSize=Math.max(1,Math.min(12,Number.isFinite(configuredBatch)?Math.floor(configuredBatch):4));
+ // Recovery replays must stay comfortably inside the request window: fetching
+ // the historical provider dataset already consumes part of the budget, and
+ // one game can expand into hundreds of canonical book observations.
+ const batchSize=recoveryReplay?1:normalBatchSize;
  const batch=pending.slice(0,batchSize);
 
  let batchWritten=0,propsBatch=0;
