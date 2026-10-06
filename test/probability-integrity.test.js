@@ -101,6 +101,8 @@ describe("strategy insertion fail closed", () => {
       candidate: {
         qualified: true,
         lean: false,
+        sport: "mlb",
+        modelId: "MLB-SAVANT-RPG-SP",
         modelProbability: 0.61,
         pinPrice: -110,
         executionPrice: -110,
@@ -124,6 +126,8 @@ describe("strategy insertion fail closed", () => {
       candidate: {
         qualified: true,
         lean: false,
+        sport: "mlb",
+        modelId: "MLB-SAVANT-RPG-SP",
         modelProbability: 0.61,
         pinPrice: -110,
         executionPrice: -110,

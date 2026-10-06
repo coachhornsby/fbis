@@ -1455,9 +1455,18 @@ async function persistMatchingRec(env, slate, game, frozen) {
   if (game.cfb && !game.cfb.bettingAllowed) return { ok: true, skipped: true, reason: "cfb-blocked" };
   if (slate.sport === "nfl" && game.projectionKind !== "FBIS") return { ok: true, skipped: true, reason: "nfl-no-independent-model" };
   if (!rec) return { ok: true, skipped: true, reason: "no-match" };
+  const authorityModelId =
+    rec.modelId ||
+    game.model?.modelId ||
+    game.modelId ||
+    frozen?.modelId ||
+    (slate.sport === "mlb" && (game.projectionKind === "FBIS" || frozen?.projectionKind === "FBIS")
+      ? "MLB-SAVANT-RPG-SP"
+      : game.modelVersion || frozen?.modelVersion || null);
   const candidate = {
     ...rec,
     sport: slate.sport,
+    modelId: authorityModelId,
     gameId: game.id,
     matchup: frozen?.matchup || `${game.away?.abbr} @ ${game.home?.abbr}`,
     modelVersion: game.modelVersion || frozen?.modelVersion,
