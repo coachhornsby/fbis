@@ -46,8 +46,16 @@ jobs:
             offset="$(echo "$claim" | jq -r '.item.offset')"
             pageSize="$(echo "$claim" | jq -r '.item.pageSize')"
 
+            payload="$(jq -nc \
+              --arg leagueKey "$leagueKey" \
+              --arg pitchLeagueId "$pitchLeagueId" \
+              --arg season "$season" \
+              --argjson offset "$offset" \
+              --argjson limit "$pageSize" \
+              '{leagueKey:$leagueKey,pitchLeagueId:$pitchLeagueId,mode:"historical",season:$season,offset:$offset,limit:$limit}')"
+
             set +e
-            sync="$(curl -sS --connect-timeout 5 --max-time 120 --retry 1 --retry-delay 2 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "{"leagueKey":"$leagueKey","pitchLeagueId":"$pitchLeagueId","mode":"historical","season":"$season","offset":$offset,"limit":$pageSize}"               "$BASE/api/soccer-pitchapi-sync")"
+            sync="$(curl -sS --connect-timeout 5 --max-time 120 --retry 1 --retry-delay 2 --retry-all-errors               -X POST -H "x-harvest-secret: $HARVEST_SECRET" -H "content-type: application/json"               -d "$payload"               "$BASE/api/soccer-pitchapi-sync")"
             curl_rc=$?
             set -e
 
