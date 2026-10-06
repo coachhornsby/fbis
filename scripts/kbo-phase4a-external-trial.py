@@ -2,7 +2,7 @@
 import json, re, subprocess, sys, tempfile
 from pathlib import Path
 
-DATES=["20250405","20250510","20250614","20250712","20250816","20250920"]
+DATES=["20250405","20250510","20250614","20250719","20250816","20250920"]
 ROOT=Path(tempfile.mkdtemp(prefix="fbis-kbo-phase4a-"))
 A=ROOT/"KBO-league"; B=ROOT/"collector"
 
@@ -25,32 +25,34 @@ def source_a():
     if pip["code"]!=0: return {"pip_exit":pip["code"],"pip_error":pip["stderr"]}
     sys.path.insert(0,str(A))
     import get_game_schedule, get_game_data
-    rows=[]
+    rows=[]; day_counts={}
     for d in DATES:
         games=get_game_schedule.by_date(d,sr_id="0",force_fetch=True,base_dir=str(ROOT/"a-cache"))
         playable=[g for g in games if str(g.get("CANCEL_SC_ID","0"))=="0" and g.get("G_ID")]
+        day_counts[d]=len(playable)
         for g in playable[:2]:
             gid=g["G_ID"]
             detail=get_game_data.fetch_game(d,gid[8:],sr_id=int(g.get("SR_ID",0) or 0),season_id=2025)
-            c=detail.get("contents",{})
+            c=detail.get("contents",{}); meta=detail.get("meta",{})
             ap=c.get("away_pitcher") or []; hp=c.get("home_pitcher") or []
             ab=(c.get("away_batter") or {}).get("batters") or []
             hb=(c.get("home_batter") or {}).get("batters") or []
             rows.append({
                 "date":d,"G_ID":gid,"away":g.get("AWAY_NM"),"home":g.get("HOME_NM"),
                 "stadium":g.get("S_NM"),"away_score":g.get("T_SCORE_CN"),"home_score":g.get("B_SCORE_CN"),
+                "real_max_inning":meta.get("realMaxInning"),"max_inning":meta.get("maxInning"),
                 "away_batters":len(ab),"home_batters":len(hb),"away_pitchers":len(ap),"home_pitchers":len(hp),
                 "away_starter":ap[0].get("name") if ap else None,"home_starter":hp[0].get("name") if hp else None,
                 "pitcher_np_complete":all("NP" in p for p in ap+hp) if ap or hp else False,
                 "batter_name_complete":all(bool(x.get("name")) for x in ab+hb) if ab or hb else False
             })
-    return {"pip_exit":pip["code"],"count":len(rows),"games":rows}
+    return {"pip_exit":pip["code"],"count":len(rows),"playable_by_date":day_counts,"games":rows}
 
 def source_b():
     clone("https://github.com/kbo-data-portal/collector.git",B)
     player=(B/"scrapers/player.py").read_text(encoding="utf-8")
     contract={
-      "extracts_pid":bool(re.search(r'playerId=\\(\\d\+\\)',player)),
+      "extracts_pid":'playerId=(\\d+)' in player,
       "has_daily_detail":"daily" in player,
       "has_hitter_urls":"HitterBasic" in player,
       "has_pitcher_urls":"PitcherBasic" in player,
@@ -59,9 +61,22 @@ def source_b():
     }
     pip=run([sys.executable,"-m","pip","install","-q","-r","requirements.txt"],cwd=B,timeout=180)
     live=run([sys.executable,"run.py","player","-y","2025","-d","20250920","-f","json"],cwd=B,timeout=90)
-    files=[str(p.relative_to(B)) for p in B.rglob("*.json")]
+    json_files=[p for p in B.rglob("*.json")]
+    daily_raw=list(B.glob("output/raw/player/2025/*/*/daily_0.html"))
+    pids=sorted({p.parent.name for p in daily_raw if p.parent.name.isdigit()})
+    summaries=[]
+    for p in json_files:
+        if "season_summary" not in p.name: continue
+        try:
+            data=json.loads(p.read_text(encoding="utf-8"))
+            rows=data if isinstance(data,list) else data.get("data",[]) if isinstance(data,dict) else []
+            has_pid=bool(rows and isinstance(rows[0],dict) and "P_ID" in rows[0])
+            summaries.append({"file":str(p.relative_to(B)),"rows":len(rows),"has_P_ID":has_pid})
+        except Exception:
+            summaries.append({"file":str(p.relative_to(B)),"rows":None,"has_P_ID":None})
     return {"contract":contract,"pip_exit":pip["code"],"live_exit":live["code"],"live_timeout":live["timeout"],
-            "json_files":files[-50:],"stdout_tail":live["stdout"][-2500:],"stderr_tail":live["stderr"][-2500:]}
+            "daily_raw_files":len(daily_raw),"unique_daily_player_ids":len(pids),"sample_player_ids":pids[:20],
+            "season_summaries":summaries,"stdout_tail":live["stdout"][-2500:],"stderr_tail":live["stderr"][-2500:]}
 
 out={"dates":DATES}
 try: out["sourceA"]=source_a()
