@@ -24,10 +24,35 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           BASE: https://fbis-myz.pages.dev
           SNAPSHOT_DATE: "2026-10-07"
+          REQUIRED_REPAIR_SHA: "7afb1c1c25d3f6dcee3836e3a8a04f3d46b31704"
         shell: bash
         run: |
           set -euo pipefail
           test -n "${HARVEST_SECRET:-}"
+
+          # Do not proof stale Pages code. Wait until production collector SHA
+          # contains the bounded Phase 3H-R2 repair in its ancestry.
+          collector_sha=""
+          for deploy_attempt in $(seq 1 72); do
+            summary="$(curl -sS --max-time 30 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              "${BASE}/api/soccer-prospective-shadow?mode=summary&_t=$(date +%s)" || true)"
+            collector_sha="$(printf '%s\n' "$summary" | jq -r '.collectorCodeSha // empty' 2>/dev/null || true)"
+            if [ -n "$collector_sha" ]; then
+              compare="$(curl -sS \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${GITHUB_REPOSITORY}/compare/${REQUIRED_REPAIR_SHA}...${collector_sha}" || true)"
+              relation="$(printf '%s\n' "$compare" | jq -r '.status // empty' 2>/dev/null || true)"
+              echo "deploy attempt=${deploy_attempt} collector=${collector_sha} relation=${relation}"
+              if [ "$relation" = "ahead" ] || [ "$relation" = "identical" ]; then
+                break
+              fi
+            fi
+            collector_sha=""
+            sleep 5
+          done
+          test -n "$collector_sha"
 
           # Start early inside a five-minute idempotency bucket so bounded
           # transient retries and the duplicate proof remain in one bucket.
@@ -79,7 +104,7 @@ jobs:
             status="$(printf '%s\n' "$raw" | head -n1)"
             body="$(printf '%s\n' "$raw" | tail -n +2)"
             echo "first attempt=${attempt} http=${status}"
-            printf '%s\n' "$body" | jq -c '{ok,error,detail,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,skippedDetails,researchOnly,canQualify,canAuthorize}' 2>/dev/null || printf '%s\n' "$body"
+            printf '%s\n' "$body" | jq -c '{ok,error,detail,date,snapshotAt,collectorCodeSha,slateGames,eligibleGames,attempted,written,existing,skipped,skippedDetails,researchOnly,canQualify,canAuthorize}' 2>/dev/null || printf '%s\n' "$body"
             if [ "$status" = "200" ] && printf '%s\n' "$body" | jq -e '.ok == true and .eligibleGames > 0 and .attempted > 0 and .written > 0 and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null 2>&1; then
               first="$body"
               break
