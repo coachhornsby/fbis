@@ -85,3 +85,6 @@ INSERT OR REPLACE INTO cbb_shadow_challenger_definitions VALUES
 ('cbb-shadow-win-combined','WIN_PROB','COMBINED','KEEP','SHADOW','FBIS-STATE-OVERLAY-v1',0,0,0,datetime('now')),
 ('cbb-shadow-win-shot-clock','WIN_PROB','SHOT_CLOCK','RESEARCH','SHADOW','FBIS-STATE-OVERLAY-v1',0,0,0,datetime('now')),
 ('cbb-shadow-win-player','WIN_PROB','PLAYER_ROTATION','RESEARCH','SHADOW','FBIS-STATE-OVERLAY-v1',0,0,0,datetime('now'));
+
+INSERT OR IGNORE INTO schema_migrations(id,applied_at)
+VALUES('0084_cbb_directory_phase_b',datetime('now'));
