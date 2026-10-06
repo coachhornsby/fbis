@@ -51,7 +51,8 @@ for(let page=0;page<MAX_PAGES;page++){
 }
 const uniq=new Map();for(const t of all)uniq.set(`${group(t)}|${yearOf(t)}`,t);
 all=[...uniq.values()];
-const chosen=SEED_GROUP?all.filter(t=>group(t)===SEED_GROUP).slice(0,LIMIT):all.slice(START,START+LIMIT);\nif(SEED_GROUP&&!chosen.length)throw new Error(`requested tournament group ${SEED_GROUP} not found for ${YEAR}`);
+const chosen=SEED_GROUP?all.filter(t=>group(t)===SEED_GROUP).slice(0,LIMIT):all.slice(START,START+LIMIT);
+if(SEED_GROUP&&!chosen.length)throw new Error(`requested tournament group ${SEED_GROUP} not found for ${YEAR}`);
 let sql="";let seen=0,written=0,failures=0;const shards=[];
 for(const t of chosen){
  const gid=group(t),yr=yearOf(t),sourcePath=`/tournaments/${gid}/${yr}/matches`,shardKey=`wta:matches:${yr}:${gid}`;
