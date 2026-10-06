@@ -81,7 +81,16 @@ jobs:
           npx wrangler d1 execute fbis --remote --file=migrations/0079_cbb_persistent_directory_phase_a.sql
           for f in artifacts/cbb-directory/chunk-*.sql; do
             echo "Applying $f"
-            npx wrangler d1 execute fbis --remote --file="$f"
+            ok=0
+            for attempt in 1 2 3; do
+              if npx wrangler d1 execute fbis --remote --file="$f"; then
+                ok=1
+                break
+              fi
+              echo "D1 import attempt $attempt returned failure for $f; retrying idempotent chunk"
+              sleep $((attempt * 5))
+            done
+            test "$ok" -eq 1 || { echo "D1 import failed after retries: $f"; exit 1; }
           done
       - name: Verify D1 checkpoint
         if: github.event_name == 'push'
