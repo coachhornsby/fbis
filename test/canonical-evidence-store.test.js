@@ -131,6 +131,7 @@ test("behavior: economic grade requires prospective evidence", async () => {
   const out = await persistEconomicGrade({ DB: db }, {
     gradeId: "g-1", evidenceId: "missing", sport: "mlb", eventId: "game-1",
     marketFamily: "ML", selection: "HOME", projectedProbability: 0.55, entryPrice: -110, result: "WON",
+    metadata: { entryMarketSnapshotId: "market-1", entryObservedAt: "2026-10-06T19:59:00.000Z", economicBasis: "SIMULATED_1U_PRICE_AVAILABLE", metricMethodVersion: "FBIS-ECONOMIC-GRADE-v1" },
   });
   assert.deepEqual(out, { ok: false, reason: "prospective-evidence-not-found" });
   assert.equal(db.writes.length, 0);
