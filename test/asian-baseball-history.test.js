@@ -40,13 +40,13 @@ test("month shards are bounded and deterministic",()=>{
 });
 
 test("Phase 2 migration is additive and fail-closed",async()=>{
-  const sql=await readFile(new URL("../migrations/0077_asian_baseball_history_foundation.sql",import.meta.url),"utf8");
+  const sql=await readFile(new URL("../migrations/0078_asian_baseball_history_foundation.sql",import.meta.url),"utf8");
   assert.match(sql,/asian_baseball_games/);
   assert.match(sql,/asian_baseball_game_observations/);
   assert.match(sql,/asian_baseball_backfill_shards/);
   assert.match(sql,/pregame_eligible INTEGER NOT NULL DEFAULT 0/);
   assert.match(sql,/can_qualify INTEGER NOT NULL DEFAULT 0/);
   assert.match(sql,/can_authorize INTEGER NOT NULL DEFAULT 0/);
-  assert.match(sql,/0077_asian_baseball_history_foundation/);
+  assert.match(sql,/0078_asian_baseball_history_foundation/);
   assert.doesNotMatch(sql,/\bDROP\b|\bDELETE FROM\b/i);
 });
