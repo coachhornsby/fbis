@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: nhl-goalie-historical-expansion-v1-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -72,6 +72,8 @@ jobs:
           jq -e '.lockedSpecification.scoreProjectionChanged == false' "$f" >/dev/null
           jq -e '.integrity.pointInTime == true and .integrity.noMarketInputs == true' "$f" >/dev/null
           jq -e '.integrity.actualStarterUsedOnlyAfterPregameState == true' "$f" >/dev/null
+          jq -e '.integrity.explicitSnapshotTimestamps == true and .integrity.rowwiseTemporalIntegrity == true' "$f" >/dev/null
+          jq -e '.coverage.temporalIntegrityFailures == 0' "$f" >/dev/null
           jq -e '.integrity.scoreProjectionInvariant == true' "$f" >/dev/null
           jq -e '.coverage.timestampVerifiedCurrentGoalieConfirmation == 0' "$f" >/dev/null
           jq -e '.coverage.marketCoverage == 0' "$f" >/dev/null
