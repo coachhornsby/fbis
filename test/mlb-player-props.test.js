@@ -47,3 +47,11 @@ test("MLB batter walks canonicalizes independently from pitcher walks allowed",(
   assert.equal(canonicalizeProPlayerPropMarket("mlb","pitches_thrown"),"pitch_count");
   assert.equal(canonicalizeProPlayerPropMarket("mlb","h_r_rbi"),"hits_runs_rbis");
 });
+
+
+test("complete MLB prop aliases canonicalize to board markets",()=>{
+  assert.equal(canonicalizeProPlayerPropMarket("mlb","pitches_thrown"),"pitch_count");
+  assert.equal(canonicalizeProPlayerPropMarket("mlb","runs_scored"),"runs");
+  assert.equal(canonicalizeProPlayerPropMarket("mlb","rbi"),"rbis");
+  assert.equal(canonicalizeProPlayerPropMarket("mlb","hits_runs_rbi"),"hits_runs_rbis");
+});
