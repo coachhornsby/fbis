@@ -92,12 +92,15 @@ function daysBetween(a, b) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   return (y - x) / 86400000;
 }
+function identityName(value = "") {
+  return String(value || "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+}
 function key(team = {}) {
   if (team.teamKey) return String(team.teamKey);
   if (team.espnId != null) return `id:${team.espnId}`;
   if (team.id != null) return `id:${team.id}`;
   if (team.abbr) return `abbr:${String(team.abbr).toUpperCase()}`;
-  return `name:${String(team.name || team.displayName || "").toLowerCase()}`;
+  return `name:${identityName(team.name || team.displayName || "")}`;
 }
 function keys(team = {}) {
   return [...new Set([
@@ -105,7 +108,7 @@ function keys(team = {}) {
     team.espnId != null ? `id:${team.espnId}` : null,
     team.id != null ? `id:${team.id}` : null,
     team.abbr ? `abbr:${String(team.abbr).toUpperCase()}` : null,
-    (team.name || team.displayName) ? `name:${String(team.name || team.displayName).toLowerCase()}` : null,
+    (team.name || team.displayName) ? `name:${identityName(team.name || team.displayName)}` : null,
   ].filter(Boolean))];
 }
 function findByAliases(map, team) {
@@ -444,6 +447,7 @@ export function projectSoccerV2(game = {}, history = [], options = {}) {
       modelId: SOCCER_FBIS_V2_ID,
       modelVersion: SOCCER_FBIS_V2_VERSION,
       reason: v1?.reason || "v1-structural-projection-unavailable",
+      diagnostics: v1?.diagnostics || null,
       marketInformed: false,
       canQualify: false,
       canAuthorize: false,
