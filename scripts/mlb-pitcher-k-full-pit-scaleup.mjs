@@ -18,7 +18,8 @@ const norm=s=>{let z=String(s||"").trim();const i=z.lastIndexOf(" (");if(i>0&&z.
 const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null;
 const median=a=>{const x=a.filter(Number.isFinite).sort((a,b)=>a-b);if(!x.length)return null;const m=Math.floor(x.length/2);return x.length%2?x[m]:(x[m-1]+x[m])/2};
 const mae=a=>mean(a.map(Math.abs));
-const rmse=a=>Math.sqrt(mean(a.map(x=>x*x)));\nconst corr=(a,b)=>{if(a.length!==b.length||a.length<2)return null;const ma=mean(a),mb=mean(b);let num=0,da=0,db=0;for(let i=0;i<a.length;i++){const x=a[i]-ma,y=b[i]-mb;num+=x*y;da+=x*x;db+=y*y}return da>0&&db>0?num/Math.sqrt(da*db):null};
+const rmse=a=>Math.sqrt(mean(a.map(x=>x*x)));
+const corr=(a,b)=>{if(a.length!==b.length||a.length<2)return null;const ma=mean(a),mb=mean(b);let num=0,da=0,db=0;for(let i=0;i<a.length;i++){const x=a[i]-ma,y=b[i]-mb;num+=x*y;da+=x*x;db+=y*y}return da>0&&db>0?num/Math.sqrt(da*db):null};
 const americanProfit=(price,win)=>{if(!win)return -1;const p=Number(price);return p>0?p/100:100/Math.abs(p)};
 const implied=p=>{p=Number(p);if(!Number.isFinite(p)||p===0)return null;return p>0?100/(p+100):Math.abs(p)/(Math.abs(p)+100)};
 const noVig=(over,under)=>{const a=implied(over),b=implied(under);return a!=null&&b!=null&&a+b>0?a/(a+b):null};
