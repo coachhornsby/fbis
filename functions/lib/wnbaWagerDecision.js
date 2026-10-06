@@ -1,6 +1,6 @@
 import { decisionFromOffer } from "./wagerDecisionEngine.js";
 
-const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+const finite=v=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 export const WNBA_WAGER_DECISION_VERSION="WNBA-WAGER-v2";
@@ -12,20 +12,54 @@ export function buildWnbaOffers(game={}){
   const rows=[];
   const push=(market,side,line,price)=> {
     const p=finite(price),l=finite(line);
-    if(p==null)return;
-    rows.push({market,side,line:l,price:p,sportsbook:book,observedAt,executionReady:true});
+    if(p==null||p===0)return;
+    rows.push({market,side,line:l,price:p,sportsbook:book,observedAt,executionReady:true,source:"CURRENT_GAME_ODDS"});
   };
-  if(finite(o.spread)!=null){
-    push("SPREAD","HOME",finite(o.spread),o.heritageSpreadHomePrice??o.pinSpreadHomePrice??o.softSpreadHomePrice??o.spreadPrice);
-    push("SPREAD","AWAY",-finite(o.spread),o.heritageSpreadAwayPrice??o.pinSpreadAwayPrice??o.softSpreadAwayPrice);
+  const spread=finite(o.spread);
+  if(spread!=null){
+    push("SPREAD","HOME",spread,o.heritageSpreadHomePrice??o.pinSpreadHomePrice??o.softSpreadHomePrice??o.spreadPrice);
+    push("SPREAD","AWAY",-spread,o.heritageSpreadAwayPrice??o.pinSpreadAwayPrice??o.softSpreadAwayPrice);
   }
-  if(finite(o.total)!=null){
-    push("TOTAL","OVER",finite(o.total),o.heritageOverPrice??o.pinOverPrice??o.softOverPrice);
-    push("TOTAL","UNDER",finite(o.total),o.heritageUnderPrice??o.pinUnderPrice??o.softUnderPrice);
+  const total=finite(o.total);
+  if(total!=null){
+    push("TOTAL","OVER",total,o.heritageOverPrice??o.pinOverPrice??o.softOverPrice);
+    push("TOTAL","UNDER",total,o.heritageUnderPrice??o.pinUnderPrice??o.softUnderPrice);
   }
   push("MONEYLINE","HOME",null,o.heritageHomeMl??o.pinHomeMl??o.homeMl);
   push("MONEYLINE","AWAY",null,o.heritageAwayMl??o.pinAwayMl??o.awayMl);
   return rows;
+}
+
+export function buildWnbaOffersFromOwnedRows(rows=[]){
+  const latest=new Map();
+  for(const row of rows||[]){
+    const market=String(row.market_type||row.market||"").toUpperCase();
+    const side=String(row.selection||row.side||"").toUpperCase();
+    if(!["SPREAD","TOTAL","MONEYLINE"].includes(market)||!["HOME","AWAY","OVER","UNDER"].includes(side))continue;
+    const price=finite(row.american_price??row.price),line=finite(row.line);
+    if(price==null||price===0)continue;
+    const at=Date.parse(row.provider_timestamp||row.collected_at||row.captured_at||0);
+    const key=`${market}|${side}`,prior=latest.get(key);
+    if(!prior||at>=prior.at)latest.set(key,{at,offer:{
+      market,side,line,price,
+      sportsbook:row.sportsbook||row.book||"FBIS Odds",
+      observedAt:row.provider_timestamp||row.collected_at||row.captured_at||null,
+      executionReady:true,source:"FBIS_ODDS_SNAPSHOTS"
+    }});
+  }
+  return [...latest.values()].map(x=>x.offer);
+}
+
+export function mergeWnbaOffers(primary=[],fallback=[]){
+  const out=[],seen=new Set();
+  for(const offer of [...(primary||[]),...(fallback||[])]){
+    const key=`${String(offer.market||"").toUpperCase()}|${String(offer.side||"").toUpperCase()}`;
+    if(seen.has(key))continue;
+    const price=finite(offer.price);
+    if(price==null||price===0)continue;
+    seen.add(key);out.push({...offer,price});
+  }
+  return out;
 }
 
 export function decomposeWnbaProjection(game={}){
@@ -233,11 +267,11 @@ export function wnbaEvidence(game={},projection={}){
 export async function buildWnbaGameDecisions(game={},db=null,{minEv=0.03,calibrationLookup=null}={}){
   const distribution=decomposeWnbaProjection(game);
   if(distribution.margin==null||distribution.total==null)return {gameId:game.id,ok:false,reason:"independent_projection_missing",offers:[]};
-  const offers=buildWnbaOffers(game);
   const [ownedRows,actionRows]=await Promise.all([
     loadWnbaOwnedOddsRows(db,game.id),
     loadWnbaActionRows(db,game.id),
   ]);
+  const offers=mergeWnbaOffers(buildWnbaOffers(game),buildWnbaOffersFromOwnedRows(ownedRows));
   const evidence=wnbaEvidence(game,distribution);
   const decisions=[];
   for(const offer of offers){
