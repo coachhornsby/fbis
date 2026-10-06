@@ -47,3 +47,23 @@ Before bounded permanent ingestion, record:
 - field-level authority classification.
 
 If any commercial-use or provenance term remains ambiguous, stop before permanent ingestion.
+
+
+## 2026-10-06 rights update
+
+### Sackmann
+Permission request sent by FBIS owner on 2026-10-06. Status: PENDING. No authority change until the exact written response is reviewed and archived.
+
+### Live Tennis API
+Public product documentation explicitly markets historical data for backtesting and model training, and paid API terms license use of API responses within the subscriber's own applications/services. This makes it a materially stronger economic-use candidate than CC BY-NC-SA repository datasets.
+
+Remaining blocker: Terms also prohibit scraping/caching/storing data beyond what is reasonably necessary to operate the application. FBIS requires persistent PIT history in D1/R2. Treat persistent long-horizon internal storage, derived-feature retention, and betting-decision support as RIGHTS_CONFIRMATION_REQUIRED until JSB Holdings confirms that this architecture is within the paid license.
+
+Provider contact published for custom quotas/dedicated feeds: hello@livetennisapi.com.
+
+Authority until confirmation:
+- API observations: RESEARCH/VALIDATION candidate only.
+- permanent D1/R2 corpus ingestion: BLOCKED.
+- projection influence: 0.
+- canQualify: false.
+- wager authority: false.
