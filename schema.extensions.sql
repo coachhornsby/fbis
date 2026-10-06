@@ -2787,3 +2787,23 @@ CREATE TABLE IF NOT EXISTS soccer_competition_validation (
   UNIQUE(heritage_key,model_version)
 );
 CREATE INDEX IF NOT EXISTS idx_soccer_comp_validation_gate ON soccer_competition_validation(historical_gate,sample_n);
+
+
+-- Durable soccer competition provider registry (migration 0062).
+CREATE TABLE IF NOT EXISTS soccer_competition_provider_map (
+  heritage_name TEXT PRIMARY KEY,
+  heritage_key TEXT,
+  canonical_competition_id TEXT,
+  provider TEXT NOT NULL DEFAULT 'pitchapi',
+  provider_competition_id TEXT,
+  provider_name TEXT,
+  provider_aliases_json TEXT,
+  mapping_source TEXT NOT NULL DEFAULT 'DISCOVERY',
+  confidence REAL,
+  verified_manual INTEGER NOT NULL DEFAULT 0,
+  last_checked TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_provider_map_provider
+  ON soccer_competition_provider_map(provider,provider_competition_id);
