@@ -105,7 +105,7 @@ test("v2 may become the research-board model only after strict historical promot
   assert.equal(board.meta.v2Promoted,1);
   assert.equal(board.games[0].projectionEngine,NHL_PRO_V2_ID);
   assert.equal(board.games[0].researchProjection.modelId,NHL_PRO_V2_ID);
-  assert.equal(board.games[0].canQualify,true);
+  assert.equal(board.games[0].canQualify,false);
 });
 
 test("NHL-PRO-v2 is registered as independent research with no wager authority",()=>{
@@ -114,7 +114,7 @@ test("NHL-PRO-v2 is registered as independent research with no wager authority",
   assert.equal(m.sport,"nhl");
   assert.equal(m.marketInformed,false);
   assert.equal(m.independent,true);
-  assert.equal(m.canQualify,true);
+  assert.equal(m.canQualify,false);
   assert.equal(m.canAuthorizeWager,false);
 });
 
