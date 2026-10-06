@@ -18,6 +18,7 @@ const q=v=>v==null?"NULL":`'${String(v).replaceAll("'","''")}'`;
 const num=v=>v==null||v===""||!Number.isFinite(Number(v))?"NULL":String(Number(v));
 const h=v=>crypto.createHash("sha256").update(String(v)).digest("hex");
 const arr=v=>Array.isArray(v)?v:(v?.content||v?.matches||v?.players||[]);
+const enc=encodeURIComponent;
 async function get(p){const r=await fetch(BASE+p,{headers:{accept:"application/json","user-agent":"FBIS-WTA-History/1.1"}});const text=await r.text();let body=null;try{body=JSON.parse(text)}catch{}return{ok:r.ok,status:r.status,text,body,path:p}}
 const pick=(o,...ks)=>{for(const k of ks){if(o?.[k]!=null)return o[k]}return null};
 const playerObj=(m,n)=>m?.[`player${n}`]||m?.[`player${n}Details`]||m?.[`team${n}`]?.player||null;
@@ -42,7 +43,7 @@ const escJson=v=>q(JSON.stringify(v??null));
 await fs.mkdir(path.dirname(OUT),{recursive:true});await fs.mkdir(RAW,{recursive:true});
 let all=[],pagesScanned=0;
 for(let page=0;page<MAX_PAGES;page++){
- const res=await get(`/tournaments?page=${page}&pageSize=${PAGE_SIZE}`);
+ const res=await get(`/tournaments/?page=${page}&pageSize=${PAGE_SIZE}&from=${enc(`${YEAR}-01-01`)}&to=${enc(`${YEAR}-12-31`)}`);
  if(!res.ok)throw new Error(`tournaments page ${page} HTTP ${res.status}`);
  const rows=arr(res.body);pagesScanned++;
  all.push(...rows.filter(t=>yearOf(t)===YEAR&&group(t)));
@@ -60,7 +61,7 @@ for(const t of chosen){
   await fs.mkdir(path.join(RAW,String(yr),gid),{recursive:true});await fs.writeFile(path.join(RAW,String(yr),gid,"matches.json"),res.text);
   seen+=rows.length;
   for(const m of rows){
-   const smid=matchId(m);if(!smid)continue;
+   const smid=String(pick(m,"MatchID","matchId","id","match_id")??"")||null;if(!smid)continue;
    const a=sourcePid(m,1),b=sourcePid(m,2),w=winner(m);
    const p1=a?`(SELECT fbis_player_id FROM tennis_player_source_ids WHERE provider='WTA_OFFICIAL' AND source_player_id=${q(a)} LIMIT 1)`:"NULL";
    const p2=b?`(SELECT fbis_player_id FROM tennis_player_source_ids WHERE provider='WTA_OFFICIAL' AND source_player_id=${q(b)} LIMIT 1)`:"NULL";
