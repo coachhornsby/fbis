@@ -24,3 +24,22 @@ test("CBB Phase B excludes totals challengers",()=>{
  assert.ok(defs.length>=10);
  assert.equal(defs.includes("TOTALS"),false);
 });
+
+test("runtime Phase B uses bounded CBBD sources and daily idempotency",()=>{
+ const s=readFileSync("functions/lib/cbbDirectoryPhaseB.js","utf8");
+ assert.match(s,/cbbdGet\("\/teams\/roster"/);
+ assert.match(s,/cbbdGet\("\/teams"/);
+ assert.match(s,/cbbdGet\("\/games"/);
+ assert.match(s,/cbbdGet\("\/stats\/player\/season"/);
+ assert.match(s,/already_complete/);
+ assert.match(s,/prior-season baseline only when provider identity and team match verified current roster/);
+ assert.match(s,/UNKNOWN absent explicit verified status source/);
+ assert.match(s,/futureMembershipLeaks:0/);
+ assert.match(s,/totalsDefinitions:0/);
+});
+
+test("migration 0084 records Phase B checkpoints",()=>{
+ const s=readFileSync("migrations/0084_cbb_directory_phase_b.sql","utf8");
+ assert.match(s,/CREATE TABLE IF NOT EXISTS cbb_directory_phase_b_runs/);
+ assert.match(s,/0084_cbb_directory_phase_b/);
+});
