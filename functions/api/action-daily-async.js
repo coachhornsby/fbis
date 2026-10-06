@@ -35,7 +35,7 @@ async function slate(env,t,y){const all=[],by={},todayIds={};for(const s of SPOR
 async function mtd(db,now=new Date()){const ms=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),1)).toISOString();const r=await db.queryOne("SELECT COALESCE(SUM(CASE WHEN actual_total_usd IS NOT NULL THEN actual_total_usd ELSE estimated_total_usd END),0) usd FROM shadow_cost_ledger WHERE created_at >= ?",[ms]);return Number(r?.usd||0)}
 function budget(env,now=new Date()){const n=Number(env.ACTION_APIFY_HARD_MONTHLY_BUDGET_USD),base=Number.isFinite(n)&&n>0?n:15;return now.getUTCFullYear()===2026&&now.getUTCMonth()===8?Math.max(base,25):base}
 async function latest(db,t){return db.queryOne("SELECT * FROM shadow_collection_runs WHERE sport='all' AND profile=? AND lifecycle=? AND substr(started_at,1,10)=? ORDER BY started_at DESC LIMIT 1",[PROFILE,LIFECYCLE,t])}
-async function active(db,t){return db.queryOne("SELECT * FROM shadow_collection_runs WHERE sport='all' AND profile=? AND lifecycle=? AND substr(started_at,1,10)=? AND status='running_daily' ORDER BY started_at DESC LIMIT 1",[PROFILE,LIFECYCLE,t])}
+async function active(db,t){return db.queryOne("SELECT * FROM shadow_collection_runs WHERE sport='all' AND profile=? AND lifecycle=? AND substr(started_at,1,10)=? AND status IN ('starting_daily','running_daily') ORDER BY started_at DESC LIMIT 1",[PROFILE,LIFECYCLE,t])}
 async function successfulRuns(db,t){const rows=await db.queryAll?.("SELECT * FROM shadow_collection_runs WHERE sport='all' AND profile=? AND lifecycle=? AND substr(started_at,1,10)=? AND status LIKE 'success%' ORDER BY started_at DESC",[PROFILE,LIFECYCLE,t]);return rows||[]}
 async function successful(db,t){const rows=await successfulRuns(db,t);return rows[0]||null}
 async function finalizeRun(db,run,{status,datasetId=null,gamesReturned=0,matched=0,unmatched=0,written=0,malformed=0,estimatedCostUsd=null,errorClass=null,errorMessage=null}){
@@ -102,10 +102,20 @@ export async function onRequestPost(context){
    const input=buildActorInput({leagues,periods:["event"],maxGames:requested,freePlan:false,includeLineMovement:false,includeProps:false,includeInjuries:false,includeStandings:false,gameStatus:"scheduled"}),estimate=estimateActorCostUsd(input),spent=await mtd(db,now),cap=budget(context.env,now);
    if(spent+estimate>cap+1e-9)return json({ok:true,executed:false,status:"monthly_budget_blocked",monthToDateUsd:spent,estimatedNextRunUsd:estimate,monthlyBudgetUsd:cap});
    const token=String(context.env.APIFY_TOKEN||context.env.APIFY_API_TOKEN||"").trim();if(!token)return json({ok:false,status:"apify_not_configured"},503);
+   const runId=`daily_${today.replaceAll("-","")}_canonical`,started=new Date().toISOString(),plan=JSON.stringify({input,activeSports:collectionSports,fullActiveSports:activeSports,leagues,requestedRows:requested,estimatedCostUsd:estimate,today,yesterday,plannedTodayFbisEventIds:Object.fromEntries(collectionSports.map(s=>[s,sl.todayIds?.[s]||[]]))});
+   const claim=await db.exec(`INSERT OR IGNORE INTO shadow_collection_runs(id,provider,mode,plan,profile,sport,lifecycle,status,enabled,apify_run_id,dataset_id,requested_max_items,estimated_cost_usd,cost_basis,started_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[runId,"ACTION_APIFY","shadow",plan,PROFILE,"all",LIFECYCLE,"starting_daily",1,null,null,input.maxGames,estimate,"ESTIMATED",started,started]);
+   if(Number(claim?.meta?.changes||0)===0){
+     const claimed=await db.queryOne("SELECT * FROM shadow_collection_runs WHERE id=?",[runId]);
+     return json({ok:true,executed:false,status:"actor_running",startClaimed:true,harvestRequired:Boolean(claimed?.apify_run_id),runId:claimed?.id||runId,apifyRunId:claimed?.apify_run_id||null,datasetId:claimed?.dataset_id||null,today},202);
+   }
    const actorPath=encodeURIComponent(ACTION_APIFY_ACTOR_ID),res=await fetch(`https://api.apify.com/v2/acts/${actorPath}/runs?waitForFinish=0`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify(input)});
    const startRaw=await res.text();let startBody={};try{startBody=JSON.parse(startRaw)}catch{}
-   if(!res.ok)return json({ok:false,status:"apify_start_http",http:res.status,upstream:{type:startBody?.error?.type||null,message:String(startBody?.error?.message||"").slice(0,500)}},502);const j=startBody,a=j.data||j,runId=`daily_${today.replaceAll("-","")}_${crypto.randomUUID().replace(/-/g,"").slice(0,10)}`,started=new Date().toISOString(),plan=JSON.stringify({input,activeSports:collectionSports,fullActiveSports:activeSports,leagues,requestedRows:requested,estimatedCostUsd:estimate,today,yesterday,plannedTodayFbisEventIds:Object.fromEntries(collectionSports.map(s=>[s,sl.todayIds?.[s]||[]]))});
-   await db.exec(`INSERT INTO shadow_collection_runs(id,provider,mode,plan,profile,sport,lifecycle,status,enabled,apify_run_id,dataset_id,requested_max_items,estimated_cost_usd,cost_basis,started_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[runId,"ACTION_APIFY","shadow",plan,PROFILE,"all",LIFECYCLE,"running_daily",1,a.id||null,a.defaultDatasetId||null,input.maxGames,estimate,"ESTIMATED",started,started]);
+   if(!res.ok){
+     await db.exec("UPDATE shadow_collection_runs SET status='failed_start_daily',error_class='apify_start_http',error_message=?,finished_at=? WHERE id=?",[String(startBody?.error?.message||`http-${res.status}`).slice(0,400),new Date().toISOString(),runId]);
+     return json({ok:false,status:"apify_start_http",http:res.status,runId,upstream:{type:startBody?.error?.type||null,message:String(startBody?.error?.message||"").slice(0,500)}},502);
+   }
+   const j=startBody,a=j.data||j;
+   await db.exec("UPDATE shadow_collection_runs SET status='running_daily',apify_run_id=?,dataset_id=? WHERE id=? AND status='starting_daily'",[a.id||null,a.defaultDatasetId||null,runId]);
    // Reserve the estimated paid-run cost immediately after the Actor starts.
    // A failed/timed-out harvest must still count against the monthly budget.
    const reservation=buildCostLedgerEntry({runId,plan:cfg.plan,sport:"all",profile:PROFILE,input,gamesReturned:input.maxItems,createdAt:started});
