@@ -54,7 +54,7 @@ def pick(row,*cols):
             if pd.notna(v) and str(v).strip(): return v
     return None
 
-sql=["BEGIN TRANSACTION;"]
+sql=[]
 for _,r in latest.iterrows():
     eid=int(r["team_id"]); team=tid(eid)
     school=pick(r,"school","display_name","location","name") or f"ESPN Team {eid}"
@@ -113,7 +113,6 @@ for eid,g in all_df.groupby("team_id"):
 (id,team_id,conference_id,conference_name,subdivision,independent,effective_from,effective_to,source,observed_at,confidence,raw_json,created_at)
 VALUES ({esc(mid)},{esc(team)},{esc(pick(r,"conference_id"))},{esc(conf)},{esc(sub)},{ind},{esc(frm)},{esc(to)},'SPORTSDATAVERSE_ESPN_CFB_TEAMS',{esc(observed)},1.0,{esc(raw)},{esc(observed)})
 ON CONFLICT(id) DO UPDATE SET conference_id=excluded.conference_id,conference_name=excluded.conference_name,subdivision=excluded.subdivision,independent=excluded.independent,effective_to=excluded.effective_to,observed_at=excluded.observed_at,confidence=1.0,raw_json=excluded.raw_json;""")
-sql.append("COMMIT;")
 OUT.write_text("\n".join(sql)+"\n")
 
 qa={
