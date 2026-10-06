@@ -1,0 +1,57 @@
+name: WNBA possession challenger coefficient freeze
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/wnba-possession-challenger-freeze.mjs"
+      - "migrations/0079_wnba_possession_challenger_shadow.sql"
+      - ".github/workflows/wnba-possession-challenger-freeze.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wnba-possession-challenger-coefficient-freeze
+  cancel-in-progress: false
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+
+      - name: Restore frozen historical ablation evidence
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          npx wrangler r2 object get "fbis-archive/models/wnba/possession-shot/research-current/wnba-possession-ablation-rows.jsonl" --file artifacts/wnba-possession-ablation-rows.jsonl --remote
+          npx wrangler r2 object get "fbis-archive/models/wnba/possession-shot/research-current/wnba-possession-ablation.json" --file artifacts/wnba-possession-ablation.json --remote
+
+      - name: Freeze coefficients from verified checkpoint
+        run: |
+          node scripts/wnba-possession-challenger-freeze.mjs             rows=artifacts/wnba-possession-ablation-rows.jsonl             report=artifacts/wnba-possession-ablation.json             out=artifacts/wnba-possession-challenger-coefficients.json             sql=artifacts/wnba-possession-challenger-coefficients.sql             source=research/wnba/possession-shot/v1/run-37464927545/merged-linear
+
+      - name: Persist schema and frozen coefficients
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute fbis --remote --file=migrations/0079_wnba_possession_challenger_shadow.sql
+          npx wrangler d1 execute fbis --remote --file=artifacts/wnba-possession-challenger-coefficients.sql
+          npx wrangler r2 object put "fbis-archive/models/wnba/possession-challenger/v1/coefficients.json" --file artifacts/wnba-possession-challenger-coefficients.json --remote
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wnba-possession-challenger-coefficients-${{ github.run_id }}
+          path: artifacts/wnba-possession-challenger-coefficients.json
+          retention-days: 90
