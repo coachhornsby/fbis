@@ -14,7 +14,7 @@ import {
   nhlPropConfidenceLineValidated,
 } from "../../../functions/lib/nhlPropConfidence.js";
 import { evaluateNhlPropWagerV1 } from "../../../functions/lib/nhlWagerV1.js";
-import { estimatedPropHitProbability, prizePicksTierEconomics, selectivePropStars } from "../../../functions/lib/selectivePropEdge.js";
+import { applyPropCalibrationCeiling, estimatedPropHitProbability, prizePicksTierEconomics, selectivePropStars } from "../../../functions/lib/selectivePropEdge.js";
 
 /**
  * All player-prop markets currently supported on FBIS product surfaces.
@@ -69,11 +69,17 @@ export function propProjectionStars(row = {}) {
  * May derive over/under probability from projection + sigma + line only —
  * never invents a projection or price.
  */
-function applyPrizePicksPlatformConfidence(row = {}, stars = 1) {
+function applyPrizePicksPlatformConfidence(row = {}, stars = 1, opts = {}) {
   const hitProbability = estimatedPropHitProbability(row);
   const economics = prizePicksTierEconomics(row, hitProbability);
+  const calibrationRow = opts.calibrationValidated === true
+    ? { ...row, propCalibrationValidated: true }
+    : row;
   return {
-    stars: Math.min(Number(stars) || 1, economics.maxStars),
+    stars: applyPropCalibrationCeiling(
+      calibrationRow,
+      Math.min(Number(stars) || 1, economics.maxStars),
+    ),
     economics,
   };
 }
@@ -159,7 +165,9 @@ export function withFbisPropAnalytics(row = {}) {
         lineValidated: nhlPropConfidenceLineValidated("saves",ranked.line),
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
-      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars);
+      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars, {
+        calibrationValidated: ranked.validationStatus === "PROMOTE_RESEARCH" && nhlPropConfidenceLineValidated("saves", ranked.line),
+      });
       return {
         ...ranked,
         prizePicksEconomics: platform.economics,
@@ -188,7 +196,9 @@ export function withFbisPropAnalytics(row = {}) {
         lineValidated: nhlPropConfidenceLineValidated("shots_on_goal",ranked.line),
         modelValidated: ranked.validationStatus === "PROMOTE_RESEARCH",
       });
-      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars);
+      const platform = applyPrizePicksPlatformConfidence(ranked, stars.stars, {
+        calibrationValidated: ranked.validationStatus === "PROMOTE_RESEARCH" && nhlPropConfidenceLineValidated("shots_on_goal", ranked.line),
+      });
       return {
         ...ranked,
         prizePicksEconomics: platform.economics,
@@ -214,7 +224,9 @@ export function withFbisPropAnalytics(row = {}) {
       eligibleForCard: ranked.eligibleForCard,
     });
     if (genericStars) {
-      const platform = applyPrizePicksPlatformConfidence(ranked, genericStars.stars);
+      const platform = applyPrizePicksPlatformConfidence(ranked, genericStars.stars, {
+        calibrationValidated: ranked.validationStatus === "PROMOTE_RESEARCH" && ranked.lineValidationStatus === "VALIDATED",
+      });
       return {
         ...ranked,
         prizePicksEconomics: platform.economics,
