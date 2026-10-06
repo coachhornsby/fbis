@@ -3,7 +3,8 @@ import { buildSlate } from "../lib/slateEngine.js";
 import { canonicalizeProPlayerPropMarket } from "../lib/proPlayerProps.js";
 import { sha256Hex } from "../lib/sha256Hex.js";
 import { MLB_PROP_PROMOTION_GATE_VERSION } from "../lib/mlbPropPromotionGovernance.js";
-import { buildEconomicGrade, noVigPair } from "../lib/canonical/economicGrading.js";
+import { noVigPair } from "../lib/canonical/economicGrading.js";
+import { persistProspectiveEvidence, persistEconomicGrade } from "../lib/canonical/evidenceStore.js";
 
 const SUPPORTED_MARKETS=new Set([
   "strikeouts","pitcher_outs","walks_allowed","hits_allowed","earned_runs","pitch_count",
