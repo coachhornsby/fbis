@@ -528,23 +528,38 @@ async function cleanupFutureGrades(env) {
          WHERE start IS NOT NULL AND start > strategy_tickets.graded_at
        )`
   ).run();
-  const betOut = await env.DB.prepare(
-    `UPDATE executed_bets
-     SET result = 'OPEN', profit = NULL, settled_return = NULL, graded_at = NULL, void_reason = NULL
-     WHERE result IN ('WON','LOST','PUSH','VOID')
-       AND game_id IN (SELECT id FROM games WHERE start IS NOT NULL AND start > ?)`
-  ).bind(nowIso).run();
+  const futureBets = await env.DB.prepare(
+    `SELECT eb.id
+       FROM executed_bets eb
+       JOIN games g ON g.id = eb.game_id
+      WHERE eb.result IN ('WON','LOST','PUSH','VOID')
+        AND g.start IS NOT NULL
+        AND g.start > ?`
+  ).bind(nowIso).all();
+  let executedBetsReset = 0;
+  let executedBetResetFailures = 0;
+  for (const row of futureBets?.results || []) {
+    const out = await updateExecutedBet(
+      env,
+      row.id,
+      { result: "OPEN", profit: null, settledReturn: null, gradedAt: null, voidReason: null },
+      "future-grade-cleanup"
+    );
+    if (out?.ok) executedBetsReset += 1;
+    else executedBetResetFailures += 1;
+  }
 
   return {
-    ok: true,
-    status: 200,
+    ok: executedBetResetFailures === 0,
+    status: executedBetResetFailures === 0 ? 200 : 500,
     body: {
-      ok: true,
+      ok: executedBetResetFailures === 0,
       snapshotRowsReset: Number(snapOut?.meta?.changes || 0),
       predictionRowsReset: Number(predOut?.meta?.changes || 0),
       strategyTicketsReset:
         Number(stratOut?.meta?.changes || 0) + Number(stratPrematureOut?.meta?.changes || 0),
-      executedBetsReset: Number(betOut?.meta?.changes || 0),
+      executedBetsReset,
+      executedBetResetFailures,
     },
   };
 }
