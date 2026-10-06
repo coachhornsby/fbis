@@ -1,0 +1,54 @@
+name: Soccer Phase 3H one-shot proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/soccer-phase3h-one-shot-proof.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soccer-phase3h-one-shot-proof
+  cancel-in-progress: false
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Controlled prospective snapshot + idempotency retry
+        env:
+          HARVEST_SECRET: ${{ secrets.HARVEST_SECRET }}
+          BASE: https://fbis-myz.pages.dev
+          SNAPSHOT_DATE: "2026-10-07"
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HARVEST_SECRET:-}"
+
+          # Start early inside a five-minute idempotency bucket so two bounded
+          # collector calls can complete before the bucket rolls.
+          rem=$(( $(date +%s) % 300 ))
+          if [ "$rem" -gt 20 ]; then
+            sleep $((300 - rem + 5))
+          fi
+
+          call_snapshot() {
+            curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 120 \
+              -H "x-harvest-secret: ${HARVEST_SECRET}" \
+              "${BASE}/api/soccer-prospective-shadow?mode=snapshot&date=${SNAPSHOT_DATE}&_t=$(date +%s)"
+          }
+
+          first="$(call_snapshot)"
+          echo "$first" | jq '{ok,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,researchOnly,canQualify,canAuthorize}'
+          echo "$first" | jq -e '.ok == true and .eligibleGames > 0 and .attempted > 0 and .written > 0 and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null
+
+          second="$(call_snapshot)"
+          echo "$second" | jq '{ok,date,snapshotAt,slateGames,eligibleGames,attempted,written,existing,skipped,researchOnly,canQualify,canAuthorize}'
+          echo "$second" | jq -e '.ok == true and .attempted > 0 and .written == 0 and .existing == .attempted and .researchOnly == true and .canQualify == false and .canAuthorize == false' >/dev/null
+
+          first_bucket="$(echo "$first" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
+          second_bucket="$(echo "$second" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
+          test "$first_bucket" = "$second_bucket"
