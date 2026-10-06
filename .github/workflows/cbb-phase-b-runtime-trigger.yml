@@ -1,0 +1,24 @@
+name: CBB Phase B runtime trigger
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cbb-phase-b-runtime-trigger.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Invoke deployed CBB Phase B runtime
+        run: |
+          set -euo pipefail
+          url="https://fbis-myz.pages.dev/api/cbb-directory-phase-b-runtime?control=cbb-phase-b-runtime-v1"
+          body="$(curl --fail --silent --show-error --retry 3 "$url")"
+          printf '%s\n' "$body"
+          printf '%s' "$body" | jq -e '.ok == true' >/dev/null
