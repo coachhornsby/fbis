@@ -1,6 +1,13 @@
 name: CFB team directory Phase A
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - "scripts/cfb-team-directory-build.mjs"
+      - ".github/workflows/cfb-team-directory-phase-a.yml"
+      - "migrations/0067_cfb_persistent_directory_phase_a.sql"
+      - "functions/lib/cfbTeamDirectory.js"
   workflow_dispatch:
     inputs:
       start_year:
