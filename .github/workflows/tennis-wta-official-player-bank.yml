@@ -5,12 +5,14 @@ on:
     paths:
       - "scripts/tennis-wta-official-ingest.mjs"
       - "migrations/0073_tennis_canonical_player_bank.sql"
+      - "migrations/0074_tennis_wta_null_semantics.sql"
       - ".github/workflows/tennis-wta-official-player-bank.yml"
   push:
     branches: [main]
     paths:
       - "scripts/tennis-wta-official-ingest.mjs"
       - "migrations/0073_tennis_canonical_player_bank.sql"
+      - "migrations/0074_tennis_wta_null_semantics.sql"
       - ".github/workflows/tennis-wta-official-player-bank.yml"
   schedule:
     - cron: "17 * * * *"
@@ -48,6 +50,7 @@ jobs:
             exit 0
           fi
           npx wrangler d1 execute fbis --remote --file migrations/0073_tennis_canonical_player_bank.sql >/tmp/wta-schema.log
+          npx wrangler d1 execute fbis --remote --file migrations/0074_tennis_wta_null_semantics.sql >/tmp/wta-null-repair.log
           npx wrangler d1 execute fbis --remote --command "SELECT cursor_value,status FROM tennis_ingestion_state WHERE source='WTA_OFFICIAL' AND tour='wta' AND stream='players' LIMIT 1" --json >/tmp/wta-cursor.json
           page="$(jq -r '.[0].results[0].cursor_value // "0"' /tmp/wta-cursor.json)"
           status="$(jq -r '.[0].results[0].status // "PENDING"' /tmp/wta-cursor.json)"
