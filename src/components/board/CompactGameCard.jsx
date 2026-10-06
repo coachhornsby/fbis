@@ -324,7 +324,7 @@ export default function CompactGameCard({ game, onOpen }) {
               <div className="cgc-total-mark">TOTAL</div>
             ) : null}
           </div>
-          <strong>{soccerPick ? `${soccerPick.stars || stars}★` : edge.value}</strong>
+          <strong>{soccerPick ? `${stars}★` : edge.value}</strong>
           <b>{soccerPick ? soccerPick.pick || "—" : edge.detail}</b>
           <small>{soccerPick ? "1X2 · MODEL CONFIDENCE" : edge.type}</small>
         </aside>
