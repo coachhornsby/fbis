@@ -86,22 +86,38 @@ jobs:
       - name: Finalize active state and coverage
         run: |
           set -euo pipefail
+          active_file="artifacts/cfb-player-directory/cfb-player-directory-finalize-active.sql"
+          active_ok=0
           for attempt in 1 2 3 4; do
-            if npx wrangler d1 execute fbis --remote --file=artifacts/cfb-player-directory/cfb-player-directory-finalize.sql; then
-              exit 0
+            if npx wrangler d1 execute fbis --remote --file="${active_file}"; then
+              active_ok=1
+              break
             fi
-            coverage="$(npx wrangler d1 execute fbis --remote --json --command="SELECT COUNT(*) AS n FROM cfb_roster_source_coverage WHERE season BETWEEN ${CFB_ROSTER_START:-2004} AND ${CFB_ROSTER_END:-2026};" || true)"
-            coverage_n="$(printf '%s' "${coverage}" | jq -r '.[0].results[0].n // 0' 2>/dev/null || echo 0)"
-            expected=$(( ${CFB_ROSTER_END:-2026} - ${CFB_ROSTER_START:-2004} + 1 ))
-            if [ "${coverage_n}" -ge "${expected}" ]; then
-              echo "Phase B finalization is durably populated despite Wrangler failure (${coverage_n} coverage rows)"
-              exit 0
-            fi
-            echo "Phase B finalization attempt ${attempt}/4 failed; retrying after bounded backoff"
+            echo "Active-state finalization attempt ${attempt}/4 failed; retrying"
             sleep $((attempt * 10))
           done
-          echo "Phase B finalization failed after retries and durable verification"
-          exit 1
+          test "${active_ok}" -eq 1 || { echo "Active-state finalization failed after retries"; exit 1; }
+
+          for file in artifacts/cfb-player-directory/cfb-player-directory-coverage-20*.sql; do
+            season="$(basename "${file}" .sql | sed 's/.*-//')"
+            ok=0
+            for attempt in 1 2 3 4; do
+              if npx wrangler d1 execute fbis --remote --file="${file}"; then
+                ok=1
+                break
+              fi
+              landed="$(npx wrangler d1 execute fbis --remote --json --command="SELECT COUNT(*) AS n FROM cfb_roster_source_coverage WHERE source='SPORTSDATAVERSE_ESPN_CFB_ROSTERS' AND season=${season};" || true)"
+              landed_n="$(printf '%s' "${landed}" | jq -r '.[0].results[0].n // 0' 2>/dev/null || echo 0)"
+              if [ "${landed_n}" -eq 1 ]; then
+                echo "Coverage season ${season} durably landed despite Wrangler failure"
+                ok=1
+                break
+              fi
+              echo "Coverage season ${season} attempt ${attempt}/4 failed; retrying"
+              sleep $((attempt * 5))
+            done
+            test "${ok}" -eq 1 || { echo "Coverage finalization failed for season ${season}"; exit 1; }
+          done
       - name: Verify production Phase B counts and governance
         run: |
           set -euo pipefail
