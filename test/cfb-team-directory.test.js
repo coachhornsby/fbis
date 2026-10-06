@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {buildCanonicalTeamId,conferenceAt,currentFbsUniverse,isCurrentFbsTeam,isFbsAt,normalizeTeamAlias,stateOverlayPermission,subdivisionAt} from "../functions/lib/cfbTeamDirectory.js";
@@ -43,4 +44,10 @@ test("historical subdivision is temporal and does not use current canonical clas
 test("current FBS selector tolerates source case while persisted builder normalizes labels",()=> {
   assert.equal(isCurrentFbsTeam({active:1,subdivision:"fbs"}),true);
   assert.equal(isCurrentFbsTeam({active:1,subdivision:" fBs "}),true);
+});
+
+
+test("team builder excludes terminal-season exhibition sides from active programs",async()=> {
+  const body=await readFile(new URL("../scripts/cfb-team-directory-build.py", import.meta.url),"utf8");
+  assert.match(body,/not flag\(r,"is_exhibition"\)/);
 });

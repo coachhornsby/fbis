@@ -54,6 +54,16 @@ def pick(row,*cols):
             if pd.notna(v) and str(v).strip(): return v
     return None
 
+def flag(row,col):
+    if col not in row.index:
+        return False
+    v=row[col]
+    if pd.isna(v):
+        return False
+    if isinstance(v,str):
+        return v.strip().lower() in {"1","true","t","yes","y"}
+    return bool(v)
+
 sql=["DELETE FROM cfb_conference_membership WHERE source='SPORTSDATAVERSE_ESPN_CFB_TEAMS';"]
 for _,r in latest.iterrows():
     eid=int(r["team_id"]); team=tid(eid)
@@ -61,7 +71,9 @@ for _,r in latest.iterrows():
     mascot=pick(r,"mascot","nickname")
     conf=pick(r,"cfbd_conference","conference_name")
     subdivision=str(pick(r,"division","classification") or "UNKNOWN").strip().upper()
-    active=1 if eid in current_ids else 0
+    # ESPN terminal-season feeds also contain exhibition/all-star event sides.
+    # Keep those identities for historical matching, but never mark them as active programs.
+    active=1 if eid in current_ids and not flag(r,"is_exhibition") else 0
     source={k:(None if pd.isna(v) else v) for k,v in r.to_dict().items()}
     source_json=json.dumps(source,default=str,separators=(",",":"))
     sql.append(f"""INSERT INTO cfb_canonical_teams
