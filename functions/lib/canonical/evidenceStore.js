@@ -20,31 +20,27 @@ function sameJson(stored,value) {
   }
 }
 
-export async function persistProspectiveEvidence(env, input, eligibilityOptions = {}) {
-  if (!env?.DB) return { ok:false, reason:"D1-unbound" };
-  const row = buildProspectiveEvidence(input);
-  const cohort = promotionCohortEligibility(row, eligibilityOptions);
-  const existing = await env.DB.prepare("SELECT * FROM fbis_prospective_evidence WHERE evidence_id=?").bind(row.evidenceId).first();
-  if (existing) {
-    const immutable = [
-      ["sport",row.sport],["event_id",row.eventId],["event_start_at",row.eventStartAt],["snapshot_at",row.snapshotAt],
-      ["champion_model_id",row.championModelId],["model_id",row.modelId],["model_version",row.modelVersion],
-      ["lifecycle",row.lifecycle],["gate_version",row.gateVersion],["state_snapshot_id",row.stateSnapshotId],
-      ["market_snapshot_id",row.marketSnapshotId],["market_observed_at",row.marketObservedAt],["code_sha",row.codeSha],
-      ["legacy",row.legacy?1:0],["can_qualify",row.canQualify?1:0],["can_authorize",row.canAuthorize?1:0],
-    ];
-    const jsonImmutable = [
-      ["incumbent_projection_json",row.incumbentProjection],["challenger_projection_json",row.challengerProjection],
-      ["governance_json",row.governance],["source_observed_ats_json",row.sourceObservedAts],["state_snapshot_json",row.stateSnapshot],
-      ["market_snapshot_json",row.marketSnapshot],["uncertainty_json",row.uncertainty],
-      ["qualification_authority_json",row.qualificationAuthority],["wager_authority_json",row.wagerAuthority],
-    ];
-    const conflict = immutable.filter(([k,v])=>!same(existing[k],v)).map(([k])=>k)
-      .concat(jsonImmutable.filter(([k,v])=>!sameJson(existing[k],v)).map(([k])=>k));
-    if (conflict.length) return { ok:false, conflict:true, reason:"prospective-evidence-immutable-conflict", fields:conflict };
-    return { ok:true, already:true, promotionEligible:Number(existing.promotion_eligible||0)===1 };
-  }
-  await env.DB.prepare(`INSERT INTO fbis_prospective_evidence(
+
+function prospectiveConflictFields(existing,row) {
+  const immutable = [
+    ["sport",row.sport],["event_id",row.eventId],["event_start_at",row.eventStartAt],["snapshot_at",row.snapshotAt],
+    ["champion_model_id",row.championModelId],["model_id",row.modelId],["model_version",row.modelVersion],
+    ["lifecycle",row.lifecycle],["gate_version",row.gateVersion],["state_snapshot_id",row.stateSnapshotId],
+    ["market_snapshot_id",row.marketSnapshotId],["market_observed_at",row.marketObservedAt],["code_sha",row.codeSha],
+    ["legacy",row.legacy?1:0],["can_qualify",row.canQualify?1:0],["can_authorize",row.canAuthorize?1:0],
+  ];
+  const jsonImmutable = [
+    ["incumbent_projection_json",row.incumbentProjection],["challenger_projection_json",row.challengerProjection],
+    ["governance_json",row.governance],["source_observed_ats_json",row.sourceObservedAts],["state_snapshot_json",row.stateSnapshot],
+    ["market_snapshot_json",row.marketSnapshot],["uncertainty_json",row.uncertainty],
+    ["qualification_authority_json",row.qualificationAuthority],["wager_authority_json",row.wagerAuthority],
+  ];
+  return immutable.filter(([k,v])=>!same(existing[k],v)).map(([k])=>k)
+    .concat(jsonImmutable.filter(([k,v])=>!sameJson(existing[k],v)).map(([k])=>k));
+}
+
+function prospectiveInsertStatement(db,row,cohort) {
+  return db.prepare(`INSERT INTO fbis_prospective_evidence(
     evidence_id,contract_version,sport,event_id,event_start_at,snapshot_at,champion_model_id,model_id,model_version,lifecycle,
     gate_version,state_snapshot_id,market_snapshot_id,market_observed_at,code_sha,incumbent_projection_json,challenger_projection_json,
     governance_json,temporal_integrity,legacy,can_qualify,can_authorize,source_observed_ats_json,state_snapshot_json,market_snapshot_json,
@@ -54,7 +50,44 @@ export async function persistProspectiveEvidence(env, input, eligibilityOptions 
     row.gateVersion,row.stateSnapshotId,row.marketSnapshotId,row.marketObservedAt,row.codeSha,j(row.incumbentProjection),j(row.challengerProjection),
     j(row.governance),row.temporalIntegrity.ok?1:0,row.legacy?1:0,row.canQualify?1:0,row.canAuthorize?1:0,j(row.sourceObservedAts),j(row.stateSnapshot),
     j(row.marketSnapshot),j(row.uncertainty),j(row.temporalIntegrity),j(row.qualificationAuthority),j(row.wagerAuthority),cohort.eligible?1:0,j(cohort.reasons)
-  ).run();
+  );
+}
+
+export async function persistProspectiveEvidenceAtomic(env, input, { eligibilityOptions = {}, beforeStatements = [] } = {}) {
+  if (!env?.DB) return { ok:false, reason:"D1-unbound" };
+  if (typeof env.DB.batch !== "function") return { ok:false, reason:"atomic-batch-required" };
+  const row = buildProspectiveEvidence(input);
+  const cohort = promotionCohortEligibility(row, eligibilityOptions);
+  const existing = await env.DB.prepare("SELECT * FROM fbis_prospective_evidence WHERE evidence_id=?").bind(row.evidenceId).first();
+  if (existing) {
+    const conflict = prospectiveConflictFields(existing,row);
+    if (conflict.length) return { ok:false, conflict:true, reason:"prospective-evidence-immutable-conflict", fields:conflict };
+    const beforeResults = beforeStatements.length ? await env.DB.batch(beforeStatements) : [];
+    return { ok:true, already:true, beforeResults, promotionEligible:Number(existing.promotion_eligible||0)===1 };
+  }
+  const statements = [...beforeStatements, prospectiveInsertStatement(env.DB,row,cohort)];
+  const results = await env.DB.batch(statements);
+  return {
+    ok:true,
+    inserted:true,
+    beforeResults:results.slice(0,beforeStatements.length),
+    canonicalResult:results[results.length-1]||null,
+    promotionEligible:cohort.eligible,
+    promotionExclusionReasons:cohort.reasons,
+  };
+}
+
+export async function persistProspectiveEvidence(env, input, eligibilityOptions = {}) {
+  if (!env?.DB) return { ok:false, reason:"D1-unbound" };
+  const row = buildProspectiveEvidence(input);
+  const cohort = promotionCohortEligibility(row, eligibilityOptions);
+  const existing = await env.DB.prepare("SELECT * FROM fbis_prospective_evidence WHERE evidence_id=?").bind(row.evidenceId).first();
+  if (existing) {
+    const conflict = prospectiveConflictFields(existing,row);
+    if (conflict.length) return { ok:false, conflict:true, reason:"prospective-evidence-immutable-conflict", fields:conflict };
+    return { ok:true, already:true, promotionEligible:Number(existing.promotion_eligible||0)===1 };
+  }
+  await prospectiveInsertStatement(env.DB,row,cohort).run();
   return { ok:true, inserted:true, promotionEligible:cohort.eligible, promotionExclusionReasons:cohort.reasons };
 }
 
