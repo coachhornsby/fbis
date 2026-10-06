@@ -41,7 +41,7 @@ test("EV handles push probability by using win and loss only", () => {
   assert.ok(ev > 0.05 && ev < 0.06);
 });
 
-test("market evaluator surfaces research signal but never wager authority", () => {
+test("market evaluator can qualify a strict edge but never authorize staking", () => {
   const result = evaluateMlbF5Market({
     projection: { home: 3.2, away: 1.4 },
     market: {
@@ -57,11 +57,14 @@ test("market evaluator surfaces research signal but never wager authority", () =
     },
     lineupsOfficial: true,
   });
-  assert.equal(result.canQualify, false);
-  assert.equal(result.qualificationState, "RESEARCH_ONLY");
+  assert.equal(result.canQualify, true);
+  assert.equal(result.canAuthorize, false);
+  assert.equal(result.qualificationState, "QUALIFIED_STAKING_DISABLED");
   assert.ok(result.markets.length >= 6);
   assert.ok(result.bestResearchSignal);
   assert.equal(result.bestResearchSignal.researchQualified, true);
+  assert.ok(result.bestQualifiedSignal);
+  assert.ok(result.markets.some((m) => m.canQualify === true));
 });
 
 test("market evaluator fails closed when no F5 quote exists", () => {
