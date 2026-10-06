@@ -381,7 +381,7 @@ test("identical ACTION quote state across acquisition runs shares one canonical 
 
 test("ACTION daily start claims one canonical paid run before starting Apify", async () => {
   const api = await readFile(new URL("../functions/api/action-daily-async.js", import.meta.url), "utf8");
-  assert.match(api, /daily_\$\{today\.replaceAll\("-", ""\)\}_canonical/);
+  assert.match(api, /daily_\$\{today\.replaceAll\("-",""\)\}_canonical/);
   assert.match(api, /INSERT OR IGNORE INTO shadow_collection_runs/);
   assert.match(api, /"starting_daily"/);
   assert.match(api, /Number\(claim\?\.meta\?\.changes\|\|0\)===0/);
