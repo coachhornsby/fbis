@@ -3,6 +3,7 @@ import { buildSlate } from "../lib/slateEngine.js";
 import { canonicalizeProPlayerPropMarket } from "../lib/proPlayerProps.js";
 import { sha256Hex } from "../lib/sha256Hex.js";
 import { MLB_PROP_PROMOTION_GATE_VERSION } from "../lib/mlbPropPromotionGovernance.js";
+import { buildEconomicGrade, noVigPair } from "../lib/canonical/economicGrading.js";
 
 const SUPPORTED_MARKETS=new Set([
   "strikeouts","pitcher_outs","walks_allowed","hits_allowed","earned_runs","pitch_count",
@@ -173,20 +174,36 @@ async function capture(context,{date,shard=0,shards=1}={}){
       if(Number(result?.meta?.changes||0)>0){
         accepted++;
         const stateSnapshotId=sha256Hex(JSON.stringify(["mlb_prop_state",g.id,r.playerId||norm(r.playerName),stateAsOf,modelVersion]));
+        const championProjection={championModel:String(g.championModel||slate.modelVersion||"FBIS-v1.4")};
+        const challengerProjection={playerId:r.playerId||null,playerName:r.playerName,market:r.market,projection:num(r.fbisProjection),sigma:num(r.fbisSigma),candidateSide:side};
+        const marketSnapshot={marketSource:q.marketSource,sportsbook:q.sportsbook,oddsTier:q.oddsTier,marketLine:q.line,observedAt:q.observedAt,raw:q.raw||null};
+        const uncertainty={sigma:num(r.fbisSigma),state:num(r.fbisSigma)==null?"UNKNOWN":"OBSERVED"};
+        const qualificationAuthority={canQualify:false,source:"MLB_PROP_PROMOTION_GATE",gateVersion:MLB_PROP_PROMOTION_GATE_VERSION};
+        const wagerAuthority={canAuthorize:false,source:"MODEL_GOVERNANCE"};
         await db.prepare(`INSERT OR IGNORE INTO fbis_prospective_evidence(
           evidence_id,contract_version,sport,event_id,event_start_at,snapshot_at,champion_model_id,model_id,model_version,
           lifecycle,gate_version,state_snapshot_id,market_snapshot_id,market_observed_at,code_sha,
           incumbent_projection_json,challenger_projection_json,governance_json,temporal_integrity,legacy,
-          can_qualify,can_authorize,created_at
-        ) VALUES(?,?,?,?,?,?,?,?,?,'SHADOW',?,?,?,?,?,?,?,?,1,0,0,0,?)`)
+          can_qualify,can_authorize,source_observed_ats_json,state_snapshot_json,market_snapshot_json,
+          uncertainty_json,temporal_diagnostics_json,qualification_authority_json,wager_authority_json,
+          promotion_eligible,promotion_exclusion_reasons_json,created_at
+        ) VALUES(?,?,?,?,?,?,?,?,?,'SHADOW',?,?,?,?,?,?,?,?,1,0,0,0,?,?,?,?,?,?,?,0,?,?)`)
         .bind(
           id,"FBIS-PROSPECTIVE-EVIDENCE-v1","mlb",String(g.id),eventStart,decisionAt,
           String(g.championModel||slate.modelVersion||"FBIS-v1.4"),modelSource,modelVersion,
           MLB_PROP_PROMOTION_GATE_VERSION,stateSnapshotId,duplicateKey,q.observedAt,
           context.env.CF_PAGES_COMMIT_SHA||null,
-          JSON.stringify({championModel:String(g.championModel||slate.modelVersion||"FBIS-v1.4")}),
-          JSON.stringify({playerId:r.playerId||null,playerName:r.playerName,market:r.market,projection:num(r.fbisProjection),sigma:num(r.fbisSigma),candidateSide:side}),
+          JSON.stringify(championProjection),
+          JSON.stringify(challengerProjection),
           JSON.stringify({stateBeforeWeight:true,rawProjectionDistanceCanPromote:false,canQualify:false,canAuthorizeWager:false,projectionUnitKey,marketSource:q.marketSource,sportsbook:q.sportsbook,oddsTier:q.oddsTier,marketLine:q.line}),
+          JSON.stringify([sourceObservedAt,q.observedAt].filter(Boolean)),
+          JSON.stringify(stateSnapshot),
+          JSON.stringify(marketSnapshot),
+          JSON.stringify(uncertainty),
+          JSON.stringify({ok:true,problems:[]}),
+          JSON.stringify(qualificationAuthority),
+          JSON.stringify(wagerAuthority),
+          JSON.stringify(["SHADOW_RESEARCH_ONLY"]),
           decisionAt
         ).run();
       }else duplicates++;
