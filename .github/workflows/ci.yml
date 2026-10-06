@@ -95,16 +95,18 @@ jobs:
           # before apply so already-present columns are not ALTER'd again.
           # Cloudflare D1 occasionally returns transient internal 7500 errors
           # on bookkeeping queries. Retry the whole idempotent sync/apply pair.
-          for attempt in 1 2 3 4; do
-            echo "D1 migration attempt $attempt/4"
+          for attempt in 1 2 3 4 5 6 7 8; do
+            echo "D1 migration attempt $attempt/8"
             if node scripts/sync-d1-migrations.mjs && npx wrangler d1 migrations apply fbis --remote; then
               exit 0
             fi
-            if [ "$attempt" -lt 4 ]; then
-              sleep $((attempt * 5))
+            if [ "$attempt" -lt 8 ]; then
+              # Long-running D1 imports serialize at the account/database level.
+              # Back off long enough for an unrelated bounded import to drain.
+              sleep $((attempt * 10))
             fi
           done
-          echo "D1 migration sync/apply failed after bounded retries"
+          echo "D1 migration sync/apply failed after bounded contention retries"
           exit 1
 
       - name: Build production artifact

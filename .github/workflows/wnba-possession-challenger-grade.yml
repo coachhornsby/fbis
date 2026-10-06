@@ -31,7 +31,16 @@ jobs:
           set -euo pipefail
           d="$(TZ=America/Chicago date -d 'yesterday' +%F)"
           body="$(mktemp)"
-          http="$(curl -sS --max-time 120 --retry 2 --retry-delay 3             -X POST             -H "x-harvest-secret: ${HARVEST_SECRET}"             -H "content-type: application/json"             --data-binary "$(jq -nc --arg date "$d" '{date:$date}')"             -o "$body" -w "%{http_code}"             "${BASE}/api/wnba-possession-challenger-grade" || true)"
+          http=""
+          for attempt in 1 2 3 4 5 6; do
+            http="$(curl -sS --max-time 90 --retry 1 --retry-delay 3               -X POST               -H "x-harvest-secret: ${HARVEST_SECRET}"               -H "content-type: application/json"               --data-binary "$(jq -nc --arg date "$d" '{date:$date}')"               -o "$body" -w "%{http_code}"               "${BASE}/api/wnba-possession-challenger-grade" || true)"
+            if [ "$http" = "200" ] && jq -e '.ok==true' "$body" >/dev/null 2>&1; then
+              break
+            fi
+            echo "grade attempt=$attempt http=$http; waiting for deployment/D1"
+            cat "$body" || true
+            sleep 30
+          done
           cat "$body"
           test "$http" = "200"
           jq -e '.ok==true' "$body" >/dev/null

@@ -52,9 +52,20 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0080_wnba_possession_challenger_shadow.sql
+          # Schema is deployment-owned. This scheduled job performs bounded
+          # point-in-time inserts only and retries transient D1 contention.
           if [ -s artifacts/wnba-team-possession-features.sql ]; then
-            npx wrangler d1 execute fbis --remote --file=artifacts/wnba-team-possession-features.sql
+            sql="$(cat artifacts/wnba-team-possession-features.sql)"
+            ok=0
+            for attempt in 1 2 3 4 5 6; do
+              echo "feature D1 write attempt=$attempt/6"
+              if npx wrangler d1 execute fbis --remote --command "$sql"; then
+                ok=1
+                break
+              fi
+              sleep $((attempt * 8))
+            done
+            test "$ok" = "1"
           fi
           npx wrangler r2 object put "fbis-archive/models/wnba/possession-challenger/v1/team-features-current.json" --file artifacts/wnba-team-possession-features.json --remote
 
