@@ -64,6 +64,8 @@ jobs:
             .playerSnapshots > 0 and
             .scheduleItems > 0 and
             .storageFootprintBytes < 250000000 and
+            .sqlStatements > 0 and
+            .sqlChunks > 0 and
             .governance.researchOnly == true and
             .governance.canInfluenceProjection == false and
             .governance.canQualify == false and
