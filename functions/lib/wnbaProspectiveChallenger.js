@@ -162,7 +162,7 @@ export function attachWnbaProspectiveGameChallengers(games=[],ctx={}){
   return {games:next,meta:{attached,combinedEnabled,combinedMinIsolatedN:WNBA_COMBINED_MIN_ISOLATED_N,leaguePace,models:isolatedIds,combinedModel:WNBA_COMBINED_CHALLENGER_ID,canQualify:false,canAuthorize:false,marketInformed:false}};
 }
 
-function oppMarketProjection(row,impactCtx,roleCtx){
+function oppMarketProjection(row,impactCtx,roleCtx,expectedTeammates=null){
   const base=finite(row?.fbisProjection),market=String(row?.market||"");
   if(base==null)return null;
   const skill=impactCtx?.skill||{};
@@ -188,7 +188,7 @@ function oppMarketProjection(row,impactCtx,roleCtx){
     reboundOppMean:rebOppMean,reboundOppSd:rebOppMean==null?null:Math.max(1,Math.sqrt(rebOppMean)*.8),
     assistOppMean:astOppMean,assistOppSd:astOppMean==null?null:Math.max(.8,Math.sqrt(astOppMean)*.8),
     availabilityVerified,
-    expectedTeammates:null,
+    expectedTeammates,
     availabilityContext:roleCtx?.unavailable||[],
     featureCutoffTimestamp:roleCtx?.featureCutoffTimestamp||null,
     modelId:WNBA_PLAYER_OPPORTUNITY_ID,modelVersion:WNBA_POSSESSION_CHALLENGER_VERSION,
@@ -198,14 +198,21 @@ function oppMarketProjection(row,impactCtx,roleCtx){
 }
 export function attachWnbaPlayerOpportunityShadows(games=[],impactCtx={}){
   let rows=0;
-  const next=(games||[]).map(game=>({
-    ...game,
-    playerProjectionRows:(game.playerProjectionRows||[]).map(row=>{
-      const p=impactCtx.players?.[String(row.playerId)]||null,rc=impactCtx.roles?.[String(row.playerId)]||null;
-      const shadow=oppMarketProjection(row,p,rc);
-      if(shadow)rows++;
-      return {...row,opportunityShadow:shadow};
-    })
-  }));
+  const next=(games||[]).map(game=>{
+    const projected=game.playerProjectionRows||[];
+    return {
+      ...game,
+      playerProjectionRows:projected.map(row=>{
+        const p=impactCtx.players?.[String(row.playerId)]||null,rc=impactCtx.roles?.[String(row.playerId)]||null;
+        const unavailableIds=new Set((rc?.unavailable||[]).filter(x=>String(x.status||"").toUpperCase()==="OUT").map(x=>String(x.playerId)));
+        const expectedTeammates=[...new Map(projected
+          .filter(x=>String(x.team||"")===String(row.team||"")&&String(x.playerId)!==String(row.playerId)&&!unavailableIds.has(String(x.playerId)))
+          .map(x=>[String(x.playerId),{playerId:String(x.playerId),playerName:x.playerName}])).values()];
+        const shadow=oppMarketProjection(row,p,rc,expectedTeammates);
+        if(shadow)rows++;
+        return {...row,opportunityShadow:shadow};
+      })
+    };
+  });
   return {games:next,meta:{modelId:WNBA_PLAYER_OPPORTUNITY_ID,rows,canQualify:false,canAuthorize:false,marketInformed:false}};
 }
