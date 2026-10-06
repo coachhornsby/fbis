@@ -89,7 +89,9 @@ export async function onRequestPost(context){
       const s=finals.get(String(r.event_id));if(!s)continue;
       const p=s.players.find(x=>String(x.id)===String(r.player_id))||s.players.find(x=>norm(x.name)===norm(r.player_name)),actual=actualFor(p,String(r.market_type));
       if(actual==null)continue;
-      await db.prepare(`UPDATE wnba_player_opportunity_shadow SET actual_value=?,baseline_abs_error=?,opportunity_abs_error=?,graded_at=? WHERE id=?`).bind(actual,Math.abs(finite(r.baseline_projection)-actual),Math.abs(finite(r.opportunity_projection)-actual),now,r.id).run();gradedProps++;
+      const base=finite(r.baseline_projection),opp=finite(r.opportunity_projection);
+      const baseErr=base==null?null:Math.abs(base-actual),oppErr=opp==null?null:Math.abs(opp-actual);
+      await db.prepare(`UPDATE wnba_player_opportunity_shadow SET actual_value=?,baseline_abs_error=?,opportunity_abs_error=?,graded_at=? WHERE id=?`).bind(actual,baseErr,oppErr,now,r.id).run();gradedProps++;
     }
 
     const models=await db.prepare(`SELECT model_id,COUNT(*) n,AVG(baseline_margin_abs_error) bm,AVG(challenger_margin_abs_error) cm,AVG(baseline_total_abs_error) bt,AVG(challenger_total_abs_error) ct,AVG(winner_brier_baseline) bb,AVG(winner_brier_challenger) cb FROM wnba_game_possession_challenger_shadow WHERE graded_at IS NOT NULL GROUP BY model_id`).all();
@@ -112,10 +114,17 @@ export async function onRequestPost(context){
       decisions[x.model_id]={n:Number(x.n),marginMaeDelta:md,totalMaeDelta:td,brierDelta:bd,bets,units,roi:bets?units/bets:null,avgClvLine:clv,reliableN:Number(rel?.n||0),decision};
       await db.prepare(`INSERT OR REPLACE INTO wnba_possession_challenger_validation (id,model_id,model_version,validation_type,n,baseline_margin_mae,challenger_margin_mae,margin_mae_delta,baseline_total_mae,challenger_total_mae,total_mae_delta,baseline_brier,challenger_brier,brier_delta,lineup_reliability_threshold,reliable_n,details_json,decision,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(`${x.model_id}:${now}`,x.model_id,"prospective-shadow-v1","PROSPECTIVE",Number(x.n),finite(x.bm),finite(x.cm),md,finite(x.bt),finite(x.ct),td,finite(x.bb),finite(x.cb),bd,WNBA_LINEUP_RELIABILITY_REPORT_THRESHOLD,Number(rel?.n||0),JSON.stringify({economics:econ,reliable:rel||null}),decision,now).run();
     }
-    const propAgg=await db.prepare(`SELECT market_type,COUNT(*) n,AVG(baseline_abs_error) bm,AVG(opportunity_abs_error) om,SUM(availability_verified) verified_n FROM wnba_player_opportunity_shadow WHERE graded_at IS NOT NULL GROUP BY market_type`).all();
+    const propAgg=await db.prepare(`SELECT market_type,
+      COUNT(*) state_n,
+      SUM(CASE WHEN baseline_abs_error IS NOT NULL AND opportunity_abs_error IS NOT NULL THEN 1 ELSE 0 END) n,
+      AVG(baseline_abs_error) bm,AVG(opportunity_abs_error) om,SUM(availability_verified) verified_n
+      FROM wnba_player_opportunity_shadow WHERE graded_at IS NOT NULL GROUP BY market_type`).all();
     const prop={};
-    for(const x of propAgg.results||[]){const delta=finite(x.om)-finite(x.bm),decision=Number(x.n)>=300&&delta<0?"CONTINUE_SHADOW":"CONTINUE_SHADOW";prop[x.market_type]={n:Number(x.n),baselineMae:finite(x.bm),opportunityMae:finite(x.om),maeDelta:delta,availabilityVerifiedN:Number(x.verified_n||0),decision};
-      await db.prepare(`INSERT OR REPLACE INTO wnba_player_opportunity_validation (id,model_id,model_version,market_type,n,baseline_mae,opportunity_mae,mae_delta,availability_verified_n,details_json,decision,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).bind(`WNBA-PLAYER-OPPORTUNITY-v1:${x.market_type}:${now}`,"WNBA-PLAYER-OPPORTUNITY-v1","prospective-shadow-v1",x.market_type,Number(x.n),finite(x.bm),finite(x.om),delta,Number(x.verified_n||0),JSON.stringify({meanAnchored:true}),decision,now).run();
+    for(const x of propAgg.results||[]){
+      const bm=finite(x.bm),om=finite(x.om),delta=bm==null||om==null?null:om-bm;
+      const comparableN=Number(x.n||0),stateN=Number(x.state_n||0),decision="CONTINUE_SHADOW";
+      prop[x.market_type]={stateN,n:comparableN,baselineMae:bm,opportunityMae:om,maeDelta:delta,availabilityVerifiedN:Number(x.verified_n||0),decision};
+      await db.prepare(`INSERT OR REPLACE INTO wnba_player_opportunity_validation (id,model_id,model_version,market_type,n,baseline_mae,opportunity_mae,mae_delta,availability_verified_n,details_json,decision,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).bind(`WNBA-PLAYER-OPPORTUNITY-v1:${x.market_type}:${now}`,"WNBA-PLAYER-OPPORTUNITY-v1","prospective-shadow-v1",x.market_type,comparableN,bm,om,delta,Number(x.verified_n||0),JSON.stringify({stateN,comparableN,meanInvented:false}),decision,now).run();
     }
     return json({ok:true,date,events:ids.length,gradedGames,settledMarkets,gradedProps,decisions,playerOpportunity:prop,errors,productionPromotionApplied:false});
   }catch(err){return json({ok:false,date,error:String(err?.message||err)},500)}
