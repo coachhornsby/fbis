@@ -3695,3 +3695,77 @@ CREATE TABLE IF NOT EXISTS asian_baseball_backfill_shards (
 );
 CREATE INDEX IF NOT EXISTS idx_asian_baseball_backfill_status
   ON asian_baseball_backfill_shards(status,league,season,month);
+
+
+-- Soccer Phase 3F research-only routing registry + prospective shadow ledger (migration 0079).
+CREATE TABLE IF NOT EXISTS soccer_research_routes (
+  route_id TEXT PRIMARY KEY,
+  route_version TEXT NOT NULL,
+  competition_key TEXT NOT NULL,
+  market_family TEXT NOT NULL,
+  incumbent_model_id TEXT NOT NULL,
+  challenger_model_id TEXT NOT NULL,
+  evidence_snapshot_id TEXT NOT NULL,
+  evidence_code_sha TEXT NOT NULL,
+  evidence_sample_n INTEGER NOT NULL,
+  validation_classification TEXT NOT NULL CHECK(validation_classification IN ('PASS','PARTIAL_PASS','FAIL','INSUFFICIENT_EVIDENCE')),
+  approval_state TEXT NOT NULL,
+  historical_market_status TEXT NOT NULL,
+  shadow_eligible INTEGER NOT NULL DEFAULT 0,
+  research_only INTEGER NOT NULL DEFAULT 1 CHECK(research_only=1),
+  can_qualify INTEGER NOT NULL DEFAULT 0 CHECK(can_qualify=0),
+  can_authorize INTEGER NOT NULL DEFAULT 0 CHECK(can_authorize=0),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(route_version,competition_key,market_family)
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_research_routes_lookup
+  ON soccer_research_routes(competition_key,market_family,route_version);
+CREATE INDEX IF NOT EXISTS idx_soccer_research_routes_evidence
+  ON soccer_research_routes(evidence_snapshot_id,evidence_code_sha,validation_classification);
+
+CREATE TABLE IF NOT EXISTS soccer_prospective_shadow (
+  shadow_id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  competition_key TEXT NOT NULL,
+  market_family TEXT NOT NULL,
+  selection TEXT NOT NULL,
+  event_start_at TEXT,
+  snapshot_at TEXT NOT NULL,
+  route_id TEXT NOT NULL,
+  route_version TEXT NOT NULL,
+  evidence_snapshot_id TEXT NOT NULL,
+  evidence_code_sha TEXT NOT NULL,
+  incumbent_model_id TEXT NOT NULL,
+  challenger_model_id TEXT NOT NULL,
+  selected_research_model_id TEXT NOT NULL,
+  v2_probability REAL,
+  v31_probability REAL,
+  market_no_vig_probability REAL,
+  entry_line REAL,
+  entry_price REAL,
+  line_timestamp TEXT,
+  close_line REAL,
+  close_price REAL,
+  close_no_vig_probability REAL,
+  close_timestamp TEXT,
+  realized_result TEXT,
+  clv_probability REAL,
+  simulated_profit_units REAL,
+  simulated_roi REAL,
+  market_history_available INTEGER NOT NULL DEFAULT 0,
+  market_unavailable_reason TEXT,
+  graded_at TEXT,
+  provenance_json TEXT NOT NULL,
+  research_only INTEGER NOT NULL DEFAULT 1 CHECK(research_only=1),
+  can_qualify INTEGER NOT NULL DEFAULT 0 CHECK(can_qualify=0),
+  can_authorize INTEGER NOT NULL DEFAULT 0 CHECK(can_authorize=0),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(event_id,market_family,selection,snapshot_at),
+  FOREIGN KEY(route_id) REFERENCES soccer_research_routes(route_id)
+);
+CREATE INDEX IF NOT EXISTS idx_soccer_prospective_shadow_event
+  ON soccer_prospective_shadow(event_id,market_family,snapshot_at);
+CREATE INDEX IF NOT EXISTS idx_soccer_prospective_shadow_route
+  ON soccer_prospective_shadow(route_id,graded_at,snapshot_at);
+CREATE INDEX IF NOT EXISTS idx_soccer_prospective_shadow_grade
+  ON soccer_prospective_shadow(competition_key,market_family,graded_at,snapshot_at);
