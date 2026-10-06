@@ -1,0 +1,33 @@
+{
+  "governanceId": "FBIS-STATE-OVERLAY-v1",
+  "gateId": "NFL-QB-PROSPECTIVE-GATE-v1",
+  "modelId": "NFL-QB-PERSONNEL-OVERLAY-v1",
+  "champion": "NFL-PRO-v1.1",
+  "frozenAt": "2026-10-06T03:40:00Z",
+  "autoPromote": false,
+  "operatorApprovalRequired": true,
+  "thresholds": {
+    "minTotalGradedGames": 160,
+    "minGateFiredGames": 50,
+    "minGateFiredWeeks": 12,
+    "minDistinctSeasons": 2,
+    "maxOverallMarginMaeDeterioration": 0.05,
+    "minGatedMarginMaeImprovement": 0.1,
+    "maxGatedBrierDeterioration": 0,
+    "maxGatedLogLossDeterioration": 0,
+    "minStableWeekShare": 0.67,
+    "maxTemporalIntegrityViolations": 0,
+    "requireTotalsExactEquality": true,
+    "requireGateOffExactEquality": true
+  },
+  "interpretation": {
+    "stabilityWeekDefinition": "week with >=2 gate-fired graded games",
+    "stableWeekDefinition": "challenger gated margin MAE <= incumbent gated margin MAE + 0.10",
+    "concentrationRule": "gated margin MAE must improve by at least 0.10 while non-gated projections remain exactly equal to incumbent",
+    "probabilityRule": "gated Brier and log loss must be non-inferior",
+    "seasonRule": "at least two prospective seasons must contain graded gate-fired games",
+    "totalsRule": "challenger total must equal incumbent total for every frozen row",
+    "temporalRule": "no state or market evidence timestamp may be later than the freeze timestamp"
+  },
+  "finalDecision": "Passing this research gate never promotes automatically. Explicit operator approval is still required."
+}
