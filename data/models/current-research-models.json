@@ -21,14 +21,14 @@
       "currentResearchModel": "SOCCER-FBIS-v2",
       "incumbentStructuralModel": "SOCCER-FBIS-v1",
       "fitArtifact": "functions/lib/soccerFbisV2.js",
-      "status": "historical-evidence-pass-market-benchmark-no-pass",
+      "status": "phase3-parallel-research-persistent-state-and-v3.1-validation",
       "canQualify": false,
       "canAuthorizeWager": false,
       "notes": "SOCCER-FBIS-v2 beat v1 on the same 7,759-match true expanding walk-forward sample: accuracy 49.86% vs 49.72%, Brier 0.20269 vs 0.20376, log loss 1.01608 vs 1.02130, ECE 0.00450 vs 0.01101. On the retained 206-game Zen ACTION no-vig sample, v2 top-pick accuracy was 52.43% vs market 51.46%, but probability scoring remained worse (Brier 0.20559 vs 0.20064; log loss 1.03236 vs 1.00506), so market promotion did not pass. Optional xG/xGA, PPDA, deep completions and expected-points fields activate only when rights-cleared upstream data exists. Prospective research continues; wager authority remains off. SOCCER-FBIS-v3 is the PitchAPI advanced-data shadow challenger. It remains behind v2 until PitchAPI history is backfilled and true walk-forward/market gates improve probability quality. Historical actual lineups are never treated as pre-kick evidence; only lineup observations captured before kickoff are eligible. Player-impact and lineup layers are stored for prospective shadow evaluation and are not yet allowed to alter v3 probabilities.",
       "advancedDataChallenger": "SOCCER-FBIS-v3",
       "advancedDataChallengerVersion": "research-v1.1-pitchapi-full-reference",
       "advancedDataSource": "PitchAPI",
-      "advancedDataStatus": "full-reference-ingestion-built-backfill-validation-required",
+      "advancedDataStatus": "phase3-backfill-running-persistent-state-research-live-validation-pending-depth",
       "advancedDataCanQualify": false,
       "advancedDataCanAuthorize": false,
       "advancedFeatureFamilies": [
@@ -49,7 +49,31 @@
         "goalkeeper-impact",
         "pre-kick-lineups",
         "player-half-load"
-      ]
+      ],
+      "persistentStateResearch": {
+        "status": "BUILT_RESEARCH_ONLY",
+        "canInfluenceProjection": false,
+        "canQualify": false,
+        "canAuthorize": false,
+        "layers": [
+          "manager",
+          "formation",
+          "lineup-continuity",
+          "expected-xi-observation",
+          "goalkeeper-evidence",
+          "minutes-load",
+          "fixture-congestion",
+          "competition-mix",
+          "rotation-index",
+          "availability-observations"
+        ],
+        "unavailableWithoutVerifiedSource": [
+          "injury-status",
+          "suspension-status",
+          "travel-distance"
+        ],
+        "temporalPolicy": "state snapshots require explicit as-of/data-cutoff; historical post-kick evidence may not leak into pre-kick tests"
+      }
     },
     "nba": {
       "currentResearchModel": "NBA-FBIS-v1",
