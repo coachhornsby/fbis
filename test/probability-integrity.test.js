@@ -501,3 +501,24 @@ describe("CFB missing evidence remains null", () => {
     assert.equal(priorSeason.byEspnId["194"].coachFirstYear, 2018);
   });
 });
+
+
+describe("strategy ticket ledger concurrency contract", () => {
+  it("re-reads INSERT OR IGNORE races before accepting a replay", async () => {
+    const store = await import("node:fs/promises").then(({ readFile }) =>
+      readFile(new URL("../functions/lib/store.js", import.meta.url), "utf8")
+    );
+    assert.match(store, /insert-race-readback-missing/);
+    assert.match(store, /replayRecovered: true/);
+    assert.match(store, /duplicate-conflict/);
+  });
+
+  it("grades OPEN strategy tickets with compare-and-set semantics", async () => {
+    const store = await import("node:fs/promises").then(({ readFile }) =>
+      readFile(new URL("../functions/lib/store.js", import.meta.url), "utf8")
+    );
+    assert.match(store, /WHERE id = \? AND \(result IS NULL OR result = 'OPEN'\)/);
+    assert.match(store, /Number\(write\?\.meta\?\.changes\)/);
+    assert.match(store, /settled-immutable/);
+  });
+});
