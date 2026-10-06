@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildMlbPersistentPlayerPropRows } from "../functions/lib/mlbPlayerPropModel.js";
 import { canonicalizeProPlayerPropMarket } from "../functions/lib/proPlayerProps.js";
+import { classifyMlbPropPromotionEvidence, MLB_PROP_PROMOTION_GOVERNANCE } from "../functions/lib/mlbPropPromotionGovernance.js";
+import fs from "node:fs";
 
 function sc(role,kRate=.22){
   return {
@@ -47,4 +49,51 @@ test("MLB batter walks canonicalizes independently from pitcher walks allowed",(
   assert.equal(canonicalizeProPlayerPropMarket("mlb","pitcher_walks"),"walks_allowed");
   assert.equal(canonicalizeProPlayerPropMarket("mlb","pitches_thrown"),"pitch_count");
   assert.equal(canonicalizeProPlayerPropMarket("mlb","h_r_rbi"),"hits_runs_rbis");
+});
+
+
+test("MLB prop promotion gate is explicit and fail-closed during evaluation",()=>{
+  assert.equal(MLB_PROP_PROMOTION_GOVERNANCE.autoPromotion,false);
+  assert.equal(MLB_PROP_PROMOTION_GOVERNANCE.canQualifyDuringEvaluation,false);
+  assert.equal(MLB_PROP_PROMOTION_GOVERNANCE.canAuthorizeWagerDuringEvaluation,false);
+  assert.equal(MLB_PROP_PROMOTION_GOVERNANCE.rawProjectionDistanceCanPromote,false);
+  assert.equal(classifyMlbPropPromotionEvidence({settledN:0,walkForwardN:0,distinctDates:0}).classification,"INSUFFICIENT_DATA");
+});
+
+test("MLB promotion readiness requires strong market-specific prospective evidence",()=>{
+  const evidence={
+    settledN:1200,walkForwardN:800,distinctDates:60,
+    directionalWalkForwardN:{OVER:350,UNDER:350},
+    distanceBuckets:[{n:100},{n:100},{n:100},{n:100}],
+    edgeHitMonotonic:true,bucketRankCorrelation:.75,
+    calibratedBrier:.22,calibratedEce:.03,absoluteBiasSdShare:.06,
+    maeImprovementVsBestNonMarketBaseline:.04,
+    prospectiveDays:21,temporalIntegrity:true,stateBeforeWeight:true,
+    maxMaterialSegmentRelativeMaeDegradation:.06,
+  };
+  const out=classifyMlbPropPromotionEvidence(evidence);
+  assert.equal(out.classification,"PROMOTION_READY");
+  assert.equal(out.promotionAllowed,false);
+  assert.equal(out.autoPromotion,false);
+});
+
+test("MLB rare-event markets may use proper-score improvement instead of MAE",()=>{
+  const evidence={
+    settledN:600,walkForwardN:350,distinctDates:35,
+    directionalWalkForwardN:{OVER:120,UNDER:120},
+    distanceBuckets:[{n:50},{n:50},{n:50}],
+    edgeHitMonotonic:true,bucketRankCorrelation:.65,
+    calibratedBrier:.24,calibratedEce:.05,absoluteBiasSdShare:.10,
+    rareEventMarket:true,properScoreImprovementVsBestNonMarketBaseline:.02,
+  };
+  assert.equal(classifyMlbPropPromotionEvidence(evidence).classification,"CALIBRATION_CANDIDATE");
+});
+
+test("PrizePicks persistence retains separate prop model source and version lineage",()=>{
+  const api=fs.readFileSync(new URL("../functions/api/prizepicks-props.js",import.meta.url),"utf8");
+  const workflow=fs.readFileSync(new URL("../.github/workflows/prizepicks-targeted-props.yml",import.meta.url),"utf8");
+  assert.match(api,/raw_json,model_source,model_version/);
+  assert.match(api,/s\(cand\?\.modelSource\),s\(cand\?\.modelVersion\)/);
+  assert.match(workflow,/modelSource:\(\.source \/\/ null\)/);
+  assert.match(workflow,/modelVersion:\(\.modelVersion \/\/ null\)/);
 });
