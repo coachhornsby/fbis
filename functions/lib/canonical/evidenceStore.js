@@ -65,19 +65,26 @@ export async function persistEconomicGrade(env, input) {
   if (!evidence) return { ok:false, reason:"prospective-evidence-not-found" };
   const existing = await env.DB.prepare("SELECT * FROM fbis_economic_grades WHERE grade_id=?").bind(grade.gradeId).first();
   if (existing) {
-    const conflict = [["evidence_id",grade.evidenceId],["sport",grade.sport],["event_id",grade.eventId],["market_family",grade.marketFamily],["selection",grade.selection]]
-      .filter(([k,v])=>!same(existing[k],v)).map(([k])=>k);
+    const conflict = [
+      ["evidence_id",grade.evidenceId],["contract_version",grade.version],["sport",grade.sport],["event_id",grade.eventId],
+      ["market_family",grade.marketFamily],["selection",grade.selection],["projected_probability",grade.projectedProbability],
+      ["entry_line",grade.entryLine],["entry_price",grade.entryPrice],["entry_no_vig_probability",grade.entryNoVigProbability],
+      ["close_line",grade.closeLine],["close_price",grade.closePrice],["close_no_vig_probability",grade.closeNoVigProbability],
+      ["result",grade.result],["stake_units",grade.stakeUnits],["clv_probability",grade.clvProbability],["profit_units",grade.profitUnits],
+      ["roi",grade.roi],["brier",grade.brier],["log_loss",grade.logLoss],["graded_at",grade.gradedAt],
+    ].filter(([k,v])=>!same(existing[k],v)).map(([k])=>k);
+    if (!sameJson(existing.metadata_json,grade.metadata)) conflict.push("metadata_json");
     if (conflict.length) return { ok:false, conflict:true, reason:"economic-grade-immutable-conflict", fields:conflict };
     return { ok:true, already:true };
   }
   const m=input.metadata||{};
   await env.DB.prepare(`INSERT INTO fbis_economic_grades(
     grade_id,evidence_id,contract_version,sport,event_id,market_family,selection,projected_probability,entry_line,entry_price,
-    entry_no_vig_probability,close_line,close_price,close_no_vig_probability,result,clv_probability,profit_units,roi,brier,log_loss,
+    entry_no_vig_probability,close_line,close_price,close_no_vig_probability,result,stake_units,clv_probability,profit_units,roi,brier,log_loss,
     graded_at,metadata_json,entry_market_snapshot_id,close_market_snapshot_id,entry_observed_at,close_observed_at,economic_basis,metric_method_version
-  ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
+  ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
     grade.gradeId,grade.evidenceId,grade.version,grade.sport,grade.eventId,grade.marketFamily,grade.selection,grade.projectedProbability,
-    grade.entryLine,grade.entryPrice,grade.entryNoVigProbability,grade.closeLine,grade.closePrice,grade.closeNoVigProbability,grade.result,
+    grade.entryLine,grade.entryPrice,grade.entryNoVigProbability,grade.closeLine,grade.closePrice,grade.closeNoVigProbability,grade.result,grade.stakeUnits,
     grade.clvProbability,grade.profitUnits,grade.roi,grade.brier,grade.logLoss,grade.gradedAt,j(grade.metadata),
     m.entryMarketSnapshotId||null,m.closeMarketSnapshotId||null,m.entryObservedAt||null,m.closeObservedAt||null,m.economicBasis||null,m.metricMethodVersion||null
   ).run();
