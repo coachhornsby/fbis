@@ -261,16 +261,33 @@ async function settle(context,{date,shard=0,shards=1,limitGames=6}={}){
 }
 async function status(context,{date=null}={}){
   const where=date?"WHERE event_date=?":"",bind=date?[date]:[];
-  const rows=(await context.env.DB.prepare(`SELECT market,model_source,model_version,COUNT(*) snapshots,
-    SUM(CASE WHEN settled_at IS NOT NULL THEN 1 ELSE 0 END) settled,
+  const rows=(await context.env.DB.prepare(`SELECT market,model_source,model_version,
+    COUNT(*) offer_snapshots,
+    COUNT(DISTINCT projection_unit_key) independent_projection_units,
+    SUM(CASE WHEN settled_at IS NOT NULL THEN 1 ELSE 0 END) settled_offer_snapshots,
+    COUNT(DISTINCT CASE WHEN settled_at IS NOT NULL THEN projection_unit_key END) settled_independent_units,
     COUNT(DISTINCT event_date) distinct_dates,
     SUM(CASE WHEN temporal_integrity=0 THEN 1 ELSE 0 END) temporal_failures,
-    SUM(CASE WHEN settled_at IS NULL THEN 1 ELSE 0 END) missing_outcomes
+    SUM(CASE WHEN settled_at IS NULL THEN 1 ELSE 0 END) pending_offer_snapshots
     FROM mlb_prop_prospective_evidence ${where}
     GROUP BY market,model_source,model_version ORDER BY market,model_version`).bind(...bind).all()).results||[];
   const rej=(await context.env.DB.prepare(`SELECT reason,COUNT(*) n FROM mlb_prop_evidence_rejections
     ${date?"WHERE substr(observed_at,1,10)=?":""} GROUP BY reason ORDER BY n DESC`).bind(...bind).all()).results||[];
-  return{ok:true,operation:"status",date,gateVersion:MLB_PROP_PROMOTION_GATE_VERSION,rows,rejections:rej,
+  const consistency=(await context.env.DB.prepare(`SELECT
+      COUNT(*) settled_projection_units,
+      SUM(CASE WHEN actual_variants>1 THEN 1 ELSE 0 END) actual_value_mismatch_units
+    FROM (
+      SELECT projection_unit_key,COUNT(DISTINCT actual_value) actual_variants
+      FROM mlb_prop_prospective_evidence
+      ${date?"WHERE event_date=? AND settled_at IS NOT NULL":"WHERE settled_at IS NOT NULL"}
+      GROUP BY projection_unit_key
+    )`).bind(...bind).all()).results?.[0]||{settled_projection_units:0,actual_value_mismatch_units:0};
+  const settlementSources=(await context.env.DB.prepare(`SELECT settlement_source,COUNT(*) settled_offer_snapshots,
+      COUNT(DISTINCT projection_unit_key) settled_independent_units
+    FROM mlb_prop_prospective_evidence
+    ${date?"WHERE event_date=? AND settled_at IS NOT NULL":"WHERE settled_at IS NOT NULL"}
+    GROUP BY settlement_source ORDER BY settled_offer_snapshots DESC`).bind(...bind).all()).results||[];
+  return{ok:true,operation:"status",date,gateVersion:MLB_PROP_PROMOTION_GATE_VERSION,rows,rejections:rej,consistency,settlementSources,
     governance:{canQualify:false,canAuthorizeWager:false,autoPromotion:false,stateBeforeWeight:true}};
 }
 export async function onRequestGet(context){
@@ -292,3 +309,6 @@ export async function onRequestPost(context){
     return json({ok:false,error:"unsupported_operation"},400);
   }catch(e){return json({ok:false,error:String(e?.message||e),operation,date,shard,shards},500)}
 }
+
+
+export { inningsToOuts, playerActual };
