@@ -18,7 +18,7 @@ on:
   pull_request:
     paths:
       - "scripts/tennis-wta-match-history-ingest.mjs"
-      - "migrations/0092_tennis_wta_match_history_pit.sql"
+      - "migrations/0094_tennis_wta_match_history_pit.sql"
       - ".github/workflows/tennis-wta-match-history.yml"
 
 concurrency:
