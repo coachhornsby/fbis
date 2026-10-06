@@ -1,0 +1,59 @@
+name: NHL learned deployment v1
+
+on:
+  pull_request:
+    paths:
+      - "scripts/nhl-deployment-v1-fit.mjs"
+      - ".github/workflows/nhl-deployment-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nhl-deployment-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fit-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 24
+      - name: Syntax check
+        run: node --check scripts/nhl-deployment-v1-fit.mjs
+      - name: Download completed-season PIT deployment data
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/nhl-deployment
+          for y in 2024 2025 2026; do
+            curl -fL --retry 4 --retry-delay 2 "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_skater_boxscores/skater_box_${y}.csv" -o "artifacts/nhl-deployment/skater_box_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2 "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_shifts/shifts_${y}.csv" -o "artifacts/nhl-deployment/shifts_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2 "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_scratches/scratches_${y}.csv" -o "artifacts/nhl-deployment/scratches_${y}.csv"
+            curl -fL --retry 4 --retry-delay 2 "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_game_rosters/game_rosters_${y}.csv" -o "artifacts/nhl-deployment/game_rosters_${y}.csv"
+          done
+      - name: Fit discovery and test untouched seasons
+        run: |
+          node --max-old-space-size=6144 scripts/nhl-deployment-v1-fit.mjs artifacts/nhl-deployment artifacts/nhl-deployment-v1-validation.json 2024,2025,2026 | tee artifacts/nhl-deployment-v1.log
+          jq -e '.integrity.targetGameToiUsedAsOutcomeOnly == true and .integrity.priorShiftNetworkOnly == true and .integrity.validationAndConfirmationUntouchedForSelection == true' artifacts/nhl-deployment-v1-validation.json >/dev/null
+          jq -e '.bySeason["2025"].n > 30000 and .bySeason["2026"].n > 30000' artifacts/nhl-deployment-v1-validation.json >/dev/null
+      - name: Summary
+        run: |
+          R=artifacts/nhl-deployment-v1-validation.json
+          {
+            echo "## NHL learned deployment v1"
+            jq -r '"- selected ridge lambda: \(.selection.lambda)"' "$R"
+            jq -r '"- 2025 TOI MAE gain / SOG MAE gain: \(.bySeason["2025"].toiMaeGain) / \(.bySeason["2025"].sogMaeGain)"' "$R"
+            jq -r '"- 2026 TOI MAE gain / SOG MAE gain: \(.bySeason["2026"].toiMaeGain) / \(.bySeason["2026"].sogMaeGain)"' "$R"
+            jq -r '"- historical eligible: \(.promotion.historicalEligible)"' "$R"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nhl-deployment-v1-${{ github.run_id }}
+          path: |
+            artifacts/nhl-deployment-v1-validation.json
+            artifacts/nhl-deployment-v1.log
+          retention-days: 90
