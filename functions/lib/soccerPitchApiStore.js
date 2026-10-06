@@ -208,6 +208,10 @@ export function pitchApiRowToGame(row={}){
     soccerLeague:String(row.league_key||""),
     league:String(row.league_key||""),
     source:"pitchapi:d1",
+    // Explicit null market shell: generic board projection code expects an odds
+    // object even when a PitchAPI-only fixture has no executable market yet.
+    // Nulls preserve market/model separation and never fabricate a price.
+    odds:{spread:null,total:null,homeMl:null,awayMl:null,details:"",book:null},
     home:{id:row.home_team_id,name:row.home_team_name,displayName:row.home_team_name},
     away:{id:row.away_team_id,name:row.away_team_name,displayName:row.away_team_name},
     homeScore:n(row.home_score),awayScore:n(row.away_score),
