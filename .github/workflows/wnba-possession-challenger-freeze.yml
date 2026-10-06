@@ -6,7 +6,7 @@ on:
     branches: [main]
     paths:
       - "scripts/wnba-possession-challenger-freeze.mjs"
-      - "migrations/0079_wnba_possession_challenger_shadow.sql"
+      - "migrations/0080_wnba_possession_challenger_shadow.sql"
       - ".github/workflows/wnba-possession-challenger-freeze.yml"
 
 permissions:
@@ -46,7 +46,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 execute fbis --remote --file=migrations/0079_wnba_possession_challenger_shadow.sql
+          npx wrangler d1 execute fbis --remote --file=migrations/0080_wnba_possession_challenger_shadow.sql
           npx wrangler d1 execute fbis --remote --file=artifacts/wnba-possession-challenger-coefficients.sql
           npx wrangler r2 object put "fbis-archive/models/wnba/possession-challenger/v1/coefficients.json" --file artifacts/wnba-possession-challenger-coefficients.json --remote
 
