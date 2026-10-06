@@ -1,8 +1,8 @@
 name: KBO Phase 4B one-shot certification
 on:
-  push:
+  pull_request:
     branches:
-      - codex/kbo-npb-phase4b-enrichment
+      - main
 jobs:
   certify:
     runs-on: ubuntu-latest
