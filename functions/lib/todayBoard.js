@@ -164,7 +164,14 @@ export function toBoardGame(game, sport, now = Date.now()) {
     researchProjection: game.researchProjection || null,
     probabilityProvenance: game.probabilityProvenance || game.model?.probabilityProvenance || null,
     pureProjectionAvailable: game.pureProjectionAvailable ?? null,
-    canQualify: game.canQualify !== false && !game.qualificationBlocked,
+    canQualify:
+      game.qualificationBlocked !== true &&
+      (game.canQualify === true ||
+       game.model?.canQualify === true ||
+       game.nflProShadow?.canQualify === true ||
+       game.nhlProV2?.canQualify === true ||
+       game.mlbDeepShadow?.canQualify === true ||
+       game.canQualify !== false),
     projectionRecipe: game.model?.recipe || null,
     cbbPro: game.cbbPro || null,
     cfbDetail: game.cfb ? {
@@ -173,7 +180,15 @@ export function toBoardGame(game, sport, now = Date.now()) {
       home: game.cfb.homeEst ? { rank: game.cfb.homeEst.rank, priorOff: game.cfb.homeEst.priorOff, priorDef: game.cfb.homeEst.priorDef, games: game.cfb.homeEst.n, currentOff: game.cfb.homeEst.currentOff, currentDef: game.cfb.homeEst.currentDef } : null,
       away: game.cfb.awayEst ? { rank: game.cfb.awayEst.rank, priorOff: game.cfb.awayEst.priorOff, priorDef: game.cfb.awayEst.priorDef, games: game.cfb.awayEst.n, currentOff: game.cfb.awayEst.currentOff, currentDef: game.cfb.awayEst.currentDef } : null,
     } : null,
-    bettingAllowed: game.cfb ? game.cfb.bettingAllowed : game.sport === "nfl" ? false : null,
+    bettingAllowed: game.cfb
+      ? game.cfb.bettingAllowed
+      : game.sport === "nfl"
+        ? Boolean(game.nflWagerDecision?.canQualify || game.nflProShadow?.canQualify)
+        : game.sport === "nhl"
+          ? Boolean(game.nhlWagerV1?.canQualify || game.nhlProV2?.canQualify)
+          : game.sport === "mlb"
+            ? Boolean(game.mlbDeepShadow?.canQualify)
+            : null,
     blockReason: game.cfb?.blockReason || null,
     marketLabels: game.marketLabels || null,
     pHome: game.model?.pHomeFinal ?? null,
