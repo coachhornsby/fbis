@@ -133,6 +133,41 @@ async function runScheduledActionDaily(env) {
   return { status: harvest.body.status || "UNKNOWN", hourCt: hour, runId: harvest.body.runId || start.body.runId || null, remainingRows: harvest.body.remainingRows ?? null };
 }
 
+async function runScheduledNhlGoalieShadow(env) {
+  if (!env.HARVEST_SECRET) return { status: "BLOCKED_FAIL_CLOSED", reason: "HARVEST_SECRET missing" };
+  const base = String(CFG.fbisBaseUrl || "https://fbis-myz.pages.dev").replace(/\/$/, "");
+  const call = async (mode) => {
+    const res = await fetch(`${base}/api/nhl-goalie-shadow`, {
+      method: "POST",
+      headers: { "x-harvest-secret": env.HARVEST_SECRET, "content-type": "application/json" },
+      body: JSON.stringify({ mode }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body?.ok !== true) throw new Error(`NHL goalie shadow ${mode} failed http=${res.status}`);
+    if (body?.productionChampion !== "NHL-PRO-v2" || body?.productionChanged !== false || body?.qualificationChanged !== false || body?.authority !== false || body?.staking !== false) {
+      throw new Error(`NHL goalie shadow governance check failed mode=${mode}`);
+    }
+    return { http: res.status, body };
+  };
+  const freeze = await call("freeze");
+  const settle = await call("settle");
+  return {
+    status: "EXECUTED",
+    freeze: {
+      candidates: freeze.body?.candidates ?? null,
+      written: freeze.body?.written ?? null,
+      existing: freeze.body?.existing ?? null,
+      gateFired: freeze.body?.gateFired ?? null,
+      temporalIntegrityPassed: freeze.body?.temporalIntegrityPassed ?? null,
+      snapshotAt: freeze.body?.snapshotAt ?? null,
+    },
+    settle: {
+      eligible: settle.body?.eligible ?? null,
+      graded: settle.body?.graded ?? null,
+    },
+  };
+}
+
 async function runScheduledTennisCapture(env) {
   const hour = chicagoHour();
   if (hour !== 8 && hour !== 14) return { status: "NOT_DUE", hourCt: hour };
@@ -291,9 +326,12 @@ async function handleFetch(request, env) {
 
 export default {
   fetch: handleFetch,
-  async scheduled(_controller, env, ctx) {
+  async scheduled(controller, env, ctx) {
+    const task = String(controller?.cron || "") === "17 * * * *"
+      ? runScheduledNhlGoalieShadow(env)
+      : scheduledCycle(env);
     ctx.waitUntil(
-      scheduledCycle(env)
+      task
         .then((result) => console.log(JSON.stringify({ event: "orchestrator_cron_complete", result })))
         .catch((error) => console.error(JSON.stringify({
           event: "orchestrator_cron_failed",
