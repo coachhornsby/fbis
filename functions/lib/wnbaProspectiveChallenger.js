@@ -164,7 +164,6 @@ export function attachWnbaProspectiveGameChallengers(games=[],ctx={}){
 
 function oppMarketProjection(row,impactCtx,roleCtx,expectedTeammates=null){
   const base=finite(row?.fbisProjection),market=String(row?.market||"");
-  if(base==null)return null;
   const skill=impactCtx?.skill||{};
   const role=roleCtx?.role||{};
   const availabilityVerified=Boolean(roleCtx?.availabilityVerified);
@@ -196,23 +195,58 @@ function oppMarketProjection(row,impactCtx,roleCtx,expectedTeammates=null){
     note:"Opportunity distribution shadow. Mean remains anchored to incumbent until prospective evidence supports a mean correction."
   };
 }
+function fallbackOpportunityRows(game,impactCtx={}){
+  const out=[];
+  const sides=[["home",game?.home],["away",game?.away]];
+  for(const [,team] of sides){
+    const teamId=espnTeamId(team);if(!teamId)continue;
+    const teamPlayers=Object.values(impactCtx.players||{}).filter(p=>String(p.teamId||"")===String(teamId));
+    for(const p of teamPlayers){
+      const skill=p?.skill||{},gamesN=Number(skill.games||0),minutes=finite(skill.minutes);
+      if(gamesN<2||minutes==null||minutes<10)continue;
+      for(const market of ["points","rebounds","assists","three_pointers_made"]){
+        out.push({
+          sport:"wnba",eventId:String(game?.id||""),team:team?.abbr||team?.shortName||team?.name||null,teamId,
+          playerId:String(p.playerId||""),playerName:p.name,position:p.position||null,market,
+          fbisProjection:null,fbisSigma:null,
+          source:"WNBA_PLAYER_IMPACT_BANK_OPPORTUNITY_ONLY",
+          maturity:"RESEARCH",independent:true,marketInformed:false,canQualify:false,canAuthorizeWager:false,
+          decisionEligible:false,eligibleForCard:false,propGate:"RESEARCH_VALIDATION_REQUIRED",
+          role:{games:gamesN,minutes,pace:finite(game?.wnbaV2?.decomposition?.pace),projectedTeamScore:null},
+          notes:"Opportunity-state fallback from persisted point-in-time WNBA player-impact bank. No incumbent mean is invented when the live player projection feed is unavailable."
+        });
+      }
+    }
+  }
+  return out;
+}
+function teammatesForOpportunity(row,sourceRows,impactCtx){
+  const rc=impactCtx.roles?.[String(row.playerId)]||null;
+  const unavailableIds=new Set((rc?.unavailable||[]).filter(x=>String(x.status||"").toUpperCase()==="OUT").map(x=>String(x.playerId)));
+  const teamKey=String(row.teamId||row.team||"");
+  return [...new Map((sourceRows||[])
+    .filter(x=>String(x.teamId||x.team||"")===teamKey&&String(x.playerId)!==String(row.playerId)&&!unavailableIds.has(String(x.playerId)))
+    .map(x=>[String(x.playerId),{playerId:String(x.playerId),playerName:x.playerName}])).values()];
+}
 export function attachWnbaPlayerOpportunityShadows(games=[],impactCtx={}){
-  let rows=0;
+  let rows=0,fallbackRows=0,incumbentBackedRows=0;
   const next=(games||[]).map(game=>{
     const projected=game.playerProjectionRows||[];
-    return {
-      ...game,
-      playerProjectionRows:projected.map(row=>{
-        const p=impactCtx.players?.[String(row.playerId)]||null,rc=impactCtx.roles?.[String(row.playerId)]||null;
-        const unavailableIds=new Set((rc?.unavailable||[]).filter(x=>String(x.status||"").toUpperCase()==="OUT").map(x=>String(x.playerId)));
-        const expectedTeammates=[...new Map(projected
-          .filter(x=>String(x.team||"")===String(row.team||"")&&String(x.playerId)!==String(row.playerId)&&!unavailableIds.has(String(x.playerId)))
-          .map(x=>[String(x.playerId),{playerId:String(x.playerId),playerName:x.playerName}])).values()];
-        const shadow=oppMarketProjection(row,p,rc,expectedTeammates);
-        if(shadow)rows++;
-        return {...row,opportunityShadow:shadow};
-      })
-    };
+    const sourceRows=projected.length?projected:fallbackOpportunityRows(game,impactCtx);
+    if(!projected.length)fallbackRows+=sourceRows.length;
+    const opportunityRows=sourceRows.map(row=>{
+      const p=impactCtx.players?.[String(row.playerId)]||null,rc=impactCtx.roles?.[String(row.playerId)]||null;
+      const expectedTeammates=teammatesForOpportunity(row,sourceRows,impactCtx);
+      const shadow=oppMarketProjection(row,p,rc,expectedTeammates);
+      if(shadow){rows++;if(finite(row.fbisProjection)!=null)incumbentBackedRows++;}
+      return {...row,opportunityShadow:shadow};
+    }).filter(row=>row.opportunityShadow);
+
+    const byKey=new Map(opportunityRows.map(r=>[`${r.playerId}|${r.market}`,r.opportunityShadow]));
+    const mappedProjected=projected.map(row=>({...row,opportunityShadow:byKey.get(`${row.playerId}|${row.market}`)||null}));
+    return {...game,playerProjectionRows:mappedProjected,playerOpportunityShadowRows:opportunityRows};
   });
-  return {games:next,meta:{modelId:WNBA_PLAYER_OPPORTUNITY_ID,rows,canQualify:false,canAuthorize:false,marketInformed:false}};
+  return {games:next,meta:{modelId:WNBA_PLAYER_OPPORTUNITY_ID,rows,fallbackRows,incumbentBackedRows,
+    canQualify:false,canAuthorize:false,marketInformed:false,
+    fallbackPolicy:"Persist opportunity distributions without inventing a mean when incumbent live player projection is unavailable."}};
 }
