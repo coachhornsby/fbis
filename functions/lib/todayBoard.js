@@ -8,7 +8,7 @@ import { evaluateNhlGameWagers } from "./nhlWagerV1.js";
 import { classifyBoardStatus, kickoffCt, noPlayReason, isPreStartStatus, isLiveStatus } from "./gameStatus.js";
 import { DEFAULT_WEIGHTS } from "./weights.js";
 import { palUnavailableReason } from "./ballparkpal.js";
-import { canonicalConfidenceStars } from "./projectionConfidence.js";
+import { canonicalProjectionConfidence } from "./projectionConfidence.js";
 import { buildPropConvictions, summarizeMlbPropWatch } from "./propConviction.js";
 import { querySnapshots, queryOddsSnapshots } from "./store.js";
 import { fetchEspnTennisRankings } from "./tennisPrizePicksResearch.js";
@@ -93,6 +93,7 @@ export function toBoardGame(game, sport, now = Date.now()) {
     game.cbb?.dataQuality ??
     qualityComponents?.operationalScore ??
     null;
+  const confidence = canonicalProjectionConfidence({ ...game, sport });
   const rec = game.rec || null;
   const lean = game.lean || null;
   const sportsbookProps = [...(game.odds?.playerProps || [])]
@@ -107,7 +108,10 @@ export function toBoardGame(game, sport, now = Date.now()) {
   return {
     id: String(game.id),
     sport,
-    confidenceStars: canonicalConfidenceStars({ ...game, sport }),
+    confidenceStars: confidence.stars,
+    confidenceScore: confidence.score,
+    confidenceVersion: confidence.version,
+    confidenceSource: confidence.source,
     sportLabel: SPORTS[sport]?.label || sport.toUpperCase(),
     start: game.start || null,
     startCt: kickoffCt(game.start),
