@@ -8,6 +8,7 @@ export default function ModelLabView({ sportFilter = "all" }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [nflResearch, setNflResearch] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -16,16 +17,21 @@ export default function ModelLabView({ sportFilter = "all" }) {
       setError(null);
       try {
         const sport = sportFilter === "all" ? "all" : sportFilter;
-        const res = await fetch(`/api/model-lab?sport=${encodeURIComponent(sport)}&registryOnly=true`, {
-          credentials: "same-origin",
-        });
+        const [res,nflRes] = await Promise.all([
+          fetch(`/api/model-lab?sport=${encodeURIComponent(sport)}&registryOnly=true`, {credentials:"same-origin"}),
+          (sport==="all"||sport==="nfl")
+            ? fetch("/api/nfl-research-status",{credentials:"same-origin"})
+            : Promise.resolve(null),
+        ]);
         const json = await res.json();
+        const nflJson = nflRes ? await nflRes.json().catch(()=>null) : null;
         if (!cancelled) {
           if (!res.ok || json?.ok === false) {
             setError(json?.error || `Model lab unavailable (${res.status})`);
             setData(null);
           } else {
             setData(json);
+            setNflResearch(nflJson?.ok?nflJson:null);
           }
         }
       } catch (err) {
@@ -69,6 +75,41 @@ export default function ModelLabView({ sportFilter = "all" }) {
             <span className="canonical-chip">Frozen champions: {champions.join(", ") || "—"}</span>
             <span className="canonical-chip">Models: {models.length}</span>
           </div>
+          {(sportFilter==="all"||sportFilter==="nfl") && nflResearch ? (
+            <section className="canonical-card" style={{marginBottom:16}}>
+              <h3>NFL Research Status</h3>
+              <p className="canonical-meta">
+                Champion {nflResearch.nfl?.champion} · QB overlay {nflResearch.nfl?.lifecycle}
+              </p>
+              <div className="canonical-chip-row">
+                <span className="canonical-chip">Frozen games: {nflResearch.qbShadow?.frozenGames ?? 0}</span>
+                <span className="canonical-chip">Gate-fired: {nflResearch.qbShadow?.gateFiredGames ?? 0}</span>
+                <span className="canonical-chip">Graded: {nflResearch.qbShadow?.gradedGames ?? 0}</span>
+                <span className="canonical-chip">Gate: ≥ {Number(nflResearch.qbShadow?.gateThreshold ?? .30).toFixed(2)}</span>
+              </div>
+              <p className="muted small">
+                Prospective gate: {String(nflResearch.qbShadow?.promotionGate?.decision||"ACCUMULATING").replaceAll("_"," ")}.
+                Auto-promotion is disabled; totals and wager authority remain unchanged.
+              </p>
+              <div className="canonical-card-grid">
+                {(nflResearch.props?.markets||[]).map((m)=>(
+                  <article key={m.market} className="canonical-card">
+                    <h4>{m.market.replaceAll("_"," ").toUpperCase()}</h4>
+                    <p className="canonical-maturity">{m.status.replaceAll("_"," ")}</p>
+                    <ul className="canonical-flags">
+                      <li>Historical / WF: {m.historicalN} / {m.walkForwardN}</li>
+                      <li>Prospective state: {m.prospectiveStateCompleteSnapshots}/{m.prospectiveLineSnapshots}</li>
+                      <li>Prospective graded: {m.gradedProspectiveProps}</li>
+                      <li>Monotonic: {m.monotonic?"yes":"no"}</li>
+                      <li>Brier: {m.brier==null?"—":Number(m.brier).toFixed(3)}</li>
+                      <li>ECE: {m.ece==null?"—":Number(m.ece).toFixed(3)}</li>
+                      <li>Premium stars: {m.premiumStarEligible?"eligible":"blocked (max 3★)"}</li>
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
           <div className="canonical-card-grid">
             {models.map((m) => (
               <article key={m.modelId} className="canonical-card" data-maturity={m.maturity}>
