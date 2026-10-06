@@ -25,12 +25,15 @@ const summary={
  projection:{mae:mae(errs),rmse:rmse(errs),bias:mean(errs),baselineMae:mae(base),relativeMaeImprovement:mae(base)?(mae(base)-mae(errs))/mae(base):null},
  directional:{n:directional.length,wins,hitRate:directional.length?wins/directional.length:null,over:directional.filter(u=>u.selection==="OVER").length,under:directional.filter(u=>u.selection==="UNDER").length,buckets,edgeHitMonotonic:populated.every((b,i)=>i===0||b.hitRate+0.03>=populated[i-1].hitRate),edgeHitRankCorrelation:corr(populated.map(b=>b.order),populated.map(b=>b.hitRate))},
  economics:{closeReady:units.filter(u=>u.close_timestamp).length,probabilityClvReady:units.filter(u=>u.probability_clv!=null).length,roiReady:units.filter(u=>Number.isFinite(u.profit_units)).length,profitUnits:units.reduce((s,u)=>s+Number(u.profit_units||0),0),roi:n?units.reduce((s,u)=>s+Number(u.profit_units||0),0)/n:null,maxDrawdown,meanLineClv:mean(units.map(u=>u.line_clv).filter(Number.isFinite)),meanProbabilityClv:mean(units.map(u=>u.probability_clv).filter(Number.isFinite))},
+ eventIdentity:{originalGameIdMatched:shards.reduce((a,s)=>a+Number(s.eventIdentity?.originalGameIdMatched||0),0),originalGameIdRemapped:shards.reduce((a,s)=>a+Number(s.eventIdentity?.originalGameIdRemapped||0),0)},
  rejects:Object.fromEntries([...new Set(shards.flatMap(s=>Object.keys(s.rejects||{})))].map(k=>[k,shards.reduce((a,s)=>a+Number(s.rejects?.[k]||0),0)]))
 };
+const eid=summary.eventIdentity;eid.remapRate=(eid.originalGameIdMatched+eid.originalGameIdRemapped)?eid.originalGameIdRemapped/(eid.originalGameIdMatched+eid.originalGameIdRemapped):null;
 summary.gates={
  insufficientData:{minN:250,minWF:150,minDates:17,passN:n>=250,passWF:split.walkForwardN>=150,passDates:dates.length>=17},
  calibrationCandidate:{minN:500,minWF:300,minDates:30,minDirectionalEach:100,nDeficit:Math.max(0,500-n),wfDeficit:Math.max(0,300-split.walkForwardN),dateDeficit:Math.max(0,30-dates.length),overDeficit:Math.max(0,100-summary.directional.over),underDeficit:Math.max(0,100-summary.directional.under)},
  promotionReady:{minN:1000,minWF:600,minDates:45,minDirectionalEach:200,nDeficit:Math.max(0,1000-n),wfDeficit:Math.max(0,600-split.walkForwardN),dateDeficit:Math.max(0,45-dates.length),overDeficit:Math.max(0,200-summary.directional.over),underDeficit:Math.max(0,200-summary.directional.under),prospectiveDaysRequired:14}
 };
+summary.gateClassification=summary.gates.insufficientData.passN&&summary.gates.insufficientData.passWF&&summary.gates.insufficientData.passDates?"RESEARCH_CONTINUE":"INSUFFICIENT_DATA";
 await fs.writeFile(out,JSON.stringify({summary,units,shards},null,2)+"\n");
 console.log(JSON.stringify(summary,null,2));
