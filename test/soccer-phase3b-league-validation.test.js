@@ -66,6 +66,10 @@ test("Phase 3B workflow preserves bounded research governance",()=>{
   assert.match(workflow,/soccer-phase3b-league-validation\.mjs/);
   assert.match(workflow,/phase3b-\$\{\{ github\.run_id \}\}/);
   assert.match(workflow,/soccer-phase3b-evidence\.json/);
+  assert.match(workflow,/rows:\(/);
+  assert.match(workflow,/snapshotId:\$snapshot_id/);
+  assert.match(workflow,/codeSha:\$code_sha/);
+  assert.doesNotMatch(workflow,/rows:\[\s*[\s\S]*?\]\s*\+\s*\(\[\.leagues/);
   assert.match(api,/snapshotId/);
   assert.match(api,/codeSha/);
   assert.match(api,/researchOnly:true,canQualify:false,canAuthorize:false/);
