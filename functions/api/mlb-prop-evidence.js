@@ -3,7 +3,8 @@ import { buildSlate } from "../lib/slateEngine.js";
 import { canonicalizeProPlayerPropMarket } from "../lib/proPlayerProps.js";
 import { sha256Hex } from "../lib/sha256Hex.js";
 import { MLB_PROP_PROMOTION_GATE_VERSION } from "../lib/mlbPropPromotionGovernance.js";
-import { buildEconomicGrade, noVigPair } from "../lib/canonical/economicGrading.js";
+import { noVigPair } from "../lib/canonical/economicGrading.js";
+import { persistProspectiveEvidence, persistEconomicGrade } from "../lib/canonical/evidenceStore.js";
 
 const SUPPORTED_MARKETS=new Set([
   "strikeouts","pitcher_outs","walks_allowed","hits_allowed","earned_runs","pitch_count",
@@ -180,32 +181,47 @@ async function capture(context,{date,shard=0,shards=1}={}){
         const uncertainty={sigma:num(r.fbisSigma),state:num(r.fbisSigma)==null?"UNKNOWN":"OBSERVED"};
         const qualificationAuthority={canQualify:false,source:"MLB_PROP_PROMOTION_GATE",gateVersion:MLB_PROP_PROMOTION_GATE_VERSION};
         const wagerAuthority={canAuthorize:false,source:"MODEL_GOVERNANCE"};
-        await db.prepare(`INSERT OR IGNORE INTO fbis_prospective_evidence(
-          evidence_id,contract_version,sport,event_id,event_start_at,snapshot_at,champion_model_id,model_id,model_version,
-          lifecycle,gate_version,state_snapshot_id,market_snapshot_id,market_observed_at,code_sha,
-          incumbent_projection_json,challenger_projection_json,governance_json,temporal_integrity,legacy,
-          can_qualify,can_authorize,source_observed_ats_json,state_snapshot_json,market_snapshot_json,
-          uncertainty_json,temporal_diagnostics_json,qualification_authority_json,wager_authority_json,
-          promotion_eligible,promotion_exclusion_reasons_json,created_at
-        ) VALUES(?,?,?,?,?,?,?,?,?,'SHADOW',?,?,?,?,?,?,?,?,1,0,0,0,?,?,?,?,?,?,?,0,?,?)`)
-        .bind(
-          id,"FBIS-PROSPECTIVE-EVIDENCE-v1","mlb",String(g.id),eventStart,decisionAt,
-          String(g.championModel||slate.modelVersion||"FBIS-v1.4"),modelSource,modelVersion,
-          MLB_PROP_PROMOTION_GATE_VERSION,stateSnapshotId,duplicateKey,q.observedAt,
-          context.env.CF_PAGES_COMMIT_SHA||null,
-          JSON.stringify(championProjection),
-          JSON.stringify(challengerProjection),
-          JSON.stringify({stateBeforeWeight:true,rawProjectionDistanceCanPromote:false,canQualify:false,canAuthorizeWager:false,projectionUnitKey,marketSource:q.marketSource,sportsbook:q.sportsbook,oddsTier:q.oddsTier,marketLine:q.line}),
-          JSON.stringify([sourceObservedAt,q.observedAt].filter(Boolean)),
-          JSON.stringify(stateSnapshot),
-          JSON.stringify(marketSnapshot),
-          JSON.stringify(uncertainty),
-          JSON.stringify({ok:true,problems:[]}),
-          JSON.stringify(qualificationAuthority),
-          JSON.stringify(wagerAuthority),
-          JSON.stringify(["SHADOW_RESEARCH_ONLY"]),
-          decisionAt
-        ).run();
+        const canonical = await persistProspectiveEvidence(context.env, {
+          evidenceId:id,
+          sport:"mlb",
+          eventId:String(g.id),
+          eventStartAt:eventStart,
+          snapshotAt:decisionAt,
+          championModelId:"MLB-SAVANT-RPG-SP",
+          modelId:modelSource,
+          modelVersion,
+          lifecycle:"SHADOW",
+          gateVersion:MLB_PROP_PROMOTION_GATE_VERSION,
+          stateSnapshotId,
+          marketSnapshotId:duplicateKey,
+          marketObservedAt:q.observedAt,
+          sourceObservedAts:[sourceObservedAt,q.observedAt].filter(Boolean),
+          codeSha:context.env.CF_PAGES_COMMIT_SHA||null,
+          stateSnapshot,
+          marketSnapshot,
+          uncertainty,
+          incumbentProjection:championProjection,
+          challengerProjection,
+          governance:{
+            stateBeforeWeight:true,
+            rawProjectionDistanceCanPromote:false,
+            canQualify:false,
+            canAuthorizeWager:false,
+            projectionUnitKey,
+            marketSource:q.marketSource,
+            sportsbook:q.sportsbook,
+            oddsTier:q.oddsTier,
+            marketLine:q.line,
+          },
+          qualificationAuthority,
+          wagerAuthority,
+          canQualify:false,
+          canAuthorize:false,
+        });
+        if(!canonical.ok){
+          rejected++;
+          await reject(db,{operation:"canonical_capture",eventId:g.id,row:r,reason:canonical.reason||"CANONICAL_EVIDENCE_WRITE_FAILED",details:{canonical},at:decisionAt});
+        }
       }else duplicates++;
     }
   }
@@ -290,27 +306,38 @@ async function settle(context,{date,shard=0,shards=1,limitGames=6}={}){
           const normalizedResult=result==="HIT"?"WIN":result==="MISS"?"LOSS":result==="PUSH"?"PUSH":null;
           if(normalizedResult&&entryNoVig!=null){
             const gradeId=sha256Hex(JSON.stringify(["FBIS_ECONOMIC_GRADE_v1",row.id]));
-            const grade=buildEconomicGrade({
-              gradeId,evidenceId:row.id,sport:"mlb",eventId:row.event_id,
-              marketFamily:row.market,selection:row.candidate_side,
-              projectedProbability:null,entryLine:num(row.market_line),entryPrice,
-              entryNoVigProbability:entryNoVig,result:normalizedResult,stakeUnits:1,gradedAt:at,
-              metadata:{economicBasis:"SIMULATED_1U_PRICE_AVAILABLE",marketSource:row.market_source,sportsbook:row.sportsbook}
+            const gradeWrite=await persistEconomicGrade(context.env,{
+              gradeId,
+              evidenceId:row.id,
+              sport:"mlb",
+              eventId:row.event_id,
+              marketFamily:row.market,
+              selection:row.candidate_side,
+              projectedProbability:null,
+              entryLine:num(row.market_line),
+              entryPrice,
+              entryNoVigProbability:entryNoVig,
+              closeLine:null,
+              closePrice:null,
+              closeNoVigProbability:null,
+              result:normalizedResult,
+              stakeUnits:1,
+              gradedAt:at,
+              metadata:{
+                economicBasis:"SIMULATED_1U_PRICE_AVAILABLE",
+                marketSource:row.market_source,
+                sportsbook:row.sportsbook,
+                entryMarketSnapshotId:row.duplicate_key,
+                closeMarketSnapshotId:null,
+                entryObservedAt:row.market_observed_at,
+                closeObservedAt:null,
+                metricMethodVersion:"FBIS-ECONOMIC-GRADE-v1",
+              },
             });
-            await db.prepare(`INSERT OR IGNORE INTO fbis_economic_grades(
-              grade_id,evidence_id,contract_version,sport,event_id,market_family,selection,
-              projected_probability,entry_line,entry_price,entry_no_vig_probability,
-              close_line,close_price,close_no_vig_probability,result,clv_probability,
-              profit_units,roi,brier,log_loss,graded_at,metadata_json,
-              entry_market_snapshot_id,entry_observed_at,economic_basis,metric_method_version
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-              .bind(
-                grade.gradeId,grade.evidenceId,grade.version,grade.sport,grade.eventId,grade.marketFamily,grade.selection,
-                grade.projectedProbability,grade.entryLine,grade.entryPrice,grade.entryNoVigProbability,
-                grade.closeLine,grade.closePrice,grade.closeNoVigProbability,grade.result,grade.clvProbability,
-                grade.profitUnits,grade.roi,grade.brier,grade.logLoss,grade.gradedAt,JSON.stringify(grade.metadata),
-                row.duplicate_key,row.market_observed_at,"SIMULATED_1U_PRICE_AVAILABLE","FBIS-ECONOMIC-GRADE-v1"
-              ).run();
+            if(!gradeWrite.ok){
+              rejected++;
+              await reject(db,{operation:"economic_grade",eventId:row.event_id,row,reason:gradeWrite.reason||"ECONOMIC_GRADE_WRITE_FAILED",details:{gradeWrite},at});
+            }
           }
         }
       }

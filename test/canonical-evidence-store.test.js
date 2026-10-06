@@ -148,3 +148,24 @@ test("behavior: economic grade persists stake provenance", async () => {
   assert.match(db.writes[0].sql, /stake_units/);
   assert.equal(db.writes[0].args[15], 2);
 });
+
+
+test("behavior: explicit UNKNOWN uncertainty remains promotion-ineligible", async () => {
+  const db = fakeDb();
+  const out = await persistProspectiveEvidence({ DB: db }, validEvidence({ uncertainty: { state: "UNKNOWN", sigma: null } }));
+  assert.equal(out.ok, true);
+  assert.equal(out.promotionEligible, false);
+  assert.ok(out.promotionExclusionReasons.includes("MISSING_UNCERTAINTY"));
+});
+
+test("behavior: economic grade requires entry market provenance", async () => {
+  const db = fakeDb({ evidenceForGrade: { evidence_id: "ev-1", promotion_eligible: 0 } });
+  const out = await persistEconomicGrade({ DB: db }, {
+    gradeId: "g-missing-prov", evidenceId: "ev-1", sport: "mlb", eventId: "game-1",
+    marketFamily: "ML", selection: "HOME", entryPrice: -110, result: "WON", stakeUnits: 1,
+    metadata: { economicBasis: "SIMULATED_1U_PRICE_AVAILABLE", metricMethodVersion: "FBIS-ECONOMIC-GRADE-v1" },
+  });
+  assert.equal(out.ok, false);
+  assert.equal(out.reason, "economic-grade-provenance-incomplete");
+  assert.equal(db.writes.length, 0);
+});

@@ -61,6 +61,10 @@ export async function persistProspectiveEvidence(env, input, eligibilityOptions 
 export async function persistEconomicGrade(env, input) {
   if (!env?.DB) return { ok:false, reason:"D1-unbound" };
   const grade = buildEconomicGrade(input);
+  const m=input.metadata||{};
+  if (!m.entryMarketSnapshotId || !m.entryObservedAt || !m.economicBasis || !m.metricMethodVersion) {
+    return { ok:false, reason:"economic-grade-provenance-incomplete" };
+  }
   const evidence = await env.DB.prepare("SELECT evidence_id,promotion_eligible FROM fbis_prospective_evidence WHERE evidence_id=?").bind(grade.evidenceId).first();
   if (!evidence) return { ok:false, reason:"prospective-evidence-not-found" };
   const existing = await env.DB.prepare("SELECT * FROM fbis_economic_grades WHERE grade_id=?").bind(grade.gradeId).first();
@@ -74,10 +78,15 @@ export async function persistEconomicGrade(env, input) {
       ["roi",grade.roi],["brier",grade.brier],["log_loss",grade.logLoss],["graded_at",grade.gradedAt],
     ].filter(([k,v])=>!same(existing[k],v)).map(([k])=>k);
     if (!sameJson(existing.metadata_json,grade.metadata)) conflict.push("metadata_json");
+    const provenance = [
+      ["entry_market_snapshot_id",m.entryMarketSnapshotId],["close_market_snapshot_id",m.closeMarketSnapshotId||null],
+      ["entry_observed_at",m.entryObservedAt],["close_observed_at",m.closeObservedAt||null],
+      ["economic_basis",m.economicBasis],["metric_method_version",m.metricMethodVersion],
+    ];
+    conflict.push(...provenance.filter(([k,v])=>!same(existing[k],v)).map(([k])=>k));
     if (conflict.length) return { ok:false, conflict:true, reason:"economic-grade-immutable-conflict", fields:conflict };
     return { ok:true, already:true };
   }
-  const m=input.metadata||{};
   await env.DB.prepare(`INSERT INTO fbis_economic_grades(
     grade_id,evidence_id,contract_version,sport,event_id,market_family,selection,projected_probability,entry_line,entry_price,
     entry_no_vig_probability,close_line,close_price,close_no_vig_probability,result,stake_units,clv_probability,profit_units,roi,brier,log_loss,

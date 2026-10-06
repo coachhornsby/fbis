@@ -132,6 +132,9 @@ export function promotionCohortEligibility(row = {}, {
   for (const [field, reason] of mandatory) {
     if (row[field] == null) reasons.push(reason);
   }
+  if (row.uncertainty && String(row.uncertainty.state || "").toUpperCase() === "UNKNOWN") {
+    reasons.push("MISSING_UNCERTAINTY");
+  }
   if (!Array.isArray(row.sourceObservedAts) || row.sourceObservedAts.length === 0) {
     reasons.push("MISSING_SOURCE_OBSERVATION_TIMES");
   }
