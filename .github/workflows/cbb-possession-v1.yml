@@ -1,4 +1,5 @@
 name: CBB possession and lineup v1
+# Validation trigger: post-PR-674 historical coverage run.
 
 on:
   pull_request:
