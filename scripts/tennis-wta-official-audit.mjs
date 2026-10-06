@@ -53,7 +53,6 @@ for(const [key,pathname,res] of defs){
 }
 await fs.mkdir(path.dirname(OUT),{recursive:true});await fs.writeFile(OUT,sql);
 const summary={generatedAt:now,source:"WTA_OFFICIAL",samplePlayerId:pid,tournamentGroupId:group,tournamentYear:year,endpoints:audits,capabilities:{ranking:audits.find(x=>x.endpointKey==="rankings")?.available||false,playerProfile:audits.find(x=>x.endpointKey==="player_profile")?.available||false,playerMatchHistory:audits.find(x=>x.endpointKey==="player_matches")?.available||false,tournamentHistory:audits.find(x=>x.endpointKey==="tournaments")?.available||false,tournamentMatches:audits.find(x=>x.endpointKey==="tournament_matches")?.available||false,tournamentPlayers:audits.find(x=>x.endpointKey==="tournament_players")?.available||false,serveReturnStatsDetected:audits.some(x=>(x.detail?.serveStatFieldsDetected||[]).length>0)},notes:{headToHeadEndpoint:"not_assumed",statsLeadersEndpoint:"not_assumed",largeHistoricalAcquisition:false}};
-await fs.writeFile(SUMMARY,JSON.stringify(summary,null,2)+"
-");
+await fs.writeFile(SUMMARY,JSON.stringify(summary,null,2)+String.fromCharCode(10));
 console.log(JSON.stringify(summary,null,2));
 if(!ranked.ok||!player.ok)process.exitCode=2;
