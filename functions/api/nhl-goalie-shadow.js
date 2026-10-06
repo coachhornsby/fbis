@@ -7,6 +7,8 @@ import { canonicalEvidenceId, persistCanonicalProspectiveEvidence, persistCanoni
 const TZ="America/Chicago";
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
 function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
+function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+async function d1Retry(label,fn,attempts=4){let last;for(let i=1;i<=attempts;i++){try{return await fn();}catch(error){last=error;if(i<attempts)await sleep(180*i);}}throw new Error(`D1_RETRY_EXHAUSTED:${label}:${String(last?.message||last||"unknown")}`);}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function dateCt(d=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);}
 function shiftDay(day,delta){const [y,m,d]=day.split("-").map(Number),x=new Date(Date.UTC(y,m-1,d,12));x.setUTCDate(x.getUTCDate()+delta);return x.toISOString().slice(0,10);}
@@ -120,7 +122,7 @@ export async function freezeRows(db,board,snapshotAt,codeSha){
 export async function persist(db,rows){
   let written=0,existing=0,canonicalWritten=0,canonicalExisting=0,canonicalTemporalFailures=0,canonicalContextExcluded=0;
   for(const r of rows){
-    const result=await db.prepare(`INSERT OR IGNORE INTO nhl_goalie_probability_shadow(
+    const result=await d1Retry("nhl_shadow_insert",()=>db.prepare(`INSERT OR IGNORE INTO nhl_goalie_probability_shadow(
       id,event_id,game_start,feature_cutoff_timestamp,model_id,model_version,incumbent_model_id,gate_id,gate_fired,historical_gate_validated,
       goalie_probability_scale,incumbent_home_win_probability,shadow_home_win_probability,projected_home,projected_away,
       goalie_state_json,ev_deployment_json,pp_deployment_json,scratches_availability_json,replacement_mapping_json,persistent_state_json,market_snapshot_json,
@@ -135,10 +137,10 @@ export async function persist(db,rows){
         JSON.stringify(r.goalieState),JSON.stringify(r.evDeployment),JSON.stringify(r.ppDeployment),JSON.stringify(r.scratchesAvailability),JSON.stringify(r.replacementMapping),JSON.stringify(r.persistentState),JSON.stringify(r.marketSnapshot),
         r.codeSha,0,0,0,r.featureCutoffTimestamp,r.lifecycle,r.homeGoalieConfirmationState,r.awayGoalieConfirmationState,r.homeExpectedStarterId,r.awayExpectedStarterId,
         r.homeExpectedStarterName,r.awayExpectedStarterName,r.homeExpectedStartProbability,r.awayExpectedStartProbability,r.goalieEvidenceSource,r.goalieEvidenceAt,
-        r.deploymentEvidenceAt,r.availabilityEvidenceAt,r.marketObservedAt,r.temporalIntegrityPassed?1:0,JSON.stringify(r.temporalIntegrity),r.probabilityDelta,r.starterQualityDelta,r.goalieUsageState).run();
+        r.deploymentEvidenceAt,r.availabilityEvidenceAt,r.marketObservedAt,r.temporalIntegrityPassed?1:0,JSON.stringify(r.temporalIntegrity),r.probabilityDelta,r.starterQualityDelta,r.goalieUsageState).run());
     if(result?.meta?.changes)written++;else existing++;
     if(!r.gateFired){canonicalContextExcluded++;continue;}
-    const canonical=await persistCanonicalProspectiveEvidence(db,{
+    const canonical=await d1Retry("nhl_canonical_evidence",()=>persistCanonicalProspectiveEvidence(db,{
       sport:"nhl",eventId:r.eventId,eventStartAt:r.gameStart,snapshotAt:r.featureCutoffTimestamp,
       championModelId:"NHL-PRO-v2",modelId:r.modelId,modelVersion:r.modelVersion,
       lifecycle:"SHADOW",gateVersion:PROSPECTIVE_GATE.gateVersion,
@@ -154,7 +156,7 @@ export async function persist(db,rows){
     },{
       sourceTable:"nhl_goalie_probability_shadow",sourceId:r.id,
       cohortGateVersion:PROSPECTIVE_GATE.gateVersion
-    });
+    }));
     canonicalWritten+=Number(canonical.written||0);
     canonicalExisting+=Number(canonical.existing||0);
     if(!canonical.ok&&canonical.reason==="temporal_integrity_failed")canonicalTemporalFailures++;
@@ -258,24 +260,24 @@ export async function settle(db,date){
 }
 export async function summary(db){
   const [counts,metrics,splits,integrity]=await Promise.all([
-    db.prepare(`SELECT COUNT(*) n,SUM(CASE WHEN gate_fired=1 THEN 1 ELSE 0 END) gate_n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
+    d1Retry("nhl_summary_counts",()=>db.prepare(`SELECT COUNT(*) n,SUM(CASE WHEN gate_fired=1 THEN 1 ELSE 0 END) gate_n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
       SUM(CASE WHEN graded_at IS NULL THEN 1 ELSE 0 END) ungraded_n,
       SUM(CASE WHEN ABS(COALESCE(probability_delta,0))>0.000001 THEN 1 ELSE 0 END) shadow_diff_n,
       SUM(CASE WHEN ABS(COALESCE(probability_delta,0))<=0.000001 THEN 1 ELSE 0 END) shadow_equal_n,
       AVG(probability_delta) mean_probability_delta,
-      MIN(feature_cutoff_timestamp) first_at,MAX(feature_cutoff_timestamp) last_at FROM nhl_goalie_probability_shadow`).first(),
-    db.prepare(`SELECT COUNT(*) n,AVG(incumbent_brier) incumbent_brier,AVG(shadow_brier) shadow_brier,
+      MIN(feature_cutoff_timestamp) first_at,MAX(feature_cutoff_timestamp) last_at FROM nhl_goalie_probability_shadow`).first()),
+    d1Retry("nhl_summary_metrics",()=>db.prepare(`SELECT COUNT(*) n,AVG(incumbent_brier) incumbent_brier,AVG(shadow_brier) shadow_brier,
       AVG(incumbent_log_loss) incumbent_log_loss,AVG(shadow_log_loss) shadow_log_loss,
       AVG(incumbent_correct) incumbent_accuracy,AVG(shadow_correct) shadow_accuracy,
       AVG(research_clv_probability_pp) avg_clv_probability_pp,AVG(research_profit_units) avg_profit_units
-      FROM nhl_goalie_probability_shadow WHERE graded_at IS NOT NULL`).first(),
-    db.prepare(`SELECT goalie_usage_state,COUNT(*) n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
+      FROM nhl_goalie_probability_shadow WHERE graded_at IS NOT NULL`).first()),
+    d1Retry("nhl_summary_splits",()=>db.prepare(`SELECT goalie_usage_state,COUNT(*) n,SUM(CASE WHEN graded_at IS NOT NULL THEN 1 ELSE 0 END) graded_n,
       AVG(CASE WHEN graded_at IS NOT NULL THEN incumbent_brier END) incumbent_brier,
       AVG(CASE WHEN graded_at IS NOT NULL THEN shadow_brier END) shadow_brier,
       AVG(starter_quality_delta) avg_starter_quality_delta
-      FROM nhl_goalie_probability_shadow GROUP BY goalie_usage_state ORDER BY goalie_usage_state`).all(),
-    db.prepare(`SELECT COUNT(*) total,SUM(CASE WHEN temporal_integrity_passed=1 THEN 1 ELSE 0 END) passed,
-      SUM(CASE WHEN temporal_integrity_passed<>1 THEN 1 ELSE 0 END) violations FROM nhl_goalie_probability_shadow`).first()
+      FROM nhl_goalie_probability_shadow GROUP BY goalie_usage_state ORDER BY goalie_usage_state`).all()),
+    d1Retry("nhl_summary_integrity",()=>db.prepare(`SELECT COUNT(*) total,SUM(CASE WHEN temporal_integrity_passed=1 THEN 1 ELSE 0 END) passed,
+      SUM(CASE WHEN temporal_integrity_passed<>1 THEN 1 ELSE 0 END) violations FROM nhl_goalie_probability_shadow`).first())
   ]);
   const confirmed=(splits.results||[]).find(x=>x.goalie_usage_state==="BOTH_CONFIRMED");
   return{
@@ -295,7 +297,8 @@ export async function summary(db){
 }
 export async function onRequestGet(context){
   const db=context.env.DB;if(!db?.prepare)return json({ok:false,error:"d1_unavailable"},503);
-  return json({ok:true,codeSha:context.env.CF_PAGES_COMMIT_SHA||null,...await summary(db)});
+  try{return json({ok:true,codeSha:context.env.CF_PAGES_COMMIT_SHA||null,...await summary(db)});}
+  catch(error){return json({ok:false,error:"nhl_shadow_d1_temporarily_unavailable",detail:String(error?.message||error),codeSha:context.env.CF_PAGES_COMMIT_SHA||null,productionChampion:"NHL-PRO-v2",productionChanged:false,qualificationChanged:false,authority:false,staking:false},503);}
 }
 export async function onRequestPost(context){
   const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(),401);
@@ -303,12 +306,16 @@ export async function onRequestPost(context){
   let body={};try{body=await context.request.json()}catch{}
   const mode=String(body.mode||"freeze").toLowerCase(),raw=String(body.date||dateCt()),resolved=resolveTodayDate(raw);
   if(!resolved.ok)return json({ok:false,error:resolved.error},400);
-  if(mode==="settle")return json({ok:true,mode,date:resolved.date,...await settle(db,resolved.date),...await summary(db)});
-  if(mode!=="freeze")return json({ok:false,error:"invalid_mode"},400);
-  const board=await buildTodayBoard(resolved.date,envOf(context),{focusSport:"nhl"});
-  const snapshotAt=new Date().toISOString(),codeSha=context.env.CF_PAGES_COMMIT_SHA||body.codeSha||null;
-  const rows=await freezeRows(db,board,snapshotAt,codeSha),p=await persist(db,rows);
-  return json({ok:true,mode,date:resolved.date,snapshotAt,candidates:rows.length,...p,
-    gateFired:rows.filter(r=>r.gateFired).length,temporalIntegrityPassed:rows.filter(r=>r.temporalIntegrityPassed).length,
-    prospectiveGateVersion:PROSPECTIVE_GATE.gateVersion,productionChampion:"NHL-PRO-v2",productionChanged:false,qualificationChanged:false,authority:false,staking:false});
+  try{
+    if(mode==="settle")return json({ok:true,mode,date:resolved.date,...await settle(db,resolved.date),...await summary(db)});
+    if(mode!=="freeze")return json({ok:false,error:"invalid_mode"},400);
+    const board=await buildTodayBoard(resolved.date,envOf(context),{focusSport:"nhl"});
+    const snapshotAt=new Date().toISOString(),codeSha=context.env.CF_PAGES_COMMIT_SHA||body.codeSha||null;
+    const rows=await freezeRows(db,board,snapshotAt,codeSha),p=await persist(db,rows);
+    return json({ok:true,mode,date:resolved.date,snapshotAt,candidates:rows.length,...p,
+      gateFired:rows.filter(r=>r.gateFired).length,temporalIntegrityPassed:rows.filter(r=>r.temporalIntegrityPassed).length,
+      prospectiveGateVersion:PROSPECTIVE_GATE.gateVersion,productionChampion:"NHL-PRO-v2",productionChanged:false,qualificationChanged:false,authority:false,staking:false});
+  }catch(error){
+    return json({ok:false,error:"nhl_shadow_d1_temporarily_unavailable",detail:String(error?.message||error),mode,date:resolved.date,productionChampion:"NHL-PRO-v2",productionChanged:false,qualificationChanged:false,authority:false,staking:false},503);
+  }
 }
