@@ -1,13 +1,7 @@
-name: CFB team directory Phase A
-
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "scripts/cfb-team-directory-build.mjs"
-      - ".github/workflows/cfb-team-directory-phase-a.yml"
-      - "migrations/0067_cfb_persistent_directory_phase_a.sql"
-      - "functions/lib/cfbTeamDirectory.js"
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       start_year:
@@ -28,6 +22,7 @@ concurrency:
 
 jobs:
   populate:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
