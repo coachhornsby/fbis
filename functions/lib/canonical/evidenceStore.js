@@ -1,8 +1,24 @@
 import { buildProspectiveEvidence, promotionCohortEligibility } from "./prospectiveEvidence.js";
 import { buildEconomicGrade } from "./economicGrading.js";
 
-function j(v) { return v == null ? null : JSON.stringify(v); }
+function stable(v) {
+  if (Array.isArray(v)) return v.map(stable);
+  if (v && typeof v === "object") {
+    return Object.fromEntries(Object.entries(v).sort(([a],[b]) => a.localeCompare(b)).map(([k,x]) => [k, stable(x)]));
+  }
+  return v;
+}
+function j(v) { return v == null ? null : JSON.stringify(stable(v)); }
 function same(a,b) { return String(a ?? "") === String(b ?? ""); }
+function sameJson(stored,value) {
+  if (stored == null && value == null) return true;
+  try {
+    const parsed = typeof stored === "string" ? JSON.parse(stored) : stored;
+    return j(parsed) === j(value);
+  } catch {
+    return same(stored, j(value));
+  }
+}
 
 export async function persistProspectiveEvidence(env, input, eligibilityOptions = {}) {
   if (!env?.DB) return { ok:false, reason:"D1-unbound" };
@@ -11,11 +27,20 @@ export async function persistProspectiveEvidence(env, input, eligibilityOptions 
   const existing = await env.DB.prepare("SELECT * FROM fbis_prospective_evidence WHERE evidence_id=?").bind(row.evidenceId).first();
   if (existing) {
     const immutable = [
-      ["sport",row.sport],["event_id",row.eventId],["snapshot_at",row.snapshotAt],
-      ["champion_model_id",row.championModelId],["model_id",row.modelId],
-      ["market_snapshot_id",row.marketSnapshotId],["code_sha",row.codeSha],
+      ["sport",row.sport],["event_id",row.eventId],["event_start_at",row.eventStartAt],["snapshot_at",row.snapshotAt],
+      ["champion_model_id",row.championModelId],["model_id",row.modelId],["model_version",row.modelVersion],
+      ["lifecycle",row.lifecycle],["gate_version",row.gateVersion],["state_snapshot_id",row.stateSnapshotId],
+      ["market_snapshot_id",row.marketSnapshotId],["market_observed_at",row.marketObservedAt],["code_sha",row.codeSha],
+      ["legacy",row.legacy?1:0],["can_qualify",row.canQualify?1:0],["can_authorize",row.canAuthorize?1:0],
     ];
-    const conflict = immutable.filter(([k,v])=>!same(existing[k],v)).map(([k])=>k);
+    const jsonImmutable = [
+      ["incumbent_projection_json",row.incumbentProjection],["challenger_projection_json",row.challengerProjection],
+      ["governance_json",row.governance],["source_observed_ats_json",row.sourceObservedAts],["state_snapshot_json",row.stateSnapshot],
+      ["market_snapshot_json",row.marketSnapshot],["uncertainty_json",row.uncertainty],
+      ["qualification_authority_json",row.qualificationAuthority],["wager_authority_json",row.wagerAuthority],
+    ];
+    const conflict = immutable.filter(([k,v])=>!same(existing[k],v)).map(([k])=>k)
+      .concat(jsonImmutable.filter(([k,v])=>!sameJson(existing[k],v)).map(([k])=>k));
     if (conflict.length) return { ok:false, conflict:true, reason:"prospective-evidence-immutable-conflict", fields:conflict };
     return { ok:true, already:true, promotionEligible:Number(existing.promotion_eligible||0)===1 };
   }
