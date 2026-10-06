@@ -53,7 +53,12 @@ jobs:
             echo "max_pages=1" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          npx wrangler d1 execute fbis --remote --command "SELECT cursor_value,status FROM tennis_ingestion_state WHERE source='WTA_OFFICIAL' AND tour='wta' AND stream='players' LIMIT 1" --json >/tmp/wta-cursor.json
+          cursor_ok=0
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if npx wrangler d1 execute fbis --remote --command "SELECT cursor_value,status FROM tennis_ingestion_state WHERE source='WTA_OFFICIAL' AND tour='wta' AND stream='players' LIMIT 1" --json >/tmp/wta-cursor.json; then cursor_ok=1; break; fi
+            sleep $((attempt*10))
+          done
+          test "$cursor_ok" = "1"
           page="$(jq -r '.[0].results[0].cursor_value // "0"' /tmp/wta-cursor.json)"
           status="$(jq -r '.[0].results[0].status // "PENDING"' /tmp/wta-cursor.json)"
           max_pages="${{ github.event.inputs.max_pages || '2' }}"
@@ -81,18 +86,7 @@ jobs:
 
       - name: Apply WTA shard to production D1
         if: github.event_name != 'pull_request' && steps.cursor.outputs.status != 'COMPLETE'
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/wta-player-chunks
-          split -l 200 -d -a 4 artifacts/wta-official-player-bank.sql /tmp/wta-player-chunks/chunk-
-          for file in /tmp/wta-player-chunks/chunk-*; do
-            ok=0
-            for attempt in 1 2 3; do
-              if npx wrangler d1 execute fbis --remote --file "$file"; then ok=1; break; fi
-              sleep $((attempt*3))
-            done
-            test "$ok" = "1"
-          done
+        run: node scripts/d1-batched-sql.mjs artifacts/wta-official-player-bank.sql
 
       - uses: actions/upload-artifact@v4.6.2
         if: always()

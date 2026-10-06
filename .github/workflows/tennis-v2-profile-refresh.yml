@@ -71,28 +71,9 @@ jobs:
             echo "apply=0" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Apply profiles to production D1 in bounded chunks
+      - name: Apply profiles to production D1 in bounded query batches
         if: steps.gate.outputs.apply == '1'
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/tennis-d1-chunks
-          split -l 250 -d -a 4 artifacts/tennis-v2-current-profiles.sql /tmp/tennis-d1-chunks/chunk-
-          count=0
-          for file in /tmp/tennis-d1-chunks/chunk-*; do
-            count=$((count+1))
-            echo "Applying Tennis D1 chunk $count: $file"
-            ok=0
-            for attempt in 1 2 3; do
-              if npx wrangler d1 execute fbis --remote --file "$file"; then
-                ok=1
-                break
-              fi
-              echo "Chunk $count attempt $attempt failed; retrying..."
-              sleep $((attempt*3))
-            done
-            test "$ok" = "1"
-          done
-          echo "Applied $count bounded Tennis D1 chunks"
+        run: node scripts/d1-batched-sql.mjs artifacts/tennis-v2-current-profiles.sql
 
       - name: Run automatic v2 decisions from latest markets
         if: steps.gate.outputs.apply == '1'
