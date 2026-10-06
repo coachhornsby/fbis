@@ -5,7 +5,7 @@ import { NHL_GOALIE_PROB_PROSPECTIVE_GATE as PROSPECTIVE_GATE } from "../../data
 import { canonicalEvidenceId, persistCanonicalProspectiveEvidence, persistCanonicalEconomicGrade, markCanonicalEvidenceGraded } from "../lib/canonical/sportEvidenceAdapter.js";
 
 const TZ="America/Chicago";
-function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}
+function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});}\nfunction sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}\nasync function retryDb(op,{attempts=4,baseDelayMs=80}={}){\n  let last;\n  for(let i=0;i<attempts;i++){\n    try{return await op();}catch(error){\n      last=error;\n      if(i===attempts-1)break;\n      await sleep(baseDelayMs*(i+1));\n    }\n  }\n  throw last;\n}
 function finite(v){if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function dateCt(d=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);}
@@ -120,7 +120,7 @@ export async function freezeRows(db,board,snapshotAt,codeSha){
 export async function persist(db,rows){
   let written=0,existing=0,canonicalWritten=0,canonicalExisting=0,canonicalTemporalFailures=0,canonicalContextExcluded=0;
   for(const r of rows){
-    const result=await db.prepare(`INSERT OR IGNORE INTO nhl_goalie_probability_shadow(
+    const result=await retryDb(()=>db.prepare(`INSERT OR IGNORE INTO nhl_goalie_probability_shadow(
       id,event_id,game_start,feature_cutoff_timestamp,model_id,model_version,incumbent_model_id,gate_id,gate_fired,historical_gate_validated,
       goalie_probability_scale,incumbent_home_win_probability,shadow_home_win_probability,projected_home,projected_away,
       goalie_state_json,ev_deployment_json,pp_deployment_json,scratches_availability_json,replacement_mapping_json,persistent_state_json,market_snapshot_json,
@@ -135,10 +135,10 @@ export async function persist(db,rows){
         JSON.stringify(r.goalieState),JSON.stringify(r.evDeployment),JSON.stringify(r.ppDeployment),JSON.stringify(r.scratchesAvailability),JSON.stringify(r.replacementMapping),JSON.stringify(r.persistentState),JSON.stringify(r.marketSnapshot),
         r.codeSha,0,0,0,r.featureCutoffTimestamp,r.lifecycle,r.homeGoalieConfirmationState,r.awayGoalieConfirmationState,r.homeExpectedStarterId,r.awayExpectedStarterId,
         r.homeExpectedStarterName,r.awayExpectedStarterName,r.homeExpectedStartProbability,r.awayExpectedStartProbability,r.goalieEvidenceSource,r.goalieEvidenceAt,
-        r.deploymentEvidenceAt,r.availabilityEvidenceAt,r.marketObservedAt,r.temporalIntegrityPassed?1:0,JSON.stringify(r.temporalIntegrity),r.probabilityDelta,r.starterQualityDelta,r.goalieUsageState).run();
+        r.deploymentEvidenceAt,r.availabilityEvidenceAt,r.marketObservedAt,r.temporalIntegrityPassed?1:0,JSON.stringify(r.temporalIntegrity),r.probabilityDelta,r.starterQualityDelta,r.goalieUsageState).run());
     if(result?.meta?.changes)written++;else existing++;
     if(!r.gateFired){canonicalContextExcluded++;continue;}
-    const canonical=await persistCanonicalProspectiveEvidence(db,{
+    const canonical=await retryDb(()=>persistCanonicalProspectiveEvidence(db,{
       sport:"nhl",eventId:r.eventId,eventStartAt:r.gameStart,snapshotAt:r.featureCutoffTimestamp,
       championModelId:"NHL-PRO-v2",modelId:r.modelId,modelVersion:r.modelVersion,
       lifecycle:"SHADOW",gateVersion:PROSPECTIVE_GATE.gateVersion,
@@ -154,7 +154,7 @@ export async function persist(db,rows){
     },{
       sourceTable:"nhl_goalie_probability_shadow",sourceId:r.id,
       cohortGateVersion:PROSPECTIVE_GATE.gateVersion
-    });
+    }));
     canonicalWritten+=Number(canonical.written||0);
     canonicalExisting+=Number(canonical.existing||0);
     if(!canonical.ok&&canonical.reason==="temporal_integrity_failed")canonicalTemporalFailures++;
@@ -211,9 +211,7 @@ async function closeNoVig(db,eventId,side,start){
   }catch{return null;}
 }
 export async function settle(db,date){
-  const rows=(await db.prepare(`SELECT * FROM nhl_goalie_probability_shadow
-    WHERE graded_at IS NULL AND substr(game_start,1,10) BETWEEN ? AND ? ORDER BY game_start`)
-    .bind(shiftDay(date,-1),shiftDay(date,1)).all()).results||[];
+  const rows=((await retryDb(()=>db.prepare(`SELECT * FROM nhl_goalie_probability_shadow\n    WHERE graded_at IS NULL AND substr(game_start,1,10) BETWEEN ? AND ? ORDER BY game_start`)\n    .bind(shiftDay(date,-1),shiftDay(date,1)).all())).results)||[];
   let graded=0;
   for(const r of rows){
     const box=await fetchBox(r.event_id).catch(()=>null),score=boxScore(box);if(!score)continue;
@@ -230,27 +228,25 @@ export async function settle(db,date){
     const usage=unexpectedStarter?"LATE_OR_UNEXPECTED_STARTER_CHANGE":(r.home_goalie_confirmation_state==="CONFIRMED"&&r.away_goalie_confirmation_state==="CONFIRMED"?"BOTH_CONFIRMED":"EXPECTED_STARTER_ONLY");
     const grade={side,price,won,scoreMarketsChanged:false,atsDelta:"SAME_AS_INCUMBENT",totalDelta:"SAME_AS_INCUMBENT",actualHomeStarterId:score.homeStarterId,actualAwayStarterId:score.awayStarterId,unexpectedStarter};
     const gradedAt=new Date().toISOString();
-    await db.prepare(`UPDATE nhl_goalie_probability_shadow SET
+    await retryDb(()=>db.prepare(`UPDATE nhl_goalie_probability_shadow SET
       actual_home=?,actual_away=?,incumbent_brier=?,shadow_brier=?,incumbent_log_loss=?,shadow_log_loss=?,
       incumbent_correct=?,shadow_correct=?,research_clv_probability_pp=?,research_profit_units=?,grade_json=?,graded_at=?,lifecycle='GRADED',goalie_usage_state=?
-      WHERE id=?`).bind(score.home,score.away,ib,sb,ill,sll,ic,sc,clv,profit,JSON.stringify(grade),gradedAt,usage,r.id).run();
+      WHERE id=?`).bind(score.home,score.away,ib,sb,ill,sll,ic,sc,clv,profit,JSON.stringify(grade),gradedAt,usage,r.id).run());
 
     if(Number(r.gate_fired)===1 && Number(r.temporal_integrity_passed)===1){
       const evidenceId=canonicalEvidenceId({sport:"nhl",sourceTable:"nhl_goalie_probability_shadow",sourceId:r.id,gateVersion:PROSPECTIVE_GATE.gateVersion});
-      await markCanonicalEvidenceGraded(db,evidenceId,{gradedAt,result:{
+      await retryDb(()=>markCanonicalEvidenceGraded(db,evidenceId,{gradedAt,result:{
         actualHome:score.home,actualAway:score.away,incumbentBrier:ib,challengerBrier:sb,
         incumbentLogLoss:ill,challengerLogLoss:sll,actualHomeStarterId:score.homeStarterId,actualAwayStarterId:score.awayStarterId,
-        unexpectedStarter,sourceResearchClvProbabilityPp:clv,sourceResearchProfitUnits:profit
-      }});
+        unexpectedStarter,sourceResearchClvProbabilityPp:clv,sourceResearchProfitUnits:profit\n      }}));
       const entryNoVig=noVigForSide(market,side);
-      await persistCanonicalEconomicGrade(db,{
+      await retryDb(()=>persistCanonicalEconomicGrade(db,{
         evidenceId,sport:"nhl",eventId:String(r.event_id),marketFamily:"moneyline_probability",
         selection:side,projectedProbability:side==="HOME"?ps:1-ps,entryNoVigProbability:entryNoVig,closeNoVigProbability:close,
         result:won?"WIN":"LOSS",gradedAt,metadata:{researchOnly:true,sourceClvSemantics:"close_no_vig_minus_entry_vigged_implied_pp",canonicalClvSemantics:"close_no_vig_minus_entry_no_vig_probability"}
       },{
         executionEvidence:false,sourceTable:"nhl_goalie_probability_shadow",sourceId:r.id,
-        sourceMetrics:{shadowBrier:sb,shadowLogLoss:sll,researchClvProbabilityPp:clv,researchProfitUnits:profit}
-      });
+        sourceMetrics:{shadowBrier:sb,shadowLogLoss:sll,researchClvProbabilityPp:clv,researchProfitUnits:profit}\n      }));
     }
     graded++;
   }
