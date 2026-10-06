@@ -81,18 +81,7 @@ jobs:
 
       - name: Apply WTA shard to production D1
         if: github.event_name != 'pull_request' && steps.cursor.outputs.status != 'COMPLETE'
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/wta-player-chunks
-          split -l 200 -d -a 4 artifacts/wta-official-player-bank.sql /tmp/wta-player-chunks/chunk-
-          for file in /tmp/wta-player-chunks/chunk-*; do
-            ok=0
-            for attempt in 1 2 3; do
-              if npx wrangler d1 execute fbis --remote --file "$file"; then ok=1; break; fi
-              sleep $((attempt*3))
-            done
-            test "$ok" = "1"
-          done
+        run: node scripts/d1-batched-sql.mjs artifacts/wta-official-player-bank.sql
 
       - uses: actions/upload-artifact@v4.6.2
         if: always()
