@@ -131,11 +131,21 @@ export function evaluateConvictionGates({
   const checkpoint = candidate.checkpoint || frozen.checkpoint;
   if (!checkpoint) return fail("missing-projection-checkpoint");
 
+  const candidateEventId = String(candidate.gameId || candidate.eventId || "");
+  const canonicalEventId = String(game.id || frozen.id || "");
+  if (!candidateEventId || !canonicalEventId) return fail("missing-event-identity");
+  if (candidateEventId !== canonicalEventId) return fail("event-identity-mismatch");
+  if (!candidate.sourceProjectionId) return fail("missing-projection-identity");
+
   const freezeAt = Date.parse(String(candidate.qualifiedAt || frozen.frozenAt || ""));
   const startAt = Date.parse(String(game.start || frozen.start || candidate.start || ""));
+  const marketAt = Date.parse(String(candidate.marketObservedAt || frozen.marketAt || ""));
   if (!Number.isFinite(freezeAt)) return fail("missing-freeze-timestamp");
   if (!Number.isFinite(startAt)) return fail("missing-start-timestamp");
+  if (!Number.isFinite(marketAt)) return fail("missing-market-timestamp");
   if (freezeAt >= startAt) return fail("freeze-not-before-start");
+  if (marketAt > freezeAt) return fail("market-after-projection-freeze");
+  if (marketAt >= startAt) return fail("market-after-start");
 
   if (!candidate.modelVersion && !frozen.modelVersion && !game.modelVersion) {
     return fail("missing-model-version");
