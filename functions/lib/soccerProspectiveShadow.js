@@ -111,8 +111,14 @@ export function buildSoccerProspectiveShadowRecords(game={},slate={},{
   const competition=String(game.soccerLeague||game.league||"");
   const v2=game.soccerFbisV2||game.soccerFbis||game.researchProjection||null;
   const v31=game.soccerFbisV3||game?.challengers?.["SOCCER-FBIS-v3.1"]||null;
-  if(!competition||!v2?.ok||!v31?.ok){
-    return{ok:false,reason:"projection-or-competition-unavailable",rows:[]};
+  if(!competition){
+    return{ok:false,reason:"competition-unavailable",detail:"missing-league-mapping",rows:[]};
+  }
+  if(!v2?.ok){
+    return{ok:false,reason:"v2-projection-unavailable",detail:String(v2?.reason||"v2-projection-unavailable"),rows:[]};
+  }
+  if(!v31?.ok){
+    return{ok:false,reason:"v31-projection-unavailable",detail:String(v31?.reason||"v31-projection-unavailable"),rows:[]};
   }
   if(v2?.provenance?.marketUsed===true||v31?.provenance?.marketUsed===true||v31?.provenance?.persistentStateUsed===true){
     return{ok:false,reason:"model-governance-violation",rows:[]};

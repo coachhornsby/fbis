@@ -87,6 +87,29 @@ test("Phase 3G records true freeze time while retry IDs are stable within five-m
   assert.equal(a.rows[0].shadowId,b.rows[0].shadowId);
 });
 
+
+test("Phase 3H-R splits competition, v2, and v3.1 projection failures",()=>{
+  const missingCompetition=game("");
+  const a=buildSoccerProspectiveShadowRecords(missingCompetition,slate(),{snapshotAt:"2026-10-06T13:25:12Z"});
+  assert.equal(a.ok,false);
+  assert.equal(a.reason,"competition-unavailable");
+  assert.equal(a.detail,"missing-league-mapping");
+
+  const missingV2=game();
+  missingV2.soccerFbisV2={ok:false,reason:"insufficient-canonical-history"};
+  const b=buildSoccerProspectiveShadowRecords(missingV2,slate(),{snapshotAt:"2026-10-06T13:25:12Z"});
+  assert.equal(b.ok,false);
+  assert.equal(b.reason,"v2-projection-unavailable");
+  assert.equal(b.detail,"insufficient-canonical-history");
+
+  const missingV31=game();
+  missingV31.soccerFbisV3={ok:false,reason:"insufficient-pitchapi-history"};
+  const d=buildSoccerProspectiveShadowRecords(missingV31,slate(),{snapshotAt:"2026-10-06T13:25:12Z"});
+  assert.equal(d.ok,false);
+  assert.equal(d.reason,"v31-projection-unavailable");
+  assert.equal(d.detail,"insufficient-pitchapi-history");
+});
+
 test("Phase 3G rejects post-kick and model governance contamination",()=>{
   const post=buildSoccerProspectiveShadowRecords(game(),slate(),{
     snapshotAt:"2026-10-07T20:00:01Z",
