@@ -71,14 +71,6 @@ jobs:
             echo "apply=0" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Ensure Tennis Player Bank schema
-        if: steps.gate.outputs.apply == '1'
-        run: |
-          set -euo pipefail
-          test -n "${CLOUDFLARE_API_TOKEN:-}"
-          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
-          npx wrangler d1 execute fbis --remote --file migrations/0053_tennis_player_bank.sql
-
       - name: Apply profiles to production D1 in bounded chunks
         if: steps.gate.outputs.apply == '1'
         run: |
