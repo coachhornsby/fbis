@@ -67,7 +67,7 @@ jobs:
             .governance.canInfluenceProjection == false and
             .governance.canQualify == false and
             .governance.canAuthorizeWager == false and
-            .governance.availabilityRule | contains("UNKNOWN remains UNKNOWN")
+            (.governance.availabilityRule | contains("UNKNOWN remains UNKNOWN"))
           ' artifacts/cbb-directory/qa.json >/dev/null
       - name: Apply Phase A schema and population to D1
         if: github.event_name == 'push'
