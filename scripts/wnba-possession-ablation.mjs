@@ -141,6 +141,18 @@ function ridgePredict(train,x,key,lam=lambda){
   const b=den?num/den:0,a=my-b*mx;
   return a+b*x;
 }
+function makeOnlineFit(){return {n:0,sx:0,sy:0,sxx:0,sxy:0}}
+function onlinePredict(s,x,lam=lambda){
+  const xx=finite(x);if(xx==null||!s||s.n<minTrain)return null;
+  const mx=s.sx/s.n,my=s.sy/s.n;
+  const num=s.sxy-s.n*mx*my,den=(s.sxx-s.n*mx*mx)+lam;
+  const b=den?num/den:0,a=my-b*mx;
+  return a+b*xx;
+}
+function onlineUpdate(s,x,y){
+  const xx=finite(x),yy=finite(y);if(xx==null||yy==null)return s;
+  s.n++;s.sx+=xx;s.sy+=yy;s.sxx+=xx*xx;s.sxy+=xx*yy;return s;
+}
 function summarizeGame(rows,family){
   const rs=rows.filter(r=>finite(r[family+"Margin"])!=null&&finite(r[family+"Total"])!=null);
   const bM=mae(rs.map(r=>r.actualMargin-r.baseMargin)),cM=mae(rs.map(r=>r.actualMargin-r[family+"Margin"]));
@@ -229,18 +241,39 @@ const PROP_FAMILIES={
   opponent_shot_rebound_profile:(h,ctx)=>finite(ctx.oppReboundEnvironment),
   pace_possession_expectation:(h,ctx)=>finite(ctx.reconPaceDelta),
 };
-function playerLineupNet(playerId,before){
-  const cutoff=Date.parse(before);let n=0,d=0;
-  for(const s of stints){
-    if(Date.parse(s.date)>=cutoff)continue;
-    const poss=finite(s.possessions),diff=finite(s.pointDifferential);if(!poss||diff==null)continue;
-    let sign=0;if((s.homePlayers||[]).map(String).includes(String(playerId)))sign=1;else if((s.awayPlayers||[]).map(String).includes(String(playerId)))sign=-1;
-    if(!sign)continue;const w=poss/(poss+20);n+=sign*100*diff/poss*w*poss;d+=w*poss;
+const sortedPlayerStints=stints
+  .filter(s=>s?.date&&finite(s.possessions)>0&&finite(s.pointDifferential)!=null)
+  .sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
+let playerStintPtr=0;
+const playerLineupState=new Map();
+function applyPlayerStint(s){
+  const poss=finite(s.possessions),diff=finite(s.pointDifferential);if(!poss||diff==null)return;
+  const w=poss/(poss+20);
+  for(const [ids,sign] of [[s.homePlayers||[],1],[s.awayPlayers||[],-1]]){
+    for(const raw of ids){
+      const id=String(raw||"");if(!id)continue;
+      const st=playerLineupState.get(id)||{n:0,d:0};
+      st.n+=sign*100*diff/poss*w*poss;st.d+=w*poss;
+      playerLineupState.set(id,st);
+    }
   }
-  return d?n/d:null;
 }
-const playerHist=new Map(),propRows=[];
+function advancePlayerLineups(before){
+  const cutoff=Date.parse(before);
+  while(playerStintPtr<sortedPlayerStints.length&&Date.parse(sortedPlayerStints[playerStintPtr].date)<cutoff){
+    applyPlayerStint(sortedPlayerStints[playerStintPtr++]);
+  }
+}
+function currentPlayerLineupNet(playerId){
+  const s=playerLineupState.get(String(playerId||""));return s?.d?s.n/s.d:null;
+}
+const playerHist=new Map(),propRows=[],propFit=new Map();
+function propFitState(market,family){
+  const k=market+"|"+family;if(!propFit.has(k))propFit.set(k,makeOnlineFit());return propFit.get(k);
+}
 for(const g of games){
+  advancePlayerLineups(g.start||g.date);
+  const pendingPropFit=[];
   const gRow=gameRows.find(r=>r.gameId===String(g.id));
   let baseGame=null;
   if(gRow){
@@ -256,7 +289,7 @@ for(const g of games){
       const oppId=side==="home"?String(g.awayId):String(g.homeId),oppHist=(teamHist.get(oppId)||[]).filter(x=>Date.parse(x.date)<Date.parse(g.start||g.date));
       const ownHist=(teamHist.get(String(p.teamId))||[]).filter(x=>Date.parse(x.date)<Date.parse(g.start||g.date));
       const ctx={
-        playerLineupNet:playerLineupNet(id,g.start||g.date),
+        playerLineupNet:currentPlayerLineupNet(id),
         oppReboundEnvironment:weighted(oppHist,"oppOrb",8),
         reconPaceDelta:(mean([weighted(ownHist,"reconPace",8),weighted(oppHist,"reconPace",8)])??baseGame.basePace)-baseGame.basePace,
       };
@@ -264,15 +297,19 @@ for(const g of games){
         const actual=finite(p[key]),base=incumbentPlayerProjection(hist,market,baseGame,side);if(actual==null||base==null)continue;
         const row={gameId:String(g.id),date:g.start||g.date,season:seasonOf(g),playerId:id,playerName:p.name,market,actual,base};
         for(const [family,fn] of Object.entries(PROP_FAMILIES)){
-          const sig=finite(fn(hist,ctx)),train=propRows.filter(x=>x.market===market);
-          const pred=ridgePredict(train,sig,family+"Prop");
+          const sig=finite(fn(hist,ctx)),fit=propFitState(market,family);
+          const pred=onlinePredict(fit,sig);
           row[family+"PropSignal"]=sig;row[family+"PropResidual"]=actual-base;row[family+"Prop"]=pred==null?null:base+pred;
+          pendingPropFit.push({fit,x:sig,y:actual-base});
         }
         propRows.push(row);
       }
     }
     if(id){if(!playerHist.has(id))playerHist.set(id,[]);playerHist.get(id).push(playerGameEnrich(g,p))}
   }
+  // Update residual fits only after the full game has been projected, preventing
+  // contemporaneous player outcomes from leaking into another player in the same game.
+  for(const u of pendingPropFit)onlineUpdate(u.fit,u.x,u.y);
 }
 function summarizeProp(family){
   const markets={};let improve=0,regress=0,eligible=0;
@@ -295,7 +332,7 @@ const report={
     gameBaseline:"WNBA-FBIS-v2 recreated from prior canonical boxes with identical 14-game recency, shrinkage, matchup and HFA formula.",
     propBaseline:"WNBA-PLAYER-PROJ-v2 recreated point-in-time from season-to-date player games with identical reliability, role prior, pace/score environment and minute-stability formula.",
     challenger:"Each feature family is fit separately as an expanding-window ridge residual correction using only earlier outcomes. No closing line or target-game market data enters features.",
-    minTrain,lambda,
+    minTrain,lambda,propFitMode:"online_sufficient_statistics",lineupLookup:"point_in_time_preindexed",
   },
   coverage:{games:games.length,states:states.length,stints:stints.length,gameAblationRows:gameRows.length,propAblationRows:propRows.length,seasons:[...new Set(games.map(seasonOf))]},
   gameEvidence,propEvidence,
