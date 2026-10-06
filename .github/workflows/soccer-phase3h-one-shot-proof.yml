@@ -7,7 +7,7 @@ on:
       - ".github/workflows/soccer-phase3h-one-shot-proof.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: soccer-phase3h-one-shot-proof
@@ -31,7 +31,7 @@ jobs:
           # Start early inside a five-minute idempotency bucket so bounded
           # transient retries and the duplicate proof remain in one bucket.
           rem=$(( $(date +%s) % 300 ))
-          if [ "$rem" -gt 20 ]; then
+          if [ "$rem" -gt 240 ]; then
             sleep $((300 - rem + 5))
           fi
 
@@ -44,6 +44,32 @@ jobs:
             body="$(cat "$out")"
             rm -f "$out"
             printf '%s\n%s' "$status" "$body"
+          }
+
+          publish_evidence() {
+            local first_body="${1:-}" second_body="${2:-}" evidence encoded current sha payload
+            evidence="$(jq -n \
+              --arg generatedAt "$(date -u +%FT%TZ)" \
+              --arg triggerSha "${GITHUB_SHA}" \
+              --arg snapshotDate "${SNAPSHOT_DATE}" \
+              --argjson first "${first_body:-null}" \
+              --argjson second "${second_body:-null}" \
+              '{generatedAt:$generatedAt,triggerSha:$triggerSha,snapshotDate:$snapshotDate,first:$first,second:$second}')"
+            encoded="$(printf '%s\n' "$evidence" | base64 -w0)"
+            current="$(curl -sS -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/ops/soccer-phase3h-r-proof-latest.json?ref=main")"
+            sha="$(printf '%s\n' "$current" | jq -r '.sha // empty')"
+            if [ -n "$sha" ]; then
+              payload="$(jq -n --arg message "Soccer Phase 3H-R: record controlled proof evidence" --arg content "$encoded" --arg sha "$sha" '{message:$message,content:$content,sha:$sha,branch:"main"}')"
+            else
+              payload="$(jq -n --arg message "Soccer Phase 3H-R: record controlled proof evidence" --arg content "$encoded" '{message:$message,content:$content,branch:"main"}')"
+            fi
+            curl -fsS -X PUT \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/ops/soccer-phase3h-r-proof-latest.json" \
+              -d "$payload" >/dev/null
           }
 
           first=""
@@ -59,7 +85,10 @@ jobs:
             fi
             sleep 3
           done
-          test -n "$first"
+          if [ -z "$first" ]; then
+            publish_evidence "${body:-null}" "null"
+            exit 1
+          fi
 
           second=""
           for attempt in 1 2 3 4 5 6; do
@@ -74,7 +103,11 @@ jobs:
             fi
             sleep 3
           done
-          test -n "$second"
+          if [ -z "$second" ]; then
+            publish_evidence "$first" "${body:-null}"
+            exit 1
+          fi
+          publish_evidence "$first" "$second"
 
           first_bucket="$(printf '%s\n' "$first" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
           second_bucket="$(printf '%s\n' "$second" | jq -r '.snapshotAt' | xargs -I{} date -u -d "{}" +%s | awk '{print int($1/300)}')"
