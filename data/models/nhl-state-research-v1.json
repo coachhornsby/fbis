@@ -1,0 +1,422 @@
+{
+  "modelId": "NHL-STATE-RESEARCH-v1",
+  "generatedAt": "2026-10-06T03:15:04.073Z",
+  "sourceModel": "NHL-PRO-v2",
+  "sourceVersion": "research-v2.0-event-chain-gbdt",
+  "sourceGeneratedAt": "2026-10-04T09:27:24.766Z",
+  "pointInTime": true,
+  "marketInformed": false,
+  "method": "leave-one-family-out ablation on frozen NHL-PRO-v2 PIT predictions; no market inputs; no retraining",
+  "sampleGames": 2624,
+  "aggregate": {
+    "full_v2": {
+      "n": 2624,
+      "marginMae": 2.14819,
+      "totalMae": 1.86803,
+      "homeGoalsMae": 1.40601,
+      "awayGoalsMae": 1.36445,
+      "winnerAccuracy": 0.56174,
+      "brier": 0.24117,
+      "deltaVsFull": {
+        "marginMae": 0,
+        "totalMae": 0,
+        "winnerAccuracy": 0,
+        "brier": 0
+      }
+    },
+    "no_goalie": {
+      "n": 2624,
+      "marginMae": 2.1513,
+      "totalMae": 1.87348,
+      "homeGoalsMae": 1.40897,
+      "awayGoalsMae": 1.36795,
+      "winnerAccuracy": 0.56593,
+      "brier": 0.24104,
+      "deltaVsFull": {
+        "marginMae": 0.00311,
+        "totalMae": 0.00545,
+        "winnerAccuracy": 0.00419,
+        "brier": -0.00013
+      },
+      "familyHelpsScoreModel": true,
+      "familyHelpsProbability": false
+    },
+    "no_finish_deployment_proxy": {
+      "n": 2624,
+      "marginMae": 2.14823,
+      "totalMae": 1.86606,
+      "homeGoalsMae": 1.40487,
+      "awayGoalsMae": 1.36387,
+      "winnerAccuracy": 0.56745,
+      "brier": 0.24111,
+      "deltaVsFull": {
+        "marginMae": 0.00004,
+        "totalMae": -0.00197,
+        "winnerAccuracy": 0.00571,
+        "brier": -0.00006
+      },
+      "familyHelpsScoreModel": true,
+      "familyHelpsProbability": false
+    },
+    "no_pressure_volume": {
+      "n": 2624,
+      "marginMae": 2.15693,
+      "totalMae": 1.87177,
+      "homeGoalsMae": 1.40833,
+      "awayGoalsMae": 1.36458,
+      "winnerAccuracy": 0.56364,
+      "brier": 0.2414,
+      "deltaVsFull": {
+        "marginMae": 0.00874,
+        "totalMae": 0.00374,
+        "winnerAccuracy": 0.0019,
+        "brier": 0.00023
+      },
+      "familyHelpsScoreModel": true,
+      "familyHelpsProbability": true
+    },
+    "no_schedule_rest": {
+      "n": 2624,
+      "marginMae": 2.1543,
+      "totalMae": 1.87109,
+      "homeGoalsMae": 1.40782,
+      "awayGoalsMae": 1.36811,
+      "winnerAccuracy": 0.55907,
+      "brier": 0.2419,
+      "deltaVsFull": {
+        "marginMae": 0.00611,
+        "totalMae": 0.00306,
+        "winnerAccuracy": -0.00267,
+        "brier": 0.00073
+      },
+      "familyHelpsScoreModel": true,
+      "familyHelpsProbability": true
+    },
+    "no_special_teams": {
+      "n": 2624,
+      "marginMae": 2.14935,
+      "totalMae": 1.86895,
+      "homeGoalsMae": 1.40607,
+      "awayGoalsMae": 1.36448,
+      "winnerAccuracy": 0.56212,
+      "brier": 0.24115,
+      "deltaVsFull": {
+        "marginMae": 0.00116,
+        "totalMae": 0.00092,
+        "winnerAccuracy": 0.00038,
+        "brier": -0.00002
+      },
+      "familyHelpsScoreModel": true,
+      "familyHelpsProbability": false
+    },
+    "no_active_context_families": {
+      "n": 2624,
+      "marginMae": 2.17087,
+      "totalMae": 1.8832,
+      "homeGoalsMae": 1.41516,
+      "awayGoalsMae": 1.37372,
+      "winnerAccuracy": 0.5686,
+      "brier": 0.24207,
+      "deltaVsFull": {
+        "marginMae": 0.02268,
+        "totalMae": 0.01517,
+        "winnerAccuracy": 0.00686,
+        "brier": 0.0009
+      },
+      "familyHelpsScoreModel": true,
+      "familyHelpsProbability": true
+    }
+  },
+  "bySeason": {
+    "20242025": {
+      "full_v2": {
+        "n": 1312,
+        "marginMae": 2.15124,
+        "totalMae": 1.891,
+        "homeGoalsMae": 1.40815,
+        "awayGoalsMae": 1.38076,
+        "winnerAccuracy": 0.58613,
+        "brier": 0.23667,
+        "deltaVsFull": {
+          "marginMae": 0,
+          "totalMae": 0,
+          "winnerAccuracy": 0,
+          "brier": 0
+        }
+      },
+      "no_goalie": {
+        "n": 1312,
+        "marginMae": 2.16163,
+        "totalMae": 1.89931,
+        "homeGoalsMae": 1.40977,
+        "awayGoalsMae": 1.38838,
+        "winnerAccuracy": 0.58155,
+        "brier": 0.23739,
+        "deltaVsFull": {
+          "marginMae": 0.01039,
+          "totalMae": 0.00831,
+          "winnerAccuracy": -0.00458,
+          "brier": 0.00072
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": true
+      },
+      "no_finish_deployment_proxy": {
+        "n": 1312,
+        "marginMae": 2.15094,
+        "totalMae": 1.88885,
+        "homeGoalsMae": 1.4064,
+        "awayGoalsMae": 1.38055,
+        "winnerAccuracy": 0.59299,
+        "brier": 0.23659,
+        "deltaVsFull": {
+          "marginMae": -0.0003,
+          "totalMae": -0.00215,
+          "winnerAccuracy": 0.00686,
+          "brier": -0.00008
+        },
+        "familyHelpsScoreModel": false,
+        "familyHelpsProbability": false
+      },
+      "no_pressure_volume": {
+        "n": 1312,
+        "marginMae": 2.16095,
+        "totalMae": 1.89572,
+        "homeGoalsMae": 1.4104,
+        "awayGoalsMae": 1.38325,
+        "winnerAccuracy": 0.5846,
+        "brier": 0.23704,
+        "deltaVsFull": {
+          "marginMae": 0.00971,
+          "totalMae": 0.00472,
+          "winnerAccuracy": -0.00153,
+          "brier": 0.00037
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": true
+      },
+      "no_schedule_rest": {
+        "n": 1312,
+        "marginMae": 2.15923,
+        "totalMae": 1.8947,
+        "homeGoalsMae": 1.40968,
+        "awayGoalsMae": 1.38416,
+        "winnerAccuracy": 0.59146,
+        "brier": 0.23774,
+        "deltaVsFull": {
+          "marginMae": 0.00799,
+          "totalMae": 0.0037,
+          "winnerAccuracy": 0.00533,
+          "brier": 0.00107
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": true
+      },
+      "no_special_teams": {
+        "n": 1312,
+        "marginMae": 2.15293,
+        "totalMae": 1.89244,
+        "homeGoalsMae": 1.40816,
+        "awayGoalsMae": 1.38152,
+        "winnerAccuracy": 0.58689,
+        "brier": 0.23673,
+        "deltaVsFull": {
+          "marginMae": 0.00169,
+          "totalMae": 0.00144,
+          "winnerAccuracy": 0.00076,
+          "brier": 0.00006
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": true
+      },
+      "no_active_context_families": {
+        "n": 1312,
+        "marginMae": 2.1854,
+        "totalMae": 1.91334,
+        "homeGoalsMae": 1.41567,
+        "awayGoalsMae": 1.39745,
+        "winnerAccuracy": 0.58689,
+        "brier": 0.23903,
+        "deltaVsFull": {
+          "marginMae": 0.03416,
+          "totalMae": 0.02234,
+          "winnerAccuracy": 0.00076,
+          "brier": 0.00236
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": true
+      }
+    },
+    "20252026": {
+      "full_v2": {
+        "n": 1312,
+        "marginMae": 2.14514,
+        "totalMae": 1.84507,
+        "homeGoalsMae": 1.40388,
+        "awayGoalsMae": 1.34814,
+        "winnerAccuracy": 0.53735,
+        "brier": 0.24567,
+        "deltaVsFull": {
+          "marginMae": 0,
+          "totalMae": 0,
+          "winnerAccuracy": 0,
+          "brier": 0
+        }
+      },
+      "no_goalie": {
+        "n": 1312,
+        "marginMae": 2.14096,
+        "totalMae": 1.84764,
+        "homeGoalsMae": 1.40816,
+        "awayGoalsMae": 1.34753,
+        "winnerAccuracy": 0.5503,
+        "brier": 0.24469,
+        "deltaVsFull": {
+          "marginMae": -0.00418,
+          "totalMae": 0.00257,
+          "winnerAccuracy": 0.01295,
+          "brier": -0.00098
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": false
+      },
+      "no_finish_deployment_proxy": {
+        "n": 1312,
+        "marginMae": 2.14552,
+        "totalMae": 1.84326,
+        "homeGoalsMae": 1.40333,
+        "awayGoalsMae": 1.34718,
+        "winnerAccuracy": 0.54192,
+        "brier": 0.24564,
+        "deltaVsFull": {
+          "marginMae": 0.00038,
+          "totalMae": -0.00181,
+          "winnerAccuracy": 0.00457,
+          "brier": -0.00003
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": false
+      },
+      "no_pressure_volume": {
+        "n": 1312,
+        "marginMae": 2.15292,
+        "totalMae": 1.84781,
+        "homeGoalsMae": 1.40627,
+        "awayGoalsMae": 1.3459,
+        "winnerAccuracy": 0.54268,
+        "brier": 0.24576,
+        "deltaVsFull": {
+          "marginMae": 0.00778,
+          "totalMae": 0.00274,
+          "winnerAccuracy": 0.00533,
+          "brier": 0.00009
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": true
+      },
+      "no_schedule_rest": {
+        "n": 1312,
+        "marginMae": 2.14937,
+        "totalMae": 1.84747,
+        "homeGoalsMae": 1.40596,
+        "awayGoalsMae": 1.35206,
+        "winnerAccuracy": 0.52668,
+        "brier": 0.24607,
+        "deltaVsFull": {
+          "marginMae": 0.00423,
+          "totalMae": 0.0024,
+          "winnerAccuracy": -0.01067,
+          "brier": 0.0004
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": true
+      },
+      "no_special_teams": {
+        "n": 1312,
+        "marginMae": 2.14577,
+        "totalMae": 1.84546,
+        "homeGoalsMae": 1.40399,
+        "awayGoalsMae": 1.34745,
+        "winnerAccuracy": 0.53735,
+        "brier": 0.24557,
+        "deltaVsFull": {
+          "marginMae": 0.00063,
+          "totalMae": 0.00039,
+          "winnerAccuracy": 0,
+          "brier": -0.0001
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": false
+      },
+      "no_active_context_families": {
+        "n": 1312,
+        "marginMae": 2.15635,
+        "totalMae": 1.85307,
+        "homeGoalsMae": 1.41466,
+        "awayGoalsMae": 1.34999,
+        "winnerAccuracy": 0.5503,
+        "brier": 0.24511,
+        "deltaVsFull": {
+          "marginMae": 0.01121,
+          "totalMae": 0.008,
+          "winnerAccuracy": 0.01295,
+          "brier": -0.00056
+        },
+        "familyHelpsScoreModel": true,
+        "familyHelpsProbability": false
+      }
+    }
+  },
+  "ranking": [
+    {
+      "family": "pressure_volume",
+      "scoreDamageWhenRemoved": 0.01248,
+      "brierDamageWhenRemoved": 0.00023,
+      "winnerDamageWhenRemoved": -0.0019
+    },
+    {
+      "family": "schedule_rest",
+      "scoreDamageWhenRemoved": 0.00917,
+      "brierDamageWhenRemoved": 0.00073,
+      "winnerDamageWhenRemoved": 0.00267
+    },
+    {
+      "family": "goalie",
+      "scoreDamageWhenRemoved": 0.00856,
+      "brierDamageWhenRemoved": -0.00013,
+      "winnerDamageWhenRemoved": -0.00419
+    },
+    {
+      "family": "special_teams",
+      "scoreDamageWhenRemoved": 0.00208,
+      "brierDamageWhenRemoved": -0.00002,
+      "winnerDamageWhenRemoved": -0.00038
+    },
+    {
+      "family": "finish_deployment_proxy",
+      "scoreDamageWhenRemoved": -0.00193,
+      "brierDamageWhenRemoved": -0.00006,
+      "winnerDamageWhenRemoved": -0.00571
+    }
+  ],
+  "findings": {
+    "scoreModelKeep": [
+      "pressure_volume",
+      "schedule_rest",
+      "goalie",
+      "special_teams"
+    ],
+    "probabilityReview": [
+      "goalie",
+      "special_teams",
+      "finish_deployment_proxy"
+    ],
+    "note": "Ablation measures marginal value of currently active v2 context families. Historical line/linemate/replacement overlays remain a separate challenger because they are not yet embedded in the frozen v2 validation rows."
+  },
+  "governance": {
+    "canPromoteAutomatically": false,
+    "canAuthorizeWager": false,
+    "stakingAuthorized": false,
+    "nextGate": "Build PIT historical deployment/linemate/replacement challenger and compare against full_v2 with the same folds."
+  }
+}
