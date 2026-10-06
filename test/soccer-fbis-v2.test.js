@@ -66,6 +66,21 @@ test("v2 produces normalized independent ensemble probabilities",()=>{
   assert.equal(p.provenance.featurePolicy,"strictly-pre-match");
 });
 
+
+test("v2 resolves exact team names when future provider IDs differ from canonical IDs",()=>{
+  const {t,rows}=sampleHistory();
+  const p=projectSoccerV2({
+    start:"2026-08-01T18:00:00Z",
+    soccerLeague:"eng.1",
+    home:{id:"pitch-alpha",name:t.a.name},
+    away:{id:"pitch-beta",name:t.b.name},
+  },rows);
+  assert.equal(p.ok,true);
+  assert.equal(p.provenance.marketUsed,false);
+  assert.equal(p.canQualify,false);
+  assert.equal(p.canAuthorize,false);
+});
+
 test("v2 activates challenger after sufficient causal history",()=>{
   const t=teams();
   const rows=[];
